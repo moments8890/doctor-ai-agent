@@ -1,0 +1,135 @@
+import logging
+from contextlib import asynccontextmanager
+from dotenv import load_dotenv
+
+load_dotenv()  # must run before any module reads os.environ
+
+from fastapi import FastAPI
+from sqladmin import Admin, ModelView
+from sqladmin.authentication import AuthenticationBackend
+from starlette.requests import Request
+
+from routers.records import router as records_router
+from routers.wechat import router as wechat_router
+from routers.patients import router as patients_router
+from db.init_db import create_tables
+from db.engine import engine
+from db.models import Patient, MedicalRecordDB
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+
+
+# ---------------------------------------------------------------------------
+# Admin views
+# ---------------------------------------------------------------------------
+
+class PatientAdmin(ModelView, model=Patient):
+    name = "Patient"
+    name_plural = "Patients"
+    icon = "fa-solid fa-user"
+    column_list = [
+        Patient.id,
+        Patient.name,
+        Patient.gender,
+        Patient.age,
+        Patient.records,          # shows linked records count + clickable list
+        Patient.doctor_id,
+        Patient.created_at,
+    ]
+    column_searchable_list = [Patient.name, Patient.doctor_id]
+    column_sortable_list = [Patient.id, Patient.name, Patient.created_at]
+    column_default_sort = [(Patient.created_at, True)]
+
+
+class MedicalRecordAdmin(ModelView, model=MedicalRecordDB):
+    name = "Medical Record"
+    name_plural = "Medical Records"
+    icon = "fa-solid fa-file-medical"
+    column_list = [
+        MedicalRecordDB.id,
+        MedicalRecordDB.patient,  # shows patient name as a link instead of raw id
+        MedicalRecordDB.chief_complaint,
+        MedicalRecordDB.diagnosis,
+        MedicalRecordDB.treatment_plan,
+        MedicalRecordDB.doctor_id,
+        MedicalRecordDB.created_at,
+    ]
+    column_details_list = [
+        MedicalRecordDB.id,
+        MedicalRecordDB.patient,
+        MedicalRecordDB.chief_complaint,
+        MedicalRecordDB.history_of_present_illness,
+        MedicalRecordDB.past_medical_history,
+        MedicalRecordDB.physical_examination,
+        MedicalRecordDB.auxiliary_examinations,
+        MedicalRecordDB.diagnosis,
+        MedicalRecordDB.treatment_plan,
+        MedicalRecordDB.follow_up_plan,
+        MedicalRecordDB.doctor_id,
+        MedicalRecordDB.created_at,
+    ]
+    column_searchable_list = [MedicalRecordDB.chief_complaint, MedicalRecordDB.diagnosis]
+    column_sortable_list = [MedicalRecordDB.id, MedicalRecordDB.created_at]
+    column_default_sort = [(MedicalRecordDB.created_at, True)]
+
+
+# ---------------------------------------------------------------------------
+# App
+# ---------------------------------------------------------------------------
+
+async def _warmup():
+    import os
+    # Warm up jieba (builds prefix dict on first import)
+    import jieba
+    jieba.initialize()
+    log = logging.getLogger("warmup")
+    log.info("jieba initialised")
+
+    # Warm up Ollama — ping the model so it's loaded into memory
+    if os.environ.get("LLM_PROVIDER") == "ollama":
+        try:
+            from openai import AsyncOpenAI
+            client = AsyncOpenAI(
+                base_url="http://localhost:11434/v1",
+                api_key=os.environ.get("OLLAMA_API_KEY", "ollama"),
+            )
+            model = os.environ.get("OLLAMA_MODEL", "qwen2.5:7b")
+            await client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": "hi"}],
+                max_tokens=1,
+            )
+            log.info(f"Ollama model '{model}' warmed up")
+        except Exception as e:
+            log.warning(f"Ollama warmup failed (is ollama running?): {e}")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await create_tables()
+    await _warmup()
+    yield
+
+
+app = FastAPI(
+    title="专科医师AI智能体",
+    description="Phase 2 MVP — 患者管理 + 语音/文字录入 → 结构化病历生成",
+    version="0.2.0",
+    lifespan=lifespan,
+)
+
+admin = Admin(app, engine, title="DB Admin")
+admin.add_view(PatientAdmin)
+admin.add_view(MedicalRecordAdmin)
+
+app.include_router(records_router)
+app.include_router(wechat_router)
+app.include_router(patients_router)
+
+
+@app.get("/")
+def root():
+    return {"message": "专科医师AI智能体 API", "version": "0.2.0"}

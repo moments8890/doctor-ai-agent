@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(brew install:*)",
+      "Bash(pdftoppm:*)",
+      "Bash(pdftotext:*)",
+      "Skill(claude-developer-platform)",
+      "Bash(python3:*)",
+      "Bash(curl:*)",
+      "Bash(.venv/bin/pip install:*)",
+      "WebFetch(domain:developers.weixin.qq.com)",
+      "Bash(.venv/bin/python3:*)",
+      "Bash(.venv/bin/python:*)",
+      "Bash(.venv/bin/pip show:*)",
+      "Bash(.venv/bin/pytest:*)",
+      "Bash(chmod +x:*)",
+      "Bash(sqlite3:*)",
+      "Bash(gh auth:*)",
+      "Bash(git:*)",
+      "Bash(/Users/jingwuxu/Documents/code/ai-agent/app/.gitignore:*)"
+    ]
+  }
+}

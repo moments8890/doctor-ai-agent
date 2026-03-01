@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+openai
+python-multipart
+python-dotenv
+wechatpy
+cryptography
+httpx
+sqlalchemy[asyncio]
+aiosqlite
+greenlet
+jieba
+datasette
+sqladmin
