@@ -10,6 +10,9 @@ from wechatpy.exceptions import InvalidSignatureException
 from wechatpy.replies import TextReply
 import httpx
 from services.structuring import structure_medical_record
+from services.transcription import transcribe_audio
+from services.voice import download_and_convert
+from services.interview import InterviewState, STEPS
 from services.intent import detect_intent, Intent
 from services.wechat_menu import create_menu
 from services.session import get_session, set_current_patient, set_pending_create, clear_pending_create
@@ -255,9 +258,57 @@ async def _handle_all_patients(doctor_id: str) -> str:
     return "\n".join(lines)
 
 
+async def _start_interview(doctor_id: str) -> str:
+    sess = get_session(doctor_id)
+    sess.interview = InterviewState()
+    first_q = STEPS[0][1]
+    return f"🩺 开始问诊（发送「取消」随时结束）\n\n[1/{len(STEPS)}] {first_q}"
+
+
+async def _handle_interview_step(text: str, doctor_id: str) -> str:
+    if text.strip() in ("取消", "退出", "结束", "cancel"):
+        get_session(doctor_id).interview = None
+        return "已结束本次问诊。"
+
+    sess = get_session(doctor_id)
+    iv = sess.interview
+    iv.record_answer(text)
+
+    if iv.active:
+        return f"{iv.progress} {iv.current_question}"
+
+    # All steps done — compile and save
+    compiled = iv.compile_text()
+    patient_name = iv.patient_name
+    sess.interview = None
+    log(f"[Interview] complete, compiled: {compiled}")
+
+    try:
+        record = await structure_medical_record(compiled)
+    except Exception as e:
+        log(f"[Interview] structuring FAILED: {e}")
+        return "❌ 病历生成失败，请重新问诊。"
+
+    async with AsyncSessionLocal() as session:
+        patient = None
+        if patient_name:
+            patient = await find_patient_by_name(session, doctor_id, patient_name)
+            if not patient:
+                patient = await create_patient(session, doctor_id, patient_name, None, None)
+            set_current_patient(doctor_id, patient.id, patient.name)
+        await save_record(session, doctor_id, record, patient.id if patient else None)
+
+    reply = "✅ 问诊完成！病历已保存。\n\n" + _format_record(record)
+    if patient_name:
+        reply = f"📌 患者：{patient_name}\n\n" + reply
+    return reply
+
+
 async def _handle_menu_event(event_key: str, doctor_id: str) -> str:
     if event_key == "DOCTOR_ALL_PATIENTS":
         return await _handle_all_patients(doctor_id)
+    if event_key == "DOCTOR_INTERVIEW":
+        return await _start_interview(doctor_id)
     return _MENU_EVENT_REPLIES.get(event_key, "请通过菜单或文字与我们互动。")
 
 
@@ -365,6 +416,35 @@ async def _handle_intent_bg(text: str, doctor_id: str):
     await _send_customer_service_msg(doctor_id, result)
 
 
+async def _handle_voice_bg(media_id: str, doctor_id: str):
+    """Download, convert, transcribe WeChat voice, then route through normal pipeline."""
+    cfg = _get_config()
+    try:
+        access_token = await _get_access_token(cfg["app_id"], cfg["app_secret"])
+        wav = await download_and_convert(media_id, access_token)
+        text = await transcribe_audio(wav, "voice.wav")
+        log(f"[Voice] transcribed for {doctor_id}: {text!r}")
+    except Exception as e:
+        log(f"[Voice] transcription FAILED: {e}")
+        await _send_customer_service_msg(doctor_id, f"❌ 语音识别失败：{e}")
+        return
+
+    # Route transcribed text through the same pipeline as typed text
+    sess = get_session(doctor_id)
+    try:
+        if sess.pending_create_name:
+            result = await _handle_pending_create(text, doctor_id)
+        elif sess.interview is not None:
+            result = await _handle_interview_step(text, doctor_id)
+        else:
+            result = await _handle_intent(text, doctor_id)
+    except Exception as e:
+        log(f"[Voice] routing FAILED: {e}")
+        result = "处理失败，请稍后重试。"
+
+    await _send_customer_service_msg(doctor_id, f'🎙️ 「{text}」\n\n{result}')
+
+
 @router.post("")
 async def handle_message(request: Request):
     cfg = _get_config()
@@ -402,15 +482,33 @@ async def handle_message(request: Request):
         reply = TextReply(content=reply_text, message=msg)
         return Response(content=reply.render(), media_type="application/xml")
 
-    if msg.type != "text" or not msg.content.strip():
-        reply = TextReply(content="请发送文字病历记录，我将自动生成结构化病历。", message=msg)
+    # Voice message: ACK immediately, process in background
+    if msg.type == "voice":
+        asyncio.create_task(_handle_voice_bg(msg.media_id, msg.source))
+        sess = get_session(msg.source)
+        if sess.interview is not None:
+            ack = f"🎙️ 收到语音，正在识别…\n{sess.interview.progress} {sess.interview.current_question}"
+        else:
+            ack = "🎙️ 收到语音，正在识别，稍候回复您…"
+        reply = TextReply(content=ack, message=msg)
         return Response(content=reply.render(), media_type="application/xml")
 
-    # Pending create flow: doctor was asked for gender/age of a new patient.
+    if msg.type != "text" or not msg.content.strip():
+        reply = TextReply(content="请发送文字或语音消息。", message=msg)
+        return Response(content=reply.render(), media_type="application/xml")
+
+    # Stateful flows take priority over intent detection
     sess = get_session(msg.source)
+
     if sess.pending_create_name:
         reply_text = await _handle_pending_create(msg.content, msg.source)
         log(f"[WeChat msg] pending_create reply: {reply_text[:80]}")
+        reply = TextReply(content=reply_text, message=msg)
+        return Response(content=reply.render(), media_type="application/xml")
+
+    if sess.interview is not None:
+        reply_text = await _handle_interview_step(msg.content, msg.source)
+        log(f"[WeChat msg] interview step reply: {reply_text[:80]}")
         reply = TextReply(content=reply_text, message=msg)
         return Response(content=reply.render(), media_type="application/xml")
 

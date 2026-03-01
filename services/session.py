@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
+from services.interview import InterviewState
 
 _sessions: dict[str, "DoctorSession"] = {}
 
@@ -9,6 +10,7 @@ class DoctorSession:
     current_patient_id: int | None = None
     current_patient_name: str | None = None
     pending_create_name: str | None = None   # waiting for gender/age to create a new patient
+    interview: InterviewState | None = None  # active guided intake interview
     updated_at: datetime = field(default_factory=datetime.utcnow)
 
 

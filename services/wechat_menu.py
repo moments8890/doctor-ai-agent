@@ -16,9 +16,9 @@ MENU = {
         {
             "name": "医生",
             "sub_button": [
+                {"type": "click", "name": "开始问诊", "key": "DOCTOR_INTERVIEW"},
                 {"type": "click", "name": "所有病人", "key": "DOCTOR_ALL_PATIENTS"},
                 {"type": "click", "name": "新建患者", "key": "DOCTOR_NEW_PATIENT"},
-                {"type": "click", "name": "录入病历", "key": "DOCTOR_ADD_RECORD"},
                 {"type": "click", "name": "查询病历", "key": "DOCTOR_QUERY"},
             ],
         },
