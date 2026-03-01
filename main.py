@@ -11,7 +11,6 @@ from starlette.requests import Request
 
 from routers.records import router as records_router
 from routers.wechat import router as wechat_router
-from routers.patients import router as patients_router
 from db.init_db import create_tables
 from db.engine import engine
 from db.models import Patient, MedicalRecordDB
@@ -127,7 +126,6 @@ admin.add_view(MedicalRecordAdmin)
 
 app.include_router(records_router)
 app.include_router(wechat_router)
-app.include_router(patients_router)
 
 
 @app.get("/")

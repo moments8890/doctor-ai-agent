@@ -6,14 +6,6 @@ MENU_CREATE_URL = "https://api.weixin.qq.com/cgi-bin/menu/create"
 MENU = {
     "button": [
         {
-            "name": "患者",
-            "sub_button": [
-                {"type": "click", "name": "我的病历", "key": "PATIENT_RECORDS"},
-                {"type": "click", "name": "咨询医生", "key": "PATIENT_CONSULT"},
-                {"type": "click", "name": "使用说明", "key": "PATIENT_HELP"},
-            ],
-        },
-        {
             "name": "医生",
             "sub_button": [
                 {"type": "click", "name": "开始问诊", "key": "DOCTOR_INTERVIEW"},

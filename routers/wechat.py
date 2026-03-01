@@ -229,16 +229,6 @@ async def _handle_query_records(doctor_id: str, intent_result) -> str:
 
 
 _MENU_EVENT_REPLIES = {
-    # 患者 menu
-    "PATIENT_RECORDS": "📋 请发送您的姓名，我将为您查询病历记录。",
-    "PATIENT_CONSULT": "👨‍⚕️ 请直接发送您的问题，医生助手将为您解答。",
-    "PATIENT_HELP": (
-        "📖 使用说明：\n"
-        "• 患者：点击「患者」菜单查看病历或咨询医生\n"
-        "• 医生：点击「医生」菜单新建患者、录入或查询病历\n"
-        "• 也可直接发送文字，AI 将自动识别意图并处理"
-    ),
-    # 医生 menu
     "DOCTOR_NEW_PATIENT": "🆕 请发送患者信息，例如：帮我建个新患者，张三，30岁男性。",
     "DOCTOR_ADD_RECORD": "📝 请发送病历描述，AI 将自动生成结构化病历并保存。",
     "DOCTOR_QUERY": "🔍 请发送患者姓名，例如：查询张三的病历。",
