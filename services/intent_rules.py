@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Rule-based intent detection using jieba POS tagging + regex.
 
 No LLM call — runs in < 5 ms with zero network dependency.

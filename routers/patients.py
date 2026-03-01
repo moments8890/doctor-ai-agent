@@ -1,3 +1,4 @@
+from __future__ import annotations
 from fastapi import APIRouter
 from db.engine import AsyncSessionLocal
 from db.models import Patient, MedicalRecordDB

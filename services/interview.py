@@ -1,4 +1,5 @@
 """Guided medical intake interview state machine."""
+from __future__ import annotations
 from dataclasses import dataclass, field
 
 STEPS: list[tuple[str, str]] = [

@@ -17,7 +17,9 @@
       "Bash(sqlite3:*)",
       "Bash(gh auth:*)",
       "Bash(git:*)",
-      "Bash(/Users/jingwuxu/Documents/code/ai-agent/app/.gitignore:*)"
+      "Bash(/Users/jingwuxu/Documents/code/ai-agent/app/.gitignore:*)",
+      "Bash(brew services:*)",
+      "Bash(pkill:*)"
     ]
   }
 }
