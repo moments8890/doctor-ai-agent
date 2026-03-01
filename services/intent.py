@@ -3,7 +3,7 @@ import os
 from enum import Enum
 from typing import Optional
 from openai import AsyncOpenAI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from utils.log import log
 
 _PROVIDERS = {
@@ -43,6 +43,7 @@ class Intent(str, Enum):
     create_patient = "create_patient"
     add_record = "add_record"
     query_records = "query_records"
+    list_patients = "list_patients"
     unknown = "unknown"
 
 
@@ -51,6 +52,8 @@ class IntentResult(BaseModel):
     patient_name: Optional[str] = None
     gender: Optional[str] = None
     age: Optional[int] = None
+    is_emergency: bool = False
+    extra_data: dict = Field(default_factory=dict)
 
 
 async def detect_intent(text: str) -> IntentResult:

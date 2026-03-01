@@ -67,6 +67,18 @@ async def get_records_for_patient(
     return list(result.scalars().all())
 
 
+async def get_all_patients(
+    session: AsyncSession,
+    doctor_id: str,
+) -> list[Patient]:
+    result = await session.execute(
+        select(Patient)
+        .where(Patient.doctor_id == doctor_id)
+        .order_by(Patient.created_at.desc())
+    )
+    return list(result.scalars().all())
+
+
 async def get_all_records_for_doctor(
     session: AsyncSession,
     doctor_id: str,

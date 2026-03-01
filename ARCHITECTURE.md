@@ -149,6 +149,21 @@ Switch via `.env`: `LLM_PROVIDER=ollama`
 
 Model is warmed up at startup to avoid cold-start timeout on first request.
 
+**Compliance**: the system prompt in `services/structuring.py` follows
+《病历书写基本规范》（卫医政发〔2010〕11号）, mapping each JSON field to
+the official definition for 门诊初诊记录:
+
+| JSON field | 规范字段 | 书写要求摘要 |
+|---|---|---|
+| `chief_complaint` | 主诉 | 主要症状/体征 + 持续时间，≤20字 |
+| `history_of_present_illness` | 现病史 | 发病经过、性质、演变、已诊疗情况 |
+| `diagnosis` | 诊断 | 优先 ICD 名称；不明确时写"待查：XX 待排" |
+| `treatment_plan` | 治疗方案 | 药名/剂量/用法；非药物医嘱 |
+| `past_medical_history` | 既往史 | 重大病史、手术、过敏史 |
+| `physical_examination` | 体格检查 | T/P/R/BP + 阳性体征 |
+| `auxiliary_examinations` | 辅助检查 | 已有化验/影像/心电图结果 |
+| `follow_up_plan` | 随访计划 | 复诊时间、随访内容、患者教育 |
+
 ### Database (`patients.db`)
 
 ```

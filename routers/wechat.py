@@ -1,5 +1,6 @@
 import asyncio
 import os
+import re
 import time
 from fastapi import APIRouter, Request, Response
 from wechatpy import parse_message
@@ -11,9 +12,9 @@ import httpx
 from services.structuring import structure_medical_record
 from services.intent import detect_intent, Intent
 from services.wechat_menu import create_menu
-from services.session import get_session, set_current_patient
+from services.session import get_session, set_current_patient, set_pending_create, clear_pending_create
 from db.engine import AsyncSessionLocal
-from db.crud import create_patient, find_patient_by_name, save_record, get_records_for_patient, get_all_records_for_doctor
+from db.crud import create_patient, find_patient_by_name, save_record, get_records_for_patient, get_all_records_for_doctor, get_all_patients
 from utils.log import log
 
 router = APIRouter(prefix="/wechat", tags=["wechat"])
@@ -42,8 +43,10 @@ def _format_record(record) -> str:
         lines.append(f"【体格检查】\n{record.physical_examination}\n")
     if record.auxiliary_examinations:
         lines.append(f"【辅助检查】\n{record.auxiliary_examinations}\n")
-    lines.append(f"【诊断】\n{record.diagnosis}\n")
-    lines.append(f"【治疗方案】\n{record.treatment_plan}\n")
+    if record.diagnosis:
+        lines.append(f"【诊断】\n{record.diagnosis}\n")
+    if record.treatment_plan:
+        lines.append(f"【治疗方案】\n{record.treatment_plan}\n")
     if record.follow_up_plan:
         lines.append(f"【随访计划】\n{record.follow_up_plan}")
     return "\n".join(lines)
@@ -127,9 +130,10 @@ async def _handle_create_patient(doctor_id: str, intent_result) -> str:
 
 
 async def _handle_add_record(text: str, doctor_id: str, intent_result) -> str:
-    # Resolve patient: by name in message > current session
+    # Resolve patient: by name in message > auto-create if new > current session
     patient_id = None
     patient_name = None
+    patient_created = False
     async with AsyncSessionLocal() as session:
         if intent_result.patient_name:
             patient = await find_patient_by_name(session, doctor_id, intent_result.patient_name)
@@ -137,6 +141,18 @@ async def _handle_add_record(text: str, doctor_id: str, intent_result) -> str:
                 patient_id = patient.id
                 patient_name = patient.name
                 set_current_patient(doctor_id, patient.id, patient.name)
+            else:
+                # Name mentioned but not on file — auto-create so the record is linked
+                patient = await create_patient(
+                    session, doctor_id, intent_result.patient_name,
+                    intent_result.gender, intent_result.age,
+                )
+                patient_id = patient.id
+                patient_name = patient.name
+                patient_created = True
+                set_current_patient(doctor_id, patient.id, patient.name)
+                log(f"[WeChat] auto-created patient [{patient_name}] id={patient_id}")
+
         if patient_id is None:
             sess = get_session(doctor_id)
             patient_id = sess.current_patient_id
@@ -153,8 +169,15 @@ async def _handle_add_record(text: str, doctor_id: str, intent_result) -> str:
         await save_record(session, doctor_id, record, patient_id)
 
     reply = _format_record(record)
+    if intent_result.extra_data:
+        log(f"[WeChat] cv_metrics={intent_result.extra_data}")
     if patient_name:
-        reply = f"📌 已关联患者【{patient_name}】\n\n" + reply
+        if patient_created:
+            reply = f"✅ 已为【{patient_name}】新建档并保存病历\n\n" + reply
+        else:
+            reply = f"📌 已关联患者【{patient_name}】\n\n" + reply
+    if intent_result.is_emergency:
+        reply = "🚨 【紧急记录已保存】\n\n" + reply
     return reply
 
 
@@ -219,8 +242,75 @@ _MENU_EVENT_REPLIES = {
 }
 
 
-async def _handle_menu_event(event_key: str) -> str:
+async def _handle_all_patients(doctor_id: str) -> str:
+    async with AsyncSessionLocal() as session:
+        patients = await get_all_patients(session, doctor_id)
+    if not patients:
+        return "📂 暂无患者记录。发送「新患者姓名，年龄性别」可创建第一位患者。"
+    lines = [f"👥 共 {len(patients)} 位患者：\n"]
+    for i, p in enumerate(patients, 1):
+        info = "、".join(filter(None, [p.gender, f"{p.age}岁" if p.age else None]))
+        lines.append(f"{i}. {p.name}" + (f"（{info}）" if info else ""))
+    lines.append("\n发送「查询[姓名]」查看病历")
+    return "\n".join(lines)
+
+
+async def _handle_menu_event(event_key: str, doctor_id: str) -> str:
+    if event_key == "DOCTOR_ALL_PATIENTS":
+        return await _handle_all_patients(doctor_id)
     return _MENU_EVENT_REPLIES.get(event_key, "请通过菜单或文字与我们互动。")
+
+
+_NAME_ONLY = re.compile(r'^[\u4e00-\u9fff]{2,4}$')
+
+
+async def _handle_name_lookup(name: str, doctor_id: str) -> str:
+    """Look up patient by name. If found, show records. If not, enter pending-create flow."""
+    async with AsyncSessionLocal() as session:
+        patient = await find_patient_by_name(session, doctor_id, name)
+    if patient:
+        set_current_patient(doctor_id, patient.id, patient.name)
+        log(f"[WeChat] name lookup hit: {name} → patient_id={patient.id}")
+        from services.intent import IntentResult
+        fake = IntentResult(intent=Intent.query_records, patient_name=name)
+        return await _handle_query_records(doctor_id, fake)
+    else:
+        set_pending_create(doctor_id, name)
+        log(f"[WeChat] name lookup miss: {name} → pending create")
+        return (
+            f"未找到患者【{name}】。\n\n"
+            "请回复性别和年龄以建立新档案，例如：男，30岁\n"
+            "或发送「取消」放弃"
+        )
+
+
+async def _handle_pending_create(text: str, doctor_id: str) -> str:
+    """Handle the reply to the 'please provide gender/age' prompt."""
+    sess = get_session(doctor_id)
+    name = sess.pending_create_name
+
+    if text.strip() in ("取消", "cancel", "Cancel", "退出", "不要"):
+        clear_pending_create(doctor_id)
+        return f"已取消，未创建患者【{name}】。"
+
+    gender = None
+    if re.search(r'男', text):
+        gender = "男"
+    elif re.search(r'女', text):
+        gender = "女"
+
+    age = None
+    m = re.search(r'(\d+)\s*岁', text)
+    if m:
+        age = int(m.group(1))
+
+    async with AsyncSessionLocal() as session:
+        patient = await create_patient(session, doctor_id, name, gender, age)
+        set_current_patient(doctor_id, patient.id, patient.name)
+
+    clear_pending_create(doctor_id)
+    parts = "、".join(filter(None, [gender, f"{age}岁" if age else None]))
+    return f"✅ 已为患者【{name}】建档" + (f"（{parts}）" if parts else "") + "。\n后续病历将自动关联该患者。"
 
 
 async def _handle_intent(text: str, doctor_id: str) -> str:
@@ -238,12 +328,17 @@ async def _handle_intent(text: str, doctor_id: str) -> str:
         return await _handle_add_record(text, doctor_id, intent_result)
     elif intent_result.intent == Intent.query_records:
         return await _handle_query_records(doctor_id, intent_result)
+    elif intent_result.intent == Intent.list_patients:
+        return await _handle_all_patients(doctor_id)
+    elif intent_result.intent == Intent.unknown and _NAME_ONLY.match(text.strip()):
+        return await _handle_name_lookup(text.strip(), doctor_id)
     else:
         return (
             "您好！我是医生助手，请发送以下内容：\n\n"
             "📋 病历记录 — 直接描述症状、诊断和治疗\n"
             "👤 新建患者 — 例如：新患者李明，45岁男性\n"
-            "🔍 查询病历 — 例如：查一下李明的记录"
+            "🔍 查询病历 — 例如：查一下李明的记录\n"
+            "👥 所有病人 — 查看患者列表"
         )
 
 
@@ -258,6 +353,16 @@ def verify(timestamp: str, nonce: str, signature: str, echostr: str):
     except InvalidSignatureException as e:
         log(f"[WeChat verify] FAILED: {e}")
         return Response(content="Invalid signature", status_code=403)
+
+
+async def _handle_intent_bg(text: str, doctor_id: str):
+    """Process intent in background and deliver result via customer service API."""
+    try:
+        result = await _handle_intent(text, doctor_id)
+    except Exception as e:
+        log(f"[WeChat bg] FAILED: {e}")
+        result = "处理失败，请稍后重试。"
+    await _send_customer_service_msg(doctor_id, result)
 
 
 @router.post("")
@@ -292,8 +397,8 @@ async def handle_message(request: Request):
         return Response(content="", media_type="application/xml")
 
     if msg.type == "event" and msg.event.upper() == "CLICK":
-        reply_text = await _handle_menu_event(msg.event_key)
-        log(f"[WeChat msg] menu click key={msg.event_key!r} reply={reply_text[:60]}")
+        reply_text = await _handle_menu_event(msg.key, msg.source)
+        log(f"[WeChat msg] menu click key={msg.key!r} reply={reply_text[:60]}")
         reply = TextReply(content=reply_text, message=msg)
         return Response(content=reply.render(), media_type="application/xml")
 
@@ -301,6 +406,29 @@ async def handle_message(request: Request):
         reply = TextReply(content="请发送文字病历记录，我将自动生成结构化病历。", message=msg)
         return Response(content=reply.render(), media_type="application/xml")
 
+    # Pending create flow: doctor was asked for gender/age of a new patient.
+    sess = get_session(msg.source)
+    if sess.pending_create_name:
+        reply_text = await _handle_pending_create(msg.content, msg.source)
+        log(f"[WeChat msg] pending_create reply: {reply_text[:80]}")
+        reply = TextReply(content=reply_text, message=msg)
+        return Response(content=reply.render(), media_type="application/xml")
+
+    # Peek at intent using fast rule-based detection (< 5 ms, no network).
+    # add_record triggers an Ollama LLM call that can exceed WeChat's 5 s limit,
+    # so we ACK immediately and deliver the result via the customer service API.
+    from services.intent_rules import detect_intent_rules
+    peek = detect_intent_rules(msg.content)
+    log(f"[WeChat msg] peek intent={peek.intent}")
+
+    if peek.intent == Intent.add_record:
+        asyncio.create_task(_handle_intent_bg(msg.content, msg.source))
+        ack = "⏳ 正在生成结构化病历，稍候将发送给您…"
+        log(f"[WeChat msg] add_record → background task created for {msg.source}")
+        reply = TextReply(content=ack, message=msg)
+        return Response(content=reply.render(), media_type="application/xml")
+
+    # All other intents (create_patient, query_records, unknown) are fast.
     try:
         reply_text = await asyncio.wait_for(_handle_intent(msg.content, msg.source), timeout=4.5)
     except asyncio.TimeoutError:

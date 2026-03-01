@@ -141,6 +141,30 @@ async def test_add_record_links_patient_from_message_name(wechat, session_factor
     assert "张三" in reply
 
 
+async def test_add_record_auto_creates_patient_when_not_in_db(wechat, session_factory):
+    """When a name is mentioned but patient doesn't exist, auto-create and link."""
+    from models.medical_record import MedicalRecord
+    fake_record = MedicalRecord(
+        chief_complaint="头疼",
+        history_of_present_illness="最近头疼很久",
+        diagnosis=None,
+        treatment_plan="多喝热水",
+    )
+    with patch("routers.wechat.AsyncSessionLocal", session_factory), \
+         patch("routers.wechat.structure_medical_record", new=AsyncMock(return_value=fake_record)):
+        reply = await wechat._handle_add_record(
+            "王芳，最近头疼很久，需要多喝热水", DOCTOR, _intent(Intent.add_record, name="王芳")
+        )
+
+    assert "王芳" in reply
+    assert "新建档" in reply or "✅" in reply
+    # Patient should now exist in DB
+    async with session_factory() as s:
+        from db.crud import find_patient_by_name
+        patient = await find_patient_by_name(s, DOCTOR, "王芳")
+    assert patient is not None
+
+
 async def test_add_record_works_without_patient(wechat, session_factory):
     """Records with no patient context are still saved (patient_id=None)."""
     from models.medical_record import MedicalRecord
@@ -251,3 +275,144 @@ async def test_query_records_empty_history(wechat, session_factory):
         )
 
     assert "暂无" in reply
+
+
+# ---------------------------------------------------------------------------
+# Emergency flag
+# ---------------------------------------------------------------------------
+
+
+async def test_add_record_emergency_reply_has_prefix(wechat, session_factory):
+    from models.medical_record import MedicalRecord
+    from services.intent import IntentResult
+
+    fake_record = MedicalRecord(
+        chief_complaint="室颤",
+        history_of_present_illness="突发室颤",
+        diagnosis="室颤",
+        treatment_plan="立即除颤",
+    )
+    emergency_intent = IntentResult(
+        intent=Intent.add_record,
+        patient_name=None,
+        is_emergency=True,
+    )
+    with patch("routers.wechat.AsyncSessionLocal", session_factory), \
+         patch("routers.wechat.structure_medical_record", new=AsyncMock(return_value=fake_record)):
+        reply = await wechat._handle_add_record("3床室颤，立即除颤", DOCTOR, emergency_intent)
+
+    assert "🚨" in reply
+    assert "紧急" in reply
+
+
+# ---------------------------------------------------------------------------
+# list_patients intent
+# ---------------------------------------------------------------------------
+
+
+async def test_handle_intent_routes_list_patients(wechat, session_factory):
+    from services.intent import IntentResult
+
+    with patch("routers.wechat.detect_intent", new=AsyncMock(
+        return_value=IntentResult(intent=Intent.list_patients)
+    )), patch("routers.wechat.AsyncSessionLocal", session_factory):
+        reply = await wechat._handle_intent("所有患者", DOCTOR)
+
+    # Empty DB → helpful prompt
+    assert "患者" in reply
+
+
+async def test_handle_all_patients_empty(wechat, session_factory):
+    with patch("routers.wechat.AsyncSessionLocal", session_factory):
+        reply = await wechat._handle_all_patients(DOCTOR)
+    assert "暂无" in reply
+    assert "新患者" in reply or "创建" in reply or "发送" in reply
+
+
+async def test_handle_all_patients_shows_numbered_list(wechat, session_factory):
+    from db.crud import create_patient
+    async with session_factory() as s:
+        await create_patient(s, DOCTOR, "李明", "男", 45)
+        await create_patient(s, DOCTOR, "王芳", "女", 30)
+
+    with patch("routers.wechat.AsyncSessionLocal", session_factory):
+        reply = await wechat._handle_all_patients(DOCTOR)
+
+    assert "李明" in reply
+    assert "王芳" in reply
+    assert "2" in reply  # total count or numbering
+
+
+# ---------------------------------------------------------------------------
+# _format_record edge cases
+# ---------------------------------------------------------------------------
+
+
+def test_format_record_all_fields(wechat):
+    from models.medical_record import MedicalRecord
+    rec = MedicalRecord(
+        chief_complaint="胸痛",
+        history_of_present_illness="持续两小时",
+        past_medical_history="高血压病史",
+        physical_examination="血压160/100",
+        auxiliary_examinations="心电图ST段抬高",
+        diagnosis="急性心肌梗死",
+        treatment_plan="阿司匹林＋溶栓",
+        follow_up_plan="一周后复查",
+    )
+    text = wechat._format_record(rec)
+    for section in ["主诉", "现病史", "既往史", "体格检查", "辅助检查", "诊断", "治疗方案", "随访计划"]:
+        assert section in text, f"Missing section: {section}"
+
+
+def test_format_record_optional_fields_absent(wechat):
+    from models.medical_record import MedicalRecord
+    rec = MedicalRecord(
+        chief_complaint="头疼",
+        history_of_present_illness="最近头疼很久",
+        diagnosis=None,
+        treatment_plan=None,
+    )
+    text = wechat._format_record(rec)
+    assert "主诉" in text
+    assert "现病史" in text
+    assert "诊断" not in text
+    assert "治疗方案" not in text
+
+
+def test_format_record_minimal(wechat):
+    """Only chief_complaint — should not crash."""
+    from models.medical_record import MedicalRecord
+    rec = MedicalRecord(chief_complaint="发烧")
+    text = wechat._format_record(rec)
+    assert "主诉" in text
+    assert "发烧" in text
+
+
+# ---------------------------------------------------------------------------
+# _split_message
+# ---------------------------------------------------------------------------
+
+
+def test_split_message_short_returns_single_chunk(wechat):
+    chunks = wechat._split_message("短消息")
+    assert chunks == ["短消息"]
+
+
+def test_split_message_long_splits_at_section_header(wechat):
+    # Build a message just over the limit that has a 【 marker inside
+    body = "A" * 400
+    section = "【诊断】\n急性心肌梗死"
+    text = body + section + "B" * 300
+    chunks = wechat._split_message(text, limit=600)
+    assert len(chunks) > 1
+    # The second chunk should start at the 【 boundary
+    assert chunks[1].startswith("【")
+
+
+def test_split_message_no_header_splits_at_limit(wechat):
+    text = "X" * 1300
+    chunks = wechat._split_message(text, limit=600)
+    assert len(chunks) >= 2
+    for chunk in chunks:
+        assert len(chunk) <= 600
