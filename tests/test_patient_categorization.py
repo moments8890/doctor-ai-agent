@@ -5,17 +5,21 @@ from SimpleNamespace mocks.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from typing import List, Optional
 
 import pytest
+from unittest.mock import AsyncMock
 
 from services.patient_categorization import (
     CategoryResult,
     HIGH_RISK_KEYWORDS,
     RULES_VERSION,
+    _days_ago,
     categorize_patient,
+    recompute_all_categories,
+    recompute_patient_category,
 )
 
 
@@ -211,3 +215,124 @@ def test_precedence_high_risk_beats_new():
     r = _record(2, diagnosis="恶性肿瘤")
     result = _cat(p, [r])
     assert result.primary_category == "high_risk"
+
+
+def test_days_ago_supports_timezone_aware_datetimes():
+    aware_now = datetime(2026, 3, 2, 12, 0, 0, tzinfo=timezone.utc)
+    aware_dt = datetime(2026, 3, 1, 12, 0, 0, tzinfo=timezone.utc)
+    assert _days_ago(aware_dt, aware_now) == pytest.approx(1.0)
+
+
+def test_no_records_old_patient_gets_no_recent_visit_tag():
+    p = _patient(120)
+    result = _cat(p, [])
+    assert "no_recent_visit" in result.category_tags
+
+
+async def test_recompute_patient_category_noop_when_patient_missing():
+    session = SimpleNamespace(execute=AsyncMock(), commit=AsyncMock())
+    session.execute.return_value = SimpleNamespace(scalar_one_or_none=lambda: None)
+    await recompute_patient_category(patient_id=999999, session=session)
+    session.commit.assert_not_awaited()
+
+
+async def test_recompute_patient_category_persists_fields():
+    patient = SimpleNamespace(
+        id=1,
+        doctor_id="doc1",
+        created_at=_NOW - timedelta(days=120),
+        primary_category=None,
+        category_tags=None,
+        category_computed_at=None,
+        category_rules_version=None,
+    )
+    record = SimpleNamespace(
+        patient_id=1,
+        doctor_id="doc1",
+        diagnosis="急性心衰",
+        follow_up_plan="两周复诊",
+        created_at=_NOW - timedelta(days=2),
+    )
+    session = SimpleNamespace(execute=AsyncMock(), commit=AsyncMock())
+    session.execute.side_effect = [
+        SimpleNamespace(scalar_one_or_none=lambda: patient),
+        SimpleNamespace(
+            scalars=lambda: SimpleNamespace(all=lambda: [record])
+        ),
+    ]
+
+    await recompute_patient_category(patient_id=1, session=session)
+
+    assert patient.primary_category == "high_risk"
+    assert patient.category_tags is not None
+    assert "recent_visit" in patient.category_tags
+    assert patient.category_computed_at is not None
+    assert patient.category_rules_version == RULES_VERSION
+    session.commit.assert_awaited_once()
+
+
+async def test_recompute_all_categories_with_doctor_filter():
+    p1 = SimpleNamespace(
+        id=1,
+        doctor_id="docA",
+        created_at=_NOW - timedelta(days=150),
+        primary_category=None,
+        category_tags=None,
+        category_computed_at=None,
+        category_rules_version=None,
+    )
+    record = SimpleNamespace(
+        patient_id=1,
+        doctor_id="docA",
+        diagnosis="高血压",
+        follow_up_plan=None,
+        created_at=_NOW - timedelta(days=45),
+    )
+    session = SimpleNamespace(execute=AsyncMock(), commit=AsyncMock())
+    session.execute.side_effect = [
+        SimpleNamespace(scalars=lambda: SimpleNamespace(all=lambda: [p1])),
+        SimpleNamespace(scalars=lambda: SimpleNamespace(all=lambda: [record])),
+    ]
+
+    summary = await recompute_all_categories(session, doctor_id="docA", batch_size=1)
+    assert summary["total"] == 1
+    assert summary["errors"] == 0
+    assert summary["changed"] == 1
+    assert p1.primary_category == "stable"
+    session.commit.assert_awaited_once()
+
+    first_query = session.execute.await_args_list[0].args[0]
+    assert "patients.doctor_id" in str(first_query)
+
+
+async def test_recompute_all_categories_counts_errors(monkeypatch):
+    p = SimpleNamespace(
+        id=1,
+        doctor_id="docX",
+        created_at=_NOW - timedelta(days=20),
+        primary_category=None,
+        category_tags=None,
+        category_computed_at=None,
+        category_rules_version=None,
+    )
+    record = SimpleNamespace(
+        patient_id=1,
+        doctor_id="docX",
+        diagnosis=None,
+        follow_up_plan=None,
+        created_at=_NOW - timedelta(days=20),
+    )
+    session = SimpleNamespace(execute=AsyncMock(), commit=AsyncMock())
+    session.execute.side_effect = [
+        SimpleNamespace(scalars=lambda: SimpleNamespace(all=lambda: [p])),
+        SimpleNamespace(scalars=lambda: SimpleNamespace(all=lambda: [record])),
+    ]
+
+    def _boom(*_args, **_kwargs):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr("services.patient_categorization.categorize_patient", _boom)
+
+    summary = await recompute_all_categories(session, doctor_id="docX", batch_size=50)
+    assert summary == {"total": 1, "changed": 0, "errors": 1}
+    session.commit.assert_awaited_once()

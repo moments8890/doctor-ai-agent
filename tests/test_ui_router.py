@@ -56,6 +56,13 @@ def test_fmt_ts():
     assert ui._fmt_ts(datetime(2026, 3, 2, 10, 30, 0)) == "2026-03-02 10:30:00"
 
 
+def test_parse_tags_empty_invalid_and_valid_json():
+    assert ui._parse_tags(None) == []
+    assert ui._parse_tags("") == []
+    assert ui._parse_tags("not-json") == []
+    assert ui._parse_tags('["recent_visit"]') == ["recent_visit"]
+
+
 def _patient_ns(**kwargs):
     """SimpleNamespace patient with all required fields including category."""
     defaults = dict(
@@ -119,7 +126,11 @@ async def test_manage_records_without_patient_filter():
 
     assert data["doctor_id"] == "doc2"
     assert data["items"][0]["patient_name"] == "王五"
+    assert data["items"][0]["treatment_plan"] == "随访"
+    assert data["items"][0]["follow_up_plan"] == "两周复诊"
     assert data["items"][1]["patient_name"] is None
+    assert data["items"][1]["treatment_plan"] == "随访"
+    assert data["items"][1]["follow_up_plan"] == "两周复诊"
     assert data["items"][1]["created_at"] is None
 
 
@@ -219,3 +230,17 @@ async def test_manage_patients_grouped():
     stable_group = next(g for g in data["groups"] if g["group"] == "stable")
     assert stable_group["count"] == 0
     assert stable_group["items"] == []
+
+
+async def test_manage_patients_grouped_unknown_category_goes_to_uncategorized():
+    db = SimpleNamespace(execute=AsyncMock(return_value=SimpleNamespace(all=lambda: [])))
+    patients = [
+        _patient_ns(id=21, name="未知分类患者", primary_category="custom_future_category"),
+    ]
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.get_all_patients", new=AsyncMock(return_value=patients)):
+        data = await ui.manage_patients_grouped("doc1")
+
+    uncategorized = next(g for g in data["groups"] if g["group"] == "uncategorized")
+    assert uncategorized["count"] == 1
+    assert uncategorized["items"][0]["name"] == "未知分类患者"
