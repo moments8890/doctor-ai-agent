@@ -17,7 +17,7 @@ from services.interview import InterviewState, STEPS
 from services.intent import Intent
 from services.agent import dispatch as agent_dispatch
 from services.wechat_menu import create_menu
-from services.session import get_session, push_turn, set_current_patient, set_pending_create, clear_pending_create
+from services.session import get_session, get_session_lock, push_turn, set_current_patient, set_pending_create, clear_pending_create
 from services.memory import maybe_compress, load_context_message
 from db.engine import AsyncSessionLocal
 from db.crud import create_patient, find_patient_by_name, save_record, get_records_for_patient, get_all_records_for_doctor, get_all_patients
@@ -393,6 +393,7 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
 
 async def _handle_image_bg(media_id: str, doctor_id: str):
     """Download WeChat image, extract text via vision LLM, then route through normal pipeline."""
+    # --- IO outside lock: no session state accessed ---
     cfg = _get_config()
     try:
         access_token = await _get_access_token(cfg["app_id"], cfg["app_secret"])
@@ -404,22 +405,29 @@ async def _handle_image_bg(media_id: str, doctor_id: str):
         await _send_customer_service_msg(doctor_id, f"❌ 图片识别失败：{e}")
         return
 
-    # Route extracted text through the same pipeline as typed text
-    sess = get_session(doctor_id)
-    try:
-        if sess.pending_create_name:
-            result = await _handle_pending_create(text, doctor_id)
-        elif sess.interview is not None:
-            result = await _handle_interview_step(text, doctor_id)
-        else:
-            await _handle_intent_bg(text, doctor_id)
-            return  # _handle_intent_bg sends the message itself
-    except Exception as e:
-        log(f"[Vision] routing FAILED: {e}")
-        result = "处理失败，请稍后重试。"
-    else:
+    # --- state check + stateful routing under lock ---
+    route = "intent"
+    result = None
+    async with get_session_lock(doctor_id):
+        sess = get_session(doctor_id)
+        try:
+            if sess.pending_create_name:
+                result = await _handle_pending_create(text, doctor_id)
+                route = "done"
+            elif sess.interview is not None:
+                result = await _handle_interview_step(text, doctor_id)
+                route = "done"
+        except Exception as e:
+            log(f"[Vision] routing FAILED: {e}")
+            result = "处理失败，请稍后重试。"
+            route = "done"
+
+    if route == "done":
         preview = text[:60] + ("…" if len(text) > 60 else "")
         await _send_customer_service_msg(doctor_id, f"🖼️ 「{preview}」\n\n{result}")
+    else:
+        # delegate — _handle_intent_bg acquires its own lock
+        await _handle_intent_bg(text, doctor_id)
 
 
 @router.get("")
@@ -437,30 +445,32 @@ def verify(timestamp: str, nonce: str, signature: str, echostr: str):
 
 async def _handle_intent_bg(text: str, doctor_id: str):
     """Process intent in background and deliver result via customer service API."""
-    sess = get_session(doctor_id)
+    async with get_session_lock(doctor_id):
+        sess = get_session(doctor_id)
 
-    # Compress rolling window if full or idle before adding new turn
-    await maybe_compress(doctor_id, sess)
+        # Compress rolling window if full or idle before adding new turn
+        await maybe_compress(doctor_id, sess)
 
-    # Build history: inject persisted context only when starting a fresh session
-    history = list(sess.conversation_history)
-    if not history:
-        ctx_msg = await load_context_message(doctor_id)
-        if ctx_msg:
-            history = [ctx_msg]
+        # Build history: inject persisted context only when starting a fresh session
+        history = list(sess.conversation_history)
+        if not history:
+            ctx_msg = await load_context_message(doctor_id)
+            if ctx_msg:
+                history = [ctx_msg]
 
-    try:
-        result = await _handle_intent(text, doctor_id, history=history)
-    except Exception as e:
-        log(f"[WeChat bg] FAILED: {e}")
-        result = "处理失败，请稍后重试。"
+        try:
+            result = await _handle_intent(text, doctor_id, history=history)
+        except Exception as e:
+            log(f"[WeChat bg] FAILED: {e}")
+            result = "处理失败，请稍后重试。"
 
-    push_turn(doctor_id, text, result)
+        push_turn(doctor_id, text, result)
     await _send_customer_service_msg(doctor_id, result)
 
 
 async def _handle_voice_bg(media_id: str, doctor_id: str):
     """Download, convert, transcribe WeChat voice, then route through normal pipeline."""
+    # --- IO outside lock: no session state accessed ---
     cfg = _get_config()
     try:
         access_token = await _get_access_token(cfg["app_id"], cfg["app_secret"])
@@ -472,22 +482,28 @@ async def _handle_voice_bg(media_id: str, doctor_id: str):
         await _send_customer_service_msg(doctor_id, f"❌ 语音识别失败：{e}")
         return
 
-    # Route transcribed text through the same pipeline as typed text
-    sess = get_session(doctor_id)
-    try:
-        if sess.pending_create_name:
-            result = await _handle_pending_create(text, doctor_id)
-        elif sess.interview is not None:
-            result = await _handle_interview_step(text, doctor_id)
-        else:
-            # Reuse the full memory-aware background handler
-            await _handle_intent_bg(text, doctor_id)
-            return  # _handle_intent_bg sends the message itself
-    except Exception as e:
-        log(f"[Voice] routing FAILED: {e}")
-        result = "处理失败，请稍后重试。"
-    else:
+    # --- state check + stateful routing under lock ---
+    route = "intent"
+    result = None
+    async with get_session_lock(doctor_id):
+        sess = get_session(doctor_id)
+        try:
+            if sess.pending_create_name:
+                result = await _handle_pending_create(text, doctor_id)
+                route = "done"
+            elif sess.interview is not None:
+                result = await _handle_interview_step(text, doctor_id)
+                route = "done"
+        except Exception as e:
+            log(f"[Voice] routing FAILED: {e}")
+            result = "处理失败，请稍后重试。"
+            route = "done"
+
+    if route == "done":
         await _send_customer_service_msg(doctor_id, f'🎙️ 「{text}」\n\n{result}')
+    else:
+        # delegate — _handle_intent_bg acquires its own lock
+        await _handle_intent_bg(text, doctor_id)
 
 
 @router.post("")
