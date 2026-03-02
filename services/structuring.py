@@ -1,11 +1,15 @@
+from __future__ import annotations
+
 import json
 import os
 import re
+import time
+from typing import Optional, Tuple
 from openai import AsyncOpenAI
 from models.medical_record import MedicalRecord
 from utils.log import log
 
-SYSTEM_PROMPT = """\
+_DEFAULT_SYSTEM_PROMPT = """\
 你是医院电子病历系统，依据《病历书写基本规范》（卫医政发〔2010〕11号）将医生口述或文字记录转为规范化门诊病历 JSON。
 输入可能来自心血管内科或肿瘤科，含有专业术语、缩写和口语化表达，请准确识别并规范化。
 输入若以引号或"记录一下"开头，忽略引导语，直接提取临床内容。
@@ -68,6 +72,27 @@ SYSTEM_PROMPT = """\
 - 保持医学术语规范，保留专业缩写（STEMI、PCI、BNP、EF、ANC、EGFR 等）
 """
 
+_PROMPT_CACHE: Optional[Tuple[float, str]] = None  # (fetched_at, content)
+_PROMPT_CACHE_TTL = 60  # seconds — changes take effect within 1 minute
+
+
+async def _get_system_prompt() -> str:
+    """Load structuring prompt from DB, falling back to the built-in default."""
+    global _PROMPT_CACHE
+    if _PROMPT_CACHE and time.time() - _PROMPT_CACHE[0] < _PROMPT_CACHE_TTL:
+        return _PROMPT_CACHE[1]
+    try:
+        from db.crud import get_system_prompt
+        from db.engine import AsyncSessionLocal
+        async with AsyncSessionLocal() as db:
+            row = await get_system_prompt(db, "structuring")
+        content = row.content if row else _DEFAULT_SYSTEM_PROMPT
+    except Exception:
+        content = _DEFAULT_SYSTEM_PROMPT
+    _PROMPT_CACHE = (time.time(), content)
+    return content
+
+
 _PROVIDERS = {
     "deepseek": {
         "base_url": "https://api.deepseek.com",
@@ -98,10 +123,11 @@ async def structure_medical_record(text: str) -> MedicalRecord:
         base_url=provider["base_url"],
         api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
     )
+    system_prompt = await _get_system_prompt()
     completion = await client.chat.completions.create(
         model=provider["model"],
         messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": text},
         ],
         response_format={"type": "json_object"},

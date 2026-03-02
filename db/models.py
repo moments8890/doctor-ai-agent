@@ -6,6 +6,18 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from db.engine import Base
 
 
+class SystemPrompt(Base):
+    """Editable LLM system prompts — loaded at call-time, editable via Admin UI."""
+    __tablename__ = "system_prompts"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)   # e.g. "structuring"
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    def __str__(self) -> str:
+        return self.key
+
+
 class DoctorContext(Base):
     """Persistent compressed memory for a doctor — survives server restarts."""
     __tablename__ = "doctor_contexts"

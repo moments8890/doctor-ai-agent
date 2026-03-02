@@ -13,7 +13,7 @@ from routers.records import router as records_router
 from routers.wechat import router as wechat_router
 from db.init_db import create_tables
 from db.engine import engine
-from db.models import Patient, MedicalRecordDB, DoctorContext
+from db.models import Patient, MedicalRecordDB, DoctorContext, SystemPrompt
 
 logging.basicConfig(
     level=logging.INFO,
@@ -73,6 +73,16 @@ class MedicalRecordAdmin(ModelView, model=MedicalRecordDB):
     column_searchable_list = [MedicalRecordDB.chief_complaint, MedicalRecordDB.diagnosis]
     column_sortable_list = [MedicalRecordDB.id, MedicalRecordDB.created_at]
     column_default_sort = [(MedicalRecordDB.created_at, True)]
+
+
+class SystemPromptAdmin(ModelView, model=SystemPrompt):
+    name = "System Prompt"
+    name_plural = "System Prompts"
+    icon = "fa-solid fa-wand-magic-sparkles"
+    column_list = [SystemPrompt.key, SystemPrompt.updated_at]
+    column_details_list = [SystemPrompt.key, SystemPrompt.content, SystemPrompt.updated_at]
+    form_include_pk = True          # allow setting the key on create
+    column_sortable_list = [SystemPrompt.updated_at]
 
 
 class DoctorContextAdmin(ModelView, model=DoctorContext):
@@ -140,6 +150,7 @@ app = FastAPI(
 )
 
 admin = Admin(app, engine, title="DB Admin")
+admin.add_view(SystemPromptAdmin)
 admin.add_view(PatientAdmin)
 admin.add_view(MedicalRecordAdmin)
 admin.add_view(DoctorContextAdmin)

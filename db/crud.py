@@ -3,8 +3,25 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.models import DoctorContext, Patient, MedicalRecordDB
+from db.models import SystemPrompt, DoctorContext, Patient, MedicalRecordDB
 from models.medical_record import MedicalRecord
+
+
+async def get_system_prompt(session: AsyncSession, key: str) -> SystemPrompt | None:
+    result = await session.execute(
+        select(SystemPrompt).where(SystemPrompt.key == key)
+    )
+    return result.scalar_one_or_none()
+
+
+async def upsert_system_prompt(session: AsyncSession, key: str, content: str) -> None:
+    row = await get_system_prompt(session, key)
+    if row:
+        row.content = content
+        row.updated_at = datetime.utcnow()
+    else:
+        session.add(SystemPrompt(key=key, content=content))
+    await session.commit()
 
 
 async def get_doctor_context(session: AsyncSession, doctor_id: str) -> DoctorContext | None:
