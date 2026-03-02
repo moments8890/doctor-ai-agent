@@ -249,6 +249,104 @@ doctor_context
   doctor_id (PK) · summary · updated_at
 ```
 
+### Current Patient Record Data Model (Canonical)
+
+This section reflects the live ORM and API behavior in:
+- `db/models.py`
+- `db/crud.py`
+- `routers/records.py`
+- `routers/neuro.py`
+
+#### Entity Relationship (doctor-scoped)
+
+```text
+doctor_id (logical tenant key)
+   ├─ patients (1:N by doctor_id)
+   │    └─ medical_records (1:N via patient_id, nullable)
+   ├─ medical_records (direct filter by doctor_id)
+   ├─ neuro_cases (direct filter by doctor_id; optional link to patient_id)
+   └─ doctor_contexts (1:1 by doctor_id)
+```
+
+#### Tables and Fields
+
+`patients`
+- `id` (PK, autoincrement)
+- `doctor_id` (indexed, required)
+- `name` (required)
+- `gender` (nullable)
+- `age` (nullable)
+- `created_at` (UTC timestamp)
+
+`medical_records`
+- `id` (PK, autoincrement)
+- `patient_id` (FK -> `patients.id`, nullable)
+- `doctor_id` (indexed, required)
+- `chief_complaint` (nullable in DB; required in Pydantic input model)
+- `history_of_present_illness` (nullable)
+- `past_medical_history` (nullable)
+- `physical_examination` (nullable)
+- `auxiliary_examinations` (nullable)
+- `diagnosis` (nullable)
+- `treatment_plan` (nullable)
+- `follow_up_plan` (nullable)
+- `created_at` (UTC timestamp)
+
+`neuro_cases`
+- `id` (PK, autoincrement)
+- `doctor_id` (indexed, required)
+- `patient_id` (FK -> `patients.id`, nullable)
+- Promoted scalar columns:
+  - `patient_name` (nullable)
+  - `gender` (nullable)
+  - `age` (nullable)
+  - `encounter_type` (nullable)
+  - `chief_complaint` (nullable)
+  - `primary_diagnosis` (nullable)
+  - `nihss` (nullable)
+- Full payload columns:
+  - `raw_json` (nullable, full structured case JSON)
+  - `extraction_log_json` (nullable, extraction log JSON)
+- `created_at` (UTC timestamp)
+
+`doctor_contexts`
+- `doctor_id` (PK)
+- `summary` (nullable)
+- `updated_at` (UTC timestamp)
+
+`system_prompts`
+- `key` (PK)
+- `content` (required)
+- `updated_at` (UTC timestamp)
+
+#### Runtime Write Paths
+
+`POST /api/records/chat`
+- `create_patient` intent: inserts into `patients`.
+- `add_record` intent:
+  - finds patient by (`doctor_id`, `name`);
+  - auto-creates patient if not found;
+  - inserts into `medical_records` with resolved `patient_id`.
+
+`POST /api/records/from-text|from-image|from-audio`
+- returns structured `MedicalRecord` but does not persist by itself.
+
+`POST /api/neuro/from-text`
+- extracts `NeuroCase` + `ExtractionLog`;
+- persists to `neuro_cases` (current route saves without `patient_id` link).
+
+Memory and prompt writes
+- `services/memory.py` updates `doctor_contexts`.
+- Admin/UI prompt edits update `system_prompts`.
+
+#### Constraints and Behavioral Notes
+
+- Multi-tenant boundary is `doctor_id` (logical scope used in all CRUD reads/writes).
+- `medical_records.patient_id` is nullable, so orphan records are allowed.
+- No DB uniqueness constraint on (`doctor_id`, `name`) in `patients`; duplicates are currently possible.
+- `medical_records.chief_complaint` is nullable at DB layer for compatibility, though extraction model expects it.
+- `neuro_cases` stores both queryable promoted columns and complete JSON payloads for audit/replay.
+
 ---
 
 ## Configuration (`.env`)

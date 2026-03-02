@@ -25,3 +25,7 @@ patients.db
 # IDE
 .idea/
 .vscode/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
