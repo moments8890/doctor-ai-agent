@@ -367,3 +367,142 @@ open http://localhost:8000/admin
 | Single-process (in-memory session) | Acceptable for MVP; needs Redis for multi-worker |
 | faster-whisper large-v3 needs ~1.5 GB RAM | Use `WHISPER_MODEL=medium` on low-memory servers |
 | No fine-tuned medical ASR model | `initial_prompt` bias covers most common terms; fine-tuning is Phase 4 |
+
+---
+
+## Directory Structure (Detailed)
+
+```
+├── main.py                   # FastAPI app + lifespan (DB init, warmup, SQLAdmin)
+├── requirements.txt
+├── patients.db               # SQLite (auto-created on startup)
+├── CHANGELOG.md
+├── ARCHITECTURE.md
+├── CLAUDE.md                 # Project rules (code style, push workflow)
+├── .env / .env.example
+│
+├── routers/
+│   ├── wechat.py             # WeChat XML handler, stateful flows, background dispatch (583 lines)
+│   └── records.py            # REST: /chat, /from-text, /from-audio, /from-image
+│
+├── services/
+│   ├── agent.py              # LLM function-calling dispatch → IntentResult (4 tools)
+│   ├── intent.py             # Intent enum + IntentResult schema + legacy rule-based fallback
+│   ├── structuring.py        # LLM → MedicalRecord JSON (specialist-aware prompt, DB-backed)
+│   ├── session.py            # In-memory DoctorSession (history, patient, interview state)
+│   ├── memory.py             # Rolling window compress → DB; context injection on new session
+│   ├── interview.py          # Guided intake Q&A state machine (7 steps)
+│   ├── transcription.py      # faster-whisper local ASR (falls back to OpenAI Whisper API)
+│   ├── vision.py             # Vision LLM image → extracted clinical text
+│   ├── voice.py              # WeChat media download + ffmpeg → 16kHz WAV
+│   └── wechat_menu.py        # Doctor menu definition + WeChat creation API
+│
+├── db/
+│   ├── engine.py             # Async SQLAlchemy engine + AsyncSessionLocal + Base
+│   ├── models.py             # ORM: Patient, MedicalRecordDB, DoctorContext, SystemPrompt
+│   ├── init_db.py            # create_tables() + seed_prompts() called at startup
+│   └── crud.py               # All DB operations (patients, records, context, prompts)
+│
+├── models/
+│   └── medical_record.py     # Pydantic schema (8 clinical fields)
+│
+├── utils/
+│   └── log.py                # Timestamped print wrapper
+│
+├── tools/
+│   ├── chat.py               # Interactive CLI tester → POST /api/records/chat
+│   ├── db_inspect.py         # CLI: patients / records / record <id>
+│   ├── train.py              # Batch corpus training + verification runner
+│   └── train_images.py       # Image pipeline training runner
+│
+├── train/
+│   └── data/
+│       ├── clinic_raw_cases_cardiology_v1.md   # 20 raw cases
+│       ├── clinic_raw_cases_cardiology_v2.md   # 37 raw cases (improved diversity)
+│       ├── image_cases_cardiology_v1.md        # Image extraction test cases
+│       └── specialist_ai_structured_training_corpus_v2026_1.md
+│
+├── tests/
+│   ├── conftest.py                # Async fixtures, mock LLM/DB, in-memory SQLite
+│   ├── test_crud.py
+│   ├── test_session.py
+│   ├── test_intent.py
+│   ├── test_structuring.py
+│   ├── test_memory.py
+│   ├── test_wechat_intent.py
+│   └── integration/
+│       ├── conftest.py            # Integration test setup (skips if deps not running)
+│       ├── test_text_pipeline.py  # End-to-end text → record
+│       └── test_image_pipeline.py # End-to-end image → record
+│
+├── debug/
+│   └── iteration_2026-03-01.md   # Training run analysis, root causes, fixes applied
+│
+└── archive/                       # Deprecated docs and old code
+```
+
+---
+
+## Database Schema (Full)
+
+```
+system_prompts
+  key (PK)        — e.g. "structuring", "structuring.extension"
+  content (Text)  — editable LLM prompt (60-second cache in structuring.py)
+  updated_at
+
+doctor_context
+  doctor_id (PK)  — WeChat openid or CLI user
+  summary (Text)  — LLM-compressed conversation (~120 chars)
+  updated_at
+
+patients
+  id · doctor_id (indexed) · name · gender · age · created_at
+
+medical_records
+  id · patient_id (FK→patients, nullable) · doctor_id (indexed)
+  chief_complaint · history_of_present_illness · past_medical_history
+  physical_examination · auxiliary_examinations · diagnosis
+  treatment_plan · follow_up_plan · created_at
+```
+
+---
+
+## Test Suite
+
+```bash
+# Unit tests (no LLM or network needed — always run before push)
+.venv/bin/python -m pytest tests/ -v          # 46 tests, all green
+
+# Integration tests (requires uvicorn + ollama serve)
+pytest tests/integration/                      # auto-skipped if deps not running
+
+# Corpus validation (optional, expensive)
+python tools/train.py --clean [--cases ...]    # requires Ollama
+python tools/train_images.py                   # image pipeline validation
+```
+
+Key test conventions:
+- All LLM calls mocked with `AsyncMock` / `patch`
+- DB uses in-memory SQLite (`sqlite+aiosqlite:///:memory:`)
+- `_sessions` dict cleared between tests to isolate session state
+- `pytest.ini` sets `asyncio_mode = auto`, `testpaths = tests`
+
+**Training results (2026-03-01):**
+- `qwen2.5:7b` — 20/20 cardiology v1, 37/37 cardiology v2 ✅
+- `llama3.2` — hallucinates Chinese patient names (~2/37 cases) ⚠️
+
+---
+
+## Feature Gaps & Next Phase
+
+| Gap | Impact | Complexity | Phase |
+|-----|--------|------------|-------|
+| Session history lost on restart (summary only persists) | Medium | Low — persist turns to DB | 4 |
+| No audit trail on record creation/edits | Medium | Low — add `created_by` field | 4 |
+| Generic "处理失败" error messages | Medium | Low — per-failure-mode messages | 4 |
+| Single-process in-memory session | High | High — needs Redis for multi-worker | 5 |
+| No bulk export (records → CSV/JSON) | Medium | Medium | 4 |
+| No role-based access or patient sharing | Low | High | 5 |
+| No fine-tuned medical ASR model | Low | High — Phase 4 scope | 4 |
+| Hardcoded Chinese (no i18n) | Low | High | — |

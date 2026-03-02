@@ -5,12 +5,14 @@ from dotenv import load_dotenv
 load_dotenv()  # must run before any module reads os.environ
 
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 from sqladmin import Admin, ModelView
 from sqladmin.authentication import AuthenticationBackend
 from starlette.requests import Request
 
 from routers.records import router as records_router
 from routers.wechat import router as wechat_router
+from routers.ui import router as ui_router
 from db.init_db import create_tables, seed_prompts
 from db.engine import engine
 from db.models import Patient, MedicalRecordDB, DoctorContext, SystemPrompt
@@ -158,8 +160,9 @@ admin.add_view(DoctorContextAdmin)
 
 app.include_router(records_router)
 app.include_router(wechat_router)
+app.include_router(ui_router)
 
 
 @app.get("/")
 def root():
-    return {"message": "专科医师AI智能体 API", "version": "0.2.0"}
+    return RedirectResponse(url="/chat")

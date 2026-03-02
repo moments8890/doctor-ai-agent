@@ -7,6 +7,7 @@ All integration tests require:
 Both are checked once per session; the entire integration suite is skipped
 if either dependency is unavailable.
 """
+import os
 import sqlite3
 from pathlib import Path
 
@@ -82,10 +83,13 @@ def server():
 
 
 def chat(text, history=None, doctor_id="inttest_default", server_url=SERVER):
+    # 120s to accommodate CPU-only Ollama inference in CI (routing + structuring
+    # combined can take 60–90 s on a standard GitHub Actions runner).
+    timeout = int(os.environ.get("CHAT_TIMEOUT", "120"))
     resp = httpx.post(
         f"{server_url}/api/records/chat",
         json={"text": text, "history": history or [], "doctor_id": doctor_id},
-        timeout=60,
+        timeout=timeout,
     )
     resp.raise_for_status()
     return resp.json()
