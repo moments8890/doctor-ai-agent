@@ -108,6 +108,23 @@ async def structure_medical_record(text: str) -> MedicalRecord:
     if isinstance(data, list):
         data = data[0] if data else {}
 
+    # Coerce any non-string field values to strings (some models return arrays/dicts)
+    _STR_FIELDS = [
+        "history_of_present_illness", "past_medical_history", "physical_examination",
+        "auxiliary_examinations", "diagnosis", "treatment_plan", "follow_up_plan",
+    ]
+    for field in _STR_FIELDS:
+        val = data.get(field)
+        if val is None or isinstance(val, str):
+            continue
+        if isinstance(val, list):
+            data[field] = "；".join(str(item) for item in val if item)
+        elif isinstance(val, dict):
+            data[field] = "；".join(f"{k}：{v}" for k, v in val.items())
+        else:
+            data[field] = str(val)
+        log(f"[LLM:{provider_name}] coerced {field} from {type(val).__name__} to str")
+
     # Hard fallback: chief_complaint must never be null
     if not data.get("chief_complaint"):
         # Strip leading name/demographics (e.g. "张三，男，58岁，") then take first clause
