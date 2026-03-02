@@ -835,10 +835,16 @@ async def manage_records(
                 {
                     "id": r.id,
                     "patient_id": r.patient_id,
+                    "doctor_id": r.doctor_id,
                     "patient_name": patient_name,
                     "chief_complaint": r.chief_complaint,
+                    "history_of_present_illness": r.history_of_present_illness,
+                    "past_medical_history": r.past_medical_history,
+                    "physical_examination": r.physical_examination,
+                    "auxiliary_examinations": r.auxiliary_examinations,
                     "diagnosis": r.diagnosis,
                     "treatment_plan": r.treatment_plan,
+                    "follow_up_plan": r.follow_up_plan,
                     "created_at": _fmt_ts(r.created_at),
                 }
                 for r in records
@@ -849,10 +855,16 @@ async def manage_records(
                 {
                     "id": r.id,
                     "patient_id": r.patient_id,
+                    "doctor_id": r.doctor_id,
                     "patient_name": r.patient.name if r.patient else None,
                     "chief_complaint": r.chief_complaint,
+                    "history_of_present_illness": r.history_of_present_illness,
+                    "past_medical_history": r.past_medical_history,
+                    "physical_examination": r.physical_examination,
+                    "auxiliary_examinations": r.auxiliary_examinations,
                     "diagnosis": r.diagnosis,
                     "treatment_plan": r.treatment_plan,
+                    "follow_up_plan": r.follow_up_plan,
                     "created_at": _fmt_ts(r.created_at),
                 }
                 for r in records
