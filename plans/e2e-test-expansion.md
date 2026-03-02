@@ -72,3 +72,24 @@ Add integration coverage for:
 - New integration module merged and green in CI.
 - No flakiness observed in at least two consecutive CI runs.
 - Tests remain deterministic without depending on LLM output for these API contracts.
+
+## 今日 E2E 场景覆盖（中文）
+
+当前 E2E（集成测试）覆盖分为两类：
+
+1. 医生输入驱动（`tests/integration/test_text_pipeline.py`）
+- 单轮输入：包含姓名时，能直接完成结构化并落库
+- 缺少姓名的两轮流程：先追问姓名，再用姓名补全并落库
+- 急诊语义输入：病历可生成且能持久化
+- 稀疏输入防幻觉：未提及治疗时，`treatment_plan` 应为 `null`
+- 同名二次就诊：同一患者新增病历，不应重复建患者档案
+- 对话查询能力：`查询某患者病历` 与 `所有患者` 的回复内容正确
+
+2. 确定性 API 流程（`tests/integration/test_manage_tasks_pipeline.py`）
+- 任务流转：任务列表 -> 完成任务 -> pending 过滤校验
+- 患者分组：`/api/manage/patients/grouped` 分组计数正确
+- 病历原始字段视图：`/api/manage/records` 返回关键原始字段且值与 DB 一致
+
+补充说明：
+- 集成测试依赖运行中的服务与 Ollama，不可用时会自动跳过。
+- 测试 DB 路径会优先读取 `.env` 中的 `PATIENTS_DB_PATH`，避免“服务写入路径”与“测试校验路径”不一致。
