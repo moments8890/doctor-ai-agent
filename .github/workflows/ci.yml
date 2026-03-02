@@ -29,8 +29,18 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run unit tests
-        run: python -m pytest tests/ -v --ignore=tests/integration
+      - name: Run unit tests with coverage reports
+        run: bash tools/test.sh unit
+
+      - name: Upload unit test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-reports
+          path: |
+            reports/junit/unit.xml
+            reports/coverage/coverage.xml
+            reports/coverage/html
 
   # ── Integration tests ─────────────────────────────────────────────────────
   # Runs Ollama (qwen2.5:7b) in Docker alongside the live FastAPI app.
@@ -100,13 +110,13 @@ jobs:
           timeout 30 bash -c 'until curl -sfL http://127.0.0.1:8000/; do sleep 2; done'
           echo "App ready"
 
-      - name: Run text pipeline integration tests
+      - name: Run integration tests
         env:
           ROUTING_LLM: ollama
           STRUCTURING_LLM: ollama
           OLLAMA_MODEL: qwen2.5:7b
         run: |
-          python -m pytest tests/integration/test_text_pipeline.py -v -m integration
+          bash tools/test.sh integration
 
       # Grab the server log when something goes wrong so failures are diagnosable.
       - name: Upload app log
@@ -115,3 +125,10 @@ jobs:
         with:
           name: app-log
           path: app.log
+
+      - name: Upload integration test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-reports
+          path: reports/junit/integration.xml
