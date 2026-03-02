@@ -101,3 +101,23 @@ Switch `OLLAMA_MODEL` from `llama3.2` to `qwen2.5:7b` for production use. `llama
 
 - [x] Fixes implemented
 - [ ] Re-run v1 + v2 with qwen2.5:7b to confirm 0 DB-FAILs
+
+---
+
+## Postmerge CI Fix: text pipeline name follow-up
+
+### Issue
+
+`tests/integration/test_text_pipeline.py::test_missing_name_asks_then_saves` failed in CI: second turn (`陈明`) sometimes returned no record.
+
+### Fix
+
+1. **`routers/records.py`**: deterministic fallback for name-followup flow
+2. If prior assistant turn asks patient name and current input is a name-only message, force `add_record` with extracted name
+3. Exclude the name-only turn from structuring context to avoid polluting clinical text
+4. **`tests/test_records_chat.py`**: added unit tests covering `create_patient`/`unknown`/missing-name routing variance
+
+### Status
+
+- [x] Fix implemented
+- [x] Unit tests passed locally

@@ -1,3 +1,4 @@
+import re
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel
 from typing import List, Optional
@@ -23,6 +24,8 @@ router = APIRouter(prefix="/api/records", tags=["records"])
 
 # Phrases that indicate the LLM accidentally extracted a question/non-name as a patient name
 _BAD_NAME_FRAGMENTS = ["叫什么名字", "这位患者", "请问", "患者姓名"]
+_NAME_ONLY = re.compile(r"^[\u4e00-\u9fff]{2,4}$")
+_ASK_NAME_FRAGMENTS = ("叫什么名字", "患者姓名", "请提供姓名", "请告知姓名")
 
 def _is_valid_patient_name(name: str) -> bool:
     """Return False if the extracted name is clearly not a real patient name."""
@@ -31,6 +34,28 @@ def _is_valid_patient_name(name: str) -> bool:
     if len(name.strip()) > 20:          # real Chinese names are ≤ 4 chars typically
         return False
     return not any(frag in name for frag in _BAD_NAME_FRAGMENTS)
+
+
+def _assistant_asked_for_name(history: List[dict]) -> bool:
+    """True when the most recent assistant message asks for patient name."""
+    if not history:
+        return False
+    for message in reversed(history):
+        if message.get("role") != "assistant":
+            continue
+        content = (message.get("content") or "").strip()
+        return any(fragment in content for fragment in _ASK_NAME_FRAGMENTS)
+    return False
+
+
+def _name_only_text(text: str) -> Optional[str]:
+    """Return Chinese name for a name-only message, else None."""
+    candidate = text.strip()
+    if not _NAME_ONLY.match(candidate):
+        return None
+    if not _is_valid_patient_name(candidate):
+        return None
+    return candidate
 
 SUPPORTED_AUDIO_TYPES = {
     "audio/mpeg", "audio/mp4", "audio/wav", "audio/webm",
@@ -72,12 +97,21 @@ async def chat(body: ChatInput):
 
     history = [{"role": m.role, "content": m.content} for m in body.history]
     doctor_id = body.doctor_id
+    asked_name_in_last_turn = _assistant_asked_for_name(history)
+    followup_name = _name_only_text(body.text) if asked_name_in_last_turn else None
     try:
         intent_result = await agent_dispatch(body.text, history=history)
     except Exception as e:
         msg = str(e)
         status = 429 if "rate_limit" in msg or "Rate limit" in msg or "429" in msg else 503
         raise HTTPException(status_code=status, detail=msg)
+
+    # Deterministic fallback for the two-turn flow:
+    # assistant asks for patient name -> doctor replies with name only.
+    # Force add_record regardless of routing-model variance.
+    if followup_name:
+        intent_result.intent = Intent.add_record
+        intent_result.patient_name = followup_name
 
     # ── create_patient ────────────────────────────────────────────────────────
     if intent_result.intent == Intent.create_patient:
@@ -101,7 +135,10 @@ async def chat(body: ChatInput):
         if not intent_result.patient_name or not _is_valid_patient_name(intent_result.patient_name):
             return ChatResponse(reply="请问这位患者叫什么名字？")
         doctor_ctx = [m["content"] for m in history[-10:] if m["role"] == "user"]
-        doctor_ctx.append(body.text)
+        if not (followup_name and body.text.strip() == followup_name):
+            doctor_ctx.append(body.text)
+        if not doctor_ctx:
+            doctor_ctx.append(body.text)
         try:
             record = await structure_medical_record("\n".join(doctor_ctx))
         except Exception as e:
