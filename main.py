@@ -88,7 +88,7 @@ async def _warmup():
     log.info("jieba initialised")
 
     # Warm up Ollama — ping the model so it's loaded into memory
-    if os.environ.get("LLM_PROVIDER") == "ollama":
+    if os.environ.get("ROUTING_LLM") == "ollama" or os.environ.get("STRUCTURING_LLM") == "ollama":
         try:
             from openai import AsyncOpenAI
             client = AsyncOpenAI(
