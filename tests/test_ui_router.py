@@ -25,9 +25,15 @@ def _record(**kwargs):
     defaults = dict(
         id=1,
         patient_id=11,
+        doctor_id="doc_default",
         chief_complaint="胸闷",
+        history_of_present_illness="两周",
+        past_medical_history="高血压",
+        physical_examination="血压偏高",
+        auxiliary_examinations="心电图异常",
         diagnosis="冠心病",
         treatment_plan="随访",
+        follow_up_plan="两周复诊",
         created_at=datetime(2026, 3, 2, 10, 0, 0),
         patient=SimpleNamespace(name="张三"),
     )
