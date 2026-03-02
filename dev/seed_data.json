@@ -1,0 +1,192 @@
+{
+  "meta": {
+    "exported_at": "2026-03-02T06:37:55",
+    "version": 1,
+    "patients_count": 5,
+    "records_count": 10
+  },
+  "patients": [
+    {
+      "id": 1,
+      "doctor_id": "inttest_text_1",
+      "name": "张伟",
+      "gender": "男",
+      "year_of_birth": 52,
+      "created_at": "2026-03-02 05:12:35.113207"
+    },
+    {
+      "id": 2,
+      "doctor_id": "inttest_text_2",
+      "name": "陈明",
+      "gender": null,
+      "year_of_birth": null,
+      "created_at": "2026-03-02 05:12:52.197183"
+    },
+    {
+      "id": 3,
+      "doctor_id": "inttest_text_3",
+      "name": "韩伟",
+      "gender": "男",
+      "year_of_birth": 59,
+      "created_at": "2026-03-02 05:13:09.224338"
+    },
+    {
+      "id": 4,
+      "doctor_id": "inttest_text_4",
+      "name": "赵丽",
+      "gender": "女",
+      "year_of_birth": 60,
+      "created_at": "2026-03-02 05:13:24.965204"
+    },
+    {
+      "id": 5,
+      "doctor_id": "web_doctor",
+      "name": "章三",
+      "gender": null,
+      "year_of_birth": null,
+      "created_at": "2026-03-02 05:29:35.983764"
+    }
+  ],
+  "medical_records": [
+    {
+      "id": 1,
+      "patient_id": 1,
+      "doctor_id": "inttest_text_1",
+      "chief_complaint": "劳力性胸闷三周",
+      "history_of_present_illness": "三周前开始出现劳力性胸闷，休息后可缓解。无明显诱因，症状逐渐加重。",
+      "past_medical_history": null,
+      "physical_examination": null,
+      "auxiliary_examinations": null,
+      "diagnosis": null,
+      "treatment_plan": null,
+      "follow_up_plan": null,
+      "created_at": "2026-03-02 05:12:35.115749"
+    },
+    {
+      "id": 2,
+      "patient_id": 2,
+      "doctor_id": "inttest_text_2",
+      "chief_complaint": "突发胸痛两小时，伴大汗",
+      "history_of_present_illness": null,
+      "past_medical_history": null,
+      "physical_examination": null,
+      "auxiliary_examinations": null,
+      "diagnosis": null,
+      "treatment_plan": null,
+      "follow_up_plan": null,
+      "created_at": "2026-03-02 05:12:52.198807"
+    },
+    {
+      "id": 3,
+      "patient_id": 3,
+      "doctor_id": "inttest_text_3",
+      "chief_complaint": "突发胸痛两小时",
+      "history_of_present_illness": "两小时前突发胸痛，ST段抬高，已行急诊PCI绿色通道。",
+      "past_medical_history": null,
+      "physical_examination": null,
+      "auxiliary_examinations": null,
+      "diagnosis": null,
+      "treatment_plan": "安排心电图、TnI、BNP；急诊 PCI 绿色通道",
+      "follow_up_plan": null,
+      "created_at": "2026-03-02 05:13:09.226197"
+    },
+    {
+      "id": 4,
+      "patient_id": 4,
+      "doctor_id": "inttest_text_4",
+      "chief_complaint": "血压控制差",
+      "history_of_present_illness": "长期高血压，药物治疗效果不佳，服药依从性一般",
+      "past_medical_history": null,
+      "physical_examination": null,
+      "auxiliary_examinations": null,
+      "diagnosis": null,
+      "treatment_plan": null,
+      "follow_up_plan": null,
+      "created_at": "2026-03-02 05:13:24.967701"
+    },
+    {
+      "id": 5,
+      "patient_id": 1,
+      "doctor_id": "inttest_text_1",
+      "chief_complaint": "劳力性胸闷三周",
+      "history_of_present_illness": "三周前开始出现劳力性胸闷，休息后可缓解。无明显诱因，症状逐渐加重。",
+      "past_medical_history": null,
+      "physical_examination": null,
+      "auxiliary_examinations": null,
+      "diagnosis": null,
+      "treatment_plan": null,
+      "follow_up_plan": null,
+      "created_at": "2026-03-02 05:13:40.963147"
+    },
+    {
+      "id": 6,
+      "patient_id": 2,
+      "doctor_id": "inttest_text_2",
+      "chief_complaint": "突发胸痛两小时，伴大汗",
+      "history_of_present_illness": null,
+      "past_medical_history": null,
+      "physical_examination": null,
+      "auxiliary_examinations": null,
+      "diagnosis": null,
+      "treatment_plan": null,
+      "follow_up_plan": null,
+      "created_at": "2026-03-02 05:13:58.924361"
+    },
+    {
+      "id": 7,
+      "patient_id": 3,
+      "doctor_id": "inttest_text_3",
+      "chief_complaint": "突发胸痛两小时",
+      "history_of_present_illness": "两小时前突发胸痛，ST段抬高，已行急诊PCI绿色通道。",
+      "past_medical_history": null,
+      "physical_examination": null,
+      "auxiliary_examinations": null,
+      "diagnosis": null,
+      "treatment_plan": "安排心电图、TnI、BNP；急诊 PCI 绿色通道",
+      "follow_up_plan": null,
+      "created_at": "2026-03-02 05:14:16.126711"
+    },
+    {
+      "id": 8,
+      "patient_id": 4,
+      "doctor_id": "inttest_text_4",
+      "chief_complaint": "血压控制差",
+      "history_of_present_illness": "长期高血压，药物治疗效果不佳，服药依从性一般",
+      "past_medical_history": null,
+      "physical_examination": null,
+      "auxiliary_examinations": null,
+      "diagnosis": null,
+      "treatment_plan": null,
+      "follow_up_plan": null,
+      "created_at": "2026-03-02 05:14:31.984864"
+    },
+    {
+      "id": 9,
+      "patient_id": 5,
+      "doctor_id": "web_doctor",
+      "chief_complaint": "视野改变2月",
+      "history_of_present_illness": null,
+      "past_medical_history": null,
+      "physical_examination": null,
+      "auxiliary_examinations": null,
+      "diagnosis": null,
+      "treatment_plan": null,
+      "follow_up_plan": null,
+      "created_at": "2026-03-02 05:30:34.092154"
+    },
+    {
+      "id": 10,
+      "patient_id": 5,
+      "doctor_id": "web_doctor",
+      "chief_complaint": "视野改变2月",
+      "history_of_present_illness": "2014年因头晕症状检查发现烟雾病，随后行颅内血管搭桥手术。2025年下半年多次出现视野改变及视物模糊，近两个月症状加重。",
+      "past_medical_history": "高血压病史10余年；2014年行烟雾病搭桥手术；2026年1月行左侧人工关节置换术",
+      "physical_examination": "体温36.8℃，脉搏78次/分，呼吸15次/分，血压128/78mmHg。神志清楚，定向力正常。双侧瞳孔等大等圆（直径约2.5mm），对光反射灵敏。四肢肌力正常，病理反射未引出。",
+      "auxiliary_examinations": "左侧颈内动脉C5段重度狭窄；双侧大脑中动脉闭塞；周围可见多发烟雾样血管影；左大脑后动脉侧支循环形成；双侧胼胝体大脑动脉异常",
+      "diagnosis": "烟雾病；视野缺损",
+      "treatment_plan": null,
+      "follow_up_plan": null,
+      "created_at": "2026-03-02 05:31:22.426609"
+    }
+  ]
+}
