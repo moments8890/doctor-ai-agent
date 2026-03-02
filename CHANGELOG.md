@@ -4,6 +4,16 @@
 
 ### Features
 
+- **Neurovascular structured extraction pipeline** — Full end-to-end pipeline for cerebrovascular/stroke cases:
+  - `models/neuro_case.py` — Pydantic schema (`NeuroCase`, `ExtractionLog`, `RiskFactors`, `ImagingStudy`, `ImagingFinding`, `LabResult`, `PlanOrder`)
+  - `db/models.py` — `NeuroCaseDB` table (promoted scalar columns: `patient_name`, `nihss`, `primary_diagnosis`, etc.) + full JSON blobs; created automatically on next startup via `create_all`
+  - `services/neuro_structuring.py` — LLM extraction producing a two-section Markdown response (`## Structured_JSON` + `## Extraction_Log`); parser with raw-JSON fallback for non-compliant models; 60s prompt cache from DB key `structuring.neuro_cvd`
+  - `routers/neuro.py` — `POST /api/neuro/from-text` and `GET /api/neuro/cases` REST endpoints
+  - `db/init_db.py` — seeds `structuring.neuro_cvd` prompt on first startup (editable at `/admin → System Prompts`)
+  - `main.py` — registers neuro router + `NeuroCaseAdmin` view in sqladmin
+
+
+
 - **Editable system prompt via Admin UI** — The structuring LLM prompt is now stored in the `system_prompts` DB table and editable at `/admin → System Prompts` without a server restart. Changes take effect within 60 seconds (TTL cache).
   - `structuring` key — base prompt (seeded from code on first startup)
   - `structuring.extension` key — optional doctor-defined additions appended to the base, allowing specialty-specific rules without replacing the full prompt
