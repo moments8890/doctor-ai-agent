@@ -7,6 +7,13 @@ from db.crud import (
     save_record,
     get_records_for_patient,
     get_all_records_for_doctor,
+    create_label,
+    get_labels_for_doctor,
+    update_label,
+    delete_label,
+    assign_label,
+    remove_label,
+    get_patient_labels,
 )
 from models.medical_record import MedicalRecord
 
@@ -281,3 +288,103 @@ async def test_save_record_creates_auto_followup_task_when_enabled(db_session, m
     assert task is not None
     assert task.trigger_source == "risk_engine"
     assert "risk_level=" in (task.trigger_reason or "")
+
+
+# ---------------------------------------------------------------------------
+# Label management
+# ---------------------------------------------------------------------------
+
+
+async def test_create_and_list_labels(db_session):
+    await create_label(db_session, DOCTOR, "转诊候选", "#FF4444")
+    await create_label(db_session, DOCTOR, "重点随访", "#4444FF")
+    labels = await get_labels_for_doctor(db_session, DOCTOR)
+    assert len(labels) == 2
+    assert labels[0].name == "转诊候选"
+    assert labels[1].name == "重点随访"
+
+
+async def test_create_label_default_color_is_none(db_session):
+    label = await create_label(db_session, DOCTOR, "无颜色标签")
+    assert label.color is None
+    assert label.id is not None
+
+
+async def test_update_label_name(db_session):
+    label = await create_label(db_session, DOCTOR, "旧名称")
+    updated = await update_label(db_session, label.id, DOCTOR, name="新名称")
+    assert updated is not None
+    assert updated.name == "新名称"
+
+
+async def test_update_label_color(db_session):
+    label = await create_label(db_session, DOCTOR, "标签", "#111111")
+    updated = await update_label(db_session, label.id, DOCTOR, color="#AABBCC")
+    assert updated is not None
+    assert updated.color == "#AABBCC"
+    assert updated.name == "标签"
+
+
+async def test_delete_label(db_session):
+    label = await create_label(db_session, DOCTOR, "待删除")
+    result = await delete_label(db_session, label.id, DOCTOR)
+    assert result is True
+    remaining = await get_labels_for_doctor(db_session, DOCTOR)
+    assert len(remaining) == 0
+
+
+async def test_delete_label_wrong_doctor_returns_false(db_session):
+    label = await create_label(db_session, DOCTOR, "某标签")
+    result = await delete_label(db_session, label.id, "other_doctor")
+    assert result is False
+    labels = await get_labels_for_doctor(db_session, DOCTOR)
+    assert len(labels) == 1
+
+
+async def test_assign_label_to_patient(db_session):
+    patient = await create_patient(db_session, DOCTOR, "李明", None, None)
+    label = await create_label(db_session, DOCTOR, "重点随访")
+    await assign_label(db_session, patient.id, label.id, DOCTOR)
+    assigned = await get_patient_labels(db_session, patient.id, DOCTOR)
+    assert len(assigned) == 1
+    assert assigned[0].name == "重点随访"
+
+
+async def test_assign_label_idempotent(db_session):
+    patient = await create_patient(db_session, DOCTOR, "李明", None, None)
+    label = await create_label(db_session, DOCTOR, "重点随访")
+    await assign_label(db_session, patient.id, label.id, DOCTOR)
+    await assign_label(db_session, patient.id, label.id, DOCTOR)
+    assigned = await get_patient_labels(db_session, patient.id, DOCTOR)
+    assert len(assigned) == 1
+
+
+async def test_remove_label_from_patient(db_session):
+    patient = await create_patient(db_session, DOCTOR, "李明", None, None)
+    label = await create_label(db_session, DOCTOR, "转诊候选")
+    await assign_label(db_session, patient.id, label.id, DOCTOR)
+    await remove_label(db_session, patient.id, label.id, DOCTOR)
+    remaining = await get_patient_labels(db_session, patient.id, DOCTOR)
+    assert remaining == []
+
+
+async def test_delete_label_removes_from_patient(db_session):
+    patient = await create_patient(db_session, DOCTOR, "李明", None, None)
+    label = await create_label(db_session, DOCTOR, "待删除标签")
+    await assign_label(db_session, patient.id, label.id, DOCTOR)
+    await delete_label(db_session, label.id, DOCTOR)
+    remaining = await get_patient_labels(db_session, patient.id, DOCTOR)
+    assert remaining == []
+
+
+async def test_label_doctor_isolation(db_session):
+    p_a = await create_patient(db_session, "doc_A", "张三", None, None)
+    await create_label(db_session, "doc_A", "标签A")
+    label_b = await create_label(db_session, "doc_B", "标签B")
+
+    with pytest.raises(ValueError):
+        await assign_label(db_session, p_a.id, label_b.id, "doc_A")
+
+    assert await get_patient_labels(db_session, p_a.id, "doc_A") == []
+    b_labels = await get_labels_for_doctor(db_session, "doc_B")
+    assert all(lbl.doctor_id == "doc_B" for lbl in b_labels)

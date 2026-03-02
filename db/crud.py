@@ -5,9 +5,9 @@ import re
 from datetime import datetime, timedelta
 from typing import List, Optional
 from sqlalchemy import select
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.models import SystemPrompt, DoctorContext, Patient, MedicalRecordDB, NeuroCaseDB, DoctorTask
+from db.models import SystemPrompt, DoctorContext, Patient, MedicalRecordDB, NeuroCaseDB, DoctorTask, PatientLabel
 from models.medical_record import MedicalRecord
 from services.patient_categorization import RULES_VERSION, recompute_patient_category
 from services.patient_risk import RULES_VERSION as RISK_RULES_VERSION, recompute_patient_risk
@@ -253,6 +253,7 @@ async def get_all_patients(
         select(Patient)
         .where(Patient.doctor_id == doctor_id)
         .order_by(Patient.created_at.desc())
+        .options(selectinload(Patient.labels))
     )
     return list(result.scalars().all())
 
@@ -422,3 +423,145 @@ async def mark_task_notified(
     if task:
         task.notified_at = datetime.utcnow()
         await session.commit()
+
+
+# ── Label management ──────────────────────────────────────────────────────────
+
+async def create_label(
+    session: AsyncSession,
+    doctor_id: str,
+    name: str,
+    color: Optional[str] = None,
+) -> PatientLabel:
+    label = PatientLabel(doctor_id=doctor_id, name=name, color=color)
+    session.add(label)
+    await session.commit()
+    return label
+
+
+async def get_labels_for_doctor(
+    session: AsyncSession,
+    doctor_id: str,
+) -> List[PatientLabel]:
+    result = await session.execute(
+        select(PatientLabel)
+        .where(PatientLabel.doctor_id == doctor_id)
+        .order_by(PatientLabel.created_at)
+    )
+    return list(result.scalars().all())
+
+
+async def update_label(
+    session: AsyncSession,
+    label_id: int,
+    doctor_id: str,
+    *,
+    name: Optional[str] = None,
+    color: Optional[str] = None,
+) -> Optional[PatientLabel]:
+    result = await session.execute(
+        select(PatientLabel).where(
+            PatientLabel.id == label_id,
+            PatientLabel.doctor_id == doctor_id,
+        )
+    )
+    label = result.scalar_one_or_none()
+    if label is None:
+        return None
+    if name is not None:
+        label.name = name
+    if color is not None:
+        label.color = color
+    await session.commit()
+    return label
+
+
+async def delete_label(
+    session: AsyncSession,
+    label_id: int,
+    doctor_id: str,
+) -> bool:
+    result = await session.execute(
+        select(PatientLabel)
+        .options(selectinload(PatientLabel.patients))
+        .where(
+            PatientLabel.id == label_id,
+            PatientLabel.doctor_id == doctor_id,
+        )
+    )
+    label = result.scalar_one_or_none()
+    if label is None:
+        return False
+    # Clear via ORM — updates in-memory Patient.labels back-populates and
+    # removes patient_label_assignments rows without needing raw SQL.
+    label.patients.clear()
+    await session.flush()
+    await session.delete(label)
+    await session.commit()
+    return True
+
+
+# ── Patient-label assignment ──────────────────────────────────────────────────
+
+async def assign_label(
+    session: AsyncSession,
+    patient_id: int,
+    label_id: int,
+    doctor_id: str,
+) -> None:
+    patient_result = await session.execute(
+        select(Patient)
+        .options(selectinload(Patient.labels))
+        .where(Patient.id == patient_id, Patient.doctor_id == doctor_id)
+    )
+    patient = patient_result.scalar_one_or_none()
+    if patient is None:
+        raise ValueError(f"Patient {patient_id} not found for doctor {doctor_id}")
+
+    label_result = await session.execute(
+        select(PatientLabel).where(
+            PatientLabel.id == label_id,
+            PatientLabel.doctor_id == doctor_id,
+        )
+    )
+    label = label_result.scalar_one_or_none()
+    if label is None:
+        raise ValueError(f"Label {label_id} not found for doctor {doctor_id}")
+
+    if label not in patient.labels:
+        patient.labels.append(label)
+        await session.commit()
+
+
+async def remove_label(
+    session: AsyncSession,
+    patient_id: int,
+    label_id: int,
+    doctor_id: str,
+) -> None:
+    patient_result = await session.execute(
+        select(Patient)
+        .options(selectinload(Patient.labels))
+        .where(Patient.id == patient_id, Patient.doctor_id == doctor_id)
+    )
+    patient = patient_result.scalar_one_or_none()
+    if patient is None:
+        raise ValueError(f"Patient {patient_id} not found for doctor {doctor_id}")
+    patient.labels = [lbl for lbl in patient.labels if lbl.id != label_id]
+    await session.commit()
+
+
+async def get_patient_labels(
+    session: AsyncSession,
+    patient_id: int,
+    doctor_id: str,
+) -> List[PatientLabel]:
+    patient_result = await session.execute(
+        select(Patient)
+        .options(selectinload(Patient.labels))
+        .where(Patient.id == patient_id, Patient.doctor_id == doctor_id)
+    )
+    patient = patient_result.scalar_one_or_none()
+    if patient is None:
+        return []
+    return list(patient.labels)
