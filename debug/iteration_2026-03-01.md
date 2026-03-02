@@ -122,6 +122,21 @@ Switch `OLLAMA_MODEL` from `llama3.2` to `qwen2.5:7b` for production use. `llama
 - [x] Fix implemented
 - [x] Unit tests passed locally
 
+---
+
+## CI Automation: enable auto-merge on every PR
+
+### Change
+
+- Added workflow `.github/workflows/auto-enable-pr-automerge.yml`
+- Trigger: `pull_request_target` on `opened`, `reopened`, `ready_for_review`
+- Action: call `enablePullRequestAutoMerge` GraphQL mutation with `SQUASH`
+
+### Result
+
+- [x] Repository setting `allow_auto_merge` confirmed enabled
+- [x] Workflow added so PRs get auto-merge enabled automatically when eligible
+
 ## Patient Schema Rename: `age` → `year_of_birth`
 
 ### Scope

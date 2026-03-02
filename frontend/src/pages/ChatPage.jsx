@@ -12,6 +12,7 @@ import {
 } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
 import { sendChat } from "../api";
+import FeatureChangelog from "../components/FeatureChangelog";
 import RecordFields from "../components/RecordFields";
 
 function MsgBubble({ msg }) {
@@ -100,6 +101,7 @@ export default function ChatPage() {
       </AppBar>
 
       <Container maxWidth="lg" sx={{ py: 2 }}>
+        <FeatureChangelog />
         <Paper sx={{ p: 2, minHeight: "72vh", display: "flex", flexDirection: "column" }}>
           <Stack spacing={1.25} sx={{ flex: 1, overflowY: "auto", pr: 1 }}>
             {messages.map((msg, idx) => (
