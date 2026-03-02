@@ -12,6 +12,18 @@ async def create_tables() -> None:
         )
         if "age" in cols and "year_of_birth" not in cols:
             await conn.execute(text("ALTER TABLE patients RENAME COLUMN age TO year_of_birth"))
+        # Safe column-add migration for patient categorization fields (v1)
+        _cat_cols = {
+            "primary_category": "VARCHAR(32)",
+            "category_tags": "TEXT",
+            "category_computed_at": "DATETIME",
+            "category_rules_version": "VARCHAR(16)",
+        }
+        for col_name, col_type in _cat_cols.items():
+            if col_name not in cols:
+                await conn.execute(
+                    text(f"ALTER TABLE patients ADD COLUMN {col_name} {col_type} DEFAULT NULL")
+                )
 
 
 async def seed_prompts() -> None:

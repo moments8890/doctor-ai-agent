@@ -1,7 +1,7 @@
 from __future__ import annotations
 from datetime import datetime
 from typing import Optional, List
-from sqlalchemy import ForeignKey, String, Integer, DateTime, Text
+from sqlalchemy import ForeignKey, Index, String, Integer, DateTime, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from db.engine import Base
 
@@ -37,6 +37,16 @@ class Patient(Base):
     gender: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
     year_of_birth: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    # Categorization fields (v1)
+    primary_category: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    category_tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)   # JSON list
+    category_computed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    category_rules_version: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+
+    __table_args__ = (
+        Index("ix_patients_doctor_category", "doctor_id", "primary_category"),
+    )
 
     records: Mapped[List["MedicalRecordDB"]] = relationship("MedicalRecordDB", back_populates="patient")
 
