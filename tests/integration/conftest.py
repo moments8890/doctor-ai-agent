@@ -16,7 +16,15 @@ import httpx
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-DB_PATH = ROOT / "patients.db"
+try:
+    from dotenv import load_dotenv
+    load_dotenv(ROOT / ".env")
+except Exception:
+    pass
+
+DB_PATH = Path(
+    os.environ.get("PATIENTS_DB_PATH", str(ROOT / "patients.db"))
+).expanduser()
 SERVER = "http://127.0.0.1:8000"
 
 
@@ -66,6 +74,11 @@ def clean_integration_db():
         return
     conn = sqlite3.connect(DB_PATH)
     try:
+        has_doctor_tasks = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='doctor_tasks'"
+        ).fetchone()
+        if has_doctor_tasks:
+            conn.execute("DELETE FROM doctor_tasks WHERE doctor_id LIKE 'inttest_%'")
         conn.execute("DELETE FROM medical_records WHERE doctor_id LIKE 'inttest_%'")
         conn.execute("DELETE FROM patients WHERE doctor_id LIKE 'inttest_%'")
         conn.execute("DELETE FROM doctor_contexts WHERE doctor_id LIKE 'inttest_%'")

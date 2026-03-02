@@ -8,9 +8,41 @@ Covers four key scenarios:
 
 Requires: running server + Ollama (auto-skipped otherwise).
 """
+import sqlite3
+import uuid
+
 import pytest
 
-from tests.integration.conftest import chat, db_record
+from tests.integration.conftest import DB_PATH, chat, db_record
+
+
+def _patient_count(doctor_id: str, patient_name: str) -> int:
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        row = conn.execute(
+            "SELECT COUNT(1) FROM patients WHERE doctor_id=? AND name=?",
+            (doctor_id, patient_name),
+        ).fetchone()
+        return int(row[0] if row else 0)
+    finally:
+        conn.close()
+
+
+def _record_count_for_patient(doctor_id: str, patient_name: str) -> int:
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        row = conn.execute(
+            """
+            SELECT COUNT(1)
+            FROM medical_records r
+            JOIN patients p ON p.id = r.patient_id
+            WHERE p.doctor_id=? AND p.name=?
+            """,
+            (doctor_id, patient_name),
+        ).fetchone()
+        return int(row[0] if row else 0)
+    finally:
+        conn.close()
 
 
 @pytest.mark.integration
@@ -78,3 +110,46 @@ def test_sparse_input_no_hallucinated_treatment():
     assert treatment is None, (
         f"LLM fabricated a treatment plan not in input: '{treatment}'"
     )
+
+
+@pytest.mark.integration
+def test_existing_patient_second_record_does_not_duplicate_patient():
+    """Two add-record messages for same name should keep one patient row."""
+    doctor_id = f"inttest_text_dup_{uuid.uuid4().hex[:8]}"
+    patient_name = "周强"
+
+    first = chat(f"{patient_name}，男，48岁，胸闷1周，活动后加重", doctor_id=doctor_id)
+    assert first["record"] is not None
+
+    second = chat(f"{patient_name}，昨晚胸痛加重，伴出汗", doctor_id=doctor_id)
+    assert second["record"] is not None
+
+    assert _patient_count(doctor_id, patient_name) == 1
+    assert _record_count_for_patient(doctor_id, patient_name) >= 2
+
+
+@pytest.mark.integration
+def test_query_records_by_name_returns_patient_history():
+    doctor_id = f"inttest_text_query_{uuid.uuid4().hex[:8]}"
+    patient_name = "钱芳"
+
+    _ = chat(f"{patient_name}，女，63岁，反复胸闷3天", doctor_id=doctor_id)
+    result = chat(f"查询{patient_name}的病历", doctor_id=doctor_id)
+
+    assert f"患者【{patient_name}】最近" in result["reply"]
+    assert "主诉" in result["reply"]
+
+
+@pytest.mark.integration
+def test_list_patients_returns_created_names():
+    doctor_id = f"inttest_text_list_{uuid.uuid4().hex[:8]}"
+    p1 = "孙明"
+    p2 = "吴静"
+
+    _ = chat(f"{p1}，男，55岁，心悸2天", doctor_id=doctor_id)
+    _ = chat(f"{p2}，女，47岁，胸痛半天", doctor_id=doctor_id)
+
+    result = chat("所有患者", doctor_id=doctor_id)
+    assert p1 in result["reply"]
+    assert p2 in result["reply"]
+    assert "共" in result["reply"] and "位患者" in result["reply"]
