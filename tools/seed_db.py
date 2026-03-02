@@ -29,6 +29,10 @@ except ImportError:
     pass
 
 ROOT = Path(__file__).resolve().parent.parent
+# Ensure local package imports (e.g. `import db.models`) work regardless of cwd.
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 DEFAULT_DB = Path(os.environ.get("PATIENTS_DB_PATH", str(ROOT / "patients.db"))).expanduser()
 DEFAULT_FIXTURE = ROOT / "dev" / "seed_data.json"
 FIXTURE_VERSION = 1
@@ -247,19 +251,47 @@ def import_fixture(
                 id_map[fx_id] = row[0]
                 pat_skipped += 1
             else:
+                year_of_birth = p.get("year_of_birth")
+                age = p.get("age")
+                if year_of_birth is None and age is not None:
+                    try:
+                        year_of_birth = datetime.now(UTC).year - int(age)
+                    except (TypeError, ValueError):
+                        year_of_birth = None
+                if age is None and year_of_birth is not None:
+                    try:
+                        age = datetime.now(UTC).year - int(year_of_birth)
+                    except (TypeError, ValueError):
+                        age = None
+
                 if not dry_run:
-                    cur.execute(
-                        "INSERT INTO patients"
-                        " (doctor_id, name, gender, age, created_at)"
-                        " VALUES (?, ?, ?, ?, ?)",
-                        (
-                            p.get("doctor_id"),
-                            p.get("name"),
-                            p.get("gender"),
-                            p.get("age"),
-                            p.get("created_at"),
-                        ),
-                    )
+                    try:
+                        cur.execute(
+                            "INSERT INTO patients"
+                            " (doctor_id, name, gender, year_of_birth, created_at)"
+                            " VALUES (?, ?, ?, ?, ?)",
+                            (
+                                p.get("doctor_id"),
+                                p.get("name"),
+                                p.get("gender"),
+                                year_of_birth,
+                                p.get("created_at"),
+                            ),
+                        )
+                    except sqlite3.OperationalError:
+                        # Backward-compatibility for older schemas that still use `age`.
+                        cur.execute(
+                            "INSERT INTO patients"
+                            " (doctor_id, name, gender, age, created_at)"
+                            " VALUES (?, ?, ?, ?, ?)",
+                            (
+                                p.get("doctor_id"),
+                                p.get("name"),
+                                p.get("gender"),
+                                age,
+                                p.get("created_at"),
+                            ),
+                        )
                     id_map[fx_id] = cur.lastrowid
                 else:
                     # Negative sentinel: unique but not a real DB id
