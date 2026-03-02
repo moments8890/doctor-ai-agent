@@ -19,7 +19,14 @@
   - `db/init_db.py` — seeds `structuring.neuro_cvd` prompt on first startup (editable at `/admin → System Prompts`)
   - `main.py` — registers neuro router + `NeuroCaseAdmin` view in sqladmin
 
-
+- **DB seed tool** (`tools/seed_db.py`) — LLM-free path to bootstrap a fresh `patients.db` from a portable JSON fixture (`dev/seed_data.json`).  Export once, commit the fixture, import anywhere:
+  - `--export` — dumps `patients` + `medical_records` to JSON
+  - `--import` — loads the fixture into a (new or existing) DB with patient/record deduplication
+  - `--reset` — wipes patients + records and resets auto-increment counters
+  - `--dry-run` — preview counts without writing anything
+  - Combinations: `--reset --import` (clean dev reset), `--reset --no-import` (wipe only)
+  - Deduplication keys: `(doctor_id, name)` for patients; `(patient_id, chief_complaint, created_at)` for records — safe to re-run multiple times
+  - `system_prompts` and `doctor_contexts` are untouched by reset/import
 
 - **Editable system prompt via Admin UI** — The structuring LLM prompt is now stored in the `system_prompts` DB table and editable at `/admin → System Prompts` without a server restart. Changes take effect within 60 seconds (TTL cache).
   - `structuring` key — base prompt (seeded from code on first startup)
