@@ -6,6 +6,11 @@ All integration tests require:
 
 Both are checked once per session; the entire integration suite is skipped
 if either dependency is unavailable.
+
+Integration DB resolution:
+- Prefer `PATIENTS_DB_PATH` from `.env` when present.
+- Fallback to repo-local `patients.db`.
+This keeps DB assertions aligned with the running app configuration.
 """
 import os
 import sqlite3
@@ -16,7 +21,15 @@ import httpx
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-DB_PATH = ROOT / "patients.db"
+try:
+    from dotenv import load_dotenv
+    load_dotenv(ROOT / ".env")
+except Exception:
+    pass
+
+DB_PATH = Path(
+    os.environ.get("PATIENTS_DB_PATH", str(ROOT / "patients.db"))
+).expanduser()
 SERVER = "http://127.0.0.1:8000"
 
 
@@ -61,11 +74,20 @@ def require_ollama():
 
 @pytest.fixture(autouse=True)
 def clean_integration_db():
+    """Best-effort cleanup for `inttest_*` rows after each test.
+
+    Cleanup is schema-aware (doctor_tasks table may not exist in older DBs).
+    """
     yield
     if not DB_PATH.exists():
         return
     conn = sqlite3.connect(DB_PATH)
     try:
+        has_doctor_tasks = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='doctor_tasks'"
+        ).fetchone()
+        if has_doctor_tasks:
+            conn.execute("DELETE FROM doctor_tasks WHERE doctor_id LIKE 'inttest_%'")
         conn.execute("DELETE FROM medical_records WHERE doctor_id LIKE 'inttest_%'")
         conn.execute("DELETE FROM patients WHERE doctor_id LIKE 'inttest_%'")
         conn.execute("DELETE FROM doctor_contexts WHERE doctor_id LIKE 'inttest_%'")
@@ -84,6 +106,12 @@ def server():
 
 
 def chat(text, history=None, doctor_id="inttest_default", server_url=SERVER):
+    """Call `/api/records/chat` with retry on read timeout.
+
+    This helper intentionally mirrors real client behavior:
+    - sends history + doctor_id
+    - tolerates first-call model warmup latency (configurable via env)
+    """
     # Integration requests can be slow on shared CI runners, especially on the
     # first structured call after startup/model warmup.
     read_timeout = float(os.environ.get("CHAT_TIMEOUT", "300"))
