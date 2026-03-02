@@ -62,6 +62,12 @@ export default function ManagePage() {
     }
   }
 
+  function formatRawValue(value) {
+    if (value === null || value === undefined) return "null";
+    if (typeof value === "object") return JSON.stringify(value);
+    return String(value);
+  }
+
   return (
     <Box sx={{ minHeight: "100vh", background: "linear-gradient(165deg, #edf3f9 0%, #f6f0e7 100%)" }}>
       <AppBar position="static" color="transparent" elevation={0} sx={{ borderBottom: "1px solid #d8e1e3" }}>
@@ -144,19 +150,31 @@ export default function ManagePage() {
               {records.map((r) => (
                 <Card key={r.id}>
                   <CardContent>
-                    <Typography variant="subtitle1">{r.patient_name || "Unlinked patient"}</Typography>
+                    <Typography variant="subtitle1">record_id={r.id}</Typography>
                     <Typography variant="caption" color="text.secondary">
-                      record_id={r.id} | created={r.created_at || "-"}
+                      raw field view
                     </Typography>
-                    <Typography variant="body2" sx={{ mt: 1 }}>
-                      <b>Chief:</b> {r.chief_complaint || "-"}
-                    </Typography>
-                    <Typography variant="body2">
-                      <b>Diagnosis:</b> {r.diagnosis || "-"}
-                    </Typography>
-                    <Typography variant="body2">
-                      <b>Treatment:</b> {r.treatment_plan || "-"}
-                    </Typography>
+                    <Box
+                      sx={{
+                        mt: 1.2,
+                        p: 1.25,
+                        borderRadius: 1.5,
+                        border: "1px solid #d8e1e3",
+                        backgroundColor: "#fafcfd",
+                        fontFamily: "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
+                        fontSize: "0.8rem",
+                      }}
+                    >
+                      {Object.entries(r).map(([key, value]) => (
+                        <Typography
+                          key={key}
+                          component="div"
+                          sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+                        >
+                          {key}: {formatRawValue(value)}
+                        </Typography>
+                      ))}
+                    </Box>
                   </CardContent>
                 </Card>
               ))}
