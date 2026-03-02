@@ -38,6 +38,24 @@ jobs:
       - name: Run unit tests with coverage reports
         run: bash tools/test.sh unit
 
+      - name: Coverage gate (overall ≥ 80%)
+        run: |
+          python -m coverage report \
+            --include="db/*,models/*,routers/*,services/*,utils/*" \
+            --fail-under=81
+
+      - name: Coverage summary
+        if: always()
+        run: |
+          {
+            echo "## Code Coverage"
+            echo '```'
+            python -m coverage report \
+              --include="db/*,models/*,routers/*,services/*,utils/*" \
+              --skip-covered 2>/dev/null || echo "Coverage data unavailable"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Enforce changed-lines coverage > 80%
         if: github.event_name == 'pull_request'
         run: |
