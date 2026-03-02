@@ -54,6 +54,8 @@ gh pr view --json url -q .url
 gh pr merge --auto --squash
 ```
 
+- **User shorthand rule** — if the user says `push`, treat it as: push branch **and** open a PR immediately (then share the PR URL)
+
 - Branch naming: `feat/`, `fix/`, `ci/`, `refactor/`, `docs/`
 - PR title follows conventional commits: `feat:`, `fix:`, `ci:`, etc.
 - PRs must be created as **ready for review** (never draft)
