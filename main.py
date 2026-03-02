@@ -13,9 +13,10 @@ from starlette.requests import Request
 from routers.records import router as records_router
 from routers.wechat import router as wechat_router
 from routers.ui import router as ui_router
+from routers.neuro import router as neuro_router
 from db.init_db import create_tables, seed_prompts
 from db.engine import engine
-from db.models import Patient, MedicalRecordDB, DoctorContext, SystemPrompt
+from db.models import Patient, MedicalRecordDB, DoctorContext, SystemPrompt, NeuroCaseDB
 
 logging.basicConfig(
     level=logging.INFO,
@@ -106,6 +107,38 @@ class DoctorContextAdmin(ModelView, model=DoctorContext):
     column_default_sort = [(DoctorContext.updated_at, True)]
 
 
+class NeuroCaseAdmin(ModelView, model=NeuroCaseDB):
+    name = "Neuro Case"
+    name_plural = "Neuro Cases"
+    icon = "fa-solid fa-brain-circuit"
+    column_list = [
+        NeuroCaseDB.id,
+        NeuroCaseDB.patient_name,
+        NeuroCaseDB.chief_complaint,
+        NeuroCaseDB.primary_diagnosis,
+        NeuroCaseDB.nihss,
+        NeuroCaseDB.doctor_id,
+        NeuroCaseDB.created_at,
+    ]
+    column_details_list = [
+        NeuroCaseDB.id,
+        NeuroCaseDB.patient_name,
+        NeuroCaseDB.gender,
+        NeuroCaseDB.age,
+        NeuroCaseDB.encounter_type,
+        NeuroCaseDB.chief_complaint,
+        NeuroCaseDB.primary_diagnosis,
+        NeuroCaseDB.nihss,
+        NeuroCaseDB.raw_json,
+        NeuroCaseDB.extraction_log_json,
+        NeuroCaseDB.doctor_id,
+        NeuroCaseDB.created_at,
+    ]
+    column_searchable_list = [NeuroCaseDB.patient_name, NeuroCaseDB.primary_diagnosis]
+    column_sortable_list = [NeuroCaseDB.id, NeuroCaseDB.created_at]
+    column_default_sort = [(NeuroCaseDB.created_at, True)]
+
+
 # ---------------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------------
@@ -157,10 +190,12 @@ admin.add_view(SystemPromptAdmin)
 admin.add_view(PatientAdmin)
 admin.add_view(MedicalRecordAdmin)
 admin.add_view(DoctorContextAdmin)
+admin.add_view(NeuroCaseAdmin)
 
 app.include_router(records_router)
 app.include_router(wechat_router)
 app.include_router(ui_router)
+app.include_router(neuro_router)
 
 
 @app.get("/")
