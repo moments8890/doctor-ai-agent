@@ -24,7 +24,8 @@ The plan file must include:
 Before every `git push`, always:
 
 1. **Unit tests** — `.venv/bin/python -m pytest tests/ -v` — must be 100% green (no LLM needed)
-2. **Integration tests** — `python tools/train.py --clean [--cases ...]` — only when LLM pipeline or prompt changed (requires Ollama running)
+2. **Integration tests** — `pytest tests/integration/` — only when LLM pipeline or prompt changed (requires `uvicorn main:app --reload` + `ollama serve`); auto-skipped if deps not running
+3. **Corpus tests** (optional) — `python tools/train.py --clean [--cases ...]` — full corpus validation, also requires Ollama
 3. **Update `CHANGELOG.md`** — add entry for what changed
 4. **Update `ARCHITECTURE.md`** — only if schema, env vars, API endpoints, or service structure changed
 5. **Update progress** — tick completed items in `debug/iteration_*.md`
