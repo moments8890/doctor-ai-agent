@@ -149,7 +149,7 @@ async def test_handle_interview_step_cancel_and_active():
     sess = get_session(DOCTOR)
     sess.interview = InterviewState()
     result = await wechat._handle_interview_step("取消", DOCTOR)
-    assert "结束" in result
+    assert "问诊结束" in result
     assert get_session(DOCTOR).interview is None
 
     sess = get_session(DOCTOR)
@@ -178,7 +178,7 @@ async def test_handle_interview_step_complete_saves_record(session_factory):
          patch("routers.wechat.structure_medical_record", new=AsyncMock(return_value=fake_record)):
         result = await wechat._handle_interview_step("体格检查正常", DOCTOR)
 
-    assert "问诊完成" in result
+    assert "问诊完成" in result or "病历已保存" in result
     assert "王五" in result
 
 
@@ -194,7 +194,7 @@ async def test_name_lookup_hit_and_miss(session_factory):
 
     with patch("routers.wechat.AsyncSessionLocal", session_factory):
         miss = await wechat._handle_name_lookup("赵六", DOCTOR)
-    assert "未找到患者" in miss
+    assert "赵六" in miss
     assert get_session(DOCTOR).pending_create_name == "赵六"
 
 
@@ -207,7 +207,7 @@ async def test_pending_create_cancel_and_create(session_factory):
     set_pending_create(DOCTOR, "陈明")
     with patch("routers.wechat.AsyncSessionLocal", session_factory):
         created = await wechat._handle_pending_create("男，30岁", DOCTOR)
-    assert "建档" in created
+    assert "建档" in created or "陈明" in created
     assert "30岁" in created
     assert get_session(DOCTOR).pending_create_name is None
 
@@ -248,7 +248,7 @@ async def test_handle_list_tasks_and_complete_task_and_schedule_routes():
     with patch("routers.wechat.AsyncSessionLocal", return_value=_SessionCtx()), \
          patch("routers.wechat.update_task_status", new=AsyncMock(return_value=SimpleNamespace(title="随访提醒：张三"))):
         ok = await wechat._handle_complete_task(DOCTOR, IntentResult(intent=Intent.complete_task, extra_data={"task_id": 1}))
-    assert "已标记完成" in ok
+    assert ok  # natural reply (from chat_reply or default)
 
     bad_name = await wechat._handle_schedule_appointment(
         DOCTOR,
@@ -328,7 +328,7 @@ async def test_handle_intent_bg_uses_context_and_fallback():
         await wechat._handle_intent_bg("hello", DOCTOR)
 
     push_turn.assert_called_once()
-    assert "处理失败" in push_turn.call_args.args[2]
+    assert push_turn.call_args.args[2]  # some error message sent
     send_msg.assert_awaited_once()
 
 
@@ -428,3 +428,110 @@ async def test_setup_menu_status_paths():
          patch("routers.wechat.create_menu", new=AsyncMock(return_value={"errcode": 1, "errmsg": "x"})):
         err = await wechat.setup_menu()
     assert err["status"] == "error"
+
+
+# ---------------------------------------------------------------------------
+# structured_fields path in _handle_add_record
+# ---------------------------------------------------------------------------
+
+
+async def test_handle_add_record_uses_structured_fields(session_factory):
+    """When structured_fields is set, structure_medical_record should NOT be called."""
+    intent = IntentResult(
+        intent=Intent.add_record,
+        patient_name="张三",
+        structured_fields={"chief_complaint": "头痛两天", "diagnosis": "紧张性头痛"},
+        chat_reply="好的，张三头痛两天的情况记下来了。",
+    )
+    structure_mock = AsyncMock()
+    with patch("routers.wechat.AsyncSessionLocal", session_factory), \
+         patch("routers.wechat.structure_medical_record", structure_mock):
+        reply = await wechat._handle_add_record("张三头痛两天", DOCTOR, intent)
+    structure_mock.assert_not_called()
+    assert reply == "好的，张三头痛两天的情况记下来了。"
+
+
+async def test_handle_add_record_falls_back_to_structuring_llm(session_factory):
+    """When structured_fields is None, structure_medical_record should be called."""
+    intent = IntentResult(
+        intent=Intent.add_record,
+        patient_name="张三",
+        structured_fields=None,
+        chat_reply=None,
+    )
+    fake_record = MedicalRecord(chief_complaint="头痛", diagnosis="偏头痛")
+    structure_mock = AsyncMock(return_value=fake_record)
+    with patch("routers.wechat.AsyncSessionLocal", session_factory), \
+         patch("routers.wechat.structure_medical_record", structure_mock):
+        reply = await wechat._handle_add_record("张三头痛两天", DOCTOR, intent)
+    structure_mock.assert_called_once()
+    assert "张三" in reply or "病历" in reply
+
+
+async def test_handle_add_record_uses_chat_reply_from_intent(session_factory):
+    """Reply should come from intent.chat_reply when set."""
+    intent = IntentResult(
+        intent=Intent.add_record,
+        patient_name="李明",
+        structured_fields={"chief_complaint": "发烧三天"},
+        chat_reply="李明发烧三天，退烧药已记录。",
+    )
+    with patch("routers.wechat.AsyncSessionLocal", session_factory):
+        reply = await wechat._handle_add_record("李明发烧三天", DOCTOR, intent)
+    assert reply == "李明发烧三天，退烧药已记录。"
+
+
+async def test_handle_add_record_fallback_reply_when_no_chat_reply(session_factory):
+    """When chat_reply is None, reply should contain patient name."""
+    intent = IntentResult(
+        intent=Intent.add_record,
+        patient_name="王五",
+        structured_fields={"chief_complaint": "腹痛"},
+        chat_reply=None,
+    )
+    with patch("routers.wechat.AsyncSessionLocal", session_factory):
+        reply = await wechat._handle_add_record("王五腹痛", DOCTOR, intent)
+    assert "王五" in reply
+
+
+async def test_handle_add_record_emergency_prefix(session_factory):
+    """Emergency records should have 🚨 prefix regardless of chat_reply."""
+    intent = IntentResult(
+        intent=Intent.add_record,
+        patient_name="韩伟",
+        is_emergency=True,
+        structured_fields={"chief_complaint": "STEMI急诊"},
+        chat_reply="韩伟STEMI已记录，绿色通道已启动。",
+    )
+    with patch("routers.wechat.AsyncSessionLocal", session_factory), \
+         patch("routers.wechat.create_emergency_task", new=AsyncMock()):
+        reply = await wechat._handle_add_record("韩伟STEMI", DOCTOR, intent)
+    assert reply.startswith("🚨")
+
+
+async def test_handle_add_record_structuring_value_error_returns_natural_msg(session_factory):
+    """ValueError in structure_medical_record returns natural error message."""
+    intent = IntentResult(
+        intent=Intent.add_record,
+        patient_name="张三",
+        structured_fields=None,
+        chat_reply=None,
+    )
+    with patch("routers.wechat.AsyncSessionLocal", session_factory), \
+         patch("routers.wechat.structure_medical_record", new=AsyncMock(side_effect=ValueError("bad"))):
+        reply = await wechat._handle_add_record("不完整的输入", DOCTOR, intent)
+    assert "没能识别" in reply
+
+
+async def test_handle_add_record_structuring_generic_error_returns_natural_msg(session_factory):
+    """Generic exception in structure_medical_record returns natural error message."""
+    intent = IntentResult(
+        intent=Intent.add_record,
+        patient_name="张三",
+        structured_fields=None,
+        chat_reply=None,
+    )
+    with patch("routers.wechat.AsyncSessionLocal", session_factory), \
+         patch("routers.wechat.structure_medical_record", new=AsyncMock(side_effect=RuntimeError("boom"))):
+        reply = await wechat._handle_add_record("张三胸痛", DOCTOR, intent)
+    assert "不好意思" in reply or "出了点问题" in reply

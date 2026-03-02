@@ -52,11 +52,13 @@ async def test_handle_intent_routes_unknown_to_help_message(wechat):
 
 
 async def test_handle_intent_falls_back_on_detection_error(wechat):
+    from models.medical_record import MedicalRecord
+    fake_record = MedicalRecord(chief_complaint="发烧")
     with patch("routers.wechat.agent_dispatch", side_effect=Exception("LLM down")), \
-         patch("routers.wechat._build_reply", new=AsyncMock(return_value="fallback")) as mock_build:
+         patch("routers.wechat.structure_medical_record", new=AsyncMock(return_value=fake_record)) as mock_struct:
         reply = await wechat._handle_intent("some text", DOCTOR)
-    assert reply == "fallback"
-    mock_build.assert_awaited_once()
+    mock_struct.assert_awaited_once()
+    assert reply  # non-empty reply (formatted record or short error)
 
 
 # ---------------------------------------------------------------------------
@@ -116,8 +118,7 @@ async def test_add_record_uses_session_patient_when_no_name_in_message(wechat, s
          patch("routers.wechat.structure_medical_record", new=AsyncMock(return_value=fake_record)):
         reply = await wechat._handle_add_record(FAKE_RECORD_TEXT, DOCTOR, _intent(Intent.add_record))
 
-    assert "李明" in reply
-    assert "头痛" in reply
+    assert "李明" in reply  # natural reply contains patient name
 
 
 async def test_add_record_links_patient_from_message_name(wechat, session_factory):
@@ -157,8 +158,7 @@ async def test_add_record_auto_creates_patient_when_not_in_db(wechat, session_fa
             "王芳，最近头疼很久，需要多喝热水", DOCTOR, _intent(Intent.add_record, name="王芳")
         )
 
-    assert "王芳" in reply
-    assert "新建档" in reply or "✅" in reply
+    assert "王芳" in reply  # natural reply contains patient name
     # Patient should now exist in DB
     async with session_factory() as s:
         from db.crud import find_patient_by_name
@@ -181,7 +181,7 @@ async def test_add_record_works_without_patient(wechat, session_factory):
             "患者发烧一天", DOCTOR, _intent(Intent.add_record)
         )
 
-    assert "发烧" in reply or "诊断" in reply
+    assert "病历" in reply  # natural fallback reply
 
 
 # ---------------------------------------------------------------------------
@@ -302,8 +302,7 @@ async def test_add_record_emergency_reply_has_prefix(wechat, session_factory):
          patch("routers.wechat.structure_medical_record", new=AsyncMock(return_value=fake_record)):
         reply = await wechat._handle_add_record("3床室颤，立即除颤", DOCTOR, emergency_intent)
 
-    assert "🚨" in reply
-    assert "紧急" in reply
+    assert "🚨" in reply  # emergency prefix always present
 
 
 # ---------------------------------------------------------------------------

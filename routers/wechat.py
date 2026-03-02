@@ -79,6 +79,7 @@ async def _handle_create_patient(doctor_id: str, intent_result) -> str:
 
 
 async def _handle_add_record(text: str, doctor_id: str, intent_result, history: list = None) -> str:
+    from models.medical_record import MedicalRecord
     # Resolve patient: by name in message > auto-create if new > current session
     patient_id = None
     patient_name = None
@@ -107,15 +108,22 @@ async def _handle_add_record(text: str, doctor_id: str, intent_result, history: 
             patient_id = sess.current_patient_id
             patient_name = sess.current_patient_name
 
-        try:
-            doctor_ctx = [m["content"] for m in (history or [])[-10:] if m["role"] == "user"]
-            doctor_ctx.append(text)
-            record = await structure_medical_record("\n".join(doctor_ctx))
-        except ValueError:
-            return "⚠️ 未能识别为有效病历，请发送完整的病历描述（包含主诉、诊断等信息）。"
-        except Exception as e:
-            log(f"[WeChat] structuring FAILED: {e}")
-            return "处理失败，请稍后重试。"
+        # Build MedicalRecord: prefer single-LLM structured_fields, fallback to dedicated LLM
+        if intent_result.structured_fields:
+            fields = dict(intent_result.structured_fields)
+            if not fields.get("chief_complaint"):
+                fields["chief_complaint"] = text.split("，")[0][:20] or "门诊就诊"
+            record = MedicalRecord(**{k: fields.get(k) for k in MedicalRecord.model_fields})
+        else:
+            try:
+                doctor_ctx = [m["content"] for m in (history or [])[-10:] if m["role"] == "user"]
+                doctor_ctx.append(text)
+                record = await structure_medical_record("\n".join(doctor_ctx))
+            except ValueError:
+                return "没能识别病历内容，请重新描述一下。"
+            except Exception as e:
+                log(f"[WeChat] structuring FAILED: {e}")
+                return "不好意思，刚才出了点问题，能再说一遍吗？"
 
         db_record = await save_record(session, doctor_id, record, patient_id)
 
@@ -131,16 +139,13 @@ async def _handle_add_record(text: str, doctor_id: str, intent_result, history: 
             record.diagnosis, patient_id,
         ))
 
-    reply = _format_record(record)
-    if intent_result.extra_data:
-        log(f"[WeChat] cv_metrics={intent_result.extra_data}")
-    if patient_name:
-        if patient_created:
-            reply = f"✅ 已为【{patient_name}】新建档并保存病历\n\n" + reply
-        else:
-            reply = f"📌 已关联患者【{patient_name}】\n\n" + reply
+    # Natural reply from LLM, with brief fallback
+    reply = intent_result.chat_reply
+    if not reply:
+        reply = f"{patient_name}的病历已记录。" if patient_name else "病历已保存。"
+
     if intent_result.is_emergency:
-        reply = "🚨 【紧急记录已保存】\n\n" + reply
+        reply = "🚨 " + reply
     return reply
 
 
@@ -219,7 +224,7 @@ async def _start_interview(doctor_id: str) -> str:
 async def _handle_interview_step(text: str, doctor_id: str) -> str:
     if text.strip() in ("取消", "退出", "结束", "cancel"):
         get_session(doctor_id).interview = None
-        return "已结束本次问诊。"
+        return "好的，问诊结束了。"
 
     sess = get_session(doctor_id)
     iv = sess.interview
@@ -249,9 +254,9 @@ async def _handle_interview_step(text: str, doctor_id: str) -> str:
             set_current_patient(doctor_id, patient.id, patient.name)
         await save_record(session, doctor_id, record, patient.id if patient else None)
 
-    reply = "✅ 问诊完成！病历已保存。\n\n" + _format_record(record)
+    reply = "问诊完成，病历已保存。"
     if patient_name:
-        reply = f"📌 患者：{patient_name}\n\n" + reply
+        reply = f"{patient_name}，" + reply
     return reply
 
 
@@ -279,11 +284,7 @@ async def _handle_name_lookup(name: str, doctor_id: str) -> str:
     else:
         set_pending_create(doctor_id, name)
         log(f"[WeChat] name lookup miss: {name} → pending create")
-        return (
-            f"未找到患者【{name}】。\n\n"
-            "请回复性别和年龄以建立新档案，例如：男，30岁\n"
-            "或发送「取消」放弃"
-        )
+        return f"没找到{name}这位患者，请问性别和年龄？（或发送「取消」放弃）"
 
 
 async def _handle_pending_create(text: str, doctor_id: str) -> str:
@@ -293,7 +294,7 @@ async def _handle_pending_create(text: str, doctor_id: str) -> str:
 
     if text.strip() in ("取消", "cancel", "Cancel", "退出", "不要"):
         clear_pending_create(doctor_id)
-        return f"已取消，未创建患者【{name}】。"
+        return "好的，已取消。"
 
     gender = None
     if re.search(r'男', text):
@@ -312,7 +313,8 @@ async def _handle_pending_create(text: str, doctor_id: str) -> str:
 
     clear_pending_create(doctor_id)
     parts = "、".join(filter(None, [gender, f"{age}岁" if age else None]))
-    return f"✅ 已为患者【{name}】建档" + (f"（{parts}）" if parts else "") + "。\n后续病历将自动关联该患者。"
+    info = f"（{parts}）" if parts else ""
+    return f"好的，{name}已建档{info}。"
 
 
 async def _handle_list_tasks(doctor_id: str) -> str:
@@ -336,7 +338,7 @@ async def _handle_complete_task(doctor_id: str, intent_result) -> str:
         task = await update_task_status(session, task_id, doctor_id, "completed")
     if task is None:
         return f"⚠️ 未找到任务 {task_id}，请确认编号是否正确。"
-    return f"✅ 任务【{task.title}】已标记完成。"
+    return intent_result.chat_reply or "好的，任务完成了。"
 
 
 async def _handle_schedule_appointment(doctor_id: str, intent_result) -> str:
@@ -375,7 +377,13 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
         intent_result = await agent_dispatch(text, history=history or [])
     except Exception as e:
         log(f"[WeChat] agent dispatch FAILED: {e}, falling back to structuring")
-        return await _build_reply(text)
+        try:
+            record = await structure_medical_record(text)
+            return _format_record(record)
+        except ValueError:
+            return "没能识别病历内容，请重新描述一下。"
+        except Exception:
+            return "不好意思，出了点问题，能再说一遍吗？"
 
     log(f"[WeChat] intent={intent_result.intent} patient={intent_result.patient_name}")
 
@@ -399,13 +407,7 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
     elif intent_result.intent == Intent.unknown and _NAME_ONLY.match(text.strip()):
         return await _handle_name_lookup(text.strip(), doctor_id)
     else:
-        return intent_result.chat_reply or (
-            "您好！我是医生助手，请发送以下内容：\n\n"
-            "📋 病历记录 — 直接描述症状、诊断和治疗\n"
-            "👤 新建患者 — 例如：新患者李明，45岁男性\n"
-            "🔍 查询病历 — 例如：查一下李明的记录\n"
-            "👥 所有病人 — 查看患者列表"
-        )
+        return intent_result.chat_reply or "您好！请直接描述病历内容、或说「新患者姓名」建档、或说「查询姓名」查记录。"
 
 
 async def _handle_image_bg(media_id: str, doctor_id: str):
@@ -479,7 +481,7 @@ async def _handle_intent_bg(text: str, doctor_id: str):
             result = await _handle_intent(text, doctor_id, history=history)
         except Exception as e:
             log(f"[WeChat bg] FAILED: {e}")
-            result = "处理失败，请稍后重试。"
+            result = "不好意思，出了点问题，能再说一遍吗？"
 
         push_turn(doctor_id, text, result)
     await _send_customer_service_msg(doctor_id, result)

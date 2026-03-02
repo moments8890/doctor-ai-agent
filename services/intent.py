@@ -58,6 +58,7 @@ class IntentResult(BaseModel):
     is_emergency: bool = False
     extra_data: dict = Field(default_factory=dict)
     chat_reply: Optional[str] = None
+    structured_fields: Optional[dict] = None  # 8 clinical fields from single LLM call
 
 
 async def detect_intent(text: str) -> IntentResult:

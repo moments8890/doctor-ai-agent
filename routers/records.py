@@ -135,15 +135,23 @@ async def chat(body: ChatInput):
     if intent_result.intent == Intent.add_record:
         if not intent_result.patient_name or not _is_valid_patient_name(intent_result.patient_name):
             return ChatResponse(reply="请问这位患者叫什么名字？")
-        doctor_ctx = [m["content"] for m in history[-10:] if m["role"] == "user"]
-        if not (followup_name and body.text.strip() == followup_name):
-            doctor_ctx.append(body.text)
-        if not doctor_ctx:
-            doctor_ctx.append(body.text)
-        try:
-            record = await structure_medical_record("\n".join(doctor_ctx))
-        except Exception as e:
-            return ChatResponse(reply=f"病历生成失败：{e}")
+
+        # Build MedicalRecord: prefer single-LLM structured_fields, fallback to dedicated LLM
+        if intent_result.structured_fields:
+            fields = dict(intent_result.structured_fields)
+            if not fields.get("chief_complaint"):
+                fields["chief_complaint"] = "门诊就诊"
+            record = MedicalRecord(**{k: fields.get(k) for k in MedicalRecord.model_fields})
+        else:
+            doctor_ctx = [m["content"] for m in history[-10:] if m["role"] == "user"]
+            if not (followup_name and body.text.strip() == followup_name):
+                doctor_ctx.append(body.text)
+            if not doctor_ctx:
+                doctor_ctx.append(body.text)
+            try:
+                record = await structure_medical_record("\n".join(doctor_ctx))
+            except Exception as e:
+                return ChatResponse(reply=f"病历生成失败：{e}")
 
         patient_id = None
         patient_name = intent_result.patient_name
@@ -160,12 +168,14 @@ async def chat(body: ChatInput):
                 patient_id = patient.id
             await save_record(db, doctor_id, record, patient_id)
 
-        if patient_name:
-            prefix = "✅ 已为【" + patient_name + "】" + ("新建档并" if patient_created else "") + "保存病历。"
-        else:
-            prefix = "✅ 病历已保存。"
+        reply = intent_result.chat_reply
+        if not reply:
+            if patient_name:
+                reply = "✅ 已为【" + patient_name + "】" + ("新建档并" if patient_created else "") + "保存病历。"
+            else:
+                reply = "✅ 病历已保存。"
         log(f"[Chat] saved record patient={patient_name} doctor={doctor_id}")
-        return ChatResponse(reply=prefix, record=record)
+        return ChatResponse(reply=reply, record=record)
 
     # ── query_records ─────────────────────────────────────────────────────────
     if intent_result.intent == Intent.query_records:

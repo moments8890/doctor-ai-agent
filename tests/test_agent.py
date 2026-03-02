@@ -16,13 +16,13 @@ from services.intent import Intent
 from services.agent import dispatch
 
 
-def _make_tool_call(fn_name: str, args: dict):
+def _make_tool_call(fn_name: str, args: dict, content: str = None):
     tc = MagicMock()
     tc.function.name = fn_name
     tc.function.arguments = json.dumps(args, ensure_ascii=False)
     msg = MagicMock()
     msg.tool_calls = [tc]
-    msg.content = None
+    msg.content = content
     choice = MagicMock()
     choice.message = msg
     completion = MagicMock()
@@ -264,3 +264,69 @@ async def test_dispatch_empty_tool_calls_list_treated_as_no_tool(mock_llm):
     result = await dispatch("你好")
     assert result.intent == Intent.unknown
     assert result.chat_reply == "fallback reply"
+
+
+# ---------------------------------------------------------------------------
+# structured_fields and chat_reply (single-LLM path)
+# ---------------------------------------------------------------------------
+
+
+async def test_add_record_populates_structured_fields(mock_llm):
+    mock_llm.return_value = _make_tool_call("add_medical_record", {
+        "patient_name": "张三",
+        "chief_complaint": "头痛两天",
+        "diagnosis": "紧张性头痛",
+        "treatment_plan": "布洛芬",
+        "follow_up_plan": "两周后复查",
+    })
+    result = await dispatch("张三头痛两天，布洛芬，两周后复查")
+    assert result.structured_fields is not None
+    assert result.structured_fields["chief_complaint"] == "头痛两天"
+    assert result.structured_fields["diagnosis"] == "紧张性头痛"
+    assert result.structured_fields["treatment_plan"] == "布洛芬"
+    assert result.structured_fields["follow_up_plan"] == "两周后复查"
+
+
+async def test_add_record_chat_reply_populated(mock_llm):
+    mock_llm.return_value = _make_tool_call(
+        "add_medical_record",
+        {"patient_name": "张三", "chief_complaint": "头痛两天"},
+        content="好的，张三头痛两天的情况记下来了。",
+    )
+    result = await dispatch("张三头痛两天")
+    assert result.chat_reply == "好的，张三头痛两天的情况记下来了。"
+
+
+async def test_non_add_record_has_no_structured_fields(mock_llm):
+    mock_llm.return_value = _make_tool_call("create_patient", {"name": "李明"})
+    result = await dispatch("新患者李明")
+    assert result.structured_fields is None
+
+    mock_llm.return_value = _make_tool_call("query_records", {"patient_name": "王芳"})
+    result2 = await dispatch("查一下王芳的病历")
+    assert result2.structured_fields is None
+
+
+async def test_empty_clinical_fields_gives_none_structured_fields(mock_llm):
+    """add_medical_record with no clinical keys → structured_fields is None."""
+    mock_llm.return_value = _make_tool_call("add_medical_record", {
+        "patient_name": "张三",
+        "is_emergency": False,
+    })
+    result = await dispatch("张三发烧")
+    assert result.structured_fields is None
+
+
+async def test_add_record_null_clinical_fields_excluded(mock_llm):
+    """null values in clinical fields should not appear in structured_fields."""
+    mock_llm.return_value = _make_tool_call("add_medical_record", {
+        "patient_name": "李明",
+        "chief_complaint": "胸痛",
+        "diagnosis": None,
+        "treatment_plan": None,
+    })
+    result = await dispatch("李明胸痛")
+    assert result.structured_fields is not None
+    assert "diagnosis" not in result.structured_fields
+    assert "treatment_plan" not in result.structured_fields
+    assert result.structured_fields["chief_complaint"] == "胸痛"
