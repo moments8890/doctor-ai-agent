@@ -115,6 +115,8 @@ jobs:
           ROUTING_LLM: ollama
           STRUCTURING_LLM: ollama
           OLLAMA_MODEL: qwen2.5:7b
+          CHAT_TIMEOUT: "300"
+          CHAT_RETRIES: "1"
         run: |
           bash tools/test.sh integration
 
