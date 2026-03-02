@@ -7,6 +7,7 @@
 - **Integration test health check** — `conftest.py` now passes `follow_redirects=True` to the httpx server check so a `307 Temporary Redirect` from `/` no longer causes all integration tests to be spuriously skipped.
 - **CI: unit job no longer collects integration tests** — added `--ignore=tests/integration` so skipped integration tests don't pollute unit test output.
 - **CI: app readiness curl follows redirects** — added `-L` flag so the startup loop correctly follows the `307 → /chat` redirect.
+- **Text pipeline name follow-up is now deterministic** — `POST /api/records/chat` now forces `add_record` when the previous assistant turn asked for patient name and the doctor replies with a name-only message (e.g., `陈明`). This removes routing-model variance that caused intermittent/frequent failures in `test_missing_name_asks_then_saves`, and prevents the name-only turn from polluting structured clinical text.
 
 ### Features
 
