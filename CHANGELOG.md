@@ -2,6 +2,10 @@
 
 ## [Unreleased] — 2026-03-01
 
+### Bug Fixes
+
+- **Integration test health check** — `conftest.py` now passes `follow_redirects=True` to the httpx server check so a `307 Temporary Redirect` from `/` no longer causes all integration tests to be spuriously skipped.
+
 ### Features
 
 - **Editable system prompt via Admin UI** — The structuring LLM prompt is now stored in the `system_prompts` DB table and editable at `/admin → System Prompts` without a server restart. Changes take effect within 60 seconds (TTL cache).
