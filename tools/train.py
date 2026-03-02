@@ -25,6 +25,7 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_DATA = ROOT / "train" / "data" / "clinic_raw_cases_cardiology_v1.md"
+DB_PATH = ROOT / "patients.db"
 BASE_URL = "http://127.0.0.1:8000"
 # Seconds between cases — keeps Groq free-tier TPD usage sustainable
 REQUEST_DELAY = 4
@@ -89,6 +90,94 @@ def _post(base_url: str, text: str, history: list, doctor_id: str,
     resp.raise_for_status()  # re-raise after exhausting retries
 
 
+def clean_train_data() -> int:
+    """Delete all patients and records written by train_* doctor IDs. Returns rows deleted."""
+    import sqlite3
+    if not DB_PATH.exists():
+        return 0
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM medical_records WHERE doctor_id LIKE 'train_%'")
+        records_deleted = cur.rowcount
+        cur.execute("DELETE FROM patients WHERE doctor_id LIKE 'train_%'")
+        patients_deleted = cur.rowcount
+        cur.execute("DELETE FROM doctor_contexts WHERE doctor_id LIKE 'train_%'")
+        conn.commit()
+        return records_deleted + patients_deleted
+    finally:
+        conn.close()
+
+
+def verify_db(case: Case, api_record: dict) -> tuple:
+    """
+    Confirm the API-returned record actually landed in the database.
+
+    Checks:
+      1. A patient row exists with the correct name and doctor_id.
+      2. A medical_record row is linked to that patient.
+      3. chief_complaint in DB is non-empty and matches the API response.
+
+    Returns (ok: bool, detail: str).
+    """
+    import sqlite3
+
+    if not DB_PATH.exists():
+        return False, "patients.db not found"
+
+    doctor_id = f"train_{case.doctor}"
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        cur = conn.cursor()
+
+        # 1. Find patient — anonymous cases matched by doctor_id only
+        if case.patient != "未报姓名":
+            cur.execute(
+                "SELECT id, name FROM patients WHERE name = ? AND doctor_id = ? ORDER BY id DESC LIMIT 1",
+                (case.patient, doctor_id),
+            )
+        else:
+            cur.execute(
+                "SELECT id, name FROM patients WHERE doctor_id = ? ORDER BY id DESC LIMIT 1",
+                (doctor_id,),
+            )
+        row = cur.fetchone()
+        if not row:
+            return False, f"patient '{case.patient}' not in DB"
+        patient_id, db_patient_name = row[0], row[1]
+
+        # Verify the stored name is not garbage (e.g. question text stored as name)
+        expected = "匿名患者" if case.patient == "未报姓名" else case.patient
+        if db_patient_name != expected:
+            return False, f"patient name mismatch: DB='{db_patient_name}' expected='{expected}'"
+
+        # 2. Find most recent medical record for this patient
+        cur.execute(
+            "SELECT chief_complaint, diagnosis, treatment_plan FROM medical_records "
+            "WHERE patient_id = ? ORDER BY id DESC LIMIT 1",
+            (patient_id,),
+        )
+        rec = cur.fetchone()
+        if not rec:
+            return False, "medical record row missing from DB"
+
+        db_complaint, db_diagnosis, db_treatment = rec
+        if not db_complaint:
+            return False, "chief_complaint is null in DB"
+
+        # 3. Sanity-check: DB value matches what the API returned
+        api_complaint = (api_record or {}).get("chief_complaint", "")
+        if api_complaint and db_complaint != api_complaint:
+            return False, f"DB/API mismatch: DB='{db_complaint}' API='{api_complaint}'"
+
+        detail = db_complaint
+        if db_diagnosis:
+            detail += f" | dx: {db_diagnosis[:40]}"
+        return True, detail
+    finally:
+        conn.close()
+
+
 def process_case(base_url: str, case: Case) -> tuple:
     """
     Send one case through the pipeline.  Returns (ok: bool, detail: str).
@@ -109,7 +198,9 @@ def process_case(base_url: str, case: Case) -> tuple:
             {"role": "user",      "content": case.text},
             {"role": "assistant", "content": reply},
         ]
-        reply, record = _post(base_url, case.patient, history, doctor_id)
+        # Anonymous cases: provide a placeholder so the pipeline can continue
+        name_reply = case.patient if case.patient != "未报姓名" else "匿名患者"
+        reply, record = _post(base_url, name_reply, history, doctor_id)
 
     # Scenario 3: agent filed a create_patient but produced no record
     if not record and ("建档" in reply or "✅" in reply):
@@ -120,8 +211,8 @@ def process_case(base_url: str, case: Case) -> tuple:
         reply, record = _post(base_url, case.text, history, doctor_id)
 
     if record and record.get("chief_complaint"):
-        return True, record["chief_complaint"]
-    return False, reply[:120]
+        return True, record, record["chief_complaint"]
+    return False, None, reply[:120]
 
 
 def main() -> None:
@@ -130,11 +221,16 @@ def main() -> None:
     parser.add_argument("data_path", nargs="?", default=str(DEFAULT_DATA))
     parser.add_argument("base_url",  nargs="?", default=BASE_URL)
     parser.add_argument("--cases", help="Comma-separated case numbers to run, e.g. 013,018,020")
+    parser.add_argument("--clean", action="store_true", help="Delete all train_* data from DB before running")
     args = parser.parse_args()
 
     data_path = Path(args.data_path)
     base_url  = args.base_url.rstrip("/")
     only      = set(args.cases.split(",")) if args.cases else None
+
+    if args.clean:
+        deleted = clean_train_data()
+        print(f"{YELLOW}  Cleaned {deleted} train rows from DB.{RESET}\n")
 
     if not data_path.exists():
         print(f"{RED}File not found: {data_path}{RESET}")
@@ -160,15 +256,27 @@ def main() -> None:
         label = f"Case {case.number}  {case.patient}"
         print(f"  {label:<28}", end=" ", flush=True)
         try:
-            ok, detail = process_case(base_url, case)
+            api_ok, record, detail = process_case(base_url, case)
         except httpx.ConnectError:
-            ok, detail = False, "cannot connect to server"
+            api_ok, record, detail = False, None, "cannot connect to server"
         except httpx.HTTPStatusError as e:
-            ok, detail = False, f"HTTP {e.response.status_code}: {e.response.text[:80]}"
+            api_ok, record, detail = False, None, f"HTTP {e.response.status_code}: {e.response.text[:80]}"
         except Exception as e:
-            ok, detail = False, str(e)[:100]
+            api_ok, record, detail = False, None, str(e)[:100]
 
-        tag = f"{GREEN}PASS{RESET}" if ok else f"{RED}FAIL{RESET}"
+        if api_ok:
+            db_ok, db_detail = verify_db(case, record)
+            if db_ok:
+                tag = f"{GREEN}PASS{RESET}"
+                detail = db_detail
+            else:
+                tag = f"{YELLOW}DB-FAIL{RESET}"
+                detail = db_detail
+        else:
+            db_ok = False
+            tag = f"{RED}FAIL{RESET}"
+
+        ok = api_ok and db_ok
         print(f"{tag}  {GRAY}{detail}{RESET}")
         results.append((case.number, ok, detail))
 

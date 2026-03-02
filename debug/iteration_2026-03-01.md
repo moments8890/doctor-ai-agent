@@ -69,3 +69,35 @@ This is model-agnostic: the coercion runs for all providers and models, so futur
 
 - [x] Fix implemented
 - [ ] Re-run training to verify 20/20
+
+---
+
+## Training Run: cardiology_v2 (llama3.2) — DB Verification Added
+
+**Result:** Testing revealed additional data quality issues once DB verification was enabled.
+
+### Additional Issues Found
+
+| Issue | Root cause | Fix |
+|-------|-----------|-----|
+| `这位患者叫什么名字` stored as patient name | llama3.2 extracts the agent's own question from history as the patient name | Server-side `_is_valid_patient_name()` guard in `records.py` — rejects names containing question phrases |
+| `王张会` stored instead of `方建国` | llama3.2 hallucinates/garbles Chinese patient names | Model quality issue; use qwen2.5:7b which handles Chinese names reliably |
+| `chief_complaint = 章丽萍` (name in wrong field) | Structuring LLM put patient name in chief_complaint | Prompt already says not to; model quality issue |
+| `treatment_plan` as raw dict/list string | Old records from before the coercion fix | Coercion fix already applied; old data manually cleaned |
+| Anonymous patient (`未报姓名`) always fails | LLM correctly ignores `"未报姓名"` as not a real name, so pipeline loops | Training script now provides `"匿名患者"` placeholder for anonymous cases |
+
+### Fixes Applied
+
+1. **`routers/records.py`**: `_is_valid_patient_name()` — rejects names containing `叫什么名字`, `这位患者`, `请问` or longer than 20 chars; applied before patient create/record save
+2. **`tools/train.py`**: `--clean` flag — deletes all `train_*` patients, records, and doctor_contexts before a run
+3. **`tools/train.py`**: `verify_db()` — now queries patient by name AND verifies stored name matches expected; catches hallucinated names
+4. **`tools/train.py`**: Anonymous patient scenario — uses `"匿名患者"` placeholder instead of `"未报姓名"` when agent asks for name
+
+### Recommendation
+
+Switch `OLLAMA_MODEL` from `llama3.2` to `qwen2.5:7b` for production use. `llama3.2` hallucinated Chinese patient names on ~2/37 cases. `qwen2.5:7b` passed all 37/37 in earlier testing.
+
+### Status
+
+- [x] Fixes implemented
+- [ ] Re-run v1 + v2 with qwen2.5:7b to confirm 0 DB-FAILs

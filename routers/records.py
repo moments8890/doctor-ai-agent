@@ -20,6 +20,17 @@ from utils.log import log
 
 router = APIRouter(prefix="/api/records", tags=["records"])
 
+# Phrases that indicate the LLM accidentally extracted a question/non-name as a patient name
+_BAD_NAME_FRAGMENTS = ["叫什么名字", "这位患者", "请问", "患者姓名"]
+
+def _is_valid_patient_name(name: str) -> bool:
+    """Return False if the extracted name is clearly not a real patient name."""
+    if not name or not name.strip():
+        return False
+    if len(name.strip()) > 20:          # real Chinese names are ≤ 4 chars typically
+        return False
+    return not any(frag in name for frag in _BAD_NAME_FRAGMENTS)
+
 SUPPORTED_AUDIO_TYPES = {
     "audio/mpeg", "audio/mp4", "audio/wav", "audio/webm",
     "audio/ogg", "audio/flac", "audio/m4a", "audio/x-m4a",
@@ -84,7 +95,7 @@ async def chat(body: ChatInput):
 
     # ── add_medical_record ────────────────────────────────────────────────────
     if intent_result.intent == Intent.add_record:
-        if not intent_result.patient_name:
+        if not intent_result.patient_name or not _is_valid_patient_name(intent_result.patient_name):
             return ChatResponse(reply="请问这位患者叫什么名字？")
         doctor_ctx = [m["content"] for m in history[-10:] if m["role"] == "user"]
         doctor_ctx.append(body.text)
