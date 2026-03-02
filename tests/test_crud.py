@@ -224,6 +224,10 @@ async def test_create_patient_stamps_category_new(db_session):
     assert patient.category_tags == "[]"
     assert patient.category_rules_version == "v1"
     assert patient.category_computed_at is not None
+    assert patient.primary_risk_level == "low"
+    assert patient.risk_tags == '["no_records"]'
+    assert patient.follow_up_state == "not_needed"
+    assert patient.risk_rules_version == "risk-v1"
 
 
 async def test_save_record_triggers_category_recompute(db_session):
@@ -249,3 +253,31 @@ async def test_save_record_triggers_category_recompute(db_session):
     # With a fresh record and follow_up_plan, should now be active_followup
     assert refreshed.primary_category == "active_followup"
     assert refreshed.category_computed_at is not None
+
+
+async def test_save_record_creates_auto_followup_task_when_enabled(db_session, monkeypatch):
+    from sqlalchemy import select
+    from db.models import DoctorTask
+
+    monkeypatch.setenv("AUTO_FOLLOWUP_TASKS_ENABLED", "true")
+    patient = await create_patient(db_session, DOCTOR, "李明", "男", 45)
+    record = MedicalRecord(
+        chief_complaint="头晕",
+        history_of_present_illness="两天头晕",
+        diagnosis="高血压",
+        treatment_plan="口服降压药",
+        follow_up_plan="两周后复诊",
+    )
+
+    db_record = await save_record(db_session, DOCTOR, record, patient.id)
+    result = await db_session.execute(
+        select(DoctorTask).where(
+            DoctorTask.doctor_id == DOCTOR,
+            DoctorTask.record_id == db_record.id,
+            DoctorTask.task_type == "follow_up",
+        )
+    )
+    task = result.scalar_one_or_none()
+    assert task is not None
+    assert task.trigger_source == "risk_engine"
+    assert "risk_level=" in (task.trigger_reason or "")

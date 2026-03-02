@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 from db.crud import get_all_records_for_doctor, get_system_prompt, get_records_for_patient, get_all_patients, upsert_system_prompt
 from db.engine import AsyncSessionLocal
 from db.models import MedicalRecordDB
+from services.patient_timeline import build_patient_timeline
 
 router = APIRouter(tags=["ui"])
 
@@ -870,11 +871,43 @@ def _parse_tags(raw: str | None) -> list:
         return []
 
 
+def _parse_bool(raw: str | None) -> bool | None:
+    if raw is None or not isinstance(raw, str):
+        return None
+    value = raw.strip().lower()
+    if value in {"1", "true", "yes", "on"}:
+        return True
+    if value in {"0", "false", "no", "off"}:
+        return False
+    return None
+
+
+def _is_risk_stale(risk_computed_at: datetime | None, hours: int = 24) -> bool:
+    if risk_computed_at is None:
+        return True
+    delta = datetime.utcnow() - risk_computed_at
+    return delta.total_seconds() >= hours * 3600
+
+
+def _normalize_query_str(value: str | None) -> str | None:
+    if not isinstance(value, str):
+        return None
+    return value
+
+
 @router.get("/api/manage/patients")
 async def manage_patients(
     doctor_id: str = Query(default="web_doctor"),
     category: str | None = Query(default=None),
+    risk: str | None = Query(default=None),
+    follow_up_state: str | None = Query(default=None),
+    stale_risk: str | None = Query(default=None),
 ):
+    category = _normalize_query_str(category)
+    risk = _normalize_query_str(risk)
+    follow_up_state = _normalize_query_str(follow_up_state)
+    stale_risk = _normalize_query_str(stale_risk)
+
     async with AsyncSessionLocal() as db:
         patients = await get_all_patients(db, doctor_id)
         counts_result = await db.execute(
@@ -896,12 +929,27 @@ async def manage_patients(
             "category_tags": _parse_tags(p.category_tags),
             "category_computed_at": _fmt_ts(p.category_computed_at),
             "category_rules_version": p.category_rules_version,
+            "primary_risk_level": p.primary_risk_level,
+            "risk_tags": _parse_tags(p.risk_tags),
+            "risk_score": p.risk_score,
+            "follow_up_state": p.follow_up_state,
+            "risk_computed_at": _fmt_ts(p.risk_computed_at),
+            "risk_rules_version": p.risk_rules_version,
+            "stale_risk": _is_risk_stale(p.risk_computed_at),
         }
         for p in patients
     ]
 
     if category is not None:
         items = [item for item in items if item["primary_category"] == category]
+    if risk is not None:
+        items = [item for item in items if item["primary_risk_level"] == risk]
+    if follow_up_state is not None:
+        items = [item for item in items if item["follow_up_state"] == follow_up_state]
+
+    stale_filter = _parse_bool(stale_risk)
+    if stale_filter is not None:
+        items = [item for item in items if bool(item["stale_risk"]) is stale_filter]
 
     return {"doctor_id": doctor_id, "items": items}
 
@@ -932,6 +980,13 @@ async def manage_patients_grouped(doctor_id: str = Query(default="web_doctor")):
             "category_tags": _parse_tags(p.category_tags),
             "category_computed_at": _fmt_ts(p.category_computed_at),
             "category_rules_version": p.category_rules_version,
+            "primary_risk_level": p.primary_risk_level,
+            "risk_tags": _parse_tags(p.risk_tags),
+            "risk_score": p.risk_score,
+            "follow_up_state": p.follow_up_state,
+            "risk_computed_at": _fmt_ts(p.risk_computed_at),
+            "risk_rules_version": p.risk_rules_version,
+            "stale_risk": _is_risk_stale(p.risk_computed_at),
         }
         for p in patients
     ]
@@ -949,6 +1004,45 @@ async def manage_patients_grouped(doctor_id: str = Query(default="web_doctor")):
     ]
 
     return {"doctor_id": doctor_id, "groups": groups}
+
+
+@router.get("/api/manage/patients/grouped-risk")
+async def manage_patients_grouped_risk(doctor_id: str = Query(default="web_doctor")):
+    async with AsyncSessionLocal() as db:
+        patients = await get_all_patients(db, doctor_id)
+
+    order = ["critical", "high", "medium", "low", "unknown"]
+    bucket: dict = {key: [] for key in order}
+    for p in patients:
+        key = p.primary_risk_level or "unknown"
+        if key not in bucket:
+            key = "unknown"
+        bucket[key].append(
+            {
+                "id": p.id,
+                "name": p.name,
+                "primary_risk_level": p.primary_risk_level,
+                "risk_score": p.risk_score,
+                "follow_up_state": p.follow_up_state,
+                "risk_computed_at": _fmt_ts(p.risk_computed_at),
+            }
+        )
+
+    groups = [{"group": key, "count": len(bucket[key]), "items": bucket[key]} for key in order]
+    return {"doctor_id": doctor_id, "groups": groups}
+
+
+@router.get("/api/manage/patients/{patient_id}/timeline")
+async def manage_patient_timeline(
+    patient_id: int,
+    doctor_id: str = Query(default="web_doctor"),
+    limit: int = Query(default=100, ge=1, le=500),
+):
+    async with AsyncSessionLocal() as db:
+        data = await build_patient_timeline(db, doctor_id=doctor_id, patient_id=patient_id, limit=limit)
+    if data is None:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    return {"doctor_id": doctor_id, **data}
 
 
 @router.get("/api/manage/records")

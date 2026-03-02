@@ -336,11 +336,14 @@ def test_taskout_from_orm_serializes_datetime_fields():
     obj.created_at = datetime(2026, 3, 2, 8, 0, 0)
     obj.patient_id = 11
     obj.record_id = 22
+    obj.trigger_source = "risk_engine"
+    obj.trigger_reason = "auto follow-up"
 
     out = TaskOut.from_orm(obj)
     assert out.id == 1
     assert out.due_at.startswith("2026-03-10T09:00:00")
     assert out.created_at.startswith("2026-03-02T08:00:00")
+    assert out.trigger_source == "risk_engine"
 
 
 # ===========================================================================

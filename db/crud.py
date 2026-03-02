@@ -1,6 +1,8 @@
 from __future__ import annotations
 import json
-from datetime import datetime
+import os
+import re
+from datetime import datetime, timedelta
 from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
@@ -8,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.models import SystemPrompt, DoctorContext, Patient, MedicalRecordDB, NeuroCaseDB, DoctorTask
 from models.medical_record import MedicalRecord
 from services.patient_categorization import RULES_VERSION, recompute_patient_category
+from services.patient_risk import RULES_VERSION as RISK_RULES_VERSION, recompute_patient_risk
 
 
 async def get_system_prompt(session: AsyncSession, key: str) -> SystemPrompt | None:
@@ -66,6 +69,12 @@ async def create_patient(
         category_tags="[]",
         category_rules_version=RULES_VERSION,
         category_computed_at=datetime.utcnow(),
+        primary_risk_level="low",
+        risk_tags='["no_records"]',
+        risk_score=0,
+        follow_up_state="not_needed",
+        risk_computed_at=datetime.utcnow(),
+        risk_rules_version=RISK_RULES_VERSION,
     )
     session.add(patient)
     await session.commit()
@@ -105,7 +114,120 @@ async def save_record(
     await session.commit()
     if patient_id is not None:
         await recompute_patient_category(patient_id, session)
+        risk = await recompute_patient_risk(patient_id, session)
+        if _env_flag_true("AUTO_FOLLOWUP_TASKS_ENABLED") and record.follow_up_plan:
+            await _ensure_auto_follow_up_task(
+                session=session,
+                doctor_id=doctor_id,
+                patient_id=patient_id,
+                record_id=db_record.id,
+                patient_name=await _patient_name(session, patient_id),
+                follow_up_plan=record.follow_up_plan,
+                risk_level=risk.primary_risk_level if risk else None,
+            )
     return db_record
+
+
+def _env_flag_true(name: str) -> bool:
+    value = os.environ.get(name, "")
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+_CN_DIGITS = {
+    "一": 1, "两": 2, "二": 2, "三": 3, "四": 4,
+    "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10,
+}
+
+
+def _parse_cn_or_int(raw: str) -> Optional[int]:
+    n = _CN_DIGITS.get(raw)
+    if n is not None:
+        return n
+    try:
+        return int(raw)
+    except (ValueError, TypeError):
+        return None
+
+
+def _extract_follow_up_days(follow_up_plan: str) -> int:
+    if not follow_up_plan:
+        return 7
+
+    if "明天" in follow_up_plan:
+        return 1
+    if "下周" in follow_up_plan or "下星期" in follow_up_plan:
+        return 7
+
+    m = re.search(r'([一两二三四五六七八九十\d]+)周', follow_up_plan)
+    if m:
+        n = _parse_cn_or_int(m.group(1))
+        if n is not None:
+            return n * 7
+
+    m = re.search(r'([一两二三四五六七八九十\d]+)个月', follow_up_plan)
+    if m:
+        n = _parse_cn_or_int(m.group(1))
+        if n is not None:
+            return n * 30
+
+    m = re.search(r'([一两二三四五六七八九十\d]+)天', follow_up_plan)
+    if m:
+        n = _parse_cn_or_int(m.group(1))
+        if n is not None:
+            return n
+
+    return 7
+
+
+async def _patient_name(session: AsyncSession, patient_id: int) -> str:
+    result = await session.execute(select(Patient).where(Patient.id == patient_id))
+    patient = result.scalar_one_or_none()
+    return patient.name if patient is not None else "患者"
+
+
+async def _ensure_auto_follow_up_task(
+    session: AsyncSession,
+    doctor_id: str,
+    patient_id: int,
+    record_id: int,
+    patient_name: str,
+    follow_up_plan: str,
+    risk_level: Optional[str] = None,
+) -> None:
+    existing = await session.execute(
+        select(DoctorTask).where(
+            DoctorTask.doctor_id == doctor_id,
+            DoctorTask.record_id == record_id,
+            DoctorTask.task_type == "follow_up",
+            DoctorTask.trigger_source == "risk_engine",
+            DoctorTask.status == "pending",
+        )
+    )
+    if existing.scalar_one_or_none() is not None:
+        return
+
+    days = _extract_follow_up_days(follow_up_plan)
+    due_at = datetime.utcnow().replace(microsecond=0) + timedelta(days=days)
+
+    reason = "auto follow-up from record follow_up_plan"
+    if risk_level:
+        reason = f"{reason}; risk_level={risk_level}"
+
+    session.add(
+        DoctorTask(
+            doctor_id=doctor_id,
+            patient_id=patient_id,
+            record_id=record_id,
+            task_type="follow_up",
+            title=f"随访提醒：{patient_name}",
+            content=follow_up_plan,
+            status="pending",
+            due_at=due_at,
+            trigger_source="risk_engine",
+            trigger_reason=reason,
+        )
+    )
+    await session.commit()
 
 
 async def get_records_for_patient(
