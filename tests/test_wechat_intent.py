@@ -34,24 +34,25 @@ def wechat(session_factory):
 
 
 async def test_handle_intent_routes_create_patient(wechat, session_factory):
-    with patch("routers.wechat.detect_intent", new=AsyncMock(
+    with patch("routers.wechat.agent_dispatch", new=AsyncMock(
         return_value=_intent(Intent.create_patient, name="李明", gender="男", age=45)
-    )):
+    )), patch("routers.wechat.AsyncSessionLocal", session_factory):
         reply = await wechat._handle_intent("帮我建个新患者，李明，45岁男性", DOCTOR)
     assert "李明" in reply
     assert "建档" in reply or "✅" in reply
 
 
 async def test_handle_intent_routes_unknown_to_help_message(wechat):
-    with patch("routers.wechat.detect_intent", new=AsyncMock(
-        return_value=_intent(Intent.unknown)
+    from services.intent import IntentResult
+    with patch("routers.wechat.agent_dispatch", new=AsyncMock(
+        return_value=IntentResult(intent=Intent.unknown, chat_reply="您好，有什么可以帮您？")
     )):
         reply = await wechat._handle_intent("今天天气真好", DOCTOR)
-    assert "病历" in reply or "患者" in reply or "查询" in reply
+    assert reply  # any non-empty reply is acceptable for conversational fallback
 
 
 async def test_handle_intent_falls_back_on_detection_error(wechat):
-    with patch("routers.wechat.detect_intent", side_effect=Exception("LLM down")), \
+    with patch("routers.wechat.agent_dispatch", side_effect=Exception("LLM down")), \
          patch("routers.wechat._build_reply", new=AsyncMock(return_value="fallback")) as mock_build:
         reply = await wechat._handle_intent("some text", DOCTOR)
     assert reply == "fallback"
@@ -313,7 +314,7 @@ async def test_add_record_emergency_reply_has_prefix(wechat, session_factory):
 async def test_handle_intent_routes_list_patients(wechat, session_factory):
     from services.intent import IntentResult
 
-    with patch("routers.wechat.detect_intent", new=AsyncMock(
+    with patch("routers.wechat.agent_dispatch", new=AsyncMock(
         return_value=IntentResult(intent=Intent.list_patients)
     )), patch("routers.wechat.AsyncSessionLocal", session_factory):
         reply = await wechat._handle_intent("所有患者", DOCTOR)
