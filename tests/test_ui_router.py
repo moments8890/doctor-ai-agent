@@ -81,6 +81,7 @@ def _patient_ns(**kwargs):
         follow_up_state="not_needed",
         risk_computed_at=None,
         risk_rules_version="risk-v1",
+        labels=[],
     )
     defaults.update(kwargs)
     return SimpleNamespace(**defaults)
@@ -180,7 +181,14 @@ def _patient(**kwargs):
         follow_up_state="not_needed",
         risk_computed_at=datetime(2026, 3, 2, 10, 5, 0),
         risk_rules_version="risk-v1",
+        labels=[],
     )
+    defaults.update(kwargs)
+    return SimpleNamespace(**defaults)
+
+
+def _label_ns(**kwargs):
+    defaults = dict(id=1, name="转诊候选", color="#FF4444", created_at=datetime(2026, 3, 2, 9, 0, 0), doctor_id="doc1")
     defaults.update(kwargs)
     return SimpleNamespace(**defaults)
 
@@ -315,3 +323,97 @@ async def test_manage_patient_timeline_success():
     assert data["doctor_id"] == "doc1"
     assert data["patient"]["name"] == "张三"
     assert data["events"][0]["id"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Label endpoints
+# ---------------------------------------------------------------------------
+
+
+async def test_list_labels_returns_items():
+    db = SimpleNamespace()
+    labels = [_label_ns(id=1, name="转诊候选"), _label_ns(id=2, name="重点随访", color="#4444FF")]
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.get_labels_for_doctor", new=AsyncMock(return_value=labels)):
+        data = await ui.list_labels(doctor_id="doc1")
+    assert len(data["items"]) == 2
+    assert data["items"][0]["name"] == "转诊候选"
+    assert data["items"][1]["color"] == "#4444FF"
+
+
+async def test_create_label():
+    db = SimpleNamespace()
+    new_lbl = _label_ns(id=5, name="医保报销中", color="#22BB44")
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.create_label", new=AsyncMock(return_value=new_lbl)):
+        data = await ui.create_label_endpoint(ui.LabelCreate(doctor_id="doc1", name="医保报销中", color="#22BB44"))
+    assert data["id"] == 5
+    assert data["name"] == "医保报销中"
+    assert data["color"] == "#22BB44"
+
+
+async def test_update_label():
+    db = SimpleNamespace()
+    updated = _label_ns(id=3, name="新名称", color="#000000")
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.update_label", new=AsyncMock(return_value=updated)):
+        data = await ui.update_label_endpoint(3, ui.LabelUpdate(doctor_id="doc1", name="新名称"))
+    assert data["id"] == 3
+    assert data["name"] == "新名称"
+
+
+async def test_update_label_not_found_raises_404():
+    db = SimpleNamespace()
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.update_label", new=AsyncMock(return_value=None)):
+        with pytest.raises(HTTPException) as exc:
+            await ui.update_label_endpoint(99, ui.LabelUpdate(doctor_id="doc1", name="x"))
+    assert exc.value.status_code == 404
+
+
+async def test_delete_label():
+    db = SimpleNamespace()
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.delete_label", new=AsyncMock(return_value=True)):
+        data = await ui.delete_label_endpoint(1, doctor_id="doc1")
+    assert data == {"ok": True}
+
+
+async def test_assign_label_to_patient():
+    db = SimpleNamespace()
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.assign_label", new=AsyncMock(return_value=None)):
+        data = await ui.assign_label_endpoint(11, 1, doctor_id="doc1")
+    assert data == {"ok": True}
+
+
+async def test_remove_label_from_patient():
+    db = SimpleNamespace()
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.remove_label", new=AsyncMock(return_value=None)):
+        data = await ui.remove_label_endpoint(11, 1, doctor_id="doc1")
+    assert data == {"ok": True}
+
+
+async def test_patients_list_includes_labels_field():
+    db = SimpleNamespace(
+        execute=AsyncMock(return_value=SimpleNamespace(all=lambda: [(11, 1)]))
+    )
+    patients = [_patient_ns(id=11, name="张三", labels=[])]
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.get_all_patients", new=AsyncMock(return_value=patients)):
+        data = await ui.manage_patients("doc1", category=None)
+    assert "labels" in data["items"][0]
+    assert data["items"][0]["labels"] == []
+
+
+async def test_patients_list_labels_populated():
+    db = SimpleNamespace(
+        execute=AsyncMock(return_value=SimpleNamespace(all=lambda: [(11, 2)]))
+    )
+    lbl = SimpleNamespace(id=7, name="转诊候选", color="#FF4444")
+    patients = [_patient_ns(id=11, name="张三", labels=[lbl])]
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.get_all_patients", new=AsyncMock(return_value=patients)):
+        data = await ui.manage_patients("doc1", category=None)
+    assert data["items"][0]["labels"] == [{"id": 7, "name": "转诊候选", "color": "#FF4444"}]

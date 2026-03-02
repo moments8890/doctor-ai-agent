@@ -1,11 +1,26 @@
+from __future__ import annotations
+
 from datetime import datetime
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from sqlalchemy import func, select
 
-from db.crud import get_all_records_for_doctor, get_system_prompt, get_records_for_patient, get_all_patients, upsert_system_prompt
+from db.crud import (
+    get_all_records_for_doctor,
+    get_system_prompt,
+    get_records_for_patient,
+    get_all_patients,
+    upsert_system_prompt,
+    create_label,
+    get_labels_for_doctor,
+    update_label,
+    delete_label,
+    assign_label,
+    remove_label,
+)
 from db.engine import AsyncSessionLocal
 from db.models import MedicalRecordDB
 from services.patient_timeline import build_patient_timeline
@@ -617,6 +632,128 @@ _MANAGE_HTML = """<!doctype html>
     .ok { color: #007749; font-weight: 600; }
     .small { font-size: 13px; color: var(--muted); }
 
+    /* ── Labels panel ── */
+    .labels-panel {
+      margin-bottom: 14px;
+      padding: 12px;
+      background: #f8fafb;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+
+    .labels-panel h3 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .label-add-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .label-add-row input[type="text"] {
+      flex: 1;
+      min-width: 120px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font: inherit;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .label-add-row input[type="color"] {
+      width: 36px;
+      height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 2px;
+      cursor: pointer;
+      background: #fff;
+    }
+
+    .label-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    .label-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px 3px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1.5px solid rgba(0,0,0,0.12);
+    }
+
+    .label-chip .del-btn {
+      background: none;
+      border: none;
+      padding: 0;
+      min-width: 0;
+      font-size: 13px;
+      line-height: 1;
+      color: rgba(0,0,0,0.4);
+      cursor: pointer;
+      border-radius: 50%;
+      transition: color 120ms;
+    }
+
+    .label-chip .del-btn:hover { color: var(--danger); }
+
+    /* ── Patient card label chips ── */
+    .patient-labels { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+
+    .pt-label-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px 2px 6px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1.5px solid rgba(0,0,0,0.10);
+    }
+
+    /* ── Label assignment popover ── */
+    .popover-wrap { position: relative; display: inline-block; }
+
+    .popover {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      z-index: 100;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      padding: 8px;
+      min-width: 180px;
+      max-width: 260px;
+    }
+
+    .popover.open { display: block; }
+
+    .popover label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 6px;
+      border-radius: 7px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .popover label:hover { background: #f3f7fa; }
+    .popover label input[type="checkbox"] { accent-color: var(--accent); }
+
     @media (max-width: 780px) {
       .bar { grid-template-columns: 1fr; }
     }
@@ -641,6 +778,15 @@ _MANAGE_HTML = """<!doctype html>
     </section>
 
     <section id=”patients” class=”panel active”>
+      <div class=”labels-panel”>
+        <h3>自定义标签</h3>
+        <div class=”label-add-row”>
+          <input type=”text” id=”newLabelName” placeholder=”标签名称” maxlength=”64” />
+          <input type=”color” id=”newLabelColor” value=”#005f73” title=”选择颜色” />
+          <button class=”btn” id=”addLabelBtn” style=”padding:6px 14px;font-size:13px;”>添加</button>
+        </div>
+        <div id=”labelChips” class=”label-chips”></div>
+      </div>
       <div class=”note”>当前医生下患者列表。点击”View Records”查看该患者最近病历。</div>
       <div class=”filter-bar”>
         <label for=”categoryFilter”>分类筛选：</label>
@@ -689,6 +835,12 @@ _MANAGE_HTML = """<!doctype html>
     const promptBase = document.getElementById("promptBase");
     const promptExt = document.getElementById("promptExt");
     const saveState = document.getElementById("saveState");
+    const labelChips = document.getElementById("labelChips");
+    const newLabelName = document.getElementById("newLabelName");
+    const newLabelColor = document.getElementById("newLabelColor");
+    const addLabelBtn = document.getElementById("addLabelBtn");
+
+    let _docLabels = [];   // cache of {id, name, color} for current doctor
 
     const CATEGORY_LABELS = {
       high_risk: "高风险",
@@ -715,6 +867,72 @@ _MANAGE_HTML = """<!doctype html>
 
     tabs.forEach(t => t.addEventListener("click", () => setTab(t.dataset.tab)));
 
+    // ── Colour utilities ──────────────────────────────────────────────────────
+
+    function textColorFor(hex) {
+      if (!hex) return "#222";
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return (r * 0.299 + g * 0.587 + b * 0.114) > 150 ? "#222" : "#fff";
+    }
+
+    // ── Label management ──────────────────────────────────────────────────────
+
+    async function loadLabels() {
+      const res = await fetch(`/api/manage/labels?doctor_id=${encodeURIComponent(doctorId())}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      _docLabels = data.items;
+      renderLabelChips();
+    }
+
+    function renderLabelChips() {
+      labelChips.innerHTML = "";
+      for (const lbl of _docLabels) {
+        const chip = document.createElement("span");
+        chip.className = "label-chip";
+        const bg = lbl.color || "#aaa";
+        const fg = textColorFor(bg);
+        chip.style.background = bg;
+        chip.style.color = fg;
+        chip.style.borderColor = bg;
+        chip.innerHTML = `${esc(lbl.name)}<button class="del-btn" title="删除">✕</button>`;
+        chip.querySelector(".del-btn").addEventListener("click", () => deleteLabelById(lbl.id));
+        labelChips.appendChild(chip);
+      }
+    }
+
+    async function deleteLabelById(id) {
+      const res = await fetch(`/api/manage/labels/${id}?doctor_id=${encodeURIComponent(doctorId())}`, { method: "DELETE" });
+      if (res.ok) {
+        await loadLabels();
+        await loadPatients();
+      }
+    }
+
+    addLabelBtn.addEventListener("click", async () => {
+      const name = newLabelName.value.trim();
+      if (!name) return;
+      const res = await fetch("/api/manage/labels", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ doctor_id: doctorId(), name, color: newLabelColor.value }),
+      });
+      if (res.ok) {
+        newLabelName.value = "";
+        await loadLabels();
+      }
+    });
+
+    // ── Patient list ──────────────────────────────────────────────────────────
+
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest(".popover-wrap")) {
+        document.querySelectorAll(".popover.open").forEach(p => p.classList.remove("open"));
+      }
+    });
+
     async function loadPatients() {
       const cat = categoryFilter.value;
       const url = new URL("/api/manage/patients", window.location.origin);
@@ -735,24 +953,89 @@ _MANAGE_HTML = """<!doctype html>
           ? `<span class="badge badge-${esc(catKey)}">${esc(catLabel)}</span>`
           : "";
         const computedAt = p.category_computed_at ? p.category_computed_at.slice(0, 16) : "-";
+        const labelChipsHtml = (p.labels || []).map(lbl => {
+          const bg = lbl.color || "#aaa";
+          const fg = textColorFor(bg);
+          return `<span class="pt-label-chip" style="background:${esc(bg)};color:${esc(fg)};border-color:${esc(bg)}">${esc(lbl.name)}</span>`;
+        }).join("");
         card.innerHTML = `
           <div class="row">
             <strong>${esc(p.name)}${badgeHtml}</strong>
             <span class="small">id=${p.id} | ${esc(info)} | records=${p.record_count}</span>
           </div>
+          <div class="patient-labels">${labelChipsHtml}</div>
           <div class="small">created: ${esc(p.created_at || "-")}</div>
           <div class="cat-debug">分类: ${esc(catKey || "-")} | 规则: ${esc(p.category_rules_version || "-")} | 计算于: ${esc(computedAt)}</div>
-          <button class="btn" data-pid="${p.id}" style="margin-top:8px;">View Records</button>
+          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn" data-pid="${p.id}">View Records</button>
+            <div class="popover-wrap">
+              <button class="btn" style="background:linear-gradient(160deg,#5d7585,#3d5060);" data-edit-labels="${p.id}">编辑标签</button>
+              <div class="popover" id="popover-${p.id}"></div>
+            </div>
+          </div>
         `;
-        card.querySelector("button").addEventListener("click", () => {
+        card.querySelector("[data-pid]").addEventListener("click", () => {
           setTab("records");
           patientFilter.value = String(p.id);
           loadRecords();
+        });
+        const editBtn = card.querySelector(`[data-edit-labels]`);
+        const popover = card.querySelector(`#popover-${p.id}`);
+        editBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const isOpen = popover.classList.contains("open");
+          document.querySelectorAll(".popover.open").forEach(x => x.classList.remove("open"));
+          if (!isOpen) {
+            renderPopover(popover, p);
+            popover.classList.add("open");
+          }
         });
         patientsList.appendChild(card);
       }
       if (!data.items.length) {
         patientsList.innerHTML = '<div class="small">No patients yet.</div>';
+      }
+    }
+
+    function renderPopover(popover, patient) {
+      const assignedIds = new Set((patient.labels || []).map(l => l.id));
+      popover.innerHTML = "";
+      if (!_docLabels.length) {
+        popover.innerHTML = '<div style="font-size:12px;color:#888;padding:4px 6px;">暂无标签，请先创建。</div>';
+        return;
+      }
+      for (const lbl of _docLabels) {
+        const row = document.createElement("label");
+        const checked = assignedIds.has(lbl.id) ? "checked" : "";
+        const bg = lbl.color || "#aaa";
+        const fg = textColorFor(bg);
+        row.innerHTML = `
+          <input type="checkbox" ${checked} data-lid="${lbl.id}" data-pid="${patient.id}" />
+          <span class="pt-label-chip" style="background:${esc(bg)};color:${esc(fg)};border-color:${esc(bg)}">${esc(lbl.name)}</span>
+        `;
+        const cb = row.querySelector("input");
+        cb.addEventListener("change", async () => {
+          const pid = patient.id;
+          const lid = lbl.id;
+          if (cb.checked) {
+            await fetch(`/api/manage/patients/${pid}/labels/${lid}?doctor_id=${encodeURIComponent(doctorId())}`, { method: "POST" });
+            if (!assignedIds.has(lid)) { assignedIds.add(lid); patient.labels.push(lbl); }
+          } else {
+            await fetch(`/api/manage/patients/${pid}/labels/${lid}?doctor_id=${encodeURIComponent(doctorId())}`, { method: "DELETE" });
+            assignedIds.delete(lid);
+            patient.labels = patient.labels.filter(l => l.id !== lid);
+          }
+          const chipsEl = patientsList.querySelector(`[data-pid="${patient.id}"]`)
+            ?.closest(".card")
+            ?.querySelector(".patient-labels");
+          if (chipsEl) {
+            chipsEl.innerHTML = (patient.labels || []).map(l => {
+              const b = l.color || "#aaa"; const f = textColorFor(b);
+              return `<span class="pt-label-chip" style="background:${esc(b)};color:${esc(f)};border-color:${esc(b)}">${esc(l.name)}</span>`;
+            }).join("");
+          }
+        });
+        popover.appendChild(row);
       }
     }
 
@@ -807,7 +1090,8 @@ _MANAGE_HTML = """<!doctype html>
     async function loadAll() {
       saveState.textContent = "";
       try {
-        await Promise.all([loadPatients(), loadRecords(), loadPrompts()]);
+        await Promise.all([loadLabels(), loadRecords(), loadPrompts()]);
+        await loadPatients();   // after loadLabels so _docLabels is ready
       } catch (err) {
         saveState.innerHTML = `<span class="error">Load failed: ${esc(err.message || err)}</span>`;
       }
@@ -936,6 +1220,7 @@ async def manage_patients(
             "risk_computed_at": _fmt_ts(p.risk_computed_at),
             "risk_rules_version": p.risk_rules_version,
             "stale_risk": _is_risk_stale(p.risk_computed_at),
+            "labels": [{"id": lbl.id, "name": lbl.name, "color": lbl.color} for lbl in (p.labels or [])],
         }
         for p in patients
     ]
@@ -987,6 +1272,7 @@ async def manage_patients_grouped(doctor_id: str = Query(default="web_doctor")):
             "risk_computed_at": _fmt_ts(p.risk_computed_at),
             "risk_rules_version": p.risk_rules_version,
             "stale_risk": _is_risk_stale(p.risk_computed_at),
+            "labels": [{"id": lbl.id, "name": lbl.name, "color": lbl.color} for lbl in (p.labels or [])],
         }
         for p in patients
     ]
@@ -1120,3 +1406,74 @@ async def update_prompt(key: str, body: PromptUpdate):
     async with AsyncSessionLocal() as db:
         await upsert_system_prompt(db, key, body.content)
     return {"ok": True, "key": key}
+
+
+# ── Label endpoints ───────────────────────────────────────────────────────────
+
+class LabelCreate(BaseModel):
+    doctor_id: str
+    name: str
+    color: Optional[str] = None
+
+
+class LabelUpdate(BaseModel):
+    doctor_id: str
+    name: Optional[str] = None
+    color: Optional[str] = None
+
+
+@router.get("/api/manage/labels")
+async def list_labels(doctor_id: str = Query(default="web_doctor")):
+    async with AsyncSessionLocal() as db:
+        labels = await get_labels_for_doctor(db, doctor_id)
+    return {
+        "items": [
+            {"id": lbl.id, "name": lbl.name, "color": lbl.color, "created_at": _fmt_ts(lbl.created_at)}
+            for lbl in labels
+        ]
+    }
+
+
+@router.post("/api/manage/labels")
+async def create_label_endpoint(body: LabelCreate):
+    async with AsyncSessionLocal() as db:
+        lbl = await create_label(db, body.doctor_id, body.name, body.color)
+    return {"id": lbl.id, "name": lbl.name, "color": lbl.color, "created_at": _fmt_ts(lbl.created_at)}
+
+
+@router.patch("/api/manage/labels/{label_id}")
+async def update_label_endpoint(label_id: int, body: LabelUpdate):
+    async with AsyncSessionLocal() as db:
+        lbl = await update_label(db, label_id, body.doctor_id, name=body.name, color=body.color)
+    if lbl is None:
+        raise HTTPException(status_code=404, detail="Label not found")
+    return {"id": lbl.id, "name": lbl.name, "color": lbl.color}
+
+
+@router.delete("/api/manage/labels/{label_id}")
+async def delete_label_endpoint(label_id: int, doctor_id: str = Query(default="web_doctor")):
+    async with AsyncSessionLocal() as db:
+        found = await delete_label(db, label_id, doctor_id)
+    if not found:
+        raise HTTPException(status_code=404, detail="Label not found")
+    return {"ok": True}
+
+
+@router.post("/api/manage/patients/{patient_id}/labels/{label_id}")
+async def assign_label_endpoint(patient_id: int, label_id: int, doctor_id: str = Query(default="web_doctor")):
+    async with AsyncSessionLocal() as db:
+        try:
+            await assign_label(db, patient_id, label_id, doctor_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc))
+    return {"ok": True}
+
+
+@router.delete("/api/manage/patients/{patient_id}/labels/{label_id}")
+async def remove_label_endpoint(patient_id: int, label_id: int, doctor_id: str = Query(default="web_doctor")):
+    async with AsyncSessionLocal() as db:
+        try:
+            await remove_label(db, patient_id, label_id, doctor_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc))
+    return {"ok": True}

@@ -1,9 +1,18 @@
 from __future__ import annotations
 from datetime import datetime
 from typing import Optional, List
-from sqlalchemy import ForeignKey, Index, String, Integer, DateTime, Text
+from sqlalchemy import ForeignKey, Index, String, Integer, DateTime, Text, Table, Column, PrimaryKeyConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from db.engine import Base
+
+
+patient_label_assignments = Table(
+    "patient_label_assignments",
+    Base.metadata,
+    Column("patient_id", Integer, ForeignKey("patients.id", ondelete="CASCADE")),
+    Column("label_id", Integer, ForeignKey("patient_labels.id", ondelete="CASCADE")),
+    PrimaryKeyConstraint("patient_id", "label_id"),
+)
 
 
 
@@ -58,6 +67,9 @@ class Patient(Base):
     )
 
     records: Mapped[List["MedicalRecordDB"]] = relationship("MedicalRecordDB", back_populates="patient")
+    labels: Mapped[List["PatientLabel"]] = relationship(
+        "PatientLabel", secondary=patient_label_assignments, back_populates="patients"
+    )
 
     def __str__(self) -> str:
         return self.name
@@ -133,3 +145,21 @@ class DoctorTask(Base):
 
     def __str__(self) -> str:
         return f"[{self.task_type}] {self.title}"
+
+
+class PatientLabel(Base):
+    """Doctor-owned custom label that can be attached to patients."""
+    __tablename__ = "patient_labels"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    doctor_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(64), nullable=False)
+    color: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    patients: Mapped[List["Patient"]] = relationship(
+        "Patient", secondary=patient_label_assignments, back_populates="labels"
+    )
+
+    def __str__(self) -> str:
+        return self.name
