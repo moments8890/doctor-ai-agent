@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from db.models import MedicalRecordDB, NeuroCaseDB, Patient, SystemPrompt
+from db.models import DoctorTask, MedicalRecordDB, NeuroCaseDB, Patient, SystemPrompt
 
 
 def test_model_str_methods():
@@ -31,3 +31,6 @@ def test_model_str_methods():
 
     neuro_no_date = NeuroCaseDB(doctor_id="doc", chief_complaint=None, created_at=None)
     assert str(neuro_no_date) == "— [—]"
+
+    task = DoctorTask(doctor_id="doc", task_type="follow_up", title="随访提醒：张三")
+    assert str(task) == "[follow_up] 随访提醒：张三"

@@ -91,6 +91,37 @@ async def test_send_customer_service_msg_swallow_exception():
         await wechat._send_customer_service_msg("u1", "content")
 
 
+async def test_send_customer_service_msg_success_path_posts_chunks():
+    class _Resp:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return {"ok": True, "echo": self._payload["text"]["content"]}
+
+    class _Client:
+        def __init__(self):
+            self.posts = []
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, _url, json):
+            self.posts.append(json)
+            return _Resp(json)
+
+    client = _Client()
+    with patch("services.wechat_notify._get_access_token", new=AsyncMock(return_value="tok")), \
+         patch("services.wechat_notify.httpx.AsyncClient", return_value=client):
+        await wechat._send_customer_service_msg("u1", "【A】" + "x" * 700 + "【B】tail")
+
+    assert len(client.posts) >= 2
+    assert all(p["touser"] == "u1" for p in client.posts)
+
+
 async def test_build_reply_handles_value_error_and_generic_error():
     with patch("routers.wechat.structure_medical_record", new=AsyncMock(side_effect=ValueError("bad"))):
         msg = await wechat._build_reply("x")
@@ -197,6 +228,79 @@ async def test_handle_intent_unknown_name_routes_to_lookup():
     ), patch("routers.wechat._handle_name_lookup", new=AsyncMock(return_value="lookup")):
         out = await wechat._handle_intent("张三", DOCTOR)
     assert out == "lookup"
+
+
+async def test_handle_list_tasks_and_complete_task_and_schedule_routes():
+    pending_tasks = [
+        SimpleNamespace(id=1, task_type="follow_up", title="随访提醒：张三", due_at=None),
+        SimpleNamespace(id=2, task_type="appointment", title="预约提醒：李四", due_at=datetime(2026, 3, 15, 9, 0, 0)),
+    ]
+    with patch("routers.wechat.AsyncSessionLocal", return_value=_SessionCtx()), \
+         patch("routers.wechat.list_tasks", new=AsyncMock(return_value=pending_tasks)):
+        text = await wechat._handle_list_tasks(DOCTOR)
+    assert "待办任务" in text and "follow_up" in text and "appointment" in text
+
+    with patch("routers.wechat.AsyncSessionLocal", return_value=_SessionCtx()), \
+         patch("routers.wechat.update_task_status", new=AsyncMock(return_value=None)):
+        miss = await wechat._handle_complete_task(DOCTOR, IntentResult(intent=Intent.complete_task, extra_data={"task_id": 999}))
+    assert "未找到任务" in miss
+
+    with patch("routers.wechat.AsyncSessionLocal", return_value=_SessionCtx()), \
+         patch("routers.wechat.update_task_status", new=AsyncMock(return_value=SimpleNamespace(title="随访提醒：张三"))):
+        ok = await wechat._handle_complete_task(DOCTOR, IntentResult(intent=Intent.complete_task, extra_data={"task_id": 1}))
+    assert "已标记完成" in ok
+
+    bad_name = await wechat._handle_schedule_appointment(
+        DOCTOR,
+        IntentResult(intent=Intent.schedule_appointment, patient_name=None, extra_data={}),
+    )
+    assert "未能识别患者姓名" in bad_name
+
+    bad_time = await wechat._handle_schedule_appointment(
+        DOCTOR,
+        IntentResult(intent=Intent.schedule_appointment, patient_name="王五", extra_data={}),
+    )
+    assert "未能识别预约时间" in bad_time
+
+    bad_format = await wechat._handle_schedule_appointment(
+        DOCTOR,
+        IntentResult(intent=Intent.schedule_appointment, patient_name="王五", extra_data={"appointment_time": "明天下午2点"}),
+    )
+    assert "时间格式无法识别" in bad_format
+
+    with patch("services.tasks.create_appointment_task", new=AsyncMock(return_value=SimpleNamespace(id=5))):
+        scheduled = await wechat._handle_schedule_appointment(
+            DOCTOR,
+            IntentResult(
+                intent=Intent.schedule_appointment,
+                patient_name="王五",
+                extra_data={"appointment_time": "2026-03-15T14:00:00", "notes": "复诊"},
+            ),
+        )
+    assert "已为患者【王五】安排预约" in scheduled
+    assert "任务编号：5" in scheduled
+
+
+async def test_handle_intent_fast_complete_and_task_intents():
+    with patch("routers.wechat.AsyncSessionLocal", return_value=_SessionCtx()), \
+         patch("routers.wechat.update_task_status", new=AsyncMock(return_value=SimpleNamespace(title="紧急记录：王五"))):
+        direct = await wechat._handle_intent("完成 7", DOCTOR)
+    assert "已标记完成" in direct
+
+    with patch("routers.wechat.agent_dispatch", new=AsyncMock(return_value=IntentResult(intent=Intent.list_tasks))), \
+         patch("routers.wechat._handle_list_tasks", new=AsyncMock(return_value="tasks")):
+        r1 = await wechat._handle_intent("我的待办", DOCTOR)
+    assert r1 == "tasks"
+
+    with patch("routers.wechat.agent_dispatch", new=AsyncMock(return_value=IntentResult(intent=Intent.complete_task, extra_data={"task_id": 3}))), \
+         patch("routers.wechat._handle_complete_task", new=AsyncMock(return_value="done")):
+        r2 = await wechat._handle_intent("完成任务3", DOCTOR)
+    assert r2 == "done"
+
+    with patch("routers.wechat.agent_dispatch", new=AsyncMock(return_value=IntentResult(intent=Intent.schedule_appointment, patient_name="赵六", extra_data={"appointment_time": "2026-03-18T09:00:00"}))), \
+         patch("routers.wechat._handle_schedule_appointment", new=AsyncMock(return_value="appt")):
+        r3 = await wechat._handle_intent("约诊", DOCTOR)
+    assert r3 == "appt"
 
 
 def test_verify_signature_success_and_failure():

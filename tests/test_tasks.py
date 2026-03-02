@@ -21,6 +21,7 @@ from services.tasks import (
 )
 from services.intent import Intent
 from services.agent import dispatch
+from routers.tasks import TaskOut
 
 
 # ===========================================================================
@@ -30,6 +31,11 @@ from services.agent import dispatch
 
 def test_extract_two_weeks():
     assert extract_follow_up_days("两周后复查") == 14
+
+
+def test_extract_invalid_cn_number_falls_back_to_default():
+    # "零周" is not in mapping and cannot parse as int => fallback branch.
+    assert extract_follow_up_days("零周后复查") == 7
 
 
 def test_extract_three_days():
@@ -220,6 +226,26 @@ async def test_create_emergency_task_sends_notification_immediately():
     mock_notify.assert_awaited_once_with("doc1", fake_task)
 
 
+async def test_create_appointment_task_sets_due_at_one_hour_before():
+    fake_task = _make_fake_task(3, task_type="appointment", title="预约提醒：王五")
+    mock_session = AsyncMock()
+    mock_create = AsyncMock(return_value=fake_task)
+    appt = datetime(2026, 5, 1, 14, 0, 0)
+
+    with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
+         patch("services.tasks.create_task", mock_create):
+        task = await create_appointment_task(
+            "doc1", "王五", appt, notes="复查血压", patient_id=9
+        )
+
+    assert task.id == 3
+    call_kwargs = mock_create.call_args.kwargs
+    assert call_kwargs["task_type"] == "appointment"
+    assert call_kwargs["patient_id"] == 9
+    assert call_kwargs["record_id"] is None
+    assert call_kwargs["due_at"] == datetime(2026, 5, 1, 13, 0, 0)
+
+
 async def test_check_and_send_due_tasks_sends_for_each():
     """Scheduler job sends notification for every due task."""
     task1 = _make_fake_task(1, doctor_id="doc1")
@@ -278,6 +304,43 @@ async def test_send_task_notification_formats_message_and_marks_notified():
     assert "完成 5" in message
 
     mock_mark.assert_awaited_once()
+
+
+async def test_send_task_notification_without_content_or_due_time():
+    fake_task = _make_fake_task(8, task_type="emergency", title="紧急记录：李明", due_at=None)
+    fake_task.content = None
+    mock_session = AsyncMock()
+    mock_send = AsyncMock()
+    mock_mark = AsyncMock()
+
+    with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
+         patch("services.tasks._send_customer_service_msg", mock_send), \
+         patch("services.tasks.mark_task_notified", mock_mark):
+        await send_task_notification("doc1", fake_task)
+
+    message = mock_send.call_args.args[1]
+    assert "紧急记录：李明" in message
+    assert "预定时间" not in message
+
+
+def test_taskout_from_orm_serializes_datetime_fields():
+    obj = MagicMock()
+    obj.id = 1
+    obj.doctor_id = "doc1"
+    obj.task_type = "follow_up"
+    obj.title = "随访提醒：张三"
+    obj.content = "两周后复查"
+    obj.status = "pending"
+    obj.due_at = datetime(2026, 3, 10, 9, 0, 0)
+    obj.notified_at = None
+    obj.created_at = datetime(2026, 3, 2, 8, 0, 0)
+    obj.patient_id = 11
+    obj.record_id = 22
+
+    out = TaskOut.from_orm(obj)
+    assert out.id == 1
+    assert out.due_at.startswith("2026-03-10T09:00:00")
+    assert out.created_at.startswith("2026-03-02T08:00:00")
 
 
 # ===========================================================================
