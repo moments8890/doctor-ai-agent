@@ -13,9 +13,11 @@ from services.structuring import structure_medical_record
 from services.transcription import transcribe_audio
 from services.voice import download_and_convert
 from services.interview import InterviewState, STEPS
-from services.intent import detect_intent, Intent
+from services.intent import Intent
+from services.agent import dispatch as agent_dispatch
 from services.wechat_menu import create_menu
-from services.session import get_session, set_current_patient, set_pending_create, clear_pending_create
+from services.session import get_session, push_turn, set_current_patient, set_pending_create, clear_pending_create
+from services.memory import maybe_compress, load_context_message
 from db.engine import AsyncSessionLocal
 from db.crud import create_patient, find_patient_by_name, save_record, get_records_for_patient, get_all_records_for_doctor, get_all_patients
 from utils.log import log
@@ -132,7 +134,7 @@ async def _handle_create_patient(doctor_id: str, intent_result) -> str:
     return f"✅ 已为患者【{name}】建档{gender_str}{age_str}，后续病历将自动关联该患者。"
 
 
-async def _handle_add_record(text: str, doctor_id: str, intent_result) -> str:
+async def _handle_add_record(text: str, doctor_id: str, intent_result, history: list = None) -> str:
     # Resolve patient: by name in message > auto-create if new > current session
     patient_id = None
     patient_name = None
@@ -162,7 +164,9 @@ async def _handle_add_record(text: str, doctor_id: str, intent_result) -> str:
             patient_name = sess.current_patient_name
 
         try:
-            record = await structure_medical_record(text)
+            doctor_ctx = [m["content"] for m in (history or [])[-10:] if m["role"] == "user"]
+            doctor_ctx.append(text)
+            record = await structure_medical_record("\n".join(doctor_ctx))
         except ValueError:
             return "⚠️ 未能识别为有效病历，请发送完整的病历描述（包含主诉、诊断等信息）。"
         except Exception as e:
@@ -354,11 +358,11 @@ async def _handle_pending_create(text: str, doctor_id: str) -> str:
     return f"✅ 已为患者【{name}】建档" + (f"（{parts}）" if parts else "") + "。\n后续病历将自动关联该患者。"
 
 
-async def _handle_intent(text: str, doctor_id: str) -> str:
+async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str:
     try:
-        intent_result = await detect_intent(text)
+        intent_result = await agent_dispatch(text, history=history or [])
     except Exception as e:
-        log(f"[WeChat] intent detection FAILED: {e}, falling back to structuring")
+        log(f"[WeChat] agent dispatch FAILED: {e}, falling back to structuring")
         return await _build_reply(text)
 
     log(f"[WeChat] intent={intent_result.intent} patient={intent_result.patient_name}")
@@ -366,7 +370,10 @@ async def _handle_intent(text: str, doctor_id: str) -> str:
     if intent_result.intent == Intent.create_patient:
         return await _handle_create_patient(doctor_id, intent_result)
     elif intent_result.intent == Intent.add_record:
-        return await _handle_add_record(text, doctor_id, intent_result)
+        sess = get_session(doctor_id)
+        if not intent_result.patient_name and not sess.current_patient_id:
+            return "请问这位患者叫什么名字？"
+        return await _handle_add_record(text, doctor_id, intent_result, history=history)
     elif intent_result.intent == Intent.query_records:
         return await _handle_query_records(doctor_id, intent_result)
     elif intent_result.intent == Intent.list_patients:
@@ -374,7 +381,7 @@ async def _handle_intent(text: str, doctor_id: str) -> str:
     elif intent_result.intent == Intent.unknown and _NAME_ONLY.match(text.strip()):
         return await _handle_name_lookup(text.strip(), doctor_id)
     else:
-        return (
+        return intent_result.chat_reply or (
             "您好！我是医生助手，请发送以下内容：\n\n"
             "📋 病历记录 — 直接描述症状、诊断和治疗\n"
             "👤 新建患者 — 例如：新患者李明，45岁男性\n"
@@ -398,11 +405,25 @@ def verify(timestamp: str, nonce: str, signature: str, echostr: str):
 
 async def _handle_intent_bg(text: str, doctor_id: str):
     """Process intent in background and deliver result via customer service API."""
+    sess = get_session(doctor_id)
+
+    # Compress rolling window if full or idle before adding new turn
+    await maybe_compress(doctor_id, sess)
+
+    # Build history: inject persisted context only when starting a fresh session
+    history = list(sess.conversation_history)
+    if not history:
+        ctx_msg = await load_context_message(doctor_id)
+        if ctx_msg:
+            history = [ctx_msg]
+
     try:
-        result = await _handle_intent(text, doctor_id)
+        result = await _handle_intent(text, doctor_id, history=history)
     except Exception as e:
         log(f"[WeChat bg] FAILED: {e}")
         result = "处理失败，请稍后重试。"
+
+    push_turn(doctor_id, text, result)
     await _send_customer_service_msg(doctor_id, result)
 
 
@@ -427,12 +448,14 @@ async def _handle_voice_bg(media_id: str, doctor_id: str):
         elif sess.interview is not None:
             result = await _handle_interview_step(text, doctor_id)
         else:
-            result = await _handle_intent(text, doctor_id)
+            # Reuse the full memory-aware background handler
+            await _handle_intent_bg(text, doctor_id)
+            return  # _handle_intent_bg sends the message itself
     except Exception as e:
         log(f"[Voice] routing FAILED: {e}")
         result = "处理失败，请稍后重试。"
-
-    await _send_customer_service_msg(doctor_id, f'🎙️ 「{text}」\n\n{result}')
+    else:
+        await _send_customer_service_msg(doctor_id, f'🎙️ 「{text}」\n\n{result}')
 
 
 @router.post("")
@@ -502,29 +525,11 @@ async def handle_message(request: Request):
         reply = TextReply(content=reply_text, message=msg)
         return Response(content=reply.render(), media_type="application/xml")
 
-    # Peek at intent using fast rule-based detection (< 5 ms, no network).
-    # add_record triggers an Ollama LLM call that can exceed WeChat's 5 s limit,
-    # so we ACK immediately and deliver the result via the customer service API.
-    from services.intent_rules import detect_intent_rules
-    peek = detect_intent_rules(msg.content)
-    log(f"[WeChat msg] peek intent={peek.intent}")
-
-    if peek.intent == Intent.add_record:
-        asyncio.create_task(_handle_intent_bg(msg.content, msg.source))
-        ack = "⏳ 正在生成结构化病历，稍候将发送给您…"
-        log(f"[WeChat msg] add_record → background task created for {msg.source}")
-        reply = TextReply(content=ack, message=msg)
-        return Response(content=reply.render(), media_type="application/xml")
-
-    # All other intents (create_patient, query_records, unknown) are fast.
-    try:
-        reply_text = await asyncio.wait_for(_handle_intent(msg.content, msg.source), timeout=4.5)
-    except asyncio.TimeoutError:
-        reply_text = "⏳ 处理超时，请重新发送消息。"
-        log(f"[WeChat msg] timeout for {msg.source}")
-
-    log(f"[WeChat msg] reply to {msg.source}:\n{reply_text}")
-    reply = TextReply(content=reply_text, message=msg)
+    # Always background: LLM agent call cannot fit in WeChat's 5s window.
+    # Deliver result via customer service API.
+    asyncio.create_task(_handle_intent_bg(msg.content, msg.source))
+    log(f"[WeChat msg] → background task created for {msg.source}")
+    reply = TextReply(content="⏳ 正在处理，稍候回复您…", message=msg)
     return Response(content=reply.render(), media_type="application/xml")
 
 

@@ -1,12 +1,15 @@
-# 专科医师AI智能体 — Architecture & Progress
+# 专科医师AI智能体 — Architecture
 
-> Last updated: 2026-03-01 · Phase 2 complete
+> Last updated: 2026-03-01 · Phase 3 in progress
 
 ---
 
 ## Project Goal
 
-A WeChat-native AI assistant for specialist doctors. Doctors interact naturally via WeChat messages; the system manages patient records, structures clinical notes, and stores everything in a local database — with no dependency on cloud LLMs for production.
+A WeChat-native AI assistant for specialist doctors (cardiology & oncology focus).
+Doctors interact naturally via WeChat messages or voice; the system manages patient
+records, structures clinical notes into standardised fields, and persists everything
+locally — with no mandatory cloud dependency.
 
 ---
 
@@ -15,37 +18,49 @@ A WeChat-native AI assistant for specialist doctors. Doctors interact naturally 
 | Phase | Status | Focus |
 |-------|--------|-------|
 | **Phase 1** | ✅ Done | Voice/text → structured medical record via LLM |
-| **Phase 2** | ✅ Done | Patient management, DB persistence, intent detection, WeChat bot |
-| Phase 3 | Planned | Conversational AI agent (tool calling), proactive follow-up |
+| **Phase 2** | ✅ Done | Patient management, DB persistence, WeChat bot |
+| **Phase 3** | 🔄 In progress | LLM agent dispatch, conversation memory, specialist corpus, local ASR |
 
 ---
 
-## Current Architecture (Phase 2)
+## Current Architecture (Phase 3)
 
 ```
 WeChat Official Account
         │  XML over HTTPS
         ▼
-┌─────────────────────────────────────────────────────┐
-│                   FastAPI App (:8000)                │
-│                                                     │
-│  /wechat  ──► intent_rules (jieba, <5ms)            │
-│               │                                     │
-│               ├─ create_patient ──► DB              │
-│               ├─ add_record ──────► LLM ──► DB      │
-│               ├─ query_records ───► DB              │
-│               └─ unknown ─────────► help message    │
-│                                                     │
-│  /api/patients  (REST CRUD)                         │
-│  /api/records   (REST CRUD)                         │
-│  /admin         (SQLAdmin UI)                       │
-└─────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│                    FastAPI App (:8000)                    │
+│                                                          │
+│  POST /wechat                                            │
+│    │                                                     │
+│    ├─ stateful flows (priority)                          │
+│    │    ├─ pending_create → collect gender/age           │
+│    │    └─ interview → guided intake Q&A                 │
+│    │                                                     │
+│    └─ background task → _handle_intent_bg()             │
+│         │                                               │
+│         ├─ maybe_compress()  ← memory.py                │
+│         ├─ load_context_message()                       │
+│         └─ agent_dispatch()  ← agent.py (LLM tool call) │
+│              ├─ create_patient → DB                     │
+│              ├─ add_record → structuring.py → DB        │
+│              ├─ query_records → DB                      │
+│              ├─ list_patients → DB                      │
+│              └─ unknown → chat_reply                    │
+│                                                          │
+│  POST /api/records/chat      (CLI / REST)                │
+│  POST /api/records/from-text                             │
+│  POST /api/records/from-audio                            │
+│  GET  /admin  (SQLAdmin UI)                              │
+│  POST /wechat/menu  (admin: push menu to WeChat)         │
+└──────────────────────────────────────────────────────────┘
         │
         ▼
-┌───────────────┐     ┌──────────────────────────┐
-│  patients.db  │     │  Ollama (localhost:11434) │
-│  (SQLite)     │     │  qwen2.5:7b              │
-└───────────────┘     └──────────────────────────┘
+┌───────────────┐   ┌──────────────────────────┐   ┌──────────────────┐
+│  patients.db  │   │  Ollama (localhost:11434) │   │  faster-whisper  │
+│  (SQLite)     │   │  qwen2.5:7b (default)    │   │  large-v3 local  │
+└───────────────┘   └──────────────────────────┘   └──────────────────┘
 ```
 
 ---
@@ -53,116 +68,159 @@ WeChat Official Account
 ## Directory Structure
 
 ```
-app/
-├── main.py                  # FastAPI app, lifespan (DB init + warmup), SQLAdmin
+├── main.py                   # FastAPI app, lifespan (DB init + warmup), SQLAdmin
 ├── requirements.txt
-├── patients.db              # SQLite database (auto-created on startup)
+├── patients.db               # SQLite (auto-created on startup)
 │
 ├── routers/
-│   ├── wechat.py            # WeChat XML handler, intent dispatch, message formatting
-│   ├── patients.py          # REST: POST /api/patients, GET /api/patients/{id}/records
-│   └── records.py           # REST: POST /api/records/from-text, from-audio
+│   ├── wechat.py             # WeChat XML handler, stateful flows, background dispatch
+│   └── records.py            # REST: /chat, /from-text, /from-audio
 │
 ├── services/
-│   ├── intent.py            # detect_intent() — dispatches to rules or LLM
-│   ├── intent_rules.py      # Rule-based: jieba POS + keyword + regex (default)
-│   ├── structuring.py       # LLM call → MedicalRecord (Pydantic)
-│   ├── session.py           # In-memory current-patient context per doctor
-│   ├── transcription.py     # Audio → text (Whisper-compatible)
-│   └── wechat_menu.py       # WeChat custom menu definition + creation
+│   ├── agent.py              # LLM function-calling dispatch → IntentResult
+│   ├── intent.py             # Intent enum + IntentResult schema
+│   ├── intent_rules.py       # Rule-based fallback (jieba + regex), used for reference
+│   ├── structuring.py        # LLM → MedicalRecord JSON (specialist-aware prompt)
+│   ├── session.py            # In-memory DoctorSession (history, patient, interview)
+│   ├── memory.py             # Rolling window compress → DB; context injection
+│   ├── interview.py          # Guided intake Q&A state machine (7 steps)
+│   ├── transcription.py      # faster-whisper local ASR (falls back to OpenAI)
+│   ├── voice.py              # WeChat media download + ffmpeg → 16kHz WAV
+│   └── wechat_menu.py        # Doctor-only menu definition + creation API
 │
 ├── db/
-│   ├── engine.py            # Async SQLAlchemy engine + AsyncSessionLocal + Base
-│   ├── models.py            # Patient, MedicalRecordDB ORM models
-│   ├── init_db.py           # create_tables() called at startup
-│   └── crud.py              # create_patient, find_patient_by_name, save_record,
-│                            #   get_records_for_patient, get_all_records_for_doctor
+│   ├── engine.py             # Async SQLAlchemy engine + AsyncSessionLocal
+│   ├── models.py             # Patient, MedicalRecordDB, DoctorContext ORM models
+│   ├── init_db.py            # create_tables() called at startup
+│   └── crud.py               # All DB operations
 │
 ├── models/
-│   └── medical_record.py    # Pydantic schema (8 clinical fields)
+│   └── medical_record.py     # Pydantic schema (8 clinical fields)
 │
 ├── utils/
-│   └── log.py               # Timestamped print wrapper
+│   └── log.py                # Timestamped print wrapper
 │
 ├── tools/
-│   ├── db_inspect.py        # CLI: patients / records / record <id> / patient <id>
-│   └── start_db_ui.sh       # Launches datasette on port 8001
+│   ├── chat.py               # Interactive CLI tester → POST /api/records/chat
+│   ├── db_inspect.py         # CLI: patients / records / record <id>
+│   └── start_db_ui.sh        # datasette on port 8001
+│
+├── train/
+│   └── data/                 # Training corpus (cardiology + oncology cases)
 │
 └── tests/
-    ├── conftest.py           # In-memory SQLite fixture, session reset
-    ├── test_crud.py          # 18 DB CRUD tests
-    ├── test_session.py       # 7 in-memory session tests
-    ├── test_intent.py        # 7 LLM intent tests (mocked)
-    ├── test_intent_rules.py  # 21 rule-based intent tests
-    ├── test_patients_api.py  # 6 REST API tests
-    └── test_wechat_intent.py # 14 WeChat dispatch tests
+    ├── conftest.py
+    ├── test_crud.py
+    ├── test_session.py
+    ├── test_intent.py
+    ├── test_intent_rules.py
+    └── test_wechat_intent.py
 ```
 
 ---
 
 ## Key Components
 
-### Intent Detection (`INTENT_PROVIDER`)
+### Intent Dispatch (`services/agent.py`)
 
-| Provider | How | Latency | Dependency |
-|----------|-----|---------|------------|
-| `local` (default) | jieba POS + keyword lists + regex | <5 ms | None |
-| `ollama` | Qwen2.5 via Ollama API | ~1–3 s | Ollama running |
-| `deepseek` | DeepSeek cloud API | ~1–2 s | API key |
-| `groq` | Groq cloud API | ~0.5 s | API key |
+Primary dispatch uses **LLM function calling** (tool use). The LLM selects one of
+four tools based on the doctor's message and any conversation history:
 
-Switch via `.env`: `INTENT_PROVIDER=local`
+| Tool | Triggered when |
+|------|---------------|
+| `add_medical_record` | Any clinical content: symptoms, vitals, labs, diagnosis, treatment, specialist content (PCI, chemo, CEA, EGFR…) |
+| `create_patient` | Explicit patient registration with no clinical content |
+| `query_records` | Doctor asks to view/retrieve past records |
+| `list_patients` | Doctor asks for their patient roster |
+| *(no tool)* | Casual conversation → `chat_reply` returned directly |
 
-### Intent → Action Dispatch (`routers/wechat.py`)
+The `AGENT_PROVIDER` env var selects the LLM backend (defaults to `LLM_PROVIDER`).
+
+### Specialist Corpus Support
+
+The structuring prompt (`services/structuring.py`) is tuned for:
+- **Cardiology**: STEMI, PCI, ablation follow-up, BNP/EF trends, Holter, NYHA, LDL-C
+- **Oncology**: chemo cycles, CEA/ANC trends, EGFR/HER2, targeted therapy, G-CSF
+- **Trend data**: "BNP 980 (上次 600)", "EF 50% (上次 60%, 趋势下降)"
+- **Provisional diagnosis**: "考虑：不稳定型心绞痛；待排：急性心衰"
+- **Planned tests** → `treatment_plan`; **existing results** → `auxiliary_examinations`
+
+### Conversation Memory (`services/memory.py`)
+
+Each doctor has a rolling window of up to 10 turns in `DoctorSession.conversation_history`.
 
 ```
-message
-  └─► detect_intent()
-        ├─ create_patient → create DB row, set session, reply confirmation
-        ├─ add_record     → structure via LLM → save DB row linked to patient
-        ├─ query_records  → fetch from DB
-        │     ├─ patient named in message → that patient's last 5 records
-        │     ├─ no name + session set   → session patient's last 5 records
-        │     └─ no context             → all doctor's last 10 records
-        └─ unknown → instant help message (no LLM call)
+message received
+  → maybe_compress()   # if window full (≥10 turns) OR idle ≥30 min
+  │    LLM summarises history → persists to DoctorContext table
+  │    clears in-memory window
+  └─ load_context_message()  # if window empty, inject last summary as system msg
+       → agent_dispatch(text, history=history)
+       → push_turn(doctor_id, text, reply)  # append to window
 ```
 
-### Patient Session (`services/session.py`)
+### Local Voice Transcription (`services/transcription.py`)
 
-In-memory dict keyed by WeChat `openid` (doctor_id). Tracks the "current patient" so doctors don't have to repeat the name every message.
+Uses **faster-whisper** with a medical terminology prompt to bias transcription toward
+correct drug names, lab values, and disease terms. The model is loaded lazily on first
+call and reused across requests.
+
+| Env var | Default | Options |
+|---------|---------|---------|
+| `WHISPER_MODEL` | `large-v3` | `medium`, `small`, `base` |
+| `WHISPER_DEVICE` | `cpu` | `cuda` |
+| `WHISPER_COMPUTE_TYPE` | `int8` | `float16` (GPU), `float32` |
+
+Falls back to OpenAI Whisper API if `faster-whisper` is not installed.
+
+**Audio pipeline:**
+```
+WeChat voice (AMR/SILK)
+  → ffmpeg (voice.py) → 16kHz mono WAV
+  → faster-whisper (transcription.py) → Chinese text
+  → agent_dispatch / interview / pending_create
+```
+
+### Guided Interview (`services/interview.py`)
+
+7-step structured intake triggered by menu or "开始问诊":
 
 ```
-set_current_patient(doctor_id, id, name)   # called on create or name match
-get_session(doctor_id)                     # returns DoctorSession dataclass
-clear_current_patient(doctor_id)
+患者姓名 → 主诉 → 持续时间 → 严重程度 → 伴随症状 → 既往史 → 体格检查
+  → compile_text() → structure_medical_record() → save_record()
 ```
 
-### Medical Record Structuring (`LLM_PROVIDER`)
+Supports voice input at any step. Doctor can cancel with "取消".
+
+### WeChat Message Flow
+
+```
+POST /wechat
+  │
+  ├─ AES decrypt (if encrypted)
+  ├─ parse XML
+  │
+  ├─ event/CLICK → _handle_menu_event() → synchronous XML reply
+  ├─ voice → ACK immediately → _handle_voice_bg() [background]
+  ├─ pending_create state → _handle_pending_create() → sync reply
+  ├─ interview state → _handle_interview_step() → sync reply
+  │
+  └─ text → ACK "⏳ 正在处理…" → _handle_intent_bg() [background]
+                                    └─ result delivered via customer service API
+```
+
+All LLM calls run in the background to avoid WeChat's 5-second response timeout.
+
+### Medical Record Structuring (`services/structuring.py`)
 
 | Provider | Model | Note |
 |----------|-------|------|
-| `ollama` (default) | `qwen2.5:7b` | Fully local, no data leaves server |
-| `deepseek` | `deepseek-chat` | Cloud fallback |
-| `groq` | `llama-3.3-70b-versatile` | Cloud fallback |
+| `ollama` (default) | `qwen2.5:7b` (or `OLLAMA_MODEL`) | Fully local |
+| `deepseek` | `deepseek-chat` | Cloud |
+| `groq` | `llama-3.3-70b-versatile` | Cloud |
 
-Switch via `.env`: `LLM_PROVIDER=ollama`
-
-Model is warmed up at startup to avoid cold-start timeout on first request.
-
-**Compliance**: the system prompt in `services/structuring.py` follows
-《病历书写基本规范》（卫医政发〔2010〕11号）, mapping each JSON field to
-the official definition for 门诊初诊记录:
-
-| JSON field | 规范字段 | 书写要求摘要 |
-|---|---|---|
-| `chief_complaint` | 主诉 | 主要症状/体征 + 持续时间，≤20字 |
-| `history_of_present_illness` | 现病史 | 发病经过、性质、演变、已诊疗情况 |
-| `diagnosis` | 诊断 | 优先 ICD 名称；不明确时写"待查：XX 待排" |
-| `treatment_plan` | 治疗方案 | 药名/剂量/用法；非药物医嘱 |
-| `past_medical_history` | 既往史 | 重大病史、手术、过敏史 |
-| `physical_examination` | 体格检查 | T/P/R/BP + 阳性体征 |
-| `auxiliary_examinations` | 辅助检查 | 已有化验/影像/心电图结果 |
-| `follow_up_plan` | 随访计划 | 复诊时间、随访内容、患者教育 |
+`max_tokens=1500` to accommodate complex specialist records with multiple diagnoses
+and trend data. Compliant with 《病历书写基本规范》（卫医政发〔2010〕11号）.
 
 ### Database (`patients.db`)
 
@@ -175,9 +233,10 @@ medical_records
   chief_complaint · history_of_present_illness · past_medical_history
   physical_examination · auxiliary_examinations · diagnosis
   treatment_plan · follow_up_plan · created_at
-```
 
-`doctor_id` = WeChat openid. Changes if `WECHAT_APP_ID` changes — requires a one-time SQL migration if the App ID is swapped.
+doctor_context
+  doctor_id (PK) · summary · updated_at
+```
 
 ---
 
@@ -187,16 +246,21 @@ medical_records
 # LLM for medical record structuring
 LLM_PROVIDER=ollama          # ollama | deepseek | groq
 
-# Intent detection
-INTENT_PROVIDER=local        # local | ollama | deepseek | groq
+# LLM for agent intent dispatch (defaults to LLM_PROVIDER if not set)
+AGENT_PROVIDER=deepseek      # ollama | deepseek | groq
 
 # Ollama
 OLLAMA_API_KEY=ollama
 OLLAMA_MODEL=qwen2.5:7b      # or qwen2.5:14b, qwen2.5:32b
 
-# Cloud fallbacks (optional)
+# Cloud LLMs (optional)
 DEEPSEEK_API_KEY=sk-...
 GROQ_API_KEY=gsk_...
+
+# Local voice transcription
+WHISPER_MODEL=large-v3       # large-v3 | medium | small | base
+WHISPER_DEVICE=cpu           # cpu | cuda
+WHISPER_COMPUTE_TYPE=int8    # int8 (CPU) | float16 (GPU)
 
 # WeChat Official Account
 WECHAT_TOKEN=
@@ -214,79 +278,63 @@ WECHAT_ENCODING_AES_KEY=
 | `GET` | `/` | Health check |
 | `POST` | `/wechat` | WeChat message webhook |
 | `GET` | `/wechat` | WeChat server verification |
-| `POST` | `/api/records/from-text` | Structure a text note |
-| `POST` | `/api/records/from-audio` | Transcribe + structure audio |
-| `POST` | `/api/patients` | Create patient (REST) |
-| `GET` | `/api/patients/{doctor_id}` | List patients |
-| `GET` | `/api/patients/{doctor_id}/{patient_id}/records` | List records |
+| `POST` | `/wechat/menu` | Push doctor menu to WeChat (admin) |
+| `POST` | `/api/records/chat` | Agent chat endpoint (used by CLI tester) |
+| `POST` | `/api/records/from-text` | Structure a text note directly |
+| `POST` | `/api/records/from-audio` | Transcribe + structure audio file |
 | `GET` | `/admin` | SQLAdmin database UI |
-
----
-
-## Database Inspection
-
-```bash
-# SQLAdmin web UI (same port as API)
-open http://localhost:8000/admin
-
-# datasette (standalone, richer SQL editor)
-bash tools/start_db_ui.sh        # → http://localhost:8001
-
-# CLI inspector
-python tools/db_inspect.py patients
-python tools/db_inspect.py records
-python tools/db_inspect.py record <id>
-python tools/db_inspect.py patient <id>
-
-# Raw sqlite3
-sqlite3 -column -header patients.db "SELECT * FROM patients;"
-```
 
 ---
 
 ## Running Locally
 
 ```bash
-# 1. Start Ollama (keep in background)
+# 1. Install deps
+pip install -r requirements.txt
+
+# 2. Start Ollama (keep in background)
 ollama serve
+ollama pull qwen2.5:7b       # first time only
 
-# 2. Pull model (first time only)
-ollama pull qwen2.5:7b
+# 3. Copy and fill in env
+cp .env.example .env
 
-# 3. Start the API
-.venv/bin/uvicorn main:app --reload
+# 4. Start the API
+uvicorn main:app --reload
 
-# 4. Expose via ngrok for WeChat webhook
+# 5. Expose via ngrok for WeChat webhook
 ngrok http 8000
+
+# 6. Interactive CLI tester (no WeChat needed)
+python tools/chat.py
 ```
 
 ---
 
-## Test Suite
+## CLI Testing
 
 ```bash
-.venv/bin/pytest -v    # 73 tests, all passing
+# Interactive agent chat
+python tools/chat.py                    # connects to localhost:8000
+python tools/chat.py http://host:8000  # custom host
+
+# DB inspection
+python tools/db_inspect.py patients
+python tools/db_inspect.py records
+python tools/db_inspect.py record <id>
+
+# DB UI
+bash tools/start_db_ui.sh              # → http://localhost:8001
+open http://localhost:8000/admin
 ```
-
-| File | Tests | Covers |
-|------|-------|--------|
-| `test_crud.py` | 18 | DB CRUD, isolation, ordering |
-| `test_session.py` | 7 | In-memory session logic |
-| `test_intent.py` | 7 | LLM intent path (mocked) |
-| `test_intent_rules.py` | 21 | Rule-based: all intents, name/age/gender extraction |
-| `test_patients_api.py` | 6 | REST endpoints |
-| `test_wechat_intent.py` | 14 | Full dispatch: create/add/query/unknown |
-
-All DB tests use in-memory SQLite. All LLM calls are mocked. No network required to run tests.
 
 ---
 
-## Known Limitations & Next Steps
+## Known Limitations
 
 | Issue | Plan |
 |-------|------|
-| Rule-based intent misses ambiguous phrasing | Upgrade to LLM tool-calling agent (Phase 3) |
-| No conversation history | Add per-doctor message buffer for multi-turn context |
-| Session lost on server restart | Persist session to DB or Redis |
+| Session lost on server restart | Conversation history in memory only; DoctorContext summary is persisted |
 | Single-process (in-memory session) | Acceptable for MVP; needs Redis for multi-worker |
-| WeChat 5 s timeout | Long Ollama calls use customer-service API for async reply |
+| faster-whisper large-v3 needs ~1.5 GB RAM | Use `WHISPER_MODEL=medium` on low-memory servers |
+| No fine-tuned medical ASR model | `initial_prompt` bias covers most common terms; fine-tuning is Phase 4 |

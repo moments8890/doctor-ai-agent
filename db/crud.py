@@ -1,9 +1,27 @@
 from __future__ import annotations
+from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.models import Patient, MedicalRecordDB
+from db.models import DoctorContext, Patient, MedicalRecordDB
 from models.medical_record import MedicalRecord
+
+
+async def get_doctor_context(session: AsyncSession, doctor_id: str) -> DoctorContext | None:
+    result = await session.execute(
+        select(DoctorContext).where(DoctorContext.doctor_id == doctor_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def upsert_doctor_context(session: AsyncSession, doctor_id: str, summary: str) -> None:
+    ctx = await get_doctor_context(session, doctor_id)
+    if ctx:
+        ctx.summary = summary
+        ctx.updated_at = datetime.utcnow()
+    else:
+        session.add(DoctorContext(doctor_id=doctor_id, summary=summary))
+    await session.commit()
 
 
 async def create_patient(

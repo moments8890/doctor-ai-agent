@@ -1,54 +1,65 @@
 import json
 import os
+import re
 from openai import AsyncOpenAI
 from models.medical_record import MedicalRecord
 from utils.log import log
 
 SYSTEM_PROMPT = """\
 你是医院电子病历系统，依据《病历书写基本规范》（卫医政发〔2010〕11号）将医生口述或文字记录转为规范化门诊病历 JSON。
+输入可能来自心血管内科或肿瘤科，含有专业术语、缩写和口语化表达，请准确识别并规范化。
+输入若以引号或"记录一下"开头，忽略引导语，直接提取临床内容。
 
 【字段说明与书写要求】
 
-必填字段（不可为 null，信息不明确时从上下文合理推断）：
+必填字段（绝对不可为 null，哪怕描述极简也必须生成合理值）：
 
   chief_complaint（主诉）
-    · 简明描述患者就诊最主要的症状或体征及持续时间
-    · 一般不超过 20 字，例如："头痛伴恶心 3 天"、"胸痛 2 小时"
+    · 简明描述患者就诊最主要的症状或体征及持续时间，一般不超过 20 字
+    · 例如："劳力性胸闷一周"、"突发胸痛 2 小时"、"化疗后乏力"
+    · 术后复诊格式："XX术后N个月复诊"
+    · 若描述极简，直接将核心问题作为主诉
 
   history_of_present_illness（现病史）
     · 按时间顺序描述本次疾病的发生、发展、诊疗经过
-    · 包括：起病时间与诱因、主症的性质/程度/部位/演变、伴随症状、已采取的诊疗措施及效果
-    · 与主诉密切相关的阳性与重要阴性体征亦可纳入
+    · 包括：起病时间与诱因、主症性质/程度/部位/演变、伴随症状、已有诊疗经过
+    · 纳入重要的化验趋势（如"CEA 从 12 降至 5"、"BNP 从 600 升至 980"、"EF 从 60% 降至 50%"）
+    · 用药依从性问题须记录（如"昨日漏服利伐沙班一次"）
 
 尽量填写（有依据时填写，无法确定时返回 null）：
 
   diagnosis（诊断）
     · 按规范书写疾病诊断名称，优先使用 ICD 标准名称
     · 多个诊断以"；"分隔，主要诊断列首位
-    · 仅凭现有信息无法明确时可写"待查：XX 待排"
+    · 鉴别诊断/待排写作"待排：XX"；高度怀疑但未确定写"考虑：XX"
+    · 急危重症须体现（如"急性 STEMI；血流动力学不稳定"）
 
   treatment_plan（治疗方案）
     · 包括药物（药名、剂量、用法）、非药物治疗、医嘱
-    · 例如："阿莫西林 0.5g tid po × 5天；多休息，多饮水"
+    · 本次安排的检查/手术也放此处（如"安排心电图、TnI、BNP；急诊 PCI 绿色通道"）
+    · 专科：化疗方案调整、靶向药、G-CSF、介入手术等
 
 选填字段（文本中无相关信息时返回 null）：
 
   past_medical_history（既往史）
-    · 既往重要疾病史、手术史、外伤史、输血史、药物及食物过敏史
+    · 既往重要疾病史、手术史（PCI、消融、肿瘤手术等）、药物及食物过敏史
 
   physical_examination（体格检查）
-    · 生命体征（T / P / R / BP）及与主诉相关的体格检查阳性体征
+    · 生命体征（BP、HR、体重等）及阳性体征
+    · 含血流动力学描述（如"BP 90/60 mmHg，大汗"）
 
   auxiliary_examinations（辅助检查）
-    · 本次就诊前已有的实验室、影像、心电图等检查结果
+    · 本次就诊时已有的实验室、影像、心电图等结果（含趋势）
+    · 示例："ECG：前壁 ST 段抬高；BNP 980 pg/mL（上次 600）；EF 50%（上次 60%，趋势下降）"
+    · 肿瘤标志物："CEA 5 ng/mL（上次 12，下降）；ANC 1.1×10⁹/L"
 
   follow_up_plan（随访计划）
-    · 复诊时间、随访内容、患者教育要点
+    · 复诊时间、随访内容、患者教育要点、院外监测指标
 
 【输出要求】
 - 只输出合法 JSON 对象，不加任何解释或 markdown
 - 字段值为字符串或 null，不使用数组或嵌套对象
-- 保持医学术语规范，不自行发明诊断
+- 保持医学术语规范，保留专业缩写（STEMI、PCI、BNP、EF、ANC、EGFR 等）
 """
 
 _PROVIDERS = {
@@ -71,8 +82,10 @@ _PROVIDERS = {
 
 
 async def structure_medical_record(text: str) -> MedicalRecord:
-    provider_name = os.environ.get("LLM_PROVIDER", "deepseek")
-    provider = _PROVIDERS[provider_name]
+    provider_name = os.environ.get("STRUCTURING_LLM", "deepseek")
+    provider = dict(_PROVIDERS[provider_name])
+    if provider_name == "ollama":
+        provider["model"] = os.environ.get("OLLAMA_MODEL", provider["model"])
     log(f"[LLM:{provider_name}] calling API: {text[:80]}")
 
     client = AsyncOpenAI(
@@ -86,10 +99,21 @@ async def structure_medical_record(text: str) -> MedicalRecord:
             {"role": "user", "content": text},
         ],
         response_format={"type": "json_object"},
-        max_tokens=800,
+        max_tokens=1500,
         temperature=0,
     )
     raw = completion.choices[0].message.content
     log(f"[LLM:{provider_name}] response: {raw}")
     data = json.loads(raw)
+    if isinstance(data, list):
+        data = data[0] if data else {}
+
+    # Hard fallback: chief_complaint must never be null
+    if not data.get("chief_complaint"):
+        # Strip leading name/demographics (e.g. "张三，男，58岁，") then take first clause
+        stripped = re.sub(r'^[\u4e00-\u9fff]{2,4}[，,]?(男|女)?[，,]?\d+岁[，,]?', '', text).strip()
+        first_clause = re.split(r'[，。；\n]', stripped)[0].strip()
+        data["chief_complaint"] = first_clause[:40] or "门诊就诊"
+        log(f"[LLM:{provider_name}] chief_complaint was null, derived: {data['chief_complaint']}")
+
     return MedicalRecord.model_validate(data)

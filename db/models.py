@@ -6,6 +6,15 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from db.engine import Base
 
 
+class DoctorContext(Base):
+    """Persistent compressed memory for a doctor — survives server restarts."""
+    __tablename__ = "doctor_contexts"
+
+    doctor_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 class Patient(Base):
     __tablename__ = "patients"
 

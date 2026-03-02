@@ -54,6 +54,7 @@ class IntentResult(BaseModel):
     age: Optional[int] = None
     is_emergency: bool = False
     extra_data: dict = Field(default_factory=dict)
+    chat_reply: Optional[str] = None
 
 
 async def detect_intent(text: str) -> IntentResult:
