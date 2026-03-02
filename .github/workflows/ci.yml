@@ -41,9 +41,10 @@ jobs:
       - name: Enforce changed-lines coverage > 80%
         if: github.event_name == 'pull_request'
         run: |
-          git fetch --no-tags --depth=1 origin main
+          git fetch --no-tags origin main
           diff-cover reports/coverage/coverage.xml \
             --compare-branch=origin/main \
+            --diff-range-notation=.. \
             --fail-under=81
 
       - name: Upload unit test reports
