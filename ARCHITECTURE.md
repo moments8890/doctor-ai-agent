@@ -105,6 +105,7 @@ WeChat Official Account
 ├── tools/
 │   ├── chat.py               # Interactive CLI tester → POST /api/records/chat
 │   ├── db_inspect.py         # CLI: patients / records / record <id>
+│   ├── seed_db.py            # CLI: export/import patients.db ↔ dev/seed_data.json
 │   └── start_db_ui.sh        # datasette on port 8001
 │
 ├── train/
@@ -450,6 +451,12 @@ python tools/db_inspect.py patients
 python tools/db_inspect.py records
 python tools/db_inspect.py record <id>
 
+# DB seed (export / import)
+python tools/seed_db.py --export              # dump patients.db → dev/seed_data.json
+python tools/seed_db.py --import             # load dev/seed_data.json → patients.db
+python tools/seed_db.py --reset --import     # wipe then import (clean dev reset)
+python tools/seed_db.py --export --dry-run   # preview without writing
+
 # DB UI
 bash tools/start_db_ui.sh              # → http://localhost:8001
 open http://localhost:8000/admin
@@ -510,6 +517,7 @@ open http://localhost:8000/admin
 ├── tools/
 │   ├── chat.py               # Interactive CLI tester → POST /api/records/chat
 │   ├── db_inspect.py         # CLI: patients / records / record <id>
+│   ├── seed_db.py            # CLI: export/import patients.db ↔ dev/seed_data.json
 │   ├── train.py              # Batch corpus training + verification runner
 │   └── train_images.py       # Image pipeline training runner
 │

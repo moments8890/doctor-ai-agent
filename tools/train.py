@@ -14,6 +14,7 @@ Defaults:
 import re
 import sys
 import time
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -23,9 +24,15 @@ except ImportError:
     print("httpx not found. Run: pip install httpx")
     sys.exit(1)
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_DATA = ROOT / "train" / "data" / "clinic_raw_cases_cardiology_v1.md"
-DB_PATH = ROOT / "patients.db"
+DB_PATH = Path(os.environ.get("PATIENTS_DB_PATH", str(ROOT / "patients.db"))).expanduser()
 BASE_URL = "http://127.0.0.1:8000"
 # Seconds between cases — keeps Groq free-tier TPD usage sustainable
 REQUEST_DELAY = 4

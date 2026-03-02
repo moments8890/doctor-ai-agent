@@ -3,10 +3,11 @@
 # Usage: bash tools/start_db_ui.sh [port]
 
 PORT=${1:-8001}
-DB="$(dirname "$0")/../patients.db"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+DB="${PATIENTS_DB_PATH:-$ROOT/patients.db}"
 
 if [ ! -f "$DB" ]; then
-  echo "patients.db not found — start the app first to create tables."
+  echo "DB not found at $DB — set PATIENTS_DB_PATH or start the app first to create tables."
   exit 1
 fi
 

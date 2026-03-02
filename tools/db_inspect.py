@@ -14,9 +14,17 @@ Usage:
 import sqlite3
 import sys
 import textwrap
+import os
 from pathlib import Path
 
-DB_PATH = Path(__file__).parent.parent / "patients.db"
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+ROOT = Path(__file__).resolve().parent.parent
+DB_PATH = Path(os.environ.get("PATIENTS_DB_PATH", str(ROOT / "patients.db"))).expanduser()
 
 
 def _connect():
