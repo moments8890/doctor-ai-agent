@@ -26,6 +26,7 @@ The plan file must include:
 ### Steps for every change
 
 1. **Unit tests** — `.venv/bin/python -m pytest tests/ -v` — must be 100% green before pushing
+   - **Coverage gates** — overall coverage must be `>80%`, and changed/new lines coverage in PR must be `>80%`
 2. **Integration tests** — `pytest tests/integration/` — only when LLM pipeline or prompt changed (requires `uvicorn main:app --reload` + `ollama serve`); auto-skipped if deps not running
 3. **Corpus tests** (optional) — `python tools/train.py --clean [--cases ...]` — full corpus validation, also requires Ollama
 4. **Document changes in commit + PR** — include what changed and any migration/manual cleanup impact in the commit message and PR description

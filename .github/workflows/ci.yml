@@ -30,8 +30,19 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Install diff-cover
+        run: pip install diff-cover
+
       - name: Run unit tests with coverage reports
         run: bash tools/test.sh unit
+
+      - name: Enforce changed-lines coverage > 80%
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --no-tags --depth=1 origin main
+          diff-cover reports/coverage/coverage.xml \
+            --compare-branch=origin/main \
+            --fail-under=81
 
       - name: Upload unit test reports
         if: always()
