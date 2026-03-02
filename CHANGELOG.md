@@ -65,3 +65,4 @@
 ### Recommendation
 
 Use `OLLAMA_MODEL=qwen2.5:7b` for production. `llama3.2` passes API checks but hallucinates Chinese patient names (~2/37 cases), which the DB verifier now catches.
+
