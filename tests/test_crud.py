@@ -211,3 +211,41 @@ async def test_get_all_records_isolated_by_doctor(db_session):
 
     records = await get_all_records_for_doctor(db_session, "doc_B")
     assert records == []
+
+
+# ---------------------------------------------------------------------------
+# Category fields stamped on create and save
+# ---------------------------------------------------------------------------
+
+
+async def test_create_patient_stamps_category_new(db_session):
+    patient = await create_patient(db_session, DOCTOR, "新患者", None, None)
+    assert patient.primary_category == "new"
+    assert patient.category_tags == "[]"
+    assert patient.category_rules_version == "v1"
+    assert patient.category_computed_at is not None
+
+
+async def test_save_record_triggers_category_recompute(db_session):
+    """After saving a record, the patient's primary_category must be recomputed."""
+    patient = await create_patient(db_session, DOCTOR, "李明", "男", 45)
+    assert patient.primary_category == "new"
+
+    record = MedicalRecord(
+        chief_complaint="头痛",
+        history_of_present_illness="两天头痛",
+        diagnosis="紧张性头痛",
+        treatment_plan="布洛芬",
+        follow_up_plan="两周后复诊",
+    )
+    await save_record(db_session, DOCTOR, record, patient.id)
+
+    # Refresh patient from DB
+    from sqlalchemy import select
+    from db.models import Patient
+    result = await db_session.execute(select(Patient).where(Patient.id == patient.id))
+    refreshed = result.scalar_one()
+
+    # With a fresh record and follow_up_plan, should now be active_followup
+    assert refreshed.primary_category == "active_followup"
+    assert refreshed.category_computed_at is not None
