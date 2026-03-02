@@ -7,6 +7,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 from db.models import SystemPrompt, DoctorContext, Patient, MedicalRecordDB, NeuroCaseDB
 from models.medical_record import MedicalRecord
+from services.patient_categorization import RULES_VERSION, recompute_patient_category
 
 
 async def get_system_prompt(session: AsyncSession, key: str) -> SystemPrompt | None:
@@ -56,7 +57,16 @@ async def create_patient(
     gender: Optional[str],
     age: Optional[int],
 ) -> Patient:
-    patient = Patient(doctor_id=doctor_id, name=name, gender=gender, year_of_birth=_year_of_birth(age))
+    patient = Patient(
+        doctor_id=doctor_id,
+        name=name,
+        gender=gender,
+        year_of_birth=_year_of_birth(age),
+        primary_category="new",
+        category_tags="[]",
+        category_rules_version=RULES_VERSION,
+        category_computed_at=datetime.utcnow(),
+    )
     session.add(patient)
     await session.commit()
     return patient
@@ -93,6 +103,8 @@ async def save_record(
     )
     session.add(db_record)
     await session.commit()
+    if patient_id is not None:
+        await recompute_patient_category(patient_id, session)
     return db_record
 
 

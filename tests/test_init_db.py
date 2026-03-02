@@ -74,7 +74,10 @@ async def test_create_tables_runs_age_to_year_of_birth_migration(monkeypatch):
 
 
 async def test_create_tables_skips_migration_when_column_already_renamed(monkeypatch):
-    conn = _AsyncConn(cols=["id", "doctor_id", "name", "year_of_birth"])
+    conn = _AsyncConn(cols=[
+        "id", "doctor_id", "name", "year_of_birth",
+        "primary_category", "category_tags", "category_computed_at", "category_rules_version",
+    ])
     monkeypatch.setattr(init_db, "engine", _Engine(conn))
 
     create_all = MagicMock()

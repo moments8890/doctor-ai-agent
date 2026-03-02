@@ -536,6 +536,47 @@ _MANAGE_HTML = """<!doctype html>
     .note { color: var(--muted); font-size: 13px; margin-bottom: 10px; }
     .count { font-weight: 700; font-size: 14px; color: var(--accent-2); }
 
+    .filter-bar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .filter-bar label {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .filter-bar select {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font: inherit;
+      font-size: 13px;
+      background: #fff;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+
+    .badge-high_risk { background: #fde8e8; color: #bd2a2a; border: 1px solid #f5b5b5; }
+    .badge-active_followup { background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
+    .badge-stable { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+    .badge-new { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+
+    .cat-debug { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
     .cards {
       display: grid;
       gap: 10px;
@@ -598,10 +639,20 @@ _MANAGE_HTML = """<!doctype html>
       </div>
     </section>
 
-    <section id="patients" class="panel active">
-      <div class="note">当前医生下患者列表。点击“View Records”查看该患者最近病历。</div>
-      <div id="patientsCount" class="count"></div>
-      <div id="patientsList" class="cards"></div>
+    <section id=”patients” class=”panel active”>
+      <div class=”note”>当前医生下患者列表。点击”View Records”查看该患者最近病历。</div>
+      <div class=”filter-bar”>
+        <label for=”categoryFilter”>分类筛选：</label>
+        <select id=”categoryFilter”>
+          <option value=””>全部</option>
+          <option value=”high_risk”>高风险</option>
+          <option value=”active_followup”>随访中</option>
+          <option value=”stable”>稳定</option>
+          <option value=”new”>新患者</option>
+        </select>
+      </div>
+      <div id=”patientsCount” class=”count”></div>
+      <div id=”patientsList” class=”cards”></div>
     </section>
 
     <section id="records" class="panel">
@@ -630,12 +681,20 @@ _MANAGE_HTML = """<!doctype html>
     const panels = document.querySelectorAll(".panel");
     const patientsCount = document.getElementById("patientsCount");
     const patientsList = document.getElementById("patientsList");
+    const categoryFilter = document.getElementById("categoryFilter");
     const patientFilter = document.getElementById("patientFilter");
     const recordsCount = document.getElementById("recordsCount");
     const recordsList = document.getElementById("recordsList");
     const promptBase = document.getElementById("promptBase");
     const promptExt = document.getElementById("promptExt");
     const saveState = document.getElementById("saveState");
+
+    const CATEGORY_LABELS = {
+      high_risk: "高风险",
+      active_followup: "随访中",
+      stable: "稳定",
+      new: "新患者",
+    };
 
     function esc(text) {
       return String(text || "")
@@ -656,7 +715,11 @@ _MANAGE_HTML = """<!doctype html>
     tabs.forEach(t => t.addEventListener("click", () => setTab(t.dataset.tab)));
 
     async function loadPatients() {
-      const res = await fetch(`/api/manage/patients?doctor_id=${encodeURIComponent(doctorId())}`);
+      const cat = categoryFilter.value;
+      const url = new URL("/api/manage/patients", window.location.origin);
+      url.searchParams.set("doctor_id", doctorId());
+      if (cat) url.searchParams.set("category", cat);
+      const res = await fetch(url);
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       patientsCount.textContent = `Total: ${data.items.length}`;
@@ -665,12 +728,19 @@ _MANAGE_HTML = """<!doctype html>
         const card = document.createElement("article");
         card.className = "card";
         const info = [p.gender, p.year_of_birth ? `${new Date().getFullYear() - p.year_of_birth}岁` : null].filter(Boolean).join(" / ");
+        const catKey = p.primary_category || "";
+        const catLabel = CATEGORY_LABELS[catKey] || catKey;
+        const badgeHtml = catKey
+          ? `<span class="badge badge-${esc(catKey)}">${esc(catLabel)}</span>`
+          : "";
+        const computedAt = p.category_computed_at ? p.category_computed_at.slice(0, 16) : "-";
         card.innerHTML = `
           <div class="row">
-            <strong>${esc(p.name)}</strong>
+            <strong>${esc(p.name)}${badgeHtml}</strong>
             <span class="small">id=${p.id} | ${esc(info)} | records=${p.record_count}</span>
           </div>
           <div class="small">created: ${esc(p.created_at || "-")}</div>
+          <div class="cat-debug">分类: ${esc(catKey || "-")} | 规则: ${esc(p.category_rules_version || "-")} | 计算于: ${esc(computedAt)}</div>
           <button class="btn" data-pid="${p.id}" style="margin-top:8px;">View Records</button>
         `;
         card.querySelector("button").addEventListener("click", () => {
@@ -684,6 +754,8 @@ _MANAGE_HTML = """<!doctype html>
         patientsList.innerHTML = '<div class="small">No patients yet.</div>';
       }
     }
+
+    categoryFilter.addEventListener("change", loadPatients);
 
     async function loadRecords() {
       const pid = patientFilter.value.trim();
@@ -789,8 +861,20 @@ def _fmt_ts(value: datetime | None) -> str | None:
     return value.strftime("%Y-%m-%d %H:%M:%S")
 
 
+def _parse_tags(raw: str | None) -> list:
+    if not raw:
+        return []
+    try:
+        return __import__("json").loads(raw)
+    except Exception:
+        return []
+
+
 @router.get("/api/manage/patients")
-async def manage_patients(doctor_id: str = Query(default="web_doctor")):
+async def manage_patients(
+    doctor_id: str = Query(default="web_doctor"),
+    category: str | None = Query(default=None),
+):
     async with AsyncSessionLocal() as db:
         patients = await get_all_patients(db, doctor_id)
         counts_result = await db.execute(
@@ -800,20 +884,71 @@ async def manage_patients(doctor_id: str = Query(default="web_doctor")):
         )
         count_map = {pid: count for pid, count in counts_result.all()}
 
-    return {
-        "doctor_id": doctor_id,
-        "items": [
-            {
-                "id": p.id,
-                "name": p.name,
-                "gender": p.gender,
-                "year_of_birth": p.year_of_birth,
-                "created_at": _fmt_ts(p.created_at),
-                "record_count": int(count_map.get(p.id, 0)),
-            }
-            for p in patients
-        ],
-    }
+    items = [
+        {
+            "id": p.id,
+            "name": p.name,
+            "gender": p.gender,
+            "year_of_birth": p.year_of_birth,
+            "created_at": _fmt_ts(p.created_at),
+            "record_count": int(count_map.get(p.id, 0)),
+            "primary_category": p.primary_category,
+            "category_tags": _parse_tags(p.category_tags),
+            "category_computed_at": _fmt_ts(p.category_computed_at),
+            "category_rules_version": p.category_rules_version,
+        }
+        for p in patients
+    ]
+
+    if category is not None:
+        items = [item for item in items if item["primary_category"] == category]
+
+    return {"doctor_id": doctor_id, "items": items}
+
+
+_CATEGORY_ORDER = ["high_risk", "active_followup", "stable", "new", "uncategorized"]
+
+
+@router.get("/api/manage/patients/grouped")
+async def manage_patients_grouped(doctor_id: str = Query(default="web_doctor")):
+    async with AsyncSessionLocal() as db:
+        patients = await get_all_patients(db, doctor_id)
+        counts_result = await db.execute(
+            select(MedicalRecordDB.patient_id, func.count(MedicalRecordDB.id))
+            .where(MedicalRecordDB.doctor_id == doctor_id, MedicalRecordDB.patient_id.is_not(None))
+            .group_by(MedicalRecordDB.patient_id)
+        )
+        count_map = {pid: count for pid, count in counts_result.all()}
+
+    all_items = [
+        {
+            "id": p.id,
+            "name": p.name,
+            "gender": p.gender,
+            "year_of_birth": p.year_of_birth,
+            "created_at": _fmt_ts(p.created_at),
+            "record_count": int(count_map.get(p.id, 0)),
+            "primary_category": p.primary_category,
+            "category_tags": _parse_tags(p.category_tags),
+            "category_computed_at": _fmt_ts(p.category_computed_at),
+            "category_rules_version": p.category_rules_version,
+        }
+        for p in patients
+    ]
+
+    bucket: dict = {cat: [] for cat in _CATEGORY_ORDER}
+    for item in all_items:
+        cat = item["primary_category"] or "uncategorized"
+        if cat not in bucket:
+            cat = "uncategorized"
+        bucket[cat].append(item)
+
+    groups = [
+        {"group": cat, "count": len(bucket[cat]), "items": bucket[cat]}
+        for cat in _CATEGORY_ORDER
+    ]
+
+    return {"doctor_id": doctor_id, "groups": groups}
 
 
 @router.get("/api/manage/records")

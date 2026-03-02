@@ -56,17 +56,41 @@ def test_fmt_ts():
     assert ui._fmt_ts(datetime(2026, 3, 2, 10, 30, 0)) == "2026-03-02 10:30:00"
 
 
+def test_parse_tags_empty_invalid_and_valid_json():
+    assert ui._parse_tags(None) == []
+    assert ui._parse_tags("") == []
+    assert ui._parse_tags("not-json") == []
+    assert ui._parse_tags('["recent_visit"]') == ["recent_visit"]
+
+
+def _patient_ns(**kwargs):
+    """SimpleNamespace patient with all required fields including category."""
+    defaults = dict(
+        id=11,
+        name="张三",
+        gender="男",
+        year_of_birth=1980,
+        created_at=datetime(2026, 3, 1, 8, 0, 0),
+        primary_category="new",
+        category_tags="[]",
+        category_computed_at=None,
+        category_rules_version="v1",
+    )
+    defaults.update(kwargs)
+    return SimpleNamespace(**defaults)
+
+
 async def test_manage_patients_includes_record_counts():
     db = SimpleNamespace(
         execute=AsyncMock(return_value=SimpleNamespace(all=lambda: [(11, 2), (12, 1)]))
     )
     patients = [
-        SimpleNamespace(id=11, name="张三", gender="男", year_of_birth=1980, created_at=datetime(2026, 3, 1, 8, 0, 0)),
-        SimpleNamespace(id=12, name="李四", gender=None, year_of_birth=None, created_at=None),
+        _patient_ns(id=11, name="张三", gender="男", year_of_birth=1980, created_at=datetime(2026, 3, 1, 8, 0, 0)),
+        _patient_ns(id=12, name="李四", gender=None, year_of_birth=None, created_at=None),
     ]
     with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
          patch("routers.ui.get_all_patients", new=AsyncMock(return_value=patients)):
-        data = await ui.manage_patients("doc1")
+        data = await ui.manage_patients("doc1", category=None)
 
     assert data["doctor_id"] == "doc1"
     assert data["items"][0]["record_count"] == 2
@@ -102,7 +126,11 @@ async def test_manage_records_without_patient_filter():
 
     assert data["doctor_id"] == "doc2"
     assert data["items"][0]["patient_name"] == "王五"
+    assert data["items"][0]["treatment_plan"] == "随访"
+    assert data["items"][0]["follow_up_plan"] == "两周复诊"
     assert data["items"][1]["patient_name"] is None
+    assert data["items"][1]["treatment_plan"] == "随访"
+    assert data["items"][1]["follow_up_plan"] == "两周复诊"
     assert data["items"][1]["created_at"] is None
 
 
@@ -127,3 +155,92 @@ async def test_update_prompt_validation_and_success():
 
     upsert.assert_awaited_once()
     assert data == {"ok": True, "key": "structuring"}
+
+
+def _patient(**kwargs):
+    defaults = dict(
+        id=11,
+        name="张三",
+        gender="男",
+        year_of_birth=1980,
+        created_at=datetime(2026, 3, 1, 8, 0, 0),
+        primary_category="new",
+        category_tags='["recent_visit"]',
+        category_computed_at=datetime(2026, 3, 2, 10, 0, 0),
+        category_rules_version="v1",
+    )
+    defaults.update(kwargs)
+    return SimpleNamespace(**defaults)
+
+
+async def test_manage_patients_includes_category_fields():
+    db = SimpleNamespace(
+        execute=AsyncMock(return_value=SimpleNamespace(all=lambda: [(11, 3)]))
+    )
+    patients = [_patient()]
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.get_all_patients", new=AsyncMock(return_value=patients)):
+        data = await ui.manage_patients("doc1", category=None)
+
+    item = data["items"][0]
+    assert item["primary_category"] == "new"
+    assert item["category_tags"] == ["recent_visit"]
+    assert item["category_computed_at"] == "2026-03-02 10:00:00"
+    assert item["category_rules_version"] == "v1"
+
+
+async def test_manage_patients_category_filter():
+    db = SimpleNamespace(
+        execute=AsyncMock(return_value=SimpleNamespace(all=lambda: []))
+    )
+    patients = [
+        _patient_ns(id=11, name="高风险患者", primary_category="high_risk"),
+        _patient_ns(id=12, name="新患者", primary_category="new"),
+    ]
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.get_all_patients", new=AsyncMock(return_value=patients)):
+        data = await ui.manage_patients("doc1", category="high_risk")
+
+    assert len(data["items"]) == 1
+    assert data["items"][0]["name"] == "高风险患者"
+
+
+async def test_manage_patients_grouped():
+    db = SimpleNamespace(
+        execute=AsyncMock(return_value=SimpleNamespace(all=lambda: []))
+    )
+    patients = [
+        _patient_ns(id=11, name="高风险患者", primary_category="high_risk"),
+        _patient_ns(id=12, name="随访患者", primary_category="active_followup"),
+        _patient_ns(id=13, name="新患者", primary_category="new"),
+    ]
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.get_all_patients", new=AsyncMock(return_value=patients)):
+        data = await ui.manage_patients_grouped("doc1")
+
+    assert data["doctor_id"] == "doc1"
+    assert "groups" in data
+    group_names = [g["group"] for g in data["groups"]]
+    assert group_names == ["high_risk", "active_followup", "stable", "new", "uncategorized"]
+
+    high_risk_group = next(g for g in data["groups"] if g["group"] == "high_risk")
+    assert high_risk_group["count"] == 1
+    assert high_risk_group["items"][0]["name"] == "高风险患者"
+
+    stable_group = next(g for g in data["groups"] if g["group"] == "stable")
+    assert stable_group["count"] == 0
+    assert stable_group["items"] == []
+
+
+async def test_manage_patients_grouped_unknown_category_goes_to_uncategorized():
+    db = SimpleNamespace(execute=AsyncMock(return_value=SimpleNamespace(all=lambda: [])))
+    patients = [
+        _patient_ns(id=21, name="未知分类患者", primary_category="custom_future_category"),
+    ]
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.get_all_patients", new=AsyncMock(return_value=patients)):
+        data = await ui.manage_patients_grouped("doc1")
+
+    uncategorized = next(g for g in data["groups"] if g["group"] == "uncategorized")
+    assert uncategorized["count"] == 1
+    assert uncategorized["items"][0]["name"] == "未知分类患者"
