@@ -16,7 +16,7 @@ The plan file must include:
 - **No auto-commit** — never commit unless explicitly asked
 - **Preserve medical abbreviations** — do not translate or expand STEMI, BNP, PCI, EGFR, ANC, HER2, EF, NYHA, ICD, etc.
 - **Tests mock all I/O** — unit tests in `tests/` must not make real LLM, DB, or network calls; use `AsyncMock` / `patch`
-- **DB schema changes** — add to `db/models.py`; `create_tables()` handles creation automatically; note in CHANGELOG if existing data may need manual cleanup
+- **DB schema changes** — add to `db/models.py`; `create_tables()` handles creation automatically; document any manual cleanup/migration impact in the commit message and PR description
 - **LLM provider defaults** — local model is `qwen2.5:7b` via Ollama; prefer this in examples and defaults
 
 ## Branch & PR Workflow
@@ -28,7 +28,7 @@ The plan file must include:
 1. **Unit tests** — `.venv/bin/python -m pytest tests/ -v` — must be 100% green before pushing
 2. **Integration tests** — `pytest tests/integration/` — only when LLM pipeline or prompt changed (requires `uvicorn main:app --reload` + `ollama serve`); auto-skipped if deps not running
 3. **Corpus tests** (optional) — `python tools/train.py --clean [--cases ...]` — full corpus validation, also requires Ollama
-4. **Update `CHANGELOG.md`** — add entry for what changed
+4. **Document changes in commit + PR** — include what changed and any migration/manual cleanup impact in the commit message and PR description
 5. **Update `ARCHITECTURE.md`** — only if schema, env vars, API endpoints, or service structure changed
 6. **Update progress** — tick completed items in `debug/iteration_*.md`
 
