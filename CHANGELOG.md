@@ -19,6 +19,19 @@
 
 ### Features
 
+- **Patient timeline + risk-driven follow-up automation (v1, In Progress)**:
+  - Added patient risk fields on `patients`: `primary_risk_level`, `risk_tags`, `risk_score`, `follow_up_state`, `risk_computed_at`, `risk_rules_version`
+  - Added task trigger metadata on `doctor_tasks`: `trigger_source`, `trigger_reason`
+  - Added deterministic risk engine: `services/patient_risk.py`
+  - Added timeline assembler service: `services/patient_timeline.py`
+  - `save_record()` now recomputes risk, and can auto-create idempotent follow-up tasks when `AUTO_FOLLOWUP_TASKS_ENABLED=true`
+  - Extended Manage APIs:
+    - `GET /api/manage/patients` now returns risk fields and supports `risk`, `follow_up_state`, `stale_risk` filters
+    - `GET /api/manage/patients/grouped-risk` returns grouped risk buckets
+    - `GET /api/manage/patients/{patient_id}/timeline` returns mixed record/task timeline events
+  - Added risk recompute CLI: `tools/recompute_patient_risk.py`
+  - Updated React manage UI with risk badges/filters and a timeline debug panel
+
 - **Patient categorization/grouping (In Progress)** — Structured patient grouping for faster triage and debug workflows:
   - Planned category outputs: `primary_category` + multi-tag grouping (`category_tags`) per patient
   - Deterministic rules engine with explicit precedence and `rules_version` tracking

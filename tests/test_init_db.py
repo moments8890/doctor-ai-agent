@@ -14,20 +14,23 @@ class _SyncResult:
 
 
 class _SyncConn:
-    def __init__(self, cols):
-        self._cols = cols
+    def __init__(self, table_cols):
+        self._table_cols = table_cols
 
-    def execute(self, _stmt):
-        return _SyncResult(self._cols)
+    def execute(self, stmt):
+        sql = str(stmt)
+        if "PRAGMA table_info(doctor_tasks)" in sql:
+            return _SyncResult(self._table_cols.get("doctor_tasks", []))
+        return _SyncResult(self._table_cols.get("patients", []))
 
 
 class _AsyncConn:
-    def __init__(self, cols):
-        self.cols = cols
+    def __init__(self, table_cols):
+        self.table_cols = table_cols
         self.executed_sql = []
 
     async def run_sync(self, fn):
-        return fn(_SyncConn(self.cols))
+        return fn(_SyncConn(self.table_cols))
 
     async def execute(self, stmt):
         self.executed_sql.append(str(stmt))
@@ -61,7 +64,12 @@ class _Engine:
 
 
 async def test_create_tables_runs_age_to_year_of_birth_migration(monkeypatch):
-    conn = _AsyncConn(cols=["id", "doctor_id", "name", "age"])
+    conn = _AsyncConn(
+        table_cols={
+            "patients": ["id", "doctor_id", "name", "age"],
+            "doctor_tasks": ["id", "doctor_id", "task_type", "title", "status"],
+        }
+    )
     monkeypatch.setattr(init_db, "engine", _Engine(conn))
 
     create_all = MagicMock()
@@ -74,10 +82,18 @@ async def test_create_tables_runs_age_to_year_of_birth_migration(monkeypatch):
 
 
 async def test_create_tables_skips_migration_when_column_already_renamed(monkeypatch):
-    conn = _AsyncConn(cols=[
-        "id", "doctor_id", "name", "year_of_birth",
-        "primary_category", "category_tags", "category_computed_at", "category_rules_version",
-    ])
+    conn = _AsyncConn(
+        table_cols={
+            "patients": [
+                "id", "doctor_id", "name", "year_of_birth",
+                "primary_category", "category_tags", "category_computed_at", "category_rules_version",
+                "primary_risk_level", "risk_tags", "risk_score", "follow_up_state", "risk_computed_at", "risk_rules_version",
+            ],
+            "doctor_tasks": [
+                "id", "doctor_id", "task_type", "title", "status", "trigger_source", "trigger_reason",
+            ],
+        }
+    )
     monkeypatch.setattr(init_db, "engine", _Engine(conn))
 
     create_all = MagicMock()

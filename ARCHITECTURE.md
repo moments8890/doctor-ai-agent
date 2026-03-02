@@ -259,6 +259,37 @@ add_record (with follow_up_plan or is_emergency)
 - `_token_cache`, `_get_config`, `_get_access_token`, `_split_message`, `_send_customer_service_msg`
   moved to `services/wechat_notify.py` to avoid circular imports from `services/tasks.py`
 
+### Patient Risk + Timeline (v1)
+
+Patient-level risk metadata is now persisted and queryable:
+
+- `primary_risk_level` (`low` | `medium` | `high` | `critical`)
+- `risk_tags` (JSON text list)
+- `risk_score` (integer)
+- `follow_up_state` (`not_needed` | `scheduled` | `due_soon` | `overdue`)
+- `risk_computed_at`
+- `risk_rules_version`
+
+Risk is recomputed after record writes (`db/crud.py::save_record`) using
+`services/patient_risk.py` and stored on the patient row.
+
+When `AUTO_FOLLOWUP_TASKS_ENABLED=true`, follow-up plan writes can auto-create
+`doctor_tasks` rows with:
+
+- `trigger_source = risk_engine`
+- `trigger_reason = ...`
+
+`record_id + task_type + trigger_source + pending` is used for idempotent de-dup.
+
+Timeline view is assembled by `services/patient_timeline.py` and exposed via:
+
+- `GET /api/manage/patients/{patient_id}/timeline`
+
+Manage APIs also support risk-aware filtering/grouping:
+
+- `GET /api/manage/patients?risk=&follow_up_state=&stale_risk=`
+- `GET /api/manage/patients/grouped-risk`
+
 ### Medical Record Structuring (`services/structuring.py`)
 
 | Provider | Model | Note |

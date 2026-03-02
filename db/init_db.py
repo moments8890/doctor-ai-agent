@@ -24,6 +24,33 @@ async def create_tables() -> None:
                 await conn.execute(
                     text(f"ALTER TABLE patients ADD COLUMN {col_name} {col_type} DEFAULT NULL")
                 )
+        # Safe column-add migration for patient risk fields (v1)
+        _risk_cols = {
+            "primary_risk_level": "VARCHAR(16)",
+            "risk_tags": "TEXT",
+            "risk_score": "INTEGER",
+            "follow_up_state": "VARCHAR(16)",
+            "risk_computed_at": "DATETIME",
+            "risk_rules_version": "VARCHAR(16)",
+        }
+        for col_name, col_type in _risk_cols.items():
+            if col_name not in cols:
+                await conn.execute(
+                    text(f"ALTER TABLE patients ADD COLUMN {col_name} {col_type} DEFAULT NULL")
+                )
+        # Safe column-add migration for doctor task trigger metadata.
+        _task_cols = await conn.run_sync(
+            lambda c: [r[1] for r in c.execute(text("PRAGMA table_info(doctor_tasks)")).fetchall()]
+        )
+        _trigger_cols = {
+            "trigger_source": "VARCHAR(32)",
+            "trigger_reason": "TEXT",
+        }
+        for col_name, col_type in _trigger_cols.items():
+            if col_name not in _task_cols:
+                await conn.execute(
+                    text(f"ALTER TABLE doctor_tasks ADD COLUMN {col_name} {col_type} DEFAULT NULL")
+                )
 
 
 async def seed_prompts() -> None:

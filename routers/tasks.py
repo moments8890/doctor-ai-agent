@@ -24,6 +24,8 @@ class TaskOut(BaseModel):
     created_at: str
     patient_id: Optional[int]
     record_id: Optional[int]
+    trigger_source: Optional[str]
+    trigger_reason: Optional[str]
 
     @classmethod
     def from_orm(cls, task: object) -> "TaskOut":
@@ -42,6 +44,8 @@ class TaskOut(BaseModel):
             created_at=_iso(task.created_at) or "",
             patient_id=task.patient_id,
             record_id=task.record_id,
+            trigger_source=task.trigger_source,
+            trigger_reason=task.trigger_reason,
         )
 
 

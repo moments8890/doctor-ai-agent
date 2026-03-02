@@ -75,6 +75,12 @@ def _patient_ns(**kwargs):
         category_tags="[]",
         category_computed_at=None,
         category_rules_version="v1",
+        primary_risk_level="low",
+        risk_tags='["no_records"]',
+        risk_score=0,
+        follow_up_state="not_needed",
+        risk_computed_at=None,
+        risk_rules_version="risk-v1",
     )
     defaults.update(kwargs)
     return SimpleNamespace(**defaults)
@@ -168,6 +174,12 @@ def _patient(**kwargs):
         category_tags='["recent_visit"]',
         category_computed_at=datetime(2026, 3, 2, 10, 0, 0),
         category_rules_version="v1",
+        primary_risk_level="low",
+        risk_tags='["no_records"]',
+        risk_score=0,
+        follow_up_state="not_needed",
+        risk_computed_at=datetime(2026, 3, 2, 10, 5, 0),
+        risk_rules_version="risk-v1",
     )
     defaults.update(kwargs)
     return SimpleNamespace(**defaults)
@@ -187,6 +199,11 @@ async def test_manage_patients_includes_category_fields():
     assert item["category_tags"] == ["recent_visit"]
     assert item["category_computed_at"] == "2026-03-02 10:00:00"
     assert item["category_rules_version"] == "v1"
+    assert item["primary_risk_level"] == "low"
+    assert item["risk_tags"] == ["no_records"]
+    assert item["risk_score"] == 0
+    assert item["follow_up_state"] == "not_needed"
+    assert item["risk_rules_version"] == "risk-v1"
 
 
 async def test_manage_patients_category_filter():
@@ -200,6 +217,22 @@ async def test_manage_patients_category_filter():
     with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
          patch("routers.ui.get_all_patients", new=AsyncMock(return_value=patients)):
         data = await ui.manage_patients("doc1", category="high_risk")
+
+    assert len(data["items"]) == 1
+    assert data["items"][0]["name"] == "高风险患者"
+
+
+async def test_manage_patients_risk_filter():
+    db = SimpleNamespace(
+        execute=AsyncMock(return_value=SimpleNamespace(all=lambda: []))
+    )
+    patients = [
+        _patient_ns(id=11, name="高风险患者", primary_risk_level="high"),
+        _patient_ns(id=12, name="低风险患者", primary_risk_level="low"),
+    ]
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.get_all_patients", new=AsyncMock(return_value=patients)):
+        data = await ui.manage_patients("doc1", risk="high")
 
     assert len(data["items"]) == 1
     assert data["items"][0]["name"] == "高风险患者"
@@ -244,3 +277,41 @@ async def test_manage_patients_grouped_unknown_category_goes_to_uncategorized():
     uncategorized = next(g for g in data["groups"] if g["group"] == "uncategorized")
     assert uncategorized["count"] == 1
     assert uncategorized["items"][0]["name"] == "未知分类患者"
+
+
+async def test_manage_patients_grouped_risk():
+    db = SimpleNamespace()
+    patients = [
+        _patient_ns(id=11, name="危重", primary_risk_level="critical", risk_score=99),
+        _patient_ns(id=12, name="高风险", primary_risk_level="high", risk_score=75),
+    ]
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.get_all_patients", new=AsyncMock(return_value=patients)):
+        data = await ui.manage_patients_grouped_risk("doc1")
+
+    assert data["doctor_id"] == "doc1"
+    critical = next(g for g in data["groups"] if g["group"] == "critical")
+    assert critical["count"] == 1
+    assert critical["items"][0]["name"] == "危重"
+
+
+async def test_manage_patient_timeline_not_found():
+    db = SimpleNamespace()
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.build_patient_timeline", new=AsyncMock(return_value=None)):
+        with pytest.raises(HTTPException) as exc:
+            await ui.manage_patient_timeline(patient_id=99, doctor_id="doc1", limit=50)
+
+    assert exc.value.status_code == 404
+
+
+async def test_manage_patient_timeline_success():
+    db = SimpleNamespace()
+    payload = {"patient": {"id": 11, "name": "张三"}, "events": [{"type": "record", "id": 1}]}
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.build_patient_timeline", new=AsyncMock(return_value=payload)):
+        data = await ui.manage_patient_timeline(patient_id=11, doctor_id="doc1", limit=50)
+
+    assert data["doctor_id"] == "doc1"
+    assert data["patient"]["name"] == "张三"
+    assert data["events"][0]["id"] == 1
