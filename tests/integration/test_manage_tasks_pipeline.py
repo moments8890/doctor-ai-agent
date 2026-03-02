@@ -2,6 +2,11 @@
 
 These tests seed SQLite rows directly, then validate API contracts via HTTP.
 They avoid LLM-dependent behavior while still exercising end-to-end routing.
+
+Design intent:
+- Keep assertions stable across model/provider variance by not relying on LLM.
+- Validate external API behavior against known DB fixtures.
+- Exercise task lifecycle and manage endpoints that UI depends on.
 """
 
 from __future__ import annotations
@@ -17,6 +22,7 @@ from tests.integration.conftest import DB_PATH, SERVER
 
 
 def _exec(sql: str, params: tuple = ()) -> None:
+    """Execute a SQL statement against integration DB and commit."""
     conn = sqlite3.connect(DB_PATH)
     try:
         conn.execute(sql, params)
@@ -26,6 +32,7 @@ def _exec(sql: str, params: tuple = ()) -> None:
 
 
 def _table_exists(name: str) -> bool:
+    """Return True if a table exists in the integration DB file."""
     conn = sqlite3.connect(DB_PATH)
     try:
         row = conn.execute(
@@ -38,6 +45,11 @@ def _table_exists(name: str) -> bool:
 
 
 def _has_patient_category_schema() -> bool:
+    """Check whether patient category columns are present in local schema.
+
+    This allows local runs to skip category assertions when developer DB is on
+    an older schema, while CI (fresh schema) still validates full behavior.
+    """
     conn = sqlite3.connect(DB_PATH)
     try:
         cols = {
@@ -49,6 +61,11 @@ def _has_patient_category_schema() -> bool:
 
 
 def _insert_patient(doctor_id: str, name: str, category: str | None) -> int:
+    """Insert a patient fixture row and return patient id.
+
+    Uses category columns when available; otherwise inserts legacy-compatible
+    patient rows so tests can still run in mixed local environments.
+    """
     conn = sqlite3.connect(DB_PATH)
     try:
         cols = {
@@ -103,6 +120,7 @@ def _insert_patient(doctor_id: str, name: str, category: str | None) -> int:
 
 
 def _cleanup(doctor_id: str) -> None:
+    """Delete all fixture rows for one integration doctor id."""
     if _table_exists("doctor_tasks"):
         _exec("DELETE FROM doctor_tasks WHERE doctor_id=?", (doctor_id,))
     _exec("DELETE FROM medical_records WHERE doctor_id=?", (doctor_id,))
@@ -111,6 +129,12 @@ def _cleanup(doctor_id: str) -> None:
 
 @pytest.mark.integration
 def test_tasks_api_roundtrip():
+    """Task API E2E:
+    1) seed pending tasks
+    2) list tasks
+    3) complete one
+    4) verify pending filter now excludes completed row
+    """
     if not _table_exists("doctor_tasks"):
         pytest.skip("doctor_tasks table not available in current DB/schema")
 
@@ -149,12 +173,14 @@ def test_tasks_api_roundtrip():
             ),
         )
 
+        # Step 1: list all pending tasks for this doctor.
         resp = httpx.get(f"{SERVER}/api/tasks", params={"doctor_id": doctor_id}, timeout=20)
         resp.raise_for_status()
         tasks = resp.json()
         assert len(tasks) == 2
 
         to_complete = tasks[0]["id"]
+        # Step 2: complete one task through API.
         patch = httpx.patch(
             f"{SERVER}/api/tasks/{to_complete}",
             params={"doctor_id": doctor_id},
@@ -164,6 +190,7 @@ def test_tasks_api_roundtrip():
         patch.raise_for_status()
         assert patch.json()["status"] == "completed"
 
+        # Step 3: confirm pending filter returns only remaining task.
         pending = httpx.get(
             f"{SERVER}/api/tasks",
             params={"doctor_id": doctor_id, "status": "pending"},
@@ -179,6 +206,9 @@ def test_tasks_api_roundtrip():
 
 @pytest.mark.integration
 def test_manage_patients_grouped_counts():
+    """Manage grouped endpoint E2E:
+    verifies category buckets and count aggregation for seeded fixtures.
+    """
     if not _has_patient_category_schema():
         pytest.skip("patient category schema not available in current DB/server")
 
@@ -206,6 +236,9 @@ def test_manage_patients_grouped_counts():
 
 @pytest.mark.integration
 def test_manage_records_includes_raw_fields():
+    """Manage records endpoint E2E:
+    verifies raw field payload mirrors stored medical_records columns.
+    """
     doctor_id = f"inttest_records_{uuid.uuid4().hex[:8]}"
     try:
         pid = _insert_patient(doctor_id, "记录测试患者", "new")

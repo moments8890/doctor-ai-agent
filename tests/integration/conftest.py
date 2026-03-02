@@ -6,6 +6,11 @@ All integration tests require:
 
 Both are checked once per session; the entire integration suite is skipped
 if either dependency is unavailable.
+
+Integration DB resolution:
+- Prefer `PATIENTS_DB_PATH` from `.env` when present.
+- Fallback to repo-local `patients.db`.
+This keeps DB assertions aligned with the running app configuration.
 """
 import os
 import sqlite3
@@ -69,6 +74,10 @@ def require_ollama():
 
 @pytest.fixture(autouse=True)
 def clean_integration_db():
+    """Best-effort cleanup for `inttest_*` rows after each test.
+
+    Cleanup is schema-aware (doctor_tasks table may not exist in older DBs).
+    """
     yield
     if not DB_PATH.exists():
         return
@@ -97,6 +106,12 @@ def server():
 
 
 def chat(text, history=None, doctor_id="inttest_default", server_url=SERVER):
+    """Call `/api/records/chat` with retry on read timeout.
+
+    This helper intentionally mirrors real client behavior:
+    - sends history + doctor_id
+    - tolerates first-call model warmup latency (configurable via env)
+    """
     # Integration requests can be slow on shared CI runners, especially on the
     # first structured call after startup/model warmup.
     read_timeout = float(os.environ.get("CHAT_TIMEOUT", "300"))
