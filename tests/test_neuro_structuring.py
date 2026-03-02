@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from models.neuro_case import ExtractionLog, NeuroCase
 from services.neuro_structuring import _parse_markdown_output, extract_neuro_case
-from db.crud import save_neuro_case
+from db.crud import get_neuro_cases_for_doctor, save_neuro_case
 
 
 # ---------------------------------------------------------------------------
@@ -261,3 +261,40 @@ async def test_save_neuro_case_promotes_scalars(session_factory):
     assert raw["patient_profile"]["name"] == "张三"
     log_parsed = json.loads(row.extraction_log_json)
     assert "family_history_cvd" in log_parsed["missing_fields"]
+
+
+async def test_save_neuro_case_invalid_numeric_fields_coerce_to_none(session_factory):
+    case_dict = _make_neuro_case_dict(
+        patient_profile={"name": "王五", "gender": "male", "age": "unknown"},
+        neuro_exam={"nihss_total": "N/A"},
+    )
+    log_dict = _make_log_dict()
+    neuro_case = NeuroCase.model_validate(case_dict)
+    extraction_log = ExtractionLog.model_validate(log_dict)
+
+    async with session_factory() as session:
+        row = await save_neuro_case(session, "doc_bad_num", neuro_case, extraction_log)
+
+    assert row.age is None
+    assert row.nihss is None
+
+
+async def test_get_neuro_cases_for_doctor_returns_only_target_doctor(session_factory):
+    case_a = NeuroCase.model_validate(_make_neuro_case_dict())
+    case_b = NeuroCase.model_validate(
+        _make_neuro_case_dict(
+            case_id="CVD-TEST-002",
+            patient_profile={"name": "李四", "gender": "female", "age": 70},
+            chief_complaint={"text": "头晕", "duration": "1天"},
+        )
+    )
+    log = ExtractionLog.model_validate(_make_log_dict())
+
+    async with session_factory() as session:
+        await save_neuro_case(session, "doc_A", case_a, log)
+        await save_neuro_case(session, "doc_A", case_b, log)
+        await save_neuro_case(session, "doc_B", case_b, log)
+        rows = await get_neuro_cases_for_doctor(session, "doc_A", limit=10)
+
+    assert len(rows) == 2
+    assert all(r.doctor_id == "doc_A" for r in rows)

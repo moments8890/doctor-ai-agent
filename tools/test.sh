@@ -28,6 +28,7 @@ run_unit() {
       --ignore=tests/integration \
       --junitxml=reports/junit/unit.xml \
       --cov=db --cov=models --cov=routers --cov=services --cov=utils \
+      --cov-fail-under=81 \
       --cov-report=term-missing:skip-covered \
       --cov-report=xml:reports/coverage/coverage.xml \
       --cov-report=html:reports/coverage/html
