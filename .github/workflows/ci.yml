@@ -30,7 +30,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run unit tests
-        run: python -m pytest tests/ -v
+        run: python -m pytest tests/ -v --ignore=tests/integration
 
   # ── Integration tests ─────────────────────────────────────────────────────
   # Runs Ollama (qwen2.5:7b) in Docker alongside the live FastAPI app.
@@ -97,7 +97,7 @@ jobs:
           OLLAMA_MODEL: qwen2.5:7b
         run: |
           nohup python -m uvicorn main:app --host 127.0.0.1 --port 8000 > app.log 2>&1 &
-          timeout 30 bash -c 'until curl -sf http://127.0.0.1:8000/; do sleep 2; done'
+          timeout 30 bash -c 'until curl -sfL http://127.0.0.1:8000/; do sleep 2; done'
           echo "App ready"
 
       - name: Run text pipeline integration tests
