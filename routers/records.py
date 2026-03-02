@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel
 from typing import List, Optional
@@ -200,7 +201,8 @@ async def chat(body: ChatInput):
             return ChatResponse(reply="📂 暂无患者记录。")
         lines = [f"👥 共 {len(patients)} 位患者："]
         for i, p in enumerate(patients, 1):
-            info = "、".join(filter(None, [p.gender, f"{p.age}岁" if p.age else None]))
+            age_display = f"{datetime.now().year - p.year_of_birth}岁" if p.year_of_birth else None
+            info = "、".join(filter(None, [p.gender, age_display]))
             lines.append(f"{i}. {p.name}" + (f"（{info}）" if info else ""))
         return ChatResponse(reply="\n".join(lines))
 

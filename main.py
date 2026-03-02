@@ -36,7 +36,7 @@ class PatientAdmin(ModelView, model=Patient):
         Patient.id,
         Patient.name,
         Patient.gender,
-        Patient.age,
+        Patient.year_of_birth,
         Patient.records,          # shows linked records count + clickable list
         Patient.doctor_id,
         Patient.created_at,

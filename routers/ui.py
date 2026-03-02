@@ -664,7 +664,7 @@ _MANAGE_HTML = """<!doctype html>
       for (const p of data.items) {
         const card = document.createElement("article");
         card.className = "card";
-        const info = [p.gender, p.age ? `${p.age}岁` : null].filter(Boolean).join(" / ");
+        const info = [p.gender, p.year_of_birth ? `${new Date().getFullYear() - p.year_of_birth}岁` : null].filter(Boolean).join(" / ");
         card.innerHTML = `
           <div class="row">
             <strong>${esc(p.name)}</strong>
@@ -807,7 +807,7 @@ async def manage_patients(doctor_id: str = Query(default="web_doctor")):
                 "id": p.id,
                 "name": p.name,
                 "gender": p.gender,
-                "age": p.age,
+                "year_of_birth": p.year_of_birth,
                 "created_at": _fmt_ts(p.created_at),
                 "record_count": int(count_map.get(p.id, 0)),
             }

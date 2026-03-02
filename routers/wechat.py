@@ -2,6 +2,7 @@ import asyncio
 import os
 import re
 import time
+from datetime import datetime
 from fastapi import APIRouter, Request, Response
 from wechatpy import parse_message
 from wechatpy.crypto import WeChatCrypto
@@ -247,7 +248,8 @@ async def _handle_all_patients(doctor_id: str) -> str:
         return "📂 暂无患者记录。发送「新患者姓名，年龄性别」可创建第一位患者。"
     lines = [f"👥 共 {len(patients)} 位患者：\n"]
     for i, p in enumerate(patients, 1):
-        info = "、".join(filter(None, [p.gender, f"{p.age}岁" if p.age else None]))
+        age_display = f"{datetime.now().year - p.year_of_birth}岁" if p.year_of_birth else None
+        info = "、".join(filter(None, [p.gender, age_display]))
         lines.append(f"{i}. {p.name}" + (f"（{info}）" if info else ""))
     lines.append("\n发送「查询[姓名]」查看病历")
     return "\n".join(lines)

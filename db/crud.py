@@ -43,14 +43,20 @@ async def upsert_doctor_context(session: AsyncSession, doctor_id: str, summary: 
     await session.commit()
 
 
+def _year_of_birth(age: Optional[int]) -> Optional[int]:
+    if age is None:
+        return None
+    return datetime.now().year - age
+
+
 async def create_patient(
     session: AsyncSession,
     doctor_id: str,
     name: str,
-    gender: str | None,
-    age: int | None,
+    gender: Optional[str],
+    age: Optional[int],
 ) -> Patient:
-    patient = Patient(doctor_id=doctor_id, name=name, gender=gender, age=age)
+    patient = Patient(doctor_id=doctor_id, name=name, gender=gender, year_of_birth=_year_of_birth(age))
     session.add(patient)
     await session.commit()
     return patient

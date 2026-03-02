@@ -103,7 +103,7 @@ export default function ManagePage() {
                 <CardContent>
                   <Typography variant="subtitle1">{p.name}</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    id={p.id} | {p.gender || "unknown"} | {p.age ? `${p.age}y` : "age n/a"} | records={p.record_count}
+                    id={p.id} | {p.gender || "unknown"} | {p.year_of_birth ? `${new Date().getFullYear() - p.year_of_birth}y` : "age n/a"} | records={p.record_count}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     created: {p.created_at || "-"}
