@@ -44,8 +44,8 @@ git checkout -b <type>/<short-slug>   # e.g. feat/my-feature, fix/bug-name, ci/w
 # 2. Commit, then push
 git push -u origin HEAD
 
-# 3. Open a ready-for-review PR immediately after pushing (never draft)
-gh pr create --title "<title>" --body "<body>"
+# 3. Open a draft PR immediately after pushing
+gh pr create --draft --title "<title>" --body "<body>"
 
 # 4. Share the PR URL immediately after creation
 gh pr view --json url -q .url
@@ -58,7 +58,7 @@ gh pr merge --auto --squash
 
 - Branch naming: `feat/`, `fix/`, `ci/`, `refactor/`, `docs/`
 - PR title follows conventional commits: `feat:`, `fix:`, `ci:`, etc.
-- PRs must be created as **ready for review** (never draft)
+- PRs must be created as **draft** first
 - PRs must be blocked from merge until required CI checks pass (`unit` + `integration`)
 - Auto-merge is squash-merge and only activates after required CI checks are green
 - When a PR is created, always provide the PR link in the status update to the user
