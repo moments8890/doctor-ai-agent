@@ -42,12 +42,15 @@ WeChat Official Account
 │         │                                               │
 │         ├─ maybe_compress()  ← memory.py                │
 │         ├─ load_context_message()                       │
-│         └─ agent_dispatch()  ← agent.py (LLM tool call) │
+│         └─ agent_dispatch()  ← agent.py (single LLM)    │
 │              ├─ create_patient → DB                     │
-│              ├─ add_record → structuring.py → DB        │
+│              ├─ add_record                              │
+│              │    ├─ structured_fields → MedicalRecord  │
+│              │    ├─ (fallback) structuring.py → MR     │
+│              │    └─ save_record → DB                   │
 │              ├─ query_records → DB                      │
 │              ├─ list_patients → DB                      │
-│              └─ unknown → chat_reply                    │
+│              └─ unknown → chat_reply (natural)          │
 │                                                          │
 │  POST /api/records/chat      (CLI / REST)                │
 │  POST /api/records/from-text                             │
@@ -425,11 +428,15 @@ Two independent LLM roles, each configurable separately:
 
 | Variable | Role | Tokens/call | Requirement |
 |----------|------|-------------|-------------|
-| `ROUTING_LLM` | Intent dispatch & function calling | ~300 | Function calling support |
-| `STRUCTURING_LLM` | Medical record JSON generation & memory compression | ~800 | JSON mode |
+| `ROUTING_LLM` | Single LLM: intent routing + clinical field extraction (8 fields) + natural reply | ~600 | Function calling support |
+| `STRUCTURING_LLM` | Standalone: REST direct endpoints, interview completion, fallback | ~800 | JSON mode |
 | `VISION_LLM` | Image OCR / text extraction | ~2000 | Vision / multimodal support |
 
 `ROUTING_LLM` falls back to `STRUCTURING_LLM` if not set. Both accept `ollama`, `deepseek`, or `groq`.
+
+> **Single-LLM design (2026-03-02):** `ROUTING_LLM` now performs routing + structuring + natural reply in one call.
+> `STRUCTURING_LLM` is used only for REST direct endpoints, guided interview completion, and as a fallback when
+> the single-LLM call returns no clinical fields. See the Design Decisions section for full rationale.
 
 ```bash
 # LLM for intent dispatch & function calling (~300 tokens/call)
@@ -480,6 +487,35 @@ WECHAT_ENCODING_AES_KEY=
 | `GET` | `/api/tasks` | List doctor tasks (filter by `doctor_id`, optional `status`) |
 | `PATCH` | `/api/tasks/{task_id}` | Update task status (`completed` or `cancelled`) |
 | `GET` | `/admin` | SQLAdmin database UI |
+
+---
+
+## Design Decisions
+
+### Single-LLM Architecture (2026-03-02)
+
+**Before:** Two sequential LLM calls per `add_record`:
+1. Routing LLM (~300 tokens) → intent + patient meta
+2. Structuring LLM (~1500 tokens) → 8-field MedicalRecord JSON
+3. Hardcoded template reply string
+
+**After:** Single LLM call per operation:
+- Tool call → intent + patient meta + all 8 clinical fields
+- `message.content` → natural Chinese reply to doctor
+- Business logic (DB write, risk scoring, tasks) fires async
+
+**Why:**
+- Eliminates sequential LLM latency
+- Natural conversation instead of template strings
+- Simpler code, single failure surface
+- OpenAI function calling API designed for simultaneous tool use + text response
+
+**`structure_medical_record()` retained for:**
+- `/from-text`, `/from-audio`, `/from-image` REST endpoints (direct structuring, no agent)
+- Guided interview completion (7-step Q&A compiles to structured text)
+- Fallback when LLM tool call returns no clinical fields
+
+**Quality validation:** Re-run `python tools/train.py --clean` after model changes.
 
 ---
 

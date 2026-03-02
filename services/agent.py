@@ -21,7 +21,7 @@ _PROVIDERS = {
     "ollama": {
         "base_url": "http://localhost:11434/v1",
         "api_key_env": "OLLAMA_API_KEY",
-        "model": "qwen2.5:7b",
+        "model": "qwen2.5:14b",
     },
 }
 
@@ -92,6 +92,38 @@ _TOOLS = [
                             "遇到以下情况设为true：STEMI、ST段抬高、急诊PCI、绿色通道、"
                             "休克、血压90/60以下、心跳骤停、呼吸骤停、室颤。"
                         ),
+                    },
+                    "chief_complaint": {
+                        "type": "string",
+                        "description": "主诉：患者最主要的症状或就诊原因（不超过20字）。必须填写，不可省略。",
+                    },
+                    "history_of_present_illness": {
+                        "type": ["string", "null"],
+                        "description": "现病史：症状发展过程、伴随症状、加重/缓解因素、已做检查结果。未提及则为null。",
+                    },
+                    "past_medical_history": {
+                        "type": ["string", "null"],
+                        "description": "既往史：既往疾病、手术、过敏史、长期用药。未提及则为null。",
+                    },
+                    "physical_examination": {
+                        "type": ["string", "null"],
+                        "description": "体格检查：体征、生命体征（BP、HR等）、听诊触诊结果。未提及则为null。",
+                    },
+                    "auxiliary_examinations": {
+                        "type": ["string", "null"],
+                        "description": "辅助检查：已出结果的化验、影像、心电图。保留数值和单位（BNP 980pg/mL）。未提及则为null。",
+                    },
+                    "diagnosis": {
+                        "type": ["string", "null"],
+                        "description": "诊断：明确诊断或考虑诊断。保留缩写（STEMI、PCI、HER2、EGFR）。未提及则为null。",
+                    },
+                    "treatment_plan": {
+                        "type": ["string", "null"],
+                        "description": "治疗方案：用药、手术、处置措施。未提及则为null。",
+                    },
+                    "follow_up_plan": {
+                        "type": ["string", "null"],
+                        "description": "随访计划：随访时间和安排。未提及则为null。",
                     },
                 },
                 "required": [],
@@ -196,7 +228,13 @@ _SYSTEM_PROMPT = (
     "特殊规则：若上一条助手消息询问了患者姓名（如'请问这位患者叫什么名字'），"
     "医生的回复即为患者姓名，应调用 add_medical_record 并将该姓名填入 patient_name，"
     "不要调用 create_patient。\n\n"
-    "工具参数只填写当前消息或上下文中明确出现的信息，不确定时省略该字段。"
+    "工具参数只填写当前消息或上下文中明确出现的信息，不确定时省略该字段。\n\n"
+    "【回复要求】\n"
+    "调用工具时，同时在 message content 中用1-2句口语化中文告知医生你的理解和操作。\n"
+    "不要使用模板格式或列举字段名称。\n"
+    "示例：add_medical_record → \"好的，张三头痛两天的情况记下来了，开了布洛芬，两周后复查。\"\n"
+    "示例：create_patient → \"李明的档案建好了。\"\n"
+    "示例：query_records → \"来看看张三的历史记录。\""
 )
 
 _INTENT_MAP = {
@@ -242,10 +280,13 @@ async def dispatch(text: str, history: Optional[List[dict]] = None) -> IntentRes
     )
 
     message = completion.choices[0].message
+    # Capture natural reply regardless of whether a tool was called
+    chat_reply = message.content or None
+
     if not message.tool_calls:
-        chat_reply = message.content or "您好！有什么可以帮您？"
-        log(f"[Agent:{provider_name}] no tool call → chat reply: {chat_reply[:80]}")
-        return IntentResult(intent=Intent.unknown, chat_reply=chat_reply)
+        reply_text = chat_reply or "您好！有什么可以帮您？"
+        log(f"[Agent:{provider_name}] no tool call → chat reply: {reply_text[:80]}")
+        return IntentResult(intent=Intent.unknown, chat_reply=reply_text)
 
     tool_call = message.tool_calls[0]
     fn_name = tool_call.function.name
@@ -276,6 +317,18 @@ async def dispatch(text: str, history: Optional[List[dict]] = None) -> IntentRes
         extra_data["appointment_time"] = args.get("appointment_time")
         extra_data["notes"] = args.get("notes")
 
+    # Extract 8 clinical fields when add_medical_record is called
+    structured_fields: Optional[dict] = None
+    if fn_name == "add_medical_record":
+        _CLINICAL_KEYS = {
+            "chief_complaint", "history_of_present_illness", "past_medical_history",
+            "physical_examination", "auxiliary_examinations",
+            "diagnosis", "treatment_plan", "follow_up_plan",
+        }
+        extracted = {k: args[k] for k in _CLINICAL_KEYS if args.get(k)}
+        if extracted:
+            structured_fields = extracted
+
     return IntentResult(
         intent=intent,
         patient_name=args.get("patient_name") or args.get("name"),
@@ -283,4 +336,6 @@ async def dispatch(text: str, history: Optional[List[dict]] = None) -> IntentRes
         age=age,
         is_emergency=args.get("is_emergency", False),
         extra_data=extra_data,
+        chat_reply=chat_reply,
+        structured_fields=structured_fields,
     )

@@ -20,7 +20,7 @@ _PROVIDERS = {
     "ollama": {
         "base_url": "http://localhost:11434/v1",
         "api_key_env": "OLLAMA_API_KEY",
-        "model": "qwen2.5:7b",
+        "model": "qwen2.5:14b",
     },
 }
 
@@ -58,6 +58,7 @@ class IntentResult(BaseModel):
     is_emergency: bool = False
     extra_data: dict = Field(default_factory=dict)
     chat_reply: Optional[str] = None
+    structured_fields: Optional[dict] = None  # 8 clinical fields from single LLM call
 
 
 async def detect_intent(text: str) -> IntentResult:

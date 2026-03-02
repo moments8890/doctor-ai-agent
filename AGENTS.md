@@ -17,7 +17,7 @@ The plan file must include:
 - **Preserve medical abbreviations** — do not translate or expand STEMI, BNP, PCI, EGFR, ANC, HER2, EF, NYHA, ICD, etc.
 - **Tests mock all I/O** — unit tests in `tests/` must not make real LLM, DB, or network calls; use `AsyncMock` / `patch`
 - **DB schema changes** — add to `db/models.py`; `create_tables()` handles creation automatically; document any manual cleanup/migration impact in the commit message and PR description
-- **LLM provider defaults** — local model is `qwen2.5:7b` via Ollama; prefer this in examples and defaults
+- **LLM provider defaults** — local model is `qwen2.5:14b` via Ollama; prefer this in examples and defaults
 
 ## Branch & PR Workflow
 
