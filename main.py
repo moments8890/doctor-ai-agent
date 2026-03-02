@@ -11,7 +11,7 @@ from starlette.requests import Request
 
 from routers.records import router as records_router
 from routers.wechat import router as wechat_router
-from db.init_db import create_tables
+from db.init_db import create_tables, seed_prompts
 from db.engine import engine
 from db.models import Patient, MedicalRecordDB, DoctorContext, SystemPrompt
 
@@ -138,6 +138,7 @@ async def _warmup():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await create_tables()
+    await seed_prompts()
     await _warmup()
     yield
 

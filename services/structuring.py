@@ -9,7 +9,9 @@ from openai import AsyncOpenAI
 from models.medical_record import MedicalRecord
 from utils.log import log
 
-_DEFAULT_SYSTEM_PROMPT = """\
+# Seed value — written to DB on first startup. After that, DB is the source of truth.
+# To reset to defaults: delete the 'structuring' row in /admin → System Prompts.
+_SEED_PROMPT = """\
 你是医院电子病历系统，依据《病历书写基本规范》（卫医政发〔2010〕11号）将医生口述或文字记录转为规范化门诊病历 JSON。
 输入可能来自心血管内科或肿瘤科，含有专业术语、缩写和口语化表达，请准确识别并规范化。
 输入若以引号或"记录一下"开头，忽略引导语，直接提取临床内容。
@@ -77,7 +79,15 @@ _PROMPT_CACHE_TTL = 60  # seconds — changes take effect within 1 minute
 
 
 async def _get_system_prompt() -> str:
-    """Load structuring prompt from DB, falling back to the built-in default."""
+    """Load structuring prompt from DB with optional extension.
+
+    Combines two DB keys:
+      'structuring'           — base prompt (seeded from _SEED_PROMPT on first start)
+      'structuring.extension' — optional doctor-defined additions appended to the base
+
+    Falls back to _SEED_PROMPT only if the DB has no base row at all.
+    Cache TTL: 60 seconds — changes take effect within 1 minute.
+    """
     global _PROMPT_CACHE
     if _PROMPT_CACHE and time.time() - _PROMPT_CACHE[0] < _PROMPT_CACHE_TTL:
         return _PROMPT_CACHE[1]
@@ -85,10 +95,13 @@ async def _get_system_prompt() -> str:
         from db.crud import get_system_prompt
         from db.engine import AsyncSessionLocal
         async with AsyncSessionLocal() as db:
-            row = await get_system_prompt(db, "structuring")
-        content = row.content if row else _DEFAULT_SYSTEM_PROMPT
+            base_row = await get_system_prompt(db, "structuring")
+            ext_row = await get_system_prompt(db, "structuring.extension")
+        base = base_row.content if base_row else _SEED_PROMPT
+        extension = ext_row.content.strip() if ext_row and ext_row.content.strip() else None
+        content = base + "\n\n" + extension if extension else base
     except Exception:
-        content = _DEFAULT_SYSTEM_PROMPT
+        content = _SEED_PROMPT
     _PROMPT_CACHE = (time.time(), content)
     return content
 
