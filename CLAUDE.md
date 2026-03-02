@@ -19,13 +19,38 @@ The plan file must include:
 - **DB schema changes** — add to `db/models.py`; `create_tables()` handles creation automatically; note in CHANGELOG if existing data may need manual cleanup
 - **LLM provider defaults** — local model is `qwen2.5:7b` via Ollama; prefer this in examples and defaults
 
-## Push Workflow
+## Branch & PR Workflow
 
-Before every `git push`, always:
+**Never push directly to `main`.** Every change — including small fixes — must go through a PR.
 
-1. **Unit tests** — `.venv/bin/python -m pytest tests/ -v` — must be 100% green (no LLM needed)
+### Steps for every change
+
+1. **Unit tests** — `.venv/bin/python -m pytest tests/ -v` — must be 100% green before pushing
 2. **Integration tests** — `pytest tests/integration/` — only when LLM pipeline or prompt changed (requires `uvicorn main:app --reload` + `ollama serve`); auto-skipped if deps not running
 3. **Corpus tests** (optional) — `python tools/train.py --clean [--cases ...]` — full corpus validation, also requires Ollama
-3. **Update `CHANGELOG.md`** — add entry for what changed
-4. **Update `ARCHITECTURE.md`** — only if schema, env vars, API endpoints, or service structure changed
-5. **Update progress** — tick completed items in `debug/iteration_*.md`
+4. **Update `CHANGELOG.md`** — add entry for what changed
+5. **Update `ARCHITECTURE.md`** — only if schema, env vars, API endpoints, or service structure changed
+6. **Update progress** — tick completed items in `debug/iteration_*.md`
+
+### Publishing
+
+After the above, always:
+
+```bash
+# 1. Create a branch (never commit on main)
+git checkout -b <type>/<short-slug>   # e.g. feat/my-feature, fix/bug-name, ci/workflow
+
+# 2. Commit, then push
+git push -u origin HEAD
+
+# 3. Open a draft PR immediately after pushing
+gh pr create --draft --title "<title>" --body "<body>"
+
+# 4. Enable auto-merge so it lands as soon as CI is green
+gh pr merge --auto --squash
+```
+
+- Branch naming: `feat/`, `fix/`, `ci/`, `refactor/`, `docs/`
+- PR title follows conventional commits: `feat:`, `fix:`, `ci:`, etc.
+- Auto-merge is squash-merge; CI (`unit` + `integration` jobs) must be green first
+- Delete the branch after merge (`gh pr merge` does this automatically with `--delete-branch`)
