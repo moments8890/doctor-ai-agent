@@ -19,6 +19,13 @@
 
 ### Features
 
+- **Patient categorization/grouping (In Progress)** — Structured patient grouping for faster triage and debug workflows:
+  - Planned category outputs: `primary_category` + multi-tag grouping (`category_tags`) per patient
+  - Deterministic rules engine with explicit precedence and `rules_version` tracking
+  - Recompute hooks after patient/record writes, plus batch backfill CLI
+  - API filters/grouped views for Manage (`category`, `tag`, stale-category checks)
+  - Manage UI grouping/filter controls and visible category badges with debug rationale
+
 - **Neurovascular structured extraction pipeline** — Full end-to-end pipeline for cerebrovascular/stroke cases:
   - `models/neuro_case.py` — Pydantic schema (`NeuroCase`, `ExtractionLog`, `RiskFactors`, `ImagingStudy`, `ImagingFinding`, `LabResult`, `PlanOrder`)
   - `db/models.py` — `NeuroCaseDB` table (promoted scalar columns: `patient_name`, `nihss`, `primary_diagnosis`, etc.) + full JSON blobs; created automatically on next startup via `create_all`
@@ -81,4 +88,3 @@
 ### Recommendation
 
 Use `OLLAMA_MODEL=qwen2.5:7b` for production. `llama3.2` passes API checks but hallucinates Chinese patient names (~2/37 cases), which the DB verifier now catches.
-
