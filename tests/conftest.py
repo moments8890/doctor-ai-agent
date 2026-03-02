@@ -27,8 +27,10 @@ async def db_session(session_factory):
 
 @pytest.fixture(autouse=True)
 def reset_doctor_sessions():
-    """Clear in-memory doctor sessions between tests."""
+    """Clear in-memory doctor sessions and locks between tests."""
     import services.session as sess_mod
     sess_mod._sessions.clear()
+    sess_mod._locks.clear()
     yield
     sess_mod._sessions.clear()
+    sess_mod._locks.clear()

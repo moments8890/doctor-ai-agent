@@ -1,11 +1,21 @@
 from __future__ import annotations
+import asyncio
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional
 from services.interview import InterviewState
 
 _sessions: dict[str, "DoctorSession"] = {}
+
+_locks: Dict[str, asyncio.Lock] = {}
+
+
+def get_session_lock(doctor_id: str) -> asyncio.Lock:
+    """Return the per-doctor asyncio lock, creating it on first access."""
+    if doctor_id not in _locks:
+        _locks[doctor_id] = asyncio.Lock()
+    return _locks[doctor_id]
 
 # Rolling window: compress + flush when this many turns accumulate
 MAX_TURNS = 10
