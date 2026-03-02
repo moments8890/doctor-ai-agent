@@ -33,7 +33,7 @@ def pytest_configure(config):
 @pytest.fixture(scope="session", autouse=True)
 def require_server():
     try:
-        httpx.get(f"{SERVER}/", timeout=3).raise_for_status()
+        httpx.get(f"{SERVER}/", timeout=3, follow_redirects=True).raise_for_status()
     except Exception:
         pytest.skip(
             "Integration tests skipped — server not running. "

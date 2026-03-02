@@ -2,6 +2,10 @@
 
 ## [Unreleased] — 2026-03-01
 
+### Bug Fixes
+
+- **Integration test health check** — `conftest.py` now passes `follow_redirects=True` to the httpx server check so a `307 Temporary Redirect` from `/` no longer causes all integration tests to be spuriously skipped.
+
 ### Features
 
 - **Neurovascular structured extraction pipeline** — Full end-to-end pipeline for cerebrovascular/stroke cases:
