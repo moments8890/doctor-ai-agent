@@ -5,7 +5,7 @@ from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.models import SystemPrompt, DoctorContext, Patient, MedicalRecordDB, NeuroCaseDB
+from db.models import SystemPrompt, DoctorContext, Patient, MedicalRecordDB, NeuroCaseDB, DoctorTask
 from models.medical_record import MedicalRecord
 from services.patient_categorization import RULES_VERSION, recompute_patient_category
 
@@ -211,3 +211,92 @@ async def get_neuro_cases_for_doctor(
         .limit(limit)
     )
     return list(result.scalars().all())
+
+
+# ---------------------------------------------------------------------------
+# DoctorTask CRUD
+# ---------------------------------------------------------------------------
+
+
+async def create_task(
+    session: AsyncSession,
+    doctor_id: str,
+    task_type: str,
+    title: str,
+    content: Optional[str] = None,
+    patient_id: Optional[int] = None,
+    record_id: Optional[int] = None,
+    due_at: Optional[datetime] = None,
+) -> DoctorTask:
+    task = DoctorTask(
+        doctor_id=doctor_id,
+        task_type=task_type,
+        title=title,
+        content=content,
+        patient_id=patient_id,
+        record_id=record_id,
+        due_at=due_at,
+        status="pending",
+    )
+    session.add(task)
+    await session.commit()
+    await session.refresh(task)
+    return task
+
+
+async def list_tasks(
+    session: AsyncSession,
+    doctor_id: str,
+    status: Optional[str] = None,
+) -> List[DoctorTask]:
+    q = select(DoctorTask).where(DoctorTask.doctor_id == doctor_id)
+    if status is not None:
+        q = q.where(DoctorTask.status == status)
+    q = q.order_by(DoctorTask.created_at.desc())
+    result = await session.execute(q)
+    return list(result.scalars().all())
+
+
+async def update_task_status(
+    session: AsyncSession,
+    task_id: int,
+    doctor_id: str,
+    status: str,
+) -> Optional[DoctorTask]:
+    result = await session.execute(
+        select(DoctorTask).where(DoctorTask.id == task_id, DoctorTask.doctor_id == doctor_id)
+    )
+    task = result.scalar_one_or_none()
+    if task is None:
+        return None
+    task.status = status
+    await session.commit()
+    await session.refresh(task)
+    return task
+
+
+async def get_due_tasks(
+    session: AsyncSession,
+    now: datetime,
+) -> List[DoctorTask]:
+    result = await session.execute(
+        select(DoctorTask).where(
+            DoctorTask.status == "pending",
+            DoctorTask.due_at <= now,
+            DoctorTask.notified_at.is_(None),
+        )
+    )
+    return list(result.scalars().all())
+
+
+async def mark_task_notified(
+    session: AsyncSession,
+    task_id: int,
+) -> None:
+    result = await session.execute(
+        select(DoctorTask).where(DoctorTask.id == task_id)
+    )
+    task = result.scalar_one_or_none()
+    if task:
+        task.notified_at = datetime.utcnow()
+        await session.commit()

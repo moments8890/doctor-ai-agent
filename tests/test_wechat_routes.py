@@ -49,17 +49,19 @@ class _SessionCtx:
 
 
 async def test_get_access_token_uses_cache_without_http_call():
-    wechat._token_cache["token"] = "cached-token"
-    wechat._token_cache["expires_at"] = 9999999999
-    with patch("routers.wechat.httpx.AsyncClient") as client_cls:
+    import services.wechat_notify as wn
+    wn._token_cache["token"] = "cached-token"
+    wn._token_cache["expires_at"] = 9999999999
+    with patch("services.wechat_notify.httpx.AsyncClient") as client_cls:
         token = await wechat._get_access_token("appid", "secret")
     assert token == "cached-token"
     client_cls.assert_not_called()
 
 
 async def test_get_access_token_fetches_and_updates_cache():
-    wechat._token_cache["token"] = ""
-    wechat._token_cache["expires_at"] = 0
+    import services.wechat_notify as wn
+    wn._token_cache["token"] = ""
+    wn._token_cache["expires_at"] = 0
 
     class _Resp:
         def json(self):
@@ -76,16 +78,16 @@ async def test_get_access_token_fetches_and_updates_cache():
             assert params["appid"] == "appid"
             return _Resp()
 
-    with patch("routers.wechat.httpx.AsyncClient", return_value=_Client()):
+    with patch("services.wechat_notify.httpx.AsyncClient", return_value=_Client()):
         token = await wechat._get_access_token("appid", "secret")
 
     assert token == "fresh-token"
-    assert wechat._token_cache["token"] == "fresh-token"
-    assert wechat._token_cache["expires_at"] > 0
+    assert wn._token_cache["token"] == "fresh-token"
+    assert wn._token_cache["expires_at"] > 0
 
 
 async def test_send_customer_service_msg_swallow_exception():
-    with patch("routers.wechat._get_access_token", new=AsyncMock(side_effect=RuntimeError("boom"))):
+    with patch("services.wechat_notify._get_access_token", new=AsyncMock(side_effect=RuntimeError("boom"))):
         await wechat._send_customer_service_msg("u1", "content")
 
 

@@ -103,3 +103,22 @@ class NeuroCaseDB(Base):
     def __str__(self) -> str:
         date = self.created_at.strftime("%Y-%m-%d") if self.created_at else "—"
         return f"{self.chief_complaint or '—'} [{date}]"
+
+
+class DoctorTask(Base):
+    __tablename__ = "doctor_tasks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    doctor_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id"), nullable=True)
+    record_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("medical_records.id"), nullable=True)
+    task_type: Mapped[str] = mapped_column(String(32), nullable=False)  # follow_up | emergency | appointment
+    title: Mapped[str] = mapped_column(String(256), nullable=False)
+    content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")  # pending | completed | cancelled
+    due_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    notified_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    def __str__(self) -> str:
+        return f"[{self.task_type}] {self.title}"

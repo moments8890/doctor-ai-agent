@@ -44,6 +44,9 @@ class Intent(str, Enum):
     add_record = "add_record"
     query_records = "query_records"
     list_patients = "list_patients"
+    list_tasks = "list_tasks"
+    complete_task = "complete_task"
+    schedule_appointment = "schedule_appointment"
     unknown = "unknown"
 
 
