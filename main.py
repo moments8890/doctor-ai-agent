@@ -13,7 +13,7 @@ from routers.records import router as records_router
 from routers.wechat import router as wechat_router
 from db.init_db import create_tables
 from db.engine import engine
-from db.models import Patient, MedicalRecordDB
+from db.models import Patient, MedicalRecordDB, DoctorContext
 
 logging.basicConfig(
     level=logging.INFO,
@@ -75,6 +75,25 @@ class MedicalRecordAdmin(ModelView, model=MedicalRecordDB):
     column_default_sort = [(MedicalRecordDB.created_at, True)]
 
 
+class DoctorContextAdmin(ModelView, model=DoctorContext):
+    name = "Doctor Context"
+    name_plural = "Doctor Contexts"
+    icon = "fa-solid fa-brain"
+    column_list = [
+        DoctorContext.doctor_id,
+        DoctorContext.summary,
+        DoctorContext.updated_at,
+    ]
+    column_details_list = [
+        DoctorContext.doctor_id,
+        DoctorContext.summary,
+        DoctorContext.updated_at,
+    ]
+    column_searchable_list = [DoctorContext.doctor_id]
+    column_sortable_list = [DoctorContext.updated_at]
+    column_default_sort = [(DoctorContext.updated_at, True)]
+
+
 # ---------------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------------
@@ -123,6 +142,7 @@ app = FastAPI(
 admin = Admin(app, engine, title="DB Admin")
 admin.add_view(PatientAdmin)
 admin.add_view(MedicalRecordAdmin)
+admin.add_view(DoctorContextAdmin)
 
 app.include_router(records_router)
 app.include_router(wechat_router)
