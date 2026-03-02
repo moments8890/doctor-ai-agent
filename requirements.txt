@@ -16,6 +16,7 @@ nicegui
 faster-whisper          # local ASR; pulls in ctranslate2 + tokenizers automatically
 pytest
 pytest-asyncio
+pytest-cov
 # NOTE: ffmpeg must be installed at the system level (brew install ffmpeg / apt install ffmpeg)
 #       It is used by services/voice.py to convert WeChat AMR/SILK audio to 16kHz WAV.
 #

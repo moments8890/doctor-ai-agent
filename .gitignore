@@ -18,6 +18,7 @@ patients.db
 # Pytest
 .pytest_cache/
 .coverage
+reports/
 
 # macOS
 .DS_Store

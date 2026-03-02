@@ -172,6 +172,19 @@ CASE_1001 = (
     (CASE_801, "蔡建明"),
     (CASE_901, None),       # no patient name given
     (CASE_1001, "付海龙"),
+], ids=[
+    "case101_minimal_note",
+    "case201_verbal_dictation",
+    "case301_fragmented_stream",
+    "case401_heavy_abbrev",
+    "case501_full_narrative",
+    "case601_followup",
+    "case701_emergency_stemi",
+    "case702_emergency_av_block",
+    "case703_emergency_dissection",
+    "case801_multimorbidity",
+    "case901_incomplete_info",
+    "case1001_instructional",
 ])
 async def test_all_corpus_styles_route_to_add_record(mock_agent_llm, text, patient_name):
     args = {"patient_name": patient_name} if patient_name else {}
@@ -191,6 +204,10 @@ async def test_all_corpus_styles_route_to_add_record(mock_agent_llm, text, patie
     (CASE_701, "STEMI+PCI绿色通道"),
     (CASE_702, "三度房室阻滞+临时起搏"),
     (CASE_703, "主动脉夹层"),
+], ids=[
+    "case701_stemi",
+    "case702_av_block",
+    "case703_dissection",
 ])
 async def test_emergency_cases_set_is_emergency_true(mock_agent_llm, text, label):
     mock_agent_llm.return_value = _agent_tool_call(

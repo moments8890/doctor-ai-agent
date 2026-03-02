@@ -9,6 +9,7 @@ if either dependency is unavailable.
 """
 import os
 import sqlite3
+import time
 from pathlib import Path
 
 import httpx
@@ -83,16 +84,34 @@ def server():
 
 
 def chat(text, history=None, doctor_id="inttest_default", server_url=SERVER):
-    # 120s to accommodate CPU-only Ollama inference in CI (routing + structuring
-    # combined can take 60–90 s on a standard GitHub Actions runner).
-    timeout = int(os.environ.get("CHAT_TIMEOUT", "120"))
-    resp = httpx.post(
-        f"{server_url}/api/records/chat",
-        json={"text": text, "history": history or [], "doctor_id": doctor_id},
-        timeout=timeout,
-    )
-    resp.raise_for_status()
-    return resp.json()
+    # Integration requests can be slow on shared CI runners, especially on the
+    # first structured call after startup/model warmup.
+    read_timeout = float(os.environ.get("CHAT_TIMEOUT", "300"))
+    retries = int(os.environ.get("CHAT_RETRIES", "1"))
+    timeout = httpx.Timeout(connect=10.0, read=read_timeout, write=30.0, pool=10.0)
+    payload = {"text": text, "history": history or [], "doctor_id": doctor_id}
+
+    last_exc = None
+    for attempt in range(retries + 1):
+        try:
+            resp = httpx.post(
+                f"{server_url}/api/records/chat",
+                json=payload,
+                timeout=timeout,
+            )
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.ReadTimeout as exc:
+            last_exc = exc
+            if attempt < retries:
+                time.sleep(2)
+                continue
+            break
+
+    raise RuntimeError(
+        f"chat() timed out after {retries + 1} attempt(s); "
+        f"read_timeout={read_timeout}s; doctor_id={doctor_id}"
+    ) from last_exc
 
 
 def db_record(doctor_id, patient_name):

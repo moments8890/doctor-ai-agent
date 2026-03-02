@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   # ── Unit tests ────────────────────────────────────────────────────────────
@@ -29,8 +30,18 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run unit tests
-        run: python -m pytest tests/ -v --ignore=tests/integration
+      - name: Run unit tests with coverage reports
+        run: bash tools/test.sh unit
+
+      - name: Upload unit test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-reports
+          path: |
+            reports/junit/unit.xml
+            reports/coverage/coverage.xml
+            reports/coverage/html
 
   # ── Integration tests ─────────────────────────────────────────────────────
   # Runs Ollama (qwen2.5:7b) in Docker alongside the live FastAPI app.
@@ -40,7 +51,10 @@ jobs:
   # Skipped: test_image_pipeline.py — requires qwen2.5vl:7b (~8 GB extra).
   integration:
     name: Integration Tests (Ollama / qwen2.5:7b)
-    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Configure repo variable INTEGRATION_RUNNER_LABEL to a larger runner label,
+    # e.g. "ubuntu-latest-8-cores" or your org/repo custom larger-runner label.
+    runs-on: ${{ vars.INTEGRATION_RUNNER_LABEL || 'ubuntu-latest' }}
     needs: unit
     timeout-minutes: 45
 
@@ -100,13 +114,15 @@ jobs:
           timeout 30 bash -c 'until curl -sfL http://127.0.0.1:8000/; do sleep 2; done'
           echo "App ready"
 
-      - name: Run text pipeline integration tests
+      - name: Run integration tests
         env:
           ROUTING_LLM: ollama
           STRUCTURING_LLM: ollama
           OLLAMA_MODEL: qwen2.5:7b
+          CHAT_TIMEOUT: "300"
+          CHAT_RETRIES: "1"
         run: |
-          python -m pytest tests/integration/test_text_pipeline.py -v -m integration
+          bash tools/test.sh integration
 
       # Grab the server log when something goes wrong so failures are diagnosable.
       - name: Upload app log
@@ -115,3 +131,10 @@ jobs:
         with:
           name: app-log
           path: app.log
+
+      - name: Upload integration test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-reports
+          path: reports/junit/integration.xml
