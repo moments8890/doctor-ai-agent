@@ -134,7 +134,7 @@ four tools based on the doctor's message and any conversation history:
 | `list_patients` | Doctor asks for their patient roster |
 | *(no tool)* | Casual conversation → `chat_reply` returned directly |
 
-The `AGENT_PROVIDER` env var selects the LLM backend (defaults to `LLM_PROVIDER`).
+The `ROUTING_LLM` env var selects the LLM backend (defaults to `STRUCTURING_LLM`).
 
 ### Specialist Corpus Support
 
@@ -242,16 +242,27 @@ doctor_context
 
 ## Configuration (`.env`)
 
-```bash
-# LLM for medical record structuring
-LLM_PROVIDER=ollama          # ollama | deepseek | groq
+### LLM Roles
 
-# LLM for agent intent dispatch (defaults to LLM_PROVIDER if not set)
-AGENT_PROVIDER=deepseek      # ollama | deepseek | groq
+Two independent LLM roles, each configurable separately:
+
+| Variable | Role | Tokens/call | Requirement |
+|----------|------|-------------|-------------|
+| `ROUTING_LLM` | Intent dispatch & function calling | ~300 | Function calling support |
+| `STRUCTURING_LLM` | Medical record JSON generation & memory compression | ~800 | JSON mode |
+
+`ROUTING_LLM` falls back to `STRUCTURING_LLM` if not set. Both accept `ollama`, `deepseek`, or `groq`.
+
+```bash
+# LLM for intent dispatch & function calling (~300 tokens/call)
+ROUTING_LLM=ollama           # ollama | deepseek | groq
+
+# LLM for medical record JSON generation (~800 tokens/call)
+STRUCTURING_LLM=ollama       # ollama | deepseek | groq
 
 # Ollama
 OLLAMA_API_KEY=ollama
-OLLAMA_MODEL=qwen2.5:7b      # or qwen2.5:14b, qwen2.5:32b
+OLLAMA_MODEL=qwen2.5:7b      # or qwen2.5:14b, qwen2.5:32b, llama3.2
 
 # Cloud LLMs (optional)
 DEEPSEEK_API_KEY=sk-...
@@ -294,7 +305,7 @@ pip install -r requirements.txt
 
 # 2. Start Ollama (keep in background)
 ollama serve
-ollama pull qwen2.5:7b       # first time only
+ollama pull qwen2.5:7b       # recommended; or: ollama pull llama3.2
 
 # 3. Copy and fill in env
 cp .env.example .env
