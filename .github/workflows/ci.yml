@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   # ── Unit tests ────────────────────────────────────────────────────────────
@@ -50,7 +51,10 @@ jobs:
   # Skipped: test_image_pipeline.py — requires qwen2.5vl:7b (~8 GB extra).
   integration:
     name: Integration Tests (Ollama / qwen2.5:7b)
-    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Configure repo variable INTEGRATION_RUNNER_LABEL to a larger runner label,
+    # e.g. "ubuntu-latest-8-cores" or your org/repo custom larger-runner label.
+    runs-on: ${{ vars.INTEGRATION_RUNNER_LABEL || 'ubuntu-latest' }}
     needs: unit
     timeout-minutes: 45
 
