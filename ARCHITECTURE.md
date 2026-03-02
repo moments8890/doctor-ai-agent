@@ -52,6 +52,7 @@ WeChat Official Account
 │  POST /api/records/chat      (CLI / REST)                │
 │  POST /api/records/from-text                             │
 │  POST /api/records/from-audio                            │
+│  POST /api/records/from-image                            │
 │  GET  /admin  (SQLAdmin UI)                              │
 │  POST /wechat/menu  (admin: push menu to WeChat)         │
 └──────────────────────────────────────────────────────────┘
@@ -85,6 +86,7 @@ WeChat Official Account
 │   ├── memory.py             # Rolling window compress → DB; context injection
 │   ├── interview.py          # Guided intake Q&A state machine (7 steps)
 │   ├── transcription.py      # faster-whisper local ASR (falls back to OpenAI)
+│   ├── vision.py             # Vision LLM image → extracted clinical text
 │   ├── voice.py              # WeChat media download + ffmpeg → 16kHz WAV
 │   └── wechat_menu.py        # Doctor-only menu definition + creation API
 │
@@ -181,6 +183,14 @@ WeChat voice (AMR/SILK)
   → agent_dispatch / interview / pending_create
 ```
 
+**Image pipeline:**
+```
+WeChat image (JPEG)
+  → download_voice() (same WeChat media endpoint, vision.py)
+  → vision LLM (qwen2.5vl:7b via Ollama) → extracted clinical text
+  → agent_dispatch / interview / pending_create
+```
+
 ### Guided Interview (`services/interview.py`)
 
 7-step structured intake triggered by menu or "开始问诊":
@@ -202,6 +212,7 @@ POST /wechat
   │
   ├─ event/CLICK → _handle_menu_event() → synchronous XML reply
   ├─ voice → ACK immediately → _handle_voice_bg() [background]
+  ├─ image → ACK immediately → _handle_image_bg() [background]
   ├─ pending_create state → _handle_pending_create() → sync reply
   ├─ interview state → _handle_interview_step() → sync reply
   │
@@ -250,6 +261,7 @@ Two independent LLM roles, each configurable separately:
 |----------|------|-------------|-------------|
 | `ROUTING_LLM` | Intent dispatch & function calling | ~300 | Function calling support |
 | `STRUCTURING_LLM` | Medical record JSON generation & memory compression | ~800 | JSON mode |
+| `VISION_LLM` | Image OCR / text extraction | ~2000 | Vision / multimodal support |
 
 `ROUTING_LLM` falls back to `STRUCTURING_LLM` if not set. Both accept `ollama`, `deepseek`, or `groq`.
 
@@ -262,11 +274,16 @@ STRUCTURING_LLM=ollama       # ollama | deepseek | groq
 
 # Ollama
 OLLAMA_API_KEY=ollama
-OLLAMA_MODEL=qwen2.5:7b      # or qwen2.5:14b, qwen2.5:32b, llama3.2
+OLLAMA_MODEL=qwen2.5:7b           # or qwen2.5:14b, qwen2.5:32b, llama3.2
+OLLAMA_VISION_MODEL=qwen2.5vl:7b  # vision model for image → text extraction
+
+# Vision provider (image → text)
+VISION_LLM=ollama            # ollama | openai
 
 # Cloud LLMs (optional)
 DEEPSEEK_API_KEY=sk-...
 GROQ_API_KEY=gsk_...
+OPENAI_API_KEY=sk-...        # required only when VISION_LLM=openai
 
 # Local voice transcription
 WHISPER_MODEL=large-v3       # large-v3 | medium | small | base
@@ -293,6 +310,7 @@ WECHAT_ENCODING_AES_KEY=
 | `POST` | `/api/records/chat` | Agent chat endpoint (used by CLI tester) |
 | `POST` | `/api/records/from-text` | Structure a text note directly |
 | `POST` | `/api/records/from-audio` | Transcribe + structure audio file |
+| `POST` | `/api/records/from-image` | Extract text from image + structure |
 | `GET` | `/admin` | SQLAdmin database UI |
 
 ---

@@ -16,6 +16,7 @@ from services.agent import dispatch as agent_dispatch
 from services.intent import Intent
 from services.structuring import structure_medical_record
 from services.transcription import transcribe_audio
+from services.vision import extract_text_from_image
 from utils.log import log
 
 router = APIRouter(prefix="/api/records", tags=["records"])
@@ -35,6 +36,8 @@ SUPPORTED_AUDIO_TYPES = {
     "audio/mpeg", "audio/mp4", "audio/wav", "audio/webm",
     "audio/ogg", "audio/flac", "audio/m4a", "audio/x-m4a",
 }
+
+SUPPORTED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 
 
 class HistoryMessage(BaseModel):
@@ -174,6 +177,21 @@ async def create_record_from_text(body: TextInput):
         raise HTTPException(status_code=422, detail="Text input cannot be empty.")
     try:
         return await structure_medical_record(body.text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/from-image", response_model=MedicalRecord)
+async def create_record_from_image(image: UploadFile = File(...)):
+    if image.content_type not in SUPPORTED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported file type: {image.content_type}. Supported: jpeg, png, webp, gif.",
+        )
+    try:
+        image_bytes = await image.read()
+        text = await extract_text_from_image(image_bytes, image.content_type)
+        return await structure_medical_record(text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

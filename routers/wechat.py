@@ -11,7 +11,8 @@ from wechatpy.replies import TextReply
 import httpx
 from services.structuring import structure_medical_record
 from services.transcription import transcribe_audio
-from services.voice import download_and_convert
+from services.vision import extract_text_from_image
+from services.voice import download_and_convert, download_voice
 from services.interview import InterviewState, STEPS
 from services.intent import Intent
 from services.agent import dispatch as agent_dispatch
@@ -390,6 +391,37 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
         )
 
 
+async def _handle_image_bg(media_id: str, doctor_id: str):
+    """Download WeChat image, extract text via vision LLM, then route through normal pipeline."""
+    cfg = _get_config()
+    try:
+        access_token = await _get_access_token(cfg["app_id"], cfg["app_secret"])
+        raw_bytes = await download_voice(media_id, access_token)  # same WeChat media endpoint
+        text = await extract_text_from_image(raw_bytes, "image/jpeg")
+        log(f"[Vision] extracted for {doctor_id}: {text[:80]!r}")
+    except Exception as e:
+        log(f"[Vision] extraction FAILED: {e}")
+        await _send_customer_service_msg(doctor_id, f"❌ 图片识别失败：{e}")
+        return
+
+    # Route extracted text through the same pipeline as typed text
+    sess = get_session(doctor_id)
+    try:
+        if sess.pending_create_name:
+            result = await _handle_pending_create(text, doctor_id)
+        elif sess.interview is not None:
+            result = await _handle_interview_step(text, doctor_id)
+        else:
+            await _handle_intent_bg(text, doctor_id)
+            return  # _handle_intent_bg sends the message itself
+    except Exception as e:
+        log(f"[Vision] routing FAILED: {e}")
+        result = "处理失败，请稍后重试。"
+    else:
+        preview = text[:60] + ("…" if len(text) > 60 else "")
+        await _send_customer_service_msg(doctor_id, f"🖼️ 「{preview}」\n\n{result}")
+
+
 @router.get("")
 def verify(timestamp: str, nonce: str, signature: str, echostr: str):
     cfg = _get_config()
@@ -506,8 +538,15 @@ async def handle_message(request: Request):
         reply = TextReply(content=ack, message=msg)
         return Response(content=reply.render(), media_type="application/xml")
 
+    # Image message: ACK immediately, extract text via vision LLM in background
+    if msg.type == "image":
+        asyncio.create_task(_handle_image_bg(msg.media_id, msg.source))
+        ack = "🖼️ 收到图片，正在识别文字…"
+        reply = TextReply(content=ack, message=msg)
+        return Response(content=reply.render(), media_type="application/xml")
+
     if msg.type != "text" or not msg.content.strip():
-        reply = TextReply(content="请发送文字或语音消息。", message=msg)
+        reply = TextReply(content="请发送文字、语音或图片消息。", message=msg)
         return Response(content=reply.render(), media_type="application/xml")
 
     # Stateful flows take priority over intent detection
