@@ -1,9 +1,11 @@
 import logging
 from contextlib import asynccontextmanager
+from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv()  # must run before any module reads os.environ
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from sqladmin import Admin, ModelView
@@ -14,9 +16,12 @@ from routers.records import router as records_router
 from routers.wechat import router as wechat_router
 from routers.ui import router as ui_router
 from routers.neuro import router as neuro_router
+from routers.tasks import router as tasks_router
 from db.init_db import create_tables, seed_prompts
-from db.engine import engine
-from db.models import Patient, MedicalRecordDB, DoctorContext, SystemPrompt, NeuroCaseDB
+from db.engine import engine, AsyncSessionLocal
+from db.models import Patient, MedicalRecordDB, DoctorContext, SystemPrompt, NeuroCaseDB, DoctorTask
+from db.crud import get_due_tasks
+from services.tasks import check_and_send_due_tasks
 
 logging.basicConfig(
     level=logging.INFO,
@@ -139,6 +144,24 @@ class NeuroCaseAdmin(ModelView, model=NeuroCaseDB):
     column_default_sort = [(NeuroCaseDB.created_at, True)]
 
 
+class DoctorTaskAdmin(ModelView, model=DoctorTask):
+    name = "Doctor Task"
+    name_plural = "Doctor Tasks"
+    icon = "fa-solid fa-list-check"
+    column_list = [
+        DoctorTask.id,
+        DoctorTask.doctor_id,
+        DoctorTask.task_type,
+        DoctorTask.title,
+        DoctorTask.status,
+        DoctorTask.due_at,
+        DoctorTask.created_at,
+    ]
+    column_searchable_list = [DoctorTask.doctor_id, DoctorTask.title]
+    column_sortable_list = [DoctorTask.id, DoctorTask.due_at, DoctorTask.created_at]
+    column_default_sort = [(DoctorTask.created_at, True)]
+
+
 # ---------------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------------
@@ -170,12 +193,28 @@ async def _warmup():
             log.warning(f"Ollama warmup failed (is ollama running?): {e}")
 
 
+_scheduler = AsyncIOScheduler()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await create_tables()
     await seed_prompts()
     await _warmup()
+
+    # Log pending unnotified tasks on startup
+    _log = logging.getLogger("startup")
+    try:
+        async with AsyncSessionLocal() as _session:
+            _pending = await get_due_tasks(_session, datetime.utcnow())
+            _log.info(f"[Tasks] {len(_pending)} pending unnotified task(s) at startup")
+    except Exception as _e:
+        _log.warning(f"[Tasks] startup task count failed: {_e}")
+
+    _scheduler.add_job(check_and_send_due_tasks, "interval", minutes=1)
+    _scheduler.start()
     yield
+    _scheduler.shutdown()
 
 
 app = FastAPI(
@@ -191,11 +230,13 @@ admin.add_view(PatientAdmin)
 admin.add_view(MedicalRecordAdmin)
 admin.add_view(DoctorContextAdmin)
 admin.add_view(NeuroCaseAdmin)
+admin.add_view(DoctorTaskAdmin)
 
 app.include_router(records_router)
 app.include_router(wechat_router)
 app.include_router(ui_router)
 app.include_router(neuro_router)
+app.include_router(tasks_router)
 
 
 @app.get("/")

@@ -1,6 +1,6 @@
 # 专科医师AI智能体 — Architecture
 
-> Last updated: 2026-03-01 · Phase 3 in progress
+> Last updated: 2026-03-02 · Phase 3 in progress
 
 ---
 
@@ -223,6 +223,42 @@ POST /wechat
 
 All LLM calls run in the background to avoid WeChat's 5-second response timeout.
 
+### Doctor Task Notifications (`services/tasks.py` + APScheduler)
+
+Doctors receive WeChat push notifications for follow-up reminders, emergency records, and appointments.
+
+**Task lifecycle:**
+```
+add_record (with follow_up_plan or is_emergency)
+  → create_follow_up_task() / create_emergency_task()
+       ↓ DoctorTask row in doctor_tasks (status=pending)
+  → Emergency: send_task_notification() called immediately
+  → Follow-up/Appointment: APScheduler job fires every 1 min
+       → check_and_send_due_tasks() queries due_at ≤ now AND notified_at IS NULL
+       → _send_customer_service_msg() → WeChat Customer Service API
+       → mark_task_notified() sets notified_at
+```
+
+**Task types and triggers:**
+
+| Type | Trigger | due_at |
+|------|---------|--------|
+| `follow_up` | `record.follow_up_plan` is set after add_record | now + extracted days |
+| `emergency` | `intent_result.is_emergency` is True | None (immediate push) |
+| `appointment` | Doctor says "预约/安排复诊 + time" | appointment_dt - 1 hour |
+
+**Doctor completes a task:**
+- Via WeChat: reply `完成 5` (regex shortcut, bypasses LLM) or say "完成任务5"
+- Via REST: `PATCH /api/tasks/5?doctor_id=xxx {"status": "completed"}`
+
+**APScheduler:**
+- In-memory `AsyncIOScheduler`, interval=1 minute, started in FastAPI lifespan
+- On restart, unnotified tasks are re-queued within 1 minute (queried by `notified_at IS NULL`)
+
+**WeChat push helper refactoring:**
+- `_token_cache`, `_get_config`, `_get_access_token`, `_split_message`, `_send_customer_service_msg`
+  moved to `services/wechat_notify.py` to avoid circular imports from `services/tasks.py`
+
 ### Medical Record Structuring (`services/structuring.py`)
 
 | Provider | Model | Note |
@@ -410,6 +446,8 @@ WECHAT_ENCODING_AES_KEY=
 | `POST` | `/api/records/from-text` | Structure a text note directly |
 | `POST` | `/api/records/from-audio` | Transcribe + structure audio file |
 | `POST` | `/api/records/from-image` | Extract text from image + structure |
+| `GET` | `/api/tasks` | List doctor tasks (filter by `doctor_id`, optional `status`) |
+| `PATCH` | `/api/tasks/{task_id}` | Update task status (`completed` or `cancelled`) |
 | `GET` | `/admin` | SQLAdmin database UI |
 
 ---
@@ -570,6 +608,14 @@ medical_records
   chief_complaint · history_of_present_illness · past_medical_history
   physical_examination · auxiliary_examinations · diagnosis
   treatment_plan · follow_up_plan · created_at
+
+doctor_tasks
+  id · doctor_id (indexed) · patient_id (FK→patients, nullable)
+  record_id (FK→medical_records, nullable)
+  task_type (follow_up | emergency | appointment)
+  title · content (nullable)
+  status (pending | completed | cancelled)
+  due_at (nullable) · notified_at (nullable) · created_at
 ```
 
 ---

@@ -1,7 +1,6 @@
 import asyncio
 import os
 import re
-import time
 from datetime import datetime
 from fastapi import APIRouter, Request, Response
 from wechatpy import parse_message
@@ -9,7 +8,6 @@ from wechatpy.crypto import WeChatCrypto
 from wechatpy.utils import check_signature
 from wechatpy.exceptions import InvalidSignatureException
 from wechatpy.replies import TextReply
-import httpx
 from services.structuring import structure_medical_record
 from services.transcription import transcribe_audio
 from services.vision import extract_text_from_image
@@ -18,25 +16,20 @@ from services.interview import InterviewState, STEPS
 from services.intent import Intent
 from services.agent import dispatch as agent_dispatch
 from services.wechat_menu import create_menu
+from services.wechat_notify import (
+    _get_config, _get_access_token, _split_message,
+    _send_customer_service_msg, _token_cache,
+)
 from services.session import get_session, get_session_lock, push_turn, set_current_patient, set_pending_create, clear_pending_create
 from services.memory import maybe_compress, load_context_message
+from services.tasks import create_follow_up_task, create_emergency_task, create_appointment_task
 from db.engine import AsyncSessionLocal
-from db.crud import create_patient, find_patient_by_name, save_record, get_records_for_patient, get_all_records_for_doctor, get_all_patients
+from db.crud import create_patient, find_patient_by_name, save_record, get_records_for_patient, get_all_records_for_doctor, get_all_patients, list_tasks, update_task_status
 from utils.log import log
 
+_COMPLETE_RE = re.compile(r'^完成\s*(\d+)$')
+
 router = APIRouter(prefix="/wechat", tags=["wechat"])
-
-# Access token cache
-_token_cache = {"token": "", "expires_at": 0.0}
-
-
-def _get_config():
-    return {
-        "token": os.environ.get("WECHAT_TOKEN", ""),
-        "app_id": os.environ.get("WECHAT_APP_ID", ""),
-        "app_secret": os.environ.get("WECHAT_APP_SECRET", ""),
-        "aes_key": os.environ.get("WECHAT_ENCODING_AES_KEY", ""),
-    }
 
 
 def _format_record(record) -> str:
@@ -58,57 +51,6 @@ def _format_record(record) -> str:
         lines.append(f"【随访计划】\n{record.follow_up_plan}")
     return "\n".join(lines)
 
-
-async def _get_access_token(app_id: str, app_secret: str) -> str:
-    now = time.time()
-    if _token_cache["token"] and now < _token_cache["expires_at"]:
-        log(f"[WeChat token] using cached token (expires in {int(_token_cache['expires_at'] - now)}s)")
-        return _token_cache["token"]
-
-    url = "https://api.weixin.qq.com/cgi-bin/token"
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(url, params={
-            "grant_type": "client_credential",
-            "appid": app_id,
-            "secret": app_secret,
-        })
-        data = resp.json()
-        log(f"[WeChat token] fetched new token: {data}")
-        _token_cache["token"] = data["access_token"]
-        _token_cache["expires_at"] = now + data["expires_in"] - 60
-        return _token_cache["token"]
-
-
-def _split_message(text: str, limit: int = 600) -> list[str]:
-    if len(text) <= limit:
-        return [text]
-    chunks = []
-    while text:
-        if len(text) <= limit:
-            chunks.append(text)
-            break
-        split_at = text.rfind("【", 1, limit)
-        if split_at == -1:
-            split_at = limit
-        chunks.append(text[:split_at].rstrip())
-        text = text[split_at:]
-    return chunks
-
-
-async def _send_customer_service_msg(to_user: str, content: str):
-    cfg = _get_config()
-    try:
-        access_token = await _get_access_token(cfg["app_id"], cfg["app_secret"])
-        url = f"https://api.weixin.qq.com/cgi-bin/message/custom/send?access_token={access_token}"
-        chunks = _split_message(content)
-        log(f"[WeChat cs] sending {len(chunks)} message(s) to {to_user}")
-        async with httpx.AsyncClient() as client:
-            for i, chunk in enumerate(chunks):
-                payload = {"touser": to_user, "msgtype": "text", "text": {"content": chunk}}
-                resp = await client.post(url, json=payload)
-                log(f"[WeChat cs] chunk {i+1}/{len(chunks)}: {resp.json()}")
-    except Exception as e:
-        log(f"[WeChat cs] FAILED: {e}")
 
 
 async def _build_reply(content: str) -> str:
@@ -175,7 +117,19 @@ async def _handle_add_record(text: str, doctor_id: str, intent_result, history: 
             log(f"[WeChat] structuring FAILED: {e}")
             return "处理失败，请稍后重试。"
 
-        await save_record(session, doctor_id, record, patient_id)
+        db_record = await save_record(session, doctor_id, record, patient_id)
+
+    # Fire-and-forget task creation (outside the DB session)
+    if record.follow_up_plan:
+        asyncio.create_task(create_follow_up_task(
+            doctor_id, db_record.id, patient_name or "未关联患者",
+            record.follow_up_plan, patient_id,
+        ))
+    if intent_result.is_emergency:
+        asyncio.create_task(create_emergency_task(
+            doctor_id, db_record.id, patient_name or "未关联患者",
+            record.diagnosis, patient_id,
+        ))
 
     reply = _format_record(record)
     if intent_result.extra_data:
@@ -361,7 +315,62 @@ async def _handle_pending_create(text: str, doctor_id: str) -> str:
     return f"✅ 已为患者【{name}】建档" + (f"（{parts}）" if parts else "") + "。\n后续病历将自动关联该患者。"
 
 
+async def _handle_list_tasks(doctor_id: str) -> str:
+    async with AsyncSessionLocal() as session:
+        tasks = await list_tasks(session, doctor_id, status="pending")
+    if not tasks:
+        return "📋 暂无待办任务。"
+    lines = [f"📋 待办任务（共 {len(tasks)} 条）：\n"]
+    for i, t in enumerate(tasks, 1):
+        due_str = f" | ⏰ {t.due_at.strftime('%Y-%m-%d')}" if t.due_at else ""
+        lines.append(f"{i}. [{t.task_type}] {t.title}{due_str}")
+    lines.append("\n回复「完成 编号」标记任务完成")
+    return "\n".join(lines)
+
+
+async def _handle_complete_task(doctor_id: str, intent_result) -> str:
+    task_id = intent_result.extra_data.get("task_id")
+    if not isinstance(task_id, int):
+        return "⚠️ 未能识别任务编号，请发送「完成 5」（5为任务编号）。"
+    async with AsyncSessionLocal() as session:
+        task = await update_task_status(session, task_id, doctor_id, "completed")
+    if task is None:
+        return f"⚠️ 未找到任务 {task_id}，请确认编号是否正确。"
+    return f"✅ 任务【{task.title}】已标记完成。"
+
+
+async def _handle_schedule_appointment(doctor_id: str, intent_result) -> str:
+    patient_name = intent_result.patient_name
+    if not patient_name:
+        return "⚠️ 未能识别患者姓名，请重新说明预约信息。"
+    raw_time = intent_result.extra_data.get("appointment_time")
+    if not raw_time:
+        return "⚠️ 未能识别预约时间，请使用格式如「明天下午2点」或「2026-03-15 14:00」。"
+    try:
+        appointment_dt = datetime.fromisoformat(str(raw_time))
+    except (ValueError, TypeError):
+        return "⚠️ 时间格式无法识别，请使用格式如「2026-03-15T14:00:00」。"
+    notes = intent_result.extra_data.get("notes")
+    from services.tasks import create_appointment_task as _create_appt
+    task = await _create_appt(doctor_id, patient_name, appointment_dt, notes)
+    return (
+        f"📅 已为患者【{patient_name}】安排预约\n"
+        f"预约时间：{appointment_dt.strftime('%Y-%m-%d %H:%M')}\n"
+        f"任务编号：{task.id}（将在1小时前提醒）"
+    )
+
+
 async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str:
+    # Fast-path: "完成 N" bypasses LLM
+    m = _COMPLETE_RE.match(text.strip())
+    if m:
+        task_id = int(m.group(1))
+        async with AsyncSessionLocal() as session:
+            task = await update_task_status(session, task_id, doctor_id, "completed")
+        if task is None:
+            return f"⚠️ 未找到任务 {task_id}，请确认编号是否正确。"
+        return f"✅ 任务【{task.title}】已标记完成。"
+
     try:
         intent_result = await agent_dispatch(text, history=history or [])
     except Exception as e:
@@ -381,6 +390,12 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
         return await _handle_query_records(doctor_id, intent_result)
     elif intent_result.intent == Intent.list_patients:
         return await _handle_all_patients(doctor_id)
+    elif intent_result.intent == Intent.list_tasks:
+        return await _handle_list_tasks(doctor_id)
+    elif intent_result.intent == Intent.complete_task:
+        return await _handle_complete_task(doctor_id, intent_result)
+    elif intent_result.intent == Intent.schedule_appointment:
+        return await _handle_schedule_appointment(doctor_id, intent_result)
     elif intent_result.intent == Intent.unknown and _NAME_ONLY.match(text.strip()):
         return await _handle_name_lookup(text.strip(), doctor_id)
     else:

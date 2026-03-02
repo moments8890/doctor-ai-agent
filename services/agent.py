@@ -127,6 +127,60 @@ _TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_tasks",
+            "description": "查看医生的待办任务/提醒列表。当医生说「我的任务」、「待办」、「提醒」时调用。",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "complete_task",
+            "description": "标记任务为已完成。当医生说「完成任务X」、「完成X」（X为数字编号）时调用。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "task_id": {
+                        "type": "integer",
+                        "description": "要标记完成的任务编号。",
+                    },
+                },
+                "required": ["task_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "schedule_appointment",
+            "description": "安排患者预约。当医生说「预约」、「安排复诊」、「约诊」并提到时间时调用。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "patient_name": {
+                        "type": "string",
+                        "description": "患者姓名。",
+                    },
+                    "appointment_time": {
+                        "type": "string",
+                        "description": "预约时间，ISO 8601格式，例如：2026-03-15T14:00:00。",
+                    },
+                    "notes": {
+                        "type": "string",
+                        "description": "备注信息（可选）。",
+                    },
+                },
+                "required": ["patient_name", "appointment_time"],
+            },
+        },
+    },
 ]
 
 _SYSTEM_PROMPT = (
@@ -135,6 +189,9 @@ _SYSTEM_PROMPT = (
     "- 消息只介绍患者身份（无临床内容）或明确说建档 → create_patient\n"
     "- 要查看历史病历 → query_records\n"
     "- 要看所有患者列表 → list_patients\n"
+    "- 查看任务/待办/提醒 → list_tasks\n"
+    "- 完成任务/标记完成 + 编号 → complete_task\n"
+    "- 预约/安排/约诊 + 时间 → schedule_appointment\n"
     "- 普通对话/问候 → 直接回复，不调用工具\n\n"
     "特殊规则：若上一条助手消息询问了患者姓名（如'请问这位患者叫什么名字'），"
     "医生的回复即为患者姓名，应调用 add_medical_record 并将该姓名填入 patient_name，"
@@ -147,6 +204,9 @@ _INTENT_MAP = {
     "add_medical_record": Intent.add_record,
     "query_records": Intent.query_records,
     "list_patients": Intent.list_patients,
+    "list_tasks": Intent.list_tasks,
+    "complete_task": Intent.complete_task,
+    "schedule_appointment": Intent.schedule_appointment,
 }
 
 
@@ -209,10 +269,18 @@ async def dispatch(text: str, history: Optional[List[dict]] = None) -> IntentRes
     if gender not in ("男", "女"):
         gender = None
 
+    extra_data: dict = {}
+    if fn_name == "complete_task":
+        extra_data["task_id"] = args.get("task_id")
+    elif fn_name == "schedule_appointment":
+        extra_data["appointment_time"] = args.get("appointment_time")
+        extra_data["notes"] = args.get("notes")
+
     return IntentResult(
         intent=intent,
         patient_name=args.get("patient_name") or args.get("name"),
         gender=gender,
         age=age,
         is_emergency=args.get("is_emergency", False),
+        extra_data=extra_data,
     )
