@@ -10,6 +10,15 @@ The plan file must include:
 - **Steps** — numbered, concrete implementation steps
 - **Risks / open questions** — anything that could go wrong or needs clarification
 
+## Code Style
+
+- **Python 3.9 compatibility** — always use `from __future__ import annotations` at the top of new files; use `Optional[X]` not `X | None`, `Tuple[...]` not `tuple[...]`
+- **No auto-commit** — never commit unless explicitly asked
+- **Preserve medical abbreviations** — do not translate or expand STEMI, BNP, PCI, EGFR, ANC, HER2, EF, NYHA, ICD, etc.
+- **Tests mock all I/O** — unit tests in `tests/` must not make real LLM, DB, or network calls; use `AsyncMock` / `patch`
+- **DB schema changes** — add to `db/models.py`; `create_tables()` handles creation automatically; note in CHANGELOG if existing data may need manual cleanup
+- **LLM provider defaults** — local model is `qwen2.5:7b` via Ollama; prefer this in examples and defaults
+
 ## Push Workflow
 
 Before every `git push`, always:
