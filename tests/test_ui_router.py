@@ -56,17 +56,34 @@ def test_fmt_ts():
     assert ui._fmt_ts(datetime(2026, 3, 2, 10, 30, 0)) == "2026-03-02 10:30:00"
 
 
+def _patient_ns(**kwargs):
+    """SimpleNamespace patient with all required fields including category."""
+    defaults = dict(
+        id=11,
+        name="张三",
+        gender="男",
+        year_of_birth=1980,
+        created_at=datetime(2026, 3, 1, 8, 0, 0),
+        primary_category="new",
+        category_tags="[]",
+        category_computed_at=None,
+        category_rules_version="v1",
+    )
+    defaults.update(kwargs)
+    return SimpleNamespace(**defaults)
+
+
 async def test_manage_patients_includes_record_counts():
     db = SimpleNamespace(
         execute=AsyncMock(return_value=SimpleNamespace(all=lambda: [(11, 2), (12, 1)]))
     )
     patients = [
-        SimpleNamespace(id=11, name="张三", gender="男", year_of_birth=1980, created_at=datetime(2026, 3, 1, 8, 0, 0)),
-        SimpleNamespace(id=12, name="李四", gender=None, year_of_birth=None, created_at=None),
+        _patient_ns(id=11, name="张三", gender="男", year_of_birth=1980, created_at=datetime(2026, 3, 1, 8, 0, 0)),
+        _patient_ns(id=12, name="李四", gender=None, year_of_birth=None, created_at=None),
     ]
     with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
          patch("routers.ui.get_all_patients", new=AsyncMock(return_value=patients)):
-        data = await ui.manage_patients("doc1")
+        data = await ui.manage_patients("doc1", category=None)
 
     assert data["doctor_id"] == "doc1"
     assert data["items"][0]["record_count"] == 2
@@ -127,3 +144,78 @@ async def test_update_prompt_validation_and_success():
 
     upsert.assert_awaited_once()
     assert data == {"ok": True, "key": "structuring"}
+
+
+def _patient(**kwargs):
+    defaults = dict(
+        id=11,
+        name="张三",
+        gender="男",
+        year_of_birth=1980,
+        created_at=datetime(2026, 3, 1, 8, 0, 0),
+        primary_category="new",
+        category_tags='["recent_visit"]',
+        category_computed_at=datetime(2026, 3, 2, 10, 0, 0),
+        category_rules_version="v1",
+    )
+    defaults.update(kwargs)
+    return SimpleNamespace(**defaults)
+
+
+async def test_manage_patients_includes_category_fields():
+    db = SimpleNamespace(
+        execute=AsyncMock(return_value=SimpleNamespace(all=lambda: [(11, 3)]))
+    )
+    patients = [_patient()]
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.get_all_patients", new=AsyncMock(return_value=patients)):
+        data = await ui.manage_patients("doc1", category=None)
+
+    item = data["items"][0]
+    assert item["primary_category"] == "new"
+    assert item["category_tags"] == ["recent_visit"]
+    assert item["category_computed_at"] == "2026-03-02 10:00:00"
+    assert item["category_rules_version"] == "v1"
+
+
+async def test_manage_patients_category_filter():
+    db = SimpleNamespace(
+        execute=AsyncMock(return_value=SimpleNamespace(all=lambda: []))
+    )
+    patients = [
+        _patient_ns(id=11, name="高风险患者", primary_category="high_risk"),
+        _patient_ns(id=12, name="新患者", primary_category="new"),
+    ]
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.get_all_patients", new=AsyncMock(return_value=patients)):
+        data = await ui.manage_patients("doc1", category="high_risk")
+
+    assert len(data["items"]) == 1
+    assert data["items"][0]["name"] == "高风险患者"
+
+
+async def test_manage_patients_grouped():
+    db = SimpleNamespace(
+        execute=AsyncMock(return_value=SimpleNamespace(all=lambda: []))
+    )
+    patients = [
+        _patient_ns(id=11, name="高风险患者", primary_category="high_risk"),
+        _patient_ns(id=12, name="随访患者", primary_category="active_followup"),
+        _patient_ns(id=13, name="新患者", primary_category="new"),
+    ]
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.get_all_patients", new=AsyncMock(return_value=patients)):
+        data = await ui.manage_patients_grouped("doc1")
+
+    assert data["doctor_id"] == "doc1"
+    assert "groups" in data
+    group_names = [g["group"] for g in data["groups"]]
+    assert group_names == ["high_risk", "active_followup", "stable", "new", "uncategorized"]
+
+    high_risk_group = next(g for g in data["groups"] if g["group"] == "high_risk")
+    assert high_risk_group["count"] == 1
+    assert high_risk_group["items"][0]["name"] == "高风险患者"
+
+    stable_group = next(g for g in data["groups"] if g["group"] == "stable")
+    assert stable_group["count"] == 0
+    assert stable_group["items"] == []
