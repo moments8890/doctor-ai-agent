@@ -21,7 +21,7 @@ _PROVIDERS = {
     "ollama": {
         "base_url": "http://localhost:11434/v1",
         "api_key_env": "OLLAMA_API_KEY",
-        "model": "qwen2.5:7b",
+        "model": "qwen2.5:14b",
     },
 }
 
