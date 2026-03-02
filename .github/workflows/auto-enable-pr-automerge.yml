@@ -18,6 +18,10 @@ jobs:
         with:
           script: |
             const pull = context.payload.pull_request;
+            if (pull.state !== "open" || pull.merged_at) {
+              core.info(`Skipping PR #${pull.number}: state=${pull.state}, merged=${Boolean(pull.merged_at)}`);
+              return;
+            }
             const nodeId = pull.node_id;
             try {
               await github.graphql(
@@ -43,6 +47,12 @@ jobs:
                   `Skipped auto-merge for PR #${pull.number}: token lacks permission. ` +
                   `Ensure repository Actions permissions are Read and write.`
                 );
+              } else if (
+                msg.includes("already merged") ||
+                msg.includes("already closed") ||
+                msg.includes("UNPROCESSABLE")
+              ) {
+                core.info(`Skipped auto-merge for PR #${pull.number}: ${msg}`);
               } else {
                 throw err;
               }
