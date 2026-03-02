@@ -1,10 +1,17 @@
 import db.models  # noqa: F401 — ensure models are registered before create_all
+from sqlalchemy import text
 from db.engine import Base, engine, AsyncSessionLocal
 
 
 async def create_tables() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # One-shot migration: rename age→year_of_birth if old schema exists
+        cols = await conn.run_sync(
+            lambda c: [r[1] for r in c.execute(text("PRAGMA table_info(patients)")).fetchall()]
+        )
+        if "age" in cols and "year_of_birth" not in cols:
+            await conn.execute(text("ALTER TABLE patients RENAME COLUMN age TO year_of_birth"))
 
 
 async def seed_prompts() -> None:

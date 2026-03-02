@@ -35,7 +35,7 @@ class Patient(Base):
     doctor_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     gender: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
-    age: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    year_of_birth: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     records: Mapped[List["MedicalRecordDB"]] = relationship("MedicalRecordDB", back_populates="patient")

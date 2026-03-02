@@ -121,3 +121,17 @@ Switch `OLLAMA_MODEL` from `llama3.2` to `qwen2.5:7b` for production use. `llama
 
 - [x] Fix implemented
 - [x] Unit tests passed locally
+
+## Patient Schema Rename: `age` → `year_of_birth`
+
+### Scope
+
+- Renamed `Patient.age` column to `Patient.year_of_birth` in ORM and added startup migration to rename existing DB column in place.
+- Updated patient creation flow to convert extracted `age` into `year_of_birth` at DB write time.
+- Updated records/wechat/UI displays to compute age from `current_year - year_of_birth`.
+- Updated admin view and CRUD tests accordingly.
+
+### Status
+
+- [x] Rename implemented across backend + UI
+- [x] Unit tests green (`.venv/bin/python -m pytest tests/ -v`)

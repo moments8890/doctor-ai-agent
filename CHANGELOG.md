@@ -2,6 +2,14 @@
 
 ## [Unreleased] — 2026-03-01
 
+### Schema Changes
+
+- **`Patient.age` → `Patient.year_of_birth`** — The `patients` table now stores year of birth instead of age, so age is always computed fresh as `current_year - year_of_birth` rather than going stale. On next startup the migration automatically renames the column in-place (no data loss). **Note:** existing rows stored a raw age value; those values will be incorrect as year-of-birth after the rename. Run the following SQL to fix old rows:
+  ```sql
+  UPDATE patients SET year_of_birth = strftime('%Y','now') - year_of_birth WHERE year_of_birth < 200;
+  ```
+  `NeuroCaseDB.age` and `IntentResult.age` are intentionally unchanged — they are denormalized/LLM-extracted scalars. The age→year_of_birth conversion happens only at the `create_patient` DB write boundary in `db/crud.py`.
+
 ### Bug Fixes
 
 - **Integration test health check** — `conftest.py` now passes `follow_redirects=True` to the httpx server check so a `307 Temporary Redirect` from `/` no longer causes all integration tests to be spuriously skipped.
@@ -73,3 +81,4 @@
 ### Recommendation
 
 Use `OLLAMA_MODEL=qwen2.5:7b` for production. `llama3.2` passes API checks but hallucinates Chinese patient names (~2/37 cases), which the DB verifier now catches.
+

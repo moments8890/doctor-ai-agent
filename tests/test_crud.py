@@ -1,5 +1,6 @@
 """Tests for db/crud.py — all run against an in-memory SQLite database."""
 import pytest
+from datetime import datetime
 from db.crud import (
     create_patient,
     find_patient_by_name,
@@ -29,14 +30,14 @@ async def test_create_patient_returns_row_with_id(db_session):
     assert patient.id is not None
     assert patient.name == "李明"
     assert patient.gender == "男"
-    assert patient.age == 45
+    assert patient.year_of_birth == datetime.now().year - 45
     assert patient.doctor_id == DOCTOR
 
 
 async def test_create_patient_optional_fields_none(db_session):
     patient = await create_patient(db_session, DOCTOR, "张三", None, None)
     assert patient.gender is None
-    assert patient.age is None
+    assert patient.year_of_birth is None
 
 
 async def test_create_patient_different_doctors_isolated(db_session):
