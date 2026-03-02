@@ -125,14 +125,24 @@ def process_case(base_url: str, case: Case) -> tuple:
 
 
 def main() -> None:
-    data_path = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_DATA
-    base_url  = sys.argv[2].rstrip("/") if len(sys.argv) > 2 else BASE_URL
+    import argparse
+    parser = argparse.ArgumentParser(description="Batch training runner")
+    parser.add_argument("data_path", nargs="?", default=str(DEFAULT_DATA))
+    parser.add_argument("base_url",  nargs="?", default=BASE_URL)
+    parser.add_argument("--cases", help="Comma-separated case numbers to run, e.g. 013,018,020")
+    args = parser.parse_args()
+
+    data_path = Path(args.data_path)
+    base_url  = args.base_url.rstrip("/")
+    only      = set(args.cases.split(",")) if args.cases else None
 
     if not data_path.exists():
         print(f"{RED}File not found: {data_path}{RESET}")
         sys.exit(1)
 
     cases = parse_cases(data_path.read_text(encoding="utf-8"))
+    if only:
+        cases = [c for c in cases if c.number in only]
     if not cases:
         print(f"{YELLOW}No cases parsed from {data_path}{RESET}")
         sys.exit(1)
