@@ -5,7 +5,7 @@ on:
     types: [opened, reopened, ready_for_review]
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 
 jobs:
@@ -19,19 +19,31 @@ jobs:
           script: |
             const pull = context.payload.pull_request;
             const nodeId = pull.node_id;
-            await github.graphql(
-              `
-              mutation($pullRequestId: ID!) {
-                enablePullRequestAutoMerge(input: {
-                  pullRequestId: $pullRequestId,
-                  mergeMethod: SQUASH
-                }) {
-                  pullRequest {
-                    number
+            try {
+              await github.graphql(
+                `
+                mutation($pullRequestId: ID!) {
+                  enablePullRequestAutoMerge(input: {
+                    pullRequestId: $pullRequestId,
+                    mergeMethod: SQUASH
+                  }) {
+                    pullRequest {
+                      number
+                    }
                   }
                 }
+                `,
+                { pullRequestId: nodeId }
+              );
+              core.info(`Enabled auto-merge for PR #${pull.number}`);
+            } catch (err) {
+              const msg = String(err?.message || err);
+              if (msg.includes("Resource not accessible by integration")) {
+                core.warning(
+                  `Skipped auto-merge for PR #${pull.number}: token lacks permission. ` +
+                  `Ensure repository Actions permissions are Read and write.`
+                );
+              } else {
+                throw err;
               }
-              `,
-              { pullRequestId: nodeId }
-            );
-            core.info(`Enabled auto-merge for PR #${pull.number}`);
+            }
