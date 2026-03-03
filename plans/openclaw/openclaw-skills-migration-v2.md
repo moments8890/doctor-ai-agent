@@ -20,16 +20,16 @@ doctor-openclaw/
 │   ├── wechat.ts             # WeChat token cache + customer service message
 │   └── types.ts              # MedicalRecord, IntentResult, RiskResult, etc.
 └── skills/
-    ├── db-core/              # All CRUD (shared lib used by every skill)
-    ├── agent-dispatch/       # LLM intent classification (function-calling)
-    ├── record-structuring/   # Free text → structured MedicalRecord
-    ├── risk-engine/          # Risk scoring + patient categorization (pure)
-    ├── task-manager/         # Task CRUD + due-task cron (replaces APScheduler)
-    ├── notification/         # WeChat push abstraction (log | wechat)
-    ├── approval-workflow/    # Pending AI drafts awaiting doctor review
-    ├── transcription/        # Audio → text (Whisper local/cloud)
-    ├── doctor-chat/          # Doctor-facing WeChat message handler
-    └── patient-intake/       # Patient-facing WeChat handler (NEW)
+    ├── db-core/              # All CRUD (shared lib used by every skill) — custom
+    ├── agent-dispatch/       # LLM intent classification (function-calling) — custom
+    ├── record-structuring/   # Free text → structured MedicalRecord — custom
+    ├── risk-engine/          # Risk scoring + patient categorization (pure) — custom
+    ├── task-manager/         # Task CRUD + due-task cron (replaces APScheduler) — custom
+    ├── notification/         # WeChat delivery via openclaw-plugin-wecom — OSS adapter
+    ├── approval-workflow/    # Pending AI drafts; Lobster gates + custom SQLite/WeChat wiring
+    ├── transcription/        # Audio → text via auto-whisper-safe — OSS skill
+    ├── doctor-chat/          # Doctor-facing WeChat message handler — custom
+    └── patient-intake/       # Patient-facing WeChat handler (NEW) — custom
 ```
 
 ---
@@ -149,27 +149,37 @@ Tools (identical to Python): `create_patient`, `add_medical_record`, `query_reco
 
 ### 6. `notification`
 **From**: `services/notification.py` + `services/wechat_notify.py`
+**OSS**: [`openclaw-plugin-wecom`](https://github.com/sunnoy/openclaw-plugin-wecom) handles WeChat/WeCom delivery
 
 - **Input**: `{ doctorId: string, message: string }`
-- **Responsibility**: route to provider set by `NOTIFICATION_PROVIDER` env var (`log` | `wechat`); WeChat: token cache (60s buffer) + customer service API + 600-char chunking
+- **Responsibility**: route to provider set by `NOTIFICATION_PROVIDER` env var (`log` | `wechat`); for WeChat delivery, delegates to `openclaw-plugin-wecom` (XML callbacks, streaming replies, per-user isolated sessions, four-tier fallback); `log` provider used in dev/test
 - **Output**: void (throws on failure)
 
 ---
 
 ### 7. `approval-workflow`
 **From**: `services/approval.py` + `routers/approvals.py`
+**OSS**: [Lobster](https://github.com/openclaw/lobster) owns the pause/resume gate; custom code owns persistence + WeChat wiring
 
 - **Input**: `{ itemType, doctorId, payload }` / `{ approvalId, doctorId }`
-- **Responsibility**: persist pending AI drafts; doctor approve/reject; **atomic `UPDATE ... WHERE status='pending'`** before side effects (fixes Python race condition); Zod validation on all LLM payloads (maps parse errors → clean messages, no 500s)
+- **Responsibility**:
+  - Lobster gate: pipeline halts at `approve` step → returns `needs_approval` envelope + resume token
+  - Custom: persist `approval_items` in SQLite (survives restarts between halt and resume)
+  - Custom: doctor lists pending approvals via WeChat message
+  - Custom: WeChat reply triggers Lobster resume → side effects fire
+  - Custom: **atomic `UPDATE ... WHERE status='pending'`** before side effects (fixes Python race condition)
+  - Custom: Zod validation on all LLM payloads (maps parse errors → clean messages, no 500s)
+  - Custom: `patient_events` outbound write on approve
 - **Output**: `{ approvalId, status }` / `DraftApproved` / `DraftRejected`
 
 ---
 
 ### 8. `transcription`
 **From**: `services/transcription.py`
+**OSS**: [`auto-whisper-safe`](https://github.com/openclaw/skills/blob/main/skills/neal-collab/auto-whisper-safe/SKILL.md) — local Whisper, RAM-aware chunking, WeChat audio formats
 
 - **Input**: `{ audioBuffer: Buffer, consultationMode?: boolean }`
-- **Responsibility**: primary → `whisper-cpp` / `faster-whisper` subprocess; fallback → OpenAI Whisper API; language forced to `zh`
+- **Responsibility**: delegates to `auto-whisper-safe` with `WHISPER_MODEL=base WHISPER_LANG=zh`; handles `.ogg`/`.m4a`/`.opus` (WeChat voice formats); auto-chunks recordings >10 min; `consultationMode` appended as context hint post-transcription
 - **Output**: `{ text: string }`
 
 ---
@@ -284,7 +294,7 @@ Incoming POST /wechat
   └── unknown             → onboarding flow
 ```
 
-Custom TypeScript channel adapter handles WeChat signature verification and XML parsing. Replaces `routers/wechat.py` entirely. OpenClaw WebChat ≠ 公众号 webhook.
+[`openclaw-plugin-wecom`](https://github.com/sunnoy/openclaw-plugin-wecom) handles WeChat signature verification, XML callbacks, and per-user session isolation. Replaces `routers/wechat.py` entirely. OpenClaw WebChat ≠ 公众号 webhook.
 
 ---
 
@@ -330,6 +340,17 @@ Custom TypeScript channel adapter handles WeChat signature verification and XML 
 
 ---
 
+## OSS Skills Leveraged
+
+| Skill | OSS component | What we own |
+|---|---|---|
+| `transcription` | [`auto-whisper-safe`](https://github.com/openclaw/skills/blob/main/skills/neal-collab/auto-whisper-safe/SKILL.md) — local Whisper, RAM-aware, WeChat audio formats | `WHISPER_LANG=zh` config; `consultationMode` hint |
+| `approval-workflow` | [Lobster](https://github.com/openclaw/lobster) — pipeline halt/resume gates | SQLite persistence, WeChat wiring, atomic commit, Zod validation |
+| `notification` + WeChat channel | [`openclaw-plugin-wecom`](https://github.com/sunnoy/openclaw-plugin-wecom) — WeCom XML callbacks, per-user sessions | `log` provider, routing logic, openid lookup |
+| `db-core`, `agent-dispatch`, `record-structuring`, `risk-engine`, `task-manager`, `doctor-chat`, `patient-intake` | — | Fully custom (medical domain, no OSS equivalent exists) |
+
+---
+
 ## Key Technical Decisions
 
 | Decision | Choice | Reason |
@@ -338,7 +359,9 @@ Custom TypeScript channel adapter handles WeChat signature verification and XML 
 | Ollama client | `openai` npm package | Already OpenAI-compatible; same function-calling API as Python |
 | Cron | OpenClaw built-in | Replaces APScheduler, 1-min interval |
 | Context compression | OpenClaw `/compact` + `doctor_contexts` | Replaces Python rolling-window logic |
-| WeChat channel | Custom adapter (TypeScript) | OpenClaw WebChat ≠ 公众号 webhook |
+| WeChat channel | `openclaw-plugin-wecom` | Handles 公众号 XML callbacks + per-user session isolation out of the box |
+| Transcription | `auto-whisper-safe` + `WHISPER_LANG=zh` | Local, RAM-safe, handles `.ogg`/`.m4a`/`.opus` WeChat voice formats |
+| Approval gate | Lobster (pause/resume) + custom SQLite/WeChat wiring | Lobster owns halt; we own persistence and reply routing |
 | Testing | Vitest | TypeScript-native, fast, similar to pytest |
 | Race condition fix | Atomic `WHERE status='pending'` UPDATE | Fixes approval-workflow double-commit bug |
 | Payload validation | Zod on all LLM outputs | Maps parse errors → clean messages, eliminates 500s |
