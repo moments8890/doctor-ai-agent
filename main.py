@@ -201,10 +201,16 @@ async def _warmup(config: AppConfig):
                     break
                 except Exception as e:
                     last_error = e
-                    log.warning(
-                        f"Ollama connectivity check failed | "
-                        f"base_url={candidate_url} model={model} attempt={attempt}/{max_attempts} error={e}"
-                    )
+                    if _is_connectivity_error(e):
+                        log.warning(
+                            f"Ollama connectivity check failed | "
+                            f"base_url={candidate_url} model={model} attempt={attempt}/{max_attempts} error={e}"
+                        )
+                    else:
+                        raise RuntimeError(
+                            f"Ollama startup warmup failed with non-connectivity error "
+                            f"(base_url={candidate_url}, model={model}): {e}"
+                        ) from e
                     if attempt < max_attempts:
                         await asyncio.sleep(1)
             if chosen_url:
@@ -230,6 +236,17 @@ async def _warmup(config: AppConfig):
                 f"Ollama unavailable on startup | attempted_base_urls={candidates} "
                 f"model={model} error={last_error}. Continuing without warmup."
             )
+
+
+def _is_connectivity_error(exc: Exception) -> bool:
+    """True when warmup failure indicates endpoint connectivity issues."""
+    try:
+        from openai import APIConnectionError, APITimeoutError
+        if isinstance(exc, (APIConnectionError, APITimeoutError)):
+            return True
+    except Exception:
+        pass
+    return isinstance(exc, (ConnectionError, TimeoutError, OSError))
 
 
 _scheduler = AsyncIOScheduler()
