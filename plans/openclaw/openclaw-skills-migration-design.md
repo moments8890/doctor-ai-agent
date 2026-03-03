@@ -219,8 +219,7 @@ OpenClaw's built-in "WebChat" is a web widget, not 公众号 webhook. A custom c
 
 ### Phase 5 — Validation & cutover
 - Port critical Python test cases to Vitest (target ≥90% coverage)
-- Run alongside Python for 1 sprint
-- Retire Python backend
+- Vitest green + coverage gate met → delete Python backend entirely
 
 ---
 
@@ -241,17 +240,15 @@ OpenClaw's built-in "WebChat" is a web widget, not 公众号 webhook. A custom c
 
 ## Comparison with Event-Driven Approach
 
-The alternative approach (separate `packages/contracts` monorepo, event types like `PatientEventCreated`, shadow dual-run phases) offers stronger decoupling and a safer incremental cutover. The trade-offs:
+The alternative approach (separate `packages/contracts` monorepo, event types like `PatientEventCreated`, shadow dual-run phases) is designed for a safe incremental production cutover. In a dev context where Python is being retired entirely, those concerns don't apply. The relevant trade-offs are:
 
 | Aspect | This plan (flat skills) | Event-driven monorepo |
 |---|---|---|
 | Setup complexity | Low | High |
-| Rollback safety | Phase 5 parallel run | Shadow mode from Phase 1 |
-| Parity validation | ≥90% Vitest coverage | Explicit 95%/99%/99.5% gates |
 | New tables | 3 (`patient_events`, `*_bindings`) | 5+ (`delivery_logs`, `audit_log`, etc.) |
-| Timeline | Faster | Slower but safer |
+| Timeline | Faster | Slower |
 
-This plan favours speed; if the cutover reveals unexpected parity gaps, a shadow/dual-run layer can be added at Phase 5 before retiring Python.
+Shadow mode, rollback flags, and parity gates are omitted — Python is deleted once Vitest coverage gates are met.
 
 ---
 
@@ -268,7 +265,7 @@ openclaw start
 # Phase 4 smoke (patient intake)
 # Send WeChat message as patient → verify patient_events row + doctor notified
 
-# Phase 5 parity check
-# Run Python test suite against TypeScript API endpoints
-# All 507 Python test scenarios should pass equivalently
+# Phase 5 exit criteria
+pnpm test --coverage                # overall ≥90% coverage
+# Coverage gate green → delete Python backend
 ```
