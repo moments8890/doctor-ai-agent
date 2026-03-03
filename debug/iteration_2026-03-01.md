@@ -270,3 +270,17 @@ Switch `OLLAMA_MODEL` from `llama3.2` to `qwen2.5:7b` for production use. `llama
 - [x] Added ollama dispatch timeout + local fallback to avoid blocking on tool-call timeouts
 - [x] Unit tests passed: `.venv/bin/python -m pytest tests/ -v` (`404 passed`)
 - [x] Train-data integration templates passed with current env (`7 passed, 1 skipped`)
+
+## 2026-03-03 — Ollama Startup Fallback + Requests Compatibility
+
+### Scope
+
+- Startup warmup now tries configured `OLLAMA_BASE_URL` first, then falls back to `http://localhost:11434/v1`.
+- If both Ollama endpoints are unreachable, app startup logs the failure and continues (no startup crash).
+- Added `chardet<6` pin to avoid `RequestsDependencyWarning` compatibility noise.
+
+### Status
+
+- [x] Ollama startup fallback implemented
+- [x] Requests warning fix implemented
+- [x] Unit tests green (`.venv/bin/python -m pytest tests/ -q`)

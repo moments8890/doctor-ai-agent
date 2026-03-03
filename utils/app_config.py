@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Mapping, Optional
+from typing import Dict, List, Mapping, Optional
 
 from dotenv import load_dotenv
 
@@ -63,6 +63,21 @@ def load_env_from_shared_or_local(
 
     load_dotenv()
     return Path(".env")
+
+
+def ollama_base_url_candidates(primary_url: str) -> List[str]:
+    """Return ordered unique Ollama base URL candidates.
+
+    Always tries configured URL first, then localhost fallback.
+    """
+    fallback = "http://localhost:11434/v1"
+    out: List[str] = []
+    for url in [primary_url.strip(), fallback]:
+        if not url:
+            continue
+        if url not in out:
+            out.append(url)
+    return out
 
 
 @dataclass(frozen=True)
