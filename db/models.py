@@ -147,6 +147,44 @@ class DoctorTask(Base):
         return f"[{self.task_type}] {self.title}"
 
 
+class ApprovalItem(Base):
+    """Pending AI suggestion awaiting doctor review before DB commit."""
+    __tablename__ = "approval_items"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    doctor_id: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    item_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    # v1: "medical_record" only
+
+    # Populated after approval is committed (null until then)
+    patient_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("patients.id", ondelete="SET NULL"), nullable=True
+    )
+    record_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("medical_records.id", ondelete="SET NULL"), nullable=True
+    )
+
+    # AI suggestion payload (JSON string)
+    # Shape: {"record": {8 MedicalRecord fields}, "patient_name": str,
+    #         "gender": str|null, "age": int|null, "existing_patient_id": int|null}
+    suggested_data: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # Original transcript/text for doctor context
+    source_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    # "pending" | "approved" | "rejected"
+
+    reviewer_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+
+    def __str__(self) -> str:
+        return f"[{self.item_type}] {self.status} #{self.id}"
+
+
 class PatientLabel(Base):
     """Doctor-owned custom label that can be attached to patients."""
     __tablename__ = "patient_labels"

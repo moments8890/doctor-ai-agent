@@ -407,6 +407,56 @@ async def test_voice_chat_add_record_new_patient_created():
          patch("routers.voice.find_patient_by_name", new=AsyncMock(return_value=None)), \
          patch("routers.voice.db_create_patient", new=AsyncMock(return_value=new_patient)) as create_mock, \
          patch("routers.voice.save_record", new=AsyncMock()):
-        resp = await voice.voice_chat(audio=upload, doctor_id=DOCTOR, history=None)
+        resp = await voice.voice_chat(upload, doctor_id=DOCTOR, history=None)
     create_mock.assert_called_once()
     assert "新建档并" in resp.reply
+
+
+# ---------------------------------------------------------------------------
+# Approval-mode branch tests
+# ---------------------------------------------------------------------------
+
+
+async def test_voice_chat_approval_mode_enabled_returns_pending_id(monkeypatch):
+    """With APPROVAL_MODE_ENABLED=true, voice add_record should NOT call save_record
+    and should return pending_approval_id."""
+    monkeypatch.setenv("APPROVAL_MODE_ENABLED", "true")
+
+    upload = _Upload(content_type="audio/wav")
+    fake_db = object()
+    fake_approval = SimpleNamespace(id=3)
+
+    with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="李明胸痛")), \
+         patch("routers.voice.agent_dispatch", new=AsyncMock(
+             return_value=_intent(Intent.add_record, patient_name="李明", structured_fields={"chief_complaint": "胸痛"})
+         )), \
+         patch("routers.voice.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), \
+         patch("routers.voice.find_patient_by_name", new=AsyncMock(return_value=None)), \
+         patch("routers.voice.create_approval_item", new=AsyncMock(return_value=fake_approval)), \
+         patch("routers.voice.save_record", new=AsyncMock()) as mock_save:
+        resp = await voice.voice_chat(upload, doctor_id=DOCTOR, history=None)
+
+    assert resp.pending_approval_id == 3
+    mock_save.assert_not_called()
+
+
+async def test_voice_chat_approval_mode_disabled_uses_direct_write(monkeypatch):
+    """With APPROVAL_MODE_ENABLED=false, voice add_record calls save_record
+    and returns no pending_approval_id."""
+    monkeypatch.setenv("APPROVAL_MODE_ENABLED", "false")
+
+    upload = _Upload(content_type="audio/wav")
+    fake_db = object()
+    patient = SimpleNamespace(id=1, name="李明")
+
+    with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="李明胸痛")), \
+         patch("routers.voice.agent_dispatch", new=AsyncMock(
+             return_value=_intent(Intent.add_record, patient_name="李明", structured_fields={"chief_complaint": "胸痛"})
+         )), \
+         patch("routers.voice.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), \
+         patch("routers.voice.find_patient_by_name", new=AsyncMock(return_value=patient)), \
+         patch("routers.voice.save_record", new=AsyncMock()) as mock_save:
+        resp = await voice.voice_chat(upload, doctor_id=DOCTOR, history=None)
+
+    assert resp.pending_approval_id is None
+    mock_save.assert_called_once()

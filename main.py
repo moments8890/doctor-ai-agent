@@ -18,6 +18,7 @@ from sqladmin import Admin, ModelView
 from sqladmin.authentication import AuthenticationBackend
 from starlette.requests import Request
 
+from routers.approvals import router as approvals_router
 from routers.records import router as records_router
 from routers.wechat import router as wechat_router
 from routers.ui import router as ui_router
@@ -26,7 +27,7 @@ from routers.tasks import router as tasks_router
 from routers.voice import router as voice_router
 from db.init_db import create_tables, seed_prompts
 from db.engine import engine, AsyncSessionLocal
-from db.models import Patient, MedicalRecordDB, DoctorContext, SystemPrompt, NeuroCaseDB, DoctorTask
+from db.models import Patient, MedicalRecordDB, DoctorContext, SystemPrompt, NeuroCaseDB, DoctorTask, ApprovalItem
 from db.crud import get_due_tasks
 from services.tasks import check_and_send_due_tasks
 
@@ -289,6 +290,7 @@ admin.add_view(DoctorContextAdmin)
 admin.add_view(NeuroCaseAdmin)
 admin.add_view(DoctorTaskAdmin)
 
+app.include_router(approvals_router)
 app.include_router(records_router)
 app.include_router(wechat_router)
 app.include_router(ui_router)

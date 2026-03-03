@@ -7,7 +7,7 @@ from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.models import SystemPrompt, DoctorContext, Patient, MedicalRecordDB, NeuroCaseDB, DoctorTask, PatientLabel
+from db.models import SystemPrompt, DoctorContext, Patient, MedicalRecordDB, NeuroCaseDB, DoctorTask, PatientLabel, ApprovalItem
 from models.medical_record import MedicalRecord
 from services.patient_categorization import RULES_VERSION, recompute_patient_category
 from services.patient_risk import RULES_VERSION as RISK_RULES_VERSION, recompute_patient_risk
@@ -565,3 +565,86 @@ async def get_patient_labels(
     if patient is None:
         return []
     return list(patient.labels)
+
+
+# ---------------------------------------------------------------------------
+# ApprovalItem CRUD
+# ---------------------------------------------------------------------------
+
+
+async def create_approval_item(
+    session: AsyncSession,
+    doctor_id: str,
+    item_type: str,
+    suggested_data: dict,
+    source_text: Optional[str] = None,
+) -> ApprovalItem:
+    item = ApprovalItem(
+        doctor_id=doctor_id,
+        item_type=item_type,
+        suggested_data=json.dumps(suggested_data, ensure_ascii=False),
+        source_text=source_text,
+        status="pending",
+    )
+    session.add(item)
+    await session.commit()
+    await session.refresh(item)
+    return item
+
+
+async def get_approval_item(
+    session: AsyncSession,
+    approval_id: int,
+    doctor_id: str,
+) -> Optional[ApprovalItem]:
+    result = await session.execute(
+        select(ApprovalItem).where(
+            ApprovalItem.id == approval_id,
+            ApprovalItem.doctor_id == doctor_id,
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def list_approval_items(
+    session: AsyncSession,
+    doctor_id: str,
+    status: Optional[str] = None,
+) -> List[ApprovalItem]:
+    q = select(ApprovalItem).where(ApprovalItem.doctor_id == doctor_id)
+    if status is not None:
+        q = q.where(ApprovalItem.status == status)
+    q = q.order_by(ApprovalItem.created_at.desc())
+    result = await session.execute(q)
+    return list(result.scalars().all())
+
+
+async def update_approval_item(
+    session: AsyncSession,
+    approval_id: int,
+    doctor_id: str,
+    status: str,
+    patient_id: Optional[int] = None,
+    record_id: Optional[int] = None,
+    reviewer_note: Optional[str] = None,
+) -> Optional[ApprovalItem]:
+    result = await session.execute(
+        select(ApprovalItem).where(
+            ApprovalItem.id == approval_id,
+            ApprovalItem.doctor_id == doctor_id,
+        )
+    )
+    item = result.scalar_one_or_none()
+    if item is None:
+        return None
+    item.status = status
+    item.reviewed_at = datetime.utcnow()
+    if patient_id is not None:
+        item.patient_id = patient_id
+    if record_id is not None:
+        item.record_id = record_id
+    if reviewer_note is not None:
+        item.reviewer_note = reviewer_note
+    await session.commit()
+    await session.refresh(item)
+    return item

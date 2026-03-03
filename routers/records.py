@@ -1,3 +1,4 @@
+import os
 import re
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, UploadFile, File
@@ -6,6 +7,7 @@ from typing import List, Optional
 
 from db.crud import (
     create_patient as db_create_patient,
+    create_approval_item,
     find_patient_by_name,
     get_all_patients,
     get_all_records_for_doctor,
@@ -20,6 +22,10 @@ from services.structuring import structure_medical_record
 from services.transcription import transcribe_audio
 from services.vision import extract_text_from_image
 from utils.log import log
+
+
+def _approval_mode_enabled() -> bool:
+    return os.getenv("APPROVAL_MODE_ENABLED", "").lower() in ("1", "true", "yes")
 
 router = APIRouter(prefix="/api/records", tags=["records"])
 
@@ -84,6 +90,7 @@ class TextInput(BaseModel):
 class ChatResponse(BaseModel):
     reply: str
     record: Optional[MedicalRecord] = None
+    pending_approval_id: Optional[int] = None
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -153,8 +160,33 @@ async def chat(body: ChatInput):
             except Exception as e:
                 return ChatResponse(reply=f"病历生成失败：{e}")
 
-        patient_id = None
         patient_name = intent_result.patient_name
+
+        if _approval_mode_enabled():
+            suggested: dict = {
+                "record": record.model_dump(),
+                "patient_name": patient_name,
+                "gender": intent_result.gender,
+                "age": intent_result.age,
+                "existing_patient_id": None,
+            }
+            async with AsyncSessionLocal() as db:
+                if patient_name:
+                    existing = await find_patient_by_name(db, doctor_id, patient_name)
+                    if existing:
+                        suggested["existing_patient_id"] = existing.id
+                approval = await create_approval_item(
+                    db, doctor_id, "medical_record", suggested,
+                    source_text=body.text,
+                )
+            reply = intent_result.chat_reply or (
+                f"✏️ 已为【{patient_name}】生成病历草稿（审核 #{approval.id}），请确认后保存。"
+                if patient_name
+                else f"✏️ 病历草稿已生成（审核 #{approval.id}），请确认后保存。"
+            )
+            return ChatResponse(reply=reply, record=record, pending_approval_id=approval.id)
+
+        patient_id = None
         patient_created = False
         async with AsyncSessionLocal() as db:
             if patient_name:

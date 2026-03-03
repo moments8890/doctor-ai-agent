@@ -260,3 +260,67 @@ async def test_from_text_image_audio_endpoints():
         with pytest.raises(HTTPException) as exc6:
             await records.create_record_from_audio(_Upload(content_type="audio/wav", data=b"wav", filename="a.wav"))
     assert exc6.value.status_code == 500
+
+
+# ---------------------------------------------------------------------------
+# Approval-mode branch tests
+# ---------------------------------------------------------------------------
+
+
+async def test_chat_add_record_approval_mode_enabled_returns_pending_id(monkeypatch):
+    """With APPROVAL_MODE_ENABLED=true, add_record should NOT call save_record
+    and should return pending_approval_id."""
+    monkeypatch.setenv("APPROVAL_MODE_ENABLED", "true")
+
+    fake_db = object()
+    fake_approval = SimpleNamespace(id=7)
+
+    with patch(
+        "routers.records.agent_dispatch",
+        new=AsyncMock(return_value=_intent(
+            Intent.add_record,
+            patient_name="张三",
+            structured_fields={"chief_complaint": "胸痛"},
+        )),
+    ), patch("routers.records.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
+        "routers.records.find_patient_by_name",
+        new=AsyncMock(return_value=None),
+    ), patch(
+        "routers.records.create_approval_item",
+        new=AsyncMock(return_value=fake_approval),
+    ), patch(
+        "routers.records.save_record",
+        new=AsyncMock(),
+    ) as mock_save:
+        resp = await records.chat(records.ChatInput(text="张三胸痛", doctor_id=DOCTOR))
+
+    assert resp.pending_approval_id == 7
+    mock_save.assert_not_called()
+
+
+async def test_chat_add_record_approval_mode_disabled_uses_direct_write(monkeypatch):
+    """With APPROVAL_MODE_ENABLED=false (default), add_record calls save_record
+    and returns no pending_approval_id."""
+    monkeypatch.setenv("APPROVAL_MODE_ENABLED", "false")
+
+    fake_db = object()
+    fake_patient = SimpleNamespace(id=1, name="张三")
+
+    with patch(
+        "routers.records.agent_dispatch",
+        new=AsyncMock(return_value=_intent(
+            Intent.add_record,
+            patient_name="张三",
+            structured_fields={"chief_complaint": "胸痛"},
+        )),
+    ), patch("routers.records.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
+        "routers.records.find_patient_by_name",
+        new=AsyncMock(return_value=fake_patient),
+    ), patch(
+        "routers.records.save_record",
+        new=AsyncMock(),
+    ) as mock_save:
+        resp = await records.chat(records.ChatInput(text="张三胸痛", doctor_id=DOCTOR))
+
+    assert resp.pending_approval_id is None
+    mock_save.assert_called_once()
