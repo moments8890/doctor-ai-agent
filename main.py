@@ -1,9 +1,10 @@
 import logging
 import asyncio
+import os
 from contextlib import asynccontextmanager
 from datetime import datetime
 from utils.log import init_logging
-from utils.app_config import AppConfig, load_env_from_shared_or_local
+from utils.app_config import AppConfig, load_env_from_shared_or_local, ollama_base_url_candidates
 
 # Must run before any module reads os.environ.
 _env_source_path = load_env_from_shared_or_local()
@@ -178,39 +179,74 @@ async def _warmup(config: AppConfig):
     if config.routing_llm == "ollama" or config.structuring_llm == "ollama":
         from openai import AsyncOpenAI
 
-        client = AsyncOpenAI(
-            base_url=config.ollama_base_url,
-            api_key=config.ollama_api_key or "ollama",
-        )
         model = config.ollama_model
         max_attempts = 3
+        candidates = ollama_base_url_candidates(config.ollama_base_url)
+        chosen_url = None
         last_error = None
 
-        for attempt in range(1, max_attempts + 1):
-            try:
-                await client.chat.completions.create(
-                    model=model,
-                    messages=[{"role": "user", "content": "ping"}],
-                    max_tokens=1,
+        for candidate_url in candidates:
+            client = AsyncOpenAI(
+                base_url=candidate_url,
+                api_key=config.ollama_api_key or "ollama",
+            )
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    await client.chat.completions.create(
+                        model=model,
+                        messages=[{"role": "user", "content": "ping"}],
+                        max_tokens=1,
+                    )
+                    chosen_url = candidate_url
+                    break
+                except Exception as e:
+                    last_error = e
+                    if _is_connectivity_error(e):
+                        log.warning(
+                            f"Ollama connectivity check failed | "
+                            f"base_url={candidate_url} model={model} attempt={attempt}/{max_attempts} error={e}"
+                        )
+                    else:
+                        raise RuntimeError(
+                            f"Ollama startup warmup failed with non-connectivity error "
+                            f"(base_url={candidate_url}, model={model}): {e}"
+                        ) from e
+                    if attempt < max_attempts:
+                        await asyncio.sleep(1)
+            if chosen_url:
+                break
+
+        if chosen_url:
+            if chosen_url != config.ollama_base_url:
+                os.environ["OLLAMA_BASE_URL"] = chosen_url
+                if os.environ.get("OLLAMA_VISION_BASE_URL", "").strip() == config.ollama_base_url:
+                    os.environ["OLLAMA_VISION_BASE_URL"] = chosen_url
+                log.warning(
+                    f"Ollama startup fallback selected | original_base_url={config.ollama_base_url} "
+                    f"effective_base_url={chosen_url} model={model}"
                 )
+            else:
                 log.info(
                     f"Ollama startup connectivity check passed | "
-                    f"base_url={config.ollama_base_url} model={model} attempt={attempt}"
+                    f"base_url={chosen_url} model={model}"
                 )
-                break
-            except Exception as e:
-                last_error = e
-                log.warning(
-                    f"Ollama connectivity check failed | "
-                    f"base_url={config.ollama_base_url} model={model} attempt={attempt}/{max_attempts} error={e}"
-                )
-                if attempt < max_attempts:
-                    await asyncio.sleep(1)
         else:
-            raise RuntimeError(
-                f"Ollama startup connectivity check failed after {max_attempts} attempts "
-                f"(base_url={config.ollama_base_url}, model={model})"
-            ) from last_error
+            # Keep startup alive; runtime calls can still fallback or fail with explicit errors.
+            log.error(
+                f"Ollama unavailable on startup | attempted_base_urls={candidates} "
+                f"model={model} error={last_error}. Continuing without warmup."
+            )
+
+
+def _is_connectivity_error(exc: Exception) -> bool:
+    """True when warmup failure indicates endpoint connectivity issues."""
+    try:
+        from openai import APIConnectionError, APITimeoutError
+        if isinstance(exc, (APIConnectionError, APITimeoutError)):
+            return True
+    except Exception:
+        pass
+    return isinstance(exc, (ConnectionError, TimeoutError, OSError))
 
 
 _scheduler = AsyncIOScheduler()
