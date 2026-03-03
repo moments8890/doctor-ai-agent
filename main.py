@@ -1,10 +1,16 @@
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
+from pathlib import Path
 from dotenv import load_dotenv
 from utils.log import init_logging
 
-load_dotenv()  # must run before any module reads os.environ
+# Must run before any module reads os.environ.
+_SHARED_ENV_PATH = Path("/Users/jingwuxu/Documents/code/shared-db/.env")
+if _SHARED_ENV_PATH.exists():
+    load_dotenv(dotenv_path=_SHARED_ENV_PATH)
+else:
+    load_dotenv()
 init_logging()
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
