@@ -228,3 +228,32 @@ Switch `OLLAMA_MODEL` from `llama3.2` to `qwen2.5:7b` for production use. `llama
 - [x] Startup LLM connectivity check implemented
 - [x] Task/scheduler terminal log suppression implemented
 - [x] Unit tests green (`.venv/bin/python -m pytest tests/ -q`)
+
+---
+
+## Notification Pipeline Reliability + Dev Trigger
+
+### Scope
+
+- Hardened WeChat sender error semantics:
+  - Raise on missing credentials, HTTP errors, and non-zero WeChat `errcode`.
+  - No silent swallow in notification send path.
+- Added retry semantics for task notifications:
+  - `TASK_NOTIFY_RETRY_COUNT`
+  - `TASK_NOTIFY_RETRY_DELAY_SECONDS`
+  - Mark `notified_at` only after successful send.
+- Added provider-based notification transport:
+  - `NOTIFICATION_PROVIDER=log` (default, local/dev safe)
+  - `NOTIFICATION_PROVIDER=wechat` (real channel)
+- Added dev-only manual trigger endpoint:
+  - `POST /api/tasks/dev/run-notifier`
+  - gated by `TASK_DEV_ENDPOINT_ENABLED=true`
+- Reduced scheduler noise:
+  - heartbeat `scheduler_tick_start` and zero-count cycles now log at `DEBUG`.
+
+### Status
+
+- [x] Notification reliability fixes implemented
+- [x] Provider abstraction implemented (`log` default)
+- [x] Dev trigger endpoint implemented
+- [x] Tests green (`.venv/bin/python -m pytest tests/ -q`)

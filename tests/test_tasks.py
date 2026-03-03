@@ -18,6 +18,7 @@ from services.tasks import (
     create_appointment_task,
     send_task_notification,
     check_and_send_due_tasks,
+    run_due_task_cycle,
 )
 from services.intent import Intent
 from services.agent import dispatch
@@ -311,7 +312,7 @@ async def test_send_task_notification_formats_message_and_marks_notified():
     mock_mark = AsyncMock()
 
     with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
-         patch("services.tasks._send_customer_service_msg", mock_send), \
+         patch("services.tasks.send_doctor_notification", mock_send), \
          patch("services.tasks.mark_task_notified", mock_mark):
         await send_task_notification("doc1", fake_task)
 
@@ -331,7 +332,7 @@ async def test_send_task_notification_without_content_or_due_time():
     mock_mark = AsyncMock()
 
     with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
-         patch("services.tasks._send_customer_service_msg", mock_send), \
+         patch("services.tasks.send_doctor_notification", mock_send), \
          patch("services.tasks.mark_task_notified", mock_mark):
         await send_task_notification("doc1", fake_task)
 
@@ -348,7 +349,7 @@ async def test_send_task_notification_emits_structured_task_log():
     mock_task_log = MagicMock()
 
     with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
-         patch("services.tasks._send_customer_service_msg", mock_send), \
+         patch("services.tasks.send_doctor_notification", mock_send), \
          patch("services.tasks.mark_task_notified", mock_mark), \
          patch("services.tasks.task_log", mock_task_log):
         await send_task_notification("doc9", fake_task)
@@ -356,6 +357,41 @@ async def test_send_task_notification_emits_structured_task_log():
     mock_task_log.assert_called_once()
     assert mock_task_log.call_args.args[0] == "task_notified"
     assert mock_task_log.call_args.kwargs["task_id"] == 13
+
+
+async def test_send_task_notification_retries_then_succeeds():
+    fake_task = _make_fake_task(31, task_type="follow_up", title="随访提醒：赵敏")
+    mock_session = AsyncMock()
+    mock_send = AsyncMock(side_effect=[RuntimeError("net"), None])
+    mock_mark = AsyncMock()
+
+    with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
+         patch("services.tasks.send_doctor_notification", mock_send), \
+         patch("services.tasks.mark_task_notified", mock_mark), \
+         patch("services.tasks._notify_retry_count", return_value=2), \
+         patch("services.tasks._notify_retry_delay_seconds", return_value=0):
+        await send_task_notification("doc-retry", fake_task)
+
+    assert mock_send.await_count == 2
+    mock_mark.assert_awaited_once()
+
+
+async def test_send_task_notification_retry_exhausted_does_not_mark_notified():
+    fake_task = _make_fake_task(32, task_type="follow_up", title="随访提醒：王敏")
+    mock_session = AsyncMock()
+    mock_send = AsyncMock(side_effect=RuntimeError("net"))
+    mock_mark = AsyncMock()
+
+    with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
+         patch("services.tasks.send_doctor_notification", mock_send), \
+         patch("services.tasks.mark_task_notified", mock_mark), \
+         patch("services.tasks._notify_retry_count", return_value=2), \
+         patch("services.tasks._notify_retry_delay_seconds", return_value=0):
+        with pytest.raises(RuntimeError):
+            await send_task_notification("doc-fail", fake_task)
+
+    assert mock_send.await_count == 2
+    mock_mark.assert_not_called()
 
 
 async def test_check_and_send_due_tasks_logs_failure_event():
@@ -377,6 +413,25 @@ async def test_check_and_send_due_tasks_logs_failure_event():
     assert "scheduler_tick_start" in events
     assert "scheduler_due_tasks" in events
     assert "task_notify_failed" in events
+
+
+async def test_run_due_task_cycle_returns_counts():
+    task1 = _make_fake_task(1, doctor_id="doc1")
+    task2 = _make_fake_task(2, doctor_id="doc2")
+    mock_session = AsyncMock()
+
+    async def _notify(doctor_id, task):
+        if task.id == 2:
+            raise RuntimeError("notify failed")
+
+    with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
+         patch("services.tasks.get_due_tasks", new=AsyncMock(return_value=[task1, task2])), \
+         patch("services.tasks.send_task_notification", side_effect=_notify):
+        out = await run_due_task_cycle()
+
+    assert out["due_count"] == 2
+    assert out["sent_count"] == 1
+    assert out["failed_count"] == 1
 
 
 def test_taskout_from_orm_serializes_datetime_fields():
@@ -594,3 +649,36 @@ async def test_api_patch_task_not_found_returns_404(session_factory):
             )
 
     assert resp.status_code == 404
+
+
+async def test_api_dev_run_notifier_disabled_returns_404():
+    from httpx import AsyncClient, ASGITransport
+    from fastapi import FastAPI
+    from routers.tasks import router as tasks_router
+
+    app = FastAPI()
+    app.include_router(tasks_router)
+
+    with patch.dict("os.environ", {"TASK_DEV_ENDPOINT_ENABLED": "false"}, clear=False):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post("/api/tasks/dev/run-notifier")
+
+    assert resp.status_code == 404
+
+
+async def test_api_dev_run_notifier_enabled_returns_summary():
+    from httpx import AsyncClient, ASGITransport
+    from fastapi import FastAPI
+    from routers.tasks import router as tasks_router
+
+    app = FastAPI()
+    app.include_router(tasks_router)
+
+    summary = {"due_count": 3, "sent_count": 2, "failed_count": 1}
+    with patch.dict("os.environ", {"TASK_DEV_ENDPOINT_ENABLED": "true"}, clear=False), \
+         patch("routers.tasks.run_due_task_cycle", new=AsyncMock(return_value=summary)):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post("/api/tasks/dev/run-notifier")
+
+    assert resp.status_code == 200
+    assert resp.json() == summary
