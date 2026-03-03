@@ -1,5 +1,6 @@
 from __future__ import annotations
 import asyncio
+import functools
 import io
 import os
 import wave
@@ -16,6 +17,16 @@ _MEDICAL_PROMPT = (
     "奥希替尼，曲妥珠单抗，吉非替尼，贝伐珠单抗，"
     "CEA，CA199，CA125，AFP，EGFR，HER2，ALK，T790M，"
     "ANC，G-CSF，化疗，靶向治疗，液体活检。"
+)
+
+_CONSULTATION_PROMPT = (
+    "以下是医生和患者之间的门诊问诊对话录音，"
+    "包含医生询问病史、患者描述症状的交替发言。"
+    "心血管内科、肿瘤科门诊。"
+    "替格瑞洛，氯吡格雷，阿司匹林，"
+    "肌钙蛋白，BNP，EF，STEMI，PCI，房颤，心衰，"
+    "CEA，EGFR，HER2，ANC，化疗，靶向治疗。"
+    "请完整转写全部内容，保留医生提问和患者回答。"
 )
 
 _model = None
@@ -35,7 +46,7 @@ def _get_model():
     return _model
 
 
-def _transcribe_sync(audio_bytes: bytes) -> str:
+def _transcribe_sync(audio_bytes: bytes, initial_prompt: str) -> str:
     model = _get_model()
 
     # faster-whisper accepts a file-like object or file path
@@ -44,7 +55,7 @@ def _transcribe_sync(audio_bytes: bytes) -> str:
     segments, info = model.transcribe(
         audio_file,
         language="zh",
-        initial_prompt=_MEDICAL_PROMPT,
+        initial_prompt=initial_prompt,
         beam_size=5,
         vad_filter=True,           # skip silence
         vad_parameters={"min_silence_duration_ms": 300},
@@ -54,15 +65,21 @@ def _transcribe_sync(audio_bytes: bytes) -> str:
     return text
 
 
-async def transcribe_audio(audio_bytes: bytes, filename: str) -> str:
+async def transcribe_audio(
+    audio_bytes: bytes,
+    filename: str,
+    consultation_mode: bool = False,
+) -> str:
     """Transcribe audio bytes to text using local faster-whisper model.
 
     Falls back to OpenAI Whisper API if faster_whisper is not installed.
     """
+    initial_prompt = _CONSULTATION_PROMPT if consultation_mode else _MEDICAL_PROMPT
     try:
         async with _model_lock:
             loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(None, _transcribe_sync, audio_bytes)
+            fn = functools.partial(_transcribe_sync, audio_bytes, initial_prompt)
+            return await loop.run_in_executor(None, fn)
     except ImportError:
         log("[Whisper] faster_whisper not installed, falling back to OpenAI API")
         from openai import AsyncOpenAI
