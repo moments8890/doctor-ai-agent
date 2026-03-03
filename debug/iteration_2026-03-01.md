@@ -150,3 +150,18 @@ Switch `OLLAMA_MODEL` from `llama3.2` to `qwen2.5:7b` for production use. `llama
 
 - [x] Rename implemented across backend + UI
 - [x] Unit tests green (`.venv/bin/python -m pytest tests/ -v`)
+
+## Frontend Unification + Dev Admin Viewer
+
+### Scope
+
+- Removed legacy backend-rendered UI pages; frontend React app remains the single UI implementation.
+- Added internal `/admin` route with separate backend endpoints for DB table browsing.
+- Expanded admin viewer to cover all core tables with left-nav layout and dense dev-mode table utilities (CSV/JSON export, copy row).
+
+### Status
+
+- [x] Backend UI routes removed (`/chat`, `/manage`)
+- [x] Admin APIs added for table list/counts and per-table rows
+- [x] Admin page updated to dev-focused dense table mode
+- [x] Unit tests green (`.venv/bin/python -m pytest tests/ -v`)
