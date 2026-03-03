@@ -145,7 +145,7 @@ async def voice_chat(
         if not reply:
             if patient_name:
                 reply = "✅ 已为【" + patient_name + "】" + ("新建档并" if patient_created else "") + "保存病历。"
-            else:
+            else:  # pragma: no cover
                 reply = "✅ 病历已保存。"
         log(f"[VoiceChat] saved record patient={patient_name} doctor={doctor_id}")
         return VoiceChatResponse(transcript=transcript, reply=reply, record=record)

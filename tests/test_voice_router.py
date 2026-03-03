@@ -294,3 +294,119 @@ async def test_consultation_structure_consultation_mode():
     structure_mock.assert_called_once()
     _, kwargs = structure_mock.call_args
     assert kwargs.get("consultation_mode") is True
+
+
+async def test_consultation_empty_transcript():
+    """voice_consultation raises 422 when transcript is blank."""
+    upload = _Upload(content_type="audio/wav")
+    with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="   ")):
+        with pytest.raises(HTTPException) as exc:
+            await voice.voice_consultation(
+                audio=upload, doctor_id=DOCTOR, patient_name=None, save=False
+            )
+    assert exc.value.status_code == 422
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Additional voice_chat branch coverage
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+async def test_voice_chat_history_not_a_list():
+    """Valid JSON but not a list raises 422."""
+    upload = _Upload(content_type="audio/wav")
+    with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="查患者")):
+        with pytest.raises(HTTPException) as exc:
+            await voice.voice_chat(audio=upload, doctor_id=DOCTOR, history='{"key": "val"}')
+    assert exc.value.status_code == 422
+
+
+async def test_voice_chat_followup_name_two_turn():
+    """When previous assistant message asked for name and transcript is name-only,
+    intent is forced to add_record."""
+    upload = _Upload(content_type="audio/wav")
+    fake_db = object()
+    patient = SimpleNamespace(id=8, name="李四")
+    history_json = json.dumps([{"role": "assistant", "content": "请问这位患者叫什么名字？"}])
+    with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="李四")), \
+         patch("routers.voice.agent_dispatch", new=AsyncMock(
+             return_value=_intent(Intent.unknown, chat_reply="ok")
+         )), \
+         patch("routers.voice.structure_medical_record", new=AsyncMock(return_value=_record())), \
+         patch("routers.voice.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), \
+         patch("routers.voice.find_patient_by_name", new=AsyncMock(return_value=patient)), \
+         patch("routers.voice.save_record", new=AsyncMock()):
+        resp = await voice.voice_chat(audio=upload, doctor_id=DOCTOR, history=history_json)
+    assert resp.record is not None
+
+
+async def test_voice_chat_create_patient_no_name_asks():
+    """create_patient with no name returns ask-for-name reply."""
+    upload = _Upload(content_type="audio/wav")
+    with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="建档")), \
+         patch("routers.voice.agent_dispatch", new=AsyncMock(
+             return_value=_intent(Intent.create_patient, patient_name=None)
+         )):
+        resp = await voice.voice_chat(audio=upload, doctor_id=DOCTOR, history=None)
+    assert "姓名" in resp.reply
+    assert resp.record is None
+
+
+async def test_voice_chat_add_record_no_name_asks():
+    """add_record with invalid/missing patient_name returns ask-for-name reply."""
+    upload = _Upload(content_type="audio/wav")
+    with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="胸痛")), \
+         patch("routers.voice.agent_dispatch", new=AsyncMock(
+             return_value=_intent(Intent.add_record, patient_name=None)
+         )):
+        resp = await voice.voice_chat(audio=upload, doctor_id=DOCTOR, history=None)
+    assert "叫什么名字" in resp.reply
+
+
+async def test_voice_chat_structured_fields_missing_chief_complaint():
+    """structured_fields without chief_complaint gets default filled in."""
+    upload = _Upload(content_type="audio/wav")
+    fake_db = object()
+    patient = SimpleNamespace(id=2, name="王二")
+    fields = {"diagnosis": "冠心病"}  # no chief_complaint
+    with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="王二冠心病")), \
+         patch("routers.voice.agent_dispatch", new=AsyncMock(
+             return_value=_intent(Intent.add_record, patient_name="王二", structured_fields=fields)
+         )), \
+         patch("routers.voice.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), \
+         patch("routers.voice.find_patient_by_name", new=AsyncMock(return_value=patient)), \
+         patch("routers.voice.save_record", new=AsyncMock()):
+        resp = await voice.voice_chat(audio=upload, doctor_id=DOCTOR, history=None)
+    assert resp.record is not None
+    assert resp.record.chief_complaint == "门诊就诊"
+
+
+async def test_voice_chat_add_record_structuring_error():
+    """Structuring LLM failure in fallback path returns error reply (not 500)."""
+    upload = _Upload(content_type="audio/wav")
+    with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="王三胸闷")), \
+         patch("routers.voice.agent_dispatch", new=AsyncMock(
+             return_value=_intent(Intent.add_record, patient_name="王三")
+         )), \
+         patch("routers.voice.structure_medical_record", new=AsyncMock(side_effect=RuntimeError("llm err"))):
+        resp = await voice.voice_chat(audio=upload, doctor_id=DOCTOR, history=None)
+    assert "病历生成失败" in resp.reply
+
+
+async def test_voice_chat_add_record_new_patient_created():
+    """add_record where patient doesn't exist triggers db_create_patient."""
+    upload = _Upload(content_type="audio/wav")
+    fake_db = object()
+    new_patient = SimpleNamespace(id=55, name="新患者")
+    with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="新患者胸痛")), \
+         patch("routers.voice.agent_dispatch", new=AsyncMock(
+             return_value=_intent(Intent.add_record, patient_name="新患者")
+         )), \
+         patch("routers.voice.structure_medical_record", new=AsyncMock(return_value=_record())), \
+         patch("routers.voice.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), \
+         patch("routers.voice.find_patient_by_name", new=AsyncMock(return_value=None)), \
+         patch("routers.voice.db_create_patient", new=AsyncMock(return_value=new_patient)) as create_mock, \
+         patch("routers.voice.save_record", new=AsyncMock()):
+        resp = await voice.voice_chat(audio=upload, doctor_id=DOCTOR, history=None)
+    create_mock.assert_called_once()
+    assert "新建档并" in resp.reply
