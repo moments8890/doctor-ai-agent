@@ -173,7 +173,6 @@ Switch `OLLAMA_MODEL` from `llama3.2` to `qwen2.5:7b` for production use. `llama
 - [x] DeepSeek integration template passed against LAN Ollama base URL (`5 passed`)
 
 ---
-
 ## Frontend Unification + Dev Admin Viewer
 
 ### Scope
