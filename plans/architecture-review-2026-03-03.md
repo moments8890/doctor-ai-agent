@@ -34,29 +34,38 @@ on a single device.
 
 ## Risks and Gaps
 
-### 1. Identity is unverified
-**Current state:** `doctor_id` is a WeChat openid passed as a request parameter. It is never
-authenticated — any caller who knows a valid openid has full read/write access to that doctor's
-patients and records.
+### 1. Identity is unverified on REST endpoints
+**Current state:** Two different identity paths exist:
 
-**Impact:** High. This is a data integrity and privacy risk even in single-doctor use if the
-WeChat webhook is publicly reachable.
+- **WeChat path (lower risk):** `doctor_id` is derived server-side from `msg.source` in the
+  verified and signature-checked WeChat XML. This is not caller-controlled.
+- **REST path (higher risk):** Endpoints like `/api/tasks`, `/api/manage/patients`, and
+  `/api/records/chat` accept `doctor_id` as a caller-supplied query parameter with no
+  verification. Any caller who knows a valid `doctor_id` value has full access to that
+  doctor's data via these endpoints.
 
-**Suggested fix:** Derive `doctor_id` server-side from the verified WeChat XML signature, not
-from caller-supplied input. For REST endpoints, require a session token.
+**Impact:** High for REST endpoints. The WeChat webhook itself is adequately protected by
+WeChat's signature verification; the REST API surface is not.
+
+**Suggested fix:** Add a session token or API key requirement to all REST endpoints that
+accept `doctor_id`. Until then, restrict REST endpoint exposure to trusted internal networks.
 
 ---
 
-### 2. Platform coupling — identity tied to WeChat
-**Current state:** `doctor_id` is a WeChat openid. The entire tenancy model, notification
-delivery, and session management assumes WeChat as the only channel.
+### 2. Tenancy coupled to WeChat openid
+**Current state:** `doctor_id` is a WeChat openid used as the primary tenancy key across all
+DB tables. Notification delivery is already abstracted (`NOTIFICATION_PROVIDER=log|wechat`),
+so delivery is not WeChat-only. However, the identity and tenancy model still assumes a
+WeChat openid as the stable identifier for a doctor.
 
-**Impact:** Medium now, high later. Adding a web UI, mobile app, or second messaging platform
-requires rethinking identity from scratch. Every DB row is keyed on a WeChat-specific identifier.
+**Impact:** Medium now, high later. Adding a web UI, mobile app, or second messaging channel
+means either generating synthetic openid-shaped keys (fragile) or rethinking the identity
+model. Every DB row (`patients`, `medical_records`, `doctor_tasks`, `doctor_contexts`) is
+keyed on a WeChat-specific string.
 
 **Suggested fix:** Introduce a `doctors` table with a stable internal `id`. Store WeChat openid
-as an attribute, not the primary key. Map inbound WeChat messages to the internal id at the
-router boundary.
+as one attribute on that row. Map inbound WeChat messages to the internal id at the router
+boundary, keeping the rest of the system channel-agnostic.
 
 ---
 
@@ -74,16 +83,22 @@ finalised. This is P0 #1 in the feature plan.
 ---
 
 ### 4. APScheduler in-process with no persistent job store
-**Current state:** `AsyncIOScheduler` runs inside the FastAPI process. If the process crashes
-between a task becoming due and `mark_task_notified()` completing, the notification may be
-lost or duplicated on restart.
+**Current state:** `AsyncIOScheduler` runs inside the FastAPI process. Emergency tasks already
+call `send_task_notification()` immediately with a retry policy (`TASK_NOTIFY_RETRY_COUNT`,
+`TASK_NOTIFY_RETRY_DELAY_SECONDS`). The `notified_at IS NULL` recovery pattern re-queues
+unnotified tasks within 1 minute of restart.
 
-**Impact:** Medium. The `notified_at IS NULL` recovery catches most cases, but the 1-minute
-polling interval creates a window where an emergency notification is delayed after a crash.
+**Remaining gap:** If the process crashes *during* a retry sequence (after the first attempt
+but before `mark_task_notified()` completes), the retry state is lost. On restart the task
+will be retried again from scratch — a duplicate notification risk, not a missed notification
+risk.
 
-**Suggested fix:** For follow-up reminders, the current approach is acceptable. For emergency
-tasks (`is_emergency=True`), consider an immediate retry loop rather than relying on the
-scheduler interval.
+**Impact:** Low-medium. Acceptable for MVP. The duplicate risk matters more than the missed
+notification risk given the retry policy already in place.
+
+**Suggested fix:** For production, use a persistent scheduler backend (e.g. APScheduler with
+SQLAlchemy job store) so in-flight retry state survives restarts. Alternatively, make
+`send_task_notification()` idempotent at the transport layer so duplicate sends are harmless.
 
 ---
 
