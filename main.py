@@ -241,4 +241,4 @@ app.include_router(tasks_router)
 
 @app.get("/")
 def root():
-    return RedirectResponse(url="/chat")
+    return RedirectResponse(url="/docs")

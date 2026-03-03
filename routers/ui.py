@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime
+import json
+from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from sqlalchemy import func, select
 
@@ -22,1122 +22,23 @@ from db.crud import (
     remove_label,
 )
 from db.engine import AsyncSessionLocal
-from db.models import MedicalRecordDB
+from db.models import (
+    DoctorContext,
+    DoctorTask,
+    MedicalRecordDB,
+    NeuroCaseDB,
+    Patient,
+    PatientLabel,
+    SystemPrompt,
+    patient_label_assignments,
+)
 from services.patient_timeline import build_patient_timeline
 
 router = APIRouter(tags=["ui"])
 
 
-_HTML = """<!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Doctor AI Chat</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
-
-    :root {
-      --bg-start: #f6f2ea;
-      --bg-end: #dce9e6;
-      --panel: #fffdf7;
-      --ink: #1b2a33;
-      --muted: #5f6f7a;
-      --accent: #0d7a70;
-      --accent-soft: #dbf1ee;
-      --doctor: #f3f7ff;
-      --agent: #f2fcf6;
-      --danger: #c03535;
-      --border: #d5ddd7;
-      --shadow: 0 16px 40px rgba(19, 45, 50, 0.12);
-      --radius: 18px;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: "IBM Plex Sans", "PingFang SC", "Hiragino Sans GB", sans-serif;
-      color: var(--ink);
-      background:
-        radial-gradient(1200px 800px at 80% -10%, rgba(13, 122, 112, 0.18), transparent 55%),
-        radial-gradient(900px 600px at -15% 105%, rgba(182, 115, 64, 0.17), transparent 55%),
-        linear-gradient(140deg, var(--bg-start), var(--bg-end));
-      display: grid;
-      place-items: center;
-      padding: 24px 14px;
-    }
-
-    .app {
-      width: min(980px, 100%);
-      height: min(88vh, 840px);
-      background: color-mix(in srgb, var(--panel) 92%, white 8%);
-      border: 1px solid var(--border);
-      border-radius: 24px;
-      box-shadow: var(--shadow);
-      overflow: hidden;
-      display: grid;
-      grid-template-rows: auto 1fr auto;
-      animation: rise 420ms ease-out;
-    }
-
-    .topbar {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      justify-content: space-between;
-      padding: 14px 18px;
-      border-bottom: 1px solid var(--border);
-      background:
-        linear-gradient(90deg, rgba(13, 122, 112, 0.08), transparent 28%),
-        linear-gradient(0deg, #fff, #fff);
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-weight: 700;
-      letter-spacing: 0.2px;
-    }
-
-    .pulse {
-      width: 12px;
-      height: 12px;
-      border-radius: 999px;
-      background: var(--accent);
-      box-shadow: 0 0 0 0 rgba(13, 122, 112, 0.5);
-      animation: pulse 1.8s infinite;
-    }
-
-    .doctor {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      color: var(--muted);
-      font-size: 14px;
-    }
-
-    .doctor input {
-      border: 1px solid var(--border);
-      background: #fff;
-      border-radius: 12px;
-      font: inherit;
-      padding: 8px 10px;
-      min-width: 180px;
-      color: var(--ink);
-      outline: none;
-    }
-
-    .doctor input:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(13, 122, 112, 0.14);
-    }
-
-    #messages {
-      overflow: auto;
-      padding: 18px;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      background:
-        linear-gradient(transparent 96%, rgba(27, 42, 51, 0.03) 96%) 0 0 / 100% 28px;
-    }
-
-    .msg {
-      max-width: min(80ch, 88%);
-      border-radius: var(--radius);
-      padding: 11px 13px;
-      line-height: 1.45;
-      border: 1px solid var(--border);
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      transform-origin: left top;
-      animation: pop 220ms ease-out;
-    }
-
-    .msg.user {
-      align-self: flex-end;
-      background: var(--doctor);
-      border-bottom-right-radius: 7px;
-    }
-
-    .msg.agent {
-      align-self: flex-start;
-      background: var(--agent);
-      border-bottom-left-radius: 7px;
-    }
-
-    .msg.error {
-      align-self: center;
-      color: var(--danger);
-      background: #fff2f2;
-    }
-
-    .record {
-      margin-top: 10px;
-      background: #fff;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 10px;
-      font-size: 14px;
-    }
-
-    .record-title {
-      font-weight: 700;
-      color: #0b5e57;
-      margin-bottom: 8px;
-    }
-
-    .record-row {
-      margin: 5px 0;
-    }
-
-    .composer {
-      padding: 14px;
-      border-top: 1px solid var(--border);
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 10px;
-      background: #fff;
-    }
-
-    textarea {
-      width: 100%;
-      resize: none;
-      min-height: 52px;
-      max-height: 160px;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 12px;
-      font: inherit;
-      line-height: 1.4;
-      outline: none;
-      background: #fff;
-    }
-
-    textarea:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(13, 122, 112, 0.14);
-    }
-
-    button {
-      border: 0;
-      border-radius: 14px;
-      padding: 0 18px;
-      min-width: 92px;
-      background: linear-gradient(160deg, #0d7a70, #0f665f);
-      color: #fff;
-      font: inherit;
-      font-weight: 600;
-      cursor: pointer;
-      transition: transform 120ms ease, filter 120ms ease;
-    }
-
-    button:hover {
-      filter: brightness(1.06);
-    }
-
-    button:active {
-      transform: translateY(1px);
-    }
-
-    button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    @media (max-width: 800px) {
-      .app {
-        height: 92vh;
-      }
-      .topbar {
-        flex-direction: column;
-        align-items: stretch;
-      }
-      .doctor input {
-        min-width: 0;
-        width: 100%;
-      }
-      .composer {
-        grid-template-columns: 1fr;
-      }
-      button {
-        min-height: 44px;
-      }
-    }
-
-    @keyframes rise {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    @keyframes pop {
-      from { opacity: 0; transform: translateY(6px) scale(0.995); }
-      to { opacity: 1; transform: translateY(0) scale(1); }
-    }
-
-    @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(13, 122, 112, 0.42); }
-      70% { box-shadow: 0 0 0 10px rgba(13, 122, 112, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(13, 122, 112, 0); }
-    }
-  </style>
-</head>
-<body>
-  <main class="app">
-    <header class="topbar">
-      <div class="brand">
-        <span class="pulse"></span>
-        <span>Doctor AI Chat</span>
-      </div>
-      <label class="doctor">
-        <span>Doctor ID</span>
-        <input id="doctorId" value="web_doctor" />
-      </label>
-    </header>
-
-    <section id="messages"></section>
-
-    <form class="composer" id="chatForm">
-      <textarea id="input" placeholder="输入病历口述、建档、查询等内容..." required></textarea>
-      <button id="sendBtn" type="submit">发送</button>
-    </form>
-  </main>
-
-  <script>
-    const form = document.getElementById("chatForm");
-    const input = document.getElementById("input");
-    const sendBtn = document.getElementById("sendBtn");
-    const messages = document.getElementById("messages");
-    const doctorIdEl = document.getElementById("doctorId");
-    const history = [];
-
-    const recordLabels = [
-      ["chief_complaint", "主诉"],
-      ["history_of_present_illness", "现病史"],
-      ["past_medical_history", "既往史"],
-      ["physical_examination", "体格检查"],
-      ["auxiliary_examinations", "辅助检查"],
-      ["diagnosis", "诊断"],
-      ["treatment_plan", "治疗方案"],
-      ["follow_up_plan", "随访计划"]
-    ];
-
-    function escapeHtml(text) {
-      return text
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-    }
-
-    function appendMessage(role, text) {
-      const el = document.createElement("article");
-      el.className = "msg " + role;
-      el.textContent = text;
-      messages.appendChild(el);
-      messages.scrollTop = messages.scrollHeight;
-      return el;
-    }
-
-    function appendRecord(container, record) {
-      const wrap = document.createElement("div");
-      wrap.className = "record";
-      wrap.innerHTML = '<div class="record-title">结构化病历</div>';
-
-      for (const [key, label] of recordLabels) {
-        if (record[key]) {
-          const row = document.createElement("div");
-          row.className = "record-row";
-          row.innerHTML = "<strong>[" + label + "]</strong> " + escapeHtml(String(record[key]));
-          wrap.appendChild(row);
-        }
-      }
-
-      container.appendChild(wrap);
-    }
-
-    function setBusy(busy) {
-      sendBtn.disabled = busy;
-      sendBtn.textContent = busy ? "发送中..." : "发送";
-      input.disabled = busy;
-    }
-
-    appendMessage("agent", "您好，我是门诊助手。您可以直接说：建档、记录病历、查询患者。");
-
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const text = input.value.trim();
-      const doctorId = doctorIdEl.value.trim() || "web_doctor";
-      if (!text) return;
-
-      appendMessage("user", text);
-      input.value = "";
-      setBusy(true);
-
-      try {
-        const response = await fetch("/api/records/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text, history, doctor_id: doctorId })
-        });
-
-        if (!response.ok) {
-          const detail = await response.text();
-          throw new Error("HTTP " + response.status + ": " + detail);
-        }
-
-        const data = await response.json();
-        const msgEl = appendMessage("agent", data.reply || "收到。");
-        if (data.record) appendRecord(msgEl, data.record);
-        history.push({ role: "user", content: text });
-        history.push({ role: "assistant", content: data.reply || "" });
-      } catch (err) {
-        appendMessage("error", "请求失败: " + (err?.message || String(err)));
-      } finally {
-        setBusy(false);
-        input.focus();
-      }
-    });
-
-    input.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" && !event.shiftKey) {
-        event.preventDefault();
-        form.requestSubmit();
-      }
-    });
-  </script>
-</body>
-</html>
-"""
-
-
-@router.get("/chat", response_class=HTMLResponse)
-async def chat_page():
-    return HTMLResponse(content=_HTML)
-
-
-_MANAGE_HTML = """<!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Doctor Console</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Noto+Sans+SC:wght@400;500;700&display=swap');
-
-    :root {
-      --bg: #eef3f7;
-      --ink: #102330;
-      --muted: #5d7585;
-      --panel: #ffffff;
-      --line: #d6e0e6;
-      --accent: #005f73;
-      --accent-2: #8f5f00;
-      --danger: #bd2a2a;
-      --shadow: 0 18px 44px rgba(16, 35, 48, 0.14);
-      --radius: 16px;
-    }
-
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: "Noto Sans SC", sans-serif;
-      background:
-        radial-gradient(1000px 520px at 85% -5%, rgba(0, 95, 115, 0.18), transparent 62%),
-        radial-gradient(850px 500px at -10% 105%, rgba(143, 95, 0, 0.16), transparent 62%),
-        var(--bg);
-      min-height: 100vh;
-      color: var(--ink);
-      padding: 20px 12px;
-    }
-
-    .wrap {
-      width: min(1120px, 100%);
-      margin: 0 auto;
-      display: grid;
-      gap: 14px;
-    }
-
-    .head {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      box-shadow: var(--shadow);
-      border-radius: var(--radius);
-      padding: 14px;
-      display: grid;
-      gap: 10px;
-    }
-
-    .title {
-      font-family: "Space Grotesk", "Noto Sans SC", sans-serif;
-      font-weight: 700;
-      font-size: 22px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .title a {
-      text-decoration: none;
-      color: var(--accent);
-      font-size: 14px;
-    }
-
-    .bar {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 10px;
-    }
-
-    .bar input {
-      min-width: 0;
-      width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 10px;
-      font: inherit;
-      outline: none;
-    }
-
-    .bar button, .btn {
-      border: 0;
-      border-radius: 12px;
-      padding: 10px 14px;
-      background: linear-gradient(160deg, var(--accent), #0a4f5e);
-      color: #fff;
-      font-weight: 700;
-      cursor: pointer;
-    }
-
-    .tabs {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .tab {
-      border: 1px solid var(--line);
-      background: #fff;
-      color: var(--ink);
-      border-radius: 999px;
-      padding: 7px 12px;
-      cursor: pointer;
-      font-weight: 600;
-    }
-
-    .tab.active {
-      background: var(--accent);
-      color: #fff;
-      border-color: var(--accent);
-    }
-
-    .panel {
-      display: none;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 14px;
-    }
-
-    .panel.active { display: block; }
-    .note { color: var(--muted); font-size: 13px; margin-bottom: 10px; }
-    .count { font-weight: 700; font-size: 14px; color: var(--accent-2); }
-
-    .filter-bar {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      margin-bottom: 10px;
-      flex-wrap: wrap;
-    }
-
-    .filter-bar label {
-      font-size: 13px;
-      color: var(--muted);
-    }
-
-    .filter-bar select {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 6px 10px;
-      font: inherit;
-      font-size: 13px;
-      background: #fff;
-      outline: none;
-      cursor: pointer;
-    }
-
-    .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
-      margin-left: 6px;
-      vertical-align: middle;
-    }
-
-    .badge-high_risk { background: #fde8e8; color: #bd2a2a; border: 1px solid #f5b5b5; }
-    .badge-active_followup { background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
-    .badge-stable { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
-    .badge-new { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
-
-    .cat-debug { font-size: 11px; color: var(--muted); margin-top: 4px; }
-
-    .cards {
-      display: grid;
-      gap: 10px;
-    }
-
-    .card {
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 10px;
-      background: #fff;
-    }
-
-    .row {
-      display: flex;
-      justify-content: space-between;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .row strong {
-      font-family: "Space Grotesk", "Noto Sans SC", sans-serif;
-      letter-spacing: 0.2px;
-    }
-
-    textarea {
-      width: 100%;
-      min-height: 200px;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 10px;
-      font: inherit;
-      outline: none;
-      resize: vertical;
-    }
-
-    .error { color: var(--danger); font-weight: 600; }
-    .ok { color: #007749; font-weight: 600; }
-    .small { font-size: 13px; color: var(--muted); }
-
-    /* ── Labels panel ── */
-    .labels-panel {
-      margin-bottom: 14px;
-      padding: 12px;
-      background: #f8fafb;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-    }
-
-    .labels-panel h3 {
-      margin: 0 0 8px;
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .label-add-row {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      flex-wrap: wrap;
-      margin-bottom: 10px;
-    }
-
-    .label-add-row input[type="text"] {
-      flex: 1;
-      min-width: 120px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 6px 10px;
-      font: inherit;
-      font-size: 13px;
-      outline: none;
-    }
-
-    .label-add-row input[type="color"] {
-      width: 36px;
-      height: 34px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 2px;
-      cursor: pointer;
-      background: #fff;
-    }
-
-    .label-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-
-    .label-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 3px 10px 3px 8px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 600;
-      border: 1.5px solid rgba(0,0,0,0.12);
-    }
-
-    .label-chip .del-btn {
-      background: none;
-      border: none;
-      padding: 0;
-      min-width: 0;
-      font-size: 13px;
-      line-height: 1;
-      color: rgba(0,0,0,0.4);
-      cursor: pointer;
-      border-radius: 50%;
-      transition: color 120ms;
-    }
-
-    .label-chip .del-btn:hover { color: var(--danger); }
-
-    /* ── Patient card label chips ── */
-    .patient-labels { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
-
-    .pt-label-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 2px 8px 2px 6px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 600;
-      border: 1.5px solid rgba(0,0,0,0.10);
-    }
-
-    /* ── Label assignment popover ── */
-    .popover-wrap { position: relative; display: inline-block; }
-
-    .popover {
-      display: none;
-      position: absolute;
-      top: calc(100% + 4px);
-      left: 0;
-      z-index: 100;
-      background: #fff;
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-      padding: 8px;
-      min-width: 180px;
-      max-width: 260px;
-    }
-
-    .popover.open { display: block; }
-
-    .popover label {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      padding: 5px 6px;
-      border-radius: 7px;
-      cursor: pointer;
-      font-size: 13px;
-    }
-
-    .popover label:hover { background: #f3f7fa; }
-    .popover label input[type="checkbox"] { accent-color: var(--accent); }
-
-    @media (max-width: 780px) {
-      .bar { grid-template-columns: 1fr; }
-    }
-  </style>
-</head>
-<body>
-  <main class="wrap">
-    <section class="head">
-      <div class="title">
-        <span>Doctor Management Console</span>
-        <a href="/chat">Open Chat</a>
-      </div>
-      <div class="bar">
-        <input id="doctorId" value="web_doctor" />
-        <button id="reloadBtn">Load</button>
-      </div>
-      <div class="tabs">
-        <button class="tab active" data-tab="patients">Patients</button>
-        <button class="tab" data-tab="records">Records</button>
-        <button class="tab" data-tab="custom">Customization</button>
-      </div>
-    </section>
-
-    <section id=”patients” class=”panel active”>
-      <div class=”labels-panel”>
-        <h3>自定义标签</h3>
-        <div class=”label-add-row”>
-          <input type=”text” id=”newLabelName” placeholder=”标签名称” maxlength=”64” />
-          <input type=”color” id=”newLabelColor” value=”#005f73” title=”选择颜色” />
-          <button class=”btn” id=”addLabelBtn” style=”padding:6px 14px;font-size:13px;”>添加</button>
-        </div>
-        <div id=”labelChips” class=”label-chips”></div>
-      </div>
-      <div class=”note”>当前医生下患者列表。点击”View Records”查看该患者最近病历。</div>
-      <div class=”filter-bar”>
-        <label for=”categoryFilter”>分类筛选：</label>
-        <select id=”categoryFilter”>
-          <option value=””>全部</option>
-          <option value=”high_risk”>高风险</option>
-          <option value=”active_followup”>随访中</option>
-          <option value=”stable”>稳定</option>
-          <option value=”new”>新患者</option>
-        </select>
-      </div>
-      <div id=”patientsCount” class=”count”></div>
-      <div id=”patientsList” class=”cards”></div>
-    </section>
-
-    <section id="records" class="panel">
-      <div class="note">最近病历记录（支持按患者筛选）。</div>
-      <div class="small">Patient ID filter: <input id="patientFilter" style="width:120px;margin-left:8px;" /></div>
-      <div id="recordsCount" class="count" style="margin-top:8px;"></div>
-      <div id="recordsList" class="cards"></div>
-    </section>
-
-    <section id="custom" class="panel">
-      <div class="note">可编辑结构化病历系统提示词。保存后约 60 秒内生效。</div>
-      <div class="small">Key: structuring</div>
-      <textarea id="promptBase"></textarea>
-      <button id="saveBase" class="btn" style="margin-top:8px;">Save Base Prompt</button>
-      <div class="small" style="margin-top:14px;">Key: structuring.extension</div>
-      <textarea id="promptExt"></textarea>
-      <button id="saveExt" class="btn" style="margin-top:8px;">Save Extension</button>
-      <div id="saveState" class="small" style="margin-top:10px;"></div>
-    </section>
-  </main>
-
-  <script>
-    const doctorEl = document.getElementById("doctorId");
-    const reloadBtn = document.getElementById("reloadBtn");
-    const tabs = document.querySelectorAll(".tab");
-    const panels = document.querySelectorAll(".panel");
-    const patientsCount = document.getElementById("patientsCount");
-    const patientsList = document.getElementById("patientsList");
-    const categoryFilter = document.getElementById("categoryFilter");
-    const patientFilter = document.getElementById("patientFilter");
-    const recordsCount = document.getElementById("recordsCount");
-    const recordsList = document.getElementById("recordsList");
-    const promptBase = document.getElementById("promptBase");
-    const promptExt = document.getElementById("promptExt");
-    const saveState = document.getElementById("saveState");
-    const labelChips = document.getElementById("labelChips");
-    const newLabelName = document.getElementById("newLabelName");
-    const newLabelColor = document.getElementById("newLabelColor");
-    const addLabelBtn = document.getElementById("addLabelBtn");
-
-    let _docLabels = [];   // cache of {id, name, color} for current doctor
-
-    const CATEGORY_LABELS = {
-      high_risk: "高风险",
-      active_followup: "随访中",
-      stable: "稳定",
-      new: "新患者",
-    };
-
-    function esc(text) {
-      return String(text || "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;");
-    }
-
-    function doctorId() {
-      return doctorEl.value.trim() || "web_doctor";
-    }
-
-    function setTab(id) {
-      tabs.forEach(t => t.classList.toggle("active", t.dataset.tab === id));
-      panels.forEach(p => p.classList.toggle("active", p.id === id));
-    }
-
-    tabs.forEach(t => t.addEventListener("click", () => setTab(t.dataset.tab)));
-
-    // ── Colour utilities ──────────────────────────────────────────────────────
-
-    function textColorFor(hex) {
-      if (!hex) return "#222";
-      const r = parseInt(hex.slice(1, 3), 16);
-      const g = parseInt(hex.slice(3, 5), 16);
-      const b = parseInt(hex.slice(5, 7), 16);
-      return (r * 0.299 + g * 0.587 + b * 0.114) > 150 ? "#222" : "#fff";
-    }
-
-    // ── Label management ──────────────────────────────────────────────────────
-
-    async function loadLabels() {
-      const res = await fetch(`/api/manage/labels?doctor_id=${encodeURIComponent(doctorId())}`);
-      if (!res.ok) return;
-      const data = await res.json();
-      _docLabels = data.items;
-      renderLabelChips();
-    }
-
-    function renderLabelChips() {
-      labelChips.innerHTML = "";
-      for (const lbl of _docLabels) {
-        const chip = document.createElement("span");
-        chip.className = "label-chip";
-        const bg = lbl.color || "#aaa";
-        const fg = textColorFor(bg);
-        chip.style.background = bg;
-        chip.style.color = fg;
-        chip.style.borderColor = bg;
-        chip.innerHTML = `${esc(lbl.name)}<button class="del-btn" title="删除">✕</button>`;
-        chip.querySelector(".del-btn").addEventListener("click", () => deleteLabelById(lbl.id));
-        labelChips.appendChild(chip);
-      }
-    }
-
-    async function deleteLabelById(id) {
-      const res = await fetch(`/api/manage/labels/${id}?doctor_id=${encodeURIComponent(doctorId())}`, { method: "DELETE" });
-      if (res.ok) {
-        await loadLabels();
-        await loadPatients();
-      }
-    }
-
-    addLabelBtn.addEventListener("click", async () => {
-      const name = newLabelName.value.trim();
-      if (!name) return;
-      const res = await fetch("/api/manage/labels", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ doctor_id: doctorId(), name, color: newLabelColor.value }),
-      });
-      if (res.ok) {
-        newLabelName.value = "";
-        await loadLabels();
-      }
-    });
-
-    // ── Patient list ──────────────────────────────────────────────────────────
-
-    document.addEventListener("click", (e) => {
-      if (!e.target.closest(".popover-wrap")) {
-        document.querySelectorAll(".popover.open").forEach(p => p.classList.remove("open"));
-      }
-    });
-
-    async function loadPatients() {
-      const cat = categoryFilter.value;
-      const url = new URL("/api/manage/patients", window.location.origin);
-      url.searchParams.set("doctor_id", doctorId());
-      if (cat) url.searchParams.set("category", cat);
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      patientsCount.textContent = `Total: ${data.items.length}`;
-      patientsList.innerHTML = "";
-      for (const p of data.items) {
-        const card = document.createElement("article");
-        card.className = "card";
-        const info = [p.gender, p.year_of_birth ? `${new Date().getFullYear() - p.year_of_birth}岁` : null].filter(Boolean).join(" / ");
-        const catKey = p.primary_category || "";
-        const catLabel = CATEGORY_LABELS[catKey] || catKey;
-        const badgeHtml = catKey
-          ? `<span class="badge badge-${esc(catKey)}">${esc(catLabel)}</span>`
-          : "";
-        const computedAt = p.category_computed_at ? p.category_computed_at.slice(0, 16) : "-";
-        const labelChipsHtml = (p.labels || []).map(lbl => {
-          const bg = lbl.color || "#aaa";
-          const fg = textColorFor(bg);
-          return `<span class="pt-label-chip" style="background:${esc(bg)};color:${esc(fg)};border-color:${esc(bg)}">${esc(lbl.name)}</span>`;
-        }).join("");
-        card.innerHTML = `
-          <div class="row">
-            <strong>${esc(p.name)}${badgeHtml}</strong>
-            <span class="small">id=${p.id} | ${esc(info)} | records=${p.record_count}</span>
-          </div>
-          <div class="patient-labels">${labelChipsHtml}</div>
-          <div class="small">created: ${esc(p.created_at || "-")}</div>
-          <div class="cat-debug">分类: ${esc(catKey || "-")} | 规则: ${esc(p.category_rules_version || "-")} | 计算于: ${esc(computedAt)}</div>
-          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn" data-pid="${p.id}">View Records</button>
-            <div class="popover-wrap">
-              <button class="btn" style="background:linear-gradient(160deg,#5d7585,#3d5060);" data-edit-labels="${p.id}">编辑标签</button>
-              <div class="popover" id="popover-${p.id}"></div>
-            </div>
-          </div>
-        `;
-        card.querySelector("[data-pid]").addEventListener("click", () => {
-          setTab("records");
-          patientFilter.value = String(p.id);
-          loadRecords();
-        });
-        const editBtn = card.querySelector(`[data-edit-labels]`);
-        const popover = card.querySelector(`#popover-${p.id}`);
-        editBtn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          const isOpen = popover.classList.contains("open");
-          document.querySelectorAll(".popover.open").forEach(x => x.classList.remove("open"));
-          if (!isOpen) {
-            renderPopover(popover, p);
-            popover.classList.add("open");
-          }
-        });
-        patientsList.appendChild(card);
-      }
-      if (!data.items.length) {
-        patientsList.innerHTML = '<div class="small">No patients yet.</div>';
-      }
-    }
-
-    function renderPopover(popover, patient) {
-      const assignedIds = new Set((patient.labels || []).map(l => l.id));
-      popover.innerHTML = "";
-      if (!_docLabels.length) {
-        popover.innerHTML = '<div style="font-size:12px;color:#888;padding:4px 6px;">暂无标签，请先创建。</div>';
-        return;
-      }
-      for (const lbl of _docLabels) {
-        const row = document.createElement("label");
-        const checked = assignedIds.has(lbl.id) ? "checked" : "";
-        const bg = lbl.color || "#aaa";
-        const fg = textColorFor(bg);
-        row.innerHTML = `
-          <input type="checkbox" ${checked} data-lid="${lbl.id}" data-pid="${patient.id}" />
-          <span class="pt-label-chip" style="background:${esc(bg)};color:${esc(fg)};border-color:${esc(bg)}">${esc(lbl.name)}</span>
-        `;
-        const cb = row.querySelector("input");
-        cb.addEventListener("change", async () => {
-          const pid = patient.id;
-          const lid = lbl.id;
-          if (cb.checked) {
-            await fetch(`/api/manage/patients/${pid}/labels/${lid}?doctor_id=${encodeURIComponent(doctorId())}`, { method: "POST" });
-            if (!assignedIds.has(lid)) { assignedIds.add(lid); patient.labels.push(lbl); }
-          } else {
-            await fetch(`/api/manage/patients/${pid}/labels/${lid}?doctor_id=${encodeURIComponent(doctorId())}`, { method: "DELETE" });
-            assignedIds.delete(lid);
-            patient.labels = patient.labels.filter(l => l.id !== lid);
-          }
-          const chipsEl = patientsList.querySelector(`[data-pid="${patient.id}"]`)
-            ?.closest(".card")
-            ?.querySelector(".patient-labels");
-          if (chipsEl) {
-            chipsEl.innerHTML = (patient.labels || []).map(l => {
-              const b = l.color || "#aaa"; const f = textColorFor(b);
-              return `<span class="pt-label-chip" style="background:${esc(b)};color:${esc(f)};border-color:${esc(b)}">${esc(l.name)}</span>`;
-            }).join("");
-          }
-        });
-        popover.appendChild(row);
-      }
-    }
-
-    categoryFilter.addEventListener("change", loadPatients);
-
-    async function loadRecords() {
-      const pid = patientFilter.value.trim();
-      const url = new URL("/api/manage/records", window.location.origin);
-      url.searchParams.set("doctor_id", doctorId());
-      if (pid) url.searchParams.set("patient_id", pid);
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      recordsCount.textContent = `Total: ${data.items.length}`;
-      recordsList.innerHTML = "";
-      for (const r of data.items) {
-        const card = document.createElement("article");
-        card.className = "card";
-        card.innerHTML = `
-          <div class="row">
-            <strong>${esc(r.patient_name || "未关联患者")}</strong>
-            <span class="small">record_id=${r.id} | ${esc(r.created_at || "-")}</span>
-          </div>
-          <div class="small"><b>主诉</b>: ${esc(r.chief_complaint || "-")}</div>
-          <div class="small"><b>诊断</b>: ${esc(r.diagnosis || "-")}</div>
-          <div class="small"><b>治疗</b>: ${esc(r.treatment_plan || "-")}</div>
-        `;
-        recordsList.appendChild(card);
-      }
-      if (!data.items.length) {
-        recordsList.innerHTML = '<div class="small">No records.</div>';
-      }
-    }
-
-    async function loadPrompts() {
-      const res = await fetch("/api/manage/prompts");
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      promptBase.value = data.structuring || "";
-      promptExt.value = data.structuring_extension || "";
-    }
-
-    async function savePrompt(key, content) {
-      const res = await fetch(`/api/manage/prompts/${encodeURIComponent(key)}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content })
-      });
-      if (!res.ok) throw new Error(await res.text());
-    }
-
-    async function loadAll() {
-      saveState.textContent = "";
-      try {
-        await Promise.all([loadLabels(), loadRecords(), loadPrompts()]);
-        await loadPatients();   // after loadLabels so _docLabels is ready
-      } catch (err) {
-        saveState.innerHTML = `<span class="error">Load failed: ${esc(err.message || err)}</span>`;
-      }
-    }
-
-    reloadBtn.addEventListener("click", loadAll);
-    document.getElementById("saveBase").addEventListener("click", async () => {
-      saveState.textContent = "Saving base prompt...";
-      try {
-        await savePrompt("structuring", promptBase.value);
-        saveState.innerHTML = '<span class="ok">Base prompt saved.</span>';
-      } catch (err) {
-        saveState.innerHTML = `<span class="error">Save failed: ${esc(err.message || err)}</span>`;
-      }
-    });
-    document.getElementById("saveExt").addEventListener("click", async () => {
-      saveState.textContent = "Saving extension prompt...";
-      try {
-        await savePrompt("structuring.extension", promptExt.value);
-        saveState.innerHTML = '<span class="ok">Extension prompt saved.</span>';
-      } catch (err) {
-        saveState.innerHTML = `<span class="error">Save failed: ${esc(err.message || err)}</span>`;
-      }
-    });
-
-    patientFilter.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        loadRecords();
-      }
-    });
-
-    loadAll();
-  </script>
-</body>
-</html>
-"""
-
-
 class PromptUpdate(BaseModel):
     content: str
-
-
-@router.get("/manage", response_class=HTMLResponse)
-async def manage_page():
-    return HTMLResponse(content=_MANAGE_HTML)
 
 
 def _fmt_ts(value: datetime | None) -> str | None:
@@ -1150,7 +51,7 @@ def _parse_tags(raw: str | None) -> list:
     if not raw:
         return []
     try:
-        return __import__("json").loads(raw)
+        return json.loads(raw)
     except Exception:
         return []
 
@@ -1176,6 +77,19 @@ def _is_risk_stale(risk_computed_at: datetime | None, hours: int = 24) -> bool:
 def _normalize_query_str(value: str | None) -> str | None:
     if not isinstance(value, str):
         return None
+    return value
+
+
+def _normalize_date_yyyy_mm_dd(value: str | None) -> str | None:
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    if not value:
+        return None
+    try:
+        datetime.strptime(value, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="date_from/date_to must be YYYY-MM-DD")
     return value
 
 
@@ -1335,8 +249,15 @@ async def manage_patient_timeline(
 async def manage_records(
     doctor_id: str = Query(default="web_doctor"),
     patient_id: int | None = Query(default=None),
+    patient_name: str | None = Query(default=None),
+    date_from: str | None = Query(default=None),
+    date_to: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
 ):
+    patient_name = _normalize_query_str(patient_name)
+    date_from = _normalize_date_yyyy_mm_dd(date_from)
+    date_to = _normalize_date_yyyy_mm_dd(date_to)
+
     async with AsyncSessionLocal() as db:
         if patient_id is not None:
             records = await get_records_for_patient(db, doctor_id, patient_id, limit=limit)
@@ -1385,7 +306,17 @@ async def manage_records(
                 for r in records
             ]
 
-    return {"doctor_id": doctor_id, "items": items}
+    if patient_name:
+        needle = patient_name.strip().lower()
+        items = [item for item in items if item.get("patient_name") and needle in str(item["patient_name"]).lower()]
+
+    if date_from:
+        items = [item for item in items if item.get("created_at") and str(item["created_at"])[:10] >= date_from]
+
+    if date_to:
+        items = [item for item in items if item.get("created_at") and str(item["created_at"])[:10] <= date_to]
+
+    return {"doctor_id": doctor_id, "items": items[:limit]}
 
 
 @router.get("/api/manage/prompts")
@@ -1477,3 +408,378 @@ async def remove_label_endpoint(patient_id: int, label_id: int, doctor_id: str =
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc))
     return {"ok": True}
+
+
+@router.get("/api/admin/db-view")
+async def admin_db_view(
+    doctor_id: str | None = Query(default=None),
+    patient_name: str | None = Query(default=None),
+    date_from: str | None = Query(default=None),
+    date_to: str | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+):
+    doctor_id = _normalize_query_str(doctor_id)
+    patient_name = _normalize_query_str(patient_name)
+    date_from = _normalize_date_yyyy_mm_dd(date_from)
+    date_to = _normalize_date_yyyy_mm_dd(date_to)
+
+    dt_from = datetime.strptime(date_from, "%Y-%m-%d") if date_from else None
+    dt_to_exclusive = datetime.strptime(date_to, "%Y-%m-%d") + timedelta(days=1) if date_to else None
+
+    patient_stmt = select(Patient).order_by(Patient.created_at.desc()).limit(limit)
+    record_stmt = (
+        select(MedicalRecordDB, Patient.name.label("patient_name"))
+        .outerjoin(Patient, MedicalRecordDB.patient_id == Patient.id)
+        .order_by(MedicalRecordDB.created_at.desc())
+        .limit(limit)
+    )
+
+    if doctor_id:
+        patient_stmt = patient_stmt.where(Patient.doctor_id == doctor_id)
+        record_stmt = record_stmt.where(MedicalRecordDB.doctor_id == doctor_id)
+    if patient_name:
+        needle = f"%{patient_name.strip()}%"
+        patient_stmt = patient_stmt.where(Patient.name.ilike(needle))
+        record_stmt = record_stmt.where(Patient.name.ilike(needle))
+    if dt_from is not None:
+        record_stmt = record_stmt.where(MedicalRecordDB.created_at >= dt_from)
+    if dt_to_exclusive is not None:
+        record_stmt = record_stmt.where(MedicalRecordDB.created_at < dt_to_exclusive)
+
+    async with AsyncSessionLocal() as db:
+        patients = (await db.execute(patient_stmt)).scalars().all()
+        records = (await db.execute(record_stmt)).all()
+
+    patient_items = [
+        {
+            "id": p.id,
+            "doctor_id": p.doctor_id,
+            "name": p.name,
+            "gender": p.gender,
+            "year_of_birth": p.year_of_birth,
+            "created_at": _fmt_ts(p.created_at),
+        }
+        for p in patients
+    ]
+    record_items = [
+        {
+            "id": record.id,
+            "patient_id": record.patient_id,
+            "doctor_id": record.doctor_id,
+            "patient_name": patient_name_value,
+            "chief_complaint": record.chief_complaint,
+            "diagnosis": record.diagnosis,
+            "treatment_plan": record.treatment_plan,
+            "follow_up_plan": record.follow_up_plan,
+            "created_at": _fmt_ts(record.created_at),
+        }
+        for record, patient_name_value in records
+    ]
+
+    return {
+        "filters": {
+            "doctor_id": doctor_id,
+            "patient_name": patient_name,
+            "date_from": date_from,
+            "date_to": date_to,
+            "limit": limit,
+        },
+        "counts": {"patients": len(patient_items), "records": len(record_items)},
+        "patients": patient_items,
+        "records": record_items,
+    }
+
+
+def _apply_created_at_filters(stmt, model, dt_from: datetime | None, dt_to_exclusive: datetime | None):
+    if dt_from is not None and hasattr(model, "created_at"):
+        stmt = stmt.where(model.created_at >= dt_from)
+    if dt_to_exclusive is not None and hasattr(model, "created_at"):
+        stmt = stmt.where(model.created_at < dt_to_exclusive)
+    return stmt
+
+
+def _parse_admin_filters(
+    doctor_id: str | None,
+    patient_name: str | None,
+    date_from: str | None,
+    date_to: str | None,
+) -> tuple[str | None, str | None, str | None, str | None, datetime | None, datetime | None]:
+    doctor_id = _normalize_query_str(doctor_id)
+    patient_name = _normalize_query_str(patient_name)
+    date_from = _normalize_date_yyyy_mm_dd(date_from)
+    date_to = _normalize_date_yyyy_mm_dd(date_to)
+    dt_from = datetime.strptime(date_from, "%Y-%m-%d") if date_from else None
+    dt_to_exclusive = datetime.strptime(date_to, "%Y-%m-%d") + timedelta(days=1) if date_to else None
+    return doctor_id, patient_name, date_from, date_to, dt_from, dt_to_exclusive
+
+
+@router.get("/api/admin/tables")
+async def admin_tables(
+    doctor_id: str | None = Query(default=None),
+    patient_name: str | None = Query(default=None),
+    date_from: str | None = Query(default=None),
+    date_to: str | None = Query(default=None),
+):
+    doctor_id, patient_name, _, _, dt_from, dt_to_exclusive = _parse_admin_filters(
+        doctor_id, patient_name, date_from, date_to
+    )
+    needle = f"%{patient_name.strip()}%" if patient_name and patient_name.strip() else None
+
+    counts = {
+        "patients": 0,
+        "medical_records": 0,
+        "doctor_tasks": 0,
+        "neuro_cases": 0,
+        "patient_labels": 0,
+        "patient_label_assignments": 0,
+        "system_prompts": 0,
+        "doctor_contexts": 0,
+    }
+
+    async with AsyncSessionLocal() as db:
+        patients_stmt = select(func.count(Patient.id))
+        patients_stmt = _apply_created_at_filters(patients_stmt, Patient, dt_from, dt_to_exclusive)
+        if doctor_id:
+            patients_stmt = patients_stmt.where(Patient.doctor_id == doctor_id)
+        if needle:
+            patients_stmt = patients_stmt.where(Patient.name.ilike(needle))
+        counts["patients"] = int((await db.execute(patients_stmt)).scalar() or 0)
+
+        records_stmt = select(func.count(MedicalRecordDB.id)).outerjoin(Patient, MedicalRecordDB.patient_id == Patient.id)
+        records_stmt = _apply_created_at_filters(records_stmt, MedicalRecordDB, dt_from, dt_to_exclusive)
+        if doctor_id:
+            records_stmt = records_stmt.where(MedicalRecordDB.doctor_id == doctor_id)
+        if needle:
+            records_stmt = records_stmt.where(Patient.name.ilike(needle))
+        counts["medical_records"] = int((await db.execute(records_stmt)).scalar() or 0)
+
+        tasks_stmt = select(func.count(DoctorTask.id)).outerjoin(Patient, DoctorTask.patient_id == Patient.id)
+        tasks_stmt = _apply_created_at_filters(tasks_stmt, DoctorTask, dt_from, dt_to_exclusive)
+        if doctor_id:
+            tasks_stmt = tasks_stmt.where(DoctorTask.doctor_id == doctor_id)
+        if needle:
+            tasks_stmt = tasks_stmt.where(Patient.name.ilike(needle))
+        counts["doctor_tasks"] = int((await db.execute(tasks_stmt)).scalar() or 0)
+
+        neuro_stmt = select(func.count(NeuroCaseDB.id))
+        neuro_stmt = _apply_created_at_filters(neuro_stmt, NeuroCaseDB, dt_from, dt_to_exclusive)
+        if doctor_id:
+            neuro_stmt = neuro_stmt.where(NeuroCaseDB.doctor_id == doctor_id)
+        if needle:
+            neuro_stmt = neuro_stmt.where(NeuroCaseDB.patient_name.ilike(needle))
+        counts["neuro_cases"] = int((await db.execute(neuro_stmt)).scalar() or 0)
+
+        labels_stmt = select(func.count(PatientLabel.id))
+        labels_stmt = _apply_created_at_filters(labels_stmt, PatientLabel, dt_from, dt_to_exclusive)
+        if doctor_id:
+            labels_stmt = labels_stmt.where(PatientLabel.doctor_id == doctor_id)
+        counts["patient_labels"] = int((await db.execute(labels_stmt)).scalar() or 0)
+
+        assignments_stmt = (
+            select(func.count())
+            .select_from(patient_label_assignments)
+            .join(PatientLabel, patient_label_assignments.c.label_id == PatientLabel.id)
+            .join(Patient, patient_label_assignments.c.patient_id == Patient.id)
+        )
+        if doctor_id:
+            assignments_stmt = assignments_stmt.where(PatientLabel.doctor_id == doctor_id)
+        if needle:
+            assignments_stmt = assignments_stmt.where(Patient.name.ilike(needle))
+        counts["patient_label_assignments"] = int((await db.execute(assignments_stmt)).scalar() or 0)
+
+        prompts_stmt = select(func.count(SystemPrompt.key))
+        counts["system_prompts"] = int((await db.execute(prompts_stmt)).scalar() or 0)
+
+        context_stmt = select(func.count(DoctorContext.doctor_id))
+        if doctor_id:
+            context_stmt = context_stmt.where(DoctorContext.doctor_id == doctor_id)
+        counts["doctor_contexts"] = int((await db.execute(context_stmt)).scalar() or 0)
+
+    ordered = [
+        "patients",
+        "medical_records",
+        "doctor_tasks",
+        "neuro_cases",
+        "patient_labels",
+        "patient_label_assignments",
+        "system_prompts",
+        "doctor_contexts",
+    ]
+    return {"items": [{"key": key, "count": counts[key]} for key in ordered]}
+
+
+@router.get("/api/admin/tables/{table_key}")
+async def admin_table_rows(
+    table_key: str,
+    doctor_id: str | None = Query(default=None),
+    patient_name: str | None = Query(default=None),
+    date_from: str | None = Query(default=None),
+    date_to: str | None = Query(default=None),
+    limit: int = Query(default=200, ge=1, le=1000),
+):
+    doctor_id, patient_name, _, _, dt_from, dt_to_exclusive = _parse_admin_filters(
+        doctor_id, patient_name, date_from, date_to
+    )
+    needle = f"%{patient_name.strip()}%" if patient_name and patient_name.strip() else None
+
+    async with AsyncSessionLocal() as db:
+        if table_key == "patients":
+            stmt = select(Patient).order_by(Patient.created_at.desc()).limit(limit)
+            stmt = _apply_created_at_filters(stmt, Patient, dt_from, dt_to_exclusive)
+            if doctor_id:
+                stmt = stmt.where(Patient.doctor_id == doctor_id)
+            if needle:
+                stmt = stmt.where(Patient.name.ilike(needle))
+            items = [
+                {
+                    "id": p.id,
+                    "doctor_id": p.doctor_id,
+                    "name": p.name,
+                    "gender": p.gender,
+                    "year_of_birth": p.year_of_birth,
+                    "created_at": _fmt_ts(p.created_at),
+                }
+                for p in (await db.execute(stmt)).scalars().all()
+            ]
+        elif table_key == "medical_records":
+            stmt = (
+                select(MedicalRecordDB, Patient.name.label("patient_name"))
+                .outerjoin(Patient, MedicalRecordDB.patient_id == Patient.id)
+                .order_by(MedicalRecordDB.created_at.desc())
+                .limit(limit)
+            )
+            stmt = _apply_created_at_filters(stmt, MedicalRecordDB, dt_from, dt_to_exclusive)
+            if doctor_id:
+                stmt = stmt.where(MedicalRecordDB.doctor_id == doctor_id)
+            if needle:
+                stmt = stmt.where(Patient.name.ilike(needle))
+            items = [
+                {
+                    "id": r.id,
+                    "patient_id": r.patient_id,
+                    "doctor_id": r.doctor_id,
+                    "patient_name": pname,
+                    "chief_complaint": r.chief_complaint,
+                    "diagnosis": r.diagnosis,
+                    "treatment_plan": r.treatment_plan,
+                    "follow_up_plan": r.follow_up_plan,
+                    "created_at": _fmt_ts(r.created_at),
+                }
+                for r, pname in (await db.execute(stmt)).all()
+            ]
+        elif table_key == "doctor_tasks":
+            stmt = (
+                select(DoctorTask, Patient.name.label("patient_name"))
+                .outerjoin(Patient, DoctorTask.patient_id == Patient.id)
+                .order_by(DoctorTask.created_at.desc())
+                .limit(limit)
+            )
+            stmt = _apply_created_at_filters(stmt, DoctorTask, dt_from, dt_to_exclusive)
+            if doctor_id:
+                stmt = stmt.where(DoctorTask.doctor_id == doctor_id)
+            if needle:
+                stmt = stmt.where(Patient.name.ilike(needle))
+            items = [
+                {
+                    "id": t.id,
+                    "doctor_id": t.doctor_id,
+                    "patient_id": t.patient_id,
+                    "patient_name": pname,
+                    "task_type": t.task_type,
+                    "title": t.title,
+                    "status": t.status,
+                    "due_at": _fmt_ts(t.due_at),
+                    "trigger_source": t.trigger_source,
+                    "created_at": _fmt_ts(t.created_at),
+                }
+                for t, pname in (await db.execute(stmt)).all()
+            ]
+        elif table_key == "neuro_cases":
+            stmt = select(NeuroCaseDB).order_by(NeuroCaseDB.created_at.desc()).limit(limit)
+            stmt = _apply_created_at_filters(stmt, NeuroCaseDB, dt_from, dt_to_exclusive)
+            if doctor_id:
+                stmt = stmt.where(NeuroCaseDB.doctor_id == doctor_id)
+            if needle:
+                stmt = stmt.where(NeuroCaseDB.patient_name.ilike(needle))
+            items = [
+                {
+                    "id": n.id,
+                    "doctor_id": n.doctor_id,
+                    "patient_id": n.patient_id,
+                    "patient_name": n.patient_name,
+                    "chief_complaint": n.chief_complaint,
+                    "primary_diagnosis": n.primary_diagnosis,
+                    "nihss": n.nihss,
+                    "created_at": _fmt_ts(n.created_at),
+                }
+                for n in (await db.execute(stmt)).scalars().all()
+            ]
+        elif table_key == "patient_labels":
+            stmt = select(PatientLabel).order_by(PatientLabel.created_at.desc()).limit(limit)
+            stmt = _apply_created_at_filters(stmt, PatientLabel, dt_from, dt_to_exclusive)
+            if doctor_id:
+                stmt = stmt.where(PatientLabel.doctor_id == doctor_id)
+            items = [
+                {
+                    "id": l.id,
+                    "doctor_id": l.doctor_id,
+                    "name": l.name,
+                    "color": l.color,
+                    "created_at": _fmt_ts(l.created_at),
+                }
+                for l in (await db.execute(stmt)).scalars().all()
+            ]
+        elif table_key == "patient_label_assignments":
+            stmt = (
+                select(
+                    patient_label_assignments.c.patient_id,
+                    patient_label_assignments.c.label_id,
+                    Patient.name.label("patient_name"),
+                    PatientLabel.name.label("label_name"),
+                    PatientLabel.doctor_id.label("doctor_id"),
+                )
+                .select_from(patient_label_assignments)
+                .join(Patient, patient_label_assignments.c.patient_id == Patient.id)
+                .join(PatientLabel, patient_label_assignments.c.label_id == PatientLabel.id)
+                .limit(limit)
+            )
+            if doctor_id:
+                stmt = stmt.where(PatientLabel.doctor_id == doctor_id)
+            if needle:
+                stmt = stmt.where(Patient.name.ilike(needle))
+            items = [
+                {
+                    "patient_id": pid,
+                    "label_id": lid,
+                    "patient_name": pname,
+                    "label_name": lname,
+                    "doctor_id": did,
+                }
+                for pid, lid, pname, lname, did in (await db.execute(stmt)).all()
+            ]
+        elif table_key == "system_prompts":
+            stmt = select(SystemPrompt).order_by(SystemPrompt.updated_at.desc()).limit(limit)
+            items = [
+                {
+                    "key": p.key,
+                    "content": p.content,
+                    "updated_at": _fmt_ts(p.updated_at),
+                }
+                for p in (await db.execute(stmt)).scalars().all()
+            ]
+        elif table_key == "doctor_contexts":
+            stmt = select(DoctorContext).order_by(DoctorContext.updated_at.desc()).limit(limit)
+            if doctor_id:
+                stmt = stmt.where(DoctorContext.doctor_id == doctor_id)
+            items = [
+                {
+                    "doctor_id": c.doctor_id,
+                    "summary": c.summary,
+                    "updated_at": _fmt_ts(c.updated_at),
+                }
+                for c in (await db.execute(stmt)).scalars().all()
+            ]
+        else:
+            raise HTTPException(status_code=404, detail="Unknown table")
+
+    return {"table": table_key, "items": items}
