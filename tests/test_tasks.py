@@ -226,6 +226,23 @@ async def test_create_emergency_task_sends_notification_immediately():
     mock_notify.assert_awaited_once_with("doc1", fake_task)
 
 
+async def test_create_follow_up_task_emits_structured_task_log():
+    fake_task = _make_fake_task(11, due_at=datetime.utcnow() + timedelta(days=7))
+    mock_session = AsyncMock()
+    mock_create = AsyncMock(return_value=fake_task)
+    mock_task_log = MagicMock()
+
+    with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
+         patch("services.tasks.create_task", mock_create), \
+         patch("services.tasks.task_log", mock_task_log):
+        await create_follow_up_task("docA", 77, "李雷", "一周后复查", patient_id=5)
+
+    mock_task_log.assert_called_once()
+    assert mock_task_log.call_args.args[0] == "task_created"
+    assert mock_task_log.call_args.kwargs["task_type"] == "follow_up"
+    assert mock_task_log.call_args.kwargs["task_id"] == 11
+
+
 async def test_create_appointment_task_sets_due_at_one_hour_before():
     fake_task = _make_fake_task(3, task_type="appointment", title="预约提醒：王五")
     mock_session = AsyncMock()
@@ -321,6 +338,45 @@ async def test_send_task_notification_without_content_or_due_time():
     message = mock_send.call_args.args[1]
     assert "紧急记录：李明" in message
     assert "预定时间" not in message
+
+
+async def test_send_task_notification_emits_structured_task_log():
+    fake_task = _make_fake_task(13, task_type="follow_up", title="随访提醒：王强")
+    mock_session = AsyncMock()
+    mock_send = AsyncMock()
+    mock_mark = AsyncMock()
+    mock_task_log = MagicMock()
+
+    with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
+         patch("services.tasks._send_customer_service_msg", mock_send), \
+         patch("services.tasks.mark_task_notified", mock_mark), \
+         patch("services.tasks.task_log", mock_task_log):
+        await send_task_notification("doc9", fake_task)
+
+    mock_task_log.assert_called_once()
+    assert mock_task_log.call_args.args[0] == "task_notified"
+    assert mock_task_log.call_args.kwargs["task_id"] == 13
+
+
+async def test_check_and_send_due_tasks_logs_failure_event():
+    bad_task = _make_fake_task(21, doctor_id="doc-x", task_type="follow_up")
+    mock_session = AsyncMock()
+    mock_get_due = AsyncMock(return_value=[bad_task])
+    mock_task_log = MagicMock()
+
+    async def _notify(_doctor_id, _task):
+        raise RuntimeError("notify failed")
+
+    with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
+         patch("services.tasks.get_due_tasks", mock_get_due), \
+         patch("services.tasks.send_task_notification", side_effect=_notify), \
+         patch("services.tasks.task_log", mock_task_log):
+        await check_and_send_due_tasks()
+
+    events = [call.args[0] for call in mock_task_log.call_args_list]
+    assert "scheduler_tick_start" in events
+    assert "scheduler_due_tasks" in events
+    assert "task_notify_failed" in events
 
 
 def test_taskout_from_orm_serializes_datetime_fields():

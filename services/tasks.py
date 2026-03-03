@@ -8,7 +8,7 @@ from db.engine import AsyncSessionLocal
 from db.crud import create_task, get_due_tasks, mark_task_notified
 from db.models import DoctorTask
 from services.wechat_notify import _send_customer_service_msg
-from utils.log import log
+from utils.log import task_log
 
 # Chinese digit → integer mapping
 _CN_DIGITS = {
@@ -98,7 +98,15 @@ async def create_follow_up_task(
             record_id=record_id,
             due_at=due_at,
         )
-    log(f"[Tasks] created follow_up task id={task.id} due={due_at.date()} for {patient_name}")
+    task_log(
+        "task_created",
+        task_type="follow_up",
+        task_id=task.id,
+        doctor_id=doctor_id,
+        patient_id=patient_id,
+        record_id=record_id,
+        due_at=due_at.isoformat(),
+    )
     return task
 
 
@@ -123,7 +131,14 @@ async def create_emergency_task(
             record_id=record_id,
             due_at=None,
         )
-    log(f"[Tasks] created emergency task id={task.id} for {patient_name}")
+    task_log(
+        "task_created",
+        task_type="emergency",
+        task_id=task.id,
+        doctor_id=doctor_id,
+        patient_id=patient_id,
+        record_id=record_id,
+    )
     await send_task_notification(doctor_id, task)
     return task
 
@@ -150,7 +165,14 @@ async def create_appointment_task(
             record_id=None,
             due_at=due_at,
         )
-    log(f"[Tasks] created appointment task id={task.id} due={due_at} for {patient_name}")
+    task_log(
+        "task_created",
+        task_type="appointment",
+        task_id=task.id,
+        doctor_id=doctor_id,
+        patient_id=patient_id,
+        due_at=due_at.isoformat(),
+    )
     return task
 
 
@@ -169,19 +191,30 @@ async def send_task_notification(doctor_id: str, task: DoctorTask) -> None:
     async with AsyncSessionLocal() as session:
         await mark_task_notified(session, task.id)
 
-    log(f"[Tasks] notified doctor {doctor_id} for task id={task.id}")
+    task_log(
+        "task_notified",
+        task_id=task.id,
+        doctor_id=doctor_id,
+        task_type=task.task_type,
+    )
 
 
 async def check_and_send_due_tasks() -> None:
     """APScheduler job: query pending due tasks and send WeChat notifications."""
-    log("[Tasks] scheduler tick — checking due tasks")
+    task_log("scheduler_tick_start")
     now = datetime.utcnow()
     async with AsyncSessionLocal() as session:
         tasks = await get_due_tasks(session, now)
 
-    log(f"[Tasks] found {len(tasks)} due task(s)")
+    task_log("scheduler_due_tasks", count=len(tasks))
     for task in tasks:
         try:
             await send_task_notification(task.doctor_id, task)
         except Exception as e:
-            log(f"[Tasks] failed to notify task id={task.id}: {e}")
+            task_log(
+                "task_notify_failed",
+                task_id=task.id,
+                doctor_id=task.doctor_id,
+                task_type=task.task_type,
+                error=str(e),
+            )

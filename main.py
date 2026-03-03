@@ -2,8 +2,10 @@ import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
 from dotenv import load_dotenv
+from utils.log import init_logging
 
 load_dotenv()  # must run before any module reads os.environ
+init_logging()
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
@@ -22,11 +24,6 @@ from db.engine import engine, AsyncSessionLocal
 from db.models import Patient, MedicalRecordDB, DoctorContext, SystemPrompt, NeuroCaseDB, DoctorTask
 from db.crud import get_due_tasks
 from services.tasks import check_and_send_due_tasks
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
 
 
 # ---------------------------------------------------------------------------

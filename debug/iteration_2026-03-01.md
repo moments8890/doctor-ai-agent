@@ -173,7 +173,6 @@ Switch `OLLAMA_MODEL` from `llama3.2` to `qwen2.5:7b` for production use. `llama
 - [x] DeepSeek integration template passed against LAN Ollama base URL (`5 passed`)
 
 ---
-
 ## Frontend Unification + Dev Admin Viewer
 
 ### Scope
@@ -187,4 +186,22 @@ Switch `OLLAMA_MODEL` from `llama3.2` to `qwen2.5:7b` for production use. `llama
 - [x] Backend UI routes removed (`/chat`, `/manage`)
 - [x] Admin APIs added for table list/counts and per-table rows
 - [x] Admin page updated to dev-focused dense table mode
+- [x] Unit tests green (`.venv/bin/python -m pytest tests/ -v`)
+
+---
+
+## Structured Logging for Task Workflows
+
+### Scope
+
+- Replaced legacy print-based logging helper with standard logging integration and rotating file handlers.
+- Added configurable logging env vars (`LOG_LEVEL`, `LOG_TO_FILE`, `LOG_DIR`, `LOG_FILE`, `LOG_MAX_BYTES`, `LOG_BACKUP_COUNT`).
+- Added task-specific structured events in `services/tasks.py` for creation, notification, scheduler tick, and failures.
+- Added tests covering logger utility branches and task logging event emission paths.
+
+### Status
+
+- [x] Structured logger utility implemented
+- [x] Rotating file output enabled and `logs/` ignored in git
+- [x] Task workflow structured events implemented
 - [x] Unit tests green (`.venv/bin/python -m pytest tests/ -v`)
