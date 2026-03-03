@@ -37,6 +37,8 @@ def init_logging() -> None:
     - LOG_FILE (default: app.log)
     - LOG_MAX_BYTES (default: 10485760)
     - LOG_BACKUP_COUNT (default: 5)
+    - TASK_LOG_TO_CONSOLE (default: false)
+    - SCHEDULER_LOG_TO_CONSOLE (default: false)
     """
     level_name = os.environ.get("LOG_LEVEL", "INFO").upper()
     level = getattr(logging, level_name, logging.INFO)
@@ -53,6 +55,23 @@ def init_logging() -> None:
     stream_handler.setLevel(level)
     stream_handler.setFormatter(logging.Formatter(fmt))
     root.addHandler(stream_handler)
+
+    task_logger = logging.getLogger("tasks")
+    task_logger.setLevel(level)
+    for h in list(task_logger.handlers):
+        task_logger.removeHandler(h)
+    task_log_to_console = _to_bool(os.environ.get("TASK_LOG_TO_CONSOLE"), default=False)
+    task_logger.propagate = task_log_to_console
+
+    scheduler_logger = logging.getLogger("apscheduler")
+    scheduler_logger.setLevel(level)
+    for h in list(scheduler_logger.handlers):
+        scheduler_logger.removeHandler(h)
+    scheduler_log_to_console = _to_bool(
+        os.environ.get("SCHEDULER_LOG_TO_CONSOLE"),
+        default=False,
+    )
+    scheduler_logger.propagate = scheduler_log_to_console
 
     if _to_bool(os.environ.get("LOG_TO_FILE"), default=True):
         log_dir = Path(os.environ.get("LOG_DIR", "logs"))
@@ -80,12 +99,17 @@ def init_logging() -> None:
         )
         task_file_handler.setLevel(level)
         task_file_handler.setFormatter(logging.Formatter(fmt))
-        task_logger = logging.getLogger("tasks")
-        task_logger.setLevel(level)
-        task_logger.propagate = True
-        for h in list(task_logger.handlers):
-            task_logger.removeHandler(h)
         task_logger.addHandler(task_file_handler)
+
+        scheduler_file_handler = RotatingFileHandler(
+            log_dir / "scheduler.log",
+            maxBytes=max_bytes,
+            backupCount=backup_count,
+            encoding="utf-8",
+        )
+        scheduler_file_handler.setLevel(level)
+        scheduler_file_handler.setFormatter(logging.Formatter(fmt))
+        scheduler_logger.addHandler(scheduler_file_handler)
 
 
 def get_logger(name: str) -> logging.Logger:
