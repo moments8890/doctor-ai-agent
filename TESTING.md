@@ -30,6 +30,20 @@ bash tools/test.sh integration
 Output:
 - `reports/junit/integration.xml`
 
+### Train-data template integration tests (manual)
+
+```bash
+bash tools/test_train_data_integration.sh
+```
+
+Options:
+- `--suite all|deepseek|gemini`
+- `--server http://127.0.0.1:18000`
+- `--followup true|false`
+
+Output:
+- `reports/junit/integration-train-data.xml`
+
 Note:
 - `integration` runs text pipeline integration tests only (fast and stable default).
 - For the full integration suite (including image pipeline):

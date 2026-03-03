@@ -257,3 +257,16 @@ Switch `OLLAMA_MODEL` from `llama3.2` to `qwen2.5:7b` for production use. `llama
 - [x] Provider abstraction implemented (`log` default)
 - [x] Dev trigger endpoint implemented
 - [x] Tests green (`.venv/bin/python -m pytest tests/ -q`)
+
+---
+
+## 2026-03-02 — Train-data integration manual runner + ollama hardening
+
+### Done
+- [x] Added manual train-data integration runner script: `tools/test_train_data_integration.sh`
+- [x] Made train-data template tests runnable with ollama provider
+- [x] Added `INTEGRATION_SERVER_URL` support for integration test targeting
+- [x] Fixed ollama warmup to respect `OLLAMA_BASE_URL`
+- [x] Added ollama dispatch timeout + local fallback to avoid blocking on tool-call timeouts
+- [x] Unit tests passed: `.venv/bin/python -m pytest tests/ -v` (`404 passed`)
+- [x] Train-data integration templates passed with current env (`7 passed, 1 skipped`)

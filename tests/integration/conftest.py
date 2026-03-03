@@ -30,7 +30,7 @@ except Exception:
 DB_PATH = Path(
     os.environ.get("PATIENTS_DB_PATH", str(ROOT / "patients.db"))
 ).expanduser()
-SERVER = "http://127.0.0.1:8000"
+SERVER = os.environ.get("INTEGRATION_SERVER_URL", "http://127.0.0.1:8000")
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1")
 
 
