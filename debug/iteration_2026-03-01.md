@@ -150,3 +150,24 @@ Switch `OLLAMA_MODEL` from `llama3.2` to `qwen2.5:7b` for production use. `llama
 
 - [x] Rename implemented across backend + UI
 - [x] Unit tests green (`.venv/bin/python -m pytest tests/ -v`)
+
+---
+
+## 2026-03-03 Update: LAN Ollama + Shared Env Defaults
+
+### Changes
+
+- Added `OLLAMA_BASE_URL` support across routing/structuring/intent/neuro/vision providers.
+- Added `OLLAMA_VISION_BASE_URL` support for image extraction path.
+- Integration dependency check now uses `OLLAMA_BASE_URL` to probe `/api/tags`.
+- Added DeepSeek/Gemini scenario datasets + template integration tests + batch runners.
+- Set repository default env file to shared symlink target:
+  - `/Users/jingwuxu/Documents/code/doctor-ai-agent-1/.env` -> `/Users/jingwuxu/Documents/code/shared-db/.env`
+- Updated shared env defaults:
+  - `OLLAMA_BASE_URL=http://192.168.0.123:11434/v1`
+  - `OLLAMA_VISION_BASE_URL=http://192.168.0.123:11434/v1`
+
+### Validation
+
+- [x] Unit tests passed: `.venv/bin/python -m pytest tests/ -v` (`388 passed`)
+- [x] DeepSeek integration template passed against LAN Ollama base URL (`5 passed`)

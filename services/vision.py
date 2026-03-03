@@ -14,10 +14,16 @@ _SYSTEM_PROMPT = (
 
 _PROVIDERS = {
     "ollama": {
-        "base_url": "http://localhost:11434/v1",
+        "base_url": os.environ.get("OLLAMA_VISION_BASE_URL", os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1")),
         "api_key_env": "OLLAMA_API_KEY",
         "model_env": "OLLAMA_VISION_MODEL",
         "model_default": "qwen2.5vl:7b",
+    },
+    "gemini": {
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+        "api_key_env": "GEMINI_API_KEY",
+        "model_env": "GEMINI_VISION_MODEL",
+        "model_default": "gemini-2.0-flash",
     },
     "openai": {
         "base_url": None,  # default OpenAI endpoint
