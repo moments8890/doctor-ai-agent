@@ -125,6 +125,6 @@ def log(msg: str, *, logger_name: str = "app", level: str = "info", **fields: An
     log_fn(payload)
 
 
-def task_log(event: str, **fields: Any) -> None:
+def task_log(event: str, *, level: str = "info", **fields: Any) -> None:
     """Structured task logger for human-readable dev debugging."""
-    log(event, logger_name="tasks", **fields)
+    log(event, logger_name="tasks", level=level, **fields)

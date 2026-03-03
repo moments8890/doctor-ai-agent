@@ -238,7 +238,7 @@ add_record (with follow_up_plan or is_emergency)
   → Emergency: send_task_notification() called immediately
   → Follow-up/Appointment: APScheduler job fires every 1 min
        → check_and_send_due_tasks() queries due_at ≤ now AND notified_at IS NULL
-       → _send_customer_service_msg() → WeChat Customer Service API
+       → send_doctor_notification() transport dispatch
        → mark_task_notified() sets notified_at
 ```
 
@@ -257,6 +257,10 @@ add_record (with follow_up_plan or is_emergency)
 **APScheduler:**
 - In-memory `AsyncIOScheduler`, interval=1 minute, started in FastAPI lifespan
 - On restart, unnotified tasks are re-queued within 1 minute (queried by `notified_at IS NULL`)
+
+**Notification transport:**
+- `NOTIFICATION_PROVIDER=log` (default): local/dev sink, no external dependency
+- `NOTIFICATION_PROVIDER=wechat`: WeChat Customer Service API
 
 **WeChat push helper refactoring:**
 - `_token_cache`, `_get_config`, `_get_access_token`, `_split_message`, `_send_customer_service_msg`
@@ -469,6 +473,9 @@ WECHAT_APP_ID=
 WECHAT_APP_SECRET=
 WECHAT_ENCODING_AES_KEY=
 
+# Notification transport
+NOTIFICATION_PROVIDER=log    # log | wechat
+
 # Logging (console + optional rotating files)
 LOG_LEVEL=INFO
 LOG_TO_FILE=true
@@ -478,6 +485,9 @@ LOG_MAX_BYTES=10485760
 LOG_BACKUP_COUNT=5
 TASK_LOG_TO_CONSOLE=false       # tasks logger to terminal (default off; still writes logs/tasks.log)
 SCHEDULER_LOG_TO_CONSOLE=false  # apscheduler logger to terminal (default off; still writes logs/scheduler.log)
+TASK_NOTIFY_RETRY_COUNT=3       # retries when background notification push fails
+TASK_NOTIFY_RETRY_DELAY_SECONDS=1
+TASK_DEV_ENDPOINT_ENABLED=false # enable POST /api/tasks/dev/run-notifier (dev-only)
 ```
 
 ---

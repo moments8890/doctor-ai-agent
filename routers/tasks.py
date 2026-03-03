@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from datetime import datetime
 from typing import List, Optional
 
@@ -8,6 +9,7 @@ from pydantic import BaseModel
 
 from db.engine import AsyncSessionLocal
 from db.crud import list_tasks, update_task_status
+from services.tasks import run_due_task_cycle
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
@@ -53,6 +55,13 @@ class TaskStatusUpdate(BaseModel):
     status: str
 
 
+def _env_flag_true(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
 @router.get("", response_model=List[TaskOut])
 async def get_tasks(doctor_id: str, status: Optional[str] = None) -> List[TaskOut]:
     async with AsyncSessionLocal() as session:
@@ -70,3 +79,11 @@ async def patch_task(task_id: int, doctor_id: str, body: TaskStatusUpdate) -> Ta
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     return TaskOut.from_orm(task)
+
+
+@router.post("/dev/run-notifier")
+async def dev_run_notifier() -> dict:
+    """Dev-only endpoint: trigger one background notification cycle immediately."""
+    if not _env_flag_true("TASK_DEV_ENDPOINT_ENABLED", default=False):
+        raise HTTPException(status_code=404, detail="Not found")
+    return await run_due_task_cycle()
