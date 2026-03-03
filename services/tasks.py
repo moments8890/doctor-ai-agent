@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import re
+import os
+import asyncio
 from datetime import datetime, timedelta
 from typing import Optional
 
 from db.engine import AsyncSessionLocal
 from db.crud import create_task, get_due_tasks, mark_task_notified
 from db.models import DoctorTask
-from services.wechat_notify import _send_customer_service_msg
-from utils.log import log
+from services.notification import send_doctor_notification
+from utils.log import task_log
 
 # Chinese digit → integer mapping
 _CN_DIGITS = {
@@ -21,6 +23,22 @@ _TASK_ICONS = {
     "emergency": "🚨",
     "appointment": "📅",
 }
+
+
+def _notify_retry_count() -> int:
+    raw = os.environ.get("TASK_NOTIFY_RETRY_COUNT", "3")
+    try:
+        return max(1, int(raw))
+    except (TypeError, ValueError):
+        return 3
+
+
+def _notify_retry_delay_seconds() -> float:
+    raw = os.environ.get("TASK_NOTIFY_RETRY_DELAY_SECONDS", "1")
+    try:
+        return max(0.0, float(raw))
+    except (TypeError, ValueError):
+        return 1.0
 
 
 def _parse_cn_or_int(raw: str) -> Optional[int]:
@@ -98,7 +116,15 @@ async def create_follow_up_task(
             record_id=record_id,
             due_at=due_at,
         )
-    log(f"[Tasks] created follow_up task id={task.id} due={due_at.date()} for {patient_name}")
+    task_log(
+        "task_created",
+        task_type="follow_up",
+        task_id=task.id,
+        doctor_id=doctor_id,
+        patient_id=patient_id,
+        record_id=record_id,
+        due_at=due_at.isoformat(),
+    )
     return task
 
 
@@ -123,7 +149,14 @@ async def create_emergency_task(
             record_id=record_id,
             due_at=None,
         )
-    log(f"[Tasks] created emergency task id={task.id} for {patient_name}")
+    task_log(
+        "task_created",
+        task_type="emergency",
+        task_id=task.id,
+        doctor_id=doctor_id,
+        patient_id=patient_id,
+        record_id=record_id,
+    )
     await send_task_notification(doctor_id, task)
     return task
 
@@ -150,7 +183,14 @@ async def create_appointment_task(
             record_id=None,
             due_at=due_at,
         )
-    log(f"[Tasks] created appointment task id={task.id} due={due_at} for {patient_name}")
+    task_log(
+        "task_created",
+        task_type="appointment",
+        task_id=task.id,
+        doctor_id=doctor_id,
+        patient_id=patient_id,
+        due_at=due_at.isoformat(),
+    )
     return task
 
 
@@ -164,24 +204,76 @@ async def send_task_notification(doctor_id: str, task: DoctorTask) -> None:
     lines.append(f"\n回复「完成 {task.id}」标记完成")
     message = "\n".join(lines)
 
-    await _send_customer_service_msg(doctor_id, message)
+    retries = _notify_retry_count()
+    delay_seconds = _notify_retry_delay_seconds()
+    last_error = None
+    for attempt in range(1, retries + 1):
+        try:
+            await send_doctor_notification(doctor_id, message)
+            break
+        except Exception as e:
+            last_error = e
+            task_log(
+                "task_notify_attempt_failed",
+                task_id=task.id,
+                doctor_id=doctor_id,
+                task_type=task.task_type,
+                attempt=attempt,
+                retries=retries,
+                error=str(e),
+            )
+            if attempt < retries and delay_seconds > 0:
+                await asyncio.sleep(delay_seconds)
+    else:
+        raise RuntimeError(
+            f"task notification failed after {retries} attempt(s) for task_id={task.id}"
+        ) from last_error
 
     async with AsyncSessionLocal() as session:
         await mark_task_notified(session, task.id)
 
-    log(f"[Tasks] notified doctor {doctor_id} for task id={task.id}")
+    task_log(
+        "task_notified",
+        task_id=task.id,
+        doctor_id=doctor_id,
+        task_type=task.task_type,
+    )
 
 
 async def check_and_send_due_tasks() -> None:
     """APScheduler job: query pending due tasks and send WeChat notifications."""
-    log("[Tasks] scheduler tick — checking due tasks")
+    await run_due_task_cycle()
+
+
+async def run_due_task_cycle() -> dict:
+    """Run one due-task notification cycle and return summary stats."""
+    task_log("scheduler_tick_start", level="debug")
     now = datetime.utcnow()
     async with AsyncSessionLocal() as session:
         tasks = await get_due_tasks(session, now)
 
-    log(f"[Tasks] found {len(tasks)} due task(s)")
+    due_count = len(tasks)
+    if due_count > 0:
+        task_log("scheduler_due_tasks", count=due_count)
+    else:
+        task_log("scheduler_due_tasks", level="debug", count=0)
+    success_count = 0
+    failed_count = 0
     for task in tasks:
         try:
             await send_task_notification(task.doctor_id, task)
+            success_count += 1
         except Exception as e:
-            log(f"[Tasks] failed to notify task id={task.id}: {e}")
+            failed_count += 1
+            task_log(
+                "task_notify_failed",
+                task_id=task.id,
+                doctor_id=task.doctor_id,
+                task_type=task.task_type,
+                error=str(e),
+            )
+    return {
+        "due_count": due_count,
+        "sent_count": success_count,
+        "failed_count": failed_count,
+    }

@@ -2,12 +2,18 @@ from __future__ import annotations
 
 import json
 import os
-from typing import List, Optional
+import re
+from typing import List, Optional, Tuple
 from openai import AsyncOpenAI
 from services.intent import Intent, IntentResult
 from utils.log import log
 
 _PROVIDERS = {
+    "gemini": {
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+        "api_key_env": "GEMINI_API_KEY",
+        "model": "gemini-2.0-flash",
+    },
     "deepseek": {
         "base_url": "https://api.deepseek.com",
         "api_key_env": "DEEPSEEK_API_KEY",
@@ -19,7 +25,7 @@ _PROVIDERS = {
         "model": "llama-3.3-70b-versatile",
     },
     "ollama": {
-        "base_url": "http://localhost:11434/v1",
+        "base_url": os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
         "api_key_env": "OLLAMA_API_KEY",
         "model": "qwen2.5:14b",
     },
@@ -248,6 +254,71 @@ _INTENT_MAP = {
 }
 
 
+_NAME_PATTERNS = [
+    re.compile(r"(?:新患者|新病人|查询)\s*[:：，,\s]*([\u4e00-\u9fff]{2,4})"),
+    re.compile(r"(?:患者|病人)\s*([\u4e00-\u9fff]{2,4})(?:[，,。:：\s]|男|女)"),
+    re.compile(r"^([\u4e00-\u9fff]{2,4})(?:门诊记录|复查|，|,|。|\s)"),
+    re.compile(r"([\u4e00-\u9fff]{2,4})门诊记录"),
+]
+_BAD_NAME_TOKENS = {
+    "患者", "病人", "新患者", "新病人", "门诊", "复查", "记录", "查询", "提醒",
+    "胸痛", "胸闷", "心悸", "咳嗽", "头痛", "发热", "化疗", "术后", "治疗", "安排",
+}
+
+
+def _extract_name_gender_age(text: str) -> Tuple[Optional[str], Optional[str], Optional[int]]:
+    name = None
+    for pattern in _NAME_PATTERNS:
+        m = pattern.search(text)
+        if m:
+            candidate = m.group(1)
+            if candidate and candidate not in _BAD_NAME_TOKENS:
+                name = candidate
+                break
+    gender_m = re.search(r"(男|女)", text)
+    age_m = re.search(r"(\d{1,3})\s*岁", text)
+    gender = gender_m.group(1) if gender_m else None
+    age = int(age_m.group(1)) if age_m else None
+    return name, gender, age
+
+
+def _fallback_intent_from_text(text: str) -> IntentResult:
+    lower = text.lower()
+    name, gender, age = _extract_name_gender_age(text)
+
+    clinical_keywords = [
+        "胸痛", "胸闷", "心悸", "气短", "头痛", "发热", "咳嗽",
+        "心电图", "CT", "MRI", "BNP", "EF", "ST", "PCI", "化疗", "靶向", "诊断",
+        "治疗", "复查", "门诊", "术后", "高血压", "肿瘤", "肺癌",
+    ]
+    # Clinical content takes precedence even when the message also contains
+    # "查询"/"提醒" phrasing in natural doctor speech.
+    if any(k in text for k in clinical_keywords):
+        return IntentResult(intent=Intent.add_record, patient_name=name, gender=gender, age=age)
+
+    if any(k in text for k in ["所有患者", "患者列表", "病人列表", "全部患者"]):
+        return IntentResult(intent=Intent.list_patients, patient_name=name)
+    if any(k in text for k in ["任务", "待办", "提醒"]):
+        return IntentResult(intent=Intent.list_tasks, patient_name=name)
+    if re.search(r"(完成|标记完成)\s*\d+", text):
+        task_id_m = re.search(r"(\d+)", text)
+        return IntentResult(
+            intent=Intent.complete_task,
+            patient_name=name,
+            extra_data={"task_id": int(task_id_m.group(1)) if task_id_m else None},
+        )
+    if any(k in text for k in ["查询", "历史病历", "病历记录", "调取病历"]):
+        return IntentResult(intent=Intent.query_records, patient_name=name)
+
+    if any(k in text for k in ["建档", "新患者", "新病人"]):
+        return IntentResult(intent=Intent.create_patient, patient_name=name, gender=gender, age=age)
+
+    if any(k in lower for k in ["hello", "hi", "你好"]):
+        return IntentResult(intent=Intent.unknown, chat_reply="您好！有什么可以帮您？")
+
+    return IntentResult(intent=Intent.unknown, patient_name=name, gender=gender, age=age)
+
+
 async def dispatch(text: str, history: Optional[List[dict]] = None) -> IntentResult:
     """Call LLM with function-calling tools and return an IntentResult.
 
@@ -269,15 +340,23 @@ async def dispatch(text: str, history: Optional[List[dict]] = None) -> IntentRes
     client = AsyncOpenAI(
         base_url=provider["base_url"],
         api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
+        timeout=float(os.environ.get("AGENT_LLM_TIMEOUT", "45")),
+        max_retries=int(os.environ.get("AGENT_LLM_RETRIES", "1")),
     )
-    completion = await client.chat.completions.create(
-        model=provider["model"],
-        messages=messages,
-        tools=_TOOLS,
-        tool_choice="auto",
-        max_tokens=300,
-        temperature=0,
-    )
+    try:
+        completion = await client.chat.completions.create(
+            model=provider["model"],
+            messages=messages,
+            tools=_TOOLS,
+            tool_choice="auto",
+            max_tokens=300,
+            temperature=0,
+        )
+    except Exception as e:
+        if provider_name == "ollama":
+            log(f"[Agent:ollama] tool-call failed, using local fallback: {e}")
+            return _fallback_intent_from_text(text)
+        raise
 
     message = completion.choices[0].message
     # Capture natural reply regardless of whether a tool was called

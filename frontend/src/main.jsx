@@ -4,6 +4,11 @@ import { BrowserRouter } from "react-router-dom";
 import { CssBaseline, ThemeProvider } from "@mui/material";
 import App from "./App";
 import { appTheme } from "./theme";
+import { setLocale, t } from "./i18n";
+
+setLocale("zh-CN");
+document.documentElement.lang = "zh-CN";
+document.title = t("app.title");
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

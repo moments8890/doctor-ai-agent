@@ -30,7 +30,16 @@ except Exception:
 DB_PATH = Path(
     os.environ.get("PATIENTS_DB_PATH", str(ROOT / "patients.db"))
 ).expanduser()
-SERVER = "http://127.0.0.1:8000"
+SERVER = os.environ.get("INTEGRATION_SERVER_URL", "http://127.0.0.1:8000")
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+
+
+def _ollama_tags_url(base_url: str) -> str:
+    """Convert OpenAI-compatible Ollama base URL to /api/tags endpoint."""
+    root = base_url.rstrip("/")
+    if root.endswith("/v1"):
+        root = root[:-3]
+    return f"{root}/api/tags"
 
 
 # ---------------------------------------------------------------------------
@@ -59,7 +68,7 @@ def require_server():
 @pytest.fixture(scope="session", autouse=True)
 def require_ollama():
     try:
-        httpx.get("http://localhost:11434/api/tags", timeout=3).raise_for_status()
+        httpx.get(_ollama_tags_url(OLLAMA_BASE_URL), timeout=3).raise_for_status()
     except Exception:
         pytest.skip(
             "Integration tests skipped — Ollama not running. "

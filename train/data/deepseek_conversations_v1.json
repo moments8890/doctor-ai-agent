@@ -1,0 +1,77 @@
+[
+  {
+    "case_id": "DS-001",
+    "title": "Cardiology new intake",
+    "mode": "chat_text",
+    "input_text": "新患者，张明，男，56岁。主诉胸痛3天，每次持续5-10分钟，活动后加重，休息缓解。有高血压病史10年，吸烟30年，每天1包。需要做心电图和心肌酶。",
+    "expected": {
+      "patient_name": "张明",
+      "chief_complaint_contains": ["胸痛"],
+      "diagnosis_contains_any": [],
+      "treatment_plan_contains_any": ["心电图", "心肌酶"],
+      "risk_level_in": ["low", "medium", "high", "critical"],
+      "expect_follow_up_task": false
+    }
+  },
+  {
+    "case_id": "DS-002",
+    "title": "Cardiology follow-up existing patient",
+    "mode": "chat_text",
+    "input_text": "患者李淑芳，女，68岁，昨天复查结果：血压135/85，心电图正常，血脂：LDL 2.8。目前服用阿托伐他汀20mg daily，无不适。继续当前治疗，3个月复查。",
+    "expected": {
+      "patient_name": "李淑芳",
+      "chief_complaint_contains": ["门诊"],
+      "diagnosis_contains_any": [],
+      "treatment_plan_contains_any": ["继续", "阿托伐他汀"],
+      "follow_up_plan_contains_any": ["3个月", "三个月"],
+      "risk_level_in": ["low", "medium", "high", "critical"],
+      "expect_follow_up_task": false,
+      "follow_up_task_due_days": 90
+    }
+  },
+  {
+    "case_id": "DS-003",
+    "title": "Oncology image-based (fused text)",
+    "mode": "chat_text",
+    "input_text": "王建国，男，62岁，肺癌术后3个月。这是今天CT报告文字：右肺下叶术后改变，未见明确肿块或淋巴结肿大，胸腔无积液。患者主诉轻度咳嗽，无痰。继续观察。",
+    "expected": {
+      "patient_name": "王建国",
+      "chief_complaint_contains": ["术后"],
+      "diagnosis_contains_any": ["肺癌术后", "未见复发", "随访", "术后改变"],
+      "auxiliary_examinations_contains_any": [],
+      "treatment_plan_contains_any": [],
+      "risk_level_in": ["low", "medium", "high", "critical"],
+      "expect_follow_up_task": false
+    }
+  },
+  {
+    "case_id": "DS-004",
+    "title": "Voice emergency style risk alert",
+    "mode": "chat_text",
+    "input_text": "查询陈秀英，女，72岁。她刚才打电话说她现在胸痛持续30分钟不缓解，大汗淋漓。她住在幸福小区3号楼。需要立即处理！",
+    "expected": {
+      "patient_name": "陈秀英",
+      "chief_complaint_contains": ["胸痛"],
+      "diagnosis_contains_any": [],
+      "treatment_plan_contains_any": [],
+      "risk_level_in": ["low", "medium", "high", "critical"],
+      "expect_follow_up_task": false
+    }
+  },
+  {
+    "case_id": "DS-005",
+    "title": "Lung nodule interview summary",
+    "mode": "chat_text",
+    "input_text": "新患者赵伟，男，45岁。体检发现肺结节，右肺上叶8mm磨玻璃结节，无症状，不吸烟，父亲肺癌。本次CT提示考虑早期肺癌可能，建议3个月复查。",
+    "expected": {
+      "patient_name": "赵伟",
+      "chief_complaint_contains": ["肺结节"],
+      "diagnosis_contains_any": [],
+      "auxiliary_examinations_contains_any": [],
+      "follow_up_plan_contains_any": ["3个月", "三个月"],
+      "risk_level_in": ["low", "medium", "high", "critical"],
+      "expect_follow_up_task": false,
+      "follow_up_task_due_days": 90
+    }
+  }
+]

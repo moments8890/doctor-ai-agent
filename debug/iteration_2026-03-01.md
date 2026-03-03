@@ -150,3 +150,123 @@ Switch `OLLAMA_MODEL` from `llama3.2` to `qwen2.5:7b` for production use. `llama
 
 - [x] Rename implemented across backend + UI
 - [x] Unit tests green (`.venv/bin/python -m pytest tests/ -v`)
+
+---
+
+## 2026-03-03 Update: LAN Ollama + Shared Env Defaults
+
+### Changes
+
+- Added `OLLAMA_BASE_URL` support across routing/structuring/intent/neuro/vision providers.
+- Added `OLLAMA_VISION_BASE_URL` support for image extraction path.
+- Integration dependency check now uses `OLLAMA_BASE_URL` to probe `/api/tags`.
+- Added DeepSeek/Gemini scenario datasets + template integration tests + batch runners.
+- Set repository default env file to shared symlink target:
+  - `/Users/jingwuxu/Documents/code/doctor-ai-agent-1/.env` -> `/Users/jingwuxu/Documents/code/shared-db/.env`
+- Updated shared env defaults:
+  - `OLLAMA_BASE_URL=http://192.168.0.123:11434/v1`
+  - `OLLAMA_VISION_BASE_URL=http://192.168.0.123:11434/v1`
+
+### Validation
+
+- [x] Unit tests passed: `.venv/bin/python -m pytest tests/ -v` (`388 passed`)
+- [x] DeepSeek integration template passed against LAN Ollama base URL (`5 passed`)
+
+---
+## Frontend Unification + Dev Admin Viewer
+
+### Scope
+
+- Removed legacy backend-rendered UI pages; frontend React app remains the single UI implementation.
+- Added internal `/admin` route with separate backend endpoints for DB table browsing.
+- Expanded admin viewer to cover all core tables with left-nav layout and dense dev-mode table utilities (CSV/JSON export, copy row).
+
+### Status
+
+- [x] Backend UI routes removed (`/chat`, `/manage`)
+- [x] Admin APIs added for table list/counts and per-table rows
+- [x] Admin page updated to dev-focused dense table mode
+- [x] Unit tests green (`.venv/bin/python -m pytest tests/ -v`)
+
+---
+
+## Structured Logging for Task Workflows
+
+### Scope
+
+- Replaced legacy print-based logging helper with standard logging integration and rotating file handlers.
+- Added configurable logging env vars (`LOG_LEVEL`, `LOG_TO_FILE`, `LOG_DIR`, `LOG_FILE`, `LOG_MAX_BYTES`, `LOG_BACKUP_COUNT`).
+- Added task-specific structured events in `services/tasks.py` for creation, notification, scheduler tick, and failures.
+- Added tests covering logger utility branches and task logging event emission paths.
+
+### Status
+
+- [x] Structured logger utility implemented
+- [x] Rotating file output enabled and `logs/` ignored in git
+- [x] Task workflow structured events implemented
+- [x] Unit tests green (`.venv/bin/python -m pytest tests/ -v`)
+
+---
+
+## Startup Env Config + Console Noise Control
+
+### Scope
+
+- Added centralized app env config loader with shared `.env` priority:
+  - `/Users/jingwuxu/Documents/code/shared-db/.env` first, fallback to local `.env`.
+- Added startup environment logging with masked secrets and multi-line pretty output.
+- Added startup Ollama connectivity check (retry + fail fast) when routing/structuring provider is `ollama`.
+- Reduced terminal noise:
+  - `tasks` logger hidden from terminal by default, routed to `logs/tasks.log`.
+  - `apscheduler` logger hidden from terminal by default, routed to `logs/scheduler.log`.
+  - Added opt-in env toggles: `TASK_LOG_TO_CONSOLE`, `SCHEDULER_LOG_TO_CONSOLE`.
+- Added/updated unit tests for config parsing/masking, pretty log output, and logger routing toggles.
+
+### Status
+
+- [x] Shared `.env` loading + startup config struct implemented
+- [x] Startup LLM connectivity check implemented
+- [x] Task/scheduler terminal log suppression implemented
+- [x] Unit tests green (`.venv/bin/python -m pytest tests/ -q`)
+
+---
+
+## Notification Pipeline Reliability + Dev Trigger
+
+### Scope
+
+- Hardened WeChat sender error semantics:
+  - Raise on missing credentials, HTTP errors, and non-zero WeChat `errcode`.
+  - No silent swallow in notification send path.
+- Added retry semantics for task notifications:
+  - `TASK_NOTIFY_RETRY_COUNT`
+  - `TASK_NOTIFY_RETRY_DELAY_SECONDS`
+  - Mark `notified_at` only after successful send.
+- Added provider-based notification transport:
+  - `NOTIFICATION_PROVIDER=log` (default, local/dev safe)
+  - `NOTIFICATION_PROVIDER=wechat` (real channel)
+- Added dev-only manual trigger endpoint:
+  - `POST /api/tasks/dev/run-notifier`
+  - gated by `TASK_DEV_ENDPOINT_ENABLED=true`
+- Reduced scheduler noise:
+  - heartbeat `scheduler_tick_start` and zero-count cycles now log at `DEBUG`.
+
+### Status
+
+- [x] Notification reliability fixes implemented
+- [x] Provider abstraction implemented (`log` default)
+- [x] Dev trigger endpoint implemented
+- [x] Tests green (`.venv/bin/python -m pytest tests/ -q`)
+
+---
+
+## 2026-03-02 — Train-data integration manual runner + ollama hardening
+
+### Done
+- [x] Added manual train-data integration runner script: `tools/test_train_data_integration.sh`
+- [x] Made train-data template tests runnable with ollama provider
+- [x] Added `INTEGRATION_SERVER_URL` support for integration test targeting
+- [x] Fixed ollama warmup to respect `OLLAMA_BASE_URL`
+- [x] Added ollama dispatch timeout + local fallback to avoid blocking on tool-call timeouts
+- [x] Unit tests passed: `.venv/bin/python -m pytest tests/ -v` (`404 passed`)
+- [x] Train-data integration templates passed with current env (`7 passed, 1 skipped`)

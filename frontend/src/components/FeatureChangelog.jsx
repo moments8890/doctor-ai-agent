@@ -1,32 +1,19 @@
 import { Card, CardContent, Stack, Typography } from "@mui/material";
-
-const ITEMS = [
-  {
-    title: "Web chat + management UI",
-    summary: "Use Chat for intake and Manage for patients, records, and prompt customization.",
-  },
-  {
-    title: "Editable structuring prompts",
-    summary: "Tune `structuring` and `structuring.extension` directly in Manage without restarts.",
-  },
-  {
-    title: "Seed DB import/export tool",
-    summary: "Bootstrap demo data with `tools/seed_db.py` and safely re-run imports with deduplication.",
-  },
-];
+import { t, traw } from "../i18n";
 
 export default function FeatureChangelog() {
+  const items = traw("features.items");
   return (
     <Card sx={{ mb: 2 }}>
       <CardContent>
         <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-          Available Features
+          {t("features.title")}
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 1.25 }}>
-          Quick overview of what you can use in this app.
+          {t("features.subtitle")}
         </Typography>
         <Stack spacing={1}>
-          {ITEMS.map((item) => (
+          {items.map((item) => (
             <Stack key={item.title} spacing={0.4}>
               <Typography variant="body2" sx={{ fontWeight: 600 }}>
                 {item.title}

@@ -1,9 +1,14 @@
 import logging
+import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime
-from dotenv import load_dotenv
+from utils.log import init_logging
+from utils.app_config import AppConfig, load_env_from_shared_or_local
 
-load_dotenv()  # must run before any module reads os.environ
+# Must run before any module reads os.environ.
+_env_source_path = load_env_from_shared_or_local()
+APP_CONFIG = AppConfig.from_env(env_source=str(_env_source_path))
+init_logging()
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
@@ -23,11 +28,6 @@ from db.engine import engine, AsyncSessionLocal
 from db.models import Patient, MedicalRecordDB, DoctorContext, SystemPrompt, NeuroCaseDB, DoctorTask
 from db.crud import get_due_tasks
 from services.tasks import check_and_send_due_tasks
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
 
 
 # ---------------------------------------------------------------------------
@@ -167,31 +167,50 @@ class DoctorTaskAdmin(ModelView, model=DoctorTask):
 # App
 # ---------------------------------------------------------------------------
 
-async def _warmup():
-    import os
+async def _warmup(config: AppConfig):
     # Warm up jieba (builds prefix dict on first import)
     import jieba
     jieba.initialize()
     log = logging.getLogger("warmup")
     log.info("jieba initialised")
 
-    # Warm up Ollama — ping the model so it's loaded into memory
-    if os.environ.get("ROUTING_LLM") == "ollama" or os.environ.get("STRUCTURING_LLM") == "ollama":
-        try:
-            from openai import AsyncOpenAI
-            client = AsyncOpenAI(
-                base_url="http://localhost:11434/v1",
-                api_key=os.environ.get("OLLAMA_API_KEY", "ollama"),
-            )
-            model = os.environ.get("OLLAMA_MODEL", "qwen2.5:7b")
-            await client.chat.completions.create(
-                model=model,
-                messages=[{"role": "user", "content": "hi"}],
-                max_tokens=1,
-            )
-            log.info(f"Ollama model '{model}' warmed up")
-        except Exception as e:
-            log.warning(f"Ollama warmup failed (is ollama running?): {e}")
+    # Verify/warm up Ollama — ping the model so it's loaded into memory.
+    if config.routing_llm == "ollama" or config.structuring_llm == "ollama":
+        from openai import AsyncOpenAI
+
+        client = AsyncOpenAI(
+            base_url=config.ollama_base_url,
+            api_key=config.ollama_api_key or "ollama",
+        )
+        model = config.ollama_model
+        max_attempts = 3
+        last_error = None
+
+        for attempt in range(1, max_attempts + 1):
+            try:
+                await client.chat.completions.create(
+                    model=model,
+                    messages=[{"role": "user", "content": "ping"}],
+                    max_tokens=1,
+                )
+                log.info(
+                    f"Ollama startup connectivity check passed | "
+                    f"base_url={config.ollama_base_url} model={model} attempt={attempt}"
+                )
+                break
+            except Exception as e:
+                last_error = e
+                log.warning(
+                    f"Ollama connectivity check failed | "
+                    f"base_url={config.ollama_base_url} model={model} attempt={attempt}/{max_attempts} error={e}"
+                )
+                if attempt < max_attempts:
+                    await asyncio.sleep(1)
+        else:
+            raise RuntimeError(
+                f"Ollama startup connectivity check failed after {max_attempts} attempts "
+                f"(base_url={config.ollama_base_url}, model={model})"
+            ) from last_error
 
 
 _scheduler = AsyncIOScheduler()
@@ -199,18 +218,19 @@ _scheduler = AsyncIOScheduler()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _startup_log = logging.getLogger("startup")
+    _startup_log.info("[Config] loaded environment\n%s", APP_CONFIG.to_pretty_log())
     await create_tables()
     await seed_prompts()
-    await _warmup()
+    await _warmup(APP_CONFIG)
 
     # Log pending unnotified tasks on startup
-    _log = logging.getLogger("startup")
     try:
         async with AsyncSessionLocal() as _session:
             _pending = await get_due_tasks(_session, datetime.utcnow())
-            _log.info(f"[Tasks] {len(_pending)} pending unnotified task(s) at startup")
+            _startup_log.info(f"[Tasks] {len(_pending)} pending unnotified task(s) at startup")
     except Exception as _e:
-        _log.warning(f"[Tasks] startup task count failed: {_e}")
+        _startup_log.warning(f"[Tasks] startup task count failed: {_e}")
 
     _scheduler.add_job(check_and_send_due_tasks, "interval", minutes=1)
     _scheduler.start()
@@ -243,4 +263,4 @@ app.include_router(voice_router)
 
 @app.get("/")
 def root():
-    return RedirectResponse(url="/chat")
+    return RedirectResponse(url="/docs")

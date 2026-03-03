@@ -125,6 +125,11 @@ async def _get_system_prompt() -> str:
 
 
 _PROVIDERS = {
+    "gemini": {
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+        "api_key_env": "GEMINI_API_KEY",
+        "model": "gemini-2.0-flash",
+    },
     "deepseek": {
         "base_url": "https://api.deepseek.com",
         "api_key_env": "DEEPSEEK_API_KEY",
@@ -136,7 +141,7 @@ _PROVIDERS = {
         "model": "llama-3.3-70b-versatile",
     },
     "ollama": {
-        "base_url": "http://localhost:11434/v1",
+        "base_url": os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
         "api_key_env": "OLLAMA_API_KEY",
         "model": "qwen2.5:7b",
     },

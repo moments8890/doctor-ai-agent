@@ -14,6 +14,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from services.intent import Intent
 from services.agent import dispatch
+import services.agent as agent
 
 
 def _make_tool_call(fn_name: str, args: dict, content: str = None):
@@ -330,3 +331,71 @@ async def test_add_record_null_clinical_fields_excluded(mock_llm):
     assert "diagnosis" not in result.structured_fields
     assert "treatment_plan" not in result.structured_fields
     assert result.structured_fields["chief_complaint"] == "胸痛"
+
+
+# ---------------------------------------------------------------------------
+# Ollama fallback parser coverage
+# ---------------------------------------------------------------------------
+
+
+def test_fallback_extract_name_gender_age_with_clinical_keywords():
+    out = agent._fallback_intent_from_text("患者张三男62岁，胸痛两小时，考虑STEMI")
+    assert out.intent == Intent.add_record
+    assert out.patient_name == "张三"
+    assert out.gender == "男"
+    assert out.age == 62
+
+
+def test_fallback_list_patients_branch():
+    out = agent._fallback_intent_from_text("请给我所有患者")
+    assert out.intent == Intent.list_patients
+
+
+def test_fallback_list_tasks_branch():
+    out = agent._fallback_intent_from_text("看一下我的待办任务")
+    assert out.intent == Intent.list_tasks
+
+
+def test_fallback_complete_task_branch():
+    out = agent._fallback_intent_from_text("完成 12")
+    assert out.intent == Intent.complete_task
+    assert out.extra_data.get("task_id") == 12
+
+
+def test_fallback_query_records_branch():
+    out = agent._fallback_intent_from_text("查询王芳历史病历")
+    assert out.intent == Intent.query_records
+    assert out.patient_name is not None
+    assert out.patient_name.startswith("王芳")
+
+
+def test_fallback_create_patient_branch():
+    out = agent._fallback_intent_from_text("新患者 李明 女 43岁")
+    assert out.intent == Intent.create_patient
+    assert out.patient_name == "李明"
+    assert out.gender == "女"
+    assert out.age == 43
+
+
+def test_fallback_greeting_branch():
+    out = agent._fallback_intent_from_text("hello")
+    assert out.intent == Intent.unknown
+    assert out.chat_reply is not None
+
+
+def test_fallback_unknown_branch_keeps_extracted_demographics():
+    out = agent._fallback_intent_from_text("陈明 男 28岁")
+    assert out.intent == Intent.unknown
+    assert out.patient_name is not None
+    assert out.gender == "男"
+    assert out.age == 28
+
+
+async def test_dispatch_ollama_exception_uses_local_fallback(monkeypatch):
+    monkeypatch.setenv("ROUTING_LLM", "ollama")
+    monkeypatch.setenv("OLLAMA_MODEL", "qwen2.5:7b")
+    mock_client = AsyncMock()
+    mock_client.chat.completions.create = AsyncMock(side_effect=RuntimeError("timeout"))
+    with patch("services.agent.AsyncOpenAI", return_value=mock_client):
+        out = await dispatch("张三胸痛两小时")
+    assert out.intent == Intent.add_record
