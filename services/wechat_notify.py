@@ -22,6 +22,9 @@ def _get_config() -> dict:
 
 
 async def _get_access_token(app_id: str, app_secret: str) -> str:
+    if not app_id or not app_secret:
+        raise RuntimeError("WECHAT_APP_ID/WECHAT_APP_SECRET not configured")
+
     now = time.time()
     if _token_cache["token"] and now < _token_cache["expires_at"]:
         log(f"[WeChat token] using cached token (expires in {int(_token_cache['expires_at'] - now)}s)")
@@ -34,8 +37,15 @@ async def _get_access_token(app_id: str, app_secret: str) -> str:
             "appid": app_id,
             "secret": app_secret,
         })
+        if hasattr(resp, "raise_for_status"):
+            resp.raise_for_status()
         data = resp.json()
         log(f"[WeChat token] fetched new token: {data}")
+        if not isinstance(data, dict) or "access_token" not in data:
+            errcode = data.get("errcode") if isinstance(data, dict) else None
+            errmsg = data.get("errmsg") if isinstance(data, dict) else str(data)
+            raise RuntimeError(f"WeChat token fetch failed: errcode={errcode}, errmsg={errmsg}")
+
         _token_cache["token"] = data["access_token"]
         _token_cache["expires_at"] = now + data["expires_in"] - 60
         return _token_cache["token"]
@@ -59,6 +69,11 @@ def _split_message(text: str, limit: int = 600) -> List[str]:
 
 async def _send_customer_service_msg(to_user: str, content: str) -> None:
     cfg = _get_config()
+    if not to_user:
+        raise RuntimeError("missing to_user")
+    if not content.strip():
+        raise RuntimeError("empty notification content")
+
     try:
         access_token = await _get_access_token(cfg["app_id"], cfg["app_secret"])
         url = f"https://api.weixin.qq.com/cgi-bin/message/custom/send?access_token={access_token}"
@@ -68,6 +83,14 @@ async def _send_customer_service_msg(to_user: str, content: str) -> None:
             for i, chunk in enumerate(chunks):
                 payload = {"touser": to_user, "msgtype": "text", "text": {"content": chunk}}
                 resp = await client.post(url, json=payload)
-                log(f"[WeChat cs] chunk {i+1}/{len(chunks)}: {resp.json()}")
+                if hasattr(resp, "raise_for_status"):
+                    resp.raise_for_status()
+                data = resp.json()
+                log(f"[WeChat cs] chunk {i+1}/{len(chunks)}: {data}")
+                if isinstance(data, dict) and data.get("errcode", 0) != 0:
+                    raise RuntimeError(
+                        f"WeChat send failed: errcode={data.get('errcode')} errmsg={data.get('errmsg')}"
+                    )
     except Exception as e:
         log(f"[WeChat cs] FAILED: {e}")
+        raise

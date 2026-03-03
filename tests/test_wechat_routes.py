@@ -88,7 +88,11 @@ async def test_get_access_token_fetches_and_updates_cache():
 
 async def test_send_customer_service_msg_swallow_exception():
     with patch("services.wechat_notify._get_access_token", new=AsyncMock(side_effect=RuntimeError("boom"))):
-        await wechat._send_customer_service_msg("u1", "content")
+        try:
+            await wechat._send_customer_service_msg("u1", "content")
+            assert False, "expected exception"
+        except RuntimeError as e:
+            assert "boom" in str(e)
 
 
 async def test_send_customer_service_msg_success_path_posts_chunks():
@@ -120,6 +124,30 @@ async def test_send_customer_service_msg_success_path_posts_chunks():
 
     assert len(client.posts) >= 2
     assert all(p["touser"] == "u1" for p in client.posts)
+
+
+async def test_send_customer_service_msg_raises_on_wechat_errcode():
+    class _Resp:
+        def json(self):
+            return {"errcode": 40013, "errmsg": "invalid appid"}
+
+    class _Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, _url, json):
+            return _Resp()
+
+    with patch("services.wechat_notify._get_access_token", new=AsyncMock(return_value="tok")), \
+         patch("services.wechat_notify.httpx.AsyncClient", return_value=_Client()):
+        try:
+            await wechat._send_customer_service_msg("u1", "hello")
+            assert False, "expected exception"
+        except RuntimeError as e:
+            assert "errcode=40013" in str(e)
 
 
 async def test_build_reply_handles_value_error_and_generic_error():
