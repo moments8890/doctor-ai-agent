@@ -476,6 +476,8 @@ LOG_DIR=logs
 LOG_FILE=app.log
 LOG_MAX_BYTES=10485760
 LOG_BACKUP_COUNT=5
+TASK_LOG_TO_CONSOLE=false       # tasks logger to terminal (default off; still writes logs/tasks.log)
+SCHEDULER_LOG_TO_CONSOLE=false  # apscheduler logger to terminal (default off; still writes logs/scheduler.log)
 ```
 
 ---

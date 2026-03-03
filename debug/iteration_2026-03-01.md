@@ -205,3 +205,26 @@ Switch `OLLAMA_MODEL` from `llama3.2` to `qwen2.5:7b` for production use. `llama
 - [x] Rotating file output enabled and `logs/` ignored in git
 - [x] Task workflow structured events implemented
 - [x] Unit tests green (`.venv/bin/python -m pytest tests/ -v`)
+
+---
+
+## Startup Env Config + Console Noise Control
+
+### Scope
+
+- Added centralized app env config loader with shared `.env` priority:
+  - `/Users/jingwuxu/Documents/code/shared-db/.env` first, fallback to local `.env`.
+- Added startup environment logging with masked secrets and multi-line pretty output.
+- Added startup Ollama connectivity check (retry + fail fast) when routing/structuring provider is `ollama`.
+- Reduced terminal noise:
+  - `tasks` logger hidden from terminal by default, routed to `logs/tasks.log`.
+  - `apscheduler` logger hidden from terminal by default, routed to `logs/scheduler.log`.
+  - Added opt-in env toggles: `TASK_LOG_TO_CONSOLE`, `SCHEDULER_LOG_TO_CONSOLE`.
+- Added/updated unit tests for config parsing/masking, pretty log output, and logger routing toggles.
+
+### Status
+
+- [x] Shared `.env` loading + startup config struct implemented
+- [x] Startup LLM connectivity check implemented
+- [x] Task/scheduler terminal log suppression implemented
+- [x] Unit tests green (`.venv/bin/python -m pytest tests/ -q`)

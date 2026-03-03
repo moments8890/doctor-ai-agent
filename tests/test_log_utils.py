@@ -76,11 +76,48 @@ def test_init_logging_with_rotating_files(tmp_path: Path):
 
     root = logging.getLogger()
     tasks_logger = logging.getLogger("tasks")
+    scheduler_logger = logging.getLogger("apscheduler")
     assert root.handlers
     assert tasks_logger.handlers
+    assert scheduler_logger.handlers
+    assert tasks_logger.propagate is False
+    assert scheduler_logger.propagate is False
 
     # Write one log line to ensure file handlers are active.
     logmod.log("root-event", logger_name="app")
     logmod.task_log("task-event", task_id=9)
     assert (tmp_path / "dev.log").exists()
     assert (tmp_path / "tasks.log").exists()
+    assert (tmp_path / "scheduler.log").exists()
+
+
+def test_init_logging_tasks_can_propagate_to_console_when_enabled():
+    with patch.dict(
+        "os.environ",
+        {
+            "LOG_LEVEL": "INFO",
+            "LOG_TO_FILE": "false",
+            "TASK_LOG_TO_CONSOLE": "true",
+        },
+        clear=False,
+    ):
+        logmod.init_logging()
+
+    tasks_logger = logging.getLogger("tasks")
+    assert tasks_logger.propagate is True
+
+
+def test_init_logging_scheduler_can_propagate_to_console_when_enabled():
+    with patch.dict(
+        "os.environ",
+        {
+            "LOG_LEVEL": "INFO",
+            "LOG_TO_FILE": "false",
+            "SCHEDULER_LOG_TO_CONSOLE": "true",
+        },
+        clear=False,
+    ):
+        logmod.init_logging()
+
+    scheduler_logger = logging.getLogger("apscheduler")
+    assert scheduler_logger.propagate is True
