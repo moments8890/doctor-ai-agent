@@ -9,12 +9,10 @@ from pydantic import BaseModel
 from db.crud import create_patient as db_create_patient, find_patient_by_name, save_record
 from db.engine import AsyncSessionLocal
 from models.medical_record import MedicalRecord
-from routers.records import (
-    SUPPORTED_AUDIO_TYPES,
-    _assistant_asked_for_name,
-    _is_valid_patient_name,
-    _name_only_text,
-)
+from routers.records import SUPPORTED_AUDIO_TYPES
+from routers.records import _assistant_asked_for_name
+from routers.records import _is_valid_patient_name
+from routers.records import _name_only_text
 from services.agent import dispatch as agent_dispatch
 from services.intent import Intent
 from services.structuring import structure_medical_record
@@ -45,10 +43,7 @@ async def voice_chat(
     """Doctor speaks a command or dictates a record; audio is transcribed then
     routed through the full agent dispatch pipeline."""
     if audio.content_type not in SUPPORTED_AUDIO_TYPES:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Unsupported file type: {audio.content_type}. Supported: mp3, mp4, wav, webm, ogg, flac, m4a.",
-        )
+        raise HTTPException(status_code=422, detail=f"Unsupported file type: {audio.content_type}. Supported: mp3, mp4, wav, webm, ogg, flac, m4a.")  # noqa: E501
 
     # Parse history JSON string
     history_list: List[dict] = []
@@ -167,10 +162,7 @@ async def voice_consultation(
     """Doctor uploads an ambient consultation recording; transcribed with
     dialogue-aware prompt then structured into a MedicalRecord."""
     if audio.content_type not in SUPPORTED_AUDIO_TYPES:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Unsupported file type: {audio.content_type}. Supported: mp3, mp4, wav, webm, ogg, flac, m4a.",
-        )
+        raise HTTPException(status_code=422, detail=f"Unsupported file type: {audio.content_type}. Supported: mp3, mp4, wav, webm, ogg, flac, m4a.")  # noqa: E501
 
     audio_bytes = await audio.read()
 
