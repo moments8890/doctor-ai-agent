@@ -1,226 +1,271 @@
-# OpenClaw Skills Migration Design
+# Migration to OpenClaw Skills — Full Design
 
 ## Goal
-Migrate the current Doctor AI system from a Python domain backend to an OpenClaw-native skills architecture, with a safe phased rollout and strict parity gates.
-
-## Scope
-This design covers:
-- Target architecture in OpenClaw ecosystem
-- Skill boundaries and responsibilities
-- Data model and contracts
-- Phased migration plan from current Python implementation
-- Quality gates and rollback strategy
+Migrate the existing Python/FastAPI backend to TypeScript OpenClaw skills. Python is retired after feature parity. All domain logic lives in OpenClaw skills; OpenClaw handles channel routing, session orchestration, and cron jobs. Patient-facing WeChat intake is added as a first-class feature (currently only doctor-facing). `patient_events` table captures all raw inbound messages for audit trail and dispute resolution.
 
 ---
 
-## 1. Target Architecture
+## New Project Layout
 
-### 1.1 Repository layout
-
-```text
-openclaw-medical/
-├── skills/
-│   ├── patient-intake/
-│   ├── record-structuring/
-│   ├── risk-engine/
-│   ├── task-manager/
-│   ├── approval-queue/
-│   ├── notification-dispatch/
-│   └── daily-digest/
-├── packages/
-│   ├── contracts/      # typed DTOs/events shared by all skills
-│   ├── db/             # schema, migrations, repositories
-│   ├── core/           # domain rules/models independent from transport
-│   └── llm/            # Ollama client + prompt contracts
-└── apps/
-    └── doctor-ui/      # doctor-facing web UI
 ```
-
-### 1.2 Runtime flow
-
-```text
-Patient channel (WeChat/voice/image)
-  -> OpenClaw skill orchestration
-  -> Domain skills (intake/structuring/risk/tasks/approval)
-  -> SQLite (source of truth)
-  -> Notification skills (wechat/sms/email)
-  -> Doctor UI + daily digest
+doctor-openclaw/
+├── package.json              # Node.js 22+, pnpm
+├── tsconfig.json
+├── drizzle.config.ts
+├── db/
+│   ├── schema.ts             # All table definitions (Drizzle)
+│   └── index.ts              # DB singleton (better-sqlite3 + Drizzle)
+├── shared/
+│   ├── ollama.ts             # Ollama OpenAI-compatible client
+│   ├── wechat.ts             # WeChat token cache + customer service message
+│   └── types.ts              # MedicalRecord, IntentResult, RiskResult, etc.
+└── skills/
+    ├── db-core/              # All CRUD (shared lib used by every skill)
+    ├── agent-dispatch/       # LLM intent classification (function-calling)
+    ├── record-structuring/   # Free text → structured MedicalRecord
+    ├── risk-engine/          # Risk scoring + patient categorization (pure)
+    ├── task-manager/         # Task CRUD + due-task cron (replaces APScheduler)
+    ├── notification/         # WeChat push abstraction (log | wechat)
+    ├── approval-workflow/    # Pending AI drafts awaiting doctor review
+    ├── transcription/        # Audio → text (Whisper local/cloud)
+    ├── doctor-chat/          # Doctor-facing WeChat message handler
+    └── patient-intake/       # Patient-facing WeChat handler (NEW)
 ```
 
 ---
 
-## 2. Skill Boundaries
+## DB Schema (db/schema.ts)
 
-### 2.1 patient-intake
-- Input: incoming patient messages from channels
-- Responsibility:
-  - normalize source payload
-  - persist raw event (`patient_events`)
-  - infer/resolve patient identity (safe, deterministic)
-- Output: `PatientEventCreated`
+Mirror all existing tables from Python `db/models.py` exactly using Drizzle. Add three new tables.
 
-### 2.2 record-structuring
-- Input: `PatientEventCreated`
-- Responsibility:
-  - run LLM extraction for structured medical fields
-  - persist `medical_records`
-  - persist extraction trace/audit metadata
-- Output: `MedicalRecordCreated`
+### Existing tables (mirrored)
+- `system_prompts` — editable LLM prompts
+- `doctor_contexts` — persistent compressed memory per doctor
+- `patients` — patient profiles with risk + category fields
+- `medical_records` — structured clinical records
+- `neuro_cases` — neurology case extractions
+- `doctor_tasks` — follow-up / emergency / appointment tasks
+- `patient_labels` + `patient_label_assignments` — doctor-owned labels
 
-### 2.3 risk-engine
-- Input: `MedicalRecordCreated`
-- Responsibility:
-  - compute patient risk level/score/tags
-  - persist risk snapshot + rationale
-- Output: `PatientRiskUpdated`
+### New: `patient_events`
 
-### 2.4 task-manager
-- Input: `PatientRiskUpdated`, follow-up triggers, manual doctor actions
-- Responsibility:
-  - create/update/complete `doctor_tasks`
-  - idempotency guard to avoid duplicate tasks
-- Output: `TaskCreated`, `TaskCompleted`, `TaskDue`
+```ts
+patientEvents = sqliteTable('patient_events', {
+  id:        integer('id').primaryKey({ autoIncrement: true }),
+  doctorId:  text('doctor_id').notNull(),
+  patientId: integer('patient_id').references(() => patients.id),
+  source:    text('source').notNull(),     // "wechat" | "voice" | "image"
+  direction: text('direction').notNull(),  // "inbound" | "outbound"
+  eventType: text('event_type').notNull(), // "symptom_report" | "question" | "image_upload" | "reply_sent"
+  rawText:   text('raw_text'),
+  riskHint:  text('risk_hint'),            // quick keyword match before full engine
+  recordId:  integer('record_id').references(() => medicalRecords.id),
+  status:    text('status').notNull().default('raw'), // "raw" | "structured" | "ignored"
+  eventTime: integer('event_time', { mode: 'timestamp' }).notNull(),
+})
+```
 
-### 2.5 approval-queue
-- Input: AI-generated draft replies
-- Responsibility:
-  - persist pending drafts for doctor review
-  - approve/reject workflow
-- Output: `DraftApproved`, `DraftRejected`
+### New: `doctor_bindings`
 
-### 2.6 notification-dispatch
-- Input: `TaskDue`, `DraftApproved`, digest events
-- Responsibility:
-  - send to configured channels (wechat/sms/email)
-  - retry/backoff
-  - persist delivery logs
-- Output: `NotificationSent`, `NotificationFailed`
+```ts
+doctorBindings = sqliteTable('doctor_bindings', {
+  doctorId:      text('doctor_id').primaryKey(),
+  wechatOpenid:  text('wechat_openid').notNull().unique(),
+})
+```
 
-### 2.7 daily-digest
-- Trigger: OpenClaw cron
-- Responsibility:
-  - summarize patient activity and risks for doctor
-  - send and archive digest
-- Output: `DailyDigestSent`
+### New: `patient_bindings`
+
+```ts
+patientBindings = sqliteTable('patient_bindings', {
+  id:            integer('id').primaryKey({ autoIncrement: true }),
+  patientId:     integer('patient_id').references(() => patients.id).notNull(),
+  doctorId:      text('doctor_id').notNull(),
+  wechatOpenid:  text('wechat_openid').notNull().unique(),
+})
+```
 
 ---
 
-## 3. Data Model (Minimum)
+## Skill Inventory
 
-## 3.1 Core tables
-- `patients`
-- `patient_events` (raw free text/event payloads)
-- `medical_records`
-- `doctor_tasks`
-- `draft_replies`
-- `delivery_logs`
-- `audit_log`
+### 1. `db-core` (shared library)
+Ported from `db/crud.py`. Exports all CRUD functions used by every other skill. No LLM calls.
 
-### 3.2 Recommended additions
-- `patient_risk_snapshots`
-- `task_attempts` (per-delivery retry trace)
+Key functions: `createPatient`, `findPatientByName`, `saveRecord` (triggers risk + category + optional follow-up task), `createApprovalItem`, `updateApprovalItem`, `createTask`, `getDueTasks`, `markTaskNotified`, `upsertDoctorContext`, label management.
 
-### 3.3 Design principles
-- Keep raw source event immutable (`patient_events`)
-- Keep structured clinical fact mutable with version/audit
-- Every automated action must have rationale in `audit_log`
+### 2. `agent-dispatch` skill
+**From**: `services/agent.py` + `services/intent.py`
 
----
+Tool: `dispatch(text, history[]) → IntentResult`
+- Ollama `qwen2.5:14b` via `shared/ollama.ts` (OpenAI-compatible, same function-calling tools)
+- 8 tools identical to Python version (create_patient, add_medical_record, query_records, list_patients, list_tasks, complete_task, schedule_appointment)
+- Regex fallback when Ollama unavailable
 
-## 4. Contracts and Events
+### 3. `record-structuring` skill
+**From**: `services/structuring.py`
 
-### 4.1 Canonical events (examples)
-- `PatientEventCreated`
-- `MedicalRecordCreated`
-- `PatientRiskUpdated`
-- `TaskCreated`
-- `TaskDue`
-- `DraftApproved`
-- `NotificationSent`
+Tool: `structureRecord(text, consultationMode?) → MedicalRecord`
+- System prompt from `system_prompts` table, 60s cache
+- Preserves medical abbreviations (STEMI, BNP, EF, EGFR, HER2, ANC, PCI)
+- `consultationMode=true` appends dialogue-aware suffix
 
-### 4.2 Contract requirements
-- Stable IDs (`event_id`, `patient_id`, `record_id`, `task_id`)
-- Event timestamps in UTC
-- Explicit version field (`schema_version`)
-- Idempotency key for all side-effect operations
+### 4. `risk-engine` skill
+**From**: `services/patient_risk.py` + `services/patient_categorization.py`
 
----
+Tools: `recomputeRisk(patientId)`, `recomputeCategory(patientId)` — pure computation, no LLM.
+Keywords, thresholds, follow-up state logic ported verbatim.
+Cron: weekly full risk recompute for all patients (new).
 
-## 5. Migration Strategy (Phased)
+### 5. `task-manager` skill
+**From**: `services/tasks.py` + `routers/tasks.py`
 
-## Phase 0: Contract freeze
-- Extract current Python API/domain payloads into typed contracts
-- Build gold test fixtures from existing production-like cases
+Tools: `createFollowUpTask`, `createEmergencyTask`, `createAppointmentTask`, `listTasks`, `completeTask`
+**Cron** (replaces APScheduler): every 1 min → `checkAndSendDueTasks()` → notify → `markTaskNotified`
+Chinese follow-up day parsing (`extractFollowUpDays`) ported verbatim.
 
-## Phase 1: Shadow mode (dual-run)
-- Skills run in parallel; Python remains source of truth
-- Compare outputs:
-  - structuring fields
-  - risk score/level
-  - task creation decisions
+### 6. `notification` skill
+**From**: `services/notification.py` + `services/wechat_notify.py`
 
-## Phase 2: Low-risk cutover
-- Cut over `daily-digest` and `notification-dispatch`
-- Keep clinical decision path on Python backend
+Tool: `notify(doctorId, message)`
+- Provider: `NOTIFICATION_PROVIDER` env var (`log` | `wechat`)
+- WeChat: token cache (60s buffer) + customer service message + 600-char chunking
 
-## Phase 3: Task cutover
-- Cut over `task-manager`
-- Enforce idempotency and duplicate suppression
+### 7. `approval-workflow` skill
+**From**: `services/approval.py` + `routers/approvals.py`
 
-## Phase 4: Risk + structuring cutover
-- Cut over `risk-engine` and `record-structuring`
-- Block rollout unless parity thresholds are met
+Tools: `createApproval`, `commitApproval`, `rejectApproval`, `listApprovals`
 
-## Phase 5: Intake cutover
-- Route channel ingestion directly to `patient-intake`
+**Fixes vs Python:**
+- `commitApproval`: atomic `UPDATE ... WHERE status='pending'` before side effects (eliminates race condition)
+- Zod schema validation on all LLM outputs; maps parse errors → clean error messages (eliminates 500s)
 
-## Phase 6: Decommission Python domain routes
-- Keep read-only fallback window
-- Remove old paths after stability period
+### 8. `transcription` skill
+**From**: `services/transcription.py`
 
----
+Tool: `transcribe(audioBuffer, consultationMode?) → string`
+- Primary: shell exec to `whisper-cpp` or Python `faster-whisper` subprocess
+- Fallback: OpenAI Whisper API
+- Language forced to `zh`
 
-## 6. Quality Gates (Go/No-go)
+### 9. `doctor-chat` skill
+**From**: `routers/records.py` + `routers/voice.py` + `routers/wechat.py` (doctor path)
 
-- Structured record field parity >= 95%
-- Risk classification parity >= 99%
-- Task generation parity >= 99.5%
-- Duplicate notification rate = 0 in canary period
-- 100% audit coverage on automated actions
+WeChat channel handler for **doctor** openid messages. Orchestrates:
+```
+message → openid lookup → doctorId
+  → stateful flow check (pending_create_name / interview)
+  → agent-dispatch → IntentResult
+  → execute intent (same logic as Python records/wechat routers)
+  → reply via WeChat customer service API
+```
+Session state per doctorId stored in OpenClaw session.
+Conversation history compression via OpenClaw `/compact` + `doctor_contexts` table.
 
-If any gate fails:
-- auto rollback to previous phase
-- keep writing comparison logs for triage
+### 10. `patient-intake` skill (NEW)
+No Python equivalent. Patient-facing WeChat handler.
 
----
+```
+Patient message → openid lookup → patientId + doctorId
+  → write patient_events (direction=inbound)
+  → quick risk hint (keyword match)
+  → approval-workflow.createApproval (item_type="patient_message")
+  → notify doctor: "【患者消息】{name}: {preview}，请审核 #{approvalId}"
+  → ack patient: "已收到，医生将尽快回复"
 
-## 7. Rollback and Safety
-
-- Feature flags per skill/domain path
-- Dual-write only where idempotent
-- Hard rollback switch for notification sends
-- Preserve Python path until 2 full release cycles are clean
+Doctor approves → reply sent to patient via patient_bindings.wechatOpenid
+  → write patient_events (direction=outbound)
+```
 
 ---
 
-## 8. First Sprint Plan
+## WeChat Channel Routing
 
-1. Create `packages/contracts` from existing Python payload shapes
-2. Add `patient_events` and `delivery_logs` schema
-3. Implement `patient-intake` and `daily-digest` skills
-4. Build parity harness reusing existing corpus/tests
-5. Add dashboard metrics for parity and failure rates
+```
+Incoming POST /wechat
+  openid lookup:
+  ├── in doctor_bindings  → doctor-chat skill
+  ├── in patient_bindings → patient-intake skill
+  └── unknown             → onboarding (doctor or patient?)
+```
 
-Deliverables:
-- runnable skill skeletons
-- migration feature flags
-- parity report baseline
+OpenClaw's built-in "WebChat" is a web widget, not 公众号 webhook. A custom channel adapter in TypeScript handles WeChat signature verification, XML parsing, and routes to the appropriate skill. This replaces `routers/wechat.py` entirely.
 
 ---
 
-## 9. Decision Summary
+## Migration Phases
 
-- Long-term direction: OpenClaw-native domain skills
-- Short-term strategy: phased migration with strict parity and rollback
-- Rationale: preserve current proven logic while reducing rewrite risk
+### Phase 1 — Foundation
+- Init `doctor-openclaw/` (pnpm, tsconfig, drizzle config)
+- `db/schema.ts` — all tables + 3 new tables
+- `shared/ollama.ts`, `shared/wechat.ts`, `shared/types.ts`
+- `skills/db-core` — all CRUD
+- `skills/notification`
 
+### Phase 2 — Core domain skills
+- `skills/risk-engine` (pure, easiest to test)
+- `skills/task-manager` + cron
+- `skills/record-structuring`
+- `skills/agent-dispatch`
+
+### Phase 3 — Workflow skills
+- `skills/approval-workflow` (with atomic fix + Zod validation)
+- `skills/transcription`
+
+### Phase 4 — Channel skills
+- WeChat custom channel adapter (公众号 webhook)
+- `skills/doctor-chat`
+- `skills/patient-intake` + binding tables
+
+### Phase 5 — Validation & cutover
+- Port critical Python test cases to Vitest (target ≥90% coverage)
+- Vitest green + coverage gate met → delete Python backend entirely
+
+---
+
+## Key Technical Decisions
+
+| Decision | Choice | Reason |
+|---|---|---|
+| ORM | Drizzle + better-sqlite3 | SQL-first, type-safe, works with existing SQLite file, no migration runtime |
+| Ollama client | `openai` npm package | Already OpenAI-compatible; same function-calling API as Python |
+| Cron | OpenClaw built-in | Replaces APScheduler, 1-min interval |
+| Context compression | OpenClaw `/compact` + `doctor_contexts` | Replaces Python rolling-window logic |
+| WeChat channel | Custom adapter (TypeScript) | OpenClaw WebChat ≠ 公众号 webhook |
+| Testing | Vitest | TypeScript-native, fast, similar to pytest |
+| Race condition fix | Atomic `WHERE status='pending'` UPDATE | Fixes approval-workflow double-commit bug |
+| Payload validation | Zod on all LLM outputs | Maps parse errors → 422-style messages, no 500s |
+
+---
+
+## Comparison with Event-Driven Approach
+
+The alternative approach (separate `packages/contracts` monorepo, event types like `PatientEventCreated`, shadow dual-run phases) is designed for a safe incremental production cutover. In a dev context where Python is being retired entirely, those concerns don't apply. The relevant trade-offs are:
+
+| Aspect | This plan (flat skills) | Event-driven monorepo |
+|---|---|---|
+| Setup complexity | Low | High |
+| New tables | 3 (`patient_events`, `*_bindings`) | 5+ (`delivery_logs`, `audit_log`, etc.) |
+| Timeline | Faster | Slower |
+
+Shadow mode, rollback flags, and parity gates are omitted — Python is deleted once Vitest coverage gates are met.
+
+---
+
+## Verification
+
+```bash
+# Phase 1 check
+pnpm test                           # Vitest unit tests
+
+# Phase 4 smoke (doctor chat)
+openclaw start
+# Send WeChat message as doctor → verify intent dispatch → record saved
+
+# Phase 4 smoke (patient intake)
+# Send WeChat message as patient → verify patient_events row + doctor notified
+
+# Phase 5 exit criteria
+pnpm test --coverage                # overall ≥90% coverage
+# Coverage gate green → delete Python backend
+```
