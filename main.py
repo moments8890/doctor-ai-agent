@@ -22,6 +22,7 @@ from routers.wechat import router as wechat_router
 from routers.ui import router as ui_router
 from routers.neuro import router as neuro_router
 from routers.tasks import router as tasks_router
+from routers.voice import router as voice_router
 from db.init_db import create_tables, seed_prompts
 from db.engine import engine, AsyncSessionLocal
 from db.models import Patient, MedicalRecordDB, DoctorContext, SystemPrompt, NeuroCaseDB, DoctorTask
@@ -257,6 +258,7 @@ app.include_router(wechat_router)
 app.include_router(ui_router)
 app.include_router(neuro_router)
 app.include_router(tasks_router)
+app.include_router(voice_router)
 
 
 @app.get("/")

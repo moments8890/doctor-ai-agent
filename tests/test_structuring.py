@@ -268,3 +268,24 @@ async def test_structure_user_message_is_input_text(mock_llm):
     messages = mock_llm.call_args.kwargs["messages"]
     assert messages[-1]["role"] == "user"
     assert messages[-1]["content"] == "这是具体的输入文本"
+
+
+async def test_structure_consultation_mode_appends_suffix(mock_llm):
+    """consultation_mode=True appends _CONSULTATION_SUFFIX to the system prompt."""
+    from services.structuring import _CONSULTATION_SUFFIX
+    mock_llm.return_value = _make_completion({"chief_complaint": "胸痛", "history_of_present_illness": "问诊中"})
+    await structure_medical_record("医患对话转写", consultation_mode=True)
+    messages = mock_llm.call_args.kwargs["messages"]
+    system_content = messages[0]["content"]
+    assert _CONSULTATION_SUFFIX.strip() in system_content
+    assert messages[-1]["content"] == "医患对话转写"
+
+
+async def test_structure_consultation_mode_false_no_suffix(mock_llm):
+    """consultation_mode=False (default) does NOT append _CONSULTATION_SUFFIX."""
+    from services.structuring import _CONSULTATION_SUFFIX
+    mock_llm.return_value = _make_completion({"chief_complaint": "头晕"})
+    await structure_medical_record("普通口述", consultation_mode=False)
+    messages = mock_llm.call_args.kwargs["messages"]
+    system_content = messages[0]["content"]
+    assert "【问诊对话模式】" not in system_content

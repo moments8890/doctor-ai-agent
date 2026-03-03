@@ -11,7 +11,7 @@ from wechatpy.replies import TextReply
 from services.structuring import structure_medical_record
 from services.transcription import transcribe_audio
 from services.vision import extract_text_from_image
-from services.voice import download_and_convert, download_voice
+from services.wechat_voice import download_and_convert, download_voice
 from services.interview import InterviewState, STEPS
 from services.intent import Intent
 from services.agent import dispatch as agent_dispatch

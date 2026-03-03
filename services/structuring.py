@@ -74,6 +74,24 @@ _SEED_PROMPT = """\
 - 保持医学术语规范，保留专业缩写（STEMI、PCI、BNP、EF、ANC、EGFR 等）
 """
 
+_CONSULTATION_SUFFIX = """
+
+【问诊对话模式】
+输入为医生与患者的问诊对话转写文本，非单人口述。
+
+提取规则：
+- 患者描述的症状、时间、诱因 → history_of_present_illness
+- 医生确认的既往史 → past_medical_history
+- 医生检查的生命体征 → physical_examination
+- 医生提及的检查结果 → auxiliary_examinations
+- 医生的诊断倾向 → diagnosis
+- 医生交代的用药/治疗 → treatment_plan
+- 医生的随访安排 → follow_up_plan
+- chief_complaint: 患者首诉主要不适（≤20字）
+
+严禁将医生的询问性语言作为已确认信息。疑问句内容须有患者明确应答才能记录。
+"""
+
 _PROMPT_CACHE: Optional[Tuple[float, str]] = None  # (fetched_at, content)
 _PROMPT_CACHE_TTL = 60  # seconds — changes take effect within 1 minute
 
@@ -130,7 +148,10 @@ _PROVIDERS = {
 }
 
 
-async def structure_medical_record(text: str) -> MedicalRecord:
+async def structure_medical_record(
+    text: str,
+    consultation_mode: bool = False,
+) -> MedicalRecord:
     provider_name = os.environ.get("STRUCTURING_LLM", "deepseek")
     provider = dict(_PROVIDERS[provider_name])
     if provider_name == "ollama":
@@ -142,6 +163,8 @@ async def structure_medical_record(text: str) -> MedicalRecord:
         api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
     )
     system_prompt = await _get_system_prompt()
+    if consultation_mode:
+        system_prompt = system_prompt + _CONSULTATION_SUFFIX
     completion = await client.chat.completions.create(
         model=provider["model"],
         messages=[
