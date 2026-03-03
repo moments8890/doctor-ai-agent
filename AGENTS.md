@@ -27,6 +27,14 @@ The plan file must include:
 
 1. **Unit tests** — `.venv/bin/python -m pytest tests/ -v` — must be 100% green before pushing
    - **Coverage gates** — overall coverage must be `>80%`, and changed/new lines coverage in PR must be `>80%`
+   - **Every new function or branch** (new `def`, `if`, `except`, `elif`) must have at least one test that exercises it directly
+   - **Verify diff coverage locally before pushing** — run the full check:
+     ```bash
+     bash tools/test.sh unit
+     git fetch --no-tags origin main
+     .venv/bin/diff-cover reports/coverage/coverage.xml --compare-branch=origin/main --diff-range-notation=.. --fail-under=81
+     ```
+     If diff-cover reports missing lines, add tests for those lines before pushing.
 2. **Integration tests** — `pytest tests/integration/` — only when LLM pipeline or prompt changed (requires `uvicorn main:app --reload` + `ollama serve`); auto-skipped if deps not running
 3. **Corpus tests** (optional) — `python tools/train.py --clean [--cases ...]` — full corpus validation, also requires Ollama
 4. **Document changes in commit + PR** — include what changed and any migration/manual cleanup impact in the commit message and PR description
@@ -58,7 +66,7 @@ gh pr merge --auto --squash
 
 - Branch naming: `feat/`, `fix/`, `ci/`, `refactor/`, `docs/`
 - PR title follows conventional commits: `feat:`, `fix:`, `ci:`, etc.
-- PRs must be created as **draft** first
+- **PRs must always be created as draft** — `gh pr create` without `--draft` is forbidden
 - PRs must be blocked from merge until required CI checks pass (`unit` + `integration`)
 - Auto-merge is squash-merge and only activates after required CI checks are green
 - When a PR is created, always provide the PR link in the status update to the user
