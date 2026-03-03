@@ -41,16 +41,6 @@ def _record(**kwargs):
     return SimpleNamespace(**defaults)
 
 
-async def test_chat_page_and_manage_page_return_html():
-    chat_resp = await ui.chat_page()
-    manage_resp = await ui.manage_page()
-
-    assert chat_resp.status_code == 200
-    assert b"Doctor AI Chat" in chat_resp.body
-    assert manage_resp.status_code == 200
-    assert b"Doctor Management Console" in manage_resp.body
-
-
 def test_fmt_ts():
     assert ui._fmt_ts(None) is None
     assert ui._fmt_ts(datetime(2026, 3, 2, 10, 30, 0)) == "2026-03-02 10:30:00"
@@ -139,6 +129,40 @@ async def test_manage_records_without_patient_filter():
     assert data["items"][1]["treatment_plan"] == "随访"
     assert data["items"][1]["follow_up_plan"] == "两周复诊"
     assert data["items"][1]["created_at"] is None
+
+
+async def test_manage_records_filter_by_patient_name():
+    db = SimpleNamespace()
+    records = [
+        _record(id=41, patient=SimpleNamespace(name="沈梅")),
+        _record(id=42, patient=SimpleNamespace(name="王五")),
+    ]
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.get_all_records_for_doctor", new=AsyncMock(return_value=records)):
+        data = await ui.manage_records(doctor_id="doc2", patient_id=None, patient_name="沈", limit=50)
+
+    assert len(data["items"]) == 1
+    assert data["items"][0]["patient_name"] == "沈梅"
+
+
+async def test_manage_records_filter_by_date_range():
+    db = SimpleNamespace()
+    records = [
+        _record(id=51, created_at=datetime(2026, 3, 1, 9, 0, 0), patient=SimpleNamespace(name="张三")),
+        _record(id=52, created_at=datetime(2026, 3, 3, 9, 0, 0), patient=SimpleNamespace(name="李四")),
+    ]
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.get_all_records_for_doctor", new=AsyncMock(return_value=records)):
+        data = await ui.manage_records(
+            doctor_id="doc2",
+            patient_id=None,
+            date_from="2026-03-02",
+            date_to="2026-03-03",
+            limit=50,
+        )
+
+    assert len(data["items"]) == 1
+    assert data["items"][0]["id"] == 52
 
 
 async def test_manage_prompts_present_and_empty():
@@ -417,3 +441,85 @@ async def test_patients_list_labels_populated():
          patch("routers.ui.get_all_patients", new=AsyncMock(return_value=patients)):
         data = await ui.manage_patients("doc1", category=None)
     assert data["items"][0]["labels"] == [{"id": 7, "name": "转诊候选", "color": "#FF4444"}]
+
+
+async def test_admin_db_view_returns_patients_and_records():
+    patient_rows = [
+        _patient_ns(id=11, doctor_id="doc1", name="沈梅", created_at=datetime(2026, 3, 2, 8, 0, 0)),
+    ]
+    record_rows = [
+        (
+            _record(
+                id=28,
+                patient_id=11,
+                doctor_id="doc1",
+                chief_complaint="活动耐量下降，气短",
+                diagnosis=None,
+                treatment_plan="氨氯地平从5mg加到10mg，加上呋塞米20mg",
+                follow_up_plan="下周复查BNP和心超",
+                created_at=datetime(2026, 3, 2, 23, 20, 25),
+            ),
+            "沈梅",
+        )
+    ]
+    db = SimpleNamespace(
+        execute=AsyncMock(
+            side_effect=[
+                SimpleNamespace(scalars=lambda: SimpleNamespace(all=lambda: patient_rows)),
+                SimpleNamespace(all=lambda: record_rows),
+            ]
+        )
+    )
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)):
+        data = await ui.admin_db_view(doctor_id="doc1", limit=50)
+
+    assert data["counts"]["patients"] == 1
+    assert data["counts"]["records"] == 1
+    assert data["patients"][0]["name"] == "沈梅"
+    assert data["records"][0]["chief_complaint"] == "活动耐量下降，气短"
+    assert data["records"][0]["created_at"] == "2026-03-02 23:20:25"
+
+
+async def test_admin_db_view_invalid_date_raises_400():
+    with pytest.raises(HTTPException) as exc:
+        await ui.admin_db_view(date_from="2026/03/02")
+    assert exc.value.status_code == 400
+
+
+async def test_admin_tables_returns_all_table_counts():
+    db = SimpleNamespace(
+        execute=AsyncMock(
+            side_effect=[
+                SimpleNamespace(scalar=lambda: 1),  # patients
+                SimpleNamespace(scalar=lambda: 2),  # medical_records
+                SimpleNamespace(scalar=lambda: 3),  # doctor_tasks
+                SimpleNamespace(scalar=lambda: 4),  # neuro_cases
+                SimpleNamespace(scalar=lambda: 5),  # patient_labels
+                SimpleNamespace(scalar=lambda: 6),  # patient_label_assignments
+                SimpleNamespace(scalar=lambda: 7),  # system_prompts
+                SimpleNamespace(scalar=lambda: 8),  # doctor_contexts
+            ]
+        )
+    )
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)):
+        data = await ui.admin_tables()
+    assert [item["key"] for item in data["items"]] == [
+        "patients",
+        "medical_records",
+        "doctor_tasks",
+        "neuro_cases",
+        "patient_labels",
+        "patient_label_assignments",
+        "system_prompts",
+        "doctor_contexts",
+    ]
+    assert data["items"][0]["count"] == 1
+    assert data["items"][-1]["count"] == 8
+
+
+async def test_admin_table_rows_unknown_table_raises_404():
+    db = SimpleNamespace(execute=AsyncMock())
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)):
+        with pytest.raises(HTTPException) as exc:
+            await ui.admin_table_rows("not_exists")
+    assert exc.value.status_code == 404

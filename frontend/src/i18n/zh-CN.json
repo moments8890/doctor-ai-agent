@@ -1,0 +1,337 @@
+{
+  "frontend": {
+    "app": {
+      "title": "医生 AI 助手"
+    },
+    "nav": {
+      "openManage": "打开管理页",
+      "openChat": "打开聊天页"
+    },
+    "common": {
+      "all": "全部",
+      "apply": "应用",
+      "save": "保存",
+      "loading": "加载中...",
+      "unknown": "未知",
+      "none": "暂无"
+    },
+    "chat": {
+      "pageTitle": "医生 AI 聊天（MUI）",
+      "pageSubtitle": "临床录入与结构化生成",
+      "workspaceTitle": "对话工作区",
+      "doctorId": "医生姓名",
+      "send": "发送",
+      "sending": "发送中...",
+      "placeholder": "请输入病历内容、建档指令或查询需求...",
+      "welcome": "你好，我可以帮你建档、保存病历并查询历史记录。",
+      "received": "已收到。",
+      "requestFailed": "请求失败：{message}",
+      "stats": {
+        "title": "会话数据",
+        "totalTurns": "会话轮次",
+        "assistantTurns": "AI 回复",
+        "doctorTag": "当前医生"
+      }
+    },
+    "manage": {
+      "pageTitle": "医生管理台（MUI）",
+      "pageSubtitle": "患者全景、风险分层与提示词管理",
+      "workspaceTitle": "数据工作区",
+      "reload": "重新加载",
+      "loadFailed": "加载失败：{message}",
+      "saveFailed": "保存失败：{message}",
+      "timelineLoadFailed": "时间线加载失败：{message}",
+      "promptSaved": "已保存：{key}",
+      "stats": {
+        "title": "信息总览",
+        "patients": "患者总数",
+        "records": "病历总数",
+        "highRisk": "高风险患者",
+        "overdue": "逾期随访",
+        "tags": "标签数量"
+      },
+      "labels": {
+        "title": "自定义标签",
+        "assignTitle": "患者标签分配",
+        "name": "标签名称",
+        "color": "颜色",
+        "add": "添加",
+        "empty": "暂无标签",
+        "createFailed": "标签创建失败：{message}",
+        "deleteFailed": "标签删除失败：{message}",
+        "assignFailed": "标签分配失败：{message}"
+      },
+      "tabs": {
+        "patients": "患者（{count}）",
+        "records": "病历（{count}）",
+        "customization": "自定义"
+      },
+      "tabPlain": {
+        "patients": "患者",
+        "records": "病历",
+        "customization": "大模型",
+        "tags": "标签"
+      },
+      "filters": {
+        "risk": "风险等级",
+        "followUp": "随访状态",
+        "patientId": "患者 ID 筛选",
+        "patientName": "患者姓名筛选",
+        "dateFrom": "起始日期",
+        "dateTo": "结束日期",
+        "tag": "标签筛选"
+      },
+      "risk": {
+        "critical": "危急",
+        "high": "高风险",
+        "medium": "中风险",
+        "low": "低风险"
+      },
+      "followUp": {
+        "not_needed": "无需随访",
+        "scheduled": "已安排",
+        "due_soon": "即将到期",
+        "overdue": "已逾期"
+      },
+      "patient": {
+        "categoryPrefix": "分类",
+        "riskPrefix": "风险",
+        "followUpPrefix": "随访",
+        "showDetails": "查看详情",
+        "hideDetails": "收起详情",
+        "genderUnknown": "性别未知",
+        "ageNA": "年龄未知",
+        "ageSuffix": "岁",
+        "recordCount": "病历数",
+        "createdAt": "创建时间",
+        "filterRecords": "按此患者筛选病历",
+        "empty": "暂无患者。"
+      },
+      "record": {
+        "title": "病历 ID={id}",
+        "recordTag": "病历记录",
+        "rawFieldView": "原始字段视图",
+        "patientName": "患者姓名",
+        "date": "记录日期",
+        "chiefComplaint": "主诉",
+        "noChiefComplaint": "无主诉",
+        "unlinkedPatient": "未关联患者",
+        "showDetails": "查看详情",
+        "hideDetails": "收起详情",
+        "fields": {
+          "id": "病历 ID",
+          "patient_id": "患者 ID",
+          "doctor_id": "医生 ID",
+          "patient_name": "患者姓名",
+          "chief_complaint": "主诉",
+          "history_of_present_illness": "现病史",
+          "past_medical_history": "既往史",
+          "physical_examination": "体格检查",
+          "auxiliary_examinations": "辅助检查",
+          "diagnosis": "诊断",
+          "treatment_plan": "治疗方案",
+          "follow_up_plan": "随访计划",
+          "created_at": "记录时间"
+        },
+        "empty": "未找到病历。"
+      },
+      "timeline": {
+        "title": "患者时间线（调试）",
+        "emptyHint": "请先在“患者”页签选择患者后再加载时间线。",
+        "empty": "暂无时间线事件。",
+        "showDetails": "查看详情",
+        "hideDetails": "收起详情",
+        "eventType": {
+          "record": "病历",
+          "task": "任务",
+          "unknown": "事件"
+        },
+        "summary": {
+          "record": "主诉",
+          "task": "任务标题"
+        },
+        "fields": {
+          "timestamp": "时间",
+          "chief_complaint": "主诉",
+          "diagnosis": "诊断",
+          "treatment_plan": "治疗方案",
+          "follow_up_plan": "随访计划",
+          "task_type": "任务类型",
+          "title": "任务标题",
+          "status": "任务状态",
+          "due_at": "到期时间",
+          "trigger_source": "触发来源",
+          "trigger_reason": "触发原因"
+        }
+      },
+      "prompt": {
+        "base": "结构化主提示词",
+        "ext": "结构化扩展提示词",
+        "saveBase": "保存主提示词",
+        "saveExt": "保存扩展提示词"
+      }
+    },
+    "admin": {
+      "pageTitle": "系统管理（内部）",
+      "pageSubtitle": "独立端点，统一查看全部数据库表",
+      "navTitle": "数据表导航",
+      "reload": "刷新数据",
+      "exportCsv": "导出 CSV",
+      "exportJson": "导出 JSON",
+      "copyRow": "复制行",
+      "copySuccess": "行数据已复制到剪贴板。",
+      "copyFailed": "复制失败：{message}",
+      "loadFailed": "加载失败：{message}",
+      "empty": "暂无数据。",
+      "filters": {
+        "doctorName": "医生姓名",
+        "patientName": "患者姓名",
+        "dateFrom": "起始日期",
+        "dateTo": "结束日期"
+      },
+      "counts": {
+        "title": "表记录概览"
+      },
+      "tables": {
+        "patients": "患者表",
+        "medical_records": "病历表",
+        "doctor_tasks": "任务表",
+        "neuro_cases": "神经专科表",
+        "patient_labels": "标签表",
+        "patient_label_assignments": "标签关联表",
+        "system_prompts": "提示词表",
+        "doctor_contexts": "医生上下文表"
+      },
+      "cols": {
+        "id": "ID",
+        "key": "键",
+        "content": "内容",
+        "doctor_id": "医生姓名",
+        "patient_id": "患者ID",
+        "patient_name": "患者姓名",
+        "name": "名称",
+        "summary": "摘要",
+        "gender": "性别",
+        "year_of_birth": "出生年份",
+        "chief_complaint": "主诉",
+        "primary_diagnosis": "主要诊断",
+        "diagnosis": "诊断",
+        "treatment_plan": "治疗方案",
+        "follow_up_plan": "随访计划",
+        "task_type": "任务类型",
+        "title": "标题",
+        "status": "状态",
+        "due_at": "到期时间",
+        "record_id": "病历ID",
+        "trigger_source": "触发来源",
+        "trigger_reason": "触发原因",
+        "encounter_type": "就诊类型",
+        "label_id": "标签ID",
+        "label_name": "标签名",
+        "color": "颜色",
+        "nihss": "NIHSS",
+        "created_at": "创建时间",
+        "updated_at": "更新时间"
+      }
+    },
+    "features": {
+      "title": "功能概览",
+      "subtitle": "快速了解当前可用能力。",
+      "items": [
+        {
+          "title": "网页聊天与管理台",
+          "summary": "使用聊天页进行录入，在管理台查看患者、病历和提示词配置。"
+        },
+        {
+          "title": "结构化提示词可编辑",
+          "summary": "可直接在管理台编辑 `structuring` 与 `structuring.extension`，无需重启。"
+        },
+        {
+          "title": "种子数据库导入导出",
+          "summary": "使用 `tools/seed_db.py` 初始化演示数据，并支持幂等导入。"
+        }
+      ]
+    },
+    "recordFields": {
+      "title": "结构化病历",
+      "fields": {
+        "chief_complaint": "主诉",
+        "history_of_present_illness": "现病史",
+        "past_medical_history": "既往史",
+        "physical_examination": "体格检查",
+        "auxiliary_examinations": "辅助检查",
+        "diagnosis": "诊断",
+        "treatment_plan": "治疗计划",
+        "follow_up_plan": "随访计划"
+      }
+    }
+  },
+  "backend": {
+    "chat": {
+      "chatTitle": "医生 AI 聊天",
+      "doctorId": "医生 ID",
+      "inputPlaceholder": "输入病历口述、建档、查询等内容...",
+      "send": "发送",
+      "sending": "发送中...",
+      "welcome": "您好，我是门诊助手。您可以直接说：建档、记录病历、查询患者。",
+      "received": "收到。",
+      "requestFailed": "请求失败: {message}",
+      "recordTitle": "结构化病历",
+      "recordLabels": {
+        "chief_complaint": "主诉",
+        "history_of_present_illness": "现病史",
+        "past_medical_history": "既往史",
+        "physical_examination": "体格检查",
+        "auxiliary_examinations": "辅助检查",
+        "diagnosis": "诊断",
+        "treatment_plan": "治疗方案",
+        "follow_up_plan": "随访计划"
+      }
+    },
+    "manage": {
+      "manageTitle": "医生管理台",
+      "openChat": "打开聊天页",
+      "reload": "加载",
+      "tabs": {
+        "patients": "患者",
+        "records": "病历",
+        "custom": "自定义"
+      },
+      "patientsNote": "当前医生下患者列表。点击“查看病历”查看该患者最近病历。",
+      "categoryFilter": "分类筛选：",
+      "recordsNote": "最近病历记录（支持按患者筛选）。",
+      "patientFilterLabel": "患者 ID 筛选：",
+      "customNote": "可编辑结构化病历系统提示词。保存后约 60 秒内生效。",
+      "saveBase": "保存主提示词",
+      "saveExt": "保存扩展提示词",
+      "deleteLabel": "删除",
+      "noLabels": "暂无标签，请先创建。",
+      "total": "总数：{count}",
+      "recordsCount": "病历数={count}",
+      "createdAt": "创建时间",
+      "category": "分类",
+      "rules": "规则",
+      "computedAt": "计算于",
+      "viewRecords": "查看病历",
+      "editLabels": "编辑标签",
+      "noPatients": "暂无患者。",
+      "noRecords": "暂无病历。",
+      "unlinkedPatient": "未关联患者",
+      "chiefComplaint": "主诉",
+      "diagnosis": "诊断",
+      "treatment": "治疗",
+      "loadFailed": "加载失败: {message}",
+      "saveFailed": "保存失败: {message}",
+      "savingBase": "正在保存主提示词...",
+      "baseSaved": "主提示词已保存。",
+      "savingExt": "正在保存扩展提示词...",
+      "extSaved": "扩展提示词已保存。",
+      "categoryLabels": {
+        "high_risk": "高风险",
+        "active_followup": "随访中",
+        "stable": "稳定",
+        "new": "新患者"
+      }
+    }
+  }
+}
