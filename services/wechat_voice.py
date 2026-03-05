@@ -1,17 +1,22 @@
 import asyncio
+import os
 import subprocess
 
 import httpx
 
 from utils.log import log
 
-MEDIA_GET_URL = "https://api.weixin.qq.com/cgi-bin/media/get"
+def _media_get_url() -> str:
+    # WeCom KF uses qyapi endpoint; Official Account uses api.weixin endpoint.
+    if os.environ.get("WECHAT_KF_CORP_ID", "").strip():
+        return "https://qyapi.weixin.qq.com/cgi-bin/media/get"
+    return "https://api.weixin.qq.com/cgi-bin/media/get"
 
 
 async def download_voice(media_id: str, access_token: str) -> bytes:
     async with httpx.AsyncClient(timeout=10) as client:
         resp = await client.get(
-            MEDIA_GET_URL,
+            _media_get_url(),
             params={"access_token": access_token, "media_id": media_id},
         )
         if resp.status_code != 200:

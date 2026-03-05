@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -33,6 +34,16 @@ from db.models import (
     patient_label_assignments,
 )
 from services.patient_timeline import build_patient_timeline
+from services.observability import (
+    add_span,
+    add_trace,
+    clear_traces,
+    get_latency_summary_scoped,
+    get_recent_spans_scoped,
+    get_recent_traces_scoped,
+    get_slowest_spans_scoped,
+    get_trace_timeline,
+)
 
 router = APIRouter(tags=["ui"])
 
@@ -408,6 +419,104 @@ async def remove_label_endpoint(patient_id: int, label_id: int, doctor_id: str =
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc))
     return {"ok": True}
+
+
+@router.get("/api/admin/observability")
+async def admin_observability(
+    trace_limit: int = 100,
+    summary_limit: int = 500,
+    span_limit: int = 200,
+    slow_span_limit: int = 30,
+    scope: str = "all",
+    trace_id: str | None = None,
+):
+    safe_scope = scope if scope in {"all", "public", "internal"} else "all"
+    payload = {
+        "scope": safe_scope,
+        "summary": get_latency_summary_scoped(limit=summary_limit, scope=safe_scope),
+        "recent_traces": get_recent_traces_scoped(limit=trace_limit, scope=safe_scope),
+        "recent_spans": get_recent_spans_scoped(limit=span_limit, trace_id=trace_id, scope=safe_scope),
+        "slow_spans": get_slowest_spans_scoped(limit=slow_span_limit, scope=safe_scope),
+        "split": {
+            "public": get_latency_summary_scoped(limit=summary_limit, scope="public"),
+            "internal": get_latency_summary_scoped(limit=summary_limit, scope="internal"),
+        },
+    }
+    if trace_id:
+        payload["trace_timeline"] = get_trace_timeline(trace_id=trace_id, limit=span_limit)
+    return payload
+
+
+@router.delete("/api/admin/observability/traces")
+async def admin_clear_observability_traces():
+    clear_traces()
+    return {"ok": True}
+
+
+@router.post("/api/admin/observability/sample")
+async def admin_seed_observability_samples(count: int = Query(default=3, ge=1, le=20)):
+    now = datetime.utcnow()
+    created: list[str] = []
+    for i in range(count):
+        trace_id = str(uuid.uuid4())
+        created.append(trace_id)
+        started = now - timedelta(seconds=(count - i))
+        total_ms = 1200.0 + i * 180.0
+        llm_ms = max(200.0, total_ms - 180.0)
+        status_code = 200 if i % 4 != 3 else 500
+        add_trace(
+            trace_id=trace_id,
+            started_at=started,
+            method="POST",
+            path="/api/records/chat",
+            status_code=status_code,
+            latency_ms=total_ms,
+        )
+        root_span_id = uuid.uuid4().hex[:12]
+        add_span(
+            trace_id=trace_id,
+            span_id=root_span_id,
+            parent_span_id=None,
+            layer="router",
+            name="records.chat.agent_dispatch",
+            started_at=started,
+            latency_ms=llm_ms + 12.0,
+            status="ok" if status_code < 500 else "error",
+            meta={"sample": True},
+        )
+        add_span(
+            trace_id=trace_id,
+            parent_span_id=root_span_id,
+            layer="llm",
+            name="agent.chat_completion",
+            started_at=started + timedelta(milliseconds=6),
+            latency_ms=llm_ms,
+            status="ok" if status_code < 500 else "error",
+            meta={"provider": "sample"},
+        )
+        persist_span_id = uuid.uuid4().hex[:12]
+        add_span(
+            trace_id=trace_id,
+            span_id=persist_span_id,
+            parent_span_id=None,
+            layer="router",
+            name="records.chat.persist_record",
+            started_at=started + timedelta(milliseconds=llm_ms + 20),
+            latency_ms=56.0,
+            status="ok",
+            meta={"sample": True},
+        )
+        add_span(
+            trace_id=trace_id,
+            parent_span_id=persist_span_id,
+            layer="db",
+            name="crud.save_record",
+            started_at=started + timedelta(milliseconds=llm_ms + 26),
+            latency_ms=18.0,
+            status="ok",
+            meta={"sample": True},
+        )
+    return {"ok": True, "count": len(created), "trace_ids": created}
 
 
 @router.get("/api/admin/db-view")

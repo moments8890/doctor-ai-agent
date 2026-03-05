@@ -19,6 +19,11 @@ The plan file must include:
 - **DB schema changes** — add to `db/models.py`; `create_tables()` handles creation automatically; document any manual cleanup/migration impact in the commit message and PR description
 - **LLM provider defaults** — local model is `qwen2.5:14b` via Ollama; prefer this in examples and defaults
 
+## Codex Execution Rules
+
+- **Full permissions** — Codex has full permission to run commands needed to complete tasks.
+- **Complex task decomposition** — for complex tasks, break work into smaller subtasks and spawn sub-agents when beneficial.
+
 ## Branch & PR Workflow
 
 Direct pushes to `main` are allowed.

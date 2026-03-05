@@ -71,6 +71,25 @@ def test_app_config_defaults_are_stable():
     assert fields["ollama_api_key"] == "***"
 
 
+def test_app_config_prefers_wechat_kf_env_keys():
+    env = {
+        "WECHAT_KF_TOKEN": "kf-token",
+        "WECHAT_KF_CORP_ID": "ww-corp-id",
+        "WECHAT_KF_SECRET": "kf-secret",
+        "WECHAT_KF_ENCODING_AES_KEY": "kf-aes",
+        "WECHAT_TOKEN": "legacy-token",
+        "WECHAT_APP_ID": "legacy-app-id",
+        "WECHAT_APP_SECRET": "legacy-secret",
+        "WECHAT_ENCODING_AES_KEY": "legacy-aes",
+    }
+    config = AppConfig.from_env(env, env_source=".env")
+
+    assert config.wechat_token == "kf-token"
+    assert config.wechat_app_id == "ww-corp-id"
+    assert config.wechat_app_secret == "kf-secret"
+    assert config.wechat_encoding_aes_key == "kf-aes"
+
+
 def test_app_config_pretty_log_is_multiline_and_aligned():
     config = AppConfig.from_env(
         {"ROUTING_LLM": "ollama", "OLLAMA_MODEL": "qwen2.5:14b"},

@@ -1,0 +1,117 @@
+[Subagent-3] P3-A/B/C knowledge+calibration+traces
+Wed Mar  4 19:55:20 PST 2026
+============================= test session starts ==============================
+platform darwin -- Python 3.13.3, pytest-9.0.2, pluggy-1.6.0 -- /Users/jingwuxu/Documents/Code/doctor-ai-agent/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /Users/jingwuxu/Documents/Code/doctor-ai-agent
+configfile: pytest.ini
+plugins: anyio-4.12.1, asyncio-1.3.0, cov-7.0.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 85 items
+
+tests/test_memory.py::test_compress_no_op_when_history_empty PASSED      [  1%]
+tests/test_memory.py::test_compress_no_op_when_history_is_short PASSED   [  2%]
+tests/test_memory.py::test_compress_fires_when_window_is_full PASSED     [  3%]
+tests/test_memory.py::test_compress_clears_history_after_full_window PASSED [  4%]
+tests/test_memory.py::test_compress_persists_summary_to_db PASSED        [  5%]
+tests/test_memory.py::test_compress_fires_when_idle PASSED               [  7%]
+tests/test_memory.py::test_compress_clears_history_when_idle PASSED      [  8%]
+tests/test_memory.py::test_compress_clears_history_even_if_llm_fails PASSED [  9%]
+tests/test_memory.py::test_load_context_returns_none_when_no_db_row PASSED [ 10%]
+tests/test_memory.py::test_load_context_returns_none_when_summary_empty PASSED [ 11%]
+tests/test_memory.py::test_load_context_returns_system_message_when_context_exists PASSED [ 12%]
+tests/test_memory.py::test_load_context_message_format_contains_context_header PASSED [ 14%]
+tests/test_memory.py::test_two_doctors_compress_independently PASSED     [ 15%]
+tests/test_memory.py::test_load_context_returns_correct_doctor_summary PASSED [ 16%]
+tests/test_context_persistence.py::test_compression_creates_row_in_db PASSED [ 17%]
+tests/test_context_persistence.py::test_compression_stores_llm_summary PASSED [ 18%]
+tests/test_context_persistence.py::test_load_context_returns_stored_summary PASSED [ 20%]
+tests/test_context_persistence.py::test_load_context_message_format PASSED [ 21%]
+tests/test_context_persistence.py::test_second_compression_overwrites_first_row PASSED [ 22%]
+tests/test_context_persistence.py::test_two_doctors_have_independent_context_rows PASSED [ 23%]
+tests/test_context_persistence.py::test_load_context_no_row_returns_none PASSED [ 24%]
+tests/test_context_persistence.py::test_history_cleared_after_compression PASSED [ 25%]
+tests/test_context_persistence.py::test_compression_idle_trigger_also_persists PASSED [ 27%]
+tests/test_context_persistence.py::test_full_cycle_compress_then_inject_into_agent_history PASSED [ 28%]
+tests/test_neuro_structuring.py::test_parse_markdown_extracts_json PASSED [ 29%]
+tests/test_neuro_structuring.py::test_parse_markdown_extracts_log PASSED [ 30%]
+tests/test_neuro_structuring.py::test_missing_imaging_returns_empty_list PASSED [ 31%]
+tests/test_neuro_structuring.py::test_malformed_json_raises_value_error PASSED [ 32%]
+tests/test_neuro_structuring.py::test_extract_neuro_case_calls_llm_with_prompt PASSED [ 34%]
+tests/test_neuro_structuring.py::test_save_neuro_case_promotes_scalars PASSED [ 35%]
+tests/test_neuro_structuring.py::test_save_neuro_case_invalid_numeric_fields_coerce_to_none PASSED [ 36%]
+tests/test_neuro_structuring.py::test_get_neuro_cases_for_doctor_returns_only_target_doctor PASSED [ 37%]
+tests/test_neuro_router.py::test_neuro_from_text_empty_input_raises_422 PASSED [ 38%]
+tests/test_neuro_router.py::test_neuro_from_text_value_error_maps_to_422 PASSED [ 40%]
+tests/test_neuro_router.py::test_neuro_from_text_unexpected_error_maps_to_500 PASSED [ 41%]
+tests/test_neuro_router.py::test_neuro_from_text_success_persists_and_returns_payload PASSED [ 42%]
+tests/test_neuro_router.py::test_list_neuro_cases_shapes_response PASSED [ 43%]
+tests/test_ui_router.py::test_fmt_ts PASSED                              [ 44%]
+tests/test_ui_router.py::test_parse_tags_empty_invalid_and_valid_json PASSED [ 45%]
+tests/test_ui_router.py::test_manage_patients_includes_record_counts PASSED [ 47%]
+tests/test_ui_router.py::test_manage_records_with_patient_filter PASSED  [ 48%]
+tests/test_ui_router.py::test_manage_records_without_patient_filter PASSED [ 49%]
+tests/test_ui_router.py::test_manage_records_filter_by_patient_name PASSED [ 50%]
+tests/test_ui_router.py::test_manage_records_filter_by_date_range PASSED [ 51%]
+tests/test_ui_router.py::test_manage_prompts_present_and_empty PASSED    [ 52%]
+tests/test_ui_router.py::test_update_prompt_validation_and_success PASSED [ 54%]
+tests/test_ui_router.py::test_manage_patients_includes_category_fields PASSED [ 55%]
+tests/test_ui_router.py::test_manage_patients_category_filter PASSED     [ 56%]
+tests/test_ui_router.py::test_manage_patients_risk_filter PASSED         [ 57%]
+tests/test_ui_router.py::test_manage_patients_grouped PASSED             [ 58%]
+tests/test_ui_router.py::test_manage_patients_grouped_unknown_category_goes_to_uncategorized PASSED [ 60%]
+tests/test_ui_router.py::test_manage_patients_grouped_risk PASSED        [ 61%]
+tests/test_ui_router.py::test_manage_patient_timeline_not_found PASSED   [ 62%]
+tests/test_ui_router.py::test_manage_patient_timeline_success PASSED     [ 63%]
+tests/test_ui_router.py::test_list_labels_returns_items PASSED           [ 64%]
+tests/test_ui_router.py::test_create_label PASSED                        [ 65%]
+tests/test_ui_router.py::test_update_label PASSED                        [ 67%]
+tests/test_ui_router.py::test_update_label_not_found_raises_404 PASSED   [ 68%]
+tests/test_ui_router.py::test_delete_label PASSED                        [ 69%]
+tests/test_ui_router.py::test_assign_label_to_patient PASSED             [ 70%]
+tests/test_ui_router.py::test_remove_label_from_patient PASSED           [ 71%]
+tests/test_ui_router.py::test_patients_list_includes_labels_field PASSED [ 72%]
+tests/test_ui_router.py::test_patients_list_labels_populated PASSED      [ 74%]
+tests/test_ui_router.py::test_admin_db_view_returns_patients_and_records PASSED [ 75%]
+tests/test_ui_router.py::test_admin_db_view_invalid_date_raises_400 PASSED [ 76%]
+tests/test_ui_router.py::test_admin_tables_returns_all_table_counts PASSED [ 77%]
+tests/test_ui_router.py::test_admin_table_rows_unknown_table_raises_404 PASSED [ 78%]
+tests/test_ui_router.py::test_normalize_date_blank_returns_none PASSED   [ 80%]
+tests/test_ui_router.py::test_admin_db_view_with_all_filters PASSED      [ 81%]
+tests/test_ui_router.py::test_admin_tables_with_filters PASSED           [ 82%]
+tests/test_ui_router.py::test_admin_table_rows_each_table[patients-exec_result0-name] PASSED [ 83%]
+tests/test_ui_router.py::test_admin_table_rows_each_table[medical_records-exec_result1-chief_complaint] PASSED [ 84%]
+tests/test_ui_router.py::test_admin_table_rows_each_table[doctor_tasks-exec_result2-title] PASSED [ 85%]
+tests/test_ui_router.py::test_admin_table_rows_each_table[neuro_cases-exec_result3-primary_diagnosis] PASSED [ 87%]
+tests/test_ui_router.py::test_admin_table_rows_each_table[patient_labels-exec_result4-name] PASSED [ 88%]
+tests/test_ui_router.py::test_admin_table_rows_each_table[patient_label_assignments-exec_result5-label_name] PASSED [ 89%]
+tests/test_ui_router.py::test_admin_table_rows_each_table[system_prompts-exec_result6-content] PASSED [ 90%]
+tests/test_ui_router.py::test_admin_table_rows_each_table[doctor_contexts-exec_result7-summary] PASSED [ 91%]
+tests/test_intent.py::test_detect_create_patient PASSED                  [ 92%]
+tests/test_intent.py::test_detect_add_record PASSED                      [ 94%]
+tests/test_intent.py::test_detect_query_records PASSED                   [ 95%]
+tests/test_intent.py::test_detect_unknown PASSED                         [ 96%]
+tests/test_intent.py::test_detect_patient_name_is_none_when_absent PASSED [ 97%]
+tests/test_intent.py::test_detect_age_can_be_none PASSED                 [ 98%]
+tests/test_intent.py::test_detect_intent_uses_correct_llm_params PASSED  [100%]
+
+=============================== warnings summary ===============================
+tests/test_memory.py: 10 warnings
+tests/test_context_persistence.py: 10 warnings
+  <string>:9: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+
+tests/test_context_persistence.py: 10 warnings
+tests/test_neuro_structuring.py: 5 warnings
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/.venv/lib/python3.13/site-packages/sqlalchemy/sql/schema.py:3624: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return util.wrap_callable(lambda ctx: fn(), fn)  # type: ignore
+
+tests/test_context_persistence.py::test_second_compression_overwrites_first_row
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/db/crud.py:44: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    ctx.updated_at = datetime.utcnow()
+
+tests/test_ui_router.py::test_manage_patients_includes_category_fields
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/routers/ui.py:73: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    delta = datetime.utcnow() - risk_computed_at
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 85 passed, 37 warnings in 0.57s ========================

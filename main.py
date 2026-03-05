@@ -1,6 +1,8 @@
 import logging
 import asyncio
 import os
+import time
+import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
 from utils.log import init_logging
@@ -13,10 +15,10 @@ init_logging()
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
-from fastapi.responses import RedirectResponse
 from sqladmin import Admin, ModelView
 from sqladmin.authentication import AuthenticationBackend
 from starlette.requests import Request
+from starlette.responses import Response
 
 from routers.records import router as records_router
 from routers.wechat import router as wechat_router
@@ -29,6 +31,13 @@ from db.engine import engine, AsyncSessionLocal
 from db.models import Patient, MedicalRecordDB, DoctorContext, SystemPrompt, NeuroCaseDB, DoctorTask
 from db.crud import get_due_tasks
 from services.tasks import check_and_send_due_tasks
+from services.observability import (
+    add_trace,
+    reset_current_span_id,
+    reset_current_trace_id,
+    set_current_span_id,
+    set_current_trace_id,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -281,6 +290,48 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+@app.middleware("http")
+async def trace_requests_middleware(request: Request, call_next):
+    trace_id = request.headers.get("X-Trace-Id") or str(uuid.uuid4())
+    trace_token = set_current_trace_id(trace_id)
+    span_token = set_current_span_id(None)
+    started_at = datetime.utcnow()
+    start_clock = time.perf_counter()
+
+    try:
+        try:
+            response = await call_next(request)
+            status_code = int(getattr(response, "status_code", 200))
+        except Exception:
+            latency_ms = (time.perf_counter() - start_clock) * 1000.0
+            add_trace(
+                trace_id=trace_id,
+                started_at=started_at,
+                method=request.method,
+                path=request.url.path,
+                status_code=500,
+                latency_ms=latency_ms,
+            )
+            raise
+
+        latency_ms = (time.perf_counter() - start_clock) * 1000.0
+        add_trace(
+            trace_id=trace_id,
+            started_at=started_at,
+            method=request.method,
+            path=request.url.path,
+            status_code=status_code,
+            latency_ms=latency_ms,
+        )
+        if isinstance(response, Response):
+            response.headers["X-Trace-Id"] = trace_id
+        return response
+    finally:
+        reset_current_span_id(span_token)
+        reset_current_trace_id(trace_token)
+
+
 admin = Admin(app, engine, title="DB Admin")
 admin.add_view(SystemPromptAdmin)
 admin.add_view(PatientAdmin)
@@ -299,4 +350,4 @@ app.include_router(voice_router)
 
 @app.get("/")
 def root():
-    return RedirectResponse(url="/docs")
+    return {"status": "ok", "docs": "/docs"}

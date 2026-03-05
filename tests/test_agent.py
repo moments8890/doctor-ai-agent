@@ -399,3 +399,46 @@ async def test_dispatch_ollama_exception_uses_local_fallback(monkeypatch):
     with patch("services.agent.AsyncOpenAI", return_value=mock_client):
         out = await dispatch("张三胸痛两小时")
     assert out.intent == Intent.add_record
+
+
+def test_extract_embedded_tool_call_parses_object_and_args():
+    content = '_tool_call_ {"name":"query_records","arguments":{"patient_name":"钱芳"}} </tool_call>'
+    fn, args = agent._extract_embedded_tool_call(content)
+    assert fn == "query_records"
+    assert args == {"patient_name": "钱芳"}
+
+
+def test_extract_embedded_tool_call_parses_stringified_args():
+    content = '{"name":"add_medical_record","arguments":"{\\"patient_name\\":\\"张三\\",\\"chief_complaint\\":\\"胸痛\\"}"}'
+    fn, args = agent._extract_embedded_tool_call(content)
+    assert fn == "add_medical_record"
+    assert args["patient_name"] == "张三"
+    assert args["chief_complaint"] == "胸痛"
+
+
+def test_extract_embedded_tool_call_handles_invalid_payload():
+    fn, args = agent._extract_embedded_tool_call("hello world")
+    assert fn is None
+    assert args == {}
+
+
+def test_looks_like_tool_markup_variants():
+    assert agent._looks_like_tool_markup('_tool_call_ {"name":"x","arguments":{}}')
+    assert agent._looks_like_tool_markup('{"name":"x","arguments":{}}')
+    assert not agent._looks_like_tool_markup("您好，我是医生助手。")
+
+
+async def test_dispatch_embedded_tool_call_content_is_parsed(mock_llm):
+    msg = MagicMock()
+    msg.tool_calls = None
+    msg.content = '_tool_call_ {"name":"query_records","arguments":{"patient_name":"钱芳"}} </tool_call>'
+    choice = MagicMock()
+    choice.message = msg
+    completion = MagicMock()
+    completion.choices = [choice]
+    mock_llm.return_value = completion
+
+    result = await dispatch("查询钱芳")
+    assert result.intent == Intent.query_records
+    assert result.patient_name == "钱芳"
+    assert result.chat_reply is None

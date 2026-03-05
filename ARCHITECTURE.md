@@ -95,7 +95,7 @@ WeChat Official Account
 │
 ├── db/
 │   ├── engine.py             # Async SQLAlchemy engine + AsyncSessionLocal
-│   ├── models.py             # Patient, MedicalRecordDB, DoctorContext ORM models
+│   ├── models.py             # Patient, MedicalRecordDB, DoctorContext, DoctorSessionState ORM models
 │   ├── init_db.py            # create_tables() called at startup
 │   └── crud.py               # All DB operations
 │
@@ -340,7 +340,8 @@ doctor_id (logical tenant key)
    │    └─ medical_records (1:N via patient_id, nullable)
    ├─ medical_records (direct filter by doctor_id)
    ├─ neuro_cases (direct filter by doctor_id; optional link to patient_id)
-   └─ doctor_contexts (1:1 by doctor_id)
+   ├─ doctor_contexts (1:1 by doctor_id)
+   └─ doctor_session_states (1:1 by doctor_id)
 ```
 
 #### Tables and Fields
@@ -387,6 +388,12 @@ doctor_id (logical tenant key)
 `doctor_contexts`
 - `doctor_id` (PK)
 - `summary` (nullable)
+- `updated_at` (UTC timestamp)
+
+`doctor_session_states`
+- `doctor_id` (PK)
+- `current_patient_id` (FK -> `patients.id`, nullable)
+- `pending_create_name` (nullable)
 - `updated_at` (UTC timestamp)
 
 `system_prompts`
@@ -629,7 +636,7 @@ open http://localhost:8000/admin
 │
 ├── db/
 │   ├── engine.py             # Async SQLAlchemy engine + AsyncSessionLocal + Base
-│   ├── models.py             # ORM: Patient, MedicalRecordDB, DoctorContext, SystemPrompt
+│   ├── models.py             # ORM: Patient, MedicalRecordDB, DoctorContext, DoctorSessionState, SystemPrompt
 │   ├── init_db.py            # create_tables() + seed_prompts() called at startup
 │   └── crud.py               # All DB operations (patients, records, context, prompts)
 │

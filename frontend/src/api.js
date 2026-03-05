@@ -118,3 +118,31 @@ export async function getAdminTableRows({ tableKey, doctorId, patientName, dateF
   qs.set("limit", String(limit));
   return request(`/api/admin/tables/${encodeURIComponent(tableKey)}?${qs.toString()}`);
 }
+
+export async function getAdminObservability({
+  traceLimit = 80,
+  summaryLimit = 500,
+  spanLimit = 200,
+  slowSpanLimit = 30,
+  scope = "public",
+  traceId = "",
+} = {}) {
+  const qs = new URLSearchParams({
+    trace_limit: String(traceLimit),
+    summary_limit: String(summaryLimit),
+    span_limit: String(spanLimit),
+    slow_span_limit: String(slowSpanLimit),
+    scope,
+  });
+  if (traceId) qs.set("trace_id", traceId);
+  return request(`/api/admin/observability?${qs.toString()}`);
+}
+
+export async function clearAdminObservabilityTraces() {
+  return request("/api/admin/observability/traces", { method: "DELETE" });
+}
+
+export async function seedAdminObservabilitySamples(count = 3) {
+  const qs = new URLSearchParams({ count: String(count) });
+  return request(`/api/admin/observability/sample?${qs.toString()}`, { method: "POST" });
+}

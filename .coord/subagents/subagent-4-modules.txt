@@ -1,0 +1,9 @@
+[Subagent-4] Required python module existence
+Wed Mar  4 19:52:15 PST 2026
+OK routers/wechat.py
+OK services/transcription.py
+OK services/vision.py
+OK services/structuring.py
+OK services/patient_risk.py
+OK services/tasks.py
+OK services/wechat_notify.py

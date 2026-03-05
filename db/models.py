@@ -37,6 +37,16 @@ class DoctorContext(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class DoctorSessionState(Base):
+    """Persistent light session state for each doctor/external user."""
+    __tablename__ = "doctor_session_states"
+
+    doctor_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    current_patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id"), nullable=True)
+    pending_create_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 class Patient(Base):
     __tablename__ = "patients"
 

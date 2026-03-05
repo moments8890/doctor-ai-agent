@@ -6,6 +6,7 @@ import re
 from typing import List, Optional, Tuple
 from openai import AsyncOpenAI
 from services.intent import Intent, IntentResult
+from services.observability import trace_block
 from utils.log import log
 
 _PROVIDERS = {
@@ -266,6 +267,89 @@ _BAD_NAME_TOKENS = {
 }
 
 
+def _extract_embedded_tool_call(content: Optional[str]) -> Tuple[Optional[str], dict]:
+    """Best-effort parser for providers that return tool-calls in text content."""
+    if not content:
+        return None, {}
+
+    decoder = json.JSONDecoder()
+    for idx, ch in enumerate(content):
+        if ch != "{":
+            continue
+        try:
+            obj, _ = decoder.raw_decode(content[idx:])
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(obj, dict):
+            continue
+        fn_name = obj.get("name")
+        if not isinstance(fn_name, str) or not fn_name:
+            continue
+        args = obj.get("arguments", {})
+        if isinstance(args, str):
+            try:
+                args = json.loads(args)
+            except (json.JSONDecodeError, TypeError):
+                args = {}
+        if not isinstance(args, dict):
+            args = {}
+        return fn_name, args
+    return None, {}
+
+
+def _looks_like_tool_markup(content: Optional[str]) -> bool:
+    if not content:
+        return False
+    lowered = content.lower()
+    if "tool_call" in lowered or "</tool_call>" in lowered:
+        return True
+    stripped = content.strip()
+    if stripped.startswith("{") and '"name"' in stripped and '"arguments"' in stripped:
+        return True
+    return False
+
+
+def _intent_result_from_tool_call(fn_name: str, args: dict, chat_reply: Optional[str]) -> IntentResult:
+    intent = _INTENT_MAP.get(fn_name, Intent.unknown)
+
+    age = args.get("age")
+    if not isinstance(age, int):
+        age = None
+
+    gender = args.get("gender")
+    if gender not in ("男", "女"):
+        gender = None
+
+    extra_data: dict = {}
+    if fn_name == "complete_task":
+        extra_data["task_id"] = args.get("task_id")
+    elif fn_name == "schedule_appointment":
+        extra_data["appointment_time"] = args.get("appointment_time")
+        extra_data["notes"] = args.get("notes")
+
+    structured_fields: Optional[dict] = None
+    if fn_name == "add_medical_record":
+        _CLINICAL_KEYS = {
+            "chief_complaint", "history_of_present_illness", "past_medical_history",
+            "physical_examination", "auxiliary_examinations",
+            "diagnosis", "treatment_plan", "follow_up_plan",
+        }
+        extracted = {k: args[k] for k in _CLINICAL_KEYS if args.get(k)}
+        if extracted:
+            structured_fields = extracted
+
+    return IntentResult(
+        intent=intent,
+        patient_name=args.get("patient_name") or args.get("name"),
+        gender=gender,
+        age=age,
+        is_emergency=args.get("is_emergency", False),
+        extra_data=extra_data,
+        chat_reply=chat_reply,
+        structured_fields=structured_fields,
+    )
+
+
 def _extract_name_gender_age(text: str) -> Tuple[Optional[str], Optional[str], Optional[int]]:
     name = None
     for pattern in _NAME_PATTERNS:
@@ -344,18 +428,20 @@ async def dispatch(text: str, history: Optional[List[dict]] = None) -> IntentRes
         max_retries=int(os.environ.get("AGENT_LLM_RETRIES", "1")),
     )
     try:
-        completion = await client.chat.completions.create(
-            model=provider["model"],
-            messages=messages,
-            tools=_TOOLS,
-            tool_choice="auto",
-            max_tokens=300,
-            temperature=0,
-        )
+        with trace_block("llm", "agent.chat_completion", {"provider": provider_name, "model": provider["model"]}):
+            completion = await client.chat.completions.create(
+                model=provider["model"],
+                messages=messages,
+                tools=_TOOLS,
+                tool_choice="auto",
+                max_tokens=300,
+                temperature=0,
+            )
     except Exception as e:
         if provider_name == "ollama":
             log(f"[Agent:ollama] tool-call failed, using local fallback: {e}")
-            return _fallback_intent_from_text(text)
+            with trace_block("agent", "agent.local_fallback", {"reason": "ollama_error"}):
+                return _fallback_intent_from_text(text)
         raise
 
     message = completion.choices[0].message
@@ -363,13 +449,23 @@ async def dispatch(text: str, history: Optional[List[dict]] = None) -> IntentRes
     chat_reply = message.content or None
 
     if not message.tool_calls:
+        embedded_fn, embedded_args = _extract_embedded_tool_call(chat_reply)
+        if embedded_fn:
+            log(f"[Agent:{provider_name}] embedded tool_call: {embedded_fn}({embedded_args})")
+            cleaned_reply = chat_reply
+            if _looks_like_tool_markup(cleaned_reply):
+                cleaned_reply = None
+            return _intent_result_from_tool_call(embedded_fn, embedded_args, cleaned_reply)
+        if provider_name == "ollama" and (not chat_reply or _looks_like_tool_markup(chat_reply)):
+            log("[Agent:ollama] no formal tool call, using local fallback")
+            with trace_block("agent", "agent.local_fallback", {"reason": "no_tool_call"}):
+                return _fallback_intent_from_text(text)
         reply_text = chat_reply or "您好！有什么可以帮您？"
         log(f"[Agent:{provider_name}] no tool call → chat reply: {reply_text[:80]}")
         return IntentResult(intent=Intent.unknown, chat_reply=reply_text)
 
     tool_call = message.tool_calls[0]
     fn_name = tool_call.function.name
-    intent = _INTENT_MAP.get(fn_name, Intent.unknown)
 
     try:
         args = json.loads(tool_call.function.arguments)
@@ -380,41 +476,4 @@ async def dispatch(text: str, history: Optional[List[dict]] = None) -> IntentRes
 
     log(f"[Agent:{provider_name}] tool_call: {fn_name}({args})")
 
-    # Validate extracted values — drop any non-integer age or non-gender gender
-    age = args.get("age")
-    if not isinstance(age, int):
-        age = None
-
-    gender = args.get("gender")
-    if gender not in ("男", "女"):
-        gender = None
-
-    extra_data: dict = {}
-    if fn_name == "complete_task":
-        extra_data["task_id"] = args.get("task_id")
-    elif fn_name == "schedule_appointment":
-        extra_data["appointment_time"] = args.get("appointment_time")
-        extra_data["notes"] = args.get("notes")
-
-    # Extract 8 clinical fields when add_medical_record is called
-    structured_fields: Optional[dict] = None
-    if fn_name == "add_medical_record":
-        _CLINICAL_KEYS = {
-            "chief_complaint", "history_of_present_illness", "past_medical_history",
-            "physical_examination", "auxiliary_examinations",
-            "diagnosis", "treatment_plan", "follow_up_plan",
-        }
-        extracted = {k: args[k] for k in _CLINICAL_KEYS if args.get(k)}
-        if extracted:
-            structured_fields = extracted
-
-    return IntentResult(
-        intent=intent,
-        patient_name=args.get("patient_name") or args.get("name"),
-        gender=gender,
-        age=age,
-        is_emergency=args.get("is_emergency", False),
-        extra_data=extra_data,
-        chat_reply=chat_reply,
-        structured_fields=structured_fields,
-    )
+    return _intent_result_from_tool_call(fn_name, args, chat_reply)

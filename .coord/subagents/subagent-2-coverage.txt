@@ -1,0 +1,668 @@
+[Subagent-2] Coverage + diff coverage
+Wed Mar  4 19:52:15 PST 2026
+[test] Running unit tests with coverage...
+============================= test session starts ==============================
+platform darwin -- Python 3.13.3, pytest-9.0.2, pluggy-1.6.0 -- /Users/jingwuxu/Documents/Code/doctor-ai-agent/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /Users/jingwuxu/Documents/Code/doctor-ai-agent
+configfile: pytest.ini
+plugins: anyio-4.12.1, asyncio-1.3.0, cov-7.0.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 473 items
+
+tests/test_agent.py::test_dispatch_add_medical_record_intent PASSED      [  0%]
+tests/test_agent.py::test_dispatch_create_patient_intent PASSED          [  0%]
+tests/test_agent.py::test_dispatch_query_records_intent PASSED           [  0%]
+tests/test_agent.py::test_dispatch_list_patients_intent PASSED           [  0%]
+tests/test_agent.py::test_dispatch_no_tool_call_returns_unknown PASSED   [  1%]
+tests/test_agent.py::test_dispatch_extracts_patient_name_from_add_record PASSED [  1%]
+tests/test_agent.py::test_dispatch_extracts_name_field_from_create_patient PASSED [  1%]
+tests/test_agent.py::test_dispatch_patient_name_none_when_not_in_args PASSED [  1%]
+tests/test_agent.py::test_dispatch_chat_reply_returned_when_no_tool PASSED [  1%]
+tests/test_agent.py::test_dispatch_is_emergency_true_when_set PASSED     [  2%]
+tests/test_agent.py::test_dispatch_is_emergency_defaults_false_when_absent PASSED [  2%]
+tests/test_agent.py::test_dispatch_is_emergency_false_when_explicitly_false PASSED [  2%]
+tests/test_agent.py::test_dispatch_non_integer_age_coerced_to_none PASSED [  2%]
+tests/test_agent.py::test_dispatch_float_age_coerced_to_none PASSED      [  2%]
+tests/test_agent.py::test_dispatch_invalid_gender_coerced_to_none PASSED [  3%]
+tests/test_agent.py::test_dispatch_valid_gender_male_preserved PASSED    [  3%]
+tests/test_agent.py::test_dispatch_valid_gender_female_preserved PASSED  [  3%]
+tests/test_agent.py::test_dispatch_passes_history_between_system_and_user PASSED [  3%]
+tests/test_agent.py::test_dispatch_no_history_sends_system_plus_user_only PASSED [  4%]
+tests/test_agent.py::test_dispatch_empty_history_list_handled PASSED     [  4%]
+tests/test_agent.py::test_dispatch_malformed_json_args_does_not_raise PASSED [  4%]
+tests/test_agent.py::test_dispatch_unknown_tool_name_returns_unknown_intent PASSED [  4%]
+tests/test_agent.py::test_dispatch_empty_tool_calls_list_treated_as_no_tool PASSED [  4%]
+tests/test_agent.py::test_add_record_populates_structured_fields PASSED  [  5%]
+tests/test_agent.py::test_add_record_chat_reply_populated PASSED         [  5%]
+tests/test_agent.py::test_non_add_record_has_no_structured_fields PASSED [  5%]
+tests/test_agent.py::test_empty_clinical_fields_gives_none_structured_fields PASSED [  5%]
+tests/test_agent.py::test_add_record_null_clinical_fields_excluded PASSED [  5%]
+tests/test_agent.py::test_fallback_extract_name_gender_age_with_clinical_keywords PASSED [  6%]
+tests/test_agent.py::test_fallback_list_patients_branch PASSED           [  6%]
+tests/test_agent.py::test_fallback_list_tasks_branch PASSED              [  6%]
+tests/test_agent.py::test_fallback_complete_task_branch PASSED           [  6%]
+tests/test_agent.py::test_fallback_query_records_branch PASSED           [  6%]
+tests/test_agent.py::test_fallback_create_patient_branch PASSED          [  7%]
+tests/test_agent.py::test_fallback_greeting_branch PASSED                [  7%]
+tests/test_agent.py::test_fallback_unknown_branch_keeps_extracted_demographics PASSED [  7%]
+tests/test_agent.py::test_dispatch_ollama_exception_uses_local_fallback PASSED [  7%]
+tests/test_app_config.py::test_load_env_prefers_shared_file PASSED       [  8%]
+tests/test_app_config.py::test_load_env_falls_back_to_local_dotenv PASSED [  8%]
+tests/test_app_config.py::test_app_config_reads_env_and_masks_sensitive_fields PASSED [  8%]
+tests/test_app_config.py::test_app_config_defaults_are_stable PASSED     [  8%]
+tests/test_app_config.py::test_app_config_pretty_log_is_multiline_and_aligned PASSED [  8%]
+tests/test_concurrency.py::test_concurrent_intent_bg_no_history_corruption PASSED [  9%]
+tests/test_concurrency.py::test_concurrent_pending_create_no_duplicate PASSED [  9%]
+tests/test_context_persistence.py::test_compression_creates_row_in_db PASSED [  9%]
+tests/test_context_persistence.py::test_compression_stores_llm_summary PASSED [  9%]
+tests/test_context_persistence.py::test_load_context_returns_stored_summary PASSED [  9%]
+tests/test_context_persistence.py::test_load_context_message_format PASSED [ 10%]
+tests/test_context_persistence.py::test_second_compression_overwrites_first_row PASSED [ 10%]
+tests/test_context_persistence.py::test_two_doctors_have_independent_context_rows PASSED [ 10%]
+tests/test_context_persistence.py::test_load_context_no_row_returns_none PASSED [ 10%]
+tests/test_context_persistence.py::test_history_cleared_after_compression PASSED [ 10%]
+tests/test_context_persistence.py::test_compression_idle_trigger_also_persists PASSED [ 11%]
+tests/test_context_persistence.py::test_full_cycle_compress_then_inject_into_agent_history PASSED [ 11%]
+tests/test_corpus_styles.py::test_all_corpus_styles_route_to_add_record[case101_minimal_note] PASSED [ 11%]
+tests/test_corpus_styles.py::test_all_corpus_styles_route_to_add_record[case201_verbal_dictation] PASSED [ 11%]
+tests/test_corpus_styles.py::test_all_corpus_styles_route_to_add_record[case301_fragmented_stream] PASSED [ 12%]
+tests/test_corpus_styles.py::test_all_corpus_styles_route_to_add_record[case401_heavy_abbrev] PASSED [ 12%]
+tests/test_corpus_styles.py::test_all_corpus_styles_route_to_add_record[case501_full_narrative] PASSED [ 12%]
+tests/test_corpus_styles.py::test_all_corpus_styles_route_to_add_record[case601_followup] PASSED [ 12%]
+tests/test_corpus_styles.py::test_all_corpus_styles_route_to_add_record[case701_emergency_stemi] PASSED [ 12%]
+tests/test_corpus_styles.py::test_all_corpus_styles_route_to_add_record[case702_emergency_av_block] PASSED [ 13%]
+tests/test_corpus_styles.py::test_all_corpus_styles_route_to_add_record[case703_emergency_dissection] PASSED [ 13%]
+tests/test_corpus_styles.py::test_all_corpus_styles_route_to_add_record[case801_multimorbidity] PASSED [ 13%]
+tests/test_corpus_styles.py::test_all_corpus_styles_route_to_add_record[case901_incomplete_info] PASSED [ 13%]
+tests/test_corpus_styles.py::test_all_corpus_styles_route_to_add_record[case1001_instructional] PASSED [ 13%]
+tests/test_corpus_styles.py::test_emergency_cases_set_is_emergency_true[case701_stemi] PASSED [ 14%]
+tests/test_corpus_styles.py::test_emergency_cases_set_is_emergency_true[case702_av_block] PASSED [ 14%]
+tests/test_corpus_styles.py::test_emergency_cases_set_is_emergency_true[case703_dissection] PASSED [ 14%]
+tests/test_corpus_styles.py::test_routine_case_does_not_set_emergency PASSED [ 14%]
+tests/test_corpus_styles.py::test_style_minimal_note_fields_populated PASSED [ 15%]
+tests/test_corpus_styles.py::test_style_verbal_dictation_prefix_stripped PASSED [ 15%]
+tests/test_corpus_styles.py::test_style_fragmented_stream_extracts_core_fields PASSED [ 15%]
+tests/test_corpus_styles.py::test_style_heavy_abbreviation_specialist_terms_placed_correctly PASSED [ 15%]
+tests/test_corpus_styles.py::test_bnp_trend_in_auxiliary_examinations PASSED [ 15%]
+tests/test_corpus_styles.py::test_followup_delta_case_captures_changes PASSED [ 16%]
+tests/test_corpus_styles.py::test_emergency_stemi_fields_correctly_placed PASSED [ 16%]
+tests/test_corpus_styles.py::test_multimorbidity_multiple_diagnoses_in_diagnosis_field PASSED [ 16%]
+tests/test_corpus_styles.py::test_incomplete_info_missing_fields_are_null PASSED [ 16%]
+tests/test_corpus_styles.py::test_ai_dialogue_directive_stripped_clinical_content_extracted PASSED [ 16%]
+tests/test_crud.py::test_create_patient_returns_row_with_id PASSED       [ 17%]
+tests/test_crud.py::test_create_patient_optional_fields_none PASSED      [ 17%]
+tests/test_crud.py::test_create_patient_different_doctors_isolated PASSED [ 17%]
+tests/test_crud.py::test_find_patient_by_name_found PASSED               [ 17%]
+tests/test_crud.py::test_find_patient_by_name_not_found PASSED           [ 17%]
+tests/test_crud.py::test_find_patient_by_name_different_doctor_returns_none PASSED [ 18%]
+tests/test_crud.py::test_save_record_with_patient PASSED                 [ 18%]
+tests/test_crud.py::test_save_record_without_patient PASSED              [ 18%]
+tests/test_crud.py::test_save_record_optional_fields_preserved PASSED    [ 18%]
+tests/test_crud.py::test_get_records_returns_most_recent_first PASSED    [ 19%]
+tests/test_crud.py::test_get_records_respects_limit PASSED               [ 19%]
+tests/test_crud.py::test_get_records_returns_empty_for_no_records PASSED [ 19%]
+tests/test_crud.py::test_get_records_isolated_by_doctor PASSED           [ 19%]
+tests/test_crud.py::test_get_all_records_returns_records_across_patients PASSED [ 19%]
+tests/test_crud.py::test_get_all_records_most_recent_first PASSED        [ 20%]
+tests/test_crud.py::test_get_all_records_respects_limit PASSED           [ 20%]
+tests/test_crud.py::test_get_all_records_empty_when_no_records PASSED    [ 20%]
+tests/test_crud.py::test_get_all_records_isolated_by_doctor PASSED       [ 20%]
+tests/test_crud.py::test_create_patient_stamps_category_new PASSED       [ 20%]
+tests/test_crud.py::test_save_record_triggers_category_recompute PASSED  [ 21%]
+tests/test_crud.py::test_save_record_creates_auto_followup_task_when_enabled PASSED [ 21%]
+tests/test_crud.py::test_create_and_list_labels PASSED                   [ 21%]
+tests/test_crud.py::test_create_label_default_color_is_none PASSED       [ 21%]
+tests/test_crud.py::test_update_label_name PASSED                        [ 21%]
+tests/test_crud.py::test_update_label_color PASSED                       [ 22%]
+tests/test_crud.py::test_delete_label PASSED                             [ 22%]
+tests/test_crud.py::test_delete_label_wrong_doctor_returns_false PASSED  [ 22%]
+tests/test_crud.py::test_assign_label_to_patient PASSED                  [ 22%]
+tests/test_crud.py::test_assign_label_idempotent PASSED                  [ 23%]
+tests/test_crud.py::test_remove_label_from_patient PASSED                [ 23%]
+tests/test_crud.py::test_delete_label_removes_from_patient PASSED        [ 23%]
+tests/test_crud.py::test_label_doctor_isolation PASSED                   [ 23%]
+tests/test_init_db.py::test_create_tables_runs_age_to_year_of_birth_migration PASSED [ 23%]
+tests/test_init_db.py::test_create_tables_skips_migration_when_column_already_renamed PASSED [ 24%]
+tests/test_init_db.py::test_seed_prompts_inserts_both_defaults_when_missing PASSED [ 24%]
+tests/test_init_db.py::test_seed_prompts_is_idempotent_when_rows_exist PASSED [ 24%]
+tests/test_intent.py::test_detect_create_patient PASSED                  [ 24%]
+tests/test_intent.py::test_detect_add_record PASSED                      [ 24%]
+tests/test_intent.py::test_detect_query_records PASSED                   [ 25%]
+tests/test_intent.py::test_detect_unknown PASSED                         [ 25%]
+tests/test_intent.py::test_detect_patient_name_is_none_when_absent PASSED [ 25%]
+tests/test_intent.py::test_detect_age_can_be_none PASSED                 [ 25%]
+tests/test_intent.py::test_detect_intent_uses_correct_llm_params PASSED  [ 26%]
+tests/test_log_utils.py::test_log_includes_sorted_kv_fields PASSED       [ 26%]
+tests/test_log_utils.py::test_task_log_uses_tasks_logger_name PASSED     [ 26%]
+tests/test_log_utils.py::test_init_logging_with_console_only PASSED      [ 26%]
+tests/test_log_utils.py::test_to_bool_parses_false_and_default PASSED    [ 26%]
+tests/test_log_utils.py::test_log_unknown_level_falls_back_to_info PASSED [ 27%]
+tests/test_log_utils.py::test_init_logging_with_rotating_files PASSED    [ 27%]
+tests/test_log_utils.py::test_init_logging_tasks_can_propagate_to_console_when_enabled PASSED [ 27%]
+tests/test_log_utils.py::test_init_logging_scheduler_can_propagate_to_console_when_enabled PASSED [ 27%]
+tests/test_main_warmup.py::test_warmup_falls_back_on_connectivity_error PASSED [ 27%]
+tests/test_main_warmup.py::test_warmup_raises_on_non_connectivity_error PASSED [ 28%]
+tests/test_memory.py::test_compress_no_op_when_history_empty PASSED      [ 28%]
+tests/test_memory.py::test_compress_no_op_when_history_is_short PASSED   [ 28%]
+tests/test_memory.py::test_compress_fires_when_window_is_full PASSED     [ 28%]
+tests/test_memory.py::test_compress_clears_history_after_full_window PASSED [ 28%]
+tests/test_memory.py::test_compress_persists_summary_to_db PASSED        [ 29%]
+tests/test_memory.py::test_compress_fires_when_idle PASSED               [ 29%]
+tests/test_memory.py::test_compress_clears_history_when_idle PASSED      [ 29%]
+tests/test_memory.py::test_compress_clears_history_even_if_llm_fails PASSED [ 29%]
+tests/test_memory.py::test_load_context_returns_none_when_no_db_row PASSED [ 30%]
+tests/test_memory.py::test_load_context_returns_none_when_summary_empty PASSED [ 30%]
+tests/test_memory.py::test_load_context_returns_system_message_when_context_exists PASSED [ 30%]
+tests/test_memory.py::test_load_context_message_format_contains_context_header PASSED [ 30%]
+tests/test_memory.py::test_two_doctors_compress_independently PASSED     [ 30%]
+tests/test_memory.py::test_load_context_returns_correct_doctor_summary PASSED [ 31%]
+tests/test_models.py::test_model_str_methods PASSED                      [ 31%]
+tests/test_neuro_router.py::test_neuro_from_text_empty_input_raises_422 PASSED [ 31%]
+tests/test_neuro_router.py::test_neuro_from_text_value_error_maps_to_422 PASSED [ 31%]
+tests/test_neuro_router.py::test_neuro_from_text_unexpected_error_maps_to_500 PASSED [ 31%]
+tests/test_neuro_router.py::test_neuro_from_text_success_persists_and_returns_payload PASSED [ 32%]
+tests/test_neuro_router.py::test_list_neuro_cases_shapes_response PASSED [ 32%]
+tests/test_neuro_structuring.py::test_parse_markdown_extracts_json PASSED [ 32%]
+tests/test_neuro_structuring.py::test_parse_markdown_extracts_log PASSED [ 32%]
+tests/test_neuro_structuring.py::test_missing_imaging_returns_empty_list PASSED [ 32%]
+tests/test_neuro_structuring.py::test_malformed_json_raises_value_error PASSED [ 33%]
+tests/test_neuro_structuring.py::test_extract_neuro_case_calls_llm_with_prompt PASSED [ 33%]
+tests/test_neuro_structuring.py::test_save_neuro_case_promotes_scalars PASSED [ 33%]
+tests/test_neuro_structuring.py::test_save_neuro_case_invalid_numeric_fields_coerce_to_none PASSED [ 33%]
+tests/test_neuro_structuring.py::test_get_neuro_cases_for_doctor_returns_only_target_doctor PASSED [ 34%]
+tests/test_notification.py::test_send_doctor_notification_log_provider_succeeds PASSED [ 34%]
+tests/test_notification.py::test_send_doctor_notification_wechat_provider_calls_wechat_sender PASSED [ 34%]
+tests/test_notification.py::test_send_doctor_notification_unknown_provider_raises PASSED [ 34%]
+tests/test_patient_categorization.py::test_high_risk_keyword_present PASSED [ 34%]
+tests/test_patient_categorization.py::test_high_risk_wins_over_active_followup_even_with_followup_plan PASSED [ 35%]
+tests/test_patient_categorization.py::test_each_high_risk_keyword_triggers[\u6025\u6027] PASSED [ 35%]
+tests/test_patient_categorization.py::test_each_high_risk_keyword_triggers[STEMI] PASSED [ 35%]
+tests/test_patient_categorization.py::test_each_high_risk_keyword_triggers[\u5fc3\u6897] PASSED [ 35%]
+tests/test_patient_categorization.py::test_each_high_risk_keyword_triggers[\u5fc3\u8870] PASSED [ 35%]
+tests/test_patient_categorization.py::test_each_high_risk_keyword_triggers[ACS] PASSED [ 36%]
+tests/test_patient_categorization.py::test_each_high_risk_keyword_triggers[\u80bf\u7624] PASSED [ 36%]
+tests/test_patient_categorization.py::test_each_high_risk_keyword_triggers[\u5316\u7597] PASSED [ 36%]
+tests/test_patient_categorization.py::test_each_high_risk_keyword_triggers[\u4e0d\u7a33\u5b9a\u578b] PASSED [ 36%]
+tests/test_patient_categorization.py::test_each_high_risk_keyword_triggers[\u6076\u6027] PASSED [ 36%]
+tests/test_patient_categorization.py::test_active_followup_with_followup_plan_within_30_days PASSED [ 37%]
+tests/test_patient_categorization.py::test_active_followup_not_triggered_when_record_older_than_30_days PASSED [ 37%]
+tests/test_patient_categorization.py::test_stable_record_31_days_ago PASSED [ 37%]
+tests/test_patient_categorization.py::test_new_patient_no_records PASSED [ 37%]
+tests/test_patient_categorization.py::test_new_patient_created_3_days_ago_no_records PASSED [ 38%]
+tests/test_patient_categorization.py::test_new_patient_created_recently_even_with_records PASSED [ 38%]
+tests/test_patient_categorization.py::test_recent_visit_tag_at_5_days PASSED [ 38%]
+tests/test_patient_categorization.py::test_no_recent_visit_tag_at_100_days PASSED [ 38%]
+tests/test_patient_categorization.py::test_needs_record_update_tag_at_45_days PASSED [ 38%]
+tests/test_patient_categorization.py::test_no_tags_for_record_at_20_days PASSED [ 39%]
+tests/test_patient_categorization.py::test_recent_visit_tag_boundary_exactly_14_days PASSED [ 39%]
+tests/test_patient_categorization.py::test_no_tags_for_new_patient_no_records_young PASSED [ 39%]
+tests/test_patient_categorization.py::test_result_has_correct_rules_version PASSED [ 39%]
+tests/test_patient_categorization.py::test_result_computed_at_equals_now PASSED [ 39%]
+tests/test_patient_categorization.py::test_matched_rules_populated PASSED [ 40%]
+tests/test_patient_categorization.py::test_precedence_high_risk_beats_stable PASSED [ 40%]
+tests/test_patient_categorization.py::test_precedence_high_risk_beats_new PASSED [ 40%]
+tests/test_patient_categorization.py::test_days_ago_supports_timezone_aware_datetimes PASSED [ 40%]
+tests/test_patient_categorization.py::test_no_records_old_patient_gets_no_recent_visit_tag PASSED [ 41%]
+tests/test_patient_categorization.py::test_recompute_patient_category_noop_when_patient_missing PASSED [ 41%]
+tests/test_patient_categorization.py::test_recompute_patient_category_persists_fields PASSED [ 41%]
+tests/test_patient_categorization.py::test_recompute_all_categories_with_doctor_filter PASSED [ 41%]
+tests/test_patient_categorization.py::test_recompute_all_categories_counts_errors PASSED [ 41%]
+tests/test_patient_risk.py::test_compute_patient_risk_low_for_new_patient_without_records PASSED [ 42%]
+tests/test_patient_risk.py::test_compute_patient_risk_high_with_keyword PASSED [ 42%]
+tests/test_patient_risk.py::test_compute_patient_risk_critical_with_critical_keyword PASSED [ 42%]
+tests/test_patient_risk.py::test_compute_patient_risk_upgrades_when_follow_up_overdue PASSED [ 42%]
+tests/test_patient_risk.py::test_compute_patient_risk_aligns_with_high_risk_category PASSED [ 42%]
+tests/test_patient_timeline.py::test_build_patient_timeline_includes_record_and_task PASSED [ 43%]
+tests/test_patient_timeline.py::test_build_patient_timeline_returns_none_for_missing_patient PASSED [ 43%]
+tests/test_records_chat.py::test_name_followup_overrides_create_patient_and_saves_record PASSED [ 43%]
+tests/test_records_chat.py::test_name_followup_overrides_unknown_and_saves_record PASSED [ 43%]
+tests/test_records_chat.py::test_name_followup_fills_missing_name_when_intent_is_add_record PASSED [ 43%]
+tests/test_records_router.py::test_helper_name_validation_and_parsing PASSED [ 44%]
+tests/test_records_router.py::test_chat_empty_text_raises_422 PASSED     [ 44%]
+tests/test_records_router.py::test_chat_dispatch_errors_map_to_429_and_503 PASSED [ 44%]
+tests/test_records_router.py::test_chat_create_patient_no_name_and_success PASSED [ 44%]
+tests/test_records_router.py::test_chat_add_record_invalid_name_and_structuring_error PASSED [ 45%]
+tests/test_records_router.py::test_chat_query_records_branches PASSED    [ 45%]
+tests/test_records_router.py::test_chat_list_patients_and_unknown_reply PASSED [ 45%]
+tests/test_records_router.py::test_from_text_image_audio_endpoints PASSED [ 45%]
+tests/test_seed_db.py::TestExportFixture::test_creates_correct_json_structure PASSED [ 45%]
+tests/test_seed_db.py::TestExportFixture::test_dryrun_skips_write PASSED [ 46%]
+tests/test_seed_db.py::TestExportFixture::test_missing_db_exits PASSED   [ 46%]
+tests/test_seed_db.py::TestResetTables::test_issues_correct_deletes_and_sequence_reset PASSED [ 46%]
+tests/test_seed_db.py::TestResetTables::test_dryrun_skips_commit PASSED  [ 46%]
+tests/test_seed_db.py::TestImportFixture::test_inserts_new_patient PASSED [ 46%]
+tests/test_seed_db.py::TestImportFixture::test_skips_duplicate_patient PASSED [ 47%]
+tests/test_seed_db.py::TestImportFixture::test_translates_patient_id_for_records PASSED [ 47%]
+tests/test_seed_db.py::TestImportFixture::test_skips_duplicate_record PASSED [ 47%]
+tests/test_seed_db.py::TestImportFixture::test_null_patient_id_in_fixture_inserts_with_null PASSED [ 47%]
+tests/test_seed_db.py::TestImportFixture::test_unknown_patient_id_warns PASSED [ 47%]
+tests/test_seed_db.py::TestImportFixture::test_rejects_wrong_fixture_version PASSED [ 48%]
+tests/test_seed_db.py::TestImportFixture::test_rejects_missing_patients_key PASSED [ 48%]
+tests/test_seed_db.py::TestImportFixture::test_missing_fixture_exits PASSED [ 48%]
+tests/test_seed_db.py::TestImportFixture::test_dryrun_skips_commit_and_inserts PASSED [ 48%]
+tests/test_seed_db.py::TestImportFixture::test_dryrun_reports_would_import PASSED [ 49%]
+tests/test_seed_db.py::TestImportFixture::test_rollback_on_exception PASSED [ 49%]
+tests/test_seed_db.py::TestMain::test_export_flag_routes_to_export PASSED [ 49%]
+tests/test_seed_db.py::TestMain::test_import_flag_routes_to_import PASSED [ 49%]
+tests/test_seed_db.py::TestMain::test_reset_then_import PASSED           [ 49%]
+tests/test_seed_db.py::TestMain::test_reset_no_import PASSED             [ 50%]
+tests/test_seed_db.py::TestMain::test_reset_alone_wipes PASSED           [ 50%]
+tests/test_seed_db.py::TestMain::test_export_dryrun_passes_flag PASSED   [ 50%]
+tests/test_seed_db.py::TestMain::test_no_import_without_reset_errors PASSED [ 50%]
+tests/test_seed_db.py::TestMain::test_nothing_to_do_errors PASSED        [ 50%]
+tests/test_seed_db.py::TestMain::test_custom_db_and_fixture_paths PASSED [ 51%]
+tests/test_session.py::test_get_session_creates_empty_session PASSED     [ 51%]
+tests/test_session.py::test_get_session_returns_same_object_on_repeat_call PASSED [ 51%]
+tests/test_session.py::test_set_current_patient_updates_session PASSED   [ 51%]
+tests/test_session.py::test_clear_current_patient_resets_to_none PASSED  [ 52%]
+tests/test_session.py::test_sessions_are_isolated_per_doctor PASSED      [ 52%]
+tests/test_session.py::test_clear_one_doctor_does_not_affect_another PASSED [ 52%]
+tests/test_session.py::test_set_current_patient_overwrites_previous PASSED [ 52%]
+tests/test_session_context.py::test_get_session_creates_new_session PASSED [ 52%]
+tests/test_session_context.py::test_get_session_returns_same_object_for_same_doctor PASSED [ 53%]
+tests/test_session_context.py::test_two_doctors_have_independent_sessions PASSED [ 53%]
+tests/test_session_context.py::test_two_doctors_patient_contexts_are_independent PASSED [ 53%]
+tests/test_session_context.py::test_push_turn_adds_two_messages PASSED   [ 53%]
+tests/test_session_context.py::test_push_turn_accumulates_across_multiple_calls PASSED [ 53%]
+tests/test_session_context.py::test_push_turn_updates_last_active PASSED [ 54%]
+tests/test_session_context.py::test_push_turn_order_is_user_then_assistant PASSED [ 54%]
+tests/test_session_context.py::test_set_current_patient_stores_id_and_name PASSED [ 54%]
+tests/test_session_context.py::test_switching_patient_replaces_previous_context PASSED [ 54%]
+tests/test_session_context.py::test_history_is_preserved_when_switching_patients PASSED [ 54%]
+tests/test_session_context.py::test_clear_current_patient_sets_both_fields_to_none PASSED [ 55%]
+tests/test_session_context.py::test_clear_current_patient_does_not_wipe_history PASSED [ 55%]
+tests/test_session_context.py::test_set_pending_create_stores_name PASSED [ 55%]
+tests/test_session_context.py::test_clear_pending_create_removes_name PASSED [ 55%]
+tests/test_session_context.py::test_pending_create_independent_between_doctors PASSED [ 56%]
+tests/test_structuring.py::test_structure_returns_medical_record_instance PASSED [ 56%]
+tests/test_structuring.py::test_structure_all_8_fields_mapped_correctly PASSED [ 56%]
+tests/test_structuring.py::test_structure_optional_fields_none_when_absent PASSED [ 56%]
+tests/test_structuring.py::test_structure_missing_optional_keys_in_response_default_to_none PASSED [ 56%]
+tests/test_structuring.py::test_structure_null_chief_complaint_triggers_fallback PASSED [ 57%]
+tests/test_structuring.py::test_structure_empty_string_chief_complaint_triggers_fallback PASSED [ 57%]
+tests/test_structuring.py::test_structure_all_field_values_are_str_or_none PASSED [ 57%]
+tests/test_structuring.py::test_structure_stemi_diagnosis_and_treatment PASSED [ 57%]
+tests/test_structuring.py::test_structure_bnp_trend_lands_in_auxiliary_examinations PASSED [ 57%]
+tests/test_structuring.py::test_structure_planned_tests_go_to_treatment_plan PASSED [ 58%]
+tests/test_structuring.py::test_structure_uses_temperature_0 PASSED      [ 58%]
+tests/test_structuring.py::test_structure_uses_json_response_format PASSED [ 58%]
+tests/test_structuring.py::test_structure_uses_max_tokens_1500 PASSED    [ 58%]
+tests/test_structuring.py::test_structure_system_prompt_contains_field_names PASSED [ 58%]
+tests/test_structuring.py::test_structure_user_message_is_input_text PASSED [ 59%]
+tests/test_structuring.py::test_structure_consultation_mode_appends_suffix PASSED [ 59%]
+tests/test_structuring.py::test_structure_consultation_mode_false_no_suffix PASSED [ 59%]
+tests/test_tasks.py::test_extract_two_weeks PASSED                       [ 59%]
+tests/test_tasks.py::test_extract_invalid_cn_number_falls_back_to_default PASSED [ 60%]
+tests/test_tasks.py::test_extract_three_days PASSED                      [ 60%]
+tests/test_tasks.py::test_extract_one_month PASSED                       [ 60%]
+tests/test_tasks.py::test_extract_tomorrow PASSED                        [ 60%]
+tests/test_tasks.py::test_extract_next_week PASSED                       [ 60%]
+tests/test_tasks.py::test_extract_one_week PASSED                        [ 61%]
+tests/test_tasks.py::test_extract_fallback PASSED                        [ 61%]
+tests/test_tasks.py::test_extract_five_days PASSED                       [ 61%]
+tests/test_tasks.py::test_extract_three_months PASSED                    [ 61%]
+tests/test_tasks.py::test_extract_empty_string PASSED                    [ 61%]
+tests/test_tasks.py::test_extract_next_star_week PASSED                  [ 62%]
+tests/test_tasks.py::test_extract_two_months PASSED                      [ 62%]
+tests/test_tasks.py::test_create_task_stores_fields PASSED               [ 62%]
+tests/test_tasks.py::test_list_tasks_filters_by_status PASSED            [ 62%]
+tests/test_tasks.py::test_list_tasks_status_filter_excludes_completed PASSED [ 63%]
+tests/test_tasks.py::test_get_due_tasks_excludes_notified PASSED         [ 63%]
+tests/test_tasks.py::test_update_task_status_wrong_doctor_returns_none PASSED [ 63%]
+tests/test_tasks.py::test_create_follow_up_task_sets_correct_due_at PASSED [ 63%]
+tests/test_tasks.py::test_create_emergency_task_sends_notification_immediately PASSED [ 63%]
+tests/test_tasks.py::test_create_follow_up_task_emits_structured_task_log PASSED [ 64%]
+tests/test_tasks.py::test_create_appointment_task_sets_due_at_one_hour_before PASSED [ 64%]
+tests/test_tasks.py::test_check_and_send_due_tasks_sends_for_each PASSED [ 64%]
+tests/test_tasks.py::test_check_and_send_due_tasks_continues_on_error PASSED [ 64%]
+tests/test_tasks.py::test_send_task_notification_formats_message_and_marks_notified PASSED [ 64%]
+tests/test_tasks.py::test_send_task_notification_without_content_or_due_time PASSED [ 65%]
+tests/test_tasks.py::test_send_task_notification_emits_structured_task_log PASSED [ 65%]
+tests/test_tasks.py::test_send_task_notification_retries_then_succeeds PASSED [ 65%]
+tests/test_tasks.py::test_send_task_notification_retry_exhausted_does_not_mark_notified PASSED [ 65%]
+tests/test_tasks.py::test_check_and_send_due_tasks_logs_failure_event PASSED [ 65%]
+tests/test_tasks.py::test_run_due_task_cycle_returns_counts PASSED       [ 66%]
+tests/test_tasks.py::test_taskout_from_orm_serializes_datetime_fields PASSED [ 66%]
+tests/test_tasks.py::test_dispatch_list_tasks_intent PASSED              [ 66%]
+tests/test_tasks.py::test_dispatch_complete_task_intent PASSED           [ 66%]
+tests/test_tasks.py::test_dispatch_complete_task_extra_data PASSED       [ 67%]
+tests/test_tasks.py::test_dispatch_schedule_appointment_intent PASSED    [ 67%]
+tests/test_tasks.py::test_dispatch_schedule_appointment_extra_data PASSED [ 67%]
+tests/test_tasks.py::test_dispatch_complete_task_missing_id_gives_none PASSED [ 67%]
+tests/test_tasks.py::test_api_get_tasks_returns_list PASSED              [ 67%]
+tests/test_tasks.py::test_api_get_tasks_filter_by_status PASSED          [ 68%]
+tests/test_tasks.py::test_api_patch_task_marks_completed PASSED          [ 68%]
+tests/test_tasks.py::test_api_patch_task_invalid_status_returns_422 PASSED [ 68%]
+tests/test_tasks.py::test_api_patch_task_not_found_returns_404 PASSED    [ 68%]
+tests/test_tasks.py::test_api_dev_run_notifier_disabled_returns_404 PASSED [ 68%]
+tests/test_tasks.py::test_api_dev_run_notifier_enabled_returns_summary PASSED [ 69%]
+tests/test_transcription.py::test_transcribe_audio_uses_medical_prompt_by_default PASSED [ 69%]
+tests/test_transcription.py::test_transcribe_audio_uses_consultation_prompt_when_mode_true PASSED [ 69%]
+tests/test_transcription.py::test_transcribe_audio_passes_bytes_as_first_arg PASSED [ 69%]
+tests/test_ui_router.py::test_fmt_ts PASSED                              [ 69%]
+tests/test_ui_router.py::test_parse_tags_empty_invalid_and_valid_json PASSED [ 70%]
+tests/test_ui_router.py::test_manage_patients_includes_record_counts PASSED [ 70%]
+tests/test_ui_router.py::test_manage_records_with_patient_filter PASSED  [ 70%]
+tests/test_ui_router.py::test_manage_records_without_patient_filter PASSED [ 70%]
+tests/test_ui_router.py::test_manage_records_filter_by_patient_name PASSED [ 71%]
+tests/test_ui_router.py::test_manage_records_filter_by_date_range PASSED [ 71%]
+tests/test_ui_router.py::test_manage_prompts_present_and_empty PASSED    [ 71%]
+tests/test_ui_router.py::test_update_prompt_validation_and_success PASSED [ 71%]
+tests/test_ui_router.py::test_manage_patients_includes_category_fields PASSED [ 71%]
+tests/test_ui_router.py::test_manage_patients_category_filter PASSED     [ 72%]
+tests/test_ui_router.py::test_manage_patients_risk_filter PASSED         [ 72%]
+tests/test_ui_router.py::test_manage_patients_grouped PASSED             [ 72%]
+tests/test_ui_router.py::test_manage_patients_grouped_unknown_category_goes_to_uncategorized PASSED [ 72%]
+tests/test_ui_router.py::test_manage_patients_grouped_risk PASSED        [ 72%]
+tests/test_ui_router.py::test_manage_patient_timeline_not_found PASSED   [ 73%]
+tests/test_ui_router.py::test_manage_patient_timeline_success PASSED     [ 73%]
+tests/test_ui_router.py::test_list_labels_returns_items PASSED           [ 73%]
+tests/test_ui_router.py::test_create_label PASSED                        [ 73%]
+tests/test_ui_router.py::test_update_label PASSED                        [ 73%]
+tests/test_ui_router.py::test_update_label_not_found_raises_404 PASSED   [ 74%]
+tests/test_ui_router.py::test_delete_label PASSED                        [ 74%]
+tests/test_ui_router.py::test_assign_label_to_patient PASSED             [ 74%]
+tests/test_ui_router.py::test_remove_label_from_patient PASSED           [ 74%]
+tests/test_ui_router.py::test_patients_list_includes_labels_field PASSED [ 75%]
+tests/test_ui_router.py::test_patients_list_labels_populated PASSED      [ 75%]
+tests/test_ui_router.py::test_admin_db_view_returns_patients_and_records PASSED [ 75%]
+tests/test_ui_router.py::test_admin_db_view_invalid_date_raises_400 PASSED [ 75%]
+tests/test_ui_router.py::test_admin_tables_returns_all_table_counts PASSED [ 75%]
+tests/test_ui_router.py::test_admin_table_rows_unknown_table_raises_404 PASSED [ 76%]
+tests/test_ui_router.py::test_normalize_date_blank_returns_none PASSED   [ 76%]
+tests/test_ui_router.py::test_admin_db_view_with_all_filters PASSED      [ 76%]
+tests/test_ui_router.py::test_admin_tables_with_filters PASSED           [ 76%]
+tests/test_ui_router.py::test_admin_table_rows_each_table[patients-exec_result0-name] PASSED [ 76%]
+tests/test_ui_router.py::test_admin_table_rows_each_table[medical_records-exec_result1-chief_complaint] PASSED [ 77%]
+tests/test_ui_router.py::test_admin_table_rows_each_table[doctor_tasks-exec_result2-title] PASSED [ 77%]
+tests/test_ui_router.py::test_admin_table_rows_each_table[neuro_cases-exec_result3-primary_diagnosis] PASSED [ 77%]
+tests/test_ui_router.py::test_admin_table_rows_each_table[patient_labels-exec_result4-name] PASSED [ 77%]
+tests/test_ui_router.py::test_admin_table_rows_each_table[patient_label_assignments-exec_result5-label_name] PASSED [ 78%]
+tests/test_ui_router.py::test_admin_table_rows_each_table[system_prompts-exec_result6-content] PASSED [ 78%]
+tests/test_ui_router.py::test_admin_table_rows_each_table[doctor_contexts-exec_result7-summary] PASSED [ 78%]
+tests/test_v1_corpus_db.py::test_v1_null_fields_stored_as_null_in_db[\u5f20\u5efa\u56fd] PASSED [ 78%]
+tests/test_v1_corpus_db.py::test_v1_null_fields_stored_as_null_in_db[\u9648\u7f8e\u73b2] PASSED [ 78%]
+tests/test_v1_corpus_db.py::test_v1_null_fields_stored_as_null_in_db[\u9ad8\u5cf0] PASSED [ 79%]
+tests/test_v1_corpus_db.py::test_v1_null_fields_stored_as_null_in_db[\u97e9\u4f1f] PASSED [ 79%]
+tests/test_v1_corpus_db.py::test_v1_null_fields_stored_as_null_in_db[\u90ed\u5efa\u534e] PASSED [ 79%]
+tests/test_v1_corpus_db.py::test_v1_chief_complaint_stored_non_null[\u5f20\u5efa\u56fd] PASSED [ 79%]
+tests/test_v1_corpus_db.py::test_v1_chief_complaint_stored_non_null[\u9648\u7f8e\u73b2] PASSED [ 79%]
+tests/test_v1_corpus_db.py::test_v1_chief_complaint_stored_non_null[\u9ad8\u5cf0] PASSED [ 80%]
+tests/test_v1_corpus_db.py::test_v1_chief_complaint_stored_non_null[\u97e9\u4f1f] PASSED [ 80%]
+tests/test_v1_corpus_db.py::test_v1_chief_complaint_stored_non_null[\u90ed\u5efa\u534e] PASSED [ 80%]
+tests/test_v1_corpus_db.py::test_v1_history_of_present_illness_stored_non_null[\u5f20\u5efa\u56fd] PASSED [ 80%]
+tests/test_v1_corpus_db.py::test_v1_history_of_present_illness_stored_non_null[\u9648\u7f8e\u73b2] PASSED [ 80%]
+tests/test_v1_corpus_db.py::test_v1_history_of_present_illness_stored_non_null[\u9ad8\u5cf0] PASSED [ 81%]
+tests/test_v1_corpus_db.py::test_v1_history_of_present_illness_stored_non_null[\u97e9\u4f1f] PASSED [ 81%]
+tests/test_v1_corpus_db.py::test_v1_history_of_present_illness_stored_non_null[\u90ed\u5efa\u534e] PASSED [ 81%]
+tests/test_v1_corpus_db.py::test_v1_db_stores_exact_chief_complaint PASSED [ 81%]
+tests/test_v1_corpus_db.py::test_v1_record_linked_to_patient_in_db PASSED [ 82%]
+tests/test_v1_corpus_db.py::test_v1_auxiliary_examinations_null_no_ecg_result PASSED [ 82%]
+tests/test_v1_corpus_db.py::test_v1_acute_chest_pain_diagnosis_still_null_without_ecg PASSED [ 82%]
+tests/test_voice_router.py::test_voice_chat_unsupported_type PASSED      [ 82%]
+tests/test_voice_router.py::test_voice_chat_transcription_error PASSED   [ 82%]
+tests/test_voice_router.py::test_voice_chat_empty_transcript PASSED      [ 83%]
+tests/test_voice_router.py::test_voice_chat_dispatch_rate_limit PASSED   [ 83%]
+tests/test_voice_router.py::test_voice_chat_dispatch_error PASSED        [ 83%]
+tests/test_voice_router.py::test_voice_chat_unknown_intent PASSED        [ 83%]
+tests/test_voice_router.py::test_voice_chat_add_record_with_structured_fields PASSED [ 83%]
+tests/test_voice_router.py::test_voice_chat_history_json_parsed PASSED   [ 84%]
+tests/test_voice_router.py::test_voice_chat_malformed_history PASSED     [ 84%]
+tests/test_voice_router.py::test_voice_chat_create_patient_with_name PASSED [ 84%]
+tests/test_voice_router.py::test_voice_chat_add_record_structuring_fallback PASSED [ 84%]
+tests/test_voice_router.py::test_consultation_unsupported_type PASSED    [ 84%]
+tests/test_voice_router.py::test_consultation_transcription_error PASSED [ 85%]
+tests/test_voice_router.py::test_consultation_structuring_error PASSED   [ 85%]
+tests/test_voice_router.py::test_consultation_no_save PASSED             [ 85%]
+tests/test_voice_router.py::test_consultation_save_existing_patient PASSED [ 85%]
+tests/test_voice_router.py::test_consultation_save_creates_new_patient PASSED [ 86%]
+tests/test_voice_router.py::test_consultation_save_no_patient_name PASSED [ 86%]
+tests/test_voice_router.py::test_consultation_transcribe_consultation_mode PASSED [ 86%]
+tests/test_voice_router.py::test_consultation_structure_consultation_mode PASSED [ 86%]
+tests/test_voice_router.py::test_consultation_empty_transcript PASSED    [ 86%]
+tests/test_voice_router.py::test_voice_chat_history_not_a_list PASSED    [ 87%]
+tests/test_voice_router.py::test_voice_chat_followup_name_two_turn PASSED [ 87%]
+tests/test_voice_router.py::test_voice_chat_create_patient_no_name_asks PASSED [ 87%]
+tests/test_voice_router.py::test_voice_chat_add_record_no_name_asks PASSED [ 87%]
+tests/test_voice_router.py::test_voice_chat_structured_fields_missing_chief_complaint PASSED [ 87%]
+tests/test_voice_router.py::test_voice_chat_add_record_structuring_error PASSED [ 88%]
+tests/test_voice_router.py::test_voice_chat_add_record_new_patient_created PASSED [ 88%]
+tests/test_wechat_intent.py::test_handle_intent_routes_create_patient PASSED [ 88%]
+tests/test_wechat_intent.py::test_handle_intent_routes_unknown_to_help_message PASSED [ 88%]
+tests/test_wechat_intent.py::test_handle_intent_falls_back_on_detection_error PASSED [ 89%]
+tests/test_wechat_intent.py::test_create_patient_without_name_returns_error PASSED [ 89%]
+tests/test_wechat_intent.py::test_create_patient_sets_session PASSED     [ 89%]
+tests/test_wechat_intent.py::test_create_patient_reply_includes_gender_age PASSED [ 89%]
+tests/test_wechat_intent.py::test_add_record_uses_session_patient_when_no_name_in_message PASSED [ 89%]
+tests/test_wechat_intent.py::test_add_record_links_patient_from_message_name PASSED [ 90%]
+tests/test_wechat_intent.py::test_add_record_auto_creates_patient_when_not_in_db PASSED [ 90%]
+tests/test_wechat_intent.py::test_add_record_works_without_patient PASSED [ 90%]
+tests/test_wechat_intent.py::test_query_records_no_patient_returns_all_records_empty PASSED [ 90%]
+tests/test_wechat_intent.py::test_query_records_no_patient_returns_all_records PASSED [ 90%]
+tests/test_wechat_intent.py::test_query_records_by_name_returns_list PASSED [ 91%]
+tests/test_wechat_intent.py::test_query_records_uses_session_patient_when_no_name PASSED [ 91%]
+tests/test_wechat_intent.py::test_query_records_empty_history PASSED     [ 91%]
+tests/test_wechat_intent.py::test_add_record_emergency_reply_has_prefix PASSED [ 91%]
+tests/test_wechat_intent.py::test_handle_intent_routes_list_patients PASSED [ 91%]
+tests/test_wechat_intent.py::test_handle_all_patients_empty PASSED       [ 92%]
+tests/test_wechat_intent.py::test_handle_all_patients_shows_numbered_list PASSED [ 92%]
+tests/test_wechat_intent.py::test_format_record_all_fields PASSED        [ 92%]
+tests/test_wechat_intent.py::test_format_record_optional_fields_absent PASSED [ 92%]
+tests/test_wechat_intent.py::test_format_record_minimal PASSED           [ 93%]
+tests/test_wechat_intent.py::test_split_message_short_returns_single_chunk PASSED [ 93%]
+tests/test_wechat_intent.py::test_split_message_long_splits_at_section_header PASSED [ 93%]
+tests/test_wechat_intent.py::test_split_message_no_header_splits_at_limit PASSED [ 93%]
+tests/test_wechat_routes.py::test_get_access_token_uses_cache_without_http_call PASSED [ 93%]
+tests/test_wechat_routes.py::test_get_access_token_fetches_and_updates_cache PASSED [ 94%]
+tests/test_wechat_routes.py::test_send_customer_service_msg_swallow_exception PASSED [ 94%]
+tests/test_wechat_routes.py::test_send_customer_service_msg_success_path_posts_chunks PASSED [ 94%]
+tests/test_wechat_routes.py::test_send_customer_service_msg_raises_on_wechat_errcode PASSED [ 94%]
+tests/test_wechat_routes.py::test_build_reply_handles_value_error_and_generic_error PASSED [ 94%]
+tests/test_wechat_routes.py::test_start_interview_and_menu_event_paths PASSED [ 95%]
+tests/test_wechat_routes.py::test_handle_interview_step_cancel_and_active PASSED [ 95%]
+tests/test_wechat_routes.py::test_handle_interview_step_complete_saves_record PASSED [ 95%]
+tests/test_wechat_routes.py::test_name_lookup_hit_and_miss PASSED        [ 95%]
+tests/test_wechat_routes.py::test_pending_create_cancel_and_create PASSED [ 95%]
+tests/test_wechat_routes.py::test_handle_intent_add_record_asks_for_name_without_session PASSED [ 96%]
+tests/test_wechat_routes.py::test_handle_intent_unknown_name_routes_to_lookup PASSED [ 96%]
+tests/test_wechat_routes.py::test_handle_list_tasks_and_complete_task_and_schedule_routes PASSED [ 96%]
+tests/test_wechat_routes.py::test_handle_intent_fast_complete_and_task_intents PASSED [ 96%]
+tests/test_wechat_routes.py::test_verify_signature_success_and_failure PASSED [ 97%]
+tests/test_wechat_routes.py::test_handle_intent_bg_uses_context_and_fallback PASSED [ 97%]
+tests/test_wechat_routes.py::test_voice_and_image_bg_error_paths PASSED  [ 97%]
+tests/test_wechat_routes.py::test_voice_bg_pending_create_route_done PASSED [ 97%]
+tests/test_wechat_routes.py::test_handle_message_text_routing_paths PASSED [ 97%]
+tests/test_wechat_routes.py::test_handle_message_event_and_media_ack_paths PASSED [ 98%]
+tests/test_wechat_routes.py::test_handle_message_parse_and_decrypt_failure_paths PASSED [ 98%]
+tests/test_wechat_routes.py::test_setup_menu_status_paths PASSED         [ 98%]
+tests/test_wechat_routes.py::test_handle_add_record_uses_structured_fields PASSED [ 98%]
+tests/test_wechat_routes.py::test_handle_add_record_falls_back_to_structuring_llm PASSED [ 98%]
+tests/test_wechat_routes.py::test_handle_add_record_uses_chat_reply_from_intent PASSED [ 99%]
+tests/test_wechat_routes.py::test_handle_add_record_fallback_reply_when_no_chat_reply PASSED [ 99%]
+tests/test_wechat_routes.py::test_handle_add_record_emergency_prefix PASSED [ 99%]
+tests/test_wechat_routes.py::test_handle_add_record_structuring_value_error_returns_natural_msg PASSED [ 99%]
+tests/test_wechat_routes.py::test_handle_add_record_structuring_generic_error_returns_natural_msg PASSED [100%]
+
+=============================== warnings summary ===============================
+tests/test_concurrency.py: 2 warnings
+tests/test_context_persistence.py: 10 warnings
+tests/test_memory.py: 10 warnings
+tests/test_session.py: 9 warnings
+tests/test_session_context.py: 19 warnings
+tests/test_wechat_intent.py: 11 warnings
+tests/test_wechat_routes.py: 17 warnings
+  <string>:9: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+
+tests/test_concurrency.py: 4 warnings
+tests/test_session_context.py: 9 warnings
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/services/session.py:47: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    sess.updated_at = datetime.utcnow()
+
+tests/test_concurrency.py::test_concurrent_pending_create_no_duplicate
+tests/test_session_context.py::test_set_pending_create_stores_name
+tests/test_session_context.py::test_clear_pending_create_removes_name
+tests/test_session_context.py::test_pending_create_independent_between_doctors
+tests/test_wechat_routes.py::test_name_lookup_hit_and_miss
+tests/test_wechat_routes.py::test_pending_create_cancel_and_create
+tests/test_wechat_routes.py::test_pending_create_cancel_and_create
+tests/test_wechat_routes.py::test_voice_bg_pending_create_route_done
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/services/session.py:67: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    session.updated_at = datetime.utcnow()
+
+tests/test_context_persistence.py: 10 warnings
+tests/test_crud.py: 65 warnings
+tests/test_neuro_structuring.py: 5 warnings
+tests/test_patient_timeline.py: 2 warnings
+tests/test_records_chat.py: 6 warnings
+tests/test_tasks.py: 14 warnings
+tests/test_v1_corpus_db.py: 38 warnings
+tests/test_wechat_intent.py: 23 warnings
+tests/test_wechat_routes.py: 16 warnings
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/.venv/lib/python3.13/site-packages/sqlalchemy/sql/schema.py:3624: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return util.wrap_callable(lambda ctx: fn(), fn)  # type: ignore
+
+tests/test_context_persistence.py::test_second_compression_overwrites_first_row
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/db/crud.py:44: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    ctx.updated_at = datetime.utcnow()
+
+tests/test_crud.py: 24 warnings
+tests/test_patient_timeline.py: 1 warning
+tests/test_records_chat.py: 3 warnings
+tests/test_v1_corpus_db.py: 19 warnings
+tests/test_wechat_intent.py: 13 warnings
+tests/test_wechat_routes.py: 10 warnings
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/db/crud.py:71: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    category_computed_at=datetime.utcnow(),
+
+tests/test_crud.py: 24 warnings
+tests/test_patient_timeline.py: 1 warning
+tests/test_records_chat.py: 3 warnings
+tests/test_v1_corpus_db.py: 19 warnings
+tests/test_wechat_intent.py: 13 warnings
+tests/test_wechat_routes.py: 10 warnings
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/db/crud.py:76: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    risk_computed_at=datetime.utcnow(),
+
+tests/test_crud.py: 25 warnings
+tests/test_patient_categorization.py: 2 warnings
+tests/test_patient_timeline.py: 1 warning
+tests/test_records_chat.py: 3 warnings
+tests/test_v1_corpus_db.py: 19 warnings
+tests/test_wechat_intent.py: 7 warnings
+tests/test_wechat_routes.py: 6 warnings
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/services/patient_categorization.py:56: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+tests/test_crud.py: 25 warnings
+tests/test_patient_timeline.py: 1 warning
+tests/test_records_chat.py: 3 warnings
+tests/test_v1_corpus_db.py: 19 warnings
+tests/test_wechat_intent.py: 7 warnings
+tests/test_wechat_routes.py: 6 warnings
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/services/patient_risk.py:73: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+tests/test_crud.py::test_save_record_creates_auto_followup_task_when_enabled
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/db/crud.py:210: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    due_at = datetime.utcnow().replace(microsecond=0) + timedelta(days=days)
+
+tests/test_session.py: 8 warnings
+tests/test_session_context.py: 9 warnings
+tests/test_wechat_intent.py: 7 warnings
+tests/test_wechat_routes.py: 10 warnings
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/services/session.py:54: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    session.updated_at = datetime.utcnow()
+
+tests/test_session.py::test_clear_current_patient_resets_to_none
+tests/test_session.py::test_clear_one_doctor_does_not_affect_another
+tests/test_session_context.py::test_two_doctors_patient_contexts_are_independent
+tests/test_session_context.py::test_clear_current_patient_sets_both_fields_to_none
+tests/test_session_context.py::test_clear_current_patient_does_not_wipe_history
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/services/session.py:61: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    session.updated_at = datetime.utcnow()
+
+tests/test_session_context.py::test_clear_pending_create_removes_name
+tests/test_wechat_routes.py::test_pending_create_cancel_and_create
+tests/test_wechat_routes.py::test_pending_create_cancel_and_create
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/services/session.py:73: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    session.updated_at = datetime.utcnow()
+
+tests/test_tasks.py::test_get_due_tasks_excludes_notified
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/db/crud.py:424: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    task.notified_at = datetime.utcnow()
+
+tests/test_tasks.py::test_create_follow_up_task_sets_correct_due_at
+  /Users/jingwuxu/Documents/code/doctor-ai-agent/tests/test_tasks.py:195: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    fake_task = _make_fake_task(1, due_at=datetime.utcnow() + timedelta(days=14))
+
+tests/test_tasks.py::test_create_follow_up_task_sets_correct_due_at
+tests/test_tasks.py::test_create_follow_up_task_emits_structured_task_log
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/services/tasks.py:104: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    due_at = datetime.utcnow() + timedelta(days=days)
+
+tests/test_tasks.py::test_create_follow_up_task_sets_correct_due_at
+  /Users/jingwuxu/Documents/code/doctor-ai-agent/tests/test_tasks.py:211: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    delta = due - datetime.utcnow()
+
+tests/test_tasks.py::test_create_follow_up_task_emits_structured_task_log
+  /Users/jingwuxu/Documents/code/doctor-ai-agent/tests/test_tasks.py:231: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    fake_task = _make_fake_task(11, due_at=datetime.utcnow() + timedelta(days=7))
+
+tests/test_tasks.py::test_check_and_send_due_tasks_sends_for_each
+tests/test_tasks.py::test_check_and_send_due_tasks_continues_on_error
+tests/test_tasks.py::test_check_and_send_due_tasks_logs_failure_event
+tests/test_tasks.py::test_run_due_task_cycle_returns_counts
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/services/tasks.py:251: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+tests/test_ui_router.py::test_manage_patients_includes_category_fields
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/routers/ui.py:73: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    delta = datetime.utcnow() - risk_computed_at
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /Users/jingwuxu/Documents/Code/doctor-ai-agent/reports/junit/unit.xml -
+================================ tests coverage ================================
+_______________ coverage: platform darwin, python 3.13.3-final-0 _______________
+
+Name                            Stmts   Miss  Cover   Missing
+-------------------------------------------------------------
+db/crud.py                        226     29    87%   24-30, 146-149, 154, 157, 159, 167-179, 207, 470, 519, 549, 566
+db/models.py                      106      1    99%   165
+routers/records.py                179      7    96%   58, 141-144, 150, 176
+routers/tasks.py                   56      1    98%   61
+routers/ui.py                     351     14    96%   62-67, 147, 151, 219, 389, 398-399, 408-409
+routers/wechat.py                 463     65    86%   59, 115, 132, 244-246, 267, 302-303, 324, 336, 373, 383-386, 396, 398, 419-421, 428-449, 513-519, 525, 545-550, 570, 584-585, 591-594, 597-600
+services/agent.py                 101      2    98%   359, 377
+services/intent.py                 42      4    90%   73-76
+services/interview.py              48      3    94%   29, 59, 62
+services/memory.py                 44      7    84%   32-52
+services/neuro_structuring.py      74     10    86%   161, 168-169, 231, 235, 239-240, 256-257, 266
+services/patient_risk.py          116     11    91%   38, 40, 60-61, 105-107, 116, 118, 130, 154
+services/structuring.py            63     10    84%   121-122, 158, 182, 193-199
+services/tasks.py                 127      8    94%   32-33, 40-41, 51-52, 226, 259
+services/transcription.py          41     21    49%   38-46, 50-65, 83-92
+services/vision.py                 27     19    30%   43-91
+services/wechat_menu.py            10      5    50%   22-30
+services/wechat_notify.py          68      8    88%   26, 41, 45-47, 73, 75, 87
+services/wechat_voice.py           26     18    31%   12-23, 28-42, 47-51
+utils/app_config.py                91      4    96%   34-35, 48, 77
+-------------------------------------------------------------
+TOTAL                            2809    247    91%
+
+15 files skipped due to complete coverage.
+Coverage HTML written to dir reports/coverage/html
+Coverage XML written to file reports/coverage/coverage.xml
+Required test coverage of 81% reached. Total coverage: 91.21%
+====================== 473 passed, 597 warnings in 6.72s =======================
+[test] Done. Reports are in ./reports/
+From https://github.com/moments8890/doctor-ai-agent
+ * branch            main       -> FETCH_HEAD
+   3103c14..0b744b1  main       -> origin/main
+-------------
+Diff Coverage
+Diff: origin/main..HEAD, staged and unstaged changes
+-------------
+No lines with coverage information in this diff.
+-------------
+

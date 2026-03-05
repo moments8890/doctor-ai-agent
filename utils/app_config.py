@@ -35,6 +35,14 @@ def _as_int(raw: Optional[str], default: int) -> int:
         return default
 
 
+def _env_first(values: Mapping[str, str], *names: str) -> Optional[str]:
+    for name in names:
+        value = values.get(name)
+        if value is not None and value.strip():
+            return value
+    return None
+
+
 def _mask_secret(value: Optional[str]) -> str:
     if not value:
         return "(empty)"
@@ -128,7 +136,7 @@ class AppConfig:
 
     @classmethod
     def from_env(cls, env: Optional[Mapping[str, str]] = None, *, env_source: str) -> "AppConfig":
-        values: Mapping[str, str] = env or os.environ
+        values: Mapping[str, str] = env if env is not None else os.environ
         return cls(
             env_source=env_source,
             routing_llm=values.get("ROUTING_LLM", "deepseek"),
@@ -147,10 +155,14 @@ class AppConfig:
             groq_api_key=values.get("GROQ_API_KEY"),
             gemini_api_key=values.get("GEMINI_API_KEY"),
             gemini_vision_model=values.get("GEMINI_VISION_MODEL", "gemini-2.0-flash"),
-            wechat_token=values.get("WECHAT_TOKEN"),
-            wechat_app_id=values.get("WECHAT_APP_ID"),
-            wechat_app_secret=values.get("WECHAT_APP_SECRET"),
-            wechat_encoding_aes_key=values.get("WECHAT_ENCODING_AES_KEY"),
+            wechat_token=_env_first(values, "WECHAT_KF_TOKEN", "WECHAT_TOKEN"),
+            wechat_app_id=_env_first(values, "WECHAT_KF_CORP_ID", "WECHAT_APP_ID"),
+            wechat_app_secret=_env_first(values, "WECHAT_KF_SECRET", "WECHAT_APP_SECRET"),
+            wechat_encoding_aes_key=_env_first(
+                values,
+                "WECHAT_KF_ENCODING_AES_KEY",
+                "WECHAT_ENCODING_AES_KEY",
+            ),
             patients_db_path=values.get("PATIENTS_DB_PATH"),
             whisper_model=values.get("WHISPER_MODEL", "large-v3"),
             whisper_device=values.get("WHISPER_DEVICE", "cpu"),

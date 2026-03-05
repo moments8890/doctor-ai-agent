@@ -55,6 +55,10 @@ def test_helper_name_validation_and_parsing():
     assert records._assistant_asked_for_name([{"role": "user", "content": "x"}]) is False
     assert records._name_only_text("陈明") == "陈明"
     assert records._name_only_text("陈明，胸痛") is None
+    assert records._leading_name_with_clinical_context("张三，男，52岁，胸闷三周") == "张三"
+    assert records._leading_name_with_clinical_context("张三") is None
+    assert records._contains_clinical_content("反复胸痛，拟复查")
+    assert not records._contains_clinical_content("你好")
 
 
 async def test_chat_empty_text_raises_422():
@@ -114,6 +118,28 @@ async def test_chat_add_record_invalid_name_and_structuring_error():
     ):
         resp2 = await records.chat(records.ChatInput(text="张三胸痛", doctor_id=DOCTOR))
     assert "病历生成失败" in resp2.reply
+
+
+async def test_chat_force_add_record_when_intent_drifts_but_text_is_clinical():
+    fake_db = object()
+    with patch(
+        "routers.records.agent_dispatch",
+        new=AsyncMock(return_value=_intent(Intent.unknown, patient_name=None, chat_reply=None)),
+    ), patch(
+        "routers.records.structure_medical_record",
+        new=AsyncMock(return_value=_record()),
+    ), patch("routers.records.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
+        "routers.records.find_patient_by_name",
+        new=AsyncMock(return_value=SimpleNamespace(id=7, name="钱芳")),
+    ), patch(
+        "routers.records.save_record",
+        new=AsyncMock(return_value=SimpleNamespace(id=100)),
+    ) as mock_save:
+        resp = await records.chat(records.ChatInput(text="钱芳，女，63岁，反复胸闷3天", doctor_id=DOCTOR))
+
+    assert "保存病历" in resp.reply
+    assert resp.record is not None
+    assert mock_save.await_count == 1
 
 
 async def test_chat_query_records_branches():
