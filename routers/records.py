@@ -42,6 +42,17 @@ _CLINICAL_CONTENT_HINTS = (
 )
 _COMPLETE_RE = re.compile(r'^\s*完成\s*(\d+)\s*$')
 
+
+def _append_raw_input_to_history(record: MedicalRecord, raw_text: str) -> None:
+    extra = raw_text.strip()
+    if not extra:
+        return
+    existing = record.history_of_present_illness or ""
+    if existing:
+        record.history_of_present_illness = f"{existing}\n{extra}"
+    else:
+        record.history_of_present_illness = extra
+
 def _is_valid_patient_name(name: str) -> bool:
     """Return False if the extracted name is clearly not a real patient name."""
     if not name or not name.strip():
@@ -207,6 +218,7 @@ async def chat(body: ChatInput):
                 if not fields.get("chief_complaint"):
                     fields["chief_complaint"] = "门诊就诊"
                 record = MedicalRecord(**{k: fields.get(k) for k in MedicalRecord.model_fields})
+                _append_raw_input_to_history(record, body.text)
         else:
             doctor_ctx = [m["content"] for m in history[-10:] if m["role"] == "user"]
             if not (followup_name and body.text.strip() == followup_name):
@@ -218,6 +230,7 @@ async def chat(body: ChatInput):
                     record = await structure_medical_record("\n".join(doctor_ctx))
             except Exception as e:
                 return ChatResponse(reply=f"病历生成失败：{e}")
+            _append_raw_input_to_history(record, body.text)
 
         patient_id = None
         patient_name = intent_result.patient_name
