@@ -19,7 +19,13 @@
       "Bash(git:*)",
       "Bash(/Users/jingwuxu/Documents/code/ai-agent/app/.gitignore:*)",
       "Bash(brew services:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(git fetch:*)",
+      "Bash(.venv/bin/diff-cover:*)",
+      "Bash(pip install:*)",
+      "Bash(bash:*)",
+      "Bash(gh pr:*)",
+      "WebSearch"
     ]
   }
 }

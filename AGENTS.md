@@ -21,7 +21,7 @@ The plan file must include:
 
 ## Branch & PR Workflow
 
-**Never push directly to `main`.** Every change — including small fixes — must go through a PR.
+Direct pushes to `main` are allowed.
 
 ### Steps for every change
 
@@ -37,37 +37,22 @@ The plan file must include:
      If diff-cover reports missing lines, add tests for those lines before pushing.
 2. **Integration tests** — `pytest tests/integration/` — only when LLM pipeline or prompt changed (requires `uvicorn main:app --reload` + `ollama serve`); auto-skipped if deps not running
 3. **Corpus tests** (optional) — `python tools/train.py --clean [--cases ...]` — full corpus validation, also requires Ollama
-4. **Document changes in commit + PR** — include what changed and any migration/manual cleanup impact in the commit message and PR description
+4. **Document changes in commit message** — include what changed and any migration/manual cleanup impact
 5. **Update `ARCHITECTURE.md`** — only if schema, env vars, API endpoints, or service structure changed
 6. **Update progress** — tick completed items in `debug/iteration_*.md`
 
-### Publishing
+### Publishing (Direct to Main)
 
-After the above, always:
+After the above:
 
 ```bash
-# 1. Create a branch (never commit on main)
-git checkout -b <type>/<short-slug>   # e.g. feat/my-feature, fix/bug-name, ci/workflow
+# 1. Commit your changes
+git commit -m "<type>: <short-description>"
 
-# 2. Commit, then push
-git push -u origin HEAD
-
-# 3. Open a draft PR immediately after pushing
-gh pr create --draft --title "<title>" --body "<body>"
-
-# 4. Share the PR URL immediately after creation
-gh pr view --json url -q .url
-
-# 5. Enable auto-merge so it lands as soon as CI is green
-gh pr merge --auto --squash
+# 2. Push directly to main
+git push origin main
 ```
 
-- **User shorthand rule** — if the user says `push`, treat it as: push branch **and** open a PR immediately (then share the PR URL)
+- **User shorthand rule** — if the user says `push`, treat it as a direct push to `main`
 
-- Branch naming: `feat/`, `fix/`, `ci/`, `refactor/`, `docs/`
-- PR title follows conventional commits: `feat:`, `fix:`, `ci:`, etc.
-- **PRs must always be created as draft** — `gh pr create` without `--draft` is forbidden
-- PRs must be blocked from merge until required CI checks pass (`unit` + `integration`)
-- Auto-merge is squash-merge and only activates after required CI checks are green
-- When a PR is created, always provide the PR link in the status update to the user
-- Delete the branch after merge (`gh pr merge` does this automatically with `--delete-branch`)
+- Commit message prefixes: `feat:`, `fix:`, `ci:`, `refactor:`, `docs:`
