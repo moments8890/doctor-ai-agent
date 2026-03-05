@@ -95,12 +95,7 @@ async def test_concurrent_pending_create_no_duplicate(session_factory):
 
     async def fake_create_patient(session, doctor_id, name, gender, age):
         created_names.append(name)
-
-        class FakePatient:
-            id = 1
-            name = name
-
-        return FakePatient()
+        return type("FakePatient", (), {"id": 1, "name": name})()
 
     with (
         patch("routers.wechat.AsyncSessionLocal", session_factory),

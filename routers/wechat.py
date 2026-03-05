@@ -16,9 +16,10 @@ from wechatpy.replies import TextReply
 from services.structuring import structure_medical_record
 from services.transcription import transcribe_audio
 from services.vision import extract_text_from_image
+from services.pdf_extract import extract_text_from_pdf
 from services.wechat_voice import download_and_convert, download_voice
 from services.interview import InterviewState, STEPS
-from services.intent import Intent
+from services.intent import Intent, IntentResult
 from services.agent import dispatch as agent_dispatch
 from services.wechat_menu import create_menu
 from services.wechat_notify import (
@@ -48,6 +49,11 @@ _NON_NAME_SUBSTRINGS = {
     "一天", "两天", "三天", "一周", "两周", "三周", "一月", "两月",
     "记录", "病历", "查询", "随访", "复查", "预约",
 }
+_SYMPTOM_KEYWORDS = (
+    "头疼", "头痛", "偏头痛", "发烧", "咳嗽", "胸闷", "胸痛",
+    "腹痛", "恶心", "呕吐", "腹泻", "乏力", "眩晕", "心悸",
+    "不舒服", "不适", "难受", "疼",
+)
 _EXPLICIT_NAME_PATTERNS = [
     re.compile(r"^\s*我是(?P<name>[\u4e00-\u9fff]{2,4})\s*$"),
     re.compile(r"^\s*我叫(?P<name>[\u4e00-\u9fff]{2,4})\s*$"),
@@ -113,6 +119,15 @@ def _explicit_name_or_none(text: str) -> str:
     return ""
 
 
+def _looks_like_symptom_note(text: str) -> bool:
+    s = text.strip()
+    if not s:
+        return False
+    if len(s) > 30:
+        return False
+    return any(k in s for k in _SYMPTOM_KEYWORDS)
+
+
 def _format_record(record) -> str:
     lines = ["📋 结构化病历\n"]
     lines.append(f"【主诉】\n{record.chief_complaint}\n")
@@ -150,10 +165,15 @@ async def _handle_create_patient(doctor_id: str, intent_result) -> str:
     if not name:
         return "⚠️ 未能识别患者姓名，请重新说明，例如：帮我建个新患者，张三，30岁男性。"
     async with AsyncSessionLocal() as session:
-        patient = await create_patient(
-            session, doctor_id, name, intent_result.gender, intent_result.age
-        )
+        patient = await find_patient_by_name(session, doctor_id, name)
+        if patient is None:
+            patient = await create_patient(
+                session, doctor_id, name, intent_result.gender, intent_result.age
+            )
         set_current_patient(doctor_id, patient.id, patient.name)
+    if patient and patient.name == name and intent_result.gender is None and intent_result.age is None:
+        # Keep response concise and deterministic for repeat "new patient <name>" calls.
+        return f"✅ 已切换到患者【{name}】，后续病历将自动关联该患者。"
     age_str = f"，{intent_result.age}岁" if intent_result.age else ""
     gender_str = f"，{intent_result.gender}性" if intent_result.gender else ""
     return f"✅ 已为患者【{name}】建档{gender_str}{age_str}，后续病历将自动关联该患者。"
@@ -393,7 +413,9 @@ async def _handle_pending_create(text: str, doctor_id: str) -> str:
         )
 
     async with AsyncSessionLocal() as session:
-        patient = await create_patient(session, doctor_id, name, gender, age)
+        patient = await find_patient_by_name(session, doctor_id, name)
+        if patient is None:
+            patient = await create_patient(session, doctor_id, name, gender, age)
         set_current_patient(doctor_id, patient.id, patient.name)
 
     clear_pending_create(doctor_id)
@@ -507,6 +529,18 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
             looked_up = await _handle_name_lookup(explicit_name, doctor_id)
             if looked_up:
                 return looked_up
+        sess = get_session(doctor_id)
+        if sess.current_patient_id and _looks_like_symptom_note(text):
+            synthetic = IntentResult(
+                intent=Intent.add_record,
+                patient_name=sess.current_patient_name,
+                structured_fields={"chief_complaint": text.strip()},
+                chat_reply=(
+                    f"已记录【{sess.current_patient_name}】当前症状：{text.strip()}。"
+                    "如补充持续时间/伴随症状/诱因，我可继续完善病历。"
+                ),
+            )
+            return await _handle_add_record(text, doctor_id, synthetic, history=history)
         fallback = "您好！请直接描述病历内容、或说「新患者姓名」建档、或说「查询姓名」查记录。"
         return intent_result.chat_reply or fallback
     else:
@@ -553,6 +587,62 @@ async def _handle_image_bg(media_id: str, doctor_id: str, open_kfid: str = ""):
         await _handle_intent_bg(text, doctor_id, open_kfid=open_kfid)
 
 
+async def _handle_pdf_file_bg(media_id: str, filename: str, doctor_id: str, open_kfid: str = ""):
+    """Download PDF file, extract text, then route through normal pipeline."""
+    cfg = _get_config()
+    try:
+        access_token = await _get_access_token(cfg["app_id"], cfg["app_secret"])
+        raw_bytes = await download_voice(media_id, access_token)
+        loop = asyncio.get_running_loop()
+        text = await loop.run_in_executor(None, extract_text_from_pdf, raw_bytes)
+    except Exception as e:
+        log(f"[PDF] extraction FAILED: {e}")
+        await _send_customer_service_msg(
+            doctor_id,
+            f"❌ PDF解析失败：{e}",
+            open_kfid=open_kfid,
+        )
+        return
+
+    if not text.strip():
+        await _send_customer_service_msg(
+            doctor_id,
+            f"已收到《{filename or 'PDF文件'}》，但未提取到可读文本。请发送关键页面截图或粘贴主要内容。",
+            open_kfid=open_kfid,
+        )
+        return
+
+    preview = text[:80].replace("\n", " ")
+    log(f"[PDF] extracted for {doctor_id}: {preview!r}")
+    normalized = f"[PDF:{filename or 'uploaded.pdf'}]\n{text}"
+    await _handle_intent_bg(normalized, doctor_id, open_kfid=open_kfid)
+
+
+async def _handle_file_bg(media_id: str, filename: str, doctor_id: str, open_kfid: str = ""):
+    """Download file and route by detected type (PDF supported)."""
+    cfg = _get_config()
+    try:
+        access_token = await _get_access_token(cfg["app_id"], cfg["app_secret"])
+        raw_bytes = await download_voice(media_id, access_token)
+    except Exception as e:
+        log(f"[File] download FAILED: {e}")
+        await _send_customer_service_msg(doctor_id, f"❌ 文件下载失败：{e}", open_kfid=open_kfid)
+        return
+
+    name = (filename or "").strip()
+    lower_name = name.lower()
+    is_pdf = lower_name.endswith(".pdf") or raw_bytes.startswith(b"%PDF")
+    if is_pdf:
+        await _handle_pdf_file_bg(media_id, name or "uploaded.pdf", doctor_id, open_kfid=open_kfid)
+        return
+
+    await _send_customer_service_msg(
+        doctor_id,
+        f"已收到文件《{name or '文件'}》。当前自动处理支持文字/语音/图片/PDF；其他文件请发送关键内容文本。",
+        open_kfid=open_kfid,
+    )
+
+
 def _extract_cdata(xml_str: str, tag: str) -> str:
     m = re.search(rf"<{tag}><!\[CDATA\[(.*?)\]\]></{tag}>", xml_str)
     if m:
@@ -570,7 +660,42 @@ def _wecom_kf_msg_to_text(msg: Dict[str, Any]) -> str:
         return rec or "[语音消息]"
     if msgtype == "image":
         return "[图片消息]"
+    if msgtype == "file":
+        filename = str((msg.get("file") or {}).get("filename") or "").strip()
+        return f"[文件消息]{(' ' + filename) if filename else ''}"
+    if msgtype == "location":
+        location = msg.get("location") or {}
+        title = str(location.get("title") or location.get("name") or "").strip()
+        addr = str(location.get("address") or "").strip()
+        return f"[位置消息] {title or addr}".strip()
+    if msgtype == "link":
+        link = msg.get("link") or {}
+        title = str(link.get("title") or "").strip()
+        url = str(link.get("url") or "").strip()
+        return f"[链接消息] {title or url}".strip()
+    if msgtype in ("weapp", "miniprogram"):
+        app = msg.get("weapp") or msg.get("miniprogram") or {}
+        title = str(app.get("title") or "").strip()
+        page = str(app.get("pagepath") or "").strip()
+        return f"[小程序消息] {title or page}".strip()
+    if msgtype == "video":
+        return "[视频消息]"
     return ""
+
+
+def _wecom_msg_is_processable(msg: Dict[str, Any]) -> bool:
+    msgtype = str(msg.get("msgtype", "")).lower()
+    if msgtype in ("text", "location", "link", "weapp", "miniprogram"):
+        return bool(_wecom_kf_msg_to_text(msg))
+    if msgtype == "voice":
+        return True
+    if msgtype == "image":
+        return True
+    if msgtype == "file":
+        return True
+    if msgtype == "video":
+        return True
+    return bool(msgtype)
 
 
 def _wecom_msg_time(msg: Dict[str, Any]) -> int:
@@ -644,8 +769,7 @@ async def _handle_wecom_kf_event_bg(expected_msgid: str = "", event_create_time:
             msg_id = str(raw.get("msgid") or "")
             if msg_id and msg_id in _WECHAT_KF_SEEN_MSG_IDS:
                 continue
-            text = _wecom_kf_msg_to_text(raw)
-            if not text:
+            if not _wecom_msg_is_processable(raw):
                 continue
             external_userid = str(raw.get("external_userid") or "")
             if not external_userid:
@@ -691,14 +815,103 @@ async def _handle_wecom_kf_event_bg(expected_msgid: str = "", event_create_time:
         msg_id = str(selected.get("msgid") or "")
         external_userid = str(selected.get("external_userid") or "")
         open_kfid = str(selected.get("open_kfid") or "")
+        msgtype = str(selected.get("msgtype") or "").lower()
         text = _wecom_kf_msg_to_text(selected)
-        if not text or not external_userid:
+        if not external_userid:
             return
         if msg_id:
             _WECHAT_KF_SEEN_MSG_IDS.add(msg_id)
             # Keep bounded memory.
             if len(_WECHAT_KF_SEEN_MSG_IDS) > 2000:
                 _WECHAT_KF_SEEN_MSG_IDS.clear()
+        if msgtype == "voice":
+            voice = selected.get("voice") or {}
+            recognition = str(voice.get("recognition") or "").strip()
+            media_id = str(voice.get("media_id") or "").strip()
+            if recognition:
+                asyncio.create_task(_handle_intent_bg(recognition, external_userid, open_kfid=open_kfid))
+                log(
+                    f"[WeCom KF] queued voice(recognition) user={external_userid} kf={open_kfid} "
+                    f"msgid={msg_id or 'n/a'} text={recognition[:80]!r}"
+                )
+                return
+            if media_id:
+                await _send_customer_service_msg(
+                    external_userid,
+                    "已收到语音，正在识别，请稍候。",
+                    open_kfid=open_kfid,
+                )
+                asyncio.create_task(_handle_voice_bg(media_id, external_userid, open_kfid=open_kfid))
+                log(
+                    f"[WeCom KF] queued voice(media) user={external_userid} kf={open_kfid} "
+                    f"msgid={msg_id or 'n/a'} media_id={media_id}"
+                )
+                return
+            await _send_customer_service_msg(
+                external_userid,
+                "已收到语音，但未拿到语音文件ID，暂时无法识别。请重试发送。",
+                open_kfid=open_kfid,
+            )
+            return
+        if msgtype == "image":
+            image = selected.get("image") or {}
+            media_id = str(image.get("media_id") or "").strip()
+            if media_id:
+                await _send_customer_service_msg(
+                    external_userid,
+                    "已收到图片，正在识别文字，请稍候。",
+                    open_kfid=open_kfid,
+                )
+                asyncio.create_task(_handle_image_bg(media_id, external_userid, open_kfid=open_kfid))
+                log(
+                    f"[WeCom KF] queued image(media) user={external_userid} kf={open_kfid} "
+                    f"msgid={msg_id or 'n/a'} media_id={media_id}"
+                )
+                return
+            await _send_customer_service_msg(
+                external_userid,
+                "已收到图片，但未拿到图片文件ID，暂时无法解析。请重试发送。",
+                open_kfid=open_kfid,
+            )
+            return
+        if msgtype == "file":
+            filename = str((selected.get("file") or {}).get("filename") or "文件").strip()
+            media_id = str((selected.get("file") or {}).get("media_id") or "").strip()
+            if media_id:
+                notice = f"已收到文件《{filename}》，正在识别并处理，请稍候。"
+                await _send_customer_service_msg(external_userid, notice, open_kfid=open_kfid)
+                asyncio.create_task(
+                    _handle_file_bg(media_id, filename, external_userid, open_kfid=open_kfid)
+                )
+            else:
+                await _send_customer_service_msg(
+                    external_userid,
+                    f"已收到文件《{filename}》，但未拿到文件ID，暂时无法解析。请重试或改发图片/文本。",
+                    open_kfid=open_kfid,
+                )
+            log(
+                f"[WeCom KF] file received user={external_userid} kf={open_kfid} "
+                f"msgid={msg_id or 'n/a'} filename={filename!r} media_id={media_id or 'n/a'}"
+            )
+            return
+        if msgtype == "video":
+            await _send_customer_service_msg(
+                external_userid,
+                "已收到视频。当前暂不支持自动转写视频，请发送关键内容文字说明，我可继续处理。",
+                open_kfid=open_kfid,
+            )
+            log(
+                f"[WeCom KF] video received user={external_userid} kf={open_kfid} "
+                f"msgid={msg_id or 'n/a'}"
+            )
+            return
+        if not text:
+            await _send_customer_service_msg(
+                external_userid,
+                f"已收到消息类型：{msgtype or 'unknown'}，当前暂不支持自动处理，请改发文字描述。",
+                open_kfid=open_kfid,
+            )
+            return
         asyncio.create_task(_handle_intent_bg(text, external_userid, open_kfid=open_kfid))
         log(
             f"[WeCom KF] queued inbound text user={external_userid} kf={open_kfid} "
@@ -910,6 +1123,30 @@ async def handle_message(request: Request):
         asyncio.create_task(_handle_image_bg(msg.media_id, msg.source, _extract_open_kfid(msg)))
         ack = "🖼️ 收到图片，正在识别文字…"
         reply = TextReply(content=ack, message=msg)
+        return Response(content=reply.render(), media_type="application/xml")
+
+    if msg.type in ("video", "shortvideo"):
+        ack = "🎬 收到视频。当前暂不支持自动解析视频，请发送关键内容文字说明。"
+        reply = TextReply(content=ack, message=msg)
+        return Response(content=reply.render(), media_type="application/xml")
+
+    if msg.type == "location":
+        label = str(getattr(msg, "label", "") or "")
+        x = str(getattr(msg, "location_x", "") or "")
+        y = str(getattr(msg, "location_y", "") or "")
+        text = f"[位置消息] {label}".strip()
+        if x and y:
+            text += f" ({x},{y})"
+        asyncio.create_task(_handle_intent_bg(text, msg.source, _extract_open_kfid(msg)))
+        reply = TextReply(content="📍 已收到位置，正在处理…", message=msg)
+        return Response(content=reply.render(), media_type="application/xml")
+
+    if msg.type == "link":
+        title = str(getattr(msg, "title", "") or "")
+        url = str(getattr(msg, "url", "") or "")
+        text = f"[链接消息] {title or url}".strip()
+        asyncio.create_task(_handle_intent_bg(text, msg.source, _extract_open_kfid(msg)))
+        reply = TextReply(content="🔗 已收到链接，正在处理…", message=msg)
         return Response(content=reply.render(), media_type="application/xml")
 
     if msg.type != "text" or not msg.content.strip():

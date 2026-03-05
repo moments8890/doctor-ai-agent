@@ -363,6 +363,24 @@ async def test_pending_create_requires_gender_or_age(session_factory):
     assert get_session(DOCTOR).pending_create_name == "陈明"
 
 
+async def test_pending_create_reuses_existing_patient_without_duplicate(session_factory):
+    async with session_factory() as s:
+        from db.crud import create_patient, get_all_patients
+        await create_patient(s, DOCTOR, "章三", None, None)
+        before = await get_all_patients(s, DOCTOR)
+        assert len([p for p in before if p.name == "章三"]) == 1
+
+    set_pending_create(DOCTOR, "章三")
+    with patch("routers.wechat.AsyncSessionLocal", session_factory):
+        out = await wechat._handle_pending_create("男，17岁", DOCTOR)
+    assert "章三已建档" in out
+
+    async with session_factory() as s2:
+        from db.crud import get_all_patients
+        after = await get_all_patients(s2, DOCTOR)
+    assert len([p for p in after if p.name == "章三"]) == 1
+
+
 async def test_handle_intent_add_record_asks_for_name_without_session():
     with patch(
         "routers.wechat.agent_dispatch",
@@ -421,6 +439,19 @@ async def test_handle_intent_unknown_explicit_name_routes_to_lookup():
         out = await wechat._handle_intent("我是张三", DOCTOR)
     assert out == "name-anchor"
     lookup_mock.assert_awaited_once_with("张三", DOCTOR)
+
+
+async def test_handle_intent_unknown_symptom_with_current_patient_saves_brief_record():
+    sess = get_session(DOCTOR)
+    sess.current_patient_id = 101
+    sess.current_patient_name = "章三"
+    with patch(
+        "routers.wechat.agent_dispatch",
+        new=AsyncMock(return_value=IntentResult(intent=Intent.unknown, chat_reply=None)),
+    ), patch("routers.wechat._handle_add_record", new=AsyncMock(return_value="saved-brief")) as add_mock:
+        out = await wechat._handle_intent("我又有偏头痛", DOCTOR)
+    assert out == "saved-brief"
+    add_mock.assert_awaited_once()
 
 
 async def test_handle_intent_unknown_greeting_not_routed_as_name():
@@ -597,6 +628,42 @@ async def test_voice_and_image_bg_error_paths():
          patch("routers.wechat._send_customer_service_msg", new=AsyncMock()) as send_msg2:
         await wechat._handle_image_bg("m2", DOCTOR)
     send_msg2.assert_awaited_once()
+
+
+async def test_pdf_file_bg_success_routes_to_intent():
+    with patch("routers.wechat._get_access_token", new=AsyncMock(return_value="tok")), \
+         patch("routers.wechat.download_voice", new=AsyncMock(return_value=b"%PDF-1.7")), \
+         patch("routers.wechat.extract_text_from_pdf", return_value="章三 偏头痛 3天"), \
+         patch("routers.wechat._handle_intent_bg", new=AsyncMock()) as intent_bg, \
+         patch("routers.wechat._send_customer_service_msg", new=AsyncMock()) as send_msg:
+        await wechat._handle_pdf_file_bg("m-pdf", "case.pdf", DOCTOR, open_kfid="kf1")
+    intent_bg.assert_awaited_once()
+    send_msg.assert_not_awaited()
+
+
+async def test_file_bg_detects_pdf_by_header_without_pdf_extension():
+    with patch("routers.wechat._get_access_token", new=AsyncMock(return_value="tok")), \
+         patch("routers.wechat.download_voice", new=AsyncMock(return_value=b"%PDF-1.7\n...")), \
+         patch("routers.wechat._handle_pdf_file_bg", new=AsyncMock()) as pdf_bg:
+        await wechat._handle_file_bg("m-file", "文件", DOCTOR, open_kfid="kf1")
+    pdf_bg.assert_awaited_once()
+
+
+async def test_file_bg_non_pdf_sends_notice():
+    with patch("routers.wechat._get_access_token", new=AsyncMock(return_value="tok")), \
+         patch("routers.wechat.download_voice", new=AsyncMock(return_value=b"PK\x03\x04...")), \
+         patch("routers.wechat._send_customer_service_msg", new=AsyncMock()) as send_msg:
+        await wechat._handle_file_bg("m-file", "报告.docx", DOCTOR, open_kfid="kf1")
+    send_msg.assert_awaited_once()
+
+
+async def test_pdf_file_bg_failure_sends_error_notice():
+    with patch("routers.wechat._get_access_token", new=AsyncMock(return_value="tok")), \
+         patch("routers.wechat.download_voice", new=AsyncMock(return_value=b"%PDF-1.7")), \
+         patch("routers.wechat.extract_text_from_pdf", side_effect=RuntimeError("pdftotext failed")), \
+         patch("routers.wechat._send_customer_service_msg", new=AsyncMock()) as send_msg:
+        await wechat._handle_pdf_file_bg("m-pdf", "case.pdf", DOCTOR, open_kfid="kf1")
+    send_msg.assert_awaited_once()
 
 
 async def test_voice_bg_pending_create_route_done():
@@ -827,6 +894,120 @@ async def test_wecom_kf_sync_skips_stale_batch_when_event_time_far_away():
         await wechat._handle_wecom_kf_event_bg(expected_msgid="", event_create_time=5000)
 
     create_task.assert_not_called()
+
+
+async def test_wecom_kf_sync_pdf_file_message_sends_notice_and_starts_pdf_bg():
+    wechat._WECHAT_KF_SYNC_CURSOR = ""
+    wechat._WECHAT_KF_CURSOR_LOADED = True
+    wechat._WECHAT_KF_SEEN_MSG_IDS.clear()
+
+    data = {
+        "errcode": 0,
+        "has_more": 0,
+        "next_cursor": "c1",
+        "msg_list": [
+            {
+                "origin": 3,
+                "msgid": "file-1",
+                "external_userid": "u-file",
+                "open_kfid": "kf-file",
+                "send_time": 5000,
+                "msgtype": "file",
+                "file": {"filename": "case.pdf", "media_id": "m-pdf-1"},
+            }
+        ],
+    }
+
+    class _Resp:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return data
+
+    class _Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, _url, params, json):
+            return _Resp()
+
+    def _consume_task(coro):
+        coro.close()
+        return None
+
+    with patch(
+        "routers.wechat._get_config",
+        return_value={"app_id": "ww-corp", "app_secret": "sec"},
+    ), patch("routers.wechat._get_access_token", new=AsyncMock(return_value="tok")), \
+         patch("routers.wechat.httpx.AsyncClient", return_value=_Client()), \
+         patch("routers.wechat.asyncio.create_task", side_effect=_consume_task) as create_task, \
+         patch("routers.wechat._send_customer_service_msg", new=AsyncMock()) as send_mock, \
+         patch("routers.wechat._persist_wecom_kf_sync_cursor"):
+        await wechat._handle_wecom_kf_event_bg(expected_msgid="", event_create_time=5000)
+
+    create_task.assert_called_once()
+    send_mock.assert_awaited_once()
+
+
+async def test_wecom_kf_sync_non_pdf_file_message_sends_notice_only():
+    wechat._WECHAT_KF_SYNC_CURSOR = ""
+    wechat._WECHAT_KF_CURSOR_LOADED = True
+    wechat._WECHAT_KF_SEEN_MSG_IDS.clear()
+
+    data = {
+        "errcode": 0,
+        "has_more": 0,
+        "next_cursor": "c1",
+        "msg_list": [
+            {
+                "origin": 3,
+                "msgid": "file-2",
+                "external_userid": "u-file",
+                "open_kfid": "kf-file",
+                "send_time": 5000,
+                "msgtype": "file",
+                "file": {"filename": "case.docx", "media_id": "m-docx-1"},
+            }
+        ],
+    }
+
+    class _Resp:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return data
+
+    class _Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, _url, params, json):
+            return _Resp()
+
+    def _consume_task(coro):
+        coro.close()
+        return None
+
+    with patch(
+        "routers.wechat._get_config",
+        return_value={"app_id": "ww-corp", "app_secret": "sec"},
+    ), patch("routers.wechat._get_access_token", new=AsyncMock(return_value="tok")), \
+         patch("routers.wechat.httpx.AsyncClient", return_value=_Client()), \
+         patch("routers.wechat.asyncio.create_task", side_effect=_consume_task) as create_task, \
+         patch("routers.wechat._send_customer_service_msg", new=AsyncMock()) as send_mock, \
+         patch("routers.wechat._persist_wecom_kf_sync_cursor"):
+        await wechat._handle_wecom_kf_event_bg(expected_msgid="", event_create_time=5000)
+
+    create_task.assert_called_once()
+    send_mock.assert_awaited_once()
 
 
 # ---------------------------------------------------------------------------
