@@ -312,7 +312,6 @@ def _looks_like_tool_markup(content: Optional[str]) -> bool:
 def _intent_result_from_tool_call(fn_name: str, args: dict, chat_reply: Optional[str]) -> IntentResult:
     intent = _INTENT_MAP.get(fn_name, Intent.unknown)
 
-    # Validate extracted values — drop any non-integer age or non-gender gender
     age = args.get("age")
     if not isinstance(age, int):
         age = None
@@ -328,7 +327,6 @@ def _intent_result_from_tool_call(fn_name: str, args: dict, chat_reply: Optional
         extra_data["appointment_time"] = args.get("appointment_time")
         extra_data["notes"] = args.get("notes")
 
-    # Extract 8 clinical fields when add_medical_record is called
     structured_fields: Optional[dict] = None
     if fn_name == "add_medical_record":
         _CLINICAL_KEYS = {
@@ -454,7 +452,6 @@ async def dispatch(text: str, history: Optional[List[dict]] = None) -> IntentRes
         embedded_fn, embedded_args = _extract_embedded_tool_call(chat_reply)
         if embedded_fn:
             log(f"[Agent:{provider_name}] embedded tool_call: {embedded_fn}({embedded_args})")
-            # Avoid returning raw tool-call markup back to users.
             cleaned_reply = chat_reply
             if _looks_like_tool_markup(cleaned_reply):
                 cleaned_reply = None
