@@ -4,7 +4,7 @@ import os
 import time
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from utils.log import init_logging
 from utils.app_config import AppConfig, load_env_from_shared_or_local, ollama_base_url_candidates
 
@@ -272,7 +272,7 @@ async def lifespan(app: FastAPI):
     # Log pending unnotified tasks on startup
     try:
         async with AsyncSessionLocal() as _session:
-            _pending = await get_due_tasks(_session, datetime.utcnow())
+            _pending = await get_due_tasks(_session, datetime.now(timezone.utc))
             _startup_log.info(f"[Tasks] {len(_pending)} pending unnotified task(s) at startup")
     except Exception as _e:
         _startup_log.warning(f"[Tasks] startup task count failed: {_e}")
@@ -296,7 +296,7 @@ async def trace_requests_middleware(request: Request, call_next):
     trace_id = request.headers.get("X-Trace-Id") or str(uuid.uuid4())
     trace_token = set_current_trace_id(trace_id)
     span_token = set_current_span_id(None)
-    started_at = datetime.utcnow()
+    started_at = datetime.now(timezone.utc)
     start_clock = time.perf_counter()
 
     try:

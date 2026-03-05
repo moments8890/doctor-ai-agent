@@ -53,7 +53,7 @@ def categorize_patient(
     Records are assumed to be ordered newest-first.
     """
     if now is None:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
     matched_rules: List[str] = []
     tags: List[str] = []

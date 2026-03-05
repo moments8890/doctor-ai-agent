@@ -5,7 +5,7 @@ All I/O (DB sessions, LLM calls, WeChat push) is mocked — no real network or D
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -192,7 +192,7 @@ class _FakeSessionCtx:
 
 async def test_create_follow_up_task_sets_correct_due_at():
     """follow_up_plan '两周后复查' → due_at = now + 14 days."""
-    fake_task = _make_fake_task(1, due_at=datetime.utcnow() + timedelta(days=14))
+    fake_task = _make_fake_task(1, due_at=datetime.now(timezone.utc) + timedelta(days=14))
     mock_session = AsyncMock()
     mock_create = AsyncMock(return_value=fake_task)
 
@@ -208,7 +208,7 @@ async def test_create_follow_up_task_sets_correct_due_at():
     assert call_kwargs["record_id"] == 42
     # due_at should be ~14 days from now
     due = call_kwargs["due_at"]
-    delta = due - datetime.utcnow()
+    delta = due - datetime.now(timezone.utc)
     assert 13 <= delta.days <= 14
 
 
@@ -228,7 +228,7 @@ async def test_create_emergency_task_sends_notification_immediately():
 
 
 async def test_create_follow_up_task_emits_structured_task_log():
-    fake_task = _make_fake_task(11, due_at=datetime.utcnow() + timedelta(days=7))
+    fake_task = _make_fake_task(11, due_at=datetime.now(timezone.utc) + timedelta(days=7))
     mock_session = AsyncMock()
     mock_create = AsyncMock(return_value=fake_task)
     mock_task_log = MagicMock()

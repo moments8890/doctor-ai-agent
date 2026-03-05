@@ -13,7 +13,7 @@ import json
 import os
 import sqlite3
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -143,5 +143,5 @@ def test_gemini_wechat_scenario_template(case: Dict):
         assert task["task_type"] == "follow_up"
         assert task["status"] == "pending"
         target = int(expected.get("follow_up_task_due_days", 7))
-        days = (datetime.fromisoformat(task["due_at"]) - datetime.utcnow()).days
+        days = (datetime.fromisoformat(task["due_at"]) - datetime.now(timezone.utc)).days
         assert abs(days - target) <= 2

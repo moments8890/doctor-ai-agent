@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
@@ -81,7 +81,7 @@ def _parse_bool(raw: str | None) -> bool | None:
 def _is_risk_stale(risk_computed_at: datetime | None, hours: int = 24) -> bool:
     if risk_computed_at is None:
         return True
-    delta = datetime.utcnow() - risk_computed_at
+    delta = datetime.now(timezone.utc) - risk_computed_at
     return delta.total_seconds() >= hours * 3600
 
 
@@ -455,7 +455,7 @@ async def admin_clear_observability_traces():
 
 @router.post("/api/admin/observability/sample")
 async def admin_seed_observability_samples(count: int = Query(default=3, ge=1, le=20)):
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     created: list[str] = []
     for i in range(count):
         trace_id = str(uuid.uuid4())

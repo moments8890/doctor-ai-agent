@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from sqlalchemy import select
@@ -70,7 +70,7 @@ def compute_patient_risk(
     now: Optional[datetime] = None,
 ) -> RiskResult:
     if now is None:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
     matched_rules = []
     tags = []

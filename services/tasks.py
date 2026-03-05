@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 import os
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from db.engine import AsyncSessionLocal
@@ -101,7 +101,7 @@ async def create_follow_up_task(
     patient_id: Optional[int] = None,
 ) -> DoctorTask:
     days = extract_follow_up_days(follow_up_plan)
-    due_at = datetime.utcnow() + timedelta(days=days)
+    due_at = datetime.now(timezone.utc) + timedelta(days=days)
     title = f"随访提醒：{patient_name}"
     content = follow_up_plan
 
@@ -248,7 +248,7 @@ async def check_and_send_due_tasks() -> None:
 async def run_due_task_cycle() -> dict:
     """Run one due-task notification cycle and return summary stats."""
     task_log("scheduler_tick_start", level="debug")
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     async with AsyncSessionLocal() as session:
         tasks = await get_due_tasks(session, now)
 

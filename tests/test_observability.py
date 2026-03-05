@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Optional
 from unittest.mock import patch
 
@@ -34,7 +34,7 @@ def _request(path: str, method: str = "GET", trace_id: Optional[str] = None) -> 
 
 def test_get_recent_traces_newest_first_with_limit():
     observability.clear_traces()
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     observability.add_trace("t1", now, "GET", "/a", 200, 10.0)
     observability.add_trace("t2", now, "GET", "/b", 201, 20.0)
     observability.add_trace("t3", now, "POST", "/c", 500, 30.0)
@@ -47,7 +47,7 @@ def test_get_recent_traces_newest_first_with_limit():
 
 def test_get_latency_summary_contains_percentiles_status_and_path_stats():
     observability.clear_traces()
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     observability.add_trace("t1", now, "GET", "/p1", 200, 10.0)
     observability.add_trace("t2", now, "GET", "/p1", 200, 20.0)
     observability.add_trace("t3", now, "GET", "/p2", 500, 30.0)
@@ -67,7 +67,7 @@ def test_get_latency_summary_contains_percentiles_status_and_path_stats():
 
 def test_clear_traces_removes_all_rows():
     observability.clear_traces()
-    observability.add_trace("t1", datetime.utcnow(), "GET", "/a", 200, 1.0)
+    observability.add_trace("t1", datetime.now(timezone.utc), "GET", "/a", 200, 1.0)
     assert observability.get_latency_summary(limit=10)["count"] == 1
     observability.clear_traces()
     assert observability.get_recent_traces(limit=10) == []
@@ -96,7 +96,7 @@ def test_trace_block_records_span_with_context_and_parent():
 
 def test_slowest_spans_and_timeline():
     observability.clear_traces()
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     observability.add_span("trace-a", "db", "query_fast", now, 10.0, status="ok")
     observability.add_span("trace-a", "llm", "query_slow", now, 150.0, status="ok")
     observability.add_span("trace-b", "router", "query_mid", now, 50.0, status="error")
@@ -112,7 +112,7 @@ def test_slowest_spans_and_timeline():
 
 def test_scoped_trace_and_span_views_public_vs_internal():
     observability.clear_traces()
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     observability.add_trace("tp", now, "POST", "/api/records/chat", 200, 100.0)
     observability.add_trace("ti", now, "GET", "/api/admin/observability", 200, 5.0)
     observability.add_span("tp", "llm", "agent.chat_completion", now, 90.0, status="ok")

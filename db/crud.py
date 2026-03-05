@@ -2,7 +2,7 @@ from __future__ import annotations
 import json
 import os
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload, selectinload
@@ -16,6 +16,10 @@ from services.patient_risk import RULES_VERSION as RISK_RULES_VERSION, recompute
 from services.observability import trace_block
 
 
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
 async def get_system_prompt(session: AsyncSession, key: str) -> SystemPrompt | None:
     result = await session.execute(
         select(SystemPrompt).where(SystemPrompt.key == key)
@@ -27,7 +31,7 @@ async def upsert_system_prompt(session: AsyncSession, key: str, content: str) ->
     row = await get_system_prompt(session, key)
     if row:
         row.content = content
-        row.updated_at = datetime.utcnow()
+        row.updated_at = _utcnow()
     else:
         session.add(SystemPrompt(key=key, content=content))
     await session.commit()
@@ -44,7 +48,7 @@ async def upsert_doctor_context(session: AsyncSession, doctor_id: str, summary: 
     ctx = await get_doctor_context(session, doctor_id)
     if ctx:
         ctx.summary = summary
-        ctx.updated_at = datetime.utcnow()
+        ctx.updated_at = _utcnow()
     else:
         session.add(DoctorContext(doctor_id=doctor_id, summary=summary))
     await session.commit()
@@ -67,14 +71,14 @@ async def upsert_doctor_session_state(
     if row:
         row.current_patient_id = current_patient_id
         row.pending_create_name = pending_create_name
-        row.updated_at = datetime.utcnow()
+        row.updated_at = _utcnow()
     else:
         session.add(
             DoctorSessionState(
                 doctor_id=doctor_id,
                 current_patient_id=current_patient_id,
                 pending_create_name=pending_create_name,
-                updated_at=datetime.utcnow(),
+                updated_at=_utcnow(),
             )
         )
     await session.commit()
@@ -109,12 +113,12 @@ async def create_patient(
             primary_category="new",
             category_tags="[]",
             category_rules_version=RULES_VERSION,
-            category_computed_at=datetime.utcnow(),
+            category_computed_at=_utcnow(),
             primary_risk_level="low",
             risk_tags='["no_records"]',
             risk_score=0,
             follow_up_state="not_needed",
-            risk_computed_at=datetime.utcnow(),
+            risk_computed_at=_utcnow(),
             risk_rules_version=RISK_RULES_VERSION,
         )
         session.add(patient)
@@ -250,7 +254,7 @@ async def _ensure_auto_follow_up_task(
         return
 
     days = _extract_follow_up_days(follow_up_plan)
-    due_at = datetime.utcnow().replace(microsecond=0) + timedelta(days=days)
+    due_at = _utcnow().replace(microsecond=0) + timedelta(days=days)
 
     reason = "auto follow-up from record follow_up_plan"
     if risk_level:
@@ -467,7 +471,7 @@ async def mark_task_notified(
     )
     task = result.scalar_one_or_none()
     if task:
-        task.notified_at = datetime.utcnow()
+        task.notified_at = _utcnow()
         await session.commit()
 
 

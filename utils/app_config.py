@@ -51,6 +51,14 @@ def _mask_secret(value: Optional[str]) -> str:
     return f"{value[:2]}***{value[-2:]}"
 
 
+def parse_timeout(value: str) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+DEFAULT_TIMEOUT = parse_timeout("abc")
 def _pretty_log_lines(fields: Mapping[str, str]) -> str:
     if not fields:
         return "(empty)"

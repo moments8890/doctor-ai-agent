@@ -10,13 +10,16 @@ from db.crud import (
     get_all_patients,
     get_all_records_for_doctor,
     get_records_for_patient,
+    list_tasks,
     save_record,
+    update_task_status,
 )
 from db.engine import AsyncSessionLocal
 from models.medical_record import MedicalRecord
 from services.agent import dispatch as agent_dispatch
 from services.intent import Intent
 from services.structuring import structure_medical_record
+from services.tasks import create_appointment_task
 from services.transcription import transcribe_audio
 from services.vision import extract_text_from_image
 from services.observability import trace_block
@@ -37,6 +40,7 @@ _CLINICAL_CONTENT_HINTS = (
     "胸痛", "胸闷", "心悸", "头痛", "发热", "咳嗽", "气短",
     "ST", "PCI", "BNP", "EF", "诊断", "治疗", "复查", "化疗", "靶向",
 )
+_COMPLETE_RE = re.compile(r'^\s*完成\s*(\d+)\s*$')
 
 def _is_valid_patient_name(name: str) -> bool:
     """Return False if the extracted name is clearly not a real patient name."""
@@ -128,6 +132,17 @@ async def chat(body: ChatInput):
     doctor_id = body.doctor_id
     asked_name_in_last_turn = _assistant_asked_for_name(history)
     followup_name = _name_only_text(body.text) if asked_name_in_last_turn else None
+
+    complete_match = _COMPLETE_RE.match(body.text)
+    if complete_match:
+        task_id = int(complete_match.group(1))
+        with trace_block("router", "records.chat.complete_task.fastpath", {"doctor_id": doctor_id, "task_id": task_id}):
+            async with AsyncSessionLocal() as db:
+                task = await update_task_status(db, task_id, doctor_id, "completed")
+        if task is None:
+            return ChatResponse(reply=f"⚠️ 未找到任务 {task_id}，请确认编号是否正确。")
+        return ChatResponse(reply=f"✅ 任务【{task.title}】已标记完成。")
+
     try:
         with trace_block("router", "records.chat.agent_dispatch", {"doctor_id": doctor_id}):
             intent_result = await agent_dispatch(body.text, history=history)
@@ -269,6 +284,75 @@ async def chat(body: ChatInput):
             info = "、".join(filter(None, [p.gender, age_display]))
             lines.append(f"{i}. {p.name}" + (f"（{info}）" if info else ""))
         return ChatResponse(reply="\n".join(lines))
+
+    # ── list_tasks ────────────────────────────────────────────────────────────
+    if intent_result.intent == Intent.list_tasks:
+        with trace_block("router", "records.chat.list_tasks", {"doctor_id": doctor_id}):
+            async with AsyncSessionLocal() as db:
+                tasks = await list_tasks(db, doctor_id, status="pending")
+        if not tasks:
+            return ChatResponse(reply="📋 暂无待办任务。")
+        lines = [f"📋 待办任务（共 {len(tasks)} 条）：\n"]
+        for i, task in enumerate(tasks, 1):
+            due = f" | ⏰ {task.due_at.strftime('%Y-%m-%d')}" if task.due_at else ""
+            lines.append(f"{i}. [{task.id}] [{task.task_type}] {task.title}{due}")
+        lines.append("\n回复「完成 编号」标记任务完成")
+        return ChatResponse(reply="\n".join(lines))
+
+    # ── complete_task ─────────────────────────────────────────────────────────
+    if intent_result.intent == Intent.complete_task:
+        task_id = intent_result.extra_data.get("task_id")
+        if not isinstance(task_id, int):
+            task_id_match = _COMPLETE_RE.match(body.text)
+            task_id = int(task_id_match.group(1)) if task_id_match else None
+        if not isinstance(task_id, int):
+            return ChatResponse(reply="⚠️ 未能识别任务编号，请发送「完成 5」（5为任务编号）。")
+        with trace_block("router", "records.chat.complete_task", {"doctor_id": doctor_id, "task_id": task_id}):
+            async with AsyncSessionLocal() as db:
+                task = await update_task_status(db, task_id, doctor_id, "completed")
+        if task is None:
+            return ChatResponse(reply=f"⚠️ 未找到任务 {task_id}，请确认编号是否正确。")
+        return ChatResponse(reply=intent_result.chat_reply or f"✅ 任务【{task.title}】已标记完成。")
+
+    # ── schedule_appointment ──────────────────────────────────────────────────
+    if intent_result.intent == Intent.schedule_appointment:
+        patient_name = intent_result.patient_name
+        if not patient_name:
+            return ChatResponse(reply="⚠️ 未能识别患者姓名，请重新说明预约信息。")
+
+        raw_time = intent_result.extra_data.get("appointment_time")
+        if not raw_time:
+            return ChatResponse(reply="⚠️ 未能识别预约时间，请使用格式如「2026-03-15T14:00:00」。")
+
+        normalized_time = str(raw_time).replace("Z", "+00:00")
+        try:
+            appointment_dt = datetime.fromisoformat(normalized_time)
+        except (TypeError, ValueError):
+            return ChatResponse(reply="⚠️ 时间格式无法识别，请使用格式如「2026-03-15T14:00:00」。")
+
+        notes = intent_result.extra_data.get("notes")
+        patient_id = None
+        async with AsyncSessionLocal() as db:
+            patient = await find_patient_by_name(db, doctor_id, patient_name)
+            if patient:
+                patient_id = patient.id
+
+        with trace_block("router", "records.chat.schedule_appointment", {"doctor_id": doctor_id, "patient_name": patient_name}):
+            task = await create_appointment_task(
+                doctor_id=doctor_id,
+                patient_name=patient_name,
+                appointment_dt=appointment_dt,
+                notes=notes,
+                patient_id=patient_id,
+            )
+
+        return ChatResponse(
+            reply=(
+                f"📅 已为患者【{patient_name}】安排预约\n"
+                f"预约时间：{appointment_dt.strftime('%Y-%m-%d %H:%M')}\n"
+                f"任务编号：{task.id}（将在1小时前提醒）"
+            )
+        )
 
     # ── unknown / conversational ──────────────────────────────────────────────
     return ChatResponse(reply=intent_result.chat_reply or "您好！有什么可以帮您？")

@@ -4,7 +4,7 @@ from collections import deque
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import os
 from pathlib import Path
@@ -64,7 +64,7 @@ def _persist_enabled() -> bool:
 
 
 def _utc_now() -> datetime:
-    return datetime.utcnow()
+    return datetime.now(timezone.utc)
 
 
 def _cutoff() -> datetime:
@@ -290,7 +290,7 @@ def trace_block(layer: str, name: str, meta: Optional[Dict[str, Any]] = None):
         yield
         return
 
-    started_at = datetime.utcnow()
+    started_at = datetime.now(timezone.utc)
     start_clock = time.perf_counter()
     span_id = uuid.uuid4().hex[:12]
     parent_span_id = get_current_span_id()

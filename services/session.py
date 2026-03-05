@@ -2,7 +2,7 @@ from __future__ import annotations
 import asyncio
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from services.interview import InterviewState
 from db.engine import AsyncSessionLocal
@@ -12,6 +12,10 @@ from db.crud import (
     get_patient_for_doctor,
 )
 from utils.log import log
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
 
 _sessions: dict[str, "DoctorSession"] = {}
 
@@ -38,7 +42,7 @@ class DoctorSession:
     interview: Optional[InterviewState] = None  # active guided intake interview
     conversation_history: List[dict] = field(default_factory=list)  # rolling window
     last_active: float = field(default_factory=time.time)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    updated_at: datetime = field(default_factory=_utcnow)
 
 
 def get_session(doctor_id: str) -> DoctorSession:
@@ -104,14 +108,14 @@ def push_turn(doctor_id: str, user_text: str, assistant_reply: str) -> None:
     sess.conversation_history.append({"role": "user", "content": user_text})
     sess.conversation_history.append({"role": "assistant", "content": assistant_reply})
     sess.last_active = time.time()
-    sess.updated_at = datetime.utcnow()
+    sess.updated_at = _utcnow()
 
 
 def set_current_patient(doctor_id: str, patient_id: int, name: str, persist: bool = True) -> None:
     session = get_session(doctor_id)
     session.current_patient_id = patient_id
     session.current_patient_name = name
-    session.updated_at = datetime.utcnow()
+    session.updated_at = _utcnow()
     if persist:
         _schedule_persist(doctor_id)
 
@@ -120,7 +124,7 @@ def clear_current_patient(doctor_id: str, persist: bool = True) -> None:
     session = get_session(doctor_id)
     session.current_patient_id = None
     session.current_patient_name = None
-    session.updated_at = datetime.utcnow()
+    session.updated_at = _utcnow()
     if persist:
         _schedule_persist(doctor_id)
 
@@ -128,7 +132,7 @@ def clear_current_patient(doctor_id: str, persist: bool = True) -> None:
 def set_pending_create(doctor_id: str, name: str, persist: bool = True) -> None:
     session = get_session(doctor_id)
     session.pending_create_name = name
-    session.updated_at = datetime.utcnow()
+    session.updated_at = _utcnow()
     if persist:
         _schedule_persist(doctor_id)
 
@@ -136,6 +140,6 @@ def set_pending_create(doctor_id: str, name: str, persist: bool = True) -> None:
 def clear_pending_create(doctor_id: str, persist: bool = True) -> None:
     session = get_session(doctor_id)
     session.pending_create_name = None
-    session.updated_at = datetime.utcnow()
+    session.updated_at = _utcnow()
     if persist:
         _schedule_persist(doctor_id)

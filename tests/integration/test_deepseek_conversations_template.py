@@ -16,7 +16,7 @@ import json
 import os
 import sqlite3
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -166,7 +166,7 @@ def test_deepseek_conversation_case_template(case: Dict):
         assert task["task_type"] == "follow_up"
         assert task["status"] == "pending"
         due_at = datetime.fromisoformat(task["due_at"])
-        days = (due_at - datetime.utcnow()).days
+        days = (due_at - datetime.now(timezone.utc)).days
         target = int(expected.get("follow_up_task_due_days", 7))
         # Keep a loose window because execution time and rounding vary.
         assert abs(days - target) <= 2, "due_at days mismatch: got=%s expected~%s" % (days, target)

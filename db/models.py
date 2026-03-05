@@ -1,9 +1,13 @@
 from __future__ import annotations
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
 from sqlalchemy import ForeignKey, Index, String, Integer, DateTime, Text, Table, Column, PrimaryKeyConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from db.engine import Base
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 patient_label_assignments = Table(
@@ -22,7 +26,7 @@ class SystemPrompt(Base):
 
     key: Mapped[str] = mapped_column(String(64), primary_key=True)   # e.g. "structuring"
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     def __str__(self) -> str:
         return self.key
@@ -34,7 +38,7 @@ class DoctorContext(Base):
 
     doctor_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
 
 class DoctorSessionState(Base):
@@ -44,7 +48,7 @@ class DoctorSessionState(Base):
     doctor_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     current_patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id"), nullable=True)
     pending_create_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
 
 class Patient(Base):
@@ -55,7 +59,7 @@ class Patient(Base):
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     gender: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
     year_of_birth: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
     # Categorization fields (v1)
     primary_category: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
@@ -99,7 +103,7 @@ class MedicalRecordDB(Base):
     diagnosis: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     treatment_plan: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     follow_up_plan: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
     patient: Mapped[Optional["Patient"]] = relationship("Patient", back_populates="records")
 
@@ -128,7 +132,7 @@ class NeuroCaseDB(Base):
     raw_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     extraction_log_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     patient: Mapped[Optional["Patient"]] = relationship("Patient")
 
     def __str__(self) -> str:
@@ -151,7 +155,7 @@ class DoctorTask(Base):
     notified_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     trigger_source: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # manual | risk_engine | timeline_rule
     trigger_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
     def __str__(self) -> str:
         return f"[{self.task_type}] {self.title}"
@@ -165,7 +169,7 @@ class PatientLabel(Base):
     doctor_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(64), nullable=False)
     color: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
     patients: Mapped[List["Patient"]] = relationship(
         "Patient", secondary=patient_label_assignments, back_populates="labels"

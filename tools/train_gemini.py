@@ -16,7 +16,7 @@ import sys
 import time
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -158,7 +158,7 @@ def _due_days_ok(due_at: str, target_days: int) -> bool:
         due = datetime.fromisoformat(due_at)
     except ValueError:
         return False
-    days = (due - datetime.utcnow()).days
+    days = (due - datetime.now(timezone.utc)).days
     return abs(days - target_days) <= 2
 
 
