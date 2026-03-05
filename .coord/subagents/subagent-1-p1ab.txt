@@ -1,0 +1,136 @@
+[Subagent-1] P1-A/P1-B intake+structuring
+Wed Mar  4 19:55:19 PST 2026
+============================= test session starts ==============================
+platform darwin -- Python 3.13.3, pytest-9.0.2, pluggy-1.6.0 -- /Users/jingwuxu/Documents/Code/doctor-ai-agent/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /Users/jingwuxu/Documents/Code/doctor-ai-agent
+configfile: pytest.ini
+plugins: anyio-4.12.1, asyncio-1.3.0, cov-7.0.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 101 items
+
+tests/test_records_router.py::test_helper_name_validation_and_parsing PASSED [  0%]
+tests/test_records_router.py::test_chat_empty_text_raises_422 PASSED     [  1%]
+tests/test_records_router.py::test_chat_dispatch_errors_map_to_429_and_503 PASSED [  2%]
+tests/test_records_router.py::test_chat_create_patient_no_name_and_success PASSED [  3%]
+tests/test_records_router.py::test_chat_add_record_invalid_name_and_structuring_error PASSED [  4%]
+tests/test_records_router.py::test_chat_query_records_branches PASSED    [  5%]
+tests/test_records_router.py::test_chat_list_patients_and_unknown_reply PASSED [  6%]
+tests/test_records_router.py::test_from_text_image_audio_endpoints PASSED [  7%]
+tests/test_voice_router.py::test_voice_chat_unsupported_type PASSED      [  8%]
+tests/test_voice_router.py::test_voice_chat_transcription_error PASSED   [  9%]
+tests/test_voice_router.py::test_voice_chat_empty_transcript PASSED      [ 10%]
+tests/test_voice_router.py::test_voice_chat_dispatch_rate_limit PASSED   [ 11%]
+tests/test_voice_router.py::test_voice_chat_dispatch_error PASSED        [ 12%]
+tests/test_voice_router.py::test_voice_chat_unknown_intent PASSED        [ 13%]
+tests/test_voice_router.py::test_voice_chat_add_record_with_structured_fields PASSED [ 14%]
+tests/test_voice_router.py::test_voice_chat_history_json_parsed PASSED   [ 15%]
+tests/test_voice_router.py::test_voice_chat_malformed_history PASSED     [ 16%]
+tests/test_voice_router.py::test_voice_chat_create_patient_with_name PASSED [ 17%]
+tests/test_voice_router.py::test_voice_chat_add_record_structuring_fallback PASSED [ 18%]
+tests/test_voice_router.py::test_consultation_unsupported_type PASSED    [ 19%]
+tests/test_voice_router.py::test_consultation_transcription_error PASSED [ 20%]
+tests/test_voice_router.py::test_consultation_structuring_error PASSED   [ 21%]
+tests/test_voice_router.py::test_consultation_no_save PASSED             [ 22%]
+tests/test_voice_router.py::test_consultation_save_existing_patient PASSED [ 23%]
+tests/test_voice_router.py::test_consultation_save_creates_new_patient PASSED [ 24%]
+tests/test_voice_router.py::test_consultation_save_no_patient_name PASSED [ 25%]
+tests/test_voice_router.py::test_consultation_transcribe_consultation_mode PASSED [ 26%]
+tests/test_voice_router.py::test_consultation_structure_consultation_mode PASSED [ 27%]
+tests/test_voice_router.py::test_consultation_empty_transcript PASSED    [ 28%]
+tests/test_voice_router.py::test_voice_chat_history_not_a_list PASSED    [ 29%]
+tests/test_voice_router.py::test_voice_chat_followup_name_two_turn PASSED [ 30%]
+tests/test_voice_router.py::test_voice_chat_create_patient_no_name_asks PASSED [ 31%]
+tests/test_voice_router.py::test_voice_chat_add_record_no_name_asks PASSED [ 32%]
+tests/test_voice_router.py::test_voice_chat_structured_fields_missing_chief_complaint PASSED [ 33%]
+tests/test_voice_router.py::test_voice_chat_add_record_structuring_error PASSED [ 34%]
+tests/test_voice_router.py::test_voice_chat_add_record_new_patient_created PASSED [ 35%]
+tests/test_transcription.py::test_transcribe_audio_uses_medical_prompt_by_default PASSED [ 36%]
+tests/test_transcription.py::test_transcribe_audio_uses_consultation_prompt_when_mode_true PASSED [ 37%]
+tests/test_transcription.py::test_transcribe_audio_passes_bytes_as_first_arg PASSED [ 38%]
+tests/test_structuring.py::test_structure_returns_medical_record_instance PASSED [ 39%]
+tests/test_structuring.py::test_structure_all_8_fields_mapped_correctly PASSED [ 40%]
+tests/test_structuring.py::test_structure_optional_fields_none_when_absent PASSED [ 41%]
+tests/test_structuring.py::test_structure_missing_optional_keys_in_response_default_to_none PASSED [ 42%]
+tests/test_structuring.py::test_structure_null_chief_complaint_triggers_fallback PASSED [ 43%]
+tests/test_structuring.py::test_structure_empty_string_chief_complaint_triggers_fallback PASSED [ 44%]
+tests/test_structuring.py::test_structure_all_field_values_are_str_or_none PASSED [ 45%]
+tests/test_structuring.py::test_structure_stemi_diagnosis_and_treatment PASSED [ 46%]
+tests/test_structuring.py::test_structure_bnp_trend_lands_in_auxiliary_examinations PASSED [ 47%]
+tests/test_structuring.py::test_structure_planned_tests_go_to_treatment_plan PASSED [ 48%]
+tests/test_structuring.py::test_structure_uses_temperature_0 PASSED      [ 49%]
+tests/test_structuring.py::test_structure_uses_json_response_format PASSED [ 50%]
+tests/test_structuring.py::test_structure_uses_max_tokens_1500 PASSED    [ 51%]
+tests/test_structuring.py::test_structure_system_prompt_contains_field_names PASSED [ 52%]
+tests/test_structuring.py::test_structure_user_message_is_input_text PASSED [ 53%]
+tests/test_structuring.py::test_structure_consultation_mode_appends_suffix PASSED [ 54%]
+tests/test_structuring.py::test_structure_consultation_mode_false_no_suffix PASSED [ 55%]
+tests/test_corpus_styles.py::test_all_corpus_styles_route_to_add_record[case101_minimal_note] PASSED [ 56%]
+tests/test_corpus_styles.py::test_all_corpus_styles_route_to_add_record[case201_verbal_dictation] PASSED [ 57%]
+tests/test_corpus_styles.py::test_all_corpus_styles_route_to_add_record[case301_fragmented_stream] PASSED [ 58%]
+tests/test_corpus_styles.py::test_all_corpus_styles_route_to_add_record[case401_heavy_abbrev] PASSED [ 59%]
+tests/test_corpus_styles.py::test_all_corpus_styles_route_to_add_record[case501_full_narrative] PASSED [ 60%]
+tests/test_corpus_styles.py::test_all_corpus_styles_route_to_add_record[case601_followup] PASSED [ 61%]
+tests/test_corpus_styles.py::test_all_corpus_styles_route_to_add_record[case701_emergency_stemi] PASSED [ 62%]
+tests/test_corpus_styles.py::test_all_corpus_styles_route_to_add_record[case702_emergency_av_block] PASSED [ 63%]
+tests/test_corpus_styles.py::test_all_corpus_styles_route_to_add_record[case703_emergency_dissection] PASSED [ 64%]
+tests/test_corpus_styles.py::test_all_corpus_styles_route_to_add_record[case801_multimorbidity] PASSED [ 65%]
+tests/test_corpus_styles.py::test_all_corpus_styles_route_to_add_record[case901_incomplete_info] PASSED [ 66%]
+tests/test_corpus_styles.py::test_all_corpus_styles_route_to_add_record[case1001_instructional] PASSED [ 67%]
+tests/test_corpus_styles.py::test_emergency_cases_set_is_emergency_true[case701_stemi] PASSED [ 68%]
+tests/test_corpus_styles.py::test_emergency_cases_set_is_emergency_true[case702_av_block] PASSED [ 69%]
+tests/test_corpus_styles.py::test_emergency_cases_set_is_emergency_true[case703_dissection] PASSED [ 70%]
+tests/test_corpus_styles.py::test_routine_case_does_not_set_emergency PASSED [ 71%]
+tests/test_corpus_styles.py::test_style_minimal_note_fields_populated PASSED [ 72%]
+tests/test_corpus_styles.py::test_style_verbal_dictation_prefix_stripped PASSED [ 73%]
+tests/test_corpus_styles.py::test_style_fragmented_stream_extracts_core_fields PASSED [ 74%]
+tests/test_corpus_styles.py::test_style_heavy_abbreviation_specialist_terms_placed_correctly PASSED [ 75%]
+tests/test_corpus_styles.py::test_bnp_trend_in_auxiliary_examinations PASSED [ 76%]
+tests/test_corpus_styles.py::test_followup_delta_case_captures_changes PASSED [ 77%]
+tests/test_corpus_styles.py::test_emergency_stemi_fields_correctly_placed PASSED [ 78%]
+tests/test_corpus_styles.py::test_multimorbidity_multiple_diagnoses_in_diagnosis_field PASSED [ 79%]
+tests/test_corpus_styles.py::test_incomplete_info_missing_fields_are_null PASSED [ 80%]
+tests/test_corpus_styles.py::test_ai_dialogue_directive_stripped_clinical_content_extracted PASSED [ 81%]
+tests/test_v1_corpus_db.py::test_v1_null_fields_stored_as_null_in_db[\u5f20\u5efa\u56fd] PASSED [ 82%]
+tests/test_v1_corpus_db.py::test_v1_null_fields_stored_as_null_in_db[\u9648\u7f8e\u73b2] PASSED [ 83%]
+tests/test_v1_corpus_db.py::test_v1_null_fields_stored_as_null_in_db[\u9ad8\u5cf0] PASSED [ 84%]
+tests/test_v1_corpus_db.py::test_v1_null_fields_stored_as_null_in_db[\u97e9\u4f1f] PASSED [ 85%]
+tests/test_v1_corpus_db.py::test_v1_null_fields_stored_as_null_in_db[\u90ed\u5efa\u534e] PASSED [ 86%]
+tests/test_v1_corpus_db.py::test_v1_chief_complaint_stored_non_null[\u5f20\u5efa\u56fd] PASSED [ 87%]
+tests/test_v1_corpus_db.py::test_v1_chief_complaint_stored_non_null[\u9648\u7f8e\u73b2] PASSED [ 88%]
+tests/test_v1_corpus_db.py::test_v1_chief_complaint_stored_non_null[\u9ad8\u5cf0] PASSED [ 89%]
+tests/test_v1_corpus_db.py::test_v1_chief_complaint_stored_non_null[\u97e9\u4f1f] PASSED [ 90%]
+tests/test_v1_corpus_db.py::test_v1_chief_complaint_stored_non_null[\u90ed\u5efa\u534e] PASSED [ 91%]
+tests/test_v1_corpus_db.py::test_v1_history_of_present_illness_stored_non_null[\u5f20\u5efa\u56fd] PASSED [ 92%]
+tests/test_v1_corpus_db.py::test_v1_history_of_present_illness_stored_non_null[\u9648\u7f8e\u73b2] PASSED [ 93%]
+tests/test_v1_corpus_db.py::test_v1_history_of_present_illness_stored_non_null[\u9ad8\u5cf0] PASSED [ 94%]
+tests/test_v1_corpus_db.py::test_v1_history_of_present_illness_stored_non_null[\u97e9\u4f1f] PASSED [ 95%]
+tests/test_v1_corpus_db.py::test_v1_history_of_present_illness_stored_non_null[\u90ed\u5efa\u534e] PASSED [ 96%]
+tests/test_v1_corpus_db.py::test_v1_db_stores_exact_chief_complaint PASSED [ 97%]
+tests/test_v1_corpus_db.py::test_v1_record_linked_to_patient_in_db PASSED [ 98%]
+tests/test_v1_corpus_db.py::test_v1_auxiliary_examinations_null_no_ecg_result PASSED [ 99%]
+tests/test_v1_corpus_db.py::test_v1_acute_chest_pain_diagnosis_still_null_without_ecg PASSED [100%]
+
+=============================== warnings summary ===============================
+tests/test_v1_corpus_db.py: 19 warnings
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/db/crud.py:71: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    category_computed_at=datetime.utcnow(),
+
+tests/test_v1_corpus_db.py: 19 warnings
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/db/crud.py:76: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    risk_computed_at=datetime.utcnow(),
+
+tests/test_v1_corpus_db.py: 38 warnings
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/.venv/lib/python3.13/site-packages/sqlalchemy/sql/schema.py:3624: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return util.wrap_callable(lambda ctx: fn(), fn)  # type: ignore
+
+tests/test_v1_corpus_db.py: 19 warnings
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/services/patient_categorization.py:56: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+tests/test_v1_corpus_db.py: 19 warnings
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/services/patient_risk.py:73: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 101 passed, 114 warnings in 0.67s =======================

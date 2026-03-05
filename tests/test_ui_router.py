@@ -486,6 +486,62 @@ async def test_admin_db_view_invalid_date_raises_400():
     assert exc.value.status_code == 400
 
 
+async def test_admin_observability_returns_summary_and_traces():
+    summary = {"count": 3, "avg_ms": 12.5}
+    traces = [{"trace_id": "t1", "path": "/api/manage/patients"}]
+    spans = [{"trace_id": "t1", "name": "agent.chat_completion"}]
+    slow_spans = [{"trace_id": "t1", "name": "agent.chat_completion", "latency_ms": 320.0}]
+    with patch("routers.ui.get_latency_summary_scoped", return_value=summary), \
+         patch("routers.ui.get_recent_traces_scoped", return_value=traces), \
+         patch("routers.ui.get_recent_spans_scoped", return_value=spans), \
+         patch("routers.ui.get_slowest_spans_scoped", return_value=slow_spans):
+        data = await ui.admin_observability(trace_limit=10, summary_limit=20)
+
+    assert data["scope"] == "all"
+    assert data["summary"] == summary
+    assert data["recent_traces"] == traces
+    assert data["recent_spans"] == spans
+    assert data["slow_spans"] == slow_spans
+
+
+async def test_admin_observability_with_trace_id_returns_timeline():
+    with patch("routers.ui.get_latency_summary_scoped", return_value={"count": 1}), \
+         patch("routers.ui.get_recent_traces_scoped", return_value=[]), \
+         patch("routers.ui.get_recent_spans_scoped", return_value=[]), \
+         patch("routers.ui.get_slowest_spans_scoped", return_value=[]), \
+         patch("routers.ui.get_trace_timeline", return_value=[{"trace_id": "abc", "name": "chat"}]) as timeline_mock:
+        data = await ui.admin_observability(trace_id="abc")
+    timeline_mock.assert_called_once_with(trace_id="abc", limit=200)
+    assert data["trace_timeline"] == [{"trace_id": "abc", "name": "chat"}]
+
+
+async def test_admin_observability_public_scope_passed_through():
+    with patch("routers.ui.get_latency_summary_scoped", return_value={"count": 2}) as summary_mock, \
+         patch("routers.ui.get_recent_traces_scoped", return_value=[]), \
+         patch("routers.ui.get_recent_spans_scoped", return_value=[]), \
+         patch("routers.ui.get_slowest_spans_scoped", return_value=[]):
+        data = await ui.admin_observability(scope="public")
+    assert data["scope"] == "public"
+    summary_mock.assert_any_call(limit=500, scope="public")
+
+
+async def test_admin_clear_observability_traces():
+    with patch("routers.ui.clear_traces") as clear_mock:
+        data = await ui.admin_clear_observability_traces()
+    clear_mock.assert_called_once()
+    assert data == {"ok": True}
+
+
+async def test_admin_seed_observability_samples():
+    with patch("routers.ui.add_trace") as add_trace_mock, patch("routers.ui.add_span") as add_span_mock:
+        data = await ui.admin_seed_observability_samples(count=2)
+    assert data["ok"] is True
+    assert data["count"] == 2
+    assert len(data["trace_ids"]) == 2
+    assert add_trace_mock.call_count == 2
+    assert add_span_mock.call_count == 8
+
+
 async def test_admin_tables_returns_all_table_counts():
     db = SimpleNamespace(
         execute=AsyncMock(

@@ -23,7 +23,13 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 try:
     from dotenv import load_dotenv
-    load_dotenv(ROOT / ".env")
+    # Keep integration env resolution aligned with runtime startup behavior:
+    # shared env first, then local repo .env.
+    shared_env = Path("/Users/jingwuxu/Documents/code/shared-db/.env")
+    if shared_env.exists():
+        load_dotenv(shared_env)
+    else:
+        load_dotenv(ROOT / ".env")
 except Exception:
     pass
 

@@ -19,6 +19,7 @@ from services.intent import Intent
 from services.structuring import structure_medical_record
 from services.transcription import transcribe_audio
 from services.vision import extract_text_from_image
+from services.observability import trace_block
 from utils.log import log
 
 router = APIRouter(prefix="/api/records", tags=["records"])
@@ -27,6 +28,15 @@ router = APIRouter(prefix="/api/records", tags=["records"])
 _BAD_NAME_FRAGMENTS = ["叫什么名字", "这位患者", "请问", "患者姓名"]
 _NAME_ONLY = re.compile(r"^[\u4e00-\u9fff]{2,4}$")
 _ASK_NAME_FRAGMENTS = ("叫什么名字", "患者姓名", "请提供姓名", "请告知姓名")
+_LEADING_NAME = re.compile(r"^\s*([\u4e00-\u9fff]{2,4})(?:[，,\s]|$)")
+_CLINICAL_HINTS = (
+    "男", "女", "岁", "胸痛", "胸闷", "心悸", "头痛", "发热", "咳嗽",
+    "ST", "PCI", "BNP", "EF", "诊断", "治疗", "复查",
+)
+_CLINICAL_CONTENT_HINTS = (
+    "胸痛", "胸闷", "心悸", "头痛", "发热", "咳嗽", "气短",
+    "ST", "PCI", "BNP", "EF", "诊断", "治疗", "复查", "化疗", "靶向",
+)
 
 def _is_valid_patient_name(name: str) -> bool:
     """Return False if the extracted name is clearly not a real patient name."""
@@ -57,6 +67,24 @@ def _name_only_text(text: str) -> Optional[str]:
     if not _is_valid_patient_name(candidate):
         return None
     return candidate
+
+
+def _leading_name_with_clinical_context(text: str) -> Optional[str]:
+    """Extract explicit leading name from clinical dictation like '张三，男，52岁，胸闷'."""
+    candidate_match = _LEADING_NAME.match(text or "")
+    if not candidate_match:
+        return None
+    candidate = candidate_match.group(1).strip()
+    if not _is_valid_patient_name(candidate):
+        return None
+    remainder = (text or "").strip()[len(candidate):]
+    if not any(hint in remainder for hint in _CLINICAL_HINTS):
+        return None
+    return candidate
+
+
+def _contains_clinical_content(text: str) -> bool:
+    return any(hint in (text or "") for hint in _CLINICAL_CONTENT_HINTS)
 
 SUPPORTED_AUDIO_TYPES = {
     "audio/mpeg", "audio/mp4", "audio/wav", "audio/webm",
@@ -101,7 +129,8 @@ async def chat(body: ChatInput):
     asked_name_in_last_turn = _assistant_asked_for_name(history)
     followup_name = _name_only_text(body.text) if asked_name_in_last_turn else None
     try:
-        intent_result = await agent_dispatch(body.text, history=history)
+        with trace_block("router", "records.chat.agent_dispatch", {"doctor_id": doctor_id}):
+            intent_result = await agent_dispatch(body.text, history=history)
     except Exception as e:
         msg = str(e)
         status = 429 if "rate_limit" in msg or "Rate limit" in msg or "429" in msg else 503
@@ -113,16 +142,36 @@ async def chat(body: ChatInput):
     if followup_name:
         intent_result.intent = Intent.add_record
         intent_result.patient_name = followup_name
+    elif intent_result.intent == Intent.add_record and not intent_result.patient_name:
+        # Deterministic fallback for one-shot notes that start with patient name.
+        # Prevents LLM routing variance from dropping patient linkage.
+        leading_name = _leading_name_with_clinical_context(body.text)
+        if leading_name:
+            intent_result.patient_name = leading_name
+    else:
+        # Deterministic rescue for routing drift:
+        # If input is clearly clinical dictation with a leading patient name,
+        # force add_record so record persistence remains stable.
+        leading_name = _leading_name_with_clinical_context(body.text)
+        if (
+            leading_name
+            and _contains_clinical_content(body.text)
+            and intent_result.intent != Intent.add_record
+        ):
+            intent_result.intent = Intent.add_record
+            if not intent_result.patient_name:
+                intent_result.patient_name = leading_name
 
     # ── create_patient ────────────────────────────────────────────────────────
     if intent_result.intent == Intent.create_patient:
         name = intent_result.patient_name
         if not name:
             return ChatResponse(reply="好的，请告诉我患者的姓名。")
-        async with AsyncSessionLocal() as db:
-            patient = await db_create_patient(
-                db, doctor_id, name, intent_result.gender, intent_result.age
-            )
+        with trace_block("router", "records.chat.create_patient", {"doctor_id": doctor_id, "patient_name": name}):
+            async with AsyncSessionLocal() as db:
+                patient = await db_create_patient(
+                    db, doctor_id, name, intent_result.gender, intent_result.age
+                )
         parts = "、".join(filter(None, [
             intent_result.gender,
             f"{intent_result.age}岁" if intent_result.age else None,
@@ -138,10 +187,11 @@ async def chat(body: ChatInput):
 
         # Build MedicalRecord: prefer single-LLM structured_fields, fallback to dedicated LLM
         if intent_result.structured_fields:
-            fields = dict(intent_result.structured_fields)
-            if not fields.get("chief_complaint"):
-                fields["chief_complaint"] = "门诊就诊"
-            record = MedicalRecord(**{k: fields.get(k) for k in MedicalRecord.model_fields})
+            with trace_block("router", "records.chat.structured_fields_to_record"):
+                fields = dict(intent_result.structured_fields)
+                if not fields.get("chief_complaint"):
+                    fields["chief_complaint"] = "门诊就诊"
+                record = MedicalRecord(**{k: fields.get(k) for k in MedicalRecord.model_fields})
         else:
             doctor_ctx = [m["content"] for m in history[-10:] if m["role"] == "user"]
             if not (followup_name and body.text.strip() == followup_name):
@@ -149,24 +199,26 @@ async def chat(body: ChatInput):
             if not doctor_ctx:
                 doctor_ctx.append(body.text)
             try:
-                record = await structure_medical_record("\n".join(doctor_ctx))
+                with trace_block("router", "records.chat.structure_medical_record"):
+                    record = await structure_medical_record("\n".join(doctor_ctx))
             except Exception as e:
                 return ChatResponse(reply=f"病历生成失败：{e}")
 
         patient_id = None
         patient_name = intent_result.patient_name
         patient_created = False
-        async with AsyncSessionLocal() as db:
-            if patient_name:
-                patient = await find_patient_by_name(db, doctor_id, patient_name)
-                if not patient:
-                    patient = await db_create_patient(
-                        db, doctor_id, patient_name,
-                        intent_result.gender, intent_result.age,
-                    )
-                    patient_created = True
-                patient_id = patient.id
-            await save_record(db, doctor_id, record, patient_id)
+        with trace_block("router", "records.chat.persist_record", {"doctor_id": doctor_id, "patient_name": patient_name}):
+            async with AsyncSessionLocal() as db:
+                if patient_name:
+                    patient = await find_patient_by_name(db, doctor_id, patient_name)
+                    if not patient:
+                        patient = await db_create_patient(
+                            db, doctor_id, patient_name,
+                            intent_result.gender, intent_result.age,
+                        )
+                        patient_created = True
+                    patient_id = patient.id
+                await save_record(db, doctor_id, record, patient_id)
 
         reply = intent_result.chat_reply
         if not reply:
@@ -180,33 +232,35 @@ async def chat(body: ChatInput):
     # ── query_records ─────────────────────────────────────────────────────────
     if intent_result.intent == Intent.query_records:
         name = intent_result.patient_name
-        async with AsyncSessionLocal() as db:
-            if name:
-                patient = await find_patient_by_name(db, doctor_id, name)
-                if not patient:
-                    return ChatResponse(reply=f"未找到患者【{name}】。")
-                records = await get_records_for_patient(db, doctor_id, patient.id)
-                if not records:
-                    return ChatResponse(reply=f"📂 患者【{name}】暂无历史记录。")
-                lines = [f"📂 患者【{name}】最近 {len(records)} 条记录："]
-                for i, r in enumerate(records, 1):
-                    date = r.created_at.strftime("%Y-%m-%d") if r.created_at else "—"
-                    lines.append(f"{i}. [{date}] 主诉：{r.chief_complaint or '—'} | 诊断：{r.diagnosis or '—'}")
-            else:
-                records = await get_all_records_for_doctor(db, doctor_id)
-                if not records:
-                    return ChatResponse(reply="📂 暂无任何病历记录。")
-                lines = [f"📂 最近 {len(records)} 条记录："]
-                for r in records:
-                    pname = r.patient.name if r.patient else "未关联"
-                    date = r.created_at.strftime("%Y-%m-%d") if r.created_at else "—"
-                    lines.append(f"【{pname}】[{date}] 主诉：{r.chief_complaint or '—'} | 诊断：{r.diagnosis or '—'}")
+        with trace_block("router", "records.chat.query_records", {"doctor_id": doctor_id, "patient_name": name}):
+            async with AsyncSessionLocal() as db:
+                if name:
+                    patient = await find_patient_by_name(db, doctor_id, name)
+                    if not patient:
+                        return ChatResponse(reply=f"未找到患者【{name}】。")
+                    records = await get_records_for_patient(db, doctor_id, patient.id)
+                    if not records:
+                        return ChatResponse(reply=f"📂 患者【{name}】暂无历史记录。")
+                    lines = [f"📂 患者【{name}】最近 {len(records)} 条记录："]
+                    for i, r in enumerate(records, 1):
+                        date = r.created_at.strftime("%Y-%m-%d") if r.created_at else "—"
+                        lines.append(f"{i}. [{date}] 主诉：{r.chief_complaint or '—'} | 诊断：{r.diagnosis or '—'}")
+                else:
+                    records = await get_all_records_for_doctor(db, doctor_id)
+                    if not records:
+                        return ChatResponse(reply="📂 暂无任何病历记录。")
+                    lines = [f"📂 最近 {len(records)} 条记录："]
+                    for r in records:
+                        pname = r.patient.name if r.patient else "未关联"
+                        date = r.created_at.strftime("%Y-%m-%d") if r.created_at else "—"
+                        lines.append(f"【{pname}】[{date}] 主诉：{r.chief_complaint or '—'} | 诊断：{r.diagnosis or '—'}")
         return ChatResponse(reply="\n".join(lines))
 
     # ── list_patients ─────────────────────────────────────────────────────────
     if intent_result.intent == Intent.list_patients:
-        async with AsyncSessionLocal() as db:
-            patients = await get_all_patients(db, doctor_id)
+        with trace_block("router", "records.chat.list_patients", {"doctor_id": doctor_id}):
+            async with AsyncSessionLocal() as db:
+                patients = await get_all_patients(db, doctor_id)
         if not patients:
             return ChatResponse(reply="📂 暂无患者记录。")
         lines = [f"👥 共 {len(patients)} 位患者："]

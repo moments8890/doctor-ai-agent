@@ -7,6 +7,7 @@ import time
 from typing import Optional, Tuple
 from openai import AsyncOpenAI
 from models.medical_record import MedicalRecord
+from services.observability import trace_block
 from utils.log import log
 
 # Seed value — written to DB on first startup. After that, DB is the source of truth.
@@ -162,22 +163,25 @@ async def structure_medical_record(
         base_url=provider["base_url"],
         api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
     )
-    system_prompt = await _get_system_prompt()
+    with trace_block("llm", "structuring.load_prompt"):
+        system_prompt = await _get_system_prompt()
     if consultation_mode:
         system_prompt = system_prompt + _CONSULTATION_SUFFIX
-    completion = await client.chat.completions.create(
-        model=provider["model"],
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": text},
-        ],
-        response_format={"type": "json_object"},
-        max_tokens=1500,
-        temperature=0,
-    )
+    with trace_block("llm", "structuring.chat_completion", {"provider": provider_name, "model": provider["model"]}):
+        completion = await client.chat.completions.create(
+            model=provider["model"],
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": text},
+            ],
+            response_format={"type": "json_object"},
+            max_tokens=1500,
+            temperature=0,
+        )
     raw = completion.choices[0].message.content
     log(f"[LLM:{provider_name}] response: {raw}")
-    data = json.loads(raw)
+    with trace_block("llm", "structuring.parse_response"):
+        data = json.loads(raw)
     if isinstance(data, list):
         data = data[0] if data else {}
 

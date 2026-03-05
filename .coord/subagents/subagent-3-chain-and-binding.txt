@@ -1,0 +1,135 @@
+[Subagent-3] P3-D2 chain path
+Wed Mar  4 19:52:30 PST 2026
+============================= test session starts ==============================
+platform darwin -- Python 3.13.3, pytest-9.0.2, pluggy-1.6.0 -- /Users/jingwuxu/Documents/Code/doctor-ai-agent/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /Users/jingwuxu/Documents/Code/doctor-ai-agent
+configfile: pytest.ini
+plugins: anyio-4.12.1, asyncio-1.3.0, cov-7.0.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 56 items
+
+tests/test_records_chat.py::test_name_followup_overrides_create_patient_and_saves_record PASSED [  1%]
+tests/test_records_chat.py::test_name_followup_overrides_unknown_and_saves_record PASSED [  3%]
+tests/test_records_chat.py::test_name_followup_fills_missing_name_when_intent_is_add_record PASSED [  5%]
+tests/test_patient_risk.py::test_compute_patient_risk_low_for_new_patient_without_records PASSED [  7%]
+tests/test_patient_risk.py::test_compute_patient_risk_high_with_keyword PASSED [  8%]
+tests/test_patient_risk.py::test_compute_patient_risk_critical_with_critical_keyword PASSED [ 10%]
+tests/test_patient_risk.py::test_compute_patient_risk_upgrades_when_follow_up_overdue PASSED [ 12%]
+tests/test_patient_risk.py::test_compute_patient_risk_aligns_with_high_risk_category PASSED [ 14%]
+tests/test_tasks.py::test_extract_two_weeks PASSED                       [ 16%]
+tests/test_tasks.py::test_extract_invalid_cn_number_falls_back_to_default PASSED [ 17%]
+tests/test_tasks.py::test_extract_three_days PASSED                      [ 19%]
+tests/test_tasks.py::test_extract_one_month PASSED                       [ 21%]
+tests/test_tasks.py::test_extract_tomorrow PASSED                        [ 23%]
+tests/test_tasks.py::test_extract_next_week PASSED                       [ 25%]
+tests/test_tasks.py::test_extract_one_week PASSED                        [ 26%]
+tests/test_tasks.py::test_extract_fallback PASSED                        [ 28%]
+tests/test_tasks.py::test_extract_five_days PASSED                       [ 30%]
+tests/test_tasks.py::test_extract_three_months PASSED                    [ 32%]
+tests/test_tasks.py::test_extract_empty_string PASSED                    [ 33%]
+tests/test_tasks.py::test_extract_next_star_week PASSED                  [ 35%]
+tests/test_tasks.py::test_extract_two_months PASSED                      [ 37%]
+tests/test_tasks.py::test_create_task_stores_fields PASSED               [ 39%]
+tests/test_tasks.py::test_list_tasks_filters_by_status PASSED            [ 41%]
+tests/test_tasks.py::test_list_tasks_status_filter_excludes_completed PASSED [ 42%]
+tests/test_tasks.py::test_get_due_tasks_excludes_notified PASSED         [ 44%]
+tests/test_tasks.py::test_update_task_status_wrong_doctor_returns_none PASSED [ 46%]
+tests/test_tasks.py::test_create_follow_up_task_sets_correct_due_at PASSED [ 48%]
+tests/test_tasks.py::test_create_emergency_task_sends_notification_immediately PASSED [ 50%]
+tests/test_tasks.py::test_create_follow_up_task_emits_structured_task_log PASSED [ 51%]
+tests/test_tasks.py::test_create_appointment_task_sets_due_at_one_hour_before PASSED [ 53%]
+tests/test_tasks.py::test_check_and_send_due_tasks_sends_for_each PASSED [ 55%]
+tests/test_tasks.py::test_check_and_send_due_tasks_continues_on_error PASSED [ 57%]
+tests/test_tasks.py::test_send_task_notification_formats_message_and_marks_notified PASSED [ 58%]
+tests/test_tasks.py::test_send_task_notification_without_content_or_due_time PASSED [ 60%]
+tests/test_tasks.py::test_send_task_notification_emits_structured_task_log PASSED [ 62%]
+tests/test_tasks.py::test_send_task_notification_retries_then_succeeds PASSED [ 64%]
+tests/test_tasks.py::test_send_task_notification_retry_exhausted_does_not_mark_notified PASSED [ 66%]
+tests/test_tasks.py::test_check_and_send_due_tasks_logs_failure_event PASSED [ 67%]
+tests/test_tasks.py::test_run_due_task_cycle_returns_counts PASSED       [ 69%]
+tests/test_tasks.py::test_taskout_from_orm_serializes_datetime_fields PASSED [ 71%]
+tests/test_tasks.py::test_dispatch_list_tasks_intent PASSED              [ 73%]
+tests/test_tasks.py::test_dispatch_complete_task_intent PASSED           [ 75%]
+tests/test_tasks.py::test_dispatch_complete_task_extra_data PASSED       [ 76%]
+tests/test_tasks.py::test_dispatch_schedule_appointment_intent PASSED    [ 78%]
+tests/test_tasks.py::test_dispatch_schedule_appointment_extra_data PASSED [ 80%]
+tests/test_tasks.py::test_dispatch_complete_task_missing_id_gives_none PASSED [ 82%]
+tests/test_tasks.py::test_api_get_tasks_returns_list PASSED              [ 83%]
+tests/test_tasks.py::test_api_get_tasks_filter_by_status PASSED          [ 85%]
+tests/test_tasks.py::test_api_patch_task_marks_completed PASSED          [ 87%]
+tests/test_tasks.py::test_api_patch_task_invalid_status_returns_422 PASSED [ 89%]
+tests/test_tasks.py::test_api_patch_task_not_found_returns_404 PASSED    [ 91%]
+tests/test_tasks.py::test_api_dev_run_notifier_disabled_returns_404 PASSED [ 92%]
+tests/test_tasks.py::test_api_dev_run_notifier_enabled_returns_summary PASSED [ 94%]
+tests/test_notification.py::test_send_doctor_notification_log_provider_succeeds PASSED [ 96%]
+tests/test_notification.py::test_send_doctor_notification_wechat_provider_calls_wechat_sender PASSED [ 98%]
+tests/test_notification.py::test_send_doctor_notification_unknown_provider_raises PASSED [100%]
+
+=============================== warnings summary ===============================
+tests/test_records_chat.py::test_name_followup_overrides_create_patient_and_saves_record
+tests/test_records_chat.py::test_name_followup_overrides_unknown_and_saves_record
+tests/test_records_chat.py::test_name_followup_fills_missing_name_when_intent_is_add_record
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/db/crud.py:71: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    category_computed_at=datetime.utcnow(),
+
+tests/test_records_chat.py::test_name_followup_overrides_create_patient_and_saves_record
+tests/test_records_chat.py::test_name_followup_overrides_unknown_and_saves_record
+tests/test_records_chat.py::test_name_followup_fills_missing_name_when_intent_is_add_record
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/db/crud.py:76: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    risk_computed_at=datetime.utcnow(),
+
+tests/test_records_chat.py: 6 warnings
+tests/test_tasks.py: 14 warnings
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/.venv/lib/python3.13/site-packages/sqlalchemy/sql/schema.py:3624: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return util.wrap_callable(lambda ctx: fn(), fn)  # type: ignore
+
+tests/test_records_chat.py::test_name_followup_overrides_create_patient_and_saves_record
+tests/test_records_chat.py::test_name_followup_overrides_unknown_and_saves_record
+tests/test_records_chat.py::test_name_followup_fills_missing_name_when_intent_is_add_record
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/services/patient_categorization.py:56: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+tests/test_records_chat.py::test_name_followup_overrides_create_patient_and_saves_record
+tests/test_records_chat.py::test_name_followup_overrides_unknown_and_saves_record
+tests/test_records_chat.py::test_name_followup_fills_missing_name_when_intent_is_add_record
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/services/patient_risk.py:73: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+tests/test_tasks.py::test_get_due_tasks_excludes_notified
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/db/crud.py:424: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    task.notified_at = datetime.utcnow()
+
+tests/test_tasks.py::test_create_follow_up_task_sets_correct_due_at
+  /Users/jingwuxu/Documents/code/doctor-ai-agent/tests/test_tasks.py:195: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    fake_task = _make_fake_task(1, due_at=datetime.utcnow() + timedelta(days=14))
+
+tests/test_tasks.py::test_create_follow_up_task_sets_correct_due_at
+tests/test_tasks.py::test_create_follow_up_task_emits_structured_task_log
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/services/tasks.py:104: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    due_at = datetime.utcnow() + timedelta(days=days)
+
+tests/test_tasks.py::test_create_follow_up_task_sets_correct_due_at
+  /Users/jingwuxu/Documents/code/doctor-ai-agent/tests/test_tasks.py:211: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    delta = due - datetime.utcnow()
+
+tests/test_tasks.py::test_create_follow_up_task_emits_structured_task_log
+  /Users/jingwuxu/Documents/code/doctor-ai-agent/tests/test_tasks.py:231: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    fake_task = _make_fake_task(11, due_at=datetime.utcnow() + timedelta(days=7))
+
+tests/test_tasks.py::test_check_and_send_due_tasks_sends_for_each
+tests/test_tasks.py::test_check_and_send_due_tasks_continues_on_error
+tests/test_tasks.py::test_check_and_send_due_tasks_logs_failure_event
+tests/test_tasks.py::test_run_due_task_cycle_returns_counts
+  /Users/jingwuxu/Documents/Code/doctor-ai-agent/services/tasks.py:251: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 56 passed, 42 warnings in 0.45s ========================
+--- main.py router bindings ---
+292:app.include_router(records_router)
+293:app.include_router(wechat_router)
+294:app.include_router(ui_router)
+295:app.include_router(neuro_router)
+296:app.include_router(tasks_router)
+297:app.include_router(voice_router)

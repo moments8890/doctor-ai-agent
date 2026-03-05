@@ -4,6 +4,8 @@ from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
+import pytest
+
 import routers.wechat as wechat
 from models.medical_record import MedicalRecord
 from services.intent import Intent, IntentResult
@@ -48,6 +50,29 @@ class _SessionCtx:
         return False
 
 
+def test_get_config_prefers_wechat_kf_env_aliases():
+    with patch.dict(
+        "os.environ",
+        {
+            "WECHAT_KF_TOKEN": "kf-token",
+            "WECHAT_KF_CORP_ID": "ww-corp",
+            "WECHAT_KF_SECRET": "kf-secret",
+            "WECHAT_KF_ENCODING_AES_KEY": "kf-aes",
+            "WECHAT_TOKEN": "legacy-token",
+            "WECHAT_APP_ID": "legacy-id",
+            "WECHAT_APP_SECRET": "legacy-secret",
+            "WECHAT_ENCODING_AES_KEY": "legacy-aes",
+        },
+        clear=False,
+    ):
+        cfg = wechat._get_config()
+
+    assert cfg["token"] == "kf-token"
+    assert cfg["app_id"] == "ww-corp"
+    assert cfg["app_secret"] == "kf-secret"
+    assert cfg["aes_key"] == "kf-aes"
+
+
 async def test_get_access_token_uses_cache_without_http_call():
     import services.wechat_notify as wn
     wn._token_cache["token"] = "cached-token"
@@ -84,6 +109,34 @@ async def test_get_access_token_fetches_and_updates_cache():
     assert token == "fresh-token"
     assert wn._token_cache["token"] == "fresh-token"
     assert wn._token_cache["expires_at"] > 0
+
+
+async def test_get_access_token_uses_wecom_kf_gettoken_for_corp_id():
+    import services.wechat_notify as wn
+    wn._token_cache["token"] = ""
+    wn._token_cache["expires_at"] = 0
+
+    class _Resp:
+        def json(self):
+            return {"access_token": "kf-token", "expires_in": 7200}
+
+    class _Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, url, params):
+            assert "qyapi.weixin.qq.com/cgi-bin/gettoken" in url
+            assert params["corpid"] == "ww-corp-id"
+            assert params["corpsecret"] == "corp-secret"
+            return _Resp()
+
+    with patch("services.wechat_notify.httpx.AsyncClient", return_value=_Client()):
+        token = await wechat._get_access_token("ww-corp-id", "corp-secret")
+
+    assert token == "kf-token"
 
 
 async def test_send_customer_service_msg_swallow_exception():
@@ -148,6 +201,68 @@ async def test_send_customer_service_msg_raises_on_wechat_errcode():
             assert False, "expected exception"
         except RuntimeError as e:
             assert "errcode=40013" in str(e)
+
+
+async def test_send_customer_service_msg_kf_requires_open_kfid():
+    class _Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, _url, json):
+            return SimpleNamespace(json=lambda: {"errcode": 0})
+
+    with patch(
+        "services.wechat_notify._get_config",
+        return_value={
+            "token": "tok",
+            "app_id": "ww-corp",
+            "app_secret": "secret",
+            "aes_key": "",
+            "open_kfid": "",
+            "is_kf": True,
+        },
+    ), patch("services.wechat_notify._get_access_token", new=AsyncMock(return_value="tok")), \
+         patch("services.wechat_notify.httpx.AsyncClient", return_value=_Client()):
+        with pytest.raises(RuntimeError, match="WECHAT_KF_OPEN_KFID"):
+            await wechat._send_customer_service_msg("u1", "hello")
+
+
+async def test_send_customer_service_msg_kf_payload_includes_open_kfid():
+    captured = {}
+
+    class _Resp:
+        def json(self):
+            return {"errcode": 0, "errmsg": "ok"}
+
+    class _Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, _url, json):
+            captured["payload"] = json
+            return _Resp()
+
+    with patch(
+        "services.wechat_notify._get_config",
+        return_value={
+            "token": "tok",
+            "app_id": "ww-corp",
+            "app_secret": "secret",
+            "aes_key": "",
+            "open_kfid": "kf-001",
+            "is_kf": True,
+        },
+    ), patch("services.wechat_notify._get_access_token", new=AsyncMock(return_value="tok")), \
+         patch("services.wechat_notify.httpx.AsyncClient", return_value=_Client()):
+        await wechat._send_customer_service_msg("u1", "hello")
+
+    assert captured["payload"]["open_kfid"] == "kf-001"
 
 
 async def test_build_reply_handles_value_error_and_generic_error():
@@ -240,6 +355,14 @@ async def test_pending_create_cancel_and_create(session_factory):
     assert get_session(DOCTOR).pending_create_name is None
 
 
+async def test_pending_create_requires_gender_or_age(session_factory):
+    set_pending_create(DOCTOR, "陈明")
+    with patch("routers.wechat.AsyncSessionLocal", session_factory):
+        reply = await wechat._handle_pending_create("我又有偏头痛", DOCTOR)
+    assert "补充性别和年龄" in reply
+    assert get_session(DOCTOR).pending_create_name == "陈明"
+
+
 async def test_handle_intent_add_record_asks_for_name_without_session():
     with patch(
         "routers.wechat.agent_dispatch",
@@ -249,13 +372,66 @@ async def test_handle_intent_add_record_asks_for_name_without_session():
     assert "叫什么名字" in msg
 
 
-async def test_handle_intent_unknown_name_routes_to_lookup():
+async def test_handle_intent_add_record_name_token_routes_to_lookup():
+    with patch(
+        "routers.wechat.agent_dispatch",
+        new=AsyncMock(return_value=IntentResult(intent=Intent.add_record, patient_name=None)),
+    ), patch("routers.wechat._handle_name_lookup", new=AsyncMock(return_value="lookup-name")) as lookup_mock:
+        msg = await wechat._handle_intent("张三", DOCTOR)
+    assert msg == "lookup-name"
+    lookup_mock.assert_awaited_once_with("张三", DOCTOR)
+
+
+async def test_handle_intent_add_record_rebinds_single_patient_when_session_missing(session_factory):
+    async with session_factory() as s:
+        from db.crud import create_patient
+        await create_patient(s, DOCTOR, "张三", None, None)
+
+    sess = get_session(DOCTOR)
+    sess.current_patient_id = None
+    sess.current_patient_name = None
+
+    with patch("routers.wechat.AsyncSessionLocal", session_factory), \
+         patch(
+             "routers.wechat.agent_dispatch",
+             new=AsyncMock(return_value=IntentResult(intent=Intent.add_record, patient_name=None)),
+         ), \
+         patch("routers.wechat._handle_add_record", new=AsyncMock(return_value="saved")) as add_mock:
+        msg = await wechat._handle_intent("头疼", DOCTOR)
+
+    assert msg == "saved"
+    add_mock.assert_awaited_once()
+    assert get_session(DOCTOR).current_patient_name == "张三"
+
+
+async def test_handle_intent_unknown_no_longer_routes_to_name_lookup():
     with patch(
         "routers.wechat.agent_dispatch",
         new=AsyncMock(return_value=IntentResult(intent=Intent.unknown, chat_reply=None)),
     ), patch("routers.wechat._handle_name_lookup", new=AsyncMock(return_value="lookup")):
         out = await wechat._handle_intent("张三", DOCTOR)
-    assert out == "lookup"
+    assert "请直接描述病历" in out
+
+
+async def test_handle_intent_unknown_explicit_name_routes_to_lookup():
+    with patch(
+        "routers.wechat.agent_dispatch",
+        new=AsyncMock(return_value=IntentResult(intent=Intent.unknown, chat_reply=None)),
+    ), patch("routers.wechat._handle_name_lookup", new=AsyncMock(return_value="name-anchor")) as lookup_mock:
+        out = await wechat._handle_intent("我是张三", DOCTOR)
+    assert out == "name-anchor"
+    lookup_mock.assert_awaited_once_with("张三", DOCTOR)
+
+
+async def test_handle_intent_unknown_greeting_not_routed_as_name():
+    with patch(
+        "routers.wechat.agent_dispatch",
+        new=AsyncMock(return_value=IntentResult(intent=Intent.unknown, chat_reply=None)),
+    ), patch("routers.wechat._handle_name_lookup", new=AsyncMock(return_value="lookup")) as lookup_mock:
+        out = await wechat._handle_intent("你好", DOCTOR)
+
+    assert "您好" in out or "请直接描述病历" in out
+    lookup_mock.assert_not_called()
 
 
 async def test_handle_list_tasks_and_complete_task_and_schedule_routes():
@@ -346,6 +522,42 @@ def test_verify_signature_success_and_failure():
     assert resp2.body == b"echo"
 
 
+def test_verify_wecom_msg_signature_path():
+    fake_crypto = SimpleNamespace(check_signature=lambda *_: "echo-decoded")
+    with patch(
+        "routers.wechat._get_config",
+        return_value={
+            "token": "tok",
+            "app_id": "ww-corp",
+            "app_secret": "sec",
+            "aes_key": "aes",
+            "open_kfid": "",
+            "is_kf": True,
+        },
+    ), patch("routers.wechat.EnterpriseWeChatCrypto", return_value=fake_crypto):
+        resp = wechat.verify(
+            timestamp="1",
+            nonce="2",
+            signature="",
+            echostr="encrypted-echo",
+            msg_signature="msgsig",
+        )
+    assert resp.status_code == 200
+    assert resp.body == b"echo-decoded"
+
+
+def test_verify_without_params_returns_ok_for_domain_probe():
+    resp = wechat.verify()
+    assert resp.status_code == 200
+    assert resp.body == b"ok"
+
+
+def test_verify_missing_signature_returns_echo_or_ok():
+    resp = wechat.verify(timestamp="1", nonce="2", signature="", msg_signature="", echostr="echo-x")
+    assert resp.status_code == 200
+    assert resp.body == b"echo-x"
+
+
 async def test_handle_intent_bg_uses_context_and_fallback():
     with patch("routers.wechat.get_session_lock", return_value=DummyLock()), \
          patch("routers.wechat.maybe_compress", new=AsyncMock()), \
@@ -357,6 +569,21 @@ async def test_handle_intent_bg_uses_context_and_fallback():
 
     push_turn.assert_called_once()
     assert push_turn.call_args.args[2]  # some error message sent
+    send_msg.assert_awaited_once()
+
+
+async def test_handle_intent_bg_pending_create_bypasses_llm():
+    set_pending_create(DOCTOR, "章三")
+    with patch("routers.wechat.get_session_lock", return_value=DummyLock()), \
+         patch("routers.wechat._handle_pending_create", new=AsyncMock(return_value="好的，章三已建档（男、17岁）。")) as pending_mock, \
+         patch("routers.wechat._handle_intent", new=AsyncMock()) as intent_mock, \
+         patch("routers.wechat.push_turn") as push_turn, \
+         patch("routers.wechat._send_customer_service_msg", new=AsyncMock()) as send_msg:
+        await wechat._handle_intent_bg("男，17", DOCTOR)
+
+    pending_mock.assert_awaited_once_with("男，17", DOCTOR)
+    intent_mock.assert_not_awaited()
+    push_turn.assert_called_once()
     send_msg.assert_awaited_once()
 
 
@@ -399,7 +626,10 @@ async def test_handle_message_text_routing_paths():
         resp = await wechat.handle_message(req)
     assert resp.status_code == 200
     assert "正在处理" in resp.body.decode("utf-8")
-    create_task.assert_called_once()
+    assert any(
+        "_handle_intent_bg" in str(call.args[0])
+        for call in create_task.call_args_list
+    )
 
 
 async def test_handle_message_event_and_media_ack_paths():
@@ -456,6 +686,147 @@ async def test_setup_menu_status_paths():
          patch("routers.wechat.create_menu", new=AsyncMock(return_value={"errcode": 1, "errmsg": "x"})):
         err = await wechat.setup_menu()
     assert err["status"] == "error"
+
+
+# ---------------------------------------------------------------------------
+# WeCom KF sync selection paths
+# ---------------------------------------------------------------------------
+
+
+async def test_wecom_kf_sync_paginates_and_picks_nearest_event_message():
+    wechat._WECHAT_KF_SYNC_CURSOR = ""
+    wechat._WECHAT_KF_CURSOR_LOADED = True
+    wechat._WECHAT_KF_SEEN_MSG_IDS.clear()
+
+    page_1 = {
+        "errcode": 0,
+        "has_more": 1,
+        "next_cursor": "c1",
+        "msg_list": [
+            {
+                "origin": 3,
+                "msgid": "old-1",
+                "external_userid": "u1",
+                "open_kfid": "kf1",
+                "send_time": 1000,
+                "msgtype": "text",
+                "text": {"content": "旧消息"},
+            }
+        ],
+    }
+    page_2 = {
+        "errcode": 0,
+        "has_more": 0,
+        "next_cursor": "c2",
+        "msg_list": [
+            {
+                "origin": 3,
+                "msgid": "new-1",
+                "external_userid": "u1",
+                "open_kfid": "kf1",
+                "send_time": 5001,
+                "msgtype": "text",
+                "text": {"content": "我是张三"},
+            }
+        ],
+    }
+
+    class _Resp:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._payload
+
+    class _Client:
+        def __init__(self):
+            self._queue = [page_1, page_2]
+            self.calls = []
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, _url, params, json):
+            self.calls.append({"params": params, "json": json})
+            return _Resp(self._queue.pop(0))
+
+    captured = {}
+
+    def _consume_task(coro):
+        captured["locals"] = dict(coro.cr_frame.f_locals)
+        coro.close()
+        return None
+
+    with patch(
+        "routers.wechat._get_config",
+        return_value={"app_id": "ww-corp", "app_secret": "sec"},
+    ), patch("routers.wechat._get_access_token", new=AsyncMock(return_value="tok")), \
+         patch("routers.wechat.httpx.AsyncClient", return_value=_Client()), \
+         patch("routers.wechat.asyncio.create_task", side_effect=_consume_task), \
+         patch("routers.wechat._persist_wecom_kf_sync_cursor"):
+        await wechat._handle_wecom_kf_event_bg(expected_msgid="", event_create_time=5002)
+
+    assert wechat._WECHAT_KF_SYNC_CURSOR == "c2"
+    assert captured["locals"]["text"] == "我是张三"
+    assert captured["locals"]["doctor_id"] == "u1"
+    assert captured["locals"]["open_kfid"] == "kf1"
+
+
+async def test_wecom_kf_sync_skips_stale_batch_when_event_time_far_away():
+    wechat._WECHAT_KF_SYNC_CURSOR = ""
+    wechat._WECHAT_KF_CURSOR_LOADED = True
+    wechat._WECHAT_KF_SEEN_MSG_IDS.clear()
+
+    data = {
+        "errcode": 0,
+        "has_more": 0,
+        "next_cursor": "c1",
+        "msg_list": [
+            {
+                "origin": 3,
+                "msgid": "old-2",
+                "external_userid": "u2",
+                "open_kfid": "kf2",
+                "send_time": 1000,
+                "msgtype": "text",
+                "text": {"content": "你好"},
+            }
+        ],
+    }
+
+    class _Resp:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return data
+
+    class _Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, _url, params, json):
+            return _Resp()
+
+    with patch(
+        "routers.wechat._get_config",
+        return_value={"app_id": "ww-corp", "app_secret": "sec"},
+    ), patch("routers.wechat._get_access_token", new=AsyncMock(return_value="tok")), \
+         patch("routers.wechat.httpx.AsyncClient", return_value=_Client()), \
+         patch("routers.wechat.asyncio.create_task") as create_task, \
+         patch("routers.wechat._persist_wecom_kf_sync_cursor"):
+        await wechat._handle_wecom_kf_event_bg(expected_msgid="", event_create_time=5000)
+
+    create_task.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

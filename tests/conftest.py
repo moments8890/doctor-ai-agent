@@ -31,6 +31,10 @@ def reset_doctor_sessions():
     import services.session as sess_mod
     sess_mod._sessions.clear()
     sess_mod._locks.clear()
+    sess_mod._loaded_from_db.clear()
+    sess_mod._persist_tasks.clear()
     yield
     sess_mod._sessions.clear()
     sess_mod._locks.clear()
+    sess_mod._loaded_from_db.clear()
+    sess_mod._persist_tasks.clear()

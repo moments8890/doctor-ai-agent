@@ -7,10 +7,13 @@ from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.models import SystemPrompt, DoctorContext, Patient, MedicalRecordDB, NeuroCaseDB, DoctorTask, PatientLabel
+from db.models import (
+    SystemPrompt, DoctorContext, DoctorSessionState, Patient, MedicalRecordDB, NeuroCaseDB, DoctorTask, PatientLabel
+)
 from models.medical_record import MedicalRecord
 from services.patient_categorization import RULES_VERSION, recompute_patient_category
 from services.patient_risk import RULES_VERSION as RISK_RULES_VERSION, recompute_patient_risk
+from services.observability import trace_block
 
 
 async def get_system_prompt(session: AsyncSession, key: str) -> SystemPrompt | None:
@@ -47,6 +50,43 @@ async def upsert_doctor_context(session: AsyncSession, doctor_id: str, summary: 
     await session.commit()
 
 
+async def get_doctor_session_state(session: AsyncSession, doctor_id: str) -> Optional[DoctorSessionState]:
+    result = await session.execute(
+        select(DoctorSessionState).where(DoctorSessionState.doctor_id == doctor_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def upsert_doctor_session_state(
+    session: AsyncSession,
+    doctor_id: str,
+    current_patient_id: Optional[int],
+    pending_create_name: Optional[str],
+) -> None:
+    row = await get_doctor_session_state(session, doctor_id)
+    if row:
+        row.current_patient_id = current_patient_id
+        row.pending_create_name = pending_create_name
+        row.updated_at = datetime.utcnow()
+    else:
+        session.add(
+            DoctorSessionState(
+                doctor_id=doctor_id,
+                current_patient_id=current_patient_id,
+                pending_create_name=pending_create_name,
+                updated_at=datetime.utcnow(),
+            )
+        )
+    await session.commit()
+
+
+async def get_patient_for_doctor(session: AsyncSession, doctor_id: str, patient_id: int) -> Optional[Patient]:
+    result = await session.execute(
+        select(Patient).where(Patient.id == patient_id, Patient.doctor_id == doctor_id).limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
 def _year_of_birth(age: Optional[int]) -> Optional[int]:
     if age is None:
         return None
@@ -60,25 +100,26 @@ async def create_patient(
     gender: Optional[str],
     age: Optional[int],
 ) -> Patient:
-    patient = Patient(
-        doctor_id=doctor_id,
-        name=name,
-        gender=gender,
-        year_of_birth=_year_of_birth(age),
-        primary_category="new",
-        category_tags="[]",
-        category_rules_version=RULES_VERSION,
-        category_computed_at=datetime.utcnow(),
-        primary_risk_level="low",
-        risk_tags='["no_records"]',
-        risk_score=0,
-        follow_up_state="not_needed",
-        risk_computed_at=datetime.utcnow(),
-        risk_rules_version=RISK_RULES_VERSION,
-    )
-    session.add(patient)
-    await session.commit()
-    return patient
+    with trace_block("db", "crud.create_patient", {"doctor_id": doctor_id}):
+        patient = Patient(
+            doctor_id=doctor_id,
+            name=name,
+            gender=gender,
+            year_of_birth=_year_of_birth(age),
+            primary_category="new",
+            category_tags="[]",
+            category_rules_version=RULES_VERSION,
+            category_computed_at=datetime.utcnow(),
+            primary_risk_level="low",
+            risk_tags='["no_records"]',
+            risk_score=0,
+            follow_up_state="not_needed",
+            risk_computed_at=datetime.utcnow(),
+            risk_rules_version=RISK_RULES_VERSION,
+        )
+        session.add(patient)
+        await session.commit()
+        return patient
 
 
 async def find_patient_by_name(
@@ -86,10 +127,11 @@ async def find_patient_by_name(
     doctor_id: str,
     name: str,
 ) -> Patient | None:
-    result = await session.execute(
-        select(Patient).where(Patient.doctor_id == doctor_id, Patient.name == name).limit(1)
-    )
-    return result.scalar_one_or_none()
+    with trace_block("db", "crud.find_patient_by_name", {"doctor_id": doctor_id}):
+        result = await session.execute(
+            select(Patient).where(Patient.doctor_id == doctor_id, Patient.name == name).limit(1)
+        )
+        return result.scalar_one_or_none()
 
 
 async def save_record(
@@ -98,34 +140,35 @@ async def save_record(
     record: MedicalRecord,
     patient_id: int | None,
 ) -> MedicalRecordDB:
-    db_record = MedicalRecordDB(
-        doctor_id=doctor_id,
-        patient_id=patient_id,
-        chief_complaint=record.chief_complaint,
-        history_of_present_illness=record.history_of_present_illness,
-        past_medical_history=record.past_medical_history,
-        physical_examination=record.physical_examination,
-        auxiliary_examinations=record.auxiliary_examinations,
-        diagnosis=record.diagnosis,
-        treatment_plan=record.treatment_plan,
-        follow_up_plan=record.follow_up_plan,
-    )
-    session.add(db_record)
-    await session.commit()
-    if patient_id is not None:
-        await recompute_patient_category(patient_id, session)
-        risk = await recompute_patient_risk(patient_id, session)
-        if _env_flag_true("AUTO_FOLLOWUP_TASKS_ENABLED") and record.follow_up_plan:
-            await _ensure_auto_follow_up_task(
-                session=session,
-                doctor_id=doctor_id,
-                patient_id=patient_id,
-                record_id=db_record.id,
-                patient_name=await _patient_name(session, patient_id),
-                follow_up_plan=record.follow_up_plan,
-                risk_level=risk.primary_risk_level if risk else None,
-            )
-    return db_record
+    with trace_block("db", "crud.save_record", {"doctor_id": doctor_id, "patient_id": patient_id}):
+        db_record = MedicalRecordDB(
+            doctor_id=doctor_id,
+            patient_id=patient_id,
+            chief_complaint=record.chief_complaint,
+            history_of_present_illness=record.history_of_present_illness,
+            past_medical_history=record.past_medical_history,
+            physical_examination=record.physical_examination,
+            auxiliary_examinations=record.auxiliary_examinations,
+            diagnosis=record.diagnosis,
+            treatment_plan=record.treatment_plan,
+            follow_up_plan=record.follow_up_plan,
+        )
+        session.add(db_record)
+        await session.commit()
+        if patient_id is not None:
+            await recompute_patient_category(patient_id, session)
+            risk = await recompute_patient_risk(patient_id, session)
+            if _env_flag_true("AUTO_FOLLOWUP_TASKS_ENABLED") and record.follow_up_plan:
+                await _ensure_auto_follow_up_task(
+                    session=session,
+                    doctor_id=doctor_id,
+                    patient_id=patient_id,
+                    record_id=db_record.id,
+                    patient_name=await _patient_name(session, patient_id),
+                    follow_up_plan=record.follow_up_plan,
+                    risk_level=risk.primary_risk_level if risk else None,
+                )
+        return db_record
 
 
 def _env_flag_true(name: str) -> bool:
@@ -236,26 +279,28 @@ async def get_records_for_patient(
     patient_id: int,
     limit: int = 5,
 ) -> list[MedicalRecordDB]:
-    result = await session.execute(
-        select(MedicalRecordDB)
-        .where(MedicalRecordDB.doctor_id == doctor_id, MedicalRecordDB.patient_id == patient_id)
-        .order_by(MedicalRecordDB.created_at.desc())
-        .limit(limit)
-    )
-    return list(result.scalars().all())
+    with trace_block("db", "crud.get_records_for_patient", {"doctor_id": doctor_id, "patient_id": patient_id}):
+        result = await session.execute(
+            select(MedicalRecordDB)
+            .where(MedicalRecordDB.doctor_id == doctor_id, MedicalRecordDB.patient_id == patient_id)
+            .order_by(MedicalRecordDB.created_at.desc())
+            .limit(limit)
+        )
+        return list(result.scalars().all())
 
 
 async def get_all_patients(
     session: AsyncSession,
     doctor_id: str,
 ) -> list[Patient]:
-    result = await session.execute(
-        select(Patient)
-        .where(Patient.doctor_id == doctor_id)
-        .order_by(Patient.created_at.desc())
-        .options(selectinload(Patient.labels))
-    )
-    return list(result.scalars().all())
+    with trace_block("db", "crud.get_all_patients", {"doctor_id": doctor_id}):
+        result = await session.execute(
+            select(Patient)
+            .where(Patient.doctor_id == doctor_id)
+            .order_by(Patient.created_at.desc())
+            .options(selectinload(Patient.labels))
+        )
+        return list(result.scalars().all())
 
 
 async def get_all_records_for_doctor(
@@ -263,14 +308,15 @@ async def get_all_records_for_doctor(
     doctor_id: str,
     limit: int = 10,
 ) -> list[MedicalRecordDB]:
-    result = await session.execute(
-        select(MedicalRecordDB)
-        .options(joinedload(MedicalRecordDB.patient))
-        .where(MedicalRecordDB.doctor_id == doctor_id)
-        .order_by(MedicalRecordDB.created_at.desc())
-        .limit(limit)
-    )
-    return list(result.scalars().unique().all())
+    with trace_block("db", "crud.get_all_records_for_doctor", {"doctor_id": doctor_id}):
+        result = await session.execute(
+            select(MedicalRecordDB)
+            .options(joinedload(MedicalRecordDB.patient))
+            .where(MedicalRecordDB.doctor_id == doctor_id)
+            .order_by(MedicalRecordDB.created_at.desc())
+            .limit(limit)
+        )
+        return list(result.scalars().unique().all())
 
 
 async def save_neuro_case(

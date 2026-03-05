@@ -192,6 +192,38 @@
       "counts": {
         "title": "表记录概览"
       },
+      "obs": {
+        "title": "接口延迟与追踪",
+        "reload": "刷新追踪",
+        "seed": "生成样例",
+        "clear": "清空追踪",
+        "scopePublic": "外部 API",
+        "scopeInternal": "内部管理",
+        "scopeAll": "全部",
+        "traceId": "按 Trace ID 过滤",
+        "filter": "过滤",
+        "recentTracesTitle": "最近请求追踪",
+        "slowSpansTitle": "慢调用 Top",
+        "timelineTitle": "Trace 时间线",
+        "latencyTrendTitle": "API 延迟趋势",
+        "perPathTitle": "按 API 路径平均耗时",
+        "statusTitle": "状态码分布",
+        "publicQuickTitle": "Public API 快速视图（/api/records/chat）",
+        "publicSlowSpansTitle": "Chat 相关慢调用 Top",
+        "publicHint": "发送几条聊天消息后，这里会显示 chat 端到端慢调用。",
+        "count": "样本数",
+        "avg": "平均耗时",
+        "p95": "P95",
+        "p99": "P99",
+        "max": "最大耗时",
+        "traces": "最近追踪",
+        "empty": "暂无追踪数据。",
+        "timelineHint": "输入 Trace ID 后可查看端到端调用时间线。",
+        "clearSuccess": "追踪数据已清空。",
+        "clearFailed": "清空追踪失败：{message}",
+        "seedSuccess": "已生成 {count} 条样例追踪。",
+        "seedFailed": "生成样例追踪失败：{message}"
+      },
       "tables": {
         "patients": "患者表",
         "medical_records": "病历表",
@@ -200,7 +232,8 @@
         "patient_labels": "标签表",
         "patient_label_assignments": "标签关联表",
         "system_prompts": "提示词表",
-        "doctor_contexts": "医生上下文表"
+        "doctor_contexts": "医生上下文表",
+        "observability": "接口延迟与追踪"
       },
       "cols": {
         "id": "ID",
@@ -230,6 +263,15 @@
         "label_name": "标签名",
         "color": "颜色",
         "nihss": "NIHSS",
+        "trace_id": "Trace ID",
+        "started_at": "开始时间",
+        "method": "方法",
+        "path": "路径",
+        "status_code": "状态码",
+        "latency_ms": "耗时",
+        "layer": "层",
+        "parent_span_id": "父 Span ID",
+        "count": "次数",
         "created_at": "创建时间",
         "updated_at": "更新时间"
       }

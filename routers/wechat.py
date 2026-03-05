@@ -1,10 +1,15 @@
 import asyncio
+import json
 import os
 import re
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List
 from fastapi import APIRouter, Request, Response
+import httpx
 from wechatpy import parse_message
 from wechatpy.crypto import WeChatCrypto
+from wechatpy.enterprise.crypto import WeChatCrypto as EnterpriseWeChatCrypto
 from wechatpy.utils import check_signature
 from wechatpy.exceptions import InvalidSignatureException
 from wechatpy.replies import TextReply
@@ -20,7 +25,15 @@ from services.wechat_notify import (
     _get_config, _get_access_token, _split_message,
     _send_customer_service_msg, _token_cache,
 )
-from services.session import get_session, get_session_lock, push_turn, set_current_patient, set_pending_create, clear_pending_create
+from services.session import (
+    get_session,
+    get_session_lock,
+    push_turn,
+    set_current_patient,
+    set_pending_create,
+    clear_pending_create,
+    hydrate_session_state,
+)
 from services.memory import maybe_compress, load_context_message
 from services.tasks import create_follow_up_task, create_emergency_task, create_appointment_task
 from db.engine import AsyncSessionLocal
@@ -28,8 +41,76 @@ from db.crud import create_patient, find_patient_by_name, save_record, get_recor
 from utils.log import log
 
 _COMPLETE_RE = re.compile(r'^完成\s*(\d+)$')
+_NAME_TOKEN_RE = re.compile(r'^[\u4e00-\u9fff]{2,4}$')
+_NON_NAME_TOKENS = {"你好", "您好", "谢谢", "好的", "收到", "在吗", "哈喽", "嗯", "嗯嗯"}
+_NON_NAME_SUBSTRINGS = {
+    "发烧", "咳嗽", "头痛", "胸闷", "疼", "痛", "不适", "心悸", "气短",
+    "一天", "两天", "三天", "一周", "两周", "三周", "一月", "两月",
+    "记录", "病历", "查询", "随访", "复查", "预约",
+}
+_EXPLICIT_NAME_PATTERNS = [
+    re.compile(r"^\s*我是(?P<name>[\u4e00-\u9fff]{2,4})\s*$"),
+    re.compile(r"^\s*我叫(?P<name>[\u4e00-\u9fff]{2,4})\s*$"),
+    re.compile(r"^\s*患者(?:是|叫)?(?P<name>[\u4e00-\u9fff]{2,4})\s*$"),
+]
 
 router = APIRouter(prefix="/wechat", tags=["wechat"])
+_WECHAT_KF_SYNC_CURSOR: str = ""
+_WECHAT_KF_SEEN_MSG_IDS: set = set()
+_WECHAT_KF_CURSOR_LOADED: bool = False
+_WECHAT_KF_CURSOR_FILE = Path(__file__).resolve().parents[1] / "logs" / "wechat_kf_sync_state.json"
+
+
+def _extract_open_kfid(msg) -> str:
+    target = getattr(msg, "target", "")
+    if isinstance(target, str):
+        return target.strip()
+    return ""
+
+
+def _load_wecom_kf_sync_cursor() -> str:
+    try:
+        if not _WECHAT_KF_CURSOR_FILE.exists():
+            return ""
+        data = json.loads(_WECHAT_KF_CURSOR_FILE.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            return ""
+        return str(data.get("cursor") or "").strip()
+    except Exception as e:
+        log(f"[WeCom KF] load cursor FAILED: {e}")
+        return ""
+
+
+def _persist_wecom_kf_sync_cursor(cursor: str) -> None:
+    if not cursor:
+        return
+    try:
+        _WECHAT_KF_CURSOR_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _WECHAT_KF_CURSOR_FILE.write_text(
+            json.dumps({"cursor": cursor}, ensure_ascii=False),
+            encoding="utf-8",
+        )
+    except Exception as e:
+        log(f"[WeCom KF] persist cursor FAILED: {e}")
+
+
+def _name_token_or_none(text: str) -> str:
+    candidate = text.strip()
+    if _NAME_TOKEN_RE.match(candidate) and candidate not in _NON_NAME_TOKENS:
+        if any(x in candidate for x in _NON_NAME_SUBSTRINGS):
+            return ""
+        return candidate
+    return ""
+
+
+def _explicit_name_or_none(text: str) -> str:
+    for pat in _EXPLICIT_NAME_PATTERNS:
+        m = pat.match(text.strip())
+        if not m:
+            continue
+        name = m.group("name")
+        return _name_token_or_none(name)
+    return ""
 
 
 def _format_record(record) -> str:
@@ -268,9 +349,6 @@ async def _handle_menu_event(event_key: str, doctor_id: str) -> str:
     return _MENU_EVENT_REPLIES.get(event_key, "请通过菜单或文字与我们互动。")
 
 
-_NAME_ONLY = re.compile(r'^[\u4e00-\u9fff]{2,4}$')
-
-
 async def _handle_name_lookup(name: str, doctor_id: str) -> str:
     """Look up patient by name. If found, show records. If not, enter pending-create flow."""
     async with AsyncSessionLocal() as session:
@@ -306,6 +384,13 @@ async def _handle_pending_create(text: str, doctor_id: str) -> str:
     m = re.search(r'(\d+)\s*岁', text)
     if m:
         age = int(m.group(1))
+
+    # Guardrail: avoid accidentally creating a patient from unrelated medical text.
+    if gender is None and age is None:
+        return (
+            f"还在为{name}建档，请补充性别和年龄（例如：男，17岁），"
+            "或发送「取消」放弃。"
+        )
 
     async with AsyncSessionLocal() as session:
         patient = await create_patient(session, doctor_id, name, gender, age)
@@ -392,6 +477,18 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
     elif intent_result.intent == Intent.add_record:
         sess = get_session(doctor_id)
         if not intent_result.patient_name and not sess.current_patient_id:
+            # If session context was lost but this conversation has only one patient,
+            # safely re-bind to that patient to avoid unnecessary follow-up question.
+            async with AsyncSessionLocal() as session:
+                patients = await get_all_patients(session, doctor_id)
+            if len(patients) == 1:
+                only = patients[0]
+                set_current_patient(doctor_id, only.id, only.name)
+                log(f"[WeChat] rebound single patient context: doctor={doctor_id} patient={only.name}")
+                return await _handle_add_record(text, doctor_id, intent_result, history=history)
+            candidate_name = _name_token_or_none(text)
+            if candidate_name:
+                return await _handle_name_lookup(candidate_name, doctor_id)
             return "请问这位患者叫什么名字？"
         return await _handle_add_record(text, doctor_id, intent_result, history=history)
     elif intent_result.intent == Intent.query_records:
@@ -404,13 +501,19 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
         return await _handle_complete_task(doctor_id, intent_result)
     elif intent_result.intent == Intent.schedule_appointment:
         return await _handle_schedule_appointment(doctor_id, intent_result)
-    elif intent_result.intent == Intent.unknown and _NAME_ONLY.match(text.strip()):
-        return await _handle_name_lookup(text.strip(), doctor_id)
+    elif intent_result.intent == Intent.unknown:
+        explicit_name = _explicit_name_or_none(text)
+        if explicit_name:
+            looked_up = await _handle_name_lookup(explicit_name, doctor_id)
+            if looked_up:
+                return looked_up
+        fallback = "您好！请直接描述病历内容、或说「新患者姓名」建档、或说「查询姓名」查记录。"
+        return intent_result.chat_reply or fallback
     else:
         return intent_result.chat_reply or "您好！请直接描述病历内容、或说「新患者姓名」建档、或说「查询姓名」查记录。"
 
 
-async def _handle_image_bg(media_id: str, doctor_id: str):
+async def _handle_image_bg(media_id: str, doctor_id: str, open_kfid: str = ""):
     """Download WeChat image, extract text via vision LLM, then route through normal pipeline."""
     # --- IO outside lock: no session state accessed ---
     cfg = _get_config()
@@ -421,12 +524,13 @@ async def _handle_image_bg(media_id: str, doctor_id: str):
         log(f"[Vision] extracted for {doctor_id}: {text[:80]!r}")
     except Exception as e:
         log(f"[Vision] extraction FAILED: {e}")
-        await _send_customer_service_msg(doctor_id, f"❌ 图片识别失败：{e}")
+        await _send_customer_service_msg(doctor_id, f"❌ 图片识别失败：{e}", open_kfid=open_kfid)
         return
 
     # --- state check + stateful routing under lock ---
     route = "intent"
     result = None
+    await hydrate_session_state(doctor_id)
     async with get_session_lock(doctor_id):
         sess = get_session(doctor_id)
         try:
@@ -443,51 +547,254 @@ async def _handle_image_bg(media_id: str, doctor_id: str):
 
     if route == "done":
         preview = text[:60] + ("…" if len(text) > 60 else "")
-        await _send_customer_service_msg(doctor_id, f"🖼️ 「{preview}」\n\n{result}")
+        await _send_customer_service_msg(doctor_id, f"🖼️ 「{preview}」\n\n{result}", open_kfid=open_kfid)
     else:
         # delegate — _handle_intent_bg acquires its own lock
-        await _handle_intent_bg(text, doctor_id)
+        await _handle_intent_bg(text, doctor_id, open_kfid=open_kfid)
+
+
+def _extract_cdata(xml_str: str, tag: str) -> str:
+    m = re.search(rf"<{tag}><!\[CDATA\[(.*?)\]\]></{tag}>", xml_str)
+    if m:
+        return m.group(1)
+    m = re.search(rf"<{tag}>([^<]+)</{tag}>", xml_str)
+    return m.group(1) if m else ""
+
+
+def _wecom_kf_msg_to_text(msg: Dict[str, Any]) -> str:
+    msgtype = str(msg.get("msgtype", "")).lower()
+    if msgtype == "text":
+        return str((msg.get("text") or {}).get("content") or "").strip()
+    if msgtype == "voice":
+        rec = str((msg.get("voice") or {}).get("recognition") or "").strip()
+        return rec or "[语音消息]"
+    if msgtype == "image":
+        return "[图片消息]"
+    return ""
+
+
+def _wecom_msg_time(msg: Dict[str, Any]) -> int:
+    for key in ("send_time", "create_time", "msg_time"):
+        raw = msg.get(key)
+        try:
+            t = int(raw or 0)
+            if t > 0:
+                return t
+        except (TypeError, ValueError):
+            continue
+    return 0
+
+
+async def _handle_wecom_kf_event_bg(expected_msgid: str = "", event_create_time: int = 0) -> None:
+    """Fetch latest WeCom KF customer messages and route through intent pipeline."""
+    global _WECHAT_KF_SYNC_CURSOR, _WECHAT_KF_CURSOR_LOADED
+    cfg = _get_config()
+    if not cfg["app_id"] or not cfg["app_secret"]:
+        log("[WeCom KF] skipped sync: app_id/app_secret missing")
+        return
+
+    if not _WECHAT_KF_CURSOR_LOADED:
+        _WECHAT_KF_SYNC_CURSOR = _load_wecom_kf_sync_cursor() or _WECHAT_KF_SYNC_CURSOR
+        _WECHAT_KF_CURSOR_LOADED = True
+
+    try:
+        access_token = await _get_access_token(cfg["app_id"], cfg["app_secret"])
+        cursor = _WECHAT_KF_SYNC_CURSOR
+        next_cursor = _WECHAT_KF_SYNC_CURSOR
+        max_pages = 5
+        msg_list: List[Dict[str, Any]] = []
+
+        async with httpx.AsyncClient(timeout=10) as client:
+            for _ in range(max_pages):
+                payload: Dict[str, Any] = {"limit": 100}
+                if cursor:
+                    payload["cursor"] = cursor
+                resp = await client.post(
+                    "https://qyapi.weixin.qq.com/cgi-bin/kf/sync_msg",
+                    params={"access_token": access_token},
+                    json=payload,
+                )
+                if hasattr(resp, "raise_for_status"):
+                    resp.raise_for_status()
+                data = resp.json()
+                if not isinstance(data, dict) or data.get("errcode", 0) != 0:
+                    log(f"[WeCom KF] sync_msg failed: {data}")
+                    return
+
+                batch = data.get("msg_list") or []
+                if isinstance(batch, list):
+                    msg_list.extend(batch)
+
+                batch_next_cursor = str(data.get("next_cursor") or "")
+                if batch_next_cursor:
+                    next_cursor = batch_next_cursor
+                has_more = str(data.get("has_more") or "0") in ("1", "true", "True")
+                if not has_more or not batch_next_cursor or batch_next_cursor == cursor:
+                    break
+                cursor = batch_next_cursor
+
+        if next_cursor and next_cursor != _WECHAT_KF_SYNC_CURSOR:
+            _WECHAT_KF_SYNC_CURSOR = next_cursor
+            _persist_wecom_kf_sync_cursor(next_cursor)
+
+        candidates: List[Dict[str, Any]] = []
+        for raw in msg_list:
+            if raw.get("origin") not in (3, "3"):
+                continue
+            msg_id = str(raw.get("msgid") or "")
+            if msg_id and msg_id in _WECHAT_KF_SEEN_MSG_IDS:
+                continue
+            text = _wecom_kf_msg_to_text(raw)
+            if not text:
+                continue
+            external_userid = str(raw.get("external_userid") or "")
+            if not external_userid:
+                continue
+            candidates.append(raw)
+
+        if not candidates:
+            return
+
+        selected = None
+        if expected_msgid:
+            for item in candidates:
+                if str(item.get("msgid") or "") == expected_msgid:
+                    selected = item
+                    break
+        timed_candidates = [m for m in candidates if _wecom_msg_time(m) > 0]
+
+        if selected is None and event_create_time > 0 and timed_candidates:
+            # Prefer message nearest to webhook event time to avoid replaying stale backlog.
+            def _time_distance(item: Dict[str, Any]) -> int:
+                return abs(_wecom_msg_time(item) - event_create_time)
+
+            near = sorted(timed_candidates, key=_time_distance)
+            if near and _time_distance(near[0]) <= 900:
+                selected = near[0]
+            else:
+                # If callback has event time but fetched list is far away in time, skip it.
+                # This avoids replaying stale backlog after restart.
+                log(
+                    "[WeCom KF] skip stale batch",
+                    event_create_time=event_create_time,
+                    closest_msg_time=_wecom_msg_time(near[0]) if near else 0,
+                )
+                return
+
+        if selected is None:
+            # Fallback: process newest unseen by timestamp; if unavailable, use last item.
+            if timed_candidates:
+                selected = max(timed_candidates, key=_wecom_msg_time)
+            else:
+                selected = candidates[-1]
+
+        msg_id = str(selected.get("msgid") or "")
+        external_userid = str(selected.get("external_userid") or "")
+        open_kfid = str(selected.get("open_kfid") or "")
+        text = _wecom_kf_msg_to_text(selected)
+        if not text or not external_userid:
+            return
+        if msg_id:
+            _WECHAT_KF_SEEN_MSG_IDS.add(msg_id)
+            # Keep bounded memory.
+            if len(_WECHAT_KF_SEEN_MSG_IDS) > 2000:
+                _WECHAT_KF_SEEN_MSG_IDS.clear()
+        asyncio.create_task(_handle_intent_bg(text, external_userid, open_kfid=open_kfid))
+        log(
+            f"[WeCom KF] queued inbound text user={external_userid} kf={open_kfid} "
+            f"msgid={msg_id or 'n/a'} expected_msgid={expected_msgid or 'n/a'} "
+            f"event_create_time={event_create_time or 0} msg_time={_wecom_msg_time(selected)} text={text!r}"
+        )
+    except Exception as e:
+        log(f"[WeCom KF] sync processing FAILED: {e}")
 
 
 @router.get("")
-def verify(timestamp: str, nonce: str, signature: str, echostr: str):
+def verify(
+    timestamp: str = "",
+    nonce: str = "",
+    signature: str = "",
+    echostr: str = "",
+    msg_signature: str = "",
+):
+    log(
+        "[WeChat verify] inbound",
+        timestamp=timestamp or "(empty)",
+        nonce=nonce or "(empty)",
+        signature=signature or "(empty)",
+        msg_signature=msg_signature or "(empty)",
+        has_echostr=str(bool(echostr)).lower(),
+    )
+
+    # Some upstream checks probe callback URL without verification params.
+    # Return 200 so domain reachability checks pass before real signature validation.
+    if not timestamp and not nonce and not signature and not msg_signature and not echostr:
+        log("[WeChat verify] probe: empty query params -> 200")
+        return Response(content="ok", media_type="text/plain")
+
     cfg = _get_config()
-    log(f"[WeChat verify] token={cfg['token']!r} signature={signature}")
+    effective_sig = msg_signature or signature
+    if not effective_sig:
+        # Some pre-check flows send timestamp/nonce/echostr without signature.
+        # Respond 200 to allow domain callback validation to proceed.
+        log("[WeChat verify] probe: missing signature -> 200")
+        return Response(content=echostr or "ok", media_type="text/plain")
+    log(
+        f"[WeChat verify] token={cfg['token']!r} signature={effective_sig} "
+        f"mode={'wecom-aes' if msg_signature else 'plain'}"
+    )
     try:
-        check_signature(cfg["token"], signature, timestamp, nonce)
-        log(f"[WeChat verify] OK")
+        if msg_signature and cfg["aes_key"] and cfg["app_id"]:
+            # WeCom callback verification uses msg_signature + encrypted echostr.
+            crypto = EnterpriseWeChatCrypto(cfg["token"], cfg["aes_key"], cfg["app_id"])
+            plain = crypto.check_signature(msg_signature, timestamp, nonce, echostr)
+            log("[WeChat verify] OK (wecom-aes)")
+            return Response(content=plain, media_type="text/plain")
+
+        check_signature(cfg["token"], effective_sig, timestamp, nonce)
+        log("[WeChat verify] OK (plain)")
         return Response(content=echostr, media_type="text/plain")
     except InvalidSignatureException as e:
         log(f"[WeChat verify] FAILED: {e}")
         return Response(content="Invalid signature", status_code=403)
 
 
-async def _handle_intent_bg(text: str, doctor_id: str):
+async def _handle_intent_bg(text: str, doctor_id: str, open_kfid: str = ""):
     """Process intent in background and deliver result via customer service API."""
+    await hydrate_session_state(doctor_id)
     async with get_session_lock(doctor_id):
         sess = get_session(doctor_id)
+        if sess.pending_create_name:
+            result = await _handle_pending_create(text, doctor_id)
+            push_turn(doctor_id, text, result)
+        elif sess.interview is not None:
+            result = await _handle_interview_step(text, doctor_id)
+            push_turn(doctor_id, text, result)
+        else:
+            # Compress rolling window if full or idle before adding new turn
+            await maybe_compress(doctor_id, sess)
 
-        # Compress rolling window if full or idle before adding new turn
-        await maybe_compress(doctor_id, sess)
+            # Build history: inject persisted context only when starting a fresh session
+            history = list(sess.conversation_history)
+            if not history:
+                ctx_msg = await load_context_message(doctor_id)
+                if ctx_msg:
+                    history = [ctx_msg]
 
-        # Build history: inject persisted context only when starting a fresh session
-        history = list(sess.conversation_history)
-        if not history:
-            ctx_msg = await load_context_message(doctor_id)
-            if ctx_msg:
-                history = [ctx_msg]
+            try:
+                result = await _handle_intent(text, doctor_id, history=history)
+            except Exception as e:
+                log(f"[WeChat bg] FAILED: {e}")
+                result = "不好意思，出了点问题，能再说一遍吗？"
 
-        try:
-            result = await _handle_intent(text, doctor_id, history=history)
-        except Exception as e:
-            log(f"[WeChat bg] FAILED: {e}")
-            result = "不好意思，出了点问题，能再说一遍吗？"
-
-        push_turn(doctor_id, text, result)
-    await _send_customer_service_msg(doctor_id, result)
+            push_turn(doctor_id, text, result)
+    try:
+        await _send_customer_service_msg(doctor_id, result, open_kfid=open_kfid)
+    except Exception as e:
+        log(f"[WeChat bg] send FAILED: {e}")
 
 
-async def _handle_voice_bg(media_id: str, doctor_id: str):
+async def _handle_voice_bg(media_id: str, doctor_id: str, open_kfid: str = ""):
     """Download, convert, transcribe WeChat voice, then route through normal pipeline."""
     # --- IO outside lock: no session state accessed ---
     cfg = _get_config()
@@ -498,12 +805,13 @@ async def _handle_voice_bg(media_id: str, doctor_id: str):
         log(f"[Voice] transcribed for {doctor_id}: {text!r}")
     except Exception as e:
         log(f"[Voice] transcription FAILED: {e}")
-        await _send_customer_service_msg(doctor_id, f"❌ 语音识别失败：{e}")
+        await _send_customer_service_msg(doctor_id, f"❌ 语音识别失败：{e}", open_kfid=open_kfid)
         return
 
     # --- state check + stateful routing under lock ---
     route = "intent"
     result = None
+    await hydrate_session_state(doctor_id)
     async with get_session_lock(doctor_id):
         sess = get_session(doctor_id)
         try:
@@ -519,10 +827,10 @@ async def _handle_voice_bg(media_id: str, doctor_id: str):
             route = "done"
 
     if route == "done":
-        await _send_customer_service_msg(doctor_id, f'🎙️ 「{text}」\n\n{result}')
+        await _send_customer_service_msg(doctor_id, f'🎙️ 「{text}」\n\n{result}', open_kfid=open_kfid)
     else:
         # delegate — _handle_intent_bg acquires its own lock
-        await _handle_intent_bg(text, doctor_id)
+        await _handle_intent_bg(text, doctor_id, open_kfid=open_kfid)
 
 
 @router.post("")
@@ -541,13 +849,36 @@ async def handle_message(request: Request):
     log(f"[WeChat msg] body={xml_str[:200]}")
 
     try:
-        if encrypt_type == "aes" and cfg["aes_key"] and cfg["app_id"]:
-            crypto = WeChatCrypto(cfg["token"], cfg["aes_key"], cfg["app_id"])
+        has_encrypt_node = "<Encrypt><![CDATA[" in xml_str or "<Encrypt>" in xml_str
+        should_decrypt = (
+            (encrypt_type == "aes")
+            or (bool(msg_signature) and has_encrypt_node)
+        )
+        if should_decrypt and cfg["aes_key"] and cfg["app_id"]:
+            crypto_cls = EnterpriseWeChatCrypto if cfg["app_id"].startswith("ww") else WeChatCrypto
+            crypto = crypto_cls(cfg["token"], cfg["aes_key"], cfg["app_id"])
             xml_str = crypto.decrypt_message(xml_str, msg_signature, timestamp, nonce)
             log(f"[WeChat msg] decrypted={xml_str[:200]}")
     except Exception as e:
         log(f"[WeChat msg] decrypt FAILED: {e}")
         return Response(content="", media_type="application/xml")
+
+    # WeCom KF callback may send only event=kf_msg_or_event.
+    # The actual customer content is pulled via kf/sync_msg.
+    if _extract_cdata(xml_str, "Event") == "kf_msg_or_event":
+        expected_msgid = _extract_cdata(xml_str, "MsgId") or _extract_cdata(xml_str, "Msgid")
+        create_time_raw = _extract_cdata(xml_str, "CreateTime")
+        try:
+            event_create_time = int(create_time_raw) if create_time_raw else 0
+        except ValueError:
+            event_create_time = 0
+        asyncio.create_task(
+            _handle_wecom_kf_event_bg(
+                expected_msgid=expected_msgid,
+                event_create_time=event_create_time,
+            )
+        )
+        return Response(content="success", media_type="text/plain")
 
     try:
         msg = parse_message(xml_str)
@@ -564,7 +895,8 @@ async def handle_message(request: Request):
 
     # Voice message: ACK immediately, process in background
     if msg.type == "voice":
-        asyncio.create_task(_handle_voice_bg(msg.media_id, msg.source))
+        asyncio.create_task(_handle_voice_bg(msg.media_id, msg.source, _extract_open_kfid(msg)))
+        await hydrate_session_state(msg.source)
         sess = get_session(msg.source)
         if sess.interview is not None:
             ack = f"🎙️ 收到语音，正在识别…\n{sess.interview.progress} {sess.interview.current_question}"
@@ -575,7 +907,7 @@ async def handle_message(request: Request):
 
     # Image message: ACK immediately, extract text via vision LLM in background
     if msg.type == "image":
-        asyncio.create_task(_handle_image_bg(msg.media_id, msg.source))
+        asyncio.create_task(_handle_image_bg(msg.media_id, msg.source, _extract_open_kfid(msg)))
         ack = "🖼️ 收到图片，正在识别文字…"
         reply = TextReply(content=ack, message=msg)
         return Response(content=reply.render(), media_type="application/xml")
@@ -585,6 +917,7 @@ async def handle_message(request: Request):
         return Response(content=reply.render(), media_type="application/xml")
 
     # Stateful flows take priority over intent detection
+    await hydrate_session_state(msg.source)
     sess = get_session(msg.source)
 
     if sess.pending_create_name:
@@ -601,7 +934,7 @@ async def handle_message(request: Request):
 
     # Always background: LLM agent call cannot fit in WeChat's 5s window.
     # Deliver result via customer service API.
-    asyncio.create_task(_handle_intent_bg(msg.content, msg.source))
+    asyncio.create_task(_handle_intent_bg(msg.content, msg.source, _extract_open_kfid(msg)))
     log(f"[WeChat msg] → background task created for {msg.source}")
     reply = TextReply(content="⏳ 正在处理，稍候回复您…", message=msg)
     return Response(content=reply.render(), media_type="application/xml")
