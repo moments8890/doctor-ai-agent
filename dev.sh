@@ -78,8 +78,22 @@ try:
 except Exception:
     print("")
     raise SystemExit
-m = re.search(r'https://[a-z0-9-]+\.trycloudflare\.com', s)
-print(m.group(0) if m else "")
+# Prefer quick tunnel URL when present; otherwise fallback to any public URL emitted by cloudflared.
+quick = re.findall(r'https://[a-z0-9-]+\.trycloudflare\.com', s)
+if quick:
+    print(quick[-1])
+    raise SystemExit
+
+generic = re.findall(r'https?://[A-Za-z0-9.-]+\.[A-Za-z]{2,}(?:/[^\s|]*)?', s)
+for url in reversed(generic):
+    if "127.0.0.1" in url or "localhost" in url:
+        continue
+    if "cloudflare.com" in url and "trycloudflare.com" not in url:
+        continue
+    print(url.rstrip(" .|"))
+    raise SystemExit
+
+print("")
 PY
 }
 
@@ -141,6 +155,7 @@ EOF
 }
 
 write_cloudflared_plist() {
+  local cloudflared_bin="$1"
   mkdir -p "$LAUNCH_AGENTS_DIR"
   cat > "$PLIST_TUNNEL" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -153,7 +168,7 @@ write_cloudflared_plist() {
   <array>
     <string>/bin/bash</string>
     <string>-lc</string>
-    <string>exec cloudflared tunnel --url http://127.0.0.1:$PORT</string>
+    <string>exec "$cloudflared_bin" tunnel --url http://127.0.0.1:$PORT</string>
   </array>
   <key>RunAtLoad</key>
   <true/>
@@ -216,7 +231,8 @@ if ! command -v cloudflared &>/dev/null; then
   fail "cloudflared not found. Install via: brew install cloudflared"
   exit 1
 fi
-ok "cloudflared: $(which cloudflared)"
+CLOUDFLARED_BIN="$(command -v cloudflared)"
+ok "cloudflared: $CLOUDFLARED_BIN"
 
 # ── 1.5 Python env ─────────────────────────────────────────
 if [[ ! -x "$APP_DIR/.venv/bin/uvicorn" ]]; then
@@ -281,7 +297,7 @@ fi
 # ── 3. cloudflared tunnel (always launchd) ─────────────────
 echo ""
 echo "[3/4] Starting cloudflared tunnel..."
-write_cloudflared_plist
+write_cloudflared_plist "$CLOUDFLARED_BIN"
 > "$LOG_TUNNEL" 2>/dev/null || true
 launchctl unload "$PLIST_TUNNEL" 2>/dev/null || true
 launchctl load   "$PLIST_TUNNEL"
@@ -308,7 +324,10 @@ for i in $(seq 1 30); do
     ok "cloudflared tunnel online → $NATAPP_URL"
     break
   fi
-  [ "$i" -eq 30 ] && warn "Could not confirm tunnel URL — check: tail -f $LOG_TUNNEL"
+  if [[ "$i" -eq 30 ]]; then
+    warn "Could not confirm tunnel URL — check: tail -f $LOG_TUNNEL"
+    tail -20 "$LOG_TUNNEL" 2>/dev/null || true
+  fi
   sleep 1
 done
 

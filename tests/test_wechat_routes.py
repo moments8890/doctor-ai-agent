@@ -1,5 +1,6 @@
 """Additional branch tests for routers/wechat.py."""
 
+import asyncio
 from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -618,6 +619,30 @@ async def test_handle_intent_bg_pending_create_bypasses_llm():
     send_msg.assert_awaited_once()
 
 
+async def test_handle_intent_bg_kf_schedules_customer_prefetch():
+    captured = {"scheduled": False}
+
+    async def _fake_prefetch(_doctor_id):
+        captured["scheduled"] = True
+
+    def _capture_task(coro):
+        # Run enrichment task immediately for deterministic assertion.
+        return asyncio.get_running_loop().create_task(coro)
+
+    with patch("routers.wechat.get_session_lock", return_value=DummyLock()), \
+         patch("routers.wechat.prefetch_customer_profile", side_effect=_fake_prefetch), \
+         patch("routers.wechat.asyncio.create_task", side_effect=_capture_task), \
+         patch("routers.wechat.maybe_compress", new=AsyncMock()), \
+         patch("routers.wechat.load_context_message", new=AsyncMock(return_value=None)), \
+         patch("routers.wechat._handle_intent", new=AsyncMock(return_value="ok")), \
+         patch("routers.wechat.push_turn"), \
+         patch("routers.wechat._send_customer_service_msg", new=AsyncMock()):
+        await wechat._handle_intent_bg("hello", DOCTOR, open_kfid="wk-001")
+        await asyncio.sleep(0.01)
+
+    assert captured["scheduled"] is True
+
+
 async def test_voice_and_image_bg_error_paths():
     with patch("routers.wechat._get_access_token", new=AsyncMock(side_effect=RuntimeError("no token"))), \
          patch("routers.wechat._send_customer_service_msg", new=AsyncMock()) as send_msg:
@@ -743,6 +768,36 @@ async def test_handle_message_parse_and_decrypt_failure_paths():
     assert resp2.status_code == 200
 
 
+async def test_handle_message_kf_event_passes_token_and_open_kfid_to_sync_task():
+    req = DummyRequest(
+        body=(
+            "<xml>"
+            "<Event><![CDATA[kf_msg_or_event]]></Event>"
+            "<MsgId><![CDATA[msg-1]]></MsgId>"
+            "<CreateTime>5000</CreateTime>"
+            "<Token><![CDATA[event-token-1]]></Token>"
+            "<OpenKfId><![CDATA[wk-open-kf-1]]></OpenKfId>"
+            "</xml>"
+        )
+    )
+
+    captured = {}
+
+    def _capture_task(coro):
+        captured.update(coro.cr_frame.f_locals)
+        coro.close()
+        return None
+
+    with patch("routers.wechat.asyncio.create_task", side_effect=_capture_task):
+        resp = await wechat.handle_message(req)
+
+    assert resp.status_code == 200
+    assert captured.get("expected_msgid") == "msg-1"
+    assert captured.get("event_create_time") == 5000
+    assert captured.get("event_token") == "event-token-1"
+    assert captured.get("event_open_kfid") == "wk-open-kf-1"
+
+
 async def test_setup_menu_status_paths():
     with patch("routers.wechat._get_access_token", new=AsyncMock(return_value="tok")), \
          patch("routers.wechat.create_menu", new=AsyncMock(return_value={"errcode": 0})):
@@ -843,6 +898,75 @@ async def test_wecom_kf_sync_paginates_and_picks_nearest_event_message():
     assert captured["locals"]["text"] == "我是张三"
     assert captured["locals"]["doctor_id"] == "u1"
     assert captured["locals"]["open_kfid"] == "kf1"
+
+
+async def test_wecom_kf_sync_includes_event_token_and_open_kfid_in_payload():
+    wechat._WECHAT_KF_SYNC_CURSOR = ""
+    wechat._WECHAT_KF_CURSOR_LOADED = True
+    wechat._WECHAT_KF_SEEN_MSG_IDS.clear()
+
+    data = {
+        "errcode": 0,
+        "has_more": 0,
+        "next_cursor": "c1",
+        "msg_list": [
+            {
+                "origin": 3,
+                "msgid": "new-1",
+                "external_userid": "u1",
+                "open_kfid": "kf1",
+                "send_time": 5001,
+                "msgtype": "text",
+                "text": {"content": "我是张三"},
+            }
+        ],
+    }
+
+    class _Resp:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return data
+
+    class _Client:
+        def __init__(self):
+            self.calls = []
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, _url, params, json):
+            self.calls.append({"params": params, "json": dict(json)})
+            return _Resp()
+
+    client = _Client()
+
+    def _consume_task(coro):
+        coro.close()
+        return None
+
+    with patch(
+        "routers.wechat._get_config",
+        return_value={"app_id": "ww-corp", "app_secret": "sec"},
+    ), patch("routers.wechat._get_access_token", new=AsyncMock(return_value="tok")), \
+         patch("routers.wechat.httpx.AsyncClient", return_value=client), \
+         patch("routers.wechat.asyncio.create_task", side_effect=_consume_task), \
+         patch("routers.wechat._persist_wecom_kf_sync_cursor"):
+        await wechat._handle_wecom_kf_event_bg(
+            expected_msgid="",
+            event_create_time=5000,
+            event_token="event-token-1",
+            event_open_kfid="wk-open-kf-1",
+        )
+
+    assert client.calls, "sync_msg should be called at least once"
+    request_json = client.calls[0]["json"]
+    assert request_json.get("token") == "event-token-1"
+    assert request_json.get("open_kfid") == "wk-open-kf-1"
 
 
 async def test_wecom_kf_sync_skips_stale_batch_when_event_time_far_away():

@@ -1,0 +1,3602 @@
+[
+  {
+    "case_id": "CASUAL-E2E-001",
+    "title": "Casual real-world workflow case 001",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "早上好，先帮我记个病例。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，您说，我边听边整理。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "沈卓，胸痛2小时伴大汗恶心。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已记录。我会补充关键检查词：STEMI、PCI。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "行，保存并给个简短随访建议。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已保存，并附上简短随访建议。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "沈卓",
+        "STEMI",
+        "PCI"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-002",
+    "title": "Casual real-world workflow case 002",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "有个患者胸闷反复1周活动后加重，先记一下。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，先确认患者姓名以关联历史。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "叫高宁。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已关联高宁，建议补做NYHA评估。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "好，写进去。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已补充并保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "高宁",
+        "BNP",
+        "EF"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-003",
+    "title": "Casual real-world workflow case 003",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "许宁，先记：心悸半天。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补一句：昨晚加重。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，我按同一患者连续补充，不新建。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "检查有HER2异常，另外看ANC。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已合并到同一患者记录。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "许宁",
+        "HER2",
+        "ANC"
+      ],
+      "expect_patient_dedup": true
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-004",
+    "title": "Casual real-world workflow case 004",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先看下我还有几个待办。"
+      },
+      {
+        "speaker": "agent",
+        "text": "可以，我先拉取待办列表。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "然后记一个：何川，头痛2天睡眠差。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已记录并创建相关提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把第1条标记完成。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已标记第1条为已完成。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "何川",
+        "EGFR",
+        "CKD",
+        "待办",
+        "已完成"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-005",
+    "title": "Casual real-world workflow case 005",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "Quick one: 林烁, chest discomfort after exertion."
+      },
+      {
+        "speaker": "agent",
+        "text": "Got it. Any key tests?"
+      },
+      {
+        "speaker": "doctor",
+        "text": "ECG pending, consider NIHSS, follow-up in 72h."
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，我会中文输出并保留英文关键词。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "可以，保存。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "林烁",
+        "CTA",
+        "卒中流程"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-006",
+    "title": "Casual real-world workflow case 006",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "我口述长一点：陈默，夜间阵发性呼吸困难。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，继续。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "更正一下，刚才家族史说错了：父亲有早发心梗。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已按更正信息更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "另外写上STEMI和hs-cTnI。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已补充并保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "陈默",
+        "STEMI",
+        "PCI"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-007",
+    "title": "Casual real-world workflow case 007",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "周煜，突发胸痛2x小时，心电土疑ST抬高。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已识别语音误差文本并标准化。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "嗯，考虑BNP，准备EF。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，已写入标准病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "周煜",
+        "BNP",
+        "EF"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-008",
+    "title": "Casual real-world workflow case 008",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "建两个：顾帆，右上肢乏力伴口角歪斜；以及王然，胸闷3天。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已建立两位患者并保存摘要。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询顾帆的病历概要。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已返回顾帆最近病历概要。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再给我所有患者列表。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已返回当前患者列表。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "顾帆",
+        "HER2",
+        "ANC"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-009",
+    "title": "Casual real-world workflow case 009",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "尹晴，头痛2天，睡眠一般。"
+      },
+      {
+        "speaker": "agent",
+        "text": "信息较少，建议先基础评估，不做激进治疗结论。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "对，先观察。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已按保守策略保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "尹晴",
+        "EGFR",
+        "CKD",
+        "基础评估",
+        "观察"
+      ],
+      "expect_no_aggressive_treatment": true
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-010",
+    "title": "Casual real-world workflow case 010",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "赵岚现在症状加重，下肢水肿进行性加重。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，建议优先处理急症风险并记录处置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "帮我设今天18:00复查提醒。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已设置18:00提醒并写入随访计划。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "赵岚",
+        "CTA",
+        "卒中流程",
+        "18:00",
+        "提醒"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-011",
+    "title": "Casual real-world workflow case 011",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "早上好，先帮我记个病例。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，您说，我边听边整理。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "黎峰，胸痛2小时伴大汗恶心。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已记录。我会补充关键检查词：STEMI、PCI。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "行，保存并给个简短随访建议。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已保存，并附上简短随访建议。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "黎峰",
+        "STEMI",
+        "PCI"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-012",
+    "title": "Casual real-world workflow case 012",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "有个患者胸闷反复1周活动后加重，先记一下。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，先确认患者姓名以关联历史。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "叫王述。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已关联王述，建议补做NYHA评估。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "好，写进去。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已补充并保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "王述",
+        "BNP",
+        "EF"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-013",
+    "title": "Casual real-world workflow case 013",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "李雷，先记：心悸半天。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补一句：昨晚加重。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，我按同一患者连续补充，不新建。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "检查有HER2异常，另外看ANC。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已合并到同一患者记录。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "李雷",
+        "HER2",
+        "ANC"
+      ],
+      "expect_patient_dedup": true
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-014",
+    "title": "Casual real-world workflow case 014",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先看下我还有几个待办。"
+      },
+      {
+        "speaker": "agent",
+        "text": "可以，我先拉取待办列表。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "然后记一个：张明，头痛2天睡眠差。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已记录并创建相关提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把第1条标记完成。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已标记第1条为已完成。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "张明",
+        "EGFR",
+        "CKD",
+        "待办",
+        "已完成"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-015",
+    "title": "Casual real-world workflow case 015",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "Quick one: 王芳, chest discomfort after exertion."
+      },
+      {
+        "speaker": "agent",
+        "text": "Got it. Any key tests?"
+      },
+      {
+        "speaker": "doctor",
+        "text": "ECG pending, consider NIHSS, follow-up in 72h."
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，我会中文输出并保留英文关键词。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "可以，保存。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "王芳",
+        "CTA",
+        "卒中流程"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-016",
+    "title": "Casual real-world workflow case 016",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "我口述长一点：赵伟，夜间阵发性呼吸困难。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，继续。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "更正一下，刚才家族史说错了：父亲有早发心梗。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已按更正信息更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "另外写上STEMI和hs-cTnI。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已补充并保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "赵伟",
+        "STEMI",
+        "PCI"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-017",
+    "title": "Casual real-world workflow case 017",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "陈秀英，突发胸痛2x小时，心电土疑ST抬高。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已识别语音误差文本并标准化。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "嗯，考虑BNP，准备EF。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，已写入标准病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "陈秀英",
+        "BNP",
+        "EF"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-018",
+    "title": "Casual real-world workflow case 018",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "建两个：陆衡，右上肢乏力伴口角歪斜；以及王然，胸闷3天。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已建立两位患者并保存摘要。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询陆衡的病历概要。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已返回陆衡最近病历概要。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再给我所有患者列表。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已返回当前患者列表。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "陆衡",
+        "HER2",
+        "ANC"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-019",
+    "title": "Casual real-world workflow case 019",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "韩伟，头痛2天，睡眠一般。"
+      },
+      {
+        "speaker": "agent",
+        "text": "信息较少，建议先基础评估，不做激进治疗结论。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "对，先观察。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已按保守策略保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "韩伟",
+        "EGFR",
+        "CKD",
+        "基础评估",
+        "观察"
+      ],
+      "expect_no_aggressive_treatment": true
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-020",
+    "title": "Casual real-world workflow case 020",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "孙宁现在症状加重，下肢水肿进行性加重。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，建议优先处理急症风险并记录处置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "帮我设今天18:00复查提醒。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已设置18:00提醒并写入随访计划。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "孙宁",
+        "CTA",
+        "卒中流程",
+        "18:00",
+        "提醒"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-021",
+    "title": "Casual real-world workflow case 021",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "早上好，先帮我记个病例。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，您说，我边听边整理。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "郑凯，胸痛2小时伴大汗恶心。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已记录。我会补充关键检查词：STEMI、PCI。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "行，保存并给个简短随访建议。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已保存，并附上简短随访建议。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "郑凯",
+        "STEMI",
+        "PCI"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-022",
+    "title": "Casual real-world workflow case 022",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "有个患者胸闷反复1周活动后加重，先记一下。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，先确认患者姓名以关联历史。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "叫吴迪。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已关联吴迪，建议补做NYHA评估。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "好，写进去。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已补充并保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "吴迪",
+        "BNP",
+        "EF"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-023",
+    "title": "Casual real-world workflow case 023",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "马涛，先记：心悸半天。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补一句：昨晚加重。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，我按同一患者连续补充，不新建。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "检查有HER2异常，另外看ANC。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已合并到同一患者记录。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "马涛",
+        "HER2",
+        "ANC"
+      ],
+      "expect_patient_dedup": true
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-024",
+    "title": "Casual real-world workflow case 024",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先看下我还有几个待办。"
+      },
+      {
+        "speaker": "agent",
+        "text": "可以，我先拉取待办列表。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "然后记一个：彭越，头痛2天睡眠差。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已记录并创建相关提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把第1条标记完成。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已标记第1条为已完成。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "彭越",
+        "EGFR",
+        "CKD",
+        "待办",
+        "已完成"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-025",
+    "title": "Casual real-world workflow case 025",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "Quick one: 蒋晨, chest discomfort after exertion."
+      },
+      {
+        "speaker": "agent",
+        "text": "Got it. Any key tests?"
+      },
+      {
+        "speaker": "doctor",
+        "text": "ECG pending, consider NIHSS, follow-up in 72h."
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，我会中文输出并保留英文关键词。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "可以，保存。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "蒋晨",
+        "CTA",
+        "卒中流程"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-026",
+    "title": "Casual real-world workflow case 026",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "我口述长一点：方岳，夜间阵发性呼吸困难。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，继续。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "更正一下，刚才家族史说错了：父亲有早发心梗。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已按更正信息更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "另外写上STEMI和hs-cTnI。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已补充并保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "方岳",
+        "STEMI",
+        "PCI"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-027",
+    "title": "Casual real-world workflow case 027",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "陶然，突发胸痛2x小时，心电土疑ST抬高。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已识别语音误差文本并标准化。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "嗯，考虑BNP，准备EF。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，已写入标准病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "陶然",
+        "BNP",
+        "EF"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-028",
+    "title": "Casual real-world workflow case 028",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "建两个：曹宇，右上肢乏力伴口角歪斜；以及王然，胸闷3天。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已建立两位患者并保存摘要。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询曹宇的病历概要。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已返回曹宇最近病历概要。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再给我所有患者列表。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已返回当前患者列表。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "曹宇",
+        "HER2",
+        "ANC"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-029",
+    "title": "Casual real-world workflow case 029",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "朱琳，头痛2天，睡眠一般。"
+      },
+      {
+        "speaker": "agent",
+        "text": "信息较少，建议先基础评估，不做激进治疗结论。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "对，先观察。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已按保守策略保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "朱琳",
+        "EGFR",
+        "CKD",
+        "基础评估",
+        "观察"
+      ],
+      "expect_no_aggressive_treatment": true
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-030",
+    "title": "Casual real-world workflow case 030",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "丁浩现在症状加重，下肢水肿进行性加重。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，建议优先处理急症风险并记录处置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "帮我设今天18:00复查提醒。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已设置18:00提醒并写入随访计划。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "丁浩",
+        "CTA",
+        "卒中流程",
+        "18:00",
+        "提醒"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-031",
+    "title": "Casual real-world workflow case 031",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "早上好，先帮我记个病例。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，您说，我边听边整理。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "冯博，胸痛2小时伴大汗恶心。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已记录。我会补充关键检查词：STEMI、PCI。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "行，保存并给个简短随访建议。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已保存，并附上简短随访建议。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "冯博",
+        "STEMI",
+        "PCI"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-032",
+    "title": "Casual real-world workflow case 032",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "有个患者胸闷反复1周活动后加重，先记一下。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，先确认患者姓名以关联历史。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "叫谢宁。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已关联谢宁，建议补做NYHA评估。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "好，写进去。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已补充并保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "谢宁",
+        "BNP",
+        "EF"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-033",
+    "title": "Casual real-world workflow case 033",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "罗青，先记：心悸半天。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补一句：昨晚加重。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，我按同一患者连续补充，不新建。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "检查有HER2异常，另外看ANC。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已合并到同一患者记录。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "罗青",
+        "HER2",
+        "ANC"
+      ],
+      "expect_patient_dedup": true
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-034",
+    "title": "Casual real-world workflow case 034",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先看下我还有几个待办。"
+      },
+      {
+        "speaker": "agent",
+        "text": "可以，我先拉取待办列表。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "然后记一个：邵峰，头痛2天睡眠差。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已记录并创建相关提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把第1条标记完成。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已标记第1条为已完成。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "邵峰",
+        "EGFR",
+        "CKD",
+        "待办",
+        "已完成"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-035",
+    "title": "Casual real-world workflow case 035",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "Quick one: 潘越, chest discomfort after exertion."
+      },
+      {
+        "speaker": "agent",
+        "text": "Got it. Any key tests?"
+      },
+      {
+        "speaker": "doctor",
+        "text": "ECG pending, consider NIHSS, follow-up in 72h."
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，我会中文输出并保留英文关键词。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "可以，保存。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "潘越",
+        "CTA",
+        "卒中流程"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-036",
+    "title": "Casual real-world workflow case 036",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "我口述长一点：唐莉，夜间阵发性呼吸困难。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，继续。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "更正一下，刚才家族史说错了：父亲有早发心梗。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已按更正信息更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "另外写上STEMI和hs-cTnI。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已补充并保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "唐莉",
+        "STEMI",
+        "PCI"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-037",
+    "title": "Casual real-world workflow case 037",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "杜航，突发胸痛2x小时，心电土疑ST抬高。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已识别语音误差文本并标准化。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "嗯，考虑BNP，准备EF。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，已写入标准病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "杜航",
+        "BNP",
+        "EF"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-038",
+    "title": "Casual real-world workflow case 038",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "建两个：龚晨，右上肢乏力伴口角歪斜；以及王然，胸闷3天。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已建立两位患者并保存摘要。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询龚晨的病历概要。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已返回龚晨最近病历概要。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再给我所有患者列表。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已返回当前患者列表。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "龚晨",
+        "HER2",
+        "ANC"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-039",
+    "title": "Casual real-world workflow case 039",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "夏楠，头痛2天，睡眠一般。"
+      },
+      {
+        "speaker": "agent",
+        "text": "信息较少，建议先基础评估，不做激进治疗结论。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "对，先观察。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已按保守策略保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "夏楠",
+        "EGFR",
+        "CKD",
+        "基础评估",
+        "观察"
+      ],
+      "expect_no_aggressive_treatment": true
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-040",
+    "title": "Casual real-world workflow case 040",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "程远现在症状加重，下肢水肿进行性加重。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，建议优先处理急症风险并记录处置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "帮我设今天18:00复查提醒。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已设置18:00提醒并写入随访计划。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "程远",
+        "CTA",
+        "卒中流程",
+        "18:00",
+        "提醒"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-041",
+    "title": "Casual real-world workflow case 041",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "早上好，先帮我记个病例。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，您说，我边听边整理。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "贺林，胸痛2小时伴大汗恶心。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已记录。我会补充关键检查词：STEMI、PCI。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "行，保存并给个简短随访建议。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已保存，并附上简短随访建议。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "贺林",
+        "STEMI",
+        "PCI"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-042",
+    "title": "Casual real-world workflow case 042",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "有个患者胸闷反复1周活动后加重，先记一下。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，先确认患者姓名以关联历史。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "叫袁静。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已关联袁静，建议补做NYHA评估。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "好，写进去。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已补充并保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "袁静",
+        "BNP",
+        "EF"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-043",
+    "title": "Casual real-world workflow case 043",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "汪凯，先记：心悸半天。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补一句：昨晚加重。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，我按同一患者连续补充，不新建。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "检查有HER2异常，另外看ANC。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已合并到同一患者记录。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "汪凯",
+        "HER2",
+        "ANC"
+      ],
+      "expect_patient_dedup": true
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-044",
+    "title": "Casual real-world workflow case 044",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先看下我还有几个待办。"
+      },
+      {
+        "speaker": "agent",
+        "text": "可以，我先拉取待办列表。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "然后记一个：崔洋，头痛2天睡眠差。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已记录并创建相关提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把第1条标记完成。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已标记第1条为已完成。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "崔洋",
+        "EGFR",
+        "CKD",
+        "待办",
+        "已完成"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-045",
+    "title": "Casual real-world workflow case 045",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "Quick one: 梁朔, chest discomfort after exertion."
+      },
+      {
+        "speaker": "agent",
+        "text": "Got it. Any key tests?"
+      },
+      {
+        "speaker": "doctor",
+        "text": "ECG pending, consider NIHSS, follow-up in 72h."
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，我会中文输出并保留英文关键词。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "可以，保存。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "梁朔",
+        "CTA",
+        "卒中流程"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-046",
+    "title": "Casual real-world workflow case 046",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "我口述长一点：宋然，夜间阵发性呼吸困难。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，继续。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "更正一下，刚才家族史说错了：父亲有早发心梗。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已按更正信息更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "另外写上STEMI和hs-cTnI。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已补充并保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "宋然",
+        "STEMI",
+        "PCI"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-047",
+    "title": "Casual real-world workflow case 047",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "徐恒，突发胸痛2x小时，心电土疑ST抬高。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已识别语音误差文本并标准化。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "嗯，考虑BNP，准备EF。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，已写入标准病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "徐恒",
+        "BNP",
+        "EF"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-048",
+    "title": "Casual real-world workflow case 048",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "建两个：孔锐，右上肢乏力伴口角歪斜；以及王然，胸闷3天。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已建立两位患者并保存摘要。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询孔锐的病历概要。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已返回孔锐最近病历概要。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再给我所有患者列表。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已返回当前患者列表。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "孔锐",
+        "HER2",
+        "ANC"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-049",
+    "title": "Casual real-world workflow case 049",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "邹宁，头痛2天，睡眠一般。"
+      },
+      {
+        "speaker": "agent",
+        "text": "信息较少，建议先基础评估，不做激进治疗结论。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "对，先观察。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已按保守策略保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "邹宁",
+        "EGFR",
+        "CKD",
+        "基础评估",
+        "观察"
+      ],
+      "expect_no_aggressive_treatment": true
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-050",
+    "title": "Casual real-world workflow case 050",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "郝峰现在症状加重，下肢水肿进行性加重。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，建议优先处理急症风险并记录处置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "帮我设今天18:00复查提醒。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已设置18:00提醒并写入随访计划。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "郝峰",
+        "CTA",
+        "卒中流程",
+        "18:00",
+        "提醒"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-051",
+    "title": "Casual real-world workflow case 051",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "早上好，先帮我记个病例。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，您说，我边听边整理。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "沈卓，胸痛2小时伴大汗恶心。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已记录。我会补充关键检查词：STEMI、PCI。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "行，保存并给个简短随访建议。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已保存，并附上简短随访建议。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "沈卓",
+        "STEMI",
+        "PCI"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-052",
+    "title": "Casual real-world workflow case 052",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "有个患者胸闷反复1周活动后加重，先记一下。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，先确认患者姓名以关联历史。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "叫高宁。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已关联高宁，建议补做NYHA评估。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "好，写进去。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已补充并保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "高宁",
+        "BNP",
+        "EF"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-053",
+    "title": "Casual real-world workflow case 053",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "许宁，先记：心悸半天。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补一句：昨晚加重。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，我按同一患者连续补充，不新建。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "检查有HER2异常，另外看ANC。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已合并到同一患者记录。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "许宁",
+        "HER2",
+        "ANC"
+      ],
+      "expect_patient_dedup": true
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-054",
+    "title": "Casual real-world workflow case 054",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先看下我还有几个待办。"
+      },
+      {
+        "speaker": "agent",
+        "text": "可以，我先拉取待办列表。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "然后记一个：何川，头痛2天睡眠差。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已记录并创建相关提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把第1条标记完成。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已标记第1条为已完成。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "何川",
+        "EGFR",
+        "CKD",
+        "待办",
+        "已完成"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-055",
+    "title": "Casual real-world workflow case 055",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "Quick one: 林烁, chest discomfort after exertion."
+      },
+      {
+        "speaker": "agent",
+        "text": "Got it. Any key tests?"
+      },
+      {
+        "speaker": "doctor",
+        "text": "ECG pending, consider NIHSS, follow-up in 72h."
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，我会中文输出并保留英文关键词。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "可以，保存。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "林烁",
+        "CTA",
+        "卒中流程"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-056",
+    "title": "Casual real-world workflow case 056",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "我口述长一点：陈默，夜间阵发性呼吸困难。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，继续。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "更正一下，刚才家族史说错了：父亲有早发心梗。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已按更正信息更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "另外写上STEMI和hs-cTnI。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已补充并保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "陈默",
+        "STEMI",
+        "PCI"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-057",
+    "title": "Casual real-world workflow case 057",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "周煜，突发胸痛2x小时，心电土疑ST抬高。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已识别语音误差文本并标准化。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "嗯，考虑BNP，准备EF。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，已写入标准病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "周煜",
+        "BNP",
+        "EF"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-058",
+    "title": "Casual real-world workflow case 058",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "建两个：顾帆，右上肢乏力伴口角歪斜；以及王然，胸闷3天。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已建立两位患者并保存摘要。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询顾帆的病历概要。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已返回顾帆最近病历概要。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再给我所有患者列表。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已返回当前患者列表。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "顾帆",
+        "HER2",
+        "ANC"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-059",
+    "title": "Casual real-world workflow case 059",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "尹晴，头痛2天，睡眠一般。"
+      },
+      {
+        "speaker": "agent",
+        "text": "信息较少，建议先基础评估，不做激进治疗结论。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "对，先观察。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已按保守策略保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "尹晴",
+        "EGFR",
+        "CKD",
+        "基础评估",
+        "观察"
+      ],
+      "expect_no_aggressive_treatment": true
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-060",
+    "title": "Casual real-world workflow case 060",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "赵岚现在症状加重，下肢水肿进行性加重。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，建议优先处理急症风险并记录处置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "帮我设今天18:00复查提醒。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已设置18:00提醒并写入随访计划。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "赵岚",
+        "CTA",
+        "卒中流程",
+        "18:00",
+        "提醒"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-061",
+    "title": "Casual real-world workflow case 061",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "早上好，先帮我记个病例。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，您说，我边听边整理。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "黎峰，胸痛2小时伴大汗恶心。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已记录。我会补充关键检查词：STEMI、PCI。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "行，保存并给个简短随访建议。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已保存，并附上简短随访建议。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "黎峰",
+        "STEMI",
+        "PCI"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-062",
+    "title": "Casual real-world workflow case 062",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "有个患者胸闷反复1周活动后加重，先记一下。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，先确认患者姓名以关联历史。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "叫王述。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已关联王述，建议补做NYHA评估。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "好，写进去。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已补充并保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "王述",
+        "BNP",
+        "EF"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-063",
+    "title": "Casual real-world workflow case 063",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "李雷，先记：心悸半天。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补一句：昨晚加重。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，我按同一患者连续补充，不新建。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "检查有HER2异常，另外看ANC。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已合并到同一患者记录。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "李雷",
+        "HER2",
+        "ANC"
+      ],
+      "expect_patient_dedup": true
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-064",
+    "title": "Casual real-world workflow case 064",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先看下我还有几个待办。"
+      },
+      {
+        "speaker": "agent",
+        "text": "可以，我先拉取待办列表。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "然后记一个：张明，头痛2天睡眠差。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已记录并创建相关提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把第1条标记完成。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已标记第1条为已完成。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "张明",
+        "EGFR",
+        "CKD",
+        "待办",
+        "已完成"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-065",
+    "title": "Casual real-world workflow case 065",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "Quick one: 王芳, chest discomfort after exertion."
+      },
+      {
+        "speaker": "agent",
+        "text": "Got it. Any key tests?"
+      },
+      {
+        "speaker": "doctor",
+        "text": "ECG pending, consider NIHSS, follow-up in 72h."
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，我会中文输出并保留英文关键词。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "可以，保存。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "王芳",
+        "CTA",
+        "卒中流程"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-066",
+    "title": "Casual real-world workflow case 066",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "我口述长一点：赵伟，夜间阵发性呼吸困难。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，继续。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "更正一下，刚才家族史说错了：父亲有早发心梗。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已按更正信息更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "另外写上STEMI和hs-cTnI。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已补充并保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "赵伟",
+        "STEMI",
+        "PCI"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-067",
+    "title": "Casual real-world workflow case 067",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "陈秀英，突发胸痛2x小时，心电土疑ST抬高。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已识别语音误差文本并标准化。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "嗯，考虑BNP，准备EF。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，已写入标准病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "陈秀英",
+        "BNP",
+        "EF"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-068",
+    "title": "Casual real-world workflow case 068",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "建两个：陆衡，右上肢乏力伴口角歪斜；以及王然，胸闷3天。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已建立两位患者并保存摘要。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询陆衡的病历概要。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已返回陆衡最近病历概要。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再给我所有患者列表。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已返回当前患者列表。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "陆衡",
+        "HER2",
+        "ANC"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-069",
+    "title": "Casual real-world workflow case 069",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "韩伟，头痛2天，睡眠一般。"
+      },
+      {
+        "speaker": "agent",
+        "text": "信息较少，建议先基础评估，不做激进治疗结论。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "对，先观察。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已按保守策略保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "韩伟",
+        "EGFR",
+        "CKD",
+        "基础评估",
+        "观察"
+      ],
+      "expect_no_aggressive_treatment": true
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-070",
+    "title": "Casual real-world workflow case 070",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "孙宁现在症状加重，下肢水肿进行性加重。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，建议优先处理急症风险并记录处置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "帮我设今天18:00复查提醒。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已设置18:00提醒并写入随访计划。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "孙宁",
+        "CTA",
+        "卒中流程",
+        "18:00",
+        "提醒"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-071",
+    "title": "Casual real-world workflow case 071",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "早上好，先帮我记个病例。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，您说，我边听边整理。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "郑凯，胸痛2小时伴大汗恶心。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已记录。我会补充关键检查词：STEMI、PCI。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "行，保存并给个简短随访建议。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已保存，并附上简短随访建议。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "郑凯",
+        "STEMI",
+        "PCI"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-072",
+    "title": "Casual real-world workflow case 072",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "有个患者胸闷反复1周活动后加重，先记一下。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，先确认患者姓名以关联历史。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "叫吴迪。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已关联吴迪，建议补做NYHA评估。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "好，写进去。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已补充并保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "吴迪",
+        "BNP",
+        "EF"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-073",
+    "title": "Casual real-world workflow case 073",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "马涛，先记：心悸半天。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补一句：昨晚加重。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，我按同一患者连续补充，不新建。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "检查有HER2异常，另外看ANC。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已合并到同一患者记录。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "马涛",
+        "HER2",
+        "ANC"
+      ],
+      "expect_patient_dedup": true
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-074",
+    "title": "Casual real-world workflow case 074",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先看下我还有几个待办。"
+      },
+      {
+        "speaker": "agent",
+        "text": "可以，我先拉取待办列表。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "然后记一个：彭越，头痛2天睡眠差。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已记录并创建相关提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把第1条标记完成。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已标记第1条为已完成。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "彭越",
+        "EGFR",
+        "CKD",
+        "待办",
+        "已完成"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-075",
+    "title": "Casual real-world workflow case 075",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "Quick one: 蒋晨, chest discomfort after exertion."
+      },
+      {
+        "speaker": "agent",
+        "text": "Got it. Any key tests?"
+      },
+      {
+        "speaker": "doctor",
+        "text": "ECG pending, consider NIHSS, follow-up in 72h."
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，我会中文输出并保留英文关键词。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "可以，保存。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "蒋晨",
+        "CTA",
+        "卒中流程"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-076",
+    "title": "Casual real-world workflow case 076",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "我口述长一点：方岳，夜间阵发性呼吸困难。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，继续。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "更正一下，刚才家族史说错了：父亲有早发心梗。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已按更正信息更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "另外写上STEMI和hs-cTnI。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已补充并保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "方岳",
+        "STEMI",
+        "PCI"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-077",
+    "title": "Casual real-world workflow case 077",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "陶然，突发胸痛2x小时，心电土疑ST抬高。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已识别语音误差文本并标准化。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "嗯，考虑BNP，准备EF。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，已写入标准病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "陶然",
+        "BNP",
+        "EF"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-078",
+    "title": "Casual real-world workflow case 078",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "建两个：曹宇，右上肢乏力伴口角歪斜；以及王然，胸闷3天。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已建立两位患者并保存摘要。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询曹宇的病历概要。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已返回曹宇最近病历概要。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再给我所有患者列表。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已返回当前患者列表。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "曹宇",
+        "HER2",
+        "ANC"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-079",
+    "title": "Casual real-world workflow case 079",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "朱琳，头痛2天，睡眠一般。"
+      },
+      {
+        "speaker": "agent",
+        "text": "信息较少，建议先基础评估，不做激进治疗结论。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "对，先观察。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已按保守策略保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "朱琳",
+        "EGFR",
+        "CKD",
+        "基础评估",
+        "观察"
+      ],
+      "expect_no_aggressive_treatment": true
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-080",
+    "title": "Casual real-world workflow case 080",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "丁浩现在症状加重，下肢水肿进行性加重。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，建议优先处理急症风险并记录处置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "帮我设今天18:00复查提醒。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已设置18:00提醒并写入随访计划。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "丁浩",
+        "CTA",
+        "卒中流程",
+        "18:00",
+        "提醒"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-081",
+    "title": "Casual real-world workflow case 081",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "早上好，先帮我记个病例。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，您说，我边听边整理。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "冯博，胸痛2小时伴大汗恶心。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已记录。我会补充关键检查词：STEMI、PCI。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "行，保存并给个简短随访建议。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已保存，并附上简短随访建议。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "冯博",
+        "STEMI",
+        "PCI"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-082",
+    "title": "Casual real-world workflow case 082",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "有个患者胸闷反复1周活动后加重，先记一下。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，先确认患者姓名以关联历史。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "叫谢宁。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已关联谢宁，建议补做NYHA评估。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "好，写进去。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已补充并保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "谢宁",
+        "BNP",
+        "EF"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-083",
+    "title": "Casual real-world workflow case 083",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "罗青，先记：心悸半天。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补一句：昨晚加重。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，我按同一患者连续补充，不新建。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "检查有HER2异常，另外看ANC。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已合并到同一患者记录。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "罗青",
+        "HER2",
+        "ANC"
+      ],
+      "expect_patient_dedup": true
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-084",
+    "title": "Casual real-world workflow case 084",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先看下我还有几个待办。"
+      },
+      {
+        "speaker": "agent",
+        "text": "可以，我先拉取待办列表。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "然后记一个：邵峰，头痛2天睡眠差。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已记录并创建相关提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把第1条标记完成。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已标记第1条为已完成。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "邵峰",
+        "EGFR",
+        "CKD",
+        "待办",
+        "已完成"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-085",
+    "title": "Casual real-world workflow case 085",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "Quick one: 潘越, chest discomfort after exertion."
+      },
+      {
+        "speaker": "agent",
+        "text": "Got it. Any key tests?"
+      },
+      {
+        "speaker": "doctor",
+        "text": "ECG pending, consider NIHSS, follow-up in 72h."
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，我会中文输出并保留英文关键词。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "可以，保存。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "潘越",
+        "CTA",
+        "卒中流程"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-086",
+    "title": "Casual real-world workflow case 086",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "我口述长一点：唐莉，夜间阵发性呼吸困难。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，继续。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "更正一下，刚才家族史说错了：父亲有早发心梗。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已按更正信息更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "另外写上STEMI和hs-cTnI。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已补充并保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "唐莉",
+        "STEMI",
+        "PCI"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-087",
+    "title": "Casual real-world workflow case 087",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "杜航，突发胸痛2x小时，心电土疑ST抬高。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已识别语音误差文本并标准化。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "嗯，考虑BNP，准备EF。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，已写入标准病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "杜航",
+        "BNP",
+        "EF"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-088",
+    "title": "Casual real-world workflow case 088",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "建两个：龚晨，右上肢乏力伴口角歪斜；以及王然，胸闷3天。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已建立两位患者并保存摘要。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询龚晨的病历概要。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已返回龚晨最近病历概要。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再给我所有患者列表。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已返回当前患者列表。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "龚晨",
+        "HER2",
+        "ANC"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-089",
+    "title": "Casual real-world workflow case 089",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "夏楠，头痛2天，睡眠一般。"
+      },
+      {
+        "speaker": "agent",
+        "text": "信息较少，建议先基础评估，不做激进治疗结论。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "对，先观察。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已按保守策略保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "夏楠",
+        "EGFR",
+        "CKD",
+        "基础评估",
+        "观察"
+      ],
+      "expect_no_aggressive_treatment": true
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-090",
+    "title": "Casual real-world workflow case 090",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "程远现在症状加重，下肢水肿进行性加重。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，建议优先处理急症风险并记录处置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "帮我设今天18:00复查提醒。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已设置18:00提醒并写入随访计划。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "程远",
+        "CTA",
+        "卒中流程",
+        "18:00",
+        "提醒"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-091",
+    "title": "Casual real-world workflow case 091",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "早上好，先帮我记个病例。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，您说，我边听边整理。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "贺林，胸痛2小时伴大汗恶心。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已记录。我会补充关键检查词：STEMI、PCI。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "行，保存并给个简短随访建议。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已保存，并附上简短随访建议。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "贺林",
+        "STEMI",
+        "PCI"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-092",
+    "title": "Casual real-world workflow case 092",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "有个患者胸闷反复1周活动后加重，先记一下。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，先确认患者姓名以关联历史。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "叫袁静。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已关联袁静，建议补做NYHA评估。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "好，写进去。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已补充并保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "袁静",
+        "BNP",
+        "EF"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-093",
+    "title": "Casual real-world workflow case 093",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "汪凯，先记：心悸半天。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补一句：昨晚加重。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，我按同一患者连续补充，不新建。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "检查有HER2异常，另外看ANC。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已合并到同一患者记录。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "汪凯",
+        "HER2",
+        "ANC"
+      ],
+      "expect_patient_dedup": true
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-094",
+    "title": "Casual real-world workflow case 094",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先看下我还有几个待办。"
+      },
+      {
+        "speaker": "agent",
+        "text": "可以，我先拉取待办列表。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "然后记一个：崔洋，头痛2天睡眠差。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已记录并创建相关提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把第1条标记完成。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已标记第1条为已完成。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "崔洋",
+        "EGFR",
+        "CKD",
+        "待办",
+        "已完成"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-095",
+    "title": "Casual real-world workflow case 095",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "Quick one: 梁朔, chest discomfort after exertion."
+      },
+      {
+        "speaker": "agent",
+        "text": "Got it. Any key tests?"
+      },
+      {
+        "speaker": "doctor",
+        "text": "ECG pending, consider NIHSS, follow-up in 72h."
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，我会中文输出并保留英文关键词。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "可以，保存。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "梁朔",
+        "CTA",
+        "卒中流程"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-096",
+    "title": "Casual real-world workflow case 096",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "我口述长一点：宋然，夜间阵发性呼吸困难。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，继续。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "更正一下，刚才家族史说错了：父亲有早发心梗。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已按更正信息更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "另外写上STEMI和hs-cTnI。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已补充并保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "宋然",
+        "STEMI",
+        "PCI"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-097",
+    "title": "Casual real-world workflow case 097",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "徐恒，突发胸痛2x小时，心电土疑ST抬高。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已识别语音误差文本并标准化。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "嗯，考虑BNP，准备EF。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，已写入标准病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "徐恒",
+        "BNP",
+        "EF"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-098",
+    "title": "Casual real-world workflow case 098",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "建两个：孔锐，右上肢乏力伴口角歪斜；以及王然，胸闷3天。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已建立两位患者并保存摘要。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询孔锐的病历概要。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已返回孔锐最近病历概要。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再给我所有患者列表。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已返回当前患者列表。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "孔锐",
+        "HER2",
+        "ANC"
+      ]
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-099",
+    "title": "Casual real-world workflow case 099",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "邹宁，头痛2天，睡眠一般。"
+      },
+      {
+        "speaker": "agent",
+        "text": "信息较少，建议先基础评估，不做激进治疗结论。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "对，先观察。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已按保守策略保存。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "邹宁",
+        "EGFR",
+        "CKD",
+        "基础评估",
+        "观察"
+      ],
+      "expect_no_aggressive_treatment": true
+    }
+  },
+  {
+    "case_id": "CASUAL-E2E-100",
+    "title": "Casual real-world workflow case 100",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "郝峰现在症状加重，下肢水肿进行性加重。"
+      },
+      {
+        "speaker": "agent",
+        "text": "收到，建议优先处理急症风险并记录处置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "帮我设今天18:00复查提醒。"
+      },
+      {
+        "speaker": "agent",
+        "text": "已设置18:00提醒并写入随访计划。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "must_include_keywords": [
+        "郝峰",
+        "CTA",
+        "卒中流程",
+        "18:00",
+        "提醒"
+      ]
+    }
+  }
+]

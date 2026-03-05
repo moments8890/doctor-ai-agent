@@ -91,6 +91,7 @@ WeChat Official Account
 │   ├── transcription.py      # faster-whisper local ASR (falls back to OpenAI)
 │   ├── vision.py             # Vision LLM image → extracted clinical text
 │   ├── voice.py              # WeChat media download + ffmpeg → 16kHz WAV
+│   ├── wechat_domain.py      # WeChat domain workflows/helpers shared by router paths
 │   └── wechat_menu.py        # Doctor-only menu definition + creation API
 │
 ├── db/
