@@ -28,6 +28,44 @@ warn() { echo -e "${YELLOW}  ⚠ $*${NC}"; }
 fail() { echo -e "${RED}  ✗ $*${NC}"; }
 info() { echo -e "  → $*"; }
 
+tunnel_http_code() {
+  echo "000"
+}
+
+extract_tunnel_url() {
+  local log_file="$1"
+  grep -oE 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' "$log_file" 2>/dev/null | tail -n 1
+}
+
+start_cloudflared_tunnel() {
+  local port="$1"
+  local log_file="$2"
+  local pid_file="$3"
+
+  if ! command -v cloudflared >/dev/null 2>&1; then
+    echo "  Tunnel     : cloudflared not found — skipping (install: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)"
+    return
+  fi
+
+  cloudflared tunnel --url "http://localhost:$port" >"$log_file" 2>&1 &
+  echo $! > "$pid_file"
+
+  local url=""
+  local tries=0
+  while [[ -z "$url" && $tries -lt 30 ]]; do
+    sleep 1
+    url=$(extract_tunnel_url "$log_file")
+    tries=$((tries + 1))
+  done
+
+  if [[ -n "$url" ]]; then
+    echo "  Tunnel     : $url"
+    echo "  WeCom URL  : $url/wechat"
+  else
+    echo "  Tunnel     : started (URL not yet available — check $log_file)"
+  fi
+}
+
 # ── Unified subcommands (bootstrap/test/e2e/load-data/...) ───────────────
 if [[ $# -gt 0 && "${1:-}" != -* ]]; then
   CMD="$1"
@@ -562,44 +600,6 @@ read_env_var() {
   line=$(grep -E "^${key}=" "$file" | tail -n 1 || true)
   [ -n "$line" ] || return 1
   echo "${line#*=}" | sed 's/^"//; s/"$//'
-}
-
-tunnel_http_code() {
-  echo "000"
-}
-
-extract_tunnel_url() {
-  local log_file="$1"
-  grep -oE 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' "$log_file" 2>/dev/null | tail -n 1
-}
-
-start_cloudflared_tunnel() {
-  local port="$1"
-  local log_file="$2"
-  local pid_file="$3"
-
-  if ! command -v cloudflared >/dev/null 2>&1; then
-    echo "  Tunnel     : cloudflared not found — skipping (install: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)"
-    return
-  fi
-
-  cloudflared tunnel --url "http://localhost:$port" >"$log_file" 2>&1 &
-  echo $! > "$pid_file"
-
-  local url=""
-  local tries=0
-  while [[ -z "$url" && $tries -lt 30 ]]; do
-    sleep 1
-    url=$(extract_tunnel_url "$log_file")
-    tries=$((tries + 1))
-  done
-
-  if [[ -n "$url" ]]; then
-    echo "  Tunnel     : $url"
-    echo "  WeCom URL  : $url/wechat"
-  else
-    echo "  Tunnel     : started (URL not yet available — check $log_file)"
-  fi
 }
 
 write_uvicorn_plist() {
