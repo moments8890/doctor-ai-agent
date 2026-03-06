@@ -191,3 +191,53 @@ def clear_pending_create(doctor_id: str, persist: bool = True) -> None:
     session.updated_at = _utcnow()
     if persist:
         _schedule_persist(doctor_id)
+
+
+def prune_inactive_sessions(max_idle_seconds: int = 3600) -> Dict[str, int]:
+    """Best-effort in-memory cache eviction for idle doctor sessions.
+
+    Keeps active/locked sessions, and clears stale task references so maps do not
+    grow unbounded in long-running processes.
+    """
+    now = time.time()
+    idle_threshold = max(60, int(max_idle_seconds))
+
+    evicted = 0
+    for doctor_id, session in list(_sessions.items()):
+        lock = _locks.get(doctor_id)
+        if lock is not None and lock.locked():
+            continue
+        if (now - float(session.last_active)) < idle_threshold:
+            continue
+        _sessions.pop(doctor_id, None)
+        _loaded_from_db.discard(doctor_id)
+        _pending_turns.pop(doctor_id, None)
+        evicted += 1
+
+    stale_persist = 0
+    for doctor_id, task in list(_persist_tasks.items()):
+        if task.done():
+            _persist_tasks.pop(doctor_id, None)
+            stale_persist += 1
+
+    stale_turn_persist = 0
+    for doctor_id, task in list(_persist_turn_tasks.items()):
+        if task.done():
+            _persist_turn_tasks.pop(doctor_id, None)
+            stale_turn_persist += 1
+
+    stale_locks = 0
+    for doctor_id, lock in list(_locks.items()):
+        if doctor_id in _sessions:
+            continue
+        if lock.locked():
+            continue
+        _locks.pop(doctor_id, None)
+        stale_locks += 1
+
+    return {
+        "evicted_sessions": evicted,
+        "cleared_persist_tasks": stale_persist,
+        "cleared_turn_persist_tasks": stale_turn_persist,
+        "cleared_locks": stale_locks,
+    }

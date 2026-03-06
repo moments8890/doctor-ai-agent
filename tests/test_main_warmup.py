@@ -5,7 +5,7 @@ import os
 import sys
 from types import SimpleNamespace
 from typing import Callable, List
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
@@ -124,6 +124,19 @@ def test_conversation_turn_retention_days_parsing(monkeypatch):
     assert main._conversation_turn_retention_days() == 7
 
 
+def test_session_cache_cleanup_parsing(monkeypatch):
+    main = _load_main_module()
+    monkeypatch.setenv("SESSION_CACHE_CLEANUP_INTERVAL_MINUTES", "0")
+    assert main._session_cache_cleanup_interval_minutes() == 1
+    monkeypatch.setenv("SESSION_CACHE_CLEANUP_INTERVAL_MINUTES", "abc")
+    assert main._session_cache_cleanup_interval_minutes() == 10
+
+    monkeypatch.setenv("SESSION_CACHE_MAX_IDLE_SECONDS", "12")
+    assert main._session_cache_max_idle_seconds() == 60
+    monkeypatch.setenv("SESSION_CACHE_MAX_IDLE_SECONDS", "abc")
+    assert main._session_cache_max_idle_seconds() == 3600
+
+
 @pytest.mark.asyncio
 async def test_cleanup_old_conversation_turns_invokes_purge(monkeypatch):
     main = _load_main_module()
@@ -142,6 +155,16 @@ async def test_cleanup_old_conversation_turns_invokes_purge(monkeypatch):
 
     await main._cleanup_old_conversation_turns()
     assert mock_purge.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_cleanup_inactive_session_cache_invokes_prune(monkeypatch):
+    main = _load_main_module()
+    mock_prune = MagicMock(return_value={"evicted_sessions": 1})
+    monkeypatch.setattr(main, "prune_inactive_sessions", mock_prune)
+
+    await main._cleanup_inactive_session_cache()
+    assert mock_prune.call_count == 1
 
 
 @pytest.mark.asyncio

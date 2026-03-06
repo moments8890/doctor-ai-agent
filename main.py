@@ -37,6 +37,7 @@ from db.engine import engine, AsyncSessionLocal
 from db.models import Doctor, Patient, MedicalRecordDB, DoctorContext, SystemPrompt, NeuroCaseDB, DoctorTask
 from db.crud import get_due_tasks, purge_conversation_turns_before
 from services.tasks import check_and_send_due_tasks
+from services.session import prune_inactive_sessions
 from services.runtime_config import register_runtime_apply_hook
 from services.errors import DomainError
 from services.observability import (
@@ -310,6 +311,22 @@ def _conversation_turn_retention_days() -> int:
         return 7
 
 
+def _session_cache_cleanup_interval_minutes() -> int:
+    raw = os.environ.get("SESSION_CACHE_CLEANUP_INTERVAL_MINUTES", "10")
+    try:
+        return max(1, int(raw))
+    except (TypeError, ValueError):
+        return 10
+
+
+def _session_cache_max_idle_seconds() -> int:
+    raw = os.environ.get("SESSION_CACHE_MAX_IDLE_SECONDS", "3600")
+    try:
+        return max(60, int(raw))
+    except (TypeError, ValueError):
+        return 3600
+
+
 async def _cleanup_old_conversation_turns() -> None:
     retention_days = _conversation_turn_retention_days()
     cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
@@ -323,6 +340,14 @@ async def _cleanup_old_conversation_turns() -> None:
         )
     except Exception as exc:
         logging.getLogger("tasks").warning("[Conversation] cleanup failed: %s", exc)
+
+
+async def _cleanup_inactive_session_cache() -> None:
+    try:
+        summary = prune_inactive_sessions(max_idle_seconds=_session_cache_max_idle_seconds())
+        logging.getLogger("tasks").info("[Session] cache cleanup complete | %s", summary)
+    except Exception as exc:
+        logging.getLogger("tasks").warning("[Session] cache cleanup failed: %s", exc)
 
 
 def _configure_task_scheduler(startup_log: logging.Logger) -> None:
@@ -359,6 +384,10 @@ def _configure_task_scheduler(startup_log: logging.Logger) -> None:
     _scheduler.add_job(_cleanup_old_conversation_turns, "interval", hours=cleanup_hours)
     startup_log.info("[Conversation] cleanup scheduler configured | every_hours=%s", cleanup_hours)
 
+    session_cleanup_minutes = _session_cache_cleanup_interval_minutes()
+    _scheduler.add_job(_cleanup_inactive_session_cache, "interval", minutes=session_cleanup_minutes)
+    startup_log.info("[Session] cache cleanup scheduler configured | every_minutes=%s", session_cleanup_minutes)
+
 
 async def _runtime_apply_hook(_config: dict) -> None:
     log = logging.getLogger("runtime-config")
@@ -380,6 +409,7 @@ async def lifespan(app: FastAPI):
     await seed_prompts()
     await _warmup(APP_CONFIG)
     await _cleanup_old_conversation_turns()
+    await _cleanup_inactive_session_cache()
 
     # Log pending unnotified tasks on startup
     try:
