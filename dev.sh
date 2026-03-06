@@ -44,7 +44,7 @@ Usage:
   ./dev.sh stop
   ./dev.sh bootstrap [--with-frontend]    # project deps (venv/pip/npm)
   ./dev.sh vm-bootstrap [--with-frontend] [--with-mysql]  # one-time VM provisioning
-  ./dev.sh vm-up [--runtime <path>] [--llm-provider <deepseek|tencent_lkeap|openai|ollama>] [--backend-host <host>] [--backend-port <port>] [--frontend-host <host>] [--frontend-port <port>] [--no-frontend]  # start mysql+backend+frontend
+  ./dev.sh vm-up [--runtime <path>] [--llm-provider <deepseek|tencent_lkeap|openai|ollama>] [--backend-host <host>] [--backend-port <port>] [--frontend-host <host>] [--frontend-port <port>] [--no-frontend] [--tunnel]  # start mysql+backend+frontend
   ./dev.sh vm-down [--remove-mysql]
   ./dev.sh run-backend [--host <host>] [--port <port>] [--reload]
   ./dev.sh test [unit|integration|integration-full|chatlog-half|chatlog-full|all]
@@ -189,6 +189,7 @@ EOF
       MYSQL_USER="${MYSQL_USER:-doctor_ai}"
       MYSQL_PASSWORD="${MYSQL_PASSWORD:-DrAI_App_2026!x9}"
       START_FRONTEND=1
+      START_TUNNEL=0
 
       while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -220,9 +221,13 @@ EOF
             START_FRONTEND=0
             shift
             ;;
+          --tunnel)
+            START_TUNNEL=1
+            shift
+            ;;
           *)
             echo "Unknown vm-up arg: $1"
-            echo "Usage: ./dev.sh vm-up [--runtime <path>] [--llm-provider <deepseek|tencent_lkeap|openai|ollama>] [--backend-host <host>] [--backend-port <port>] [--frontend-host <host>] [--frontend-port <port>] [--no-frontend]"
+            echo "Usage: ./dev.sh vm-up [--runtime <path>] [--llm-provider <deepseek|tencent_lkeap|openai|ollama>] [--backend-host <host>] [--backend-port <port>] [--frontend-host <host>] [--frontend-port <port>] [--no-frontend] [--tunnel]"
             exit 2
             ;;
         esac
@@ -315,8 +320,10 @@ PY
       mkdir -p "$PID_DIR"
       BACKEND_LOG="$APP_DIR/logs/backend.vm.log"
       FRONTEND_LOG="$APP_DIR/logs/frontend.vm.log"
+      TUNNEL_LOG="$APP_DIR/logs/tunnel.vm.log"
       BACKEND_PID_FILE="$PID_DIR/backend.vm.pid"
       FRONTEND_PID_FILE="$PID_DIR/frontend.vm.pid"
+      TUNNEL_PID_FILE="$PID_DIR/tunnel.vm.pid"
 
       for p in "$BACKEND_PORT" "$FRONTEND_PORT_VM"; do
         if lsof -ti :"$p" >/dev/null 2>&1; then
@@ -332,6 +339,10 @@ PY
       if [[ -f "$FRONTEND_PID_FILE" ]]; then
         kill "$(cat "$FRONTEND_PID_FILE")" 2>/dev/null || true
         rm -f "$FRONTEND_PID_FILE"
+      fi
+      if [[ -f "$TUNNEL_PID_FILE" ]]; then
+        kill "$(cat "$TUNNEL_PID_FILE")" 2>/dev/null || true
+        rm -f "$TUNNEL_PID_FILE"
       fi
 
       (
@@ -361,6 +372,9 @@ PY
         echo "  Frontend   : http://$FRONTEND_HOST:$FRONTEND_PORT_VM (log: $FRONTEND_LOG)"
       else
         echo "  Frontend   : skipped (--no-frontend)"
+      fi
+      if [[ "$START_TUNNEL" -eq 1 ]]; then
+        start_cloudflared_tunnel "$BACKEND_PORT" "$TUNNEL_LOG" "$TUNNEL_PID_FILE"
       fi
       echo "  Stop all   : ./dev.sh vm-down"
       exit 0
@@ -396,6 +410,13 @@ PY
       fi
       lsof -ti :8000 2>/dev/null | xargs kill -9 2>/dev/null || true
       lsof -ti :5173 2>/dev/null | xargs kill -9 2>/dev/null || true
+
+      TUNNEL_PID_FILE="$APP_DIR/logs/pids/tunnel.vm.pid"
+      if [[ -f "$TUNNEL_PID_FILE" ]]; then
+        kill "$(cat "$TUNNEL_PID_FILE")" 2>/dev/null || true
+        rm -f "$TUNNEL_PID_FILE"
+        echo "Stopped Cloudflare tunnel."
+      fi
 
       if command -v docker >/dev/null 2>&1; then
         if docker ps --format '{{.Names}}' | grep -qx "$MYSQL_CONTAINER"; then
@@ -548,7 +569,37 @@ tunnel_http_code() {
 }
 
 extract_tunnel_url() {
-  echo ""
+  local log_file="$1"
+  grep -oE 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' "$log_file" 2>/dev/null | tail -n 1
+}
+
+start_cloudflared_tunnel() {
+  local port="$1"
+  local log_file="$2"
+  local pid_file="$3"
+
+  if ! command -v cloudflared >/dev/null 2>&1; then
+    echo "  Tunnel     : cloudflared not found — skipping (install: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)"
+    return
+  fi
+
+  cloudflared tunnel --url "http://localhost:$port" >"$log_file" 2>&1 &
+  echo $! > "$pid_file"
+
+  local url=""
+  local tries=0
+  while [[ -z "$url" && $tries -lt 30 ]]; do
+    sleep 1
+    url=$(extract_tunnel_url "$log_file")
+    tries=$((tries + 1))
+  done
+
+  if [[ -n "$url" ]]; then
+    echo "  Tunnel     : $url"
+    echo "  WeCom URL  : $url/wechat"
+  else
+    echo "  Tunnel     : started (URL not yet available — check $log_file)"
+  fi
 }
 
 write_uvicorn_plist() {
