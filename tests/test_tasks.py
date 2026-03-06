@@ -276,7 +276,10 @@ async def test_check_and_send_due_tasks_sends_for_each():
 
     with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
          patch("services.tasks.get_due_tasks", mock_get_due), \
-         patch("services.tasks.send_task_notification", mock_notify):
+         patch("services.tasks.send_task_notification", mock_notify), \
+         patch("services.tasks.get_doctor_notify_preference", new=AsyncMock(return_value=None)), \
+         patch("services.tasks._scheduler_lease_enabled", return_value=False), \
+         patch("services.tasks.upsert_doctor_notify_preference", new=AsyncMock()):
         await check_and_send_due_tasks()
 
     assert mock_notify.await_count == 2
@@ -297,7 +300,10 @@ async def test_check_and_send_due_tasks_continues_on_error():
 
     with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
          patch("services.tasks.get_due_tasks", mock_get_due), \
-         patch("services.tasks.send_task_notification", side_effect=_notify):
+         patch("services.tasks.send_task_notification", side_effect=_notify), \
+         patch("services.tasks.get_doctor_notify_preference", new=AsyncMock(return_value=None)), \
+         patch("services.tasks._scheduler_lease_enabled", return_value=False), \
+         patch("services.tasks.upsert_doctor_notify_preference", new=AsyncMock()):
         await check_and_send_due_tasks()
 
     assert 1 in notify_calls
@@ -408,6 +414,9 @@ async def test_check_and_send_due_tasks_logs_failure_event():
     with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
          patch("services.tasks.get_due_tasks", mock_get_due), \
          patch("services.tasks.send_task_notification", side_effect=_notify), \
+         patch("services.tasks.get_doctor_notify_preference", new=AsyncMock(return_value=None)), \
+         patch("services.tasks._scheduler_lease_enabled", return_value=False), \
+         patch("services.tasks.upsert_doctor_notify_preference", new=AsyncMock()), \
          patch("services.tasks.task_log", mock_task_log):
         await check_and_send_due_tasks()
 
@@ -428,8 +437,10 @@ async def test_run_due_task_cycle_returns_counts():
 
     with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
          patch("services.tasks.get_due_tasks", new=AsyncMock(return_value=[task1, task2])), \
+         patch("services.tasks.get_doctor_notify_preference", new=AsyncMock(return_value=None)), \
+         patch("services.tasks.upsert_doctor_notify_preference", new=AsyncMock()), \
          patch("services.tasks.send_task_notification", side_effect=_notify):
-        out = await run_due_task_cycle()
+        out = await run_due_task_cycle(use_scheduler_lease=False)
 
     assert out["due_count"] == 2
     assert out["eligible_count"] == 2
