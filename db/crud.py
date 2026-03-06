@@ -26,7 +26,7 @@ from db.models import (
     DoctorTask,
     PatientLabel,
 )
-from db.repositories import PatientRepository, RecordRepository
+from db.repositories import PatientRepository, RecordRepository, TaskRepository
 from models.medical_record import MedicalRecord
 from services.patient_categorization import recompute_patient_category
 from services.patient_risk import recompute_patient_risk
@@ -848,7 +848,7 @@ async def create_task(
     due_at: Optional[datetime] = None,
 ) -> DoctorTask:
     doctor_id = await _ensure_doctor_exists(session, doctor_id)
-    task = DoctorTask(
+    return await TaskRepository(session).create(
         doctor_id=doctor_id,
         task_type=task_type,
         title=title,
@@ -856,12 +856,7 @@ async def create_task(
         patient_id=patient_id,
         record_id=record_id,
         due_at=due_at,
-        status="pending",
     )
-    session.add(task)
-    await session.commit()
-    await session.refresh(task)
-    return task
 
 
 async def list_tasks(
@@ -869,12 +864,7 @@ async def list_tasks(
     doctor_id: str,
     status: Optional[str] = None,
 ) -> List[DoctorTask]:
-    q = select(DoctorTask).where(DoctorTask.doctor_id == doctor_id)
-    if status is not None:
-        q = q.where(DoctorTask.status == status)
-    q = q.order_by(DoctorTask.created_at.desc())
-    result = await session.execute(q)
-    return list(result.scalars().all())
+    return await TaskRepository(session).list_for_doctor(doctor_id=doctor_id, status=status)
 
 
 async def update_task_status(
@@ -883,43 +873,25 @@ async def update_task_status(
     doctor_id: str,
     status: str,
 ) -> Optional[DoctorTask]:
-    result = await session.execute(
-        select(DoctorTask).where(DoctorTask.id == task_id, DoctorTask.doctor_id == doctor_id)
+    return await TaskRepository(session).update_status(
+        task_id=task_id,
+        doctor_id=doctor_id,
+        status=status,
     )
-    task = result.scalar_one_or_none()
-    if task is None:
-        return None
-    task.status = status
-    await session.commit()
-    await session.refresh(task)
-    return task
 
 
 async def get_due_tasks(
     session: AsyncSession,
     now: datetime,
 ) -> List[DoctorTask]:
-    result = await session.execute(
-        select(DoctorTask).where(
-            DoctorTask.status == "pending",
-            DoctorTask.due_at <= now,
-            DoctorTask.notified_at.is_(None),
-        )
-    )
-    return list(result.scalars().all())
+    return await TaskRepository(session).list_due_unnotified(now=now)
 
 
 async def mark_task_notified(
     session: AsyncSession,
     task_id: int,
 ) -> None:
-    result = await session.execute(
-        select(DoctorTask).where(DoctorTask.id == task_id)
-    )
-    task = result.scalar_one_or_none()
-    if task:
-        task.notified_at = _utcnow()
-        await session.commit()
+    await TaskRepository(session).mark_notified(task_id=task_id, notified_at=_utcnow())
 
 
 # ── Label management ──────────────────────────────────────────────────────────

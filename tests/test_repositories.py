@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 from db.repositories import PatientRepository, RecordRepository
+from db.repositories.tasks import TaskRepository
 from models.medical_record import MedicalRecord
 
 
@@ -58,3 +61,36 @@ async def test_record_repository_create_and_query(db_session):
     )
     assert len(by_doctor) == 1
     assert by_doctor[0].diagnosis == "冠心病"
+
+
+async def test_task_repository_create_list_update_due_and_mark_notified(db_session):
+    repo = TaskRepository(db_session)
+    now = datetime.now(timezone.utc)
+    due_at = now - timedelta(minutes=5)
+    created = await repo.create(
+        doctor_id="repo_doc_3",
+        task_type="follow_up",
+        title="随访提醒：王五",
+        due_at=due_at,
+    )
+    assert created.id is not None
+    assert created.status == "pending"
+
+    listed = await repo.list_for_doctor(doctor_id="repo_doc_3")
+    assert len(listed) == 1
+    assert listed[0].id == created.id
+
+    updated = await repo.update_status(task_id=created.id, doctor_id="repo_doc_3", status="completed")
+    assert updated is not None
+    assert updated.status == "completed"
+
+    due = await repo.list_due_unnotified(now=now)
+    assert all(t.id != created.id for t in due)
+
+    await repo.update_status(task_id=created.id, doctor_id="repo_doc_3", status="pending")
+    due = await repo.list_due_unnotified(now=now)
+    assert any(t.id == created.id for t in due)
+
+    await repo.mark_notified(task_id=created.id, notified_at=now)
+    due_after_notified = await repo.list_due_unnotified(now=now)
+    assert all(t.id != created.id for t in due_after_notified)
