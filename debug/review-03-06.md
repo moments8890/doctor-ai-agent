@@ -17,6 +17,7 @@ This review captured the initial snapshot. The following items have since been m
 - `DONE` Ollama startup warmup now uses explicit timeout + exponential backoff retries (1s/2s/4s)
 - `DONE` Records/voice/neuro router 5xx responses now avoid leaking raw internal exception text
 - `DONE` WeChat media/voice user-facing failure messages now avoid exposing internal exception details
+- `DONE` Token auth failure responses are now standardized to generic 401 messages (no raw parser/verify errors)
 - `PARTIAL` LLM resilience (timeouts/retry/backoff/circuit breaker) is implemented in core LLM paths, but should continue to be audited for full endpoint parity
 - `PARTIAL` Session handling remains in-memory first; test lifecycle hardening was completed, but full Redis/DB-backed redesign is still open
 - `PARTIAL` Error handling consistency improved in targeted hotspots, but full exception taxonomy + consistent structured logging across all modules remains open

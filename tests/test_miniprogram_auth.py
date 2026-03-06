@@ -3,6 +3,7 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
+from fastapi import HTTPException
 from sqlalchemy import select
 
 import routers.auth as auth_router
@@ -64,6 +65,13 @@ async def test_auth_me_reads_bearer_token():
     assert me.doctor_id == "wxmini_openid_u_2"
     assert me.channel == "wechat_mini"
     assert me.wechat_openid == "openid_u_2"
+
+
+async def test_auth_me_invalid_token_returns_generic_401():
+    with pytest.raises(HTTPException) as exc:
+        await auth_router.auth_me(authorization="Bearer invalid-token")
+    assert exc.value.status_code == 401
+    assert exc.value.detail == "Invalid authorization token"
 
 
 def test_parse_bearer_token_validation():

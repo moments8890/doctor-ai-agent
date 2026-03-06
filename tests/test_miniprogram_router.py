@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
 
+import pytest
+from fastapi import HTTPException
+
 from services.miniprogram_auth import issue_miniprogram_token
 
 import routers.miniprogram as mini
@@ -22,6 +25,13 @@ def test_require_mini_principal_ok():
         token_data = issue_miniprogram_token("wxmini_openid_a", channel="wechat_mini")
         principal = mini._require_mini_principal(f"Bearer {token_data['access_token']}")
     assert principal.doctor_id == "wxmini_openid_a"
+
+
+def test_require_mini_principal_invalid_token_returns_generic_401():
+    with pytest.raises(HTTPException) as exc:
+        mini._require_mini_principal("Bearer invalid-token")
+    assert exc.value.status_code == 401
+    assert exc.value.detail == "Invalid authorization token"
 
 
 async def test_mini_chat_injects_doctor_id():

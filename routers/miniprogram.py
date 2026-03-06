@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
@@ -24,7 +25,8 @@ def _require_mini_principal(authorization: Optional[str] = Header(default=None))
         token = parse_bearer_token(authorization)
         principal = verify_miniprogram_token(token)
     except MiniProgramAuthError as exc:
-        raise HTTPException(status_code=401, detail=str(exc))
+        logging.getLogger("auth").warning("[Mini] token validation failed: %s", exc)
+        raise HTTPException(status_code=401, detail="Invalid authorization token")
 
     if principal.channel != "wechat_mini":
         raise HTTPException(status_code=403, detail="Token channel not allowed for mini endpoints")

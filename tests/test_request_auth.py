@@ -34,6 +34,7 @@ def test_resolve_doctor_id_invalid_token_returns_401() -> None:
             )
 
     assert exc_info.value.status_code == 401
+    assert exc_info.value.detail == "Invalid authorization token"
 
 
 def test_resolve_doctor_id_uses_candidate_when_fallback_enabled() -> None:

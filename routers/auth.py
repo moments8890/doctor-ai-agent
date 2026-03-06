@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timezone
+import logging
 from typing import Optional
 
 import httpx
@@ -162,7 +163,8 @@ async def auth_me(authorization: Optional[str] = Header(default=None)) -> MeResp
         token = parse_bearer_token(authorization)
         principal = verify_miniprogram_token(token)
     except MiniProgramAuthError as exc:
-        raise HTTPException(status_code=401, detail=str(exc))
+        logging.getLogger("auth").warning("[Auth] /me token validation failed: %s", exc)
+        raise HTTPException(status_code=401, detail="Invalid authorization token")
 
     return MeResponse(
         doctor_id=principal.doctor_id,

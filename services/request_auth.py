@@ -30,7 +30,8 @@ def resolve_doctor_id_from_auth_or_fallback(
             principal = verify_miniprogram_token(token)
             return principal.doctor_id
         except MiniProgramAuthError as exc:
-            raise HTTPException(status_code=401, detail=str(exc))
+            logging.getLogger("auth").warning("[Auth] token validation failed: %s", exc)
+            raise HTTPException(status_code=401, detail="Invalid authorization token")
 
     if _allow_insecure_doctor_id_fallback(fallback_env_flag):
         resolved = (candidate_doctor_id or "").strip() or default_doctor_id
