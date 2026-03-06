@@ -61,7 +61,9 @@ def get_session(doctor_id: str) -> DoctorSession:
 
 async def hydrate_session_state(doctor_id: str) -> DoctorSession:
     """Load persistent session state once per doctor into in-memory session."""
-    if doctor_id in _loaded_from_db:
+    with _registry_lock:
+        already_loaded = doctor_id in _loaded_from_db
+    if already_loaded:
         return get_session(doctor_id)
 
     async with get_session_lock(doctor_id):
@@ -90,7 +92,8 @@ async def hydrate_session_state(doctor_id: str) -> DoctorSession:
                     ]
         except Exception as e:
             log(f"[Session] hydrate FAILED: {e}")
-        _loaded_from_db.add(doctor_id)
+        with _registry_lock:
+            _loaded_from_db.add(doctor_id)
         return sess
 
 
