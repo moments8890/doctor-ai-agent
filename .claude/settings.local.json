@@ -25,7 +25,9 @@
       "Bash(pip install:*)",
       "Bash(bash:*)",
       "Bash(gh pr:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(wc:*)",
+      "WebFetch(domain:developer.work.weixin.qq.com)"
     ]
   }
 }

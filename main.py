@@ -4,7 +4,7 @@ import os
 import time
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from utils.log import init_logging
 from utils.app_config import AppConfig, load_config_from_json, ollama_base_url_candidates
 
@@ -33,7 +33,7 @@ from routers.voice import router as voice_router
 from db.init_db import create_tables, seed_prompts, backfill_doctors_registry
 from db.engine import engine, AsyncSessionLocal
 from db.models import Doctor, Patient, MedicalRecordDB, DoctorContext, SystemPrompt, NeuroCaseDB, DoctorTask
-from db.crud import get_due_tasks
+from db.crud import get_due_tasks, purge_conversation_turns_before
 from services.tasks import check_and_send_due_tasks
 from services.runtime_config import register_runtime_apply_hook
 from services.observability import (
@@ -298,6 +298,29 @@ def _scheduler_cron_expr() -> str:
     return os.environ.get("TASK_SCHEDULER_CRON", "*/1 * * * *").strip() or "*/1 * * * *"
 
 
+def _conversation_turn_retention_days() -> int:
+    raw = os.environ.get("CONVERSATION_TURN_RETENTION_DAYS", "7")
+    try:
+        return max(1, int(raw))
+    except (TypeError, ValueError):
+        return 7
+
+
+async def _cleanup_old_conversation_turns() -> None:
+    retention_days = _conversation_turn_retention_days()
+    cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+    try:
+        async with AsyncSessionLocal() as db:
+            deleted = await purge_conversation_turns_before(db, cutoff)
+        logging.getLogger("tasks").info(
+            "[Conversation] cleanup complete | retention_days=%s deleted=%s",
+            retention_days,
+            deleted,
+        )
+    except Exception as exc:
+        logging.getLogger("tasks").warning("[Conversation] cleanup failed: %s", exc)
+
+
 def _configure_task_scheduler(startup_log: logging.Logger) -> None:
     _scheduler.remove_all_jobs()
     mode = _scheduler_mode()
@@ -328,6 +351,10 @@ def _configure_task_scheduler(startup_log: logging.Logger) -> None:
         _scheduler.add_job(check_and_send_due_tasks, "interval", minutes=interval_minutes)
         startup_log.info("[Tasks] scheduler configured | mode=interval minutes=%s", interval_minutes)
 
+    cleanup_hours = max(1, int(os.environ.get("CONVERSATION_CLEANUP_INTERVAL_HOURS", "6")))
+    _scheduler.add_job(_cleanup_old_conversation_turns, "interval", hours=cleanup_hours)
+    startup_log.info("[Conversation] cleanup scheduler configured | every_hours=%s", cleanup_hours)
+
 
 async def _runtime_apply_hook(_config: dict) -> None:
     log = logging.getLogger("runtime-config")
@@ -347,6 +374,7 @@ async def lifespan(app: FastAPI):
     _startup_log.info("[DB] doctors backfill completed | inserted=%s", _added_doctors)
     await seed_prompts()
     await _warmup(APP_CONFIG)
+    await _cleanup_old_conversation_turns()
 
     # Log pending unnotified tasks on startup
     try:

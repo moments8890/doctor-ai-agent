@@ -23,6 +23,7 @@ from db.crud import (
 from db.models import Doctor, DoctorTask, NeuroCaseDB
 from models.medical_record import MedicalRecord
 from models.neuro_case import ExtractionLog, NeuroCase
+from services.errors import InvalidMedicalRecordError
 
 DOCTOR = "doc_001"
 
@@ -68,6 +69,11 @@ async def test_create_patient_wechat_identifier_backfills_doctor_identity(db_ses
     assert row is not None
     assert row.channel == "wechat"
     assert row.wechat_user_id == wechat_doctor
+
+
+async def test_create_patient_invalid_name_raises(db_session):
+    with pytest.raises(InvalidMedicalRecordError):
+        await create_patient(db_session, DOCTOR, "   ", "男", 45)
 
 
 # ---------------------------------------------------------------------------

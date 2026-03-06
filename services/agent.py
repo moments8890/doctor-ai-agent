@@ -6,6 +6,7 @@ import re
 from typing import Any, List, Optional, Tuple
 from openai import AsyncOpenAI
 from services.intent import Intent, IntentResult
+from services.llm_resilience import call_with_retry_and_fallback
 from services.observability import trace_block
 from utils.log import log
 
@@ -565,21 +566,33 @@ async def dispatch(
         base_url=provider["base_url"],
         api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
         timeout=float(os.environ.get("AGENT_LLM_TIMEOUT", "45")),
-        max_retries=int(os.environ.get("AGENT_LLM_RETRIES", "1")),
+        max_retries=0,
     )
     routing_max_tokens = int(os.environ.get("ROUTING_MAX_TOKENS", "220"))
     if routing_max_tokens < 80:
         routing_max_tokens = 80
     try:
-        with trace_block("llm", "agent.chat_completion", {"provider": provider_name, "model": provider["model"]}):
-            completion = await client.chat.completions.create(
-                model=provider["model"],
-                messages=messages,
-                tools=_selected_tools(),
-                tool_choice="auto",
-                max_tokens=routing_max_tokens,
-                temperature=0,
-            )
+        async def _call(model_name: str):
+            with trace_block("llm", "agent.chat_completion", {"provider": provider_name, "model": model_name}):
+                return await client.chat.completions.create(
+                    model=model_name,
+                    messages=messages,
+                    tools=_selected_tools(),
+                    tool_choice="auto",
+                    max_tokens=routing_max_tokens,
+                    temperature=0,
+                )
+
+        fallback_model = None
+        if provider_name == "ollama":
+            fallback_model = os.environ.get("OLLAMA_FALLBACK_MODEL", "qwen2.5:7b")
+        completion = await call_with_retry_and_fallback(
+            _call,
+            primary_model=provider["model"],
+            fallback_model=fallback_model,
+            max_attempts=int(os.environ.get("AGENT_LLM_ATTEMPTS", "3")),
+            op_name="agent.chat_completion",
+        )
     except Exception as e:
         if provider_name == "ollama":
             log(f"[Agent:ollama] tool-call failed, using local fallback: {e}")

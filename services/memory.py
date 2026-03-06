@@ -8,6 +8,7 @@ from openai import AsyncOpenAI
 
 from db.crud import get_doctor_context, upsert_doctor_context, clear_conversation_turns
 from db.engine import AsyncSessionLocal
+from services.llm_resilience import call_with_retry_and_fallback
 from utils.log import log
 
 if TYPE_CHECKING:
@@ -35,19 +36,33 @@ async def _summarise(history: List[dict]) -> str:
     client = AsyncOpenAI(
         base_url=provider["base_url"],
         api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
+        timeout=float(os.environ.get("MEMORY_LLM_TIMEOUT", "30")),
+        max_retries=0,
     )
     turns_text = "\n".join(
         f"{'医生' if m['role'] == 'user' else '助手'}：{m['content']}"
         for m in history
     )
-    completion = await client.chat.completions.create(
-        model=provider["model"],
-        messages=[
-            {"role": "system", "content": _COMPRESS_PROMPT},
-            {"role": "user", "content": turns_text},
-        ],
-        max_tokens=150,
-        temperature=0,
+    async def _call(model_name: str):
+        return await client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": _COMPRESS_PROMPT},
+                {"role": "user", "content": turns_text},
+            ],
+            max_tokens=150,
+            temperature=0,
+        )
+
+    fallback_model = None
+    if provider_name == "ollama":
+        fallback_model = os.environ.get("OLLAMA_FALLBACK_MODEL", "qwen2.5:7b")
+    completion = await call_with_retry_and_fallback(
+        _call,
+        primary_model=provider["model"],
+        fallback_model=fallback_model,
+        max_attempts=int(os.environ.get("MEMORY_LLM_ATTEMPTS", "3")),
+        op_name="memory.chat_completion",
     )
     return (completion.choices[0].message.content or "").strip()
 

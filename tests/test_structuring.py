@@ -319,5 +319,7 @@ async def test_structure_tencent_lkeap_provider_uses_tencent_env(monkeypatch):
     mock_client_cls.assert_called_once_with(
         base_url="https://api.lkeap.cloud.tencent.com/v1",
         api_key="tencent-key",
+        timeout=30.0,
+        max_retries=0,
     )
     assert mock_client.chat.completions.create.call_args.kwargs["model"] == "deepseek-v3-1"

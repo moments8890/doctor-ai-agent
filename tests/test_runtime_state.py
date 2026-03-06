@@ -10,6 +10,7 @@ from db.crud import (
     append_conversation_turns,
     get_recent_conversation_turns,
     clear_conversation_turns,
+    purge_conversation_turns_before,
 )
 
 
@@ -52,3 +53,15 @@ async def test_conversation_turns_append_limit_and_clear(db_session):
     await clear_conversation_turns(db_session, "doc-runtime")
     turns_after_clear = await get_recent_conversation_turns(db_session, "doc-runtime", limit=10)
     assert turns_after_clear == []
+
+
+async def test_conversation_turns_purge_by_timestamp(db_session):
+    await append_conversation_turns(
+        db_session,
+        doctor_id="doc-old",
+        turns=[{"role": "user", "content": "old-u"}, {"role": "assistant", "content": "old-a"}],
+        max_turns=10,
+    )
+    cutoff = datetime.now(timezone.utc) + timedelta(seconds=1)
+    deleted = await purge_conversation_turns_before(db_session, cutoff)
+    assert deleted >= 2

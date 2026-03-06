@@ -54,12 +54,13 @@ async def mini_chat(
     body: MiniChatInput,
     principal: MiniProgramPrincipal = Depends(_require_mini_principal),
 ) -> records_router.ChatResponse:
-    return await records_router.chat(
+    return await records_router._chat_for_doctor(
         records_router.ChatInput(
             text=body.text,
             history=body.history,
             doctor_id=principal.doctor_id,
-        )
+        ),
+        principal.doctor_id,
     )
 
 

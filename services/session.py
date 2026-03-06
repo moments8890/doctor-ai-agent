@@ -60,30 +60,34 @@ async def hydrate_session_state(doctor_id: str) -> DoctorSession:
     if doctor_id in _loaded_from_db:
         return get_session(doctor_id)
 
-    sess = get_session(doctor_id)
-    try:
-        async with AsyncSessionLocal() as db:
-            state = await get_doctor_session_state(db, doctor_id)
-            if state is not None:
-                sess.pending_create_name = state.pending_create_name
-                sess.current_patient_id = state.current_patient_id
-                if state.current_patient_id is not None:
-                    patient = await get_patient_for_doctor(db, doctor_id, state.current_patient_id)
-                    sess.current_patient_name = patient.name if patient is not None else None
-                else:
-                    sess.current_patient_name = None
+    async with get_session_lock(doctor_id):
+        if doctor_id in _loaded_from_db:
+            return get_session(doctor_id)
 
-            # Recover recent conversation turns so another instance can continue context.
-            turns = await get_recent_conversation_turns(db, doctor_id, limit=MAX_TURNS * 2)
-            if turns:
-                sess.conversation_history = [
-                    {"role": turn.role, "content": turn.content}
-                    for turn in turns
-                ]
-    except Exception as e:
-        log(f"[Session] hydrate FAILED: {e}")
-    _loaded_from_db.add(doctor_id)
-    return sess
+        sess = get_session(doctor_id)
+        try:
+            async with AsyncSessionLocal() as db:
+                state = await get_doctor_session_state(db, doctor_id)
+                if state is not None:
+                    sess.pending_create_name = state.pending_create_name
+                    sess.current_patient_id = state.current_patient_id
+                    if state.current_patient_id is not None:
+                        patient = await get_patient_for_doctor(db, doctor_id, state.current_patient_id)
+                        sess.current_patient_name = patient.name if patient is not None else None
+                    else:
+                        sess.current_patient_name = None
+
+                # Recover recent conversation turns so another instance can continue context.
+                turns = await get_recent_conversation_turns(db, doctor_id, limit=MAX_TURNS * 2)
+                if turns:
+                    sess.conversation_history = [
+                        {"role": turn.role, "content": turn.content}
+                        for turn in turns
+                    ]
+        except Exception as e:
+            log(f"[Session] hydrate FAILED: {e}")
+        _loaded_from_db.add(doctor_id)
+        return sess
 
 
 async def persist_session_state(doctor_id: str) -> None:

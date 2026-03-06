@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import json
 import os
 from enum import Enum
 from typing import Optional
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
+from services.llm_resilience import call_with_retry_and_fallback
 from utils.log import log
 
 _PROVIDERS = {
@@ -88,16 +91,31 @@ async def detect_intent(text: str) -> IntentResult:
     client = AsyncOpenAI(
         base_url=provider["base_url"],
         api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
+        timeout=float(os.environ.get("INTENT_LLM_TIMEOUT", "30")),
+        max_retries=0,
     )
-    completion = await client.chat.completions.create(
-        model=provider["model"],
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": text},
-        ],
-        response_format={"type": "json_object"},
-        max_tokens=200,
-        temperature=0,
+
+    async def _call(model_name: str):
+        return await client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": text},
+            ],
+            response_format={"type": "json_object"},
+            max_tokens=200,
+            temperature=0,
+        )
+
+    fallback_model = None
+    if intent_provider == "ollama":
+        fallback_model = os.environ.get("OLLAMA_FALLBACK_MODEL", "qwen2.5:7b")
+    completion = await call_with_retry_and_fallback(
+        _call,
+        primary_model=provider["model"],
+        fallback_model=fallback_model,
+        max_attempts=int(os.environ.get("INTENT_LLM_ATTEMPTS", "3")),
+        op_name="intent.chat_completion",
     )
     raw = completion.choices[0].message.content
     log(f"[Intent:{intent_provider}] result: {raw}")

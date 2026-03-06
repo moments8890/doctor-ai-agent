@@ -9,6 +9,8 @@ from fastapi import HTTPException
 
 import routers.records as records
 from models.medical_record import MedicalRecord
+from services.errors import InvalidMedicalRecordError
+from services.miniprogram_auth import issue_miniprogram_token
 from services.intent import Intent, IntentResult
 
 
@@ -74,6 +76,36 @@ async def test_chat_empty_text_raises_422():
     assert exc.value.status_code == 422
 
 
+def test_resolve_doctor_id_uses_bearer_token_over_body():
+    token = issue_miniprogram_token("doctor_from_token", channel="wechat_mini")["access_token"]
+    resolved = records._resolve_doctor_id(
+        records.ChatInput(text="你好", doctor_id="doctor_from_body"),
+        f"Bearer {token}",
+    )
+    assert resolved == "doctor_from_token"
+
+
+def test_resolve_doctor_id_requires_auth_when_fallback_disabled(monkeypatch):
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.setenv("RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID", "false")
+    with pytest.raises(HTTPException) as exc:
+        records._resolve_doctor_id(records.ChatInput(text="你好", doctor_id=DOCTOR), None)
+    assert exc.value.status_code == 401
+
+
+def test_enforce_rate_limit_raises_429():
+    records._RATE_WINDOWS.clear()
+    original_limit = records._REQUESTS_PER_MINUTE
+    records._REQUESTS_PER_MINUTE = 1
+    try:
+        records._enforce_rate_limit("doc-limit-1")
+        with pytest.raises(HTTPException) as exc:
+            records._enforce_rate_limit("doc-limit-1")
+        assert exc.value.status_code == 429
+    finally:
+        records._REQUESTS_PER_MINUTE = original_limit
+
+
 async def test_chat_dispatch_errors_map_to_429_and_503():
     with patch("routers.records.agent_dispatch", new=AsyncMock(side_effect=RuntimeError("429 rate_limit"))):
         with pytest.raises(HTTPException) as exc:
@@ -119,6 +151,16 @@ async def test_chat_create_patient_no_name_and_success():
         resp2 = await records.chat(records.ChatInput(text="建档李明", doctor_id=DOCTOR))
     assert "建档" in resp2.reply
     assert "李明" in resp2.reply
+
+    with patch(
+        "routers.records.agent_dispatch",
+        new=AsyncMock(return_value=_intent(Intent.create_patient, patient_name="李明", gender="男", age=40)),
+    ), patch(
+        "routers.records.db_create_patient",
+        new=AsyncMock(side_effect=InvalidMedicalRecordError("invalid")),
+    ):
+        resp3 = await records.chat(records.ChatInput(text="建档李明", doctor_id=DOCTOR))
+    assert "格式不正确" in resp3.reply
 
 
 async def test_chat_add_record_invalid_name_and_structuring_error():

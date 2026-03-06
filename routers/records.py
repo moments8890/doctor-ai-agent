@@ -1,8 +1,10 @@
 import re
 import os
+import time
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, UploadFile, File
-from pydantic import BaseModel
+from collections import deque
+from fastapi import APIRouter, HTTPException, UploadFile, File, Header
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional
 
 from db.crud import (
@@ -27,6 +29,7 @@ from services.doctor_knowledge import (
     parse_add_to_knowledge_command,
     save_knowledge_item,
 )
+from services.errors import InvalidMedicalRecordError
 from services.intent import Intent
 from services.notify_control import (
     parse_notify_command,
@@ -42,6 +45,7 @@ from services.tasks import create_appointment_task, run_due_task_cycle
 from services.transcription import transcribe_audio
 from services.vision import extract_text_from_image
 from services.observability import trace_block
+from services.miniprogram_auth import MiniProgramAuthError, parse_bearer_token, verify_miniprogram_token
 from utils.log import log
 
 router = APIRouter(prefix="/api/records", tags=["records"])
@@ -87,6 +91,8 @@ _UNCLEAR_INTENT_REPLY = (
     "7) 预约随访（例：为张三安排复诊 2026年3月15日14:00）"
 )
 _ROUTING_HISTORY_MAX_MESSAGES = max(0, int(os.environ.get("ROUTING_HISTORY_MAX_MESSAGES", "6")))
+_REQUESTS_PER_MINUTE = max(1, int(os.environ.get("RECORDS_CHAT_RATE_LIMIT_PER_MINUTE", "100")))
+_RATE_WINDOWS: dict[str, deque] = {}
 
 
 def _trim_history_for_routing(history: List[dict]) -> List[dict]:
@@ -233,9 +239,21 @@ class HistoryMessage(BaseModel):
 
 
 class ChatInput(BaseModel):
-    text: str
-    history: List[HistoryMessage] = []
+    text: str = Field(..., max_length=8000)
+    history: List[HistoryMessage] = Field(default_factory=list)
     doctor_id: str = "test_doctor"
+
+    @field_validator("text")
+    @classmethod
+    def _validate_text(cls, value: str) -> str:
+        return value or ""
+
+    @field_validator("history")
+    @classmethod
+    def _validate_history(cls, value: List[HistoryMessage]) -> List[HistoryMessage]:
+        if len(value) > 40:
+            raise ValueError("history exceeds max length (40)")
+        return value
 
 
 class TextInput(BaseModel):
@@ -245,6 +263,45 @@ class TextInput(BaseModel):
 class ChatResponse(BaseModel):
     reply: str
     record: Optional[MedicalRecord] = None
+
+
+def _allow_insecure_doctor_id_fallback() -> bool:
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        return True
+    return (os.environ.get("RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID") or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def _resolve_doctor_id(body: ChatInput, authorization: Optional[str]) -> str:
+    if not isinstance(authorization, str):
+        authorization = None
+    if authorization and authorization.strip():
+        try:
+            token = parse_bearer_token(authorization)
+            principal = verify_miniprogram_token(token)
+            return principal.doctor_id
+        except MiniProgramAuthError as exc:
+            raise HTTPException(status_code=401, detail=str(exc))
+
+    if _allow_insecure_doctor_id_fallback():
+        return (body.doctor_id or "").strip() or "test_doctor"
+
+    raise HTTPException(status_code=401, detail="Missing Authorization header")
+
+
+def _enforce_rate_limit(doctor_id: str) -> None:
+    now = time.time()
+    window_start = now - 60.0
+    q = _RATE_WINDOWS.setdefault(doctor_id, deque())
+    while q and q[0] < window_start:
+        q.popleft()
+    if len(q) >= _REQUESTS_PER_MINUTE:
+        raise HTTPException(status_code=429, detail="rate_limit_exceeded")
+    q.append(now)
 
 
 async def _handle_notify_control_command(doctor_id: str, text: str) -> Optional[str]:
@@ -292,18 +349,26 @@ async def _handle_notify_control_command(doctor_id: str, text: str) -> Optional[
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(body: ChatInput):
+async def chat(
+    body: ChatInput,
+    authorization: Optional[str] = Header(default=None),
+):
     """General-purpose agent endpoint: dispatches via LLM and executes business logic.
 
-    doctor_id identifies the doctor — defaults to "test_doctor" for local testing.
+    doctor_id is derived from the auth token. body.doctor_id is only used when
+    RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID=true (test/dev fallback).
     Pass history as prior turns so the agent can resolve pronouns and follow-ups.
     """
+    doctor_id = _resolve_doctor_id(body, authorization)
+    return await _chat_for_doctor(body, doctor_id)
+
+
+async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
     if not body.text.strip():
         raise HTTPException(status_code=422, detail="Text input cannot be empty.")
-
     history = [{"role": m.role, "content": m.content} for m in body.history]
     history_for_routing = _trim_history_for_routing(history)
-    doctor_id = body.doctor_id
+    _enforce_rate_limit(doctor_id)
     notify_reply = await _handle_notify_control_command(doctor_id, body.text)
     if notify_reply is not None:
         return ChatResponse(reply=notify_reply)
@@ -433,7 +498,8 @@ async def chat(body: ChatInput):
     try:
         async with AsyncSessionLocal() as db:
             knowledge_context = await load_knowledge_context_for_prompt(db, doctor_id, body.text)
-    except Exception:
+    except Exception as e:
+        log(f"[Chat] knowledge context load failed doctor={doctor_id}: {e}")
         knowledge_context = ""
 
     try:
@@ -479,10 +545,14 @@ async def chat(body: ChatInput):
         if not name:
             return ChatResponse(reply="好的，请告诉我患者的姓名。")
         with trace_block("router", "records.chat.create_patient", {"doctor_id": doctor_id, "patient_name": name}):
-            async with AsyncSessionLocal() as db:
-                patient = await db_create_patient(
-                    db, doctor_id, name, intent_result.gender, intent_result.age
-                )
+            try:
+                async with AsyncSessionLocal() as db:
+                    patient = await db_create_patient(
+                        db, doctor_id, name, intent_result.gender, intent_result.age
+                    )
+            except InvalidMedicalRecordError as e:
+                log(f"[Chat] create patient validation FAILED doctor={doctor_id}: {e}")
+                return ChatResponse(reply="⚠️ 患者信息不完整或格式不正确，请检查后重试。")
         parts = "、".join(filter(None, [
             intent_result.gender,
             f"{intent_result.age}岁" if intent_result.age else None,
@@ -533,10 +603,14 @@ async def chat(body: ChatInput):
                 if patient_name:
                     patient = await find_patient_by_name(db, doctor_id, patient_name)
                     if not patient:
-                        patient = await db_create_patient(
-                            db, doctor_id, patient_name,
-                            intent_result.gender, intent_result.age,
-                        )
+                        try:
+                            patient = await db_create_patient(
+                                db, doctor_id, patient_name,
+                                intent_result.gender, intent_result.age,
+                            )
+                        except InvalidMedicalRecordError as e:
+                            log(f"[Chat] auto-create patient validation FAILED doctor={doctor_id}: {e}")
+                            return ChatResponse(reply="⚠️ 患者姓名格式无效，请更正后再试。")
                         patient_created = True
                     patient_id = patient.id
                 await save_record(db, doctor_id, record, patient_id)

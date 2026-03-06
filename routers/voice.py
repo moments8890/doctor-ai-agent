@@ -14,6 +14,7 @@ from routers.records import _assistant_asked_for_name
 from routers.records import _is_valid_patient_name
 from routers.records import _name_only_text
 from services.agent import dispatch as agent_dispatch
+from services.errors import InvalidMedicalRecordError
 from services.intent import Intent
 from services.structuring import structure_medical_record
 from services.transcription import transcribe_audio
@@ -60,6 +61,7 @@ async def voice_chat(
     try:
         transcript = await transcribe_audio(audio_bytes, audio.filename or "audio.wav")
     except Exception as e:
+        log(f"[VoiceChat] transcription FAILED doctor={doctor_id} file={audio.filename}: {e}")
         raise HTTPException(status_code=500, detail=f"Transcription failed: {e}")
 
     if not transcript.strip():
@@ -72,6 +74,7 @@ async def voice_chat(
         intent_result = await agent_dispatch(transcript, history=history_list)
     except Exception as e:
         msg = str(e)
+        log(f"[VoiceChat] dispatch FAILED doctor={doctor_id} msg={transcript[:80]!r}: {msg}")
         status = 429 if "rate_limit" in msg or "Rate limit" in msg or "429" in msg else 503
         raise HTTPException(status_code=status, detail=msg)
 
@@ -89,9 +92,12 @@ async def voice_chat(
         if not name:
             return VoiceChatResponse(transcript=transcript, reply="好的，请告诉我患者的姓名。")
         async with AsyncSessionLocal() as db:
-            patient = await db_create_patient(
-                db, doctor_id, name, intent_result.gender, intent_result.age
-            )
+            try:
+                patient = await db_create_patient(
+                    db, doctor_id, name, intent_result.gender, intent_result.age
+                )
+            except InvalidMedicalRecordError:
+                return VoiceChatResponse(transcript=transcript, reply="⚠️ 患者姓名格式无效，请更正后重试。")
         parts = "、".join(filter(None, [
             intent_result.gender,
             f"{intent_result.age}岁" if intent_result.age else None,
@@ -119,6 +125,7 @@ async def voice_chat(
             try:
                 record = await structure_medical_record("\n".join(doctor_ctx))
             except Exception as e:
+                log(f"[VoiceChat] structuring FAILED doctor={doctor_id} patient={intent_result.patient_name}: {e}")
                 return VoiceChatResponse(transcript=transcript, reply=f"病历生成失败：{e}")
 
         patient_id = None
@@ -128,10 +135,13 @@ async def voice_chat(
             if patient_name:
                 patient = await find_patient_by_name(db, doctor_id, patient_name)
                 if not patient:
-                    patient = await db_create_patient(
-                        db, doctor_id, patient_name,
-                        intent_result.gender, intent_result.age,
-                    )
+                    try:
+                        patient = await db_create_patient(
+                            db, doctor_id, patient_name,
+                            intent_result.gender, intent_result.age,
+                        )
+                    except InvalidMedicalRecordError:
+                        return VoiceChatResponse(transcript=transcript, reply="⚠️ 患者姓名格式无效，请更正后重试。")
                     patient_created = True
                 patient_id = patient.id
             await save_record(db, doctor_id, record, patient_id)
@@ -171,6 +181,7 @@ async def voice_consultation(
             audio_bytes, audio.filename or "audio.wav", consultation_mode=True
         )
     except Exception as e:
+        log(f"[VoiceConsultation] transcription FAILED doctor={doctor_id} file={audio.filename}: {e}")
         raise HTTPException(status_code=500, detail=f"Transcription failed: {e}")
 
     if not transcript.strip():
@@ -179,6 +190,7 @@ async def voice_consultation(
     try:
         record = await structure_medical_record(transcript, consultation_mode=True)
     except Exception as e:
+        log(f"[VoiceConsultation] structuring FAILED doctor={doctor_id} patient={patient_name}: {e}")
         raise HTTPException(status_code=500, detail=f"Structuring failed: {e}")
 
     saved_patient_id: Optional[int] = None
@@ -187,7 +199,10 @@ async def voice_consultation(
             if patient_name:
                 patient = await find_patient_by_name(db, doctor_id, patient_name)
                 if not patient:
-                    patient = await db_create_patient(db, doctor_id, patient_name)
+                    try:
+                        patient = await db_create_patient(db, doctor_id, patient_name)
+                    except InvalidMedicalRecordError:
+                        raise HTTPException(status_code=422, detail="Invalid patient name")
                 saved_patient_id = patient.id
             await save_record(db, doctor_id, record, saved_patient_id)
         log(f"[VoiceConsultation] saved record patient={patient_name} doctor={doctor_id}")

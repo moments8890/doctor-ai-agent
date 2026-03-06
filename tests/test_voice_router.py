@@ -9,6 +9,7 @@ from fastapi import HTTPException
 
 import routers.voice as voice
 from models.medical_record import MedicalRecord
+from services.errors import InvalidMedicalRecordError
 from services.intent import Intent, IntentResult
 
 
@@ -154,6 +155,19 @@ async def test_voice_chat_create_patient_with_name():
         resp = await voice.voice_chat(audio=upload, doctor_id=DOCTOR, history=None)
     assert "赵六" in resp.reply
     assert resp.transcript == "建档赵六"
+
+
+async def test_voice_chat_create_patient_invalid_name():
+    upload = _Upload(content_type="audio/wav")
+    fake_db = object()
+    with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="建档异常姓名")), \
+         patch("routers.voice.agent_dispatch", new=AsyncMock(
+             return_value=_intent(Intent.create_patient, patient_name="异常姓名", gender="女", age=30)
+         )), \
+         patch("routers.voice.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), \
+         patch("routers.voice.db_create_patient", new=AsyncMock(side_effect=InvalidMedicalRecordError("invalid"))):
+        resp = await voice.voice_chat(audio=upload, doctor_id=DOCTOR, history=None)
+    assert "姓名格式无效" in resp.reply
 
 
 async def test_voice_chat_add_record_structuring_fallback():
@@ -410,3 +424,18 @@ async def test_voice_chat_add_record_new_patient_created():
         resp = await voice.voice_chat(audio=upload, doctor_id=DOCTOR, history=None)
     create_mock.assert_called_once()
     assert "新建档并" in resp.reply
+
+
+async def test_voice_chat_add_record_new_patient_invalid_name():
+    upload = _Upload(content_type="audio/wav")
+    fake_db = object()
+    with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="新患者胸痛")), \
+         patch("routers.voice.agent_dispatch", new=AsyncMock(
+             return_value=_intent(Intent.add_record, patient_name="新患者")
+         )), \
+         patch("routers.voice.structure_medical_record", new=AsyncMock(return_value=_record())), \
+         patch("routers.voice.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), \
+         patch("routers.voice.find_patient_by_name", new=AsyncMock(return_value=None)), \
+         patch("routers.voice.db_create_patient", new=AsyncMock(side_effect=InvalidMedicalRecordError("invalid"))):
+        resp = await voice.voice_chat(audio=upload, doctor_id=DOCTOR, history=None)
+    assert "姓名格式无效" in resp.reply

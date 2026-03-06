@@ -39,6 +39,11 @@ def reset_doctor_sessions():
     sess_mod._persist_tasks.clear()
     sess_mod._persist_turn_tasks.clear()
     sess_mod._pending_turns.clear()
+    try:
+        import routers.records as records_mod
+        records_mod._RATE_WINDOWS.clear()
+    except Exception:
+        pass
     yield
     for task in list(sess_mod._persist_tasks.values()):
         task.cancel()
@@ -50,3 +55,8 @@ def reset_doctor_sessions():
     sess_mod._persist_tasks.clear()
     sess_mod._persist_turn_tasks.clear()
     sess_mod._pending_turns.clear()
+    try:
+        import routers.records as records_mod
+        records_mod._RATE_WINDOWS.clear()
+    except Exception:
+        pass

@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from db.crud import get_neuro_cases_for_doctor, save_neuro_case
 from db.engine import AsyncSessionLocal
 from services.neuro_structuring import extract_neuro_case
+from utils.log import log
 
 router = APIRouter(prefix="/api/neuro", tags=["neuro"])
 
@@ -37,8 +38,10 @@ async def neuro_from_text(body: NeuroFromTextInput):
     try:
         neuro_case, extraction_log = await extract_neuro_case(body.text)
     except ValueError as exc:
+        log(f"[Neuro] extract validation FAILED doctor={body.doctor_id}: {exc}")
         raise HTTPException(status_code=422, detail=str(exc))
     except Exception as exc:
+        log(f"[Neuro] extract FAILED doctor={body.doctor_id}: {exc}")
         raise HTTPException(status_code=500, detail=str(exc))
 
     async with AsyncSessionLocal() as db:

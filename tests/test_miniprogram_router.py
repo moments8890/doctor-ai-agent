@@ -27,7 +27,7 @@ def test_require_mini_principal_ok():
 async def test_mini_chat_injects_doctor_id():
     expected = records.ChatResponse(reply="ok", record=None)
     with patch.dict("os.environ", {"MINIPROGRAM_TOKEN_SECRET": "mini-route-secret-2"}, clear=False), patch(
-        "routers.miniprogram.records_router.chat",
+        "routers.miniprogram.records_router._chat_for_doctor",
         new=AsyncMock(return_value=expected),
     ) as chat_mock:
         out = await mini.mini_chat(

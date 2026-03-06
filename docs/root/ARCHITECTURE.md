@@ -106,7 +106,12 @@ WeChat Official Account
 │   ├── engine.py             # Async SQLAlchemy engine + AsyncSessionLocal
 │   ├── models.py             # Patient, MedicalRecordDB, DoctorContext, DoctorSessionState ORM models
 │   ├── init_db.py            # create_tables() called at startup
-│   └── crud.py               # All DB operations
+│   ├── crud.py               # Service-facing DB API (compat layer)
+│   └── repositories/         # Entity repositories (patients, records)
+│
+├── alembic/                  # Versioned DB migrations
+│   ├── env.py
+│   └── versions/
 │
 ├── models/
 │   └── medical_record.py     # Pydantic schema (8 clinical fields)
@@ -681,7 +686,12 @@ open http://localhost:8000/admin
 │   ├── engine.py             # Async SQLAlchemy engine + AsyncSessionLocal + Base
 │   ├── models.py             # ORM: Patient, MedicalRecordDB, DoctorContext, DoctorSessionState, SystemPrompt
 │   ├── init_db.py            # create_tables() + seed_prompts() called at startup
-│   └── crud.py               # All DB operations (patients, records, context, prompts)
+│   ├── crud.py               # Service-facing DB API (patients, records, context, prompts)
+│   └── repositories/         # Entity repositories (patients, records)
+│
+├── alembic/                  # Versioned DB migrations
+│   ├── env.py
+│   └── versions/
 │
 ├── models/
 │   └── medical_record.py     # Pydantic schema (8 clinical fields)

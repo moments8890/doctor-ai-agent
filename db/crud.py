@@ -5,7 +5,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from sqlalchemy import delete, select, update
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from db.models import (
@@ -26,10 +26,12 @@ from db.models import (
     DoctorTask,
     PatientLabel,
 )
+from db.repositories import PatientRepository, RecordRepository
 from models.medical_record import MedicalRecord
-from services.patient_categorization import RULES_VERSION, recompute_patient_category
-from services.patient_risk import RULES_VERSION as RISK_RULES_VERSION, recompute_patient_risk
+from services.patient_categorization import recompute_patient_category
+from services.patient_risk import recompute_patient_risk
 from services.observability import trace_block
+from services.errors import InvalidMedicalRecordError
 
 
 def _utcnow() -> datetime:
@@ -467,6 +469,17 @@ async def clear_conversation_turns(
     await session.commit()
 
 
+async def purge_conversation_turns_before(
+    session: AsyncSession,
+    older_than: datetime,
+) -> int:
+    result = await session.execute(
+        delete(DoctorConversationTurn).where(DoctorConversationTurn.created_at < older_than)
+    )
+    await session.commit()
+    return int(result.rowcount or 0)
+
+
 async def upsert_doctor_session_state(
     session: AsyncSession,
     doctor_id: str,
@@ -492,16 +505,8 @@ async def upsert_doctor_session_state(
 
 
 async def get_patient_for_doctor(session: AsyncSession, doctor_id: str, patient_id: int) -> Optional[Patient]:
-    result = await session.execute(
-        select(Patient).where(Patient.id == patient_id, Patient.doctor_id == doctor_id).limit(1)
-    )
-    return result.scalar_one_or_none()
-
-
-def _year_of_birth(age: Optional[int]) -> Optional[int]:
-    if age is None:
-        return None
-    return datetime.now().year - age
+    repo = PatientRepository(session)
+    return await repo.get_for_doctor(doctor_id, patient_id)
 
 
 async def create_patient(
@@ -512,26 +517,17 @@ async def create_patient(
     age: Optional[int],
 ) -> Patient:
     with trace_block("db", "crud.create_patient", {"doctor_id": doctor_id}):
+        cleaned_name = (name or "").strip()
+        if not cleaned_name or len(cleaned_name) > 128:
+            raise InvalidMedicalRecordError("Invalid patient name", context={"doctor_id": doctor_id})
         doctor_id = await _ensure_doctor_exists(session, doctor_id)
-        patient = Patient(
+        repo = PatientRepository(session)
+        return await repo.create(
             doctor_id=doctor_id,
-            name=name,
+            name=cleaned_name,
             gender=gender,
-            year_of_birth=_year_of_birth(age),
-            primary_category="new",
-            category_tags="[]",
-            category_rules_version=RULES_VERSION,
-            category_computed_at=_utcnow(),
-            primary_risk_level="low",
-            risk_tags='["no_records"]',
-            risk_score=0,
-            follow_up_state="not_needed",
-            risk_computed_at=_utcnow(),
-            risk_rules_version=RISK_RULES_VERSION,
+            age=age,
         )
-        session.add(patient)
-        await session.commit()
-        return patient
 
 
 async def find_patient_by_name(
@@ -540,10 +536,8 @@ async def find_patient_by_name(
     name: str,
 ) -> Patient | None:
     with trace_block("db", "crud.find_patient_by_name", {"doctor_id": doctor_id}):
-        result = await session.execute(
-            select(Patient).where(Patient.doctor_id == doctor_id, Patient.name == name).limit(1)
-        )
-        return result.scalar_one_or_none()
+        repo = PatientRepository(session)
+        return await repo.find_by_name(doctor_id, name)
 
 
 async def find_patients_by_exact_name(
@@ -552,13 +546,8 @@ async def find_patients_by_exact_name(
     name: str,
 ) -> list[Patient]:
     with trace_block("db", "crud.find_patients_by_exact_name", {"doctor_id": doctor_id}):
-        result = await session.execute(
-            select(Patient)
-            .options(selectinload(Patient.labels))
-            .where(Patient.doctor_id == doctor_id, Patient.name == name)
-            .order_by(Patient.created_at.desc(), Patient.id.desc())
-        )
-        return list(result.scalars().all())
+        repo = PatientRepository(session)
+        return await repo.find_by_exact_name(doctor_id, name)
 
 
 async def delete_patient_for_doctor(
@@ -618,20 +607,12 @@ async def save_record(
 ) -> MedicalRecordDB:
     with trace_block("db", "crud.save_record", {"doctor_id": doctor_id, "patient_id": patient_id}):
         doctor_id = await _ensure_doctor_exists(session, doctor_id)
-        db_record = MedicalRecordDB(
+        repo = RecordRepository(session)
+        db_record = await repo.create(
             doctor_id=doctor_id,
+            record=record,
             patient_id=patient_id,
-            chief_complaint=record.chief_complaint,
-            history_of_present_illness=record.history_of_present_illness,
-            past_medical_history=record.past_medical_history,
-            physical_examination=record.physical_examination,
-            auxiliary_examinations=record.auxiliary_examinations,
-            diagnosis=record.diagnosis,
-            treatment_plan=record.treatment_plan,
-            follow_up_plan=record.follow_up_plan,
         )
-        session.add(db_record)
-        await session.commit()
         if patient_id is not None:
             await recompute_patient_category(patient_id, session)
             risk = await recompute_patient_risk(patient_id, session)
@@ -757,13 +738,12 @@ async def get_records_for_patient(
     limit: int = 5,
 ) -> list[MedicalRecordDB]:
     with trace_block("db", "crud.get_records_for_patient", {"doctor_id": doctor_id, "patient_id": patient_id}):
-        result = await session.execute(
-            select(MedicalRecordDB)
-            .where(MedicalRecordDB.doctor_id == doctor_id, MedicalRecordDB.patient_id == patient_id)
-            .order_by(MedicalRecordDB.created_at.desc())
-            .limit(limit)
+        repo = RecordRepository(session)
+        return await repo.list_for_patient(
+            doctor_id=doctor_id,
+            patient_id=patient_id,
+            limit=limit,
         )
-        return list(result.scalars().all())
 
 
 async def get_all_patients(
@@ -771,13 +751,8 @@ async def get_all_patients(
     doctor_id: str,
 ) -> list[Patient]:
     with trace_block("db", "crud.get_all_patients", {"doctor_id": doctor_id}):
-        result = await session.execute(
-            select(Patient)
-            .where(Patient.doctor_id == doctor_id)
-            .order_by(Patient.created_at.desc())
-            .options(selectinload(Patient.labels))
-        )
-        return list(result.scalars().all())
+        repo = PatientRepository(session)
+        return await repo.list_for_doctor(doctor_id)
 
 
 async def get_all_records_for_doctor(
@@ -786,14 +761,11 @@ async def get_all_records_for_doctor(
     limit: int = 10,
 ) -> list[MedicalRecordDB]:
     with trace_block("db", "crud.get_all_records_for_doctor", {"doctor_id": doctor_id}):
-        result = await session.execute(
-            select(MedicalRecordDB)
-            .options(joinedload(MedicalRecordDB.patient))
-            .where(MedicalRecordDB.doctor_id == doctor_id)
-            .order_by(MedicalRecordDB.created_at.desc())
-            .limit(limit)
+        repo = RecordRepository(session)
+        return await repo.list_for_doctor(
+            doctor_id=doctor_id,
+            limit=limit,
         )
-        return list(result.scalars().unique().all())
 
 
 async def save_neuro_case(

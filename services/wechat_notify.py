@@ -24,17 +24,33 @@ def _env_first(*names: str) -> str:
 
 
 def _get_config() -> dict:
+    # WeCom 自建应用 (custom internal app) — takes priority if configured.
+    wecom_corp_id = os.environ.get("WECOM_CORP_ID", "").strip()
+    wecom_agent_id = os.environ.get("WECOM_AGENT_ID", "").strip()
+    wecom_secret = os.environ.get("WECOM_SECRET", "").strip()
+    is_wecom_app = bool(wecom_corp_id and wecom_agent_id and wecom_secret)
+
+    # WeCom KF (customer service) — used only when 自建应用 is not configured.
     kf_corp_id = os.environ.get("WECHAT_KF_CORP_ID", "").strip()
     kf_secret = os.environ.get("WECHAT_KF_SECRET", "").strip()
-    is_kf = bool(kf_corp_id and kf_secret)
+    is_kf = bool(kf_corp_id and kf_secret) and not is_wecom_app
+
+    if is_wecom_app:
+        app_id = wecom_corp_id
+        app_secret = wecom_secret
+    else:
+        app_id = _env_first("WECHAT_KF_CORP_ID", "WECHAT_APP_ID")
+        app_secret = _env_first("WECHAT_KF_SECRET", "WECHAT_APP_SECRET")
+
     return {
-        # Prefer WeCom KF env names used by doctor-openclaw; keep legacy aliases.
         "token": _env_first("WECHAT_KF_TOKEN", "WECHAT_TOKEN"),
-        "app_id": _env_first("WECHAT_KF_CORP_ID", "WECHAT_APP_ID"),
-        "app_secret": _env_first("WECHAT_KF_SECRET", "WECHAT_APP_SECRET"),
-        "aes_key": _env_first("WECHAT_KF_ENCODING_AES_KEY", "WECHAT_ENCODING_AES_KEY"),
+        "app_id": app_id,
+        "app_secret": app_secret,
+        "aes_key": _env_first("WECHAT_AES_KEY", "WECHAT_KF_ENCODING_AES_KEY", "WECHAT_ENCODING_AES_KEY"),
         "open_kfid": os.environ.get("WECHAT_KF_OPEN_KFID", "").strip(),
+        "agent_id": wecom_agent_id,
         "is_kf": is_kf,
+        "is_wecom_app": is_wecom_app,
     }
 
 
@@ -143,19 +159,33 @@ async def _send_customer_service_msg(
     try:
         access_token = await _get_access_token(cfg["app_id"], cfg["app_secret"])
         chunks = _split_message(content)
-        if cfg["is_kf"]:
+        kf_id = ""
+        if cfg.get("is_wecom_app", False):
+            url = f"https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token={access_token}"
+        elif cfg.get("is_kf", False):
             kf_id = open_kfid.strip() or cfg["open_kfid"]
             if not kf_id:
                 raise RuntimeError("WECHAT_KF_OPEN_KFID not configured for WeChat KF send")
             url = f"https://qyapi.weixin.qq.com/cgi-bin/kf/send_msg?access_token={access_token}"
         else:
             url = f"https://api.weixin.qq.com/cgi-bin/message/custom/send?access_token={access_token}"
-        log(f"[WeChat cs] sending {len(chunks)} message(s) to {to_user}")
+        log(
+            f"[WeChat cs] sending {len(chunks)} message(s) to {to_user} "
+            f"mode={'wecom_app' if cfg.get('is_wecom_app', False) else 'kf' if cfg.get('is_kf', False) else 'oa'}"
+        )
         async with httpx.AsyncClient() as client:
             for i, chunk in enumerate(chunks):
-                payload = {"touser": to_user, "msgtype": "text", "text": {"content": chunk}}
-                if cfg["is_kf"]:
-                    payload["open_kfid"] = kf_id
+                if cfg.get("is_wecom_app", False):
+                    payload = {
+                        "touser": to_user,
+                        "msgtype": "text",
+                        "agentid": int(cfg["agent_id"]),
+                        "text": {"content": chunk},
+                    }
+                elif cfg.get("is_kf", False):
+                    payload = {"touser": to_user, "msgtype": "text", "open_kfid": kf_id, "text": {"content": chunk}}
+                else:
+                    payload = {"touser": to_user, "msgtype": "text", "text": {"content": chunk}}
                 resp = await client.post(url, json=payload)
                 if hasattr(resp, "raise_for_status"):
                     resp.raise_for_status()

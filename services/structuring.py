@@ -7,6 +7,7 @@ import time
 from typing import Optional, Tuple
 from openai import AsyncOpenAI
 from models.medical_record import MedicalRecord
+from services.llm_resilience import call_with_retry_and_fallback
 from services.observability import trace_block
 from utils.log import log
 
@@ -192,22 +193,36 @@ async def structure_medical_record(
     client = AsyncOpenAI(
         base_url=provider["base_url"],
         api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
+        timeout=float(os.environ.get("STRUCTURING_LLM_TIMEOUT", "30")),
+        max_retries=0,
     )
     with trace_block("llm", "structuring.load_prompt"):
         system_prompt = await _get_system_prompt()
     if consultation_mode:
         system_prompt = system_prompt + _CONSULTATION_SUFFIX
-    with trace_block("llm", "structuring.chat_completion", {"provider": provider_name, "model": provider["model"]}):
-        completion = await client.chat.completions.create(
-            model=provider["model"],
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": text},
-            ],
-            response_format={"type": "json_object"},
-            max_tokens=1500,
-            temperature=0,
-        )
+    async def _call(model_name: str):
+        with trace_block("llm", "structuring.chat_completion", {"provider": provider_name, "model": model_name}):
+            return await client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": text},
+                ],
+                response_format={"type": "json_object"},
+                max_tokens=1500,
+                temperature=0,
+            )
+
+    fallback_model = None
+    if provider_name == "ollama":
+        fallback_model = os.environ.get("OLLAMA_FALLBACK_MODEL", "qwen2.5:7b")
+    completion = await call_with_retry_and_fallback(
+        _call,
+        primary_model=provider["model"],
+        fallback_model=fallback_model,
+        max_attempts=int(os.environ.get("STRUCTURING_LLM_ATTEMPTS", "3")),
+        op_name="structuring.chat_completion",
+    )
     raw = completion.choices[0].message.content
     log(f"[LLM:{provider_name}] response: {raw}")
     with trace_block("llm", "structuring.parse_response"):

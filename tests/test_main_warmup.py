@@ -5,6 +5,7 @@ import os
 import sys
 from types import SimpleNamespace
 from typing import Callable, List
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -112,3 +113,31 @@ async def test_warmup_raises_on_non_connectivity_error(monkeypatch):
     finally:
         os.environ.clear()
         os.environ.update(env_before)
+
+
+def test_conversation_turn_retention_days_parsing(monkeypatch):
+    main = _load_main_module()
+    monkeypatch.setenv("CONVERSATION_TURN_RETENTION_DAYS", "0")
+    assert main._conversation_turn_retention_days() == 1
+    monkeypatch.setenv("CONVERSATION_TURN_RETENTION_DAYS", "abc")
+    assert main._conversation_turn_retention_days() == 7
+
+
+@pytest.mark.asyncio
+async def test_cleanup_old_conversation_turns_invokes_purge(monkeypatch):
+    main = _load_main_module()
+    mock_session = object()
+
+    class _Ctx:
+        async def __aenter__(self):
+            return mock_session
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(main, "AsyncSessionLocal", lambda: _Ctx())
+    mock_purge = AsyncMock(return_value=3)
+    monkeypatch.setattr(main, "purge_conversation_turns_before", mock_purge)
+
+    await main._cleanup_old_conversation_turns()
+    assert mock_purge.await_count == 1

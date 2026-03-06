@@ -5,6 +5,7 @@ import os
 
 from openai import AsyncOpenAI
 
+from services.llm_resilience import call_with_retry_and_fallback
 from utils.log import log
 
 _SYSTEM_PROMPT = (
@@ -53,33 +54,49 @@ async def extract_text_from_image(image_bytes: bytes, mime_type: str) -> str:
     if cfg["base_url"]:
         client_kwargs["base_url"] = cfg["base_url"]
 
-    client = AsyncOpenAI(**client_kwargs)
+    client = AsyncOpenAI(
+        timeout=float(os.environ.get("VISION_LLM_TIMEOUT", "60")),
+        max_retries=0,
+        **client_kwargs,
+    )
 
     image_b64 = base64.b64encode(image_bytes).decode("utf-8")
     data_url = f"data:{mime_type};base64,{image_b64}"
 
     log(f"[Vision:{provider_name}] model={model} image_size={len(image_bytes)} bytes")
 
-    completion = await client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": _SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": data_url},
-                    },
-                    {
-                        "type": "text",
-                        "text": "请提取图片中所有临床文字。",
-                    },
-                ],
-            },
-        ],
-        max_tokens=2000,
-        temperature=0,
+    async def _call(model_name: str):
+        return await client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": _SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": data_url},
+                        },
+                        {
+                            "type": "text",
+                            "text": "请提取图片中所有临床文字。",
+                        },
+                    ],
+                },
+            ],
+            max_tokens=2000,
+            temperature=0,
+        )
+
+    fallback_model = None
+    if provider_name == "ollama":
+        fallback_model = os.environ.get("OLLAMA_VISION_FALLBACK_MODEL", "qwen2.5vl:7b")
+    completion = await call_with_retry_and_fallback(
+        _call,
+        primary_model=model,
+        fallback_model=fallback_model,
+        max_attempts=int(os.environ.get("VISION_LLM_ATTEMPTS", "3")),
+        op_name="vision.chat_completion",
     )
 
     extracted = (completion.choices[0].message.content or "").strip()

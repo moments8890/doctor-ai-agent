@@ -25,7 +25,7 @@ async def test_miniprogram_login_and_chat_e2e(session_factory):
         },
         clear=False,
     ), patch(
-        "routers.miniprogram.records_router.chat",
+        "routers.miniprogram.records_router._chat_for_doctor",
         new=AsyncMock(return_value=records_router.ChatResponse(reply="mini ok", record=None)),
     ) as chat_mock:
         transport = ASGITransport(app=app)
@@ -119,9 +119,10 @@ async def test_miniprogram_real_life_10_turn_chat_e2e(session_factory):
 
     state = {"turn": 0}
 
-    async def _fake_records_chat(chat_input):
+    async def _fake_records_chat(chat_input, doctor_id):
         idx = state["turn"]
         expected = scripted_turns[idx]
+        assert doctor_id == "wxmini_openid_mini_e2e_chat10"
         assert chat_input.doctor_id == "wxmini_openid_mini_e2e_chat10"
         assert chat_input.text == expected["user"]
         # Mini endpoint should pass through full client-provided history.
@@ -138,7 +139,7 @@ async def test_miniprogram_real_life_10_turn_chat_e2e(session_factory):
         },
         clear=False,
     ), patch(
-        "routers.miniprogram.records_router.chat",
+        "routers.miniprogram.records_router._chat_for_doctor",
         new=AsyncMock(side_effect=_fake_records_chat),
     ):
         transport = ASGITransport(app=app)

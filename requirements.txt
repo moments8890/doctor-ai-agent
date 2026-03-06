@@ -9,6 +9,8 @@ httpx
 sqlalchemy[asyncio]
 aiosqlite
 aiomysql
+pymysql
+alembic
 greenlet
 jieba
 datasette

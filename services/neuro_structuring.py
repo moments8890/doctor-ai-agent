@@ -9,6 +9,7 @@ from typing import Optional, Tuple
 from openai import AsyncOpenAI
 
 from models.neuro_case import ExtractionLog, NeuroCase
+from services.llm_resilience import call_with_retry_and_fallback
 from utils.log import log
 
 # ---------------------------------------------------------------------------
@@ -277,16 +278,30 @@ async def extract_neuro_case(text: str) -> Tuple[NeuroCase, ExtractionLog]:
     client = AsyncOpenAI(
         base_url=provider["base_url"],
         api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
+        timeout=float(os.environ.get("NEURO_LLM_TIMEOUT", "60")),
+        max_retries=0,
     )
     system_prompt = await _get_system_prompt()
-    completion = await client.chat.completions.create(
-        model=provider["model"],
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": text},
-        ],
-        max_tokens=3000,
-        temperature=0,
+    async def _call(model_name: str):
+        return await client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": text},
+            ],
+            max_tokens=3000,
+            temperature=0,
+        )
+
+    fallback_model = None
+    if provider_name == "ollama":
+        fallback_model = os.environ.get("OLLAMA_FALLBACK_MODEL", "qwen2.5:7b")
+    completion = await call_with_retry_and_fallback(
+        _call,
+        primary_model=provider["model"],
+        fallback_model=fallback_model,
+        max_attempts=int(os.environ.get("NEURO_LLM_ATTEMPTS", "3")),
+        op_name="neuro.chat_completion",
     )
     raw_md = completion.choices[0].message.content
     log(f"[NeuroLLM:{provider_name}] response length={len(raw_md)}")
