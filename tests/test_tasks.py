@@ -466,7 +466,7 @@ async def test_run_due_task_cycle_skips_manual_doctor_when_not_including_manual(
          patch("services.tasks.get_doctor_notify_preference", new=AsyncMock(return_value=pref)), \
          patch("services.tasks.upsert_doctor_notify_preference", new=AsyncMock()), \
          patch("services.tasks.send_task_notification", new=AsyncMock()) as mock_send:
-        out = await run_due_task_cycle(include_manual=False, force=False)
+        out = await run_due_task_cycle(include_manual=False, force=False, use_scheduler_lease=False)
 
     assert out["due_count"] == 1
     assert out["eligible_count"] == 0
