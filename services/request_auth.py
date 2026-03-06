@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hmac
+import logging
 import os
 from typing import Optional
 
@@ -32,7 +33,13 @@ def resolve_doctor_id_from_auth_or_fallback(
             raise HTTPException(status_code=401, detail=str(exc))
 
     if _allow_insecure_doctor_id_fallback(fallback_env_flag):
-        return (candidate_doctor_id or "").strip() or default_doctor_id
+        resolved = (candidate_doctor_id or "").strip() or default_doctor_id
+        logging.getLogger("auth").warning(
+            "[Auth] insecure doctor_id fallback used flag=%s resolved_doctor_id=%s",
+            fallback_env_flag,
+            resolved,
+        )
+        return resolved
 
     raise HTTPException(status_code=401, detail="Missing Authorization header")
 

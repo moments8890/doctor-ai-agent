@@ -37,7 +37,8 @@ def test_resolve_doctor_id_invalid_token_returns_401() -> None:
 
 
 def test_resolve_doctor_id_uses_candidate_when_fallback_enabled() -> None:
-    with patch.dict("os.environ", {"ALLOW_X": "true"}, clear=True):
+    with patch.dict("os.environ", {"ALLOW_X": "true"}, clear=True), \
+         patch("services.request_auth.logging.getLogger") as get_logger:
         got = resolve_doctor_id_from_auth_or_fallback(
             "body_doc",
             None,
@@ -46,6 +47,7 @@ def test_resolve_doctor_id_uses_candidate_when_fallback_enabled() -> None:
         )
 
     assert got == "body_doc"
+    get_logger.return_value.warning.assert_called_once()
 
 
 def test_resolve_doctor_id_uses_default_when_candidate_empty_and_fallback_enabled() -> None:
