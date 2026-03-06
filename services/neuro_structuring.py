@@ -192,6 +192,11 @@ _PROVIDERS = {
         "api_key_env": "OLLAMA_API_KEY",
         "model": "qwen2.5:7b",
     },
+    "tencent_lkeap": {
+        "base_url": os.environ.get("TENCENT_LKEAP_BASE_URL", "https://api.lkeap.cloud.tencent.com/v1"),
+        "api_key_env": "TENCENT_LKEAP_API_KEY",
+        "model": os.environ.get("TENCENT_LKEAP_MODEL", "deepseek-v3-1"),
+    },
 }
 
 _FENCED_JSON_RE = re.compile(r"```(?:json)?\s*([\s\S]*?)```", re.IGNORECASE)
@@ -264,6 +269,9 @@ async def extract_neuro_case(text: str) -> Tuple[NeuroCase, ExtractionLog]:
     provider = dict(_PROVIDERS[provider_name])
     if provider_name == "ollama":
         provider["model"] = os.environ.get("OLLAMA_MODEL", provider["model"])
+    elif provider_name == "tencent_lkeap":
+        provider["base_url"] = os.environ.get("TENCENT_LKEAP_BASE_URL", provider["base_url"])
+        provider["model"] = os.environ.get("TENCENT_LKEAP_MODEL", provider["model"])
     log(f"[NeuroLLM:{provider_name}] calling API: {text[:80]}")
 
     client = AsyncOpenAI(

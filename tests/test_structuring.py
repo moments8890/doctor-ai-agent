@@ -299,3 +299,25 @@ async def test_structure_strict_mode_blocks_missing_provider_key(monkeypatch):
         with pytest.raises(RuntimeError, match="requires GROQ_API_KEY"):
             await structure_medical_record("头痛")
     mock_client_cls.assert_not_called()
+
+
+async def test_structure_tencent_lkeap_provider_uses_tencent_env(monkeypatch):
+    monkeypatch.setenv("STRUCTURING_LLM", "tencent_lkeap")
+    monkeypatch.setenv("TENCENT_LKEAP_BASE_URL", "https://api.lkeap.cloud.tencent.com/v1")
+    monkeypatch.setenv("TENCENT_LKEAP_MODEL", "deepseek-v3-1")
+    monkeypatch.setenv("TENCENT_LKEAP_API_KEY", "tencent-key")
+    monkeypatch.setenv("LLM_PROVIDER_STRICT_MODE", "true")
+
+    mock_client = AsyncMock()
+    mock_client.chat.completions.create = AsyncMock(
+        return_value=_make_completion({"chief_complaint": "头痛", "history_of_present_illness": "两天"})
+    )
+    with patch("services.structuring.AsyncOpenAI", return_value=mock_client) as mock_client_cls:
+        record = await structure_medical_record("头痛两天")
+
+    assert record.chief_complaint == "头痛"
+    mock_client_cls.assert_called_once_with(
+        base_url="https://api.lkeap.cloud.tencent.com/v1",
+        api_key="tencent-key",
+    )
+    assert mock_client.chat.completions.create.call_args.kwargs["model"] == "deepseek-v3-1"

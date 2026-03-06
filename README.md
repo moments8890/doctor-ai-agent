@@ -46,6 +46,13 @@ export DEEPSEEK_API_KEY="<your_deepseek_key>"
 ./dev.sh vm-up
 ```
 
+Tencent LKEAP / DeepSeek via Tencent in-region endpoint:
+```bash
+export TENCENT_LKEAP_API_KEY="<your_tencent_lkeap_key>"
+export TENCENT_LKEAP_MODEL="deepseek-v3-1"
+./dev.sh vm-up --llm-provider tencent_lkeap
+```
+
 3. Run tests
 ```bash
 ./dev.sh test unit

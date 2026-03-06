@@ -44,7 +44,7 @@ Usage:
   ./dev.sh stop
   ./dev.sh bootstrap [--with-frontend]    # project deps (venv/pip/npm)
   ./dev.sh vm-bootstrap [--with-frontend] [--with-mysql]  # one-time VM provisioning
-  ./dev.sh vm-up [--runtime <path>] [--backend-host <host>] [--backend-port <port>] [--frontend-host <host>] [--frontend-port <port>] [--no-frontend]  # start mysql+backend+frontend
+  ./dev.sh vm-up [--runtime <path>] [--llm-provider <deepseek|tencent_lkeap|openai|ollama>] [--backend-host <host>] [--backend-port <port>] [--frontend-host <host>] [--frontend-port <port>] [--no-frontend]  # start mysql+backend+frontend
   ./dev.sh vm-down [--remove-mysql]
   ./dev.sh run-backend [--host <host>] [--port <port>] [--reload]
   ./dev.sh test [unit|integration|integration-full|chatlog-half|chatlog-full|all]
@@ -178,6 +178,7 @@ EOF
       ;;
     vm-up|tencent-up)
       RUNTIME_PATH="$APP_DIR/config/runtime.json"
+      LLM_PROVIDER="${VM_LLM_PROVIDER:-deepseek}"
       BACKEND_HOST="0.0.0.0"
       BACKEND_PORT="8000"
       FRONTEND_HOST="0.0.0.0"
@@ -193,6 +194,10 @@ EOF
         case "$1" in
           --runtime)
             RUNTIME_PATH="${2:-$RUNTIME_PATH}"
+            shift 2
+            ;;
+          --llm-provider)
+            LLM_PROVIDER="${2:-$LLM_PROVIDER}"
             shift 2
             ;;
           --backend-host)
@@ -217,7 +222,7 @@ EOF
             ;;
           *)
             echo "Unknown vm-up arg: $1"
-            echo "Usage: ./dev.sh vm-up [--runtime <path>] [--backend-host <host>] [--backend-port <port>] [--frontend-host <host>] [--frontend-port <port>] [--no-frontend]"
+            echo "Usage: ./dev.sh vm-up [--runtime <path>] [--llm-provider <deepseek|tencent_lkeap|openai|ollama>] [--backend-host <host>] [--backend-port <port>] [--frontend-host <host>] [--frontend-port <port>] [--no-frontend]"
             exit 2
             ;;
         esac
@@ -259,20 +264,48 @@ EOF
         exit 1
       fi
 
-      # Ensure runtime config targets remote DeepSeek + local MySQL.
+      if [[ "$LLM_PROVIDER" != "deepseek" && "$LLM_PROVIDER" != "tencent_lkeap" && "$LLM_PROVIDER" != "openai" && "$LLM_PROVIDER" != "ollama" ]]; then
+        echo "Unsupported --llm-provider '$LLM_PROVIDER'. Allowed: deepseek | tencent_lkeap | openai | ollama"
+        exit 2
+      fi
+
+      # Ensure runtime config targets selected LLM provider + local MySQL.
       DEEPSEEK_KEY_FROM_ENV="${DEEPSEEK_API_KEY:-}"
+      TENCENT_LKEAP_KEY_FROM_ENV="${TENCENT_LKEAP_API_KEY:-}"
+      TENCENT_LKEAP_BASE_URL_FROM_ENV="${TENCENT_LKEAP_BASE_URL:-https://api.lkeap.cloud.tencent.com/v1}"
+      TENCENT_LKEAP_MODEL_FROM_ENV="${TENCENT_LKEAP_MODEL:-deepseek-v3-1}"
+      OPENAI_KEY_FROM_ENV="${OPENAI_API_KEY:-}"
+      OPENAI_BASE_URL_FROM_ENV="${OPENAI_BASE_URL:-https://api.openai.com/v1}"
+      OPENAI_MODEL_FROM_ENV="${OPENAI_MODEL:-gpt-5-codex}"
       env PYTHONPATH="$APP_DIR${PYTHONPATH:+:$PYTHONPATH}" python3 - <<PY
 from utils.runtime_json import load_runtime_json, save_runtime_json
 cfg = load_runtime_json("$RUNTIME_PATH")
-cfg["ROUTING_LLM"] = "deepseek"
-cfg["STRUCTURING_LLM"] = "deepseek"
+cfg["ROUTING_LLM"] = "$LLM_PROVIDER"
+cfg["STRUCTURING_LLM"] = "$LLM_PROVIDER"
 cfg["INTENT_PROVIDER"] = "model-driven"
 cfg["DATABASE_URL"] = "mysql+aiomysql://$MYSQL_USER:$MYSQL_PASSWORD@127.0.0.1:3306/$MYSQL_DATABASE?charset=utf8mb4"
-deepseek_env = """$DEEPSEEK_KEY_FROM_ENV""".strip()
-if deepseek_env:
-    cfg["DEEPSEEK_API_KEY"] = deepseek_env
-if not str(cfg.get("DEEPSEEK_API_KEY", "")).strip():
-    raise SystemExit("DEEPSEEK_API_KEY is empty. Set env DEEPSEEK_API_KEY or update runtime config.")
+if "$LLM_PROVIDER" == "deepseek":
+    deepseek_env = """$DEEPSEEK_KEY_FROM_ENV""".strip()
+    if deepseek_env:
+        cfg["DEEPSEEK_API_KEY"] = deepseek_env
+    if not str(cfg.get("DEEPSEEK_API_KEY", "")).strip():
+        raise SystemExit("DEEPSEEK_API_KEY is empty. Set env DEEPSEEK_API_KEY or update runtime config.")
+elif "$LLM_PROVIDER" == "tencent_lkeap":
+    lkeap_key = """$TENCENT_LKEAP_KEY_FROM_ENV""".strip()
+    if lkeap_key:
+        cfg["TENCENT_LKEAP_API_KEY"] = lkeap_key
+    cfg["TENCENT_LKEAP_BASE_URL"] = """$TENCENT_LKEAP_BASE_URL_FROM_ENV""".strip() or "https://api.lkeap.cloud.tencent.com/v1"
+    cfg["TENCENT_LKEAP_MODEL"] = """$TENCENT_LKEAP_MODEL_FROM_ENV""".strip() or "deepseek-v3-1"
+    if not str(cfg.get("TENCENT_LKEAP_API_KEY", "")).strip():
+        raise SystemExit("TENCENT_LKEAP_API_KEY is empty. Set env TENCENT_LKEAP_API_KEY or update runtime config.")
+elif "$LLM_PROVIDER" == "openai":
+    openai_key = """$OPENAI_KEY_FROM_ENV""".strip()
+    if openai_key:
+        cfg["OPENAI_API_KEY"] = openai_key
+    cfg["OPENAI_BASE_URL"] = """$OPENAI_BASE_URL_FROM_ENV""".strip() or "https://api.openai.com/v1"
+    cfg["OPENAI_MODEL"] = """$OPENAI_MODEL_FROM_ENV""".strip() or "gpt-5-codex"
+    if not str(cfg.get("OPENAI_API_KEY", "")).strip():
+        raise SystemExit("OPENAI_API_KEY is empty. Set env OPENAI_API_KEY or update runtime config.")
 save_runtime_json(cfg, "$RUNTIME_PATH")
 print("Runtime config updated:", "$RUNTIME_PATH")
 PY

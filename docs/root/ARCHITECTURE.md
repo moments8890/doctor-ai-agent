@@ -466,7 +466,7 @@ Two independent LLM roles, each configurable separately:
 | `STRUCTURING_LLM` | Standalone: REST direct endpoints, interview completion, fallback | ~800 | JSON mode |
 | `VISION_LLM` | Image OCR / text extraction | ~2000 | Vision / multimodal support |
 
-`ROUTING_LLM` falls back to `STRUCTURING_LLM` if not set. Both accept `ollama`, `deepseek`, or `groq`.
+`ROUTING_LLM` falls back to `STRUCTURING_LLM` if not set. Both accept `ollama`, `deepseek`, `groq`, `openai`, or `tencent_lkeap`.
 
 > **Single-LLM design (2026-03-02):** `ROUTING_LLM` now performs routing + structuring + natural reply in one call.
 > `STRUCTURING_LLM` is used only for REST direct endpoints, guided interview completion, and as a fallback when
@@ -486,10 +486,10 @@ Runtime config supports bounded doctor knowledge injection to avoid prompt overf
 
 ```bash
 # LLM for intent dispatch & function calling (~300 tokens/call)
-ROUTING_LLM=ollama           # ollama | deepseek | groq
+ROUTING_LLM=ollama           # ollama | deepseek | groq | openai | tencent_lkeap
 
 # LLM for medical record JSON generation (~800 tokens/call)
-STRUCTURING_LLM=ollama       # ollama | deepseek | groq
+STRUCTURING_LLM=ollama       # ollama | deepseek | groq | openai | tencent_lkeap
 
 # Ollama
 OLLAMA_API_KEY=ollama
@@ -503,6 +503,9 @@ VISION_LLM=ollama            # ollama | openai
 DEEPSEEK_API_KEY=sk-...
 GROQ_API_KEY=gsk_...
 OPENAI_API_KEY=sk-...        # required only when VISION_LLM=openai
+TENCENT_LKEAP_BASE_URL=https://api.lkeap.cloud.tencent.com/v1
+TENCENT_LKEAP_MODEL=deepseek-v3-1
+TENCENT_LKEAP_API_KEY=...
 
 # Local voice transcription
 WHISPER_MODEL=large-v3       # large-v3 | medium | small | base

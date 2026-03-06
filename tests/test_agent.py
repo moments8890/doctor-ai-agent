@@ -439,6 +439,29 @@ async def test_dispatch_strict_mode_blocks_missing_provider_key(monkeypatch):
     mock_client_cls.assert_not_called()
 
 
+async def test_dispatch_tencent_lkeap_provider_uses_tencent_env(monkeypatch):
+    monkeypatch.setenv("ROUTING_LLM", "tencent_lkeap")
+    monkeypatch.setenv("TENCENT_LKEAP_BASE_URL", "https://api.lkeap.cloud.tencent.com/v1")
+    monkeypatch.setenv("TENCENT_LKEAP_MODEL", "deepseek-v3-1")
+    monkeypatch.setenv("TENCENT_LKEAP_API_KEY", "tencent-key")
+    monkeypatch.setenv("LLM_PROVIDER_STRICT_MODE", "true")
+
+    mock_client = AsyncMock()
+    mock_client.chat.completions.create = AsyncMock(return_value=_make_chat_reply("您好，我是医生助手。"))
+    with patch("services.agent.AsyncOpenAI", return_value=mock_client) as mock_client_cls:
+        result = await dispatch("你好")
+
+    assert result.intent == Intent.unknown
+    assert result.chat_reply == "您好，我是医生助手。"
+    mock_client_cls.assert_called_once_with(
+        base_url="https://api.lkeap.cloud.tencent.com/v1",
+        api_key="tencent-key",
+        timeout=45.0,
+        max_retries=1,
+    )
+    assert mock_client.chat.completions.create.call_args.kwargs["model"] == "deepseek-v3-1"
+
+
 def test_extract_embedded_tool_call_parses_object_and_args():
     content = '_tool_call_ {"name":"query_records","arguments":{"patient_name":"钱芳"}} </tool_call>'
     fn, args = agent._extract_embedded_tool_call(content)

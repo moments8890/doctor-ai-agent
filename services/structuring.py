@@ -151,6 +151,11 @@ _PROVIDERS = {
         "api_key_env": "OPENAI_API_KEY",
         "model": "gpt-5-codex",
     },
+    "tencent_lkeap": {
+        "base_url": os.environ.get("TENCENT_LKEAP_BASE_URL", "https://api.lkeap.cloud.tencent.com/v1"),
+        "api_key_env": "TENCENT_LKEAP_API_KEY",
+        "model": os.environ.get("TENCENT_LKEAP_MODEL", "deepseek-v3-1"),
+    },
 }
 
 
@@ -169,6 +174,9 @@ async def structure_medical_record(
     elif provider_name == "openai":
         provider["base_url"] = os.environ.get("OPENAI_BASE_URL", provider["base_url"])
         provider["model"] = os.environ.get("OPENAI_MODEL", provider["model"])
+    elif provider_name == "tencent_lkeap":
+        provider["base_url"] = os.environ.get("TENCENT_LKEAP_BASE_URL", provider["base_url"])
+        provider["model"] = os.environ.get("TENCENT_LKEAP_MODEL", provider["model"])
     strict_mode = os.environ.get("LLM_PROVIDER_STRICT_MODE", "true").strip().lower() not in {"0", "false", "no", "off"}
     if strict_mode and provider_name != "ollama":
         key_env = provider["api_key_env"]

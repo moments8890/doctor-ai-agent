@@ -34,3 +34,6 @@ logs/
 # Frontend
 frontend/node_modules/
 frontend/dist/
+
+# local screts notes
+config/local.secrets

@@ -27,6 +27,11 @@ _PROVIDERS = {
         "api_key_env": "OLLAMA_API_KEY",
         "model": "qwen2.5:14b",
     },
+    "tencent_lkeap": {
+        "base_url": os.environ.get("TENCENT_LKEAP_BASE_URL", "https://api.lkeap.cloud.tencent.com/v1"),
+        "api_key_env": "TENCENT_LKEAP_API_KEY",
+        "model": os.environ.get("TENCENT_LKEAP_MODEL", "deepseek-v3-1"),
+    },
 }
 
 SYSTEM_PROMPT = (

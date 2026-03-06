@@ -13,6 +13,7 @@ _SENSITIVE_FIELD_NAMES = {
     "groq_api_key",
     "gemini_api_key",
     "openai_api_key",
+    "tencent_lkeap_api_key",
     "wechat_token",
     "wechat_app_secret",
     "wechat_mini_app_secret",
@@ -109,6 +110,9 @@ class AppConfig:
     deepseek_api_key: Optional[str]
     groq_api_key: Optional[str]
     openai_api_key: Optional[str]
+    tencent_lkeap_base_url: str
+    tencent_lkeap_model: str
+    tencent_lkeap_api_key: Optional[str]
     gemini_api_key: Optional[str]
     gemini_vision_model: str
 
@@ -157,6 +161,9 @@ class AppConfig:
             deepseek_api_key=values.get("DEEPSEEK_API_KEY"),
             groq_api_key=values.get("GROQ_API_KEY"),
             openai_api_key=values.get("OPENAI_API_KEY"),
+            tencent_lkeap_base_url=values.get("TENCENT_LKEAP_BASE_URL", "https://api.lkeap.cloud.tencent.com/v1"),
+            tencent_lkeap_model=values.get("TENCENT_LKEAP_MODEL", "deepseek-v3-1"),
+            tencent_lkeap_api_key=values.get("TENCENT_LKEAP_API_KEY"),
             gemini_api_key=values.get("GEMINI_API_KEY"),
             gemini_vision_model=values.get("GEMINI_VISION_MODEL", "gemini-2.0-flash"),
             wechat_token=_env_first(values, "WECHAT_KF_TOKEN", "WECHAT_TOKEN"),
@@ -199,6 +206,8 @@ class AppConfig:
             "ollama_model": self.ollama_model,
             "ollama_vision_model": self.ollama_vision_model,
             "gemini_vision_model": self.gemini_vision_model,
+            "tencent_lkeap_base_url": self.tencent_lkeap_base_url,
+            "tencent_lkeap_model": self.tencent_lkeap_model,
             "wechat_app_id": self.wechat_app_id or "(empty)",
             "wechat_mini_app_id": self.wechat_mini_app_id or "(empty)",
             "patients_db_path": self.patients_db_path or "(default)",

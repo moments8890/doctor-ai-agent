@@ -16,7 +16,8 @@
             "deepseek",
             "groq",
             "gemini",
-            "openai"
+            "openai",
+            "tencent_lkeap"
           ]
         },
         "STRUCTURING_LLM": {
@@ -28,7 +29,8 @@
             "deepseek",
             "groq",
             "gemini",
-            "openai"
+            "openai",
+            "tencent_lkeap"
           ]
         },
         "INTENT_PROVIDER": {
@@ -41,7 +43,7 @@
           ]
         },
         "LLM_PROVIDER_STRICT_MODE": {
-          "value": "true",
+          "value": true,
           "description": "When true, use selected provider only and never fallback to others.",
           "description_zh": "为 true 时仅使用所选提供商，不会自动回退到其它提供商。",
           "options": [
@@ -92,6 +94,21 @@
           "description": "OpenAI API key.",
           "description_zh": "OpenAI API Key。"
         },
+        "TENCENT_LKEAP_BASE_URL": {
+          "value": "https://api.lkeap.cloud.tencent.com/v1",
+          "description": "Tencent LKEAP OpenAI-compatible API base URL.",
+          "description_zh": "腾讯云 LKEAP（OpenAI 兼容）API 基地址。"
+        },
+        "TENCENT_LKEAP_MODEL": {
+          "value": "deepseek-v3-1",
+          "description": "Tencent LKEAP model name for routing/structuring.",
+          "description_zh": "路由/结构化使用的腾讯云 LKEAP 模型名。"
+        },
+        "TENCENT_LKEAP_API_KEY": {
+          "value": "",
+          "description": "Tencent LKEAP API key.",
+          "description_zh": "腾讯云 LKEAP API Key。"
+        },
         "GROQ_API_KEY": {
           "value": "",
           "description": "Groq API key.",
@@ -128,7 +145,7 @@
           "description_zh": "主视觉模型名称。"
         },
         "OLLAMA_API_KEY": {
-          "value": "",
+          "value": "ollama",
           "description": "API key for Ollama-compatible client.",
           "description_zh": "Ollama 客户端 API Key。"
         },
@@ -149,7 +166,7 @@
           "description_zh": "共享数据库 URL（多实例推荐）。"
         },
         "PATIENTS_DB_PATH": {
-          "value": "patients.db",
+          "value": "/Users/jingwuxu/Documents/Code/doctor-ai-agent/patients.db",
           "description": "SQLite DB path when DATABASE_URL is empty.",
           "description_zh": "DATABASE_URL 为空时使用的 SQLite 路径。"
         }
@@ -185,7 +202,7 @@
       "description_zh": "临床自动化与调度行为。",
       "settings": {
         "AUTO_FOLLOWUP_TASKS_ENABLED": {
-          "value": "false",
+          "value": false,
           "description": "Enable auto follow-up task generation.",
           "description_zh": "是否开启自动生成随访任务。"
         },
@@ -199,7 +216,7 @@
           ]
         },
         "TASK_SCHEDULER_INTERVAL_MINUTES": {
-          "value": "1",
+          "value": 1,
           "description": "Interval mode cadence in minutes.",
           "description_zh": "interval 模式的分钟间隔。"
         },
@@ -209,24 +226,63 @@
           "description_zh": "cron 模式表达式。"
         },
         "TASK_SCHEDULER_LEASE_ENABLED": {
-          "value": "true",
+          "value": true,
           "description": "Enable distributed lease to avoid duplicate runs.",
           "description_zh": "是否启用分布式租约防重复执行。"
         },
         "TASK_SCHEDULER_LEASE_TTL_SECONDS": {
-          "value": "90",
+          "value": 90,
           "description": "Lease TTL for failover recovery.",
           "description_zh": "租约 TTL（故障恢复用）。"
         },
         "TASK_NOTIFY_RETRY_COUNT": {
-          "value": "3",
+          "value": 3,
           "description": "Retry attempts for notification sends.",
           "description_zh": "通知失败重试次数。"
         },
         "TASK_NOTIFY_RETRY_DELAY_SECONDS": {
-          "value": "1.0",
+          "value": 1,
           "description": "Delay between retries.",
           "description_zh": "重试间隔秒数。"
+        },
+        "KNOWLEDGE_CANDIDATE_LIMIT": {
+          "value": 30,
+          "description": "How many knowledge items to scan per doctor before ranking.",
+          "description_zh": "每次检索医生知识库时参与排序的候选条数。"
+        },
+        "KNOWLEDGE_MAX_ITEMS": {
+          "value": 3,
+          "description": "Maximum number of knowledge snippets injected into routing prompt.",
+          "description_zh": "注入路由 prompt 的知识片段最大条数。"
+        },
+        "KNOWLEDGE_MAX_CHARS": {
+          "value": 1200,
+          "description": "Total character budget for injected knowledge prompt section.",
+          "description_zh": "注入知识片段的总字符预算上限。"
+        },
+        "KNOWLEDGE_MAX_ITEM_CHARS": {
+          "value": 320,
+          "description": "Per-knowledge-item character cap before prompt injection.",
+          "description_zh": "单条知识片段注入前的字符截断上限。"
+        },
+        "KNOWLEDGE_AUTO_LEARN_ENABLED": {
+          "value": true,
+          "description": "Enable automatic knowledge capture from successful clinical turns.",
+          "description_zh": "是否开启从临床对话自动沉淀知识。",
+          "options": [
+            "true",
+            "false"
+          ]
+        },
+        "KNOWLEDGE_AUTO_MAX_NEW_PER_TURN": {
+          "value": 1,
+          "description": "Maximum auto-learned snippets inserted per chat turn.",
+          "description_zh": "每轮对话最多自动新增的知识条数。"
+        },
+        "KNOWLEDGE_AUTO_MIN_TEXT_CHARS": {
+          "value": 8,
+          "description": "Minimum user-text length to consider for auto-learning.",
+          "description_zh": "触发自动沉淀时，医生输入的最小长度阈值。"
         }
       }
     },
@@ -265,17 +321,17 @@
           "description_zh": "code2session 使用的小程序密钥。"
         },
         "MINIPROGRAM_TOKEN_SECRET": {
-          "value": "",
+          "value": "dev-miniprogram-secret",
           "description": "Signing key for mini access tokens.",
           "description_zh": "小程序访问令牌签名密钥。"
         },
         "MINIPROGRAM_TOKEN_TTL_SECONDS": {
-          "value": "604800",
+          "value": 604800,
           "description": "Mini access token expiration in seconds.",
           "description_zh": "小程序访问令牌有效期（秒）。"
         },
         "MINIPROGRAM_API_BASE_URL": {
-          "value": "https://example.com",
+          "value": "https://nano-redhead-attitudes-attachment.trycloudflare.com",
           "description": "Public HTTPS API base URL used by mini client config.",
           "description_zh": "小程序客户端使用的公网 HTTPS API 基地址。"
         }
@@ -303,7 +359,7 @@
           "description_zh": "Python 日志格式字符串。"
         },
         "LOG_TO_FILE": {
-          "value": "true",
+          "value": true,
           "description": "Enable rotating file logging.",
           "description_zh": "是否启用文件滚动日志。"
         },
@@ -318,12 +374,12 @@
           "description_zh": "主日志文件名。"
         },
         "LOG_MAX_BYTES": {
-          "value": "10485760",
+          "value": 10485760,
           "description": "Max bytes per log file before rotation.",
           "description_zh": "单文件最大字节数，超过后滚动。"
         },
         "LOG_BACKUP_COUNT": {
-          "value": "5",
+          "value": 5,
           "description": "Number of rotated log backups to keep.",
           "description_zh": "日志备份保留数量。"
         }
