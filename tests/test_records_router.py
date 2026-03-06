@@ -467,6 +467,11 @@ async def test_from_text_image_audio_endpoints():
             await records.create_record_from_text(records.TextInput(text="胸痛"))
     assert exc2.value.status_code == 500
     assert exc2.value.detail == "Internal server error"
+    with patch("routers.records.structure_medical_record", new=AsyncMock(side_effect=ValueError("bad input"))):
+        with pytest.raises(HTTPException) as exc2b:
+            await records.create_record_from_text(records.TextInput(text="胸痛"))
+    assert exc2b.value.status_code == 422
+    assert exc2b.value.detail == "Invalid medical record content"
 
     with pytest.raises(HTTPException) as exc3:
         await records.create_record_from_image(_Upload(content_type="image/tiff"))
@@ -482,6 +487,12 @@ async def test_from_text_image_audio_endpoints():
             await records.create_record_from_image(_Upload(content_type="image/png", data=b"img"))
     assert exc4.value.status_code == 500
     assert exc4.value.detail == "Internal server error"
+    with patch("routers.records.extract_text_from_image", new=AsyncMock(return_value="识别文本")), \
+         patch("routers.records.structure_medical_record", new=AsyncMock(side_effect=ValueError("bad image record"))):
+        with pytest.raises(HTTPException) as exc4b:
+            await records.create_record_from_image(_Upload(content_type="image/png", data=b"img"))
+    assert exc4b.value.status_code == 422
+    assert exc4b.value.detail == "Invalid medical record content"
 
     with pytest.raises(HTTPException) as exc5:
         await records.create_record_from_audio(_Upload(content_type="audio/aac"))
@@ -497,3 +508,9 @@ async def test_from_text_image_audio_endpoints():
             await records.create_record_from_audio(_Upload(content_type="audio/wav", data=b"wav", filename="a.wav"))
     assert exc6.value.status_code == 500
     assert exc6.value.detail == "Internal server error"
+    with patch("routers.records.transcribe_audio", new=AsyncMock(return_value="转写文本")), \
+         patch("routers.records.structure_medical_record", new=AsyncMock(side_effect=ValueError("bad audio record"))):
+        with pytest.raises(HTTPException) as exc6b:
+            await records.create_record_from_audio(_Upload(content_type="audio/wav", data=b"wav", filename="a.wav"))
+    assert exc6b.value.status_code == 422
+    assert exc6b.value.detail == "Invalid medical record content"

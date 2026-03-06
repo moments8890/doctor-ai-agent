@@ -768,6 +768,9 @@ async def create_record_from_text(body: TextInput):
         raise HTTPException(status_code=422, detail="Text input cannot be empty.")
     try:
         return await structure_medical_record(body.text)
+    except ValueError as e:
+        log(f"[Records] from-text validation failed: {e}")
+        raise HTTPException(status_code=422, detail="Invalid medical record content")
     except Exception as e:
         log(f"[Records] from-text failed: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -784,6 +787,9 @@ async def create_record_from_image(image: UploadFile = File(...)):
         image_bytes = await image.read()
         text = await extract_text_from_image(image_bytes, image.content_type)
         return await structure_medical_record(text)
+    except ValueError as e:
+        log(f"[Records] from-image validation failed: {e}")
+        raise HTTPException(status_code=422, detail="Invalid medical record content")
     except Exception as e:
         log(f"[Records] from-image failed: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -800,6 +806,9 @@ async def create_record_from_audio(audio: UploadFile = File(...)):
         audio_bytes = await audio.read()
         transcript = await transcribe_audio(audio_bytes, audio.filename or "audio.wav")
         return await structure_medical_record(transcript)
+    except ValueError as e:
+        log(f"[Records] from-audio validation failed: {e}")
+        raise HTTPException(status_code=422, detail="Invalid medical record content")
     except Exception as e:
         log(f"[Records] from-audio failed: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
