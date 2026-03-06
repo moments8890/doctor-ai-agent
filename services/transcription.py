@@ -4,6 +4,7 @@ import functools
 import io
 import os
 import wave
+from services.llm_resilience import call_with_retry_and_fallback
 from utils.log import log
 
 # Medical terminology prompt — biases Whisper toward correct medical vocabulary
@@ -83,10 +84,24 @@ async def transcribe_audio(
     except ImportError:
         log("[Whisper] faster_whisper not installed, falling back to OpenAI API")
         from openai import AsyncOpenAI
-        client = AsyncOpenAI()
-        response = await client.audio.transcriptions.create(
-            model="whisper-1",
-            file=(filename, audio_bytes),
-            language="zh",
+        model = os.environ.get("WHISPER_API_MODEL", "whisper-1")
+        client = AsyncOpenAI(
+            timeout=float(os.environ.get("WHISPER_API_TIMEOUT", "60")),
+            max_retries=0,
+        )
+
+        async def _call(model_name: str):
+            return await client.audio.transcriptions.create(
+                model=model_name,
+                file=(filename, audio_bytes),
+                language="zh",
+            )
+
+        response = await call_with_retry_and_fallback(
+            _call,
+            primary_model=model,
+            fallback_model=None,
+            max_attempts=int(os.environ.get("WHISPER_API_ATTEMPTS", "3")),
+            op_name="transcription.audio",
         )
         return response.text

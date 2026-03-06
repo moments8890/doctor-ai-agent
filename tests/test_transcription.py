@@ -5,7 +5,8 @@ added in the voice input feature.
 """
 from __future__ import annotations
 
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -42,3 +43,25 @@ async def test_transcribe_audio_passes_bytes_as_first_arg():
         await transcribe_audio(audio, "x.wav")
     bytes_arg, _ = mock_sync.call_args[0]
     assert bytes_arg is audio
+
+
+async def test_transcribe_audio_openai_fallback_uses_resilience_wrapper(monkeypatch):
+    monkeypatch.setenv("WHISPER_API_MODEL", "whisper-1")
+    monkeypatch.setenv("WHISPER_API_TIMEOUT", "42")
+    monkeypatch.setenv("WHISPER_API_ATTEMPTS", "4")
+
+    with patch("services.transcription._transcribe_sync", side_effect=ImportError()), \
+         patch("openai.AsyncOpenAI") as mock_client_cls, \
+         patch(
+             "services.transcription.call_with_retry_and_fallback",
+             new=AsyncMock(return_value=SimpleNamespace(text="fallback text")),
+         ) as mock_resilience:
+        out = await transcribe_audio(b"audio-bytes", "fallback.wav")
+
+    assert out == "fallback text"
+    mock_client_cls.assert_called_once()
+    assert mock_client_cls.call_args.kwargs["timeout"] == 42.0
+    assert mock_client_cls.call_args.kwargs["max_retries"] == 0
+    assert mock_resilience.await_args.kwargs["primary_model"] == "whisper-1"
+    assert mock_resilience.await_args.kwargs["max_attempts"] == 4
+    assert mock_resilience.await_args.kwargs["op_name"] == "transcription.audio"
