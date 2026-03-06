@@ -81,7 +81,7 @@ async def _voice_chat_for_doctor(
         transcript = await transcribe_audio(audio_bytes, audio.filename or "audio.wav")
     except Exception as e:
         log(f"[VoiceChat] transcription FAILED doctor={doctor_id} file={audio.filename}: {e}")
-        raise HTTPException(status_code=500, detail=f"Transcription failed: {e}")
+        raise HTTPException(status_code=500, detail="Transcription failed")
 
     if not transcript.strip():
         raise HTTPException(status_code=422, detail="Transcription produced empty text.")
@@ -95,7 +95,8 @@ async def _voice_chat_for_doctor(
         msg = str(e)
         log(f"[VoiceChat] dispatch FAILED doctor={doctor_id} msg={transcript[:80]!r}: {msg}")
         status = 429 if "rate_limit" in msg or "Rate limit" in msg or "429" in msg else 503
-        raise HTTPException(status_code=status, detail=msg)
+        detail = msg if status == 429 else "Service temporarily unavailable"
+        raise HTTPException(status_code=status, detail=detail)
 
     # Two-turn name followup: assistant asked for name -> doctor replies with name only
     if followup_name:
@@ -145,7 +146,7 @@ async def _voice_chat_for_doctor(
                 record = await structure_medical_record("\n".join(doctor_ctx))
             except Exception as e:
                 log(f"[VoiceChat] structuring FAILED doctor={doctor_id} patient={intent_result.patient_name}: {e}")
-                return VoiceChatResponse(transcript=transcript, reply=f"病历生成失败：{e}")
+                return VoiceChatResponse(transcript=transcript, reply="病历生成失败，请稍后重试。")
 
         patient_id = None
         patient_name = intent_result.patient_name
@@ -225,7 +226,7 @@ async def _voice_consultation_for_doctor(
         )
     except Exception as e:
         log(f"[VoiceConsultation] transcription FAILED doctor={doctor_id} file={audio.filename}: {e}")
-        raise HTTPException(status_code=500, detail=f"Transcription failed: {e}")
+        raise HTTPException(status_code=500, detail="Transcription failed")
 
     if not transcript.strip():
         raise HTTPException(status_code=422, detail="Transcription produced empty text.")
@@ -234,7 +235,7 @@ async def _voice_consultation_for_doctor(
         record = await structure_medical_record(transcript, consultation_mode=True)
     except Exception as e:
         log(f"[VoiceConsultation] structuring FAILED doctor={doctor_id} patient={patient_name}: {e}")
-        raise HTTPException(status_code=500, detail=f"Structuring failed: {e}")
+        raise HTTPException(status_code=500, detail="Structuring failed")
 
     saved_patient_id: Optional[int] = None
     if save:
