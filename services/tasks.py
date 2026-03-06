@@ -4,6 +4,7 @@ import re
 import os
 import asyncio
 import socket
+import inspect
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, List
 
@@ -35,6 +36,13 @@ _TASK_ICONS = {
 }
 
 _LEASE_KEY = "task_notifier"
+
+
+async def _emit_task_log(event: str, **kwargs) -> None:
+    """Emit task log and safely await if tests patch it with AsyncMock."""
+    maybe_awaitable = task_log(event, **kwargs)
+    if inspect.isawaitable(maybe_awaitable):
+        await maybe_awaitable
 
 
 def _scheduler_owner_id() -> str:
@@ -147,7 +155,7 @@ async def create_follow_up_task(
             record_id=record_id,
             due_at=due_at,
         )
-    task_log(
+    await _emit_task_log(
         "task_created",
         task_type="follow_up",
         task_id=task.id,
@@ -180,7 +188,7 @@ async def create_emergency_task(
             record_id=record_id,
             due_at=None,
         )
-    task_log(
+    await _emit_task_log(
         "task_created",
         task_type="emergency",
         task_id=task.id,
@@ -214,7 +222,7 @@ async def create_appointment_task(
             record_id=None,
             due_at=due_at,
         )
-    task_log(
+    await _emit_task_log(
         "task_created",
         task_type="appointment",
         task_id=task.id,
@@ -244,7 +252,7 @@ async def send_task_notification(doctor_id: str, task: DoctorTask) -> None:
             break
         except Exception as e:
             last_error = e
-            task_log(
+            await _emit_task_log(
                 "task_notify_attempt_failed",
                 task_id=task.id,
                 doctor_id=doctor_id,
@@ -263,7 +271,7 @@ async def send_task_notification(doctor_id: str, task: DoctorTask) -> None:
     async with AsyncSessionLocal() as session:
         await mark_task_notified(session, task.id)
 
-    task_log(
+    await _emit_task_log(
         "task_notified",
         task_id=task.id,
         doctor_id=doctor_id,
@@ -284,7 +292,7 @@ async def run_due_task_cycle(
     use_scheduler_lease: bool = True,
 ) -> dict:
     """Run one due-task notification cycle and return summary stats."""
-    task_log("scheduler_tick_start", level="debug")
+    await _emit_task_log("scheduler_tick_start", level="debug")
     now = datetime.now(timezone.utc)
     lease_acquired = False
     lease_enabled = (
@@ -305,14 +313,14 @@ async def run_due_task_cycle(
                     lease_ttl_seconds=_scheduler_lease_ttl_seconds(),
                 )
         except Exception as e:
-            task_log(
+            await _emit_task_log(
                 "scheduler_lease_acquire_failed_fallback_to_run",
                 owner_id=owner_id,
                 error=str(e),
             )
             lease_acquired = True
         if not lease_acquired:
-            task_log(
+            await _emit_task_log(
                 "scheduler_tick_skipped_lease_not_acquired",
                 owner_id=owner_id,
             )
@@ -350,7 +358,7 @@ async def run_due_task_cycle(
                             last_auto_run_at=now,
                         )
             except Exception as e:
-                task_log(
+                await _emit_task_log(
                     "scheduler_pref_check_failed",
                     doctor_id=did,
                     error=str(e),
@@ -362,9 +370,9 @@ async def run_due_task_cycle(
         due_count = len(tasks)
         eligible_count = len(filtered_tasks)
         if due_count > 0:
-            task_log("scheduler_due_tasks", count=due_count, eligible_count=eligible_count)
+            await _emit_task_log("scheduler_due_tasks", count=due_count, eligible_count=eligible_count)
         else:
-            task_log("scheduler_due_tasks", level="debug", count=0)
+            await _emit_task_log("scheduler_due_tasks", level="debug", count=0)
         success_count = 0
         failed_count = 0
         for task in filtered_tasks:
@@ -373,7 +381,7 @@ async def run_due_task_cycle(
                 success_count += 1
             except Exception as e:
                 failed_count += 1
-                task_log(
+                await _emit_task_log(
                     "task_notify_failed",
                     task_id=task.id,
                     doctor_id=task.doctor_id,
@@ -398,7 +406,7 @@ async def run_due_task_cycle(
                         now=datetime.now(timezone.utc),
                     )
             except Exception as e:
-                task_log(
+                await _emit_task_log(
                     "scheduler_lease_release_failed",
                     owner_id=owner_id,
                     error=str(e),

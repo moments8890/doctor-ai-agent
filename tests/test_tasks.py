@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+import services.tasks as tasks
 from services.tasks import (
     extract_follow_up_days,
     create_follow_up_task,
@@ -491,6 +492,46 @@ async def test_run_due_task_cycle_force_true_bypasses_manual_and_filter_by_docto
     assert out["eligible_count"] == 1
     assert out["sent_count"] == 1
     mock_send.assert_awaited_once()
+
+
+async def test_emit_task_log_awaits_asyncmock():
+    mock_task_log = AsyncMock()
+    with patch("services.tasks.task_log", mock_task_log):
+        await tasks._emit_task_log("evt", x=1)
+
+    mock_task_log.assert_called_once_with("evt", x=1)
+    assert mock_task_log.await_count == 1
+
+
+async def test_run_due_task_cycle_skips_when_lease_not_acquired():
+    mock_session = AsyncMock()
+    with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
+         patch("services.tasks._scheduler_lease_enabled", return_value=True), \
+         patch("services.tasks.try_acquire_scheduler_lease", new=AsyncMock(return_value=False)), \
+         patch("services.tasks.task_log", MagicMock()):
+        out = await run_due_task_cycle(use_scheduler_lease=True)
+
+    assert out["skipped_by_lease"] is True
+    assert out["due_count"] == 0
+    assert out["eligible_count"] == 0
+
+
+async def test_run_due_task_cycle_logs_debug_when_no_due_tasks():
+    mock_session = AsyncMock()
+    mock_task_log = MagicMock()
+    with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
+         patch("services.tasks.get_due_tasks", new=AsyncMock(return_value=[])), \
+         patch("services.tasks.task_log", mock_task_log):
+        out = await run_due_task_cycle(use_scheduler_lease=False)
+
+    assert out["due_count"] == 0
+    assert out["eligible_count"] == 0
+    assert out["sent_count"] == 0
+    assert out["failed_count"] == 0
+    assert any(
+        c.args and c.args[0] == "scheduler_due_tasks" and c.kwargs.get("level") == "debug" and c.kwargs.get("count") == 0
+        for c in mock_task_log.call_args_list
+    )
 
 
 def test_taskout_from_orm_serializes_datetime_fields():
