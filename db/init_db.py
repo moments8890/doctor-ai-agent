@@ -1,18 +1,33 @@
 import db.models  # noqa: F401 — ensure models are registered before create_all
 import re
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from db.engine import Base, engine, AsyncSessionLocal
 from db.models import Doctor, Patient, MedicalRecordDB, DoctorTask, NeuroCaseDB, DoctorContext, PatientLabel
 from sqlalchemy import select
 
 
+def _get_table_columns(sync_conn, table_name: str):
+    """Return table column names across SQLite/MySQL and test mocks."""
+    try:
+        return [col["name"] for col in inspect(sync_conn).get_columns(table_name)]
+    except Exception:
+        return [r[1] for r in sync_conn.execute(text(f"PRAGMA table_info({table_name})")).fetchall()]
+
+
+def _has_index(sync_conn, table_name: str, index_name: str) -> bool:
+    """Check index existence across real SQLAlchemy connections and simple mocks."""
+    try:
+        return any(idx.get("name") == index_name for idx in inspect(sync_conn).get_indexes(table_name))
+    except Exception:
+        return False
+
+
 async def create_tables() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        dialect_name = getattr(getattr(conn, "dialect", None), "name", "sqlite")
         # One-shot migration: rename age→year_of_birth if old schema exists
-        cols = await conn.run_sync(
-            lambda c: [r[1] for r in c.execute(text("PRAGMA table_info(patients)")).fetchall()]
-        )
+        cols = await conn.run_sync(lambda c: _get_table_columns(c, "patients"))
         if "age" in cols and "year_of_birth" not in cols:
             await conn.execute(text("ALTER TABLE patients RENAME COLUMN age TO year_of_birth"))
         # Safe column-add migration for patient categorization fields (v1)
@@ -42,9 +57,7 @@ async def create_tables() -> None:
                     text(f"ALTER TABLE patients ADD COLUMN {col_name} {col_type} DEFAULT NULL")
                 )
         # Safe column-add migration for doctor task trigger metadata.
-        _task_cols = await conn.run_sync(
-            lambda c: [r[1] for r in c.execute(text("PRAGMA table_info(doctor_tasks)")).fetchall()]
-        )
+        _task_cols = await conn.run_sync(lambda c: _get_table_columns(c, "doctor_tasks"))
         _trigger_cols = {
             "trigger_source": "VARCHAR(32)",
             "trigger_reason": "TEXT",
@@ -56,9 +69,7 @@ async def create_tables() -> None:
                 )
 
         # Safe migration for doctors identity fields.
-        _doctor_cols = await conn.run_sync(
-            lambda c: [r[1] for r in c.execute(text("PRAGMA table_info(doctors)")).fetchall()]
-        )
+        _doctor_cols = await conn.run_sync(lambda c: _get_table_columns(c, "doctors"))
         _doctor_extra_cols = {
             "channel": "VARCHAR(32)",
             "wechat_user_id": "VARCHAR(128)",
@@ -68,12 +79,25 @@ async def create_tables() -> None:
                 await conn.execute(
                     text(f"ALTER TABLE doctors ADD COLUMN {col_name} {col_type} DEFAULT NULL")
                 )
-        await conn.execute(
-            text(
-                "CREATE UNIQUE INDEX IF NOT EXISTS ux_doctors_channel_wechat_user_id "
-                "ON doctors(channel, wechat_user_id)"
-            )
+        _doctor_index_name = "ux_doctors_channel_wechat_user_id"
+        _doctor_index_exists = await conn.run_sync(
+            lambda c: _has_index(c, "doctors", _doctor_index_name)
         )
+        if not _doctor_index_exists:
+            if dialect_name == "mysql":
+                await conn.execute(
+                    text(
+                        "CREATE UNIQUE INDEX ux_doctors_channel_wechat_user_id "
+                        "ON doctors(channel, wechat_user_id)"
+                    )
+                )
+            else:
+                await conn.execute(
+                    text(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS ux_doctors_channel_wechat_user_id "
+                        "ON doctors(channel, wechat_user_id)"
+                    )
+                )
 
 
 async def seed_prompts() -> None:
