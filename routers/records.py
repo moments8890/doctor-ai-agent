@@ -496,7 +496,7 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
             f"[Chat] agent dispatch FAILED doctor={doctor_id} status={status} "
             f"text={body.text[:80]!r} err={msg}"
         )
-        detail = msg if status == 429 else "Service temporarily unavailable"
+        detail = "rate_limit_exceeded" if status == 429 else "Service temporarily unavailable"
         raise HTTPException(status_code=status, detail=detail)
 
     # Deterministic fallback for the two-turn flow:

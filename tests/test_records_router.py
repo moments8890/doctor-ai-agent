@@ -111,6 +111,7 @@ async def test_chat_dispatch_errors_map_to_429_and_503():
         with pytest.raises(HTTPException) as exc:
             await records.chat(records.ChatInput(text="x", doctor_id=DOCTOR))
     assert exc.value.status_code == 429
+    assert exc.value.detail == "rate_limit_exceeded"
 
     with patch("routers.records.agent_dispatch", new=AsyncMock(side_effect=RuntimeError("service down"))):
         with pytest.raises(HTTPException) as exc2:

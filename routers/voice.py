@@ -95,7 +95,7 @@ async def _voice_chat_for_doctor(
         msg = str(e)
         log(f"[VoiceChat] dispatch FAILED doctor={doctor_id} msg={transcript[:80]!r}: {msg}")
         status = 429 if "rate_limit" in msg or "Rate limit" in msg or "429" in msg else 503
-        detail = msg if status == 429 else "Service temporarily unavailable"
+        detail = "rate_limit_exceeded" if status == 429 else "Service temporarily unavailable"
         raise HTTPException(status_code=status, detail=detail)
 
     # Two-turn name followup: assistant asked for name -> doctor replies with name only

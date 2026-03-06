@@ -80,6 +80,7 @@ async def test_voice_chat_dispatch_rate_limit():
         with pytest.raises(HTTPException) as exc:
             await voice.voice_chat(audio=upload, doctor_id=DOCTOR, history=None)
     assert exc.value.status_code == 429
+    assert exc.value.detail == "rate_limit_exceeded"
 
 
 async def test_voice_chat_dispatch_error():
