@@ -129,11 +129,15 @@ CONFIG_CATEGORIES: Dict[str, Dict[str, Any]] = {
     },
     "wecom": {
         "description": "WeCom (企业微信) custom app integration for internal doctor messaging.",
-        "keys": ["WECOM_CORP_ID", "WECOM_AGENT_ID", "WECOM_SECRET", "WECHAT_TOKEN", "WECHAT_AES_KEY"],
-    },
-    "notification": {
-        "description": "Outgoing doctor notification delivery settings.",
-        "keys": ["NOTIFICATION_PROVIDER", "WECHAT_NOTIFY_FALLBACK_TO_USER"],
+        "keys": [
+            "WECOM_CORP_ID",
+            "WECOM_AGENT_ID",
+            "WECOM_SECRET",
+            "WECHAT_TOKEN",
+            "WECHAT_AES_KEY",
+            "NOTIFICATION_PROVIDER",
+            "WECHAT_NOTIFY_FALLBACK_TO_USER",
+        ],
     },
     "miniprogram": {
         "description": "WeChat Mini Program authentication and endpoint defaults.",
@@ -164,8 +168,7 @@ CATEGORY_DESCRIPTIONS_ZH: Dict[str, str] = {
     "storage": "数据库与存储路径配置。",
     "speech": "语音转写模型运行配置。",
     "automation": "临床自动化与调度行为。",
-    "wecom": "企业微信自建应用集成配置。",
-    "notification": "医生通知发送配置。",
+    "wecom": "企业微信自建应用集成与通知配置。",
     "miniprogram": "微信小程序鉴权与端点默认配置。",
     "logging": "应用日志与滚动策略。",
 }
