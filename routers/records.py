@@ -574,7 +574,8 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
                 with trace_block("router", "records.chat.structure_medical_record"):
                     record = await structure_medical_record("\n".join(doctor_ctx))
             except Exception as e:
-                return ChatResponse(reply=f"病历生成失败：{e}")
+                log(f"[Chat] structuring FAILED doctor={doctor_id} patient={intent_result.patient_name}: {e}")
+                return ChatResponse(reply="病历生成失败，请稍后重试。")
 
         # Guard against sparse-note hallucination: if no treatment evidence appears
         # in doctor input/history, keep treatment_plan empty.

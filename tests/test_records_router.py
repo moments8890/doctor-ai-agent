@@ -181,6 +181,7 @@ async def test_chat_add_record_invalid_name_and_structuring_error():
     ):
         resp2 = await records.chat(records.ChatInput(text="张三胸痛", doctor_id=DOCTOR))
     assert "病历生成失败" in resp2.reply
+    assert "llm down" not in resp2.reply
 
 
 async def test_chat_add_record_clears_hallucinated_treatment_when_no_signal():

@@ -715,11 +715,17 @@ async def test_voice_and_image_bg_error_paths():
          patch("routers.wechat._send_customer_service_msg", new=AsyncMock()) as send_msg:
         await wechat._handle_voice_bg("m1", DOCTOR)
     send_msg.assert_awaited_once()
+    voice_msg = send_msg.await_args.args[1]
+    assert "语音识别失败" in voice_msg
+    assert "no token" not in voice_msg
 
     with patch("routers.wechat._get_access_token", new=AsyncMock(side_effect=RuntimeError("no token"))), \
          patch("routers.wechat._send_customer_service_msg", new=AsyncMock()) as send_msg2:
         await wechat._handle_image_bg("m2", DOCTOR)
     send_msg2.assert_awaited_once()
+    image_msg = send_msg2.await_args.args[1]
+    assert "图片识别失败" in image_msg
+    assert "no token" not in image_msg
 
 
 async def test_pdf_file_bg_success_routes_to_intent():
@@ -749,6 +755,17 @@ async def test_file_bg_non_pdf_sends_notice():
     send_msg.assert_awaited_once()
 
 
+async def test_file_bg_download_failure_sends_generic_error():
+    with patch("routers.wechat._get_access_token", new=AsyncMock(return_value="tok")), \
+         patch("routers.wechat.download_voice", new=AsyncMock(side_effect=RuntimeError("network secret"))), \
+         patch("routers.wechat._send_customer_service_msg", new=AsyncMock()) as send_msg:
+        await wechat._handle_file_bg("m-file", "报告.docx", DOCTOR, open_kfid="kf1")
+    send_msg.assert_awaited_once()
+    msg = send_msg.await_args.args[1]
+    assert "文件下载失败" in msg
+    assert "network secret" not in msg
+
+
 async def test_pdf_file_bg_failure_sends_error_notice():
     with patch("routers.wechat._get_access_token", new=AsyncMock(return_value="tok")), \
          patch("routers.wechat.download_voice", new=AsyncMock(return_value=b"%PDF-1.7")), \
@@ -756,6 +773,9 @@ async def test_pdf_file_bg_failure_sends_error_notice():
          patch("routers.wechat._send_customer_service_msg", new=AsyncMock()) as send_msg:
         await wechat._handle_pdf_file_bg("m-pdf", "case.pdf", DOCTOR, open_kfid="kf1")
     send_msg.assert_awaited_once()
+    pdf_msg = send_msg.await_args.args[1]
+    assert "PDF解析失败" in pdf_msg
+    assert "pdftotext failed" not in pdf_msg
 
 
 async def test_voice_bg_pending_create_route_done():

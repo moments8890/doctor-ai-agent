@@ -677,7 +677,7 @@ async def _handle_voice_bg(media_id: str, doctor_id: str, open_kfid: str = ""):
         log(f"[Voice] transcribed for {doctor_id}: {text!r}")
     except Exception as e:
         log(f"[Voice] transcription FAILED: {e}")
-        await _send_customer_service_msg(doctor_id, f"❌ 语音识别失败：{e}", open_kfid=open_kfid)
+        await _send_customer_service_msg(doctor_id, "❌ 语音识别失败，请稍后重试。", open_kfid=open_kfid)
         return
 
     # --- state check + stateful routing under lock ---

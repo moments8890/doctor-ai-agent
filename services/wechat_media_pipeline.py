@@ -35,7 +35,7 @@ async def handle_pdf_file_bg(
         text = await loop.run_in_executor(None, extract_pdf_text, raw_bytes)
     except Exception as e:
         log(f"[PDF] extraction FAILED: {e}")
-        await send_customer_service_msg(doctor_id, f"❌ PDF解析失败：{e}")
+        await send_customer_service_msg(doctor_id, "❌ PDF解析失败，请稍后重试。")
         return
 
     if not text.strip():
@@ -68,7 +68,7 @@ async def handle_file_bg(
         raw_bytes = await download_media(media_id, access_token)
     except Exception as e:
         log(f"[File] download FAILED: {e}")
-        await send_customer_service_msg(doctor_id, f"❌ 文件下载失败：{e}")
+        await send_customer_service_msg(doctor_id, "❌ 文件下载失败，请稍后重试。")
         return
 
     name = (filename or "").strip()
@@ -103,7 +103,7 @@ async def handle_image_bg(
         log(f"[Vision] extracted for {doctor_id}: {text[:80]!r}")
     except Exception as e:
         log(f"[Vision] extraction FAILED: {e}")
-        await send_customer_service_msg(doctor_id, f"❌ 图片识别失败：{e}")
+        await send_customer_service_msg(doctor_id, "❌ 图片识别失败，请稍后重试。")
         return
 
     await handle_intent_bg(text, doctor_id)
