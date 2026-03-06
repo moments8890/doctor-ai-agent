@@ -380,6 +380,16 @@ async def test_admin_get_tunnel_url_log_missing_returns_not_found_payload():
     assert data["detail"] == "log file not found"
 
 
+async def test_admin_get_tunnel_url_read_failure_is_sanitized():
+    with patch("routers.ui.Path.exists", return_value=True), \
+         patch("routers.ui.Path.read_text", side_effect=RuntimeError("permission denied: /etc/passwd")):
+        data = await ui.admin_get_tunnel_url()
+
+    assert data["ok"] is False
+    assert data["url"] is None
+    assert data["detail"] == "read failed"
+
+
 # ---------------------------------------------------------------------------
 # Label endpoints
 # ---------------------------------------------------------------------------

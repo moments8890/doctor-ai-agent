@@ -741,8 +741,8 @@ async def admin_get_tunnel_url(
 
     try:
         content = log_path.read_text(encoding="utf-8", errors="ignore")
-    except Exception as exc:  # noqa: BLE001
-        return {"ok": False, "url": None, "source": str(log_path), "detail": f"read failed: {exc}"}
+    except Exception:  # noqa: BLE001
+        return {"ok": False, "url": None, "source": str(log_path), "detail": "read failed"}
 
     url = _extract_tunnel_url_from_log(content)
     mtime = datetime.fromtimestamp(log_path.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
