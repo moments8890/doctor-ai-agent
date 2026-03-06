@@ -594,10 +594,11 @@ async def admin_apply_runtime_config():
 
 @router.get("/api/admin/dev/tunnel-url")
 async def admin_get_tunnel_url():
+    _app_root = Path(__file__).resolve().parents[1]
     log_path_raw = (
         os.environ.get("CLOUDFLARED_LOG_PATH")
         or os.environ.get("TUNNEL_LOG_PATH")
-        or str(Path.home() / "Library/Logs/aiagent-cloudflared.log")
+        or str(_app_root / "logs" / "tunnel.log")
     )
     log_path = Path(log_path_raw).expanduser()
     if not log_path.exists():

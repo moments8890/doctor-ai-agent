@@ -358,10 +358,10 @@ PY
       mkdir -p "$PID_DIR"
       BACKEND_LOG="$APP_DIR/logs/backend.vm.log"
       FRONTEND_LOG="$APP_DIR/logs/frontend.vm.log"
-      TUNNEL_LOG="$APP_DIR/logs/tunnel.vm.log"
+      TUNNEL_LOG="$APP_DIR/logs/tunnel.log"
       BACKEND_PID_FILE="$PID_DIR/backend.vm.pid"
       FRONTEND_PID_FILE="$PID_DIR/frontend.vm.pid"
-      TUNNEL_PID_FILE="$PID_DIR/tunnel.vm.pid"
+      TUNNEL_PID_FILE="$PID_DIR/tunnel.pid"
 
       for p in "$BACKEND_PORT" "$FRONTEND_PORT_VM"; do
         if lsof -ti :"$p" >/dev/null 2>&1; then
@@ -449,7 +449,7 @@ PY
       lsof -ti :8000 2>/dev/null | xargs kill -9 2>/dev/null || true
       lsof -ti :5173 2>/dev/null | xargs kill -9 2>/dev/null || true
 
-      TUNNEL_PID_FILE="$APP_DIR/logs/pids/tunnel.vm.pid"
+      TUNNEL_PID_FILE="$APP_DIR/logs/pids/tunnel.pid"
       if [[ -f "$TUNNEL_PID_FILE" ]]; then
         kill "$(cat "$TUNNEL_PID_FILE")" 2>/dev/null || true
         rm -f "$TUNNEL_PID_FILE"
