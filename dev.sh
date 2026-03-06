@@ -43,6 +43,7 @@ Usage:
   ./dev.sh start [--background] [--no-frontend] [--menu]
   ./dev.sh stop
   ./dev.sh bootstrap [--with-frontend]
+  ./dev.sh vm-bootstrap [--with-frontend] [--with-mysql]
   ./dev.sh run-backend [--host <host>] [--port <port>] [--reload]
   ./dev.sh test [unit|integration|integration-full|chatlog-half|chatlog-full|all]
   ./dev.sh e2e [half|full]
@@ -77,9 +78,101 @@ EOF
       "$PYTHON_BIN" -m pip install --upgrade pip
       "$PYTHON_BIN" -m pip install -r "$APP_DIR/requirements.txt"
       if [[ "$WITH_FRONTEND" -eq 1 ]]; then
+        if ! command -v npm >/dev/null 2>&1; then
+          echo "npm not found. Run: ./dev.sh vm-bootstrap --with-frontend"
+          exit 1
+        fi
         npm --prefix "$APP_DIR/frontend" install
       fi
       exit 0
+      ;;
+    vm-bootstrap)
+      WITH_FRONTEND=0
+      WITH_MYSQL=0
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --with-frontend)
+            WITH_FRONTEND=1
+            shift
+            ;;
+          --with-mysql)
+            WITH_MYSQL=1
+            shift
+            ;;
+          *)
+            echo "Unknown vm-bootstrap arg: $1"
+            echo "Usage: ./dev.sh vm-bootstrap [--with-frontend] [--with-mysql]"
+            exit 2
+            ;;
+        esac
+      done
+
+      # VM baseline packages (Ubuntu/Debian oriented).
+      if command -v apt-get >/dev/null 2>&1; then
+        if command -v sudo >/dev/null 2>&1; then
+          sudo apt-get update
+          sudo apt-get install -y ca-certificates curl git python3 python3-venv python3-pip ffmpeg
+        else
+          apt-get update
+          apt-get install -y ca-certificates curl git python3 python3-venv python3-pip ffmpeg
+        fi
+      else
+        echo "Unsupported OS package manager. Install python3-venv/python3-pip/git/curl/ffmpeg manually."
+        exit 1
+      fi
+
+      # Docker engine (for mysql container and future containerized paths).
+      if ! command -v docker >/dev/null 2>&1; then
+        curl -fsSL https://get.docker.com | sh
+      fi
+      if command -v sudo >/dev/null 2>&1; then
+        sudo usermod -aG docker "${USER:-ubuntu}" || true
+      else
+        usermod -aG docker "${USER:-ubuntu}" || true
+      fi
+
+      # Optional frontend toolchain.
+      if [[ "$WITH_FRONTEND" -eq 1 ]] && ! command -v npm >/dev/null 2>&1; then
+        if command -v sudo >/dev/null 2>&1; then
+          sudo apt-get install -y nodejs npm
+        else
+          apt-get install -y nodejs npm
+        fi
+      fi
+
+      # Optional local mysql container.
+      if [[ "$WITH_MYSQL" -eq 1 ]]; then
+        MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-DrAI_Root_2026!x9}"
+        MYSQL_DATABASE="${MYSQL_DATABASE:-doctor_ai}"
+        MYSQL_USER="${MYSQL_USER:-doctor_ai}"
+        MYSQL_PASSWORD="${MYSQL_PASSWORD:-DrAI_App_2026!x9}"
+        docker rm -f doctor-ai-mysql >/dev/null 2>&1 || true
+        docker run -d --name doctor-ai-mysql \
+          --restart unless-stopped \
+          -e MYSQL_ROOT_PASSWORD="$MYSQL_ROOT_PASSWORD" \
+          -e MYSQL_DATABASE="$MYSQL_DATABASE" \
+          -e MYSQL_USER="$MYSQL_USER" \
+          -e MYSQL_PASSWORD="$MYSQL_PASSWORD" \
+          -p 127.0.0.1:3306:3306 \
+          -v doctor_ai_mysql_data:/var/lib/mysql \
+          mysql:8.0 \
+          --default-authentication-plugin=mysql_native_password \
+          --character-set-server=utf8mb4 \
+          --collation-server=utf8mb4_unicode_ci
+
+        mkdir -p "$APP_DIR/config"
+        if [[ -f "$APP_DIR/deploy/tencent/runtime.prod.mysql-single-node.example.json" ]] && [[ ! -f "$APP_DIR/config/runtime.prod.json" ]]; then
+          cp "$APP_DIR/deploy/tencent/runtime.prod.mysql-single-node.example.json" "$APP_DIR/config/runtime.prod.json"
+          echo "Generated $APP_DIR/config/runtime.prod.json from mysql single-node template."
+          echo "Remember to update DEEPSEEK_API_KEY and WECHAT_* values."
+        fi
+      fi
+
+      # Reuse unified bootstrap.
+      if [[ "$WITH_FRONTEND" -eq 1 ]]; then
+        exec "$0" bootstrap --with-frontend
+      fi
+      exec "$0" bootstrap
       ;;
     run-backend)
       HOST="0.0.0.0"
