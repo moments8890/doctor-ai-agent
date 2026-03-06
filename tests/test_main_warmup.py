@@ -26,7 +26,7 @@ class _FakeCompletions:
 
 
 class _FakeAsyncOpenAI:
-    def __init__(self, *, base_url: str, api_key: str, behavior: Callable[[str], None]):
+    def __init__(self, *, base_url: str, api_key: str, behavior: Callable[[str], None], **_: object):
         self.chat = SimpleNamespace(
             completions=_FakeCompletions(base_url=base_url, behavior=behavior)
         )
@@ -70,7 +70,7 @@ async def test_warmup_falls_back_on_connectivity_error(monkeypatch):
         monkeypatch.setenv("OLLAMA_BASE_URL", bad_url)
         monkeypatch.setenv("OLLAMA_VISION_BASE_URL", bad_url)
 
-        def _factory(*, base_url: str, api_key: str):
+        def _factory(*, base_url: str, api_key: str, **kwargs: object):
             return _FakeAsyncOpenAI(base_url=base_url, api_key=api_key, behavior=_behavior)
 
         monkeypatch.setattr("openai.AsyncOpenAI", _factory)
@@ -101,7 +101,7 @@ async def test_warmup_raises_on_non_connectivity_error(monkeypatch):
 
         monkeypatch.setitem(sys.modules, "jieba", SimpleNamespace(initialize=lambda: None))
 
-        def _factory(*, base_url: str, api_key: str):
+        def _factory(*, base_url: str, api_key: str, **kwargs: object):
             return _FakeAsyncOpenAI(base_url=base_url, api_key=api_key, behavior=_behavior)
 
         monkeypatch.setattr("openai.AsyncOpenAI", _factory)
@@ -135,6 +135,22 @@ def test_session_cache_cleanup_parsing(monkeypatch):
     assert main._session_cache_max_idle_seconds() == 60
     monkeypatch.setenv("SESSION_CACHE_MAX_IDLE_SECONDS", "abc")
     assert main._session_cache_max_idle_seconds() == 3600
+
+
+def test_ollama_warmup_timeout_and_backoff_parsing(monkeypatch):
+    main = _load_main_module()
+    monkeypatch.setenv("OLLAMA_WARMUP_TIMEOUT_SECONDS", "7.5")
+    assert main._ollama_warmup_timeout_seconds() == 7.5
+
+    monkeypatch.setenv("OLLAMA_WARMUP_TIMEOUT_SECONDS", "0")
+    assert main._ollama_warmup_timeout_seconds() == 10.0
+
+    monkeypatch.setenv("OLLAMA_WARMUP_TIMEOUT_SECONDS", "bad")
+    assert main._ollama_warmup_timeout_seconds() == 10.0
+
+    assert main._ollama_warmup_backoff_seconds(1) == 1.0
+    assert main._ollama_warmup_backoff_seconds(2) == 2.0
+    assert main._ollama_warmup_backoff_seconds(3) == 4.0
 
 
 @pytest.mark.asyncio

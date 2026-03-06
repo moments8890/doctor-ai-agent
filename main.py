@@ -214,6 +214,7 @@ async def _warmup(config: AppConfig):
 
         model = config.ollama_model
         max_attempts = 3
+        warmup_timeout = _ollama_warmup_timeout_seconds()
         candidates = ollama_base_url_candidates(config.ollama_base_url)
         chosen_url = None
         last_error = None
@@ -222,6 +223,8 @@ async def _warmup(config: AppConfig):
             client = AsyncOpenAI(
                 base_url=candidate_url,
                 api_key=config.ollama_api_key or "ollama",
+                timeout=warmup_timeout,
+                max_retries=0,
             )
             for attempt in range(1, max_attempts + 1):
                 try:
@@ -245,7 +248,7 @@ async def _warmup(config: AppConfig):
                             f"(base_url={candidate_url}, model={model}): {e}"
                         ) from e
                     if attempt < max_attempts:
-                        await asyncio.sleep(1)
+                        await asyncio.sleep(_ollama_warmup_backoff_seconds(attempt))
             if chosen_url:
                 break
 
@@ -269,6 +272,20 @@ async def _warmup(config: AppConfig):
                 f"Ollama unavailable on startup | attempted_base_urls={candidates} "
                 f"model={model} error={last_error}. Continuing without warmup."
             )
+
+
+def _ollama_warmup_timeout_seconds() -> float:
+    raw = os.environ.get("OLLAMA_WARMUP_TIMEOUT_SECONDS", "10").strip()
+    try:
+        value = float(raw)
+        return value if value > 0 else 10.0
+    except ValueError:
+        return 10.0
+
+
+def _ollama_warmup_backoff_seconds(attempt: int) -> float:
+    # attempt is 1-based; retries use 1s, 2s, 4s...
+    return float(2 ** max(0, int(attempt) - 1))
 
 
 def _is_connectivity_error(exc: Exception) -> bool:

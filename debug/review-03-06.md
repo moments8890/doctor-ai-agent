@@ -14,6 +14,7 @@ This review captured the initial snapshot. The following items have since been m
 - `DONE` Additional auth audit logging for insecure fallback paths (`6e355a5`)
 - `DONE` Silent prompt-load fallback paths now log explicit errors (`d3709c0`)
 - `DONE` UI manage endpoints now enforce token-bound doctor scope (`c865d64`)
+- `DONE` Ollama startup warmup now uses explicit timeout + exponential backoff retries (1s/2s/4s)
 - `PARTIAL` LLM resilience (timeouts/retry/backoff/circuit breaker) is implemented in core LLM paths, but should continue to be audited for full endpoint parity
 - `PARTIAL` Session handling remains in-memory first; test lifecycle hardening was completed, but full Redis/DB-backed redesign is still open
 - `PARTIAL` Error handling consistency improved in targeted hotspots, but full exception taxonomy + consistent structured logging across all modules remains open
