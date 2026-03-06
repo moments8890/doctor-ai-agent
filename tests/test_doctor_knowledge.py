@@ -68,6 +68,16 @@ def test_decode_payload_supports_plain_and_json():
     assert confidence2 == 0.6
 
 
+def test_decode_payload_logs_and_falls_back_on_malformed_json():
+    malformed = '{"text":"abc",'
+    with patch("services.doctor_knowledge.log") as mocked_log:
+        text, source, confidence = dk._decode_knowledge_payload(malformed)
+    assert text == malformed
+    assert source == "doctor"
+    assert confidence == 1.0
+    assert mocked_log.called
+
+
 def test_extract_auto_candidates_from_text_and_fields():
     fields = {"diagnosis": "高血压3级", "treatment_plan": "先口服降压药", "follow_up_plan": "两周复查血压"}
     out = dk._extract_auto_candidates("建议先低盐饮食再调整用药。", fields)

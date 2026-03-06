@@ -58,8 +58,13 @@ def _decode_knowledge_payload(raw: str) -> Tuple[str, str, float]:
                 except (TypeError, ValueError):
                     confidence = 1.0
                 return text, source, max(0.0, min(1.0, confidence))
-        except Exception:
-            pass
+        except Exception as exc:
+            log(
+                "[Knowledge] decode payload failed; falling back to raw text payload_prefix={0!r} err={1}".format(
+                    content[:80],
+                    exc,
+                )
+            )
     return _normalize_text(content), "doctor", 1.0
 
 
