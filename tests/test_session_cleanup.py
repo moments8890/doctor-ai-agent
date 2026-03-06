@@ -63,3 +63,17 @@ async def test_prune_inactive_sessions_clears_done_task_refs_and_stale_locks() -
     assert "doc_done_a" not in sess_mod._persist_tasks
     assert "doc_done_b" not in sess_mod._persist_turn_tasks
     assert "doc_stale_lock" not in sess_mod._locks
+
+
+@pytest.mark.asyncio
+async def test_prune_inactive_sessions_keeps_locked_stale_lock() -> None:
+    # no backing session, but lock is currently held by a worker
+    lock = asyncio.Lock()
+    await lock.acquire()
+    sess_mod._locks["doc_stale_locked"] = lock
+    try:
+        summary = prune_inactive_sessions(max_idle_seconds=3600)
+        assert summary["cleared_locks"] == 0
+        assert "doc_stale_locked" in sess_mod._locks
+    finally:
+        lock.release()

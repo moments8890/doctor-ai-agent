@@ -1,5 +1,6 @@
 from __future__ import annotations
 import asyncio
+import threading
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -26,13 +27,15 @@ _loaded_from_db: set[str] = set()
 _persist_tasks: Dict[str, asyncio.Task] = {}
 _persist_turn_tasks: Dict[str, asyncio.Task] = {}
 _pending_turns: Dict[str, List[dict]] = {}
+_registry_lock = threading.RLock()
 
 
 def get_session_lock(doctor_id: str) -> asyncio.Lock:
     """Return the per-doctor asyncio lock, creating it on first access."""
-    if doctor_id not in _locks:
-        _locks[doctor_id] = asyncio.Lock()
-    return _locks[doctor_id]
+    with _registry_lock:
+        if doctor_id not in _locks:
+            _locks[doctor_id] = asyncio.Lock()
+        return _locks[doctor_id]
 
 # Rolling window: compress + flush when this many turns accumulate
 MAX_TURNS = 10
@@ -50,9 +53,10 @@ class DoctorSession:
 
 
 def get_session(doctor_id: str) -> DoctorSession:
-    if doctor_id not in _sessions:
-        _sessions[doctor_id] = DoctorSession()
-    return _sessions[doctor_id]
+    with _registry_lock:
+        if doctor_id not in _sessions:
+            _sessions[doctor_id] = DoctorSession()
+        return _sessions[doctor_id]
 
 
 async def hydrate_session_state(doctor_id: str) -> DoctorSession:
@@ -107,10 +111,12 @@ async def persist_session_state(doctor_id: str) -> None:
 
 async def _flush_pending_turns(doctor_id: str) -> None:
     while True:
-        batch = _pending_turns.get(doctor_id, [])
+        with _registry_lock:
+            batch = list(_pending_turns.get(doctor_id, []))
         if not batch:
             return
-        _pending_turns[doctor_id] = []
+        with _registry_lock:
+            _pending_turns[doctor_id] = []
         try:
             async with AsyncSessionLocal() as db:
                 await append_conversation_turns(db, doctor_id, batch, max_turns=MAX_TURNS)
@@ -126,10 +132,11 @@ def _schedule_persist(doctor_id: str) -> None:
         # Called in sync contexts (e.g. unit tests), skip async persistence.
         return
 
-    existing = _persist_tasks.get(doctor_id)
-    if existing is not None and not existing.done():
-        return
-    _persist_tasks[doctor_id] = loop.create_task(persist_session_state(doctor_id))
+    with _registry_lock:
+        existing = _persist_tasks.get(doctor_id)
+        if existing is not None and not existing.done():
+            return
+        _persist_tasks[doctor_id] = loop.create_task(persist_session_state(doctor_id))
 
 
 def _schedule_turn_persist(doctor_id: str, turns: List[dict]) -> None:
@@ -138,13 +145,14 @@ def _schedule_turn_persist(doctor_id: str, turns: List[dict]) -> None:
     except RuntimeError:
         return
 
-    queue = _pending_turns.setdefault(doctor_id, [])
-    queue.extend(turns)
+    with _registry_lock:
+        queue = _pending_turns.setdefault(doctor_id, [])
+        queue.extend(turns)
 
-    existing = _persist_turn_tasks.get(doctor_id)
-    if existing is not None and not existing.done():
-        return
-    _persist_turn_tasks[doctor_id] = loop.create_task(_flush_pending_turns(doctor_id))
+        existing = _persist_turn_tasks.get(doctor_id)
+        if existing is not None and not existing.done():
+            return
+        _persist_turn_tasks[doctor_id] = loop.create_task(_flush_pending_turns(doctor_id))
 
 
 def push_turn(doctor_id: str, user_text: str, assistant_reply: str) -> None:
@@ -199,41 +207,42 @@ def prune_inactive_sessions(max_idle_seconds: int = 3600) -> Dict[str, int]:
     Keeps active/locked sessions, and clears stale task references so maps do not
     grow unbounded in long-running processes.
     """
-    now = time.time()
-    idle_threshold = max(60, int(max_idle_seconds))
+    with _registry_lock:
+        now = time.time()
+        idle_threshold = max(60, int(max_idle_seconds))
 
-    evicted = 0
-    for doctor_id, session in list(_sessions.items()):
-        lock = _locks.get(doctor_id)
-        if lock is not None and lock.locked():
-            continue
-        if (now - float(session.last_active)) < idle_threshold:
-            continue
-        _sessions.pop(doctor_id, None)
-        _loaded_from_db.discard(doctor_id)
-        _pending_turns.pop(doctor_id, None)
-        evicted += 1
+        evicted = 0
+        for doctor_id, session in list(_sessions.items()):
+            lock = _locks.get(doctor_id)
+            if lock is not None and lock.locked():
+                continue
+            if (now - float(session.last_active)) < idle_threshold:
+                continue
+            _sessions.pop(doctor_id, None)
+            _loaded_from_db.discard(doctor_id)
+            _pending_turns.pop(doctor_id, None)
+            evicted += 1
 
-    stale_persist = 0
-    for doctor_id, task in list(_persist_tasks.items()):
-        if task.done():
-            _persist_tasks.pop(doctor_id, None)
-            stale_persist += 1
+        stale_persist = 0
+        for doctor_id, task in list(_persist_tasks.items()):
+            if task.done():
+                _persist_tasks.pop(doctor_id, None)
+                stale_persist += 1
 
-    stale_turn_persist = 0
-    for doctor_id, task in list(_persist_turn_tasks.items()):
-        if task.done():
-            _persist_turn_tasks.pop(doctor_id, None)
-            stale_turn_persist += 1
+        stale_turn_persist = 0
+        for doctor_id, task in list(_persist_turn_tasks.items()):
+            if task.done():
+                _persist_turn_tasks.pop(doctor_id, None)
+                stale_turn_persist += 1
 
-    stale_locks = 0
-    for doctor_id, lock in list(_locks.items()):
-        if doctor_id in _sessions:
-            continue
-        if lock.locked():
-            continue
-        _locks.pop(doctor_id, None)
-        stale_locks += 1
+        stale_locks = 0
+        for doctor_id, lock in list(_locks.items()):
+            if doctor_id in _sessions:
+                continue
+            if lock.locked():
+                continue
+            _locks.pop(doctor_id, None)
+            stale_locks += 1
 
     return {
         "evicted_sessions": evicted,
@@ -245,13 +254,14 @@ def prune_inactive_sessions(max_idle_seconds: int = 3600) -> Dict[str, int]:
 
 def reset_session_state_for_tests() -> None:
     """Test helper to clear all in-memory session registries safely."""
-    for task in list(_persist_tasks.values()):
-        task.cancel()
-    for task in list(_persist_turn_tasks.values()):
-        task.cancel()
-    _sessions.clear()
-    _locks.clear()
-    _loaded_from_db.clear()
-    _persist_tasks.clear()
-    _persist_turn_tasks.clear()
-    _pending_turns.clear()
+    with _registry_lock:
+        for task in list(_persist_tasks.values()):
+            task.cancel()
+        for task in list(_persist_turn_tasks.values()):
+            task.cancel()
+        _sessions.clear()
+        _locks.clear()
+        _loaded_from_db.clear()
+        _persist_tasks.clear()
+        _persist_turn_tasks.clear()
+        _pending_turns.clear()
