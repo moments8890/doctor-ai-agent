@@ -442,12 +442,32 @@ async def test_assign_label_to_patient():
     assert data == {"ok": True}
 
 
+async def test_assign_label_to_patient_not_found_raises_404():
+    db = SimpleNamespace()
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.assign_label", new=AsyncMock(side_effect=ValueError("internal detail"))):
+        with pytest.raises(HTTPException) as exc:
+            await ui.assign_label_endpoint(11, 1, doctor_id="doc1")
+    assert exc.value.status_code == 404
+    assert exc.value.detail == "Patient or label not found"
+
+
 async def test_remove_label_from_patient():
     db = SimpleNamespace()
     with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
          patch("routers.ui.remove_label", new=AsyncMock(return_value=None)):
         data = await ui.remove_label_endpoint(11, 1, doctor_id="doc1")
     assert data == {"ok": True}
+
+
+async def test_remove_label_from_patient_not_found_raises_404():
+    db = SimpleNamespace()
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.remove_label", new=AsyncMock(side_effect=ValueError("internal detail"))):
+        with pytest.raises(HTTPException) as exc:
+            await ui.remove_label_endpoint(11, 1, doctor_id="doc1")
+    assert exc.value.status_code == 404
+    assert exc.value.detail == "Patient or label not found"
 
 
 async def test_patients_list_includes_labels_field():

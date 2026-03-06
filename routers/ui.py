@@ -541,8 +541,8 @@ async def assign_label_endpoint(
     async with AsyncSessionLocal() as db:
         try:
             await assign_label(db, patient_id, label_id, doctor_id)
-        except ValueError as exc:
-            raise HTTPException(status_code=404, detail=str(exc))
+        except ValueError:
+            raise HTTPException(status_code=404, detail="Patient or label not found")
     return {"ok": True}
 
 
@@ -558,8 +558,8 @@ async def remove_label_endpoint(
     async with AsyncSessionLocal() as db:
         try:
             await remove_label(db, patient_id, label_id, doctor_id)
-        except ValueError as exc:
-            raise HTTPException(status_code=404, detail=str(exc))
+        except ValueError:
+            raise HTTPException(status_code=404, detail="Patient or label not found")
     return {"ok": True}
 
 
