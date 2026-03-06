@@ -43,6 +43,7 @@ Usage:
   ./dev.sh start [--background] [--no-frontend] [--menu]
   ./dev.sh stop
   ./dev.sh bootstrap [--with-frontend]
+  ./dev.sh run-backend [--host <host>] [--port <port>] [--reload]
   ./dev.sh test [unit|integration|integration-full|chatlog-half|chatlog-full|all]
   ./dev.sh e2e [half|full]
   ./dev.sh data [preload|export-seed|import-seed|reset-from-seed] [args...]
@@ -68,13 +69,53 @@ EOF
       [[ "${1:-}" == "--with-frontend" ]] && WITH_FRONTEND=1
       if [[ ! -d "$APP_DIR/.venv" ]]; then
         python3 -m venv "$APP_DIR/.venv"
-        PYTHON_BIN="$APP_DIR/.venv/bin/python"
       fi
-      "$APP_DIR/.venv/bin/pip" install -r "$APP_DIR/requirements.txt"
+      PYTHON_BIN="$APP_DIR/.venv/bin/python"
+      if [[ ! -x "$APP_DIR/.venv/bin/pip" ]]; then
+        "$PYTHON_BIN" -m ensurepip --upgrade || true
+      fi
+      "$PYTHON_BIN" -m pip install --upgrade pip
+      "$PYTHON_BIN" -m pip install -r "$APP_DIR/requirements.txt"
       if [[ "$WITH_FRONTEND" -eq 1 ]]; then
         npm --prefix "$APP_DIR/frontend" install
       fi
       exit 0
+      ;;
+    run-backend)
+      HOST="0.0.0.0"
+      RUN_PORT="8000"
+      RELOAD=0
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --host)
+            HOST="${2:-$HOST}"
+            shift 2
+            ;;
+          --port)
+            RUN_PORT="${2:-$RUN_PORT}"
+            shift 2
+            ;;
+          --reload)
+            RELOAD=1
+            shift
+            ;;
+          *)
+            echo "Unknown run-backend arg: $1"
+            echo "Usage: ./dev.sh run-backend [--host <host>] [--port <port>] [--reload]"
+            exit 2
+            ;;
+        esac
+      done
+      if [[ ! -x "$APP_DIR/.venv/bin/uvicorn" ]]; then
+        echo "Missing .venv/uvicorn. Run: ./dev.sh bootstrap"
+        exit 1
+      fi
+      if [[ "$RELOAD" -eq 1 ]]; then
+        exec env PYTHONPATH="$APP_DIR${PYTHONPATH:+:$PYTHONPATH}" \
+          "$APP_DIR/.venv/bin/uvicorn" main:app --host "$HOST" --port "$RUN_PORT" --reload
+      fi
+      exec env PYTHONPATH="$APP_DIR${PYTHONPATH:+:$PYTHONPATH}" \
+        "$APP_DIR/.venv/bin/uvicorn" main:app --host "$HOST" --port "$RUN_PORT"
       ;;
     test)
       MODE="${1:-unit}"
