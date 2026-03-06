@@ -50,6 +50,7 @@ from services.observability import (
     get_trace_timeline,
 )
 from services.rate_limit import enforce_doctor_rate_limit
+from services.errors import DomainError
 from services.runtime_config import (
     apply_runtime_config,
     load_runtime_config_dict,
@@ -541,8 +542,8 @@ async def assign_label_endpoint(
     async with AsyncSessionLocal() as db:
         try:
             await assign_label(db, patient_id, label_id, doctor_id)
-        except ValueError:
-            raise HTTPException(status_code=404, detail="Patient or label not found")
+        except DomainError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=str(exc))
     return {"ok": True}
 
 
@@ -558,8 +559,8 @@ async def remove_label_endpoint(
     async with AsyncSessionLocal() as db:
         try:
             await remove_label(db, patient_id, label_id, doctor_id)
-        except ValueError:
-            raise HTTPException(status_code=404, detail="Patient or label not found")
+        except DomainError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=str(exc))
     return {"ok": True}
 
 

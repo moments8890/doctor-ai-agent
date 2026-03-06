@@ -24,6 +24,8 @@ from db.models import Doctor, DoctorTask, NeuroCaseDB
 from models.medical_record import MedicalRecord
 from models.neuro_case import ExtractionLog, NeuroCase
 from services.errors import InvalidMedicalRecordError
+from services.errors import LabelNotFoundError
+from services.errors import PatientNotFoundError
 
 DOCTOR = "doc_001"
 
@@ -405,12 +407,24 @@ async def test_label_doctor_isolation(db_session):
     await create_label(db_session, "doc_A", "标签A")
     label_b = await create_label(db_session, "doc_B", "标签B")
 
-    with pytest.raises(ValueError):
+    with pytest.raises(LabelNotFoundError):
         await assign_label(db_session, p_a.id, label_b.id, "doc_A")
 
     assert await get_patient_labels(db_session, p_a.id, "doc_A") == []
     b_labels = await get_labels_for_doctor(db_session, "doc_B")
     assert all(lbl.doctor_id == "doc_B" for lbl in b_labels)
+
+
+async def test_assign_label_missing_patient_raises_patient_not_found(db_session):
+    label = await create_label(db_session, DOCTOR, "标签A")
+    with pytest.raises(PatientNotFoundError):
+        await assign_label(db_session, patient_id=999999, label_id=label.id, doctor_id=DOCTOR)
+
+
+async def test_remove_label_missing_patient_raises_patient_not_found(db_session):
+    label = await create_label(db_session, DOCTOR, "标签B")
+    with pytest.raises(PatientNotFoundError):
+        await remove_label(db_session, patient_id=999999, label_id=label.id, doctor_id=DOCTOR)
 
 
 async def test_find_patients_by_exact_name_returns_latest_first(db_session):

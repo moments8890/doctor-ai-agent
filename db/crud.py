@@ -31,7 +31,7 @@ from models.medical_record import MedicalRecord
 from services.patient_categorization import recompute_patient_category
 from services.patient_risk import recompute_patient_risk
 from services.observability import trace_block
-from services.errors import InvalidMedicalRecordError
+from services.errors import InvalidMedicalRecordError, LabelNotFoundError, PatientNotFoundError
 
 
 def _utcnow() -> datetime:
@@ -986,7 +986,9 @@ async def assign_label(
     )
     patient = patient_result.scalar_one_or_none()
     if patient is None:
-        raise ValueError(f"Patient {patient_id} not found for doctor {doctor_id}")
+        raise PatientNotFoundError(
+            context={"doctor_id": doctor_id, "patient_id": str(patient_id)}
+        )
 
     label_result = await session.execute(
         select(PatientLabel).where(
@@ -996,7 +998,9 @@ async def assign_label(
     )
     label = label_result.scalar_one_or_none()
     if label is None:
-        raise ValueError(f"Label {label_id} not found for doctor {doctor_id}")
+        raise LabelNotFoundError(
+            context={"doctor_id": doctor_id, "label_id": str(label_id)}
+        )
 
     if label not in patient.labels:
         patient.labels.append(label)
@@ -1016,7 +1020,9 @@ async def remove_label(
     )
     patient = patient_result.scalar_one_or_none()
     if patient is None:
-        raise ValueError(f"Patient {patient_id} not found for doctor {doctor_id}")
+        raise PatientNotFoundError(
+            context={"doctor_id": doctor_id, "patient_id": str(patient_id)}
+        )
     patient.labels = [lbl for lbl in patient.labels if lbl.id != label_id]
     await session.commit()
 

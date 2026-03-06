@@ -25,6 +25,16 @@ class PatientNotFoundError(DomainError):
         )
 
 
+class LabelNotFoundError(DomainError):
+    def __init__(self, message: str = "Label not found", context: Optional[Dict[str, str]] = None):
+        super().__init__(
+            message=message,
+            status_code=404,
+            error_code="label_not_found",
+            context=context or {},
+        )
+
+
 class InvalidMedicalRecordError(DomainError):
     def __init__(self, message: str = "Invalid medical record", context: Optional[Dict[str, str]] = None):
         super().__init__(

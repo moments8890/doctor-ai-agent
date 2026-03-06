@@ -20,6 +20,7 @@ This review captured the initial snapshot. The following items have since been m
 - `DONE` Token auth failure responses are now standardized to generic 401 messages (no raw parser/verify errors)
 - `DONE` UI label bind/unbind 404 paths now use generic not-found responses (no raw ValueError details)
 - `DONE` Admin tunnel-log read errors now return sanitized detail (no raw exception text)
+- `DONE` Label assignment/removal now uses domain exceptions (`PatientNotFoundError`/`LabelNotFoundError`) instead of raw `ValueError`
 - `PARTIAL` LLM resilience (timeouts/retry/backoff/circuit breaker) is implemented in core LLM paths, but should continue to be audited for full endpoint parity
 - `PARTIAL` Session handling remains in-memory first; test lifecycle hardening was completed, but full Redis/DB-backed redesign is still open
 - `PARTIAL` Error handling consistency improved in targeted hotspots, but full exception taxonomy + consistent structured logging across all modules remains open
