@@ -42,8 +42,10 @@ if [[ $# -gt 0 && "${1:-}" != -* ]]; then
 Usage:
   ./dev.sh start [--background] [--no-frontend] [--menu]
   ./dev.sh stop
-  ./dev.sh bootstrap [--with-frontend]
-  ./dev.sh vm-bootstrap [--with-frontend] [--with-mysql]
+  ./dev.sh bootstrap [--with-frontend]    # project deps (venv/pip/npm)
+  ./dev.sh vm-bootstrap [--with-frontend] [--with-mysql]  # one-time VM provisioning
+  ./dev.sh vm-up [--runtime <path>] [--backend-host <host>] [--backend-port <port>] [--frontend-host <host>] [--frontend-port <port>] [--no-frontend]  # start mysql+backend+frontend
+  ./dev.sh vm-down [--remove-mysql]
   ./dev.sh run-backend [--host <host>] [--port <port>] [--reload]
   ./dev.sh test [unit|integration|integration-full|chatlog-half|chatlog-full|all]
   ./dev.sh e2e [half|full]
@@ -86,7 +88,7 @@ EOF
       fi
       exit 0
       ;;
-    vm-bootstrap)
+    vm-bootstrap|vm-boostrap)
       WITH_FRONTEND=0
       WITH_MYSQL=0
       while [[ $# -gt 0 ]]; do
@@ -173,6 +175,209 @@ EOF
         exec "$0" bootstrap --with-frontend
       fi
       exec "$0" bootstrap
+      ;;
+    vm-up|tencent-up)
+      RUNTIME_PATH="$APP_DIR/config/runtime.json"
+      BACKEND_HOST="0.0.0.0"
+      BACKEND_PORT="8000"
+      FRONTEND_HOST="0.0.0.0"
+      FRONTEND_PORT_VM="5173"
+      MYSQL_CONTAINER="${MYSQL_CONTAINER:-doctor-ai-mysql}"
+      MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-DrAI_Root_2026!x9}"
+      MYSQL_DATABASE="${MYSQL_DATABASE:-doctor_ai}"
+      MYSQL_USER="${MYSQL_USER:-doctor_ai}"
+      MYSQL_PASSWORD="${MYSQL_PASSWORD:-DrAI_App_2026!x9}"
+      START_FRONTEND=1
+
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --runtime)
+            RUNTIME_PATH="${2:-$RUNTIME_PATH}"
+            shift 2
+            ;;
+          --backend-host)
+            BACKEND_HOST="${2:-$BACKEND_HOST}"
+            shift 2
+            ;;
+          --backend-port)
+            BACKEND_PORT="${2:-$BACKEND_PORT}"
+            shift 2
+            ;;
+          --frontend-host)
+            FRONTEND_HOST="${2:-$FRONTEND_HOST}"
+            shift 2
+            ;;
+          --frontend-port)
+            FRONTEND_PORT_VM="${2:-$FRONTEND_PORT_VM}"
+            shift 2
+            ;;
+          --no-frontend)
+            START_FRONTEND=0
+            shift
+            ;;
+          *)
+            echo "Unknown vm-up arg: $1"
+            echo "Usage: ./dev.sh vm-up [--runtime <path>] [--backend-host <host>] [--backend-port <port>] [--frontend-host <host>] [--frontend-port <port>] [--no-frontend]"
+            exit 2
+            ;;
+        esac
+      done
+
+      if ! command -v docker >/dev/null 2>&1; then
+        echo "docker not found. Run: ./dev.sh vm-bootstrap --with-mysql"
+        exit 1
+      fi
+      if [[ ! -x "$APP_DIR/.venv/bin/uvicorn" ]]; then
+        echo "Missing .venv/uvicorn. Run: ./dev.sh bootstrap --with-frontend"
+        exit 1
+      fi
+      if [[ "$START_FRONTEND" -eq 1 ]] && ! command -v npm >/dev/null 2>&1; then
+        echo "npm not found. Run: ./dev.sh vm-bootstrap --with-frontend"
+        exit 1
+      fi
+
+      # vm-up is runtime start only; provisioning belongs to vm-bootstrap.
+      if docker ps -a --format '{{.Names}}' | grep -qx "$MYSQL_CONTAINER"; then
+        docker start "$MYSQL_CONTAINER" >/dev/null
+      else
+        echo "MySQL container '$MYSQL_CONTAINER' not found. Run: ./dev.sh vm-bootstrap --with-mysql"
+        exit 1
+      fi
+
+      echo "Waiting for MySQL container health..."
+      READY=0
+      for _ in $(seq 1 40); do
+        STATUS="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}running{{end}}' "$MYSQL_CONTAINER" 2>/dev/null || true)"
+        if [[ "$STATUS" == "healthy" || "$STATUS" == "running" ]]; then
+          READY=1
+          break
+        fi
+        sleep 2
+      done
+      if [[ "$READY" -ne 1 ]]; then
+        echo "MySQL container failed to become healthy. Check: docker logs $MYSQL_CONTAINER"
+        exit 1
+      fi
+
+      # Ensure runtime config targets remote DeepSeek + local MySQL.
+      DEEPSEEK_KEY_FROM_ENV="${DEEPSEEK_API_KEY:-}"
+      env PYTHONPATH="$APP_DIR${PYTHONPATH:+:$PYTHONPATH}" python3 - <<PY
+from utils.runtime_json import load_runtime_json, save_runtime_json
+cfg = load_runtime_json("$RUNTIME_PATH")
+cfg["ROUTING_LLM"] = "deepseek"
+cfg["STRUCTURING_LLM"] = "deepseek"
+cfg["INTENT_PROVIDER"] = "model-driven"
+cfg["DATABASE_URL"] = "mysql+aiomysql://$MYSQL_USER:$MYSQL_PASSWORD@127.0.0.1:3306/$MYSQL_DATABASE?charset=utf8mb4"
+deepseek_env = """$DEEPSEEK_KEY_FROM_ENV""".strip()
+if deepseek_env:
+    cfg["DEEPSEEK_API_KEY"] = deepseek_env
+if not str(cfg.get("DEEPSEEK_API_KEY", "")).strip():
+    raise SystemExit("DEEPSEEK_API_KEY is empty. Set env DEEPSEEK_API_KEY or update runtime config.")
+save_runtime_json(cfg, "$RUNTIME_PATH")
+print("Runtime config updated:", "$RUNTIME_PATH")
+PY
+
+      mkdir -p "$APP_DIR/logs"
+      PID_DIR="$APP_DIR/logs/pids"
+      mkdir -p "$PID_DIR"
+      BACKEND_LOG="$APP_DIR/logs/backend.vm.log"
+      FRONTEND_LOG="$APP_DIR/logs/frontend.vm.log"
+      BACKEND_PID_FILE="$PID_DIR/backend.vm.pid"
+      FRONTEND_PID_FILE="$PID_DIR/frontend.vm.pid"
+
+      for p in "$BACKEND_PORT" "$FRONTEND_PORT_VM"; do
+        if lsof -ti :"$p" >/dev/null 2>&1; then
+          lsof -ti :"$p" | xargs kill -9 2>/dev/null || true
+          sleep 1
+        fi
+      done
+
+      if [[ -f "$BACKEND_PID_FILE" ]]; then
+        kill "$(cat "$BACKEND_PID_FILE")" 2>/dev/null || true
+        rm -f "$BACKEND_PID_FILE"
+      fi
+      if [[ -f "$FRONTEND_PID_FILE" ]]; then
+        kill "$(cat "$FRONTEND_PID_FILE")" 2>/dev/null || true
+        rm -f "$FRONTEND_PID_FILE"
+      fi
+
+      (
+        cd "$APP_DIR"
+        exec env PYTHONPATH="$APP_DIR${PYTHONPATH:+:$PYTHONPATH}" \
+          "$APP_DIR/.venv/bin/uvicorn" main:app --host "$BACKEND_HOST" --port "$BACKEND_PORT"
+      ) >>"$BACKEND_LOG" 2>&1 &
+      echo $! > "$BACKEND_PID_FILE"
+
+      if [[ "$START_FRONTEND" -eq 1 ]]; then
+        if [[ ! -d "$APP_DIR/frontend/node_modules" ]]; then
+          echo "frontend/node_modules missing. Run: ./dev.sh vm-bootstrap --with-frontend"
+          exit 1
+        fi
+        (
+          cd "$APP_DIR/frontend"
+          exec npm run dev -- --host "$FRONTEND_HOST" --port "$FRONTEND_PORT_VM"
+        ) >>"$FRONTEND_LOG" 2>&1 &
+        echo $! > "$FRONTEND_PID_FILE"
+      fi
+
+      echo ""
+      echo "VM services started:"
+      echo "  MySQL      : docker container $MYSQL_CONTAINER (127.0.0.1:3306)"
+      echo "  Backend    : http://$BACKEND_HOST:$BACKEND_PORT (log: $BACKEND_LOG)"
+      if [[ "$START_FRONTEND" -eq 1 ]]; then
+        echo "  Frontend   : http://$FRONTEND_HOST:$FRONTEND_PORT_VM (log: $FRONTEND_LOG)"
+      else
+        echo "  Frontend   : skipped (--no-frontend)"
+      fi
+      echo "  Stop all   : ./dev.sh vm-down"
+      exit 0
+      ;;
+    vm-down|tencent-down)
+      REMOVE_MYSQL=0
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --remove-mysql)
+            REMOVE_MYSQL=1
+            shift
+            ;;
+          *)
+            echo "Unknown vm-down arg: $1"
+            echo "Usage: ./dev.sh vm-down [--remove-mysql]"
+            exit 2
+            ;;
+        esac
+      done
+
+      PID_DIR="$APP_DIR/logs/pids"
+      BACKEND_PID_FILE="$PID_DIR/backend.vm.pid"
+      FRONTEND_PID_FILE="$PID_DIR/frontend.vm.pid"
+      MYSQL_CONTAINER="${MYSQL_CONTAINER:-doctor-ai-mysql}"
+
+      if [[ -f "$BACKEND_PID_FILE" ]]; then
+        kill "$(cat "$BACKEND_PID_FILE")" 2>/dev/null || true
+        rm -f "$BACKEND_PID_FILE"
+      fi
+      if [[ -f "$FRONTEND_PID_FILE" ]]; then
+        kill "$(cat "$FRONTEND_PID_FILE")" 2>/dev/null || true
+        rm -f "$FRONTEND_PID_FILE"
+      fi
+      lsof -ti :8000 2>/dev/null | xargs kill -9 2>/dev/null || true
+      lsof -ti :5173 2>/dev/null | xargs kill -9 2>/dev/null || true
+
+      if command -v docker >/dev/null 2>&1; then
+        if docker ps --format '{{.Names}}' | grep -qx "$MYSQL_CONTAINER"; then
+          if [[ "$REMOVE_MYSQL" -eq 1 ]]; then
+            docker rm -f "$MYSQL_CONTAINER" >/dev/null || true
+            echo "Stopped and removed MySQL container: $MYSQL_CONTAINER"
+          else
+            docker stop "$MYSQL_CONTAINER" >/dev/null || true
+            echo "Stopped MySQL container: $MYSQL_CONTAINER"
+          fi
+        fi
+      fi
+
+      echo "Stopped VM backend/frontend services."
+      exit 0
       ;;
     run-backend)
       HOST="0.0.0.0"

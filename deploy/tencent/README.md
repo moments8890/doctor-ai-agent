@@ -37,6 +37,26 @@ docker compose -f deploy/tencent/docker-compose.prod.yml up -d --remove-orphans
 docker compose -f deploy/tencent/docker-compose.prod.yml ps
 ```
 
+## Source Deploy on Ubuntu (No Backend/Frontend Containers)
+
+If you want local source frontend/backend, local MySQL in Docker, and remote DeepSeek:
+
+```bash
+cd /opt/doctor-ai-agent
+# one-time on a fresh VM
+./dev.sh vm-bootstrap --with-frontend --with-mysql
+
+# each time you start services
+export DEEPSEEK_API_KEY="<your_deepseek_key>"
+./dev.sh vm-up
+```
+
+Stop services:
+
+```bash
+./dev.sh vm-down
+```
+
 ## GitHub Secrets Required by `deploy-prod.yml`
 
 - `TCR_REGISTRY`

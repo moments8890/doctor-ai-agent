@@ -3,6 +3,9 @@
 Use `./dev.sh` as the single entrypoint for daily development tasks:
 
 - `./dev.sh bootstrap`
+- `./dev.sh vm-bootstrap --with-frontend --with-mysql`
+- `./dev.sh vm-up`
+- `./dev.sh vm-down`
 - `./dev.sh start`
 - `./dev.sh stop`
 - `./dev.sh test <mode>`
@@ -10,6 +13,16 @@ Use `./dev.sh` as the single entrypoint for daily development tasks:
 - `./dev.sh data <preload|export-seed|import-seed|reset-from-seed> ...`
 - `./dev.sh chat`
 - `./dev.sh inspect-db`
+
+## VM Commands (Separated Responsibilities)
+
+- `./dev.sh vm-bootstrap --with-frontend --with-mysql`
+  - One-time setup on a new VM.
+  - Installs OS/toolchain dependencies and prepares local runtime prerequisites.
+- `./dev.sh vm-up`
+  - Runtime start only.
+  - Starts MySQL container + backend + frontend processes.
+  - Does not perform provisioning; if prerequisites are missing, run `vm-bootstrap`.
 
 ## Quick Flow
 
@@ -21,6 +34,16 @@ Use `./dev.sh` as the single entrypoint for daily development tasks:
 2. Start local bundled services
 ```bash
 ./dev.sh start
+```
+
+Tencent Cloud Ubuntu (local source backend/frontend + docker MySQL + remote DeepSeek):
+```bash
+# one-time on a fresh VM
+./dev.sh vm-bootstrap --with-frontend --with-mysql
+
+# every time you want to run services
+export DEEPSEEK_API_KEY="<your_deepseek_key>"
+./dev.sh vm-up
 ```
 
 3. Run tests
@@ -69,6 +92,16 @@ Use `./dev.sh` as the single entrypoint for daily development tasks:
 - `./dev.sh data <preload|export-seed|import-seed|reset-from-seed> ...`
 - `./dev.sh chat`
 - `./dev.sh inspect-db`
+
+## VM 命令职责拆分
+
+- `./dev.sh vm-bootstrap --with-frontend --with-mysql`
+  - 新 VM 上一次性执行
+  - 安装系统/工具链依赖并准备运行前置条件
+- `./dev.sh vm-up`
+  - 仅负责运行时启动
+  - 启动 MySQL 容器 + backend + frontend
+  - 不做环境初始化；若缺依赖请先执行 `vm-bootstrap`
 
 ## 快速流程
 
