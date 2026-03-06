@@ -74,3 +74,20 @@ def test_extract_auto_candidates_from_text_and_fields():
     assert len(out) >= 2
     assert any("临床处理经验" in x for x in out)
     assert any("随访要点" in x for x in out)
+
+
+async def test_maybe_auto_learn_knowledge_logs_and_continues_on_save_error(monkeypatch):
+    monkeypatch.setenv("KNOWLEDGE_AUTO_LEARN_ENABLED", "true")
+    monkeypatch.setenv("KNOWLEDGE_AUTO_MAX_NEW_PER_TURN", "1")
+    with patch(
+        "services.doctor_knowledge.save_knowledge_item",
+        new=AsyncMock(side_effect=RuntimeError("db fail")),
+    ), patch("services.doctor_knowledge.log") as mocked_log:
+        inserted = await dk.maybe_auto_learn_knowledge(
+            object(),
+            "doc-1",
+            "建议先复查心电图",
+            structured_fields={},
+        )
+    assert inserted == 0
+    assert mocked_log.called

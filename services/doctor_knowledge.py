@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 from db.crud import add_doctor_knowledge_item, list_doctor_knowledge_items
 from db.models import DoctorKnowledgeItem
+from utils.log import log
 
 _ADD_TO_KNOWLEDGE_RE = re.compile(
     r"^\s*(?:add_to_knowledge_base|add\s+to\s+knowledge\s+base|添加(?:到)?知识库|保存知识)(?:[\s:：]+(.*))?\s*$",
@@ -265,7 +266,14 @@ async def maybe_auto_learn_knowledge(
                 source="agent_auto",
                 confidence=0.6,
             )
-        except Exception:
+        except Exception as exc:
+            log(
+                "[Knowledge] auto learn save failed doctor={0} candidate={1}: {2}".format(
+                    doctor_id,
+                    candidate[:80],
+                    exc,
+                )
+            )
             continue
         if row is not None:
             inserted += 1

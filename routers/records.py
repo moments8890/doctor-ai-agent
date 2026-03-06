@@ -763,7 +763,8 @@ async def create_record_from_text(body: TextInput):
     try:
         return await structure_medical_record(body.text)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        log(f"[Records] from-text failed: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/from-image", response_model=MedicalRecord)
@@ -778,7 +779,8 @@ async def create_record_from_image(image: UploadFile = File(...)):
         text = await extract_text_from_image(image_bytes, image.content_type)
         return await structure_medical_record(text)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        log(f"[Records] from-image failed: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/from-audio", response_model=MedicalRecord)
@@ -793,4 +795,5 @@ async def create_record_from_audio(audio: UploadFile = File(...)):
         transcript = await transcribe_audio(audio_bytes, audio.filename or "audio.wav")
         return await structure_medical_record(transcript)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        log(f"[Records] from-audio failed: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")

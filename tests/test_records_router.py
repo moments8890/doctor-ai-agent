@@ -464,6 +464,7 @@ async def test_from_text_image_audio_endpoints():
         with pytest.raises(HTTPException) as exc2:
             await records.create_record_from_text(records.TextInput(text="胸痛"))
     assert exc2.value.status_code == 500
+    assert exc2.value.detail == "Internal server error"
 
     with pytest.raises(HTTPException) as exc3:
         await records.create_record_from_image(_Upload(content_type="image/tiff"))
@@ -478,6 +479,7 @@ async def test_from_text_image_audio_endpoints():
         with pytest.raises(HTTPException) as exc4:
             await records.create_record_from_image(_Upload(content_type="image/png", data=b"img"))
     assert exc4.value.status_code == 500
+    assert exc4.value.detail == "Internal server error"
 
     with pytest.raises(HTTPException) as exc5:
         await records.create_record_from_audio(_Upload(content_type="audio/aac"))
@@ -492,3 +494,4 @@ async def test_from_text_image_audio_endpoints():
         with pytest.raises(HTTPException) as exc6:
             await records.create_record_from_audio(_Upload(content_type="audio/wav", data=b"wav", filename="a.wav"))
     assert exc6.value.status_code == 500
+    assert exc6.value.detail == "Internal server error"
