@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import uuid
@@ -95,7 +96,8 @@ def _parse_tags(raw: str | None) -> list:
         return []
     try:
         return json.loads(raw)
-    except Exception:
+    except Exception as exc:
+        logging.getLogger("ui").warning("[UI] invalid category/risk tags json: %s", exc)
         return []
 
 

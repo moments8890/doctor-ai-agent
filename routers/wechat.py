@@ -283,15 +283,25 @@ async def _handle_interview_step(text: str, doctor_id: str) -> str:
 
 async def _handle_menu_event(event_key: str, doctor_id: str) -> str:
     _sync_wechat_domain_bindings()
+    original_all = wd.handle_all_patients
+    original_start = wd.start_interview
     wd.handle_all_patients = _handle_all_patients
     wd.start_interview = _start_interview
-    return await wd.handle_menu_event(event_key, doctor_id)
+    try:
+        return await wd.handle_menu_event(event_key, doctor_id)
+    finally:
+        wd.handle_all_patients = original_all
+        wd.start_interview = original_start
 
 
 async def _handle_name_lookup(name: str, doctor_id: str) -> str:
     _sync_wechat_domain_bindings()
+    original_query = wd.handle_query_records
     wd.handle_query_records = _handle_query_records
-    return await wd.handle_name_lookup(name, doctor_id)
+    try:
+        return await wd.handle_name_lookup(name, doctor_id)
+    finally:
+        wd.handle_query_records = original_query
 
 
 async def _handle_pending_create(text: str, doctor_id: str) -> str:
@@ -360,7 +370,8 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
     try:
         async with AsyncSessionLocal() as session:
             knowledge_context = await load_knowledge_context_for_prompt(session, doctor_id, text)
-    except Exception:
+    except Exception as e:
+        log(f"[WeChat] knowledge context load FAILED doctor={doctor_id}: {e}")
         knowledge_context = ""
 
     try:
@@ -375,7 +386,8 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
             return _format_record(record)
         except ValueError:
             return "没能识别病历内容，请重新描述一下。"
-        except Exception:
+        except Exception as ex:
+            log(f"[WeChat] structuring fallback FAILED doctor={doctor_id}: {ex}")
             return "不好意思，出了点问题，能再说一遍吗？"
 
     log(f"[WeChat] intent={intent_result.intent} patient={intent_result.patient_name}")

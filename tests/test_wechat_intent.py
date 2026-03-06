@@ -61,6 +61,22 @@ async def test_handle_intent_falls_back_on_detection_error(wechat):
     assert reply  # non-empty reply (formatted record or short error)
 
 
+async def test_handle_intent_logs_and_continues_when_knowledge_context_load_fails(wechat):
+    from services.intent import IntentResult
+
+    with patch("routers.wechat.load_knowledge_context_for_prompt", new=AsyncMock(side_effect=RuntimeError("db busy"))), \
+         patch("routers.wechat.agent_dispatch", new=AsyncMock(return_value=IntentResult(intent=Intent.unknown, chat_reply="ok"))):
+        reply = await wechat._handle_intent("今天天气", DOCTOR)
+    assert reply == "ok"
+
+
+async def test_handle_intent_structuring_fallback_unexpected_error_returns_generic_message(wechat):
+    with patch("routers.wechat.agent_dispatch", side_effect=Exception("LLM down")), \
+         patch("routers.wechat.structure_medical_record", new=AsyncMock(side_effect=RuntimeError("boom"))):
+        reply = await wechat._handle_intent("some text", DOCTOR)
+    assert "不好意思" in reply
+
+
 async def test_handle_intent_routes_delete_patient(wechat, session_factory):
     from db.crud import create_patient, get_all_patients
 
