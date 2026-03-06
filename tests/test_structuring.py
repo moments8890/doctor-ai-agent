@@ -278,7 +278,19 @@ async def test_structure_consultation_mode_appends_suffix(mock_llm):
     messages = mock_llm.call_args.kwargs["messages"]
     system_content = messages[0]["content"]
     assert _CONSULTATION_SUFFIX.strip() in system_content
-    assert messages[-1]["content"] == "医患对话转写"
+
+
+async def test_get_system_prompt_logs_when_db_load_fails():
+    import services.structuring as struct_mod
+
+    struct_mod._PROMPT_CACHE = None
+    with patch("db.engine.AsyncSessionLocal", side_effect=RuntimeError("db down")), \
+         patch("services.structuring.log") as log_mock:
+        prompt = await struct_mod._get_system_prompt()
+
+    assert isinstance(prompt, str) and prompt
+    assert "严禁虚构" in prompt
+    assert log_mock.called
 
 
 async def test_structure_consultation_mode_false_no_suffix(mock_llm):

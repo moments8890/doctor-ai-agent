@@ -120,7 +120,8 @@ async def _get_system_prompt() -> str:
         base = base_row.content if base_row else _SEED_PROMPT
         extension = ext_row.content.strip() if ext_row and ext_row.content.strip() else None
         content = base + "\n\n" + extension if extension else base
-    except Exception:
+    except Exception as exc:
+        log("[Structuring] load prompt from DB failed, falling back to seed prompt: {0}".format(exc))
         content = _SEED_PROMPT
     _PROMPT_CACHE = (time.time(), content)
     return content

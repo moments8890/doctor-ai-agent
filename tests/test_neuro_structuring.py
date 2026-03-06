@@ -298,3 +298,16 @@ async def test_get_neuro_cases_for_doctor_returns_only_target_doctor(session_fac
 
     assert len(rows) == 2
     assert all(r.doctor_id == "doc_A" for r in rows)
+
+
+async def test_neuro_get_system_prompt_logs_when_db_load_fails():
+    import services.neuro_structuring as neuro_mod
+
+    neuro_mod._PROMPT_CACHE = None
+    with patch("db.engine.AsyncSessionLocal", side_effect=RuntimeError("db down")), \
+         patch("services.neuro_structuring.log") as log_mock:
+        prompt = await neuro_mod._get_system_prompt()
+
+    assert isinstance(prompt, str) and prompt
+    assert "Structured_JSON" in prompt
+    assert log_mock.called

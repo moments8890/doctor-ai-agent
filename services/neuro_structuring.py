@@ -166,7 +166,8 @@ async def _get_system_prompt() -> str:
         async with AsyncSessionLocal() as db:
             row = await get_system_prompt(db, "structuring.neuro_cvd")
         content = row.content if row else _SEED_PROMPT
-    except Exception:
+    except Exception as exc:
+        log("[NeuroLLM] load prompt from DB failed, falling back to seed prompt: {0}".format(exc))
         content = _SEED_PROMPT
     _PROMPT_CACHE = (time.time(), content)
     return content
