@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import func, select
 
@@ -56,6 +56,7 @@ from services.runtime_config import (
     save_runtime_config_dict,
     validate_runtime_config,
 )
+from services.request_auth import resolve_doctor_id_from_auth_or_fallback
 
 router = APIRouter(tags=["ui"])
 
@@ -137,6 +138,15 @@ def _normalize_date_yyyy_mm_dd(value: str | None) -> str | None:
     return value
 
 
+def _resolve_ui_doctor_id(candidate_doctor_id: str | None, authorization: str | None) -> str:
+    return resolve_doctor_id_from_auth_or_fallback(
+        candidate_doctor_id,
+        authorization,
+        fallback_env_flag="UI_ALLOW_QUERY_DOCTOR_ID",
+        default_doctor_id="web_doctor",
+    )
+
+
 @router.get("/api/manage/patients")
 async def manage_patients(
     doctor_id: str = Query(default="web_doctor"),
@@ -144,6 +154,25 @@ async def manage_patients(
     risk: str | None = Query(default=None),
     follow_up_state: str | None = Query(default=None),
     stale_risk: str | None = Query(default=None),
+    authorization: str | None = Header(default=None),
+):
+    resolved_doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    return await _manage_patients_for_doctor(
+        resolved_doctor_id,
+        category=category,
+        risk=risk,
+        follow_up_state=follow_up_state,
+        stale_risk=stale_risk,
+    )
+
+
+async def _manage_patients_for_doctor(
+    doctor_id: str,
+    *,
+    category: str | None = None,
+    risk: str | None = None,
+    follow_up_state: str | None = None,
+    stale_risk: str | None = None,
 ):
     category = _normalize_query_str(category)
     risk = _normalize_query_str(risk)
@@ -201,7 +230,11 @@ _CATEGORY_ORDER = ["high_risk", "active_followup", "stable", "new", "uncategoriz
 
 
 @router.get("/api/manage/patients/grouped")
-async def manage_patients_grouped(doctor_id: str = Query(default="web_doctor")):
+async def manage_patients_grouped(
+    doctor_id: str = Query(default="web_doctor"),
+    authorization: str | None = Header(default=None),
+):
+    doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
     async with AsyncSessionLocal() as db:
         patients = await get_all_patients(db, doctor_id)
         counts_result = await db.execute(
@@ -251,7 +284,11 @@ async def manage_patients_grouped(doctor_id: str = Query(default="web_doctor")):
 
 
 @router.get("/api/manage/patients/grouped-risk")
-async def manage_patients_grouped_risk(doctor_id: str = Query(default="web_doctor")):
+async def manage_patients_grouped_risk(
+    doctor_id: str = Query(default="web_doctor"),
+    authorization: str | None = Header(default=None),
+):
+    doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
     async with AsyncSessionLocal() as db:
         patients = await get_all_patients(db, doctor_id)
 
@@ -281,7 +318,9 @@ async def manage_patient_timeline(
     patient_id: int,
     doctor_id: str = Query(default="web_doctor"),
     limit: int = Query(default=100, ge=1, le=500),
+    authorization: str | None = Header(default=None),
 ):
+    doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
     async with AsyncSessionLocal() as db:
         data = await build_patient_timeline(db, doctor_id=doctor_id, patient_id=patient_id, limit=limit)
     if data is None:
@@ -297,6 +336,27 @@ async def manage_records(
     date_from: str | None = Query(default=None),
     date_to: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
+    authorization: str | None = Header(default=None),
+):
+    resolved_doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    return await _manage_records_for_doctor(
+        resolved_doctor_id,
+        patient_id=patient_id,
+        patient_name=patient_name,
+        date_from=date_from,
+        date_to=date_to,
+        limit=limit,
+    )
+
+
+async def _manage_records_for_doctor(
+    doctor_id: str,
+    *,
+    patient_id: int | None = None,
+    patient_name: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    limit: int = 50,
 ):
     patient_name = _normalize_query_str(patient_name)
     date_from = _normalize_date_yyyy_mm_dd(date_from)
@@ -398,7 +458,11 @@ class LabelUpdate(BaseModel):
 
 
 @router.get("/api/manage/labels")
-async def list_labels(doctor_id: str = Query(default="web_doctor")):
+async def list_labels(
+    doctor_id: str = Query(default="web_doctor"),
+    authorization: str | None = Header(default=None),
+):
+    doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
     async with AsyncSessionLocal() as db:
         labels = await get_labels_for_doctor(db, doctor_id)
     return {
@@ -410,23 +474,30 @@ async def list_labels(doctor_id: str = Query(default="web_doctor")):
 
 
 @router.post("/api/manage/labels")
-async def create_label_endpoint(body: LabelCreate):
+async def create_label_endpoint(body: LabelCreate, authorization: str | None = Header(default=None)):
+    doctor_id = _resolve_ui_doctor_id(body.doctor_id, authorization)
     async with AsyncSessionLocal() as db:
-        lbl = await create_label(db, body.doctor_id, body.name, body.color)
+        lbl = await create_label(db, doctor_id, body.name, body.color)
     return {"id": lbl.id, "name": lbl.name, "color": lbl.color, "created_at": _fmt_ts(lbl.created_at)}
 
 
 @router.patch("/api/manage/labels/{label_id}")
-async def update_label_endpoint(label_id: int, body: LabelUpdate):
+async def update_label_endpoint(label_id: int, body: LabelUpdate, authorization: str | None = Header(default=None)):
+    doctor_id = _resolve_ui_doctor_id(body.doctor_id, authorization)
     async with AsyncSessionLocal() as db:
-        lbl = await update_label(db, label_id, body.doctor_id, name=body.name, color=body.color)
+        lbl = await update_label(db, label_id, doctor_id, name=body.name, color=body.color)
     if lbl is None:
         raise HTTPException(status_code=404, detail="Label not found")
     return {"id": lbl.id, "name": lbl.name, "color": lbl.color}
 
 
 @router.delete("/api/manage/labels/{label_id}")
-async def delete_label_endpoint(label_id: int, doctor_id: str = Query(default="web_doctor")):
+async def delete_label_endpoint(
+    label_id: int,
+    doctor_id: str = Query(default="web_doctor"),
+    authorization: str | None = Header(default=None),
+):
+    doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
     async with AsyncSessionLocal() as db:
         found = await delete_label(db, label_id, doctor_id)
     if not found:
@@ -435,7 +506,13 @@ async def delete_label_endpoint(label_id: int, doctor_id: str = Query(default="w
 
 
 @router.post("/api/manage/patients/{patient_id}/labels/{label_id}")
-async def assign_label_endpoint(patient_id: int, label_id: int, doctor_id: str = Query(default="web_doctor")):
+async def assign_label_endpoint(
+    patient_id: int,
+    label_id: int,
+    doctor_id: str = Query(default="web_doctor"),
+    authorization: str | None = Header(default=None),
+):
+    doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
     async with AsyncSessionLocal() as db:
         try:
             await assign_label(db, patient_id, label_id, doctor_id)
@@ -445,7 +522,13 @@ async def assign_label_endpoint(patient_id: int, label_id: int, doctor_id: str =
 
 
 @router.delete("/api/manage/patients/{patient_id}/labels/{label_id}")
-async def remove_label_endpoint(patient_id: int, label_id: int, doctor_id: str = Query(default="web_doctor")):
+async def remove_label_endpoint(
+    patient_id: int,
+    label_id: int,
+    doctor_id: str = Query(default="web_doctor"),
+    authorization: str | None = Header(default=None),
+):
+    doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
     async with AsyncSessionLocal() as db:
         try:
             await remove_label(db, patient_id, label_id, doctor_id)

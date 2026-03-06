@@ -96,6 +96,27 @@ async def test_manage_patients_includes_record_counts():
     assert data["items"][1]["created_at"] is None
 
 
+async def test_manage_patients_uses_resolved_doctor_id():
+    db = SimpleNamespace(execute=AsyncMock(return_value=SimpleNamespace(all=lambda: [])))
+    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui._resolve_ui_doctor_id", return_value="resolved_doc"), \
+         patch("routers.ui.get_all_patients", new=AsyncMock(return_value=[])) as get_patients:
+        data = await ui.manage_patients(doctor_id="doc1", authorization="Bearer x")
+
+    assert data["doctor_id"] == "resolved_doc"
+    assert get_patients.await_args.args[1] == "resolved_doc"
+
+
+async def test_manage_patients_invalid_authorization_raises_401():
+    with patch(
+        "routers.ui.resolve_doctor_id_from_auth_or_fallback",
+        side_effect=HTTPException(status_code=401, detail="bad token"),
+    ):
+        with pytest.raises(HTTPException) as exc:
+            await ui.manage_patients(doctor_id="doc1", authorization="Bearer bad")
+    assert exc.value.status_code == 401
+
+
 async def test_manage_records_with_patient_filter():
     db = SimpleNamespace()
     records = [_record(id=21, patient_id=11, patient=None)]

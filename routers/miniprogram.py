@@ -72,8 +72,8 @@ async def mini_patients(
     stale_risk: Optional[str] = None,
     principal: MiniProgramPrincipal = Depends(_require_mini_principal),
 ):
-    return await ui_router.manage_patients(
-        doctor_id=principal.doctor_id,
+    return await ui_router._manage_patients_for_doctor(
+        principal.doctor_id,
         category=category,
         risk=risk,
         follow_up_state=follow_up_state,
@@ -90,8 +90,8 @@ async def mini_records(
     limit: int = 100,
     principal: MiniProgramPrincipal = Depends(_require_mini_principal),
 ):
-    return await ui_router.manage_records(
-        doctor_id=principal.doctor_id,
+    return await ui_router._manage_records_for_doctor(
+        principal.doctor_id,
         patient_id=patient_id,
         patient_name=patient_name,
         date_from=date_from,
