@@ -54,7 +54,7 @@ async def neuro_from_text(
         raise HTTPException(status_code=422, detail=str(exc))
     except Exception as exc:
         log(f"[Neuro] extract FAILED doctor={doctor_id}: {exc}")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
     async with AsyncSessionLocal() as db:
         row = await save_neuro_case(db, doctor_id, neuro_case, extraction_log)

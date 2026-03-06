@@ -38,7 +38,7 @@ async def test_neuro_from_text_unexpected_error_maps_to_500(monkeypatch):
     with pytest.raises(HTTPException) as exc:
         await neuro.neuro_from_text(neuro.NeuroFromTextInput(text="raw"))
     assert exc.value.status_code == 500
-    assert exc.value.detail == "boom"
+    assert exc.value.detail == "Internal server error"
 
 
 async def test_neuro_from_text_success_persists_and_returns_payload(monkeypatch):
