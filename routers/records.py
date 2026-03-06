@@ -45,7 +45,7 @@ from services.tasks import create_appointment_task, run_due_task_cycle
 from services.transcription import transcribe_audio
 from services.vision import extract_text_from_image
 from services.observability import trace_block
-from services.miniprogram_auth import MiniProgramAuthError, parse_bearer_token, verify_miniprogram_token
+from services.request_auth import resolve_doctor_id_from_auth_or_fallback
 from utils.log import log
 
 router = APIRouter(prefix="/api/records", tags=["records"])
@@ -265,32 +265,13 @@ class ChatResponse(BaseModel):
     record: Optional[MedicalRecord] = None
 
 
-def _allow_insecure_doctor_id_fallback() -> bool:
-    if os.environ.get("PYTEST_CURRENT_TEST"):
-        return True
-    return (os.environ.get("RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID") or "").strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }
-
-
 def _resolve_doctor_id(body: ChatInput, authorization: Optional[str]) -> str:
-    if not isinstance(authorization, str):
-        authorization = None
-    if authorization and authorization.strip():
-        try:
-            token = parse_bearer_token(authorization)
-            principal = verify_miniprogram_token(token)
-            return principal.doctor_id
-        except MiniProgramAuthError as exc:
-            raise HTTPException(status_code=401, detail=str(exc))
-
-    if _allow_insecure_doctor_id_fallback():
-        return (body.doctor_id or "").strip() or "test_doctor"
-
-    raise HTTPException(status_code=401, detail="Missing Authorization header")
+    return resolve_doctor_id_from_auth_or_fallback(
+        body.doctor_id,
+        authorization,
+        fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
+        default_doctor_id="test_doctor",
+    )
 
 
 def _enforce_rate_limit(doctor_id: str) -> None:

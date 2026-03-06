@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 from openai import APIConnectionError
+from starlette.requests import Request
 
 from utils.app_config import AppConfig
 
@@ -141,3 +142,68 @@ async def test_cleanup_old_conversation_turns_invokes_purge(monkeypatch):
 
     await main._cleanup_old_conversation_turns()
     assert mock_purge.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_health_snapshot_reports_ok(monkeypatch):
+    main = _load_main_module()
+
+    class _DB:
+        async def execute(self, _stmt):
+            return None
+
+    class _Ctx:
+        async def __aenter__(self):
+            return _DB()
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(main, "AsyncSessionLocal", lambda: _Ctx())
+    monkeypatch.setattr(main, "_scheduler", SimpleNamespace(running=True))
+    monkeypatch.setattr(main, "_startup_ready", True)
+
+    snapshot = await main._health_snapshot()
+    assert snapshot["status"] == "ok"
+    assert snapshot["checks"]["database"]["ok"] is True
+    assert snapshot["checks"]["scheduler"]["ok"] is True
+    assert snapshot["checks"]["startup"]["ok"] is True
+
+
+@pytest.mark.asyncio
+async def test_health_snapshot_reports_degraded_on_db_error(monkeypatch):
+    main = _load_main_module()
+
+    class _Ctx:
+        async def __aenter__(self):
+            raise RuntimeError("db down")
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(main, "AsyncSessionLocal", lambda: _Ctx())
+    monkeypatch.setattr(main, "_scheduler", SimpleNamespace(running=True))
+    monkeypatch.setattr(main, "_startup_ready", True)
+
+    snapshot = await main._health_snapshot()
+    assert snapshot["status"] == "degraded"
+    assert snapshot["checks"]["database"]["ok"] is False
+    assert "db down" in snapshot["checks"]["database"]["error"]
+
+
+@pytest.mark.asyncio
+async def test_readyz_503_when_not_ready(monkeypatch):
+    main = _load_main_module()
+    monkeypatch.setattr(main, "_startup_ready", False)
+    monkeypatch.setattr(main, "_scheduler", SimpleNamespace(running=False))
+    resp = await main.readyz()
+    assert resp.status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_domain_exception_handler_returns_structured_response():
+    main = _load_main_module()
+    req = Request({"type": "http", "method": "GET", "path": "/x", "headers": []})
+    err = main.DomainError("bad", status_code=422, error_code="bad_input")
+    resp = await main._handle_domain_error(req, err)
+    assert resp.status_code == 422

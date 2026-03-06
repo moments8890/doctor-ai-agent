@@ -105,7 +105,7 @@ async def mini_tasks(
     status: Optional[str] = None,
     principal: MiniProgramPrincipal = Depends(_require_mini_principal),
 ) -> List[tasks_router.TaskOut]:
-    return await tasks_router.get_tasks(doctor_id=principal.doctor_id, status=status)
+    return await tasks_router._get_tasks_for_doctor(doctor_id=principal.doctor_id, status=status)
 
 
 @router.patch("/tasks/{task_id}", response_model=tasks_router.TaskOut)
@@ -114,7 +114,7 @@ async def mini_patch_task(
     body: MiniTaskPatchBody,
     principal: MiniProgramPrincipal = Depends(_require_mini_principal),
 ) -> tasks_router.TaskOut:
-    return await tasks_router.patch_task(
+    return await tasks_router._patch_task_for_doctor(
         task_id=task_id,
         doctor_id=principal.doctor_id,
         body=tasks_router.TaskStatusUpdate(status=body.status),
@@ -127,7 +127,7 @@ async def mini_voice_chat(
     history: Optional[str] = Form(default=None),
     principal: MiniProgramPrincipal = Depends(_require_mini_principal),
 ) -> voice_router.VoiceChatResponse:
-    return await voice_router.voice_chat(
+    return await voice_router._voice_chat_for_doctor(
         audio=audio,
         doctor_id=principal.doctor_id,
         history=history,

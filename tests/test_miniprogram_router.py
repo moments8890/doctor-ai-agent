@@ -44,7 +44,7 @@ async def test_mini_chat_injects_doctor_id():
 async def test_mini_tasks_forward_to_tasks_router():
     fake_out = []
     with patch.dict("os.environ", {"MINIPROGRAM_TOKEN_SECRET": "mini-route-secret-3"}, clear=False), patch(
-        "routers.miniprogram.tasks_router.get_tasks",
+        "routers.miniprogram.tasks_router._get_tasks_for_doctor",
         new=AsyncMock(return_value=fake_out),
     ) as task_mock:
         out = await mini.mini_tasks(

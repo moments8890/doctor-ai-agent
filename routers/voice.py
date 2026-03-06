@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import List, Optional
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from db.crud import create_patient as db_create_patient, find_patient_by_name, save_record
@@ -16,6 +16,7 @@ from routers.records import _name_only_text
 from services.agent import dispatch as agent_dispatch
 from services.errors import InvalidMedicalRecordError
 from services.intent import Intent
+from services.request_auth import resolve_doctor_id_from_auth_or_fallback
 from services.structuring import structure_medical_record
 from services.transcription import transcribe_audio
 from utils.log import log
@@ -40,9 +41,25 @@ async def voice_chat(
     audio: UploadFile = File(...),
     doctor_id: str = Form(default="test_doctor"),
     history: Optional[str] = Form(default=None),
+    authorization: Optional[str] = Header(default=None),
 ) -> VoiceChatResponse:
     """Doctor speaks a command or dictates a record; audio is transcribed then
     routed through the full agent dispatch pipeline."""
+    resolved_doctor_id = resolve_doctor_id_from_auth_or_fallback(
+        doctor_id,
+        authorization,
+        fallback_env_flag="VOICE_ALLOW_BODY_DOCTOR_ID",
+        default_doctor_id="test_doctor",
+    )
+    return await _voice_chat_for_doctor(audio, resolved_doctor_id, history=history)
+
+
+async def _voice_chat_for_doctor(
+    audio: UploadFile,
+    doctor_id: str,
+    history: Optional[str] = None,
+) -> VoiceChatResponse:
+
     if audio.content_type not in SUPPORTED_AUDIO_TYPES:
         raise HTTPException(status_code=422, detail=f"Unsupported file type: {audio.content_type}. Supported: mp3, mp4, wav, webm, ogg, flac, m4a.")  # noqa: E501
 
@@ -168,9 +185,32 @@ async def voice_consultation(
     doctor_id: str = Form(default="test_doctor"),
     patient_name: Optional[str] = Form(default=None),
     save: bool = Form(default=False),
+    authorization: Optional[str] = Header(default=None),
 ) -> ConsultationResponse:
     """Doctor uploads an ambient consultation recording; transcribed with
     dialogue-aware prompt then structured into a MedicalRecord."""
+    resolved_doctor_id = resolve_doctor_id_from_auth_or_fallback(
+        doctor_id,
+        authorization,
+        fallback_env_flag="VOICE_ALLOW_BODY_DOCTOR_ID",
+        default_doctor_id="test_doctor",
+    )
+    return await _voice_consultation_for_doctor(
+        audio,
+        resolved_doctor_id,
+        patient_name=patient_name,
+        save=save,
+    )
+
+
+async def _voice_consultation_for_doctor(
+    audio: UploadFile,
+    doctor_id: str,
+    *,
+    patient_name: Optional[str] = None,
+    save: bool = False,
+) -> ConsultationResponse:
+
     if audio.content_type not in SUPPORTED_AUDIO_TYPES:
         raise HTTPException(status_code=422, detail=f"Unsupported file type: {audio.content_type}. Supported: mp3, mp4, wav, webm, ogg, flac, m4a.")  # noqa: E501
 

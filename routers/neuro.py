@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel
 
 from db.crud import get_neuro_cases_for_doctor, save_neuro_case
 from db.engine import AsyncSessionLocal
 from services.neuro_structuring import extract_neuro_case
+from services.request_auth import resolve_doctor_id_from_auth_or_fallback
 from utils.log import log
 
 router = APIRouter(prefix="/api/neuro", tags=["neuro"])
@@ -28,24 +29,33 @@ class NeuroCaseSummary(BaseModel):
 
 
 @router.post("/from-text")
-async def neuro_from_text(body: NeuroFromTextInput):
+async def neuro_from_text(
+    body: NeuroFromTextInput,
+    authorization: Optional[str] = Header(default=None),
+):
     """Extract a structured neurovascular case from free text.
 
     Returns the full NeuroCase, ExtractionLog, and the saved DB row id.
     """
+    doctor_id = resolve_doctor_id_from_auth_or_fallback(
+        body.doctor_id,
+        authorization,
+        fallback_env_flag="NEURO_ALLOW_BODY_DOCTOR_ID",
+        default_doctor_id="test_doctor",
+    )
     if not body.text.strip():
         raise HTTPException(status_code=422, detail="Text input cannot be empty.")
     try:
         neuro_case, extraction_log = await extract_neuro_case(body.text)
     except ValueError as exc:
-        log(f"[Neuro] extract validation FAILED doctor={body.doctor_id}: {exc}")
+        log(f"[Neuro] extract validation FAILED doctor={doctor_id}: {exc}")
         raise HTTPException(status_code=422, detail=str(exc))
     except Exception as exc:
-        log(f"[Neuro] extract FAILED doctor={body.doctor_id}: {exc}")
+        log(f"[Neuro] extract FAILED doctor={doctor_id}: {exc}")
         raise HTTPException(status_code=500, detail=str(exc))
 
     async with AsyncSessionLocal() as db:
-        row = await save_neuro_case(db, body.doctor_id, neuro_case, extraction_log)
+        row = await save_neuro_case(db, doctor_id, neuro_case, extraction_log)
 
     return {
         "case": neuro_case.model_dump(),
@@ -55,10 +65,20 @@ async def neuro_from_text(body: NeuroFromTextInput):
 
 
 @router.get("/cases", response_model=List[NeuroCaseSummary])
-async def list_neuro_cases(doctor_id: str, limit: int = 20):
+async def list_neuro_cases(
+    doctor_id: Optional[str] = None,
+    limit: int = 20,
+    authorization: Optional[str] = Header(default=None),
+):
     """Return recent neurovascular cases for a doctor."""
+    resolved_doctor_id = resolve_doctor_id_from_auth_or_fallback(
+        doctor_id,
+        authorization,
+        fallback_env_flag="NEURO_ALLOW_BODY_DOCTOR_ID",
+        default_doctor_id="test_doctor",
+    )
     async with AsyncSessionLocal() as db:
-        rows = await get_neuro_cases_for_doctor(db, doctor_id, limit=limit)
+        rows = await get_neuro_cases_for_doctor(db, resolved_doctor_id, limit=limit)
 
     return [
         NeuroCaseSummary(

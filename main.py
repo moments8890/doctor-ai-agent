@@ -5,6 +5,7 @@ import time
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, Optional
 from utils.log import init_logging
 from utils.app_config import AppConfig, load_config_from_json, ollama_base_url_candidates
 
@@ -16,10 +17,11 @@ APP_CONFIG = AppConfig.from_env(env=_config_values, env_source=str(_config_sourc
 init_logging()
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
 from sqladmin import Admin, ModelView
 from sqladmin.authentication import AuthenticationBackend
-from starlette.requests import Request
 from starlette.responses import Response
 
 from routers.records import router as records_router
@@ -36,6 +38,7 @@ from db.models import Doctor, Patient, MedicalRecordDB, DoctorContext, SystemPro
 from db.crud import get_due_tasks, purge_conversation_turns_before
 from services.tasks import check_and_send_due_tasks
 from services.runtime_config import register_runtime_apply_hook
+from services.errors import DomainError
 from services.observability import (
     add_trace,
     reset_current_span_id,
@@ -279,6 +282,7 @@ def _is_connectivity_error(exc: Exception) -> bool:
 
 
 _scheduler = AsyncIOScheduler()
+_startup_ready = False
 
 
 def _scheduler_mode() -> str:
@@ -367,6 +371,7 @@ register_runtime_apply_hook(_runtime_apply_hook)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global _startup_ready
     _startup_log = logging.getLogger("startup")
     _startup_log.info("[Config] loaded environment\n%s", APP_CONFIG.to_pretty_log())
     await create_tables()
@@ -386,7 +391,9 @@ async def lifespan(app: FastAPI):
 
     _configure_task_scheduler(_startup_log)
     _scheduler.start()
+    _startup_ready = True
     yield
+    _startup_ready = False
     _scheduler.shutdown()
 
 
@@ -396,6 +403,28 @@ app = FastAPI(
     version="0.2.0",
     lifespan=lifespan,
 )
+
+
+@app.exception_handler(DomainError)
+async def _handle_domain_error(request: Request, exc: DomainError):
+    logging.getLogger("app").warning(
+        "[DomainError] path=%s code=%s status=%s msg=%s context=%s",
+        request.url.path,
+        exc.error_code,
+        exc.status_code,
+        exc.message,
+        exc.context,
+    )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.message, "error_code": exc.error_code},
+    )
+
+
+@app.exception_handler(Exception)
+async def _handle_unexpected_error(request: Request, exc: Exception):
+    logging.getLogger("app").exception("[UnhandledError] path=%s err=%s", request.url.path, exc)
+    return JSONResponse(status_code=500, content={"detail": "internal_server_error"})
 
 
 @app.middleware("http")
@@ -464,5 +493,37 @@ def root():
 
 
 @app.get("/healthz")
-def healthz():
-    return {"status": "ok"}
+async def healthz() -> dict:
+    return await _health_snapshot()
+
+
+@app.get("/readyz")
+async def readyz() -> Response:
+    if _startup_ready and _scheduler.running:
+        return JSONResponse(status_code=200, content={"status": "ready"})
+    return JSONResponse(status_code=503, content={"status": "not_ready"})
+
+
+async def _health_snapshot() -> dict:
+    db_ok = True
+    db_error: Optional[str] = None
+    try:
+        async with AsyncSessionLocal() as db:
+            await db.execute(text("SELECT 1"))
+    except Exception as exc:
+        db_ok = False
+        db_error = str(exc)
+
+    scheduler_ok = bool(_scheduler.running)
+    status = "ok" if db_ok and scheduler_ok else "degraded"
+    payload: Dict[str, Any] = {
+        "status": status,
+        "checks": {
+            "database": {"ok": db_ok},
+            "scheduler": {"ok": scheduler_ok, "running": bool(_scheduler.running)},
+            "startup": {"ok": bool(_startup_ready), "ready": bool(_startup_ready)},
+        },
+    }
+    if db_error:
+        payload["checks"]["database"]["error"] = db_error
+    return payload

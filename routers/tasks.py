@@ -4,11 +4,12 @@ import os
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel
 
 from db.engine import AsyncSessionLocal
 from db.crud import list_tasks, update_task_status
+from services.request_auth import resolve_doctor_id_from_auth_or_fallback
 from services.tasks import run_due_task_cycle
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
@@ -63,14 +64,43 @@ def _env_flag_true(name: str, default: bool = False) -> bool:
 
 
 @router.get("", response_model=List[TaskOut])
-async def get_tasks(doctor_id: str, status: Optional[str] = None) -> List[TaskOut]:
+async def get_tasks(
+    doctor_id: str,
+    status: Optional[str] = None,
+    authorization: Optional[str] = Header(default=None),
+) -> List[TaskOut]:
+    resolved_doctor_id = resolve_doctor_id_from_auth_or_fallback(
+        doctor_id,
+        authorization,
+        fallback_env_flag="TASKS_ALLOW_BODY_DOCTOR_ID",
+        default_doctor_id="test_doctor",
+    )
+    return await _get_tasks_for_doctor(resolved_doctor_id, status=status)
+
+
+async def _get_tasks_for_doctor(doctor_id: str, status: Optional[str] = None) -> List[TaskOut]:
     async with AsyncSessionLocal() as session:
         tasks = await list_tasks(session, doctor_id, status=status)
     return [TaskOut.from_orm(t) for t in tasks]
 
 
 @router.patch("/{task_id}", response_model=TaskOut)
-async def patch_task(task_id: int, doctor_id: str, body: TaskStatusUpdate) -> TaskOut:
+async def patch_task(
+    task_id: int,
+    doctor_id: str,
+    body: TaskStatusUpdate,
+    authorization: Optional[str] = Header(default=None),
+) -> TaskOut:
+    resolved_doctor_id = resolve_doctor_id_from_auth_or_fallback(
+        doctor_id,
+        authorization,
+        fallback_env_flag="TASKS_ALLOW_BODY_DOCTOR_ID",
+        default_doctor_id="test_doctor",
+    )
+    return await _patch_task_for_doctor(task_id, resolved_doctor_id, body)
+
+
+async def _patch_task_for_doctor(task_id: int, doctor_id: str, body: TaskStatusUpdate) -> TaskOut:
     allowed = {"completed", "cancelled"}
     if body.status not in allowed:
         raise HTTPException(status_code=422, detail=f"status must be one of {allowed}")
