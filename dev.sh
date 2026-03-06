@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# dev.sh — Local development startup for 专科医师AI智能体
+# dev.sh — Local-only development startup for 专科医师AI智能体
 #
 # Modes:
 #   ./dev.sh              — foreground with --reload (active dev)
@@ -16,13 +16,10 @@ FRONTEND_DIR="$APP_DIR/frontend"
 SHARED_ENV="/Users/jingwuxu/Documents/code/shared-db/.env"
 PORT=8000
 FRONTEND_PORT=5173
-NATAPP_URL=""
-LOG_TUNNEL="$HOME/Library/Logs/aiagent-cloudflared.log"
 LOG_UV="$HOME/Library/Logs/ai-agent-uvicorn.log"
 LOG_FE="$HOME/Library/Logs/ai-agent-frontend.log"
 LAUNCH_AGENTS_DIR="$HOME/Library/LaunchAgents"
 PLIST_UV="$HOME/Library/LaunchAgents/com.aiagent.uvicorn.plist"
-PLIST_TUNNEL="$HOME/Library/LaunchAgents/com.aiagent.cloudflared.plist"
 PLIST_FE="$HOME/Library/LaunchAgents/com.aiagent.frontend.plist"
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
@@ -175,37 +172,11 @@ read_env_var() {
 }
 
 tunnel_http_code() {
-  [ -n "$NATAPP_URL" ] || { echo "000"; return; }
-  curl -sS -m 2 -o /dev/null -w "%{http_code}" "$NATAPP_URL" 2>/dev/null || echo "000"
+  echo "000"
 }
 
 extract_tunnel_url() {
-  python3 - <<'PY'
-import re
-from pathlib import Path
-p = Path.home() / "Library/Logs/aiagent-cloudflared.log"
-try:
-    s = p.read_text(encoding="utf-8", errors="ignore")
-except Exception:
-    print("")
-    raise SystemExit
-# Prefer quick tunnel URL when present; otherwise fallback to any public URL emitted by cloudflared.
-quick = re.findall(r'https://[a-z0-9-]+\.trycloudflare\.com', s)
-if quick:
-    print(quick[-1])
-    raise SystemExit
-
-generic = re.findall(r'https?://[A-Za-z0-9.-]+\.[A-Za-z]{2,}(?:/[^\s|]*)?', s)
-for url in reversed(generic):
-    if "127.0.0.1" in url or "localhost" in url:
-        continue
-    if "cloudflare.com" in url and "trycloudflare.com" not in url:
-        continue
-    print(url.rstrip(" .|"))
-    raise SystemExit
-
-print("")
-PY
+  echo ""
 }
 
 write_uvicorn_plist() {
@@ -265,35 +236,6 @@ write_frontend_plist() {
 EOF
 }
 
-write_cloudflared_plist() {
-  local cloudflared_bin="$1"
-  mkdir -p "$LAUNCH_AGENTS_DIR"
-  cat > "$PLIST_TUNNEL" <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key>
-  <string>com.aiagent.cloudflared</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>/bin/bash</string>
-    <string>-lc</string>
-    <string>exec "$cloudflared_bin" tunnel --url http://127.0.0.1:$PORT</string>
-  </array>
-  <key>RunAtLoad</key>
-  <true/>
-  <key>KeepAlive</key>
-  <true/>
-  <key>StandardOutPath</key>
-  <string>$LOG_TUNNEL</string>
-  <key>StandardErrorPath</key>
-  <string>$LOG_TUNNEL</string>
-</dict>
-</plist>
-EOF
-}
-
 wait_http_ready() {
   local url="$1"
   local label="$2"
@@ -320,7 +262,6 @@ if [[ "$MODE" == "stop" ]]; then
   echo ""
   echo "  Stopping background services..."
   launchctl unload "$PLIST_UV"     2>/dev/null && ok "uvicorn stopped" || warn "uvicorn was not running"
-  launchctl unload "$PLIST_TUNNEL" 2>/dev/null && ok "cloudflared tunnel stopped"  || warn "cloudflared tunnel was not running"
   launchctl unload "$PLIST_FE"     2>/dev/null && ok "frontend stopped" || warn "frontend was not running"
   lsof -ti :$PORT 2>/dev/null | xargs kill -9 2>/dev/null || true
   lsof -ti :$FRONTEND_PORT 2>/dev/null | xargs kill -9 2>/dev/null || true
@@ -336,16 +277,8 @@ echo "  专科医师AI智能体 — dev startup"
 echo "======================================================"
 echo ""
 
-# ── 1. cloudflared binary ──────────────────────────────────
-echo "[1/4] Checking cloudflared binary..."
-if ! command -v cloudflared &>/dev/null; then
-  fail "cloudflared not found. Install via: brew install cloudflared"
-  exit 1
-fi
-CLOUDFLARED_BIN="$(command -v cloudflared)"
-ok "cloudflared: $CLOUDFLARED_BIN"
-
-# ── 1.5 Python env ─────────────────────────────────────────
+# ── 1. Python env ───────────────────────────────────────────
+echo "[1/3] Checking Python environment..."
 if [[ ! -x "$APP_DIR/.venv/bin/uvicorn" ]]; then
   fail "Missing $APP_DIR/.venv/bin/uvicorn. Create venv and install deps first."
   exit 1
@@ -405,52 +338,15 @@ else
   fi
 fi
 
-# ── 3. cloudflared tunnel (always launchd) ─────────────────
+# ── 3. WeChat menu (optional, local only) ──────────────────
 echo ""
-echo "[3/4] Starting cloudflared tunnel..."
-write_cloudflared_plist "$CLOUDFLARED_BIN"
-> "$LOG_TUNNEL" 2>/dev/null || true
-launchctl unload "$PLIST_TUNNEL" 2>/dev/null || true
-launchctl load   "$PLIST_TUNNEL"
-
-info "Waiting for tunnel to connect..."
-for i in $(seq 1 30); do
-  NATAPP_URL="$(extract_tunnel_url)"
-  code="$(tunnel_http_code)"
-  if [[ "$code" != "000" ]]; then
-    ok "cloudflared tunnel reachable (HTTP $code) → $NATAPP_URL"
-    break
-  fi
-  if grep -Eiq "trycloudflare|Registered tunnel connection|Quick Tunnel" "$LOG_TUNNEL" 2>/dev/null; then
-    info "cloudflared connected, waiting for public URL..."
-  fi
-  if [[ -n "$NATAPP_URL" ]]; then
-    info "cloudflared URL discovered: $NATAPP_URL"
-  fi
-  if [[ -n "$NATAPP_URL" && "$code" == "000" ]]; then
-    sleep 1
-    continue
-  fi
-  if [[ -n "$NATAPP_URL" ]]; then
-    ok "cloudflared tunnel online → $NATAPP_URL"
-    break
-  fi
-  if [[ "$i" -eq 30 ]]; then
-    warn "Could not confirm tunnel URL — check: tail -f $LOG_TUNNEL"
-    tail -20 "$LOG_TUNNEL" 2>/dev/null || true
-  fi
-  sleep 1
-done
-
-# ── 4. WeChat menu (optional) ──────────────────────────────
-echo ""
-echo "[4/4] WeChat menu..."
+echo "[3/3] WeChat menu..."
 if [[ "$WANT_MENU" -eq 1 ]]; then
   if curl -sf "http://127.0.0.1:$PORT/" &>/dev/null; then
-    RESULT=$(curl -sf -X POST "$NATAPP_URL/wechat/menu" || echo '{"status":"error"}')
+    RESULT=$(curl -sf -X POST "http://127.0.0.1:$PORT/wechat/menu" || echo '{"status":"error"}')
     echo "$RESULT" | grep -q '"ok"' && ok "Menu created" || warn "Menu response: $RESULT"
   else
-    warn "Server not up yet — run after startup: curl -X POST $NATAPP_URL/wechat/menu"
+    warn "Server not up yet — run after startup: curl -X POST http://127.0.0.1:$PORT/wechat/menu"
   fi
 else
   info "Skipping (add --menu flag to create/update WeChat menu)"
@@ -499,8 +395,7 @@ if [[ "$MODE" == "background" ]]; then
   echo "  Local API  : http://127.0.0.1:$PORT"
   [[ "$WANT_FRONTEND" -eq 1 ]] && echo "  Frontend   : http://127.0.0.1:$FRONTEND_PORT"
   [[ "$WANT_FRONTEND" -eq 1 ]] && echo "  Dashboard  : http://127.0.0.1:$FRONTEND_PORT/admin"
-  echo "  Public URL : $NATAPP_URL"
-  echo "  WeChat URL : $NATAPP_URL/wechat"
+  echo "  WeChat URL : http://127.0.0.1:$PORT/wechat"
   echo ""
   echo "  API log    : tail -f $LOG_UV"
   [[ "$WANT_FRONTEND" -eq 1 ]] && echo "  FE log     : tail -f $LOG_FE"
@@ -539,11 +434,9 @@ else
   echo "  Local API  : http://127.0.0.1:$PORT"
   [[ "$WANT_FRONTEND" -eq 1 ]] && echo "  Frontend   : http://127.0.0.1:$FRONTEND_PORT"
   [[ "$WANT_FRONTEND" -eq 1 ]] && echo "  Dashboard  : http://127.0.0.1:$FRONTEND_PORT/admin"
-  echo "  Public URL : $NATAPP_URL"
-  echo "  WeChat URL : $NATAPP_URL/wechat"
+  echo "  WeChat URL : http://127.0.0.1:$PORT/wechat"
   echo "  Docs       : http://127.0.0.1:$PORT/docs"
   echo ""
-  echo "  tunnel log : tail -f $LOG_TUNNEL"
   [[ "$WANT_FRONTEND" -eq 1 ]] && echo "  FE log     : tail -f $LOG_FE"
   echo "======================================================"
   echo ""
