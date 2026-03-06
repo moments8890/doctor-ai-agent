@@ -1,0 +1,31 @@
+fastapi
+uvicorn[standard]
+openai
+python-multipart
+python-dotenv
+wechatpy
+cryptography
+httpx
+sqlalchemy[asyncio]
+aiosqlite
+aiomysql
+greenlet
+jieba
+datasette
+sqladmin
+nicegui
+faster-whisper          # local ASR; pulls in ctranslate2 + tokenizers automatically
+apscheduler
+pytest
+pytest-asyncio
+pytest-cov
+chardet<6
+# NOTE: ffmpeg must be installed at the system level (brew install ffmpeg / apt install ffmpeg)
+#       It is used by services/voice.py to convert WeChat AMR/SILK audio to 16kHz WAV.
+#
+# Vision (image → text):
+#   No new pip deps — services/vision.py reuses the existing openai client with Ollama's
+#   OpenAI-compatible endpoint.
+#   Requires: ollama pull qwen2.5vl:7b  (or set OLLAMA_VISION_MODEL to another vision model)
+#   Env vars: VISION_LLM=ollama (default) | openai
+#             OLLAMA_VISION_MODEL=qwen2.5vl:7b (default)

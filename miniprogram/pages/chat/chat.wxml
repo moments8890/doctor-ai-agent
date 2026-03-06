@@ -1,0 +1,14 @@
+<view class="container">
+  <view class="header">AI 对话（{{doctorId}}）</view>
+
+  <scroll-view class="messages" scroll-y="true">
+    <block wx:for="{{messages}}" wx:key="index">
+      <view class="item {{item.role}}">{{item.content}}</view>
+    </block>
+  </scroll-view>
+
+  <view class="composer">
+    <input class="input" placeholder="输入问诊/病历内容" value="{{text}}" bindinput="onInput" />
+    <button class="send" bindtap="onSend" loading="{{sending}}">发送</button>
+  </view>
+</view>

@@ -1,0 +1,79 @@
+name: Deploy Production (Tencent Cloud)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      IMAGE_TAG: ${{ github.sha }}
+      BACKEND_IMAGE: ${{ secrets.TCR_IMAGE_PREFIX }}-backend
+      FRONTEND_IMAGE: ${{ secrets.TCR_IMAGE_PREFIX }}-frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to TCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.TCR_REGISTRY }}
+          username: ${{ secrets.TCR_USERNAME }}
+          password: ${{ secrets.TCR_PASSWORD }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ env.BACKEND_IMAGE }}:${{ env.IMAGE_TAG }}
+            ${{ env.BACKEND_IMAGE }}:latest
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.FRONTEND_IMAGE }}:${{ env.IMAGE_TAG }}
+            ${{ env.FRONTEND_IMAGE }}:latest
+
+      - name: Prepare SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PROD_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H "${{ secrets.PROD_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Upload deployment files
+        run: |
+          ssh "${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}" "mkdir -p ${{ secrets.PROD_DEPLOY_DIR }}/deploy/tencent ${{ secrets.PROD_DEPLOY_DIR }}/config ${{ secrets.PROD_DEPLOY_DIR }}/logs/backend"
+          scp deploy/tencent/docker-compose.prod.yml "${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}:${{ secrets.PROD_DEPLOY_DIR }}/deploy/tencent/docker-compose.prod.yml"
+
+      - name: Deploy on Tencent Cloud host
+        run: |
+          ssh "${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}" <<EOF
+          set -euo pipefail
+          cd "${{ secrets.PROD_DEPLOY_DIR }}"
+          export BACKEND_IMAGE="${BACKEND_IMAGE}"
+          export FRONTEND_IMAGE="${FRONTEND_IMAGE}"
+          export IMAGE_TAG="${IMAGE_TAG}"
+          docker login "${{ secrets.TCR_REGISTRY }}" -u "${{ secrets.TCR_USERNAME }}" -p "${{ secrets.TCR_PASSWORD }}"
+          docker compose -f deploy/tencent/docker-compose.prod.yml pull
+          docker compose -f deploy/tencent/docker-compose.prod.yml up -d --remove-orphans
+          docker compose -f deploy/tencent/docker-compose.prod.yml ps
+          curl -fsS http://127.0.0.1:8000/healthz
+          EOF
+

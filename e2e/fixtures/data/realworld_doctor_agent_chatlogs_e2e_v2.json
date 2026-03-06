@@ -1,0 +1,3472 @@
+[
+  {
+    "case_id": "REALWORLD-V2-001",
+    "title": "Complex real-world doctor-agent case v2 #001",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "早班先记：李航，胸痛2小时伴大汗。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补充：考虑BNP、EF，安排72小时复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "总结上下文：李航 本次就诊重点是胸痛2小时伴大汗，计划72小时复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者李航，男55岁，主诉胸痛2小时，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "胸痛2小时",
+          "复查",
+          "保存"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-002",
+    "title": "Complex real-world doctor-agent case v2 #002",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先看下我今天待办。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "然后记一个：王宁，胸闷反复1周。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把第1条标记完成。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者王宁，男55岁，主诉待办，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "待办",
+          "任务",
+          "胸闷"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-003",
+    "title": "Complex real-world doctor-agent case v2 #003",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先建档：陈涛，男，45岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再来一个同名患者：陈涛，女，52岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "记录第二位陈涛：心悸半天昨晚加重。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "删除第二个患者陈涛。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者陈涛，男55岁，主诉不适，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      }
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-004",
+    "title": "Complex real-world doctor-agent case v2 #004",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "连续处理两个：先赵峰，头痛2天睡眠差。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再施铭，胸闷3天活动后加重。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询赵峰历史病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者赵峰，男55岁，主诉赵峰，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "赵峰",
+          "施铭",
+          "病历"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-005",
+    "title": "Complex real-world doctor-agent case v2 #005",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "Quick one: 周楠, chest discomfort after exertion."
+      },
+      {
+        "speaker": "doctor",
+        "text": "Add NIHSS mention, and plan 下周复查BNP和EF."
+      },
+      {
+        "speaker": "doctor",
+        "text": "保存后查询周楠。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者周楠，男55岁，主诉记录，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "记录",
+          "病历",
+          "周楠"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-006",
+    "title": "Complex real-world doctor-agent case v2 #006",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "吴辰，下肢水肿进行性加重，先记。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "帮我设今天18:00复查提醒，患者吴辰。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再查一下吴辰病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者吴辰，男55岁，主诉提醒，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "提醒",
+          "预约",
+          "任务"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-007",
+    "title": "Complex real-world doctor-agent case v2 #007",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "新患者郑凯，男，58岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "门诊记录：咳嗽伴发热3天，考虑高危。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "列出所有患者。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者郑凯，男55岁，主诉患者，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "患者",
+          "列表",
+          "郑凯"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-008",
+    "title": "Complex real-world doctor-agent case v2 #008",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先处理冯宇：眩晕伴恶心1天。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补一句：HER2异常，ANC待复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "保存上下文：肿瘤相关指标连续追踪。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者冯宇，男55岁，主诉HER2，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "HER2",
+          "ANC",
+          "复查"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-009",
+    "title": "Complex real-world doctor-agent case v2 #009",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先记褚晨：乏力食欲下降1周。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再建档华宁，女，39岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询华宁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者褚晨，男55岁，主诉褚晨，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "褚晨",
+          "华宁",
+          "病历"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-010",
+    "title": "Complex real-world doctor-agent case v2 #010",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "卫明，先记胸痛，后续按下周复查BNP和EF。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "顺便看一下所有患者，再查卫明。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "如果有重复名字，删除第二个患者金诚。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者卫明，男55岁，主诉患者，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "患者",
+          "查询",
+          "保存"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-011",
+    "title": "Complex real-world doctor-agent case v2 #011",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "早班先记：蒋川，胸痛2小时伴大汗。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补充：考虑BNP、EF，安排72小时复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "总结上下文：蒋川 本次就诊重点是胸痛2小时伴大汗，计划72小时复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者蒋川，男55岁，主诉胸痛2小时，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "胸痛2小时",
+          "复查",
+          "保存"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-012",
+    "title": "Complex real-world doctor-agent case v2 #012",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先看下我今天待办。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "然后记一个：沈博，胸闷反复1周。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把第1条标记完成。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者沈博，男55岁，主诉待办，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "待办",
+          "任务",
+          "胸闷"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-013",
+    "title": "Complex real-world doctor-agent case v2 #013",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先建档：韩松，男，45岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再来一个同名患者：韩松，女，52岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "记录第二位韩松：心悸半天昨晚加重。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "删除第二个患者韩松。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者韩松，男55岁，主诉不适，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      }
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-014",
+    "title": "Complex real-world doctor-agent case v2 #014",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "连续处理两个：先杨杰，头痛2天睡眠差。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再戚扬，胸闷3天活动后加重。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询杨杰历史病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者杨杰，男55岁，主诉杨杰，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "杨杰",
+          "戚扬",
+          "病历"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-015",
+    "title": "Complex real-world doctor-agent case v2 #015",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "Quick one: 朱朗, chest discomfort after exertion."
+      },
+      {
+        "speaker": "doctor",
+        "text": "Add NIHSS mention, and plan 下周复查BNP和EF."
+      },
+      {
+        "speaker": "doctor",
+        "text": "保存后查询朱朗。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者朱朗，男55岁，主诉记录，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "记录",
+          "病历",
+          "朱朗"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-016",
+    "title": "Complex real-world doctor-agent case v2 #016",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "秦越，下肢水肿进行性加重，先记。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "帮我设今天18:00复查提醒，患者秦越。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再查一下秦越病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者秦越，男55岁，主诉提醒，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "提醒",
+          "预约",
+          "任务"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-017",
+    "title": "Complex real-world doctor-agent case v2 #017",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "新患者尤安，男，58岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "门诊记录：咳嗽伴发热3天，考虑高危。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "列出所有患者。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者尤安，男55岁，主诉患者，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "患者",
+          "列表",
+          "尤安"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-018",
+    "title": "Complex real-world doctor-agent case v2 #018",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先处理许哲：眩晕伴恶心1天。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补一句：HER2异常，ANC待复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "保存上下文：肿瘤相关指标连续追踪。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者许哲，男55岁，主诉HER2，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "HER2",
+          "ANC",
+          "复查"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-019",
+    "title": "Complex real-world doctor-agent case v2 #019",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先记何远：乏力食欲下降1周。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再建档水清，女，39岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询水清。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者何远，男55岁，主诉何远，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "何远",
+          "水清",
+          "病历"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-020",
+    "title": "Complex real-world doctor-agent case v2 #020",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "吕坤，先记胸痛，后续按下周复查BNP和EF。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "顺便看一下所有患者，再查吕坤。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "如果有重复名字，删除第二个患者窦轩。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者吕坤，男55岁，主诉患者，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "患者",
+          "查询",
+          "保存"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-021",
+    "title": "Complex real-world doctor-agent case v2 #021",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "早班先记：施铭，胸痛2小时伴大汗。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补充：考虑BNP、EF，安排72小时复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "总结上下文：施铭 本次就诊重点是胸痛2小时伴大汗，计划72小时复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者施铭，男55岁，主诉胸痛2小时，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "胸痛2小时",
+          "复查",
+          "保存"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-022",
+    "title": "Complex real-world doctor-agent case v2 #022",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先看下我今天待办。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "然后记一个：张衡，胸闷反复1周。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把第1条标记完成。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者张衡，男55岁，主诉待办，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "待办",
+          "任务",
+          "胸闷"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-023",
+    "title": "Complex real-world doctor-agent case v2 #023",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先建档：孔林，男，45岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再来一个同名患者：孔林，女，52岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "记录第二位孔林：心悸半天昨晚加重。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "删除第二个患者孔林。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者孔林，男55岁，主诉不适，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      }
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-024",
+    "title": "Complex real-world doctor-agent case v2 #024",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "连续处理两个：先曹阳，头痛2天睡眠差。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再潘泽，胸闷3天活动后加重。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询曹阳历史病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者曹阳，男55岁，主诉曹阳，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "曹阳",
+          "潘泽",
+          "病历"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-025",
+    "title": "Complex real-world doctor-agent case v2 #025",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "Quick one: 严卓, chest discomfort after exertion."
+      },
+      {
+        "speaker": "doctor",
+        "text": "Add NIHSS mention, and plan 下周复查BNP和EF."
+      },
+      {
+        "speaker": "doctor",
+        "text": "保存后查询严卓。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者严卓，男55岁，主诉记录，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "记录",
+          "病历",
+          "严卓"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-026",
+    "title": "Complex real-world doctor-agent case v2 #026",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "华宁，下肢水肿进行性加重，先记。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "帮我设今天18:00复查提醒，患者华宁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再查一下华宁病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者华宁，男55岁，主诉提醒，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "提醒",
+          "预约",
+          "任务"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-027",
+    "title": "Complex real-world doctor-agent case v2 #027",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "新患者金诚，男，58岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "门诊记录：咳嗽伴发热3天，考虑高危。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "列出所有患者。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者金诚，男55岁，主诉患者，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "患者",
+          "列表",
+          "金诚"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-028",
+    "title": "Complex real-world doctor-agent case v2 #028",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先处理魏泽：眩晕伴恶心1天。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补一句：HER2异常，ANC待复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "保存上下文：肿瘤相关指标连续追踪。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者魏泽，男55岁，主诉HER2，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "HER2",
+          "ANC",
+          "复查"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-029",
+    "title": "Complex real-world doctor-agent case v2 #029",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先记陶锐：乏力食欲下降1周。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再建档郎博，女，39岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询郎博。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者陶锐，男55岁，主诉陶锐，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "陶锐",
+          "郎博",
+          "病历"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-030",
+    "title": "Complex real-world doctor-agent case v2 #030",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "姜岩，先记胸痛，后续按下周复查BNP和EF。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "顺便看一下所有患者，再查姜岩。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "如果有重复名字，删除第二个患者鲁铭。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者姜岩，男55岁，主诉患者，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "患者",
+          "查询",
+          "保存"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-031",
+    "title": "Complex real-world doctor-agent case v2 #031",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "早班先记：戚扬，胸痛2小时伴大汗。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补充：考虑BNP、EF，安排72小时复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "总结上下文：戚扬 本次就诊重点是胸痛2小时伴大汗，计划72小时复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者戚扬，男55岁，主诉胸痛2小时，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "胸痛2小时",
+          "复查",
+          "保存"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-032",
+    "title": "Complex real-world doctor-agent case v2 #032",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先看下我今天待办。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "然后记一个：谢晨，胸闷反复1周。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把第1条标记完成。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者谢晨，男55岁，主诉待办，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "待办",
+          "任务",
+          "胸闷"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-033",
+    "title": "Complex real-world doctor-agent case v2 #033",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先建档：邹毅，男，45岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再来一个同名患者：邹毅，女，52岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "记录第二位邹毅：心悸半天昨晚加重。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "删除第二个患者邹毅。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者邹毅，男55岁，主诉不适，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      }
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-034",
+    "title": "Complex real-world doctor-agent case v2 #034",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "连续处理两个：先喻航，头痛2天睡眠差。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再苗岩，胸闷3天活动后加重。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询喻航历史病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者喻航，男55岁，主诉喻航，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "喻航",
+          "苗岩",
+          "病历"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-035",
+    "title": "Complex real-world doctor-agent case v2 #035",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "Quick one: 柏然, chest discomfort after exertion."
+      },
+      {
+        "speaker": "doctor",
+        "text": "Add NIHSS mention, and plan 下周复查BNP和EF."
+      },
+      {
+        "speaker": "doctor",
+        "text": "保存后查询柏然。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者柏然，男55岁，主诉记录，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "记录",
+          "病历",
+          "柏然"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-036",
+    "title": "Complex real-world doctor-agent case v2 #036",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "水清，下肢水肿进行性加重，先记。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "帮我设今天18:00复查提醒，患者水清。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再查一下水清病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者水清，男55岁，主诉提醒，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "提醒",
+          "预约",
+          "任务"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-037",
+    "title": "Complex real-world doctor-agent case v2 #037",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "新患者窦轩，男，58岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "门诊记录：咳嗽伴发热3天，考虑高危。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "列出所有患者。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者窦轩，男55岁，主诉患者，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "患者",
+          "列表",
+          "窦轩"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-038",
+    "title": "Complex real-world doctor-agent case v2 #038",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先处理章越：眩晕伴恶心1天。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补一句：HER2异常，ANC待复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "保存上下文：肿瘤相关指标连续追踪。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者章越，男55岁，主诉HER2，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "HER2",
+          "ANC",
+          "复查"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-039",
+    "title": "Complex real-world doctor-agent case v2 #039",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先记云舟：乏力食欲下降1周。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再建档任泽，女，39岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询任泽。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者云舟，男55岁，主诉云舟，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "云舟",
+          "任泽",
+          "病历"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-040",
+    "title": "Complex real-world doctor-agent case v2 #040",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "苏扬，先记胸痛，后续按下周复查BNP和EF。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "顺便看一下所有患者，再查苏扬。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "如果有重复名字，删除第二个患者袁凯。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者苏扬，男55岁，主诉患者，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "患者",
+          "查询",
+          "保存"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-041",
+    "title": "Complex real-world doctor-agent case v2 #041",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "早班先记：潘泽，胸痛2小时伴大汗。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补充：考虑BNP、EF，安排72小时复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "总结上下文：潘泽 本次就诊重点是胸痛2小时伴大汗，计划72小时复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者潘泽，男55岁，主诉胸痛2小时，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "胸痛2小时",
+          "复查",
+          "保存"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-042",
+    "title": "Complex real-world doctor-agent case v2 #042",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先看下我今天待办。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "然后记一个：葛峰，胸闷反复1周。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把第1条标记完成。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者葛峰，男55岁，主诉待办，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "待办",
+          "任务",
+          "胸闷"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-043",
+    "title": "Complex real-world doctor-agent case v2 #043",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先建档：奚宁，男，45岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再来一个同名患者：奚宁，女，52岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "记录第二位奚宁：心悸半天昨晚加重。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "删除第二个患者奚宁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者奚宁，男55岁，主诉不适，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      }
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-044",
+    "title": "Complex real-world doctor-agent case v2 #044",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "连续处理两个：先范林，头痛2天睡眠差。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再史航，胸闷3天活动后加重。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询范林历史病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者范林，男55岁，主诉范林，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "范林",
+          "史航",
+          "病历"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-045",
+    "title": "Complex real-world doctor-agent case v2 #045",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "Quick one: 彭远, chest discomfort after exertion."
+      },
+      {
+        "speaker": "doctor",
+        "text": "Add NIHSS mention, and plan 下周复查BNP和EF."
+      },
+      {
+        "speaker": "doctor",
+        "text": "保存后查询彭远。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者彭远，男55岁，主诉记录，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "记录",
+          "病历",
+          "彭远"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-046",
+    "title": "Complex real-world doctor-agent case v2 #046",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "郎博，下肢水肿进行性加重，先记。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "帮我设今天18:00复查提醒，患者郎博。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再查一下郎博病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者郎博，男55岁，主诉提醒，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "提醒",
+          "预约",
+          "任务"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-047",
+    "title": "Complex real-world doctor-agent case v2 #047",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "新患者鲁铭，男，58岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "门诊记录：咳嗽伴发热3天，考虑高危。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "列出所有患者。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者鲁铭，男55岁，主诉患者，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "患者",
+          "列表",
+          "鲁铭"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-048",
+    "title": "Complex real-world doctor-agent case v2 #048",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先处理韦安：眩晕伴恶心1天。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补一句：HER2异常，ANC待复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "保存上下文：肿瘤相关指标连续追踪。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者韦安，男55岁，主诉HER2，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "HER2",
+          "ANC",
+          "复查"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-049",
+    "title": "Complex real-world doctor-agent case v2 #049",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先记昌宁：乏力食欲下降1周。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再建档薛泽，女，39岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询薛泽。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者昌宁，男55岁，主诉昌宁，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "昌宁",
+          "薛泽",
+          "病历"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-050",
+    "title": "Complex real-world doctor-agent case v2 #050",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "马哲，先记胸痛，后续按下周复查BNP和EF。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "顺便看一下所有患者，再查马哲。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "如果有重复名字，删除第二个患者雷安。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者马哲，男55岁，主诉患者，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "患者",
+          "查询",
+          "保存"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-051",
+    "title": "Complex real-world doctor-agent case v2 #051",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "早班先记：苗岩，胸痛2小时伴大汗。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补充：考虑BNP、EF，安排72小时复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "总结上下文：苗岩 本次就诊重点是胸痛2小时伴大汗，计划72小时复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者苗岩，男55岁，主诉胸痛2小时，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "胸痛2小时",
+          "复查",
+          "保存"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-052",
+    "title": "Complex real-world doctor-agent case v2 #052",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先看下我今天待办。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "然后记一个：凤晨，胸闷反复1周。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把第1条标记完成。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者凤晨，男55岁，主诉待办，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "待办",
+          "任务",
+          "胸闷"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-053",
+    "title": "Complex real-world doctor-agent case v2 #053",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先建档：花远，男，45岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再来一个同名患者：花远，女，52岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "记录第二位花远：心悸半天昨晚加重。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "删除第二个患者花远。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者花远，男55岁，主诉不适，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      }
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-054",
+    "title": "Complex real-world doctor-agent case v2 #054",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "连续处理两个：先方宇，头痛2天睡眠差。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再滕远，胸闷3天活动后加重。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询方宇历史病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者方宇，男55岁，主诉方宇，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "方宇",
+          "滕远",
+          "病历"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-055",
+    "title": "Complex real-world doctor-agent case v2 #055",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "Quick one: 俞峰, chest discomfort after exertion."
+      },
+      {
+        "speaker": "doctor",
+        "text": "Add NIHSS mention, and plan 下周复查BNP和EF."
+      },
+      {
+        "speaker": "doctor",
+        "text": "保存后查询俞峰。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者俞峰，男55岁，主诉记录，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "记录",
+          "病历",
+          "俞峰"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-056",
+    "title": "Complex real-world doctor-agent case v2 #056",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "任泽，下肢水肿进行性加重，先记。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "帮我设今天18:00复查提醒，患者任泽。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再查一下任泽病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者任泽，男55岁，主诉提醒，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "提醒",
+          "预约",
+          "任务"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-057",
+    "title": "Complex real-world doctor-agent case v2 #057",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "新患者袁凯，男，58岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "门诊记录：咳嗽伴发热3天，考虑高危。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "列出所有患者。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者袁凯，男55岁，主诉患者，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "患者",
+          "列表",
+          "袁凯"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-058",
+    "title": "Complex real-world doctor-agent case v2 #058",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先处理柳诚：眩晕伴恶心1天。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补一句：HER2异常，ANC待复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "保存上下文：肿瘤相关指标连续追踪。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者柳诚，男55岁，主诉HER2，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "HER2",
+          "ANC",
+          "复查"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-059",
+    "title": "Complex real-world doctor-agent case v2 #059",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先记酆扬：乏力食欲下降1周。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再建档邬诚，女，39岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询邬诚。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者酆扬，男55岁，主诉酆扬，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "酆扬",
+          "邬诚",
+          "病历"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-060",
+    "title": "Complex real-world doctor-agent case v2 #060",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "鲍晨，先记胸痛，后续按下周复查BNP和EF。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "顺便看一下所有患者，再查鲍晨。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "如果有重复名字，删除第二个患者安远。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者鲍晨，男55岁，主诉患者，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "患者",
+          "查询",
+          "保存"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-061",
+    "title": "Complex real-world doctor-agent case v2 #061",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "早班先记：史航，胸痛2小时伴大汗。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补充：考虑BNP、EF，安排72小时复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "总结上下文：史航 本次就诊重点是胸痛2小时伴大汗，计划72小时复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者史航，男55岁，主诉胸痛2小时，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "胸痛2小时",
+          "复查",
+          "保存"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-062",
+    "title": "Complex real-world doctor-agent case v2 #062",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先看下我今天待办。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "然后记一个：唐宁，胸闷反复1周。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把第1条标记完成。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者唐宁，男55岁，主诉待办，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "待办",
+          "任务",
+          "胸闷"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-063",
+    "title": "Complex real-world doctor-agent case v2 #063",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先建档：费岩，男，45岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再来一个同名患者：费岩，女，52岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "记录第二位费岩：心悸半天昨晚加重。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "删除第二个患者费岩。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者费岩，男55岁，主诉不适，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      }
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-064",
+    "title": "Complex real-world doctor-agent case v2 #064",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "连续处理两个：先廉峰，头痛2天睡眠差。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再时峰，胸闷3天活动后加重。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询廉峰历史病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者廉峰，男55岁，主诉廉峰，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "廉峰",
+          "时峰",
+          "病历"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-065",
+    "title": "Complex real-world doctor-agent case v2 #065",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "Quick one: 岑远, chest discomfort after exertion."
+      },
+      {
+        "speaker": "doctor",
+        "text": "Add NIHSS mention, and plan 下周复查BNP和EF."
+      },
+      {
+        "speaker": "doctor",
+        "text": "保存后查询岑远。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者岑远，男55岁，主诉记录，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "记录",
+          "病历",
+          "岑远"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-066",
+    "title": "Complex real-world doctor-agent case v2 #066",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "薛泽，下肢水肿进行性加重，先记。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "帮我设今天18:00复查提醒，患者薛泽。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再查一下薛泽病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者薛泽，男55岁，主诉提醒，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "提醒",
+          "预约",
+          "任务"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-067",
+    "title": "Complex real-world doctor-agent case v2 #067",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "新患者雷安，男，58岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "门诊记录：咳嗽伴发热3天，考虑高危。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "列出所有患者。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者雷安，男55岁，主诉患者，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "患者",
+          "列表",
+          "雷安"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-068",
+    "title": "Complex real-world doctor-agent case v2 #068",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先处理贺宁：眩晕伴恶心1天。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补一句：HER2异常，ANC待复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "保存上下文：肿瘤相关指标连续追踪。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者贺宁，男55岁，主诉HER2，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "HER2",
+          "ANC",
+          "复查"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-069",
+    "title": "Complex real-world doctor-agent case v2 #069",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先记倪峰：乏力食欲下降1周。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再建档康宁，女，39岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询康宁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者倪峰，男55岁，主诉倪峰，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "倪峰",
+          "康宁",
+          "病历"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-070",
+    "title": "Complex real-world doctor-agent case v2 #070",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "汤诚，先记胸痛，后续按下周复查BNP和EF。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "顺便看一下所有患者，再查汤诚。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "如果有重复名字，删除第二个患者伍峰。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者汤诚，男55岁，主诉患者，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "患者",
+          "查询",
+          "保存"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-071",
+    "title": "Complex real-world doctor-agent case v2 #071",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "早班先记：滕远，胸痛2小时伴大汗。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补充：考虑BNP、EF，安排72小时复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "总结上下文：滕远 本次就诊重点是胸痛2小时伴大汗，计划72小时复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者滕远，男55岁，主诉胸痛2小时，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "胸痛2小时",
+          "复查",
+          "保存"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-072",
+    "title": "Complex real-world doctor-agent case v2 #072",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先看下我今天待办。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "然后记一个：殷航，胸闷反复1周。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把第1条标记完成。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者殷航，男55岁，主诉待办，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "待办",
+          "任务",
+          "胸闷"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-073",
+    "title": "Complex real-world doctor-agent case v2 #073",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先建档：罗泽，男，45岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再来一个同名患者：罗泽，女，52岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "记录第二位罗泽：心悸半天昨晚加重。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "删除第二个患者罗泽。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者罗泽，男55岁，主诉不适，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      }
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-074",
+    "title": "Complex real-world doctor-agent case v2 #074",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "连续处理两个：先毕宁，头痛2天睡眠差。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再孟泽，胸闷3天活动后加重。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询毕宁历史病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者毕宁，男55岁，主诉毕宁，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "毕宁",
+          "孟泽",
+          "病历"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-075",
+    "title": "Complex real-world doctor-agent case v2 #075",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "Quick one: 郝峰, chest discomfort after exertion."
+      },
+      {
+        "speaker": "doctor",
+        "text": "Add NIHSS mention, and plan 下周复查BNP和EF."
+      },
+      {
+        "speaker": "doctor",
+        "text": "保存后查询郝峰。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者郝峰，男55岁，主诉记录，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "记录",
+          "病历",
+          "郝峰"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-076",
+    "title": "Complex real-world doctor-agent case v2 #076",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "邬诚，下肢水肿进行性加重，先记。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "帮我设今天18:00复查提醒，患者邬诚。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再查一下邬诚病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者邬诚，男55岁，主诉提醒，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "提醒",
+          "预约",
+          "任务"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-077",
+    "title": "Complex real-world doctor-agent case v2 #077",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "新患者安远，男，58岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "门诊记录：咳嗽伴发热3天，考虑高危。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "列出所有患者。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者安远，男55岁，主诉患者，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "患者",
+          "列表",
+          "安远"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-078",
+    "title": "Complex real-world doctor-agent case v2 #078",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先处理常航：眩晕伴恶心1天。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补一句：HER2异常，ANC待复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "保存上下文：肿瘤相关指标连续追踪。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者常航，男55岁，主诉HER2，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "HER2",
+          "ANC",
+          "复查"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-079",
+    "title": "Complex real-world doctor-agent case v2 #079",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先记乐泽：乏力食欲下降1周。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再建档萧航，女，39岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询萧航。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者乐泽，男55岁，主诉乐泽，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "乐泽",
+          "萧航",
+          "病历"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-080",
+    "title": "Complex real-world doctor-agent case v2 #080",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "于宁，先记胸痛，后续按下周复查BNP和EF。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "顺便看一下所有患者，再查于宁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "如果有重复名字，删除第二个患者尹泽。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者于宁，男55岁，主诉患者，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "患者",
+          "查询",
+          "保存"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-081",
+    "title": "Complex real-world doctor-agent case v2 #081",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "早班先记：时峰，胸痛2小时伴大汗。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补充：考虑BNP、EF，安排72小时复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "总结上下文：时峰 本次就诊重点是胸痛2小时伴大汗，计划72小时复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者时峰，男55岁，主诉胸痛2小时，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "胸痛2小时",
+          "复查",
+          "保存"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-082",
+    "title": "Complex real-world doctor-agent case v2 #082",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先看下我今天待办。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "然后记一个：傅诚，胸闷反复1周。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把第1条标记完成。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者傅诚，男55岁，主诉待办，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "待办",
+          "任务",
+          "胸闷"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-083",
+    "title": "Complex real-world doctor-agent case v2 #083",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先建档：皮远，男，45岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再来一个同名患者：皮远，女，52岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "记录第二位皮远：心悸半天昨晚加重。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "删除第二个患者皮远。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者皮远，男55岁，主诉不适，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      }
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-084",
+    "title": "Complex real-world doctor-agent case v2 #084",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "连续处理两个：先卞航，头痛2天睡眠差。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再李航，胸闷3天活动后加重。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询卞航历史病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者卞航，男55岁，主诉卞航，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "卞航",
+          "李航",
+          "病历"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-085",
+    "title": "Complex real-world doctor-agent case v2 #085",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "Quick one: 齐泽, chest discomfort after exertion."
+      },
+      {
+        "speaker": "doctor",
+        "text": "Add NIHSS mention, and plan 下周复查BNP和EF."
+      },
+      {
+        "speaker": "doctor",
+        "text": "保存后查询齐泽。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者齐泽，男55岁，主诉记录，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "记录",
+          "病历",
+          "齐泽"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-086",
+    "title": "Complex real-world doctor-agent case v2 #086",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "康宁，下肢水肿进行性加重，先记。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "帮我设今天18:00复查提醒，患者康宁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再查一下康宁病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者康宁，男55岁，主诉提醒，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "提醒",
+          "预约",
+          "任务"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-087",
+    "title": "Complex real-world doctor-agent case v2 #087",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "新患者伍峰，男，58岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "门诊记录：咳嗽伴发热3天，考虑高危。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "列出所有患者。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者伍峰，男55岁，主诉患者，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "患者",
+          "列表",
+          "伍峰"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-088",
+    "title": "Complex real-world doctor-agent case v2 #088",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先处理余诚：眩晕伴恶心1天。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补一句：HER2异常，ANC待复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "保存上下文：肿瘤相关指标连续追踪。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者余诚，男55岁，主诉HER2，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "HER2",
+          "ANC",
+          "复查"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-089",
+    "title": "Complex real-world doctor-agent case v2 #089",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先记元远：乏力食欲下降1周。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再建档吴辰，女，39岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询吴辰。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者元远，男55岁，主诉元远，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "元远",
+          "吴辰",
+          "病历"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-090",
+    "title": "Complex real-world doctor-agent case v2 #090",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "顾航，先记胸痛，后续按下周复查BNP和EF。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "顺便看一下所有患者，再查顾航。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "如果有重复名字，删除第二个患者郑凯。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者顾航，男55岁，主诉患者，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "患者",
+          "查询",
+          "保存"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-091",
+    "title": "Complex real-world doctor-agent case v2 #091",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "早班先记：孟泽，胸痛2小时伴大汗。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补充：考虑BNP、EF，安排72小时复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "总结上下文：孟泽 本次就诊重点是胸痛2小时伴大汗，计划72小时复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者孟泽，男55岁，主诉胸痛2小时，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "胸痛2小时",
+          "复查",
+          "保存"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-092",
+    "title": "Complex real-world doctor-agent case v2 #092",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先看下我今天待办。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "然后记一个：平宁，胸闷反复1周。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把第1条标记完成。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者平宁，男55岁，主诉待办，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "待办",
+          "任务",
+          "胸闷"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-093",
+    "title": "Complex real-world doctor-agent case v2 #093",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先建档：黄峰，男，45岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再来一个同名患者：黄峰，女，52岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "记录第二位黄峰：心悸半天昨晚加重。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "删除第二个患者黄峰。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者黄峰，男55岁，主诉不适，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      }
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-094",
+    "title": "Complex real-world doctor-agent case v2 #094",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "连续处理两个：先和诚，头痛2天睡眠差。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再蒋川，胸闷3天活动后加重。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询和诚历史病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者和诚，男55岁，主诉和诚，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "和诚",
+          "蒋川",
+          "病历"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-095",
+    "title": "Complex real-world doctor-agent case v2 #095",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "Quick one: 穆远, chest discomfort after exertion."
+      },
+      {
+        "speaker": "doctor",
+        "text": "Add NIHSS mention, and plan 下周复查BNP和EF."
+      },
+      {
+        "speaker": "doctor",
+        "text": "保存后查询穆远。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者穆远，男55岁，主诉记录，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "记录",
+          "病历",
+          "穆远"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-096",
+    "title": "Complex real-world doctor-agent case v2 #096",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "萧航，下肢水肿进行性加重，先记。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "帮我设今天18:00复查提醒，患者萧航。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再查一下萧航病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者萧航，男55岁，主诉提醒，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "提醒",
+          "预约",
+          "任务"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-097",
+    "title": "Complex real-world doctor-agent case v2 #097",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "新患者尹泽，男，58岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "门诊记录：咳嗽伴发热3天，考虑高危。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "列出所有患者。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者尹泽，男55岁，主诉患者，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "患者",
+          "列表",
+          "尹泽"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-098",
+    "title": "Complex real-world doctor-agent case v2 #098",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先处理姚宁：眩晕伴恶心1天。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补一句：HER2异常，ANC待复查。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "保存上下文：肿瘤相关指标连续追踪。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者姚宁，男55岁，主诉HER2，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "HER2",
+          "ANC",
+          "复查"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-099",
+    "title": "Complex real-world doctor-agent case v2 #099",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先记邵峰：乏力食欲下降1周。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再建档秦越，女，39岁。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查询秦越。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者邵峰，男55岁，主诉邵峰，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "邵峰",
+          "秦越",
+          "病历"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "REALWORLD-V2-100",
+    "title": "Complex real-world doctor-agent case v2 #100",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "湛诚，先记胸痛，后续按下周复查BNP和EF。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "顺便看一下所有患者，再查湛诚。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "如果有重复名字，删除第二个患者尤安。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请明确执行：新建患者湛诚，男55岁，主诉患者，并保存本次病历。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "患者",
+          "查询",
+          "保存"
+        ]
+      ]
+    }
+  }
+]

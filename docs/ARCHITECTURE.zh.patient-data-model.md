@@ -1,0 +1,1 @@
+root/ARCHITECTURE.zh.patient-data-model.md

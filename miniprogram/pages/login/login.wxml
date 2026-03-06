@@ -1,0 +1,11 @@
+<view class="container">
+  <view class="fallback">
+    <button bindtap="onLogin" loading="{{loading}}">微信登录并进入</button>
+  </view>
+  <view class="card">
+    <view class="title">Doctor AI Mini</view>
+    <input class="input" placeholder="医生姓名（可选）" value="{{doctorName}}" bindinput="onDoctorNameInput" />
+    <button class="btn" bindtap="onLogin" loading="{{loading}}">微信登录并进入</button>
+    <text class="hint">请先在 miniprogram/config.json 里配置后端 HTTPS 域名</text>
+  </view>
+</view>

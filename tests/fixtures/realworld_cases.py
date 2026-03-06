@@ -1,0 +1,148 @@
+from __future__ import annotations
+
+from typing import List, Tuple
+
+
+# (case_id, patient_name, input_text, expected_tokens_anywhere, expect_no_treatment)
+REALWORLD_SCENARIOS: List[Tuple[str, str, str, List[str], bool]] = [
+    (
+        "verbose_stemi",
+        "黎峰",
+        "黎峰，男，59岁。今晨6点突发胸痛2小时，伴大汗恶心，心电图提示前壁ST段抬高，考虑STEMI，已走急诊PCI绿色通道。",
+        ["stemi", "pci", "胸痛"],
+        False,
+    ),
+    (
+        "terse_note",
+        "高宁",
+        "高宁，男，47岁，胸闷3天。",
+        ["胸闷"],
+        True,
+    ),
+    (
+        "multiline_fragmented",
+        "赵岚",
+        "赵岚，女，66岁\n反复胸闷1周\n活动后加重\nBNP 2100，EF 35%\n拟利尿+扩血管，3天复查",
+        ["bnp", "ef"],
+        False,
+    ),
+    (
+        "oncology_followup",
+        "许宁",
+        "许宁，女，54岁，HER2阳性乳腺癌术后，化疗后乏力，拟继续靶向治疗，2周后门诊复查。",
+        ["her2", "化疗", "靶向"],
+        False,
+    ),
+    (
+        "renal_marker",
+        "何川",
+        "何川，男，63岁，慢性肾病，最近EGFR下降，乏力纳差，建议调整用药并复查肾功。",
+        ["egfr", "复查"],
+        False,
+    ),
+    (
+        "abbrev_heavy",
+        "王述",
+        "王述，男，71岁，CHF急性加重，NYHA III，BNP较前升高，EF 30%，予利尿、ARNI优化。",
+        ["nyha", "bnp", "ef"],
+        False,
+    ),
+    (
+        "sparse_no_treatment",
+        "尹晴",
+        "尹晴，女，60岁，头痛2天，睡眠差。",
+        ["头痛"],
+        True,
+    ),
+    (
+        "noisy_with_typos",
+        "陈默",
+        "陈默，男，58岁，突发胸痛2x小时，伴大汗，心电土疑ST段抬高，考虑stmei，拟急诊pci。",
+        ["st", "pci", "胸痛"],
+        False,
+    ),
+    (
+        "short_english_mix",
+        "周煜",
+        "周煜, male 52, chest pain after exertion, ECG abnormal, plan CTA + follow-up.",
+        ["胸痛", "ecg", "cta"],
+        False,
+    ),
+    (
+        "neuro_style_brief",
+        "林烁",
+        "林烁，男，68岁，突发言语含糊3小时，右上肢乏力，拟卒中流程评估。",
+        ["言语", "乏力"],
+        False,
+    ),
+    (
+        "post_pci_followup",
+        "唐越",
+        "唐越，男，61岁，PCI术后第7天复诊，偶有胸闷，建议继续双抗并1周后复查。",
+        ["pci", "胸闷", "复查"],
+        False,
+    ),
+    (
+        "afib_anticoag",
+        "顾诚",
+        "顾诚，男，73岁，房颤病史，近3天心悸加重，建议继续抗凝并监测INR。",
+        ["房颤", "心悸", "抗凝"],
+        False,
+    ),
+    (
+        "oncology_anc_drop",
+        "孟琪",
+        "孟琪，女，46岁，乳腺癌化疗后乏力，ANC下降，建议升白治疗并3天后复查血常规。",
+        ["anc", "化疗", "复查"],
+        False,
+    ),
+    (
+        "hypertension_ckd",
+        "沈晖",
+        "沈晖，男，65岁，高血压合并慢性肾病，EGFR较前下降，建议调整降压药并复查肾功。",
+        ["egfr", "高血压", "肾功"],
+        False,
+    ),
+    (
+        "hf_volume_overload",
+        "骆宁",
+        "骆宁，女，70岁，心衰，近两天夜间憋醒，BNP升高，EF 32%，予利尿并评估住院。",
+        ["bnp", "ef", "利尿"],
+        False,
+    ),
+    (
+        "minimal_followup_note",
+        "易安",
+        "易安，男，58岁，复诊，说还是偶发胸闷。",
+        ["胸闷", "复诊"],
+        True,
+    ),
+    (
+        "arrhythmia_holter",
+        "童舟",
+        "童舟，女，52岁，心悸反复发作，Holter提示室早增多，建议门诊随访。",
+        ["holter", "心悸", "室早"],
+        False,
+    ),
+    (
+        "stroke_secondary_prevention",
+        "程朗",
+        "程朗，男，67岁，既往脑梗，本次短暂言语不清已缓解，建议二级预防并复查颈动脉超声。",
+        ["脑梗", "言语", "复查"],
+        False,
+    ),
+    (
+        "copd_with_cardiac_comorbidity",
+        "韩旸",
+        "韩旸，男，69岁，慢阻肺伴冠心病，近1周活动后气短，建议吸入治疗并评估心功能。",
+        ["气短", "慢阻肺", "心功能"],
+        False,
+    ),
+    (
+        "sparse_headache_followup",
+        "于乔",
+        "于乔，女，39岁，头痛反复，昨晚睡差。",
+        ["头痛", "睡"],
+        True,
+    ),
+]

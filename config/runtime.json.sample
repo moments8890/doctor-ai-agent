@@ -1,0 +1,333 @@
+{
+  "format": "doctor-ai-agent.runtime-config.v2",
+  "description": "Runtime configuration catalog with grouped settings and inline descriptions.",
+  "description_zh": "运行时配置目录，按分类组织并包含每项配置说明。",
+  "categories": {
+    "llm": {
+      "description": "LLM provider routing and model selection.",
+      "description_zh": "LLM 提供商路由与模型选择。",
+      "settings": {
+        "ROUTING_LLM": {
+          "value": "ollama",
+          "description": "Provider for intent/tool routing. Note: Ollama is LAN/local LLM (can be slower); DeepSeek is online LLM (billed).",
+          "description_zh": "意图/工具路由使用的提供商。说明：Ollama 通常是局域网/本地 LLM（可能较慢）；DeepSeek 是在线 LLM（按量计费）。",
+          "options": [
+            "ollama",
+            "deepseek",
+            "groq",
+            "gemini",
+            "openai"
+          ]
+        },
+        "STRUCTURING_LLM": {
+          "value": "ollama",
+          "description": "Provider for medical record structuring. Note: Ollama is LAN/local LLM (can be slower); DeepSeek is online LLM (billed).",
+          "description_zh": "病历结构化使用的提供商。说明：Ollama 通常是局域网/本地 LLM（可能较慢）；DeepSeek 是在线 LLM（按量计费）。",
+          "options": [
+            "ollama",
+            "deepseek",
+            "groq",
+            "gemini",
+            "openai"
+          ]
+        },
+        "INTENT_PROVIDER": {
+          "value": "local",
+          "description": "Intent mode: local or model-driven.",
+          "description_zh": "意图模式：local 或 model-driven。",
+          "options": [
+            "local",
+            "model-driven"
+          ]
+        },
+        "LLM_PROVIDER_STRICT_MODE": {
+          "value": "true",
+          "description": "When true, use selected provider only and never fallback to others.",
+          "description_zh": "为 true 时仅使用所选提供商，不会自动回退到其它提供商。",
+          "options": [
+            "true",
+            "false"
+          ]
+        },
+        "AGENT_ROUTING_PROMPT_MODE": {
+          "value": "full",
+          "description": "Routing prompt verbosity mode: full or compact.",
+          "description_zh": "路由提示词详细度：full 或 compact。",
+          "options": [
+            "full",
+            "compact"
+          ]
+        },
+        "AGENT_TOOL_SCHEMA_MODE": {
+          "value": "compact",
+          "description": "Tool schema verbosity mode: full or compact.",
+          "description_zh": "工具 schema 详细度：full 或 compact。",
+          "options": [
+            "full",
+            "compact"
+          ]
+        },
+        "VISION_LLM": {
+          "value": "ollama",
+          "description": "Provider for image understanding.",
+          "description_zh": "图像理解使用的提供商。",
+          "options": [
+            "ollama",
+            "gemini",
+            "openai"
+          ]
+        },
+        "OPENAI_BASE_URL": {
+          "value": "https://api.openai.com/v1",
+          "description": "OpenAI API base URL.",
+          "description_zh": "OpenAI API 基地址。"
+        },
+        "OPENAI_MODEL": {
+          "value": "gpt-5-codex",
+          "description": "OpenAI/Codex model name for routing/structuring.",
+          "description_zh": "路由/结构化使用的 OpenAI/Codex 模型名。"
+        },
+        "OPENAI_API_KEY": {
+          "value": "",
+          "description": "OpenAI API key.",
+          "description_zh": "OpenAI API Key。"
+        },
+        "GROQ_API_KEY": {
+          "value": "",
+          "description": "Groq API key.",
+          "description_zh": "Groq API Key。"
+        },
+        "DEEPSEEK_API_KEY": {
+          "value": "",
+          "description": "DeepSeek API key.",
+          "description_zh": "DeepSeek API Key。"
+        },
+        "GEMINI_API_KEY": {
+          "value": "",
+          "description": "Gemini API key.",
+          "description_zh": "Gemini API Key。"
+        },
+        "OLLAMA_BASE_URL": {
+          "value": "http://192.168.0.123:11434/v1",
+          "description": "OpenAI-compatible Ollama endpoint (typically LAN/local deployment).",
+          "description_zh": "兼容 OpenAI 协议的 Ollama 地址（通常为局域网/本地部署）。"
+        },
+        "OLLAMA_VISION_BASE_URL": {
+          "value": "http://192.168.0.123:11434/v1",
+          "description": "Vision endpoint (can match OLLAMA_BASE_URL).",
+          "description_zh": "视觉模型地址（可与 OLLAMA_BASE_URL 相同）。"
+        },
+        "OLLAMA_MODEL": {
+          "value": "qwen2.5:14b",
+          "description": "Primary text model name.",
+          "description_zh": "主文本模型名称。"
+        },
+        "OLLAMA_VISION_MODEL": {
+          "value": "qwen2.5vl:7b",
+          "description": "Primary vision model name.",
+          "description_zh": "主视觉模型名称。"
+        },
+        "OLLAMA_API_KEY": {
+          "value": "",
+          "description": "API key for Ollama-compatible client.",
+          "description_zh": "Ollama 客户端 API Key。"
+        },
+        "GEMINI_VISION_MODEL": {
+          "value": "gemini-2.0-flash",
+          "description": "Gemini model for vision route.",
+          "description_zh": "视觉路由使用的 Gemini 模型。"
+        }
+      }
+    },
+    "storage": {
+      "description": "Database and storage path settings.",
+      "description_zh": "数据库与存储路径配置。",
+      "settings": {
+        "DATABASE_URL": {
+          "value": "",
+          "description": "Shared DB URL (recommended in multi-instance).",
+          "description_zh": "共享数据库 URL（多实例推荐）。"
+        },
+        "PATIENTS_DB_PATH": {
+          "value": "patients.db",
+          "description": "SQLite DB path when DATABASE_URL is empty.",
+          "description_zh": "DATABASE_URL 为空时使用的 SQLite 路径。"
+        }
+      }
+    },
+    "speech": {
+      "description": "ASR transcription model runtime settings.",
+      "description_zh": "语音转写模型运行配置。",
+      "settings": {
+        "WHISPER_MODEL": {
+          "value": "large-v3",
+          "description": "Faster-Whisper model size.",
+          "description_zh": "Faster-Whisper 模型规格。"
+        },
+        "WHISPER_DEVICE": {
+          "value": "cpu",
+          "description": "ASR device (cpu/cuda).",
+          "description_zh": "ASR 设备（cpu/cuda）。",
+          "options": [
+            "cpu",
+            "cuda"
+          ]
+        },
+        "WHISPER_COMPUTE_TYPE": {
+          "value": "int8",
+          "description": "ASR compute type (int8/float16/etc.).",
+          "description_zh": "ASR 计算类型（int8/float16 等）。"
+        }
+      }
+    },
+    "automation": {
+      "description": "Clinical automation and scheduler behavior.",
+      "description_zh": "临床自动化与调度行为。",
+      "settings": {
+        "AUTO_FOLLOWUP_TASKS_ENABLED": {
+          "value": "false",
+          "description": "Enable auto follow-up task generation.",
+          "description_zh": "是否开启自动生成随访任务。"
+        },
+        "TASK_SCHEDULER_MODE": {
+          "value": "interval",
+          "description": "Scheduler mode: interval or cron.",
+          "description_zh": "调度模式：interval 或 cron。",
+          "options": [
+            "interval",
+            "cron"
+          ]
+        },
+        "TASK_SCHEDULER_INTERVAL_MINUTES": {
+          "value": "1",
+          "description": "Interval mode cadence in minutes.",
+          "description_zh": "interval 模式的分钟间隔。"
+        },
+        "TASK_SCHEDULER_CRON": {
+          "value": "*/1 * * * *",
+          "description": "Cron expression used in cron mode.",
+          "description_zh": "cron 模式表达式。"
+        },
+        "TASK_SCHEDULER_LEASE_ENABLED": {
+          "value": "true",
+          "description": "Enable distributed lease to avoid duplicate runs.",
+          "description_zh": "是否启用分布式租约防重复执行。"
+        },
+        "TASK_SCHEDULER_LEASE_TTL_SECONDS": {
+          "value": "90",
+          "description": "Lease TTL for failover recovery.",
+          "description_zh": "租约 TTL（故障恢复用）。"
+        },
+        "TASK_NOTIFY_RETRY_COUNT": {
+          "value": "3",
+          "description": "Retry attempts for notification sends.",
+          "description_zh": "通知失败重试次数。"
+        },
+        "TASK_NOTIFY_RETRY_DELAY_SECONDS": {
+          "value": "1.0",
+          "description": "Delay between retries.",
+          "description_zh": "重试间隔秒数。"
+        }
+      }
+    },
+    "notification": {
+      "description": "Outgoing doctor notification delivery settings.",
+      "description_zh": "医生通知发送配置。",
+      "settings": {
+        "NOTIFICATION_PROVIDER": {
+          "value": "log",
+          "description": "Notification backend (log or wechat).",
+          "description_zh": "通知后端（log 或 wechat）。",
+          "options": [
+            "log",
+            "wechat"
+          ]
+        },
+        "WECHAT_NOTIFY_FALLBACK_TO_USER": {
+          "value": "",
+          "description": "Fallback external_userid for failed direct recipient.",
+          "description_zh": "主接收人失败时的兜底 external_userid。"
+        }
+      }
+    },
+    "miniprogram": {
+      "description": "WeChat Mini Program authentication and endpoint defaults.",
+      "description_zh": "微信小程序鉴权与端点默认配置。",
+      "settings": {
+        "WECHAT_MINI_APP_ID": {
+          "value": "",
+          "description": "Mini Program appid used by code2session.",
+          "description_zh": "code2session 使用的小程序 appid。"
+        },
+        "WECHAT_MINI_APP_SECRET": {
+          "value": "",
+          "description": "Mini Program appsecret used by code2session.",
+          "description_zh": "code2session 使用的小程序密钥。"
+        },
+        "MINIPROGRAM_TOKEN_SECRET": {
+          "value": "",
+          "description": "Signing key for mini access tokens.",
+          "description_zh": "小程序访问令牌签名密钥。"
+        },
+        "MINIPROGRAM_TOKEN_TTL_SECONDS": {
+          "value": "604800",
+          "description": "Mini access token expiration in seconds.",
+          "description_zh": "小程序访问令牌有效期（秒）。"
+        },
+        "MINIPROGRAM_API_BASE_URL": {
+          "value": "https://example.com",
+          "description": "Public HTTPS API base URL used by mini client config.",
+          "description_zh": "小程序客户端使用的公网 HTTPS API 基地址。"
+        }
+      }
+    },
+    "logging": {
+      "description": "Application logging and rotation.",
+      "description_zh": "应用日志与滚动策略。",
+      "settings": {
+        "LOG_LEVEL": {
+          "value": "INFO",
+          "description": "Root logging level.",
+          "description_zh": "根日志级别。",
+          "options": [
+            "DEBUG",
+            "INFO",
+            "WARNING",
+            "ERROR",
+            "CRITICAL"
+          ]
+        },
+        "LOG_FORMAT": {
+          "value": "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+          "description": "Python logging formatter string.",
+          "description_zh": "Python 日志格式字符串。"
+        },
+        "LOG_TO_FILE": {
+          "value": "true",
+          "description": "Enable rotating file logging.",
+          "description_zh": "是否启用文件滚动日志。"
+        },
+        "LOG_DIR": {
+          "value": "logs",
+          "description": "Directory for log files.",
+          "description_zh": "日志目录。"
+        },
+        "LOG_FILE": {
+          "value": "app.log",
+          "description": "Primary app log filename.",
+          "description_zh": "主日志文件名。"
+        },
+        "LOG_MAX_BYTES": {
+          "value": "10485760",
+          "description": "Max bytes per log file before rotation.",
+          "description_zh": "单文件最大字节数，超过后滚动。"
+        },
+        "LOG_BACKUP_COUNT": {
+          "value": "5",
+          "description": "Number of rotated log backups to keep.",
+          "description_zh": "日志备份保留数量。"
+        }
+      }
+    }
+  }
+}

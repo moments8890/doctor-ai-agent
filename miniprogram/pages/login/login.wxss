@@ -1,0 +1,48 @@
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 24rpx;
+}
+
+.fallback {
+  width: 100%;
+  margin-bottom: 16rpx;
+}
+
+.card {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  box-shadow: 0 14rpx 40rpx rgba(15, 23, 42, 0.08);
+}
+
+.title {
+  font-size: 38rpx;
+  font-weight: 700;
+  margin-bottom: 24rpx;
+}
+
+.input {
+  height: 80rpx;
+  border: 1px solid #d1d5db;
+  border-radius: 16rpx;
+  padding: 0 20rpx;
+  margin-bottom: 24rpx;
+}
+
+.btn {
+  background: #2563eb;
+  color: #ffffff;
+  border-radius: 16rpx;
+}
+
+.hint {
+  display: block;
+  margin-top: 16rpx;
+  color: #6b7280;
+  font-size: 24rpx;
+}

@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+*.egg-info/
+debug
+
+# Environment & secrets
+.env
+project.private.config.json
+config/runtime.json
+
+# Database
+patients.db
+
+# Datasette / SQLite temp
+*.db-shm
+*.db-wal
+
+# Pytest
+.pytest_cache/
+.coverage
+reports/
+logs/
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
