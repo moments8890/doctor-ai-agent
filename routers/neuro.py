@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from db.crud import get_neuro_cases_for_doctor, save_neuro_case
 from db.engine import AsyncSessionLocal
 from services.neuro_structuring import extract_neuro_case
+from services.rate_limit import enforce_doctor_rate_limit
 from services.request_auth import resolve_doctor_id_from_auth_or_fallback
 from utils.log import log
 
@@ -43,6 +44,7 @@ async def neuro_from_text(
         fallback_env_flag="NEURO_ALLOW_BODY_DOCTOR_ID",
         default_doctor_id="test_doctor",
     )
+    enforce_doctor_rate_limit(doctor_id, scope="neuro.from_text")
     if not body.text.strip():
         raise HTTPException(status_code=422, detail="Text input cannot be empty.")
     try:
@@ -77,6 +79,7 @@ async def list_neuro_cases(
         fallback_env_flag="NEURO_ALLOW_BODY_DOCTOR_ID",
         default_doctor_id="test_doctor",
     )
+    enforce_doctor_rate_limit(resolved_doctor_id, scope="neuro.list_cases")
     async with AsyncSessionLocal() as db:
         rows = await get_neuro_cases_for_doctor(db, resolved_doctor_id, limit=limit)
 

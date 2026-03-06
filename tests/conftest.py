@@ -44,6 +44,11 @@ def reset_doctor_sessions():
         records_mod._RATE_WINDOWS.clear()
     except Exception:
         pass
+    try:
+        from services.rate_limit import clear_rate_limits_for_tests
+        clear_rate_limits_for_tests()
+    except Exception:
+        pass
     yield
     for task in list(sess_mod._persist_tasks.values()):
         task.cancel()
@@ -58,5 +63,10 @@ def reset_doctor_sessions():
     try:
         import routers.records as records_mod
         records_mod._RATE_WINDOWS.clear()
+    except Exception:
+        pass
+    try:
+        from services.rate_limit import clear_rate_limits_for_tests
+        clear_rate_limits_for_tests()
     except Exception:
         pass

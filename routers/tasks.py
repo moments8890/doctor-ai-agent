@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from db.engine import AsyncSessionLocal
 from db.crud import list_tasks, update_task_status
+from services.rate_limit import enforce_doctor_rate_limit
 from services.request_auth import resolve_doctor_id_from_auth_or_fallback
 from services.tasks import run_due_task_cycle
 
@@ -75,6 +76,7 @@ async def get_tasks(
         fallback_env_flag="TASKS_ALLOW_BODY_DOCTOR_ID",
         default_doctor_id="test_doctor",
     )
+    enforce_doctor_rate_limit(resolved_doctor_id, scope="tasks.get")
     return await _get_tasks_for_doctor(resolved_doctor_id, status=status)
 
 
@@ -97,6 +99,7 @@ async def patch_task(
         fallback_env_flag="TASKS_ALLOW_BODY_DOCTOR_ID",
         default_doctor_id="test_doctor",
     )
+    enforce_doctor_rate_limit(resolved_doctor_id, scope="tasks.patch")
     return await _patch_task_for_doctor(task_id, resolved_doctor_id, body)
 
 
@@ -120,6 +123,8 @@ async def dev_run_notifier(
     """Dev-only endpoint: trigger one background notification cycle immediately."""
     if not _env_flag_true("TASK_DEV_ENDPOINT_ENABLED", default=False):
         raise HTTPException(status_code=404, detail="Not found")
+    if doctor_id:
+        enforce_doctor_rate_limit(doctor_id, scope="tasks.dev_notifier")
     return await run_due_task_cycle(
         doctor_id=doctor_id,
         include_manual=include_manual,

@@ -49,6 +49,7 @@ from services.observability import (
     get_slowest_spans_scoped,
     get_trace_timeline,
 )
+from services.rate_limit import enforce_doctor_rate_limit
 from services.runtime_config import (
     apply_runtime_config,
     load_runtime_config_dict,
@@ -176,6 +177,7 @@ async def _manage_patients_for_doctor(
     follow_up_state: str | None = None,
     stale_risk: str | None = None,
 ):
+    enforce_doctor_rate_limit(doctor_id, scope="ui.manage_patients")
     category = _normalize_query_str(category)
     risk = _normalize_query_str(risk)
     follow_up_state = _normalize_query_str(follow_up_state)
@@ -237,6 +239,7 @@ async def manage_patients_grouped(
     authorization: str | None = Header(default=None),
 ):
     doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    enforce_doctor_rate_limit(doctor_id, scope="ui.manage_patients_grouped")
     async with AsyncSessionLocal() as db:
         patients = await get_all_patients(db, doctor_id)
         counts_result = await db.execute(
@@ -291,6 +294,7 @@ async def manage_patients_grouped_risk(
     authorization: str | None = Header(default=None),
 ):
     doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    enforce_doctor_rate_limit(doctor_id, scope="ui.manage_patients_grouped_risk")
     async with AsyncSessionLocal() as db:
         patients = await get_all_patients(db, doctor_id)
 
@@ -323,6 +327,7 @@ async def manage_patient_timeline(
     authorization: str | None = Header(default=None),
 ):
     doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    enforce_doctor_rate_limit(doctor_id, scope="ui.patient_timeline")
     async with AsyncSessionLocal() as db:
         data = await build_patient_timeline(db, doctor_id=doctor_id, patient_id=patient_id, limit=limit)
     if data is None:
@@ -360,6 +365,7 @@ async def _manage_records_for_doctor(
     date_to: str | None = None,
     limit: int = 50,
 ):
+    enforce_doctor_rate_limit(doctor_id, scope="ui.manage_records")
     patient_name = _normalize_query_str(patient_name)
     date_from = _normalize_date_yyyy_mm_dd(date_from)
     date_to = _normalize_date_yyyy_mm_dd(date_to)
@@ -465,6 +471,7 @@ async def list_labels(
     authorization: str | None = Header(default=None),
 ):
     doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    enforce_doctor_rate_limit(doctor_id, scope="ui.labels.list")
     async with AsyncSessionLocal() as db:
         labels = await get_labels_for_doctor(db, doctor_id)
     return {
@@ -478,6 +485,7 @@ async def list_labels(
 @router.post("/api/manage/labels")
 async def create_label_endpoint(body: LabelCreate, authorization: str | None = Header(default=None)):
     doctor_id = _resolve_ui_doctor_id(body.doctor_id, authorization)
+    enforce_doctor_rate_limit(doctor_id, scope="ui.labels.create")
     async with AsyncSessionLocal() as db:
         lbl = await create_label(db, doctor_id, body.name, body.color)
     return {"id": lbl.id, "name": lbl.name, "color": lbl.color, "created_at": _fmt_ts(lbl.created_at)}
@@ -486,6 +494,7 @@ async def create_label_endpoint(body: LabelCreate, authorization: str | None = H
 @router.patch("/api/manage/labels/{label_id}")
 async def update_label_endpoint(label_id: int, body: LabelUpdate, authorization: str | None = Header(default=None)):
     doctor_id = _resolve_ui_doctor_id(body.doctor_id, authorization)
+    enforce_doctor_rate_limit(doctor_id, scope="ui.labels.update")
     async with AsyncSessionLocal() as db:
         lbl = await update_label(db, label_id, doctor_id, name=body.name, color=body.color)
     if lbl is None:
@@ -500,6 +509,7 @@ async def delete_label_endpoint(
     authorization: str | None = Header(default=None),
 ):
     doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    enforce_doctor_rate_limit(doctor_id, scope="ui.labels.delete")
     async with AsyncSessionLocal() as db:
         found = await delete_label(db, label_id, doctor_id)
     if not found:
@@ -515,6 +525,7 @@ async def assign_label_endpoint(
     authorization: str | None = Header(default=None),
 ):
     doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    enforce_doctor_rate_limit(doctor_id, scope="ui.labels.assign")
     async with AsyncSessionLocal() as db:
         try:
             await assign_label(db, patient_id, label_id, doctor_id)
@@ -531,6 +542,7 @@ async def remove_label_endpoint(
     authorization: str | None = Header(default=None),
 ):
     doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    enforce_doctor_rate_limit(doctor_id, scope="ui.labels.remove")
     async with AsyncSessionLocal() as db:
         try:
             await remove_label(db, patient_id, label_id, doctor_id)

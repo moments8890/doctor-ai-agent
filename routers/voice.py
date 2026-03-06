@@ -16,6 +16,7 @@ from routers.records import _name_only_text
 from services.agent import dispatch as agent_dispatch
 from services.errors import InvalidMedicalRecordError
 from services.intent import Intent
+from services.rate_limit import enforce_doctor_rate_limit
 from services.request_auth import resolve_doctor_id_from_auth_or_fallback
 from services.structuring import structure_medical_record
 from services.transcription import transcribe_audio
@@ -59,6 +60,7 @@ async def _voice_chat_for_doctor(
     doctor_id: str,
     history: Optional[str] = None,
 ) -> VoiceChatResponse:
+    enforce_doctor_rate_limit(doctor_id, scope="voice.chat")
 
     if audio.content_type not in SUPPORTED_AUDIO_TYPES:
         raise HTTPException(status_code=422, detail=f"Unsupported file type: {audio.content_type}. Supported: mp3, mp4, wav, webm, ogg, flac, m4a.")  # noqa: E501
@@ -210,6 +212,7 @@ async def _voice_consultation_for_doctor(
     patient_name: Optional[str] = None,
     save: bool = False,
 ) -> ConsultationResponse:
+    enforce_doctor_rate_limit(doctor_id, scope="voice.consultation")
 
     if audio.content_type not in SUPPORTED_AUDIO_TYPES:
         raise HTTPException(status_code=422, detail=f"Unsupported file type: {audio.content_type}. Supported: mp3, mp4, wav, webm, ogg, flac, m4a.")  # noqa: E501
