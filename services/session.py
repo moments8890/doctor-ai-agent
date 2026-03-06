@@ -241,3 +241,17 @@ def prune_inactive_sessions(max_idle_seconds: int = 3600) -> Dict[str, int]:
         "cleared_turn_persist_tasks": stale_turn_persist,
         "cleared_locks": stale_locks,
     }
+
+
+def reset_session_state_for_tests() -> None:
+    """Test helper to clear all in-memory session registries safely."""
+    for task in list(_persist_tasks.values()):
+        task.cancel()
+    for task in list(_persist_turn_tasks.values()):
+        task.cancel()
+    _sessions.clear()
+    _locks.clear()
+    _loaded_from_db.clear()
+    _persist_tasks.clear()
+    _persist_turn_tasks.clear()
+    _pending_turns.clear()

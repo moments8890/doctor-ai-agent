@@ -58,7 +58,7 @@ from services.runtime_config import (
     save_runtime_config_dict,
     validate_runtime_config,
 )
-from services.request_auth import resolve_doctor_id_from_auth_or_fallback
+from services.request_auth import require_admin_token, resolve_doctor_id_from_auth_or_fallback
 
 router = APIRouter(tags=["ui"])
 
@@ -148,6 +148,10 @@ def _resolve_ui_doctor_id(candidate_doctor_id: str | None, authorization: str | 
         fallback_env_flag="UI_ALLOW_QUERY_DOCTOR_ID",
         default_doctor_id="web_doctor",
     )
+
+
+def _require_ui_admin_access(x_admin_token: str | None) -> None:
+    require_admin_token(x_admin_token, env_name="UI_ADMIN_TOKEN")
 
 
 @router.get("/api/manage/patients")
@@ -432,7 +436,10 @@ async def _manage_records_for_doctor(
 
 
 @router.get("/api/manage/prompts")
-async def manage_prompts():
+async def manage_prompts(
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+):
+    _require_ui_admin_access(x_admin_token)
     async with AsyncSessionLocal() as db:
         base = await get_system_prompt(db, "structuring")
         ext = await get_system_prompt(db, "structuring.extension")
@@ -443,7 +450,12 @@ async def manage_prompts():
 
 
 @router.put("/api/manage/prompts/{key}")
-async def update_prompt(key: str, body: PromptUpdate):
+async def update_prompt(
+    key: str,
+    body: PromptUpdate,
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+):
+    _require_ui_admin_access(x_admin_token)
     if key not in {"structuring", "structuring.extension"}:
         raise HTTPException(status_code=400, detail="Only structuring and structuring.extension are editable.")
     async with AsyncSessionLocal() as db:
@@ -559,7 +571,9 @@ async def admin_observability(
     slow_span_limit: int = 30,
     scope: str = "all",
     trace_id: str | None = None,
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
 ):
+    _require_ui_admin_access(x_admin_token)
     safe_scope = scope if scope in {"all", "public", "internal"} else "all"
     payload = {
         "scope": safe_scope,
@@ -578,13 +592,20 @@ async def admin_observability(
 
 
 @router.delete("/api/admin/observability/traces")
-async def admin_clear_observability_traces():
+async def admin_clear_observability_traces(
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+):
+    _require_ui_admin_access(x_admin_token)
     clear_traces()
     return {"ok": True}
 
 
 @router.post("/api/admin/observability/sample")
-async def admin_seed_observability_samples(count: int = Query(default=3, ge=1, le=20)):
+async def admin_seed_observability_samples(
+    count: int = Query(default=3, ge=1, le=20),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+):
+    _require_ui_admin_access(x_admin_token)
     now = datetime.now(timezone.utc)
     created: list[str] = []
     for i in range(count):
@@ -650,7 +671,10 @@ async def admin_seed_observability_samples(count: int = Query(default=3, ge=1, l
 
 
 @router.get("/api/admin/config")
-async def admin_get_runtime_config():
+async def admin_get_runtime_config(
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+):
+    _require_ui_admin_access(x_admin_token)
     config = await load_runtime_config_dict()
     source = str(runtime_config_source_path())
     categories = runtime_config_categories(config)
@@ -658,7 +682,11 @@ async def admin_get_runtime_config():
 
 
 @router.put("/api/admin/config")
-async def admin_update_runtime_config(body: RuntimeConfigUpdate):
+async def admin_update_runtime_config(
+    body: RuntimeConfigUpdate,
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+):
+    _require_ui_admin_access(x_admin_token)
     if not isinstance(body.config, dict):
         raise HTTPException(status_code=400, detail="config must be a JSON object")
     saved = await save_runtime_config_dict(body.config)
@@ -668,7 +696,11 @@ async def admin_update_runtime_config(body: RuntimeConfigUpdate):
 
 
 @router.post("/api/admin/config/verify")
-async def admin_verify_runtime_config(body: RuntimeConfigUpdate):
+async def admin_verify_runtime_config(
+    body: RuntimeConfigUpdate,
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+):
+    _require_ui_admin_access(x_admin_token)
     result = validate_runtime_config(body.config)
     categories = runtime_config_categories(result.get("sanitized", {}))
     return {
@@ -681,7 +713,10 @@ async def admin_verify_runtime_config(body: RuntimeConfigUpdate):
 
 
 @router.post("/api/admin/config/apply")
-async def admin_apply_runtime_config():
+async def admin_apply_runtime_config(
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+):
+    _require_ui_admin_access(x_admin_token)
     saved = await load_runtime_config_dict()
     await apply_runtime_config(saved)
     source = str(runtime_config_source_path())
@@ -690,7 +725,10 @@ async def admin_apply_runtime_config():
 
 
 @router.get("/api/admin/dev/tunnel-url")
-async def admin_get_tunnel_url():
+async def admin_get_tunnel_url(
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+):
+    _require_ui_admin_access(x_admin_token)
     _app_root = Path(__file__).resolve().parents[1]
     log_path_raw = (
         os.environ.get("CLOUDFLARED_LOG_PATH")
@@ -720,7 +758,9 @@ async def admin_get_tunnel_url():
 @router.get("/api/admin/filter-options")
 async def admin_filter_options(
     doctor_id: str | None = Query(default=None),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
 ):
+    _require_ui_admin_access(x_admin_token)
     doctor_id = _normalize_query_str(doctor_id)
 
     async with AsyncSessionLocal() as db:
@@ -759,7 +799,9 @@ async def admin_db_view(
     date_from: str | None = Query(default=None),
     date_to: str | None = Query(default=None),
     limit: int = Query(default=100, ge=1, le=500),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
 ):
+    _require_ui_admin_access(x_admin_token)
     doctor_id = _normalize_query_str(doctor_id)
     patient_name = _normalize_query_str(patient_name)
     date_from = _normalize_date_yyyy_mm_dd(date_from)
@@ -861,7 +903,9 @@ async def admin_tables(
     patient_name: str | None = Query(default=None),
     date_from: str | None = Query(default=None),
     date_to: str | None = Query(default=None),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
 ):
+    _require_ui_admin_access(x_admin_token)
     doctor_id, patient_name, _, _, dt_from, dt_to_exclusive = _parse_admin_filters(
         doctor_id, patient_name, date_from, date_to
     )
@@ -965,7 +1009,9 @@ async def admin_table_rows(
     date_from: str | None = Query(default=None),
     date_to: str | None = Query(default=None),
     limit: int = Query(default=200, ge=1, le=1000),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
 ):
+    _require_ui_admin_access(x_admin_token)
     doctor_id, patient_name, _, _, dt_from, dt_to_exclusive = _parse_admin_filters(
         doctor_id, patient_name, date_from, date_to
     )

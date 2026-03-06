@@ -28,17 +28,9 @@ async def db_session(session_factory):
 @pytest.fixture(autouse=True)
 def reset_doctor_sessions():
     """Clear in-memory doctor sessions and locks between tests."""
-    import services.session as sess_mod
-    for task in list(sess_mod._persist_tasks.values()):
-        task.cancel()
-    for task in list(sess_mod._persist_turn_tasks.values()):
-        task.cancel()
-    sess_mod._sessions.clear()
-    sess_mod._locks.clear()
-    sess_mod._loaded_from_db.clear()
-    sess_mod._persist_tasks.clear()
-    sess_mod._persist_turn_tasks.clear()
-    sess_mod._pending_turns.clear()
+    from services.session import reset_session_state_for_tests
+
+    reset_session_state_for_tests()
     try:
         import routers.records as records_mod
         records_mod._RATE_WINDOWS.clear()
@@ -50,16 +42,7 @@ def reset_doctor_sessions():
     except Exception:
         pass
     yield
-    for task in list(sess_mod._persist_tasks.values()):
-        task.cancel()
-    for task in list(sess_mod._persist_turn_tasks.values()):
-        task.cancel()
-    sess_mod._sessions.clear()
-    sess_mod._locks.clear()
-    sess_mod._loaded_from_db.clear()
-    sess_mod._persist_tasks.clear()
-    sess_mod._persist_turn_tasks.clear()
-    sess_mod._pending_turns.clear()
+    reset_session_state_for_tests()
     try:
         import routers.records as records_mod
         records_mod._RATE_WINDOWS.clear()

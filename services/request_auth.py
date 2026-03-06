@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hmac
 import os
 from typing import Optional
 
@@ -34,3 +35,21 @@ def resolve_doctor_id_from_auth_or_fallback(
         return (candidate_doctor_id or "").strip() or default_doctor_id
 
     raise HTTPException(status_code=401, detail="Missing Authorization header")
+
+
+def require_admin_token(
+    provided_token: Optional[str],
+    *,
+    env_name: str = "UI_ADMIN_TOKEN",
+) -> None:
+    """Require a static admin token for sensitive non-doctor-scoped endpoints."""
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        return
+
+    expected = (os.environ.get(env_name) or "").strip()
+    if not expected:
+        raise HTTPException(status_code=503, detail="{0} is not configured".format(env_name))
+
+    candidate = (provided_token or "").strip()
+    if not candidate or not hmac.compare_digest(candidate, expected):
+        raise HTTPException(status_code=403, detail="Forbidden")

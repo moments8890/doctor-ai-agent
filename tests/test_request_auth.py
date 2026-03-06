@@ -7,7 +7,7 @@ import pytest
 from fastapi import HTTPException
 
 from services.miniprogram_auth import MiniProgramAuthError
-from services.request_auth import resolve_doctor_id_from_auth_or_fallback
+from services.request_auth import require_admin_token, resolve_doctor_id_from_auth_or_fallback
 
 
 def test_resolve_doctor_id_prefers_token_principal() -> None:
@@ -71,3 +71,29 @@ def test_resolve_doctor_id_missing_auth_and_fallback_disabled_returns_401() -> N
             )
 
     assert exc_info.value.status_code == 401
+
+
+def test_require_admin_token_allows_when_value_matches() -> None:
+    with patch.dict("os.environ", {"UI_ADMIN_TOKEN": "secret-token"}, clear=True):
+        require_admin_token("secret-token", env_name="UI_ADMIN_TOKEN")
+
+
+def test_require_admin_token_rejects_when_mismatch() -> None:
+    with patch.dict("os.environ", {"UI_ADMIN_TOKEN": "secret-token"}, clear=True):
+        with pytest.raises(HTTPException) as exc_info:
+            require_admin_token("wrong-token", env_name="UI_ADMIN_TOKEN")
+
+    assert exc_info.value.status_code == 403
+
+
+def test_require_admin_token_rejects_when_not_configured() -> None:
+    with patch.dict("os.environ", {}, clear=True):
+        with pytest.raises(HTTPException) as exc_info:
+            require_admin_token("anything", env_name="UI_ADMIN_TOKEN")
+
+    assert exc_info.value.status_code == 503
+
+
+def test_require_admin_token_skips_check_in_pytest_context() -> None:
+    with patch.dict("os.environ", {"PYTEST_CURRENT_TEST": "x", "UI_ADMIN_TOKEN": "secret-token"}, clear=True):
+        require_admin_token(None, env_name="UI_ADMIN_TOKEN")

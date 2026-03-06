@@ -370,6 +370,16 @@ async def test_manage_patient_timeline_success():
     assert data["events"][0]["id"] == 1
 
 
+async def test_admin_get_tunnel_url_log_missing_returns_not_found_payload():
+    with patch("routers.ui.Path.exists", return_value=False):
+        data = await ui.admin_get_tunnel_url()
+
+    assert data["ok"] is False
+    assert data["url"] is None
+    assert "source" in data
+    assert data["detail"] == "log file not found"
+
+
 # ---------------------------------------------------------------------------
 # Label endpoints
 # ---------------------------------------------------------------------------
