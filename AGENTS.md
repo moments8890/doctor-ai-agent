@@ -54,11 +54,12 @@ After the above:
 # 1. Commit your changes
 git commit -m "<type>: <short-description>"
 
-# 2. Push directly to main
+# 2. Push directly to main (GitHub + Gitee)
 git push origin main
+git push gitee main
 ```
 
-- **User shorthand rule** — if the user says `push`, treat it as a direct push to `main`
+- **User shorthand rule** — if the user says `push`, treat it as a direct push to `main` on both remotes: `origin` and `gitee`
 
 - Commit message prefixes: `feat:`, `fix:`, `ci:`, `refactor:`, `docs:`
 
