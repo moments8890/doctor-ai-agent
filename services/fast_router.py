@@ -92,7 +92,8 @@ _RECORD_KW = r"(?:病历|记录|情况|病情|近况|状态)"
 # This covers the single most common LLM-fallback pattern in real chatlogs:
 #   "补充：建议门诊随访，按计划复查。"  (appears 895× in e2e corpus)
 _SUPPLEMENT_RE = re.compile(
-    r"^(?:补充[：:。\s]|补一句[：:。\s]?|再补充|加上.{0,8}[，,]?|追加[：:])"
+    r"^(?:补充[：:。\s]|补一句[：:。\s]?|再补充|加上.{0,8}[，,]?|追加[：:]"
+    r"|(?:好[，,]?\s*)?写进去[。！]?$)"
 )
 
 # Query: 查/查询/查看/查一下/帮我查/再查一下 [name] + optional record keyword + trailing text
@@ -128,6 +129,12 @@ _CREATE_LEAD_RE = re.compile(
     r"|建档"
     r")"
     r"[\s,，：:]*" + _NAME_PAT
+)
+
+# Create duplicate: "再建一个同名：NAME,gender,age" / "再来一个同名患者：NAME"
+# Corpus pattern appears 13× (one per test case with duplicate-name scenario).
+_CREATE_DUPLICATE_RE = re.compile(
+    r"^再(?:建|来)一个同名(?:患者|病人)?[：:，,\s]*" + _NAME_PAT
 )
 
 # Create: "[name] + trailing keyword"
@@ -173,9 +180,10 @@ _COMPLETE_TASK_D_RE = re.compile(
     r"^把第\s*" + _TASK_NUM + r"\s*条(?:\s*标记)?\s*" + _DONE_WORDS + r"[。！]?\s*$"
 )
 # Delete with occurrence index: "删除第N个患者NAME" / "删除第N个NAME"
-# _TASK_NUM is defined above; _NAME_PAT also defined above.
+# Also handles conditional prefix: "如果有重复名字，删除第二个患者NAME" (10× in e2e corpus).
 _DELETE_OCCINDEX_RE = re.compile(
-    r"^(?:删除|删掉|移除|删)第\s*" + _TASK_NUM + r"\s*个(?:患者|病人)?\s*" + _NAME_PAT + r"[。]?\s*$"
+    r"^(?:如果有重复名字[，,]?\s*)?"
+    r"(?:删除|删掉|移除|删)第\s*" + _TASK_NUM + r"\s*个(?:患者|病人)?\s*" + _NAME_PAT + r"[。]?\s*$"
 )
 
 _CN_NUM_MAP = {
@@ -333,6 +341,17 @@ def fast_route(text: str) -> Optional[IntentResult]:
 
     # ── Tier 2: create_patient ────────────────────────────────────────────────
     for target in (normed, stripped):
+        m = _CREATE_DUPLICATE_RE.match(target)
+        if m and m.group(1) not in _NON_NAME_KEYWORDS:
+            name = m.group(1)
+            gender, age = _extract_demographics(stripped)
+            return IntentResult(
+                intent=Intent.create_patient,
+                patient_name=name,
+                gender=gender,
+                age=age,
+            )
+
         m = _CREATE_LEAD_RE.search(target)
         if m and m.group(1) not in _NON_NAME_KEYWORDS:
             name = m.group(1)
