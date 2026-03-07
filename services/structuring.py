@@ -165,7 +165,12 @@ async def structure_medical_record(
         raise RuntimeError("Unsupported STRUCTURING_LLM provider: {0} (allowed: {1})".format(provider_name, allowed))
     provider = dict(provider)
     if provider_name == "ollama":
-        provider["model"] = os.environ.get("OLLAMA_MODEL", provider["model"])
+        # OLLAMA_STRUCTURING_MODEL overrides OLLAMA_MODEL for the structuring call,
+        # allowing a larger/more accurate model (e.g. 14b) while routing uses 7b.
+        provider["model"] = (
+            os.environ.get("OLLAMA_STRUCTURING_MODEL")
+            or os.environ.get("OLLAMA_MODEL", provider["model"])
+        )
     elif provider_name == "openai":
         provider["base_url"] = os.environ.get("OPENAI_BASE_URL", provider["base_url"])
         provider["model"] = os.environ.get("OPENAI_MODEL", provider["model"])

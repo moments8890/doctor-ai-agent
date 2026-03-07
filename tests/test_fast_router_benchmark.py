@@ -106,16 +106,18 @@ _CORPUS: list[tuple[str, Optional[Intent]]] = [
     # ── create with new keyword ───────────────────────────────────────────────
     ("录入患者赵六", Intent.create_patient),
 
-    # ── LLM required (clinical notes / add_record) ────────────────────────────
-    ("张三，男，58岁，胸闷气促3天，BNP 980，EF 50%，心衰III级，给予利尿剂调整", None),
-    ("李明发烧三天，体温38.5，咳嗽，给予对乙酰氨基酚退烧", None),
-    ("王五腹痛，排除阑尾炎，建议观察48小时", None),
+    # ── Tier 3 fast-route (clinical keywords → add_record, no routing LLM) ────
+    ("张三，男，58岁，胸闷气促3天，BNP 980，EF 50%，心衰III级，给予利尿剂调整", Intent.add_record),
+    ("李明发烧三天，体温38.5，咳嗽，给予对乙酰氨基酚退烧", Intent.add_record),
+    ("王五腹痛，排除阑尾炎，建议观察48小时", Intent.add_record),
+    ("张三心悸三天，心电图提示AF，给予倍他乐克12.5mg", Intent.add_record),
+    ("李红，女，45岁，主诉：头痛两周，诊断：偏头痛，处置：布洛芬", Intent.add_record),
+    ("患者主诉胸痛，查肌钙蛋白I 0.3，考虑急性心肌梗死，立即溶栓", Intent.add_record),
+    ("随访：张三血糖控制良好，HbA1c 6.8%，继续二甲双胍", Intent.add_record),
+    # ── Tier 3: 复查 (follow-up) in clinical note context → add_record ────────
+    ("王五复查，血压稳定，120/80，继续当前方案", Intent.add_record),
+    # ── LLM required (no strong clinical keyword — borderline cases) ──────────
     ("患者血压160/100，目前服用氨氯地平5mg，考虑加量", None),
-    ("张三心悸三天，心电图提示AF，给予倍他乐克12.5mg", None),
-    ("李红，女，45岁，主诉：头痛两周，诊断：偏头痛，处置：布洛芬", None),
-    ("患者主诉胸痛，查肌钙蛋白I 0.3，考虑急性心肌梗死，立即溶栓", None),
-    ("随访：张三血糖控制良好，HbA1c 6.8%，继续二甲双胍", None),
-    ("王五复查，血压稳定，120/80，继续当前方案", None),
     ("今天看了李明，他的情况明显改善了，可以减量", None),
 
     # ── LLM required (ambiguous / conversational) ─────────────────────────────
@@ -185,7 +187,7 @@ def test_fast_router_hit_rate_and_latency():
     print(f"Avg turn latency reduction: {hit_rate:.0f}% turns at ~0ms vs ~6000ms")
 
     # Assertions
-    assert hit_rate >= 40, f"Hit rate {hit_rate:.1f}% below 40% target"
+    assert hit_rate >= 55, f"Hit rate {hit_rate:.1f}% below 55% target (Tier 3 clinical routes included)"
     assert avg_us < 1000, f"Avg latency {avg_us:.1f}µs too slow (should be <1000µs)"
 
 

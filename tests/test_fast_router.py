@@ -167,28 +167,27 @@ def test_list_tasks_normalised(text):
 
 # ── should NOT match (LLM fallback) ───────────────────────────────────────────
 
-@pytest.mark.parametrize("text", [
-    # Clinical notes should go to LLM (add_record)
-    "张三，男，58岁，胸闷气促3天，BNP 980，EF 50%，心衰III级",
-    "李明发烧三天，体温38.5，给予退烧药",
-    "王五腹痛，排除阑尾炎，建议观察",
-    # Ambiguous — let LLM decide
-    "你好",
-    "有问题",
-    "帮我一下",
-    "张三怎么样",  # too ambiguous — might be asking about patient or about records
+@pytest.mark.parametrize("text, expected_intent", [
+    # Clinical notes → Tier 3 fast-routes directly to add_record
+    ("张三，男，58岁，胸闷气促3天，BNP 980，EF 50%，心衰III级", Intent.add_record),
+    ("李明发烧三天，体温38.5，给予退烧药", Intent.add_record),
+    ("王五腹痛，排除阑尾炎，建议观察", Intent.add_record),
+    # Ambiguous / conversational — still falls through to LLM
+    ("你好", None),
+    ("有问题", None),
+    ("帮我一下", None),
+    ("张三怎么样", None),
     # Empty / whitespace
-    "",
-    "  ",
+    ("", None),
+    ("  ", None),
 ])
-def test_no_fast_route_for_llm_cases(text):
+def test_clinical_and_llm_cases(text, expected_intent):
     r = fast_route(text)
-    # Clinical content and ambiguous messages should not be fast-routed
-    # (张三怎么样 is not matched because it doesn't match the exact query patterns)
-    if text.strip():
-        # Clinical notes (contain symptoms/diagnosis content) should be None
-        if len(text) > 10 and any(c in text for c in "胸闷气促发烧腹痛"):
-            assert r is None, f"fast_route({text!r}) should return None for clinical content"
+    if expected_intent is None:
+        assert r is None, f"fast_route({text!r}) should return None, got {r}"
+    else:
+        assert r is not None, f"fast_route({text!r}) should match Tier 3 add_record"
+        assert r.intent == expected_intent
 
 
 def test_empty_returns_none():
@@ -205,13 +204,20 @@ def test_fast_route_label_hit():
 
 
 def test_fast_route_label_miss():
-    assert fast_route_label("张三胸闷三天") == "llm"
+    # Ambiguous messages without clinical keywords still fall through to LLM
+    assert fast_route_label("张三怎么样了") == "llm"
+    assert fast_route_label("你好") == "llm"
+
+
+def test_fast_route_label_tier3():
+    # Clinical messages fast-route to add_record (Tier 3), not LLM
+    assert fast_route_label("张三胸闷三天") == "fast:add_record"
 
 
 # ── Benchmark: coverage measurement ───────────────────────────────────────────
 
 _SAMPLE_CLINICAL_INPUTS = [
-    # Expected fast-route hits
+    # Expected fast-route hits — Tier 1/2
     ("患者列表", Intent.list_patients),
     ("所有患者", Intent.list_patients),
     ("待办任务", Intent.list_tasks),
@@ -220,8 +226,9 @@ _SAMPLE_CLINICAL_INPUTS = [
     ("张三的病历", Intent.query_records),
     ("新患者李明", Intent.create_patient),
     ("删除王五", Intent.delete_patient),
-    # Expected LLM fallback (None)
-    ("张三心悸三天，给予倍他乐克", None),
+    # Expected fast-route hits — Tier 3 (clinical keywords)
+    ("张三心悸三天，给予倍他乐克", Intent.add_record),
+    # Expected LLM fallback (no strong clinical keyword)
     ("李明血压160/100，建议调整降压药", None),
     ("你好", None),
 ]
