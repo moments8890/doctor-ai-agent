@@ -368,7 +368,8 @@ async def test_handle_interview_step_complete_saves_record(session_factory):
          patch("routers.wechat.structure_medical_record", new=AsyncMock(return_value=fake_record)):
         result = await wechat._handle_interview_step("体格检查正常", DOCTOR)
 
-    assert "问诊完成" in result or "病历已保存" in result
+    # Interview completion now routes through confirmation gate — returns draft preview
+    assert "草稿" in result or "确认" in result
     assert "王五" in result
 
 
@@ -1262,7 +1263,8 @@ async def test_wecom_kf_sync_non_pdf_file_message_sends_notice_only():
 
 
 async def test_handle_add_record_uses_structured_fields(session_factory):
-    """When structured_fields is set, structure_medical_record should NOT be called."""
+    """When structured_fields is set, structure_medical_record should NOT be called.
+    Normal records now go through the confirmation gate — returns a draft preview."""
     intent = IntentResult(
         intent=Intent.add_record,
         patient_name="张三",
@@ -1274,7 +1276,9 @@ async def test_handle_add_record_uses_structured_fields(session_factory):
          patch("routers.wechat.structure_medical_record", structure_mock):
         reply = await wechat._handle_add_record("张三头痛两天", DOCTOR, intent)
     structure_mock.assert_not_called()
-    assert reply == "好的，张三头痛两天的情况记下来了。"
+    # Confirmation gate: reply is draft preview, not the original chat_reply
+    assert "草稿" in reply or "确认" in reply
+    assert "张三" in reply
 
 
 async def test_handle_add_record_falls_back_to_structuring_llm(session_factory):
@@ -1295,7 +1299,7 @@ async def test_handle_add_record_falls_back_to_structuring_llm(session_factory):
 
 
 async def test_handle_add_record_uses_chat_reply_from_intent(session_factory):
-    """Reply should come from intent.chat_reply when set."""
+    """Normal records go through the confirmation gate — returns draft preview, not chat_reply."""
     intent = IntentResult(
         intent=Intent.add_record,
         patient_name="李明",
@@ -1304,7 +1308,8 @@ async def test_handle_add_record_uses_chat_reply_from_intent(session_factory):
     )
     with patch("routers.wechat.AsyncSessionLocal", session_factory):
         reply = await wechat._handle_add_record("李明发烧三天", DOCTOR, intent)
-    assert reply == "李明发烧三天，退烧药已记录。"
+    assert "草稿" in reply or "确认" in reply
+    assert "李明" in reply
 
 
 async def test_handle_add_record_fallback_reply_when_no_chat_reply(session_factory):
@@ -1361,3 +1366,84 @@ async def test_handle_add_record_structuring_generic_error_returns_natural_msg(s
          patch("routers.wechat.structure_medical_record", new=AsyncMock(side_effect=RuntimeError("boom"))):
         reply = await wechat._handle_add_record("张三胸痛", DOCTOR, intent)
     assert "不好意思" in reply or "出了点问题" in reply
+
+
+# ---------------------------------------------------------------------------
+# Confirmation gate: _confirm_pending_record and _handle_pending_record_reply
+# ---------------------------------------------------------------------------
+
+async def test_handle_pending_record_reply_confirm(session_factory):
+    """Replying 确认 saves the pending record and clears session state."""
+    from services.session import set_pending_record_id, get_session as _gs
+    import json as _json
+    from models.medical_record import MedicalRecord
+
+    fake_record = MedicalRecord(chief_complaint="头痛两天", diagnosis="偏头痛")
+    from db.crud import create_pending_record as _create_pr
+
+    async with session_factory() as db:
+        await _create_pr(
+            db,
+            record_id="testdraftabc",
+            doctor_id=DOCTOR,
+            draft_json=_json.dumps(fake_record.model_dump(), ensure_ascii=False),
+            patient_id=None,
+            patient_name="张三",
+            ttl_minutes=10,
+        )
+
+    set_pending_record_id(DOCTOR, "testdraftabc")
+    sess = _gs(DOCTOR)
+
+    # Patch the background task functions individually to avoid breaking SQLAlchemy internals
+    with patch("routers.wechat.AsyncSessionLocal", session_factory), \
+         patch("routers.wechat.audit", new=AsyncMock()), \
+         patch("routers.wechat.create_follow_up_task", new=AsyncMock()), \
+         patch("routers.wechat.wd._bg_auto_learn", new=AsyncMock()):
+        reply = await wechat._handle_pending_record_reply("确认", DOCTOR, sess)
+
+    assert "✅" in reply or "已保存" in reply
+    assert _gs(DOCTOR).pending_record_id is None
+
+
+async def test_handle_pending_record_reply_cancel(session_factory):
+    """Replying 取消 abandons the pending record and clears session state."""
+    from services.session import set_pending_record_id, get_session as _gs
+    import json as _json
+    from models.medical_record import MedicalRecord
+    from db.crud import create_pending_record as _create_pr
+
+    fake_record = MedicalRecord(chief_complaint="腹痛")
+    async with session_factory() as db:
+        await _create_pr(
+            db,
+            record_id="testdraftcancel",
+            doctor_id=DOCTOR,
+            draft_json=_json.dumps(fake_record.model_dump(), ensure_ascii=False),
+            patient_id=None,
+            patient_name="李四",
+            ttl_minutes=10,
+        )
+
+    set_pending_record_id(DOCTOR, "testdraftcancel")
+    sess = _gs(DOCTOR)
+
+    with patch("routers.wechat.AsyncSessionLocal", session_factory):
+        reply = await wechat._handle_pending_record_reply("取消", DOCTOR, sess)
+
+    assert "放弃" in reply or "取消" in reply
+    assert _gs(DOCTOR).pending_record_id is None
+
+
+async def test_handle_pending_record_reply_expired_draft(session_factory):
+    """Replying 确认 when draft doesn't exist returns error and clears state."""
+    from services.session import set_pending_record_id, get_session as _gs
+
+    set_pending_record_id(DOCTOR, "nonexistentdraft")
+    sess = _gs(DOCTOR)
+
+    with patch("routers.wechat.AsyncSessionLocal", session_factory):
+        reply = await wechat._handle_pending_record_reply("确认", DOCTOR, sess)
+
+    assert "过期" in reply or "不存在" in reply
+    assert _gs(DOCTOR).pending_record_id is None

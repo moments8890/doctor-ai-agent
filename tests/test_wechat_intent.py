@@ -34,12 +34,14 @@ def wechat(session_factory):
 
 
 async def test_handle_intent_routes_create_patient(wechat, session_factory):
+    # "帮我建个新患者，李明，45岁男性" is now handled by the fast router (no LLM call).
+    # agent_dispatch mock is provided but won't be invoked for this fast-path message.
     with patch("routers.wechat.agent_dispatch", new=AsyncMock(
         return_value=_intent(Intent.create_patient, name="李明", gender="男", age=45)
     )), patch("routers.wechat.AsyncSessionLocal", session_factory):
         reply = await wechat._handle_intent("帮我建个新患者，李明，45岁男性", DOCTOR)
     assert "李明" in reply
-    assert "建档" in reply or "✅" in reply
+    assert "建档" in reply or "✅" in reply or "已为" in reply
 
 
 async def test_handle_intent_routes_unknown_to_help_message(wechat):

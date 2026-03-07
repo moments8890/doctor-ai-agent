@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from collections import deque
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
@@ -52,6 +53,7 @@ _TTL_DAYS = int(os.environ.get("OBSERVABILITY_TTL_DAYS", "7"))
 _WRITE_COUNT = 0
 _PRUNE_EVERY = 200
 _LOADED = False
+_SPAN_WRITE_QUEUE: "asyncio.Queue[tuple[Path, dict]] | None" = None
 
 
 def _persist_enabled() -> bool:
@@ -98,6 +100,37 @@ def _append_jsonl(path: Path, payload: Dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(payload, ensure_ascii=False) + "\n")
+
+
+def _enqueue_jsonl(path: Path, payload: Dict[str, Any]) -> None:
+    """Non-blocking enqueue for async disk writer. Falls back to sync write if writer not started."""
+    if _SPAN_WRITE_QUEUE is not None:
+        try:
+            _SPAN_WRITE_QUEUE.put_nowait((path, payload))
+            return
+        except asyncio.QueueFull:
+            pass
+    # Fallback: sync write (startup phase or tests)
+    _append_jsonl(path, payload)
+
+
+async def _disk_writer() -> None:
+    """Background coroutine: drains the write queue to disk without blocking the event loop."""
+    global _SPAN_WRITE_QUEUE
+    _SPAN_WRITE_QUEUE = asyncio.Queue(maxsize=5000)
+    while True:
+        try:
+            path, payload = await _SPAN_WRITE_QUEUE.get()
+            try:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                with path.open("a", encoding="utf-8") as f:
+                    f.write(json.dumps(payload, ensure_ascii=False) + "\n")
+            except Exception:
+                pass
+            finally:
+                _SPAN_WRITE_QUEUE.task_done()
+        except Exception:
+            pass
 
 
 def _load_from_disk() -> None:
@@ -197,7 +230,7 @@ def add_trace(
             )
         )
     if _persist_enabled():
-        _append_jsonl(
+        _enqueue_jsonl(
             _PERSIST_TRACES_FILE,
             {
                 "trace_id": trace_id,
@@ -264,7 +297,7 @@ def add_span(
     with _LOCK:
         _SPAN_BUFFER.append(rec)
     if _persist_enabled():
-        _append_jsonl(
+        _enqueue_jsonl(
             _PERSIST_SPANS_FILE,
             {
                 "trace_id": rec.trace_id,

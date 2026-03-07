@@ -8,6 +8,7 @@ debug
 
 # Environment & secrets
 .env
+project.config.json
 project.private.config.json
 config/runtime.json
 

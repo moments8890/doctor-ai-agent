@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from db.models import (
     SystemPrompt,
+    SystemPromptVersion,
     DoctorContext,
     DoctorKnowledgeItem,
     DoctorSessionState,
@@ -25,6 +26,8 @@ from db.models import (
     NeuroCaseDB,
     DoctorTask,
     PatientLabel,
+    PendingRecord,
+    PendingMessage,
 )
 from db.repositories import PatientRepository, RecordRepository, TaskRepository
 from models.medical_record import MedicalRecord
@@ -140,14 +143,49 @@ async def get_system_prompt(session: AsyncSession, key: str) -> SystemPrompt | N
     return result.scalar_one_or_none()
 
 
-async def upsert_system_prompt(session: AsyncSession, key: str, content: str) -> None:
+async def upsert_system_prompt(
+    session: AsyncSession, key: str, content: str, changed_by: Optional[str] = None
+) -> None:
     row = await get_system_prompt(session, key)
     if row:
+        # Archive current content before overwriting — enables rollback
+        session.add(SystemPromptVersion(
+            prompt_key=key,
+            content=row.content,
+            changed_by=changed_by,
+        ))
         row.content = content
         row.updated_at = _utcnow()
     else:
         session.add(SystemPrompt(key=key, content=content))
     await session.commit()
+
+
+async def list_system_prompt_versions(
+    session: AsyncSession, key: str, limit: int = 20
+) -> list[SystemPromptVersion]:
+    """Return the version history for a prompt key, newest first."""
+    result = await session.execute(
+        select(SystemPromptVersion)
+        .where(SystemPromptVersion.prompt_key == key)
+        .order_by(SystemPromptVersion.changed_at.desc())
+        .limit(limit)
+    )
+    return list(result.scalars().all())
+
+
+async def rollback_system_prompt(
+    session: AsyncSession, key: str, version_id: int, changed_by: Optional[str] = None
+) -> SystemPrompt | None:
+    """Restore a system prompt to the content of a specific version entry."""
+    ver_result = await session.execute(
+        select(SystemPromptVersion).where(SystemPromptVersion.id == version_id)
+    )
+    version = ver_result.scalar_one_or_none()
+    if version is None or version.prompt_key != key:
+        return None
+    await upsert_system_prompt(session, key, version.content, changed_by=changed_by)
+    return await get_system_prompt(session, key)
 
 
 async def get_doctor_context(session: AsyncSession, doctor_id: str) -> DoctorContext | None:
@@ -485,12 +523,14 @@ async def upsert_doctor_session_state(
     doctor_id: str,
     current_patient_id: Optional[int],
     pending_create_name: Optional[str],
+    pending_record_id: Optional[str] = None,
 ) -> None:
     doctor_id = await _ensure_doctor_exists(session, doctor_id)
     row = await get_doctor_session_state(session, doctor_id)
     if row:
         row.current_patient_id = current_patient_id
         row.pending_create_name = pending_create_name
+        row.pending_record_id = pending_record_id
         row.updated_at = _utcnow()
     else:
         session.add(
@@ -498,6 +538,7 @@ async def upsert_doctor_session_state(
                 doctor_id=doctor_id,
                 current_patient_id=current_patient_id,
                 pending_create_name=pending_create_name,
+                pending_record_id=pending_record_id,
                 updated_at=_utcnow(),
             )
         )
@@ -1041,3 +1082,144 @@ async def get_patient_labels(
     if patient is None:
         return []
     return list(patient.labels)
+
+
+# ---------------------------------------------------------------------------
+# PendingMessage helpers
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# PendingRecord helpers (AI Record Confirmation Gate)
+# ---------------------------------------------------------------------------
+
+async def create_pending_record(
+    session: AsyncSession,
+    record_id: str,
+    doctor_id: str,
+    draft_json: str,
+    raw_input: Optional[str] = None,
+    patient_id: Optional[int] = None,
+    patient_name: Optional[str] = None,
+    ttl_minutes: int = 10,
+) -> PendingRecord:
+    from datetime import datetime, timezone, timedelta
+    now = datetime.now(timezone.utc)
+    row = PendingRecord(
+        id=record_id,
+        doctor_id=doctor_id,
+        patient_id=patient_id,
+        patient_name=patient_name,
+        draft_json=draft_json,
+        raw_input=raw_input,
+        status="awaiting",
+        created_at=now,
+        expires_at=now + timedelta(minutes=ttl_minutes),
+    )
+    session.add(row)
+    await session.commit()
+    return row
+
+
+async def get_pending_record(
+    session: AsyncSession,
+    record_id: str,
+    doctor_id: str,
+) -> Optional[PendingRecord]:
+    result = await session.execute(
+        select(PendingRecord).where(
+            PendingRecord.id == record_id,
+            PendingRecord.doctor_id == doctor_id,
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def confirm_pending_record(session: AsyncSession, record_id: str) -> None:
+    from datetime import datetime, timezone
+    await session.execute(
+        update(PendingRecord)
+        .where(PendingRecord.id == record_id)
+        .values(status="confirmed")
+    )
+    await session.commit()
+
+
+async def abandon_pending_record(session: AsyncSession, record_id: str) -> None:
+    await session.execute(
+        update(PendingRecord)
+        .where(PendingRecord.id == record_id)
+        .values(status="abandoned")
+    )
+    await session.commit()
+
+
+async def expire_stale_pending_records(session: AsyncSession) -> int:
+    """Mark 'awaiting' records past their expires_at as 'expired'. Returns count."""
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    result = await session.execute(
+        update(PendingRecord)
+        .where(PendingRecord.status == "awaiting", PendingRecord.expires_at < now)
+        .values(status="expired")
+    )
+    await session.commit()
+    return result.rowcount if result.rowcount else 0
+
+
+# ---------------------------------------------------------------------------
+# PendingMessage helpers
+# ---------------------------------------------------------------------------
+
+async def create_pending_message(
+    session: AsyncSession,
+    msg_id: str,
+    doctor_id: str,
+    raw_content: str,
+    msg_type: str = "text",
+) -> "PendingMessage":
+    from db.models import PendingMessage
+    from datetime import datetime, timezone
+    row = PendingMessage(
+        id=msg_id,
+        doctor_id=doctor_id,
+        raw_content=raw_content,
+        msg_type=msg_type,
+        status="pending",
+        created_at=datetime.now(timezone.utc),
+    )
+    session.add(row)
+    await session.commit()
+    return row
+
+
+async def mark_pending_message(
+    session: AsyncSession,
+    msg_id: str,
+    status: str,
+    error: "Optional[str]" = None,
+) -> None:
+    from db.models import PendingMessage
+    from sqlalchemy import update as sa_update
+    from datetime import datetime, timezone
+    await session.execute(
+        sa_update(PendingMessage)
+        .where(PendingMessage.id == msg_id)
+        .values(status=status, error=error, processed_at=datetime.now(timezone.utc))
+    )
+    await session.commit()
+
+
+async def list_stale_pending_messages(
+    session: AsyncSession,
+    older_than_seconds: int = 60,
+) -> list:
+    from db.models import PendingMessage
+    from sqlalchemy import select as sa_select
+    from datetime import datetime, timezone, timedelta
+    cutoff = datetime.now(timezone.utc) - timedelta(seconds=older_than_seconds)
+    result = await session.execute(
+        sa_select(PendingMessage)
+        .where(PendingMessage.status == "pending", PendingMessage.created_at < cutoff)
+        .order_by(PendingMessage.created_at)
+    )
+    return list(result.scalars().all())

@@ -20,10 +20,9 @@ class _SyncConn:
 
     def execute(self, stmt):
         sql = str(stmt)
-        if "PRAGMA table_info(doctor_tasks)" in sql:
-            return _SyncResult(self._table_cols.get("doctor_tasks", []))
-        if "PRAGMA table_info(doctors)" in sql:
-            return _SyncResult(self._table_cols.get("doctors", []))
+        for table_name, cols in self._table_cols.items():
+            if f"PRAGMA table_info({table_name})" in sql:
+                return _SyncResult(cols)
         return _SyncResult(self._table_cols.get("patients", []))
 
 
@@ -144,6 +143,9 @@ async def test_create_tables_skips_migration_when_column_already_renamed(monkeyp
             ],
             "doctor_tasks": [
                 "id", "doctor_id", "task_type", "title", "status", "trigger_source", "trigger_reason",
+            ],
+            "doctor_session_states": [
+                "doctor_id", "current_patient_id", "pending_create_name", "pending_record_id",
             ],
             "doctors": ["doctor_id", "name", "channel", "wechat_user_id", "created_at", "updated_at"],
         }

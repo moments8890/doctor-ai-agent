@@ -3,11 +3,15 @@ from __future__ import annotations
 import json
 import os
 import re
+import time as _time
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from db.crud import add_doctor_knowledge_item, list_doctor_knowledge_items
 from db.models import DoctorKnowledgeItem
 from utils.log import log
+
+_KNOWLEDGE_CACHE: dict[str, tuple[float, str]] = {}
+_KNOWLEDGE_CACHE_TTL = 300  # 5 minutes
 
 _ADD_TO_KNOWLEDGE_RE = re.compile(
     r"^\s*(?:add_to_knowledge_base|add\s+to\s+knowledge\s+base|添加(?:到)?知识库|保存知识)(?:[\s:：]+(.*))?\s*$",
@@ -212,13 +216,24 @@ def render_knowledge_context(query: str, items: Sequence[DoctorKnowledgeItem]) -
 
 
 async def load_knowledge_context_for_prompt(session, doctor_id: str, query: str) -> str:
+    now = _time.time()
+    cached = _KNOWLEDGE_CACHE.get(doctor_id)
+    if cached and now - cached[0] < _KNOWLEDGE_CACHE_TTL:
+        return cached[1]
     limits = knowledge_limits()
     items = await list_doctor_knowledge_items(
         session,
         doctor_id,
         limit=limits["candidate_limit"],
     )
-    return render_knowledge_context(query=query, items=items)
+    result = render_knowledge_context(query=query, items=items)
+    _KNOWLEDGE_CACHE[doctor_id] = (now, result)
+    return result
+
+
+def invalidate_knowledge_cache(doctor_id: str) -> None:
+    """Invalidate cached knowledge context when new items are added."""
+    _KNOWLEDGE_CACHE.pop(doctor_id, None)
 
 
 async def save_knowledge_item(

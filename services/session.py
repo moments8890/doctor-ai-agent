@@ -46,6 +46,7 @@ class DoctorSession:
     current_patient_id: Optional[int] = None
     current_patient_name: Optional[str] = None
     pending_create_name: Optional[str] = None   # waiting for gender/age to create a new patient
+    pending_record_id: Optional[str] = None     # UUID of draft PendingRecord awaiting confirmation
     interview: Optional[InterviewState] = None  # active guided intake interview
     conversation_history: List[dict] = field(default_factory=list)  # rolling window
     last_active: float = field(default_factory=time.time)
@@ -76,6 +77,7 @@ async def hydrate_session_state(doctor_id: str) -> DoctorSession:
                 state = await get_doctor_session_state(db, doctor_id)
                 if state is not None:
                     sess.pending_create_name = state.pending_create_name
+                    sess.pending_record_id = getattr(state, "pending_record_id", None)
                     sess.current_patient_id = state.current_patient_id
                     if state.current_patient_id is not None:
                         patient = await get_patient_for_doctor(db, doctor_id, state.current_patient_id)
@@ -107,6 +109,7 @@ async def persist_session_state(doctor_id: str) -> None:
                 doctor_id=doctor_id,
                 current_patient_id=sess.current_patient_id,
                 pending_create_name=sess.pending_create_name,
+                pending_record_id=sess.pending_record_id,
             )
     except Exception as e:
         log(f"[Session] persist FAILED: {e}")
@@ -160,46 +163,78 @@ def _schedule_turn_persist(doctor_id: str, turns: List[dict]) -> None:
 
 def push_turn(doctor_id: str, user_text: str, assistant_reply: str) -> None:
     """Append one user+assistant exchange to the rolling window and refresh timestamp."""
-    sess = get_session(doctor_id)
     user_turn = {"role": "user", "content": user_text}
     assistant_turn = {"role": "assistant", "content": assistant_reply}
-    sess.conversation_history.append(user_turn)
-    sess.conversation_history.append(assistant_turn)
-    sess.last_active = time.time()
-    sess.updated_at = _utcnow()
+    with _registry_lock:
+        sess = get_session(doctor_id)
+        sess.conversation_history.append(user_turn)
+        sess.conversation_history.append(assistant_turn)
+        sess.last_active = time.time()
+        sess.updated_at = _utcnow()
     _schedule_turn_persist(doctor_id, [user_turn, assistant_turn])
 
 
+async def flush_turns(doctor_id: str) -> None:
+    """Flush any pending turns to DB immediately (call after push_turn in async context).
+
+    This ensures turns reach the DB before control returns to the caller, preventing
+    data loss on process restarts. Safe to call even if no turns are pending.
+    """
+    await _flush_pending_turns(doctor_id)
+
+
 def set_current_patient(doctor_id: str, patient_id: int, name: str, persist: bool = True) -> None:
-    session = get_session(doctor_id)
-    session.current_patient_id = patient_id
-    session.current_patient_name = name
-    session.updated_at = _utcnow()
+    with _registry_lock:
+        session = get_session(doctor_id)
+        session.current_patient_id = patient_id
+        session.current_patient_name = name
+        session.updated_at = _utcnow()
     if persist:
         _schedule_persist(doctor_id)
 
 
 def clear_current_patient(doctor_id: str, persist: bool = True) -> None:
-    session = get_session(doctor_id)
-    session.current_patient_id = None
-    session.current_patient_name = None
-    session.updated_at = _utcnow()
+    with _registry_lock:
+        session = get_session(doctor_id)
+        session.current_patient_id = None
+        session.current_patient_name = None
+        session.updated_at = _utcnow()
     if persist:
         _schedule_persist(doctor_id)
 
 
 def set_pending_create(doctor_id: str, name: str, persist: bool = True) -> None:
-    session = get_session(doctor_id)
-    session.pending_create_name = name
-    session.updated_at = _utcnow()
+    with _registry_lock:
+        session = get_session(doctor_id)
+        session.pending_create_name = name
+        session.updated_at = _utcnow()
     if persist:
         _schedule_persist(doctor_id)
 
 
 def clear_pending_create(doctor_id: str, persist: bool = True) -> None:
-    session = get_session(doctor_id)
-    session.pending_create_name = None
-    session.updated_at = _utcnow()
+    with _registry_lock:
+        session = get_session(doctor_id)
+        session.pending_create_name = None
+        session.updated_at = _utcnow()
+    if persist:
+        _schedule_persist(doctor_id)
+
+
+def set_pending_record_id(doctor_id: str, record_id: str, persist: bool = True) -> None:
+    with _registry_lock:
+        session = get_session(doctor_id)
+        session.pending_record_id = record_id
+        session.updated_at = _utcnow()
+    if persist:
+        _schedule_persist(doctor_id)
+
+
+def clear_pending_record_id(doctor_id: str, persist: bool = True) -> None:
+    with _registry_lock:
+        session = get_session(doctor_id)
+        session.pending_record_id = None
+        session.updated_at = _utcnow()
     if persist:
         _schedule_persist(doctor_id)
 

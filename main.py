@@ -273,6 +273,25 @@ async def _warmup(config: AppConfig):
                 f"model={model} error={last_error}. Continuing without warmup."
             )
 
+    # Warm up LKEAP connection — pre-establishes TCP/TLS so first request is fast
+    if config.routing_llm == "tencent_lkeap" or config.structuring_llm == "tencent_lkeap":
+        lkeap_key = os.environ.get("TENCENT_LKEAP_API_KEY", "").strip()
+        if lkeap_key:
+            try:
+                from services.agent import _get_client, _PROVIDERS
+                lkeap_provider = _PROVIDERS.get("tencent_lkeap", {})
+                if lkeap_provider:
+                    lkeap_client = _get_client("tencent_lkeap", dict(lkeap_provider))
+                    lkeap_model = os.environ.get("TENCENT_LKEAP_MODEL", lkeap_provider.get("model", "deepseek-v3-1"))
+                    await lkeap_client.chat.completions.create(
+                        model=lkeap_model,
+                        messages=[{"role": "user", "content": "hi"}],
+                        max_tokens=1,
+                    )
+                    log.info("[Warmup] LKEAP connection established")
+            except Exception as e:
+                log.warning("[Warmup] LKEAP warmup failed (non-fatal): %s", e)
+
 
 def _ollama_warmup_timeout_seconds() -> float:
     raw = os.environ.get("OLLAMA_WARMUP_TIMEOUT_SECONDS", "10").strip()
@@ -367,6 +386,20 @@ async def _cleanup_inactive_session_cache() -> None:
         logging.getLogger("tasks").warning("[Session] cache cleanup failed: %s", exc)
 
 
+async def _expire_stale_pending_records() -> None:
+    """Scheduler job: mark timed-out pending record drafts as expired."""
+    try:
+        from db.crud import expire_stale_pending_records
+        async with AsyncSessionLocal() as _session:
+            count = await expire_stale_pending_records(_session)
+        if count:
+            logging.getLogger("scheduler").info(
+                "[PendingRecords] expired stale drafts | count=%s", count
+            )
+    except Exception as _e:
+        logging.getLogger("scheduler").warning("[PendingRecords] expiry job FAILED: %s", _e)
+
+
 def _configure_task_scheduler(startup_log: logging.Logger) -> None:
     _scheduler.remove_all_jobs()
     mode = _scheduler_mode()
@@ -405,6 +438,9 @@ def _configure_task_scheduler(startup_log: logging.Logger) -> None:
     _scheduler.add_job(_cleanup_inactive_session_cache, "interval", minutes=session_cleanup_minutes)
     startup_log.info("[Session] cache cleanup scheduler configured | every_minutes=%s", session_cleanup_minutes)
 
+    _scheduler.add_job(_expire_stale_pending_records, "interval", minutes=5)
+    startup_log.info("[PendingRecords] expiry scheduler configured | every_minutes=5")
+
 
 async def _runtime_apply_hook(_config: dict) -> None:
     log = logging.getLogger("runtime-config")
@@ -425,6 +461,9 @@ async def lifespan(app: FastAPI):
     _startup_log.info("[DB] doctors backfill completed | inserted=%s", _added_doctors)
     await seed_prompts()
     await _warmup(APP_CONFIG)
+    # Start async observability disk writer — eliminates blocking file I/O on every request
+    from services.observability import _disk_writer
+    asyncio.create_task(_disk_writer())
     await _cleanup_old_conversation_turns()
     await _cleanup_inactive_session_cache()
 
@@ -435,6 +474,15 @@ async def lifespan(app: FastAPI):
             _startup_log.info(f"[Tasks] {len(_pending)} pending unnotified task(s) at startup")
     except Exception as _e:
         _startup_log.warning(f"[Tasks] startup task count failed: {_e}")
+
+    # Re-queue messages left unprocessed from previous crash
+    try:
+        from routers.wechat import recover_stale_pending_messages
+        _recovered = await recover_stale_pending_messages(older_than_seconds=60)
+        if _recovered:
+            _startup_log.info("[Recovery] re-queued stale pending_message(s) | count=%s", _recovered)
+    except Exception as _e:
+        _startup_log.warning("[Recovery] stale pending_message recovery FAILED: %s", _e)
 
     _configure_task_scheduler(_startup_log)
     _scheduler.start()

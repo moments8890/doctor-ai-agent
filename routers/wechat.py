@@ -42,10 +42,14 @@ from services.session import (
     get_session,
     get_session_lock,
     push_turn,
+    flush_turns,
     set_current_patient,
     hydrate_session_state,
+    clear_pending_record_id,
 )
+from services.audit import audit
 from services.memory import maybe_compress, load_context_message
+from services.fast_router import fast_route, fast_route_label
 from services.tasks import (
     create_follow_up_task,
     create_emergency_task,
@@ -64,6 +68,9 @@ from db.crud import (
     get_all_patients,
     list_tasks,
     update_task_status,
+    get_pending_record,
+    confirm_pending_record,
+    abandon_pending_record,
 )
 from services.doctor_knowledge import (
     load_knowledge_context_for_prompt,
@@ -341,6 +348,55 @@ async def _handle_schedule_appointment(doctor_id: str, intent_result) -> str:
     )
 
 
+async def _confirm_pending_record(doctor_id: str, pending_id: str) -> str:
+    """Save the pending draft to medical_records, fire follow-up tasks, clear session state."""
+    from models.medical_record import MedicalRecord
+    async with AsyncSessionLocal() as session:
+        pending = await get_pending_record(session, pending_id, doctor_id)
+        if pending is None or pending.status != "awaiting":
+            clear_pending_record_id(doctor_id)
+            return "⚠️ 草稿已过期或不存在，请重新录入病历。"
+        try:
+            draft = json.loads(pending.draft_json)
+            record = MedicalRecord(**{k: draft.get(k) for k in MedicalRecord.model_fields})
+        except Exception as e:
+            log(f"[Confirm] parse draft FAILED doctor={doctor_id}: {e}")
+            await abandon_pending_record(session, pending_id)
+            clear_pending_record_id(doctor_id)
+            return "⚠️ 草稿解析失败，请重新录入病历。"
+        db_record = await save_record(session, doctor_id, record, pending.patient_id)
+        await confirm_pending_record(session, pending_id)
+        patient_name = pending.patient_name or "未关联患者"
+        patient_id = pending.patient_id
+    clear_pending_record_id(doctor_id)
+    asyncio.create_task(audit(doctor_id, "WRITE", resource_type="record", resource_id=str(db_record.id)))
+    if record.follow_up_plan:
+        asyncio.create_task(create_follow_up_task(
+            doctor_id, db_record.id, patient_name, record.follow_up_plan, patient_id
+        ))
+    asyncio.create_task(wd._bg_auto_learn(doctor_id, pending.raw_input or "", record))
+    return f"✅ 病历已保存！患者：【{patient_name}】"
+
+
+async def _handle_pending_record_reply(text: str, doctor_id: str, sess) -> str:
+    """Route doctor reply when a pending record draft is awaiting confirmation."""
+    pending_id = sess.pending_record_id
+    stripped = text.strip()
+    if stripped in ("确认", "确定", "保存", "ok", "OK", "好的", "yes", "Yes"):
+        return await _confirm_pending_record(doctor_id, pending_id)
+    if stripped in ("取消", "cancel", "Cancel", "不要", "放弃", "no", "No"):
+        async with AsyncSessionLocal() as session:
+            await abandon_pending_record(session, pending_id)
+        clear_pending_record_id(doctor_id)
+        return "好的，已放弃该草稿。"
+    # Any other input: abandon draft, then route as new intent
+    async with AsyncSessionLocal() as session:
+        await abandon_pending_record(session, pending_id)
+    clear_pending_record_id(doctor_id)
+    log(f"[WeChat] pending record abandoned (new intent), doctor={doctor_id}")
+    return await _handle_intent(text, doctor_id)
+
+
 async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str:
     # Fast-path: "完成 N" bypasses LLM
     m = _COMPLETE_RE.match(text.strip())
@@ -366,29 +422,35 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
             return "⚠️ 知识内容为空，未保存。"
         return "✅ 已加入医生知识库（#{0}）：{1}".format(item.id, knowledge_payload)
 
-    knowledge_context = ""
-    try:
-        async with AsyncSessionLocal() as session:
-            knowledge_context = await load_knowledge_context_for_prompt(session, doctor_id, text)
-    except Exception as e:
-        log(f"[WeChat] knowledge context load FAILED doctor={doctor_id}: {e}")
+    # ── Fast router: resolve common intents without LLM (~0ms vs ~6s) ─────────
+    _fast = fast_route(text)
+    if _fast is not None:
+        log(f"[WeChat] fast_route hit: {fast_route_label(text)} text={text[:60]!r}")
+        intent_result = _fast
+    else:
         knowledge_context = ""
-
-    try:
-        dispatch_kwargs = {"history": history or []}
-        if knowledge_context:
-            dispatch_kwargs["knowledge_context"] = knowledge_context
-        intent_result = await agent_dispatch(text, **dispatch_kwargs)
-    except Exception as e:
-        log(f"[WeChat] agent dispatch FAILED: {e}, falling back to structuring")
         try:
-            record = await structure_medical_record(text)
-            return _format_record(record)
-        except ValueError:
-            return "没能识别病历内容，请重新描述一下。"
-        except Exception as ex:
-            log(f"[WeChat] structuring fallback FAILED doctor={doctor_id}: {ex}")
-            return "不好意思，出了点问题，能再说一遍吗？"
+            async with AsyncSessionLocal() as session:
+                knowledge_context = await load_knowledge_context_for_prompt(session, doctor_id, text)
+        except Exception as e:
+            log(f"[WeChat] knowledge context load FAILED doctor={doctor_id}: {e}")
+            knowledge_context = ""
+
+        try:
+            dispatch_kwargs = {"history": history or []}
+            if knowledge_context:
+                dispatch_kwargs["knowledge_context"] = knowledge_context
+            intent_result = await agent_dispatch(text, **dispatch_kwargs)
+        except Exception as e:
+            log(f"[WeChat] agent dispatch FAILED: {e}, falling back to structuring")
+            try:
+                record = await structure_medical_record(text)
+                return _format_record(record)
+            except ValueError:
+                return "没能识别病历内容，请重新描述一下。"
+            except Exception as ex:
+                log(f"[WeChat] structuring fallback FAILED doctor={doctor_id}: {ex}")
+                return "不好意思，出了点问题，能再说一遍吗？"
 
     log(f"[WeChat] intent={intent_result.intent} patient={intent_result.patient_name}")
 
@@ -627,7 +689,7 @@ def verify(
         return Response(content="Invalid signature", status_code=403)
 
 
-async def _handle_intent_bg(text: str, doctor_id: str, open_kfid: str = ""):
+async def _handle_intent_bg(text: str, doctor_id: str, open_kfid: str = "", msg_id: str = ""):
     """Process intent in background and deliver result via customer service API."""
     if open_kfid:
         # Non-blocking enrichment from WeCom customer profile.
@@ -636,12 +698,18 @@ async def _handle_intent_bg(text: str, doctor_id: str, open_kfid: str = ""):
     async with get_session_lock(doctor_id):
         await hydrate_session_state(doctor_id)
         sess = get_session(doctor_id)
-        if sess.pending_create_name:
+        if sess.pending_record_id:
+            result = await _handle_pending_record_reply(text, doctor_id, sess)
+            push_turn(doctor_id, text, result)
+            await flush_turns(doctor_id)
+        elif sess.pending_create_name:
             result = await _handle_pending_create(text, doctor_id)
             push_turn(doctor_id, text, result)
+            await flush_turns(doctor_id)
         elif sess.interview is not None:
             result = await _handle_interview_step(text, doctor_id)
             push_turn(doctor_id, text, result)
+            await flush_turns(doctor_id)
         else:
             # Compress rolling window if full or idle before adding new turn
             await maybe_compress(doctor_id, sess)
@@ -660,6 +728,14 @@ async def _handle_intent_bg(text: str, doctor_id: str, open_kfid: str = ""):
                 result = "不好意思，出了点问题，能再说一遍吗？"
 
             push_turn(doctor_id, text, result)
+            await flush_turns(doctor_id)
+    if msg_id:
+        try:
+            async with AsyncSessionLocal() as _mdb:
+                from db.crud import mark_pending_message as _mark_pm
+                await _mark_pm(_mdb, msg_id, "done")
+        except Exception as _e:
+            log(f"[WeChat bg] mark pending_message done FAILED: {_e}")
     try:
         await _send_customer_service_msg(doctor_id, result, open_kfid=open_kfid)
     except Exception as e:
@@ -832,6 +908,12 @@ async def handle_message(request: Request):
     await hydrate_session_state(msg.source)
     sess = get_session(msg.source)
 
+    if sess.pending_record_id:
+        reply_text = await _handle_pending_record_reply(msg.content, msg.source, sess)
+        log(f"[WeChat msg] pending_record reply: {reply_text[:80]}")
+        reply = TextReply(content=reply_text, message=msg)
+        return Response(content=reply.render(), media_type="application/xml")
+
     if sess.pending_create_name:
         reply_text = await _handle_pending_create(msg.content, msg.source)
         log(f"[WeChat msg] pending_create reply: {reply_text[:80]}")
@@ -845,11 +927,35 @@ async def handle_message(request: Request):
         return Response(content=reply.render(), media_type="application/xml")
 
     # Always background: LLM agent call cannot fit in WeChat's 5s window.
-    # Deliver result via customer service API.
-    asyncio.create_task(_handle_intent_bg(msg.content, msg.source, _extract_open_kfid(msg)))
-    log(f"[WeChat msg] → background task created for {msg.source}")
+    # Persist message durably before spawning background task — survives process restarts.
+    import uuid as _uuid
+    msg_id = _uuid.uuid4().hex
+    try:
+        async with AsyncSessionLocal() as _db:
+            from db.crud import create_pending_message as _create_pm
+            await _create_pm(_db, msg_id, msg.source, msg.content, msg_type="text")
+    except Exception as _e:
+        log(f"[WeChat msg] pending_message persist FAILED (non-fatal): {_e}")
+        msg_id = ""
+    asyncio.create_task(_handle_intent_bg(msg.content, msg.source, _extract_open_kfid(msg), msg_id=msg_id))
+    log(f"[WeChat msg] → background task created for {msg.source} msg_id={msg_id}")
     reply = TextReply(content="⏳ 正在处理，稍候回复您…", message=msg)
     return Response(content=reply.render(), media_type="application/xml")
+
+
+async def recover_stale_pending_messages(older_than_seconds: int = 60) -> int:
+    """Re-queue pending messages left unprocessed after a crash. Call on startup."""
+    try:
+        async with AsyncSessionLocal() as session:
+            from db.crud import list_stale_pending_messages
+            stale = await list_stale_pending_messages(session, older_than_seconds=older_than_seconds)
+        for msg in stale:
+            asyncio.create_task(_handle_intent_bg(msg.raw_content, msg.doctor_id, msg_id=msg.id))
+            log(f"[Recovery] re-queued stale pending_message id={msg.id} doctor={msg.doctor_id}")
+        return len(stale)
+    except Exception as e:
+        log(f"[Recovery] stale pending_message recovery FAILED: {e}")
+        return 0
 
 
 @router.post("/menu")

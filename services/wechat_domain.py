@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import re
+import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from db.crud import (
     create_patient,
+    create_pending_record,
     delete_patient_for_doctor,
     find_patient_by_name,
     find_patients_by_exact_name,
@@ -19,6 +22,7 @@ from db.crud import (
 )
 from db.engine import AsyncSessionLocal
 from services.agent import dispatch as agent_dispatch
+from services.audit import audit
 from services.doctor_knowledge import maybe_auto_learn_knowledge
 from services.intent import Intent, IntentResult
 from services.interview import InterviewState, STEPS
@@ -27,10 +31,13 @@ from services.session import (
     get_session,
     set_current_patient,
     set_pending_create,
+    set_pending_record_id,
 )
 from services.structuring import structure_medical_record
 from services.tasks import create_appointment_task, create_emergency_task, create_follow_up_task
 from utils.log import log
+
+_DRAFT_TTL_MINUTES = int(__import__("os").environ.get("PENDING_RECORD_TTL_MINUTES", "10"))
 
 _NAME_TOKEN_RE = re.compile(r"^[\u4e00-\u9fff]{2,4}$")
 _NON_NAME_TOKENS = {"你好", "您好", "谢谢", "好的", "收到", "在吗", "哈喽", "嗯", "嗯嗯"}
@@ -119,6 +126,26 @@ def format_record(record: Any) -> str:
     return "\n".join(lines)
 
 
+def format_draft_preview(record: Any, patient_name: Optional[str] = None) -> str:
+    """Return a formatted draft preview with confirmation instructions."""
+    header = "📋 病历草稿（仅供参考，请核实）"
+    if patient_name:
+        header = f"📋 【{patient_name}】病历草稿（仅供参考，请核实）"
+    lines = [header, ""]
+    lines.append(f"主诉：{record.chief_complaint}")
+    if record.history_of_present_illness:
+        lines.append(f"现病史：{record.history_of_present_illness}")
+    if record.diagnosis:
+        lines.append(f"诊断：{record.diagnosis}")
+    if record.treatment_plan:
+        lines.append(f"治疗方案：{record.treatment_plan}")
+    if record.follow_up_plan:
+        lines.append(f"随访：{record.follow_up_plan}")
+    lines.append("")
+    lines.append("回复【确认】保存 | 回复【取消】放弃")
+    return "\n".join(lines)
+
+
 async def build_reply(content: str) -> str:
     try:
         record = await structure_medical_record(content)
@@ -135,12 +162,16 @@ async def handle_create_patient(doctor_id: str, intent_result: IntentResult) -> 
     if not name:
         return "⚠️ 未能识别患者姓名，请重新说明，例如：帮我建个新患者，张三，30岁男性。"
     created = False
+    patient_id = None
     async with AsyncSessionLocal() as session:
         patient = await find_patient_by_name(session, doctor_id, name)
         if patient is None:
             patient = await create_patient(session, doctor_id, name, intent_result.gender, intent_result.age)
             created = True
+        patient_id = patient.id
         set_current_patient(doctor_id, patient.id, patient.name)
+    if created:
+        asyncio.create_task(audit(doctor_id, "WRITE", resource_type="patient", resource_id=str(patient_id)))
     if not created and intent_result.gender is None and intent_result.age is None:
         return f"✅ 已切换到患者【{name}】，后续病历将自动关联该患者。"
     age_str = f"，{intent_result.age}岁" if intent_result.age else ""
@@ -154,10 +185,12 @@ async def handle_add_record(
     intent_result: IntentResult,
     history: Optional[List[Dict[str, str]]] = None,
 ) -> str:
+    """Structure a medical record and save it as a pending draft for doctor confirmation."""
     from models.medical_record import MedicalRecord
 
     patient_id = None
     patient_name = None
+    new_patient_created = False
     async with AsyncSessionLocal() as session:
         if intent_result.patient_name:
             patient = await find_patient_by_name(session, doctor_id, intent_result.patient_name)
@@ -171,6 +204,7 @@ async def handle_add_record(
                 )
                 patient_id = patient.id
                 patient_name = patient.name
+                new_patient_created = True
                 set_current_patient(doctor_id, patient.id, patient.name)
                 log(f"[WeChat] auto-created patient [{patient_name}] id={patient_id}")
 
@@ -179,43 +213,66 @@ async def handle_add_record(
             patient_id = sess.current_patient_id
             patient_name = sess.current_patient_name
 
-        if intent_result.structured_fields:
-            fields = dict(intent_result.structured_fields)
-            if not fields.get("chief_complaint"):
-                fields["chief_complaint"] = text.split("，")[0][:20] or "门诊就诊"
-            record = MedicalRecord(**{k: fields.get(k) for k in MedicalRecord.model_fields})
-        else:
-            try:
-                doctor_ctx = [m["content"] for m in (history or [])[-10:] if m["role"] == "user"]
-                doctor_ctx.append(text)
-                record = await structure_medical_record("\n".join(doctor_ctx))
-            except ValueError:
-                return "没能识别病历内容，请重新描述一下。"
-            except Exception as e:
-                log(f"[WeChat] structuring FAILED: {e}")
-                return "不好意思，刚才出了点问题，能再说一遍吗？"
+    if new_patient_created:
+        asyncio.create_task(audit(doctor_id, "WRITE", resource_type="patient", resource_id=str(patient_id)))
 
-        db_record = await save_record(session, doctor_id, record, patient_id)
-        await maybe_auto_learn_knowledge(
+    # Structure the record
+    if intent_result.structured_fields:
+        fields = dict(intent_result.structured_fields)
+        if not fields.get("chief_complaint"):
+            fields["chief_complaint"] = text.split("，")[0][:20] or "门诊就诊"
+        record = MedicalRecord(**{k: fields.get(k) for k in MedicalRecord.model_fields})
+    else:
+        try:
+            doctor_ctx = [m["content"] for m in (history or [])[-10:] if m["role"] == "user"]
+            doctor_ctx.append(text)
+            record = await structure_medical_record("\n".join(doctor_ctx))
+        except ValueError:
+            return "没能识别病历内容，请重新描述一下。"
+        except Exception as e:
+            log(f"[WeChat] structuring FAILED: {e}")
+            return "不好意思，刚才出了点问题，能再说一遍吗？"
+
+    # Emergency records skip the confirmation gate — saved immediately
+    if intent_result.is_emergency:
+        async with AsyncSessionLocal() as session:
+            db_record = await save_record(session, doctor_id, record, patient_id)
+        asyncio.create_task(audit(doctor_id, "WRITE", resource_type="record", resource_id=str(patient_id)))
+        asyncio.create_task(create_emergency_task(
+            doctor_id, db_record.id, patient_name or "未关联患者", record.diagnosis, patient_id
+        ))
+        asyncio.create_task(_bg_auto_learn(doctor_id, text, record))
+        reply = intent_result.chat_reply or (f"{patient_name}的病历已记录。" if patient_name else "病历已保存。")
+        return "🚨 " + reply
+
+    # Save as pending draft — doctor must confirm before it hits medical_records
+    draft_id = uuid.uuid4().hex
+    async with AsyncSessionLocal() as session:
+        await create_pending_record(
             session,
-            doctor_id,
-            text,
-            structured_fields=record.model_dump(exclude_none=True),
+            record_id=draft_id,
+            doctor_id=doctor_id,
+            draft_json=json.dumps(record.model_dump(), ensure_ascii=False),
+            raw_input=text[:2000],
+            patient_id=patient_id,
+            patient_name=patient_name,
+            ttl_minutes=_DRAFT_TTL_MINUTES,
         )
+    set_pending_record_id(doctor_id, draft_id)
 
-    if record.follow_up_plan:
-        asyncio.create_task(
-            create_follow_up_task(doctor_id, db_record.id, patient_name or "未关联患者", record.follow_up_plan, patient_id)
-        )
-    if intent_result.is_emergency:
-        asyncio.create_task(
-            create_emergency_task(doctor_id, db_record.id, patient_name or "未关联患者", record.diagnosis, patient_id)
-        )
+    return format_draft_preview(record, patient_name)
 
-    reply = intent_result.chat_reply or (f"{patient_name}的病历已记录。" if patient_name else "病历已保存。")
-    if intent_result.is_emergency:
-        reply = "🚨 " + reply
-    return reply
+
+async def _bg_auto_learn(doctor_id: str, text: str, record: Any) -> None:
+    """Run knowledge auto-learning in the background (non-blocking)."""
+    try:
+        async with AsyncSessionLocal() as session:
+            await maybe_auto_learn_knowledge(
+                session, doctor_id, text,
+                structured_fields=record.model_dump(exclude_none=True),
+            )
+    except Exception as e:
+        log(f"[WeChat] bg auto-learn FAILED doctor={doctor_id}: {e}")
 
 
 async def handle_query_records(doctor_id: str, intent_result: IntentResult) -> str:
@@ -293,6 +350,7 @@ async def handle_delete_patient(doctor_id: str, intent_result: IntentResult) -> 
         deleted = await delete_patient_for_doctor(session, doctor_id, target.id)
     if deleted is None:
         return f"⚠️ 删除失败，未找到患者【{name}】。"
+    asyncio.create_task(audit(doctor_id, "DELETE", resource_type="patient", resource_id=str(deleted.id)))
     return intent_result.chat_reply or f"✅ 已删除患者【{deleted.name}】(ID {deleted.id}) 及其相关记录。"
 
 
@@ -323,19 +381,30 @@ async def handle_interview_step(text: str, doctor_id: str) -> str:
         log(f"[Interview] structuring FAILED: {e}")
         return "❌ 病历生成失败，请重新问诊。"
 
+    patient_id = None
     async with AsyncSessionLocal() as session:
         patient = None
         if patient_name:
             patient = await find_patient_by_name(session, doctor_id, patient_name)
             if not patient:
                 patient = await create_patient(session, doctor_id, patient_name, None, None)
+                asyncio.create_task(
+                    audit(doctor_id, "WRITE", resource_type="patient", resource_id=str(patient.id))
+                )
             set_current_patient(doctor_id, patient.id, patient.name)
-        await save_record(session, doctor_id, record, patient.id if patient else None)
-
-    reply = "问诊完成，病历已保存。"
-    if patient_name:
-        reply = f"{patient_name}，{reply}"
-    return reply
+        patient_id = patient.id if patient else None
+        draft_id = uuid.uuid4().hex
+        await create_pending_record(
+            session,
+            record_id=draft_id,
+            doctor_id=doctor_id,
+            draft_json=json.dumps(record.model_dump(), ensure_ascii=False),
+            patient_id=patient_id,
+            patient_name=patient_name,
+            ttl_minutes=_DRAFT_TTL_MINUTES,
+        )
+    set_pending_record_id(doctor_id, draft_id)
+    return format_draft_preview(record, patient_name)
 
 
 async def handle_menu_event(event_key: str, doctor_id: str) -> str:
@@ -379,12 +448,16 @@ async def handle_pending_create(text: str, doctor_id: str) -> str:
     if gender is None and age is None:
         return f"还在为{name}建档，请补充性别和年龄（例如：男，17岁），或发送「取消」放弃。"
 
+    new_patient_id = None
     async with AsyncSessionLocal() as session:
         patient = await find_patient_by_name(session, doctor_id, name)
         if patient is None:
             patient = await create_patient(session, doctor_id, name, gender, age)
+            new_patient_id = patient.id
         set_current_patient(doctor_id, patient.id, patient.name)
 
+    if new_patient_id is not None:
+        asyncio.create_task(audit(doctor_id, "WRITE", resource_type="patient", resource_id=str(new_patient_id)))
     clear_pending_create(doctor_id)
     parts = "、".join(filter(None, [gender, f"{age}岁" if age else None]))
     info = f"（{parts}）" if parts else ""

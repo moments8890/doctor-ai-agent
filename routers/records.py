@@ -1,3 +1,4 @@
+import asyncio
 import re
 import os
 import time
@@ -23,6 +24,7 @@ from db.crud import (
 from db.engine import AsyncSessionLocal
 from models.medical_record import MedicalRecord
 from services.agent import dispatch as agent_dispatch
+from services.fast_router import fast_route, fast_route_label
 from services.doctor_knowledge import (
     load_knowledge_context_for_prompt,
     maybe_auto_learn_knowledge,
@@ -46,9 +48,20 @@ from services.transcription import transcribe_audio
 from services.vision import extract_text_from_image
 from services.observability import trace_block
 from services.request_auth import resolve_doctor_id_from_auth_or_fallback
+from services.audit import audit
+from services.observability import get_current_trace_id
 from utils.log import log
 
 router = APIRouter(prefix="/api/records", tags=["records"])
+
+
+async def _background_auto_learn(doctor_id: str, text: str, fields: dict) -> None:
+    """Run knowledge auto-learning in the background after returning the response."""
+    try:
+        async with AsyncSessionLocal() as db:
+            await maybe_auto_learn_knowledge(db, doctor_id, text, structured_fields=fields)
+    except Exception as e:
+        log(f"[Chat] background auto-learn failed doctor={doctor_id}: {e}")
 
 # Phrases that indicate the LLM accidentally extracted a question/non-name as a patient name
 _BAD_NAME_FRAGMENTS = ["叫什么名字", "这位患者", "请问", "患者姓名"]
@@ -90,7 +103,7 @@ _UNCLEAR_INTENT_REPLY = (
     "6) 任务操作（例：看待办 / 完成 5）\n"
     "7) 预约随访（例：为张三安排复诊 2026年3月15日14:00）"
 )
-_ROUTING_HISTORY_MAX_MESSAGES = max(0, int(os.environ.get("ROUTING_HISTORY_MAX_MESSAGES", "6")))
+_ROUTING_HISTORY_MAX_MESSAGES = max(0, int(os.environ.get("ROUTING_HISTORY_MAX_MESSAGES", "2")))
 _REQUESTS_PER_MINUTE = max(1, int(os.environ.get("RECORDS_CHAT_RATE_LIMIT_PER_MINUTE", "100")))
 _RATE_WINDOWS: dict[str, deque] = {}
 
@@ -394,6 +407,10 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
                     deleted = await delete_patient_for_doctor(db, doctor_id, delete_patient_id)
                     if deleted is None:
                         return ChatResponse(reply=f"⚠️ 未找到患者 ID {delete_patient_id}。")
+                    asyncio.create_task(audit(
+                        doctor_id, "DELETE", resource_type="patient",
+                        resource_id=str(deleted.id), trace_id=get_current_trace_id(),
+                    ))
                     return ChatResponse(reply=f"✅ 已删除患者【{deleted.name}】(ID {deleted.id}) 及其相关记录。")
 
                 matches = await find_patients_by_exact_name(db, doctor_id, delete_patient_name or "")
@@ -420,6 +437,10 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
                 deleted = await delete_patient_for_doctor(db, doctor_id, target.id)
                 if deleted is None:
                     return ChatResponse(reply=f"⚠️ 删除失败，未找到患者【{delete_patient_name}】。")
+                asyncio.create_task(audit(
+                    doctor_id, "DELETE", resource_type="patient",
+                    resource_id=str(deleted.id), trace_id=get_current_trace_id(),
+                ))
                 return ChatResponse(reply=f"✅ 已删除患者【{deleted.name}】(ID {deleted.id}) 及其相关记录。")
 
     schedule_patient_name, schedule_iso_time = _parse_schedule_appointment_target(body.text)
@@ -475,29 +496,35 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
             return ChatResponse(reply="⚠️ 知识内容为空，未保存。")
         return ChatResponse(reply=f"✅ 已加入医生知识库（#{item.id}）：{knowledge_payload}")
 
-    knowledge_context = ""
-    try:
-        async with AsyncSessionLocal() as db:
-            knowledge_context = await load_knowledge_context_for_prompt(db, doctor_id, body.text)
-    except Exception as e:
-        log(f"[Chat] knowledge context load failed doctor={doctor_id}: {e}")
+    # ── Fast router: resolve common intents without LLM (~0ms vs ~6s) ─────────
+    _fast = fast_route(body.text)
+    if _fast is not None:
+        log(f"[Chat] fast_route hit: {fast_route_label(body.text)} doctor={doctor_id}")
+        intent_result = _fast
+    else:
         knowledge_context = ""
+        try:
+            async with AsyncSessionLocal() as db:
+                knowledge_context = await load_knowledge_context_for_prompt(db, doctor_id, body.text)
+        except Exception as e:
+            log(f"[Chat] knowledge context load failed doctor={doctor_id}: {e}")
+            knowledge_context = ""
 
-    try:
-        with trace_block("router", "records.chat.agent_dispatch", {"doctor_id": doctor_id}):
-            dispatch_kwargs = {"history": history_for_routing}
-            if knowledge_context:
-                dispatch_kwargs["knowledge_context"] = knowledge_context
-            intent_result = await agent_dispatch(body.text, **dispatch_kwargs)
-    except Exception as e:
-        msg = str(e)
-        status = 429 if "rate_limit" in msg or "Rate limit" in msg or "429" in msg else 503
-        log(
-            f"[Chat] agent dispatch FAILED doctor={doctor_id} status={status} "
-            f"text={body.text[:80]!r} err={msg}"
-        )
-        detail = "rate_limit_exceeded" if status == 429 else "Service temporarily unavailable"
-        raise HTTPException(status_code=status, detail=detail)
+        try:
+            with trace_block("router", "records.chat.agent_dispatch", {"doctor_id": doctor_id}):
+                dispatch_kwargs = {"history": history_for_routing}
+                if knowledge_context:
+                    dispatch_kwargs["knowledge_context"] = knowledge_context
+                intent_result = await agent_dispatch(body.text, **dispatch_kwargs)
+        except Exception as e:
+            msg = str(e)
+            status = 429 if "rate_limit" in msg or "Rate limit" in msg or "429" in msg else 503
+            log(
+                f"[Chat] agent dispatch FAILED doctor={doctor_id} status={status} "
+                f"text={body.text[:80]!r} err={msg}"
+            )
+            detail = "rate_limit_exceeded" if status == 429 else "Service temporarily unavailable"
+            raise HTTPException(status_code=status, detail=detail)
 
     # Deterministic fallback for the two-turn flow:
     # assistant asks for patient name -> doctor replies with name only.
@@ -545,6 +572,11 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
         ]))
         reply = f"✅ 已为患者【{patient.name}】建档" + (f"（{parts}）" if parts else "") + "。"
         log(f"[Chat] created patient [{patient.name}] id={patient.id} doctor={doctor_id}")
+        asyncio.create_task(audit(
+            doctor_id, "WRITE", resource_type="patient",
+            resource_id=str(patient.id),
+            trace_id=get_current_trace_id(),
+        ))
         return ChatResponse(reply=reply)
 
     # ── add_medical_record ────────────────────────────────────────────────────
@@ -601,12 +633,14 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
                         patient_created = True
                     patient_id = patient.id
                 await save_record(db, doctor_id, record, patient_id)
-                await maybe_auto_learn_knowledge(
-                    db,
-                    doctor_id,
-                    body.text,
-                    structured_fields=record.model_dump(exclude_none=True),
-                )
+
+        # Fire knowledge learning in the background — does not block the response
+        asyncio.create_task(_background_auto_learn(doctor_id, body.text, record.model_dump(exclude_none=True)))
+        asyncio.create_task(audit(
+            doctor_id, "WRITE", resource_type="record",
+            resource_id=str(patient_id) if patient_id else None,
+            trace_id=get_current_trace_id(),
+        ))
 
         reply = intent_result.chat_reply
         if not reply:
@@ -642,6 +676,11 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
                         pname = r.patient.name if r.patient else "未关联"
                         date = r.created_at.strftime("%Y-%m-%d") if r.created_at else "—"
                         lines.append(f"【{pname}】[{date}] 主诉：{r.chief_complaint or '—'} | 诊断：{r.diagnosis or '—'}")
+        asyncio.create_task(audit(
+            doctor_id, "READ", resource_type="record",
+            resource_id=name,
+            trace_id=get_current_trace_id(),
+        ))
         return ChatResponse(reply="\n".join(lines))
 
     # ── list_patients ─────────────────────────────────────────────────────────
@@ -687,6 +726,10 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
                 deleted = await delete_patient_for_doctor(db, doctor_id, target.id)
                 if deleted is None:
                     return ChatResponse(reply=f"⚠️ 删除失败，未找到患者【{name}】。")
+                asyncio.create_task(audit(
+                    doctor_id, "DELETE", resource_type="patient",
+                    resource_id=str(deleted.id), trace_id=get_current_trace_id(),
+                ))
         return ChatResponse(reply=intent_result.chat_reply or f"✅ 已删除患者【{name}】及其相关记录。")
 
     # ── list_tasks ────────────────────────────────────────────────────────────

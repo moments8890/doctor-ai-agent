@@ -51,7 +51,7 @@ async def neuro_from_text(
         neuro_case, extraction_log = await extract_neuro_case(body.text)
     except ValueError as exc:
         log(f"[Neuro] extract validation FAILED doctor={doctor_id}: {exc}")
-        raise HTTPException(status_code=422, detail=str(exc))
+        raise HTTPException(status_code=422, detail="Invalid neuro case content")
     except Exception as exc:
         log(f"[Neuro] extract FAILED doctor={doctor_id}: {exc}")
         raise HTTPException(status_code=500, detail="Internal server error")

@@ -161,6 +161,29 @@ _PROVIDERS = {
 }
 
 
+# Module-level singleton cache: one HTTP connection pool per provider.
+_STRUCTURING_CLIENT_CACHE: dict[str, AsyncOpenAI] = {}
+
+
+def _get_structuring_client(provider_name: str, provider: dict) -> AsyncOpenAI:
+    # Skip singleton cache in test environments so mock patches can intercept.
+    if os.environ.get("PYTEST_CURRENT_TEST") or "pytest" in os.environ.get("_", ""):
+        return AsyncOpenAI(
+            base_url=provider["base_url"],
+            api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
+            timeout=float(os.environ.get("STRUCTURING_LLM_TIMEOUT", "30")),
+            max_retries=0,
+        )
+    if provider_name not in _STRUCTURING_CLIENT_CACHE:
+        _STRUCTURING_CLIENT_CACHE[provider_name] = AsyncOpenAI(
+            base_url=provider["base_url"],
+            api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
+            timeout=float(os.environ.get("STRUCTURING_LLM_TIMEOUT", "30")),
+            max_retries=0,
+        )
+    return _STRUCTURING_CLIENT_CACHE[provider_name]
+
+
 async def structure_medical_record(
     text: str,
     consultation_mode: bool = False,
@@ -191,12 +214,7 @@ async def structure_medical_record(
             )
     log(f"[LLM:{provider_name}] calling API: {text[:80]}")
 
-    client = AsyncOpenAI(
-        base_url=provider["base_url"],
-        api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
-        timeout=float(os.environ.get("STRUCTURING_LLM_TIMEOUT", "30")),
-        max_retries=0,
-    )
+    client = _get_structuring_client(provider_name, provider)
     with trace_block("llm", "structuring.load_prompt"):
         system_prompt = await _get_system_prompt()
     if consultation_mode:

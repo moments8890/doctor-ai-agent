@@ -30,7 +30,7 @@ async def test_neuro_from_text_value_error_maps_to_422(monkeypatch):
     with pytest.raises(HTTPException) as exc:
         await neuro.neuro_from_text(neuro.NeuroFromTextInput(text="raw"))
     assert exc.value.status_code == 422
-    assert exc.value.detail == "bad schema"
+    assert exc.value.detail == "Invalid neuro case content"
 
 
 async def test_neuro_from_text_unexpected_error_maps_to_500(monkeypatch):

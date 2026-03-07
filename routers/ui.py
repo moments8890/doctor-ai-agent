@@ -601,6 +601,27 @@ async def admin_clear_observability_traces(
     return {"ok": True}
 
 
+@router.get("/api/admin/routing-metrics")
+async def admin_routing_metrics(
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+):
+    """Fast-router vs LLM hit counts since last process start."""
+    _require_ui_admin_access(x_admin_token)
+    from services.routing_metrics import get_metrics
+    return get_metrics()
+
+
+@router.post("/api/admin/routing-metrics/reset")
+async def admin_routing_metrics_reset(
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+):
+    """Reset routing counters to zero."""
+    _require_ui_admin_access(x_admin_token)
+    from services.routing_metrics import reset
+    reset()
+    return {"ok": True}
+
+
 @router.post("/api/admin/observability/sample")
 async def admin_seed_observability_samples(
     count: int = Query(default=3, ge=1, le=20),

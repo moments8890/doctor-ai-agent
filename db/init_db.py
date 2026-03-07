@@ -68,6 +68,13 @@ async def create_tables() -> None:
                     text(f"ALTER TABLE doctor_tasks ADD COLUMN {col_name} {col_type} DEFAULT NULL")
                 )
 
+        # Safe migration: add pending_record_id to doctor_session_states
+        _session_cols = await conn.run_sync(lambda c: _get_table_columns(c, "doctor_session_states"))
+        if "pending_record_id" not in _session_cols:
+            await conn.execute(
+                text("ALTER TABLE doctor_session_states ADD COLUMN pending_record_id VARCHAR(64) DEFAULT NULL")
+            )
+
         # Safe migration for doctors identity fields.
         _doctor_cols = await conn.run_sync(lambda c: _get_table_columns(c, "doctors"))
         _doctor_extra_cols = {
