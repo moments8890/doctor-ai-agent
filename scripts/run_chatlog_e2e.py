@@ -168,14 +168,18 @@ def _post_chat(
     doctor_id: str,
     read_timeout_s: float,
     retries: int,
+    auth_token: Optional[str] = None,
 ) -> Dict[str, object]:
     timeout = httpx.Timeout(connect=10.0, read=read_timeout_s, write=30.0, pool=10.0)
     payload = {"text": text, "history": history, "doctor_id": doctor_id}
+    headers = {}
+    if auth_token:
+        headers["Authorization"] = f"Bearer {auth_token}"
     last_exc: Optional[Exception] = None
 
     for attempt in range(retries + 1):
         try:
-            resp = httpx.post(f"{base_url}/api/records/chat", json=payload, timeout=timeout)
+            resp = httpx.post(f"{base_url}/api/records/chat", json=payload, headers=headers, timeout=timeout)
             resp.raise_for_status()
             return resp.json()
         except Exception as exc:  # noqa: BLE001
@@ -297,6 +301,7 @@ def run_case(
     keywords_mode: str,
     require_db_persistence: bool,
     allow_model_limitations: bool,
+    auth_token: Optional[str] = None,
 ) -> CaseResult:
     started = time.perf_counter()
     history: List[Dict[str, str]] = []
@@ -319,6 +324,7 @@ def run_case(
             doctor_id=doctor_id,
             read_timeout_s=read_timeout_s,
             retries=retries,
+            auth_token=auth_token,
         )
         reply = str(response.get("reply", "")).strip()
         record = response.get("record")
@@ -408,6 +414,7 @@ def run_case(
                 doctor_id=doctor_id,
                 read_timeout_s=read_timeout_s,
                 retries=retries,
+                auth_token=auth_token,
             )
             reply = str(response.get("reply", "")).strip()
             record = response.get("record")
@@ -603,6 +610,11 @@ def main() -> None:
         action="store_true",
         help="Disable fallback checks on full doctor+agent context when response-only misses terms",
     )
+    parser.add_argument(
+        "--auth-token",
+        default=os.environ.get("E2E_AUTH_TOKEN", ""),
+        help="Bearer token for Authorization header (also reads E2E_AUTH_TOKEN env var)",
+    )
     args = parser.parse_args()
 
     data_path = Path(args.data_path)
@@ -633,6 +645,8 @@ def main() -> None:
     print(f"{GRAY}  retries   : {args.retries}{RESET}")
     print(f"{GRAY}  run_id    : {run_id}{RESET}\n")
 
+    auth_token: Optional[str] = args.auth_token.strip() or None
+
     def _run_one(case: Case) -> CaseResult:
         doctor_id = f"{args.doctor_prefix}_{run_id}_{case.case_id.lower()}"
         try:
@@ -647,6 +661,7 @@ def main() -> None:
                 keywords_mode=args.keywords_mode,
                 require_db_persistence=args.require_db_persistence,
                 allow_model_limitations=not args.no_model_fallback,
+                auth_token=auth_token,
             )
         except Exception as exc:  # noqa: BLE001
             return CaseResult(
