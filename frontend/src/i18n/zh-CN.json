@@ -48,7 +48,8 @@
         "records": "病历总数",
         "highRisk": "高风险患者",
         "overdue": "逾期随访",
-        "tags": "标签数量"
+        "tags": "标签数量",
+        "pendingTasks": "待处理任务"
       },
       "labels": {
         "title": "自定义标签",
@@ -69,8 +70,35 @@
       "tabPlain": {
         "patients": "患者",
         "records": "病历",
+        "tasks": "任务",
         "customization": "大模型",
         "tags": "标签"
+      },
+      "tasks": {
+        "empty": "暂无任务。",
+        "loadFailed": "任务加载失败：{message}",
+        "updateFailed": "任务更新失败：{message}",
+        "complete": "完成",
+        "cancel": "取消",
+        "dueAt": "到期",
+        "overdue": "已逾期",
+        "triggerReason": "触发原因",
+        "filters": {
+          "status": "状态筛选"
+        },
+        "status": {
+          "pending": "待处理",
+          "completed": "已完成",
+          "cancelled": "已取消"
+        },
+        "taskType": {
+          "follow_up": "随访",
+          "medication": "用药",
+          "lab_review": "检验复核",
+          "referral": "转诊",
+          "imaging": "影像",
+          "general": "常规"
+        }
       },
       "filters": {
         "risk": "风险等级",

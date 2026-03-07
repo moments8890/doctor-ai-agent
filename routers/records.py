@@ -25,7 +25,7 @@ from db.engine import AsyncSessionLocal
 from models.medical_record import MedicalRecord
 from services.agent import dispatch as agent_dispatch
 from services.fast_router import fast_route, fast_route_label
-from services.doctor_knowledge import (
+from services.knowledge.doctor_knowledge import (
     load_knowledge_context_for_prompt,
     maybe_auto_learn_knowledge,
     parse_add_to_knowledge_command,

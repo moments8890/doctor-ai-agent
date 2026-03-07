@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import List, Optional, Tuple
 
-from services.knowledge_models import KnowledgeDocument, KnowledgeSource
+from .models import KnowledgeDocument, KnowledgeSource
 
 
 def crawl_knowledge_source(

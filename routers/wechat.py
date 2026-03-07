@@ -17,7 +17,7 @@ from wechatpy.replies import TextReply
 from services.structuring import structure_medical_record
 from services.transcription import transcribe_audio
 from services.vision import extract_text_from_image
-from services.pdf_extract import extract_text_from_pdf
+from services.knowledge.pdf_extract import extract_text_from_pdf
 from services import wechat_domain as wd
 from services import wechat_media_pipeline as wmp
 from services import wecom_kf_sync as kfsync
@@ -73,7 +73,7 @@ from db.crud import (
     confirm_pending_record,
     abandon_pending_record,
 )
-from services.doctor_knowledge import (
+from services.knowledge.doctor_knowledge import (
     load_knowledge_context_for_prompt,
     parse_add_to_knowledge_command,
     save_knowledge_item,

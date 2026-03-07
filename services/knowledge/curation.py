@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Tuple
 
-from services.knowledge_models import KnowledgeDocument, KnowledgeSource
+from .models import KnowledgeDocument, KnowledgeSource
 
 
 def curate_knowledge_documents(

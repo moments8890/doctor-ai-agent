@@ -180,3 +180,18 @@ export async function applyAdminRuntimeConfig() {
 export async function getAdminTunnelUrl() {
   return request("/api/admin/dev/tunnel-url");
 }
+
+export async function getTasks(doctorId, status = null) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  if (status) qs.set("status", status);
+  return request(`/api/tasks?${qs.toString()}`);
+}
+
+export async function patchTask(taskId, doctorId, status) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/tasks/${taskId}?${qs.toString()}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+}

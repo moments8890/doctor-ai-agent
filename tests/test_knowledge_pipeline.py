@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from services.guideline_diff import diff_guideline_snapshots
-from services.knowledge_crawl import crawl_knowledge_source, crawl_knowledge_sources
-from services.knowledge_curation import curate_knowledge_documents
-from services.knowledge_digest import build_knowledge_digest
-from services.knowledge_grounding import build_chat_grounding_bundle
-from services.knowledge_models import KnowledgeClaim, KnowledgeSource
-from services.knowledge_ranker import rank_knowledge_claims
+from services.knowledge.guideline_diff import diff_guideline_snapshots
+from services.knowledge.crawl import crawl_knowledge_source, crawl_knowledge_sources
+from services.knowledge.curation import curate_knowledge_documents
+from services.knowledge.digest import build_knowledge_digest
+from services.knowledge.grounding import build_chat_grounding_bundle
+from services.knowledge.models import KnowledgeClaim, KnowledgeSource
+from services.knowledge.ranker import rank_knowledge_claims
 
 
 def _source() -> KnowledgeSource:

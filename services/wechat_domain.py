@@ -23,7 +23,7 @@ from db.crud import (
 from db.engine import AsyncSessionLocal
 from services.agent import dispatch as agent_dispatch
 from services.audit import audit
-from services.doctor_knowledge import maybe_auto_learn_knowledge
+from services.knowledge.doctor_knowledge import maybe_auto_learn_knowledge
 from services.intent import Intent, IntentResult
 from services.interview import InterviewState, STEPS
 from services.session import (

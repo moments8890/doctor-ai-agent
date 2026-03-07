@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from db.models import DoctorKnowledgeItem
-from services import doctor_knowledge as dk
+from services.knowledge import doctor_knowledge as dk
 
 
 def _item(item_id: int, content: str) -> DoctorKnowledgeItem:
@@ -48,7 +48,7 @@ def test_render_knowledge_context_limits(monkeypatch):
 async def test_load_knowledge_context_for_prompt_uses_db_limit(monkeypatch):
     monkeypatch.setenv("KNOWLEDGE_CANDIDATE_LIMIT", "12")
     mocked_items = [SimpleNamespace(content="胸痛优先排除ACS")]
-    with patch("services.doctor_knowledge.list_doctor_knowledge_items", new=AsyncMock(return_value=mocked_items)) as mocked:
+    with patch("services.knowledge.doctor_knowledge.list_doctor_knowledge_items", new=AsyncMock(return_value=mocked_items)) as mocked:
         rendered = await dk.load_knowledge_context_for_prompt(object(), "doc-1", "胸痛")
     mocked.assert_awaited_once()
     assert mocked.await_args.kwargs["limit"] == 12
@@ -70,7 +70,7 @@ def test_decode_payload_supports_plain_and_json():
 
 def test_decode_payload_logs_and_falls_back_on_malformed_json():
     malformed = '{"text":"abc",'
-    with patch("services.doctor_knowledge.log") as mocked_log:
+    with patch("services.knowledge.doctor_knowledge.log") as mocked_log:
         text, source, confidence = dk._decode_knowledge_payload(malformed)
     assert text == malformed
     assert source == "doctor"
@@ -90,9 +90,9 @@ async def test_maybe_auto_learn_knowledge_logs_and_continues_on_save_error(monke
     monkeypatch.setenv("KNOWLEDGE_AUTO_LEARN_ENABLED", "true")
     monkeypatch.setenv("KNOWLEDGE_AUTO_MAX_NEW_PER_TURN", "1")
     with patch(
-        "services.doctor_knowledge.save_knowledge_item",
+        "services.knowledge.doctor_knowledge.save_knowledge_item",
         new=AsyncMock(side_effect=RuntimeError("db fail")),
-    ), patch("services.doctor_knowledge.log") as mocked_log:
+    ), patch("services.knowledge.doctor_knowledge.log") as mocked_log:
         inserted = await dk.maybe_auto_learn_knowledge(
             object(),
             "doc-1",

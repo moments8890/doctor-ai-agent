@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Dict, List
 
-from services.knowledge_models import RankedClaim
+from .models import RankedClaim
 
 
 def build_chat_grounding_bundle(question: str, ranked_claims: List[RankedClaim], limit: int = 3) -> Dict[str, object]:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List
 
-from services.knowledge_models import RankedClaim
+from .models import RankedClaim
 
 
 def build_knowledge_digest(ranked_claims: List[RankedClaim], top_k: int = 5) -> str:
