@@ -33,7 +33,11 @@ def enforce_doctor_rate_limit(
     while q and q[0] < window_start:
         q.popleft()
     if len(q) >= limit:
-        raise HTTPException(status_code=429, detail="rate_limit_exceeded")
+        raise HTTPException(
+            status_code=429,
+            detail="rate_limit_exceeded",
+            headers={"Retry-After": str(int(window_seconds))},
+        )
     q.append(now)
 
 

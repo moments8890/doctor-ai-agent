@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from typing import List, Optional
+from typing import Annotated, List, Optional
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel
 
 from db.engine import AsyncSessionLocal
@@ -68,6 +68,8 @@ def _env_flag_true(name: str, default: bool = False) -> bool:
 async def get_tasks(
     doctor_id: str,
     status: Optional[str] = None,
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
+    offset: Annotated[int, Query(ge=0)] = 0,
     authorization: Optional[str] = Header(default=None),
 ) -> List[TaskOut]:
     resolved_doctor_id = resolve_doctor_id_from_auth_or_fallback(
@@ -77,13 +79,19 @@ async def get_tasks(
         default_doctor_id="test_doctor",
     )
     enforce_doctor_rate_limit(resolved_doctor_id, scope="tasks.get")
-    return await _get_tasks_for_doctor(resolved_doctor_id, status=status)
+    return await _get_tasks_for_doctor(resolved_doctor_id, status=status, limit=limit, offset=offset)
 
 
-async def _get_tasks_for_doctor(doctor_id: str, status: Optional[str] = None) -> List[TaskOut]:
+async def _get_tasks_for_doctor(
+    doctor_id: str,
+    status: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> List[TaskOut]:
     async with AsyncSessionLocal() as session:
         tasks = await list_tasks(session, doctor_id, status=status)
-    return [TaskOut.from_orm(t) for t in tasks]
+    all_tasks = [TaskOut.from_orm(t) for t in tasks]
+    return all_tasks[offset:offset + limit]
 
 
 @router.patch("/{task_id}", response_model=TaskOut)

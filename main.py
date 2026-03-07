@@ -18,6 +18,7 @@ init_logging()
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqladmin import Admin, ModelView
@@ -497,6 +498,16 @@ app = FastAPI(
     description="Phase 2 MVP — 患者管理 + 语音/文字录入 → 结构化病历生成",
     version="0.2.0",
     lifespan=lifespan,
+)
+
+_cors_origins_raw = os.environ.get("CORS_ALLOW_ORIGINS", "").strip()
+_cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()] or ["*"]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Admin-Token", "X-Trace-Id"],
 )
 
 

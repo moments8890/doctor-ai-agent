@@ -5,11 +5,36 @@ import os
 import re
 import time
 from typing import Optional, Tuple
+
 from openai import AsyncOpenAI
+
 from models.medical_record import MedicalRecord
+from services.llm_client import _PROVIDERS  # shared provider registry
 from services.llm_resilience import call_with_retry_and_fallback
 from services.observability import trace_block
 from utils.log import log
+
+# Module-level singleton cache: one HTTP connection pool per provider.
+_STRUCTURING_CLIENT_CACHE: dict[str, AsyncOpenAI] = {}
+
+
+def _get_structuring_client(provider_name: str, provider: dict) -> AsyncOpenAI:
+    # Skip singleton cache in test environments so mock patches can intercept.
+    if os.environ.get("PYTEST_CURRENT_TEST") or "pytest" in os.environ.get("_", ""):
+        return AsyncOpenAI(
+            base_url=provider["base_url"],
+            api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
+            timeout=float(os.environ.get("STRUCTURING_LLM_TIMEOUT", "30")),
+            max_retries=0,
+        )
+    if provider_name not in _STRUCTURING_CLIENT_CACHE:
+        _STRUCTURING_CLIENT_CACHE[provider_name] = AsyncOpenAI(
+            base_url=provider["base_url"],
+            api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
+            timeout=float(os.environ.get("STRUCTURING_LLM_TIMEOUT", "30")),
+            max_retries=0,
+        )
+    return _STRUCTURING_CLIENT_CACHE[provider_name]
 
 # Seed value — written to DB on first startup. After that, DB is the source of truth.
 # To reset to defaults: delete the 'structuring' row in /admin → System Prompts.
@@ -127,61 +152,6 @@ async def _get_system_prompt() -> str:
     return content
 
 
-_PROVIDERS = {
-    "gemini": {
-        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
-        "api_key_env": "GEMINI_API_KEY",
-        "model": "gemini-2.0-flash",
-    },
-    "deepseek": {
-        "base_url": "https://api.deepseek.com",
-        "api_key_env": "DEEPSEEK_API_KEY",
-        "model": "deepseek-chat",
-    },
-    "groq": {
-        "base_url": "https://api.groq.com/openai/v1",
-        "api_key_env": "GROQ_API_KEY",
-        "model": "llama-3.3-70b-versatile",
-    },
-    "ollama": {
-        "base_url": os.environ.get("OLLAMA_BASE_URL", "http://192.168.0.123:11434/v1"),
-        "api_key_env": "OLLAMA_API_KEY",
-        "model": "qwen2.5:7b",
-    },
-    "openai": {
-        "base_url": os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1"),
-        "api_key_env": "OPENAI_API_KEY",
-        "model": "gpt-5-codex",
-    },
-    "tencent_lkeap": {
-        "base_url": os.environ.get("TENCENT_LKEAP_BASE_URL", "https://api.lkeap.cloud.tencent.com/v1"),
-        "api_key_env": "TENCENT_LKEAP_API_KEY",
-        "model": os.environ.get("TENCENT_LKEAP_MODEL", "deepseek-v3-1"),
-    },
-}
-
-
-# Module-level singleton cache: one HTTP connection pool per provider.
-_STRUCTURING_CLIENT_CACHE: dict[str, AsyncOpenAI] = {}
-
-
-def _get_structuring_client(provider_name: str, provider: dict) -> AsyncOpenAI:
-    # Skip singleton cache in test environments so mock patches can intercept.
-    if os.environ.get("PYTEST_CURRENT_TEST") or "pytest" in os.environ.get("_", ""):
-        return AsyncOpenAI(
-            base_url=provider["base_url"],
-            api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
-            timeout=float(os.environ.get("STRUCTURING_LLM_TIMEOUT", "30")),
-            max_retries=0,
-        )
-    if provider_name not in _STRUCTURING_CLIENT_CACHE:
-        _STRUCTURING_CLIENT_CACHE[provider_name] = AsyncOpenAI(
-            base_url=provider["base_url"],
-            api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
-            timeout=float(os.environ.get("STRUCTURING_LLM_TIMEOUT", "30")),
-            max_retries=0,
-        )
-    return _STRUCTURING_CLIENT_CACHE[provider_name]
 
 
 async def structure_medical_record(

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Alert,
   Box,
@@ -26,19 +26,17 @@ import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
 import { Link as RouterLink } from "react-router-dom";
 import {
   assignLabelToPatient,
-  createLabel,
-  deleteLabelById,
-  getLabels,
   getPatientTimeline,
-  getPatients,
-  getPrompts,
   getRecords,
-  getTasks,
-  patchTask,
+  getPrompts,
   removeLabelFromPatient,
   updatePrompt,
 } from "../api";
 import { t } from "../i18n";
+import { useDoctorStore } from "../store/doctorStore";
+import { usePatientData } from "../hooks/usePatientData";
+import { useTaskData } from "../hooks/useTaskData";
+import { useLabelData } from "../hooks/useLabelData";
 import PatientPanel from "../components/manage/PatientPanel";
 import TaskPanel from "../components/manage/TaskPanel";
 import RecordPanel from "../components/manage/RecordPanel";
@@ -67,35 +65,34 @@ function NavTab({ active, onClick, icon, children }) {
 }
 
 export default function ManagePage() {
-  const [doctorId, setDoctorId] = useState("web_doctor");
+  const { doctorId, setDoctorId } = useDoctorStore();
   const [tab, setTab] = useState(0);
   const [status, setStatus] = useState({ type: "info", text: "" });
-  const [loading, setLoading] = useState(false);
 
-  // Patients state
-  const [patients, setPatients] = useState([]);
   const [riskFilter, setRiskFilter] = useState("");
   const [followUpFilter, setFollowUpFilter] = useState("");
   const [tagFilter, setTagFilter] = useState("");
 
-  // Records state
+  // Records state (kept inline — complex with timeline)
   const [records, setRecords] = useState([]);
+  const [recordsLoading, setRecordsLoading] = useState(false);
   const [recordPatientNameFilter, setRecordPatientNameFilter] = useState("");
   const [recordDateFrom, setRecordDateFrom] = useState("");
   const [recordDateTo, setRecordDateTo] = useState("");
   const [timeline, setTimeline] = useState([]);
   const [selectedPatientId, setSelectedPatientId] = useState("");
 
-  // Tasks state
-  const [tasks, setTasks] = useState([]);
-  const [taskError, setTaskError] = useState("");
-
-  // Labels state
-  const [labels, setLabels] = useState([]);
-
-  // Prompt state
+  // Prompt state (kept inline — belongs to PromptPanel only)
   const [basePrompt, setBasePrompt] = useState("");
   const [extPrompt, setExtPrompt] = useState("");
+
+  const doctor = doctorId.trim() || "web_doctor";
+
+  const { patients, loading: patientsLoading, reload: reloadPatients } = usePatientData(doctor, riskFilter, followUpFilter);
+  const { tasks, loading: tasksLoading, error: taskError, reload: reloadTasks, completeTask, cancelTask } = useTaskData(doctor);
+  const { labels, reload: reloadLabels, createLabel: createLabelFn, deleteLabel: deleteLabelFn } = useLabelData(doctor);
+
+  const loading = patientsLoading || recordsLoading || tasksLoading;
 
   const highRiskCount = useMemo(
     () => patients.filter((p) => p.primary_risk_level === "high" || p.primary_risk_level === "critical").length,
@@ -119,53 +116,33 @@ export default function ManagePage() {
     { key: "tags", label: t("manage.stats.tags"), value: labels.length, icon: <LabelOutlinedIcon fontSize="small" /> },
   ];
 
-  const doctor = doctorId.trim() || "web_doctor";
-
-  async function loadAll(overrides = {}) {
-    setLoading(true);
+  async function loadRecords(overrides = {}) {
+    setRecordsLoading(true);
     setStatus({ type: "info", text: "" });
     try {
       const nextPatientName = overrides.recordPatientNameFilter ?? recordPatientNameFilter;
       const nextDateFrom = overrides.recordDateFrom ?? recordDateFrom;
       const nextDateTo = overrides.recordDateTo ?? recordDateTo;
-      const [p, r, prompts, labelResp] = await Promise.all([
-        getPatients(doctor, { risk: riskFilter, followUpState: followUpFilter }),
+      const [r, prompts] = await Promise.all([
         getRecords({ doctorId: doctor, patientName: nextPatientName.trim(), dateFrom: nextDateFrom, dateTo: nextDateTo }),
         getPrompts(),
-        getLabels(doctor),
       ]);
-      setPatients(p.items || []);
       setRecords(r.items || []);
       setBasePrompt(prompts.structuring || "");
       setExtPrompt(prompts.structuring_extension || "");
-      setLabels(labelResp.items || []);
     } catch (error) {
       setStatus({ type: "error", text: t("manage.loadFailed", { message: error.message }) });
     } finally {
-      setLoading(false);
+      setRecordsLoading(false);
     }
   }
 
-  async function loadTasks() {
-    setTaskError("");
-    try {
-      const result = await getTasks(doctor);
-      setTasks(Array.isArray(result) ? result : []);
-    } catch (error) {
-      setTaskError(t("manage.tasks.loadFailed", { message: error.message }));
-    }
+  async function reloadAll() {
+    reloadPatients();
+    reloadTasks();
+    reloadLabels();
+    await loadRecords();
   }
-
-  useEffect(() => {
-    loadAll();
-    loadTasks();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    loadAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [riskFilter, followUpFilter]);
 
   async function savePrompt(key, content) {
     try {
@@ -189,9 +166,7 @@ export default function ManagePage() {
 
   async function onCreateLabel(name, color) {
     try {
-      await createLabel({ doctorId: doctor, name, color });
-      const labelResp = await getLabels(doctor);
-      setLabels(labelResp.items || []);
+      await createLabelFn(name, color);
     } catch (error) {
       setStatus({ type: "error", text: t("manage.labels.createFailed", { message: error.message }) });
     }
@@ -199,8 +174,8 @@ export default function ManagePage() {
 
   async function onDeleteLabel(labelId) {
     try {
-      await deleteLabelById({ doctorId: doctor, labelId });
-      await loadAll();
+      await deleteLabelFn(labelId);
+      reloadPatients();
     } catch (error) {
       setStatus({ type: "error", text: t("manage.labels.deleteFailed", { message: error.message }) });
     }
@@ -214,7 +189,8 @@ export default function ManagePage() {
       } else {
         await assignLabelToPatient({ doctorId: doctor, patientId: patient.id, labelId: label.id });
       }
-      await loadAll();
+      reloadPatients();
+      reloadLabels();
     } catch (error) {
       setStatus({ type: "error", text: t("manage.labels.assignFailed", { message: error.message }) });
     }
@@ -222,8 +198,7 @@ export default function ManagePage() {
 
   async function onCompleteTask(taskId) {
     try {
-      await patchTask(taskId, doctor, "completed");
-      await loadTasks();
+      await completeTask(taskId);
     } catch (error) {
       setStatus({ type: "error", text: t("manage.tasks.updateFailed", { message: error.message }) });
     }
@@ -231,8 +206,7 @@ export default function ManagePage() {
 
   async function onCancelTask(taskId) {
     try {
-      await patchTask(taskId, doctor, "cancelled");
-      await loadTasks();
+      await cancelTask(taskId);
     } catch (error) {
       setStatus({ type: "error", text: t("manage.tasks.updateFailed", { message: error.message }) });
     }
@@ -242,7 +216,7 @@ export default function ManagePage() {
     setTab(2);
     setRecordPatientNameFilter(patient.name || "");
     setSelectedPatientId(String(patient.id));
-    loadAll({ recordPatientNameFilter: patient.name || "" });
+    loadRecords({ recordPatientNameFilter: patient.name || "" });
     loadTimeline(patient.id);
   }
 
@@ -348,7 +322,7 @@ export default function ManagePage() {
                 <Button
                   variant="contained"
                   size="small"
-                  onClick={() => { loadAll(); loadTasks(); }}
+                  onClick={reloadAll}
                   disabled={loading}
                 >
                   {loading ? t("common.loading") : t("manage.reload")}
@@ -362,7 +336,7 @@ export default function ManagePage() {
                   riskFilter={riskFilter}
                   followUpFilter={followUpFilter}
                   tagFilter={tagFilter}
-                  loading={loading}
+                  loading={patientsLoading}
                   onRiskFilterChange={setRiskFilter}
                   onFollowUpFilterChange={setFollowUpFilter}
                   onTagFilterChange={setTagFilter}
@@ -374,7 +348,7 @@ export default function ManagePage() {
               {tab === 1 ? (
                 <TaskPanel
                   tasks={tasks}
-                  loading={loading}
+                  loading={tasksLoading}
                   error={taskError}
                   onComplete={onCompleteTask}
                   onCancel={onCancelTask}
@@ -389,11 +363,11 @@ export default function ManagePage() {
                   patientNameFilter={recordPatientNameFilter}
                   dateFrom={recordDateFrom}
                   dateTo={recordDateTo}
-                  loading={loading}
+                  loading={recordsLoading}
                   onPatientNameFilterChange={setRecordPatientNameFilter}
                   onDateFromChange={setRecordDateFrom}
                   onDateToChange={setRecordDateTo}
-                  onApplyFilters={loadAll}
+                  onApplyFilters={loadRecords}
                 />
               ) : null}
 

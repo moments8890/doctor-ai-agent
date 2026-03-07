@@ -4,11 +4,22 @@ async function readError(response) {
 }
 
 async function request(url, options = {}) {
-  const response = await fetch(url, options);
-  if (!response.ok) {
-    throw new Error(await readError(response));
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    if (!response.ok) {
+      throw new Error(await readError(response));
+    }
+    return response.json();
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error("Request timed out");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
   }
-  return response.json();
 }
 
 export async function sendChat(payload) {
@@ -19,8 +30,8 @@ export async function sendChat(payload) {
   });
 }
 
-export async function getPatients(doctorId, filters = {}) {
-  const qs = new URLSearchParams({ doctor_id: doctorId });
+export async function getPatients(doctorId, filters = {}, limit = 50, offset = 0) {
+  const qs = new URLSearchParams({ doctor_id: doctorId, limit: String(limit), offset: String(offset) });
   if (filters.category) qs.set("category", filters.category);
   if (filters.risk) qs.set("risk", filters.risk);
   if (filters.followUpState) qs.set("follow_up_state", filters.followUpState);
@@ -30,8 +41,8 @@ export async function getPatients(doctorId, filters = {}) {
   return request(`/api/manage/patients?${qs.toString()}`);
 }
 
-export async function getRecords({ doctorId, patientId, patientName, dateFrom, dateTo }) {
-  const qs = new URLSearchParams({ doctor_id: doctorId });
+export async function getRecords({ doctorId, patientId, patientName, dateFrom, dateTo, limit = 50, offset = 0 }) {
+  const qs = new URLSearchParams({ doctor_id: doctorId, limit: String(limit), offset: String(offset) });
   if (patientId) qs.set("patient_id", patientId);
   if (patientName) qs.set("patient_name", patientName);
   if (dateFrom) qs.set("date_from", dateFrom);

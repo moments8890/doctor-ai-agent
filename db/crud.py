@@ -609,6 +609,7 @@ async def delete_patient_for_doctor(
     patient.labels.clear()
     await session.flush()
 
+    # manual cascade for SQLite compatibility — DB-level cascade handles MySQL/Postgres
     await session.execute(
         delete(MedicalRecordDB).where(
             MedicalRecordDB.doctor_id == doctor_id,

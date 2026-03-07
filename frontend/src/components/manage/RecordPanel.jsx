@@ -148,7 +148,7 @@ export default function RecordPanel({
                   </Typography>
                   {r.diagnosis ? (
                     <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.15 }}>
-                      诊断：{r.diagnosis}
+                      {t("manage.record.diagnosisPrefix")}：{r.diagnosis}
                     </Typography>
                   ) : null}
                 </Box>

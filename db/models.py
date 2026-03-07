@@ -61,7 +61,7 @@ class DoctorKnowledgeItem(Base):
     __tablename__ = "doctor_knowledge_items"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    doctor_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False, index=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
@@ -134,10 +134,15 @@ class DoctorConversationTurn(Base):
     __tablename__ = "doctor_conversation_turns"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    doctor_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False, index=True)
     role: Mapped[str] = mapped_column(String(16), nullable=False)  # user | assistant | system
     content: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=True)
+
+    __table_args__ = (
+        Index("ix_turns_doctor_created", "doctor_id", "created_at"),
+    )
 
 
 class Doctor(Base):
@@ -201,8 +206,8 @@ class MedicalRecordDB(Base):
     __tablename__ = "medical_records"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id"), nullable=True)
-    doctor_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id", ondelete="CASCADE"), nullable=True)
+    doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False, index=True)
     chief_complaint: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     history_of_present_illness: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     past_medical_history: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -212,8 +217,13 @@ class MedicalRecordDB(Base):
     treatment_plan: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     follow_up_plan: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=True)
 
     patient: Mapped[Optional["Patient"]] = relationship("Patient", back_populates="records")
+
+    __table_args__ = (
+        Index("ix_records_patient_created", "patient_id", "created_at"),
+    )
 
     def __str__(self) -> str:
         date = self.created_at.strftime("%Y-%m-%d") if self.created_at else "—"
@@ -224,8 +234,8 @@ class NeuroCaseDB(Base):
     __tablename__ = "neuro_cases"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    doctor_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id"), nullable=True)
+    doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False, index=True)
+    patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id", ondelete="CASCADE"), nullable=True)
 
     # Promoted scalar fields for queryability
     patient_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
@@ -241,6 +251,7 @@ class NeuroCaseDB(Base):
     extraction_log_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=True)
     patient: Mapped[Optional["Patient"]] = relationship("Patient")
 
     def __str__(self) -> str:
@@ -252,8 +263,8 @@ class DoctorTask(Base):
     __tablename__ = "doctor_tasks"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    doctor_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id"), nullable=True)
+    doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False, index=True)
+    patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id", ondelete="CASCADE"), nullable=True)
     record_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("medical_records.id"), nullable=True)
     task_type: Mapped[str] = mapped_column(String(32), nullable=False)  # follow_up | emergency | appointment
     title: Mapped[str] = mapped_column(String(256), nullable=False)
@@ -264,6 +275,11 @@ class DoctorTask(Base):
     trigger_source: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # manual | risk_engine | timeline_rule
     trigger_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=True)
+
+    __table_args__ = (
+        Index("ix_tasks_doctor_status_due", "doctor_id", "status", "due_at"),
+    )
 
     def __str__(self) -> str:
         return f"[{self.task_type}] {self.title}"
@@ -293,7 +309,7 @@ class AuditLog(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     ts: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False, index=True)
-    doctor_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False)
     action: Mapped[str] = mapped_column(String(32), nullable=False)        # READ | WRITE | DELETE | LOGIN
     resource_type: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # patient | record | task
     resource_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
@@ -316,7 +332,7 @@ class PendingRecord(Base):
     __tablename__ = "pending_records"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)  # UUID hex
-    doctor_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False)
     patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id"), nullable=True)
     patient_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     draft_json: Mapped[str] = mapped_column(Text, nullable=False)   # JSON-serialized MedicalRecord
@@ -341,7 +357,7 @@ class PendingMessage(Base):
     __tablename__ = "pending_messages"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)  # UUID
-    doctor_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False)
     raw_content: Mapped[str] = mapped_column(Text, nullable=False)
     msg_type: Mapped[str] = mapped_column(String(16), nullable=False, default="text")  # text | voice | image
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")  # pending | done | failed

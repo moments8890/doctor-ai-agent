@@ -21,6 +21,6 @@
     "include": []
   },
   "miniprogramRoot": "miniprogram/",
-  "appid": "wx2186b82c29c1afb4",
+  "appid": "WECHAT_MINI_PROGRAM_APPID",
   "editorSetting": {}
 }

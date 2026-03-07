@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useDoctorStore } from "../store/doctorStore";
 import {
   Box,
   Button,
@@ -48,10 +49,7 @@ function MsgBubble({ msg }) {
 }
 
 export default function ChatPage() {
-  const [doctorId, setDoctorId] = useState(() => {
-    const saved = localStorage.getItem("doctor_ai_active_doctor");
-    return (saved && saved.trim()) || "web_doctor";
-  });
+  const { doctorId, setDoctorId } = useDoctorStore();
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -66,10 +64,6 @@ export default function ChatPage() {
   function historyKey(name) {
     return `doctor_ai_chat_history:${(name || "web_doctor").trim() || "web_doctor"}`;
   }
-
-  useEffect(() => {
-    localStorage.setItem("doctor_ai_active_doctor", doctorId);
-  }, [doctorId]);
 
   useEffect(() => {
     const raw = localStorage.getItem(historyKey(doctorId));

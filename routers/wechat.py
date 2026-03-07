@@ -713,7 +713,7 @@ def verify(
         log("[WeChat verify] probe: missing signature -> 200")
         return Response(content=echostr or "ok", media_type="text/plain")
     log(
-        f"[WeChat verify] token={cfg['token']!r} signature={effective_sig} "
+        f"[WeChat verify] token=*** signature={effective_sig} "
         f"mode={'wecom-aes' if msg_signature else 'plain'}"
     )
     try:

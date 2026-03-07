@@ -26,6 +26,7 @@ from services.audit import audit
 from services.knowledge.doctor_knowledge import maybe_auto_learn_knowledge
 from services.intent import Intent, IntentResult
 from services.interview import InterviewState, STEPS
+from services.response_formatting import format_draft_preview, format_record
 from services.session import (
     clear_pending_create,
     get_session,
@@ -35,27 +36,15 @@ from services.session import (
 )
 from services.structuring import structure_medical_record
 from services.tasks import create_appointment_task, create_emergency_task, create_follow_up_task
+from services.text_parsing import (
+    explicit_name_or_none,
+    looks_like_symptom_note,
+    name_token_or_none,
+)
 from utils.log import log
 
 _DRAFT_TTL_MINUTES = int(__import__("os").environ.get("PENDING_RECORD_TTL_MINUTES", "10"))
 
-_NAME_TOKEN_RE = re.compile(r"^[\u4e00-\u9fff]{2,4}$")
-_NON_NAME_TOKENS = {"你好", "您好", "谢谢", "好的", "收到", "在吗", "哈喽", "嗯", "嗯嗯"}
-_NON_NAME_SUBSTRINGS = {
-    "发烧", "咳嗽", "头痛", "胸闷", "疼", "痛", "不适", "心悸", "气短",
-    "一天", "两天", "三天", "一周", "两周", "三周", "一月", "两月",
-    "记录", "病历", "查询", "随访", "复查", "预约",
-}
-_SYMPTOM_KEYWORDS = (
-    "头疼", "头痛", "偏头痛", "发烧", "咳嗽", "胸闷", "胸痛",
-    "腹痛", "恶心", "呕吐", "腹泻", "乏力", "眩晕", "心悸",
-    "不舒服", "不适", "难受", "疼",
-)
-_EXPLICIT_NAME_PATTERNS = [
-    re.compile(r"^\s*我是(?P<name>[\u4e00-\u9fff]{2,4})\s*$"),
-    re.compile(r"^\s*我叫(?P<name>[\u4e00-\u9fff]{2,4})\s*$"),
-    re.compile(r"^\s*患者(?:是|叫)?(?P<name>[\u4e00-\u9fff]{2,4})\s*$"),
-]
 _MENU_EVENT_REPLIES = {
     "DOCTOR_NEW_PATIENT": "🆕 请发送患者信息，例如：帮我建个新患者，张三，30岁男性。",
     "DOCTOR_ADD_RECORD": "📝 请发送病历描述，AI 将自动生成结构化病历并保存。",
@@ -76,74 +65,6 @@ def extract_cdata(xml_str: str, tag: str) -> str:
         return m.group(1)
     m = re.search(rf"<{tag}>([^<]+)</{tag}>", xml_str)
     return m.group(1) if m else ""
-
-
-def name_token_or_none(text: str) -> str:
-    candidate = text.strip()
-    if _NAME_TOKEN_RE.match(candidate) and candidate not in _NON_NAME_TOKENS:
-        if any(x in candidate for x in _NON_NAME_SUBSTRINGS):
-            return ""
-        return candidate
-    return ""
-
-
-def explicit_name_or_none(text: str) -> str:
-    for pat in _EXPLICIT_NAME_PATTERNS:
-        m = pat.match(text.strip())
-        if not m:
-            continue
-        name = m.group("name")
-        return name_token_or_none(name)
-    return ""
-
-
-def looks_like_symptom_note(text: str) -> bool:
-    s = text.strip()
-    if not s:
-        return False
-    if len(s) > 30:
-        return False
-    return any(k in s for k in _SYMPTOM_KEYWORDS)
-
-
-def format_record(record: Any) -> str:
-    lines = ["📋 结构化病历\n"]
-    lines.append(f"【主诉】\n{record.chief_complaint}\n")
-    if record.history_of_present_illness:
-        lines.append(f"【现病史】\n{record.history_of_present_illness}\n")
-    if record.past_medical_history:
-        lines.append(f"【既往史】\n{record.past_medical_history}\n")
-    if record.physical_examination:
-        lines.append(f"【体格检查】\n{record.physical_examination}\n")
-    if record.auxiliary_examinations:
-        lines.append(f"【辅助检查】\n{record.auxiliary_examinations}\n")
-    if record.diagnosis:
-        lines.append(f"【诊断】\n{record.diagnosis}\n")
-    if record.treatment_plan:
-        lines.append(f"【治疗方案】\n{record.treatment_plan}\n")
-    if record.follow_up_plan:
-        lines.append(f"【随访计划】\n{record.follow_up_plan}")
-    return "\n".join(lines)
-
-
-def format_draft_preview(record: Any, patient_name: Optional[str] = None) -> str:
-    """Return a formatted draft preview with confirmation instructions."""
-    header = "📋 病历草稿（仅供参考，请核实）"
-    if patient_name:
-        header = f"📋 【{patient_name}】病历草稿（仅供参考，请核实）"
-    lines = [header, ""]
-    lines.append(f"主诉：{record.chief_complaint}")
-    if record.history_of_present_illness:
-        lines.append(f"现病史：{record.history_of_present_illness}")
-    if record.diagnosis:
-        lines.append(f"诊断：{record.diagnosis}")
-    if record.treatment_plan:
-        lines.append(f"治疗方案：{record.treatment_plan}")
-    if record.follow_up_plan:
-        lines.append(f"随访：{record.follow_up_plan}")
-    lines.append("")
-    lines.append("回复【确认】保存 | 回复【取消】放弃")
-    return "\n".join(lines)
 
 
 async def build_reply(content: str) -> str:

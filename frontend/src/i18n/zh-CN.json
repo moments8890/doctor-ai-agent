@@ -82,6 +82,8 @@
         "cancel": "取消",
         "dueAt": "到期",
         "overdue": "已逾期",
+        "overdueAlert": "有 {count} 项任务已逾期，请尽快处理。",
+        "pendingAlert": "共 {count} 项待处理任务。",
         "triggerReason": "触发原因",
         "filters": {
           "status": "状态筛选"
@@ -142,6 +144,7 @@
         "patientName": "患者姓名",
         "date": "记录日期",
         "chiefComplaint": "主诉",
+        "diagnosisPrefix": "诊断",
         "noChiefComplaint": "无主诉",
         "unlinkedPatient": "未关联患者",
         "showDetails": "查看详情",

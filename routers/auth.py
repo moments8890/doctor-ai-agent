@@ -18,6 +18,7 @@ from services.miniprogram_auth import (
     parse_bearer_token,
     verify_miniprogram_token,
 )
+from services.rate_limit import enforce_doctor_rate_limit
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -145,6 +146,7 @@ async def wechat_mini_login(body: MiniProgramLoginInput) -> MiniProgramLoginResp
 
     openid = await _fetch_wechat_openid(code)
     doctor_id = await _upsert_mini_doctor(openid, body.doctor_name)
+    enforce_doctor_rate_limit(doctor_id, scope="auth.login")
     token_data = issue_miniprogram_token(doctor_id, channel="wechat_mini", wechat_openid=openid)
 
     return MiniProgramLoginResponse(

@@ -4,7 +4,7 @@ import os
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel
@@ -89,6 +89,8 @@ async def manage_patients(
     risk: str | None = Query(default=None),
     follow_up_state: str | None = Query(default=None),
     stale_risk: str | None = Query(default=None),
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
     authorization: str | None = Header(default=None),
 ):
     resolved_doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
@@ -98,6 +100,8 @@ async def manage_patients(
         risk=risk,
         follow_up_state=follow_up_state,
         stale_risk=stale_risk,
+        limit=limit,
+        offset=offset,
     )
 
 
@@ -108,6 +112,8 @@ async def _manage_patients_for_doctor(
     risk: str | None = None,
     follow_up_state: str | None = None,
     stale_risk: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
 ):
     enforce_doctor_rate_limit(doctor_id, scope="ui.manage_patients")
     category = _normalize_query_str(category)
@@ -159,7 +165,8 @@ async def _manage_patients_for_doctor(
     if stale_filter is not None:
         items = [item for item in items if bool(item["stale_risk"]) is stale_filter]
 
-    return {"doctor_id": doctor_id, "items": items}
+    total = len(items)
+    return {"doctor_id": doctor_id, "items": items[offset:offset + limit], "total": total, "limit": limit, "offset": offset}
 
 
 _CATEGORY_ORDER = ["high_risk", "active_followup", "stable", "new", "uncategorized"]
@@ -274,7 +281,8 @@ async def manage_records(
     patient_name: str | None = Query(default=None),
     date_from: str | None = Query(default=None),
     date_to: str | None = Query(default=None),
-    limit: int = Query(default=50, ge=1, le=200),
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
     authorization: str | None = Header(default=None),
 ):
     resolved_doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
@@ -285,6 +293,7 @@ async def manage_records(
         date_from=date_from,
         date_to=date_to,
         limit=limit,
+        offset=offset,
     )
 
 
@@ -296,6 +305,7 @@ async def _manage_records_for_doctor(
     date_from: str | None = None,
     date_to: str | None = None,
     limit: int = 50,
+    offset: int = 0,
 ):
     enforce_doctor_rate_limit(doctor_id, scope="ui.manage_records")
     patient_name = _normalize_query_str(patient_name)
@@ -360,7 +370,8 @@ async def _manage_records_for_doctor(
     if date_to:
         items = [item for item in items if item.get("created_at") and str(item["created_at"])[:10] <= date_to]
 
-    return {"doctor_id": doctor_id, "items": items[:limit]}
+    total = len(items)
+    return {"doctor_id": doctor_id, "items": items[offset:offset + limit], "total": total, "limit": limit, "offset": offset}
 
 
 @router.get("/api/manage/prompts")

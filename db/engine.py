@@ -44,7 +44,18 @@ else:
         if sqlite_path.is_absolute():
             sqlite_path.parent.mkdir(parents=True, exist_ok=True)
 
-engine = create_async_engine(DATABASE_URL, echo=False)
+_is_sqlite = DATABASE_URL.startswith("sqlite")
+if _is_sqlite:
+    engine = create_async_engine(DATABASE_URL, echo=False)
+else:
+    engine = create_async_engine(
+        DATABASE_URL,
+        echo=False,
+        pool_size=int(os.environ.get("DB_POOL_SIZE", "20")),
+        max_overflow=int(os.environ.get("DB_MAX_OVERFLOW", "10")),
+        pool_recycle=int(os.environ.get("DB_POOL_RECYCLE", "3600")),
+        pool_pre_ping=True,
+    )
 
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 

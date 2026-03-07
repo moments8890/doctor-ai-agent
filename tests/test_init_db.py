@@ -142,12 +142,21 @@ async def test_create_tables_skips_migration_when_column_already_renamed(monkeyp
                 "primary_risk_level", "risk_tags", "risk_score", "follow_up_state", "risk_computed_at", "risk_rules_version",
             ],
             "doctor_tasks": [
-                "id", "doctor_id", "task_type", "title", "status", "trigger_source", "trigger_reason",
+                "id", "doctor_id", "task_type", "title", "status", "trigger_source", "trigger_reason", "updated_at",
             ],
             "doctor_session_states": [
                 "doctor_id", "current_patient_id", "pending_create_name", "pending_record_id",
             ],
             "doctors": ["doctor_id", "name", "channel", "wechat_user_id", "created_at", "updated_at"],
+            "medical_records": [
+                "id", "patient_id", "doctor_id", "chief_complaint", "created_at", "updated_at",
+            ],
+            "neuro_cases": [
+                "id", "doctor_id", "patient_id", "created_at", "updated_at",
+            ],
+            "doctor_conversation_turns": [
+                "id", "doctor_id", "role", "content", "created_at", "updated_at",
+            ],
         }
     )
     monkeypatch.setattr(init_db, "engine", _Engine(conn))

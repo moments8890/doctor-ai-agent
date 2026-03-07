@@ -45,7 +45,8 @@ def _build_compress_prompt() -> str:
 
 async def _summarise(history: List[dict]) -> str:
     """Call LLM to compress a conversation into a structured clinical context."""
-    from services.agent import _PROVIDERS, _get_client  # reuse singleton client
+    from services.llm_client import _PROVIDERS  # shared provider registry
+    from services.agent import _get_client  # reuse singleton client
     provider_name = os.environ.get("STRUCTURING_LLM", "deepseek")
     provider = _PROVIDERS[provider_name]
     client = _get_client(provider_name, provider)

@@ -106,6 +106,47 @@ async def create_tables() -> None:
                     )
                 )
 
+        # Safe column-add migrations for new updated_at fields
+        _records_cols = await conn.run_sync(lambda c: _get_table_columns(c, "medical_records"))
+        if "updated_at" not in _records_cols:
+            await conn.execute(
+                text("ALTER TABLE medical_records ADD COLUMN updated_at DATETIME DEFAULT NULL")
+            )
+
+        _neuro_cols = await conn.run_sync(lambda c: _get_table_columns(c, "neuro_cases"))
+        if "updated_at" not in _neuro_cols:
+            await conn.execute(
+                text("ALTER TABLE neuro_cases ADD COLUMN updated_at DATETIME DEFAULT NULL")
+            )
+
+        _turns_cols = await conn.run_sync(lambda c: _get_table_columns(c, "doctor_conversation_turns"))
+        if "updated_at" not in _turns_cols:
+            await conn.execute(
+                text("ALTER TABLE doctor_conversation_turns ADD COLUMN updated_at DATETIME DEFAULT NULL")
+            )
+
+        if "updated_at" not in _task_cols:
+            await conn.execute(
+                text("ALTER TABLE doctor_tasks ADD COLUMN updated_at DATETIME DEFAULT NULL")
+            )
+
+        # Safe index-add migrations for new composite indexes (MySQL only — SQLite uses CREATE TABLE indexes)
+        if dialect_name == "mysql":
+            _new_indexes = [
+                ("doctor_tasks", "ix_tasks_doctor_status_due",
+                 "CREATE INDEX ix_tasks_doctor_status_due ON doctor_tasks(doctor_id, status, due_at)"),
+                ("doctor_conversation_turns", "ix_turns_doctor_created",
+                 "CREATE INDEX ix_turns_doctor_created ON doctor_conversation_turns(doctor_id, created_at)"),
+                ("medical_records", "ix_records_patient_created",
+                 "CREATE INDEX ix_records_patient_created ON medical_records(patient_id, created_at)"),
+            ]
+            for _tbl, _idx_name, _idx_sql in _new_indexes:
+                _idx_exists = await conn.run_sync(
+                    lambda c, t=_tbl, n=_idx_name: _has_index(c, t, n)
+                )
+                if not _idx_exists:
+                    await conn.execute(text(_idx_sql))
+
 
 async def seed_prompts() -> None:
     """Seed default system prompts to DB on first startup (idempotent)."""

@@ -157,10 +157,10 @@ export default function TaskPanel({ tasks, loading, error, onComplete, onCancel 
 
       {overdueCount > 0 ? (
         <Alert severity="error" icon={<WarningAmberRoundedIcon />}>
-          有 {overdueCount} 项任务已逾期，请尽快处理。
+          {t("manage.tasks.overdueAlert", { count: overdueCount })}
         </Alert>
       ) : pendingCount > 0 ? (
-        <Alert severity="info">共 {pendingCount} 项待处理任务。</Alert>
+        <Alert severity="info">{t("manage.tasks.pendingAlert", { count: pendingCount })}</Alert>
       ) : null}
 
       <Card sx={{ borderRadius: 1.5 }}>
