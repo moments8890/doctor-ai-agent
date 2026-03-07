@@ -75,6 +75,7 @@ class DoctorSessionState(Base):
     current_patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id"), nullable=True)
     pending_create_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     pending_record_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    pending_import_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
 
@@ -344,6 +345,30 @@ class PendingRecord(Base):
     __table_args__ = (
         Index("ix_pending_records_doctor_status", "doctor_id", "status"),
         Index("ix_pending_records_expires", "expires_at"),
+    )
+
+
+class PendingImport(Base):
+    """Bulk patient history import awaiting doctor confirmation.
+
+    Flow: extract text from PDF/Word/voice → structure chunks → PendingImport (awaiting)
+    → doctor replies "确认导入" → records saved to medical_records. Expires after 30 min.
+    """
+    __tablename__ = "pending_imports"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)  # UUID hex
+    doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False)
+    patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id"), nullable=True)
+    patient_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    source: Mapped[str] = mapped_column(String(32), nullable=False, default="text")  # pdf|word|voice|text|chat_export
+    chunks_json: Mapped[str] = mapped_column(Text, nullable=False)  # JSON array of structured records
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="awaiting")  # awaiting|confirmed|partial|abandoned|expired
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+    __table_args__ = (
+        Index("ix_pending_imports_doctor_status", "doctor_id", "status"),
+        Index("ix_pending_imports_expires", "expires_at"),
     )
 
 

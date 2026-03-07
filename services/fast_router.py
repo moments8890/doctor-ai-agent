@@ -18,6 +18,10 @@ from typing import Optional
 
 from services.intent import Intent, IntentResult
 
+# ── Import history detection ───────────────────────────────────────────────────
+_IMPORT_KEYWORDS = frozenset({"导入病历", "导入历史", "历史记录导入", "过往记录", "既往病历"})
+_IMPORT_DATE_RE = re.compile(r"\d{4}[-/年]\d{1,2}")
+
 # ── Text normalisation ─────────────────────────────────────────────────────────
 # Strip leading polite particles and trailing punctuation.
 # Internal punctuation is intentionally preserved to avoid merging adjacent words.
@@ -293,6 +297,17 @@ def fast_route(text: str) -> Optional[IntentResult]:
 
     # Normalised form used for Tier 1 set lookups (strips polite particles etc.)
     normed = _normalise(stripped)
+
+    # ── Tier 0: import_history — bulk/PDF/Word imports bypass LLM entirely ─────
+    if stripped.startswith("[PDF:") or stripped.startswith("[Word:"):
+        source = "pdf" if stripped.startswith("[PDF:") else "word"
+        return IntentResult(intent=Intent.import_history, extra_data={"source": source})
+    if any(kw in stripped for kw in _IMPORT_KEYWORDS):
+        date_count = len(_IMPORT_DATE_RE.findall(stripped))
+        if date_count >= 2:
+            return IntentResult(intent=Intent.import_history, extra_data={"source": "text"})
+    if len(stripped) > 800 and len(_IMPORT_DATE_RE.findall(stripped)) >= 2:
+        return IntentResult(intent=Intent.import_history, extra_data={"source": "text"})
 
     # ── Tier 1: list_patients ──────────────────────────────────────────────────
     if normed in _LIST_PATIENTS_EXACT or stripped in _LIST_PATIENTS_EXACT:

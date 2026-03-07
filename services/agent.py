@@ -19,6 +19,7 @@ _CLIENT_CACHE: dict[str, AsyncOpenAI] = {}
 
 
 def _get_client(provider_name: str, provider: dict) -> AsyncOpenAI:
+    extra_headers = {"anthropic-version": "2023-06-01"} if provider_name == "claude" else {}
     # Skip singleton cache in test environments so mock patches can intercept.
     if os.environ.get("PYTEST_CURRENT_TEST") or "pytest" in os.environ.get("_", ""):
         return AsyncOpenAI(
@@ -26,6 +27,7 @@ def _get_client(provider_name: str, provider: dict) -> AsyncOpenAI:
             api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
             timeout=float(os.environ.get("AGENT_LLM_TIMEOUT", "45")),
             max_retries=0,
+            default_headers=extra_headers,
         )
     if provider_name not in _CLIENT_CACHE:
         _CLIENT_CACHE[provider_name] = AsyncOpenAI(
@@ -33,6 +35,7 @@ def _get_client(provider_name: str, provider: dict) -> AsyncOpenAI:
             api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
             timeout=float(os.environ.get("AGENT_LLM_TIMEOUT", "45")),
             max_retries=0,
+            default_headers=extra_headers,
         )
     return _CLIENT_CACHE[provider_name]
 
@@ -135,6 +138,36 @@ _TOOLS = [
                     "follow_up_plan": {
                         "type": ["string", "null"],
                         "description": "随访计划：随访时间和安排。未提及则为null。",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "import_history",
+            "description": (
+                "当医生发送的内容是患者的历史病历记录、过往多次就诊记录，或来自PDF/Word文件的批量病历时调用。\n"
+                "触发特征：\n"
+                "- 内容含有[PDF:]或[Word:]前缀\n"
+                "- 包含多个不同日期的就诊记录\n"
+                "- 长篇叙述性病历（超过500字）包含多个主诉或诊断\n"
+                "- 医生说「导入病历」「导入历史」「这是过往记录」\n"
+                "与 add_medical_record 的区别：add_medical_record 用于描述当前单次就诊；"
+                "import_history 用于导入患者的过往多次就诊历史记录。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "patient_name": {
+                        "type": "string",
+                        "description": "患者姓名。从历史记录内容中提取，未明确提到则省略。",
+                    },
+                    "source": {
+                        "type": "string",
+                        "description": "来源类型。根据内容判断：pdf（含[PDF:]）、word（含[Word:]）、voice（语音转录）、text（文字输入）、chat_export（微信聊天记录）。",
                     },
                 },
                 "required": [],
@@ -248,6 +281,27 @@ _TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "bash",
+            "description": (
+                "在服务器上执行一条 shell 命令并返回输出。"
+                "仅在医生明确请求执行命令、查询系统信息或运行脚本时调用。"
+                "示例：'帮我执行 ls logs'、'查一下磁盘空间'、'运行 python script.py'。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command": {
+                        "type": "string",
+                        "description": "要执行的 bash 命令。",
+                    },
+                },
+                "required": ["command"],
+            },
+        },
+    },
 ]
 
 _SYSTEM_PROMPT = (
@@ -256,10 +310,12 @@ _SYSTEM_PROMPT = (
     "- 消息只介绍患者身份（无临床内容）或明确说建档 → create_patient\n"
     "- 要查看历史病历 → query_records\n"
     "- 要看所有患者列表 → list_patients\n"
+    "- 历史病历导入/多次就诊记录/PDF病历/Word文件病历 → import_history\n"
     "- 明确要求删除/移除患者 → delete_patient\n"
     "- 查看任务/待办/提醒 → list_tasks\n"
     "- 完成任务/标记完成 + 编号 → complete_task\n"
     "- 预约/安排/约诊 + 时间 → schedule_appointment\n"
+    "- 执行命令/查系统/运行脚本 → bash\n"
     "- 普通对话/问候 → 直接回复，不调用工具\n\n"
     "特殊规则：若上一条助手消息询问了患者姓名（如'请问这位患者叫什么名字'），"
     "医生的回复即为患者姓名，应调用 add_medical_record 并将该姓名填入 patient_name，"
@@ -278,8 +334,9 @@ _SYSTEM_PROMPT_COMPACT = (
     "你是医生助手。根据当前消息选择工具："
     "临床信息->add_medical_record；仅建档->create_patient；"
     "查病历->query_records；看患者列表->list_patients；"
+    "历史病历/PDF/Word导入->import_history；"
     "删患者->delete_patient；看待办->list_tasks；"
-    "完成任务+编号->complete_task；预约+时间->schedule_appointment；"
+    "完成任务+编号->complete_task；预约+时间->schedule_appointment；执行命令->bash；"
     "普通问候可直接回复。"
     "工具参数仅填确定信息。"
     "意图不清时先澄清，不要猜测也不要调用工具。"
@@ -291,10 +348,12 @@ _INTENT_MAP = {
     "add_medical_record": Intent.add_record,
     "query_records": Intent.query_records,
     "list_patients": Intent.list_patients,
+    "import_history": Intent.import_history,
     "delete_patient": Intent.delete_patient,
     "list_tasks": Intent.list_tasks,
     "complete_task": Intent.complete_task,
     "schedule_appointment": Intent.schedule_appointment,
+    "bash": Intent.bash_command,
 }
 
 # Module-level singleton cache: one HTTP connection pool per provider.
@@ -303,6 +362,7 @@ _CLIENT_CACHE: dict[str, AsyncOpenAI] = {}
 
 
 def _get_client(provider_name: str, provider: dict) -> AsyncOpenAI:
+    extra_headers = {"anthropic-version": "2023-06-01"} if provider_name == "claude" else {}
     # Skip singleton cache in test environments so mock patches can intercept.
     if os.environ.get("PYTEST_CURRENT_TEST") or "pytest" in os.environ.get("_", ""):
         return AsyncOpenAI(
@@ -310,6 +370,7 @@ def _get_client(provider_name: str, provider: dict) -> AsyncOpenAI:
             api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
             timeout=float(os.environ.get("AGENT_LLM_TIMEOUT", "45")),
             max_retries=0,
+            default_headers=extra_headers,
         )
     if provider_name not in _CLIENT_CACHE:
         _CLIENT_CACHE[provider_name] = AsyncOpenAI(
@@ -317,6 +378,7 @@ def _get_client(provider_name: str, provider: dict) -> AsyncOpenAI:
             api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
             timeout=float(os.environ.get("AGENT_LLM_TIMEOUT", "45")),
             max_retries=0,
+            default_headers=extra_headers,
         )
     return _CLIENT_CACHE[provider_name]
 
@@ -440,6 +502,8 @@ def _intent_result_from_tool_call(fn_name: str, args: dict, chat_reply: Optional
     elif fn_name == "schedule_appointment":
         extra_data["appointment_time"] = args.get("appointment_time")
         extra_data["notes"] = args.get("notes")
+    elif fn_name == "bash":
+        extra_data["command"] = args.get("command", "")
 
     structured_fields: Optional[dict] = None
     if fn_name == "add_medical_record":
@@ -559,6 +623,8 @@ async def dispatch(
     elif provider_name == "tencent_lkeap":
         provider["base_url"] = os.environ.get("TENCENT_LKEAP_BASE_URL", provider["base_url"])
         provider["model"] = os.environ.get("TENCENT_LKEAP_MODEL", provider["model"])
+    elif provider_name == "claude":
+        provider["model"] = os.environ.get("CLAUDE_MODEL", provider["model"])
     strict_mode = os.environ.get("LLM_PROVIDER_STRICT_MODE", "true").strip().lower() not in {"0", "false", "no", "off"}
     if strict_mode and provider_name != "ollama":
         key_env = provider["api_key_env"]

@@ -46,6 +46,8 @@ from services.session import (
     set_current_patient,
     hydrate_session_state,
     clear_pending_record_id,
+    set_pending_import_id,
+    clear_pending_import_id,
 )
 from services.audit import audit
 from services.memory import maybe_compress, load_context_message
@@ -72,6 +74,9 @@ from db.crud import (
     get_pending_record,
     confirm_pending_record,
     abandon_pending_record,
+    get_pending_import,
+    confirm_pending_import,
+    abandon_pending_import,
 )
 from services.knowledge.doctor_knowledge import (
     load_knowledge_context_for_prompt,
@@ -366,6 +371,33 @@ async def _handle_complete_task(doctor_id: str, intent_result) -> str:
     return await wd.handle_complete_task(doctor_id, intent_result)
 
 
+async def _handle_bash_command(intent_result) -> str:
+    import asyncio
+    command = (intent_result.extra_data.get("command") or "").strip()
+    if not command:
+        return "⚠️ 未收到命令内容。"
+    try:
+        proc = await asyncio.create_subprocess_shell(
+            command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+        )
+        try:
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=30)
+        except asyncio.TimeoutError:
+            proc.kill()
+            return f"⏱️ 命令超时（30s）：`{command}`"
+        output = stdout.decode("utf-8", errors="replace").strip()
+        rc = proc.returncode
+        header = f"$ {command}\n"
+        if not output:
+            return header + f"(退出码 {rc}，无输出)"
+        return header + output[:1500] + (f"\n…(截断，退出码 {rc})" if len(output) > 1500 else f"\n(退出码 {rc})")
+    except Exception as e:
+        log(f"[Bash] FAILED: {e}")
+        return f"❌ 执行失败：{e}"
+
+
 async def _handle_schedule_appointment(doctor_id: str, intent_result) -> str:
     patient_name = intent_result.patient_name
     if not patient_name:
@@ -434,6 +466,78 @@ async def _handle_pending_record_reply(text: str, doctor_id: str, sess) -> str:
         await abandon_pending_record(session, pending_id)
     clear_pending_record_id(doctor_id)
     log(f"[WeChat] pending record abandoned (new intent), doctor={doctor_id}")
+    return await _handle_intent(text, doctor_id)
+
+
+async def _confirm_pending_import(
+    doctor_id: str,
+    import_id: str,
+    skip_duplicates: bool = False,
+) -> str:
+    """Save confirmed import chunks to medical_records."""
+    from models.medical_record import MedicalRecord
+    async with AsyncSessionLocal() as session:
+        pending = await get_pending_import(session, import_id, doctor_id)
+        if pending is None or pending.status != "awaiting":
+            clear_pending_import_id(doctor_id)
+            return "⚠️ 导入草稿已过期或不存在，请重新发送文件。"
+        try:
+            chunks = json.loads(pending.chunks_json)
+        except Exception as e:
+            log(f"[ImportConfirm] parse chunks FAILED doctor={doctor_id}: {e}")
+            await abandon_pending_import(session, import_id)
+            clear_pending_import_id(doctor_id)
+            return "⚠️ 草稿解析失败，请重新发送文件。"
+
+        saved = 0
+        skipped = 0
+        for chunk in chunks:
+            if skip_duplicates and chunk.get("status") == "duplicate":
+                skipped += 1
+                continue
+            try:
+                fields = chunk.get("structured", {})
+                record = MedicalRecord(**{k: fields.get(k) for k in MedicalRecord.model_fields})
+                db_record = await save_record(session, doctor_id, record, pending.patient_id)
+                asyncio.create_task(
+                    audit(doctor_id, "WRITE", resource_type="record", resource_id=str(db_record.id))
+                )
+                saved += 1
+            except Exception as e:
+                log(f"[ImportConfirm] save chunk FAILED doctor={doctor_id}: {e}")
+
+        await confirm_pending_import(session, import_id)
+        patient_name = pending.patient_name or "未关联患者"
+
+    clear_pending_import_id(doctor_id)
+    parts = [f"✅ 已成功导入 {saved} 条历史病历，患者：【{patient_name}】"]
+    if skipped:
+        parts.append(f"（已跳过 {skipped} 条重复记录）")
+    return "".join(parts)
+
+
+async def _handle_pending_import_reply(text: str, doctor_id: str, sess) -> str:
+    """Route doctor reply when a bulk import is awaiting confirmation."""
+    import_id = sess.pending_import_id
+    stripped = text.strip()
+
+    if stripped in ("确认导入", "全部导入", "确认", "确定", "ok", "OK", "好的", "yes", "Yes"):
+        return await _confirm_pending_import(doctor_id, import_id, skip_duplicates=False)
+
+    if stripped in ("跳过重复", "仅新记录", "只保存新的"):
+        return await _confirm_pending_import(doctor_id, import_id, skip_duplicates=True)
+
+    if stripped in ("取消", "cancel", "Cancel", "不要", "放弃", "no", "No"):
+        async with AsyncSessionLocal() as session:
+            await abandon_pending_import(session, import_id)
+        clear_pending_import_id(doctor_id)
+        return "好的，已取消历史病历导入。"
+
+    # Any other input: abandon import, route as new intent
+    async with AsyncSessionLocal() as session:
+        await abandon_pending_import(session, import_id)
+    clear_pending_import_id(doctor_id)
+    log(f"[WeChat] pending import abandoned (new intent), doctor={doctor_id}")
     return await _handle_intent(text, doctor_id)
 
 
@@ -528,6 +632,10 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
         return await _handle_complete_task(doctor_id, intent_result)
     elif intent_result.intent == Intent.schedule_appointment:
         return await _handle_schedule_appointment(doctor_id, intent_result)
+    elif intent_result.intent == Intent.bash_command:
+        return await _handle_bash_command(intent_result)
+    elif intent_result.intent == Intent.import_history:
+        return await wd.handle_import_history(text, doctor_id, intent_result)
     elif intent_result.intent == Intent.unknown:
         explicit_name = _explicit_name_or_none(text)
         if explicit_name:
@@ -585,6 +693,24 @@ async def _handle_pdf_file_bg(media_id: str, filename: str, doctor_id: str, open
     )
 
 
+async def _handle_word_file_bg(media_id: str, filename: str, doctor_id: str, open_kfid: str = ""):
+    from services.knowledge.word_extract import extract_text_from_docx
+    await wmp.handle_word_file_bg(
+        media_id,
+        filename,
+        doctor_id,
+        get_config=_get_config,
+        get_access_token=_get_access_token,
+        download_media=download_voice,
+        extract_word_text=extract_text_from_docx,
+        send_customer_service_msg=lambda uid, content: _send_customer_service_msg(
+            uid, content, open_kfid=open_kfid
+        ),
+        handle_intent_bg=lambda text, uid: _handle_intent_bg(text, uid, open_kfid=open_kfid),
+        log=log,
+    )
+
+
 async def _handle_file_bg(media_id: str, filename: str, doctor_id: str, open_kfid: str = ""):
     await wmp.handle_file_bg(
         media_id,
@@ -597,6 +723,9 @@ async def _handle_file_bg(media_id: str, filename: str, doctor_id: str, open_kfi
             uid, content, open_kfid=open_kfid
         ),
         handle_pdf_file_bg_fn=lambda mid, fname, uid: _handle_pdf_file_bg(
+            mid, fname, uid, open_kfid=open_kfid
+        ),
+        handle_word_file_bg_fn=lambda mid, fname, uid: _handle_word_file_bg(
             mid, fname, uid, open_kfid=open_kfid
         ),
         log=log,
@@ -741,7 +870,11 @@ async def _handle_intent_bg(text: str, doctor_id: str, open_kfid: str = "", msg_
     async with get_session_lock(doctor_id):
         await hydrate_session_state(doctor_id)
         sess = get_session(doctor_id)
-        if sess.pending_record_id:
+        if sess.pending_import_id:
+            result = await _handle_pending_import_reply(text, doctor_id, sess)
+            push_turn(doctor_id, text, result)
+            await flush_turns(doctor_id)
+        elif sess.pending_record_id:
             result = await _handle_pending_record_reply(text, doctor_id, sess)
             push_turn(doctor_id, text, result)
             await flush_turns(doctor_id)
@@ -806,7 +939,10 @@ async def _handle_voice_bg(media_id: str, doctor_id: str, open_kfid: str = ""):
         await hydrate_session_state(doctor_id)
         sess = get_session(doctor_id)
         try:
-            if sess.pending_create_name:
+            if sess.pending_import_id:
+                result = await _handle_pending_import_reply(text, doctor_id, sess)
+                route = "done"
+            elif sess.pending_create_name:
                 result = await _handle_pending_create(text, doctor_id)
                 route = "done"
             elif sess.interview is not None:

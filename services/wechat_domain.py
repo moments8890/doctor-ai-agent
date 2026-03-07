@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 from db.crud import (
     create_patient,
     create_pending_record,
+    create_pending_import,
     delete_patient_for_doctor,
     find_patient_by_name,
     find_patients_by_exact_name,
@@ -33,6 +34,8 @@ from services.session import (
     set_current_patient,
     set_pending_create,
     set_pending_record_id,
+    set_pending_import_id,
+    clear_pending_import_id,
 )
 from services.structuring import structure_medical_record
 from services.tasks import create_appointment_task, create_emergency_task, create_follow_up_task
@@ -427,6 +430,234 @@ async def handle_schedule_appointment(doctor_id: str, intent_result: IntentResul
         f"预约时间：{appointment_dt.strftime('%Y-%m-%d %H:%M')}\n"
         f"任务编号：{task.id}（将在1小时前提醒）"
     )
+
+
+# ── History import helpers ────────────────────────────────────────────────────
+
+import re as _re
+
+_VISIT_BOUNDARY_RE = _re.compile(
+    r"(?:^|\n)(?="
+    r"\d{4}[-/年]\d{1,2}[-/月]\d{1,2}"   # 2023-11-01 / 2023年11月1日
+    r"|第\d+次|初诊|复诊|【\d{4}"          # 第1次/初诊/复诊/【2023
+    r")",
+    _re.MULTILINE,
+)
+
+_DATE_IN_TEXT_RE = _re.compile(r"\d{4}[-/年]\d{1,2}[-/月]\d{1,2}")
+
+
+def _preprocess_import_text(text: str, source: str) -> str:
+    """Strip media prefixes and clean WeChat chat export formatting."""
+    # Strip [PDF:filename] / [Word:filename] prefix
+    text = _re.sub(r"^\[(PDF|Word):[^\]]*\]\s*", "", text, flags=_re.IGNORECASE)
+    if source == "chat_export" or "微信" in text[:100]:
+        from services.wechat_media_pipeline import preprocess_wechat_chat_export
+        text = preprocess_wechat_chat_export(text)
+    return text.strip()
+
+
+def _chunk_history_text(text: str) -> list[str]:
+    """Split bulk history text into individual visit chunks.
+
+    Strategy:
+    1. Try splitting on date/visit boundaries (most reliable).
+    2. Fall back to paragraph splitting (double newline).
+    3. If single block, return as-is.
+    """
+    # _VISIT_BOUNDARY_RE uses (?:^|\n)(?=...) so m.start() may land on a \n;
+    # adjust each boundary to point to the actual first character of the section.
+    raw_boundaries = [m.start() for m in _VISIT_BOUNDARY_RE.finditer(text)]
+    boundaries: list[int] = []
+    for pos in raw_boundaries:
+        actual = pos + 1 if pos < len(text) and text[pos] == "\n" else pos
+        if not boundaries or actual != boundaries[-1]:
+            boundaries.append(actual)
+
+    # ── Strategy 1: paragraph splitting (blank lines) ────────────────────────
+    # Split on blank lines first; this cleanly separates visits when the doctor
+    # has already separated them with empty lines.
+    paragraphs = [p.strip() for p in _re.split(r"\n{2,}", text) if p.strip()]
+    if len(paragraphs) >= 2:
+        # Only merge truly tiny stub fragments (< 15 chars) into the following
+        # paragraph.  Keep normal-length paragraphs as separate visit chunks.
+        merged: list[str] = []
+        buf = ""
+        for p in paragraphs:
+            if buf and len(buf) < 15:
+                buf = (buf + "\n" + p).strip()
+            else:
+                if buf:
+                    merged.append(buf)
+                buf = p
+        if buf:
+            merged.append(buf)
+        if len(merged) >= 2:
+            return merged
+
+    # ── Strategy 2: date/keyword boundary regex ───────────────────────────────
+    if len(boundaries) >= 2:
+        raw_chunks: list[str] = []
+        for i, start in enumerate(boundaries):
+            end = boundaries[i + 1] if i + 1 < len(boundaries) else len(text)
+            chunk = text[start:end].strip()
+            if chunk:
+                raw_chunks.append(chunk)
+        # Merge adjacent short fragments into the next one.
+        sections: list[str] = []
+        buf = ""
+        for chunk in raw_chunks:
+            buf = (buf + "\n" + chunk).strip() if buf else chunk
+            if len(buf) >= 40:
+                sections.append(buf)
+                buf = ""
+        if buf:
+            if sections:
+                sections[-1] = (sections[-1] + "\n" + buf).strip()
+            else:
+                sections.append(buf)
+        if len(sections) >= 2:
+            return sections
+
+    return [text]
+
+
+def _extract_chunk_date(chunk: str) -> str | None:
+    """Extract the first date string from a chunk for display."""
+    m = _DATE_IN_TEXT_RE.search(chunk)
+    return m.group(0) if m else None
+
+
+async def _mark_duplicates(
+    chunks: list[dict],
+    doctor_id: str,
+    patient_id: int,
+) -> list[dict]:
+    """Mark chunks that appear to duplicate existing records."""
+    async with AsyncSessionLocal() as session:
+        existing = await get_records_for_patient(session, doctor_id, patient_id)
+    if not existing:
+        return chunks
+    for chunk in chunks:
+        s = chunk.get("structured", {})
+        cc = (s.get("chief_complaint") or "").strip().lower()
+        if not cc:
+            continue
+        for rec in existing:
+            existing_cc = (rec.chief_complaint or "").strip().lower()
+            if cc and existing_cc and (cc in existing_cc or existing_cc in cc):
+                chunk["status"] = "duplicate"
+                break
+    return chunks
+
+
+def _format_import_preview(
+    chunks: list[dict],
+    patient_name: str | None,
+    source: str,
+) -> str:
+    """Build the confirmation message shown to the doctor."""
+    source_label = {
+        "pdf": "PDF文件",
+        "word": "Word文件",
+        "voice": "语音",
+        "chat_export": "微信聊天记录",
+    }.get(source, "文字")
+    name_part = f"患者【{patient_name}】" if patient_name else "未关联患者"
+    total = len(chunks)
+    dup_count = sum(1 for c in chunks if c["status"] == "duplicate")
+    new_count = total - dup_count
+
+    lines = [f"已从{source_label}中提取{name_part}的 {total} 条历史记录：\n"]
+    ICONS = ["1.", "2.", "3.", "4.", "5.", "6.", "7.", "8.", "9.", "10."]
+    for i, chunk in enumerate(chunks):
+        s = chunk.get("structured", {})
+        icon = ICONS[i] if i < len(ICONS) else f"{i+1}."
+        date_str = _extract_chunk_date(chunk.get("raw_text", "")) or "日期不明"
+        cc = s.get("chief_complaint") or "—"
+        diag = s.get("diagnosis") or ""
+        diag_part = f" → {diag}" if diag else ""
+        dup_tag = " [疑似重复]" if chunk["status"] == "duplicate" else ""
+        lines.append(f"{icon} [{date_str}] {cc}{diag_part}{dup_tag}")
+
+    lines.append("")
+    if dup_count > 0:
+        lines.append(f"共 {new_count} 条新记录，{dup_count} 条疑似重复。")
+        lines.append("回复「确认导入」保存全部，「跳过重复」仅保存新记录，「取消」放弃导入。")
+    else:
+        lines.append(f"回复「确认导入」保存全部 {total} 条，「取消」放弃导入。")
+    return "\n".join(lines)
+
+
+async def handle_import_history(text: str, doctor_id: str, intent_result: IntentResult) -> str:
+    """Handle bulk patient history import from PDF, Word, voice, or text."""
+    source = intent_result.extra_data.get("source", "text")
+    patient_name = intent_result.patient_name
+
+    # Resolve patient from session if not in intent
+    sess = get_session(doctor_id)
+    patient_id: int | None = None
+    if not patient_name and sess.current_patient_id:
+        patient_id = sess.current_patient_id
+        patient_name = sess.current_patient_name
+
+    if patient_name and patient_id is None:
+        async with AsyncSessionLocal() as session:
+            patient = await find_patient_by_name(session, doctor_id, patient_name)
+            if patient:
+                patient_id = patient.id
+
+    # Pre-process and chunk
+    clean_text = _preprocess_import_text(text, source)
+    chunks_raw = _chunk_history_text(clean_text)
+
+    if not chunks_raw:
+        return "未能从内容中提取有效病历记录，请检查格式后重试。"
+
+    # Structure each chunk (cap at 10 to avoid excessive LLM calls)
+    structured_chunks: list[dict] = []
+    for i, chunk_text in enumerate(chunks_raw[:10]):
+        try:
+            record = await structure_medical_record(chunk_text)
+            structured_chunks.append({
+                "idx": i + 1,
+                "raw_text": chunk_text[:600],
+                "structured": record.model_dump(),
+                "status": "pending",
+            })
+        except Exception as e:
+            log(f"[Import] chunk {i+1} structuring FAILED doctor={doctor_id}: {e}")
+
+    if not structured_chunks:
+        return "未能解析病历内容，请确认文件是否包含可读文字后重试。"
+
+    # Deduplicate
+    if patient_id:
+        structured_chunks = await _mark_duplicates(structured_chunks, doctor_id, patient_id)
+
+    # Persist as PendingImport
+    import_id = uuid.uuid4().hex
+    async with AsyncSessionLocal() as session:
+        await create_pending_import(
+            session,
+            import_id,
+            doctor_id,
+            patient_id=patient_id,
+            patient_name=patient_name,
+            source=source,
+            chunks_json=json.dumps(structured_chunks, ensure_ascii=False),
+            ttl_minutes=30,
+        )
+    set_pending_import_id(doctor_id, import_id)
+
+    # Build preview; prepend patient question if unknown
+    preview = _format_import_preview(structured_chunks, patient_name, source)
+    if patient_id is None:
+        preview = (
+            "未识别到患者姓名，请先告知患者姓名（如「这是张三的记录」），"
+            "或直接回复「确认导入」关联到当前患者。\n\n" + preview
+        )
+    return preview
 
 
 def wecom_kf_msg_to_text(msg: Dict[str, Any]) -> str:

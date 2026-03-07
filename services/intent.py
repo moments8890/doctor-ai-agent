@@ -48,6 +48,7 @@ SYSTEM_PROMPT = (
     "- 病历记录/症状/诊断/治疗 → add_record\n"
     "- 查询/历史记录/看一下 → query_records\n"
     "- 所有患者/患者列表 → list_patients\n"
+    "- 历史病历导入/多次就诊记录/PDF病历/Word文件病历 → import_history\n"
     "- 删除患者/移除病人 → delete_patient\n"
     "- 其他 → unknown\n"
     "只输出JSON，不要解释。"
@@ -59,10 +60,12 @@ class Intent(str, Enum):
     add_record = "add_record"
     query_records = "query_records"
     list_patients = "list_patients"
+    import_history = "import_history"
     delete_patient = "delete_patient"
     list_tasks = "list_tasks"
     complete_task = "complete_task"
     schedule_appointment = "schedule_appointment"
+    bash_command = "bash_command"
     unknown = "unknown"
 
 
@@ -88,11 +91,13 @@ async def detect_intent(text: str) -> IntentResult:
 
     provider = _PROVIDERS[intent_provider]
     log(f"[Intent:{intent_provider}] detecting: {text[:80]}")
+    extra_headers = {"anthropic-version": "2023-06-01"} if intent_provider == "claude" else {}
     client = AsyncOpenAI(
         base_url=provider["base_url"],
         api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
         timeout=float(os.environ.get("INTENT_LLM_TIMEOUT", "30")),
         max_retries=0,
+        default_headers=extra_headers,
     )
 
     async def _call(model_name: str):

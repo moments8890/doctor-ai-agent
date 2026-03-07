@@ -524,6 +524,7 @@ async def upsert_doctor_session_state(
     current_patient_id: Optional[int],
     pending_create_name: Optional[str],
     pending_record_id: Optional[str] = None,
+    pending_import_id: Optional[str] = None,
 ) -> None:
     doctor_id = await _ensure_doctor_exists(session, doctor_id)
     row = await get_doctor_session_state(session, doctor_id)
@@ -531,6 +532,7 @@ async def upsert_doctor_session_state(
         row.current_patient_id = current_patient_id
         row.pending_create_name = pending_create_name
         row.pending_record_id = pending_record_id
+        row.pending_import_id = pending_import_id
         row.updated_at = _utcnow()
     else:
         session.add(
@@ -539,6 +541,7 @@ async def upsert_doctor_session_state(
                 current_patient_id=current_patient_id,
                 pending_create_name=pending_create_name,
                 pending_record_id=pending_record_id,
+                pending_import_id=pending_import_id,
                 updated_at=_utcnow(),
             )
         )
@@ -1165,6 +1168,88 @@ async def expire_stale_pending_records(session: AsyncSession) -> int:
     )
     await session.commit()
     return result.rowcount if result.rowcount else 0
+
+
+# ---------------------------------------------------------------------------
+# PendingImport helpers (Bulk History Import Gate)
+# ---------------------------------------------------------------------------
+
+async def create_pending_import(
+    session: AsyncSession,
+    import_id: str,
+    doctor_id: str,
+    *,
+    patient_id: Optional[int],
+    patient_name: Optional[str],
+    source: str,
+    chunks_json: str,
+    ttl_minutes: int = 30,
+) -> "PendingImport":
+    from db.models import PendingImport
+    from datetime import timedelta
+    expires = datetime.now(timezone.utc) + timedelta(minutes=ttl_minutes)
+    obj = PendingImport(
+        id=import_id,
+        doctor_id=doctor_id,
+        patient_id=patient_id,
+        patient_name=patient_name,
+        source=source,
+        chunks_json=chunks_json,
+        status="awaiting",
+        expires_at=expires,
+    )
+    session.add(obj)
+    await session.commit()
+    return obj
+
+
+async def get_pending_import(
+    session: AsyncSession,
+    import_id: str,
+    doctor_id: str,
+) -> Optional["PendingImport"]:
+    from db.models import PendingImport
+    result = await session.execute(
+        select(PendingImport).where(
+            PendingImport.id == import_id,
+            PendingImport.doctor_id == doctor_id,
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def confirm_pending_import(session: AsyncSession, import_id: str) -> None:
+    from db.models import PendingImport
+    await session.execute(
+        update(PendingImport)
+        .where(PendingImport.id == import_id)
+        .values(status="confirmed")
+    )
+    await session.commit()
+
+
+async def abandon_pending_import(session: AsyncSession, import_id: str) -> None:
+    from db.models import PendingImport
+    await session.execute(
+        update(PendingImport)
+        .where(PendingImport.id == import_id)
+        .values(status="abandoned")
+    )
+    await session.commit()
+
+
+async def expire_stale_pending_imports(session: AsyncSession) -> int:
+    from db.models import PendingImport
+    result = await session.execute(
+        update(PendingImport)
+        .where(
+            PendingImport.status == "awaiting",
+            PendingImport.expires_at < datetime.now(timezone.utc),
+        )
+        .values(status="expired")
+    )
+    await session.commit()
+    return result.rowcount
 
 
 # ---------------------------------------------------------------------------

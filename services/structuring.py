@@ -19,6 +19,7 @@ _STRUCTURING_CLIENT_CACHE: dict[str, AsyncOpenAI] = {}
 
 
 def _get_structuring_client(provider_name: str, provider: dict) -> AsyncOpenAI:
+    extra_headers = {"anthropic-version": "2023-06-01"} if provider_name == "claude" else {}
     # Skip singleton cache in test environments so mock patches can intercept.
     if os.environ.get("PYTEST_CURRENT_TEST") or "pytest" in os.environ.get("_", ""):
         return AsyncOpenAI(
@@ -26,6 +27,7 @@ def _get_structuring_client(provider_name: str, provider: dict) -> AsyncOpenAI:
             api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
             timeout=float(os.environ.get("STRUCTURING_LLM_TIMEOUT", "30")),
             max_retries=0,
+            default_headers=extra_headers,
         )
     if provider_name not in _STRUCTURING_CLIENT_CACHE:
         _STRUCTURING_CLIENT_CACHE[provider_name] = AsyncOpenAI(
@@ -33,6 +35,7 @@ def _get_structuring_client(provider_name: str, provider: dict) -> AsyncOpenAI:
             api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
             timeout=float(os.environ.get("STRUCTURING_LLM_TIMEOUT", "30")),
             max_retries=0,
+            default_headers=extra_headers,
         )
     return _STRUCTURING_CLIENT_CACHE[provider_name]
 
@@ -177,6 +180,8 @@ async def structure_medical_record(
     elif provider_name == "tencent_lkeap":
         provider["base_url"] = os.environ.get("TENCENT_LKEAP_BASE_URL", provider["base_url"])
         provider["model"] = os.environ.get("TENCENT_LKEAP_MODEL", provider["model"])
+    elif provider_name == "claude":
+        provider["model"] = os.environ.get("CLAUDE_MODEL", provider["model"])
     strict_mode = os.environ.get("LLM_PROVIDER_STRICT_MODE", "true").strip().lower() not in {"0", "false", "no", "off"}
     if strict_mode and provider_name != "ollama":
         key_env = provider["api_key_env"]

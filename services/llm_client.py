@@ -40,4 +40,9 @@ _PROVIDERS = {
         "api_key_env": "TENCENT_LKEAP_API_KEY",
         "model": os.environ.get("TENCENT_LKEAP_MODEL", "deepseek-v3-1"),
     },
+    "claude": {
+        "base_url": "https://api.anthropic.com/v1",
+        "api_key_env": "ANTHROPIC_API_KEY",
+        "model": os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-6"),
+    },
 }

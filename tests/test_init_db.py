@@ -145,7 +145,7 @@ async def test_create_tables_skips_migration_when_column_already_renamed(monkeyp
                 "id", "doctor_id", "task_type", "title", "status", "trigger_source", "trigger_reason", "updated_at",
             ],
             "doctor_session_states": [
-                "doctor_id", "current_patient_id", "pending_create_name", "pending_record_id",
+                "doctor_id", "current_patient_id", "pending_create_name", "pending_record_id", "pending_import_id",
             ],
             "doctors": ["doctor_id", "name", "channel", "wechat_user_id", "created_at", "updated_at"],
             "medical_records": [
