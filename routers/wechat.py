@@ -129,8 +129,9 @@ async def _is_registered_doctor(open_id: str) -> bool:
 
 
 _PATIENT_REPLY = (
-    "您好！此服务专供医生使用。"
-    "如需查询就诊信息，请联系您的主治医生。"
+    "您好！\n"
+    "此服务专供医生使用。\n"
+    "如需就诊信息，请联系主治医生。"
 )
 
 
@@ -277,7 +278,9 @@ async def _handle_notify_control_command(doctor_id: str, text: str) -> str:
     if action == "trigger_now":
         result = await run_due_task_cycle(doctor_id=doctor_id, include_manual=True, force=True)
         return (
-            "✅ 已触发待办通知：due={0}, eligible={1}, sent={2}, failed={3}"
+            "✅ 待办通知已触发\n"
+            "due={0} eligible={1}\n"
+            "sent={2} failed={3}"
         ).format(
             result.get("due_count", 0),
             result.get("eligible_count", 0),
@@ -647,15 +650,16 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
                 patient_name=sess.current_patient_name,
                 structured_fields={"chief_complaint": text.strip()},
                 chat_reply=(
-                    f"已记录【{sess.current_patient_name}】当前症状：{text.strip()}。"
-                    "如补充持续时间/伴随症状/诱因，我可继续完善病历。"
+                    f"已记录【{sess.current_patient_name}】\n"
+                    f"症状：{text.strip()[:18]}\n"
+                    "可继续补充时长/诱因完善病历"
                 ),
             )
             return await _handle_add_record(text, doctor_id, synthetic, history=history)
-        fallback = "您好！请直接描述病历内容、或说「新患者姓名」建档、或说「查询姓名」查记录。"
+        fallback = "请直接描述病历内容\n或说「新患者姓名」建档\n或说「查询姓名」查记录"
         return intent_result.chat_reply or fallback
     else:
-        return intent_result.chat_reply or "您好！请直接描述病历内容、或说「新患者姓名」建档、或说「查询姓名」查记录。"
+        return intent_result.chat_reply or "请直接描述病历内容\n或说「新患者姓名」建档\n或说「查询姓名」查记录"
 
 
 async def _handle_image_bg(media_id: str, doctor_id: str, open_kfid: str = ""):
@@ -1054,7 +1058,7 @@ async def handle_message(request: Request):
         return Response(content=reply.render(), media_type="application/xml")
 
     if msg.type in ("video", "shortvideo"):
-        ack = "🎬 收到视频。当前暂不支持自动解析视频，请发送关键内容文字说明。"
+        ack = "🎬 收到视频\n暂不支持视频解析\n请发文字说明。"
         reply = TextReply(content=ack, message=msg)
         return Response(content=reply.render(), media_type="application/xml")
 

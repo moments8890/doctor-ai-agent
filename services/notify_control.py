@@ -106,33 +106,33 @@ def should_auto_run_now(
 def format_notify_pref(pref: Optional[DoctorNotifyPreference]) -> str:
     if pref is None:
         return (
-            "通知设置：\n"
-            "- 模式：自动\n"
-            "- 计划：immediate（每次调度都检查）\n"
-            "可用命令：通知模式 自动/手动，通知频率 每30分钟，通知计划 */5 * * * *，立即发送待办"
+            "⚙️ 通知设置\n"
+            "模式：自动\n"
+            "计划：实时\n"
+            "最近调度：未执行"
         )
 
     mode_text = "自动" if pref.notify_mode == "auto" else "手动"
     schedule_type = pref.schedule_type or "immediate"
     if schedule_type == "interval":
-        plan_text = "interval 每{0}分钟".format(max(1, int(pref.interval_minutes or 1)))
+        plan_text = "每{0}分钟检查".format(max(1, int(pref.interval_minutes or 1)))
     elif schedule_type == "cron":
-        plan_text = "cron {0}".format(pref.cron_expr or "(空)")
+        plan_text = "定时 {0}".format(pref.cron_expr or "(空)")
     else:
-        plan_text = "immediate（每次调度都检查）"
+        plan_text = "实时"
 
     last = pref.last_auto_run_at
     if last is None:
         last_text = "未执行"
     else:
         dt = last.astimezone(timezone.utc)
-        last_text = dt.strftime("%Y-%m-%d %H:%M UTC")
+        last_text = dt.strftime("%m-%d %H:%M")
 
     return (
-        "通知设置：\n"
-        "- 模式：{0}\n"
-        "- 计划：{1}\n"
-        "- 最近自动调度：{2}"
+        "⚙️ 通知设置\n"
+        "模式：{0}\n"
+        "计划：{1}\n"
+        "最近调度：{2}"
     ).format(mode_text, plan_text, last_text)
 
 
