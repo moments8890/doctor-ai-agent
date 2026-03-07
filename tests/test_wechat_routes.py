@@ -814,6 +814,19 @@ async def test_handle_message_text_routing_paths():
     )
 
 
+async def test_handle_message_rejects_unknown_sender():
+    """Non-doctor senders must receive the patient-facing reply, not the agent."""
+    msg = SimpleNamespace(type="text", source="unknown_patient_openid", content="你好")
+    req = DummyRequest(query_params={}, body="<xml/>")
+    with patch("routers.wechat.parse_message", return_value=msg), \
+         patch("routers.wechat.TextReply", FakeTextReply), \
+         patch("routers.wechat._is_registered_doctor", new=AsyncMock(return_value=False)):
+        resp = await wechat.handle_message(req)
+    assert resp.status_code == 200
+    body = resp.body.decode("utf-8")
+    assert "此服务专供医生使用" in body
+
+
 async def test_handle_message_event_and_media_ack_paths():
     req = DummyRequest(query_params={}, body="<xml/>")
     click = SimpleNamespace(type="event", event="CLICK", key="DOCTOR_QUERY", source=DOCTOR)

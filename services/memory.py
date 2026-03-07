@@ -3,9 +3,8 @@ from __future__ import annotations
 import json
 import os
 import time
+from datetime import date
 from typing import TYPE_CHECKING, List, Optional
-
-from openai import AsyncOpenAI
 
 from db.crud import get_doctor_context, upsert_doctor_context, clear_conversation_turns
 from db.engine import AsyncSessionLocal
@@ -20,43 +19,49 @@ MAX_TURNS = 10
 # Compress when the doctor has been idle for this many seconds
 IDLE_SECONDS = 30 * 60  # 30 minutes
 
-_COMPRESS_PROMPT = """\
+_COMPRESS_PROMPT_TEMPLATE = """\
+今天日期：{today}
+
 将以下医生与AI助手的对话提炼为结构化临床摘要，供下次会话恢复上下文使用。
 
 只输出合法JSON对象，不加任何解释或markdown。字段说明（无相关信息填null）：
-{
-  "current_patient": {"name": "姓名", "gender": "性别或null", "age": 年龄整数或null},
+{{
+  "current_patient": {{"name": "姓名", "gender": "性别或null", "age": 年龄整数或null}},
   "active_diagnoses": ["诊断1", "诊断2"],
-  "current_medications": [{"name": "药名", "dose": "剂量用法"}],
+  "current_medications": [{{"name": "药名", "dose": "剂量用法"}}],
   "allergies": ["过敏源"],
+  "key_lab_values": [{{"name": "指标名", "value": "数值+单位", "date": "检测日期或null"}}],
   "recent_action": "最近一次主要操作（一句话）",
   "pending": "待跟进事项或null"
-}"""
+}}
+
+重要：key_lab_values 保留所有关键检验数值（BNP、EF、HbA1c、CEA、肌钙蛋白、血压等），
+不可省略，这些值是下次会话的重要上下文。"""
+
+
+def _build_compress_prompt() -> str:
+    return _COMPRESS_PROMPT_TEMPLATE.format(today=date.today().isoformat())
 
 
 async def _summarise(history: List[dict]) -> str:
-    """Call LLM to compress a conversation into a compact context string."""
-    from services.agent import _PROVIDERS  # reuse same provider map
+    """Call LLM to compress a conversation into a structured clinical context."""
+    from services.agent import _PROVIDERS, _get_client  # reuse singleton client
     provider_name = os.environ.get("STRUCTURING_LLM", "deepseek")
     provider = _PROVIDERS[provider_name]
-    client = AsyncOpenAI(
-        base_url=provider["base_url"],
-        api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
-        timeout=float(os.environ.get("MEMORY_LLM_TIMEOUT", "30")),
-        max_retries=0,
-    )
+    client = _get_client(provider_name, provider)
     turns_text = "\n".join(
         f"{'医生' if m['role'] == 'user' else '助手'}：{m['content']}"
         for m in history
     )
+
     async def _call(model_name: str):
         return await client.chat.completions.create(
             model=model_name,
             messages=[
-                {"role": "system", "content": _COMPRESS_PROMPT},
+                {"role": "system", "content": _build_compress_prompt()},
                 {"role": "user", "content": turns_text},
             ],
-            max_tokens=150,
+            max_tokens=int(os.environ.get("MEMORY_MAX_TOKENS", "400")),
             temperature=0,
         )
 
@@ -142,6 +147,18 @@ def _render_structured_summary(data: dict) -> str:
     allergies = data.get("allergies")
     if allergies and isinstance(allergies, list):
         lines.append("过敏：" + "；".join(str(a) for a in allergies if a))
+    labs = data.get("key_lab_values")
+    if labs and isinstance(labs, list):
+        lab_strs = []
+        for lab in labs:
+            if not isinstance(lab, dict) or not lab.get("name"):
+                continue
+            entry = f"{lab['name']} {lab.get('value', '')}".strip()
+            if lab.get("date"):
+                entry += f"（{lab['date']}）"
+            lab_strs.append(entry)
+        if lab_strs:
+            lines.append("关键检验：" + "；".join(lab_strs))
     recent = data.get("recent_action")
     if recent:
         lines.append("最近操作：" + str(recent))

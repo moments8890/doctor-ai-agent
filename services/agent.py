@@ -614,6 +614,8 @@ async def dispatch(
     except Exception as e:
         if provider_name == "ollama":
             log(f"[Agent:ollama] tool-call failed, using local fallback: {e}")
+            from services.routing_metrics import record as _record_metric
+            _record_metric("fallback:regex")
             with trace_block("agent", "agent.local_fallback", {"reason": "ollama_error"}):
                 return _fallback_intent_from_text(text)
         raise
@@ -632,6 +634,8 @@ async def dispatch(
             return _intent_result_from_tool_call(embedded_fn, embedded_args, cleaned_reply)
         if provider_name == "ollama" and (not chat_reply or _looks_like_tool_markup(chat_reply)):
             log("[Agent:ollama] no formal tool call, using local fallback")
+            from services.routing_metrics import record as _record_metric
+            _record_metric("fallback:regex")
             with trace_block("agent", "agent.local_fallback", {"reason": "no_tool_call"}):
                 return _fallback_intent_from_text(text)
         reply_text = chat_reply or "您好！有什么可以帮您？"

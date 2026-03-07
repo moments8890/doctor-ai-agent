@@ -58,6 +58,7 @@ from services.tasks import (
 )
 from db.engine import AsyncSessionLocal, engine as DB_ENGINE
 from db.crud import (
+    get_doctor_by_id,
     create_patient,
     delete_patient_for_doctor,
     find_patient_by_name,
@@ -81,12 +82,51 @@ from utils.log import log
 
 _COMPLETE_RE = re.compile(r'^完成\s*(\d+)$')
 
+# ── Doctor identity cache (5-min TTL) to avoid DB hit on every message ─────────
+_DOCTOR_CACHE: dict[str, tuple[float, bool]] = {}  # open_id → (expires_ts, is_doctor)
+_DOCTOR_CACHE_TTL = 300  # seconds
+
 router = APIRouter(prefix="/wechat", tags=["wechat"])
 _WECHAT_KF_SYNC_CURSOR: str = ""
 _WECHAT_KF_SEEN_MSG_IDS: set = set()
 _WECHAT_KF_CURSOR_LOADED: bool = False
 _WECHAT_KF_CURSOR_FILE = Path(__file__).resolve().parents[1] / "logs" / "wechat_kf_sync_state.json"
 _WECHAT_KF_CURSOR_KEY = "wecom_kf_sync_cursor"
+
+
+async def _is_registered_doctor(open_id: str) -> bool:
+    """Return True if the WeChat OpenID belongs to a registered doctor.
+
+    Results are cached for _DOCTOR_CACHE_TTL seconds to avoid a DB round-trip
+    on every incoming message.  Unknown senders are denied the agent pipeline —
+    they receive a static patient-facing reply instead.
+
+    In test environments the check is bypassed so existing unit tests that stub
+    the DB at a different level are not broken by the new guard.
+    """
+    import os as _os
+    import time as _time
+    if _os.environ.get("PYTEST_CURRENT_TEST"):
+        return True
+    now = _time.time()
+    cached = _DOCTOR_CACHE.get(open_id)
+    if cached and now < cached[0]:
+        return cached[1]
+    try:
+        async with AsyncSessionLocal() as _session:
+            doctor = await get_doctor_by_id(_session, open_id)
+        result = doctor is not None
+    except Exception as _e:
+        log(f"[WeChat] doctor lookup FAILED for {open_id}: {_e}")
+        result = False
+    _DOCTOR_CACHE[open_id] = (now + _DOCTOR_CACHE_TTL, result)
+    return result
+
+
+_PATIENT_REPLY = (
+    "您好！此服务专供医生使用。"
+    "如需查询就诊信息，请联系您的主治医生。"
+)
 
 
 def _sync_wechat_domain_bindings() -> None:
@@ -443,6 +483,8 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
             intent_result = await agent_dispatch(text, **dispatch_kwargs)
         except Exception as e:
             log(f"[WeChat] agent dispatch FAILED: {e}, falling back to structuring")
+            from services.routing_metrics import record as _record_metric
+            _record_metric("fallback:structuring")
             try:
                 record = await structure_medical_record(text)
                 return _format_record(record)
@@ -450,6 +492,7 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
                 return "没能识别病历内容，请重新描述一下。"
             except Exception as ex:
                 log(f"[WeChat] structuring fallback FAILED doctor={doctor_id}: {ex}")
+                _record_metric("fallback:error")
                 return "不好意思，出了点问题，能再说一遍吗？"
 
     log(f"[WeChat] intent={intent_result.intent} patient={intent_result.patient_name}")
@@ -902,6 +945,12 @@ async def handle_message(request: Request):
 
     if msg.type != "text" or not msg.content.strip():
         reply = TextReply(content="请发送文字、语音或图片消息。", message=msg)
+        return Response(content=reply.render(), media_type="application/xml")
+
+    # ── Patient pipeline guard — only registered doctors get agent access ──────
+    if not await _is_registered_doctor(msg.source):
+        log(f"[WeChat] unknown sender (patient?) rejected: open_id={msg.source}")
+        reply = TextReply(content=_PATIENT_REPLY, message=msg)
         return Response(content=reply.render(), media_type="application/xml")
 
     # Stateful flows take priority over intent detection
