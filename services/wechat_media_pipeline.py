@@ -42,7 +42,7 @@ async def handle_pdf_file_bg(
     if not text.strip():
         await send_customer_service_msg(
             doctor_id,
-            f"已收到《{filename or 'PDF文件'}》，但未提取到可读文本。请发送关键页面截图或粘贴主要内容。",
+            f"已收到《{filename or 'PDF'}》\n未提取到文字，请发截图或粘贴内容。",
         )
         return
 
@@ -79,7 +79,7 @@ async def handle_word_file_bg(
     if not text.strip():
         await send_customer_service_msg(
             doctor_id,
-            f"已收到《{filename or 'Word文件'}》，但未提取到可读文本。请发送关键内容文字或截图。",
+            f"已收到《{filename or 'Word文件'}》\n未提取到文字，请发截图或粘贴内容。",
         )
         return
 
@@ -123,7 +123,7 @@ async def handle_file_bg(
 
     await send_customer_service_msg(
         doctor_id,
-        f"已收到文件《{name or '文件'}》。当前自动处理支持文字/语音/图片/PDF/Word；其他文件请发送关键内容文本。",
+        f"已收到《{name or '文件'}》\n暂不支持此类型，请发文字描述。",
     )
 
 

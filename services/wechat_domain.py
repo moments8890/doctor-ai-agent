@@ -46,6 +46,14 @@ from services.text_parsing import (
 )
 from utils.log import log
 
+
+def _t(s: str | None, n: int = 30) -> str:
+    """Truncate string for mobile display."""
+    if not s:
+        return ""
+    return s[:n] + "…" if len(s) > n else s
+
+
 _DRAFT_TTL_MINUTES = int(__import__("os").environ.get("PENDING_RECORD_TTL_MINUTES", "10"))
 
 _MENU_EVENT_REPLIES = {
@@ -84,7 +92,7 @@ async def build_reply(content: str) -> str:
 async def handle_create_patient(doctor_id: str, intent_result: IntentResult) -> str:
     name = intent_result.patient_name
     if not name:
-        return "⚠️ 未能识别患者姓名，请重新说明，例如：帮我建个新患者，张三，30岁男性。"
+        return "⚠️ 未识别到患者姓名\n例：张三，30岁男性"
     created = False
     patient_id = None
     async with AsyncSessionLocal() as session:
@@ -97,10 +105,10 @@ async def handle_create_patient(doctor_id: str, intent_result: IntentResult) -> 
     if created:
         asyncio.create_task(audit(doctor_id, "WRITE", resource_type="patient", resource_id=str(patient_id)))
     if not created and intent_result.gender is None and intent_result.age is None:
-        return f"✅ 已切换到患者【{name}】，后续病历将自动关联该患者。"
+        return f"✅ 已切换到患者【{name}】。\n后续病历自动关联。"
     age_str = f"，{intent_result.age}岁" if intent_result.age else ""
     gender_str = f"，{intent_result.gender}性" if intent_result.gender else ""
-    return f"✅ 已为患者【{name}】建档{gender_str}{age_str}，后续病历将自动关联该患者。"
+    return f"✅ 已为患者【{name}】建档{gender_str}{age_str}。\n后续病历自动关联。"
 
 
 async def handle_add_record(
@@ -219,21 +227,27 @@ async def handle_query_records(doctor_id: str, intent_result: IntentResult) -> s
             records = await get_records_for_patient(session, doctor_id, patient_id)
             if not records:
                 return f"📂 患者【{patient_name}】暂无历史记录。"
-            lines = [f"📂 患者【{patient_name}】最近 {len(records)} 条记录：\n"]
+            lines = [f"📂 【{patient_name}】最近 {len(records)} 条记录\n"]
             for i, r in enumerate(records, 1):
-                date_str = r.created_at.strftime("%Y-%m-%d") if r.created_at else "未知日期"
-                lines.append(f"{i}. [{date_str}] 主诉：{r.chief_complaint or '—'} | 诊断：{r.diagnosis or '—'}")
+                date_str = r.created_at.strftime("%m-%d") if r.created_at else "?"
+                cc = _t(r.chief_complaint or "—", 16)
+                diag = _t(r.diagnosis or "", 16)
+                diag_line = f"\n   {diag}" if diag else ""
+                lines.append(f"{i}. {date_str} {cc}{diag_line}")
             return "\n".join(lines)
 
         records = await get_all_records_for_doctor(session, doctor_id)
 
     if not records:
         return "📂 暂无任何病历记录。"
-    lines = [f"📂 所有患者最近 {len(records)} 条记录：\n"]
+    lines = [f"📂 所有患者最近 {len(records)} 条记录\n"]
     for i, r in enumerate(records, 1):
         pname = r.patient.name if r.patient else "未关联患者"
-        date_str = r.created_at.strftime("%Y-%m-%d") if r.created_at else "未知日期"
-        lines.append(f"{i}. 【{pname}】[{date_str}] 主诉：{r.chief_complaint or '—'} | 诊断：{r.diagnosis or '—'}")
+        date_str = r.created_at.strftime("%m-%d") if r.created_at else "?"
+        cc = _t(r.chief_complaint or "—", 16)
+        diag = _t(r.diagnosis or "", 16)
+        diag_line = f"\n   {diag}" if diag else ""
+        lines.append(f"{i}. 【{pname}】{date_str} {cc}{diag_line}")
     return "\n".join(lines)
 
 
@@ -242,12 +256,14 @@ async def handle_all_patients(doctor_id: str) -> str:
         patients = await get_all_patients(session, doctor_id)
     if not patients:
         return "📂 暂无患者记录。发送「新患者姓名，年龄性别」可创建第一位患者。"
-    lines = [f"👥 共 {len(patients)} 位患者：\n"]
+    lines = [f"👥 共 {len(patients)} 位患者\n"]
     for i, p in enumerate(patients, 1):
-        age_display = f"{datetime.now().year - p.year_of_birth}岁" if p.year_of_birth else None
-        info = "、".join(filter(None, [p.gender, age_display]))
-        lines.append(f"{i}. {p.name}" + (f"（{info}）" if info else ""))
-    lines.append("\n发送「查询[姓名]」查看病历")
+        age_display = f"{datetime.now().year - p.year_of_birth}岁" if p.year_of_birth else ""
+        parts = [x for x in [p.gender, age_display] if x]
+        info = "·".join(parts)
+        suffix = f"（{info}）" if info else ""
+        lines.append(f"{i}. {p.name}{suffix}")
+    lines.append("\n发「查询[姓名]」看病历")
     return "\n".join(lines)
 
 
@@ -281,7 +297,7 @@ async def handle_delete_patient(doctor_id: str, intent_result: IntentResult) -> 
 async def start_interview(doctor_id: str) -> str:
     sess = get_session(doctor_id)
     sess.interview = InterviewState()
-    return f"🩺 开始问诊（发送「取消」随时结束）\n\n[1/{len(STEPS)}] {STEPS[0][1]}"
+    return f"🩺 开始问诊\n发「取消」随时结束\n\n[1/{len(STEPS)}] {STEPS[0][1]}"
 
 
 async def handle_interview_step(text: str, doctor_id: str) -> str:
@@ -293,7 +309,7 @@ async def handle_interview_step(text: str, doctor_id: str) -> str:
     iv = sess.interview
     iv.record_answer(text)
     if iv.active:
-        return f"{iv.progress} {iv.current_question}"
+        return f"{iv.progress}\n{iv.current_question}"
 
     compiled = iv.compile_text()
     patient_name = iv.patient_name
@@ -370,7 +386,7 @@ async def handle_pending_create(text: str, doctor_id: str) -> str:
     if m:
         age = int(m.group(1))
     if gender is None and age is None:
-        return f"还在为{name}建档，请补充性别和年龄（例如：男，17岁），或发送「取消」放弃。"
+        return f"还在为{name}建档\n请补充性别和年龄\n（如：男，17岁）\n或发「取消」放弃。"
 
     new_patient_id = None
     async with AsyncSessionLocal() as session:
@@ -393,11 +409,12 @@ async def handle_list_tasks(doctor_id: str) -> str:
         tasks = await list_tasks(session, doctor_id, status="pending")
     if not tasks:
         return "📋 暂无待办任务。"
-    lines = [f"📋 待办任务（共 {len(tasks)} 条）：\n"]
-    for i, t in enumerate(tasks, 1):
-        due_str = f" | ⏰ {t.due_at.strftime('%Y-%m-%d')}" if t.due_at else ""
-        lines.append(f"{i}. [{t.task_type}] {t.title}{due_str}")
-    lines.append("\n回复「完成 编号」标记任务完成")
+    lines = [f"📋 待办任务 {len(tasks)}条\n"]
+    for t in tasks:
+        due = t.due_at.strftime('%m-%d') if t.due_at else ""
+        due_str = f"  📅{due}" if due else ""
+        lines.append(f"· {_t(t.title, 18)}{due_str}")
+        lines.append(f"  #{t.id} · {t.task_type}")
     return "\n".join(lines)
 
 
@@ -427,8 +444,8 @@ async def handle_schedule_appointment(doctor_id: str, intent_result: IntentResul
     task = await create_appointment_task(doctor_id, patient_name, appointment_dt, notes)
     return (
         f"📅 已为患者【{patient_name}】安排预约\n"
-        f"预约时间：{appointment_dt.strftime('%Y-%m-%d %H:%M')}\n"
-        f"任务编号：{task.id}（将在1小时前提醒）"
+        f"时间：{appointment_dt.strftime('%m-%d %H:%M')}\n"
+        f"任务编号：{task.id}（1小时前提醒）"
     )
 
 
@@ -568,24 +585,24 @@ def _format_import_preview(
     dup_count = sum(1 for c in chunks if c["status"] == "duplicate")
     new_count = total - dup_count
 
-    lines = [f"已从{source_label}中提取{name_part}的 {total} 条历史记录：\n"]
+    lines = [f"📂 {name_part}历史记录\n共 {total} 条（来自{source_label}）\n"]
     ICONS = ["1.", "2.", "3.", "4.", "5.", "6.", "7.", "8.", "9.", "10."]
     for i, chunk in enumerate(chunks):
         s = chunk.get("structured", {})
         icon = ICONS[i] if i < len(ICONS) else f"{i+1}."
-        date_str = _extract_chunk_date(chunk.get("raw_text", "")) or "日期不明"
-        cc = s.get("chief_complaint") or "—"
-        diag = s.get("diagnosis") or ""
-        diag_part = f" → {diag}" if diag else ""
-        dup_tag = " [疑似重复]" if chunk["status"] == "duplicate" else ""
-        lines.append(f"{icon} [{date_str}] {cc}{diag_part}{dup_tag}")
+        date_str = _extract_chunk_date(chunk.get("raw_text", "")) or "?"
+        cc = _t(s.get("chief_complaint") or "—", 14)
+        diag = _t(s.get("diagnosis") or "", 12)
+        diag_part = f"·{diag}" if diag else ""
+        dup_tag = "⚠️疑似重复" if chunk["status"] == "duplicate" else ""
+        lines.append(f"{icon} {date_str} {cc}{diag_part} {dup_tag}".strip())
 
     lines.append("")
     if dup_count > 0:
-        lines.append(f"共 {new_count} 条新记录，{dup_count} 条疑似重复。")
-        lines.append("回复「确认导入」保存全部，「跳过重复」仅保存新记录，「取消」放弃导入。")
+        lines.append(f"{new_count} 条新记录，{dup_count} 条疑似重复。")
+        lines.append("「确认导入」保存全部\n「跳过重复」仅存新记录\n「取消」放弃")
     else:
-        lines.append(f"回复「确认导入」保存全部 {total} 条，「取消」放弃导入。")
+        lines.append(f"「确认导入」保存全部 {total} 条\n「取消」放弃")
     return "\n".join(lines)
 
 

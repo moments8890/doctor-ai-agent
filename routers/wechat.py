@@ -415,8 +415,8 @@ async def _handle_schedule_appointment(doctor_id: str, intent_result) -> str:
     task = await _create_appt(doctor_id, patient_name, appointment_dt, notes)
     return (
         f"📅 已为患者【{patient_name}】安排预约\n"
-        f"预约时间：{appointment_dt.strftime('%Y-%m-%d %H:%M')}\n"
-        f"任务编号：{task.id}（将在1小时前提醒）"
+        f"时间：{appointment_dt.strftime('%m-%d %H:%M')}\n"
+        f"任务编号：{task.id}（1小时前提醒）"
     )
 
 
@@ -427,7 +427,7 @@ async def _confirm_pending_record(doctor_id: str, pending_id: str) -> str:
         pending = await get_pending_record(session, pending_id, doctor_id)
         if pending is None or pending.status != "awaiting":
             clear_pending_record_id(doctor_id)
-            return "⚠️ 草稿已过期或不存在，请重新录入病历。"
+            return "⚠️ 草稿已过期\n请重新录入病历。"
         try:
             draft = json.loads(pending.draft_json)
             record = MedicalRecord(**{k: draft.get(k) for k in MedicalRecord.model_fields})
@@ -435,7 +435,7 @@ async def _confirm_pending_record(doctor_id: str, pending_id: str) -> str:
             log(f"[Confirm] parse draft FAILED doctor={doctor_id}: {e}")
             await abandon_pending_record(session, pending_id)
             clear_pending_record_id(doctor_id)
-            return "⚠️ 草稿解析失败，请重新录入病历。"
+            return "⚠️ 草稿解析失败\n请重新录入。"
         db_record = await save_record(session, doctor_id, record, pending.patient_id)
         await confirm_pending_record(session, pending_id)
         patient_name = pending.patient_name or "未关联患者"
@@ -460,7 +460,7 @@ async def _handle_pending_record_reply(text: str, doctor_id: str, sess) -> str:
         async with AsyncSessionLocal() as session:
             await abandon_pending_record(session, pending_id)
         clear_pending_record_id(doctor_id)
-        return "好的，已放弃该草稿。"
+        return "已放弃草稿。"
     # Any other input: abandon draft, then route as new intent
     async with AsyncSessionLocal() as session:
         await abandon_pending_record(session, pending_id)
@@ -480,14 +480,14 @@ async def _confirm_pending_import(
         pending = await get_pending_import(session, import_id, doctor_id)
         if pending is None or pending.status != "awaiting":
             clear_pending_import_id(doctor_id)
-            return "⚠️ 导入草稿已过期或不存在，请重新发送文件。"
+            return "⚠️ 导入草稿已过期\n请重新发送文件。"
         try:
             chunks = json.loads(pending.chunks_json)
         except Exception as e:
             log(f"[ImportConfirm] parse chunks FAILED doctor={doctor_id}: {e}")
             await abandon_pending_import(session, import_id)
             clear_pending_import_id(doctor_id)
-            return "⚠️ 草稿解析失败，请重新发送文件。"
+            return "⚠️ 草稿解析失败\n请重新发送文件。"
 
         saved = 0
         skipped = 0
@@ -510,10 +510,8 @@ async def _confirm_pending_import(
         patient_name = pending.patient_name or "未关联患者"
 
     clear_pending_import_id(doctor_id)
-    parts = [f"✅ 已成功导入 {saved} 条历史病历，患者：【{patient_name}】"]
-    if skipped:
-        parts.append(f"（已跳过 {skipped} 条重复记录）")
-    return "".join(parts)
+    skipped_str = f"\n已跳过 {skipped} 条重复" if skipped else ""
+    return f"✅ 已导入 {saved} 条病历\n患者：【{patient_name}】{skipped_str}"
 
 
 async def _handle_pending_import_reply(text: str, doctor_id: str, sess) -> str:
@@ -531,7 +529,7 @@ async def _handle_pending_import_reply(text: str, doctor_id: str, sess) -> str:
         async with AsyncSessionLocal() as session:
             await abandon_pending_import(session, import_id)
         clear_pending_import_id(doctor_id)
-        return "好的，已取消历史病历导入。"
+        return "已取消导入。"
 
     # Any other input: abandon import, route as new intent
     async with AsyncSessionLocal() as session:
