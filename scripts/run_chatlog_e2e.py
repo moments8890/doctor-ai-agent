@@ -76,6 +76,47 @@ _TABLES_GLOBAL_ONLY = {
     "runtime_cursors",
 }
 
+# Tables to purge during cleanup, in FK-safe order (children before parents)
+_CLEANUP_TABLES = [
+    ("doctor_tasks",          "doctor_id"),
+    ("neuro_cases",           "doctor_id"),
+    ("pending_records",       "doctor_id"),
+    ("pending_imports",       "doctor_id"),
+    ("medical_records",       "doctor_id"),
+    ("patients",              "doctor_id"),
+    ("doctor_contexts",       "doctor_id"),
+    ("doctor_session_states", "doctor_id"),
+    ("doctor_conversation_turns", "doctor_id"),
+    ("doctors",               "doctor_id"),
+]
+
+
+def _cleanup_e2e_data(doctor_ids: list[str], label: str = "cleanup") -> None:
+    """Delete all rows created by this e2e run from the local DB."""
+    if not doctor_ids:
+        return
+    if not DB_PATH.exists():
+        return
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        deleted_total = 0
+        for table, col in _CLEANUP_TABLES:
+            exists = conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+            ).fetchone()
+            if not exists:
+                continue
+            placeholders = ",".join("?" for _ in doctor_ids)
+            cur = conn.execute(
+                f"DELETE FROM {table} WHERE {col} IN ({placeholders})", doctor_ids
+            )
+            deleted_total += cur.rowcount
+        conn.commit()
+        conn.close()
+        print(f"{GRAY}  [{label}] purged {deleted_total} rows for {len(doctor_ids)} doctor(s){RESET}")
+    except Exception as exc:  # noqa: BLE001
+        print(f"{YELLOW}  [{label}] cleanup warning: {exc}{RESET}")
+
 
 @dataclass
 class Turn:
@@ -590,6 +631,11 @@ def main() -> None:
     parser.add_argument("--workers", type=int, default=1, help="Parallel workers for case replay")
     parser.add_argument("--fail-fast", action="store_true", help="Stop after first failing case")
     parser.add_argument(
+        "--no-cleanup",
+        action="store_true",
+        help="Skip DB cleanup after run (useful for debugging leftover data)",
+    )
+    parser.add_argument(
         "--response-keywords-only",
         action="store_true",
         help="Validate must_include_keywords only in agent replies + structured record",
@@ -672,43 +718,53 @@ def main() -> None:
                 elapsed_s=0.0,
             )
 
+    # Pre-compute all doctor_ids that will be created so we can clean up even
+    # on partial runs (Ctrl+C, fail-fast, exception).
+    all_doctor_ids = [f"{args.doctor_prefix}_{run_id}_{c.case_id.lower()}" for c in cases]
+
     workers = max(1, int(args.workers))
-    if workers == 1:
-        results: List[CaseResult] = []
-        for case in cases:
-            case_label = f"{case.case_id}"
-            print(f"  {case_label:<16}", end=" ", flush=True)
-            result = _run_one(case)
-            results.append(result)
-            status = f"{GREEN}PASS{RESET}" if result.ok else f"{RED}FAIL{RESET}"
-            print(
-                f"{status}  {GRAY}turns={result.turns_sent} time={result.elapsed_s:.2f}s "
-                f"detail={result.detail}{RESET}"
-            )
-            if args.fail_fast and not result.ok:
-                break
-    else:
-        print(f"{GRAY}  workers   : {workers}{RESET}\n")
-        results_by_case: Dict[str, CaseResult] = {}
-        ordered_ids = [c.case_id for c in cases]
-        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
-            future_map = {pool.submit(_run_one, c): c for c in cases}
-            for fut in concurrent.futures.as_completed(future_map):
-                case = future_map[fut]
+    results: List[CaseResult] = []
+    try:
+        if workers == 1:
+            for case in cases:
                 case_label = f"{case.case_id}"
-                result = fut.result()
-                results_by_case[case.case_id] = result
+                print(f"  {case_label:<16}", end=" ", flush=True)
+                result = _run_one(case)
+                results.append(result)
                 status = f"{GREEN}PASS{RESET}" if result.ok else f"{RED}FAIL{RESET}"
                 print(
-                    f"  {case_label:<16} {status}  "
-                    f"{GRAY}turns={result.turns_sent} time={result.elapsed_s:.2f}s "
+                    f"{status}  {GRAY}turns={result.turns_sent} time={result.elapsed_s:.2f}s "
                     f"detail={result.detail}{RESET}"
                 )
                 if args.fail_fast and not result.ok:
-                    for pending in future_map:
-                        pending.cancel()
                     break
-        results = [results_by_case[cid] for cid in ordered_ids if cid in results_by_case]
+        else:
+            print(f"{GRAY}  workers   : {workers}{RESET}\n")
+            results_by_case: Dict[str, CaseResult] = {}
+            ordered_ids = [c.case_id for c in cases]
+            with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
+                future_map = {pool.submit(_run_one, c): c for c in cases}
+                for fut in concurrent.futures.as_completed(future_map):
+                    case = future_map[fut]
+                    case_label = f"{case.case_id}"
+                    result = fut.result()
+                    results_by_case[case.case_id] = result
+                    status = f"{GREEN}PASS{RESET}" if result.ok else f"{RED}FAIL{RESET}"
+                    print(
+                        f"  {case_label:<16} {status}  "
+                        f"{GRAY}turns={result.turns_sent} time={result.elapsed_s:.2f}s "
+                        f"detail={result.detail}{RESET}"
+                    )
+                    if args.fail_fast and not result.ok:
+                        for pending in future_map:
+                            pending.cancel()
+                        break
+            results = [results_by_case[cid] for cid in ordered_ids if cid in results_by_case]
+    except KeyboardInterrupt:
+        print(f"\n{YELLOW}Interrupted — running cleanup…{RESET}")
+    finally:
+        if not args.no_cleanup:
+            _cleanup_e2e_data(all_doctor_ids, label="e2e-cleanup")
 
     total = len(results)
     passed = len([r for r in results if r.ok])
