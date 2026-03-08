@@ -1,3 +1,7 @@
+"""
+知识文档策划过滤：去重、质量评分和筛选高价值医学知识条目。
+"""
+
 from __future__ import annotations
 
 from typing import Dict, List, Tuple

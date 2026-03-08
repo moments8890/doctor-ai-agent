@@ -3,6 +3,7 @@
 Requires: running server + Ollama with vision model (auto-skipped otherwise).
 Vision model: set OLLAMA_VISION_MODEL=qwen2.5vl:7b in .env
 """
+
 import pytest
 from pathlib import Path
 import httpx

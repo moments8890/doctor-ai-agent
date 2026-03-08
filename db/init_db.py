@@ -1,3 +1,7 @@
+"""
+数据库初始化与内联迁移：创建所有表并按需添加新列（无 Alembic）。
+"""
+
 import db.models  # noqa: F401 — ensure models are registered before create_all
 import re
 from sqlalchemy import inspect, text
@@ -156,8 +160,8 @@ async def create_tables() -> None:
 
 async def seed_prompts() -> None:
     """Seed default system prompts to DB on first startup (idempotent)."""
-    from services.structuring import _SEED_PROMPT
-    from services.neuro_structuring import _SEED_PROMPT as _NEURO_SEED
+    from services.ai.structuring import _SEED_PROMPT
+    from services.ai.neuro_structuring import _SEED_PROMPT as _NEURO_SEED
     from db.crud import get_system_prompt, upsert_system_prompt
     async with AsyncSessionLocal() as db:
         existing = await get_system_prompt(db, "structuring")

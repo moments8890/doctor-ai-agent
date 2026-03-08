@@ -1,3 +1,7 @@
+"""
+神经专科路由：提供神经科病例的结构化录入和查询 API 端点。
+"""
+
 from __future__ import annotations
 
 from typing import List, Optional
@@ -7,9 +11,9 @@ from pydantic import BaseModel
 
 from db.crud import get_neuro_cases_for_doctor, save_neuro_case
 from db.engine import AsyncSessionLocal
-from services.neuro_structuring import extract_neuro_case
-from services.rate_limit import enforce_doctor_rate_limit
-from services.request_auth import resolve_doctor_id_from_auth_or_fallback
+from services.ai.neuro_structuring import extract_neuro_case
+from services.auth.rate_limit import enforce_doctor_rate_limit
+from services.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
 from utils.log import log
 
 router = APIRouter(prefix="/api/neuro", tags=["neuro"])

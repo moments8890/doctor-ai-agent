@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 
-from services.patient_risk import compute_patient_risk
+from services.patient.patient_risk import compute_patient_risk
 
 
 def _patient(**kwargs):

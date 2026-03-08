@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from fastapi import HTTPException
 
-from services import rate_limit as rl
+from services.auth import rate_limit as rl
 
 
 def test_enforce_doctor_rate_limit_allows_under_limit() -> None:

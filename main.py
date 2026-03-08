@@ -1,3 +1,7 @@
+"""
+FastAPI 应用入口：生命周期管理、APScheduler 定时任务和启动恢复逻辑。
+"""
+
 import logging
 import asyncio
 import os
@@ -37,11 +41,11 @@ from db.init_db import create_tables, seed_prompts, backfill_doctors_registry
 from db.engine import engine, AsyncSessionLocal
 from db.models import Doctor, Patient, MedicalRecordDB, DoctorContext, SystemPrompt, NeuroCaseDB, DoctorTask
 from db.crud import get_due_tasks, purge_conversation_turns_before
-from services.tasks import check_and_send_due_tasks
+from services.notify.tasks import check_and_send_due_tasks
 from services.session import prune_inactive_sessions
-from services.runtime_config import register_runtime_apply_hook
-from services.errors import DomainError
-from services.observability import (
+from utils.runtime_config import register_runtime_apply_hook
+from utils.errors import DomainError
+from services.observability.observability import (
     add_trace,
     reset_current_span_id,
     reset_current_trace_id,
@@ -279,7 +283,7 @@ async def _warmup(config: AppConfig):
         lkeap_key = os.environ.get("TENCENT_LKEAP_API_KEY", "").strip()
         if lkeap_key:
             try:
-                from services.agent import _get_client, _PROVIDERS
+                from services.ai.agent import _get_client, _PROVIDERS
                 lkeap_provider = _PROVIDERS.get("tencent_lkeap", {})
                 if lkeap_provider:
                     lkeap_client = _get_client("tencent_lkeap", dict(lkeap_provider))
@@ -482,7 +486,7 @@ async def lifespan(app: FastAPI):
     await seed_prompts()
     await _warmup(APP_CONFIG)
     # Start async observability disk writer — eliminates blocking file I/O on every request
-    from services.observability import _disk_writer
+    from services.observability.observability import _disk_writer
     asyncio.create_task(_disk_writer())
     await _cleanup_old_conversation_turns()
     await _cleanup_inactive_session_cache()

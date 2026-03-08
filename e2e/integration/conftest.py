@@ -12,6 +12,7 @@ Integration DB resolution:
 - Fallback to repo-local `patients.db`.
 This keeps DB assertions aligned with the running app configuration.
 """
+
 import os
 import sqlite3
 import time

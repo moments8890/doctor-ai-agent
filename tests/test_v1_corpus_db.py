@@ -13,6 +13,7 @@ Contract (from clinic_raw_cases_cardiology_v1.md):
 All tests write through the real CRUD layer to an in-memory SQLite DB to verify
 that null fields are stored as NULL (not as empty strings or placeholder text).
 """
+
 import json
 import pytest
 import pytest_asyncio
@@ -22,7 +23,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from db.engine import Base
 import db.models  # noqa: F401
 
-from services.structuring import structure_medical_record
+from services.ai.structuring import structure_medical_record
 from db.crud import save_record, find_patient_by_name, create_patient, get_records_for_patient
 
 
@@ -60,7 +61,7 @@ async def _structure_and_save(input_text: str, patient_name: str, llm_fields: di
     Returns the saved MedicalRecordDB row.
     """
     mock_create = AsyncMock(return_value=_struct_llm_response(llm_fields))
-    with patch("services.structuring.AsyncOpenAI", return_value=__import__(
+    with patch("services.ai.structuring.AsyncOpenAI", return_value=__import__(
         "unittest.mock", fromlist=["MagicMock"]
     ).MagicMock(chat=__import__("unittest.mock", fromlist=["MagicMock"]).MagicMock(
         completions=__import__("unittest.mock", fromlist=["MagicMock"]).MagicMock(create=mock_create)

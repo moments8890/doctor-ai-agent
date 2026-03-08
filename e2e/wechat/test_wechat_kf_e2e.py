@@ -19,7 +19,7 @@ import pytest
 
 import routers.wechat as wechat
 from db.crud import find_patient_by_name, get_records_for_patient
-from services.intent import Intent, IntentResult
+from services.ai.intent import Intent, IntentResult
 from tests.fixtures.realworld_cases import REALWORLD_SCENARIOS
 
 

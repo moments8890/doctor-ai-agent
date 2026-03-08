@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from starlette.requests import Request
 
 import main
-import services.observability as observability
+import services.observability.observability as observability
 
 
 def _request(path: str, method: str = "GET", trace_id: Optional[str] = None) -> Request:

@@ -19,7 +19,7 @@ from sqlalchemy import select
 
 from db.engine import AsyncSessionLocal
 from db.models import MedicalRecordDB, Patient
-from services.patient_risk import compute_patient_risk
+from services.patient.patient_risk import compute_patient_risk
 
 
 async def _run(doctor_id: Optional[str], dry_run: bool) -> int:

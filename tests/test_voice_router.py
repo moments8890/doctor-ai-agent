@@ -9,8 +9,8 @@ from fastapi import HTTPException
 
 import routers.voice as voice
 from models.medical_record import MedicalRecord
-from services.errors import InvalidMedicalRecordError
-from services.intent import Intent, IntentResult
+from utils.errors import InvalidMedicalRecordError
+from services.ai.intent import Intent, IntentResult
 
 
 DOCTOR = "voice_router_doc"

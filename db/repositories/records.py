@@ -1,3 +1,7 @@
+"""
+病历仓储层：提供病历的关联查询和 Pydantic 模型转换接口。
+"""
+
 from __future__ import annotations
 
 from typing import List, Optional

@@ -8,6 +8,7 @@ Verifies that:
 - pending_create state transitions work
 - last_active timestamp is refreshed on push_turn
 """
+
 import time
 import pytest
 import services.session as sess_mod

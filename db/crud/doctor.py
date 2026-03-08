@@ -1,0 +1,328 @@
+"""
+医生账户、会话状态、知识库条目和对话历史的数据库操作。
+"""
+
+from __future__ import annotations
+
+import re
+from datetime import datetime, timezone
+from typing import List, Optional
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
+from db.models import (
+    Doctor,
+    DoctorContext,
+    DoctorKnowledgeItem,
+    DoctorSessionState,
+    DoctorNotifyPreference,
+    DoctorConversationTurn,
+)
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+_WECHAT_ID_RE = re.compile(r"^(?:wm|wx|ww|wo)[A-Za-z0-9_-]{6,}$")
+
+
+def _is_wechat_identifier(raw: str) -> bool:
+    value = (raw or "").strip()
+    return bool(_WECHAT_ID_RE.match(value))
+
+
+def _infer_channel(doctor_id: str) -> str:
+    return "wechat" if _is_wechat_identifier(doctor_id) else "app"
+
+
+async def _resolve_doctor_id(session: AsyncSession, doctor_id: str, name: Optional[str] = None) -> str:
+    """Resolve incoming identifier to canonical doctor_id and keep doctors registry fresh."""
+    incoming = (doctor_id or "").strip()
+    if not incoming:
+        return doctor_id
+
+    now = _utcnow()
+    channel = _infer_channel(incoming)
+    wechat_user_id = incoming if channel == "wechat" else None
+
+    existing_by_id = (
+        await session.execute(select(Doctor).where(Doctor.doctor_id == incoming).limit(1))
+    ).scalar_one_or_none()
+    if existing_by_id is not None:
+        existing_by_id.updated_at = now
+        if name and not existing_by_id.name:
+            existing_by_id.name = name
+        if existing_by_id.channel != channel and existing_by_id.channel == "app":
+            existing_by_id.channel = channel
+        if wechat_user_id and not existing_by_id.wechat_user_id:
+            existing_by_id.wechat_user_id = wechat_user_id
+        return existing_by_id.doctor_id
+
+    if wechat_user_id:
+        existing_by_wechat = (
+            await session.execute(
+                select(Doctor)
+                .where(Doctor.channel == "wechat", Doctor.wechat_user_id == wechat_user_id)
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if existing_by_wechat is not None:
+            existing_by_wechat.updated_at = now
+            if name and not existing_by_wechat.name:
+                existing_by_wechat.name = name
+            return existing_by_wechat.doctor_id
+
+    session.add(
+        Doctor(
+            doctor_id=incoming,
+            name=name,
+            channel=channel,
+            wechat_user_id=wechat_user_id,
+            created_at=now,
+            updated_at=now,
+        )
+    )
+    try:
+        await session.flush()
+        return incoming
+    except IntegrityError:
+        await session.rollback()
+        if wechat_user_id:
+            row = (
+                await session.execute(
+                    select(Doctor)
+                    .where(Doctor.channel == "wechat", Doctor.wechat_user_id == wechat_user_id)
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
+            if row is not None:
+                return row.doctor_id
+        raise
+
+
+async def _ensure_doctor_exists(session: AsyncSession, doctor_id: str, name: Optional[str] = None) -> str:
+    return await _resolve_doctor_id(session, doctor_id, name=name)
+
+
+async def get_doctor_by_id(session: AsyncSession, doctor_id: str) -> Optional[Doctor]:
+    result = await session.execute(
+        select(Doctor).where(Doctor.doctor_id == doctor_id).limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+async def get_doctor_wechat_user_id(session: AsyncSession, doctor_id: str) -> Optional[str]:
+    row = await get_doctor_by_id(session, doctor_id)
+    if row is None or not row.wechat_user_id:
+        return None
+    return str(row.wechat_user_id).strip() or None
+
+
+async def get_doctor_context(session: AsyncSession, doctor_id: str) -> DoctorContext | None:
+    result = await session.execute(
+        select(DoctorContext).where(DoctorContext.doctor_id == doctor_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def upsert_doctor_context(session: AsyncSession, doctor_id: str, summary: str) -> None:
+    doctor_id = await _ensure_doctor_exists(session, doctor_id)
+    ctx = await get_doctor_context(session, doctor_id)
+    if ctx:
+        ctx.summary = summary
+        ctx.updated_at = _utcnow()
+    else:
+        session.add(DoctorContext(doctor_id=doctor_id, summary=summary))
+    await session.commit()
+
+
+async def add_doctor_knowledge_item(session: AsyncSession, doctor_id: str, content: str) -> DoctorKnowledgeItem:
+    doctor_id = await _ensure_doctor_exists(session, doctor_id)
+    now = _utcnow()
+    row = DoctorKnowledgeItem(
+        doctor_id=doctor_id,
+        content=content.strip(),
+        created_at=now,
+        updated_at=now,
+    )
+    session.add(row)
+    await session.commit()
+    await session.refresh(row)
+    return row
+
+
+async def list_doctor_knowledge_items(
+    session: AsyncSession,
+    doctor_id: str,
+    limit: int = 30,
+) -> List[DoctorKnowledgeItem]:
+    stmt = (
+        select(DoctorKnowledgeItem)
+        .where(DoctorKnowledgeItem.doctor_id == doctor_id)
+        .order_by(DoctorKnowledgeItem.updated_at.desc(), DoctorKnowledgeItem.id.desc())
+        .limit(max(1, int(limit)))
+    )
+    rows = (await session.execute(stmt)).scalars().all()
+    return list(rows)
+
+
+async def get_doctor_session_state(session: AsyncSession, doctor_id: str) -> Optional[DoctorSessionState]:
+    result = await session.execute(
+        select(DoctorSessionState).where(DoctorSessionState.doctor_id == doctor_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def upsert_doctor_session_state(
+    session: AsyncSession,
+    doctor_id: str,
+    current_patient_id: Optional[int],
+    pending_create_name: Optional[str],
+    pending_record_id: Optional[str] = None,
+    pending_import_id: Optional[str] = None,
+) -> None:
+    doctor_id = await _ensure_doctor_exists(session, doctor_id)
+    row = await get_doctor_session_state(session, doctor_id)
+    if row:
+        row.current_patient_id = current_patient_id
+        row.pending_create_name = pending_create_name
+        row.pending_record_id = pending_record_id
+        row.pending_import_id = pending_import_id
+        row.updated_at = _utcnow()
+    else:
+        session.add(
+            DoctorSessionState(
+                doctor_id=doctor_id,
+                current_patient_id=current_patient_id,
+                pending_create_name=pending_create_name,
+                pending_record_id=pending_record_id,
+                pending_import_id=pending_import_id,
+                updated_at=_utcnow(),
+            )
+        )
+    await session.commit()
+
+
+async def get_doctor_notify_preference(
+    session: AsyncSession, doctor_id: str
+) -> Optional[DoctorNotifyPreference]:
+    result = await session.execute(
+        select(DoctorNotifyPreference).where(DoctorNotifyPreference.doctor_id == doctor_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def upsert_doctor_notify_preference(
+    session: AsyncSession,
+    doctor_id: str,
+    *,
+    notify_mode: Optional[str] = None,
+    schedule_type: Optional[str] = None,
+    interval_minutes: Optional[int] = None,
+    cron_expr: Optional[str] = None,
+    last_auto_run_at: Optional[datetime] = None,
+) -> DoctorNotifyPreference:
+    doctor_id = await _ensure_doctor_exists(session, doctor_id)
+    row = await get_doctor_notify_preference(session, doctor_id)
+    if row is None:
+        row = DoctorNotifyPreference(doctor_id=doctor_id)
+        session.add(row)
+
+    if notify_mode is not None:
+        row.notify_mode = notify_mode
+    if schedule_type is not None:
+        row.schedule_type = schedule_type
+    if interval_minutes is not None:
+        row.interval_minutes = interval_minutes
+    if cron_expr is not None or schedule_type == "cron":
+        row.cron_expr = cron_expr
+    if last_auto_run_at is not None:
+        row.last_auto_run_at = last_auto_run_at
+    row.updated_at = _utcnow()
+
+    await session.commit()
+    await session.refresh(row)
+    return row
+
+
+async def get_recent_conversation_turns(
+    session: AsyncSession,
+    doctor_id: str,
+    limit: int = 20,
+) -> List[DoctorConversationTurn]:
+    safe_limit = max(1, int(limit))
+    result = await session.execute(
+        select(DoctorConversationTurn)
+        .where(DoctorConversationTurn.doctor_id == doctor_id)
+        .order_by(DoctorConversationTurn.created_at.desc(), DoctorConversationTurn.id.desc())
+        .limit(safe_limit)
+    )
+    rows = list(result.scalars().all())
+    rows.reverse()
+    return rows
+
+
+async def append_conversation_turns(
+    session: AsyncSession,
+    doctor_id: str,
+    turns: List[dict],
+    max_turns: int = 10,
+) -> None:
+    if not turns:
+        return
+
+    safe_max_messages = max(2, int(max_turns) * 2)
+    for turn in turns:
+        role = str(turn.get("role") or "").strip().lower()
+        content = str(turn.get("content") or "").strip()
+        if role not in {"user", "assistant", "system"}:
+            continue
+        if not content:
+            continue
+        session.add(
+            DoctorConversationTurn(
+                doctor_id=doctor_id,
+                role=role,
+                content=content,
+                created_at=_utcnow(),
+            )
+        )
+    await session.flush()
+
+    keep_result = await session.execute(
+        select(DoctorConversationTurn.id)
+        .where(DoctorConversationTurn.doctor_id == doctor_id)
+        .order_by(DoctorConversationTurn.created_at.desc(), DoctorConversationTurn.id.desc())
+        .limit(safe_max_messages)
+    )
+    keep_ids = list(keep_result.scalars().all())
+    if keep_ids:
+        await session.execute(
+            delete(DoctorConversationTurn).where(
+                DoctorConversationTurn.doctor_id == doctor_id,
+                DoctorConversationTurn.id.notin_(keep_ids),
+            )
+        )
+    await session.commit()
+
+
+async def clear_conversation_turns(
+    session: AsyncSession,
+    doctor_id: str,
+) -> None:
+    await session.execute(
+        delete(DoctorConversationTurn).where(DoctorConversationTurn.doctor_id == doctor_id)
+    )
+    await session.commit()
+
+
+async def purge_conversation_turns_before(
+    session: AsyncSession,
+    older_than: datetime,
+) -> int:
+    result = await session.execute(
+        delete(DoctorConversationTurn).where(DoctorConversationTurn.created_at < older_than)
+    )
+    await session.commit()
+    return int(result.rowcount or 0)

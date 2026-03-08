@@ -9,12 +9,13 @@ Verifies that:
 - conversation history is forwarded to the LLM
 - Malformed JSON args don't raise
 """
+
 import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from services.intent import Intent
-from services.agent import dispatch
-import services.agent as agent
+from services.ai.intent import Intent
+from services.ai.agent import dispatch
+import services.ai.agent as agent
 
 
 def _make_tool_call(fn_name: str, args: dict, content: str = None):
@@ -49,7 +50,7 @@ def mock_llm(monkeypatch):
     mock_client = AsyncMock()
     mock_create = AsyncMock()
     mock_client.chat.completions.create = mock_create
-    with patch("services.agent.AsyncOpenAI", return_value=mock_client):
+    with patch("services.ai.agent.AsyncOpenAI", return_value=mock_client):
         yield mock_create
 
 
@@ -424,7 +425,7 @@ async def test_dispatch_ollama_exception_uses_local_fallback(monkeypatch):
     monkeypatch.setenv("OLLAMA_MODEL", "qwen2.5:7b")
     mock_client = AsyncMock()
     mock_client.chat.completions.create = AsyncMock(side_effect=RuntimeError("timeout"))
-    with patch("services.agent.AsyncOpenAI", return_value=mock_client):
+    with patch("services.ai.agent.AsyncOpenAI", return_value=mock_client):
         out = await dispatch("张三胸痛两小时")
     assert out.intent == Intent.add_record
 
@@ -433,7 +434,7 @@ async def test_dispatch_strict_mode_blocks_missing_provider_key(monkeypatch):
     monkeypatch.setenv("ROUTING_LLM", "groq")
     monkeypatch.setenv("LLM_PROVIDER_STRICT_MODE", "true")
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
-    with patch("services.agent.AsyncOpenAI") as mock_client_cls:
+    with patch("services.ai.agent.AsyncOpenAI") as mock_client_cls:
         with pytest.raises(RuntimeError, match="requires GROQ_API_KEY"):
             await dispatch("张三胸痛两小时")
     mock_client_cls.assert_not_called()
@@ -448,7 +449,7 @@ async def test_dispatch_tencent_lkeap_provider_uses_tencent_env(monkeypatch):
 
     mock_client = AsyncMock()
     mock_client.chat.completions.create = AsyncMock(return_value=_make_chat_reply("您好，我是医生助手。"))
-    with patch("services.agent.AsyncOpenAI", return_value=mock_client) as mock_client_cls:
+    with patch("services.ai.agent.AsyncOpenAI", return_value=mock_client) as mock_client_cls:
         result = await dispatch("你好")
 
     assert result.intent == Intent.unknown

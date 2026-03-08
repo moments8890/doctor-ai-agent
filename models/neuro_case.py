@@ -1,3 +1,7 @@
+"""
+神经专科病例 Pydantic 模型：定义脑卒中、癫痫等神经科病例的结构化字段。
+"""
+
 from __future__ import annotations
 
 from typing import Dict, List, Optional

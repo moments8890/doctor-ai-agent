@@ -8,7 +8,7 @@ import pytest
 from fastapi import HTTPException
 
 import routers.ui as ui
-from services.errors import LabelNotFoundError, PatientNotFoundError
+from utils.errors import LabelNotFoundError, PatientNotFoundError
 
 
 class _SessionCtx:

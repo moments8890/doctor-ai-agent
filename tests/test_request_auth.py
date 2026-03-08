@@ -6,13 +6,13 @@ from unittest.mock import patch
 import pytest
 from fastapi import HTTPException
 
-from services.miniprogram_auth import MiniProgramAuthError
-from services.request_auth import require_admin_token, resolve_doctor_id_from_auth_or_fallback
+from services.auth.miniprogram_auth import MiniProgramAuthError
+from services.auth.request_auth import require_admin_token, resolve_doctor_id_from_auth_or_fallback
 
 
 def test_resolve_doctor_id_prefers_token_principal() -> None:
-    with patch("services.request_auth.parse_bearer_token", return_value="tok"), \
-         patch("services.request_auth.verify_miniprogram_token", return_value=SimpleNamespace(doctor_id="doc_from_token")):
+    with patch("services.auth.request_auth.parse_bearer_token", return_value="tok"), \
+         patch("services.auth.request_auth.verify_miniprogram_token", return_value=SimpleNamespace(doctor_id="doc_from_token")):
         got = resolve_doctor_id_from_auth_or_fallback(
             "body_doc",
             "Bearer abc",
@@ -24,7 +24,7 @@ def test_resolve_doctor_id_prefers_token_principal() -> None:
 
 
 def test_resolve_doctor_id_invalid_token_returns_401() -> None:
-    with patch("services.request_auth.parse_bearer_token", side_effect=MiniProgramAuthError("bad token")):
+    with patch("services.auth.request_auth.parse_bearer_token", side_effect=MiniProgramAuthError("bad token")):
         with pytest.raises(HTTPException) as exc_info:
             resolve_doctor_id_from_auth_or_fallback(
                 "body_doc",
@@ -39,7 +39,7 @@ def test_resolve_doctor_id_invalid_token_returns_401() -> None:
 
 def test_resolve_doctor_id_uses_candidate_when_fallback_enabled() -> None:
     with patch.dict("os.environ", {"ALLOW_X": "true"}, clear=True), \
-         patch("services.request_auth.logging.getLogger") as get_logger:
+         patch("services.auth.request_auth.logging.getLogger") as get_logger:
         got = resolve_doctor_id_from_auth_or_fallback(
             "body_doc",
             None,

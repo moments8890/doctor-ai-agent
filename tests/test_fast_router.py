@@ -1,11 +1,13 @@
-"""Unit tests for services/fast_router.py — tier 1/2 intent routing without LLM."""
+"""
+Unit tests for services/fast_router.py — tier 1/2 intent routing without LLM.
+"""
 
 from __future__ import annotations
 
 import pytest
 
-from services.fast_router import fast_route, fast_route_label
-from services.intent import Intent
+from services.ai.fast_router import fast_route, fast_route_label
+from services.ai.intent import Intent
 
 
 # ── list_patients ──────────────────────────────────────────────────────────────

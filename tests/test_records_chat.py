@@ -3,6 +3,7 @@
 These tests mock LLM routing and structuring, and patch DB session factory to
 an in-memory SQLite session so no external I/O is required.
 """
+
 import pytest
 from datetime import datetime
 from types import SimpleNamespace
@@ -11,7 +12,7 @@ from unittest.mock import AsyncMock, patch
 from models.medical_record import MedicalRecord
 from db.crud import create_task
 from routers.records import ChatInput, HistoryMessage, chat
-from services.intent import Intent, IntentResult
+from services.ai.intent import Intent, IntentResult
 
 
 DOCTOR = "unit_doc_records_chat"

@@ -1,4 +1,7 @@
-"""Tests for services/session.py — pure in-memory, no async needed."""
+"""
+Tests for services/session.py — pure in-memory, no async needed.
+"""
+
 import pytest
 from services.session import get_session, set_current_patient, clear_current_patient, DoctorSession
 

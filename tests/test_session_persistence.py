@@ -1,4 +1,7 @@
-"""Persistence tests for services/session.py."""
+"""
+Persistence tests for services/session.py.
+"""
+
 import asyncio
 from unittest.mock import patch
 

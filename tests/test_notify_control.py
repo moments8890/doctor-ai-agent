@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from db.models import DoctorNotifyPreference
-from services.notify_control import (
+from services.notify.notify_control import (
     parse_notify_command,
     parse_simple_cron_minutes,
     should_auto_run_now,

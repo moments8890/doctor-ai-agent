@@ -1,4 +1,6 @@
-"""Additional branch tests for routers/wechat.py."""
+"""
+Additional branch tests for routers/wechat.py.
+"""
 
 import asyncio
 from datetime import datetime
@@ -9,8 +11,8 @@ import pytest
 
 import routers.wechat as wechat
 from models.medical_record import MedicalRecord
-from services.intent import Intent, IntentResult
-from services.interview import InterviewState, STEPS
+from services.ai.intent import Intent, IntentResult
+from services.patient.interview import InterviewState, STEPS
 from services.session import clear_pending_create, get_session, set_pending_create
 
 
@@ -75,17 +77,17 @@ def test_get_config_prefers_wechat_kf_env_aliases():
 
 
 async def test_get_access_token_uses_cache_without_http_call():
-    import services.wechat_notify as wn
+    import services.wechat.wechat_notify as wn
     wn._token_cache["token"] = "cached-token"
     wn._token_cache["expires_at"] = 9999999999
-    with patch("services.wechat_notify.httpx.AsyncClient") as client_cls:
+    with patch("services.wechat.wechat_notify.httpx.AsyncClient") as client_cls:
         token = await wechat._get_access_token("appid", "secret")
     assert token == "cached-token"
     client_cls.assert_not_called()
 
 
 async def test_get_access_token_fetches_and_updates_cache():
-    import services.wechat_notify as wn
+    import services.wechat.wechat_notify as wn
     wn._token_cache["token"] = ""
     wn._token_cache["expires_at"] = 0
 
@@ -104,7 +106,7 @@ async def test_get_access_token_fetches_and_updates_cache():
             assert params["appid"] == "appid"
             return _Resp()
 
-    with patch("services.wechat_notify.httpx.AsyncClient", return_value=_Client()):
+    with patch("services.wechat.wechat_notify.httpx.AsyncClient", return_value=_Client()):
         token = await wechat._get_access_token("appid", "secret")
 
     assert token == "fresh-token"
@@ -113,14 +115,14 @@ async def test_get_access_token_fetches_and_updates_cache():
 
 
 async def test_get_access_token_uses_shared_db_cache_when_local_empty():
-    import services.wechat_notify as wn
+    import services.wechat.wechat_notify as wn
     wn._token_cache["token"] = ""
     wn._token_cache["expires_at"] = 0
 
     runtime_token = SimpleNamespace(token_value="shared-token", expires_at=datetime(2099, 1, 1))
-    with patch("services.wechat_notify.AsyncSessionLocal", return_value=_SessionCtx()), \
-         patch("services.wechat_notify.get_runtime_token", new=AsyncMock(return_value=runtime_token)), \
-         patch("services.wechat_notify.httpx.AsyncClient") as client_cls:
+    with patch("services.wechat.wechat_notify.AsyncSessionLocal", return_value=_SessionCtx()), \
+         patch("services.wechat.wechat_notify.get_runtime_token", new=AsyncMock(return_value=runtime_token)), \
+         patch("services.wechat.wechat_notify.httpx.AsyncClient") as client_cls:
         token = await wechat._get_access_token("appid", "secret")
 
     assert token == "shared-token"
@@ -128,7 +130,7 @@ async def test_get_access_token_uses_shared_db_cache_when_local_empty():
 
 
 async def test_get_access_token_persists_shared_db_cache_after_refresh():
-    import services.wechat_notify as wn
+    import services.wechat.wechat_notify as wn
     wn._token_cache["token"] = ""
     wn._token_cache["expires_at"] = 0
 
@@ -148,10 +150,10 @@ async def test_get_access_token_persists_shared_db_cache_after_refresh():
             return _Resp()
 
     mock_upsert = AsyncMock()
-    with patch("services.wechat_notify.AsyncSessionLocal", return_value=_SessionCtx()), \
-         patch("services.wechat_notify.get_runtime_token", new=AsyncMock(return_value=None)), \
-         patch("services.wechat_notify.upsert_runtime_token", mock_upsert), \
-         patch("services.wechat_notify.httpx.AsyncClient", return_value=_Client()):
+    with patch("services.wechat.wechat_notify.AsyncSessionLocal", return_value=_SessionCtx()), \
+         patch("services.wechat.wechat_notify.get_runtime_token", new=AsyncMock(return_value=None)), \
+         patch("services.wechat.wechat_notify.upsert_runtime_token", mock_upsert), \
+         patch("services.wechat.wechat_notify.httpx.AsyncClient", return_value=_Client()):
         token = await wechat._get_access_token("appid", "secret")
 
     assert token == "fresh-token"
@@ -159,7 +161,7 @@ async def test_get_access_token_persists_shared_db_cache_after_refresh():
 
 
 async def test_get_access_token_uses_wecom_kf_gettoken_for_corp_id():
-    import services.wechat_notify as wn
+    import services.wechat.wechat_notify as wn
     wn._token_cache["token"] = ""
     wn._token_cache["expires_at"] = 0
 
@@ -180,14 +182,14 @@ async def test_get_access_token_uses_wecom_kf_gettoken_for_corp_id():
             assert params["corpsecret"] == "corp-secret"
             return _Resp()
 
-    with patch("services.wechat_notify.httpx.AsyncClient", return_value=_Client()):
+    with patch("services.wechat.wechat_notify.httpx.AsyncClient", return_value=_Client()):
         token = await wechat._get_access_token("ww-corp-id", "corp-secret")
 
     assert token == "kf-token"
 
 
 async def test_send_customer_service_msg_swallow_exception():
-    with patch("services.wechat_notify._get_access_token", new=AsyncMock(side_effect=RuntimeError("boom"))):
+    with patch("services.wechat.wechat_notify._get_access_token", new=AsyncMock(side_effect=RuntimeError("boom"))):
         try:
             await wechat._send_customer_service_msg("u1", "content")
             assert False, "expected exception"
@@ -218,8 +220,8 @@ async def test_send_customer_service_msg_success_path_posts_chunks():
             return _Resp(json)
 
     client = _Client()
-    with patch("services.wechat_notify._get_access_token", new=AsyncMock(return_value="tok")), \
-         patch("services.wechat_notify.httpx.AsyncClient", return_value=client):
+    with patch("services.wechat.wechat_notify._get_access_token", new=AsyncMock(return_value="tok")), \
+         patch("services.wechat.wechat_notify.httpx.AsyncClient", return_value=client):
         await wechat._send_customer_service_msg("u1", "【A】" + "x" * 700 + "【B】tail")
 
     assert len(client.posts) >= 2
@@ -241,8 +243,8 @@ async def test_send_customer_service_msg_raises_on_wechat_errcode():
         async def post(self, _url, json):
             return _Resp()
 
-    with patch("services.wechat_notify._get_access_token", new=AsyncMock(return_value="tok")), \
-         patch("services.wechat_notify.httpx.AsyncClient", return_value=_Client()):
+    with patch("services.wechat.wechat_notify._get_access_token", new=AsyncMock(return_value="tok")), \
+         patch("services.wechat.wechat_notify.httpx.AsyncClient", return_value=_Client()):
         try:
             await wechat._send_customer_service_msg("u1", "hello")
             assert False, "expected exception"
@@ -262,7 +264,7 @@ async def test_send_customer_service_msg_kf_requires_open_kfid():
             return SimpleNamespace(json=lambda: {"errcode": 0})
 
     with patch(
-        "services.wechat_notify._get_config",
+        "services.wechat.wechat_notify._get_config",
         return_value={
             "token": "tok",
             "app_id": "ww-corp",
@@ -271,8 +273,8 @@ async def test_send_customer_service_msg_kf_requires_open_kfid():
             "open_kfid": "",
             "is_kf": True,
         },
-    ), patch("services.wechat_notify._get_access_token", new=AsyncMock(return_value="tok")), \
-         patch("services.wechat_notify.httpx.AsyncClient", return_value=_Client()):
+    ), patch("services.wechat.wechat_notify._get_access_token", new=AsyncMock(return_value="tok")), \
+         patch("services.wechat.wechat_notify.httpx.AsyncClient", return_value=_Client()):
         with pytest.raises(RuntimeError, match="WECHAT_KF_OPEN_KFID"):
             await wechat._send_customer_service_msg("u1", "hello")
 
@@ -296,7 +298,7 @@ async def test_send_customer_service_msg_kf_payload_includes_open_kfid():
             return _Resp()
 
     with patch(
-        "services.wechat_notify._get_config",
+        "services.wechat.wechat_notify._get_config",
         return_value={
             "token": "tok",
             "app_id": "ww-corp",
@@ -305,8 +307,8 @@ async def test_send_customer_service_msg_kf_payload_includes_open_kfid():
             "open_kfid": "kf-001",
             "is_kf": True,
         },
-    ), patch("services.wechat_notify._get_access_token", new=AsyncMock(return_value="tok")), \
-         patch("services.wechat_notify.httpx.AsyncClient", return_value=_Client()):
+    ), patch("services.wechat.wechat_notify._get_access_token", new=AsyncMock(return_value="tok")), \
+         patch("services.wechat.wechat_notify.httpx.AsyncClient", return_value=_Client()):
         await wechat._send_customer_service_msg("u1", "hello")
 
     assert captured["payload"]["open_kfid"] == "kf-001"
@@ -551,7 +553,7 @@ async def test_handle_list_tasks_and_complete_task_and_schedule_routes():
     )
     assert "时间格式无法识别" in bad_format
 
-    with patch("services.tasks.create_appointment_task", new=AsyncMock(return_value=SimpleNamespace(id=5))):
+    with patch("services.notify.tasks.create_appointment_task", new=AsyncMock(return_value=SimpleNamespace(id=5))):
         scheduled = await wechat._handle_schedule_appointment(
             DOCTOR,
             IntentResult(

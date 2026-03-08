@@ -1,3 +1,7 @@
+"""
+任务管理路由：提供随访任务的创建、查询和状态更新 API 端点。
+"""
+
 from __future__ import annotations
 
 import os
@@ -9,9 +13,9 @@ from pydantic import BaseModel
 
 from db.engine import AsyncSessionLocal
 from db.crud import list_tasks, update_task_status
-from services.rate_limit import enforce_doctor_rate_limit
-from services.request_auth import resolve_doctor_id_from_auth_or_fallback
-from services.tasks import run_due_task_cycle
+from services.auth.rate_limit import enforce_doctor_rate_limit
+from services.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
+from services.notify.tasks import run_due_task_cycle
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 

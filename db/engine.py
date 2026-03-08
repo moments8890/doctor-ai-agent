@@ -1,3 +1,7 @@
+"""
+数据库引擎配置：创建异步 SQLAlchemy 引擎和会话工厂，并在生产环境强制校验 DATABASE_URL。
+"""
+
 import os
 import sys
 from pathlib import Path

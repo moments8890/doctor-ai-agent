@@ -1,4 +1,7 @@
-"""Tests for the import_history feature (wechat_domain helpers + router confirmation flow)."""
+"""
+Tests for the import_history feature (wechat_domain helpers + router confirmation flow).
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -11,7 +14,7 @@ import pytest
 # ---------------------------------------------------------------------------
 # Helpers imported directly (pure Python, no DB or LLM calls)
 # ---------------------------------------------------------------------------
-from services.wechat_domain import (
+from services.wechat.wechat_domain import (
     _chunk_history_text,
     _preprocess_import_text,
     _format_import_preview,
@@ -131,7 +134,7 @@ def test_format_preview_with_duplicates():
 
 @pytest.mark.asyncio
 async def test_handle_import_history_full_flow():
-    from services.intent import IntentResult, Intent
+    from services.ai.intent import IntentResult, Intent
     from models.medical_record import MedicalRecord
 
     text = (
@@ -147,12 +150,12 @@ async def test_handle_import_history_full_flow():
     fake_record = MedicalRecord(chief_complaint="头痛")
 
     with (
-        patch("services.wechat_domain.find_patient_by_name", new=AsyncMock(return_value=SimpleNamespace(id=42))),
-        patch("services.wechat_domain.structure_medical_record", new=AsyncMock(return_value=fake_record)),
-        patch("services.wechat_domain.get_records_for_patient", new=AsyncMock(return_value=[])),
-        patch("services.wechat_domain.create_pending_import", new=AsyncMock()),
-        patch("services.wechat_domain.AsyncSessionLocal") as mock_session_cls,
-        patch("services.wechat_domain.set_pending_import_id") as mock_set_id,
+        patch("services.wechat.wechat_domain.find_patient_by_name", new=AsyncMock(return_value=SimpleNamespace(id=42))),
+        patch("services.wechat.wechat_domain.structure_medical_record", new=AsyncMock(return_value=fake_record)),
+        patch("services.wechat.wechat_domain.get_records_for_patient", new=AsyncMock(return_value=[])),
+        patch("services.wechat.wechat_domain.create_pending_import", new=AsyncMock()),
+        patch("services.wechat.wechat_domain.AsyncSessionLocal") as mock_session_cls,
+        patch("services.wechat.wechat_domain.set_pending_import_id") as mock_set_id,
     ):
         # Make AsyncSessionLocal work as async context manager
         mock_session = AsyncMock()
@@ -241,9 +244,9 @@ async def test_mark_duplicates_flags_matching_complaint():
     mock_session.__aexit__ = AsyncMock(return_value=False)
 
     with (
-        patch("services.wechat_domain.AsyncSessionLocal", return_value=mock_session),
+        patch("services.wechat.wechat_domain.AsyncSessionLocal", return_value=mock_session),
         patch(
-            "services.wechat_domain.get_records_for_patient",
+            "services.wechat.wechat_domain.get_records_for_patient",
             new=AsyncMock(return_value=[existing_rec]),
         ),
     ):

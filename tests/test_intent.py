@@ -1,8 +1,11 @@
-"""Tests for services/intent.py — LLM call is mocked."""
+"""
+Tests for services/intent.py — LLM call is mocked.
+"""
+
 import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from services.intent import detect_intent, Intent, IntentResult
+from services.ai.intent import detect_intent, Intent, IntentResult
 
 
 def _make_completion(json_dict: dict):
@@ -25,7 +28,7 @@ def mock_llm(monkeypatch):
     mock_create = AsyncMock()
     mock_client.chat.completions.create = mock_create
 
-    with patch("services.intent.AsyncOpenAI", return_value=mock_client):
+    with patch("services.ai.intent.AsyncOpenAI", return_value=mock_client):
         yield mock_create
 
 

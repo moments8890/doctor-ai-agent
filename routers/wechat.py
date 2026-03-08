@@ -1,3 +1,7 @@
+"""
+WeChat/WeCom 消息路由：接收微信事件、异步调度意图处理并管理待确认病历确认门。
+"""
+
 import asyncio
 import json
 import re
@@ -14,22 +18,22 @@ from wechatpy.enterprise.crypto import WeChatCrypto as EnterpriseWeChatCrypto
 from wechatpy.utils import check_signature
 from wechatpy.exceptions import InvalidSignatureException
 from wechatpy.replies import TextReply
-from services.structuring import structure_medical_record
-from services.transcription import transcribe_audio
-from services.vision import extract_text_from_image
+from services.ai.structuring import structure_medical_record
+from services.ai.transcription import transcribe_audio
+from services.ai.vision import extract_text_from_image
 from services.knowledge.pdf_extract import extract_text_from_pdf
-from services import wechat_domain as wd
-from services import wechat_media_pipeline as wmp
-from services import wecom_kf_sync as kfsync
-from services.wechat_voice import download_and_convert, download_voice
-from services.intent import Intent, IntentResult
-from services.agent import dispatch as agent_dispatch
-from services.wechat_menu import create_menu
-from services.wechat_notify import (
+from services.wechat import wechat_domain as wd
+from services.wechat import wechat_media_pipeline as wmp
+from services.wechat import wecom_kf_sync as kfsync
+from services.wechat.wechat_voice import download_and_convert, download_voice
+from services.ai.intent import Intent, IntentResult
+from services.ai.agent import dispatch as agent_dispatch
+from services.wechat.wechat_menu import create_menu
+from services.wechat.wechat_notify import (
     _get_config, _get_access_token, _send_customer_service_msg, _split_message as _notify_split_message,
 )
-from services.wechat_customer import prefetch_customer_profile
-from services.notify_control import (
+from services.wechat.wechat_customer import prefetch_customer_profile
+from services.notify.notify_control import (
     parse_notify_command,
     get_notify_pref,
     set_notify_mode,
@@ -49,10 +53,10 @@ from services.session import (
     set_pending_import_id,
     clear_pending_import_id,
 )
-from services.audit import audit
-from services.memory import maybe_compress, load_context_message
-from services.fast_router import fast_route, fast_route_label
-from services.tasks import (
+from services.observability.audit import audit
+from services.ai.memory import maybe_compress, load_context_message
+from services.ai.fast_router import fast_route, fast_route_label
+from services.notify.tasks import (
     create_follow_up_task,
     create_emergency_task,
     create_appointment_task,
@@ -413,7 +417,7 @@ async def _handle_schedule_appointment(doctor_id: str, intent_result) -> str:
     except (ValueError, TypeError):
         return "⚠️ 时间格式无法识别，请使用格式如「2026-03-15T14:00:00」。"
     notes = intent_result.extra_data.get("notes")
-    from services.tasks import create_appointment_task as _create_appt
+    from services.notify.tasks import create_appointment_task as _create_appt
 
     task = await _create_appt(doctor_id, patient_name, appointment_dt, notes)
     return (
@@ -588,7 +592,7 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
             intent_result = await agent_dispatch(text, **dispatch_kwargs)
         except Exception as e:
             log(f"[WeChat] agent dispatch FAILED: {e}, falling back to structuring")
-            from services.routing_metrics import record as _record_metric
+            from services.observability.routing_metrics import record as _record_metric
             _record_metric("fallback:structuring")
             try:
                 record = await structure_medical_record(text)

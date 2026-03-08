@@ -1,3 +1,7 @@
+"""
+知识接地模块：将医学知识声明注入对话上下文，为 LLM 提供循证依据。
+"""
+
 from __future__ import annotations
 
 from typing import Dict, List

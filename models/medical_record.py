@@ -1,3 +1,7 @@
+"""
+病历 Pydantic 模型：定义结构化病历的字段约束和验证规则。
+"""
+
 from __future__ import annotations
 
 from pydantic import BaseModel, Field, field_validator

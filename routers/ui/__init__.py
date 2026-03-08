@@ -1,3 +1,7 @@
+"""
+管理后台 UI 路由：提供患者列表、病历查看、系统提示和可观测性数据的 Web API。
+"""
+
 from __future__ import annotations
 
 import os
@@ -35,8 +39,8 @@ from db.models import (
     SystemPrompt,
     patient_label_assignments,
 )
-from services.patient_timeline import build_patient_timeline
-from services.observability import (
+from services.patient.patient_timeline import build_patient_timeline
+from services.observability.observability import (
     add_span,
     add_trace,
     clear_traces,
@@ -46,9 +50,9 @@ from services.observability import (
     get_slowest_spans_scoped,
     get_trace_timeline,
 )
-from services.rate_limit import enforce_doctor_rate_limit
-from services.errors import DomainError
-from services.runtime_config import (
+from services.auth.rate_limit import enforce_doctor_rate_limit
+from utils.errors import DomainError
+from utils.runtime_config import (
     apply_runtime_config,
     load_runtime_config_dict,
     runtime_config_categories,
@@ -56,7 +60,7 @@ from services.runtime_config import (
     save_runtime_config_dict,
     validate_runtime_config,
 )
-from services.request_auth import resolve_doctor_id_from_auth_or_fallback
+from services.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
 from routers.ui._utils import (
     _extract_tunnel_url_from_log,
     _fmt_ts,
@@ -545,7 +549,7 @@ async def admin_routing_metrics(
 ):
     """Fast-router vs LLM hit counts since last process start."""
     _require_ui_admin_access(x_admin_token)
-    from services.routing_metrics import get_metrics
+    from services.observability.routing_metrics import get_metrics
     return get_metrics()
 
 
@@ -555,7 +559,7 @@ async def admin_routing_metrics_reset(
 ):
     """Reset routing counters to zero."""
     _require_ui_admin_access(x_admin_token)
-    from services.routing_metrics import reset
+    from services.observability.routing_metrics import reset
     reset()
     return {"ok": True}
 

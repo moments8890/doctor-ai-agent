@@ -1,3 +1,7 @@
+"""
+知识库数据类定义：KnowledgeSource、KnowledgeDocument、KnowledgeClaim 和 RankedClaim。
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

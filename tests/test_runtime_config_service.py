@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from services.runtime_config import runtime_config_categories, validate_runtime_config
+from utils.runtime_config import runtime_config_categories, validate_runtime_config
 
 
 def test_runtime_config_categories_include_options_for_restricted_keys():

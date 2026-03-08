@@ -1,3 +1,7 @@
+"""
+病历管理路由：提供病历的创建、查询、更新和语音/图片录入 API 端点。
+"""
+
 import asyncio
 import re
 import os
@@ -23,17 +27,17 @@ from db.crud import (
 )
 from db.engine import AsyncSessionLocal
 from models.medical_record import MedicalRecord
-from services.agent import dispatch as agent_dispatch
-from services.fast_router import fast_route, fast_route_label
+from services.ai.agent import dispatch as agent_dispatch
+from services.ai.fast_router import fast_route, fast_route_label
 from services.knowledge.doctor_knowledge import (
     load_knowledge_context_for_prompt,
     maybe_auto_learn_knowledge,
     parse_add_to_knowledge_command,
     save_knowledge_item,
 )
-from services.errors import InvalidMedicalRecordError
-from services.intent import Intent
-from services.notify_control import (
+from utils.errors import InvalidMedicalRecordError
+from services.ai.intent import Intent
+from services.notify.notify_control import (
     parse_notify_command,
     get_notify_pref,
     set_notify_mode,
@@ -42,14 +46,14 @@ from services.notify_control import (
     set_notify_immediate,
     format_notify_pref,
 )
-from services.structuring import structure_medical_record
-from services.tasks import create_appointment_task, run_due_task_cycle
-from services.transcription import transcribe_audio
-from services.vision import extract_text_from_image
-from services.observability import trace_block
-from services.request_auth import resolve_doctor_id_from_auth_or_fallback
-from services.audit import audit
-from services.observability import get_current_trace_id
+from services.ai.structuring import structure_medical_record
+from services.notify.tasks import create_appointment_task, run_due_task_cycle
+from services.ai.transcription import transcribe_audio
+from services.ai.vision import extract_text_from_image
+from services.observability.observability import trace_block
+from services.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
+from services.observability.audit import audit
+from services.observability.observability import get_current_trace_id
 from utils.log import log
 
 router = APIRouter(prefix="/api/records", tags=["records"])

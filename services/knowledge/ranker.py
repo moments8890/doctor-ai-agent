@@ -1,3 +1,7 @@
+"""
+知识声明排序器：综合证据质量、相关性和时效性对医学知识条目进行排序。
+"""
+
 from __future__ import annotations
 
 from datetime import datetime

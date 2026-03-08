@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from services.notification import send_doctor_notification
+from services.notify.notification import send_doctor_notification
 
 
 class _SessionCtx:
@@ -17,7 +17,7 @@ class _SessionCtx:
 
 async def test_send_doctor_notification_log_provider_succeeds():
     with patch.dict("os.environ", {"NOTIFICATION_PROVIDER": "log"}, clear=False), \
-         patch("services.notification.log") as mock_log:
+         patch("services.notify.notification.log") as mock_log:
         await send_doctor_notification("doc1", "hello")
 
     mock_log.assert_called_once()
@@ -26,9 +26,9 @@ async def test_send_doctor_notification_log_provider_succeeds():
 async def test_send_doctor_notification_wechat_provider_calls_wechat_sender():
     mock_send = AsyncMock()
     with patch.dict("os.environ", {"NOTIFICATION_PROVIDER": "wechat"}, clear=False), \
-         patch("services.notification.AsyncSessionLocal", return_value=_SessionCtx()), \
-         patch("services.notification.get_doctor_wechat_user_id", new=AsyncMock(return_value=None)), \
-         patch("services.notification._send_customer_service_msg", mock_send):
+         patch("services.notify.notification.AsyncSessionLocal", return_value=_SessionCtx()), \
+         patch("services.notify.notification.get_doctor_wechat_user_id", new=AsyncMock(return_value=None)), \
+         patch("services.notify.notification._send_customer_service_msg", mock_send):
         await send_doctor_notification("doc2", "hello")
 
     mock_send.assert_awaited_once_with("doc2", "hello")
@@ -46,9 +46,9 @@ async def test_send_doctor_notification_wechat_falls_back_on_invalid_external_us
             "WECHAT_NOTIFY_FALLBACK_TO_USER": "wm_valid_receiver",
         },
         clear=False,
-    ), patch("services.notification.AsyncSessionLocal", return_value=_SessionCtx()), \
-        patch("services.notification.get_doctor_wechat_user_id", new=AsyncMock(return_value=None)), \
-        patch("services.notification._send_customer_service_msg", mock_send):
+    ), patch("services.notify.notification.AsyncSessionLocal", return_value=_SessionCtx()), \
+        patch("services.notify.notification.get_doctor_wechat_user_id", new=AsyncMock(return_value=None)), \
+        patch("services.notify.notification._send_customer_service_msg", mock_send):
         await send_doctor_notification("inttest_fake_doctor", "hello")
 
     assert mock_send.await_count == 2
@@ -67,9 +67,9 @@ async def test_send_doctor_notification_wechat_non_40096_error_does_not_fallback
             "WECHAT_NOTIFY_FALLBACK_TO_USER": "wm_valid_receiver",
         },
         clear=False,
-    ), patch("services.notification.AsyncSessionLocal", return_value=_SessionCtx()), \
-        patch("services.notification.get_doctor_wechat_user_id", new=AsyncMock(return_value=None)), \
-        patch("services.notification._send_customer_service_msg", mock_send):
+    ), patch("services.notify.notification.AsyncSessionLocal", return_value=_SessionCtx()), \
+        patch("services.notify.notification.get_doctor_wechat_user_id", new=AsyncMock(return_value=None)), \
+        patch("services.notify.notification._send_customer_service_msg", mock_send):
         with pytest.raises(RuntimeError):
             await send_doctor_notification("inttest_fake_doctor", "hello")
 
@@ -91,9 +91,9 @@ async def test_send_doctor_notification_wechat_mini_subscribe_provider_calls_sen
             "MINIPROGRAM_SUBSCRIBE_TEMPLATE_ID": "tpl_123",
         },
         clear=False,
-    ), patch("services.notification.AsyncSessionLocal", return_value=_SessionCtx()), \
-        patch("services.notification.get_doctor_wechat_user_id", new=AsyncMock(return_value="openid_mini_1")), \
-        patch("services.notification._send_miniprogram_subscribe_msg", mock_send):
+    ), patch("services.notify.notification.AsyncSessionLocal", return_value=_SessionCtx()), \
+        patch("services.notify.notification.get_doctor_wechat_user_id", new=AsyncMock(return_value="openid_mini_1")), \
+        patch("services.notify.notification._send_miniprogram_subscribe_msg", mock_send):
         await send_doctor_notification("doc-mini", "hello mini")
 
     mock_send.assert_awaited_once_with("openid_mini_1", "hello mini")
@@ -108,10 +108,10 @@ async def test_send_doctor_notification_wechat_mini_subscribe_mapping_fail_fallb
             "MINIPROGRAM_SUBSCRIBE_TEMPLATE_ID": "tpl_123",
         },
         clear=False,
-    ), patch("services.notification.AsyncSessionLocal", return_value=_SessionCtx()), \
-        patch("services.notification.get_doctor_wechat_user_id", new=AsyncMock(side_effect=RuntimeError("db down"))), \
-        patch("services.notification._send_miniprogram_subscribe_msg", mock_send), \
-        patch("services.notification.log") as mock_log:
+    ), patch("services.notify.notification.AsyncSessionLocal", return_value=_SessionCtx()), \
+        patch("services.notify.notification.get_doctor_wechat_user_id", new=AsyncMock(side_effect=RuntimeError("db down"))), \
+        patch("services.notify.notification._send_miniprogram_subscribe_msg", mock_send), \
+        patch("services.notify.notification.log") as mock_log:
         await send_doctor_notification("doc-mini-fallback", "hello mini")
 
     mock_send.assert_awaited_once_with("doc-mini-fallback", "hello mini")
@@ -121,9 +121,9 @@ async def test_send_doctor_notification_wechat_mini_subscribe_mapping_fail_fallb
 async def test_send_doctor_notification_wechat_uses_mapped_wechat_user_id():
     mock_send = AsyncMock()
     with patch.dict("os.environ", {"NOTIFICATION_PROVIDER": "wechat"}, clear=False), \
-         patch("services.notification.AsyncSessionLocal", return_value=_SessionCtx()), \
-         patch("services.notification.get_doctor_wechat_user_id", new=AsyncMock(return_value="wm80mapped")), \
-         patch("services.notification._send_customer_service_msg", mock_send):
+         patch("services.notify.notification.AsyncSessionLocal", return_value=_SessionCtx()), \
+         patch("services.notify.notification.get_doctor_wechat_user_id", new=AsyncMock(return_value="wm80mapped")), \
+         patch("services.notify.notification._send_customer_service_msg", mock_send):
         await send_doctor_notification("doc-internal-id", "hello")
 
     mock_send.assert_awaited_once_with("wm80mapped", "hello")
@@ -132,10 +132,10 @@ async def test_send_doctor_notification_wechat_uses_mapped_wechat_user_id():
 async def test_send_doctor_notification_wechat_mapping_failure_falls_back_to_doctor_id():
     mock_send = AsyncMock()
     with patch.dict("os.environ", {"NOTIFICATION_PROVIDER": "wechat"}, clear=False), \
-         patch("services.notification.AsyncSessionLocal", return_value=_SessionCtx()), \
-         patch("services.notification.get_doctor_wechat_user_id", new=AsyncMock(side_effect=RuntimeError("db down"))), \
-         patch("services.notification._send_customer_service_msg", mock_send), \
-         patch("services.notification.log") as mock_log:
+         patch("services.notify.notification.AsyncSessionLocal", return_value=_SessionCtx()), \
+         patch("services.notify.notification.get_doctor_wechat_user_id", new=AsyncMock(side_effect=RuntimeError("db down"))), \
+         patch("services.notify.notification._send_customer_service_msg", mock_send), \
+         patch("services.notify.notification.log") as mock_log:
         await send_doctor_notification("doc-map-fallback", "hello")
 
     mock_send.assert_awaited_once_with("doc-map-fallback", "hello")

@@ -1,3 +1,7 @@
+"""
+小程序 API 路由：聚合记录、任务、患者和知识库的小程序专用 REST 接口。
+"""
+
 from __future__ import annotations
 
 import logging
@@ -10,7 +14,7 @@ import routers.records as records_router
 import routers.tasks as tasks_router
 import routers.ui as ui_router
 import routers.voice as voice_router
-from services.miniprogram_auth import (
+from services.auth.miniprogram_auth import (
     MiniProgramAuthError,
     MiniProgramPrincipal,
     parse_bearer_token,

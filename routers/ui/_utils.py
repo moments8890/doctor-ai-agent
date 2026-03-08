@@ -1,4 +1,7 @@
-"""Shared utilities for UI router sub-modules."""
+"""
+UI 路由共享工具：日期解析、记录格式化和分页辅助函数。
+"""
+
 from __future__ import annotations
 
 import json
@@ -8,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException
 
-from services.request_auth import require_admin_token, resolve_doctor_id_from_auth_or_fallback
+from services.auth.request_auth import require_admin_token, resolve_doctor_id_from_auth_or_fallback
 
 
 def _extract_tunnel_url_from_log(content: str) -> str | None:

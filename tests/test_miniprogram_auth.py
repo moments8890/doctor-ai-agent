@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 import routers.auth as auth_router
 from db.models import Doctor
-from services.miniprogram_auth import (
+from services.auth.miniprogram_auth import (
     MiniProgramAuthError,
     issue_miniprogram_token,
     parse_bearer_token,
@@ -98,6 +98,6 @@ def test_verify_miniprogram_token_tamper_and_expired():
         with pytest.raises(MiniProgramAuthError):
             verify_miniprogram_token(token + "x")
 
-        with patch("services.miniprogram_auth.time.time", return_value=99999999999):
+        with patch("services.auth.miniprogram_auth.time.time", return_value=99999999999):
             with pytest.raises(MiniProgramAuthError):
                 verify_miniprogram_token(token)

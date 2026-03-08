@@ -1,6 +1,8 @@
-"""Extract plain text from .docx Word documents."""
-from __future__ import annotations
+"""
+Word 文档文本提取工具：从 .docx 字节流中提取段落和表格的纯文本内容。
+"""
 
+from __future__ import annotations
 
 def extract_text_from_docx(raw_bytes: bytes) -> str:
     """Return all paragraph text from a .docx file, joined by newlines.

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from services.wechat_voice import _media_get_url
+from services.wechat.wechat_voice import _media_get_url
 
 
 def test_media_get_url_uses_qyapi_for_kf_env() -> None:

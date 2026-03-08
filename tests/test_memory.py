@@ -10,12 +10,13 @@ Verifies that:
 - load_context_message returns a properly formatted system message when context exists
 - Two doctors' contexts are stored and loaded independently
 """
+
 import time
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import services.memory as memory_mod
-from services.memory import maybe_compress, load_context_message, MAX_TURNS, IDLE_SECONDS
+import services.ai.memory as memory_mod
+from services.ai.memory import maybe_compress, load_context_message, MAX_TURNS, IDLE_SECONDS
 from services.session import get_session, push_turn
 
 
@@ -37,14 +38,14 @@ FULL_HISTORY = [
 @pytest.fixture
 def mock_summarise():
     """Patch the internal _summarise coroutine so no real LLM is called."""
-    with patch("services.memory._summarise", new_callable=AsyncMock, return_value="摘要内容") as m:
+    with patch("services.ai.memory._summarise", new_callable=AsyncMock, return_value="摘要内容") as m:
         yield m
 
 
 @pytest.fixture
 def mock_upsert():
     """Patch upsert_doctor_context so no real DB write happens."""
-    with patch("services.memory.upsert_doctor_context", new_callable=AsyncMock) as m:
+    with patch("services.ai.memory.upsert_doctor_context", new_callable=AsyncMock) as m:
         yield m
 
 
@@ -54,7 +55,7 @@ def mock_db_session():
     ctx_mgr = MagicMock()
     ctx_mgr.__aenter__ = AsyncMock(return_value=MagicMock())
     ctx_mgr.__aexit__ = AsyncMock(return_value=False)
-    with patch("services.memory.AsyncSessionLocal", return_value=ctx_mgr):
+    with patch("services.ai.memory.AsyncSessionLocal", return_value=ctx_mgr):
         yield ctx_mgr
 
 
@@ -141,7 +142,7 @@ async def test_compress_clears_history_when_idle(mock_summarise, mock_upsert, mo
 
 
 async def test_compress_clears_history_even_if_llm_fails(mock_upsert):
-    with patch("services.memory._summarise", new_callable=AsyncMock, side_effect=RuntimeError("LLM down")):
+    with patch("services.ai.memory._summarise", new_callable=AsyncMock, side_effect=RuntimeError("LLM down")):
         sess = get_session(DOCTOR_A)
         sess.conversation_history = list(FULL_HISTORY)
         sess.last_active = time.time()
@@ -156,8 +157,8 @@ async def test_compress_clears_history_even_if_llm_fails(mock_upsert):
 
 
 async def test_load_context_returns_none_when_no_db_row():
-    with patch("services.memory.get_doctor_context", new_callable=AsyncMock, return_value=None):
-        with patch("services.memory.AsyncSessionLocal") as mock_sl:
+    with patch("services.ai.memory.get_doctor_context", new_callable=AsyncMock, return_value=None):
+        with patch("services.ai.memory.AsyncSessionLocal") as mock_sl:
             mock_sl.return_value.__aenter__ = AsyncMock(return_value=MagicMock())
             mock_sl.return_value.__aexit__ = AsyncMock(return_value=False)
             result = await load_context_message(DOCTOR_A)
@@ -167,8 +168,8 @@ async def test_load_context_returns_none_when_no_db_row():
 async def test_load_context_returns_none_when_summary_empty():
     ctx = MagicMock()
     ctx.summary = ""
-    with patch("services.memory.get_doctor_context", new_callable=AsyncMock, return_value=ctx):
-        with patch("services.memory.AsyncSessionLocal") as mock_sl:
+    with patch("services.ai.memory.get_doctor_context", new_callable=AsyncMock, return_value=ctx):
+        with patch("services.ai.memory.AsyncSessionLocal") as mock_sl:
             mock_sl.return_value.__aenter__ = AsyncMock(return_value=MagicMock())
             mock_sl.return_value.__aexit__ = AsyncMock(return_value=False)
             result = await load_context_message(DOCTOR_A)
@@ -178,8 +179,8 @@ async def test_load_context_returns_none_when_summary_empty():
 async def test_load_context_returns_system_message_when_context_exists():
     ctx = MagicMock()
     ctx.summary = "当前患者：张三（男，65岁）\n最近处理：STEMI急诊PCI\n待跟进：复查肌钙蛋白"
-    with patch("services.memory.get_doctor_context", new_callable=AsyncMock, return_value=ctx):
-        with patch("services.memory.AsyncSessionLocal") as mock_sl:
+    with patch("services.ai.memory.get_doctor_context", new_callable=AsyncMock, return_value=ctx):
+        with patch("services.ai.memory.AsyncSessionLocal") as mock_sl:
             mock_sl.return_value.__aenter__ = AsyncMock(return_value=MagicMock())
             mock_sl.return_value.__aexit__ = AsyncMock(return_value=False)
             result = await load_context_message(DOCTOR_A)
@@ -192,8 +193,8 @@ async def test_load_context_returns_system_message_when_context_exists():
 async def test_load_context_message_format_contains_context_header():
     ctx = MagicMock()
     ctx.summary = "当前患者：李明\n最近处理：头痛\n待跟进：无"
-    with patch("services.memory.get_doctor_context", new_callable=AsyncMock, return_value=ctx):
-        with patch("services.memory.AsyncSessionLocal") as mock_sl:
+    with patch("services.ai.memory.get_doctor_context", new_callable=AsyncMock, return_value=ctx):
+        with patch("services.ai.memory.AsyncSessionLocal") as mock_sl:
             mock_sl.return_value.__aenter__ = AsyncMock(return_value=MagicMock())
             mock_sl.return_value.__aexit__ = AsyncMock(return_value=False)
             result = await load_context_message(DOCTOR_A)
@@ -208,7 +209,7 @@ async def test_load_context_message_format_contains_context_header():
 
 async def test_two_doctors_compress_independently(mock_upsert, mock_db_session):
     """Filling doctor_a's window must not affect doctor_b's session."""
-    with patch("services.memory._summarise", new_callable=AsyncMock, return_value="摘要A"):
+    with patch("services.ai.memory._summarise", new_callable=AsyncMock, return_value="摘要A"):
         sess_a = get_session(DOCTOR_A)
         sess_a.conversation_history = list(FULL_HISTORY)
         sess_a.last_active = time.time()
@@ -229,8 +230,8 @@ async def test_load_context_returns_correct_doctor_summary():
             return ctx_a
         return None
 
-    with patch("services.memory.get_doctor_context", side_effect=fake_get_doctor_context):
-        with patch("services.memory.AsyncSessionLocal") as mock_sl:
+    with patch("services.ai.memory.get_doctor_context", side_effect=fake_get_doctor_context):
+        with patch("services.ai.memory.AsyncSessionLocal") as mock_sl:
             mock_sl.return_value.__aenter__ = AsyncMock(return_value=MagicMock())
             mock_sl.return_value.__aexit__ = AsyncMock(return_value=False)
             result_a = await load_context_message(DOCTOR_A)

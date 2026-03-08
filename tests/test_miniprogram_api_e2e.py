@@ -8,7 +8,7 @@ from httpx import ASGITransport, AsyncClient
 import routers.auth as auth_router
 import routers.miniprogram as mini_router
 import routers.records as records_router
-from services.intent import Intent, IntentResult
+from services.ai.intent import Intent, IntentResult
 
 
 async def test_miniprogram_login_and_chat_e2e(session_factory):

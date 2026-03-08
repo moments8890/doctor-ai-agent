@@ -9,7 +9,7 @@ from sqlalchemy import select
 from db.crud import create_patient, save_record
 from db.models import DoctorTask, MedicalRecordDB, Patient
 from models.medical_record import MedicalRecord
-from services.tasks import run_due_task_cycle
+from services.notify.tasks import run_due_task_cycle
 
 
 REALWORLD_CASES: List[Tuple[str, str, List[str], List[str]]] = [
@@ -46,7 +46,7 @@ async def test_p3_d2_smoke_chain_parity(db_session, session_factory, monkeypatch
     """OpenClaw parity smoke:
     intake -> record -> risk -> task -> notification.
     """
-    import services.tasks as tasks_service
+    import services.notify.tasks as tasks_service
 
     monkeypatch.setenv("AUTO_FOLLOWUP_TASKS_ENABLED", "true")
 
@@ -117,7 +117,7 @@ async def test_p3_d2_realworld_matrix_parity(
     """OpenClaw parity real-world matrix:
     validates risk and persistence across representative cases.
     """
-    import services.tasks as tasks_service
+    import services.notify.tasks as tasks_service
 
     monkeypatch.setenv("AUTO_FOLLOWUP_TASKS_ENABLED", "true")
     monkeypatch.setattr(tasks_service, "AsyncSessionLocal", session_factory)

@@ -16,6 +16,7 @@ we validate persistence, not only API response payloads.
 
 Requires: running server + Ollama (auto-skipped otherwise).
 """
+
 import sqlite3
 import uuid
 

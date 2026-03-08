@@ -1,3 +1,7 @@
+"""
+任务仓储层：提供医生任务的过滤查询和状态更新接口。
+"""
+
 from __future__ import annotations
 
 from datetime import datetime

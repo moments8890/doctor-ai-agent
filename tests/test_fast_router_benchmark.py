@@ -16,8 +16,8 @@ from typing import Optional
 
 import pytest
 
-from services.fast_router import fast_route
-from services.intent import Intent
+from services.ai.fast_router import fast_route
+from services.ai.intent import Intent
 
 
 # ---------------------------------------------------------------------------

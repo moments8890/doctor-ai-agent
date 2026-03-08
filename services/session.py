@@ -1,11 +1,16 @@
+"""
+医生会话内存管理：DoctorSession 数据类，支持 DB 持久化和跨节点恢复。
+"""
+
 from __future__ import annotations
+
 import asyncio
 import threading
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
-from services.interview import InterviewState
+from services.patient.interview import InterviewState
 from db.engine import AsyncSessionLocal
 from db.crud import (
     get_doctor_session_state,

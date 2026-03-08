@@ -1,4 +1,7 @@
-"""Tests for db/crud.py — all run against an in-memory SQLite database."""
+"""
+Tests for db/crud.py — all run against an in-memory SQLite database.
+"""
+
 import pytest
 from datetime import datetime
 from sqlalchemy import select
@@ -23,9 +26,9 @@ from db.crud import (
 from db.models import Doctor, DoctorTask, NeuroCaseDB
 from models.medical_record import MedicalRecord
 from models.neuro_case import ExtractionLog, NeuroCase
-from services.errors import InvalidMedicalRecordError
-from services.errors import LabelNotFoundError
-from services.errors import PatientNotFoundError
+from utils.errors import InvalidMedicalRecordError
+from utils.errors import LabelNotFoundError
+from utils.errors import PatientNotFoundError
 
 DOCTOR = "doc_001"
 

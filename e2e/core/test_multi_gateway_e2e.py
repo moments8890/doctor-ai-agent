@@ -17,7 +17,7 @@ from httpx import ASGITransport, AsyncClient
 from db.crud import find_patient_by_name, get_records_for_patient
 from routers.records import router as records_router
 from routers.voice import router as voice_router
-from services.intent import Intent, IntentResult
+from services.ai.intent import Intent, IntentResult
 
 
 async def test_multi_gateway_human_language_e2e(session_factory):

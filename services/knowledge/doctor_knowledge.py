@@ -1,3 +1,7 @@
+"""
+医生个人知识库管理：添加、检索和自动学习医学知识条目。
+"""
+
 from __future__ import annotations
 
 import json

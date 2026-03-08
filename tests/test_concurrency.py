@@ -3,13 +3,14 @@
 Verifies that concurrent background tasks for the same doctor serialise
 correctly and do not corrupt session state or create duplicate records.
 """
+
 from __future__ import annotations
 import asyncio
 import pytest
 from unittest.mock import AsyncMock, patch
 
 from services.session import get_session, set_pending_create
-from services.intent import Intent, IntentResult
+from services.ai.intent import Intent, IntentResult
 
 
 DOCTOR = "openid_concurrency_test"

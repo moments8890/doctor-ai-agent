@@ -21,7 +21,7 @@ from sqlalchemy import select
 
 from db.engine import AsyncSessionLocal
 from db.models import Patient, MedicalRecordDB
-from services.patient_categorization import categorize_patient
+from services.patient.patient_categorization import categorize_patient
 
 
 async def _run(doctor_id: str | None, dry_run: bool) -> int:

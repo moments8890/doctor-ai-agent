@@ -16,13 +16,14 @@ Verifies that:
 
 LLM is mocked in all tests — we validate the pipeline logic, not LLM quality.
 """
+
 import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from services.intent import Intent
-from services.agent import dispatch
-from services.structuring import structure_medical_record
+from services.ai.intent import Intent
+from services.ai.agent import dispatch
+from services.ai.structuring import structure_medical_record
 from models.medical_record import MedicalRecord
 
 
@@ -59,7 +60,7 @@ def mock_agent_llm(monkeypatch):
     monkeypatch.setenv("LLM_PROVIDER", "deepseek")
     monkeypatch.setenv("DEEPSEEK_API_KEY", "fake")
     mock = AsyncMock()
-    with patch("services.agent.AsyncOpenAI", return_value=MagicMock(
+    with patch("services.ai.agent.AsyncOpenAI", return_value=MagicMock(
         chat=MagicMock(completions=MagicMock(create=mock))
     )):
         yield mock
@@ -70,7 +71,7 @@ def mock_struct_llm(monkeypatch):
     monkeypatch.setenv("LLM_PROVIDER", "deepseek")
     monkeypatch.setenv("DEEPSEEK_API_KEY", "fake")
     mock = AsyncMock()
-    with patch("services.structuring.AsyncOpenAI", return_value=MagicMock(
+    with patch("services.ai.structuring.AsyncOpenAI", return_value=MagicMock(
         chat=MagicMock(completions=MagicMock(create=mock))
     )):
         yield mock

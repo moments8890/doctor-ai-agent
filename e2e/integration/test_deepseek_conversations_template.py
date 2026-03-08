@@ -10,6 +10,7 @@ Notes:
   - This is a template-style integration test for realistic conversations.
   - Assertions are keyword-based to tolerate model phrasing variance.
 """
+
 from __future__ import annotations
 
 import json

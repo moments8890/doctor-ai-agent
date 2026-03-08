@@ -1,4 +1,7 @@
-"""Shared fixtures for all test modules."""
+"""
+Shared fixtures for all test modules.
+"""
+
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
@@ -37,7 +40,7 @@ def reset_doctor_sessions():
     except Exception:
         pass
     try:
-        from services.rate_limit import clear_rate_limits_for_tests
+        from services.auth.rate_limit import clear_rate_limits_for_tests
         clear_rate_limits_for_tests()
     except Exception:
         pass
@@ -49,7 +52,7 @@ def reset_doctor_sessions():
     except Exception:
         pass
     try:
-        from services.rate_limit import clear_rate_limits_for_tests
+        from services.auth.rate_limit import clear_rate_limits_for_tests
         clear_rate_limits_for_tests()
     except Exception:
         pass

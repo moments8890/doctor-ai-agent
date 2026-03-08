@@ -1,3 +1,7 @@
+"""
+认证路由：处理 WeCom OAuth 回调并签发内部 JWT 访问令牌。
+"""
+
 from __future__ import annotations
 
 import os
@@ -12,13 +16,13 @@ from sqlalchemy import select
 
 from db.engine import AsyncSessionLocal
 from db.models import Doctor
-from services.miniprogram_auth import (
+from services.auth.miniprogram_auth import (
     MiniProgramAuthError,
     issue_miniprogram_token,
     parse_bearer_token,
     verify_miniprogram_token,
 )
-from services.rate_limit import enforce_doctor_rate_limit
+from services.auth.rate_limit import enforce_doctor_rate_limit
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 

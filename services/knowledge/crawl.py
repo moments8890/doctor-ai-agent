@@ -1,3 +1,7 @@
+"""
+知识来源爬取模块：从指定 URL 拉取并解析医学指南文档。
+"""
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta

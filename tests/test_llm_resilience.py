@@ -4,7 +4,7 @@ from typing import List
 
 import pytest
 
-from services import llm_resilience as lr
+from services.ai import llm_resilience as lr
 
 
 @pytest.fixture(autouse=True)

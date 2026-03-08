@@ -1,3 +1,7 @@
+"""
+患者仓储层：提供带标签预加载的患者查询和分页检索接口。
+"""
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -8,8 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from db.models import Patient
-from services.patient_categorization import RULES_VERSION
-from services.patient_risk import RULES_VERSION as RISK_RULES_VERSION
+from services.patient.patient_categorization import RULES_VERSION
+from services.patient.patient_risk import RULES_VERSION as RISK_RULES_VERSION
 
 
 def _year_of_birth(age: Optional[int]) -> Optional[int]:

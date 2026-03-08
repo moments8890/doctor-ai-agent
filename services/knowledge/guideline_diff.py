@@ -1,3 +1,7 @@
+"""
+医学指南快照差异比对：识别新旧版本间的变更并生成影响评分摘要。
+"""
+
 from __future__ import annotations
 
 from typing import Dict, List

@@ -1,3 +1,7 @@
+"""
+语音录入路由：接收音频上传并通过 Whisper 转录后结构化为病历。
+"""
+
 from __future__ import annotations
 
 import json
@@ -13,13 +17,13 @@ from routers.records import SUPPORTED_AUDIO_TYPES
 from routers.records import _assistant_asked_for_name
 from routers.records import _is_valid_patient_name
 from routers.records import _name_only_text
-from services.agent import dispatch as agent_dispatch
-from services.errors import InvalidMedicalRecordError
-from services.intent import Intent
-from services.rate_limit import enforce_doctor_rate_limit
-from services.request_auth import resolve_doctor_id_from_auth_or_fallback
-from services.structuring import structure_medical_record
-from services.transcription import transcribe_audio
+from services.ai.agent import dispatch as agent_dispatch
+from utils.errors import InvalidMedicalRecordError
+from services.ai.intent import Intent
+from services.auth.rate_limit import enforce_doctor_rate_limit
+from services.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
+from services.ai.structuring import structure_medical_record
+from services.ai.transcription import transcribe_audio
 from utils.log import log
 
 router = APIRouter(prefix="/api/voice", tags=["voice"])

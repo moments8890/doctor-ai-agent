@@ -1,3 +1,7 @@
+"""
+PDF 文本提取工具：通过系统 pdftotext 命令从 PDF 字节流中提取纯文本。
+"""
+
 from __future__ import annotations
 
 import subprocess

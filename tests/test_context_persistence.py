@@ -17,6 +17,7 @@ Verifies that:
 - Two doctors get independent context rows
 - Expired summary is replaced, not accumulated
 """
+
 import time
 import pytest
 import pytest_asyncio
@@ -27,7 +28,7 @@ from db.engine import Base
 import db.models  # noqa: F401 — register ORM models
 
 from services.session import get_session, push_turn, DoctorSession
-from services.memory import maybe_compress, load_context_message, MAX_TURNS, IDLE_SECONDS
+from services.ai.memory import maybe_compress, load_context_message, MAX_TURNS, IDLE_SECONDS
 from db.crud import get_doctor_context
 
 
@@ -60,7 +61,7 @@ async def real_db():
 
 @pytest.fixture
 def db_ctx_patch(real_db):
-    """Patch AsyncSessionLocal inside services.memory to use the real in-memory DB."""
+    """Patch AsyncSessionLocal inside services.ai.memory to use the real in-memory DB."""
     # AsyncSessionLocal is a session factory; wrap it in a context-manager-returning callable
     class _FakeSessionLocal:
         def __init__(self):
@@ -70,7 +71,7 @@ def db_ctx_patch(real_db):
             return self._factory()
 
     fake_sl = _FakeSessionLocal()
-    with patch("services.memory.AsyncSessionLocal", side_effect=lambda: real_db()):
+    with patch("services.ai.memory.AsyncSessionLocal", side_effect=lambda: real_db()):
         yield real_db
 
 
@@ -84,8 +85,8 @@ async def _compress_with_summary(doctor_id: str, history: list, summary: str, db
     sess.conversation_history = list(history)
     sess.last_active = time.time()
 
-    with patch("services.memory._summarise", new_callable=AsyncMock, return_value=summary):
-        with patch("services.memory.AsyncSessionLocal", side_effect=lambda: db_factory()):
+    with patch("services.ai.memory._summarise", new_callable=AsyncMock, return_value=summary):
+        with patch("services.ai.memory.AsyncSessionLocal", side_effect=lambda: db_factory()):
             await maybe_compress(doctor_id, sess)
 
     async with db_factory() as db:
@@ -115,7 +116,7 @@ async def test_load_context_returns_stored_summary(real_db):
     summary = "当前患者：李明（男，50岁）\n最近处理：高血压复诊，加药\n待跟进：一个月后复查"
     await _compress_with_summary(DOCTOR_A, _make_full_history(), summary, real_db)
 
-    with patch("services.memory.AsyncSessionLocal", side_effect=lambda: real_db()):
+    with patch("services.ai.memory.AsyncSessionLocal", side_effect=lambda: real_db()):
         msg = await load_context_message(DOCTOR_A)
 
     assert msg is not None
@@ -130,7 +131,7 @@ async def test_load_context_message_format(real_db):
         "当前患者：无\n最近处理：问诊\n待跟进：无",
         real_db,
     )
-    with patch("services.memory.AsyncSessionLocal", side_effect=lambda: real_db()):
+    with patch("services.ai.memory.AsyncSessionLocal", side_effect=lambda: real_db()):
         msg = await load_context_message(DOCTOR_A)
 
     # Must clearly label itself as prior-session context so LLM treats it correctly
@@ -166,7 +167,7 @@ async def test_two_doctors_have_independent_context_rows(real_db):
 
 async def test_load_context_no_row_returns_none(real_db):
     """Doctor with no prior sessions → no context injected."""
-    with patch("services.memory.AsyncSessionLocal", side_effect=lambda: real_db()):
+    with patch("services.ai.memory.AsyncSessionLocal", side_effect=lambda: real_db()):
         msg = await load_context_message("brand_new_doctor")
     assert msg is None
 
@@ -176,8 +177,8 @@ async def test_history_cleared_after_compression(real_db):
     sess.conversation_history = _make_full_history()
     sess.last_active = time.time()
 
-    with patch("services.memory._summarise", new_callable=AsyncMock, return_value="摘要"):
-        with patch("services.memory.AsyncSessionLocal", side_effect=lambda: real_db()):
+    with patch("services.ai.memory._summarise", new_callable=AsyncMock, return_value="摘要"):
+        with patch("services.ai.memory.AsyncSessionLocal", side_effect=lambda: real_db()):
             await maybe_compress(DOCTOR_A, sess)
 
     assert sess.conversation_history == []
@@ -193,8 +194,8 @@ async def test_compression_idle_trigger_also_persists(real_db):
     ]
     sess.last_active = time.time() - (IDLE_SECONDS + 60)
 
-    with patch("services.memory._summarise", new_callable=AsyncMock, return_value="空闲摘要"):
-        with patch("services.memory.AsyncSessionLocal", side_effect=lambda: real_db()):
+    with patch("services.ai.memory._summarise", new_callable=AsyncMock, return_value="空闲摘要"):
+        with patch("services.ai.memory.AsyncSessionLocal", side_effect=lambda: real_db()):
             await maybe_compress(DOCTOR_A, sess)
 
     async with real_db() as db:
@@ -209,7 +210,7 @@ async def test_full_cycle_compress_then_inject_into_agent_history(real_db):
     summary = "当前患者：贺志强（男，62岁）\n最近处理：不稳定型心绞痛，冠脉造影安排\n待跟进：入院复查血脂"
     await _compress_with_summary(DOCTOR_A, _make_full_history(), summary, real_db)
 
-    with patch("services.memory.AsyncSessionLocal", side_effect=lambda: real_db()):
+    with patch("services.ai.memory.AsyncSessionLocal", side_effect=lambda: real_db()):
         ctx_msg = await load_context_message(DOCTOR_A)
 
     assert ctx_msg is not None

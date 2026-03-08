@@ -1,4 +1,7 @@
-"""Unit tests for scripts/seed_db.py — all I/O (sqlite3, file) is mocked."""
+"""
+Unit tests for scripts/seed_db.py — all I/O (sqlite3, file) is mocked.
+"""
+
 from __future__ import annotations
 
 import json

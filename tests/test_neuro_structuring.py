@@ -7,6 +7,7 @@ Verifies that:
 - LLM is called with the correct system prompt content
 - DB row scalar fields are promoted correctly by save_neuro_case
 """
+
 from __future__ import annotations
 
 import json
@@ -14,7 +15,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from models.neuro_case import ExtractionLog, NeuroCase
-from services.neuro_structuring import _parse_markdown_output, extract_neuro_case
+from services.ai.neuro_structuring import _parse_markdown_output, extract_neuro_case
 from db.crud import get_neuro_cases_for_doctor, save_neuro_case
 
 
@@ -122,7 +123,7 @@ def mock_llm(monkeypatch):
     mock_client = AsyncMock()
     mock_create = AsyncMock()
     mock_client.chat.completions.create = mock_create
-    with patch("services.neuro_structuring.AsyncOpenAI", return_value=mock_client):
+    with patch("services.ai.neuro_structuring.AsyncOpenAI", return_value=mock_client):
         yield mock_create
 
 
@@ -301,11 +302,11 @@ async def test_get_neuro_cases_for_doctor_returns_only_target_doctor(session_fac
 
 
 async def test_neuro_get_system_prompt_logs_when_db_load_fails():
-    import services.neuro_structuring as neuro_mod
+    import services.ai.neuro_structuring as neuro_mod
 
     neuro_mod._PROMPT_CACHE = None
     with patch("db.engine.AsyncSessionLocal", side_effect=RuntimeError("db down")), \
-         patch("services.neuro_structuring.log") as log_mock:
+         patch("services.ai.neuro_structuring.log") as log_mock:
         prompt = await neuro_mod._get_system_prompt()
 
     assert isinstance(prompt, str) and prompt

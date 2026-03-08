@@ -1,4 +1,6 @@
-"""E2E-style multi-input routing tests for WeChat entrypoints."""
+"""
+E2E-style multi-input routing tests for WeChat entrypoints.
+"""
 
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch

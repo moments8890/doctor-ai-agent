@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi import HTTPException
 
-from services.miniprogram_auth import issue_miniprogram_token
+from services.auth.miniprogram_auth import issue_miniprogram_token
 
 import routers.miniprogram as mini
 import routers.records as records

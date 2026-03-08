@@ -2,6 +2,7 @@
 
 All I/O (DB sessions, LLM calls, WeChat push) is mocked — no real network or DB calls.
 """
+
 from __future__ import annotations
 
 import json
@@ -12,8 +13,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-import services.tasks as tasks
-from services.tasks import (
+import services.notify.tasks as tasks
+from services.notify.tasks import (
     extract_follow_up_days,
     create_follow_up_task,
     create_emergency_task,
@@ -22,8 +23,8 @@ from services.tasks import (
     check_and_send_due_tasks,
     run_due_task_cycle,
 )
-from services.intent import Intent
-from services.agent import dispatch
+from services.ai.intent import Intent
+from services.ai.agent import dispatch
 from routers.tasks import TaskOut
 
 
@@ -198,8 +199,8 @@ async def test_create_follow_up_task_sets_correct_due_at():
     mock_session = AsyncMock()
     mock_create = AsyncMock(return_value=fake_task)
 
-    with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
-         patch("services.tasks.create_task", mock_create):
+    with patch("services.notify.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
+         patch("services.notify.tasks.create_task", mock_create):
         task = await create_follow_up_task(
             "doc1", 42, "张三", "两周后复查", patient_id=1
         )
@@ -221,9 +222,9 @@ async def test_create_emergency_task_sends_notification_immediately():
     mock_create = AsyncMock(return_value=fake_task)
     mock_notify = AsyncMock()
 
-    with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
-         patch("services.tasks.create_task", mock_create), \
-         patch("services.tasks.send_task_notification", mock_notify):
+    with patch("services.notify.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
+         patch("services.notify.tasks.create_task", mock_create), \
+         patch("services.notify.tasks.send_task_notification", mock_notify):
         await create_emergency_task("doc1", 10, "李明", "STEMI", patient_id=None)
 
     mock_notify.assert_awaited_once_with("doc1", fake_task)
@@ -235,9 +236,9 @@ async def test_create_follow_up_task_emits_structured_task_log():
     mock_create = AsyncMock(return_value=fake_task)
     mock_task_log = MagicMock()
 
-    with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
-         patch("services.tasks.create_task", mock_create), \
-         patch("services.tasks.task_log", mock_task_log):
+    with patch("services.notify.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
+         patch("services.notify.tasks.create_task", mock_create), \
+         patch("services.notify.tasks.task_log", mock_task_log):
         await create_follow_up_task("docA", 77, "李雷", "一周后复查", patient_id=5)
 
     mock_task_log.assert_called_once()
@@ -252,8 +253,8 @@ async def test_create_appointment_task_sets_due_at_one_hour_before():
     mock_create = AsyncMock(return_value=fake_task)
     appt = datetime(2026, 5, 1, 14, 0, 0)
 
-    with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
-         patch("services.tasks.create_task", mock_create):
+    with patch("services.notify.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
+         patch("services.notify.tasks.create_task", mock_create):
         task = await create_appointment_task(
             "doc1", "王五", appt, notes="复查血压", patient_id=9
         )
@@ -274,12 +275,12 @@ async def test_check_and_send_due_tasks_sends_for_each():
     mock_get_due = AsyncMock(return_value=[task1, task2])
     mock_notify = AsyncMock()
 
-    with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
-         patch("services.tasks.get_due_tasks", mock_get_due), \
-         patch("services.tasks.send_task_notification", mock_notify), \
-         patch("services.tasks.get_doctor_notify_preference", new=AsyncMock(return_value=None)), \
-         patch("services.tasks._scheduler_lease_enabled", return_value=False), \
-         patch("services.tasks.upsert_doctor_notify_preference", new=AsyncMock()):
+    with patch("services.notify.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
+         patch("services.notify.tasks.get_due_tasks", mock_get_due), \
+         patch("services.notify.tasks.send_task_notification", mock_notify), \
+         patch("services.notify.tasks.get_doctor_notify_preference", new=AsyncMock(return_value=None)), \
+         patch("services.notify.tasks._scheduler_lease_enabled", return_value=False), \
+         patch("services.notify.tasks.upsert_doctor_notify_preference", new=AsyncMock()):
         await check_and_send_due_tasks()
 
     assert mock_notify.await_count == 2
@@ -298,12 +299,12 @@ async def test_check_and_send_due_tasks_continues_on_error():
         if task.id == 1:
             raise RuntimeError("WeChat push failed")
 
-    with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
-         patch("services.tasks.get_due_tasks", mock_get_due), \
-         patch("services.tasks.send_task_notification", side_effect=_notify), \
-         patch("services.tasks.get_doctor_notify_preference", new=AsyncMock(return_value=None)), \
-         patch("services.tasks._scheduler_lease_enabled", return_value=False), \
-         patch("services.tasks.upsert_doctor_notify_preference", new=AsyncMock()):
+    with patch("services.notify.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
+         patch("services.notify.tasks.get_due_tasks", mock_get_due), \
+         patch("services.notify.tasks.send_task_notification", side_effect=_notify), \
+         patch("services.notify.tasks.get_doctor_notify_preference", new=AsyncMock(return_value=None)), \
+         patch("services.notify.tasks._scheduler_lease_enabled", return_value=False), \
+         patch("services.notify.tasks.upsert_doctor_notify_preference", new=AsyncMock()):
         await check_and_send_due_tasks()
 
     assert 1 in notify_calls
@@ -319,9 +320,9 @@ async def test_send_task_notification_formats_message_and_marks_notified():
     mock_send = AsyncMock()
     mock_mark = AsyncMock()
 
-    with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
-         patch("services.tasks.send_doctor_notification", mock_send), \
-         patch("services.tasks.mark_task_notified", mock_mark):
+    with patch("services.notify.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
+         patch("services.notify.tasks.send_doctor_notification", mock_send), \
+         patch("services.notify.tasks.mark_task_notified", mock_mark):
         await send_task_notification("doc1", fake_task)
 
     mock_send.assert_awaited_once()
@@ -339,9 +340,9 @@ async def test_send_task_notification_without_content_or_due_time():
     mock_send = AsyncMock()
     mock_mark = AsyncMock()
 
-    with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
-         patch("services.tasks.send_doctor_notification", mock_send), \
-         patch("services.tasks.mark_task_notified", mock_mark):
+    with patch("services.notify.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
+         patch("services.notify.tasks.send_doctor_notification", mock_send), \
+         patch("services.notify.tasks.mark_task_notified", mock_mark):
         await send_task_notification("doc1", fake_task)
 
     message = mock_send.call_args.args[1]
@@ -356,10 +357,10 @@ async def test_send_task_notification_emits_structured_task_log():
     mock_mark = AsyncMock()
     mock_task_log = MagicMock()
 
-    with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
-         patch("services.tasks.send_doctor_notification", mock_send), \
-         patch("services.tasks.mark_task_notified", mock_mark), \
-         patch("services.tasks.task_log", mock_task_log):
+    with patch("services.notify.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
+         patch("services.notify.tasks.send_doctor_notification", mock_send), \
+         patch("services.notify.tasks.mark_task_notified", mock_mark), \
+         patch("services.notify.tasks.task_log", mock_task_log):
         await send_task_notification("doc9", fake_task)
 
     mock_task_log.assert_called_once()
@@ -373,11 +374,11 @@ async def test_send_task_notification_retries_then_succeeds():
     mock_send = AsyncMock(side_effect=[RuntimeError("net"), None])
     mock_mark = AsyncMock()
 
-    with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
-         patch("services.tasks.send_doctor_notification", mock_send), \
-         patch("services.tasks.mark_task_notified", mock_mark), \
-         patch("services.tasks._notify_retry_count", return_value=2), \
-         patch("services.tasks._notify_retry_delay_seconds", return_value=0):
+    with patch("services.notify.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
+         patch("services.notify.tasks.send_doctor_notification", mock_send), \
+         patch("services.notify.tasks.mark_task_notified", mock_mark), \
+         patch("services.notify.tasks._notify_retry_count", return_value=2), \
+         patch("services.notify.tasks._notify_retry_delay_seconds", return_value=0):
         await send_task_notification("doc-retry", fake_task)
 
     assert mock_send.await_count == 2
@@ -390,11 +391,11 @@ async def test_send_task_notification_retry_exhausted_does_not_mark_notified():
     mock_send = AsyncMock(side_effect=RuntimeError("net"))
     mock_mark = AsyncMock()
 
-    with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
-         patch("services.tasks.send_doctor_notification", mock_send), \
-         patch("services.tasks.mark_task_notified", mock_mark), \
-         patch("services.tasks._notify_retry_count", return_value=2), \
-         patch("services.tasks._notify_retry_delay_seconds", return_value=0):
+    with patch("services.notify.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
+         patch("services.notify.tasks.send_doctor_notification", mock_send), \
+         patch("services.notify.tasks.mark_task_notified", mock_mark), \
+         patch("services.notify.tasks._notify_retry_count", return_value=2), \
+         patch("services.notify.tasks._notify_retry_delay_seconds", return_value=0):
         with pytest.raises(RuntimeError):
             await send_task_notification("doc-fail", fake_task)
 
@@ -411,13 +412,13 @@ async def test_check_and_send_due_tasks_logs_failure_event():
     async def _notify(_doctor_id, _task):
         raise RuntimeError("notify failed")
 
-    with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
-         patch("services.tasks.get_due_tasks", mock_get_due), \
-         patch("services.tasks.send_task_notification", side_effect=_notify), \
-         patch("services.tasks.get_doctor_notify_preference", new=AsyncMock(return_value=None)), \
-         patch("services.tasks._scheduler_lease_enabled", return_value=False), \
-         patch("services.tasks.upsert_doctor_notify_preference", new=AsyncMock()), \
-         patch("services.tasks.task_log", mock_task_log):
+    with patch("services.notify.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
+         patch("services.notify.tasks.get_due_tasks", mock_get_due), \
+         patch("services.notify.tasks.send_task_notification", side_effect=_notify), \
+         patch("services.notify.tasks.get_doctor_notify_preference", new=AsyncMock(return_value=None)), \
+         patch("services.notify.tasks._scheduler_lease_enabled", return_value=False), \
+         patch("services.notify.tasks.upsert_doctor_notify_preference", new=AsyncMock()), \
+         patch("services.notify.tasks.task_log", mock_task_log):
         await check_and_send_due_tasks()
 
     events = [call.args[0] for call in mock_task_log.call_args_list]
@@ -435,11 +436,11 @@ async def test_run_due_task_cycle_returns_counts():
         if task.id == 2:
             raise RuntimeError("notify failed")
 
-    with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
-         patch("services.tasks.get_due_tasks", new=AsyncMock(return_value=[task1, task2])), \
-         patch("services.tasks.get_doctor_notify_preference", new=AsyncMock(return_value=None)), \
-         patch("services.tasks.upsert_doctor_notify_preference", new=AsyncMock()), \
-         patch("services.tasks.send_task_notification", side_effect=_notify):
+    with patch("services.notify.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
+         patch("services.notify.tasks.get_due_tasks", new=AsyncMock(return_value=[task1, task2])), \
+         patch("services.notify.tasks.get_doctor_notify_preference", new=AsyncMock(return_value=None)), \
+         patch("services.notify.tasks.upsert_doctor_notify_preference", new=AsyncMock()), \
+         patch("services.notify.tasks.send_task_notification", side_effect=_notify):
         out = await run_due_task_cycle(use_scheduler_lease=False)
 
     assert out["due_count"] == 2
@@ -461,11 +462,11 @@ async def test_run_due_task_cycle_skips_manual_doctor_when_not_including_manual(
         last_auto_run_at=None,
     )
 
-    with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
-         patch("services.tasks.get_due_tasks", new=AsyncMock(return_value=[task1])), \
-         patch("services.tasks.get_doctor_notify_preference", new=AsyncMock(return_value=pref)), \
-         patch("services.tasks.upsert_doctor_notify_preference", new=AsyncMock()), \
-         patch("services.tasks.send_task_notification", new=AsyncMock()) as mock_send:
+    with patch("services.notify.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
+         patch("services.notify.tasks.get_due_tasks", new=AsyncMock(return_value=[task1])), \
+         patch("services.notify.tasks.get_doctor_notify_preference", new=AsyncMock(return_value=pref)), \
+         patch("services.notify.tasks.upsert_doctor_notify_preference", new=AsyncMock()), \
+         patch("services.notify.tasks.send_task_notification", new=AsyncMock()) as mock_send:
         out = await run_due_task_cycle(include_manual=False, force=False, use_scheduler_lease=False)
 
     assert out["due_count"] == 1
@@ -488,11 +489,11 @@ async def test_run_due_task_cycle_force_true_bypasses_manual_and_filter_by_docto
         last_auto_run_at=datetime.now(),
     )
 
-    with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
-         patch("services.tasks.get_due_tasks", new=AsyncMock(return_value=[task1, task2])), \
-         patch("services.tasks.get_doctor_notify_preference", new=AsyncMock(return_value=pref)), \
-         patch("services.tasks.upsert_doctor_notify_preference", new=AsyncMock()), \
-         patch("services.tasks.send_task_notification", new=AsyncMock()) as mock_send:
+    with patch("services.notify.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
+         patch("services.notify.tasks.get_due_tasks", new=AsyncMock(return_value=[task1, task2])), \
+         patch("services.notify.tasks.get_doctor_notify_preference", new=AsyncMock(return_value=pref)), \
+         patch("services.notify.tasks.upsert_doctor_notify_preference", new=AsyncMock()), \
+         patch("services.notify.tasks.send_task_notification", new=AsyncMock()) as mock_send:
         out = await run_due_task_cycle(
             doctor_id="doc_manual",
             include_manual=True,
@@ -507,7 +508,7 @@ async def test_run_due_task_cycle_force_true_bypasses_manual_and_filter_by_docto
 
 async def test_emit_task_log_awaits_asyncmock():
     mock_task_log = AsyncMock()
-    with patch("services.tasks.task_log", mock_task_log):
+    with patch("services.notify.tasks.task_log", mock_task_log):
         await tasks._emit_task_log("evt", x=1)
 
     mock_task_log.assert_called_once_with("evt", x=1)
@@ -516,10 +517,10 @@ async def test_emit_task_log_awaits_asyncmock():
 
 async def test_run_due_task_cycle_skips_when_lease_not_acquired():
     mock_session = AsyncMock()
-    with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
-         patch("services.tasks._scheduler_lease_enabled", return_value=True), \
-         patch("services.tasks.try_acquire_scheduler_lease", new=AsyncMock(return_value=False)), \
-         patch("services.tasks.task_log", MagicMock()):
+    with patch("services.notify.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
+         patch("services.notify.tasks._scheduler_lease_enabled", return_value=True), \
+         patch("services.notify.tasks.try_acquire_scheduler_lease", new=AsyncMock(return_value=False)), \
+         patch("services.notify.tasks.task_log", MagicMock()):
         out = await run_due_task_cycle(use_scheduler_lease=True)
 
     assert out["skipped_by_lease"] is True
@@ -530,9 +531,9 @@ async def test_run_due_task_cycle_skips_when_lease_not_acquired():
 async def test_run_due_task_cycle_logs_debug_when_no_due_tasks():
     mock_session = AsyncMock()
     mock_task_log = MagicMock()
-    with patch("services.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
-         patch("services.tasks.get_due_tasks", new=AsyncMock(return_value=[])), \
-         patch("services.tasks.task_log", mock_task_log):
+    with patch("services.notify.tasks.AsyncSessionLocal", return_value=_FakeSessionCtx(mock_session)), \
+         patch("services.notify.tasks.get_due_tasks", new=AsyncMock(return_value=[])), \
+         patch("services.notify.tasks.task_log", mock_task_log):
         out = await run_due_task_cycle(use_scheduler_lease=False)
 
     assert out["due_count"] == 0
@@ -594,7 +595,7 @@ def mock_llm(monkeypatch):
     mock_client = AsyncMock()
     mock_create = AsyncMock()
     mock_client.chat.completions.create = mock_create
-    with patch("services.agent.AsyncOpenAI", return_value=mock_client):
+    with patch("services.ai.agent.AsyncOpenAI", return_value=mock_client):
         yield mock_create
 
 

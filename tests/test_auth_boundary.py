@@ -1,5 +1,6 @@
 """Security boundary tests: auth enforcement, admin token protection,
 cross-doctor isolation, and rate-limit 429 behaviour."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -20,7 +21,7 @@ def test_tasks_endpoint_no_auth_fallback_off_raises_401():
         with pytest.raises(HTTPException) as exc_info:
             # resolve_doctor_id_from_auth_or_fallback is called synchronously
             # inside the endpoint helper; we can call it directly here.
-            from services.request_auth import resolve_doctor_id_from_auth_or_fallback
+            from services.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
             resolve_doctor_id_from_auth_or_fallback(
                 "some_doctor",
                 None,
@@ -35,7 +36,7 @@ def test_neuro_endpoint_no_auth_fallback_off_raises_401():
     """POST /api/neuro/from-text without auth and fallback disabled → 401."""
     with patch.dict("os.environ", {}, clear=True):
         with pytest.raises(HTTPException) as exc_info:
-            from services.request_auth import resolve_doctor_id_from_auth_or_fallback
+            from services.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
             resolve_doctor_id_from_auth_or_fallback(
                 "body_doctor",
                 None,
@@ -50,7 +51,7 @@ def test_ui_endpoint_no_auth_fallback_off_raises_401():
     """UI manage-patients without auth and UI_ALLOW_QUERY_DOCTOR_ID=off → 401."""
     with patch.dict("os.environ", {}, clear=True):
         with pytest.raises(HTTPException) as exc_info:
-            from services.request_auth import resolve_doctor_id_from_auth_or_fallback
+            from services.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
             resolve_doctor_id_from_auth_or_fallback(
                 "web_doctor",
                 None,
@@ -67,7 +68,7 @@ def test_ui_endpoint_no_auth_fallback_off_raises_401():
 
 def test_admin_endpoint_missing_token_raises_503_or_403():
     """Calling an admin endpoint without UI_ADMIN_TOKEN configured → 503."""
-    from services.request_auth import require_admin_token
+    from services.auth.request_auth import require_admin_token
 
     with patch.dict("os.environ", {}, clear=True):
         with pytest.raises(HTTPException) as exc_info:
@@ -78,7 +79,7 @@ def test_admin_endpoint_missing_token_raises_503_or_403():
 
 def test_admin_endpoint_wrong_token_raises_403():
     """Providing a wrong admin token when UI_ADMIN_TOKEN is set → 403."""
-    from services.request_auth import require_admin_token
+    from services.auth.request_auth import require_admin_token
 
     with patch.dict("os.environ", {"UI_ADMIN_TOKEN": "correct-secret"}, clear=True):
         with pytest.raises(HTTPException) as exc_info:
@@ -89,7 +90,7 @@ def test_admin_endpoint_wrong_token_raises_403():
 
 def test_admin_endpoint_correct_token_passes():
     """Correct admin token must not raise."""
-    from services.request_auth import require_admin_token
+    from services.auth.request_auth import require_admin_token
 
     with patch.dict("os.environ", {"UI_ADMIN_TOKEN": "correct-secret"}, clear=True):
         # Should not raise
@@ -153,7 +154,7 @@ async def test_cross_doctor_records_isolation(db_session):
 
 def test_rate_limit_429_raised_after_limit_exceeded():
     """enforce_doctor_rate_limit raises 429 once the per-window limit is hit."""
-    from services.rate_limit import enforce_doctor_rate_limit, clear_rate_limits_for_tests
+    from services.auth.rate_limit import enforce_doctor_rate_limit, clear_rate_limits_for_tests
 
     clear_rate_limits_for_tests()
     try:
@@ -171,7 +172,7 @@ def test_rate_limit_429_raised_after_limit_exceeded():
 
 def test_rate_limit_429_includes_retry_after_header():
     """The 429 response must carry a Retry-After header."""
-    from services.rate_limit import enforce_doctor_rate_limit, clear_rate_limits_for_tests
+    from services.auth.rate_limit import enforce_doctor_rate_limit, clear_rate_limits_for_tests
 
     clear_rate_limits_for_tests()
     try:
@@ -190,7 +191,7 @@ def test_rate_limit_429_includes_retry_after_header():
 
 def test_rate_limit_scopes_are_independent():
     """Different scopes for the same doctor do not share counters."""
-    from services.rate_limit import enforce_doctor_rate_limit, clear_rate_limits_for_tests
+    from services.auth.rate_limit import enforce_doctor_rate_limit, clear_rate_limits_for_tests
 
     clear_rate_limits_for_tests()
     try:

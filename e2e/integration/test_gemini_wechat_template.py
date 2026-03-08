@@ -7,6 +7,7 @@ Run:
   export AUTO_FOLLOWUP_TASKS_ENABLED=true
   pytest e2e/integration/test_gemini_wechat_template.py -v
 """
+
 from __future__ import annotations
 
 import json

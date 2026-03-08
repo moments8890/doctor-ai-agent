@@ -2,9 +2,10 @@
 
 All LLM calls and DB sessions are mocked — no network or disk I/O.
 """
+
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
-from services.intent import Intent, IntentResult
+from services.ai.intent import Intent, IntentResult
 from services.session import set_current_patient, get_session
 
 
@@ -45,7 +46,7 @@ async def test_handle_intent_routes_create_patient(wechat, session_factory):
 
 
 async def test_handle_intent_routes_unknown_to_help_message(wechat):
-    from services.intent import IntentResult
+    from services.ai.intent import IntentResult
     with patch("routers.wechat.agent_dispatch", new=AsyncMock(
         return_value=IntentResult(intent=Intent.unknown, chat_reply="您好，有什么可以帮您？")
     )):
@@ -64,7 +65,7 @@ async def test_handle_intent_falls_back_on_detection_error(wechat):
 
 
 async def test_handle_intent_logs_and_continues_when_knowledge_context_load_fails(wechat):
-    from services.intent import IntentResult
+    from services.ai.intent import IntentResult
 
     with patch("routers.wechat.load_knowledge_context_for_prompt", new=AsyncMock(side_effect=RuntimeError("db busy"))), \
          patch("routers.wechat.agent_dispatch", new=AsyncMock(return_value=IntentResult(intent=Intent.unknown, chat_reply="ok"))):
@@ -329,7 +330,7 @@ async def test_query_records_empty_history(wechat, session_factory):
 
 async def test_add_record_emergency_reply_has_prefix(wechat, session_factory):
     from models.medical_record import MedicalRecord
-    from services.intent import IntentResult
+    from services.ai.intent import IntentResult
 
     fake_record = MedicalRecord(
         chief_complaint="室颤",
@@ -355,7 +356,7 @@ async def test_add_record_emergency_reply_has_prefix(wechat, session_factory):
 
 
 async def test_handle_intent_routes_list_patients(wechat, session_factory):
-    from services.intent import IntentResult
+    from services.ai.intent import IntentResult
 
     with patch("routers.wechat.agent_dispatch", new=AsyncMock(
         return_value=IntentResult(intent=Intent.list_patients)

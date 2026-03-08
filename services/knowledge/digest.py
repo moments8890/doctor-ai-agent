@@ -1,3 +1,7 @@
+"""
+知识摘要构建：将排序后的医学知识声明汇总为结构化 Markdown 摘要。
+"""
+
 from __future__ import annotations
 
 from typing import List

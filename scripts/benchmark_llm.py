@@ -62,8 +62,8 @@ _CORPUS = [
 # ── Fast router benchmark ─────────────────────────────────────────────────────
 
 def _bench_fast_router(corpus: list[tuple[str, str]]) -> dict:
-    from services.fast_router import fast_route
-    from services.intent import Intent
+    from services.ai.fast_router import fast_route
+    from services.ai.intent import Intent
 
     latencies_us: list[float] = []
     tier1_2_hits = 0
@@ -110,7 +110,7 @@ async def _bench_llm_dispatch(
     texts: list[str],
     include_structuring: bool = False,
 ) -> dict:
-    from services.agent import dispatch
+    from services.ai.agent import dispatch
 
     latencies_ms: list[float] = []
     errors_count = 0
@@ -132,7 +132,7 @@ async def _bench_llm_dispatch(
 
 
 async def _bench_structuring(texts: list[str]) -> dict:
-    from services.structuring import structure_medical_record
+    from services.ai.structuring import structure_medical_record
 
     latencies_ms: list[float] = []
     errors_count = 0

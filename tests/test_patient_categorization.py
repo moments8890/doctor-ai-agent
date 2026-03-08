@@ -3,6 +3,7 @@
 All tests are pure (no DB, no I/O). Patient and Record objects are built
 from SimpleNamespace mocks.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -12,7 +13,7 @@ from typing import List, Optional
 import pytest
 from unittest.mock import AsyncMock
 
-from services.patient_categorization import (
+from services.patient.patient_categorization import (
     CategoryResult,
     HIGH_RISK_KEYWORDS,
     RULES_VERSION,
@@ -331,7 +332,7 @@ async def test_recompute_all_categories_counts_errors(monkeypatch):
     def _boom(*_args, **_kwargs):
         raise RuntimeError("boom")
 
-    monkeypatch.setattr("services.patient_categorization.categorize_patient", _boom)
+    monkeypatch.setattr("services.patient.patient_categorization.categorize_patient", _boom)
 
     summary = await recompute_all_categories(session, doctor_id="docX", batch_size=50)
     assert summary == {"total": 1, "changed": 0, "errors": 1}

@@ -5,7 +5,7 @@ from datetime import datetime
 from db.crud import create_patient, save_record
 from db.models import DoctorTask
 from models.medical_record import MedicalRecord
-from services.patient_timeline import build_patient_timeline
+from services.patient.patient_timeline import build_patient_timeline
 
 
 async def test_build_patient_timeline_includes_record_and_task(db_session):
