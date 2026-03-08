@@ -38,6 +38,9 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
+import MicOutlinedIcon from "@mui/icons-material/MicOutlined";
+import StopCircleOutlinedIcon from "@mui/icons-material/StopCircleOutlined";
+import AttachFileOutlinedIcon from "@mui/icons-material/AttachFileOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import LogoutIcon from "@mui/icons-material/Logout";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -45,7 +48,7 @@ import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import { Paper } from "@mui/material";
-import { getPatients, getRecords, getTasks, patchTask, updateRecord, sendChat, getPendingRecord, confirmPendingRecord, abandonPendingRecord, getDoctorProfile, updateDoctorProfile, exportPatientPdf, exportOutpatientReport, getTemplateStatus, uploadTemplate, deleteTemplate, getCvdContext } from "../api";
+import { getPatients, getRecords, getTasks, patchTask, updateRecord, sendChat, transcribeAudio, ocrImage, getPendingRecord, confirmPendingRecord, abandonPendingRecord, getDoctorProfile, updateDoctorProfile, exportPatientPdf, exportOutpatientReport, getTemplateStatus, uploadTemplate, deleteTemplate, getCvdContext } from "../api";
 import RecordFields from "../components/RecordFields";
 import { useDoctorStore } from "../store/doctorStore";
 import { t } from "../i18n";
@@ -803,7 +806,13 @@ function ChatSection({ doctorId, onMessageCountChange }) {
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState([]);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [mediaProcessing, setMediaProcessing] = useState(false);
+  const [mediaError, setMediaError] = useState(null);
   const bottomRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const fileInputRef = useRef(null);
 
   function nowTs() {
     const d = new Date();
@@ -837,6 +846,62 @@ function ChatSection({ doctorId, onMessageCountChange }) {
     const fresh = [{ role: "assistant", content: t("chat.welcome"), ts: nowTs() }];
     setMessages(fresh);
     localStorage.setItem(storageKey, JSON.stringify(fresh));
+  }
+
+  async function startRecording() {
+    setMediaError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        setMediaProcessing(true);
+        try {
+          const { text } = await transcribeAudio(blob);
+          if (text) setInput((prev) => (prev ? prev + " " + text : text));
+        } catch {
+          setMediaError("语音识别失败，请重试");
+        } finally {
+          setMediaProcessing(false);
+        }
+      };
+      mr.start();
+      mediaRecorderRef.current = mr;
+      setRecording(true);
+    } catch {
+      setMediaError("无法访问麦克风，请检查权限");
+    }
+  }
+
+  function stopRecording() {
+    mediaRecorderRef.current?.stop();
+    setRecording(false);
+  }
+
+  async function onFileSelect(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setMediaError(null);
+    setMediaProcessing(true);
+    try {
+      if (file.type.startsWith("audio/")) {
+        const { text } = await transcribeAudio(file, file.name);
+        if (text) setInput((prev) => (prev ? prev + " " + text : text));
+      } else if (file.type.startsWith("image/")) {
+        const { text } = await ocrImage(file);
+        if (text) setInput((prev) => (prev ? prev + "\n" + text : text));
+      } else {
+        setMediaError("不支持的文件类型，请上传音频或图片");
+      }
+    } catch {
+      setMediaError("文件处理失败，请重试");
+    } finally {
+      setMediaProcessing(false);
+    }
   }
 
   async function onSend() {
@@ -874,7 +939,14 @@ function ChatSection({ doctorId, onMessageCountChange }) {
       </Box>
       {/* Input */}
       <Box sx={{ px: 2, py: 1.5, borderTop: "1px solid #e2e8f0", backgroundColor: "#fff" }}>
+        {mediaError && (
+          <Alert severity="error" onClose={() => setMediaError(null)} sx={{ mb: 1, py: 0 }}>
+            {mediaError}
+          </Alert>
+        )}
         <Stack direction="row" spacing={1} alignItems="flex-end">
+          {/* Hidden file input for audio + image uploads */}
+          <input ref={fileInputRef} type="file" accept="audio/*,image/*" style={{ display: "none" }} onChange={onFileSelect} />
           <Box sx={{ flex: 1 }}>
             <TextField
               multiline minRows={2} maxRows={6} fullWidth size="small"
@@ -882,6 +954,7 @@ function ChatSection({ doctorId, onMessageCountChange }) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); } }}
+              disabled={mediaProcessing}
               sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.5 } }}
             />
             {input.length > 0 && (
@@ -889,11 +962,36 @@ function ChatSection({ doctorId, onMessageCountChange }) {
                 {input.length} 字
               </Typography>
             )}
+            {mediaProcessing && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.3 }}>
+                <CircularProgress size={10} /> 处理中…
+              </Typography>
+            )}
           </Box>
-          <Button variant="contained" onClick={onSend} disabled={loading || !input.trim()}
-            sx={{ borderRadius: 1.5, minWidth: 48, height: 48, flexShrink: 0 }}>
-            <SendOutlinedIcon fontSize="small" />
-          </Button>
+          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexShrink: 0 }}>
+            <Tooltip title="上传音频或图片">
+              <span>
+                <IconButton size="small" onClick={() => fileInputRef.current?.click()} disabled={mediaProcessing || recording}
+                  sx={{ color: "text.secondary" }}>
+                  <AttachFileOutlinedIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title={recording ? "停止录音" : "语音输入"}>
+              <span>
+                <IconButton size="small"
+                  onClick={recording ? stopRecording : startRecording}
+                  disabled={mediaProcessing}
+                  sx={{ color: recording ? "error.main" : "text.secondary" }}>
+                  {recording ? <StopCircleOutlinedIcon fontSize="small" /> : <MicOutlinedIcon fontSize="small" />}
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Button variant="contained" onClick={onSend} disabled={loading || !input.trim()}
+              sx={{ borderRadius: 1.5, minWidth: 48, height: 48 }}>
+              <SendOutlinedIcon fontSize="small" />
+            </Button>
+          </Stack>
         </Stack>
       </Box>
 

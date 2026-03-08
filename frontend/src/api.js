@@ -139,6 +139,18 @@ export async function sendChat(payload) {
   });
 }
 
+export async function transcribeAudio(audioBlob, filename = "audio.webm") {
+  const form = new FormData();
+  form.append("audio", audioBlob, filename);
+  return request("/api/records/transcribe", { method: "POST", body: form });
+}
+
+export async function ocrImage(imageFile) {
+  const form = new FormData();
+  form.append("image", imageFile, imageFile.name);
+  return request("/api/records/ocr", { method: "POST", body: form });
+}
+
 export async function getPatients(doctorId, filters = {}, limit = 50, offset = 0) {
   const qs = new URLSearchParams({ doctor_id: doctorId, limit: String(limit), offset: String(offset) });
   if (filters.category) qs.set("category", filters.category);

@@ -610,6 +610,11 @@ _TIER3_DOCTOR_ANCHOR_RE = re.compile(
     r"|给予[\u4e00-\u9fffe-zA-Z]"
     r"|建议(?:观察|随访|复查|门诊|住院|手术|化疗|保守)"
     r"|排除[\u4e00-\u9fff]{1,8}(?:炎|症|癌|瘤|病|塞|梗|折)"
+    # Follow-up note prefix: "随访：张三…" / "复查，血压稳定…" — doctor write-up only
+    r"|^随访[：:,，]"
+    r"|^[\u4e00-\u9fff]{2,3}(?:复查|随访)[，,]"
+    # Blood pressure reading in doctor note: "120/80" — lay patients don't write this way
+    r"|\d{2,3}/\d{2,3}"
 )
 
 # Exam-specific question endings — ALWAYS block, even when doctor anchor is present.

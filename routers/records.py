@@ -1042,6 +1042,56 @@ async def create_record_from_audio(audio: UploadFile = File(...)):
 
 
 # ---------------------------------------------------------------------------
+# Transcription / OCR helpers (for web UI chat input — no record created)
+# ---------------------------------------------------------------------------
+
+@router.post("/transcribe")
+async def transcribe_audio_only(audio: UploadFile = File(...)):
+    """Transcribe an audio file to text without creating a medical record.
+
+    Used by the web UI to populate the chat input from a voice recording or
+    uploaded audio file. Supports the same formats as /from-audio.
+    """
+    content_type = (audio.content_type or "").split(";")[0].strip()
+    # Browser MediaRecorder often emits audio/webm;codecs=opus — normalise
+    if content_type not in SUPPORTED_AUDIO_TYPES:
+        # Try to accept any audio/* type not in the explicit set
+        if not content_type.startswith("audio/"):
+            raise HTTPException(
+                status_code=422,
+                detail=f"Unsupported file type: {content_type}. Upload an audio file.",
+            )
+    try:
+        audio_bytes = await audio.read()
+        text = await transcribe_audio(audio_bytes, audio.filename or "audio.wav")
+        return {"text": text}
+    except Exception as e:
+        log(f"[Records] transcribe failed: {e}")
+        raise HTTPException(status_code=500, detail="Transcription failed")
+
+
+@router.post("/ocr")
+async def ocr_image_only(image: UploadFile = File(...)):
+    """Extract text from an image without creating a medical record.
+
+    Used by the web UI to populate the chat input from an uploaded image.
+    """
+    content_type = (image.content_type or "").split(";")[0].strip()
+    if content_type not in SUPPORTED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported file type: {content_type}. Upload a JPEG, PNG, or WebP image.",
+        )
+    try:
+        image_bytes = await image.read()
+        text = await extract_text_from_image(image_bytes, content_type)
+        return {"text": text}
+    except Exception as e:
+        log(f"[Records] ocr failed: {e}")
+        raise HTTPException(status_code=500, detail="OCR failed")
+
+
+# ---------------------------------------------------------------------------
 # Sign-off
 # ---------------------------------------------------------------------------
 

@@ -94,13 +94,16 @@ async def mini_chat(
         principal.doctor_id,
     )
 
-    # Persist this exchange to shared conversation turns.
-    async with AsyncSessionLocal() as db:
-        await append_conversation_turns(db, principal.doctor_id, [
-            {"role": "user", "content": body.text},
-            {"role": "assistant", "content": response.reply},
-        ])
-        await db.commit()
+    # Persist this exchange to shared conversation turns (best-effort).
+    try:
+        async with AsyncSessionLocal() as db:
+            await append_conversation_turns(db, principal.doctor_id, [
+                {"role": "user", "content": body.text},
+                {"role": "assistant", "content": response.reply},
+            ])
+            await db.commit()
+    except Exception:
+        pass  # turn persistence is non-critical; don't fail the response
 
     return response
 
