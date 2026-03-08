@@ -6,6 +6,7 @@ import asyncio
 import json
 import os
 import re
+import time
 from collections import deque
 from datetime import datetime
 from pathlib import Path
@@ -58,6 +59,7 @@ from services.session import (
 from services.observability.audit import audit
 from services.ai.memory import maybe_compress, load_context_message
 from services.ai.fast_router import fast_route, fast_route_label
+from services.observability.turn_log import log_turn
 from services.notify.tasks import (
     create_follow_up_task,
     create_emergency_task,
@@ -591,10 +593,13 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
         return "✅ 已加入医生知识库（#{0}）：{1}".format(item.id, knowledge_payload)
 
     # ── Fast router: resolve common intents without LLM (~0ms vs ~6s) ─────────
+    _t0 = time.perf_counter()
     _fast = fast_route(text)
     if _fast is not None:
+        _latency_ms = (time.perf_counter() - _t0) * 1000.0
         log(f"[WeChat] fast_route hit: {fast_route_label(text)} text={text[:60]!r}")
         intent_result = _fast
+        log_turn(text, intent_result.intent.value, "fast", doctor_id, _latency_ms, patient_name=intent_result.patient_name)
     else:
         knowledge_context = ""
         try:
@@ -609,6 +614,8 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
             if knowledge_context:
                 dispatch_kwargs["knowledge_context"] = knowledge_context
             intent_result = await agent_dispatch(text, **dispatch_kwargs)
+            _latency_ms = (time.perf_counter() - _t0) * 1000.0
+            log_turn(text, intent_result.intent.value, "llm", doctor_id, _latency_ms, patient_name=intent_result.patient_name)
         except Exception as e:
             log(f"[WeChat] agent dispatch FAILED: {e}, falling back to structuring")
             from services.observability.routing_metrics import record as _record_metric
@@ -893,8 +900,8 @@ async def _handle_intent_bg(text: str, doctor_id: str, open_kfid: str = "", msg_
         # Non-blocking enrichment from WeCom customer profile.
         asyncio.create_task(prefetch_customer_profile(doctor_id))
 
+    await hydrate_session_state(doctor_id)
     async with get_session_lock(doctor_id):
-        await hydrate_session_state(doctor_id)
         sess = get_session(doctor_id)
         # Compress rolling window if full or idle — runs for all intent branches
         await maybe_compress(doctor_id, sess)
