@@ -23,6 +23,10 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { useTheme } from "@mui/material/styles";
+import BottomNavigation from "@mui/material/BottomNavigation";
+import BottomNavigationAction from "@mui/material/BottomNavigationAction";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
@@ -34,6 +38,7 @@ import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import LogoutIcon from "@mui/icons-material/Logout";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { Paper } from "@mui/material";
 import { getPatients, getRecords, getTasks, patchTask, updateRecord, sendChat } from "../api";
 import RecordFields from "../components/RecordFields";
@@ -60,6 +65,9 @@ const RECORD_TYPE_COLOR = {
   surgery: "error",
   lab: "success",
   imaging: "warning",
+  dictation: "secondary",
+  import: "default",
+  interview_summary: "info",
 };
 
 const RECORD_TYPE_LABEL = {
@@ -68,6 +76,9 @@ const RECORD_TYPE_LABEL = {
   surgery: "手术",
   lab: "检验",
   imaging: "影像",
+  dictation: "语音录入",
+  import: "导入",
+  interview_summary: "问诊总结",
 };
 
 const NAV = [
@@ -128,6 +139,7 @@ function RecordEditDialog({ record, doctorId, open, onClose, onSaved }) {
     if (record) {
       const init = {};
       RECORD_FIELDS.forEach(({ key }) => { init[key] = record[key] || ""; });
+      init.tags = Array.isArray(record.tags) ? [...record.tags] : [];
       setForm(init);
       setError("");
     }
@@ -137,7 +149,7 @@ function RecordEditDialog({ record, doctorId, open, onClose, onSaved }) {
     setSaving(true);
     setError("");
     try {
-      const saved = await updateRecord(doctorId, record.id, form);
+      const saved = await updateRecord(doctorId, record.id, { ...form, tags: form.tags });
       onSaved(saved);
       onClose();
     } catch (e) {
@@ -166,6 +178,26 @@ function RecordEditDialog({ record, doctorId, open, onClose, onSaved }) {
               onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
             />
           ))}
+          <Box>
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>标签</Typography>
+            <Stack direction="row" flexWrap="wrap" spacing={0.5} sx={{ mb: 0.5 }}>
+              {(form.tags || []).map((tag, i) => (
+                <Chip key={i} label={tag} size="small" onDelete={() => setForm(f => ({ ...f, tags: f.tags.filter((_, j) => j !== i) }))} />
+              ))}
+            </Stack>
+            <TextField
+              size="small"
+              placeholder="输入标签后按 Enter 添加"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && e.target.value.trim()) {
+                  e.preventDefault();
+                  const newTag = e.target.value.trim();
+                  setForm(f => ({ ...f, tags: [...(f.tags || []), newTag] }));
+                  e.target.value = "";
+                }
+              }}
+            />
+          </Box>
         </Stack>
       </DialogContent>
       <DialogActions>
@@ -256,15 +288,19 @@ function RecordCard({ record, doctorId, onUpdated }) {
 function PatientDetail({ patient, doctorId }) {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!patient) return;
     setLoading(true);
+    setError("");
     getRecords({ doctorId, patientId: patient.id, limit: 100 })
       .then((d) => setRecords(d.items || []))
-      .catch(() => {})
+      .catch((e) => setError(e.message || "加载失败"))
       .finally(() => setLoading(false));
-  }, [patient?.id, doctorId]);
+  }, [patient?.id, doctorId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { load(); }, [load]);
 
   if (!patient) {
     return (
@@ -318,7 +354,11 @@ function PatientDetail({ patient, doctorId }) {
         {loading && <CircularProgress size={16} />}
       </Stack>
 
-      {!loading && records.length === 0 && (
+      {error && (
+        <Alert severity="error" sx={{ mb: 1.5 }} action={<Button size="small" onClick={load}>重试</Button>}>{error}</Alert>
+      )}
+
+      {!loading && !error && records.length === 0 && (
         <Typography variant="body2" color="text.secondary">暂无病历。</Typography>
       )}
 
@@ -342,8 +382,11 @@ const RISK_OPTS = [
 function PatientsSection({ doctorId }) {
   const { patientId } = useParams();
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [risk, setRisk] = useState("");
 
@@ -352,9 +395,10 @@ function PatientsSection({ doctorId }) {
 
   const load = useCallback(() => {
     setLoading(true);
+    setError("");
     getPatients(doctorId, risk ? { risk } : {}, 200)
       .then((d) => setPatients(d.items || []))
-      .catch(() => {})
+      .catch((e) => setError(e.message || "加载失败"))
       .finally(() => setLoading(false));
   }, [doctorId, risk]);
 
@@ -364,6 +408,89 @@ function PatientsSection({ doctorId }) {
     ? patients.filter((p) => p.name.includes(search.trim()))
     : patients;
 
+  // Mobile: show only detail when a patient is selected
+  if (isMobile && selectedId) {
+    return (
+      <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+        <Box sx={{ px: 1.5, py: 1, borderBottom: "1px solid #e2e8f0", backgroundColor: "#fff" }}>
+          <Button startIcon={<ArrowBackIcon />} onClick={() => navigate("/doctor/patients")} size="small">
+            返回列表
+          </Button>
+        </Box>
+        <Box sx={{ flex: 1, overflow: "hidden" }}>
+          <PatientDetail patient={selectedPatient} doctorId={doctorId} />
+        </Box>
+      </Box>
+    );
+  }
+
+  // Mobile: full-width patient list (no split layout)
+  if (isMobile) {
+    return (
+      <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+        <Box sx={{ p: 1.5, borderBottom: "1px solid #e2e8f0" }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+            患者管理{patients.length > 0 ? ` (${patients.length})` : ""}
+          </Typography>
+          <TextField
+            size="small" fullWidth placeholder="搜索患者姓名"
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
+            sx={{ mb: 1 }}
+          />
+          <TextField select size="small" fullWidth value={risk} onChange={(e) => setRisk(e.target.value)} label="风险筛选">
+            {RISK_OPTS.map((o) => <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>)}
+          </TextField>
+        </Box>
+        {error && <Alert severity="error" action={<Button size="small" onClick={load}>重试</Button>}>{error}</Alert>}
+        <Box sx={{ flex: 1, overflowY: "auto", p: 1 }}>
+          {loading && <Box sx={{ p: 2, textAlign: "center" }}><CircularProgress size={20} /></Box>}
+          {!loading && filtered.length === 0 && !error && (
+            <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>暂无患者</Typography>
+          )}
+          {filtered.map((p) => {
+            const age = p.year_of_birth ? new Date().getFullYear() - p.year_of_birth : null;
+            const isSelected = p.id === selectedId;
+            return (
+              <Card
+                key={p.id}
+                variant="outlined"
+                onClick={() => navigate(`/doctor/patients/${p.id}`)}
+                sx={{
+                  mb: 0.8, borderRadius: 1.5, cursor: "pointer",
+                  borderColor: isSelected ? "primary.main" : "divider",
+                  backgroundColor: isSelected ? "primary.50" : "background.paper",
+                  "&:hover": { borderColor: "primary.main", backgroundColor: "primary.50" },
+                }}
+              >
+                <CardContent sx={{ py: 1.2, px: 1.5, "&:last-child": { pb: 1.2 } }}>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between">
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{p.name}</Typography>
+                    <RiskBadge level={p.primary_risk_level} />
+                  </Stack>
+                  <Stack direction="row" spacing={1} sx={{ mt: 0.4 }} flexWrap="wrap">
+                    {p.gender && <Typography variant="caption" color="text.secondary">{p.gender}</Typography>}
+                    {age && <Typography variant="caption" color="text.secondary">{age} 岁</Typography>}
+                    <Typography variant="caption" color="text.secondary">{p.record_count} 份病历</Typography>
+                  </Stack>
+                  {p.follow_up_state && p.follow_up_state !== "not_needed" && (
+                    <Chip
+                      label={FOLLOWUP_LABEL[p.follow_up_state] || p.follow_up_state}
+                      size="small"
+                      color={FOLLOWUP_COLOR[p.follow_up_state] || "default"}
+                      sx={{ mt: 0.5, fontSize: 10, height: 18 }}
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </Box>
+      </Box>
+    );
+  }
+
+  // Desktop: split layout
   return (
     <Box sx={{ display: "flex", height: "100%", overflow: "hidden" }}>
       {/* Left: patient list */}
@@ -383,9 +510,11 @@ function PatientsSection({ doctorId }) {
           </TextField>
         </Box>
 
+        {error && <Alert severity="error" action={<Button size="small" onClick={load}>重试</Button>}>{error}</Alert>}
+
         <Box sx={{ flex: 1, overflowY: "auto", p: 1 }}>
           {loading && <Box sx={{ p: 2, textAlign: "center" }}><CircularProgress size={20} /></Box>}
-          {!loading && filtered.length === 0 && (
+          {!loading && filtered.length === 0 && !error && (
             <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>暂无患者</Typography>
           )}
           {filtered.map((p) => {
@@ -548,6 +677,7 @@ function ChatSection({ doctorId, onMessageCountChange }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState([]);
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const bottomRef = useRef(null);
 
   function nowTs() {
@@ -606,7 +736,7 @@ function ChatSection({ doctorId, onMessageCountChange }) {
       <Box sx={{ px: 3, py: 1.2, borderBottom: "1px solid #e2e8f0", backgroundColor: "#fff", display: "flex", alignItems: "center" }}>
         <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "text.secondary", flex: 1 }}>{t("chat.workspaceTitle")}</Typography>
         <Tooltip title="清空对话">
-          <IconButton size="small" onClick={onClear} sx={{ color: "text.secondary" }}>
+          <IconButton size="small" onClick={() => setClearConfirmOpen(true)} sx={{ color: "text.secondary" }}>
             <DeleteOutlineIcon fontSize="small" />
           </IconButton>
         </Tooltip>
@@ -641,6 +771,18 @@ function ChatSection({ doctorId, onMessageCountChange }) {
           </Button>
         </Stack>
       </Box>
+
+      {/* Clear confirmation dialog */}
+      <Dialog open={clearConfirmOpen} onClose={() => setClearConfirmOpen(false)}>
+        <DialogTitle>清空对话记录</DialogTitle>
+        <DialogContent>
+          <Typography>确定清空所有对话记录？此操作无法撤销。</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setClearConfirmOpen(false)}>取消</Button>
+          <Button color="error" onClick={() => { onClear(); setClearConfirmOpen(false); }}>清空</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
@@ -699,7 +841,7 @@ function HomeSection({ doctorId, navigate }) {
 
       {/* Quick actions */}
       <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 3 }}>
-        <Button size="small" variant="outlined" onClick={() => navigate("/doctor")}>新建对话</Button>
+        <Button size="small" variant="outlined" onClick={() => navigate("/doctor/chat")}>新建对话</Button>
         <Button size="small" variant="outlined" onClick={() => navigate("/doctor/patients")}>查看高风险患者</Button>
         <Button size="small" variant="outlined" onClick={() => navigate("/doctor/tasks")}>查看逾期任务</Button>
       </Stack>
@@ -780,10 +922,11 @@ export default function DoctorPage() {
   const { section, patientId } = useParams();
   const navigate = useNavigate();
   const { doctorId, doctorName, clearAuth } = useDoctorStore();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
-  const [chatMessageCount, setChatMessageCount] = useState(0);
 
-  const activeSection = patientId ? "patients" : (section || "chat");
+  const activeSection = patientId ? "patients" : (section || "home");
 
   useEffect(() => {
     if (!doctorId) return;
@@ -796,7 +939,7 @@ export default function DoctorPage() {
   }, [doctorId]);
 
   function handleNav(key) {
-    if (key === "chat") navigate("/doctor");
+    if (key === "chat") navigate("/doctor/chat");
     else navigate(`/doctor/${key}`);
   }
 
@@ -809,43 +952,45 @@ export default function DoctorPage() {
     navigate("/login");
   }
 
-  const navBadge = { chat: chatMessageCount, tasks: pendingTaskCount };
+  const navBadge = { tasks: pendingTaskCount };
 
   return (
     <Box sx={{ display: "flex", height: "100vh", background: "#f8fafb" }}>
-      {/* Sidebar */}
-      <Box sx={{
-        width: 220, flexShrink: 0, borderRight: "1px solid #e2e8f0",
-        backgroundColor: "#fff", display: "flex", flexDirection: "column", py: 2, px: 1.5,
-      }}>
-        {/* Header */}
-        <Box sx={{ mb: 3, px: 0.5 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "primary.main" }}>医生工作台</Typography>
-          <Typography variant="caption" color="text.secondary">{doctorName || doctorId}</Typography>
+      {/* Sidebar — desktop only */}
+      {!isMobile && (
+        <Box sx={{
+          width: 220, flexShrink: 0, borderRight: "1px solid #e2e8f0",
+          backgroundColor: "#fff", display: "flex", flexDirection: "column", py: 2, px: 1.5,
+        }}>
+          {/* Header */}
+          <Box sx={{ mb: 3, px: 0.5 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "primary.main" }}>医生工作台</Typography>
+            <Typography variant="caption" color="text.secondary">{doctorName || doctorId}</Typography>
+          </Box>
+
+          {/* Nav */}
+          <Stack spacing={0.5} sx={{ flex: 1 }}>
+            {NAV.map((item) => (
+              <NavBtn key={item.key} active={activeSection === item.key} icon={item.icon} onClick={() => handleNav(item.key)} badgeCount={navBadge[item.key] || 0}>
+                {item.label}
+              </NavBtn>
+            ))}
+          </Stack>
+
+          {/* Footer */}
+          <Button
+            startIcon={<LogoutIcon fontSize="small" />}
+            onClick={handleLogout}
+            size="small"
+            sx={{ justifyContent: "flex-start", color: "text.secondary", mt: 1 }}
+          >
+            退出登录
+          </Button>
         </Box>
-
-        {/* Nav */}
-        <Stack spacing={0.5} sx={{ flex: 1 }}>
-          {NAV.map((item) => (
-            <NavBtn key={item.key} active={activeSection === item.key} icon={item.icon} onClick={() => handleNav(item.key)} badgeCount={navBadge[item.key] || 0}>
-              {item.label}
-            </NavBtn>
-          ))}
-        </Stack>
-
-        {/* Footer */}
-        <Button
-          startIcon={<LogoutIcon fontSize="small" />}
-          onClick={handleLogout}
-          size="small"
-          sx={{ justifyContent: "flex-start", color: "text.secondary", mt: 1 }}
-        >
-          退出登录
-        </Button>
-      </Box>
+      )}
 
       {/* Main content */}
-      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", pb: isMobile ? "56px" : 0 }}>
         {/* Topbar — hidden for chat (ChatSection has its own) */}
         {activeSection !== "chat" && (
           <Box sx={{ px: 3, py: 1.5, borderBottom: "1px solid #e2e8f0", backgroundColor: "#fff" }}>
@@ -859,12 +1004,37 @@ export default function DoctorPage() {
 
         {/* Section content */}
         <Box sx={{ flex: 1, overflow: "hidden" }}>
-          {activeSection === "chat" && <ChatSection doctorId={doctorId} onMessageCountChange={setChatMessageCount} />}
+          {activeSection === "chat" && <ChatSection doctorId={doctorId} onMessageCountChange={() => {}} />}
           {activeSection === "home" && <HomeSection doctorId={doctorId} navigate={navigate} />}
           {activeSection === "patients" && <PatientsSection doctorId={doctorId} />}
           {activeSection === "tasks" && <TasksSection doctorId={doctorId} />}
         </Box>
       </Box>
+
+      {/* Bottom navigation — mobile only */}
+      {isMobile && (
+        <Box sx={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 10, borderTop: "1px solid #e2e8f0" }}>
+          <BottomNavigation
+            value={activeSection}
+            onChange={(_, val) => handleNav(val)}
+            sx={{ height: 56 }}
+          >
+            {NAV.map((item) => (
+              <BottomNavigationAction
+                key={item.key}
+                label={item.label}
+                value={item.key}
+                icon={
+                  item.key === "tasks" && pendingTaskCount > 0
+                    ? <Badge badgeContent={pendingTaskCount} color="error">{item.icon}</Badge>
+                    : item.icon
+                }
+                sx={{ minWidth: 0, fontSize: 10 }}
+              />
+            ))}
+          </BottomNavigation>
+        </Box>
+      )}
     </Box>
   );
 }
