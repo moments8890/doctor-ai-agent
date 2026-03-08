@@ -31,6 +31,7 @@ import {
   clearDebugObservabilityTraces,
   seedDebugObservabilitySamples,
   setDebugToken,
+  onDebugAuthError,
 } from "../api";
 import { t } from "../i18n";
 
@@ -666,6 +667,11 @@ export default function DebugPage() {
     setDebugToken("");
     setDebugTokenState("");
   }
+
+  useEffect(() => {
+    onDebugAuthError(handleLockout);
+    return () => onDebugAuthError(null);
+  }, []);
 
   if (!debugToken) return <TokenGate onUnlock={handleUnlock} />;
   return <DebugDashboard onLockout={handleLockout} />;

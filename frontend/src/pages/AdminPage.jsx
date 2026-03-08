@@ -49,6 +49,7 @@ import {
   verifyAdminRuntimeConfig,
   getAdminTunnelUrl,
   setAdminToken,
+  onAdminAuthError,
 } from "../api";
 import { t } from "../i18n";
 
@@ -169,6 +170,11 @@ export default function AdminPage() {
     setAdminToken("");
     setAdminTokenState("");
   }
+
+  useEffect(() => {
+    onAdminAuthError(handleLockout);
+    return () => onAdminAuthError(null);
+  }, []);
 
   if (!adminToken) return <TokenGate onUnlock={handleUnlock} />;
   return <AdminDashboard onLockout={handleLockout} />;

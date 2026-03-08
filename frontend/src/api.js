@@ -19,7 +19,9 @@ async function request(url, options = {}) {
     }
     const response = await fetch(url, { ...options, headers, signal: controller.signal });
     if (!response.ok) {
-      throw new Error(await readError(response));
+      const err = new Error(await readError(response));
+      err.status = response.status;
+      throw err;
     }
     return response.json();
   } catch (err) {
@@ -33,27 +35,41 @@ async function request(url, options = {}) {
 }
 
 let _adminToken = "";
+let _adminAuthErrorHandler = null;
 
-export function setAdminToken(token) {
-  _adminToken = token || "";
-}
+export function setAdminToken(token) { _adminToken = token || ""; }
+export function onAdminAuthError(handler) { _adminAuthErrorHandler = handler; }
 
 async function adminRequest(url, options = {}) {
   const headers = { ...(options.headers || {}) };
   if (_adminToken) headers["X-Admin-Token"] = _adminToken;
-  return request(url, { ...options, headers });
+  try {
+    return await request(url, { ...options, headers });
+  } catch (err) {
+    if (err.status === 403 || err.status === 503) {
+      _adminAuthErrorHandler?.();
+    }
+    throw err;
+  }
 }
 
 let _debugToken = "";
+let _debugAuthErrorHandler = null;
 
-export function setDebugToken(token) {
-  _debugToken = token || "";
-}
+export function setDebugToken(token) { _debugToken = token || ""; }
+export function onDebugAuthError(handler) { _debugAuthErrorHandler = handler; }
 
 async function debugRequest(url, options = {}) {
   const headers = { ...(options.headers || {}) };
   if (_debugToken) headers["X-Debug-Token"] = _debugToken;
-  return request(url, { ...options, headers });
+  try {
+    return await request(url, { ...options, headers });
+  } catch (err) {
+    if (err.status === 403 || err.status === 503) {
+      _debugAuthErrorHandler?.();
+    }
+    throw err;
+  }
 }
 
 export async function webLogin(doctorId, name) {
