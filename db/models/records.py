@@ -21,12 +21,7 @@ class MedicalRecordDB(Base):
     record_type: Mapped[str] = mapped_column(String(32), nullable=False, default="visit")
     content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array of keyword strings
-    source_message_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)  # originating WeChat message id
     encounter_type: Mapped[str] = mapped_column(String(32), nullable=False, default="unknown")  # first_visit|follow_up|unknown
-    referenced_record_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("medical_records.id", ondelete="SET NULL"), nullable=True)
-    is_signed_off: Mapped[bool] = mapped_column(default=False, nullable=False)
-    signed_off_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    doctor_signature: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=True)
 

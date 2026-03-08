@@ -31,7 +31,6 @@ def _record(**kwargs):
         content="患者复诊，胸闷两周，血压偏高，诊断冠心病，两周后随访。",
         tags='["冠心病", "两周后随访"]',
         encounter_type="follow_up",
-        is_signed_off=False,
         created_at=datetime(2026, 3, 2, 10, 0, 0),
         updated_at=datetime(2026, 3, 2, 10, 0, 0),
         patient=SimpleNamespace(name="张三"),
@@ -62,14 +61,10 @@ def _patient_ns(**kwargs):
         created_at=datetime(2026, 3, 1, 8, 0, 0),
         primary_category="new",
         category_tags="[]",
-        category_computed_at=None,
-        category_rules_version="v1",
         primary_risk_level="low",
         risk_tags='["no_records"]',
         risk_score=0,
         follow_up_state="not_needed",
-        risk_computed_at=None,
-        risk_rules_version="risk-v1",
         labels=[],
     )
     defaults.update(kwargs)
@@ -214,14 +209,10 @@ def _patient(**kwargs):
         created_at=datetime(2026, 3, 1, 8, 0, 0),
         primary_category="new",
         category_tags='["recent_visit"]',
-        category_computed_at=datetime(2026, 3, 2, 10, 0, 0),
-        category_rules_version="v1",
         primary_risk_level="low",
         risk_tags='["no_records"]',
         risk_score=0,
         follow_up_state="not_needed",
-        risk_computed_at=datetime(2026, 3, 2, 10, 5, 0),
-        risk_rules_version="risk-v1",
         labels=[],
     )
     defaults.update(kwargs)
@@ -246,13 +237,10 @@ async def test_manage_patients_includes_category_fields():
     item = data["items"][0]
     assert item["primary_category"] == "new"
     assert item["category_tags"] == ["recent_visit"]
-    assert item["category_computed_at"] == "2026-03-02 10:00:00"
-    assert item["category_rules_version"] == "v1"
     assert item["primary_risk_level"] == "low"
     assert item["risk_tags"] == ["no_records"]
     assert item["risk_score"] == 0
     assert item["follow_up_state"] == "not_needed"
-    assert item["risk_rules_version"] == "risk-v1"
 
 
 async def test_manage_patients_category_filter():

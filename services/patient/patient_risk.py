@@ -199,7 +199,5 @@ async def recompute_patient_risk(patient_id: int, session: AsyncSession) -> Opti
     patient.risk_tags = json.dumps(risk.risk_tags, ensure_ascii=False)
     patient.risk_score = risk.risk_score
     patient.follow_up_state = risk.follow_up_state
-    patient.risk_computed_at = risk.computed_at
-    patient.risk_rules_version = risk.rules_version
     await session.commit()
     return risk

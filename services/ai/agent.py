@@ -645,6 +645,7 @@ async def dispatch(
     text: str,
     history: Optional[List[dict]] = None,
     knowledge_context: Optional[str] = None,
+    specialty: Optional[str] = None,
 ) -> IntentResult:
     """Call LLM with function-calling tools and return an IntentResult.
 
@@ -680,7 +681,10 @@ async def dispatch(
             )
     log(f"[Agent:{provider_name}] dispatching: {text[:80]}")
 
-    messages = [{"role": "system", "content": _selected_system_prompt()}]
+    system_prompt = _selected_system_prompt()
+    if specialty and specialty.strip():
+        system_prompt = f"你是{specialty.strip()}科医生助手。\n" + system_prompt
+    messages = [{"role": "system", "content": system_prompt}]
     if knowledge_context and knowledge_context.strip():
         messages.append({"role": "system", "content": knowledge_context.strip()})
     if history:

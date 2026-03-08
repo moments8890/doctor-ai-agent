@@ -19,6 +19,7 @@ from db.crud import (
     get_recent_conversation_turns,
     append_conversation_turns,
 )
+from sqlalchemy import select
 from utils.log import log
 
 
@@ -53,6 +54,7 @@ class DoctorSession:
     pending_create_name: Optional[str] = None   # waiting for gender/age to create a new patient
     pending_record_id: Optional[str] = None     # UUID of draft PendingRecord awaiting confirmation
     interview: Optional[InterviewState] = None  # active guided intake interview
+    specialty: Optional[str] = None             # doctor's specialty, injected into agent prompt
     conversation_history: List[dict] = field(default_factory=list)  # rolling window
     last_active: float = field(default_factory=time.time)
     updated_at: datetime = field(default_factory=_utcnow)
@@ -79,6 +81,13 @@ async def hydrate_session_state(doctor_id: str) -> DoctorSession:
         sess = get_session(doctor_id)
         try:
             async with AsyncSessionLocal() as db:
+                from db.models.doctor import Doctor as DoctorModel
+                doctor_row = (
+                    await db.execute(select(DoctorModel).where(DoctorModel.doctor_id == doctor_id).limit(1))
+                ).scalar_one_or_none()
+                if doctor_row is not None:
+                    sess.specialty = doctor_row.specialty or None
+
                 state = await get_doctor_session_state(db, doctor_id)
                 if state is not None:
                     sess.pending_create_name = state.pending_create_name

@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy import select
@@ -12,8 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from db.models import Patient
-from services.patient.patient_categorization import RULES_VERSION
-from services.patient.patient_risk import RULES_VERSION as RISK_RULES_VERSION
 
 
 def _year_of_birth(age: Optional[int]) -> Optional[int]:
@@ -41,14 +39,10 @@ class PatientRepository:
             year_of_birth=_year_of_birth(age),
             primary_category="new",
             category_tags="[]",
-            category_rules_version=RULES_VERSION,
-            category_computed_at=datetime.now(timezone.utc),
             primary_risk_level="low",
             risk_tags='["no_records"]',
             risk_score=0,
             follow_up_state="not_needed",
-            risk_computed_at=datetime.now(timezone.utc),
-            risk_rules_version=RISK_RULES_VERSION,
         )
         self.session.add(patient)
         await self.session.commit()

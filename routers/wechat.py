@@ -492,6 +492,9 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
             dispatch_kwargs = {"history": history or []}
             if knowledge_context:
                 dispatch_kwargs["knowledge_context"] = knowledge_context
+            _sess_specialty = get_session(doctor_id).specialty
+            if _sess_specialty:
+                dispatch_kwargs["specialty"] = _sess_specialty
             intent_result = await agent_dispatch(text, **dispatch_kwargs)
             _latency_ms = (time.perf_counter() - _t0) * 1000.0
             log_turn(text, intent_result.intent.value, "llm", doctor_id, _latency_ms, patient_name=intent_result.patient_name)

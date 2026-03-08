@@ -7,7 +7,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from fastapi import HTTPException
 
@@ -55,14 +55,6 @@ def _parse_bool(raw: str | None) -> bool | None:
         return False
     return None
 
-
-def _is_risk_stale(risk_computed_at: datetime | None, hours: int = 24) -> bool:
-    if risk_computed_at is None:
-        return True
-    if risk_computed_at.tzinfo is None:
-        risk_computed_at = risk_computed_at.replace(tzinfo=timezone.utc)
-    delta = datetime.now(timezone.utc) - risk_computed_at
-    return delta.total_seconds() >= hours * 3600
 
 
 def _normalize_query_str(value: str | None) -> str | None:

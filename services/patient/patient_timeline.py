@@ -79,7 +79,6 @@ async def build_patient_timeline(
             "primary_risk_level": patient.primary_risk_level,
             "risk_score": patient.risk_score,
             "follow_up_state": patient.follow_up_state,
-            "risk_computed_at": patient.risk_computed_at.isoformat() if patient.risk_computed_at else None,
         },
         "events": events,
     }

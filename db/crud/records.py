@@ -287,29 +287,6 @@ async def save_record_version(
     return version
 
 
-async def sign_off_record(
-    session: AsyncSession,
-    record_id: int,
-    doctor_id: str,
-    signature: Optional[str] = None,
-) -> Optional[MedicalRecordDB]:
-    """Mark a record as signed-off. Returns the updated record or None if not found."""
-    result = await session.execute(
-        select(MedicalRecordDB).where(
-            MedicalRecordDB.id == record_id,
-            MedicalRecordDB.doctor_id == doctor_id,
-        )
-    )
-    record = result.scalar_one_or_none()
-    if record is None:
-        return None
-    record.is_signed_off = True
-    record.signed_off_at = _utcnow()
-    if signature is not None:
-        record.doctor_signature = signature
-    await session.commit()
-    return record
-
 
 async def get_record_versions(
     session: AsyncSession,

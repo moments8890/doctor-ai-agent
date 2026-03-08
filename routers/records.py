@@ -23,7 +23,6 @@ from db.crud import (
     get_record_versions,
     list_tasks,
     save_record,
-    sign_off_record,
     update_latest_record_for_patient,
     update_patient_demographics,
     upsert_doctor_context,
@@ -1123,43 +1122,6 @@ async def ocr_image_only(image: UploadFile = File(...)):
     except Exception as e:
         log(f"[Records] ocr failed: {e}")
         raise HTTPException(status_code=500, detail="OCR failed")
-
-
-# ---------------------------------------------------------------------------
-# Sign-off
-# ---------------------------------------------------------------------------
-
-class SignOffRequest(BaseModel):
-    doctor_id: str = "test_doctor"
-    signature: Optional[str] = None
-
-
-@router.post("/{record_id}/sign-off")
-async def sign_off(
-    record_id: int,
-    body: SignOffRequest,
-    authorization: Optional[str] = Header(default=None),
-):
-    """Mark a record as signed-off by the attending doctor."""
-    doctor_id = resolve_doctor_id_from_auth_or_fallback(
-        body.doctor_id, authorization,
-        fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
-        default_doctor_id="test_doctor",
-    )
-    async with AsyncSessionLocal() as db:
-        record = await sign_off_record(db, record_id, doctor_id, body.signature)
-    if record is None:
-        raise HTTPException(status_code=404, detail="Record not found")
-    asyncio.create_task(audit(
-        doctor_id, "WRITE", resource_type="record_signoff", resource_id=str(record_id),
-        trace_id=get_current_trace_id(),
-    ))
-    return {
-        "record_id": record.id,
-        "is_signed_off": record.is_signed_off,
-        "signed_off_at": record.signed_off_at.isoformat() if record.signed_off_at else None,
-        "doctor_signature": record.doctor_signature,
-    }
 
 
 # ---------------------------------------------------------------------------

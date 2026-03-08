@@ -34,16 +34,12 @@ class Patient(Base):
     # Categorization fields (v1)
     primary_category: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     category_tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)   # JSON list
-    category_computed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    category_rules_version: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
 
     # Risk fields (v1)
     primary_risk_level: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
     risk_tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON list
     risk_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     follow_up_state: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
-    risk_computed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    risk_rules_version: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
 
     __table_args__ = (
         Index("ix_patients_doctor_category", "doctor_id", "primary_category"),

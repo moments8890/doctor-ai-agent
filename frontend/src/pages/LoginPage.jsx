@@ -20,6 +20,7 @@ export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const { setAuth } = useDoctorStore();
   const [code, setCode] = useState("");
+  const [specialty, setSpecialty] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -39,7 +40,7 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      const data = await inviteLogin(c);
+      const data = await inviteLogin(c, specialty.trim());
       setWebToken(data.access_token);
       setAuth(data.doctor_id, data.doctor_id, data.access_token);
       navigate("/", { replace: true });
@@ -79,6 +80,15 @@ export default function LoginPage() {
                   fullWidth
                   size="small"
                   helperText={t("login.inviteCodeHelper")}
+                  inputProps={{ autoComplete: "off" }}
+                />
+                <TextField
+                  label={t("login.specialty")}
+                  value={specialty}
+                  onChange={(e) => setSpecialty(e.target.value)}
+                  fullWidth
+                  size="small"
+                  helperText={t("login.specialtyHelper")}
                   inputProps={{ autoComplete: "off" }}
                 />
                 {error && (

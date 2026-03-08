@@ -102,11 +102,11 @@ export async function webLogin(doctorId, name) {
   });
 }
 
-export async function inviteLogin(code) {
+export async function inviteLogin(code, specialty) {
   return request("/api/auth/invite/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code }),
+    body: JSON.stringify({ code, specialty: specialty || undefined }),
   });
 }
 

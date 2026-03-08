@@ -83,7 +83,6 @@ from routers.ui._utils import (
     _fmt_ts,
     _parse_tags,
     _parse_bool,
-    _is_risk_stale,
     _normalize_query_str,
     _normalize_date_yyyy_mm_dd,
     _resolve_ui_doctor_id,
@@ -163,15 +162,10 @@ async def _manage_patients_for_doctor(
             "record_count": int(count_map.get(p.id, 0)),
             "primary_category": p.primary_category,
             "category_tags": _parse_tags(p.category_tags),
-            "category_computed_at": _fmt_ts(p.category_computed_at),
-            "category_rules_version": p.category_rules_version,
             "primary_risk_level": p.primary_risk_level,
             "risk_tags": _parse_tags(p.risk_tags),
             "risk_score": p.risk_score,
             "follow_up_state": p.follow_up_state,
-            "risk_computed_at": _fmt_ts(p.risk_computed_at),
-            "risk_rules_version": p.risk_rules_version,
-            "stale_risk": _is_risk_stale(p.risk_computed_at),
             "labels": [{"id": lbl.id, "name": lbl.name, "color": lbl.color} for lbl in (p.labels or [])],
         }
         for p in patients
@@ -221,15 +215,10 @@ async def manage_patients_grouped(
             "record_count": int(count_map.get(p.id, 0)),
             "primary_category": p.primary_category,
             "category_tags": _parse_tags(p.category_tags),
-            "category_computed_at": _fmt_ts(p.category_computed_at),
-            "category_rules_version": p.category_rules_version,
             "primary_risk_level": p.primary_risk_level,
             "risk_tags": _parse_tags(p.risk_tags),
             "risk_score": p.risk_score,
             "follow_up_state": p.follow_up_state,
-            "risk_computed_at": _fmt_ts(p.risk_computed_at),
-            "risk_rules_version": p.risk_rules_version,
-            "stale_risk": _is_risk_stale(p.risk_computed_at),
             "labels": [{"id": lbl.id, "name": lbl.name, "color": lbl.color} for lbl in (p.labels or [])],
         }
         for p in patients
@@ -273,7 +262,6 @@ async def manage_patients_grouped_risk(
                 "primary_risk_level": p.primary_risk_level,
                 "risk_score": p.risk_score,
                 "follow_up_state": p.follow_up_state,
-                "risk_computed_at": _fmt_ts(p.risk_computed_at),
             }
         )
 
@@ -392,7 +380,6 @@ async def _manage_records_for_doctor(
                     "content": r.content,
                     "tags": _parse_tags(r.tags),
                     "encounter_type": r.encounter_type or "unknown",
-                    "is_signed_off": bool(r.is_signed_off),
                     "created_at": _fmt_ts(r.created_at),
                     "updated_at": _fmt_ts(r.updated_at),
                 }
@@ -410,7 +397,6 @@ async def _manage_records_for_doctor(
                     "content": r.content,
                     "tags": _parse_tags(r.tags),
                     "encounter_type": r.encounter_type or "unknown",
-                    "is_signed_off": bool(r.is_signed_off),
                     "created_at": _fmt_ts(r.created_at),
                     "updated_at": _fmt_ts(r.updated_at),
                 }
@@ -984,7 +970,6 @@ async def admin_db_view(
             "content": record.content,
             "tags": _parse_tags(record.tags),
             "encounter_type": record.encounter_type or "unknown",
-            "is_signed_off": bool(record.is_signed_off),
             "created_at": _fmt_ts(record.created_at),
             "updated_at": _fmt_ts(record.updated_at),
         }

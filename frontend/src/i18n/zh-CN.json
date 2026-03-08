@@ -11,6 +11,8 @@
       "title": "医生登录",
       "inviteCode": "邀请码",
       "inviteCodeHelper": "请联系管理员获取邀请码",
+      "specialty": "科室专业",
+      "specialtyHelper": "例：神经内科、心内科、骨科",
       "submit": "登录",
       "logout": "退出登录",
       "codeRequired": "请输入邀请码",

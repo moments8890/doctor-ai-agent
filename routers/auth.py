@@ -59,6 +59,7 @@ class WebLoginResponse(BaseModel):
 
 class InviteLoginInput(BaseModel):
     code: str
+    specialty: Optional[str] = None
     # Optional: WeChat mini app js_code to link this doctor's mini openid.
     js_code: Optional[str] = None
 
@@ -226,7 +227,7 @@ async def wechat_mini_login(body: MiniProgramLoginInput) -> MiniProgramLoginResp
     )
 
 
-async def _upsert_web_doctor(doctor_id: str, name: Optional[str]) -> None:
+async def _upsert_web_doctor(doctor_id: str, name: Optional[str], specialty: Optional[str] = None) -> None:
     now = datetime.now(timezone.utc)
     async with AsyncSessionLocal() as session:
         existing = (
@@ -238,6 +239,7 @@ async def _upsert_web_doctor(doctor_id: str, name: Optional[str]) -> None:
                 Doctor(
                     doctor_id=doctor_id,
                     name=name,
+                    specialty=specialty or None,
                     channel="app",
                     created_at=now,
                     updated_at=now,
@@ -247,6 +249,8 @@ async def _upsert_web_doctor(doctor_id: str, name: Optional[str]) -> None:
             existing.updated_at = now
             if name and not existing.name:
                 existing.name = name
+            if specialty:
+                existing.specialty = specialty
 
         await session.commit()
 
@@ -286,7 +290,7 @@ async def invite_login(body: InviteLoginInput) -> WebLoginResponse:
 
     doctor_id = invite.doctor_id
     enforce_doctor_rate_limit(doctor_id, scope="auth.login")
-    await _upsert_web_doctor(doctor_id, invite.doctor_name)
+    await _upsert_web_doctor(doctor_id, invite.doctor_name, specialty=(body.specialty or "").strip() or None)
 
     # If a WeChat mini app js_code is provided, link the openid to this doctor.
     mini_openid: Optional[str] = None

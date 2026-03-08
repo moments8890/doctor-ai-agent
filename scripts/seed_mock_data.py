@@ -318,8 +318,6 @@ async def seed():
                     patient_id=patient.id, doctor_id=doc_id,
                     content=content, tags=tags,
                     record_type="visit", encounter_type=enc_type,
-                    is_signed_off=signed,
-                    signed_off_at=ago(days=d) if signed else None,
                     created_at=ago(days=d), updated_at=ago(days=d),
                 ))
 

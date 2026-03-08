@@ -242,12 +242,9 @@ async def test_create_patient_stamps_category_new(db_session):
     patient = await create_patient(db_session, DOCTOR, "新患者", None, None)
     assert patient.primary_category == "new"
     assert patient.category_tags == "[]"
-    assert patient.category_rules_version == "v1"
-    assert patient.category_computed_at is not None
     assert patient.primary_risk_level == "low"
     assert patient.risk_tags == '["no_records"]'
     assert patient.follow_up_state == "not_needed"
-    assert patient.risk_rules_version == "risk-v1"
 
 
 async def test_save_record_triggers_category_recompute(db_session):
@@ -269,7 +266,6 @@ async def test_save_record_triggers_category_recompute(db_session):
 
     # With a fresh record and follow_up tag, should now be active_followup
     assert refreshed.primary_category == "active_followup"
-    assert refreshed.category_computed_at is not None
 
 
 async def test_save_record_creates_auto_followup_task_when_enabled(db_session, monkeypatch):

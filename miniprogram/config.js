@@ -1,5 +1,5 @@
 module.exports = {
-  apiBase: "https://doctoragentai.cn",
+  apiBase: "https://api.doctoragentai.cn",
 
   // WeChat subscribe-message template ID.
   // Register a template in the WeChat Mini Program admin, then paste the ID here.

@@ -188,8 +188,6 @@ async def recompute_patient_category(
 
     patient.primary_category = result.primary_category
     patient.category_tags = json.dumps(result.category_tags, ensure_ascii=False)
-    patient.category_computed_at = result.computed_at
-    patient.category_rules_version = result.rules_version
     await session.commit()
 
 
@@ -234,8 +232,6 @@ async def recompute_all_categories(
                 old_cat = patient.primary_category
                 patient.primary_category = cat_result.primary_category
                 patient.category_tags = json.dumps(cat_result.category_tags, ensure_ascii=False)
-                patient.category_computed_at = cat_result.computed_at
-                patient.category_rules_version = cat_result.rules_version
 
                 if old_cat != cat_result.primary_category:
                     changed += 1

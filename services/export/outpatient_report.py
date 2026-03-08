@@ -1,17 +1,18 @@
 """
-卫生部 2010 门诊病历标准格式报告生成。
+卫医政发〔2010〕11号 门诊病历标准格式报告生成。
 
 功能：
 1. extract_outpatient_fields(records, patient, doctor_id) → dict[str, str]
-   用 LLM 从病历记录中提取 10 个标准字段；
+   用 LLM 从病历记录中提取标准字段；
    若医生上传了自定义模板，将模板内容作为附加上下文传入 LLM。
 
 2. generate_outpatient_report_pdf(fields, patient_name, patient_info, clinic_name, doctor_name) → bytes
    按表单样式渲染 PDF（标题行 + 患者信息行 + 各字段分节）。
 
-字段列表（卫生部 2010 标准）：
+字段列表（卫医政发〔2010〕11号 + 国卫办医政发〔2024〕16号）：
+  就诊类型 / 科别 /
   主诉 / 现病史 / 既往史 / 个人史 / 家族史 /
-  体格检查 / 辅助检查 / 初步诊断 / 治疗方案 / 医嘱及随访
+  体格检查 / 辅助检查 / 初步诊断（含ICD编码）/ 治疗方案 / 医嘱及随访
 """
 from __future__ import annotations
 
@@ -29,6 +30,8 @@ from utils.log import log
 # ---------------------------------------------------------------------------
 
 OUTPATIENT_FIELDS = [
+    ("encounter_type",     "就诊类型"),   # 初诊 / 复诊
+    ("department",         "科别"),        # 卫医政发〔2010〕11号 required header field
     ("chief_complaint",    "主诉"),
     ("present_illness",    "现病史"),
     ("past_history",       "既往史"),
@@ -36,10 +39,13 @@ OUTPATIENT_FIELDS = [
     ("family_history",     "家族史"),
     ("physical_exam",      "体格检查"),
     ("aux_exam",           "辅助检查"),
-    ("diagnosis",          "初步诊断"),
+    ("diagnosis",          "初步诊断"),   # 国卫办医政发〔2024〕16号: ICD编码 required
     ("treatment",          "治疗方案"),
     ("followup",           "医嘱及随访"),
 ]
+
+# Fields rendered in the PDF header row rather than as full sections
+_HEADER_ONLY_FIELDS = {"encounter_type", "department"}
 
 _FIELD_KEYS = [k for k, _ in OUTPATIENT_FIELDS]
 
@@ -48,19 +54,24 @@ _FIELD_KEYS = [k for k, _ in OUTPATIENT_FIELDS]
 # ---------------------------------------------------------------------------
 
 _EXTRACT_PROMPT = """\
-你是门诊病历整理助手。根据下方病历记录，填写"卫生部 2010 门诊病历"标准表格的各项字段。
+你是门诊病历整理助手。根据下方病历记录，填写"卫医政发〔2010〕11号门诊病历"标准表格的各项字段。
 
 【要求】
 - 仅使用原文中明确出现的信息，不得推断或虚构。
 - 若某字段在原文中未提及，将值设为空字符串 ""。
-- 输出合法 JSON 对象，以下 10 个字段全部必须出现。
+- 输出合法 JSON 对象，以下 12 个字段全部必须出现。
+- 诊断字段须标注 ICD-10 编码（国卫办医政发〔2024〕16号规定）。
 
 【字段说明与示例】
+- encounter_type（就诊类型）：仅填 "初诊" 或 "复诊"，根据记录判断。首次就诊或无法判断时填 "初诊"。
+  示例：{{"encounter_type": "初诊"}}
+- department（科别）：就诊科室名称，如 "神经内科"、"心血管内科" 等。无法判断时填 ""。
+  示例：{{"department": "神经内科"}}
 - chief_complaint（主诉）：患者就诊的主要症状及持续时间，简明扼要。
   示例：{{"chief_complaint": "胸闷气促 3 天"}}
 - present_illness（现病史）：主诉相关的详细病史，包括症状特点、演变及伴随症状。
   示例：{{"present_illness": "3 天前无诱因出现胸闷，活动后加重，伴轻度气促，无发热。"}}
-- past_history（既往史）：既往重要病史、手术史、过敏史。
+- past_history（既往史）：既往重要病史、手术史、过敏史。复诊且原文未提及时可填 ""。
   示例：{{"past_history": "高血压病史 10 年，无药物过敏。"}}
 - personal_history（个人史）：吸烟、饮酒、婚育、职业等。
   示例：{{"personal_history": "吸烟 20 年，已戒 5 年。"}}
@@ -70,8 +81,8 @@ _EXTRACT_PROMPT = """\
   示例：{{"physical_exam": "BP 145/90 mmHg，心率 88 次/分，律齐，双肺呼吸音清。"}}
 - aux_exam（辅助检查）：化验、影像、心电图等结果。
   示例：{{"aux_exam": "BNP 980 pg/mL，心脏超声 EF 50%。"}}
-- diagnosis（初步诊断）：主要诊断及次要诊断。
-  示例：{{"diagnosis": "1. 心力衰竭（HFmrEF）III 级\\n2. 高血压 III 级"}}
+- diagnosis（初步诊断）：主要诊断及次要诊断，须附 ICD-10 编码（国卫办医政发〔2024〕16号）。
+  示例：{{"diagnosis": "1. 心力衰竭 I50.900\\n2. 高血压病 I10.x00"}}
 - treatment（治疗方案）：用药、手术、操作等治疗措施。
   示例：{{"treatment": "氨氯地平 5 mg qd，呋塞米 20 mg qd，低钠低脂饮食。"}}
 - followup（医嘱及随访）：出院医嘱、复诊时间、注意事项。
@@ -170,9 +181,12 @@ async def extract_outpatient_fields(
         raw = resp.choices[0].message.content or "{}"
         data = json.loads(raw)
         result = {k: str(data.get(k, "") or "") for k in _FIELD_KEYS}
+        # Normalise encounter_type to only accept 初诊/复诊
+        if result.get("encounter_type") not in ("初诊", "复诊"):
+            result["encounter_type"] = "初诊"
         log(
             f"[OutpatientReport] extraction ok doctor={doctor_id} "
-            f"non_empty={sum(1 for v in result.values() if v)}/10"
+            f"non_empty={sum(1 for v in result.values() if v)}/{len(_FIELD_KEYS)}"
         )
         return result
     except Exception as exc:

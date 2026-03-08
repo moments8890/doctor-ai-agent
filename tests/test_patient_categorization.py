@@ -255,8 +255,6 @@ async def test_recompute_patient_category_persists_fields():
         created_at=_NOW - timedelta(days=120),
         primary_category=None,
         category_tags=None,
-        category_computed_at=None,
-        category_rules_version=None,
     )
     record = SimpleNamespace(
         patient_id=1,
@@ -278,8 +276,6 @@ async def test_recompute_patient_category_persists_fields():
     assert patient.primary_category == "high_risk"
     assert patient.category_tags is not None
     assert "recent_visit" in patient.category_tags
-    assert patient.category_computed_at is not None
-    assert patient.category_rules_version == RULES_VERSION
     session.commit.assert_awaited_once()
 
 

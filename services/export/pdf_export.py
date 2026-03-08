@@ -244,16 +244,11 @@ def generate_records_pdf(
             rtype = _record_type_label(getattr(rec, "record_type", "visit") or "visit")
             enc = getattr(rec, "encounter_type", "unknown") or "unknown"
             enc_label = _ENCOUNTER_LABEL.get(enc, "")
-            signed = getattr(rec, "is_signed_off", False)
-            signed_at = getattr(rec, "signed_off_at", None)
             rec_id = getattr(rec, "id", None)
 
             header_parts = [f"{i + 1}.", date_str, f"[{rtype}]"]
             if enc_label:
                 header_parts.append(f"[{enc_label}]")
-            if signed:
-                sign_date = _fmt_date(signed_at) if signed_at else ""
-                header_parts.append(f"[已签字]{(' ' + sign_date) if sign_date else ''}")
             if rec_id is not None:
                 header_parts.append(f"#R{rec_id}")
 
@@ -314,10 +309,14 @@ def generate_outpatient_report_pdf(
     except ImportError:
         raise RuntimeError("fpdf2 is not installed. Run: pip install fpdf2")
 
-    from services.export.outpatient_report import OUTPATIENT_FIELDS
+    from services.export.outpatient_report import OUTPATIENT_FIELDS, _HEADER_ONLY_FIELDS
 
     clinic = clinic_name or os.environ.get("CLINIC_NAME", "医疗机构")
     font_path = _resolve_font_path()
+
+    # Extract header-only fields before rendering
+    encounter_type = (fields.get("encounter_type") or "初诊").strip()
+    department = (fields.get("department") or "").strip()
 
     pdf = FPDF()
     pdf.set_margins(left=18, top=18, right=18)
@@ -343,9 +342,11 @@ def generate_outpatient_report_pdf(
     _sf(16, bold=True)
     pdf.cell(0, 10, clinic, align="C", new_x="LMARGIN", new_y="NEXT")
     _sf(13, bold=True)
-    pdf.cell(0, 8, "门  诊  病  历", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 8, f"门  诊  病  历（{encounter_type}）", align="C", new_x="LMARGIN", new_y="NEXT")
     _sf(9)
-    pdf.cell(0, 5, "（卫生部 2010 标准格式）", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_text_color(100, 100, 100)
+    pdf.cell(0, 5, "卫医政发〔2010〕11号  ·  国卫办医政发〔2024〕16号", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_text_color(0, 0, 0)
     pdf.ln(2)
     pdf.set_draw_color(60, 80, 140)
     pdf.set_line_width(0.5)
@@ -361,6 +362,8 @@ def generate_outpatient_report_pdf(
         row_parts.append(f"姓名：{patient_name}")
     if patient_info:
         row_parts.append(patient_info)
+    if department:
+        row_parts.append(f"科别：{department}")
     if doctor_name:
         row_parts.append(f"接诊医师：{doctor_name}")
     row_parts.append(f"就诊日期：{datetime.now().strftime('%Y-%m-%d')}")
@@ -373,6 +376,8 @@ def generate_outpatient_report_pdf(
     label_w = 22  # width of label column in mm
 
     for key, label in OUTPATIENT_FIELDS:
+        if key in _HEADER_ONLY_FIELDS:
+            continue  # already rendered in header row above
         value = (fields.get(key) or "").strip()
 
         if pdf.get_y() > pdf.h - 40:
