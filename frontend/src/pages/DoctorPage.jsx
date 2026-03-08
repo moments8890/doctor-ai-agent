@@ -41,8 +41,11 @@ import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import LogoutIcon from "@mui/icons-material/Logout";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
+import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import { Paper } from "@mui/material";
-import { getPatients, getRecords, getTasks, patchTask, updateRecord, sendChat, getPendingRecord, confirmPendingRecord, abandonPendingRecord, getDoctorProfile, updateDoctorProfile } from "../api";
+import { getPatients, getRecords, getTasks, patchTask, updateRecord, sendChat, getPendingRecord, confirmPendingRecord, abandonPendingRecord, getDoctorProfile, updateDoctorProfile, exportPatientPdf, exportOutpatientReport, getTemplateStatus, uploadTemplate, deleteTemplate, getCvdContext } from "../api";
 import RecordFields from "../components/RecordFields";
 import { useDoctorStore } from "../store/doctorStore";
 import { t } from "../i18n";
@@ -94,6 +97,7 @@ const NAV = [
   { key: "home", label: "首页", icon: <HomeOutlinedIcon fontSize="small" /> },
   { key: "patients", label: "患者", icon: <PeopleOutlineIcon fontSize="small" /> },
   { key: "tasks", label: "任务", icon: <AssignmentOutlinedIcon fontSize="small" /> },
+  { key: "settings", label: "设置", icon: <SettingsOutlinedIcon fontSize="small" /> },
 ];
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -293,10 +297,83 @@ function RecordCard({ record, doctorId, onUpdated }) {
 
 // ─── Patient detail panel ──────────────────────────────────────────────────
 
+const CVD_SUBTYPE_LABEL = {
+  ICH: "脑出血(ICH)", SAH: "蛛网膜下腔出血(SAH)", ischemic: "缺血性卒中",
+  AVM: "动静脉畸形(AVM)", aneurysm: "动脉瘤", other: "其他",
+};
+const CVD_SURGERY_STATUS_LABEL = {
+  planned: "已计划", done: "已完成", cancelled: "已取消", conservative: "保守治疗",
+};
+const MRS_COLOR = (s) => s <= 2 ? "#22c55e" : s <= 4 ? "#eab308" : "#ef4444";
+
+function NeuroCVDContextCard({ patientId, doctorId }) {
+  const [ctx, setCtx] = useState(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!patientId) return;
+    getCvdContext(patientId, doctorId)
+      .then((d) => { setCtx(d); setLoaded(true); })
+      .catch(() => setLoaded(true)); // 404 = no data, skip silently
+  }, [patientId, doctorId]);
+
+  if (!loaded || !ctx) return null;
+
+  const rows = [
+    ctx.diagnosis_subtype && ["诊断亚型", CVD_SUBTYPE_LABEL[ctx.diagnosis_subtype] || ctx.diagnosis_subtype],
+    ctx.hemorrhage_location && ["出血部位", ctx.hemorrhage_location],
+    ctx.gcs_score != null && ["GCS", ctx.gcs_score],
+    ctx.ich_score != null && ["ICH评分", `${ctx.ich_score} 分`],
+    ctx.ich_volume_ml != null && ["出血量", `${ctx.ich_volume_ml} mL`],
+    ctx.hunt_hess_grade != null && ["Hunt-Hess", `${ctx.hunt_hess_grade} 级`],
+    ctx.fisher_grade != null && ["Fisher", `${ctx.fisher_grade} 级`],
+    ctx.spetzler_martin_grade != null && ["Spetzler-Martin", `${ctx.spetzler_martin_grade} 级`],
+    ctx.aneurysm_location && ["动脉瘤位置", ctx.aneurysm_location],
+    ctx.aneurysm_size_mm != null && ["动脉瘤大小", `${ctx.aneurysm_size_mm} mm`],
+    ctx.aneurysm_treatment && ["动脉瘤处理", ctx.aneurysm_treatment],
+    ctx.surgery_type && ["手术方式", ctx.surgery_type],
+    ctx.surgery_status && ["手术状态", CVD_SURGERY_STATUS_LABEL[ctx.surgery_status] || ctx.surgery_status],
+    ctx.surgery_date && ["手术日期", ctx.surgery_date],
+    ctx.mrs_score != null && ["mRS", ctx.mrs_score],
+    ctx.barthel_index != null && ["Barthel指数", ctx.barthel_index],
+  ].filter(Boolean);
+
+  if (rows.length === 0) return null;
+
+  return (
+    <Card variant="outlined" sx={{ borderRadius: 2, mb: 2, borderColor: "#b2dfdb" }}>
+      <CardContent sx={{ py: 1.5, px: 2, "&:last-child": { pb: 1.5 } }}>
+        <Typography variant="caption" sx={{ fontWeight: 700, color: "teal", letterSpacing: 0.5, textTransform: "uppercase" }}>
+          脑血管专科病情
+        </Typography>
+        <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "4px 12px", mt: 0.8 }}>
+          {rows.map(([label, value]) => (
+            <Box key={label}>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: 10 }}>{label}</Typography>
+              <Typography variant="body2" sx={{
+                fontWeight: 600, fontSize: 13,
+                color: label === "mRS" ? MRS_COLOR(value) : "text.primary",
+              }}>
+                {value}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+          更新于 {ctx.created_at}
+        </Typography>
+      </CardContent>
+    </Card>
+  );
+}
+
 function PatientDetail({ patient, doctorId }) {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const [exportingReport, setExportingReport] = useState(false);
+  const [exportError, setExportError] = useState("");
 
   const load = useCallback(() => {
     if (!patient) return;
@@ -325,6 +402,20 @@ function PatientDetail({ patient, doctorId }) {
     setRecords((prev) => prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)));
   }
 
+  async function handleExportPdf() {
+    setExportingPdf(true); setExportError("");
+    try { await exportPatientPdf(patient.id, doctorId); }
+    catch (e) { setExportError(e.message || "导出失败"); }
+    finally { setExportingPdf(false); }
+  }
+
+  async function handleExportReport() {
+    setExportingReport(true); setExportError("");
+    try { await exportOutpatientReport(patient.id, doctorId); }
+    catch (e) { setExportError(e.message || "生成失败，请确认已有病历记录"); }
+    finally { setExportingReport(false); }
+  }
+
   return (
     <Box sx={{ p: 2.5, overflowY: "auto", height: "100%" }}>
       {/* Patient header */}
@@ -333,7 +424,7 @@ function PatientDetail({ patient, doctorId }) {
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 700 }}>{patient.name}</Typography>
             <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }} flexWrap="wrap">
-              {patient.gender && <Typography variant="caption" color="text.secondary">{patient.gender}</Typography>}
+              {patient.gender && <Typography variant="caption" color="text.secondary">{{ male: "男", female: "女" }[patient.gender] || patient.gender}</Typography>}
               {age && <Typography variant="caption" color="text.secondary">{age} 岁</Typography>}
               <RiskBadge level={patient.primary_risk_level} />
               {patient.follow_up_state && (
@@ -352,9 +443,35 @@ function PatientDetail({ patient, doctorId }) {
               </Stack>
             )}
           </Box>
-          <Typography variant="caption" color="text.secondary">{patient.record_count} 份病历</Typography>
+          <Stack alignItems="flex-end" spacing={0.5}>
+            <Typography variant="caption" color="text.secondary">{patient.record_count} 份病历</Typography>
+            <Stack direction="row" spacing={0.8}>
+              <Tooltip title="导出全部病历 PDF">
+                <span>
+                  <Button size="small" variant="outlined"
+                    startIcon={exportingPdf ? <CircularProgress size={12} /> : <FileDownloadOutlinedIcon />}
+                    disabled={exportingPdf || exportingReport} onClick={handleExportPdf}>
+                    病历PDF
+                  </Button>
+                </span>
+              </Tooltip>
+              <Tooltip title="AI 提取结构化字段，生成标准门诊病历报告">
+                <span>
+                  <Button size="small" variant="outlined" color="secondary"
+                    startIcon={exportingReport ? <CircularProgress size={12} /> : <FileDownloadOutlinedIcon />}
+                    disabled={exportingPdf || exportingReport} onClick={handleExportReport}>
+                    门诊报告
+                  </Button>
+                </span>
+              </Tooltip>
+            </Stack>
+            {exportError && <Typography variant="caption" color="error.main">{exportError}</Typography>}
+          </Stack>
         </Stack>
       </Card>
+
+      {/* CVD specialty context */}
+      <NeuroCVDContextCard patientId={patient.id} doctorId={doctorId} />
 
       {/* Records */}
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>

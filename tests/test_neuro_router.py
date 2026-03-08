@@ -46,7 +46,7 @@ async def test_neuro_from_text_success_persists_and_returns_payload(monkeypatch)
     case_obj.model_dump.return_value = {"patient_profile": {"name": "张三"}}
     log_obj = MagicMock()
     log_obj.model_dump.return_value = {"missing_fields": []}
-    monkeypatch.setattr(neuro, "extract_neuro_case", AsyncMock(return_value=(case_obj, log_obj)))
+    monkeypatch.setattr(neuro, "extract_neuro_case", AsyncMock(return_value=(case_obj, log_obj, None)))
     monkeypatch.setattr(neuro, "AsyncSessionLocal", lambda: _SessionCtx())
     monkeypatch.setattr(
         neuro,

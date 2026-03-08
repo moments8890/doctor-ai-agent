@@ -1,0 +1,68 @@
+"""CRUD helpers for specialty clinical context tables."""
+
+from __future__ import annotations
+
+from typing import Optional
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from db.models.neuro_case import NeuroCVDSurgicalContext
+from db.models.specialty import NeuroCVDContext
+
+
+async def save_cvd_context(
+    session: AsyncSession,
+    doctor_id: str,
+    patient_id: Optional[int],
+    record_id: int,
+    ctx: NeuroCVDSurgicalContext,
+    source: str = "chat",
+) -> NeuroCVDContext:
+    """Persist a NeuroCVDSurgicalContext to the neuro_cvd_context table."""
+    row = NeuroCVDContext(
+        doctor_id=doctor_id,
+        patient_id=patient_id,
+        record_id=record_id,
+        diagnosis_subtype=ctx.diagnosis_subtype,
+        hemorrhage_location=ctx.hemorrhage_location,
+        ich_score=ctx.ich_score,
+        ich_volume_ml=ctx.ich_volume_ml,
+        hunt_hess_grade=ctx.hunt_hess_grade,
+        fisher_grade=ctx.fisher_grade,
+        spetzler_martin_grade=ctx.spetzler_martin_grade,
+        gcs_score=ctx.gcs_score,
+        aneurysm_location=ctx.aneurysm_location,
+        aneurysm_size_mm=ctx.aneurysm_size_mm,
+        aneurysm_morphology=ctx.aneurysm_morphology,
+        aneurysm_treatment=ctx.aneurysm_treatment,
+        surgery_type=ctx.surgery_type,
+        surgery_date=ctx.surgery_date,
+        surgery_status=ctx.surgery_status,
+        surgical_approach=ctx.surgical_approach,
+        mrs_score=ctx.mrs_score,
+        barthel_index=ctx.barthel_index,
+        source=source,
+    )
+    session.add(row)
+    await session.commit()
+    await session.refresh(row)
+    return row
+
+
+async def get_cvd_context_for_patient(
+    session: AsyncSession,
+    doctor_id: str,
+    patient_id: int,
+) -> Optional[NeuroCVDContext]:
+    """Return the most recent NeuroCVDContext row for a patient."""
+    result = await session.execute(
+        select(NeuroCVDContext)
+        .where(
+            NeuroCVDContext.doctor_id == doctor_id,
+            NeuroCVDContext.patient_id == patient_id,
+        )
+        .order_by(NeuroCVDContext.created_at.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()

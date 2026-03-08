@@ -12,7 +12,7 @@ from typing import Optional, Tuple
 
 from openai import AsyncOpenAI
 
-from db.models.neuro_case import ExtractionLog, NeuroCase
+from db.models.neuro_case import ExtractionLog, NeuroCase, NeuroCVDSurgicalContext
 from services.ai.llm_client import _PROVIDERS
 from services.ai.llm_resilience import call_with_retry_and_fallback
 from utils.log import log
@@ -157,7 +157,32 @@ labs 数组中每个元素格式：
 plan.orders 数组中每个元素格式：
 {"type": "lab/imaging/medication/procedure/consult/followup/other", "name": "医嘱名称", "frequency": null, "notes": null}
 
-【保留专业缩写】NIHSS、mRS、TOAST、tPA、rt-PA、TIA、DVT、AF、INR、APTT、CTA、MRA、DSA、TCD、ASPECT等缩写不得翻译或展开。
+## CVD_Surgical_Context
+
+```json
+{
+  "diagnosis_subtype": "ICH|SAH|ischemic|AVM|aneurysm|other 或 null",
+  "hemorrhage_location": "解剖部位（如基底节、小脑、脑干、蛛网膜下腔）或 null",
+  "ich_score": null,
+  "ich_volume_ml": null,
+  "hunt_hess_grade": null,
+  "fisher_grade": null,
+  "spetzler_martin_grade": null,
+  "gcs_score": null,
+  "aneurysm_location": null,
+  "aneurysm_size_mm": null,
+  "aneurysm_morphology": "saccular|fusiform|other 或 null",
+  "aneurysm_treatment": "clipping|coiling|pipeline|conservative 或 null",
+  "surgery_type": null,
+  "surgery_date": null,
+  "surgery_status": "planned|done|cancelled|conservative 或 null",
+  "surgical_approach": null,
+  "mrs_score": null,
+  "barthel_index": null
+}
+```
+
+【保留专业缩写】NIHSS、mRS、TOAST、tPA、rt-PA、TIA、DVT、AF、INR、APTT、CTA、MRA、DSA、TCD、ASPECT、ICH、SAH、AVM、GCS、Hunt-Hess、Fisher、Spetzler-Martin等缩写不得翻译或展开。
 """
 
 _PROMPT_CACHE: Optional[Tuple[float, str]] = None
@@ -191,24 +216,21 @@ def _extract_fenced_json(text: str) -> Optional[str]:
     return m.group(1).strip() if m else None
 
 
-def _parse_markdown_output(md: str) -> Tuple[NeuroCase, ExtractionLog]:
-    """Parse the two-section Markdown response from the LLM.
+def _parse_markdown_output(md: str) -> Tuple[NeuroCase, ExtractionLog, Optional[NeuroCVDSurgicalContext]]:
+    """Parse the three-section Markdown response from the LLM.
 
     Sections expected:
-      ## Structured_JSON
-      ```json ... ```
-
-      ## Extraction_Log
-      ```json ... ```
+      ## Structured_JSON       ```json ... ```
+      ## Extraction_Log        ```json ... ```
+      ## CVD_Surgical_Context  ```json ... ```
 
     Fallback: if no ## sections found, treat entire response as NeuroCase JSON.
     """
-    # Split on ## headings
     case_json_str: Optional[str] = None
     log_json_str: Optional[str] = None
+    cvd_json_str: Optional[str] = None
 
     if "## Structured_JSON" in md or "## Extraction_Log" in md:
-        # Split the document into sections
         parts = re.split(r"^##\s+", md, flags=re.MULTILINE)
         for part in parts:
             title, _, body = part.partition("\n")
@@ -221,9 +243,12 @@ def _parse_markdown_output(md: str) -> Tuple[NeuroCase, ExtractionLog]:
                 log_json_str = _extract_fenced_json(body)
                 if log_json_str is None:
                     log_json_str = body.strip()
+            elif title == "CVD_Surgical_Context":
+                cvd_json_str = _extract_fenced_json(body)
+                if cvd_json_str is None:
+                    cvd_json_str = body.strip()
 
     if case_json_str is None:
-        # Fallback: entire response is the NeuroCase JSON (LLM ignored Markdown format)
         raw = _extract_fenced_json(md) or md.strip()
         case_json_str = raw
 
@@ -235,19 +260,29 @@ def _parse_markdown_output(md: str) -> Tuple[NeuroCase, ExtractionLog]:
 
     neuro_case = NeuroCase.model_validate(case_data)
 
-    # Parse ExtractionLog (optional — use empty log if absent or invalid)
+    # Parse ExtractionLog (optional)
     extraction_log = ExtractionLog()
     if log_json_str:
         try:
-            log_data = json.loads(log_json_str)
-            extraction_log = ExtractionLog.model_validate(log_data)
+            extraction_log = ExtractionLog.model_validate(json.loads(log_json_str))
         except (json.JSONDecodeError, Exception):
             pass
 
-    return neuro_case, extraction_log
+    # Parse NeuroCVDSurgicalContext (optional)
+    cvd_context: Optional[NeuroCVDSurgicalContext] = None
+    if cvd_json_str:
+        try:
+            cvd_data = json.loads(cvd_json_str)
+            cvd_context = NeuroCVDSurgicalContext.model_validate(cvd_data)
+            if not cvd_context.has_data():
+                cvd_context = None
+        except (json.JSONDecodeError, Exception):
+            pass
+
+    return neuro_case, extraction_log, cvd_context
 
 
-async def extract_neuro_case(text: str) -> Tuple[NeuroCase, ExtractionLog]:
+async def extract_neuro_case(text: str) -> Tuple[NeuroCase, ExtractionLog, Optional[NeuroCVDSurgicalContext]]:
     provider_name = os.environ.get("STRUCTURING_LLM", "deepseek")
     provider = dict(_PROVIDERS[provider_name])
     if provider_name == "ollama":

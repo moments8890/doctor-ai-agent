@@ -88,6 +88,10 @@ from db.crud.scores import (
     save_specialty_scores,
     get_scores_for_record,
 )
+from db.crud.specialty import (
+    save_cvd_context,
+    get_cvd_context_for_patient,
+)
 from db.crud.runtime import (
     get_runtime_cursor,
     upsert_runtime_cursor,
@@ -183,6 +187,9 @@ __all__ = [
     # scores
     "save_specialty_scores",
     "get_scores_for_record",
+    # specialty context
+    "save_cvd_context",
+    "get_cvd_context_for_patient",
     # runtime
     "get_runtime_cursor",
     "upsert_runtime_cursor",

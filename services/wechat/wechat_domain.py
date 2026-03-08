@@ -252,7 +252,42 @@ async def save_pending_record(doctor_id: str, pending: Any) -> Optional[str]:
             doctor_id, db_record.id, patient_name, pending.patient_id, _content_for_rules
         ))
     asyncio.create_task(_bg_auto_learn(doctor_id, pending.raw_input or "", record))
+    # CVD surgical context extraction (background, non-blocking)
+    if _detect_cvd_keywords(pending.raw_input or record.content or ""):
+        asyncio.create_task(_bg_extract_cvd_context(
+            doctor_id, db_record.id, pending.patient_id, record.content or ""
+        ))
     return patient_name
+
+
+_CVD_KEYWORDS = frozenset({
+    "动脉瘤", "蛛网膜下腔", "脑出血", "颅内出血", "ICH", "SAH",
+    "Hunt", "Fisher", "AVM", "动静脉畸形", "Spetzler", "开颅",
+    "夹闭", "栓塞", "介入", "GCS", "格拉斯哥",
+})
+
+
+def _detect_cvd_keywords(text: str) -> bool:
+    return any(kw in text for kw in _CVD_KEYWORDS)
+
+
+async def _bg_extract_cvd_context(
+    doctor_id: str,
+    record_id: int,
+    patient_id: Optional[int],
+    content: str,
+) -> None:
+    """Background: run neuro CVD LLM extraction and save to neuro_cvd_context."""
+    try:
+        from services.ai.neuro_structuring import extract_neuro_case
+        from db.crud.specialty import save_cvd_context
+        _, __, cvd_ctx = await extract_neuro_case(content)
+        if cvd_ctx and cvd_ctx.has_data():
+            async with AsyncSessionLocal() as session:
+                await save_cvd_context(session, doctor_id, patient_id, record_id, cvd_ctx, source="chat")
+            log(f"[CVD] context saved for record={record_id}")
+    except Exception as exc:
+        log(f"[CVD] extraction failed (non-fatal) record={record_id}: {exc}")
 
 
 async def _bg_auto_tasks(

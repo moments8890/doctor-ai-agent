@@ -13,12 +13,12 @@ from db.models.audit import AuditLog
 from db.models.scores import SpecialtyScore
 from db.models.specialty import (
     StrokeClinicalContext, EpilepsyClinicalContext, ParkinsonClinicalContext,
-    DementiaClinicalContext, HeadacheClinicalContext,
+    DementiaClinicalContext, HeadacheClinicalContext, NeuroCVDContext,
 )
 from db.models.medical_record import MedicalRecord
 from db.models.neuro_case import (
     NeuroCase, Hypertension, RiskFactors, ImagingFinding, ImagingStudy,
-    LabResult, PlanOrder, ExtractionLog,
+    LabResult, PlanOrder, ExtractionLog, NeuroCVDSurgicalContext,
 )
 
 __all__ = [
@@ -34,8 +34,8 @@ __all__ = [
     "AuditLog",
     "SpecialtyScore",
     "StrokeClinicalContext", "EpilepsyClinicalContext", "ParkinsonClinicalContext",
-    "DementiaClinicalContext", "HeadacheClinicalContext",
+    "DementiaClinicalContext", "HeadacheClinicalContext", "NeuroCVDContext",
     "MedicalRecord",
     "NeuroCase", "Hypertension", "RiskFactors", "ImagingFinding", "ImagingStudy",
-    "LabResult", "PlanOrder", "ExtractionLog",
+    "LabResult", "PlanOrder", "ExtractionLog", "NeuroCVDSurgicalContext",
 ]

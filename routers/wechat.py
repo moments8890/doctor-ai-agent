@@ -752,17 +752,29 @@ async def _handle_wecom_kf_event_bg(
 ) -> None:
     """Fetch latest WeCom KF customer messages and route through intent pipeline."""
     global _WECHAT_KF_SYNC_CURSOR, _WECHAT_KF_CURSOR_LOADED
-    async def _enqueue_intent(text: str, doctor_id: str, open_kfid: str) -> None:
-        asyncio.create_task(_handle_intent_bg(text, doctor_id, open_kfid=open_kfid))
+    async def _enqueue_intent(text: str, user_id: str, open_kfid: str) -> None:
+        if await _is_registered_doctor(user_id):
+            asyncio.create_task(_handle_intent_bg(text, user_id, open_kfid=open_kfid))
+        else:
+            asyncio.create_task(_handle_patient_bg(text, user_id, open_kfid=open_kfid))
 
-    async def _enqueue_voice(media_id: str, doctor_id: str, open_kfid: str) -> None:
-        asyncio.create_task(_handle_voice_bg(media_id, doctor_id, open_kfid=open_kfid))
+    async def _enqueue_voice(media_id: str, user_id: str, open_kfid: str) -> None:
+        if await _is_registered_doctor(user_id):
+            asyncio.create_task(_handle_voice_bg(media_id, user_id, open_kfid=open_kfid))
+        else:
+            asyncio.create_task(_handle_patient_bg(_PATIENT_NON_TEXT_REPLY, user_id, open_kfid=open_kfid))
 
-    async def _enqueue_image(media_id: str, doctor_id: str, open_kfid: str) -> None:
-        asyncio.create_task(_handle_image_bg(media_id, doctor_id, open_kfid=open_kfid))
+    async def _enqueue_image(media_id: str, user_id: str, open_kfid: str) -> None:
+        if await _is_registered_doctor(user_id):
+            asyncio.create_task(_handle_image_bg(media_id, user_id, open_kfid=open_kfid))
+        else:
+            asyncio.create_task(_handle_patient_bg(_PATIENT_NON_TEXT_REPLY, user_id, open_kfid=open_kfid))
 
-    async def _enqueue_file(media_id: str, filename: str, doctor_id: str, open_kfid: str) -> None:
-        asyncio.create_task(_handle_file_bg(media_id, filename, doctor_id, open_kfid=open_kfid))
+    async def _enqueue_file(media_id: str, filename: str, user_id: str, open_kfid: str) -> None:
+        if await _is_registered_doctor(user_id):
+            asyncio.create_task(_handle_file_bg(media_id, filename, user_id, open_kfid=open_kfid))
+        else:
+            asyncio.create_task(_handle_patient_bg(_PATIENT_NON_TEXT_REPLY, user_id, open_kfid=open_kfid))
 
     async with _KF_CURSOR_LOCK:
         if not _WECHAT_KF_CURSOR_LOADED:
