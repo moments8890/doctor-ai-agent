@@ -252,3 +252,121 @@ def test_fast_route_hit_rate():
     rate = hits / len(_SAMPLE_CLINICAL_INPUTS) * 100
     print(f"\nFast-route hit rate: {hits}/{len(_SAMPLE_CLINICAL_INPUTS)} = {rate:.0f}%")
     assert hits == expected_hits
+
+
+# ── Tier 2.5: update_record correction ─────────────────────────────────────────
+
+@pytest.mark.parametrize("text, expected_name", [
+    ("刚才李波的主诉写错了，应该是胸痛不是胸闷", "李波"),
+    ("刚才陈刚的诊断写错了，应更正为STEMI", "陈刚"),
+    ("上一条张三的病历有误，主诉改为头痛", "张三"),
+    ("刚才写错了，主诉应该是心悸", None),        # no name → name=None, still update_record
+    ("病历写错了，诊断改为高血压", None),
+])
+def test_correction_update_record(text, expected_name):
+    r = fast_route(text)
+    assert r is not None, f"fast_route({text!r}) returned None"
+    assert r.intent == Intent.update_record
+    assert r.patient_name == expected_name
+
+
+# ── Tier 2: update_patient demographics ────────────────────────────────────────
+
+@pytest.mark.parametrize("text, expected_name, expected_gender, expected_age", [
+    ("修改王明的年龄为50岁", "王明", None, 50),
+    ("更新李华的性别为女", "李华", "女", None),
+    ("把张三的年龄改成40岁", "张三", None, 40),
+    ("王明的年龄应该是50岁", "王明", None, 50),
+    ("李华的性别改为男", "李华", "男", None),
+])
+def test_update_patient_demographics(text, expected_name, expected_gender, expected_age):
+    r = fast_route(text)
+    assert r is not None, f"fast_route({text!r}) returned None"
+    assert r.intent == Intent.update_patient
+    assert r.patient_name == expected_name
+    if expected_gender is not None:
+        assert r.gender == expected_gender
+    if expected_age is not None:
+        assert r.age == expected_age
+
+
+# ── Tier 2: supplement / record continuation ────────────────────────────────────
+
+@pytest.mark.parametrize("text", [
+    "补充：建议随访两周",
+    "补一句：患者否认过敏史",
+    "再补充建议复查心电图",
+    "加上：既往高血压病史",
+])
+def test_supplement_routes_add_record(text):
+    r = fast_route(text)
+    assert r is not None, f"fast_route({text!r}) returned None"
+    assert r.intent == Intent.add_record
+
+
+# ── False-positive guards ───────────────────────────────────────────────────────
+
+def test_create_not_triggered_by_jiandanbing_bao():
+    """'建档并保存本次病历' must NOT extract '并保' as patient name."""
+    r = fast_route("请建档并保存本次病历")
+    # Should fall through (None) or route as something other than create_patient
+    if r is not None:
+        assert r.intent != Intent.create_patient, (
+            "False positive: '建档并保存' should not match create_patient"
+        )
+
+
+def test_update_patient_not_triggered_by_domain_keywords():
+    """'修改病历的年龄' should not extract '病历' as patient name."""
+    r = fast_route("修改病历的年龄为50岁")
+    # Either falls through (None) or doesn't route as update_patient with '病历' as name
+    if r is not None and r.intent == Intent.update_patient:
+        assert r.patient_name != "病历"
+
+
+def test_correction_name_not_domain_keyword():
+    """'上一条病历的诊断有误' should not extract '病历' as patient name."""
+    r = fast_route("上一条病历的诊断有误，应更正")
+    if r is not None:
+        assert r.intent == Intent.update_record
+        assert r.patient_name != "病历"
+
+
+# ── Tier 3 edge cases ──────────────────────────────────────────────────────────
+
+def test_tier3_fucha_with_reminder_falls_through():
+    """'帮我设今天18:00复查提醒' — 复查 alone with reminder context → LLM fallback."""
+    r = fast_route("帮我设今天18:00复查提醒")
+    assert r is None, "复查 + 提醒 should fall through to LLM, not Tier 3 add_record"
+
+
+def test_tier3_clinical_keyword_routes_add_record():
+    """A message with high-specificity clinical keywords → add_record via Tier 3."""
+    r = fast_route("患者心悸3天，BNP升高，考虑心衰")
+    assert r is not None
+    assert r.intent == Intent.add_record
+
+
+def test_tier3_stemi_correction_routes_update_record_not_add():
+    """A correction message containing STEMI keyword must route update_record, not add_record."""
+    r = fast_route("刚才陈刚的诊断写错了，应更正诊断为STEMI，请更正上一条病历")
+    assert r is not None
+    assert r.intent == Intent.update_record, (
+        "Correction message with clinical keyword must be update_record, not add_record"
+    )
+    assert r.patient_name == "陈刚"
+
+
+# ── delete_patient with occurrence index ────────────────────────────────────────
+
+@pytest.mark.parametrize("text, expected_name, expected_occurrence", [
+    ("删除第2个患者张三", "张三", 2),
+    ("删除第一个患者李明", "李明", 1),
+    ("如果有重复名字，删除第二个患者王五", "王五", 2),
+])
+def test_delete_patient_occurrence_index(text, expected_name, expected_occurrence):
+    r = fast_route(text)
+    assert r is not None, f"fast_route({text!r}) returned None"
+    assert r.intent == Intent.delete_patient
+    assert r.patient_name == expected_name
+    assert r.extra_data.get("occurrence_index") == expected_occurrence
