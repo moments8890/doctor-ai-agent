@@ -9,13 +9,35 @@ export function setWebToken(token) {
   _webToken = token || "";
 }
 
+/** Read token from module cache, falling back to Zustand's persisted localStorage entry.
+ *  This handles the window between page load (store re-hydrated) and the App.jsx
+ *  useEffect that calls setWebToken — during that gap _webToken is empty but the
+ *  token already exists in localStorage. */
+function _getToken() {
+  if (_webToken) return _webToken;
+  try {
+    const raw = localStorage.getItem("doctor-session");
+    if (raw) {
+      const token = JSON.parse(raw)?.state?.accessToken;
+      if (token) {
+        _webToken = token; // warm the cache for subsequent calls
+        return token;
+      }
+    }
+  } catch {
+    // ignore parse errors
+  }
+  return "";
+}
+
 async function request(url, options = {}) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
   try {
     const headers = { ...(options.headers || {}) };
-    if (_webToken && !headers["Authorization"]) {
-      headers["Authorization"] = `Bearer ${_webToken}`;
+    const token = _getToken();
+    if (token && !headers["Authorization"]) {
+      headers["Authorization"] = `Bearer ${token}`;
     }
     const response = await fetch(url, { ...options, headers, signal: controller.signal });
     if (!response.ok) {
