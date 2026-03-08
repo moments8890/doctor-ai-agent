@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useDoctorStore } from "../store/doctorStore";
+import { setWebToken } from "../api";
 import {
   Box,
   Button,
@@ -49,10 +51,17 @@ function MsgBubble({ msg }) {
 }
 
 export default function ChatPage() {
-  const { doctorId, setDoctorId } = useDoctorStore();
+  const navigate = useNavigate();
+  const { doctorId, doctorName, clearAuth } = useDoctorStore();
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState([]);
+
+  function onLogout() {
+    setWebToken("");
+    clearAuth();
+    navigate("/login", { replace: true });
+  }
 
   function nowTs() {
     const d = new Date();
@@ -62,7 +71,7 @@ export default function ChatPage() {
   }
 
   function historyKey(name) {
-    return `doctor_ai_chat_history:${(name || "web_doctor").trim() || "web_doctor"}`;
+    return `doctor_ai_chat_history:${(name || "anon").trim() || "anon"}`;
   }
 
   useEffect(() => {
@@ -103,7 +112,7 @@ export default function ChatPage() {
   const chatStats = [
     { key: "totalTurns", label: t("chat.stats.totalTurns"), value: messages.length, icon: <ChatBubbleOutlineRoundedIcon fontSize="small" /> },
     { key: "assistantTurns", label: t("chat.stats.assistantTurns"), value: assistantCount, icon: <SmartToyOutlinedIcon fontSize="small" /> },
-    { key: "doctorTag", label: t("chat.stats.doctorTag"), value: doctorId || "web_doctor", icon: <MedicalServicesOutlinedIcon fontSize="small" /> },
+    { key: "doctorTag", label: t("chat.stats.doctorTag"), value: doctorName || doctorId || "-", icon: <MedicalServicesOutlinedIcon fontSize="small" /> },
   ];
 
   async function onSend() {
@@ -117,7 +126,7 @@ export default function ChatPage() {
     try {
       const data = await sendChat({
         text,
-        doctor_id: doctorId.trim() || "web_doctor",
+        doctor_id: doctorId,
         history,
       });
       setMessages((prev) => [
@@ -171,14 +180,14 @@ export default function ChatPage() {
                 <Typography variant="caption" color="text.secondary" sx={{ mt: 0.2, display: "block" }}>
                   {t("chat.pageSubtitle")}
                 </Typography>
-                <TextField
-                  size="small"
-                  label={t("chat.doctorId")}
-                  value={doctorId}
-                  onChange={(e) => setDoctorId(e.target.value)}
-                  sx={{ mt: 1 }}
-                  fullWidth
-                />
+                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: 1 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    {t("login.loggedInAs")}：<strong>{doctorName || doctorId}</strong>
+                  </Typography>
+                  <Button size="small" color="inherit" onClick={onLogout} sx={{ ml: 1, flexShrink: 0 }}>
+                    {t("login.logout")}
+                  </Button>
+                </Stack>
               </CardContent>
             </Card>
 

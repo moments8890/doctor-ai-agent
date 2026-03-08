@@ -7,6 +7,17 @@
       "openManage": "打开管理页",
       "openChat": "打开聊天页"
     },
+    "login": {
+      "title": "医生登录",
+      "doctorId": "医生账号",
+      "name": "显示姓名（可选）",
+      "nameHelper": "用于界面显示，可留空",
+      "submit": "登录",
+      "logout": "退出登录",
+      "doctorIdRequired": "请输入医生账号",
+      "failed": "登录失败，请重试",
+      "loggedInAs": "当前账号"
+    },
     "common": {
       "all": "全部",
       "apply": "应用",

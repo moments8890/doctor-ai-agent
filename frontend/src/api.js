@@ -3,11 +3,21 @@ async function readError(response) {
   return text || `HTTP ${response.status}`;
 }
 
+let _webToken = "";
+
+export function setWebToken(token) {
+  _webToken = token || "";
+}
+
 async function request(url, options = {}) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
   try {
-    const response = await fetch(url, { ...options, signal: controller.signal });
+    const headers = { ...(options.headers || {}) };
+    if (_webToken && !headers["Authorization"]) {
+      headers["Authorization"] = `Bearer ${_webToken}`;
+    }
+    const response = await fetch(url, { ...options, headers, signal: controller.signal });
     if (!response.ok) {
       throw new Error(await readError(response));
     }
@@ -44,6 +54,14 @@ async function debugRequest(url, options = {}) {
   const headers = { ...(options.headers || {}) };
   if (_debugToken) headers["X-Debug-Token"] = _debugToken;
   return request(url, { ...options, headers });
+}
+
+export async function webLogin(doctorId, name) {
+  return request("/api/auth/web/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ doctor_id: doctorId, name: name || undefined }),
+  });
 }
 
 export async function sendChat(payload) {

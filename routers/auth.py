@@ -41,9 +41,23 @@ class MiniProgramLoginResponse(BaseModel):
     wechat_openid: str
 
 
+class WebLoginInput(BaseModel):
+    doctor_id: str
+    name: Optional[str] = None
+
+
+class WebLoginResponse(BaseModel):
+    access_token: str
+    token_type: str = "Bearer"
+    expires_in: int
+    doctor_id: str
+    channel: str
+
+
 class MeResponse(BaseModel):
     doctor_id: str
     channel: str
+    name: Optional[str] = None
     wechat_openid: Optional[str] = None
 
 
@@ -163,6 +177,50 @@ async def wechat_mini_login(body: MiniProgramLoginInput) -> MiniProgramLoginResp
     )
 
 
+async def _upsert_web_doctor(doctor_id: str, name: Optional[str]) -> None:
+    now = datetime.now(timezone.utc)
+    async with AsyncSessionLocal() as session:
+        existing = (
+            await session.execute(select(Doctor).where(Doctor.doctor_id == doctor_id).limit(1))
+        ).scalar_one_or_none()
+
+        if existing is None:
+            session.add(
+                Doctor(
+                    doctor_id=doctor_id,
+                    name=name,
+                    channel="app",
+                    created_at=now,
+                    updated_at=now,
+                )
+            )
+        else:
+            existing.updated_at = now
+            if name and not existing.name:
+                existing.name = name
+
+        await session.commit()
+
+
+@router.post("/web/login", response_model=WebLoginResponse)
+async def web_login(body: WebLoginInput) -> WebLoginResponse:
+    doctor_id = (body.doctor_id or "").strip()
+    if not doctor_id:
+        raise HTTPException(status_code=422, detail="doctor_id is required")
+
+    enforce_doctor_rate_limit(doctor_id, scope="auth.login")
+    await _upsert_web_doctor(doctor_id, body.name)
+    token_data = issue_miniprogram_token(doctor_id, channel="app")
+
+    return WebLoginResponse(
+        access_token=str(token_data["access_token"]),
+        token_type=str(token_data["token_type"]),
+        expires_in=int(token_data["expires_in"]),
+        doctor_id=doctor_id,
+        channel="app",
+    )
+
+
 @router.get("/me", response_model=MeResponse)
 async def auth_me(authorization: Optional[str] = Header(default=None)) -> MeResponse:
     try:
@@ -172,8 +230,18 @@ async def auth_me(authorization: Optional[str] = Header(default=None)) -> MeResp
         logging.getLogger("auth").warning("[Auth] /me token validation failed: %s", exc)
         raise HTTPException(status_code=401, detail="Invalid authorization token")
 
+    # Fetch display name from DB
+    doctor_name: Optional[str] = None
+    async with AsyncSessionLocal() as session:
+        row = (
+            await session.execute(select(Doctor).where(Doctor.doctor_id == principal.doctor_id).limit(1))
+        ).scalar_one_or_none()
+        if row:
+            doctor_name = row.name
+
     return MeResponse(
         doctor_id=principal.doctor_id,
         channel=principal.channel,
+        name=doctor_name,
         wechat_openid=principal.wechat_openid,
     )

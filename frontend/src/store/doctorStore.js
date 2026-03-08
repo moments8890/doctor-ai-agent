@@ -4,8 +4,11 @@ import { persist } from "zustand/middleware";
 export const useDoctorStore = create(
   persist(
     (set) => ({
-      doctorId: "web_doctor",
-      setDoctorId: (id) => set({ doctorId: id }),
+      doctorId: null,
+      doctorName: null,
+      accessToken: null,
+      setAuth: (doctorId, name, token) => set({ doctorId, doctorName: name, accessToken: token }),
+      clearAuth: () => set({ doctorId: null, doctorName: null, accessToken: null }),
     }),
     { name: "doctor-session" }
   )

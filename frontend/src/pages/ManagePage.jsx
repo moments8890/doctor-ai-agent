@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { setWebToken } from "../api";
 import {
   Alert,
   Box,
@@ -8,7 +10,6 @@ import {
   Container,
   Divider,
   Stack,
-  TextField,
   Typography,
 } from "@mui/material";
 import FolderSharedOutlinedIcon from "@mui/icons-material/FolderSharedOutlined";
@@ -65,8 +66,15 @@ function NavTab({ active, onClick, icon, children }) {
 }
 
 export default function ManagePage() {
-  const { doctorId, setDoctorId } = useDoctorStore();
+  const navigate = useNavigate();
+  const { doctorId, doctorName, clearAuth } = useDoctorStore();
   const [tab, setTab] = useState(0);
+
+  function onLogout() {
+    setWebToken("");
+    clearAuth();
+    navigate("/login", { replace: true });
+  }
   const [status, setStatus] = useState({ type: "info", text: "" });
 
   const [riskFilter, setRiskFilter] = useState("");
@@ -86,7 +94,7 @@ export default function ManagePage() {
   const [basePrompt, setBasePrompt] = useState("");
   const [extPrompt, setExtPrompt] = useState("");
 
-  const doctor = doctorId.trim() || "web_doctor";
+  const doctor = doctorId || "";
 
   const { patients, loading: patientsLoading, reload: reloadPatients } = usePatientData(doctor, riskFilter, followUpFilter);
   const { tasks, loading: tasksLoading, error: taskError, reload: reloadTasks, completeTask, cancelTask } = useTaskData(doctor);
@@ -253,14 +261,14 @@ export default function ManagePage() {
                 <Typography variant="caption" color="text.secondary" sx={{ mt: 0.2, display: "block" }}>
                   {t("manage.pageSubtitle")}
                 </Typography>
-                <TextField
-                  size="small"
-                  label={t("chat.doctorId")}
-                  value={doctorId}
-                  onChange={(e) => setDoctorId(e.target.value)}
-                  sx={{ mt: 1 }}
-                  fullWidth
-                />
+                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: 1 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    {t("login.loggedInAs")}：<strong>{doctorName || doctorId}</strong>
+                  </Typography>
+                  <Button size="small" color="inherit" onClick={onLogout} sx={{ ml: 1, flexShrink: 0 }}>
+                    {t("login.logout")}
+                  </Button>
+                </Stack>
               </CardContent>
             </Card>
 
