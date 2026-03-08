@@ -700,7 +700,13 @@ fi
 echo ""
 echo "======================================================"
 echo "  专科医师AI智能体 — dev startup"
-[[ "$MODE" == "background" ]] && echo "  Mode: background (launchd)" || echo "  Mode: foreground (--reload)"
+if [[ "$MODE" == "background" ]]; then
+  echo "  Mode: background (launchd)"
+elif [[ "$NO_RELOAD" -eq 1 ]]; then
+  echo "  Mode: foreground (no auto-reload)"
+else
+  echo "  Mode: foreground (--reload)"
+fi
 echo "======================================================"
 echo ""
 
@@ -872,6 +878,7 @@ else
   echo "======================================================"
   echo ""
   cd "$APP_DIR"
+  export ENVIRONMENT="${ENVIRONMENT:-development}"
   if [[ "$NO_RELOAD" -eq 1 ]]; then
     info "Auto-reload disabled (--no-reload)"
     .venv/bin/uvicorn main:app --port "$PORT"
