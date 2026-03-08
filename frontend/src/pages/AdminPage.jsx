@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   Alert,
   Autocomplete,
@@ -13,14 +14,12 @@ import {
   MenuItem,
   Stack,
   Switch,
-  Tab,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Tabs,
   TextField,
   Typography,
 } from "@mui/material";
@@ -284,7 +283,10 @@ function AdminDashboard({ onLockout }) {
   const [patientInput, setPatientInput] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [activeTable, setActiveTable] = useState("patients");
+  const { section } = useParams();
+  const navigate = useNavigate();
+  const activeTable = NAV_TABS.some((t) => t.key === section) ? section : "patients";
+  function setActiveTable(key) { navigate(`/admin/${key}`); }
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState({ type: "info", text: "" });
   const [tableCounts, setTableCounts] = useState({});
@@ -591,9 +593,9 @@ function AdminDashboard({ onLockout }) {
   }
 
   useEffect(() => {
-    loadAll("patients");
+    loadAll(activeTable);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activeTable]);
 
   useEffect(() => {
     if (activeTable === "observability") {
@@ -629,6 +631,26 @@ function AdminDashboard({ onLockout }) {
             </Card>
 
             <Card sx={{ borderRadius: 1.5 }}>
+              <CardContent sx={{ p: 1.8 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                  {t("admin.navTitle")}
+                </Typography>
+                <Stack spacing={1}>
+                  {NAV_TABS.map((item) => (
+                    <NavTab
+                      key={item.key}
+                      active={activeTable === item.key}
+                      icon={item.icon}
+                      onClick={() => setActiveTable(item.key)}
+                    >
+                      {t(`admin.tables.${item.key}`) || item.key}
+                    </NavTab>
+                  ))}
+                </Stack>
+              </CardContent>
+            </Card>
+
+            <Card sx={{ borderRadius: 1.5 }}>
               <CardContent sx={{ p: 1.5 }}>
                 <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.8 }}>
                   {t("admin.counts.title")}
@@ -651,30 +673,7 @@ function AdminDashboard({ onLockout }) {
             </Card>
           </Stack>
 
-          <Stack spacing={0}>
-          <Box sx={{ borderRadius: "8px 8px 0 0", overflow: "hidden", backgroundColor: "rgba(255,255,255,0.7)", borderBottom: "1px solid #d8e3e8" }}>
-            <Tabs
-              value={activeTable}
-              onChange={(_, key) => { setActiveTable(key); loadAll(key); }}
-              variant="scrollable"
-              scrollButtons="auto"
-              sx={{
-                minHeight: 44,
-                "& .MuiTab-root": { minHeight: 44, fontSize: 13, py: 0.8 },
-              }}
-            >
-              {NAV_TABS.map((item) => (
-                <Tab
-                  key={item.key}
-                  value={item.key}
-                  icon={item.icon}
-                  iconPosition="start"
-                  label={t(`admin.tables.${item.key}`) || item.key}
-                />
-              ))}
-            </Tabs>
-          </Box>
-          <Card sx={{ borderRadius: "0 0 6px 6px" }}>
+          <Card sx={{ borderRadius: 1.5 }}>
             <CardContent>
               {!!status.text ? <Alert severity={status.type} sx={{ mb: 1.5 }}>{status.text}</Alert> : null}
 
@@ -1477,7 +1476,6 @@ function AdminDashboard({ onLockout }) {
               )}
             </CardContent>
           </Card>
-          </Stack>
         </Box>
       </Container>
     </Box>
