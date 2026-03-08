@@ -8,7 +8,7 @@ import pytest
 from fastapi import HTTPException
 
 import routers.voice as voice
-from models.medical_record import MedicalRecord
+from db.models.medical_record import MedicalRecord
 from utils.errors import InvalidMedicalRecordError
 from services.ai.intent import Intent, IntentResult
 

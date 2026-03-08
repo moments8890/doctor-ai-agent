@@ -20,15 +20,17 @@ from db.crud import (
     get_all_patients,
     get_all_records_for_doctor,
     get_records_for_patient,
+    get_record_versions,
     list_tasks,
     save_record,
+    sign_off_record,
     update_latest_record_for_patient,
     update_patient_demographics,
     upsert_doctor_context,
     update_task_status,
 )
 from db.engine import AsyncSessionLocal
-from models.medical_record import MedicalRecord
+from db.models.medical_record import MedicalRecord
 from services.ai.agent import dispatch as agent_dispatch
 from services.ai.fast_router import fast_route, fast_route_label
 from services.knowledge.doctor_knowledge import (
@@ -951,3 +953,81 @@ async def create_record_from_audio(audio: UploadFile = File(...)):
     except Exception as e:
         log(f"[Records] from-audio failed: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# ---------------------------------------------------------------------------
+# Sign-off
+# ---------------------------------------------------------------------------
+
+class SignOffRequest(BaseModel):
+    doctor_id: str = "test_doctor"
+    signature: Optional[str] = None
+
+
+@router.post("/{record_id}/sign-off")
+async def sign_off(
+    record_id: int,
+    body: SignOffRequest,
+    authorization: Optional[str] = Header(default=None),
+):
+    """Mark a record as signed-off by the attending doctor."""
+    doctor_id = resolve_doctor_id_from_auth_or_fallback(
+        body.doctor_id, authorization,
+        fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
+        default_doctor_id="test_doctor",
+    )
+    async with AsyncSessionLocal() as db:
+        record = await sign_off_record(db, record_id, doctor_id, body.signature)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Record not found")
+    asyncio.create_task(audit(
+        doctor_id, "WRITE", resource_type="record_signoff", resource_id=str(record_id),
+        trace_id=get_current_trace_id(),
+    ))
+    return {
+        "record_id": record.id,
+        "is_signed_off": record.is_signed_off,
+        "signed_off_at": record.signed_off_at.isoformat() if record.signed_off_at else None,
+        "doctor_signature": record.doctor_signature,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Record correction history
+# ---------------------------------------------------------------------------
+
+@router.get("/{record_id}/history")
+async def record_history(
+    record_id: int,
+    doctor_id: str = "test_doctor",
+    authorization: Optional[str] = Header(default=None),
+):
+    """Return the correction history (versions) for a record, oldest first."""
+    resolved_doctor_id = resolve_doctor_id_from_auth_or_fallback(
+        doctor_id, authorization,
+        fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
+        default_doctor_id="test_doctor",
+    )
+    async with AsyncSessionLocal() as db:
+        # Verify record ownership
+        from sqlalchemy import select as _select
+        from db.models import MedicalRecordDB as _MRD
+        rec = (await db.execute(
+            _select(_MRD).where(_MRD.id == record_id, _MRD.doctor_id == resolved_doctor_id)
+        )).scalar_one_or_none()
+        if rec is None:
+            raise HTTPException(status_code=404, detail="Record not found")
+        versions = await get_record_versions(db, record_id, resolved_doctor_id)
+    return {
+        "record_id": record_id,
+        "versions": [
+            {
+                "id": v.id,
+                "old_content": v.old_content,
+                "old_tags": v.old_tags,
+                "old_record_type": v.old_record_type,
+                "changed_at": v.changed_at.isoformat() if v.changed_at else None,
+            }
+            for v in versions
+        ],
+    }

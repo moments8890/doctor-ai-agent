@@ -55,7 +55,7 @@ async def test_handle_intent_routes_unknown_to_help_message(wechat):
 
 
 async def test_handle_intent_falls_back_on_detection_error(wechat):
-    from models.medical_record import MedicalRecord
+    from db.models.medical_record import MedicalRecord
     fake_record = MedicalRecord(content="发烧")
     with patch("routers.wechat.agent_dispatch", side_effect=Exception("LLM down")), \
          patch("routers.wechat.structure_medical_record", new=AsyncMock(return_value=fake_record)) as mock_struct:
@@ -152,7 +152,7 @@ async def test_add_record_uses_session_patient_when_no_name_in_message(wechat, s
         p = await create_patient(s, DOCTOR, "李明", None, None)
     set_current_patient(DOCTOR, p.id, p.name)
 
-    from models.medical_record import MedicalRecord
+    from db.models.medical_record import MedicalRecord
     fake_record = MedicalRecord(
         content="头痛 两天头痛 紧张性头痛 布洛芬",
         tags=["紧张性头痛"],
@@ -170,7 +170,7 @@ async def test_add_record_links_patient_from_message_name(wechat, session_factor
         from db.crud import create_patient
         await create_patient(s, DOCTOR, "张三", None, None)
 
-    from models.medical_record import MedicalRecord
+    from db.models.medical_record import MedicalRecord
     fake_record = MedicalRecord(
         content="咳嗽 三天咳嗽 上呼吸道感染 多休息",
         tags=["上呼吸道感染"],
@@ -186,7 +186,7 @@ async def test_add_record_links_patient_from_message_name(wechat, session_factor
 
 async def test_add_record_auto_creates_patient_when_not_in_db(wechat, session_factory):
     """When a name is mentioned but patient doesn't exist, auto-create and link."""
-    from models.medical_record import MedicalRecord
+    from db.models.medical_record import MedicalRecord
     fake_record = MedicalRecord(
         content="头疼 最近头疼很久 多喝热水",
     )
@@ -206,7 +206,7 @@ async def test_add_record_auto_creates_patient_when_not_in_db(wechat, session_fa
 
 async def test_add_record_works_without_patient(wechat, session_factory):
     """Records with no patient context are still saved (patient_id=None)."""
-    from models.medical_record import MedicalRecord
+    from db.models.medical_record import MedicalRecord
     fake_record = MedicalRecord(
         content="发烧 发烧一天 病毒感染 退烧药",
         tags=["病毒感染"],
@@ -233,7 +233,7 @@ async def test_query_records_no_patient_returns_all_records_empty(wechat, sessio
 
 
 async def test_query_records_no_patient_returns_all_records(wechat, session_factory):
-    from models.medical_record import MedicalRecord
+    from db.models.medical_record import MedicalRecord
     from db.crud import create_patient, save_record
 
     async with session_factory() as s:
@@ -255,7 +255,7 @@ async def test_query_records_no_patient_returns_all_records(wechat, session_fact
 
 
 async def test_query_records_by_name_returns_list(wechat, session_factory):
-    from models.medical_record import MedicalRecord
+    from db.models.medical_record import MedicalRecord
     from db.crud import create_patient, save_record
 
     async with session_factory() as s:
@@ -276,7 +276,7 @@ async def test_query_records_by_name_returns_list(wechat, session_factory):
 
 
 async def test_query_records_uses_session_patient_when_no_name(wechat, session_factory):
-    from models.medical_record import MedicalRecord
+    from db.models.medical_record import MedicalRecord
     from db.crud import create_patient, save_record
 
     async with session_factory() as s:
@@ -316,7 +316,7 @@ async def test_query_records_empty_history(wechat, session_factory):
 
 
 async def test_add_record_emergency_reply_has_prefix(wechat, session_factory):
-    from models.medical_record import MedicalRecord
+    from db.models.medical_record import MedicalRecord
     from services.ai.intent import IntentResult
 
     fake_record = MedicalRecord(
@@ -379,7 +379,7 @@ async def test_handle_all_patients_shows_numbered_list(wechat, session_factory):
 
 
 def test_format_record_all_fields(wechat):
-    from models.medical_record import MedicalRecord
+    from db.models.medical_record import MedicalRecord
     rec = MedicalRecord(
         content="胸痛持续两小时，高血压病史，血压160/100，心电图ST段抬高，诊断急性心肌梗死，阿司匹林＋溶栓，一周后复查。",
         tags=["急性心肌梗死"],
@@ -390,7 +390,7 @@ def test_format_record_all_fields(wechat):
 
 
 def test_format_record_optional_fields_absent(wechat):
-    from models.medical_record import MedicalRecord
+    from db.models.medical_record import MedicalRecord
     rec = MedicalRecord(
         content="头疼 最近头疼很久",
     )
@@ -400,7 +400,7 @@ def test_format_record_optional_fields_absent(wechat):
 
 def test_format_record_minimal(wechat):
     """Only content — should not crash."""
-    from models.medical_record import MedicalRecord
+    from db.models.medical_record import MedicalRecord
     rec = MedicalRecord(content="发烧")
     text = wechat._format_record(rec)
     assert "发烧" in text

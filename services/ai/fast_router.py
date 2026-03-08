@@ -70,10 +70,88 @@ _EXPORT_NONAME_RE = re.compile(
     r"^(?:帮我)?(?:导出|打印|下载|生成)\s*(?:(?:目前|当前|这个|这位|患者)的?)?\s*(?:病历|记录|报告|医疗记录)(?:pdf|PDF)?$"
 )
 
+# Outpatient report (卫生部 2010 门诊病历 standard format)
+# Trigger phrases: 标准病历/门诊病历/卫生部病历/正式病历 with optional patient name
+_OUTPATIENT_REPORT_RE = re.compile(
+    r"^(?:帮我)?(?:生成|导出|打印|下载)\s*([\u4e00-\u9fff]{2,4}?)\s*(?:的)?\s*"
+    r"(?:标准门诊病历|门诊病历|卫生部病历|正式病历|标准病历)(?:pdf|PDF)?$"
+)
+_OUTPATIENT_REPORT_NONAME_RE = re.compile(
+    r"^(?:帮我)?(?:生成|导出|打印|下载)\s*(?:(?:目前|当前|这个|这位|患者)的?)?\s*"
+    r"(?:标准门诊病历|门诊病历|卫生部病历|正式病历|标准病历)(?:pdf|PDF)?$"
+)
+
 _SUPPLEMENT_RE = re.compile(
     r"^(?:补充[：:。\s]|补一句[：:。\s]?|再补充|加上.{0,8}[，,]?|追加[：:]"
     r"|(?:好[，,]?\s*)?写进去[。！]?$)"
 )
+
+# ── Tier 2: schedule_follow_up ─────────────────────────────────────────────────
+# "给张三设3个月后随访提醒", "张三3个月后复诊", "三个月后随访张三"
+_CN_NUM = r"[一两二三四五六七八九十\d]+"
+
+_CN_DIGIT_MAP = {
+    "一": 1, "两": 2, "二": 2, "三": 3, "四": 4,
+    "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10,
+}
+
+
+def _cn_or_arabic(s: str) -> int:
+    return _CN_DIGIT_MAP.get(s, 0) or (int(s) if s.isdigit() else 1)
+
+
+def _time_unit_to_days(n_str: str, unit: str) -> int:
+    n = _cn_or_arabic(n_str)
+    if "月" in unit:
+        return n * 30
+    if "周" in unit:
+        return n * 7
+    return n  # 天/日
+_TIME_UNIT = r"(?:天|日|周|个月|月)"
+_FOLLOW_UP_KW = r"(?:随访|复诊|复查|随诊|随访提醒|复查提醒)"
+
+_LAZY_NAME_PAT = r"([\u4e00-\u9fff]{2,3}?)"
+_RELATIVE_TIME = r"(?:下周|下个月|下次|明天|后天|近期)"
+
+_FOLLOWUP_WITH_NAME_RE = re.compile(
+    r"^(?:给|为)?\s*" + _LAZY_NAME_PAT + r"\s*"
+    r"(?:设|安排|创建|建|定)?\s*"
+    r"(?:(" + _CN_NUM + r")\s*(" + _TIME_UNIT + r")后)?\s*"
+    + _FOLLOW_UP_KW + r"(?:提醒)?$"
+)
+_FOLLOWUP_LEAD_TIME_RE = re.compile(
+    r"^(?:给|为)?\s*" + _LAZY_NAME_PAT + r"\s*"
+    r"(?:设|安排|创建|建|定)?\s*"
+    r"(?:(" + _CN_NUM + r")\s*(" + _TIME_UNIT + r")后)\s*"
+    + _FOLLOW_UP_KW + r"(?:提醒)?$"
+)
+_FOLLOWUP_RELATIVE_RE = re.compile(
+    r"^(?:给|为)?\s*" + _LAZY_NAME_PAT + r"\s*"
+    r"(?:设|安排|创建|建|定)?\s*"
+    r"(" + _RELATIVE_TIME + r")\s*"
+    + _FOLLOW_UP_KW + r"(?:提醒)?$"
+)
+_FOLLOWUP_TIME_FIRST_RE = re.compile(
+    r"^(" + _CN_NUM + r")\s*(" + _TIME_UNIT + r")后\s*" + _FOLLOW_UP_KW + r"\s*"
+    + _LAZY_NAME_PAT + r"$"
+)
+
+# ── Tier 2: postpone_task ──────────────────────────────────────────────────────
+# "推迟任务3一周", "任务2延后3天", "任务5推后两天"
+_POSTPONE_TASK_RE = re.compile(
+    r"^(?:推迟|延迟|推后|延后)\s*任务\s*([一两二三四五六七八九十\d]+)\s*"
+    r"(" + _CN_NUM + r")\s*(" + _TIME_UNIT + r")$"
+)
+_POSTPONE_TASK_B_RE = re.compile(
+    r"^任务\s*([一两二三四五六七八九十\d]+)\s*(?:推迟|延迟|推后|延后)\s*"
+    r"(" + _CN_NUM + r")\s*(" + _TIME_UNIT + r")$"
+)
+
+# ── Tier 2: cancel_task ────────────────────────────────────────────────────────
+# "取消任务3", "任务2取消", "取消第3个任务"
+_CANCEL_TASK_A_RE = re.compile(r"^取消任务([一两二三四五六七八九十\d]+)$")
+_CANCEL_TASK_B_RE = re.compile(r"^任务([一两二三四五六七八九十\d]+)取消$")
+_CANCEL_TASK_C_RE = re.compile(r"^取消第([一两二三四五六七八九十\d]+)(?:个|条)?任务$")
 
 # Query: 查/查询/查看/查一下/帮我查/再查一下 [name] + optional record keyword + trailing text
 # Record keyword is optional (e.g. "查张三" / "查询华宁" with no trailing keyword).
@@ -520,6 +598,68 @@ def fast_route(text: str) -> Optional[IntentResult]:
                 intent=Intent.complete_task,
                 extra_data={"task_id": task_id},
             )
+
+    # ── Tier 2: cancel_task ──────────────────────────────────────────────────
+    for _pat in (_CANCEL_TASK_A_RE, _CANCEL_TASK_B_RE, _CANCEL_TASK_C_RE):
+        m = _pat.match(normed) or _pat.match(stripped)
+        if m:
+            task_id = _parse_task_num(m.group(1))
+            return IntentResult(intent=Intent.cancel_task, extra_data={"task_id": task_id})
+
+    # ── Tier 2: postpone_task ────────────────────────────────────────────────
+    for _pat in (_POSTPONE_TASK_RE, _POSTPONE_TASK_B_RE):
+        m = _pat.match(normed) or _pat.match(stripped)
+        if m:
+            task_id = _parse_task_num(m.group(1))
+            delta_days = _time_unit_to_days(m.group(2), m.group(3))
+            return IntentResult(
+                intent=Intent.postpone_task,
+                extra_data={"task_id": task_id, "delta_days": delta_days},
+            )
+
+    # ── Tier 2: schedule_follow_up (standalone, no record needed) ────────────
+    for _pat in (_FOLLOWUP_WITH_NAME_RE, _FOLLOWUP_LEAD_TIME_RE):
+        m = _pat.match(normed) or _pat.match(stripped)
+        if m:
+            name = m.group(1)
+            if name and name not in _NON_NAME_KEYWORDS:
+                follow_up_plan = ""
+                if m.lastindex and m.lastindex >= 3:
+                    n_raw, unit = m.group(2), m.group(3)
+                    if n_raw and unit:
+                        follow_up_plan = f"{n_raw}{unit}后随访"
+                return IntentResult(
+                    intent=Intent.schedule_follow_up,
+                    patient_name=name,
+                    extra_data={"follow_up_plan": follow_up_plan or "下次随访"},
+                )
+    m = _FOLLOWUP_RELATIVE_RE.match(normed) or _FOLLOWUP_RELATIVE_RE.match(stripped)
+    if m:
+        name, rel_time = m.group(1), m.group(2)
+        if name and name not in _NON_NAME_KEYWORDS:
+            return IntentResult(
+                intent=Intent.schedule_follow_up,
+                patient_name=name,
+                extra_data={"follow_up_plan": f"{rel_time}随访"},
+            )
+    m = _FOLLOWUP_TIME_FIRST_RE.match(normed) or _FOLLOWUP_TIME_FIRST_RE.match(stripped)
+    if m:
+        n_raw, unit, name = m.group(1), m.group(2), m.group(3)
+        if name and name not in _NON_NAME_KEYWORDS:
+            return IntentResult(
+                intent=Intent.schedule_follow_up,
+                patient_name=name,
+                extra_data={"follow_up_plan": f"{n_raw}{unit}后随访"},
+            )
+
+    # ── Tier 2: export_outpatient_report (卫生部 2010 标准门诊病历) ───────────
+    for target in (normed, stripped):
+        m = _OUTPATIENT_REPORT_RE.match(target)
+        if m:
+            name = m.group(1).strip() or None
+            return IntentResult(intent=Intent.export_outpatient_report, patient_name=name or None)
+    if _OUTPATIENT_REPORT_NONAME_RE.match(normed) or _OUTPATIENT_REPORT_NONAME_RE.match(stripped):
+        return IntentResult(intent=Intent.export_outpatient_report)
 
     # ── Tier 2: export_records ────────────────────────────────────────────────
     for target in (normed, stripped):

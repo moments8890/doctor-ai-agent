@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from db.crud import create_patient, save_record
 from db.models import DoctorTask, MedicalRecordDB, Patient
-from models.medical_record import MedicalRecord
+from db.models.medical_record import MedicalRecord
 from services.notify.tasks import run_due_task_cycle
 
 

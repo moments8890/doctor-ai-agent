@@ -12,7 +12,7 @@ from typing import Optional, Tuple
 
 from openai import AsyncOpenAI
 
-from models.medical_record import MedicalRecord
+from db.models.medical_record import MedicalRecord
 from services.ai.llm_client import _PROVIDERS  # shared provider registry
 from services.ai.llm_resilience import call_with_retry_and_fallback
 from services.observability.observability import trace_block

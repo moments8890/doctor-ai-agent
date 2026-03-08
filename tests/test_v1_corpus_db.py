@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from db.engine import Base
 import db.models  # noqa: F401
 
-from models.medical_record import MedicalRecord
+from db.models.medical_record import MedicalRecord
 from db.crud import save_record, find_patient_by_name, create_patient, get_records_for_patient
 
 

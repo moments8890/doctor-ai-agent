@@ -27,8 +27,6 @@ class NeuroFromTextInput(BaseModel):
 class NeuroCaseSummary(BaseModel):
     id: int
     patient_name: Optional[str] = None
-    chief_complaint: Optional[str] = None
-    primary_diagnosis: Optional[str] = None
     nihss: Optional[int] = None
     created_at: str
 
@@ -91,8 +89,6 @@ async def list_neuro_cases(
         NeuroCaseSummary(
             id=r.id,
             patient_name=r.patient_name,
-            chief_complaint=r.chief_complaint,
-            primary_diagnosis=r.primary_diagnosis,
             nihss=r.nihss,
             created_at=r.created_at.isoformat() if r.created_at else "",
         )

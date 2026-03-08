@@ -9,7 +9,7 @@ from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
-from models.medical_record import MedicalRecord
+from db.models.medical_record import MedicalRecord
 from db.crud import create_task
 from routers.records import ChatInput, HistoryMessage, chat
 from services.ai.intent import Intent, IntentResult

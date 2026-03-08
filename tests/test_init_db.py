@@ -150,13 +150,18 @@ async def test_create_tables_skips_migration_when_column_already_renamed(monkeyp
             "doctors": ["doctor_id", "name", "channel", "wechat_user_id", "created_at", "updated_at"],
             "medical_records": [
                 "id", "patient_id", "doctor_id", "content", "tags", "record_type", "created_at", "updated_at",
-                "encounter_type",
+                "source_message_id", "encounter_type", "referenced_record_id", "is_signed_off",
+                "signed_off_at", "doctor_signature",
             ],
             "neuro_cases": [
                 "id", "doctor_id", "patient_id", "created_at", "updated_at",
             ],
             "doctor_conversation_turns": [
                 "id", "doctor_id", "role", "content", "created_at", "updated_at",
+            ],
+            "specialty_scores": [
+                "id", "record_id", "doctor_id", "score_type", "score_value", "raw_text", "details_json",
+                "patient_id", "source", "confidence_score", "validation_status", "extracted_at", "created_at",
             ],
         }
     )

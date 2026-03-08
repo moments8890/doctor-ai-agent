@@ -8,7 +8,7 @@ import pytest
 from fastapi import HTTPException
 
 import routers.records as records
-from models.medical_record import MedicalRecord
+from db.models.medical_record import MedicalRecord
 from utils.errors import InvalidMedicalRecordError
 from services.auth.miniprogram_auth import issue_miniprogram_token
 from services.ai.intent import Intent, IntentResult
@@ -187,7 +187,7 @@ async def test_chat_add_record_invalid_name_and_structuring_error():
 
 async def test_chat_add_record_clears_hallucinated_treatment_when_no_signal():
     fake_db = object()
-    from models.medical_record import MedicalRecord as _MR
+    from db.models.medical_record import MedicalRecord as _MR
     with patch(
         "routers.records.agent_dispatch",
         new=AsyncMock(

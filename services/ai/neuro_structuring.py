@@ -12,7 +12,7 @@ from typing import Optional, Tuple
 
 from openai import AsyncOpenAI
 
-from models.neuro_case import ExtractionLog, NeuroCase
+from db.models.neuro_case import ExtractionLog, NeuroCase
 from services.ai.llm_client import _PROVIDERS
 from services.ai.llm_resilience import call_with_retry_and_fallback
 from utils.log import log

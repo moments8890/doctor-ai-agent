@@ -128,7 +128,7 @@ async def test_cross_doctor_records_isolation(db_session):
         get_records_for_patient,
         save_record,
     )
-    from models.medical_record import MedicalRecord
+    from db.models.medical_record import MedicalRecord
 
     # Create patient + record for doctor_a
     patient = await create_patient(db_session, "doctor_a", "Shared Name", "M", 50)

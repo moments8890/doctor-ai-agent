@@ -14,11 +14,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.models import (
     Patient,
     MedicalRecordDB,
+    MedicalRecordVersion,
     NeuroCaseDB,
     DoctorTask,
 )
 from db.repositories import RecordRepository
-from models.medical_record import MedicalRecord
+from db.models.medical_record import MedicalRecord
 from services.patient.patient_categorization import recompute_patient_category
 from services.patient.patient_risk import recompute_patient_risk
 from services.observability.observability import trace_block
@@ -131,6 +132,21 @@ async def _ensure_auto_follow_up_task(
     await session.commit()
 
 
+async def _detect_encounter_type(session: AsyncSession, doctor_id: str, patient_id: int | None) -> str:
+    """Return 'first_visit' if patient has no prior records, 'follow_up' if they do, 'unknown' if no patient."""
+    if patient_id is None:
+        return "unknown"
+    from sqlalchemy import func
+    result = await session.execute(
+        select(func.count()).where(
+            MedicalRecordDB.doctor_id == doctor_id,
+            MedicalRecordDB.patient_id == patient_id,
+        )
+    )
+    count = result.scalar() or 0
+    return "first_visit" if count == 0 else "follow_up"
+
+
 async def save_record(
     session: AsyncSession,
     doctor_id: str,
@@ -139,11 +155,13 @@ async def save_record(
 ) -> MedicalRecordDB:
     with trace_block("db", "crud.save_record", {"doctor_id": doctor_id, "patient_id": patient_id}):
         doctor_id = await _ensure_doctor_exists(session, doctor_id)
+        encounter_type = await _detect_encounter_type(session, doctor_id, patient_id)
         repo = RecordRepository(session)
         db_record = await repo.create(
             doctor_id=doctor_id,
             record=record,
             patient_id=patient_id,
+            encounter_type=encounter_type,
         )
         if patient_id is not None:
             await recompute_patient_category(patient_id, session)
@@ -228,11 +246,6 @@ async def save_neuro_case(
         doctor_id=doctor_id,
         patient_id=patient_id,
         patient_name=pp.get("name"),
-        gender=pp.get("gender"),
-        age=age,
-        encounter_type=enc.get("type"),
-        chief_complaint=cc.get("text"),
-        primary_diagnosis=dx.get("primary"),
         nihss=nihss,
         raw_json=json.dumps(case.model_dump(), ensure_ascii=False),
         extraction_log_json=json.dumps(log.model_dump(), ensure_ascii=False),
@@ -253,6 +266,64 @@ async def get_neuro_cases_for_doctor(
         .where(NeuroCaseDB.doctor_id == doctor_id)
         .order_by(NeuroCaseDB.created_at.desc())
         .limit(limit)
+    )
+    return list(result.scalars().all())
+
+
+async def save_record_version(
+    session: AsyncSession,
+    record: MedicalRecordDB,
+    doctor_id: str,
+) -> MedicalRecordVersion:
+    """Snapshot current content/tags/record_type before applying a correction."""
+    version = MedicalRecordVersion(
+        record_id=record.id,
+        doctor_id=doctor_id,
+        old_content=record.content,
+        old_tags=record.tags,
+        old_record_type=record.record_type,
+    )
+    session.add(version)
+    return version
+
+
+async def sign_off_record(
+    session: AsyncSession,
+    record_id: int,
+    doctor_id: str,
+    signature: Optional[str] = None,
+) -> Optional[MedicalRecordDB]:
+    """Mark a record as signed-off. Returns the updated record or None if not found."""
+    result = await session.execute(
+        select(MedicalRecordDB).where(
+            MedicalRecordDB.id == record_id,
+            MedicalRecordDB.doctor_id == doctor_id,
+        )
+    )
+    record = result.scalar_one_or_none()
+    if record is None:
+        return None
+    record.is_signed_off = True
+    record.signed_off_at = _utcnow()
+    if signature is not None:
+        record.doctor_signature = signature
+    await session.commit()
+    return record
+
+
+async def get_record_versions(
+    session: AsyncSession,
+    record_id: int,
+    doctor_id: str,
+) -> list[MedicalRecordVersion]:
+    """Return correction history for a record, oldest first."""
+    result = await session.execute(
+        select(MedicalRecordVersion)
+        .where(
+            MedicalRecordVersion.record_id == record_id,
+            MedicalRecordVersion.doctor_id == doctor_id,
+        )
+        .order_by(MedicalRecordVersion.changed_at.asc())
     )
     return list(result.scalars().all())
 
@@ -284,13 +355,15 @@ async def update_latest_record_for_patient(
     record = result.scalar_one_or_none()
     if record is None:
         return None
-    changed = False
-    for field, value in fields.items():
-        if field in _RECORD_CLINICAL_FIELDS and value is not None:
-            if field == "tags" and isinstance(value, list):
-                value = json.dumps(value, ensure_ascii=False)
+    # Determine whether anything will change before mutating
+    updates = {
+        f: (json.dumps(v, ensure_ascii=False) if f == "tags" and isinstance(v, list) else v)
+        for f, v in fields.items()
+        if f in _RECORD_CLINICAL_FIELDS and v is not None
+    }
+    if updates:
+        await save_record_version(session, record, doctor_id)  # snapshot before mutation
+        for field, value in updates.items():
             setattr(record, field, value)
-            changed = True
-    if changed:
         await session.commit()
     return record

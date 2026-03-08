@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { getTasks, patchTask } from "../api";
+import { getTasks, patchTask, postponeTask as apiPostpone, createTask as apiCreate } from "../api";
 
 export function useTaskData(doctorId) {
   const [tasks, setTasks] = useState([]);
@@ -39,5 +39,21 @@ export function useTaskData(doctorId) {
     [doctorId, reload]
   );
 
-  return { tasks, loading, error, reload, completeTask, cancelTask };
+  const postponeTask = useCallback(
+    async (taskId, dueAt) => {
+      await apiPostpone(taskId, doctorId, dueAt);
+      await reload();
+    },
+    [doctorId, reload]
+  );
+
+  const createTask = useCallback(
+    async (fields) => {
+      await apiCreate(doctorId, fields);
+      await reload();
+    },
+    [doctorId, reload]
+  );
+
+  return { tasks, loading, error, reload, completeTask, cancelTask, postponeTask, createTask };
 }

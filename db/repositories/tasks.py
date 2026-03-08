@@ -86,6 +86,31 @@ class TaskRepository:
         )
         return list(result.scalars().all())
 
+    async def get_by_id(self, *, task_id: int, doctor_id: str) -> Optional[DoctorTask]:
+        result = await self.session.execute(
+            select(DoctorTask).where(DoctorTask.id == task_id, DoctorTask.doctor_id == doctor_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def update_due_at(
+        self,
+        *,
+        task_id: int,
+        doctor_id: str,
+        due_at: datetime,
+    ) -> Optional[DoctorTask]:
+        result = await self.session.execute(
+            select(DoctorTask).where(DoctorTask.id == task_id, DoctorTask.doctor_id == doctor_id)
+        )
+        task = result.scalar_one_or_none()
+        if task is None:
+            return None
+        task.due_at = due_at
+        task.notified_at = None  # reset so it will be re-notified at new time
+        await self.session.commit()
+        await self.session.refresh(task)
+        return task
+
     async def mark_notified(self, *, task_id: int, notified_at: datetime) -> None:
         result = await self.session.execute(
             select(DoctorTask).where(DoctorTask.id == task_id).with_for_update()

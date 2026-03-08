@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 from db.repositories import PatientRepository, RecordRepository
 from db.repositories.tasks import TaskRepository
-from models.medical_record import MedicalRecord
+from db.models.medical_record import MedicalRecord
 
 
 async def test_patient_repository_create_find_and_list(db_session):

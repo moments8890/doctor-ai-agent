@@ -103,12 +103,25 @@
           "completed": "已完成",
           "cancelled": "已取消"
         },
+        "postpone": "推迟",
+        "postponeConfirm": "确认",
+        "postponeFailed": "推迟失败：{message}",
+        "newTask": "+ 新建任务",
+        "create": "创建",
+        "createFailed": "创建失败：{message}",
+        "fields": {
+          "taskType": "任务类型",
+          "title": "标题",
+          "dueDate": "到期日期（可选）",
+          "content": "备注（可选）"
+        },
         "taskType": {
           "follow_up": "随访",
           "medication": "用药",
           "lab_review": "检验复核",
           "referral": "转诊",
           "imaging": "影像",
+          "appointment": "预约",
           "general": "常规"
         }
       },

@@ -135,7 +135,7 @@ def test_format_preview_with_duplicates():
 @pytest.mark.asyncio
 async def test_handle_import_history_full_flow():
     from services.ai.intent import IntentResult, Intent
-    from models.medical_record import MedicalRecord
+    from db.models.medical_record import MedicalRecord
 
     text = (
         "2023-11-01\n头痛，BP 130/80，给予布洛芬。\n\n"

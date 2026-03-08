@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from models.medical_record import MedicalRecord
+from db.models.medical_record import MedicalRecord
 
 
 def test_medical_record_content_cannot_be_empty():

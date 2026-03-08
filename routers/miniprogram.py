@@ -47,6 +47,18 @@ class MiniTaskPatchBody(BaseModel):
     status: str
 
 
+class MiniTaskDueBody(BaseModel):
+    due_at: str
+
+
+class MiniTaskCreateBody(BaseModel):
+    task_type: str
+    title: str
+    due_at: Optional[str] = None
+    patient_id: Optional[int] = None
+    content: Optional[str] = None
+
+
 @router.get("/me")
 async def mini_me(principal: MiniProgramPrincipal = Depends(_require_mini_principal)) -> dict:
     return {
@@ -125,6 +137,36 @@ async def mini_patch_task(
         task_id=task_id,
         doctor_id=principal.doctor_id,
         body=tasks_router.TaskStatusUpdate(status=body.status),
+    )
+
+
+@router.patch("/tasks/{task_id}/due", response_model=tasks_router.TaskOut)
+async def mini_postpone_task(
+    task_id: int,
+    body: MiniTaskDueBody,
+    principal: MiniProgramPrincipal = Depends(_require_mini_principal),
+) -> tasks_router.TaskOut:
+    return await tasks_router._postpone_task_for_doctor(
+        task_id=task_id,
+        doctor_id=principal.doctor_id,
+        body=tasks_router.TaskDueUpdate(due_at=body.due_at),
+    )
+
+
+@router.post("/tasks", response_model=tasks_router.TaskOut, status_code=201)
+async def mini_create_task(
+    body: MiniTaskCreateBody,
+    principal: MiniProgramPrincipal = Depends(_require_mini_principal),
+) -> tasks_router.TaskOut:
+    return await tasks_router._create_task_for_doctor(
+        doctor_id=principal.doctor_id,
+        body=tasks_router.TaskCreate(
+            task_type=body.task_type,
+            title=body.title,
+            due_at=body.due_at,
+            patient_id=body.patient_id,
+            content=body.content,
+        ),
     )
 
 

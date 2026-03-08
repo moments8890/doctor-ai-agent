@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, patch
 
 from services.patient.score_extraction import detect_score_keywords, extract_specialty_scores
 from utils.response_formatting import format_draft_preview
-from models.medical_record import MedicalRecord
+from db.models.medical_record import MedicalRecord
 
 
 # ---------------------------------------------------------------------------

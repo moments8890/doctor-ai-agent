@@ -12,7 +12,7 @@ import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from services.ai.structuring import structure_medical_record
-from models.medical_record import MedicalRecord
+from db.models.medical_record import MedicalRecord
 
 
 def _make_completion(json_dict: dict):

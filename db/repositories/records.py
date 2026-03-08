@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from db.models import MedicalRecordDB
-from models.medical_record import MedicalRecord
+from db.models.medical_record import MedicalRecord
 
 
 class RecordRepository:
@@ -25,6 +25,7 @@ class RecordRepository:
         doctor_id: str,
         record: MedicalRecord,
         patient_id: Optional[int],
+        encounter_type: str = "unknown",
     ) -> MedicalRecordDB:
         db_record = MedicalRecordDB(
             doctor_id=doctor_id,
@@ -32,6 +33,7 @@ class RecordRepository:
             record_type=record.record_type,
             content=record.content,
             tags=json.dumps(record.tags, ensure_ascii=False) if record.tags else None,
+            encounter_type=encounter_type,
         )
         self.session.add(db_record)
         await self.session.flush()

@@ -21,7 +21,7 @@ from sqlalchemy import delete, select
 from db.crud import create_patient, save_record
 from db.engine import AsyncSessionLocal
 from db.models import Doctor, DoctorTask, MedicalRecordDB, Patient
-from models.medical_record import MedicalRecord
+from db.models.medical_record import MedicalRecord
 
 _SURNAMES = list("赵钱孙李周吴郑王冯陈褚卫蒋沈韩杨朱秦许何吕施张孔曹严华金魏陶姜谢邹喻柏范彭郎鲁韦马苗凤花方俞袁柳鲍史唐费薛雷贺倪汤殷罗毕郝邬安常乐于傅皮卞齐康伍余顾孟黄萧尹姚邵汪毛禹狄贝臧计成戴宋茅庞熊纪舒屈项祝董梁杜阮蓝闵席季麻强贾路江童颜郭梅盛林刁钟徐邱骆高夏蔡田樊胡凌霍虞万支柯管卢莫经房裘缪干解应宗丁宣邓杭洪包左石崔吉钮龚程嵇邢裴陆荣翁荀羊甄曲家封芮靳汲邴糜松井段富巫乌焦巴弓牧隗车侯宓蓬全班仰秋仲伊宫宁仇栾甘厉戎祖武符刘景詹束龙叶司韶黎印宿白怀蒲台鄂索赖卓蔺屠蒙池乔胥能苍双闻莘党翟谭贡劳姬申扶堵冉宰郦雍桑桂濮牛寿通边扈燕冀郏浦尚农温别庄晏柴瞿阎连茹习艾鱼容向古易慎戈廖庾终暨居衡步都耿满弘匡国文寇广禄阙东欧殳沃利蔚越师巩聂晁勾敖融冷辛阚简饶曾沙养鞠须丰巢关蒯相查后荆红游竺权盖益桓公")
 _GIVEN = ["安", "宁", "卓", "晖", "岚", "越", "晨", "琪", "朗", "舟", "诚", "衡", "熙", "辰", "彬", "睿", "清", "轩", "瑶", "悦", "楠", "烁", "岩", "涛", "霖"]

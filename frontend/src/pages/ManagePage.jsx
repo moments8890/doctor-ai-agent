@@ -97,7 +97,7 @@ export default function ManagePage() {
   const doctor = doctorId || "";
 
   const { patients, loading: patientsLoading, reload: reloadPatients } = usePatientData(doctor, riskFilter, followUpFilter);
-  const { tasks, loading: tasksLoading, error: taskError, reload: reloadTasks, completeTask, cancelTask } = useTaskData(doctor);
+  const { tasks, loading: tasksLoading, error: taskError, reload: reloadTasks, completeTask, cancelTask, postponeTask, createTask } = useTaskData(doctor);
   const { labels, reload: reloadLabels, createLabel: createLabelFn, deleteLabel: deleteLabelFn } = useLabelData(doctor);
 
   const loading = patientsLoading || recordsLoading || tasksLoading;
@@ -218,6 +218,18 @@ export default function ManagePage() {
     } catch (error) {
       setStatus({ type: "error", text: t("manage.tasks.updateFailed", { message: error.message }) });
     }
+  }
+
+  async function onPostponeTask(taskId, dueAt) {
+    try {
+      await postponeTask(taskId, dueAt);
+    } catch (error) {
+      setStatus({ type: "error", text: t("manage.tasks.postponeFailed", { message: error.message }) });
+    }
+  }
+
+  async function onCreateTask(fields) {
+    await createTask(fields);
   }
 
   function onViewRecords(patient) {
@@ -360,6 +372,8 @@ export default function ManagePage() {
                   error={taskError}
                   onComplete={onCompleteTask}
                   onCancel={onCancelTask}
+                  onPostpone={onPostponeTask}
+                  onCreate={onCreateTask}
                 />
               ) : null}
 

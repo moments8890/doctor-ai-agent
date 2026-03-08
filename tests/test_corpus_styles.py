@@ -24,7 +24,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from services.ai.intent import Intent
 from services.ai.agent import dispatch
 from services.ai.structuring import structure_medical_record
-from models.medical_record import MedicalRecord
+from db.models.medical_record import MedicalRecord
 
 
 # ---------------------------------------------------------------------------

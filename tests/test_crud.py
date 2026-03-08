@@ -24,8 +24,8 @@ from db.crud import (
     get_patient_labels,
 )
 from db.models import Doctor, DoctorTask, NeuroCaseDB
-from models.medical_record import MedicalRecord
-from models.neuro_case import ExtractionLog, NeuroCase
+from db.models.medical_record import MedicalRecord
+from db.models.neuro_case import ExtractionLog, NeuroCase
 from utils.errors import InvalidMedicalRecordError
 from utils.errors import LabelNotFoundError
 from utils.errors import PatientNotFoundError
@@ -462,7 +462,6 @@ async def test_save_neuro_case_inserts_into_neuro_cases_table(db_session):
     assert row.id is not None
     assert row.patient_name == "神经甲"
     assert row.nihss == 8
-    assert row.primary_diagnosis == "急性脑梗死待排"
 
     listed = await get_neuro_cases_for_doctor(db_session, DOCTOR, limit=10)
     assert any(r.id == row.id for r in listed)

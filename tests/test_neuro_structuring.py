@@ -14,7 +14,7 @@ import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from models.neuro_case import ExtractionLog, NeuroCase
+from db.models.neuro_case import ExtractionLog, NeuroCase
 from services.ai.neuro_structuring import _parse_markdown_output, extract_neuro_case
 from db.crud import get_neuro_cases_for_doctor, save_neuro_case
 
@@ -250,11 +250,6 @@ async def test_save_neuro_case_promotes_scalars(session_factory):
     assert row.id is not None
     assert row.doctor_id == "doc_001"
     assert row.patient_name == "张三"
-    assert row.gender == "male"
-    assert row.age == 65
-    assert row.encounter_type == "inpatient"
-    assert row.chief_complaint == "突发右侧肢体无力伴言语不清2小时"
-    assert row.primary_diagnosis == "急性脑梗死（左侧基底节区）"
     assert row.nihss == 8
 
     # Full JSON blobs round-trip
@@ -276,7 +271,6 @@ async def test_save_neuro_case_invalid_numeric_fields_coerce_to_none(session_fac
     async with session_factory() as session:
         row = await save_neuro_case(session, "doc_bad_num", neuro_case, extraction_log)
 
-    assert row.age is None
     assert row.nihss is None
 
 

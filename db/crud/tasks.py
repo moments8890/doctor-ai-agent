@@ -66,6 +66,25 @@ async def get_due_tasks(
     return await TaskRepository(session).list_due_unnotified(now=now)
 
 
+async def get_task_by_id(
+    session: AsyncSession,
+    task_id: int,
+    doctor_id: str,
+) -> Optional[DoctorTask]:
+    return await TaskRepository(session).get_by_id(task_id=task_id, doctor_id=doctor_id)
+
+
+async def update_task_due_at(
+    session: AsyncSession,
+    task_id: int,
+    doctor_id: str,
+    due_at: datetime,
+) -> Optional[DoctorTask]:
+    return await TaskRepository(session).update_due_at(
+        task_id=task_id, doctor_id=doctor_id, due_at=due_at
+    )
+
+
 async def mark_task_notified(
     session: AsyncSession,
     task_id: int,

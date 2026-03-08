@@ -36,6 +36,11 @@ from services.wechat.wechat_notify import (
     _get_config, _get_access_token, _send_customer_service_msg, _split_message as _notify_split_message,
 )
 from services.wechat.wechat_customer import prefetch_customer_profile
+from services.wechat.patient_pipeline import (
+    handle_patient_message,
+    has_emergency_keyword,
+    _NON_TEXT_REPLY as _PATIENT_NON_TEXT_REPLY,
+)
 from services.notify.notify_control import (
     parse_notify_command,
     get_notify_pref,
@@ -137,11 +142,6 @@ async def _is_registered_doctor(open_id: str) -> bool:
     return result
 
 
-_PATIENT_REPLY = (
-    "您好！\n"
-    "此服务专供医生使用。\n"
-    "如需就诊信息，请联系主治医生。"
-)
 
 
 def _sync_wechat_domain_bindings() -> None:
@@ -456,7 +456,7 @@ async def _confirm_pending_import(
     skip_duplicates: bool = False,
 ) -> str:
     """Save confirmed import chunks to medical_records."""
-    from models.medical_record import MedicalRecord
+    from db.models.medical_record import MedicalRecord
     async with AsyncSessionLocal() as session:
         pending = await get_pending_import(session, import_id, doctor_id)
         now_utc = datetime.utcnow().replace(tzinfo=None)
@@ -618,6 +618,16 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
         return await _handle_complete_task(doctor_id, intent_result)
     elif intent_result.intent == Intent.schedule_appointment:
         return await _handle_schedule_appointment(doctor_id, intent_result)
+    elif intent_result.intent == Intent.export_records:
+        return await wd.handle_export_records(doctor_id, intent_result)
+    elif intent_result.intent == Intent.export_outpatient_report:
+        return await wd.handle_export_outpatient_report(doctor_id, intent_result)
+    elif intent_result.intent == Intent.schedule_follow_up:
+        return await wd.handle_schedule_follow_up(doctor_id, intent_result)
+    elif intent_result.intent == Intent.cancel_task:
+        return await wd.handle_cancel_task(doctor_id, intent_result)
+    elif intent_result.intent == Intent.postpone_task:
+        return await wd.handle_postpone_task(doctor_id, intent_result)
     elif intent_result.intent == Intent.import_history:
         return await wd.handle_import_history(text, doctor_id, intent_result)
     elif intent_result.intent == Intent.unknown:
@@ -904,6 +914,12 @@ async def _handle_intent_bg(text: str, doctor_id: str, open_kfid: str = "", msg_
         log(f"[WeChat bg] send FAILED: {e}")
 
 
+async def _handle_patient_bg(text: str, open_id: str, open_kfid: str = "") -> None:
+    """Handle a text message from a non-doctor (patient) sender."""
+    reply = await handle_patient_message(text, open_id)
+    await _send_customer_service_msg(open_id, reply, open_kfid=open_kfid)
+
+
 async def _handle_voice_bg(media_id: str, doctor_id: str, open_kfid: str = ""):
     """Download, convert, transcribe WeChat voice, then route through normal pipeline."""
     # --- IO outside lock: no session state accessed ---
@@ -1025,10 +1041,17 @@ async def handle_message(request: Request):
         reply = TextReply(content=reply_text, message=msg)
         return Response(content=reply.render(), media_type="application/xml")
 
-    # ── Patient pipeline guard — only registered doctors get agent access ──────
+    # ── Patient pipeline — non-doctor senders get health Q&A, not agent access ─
     if not await _is_registered_doctor(msg.source):
-        log(f"[WeChat] unknown sender (patient?) rejected: open_id={msg.source}")
-        reply = TextReply(content=_PATIENT_REPLY, message=msg)
+        open_kfid = _extract_open_kfid(msg)
+        if msg.type == "text" and msg.content.strip():
+            log(f"[WeChat] patient message open_id={msg.source[:8]} kfid={open_kfid[:8] if open_kfid else ''}")
+            asyncio.create_task(_handle_patient_bg(msg.content.strip(), msg.source, open_kfid))
+        else:
+            asyncio.create_task(
+                _send_customer_service_msg(msg.source, _PATIENT_NON_TEXT_REPLY, open_kfid=open_kfid)
+            )
+        reply = TextReply(content="", message=msg)
         return Response(content=reply.render(), media_type="application/xml")
 
     # Voice message: ACK immediately, process in background

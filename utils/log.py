@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import os
 from logging.handlers import RotatingFileHandler
@@ -7,6 +8,21 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 _DEFAULT_FMT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+
+
+class _JsonFormatter(logging.Formatter):
+    """Emit one JSON object per log line for machine-readable ingestion."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        payload: Dict[str, Any] = {
+            "ts": self.formatTime(record, "%Y-%m-%dT%H:%M:%S"),
+            "level": record.levelname,
+            "logger": record.name,
+            "msg": record.getMessage(),
+        }
+        if record.exc_info:
+            payload["exc"] = self.formatException(record.exc_info)
+        return json.dumps(payload, ensure_ascii=False)
 
 
 def _to_bool(raw: Optional[str], default: bool) -> bool:
@@ -42,6 +58,7 @@ def init_logging() -> None:
     """
     level_name = os.environ.get("LOG_LEVEL", "INFO").upper()
     level = getattr(logging, level_name, logging.INFO)
+    use_json = _to_bool(os.environ.get("LOG_JSON"), default=False)
     fmt = os.environ.get("LOG_FORMAT", _DEFAULT_FMT)
 
     root = logging.getLogger()
@@ -51,9 +68,11 @@ def init_logging() -> None:
     for h in list(root.handlers):
         root.removeHandler(h)
 
+    formatter: logging.Formatter = _JsonFormatter() if use_json else logging.Formatter(fmt)
+
     stream_handler = logging.StreamHandler()
     stream_handler.setLevel(level)
-    stream_handler.setFormatter(logging.Formatter(fmt))
+    stream_handler.setFormatter(formatter)
     root.addHandler(stream_handler)
 
     task_logger = logging.getLogger("tasks")
@@ -87,7 +106,7 @@ def init_logging() -> None:
             encoding="utf-8",
         )
         file_handler.setLevel(level)
-        file_handler.setFormatter(logging.Formatter(fmt))
+        file_handler.setFormatter(formatter)
         root.addHandler(file_handler)
 
         # Dedicated high-signal task log for scheduler/debug.
@@ -98,7 +117,7 @@ def init_logging() -> None:
             encoding="utf-8",
         )
         task_file_handler.setLevel(level)
-        task_file_handler.setFormatter(logging.Formatter(fmt))
+        task_file_handler.setFormatter(formatter)
         task_logger.addHandler(task_file_handler)
 
         scheduler_file_handler = RotatingFileHandler(
@@ -108,7 +127,7 @@ def init_logging() -> None:
             encoding="utf-8",
         )
         scheduler_file_handler.setLevel(level)
-        scheduler_file_handler.setFormatter(logging.Formatter(fmt))
+        scheduler_file_handler.setFormatter(formatter)
         scheduler_logger.addHandler(scheduler_file_handler)
 
 

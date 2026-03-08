@@ -821,14 +821,12 @@ async def test_admin_tables_with_filters():
                         doctor_id="doc1",
                         patient_id=31,
                         patient_name="王五",
-                        chief_complaint="头痛",
-                        primary_diagnosis="TIA",
                         nihss=2,
                         created_at=datetime(2026, 3, 3, 7, 0, 0),
                     )
                 ]
             ),
-            "primary_diagnosis",
+            "nihss",
         ),
         (
             "patient_labels",

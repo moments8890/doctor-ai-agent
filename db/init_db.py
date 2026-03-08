@@ -135,6 +135,41 @@ async def create_tables() -> None:
                     text(f"ALTER TABLE medical_records ADD COLUMN {col_name} {col_type}{default}")
                 )
 
+        # Add source_message_id to medical_records for message→record lineage
+        if "source_message_id" not in _records_cols:
+            await conn.execute(
+                text("ALTER TABLE medical_records ADD COLUMN source_message_id VARCHAR(128) DEFAULT NULL")
+            )
+
+        # Safe column-add migrations for medical_records sign-off and encounter fields
+        _records_signoff_cols = {
+            "encounter_type": "VARCHAR(32) DEFAULT 'unknown'",
+            "referenced_record_id": "INTEGER",
+            "is_signed_off": "INTEGER DEFAULT 0",
+            "signed_off_at": "DATETIME DEFAULT NULL",
+            "doctor_signature": "TEXT DEFAULT NULL",
+        }
+        for col_name, col_type in _records_signoff_cols.items():
+            if col_name not in _records_cols:
+                await conn.execute(
+                    text(f"ALTER TABLE medical_records ADD COLUMN {col_name} {col_type}")
+                )
+
+        # Safe column-add migrations for specialty_scores new fields
+        _scores_cols = await conn.run_sync(lambda c: _get_table_columns(c, "specialty_scores"))
+        _scores_new_cols = {
+            "patient_id": "INTEGER",
+            "source": "VARCHAR(16) DEFAULT 'chat'",
+            "confidence_score": "REAL",
+            "validation_status": "VARCHAR(16) DEFAULT 'pending'",
+            "extracted_at": "DATETIME",
+        }
+        for col_name, col_type in _scores_new_cols.items():
+            if col_name not in _scores_cols:
+                await conn.execute(
+                    text(f"ALTER TABLE specialty_scores ADD COLUMN {col_name} {col_type}")
+                )
+
         _neuro_cols = await conn.run_sync(lambda c: _get_table_columns(c, "neuro_cases"))
         if "updated_at" not in _neuro_cols:
             await conn.execute(
@@ -163,6 +198,8 @@ async def create_tables() -> None:
                  "CREATE INDEX ix_turns_doctor_created ON doctor_conversation_turns(doctor_id, created_at)"),
                 ("medical_records", "ix_records_patient_created",
                  "CREATE INDEX ix_records_patient_created ON medical_records(patient_id, created_at)"),
+                ("specialty_scores", "ix_specialty_scores_patient_score_ts",
+                 "CREATE INDEX ix_specialty_scores_patient_score_ts ON specialty_scores(patient_id, score_type, extracted_at)"),
             ]
             for _tbl, _idx_name, _idx_sql in _new_indexes:
                 _idx_exists = await conn.run_sync(

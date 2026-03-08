@@ -77,6 +77,10 @@ class Intent(str, Enum):
     complete_task = "complete_task"
     schedule_appointment = "schedule_appointment"
     export_records = "export_records"
+    export_outpatient_report = "export_outpatient_report"
+    schedule_follow_up = "schedule_follow_up"   # standalone follow-up task without a record
+    postpone_task = "postpone_task"             # push a task's due date forward
+    cancel_task = "cancel_task"                 # cancel a pending task
     unknown = "unknown"
 
 

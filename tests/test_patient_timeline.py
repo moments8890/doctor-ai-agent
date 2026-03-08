@@ -4,7 +4,7 @@ from datetime import datetime
 
 from db.crud import create_patient, save_record
 from db.models import DoctorTask
-from models.medical_record import MedicalRecord
+from db.models.medical_record import MedicalRecord
 from services.patient.patient_timeline import build_patient_timeline
 
 

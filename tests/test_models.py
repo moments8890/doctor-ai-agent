@@ -25,12 +25,12 @@ def test_model_str_methods():
 
     neuro_with_date = NeuroCaseDB(
         doctor_id="doc",
-        chief_complaint="偏瘫",
+        patient_name="偏瘫患者",
         created_at=datetime(2026, 3, 2, 10, 0, 0),
     )
-    assert str(neuro_with_date) == "偏瘫 [2026-03-02]"
+    assert str(neuro_with_date) == "偏瘫患者 [2026-03-02]"
 
-    neuro_no_date = NeuroCaseDB(doctor_id="doc", chief_complaint=None, created_at=None)
+    neuro_no_date = NeuroCaseDB(doctor_id="doc", patient_name=None, created_at=None)
     assert str(neuro_no_date) == "— [—]"
 
     task = DoctorTask(doctor_id="doc", task_type="follow_up", title="随访提醒：张三")

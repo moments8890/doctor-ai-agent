@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 import routers.wechat as wechat
-from models.medical_record import MedicalRecord
+from db.models.medical_record import MedicalRecord
 from services.ai.intent import Intent, IntentResult
 from services.patient.interview import InterviewState, STEPS
 from services.session import clear_pending_create, get_session, set_pending_create
@@ -816,17 +816,27 @@ async def test_handle_message_text_routing_paths():
     )
 
 
-async def test_handle_message_rejects_unknown_sender():
-    """Non-doctor senders must receive the patient-facing reply, not the agent."""
+async def test_handle_message_routes_patient_to_pipeline():
+    """Non-doctor senders are routed to the patient pipeline background task."""
     msg = SimpleNamespace(type="text", source="unknown_patient_openid", content="你好")
     req = DummyRequest(query_params={}, body="<xml/>")
+
+    def _consume_task(coro):
+        coro.close()
+        return None
+
     with patch("routers.wechat.parse_message", return_value=msg), \
          patch("routers.wechat.TextReply", FakeTextReply), \
-         patch("routers.wechat._is_registered_doctor", new=AsyncMock(return_value=False)):
+         patch("routers.wechat._is_registered_doctor", new=AsyncMock(return_value=False)), \
+         patch("routers.wechat.asyncio.create_task", side_effect=_consume_task) as create_task:
         resp = await wechat.handle_message(req)
+
     assert resp.status_code == 200
-    body = resp.body.decode("utf-8")
-    assert "此服务专供医生使用" in body
+    # Patient pipeline background task must have been spawned
+    assert any(
+        "_handle_patient_bg" in str(call.args[0])
+        for call in create_task.call_args_list
+    )
 
 
 async def test_handle_message_event_and_media_ack_paths():
@@ -1391,7 +1401,7 @@ async def test_handle_pending_record_reply_confirm(session_factory):
     """Replying 确认 saves the pending record and clears session state."""
     from services.session import set_pending_record_id, get_session as _gs
     import json as _json
-    from models.medical_record import MedicalRecord
+    from db.models.medical_record import MedicalRecord
 
     fake_record = MedicalRecord(content="头痛两天 偏头痛", tags=["偏头痛"])
     from db.crud import create_pending_record as _create_pr
@@ -1426,7 +1436,7 @@ async def test_handle_pending_record_reply_cancel(session_factory):
     """Replying 取消 abandons the pending record and clears session state."""
     from services.session import set_pending_record_id, get_session as _gs
     import json as _json
-    from models.medical_record import MedicalRecord
+    from db.models.medical_record import MedicalRecord
     from db.crud import create_pending_record as _create_pr
 
     fake_record = MedicalRecord(content="腹痛")

@@ -22,8 +22,10 @@ from db.crud import (
     get_all_patients,
     get_all_records_for_doctor,
     get_records_for_patient,
+    get_task_by_id,
     list_tasks,
     save_record,
+    update_task_due_at,
     update_task_status,
 )
 from db.engine import AsyncSessionLocal
@@ -124,7 +126,7 @@ async def handle_add_record(
     history: Optional[List[Dict[str, str]]] = None,
 ) -> str:
     """Structure a medical record and save it as a pending draft for doctor confirmation."""
-    from models.medical_record import MedicalRecord
+    from db.models.medical_record import MedicalRecord
 
     patient_id = None
     patient_name = None
@@ -217,7 +219,7 @@ async def save_pending_record(doctor_id: str, pending: Any) -> Optional[str]:
     Side effects: fires audit, follow-up task, and auto-learn as background tasks.
     Does NOT touch session state — caller is responsible for clear_pending_record_id.
     """
-    from models.medical_record import MedicalRecord
+    from db.models.medical_record import MedicalRecord
     try:
         draft = json.loads(pending.draft_json)
         record = MedicalRecord(**{k: draft.get(k) for k in MedicalRecord.model_fields})
@@ -243,8 +245,47 @@ async def save_pending_record(doctor_id: str, pending: Any) -> Optional[str]:
         asyncio.create_task(create_follow_up_task(
             doctor_id, db_record.id, patient_name, str(_follow_up_hint), pending.patient_id
         ))
+    # Auto-create specialist tasks from record content (lab, referral, imaging, medication)
+    _content_for_rules = record.content or ""
+    if _content_for_rules:
+        asyncio.create_task(_bg_auto_tasks(
+            doctor_id, db_record.id, patient_name, pending.patient_id, _content_for_rules
+        ))
     asyncio.create_task(_bg_auto_learn(doctor_id, pending.raw_input or "", record))
     return patient_name
+
+
+async def _bg_auto_tasks(
+    doctor_id: str,
+    record_id: int,
+    patient_name: str,
+    patient_id: Optional[int],
+    content: str,
+) -> None:
+    """Background: detect task signals in record content and create tasks."""
+    from services.notify.task_rules import detect_auto_tasks, refine_due_days
+    from services.notify.tasks import create_task as _create_task
+    from datetime import timedelta, timezone
+
+    specs = detect_auto_tasks(content, patient_name)
+    for spec in specs:
+        try:
+            due_days = refine_due_days(content, spec.due_days)
+            due_at = datetime.now(timezone.utc) + timedelta(days=due_days)
+            async with AsyncSessionLocal() as session:
+                await _create_task(
+                    session,
+                    doctor_id=doctor_id,
+                    task_type=spec.task_type,
+                    title=spec.title,
+                    content=spec.content,
+                    patient_id=patient_id,
+                    record_id=record_id,
+                    due_at=due_at,
+                )
+            log(f"[TaskRules] auto-created {spec.task_type} task for {patient_name} in {due_days}d")
+        except Exception as exc:
+            log(f"[TaskRules] failed to create {spec.task_type} task: {exc}")
 
 
 async def _bg_auto_learn(doctor_id: str, text: str, record: Any) -> None:
@@ -452,32 +493,33 @@ async def handle_pending_create(text: str, doctor_id: str) -> str:
     return f"好的，{name}已建档{info}。"
 
 
-async def handle_export_records(doctor_id: str, intent_result: IntentResult) -> str:
-    """Generate a PDF of patient records and send via WeCom file message.
-
-    Falls back to formatted text summary if PDF upload is not available.
-    """
+async def _fetch_patient_and_records(
+    session,
+    doctor_id: str,
+    intent_result: IntentResult,
+    limit: int = 200,
+):
+    """Shared helper: resolve patient from intent or session, fetch records."""
     from sqlalchemy import select
     from db.models import MedicalRecordDB
 
     patient_id = None
     patient_name = None
+    patient_obj = None
 
-    async with AsyncSessionLocal() as session:
-        if intent_result.patient_name:
-            patient = await find_patient_by_name(session, doctor_id, intent_result.patient_name)
-            if patient:
-                patient_id = patient.id
-                patient_name = patient.name
+    if intent_result.patient_name:
+        patient_obj = await find_patient_by_name(session, doctor_id, intent_result.patient_name)
+        if patient_obj:
+            patient_id = patient_obj.id
+            patient_name = patient_obj.name
 
-        if patient_id is None:
-            sess = get_session(doctor_id)
-            patient_id = sess.current_patient_id
-            patient_name = sess.current_patient_name
+    if patient_id is None:
+        sess = get_session(doctor_id)
+        patient_id = sess.current_patient_id
+        patient_name = sess.current_patient_name
 
-        if patient_id is None:
-            return "❓ 请先告知患者姓名，例如：「导出张三的病历」"
-
+    records = []
+    if patient_id is not None:
         result = await session.execute(
             select(MedicalRecordDB)
             .where(
@@ -485,36 +527,123 @@ async def handle_export_records(doctor_id: str, intent_result: IntentResult) -> 
                 MedicalRecordDB.doctor_id == doctor_id,
             )
             .order_by(MedicalRecordDB.created_at.asc())
-            .limit(200)
+            .limit(limit)
         )
         records = list(result.scalars().all())
+
+    return patient_id, patient_name, patient_obj, records
+
+
+async def handle_export_records(doctor_id: str, intent_result: IntentResult) -> str:
+    """Generate a PDF of patient records and send via WeCom file message.
+
+    Falls back to formatted text summary if PDF upload is not available,
+    with an explicit warning so the doctor knows the PDF was not sent.
+    """
+    async with AsyncSessionLocal() as session:
+        patient_id, patient_name, _patient, records = await _fetch_patient_and_records(
+            session, doctor_id, intent_result
+        )
+
+    if patient_id is None:
+        return "❓ 请先告知患者姓名，例如：「导出张三的病历」"
 
     if not records:
         return f"📂 患者【{patient_name}】暂无历史记录，无法导出。"
 
+    asyncio.create_task(
+        audit(doctor_id, "EXPORT", resource_type="patient", resource_id=str(patient_id))
+    )
+
     # Attempt PDF generation + WeCom file upload
+    pdf_error: str | None = None
     try:
         from services.export.pdf_export import generate_records_pdf
         pdf_bytes = generate_records_pdf(records=records, patient_name=patient_name)
 
         from services.wechat.wechat_notify import upload_temp_media, send_file_message
-        safe_name = (patient_name or "patient").replace(" ", "_")
-        filename = f"病历_{safe_name}.pdf"
+        filename = f"病历_{patient_id}.pdf"
         media_id = await upload_temp_media(pdf_bytes, filename)
         await send_file_message(doctor_id, media_id)
         return f"📄 【{patient_name}】共 {len(records)} 条记录的病历 PDF 已发送。"
     except Exception as exc:
+        pdf_error = str(exc)
         log(f"[WeChat] export PDF via WeCom file failed ({exc}), falling back to text")
 
-    # Fallback: formatted text summary
-    lines = [f"📄 【{patient_name}】病历摘要（共 {len(records)} 条）\n"]
+    # Fallback: formatted text summary — warn doctor that PDF delivery failed
+    lines = [
+        f"⚠️ 病历 PDF 发送失败（{pdf_error}），以下为文字摘要：",
+        f"📄 【{patient_name}】病历摘要（共 {len(records)} 条）\n",
+    ]
     for r in records[:10]:
         date_str = r.created_at.strftime("%Y-%m-%d") if r.created_at else "?"
         snippet = _t(r.content or "—", 60)
         lines.append(f"▪ {date_str}\n{snippet}")
     if len(records) > 10:
-        lines.append(f"\n… 还有 {len(records) - 10} 条记录，请在管理后台导出完整 PDF。")
+        lines.append(f"\n… 还有 {len(records) - 10} 条记录，可在管理后台导出完整 PDF。")
     return "\n".join(lines)
+
+
+async def handle_export_outpatient_report(doctor_id: str, intent_result: IntentResult) -> str:
+    """Generate a 卫生部 2010 标准门诊病历 PDF and send via WeCom file message.
+
+    Uses LLM to extract structured fields from all records.
+    Falls back to a text explanation if PDF generation or upload fails.
+    """
+    async with AsyncSessionLocal() as session:
+        patient_id, patient_name, patient_obj, records = await _fetch_patient_and_records(
+            session, doctor_id, intent_result
+        )
+
+    if patient_id is None:
+        return "❓ 请先告知患者姓名，例如：「生成张三的标准门诊病历」"
+
+    if not records:
+        return f"📂 患者【{patient_name}】暂无历史记录，无法生成门诊病历。"
+
+    asyncio.create_task(
+        audit(doctor_id, "EXPORT", resource_type="outpatient_report", resource_id=str(patient_id))
+    )
+
+    from services.export.outpatient_report import ExtractionError, extract_outpatient_fields
+    from services.export.pdf_export import generate_outpatient_report_pdf
+
+    try:
+        fields = await extract_outpatient_fields(records, patient_obj, doctor_id=doctor_id)
+    except ExtractionError as exc:
+        log(f"[WeChat] outpatient report LLM extraction failed: {exc}")
+        return "⚠️ AI 字段提取失败，暂时无法生成门诊病历 PDF，请稍后重试。"
+
+    # Build patient info line
+    info_parts: list[str] = []
+    if patient_obj and getattr(patient_obj, "gender", None):
+        info_parts.append(patient_obj.gender)
+    if patient_obj and getattr(patient_obj, "year_of_birth", None):
+        from datetime import date
+        age = date.today().year - int(patient_obj.year_of_birth)
+        info_parts.append(f"{age}岁")
+    patient_info = "  ".join(info_parts) if info_parts else None
+
+    try:
+        pdf_bytes = generate_outpatient_report_pdf(
+            fields=fields,
+            patient_name=patient_name,
+            patient_info=patient_info,
+        )
+        from services.wechat.wechat_notify import upload_temp_media, send_file_message
+        filename = f"门诊病历_{patient_id}.pdf"
+        media_id = await upload_temp_media(pdf_bytes, filename)
+        await send_file_message(doctor_id, media_id)
+        filled = sum(1 for v in fields.values() if v)
+        return f"📋 【{patient_name}】卫生部 2010 标准门诊病历已发送（已填写 {filled}/10 项）。"
+    except Exception as exc:
+        log(f"[WeChat] outpatient report PDF/upload failed: {exc}")
+        return (
+            f"⚠️ 门诊病历 PDF 发送失败（{exc}）。\n"
+            f"初步诊断：{fields.get('diagnosis') or '—'}\n"
+            f"治疗方案：{fields.get('treatment') or '—'}\n"
+            f"请在管理后台导出完整 PDF。"
+        )
 
 
 async def handle_list_tasks(doctor_id: str) -> str:
@@ -540,6 +669,77 @@ async def handle_complete_task(doctor_id: str, intent_result: IntentResult) -> s
     if task is None:
         return f"⚠️ 未找到任务 {task_id}，请确认编号是否正确。"
     return intent_result.chat_reply or "好的，任务完成了。"
+
+
+async def handle_schedule_follow_up(doctor_id: str, intent_result: IntentResult) -> str:
+    """Create a standalone follow-up task for a patient without needing a record save."""
+    from datetime import timedelta, timezone
+    from services.notify.tasks import create_follow_up_task, extract_follow_up_days
+
+    patient_name = intent_result.patient_name
+    if not patient_name:
+        return "⚠️ 未能识别患者姓名，请说明如「给张三设3个月后随访」"
+
+    follow_up_plan = intent_result.extra_data.get("follow_up_plan") or "下次随访"
+
+    async with AsyncSessionLocal() as session:
+        patient = await find_patient_by_name(session, doctor_id, patient_name)
+
+    patient_id = patient.id if patient else None
+
+    # Resolve due days from the follow_up_plan text
+    days = extract_follow_up_days(follow_up_plan)
+    task = await create_follow_up_task(
+        doctor_id=doctor_id,
+        record_id=0,          # no linked record
+        patient_name=patient_name,
+        follow_up_plan=follow_up_plan,
+        patient_id=patient_id,
+    )
+    from datetime import datetime, timezone as tz
+    due_str = task.due_at.strftime("%Y-%m-%d") if task.due_at else f"{days}天后"
+    return (
+        f"✅ 已为【{patient_name}】创建随访提醒\n"
+        f"计划：{follow_up_plan}\n"
+        f"到期：{due_str}（任务编号 {task.id}）"
+    )
+
+
+async def handle_cancel_task(doctor_id: str, intent_result: IntentResult) -> str:
+    """Cancel a pending task by ID."""
+    task_id = intent_result.extra_data.get("task_id")
+    if not task_id:
+        return "⚠️ 未能识别任务编号，请发送「取消任务 5」（5为任务编号）。"
+    async with AsyncSessionLocal() as session:
+        task = await update_task_status(session, task_id, doctor_id, "cancelled")
+    if task is None:
+        return f"⚠️ 未找到任务 {task_id}，请确认编号是否正确。"
+    return f"🚫 任务 {task_id}（{task.title}）已取消。"
+
+
+async def handle_postpone_task(doctor_id: str, intent_result: IntentResult) -> str:
+    """Push a task's due date forward by N days."""
+    from datetime import timedelta, timezone
+    from db.crud import update_task_due_at, get_task_by_id
+
+    task_id = intent_result.extra_data.get("task_id")
+    delta_days = intent_result.extra_data.get("delta_days", 7)
+    if not task_id:
+        return "⚠️ 未能识别任务编号，请发送「推迟任务 5 一周」。"
+
+    async with AsyncSessionLocal() as session:
+        task = await get_task_by_id(session, task_id, doctor_id)
+        if task is None:
+            return f"⚠️ 未找到任务 {task_id}，请确认编号是否正确。"
+        now = datetime.now(timezone.utc)
+        base = task.due_at if task.due_at and task.due_at > now else now
+        new_due = base + timedelta(days=delta_days)
+        await update_task_due_at(session, task_id, doctor_id, new_due)
+
+    return (
+        f"⏰ 任务 {task_id}（{task.title}）已推迟 {delta_days} 天\n"
+        f"新到期时间：{new_due.strftime('%Y-%m-%d')}"
+    )
 
 
 async def handle_schedule_appointment(doctor_id: str, intent_result: IntentResult) -> str:

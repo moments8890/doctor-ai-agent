@@ -362,6 +362,30 @@ export async function patchTask(taskId, doctorId, status) {
   });
 }
 
+export async function postponeTask(taskId, doctorId, dueAt) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/tasks/${taskId}/due?${qs.toString()}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ due_at: dueAt }),
+  });
+}
+
+export async function createTask(doctorId, { taskType, title, dueAt, patientId, content }) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/tasks?${qs.toString()}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      task_type: taskType,
+      title,
+      due_at: dueAt || undefined,
+      patient_id: patientId || undefined,
+      content: content || undefined,
+    }),
+  });
+}
+
 export async function updateAdminRecord(recordId, fields) {
   return adminRequest(`/api/admin/records/${recordId}`, {
     method: "PATCH",

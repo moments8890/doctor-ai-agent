@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from db.crud import create_patient as db_create_patient, find_patient_by_name, save_record
 from db.engine import AsyncSessionLocal
-from models.medical_record import MedicalRecord
+from db.models.medical_record import MedicalRecord
 from routers.records import SUPPORTED_AUDIO_TYPES
 from routers.records import _assistant_asked_for_name
 from routers.records import _is_valid_patient_name

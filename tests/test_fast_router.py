@@ -358,6 +358,32 @@ def test_export_records_no_name(text):
     assert r.intent == Intent.export_records
 
 
+# ── export_outpatient_report ───────────────────────────────────────────────────
+
+@pytest.mark.parametrize("text, expected_name", [
+    ("生成张三的标准门诊病历", "张三"),
+    ("帮我生成李明的门诊病历", "李明"),
+    ("导出王五的卫生部病历", "王五"),
+    ("打印陈刚的正式病历", "陈刚"),
+])
+def test_export_outpatient_report_with_name(text, expected_name):
+    r = fast_route(text)
+    assert r is not None, f"fast_route({text!r}) returned None"
+    assert r.intent == Intent.export_outpatient_report
+    assert r.patient_name == expected_name
+
+
+@pytest.mark.parametrize("text", [
+    "生成门诊病历",
+    "帮我生成标准门诊病历",
+    "导出当前患者的标准病历",
+])
+def test_export_outpatient_report_no_name(text):
+    r = fast_route(text)
+    assert r is not None, f"fast_route({text!r}) returned None"
+    assert r.intent == Intent.export_outpatient_report
+
+
 # ── Tier 3 edge cases ──────────────────────────────────────────────────────────
 
 def test_tier3_fucha_with_reminder_falls_through():

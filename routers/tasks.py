@@ -5,19 +5,21 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Annotated, List, Optional
 
 from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel
 
 from db.engine import AsyncSessionLocal
-from db.crud import list_tasks, update_task_status
+from db.crud import list_tasks, update_task_status, create_task, get_task_by_id, update_task_due_at
 from services.auth.rate_limit import enforce_doctor_rate_limit
 from services.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
 from services.notify.tasks import run_due_task_cycle
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
+
+_VALID_TASK_TYPES = {"follow_up", "medication", "lab_review", "referral", "imaging", "appointment", "general"}
 
 
 class TaskOut(BaseModel):
@@ -61,11 +63,34 @@ class TaskStatusUpdate(BaseModel):
     status: str
 
 
+class TaskDueUpdate(BaseModel):
+    due_at: str  # ISO 8601 datetime string
+
+
+class TaskCreate(BaseModel):
+    task_type: str
+    title: str
+    due_at: Optional[str] = None
+    patient_id: Optional[int] = None
+    content: Optional[str] = None
+
+
 def _env_flag_true(name: str, default: bool = False) -> bool:
     raw = os.environ.get(name)
     if raw is None:
         return default
     return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _parse_due_at(due_at_str: str) -> datetime:
+    """Parse ISO datetime string; treat bare dates (YYYY-MM-DD) as end-of-day UTC."""
+    try:
+        dt = datetime.fromisoformat(due_at_str.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except ValueError:
+        raise HTTPException(status_code=422, detail=f"Invalid due_at format: {due_at_str!r}")
 
 
 @router.get("", response_model=List[TaskOut])
@@ -98,6 +123,41 @@ async def _get_tasks_for_doctor(
     return all_tasks[offset:offset + limit]
 
 
+@router.post("", response_model=TaskOut, status_code=201)
+async def create_task_endpoint(
+    doctor_id: str,
+    body: TaskCreate,
+    authorization: Optional[str] = Header(default=None),
+) -> TaskOut:
+    resolved_doctor_id = resolve_doctor_id_from_auth_or_fallback(
+        doctor_id,
+        authorization,
+        fallback_env_flag="TASKS_ALLOW_BODY_DOCTOR_ID",
+        default_doctor_id="test_doctor",
+    )
+    enforce_doctor_rate_limit(resolved_doctor_id, scope="tasks.create")
+    return await _create_task_for_doctor(resolved_doctor_id, body)
+
+
+async def _create_task_for_doctor(doctor_id: str, body: TaskCreate) -> TaskOut:
+    if body.task_type not in _VALID_TASK_TYPES:
+        raise HTTPException(status_code=422, detail=f"task_type must be one of {_VALID_TASK_TYPES}")
+    if not body.title.strip():
+        raise HTTPException(status_code=422, detail="title must not be empty")
+    due_at = _parse_due_at(body.due_at) if body.due_at else None
+    async with AsyncSessionLocal() as session:
+        task = await create_task(
+            session,
+            doctor_id=doctor_id,
+            task_type=body.task_type,
+            title=body.title.strip(),
+            content=body.content,
+            patient_id=body.patient_id,
+            due_at=due_at,
+        )
+    return TaskOut.from_orm(task)
+
+
 @router.patch("/{task_id}", response_model=TaskOut)
 async def patch_task(
     task_id: int,
@@ -121,6 +181,33 @@ async def _patch_task_for_doctor(task_id: int, doctor_id: str, body: TaskStatusU
         raise HTTPException(status_code=422, detail=f"status must be one of {allowed}")
     async with AsyncSessionLocal() as session:
         task = await update_task_status(session, task_id, doctor_id, body.status)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return TaskOut.from_orm(task)
+
+
+@router.patch("/{task_id}/due", response_model=TaskOut)
+async def patch_task_due(
+    task_id: int,
+    doctor_id: str,
+    body: TaskDueUpdate,
+    authorization: Optional[str] = Header(default=None),
+) -> TaskOut:
+    """Postpone (reschedule) a task by updating its due_at."""
+    resolved_doctor_id = resolve_doctor_id_from_auth_or_fallback(
+        doctor_id,
+        authorization,
+        fallback_env_flag="TASKS_ALLOW_BODY_DOCTOR_ID",
+        default_doctor_id="test_doctor",
+    )
+    enforce_doctor_rate_limit(resolved_doctor_id, scope="tasks.patch")
+    return await _postpone_task_for_doctor(task_id, resolved_doctor_id, body)
+
+
+async def _postpone_task_for_doctor(task_id: int, doctor_id: str, body: TaskDueUpdate) -> TaskOut:
+    due_at = _parse_due_at(body.due_at)
+    async with AsyncSessionLocal() as session:
+        task = await update_task_due_at(session, task_id, doctor_id, due_at)
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     return TaskOut.from_orm(task)

@@ -1151,8 +1151,6 @@ async def admin_table_rows(
                     "doctor_id": n.doctor_id,
                     "patient_id": n.patient_id,
                     "patient_name": n.patient_name,
-                    "chief_complaint": n.chief_complaint,
-                    "primary_diagnosis": n.primary_diagnosis,
                     "nihss": n.nihss,
                     "created_at": _fmt_ts(n.created_at),
                 }
