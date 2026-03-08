@@ -13,12 +13,14 @@ import {
   MenuItem,
   Stack,
   Switch,
+  Tab,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
+  Tabs,
   TextField,
   Typography,
 } from "@mui/material";
@@ -40,9 +42,12 @@ import {
   getAdminFilterOptions,
   getAdminObservability,
   getAdminRuntimeConfig,
+  getAdminRoutingKeywords,
   getAdminTableRows,
   getAdminTables,
   applyAdminRuntimeConfig,
+  putAdminRoutingKeywords,
+  reloadAdminRoutingKeywords,
   seedAdminObservabilitySamples,
   updateAdminRuntimeConfig,
   verifyAdminRuntimeConfig,
@@ -108,6 +113,7 @@ const TABLES = [
 const NAV_TABS = [
   ...TABLES,
   { key: "runtime_config", icon: <TuneOutlinedIcon fontSize="small" /> },
+  { key: "routing_keywords", icon: <TuneOutlinedIcon fontSize="small" /> },
   { key: "observability", icon: <StorageOutlinedIcon fontSize="small" /> },
 ];
 function NavTab({ active, onClick, icon, children }) {
@@ -291,6 +297,8 @@ function AdminDashboard({ onLockout }) {
   const [patientOptions, setPatientOptions] = useState([]);
   const [traceIdQuery, setTraceIdQuery] = useState("");
   const [traceScope, setTraceScope] = useState("public");
+  const [routingKeywords, setRoutingKeywords] = useState({});
+  const [newKwInputs, setNewKwInputs] = useState({});
   const [observability, setObservability] = useState({
     summary: {},
     recent_traces: [],
@@ -478,6 +486,11 @@ function AdminDashboard({ onLockout }) {
     });
   }
 
+  async function loadRoutingKeywords() {
+    const payload = await getAdminRoutingKeywords();
+    setRoutingKeywords(payload.config || {});
+  }
+
   async function saveRuntimeConfig() {
     try {
       const payload = await updateAdminRuntimeConfig(runtimeConfigMap);
@@ -564,6 +577,9 @@ function AdminDashboard({ onLockout }) {
       } else if (tableKey === "runtime_config") {
         await Promise.all([loadTableList(f), loadRuntimeConfig(), loadTunnelUrl(), loadFilterOptions(f.doctorId)]);
         setRows([]);
+      } else if (tableKey === "routing_keywords") {
+        await Promise.all([loadTableList(f), loadRoutingKeywords(), loadFilterOptions(f.doctorId)]);
+        setRows([]);
       } else {
         await Promise.all([loadTableList(f), loadTableData(tableKey, f), loadFilterOptions(f.doctorId)]);
       }
@@ -613,29 +629,6 @@ function AdminDashboard({ onLockout }) {
             </Card>
 
             <Card sx={{ borderRadius: 1.5 }}>
-              <CardContent sx={{ p: 1.8 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-                  {t("admin.navTitle")}
-                </Typography>
-                <Stack spacing={1}>
-                  {NAV_TABS.map((item) => (
-                    <NavTab
-                      key={item.key}
-                      active={activeTable === item.key}
-                      icon={item.icon}
-                      onClick={() => {
-                        setActiveTable(item.key);
-                        loadAll(item.key);
-                      }}
-                    >
-                      {t(`admin.tables.${item.key}`)}
-                    </NavTab>
-                  ))}
-                </Stack>
-              </CardContent>
-            </Card>
-
-            <Card sx={{ borderRadius: 1.5 }}>
               <CardContent sx={{ p: 1.5 }}>
                 <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.8 }}>
                   {t("admin.counts.title")}
@@ -658,7 +651,30 @@ function AdminDashboard({ onLockout }) {
             </Card>
           </Stack>
 
-          <Card sx={{ borderRadius: 1.5 }}>
+          <Stack spacing={0}>
+          <Box sx={{ borderRadius: "8px 8px 0 0", overflow: "hidden", backgroundColor: "rgba(255,255,255,0.7)", borderBottom: "1px solid #d8e3e8" }}>
+            <Tabs
+              value={activeTable}
+              onChange={(_, key) => { setActiveTable(key); loadAll(key); }}
+              variant="scrollable"
+              scrollButtons="auto"
+              sx={{
+                minHeight: 44,
+                "& .MuiTab-root": { minHeight: 44, fontSize: 13, py: 0.8 },
+              }}
+            >
+              {NAV_TABS.map((item) => (
+                <Tab
+                  key={item.key}
+                  value={item.key}
+                  icon={item.icon}
+                  iconPosition="start"
+                  label={t(`admin.tables.${item.key}`) || item.key}
+                />
+              ))}
+            </Tabs>
+          </Box>
+          <Card sx={{ borderRadius: "0 0 6px 6px" }}>
             <CardContent>
               {!!status.text ? <Alert severity={status.type} sx={{ mb: 1.5 }}>{status.text}</Alert> : null}
 
@@ -684,6 +700,43 @@ function AdminDashboard({ onLockout }) {
                     </Button>
                     <Button variant="contained" color="secondary" size="small" onClick={applyRuntimeConfigNow} disabled={loading}>
                       {loading ? t("common.loading") : "应用配置"}
+                    </Button>
+                  </Stack>
+                ) : activeTable === "routing_keywords" ? (
+                  <Stack direction="row" spacing={0.8}>
+                    <Button variant="outlined" size="small" onClick={loadRoutingKeywords} disabled={loading}>
+                      {loading ? t("common.loading") : "加载"}
+                    </Button>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      disabled={loading}
+                      onClick={async () => {
+                        try {
+                          await putAdminRoutingKeywords(null, routingKeywords);
+                          setStatus({ type: "success", text: "路由关键词已保存。" });
+                        } catch (error) {
+                          setStatus({ type: "error", text: `保存失败：${error.message}` });
+                        }
+                      }}
+                    >
+                      {loading ? t("common.loading") : "保存"}
+                    </Button>
+                    <Button
+                      variant="contained"
+                      color="secondary"
+                      size="small"
+                      disabled={loading}
+                      onClick={async () => {
+                        try {
+                          const payload = await reloadAdminRoutingKeywords();
+                          setStatus({ type: "success", text: `${payload.loaded ?? ""} 个关键词已加载` });
+                        } catch (error) {
+                          setStatus({ type: "error", text: `热加载失败：${error.message}` });
+                        }
+                      }}
+                    >
+                      {loading ? t("common.loading") : "热加载"}
                     </Button>
                   </Stack>
                 ) : (
@@ -936,6 +989,161 @@ function AdminDashboard({ onLockout }) {
                   <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.8 }}>
                     {t("admin.config.hint")}
                   </Typography>
+                </Box>
+              ) : activeTable === "routing_keywords" ? (
+                <Box sx={{ border: "1px solid #d8e3e8", borderRadius: 1.5, backgroundColor: "#f8fbfc", p: 1.2, mb: 1.2 }}>
+                  <Stack spacing={1.2}>
+                    {Object.entries(routingKeywords).filter(([sectionKey]) => sectionKey !== "tier3").map(([sectionKey, section]) => (
+                      <Box key={`kw-section-${sectionKey}`} sx={{ border: "1px solid #d8e3e8", borderRadius: 1.2, backgroundColor: "#fff", overflow: "hidden" }}>
+                        <Box sx={{ px: 1.2, py: 0.9, borderBottom: "1px solid #e7eef1", backgroundColor: "#eff5f7" }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{sectionKey}</Typography>
+                          <Typography variant="caption" color="text.secondary">{section.description_zh || section.description || ""}</Typography>
+                        </Box>
+                        <Box sx={{ px: 1.2, py: 1 }}>
+                          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mb: 1 }}>
+                            {(section.keywords || []).map((kw, kwIdx) => (
+                              <Chip
+                                key={`kw-chip-${sectionKey}-${kwIdx}`}
+                                label={kw}
+                                size="small"
+                                onDelete={() => {
+                                  setRoutingKeywords((prev) => ({
+                                    ...prev,
+                                    [sectionKey]: {
+                                      ...prev[sectionKey],
+                                      keywords: (prev[sectionKey].keywords || []).filter((_, i) => i !== kwIdx),
+                                    },
+                                  }));
+                                }}
+                              />
+                            ))}
+                          </Box>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <TextField
+                              size="small"
+                              placeholder="新关键词"
+                              value={newKwInputs[sectionKey] || ""}
+                              onChange={(e) => setNewKwInputs((prev) => ({ ...prev, [sectionKey]: e.target.value }))}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  const val = (newKwInputs[sectionKey] || "").trim();
+                                  if (!val) return;
+                                  setRoutingKeywords((prev) => ({
+                                    ...prev,
+                                    [sectionKey]: { ...prev[sectionKey], keywords: [...(prev[sectionKey].keywords || []), val] },
+                                  }));
+                                  setNewKwInputs((prev) => ({ ...prev, [sectionKey]: "" }));
+                                }
+                              }}
+                              sx={{ flex: 1, maxWidth: 280 }}
+                            />
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => {
+                                const val = (newKwInputs[sectionKey] || "").trim();
+                                if (!val) return;
+                                setRoutingKeywords((prev) => ({
+                                  ...prev,
+                                  [sectionKey]: { ...prev[sectionKey], keywords: [...(prev[sectionKey].keywords || []), val] },
+                                }));
+                                setNewKwInputs((prev) => ({ ...prev, [sectionKey]: "" }));
+                              }}
+                            >
+                              添加
+                            </Button>
+                          </Stack>
+                        </Box>
+                      </Box>
+                    ))}
+                    {routingKeywords.tier3 && (
+                      <Box sx={{ border: "1px solid #d8e3e8", borderRadius: 1.2, backgroundColor: "#fff", overflow: "hidden" }}>
+                        <Box sx={{ px: 1.2, py: 0.9, borderBottom: "1px solid #e7eef1", backgroundColor: "#eff5f7" }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>tier3</Typography>
+                          <Typography variant="caption" color="text.secondary">Tier-3 临床关键词</Typography>
+                        </Box>
+                        <Box sx={{ px: 1.2, py: 1 }}>
+                          <Stack spacing={1}>
+                            {Object.entries(routingKeywords.tier3).map(([catKey, catSection]) => (
+                              <Box key={`kw-tier3-${catKey}`} sx={{ border: "1px solid #e7eef1", borderRadius: 1, overflow: "hidden" }}>
+                                <Box sx={{ px: 1, py: 0.6, borderBottom: "1px solid #e7eef1", backgroundColor: "#f8fbfc" }}>
+                                  <Typography variant="caption" sx={{ fontWeight: 700 }}>{catKey}</Typography>
+                                  <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>{catSection.description_zh || catSection.description || ""}</Typography>
+                                </Box>
+                                <Box sx={{ px: 1, py: 0.8 }}>
+                                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mb: 1 }}>
+                                    {(catSection.keywords || []).map((kw, kwIdx) => (
+                                      <Chip
+                                        key={`kw-tier3-chip-${catKey}-${kwIdx}`}
+                                        label={kw}
+                                        size="small"
+                                        onDelete={() => {
+                                          setRoutingKeywords((prev) => ({
+                                            ...prev,
+                                            tier3: {
+                                              ...prev.tier3,
+                                              [catKey]: {
+                                                ...prev.tier3[catKey],
+                                                keywords: (prev.tier3[catKey].keywords || []).filter((_, i) => i !== kwIdx),
+                                              },
+                                            },
+                                          }));
+                                        }}
+                                      />
+                                    ))}
+                                  </Box>
+                                  <Stack direction="row" spacing={1} alignItems="center">
+                                    <TextField
+                                      size="small"
+                                      placeholder="新关键词"
+                                      value={(newKwInputs[`tier3__${catKey}`]) || ""}
+                                      onChange={(e) => setNewKwInputs((prev) => ({ ...prev, [`tier3__${catKey}`]: e.target.value }))}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                          const val = (newKwInputs[`tier3__${catKey}`] || "").trim();
+                                          if (!val) return;
+                                          setRoutingKeywords((prev) => ({
+                                            ...prev,
+                                            tier3: {
+                                              ...prev.tier3,
+                                              [catKey]: { ...prev.tier3[catKey], keywords: [...(prev.tier3[catKey].keywords || []), val] },
+                                            },
+                                          }));
+                                          setNewKwInputs((prev) => ({ ...prev, [`tier3__${catKey}`]: "" }));
+                                        }
+                                      }}
+                                      sx={{ flex: 1, maxWidth: 280 }}
+                                    />
+                                    <Button
+                                      size="small"
+                                      variant="outlined"
+                                      onClick={() => {
+                                        const val = (newKwInputs[`tier3__${catKey}`] || "").trim();
+                                        if (!val) return;
+                                        setRoutingKeywords((prev) => ({
+                                          ...prev,
+                                          tier3: {
+                                            ...prev.tier3,
+                                            [catKey]: { ...prev.tier3[catKey], keywords: [...(prev.tier3[catKey].keywords || []), val] },
+                                          },
+                                        }));
+                                        setNewKwInputs((prev) => ({ ...prev, [`tier3__${catKey}`]: "" }));
+                                      }}
+                                    >
+                                      添加
+                                    </Button>
+                                  </Stack>
+                                </Box>
+                              </Box>
+                            ))}
+                          </Stack>
+                        </Box>
+                      </Box>
+                    )}
+                    {!Object.keys(routingKeywords).length ? (
+                      <Typography color="text.secondary" variant="body2">暂无关键词配置，请点击"加载"。</Typography>
+                    ) : null}
+                  </Stack>
                 </Box>
               ) : activeTable === "observability" ? (
                 <Box sx={{ border: "1px solid #d8e3e8", borderRadius: 1.5, backgroundColor: "#f8fbfc", p: 1.2, mb: 1.2 }}>
@@ -1269,6 +1477,7 @@ function AdminDashboard({ onLockout }) {
               )}
             </CardContent>
           </Card>
+          </Stack>
         </Box>
       </Container>
     </Box>
