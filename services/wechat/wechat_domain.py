@@ -493,14 +493,38 @@ def _preprocess_import_text(
     return text.strip()
 
 
+# Structured single-document report markers: header fields that indicate the
+# entire text is ONE encounter (体检报告, 化验单, 出院记录, 影像报告 etc.)
+_STRUCTURED_REPORT_RE = _re.compile(
+    r"(?:姓\s*名|患者姓名|检查日期|报告日期|体检编号|住院号|门诊号|标本编号|送检日期)"
+    r".{0,20}"
+    r"(?:性\s*别|年\s*龄|科\s*室|床\s*号|检查者)",
+    _re.DOTALL,
+)
+# Section headers found in structured reports (【血常规】, 一、检查结果 etc.)
+_REPORT_SECTION_RE = _re.compile(r"(?:^|\n)【[^】]{2,12}】|(?:^|\n)[一二三四五六七八九十]+[、.．]\s*\S")
+
+
+def _looks_like_structured_report(text: str) -> bool:
+    """Return True if text is a single structured report (体检报告, 化验单, etc.)
+    that should be kept as one chunk rather than split by paragraphs."""
+    sample = text[:1500]
+    return bool(_STRUCTURED_REPORT_RE.search(sample)) and bool(_REPORT_SECTION_RE.search(sample))
+
+
 def _chunk_history_text(text: str) -> list[str]:
     """Split bulk history text into individual visit chunks.
 
     Strategy:
+    0. Detect single structured reports (体检报告, 化验单) → return as-is.
     1. Try splitting on date/visit boundaries (most reliable).
     2. Fall back to paragraph splitting (double newline).
     3. If single block, return as-is.
     """
+    # ── Strategy 0: structured single-document report ────────────────────────
+    if _looks_like_structured_report(text):
+        return [text]
+
     # _VISIT_BOUNDARY_RE uses (?:^|\n)(?=...) so m.start() may land on a \n;
     # adjust each boundary to point to the actual first character of the section.
     raw_boundaries = [m.start() for m in _VISIT_BOUNDARY_RE.finditer(text)]
