@@ -22,6 +22,7 @@ from db.crud.doctor import (
     append_conversation_turns,
     clear_conversation_turns,
     purge_conversation_turns_before,
+    append_chat_archive,
 )
 from db.crud.system import (
     get_system_prompt,
@@ -125,6 +126,7 @@ __all__ = [
     "append_conversation_turns",
     "clear_conversation_turns",
     "purge_conversation_turns_before",
+    "append_chat_archive",
     # system
     "get_system_prompt",
     "upsert_system_prompt",

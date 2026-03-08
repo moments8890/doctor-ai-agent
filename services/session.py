@@ -18,6 +18,7 @@ from db.crud import (
     get_patient_for_doctor,
     get_recent_conversation_turns,
     append_conversation_turns,
+    append_chat_archive,
 )
 from sqlalchemy import select
 from utils.log import log
@@ -140,6 +141,7 @@ async def _flush_pending_turns(doctor_id: str) -> None:
         try:
             async with AsyncSessionLocal() as db:
                 await append_conversation_turns(db, doctor_id, batch, max_turns=MAX_TURNS)
+                await append_chat_archive(db, doctor_id, batch)
         except Exception as e:
             log(f"[Session] persist turns FAILED: {e}")
             return

@@ -56,6 +56,26 @@ class DoctorNotifyPreference(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
 
+class ChatArchive(Base):
+    """Permanent append-only log of all doctor↔AI exchanges for future training / vocab expansion.
+
+    Never truncated — unlike doctor_conversation_turns which is a rolling window.
+    intent_label is null until a human reviewer annotates it.
+    """
+    __tablename__ = "chat_archive"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False, index=True)
+    role: Mapped[str] = mapped_column(String(16), nullable=False)  # user | assistant
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    intent_label: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)  # human review annotation
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+
+    __table_args__ = (
+        Index("ix_chat_archive_doctor_created", "doctor_id", "created_at"),
+    )
+
+
 class DoctorConversationTurn(Base):
     """Persisted doctor conversation turns to support cross-node continuity."""
     __tablename__ = "doctor_conversation_turns"
@@ -65,7 +85,6 @@ class DoctorConversationTurn(Base):
     role: Mapped[str] = mapped_column(String(16), nullable=False)  # user | assistant | system
     content: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=True)
 
     __table_args__ = (
         Index("ix_turns_doctor_created", "doctor_id", "created_at"),

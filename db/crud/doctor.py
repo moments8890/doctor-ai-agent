@@ -17,6 +17,7 @@ from db.models import (
     DoctorSessionState,
     DoctorNotifyPreference,
     DoctorConversationTurn,
+    ChatArchive,
 )
 
 
@@ -310,6 +311,26 @@ async def clear_conversation_turns(
     await session.execute(
         delete(DoctorConversationTurn).where(DoctorConversationTurn.doctor_id == doctor_id)
     )
+    await session.commit()
+
+
+async def append_chat_archive(
+    session: AsyncSession,
+    doctor_id: str,
+    turns: List[dict],
+) -> None:
+    """Append turns to the permanent chat archive — never truncated."""
+    if not turns:
+        return
+    now = _utcnow()
+    for turn in turns:
+        role = str(turn.get("role") or "").strip().lower()
+        content = str(turn.get("content") or "").strip()
+        if role not in {"user", "assistant"}:
+            continue
+        if not content:
+            continue
+        session.add(ChatArchive(doctor_id=doctor_id, role=role, content=content, created_at=now))
     await session.commit()
 
 
