@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Alert,
+  Badge,
   Box,
   Button,
   Card,
@@ -49,15 +50,25 @@ const FOLLOWUP_LABEL = {
 const FOLLOWUP_COLOR = { not_needed: "default", scheduled: "info", due_soon: "warning", overdue: "error" };
 
 const RECORD_FIELDS = [
-  { key: "chief_complaint", label: "主诉" },
-  { key: "history_of_present_illness", label: "现病史" },
-  { key: "past_medical_history", label: "既往史" },
-  { key: "physical_examination", label: "体格检查" },
-  { key: "auxiliary_examinations", label: "辅助检查" },
-  { key: "diagnosis", label: "诊断" },
-  { key: "treatment_plan", label: "治疗方案" },
-  { key: "follow_up_plan", label: "随访计划" },
+  { key: "content", label: "临床笔记" },
+  { key: "record_type", label: "类型" },
 ];
+
+const RECORD_TYPE_COLOR = {
+  visit: "default",
+  referral: "info",
+  surgery: "error",
+  lab: "success",
+  imaging: "warning",
+};
+
+const RECORD_TYPE_LABEL = {
+  visit: "门诊",
+  referral: "转诊",
+  surgery: "手术",
+  lab: "检验",
+  imaging: "影像",
+};
 
 const NAV = [
   { key: "chat", label: "AI 助手", icon: <ChatOutlinedIcon fontSize="small" /> },
@@ -81,8 +92,8 @@ function RiskBadge({ level }) {
   );
 }
 
-function NavBtn({ active, icon, children, onClick }) {
-  return (
+function NavBtn({ active, icon, children, onClick, badgeCount }) {
+  const content = (
     <Button
       onClick={onClick}
       startIcon={icon}
@@ -96,6 +107,14 @@ function NavBtn({ active, icon, children, onClick }) {
       {children}
     </Button>
   );
+  if (badgeCount > 0) {
+    return (
+      <Badge badgeContent={badgeCount} color="error" sx={{ width: "100%", "& .MuiBadge-badge": { right: 8, top: 8 } }}>
+        {content}
+      </Badge>
+    );
+  }
+  return content;
 }
 
 // ─── Record edit dialog ────────────────────────────────────────────────────
@@ -138,9 +157,9 @@ function RecordEditDialog({ record, doctorId, open, onClose, onSaved }) {
             <TextField
               key={key}
               label={label}
-              multiline
-              minRows={2}
-              maxRows={8}
+              multiline={key === "content"}
+              minRows={key === "content" ? 5 : 1}
+              maxRows={key === "content" ? 16 : 1}
               size="small"
               fullWidth
               value={form[key] || ""}
@@ -180,12 +199,20 @@ function RecordCard({ record, doctorId, onUpdated }) {
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
               <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>{date}</Typography>
-              {current.diagnosis && (
-                <Chip label={current.diagnosis} size="small" sx={{ fontSize: 11, maxWidth: 200 }} />
+              {current.record_type && (
+                <Chip
+                  label={RECORD_TYPE_LABEL[current.record_type] || current.record_type}
+                  size="small"
+                  color={RECORD_TYPE_COLOR[current.record_type] || "default"}
+                  sx={{ fontSize: 11, height: 18 }}
+                />
               )}
+              {(Array.isArray(current.tags) ? current.tags : []).map((tag, i) => (
+                <Chip key={i} label={tag} size="small" sx={{ fontSize: 11, maxWidth: 160 }} />
+              ))}
             </Stack>
             <Typography variant="body2" sx={{ mt: 0.4, color: "text.primary", fontWeight: 500 }} noWrap={!expanded}>
-              {current.chief_complaint || <span style={{ color: "#94a3b8" }}>（无主诉）</span>}
+              {current.content || <span style={{ color: "#94a3b8" }}>（无记录内容）</span>}
             </Typography>
           </Box>
           <Stack direction="row" spacing={0.5} alignItems="center" onClick={(e) => e.stopPropagation()}>
@@ -241,8 +268,9 @@ function PatientDetail({ patient, doctorId }) {
 
   if (!patient) {
     return (
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "text.secondary" }}>
-        <Typography>← 请在左侧选择患者</Typography>
+      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", color: "text.secondary", gap: 1.5 }}>
+        <PeopleOutlineIcon sx={{ fontSize: 64, opacity: 0.3 }} />
+        <Typography color="text.secondary">← 请在左侧选择患者</Typography>
       </Box>
     );
   }
@@ -341,6 +369,9 @@ function PatientsSection({ doctorId }) {
       {/* Left: patient list */}
       <Box sx={{ width: 320, flexShrink: 0, borderRight: "1px solid #e2e8f0", display: "flex", flexDirection: "column" }}>
         <Box sx={{ p: 1.5, borderBottom: "1px solid #e2e8f0" }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+            患者管理{patients.length > 0 ? ` (${patients.length})` : ""}
+          </Typography>
           <TextField
             size="small" fullWidth placeholder="搜索患者姓名"
             value={search} onChange={(e) => setSearch(e.target.value)}
@@ -513,7 +544,7 @@ function MsgBubble({ msg }) {
   );
 }
 
-function ChatSection({ doctorId }) {
+function ChatSection({ doctorId, onMessageCountChange }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -542,6 +573,8 @@ function ChatSection({ doctorId }) {
   }, [messages]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  useEffect(() => { onMessageCountChange?.(messages.length); }, [messages.length, onMessageCountChange]);
 
   const history = useMemo(() => messages.map((m) => ({ role: m.role, content: m.content })), [messages]);
 
@@ -587,14 +620,21 @@ function ChatSection({ doctorId }) {
       {/* Input */}
       <Box sx={{ px: 2, py: 1.5, borderTop: "1px solid #e2e8f0", backgroundColor: "#fff" }}>
         <Stack direction="row" spacing={1} alignItems="flex-end">
-          <TextField
-            multiline minRows={2} maxRows={6} fullWidth size="small"
-            placeholder={t("chat.placeholder")}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); } }}
-            sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.5 } }}
-          />
+          <Box sx={{ flex: 1 }}>
+            <TextField
+              multiline minRows={2} maxRows={6} fullWidth size="small"
+              placeholder={t("chat.placeholder")}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); } }}
+              sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.5 } }}
+            />
+            {input.length > 0 && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", textAlign: "right", mt: 0.3 }}>
+                {input.length} 字
+              </Typography>
+            )}
+          </Box>
           <Button variant="contained" onClick={onSend} disabled={loading || !input.trim()}
             sx={{ borderRadius: 1.5, minWidth: 48, height: 48, flexShrink: 0 }}>
             <SendOutlinedIcon fontSize="small" />
@@ -650,11 +690,18 @@ function HomeSection({ doctorId, navigate }) {
     <Box sx={{ p: 3, overflowY: "auto", height: "100%" }}>
       {/* Stats */}
       <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>总览</Typography>
-      <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap sx={{ mb: 3 }}>
+      <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
         <StatCard label="患者总数" value={stats?.patients} />
         <StatCard label="待处理任务" value={stats?.pendingTasks} color={stats?.pendingTasks > 0 ? "warning.main" : "success.main"} />
         <StatCard label="高风险患者" value={stats?.highRisk} color={stats?.highRisk > 0 ? "error.main" : "success.main"} />
         <StatCard label="逾期随访" value={stats?.overdue} color={stats?.overdue > 0 ? "error.main" : "success.main"} />
+      </Stack>
+
+      {/* Quick actions */}
+      <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 3 }}>
+        <Button size="small" variant="outlined" onClick={() => navigate("/doctor")}>新建对话</Button>
+        <Button size="small" variant="outlined" onClick={() => navigate("/doctor/patients")}>查看高风险患者</Button>
+        <Button size="small" variant="outlined" onClick={() => navigate("/doctor/tasks")}>查看逾期任务</Button>
       </Stack>
 
       {/* Pending tasks */}
@@ -703,9 +750,13 @@ function HomeSection({ doctorId, navigate }) {
                     <Box sx={{ flex: 1 }}>
                       <Typography variant="body2" sx={{ fontWeight: 500 }}>
                         {r.patient_name || "未知患者"}
-                        {r.diagnosis && <Chip label={r.diagnosis} size="small" sx={{ ml: 1, fontSize: 10, height: 18 }} />}
+                        {(Array.isArray(r.tags) ? r.tags : []).slice(0, 2).map((tag, i) => (
+                          <Chip key={i} label={tag} size="small" sx={{ ml: 0.5, fontSize: 10, height: 18 }} />
+                        ))}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">{r.chief_complaint || "无主诉"} · {r.created_at?.slice(0, 10)}</Typography>
+                      <Typography variant="caption" color="text.secondary" noWrap>
+                        {r.content ? (r.content.length > 40 ? r.content.slice(0, 40) + "…" : r.content) : "无记录"} · {r.created_at?.slice(0, 10)}
+                      </Typography>
                     </Box>
                     {r.patient_id && (
                       <IconButton size="small" onClick={() => navigate(`/doctor/patients/${r.patient_id}`)}>
@@ -729,8 +780,20 @@ export default function DoctorPage() {
   const { section, patientId } = useParams();
   const navigate = useNavigate();
   const { doctorId, doctorName, clearAuth } = useDoctorStore();
+  const [pendingTaskCount, setPendingTaskCount] = useState(0);
+  const [chatMessageCount, setChatMessageCount] = useState(0);
 
   const activeSection = patientId ? "patients" : (section || "chat");
+
+  useEffect(() => {
+    if (!doctorId) return;
+    getTasks(doctorId, "pending")
+      .then((d) => {
+        const tasks = Array.isArray(d) ? d : (d.items || []);
+        setPendingTaskCount(tasks.length);
+      })
+      .catch(() => {});
+  }, [doctorId]);
 
   function handleNav(key) {
     if (key === "chat") navigate("/doctor");
@@ -745,6 +808,8 @@ export default function DoctorPage() {
     }
     navigate("/login");
   }
+
+  const navBadge = { chat: chatMessageCount, tasks: pendingTaskCount };
 
   return (
     <Box sx={{ display: "flex", height: "100vh", background: "#f8fafb" }}>
@@ -762,7 +827,7 @@ export default function DoctorPage() {
         {/* Nav */}
         <Stack spacing={0.5} sx={{ flex: 1 }}>
           {NAV.map((item) => (
-            <NavBtn key={item.key} active={activeSection === item.key} icon={item.icon} onClick={() => handleNav(item.key)}>
+            <NavBtn key={item.key} active={activeSection === item.key} icon={item.icon} onClick={() => handleNav(item.key)} badgeCount={navBadge[item.key] || 0}>
               {item.label}
             </NavBtn>
           ))}
@@ -794,7 +859,7 @@ export default function DoctorPage() {
 
         {/* Section content */}
         <Box sx={{ flex: 1, overflow: "hidden" }}>
-          {activeSection === "chat" && <ChatSection doctorId={doctorId} />}
+          {activeSection === "chat" && <ChatSection doctorId={doctorId} onMessageCountChange={setChatMessageCount} />}
           {activeSection === "home" && <HomeSection doctorId={doctorId} navigate={navigate} />}
           {activeSection === "patients" && <PatientsSection doctorId={doctorId} />}
           {activeSection === "tasks" && <TasksSection doctorId={doctorId} />}
