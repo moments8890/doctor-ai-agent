@@ -361,3 +361,11 @@ export async function patchTask(taskId, doctorId, status) {
     body: JSON.stringify({ status }),
   });
 }
+
+export async function updateAdminRecord(recordId, fields) {
+  return adminRequest(`/api/admin/records/${recordId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(fields),
+  });
+}

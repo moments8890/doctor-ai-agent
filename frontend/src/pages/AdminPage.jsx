@@ -9,9 +9,14 @@ import {
   CardContent,
   Chip,
   Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   IconButton,
   MenuItem,
+  Paper,
   Stack,
   Switch,
   Table,
@@ -21,6 +26,7 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import StorageOutlinedIcon from "@mui/icons-material/StorageOutlined";
@@ -36,6 +42,10 @@ import TextSnippetOutlinedIcon from "@mui/icons-material/TextSnippetOutlined";
 import AccountTreeOutlinedIcon from "@mui/icons-material/AccountTreeOutlined";
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
+import UnfoldMoreIcon from "@mui/icons-material/UnfoldMore";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
+import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import {
   getAdminFilterOptions,
   getAdminRuntimeConfig,
@@ -54,6 +64,7 @@ import {
   getAdminInviteCodes,
   createAdminInviteCode,
   revokeAdminInviteCode,
+  updateAdminRecord,
 } from "../api";
 import { t } from "../i18n";
 
@@ -90,10 +101,52 @@ function NavTab({ active, onClick, icon, children }) {
   );
 }
 
+const RECORD_EDIT_FIELDS = [
+  { key: "chief_complaint", label: "主诉" },
+  { key: "history_of_present_illness", label: "现病史" },
+  { key: "past_medical_history", label: "既往史" },
+  { key: "physical_examination", label: "体格检查" },
+  { key: "auxiliary_examinations", label: "辅助检查" },
+  { key: "diagnosis", label: "诊断" },
+  { key: "treatment_plan", label: "治疗方案" },
+  { key: "follow_up_plan", label: "随访计划" },
+];
+
 function toCell(value) {
   if (value === null || value === undefined || value === "") return "-";
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
+}
+
+function renderCellContent(value) {
+  if (value === null || value === undefined || value === "") {
+    return <span style={{ color: "#b0bec5" }}>—</span>;
+  }
+  if (typeof value === "boolean") {
+    return (
+      <Chip
+        label={value ? "true" : "false"}
+        size="small"
+        color={value ? "success" : "default"}
+        sx={{ height: 18, fontSize: 10, fontFamily: "inherit" }}
+      />
+    );
+  }
+  const str = typeof value === "object" ? JSON.stringify(value) : String(value);
+  // Format ISO datetime strings
+  if (/^\d{4}-\d{2}-\d{2}T/.test(str)) {
+    return <span style={{ whiteSpace: "nowrap" }}>{str.slice(0, 16).replace("T", " ")}</span>;
+  }
+  if (str.length > 90) {
+    return (
+      <Tooltip title={str} placement="top" arrow>
+        <span style={{ cursor: "pointer" }}>
+          {str.slice(0, 90)}<span style={{ color: "#94a3b8" }}>…</span>
+        </span>
+      </Tooltip>
+    );
+  }
+  return str;
 }
 
 
@@ -187,6 +240,12 @@ function AdminDashboard({ onLockout }) {
   const [inviteCodes, setInviteCodes] = useState([]);
   const [newInviteDoctorId, setNewInviteDoctorId] = useState("");
   const [newInviteName, setNewInviteName] = useState("");
+  const [sortCol, setSortCol] = useState("");
+  const [sortDir, setSortDir] = useState("asc");
+  const [selectedRow, setSelectedRow] = useState(null);
+  const [rowEditMode, setRowEditMode] = useState(false);
+  const [rowEditForm, setRowEditForm] = useState({});
+  const [rowSaving, setRowSaving] = useState(false);
   const columns = useMemo(() => {
     const allKeys = [];
     for (const row of rows) {
@@ -199,6 +258,42 @@ function AdminDashboard({ onLockout }) {
 
   const activeLabel = t(`admin.tables.${activeTable}`);
   const colCount = columns.length + 1;
+
+  const sortedRows = useMemo(() => {
+    if (!sortCol) return rows;
+    return [...rows].sort((a, b) => {
+      const av = a[sortCol] ?? "";
+      const bv = b[sortCol] ?? "";
+      const cmp = String(av).localeCompare(String(bv), undefined, { numeric: true });
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [rows, sortCol, sortDir]);
+
+  function handleSort(col) {
+    if (sortCol === col) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortCol(col);
+      setSortDir("asc");
+    }
+  }
+
+  async function saveRowEdit() {
+    if (!selectedRow) return;
+    setRowSaving(true);
+    try {
+      const saved = await updateAdminRecord(selectedRow.id, rowEditForm);
+      setRows((prev) => prev.map((r) => (r.id === saved.id ? { ...r, ...saved } : r)));
+      setSelectedRow((prev) => ({ ...prev, ...saved }));
+      setRowEditMode(false);
+      setStatus({ type: "success", text: "记录已保存" });
+    } catch (e) {
+      setStatus({ type: "error", text: e.message || "保存失败" });
+    } finally {
+      setRowSaving(false);
+    }
+  }
+
   const prefixFilter = (options, { inputValue }) => {
     const needle = (inputValue || "").trim().toLowerCase();
     return needle
@@ -556,6 +651,9 @@ function AdminDashboard({ onLockout }) {
                   </Stack>
                 ) : (
                   <Stack direction="row" spacing={0.8}>
+                    <Typography variant="caption" color="text.secondary" sx={{ alignSelf: "center", mr: 1 }}>
+                      {rows.length} 行
+                    </Typography>
                     <Button variant="outlined" size="small" startIcon={<DownloadOutlinedIcon fontSize="small" />} onClick={exportCsv} disabled={!rows.length}>
                       {t("admin.exportCsv")}
                     </Button>
@@ -1014,78 +1112,189 @@ function AdminDashboard({ onLockout }) {
                   </TableContainer>
                 </Box>
               ) : (
-                <TableContainer
-                  sx={{
-                    border: "1px solid #d8e3e8",
-                    borderRadius: 1.5,
-                    backgroundColor: "#f8fbfc",
-                    maxHeight: "74vh",
-                  }}
-                >
-                  <Table size="small" stickyHeader sx={{ tableLayout: "fixed", minWidth: 980 }}>
-                    <TableHead>
-                      <TableRow>
-                        {columns.map((key) => (
-                          <TableCell
-                            key={`head-${key}`}
-                            sx={{
-                              fontWeight: 700,
-                              color: "text.secondary",
-                              whiteSpace: "nowrap",
-                              width: COL_WIDTH[key] || 140,
-                              maxWidth: COL_WIDTH[key] || 140,
-                              backgroundColor: "#eef4f6",
-                              px: 1,
-                              py: 0.75,
-                              fontSize: 12,
-                            }}
-                          >
-                            {t(`admin.cols.${key}`)}
-                          </TableCell>
-                        ))}
-                        <TableCell sx={{ width: 56, maxWidth: 56, backgroundColor: "#eef4f6", px: 0.5, py: 0.75 }} />
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {rows.map((row, rowIdx) => (
-                        <TableRow key={`row-${row.id ?? row.key ?? rowIdx}`} hover>
+                <>
+                  <TableContainer
+                    sx={{
+                      border: "1px solid #d8e3e8",
+                      borderRadius: 1.5,
+                      backgroundColor: "#f8fbfc",
+                      maxHeight: "74vh",
+                    }}
+                  >
+                    <Table size="small" stickyHeader sx={{ tableLayout: "fixed", minWidth: 980 }}>
+                      <TableHead>
+                        <TableRow>
                           {columns.map((key) => (
                             <TableCell
-                              key={`cell-${rowIdx}-${key}`}
+                              key={`head-${key}`}
+                              onClick={() => handleSort(key)}
                               sx={{
-                                verticalAlign: "top",
-                                borderBottom: "1px solid #e4edf0",
+                                fontWeight: 700,
+                                color: "text.secondary",
+                                whiteSpace: "nowrap",
                                 width: COL_WIDTH[key] || 140,
                                 maxWidth: COL_WIDTH[key] || 140,
-                                py: 0.45,
+                                backgroundColor: "#eef4f6",
                                 px: 1,
-                                fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace",
+                                py: 0.75,
                                 fontSize: 12,
-                                lineHeight: 1.35,
-                                whiteSpace: "pre-wrap",
-                                wordBreak: "break-word",
+                                cursor: "pointer",
+                                userSelect: "none",
+                                "&:hover": { backgroundColor: "#e2edf0" },
                               }}
                             >
-                              {toCell(row[key])}
+                              <Stack direction="row" alignItems="center" spacing={0.3}>
+                                <span>{t(`admin.cols.${key}`)}</span>
+                                {sortCol === key ? (
+                                  sortDir === "asc"
+                                    ? <ArrowUpwardIcon sx={{ fontSize: 13, color: "primary.main" }} />
+                                    : <ArrowDownwardIcon sx={{ fontSize: 13, color: "primary.main" }} />
+                                ) : (
+                                  <UnfoldMoreIcon sx={{ fontSize: 13, color: "#ccc" }} />
+                                )}
+                              </Stack>
                             </TableCell>
                           ))}
-                          <TableCell sx={{ py: 0.2, px: 0.2, borderBottom: "1px solid #e4edf0", verticalAlign: "top" }}>
-                            <IconButton size="small" onClick={() => copyRow(row)} title={t("admin.copyRow")}>
-                              <ContentCopyOutlinedIcon sx={{ fontSize: 15 }} />
-                            </IconButton>
-                          </TableCell>
+                          <TableCell sx={{ width: 56, maxWidth: 56, backgroundColor: "#eef4f6", px: 0.5, py: 0.75 }} />
                         </TableRow>
-                      ))}
-                      {!rows.length ? (
-                        <TableRow>
-                          <TableCell colSpan={colCount} sx={{ py: 1.2 }}>
-                            <Typography color="text.secondary">{t("admin.empty")}</Typography>
-                          </TableCell>
-                        </TableRow>
-                      ) : null}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
+                      </TableHead>
+                      <TableBody>
+                        {sortedRows.map((row, rowIdx) => (
+                          <TableRow
+                            key={`row-${row.id ?? row.key ?? rowIdx}`}
+                            hover
+                            onClick={() => {
+                              setSelectedRow(row);
+                              setRowEditMode(false);
+                            }}
+                            sx={{ cursor: "pointer" }}
+                          >
+                            {columns.map((key) => (
+                              <TableCell
+                                key={`cell-${rowIdx}-${key}`}
+                                sx={{
+                                  verticalAlign: "top",
+                                  borderBottom: "1px solid #e4edf0",
+                                  width: COL_WIDTH[key] || 140,
+                                  maxWidth: COL_WIDTH[key] || 140,
+                                  py: 0.45,
+                                  px: 1,
+                                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace",
+                                  fontSize: 12,
+                                  lineHeight: 1.35,
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {renderCellContent(row[key])}
+                              </TableCell>
+                            ))}
+                            <TableCell
+                              sx={{ py: 0.2, px: 0.2, borderBottom: "1px solid #e4edf0", verticalAlign: "top" }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <IconButton size="small" onClick={() => copyRow(row)} title={t("admin.copyRow")}>
+                                <ContentCopyOutlinedIcon sx={{ fontSize: 15 }} />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {!sortedRows.length ? (
+                          <TableRow>
+                            <TableCell colSpan={colCount} sx={{ py: 1.2 }}>
+                              <Typography color="text.secondary">{t("admin.empty")}</Typography>
+                            </TableCell>
+                          </TableRow>
+                        ) : null}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+
+                  {/* Row detail / edit dialog */}
+                  <Dialog
+                    open={!!selectedRow}
+                    onClose={() => { setSelectedRow(null); setRowEditMode(false); }}
+                    maxWidth="md"
+                    fullWidth
+                    PaperProps={{ sx: { borderRadius: 2 } }}
+                  >
+                    <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>
+                      <Stack direction="row" alignItems="center" justifyContent="space-between">
+                        <span>
+                          {t(`admin.tables.${activeTable}`)}
+                          <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                            #{selectedRow?.id}
+                          </Typography>
+                        </span>
+                        {activeTable === "medical_records" && !rowEditMode && (
+                          <Button
+                            size="small"
+                            startIcon={<EditOutlinedIcon fontSize="small" />}
+                            onClick={() => {
+                              const init = {};
+                              RECORD_EDIT_FIELDS.forEach(({ key }) => { init[key] = selectedRow?.[key] || ""; });
+                              setRowEditForm(init);
+                              setRowEditMode(true);
+                            }}
+                          >
+                            编辑
+                          </Button>
+                        )}
+                      </Stack>
+                    </DialogTitle>
+                    <DialogContent dividers>
+                      {rowEditMode ? (
+                        <Stack spacing={2}>
+                          {RECORD_EDIT_FIELDS.map(({ key, label }) => (
+                            <TextField
+                              key={key}
+                              label={label}
+                              multiline
+                              minRows={2}
+                              maxRows={8}
+                              size="small"
+                              fullWidth
+                              value={rowEditForm[key] || ""}
+                              onChange={(e) => setRowEditForm((f) => ({ ...f, [key]: e.target.value }))}
+                            />
+                          ))}
+                        </Stack>
+                      ) : (
+                        <Stack spacing={0}>
+                          {selectedRow && Object.entries(selectedRow).map(([key, value]) => (
+                            <Box key={key} sx={{ display: "flex", borderBottom: "1px solid #f0f4f6", py: 0.8 }}>
+                              <Typography
+                                variant="caption"
+                                sx={{ fontWeight: 700, color: "text.secondary", width: 180, flexShrink: 0, pt: 0.1 }}
+                              >
+                                {t(`admin.cols.${key}`)}
+                              </Typography>
+                              <Typography
+                                variant="body2"
+                                sx={{ fontFamily: "ui-monospace, monospace", fontSize: 12, whiteSpace: "pre-wrap", wordBreak: "break-all", flex: 1 }}
+                              >
+                                {toCell(value)}
+                              </Typography>
+                            </Box>
+                          ))}
+                        </Stack>
+                      )}
+                    </DialogContent>
+                    <DialogActions>
+                      {rowEditMode ? (
+                        <>
+                          <Button onClick={() => setRowEditMode(false)} disabled={rowSaving}>取消</Button>
+                          <Button variant="contained" onClick={saveRowEdit} disabled={rowSaving}>
+                            {rowSaving ? "保存中…" : "保存"}
+                          </Button>
+                        </>
+                      ) : (
+                        <Button onClick={() => { setSelectedRow(null); }}>关闭</Button>
+                      )}
+                    </DialogActions>
+                  </Dialog>
+                </>
               )}
             </CardContent>
           </Card>

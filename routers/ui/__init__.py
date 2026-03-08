@@ -509,6 +509,41 @@ async def update_record(
     }
 
 
+@router.patch("/api/admin/records/{record_id}")
+async def admin_update_record(
+    record_id: int,
+    body: RecordUpdate,
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+):
+    _require_ui_admin_access(x_admin_token)
+    async with AsyncSessionLocal() as db:
+        rec = (await db.execute(
+            select(MedicalRecordDB).where(MedicalRecordDB.id == record_id).limit(1)
+        )).scalar_one_or_none()
+        if rec is None:
+            raise HTTPException(status_code=404, detail="Record not found")
+        for field, value in body.model_dump(exclude_unset=True).items():
+            setattr(rec, field, value)
+        rec.updated_at = datetime.now(timezone.utc)
+        await db.commit()
+        await db.refresh(rec)
+    return {
+        "id": rec.id,
+        "patient_id": rec.patient_id,
+        "doctor_id": rec.doctor_id,
+        "chief_complaint": rec.chief_complaint,
+        "history_of_present_illness": rec.history_of_present_illness,
+        "past_medical_history": rec.past_medical_history,
+        "physical_examination": rec.physical_examination,
+        "auxiliary_examinations": rec.auxiliary_examinations,
+        "diagnosis": rec.diagnosis,
+        "treatment_plan": rec.treatment_plan,
+        "follow_up_plan": rec.follow_up_plan,
+        "created_at": _fmt_ts(rec.created_at),
+        "updated_at": _fmt_ts(rec.updated_at),
+    }
+
+
 @router.delete("/api/manage/labels/{label_id}")
 async def delete_label_endpoint(
     label_id: int,
