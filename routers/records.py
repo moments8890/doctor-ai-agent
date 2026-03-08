@@ -627,12 +627,25 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
         if not name:
             return ChatResponse(reply="好的，请告诉我患者的姓名。")
 
-        # ── Duplicate check: reuse existing patient rather than creating a dupe ─
+        # ── Duplicate check: name + year_of_birth uniquely identify a patient ──
+        # If age is provided, derive year_of_birth and match on both fields.
+        # Falls back to name-only match when no age is given.
         patient_created = False
+        _yob = (datetime.now().year - intent_result.age) if intent_result.age else None
         async with AsyncSessionLocal() as db:
-            patient = await find_patient_by_name(db, doctor_id, name)
+            _candidates = await find_patients_by_exact_name(db, doctor_id, name)
+        if _yob is not None:
+            patient = next((p for p in _candidates if p.year_of_birth == _yob), None)
+            if patient is None and not _candidates:
+                patient = None  # no name match at all → create
+            elif patient is None and _candidates:
+                patient = None  # same name, different DOB → treat as new patient
+        else:
+            patient = _candidates[0] if _candidates else None
+
         if patient is not None:
-            parts = "、".join(filter(None, [patient.gender, f"{datetime.now().year - patient.year_of_birth}岁" if patient.year_of_birth else None]))
+            _age_str = f"{datetime.now().year - patient.year_of_birth}岁" if patient.year_of_birth else None
+            parts = "、".join(filter(None, [patient.gender, _age_str]))
             reply = f"ℹ️ 患者【{name}】已存在（ID {patient.id}{('，' + parts) if parts else ''}），已复用现有档案。"
             log(f"[Chat] reusing existing patient [{name}] id={patient.id} doctor={doctor_id}")
         else:
