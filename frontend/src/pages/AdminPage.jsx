@@ -17,6 +17,7 @@ import {
   IconButton,
   MenuItem,
   Paper,
+  Snackbar,
   Stack,
   Switch,
   Table,
@@ -47,6 +48,7 @@ import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import InboxOutlinedIcon from "@mui/icons-material/InboxOutlined";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import {
   getAdminFilterOptions,
   getAdminRuntimeConfig,
@@ -108,14 +110,9 @@ function NavTab({ active, onClick, icon, children }) {
 }
 
 const RECORD_EDIT_FIELDS = [
-  { key: "chief_complaint", label: "主诉" },
-  { key: "history_of_present_illness", label: "现病史" },
-  { key: "past_medical_history", label: "既往史" },
-  { key: "physical_examination", label: "体格检查" },
-  { key: "auxiliary_examinations", label: "辅助检查" },
-  { key: "diagnosis", label: "诊断" },
-  { key: "treatment_plan", label: "治疗方案" },
-  { key: "follow_up_plan", label: "随访计划" },
+  { key: "record_type", label: "记录类型" },
+  { key: "content", label: "临床笔记" },
+  { key: "tags", label: "关键词标签" },
 ];
 
 function toCell(value) {
@@ -165,11 +162,10 @@ const COL_WIDTH = {
   name: 112,
   gender: 72,
   year_of_birth: 88,
-  chief_complaint: 220,
+  record_type: 120,
+  tags: 220,
   diagnosis: 180,
   primary_diagnosis: 180,
-  treatment_plan: 240,
-  follow_up_plan: 220,
   title: 220,
   summary: 260,
   content: 320,
@@ -255,6 +251,12 @@ function AdminDashboard({ onLockout }) {
   const [prompts, setPrompts] = useState([]); // [{key, content, updated_at}]
   const [promptEdits, setPromptEdits] = useState({}); // key -> edited content
   const [promptSaving, setPromptSaving] = useState({}); // key -> bool
+  const [revokeTarget, setRevokeTarget] = useState(null);
+  const [snack, setSnack] = useState({ open: false, message: "", severity: "success" });
+
+  function showSnack(message, severity = "success") {
+    setSnack({ open: true, message, severity });
+  }
   const columns = useMemo(() => {
     const allKeys = [];
     for (const row of rows) {
@@ -295,7 +297,7 @@ function AdminDashboard({ onLockout }) {
       setRows((prev) => prev.map((r) => (r.id === saved.id ? { ...r, ...saved } : r)));
       setSelectedRow((prev) => ({ ...prev, ...saved }));
       setRowEditMode(false);
-      setStatus({ type: "success", text: "记录已保存" });
+      showSnack("记录已保存");
     } catch (e) {
       setStatus({ type: "error", text: e.message || "保存失败" });
     } finally {
@@ -369,7 +371,7 @@ function AdminDashboard({ onLockout }) {
   async function copyRow(row) {
     try {
       await navigator.clipboard.writeText(JSON.stringify(row, null, 2));
-      setStatus({ type: "success", text: t("admin.copySuccess") });
+      showSnack("已复制到剪贴板");
     } catch (error) {
       setStatus({ type: "error", text: t("admin.copyFailed", { message: error.message }) });
     }
@@ -514,6 +516,7 @@ function AdminDashboard({ onLockout }) {
       setNewInviteDoctorId("");
       setNewInviteName("");
       await loadInviteCodes();
+      showSnack("邀请码已生成");
     } catch (error) {
       setStatus({ type: "error", text: error.message });
     }
@@ -523,6 +526,7 @@ function AdminDashboard({ onLockout }) {
     try {
       await revokeAdminInviteCode(code);
       await loadInviteCodes();
+      showSnack("邀请码已吊销");
     } catch (error) {
       setStatus({ type: "error", text: error.message });
     }
@@ -556,9 +560,23 @@ function AdminDashboard({ onLockout }) {
   }
 
   useEffect(() => {
+    setSortCol("");
+    setSortDir("asc");
+    setStatus({ type: "info", text: "" });
     loadAll(activeTable);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTable]);
+
+  const dateFilterRef = useRef(null);
+  useEffect(() => {
+    if (!dateFrom && !dateTo) return;
+    clearTimeout(dateFilterRef.current);
+    dateFilterRef.current = setTimeout(() => {
+      loadAll(activeTable, { dateFrom, dateTo });
+    }, 600);
+    return () => clearTimeout(dateFilterRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateFrom, dateTo]);
 
   return (
     <Box
@@ -681,7 +699,7 @@ function AdminDashboard({ onLockout }) {
                       onClick={async () => {
                         try {
                           await putAdminRoutingKeywords(null, routingKeywords);
-                          setStatus({ type: "success", text: "路由关键词已保存。" });
+                          showSnack("路由关键词已保存。");
                         } catch (error) {
                           setStatus({ type: "error", text: `保存失败：${error.message}` });
                         }
@@ -720,6 +738,14 @@ function AdminDashboard({ onLockout }) {
                     <Typography variant="caption" color="text.secondary" sx={{ alignSelf: "center", mr: 1 }}>
                       {rows.length} 行
                     </Typography>
+                    {rows.length >= 300 && (
+                      <Chip
+                        label="已达 300 行上限，请缩小筛选范围"
+                        size="small"
+                        color="warning"
+                        sx={{ fontSize: 11 }}
+                      />
+                    )}
                     <Button variant="outlined" size="small" startIcon={<DownloadOutlinedIcon fontSize="small" />} onClick={exportCsv} disabled={!rows.length}>
                       {t("admin.exportCsv")}
                     </Button>
@@ -818,6 +844,20 @@ function AdminDashboard({ onLockout }) {
                     sx={{ whiteSpace: "nowrap", minWidth: 92 }}
                   >
                     {loading ? t("common.loading") : t("admin.reload")}
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="text"
+                    sx={{ whiteSpace: "nowrap", color: "text.secondary" }}
+                    onClick={() => {
+                      setDoctorId(""); setDoctorInput("");
+                      setPatientName(""); setPatientInput("");
+                      setDateFrom(""); setDateTo("");
+                      loadAll(activeTable, { doctorId: "", patientName: "", dateFrom: "", dateTo: "" });
+                    }}
+                    disabled={!doctorId && !patientName && !dateFrom && !dateTo}
+                  >
+                    清除筛选
                   </Button>
                 </Stack>
               </Box>
@@ -1171,7 +1211,7 @@ function AdminDashboard({ onLockout }) {
                             <TableCell>{row.created_at}</TableCell>
                             <TableCell>
                               {row.active && (
-                                <Button size="small" color="error" onClick={() => onRevokeInviteCode(row.code)}>吊销</Button>
+                                <Button size="small" color="error" onClick={() => setRevokeTarget(row.code)}>吊销</Button>
                               )}
                             </TableCell>
                           </TableRow>
@@ -1179,6 +1219,18 @@ function AdminDashboard({ onLockout }) {
                       </TableBody>
                     </Table>
                   </TableContainer>
+                  <Dialog open={!!revokeTarget} onClose={() => setRevokeTarget(null)}>
+                    <DialogTitle>确认吊销邀请码</DialogTitle>
+                    <DialogContent>
+                      <Typography>确认吊销邀请码 <strong>{revokeTarget}</strong>？此操作不可撤销。</Typography>
+                    </DialogContent>
+                    <DialogActions>
+                      <Button onClick={() => setRevokeTarget(null)}>取消</Button>
+                      <Button color="error" variant="contained" onClick={async () => { await onRevokeInviteCode(revokeTarget); setRevokeTarget(null); }}>
+                        吊销
+                      </Button>
+                    </DialogActions>
+                  </Dialog>
                 </Box>
               ) : activeTable === "system_prompts" ? (
                 <Stack spacing={2}>
@@ -1326,6 +1378,9 @@ function AdminDashboard({ onLockout }) {
                               <IconButton size="small" onClick={() => copyRow(row)} title={t("admin.copyRow")}>
                                 <ContentCopyOutlinedIcon sx={{ fontSize: 15 }} />
                               </IconButton>
+                              <IconButton size="small" onClick={() => { setSelectedRow(row); setRowEditMode(false); }} title="查看详情">
+                                <VisibilityOutlinedIcon sx={{ fontSize: 15 }} />
+                              </IconButton>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -1439,6 +1494,16 @@ function AdminDashboard({ onLockout }) {
           </Card>
         </Box>
       </Container>
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={3000}
+        onClose={() => setSnack(s => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert severity={snack.severity} onClose={() => setSnack(s => ({ ...s, open: false }))} sx={{ width: "100%" }}>
+          {snack.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
