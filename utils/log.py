@@ -3,15 +3,56 @@ from __future__ import annotations
 import json
 import logging
 import os
+from contextvars import ContextVar
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 _DEFAULT_FMT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 
+# ---------------------------------------------------------------------------
+# Request-scoped context vars — set once per incoming request, automatically
+# included in every JSON log line emitted during that request.
+# ---------------------------------------------------------------------------
+
+_ctx_doctor_id: ContextVar[str] = ContextVar("doctor_id", default="")
+_ctx_trace_id: ContextVar[str] = ContextVar("trace_id", default="")
+_ctx_intent: ContextVar[str] = ContextVar("intent", default="")
+
+
+def bind_log_context(
+    *,
+    doctor_id: str = "",
+    trace_id: str = "",
+    intent: str = "",
+) -> None:
+    """Bind request-scoped fields into the current async context.
+
+    Call once at the start of each request handler.  All log records emitted
+    afterwards (within the same asyncio Task) will carry these fields in JSON
+    output.
+    """
+    if doctor_id:
+        _ctx_doctor_id.set(doctor_id)
+    if trace_id:
+        _ctx_trace_id.set(trace_id)
+    if intent:
+        _ctx_intent.set(intent)
+
+
+def clear_log_context() -> None:
+    _ctx_doctor_id.set("")
+    _ctx_trace_id.set("")
+    _ctx_intent.set("")
+
+
+# ---------------------------------------------------------------------------
+# Formatters
+# ---------------------------------------------------------------------------
+
 
 class _JsonFormatter(logging.Formatter):
-    """Emit one JSON object per log line for machine-readable ingestion."""
+    """Emit one JSON object per log line with optional request context fields."""
 
     def format(self, record: logging.LogRecord) -> str:
         payload: Dict[str, Any] = {
@@ -20,16 +61,29 @@ class _JsonFormatter(logging.Formatter):
             "logger": record.name,
             "msg": record.getMessage(),
         }
+        # Inject context vars when set
+        for key, var in (
+            ("doctor_id", _ctx_doctor_id),
+            ("trace_id", _ctx_trace_id),
+            ("intent", _ctx_intent),
+        ):
+            val = var.get("")
+            if val:
+                payload[key] = val
         if record.exc_info:
             payload["exc"] = self.formatException(record.exc_info)
         return json.dumps(payload, ensure_ascii=False)
 
 
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
 def _to_bool(raw: Optional[str], default: bool) -> bool:
     if raw is None:
         return default
-    value = raw.strip().lower()
-    return value in {"1", "true", "yes", "on"}
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _build_kv_payload(fields: Dict[str, Any]) -> str:
@@ -42,12 +96,18 @@ def _build_kv_payload(fields: Dict[str, Any]) -> str:
     return " ".join(parts)
 
 
+# ---------------------------------------------------------------------------
+# Initialisation
+# ---------------------------------------------------------------------------
+
+
 def init_logging() -> None:
     """Initialize root logging with optional rotating file output.
 
     Environment variables:
     - LOG_LEVEL (default: INFO)
     - LOG_FORMAT (default: '%(asctime)s [%(levelname)s] %(name)s: %(message)s')
+    - LOG_JSON (default: false) — emit JSON lines; enables context fields
     - LOG_TO_FILE (default: true)
     - LOG_DIR (default: logs)
     - LOG_FILE (default: app.log)
@@ -129,6 +189,11 @@ def init_logging() -> None:
         scheduler_file_handler.setLevel(level)
         scheduler_file_handler.setFormatter(formatter)
         scheduler_logger.addHandler(scheduler_file_handler)
+
+
+# ---------------------------------------------------------------------------
+# Public helpers
+# ---------------------------------------------------------------------------
 
 
 def get_logger(name: str) -> logging.Logger:

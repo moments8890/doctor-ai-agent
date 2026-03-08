@@ -181,10 +181,10 @@
         },
         "empty": "未找到病历。"
       },
-      “timeline”: {
-        “title”: “患者时间线（调试）”,
-        “exportPdf”: “导出病历 PDF”,
-        “emptyHint”: “请先在”患者”页签选择患者后再加载时间线。”,
+      "timeline": {
+        "title": "患者时间线（调试）",
+        "exportPdf": "导出病历 PDF",
+        "emptyHint": "请先在「患者」页签选择患者后再加载时间线。",
         "empty": "暂无时间线事件。",
         "showDetails": "查看详情",
         "hideDetails": "收起详情",
@@ -395,7 +395,7 @@
         "records": "病历",
         "custom": "自定义"
       },
-      "patientsNote": "当前医生下患者列表。点击“查看病历”查看该患者最近病历。",
+      "patientsNote": "当前医生下患者列表。点击「查看病历」查看该患者最近病历。",
       "categoryFilter": "分类筛选：",
       "recordsNote": "最近病历记录（支持按患者筛选）。",
       "patientFilterLabel": "患者 ID 筛选：",

@@ -347,12 +347,34 @@ async def _runtime_apply_hook(_config: dict) -> None:
 register_runtime_apply_hook(_runtime_apply_hook)
 
 
+async def _run_alembic_migrations() -> None:
+    """Run pending Alembic migrations synchronously in a thread pool."""
+    import asyncio
+    import logging
+    from alembic.config import Config
+    from alembic import command
+
+    log = logging.getLogger("startup")
+
+    def _run_sync() -> None:
+        cfg = Config("alembic.ini")
+        cfg.set_main_option("script_location", "alembic")
+        command.upgrade(cfg, "head")
+
+    try:
+        await asyncio.get_event_loop().run_in_executor(None, _run_sync)
+        log.info("[DB] Alembic migrations applied (or already at head)")
+    except Exception as exc:
+        log.warning("[DB] Alembic migration failed — continuing anyway: %s", exc)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _startup_ready
     _startup_log = logging.getLogger("startup")
     _startup_log.info("[Config] loaded environment\n%s", APP_CONFIG.to_pretty_log())
     await create_tables()
+    await _run_alembic_migrations()
     _added_doctors = await backfill_doctors_registry()
     _startup_log.info("[DB] doctors backfill completed | inserted=%s", _added_doctors)
     await seed_prompts()

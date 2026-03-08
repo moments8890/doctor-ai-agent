@@ -150,6 +150,8 @@ _DUE_OVERRIDE_RE = re.compile(
     r"|([一两二三四五六七八九十\d]+)\s*个月后"
     r"|(下周|下个周)"         # → 7 days
     r"|(下个月|下月)"         # → 30 days
+    r"|(明天)"               # → 1 day
+    r"|(后天)"               # → 2 days
 )
 
 _CN_MAP = {
@@ -181,6 +183,10 @@ def refine_due_days(text: str, default_days: int) -> int:
             return 7
         if m.group(5):   # 下个月
             return 30
+        if m.group(6):   # 明天
+            return 1
+        if m.group(7):   # 后天
+            return 2
     except (ValueError, KeyError):
         pass
     return default_days

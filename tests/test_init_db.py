@@ -112,14 +112,11 @@ class _BackfillSessionCtx:
         return False
 
 
-async def test_create_tables_runs_age_to_year_of_birth_migration(monkeypatch):
-    conn = _AsyncConn(
-        table_cols={
-            "patients": ["id", "doctor_id", "name", "age"],
-            "doctor_tasks": ["id", "doctor_id", "task_type", "title", "status"],
-            "doctors": ["doctor_id", "name", "created_at", "updated_at"],
-        }
-    )
+async def test_create_tables_calls_create_all_only(monkeypatch):
+    """create_tables() must only call create_all — no inline SQL migrations.
+    All schema evolution is handled by Alembic (alembic/versions/0002_*).
+    """
+    conn = _AsyncConn(table_cols={"patients": ["id", "doctor_id", "name", "age"]})
     monkeypatch.setattr(init_db, "engine", _Engine(conn))
 
     create_all = MagicMock()
@@ -128,41 +125,19 @@ async def test_create_tables_runs_age_to_year_of_birth_migration(monkeypatch):
     await init_db.create_tables()
 
     create_all.assert_called_once()
-    assert any("RENAME COLUMN age TO year_of_birth" in s for s in conn.executed_sql)
-    assert any("ADD COLUMN channel" in s for s in conn.executed_sql)
-    assert any("ADD COLUMN wechat_user_id" in s for s in conn.executed_sql)
+    # No inline ALTER TABLE / CREATE INDEX — those live in Alembic now
+    assert conn.executed_sql == [], f"Unexpected SQL executed: {conn.executed_sql}"
 
 
-async def test_create_tables_skips_migration_when_column_already_renamed(monkeypatch):
+async def test_create_tables_idempotent_on_full_schema(monkeypatch):
+    """create_tables() on an already-fully-migrated DB executes no DDL."""
     conn = _AsyncConn(
         table_cols={
             "patients": [
                 "id", "doctor_id", "name", "year_of_birth",
-                "primary_category", "category_tags", "category_computed_at", "category_rules_version",
-                "primary_risk_level", "risk_tags", "risk_score", "follow_up_state", "risk_computed_at", "risk_rules_version",
+                "primary_category", "primary_risk_level",
             ],
-            "doctor_tasks": [
-                "id", "doctor_id", "task_type", "title", "status", "trigger_source", "trigger_reason", "updated_at",
-            ],
-            "doctor_session_states": [
-                "doctor_id", "current_patient_id", "pending_create_name", "pending_record_id", "pending_import_id",
-            ],
-            "doctors": ["doctor_id", "name", "channel", "wechat_user_id", "created_at", "updated_at"],
-            "medical_records": [
-                "id", "patient_id", "doctor_id", "content", "tags", "record_type", "created_at", "updated_at",
-                "source_message_id", "encounter_type", "referenced_record_id", "is_signed_off",
-                "signed_off_at", "doctor_signature",
-            ],
-            "neuro_cases": [
-                "id", "doctor_id", "patient_id", "created_at", "updated_at",
-            ],
-            "doctor_conversation_turns": [
-                "id", "doctor_id", "role", "content", "created_at", "updated_at",
-            ],
-            "specialty_scores": [
-                "id", "record_id", "doctor_id", "score_type", "score_value", "raw_text", "details_json",
-                "patient_id", "source", "confidence_score", "validation_status", "extracted_at", "created_at",
-            ],
+            "doctors": ["doctor_id", "channel", "wechat_user_id"],
         }
     )
     monkeypatch.setattr(init_db, "engine", _Engine(conn))
@@ -173,9 +148,7 @@ async def test_create_tables_skips_migration_when_column_already_renamed(monkeyp
     await init_db.create_tables()
 
     create_all.assert_called_once()
-    assert conn.executed_sql == [
-        "CREATE UNIQUE INDEX IF NOT EXISTS ux_doctors_channel_wechat_user_id ON doctors(channel, wechat_user_id)"
-    ]
+    assert conn.executed_sql == []
 
 
 async def test_seed_prompts_inserts_both_defaults_when_missing(monkeypatch):

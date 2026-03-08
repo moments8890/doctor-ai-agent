@@ -96,7 +96,7 @@ from services.knowledge.doctor_knowledge import (
     parse_add_to_knowledge_command,
     save_knowledge_item,
 )
-from utils.log import log
+from utils.log import log, bind_log_context
 
 _COMPLETE_RE = re.compile(r'^完成\s*(\d+)$')
 
@@ -859,6 +859,7 @@ def verify(
 
 async def _handle_intent_bg(text: str, doctor_id: str, open_kfid: str = "", msg_id: str = ""):
     """Process intent in background and deliver result via customer service API."""
+    bind_log_context(doctor_id=doctor_id)
     if open_kfid:
         # Non-blocking enrichment from WeCom customer profile.
         asyncio.create_task(prefetch_customer_profile(doctor_id))
@@ -1030,6 +1031,7 @@ async def handle_message(request: Request):
 
     try:
         msg = parse_message(xml_str)
+        bind_log_context(doctor_id=str(msg.source or ""))
         log(f"[WeChat msg] type={msg.type!r} from={msg.source}")
     except Exception as e:
         log(f"[WeChat msg] parse FAILED: {e}")

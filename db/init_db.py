@@ -1,212 +1,22 @@
 """
-数据库初始化与内联迁移：创建所有表并按需添加新列（无 Alembic）。
+数据库初始化：创建所有表。Schema 演进由 Alembic (alembic upgrade head) 管理。
 """
 
 import db.models  # noqa: F401 — ensure models are registered before create_all
 import re
-from sqlalchemy import inspect, text
 from db.engine import Base, engine, AsyncSessionLocal
 from db.models import Doctor, Patient, MedicalRecordDB, DoctorTask, NeuroCaseDB, DoctorContext, PatientLabel
 from sqlalchemy import select
 
 
-def _get_table_columns(sync_conn, table_name: str):
-    """Return table column names across SQLite/MySQL and test mocks."""
-    try:
-        return [col["name"] for col in inspect(sync_conn).get_columns(table_name)]
-    except Exception:
-        return [r[1] for r in sync_conn.execute(text(f"PRAGMA table_info({table_name})")).fetchall()]
-
-
-def _has_index(sync_conn, table_name: str, index_name: str) -> bool:
-    """Check index existence across real SQLAlchemy connections and simple mocks."""
-    try:
-        return any(idx.get("name") == index_name for idx in inspect(sync_conn).get_indexes(table_name))
-    except Exception:
-        return False
-
-
 async def create_tables() -> None:
+    """Create all tables from ORM metadata (idempotent for new installs).
+
+    Schema evolution (ADD COLUMN, indexes) is handled by Alembic migrations
+    run separately via _run_alembic_migrations() in main.py startup.
+    """
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        dialect_name = getattr(getattr(conn, "dialect", None), "name", "sqlite")
-        # One-shot migration: rename age→year_of_birth if old schema exists
-        cols = await conn.run_sync(lambda c: _get_table_columns(c, "patients"))
-        if "age" in cols and "year_of_birth" not in cols:
-            await conn.execute(text("ALTER TABLE patients RENAME COLUMN age TO year_of_birth"))
-        # Safe column-add migration for patient categorization fields (v1)
-        _cat_cols = {
-            "primary_category": "VARCHAR(32)",
-            "category_tags": "TEXT",
-            "category_computed_at": "DATETIME",
-            "category_rules_version": "VARCHAR(16)",
-        }
-        for col_name, col_type in _cat_cols.items():
-            if col_name not in cols:
-                await conn.execute(
-                    text(f"ALTER TABLE patients ADD COLUMN {col_name} {col_type} DEFAULT NULL")
-                )
-        # Safe column-add migration for patient risk fields (v1)
-        _risk_cols = {
-            "primary_risk_level": "VARCHAR(16)",
-            "risk_tags": "TEXT",
-            "risk_score": "INTEGER",
-            "follow_up_state": "VARCHAR(16)",
-            "risk_computed_at": "DATETIME",
-            "risk_rules_version": "VARCHAR(16)",
-        }
-        for col_name, col_type in _risk_cols.items():
-            if col_name not in cols:
-                await conn.execute(
-                    text(f"ALTER TABLE patients ADD COLUMN {col_name} {col_type} DEFAULT NULL")
-                )
-        # Safe column-add migration for doctor task trigger metadata.
-        _task_cols = await conn.run_sync(lambda c: _get_table_columns(c, "doctor_tasks"))
-        _trigger_cols = {
-            "trigger_source": "VARCHAR(32)",
-            "trigger_reason": "TEXT",
-        }
-        for col_name, col_type in _trigger_cols.items():
-            if col_name not in _task_cols:
-                await conn.execute(
-                    text(f"ALTER TABLE doctor_tasks ADD COLUMN {col_name} {col_type} DEFAULT NULL")
-                )
-
-        # Safe migration: add pending_record_id to doctor_session_states
-        _session_cols = await conn.run_sync(lambda c: _get_table_columns(c, "doctor_session_states"))
-        if "pending_record_id" not in _session_cols:
-            await conn.execute(
-                text("ALTER TABLE doctor_session_states ADD COLUMN pending_record_id VARCHAR(64) DEFAULT NULL")
-            )
-
-        # Migrate: add pending_import_id to doctor_session_states
-        if "pending_import_id" not in _session_cols:
-            await conn.execute(
-                text("ALTER TABLE doctor_session_states ADD COLUMN pending_import_id VARCHAR(64) DEFAULT NULL")
-            )
-
-        # Safe migration for doctors identity fields.
-        _doctor_cols = await conn.run_sync(lambda c: _get_table_columns(c, "doctors"))
-        _doctor_extra_cols = {
-            "channel": "VARCHAR(32)",
-            "wechat_user_id": "VARCHAR(128)",
-        }
-        for col_name, col_type in _doctor_extra_cols.items():
-            if col_name not in _doctor_cols:
-                await conn.execute(
-                    text(f"ALTER TABLE doctors ADD COLUMN {col_name} {col_type} DEFAULT NULL")
-                )
-        _doctor_index_name = "ux_doctors_channel_wechat_user_id"
-        _doctor_index_exists = await conn.run_sync(
-            lambda c: _has_index(c, "doctors", _doctor_index_name)
-        )
-        if not _doctor_index_exists:
-            if dialect_name == "mysql":
-                await conn.execute(
-                    text(
-                        "CREATE UNIQUE INDEX ux_doctors_channel_wechat_user_id "
-                        "ON doctors(channel, wechat_user_id)"
-                    )
-                )
-            else:
-                await conn.execute(
-                    text(
-                        "CREATE UNIQUE INDEX IF NOT EXISTS ux_doctors_channel_wechat_user_id "
-                        "ON doctors(channel, wechat_user_id)"
-                    )
-                )
-
-        # Safe column-add migrations for new updated_at fields
-        _records_cols = await conn.run_sync(lambda c: _get_table_columns(c, "medical_records"))
-        if "updated_at" not in _records_cols:
-            await conn.execute(
-                text("ALTER TABLE medical_records ADD COLUMN updated_at DATETIME DEFAULT NULL")
-            )
-        # Migrate medical_records to chat-first schema (content + tags + record_type)
-        _records_new_cols = {
-            "record_type": "VARCHAR(32)",
-            "content": "TEXT",
-            "tags": "TEXT",
-        }
-        for col_name, col_type in _records_new_cols.items():
-            if col_name not in _records_cols:
-                default = " DEFAULT 'visit'" if col_name == "record_type" else ""
-                await conn.execute(
-                    text(f"ALTER TABLE medical_records ADD COLUMN {col_name} {col_type}{default}")
-                )
-
-        # Add source_message_id to medical_records for message→record lineage
-        if "source_message_id" not in _records_cols:
-            await conn.execute(
-                text("ALTER TABLE medical_records ADD COLUMN source_message_id VARCHAR(128) DEFAULT NULL")
-            )
-
-        # Safe column-add migrations for medical_records sign-off and encounter fields
-        _records_signoff_cols = {
-            "encounter_type": "VARCHAR(32) DEFAULT 'unknown'",
-            "referenced_record_id": "INTEGER",
-            "is_signed_off": "INTEGER DEFAULT 0",
-            "signed_off_at": "DATETIME DEFAULT NULL",
-            "doctor_signature": "TEXT DEFAULT NULL",
-        }
-        for col_name, col_type in _records_signoff_cols.items():
-            if col_name not in _records_cols:
-                await conn.execute(
-                    text(f"ALTER TABLE medical_records ADD COLUMN {col_name} {col_type}")
-                )
-
-        # Safe column-add migrations for specialty_scores new fields
-        _scores_cols = await conn.run_sync(lambda c: _get_table_columns(c, "specialty_scores"))
-        _scores_new_cols = {
-            "patient_id": "INTEGER",
-            "source": "VARCHAR(16) DEFAULT 'chat'",
-            "confidence_score": "REAL",
-            "validation_status": "VARCHAR(16) DEFAULT 'pending'",
-            "extracted_at": "DATETIME",
-        }
-        for col_name, col_type in _scores_new_cols.items():
-            if col_name not in _scores_cols:
-                await conn.execute(
-                    text(f"ALTER TABLE specialty_scores ADD COLUMN {col_name} {col_type}")
-                )
-
-        _neuro_cols = await conn.run_sync(lambda c: _get_table_columns(c, "neuro_cases"))
-        if "updated_at" not in _neuro_cols:
-            await conn.execute(
-                text("ALTER TABLE neuro_cases ADD COLUMN updated_at DATETIME DEFAULT NULL")
-            )
-
-        _turns_cols = await conn.run_sync(lambda c: _get_table_columns(c, "doctor_conversation_turns"))
-        if "updated_at" not in _turns_cols:
-            await conn.execute(
-                text("ALTER TABLE doctor_conversation_turns ADD COLUMN updated_at DATETIME DEFAULT NULL")
-            )
-
-        if "updated_at" not in _task_cols:
-            await conn.execute(
-                text("ALTER TABLE doctor_tasks ADD COLUMN updated_at DATETIME DEFAULT NULL")
-            )
-
-        # invite_codes table is created by create_all; no inline migration needed.
-
-        # Safe index-add migrations for new composite indexes (MySQL only — SQLite uses CREATE TABLE indexes)
-        if dialect_name == "mysql":
-            _new_indexes = [
-                ("doctor_tasks", "ix_tasks_doctor_status_due",
-                 "CREATE INDEX ix_tasks_doctor_status_due ON doctor_tasks(doctor_id, status, due_at)"),
-                ("doctor_conversation_turns", "ix_turns_doctor_created",
-                 "CREATE INDEX ix_turns_doctor_created ON doctor_conversation_turns(doctor_id, created_at)"),
-                ("medical_records", "ix_records_patient_created",
-                 "CREATE INDEX ix_records_patient_created ON medical_records(patient_id, created_at)"),
-                ("specialty_scores", "ix_specialty_scores_patient_score_ts",
-                 "CREATE INDEX ix_specialty_scores_patient_score_ts ON specialty_scores(patient_id, score_type, extracted_at)"),
-            ]
-            for _tbl, _idx_name, _idx_sql in _new_indexes:
-                _idx_exists = await conn.run_sync(
-                    lambda c, t=_tbl, n=_idx_name: _has_index(c, t, n)
-                )
-                if not _idx_exists:
-                    await conn.execute(text(_idx_sql))
 
 
 async def seed_prompts() -> None:
