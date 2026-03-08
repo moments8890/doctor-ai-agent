@@ -15,6 +15,7 @@ from db.crud import (
     create_patient,
     create_pending_record,
     create_pending_import,
+    confirm_pending_record,
     delete_patient_for_doctor,
     find_patient_by_name,
     find_patients_by_exact_name,
@@ -42,6 +43,7 @@ from services.session import (
     clear_pending_import_id,
 )
 from services.ai.structuring import structure_medical_record
+from services.patient.score_extraction import detect_score_keywords, extract_specialty_scores
 from services.notify.tasks import create_appointment_task, create_emergency_task, create_follow_up_task
 from utils.text_parsing import (
     explicit_name_or_none,
@@ -168,6 +170,15 @@ async def handle_add_record(
             log(f"[WeChat] structuring FAILED: {e}")
             return "不好意思，刚才出了点问题，能再说一遍吗？"
 
+    # Specialty score extraction — fast keyword check then LLM if needed
+    if detect_score_keywords(text):
+        try:
+            record.specialty_scores = await extract_specialty_scores(record.content or text)
+            if record.specialty_scores:
+                log(f"[WeChat] extracted {len(record.specialty_scores)} specialty score(s)")
+        except Exception as exc:
+            log(f"[WeChat] score extraction failed (non-fatal): {exc}")
+
     # Emergency records skip the confirmation gate — saved immediately
     if intent_result.is_emergency:
         async with AsyncSessionLocal() as session:
@@ -195,7 +206,45 @@ async def handle_add_record(
         )
     set_pending_record_id(doctor_id, draft_id)
 
-    return format_draft_preview(record, patient_name)
+    patient_display = f"【{patient_name}】" if patient_name else ""
+    return f"✅ 已为{patient_display}创建病历草稿，回复「确认」保存，「撤销」取消"
+
+
+async def save_pending_record(doctor_id: str, pending: Any) -> Optional[str]:
+    """Parse a PendingRecord draft and save it to medical_records.
+
+    Returns the patient_name on success, None on failure.
+    Side effects: fires audit, follow-up task, and auto-learn as background tasks.
+    Does NOT touch session state — caller is responsible for clear_pending_record_id.
+    """
+    from models.medical_record import MedicalRecord
+    try:
+        draft = json.loads(pending.draft_json)
+        record = MedicalRecord(**{k: draft.get(k) for k in MedicalRecord.model_fields})
+    except Exception as e:
+        log(f"[PendingRecord] parse draft FAILED doctor={doctor_id} id={pending.id}: {e}")
+        return None
+    try:
+        async with AsyncSessionLocal() as session:
+            db_record = await save_record(session, doctor_id, record, pending.patient_id)
+            if record.specialty_scores:
+                from db.crud.scores import save_specialty_scores
+                await save_specialty_scores(session, db_record.id, doctor_id, record.specialty_scores)
+            await confirm_pending_record(session, pending.id, doctor_id=doctor_id)
+    except Exception as e:
+        log(f"[PendingRecord] save FAILED doctor={doctor_id} id={pending.id}: {e}")
+        return None
+    patient_name = pending.patient_name or "未关联患者"
+    asyncio.create_task(audit(doctor_id, "WRITE", resource_type="record", resource_id=str(db_record.id)))
+    _follow_up_hint = next(
+        (t for t in record.tags if "随访" in t or "复诊" in t), None
+    ) or ("随访" in record.content or "复诊" in record.content and record.content or None)
+    if _follow_up_hint:
+        asyncio.create_task(create_follow_up_task(
+            doctor_id, db_record.id, patient_name, str(_follow_up_hint), pending.patient_id
+        ))
+    asyncio.create_task(_bg_auto_learn(doctor_id, pending.raw_input or "", record))
+    return patient_name
 
 
 async def _bg_auto_learn(doctor_id: str, text: str, record: Any) -> None:

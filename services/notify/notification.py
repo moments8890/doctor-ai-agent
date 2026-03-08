@@ -42,7 +42,7 @@ def _mini_template_id() -> str:
 
 
 def _mini_page_path() -> str:
-    return (os.environ.get("MINIPROGRAM_SUBSCRIBE_PAGEPATH") or "pages/chat/chat").strip()
+    return (os.environ.get("MINIPROGRAM_SUBSCRIBE_PAGEPATH") or "pages/doctor/doctor").strip()
 
 
 def _mini_data_key() -> str:

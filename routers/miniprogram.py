@@ -32,7 +32,8 @@ def _require_mini_principal(authorization: Optional[str] = Header(default=None))
         logging.getLogger("auth").warning("[Mini] token validation failed: %s", exc)
         raise HTTPException(status_code=401, detail="Invalid authorization token")
 
-    if principal.channel != "wechat_mini":
+    # Accept wechat_mini (WeChat openID login) and app (invite-code login).
+    if principal.channel not in {"wechat_mini", "app"}:
         raise HTTPException(status_code=403, detail="Token channel not allowed for mini endpoints")
     return principal
 

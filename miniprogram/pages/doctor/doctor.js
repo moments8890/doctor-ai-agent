@@ -1,3 +1,5 @@
+const runtimeConfig = require("../../config.js");
+
 Page({
   data: {
     url: "",
@@ -24,6 +26,28 @@ Page({
     ].join("&");
 
     this.setData({ url: webBase + "/doctor?" + qs });
+
+    // Request subscribe-message permission so the backend can push task
+    // notifications to this doctor's WeChat account.
+    this._requestSubscription();
+  },
+
+  _requestSubscription() {
+    const tmplId = runtimeConfig.subscribeTemplateId;
+    if (!tmplId) return;  // Template not configured; skip.
+
+    wx.requestSubscribeMessage({
+      tmplIds: [tmplId],
+      success() {
+        // User's response (accept/reject) is handled by WeChat natively.
+        // We don't need to do anything special here — the backend will
+        // attempt to send messages and WeChat will deliver only if accepted.
+      },
+      fail(err) {
+        // Subscription request declined or unsupported (e.g. in DevTools).
+        console.warn("[doctor] requestSubscribeMessage failed:", err);
+      },
+    });
   },
 
   onWebViewLoad() {
