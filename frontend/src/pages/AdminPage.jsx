@@ -65,6 +65,8 @@ import {
   createAdminInviteCode,
   revokeAdminInviteCode,
   updateAdminRecord,
+  getAdminPrompts,
+  updateAdminPrompt,
 } from "../api";
 import { t } from "../i18n";
 
@@ -246,6 +248,9 @@ function AdminDashboard({ onLockout }) {
   const [rowEditMode, setRowEditMode] = useState(false);
   const [rowEditForm, setRowEditForm] = useState({});
   const [rowSaving, setRowSaving] = useState(false);
+  const [prompts, setPrompts] = useState([]); // [{key, content, updated_at}]
+  const [promptEdits, setPromptEdits] = useState({}); // key -> edited content
+  const [promptSaving, setPromptSaving] = useState({}); // key -> bool
   const columns = useMemo(() => {
     const allKeys = [];
     for (const row of rows) {
@@ -291,6 +296,32 @@ function AdminDashboard({ onLockout }) {
       setStatus({ type: "error", text: e.message || "保存失败" });
     } finally {
       setRowSaving(false);
+    }
+  }
+
+  async function loadPrompts() {
+    try {
+      const data = await getAdminPrompts();
+      const list = data.prompts || [];
+      setPrompts(list);
+      const edits = {};
+      list.forEach((p) => { edits[p.key] = p.content; });
+      setPromptEdits(edits);
+    } catch (e) {
+      setStatus({ type: "error", text: e.message });
+    }
+  }
+
+  async function savePrompt(key) {
+    setPromptSaving((s) => ({ ...s, [key]: true }));
+    try {
+      await updateAdminPrompt(key, promptEdits[key] ?? "");
+      setPrompts((prev) => prev.map((p) => p.key === key ? { ...p, content: promptEdits[key], updated_at: new Date().toISOString().slice(0, 16).replace("T", " ") } : p));
+      setStatus({ type: "success", text: `提示词 "${key}" 已保存` });
+    } catch (e) {
+      setStatus({ type: "error", text: e.message });
+    } finally {
+      setPromptSaving((s) => ({ ...s, [key]: false }));
     }
   }
 
@@ -507,6 +538,9 @@ function AdminDashboard({ onLockout }) {
       } else if (tableKey === "invite_codes") {
         await loadInviteCodes();
         setRows([]);
+      } else if (tableKey === "system_prompts") {
+        await Promise.all([loadTableList(f), loadPrompts()]);
+        setRows([]);
       } else {
         await Promise.all([loadTableList(f), loadTableData(tableKey, f), loadFilterOptions(f.doctorId)]);
       }
@@ -648,6 +682,15 @@ function AdminDashboard({ onLockout }) {
                     >
                       {loading ? t("common.loading") : "热加载"}
                     </Button>
+                  </Stack>
+                ) : activeTable === "system_prompts" ? (
+                  <Stack direction="row" spacing={0.8}>
+                    <Button variant="outlined" size="small" onClick={loadPrompts} disabled={loading}>
+                      {loading ? t("common.loading") : "刷新"}
+                    </Button>
+                    <Typography variant="caption" color="text.secondary" sx={{ alignSelf: "center" }}>
+                      {prompts.length} 个提示词
+                    </Typography>
                   </Stack>
                 ) : (
                   <Stack direction="row" spacing={0.8}>
@@ -1111,6 +1154,66 @@ function AdminDashboard({ onLockout }) {
                     </Table>
                   </TableContainer>
                 </Box>
+              ) : activeTable === "system_prompts" ? (
+                <Stack spacing={2}>
+                  {prompts.length === 0 && !loading && (
+                    <Typography color="text.secondary" variant="body2">暂无提示词，请点击"刷新"。</Typography>
+                  )}
+                  {prompts.map((p) => {
+                    const isDirty = (promptEdits[p.key] ?? p.content) !== p.content;
+                    const isSaving = !!promptSaving[p.key];
+                    return (
+                      <Box key={p.key} sx={{ border: "1px solid #d8e3e8", borderRadius: 1.5, overflow: "hidden" }}>
+                        <Stack
+                          direction="row"
+                          alignItems="center"
+                          justifyContent="space-between"
+                          sx={{ px: 1.5, py: 1, backgroundColor: "#eef4f6", borderBottom: "1px solid #d8e3e8" }}
+                        >
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <Chip
+                              label={p.key}
+                              size="small"
+                              sx={{ fontFamily: "ui-monospace, monospace", fontWeight: 700, fontSize: 12 }}
+                            />
+                            {isDirty && <Chip label="未保存" size="small" color="warning" sx={{ height: 18, fontSize: 10 }} />}
+                          </Stack>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <Typography variant="caption" color="text.secondary">
+                              {p.updated_at ? `更新：${p.updated_at}` : ""}
+                            </Typography>
+                            <Button
+                              size="small"
+                              variant={isDirty ? "contained" : "outlined"}
+                              disabled={isSaving || !isDirty}
+                              onClick={() => savePrompt(p.key)}
+                            >
+                              {isSaving ? "保存中…" : "保存"}
+                            </Button>
+                          </Stack>
+                        </Stack>
+                        <TextField
+                          multiline
+                          fullWidth
+                          minRows={6}
+                          maxRows={30}
+                          value={promptEdits[p.key] ?? p.content}
+                          onChange={(e) => setPromptEdits((prev) => ({ ...prev, [p.key]: e.target.value }))}
+                          sx={{
+                            "& .MuiOutlinedInput-root": { borderRadius: 0, border: "none" },
+                            "& .MuiOutlinedInput-notchedOutline": { border: "none" },
+                            "& textarea": {
+                              fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                              fontSize: 13,
+                              lineHeight: 1.6,
+                              backgroundColor: "#fff",
+                            },
+                          }}
+                        />
+                      </Box>
+                    );
+                  })}
+                </Stack>
               ) : (
                 <>
                   <TableContainer

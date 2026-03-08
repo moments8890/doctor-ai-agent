@@ -369,3 +369,15 @@ export async function updateAdminRecord(recordId, fields) {
     body: JSON.stringify(fields),
   });
 }
+
+export async function getAdminPrompts() {
+  return adminRequest("/api/admin/prompts");
+}
+
+export async function updateAdminPrompt(key, content) {
+  return adminRequest(`/api/admin/prompts/${encodeURIComponent(key)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
+}

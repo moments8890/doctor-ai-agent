@@ -408,6 +408,33 @@ async def update_prompt(
     return {"ok": True, "key": key}
 
 
+@router.get("/api/admin/prompts")
+async def admin_get_prompts(
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+):
+    _require_ui_admin_access(x_admin_token)
+    async with AsyncSessionLocal() as db:
+        rows = (await db.execute(select(SystemPrompt).order_by(SystemPrompt.key))).scalars().all()
+    return {
+        "prompts": [
+            {"key": p.key, "content": p.content or "", "updated_at": _fmt_ts(p.updated_at)}
+            for p in rows
+        ]
+    }
+
+
+@router.put("/api/admin/prompts/{key}")
+async def admin_update_prompt(
+    key: str,
+    body: PromptUpdate,
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+):
+    _require_ui_admin_access(x_admin_token)
+    async with AsyncSessionLocal() as db:
+        await upsert_system_prompt(db, key, body.content)
+    return {"ok": True, "key": key}
+
+
 # ── Label endpoints ───────────────────────────────────────────────────────────
 
 class LabelCreate(BaseModel):
