@@ -4,8 +4,10 @@
 
 from __future__ import annotations
 
+import json
 import re
-from typing import Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 from services.ai.intent import Intent, IntentResult
 
@@ -461,6 +463,18 @@ def fast_route(text: str) -> Optional[IntentResult]:
                 name = m.group(1)
         return IntentResult(intent=Intent.update_record, patient_name=name)
 
+    # ── Mined rules (loaded from data/mined_rules.json) ──────────────────────
+    for rule in _MINED_RULES:
+        if not rule["enabled"]:
+            continue
+        if len(stripped) < rule.get("min_length", 0):
+            continue
+        matched = any(p.search(stripped) for p in rule["patterns"])
+        if not matched and rule.get("keywords_any"):
+            matched = any(k in stripped for k in rule["keywords_any"])
+        if matched:
+            return IntentResult(intent=Intent[rule["intent"]])
+
     # ── Tier 3: high-confidence clinical content → add_record ────────────────
     # Skips the routing LLM call entirely; structuring LLM still runs.
     # Conservative: only fires for messages long enough and containing at least
@@ -484,3 +498,66 @@ def fast_route_label(text: str) -> str:
     from services.observability.routing_metrics import record
     record(label)
     return label
+
+
+# ── Mined rules ────────────────────────────────────────────────────────────────
+# Rules loaded from an external JSON file produced by scripts/mine_routing_rules.py.
+# Each rule is applied BEFORE Tier 3 in fast_route().
+
+_MINED_RULES: List[Dict[str, Any]] = []
+
+
+def load_mined_rules(path: str) -> None:
+    """Load mined routing rules from a JSON file.
+
+    The file must be a JSON array of objects with the schema::
+
+        [
+          {
+            "intent": "add_record",
+            "patterns": ["^先记[：:]", "^早班.*记[：:]"],
+            "keywords_any": ["先记", "早班记"],
+            "min_length": 4,
+            "enabled": true
+          }
+        ]
+
+    Silently skips if the file does not exist.
+    """
+    global _MINED_RULES
+    p = Path(path)
+    if not p.exists():
+        return
+    try:
+        raw: List[Dict[str, Any]] = json.loads(p.read_text(encoding="utf-8"))
+        compiled: List[Dict[str, Any]] = []
+        for rule in raw:
+            if not isinstance(rule, dict):
+                continue
+            intent_name = rule.get("intent", "")
+            if intent_name not in Intent.__members__:
+                continue
+            patterns = [re.compile(pat) for pat in rule.get("patterns", [])]
+            compiled.append({
+                "intent": intent_name,
+                "patterns": patterns,
+                "keywords_any": list(rule.get("keywords_any") or []),
+                "min_length": int(rule.get("min_length", 0)),
+                "enabled": bool(rule.get("enabled", True)),
+            })
+        _MINED_RULES = compiled
+    except Exception:
+        pass
+
+
+def reload_mined_rules(path: str = "data/mined_rules.json") -> int:
+    """Hot-reload mined rules from disk.
+
+    Returns the number of rules loaded.
+    """
+    load_mined_rules(path)
+    return len(_MINED_RULES)
+
+
+# Load rules at module import time (no-op if file absent).
+load_mined_rules("data/mined_rules.json")

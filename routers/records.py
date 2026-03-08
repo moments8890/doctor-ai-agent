@@ -56,6 +56,7 @@ from services.observability.observability import trace_block
 from services.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
 from services.observability.audit import audit
 from services.observability.observability import get_current_trace_id
+from services.observability.turn_log import log_turn
 from utils.log import log
 
 router = APIRouter(prefix="/api/records", tags=["records"])
@@ -503,10 +504,13 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
         return ChatResponse(reply=f"✅ 已加入医生知识库（#{item.id}）：{knowledge_payload}")
 
     # ── Fast router: resolve common intents without LLM (~0ms vs ~6s) ─────────
+    _t0 = time.perf_counter()
     _fast = fast_route(body.text)
     if _fast is not None:
+        _latency_ms = (time.perf_counter() - _t0) * 1000.0
         log(f"[Chat] fast_route hit: {fast_route_label(body.text)} doctor={doctor_id}")
         intent_result = _fast
+        log_turn(body.text, intent_result.intent.value, "fast", doctor_id, _latency_ms, patient_name=intent_result.patient_name)
     else:
         knowledge_context = ""
         try:
@@ -522,6 +526,8 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
                 if knowledge_context:
                     dispatch_kwargs["knowledge_context"] = knowledge_context
                 intent_result = await agent_dispatch(body.text, **dispatch_kwargs)
+            _latency_ms = (time.perf_counter() - _t0) * 1000.0
+            log_turn(body.text, intent_result.intent.value, "llm", doctor_id, _latency_ms, patient_name=intent_result.patient_name)
         except Exception as e:
             msg = str(e)
             status = 429 if "rate_limit" in msg or "Rate limit" in msg or "429" in msg else 503
