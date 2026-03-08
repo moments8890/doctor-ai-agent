@@ -133,6 +133,15 @@ export async function getRecords({ doctorId, patientId, patientName, dateFrom, d
   return request(`/api/manage/records?${qs.toString()}`);
 }
 
+export async function updateRecord(doctorId, recordId, fields) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/records/${recordId}?${qs.toString()}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(fields),
+  });
+}
+
 export async function getPrompts() {
   return request("/api/manage/prompts");
 }

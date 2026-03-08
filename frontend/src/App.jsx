@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import ChatPage from "./pages/ChatPage";
-import ManagePage from "./pages/ManagePage";
+import DoctorPage from "./pages/DoctorPage";
 import AdminPage from "./pages/AdminPage";
 import AdminLoginPage from "./pages/AdminLoginPage";
 import DebugPage from "./pages/DebugPage";
@@ -28,7 +28,9 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<RequireAuth><ChatPage /></RequireAuth>} />
-      <Route path="/manage" element={<RequireAuth><ManagePage /></RequireAuth>} />
+      <Route path="/manage" element={<RequireAuth><DoctorPage /></RequireAuth>} />
+      <Route path="/manage/patients/:patientId" element={<RequireAuth><DoctorPage /></RequireAuth>} />
+      <Route path="/manage/:section" element={<RequireAuth><DoctorPage /></RequireAuth>} />
       <Route path="/admin/login" element={<AdminLoginPage />} />
       <Route path="/admin" element={<AdminPage />} />
       <Route path="/admin/:section" element={<AdminPage />} />

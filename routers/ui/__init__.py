@@ -459,6 +459,56 @@ async def update_label_endpoint(label_id: int, body: LabelUpdate, authorization:
     return {"id": lbl.id, "name": lbl.name, "color": lbl.color}
 
 
+class RecordUpdate(BaseModel):
+    chief_complaint: Optional[str] = None
+    history_of_present_illness: Optional[str] = None
+    past_medical_history: Optional[str] = None
+    physical_examination: Optional[str] = None
+    auxiliary_examinations: Optional[str] = None
+    diagnosis: Optional[str] = None
+    treatment_plan: Optional[str] = None
+    follow_up_plan: Optional[str] = None
+
+
+@router.patch("/api/manage/records/{record_id}")
+async def update_record(
+    record_id: int,
+    body: RecordUpdate,
+    doctor_id: str = Query(default="web_doctor"),
+    authorization: str | None = Header(default=None),
+):
+    resolved_doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    async with AsyncSessionLocal() as db:
+        rec = (await db.execute(
+            select(MedicalRecordDB).where(
+                MedicalRecordDB.id == record_id,
+                MedicalRecordDB.doctor_id == resolved_doctor_id,
+            ).limit(1)
+        )).scalar_one_or_none()
+        if rec is None:
+            raise HTTPException(status_code=404, detail="Record not found")
+        for field, value in body.model_dump(exclude_unset=True).items():
+            setattr(rec, field, value)
+        rec.updated_at = datetime.now(timezone.utc)
+        await db.commit()
+        await db.refresh(rec)
+    return {
+        "id": rec.id,
+        "patient_id": rec.patient_id,
+        "doctor_id": rec.doctor_id,
+        "chief_complaint": rec.chief_complaint,
+        "history_of_present_illness": rec.history_of_present_illness,
+        "past_medical_history": rec.past_medical_history,
+        "physical_examination": rec.physical_examination,
+        "auxiliary_examinations": rec.auxiliary_examinations,
+        "diagnosis": rec.diagnosis,
+        "treatment_plan": rec.treatment_plan,
+        "follow_up_plan": rec.follow_up_plan,
+        "created_at": _fmt_ts(rec.created_at),
+        "updated_at": _fmt_ts(rec.updated_at),
+    }
+
+
 @router.delete("/api/manage/labels/{label_id}")
 async def delete_label_endpoint(
     label_id: int,
