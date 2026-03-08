@@ -80,9 +80,6 @@ export async function webLogin(doctorId, name) {
   });
 }
 
-export async function getWecomLoginUrl() {
-  return request("/api/auth/wecom/login-url");
-}
 
 export async function sendChat(payload) {
   return request("/api/records/chat", {
