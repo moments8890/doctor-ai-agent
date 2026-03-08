@@ -20,7 +20,7 @@ from pathlib import Path
 
 import httpx
 import pytest
-from utils.runtime_json import load_runtime_json
+from utils.runtime_config import load_runtime_json
 
 ROOT = Path(__file__).resolve().parents[2]
 _RUNTIME_CONFIG = load_runtime_json()

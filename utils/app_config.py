@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Mapping, Optional
 
-from utils.runtime_json import load_runtime_json, runtime_config_path
+from utils.runtime_config import load_runtime_json, runtime_config_path
 
 _SENSITIVE_FIELD_NAMES = {
     "ollama_api_key",

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from utils.runtime_json import CONFIG_ALLOWED_VALUES, DEFAULT_RUNTIME_CONFIG
+from utils.runtime_config import CONFIG_ALLOWED_VALUES, DEFAULT_RUNTIME_CONFIG
 
 
 def test_runtime_config_allows_tencent_lkeap_provider():
