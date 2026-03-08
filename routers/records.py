@@ -653,7 +653,7 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
                 with trace_block("router", "records.chat.compound_record"):
                     record = await structure_medical_record(body.text)
                 async with AsyncSessionLocal() as db:
-                    saved = await save_record(db, patient.id, doctor_id, record)
+                    saved = await save_record(db, doctor_id, record, patient.id)
                 preview = record.content[:50] + ("…" if len(record.content) > 50 else "")
                 reply += f"\n✅ 已录入病历：{preview}"
                 asyncio.create_task(audit(
