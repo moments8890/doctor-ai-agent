@@ -493,7 +493,7 @@ function ObservabilitySection() {
   );
 }
 
-const LOG_LEVELS = ["WARNING", "ERROR", "INFO", "ALL"];
+const LOG_LEVELS = ["ALL", "WARNING", "ERROR", "INFO", "DEBUG", "CRITICAL"];
 const LOG_SOURCES = [
   { value: "app", label: "app.log" },
   { value: "tasks", label: "tasks.log" },
@@ -501,7 +501,7 @@ const LOG_SOURCES = [
 ];
 
 function LogsSection() {
-  const [level, setLevel] = useState("WARNING");
+  const [level, setLevel] = useState("ALL");
   const [source, setSource] = useState("app");
   const [limit, setLimit] = useState("200");
   const [lines, setLines] = useState([]);

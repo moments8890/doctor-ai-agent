@@ -1210,25 +1210,34 @@ _LOG_SOURCES: dict[str, str] = {
 }
 
 
+_LOG_LEVEL_TAGS: dict[str, list[str]] = {
+    "DEBUG": ["[DEBUG]", "[INFO]", "[WARNING]", "[ERROR]", "[CRITICAL]"],
+    "INFO": ["[INFO]", "[WARNING]", "[ERROR]", "[CRITICAL]"],
+    "WARNING": ["[WARNING]", "[ERROR]", "[CRITICAL]"],
+    "ERROR": ["[ERROR]", "[CRITICAL]"],
+    "CRITICAL": ["[CRITICAL]"],
+}
+
+
 @router.get("/api/debug/logs")
 async def debug_logs(
-    level: str = Query(default="WARNING", description="Filter level: ALL, INFO, WARNING, ERROR"),
+    level: str = Query(default="ALL", description="Filter level: ALL, DEBUG, INFO, WARNING, ERROR, CRITICAL"),
     limit: Annotated[int, Query(ge=1, le=500)] = 200,
     source: str = Query(default="app", description="Log source: app, tasks, scheduler"),
     x_debug_token: str | None = Header(default=None, alias="X-Debug-Token"),
 ):
-    """Return recent log lines filtered by level."""
+    """Return recent log lines filtered by level (hierarchical: WARNING includes ERROR, CRITICAL)."""
     _require_ui_debug_access(x_debug_token)
     log_path = Path(_LOG_SOURCES.get(source, "logs/app.log"))
     if not log_path.exists():
         return {"lines": [], "source": source, "total": 0}
-    level_tag = f"[{level.upper()}]" if level.upper() != "ALL" else None
+    level_tags = _LOG_LEVEL_TAGS.get(level.upper())  # None means ALL
     matching: list[str] = []
     try:
         with open(log_path, encoding="utf-8", errors="replace") as fh:
             for line in fh:
                 stripped = line.rstrip()
-                if level_tag is None or level_tag in stripped:
+                if level_tags is None or any(tag in stripped for tag in level_tags):
                     matching.append(stripped)
     except OSError:
         return {"lines": [], "source": source, "total": 0}
