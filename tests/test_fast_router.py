@@ -212,8 +212,12 @@ def test_fast_route_label_miss():
 
 
 def test_fast_route_label_tier3():
-    # Clinical messages fast-route to add_record (Tier 3), not LLM
-    assert fast_route_label("张三胸闷三天") == "fast:add_record"
+    # Clinical messages fast-route to add_record (Tier 3), not LLM.
+    # Messages with a doctor anchor (name+gender+age, 给予, 患者…) are fast-routed.
+    # Ambiguous short notes without anchor (e.g. bare "张三胸闷三天") fall to LLM
+    # since the TF-IDF classifier cannot distinguish them from patient symptom reports.
+    assert fast_route_label("张三，男，42岁，胸闷三天") == "fast:add_record"
+    assert fast_route_label("李明胸闷三天，给予扩冠治疗") == "fast:add_record"
 
 
 # ── Benchmark: coverage measurement ───────────────────────────────────────────

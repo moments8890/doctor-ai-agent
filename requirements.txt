@@ -13,6 +13,7 @@ pymysql
 alembic
 greenlet==3.3.2
 jieba==0.42.1
+scikit-learn>=1.4.0           # Tier-3 TF-IDF classifier (services/ai/tier3_classifier.pkl)
 datasette==0.65.2
 sqladmin==0.23.0
 nicegui==3.8.0

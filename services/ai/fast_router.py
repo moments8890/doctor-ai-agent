@@ -5,11 +5,30 @@
 from __future__ import annotations
 
 import json
+import pickle
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from services.ai.intent import Intent, IntentResult
+
+# ── Tier-3 binary classifier (TF-IDF + logistic regression) ──────────────────
+# Loaded once at import; used as the final gate in _is_clinical_tier3().
+# Falls back to True (old behaviour) if the model file is absent — i.e. the
+# system works without the classifier, just with the old ~10-19% FP hard floors.
+_TIER3_CLASSIFIER = None
+_TIER3_CLASSIFIER_PATH = Path(__file__).parent / "tier3_classifier.pkl"
+
+def _load_tier3_classifier() -> None:
+    global _TIER3_CLASSIFIER
+    if _TIER3_CLASSIFIER_PATH.exists():
+        try:
+            with _TIER3_CLASSIFIER_PATH.open("rb") as _f:
+                _TIER3_CLASSIFIER = pickle.load(_f)
+        except Exception:
+            _TIER3_CLASSIFIER = None
+
+_load_tier3_classifier()
 
 # ── Import history detection ───────────────────────────────────────────────────
 _IMPORT_KEYWORDS: frozenset[str] = frozenset()
@@ -580,6 +599,17 @@ _TIER3_DOCTOR_ANCHOR_RE = re.compile(
     r"^(?:患者|患儿|病人)|主诉[：:]|诊断.{0,2}[：:]|补充[：:]|记录[一下]?[：:]|录入[：:]"
     r"|(?:患者|患儿|病人).{0,5}(?:主诉|诊断|检查|血压|血糖|体温)"
     r"|收入我科|收入我院|门诊以.{0,10}收入"
+    # Doctor dictation format: "NAME，gender，age，…"
+    # e.g. "李四，女，52岁，反复胸闷" / "王五男58岁冠心病"
+    # Patients writing about themselves use first-person ("我" / "我老婆") so this is safe.
+    r"|^[\u4e00-\u9fff]{2,3}[，,\s]*[男女](?:性)?[，,\s]*\d+岁"
+    # Clinical action phrases — exclusively doctor language.
+    # "给予X" = "administer X" (doctor orders treatment, never patient self-report)
+    # "建议观察/随访/…" = "recommend …" (doctor assessment sign-off)
+    # "排除X病/症/…" = "rule out X" (doctor differential diagnosis)
+    r"|给予[\u4e00-\u9fffe-zA-Z]"
+    r"|建议(?:观察|随访|复查|门诊|住院|手术|化疗|保守)"
+    r"|排除[\u4e00-\u9fff]{1,8}(?:炎|症|癌|瘤|病|塞|梗|折)"
 )
 
 # Exam-specific question endings — ALWAYS block, even when doctor anchor is present.
@@ -669,6 +699,20 @@ def _is_clinical_tier3(text: str) -> bool:
     # Guard: online-consultation pediatric context — skip unless doctor anchor present
     if _TIER3_CONSULT_RE.search(text):
         return bool(_TIER3_DOCTOR_ANCHOR_RE.search(text))
+
+    # If a doctor-voice anchor is present, trust it unconditionally — the message is
+    # a clinical note and the classifier would only introduce unnecessary FNs on short
+    # dictation that lacks the long-document structure the classifier was trained on.
+    if _TIER3_DOCTOR_ANCHOR_RE.search(text):
+        return True
+
+    # Final gate: TF-IDF binary classifier distinguishes real clinical notes from
+    # hard-floor patient messages (short symptom descriptions, online consultation
+    # histories) that keyword/regex rules cannot separate without semantic understanding.
+    # Only applied when no doctor anchor is present — those cases are handled above.
+    # Falls back to True if the model is not loaded (no performance regression).
+    if _TIER3_CLASSIFIER is not None:
+        return bool(_TIER3_CLASSIFIER.predict([text])[0])
 
     return True
 
