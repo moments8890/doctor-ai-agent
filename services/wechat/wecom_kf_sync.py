@@ -236,6 +236,7 @@ async def handle_event(
 
         if msgtype == "merged_msg":
             merged = selected.get("merged_msg") or {}
+            log(f"[WeCom KF] merged_msg raw payload: {merged!r}")
             items = merged.get("item") or []
             parts: list[str] = []
             for item in items:
