@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:stable": "VITE_NO_HMR=1 vite",
     "build": "vite build",
     "preview": "vite preview"
   },

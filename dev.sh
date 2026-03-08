@@ -4,6 +4,7 @@
 #
 # Modes:
 #   ./dev.sh              — foreground with --reload (active dev)
+#   ./dev.sh --no-reload  — foreground, no auto-reload on file change
 #   ./dev.sh --background — launchd background service (leave Mac running)
 #   ./dev.sh --stop       — stop background service
 #   ./dev.sh --menu       — recreate WeChat menu (any mode)
@@ -573,19 +574,22 @@ fi
 MODE="foreground"
 WANT_MENU=0
 WANT_FRONTEND=1
+NO_RELOAD=0
 for arg in "$@"; do
   case "$arg" in
     --background) MODE="background" ;;
     --stop) MODE="stop" ;;
     --menu) WANT_MENU=1 ;;
     --no-frontend) WANT_FRONTEND=0 ;;
+    --no-reload) NO_RELOAD=1 ;;
     --help|-h)
       cat <<'EOF'
-Usage: ./dev.sh [--background] [--stop] [--menu] [--no-frontend]
+Usage: ./dev.sh [--background] [--stop] [--menu] [--no-frontend] [--no-reload]
   --background   Run backend/frontend via launchd
   --stop         Stop launchd services and kill local ports
   --menu         Recreate WeChat menu
   --no-frontend  Skip starting Vite frontend
+  --no-reload    Disable auto-reload on file change (backend --reload off, frontend HMR off)
 EOF
       exit 0
       ;;
@@ -837,7 +841,11 @@ else
     info "Starting frontend on :$FRONTEND_PORT..."
     (
       cd "$FRONTEND_DIR"
-      exec "$NPM_BIN" run dev -- --host 127.0.0.1 --port "$FRONTEND_PORT" >>"$LOG_FE" 2>&1
+      if [[ "$NO_RELOAD" -eq 1 ]]; then
+        exec env VITE_NO_HMR=1 "$NPM_BIN" run dev -- --host 127.0.0.1 --port "$FRONTEND_PORT" >>"$LOG_FE" 2>&1
+      else
+        exec "$NPM_BIN" run dev -- --host 127.0.0.1 --port "$FRONTEND_PORT" >>"$LOG_FE" 2>&1
+      fi
     ) &
     FE_PID=$!
     wait_http_ready "http://127.0.0.1:$FRONTEND_PORT/" "frontend" "$LOG_FE" 35
@@ -864,5 +872,10 @@ else
   echo "======================================================"
   echo ""
   cd "$APP_DIR"
-  .venv/bin/uvicorn main:app --reload --port "$PORT"
+  if [[ "$NO_RELOAD" -eq 1 ]]; then
+    info "Auto-reload disabled (--no-reload)"
+    .venv/bin/uvicorn main:app --port "$PORT"
+  else
+    .venv/bin/uvicorn main:app --reload --port "$PORT"
+  fi
 fi
