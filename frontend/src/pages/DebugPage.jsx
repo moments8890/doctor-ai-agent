@@ -43,9 +43,9 @@ const NAV_SECTIONS = [
   { key: "logs", label: "日志查看器", icon: <ArticleOutlinedIcon fontSize="small" /> },
 ];
 
-function TokenGate({ onUnlock }) {
+function TokenGate({ onUnlock, initialError = "" }) {
   const [input, setInput] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(initialError);
   function handleSubmit(e) {
     e.preventDefault();
     const token = input.trim();
@@ -657,8 +657,10 @@ export default function DebugPage() {
     if (stored) setDebugToken(stored);
     return stored;
   });
+  const [authError, setAuthError] = useState("");
 
   function handleUnlock(token) {
+    setAuthError("");
     setDebugTokenState(token);
   }
 
@@ -666,6 +668,7 @@ export default function DebugPage() {
     localStorage.removeItem(DEBUG_TOKEN_KEY);
     setDebugToken("");
     setDebugTokenState("");
+    setAuthError("Token 不正确，请重新输入");
   }
 
   useEffect(() => {
@@ -673,6 +676,6 @@ export default function DebugPage() {
     return () => onDebugAuthError(null);
   }, []);
 
-  if (!debugToken) return <TokenGate onUnlock={handleUnlock} />;
+  if (!debugToken) return <TokenGate onUnlock={handleUnlock} initialError={authError} />;
   return <DebugDashboard onLockout={handleLockout} />;
 }

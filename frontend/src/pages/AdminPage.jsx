@@ -55,9 +55,9 @@ import { t } from "../i18n";
 
 const ADMIN_TOKEN_KEY = "adminToken";
 
-function TokenGate({ onUnlock }) {
+function TokenGate({ onUnlock, initialError = "" }) {
   const [input, setInput] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(initialError);
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -160,8 +160,10 @@ export default function AdminPage() {
     if (stored) setAdminToken(stored);
     return stored;
   });
+  const [authError, setAuthError] = useState("");
 
   function handleUnlock(token) {
+    setAuthError("");
     setAdminTokenState(token);
   }
 
@@ -169,6 +171,7 @@ export default function AdminPage() {
     localStorage.removeItem(ADMIN_TOKEN_KEY);
     setAdminToken("");
     setAdminTokenState("");
+    setAuthError("Token 不正确，请重新输入");
   }
 
   useEffect(() => {
@@ -176,7 +179,7 @@ export default function AdminPage() {
     return () => onAdminAuthError(null);
   }, []);
 
-  if (!adminToken) return <TokenGate onUnlock={handleUnlock} />;
+  if (!adminToken) return <TokenGate onUnlock={handleUnlock} initialError={authError} />;
   return <AdminDashboard onLockout={handleLockout} />;
 }
 
