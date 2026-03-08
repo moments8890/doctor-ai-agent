@@ -38,6 +38,17 @@ function loginWithWechatCode(code, doctorName = "") {
   });
 }
 
+function loginWithInviteCode(code) {
+  return request("/api/auth/invite/login", {
+    method: "POST",
+    data: { code },
+  });
+}
+
+function authMe() {
+  return request("/api/auth/me");
+}
+
 function miniMe() {
   return request("/api/mini/me");
 }
@@ -52,6 +63,8 @@ function miniChat(text, history = []) {
 module.exports = {
   request,
   loginWithWechatCode,
+  loginWithInviteCode,
+  authMe,
   miniMe,
   miniChat,
 };

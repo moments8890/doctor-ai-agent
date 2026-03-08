@@ -1,6 +1,7 @@
 Page({
   data: {
     url: "",
+    loading: true,
   },
 
   onLoad() {
@@ -14,27 +15,40 @@ Page({
       return;
     }
 
-    // Build web-view URL: strip any /api path from apiBase to get the web root
+    // Strip /api (or any path) from apiBase to get the web root.
     const webBase = app.globalData.apiBase.replace(/\/api.*$/, "");
     const qs = [
-      "token=" + encodeURIComponent(token),
+      "token="     + encodeURIComponent(token),
       "doctor_id=" + encodeURIComponent(doctorId),
-      "name=" + encodeURIComponent(doctorName),
+      "name="      + encodeURIComponent(doctorName),
     ].join("&");
 
     this.setData({ url: webBase + "/doctor?" + qs });
   },
 
-  // Receive postMessages from the web-view (e.g. logout signal)
+  onWebViewLoad() {
+    this.setData({ loading: false });
+  },
+
+  // Receive postMessages from the web-view.
   onMessage(e) {
     const msgs = e.detail.data || [];
     const last = msgs[msgs.length - 1];
-    if (last && last.action === "logout") {
-      const app = getApp();
-      app.globalData.accessToken = "";
-      app.globalData.doctorId = "";
-      app.globalData.doctorName = "";
+    if (!last) return;
+
+    if (last.action === "logout") {
+      this._clearAuth();
       wx.redirectTo({ url: "/pages/login/login" });
     }
+  },
+
+  _clearAuth() {
+    const app = getApp();
+    app.globalData.accessToken = "";
+    app.globalData.doctorId    = "";
+    app.globalData.doctorName  = "";
+    wx.removeStorageSync("token");
+    wx.removeStorageSync("doctorId");
+    wx.removeStorageSync("doctorName");
   },
 });
