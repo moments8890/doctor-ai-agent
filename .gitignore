@@ -39,8 +39,6 @@ frontend/dist/
 # local screts notes
 config/local.secrets
 
-# Tencent integration notes (local only)
-tencent_integ/
 
 # Mined routing rules and turn log (generated artifacts)
 data/*.json

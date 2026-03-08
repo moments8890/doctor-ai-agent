@@ -1,0 +1,17 @@
+[Unit]
+Description=Doctor AI Gitee Webhook Listener
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/doctor-ai-agent
+EnvironmentFile=/home/ubuntu/.webhook.env
+ExecStart=/usr/bin/python3 /home/ubuntu/doctor-ai-agent/tencent_integ/webhook_server.py
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
