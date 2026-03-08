@@ -585,6 +585,7 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
                 _record_metric("fallback:error")
                 return "不好意思，出了点问题，能再说一遍吗？"
 
+    bind_log_context(intent=intent_result.intent.value)
     log(f"[WeChat] intent={intent_result.intent} patient={intent_result.patient_name}")
 
     if intent_result.intent == Intent.create_patient:

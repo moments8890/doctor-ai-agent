@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import logging
 import os
+import time
+from dataclasses import dataclass, field
+from typing import List
 
 from openai import AsyncOpenAI
 
@@ -41,6 +44,39 @@ _NON_TEXT_REPLY = (
     "如需就医咨询，请直接发送文字提问；\n"
     "如有紧急情况，请拨打 120。"
 )
+
+# ---------------------------------------------------------------------------
+# Per-patient session memory (in-process, 2-turn window, 30-min TTL)
+# ---------------------------------------------------------------------------
+
+_SESSION_TTL = 30 * 60  # 30 minutes
+_SESSION_MAX_TURNS = 2   # keep last N user+assistant pairs
+
+
+@dataclass
+class _PatientSession:
+    history: List[dict] = field(default_factory=list)
+    last_active: float = field(default_factory=time.monotonic)
+
+
+_patient_sessions: dict[str, _PatientSession] = {}
+
+
+def _get_patient_session(open_id: str) -> _PatientSession:
+    now = time.monotonic()
+    sess = _patient_sessions.get(open_id)
+    if sess is None or (now - sess.last_active) > _SESSION_TTL:
+        sess = _PatientSession()
+        _patient_sessions[open_id] = sess
+    sess.last_active = now
+    return sess
+
+
+def _trim_history(history: List[dict]) -> List[dict]:
+    """Keep at most _SESSION_MAX_TURNS user+assistant pairs (2*N messages)."""
+    max_msgs = _SESSION_MAX_TURNS * 2
+    return history[-max_msgs:] if len(history) > max_msgs else history
+
 
 # ---------------------------------------------------------------------------
 # LLM client
@@ -97,18 +133,26 @@ async def handle_patient_message(text: str, open_id: str) -> str:
     except RuntimeError:
         return "您好！如需就医请联系主治医生或前往医院就诊。如有紧急情况请拨打 120。"
 
+    sess = _get_patient_session(open_id)
+    sess.history = _trim_history(sess.history)
+    messages = [{"role": "system", "content": _PATIENT_SYSTEM_PROMPT}]
+    messages.extend(sess.history)
+    messages.append({"role": "user", "content": text})
+
     try:
         resp = await client.chat.completions.create(
             model=model,
-            messages=[
-                {"role": "system", "content": _PATIENT_SYSTEM_PROMPT},
-                {"role": "user", "content": text},
-            ],
+            messages=messages,
             max_tokens=400,
             temperature=0.3,
         )
         reply = (resp.choices[0].message.content or "").strip()
-        return reply or "感谢您的留言，如有需要请前往医院就诊。"
+        reply = reply or "感谢您的留言，如有需要请前往医院就诊。"
+        # Persist turn in session history
+        sess.history.append({"role": "user", "content": text})
+        sess.history.append({"role": "assistant", "content": reply})
+        sess.history = _trim_history(sess.history)
+        return reply
     except Exception:
         log.exception("[patient] LLM call failed open_id=%s", open_id[:8])
         return "您好！目前系统繁忙，如有紧急情况请拨打 120 或前往医院就诊。"

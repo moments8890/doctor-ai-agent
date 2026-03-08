@@ -485,6 +485,7 @@ async def trace_requests_middleware(request: Request, call_next):
         )
         if isinstance(response, Response):
             response.headers["X-Trace-Id"] = trace_id
+            response.headers["X-API-Version"] = "1"
         return response
     finally:
         reset_current_span_id(span_token)
@@ -505,6 +506,11 @@ app.include_router(export_router)
 @app.get("/")
 def root():
     return {"status": "ok", "docs": "/docs"}
+
+
+@app.get("/api/version")
+def api_version():
+    return {"version": 1, "app_version": "0.2.0"}
 
 
 # WeChat domain verification — serves any file placed in static/wechat/

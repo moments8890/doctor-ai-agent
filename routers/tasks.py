@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 from datetime import datetime, timezone
 from typing import Annotated, List, Optional
@@ -16,6 +17,7 @@ from db.crud import list_tasks, update_task_status, create_task, get_task_by_id,
 from services.auth.rate_limit import enforce_doctor_rate_limit
 from services.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
 from services.notify.tasks import run_due_task_cycle
+from services.observability.audit import audit
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
@@ -155,6 +157,7 @@ async def _create_task_for_doctor(doctor_id: str, body: TaskCreate) -> TaskOut:
             patient_id=body.patient_id,
             due_at=due_at,
         )
+    asyncio.create_task(audit(doctor_id, "create_task", "doctor_task", str(task.id)))
     return TaskOut.from_orm(task)
 
 
@@ -210,6 +213,7 @@ async def _postpone_task_for_doctor(task_id: int, doctor_id: str, body: TaskDueU
         task = await update_task_due_at(session, task_id, doctor_id, due_at)
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
+    asyncio.create_task(audit(doctor_id, "postpone_task", "doctor_task", str(task_id)))
     return TaskOut.from_orm(task)
 
 
