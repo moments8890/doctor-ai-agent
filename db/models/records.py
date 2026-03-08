@@ -18,14 +18,9 @@ class MedicalRecordDB(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id", ondelete="CASCADE"), nullable=True)
     doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False, index=True)
-    chief_complaint: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    history_of_present_illness: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    past_medical_history: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    physical_examination: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    auxiliary_examinations: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    diagnosis: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    treatment_plan: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    follow_up_plan: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    record_type: Mapped[str] = mapped_column(String(32), nullable=False, default="visit")
+    content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array of keyword strings
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=True)
 
@@ -37,7 +32,8 @@ class MedicalRecordDB(Base):
 
     def __str__(self) -> str:
         date = self.created_at.strftime("%Y-%m-%d") if self.created_at else "—"
-        return f"{self.chief_complaint or '—'} [{date}]"
+        snippet = (self.content or "—")[:30]
+        return f"{snippet} [{date}]"
 
 
 class NeuroCaseDB(Base):

@@ -149,7 +149,8 @@ async def test_create_tables_skips_migration_when_column_already_renamed(monkeyp
             ],
             "doctors": ["doctor_id", "name", "channel", "wechat_user_id", "created_at", "updated_at"],
             "medical_records": [
-                "id", "patient_id", "doctor_id", "chief_complaint", "created_at", "updated_at",
+                "id", "patient_id", "doctor_id", "content", "tags", "record_type", "created_at", "updated_at",
+                "encounter_type",
             ],
             "neuro_cases": [
                 "id", "doctor_id", "patient_id", "created_at", "updated_at",

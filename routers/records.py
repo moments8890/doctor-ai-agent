@@ -596,18 +596,12 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
         if not intent_result.patient_name or not _is_valid_patient_name(intent_result.patient_name):
             return ChatResponse(reply="请问这位患者叫什么名字？")
 
-        treatment_signal_texts = [body.text]
-        treatment_signal_texts.extend(
-            (m.get("content") or "") for m in history[-8:] if m.get("role") == "user"
-        )
-
         # Build MedicalRecord: prefer single-LLM structured_fields, fallback to dedicated LLM
         if intent_result.structured_fields:
             with trace_block("router", "records.chat.structured_fields_to_record"):
                 fields = dict(intent_result.structured_fields)
-                if not fields.get("chief_complaint"):
-                    fields["chief_complaint"] = "门诊就诊"
-                record = MedicalRecord(**{k: fields.get(k) for k in MedicalRecord.model_fields})
+                content_text = (fields.get("content") or body.text).strip() or "门诊就诊"
+                record = MedicalRecord(content=content_text, record_type="dictation")
         else:
             doctor_ctx = [m["content"] for m in history[-10:] if m["role"] == "user"]
             if not (followup_name and body.text.strip() == followup_name):
@@ -620,11 +614,6 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
             except Exception as e:
                 log(f"[Chat] structuring FAILED doctor={doctor_id} patient={intent_result.patient_name}: {e}")
                 return ChatResponse(reply="病历生成失败，请稍后重试。")
-
-        # Guard against sparse-note hallucination: if no treatment evidence appears
-        # in doctor input/history, keep treatment_plan empty.
-        if record.treatment_plan and not _contains_treatment_signal("\n".join(treatment_signal_texts)):
-            record.treatment_plan = None
 
         patient_id = None
         patient_name = intent_result.patient_name
@@ -692,7 +681,7 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
                     lines = [f"📂 患者【{name}】最近 {len(records)} 条记录："]
                     for i, r in enumerate(records, 1):
                         date = r.created_at.strftime("%Y-%m-%d") if r.created_at else "—"
-                        lines.append(f"{i}. [{date}] 主诉：{r.chief_complaint or '—'} | 诊断：{r.diagnosis or '—'}")
+                        lines.append(f"{i}. [{date}] {(r.content or '—')[:60]}")
                 else:
                     records = await get_all_records_for_doctor(db, doctor_id)
                     if not records:
@@ -701,7 +690,7 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
                     for r in records:
                         pname = r.patient.name if r.patient else "未关联"
                         date = r.created_at.strftime("%Y-%m-%d") if r.created_at else "—"
-                        lines.append(f"【{pname}】[{date}] 主诉：{r.chief_complaint or '—'} | 诊断：{r.diagnosis or '—'}")
+                        lines.append(f"【{pname}】[{date}] {(r.content or '—')[:60]}")
         asyncio.create_task(audit(
             doctor_id, "READ", resource_type="record",
             resource_id=name,
@@ -899,11 +888,7 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
                 reply=f"⚠️ 患者【{name}】暂无病历记录，请先保存一条再更正。"
             )
 
-        fields_updated = [k for k in corrected if k in (
-            "chief_complaint", "history_of_present_illness", "past_medical_history",
-            "physical_examination", "auxiliary_examinations",
-            "diagnosis", "treatment_plan", "follow_up_plan",
-        )]
+        fields_updated = [k for k in corrected if k in ("content", "tags", "record_type")]
         log(f"[Chat] updated record for [{name}] fields={fields_updated} doctor={doctor_id}")
         asyncio.create_task(audit(
             doctor_id, "WRITE", resource_type="record",

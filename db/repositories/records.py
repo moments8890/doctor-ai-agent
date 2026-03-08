@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import List, Optional
 
 from sqlalchemy import select
@@ -28,14 +29,9 @@ class RecordRepository:
         db_record = MedicalRecordDB(
             doctor_id=doctor_id,
             patient_id=patient_id,
-            chief_complaint=record.chief_complaint,
-            history_of_present_illness=record.history_of_present_illness,
-            past_medical_history=record.past_medical_history,
-            physical_examination=record.physical_examination,
-            auxiliary_examinations=record.auxiliary_examinations,
-            diagnosis=record.diagnosis,
-            treatment_plan=record.treatment_plan,
-            follow_up_plan=record.follow_up_plan,
+            record_type=record.record_type,
+            content=record.content,
+            tags=json.dumps(record.tags, ensure_ascii=False) if record.tags else None,
         )
         self.session.add(db_record)
         await self.session.flush()

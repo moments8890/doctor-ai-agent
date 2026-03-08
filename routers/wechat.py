@@ -430,9 +430,12 @@ async def _confirm_pending_record(doctor_id: str, pending_id: str) -> str:
         patient_id = pending.patient_id
     clear_pending_record_id(doctor_id)
     asyncio.create_task(audit(doctor_id, "WRITE", resource_type="record", resource_id=str(db_record.id)))
-    if record.follow_up_plan:
+    _follow_up_hint = next(
+        (t for t in record.tags if "随访" in t or "复诊" in t), None
+    ) or ("随访" in record.content or "复诊" in record.content and record.content or None)
+    if _follow_up_hint:
         asyncio.create_task(create_follow_up_task(
-            doctor_id, db_record.id, patient_name, record.follow_up_plan, patient_id
+            doctor_id, db_record.id, patient_name, record.content, patient_id
         ))
     asyncio.create_task(wd._bg_auto_learn(doctor_id, pending.raw_input or "", record))
     return f"✅ 病历已保存！患者：【{patient_name}】"
@@ -639,7 +642,7 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
             synthetic = IntentResult(
                 intent=Intent.add_record,
                 patient_name=sess.current_patient_name,
-                structured_fields={"chief_complaint": text.strip()},
+                structured_fields={"content": text.strip()},
                 chat_reply=(
                     f"已记录【{sess.current_patient_name}】\n"
                     f"症状：{text.strip()[:18]}\n"

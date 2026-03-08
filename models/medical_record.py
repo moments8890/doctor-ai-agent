@@ -1,27 +1,28 @@
 """
-病历 Pydantic 模型：定义结构化病历的字段约束和验证规则。
+病历 Pydantic 模型：chat-first 设计，以整理后的自由文本为核心，附带关键词标签。
 """
 
 from __future__ import annotations
 
+from typing import List, Optional
+
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional
 
 
 class MedicalRecord(BaseModel):
-    chief_complaint: str = Field(..., min_length=1, max_length=2000)
-    history_of_present_illness: Optional[str] = Field(default=None, max_length=8000)
-    past_medical_history: Optional[str] = Field(default=None, max_length=8000)
-    physical_examination: Optional[str] = Field(default=None, max_length=8000)
-    auxiliary_examinations: Optional[str] = Field(default=None, max_length=8000)
-    diagnosis: Optional[str] = Field(default=None, max_length=4000)
-    treatment_plan: Optional[str] = Field(default=None, max_length=4000)
-    follow_up_plan: Optional[str] = Field(default=None, max_length=4000)
+    content: str = Field(..., min_length=1, max_length=16000)
+    """LLM 整理后的临床笔记（自由文本）。保留所有临床信息，语言流畅简洁。"""
 
-    @field_validator("chief_complaint")
+    tags: List[str] = Field(default_factory=list)
+    """关键词标签：诊断名称、药品、随访时间等，用于过滤和风险评估。"""
+
+    record_type: str = Field(default="visit")
+    """记录类型：visit | dictation | import | interview_summary"""
+
+    @field_validator("content")
     @classmethod
-    def _strip_chief_complaint(cls, value: str) -> str:
+    def _strip_content(cls, value: str) -> str:
         stripped = (value or "").strip()
         if not stripped:
-            raise ValueError("chief_complaint cannot be empty")
+            raise ValueError("content cannot be empty")
         return stripped

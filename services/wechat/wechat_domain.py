@@ -155,9 +155,8 @@ async def handle_add_record(
     # Structure the record
     if intent_result.structured_fields:
         fields = dict(intent_result.structured_fields)
-        if not fields.get("chief_complaint"):
-            fields["chief_complaint"] = text.split("，")[0][:20] or "门诊就诊"
-        record = MedicalRecord(**{k: fields.get(k) for k in MedicalRecord.model_fields})
+        content_text = (fields.get("content") or text).strip() or "门诊就诊"
+        record = MedicalRecord(content=content_text, record_type="dictation")
     else:
         try:
             doctor_ctx = [m["content"] for m in (history or [])[-10:] if m["role"] == "user"]
@@ -175,7 +174,7 @@ async def handle_add_record(
             db_record = await save_record(session, doctor_id, record, patient_id)
         asyncio.create_task(audit(doctor_id, "WRITE", resource_type="record", resource_id=str(patient_id)))
         asyncio.create_task(create_emergency_task(
-            doctor_id, db_record.id, patient_name or "未关联患者", record.diagnosis, patient_id
+            doctor_id, db_record.id, patient_name or "未关联患者", None, patient_id
         ))
         asyncio.create_task(_bg_auto_learn(doctor_id, text, record))
         reply = intent_result.chat_reply or (f"{patient_name}的病历已记录。" if patient_name else "病历已保存。")
@@ -234,10 +233,8 @@ async def handle_query_records(doctor_id: str, intent_result: IntentResult) -> s
             lines = [f"📂 【{patient_name}】最近 {len(records)} 条记录\n"]
             for i, r in enumerate(records, 1):
                 date_str = r.created_at.strftime("%m-%d") if r.created_at else "?"
-                cc = _t(r.chief_complaint or "—", 16)
-                diag = _t(r.diagnosis or "", 16)
-                diag_line = f"\n   {diag}" if diag else ""
-                lines.append(f"{i}. {date_str} {cc}{diag_line}")
+                snippet = _t(r.content or "—", 30)
+                lines.append(f"{i}. {date_str} {snippet}")
             return "\n".join(lines)
 
         records = await get_all_records_for_doctor(session, doctor_id)
@@ -248,10 +245,8 @@ async def handle_query_records(doctor_id: str, intent_result: IntentResult) -> s
     for i, r in enumerate(records, 1):
         pname = r.patient.name if r.patient else "未关联患者"
         date_str = r.created_at.strftime("%m-%d") if r.created_at else "?"
-        cc = _t(r.chief_complaint or "—", 16)
-        diag = _t(r.diagnosis or "", 16)
-        diag_line = f"\n   {diag}" if diag else ""
-        lines.append(f"{i}. 【{pname}】{date_str} {cc}{diag_line}")
+        snippet = _t(r.content or "—", 30)
+        lines.append(f"{i}. 【{pname}】{date_str} {snippet}")
     return "\n".join(lines)
 
 

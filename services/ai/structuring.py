@@ -46,66 +46,31 @@ def _get_structuring_client(provider_name: str, provider: dict) -> AsyncOpenAI:
 # Seed value — written to DB on first startup. After that, DB is the source of truth.
 # To reset to defaults: delete the 'structuring' row in /admin → System Prompts.
 _SEED_PROMPT = """\
-你是医院电子病历系统，依据《病历书写基本规范》（卫医政发〔2010〕11号）将医生口述或文字记录转为规范化门诊病历 JSON。
-输入可能来自心血管内科或肿瘤科，含有专业术语、缩写和口语化表达，请准确识别并规范化。
-输入若以引号或"记录一下"开头，忽略引导语，直接提取临床内容。
+你是医生的智能助手，将医生口述或文字记录整理为一段简洁的临床笔记，并提取关键词标签。
+输入可能是语音转写（含噪音）、口语化文字或缩写，请准确识别并规范化。
+输入若以引号或"记录一下"开头，忽略引导语，直接处理临床内容。
 
-【严禁虚构】所有字段只能使用医生原话中明确出现的信息。
-- 严禁补充未提及的数值（血压、心率、BNP、EF等）
-- 严禁推断未提及的治疗方案或检查安排
-- 严禁将口语化表达扩写为未提及的临床细节
-- 若某字段在原话中无对应信息，必须返回 null，不得填写任何内容
+【严禁虚构】只能使用原文中明确出现的信息，不得推断或补充任何未提及的内容。
 
-【字段说明与书写要求】
+【输出格式】只输出合法 JSON 对象，包含以下两个字段：
 
-必填字段（绝对不可为 null，哪怕描述极简也必须生成合理值）：
+  "content"（必填）
+    · 整理后的中文临床笔记，字符串，自由文本
+    · 清理 ASR 噪音（"嗯""啊"等语气词）、修复口语化表达
+    · 保留所有临床信息：症状、诊断、用药、检查结果、随访安排等
+    · 保持医学术语规范（STEMI、PCI、BNP、EF、EGFR 等缩写保留）
+    · 以简洁的第三人称或无主语方式书写
+    · 示例："患者复诊。血压 142/90 mmHg，控制尚可。继续氨氯地平 5 mg。3 个月后随访。"
+    · 若输入极简，直接整理为一句话，不得返回空字符串
 
-  chief_complaint（主诉）
-    · 简明描述患者就诊最主要的症状或体征及持续时间，一般不超过 20 字
-    · 例如："劳力性胸闷一周"、"突发胸痛 2 小时"、"化疗后乏力"
-    · 术后复诊格式："XX术后N个月复诊"
-    · 若描述极简，直接将核心问题作为主诉
+  "tags"（必填，可为空数组）
+    · 关键词字符串数组，只提取原文明确出现的信息
+    · 诊断名称：如 "高血压" "急性STEMI" "2型糖尿病"
+    · 药品（含剂量）：如 "氨氯地平5mg" "阿司匹林100mg"
+    · 随访时间：如 "随访3个月" "1周后复诊" "下周随访"
+    · 数量：3～8 个标签，无法确定时返回 []
 
-  history_of_present_illness（现病史）
-    · 按时间顺序描述本次疾病的发生、发展、诊疗经过
-    · 包括：起病时间与诱因、主症性质/程度/部位/演变、伴随症状、已有诊疗经过
-    · 纳入重要的化验趋势（如"CEA 从 12 降至 5"、"BNP 从 600 升至 980"、"EF 从 60% 降至 50%"）
-    · 用药依从性问题须记录（如"昨日漏服利伐沙班一次"）
-
-尽量填写（有依据时填写，无法确定时返回 null）：
-
-  diagnosis（诊断）
-    · 按规范书写疾病诊断名称，优先使用 ICD 标准名称
-    · 多个诊断以"；"分隔，主要诊断列首位
-    · 鉴别诊断/待排写作"待排：XX"；高度怀疑但未确定写"考虑：XX"
-    · 急危重症须体现（如"急性 STEMI；血流动力学不稳定"）
-
-  treatment_plan（治疗方案）
-    · 包括药物（药名、剂量、用法）、非药物治疗、医嘱
-    · 本次安排的检查/手术也放此处（如"安排心电图、TnI、BNP；急诊 PCI 绿色通道"）
-    · 专科：化疗方案调整、靶向药、G-CSF、介入手术等
-
-选填字段（文本中无相关信息时返回 null）：
-
-  past_medical_history（既往史）
-    · 既往重要疾病史、手术史（PCI、消融、肿瘤手术等）、药物及食物过敏史
-
-  physical_examination（体格检查）
-    · 生命体征（BP、HR、体重等）及阳性体征
-    · 含血流动力学描述（如"BP 90/60 mmHg，大汗"）
-
-  auxiliary_examinations（辅助检查）
-    · 本次就诊时已有的实验室、影像、心电图等结果（含趋势）
-    · 示例："ECG：前壁 ST 段抬高；BNP 980 pg/mL（上次 600）；EF 50%（上次 60%，趋势下降）"
-    · 肿瘤标志物："CEA 5 ng/mL（上次 12，下降）；ANC 1.1×10⁹/L"
-
-  follow_up_plan（随访计划）
-    · 复诊时间、随访内容、患者教育要点、院外监测指标
-
-【输出要求】
-- 只输出合法 JSON 对象，不加任何解释或 markdown
-- 字段值为字符串或 null，不使用数组或嵌套对象
-- 保持医学术语规范，保留专业缩写（STEMI、PCI、BNP、EF、ANC、EGFR 等）
+不加任何解释或 markdown，只输出 JSON。
 """
 
 _CONSULTATION_SUFFIX = """
@@ -114,16 +79,9 @@ _CONSULTATION_SUFFIX = """
 输入为医生与患者的问诊对话转写文本，非单人口述。
 
 提取规则：
-- 患者描述的症状、时间、诱因 → history_of_present_illness
-- 医生确认的既往史 → past_medical_history
-- 医生检查的生命体征 → physical_examination
-- 医生提及的检查结果 → auxiliary_examinations
-- 医生的诊断倾向 → diagnosis
-- 医生交代的用药/治疗 → treatment_plan
-- 医生的随访安排 → follow_up_plan
-- chief_complaint: 患者首诉主要不适（≤20字）
-
-严禁将医生的询问性语言作为已确认信息。疑问句内容须有患者明确应答才能记录。
+- 将医患双方的有效信息整合写入 content（症状、确认的既往史、体征、检查、诊断、用药、随访）
+- 严禁将医生的询问性语言作为已确认信息，疑问句须有患者明确应答才能记录
+- tags 从整合后的信息中提取
 """
 
 _PROMPT_CACHE: Optional[Tuple[float, str]] = None  # (fetched_at, content)
@@ -233,29 +191,27 @@ async def structure_medical_record(
     if isinstance(data, list):
         data = data[0] if data else {}
 
-    # Coerce any non-string field values to strings (some models return arrays/dicts)
-    _STR_FIELDS = [
-        "history_of_present_illness", "past_medical_history", "physical_examination",
-        "auxiliary_examinations", "diagnosis", "treatment_plan", "follow_up_plan",
-    ]
-    for field in _STR_FIELDS:
-        val = data.get(field)
-        if val is None or isinstance(val, str):
-            continue
-        if isinstance(val, list):
-            data[field] = "；".join(str(item) for item in val if item)
-        elif isinstance(val, dict):
-            data[field] = "；".join(f"{k}：{v}" for k, v in val.items())
-        else:
-            data[field] = str(val)
-        log(f"[LLM:{provider_name}] coerced {field} from {type(val).__name__} to str")
+    # Coerce content to string if model returns unexpected type
+    content_val = data.get("content")
+    if content_val is None or not isinstance(content_val, str):
+        if isinstance(content_val, list):
+            data["content"] = "；".join(str(x) for x in content_val if x)
+        elif isinstance(content_val, dict):
+            data["content"] = "；".join(f"{k}：{v}" for k, v in content_val.items())
+        elif content_val is not None:
+            data["content"] = str(content_val)
 
-    # Hard fallback: chief_complaint must never be null
-    if not data.get("chief_complaint"):
-        # Strip leading name/demographics (e.g. "张三，男，58岁，") then take first clause
+    # Hard fallback: content must never be empty
+    if not (data.get("content") or "").strip():
         stripped = re.sub(r'^[\u4e00-\u9fff]{2,4}[，,]?(男|女)?[，,]?\d+岁[，,]?', '', text).strip()
-        first_clause = re.split(r'[，。；\n]', stripped)[0].strip()
-        data["chief_complaint"] = first_clause[:40] or "门诊就诊"
-        log(f"[LLM:{provider_name}] chief_complaint was null, derived: {data['chief_complaint']}")
+        data["content"] = stripped[:200] or "门诊就诊"
+        log(f"[LLM:{provider_name}] content was empty, derived from input")
+
+    # Ensure tags is a list of strings
+    tags_val = data.get("tags")
+    if not isinstance(tags_val, list):
+        data["tags"] = []
+    else:
+        data["tags"] = [str(t) for t in tags_val if t]
 
     return MedicalRecord.model_validate(data)

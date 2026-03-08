@@ -137,9 +137,9 @@ async def _voice_chat_for_doctor(
 
         if intent_result.structured_fields:
             fields = dict(intent_result.structured_fields)
-            if not fields.get("chief_complaint"):
-                fields["chief_complaint"] = "门诊就诊"
-            record = MedicalRecord(**{k: fields.get(k) for k in MedicalRecord.model_fields})
+            if not fields.get("content"):
+                fields["content"] = "门诊就诊"
+            record = MedicalRecord(**{k: v for k, v in fields.items() if k in MedicalRecord.model_fields and v is not None})
         else:
             doctor_ctx = [m["content"] for m in history_list[-10:] if m.get("role") == "user"]
             if not (followup_name and transcript.strip() == followup_name):

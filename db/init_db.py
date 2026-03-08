@@ -122,6 +122,18 @@ async def create_tables() -> None:
             await conn.execute(
                 text("ALTER TABLE medical_records ADD COLUMN updated_at DATETIME DEFAULT NULL")
             )
+        # Migrate medical_records to chat-first schema (content + tags + record_type)
+        _records_new_cols = {
+            "record_type": "VARCHAR(32)",
+            "content": "TEXT",
+            "tags": "TEXT",
+        }
+        for col_name, col_type in _records_new_cols.items():
+            if col_name not in _records_cols:
+                default = " DEFAULT 'visit'" if col_name == "record_type" else ""
+                await conn.execute(
+                    text(f"ALTER TABLE medical_records ADD COLUMN {col_name} {col_type}{default}")
+                )
 
         _neuro_cols = await conn.run_sync(lambda c: _get_table_columns(c, "neuro_cases"))
         if "updated_at" not in _neuro_cols:
