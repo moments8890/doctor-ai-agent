@@ -5,5 +5,6 @@ App({
     apiBase: runtimeConfig.apiBase || "https://nano-redhead-attitudes-attachment.trycloudflare.com",
     accessToken: "",
     doctorId: "",
+    doctorName: "",
   },
 });

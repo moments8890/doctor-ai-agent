@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import DoctorPage from "./pages/DoctorPage";
 import AdminPage from "./pages/AdminPage";
@@ -15,7 +15,25 @@ function RequireAuth({ children }) {
 }
 
 export default function App() {
-  const { accessToken } = useDoctorStore();
+  const { accessToken, setAuth } = useDoctorStore();
+
+  // Absorb token handed off from WeChat Mini Program web-view via URL params.
+  // Runs synchronously in useState initializer so auth is set before RequireAuth
+  // evaluates on the first render.
+  useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
+    const doctorId = params.get("doctor_id");
+    const name = params.get("name");
+    if (token && doctorId) {
+      setAuth(doctorId, name || doctorId, token);
+      setWebToken(token);
+      // Strip sensitive params from the URL without triggering a navigation
+      const url = new URL(window.location.href);
+      ["token", "doctor_id", "name"].forEach((k) => url.searchParams.delete(k));
+      window.history.replaceState({}, "", url.toString());
+    }
+  });
 
   // Restore token into api module on page reload (Zustand persist re-hydrates store
   // but the module-level _webToken variable resets on each page load).

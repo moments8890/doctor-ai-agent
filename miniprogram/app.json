@@ -1,6 +1,7 @@
 {
   "pages": [
     "pages/login/login",
+    "pages/doctor/doctor",
     "pages/chat/chat"
   ],
   "window": {
