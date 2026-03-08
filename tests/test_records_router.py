@@ -146,6 +146,9 @@ async def test_chat_create_patient_no_name_and_success():
         "routers.records.agent_dispatch",
         new=AsyncMock(return_value=_intent(Intent.create_patient, patient_name="李明", gender="男", age=40)),
     ), patch("routers.records.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
+        "routers.records.find_patient_by_name",
+        new=AsyncMock(return_value=None),  # no existing patient
+    ), patch(
         "routers.records.db_create_patient",
         new=AsyncMock(return_value=SimpleNamespace(id=1, name="李明")),
     ):

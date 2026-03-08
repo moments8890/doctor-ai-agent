@@ -626,32 +626,53 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
         name = intent_result.patient_name
         if not name:
             return ChatResponse(reply="好的，请告诉我患者的姓名。")
-        with trace_block("router", "records.chat.create_patient", {"doctor_id": doctor_id, "patient_name": name}):
-            try:
-                async with AsyncSessionLocal() as db:
-                    patient = await db_create_patient(
-                        db, doctor_id, name, intent_result.gender, intent_result.age
-                    )
-            except InvalidMedicalRecordError as e:
-                log(f"[Chat] create patient validation FAILED doctor={doctor_id}: {e}")
-                return ChatResponse(reply="⚠️ 患者信息不完整或格式不正确，请检查后重试。")
-        parts = "、".join(filter(None, [
-            intent_result.gender,
-            f"{intent_result.age}岁" if intent_result.age else None,
-        ]))
-        reply = f"✅ 已为患者【{patient.name}】建档" + (f"（{parts}）" if parts else "") + "。"
-        log(f"[Chat] created patient [{patient.name}] id={patient.id} doctor={doctor_id}")
-        asyncio.create_task(audit(
-            doctor_id, "WRITE", resource_type="patient",
-            resource_id=str(patient.id),
-            trace_id=get_current_trace_id(),
-        ))
+
+        # ── Duplicate check: reuse existing patient rather than creating a dupe ─
+        patient_created = False
+        async with AsyncSessionLocal() as db:
+            patient = await find_patient_by_name(db, doctor_id, name)
+        if patient is not None:
+            parts = "、".join(filter(None, [patient.gender, f"{datetime.now().year - patient.year_of_birth}岁" if patient.year_of_birth else None]))
+            reply = f"ℹ️ 患者【{name}】已存在（ID {patient.id}{('，' + parts) if parts else ''}），已复用现有档案。"
+            log(f"[Chat] reusing existing patient [{name}] id={patient.id} doctor={doctor_id}")
+        else:
+            with trace_block("router", "records.chat.create_patient", {"doctor_id": doctor_id, "patient_name": name}):
+                try:
+                    async with AsyncSessionLocal() as db:
+                        patient = await db_create_patient(
+                            db, doctor_id, name, intent_result.gender, intent_result.age
+                        )
+                except InvalidMedicalRecordError as e:
+                    log(f"[Chat] create patient validation FAILED doctor={doctor_id}: {e}")
+                    return ChatResponse(reply="⚠️ 患者信息不完整或格式不正确，请检查后重试。")
+            patient_created = True
+            parts = "、".join(filter(None, [
+                intent_result.gender,
+                f"{intent_result.age}岁" if intent_result.age else None,
+            ]))
+            reply = f"✅ 已为患者【{patient.name}】建档" + (f"（{parts}）" if parts else "") + "。"
+            log(f"[Chat] created patient [{patient.name}] id={patient.id} doctor={doctor_id}")
+            asyncio.create_task(audit(
+                doctor_id, "WRITE", resource_type="patient",
+                resource_id=str(patient.id),
+                trace_id=get_current_trace_id(),
+            ))
 
         # ── Compound: also save record when clinical content follows demographics ─
         if _contains_clinical_content(body.text):
             try:
+                # Strip leading patient-creation preamble so the structuring LLM
+                # receives clean clinical text, not "帮我录入一个新病人，张三，男…"
+                _create_preamble_re = re.compile(
+                    r"^(?:帮我?|请)?(?:录入|建立|新建|建档).*?(?:新病人|新患者|患者|病人)"
+                    r"\s*[，,]?\s*[\u4e00-\u9fff]{2,4}\s*[，,]?"
+                    r"(?:\s*[男女](?:性)?\s*[，,]?)?"
+                    r"(?:\s*\d+\s*岁\s*[，,。]?)?\s*",
+                    re.DOTALL,
+                )
+                _clinical_text = _create_preamble_re.sub("", body.text).strip() or body.text
                 with trace_block("router", "records.chat.compound_record"):
-                    record = await structure_medical_record(body.text)
+                    record = await structure_medical_record(_clinical_text)
                 async with AsyncSessionLocal() as db:
                     saved = await save_record(db, doctor_id, record, patient.id)
                 preview = record.content[:50] + ("…" if len(record.content) > 50 else "")
