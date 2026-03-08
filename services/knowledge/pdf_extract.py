@@ -17,7 +17,7 @@ def extract_text_from_pdf(pdf_bytes: bytes, max_chars: int = 12000) -> str:
         src.write(pdf_bytes)
         src.flush()
         result = subprocess.run(
-            ["pdftotext", "-enc", "UTF-8", src.name, dst.name],
+            ["pdftotext", "-layout", "-enc", "UTF-8", src.name, dst.name],
             capture_output=True,
         )
         if result.returncode != 0:

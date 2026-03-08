@@ -490,7 +490,63 @@ def _preprocess_import_text(
     if source == "chat_export" or _looks_like_chat_export(text):
         from services.wechat.wechat_media_pipeline import preprocess_wechat_chat_export
         text = preprocess_wechat_chat_export(text, sender_filter=sender_filter)
+    elif _looks_like_structured_report(text):
+        text = _preprocess_exam_report(text)
     return text.strip()
+
+
+# Sections in 体检报告 that contain the clinically actionable summary
+_EXAM_SUMMARY_RE = _re.compile(
+    r"(?:检查综述|体检结论|健康评估|主要.*?问题|检查结论|体检小结)",
+)
+# 体检报告 header junk: lines before the clinical summary
+_EXAM_HEADER_JUNK_RE = _re.compile(
+    r"^[\s姓名身份证单位部门工号体检号电话日期年月\d\*\-（）()\s江南大学附属医院健康体检报告您的健康我们共同目标页共您的健康:：]+$",
+)
+
+
+def _preprocess_exam_report(text: str) -> str:
+    """Extract clinically relevant sections from a 体检报告.
+
+    Keeps: 检查综述, 主要/次要健康问题, 体检结论及建议.
+    Discards: header junk, raw lab tables (too large for LLM).
+    """
+    # Find where the clinical summary starts
+    m = _EXAM_SUMMARY_RE.search(text)
+    if not m:
+        return text  # can't identify structure — pass as-is
+
+    # Get patient identity from the header (before summary)
+    header = text[:m.start()]
+    # Extract name, gender, age, date from header
+    name_m = _re.search(r"姓\s*名\s+(\S+)", header)
+    gender_m = _re.search(r"性别\s+([男女])", header)
+    age_m = _re.search(r"年龄\s+(\d+\s*岁?)", header)
+    date_m = _re.search(r"体检日期\s+(\S+)", header)
+
+    identity_parts = []
+    if name_m:
+        identity_parts.append(f"姓名：{name_m.group(1)}")
+    if gender_m:
+        identity_parts.append(f"性别：{gender_m.group(1)}")
+    if age_m:
+        identity_parts.append(f"年龄：{age_m.group(1)}")
+    if date_m:
+        identity_parts.append(f"体检日期：{date_m.group(1)}")
+
+    identity_line = "  ".join(identity_parts) if identity_parts else ""
+
+    # Keep only from the summary onwards, up to reasonable length
+    clinical = text[m.start():].strip()
+
+    # Discard raw data tables after 体检结论 section (usually very long)
+    conclusion_m = _re.search(r"(?:体检结论|健康建议|医师签名)", clinical)
+    if conclusion_m:
+        # Keep up to end of conclusion section (next 1500 chars)
+        clinical = clinical[:conclusion_m.start() + 1500]
+
+    result = (identity_line + "\n\n" + clinical).strip() if identity_line else clinical
+    return result
 
 
 # Structured single-document report markers: header fields that indicate the
