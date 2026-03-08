@@ -11,11 +11,8 @@ from services.patient.patient_timeline import build_patient_timeline
 async def test_build_patient_timeline_includes_record_and_task(db_session):
     patient = await create_patient(db_session, "doc1", "张三", "男", 45)
     record = MedicalRecord(
-        chief_complaint="胸闷",
-        history_of_present_illness="2天",
-        diagnosis="高血压",
-        treatment_plan="观察",
-        follow_up_plan="两周后复诊",
+        content="胸闷 2天 高血压 观察 两周后复诊",
+        tags=["高血压", "两周后复诊"],
     )
     await save_record(db_session, "doc1", record, patient.id)
 

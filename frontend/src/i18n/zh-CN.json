@@ -153,9 +153,6 @@
         "rawFieldView": "原始字段视图",
         "patientName": "患者姓名",
         "date": "记录日期",
-        "chiefComplaint": "主诉",
-        "diagnosisPrefix": "诊断",
-        "noChiefComplaint": "无主诉",
         "unlinkedPatient": "未关联患者",
         "showDetails": "查看详情",
         "hideDetails": "收起详情",
@@ -164,14 +161,9 @@
           "patient_id": "患者 ID",
           "doctor_id": "医生 ID",
           "patient_name": "患者姓名",
-          "chief_complaint": "主诉",
-          "history_of_present_illness": "现病史",
-          "past_medical_history": "既往史",
-          "physical_examination": "体格检查",
-          "auxiliary_examinations": "辅助检查",
-          "diagnosis": "诊断",
-          "treatment_plan": "治疗方案",
-          "follow_up_plan": "随访计划",
+          "record_type": "记录类型",
+          "content": "临床笔记",
+          "tags": "关键词标签",
           "created_at": "记录时间"
         },
         "empty": "未找到病历。"
@@ -188,15 +180,13 @@
           "unknown": "事件"
         },
         "summary": {
-          "record": "主诉",
+          "record": "内容摘要",
           "task": "任务标题"
         },
         "fields": {
           "timestamp": "时间",
-          "chief_complaint": "主诉",
-          "diagnosis": "诊断",
-          "treatment_plan": "治疗方案",
-          "follow_up_plan": "随访计划",
+          "content": "临床笔记",
+          "tags": "关键词标签",
           "task_type": "任务类型",
           "title": "任务标题",
           "status": "任务状态",
@@ -204,6 +194,16 @@
           "trigger_source": "触发来源",
           "trigger_reason": "触发原因"
         }
+      },
+      "recordType": {
+        "visit": "门诊",
+        "dictation": "口述",
+        "import": "导入",
+        "interview_summary": "问诊小结",
+        "referral": "转诊",
+        "surgery": "手术",
+        "lab": "检验",
+        "imaging": "影像"
       },
       "prompt": {
         "base": "结构化主提示词",
@@ -317,6 +317,8 @@
         "label_id": "标签ID",
         "label_name": "标签名",
         "color": "颜色",
+        "tags": "关键词标签",
+        "record_type": "记录类型",
         "nihss": "NIHSS",
         "trace_id": "Trace ID",
         "started_at": "开始时间",
@@ -350,17 +352,7 @@
       ]
     },
     "recordFields": {
-      "title": "结构化病历",
-      "fields": {
-        "chief_complaint": "主诉",
-        "history_of_present_illness": "现病史",
-        "past_medical_history": "既往史",
-        "physical_examination": "体格检查",
-        "auxiliary_examinations": "辅助检查",
-        "diagnosis": "诊断",
-        "treatment_plan": "治疗计划",
-        "follow_up_plan": "随访计划"
-      }
+      "title": "临床笔记"
     }
   },
   "backend": {
@@ -373,16 +365,11 @@
       "welcome": "您好，我是门诊助手。您可以直接说：建档、记录病历、查询患者。",
       "received": "收到。",
       "requestFailed": "请求失败: {message}",
-      "recordTitle": "结构化病历",
+      "recordTitle": "临床笔记",
       "recordLabels": {
-        "chief_complaint": "主诉",
-        "history_of_present_illness": "现病史",
-        "past_medical_history": "既往史",
-        "physical_examination": "体格检查",
-        "auxiliary_examinations": "辅助检查",
-        "diagnosis": "诊断",
-        "treatment_plan": "治疗方案",
-        "follow_up_plan": "随访计划"
+        "content": "临床笔记",
+        "tags": "关键词标签",
+        "record_type": "记录类型"
       }
     },
     "manage": {

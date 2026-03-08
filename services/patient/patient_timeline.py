@@ -18,10 +18,9 @@ def _event_from_record(record: MedicalRecordDB) -> Dict[str, object]:
         "timestamp": record.created_at.isoformat() if record.created_at else None,
         "id": record.id,
         "payload": {
-            "chief_complaint": record.chief_complaint,
-            "diagnosis": record.diagnosis,
-            "treatment_plan": record.treatment_plan,
-            "follow_up_plan": record.follow_up_plan,
+            "content": record.content,
+            "tags": record.tags,
+            "record_type": record.record_type,
         },
     }
 

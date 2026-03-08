@@ -24,22 +24,14 @@ function formatRawValue(value) {
 }
 
 function getRecordDisplayRows(record) {
-  const fields = [
-    "patient_name",
-    "chief_complaint",
-    "history_of_present_illness",
-    "past_medical_history",
-    "physical_examination",
-    "auxiliary_examinations",
-    "diagnosis",
-    "treatment_plan",
-    "follow_up_plan",
-    "created_at",
-  ];
+  const fields = ["patient_name", "record_type", "content", "tags", "created_at"];
   return fields.map((field) => ({
     key: field,
     label: t(`manage.record.fields.${field}`),
-    value: record[field] === null || record[field] === undefined || record[field] === "" ? "-" : formatRawValue(record[field]),
+    value:
+      record[field] === null || record[field] === undefined || record[field] === ""
+        ? "-"
+        : formatRawValue(record[field]),
   }));
 }
 
@@ -50,13 +42,16 @@ function getTimelineEventKey(event) {
 function getTimelineRows(event) {
   const payload = event.payload || {};
   const base = [{ key: "timestamp", value: event.timestamp || "-" }];
-  const recordFields = ["chief_complaint", "diagnosis", "treatment_plan", "follow_up_plan"];
+  const recordFields = ["content", "tags"];
   const taskFields = ["task_type", "title", "status", "due_at", "trigger_source", "trigger_reason"];
   const fields =
     event.type === "record" ? recordFields : event.type === "task" ? taskFields : Object.keys(payload || {});
   const payloadRows = fields.map((field) => ({
     key: field,
-    value: payload[field] === null || payload[field] === undefined || payload[field] === "" ? "-" : formatRawValue(payload[field]),
+    value:
+      payload[field] === null || payload[field] === undefined || payload[field] === ""
+        ? "-"
+        : formatRawValue(payload[field]),
   }));
   return [...base, ...payloadRows].map((row) => ({
     ...row,
@@ -66,7 +61,10 @@ function getTimelineRows(event) {
 
 function getTimelineSummary(event) {
   const payload = event.payload || {};
-  if (event.type === "record") return payload.chief_complaint || "-";
+  if (event.type === "record") {
+    const content = payload.content || "";
+    return content.length > 50 ? content.slice(0, 50) + "…" : content || "-";
+  }
   if (event.type === "task") return payload.title || "-";
   return "-";
 }
@@ -78,7 +76,7 @@ const detailTableSx = {
   backgroundColor: "#f8fbfc",
 };
 
-const labelCellSx = { width: "34%", fontWeight: 700, color: "text.secondary", borderBottom: "1px solid #e4edf0" };
+const labelCellSx = { width: "28%", fontWeight: 700, color: "text.secondary", borderBottom: "1px solid #e4edf0" };
 const valueCellSx = { whiteSpace: "pre-wrap", wordBreak: "break-word", borderBottom: "1px solid #e4edf0" };
 
 export default function RecordPanel({
@@ -128,63 +126,71 @@ export default function RecordPanel({
       </Card>
 
       <Stack spacing={1.25}>
-        {records.map((r) => (
-          <Card key={r.id} sx={{ borderRadius: 1.5 }}>
-            <CardContent sx={{ p: 1.5 }}>
-              <Stack
-                direction={{ xs: "column", sm: "row" }}
-                spacing={0.8}
-                sx={{ justifyContent: "space-between", alignItems: { sm: "center" } }}
-              >
-                <Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                    {t("manage.record.patientName")}：{r.patient_name || t("manage.record.unlinkedPatient")}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.15 }}>
-                    {t("manage.record.date")}：{r.created_at || "-"}
-                  </Typography>
-                  <Typography variant="caption" sx={{ display: "block", mt: 0.35 }}>
-                    {t("manage.record.chiefComplaint")}：{r.chief_complaint || t("manage.record.noChiefComplaint")}
-                  </Typography>
-                  {r.diagnosis ? (
-                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.15 }}>
-                      {t("manage.record.diagnosisPrefix")}：{r.diagnosis}
+        {records.map((r) => {
+          const tags = Array.isArray(r.tags) ? r.tags : [];
+          const snippet = r.content ? (r.content.length > 80 ? r.content.slice(0, 80) + "…" : r.content) : null;
+          return (
+            <Card key={r.id} sx={{ borderRadius: 1.5 }}>
+              <CardContent sx={{ p: 1.5 }}>
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={0.8}
+                  sx={{ justifyContent: "space-between", alignItems: { sm: "flex-start" } }}
+                >
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                      {t("manage.record.patientName")}：{r.patient_name || t("manage.record.unlinkedPatient")}
                     </Typography>
-                  ) : null}
-                </Box>
-                <Stack direction="row" spacing={0.7}>
-                  <Chip size="small" label={t("manage.record.recordTag")} />
-                  <Button
-                    size="small"
-                    variant={String(r.id) === expandedRecordId ? "contained" : "outlined"}
-                    onClick={() => setExpandedRecordId(String(r.id) === expandedRecordId ? "" : String(r.id))}
-                  >
-                    {String(r.id) === expandedRecordId ? t("manage.record.hideDetails") : t("manage.record.showDetails")}
-                  </Button>
-                </Stack>
-              </Stack>
-              {String(r.id) === expandedRecordId ? (
-                <>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
-                    {t("manage.record.rawFieldView")}
-                  </Typography>
-                  <TableContainer sx={detailTableSx}>
-                    <Table size="small">
-                      <TableBody>
-                        {getRecordDisplayRows(r).map((row) => (
-                          <TableRow key={`${r.id}-${row.key}`}>
-                            <TableCell sx={labelCellSx}>{row.label}</TableCell>
-                            <TableCell sx={valueCellSx}>{row.value}</TableCell>
-                          </TableRow>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.15 }}>
+                      {t("manage.record.date")}：{r.created_at || "-"}
+                    </Typography>
+                    {snippet && (
+                      <Typography variant="body2" sx={{ mt: 0.5, lineHeight: 1.6 }}>
+                        {snippet}
+                      </Typography>
+                    )}
+                    {tags.length > 0 && (
+                      <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mt: 0.6 }}>
+                        {tags.map((tag, i) => (
+                          <Chip key={i} label={tag} size="small" variant="outlined" sx={{ fontSize: 11 }} />
                         ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </>
-              ) : null}
-            </CardContent>
-          </Card>
-        ))}
+                      </Stack>
+                    )}
+                  </Box>
+                  <Stack direction="row" spacing={0.7} sx={{ flexShrink: 0 }}>
+                    <Chip size="small" label={r.record_type || "visit"} />
+                    <Button
+                      size="small"
+                      variant={String(r.id) === expandedRecordId ? "contained" : "outlined"}
+                      onClick={() => setExpandedRecordId(String(r.id) === expandedRecordId ? "" : String(r.id))}
+                    >
+                      {String(r.id) === expandedRecordId ? t("manage.record.hideDetails") : t("manage.record.showDetails")}
+                    </Button>
+                  </Stack>
+                </Stack>
+                {String(r.id) === expandedRecordId ? (
+                  <>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+                      {t("manage.record.rawFieldView")}
+                    </Typography>
+                    <TableContainer sx={detailTableSx}>
+                      <Table size="small">
+                        <TableBody>
+                          {getRecordDisplayRows(r).map((row) => (
+                            <TableRow key={`${r.id}-${row.key}`}>
+                              <TableCell sx={labelCellSx}>{row.label}</TableCell>
+                              <TableCell sx={valueCellSx}>{row.value}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </>
+                ) : null}
+              </CardContent>
+            </Card>
+          );
+        })}
         {!records.length && !loading ? (
           <Typography color="text.secondary">{t("manage.record.empty")}</Typography>
         ) : null}

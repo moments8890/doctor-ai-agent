@@ -1,50 +1,52 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+import json
+from typing import Any, List, Optional
 
 
-def _t(s: str | None, n: int = 35) -> str:
-    """Truncate string for mobile display."""
-    if not s:
-        return ""
-    return s[:n] + "…" if len(s) > n else s
+def _parse_tags(record: Any) -> List[str]:
+    """Return tags as a list regardless of whether the record is Pydantic or ORM."""
+    raw = getattr(record, "tags", None)
+    if raw is None:
+        return []
+    if isinstance(raw, list):
+        return raw
+    try:
+        parsed = json.loads(raw)
+        return parsed if isinstance(parsed, list) else []
+    except Exception:
+        return []
 
 
 def format_record(record: Any) -> str:
-    """Return a compact mobile-friendly structured medical record string."""
+    """Return a mobile-friendly clinical note string."""
     lines = ["📋 病历记录\n"]
-    lines.append(f"主诉：{_t(record.chief_complaint, 35)}")
-    if record.history_of_present_illness:
-        lines.append(f"现病史：{_t(record.history_of_present_illness, 35)}")
-    if record.past_medical_history:
-        lines.append(f"既往史：{_t(record.past_medical_history, 35)}")
-    if record.physical_examination:
-        lines.append(f"体格检查：{_t(record.physical_examination, 35)}")
-    if record.auxiliary_examinations:
-        lines.append(f"辅助检查：{_t(record.auxiliary_examinations, 35)}")
-    if record.diagnosis:
-        lines.append(f"诊断：{_t(record.diagnosis, 35)}")
-    if record.treatment_plan:
-        lines.append(f"治疗方案：{_t(record.treatment_plan, 35)}")
-    if record.follow_up_plan:
-        lines.append(f"随访计划：{_t(record.follow_up_plan, 35)}")
+    lines.append(getattr(record, "content", None) or "—")
+    tags = _parse_tags(record)
+    if tags:
+        lines.append("\n🏷 " + "  ".join(tags))
     return "\n".join(lines)
 
 
 def format_draft_preview(record: Any, patient_name: Optional[str] = None) -> str:
-    """Return a compact draft preview with confirmation instructions."""
-    if patient_name:
-        header = f"📋 病历草稿 - 【{patient_name}】"
-    else:
-        header = "📋 病历草稿"
+    """Return a draft preview with confirmation prompt."""
+    header = f"📋 病历草稿 - 【{patient_name}】" if patient_name else "📋 病历草稿"
     lines = [header, ""]
-    lines.append(f"主诉：{_t(record.chief_complaint, 35)}")
-    if record.diagnosis:
-        lines.append(f"诊断：{_t(record.diagnosis, 35)}")
-    if record.treatment_plan:
-        lines.append(f"治疗方案：{_t(record.treatment_plan, 35)}")
-    if record.follow_up_plan:
-        lines.append(f"随访：{_t(record.follow_up_plan, 35)}")
-    lines.append("")
-    lines.append("「确认」保存  「取消」放弃")
+    lines.append(getattr(record, "content", None) or "—")
+    tags = _parse_tags(record)
+    if tags:
+        lines.append("🏷 " + "  ".join(tags))
+    scores = getattr(record, "specialty_scores", None) or []
+    if scores:
+        lines.append("")
+        lines.append("📊 量表评分（请核对原始记录）")
+        for s in scores:
+            score_type = s.get("score_type", "?")
+            score_value = s.get("score_value")
+            raw_text = s.get("raw_text", "")
+            if score_value is not None:
+                lines.append(f'  • {score_type}：{score_value}  ("{raw_text}")')
+            else:
+                lines.append(f'  • {score_type}  ("{raw_text}")')
+    lines.extend(["", "「撤销」可取消"])
     return "\n".join(lines)

@@ -66,6 +66,7 @@ from db.crud.tasks import (
 from db.crud.pending import (
     create_pending_record,
     get_pending_record,
+    get_stale_pending_records,
     confirm_pending_record,
     abandon_pending_record,
     expire_stale_pending_records,
@@ -77,6 +78,10 @@ from db.crud.pending import (
     create_pending_message,
     mark_pending_message,
     list_stale_pending_messages,
+)
+from db.crud.scores import (
+    save_specialty_scores,
+    get_scores_for_record,
 )
 from db.crud.runtime import (
     get_runtime_cursor,
@@ -153,6 +158,7 @@ __all__ = [
     # pending
     "create_pending_record",
     "get_pending_record",
+    "get_stale_pending_records",
     "confirm_pending_record",
     "abandon_pending_record",
     "expire_stale_pending_records",
@@ -164,6 +170,9 @@ __all__ = [
     "create_pending_message",
     "mark_pending_message",
     "list_stale_pending_messages",
+    # scores
+    "save_specialty_scores",
+    "get_scores_for_record",
     # runtime
     "get_runtime_cursor",
     "upsert_runtime_cursor",

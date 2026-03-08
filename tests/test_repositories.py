@@ -36,9 +36,8 @@ async def test_record_repository_create_and_query(db_session):
         age=None,
     )
     record = MedicalRecord(
-        chief_complaint="胸痛",
-        diagnosis="冠心病",
-        treatment_plan="随访",
+        content="胸痛 冠心病 随访",
+        tags=["冠心病"],
     )
     created = await record_repo.create(
         doctor_id="repo_doc_2",
@@ -53,14 +52,14 @@ async def test_record_repository_create_and_query(db_session):
         limit=10,
     )
     assert len(by_patient) == 1
-    assert by_patient[0].chief_complaint == "胸痛"
+    assert "胸痛" in by_patient[0].content
 
     by_doctor = await record_repo.list_for_doctor(
         doctor_id="repo_doc_2",
         limit=10,
     )
     assert len(by_doctor) == 1
-    assert by_doctor[0].diagnosis == "冠心病"
+    assert "冠心病" in by_doctor[0].content
 
 
 async def test_task_repository_create_list_update_due_and_mark_notified(db_session):

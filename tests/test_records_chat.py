@@ -20,10 +20,8 @@ DOCTOR = "unit_doc_records_chat"
 
 def _record() -> MedicalRecord:
     return MedicalRecord(
-        chief_complaint="突发胸痛两小时",
-        history_of_present_illness="伴大汗",
-        diagnosis="急性冠脉综合征待排",
-        treatment_plan=None,
+        content="突发胸痛两小时，伴大汗，急性冠脉综合征待排",
+        tags=["急性冠脉综合征待排"],
     )
 
 

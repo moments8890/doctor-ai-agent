@@ -6,14 +6,22 @@ from pydantic import ValidationError
 from models.medical_record import MedicalRecord
 
 
-def test_medical_record_chief_complaint_cannot_be_empty():
+def test_medical_record_content_cannot_be_empty():
     with pytest.raises(ValidationError):
-        MedicalRecord(chief_complaint="   ")
+        MedicalRecord(content="   ")
 
 
-def test_medical_record_field_length_limits():
+def test_medical_record_content_required():
     with pytest.raises(ValidationError):
-        MedicalRecord(
-            chief_complaint="胸痛",
-            history_of_present_illness="x" * 9000,
-        )
+        MedicalRecord()
+
+
+def test_medical_record_content_length_limit():
+    with pytest.raises(ValidationError):
+        MedicalRecord(content="x" * 16001)
+
+
+def test_medical_record_defaults():
+    rec = MedicalRecord(content="头痛两天")
+    assert rec.tags == []
+    assert rec.record_type == "visit"

@@ -56,7 +56,7 @@ async def test_handle_intent_routes_unknown_to_help_message(wechat):
 
 async def test_handle_intent_falls_back_on_detection_error(wechat):
     from models.medical_record import MedicalRecord
-    fake_record = MedicalRecord(chief_complaint="发烧")
+    fake_record = MedicalRecord(content="发烧")
     with patch("routers.wechat.agent_dispatch", side_effect=Exception("LLM down")), \
          patch("routers.wechat.structure_medical_record", new=AsyncMock(return_value=fake_record)) as mock_struct:
         reply = await wechat._handle_intent("some text", DOCTOR)
@@ -154,10 +154,8 @@ async def test_add_record_uses_session_patient_when_no_name_in_message(wechat, s
 
     from models.medical_record import MedicalRecord
     fake_record = MedicalRecord(
-        chief_complaint="头痛",
-        history_of_present_illness="两天头痛",
-        diagnosis="紧张性头痛",
-        treatment_plan="布洛芬",
+        content="头痛 两天头痛 紧张性头痛 布洛芬",
+        tags=["紧张性头痛"],
     )
     with patch("routers.wechat.AsyncSessionLocal", session_factory), \
          patch("routers.wechat.structure_medical_record", new=AsyncMock(return_value=fake_record)):
@@ -174,10 +172,8 @@ async def test_add_record_links_patient_from_message_name(wechat, session_factor
 
     from models.medical_record import MedicalRecord
     fake_record = MedicalRecord(
-        chief_complaint="咳嗽",
-        history_of_present_illness="三天咳嗽",
-        diagnosis="上呼吸道感染",
-        treatment_plan="多休息",
+        content="咳嗽 三天咳嗽 上呼吸道感染 多休息",
+        tags=["上呼吸道感染"],
     )
     with patch("routers.wechat.AsyncSessionLocal", session_factory), \
          patch("routers.wechat.structure_medical_record", new=AsyncMock(return_value=fake_record)):
@@ -192,10 +188,7 @@ async def test_add_record_auto_creates_patient_when_not_in_db(wechat, session_fa
     """When a name is mentioned but patient doesn't exist, auto-create and link."""
     from models.medical_record import MedicalRecord
     fake_record = MedicalRecord(
-        chief_complaint="头疼",
-        history_of_present_illness="最近头疼很久",
-        diagnosis=None,
-        treatment_plan="多喝热水",
+        content="头疼 最近头疼很久 多喝热水",
     )
     with patch("routers.wechat.AsyncSessionLocal", session_factory), \
          patch("routers.wechat.structure_medical_record", new=AsyncMock(return_value=fake_record)):
@@ -215,10 +208,8 @@ async def test_add_record_works_without_patient(wechat, session_factory):
     """Records with no patient context are still saved (patient_id=None)."""
     from models.medical_record import MedicalRecord
     fake_record = MedicalRecord(
-        chief_complaint="发烧",
-        history_of_present_illness="发烧一天",
-        diagnosis="病毒感染",
-        treatment_plan="退烧药",
+        content="发烧 发烧一天 病毒感染 退烧药",
+        tags=["病毒感染"],
     )
     with patch("routers.wechat.AsyncSessionLocal", session_factory), \
          patch("routers.wechat.structure_medical_record", new=AsyncMock(return_value=fake_record)):
@@ -249,10 +240,10 @@ async def test_query_records_no_patient_returns_all_records(wechat, session_fact
         p1 = await create_patient(s, DOCTOR, "李明", None, None)
         p2 = await create_patient(s, DOCTOR, "王芳", None, None)
         await save_record(s, DOCTOR, MedicalRecord(
-            chief_complaint="头痛", history_of_present_illness="两天", diagnosis="紧张性头痛", treatment_plan="布洛芬"
+            content="头痛 两天 紧张性头痛 布洛芬", tags=["紧张性头痛"]
         ), p1.id)
         await save_record(s, DOCTOR, MedicalRecord(
-            chief_complaint="咳嗽", history_of_present_illness="三天", diagnosis="上呼吸道感染", treatment_plan="多休息"
+            content="咳嗽 三天 上呼吸道感染 多休息", tags=["上呼吸道感染"]
         ), p2.id)
 
     with patch("routers.wechat.AsyncSessionLocal", session_factory):
@@ -270,10 +261,8 @@ async def test_query_records_by_name_returns_list(wechat, session_factory):
     async with session_factory() as s:
         p = await create_patient(s, DOCTOR, "李明", None, None)
         rec = MedicalRecord(
-            chief_complaint="头痛",
-            history_of_present_illness="两天头痛",
-            diagnosis="紧张性头痛",
-            treatment_plan="布洛芬",
+            content="头痛 两天头痛 紧张性头痛 布洛芬",
+            tags=["紧张性头痛"],
         )
         await save_record(s, DOCTOR, rec, p.id)
 
@@ -293,10 +282,8 @@ async def test_query_records_uses_session_patient_when_no_name(wechat, session_f
     async with session_factory() as s:
         p = await create_patient(s, DOCTOR, "王五", None, None)
         rec = MedicalRecord(
-            chief_complaint="腰痛",
-            history_of_present_illness="腰痛一周",
-            diagnosis="腰肌劳损",
-            treatment_plan="理疗",
+            content="腰痛 腰痛一周 腰肌劳损 理疗",
+            tags=["腰肌劳损"],
         )
         await save_record(s, DOCTOR, rec, p.id)
 
@@ -333,10 +320,8 @@ async def test_add_record_emergency_reply_has_prefix(wechat, session_factory):
     from services.ai.intent import IntentResult
 
     fake_record = MedicalRecord(
-        chief_complaint="室颤",
-        history_of_present_illness="突发室颤",
-        diagnosis="室颤",
-        treatment_plan="立即除颤",
+        content="室颤 突发室颤 立即除颤",
+        tags=["室颤"],
     )
     emergency_intent = IntentResult(
         intent=Intent.add_record,
@@ -396,41 +381,28 @@ async def test_handle_all_patients_shows_numbered_list(wechat, session_factory):
 def test_format_record_all_fields(wechat):
     from models.medical_record import MedicalRecord
     rec = MedicalRecord(
-        chief_complaint="胸痛",
-        history_of_present_illness="持续两小时",
-        past_medical_history="高血压病史",
-        physical_examination="血压160/100",
-        auxiliary_examinations="心电图ST段抬高",
-        diagnosis="急性心肌梗死",
-        treatment_plan="阿司匹林＋溶栓",
-        follow_up_plan="一周后复查",
+        content="胸痛持续两小时，高血压病史，血压160/100，心电图ST段抬高，诊断急性心肌梗死，阿司匹林＋溶栓，一周后复查。",
+        tags=["急性心肌梗死"],
     )
     text = wechat._format_record(rec)
-    for section in ["主诉", "现病史", "既往史", "体格检查", "辅助检查", "诊断", "治疗方案", "随访计划"]:
-        assert section in text, f"Missing section: {section}"
+    assert "病历记录" in text
+    assert "胸痛" in text
 
 
 def test_format_record_optional_fields_absent(wechat):
     from models.medical_record import MedicalRecord
     rec = MedicalRecord(
-        chief_complaint="头疼",
-        history_of_present_illness="最近头疼很久",
-        diagnosis=None,
-        treatment_plan=None,
+        content="头疼 最近头疼很久",
     )
     text = wechat._format_record(rec)
-    assert "主诉" in text
-    assert "现病史" in text
-    assert "诊断" not in text
-    assert "治疗方案" not in text
+    assert "头疼" in text
 
 
 def test_format_record_minimal(wechat):
-    """Only chief_complaint — should not crash."""
+    """Only content — should not crash."""
     from models.medical_record import MedicalRecord
-    rec = MedicalRecord(chief_complaint="发烧")
+    rec = MedicalRecord(content="发烧")
     text = wechat._format_record(rec)
-    assert "主诉" in text
     assert "发烧" in text
 
 

@@ -10,6 +10,7 @@ from db.models.tasks import DoctorTask
 from db.models.pending import PendingRecord, PendingImport, PendingMessage
 from db.models.runtime import RuntimeCursor, RuntimeToken, RuntimeConfig, SchedulerLease
 from db.models.audit import AuditLog
+from db.models.scores import SpecialtyScore
 
 __all__ = [
     "_utcnow",
@@ -22,4 +23,5 @@ __all__ = [
     "PendingRecord", "PendingImport", "PendingMessage",
     "RuntimeCursor", "RuntimeToken", "RuntimeConfig", "SchedulerLease",
     "AuditLog",
+    "SpecialtyScore",
 ]

@@ -204,6 +204,27 @@ async def create_emergency_task(
     return task
 
 
+async def create_general_task(
+    doctor_id: str,
+    title: str,
+    patient_id: Optional[int] = None,
+    content: Optional[str] = None,
+) -> DoctorTask:
+    """Create a generic informational task (e.g. auto-save notifications)."""
+    async with AsyncSessionLocal() as session:
+        task = await create_task(
+            session,
+            doctor_id=doctor_id,
+            task_type="general",
+            title=title,
+            content=content,
+            patient_id=patient_id,
+            record_id=None,
+            due_at=None,
+        )
+    return task
+
+
 async def create_appointment_task(
     doctor_id: str,
     patient_name: str,

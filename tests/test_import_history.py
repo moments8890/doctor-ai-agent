@@ -147,7 +147,7 @@ async def test_handle_import_history_full_flow():
         extra_data={"source": "text"},
     )
 
-    fake_record = MedicalRecord(chief_complaint="头痛")
+    fake_record = MedicalRecord(content="头痛")
 
     with (
         patch("services.wechat.wechat_domain.find_patient_by_name", new=AsyncMock(return_value=SimpleNamespace(id=42))),

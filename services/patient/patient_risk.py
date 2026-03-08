@@ -45,10 +45,37 @@ def _days_ago(dt: datetime, now: datetime) -> float:
     return (now - dt).total_seconds() / 86400.0
 
 
+def _record_has_follow_up(record: object) -> bool:
+    import json
+    tags_raw = getattr(record, "tags", None)
+    if tags_raw:
+        try:
+            tags = json.loads(tags_raw)
+            if any("随访" in t or "复诊" in t for t in tags):
+                return True
+        except Exception:
+            pass
+    content = getattr(record, "content", None) or ""
+    return bool(content and ("随访" in content or "复诊" in content))
+
+
+def _record_combined_text(record: object) -> str:
+    import json
+    content = getattr(record, "content", None) or ""
+    tags_raw = getattr(record, "tags", None)
+    tags: list = []
+    if tags_raw:
+        try:
+            tags = json.loads(tags_raw)
+        except Exception:
+            pass
+    return content + " " + " ".join(tags)
+
+
 def _follow_up_state(records: List[object], now: datetime, matched_rules: List[str]) -> str:
     latest_with_plan = None
     for row in records:
-        if getattr(row, "follow_up_plan", None):
+        if _record_has_follow_up(row):
             latest_with_plan = row
             break
 
@@ -88,9 +115,9 @@ def compute_patient_risk(
         tags.append("no_records")
         matched_rules.append("risk:low:no_records")
     else:
-        diagnosis = (getattr(latest, "diagnosis", None) or "")
+        combined = _record_combined_text(latest)
         for kw in _CRITICAL_RISK_KEYWORDS:
-            if kw in diagnosis:
+            if kw in combined:
                 level = "critical"
                 score = 95
                 tags.extend(["critical_keyword", "needs_immediate_action"])
@@ -98,7 +125,7 @@ def compute_patient_risk(
                 break
 
         if level != "critical":
-            if any(kw in diagnosis for kw in _HIGH_RISK_KEYWORDS):
+            if any(kw in combined for kw in _HIGH_RISK_KEYWORDS):
                 level = "high"
                 score = 75
                 tags.append("high_risk_keyword")
@@ -110,7 +137,7 @@ def compute_patient_risk(
                 tags.append("very_stale_record")
                 matched_rules.append("risk:add_stale_record")
 
-            if getattr(latest, "follow_up_plan", None):
+            if _record_has_follow_up(latest):
                 score += 5
                 tags.append("has_follow_up_plan")
                 matched_rules.append("risk:add_follow_up_plan")

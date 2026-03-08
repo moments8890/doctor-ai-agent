@@ -39,11 +39,22 @@ def _record(
     created_days_ago: float,
     diagnosis: Optional[str] = None,
     follow_up_plan: Optional[str] = None,
+    content: Optional[str] = None,
+    tags: Optional[str] = None,
 ) -> SimpleNamespace:
+    # Build content from diagnosis + follow_up_plan if not provided directly
+    parts = []
+    if content:
+        parts.append(content)
+    else:
+        if diagnosis:
+            parts.append(diagnosis)
+        if follow_up_plan:
+            parts.append(follow_up_plan)
     return SimpleNamespace(
         created_at=_NOW - timedelta(days=created_days_ago),
-        diagnosis=diagnosis,
-        follow_up_plan=follow_up_plan,
+        content=" ".join(parts) if parts else None,
+        tags=tags,
     )
 
 
@@ -250,8 +261,8 @@ async def test_recompute_patient_category_persists_fields():
     record = SimpleNamespace(
         patient_id=1,
         doctor_id="doc1",
-        diagnosis="急性心衰",
-        follow_up_plan="两周复诊",
+        content="急性心衰 两周复诊",
+        tags=None,
         created_at=_NOW - timedelta(days=2),
     )
     session = SimpleNamespace(execute=AsyncMock(), commit=AsyncMock())
@@ -285,8 +296,8 @@ async def test_recompute_all_categories_with_doctor_filter():
     record = SimpleNamespace(
         patient_id=1,
         doctor_id="docA",
-        diagnosis="高血压",
-        follow_up_plan=None,
+        content="高血压",
+        tags=None,
         created_at=_NOW - timedelta(days=45),
     )
     session = SimpleNamespace(execute=AsyncMock(), commit=AsyncMock())
@@ -319,8 +330,8 @@ async def test_recompute_all_categories_counts_errors(monkeypatch):
     record = SimpleNamespace(
         patient_id=1,
         doctor_id="docX",
-        diagnosis=None,
-        follow_up_plan=None,
+        content=None,
+        tags=None,
         created_at=_NOW - timedelta(days=20),
     )
     session = SimpleNamespace(execute=AsyncMock(), commit=AsyncMock())

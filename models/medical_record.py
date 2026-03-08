@@ -19,6 +19,9 @@ class MedicalRecord(BaseModel):
     record_type: str = Field(default="visit")
     """记录类型：visit | dictation | import | interview_summary"""
 
+    specialty_scores: List[dict] = Field(default_factory=list)
+    """专科量表评分列表：[{"score_type": "NIHSS", "score_value": 8, "raw_text": "..."}]"""
+
     @field_validator("content")
     @classmethod
     def _strip_content(cls, value: str) -> str:

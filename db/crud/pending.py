@@ -88,6 +88,18 @@ async def abandon_pending_record(
     await session.commit()
 
 
+async def get_stale_pending_records(session: AsyncSession) -> list:
+    """Return all 'awaiting' PendingRecord rows that have passed their expires_at."""
+    now = datetime.now(timezone.utc)
+    result = await session.execute(
+        select(PendingRecord).where(
+            PendingRecord.status == "awaiting",
+            PendingRecord.expires_at < now,
+        )
+    )
+    return list(result.scalars().all())
+
+
 async def expire_stale_pending_records(session: AsyncSession) -> int:
     """Mark 'awaiting' records past their expires_at as 'expired'. Returns count."""
     now = datetime.now(timezone.utc)

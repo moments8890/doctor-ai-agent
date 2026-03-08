@@ -236,41 +236,28 @@ async def test_routine_case_does_not_set_emergency(mock_agent_llm):
 # ---------------------------------------------------------------------------
 async def test_style_minimal_note_fields_populated(mock_struct_llm):
     mock_struct_llm.return_value = _struct_completion({
-        "chief_complaint": "胸闷两周，爬楼加重",
-        "history_of_present_illness": "活动后胸闷，平路无症状，血压148/88",
-        "past_medical_history": "高血压八年，服氨氯地平5mg",
-        "physical_examination": "BP 148/88",
-        "auxiliary_examinations": None,
-        "diagnosis": "高血压；冠心病待排",
-        "treatment_plan": None,
-        "follow_up_plan": None,
+        "content": "胸闷两周，爬楼加重，平路无症状。高血压八年，服氨氯地平5mg。BP 148/88。高血压；冠心病待排。",
+        "tags": ["高血压", "冠心病待排"],
     })
     record = await structure_medical_record(CASE_101)
-    assert record.chief_complaint is not None
-    assert "胸闷" in record.chief_complaint
-    assert record.past_medical_history is not None
-    assert "高血压" in record.past_medical_history
+    assert record.content is not None
+    assert "胸闷" in record.content
+    assert "高血压" in record.content
 
 
 # ---------------------------------------------------------------------------
 # Case 201 — 口语化听写: instructional prefix stripped, clinical content extracted
 # ---------------------------------------------------------------------------
 async def test_style_verbal_dictation_prefix_stripped(mock_struct_llm):
-    """The 帮我记一下 prefix must not pollute chief_complaint."""
+    """The 帮我记一下 prefix must not pollute content."""
     mock_struct_llm.return_value = _struct_completion({
-        "chief_complaint": "心跳不规则，漏跳感，偶有气短，一个月",
-        "history_of_present_illness": "频发室早，每分钟10-15个；高血压，缬沙坦80mg，BP 138/86",
-        "past_medical_history": "高血压",
-        "physical_examination": "BP 138/86，HR 正常",
-        "auxiliary_examinations": "心电图：频发室早",
-        "diagnosis": "频发室性早搏；高血压",
-        "treatment_plan": "安排24小时动态心电图；安排心超；暂观察，不加抗心律失常药",
-        "follow_up_plan": None,
+        "content": "心跳不规则，漏跳感，偶有气短，一个月。频发室早，每分钟10-15个；高血压，缬沙坦80mg。心电图：频发室早。频发室性早搏；高血压。安排24小时动态心电图；安排心超；暂观察。",
+        "tags": ["频发室性早搏", "高血压"],
     })
     record = await structure_medical_record(CASE_201)
-    assert "帮我记" not in (record.chief_complaint or "")
-    assert "记一下" not in (record.chief_complaint or "")
-    assert record.chief_complaint is not None
+    assert "帮我记" not in record.content
+    assert "记一下" not in record.content
+    assert record.content is not None
 
 
 # ---------------------------------------------------------------------------
@@ -278,26 +265,14 @@ async def test_style_verbal_dictation_prefix_stripped(mock_struct_llm):
 # ---------------------------------------------------------------------------
 async def test_style_fragmented_stream_extracts_core_fields(mock_struct_llm):
     mock_struct_llm.return_value = _struct_completion({
-        "chief_complaint": "胸部压迫感，活动后加重，休息缓解",
-        "history_of_present_illness": "劳力性胸部不适，爬楼或快走诱发，休息后缓解；高血压；2型糖尿病六年",
-        "past_medical_history": "高血压（硝苯地平缓释片）；2型糖尿病（二甲双胍）",
-        "physical_examination": "BP 152/92",
-        "auxiliary_examinations": "心电图V4V5 ST段轻度压低",
-        "diagnosis": "不稳定型心绞痛待排；高血压；2型糖尿病",
-        "treatment_plan": "安排冠脉CTA；安排运动平板；加单硝酸异山梨酯",
-        "follow_up_plan": None,
+        "content": "胸部压迫感，活动后加重，休息缓解。高血压；2型糖尿病六年。心电图V4V5 ST段轻度压低。不稳定型心绞痛待排。安排冠脉CTA；安排运动平板。",
+        "tags": ["不稳定型心绞痛待排", "高血压", "2型糖尿病", "冠脉CTA"],
     })
     record = await structure_medical_record(CASE_301)
-    # Despite self-corrections in input, structural output is clean
-    assert record.chief_complaint is not None
-    assert record.past_medical_history is not None
-    assert "糖尿病" in record.past_medical_history
-    # Planned tests go to treatment_plan
-    assert record.treatment_plan is not None
-    assert "CTA" in record.treatment_plan or "冠脉" in record.treatment_plan
-    # Existing results go to auxiliary_examinations
-    assert record.auxiliary_examinations is not None
-    assert "ST" in record.auxiliary_examinations
+    assert record.content is not None
+    assert "糖尿病" in record.content
+    assert "CTA" in record.content or "冠脉" in record.content
+    assert "ST" in record.content
 
 
 # ---------------------------------------------------------------------------
@@ -305,27 +280,18 @@ async def test_style_fragmented_stream_extracts_core_fields(mock_struct_llm):
 # ---------------------------------------------------------------------------
 async def test_style_heavy_abbreviation_specialist_terms_placed_correctly(mock_struct_llm):
     mock_struct_llm.return_value = _struct_completion({
-        "chief_complaint": "STEMI急诊PCI术后第7天出院前评估",
-        "history_of_present_illness": "急诊PCI术后，IRA为LAD近段，支架一枚，TIMI 3级血流；cTnI峰值38",
-        "past_medical_history": None,
-        "physical_examination": None,
-        "auxiliary_examinations": "EF术后48%（较入院60%明显下降），心肌顿抑",
-        "diagnosis": "急性前壁STEMI，PCI术后；心肌顿抑",
-        "treatment_plan": "DAPT：阿司匹林100mg+替格瑞洛90mg bid；阿托伐他汀40mg；培哚普利4mg；美托洛尔缓释片23.75mg；心脏康复；1个月后复查ECG、心超、血脂",
-        "follow_up_plan": "1个月后门诊复查ECG、心超、血脂；随访EF恢复情况及DAPT耐受",
+        "content": "STEMI急诊PCI术后第7天出院前评估。EF术后48%（较入院60%明显下降），心肌顿抑。急性前壁STEMI，PCI术后。DAPT：阿司匹林100mg+替格瑞洛90mg bid；阿托伐他汀40mg。1个月后复查ECG、心超、血脂。",
+        "tags": ["急性前壁STEMI", "PCI术后", "DAPT", "1个月后复查"],
     })
     record = await structure_medical_record(CASE_401)
-    # EF comparison goes to auxiliary_examinations (existing result with trend)
-    assert record.auxiliary_examinations is not None
-    assert "EF" in record.auxiliary_examinations
-    assert "48" in record.auxiliary_examinations
-    # Treatment contains DAPT and medications
-    assert record.treatment_plan is not None
-    assert "DAPT" in record.treatment_plan or "阿司匹林" in record.treatment_plan
+    assert record.content is not None
+    assert "EF" in record.content
+    assert "48" in record.content
+    assert "DAPT" in record.content or "阿司匹林" in record.content
 
 
 # ---------------------------------------------------------------------------
-# Case 503 / 601 — 复诊追踪: trend data (BNP, EF) lands in auxiliary_examinations
+# Case 503 / 601 — 复诊追踪: trend data (BNP, EF) captured in content
 # ---------------------------------------------------------------------------
 CASE_503_EXCERPT = (
     "严国平，男性，74岁，慢性心衰急性加重三天。BNP 3820 pg/mL（上次门诊348），"
@@ -336,121 +302,74 @@ CASE_503_EXCERPT = (
 
 async def test_bnp_trend_in_auxiliary_examinations(mock_struct_llm):
     mock_struct_llm.return_value = _struct_completion({
-        "chief_complaint": "慢性心衰急性加重三天",
-        "history_of_present_illness": "气短加重，夜间不能平卧，双下肢水肿加重，尿量减少",
-        "past_medical_history": "冠心病缺血性心肌病，慢性心衰五年，PCI术后，高血压，2型糖尿病，CKD 3期",
-        "physical_examination": "BP 104/68，HR 102，双肺底湿啰音，双下肢中度凹陷性水肿",
-        "auxiliary_examinations": "BNP 3820 pg/mL（上次348，明显升高）；Cr 148（上次102，急性肾损伤）；EF 38%（基线）",
-        "diagnosis": "慢性心衰急性加重（NYHA IV级）；急性肾损伤AKI 1期",
-        "treatment_plan": "收入CCU；呋塞米40mg iv bid；暂停沙库巴曲缬沙坦；暂停达格列净；48小时复查BNP、肾功",
-        "follow_up_plan": "48小时后复查BNP、肾功、电解质",
+        "content": "慢性心衰急性加重三天。BNP 3820 pg/mL（上次348，明显升高）；Cr 148（上次102）；EF 38%。慢性心衰急性加重（NYHA IV级）；急性肾损伤AKI 1期。收入CCU；呋塞米40mg iv bid；48小时复查BNP、肾功。",
+        "tags": ["慢性心衰", "NYHA IV级", "呋塞米40mg", "48小时复查"],
     })
     record = await structure_medical_record(CASE_503_EXCERPT)
-    assert record.auxiliary_examinations is not None
-    assert "BNP" in record.auxiliary_examinations
-    assert "上次" in record.auxiliary_examinations or "升高" in record.auxiliary_examinations
-    # Planned re-check goes to treatment_plan
-    assert record.treatment_plan is not None
-    assert "复查" in record.treatment_plan
+    assert record.content is not None
+    assert "BNP" in record.content
+    assert "上次" in record.content or "升高" in record.content
+    assert "复查" in record.content
 
 
 async def test_followup_delta_case_captures_changes(mock_struct_llm):
     """Case 601: Follow-up only records what changed — new LDL result + new medication."""
     mock_struct_llm.return_value = _struct_completion({
-        "chief_complaint": "复诊：血压及血脂评估",
-        "history_of_present_illness": "上次开氨氯地平后血压132/84达标，胸闷消失",
-        "past_medical_history": None,
-        "physical_examination": "BP 132/84",
-        "auxiliary_examinations": "血脂复查：LDL 2.9（目标<1.8，未达标）",
-        "diagnosis": "高血压（控制达标）；高脂血症（未达标）",
-        "treatment_plan": "加阿托伐他汀20mg晚服；继续氨氯地平5mg",
-        "follow_up_plan": "三个月后复诊",
+        "content": "复诊：血压及血脂评估。血压132/84达标，胸闷消失。血脂复查：LDL 2.9（目标<1.8，未达标）。高血压（控制达标）；高脂血症（未达标）。加阿托伐他汀20mg晚服；继续氨氯地平5mg。三个月后复诊。",
+        "tags": ["高血压", "高脂血症", "阿托伐他汀20mg", "三个月后复诊"],
     })
     record = await structure_medical_record(CASE_601)
-    # New test result (LDL) goes to auxiliary_examinations
-    assert record.auxiliary_examinations is not None
-    assert "LDL" in record.auxiliary_examinations
-    # New medication goes to treatment_plan
-    assert record.treatment_plan is not None
-    assert "阿托伐他汀" in record.treatment_plan
+    assert record.content is not None
+    assert "LDL" in record.content
+    assert "阿托伐他汀" in record.content
 
 
 # ---------------------------------------------------------------------------
-# Case 701 — 急诊: emergency fields in correct columns
+# Case 701 — 急诊: emergency fields captured in content
 # ---------------------------------------------------------------------------
 async def test_emergency_stemi_fields_correctly_placed(mock_struct_llm):
     mock_struct_llm.return_value = _struct_completion({
-        "chief_complaint": "突发胸痛两小时，持续不缓解，大汗",
-        "history_of_present_illness": "突发持续性胸痛，血压90/60，心率110",
-        "past_medical_history": None,
-        "physical_examination": "BP 90/60，HR 110，大汗",
-        "auxiliary_examinations": "心电图：II/III/aVF ST段抬高；cTnI：待回",
-        "diagnosis": "急性下壁STEMI；血流动力学不稳定",
-        "treatment_plan": "急诊PCI绿色通道；阿司匹林300mg咀嚼；替格瑞洛180mg负荷；肝素静推",
-        "follow_up_plan": None,
+        "content": "突发胸痛两小时，持续不缓解，大汗。BP 90/60，HR 110。心电图：II/III/aVF ST段抬高；cTnI：待回。急性下壁STEMI；血流动力学不稳定。急诊PCI绿色通道；阿司匹林300mg咀嚼；替格瑞洛180mg负荷。",
+        "tags": ["急性下壁STEMI", "阿司匹林300mg", "PCI"],
     })
     record = await structure_medical_record(CASE_701)
-    assert record.diagnosis is not None
-    assert "STEMI" in record.diagnosis
-    assert record.physical_examination is not None
-    assert "90/60" in record.physical_examination
-    assert record.auxiliary_examinations is not None
-    assert "ST" in record.auxiliary_examinations
-    assert record.treatment_plan is not None
-    assert "PCI" in record.treatment_plan or "阿司匹林" in record.treatment_plan
+    assert record.content is not None
+    assert "STEMI" in record.content
+    assert "90/60" in record.content
+    assert "ST" in record.content
+    assert "PCI" in record.content or "阿司匹林" in record.content
 
 
 # ---------------------------------------------------------------------------
-# Case 801 — 多病共存: multiple diagnoses captured in diagnosis field
+# Case 801 — 多病共存: multiple diagnoses captured in content and tags
 # ---------------------------------------------------------------------------
 async def test_multimorbidity_multiple_diagnoses_in_diagnosis_field(mock_struct_llm):
     mock_struct_llm.return_value = _struct_completion({
-        "chief_complaint": "门诊调药",
-        "history_of_present_illness": "血压157/94，控制不满意",
-        "past_medical_history": "冠心病支架（LAD+RCA）；持续性房颤；慢性肾功能不全（Cr 168）；2型糖尿病；高血压",
-        "physical_examination": "BP 157/94",
-        "auxiliary_examinations": "Cr 168，GFR约35；Holter：阵发AF心室率平均74次/分；LDL 1.3（达标）",
-        "diagnosis": "高血压（未达标）；冠心病（PCI术后）；持续性房颤；慢性肾功能不全（CKD 3期）；2型糖尿病",
-        "treatment_plan": "加氨氯地平5mg；维持利伐沙班15mg qd；维持阿托伐他汀20mg；告知关注蛋白尿，可能转肾内科共管",
-        "follow_up_plan": None,
+        "content": "门诊调药。血压157/94，控制不满意。Cr 168；LDL 1.3（达标）。高血压（未达标）；冠心病（PCI术后）；持续性房颤；慢性肾功能不全（CKD 3期）；2型糖尿病。加氨氯地平5mg；维持利伐沙班15mg qd。",
+        "tags": ["高血压", "冠心病PCI术后", "持续性房颤", "2型糖尿病"],
     })
     record = await structure_medical_record(CASE_801)
-    assert record.diagnosis is not None
-    # Multiple conditions should be present
-    diag = record.diagnosis
-    assert "高血压" in diag
-    assert "冠心病" in diag or "PCI" in diag
-    assert "房颤" in diag
-    # Existing lab goes to auxiliary_examinations
-    assert record.auxiliary_examinations is not None
-    assert "Cr" in record.auxiliary_examinations or "LDL" in record.auxiliary_examinations
+    assert record.content is not None
+    assert "高血压" in record.content
+    assert "冠心病" in record.content or "PCI" in record.content
+    assert "房颤" in record.content
+    assert "Cr" in record.content or "LDL" in record.content
 
 
 # ---------------------------------------------------------------------------
-# Case 901 — 信息模糊: missing fields return None, not guessed values
+# Case 901 — 信息模糊: incomplete info still produces valid content
 # ---------------------------------------------------------------------------
 async def test_incomplete_info_missing_fields_are_null(mock_struct_llm):
-    """When key info is genuinely absent, LLM must return null, not fabricate."""
+    """When key info is genuinely absent, LLM produces minimal content."""
     mock_struct_llm.return_value = _struct_completion({
-        "chief_complaint": "胸痛（持续时间不详）",
-        "history_of_present_illness": "胸痛就诊，病史不详，血压偏高（具体值不详），自行服药（具体不详）",
-        "past_medical_history": None,
-        "physical_examination": None,
-        "auxiliary_examinations": None,
-        "diagnosis": None,
-        "treatment_plan": "安排心电图；抽血化验；待结果补充",
-        "follow_up_plan": None,
+        "content": "胸痛（持续时间不详），血压偏高（具体值不详）。安排心电图；抽血化验；待结果补充。",
+        "tags": ["胸痛", "心电图待查"],
     })
     record = await structure_medical_record(CASE_901)
     assert isinstance(record, MedicalRecord)
-    # Fields with no data must be None, not invented strings
-    assert record.past_medical_history is None
-    assert record.physical_examination is None
-    assert record.auxiliary_examinations is None
-    assert record.diagnosis is None
-    # Chief complaint and pending plan should still be populated
-    assert record.chief_complaint is not None
-    assert record.treatment_plan is not None
+    assert record.content is not None
+    assert "胸痛" in record.content
+    assert "心电图" in record.content or "化验" in record.content
 
 
 # ---------------------------------------------------------------------------
@@ -458,21 +377,12 @@ async def test_incomplete_info_missing_fields_are_null(mock_struct_llm):
 # ---------------------------------------------------------------------------
 async def test_ai_dialogue_directive_stripped_clinical_content_extracted(mock_struct_llm):
     mock_struct_llm.return_value = _struct_completion({
-        "chief_complaint": "血压控制不佳，晨峰高血压",
-        "history_of_present_illness": "自测早晨血压160多，下午145，服药后130。氨氯地平在晚上服。",
-        "past_medical_history": None,
-        "physical_examination": "BP（门诊）未记录；K 3.9，Cr 82（正常）",
-        "auxiliary_examinations": "血钾 3.9，Cr 82",
-        "diagnosis": "高血压2级；晨峰高血压",
-        "treatment_plan": "氨氯地平5mg改为睡前服；加培哚普利4mg晨服；一个月后复诊安排24小时动态血压",
-        "follow_up_plan": "一个月后复诊，测24小时动态血压评估谷峰比值",
+        "content": "血压控制不佳，晨峰高血压。自测早晨血压160多。高血压2级；晨峰高血压。氨氯地平5mg改为睡前服；加培哚普利4mg晨服；一个月后复诊安排24小时动态血压。",
+        "tags": ["高血压2级", "晨峰高血压", "一个月后复诊"],
     })
     record = await structure_medical_record(CASE_1001)
-    # Directive prefix must not appear in clinical fields
-    assert "给我记" not in (record.chief_complaint or "")
-    assert "记一下" not in (record.chief_complaint or "")
-    assert record.chief_complaint is not None
-    assert record.diagnosis is not None
-    assert "高血压" in record.diagnosis
-    assert record.treatment_plan is not None
-    assert "氨氯地平" in record.treatment_plan
+    assert "给我记" not in record.content
+    assert "记一下" not in record.content
+    assert record.content is not None
+    assert "高血压" in record.content
+    assert "氨氯地平" in record.content

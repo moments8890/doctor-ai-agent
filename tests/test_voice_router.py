@@ -38,7 +38,7 @@ class _Upload:
 
 
 def _record() -> MedicalRecord:
-    return MedicalRecord(chief_complaint="胸痛", diagnosis="冠心病", treatment_plan="随访")
+    return MedicalRecord(content="胸痛 冠心病 随访", tags=["冠心病"])
 
 
 def _intent(intent: Intent, **kwargs) -> IntentResult:
@@ -106,7 +106,7 @@ async def test_voice_chat_unknown_intent():
 
 async def test_voice_chat_add_record_with_structured_fields():
     upload = _Upload(content_type="audio/wav")
-    fields = {"chief_complaint": "胸痛", "diagnosis": "冠心病"}
+    fields = {"content": "胸痛 冠心病", "tags": ["冠心病"]}
     fake_db = object()
     patient = SimpleNamespace(id=7, name="李明")
     with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="李明胸痛")), \
@@ -119,7 +119,7 @@ async def test_voice_chat_add_record_with_structured_fields():
         resp = await voice.voice_chat(audio=upload, doctor_id=DOCTOR, history=None)
     assert resp.transcript == "李明胸痛"
     assert resp.record is not None
-    assert resp.record.chief_complaint == "胸痛"
+    assert "胸痛" in resp.record.content
 
 
 async def test_voice_chat_history_json_parsed():
@@ -233,7 +233,7 @@ async def test_consultation_no_save():
         resp = await voice.voice_consultation(
             audio=upload, doctor_id=DOCTOR, patient_name=None, save=False
         )
-    assert resp.record.chief_complaint == "胸痛"
+    assert "胸痛" in resp.record.content
     assert resp.patient_id is None
     save_mock.assert_not_called()
 
@@ -378,12 +378,12 @@ async def test_voice_chat_add_record_no_name_asks():
     assert "叫什么名字" in resp.reply
 
 
-async def test_voice_chat_structured_fields_missing_chief_complaint():
-    """structured_fields without chief_complaint gets default filled in."""
+async def test_voice_chat_structured_fields_with_content():
+    """structured_fields with content field creates a valid record."""
     upload = _Upload(content_type="audio/wav")
     fake_db = object()
     patient = SimpleNamespace(id=2, name="王二")
-    fields = {"diagnosis": "冠心病"}  # no chief_complaint
+    fields = {"content": "冠心病随访", "tags": ["冠心病"]}
     with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="王二冠心病")), \
          patch("routers.voice.agent_dispatch", new=AsyncMock(
              return_value=_intent(Intent.add_record, patient_name="王二", structured_fields=fields)
@@ -393,7 +393,7 @@ async def test_voice_chat_structured_fields_missing_chief_complaint():
          patch("routers.voice.save_record", new=AsyncMock()):
         resp = await voice.voice_chat(audio=upload, doctor_id=DOCTOR, history=None)
     assert resp.record is not None
-    assert resp.record.chief_complaint == "门诊就诊"
+    assert "冠心病" in resp.record.content
 
 
 async def test_voice_chat_add_record_structuring_error():

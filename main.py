@@ -241,17 +241,39 @@ async def _cleanup_inactive_session_cache() -> None:
 
 
 async def _expire_stale_pending_records() -> None:
-    """Scheduler job: mark timed-out pending record drafts as expired."""
+    """Scheduler job: auto-save timed-out pending drafts instead of discarding them.
+
+    For each stale draft: save to medical_records, then create a doctor_task
+    notification so the doctor can see what was auto-saved in the tasks tab.
+    """
+    _log = logging.getLogger("scheduler")
     try:
-        from db.crud import expire_stale_pending_records
+        from db.crud import get_stale_pending_records
+        from services.wechat.wechat_domain import save_pending_record
+        from services.notify.tasks import create_general_task
+        from services.session import clear_pending_record_id
         async with AsyncSessionLocal() as _session:
-            count = await expire_stale_pending_records(_session)
-        if count:
-            logging.getLogger("scheduler").info(
-                "[PendingRecords] expired stale drafts | count=%s", count
-            )
+            stale = await get_stale_pending_records(_session)
+        if not stale:
+            return
+        saved = 0
+        for pending in stale:
+            try:
+                patient_name = await save_pending_record(pending.doctor_id, pending)
+                clear_pending_record_id(pending.doctor_id)
+                if patient_name:
+                    asyncio.ensure_future(create_general_task(
+                        pending.doctor_id,
+                        title=f"病历已自动保存：【{patient_name}】",
+                        patient_id=pending.patient_id,
+                    ))
+                    saved += 1
+            except Exception as _e:
+                _log.warning("[PendingRecords] auto-save FAILED id=%s: %s", pending.id, _e)
+        if saved:
+            _log.info("[PendingRecords] auto-saved stale drafts | count=%s", saved)
     except Exception as _e:
-        logging.getLogger("scheduler").warning("[PendingRecords] expiry job FAILED: %s", _e)
+        _log.warning("[PendingRecords] auto-save job FAILED: %s", _e)
 
 
 async def _expire_stale_pending_imports() -> None:

@@ -407,7 +407,6 @@ async def _handle_schedule_appointment(doctor_id: str, intent_result) -> str:
 
 async def _confirm_pending_record(doctor_id: str, pending_id: str) -> str:
     """Save the pending draft to medical_records, fire follow-up tasks, clear session state."""
-    from models.medical_record import MedicalRecord
     async with AsyncSessionLocal() as session:
         pending = await get_pending_record(session, pending_id, doctor_id)
         from datetime import timezone as _tz
@@ -416,49 +415,39 @@ async def _confirm_pending_record(doctor_id: str, pending_id: str) -> str:
         if pending is None or pending.status != "awaiting" or expired:
             clear_pending_record_id(doctor_id)
             return "⚠️ 草稿已过期\n请重新录入病历。"
-        try:
-            draft = json.loads(pending.draft_json)
-            record = MedicalRecord(**{k: draft.get(k) for k in MedicalRecord.model_fields})
-        except Exception as e:
-            log(f"[Confirm] parse draft FAILED doctor={doctor_id}: {e}")
-            await abandon_pending_record(session, pending_id, doctor_id=doctor_id)
-            clear_pending_record_id(doctor_id)
-            return "⚠️ 草稿解析失败\n请重新录入。"
-        db_record = await save_record(session, doctor_id, record, pending.patient_id)
-        await confirm_pending_record(session, pending_id, doctor_id=doctor_id)
-        patient_name = pending.patient_name or "未关联患者"
-        patient_id = pending.patient_id
+    patient_name = await wd.save_pending_record(doctor_id, pending)
     clear_pending_record_id(doctor_id)
-    asyncio.create_task(audit(doctor_id, "WRITE", resource_type="record", resource_id=str(db_record.id)))
-    _follow_up_hint = next(
-        (t for t in record.tags if "随访" in t or "复诊" in t), None
-    ) or ("随访" in record.content or "复诊" in record.content and record.content or None)
-    if _follow_up_hint:
-        asyncio.create_task(create_follow_up_task(
-            doctor_id, db_record.id, patient_name, record.content, patient_id
-        ))
-    asyncio.create_task(wd._bg_auto_learn(doctor_id, pending.raw_input or "", record))
+    if patient_name is None:
+        return "⚠️ 草稿解析失败\n请重新录入。"
     return f"✅ 病历已保存！患者：【{patient_name}】"
 
 
 async def _handle_pending_record_reply(text: str, doctor_id: str, sess) -> str:
-    """Route doctor reply when a pending record draft is awaiting confirmation."""
+    """Route doctor reply when a pending record draft is awaiting confirmation.
+
+    Doctors never need to explicitly confirm — the draft auto-saves on context switch or timeout.
+    The only action required is 撤销/取消 to cancel. Any new intent auto-saves the draft first.
+    """
     pending_id = sess.pending_record_id
     stripped = text.strip()
-    if stripped in ("确认", "确定", "保存", "ok", "OK", "好的", "yes", "Yes"):
-        return await _confirm_pending_record(doctor_id, pending_id)
-    if stripped in ("取消", "cancel", "Cancel", "不要", "放弃", "no", "No"):
+    # Explicit cancel
+    if stripped in ("撤销", "取消", "cancel", "Cancel", "不要", "放弃", "no", "No"):
         async with AsyncSessionLocal() as session:
             await abandon_pending_record(session, pending_id, doctor_id=doctor_id)
         clear_pending_record_id(doctor_id)
-        return "已放弃草稿。"
-    # Any other input: abandon draft, then route as new intent
+        return "已撤销。"
+    # Explicit confirm (optional convenience — auto-save handles it too)
+    if stripped in ("确认", "确定", "保存", "ok", "OK", "好的", "yes", "Yes"):
+        return await _confirm_pending_record(doctor_id, pending_id)
+    # Context switch: any new intent auto-saves the draft first, then handles the new request
     async with AsyncSessionLocal() as session:
-        await abandon_pending_record(session, pending_id, doctor_id=doctor_id)
+        pending = await get_pending_record(session, pending_id, doctor_id)
+    saved_name = await wd.save_pending_record(doctor_id, pending) if pending else None
     clear_pending_record_id(doctor_id)
-    log(f"[WeChat] pending record abandoned (new intent), doctor={doctor_id}")
+    log(f"[WeChat] pending record auto-saved on context switch, doctor={doctor_id}")
+    save_notice = f"已为【{saved_name}】自动保存病历。\n\n" if saved_name else ""
     new_result = await _handle_intent(text, doctor_id)
-    return f"草稿已放弃。\n\n{new_result}"
+    return f"{save_notice}{new_result}"
 
 
 async def _confirm_pending_import(

@@ -33,10 +33,8 @@ from utils.errors import PatientNotFoundError
 DOCTOR = "doc_001"
 
 SAMPLE_RECORD = MedicalRecord(
-    chief_complaint="头痛两天",
-    history_of_present_illness="患者两天前出现持续性头痛",
-    diagnosis="紧张性头痛",
-    treatment_plan="口服布洛芬 400mg，每日三次",
+    content="头痛两天。患者两天前出现持续性头痛，诊断紧张性头痛，口服布洛芬 400mg，每日三次。",
+    tags=["紧张性头痛"],
 )
 
 
@@ -115,8 +113,7 @@ async def test_save_record_with_patient(db_session):
     assert record.id is not None
     assert record.patient_id == patient.id
     assert record.doctor_id == DOCTOR
-    assert record.chief_complaint == "头痛两天"
-    assert record.diagnosis == "紧张性头痛"
+    assert "头痛两天" in record.content
 
 
 async def test_save_record_without_patient(db_session):
@@ -127,18 +124,11 @@ async def test_save_record_without_patient(db_session):
 
 async def test_save_record_optional_fields_preserved(db_session):
     rich = MedicalRecord(
-        chief_complaint="咳嗽",
-        history_of_present_illness="三天咳嗽",
-        past_medical_history="无",
-        physical_examination="双肺呼吸音清",
-        auxiliary_examinations="胸片正常",
-        diagnosis="上呼吸道感染",
-        treatment_plan="多休息，多喝水",
-        follow_up_plan="一周后复诊",
+        content="咳嗽三天，既往史无，双肺呼吸音清，胸片正常，诊断上呼吸道感染，多休息多喝水，一周后复诊。",
+        tags=["上呼吸道感染"],
     )
     record = await save_record(db_session, DOCTOR, rich, patient_id=None)
-    assert record.past_medical_history == "无"
-    assert record.follow_up_plan == "一周后复诊"
+    assert "上呼吸道感染" in record.content
 
 
 # ---------------------------------------------------------------------------
@@ -150,27 +140,22 @@ async def test_get_records_returns_most_recent_first(db_session):
     patient = await create_patient(db_session, DOCTOR, "李明", None, None)
     for i in range(3):
         rec = MedicalRecord(
-            chief_complaint=f"主诉{i}",
-            history_of_present_illness="现病史",
-            diagnosis=f"诊断{i}",
-            treatment_plan="治疗",
+            content=f"主诉{i} 现病史 诊断{i} 治疗",
+            tags=[f"诊断{i}"],
         )
         await save_record(db_session, DOCTOR, rec, patient.id)
 
     records = await get_records_for_patient(db_session, DOCTOR, patient.id)
     assert len(records) == 3
     # Most recent (last inserted) should come first
-    assert records[0].chief_complaint == "主诉2"
+    assert "主诉2" in records[0].content
 
 
 async def test_get_records_respects_limit(db_session):
     patient = await create_patient(db_session, DOCTOR, "李明", None, None)
     for i in range(6):
         rec = MedicalRecord(
-            chief_complaint=f"主诉{i}",
-            history_of_present_illness="现病史",
-            diagnosis="诊断",
-            treatment_plan="治疗",
+            content=f"主诉{i} 现病史 诊断 治疗",
         )
         await save_record(db_session, DOCTOR, rec, patient.id)
 
@@ -202,8 +187,8 @@ async def test_get_all_records_returns_records_across_patients(db_session):
     p1 = await create_patient(db_session, DOCTOR, "李明", None, None)
     p2 = await create_patient(db_session, DOCTOR, "王芳", None, None)
 
-    rec1 = MedicalRecord(chief_complaint="头痛", history_of_present_illness="两天头痛", diagnosis="紧张性头痛", treatment_plan="布洛芬")
-    rec2 = MedicalRecord(chief_complaint="咳嗽", history_of_present_illness="三天咳嗽", diagnosis="上呼吸道感染", treatment_plan="多休息")
+    rec1 = MedicalRecord(content="头痛 两天头痛 紧张性头痛 布洛芬", tags=["紧张性头痛"])
+    rec2 = MedicalRecord(content="咳嗽 三天咳嗽 上呼吸道感染 多休息", tags=["上呼吸道感染"])
     await save_record(db_session, DOCTOR, rec1, p1.id)
     await save_record(db_session, DOCTOR, rec2, p2.id)
 
@@ -217,18 +202,18 @@ async def test_get_all_records_most_recent_first(db_session):
     p = await create_patient(db_session, DOCTOR, "李明", None, None)
     for i in range(3):
         await save_record(db_session, DOCTOR, MedicalRecord(
-            chief_complaint=f"主诉{i}", history_of_present_illness="现病史", diagnosis=f"诊断{i}", treatment_plan="治疗"
+            content=f"主诉{i} 现病史 诊断{i} 治疗"
         ), p.id)
 
     records = await get_all_records_for_doctor(db_session, DOCTOR)
-    assert records[0].chief_complaint == "主诉2"
+    assert "主诉2" in records[0].content
 
 
 async def test_get_all_records_respects_limit(db_session):
     p = await create_patient(db_session, DOCTOR, "李明", None, None)
     for i in range(6):
         await save_record(db_session, DOCTOR, MedicalRecord(
-            chief_complaint=f"主诉{i}", history_of_present_illness="现病史", diagnosis="诊断", treatment_plan="治疗"
+            content=f"主诉{i} 现病史 诊断 治疗"
         ), p.id)
 
     records = await get_all_records_for_doctor(db_session, DOCTOR, limit=3)
@@ -271,11 +256,8 @@ async def test_save_record_triggers_category_recompute(db_session):
     assert patient.primary_category == "new"
 
     record = MedicalRecord(
-        chief_complaint="头痛",
-        history_of_present_illness="两天头痛",
-        diagnosis="紧张性头痛",
-        treatment_plan="布洛芬",
-        follow_up_plan="两周后复诊",
+        content="头痛 两天头痛 紧张性头痛 布洛芬 两周后复诊",
+        tags=["紧张性头痛", "两周后复诊"],
     )
     await save_record(db_session, DOCTOR, record, patient.id)
 
@@ -285,7 +267,7 @@ async def test_save_record_triggers_category_recompute(db_session):
     result = await db_session.execute(select(Patient).where(Patient.id == patient.id))
     refreshed = result.scalar_one()
 
-    # With a fresh record and follow_up_plan, should now be active_followup
+    # With a fresh record and follow_up tag, should now be active_followup
     assert refreshed.primary_category == "active_followup"
     assert refreshed.category_computed_at is not None
 
@@ -297,11 +279,8 @@ async def test_save_record_creates_auto_followup_task_when_enabled(db_session, m
     monkeypatch.setenv("AUTO_FOLLOWUP_TASKS_ENABLED", "true")
     patient = await create_patient(db_session, DOCTOR, "李明", "男", 45)
     record = MedicalRecord(
-        chief_complaint="头晕",
-        history_of_present_illness="两天头晕",
-        diagnosis="高血压",
-        treatment_plan="口服降压药",
-        follow_up_plan="两周后复诊",
+        content="头晕 两天头晕 高血压 口服降压药 两周后复诊",
+        tags=["高血压", "两周后复诊"],
     )
 
     db_record = await save_record(db_session, DOCTOR, record, patient.id)

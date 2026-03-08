@@ -8,7 +8,7 @@ import os
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated, List, Optional
 
 from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel
@@ -333,14 +333,9 @@ async def _manage_records_for_doctor(
                     "patient_id": r.patient_id,
                     "doctor_id": r.doctor_id,
                     "patient_name": patient_name,
-                    "chief_complaint": r.chief_complaint,
-                    "history_of_present_illness": r.history_of_present_illness,
-                    "past_medical_history": r.past_medical_history,
-                    "physical_examination": r.physical_examination,
-                    "auxiliary_examinations": r.auxiliary_examinations,
-                    "diagnosis": r.diagnosis,
-                    "treatment_plan": r.treatment_plan,
-                    "follow_up_plan": r.follow_up_plan,
+                    "record_type": r.record_type or "visit",
+                    "content": r.content,
+                    "tags": _parse_tags(r.tags),
                     "created_at": _fmt_ts(r.created_at),
                 }
                 for r in records
@@ -353,14 +348,9 @@ async def _manage_records_for_doctor(
                     "patient_id": r.patient_id,
                     "doctor_id": r.doctor_id,
                     "patient_name": r.patient.name if r.patient else None,
-                    "chief_complaint": r.chief_complaint,
-                    "history_of_present_illness": r.history_of_present_illness,
-                    "past_medical_history": r.past_medical_history,
-                    "physical_examination": r.physical_examination,
-                    "auxiliary_examinations": r.auxiliary_examinations,
-                    "diagnosis": r.diagnosis,
-                    "treatment_plan": r.treatment_plan,
-                    "follow_up_plan": r.follow_up_plan,
+                    "record_type": r.record_type or "visit",
+                    "content": r.content,
+                    "tags": _parse_tags(r.tags),
                     "created_at": _fmt_ts(r.created_at),
                 }
                 for r in records
@@ -487,14 +477,9 @@ async def update_label_endpoint(label_id: int, body: LabelUpdate, authorization:
 
 
 class RecordUpdate(BaseModel):
-    chief_complaint: Optional[str] = None
-    history_of_present_illness: Optional[str] = None
-    past_medical_history: Optional[str] = None
-    physical_examination: Optional[str] = None
-    auxiliary_examinations: Optional[str] = None
-    diagnosis: Optional[str] = None
-    treatment_plan: Optional[str] = None
-    follow_up_plan: Optional[str] = None
+    content: Optional[str] = None
+    tags: Optional[List[str]] = None
+    record_type: Optional[str] = None
 
 
 @router.patch("/api/manage/records/{record_id}")
@@ -514,7 +499,11 @@ async def update_record(
         )).scalar_one_or_none()
         if rec is None:
             raise HTTPException(status_code=404, detail="Record not found")
-        for field, value in body.model_dump(exclude_unset=True).items():
+        updates = body.model_dump(exclude_unset=True)
+        if "tags" in updates and isinstance(updates["tags"], list):
+            import json as _json
+            updates["tags"] = _json.dumps(updates["tags"], ensure_ascii=False)
+        for field, value in updates.items():
             setattr(rec, field, value)
         rec.updated_at = datetime.now(timezone.utc)
         await db.commit()
@@ -523,14 +512,9 @@ async def update_record(
         "id": rec.id,
         "patient_id": rec.patient_id,
         "doctor_id": rec.doctor_id,
-        "chief_complaint": rec.chief_complaint,
-        "history_of_present_illness": rec.history_of_present_illness,
-        "past_medical_history": rec.past_medical_history,
-        "physical_examination": rec.physical_examination,
-        "auxiliary_examinations": rec.auxiliary_examinations,
-        "diagnosis": rec.diagnosis,
-        "treatment_plan": rec.treatment_plan,
-        "follow_up_plan": rec.follow_up_plan,
+        "record_type": rec.record_type or "visit",
+        "content": rec.content,
+        "tags": _parse_tags(rec.tags),
         "created_at": _fmt_ts(rec.created_at),
         "updated_at": _fmt_ts(rec.updated_at),
     }
@@ -549,7 +533,11 @@ async def admin_update_record(
         )).scalar_one_or_none()
         if rec is None:
             raise HTTPException(status_code=404, detail="Record not found")
-        for field, value in body.model_dump(exclude_unset=True).items():
+        updates = body.model_dump(exclude_unset=True)
+        if "tags" in updates and isinstance(updates["tags"], list):
+            import json as _json
+            updates["tags"] = _json.dumps(updates["tags"], ensure_ascii=False)
+        for field, value in updates.items():
             setattr(rec, field, value)
         rec.updated_at = datetime.now(timezone.utc)
         await db.commit()
@@ -558,14 +546,9 @@ async def admin_update_record(
         "id": rec.id,
         "patient_id": rec.patient_id,
         "doctor_id": rec.doctor_id,
-        "chief_complaint": rec.chief_complaint,
-        "history_of_present_illness": rec.history_of_present_illness,
-        "past_medical_history": rec.past_medical_history,
-        "physical_examination": rec.physical_examination,
-        "auxiliary_examinations": rec.auxiliary_examinations,
-        "diagnosis": rec.diagnosis,
-        "treatment_plan": rec.treatment_plan,
-        "follow_up_plan": rec.follow_up_plan,
+        "record_type": rec.record_type or "visit",
+        "content": rec.content,
+        "tags": _parse_tags(rec.tags),
         "created_at": _fmt_ts(rec.created_at),
         "updated_at": _fmt_ts(rec.updated_at),
     }
@@ -929,10 +912,9 @@ async def admin_db_view(
             "patient_id": record.patient_id,
             "doctor_id": record.doctor_id,
             "patient_name": patient_name_value,
-            "chief_complaint": record.chief_complaint,
-            "diagnosis": record.diagnosis,
-            "treatment_plan": record.treatment_plan,
-            "follow_up_plan": record.follow_up_plan,
+            "record_type": record.record_type or "visit",
+            "content": record.content,
+            "tags": _parse_tags(record.tags),
             "created_at": _fmt_ts(record.created_at),
         }
         for record, patient_name_value in records
@@ -1122,10 +1104,9 @@ async def admin_table_rows(
                     "patient_id": r.patient_id,
                     "doctor_id": r.doctor_id,
                     "patient_name": pname,
-                    "chief_complaint": r.chief_complaint,
-                    "diagnosis": r.diagnosis,
-                    "treatment_plan": r.treatment_plan,
-                    "follow_up_plan": r.follow_up_plan,
+                    "record_type": r.record_type or "visit",
+                    "content": r.content,
+                    "tags": _parse_tags(r.tags),
                     "created_at": _fmt_ts(r.created_at),
                 }
                 for r, pname in (await db.execute(stmt)).all()

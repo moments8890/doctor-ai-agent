@@ -92,7 +92,7 @@ async def _ensure_auto_follow_up_task(
     patient_id: int,
     record_id: int,
     patient_name: str,
-    follow_up_plan: str,
+    follow_up_text: str,
     risk_level: Optional[str] = None,
 ) -> None:
     existing = await session.execute(
@@ -107,10 +107,10 @@ async def _ensure_auto_follow_up_task(
     if existing.scalar_one_or_none() is not None:
         return
 
-    days = _extract_follow_up_days(follow_up_plan)
+    days = _extract_follow_up_days(follow_up_text)
     due_at = _utcnow().replace(microsecond=0) + timedelta(days=days)
 
-    reason = "auto follow-up from record follow_up_plan"
+    reason = "auto follow-up from record"
     if risk_level:
         reason = f"{reason}; risk_level={risk_level}"
 
@@ -121,7 +121,7 @@ async def _ensure_auto_follow_up_task(
             record_id=record_id,
             task_type="follow_up",
             title=f"随访提醒：{patient_name}",
-            content=follow_up_plan,
+            content=follow_up_text[:200],
             status="pending",
             due_at=due_at,
             trigger_source="risk_engine",
@@ -148,14 +148,18 @@ async def save_record(
         if patient_id is not None:
             await recompute_patient_category(patient_id, session)
             risk = await recompute_patient_risk(patient_id, session)
-            if _env_flag_true("AUTO_FOLLOWUP_TASKS_ENABLED") and record.follow_up_plan:
+            _has_follow_up = (
+                any("随访" in t or "复诊" in t for t in record.tags)
+                or bool(re.search(r'随访|复诊|下次|下周', record.content))
+            )
+            if _env_flag_true("AUTO_FOLLOWUP_TASKS_ENABLED") and _has_follow_up:
                 await _ensure_auto_follow_up_task(
                     session=session,
                     doctor_id=doctor_id,
                     patient_id=patient_id,
                     record_id=db_record.id,
                     patient_name=await _patient_name(session, patient_id),
-                    follow_up_plan=record.follow_up_plan,
+                    follow_up_text=record.content,
                     risk_level=risk.primary_risk_level if risk else None,
                 )
         return db_record
@@ -253,11 +257,7 @@ async def get_neuro_cases_for_doctor(
     return list(result.scalars().all())
 
 
-_RECORD_CLINICAL_FIELDS = frozenset({
-    "chief_complaint", "history_of_present_illness", "past_medical_history",
-    "physical_examination", "auxiliary_examinations",
-    "diagnosis", "treatment_plan", "follow_up_plan",
-})
+_RECORD_CLINICAL_FIELDS = frozenset({"content", "tags", "record_type"})
 
 
 async def update_latest_record_for_patient(
@@ -287,6 +287,8 @@ async def update_latest_record_for_patient(
     changed = False
     for field, value in fields.items():
         if field in _RECORD_CLINICAL_FIELDS and value is not None:
+            if field == "tags" and isinstance(value, list):
+                value = json.dumps(value, ensure_ascii=False)
             setattr(record, field, value)
             changed = True
     if changed:

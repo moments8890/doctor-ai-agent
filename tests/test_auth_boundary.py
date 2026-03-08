@@ -134,7 +134,7 @@ async def test_cross_doctor_records_isolation(db_session):
     patient = await create_patient(db_session, "doctor_a", "Shared Name", "M", 50)
     await db_session.commit()
 
-    record = MedicalRecord(chief_complaint="headache")
+    record = MedicalRecord(content="headache")
     await save_record(db_session, "doctor_a", record, patient.id)
     await db_session.commit()
 

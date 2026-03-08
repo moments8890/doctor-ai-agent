@@ -94,6 +94,32 @@ def categorize_patient(
     )
 
 
+def _record_text(record: object) -> str:
+    """Return combined searchable text from a record's content and tags."""
+    content = getattr(record, "content", None) or ""
+    tags_raw = getattr(record, "tags", None)
+    tags: List[str] = []
+    if tags_raw:
+        try:
+            tags = json.loads(tags_raw)
+        except Exception:
+            pass
+    return content + " " + " ".join(tags)
+
+
+def _record_has_follow_up(record: object) -> bool:
+    tags_raw = getattr(record, "tags", None)
+    if tags_raw:
+        try:
+            tags = json.loads(tags_raw)
+            if any("随访" in t or "复诊" in t for t in tags):
+                return True
+        except Exception:
+            pass
+    content = getattr(record, "content", None) or ""
+    return bool(content and ("随访" in content or "复诊" in content))
+
+
 def _determine_primary(
     patient: object,
     records: list,
@@ -101,15 +127,16 @@ def _determine_primary(
     now: datetime,
     matched_rules: List[str],
 ) -> str:
-    # Priority 1: high_risk — latest record diagnosis contains high-risk keyword
-    if latest is not None and latest.diagnosis:
+    # Priority 1: high_risk — latest record content/tags contain high-risk keyword
+    if latest is not None:
+        combined = _record_text(latest)
         for kw in HIGH_RISK_KEYWORDS:
-            if kw in latest.diagnosis:
+            if kw in combined:
                 matched_rules.append(f"high_risk:keyword={kw}")
                 return "high_risk"
 
-    # Priority 2: active_followup — has follow_up_plan AND last record ≤ 30 days
-    if latest is not None and latest.follow_up_plan:
+    # Priority 2: active_followup — has follow-up intent AND last record ≤ 30 days
+    if latest is not None and _record_has_follow_up(latest):
         days_since = _days_ago(latest.created_at, now)
         if days_since <= _ACTIVE_FOLLOWUP_DAYS:
             matched_rules.append(f"active_followup:days_since={days_since:.1f}")

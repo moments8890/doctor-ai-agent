@@ -39,7 +39,7 @@ class _Upload:
 
 
 def _record():
-    return MedicalRecord(chief_complaint="胸痛", diagnosis="冠心病", treatment_plan="随访")
+    return MedicalRecord(content="胸痛 冠心病 随访", tags=["冠心病"])
 
 
 def _intent(intent: Intent, **kwargs) -> IntentResult:
@@ -187,6 +187,7 @@ async def test_chat_add_record_invalid_name_and_structuring_error():
 
 async def test_chat_add_record_clears_hallucinated_treatment_when_no_signal():
     fake_db = object()
+    from models.medical_record import MedicalRecord as _MR
     with patch(
         "routers.records.agent_dispatch",
         new=AsyncMock(
@@ -194,23 +195,26 @@ async def test_chat_add_record_clears_hallucinated_treatment_when_no_signal():
                 Intent.add_record,
                 patient_name="尹晴",
                 structured_fields={
-                    "chief_complaint": "头痛2天",
-                    "diagnosis": "偏头痛待排",
-                    "treatment_plan": "建议休息，必要时使用止痛药",
+                    "content": "头痛2天，偏头痛待排",
+                    "tags": ["偏头痛待排"],
                 },
             )
         ),
-    ), patch("routers.records.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
+    ), patch("routers.records.fast_route", return_value=None), \
+       patch("routers.records.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
         "routers.records.find_patient_by_name",
-        new=AsyncMock(return_value=SimpleNamespace(id=9, name="尹晴")),
+        new=AsyncMock(return_value=SimpleNamespace(id=9, name="尹晴", gender=None, year_of_birth=None)),
     ), patch(
         "routers.records.save_record",
         new=AsyncMock(return_value=SimpleNamespace(id=101)),
+    ), patch(
+        "routers.records.structure_medical_record",
+        new=AsyncMock(return_value=_MR(content="头痛2天，偏头痛待排")),
     ):
         resp = await records.chat(records.ChatInput(text="尹晴，女，60岁，头痛2天，睡眠差。", doctor_id=DOCTOR))
 
     assert resp.record is not None
-    assert resp.record.treatment_plan is None
+    assert "头痛" in resp.record.content
 
 
 async def test_chat_force_add_record_when_intent_drifts_but_text_is_clinical():
@@ -223,7 +227,7 @@ async def test_chat_force_add_record_when_intent_drifts_but_text_is_clinical():
         new=AsyncMock(return_value=_record()),
     ), patch("routers.records.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
         "routers.records.find_patient_by_name",
-        new=AsyncMock(return_value=SimpleNamespace(id=7, name="钱芳")),
+        new=AsyncMock(return_value=SimpleNamespace(id=7, name="钱芳", gender=None, year_of_birth=None)),
     ), patch(
         "routers.records.save_record",
         new=AsyncMock(return_value=SimpleNamespace(id=100)),
@@ -262,7 +266,7 @@ async def test_chat_query_records_branches():
     assert "暂无历史记录" in resp2.reply
 
     records_list = [
-        SimpleNamespace(chief_complaint="胸痛", diagnosis="冠心病", created_at=datetime(2026, 3, 2))
+        SimpleNamespace(content="胸痛 冠心病", tags='["冠心病"]', created_at=datetime(2026, 3, 2))
     ]
     with patch(
         "routers.records.agent_dispatch",
@@ -277,7 +281,7 @@ async def test_chat_query_records_branches():
         resp3 = await records.chat(records.ChatInput(text="查张三", doctor_id=DOCTOR))
     assert "最近 1 条记录" in resp3.reply
 
-    all_records = [SimpleNamespace(patient=None, chief_complaint=None, diagnosis=None, created_at=None)]
+    all_records = [SimpleNamespace(patient=None, content=None, tags=None, created_at=None)]
     with patch(
         "routers.records.agent_dispatch",
         new=AsyncMock(return_value=_intent(Intent.query_records, patient_name=None)),
@@ -460,7 +464,7 @@ async def test_from_text_image_audio_endpoints():
 
     with patch("routers.records.structure_medical_record", new=AsyncMock(return_value=_record())):
         rec = await records.create_record_from_text(records.TextInput(text="胸痛"))
-    assert rec.chief_complaint == "胸痛"
+    assert "胸痛" in rec.content
 
     with patch("routers.records.structure_medical_record", new=AsyncMock(side_effect=RuntimeError("boom"))):
         with pytest.raises(HTTPException) as exc2:
@@ -480,7 +484,7 @@ async def test_from_text_image_audio_endpoints():
     with patch("routers.records.extract_text_from_image", new=AsyncMock(return_value="识别文本")), \
          patch("routers.records.structure_medical_record", new=AsyncMock(return_value=_record())):
         rec2 = await records.create_record_from_image(_Upload(content_type="image/png", data=b"img"))
-    assert rec2.chief_complaint == "胸痛"
+    assert "胸痛" in rec2.content
 
     with patch("routers.records.extract_text_from_image", new=AsyncMock(side_effect=RuntimeError("ocr fail"))):
         with pytest.raises(HTTPException) as exc4:
@@ -501,7 +505,7 @@ async def test_from_text_image_audio_endpoints():
     with patch("routers.records.transcribe_audio", new=AsyncMock(return_value="转写文本")), \
          patch("routers.records.structure_medical_record", new=AsyncMock(return_value=_record())):
         rec3 = await records.create_record_from_audio(_Upload(content_type="audio/wav", data=b"wav", filename="a.wav"))
-    assert rec3.chief_complaint == "胸痛"
+    assert "胸痛" in rec3.content
 
     with patch("routers.records.transcribe_audio", new=AsyncMock(side_effect=RuntimeError("asr fail"))):
         with pytest.raises(HTTPException) as exc6:

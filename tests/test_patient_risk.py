@@ -16,10 +16,14 @@ def _patient(**kwargs):
 
 
 def _record(**kwargs):
+    # Support old-style diagnosis/follow_up_plan kwargs by mapping to content
+    diagnosis = kwargs.pop("diagnosis", "高血压")
+    follow_up_plan = kwargs.pop("follow_up_plan", None)
+    parts = [p for p in [diagnosis, follow_up_plan] if p]
     data = {
         "created_at": datetime(2026, 3, 1, 10, 0, 0),
-        "diagnosis": "高血压",
-        "follow_up_plan": None,
+        "content": " ".join(parts) if parts else None,
+        "tags": None,
     }
     data.update(kwargs)
     return SimpleNamespace(**data)

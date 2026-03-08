@@ -1,19 +1,9 @@
-import { Box, Divider, Typography } from "@mui/material";
+import { Box, Chip, Stack, Typography } from "@mui/material";
 import { t } from "../i18n";
-
-const RECORD_FIELDS = [
-  "chief_complaint",
-  "history_of_present_illness",
-  "past_medical_history",
-  "physical_examination",
-  "auxiliary_examinations",
-  "diagnosis",
-  "treatment_plan",
-  "follow_up_plan",
-];
 
 export default function RecordFields({ record }) {
   if (!record) return null;
+  const tags = Array.isArray(record.tags) ? record.tags : [];
 
   return (
     <Box
@@ -28,18 +18,16 @@ export default function RecordFields({ record }) {
       <Typography variant="subtitle2" sx={{ color: "primary.main", mb: 1 }}>
         {t("recordFields.title")}
       </Typography>
-      {RECORD_FIELDS.map((key, idx) => {
-        if (!record[key]) return null;
-        return (
-          <Box key={key} sx={{ mb: 1 }}>
-            {idx > 0 ? <Divider sx={{ mb: 1 }} /> : null}
-            <Typography variant="caption" color="text.secondary">
-              {t(`recordFields.fields.${key}`)}
-            </Typography>
-            <Typography variant="body2">{String(record[key])}</Typography>
-          </Box>
-        );
-      })}
+      <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", lineHeight: 1.7 }}>
+        {record.content || "—"}
+      </Typography>
+      {tags.length > 0 && (
+        <Stack direction="row" spacing={0.6} flexWrap="wrap" sx={{ mt: 1.2 }}>
+          {tags.map((tag, i) => (
+            <Chip key={i} label={tag} size="small" variant="outlined" sx={{ fontSize: 11 }} />
+          ))}
+        </Stack>
+      )}
     </Box>
   );
 }

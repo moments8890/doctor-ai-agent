@@ -27,14 +27,9 @@ def _record(**kwargs):
         id=1,
         patient_id=11,
         doctor_id="doc_default",
-        chief_complaint="胸闷",
-        history_of_present_illness="两周",
-        past_medical_history="高血压",
-        physical_examination="血压偏高",
-        auxiliary_examinations="心电图异常",
-        diagnosis="冠心病",
-        treatment_plan="随访",
-        follow_up_plan="两周复诊",
+        record_type="visit",
+        content="患者复诊，胸闷两周，血压偏高，诊断冠心病，两周后随访。",
+        tags='["冠心病", "两周后随访"]',
         created_at=datetime(2026, 3, 2, 10, 0, 0),
         patient=SimpleNamespace(name="张三"),
     )
@@ -145,11 +140,8 @@ async def test_manage_records_without_patient_filter():
 
     assert data["doctor_id"] == "doc2"
     assert data["items"][0]["patient_name"] == "王五"
-    assert data["items"][0]["treatment_plan"] == "随访"
-    assert data["items"][0]["follow_up_plan"] == "两周复诊"
+    assert "content" in data["items"][0]
     assert data["items"][1]["patient_name"] is None
-    assert data["items"][1]["treatment_plan"] == "随访"
-    assert data["items"][1]["follow_up_plan"] == "两周复诊"
     assert data["items"][1]["created_at"] is None
 
 
@@ -515,10 +507,9 @@ async def test_admin_db_view_returns_patients_and_records():
                 id=28,
                 patient_id=11,
                 doctor_id="doc1",
-                chief_complaint="活动耐量下降，气短",
-                diagnosis=None,
-                treatment_plan="氨氯地平从5mg加到10mg，加上呋塞米20mg",
-                follow_up_plan="下周复查BNP和心超",
+                record_type="visit",
+                content="活动耐量下降，气短。氨氯地平从5mg加到10mg，加上呋塞米20mg。下周复查BNP和心超。",
+                tags='["心衰", "随访1周"]',
                 created_at=datetime(2026, 3, 2, 23, 20, 25),
             ),
             "沈梅",
@@ -538,7 +529,7 @@ async def test_admin_db_view_returns_patients_and_records():
     assert data["counts"]["patients"] == 1
     assert data["counts"]["records"] == 1
     assert data["patients"][0]["name"] == "沈梅"
-    assert data["records"][0]["chief_complaint"] == "活动耐量下降，气短"
+    assert "活动耐量下降" in data["records"][0]["content"]
     assert data["records"][0]["created_at"] == "2026-03-02 23:20:25"
 
 
@@ -797,7 +788,7 @@ async def test_admin_tables_with_filters():
         (
             "medical_records",
             _exec_all([(_record(id=71, patient_id=31, doctor_id="doc1"), "王五")]),
-            "chief_complaint",
+            "content",
         ),
         (
             "doctor_tasks",
