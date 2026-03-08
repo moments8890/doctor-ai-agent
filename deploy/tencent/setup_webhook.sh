@@ -5,8 +5,8 @@ set -euo pipefail
 
 SECRET="${1:?Usage: $0 <webhook-secret>}"
 APP_DIR="/home/ubuntu/doctor-ai-agent"
-SERVICE_SRC="$APP_DIR/tencent_integ/doctor-ai-webhook.service"
-DEPLOY_SRC="$APP_DIR/tencent_integ/deploy.sh"
+SERVICE_SRC="$APP_DIR/deploy/tencent/doctor-ai-webhook.service"
+DEPLOY_SRC="$APP_DIR/deploy/tencent/deploy.sh"
 
 echo "--- 1. writing /home/ubuntu/.webhook.env"
 cat > /home/ubuntu/.webhook.env <<EOF

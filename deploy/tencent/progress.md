@@ -47,7 +47,7 @@ Manual fallback: `ssh vm 'bash ~/deploy.sh'`
 ### VM components (all installed & running)
 | Component | Location | Purpose |
 |---|---|---|
-| `webhook_server.py` | `~/doctor-ai-agent/tencent_integ/webhook_server.py` | HTTP listener on port 9000 |
+| `webhook_server.py` | `~/doctor-ai-agent/deploy/tencent/webhook_server.py` | HTTP listener on port 9000 |
 | `deploy.sh` | `/home/ubuntu/deploy.sh` | git pull + pip sync + service restart |
 | systemd service | `/etc/systemd/system/doctor-ai-webhook.service` | keeps webhook_server alive, auto-starts on boot |
 | env file | `/home/ubuntu/.webhook.env` | `WEBHOOK_SECRET`, `WEBHOOK_PORT=9000`, `DEPLOY_SCRIPT` |
@@ -67,8 +67,8 @@ tail -f ~/doctor-ai-agent/logs/deploy.log # live deploy output
 ```
 
 ### Re-setup from scratch (new VM)
-1. Clone repo, copy `tencent_integ/` files to VM
-2. Run: `bash tencent_integ/setup_webhook.sh <webhook-secret>`
+1. Clone repo, copy `deploy/tencent/` files to VM
+2. Run: `bash deploy/tencent/setup_webhook.sh <webhook-secret>`
 3. Add nginx location block (proxy `/hooks/deploy` → `127.0.0.1:9000`)
 4. Add `~/.ssh/gitee_deploy_key.pub` to Gitee repo → Deploy Keys
 5. Add Gitee webhook → `https://<domain>/hooks/deploy`
