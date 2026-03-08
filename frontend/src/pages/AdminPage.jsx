@@ -81,8 +81,16 @@ const DATA_TABS = [
   { key: "doctors", icon: <BadgeOutlinedIcon fontSize="small" /> },
   { key: "patients", icon: <PeopleOutlineOutlinedIcon fontSize="small" /> },
   { key: "medical_records", icon: <DescriptionOutlinedIcon fontSize="small" /> },
+  { key: "medical_record_versions", icon: <DescriptionOutlinedIcon fontSize="small" /> },
+  { key: "medical_record_exports", icon: <DescriptionOutlinedIcon fontSize="small" /> },
   { key: "doctor_tasks", icon: <AssignmentOutlinedIcon fontSize="small" /> },
   { key: "neuro_cases", icon: <PsychologyAltOutlinedIcon fontSize="small" /> },
+  { key: "neuro_cvd_context", icon: <PsychologyAltOutlinedIcon fontSize="small" /> },
+  { key: "specialty_scores", icon: <AssignmentOutlinedIcon fontSize="small" /> },
+  { key: "pending_records", icon: <InboxOutlinedIcon fontSize="small" /> },
+  { key: "pending_messages", icon: <InboxOutlinedIcon fontSize="small" /> },
+  { key: "audit_log", icon: <VisibilityOutlinedIcon fontSize="small" /> },
+  { key: "doctor_knowledge_items", icon: <TextSnippetOutlinedIcon fontSize="small" /> },
   { key: "patient_labels", icon: <LabelOutlinedIcon fontSize="small" /> },
   { key: "patient_label_assignments", icon: <LinkOutlinedIcon fontSize="small" /> },
   { key: "doctor_contexts", icon: <AccountTreeOutlinedIcon fontSize="small" /> },
@@ -92,6 +100,7 @@ const TABLES = DATA_TABS.filter((t) => t.key !== "invite_codes");
 
 const SYSTEM_TABS = [
   { key: "system_prompts", icon: <TextSnippetOutlinedIcon fontSize="small" /> },
+  { key: "system_prompt_versions", icon: <TextSnippetOutlinedIcon fontSize="small" /> },
   { key: "runtime_config", icon: <TuneOutlinedIcon fontSize="small" /> },
   { key: "routing_keywords", icon: <TuneOutlinedIcon fontSize="small" /> },
 ];
