@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -587,7 +588,10 @@ function LogsSection() {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 function DebugDashboard({ onLockout }) {
-  const [activeSection, setActiveSection] = useState("metrics");
+  const { section } = useParams();
+  const navigate = useNavigate();
+  const activeSection = NAV_SECTIONS.some((s) => s.key === section) ? section : "metrics";
+  function setActiveSection(key) { navigate(`/debug/${key}`); }
 
   return (
     <Box

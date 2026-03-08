@@ -31,6 +31,7 @@ export default function App() {
       <Route path="/admin" element={<AdminPage />} />
       <Route path="/admin/:section" element={<AdminPage />} />
       <Route path="/debug" element={<DebugPage />} />
+      <Route path="/debug/:section" element={<DebugPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
