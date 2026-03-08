@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Alert,
   Autocomplete,
@@ -56,46 +56,6 @@ import { t } from "../i18n";
 
 const ADMIN_TOKEN_KEY = "adminToken";
 
-function TokenGate({ onUnlock, initialError = "" }) {
-  const [input, setInput] = useState("");
-  const [error, setError] = useState(initialError);
-
-  function handleSubmit(e) {
-    e.preventDefault();
-    const token = input.trim();
-    if (!token) { setError("请输入 Token"); return; }
-    localStorage.setItem(ADMIN_TOKEN_KEY, token);
-    setAdminToken(token);
-    onUnlock(token);
-  }
-
-  return (
-    <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f3f7f8" }}>
-      <Card sx={{ width: 360, borderRadius: 2 }}>
-        <CardContent sx={{ p: 3 }}>
-          <Typography variant="h6" sx={{ mb: 0.5, fontWeight: 700 }}>Admin 访问</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>请输入 UI_ADMIN_TOKEN 以继续</Typography>
-          <form onSubmit={handleSubmit}>
-            <Stack spacing={2}>
-              <TextField
-                label="Admin Token"
-                type="password"
-                size="small"
-                fullWidth
-                autoFocus
-                value={input}
-                onChange={(e) => { setInput(e.target.value); setError(""); }}
-                error={!!error}
-                helperText={error}
-              />
-              <Button type="submit" variant="contained" fullWidth>进入</Button>
-            </Stack>
-          </form>
-        </CardContent>
-      </Card>
-    </Box>
-  );
-}
 
 const TABLES = [
   { key: "doctors", icon: <BadgeOutlinedIcon fontSize="small" /> },
@@ -156,30 +116,15 @@ const COL_WIDTH = {
 };
 
 export default function AdminPage() {
-  const [authError, setAuthError] = useState("");
+  const location = useLocation();
   // "verifying" while checking stored token, "ok" once confirmed, "locked" if no/bad token
   const [status, setStatus] = useState(() =>
     localStorage.getItem(ADMIN_TOKEN_KEY) ? "verifying" : "locked"
   );
 
-  function handleUnlock(token) {
-    setAuthError("");
-    setAdminToken(token);
-    setStatus("verifying");
-    getAdminRoutingMetrics()
-      .then(() => setStatus("ok"))
-      .catch(() => {
-        localStorage.removeItem(ADMIN_TOKEN_KEY);
-        setAdminToken("");
-        setAuthError("Token 不正确，请重新输入");
-        setStatus("locked");
-      });
-  }
-
   function handleLockout() {
     localStorage.removeItem(ADMIN_TOKEN_KEY);
     setAdminToken("");
-    setAuthError("Token 不正确，请重新输入");
     setStatus("locked");
   }
 
@@ -193,7 +138,6 @@ export default function AdminPage() {
         .catch(() => {
           localStorage.removeItem(ADMIN_TOKEN_KEY);
           setAdminToken("");
-          setAuthError("Token 不正确，请重新输入");
           setStatus("locked");
         });
     }
@@ -201,7 +145,15 @@ export default function AdminPage() {
   }, []);
 
   if (status === "verifying") return null;
-  if (status === "locked") return <TokenGate onUnlock={handleUnlock} initialError={authError} />;
+  if (status === "locked") {
+    return (
+      <Navigate
+        to="/admin/login"
+        replace
+        state={{ next: location.pathname, error: "Token 不正确，请重新输入" }}
+      />
+    );
+  }
   return <AdminDashboard onLockout={handleLockout} />;
 }
 
