@@ -1041,6 +1041,113 @@ function HomeSection({ doctorId, navigate }) {
   );
 }
 
+// ─── Settings section ────────────────────────────────────────────────────────
+
+function SettingsSection({ doctorId }) {
+  const [status, setStatus] = useState(null);       // { has_template, char_count }
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [msg, setMsg] = useState({ type: "", text: "" });
+  const fileRef = useRef(null);
+
+  const loadStatus = useCallback(() => {
+    setLoading(true);
+    getTemplateStatus(doctorId)
+      .then(setStatus)
+      .catch(() => setStatus(null))
+      .finally(() => setLoading(false));
+  }, [doctorId]);
+
+  useEffect(() => { loadStatus(); }, [loadStatus]);
+
+  async function handleUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true); setMsg({ type: "", text: "" });
+    try {
+      await uploadTemplate(doctorId, file);
+      setMsg({ type: "success", text: `模板已上传（${file.name}）` });
+      loadStatus();
+    } catch (err) {
+      setMsg({ type: "error", text: err.message || "上传失败" });
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  async function handleDelete() {
+    setDeleting(true); setMsg({ type: "", text: "" });
+    try {
+      await deleteTemplate(doctorId);
+      setMsg({ type: "success", text: "模板已删除，将使用默认格式" });
+      loadStatus();
+    } catch (err) {
+      setMsg({ type: "error", text: err.message || "删除失败" });
+    } finally {
+      setDeleting(false); }
+  }
+
+  return (
+    <Box sx={{ p: 3, maxWidth: 560 }}>
+      <Typography variant="h6" sx={{ fontWeight: 700, mb: 3 }}>设置</Typography>
+
+      {/* Report template */}
+      <Card variant="outlined" sx={{ borderRadius: 2, mb: 2 }}>
+        <CardContent>
+          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+            <UploadFileOutlinedIcon fontSize="small" color="primary" />
+            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>门诊病历报告模板</Typography>
+          </Stack>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            上传您医院的门诊病历模板（PDF、Word 或图片），AI 将参照模板格式生成报告。
+            支持格式：PDF、DOCX、DOC、TXT、JPG、PNG，最大 1 MB。
+          </Typography>
+
+          {loading ? <CircularProgress size={18} /> : (
+            <>
+              {status?.has_template ? (
+                <Alert severity="success" sx={{ mb: 1.5 }}>
+                  已上传自定义模板（{status.char_count?.toLocaleString()} 字符）
+                </Alert>
+              ) : (
+                <Alert severity="info" sx={{ mb: 1.5 }}>
+                  暂未上传模板，将使用国家卫生部2010年标准格式
+                </Alert>
+              )}
+              {msg.text && (
+                <Alert severity={msg.type || "info"} sx={{ mb: 1.5 }} onClose={() => setMsg({ type: "", text: "" })}>
+                  {msg.text}
+                </Alert>
+              )}
+              <Stack direction="row" spacing={1}>
+                <Button
+                  variant="contained" size="small"
+                  startIcon={uploading ? <CircularProgress size={14} /> : <UploadFileOutlinedIcon />}
+                  disabled={uploading || deleting}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  {uploading ? "上传中…" : status?.has_template ? "替换模板" : "上传模板"}
+                </Button>
+                {status?.has_template && (
+                  <Button variant="outlined" color="error" size="small" disabled={deleting || uploading}
+                    onClick={handleDelete}>
+                    {deleting ? "删除中…" : "删除模板"}
+                  </Button>
+                )}
+              </Stack>
+              <input ref={fileRef} type="file" hidden
+                accept=".pdf,.docx,.doc,.txt,image/jpeg,image/png,image/webp"
+                onChange={handleUpload} />
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </Box>
+  );
+}
+
 // ─── Main DoctorPage ────────────────────────────────────────────────────────
 
 export default function DoctorPage() {
@@ -1185,6 +1292,7 @@ export default function DoctorPage() {
               {activeSection === "home" && "首页"}
               {activeSection === "patients" && "患者管理"}
               {activeSection === "tasks" && "任务列表"}
+              {activeSection === "settings" && "设置"}
             </Typography>
           </Box>
         )}
@@ -1210,6 +1318,7 @@ export default function DoctorPage() {
           {activeSection === "home" && <HomeSection doctorId={doctorId} navigate={navigate} />}
           {activeSection === "patients" && <PatientsSection doctorId={doctorId} />}
           {activeSection === "tasks" && <TasksSection doctorId={doctorId} />}
+          {activeSection === "settings" && <SettingsSection doctorId={doctorId} />}
         </Box>
       </Box>
 
