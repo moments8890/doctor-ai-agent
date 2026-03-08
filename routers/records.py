@@ -40,7 +40,7 @@ from services.knowledge.doctor_knowledge import (
     save_knowledge_item,
 )
 from utils.errors import InvalidMedicalRecordError
-from services.ai.intent import Intent
+from services.ai.intent import Intent, IntentResult
 from services.notify.notify_control import (
     parse_notify_command,
     get_notify_pref,
@@ -112,6 +112,20 @@ _UNCLEAR_INTENT_REPLY = (
     "6) 任务操作（例：看待办 / 完成 5）\n"
     "7) 预约随访（例：为张三安排复诊 2026年3月15日14:00）"
 )
+_GREETING_RE = re.compile(
+    r"^(?:你好|您好|hi|hello|嗨|哈喽|早上好|下午好|晚上好|早|在吗|在不在)[！!？?。，,\s]*$",
+    re.IGNORECASE,
+)
+_WARM_GREETING_REPLY = (
+    "您好！我是您的专属医助，很高兴为您服务。\n\n"
+    "我可以帮您：\n"
+    "• 建立患者档案（如：新患者张三，男，45岁）\n"
+    "• 快速录入门诊病历（如：张三，胸痛2小时）\n"
+    "• 查询患者历史记录（如：查询张三）\n"
+    "• 管理待办任务和随访提醒\n\n"
+    "请直接说您想做什么，或描述患者情况开始录入。"
+)
+_MENU_NUMBER_RE = re.compile(r"^\s*([1-7])\s*$")
 _ROUTING_HISTORY_MAX_MESSAGES = max(0, int(os.environ.get("ROUTING_HISTORY_MAX_MESSAGES", "2")))
 _REQUESTS_PER_MINUTE = max(1, int(os.environ.get("RECORDS_CHAT_RATE_LIMIT_PER_MINUTE", "100")))
 _RATE_WINDOWS: dict[str, deque] = {}
@@ -142,6 +156,16 @@ def _assistant_asked_for_name(history: List[dict]) -> bool:
             continue
         content = (message.get("content") or "").strip()
         return any(fragment in content for fragment in _ASK_NAME_FRAGMENTS)
+    return False
+
+
+def _last_assistant_was_unclear_menu(history: List[dict]) -> bool:
+    """True when the most recent assistant message is the unclear-intent numbered menu."""
+    for message in reversed(history):
+        if message.get("role") != "assistant":
+            continue
+        content = (message.get("content") or "").strip()
+        return content.startswith("我还不能确定您的操作意图")
     return False
 
 
@@ -376,6 +400,29 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
     if notify_reply is not None:
         return ChatResponse(reply=notify_reply)
 
+    # ── Greeting fast path ────────────────────────────────────────────────────
+    if _GREETING_RE.match(body.text.strip()):
+        return ChatResponse(reply=_WARM_GREETING_REPLY)
+
+    # ── Context-aware menu number → intent mapping ────────────────────────────
+    _effective_intent: Optional[IntentResult] = None
+    _menu_match = _MENU_NUMBER_RE.match(body.text)
+    if _menu_match and _last_assistant_was_unclear_menu(history):
+        _digit = _menu_match.group(1)
+        _menu_prompts = {
+            "1": "好的，请提供新患者的姓名和基本信息。\n示例：张三，男，45岁",
+            "2": "好的，请说明患者姓名和本次病情。\n示例：张三，胸痛2小时",
+            "3": "好的，请告诉我要查询的患者姓名。\n示例：查询张三",
+            "5": "好的，请告诉我要删除的患者姓名。\n示例：删除张三",
+            "7": "好的，请提供患者姓名和随访时间。\n示例：张三 3个月后随访",
+        }
+        if _digit in _menu_prompts:
+            return ChatResponse(reply=_menu_prompts[_digit])
+        if _digit == "4":
+            _effective_intent = IntentResult(intent=Intent.list_patients)
+        elif _digit == "6":
+            _effective_intent = IntentResult(intent=Intent.list_tasks)
+
     asked_name_in_last_turn = _assistant_asked_for_name(history)
     followup_name = _name_only_text(body.text) if asked_name_in_last_turn else None
 
@@ -506,65 +553,69 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
         return ChatResponse(reply=f"✅ 已加入医生知识库（#{item.id}）：{knowledge_payload}")
 
     # ── Fast router: resolve common intents without LLM (~0ms vs ~6s) ─────────
-    _t0 = time.perf_counter()
-    _fast = fast_route(body.text)
-    if _fast is not None:
-        _latency_ms = (time.perf_counter() - _t0) * 1000.0
-        log(f"[Chat] fast_route hit: {fast_route_label(body.text)} doctor={doctor_id}")
-        intent_result = _fast
-        log_turn(body.text, intent_result.intent.value, "fast", doctor_id, _latency_ms, patient_name=intent_result.patient_name)
+    if _effective_intent is not None:
+        intent_result = _effective_intent
+        log(f"[Chat] menu_shortcut intent={intent_result.intent.value} doctor={doctor_id}")
     else:
-        knowledge_context = ""
-        try:
-            async with AsyncSessionLocal() as db:
-                knowledge_context = await load_knowledge_context_for_prompt(db, doctor_id, body.text)
-        except Exception as e:
-            log(f"[Chat] knowledge context load failed doctor={doctor_id}: {e}")
-            knowledge_context = ""
-
-        try:
-            with trace_block("router", "records.chat.agent_dispatch", {"doctor_id": doctor_id}):
-                dispatch_kwargs = {"history": history_for_routing}
-                if knowledge_context:
-                    dispatch_kwargs["knowledge_context"] = knowledge_context
-                intent_result = await agent_dispatch(body.text, **dispatch_kwargs)
+        _t0 = time.perf_counter()
+        _fast = fast_route(body.text)
+        if _fast is not None:
             _latency_ms = (time.perf_counter() - _t0) * 1000.0
-            log_turn(body.text, intent_result.intent.value, "llm", doctor_id, _latency_ms, patient_name=intent_result.patient_name)
-        except Exception as e:
-            msg = str(e)
-            status = 429 if "rate_limit" in msg or "Rate limit" in msg or "429" in msg else 503
-            log(
-                f"[Chat] agent dispatch FAILED doctor={doctor_id} status={status} "
-                f"text={body.text[:80]!r} err={msg}"
-            )
-            detail = "rate_limit_exceeded" if status == 429 else "Service temporarily unavailable"
-            raise HTTPException(status_code=status, detail=detail)
+            log(f"[Chat] fast_route hit: {fast_route_label(body.text)} doctor={doctor_id}")
+            intent_result = _fast
+            log_turn(body.text, intent_result.intent.value, "fast", doctor_id, _latency_ms, patient_name=intent_result.patient_name)
+        else:
+            knowledge_context = ""
+            try:
+                async with AsyncSessionLocal() as db:
+                    knowledge_context = await load_knowledge_context_for_prompt(db, doctor_id, body.text)
+            except Exception as e:
+                log(f"[Chat] knowledge context load failed doctor={doctor_id}: {e}")
+                knowledge_context = ""
 
-    # Deterministic fallback for the two-turn flow:
-    # assistant asks for patient name -> doctor replies with name only.
-    # Force add_record regardless of routing-model variance.
-    if followup_name:
-        intent_result.intent = Intent.add_record
-        intent_result.patient_name = followup_name
-    elif intent_result.intent == Intent.add_record and not intent_result.patient_name:
-        # Deterministic fallback for one-shot notes that start with patient name.
-        # Prevents LLM routing variance from dropping patient linkage.
-        leading_name = _leading_name_with_clinical_context(body.text)
-        if leading_name:
-            intent_result.patient_name = leading_name
-    else:
-        # Deterministic rescue for routing drift:
-        # If input is clearly clinical dictation with a leading patient name,
-        # force add_record so record persistence remains stable.
-        leading_name = _leading_name_with_clinical_context(body.text)
-        if (
-            leading_name
-            and _contains_clinical_content(body.text)
-            and intent_result.intent != Intent.add_record
-        ):
+            try:
+                with trace_block("router", "records.chat.agent_dispatch", {"doctor_id": doctor_id}):
+                    dispatch_kwargs = {"history": history_for_routing}
+                    if knowledge_context:
+                        dispatch_kwargs["knowledge_context"] = knowledge_context
+                    intent_result = await agent_dispatch(body.text, **dispatch_kwargs)
+                _latency_ms = (time.perf_counter() - _t0) * 1000.0
+                log_turn(body.text, intent_result.intent.value, "llm", doctor_id, _latency_ms, patient_name=intent_result.patient_name)
+            except Exception as e:
+                msg = str(e)
+                status = 429 if "rate_limit" in msg or "Rate limit" in msg or "429" in msg else 503
+                log(
+                    f"[Chat] agent dispatch FAILED doctor={doctor_id} status={status} "
+                    f"text={body.text[:80]!r} err={msg}"
+                )
+                detail = "rate_limit_exceeded" if status == 429 else "Service temporarily unavailable"
+                raise HTTPException(status_code=status, detail=detail)
+
+        # Deterministic fallback for the two-turn flow:
+        # assistant asks for patient name -> doctor replies with name only.
+        # Force add_record regardless of routing-model variance.
+        if followup_name:
             intent_result.intent = Intent.add_record
-            if not intent_result.patient_name:
+            intent_result.patient_name = followup_name
+        elif intent_result.intent == Intent.add_record and not intent_result.patient_name:
+            # Deterministic fallback for one-shot notes that start with patient name.
+            # Prevents LLM routing variance from dropping patient linkage.
+            leading_name = _leading_name_with_clinical_context(body.text)
+            if leading_name:
                 intent_result.patient_name = leading_name
+        else:
+            # Deterministic rescue for routing drift:
+            # If input is clearly clinical dictation with a leading patient name,
+            # force add_record so record persistence remains stable.
+            leading_name = _leading_name_with_clinical_context(body.text)
+            if (
+                leading_name
+                and _contains_clinical_content(body.text)
+                and intent_result.intent != Intent.add_record
+            ):
+                intent_result.intent = Intent.add_record
+                if not intent_result.patient_name:
+                    intent_result.patient_name = leading_name
 
     # ── create_patient ────────────────────────────────────────────────────────
     if intent_result.intent == Intent.create_patient:
@@ -900,7 +951,7 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
         return ChatResponse(reply=reply)
 
     # ── unknown / conversational ──────────────────────────────────────────────
-    return ChatResponse(reply=_UNCLEAR_INTENT_REPLY)
+    return ChatResponse(reply=intent_result.chat_reply or _UNCLEAR_INTENT_REPLY)
 
 
 @router.post("/from-text", response_model=MedicalRecord)

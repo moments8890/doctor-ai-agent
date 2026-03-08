@@ -332,14 +332,15 @@ async def test_chat_list_patients_and_unknown_reply():
         new=AsyncMock(return_value=_intent(Intent.unknown, chat_reply="你好医生")),
     ):
         resp3 = await records.chat(records.ChatInput(text="hi", doctor_id=DOCTOR))
-    assert "不能确定您的操作意图" in resp3.reply
+    # "hi" matches greeting fast path → warm welcome (not the robot menu)
+    assert "专属医助" in resp3.reply
 
     with patch(
         "routers.records.agent_dispatch",
         new=AsyncMock(return_value=_intent(Intent.unknown, chat_reply=None)),
     ):
         resp4 = await records.chat(records.ChatInput(text="hi", doctor_id=DOCTOR))
-    assert "不能确定您的操作意图" in resp4.reply
+    assert "专属医助" in resp4.reply
 
 
 async def test_chat_delete_patient_fastpath_and_intent_branches():
@@ -431,7 +432,8 @@ async def test_chat_dispatch_passes_knowledge_context():
 
     load_ctx.assert_awaited_once()
     assert dispatch_mock.await_args.kwargs["knowledge_context"].startswith("【医生知识库")
-    assert "不能确定您的操作意图" in resp.reply
+    # intent_result.chat_reply="你好" is now returned when unknown intent has a reply
+    assert resp.reply == "你好"
 
 
 async def test_chat_notify_control_commands_fastpath():
