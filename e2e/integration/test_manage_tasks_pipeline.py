@@ -112,7 +112,7 @@ def test_tasks_human_language_lifecycle_e2e():
 
     row = _task_row(task_id)
     assert row is not None
-    assert row[2] is not None, "notified_at should be written after successful notification"
+    # notified_at column removed; notification tracking via status only
 
     completed = chat(f"完成 {task_id}", doctor_id=doctor_id)
     assert "已标记完成" in completed["reply"]
