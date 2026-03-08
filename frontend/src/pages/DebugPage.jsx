@@ -32,7 +32,6 @@ import {
   seedDebugObservabilitySamples,
   setDebugToken,
   onDebugAuthError,
-  getDebugRoutingMetrics,
 } from "../api";
 import { t } from "../i18n";
 
