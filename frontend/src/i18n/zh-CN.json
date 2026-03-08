@@ -16,7 +16,7 @@
       "logout": "退出登录",
       "doctorIdRequired": "请输入医生账号",
       "failed": "登录失败，请重试",
-      "loggedInAs": "当前账号",
+      "loggedInAs": "当前账号"
     },
     "common": {
       "all": "全部",
