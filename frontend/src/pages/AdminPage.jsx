@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Alert,
@@ -46,6 +46,7 @@ import UnfoldMoreIcon from "@mui/icons-material/UnfoldMore";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import InboxOutlinedIcon from "@mui/icons-material/InboxOutlined";
 import {
   getAdminFilterOptions,
   getAdminRuntimeConfig,
@@ -622,33 +623,32 @@ function AdminDashboard({ onLockout }) {
               </CardContent>
             </Card>
 
-            <Card sx={{ borderRadius: 1.5 }}>
-              <CardContent sx={{ p: 1.5 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.8 }}>
-                  {t("admin.counts.title")}
-                </Typography>
-                <Stack spacing={0.4}>
-                  {TABLES.map((item, idx) => (
-                    <Box key={`cnt-${item.key}`}>
-                      <Stack direction="row" alignItems="center" justifyContent="space-between">
-                        <Stack direction="row" spacing={0.8} alignItems="center">
-                          <Box sx={{ color: "text.secondary", display: "grid", placeItems: "center" }}>{item.icon}</Box>
-                          <Typography variant="body2" color="text.secondary">{t(`admin.tables.${item.key}`)}</Typography>
-                        </Stack>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{tableCounts[item.key] || 0}</Typography>
-                      </Stack>
-                      {idx < TABLES.length - 1 ? <Divider sx={{ mt: 0.55 }} /> : null}
-                    </Box>
-                  ))}
-                </Stack>
-              </CardContent>
-            </Card>
           </Stack>
 
           <Card sx={{ borderRadius: 1.5 }}>
             <CardContent>
               {!!status.text ? <Alert severity={status.type} sx={{ mb: 1.5 }}>{status.text}</Alert> : null}
 
+              {/* Overview stats — shown for all data table views */}
+              {!SYSTEM_TABS.some((st) => st.key === activeTable) && activeTable !== "invite_codes" && (
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.8, mb: 1.5 }}>
+                  {[
+                    { key: "patients", color: "#dbeafe" },
+                    { key: "medical_records", color: "#d1fae5" },
+                    { key: "doctors", color: "#fef3c7" },
+                    { key: "doctor_tasks", color: "#ede9fe" },
+                  ].map((item) => (
+                    <Chip
+                      key={`stat-${item.key}`}
+                      label={`${t(`admin.tables.${item.key}`)} · ${tableCounts[item.key] ?? "…"}`}
+                      size="small"
+                      sx={{ backgroundColor: item.color, fontWeight: 600, fontSize: 12, height: 26 }}
+                    />
+                  ))}
+                </Box>
+              )}
+
+              <Box sx={{ position: "sticky", top: 0, zIndex: 2, backgroundColor: "#fff", pb: 0.5, mb: 0.7, borderRadius: 1 }}>
               <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1.2 }}>
                 <Stack direction="row" spacing={0.8} alignItems="center">
                   <StorageOutlinedIcon fontSize="small" />
@@ -732,6 +732,8 @@ function AdminDashboard({ onLockout }) {
                   </Stack>
                 )}
               </Stack>
+              </Box>
+              {!SYSTEM_TABS.some((st) => st.key === activeTable) && activeTable !== "invite_codes" && (
               <Box sx={{ border: "1px solid #d8e3e8", borderRadius: 1.5, backgroundColor: "#f8fbfc", p: 1.2, mb: 1.2 }}>
                 <Stack
                   direction={{ xs: "column", md: "row" }}
@@ -819,6 +821,7 @@ function AdminDashboard({ onLockout }) {
                   </Button>
                 </Stack>
               </Box>
+              )}
 
               {activeTable === "runtime_config" ? (
                 <Box sx={{ border: "1px solid #d8e3e8", borderRadius: 1.5, backgroundColor: "#f8fbfc", p: 1.2, mb: 1.2 }}>
@@ -1293,7 +1296,7 @@ function AdminDashboard({ onLockout }) {
                               setSelectedRow(row);
                               setRowEditMode(false);
                             }}
-                            sx={{ cursor: "pointer" }}
+                            sx={{ cursor: "pointer", "&:hover": { backgroundColor: "#f0f7ff" } }}
                           >
                             {columns.map((key) => (
                               <TableCell
@@ -1328,8 +1331,18 @@ function AdminDashboard({ onLockout }) {
                         ))}
                         {!sortedRows.length ? (
                           <TableRow>
-                            <TableCell colSpan={colCount} sx={{ py: 1.2 }}>
-                              <Typography color="text.secondary">{t("admin.empty")}</Typography>
+                            <TableCell colSpan={colCount} sx={{ py: 4 }}>
+                              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, color: "text.secondary" }}>
+                                <InboxOutlinedIcon sx={{ fontSize: 40, opacity: 0.4 }} />
+                                <Typography variant="body2" color="text.secondary">
+                                  {loading ? t("common.loading") : t("admin.empty")}
+                                </Typography>
+                                {!loading && (
+                                  <Typography variant="caption" color="text.secondary">
+                                    尝试调整过滤条件或点击刷新
+                                  </Typography>
+                                )}
+                              </Box>
                             </TableCell>
                           </TableRow>
                         ) : null}

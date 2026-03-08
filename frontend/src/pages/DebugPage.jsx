@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Alert,
@@ -8,6 +8,7 @@ import {
   CardContent,
   Chip,
   Container,
+  IconButton,
   MenuItem,
   Stack,
   Table,
@@ -17,12 +18,15 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import BugReportOutlinedIcon from "@mui/icons-material/BugReportOutlined";
 import SpeedOutlinedIcon from "@mui/icons-material/SpeedOutlined";
 import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
 import StorageOutlinedIcon from "@mui/icons-material/StorageOutlined";
+import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
+import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
 import {
   getDebugRoutingMetrics,
   resetDebugRoutingMetrics,
@@ -189,7 +193,7 @@ function StatusBarChart({ statusCounts }) {
 
 // ─── Sections ─────────────────────────────────────────────────────────────────
 
-function MetricsSection() {
+function MetricsSection({ refreshTick }) {
   const [metrics, setMetrics] = useState(null);
   const [status, setStatus] = useState({ type: "info", text: "" });
   const [loading, setLoading] = useState(false);
@@ -216,7 +220,8 @@ function MetricsSection() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (refreshTick > 0) load(); }, [refreshTick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const total = metrics ? (Number(metrics.fast_route || 0) + Number(metrics.llm_route || 0)) : 0;
   const fastPct = total ? ((Number(metrics.fast_route || 0) / total) * 100).toFixed(1) : "-";
@@ -257,7 +262,7 @@ function MetricsSection() {
   );
 }
 
-function ObservabilitySection() {
+function ObservabilitySection({ refreshTick }) {
   const [traceIdQuery, setTraceIdQuery] = useState("");
   const [traceScope, setTraceScope] = useState("public");
   const [observability, setObservability] = useState({ summary: {}, recent_traces: [], recent_spans: [], slow_spans: [], trace_timeline: [] });
@@ -330,6 +335,7 @@ function ObservabilitySection() {
 
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [traceScope]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (refreshTick > 0) load(); }, [refreshTick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Box>
@@ -502,7 +508,14 @@ const LOG_SOURCES = [
   { value: "scheduler", label: "scheduler.log" },
 ];
 
-function LogsSection() {
+function getLogLineBg(line) {
+  if (line.includes("[ERROR]") || line.includes("[CRITICAL]")) return "rgba(220,38,38,0.18)";
+  if (line.includes("[WARNING]")) return "rgba(234,179,8,0.18)";
+  if (line.includes("[DEBUG]")) return "rgba(255,255,255,0.03)";
+  return "transparent";
+}
+
+function LogsSection({ refreshTick }) {
   const [level, setLevel] = useState("ALL");
   const [source, setSource] = useState("app");
   const [limit, setLimit] = useState("200");
@@ -510,6 +523,7 @@ function LogsSection() {
   const [total, setTotal] = useState(0);
   const [status, setStatus] = useState({ type: "info", text: "" });
   const [loading, setLoading] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -525,7 +539,18 @@ function LogsSection() {
     }
   }
 
+  async function copyAllLogs() {
+    try {
+      await navigator.clipboard.writeText(lines.join("\n"));
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch {
+      setStatus({ type: "error", text: "复制失败" });
+    }
+  }
+
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (refreshTick > 0) load(); }, [refreshTick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Box>
@@ -534,7 +559,16 @@ function LogsSection() {
           <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>日志查看器</Typography>
           {total > 0 && <Chip size="small" label={`共 ${total} 条`} />}
         </Stack>
-        <Button size="small" variant="contained" onClick={load} disabled={loading}>{loading ? "加载中..." : "刷新"}</Button>
+        <Stack direction="row" spacing={0.8} alignItems="center">
+          <Tooltip title={copySuccess ? "已复制！" : "复制全部日志"}>
+            <span>
+              <IconButton size="small" onClick={copyAllLogs} disabled={!lines.length}>
+                <ContentCopyOutlinedIcon fontSize="small" sx={{ color: copySuccess ? "#22c55e" : "inherit" }} />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <Button size="small" variant="contained" onClick={load} disabled={loading}>{loading ? "加载中..." : "刷新"}</Button>
+        </Stack>
       </Stack>
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 1 }}>
         <TextField select size="small" label="日志级别" value={level} onChange={(e) => setLevel(e.target.value)} sx={{ minWidth: 130 }}>
@@ -569,9 +603,10 @@ function LogsSection() {
               key={`log-${idx}`}
               sx={{
                 px: 0.5, py: 0.15, borderRadius: 0.5,
-                color: line.includes("[ERROR]") ? "#fca5a5" : line.includes("[WARNING]") ? "#fde68a" : "#94a3b8",
+                backgroundColor: getLogLineBg(line),
+                color: line.includes("[ERROR]") || line.includes("[CRITICAL]") ? "#fca5a5" : line.includes("[WARNING]") ? "#fde68a" : "#94a3b8",
                 whiteSpace: "pre-wrap", wordBreak: "break-all", lineHeight: 1.55,
-                "&:hover": { backgroundColor: "rgba(255,255,255,0.04)" },
+                "&:hover": { backgroundColor: "rgba(255,255,255,0.06)" },
               }}
             >
               {line}
@@ -593,6 +628,18 @@ function DebugDashboard({ onLockout }) {
   const navigate = useNavigate();
   const activeSection = NAV_SECTIONS.some((s) => s.key === section) ? section : "metrics";
   function setActiveSection(key) { navigate(`/debug/${key}`); }
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
+  const autoRefreshRef = useRef(null);
+
+  useEffect(() => {
+    if (autoRefresh) {
+      autoRefreshRef.current = setInterval(() => setRefreshTick((n) => n + 1), 15000);
+    } else {
+      clearInterval(autoRefreshRef.current);
+    }
+    return () => clearInterval(autoRefreshRef.current);
+  }, [autoRefresh]);
 
   return (
     <Box
@@ -618,6 +665,25 @@ function DebugDashboard({ onLockout }) {
                 <Typography variant="caption" color="text.secondary" sx={{ mt: 0.2, display: "block" }}>
                   指标 · 可观测性 · 日志
                 </Typography>
+                <Box sx={{ mt: 1.2 }}>
+                  <Button
+                    size="small"
+                    fullWidth
+                    variant={autoRefresh ? "contained" : "outlined"}
+                    color={autoRefresh ? "success" : "inherit"}
+                    startIcon={
+                      <Stack direction="row" alignItems="center" spacing={0.5}>
+                        <RefreshOutlinedIcon fontSize="small" />
+                        {autoRefresh && (
+                          <Box sx={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: "#fff", animation: "pulse 1.5s ease-in-out infinite", "@keyframes pulse": { "0%,100%": { opacity: 1 }, "50%": { opacity: 0.3 } } }} />
+                        )}
+                      </Stack>
+                    }
+                    onClick={() => setAutoRefresh((v) => !v)}
+                  >
+                    自动刷新
+                  </Button>
+                </Box>
               </CardContent>
             </Card>
 
@@ -640,9 +706,9 @@ function DebugDashboard({ onLockout }) {
           {/* Main content */}
           <Card sx={{ borderRadius: 1.5 }}>
             <CardContent>
-              {activeSection === "metrics" && <MetricsSection />}
-              {activeSection === "observability" && <ObservabilitySection />}
-              {activeSection === "logs" && <LogsSection />}
+              {activeSection === "metrics" && <MetricsSection refreshTick={refreshTick} />}
+              {activeSection === "observability" && <ObservabilitySection refreshTick={refreshTick} />}
+              {activeSection === "logs" && <LogsSection refreshTick={refreshTick} />}
             </CardContent>
           </Card>
         </Box>
