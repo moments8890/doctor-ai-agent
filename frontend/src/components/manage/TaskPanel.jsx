@@ -134,11 +134,6 @@ function TaskCard({ task, onComplete, onCancel, onPostpone }) {
             <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
               {task.title}
             </Typography>
-            {task.trigger_reason ? (
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.2 }}>
-                {t("manage.tasks.triggerReason")}：{task.trigger_reason}
-              </Typography>
-            ) : null}
             {task.due_at ? (
               <Typography
                 variant="caption"

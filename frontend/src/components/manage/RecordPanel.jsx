@@ -43,7 +43,7 @@ function getTimelineRows(event) {
   const payload = event.payload || {};
   const base = [{ key: "timestamp", value: event.timestamp || "-" }];
   const recordFields = ["content", "tags"];
-  const taskFields = ["task_type", "title", "status", "due_at", "trigger_source", "trigger_reason"];
+  const taskFields = ["task_type", "title", "status", "due_at"];
   const fields =
     event.type === "record" ? recordFields : event.type === "task" ? taskFields : Object.keys(payload || {});
   const payloadRows = fields.map((field) => ({

@@ -96,7 +96,6 @@
         "overdue": "已逾期",
         "overdueAlert": "有 {count} 项任务已逾期，请尽快处理。",
         "pendingAlert": "共 {count} 项待处理任务。",
-        "triggerReason": "触发原因",
         "filters": {
           "status": "状态筛选"
         },
@@ -209,9 +208,7 @@
           "task_type": "任务类型",
           "title": "任务标题",
           "status": "任务状态",
-          "due_at": "到期时间",
-          "trigger_source": "触发来源",
-          "trigger_reason": "触发原因"
+          "due_at": "到期时间"
         }
       },
       "recordType": {
@@ -339,8 +336,6 @@
         "status": "状态",
         "due_at": "到期时间",
         "record_id": "病历ID",
-        "trigger_source": "触发来源",
-        "trigger_reason": "触发原因",
         "encounter_type": "就诊类型",
         "label_id": "标签ID",
         "label_name": "标签名",

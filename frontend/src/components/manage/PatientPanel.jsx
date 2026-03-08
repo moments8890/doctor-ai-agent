@@ -137,8 +137,7 @@ function PatientCard({ p, labels, doctorId, onViewRecords, onToggleLabel }) {
           {expanded ? (
             <Box sx={{ mt: 0.35 }}>
               <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                risk_score={p.risk_score ?? "-"} | risk_rules={p.risk_rules_version || "-"} | risk_at=
-                {p.risk_computed_at || "-"}
+                risk_score={p.risk_score ?? "-"}
               </Typography>
               <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
                 {t("manage.patient.createdAt")}：{p.created_at || "-"}
