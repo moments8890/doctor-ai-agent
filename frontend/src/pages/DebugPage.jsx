@@ -8,15 +8,21 @@ import {
   CardContent,
   Chip,
   Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   IconButton,
   MenuItem,
   Stack,
+  Tab,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
+  Tabs,
   TextField,
   Tooltip,
   Typography,
@@ -27,6 +33,7 @@ import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
 import StorageOutlinedIcon from "@mui/icons-material/StorageOutlined";
 import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
 import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
+import ClearOutlinedIcon from "@mui/icons-material/ClearOutlined";
 import {
   getDebugRoutingMetrics,
   resetDebugRoutingMetrics,
@@ -197,6 +204,7 @@ function MetricsSection({ refreshTick }) {
   const [metrics, setMetrics] = useState(null);
   const [status, setStatus] = useState({ type: "info", text: "" });
   const [loading, setLoading] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -211,6 +219,7 @@ function MetricsSection({ refreshTick }) {
   }
 
   async function handleReset() {
+    setConfirmReset(false);
     try {
       await resetDebugRoutingMetrics();
       await load();
@@ -232,9 +241,17 @@ function MetricsSection({ refreshTick }) {
         <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>路由指标</Typography>
         <Stack direction="row" spacing={0.8}>
           <Button size="small" variant="outlined" onClick={load} disabled={loading}>{loading ? "加载中..." : "刷新"}</Button>
-          <Button size="small" variant="outlined" color="error" onClick={handleReset} disabled={loading}>重置</Button>
+          <Button size="small" variant="outlined" color="error" onClick={() => setConfirmReset(true)} disabled={loading}>重置</Button>
         </Stack>
       </Stack>
+      <Dialog open={confirmReset} onClose={() => setConfirmReset(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>确认重置指标？</DialogTitle>
+        <DialogContent><Typography variant="body2">这将清除内存中的路由计数器，不可恢复。</Typography></DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmReset(false)}>取消</Button>
+          <Button color="error" variant="contained" onClick={handleReset}>确认重置</Button>
+        </DialogActions>
+      </Dialog>
       {!!status.text && <Alert severity={status.type} sx={{ mb: 1.5 }}>{status.text}</Alert>}
       {metrics ? (
         <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, minmax(0,1fr))" } }}>
@@ -265,6 +282,7 @@ function MetricsSection({ refreshTick }) {
 function ObservabilitySection({ refreshTick }) {
   const [traceIdQuery, setTraceIdQuery] = useState("");
   const [traceScope, setTraceScope] = useState("public");
+  const [obsTab, setObsTab] = useState(0);
   const [observability, setObservability] = useState({ summary: {}, recent_traces: [], recent_spans: [], slow_spans: [], trace_timeline: [] });
   const [status, setStatus] = useState({ type: "info", text: "" });
   const [loading, setLoading] = useState(false);
@@ -354,7 +372,21 @@ function ObservabilitySection({ refreshTick }) {
         <ScopeButton active={traceScope === "all"} onClick={() => setTraceScope("all")}>{t("admin.obs.scopeAll")}</ScopeButton>
       </Stack>
       <Stack direction="row" spacing={1} sx={{ mb: 1.2 }}>
-        <TextField size="small" fullWidth label={t("admin.obs.traceId")} value={traceIdQuery} onChange={(e) => setTraceIdQuery(e.target.value)} />
+        <TextField
+          size="small"
+          fullWidth
+          label={t("admin.obs.traceId")}
+          value={traceIdQuery}
+          onChange={(e) => setTraceIdQuery(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") load(); }}
+          InputProps={{
+            endAdornment: traceIdQuery ? (
+              <IconButton size="small" onClick={() => { setTraceIdQuery(""); load(""); }}>
+                <ClearOutlinedIcon fontSize="small" />
+              </IconButton>
+            ) : null,
+          }}
+        />
         <Button variant="outlined" size="small" onClick={() => load()}>{t("admin.obs.filter")}</Button>
       </Stack>
       <Box sx={{ border: "1px solid #d8e3e8", borderRadius: 1, backgroundColor: "#fff", p: 1, mb: 1 }}>
@@ -379,123 +411,133 @@ function ObservabilitySection({ refreshTick }) {
         <PerPathBarChart perPath={observability.summary.per_path || {}} />
         <StatusBarChart statusCounts={observability.summary.status_counts || {}} />
       </Box>
-      <Box sx={{ border: "1px solid #d8e3e8", borderRadius: 1, backgroundColor: "#fff", p: 1, mb: 1 }}>
-        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.8 }}>{t("admin.obs.publicQuickTitle")}</Typography>
-        <Box sx={{ display: "grid", gap: 0.8, gridTemplateColumns: { xs: "repeat(2, minmax(0,1fr))", md: "repeat(6, minmax(0,1fr))" }, mb: 0.9 }}>
-          {[
-            { label: t("admin.obs.count"), value: chatQuickStats.count },
-            { label: t("admin.obs.avg"), value: formatMs(chatQuickStats.avg) },
-            { label: "P50", value: formatMs(chatQuickStats.p50) },
-            { label: t("admin.obs.p95"), value: formatMs(chatQuickStats.p95) },
-            { label: t("admin.obs.p99"), value: formatMs(chatQuickStats.p99) },
-            { label: t("admin.obs.max"), value: formatMs(chatQuickStats.max) },
-          ].map((item) => (
-            <Box key={item.label} sx={{ p: 0.8, borderRadius: 1, backgroundColor: "#eef4f6" }}>
-              <Typography variant="caption" color="text.secondary">{item.label}</Typography>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{item.value}</Typography>
-            </Box>
-          ))}
-        </Box>
-        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>{t("admin.obs.publicSlowSpansTitle")}</Typography>
-        <TableContainer sx={{ border: "1px solid #d8e3e8", borderRadius: 1, backgroundColor: "#fff", maxHeight: 180 }}>
-          <Table size="small" stickyHeader>
-            <TableHead><TableRow>{["layer", "name", "latency_ms", "trace_id"].map((key) => <TableCell key={`qh-${key}`} sx={{ backgroundColor: "#eef4f6", py: 0.45, fontSize: 11, fontWeight: 700 }}>{t(`admin.cols.${key}`)}</TableCell>)}</TableRow></TableHead>
-            <TableBody>
-              {chatSlowSpans.map((row, idx) => (
-                <TableRow key={`qr-${row.span_id || idx}`} hover>
-                  <TableCell sx={{ py: 0.35, fontSize: 11 }}>{toCell(row.layer)}</TableCell>
-                  <TableCell sx={{ py: 0.35, fontSize: 11 }}>{toCell(row.name)}</TableCell>
-                  <TableCell sx={{ py: 0.35, fontSize: 11 }}>{formatMs(row.latency_ms)}</TableCell>
-                  <TableCell sx={{ py: 0.35, fontSize: 11, fontFamily: "ui-monospace,monospace", maxWidth: 130, wordBreak: "break-all" }}>{toCell(row.trace_id)}</TableCell>
-                </TableRow>
-              ))}
-              {!chatSlowSpans.length ? <TableRow><TableCell colSpan={4} sx={{ py: 0.9 }}><Typography color="text.secondary" variant="body2">{t("admin.obs.publicHint")}</Typography></TableCell></TableRow> : null}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Box>
-      <Box sx={{ border: "1px solid #d8e3e8", borderRadius: 1, backgroundColor: "#fff", p: 1, mb: 1 }}>
-        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.8 }}>{t("admin.obs.recentTracesTitle")}</Typography>
-        <TableContainer sx={{ border: "1px solid #d8e3e8", borderRadius: 1, backgroundColor: "#fff", maxHeight: 220 }}>
-          <Table size="small" stickyHeader>
-            <TableHead><TableRow>{["started_at", "trace_id", "method", "path", "status_code", "latency_ms"].map((key) => <TableCell key={`oh-${key}`} sx={{ backgroundColor: "#eef4f6", py: 0.55, fontSize: 11, fontWeight: 700 }}>{t(`admin.cols.${key}`)}</TableCell>)}</TableRow></TableHead>
-            <TableBody>
-              {(observability.recent_traces || []).map((row, idx) => (
-                <TableRow key={`or-${row.trace_id || idx}`} hover>
-                  <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.started_at)}</TableCell>
-                  <TableCell sx={{ py: 0.4, fontSize: 11, fontFamily: "ui-monospace,monospace" }}>
-                    <Button size="small" variant="text" sx={{ textTransform: "none", p: 0, minWidth: 0 }} onClick={() => inspectTrace(row.trace_id)}>{toCell(row.trace_id)}</Button>
-                  </TableCell>
-                  <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.method)}</TableCell>
-                  <TableCell sx={{ py: 0.4, fontSize: 11, maxWidth: 260, wordBreak: "break-all" }}>{toCell(row.path)}</TableCell>
-                  <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.status_code)}</TableCell>
-                  <TableCell sx={{ py: 0.4, fontSize: 11 }}>{formatMs(row.latency_ms)}</TableCell>
-                </TableRow>
-              ))}
-              {!(observability.recent_traces || []).length ? <TableRow><TableCell colSpan={6} sx={{ py: 0.9 }}><Typography color="text.secondary" variant="body2">{t("admin.obs.empty")}</Typography></TableCell></TableRow> : null}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Box>
-      <Box sx={{ border: "1px solid #d8e3e8", borderRadius: 1, backgroundColor: "#fff", p: 1, mb: 1 }}>
-        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.8 }}>{t("admin.obs.slowSpansTitle")}</Typography>
-        <TableContainer sx={{ border: "1px solid #d8e3e8", borderRadius: 1, backgroundColor: "#fff", maxHeight: 320 }}>
-          <Table size="small" stickyHeader>
-            <TableHead><TableRow>{["layer", "name", "latency_ms", "status", "trace_id"].map((key) => <TableCell key={`sh-${key}`} sx={{ backgroundColor: "#eef4f6", py: 0.55, fontSize: 11, fontWeight: 700 }}>{t(`admin.cols.${key}`)}</TableCell>)}</TableRow></TableHead>
-            <TableBody>
-              {(observability.slow_spans || []).map((row, idx) => (
-                <TableRow key={`sr-${row.span_id || idx}`} hover>
-                  <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.layer)}</TableCell>
-                  <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.name)}</TableCell>
-                  <TableCell sx={{ py: 0.4, fontSize: 11 }}>{formatMs(row.latency_ms)}</TableCell>
-                  <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.status)}</TableCell>
-                  <TableCell sx={{ py: 0.4, fontSize: 11, fontFamily: "ui-monospace,monospace", maxWidth: 140, wordBreak: "break-all" }}>
-                    <Button size="small" variant="text" sx={{ textTransform: "none", p: 0, minWidth: 0 }} onClick={() => inspectTrace(row.trace_id)}>{toCell(row.trace_id)}</Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {!(observability.slow_spans || []).length ? <TableRow><TableCell colSpan={5} sx={{ py: 0.9 }}><Typography color="text.secondary" variant="body2">{t("admin.obs.empty")}</Typography></TableCell></TableRow> : null}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Box>
-      <Box sx={{ border: "1px solid #d8e3e8", borderRadius: 1, backgroundColor: "#fff", p: 1 }}>
-        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.8 }}>{t("admin.obs.timelineTitle")}</Typography>
-        {!!(observability.trace_timeline || []).length && (
-          <TableContainer sx={{ border: "1px solid #d8e3e8", borderRadius: 1, backgroundColor: "#fff", maxHeight: 210, mb: 0.8 }}>
-            <Table size="small" stickyHeader>
-              <TableHead><TableRow>{["layer", "name", "latency_ms", "count"].map((key) => <TableCell key={`hh-${key}`} sx={{ backgroundColor: "#eef4f6", py: 0.45, fontSize: 11, fontWeight: 700 }}>{t(`admin.cols.${key}`)}</TableCell>)}</TableRow></TableHead>
-              <TableBody>
-                {traceHotspots.map((row, idx) => (
-                  <TableRow key={`hr-${idx}`} hover>
-                    <TableCell sx={{ py: 0.35, fontSize: 11 }}>{toCell(row.layer)}</TableCell>
-                    <TableCell sx={{ py: 0.35, fontSize: 11 }}>{toCell(row.name)}</TableCell>
-                    <TableCell sx={{ py: 0.35, fontSize: 11 }}>{formatMs(row.total)}</TableCell>
-                    <TableCell sx={{ py: 0.35, fontSize: 11 }}>{toCell(row.count)}</TableCell>
-                  </TableRow>
+      <Box sx={{ border: "1px solid #d8e3e8", borderRadius: 1, backgroundColor: "#fff" }}>
+        <Tabs value={obsTab} onChange={(_, v) => setObsTab(v)} variant="scrollable" scrollButtons="auto" sx={{ borderBottom: "1px solid #d8e3e8", minHeight: 36, "& .MuiTab-root": { fontSize: 12, minHeight: 36, py: 0.8 } }}>
+          <Tab label="Chat 性能" />
+          <Tab label="近期请求" />
+          <Tab label="慢 Span" />
+          <Tab label="热点" />
+          <Tab label="Timeline" />
+        </Tabs>
+        <Box sx={{ p: 1 }}>
+          {obsTab === 0 && (
+            <Box>
+              <Box sx={{ display: "grid", gap: 0.8, gridTemplateColumns: { xs: "repeat(2, minmax(0,1fr))", md: "repeat(6, minmax(0,1fr))" }, mb: 1 }}>
+                {[
+                  { label: t("admin.obs.count"), value: chatQuickStats.count },
+                  { label: t("admin.obs.avg"), value: formatMs(chatQuickStats.avg) },
+                  { label: "P50", value: formatMs(chatQuickStats.p50) },
+                  { label: t("admin.obs.p95"), value: formatMs(chatQuickStats.p95) },
+                  { label: t("admin.obs.p99"), value: formatMs(chatQuickStats.p99) },
+                  { label: t("admin.obs.max"), value: formatMs(chatQuickStats.max) },
+                ].map((item) => (
+                  <Box key={item.label} sx={{ p: 0.8, borderRadius: 1, backgroundColor: "#eef4f6" }}>
+                    <Typography variant="caption" color="text.secondary">{item.label}</Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{item.value}</Typography>
+                  </Box>
                 ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
-        <TableContainer sx={{ border: "1px solid #d8e3e8", borderRadius: 1, backgroundColor: "#fff", maxHeight: 460 }}>
-          <Table size="small" stickyHeader>
-            <TableHead><TableRow>{["started_at", "layer", "name", "latency_ms", "status", "parent_span_id"].map((key) => <TableCell key={`th-${key}`} sx={{ backgroundColor: "#eef4f6", py: 0.55, fontSize: 11, fontWeight: 700 }}>{t(`admin.cols.${key}`)}</TableCell>)}</TableRow></TableHead>
-            <TableBody>
-              {(observability.trace_timeline || []).map((row, idx) => (
-                <TableRow key={`tr-${row.span_id || idx}`} hover>
-                  <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.started_at)}</TableCell>
-                  <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.layer)}</TableCell>
-                  <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.name)}</TableCell>
-                  <TableCell sx={{ py: 0.4, fontSize: 11 }}>{formatMs(row.latency_ms)}</TableCell>
-                  <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.status)}</TableCell>
-                  <TableCell sx={{ py: 0.4, fontSize: 11, fontFamily: "ui-monospace,monospace", maxWidth: 120, wordBreak: "break-all" }}>{toCell(row.parent_span_id)}</TableCell>
-                </TableRow>
-              ))}
-              {!(observability.trace_timeline || []).length ? <TableRow><TableCell colSpan={6} sx={{ py: 0.9 }}><Typography color="text.secondary" variant="body2">{t("admin.obs.timelineHint")}</Typography></TableCell></TableRow> : null}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </Box>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>{t("admin.obs.publicSlowSpansTitle")}</Typography>
+              <TableContainer sx={{ border: "1px solid #d8e3e8", borderRadius: 1, backgroundColor: "#fff", maxHeight: 220 }}>
+                <Table size="small" stickyHeader>
+                  <TableHead><TableRow>{["layer", "name", "latency_ms", "trace_id"].map((key) => <TableCell key={`qh-${key}`} sx={{ backgroundColor: "#eef4f6", py: 0.45, fontSize: 11, fontWeight: 700 }}>{t(`admin.cols.${key}`)}</TableCell>)}</TableRow></TableHead>
+                  <TableBody>
+                    {chatSlowSpans.map((row, idx) => (
+                      <TableRow key={`qr-${row.span_id || idx}`} hover>
+                        <TableCell sx={{ py: 0.35, fontSize: 11 }}>{toCell(row.layer)}</TableCell>
+                        <TableCell sx={{ py: 0.35, fontSize: 11 }}>{toCell(row.name)}</TableCell>
+                        <TableCell sx={{ py: 0.35, fontSize: 11 }}>{formatMs(row.latency_ms)}</TableCell>
+                        <TableCell sx={{ py: 0.35, fontSize: 11, fontFamily: "ui-monospace,monospace", maxWidth: 130, wordBreak: "break-all" }}>{toCell(row.trace_id)}</TableCell>
+                      </TableRow>
+                    ))}
+                    {!chatSlowSpans.length ? <TableRow><TableCell colSpan={4} sx={{ py: 0.9 }}><Typography color="text.secondary" variant="body2">{t("admin.obs.publicHint")}</Typography></TableCell></TableRow> : null}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+          )}
+          {obsTab === 1 && (
+            <TableContainer sx={{ border: "1px solid #d8e3e8", borderRadius: 1, backgroundColor: "#fff", maxHeight: 400 }}>
+              <Table size="small" stickyHeader>
+                <TableHead><TableRow>{["started_at", "trace_id", "method", "path", "status_code", "latency_ms"].map((key) => <TableCell key={`oh-${key}`} sx={{ backgroundColor: "#eef4f6", py: 0.55, fontSize: 11, fontWeight: 700 }}>{t(`admin.cols.${key}`)}</TableCell>)}</TableRow></TableHead>
+                <TableBody>
+                  {(observability.recent_traces || []).map((row, idx) => (
+                    <TableRow key={`or-${row.trace_id || idx}`} hover>
+                      <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.started_at)}</TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: 11, fontFamily: "ui-monospace,monospace" }}>
+                        <Button size="small" variant="text" sx={{ textTransform: "none", p: 0, minWidth: 0 }} onClick={() => { inspectTrace(row.trace_id); setObsTab(4); }}>{toCell(row.trace_id)}</Button>
+                      </TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.method)}</TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: 11, maxWidth: 260, wordBreak: "break-all" }}>{toCell(row.path)}</TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.status_code)}</TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: 11 }}>{formatMs(row.latency_ms)}</TableCell>
+                    </TableRow>
+                  ))}
+                  {!(observability.recent_traces || []).length ? <TableRow><TableCell colSpan={6} sx={{ py: 0.9 }}><Typography color="text.secondary" variant="body2">{t("admin.obs.empty")}</Typography></TableCell></TableRow> : null}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+          {obsTab === 2 && (
+            <TableContainer sx={{ border: "1px solid #d8e3e8", borderRadius: 1, backgroundColor: "#fff", maxHeight: 400 }}>
+              <Table size="small" stickyHeader>
+                <TableHead><TableRow>{["layer", "name", "latency_ms", "status", "trace_id"].map((key) => <TableCell key={`sh-${key}`} sx={{ backgroundColor: "#eef4f6", py: 0.55, fontSize: 11, fontWeight: 700 }}>{t(`admin.cols.${key}`)}</TableCell>)}</TableRow></TableHead>
+                <TableBody>
+                  {(observability.slow_spans || []).map((row, idx) => (
+                    <TableRow key={`sr-${row.span_id || idx}`} hover>
+                      <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.layer)}</TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.name)}</TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: 11 }}>{formatMs(row.latency_ms)}</TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.status)}</TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: 11, fontFamily: "ui-monospace,monospace", maxWidth: 140, wordBreak: "break-all" }}>
+                        <Button size="small" variant="text" sx={{ textTransform: "none", p: 0, minWidth: 0 }} onClick={() => { inspectTrace(row.trace_id); setObsTab(4); }}>{toCell(row.trace_id)}</Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {!(observability.slow_spans || []).length ? <TableRow><TableCell colSpan={5} sx={{ py: 0.9 }}><Typography color="text.secondary" variant="body2">{t("admin.obs.empty")}</Typography></TableCell></TableRow> : null}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+          {obsTab === 3 && (
+            <TableContainer sx={{ border: "1px solid #d8e3e8", borderRadius: 1, backgroundColor: "#fff", maxHeight: 400 }}>
+              <Table size="small" stickyHeader>
+                <TableHead><TableRow>{["layer", "name", "latency_ms", "count"].map((key) => <TableCell key={`hh-${key}`} sx={{ backgroundColor: "#eef4f6", py: 0.45, fontSize: 11, fontWeight: 700 }}>{t(`admin.cols.${key}`)}</TableCell>)}</TableRow></TableHead>
+                <TableBody>
+                  {traceHotspots.map((row, idx) => (
+                    <TableRow key={`hr-${idx}`} hover>
+                      <TableCell sx={{ py: 0.35, fontSize: 11 }}>{toCell(row.layer)}</TableCell>
+                      <TableCell sx={{ py: 0.35, fontSize: 11 }}>{toCell(row.name)}</TableCell>
+                      <TableCell sx={{ py: 0.35, fontSize: 11 }}>{formatMs(row.total)}</TableCell>
+                      <TableCell sx={{ py: 0.35, fontSize: 11 }}>{toCell(row.count)}</TableCell>
+                    </TableRow>
+                  ))}
+                  {!traceHotspots.length ? <TableRow><TableCell colSpan={4} sx={{ py: 0.9 }}><Typography color="text.secondary" variant="body2">{t("admin.obs.empty")}</Typography></TableCell></TableRow> : null}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+          {obsTab === 4 && (
+            <TableContainer sx={{ border: "1px solid #d8e3e8", borderRadius: 1, backgroundColor: "#fff", maxHeight: 460 }}>
+              <Table size="small" stickyHeader>
+                <TableHead><TableRow>{["started_at", "layer", "name", "latency_ms", "status", "parent_span_id"].map((key) => <TableCell key={`th-${key}`} sx={{ backgroundColor: "#eef4f6", py: 0.55, fontSize: 11, fontWeight: 700 }}>{t(`admin.cols.${key}`)}</TableCell>)}</TableRow></TableHead>
+                <TableBody>
+                  {(observability.trace_timeline || []).map((row, idx) => (
+                    <TableRow key={`tr-${row.span_id || idx}`} hover>
+                      <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.started_at)}</TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.layer)}</TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.name)}</TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: 11 }}>{formatMs(row.latency_ms)}</TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.status)}</TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: 11, fontFamily: "ui-monospace,monospace", maxWidth: 120, wordBreak: "break-all" }}>{toCell(row.parent_span_id)}</TableCell>
+                    </TableRow>
+                  ))}
+                  {!(observability.trace_timeline || []).length ? <TableRow><TableCell colSpan={6} sx={{ py: 0.9 }}><Typography color="text.secondary" variant="body2">{t("admin.obs.timelineHint")}</Typography></TableCell></TableRow> : null}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </Box>
       </Box>
     </Box>
   );
@@ -519,6 +561,7 @@ function LogsSection({ refreshTick }) {
   const [level, setLevel] = useState("ALL");
   const [source, setSource] = useState("app");
   const [limit, setLimit] = useState("200");
+  const [keyword, setKeyword] = useState("");
   const [lines, setLines] = useState([]);
   const [total, setTotal] = useState(0);
   const [status, setStatus] = useState({ type: "info", text: "" });
@@ -541,7 +584,8 @@ function LogsSection({ refreshTick }) {
 
   async function copyAllLogs() {
     try {
-      await navigator.clipboard.writeText(lines.join("\n"));
+      const filtered = keyword ? lines.filter((l) => l.toLowerCase().includes(keyword.toLowerCase())) : lines;
+      await navigator.clipboard.writeText(filtered.join("\n"));
       setCopySuccess(true);
       setTimeout(() => setCopySuccess(false), 2000);
     } catch {
@@ -550,7 +594,27 @@ function LogsSection({ refreshTick }) {
   }
 
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, [level, source]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (refreshTick > 0) load(); }, [refreshTick]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const displayLines = keyword ? lines.filter((l) => l.toLowerCase().includes(keyword.toLowerCase())) : lines;
+
+  function renderLine(line, idx) {
+    if (!keyword) return line;
+    const lower = line.toLowerCase();
+    const kw = keyword.toLowerCase();
+    const parts = [];
+    let last = 0;
+    let pos = lower.indexOf(kw, last);
+    while (pos !== -1) {
+      if (pos > last) parts.push(<span key={`t-${idx}-${last}`}>{line.slice(last, pos)}</span>);
+      parts.push(<mark key={`m-${idx}-${pos}`} style={{ backgroundColor: "#fde68a", color: "#0f172a", borderRadius: 2 }}>{line.slice(pos, pos + keyword.length)}</mark>);
+      last = pos + keyword.length;
+      pos = lower.indexOf(kw, last);
+    }
+    if (last < line.length) parts.push(<span key={`t-${idx}-end`}>{line.slice(last)}</span>);
+    return parts;
+  }
 
   return (
     <Box>
@@ -558,11 +622,12 @@ function LogsSection({ refreshTick }) {
         <Stack direction="row" spacing={0.8} alignItems="center">
           <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>日志查看器</Typography>
           {total > 0 && <Chip size="small" label={`共 ${total} 条`} />}
+          {keyword && displayLines.length !== lines.length && <Chip size="small" color="warning" label={`筛选: ${displayLines.length} 条`} />}
         </Stack>
         <Stack direction="row" spacing={0.8} alignItems="center">
           <Tooltip title={copySuccess ? "已复制！" : "复制全部日志"}>
             <span>
-              <IconButton size="small" onClick={copyAllLogs} disabled={!lines.length}>
+              <IconButton size="small" onClick={copyAllLogs} disabled={!displayLines.length}>
                 <ContentCopyOutlinedIcon fontSize="small" sx={{ color: copySuccess ? "#22c55e" : "inherit" }} />
               </IconButton>
             </span>
@@ -578,7 +643,21 @@ function LogsSection({ refreshTick }) {
           {LOG_SOURCES.map((s) => <MenuItem key={s.value} value={s.value}>{s.label}</MenuItem>)}
         </TextField>
         <TextField size="small" label="最多显示行数" type="number" value={limit} onChange={(e) => setLimit(e.target.value)} sx={{ maxWidth: 130 }} inputProps={{ min: 1, max: 500 }} />
-        <Button size="small" variant="outlined" onClick={load} disabled={loading} sx={{ whiteSpace: "nowrap" }}>应用过滤</Button>
+        <TextField
+          size="small"
+          label="关键词搜索"
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
+          sx={{ flexGrow: 1, minWidth: 140 }}
+          InputProps={{
+            endAdornment: keyword ? (
+              <IconButton size="small" onClick={() => setKeyword("")}>
+                <ClearOutlinedIcon fontSize="small" />
+              </IconButton>
+            ) : null,
+          }}
+        />
+        <Button size="small" variant="outlined" onClick={load} disabled={loading} sx={{ whiteSpace: "nowrap" }}>重新加载</Button>
       </Stack>
       {!!status.text && <Alert severity={status.type} sx={{ mb: 1 }}>{status.text}</Alert>}
       <Box
@@ -587,18 +666,19 @@ function LogsSection({ refreshTick }) {
           borderRadius: 1,
           backgroundColor: "#0f172a",
           p: 1,
-          maxHeight: 560,
+          height: "calc(100vh - 340px)",
+          minHeight: 300,
           overflowY: "auto",
           fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace",
           fontSize: 11,
         }}
       >
-        {lines.length === 0 ? (
+        {displayLines.length === 0 ? (
           <Typography variant="body2" sx={{ color: "#94a3b8", p: 0.5 }}>
-            {loading ? "加载中..." : `暂无 ${level} 级别日志（来源：${source}）`}
+            {loading ? "加载中..." : keyword ? `无匹配 "${keyword}" 的日志` : `暂无 ${level} 级别日志（来源：${source}）`}
           </Typography>
         ) : (
-          lines.map((line, idx) => (
+          displayLines.map((line, idx) => (
             <Box
               key={`log-${idx}`}
               sx={{
@@ -609,13 +689,13 @@ function LogsSection({ refreshTick }) {
                 "&:hover": { backgroundColor: "rgba(255,255,255,0.06)" },
               }}
             >
-              {line}
+              {renderLine(line, idx)}
             </Box>
           ))
         )}
       </Box>
       <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
-        显示最新 {lines.length} 条 · 来源：logs/{source}.log
+        显示 {displayLines.length}{keyword ? `/${lines.length}` : ""} 条 · 来源：logs/{source}.log
       </Typography>
     </Box>
   );
@@ -740,7 +820,7 @@ export default function DebugPage() {
   function handleLockout() {
     localStorage.removeItem(DEBUG_TOKEN_KEY);
     setDebugToken("");
-    setAuthError("Token 不正确，请重新输入");
+    setAuthError("");
     setStatus("locked");
   }
 
