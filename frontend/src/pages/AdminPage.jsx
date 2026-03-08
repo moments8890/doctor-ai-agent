@@ -73,7 +73,8 @@ import { t } from "../i18n";
 const ADMIN_TOKEN_KEY = "adminToken";
 
 
-const TABLES = [
+const DATA_TABS = [
+  { key: "invite_codes", icon: <BadgeOutlinedIcon fontSize="small" /> },
   { key: "doctors", icon: <BadgeOutlinedIcon fontSize="small" /> },
   { key: "patients", icon: <PeopleOutlineOutlinedIcon fontSize="small" /> },
   { key: "medical_records", icon: <DescriptionOutlinedIcon fontSize="small" /> },
@@ -81,15 +82,17 @@ const TABLES = [
   { key: "neuro_cases", icon: <PsychologyAltOutlinedIcon fontSize="small" /> },
   { key: "patient_labels", icon: <LabelOutlinedIcon fontSize="small" /> },
   { key: "patient_label_assignments", icon: <LinkOutlinedIcon fontSize="small" /> },
-  { key: "system_prompts", icon: <TextSnippetOutlinedIcon fontSize="small" /> },
   { key: "doctor_contexts", icon: <AccountTreeOutlinedIcon fontSize="small" /> },
 ];
-const NAV_TABS = [
-  { key: "invite_codes", icon: <BadgeOutlinedIcon fontSize="small" /> },
-  ...TABLES,
+// Tables that have row counts in the sidebar
+const TABLES = DATA_TABS.filter((t) => t.key !== "invite_codes");
+
+const SYSTEM_TABS = [
+  { key: "system_prompts", icon: <TextSnippetOutlinedIcon fontSize="small" /> },
   { key: "runtime_config", icon: <TuneOutlinedIcon fontSize="small" /> },
   { key: "routing_keywords", icon: <TuneOutlinedIcon fontSize="small" /> },
 ];
+const NAV_TABS = [...DATA_TABS, ...SYSTEM_TABS];
 function NavTab({ active, onClick, icon, children }) {
   return (
     <Button
@@ -581,11 +584,31 @@ function AdminDashboard({ onLockout }) {
 
             <Card sx={{ borderRadius: 1.5 }}>
               <CardContent sx={{ p: 1.8 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-                  {t("admin.navTitle")}
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1, fontWeight: 700 }}>
+                  数据表
                 </Typography>
-                <Stack spacing={1}>
-                  {NAV_TABS.map((item) => (
+                <Stack spacing={0.8}>
+                  {DATA_TABS.map((item) => (
+                    <NavTab
+                      key={item.key}
+                      active={activeTable === item.key}
+                      icon={item.icon}
+                      onClick={() => setActiveTable(item.key)}
+                    >
+                      {t(`admin.tables.${item.key}`) || item.key}
+                    </NavTab>
+                  ))}
+                </Stack>
+              </CardContent>
+            </Card>
+
+            <Card sx={{ borderRadius: 1.5 }}>
+              <CardContent sx={{ p: 1.8 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1, fontWeight: 700 }}>
+                  系统配置
+                </Typography>
+                <Stack spacing={0.8}>
+                  {SYSTEM_TABS.map((item) => (
                     <NavTab
                       key={item.key}
                       active={activeTable === item.key}
