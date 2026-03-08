@@ -260,6 +260,11 @@ _CLINICAL_KW_TIER3: frozenset[str] = frozenset({
 _EXTRA_KW_TIER3: frozenset[str] = frozenset()
 _EXTRA_KW_PATH = "config/fast_router_keywords.json"
 
+# These are also populated by load_extra_keywords(); declared here so that the
+# module-level assignments in load_extra_keywords() don't get clobbered by
+# declarations that appear after the load call.
+_TIER3_BAD_NAME: frozenset[str] = frozenset()
+
 
 def _load_kw_section(data: dict, key: str) -> frozenset[str]:
     """Extract keywords from a section that is either a list or {keywords: [...]}."""
@@ -369,7 +374,6 @@ load_extra_keywords()
 _TIER3_NAME_RE = re.compile(
     r"^(?:患者|病人)?\s*([\u4e00-\u9fff]{2,3})[，,。：:\s男女\d]"
 )
-_TIER3_BAD_NAME: frozenset[str] = frozenset()
 
 
 _REMINDER_RE = re.compile(r"提醒|设.*\d+[点时:：]|设.*复查提醒")

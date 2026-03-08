@@ -19,6 +19,11 @@ The plan file must include:
 - **DB schema changes** — add to `db/models.py`; `create_tables()` handles creation automatically; document any manual cleanup/migration impact in the commit message and PR description
 - **LLM provider defaults** — local model is `qwen2.5:14b` via Ollama; prefer this in examples and defaults
 
+## Configuration
+- `config/runtime.json` is the **sole local configuration file** — never create or suggest `.env` / `.env.local` for the main application
+- `config/runtime.json` is gitignored; `config/runtime.json.sample` is the reference template
+- Scripts under `scripts/` may use `python-dotenv` standalone, but this does not affect the main app
+
 ## Codex Execution Rules
 
 - **Full permissions** — Codex has full permission to run commands needed to complete tasks.
