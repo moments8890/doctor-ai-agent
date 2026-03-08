@@ -353,6 +353,7 @@ export default function ManagePage() {
                 <PatientPanel
                   patients={patients}
                   labels={labels}
+                  doctorId={doctor}
                   riskFilter={riskFilter}
                   followUpFilter={followUpFilter}
                   tagFilter={tagFilter}

@@ -127,15 +127,13 @@ async def export_patient_pdf(
         )
         records = list(records_result.scalars().all())
 
-    if not records:
-        raise HTTPException(status_code=404, detail="No records found for this patient")
-
     # Audit: log the export action
     asyncio.create_task(audit(resolved_doctor_id, "EXPORT", resource_type="patient", resource_id=str(patient_id)))
 
     try:
         pdf_bytes = generate_records_pdf(
             records=records,
+            patient=patient,
             patient_name=patient.name,
         )
     except Exception as exc:

@@ -89,15 +89,42 @@ def _fmt_datetime(dt: Optional[datetime]) -> str:
 # PDF generation
 # ---------------------------------------------------------------------------
 
+_ENCOUNTER_LABEL = {
+    "first_visit": "首诊",
+    "follow_up": "随访",
+    "unknown": "",
+}
+
+_RISK_LABEL = {
+    "critical": "极高危",
+    "high": "高危",
+    "medium": "中危",
+    "low": "低危",
+}
+
+
+def _age_from_year(year_of_birth: Optional[int]) -> Optional[int]:
+    if not year_of_birth:
+        return None
+    return datetime.now().year - int(year_of_birth)
+
+
 def generate_records_pdf(
     records: list,
     patient_name: Optional[str] = None,
+    patient: object = None,
     clinic_name: Optional[str] = None,
     doctor_name: Optional[str] = None,
 ) -> bytes:
     """
     Generate a PDF containing one or more MedicalRecordDB rows.
 
+    Args:
+        records: list of MedicalRecordDB ORM objects
+        patient_name: fallback name string if patient object not given
+        patient: Patient ORM object for rich demographics block
+        clinic_name: overrides CLINIC_NAME env var
+        doctor_name: attending physician name
     Returns raw PDF bytes. Raises RuntimeError if fpdf2 is not installed.
     """
     try:
@@ -108,23 +135,38 @@ def generate_records_pdf(
     clinic = clinic_name or os.environ.get("CLINIC_NAME", "医疗机构")
     font_path = _resolve_font_path()
 
-    pdf = FPDF()
-    pdf.set_margins(left=20, top=20, right=20)
-    pdf.set_auto_page_break(auto=True, margin=20)
+    class _PDF(FPDF):
+        """FPDF subclass with per-page footer showing page numbers."""
+        _font_path = font_path
+        _has_cjk = False
+        _footer_text = "本文件由 AI 助手生成，仅供参考，以原始病历为准"
 
-    # Register Chinese font if available
+        def footer(self):
+            self.set_y(-13)
+            if self._has_cjk:
+                self.set_font("CJK", size=8)
+            else:
+                self.set_font("Helvetica", size=8)
+            self.set_text_color(150, 150, 150)
+            self.cell(0, 5, f"{self._footer_text}  |  第 {self.page_no()} / {{nb}} 页", align="C")
+
+    pdf = _PDF()
+    pdf.alias_nb_pages()          # enable {nb} placeholder in footer
+    pdf.set_margins(left=20, top=20, right=20)
+    pdf.set_auto_page_break(auto=True, margin=18)
+
     has_cjk = False
     if font_path:
         try:
             pdf.add_font("CJK", fname=font_path)
             has_cjk = True
+            _PDF._has_cjk = True
             log(f"[PDF] using font: {font_path}")
         except Exception as exc:
             log(f"[PDF] font load failed ({font_path}): {exc}")
 
     def _set_font(size: int, bold: bool = False):
         if has_cjk:
-            # CJK font registered without bold — use size to signal importance
             pdf.set_font("CJK", size=size)
         else:
             style = "B" if bold else ""
@@ -132,62 +174,114 @@ def generate_records_pdf(
 
     pdf.add_page()
 
-    # ---- Header ----
-    _set_font(16, bold=True)
-    pdf.cell(0, 10, clinic, align="C", new_x="LMARGIN", new_y="NEXT")
-    _set_font(12)
-    pdf.cell(0, 8, "病历记录", align="C", new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(3)
-    pdf.set_draw_color(180, 180, 180)
+    # ── Clinic header ────────────────────────────────────────────────────────
+    _set_font(15, bold=True)
+    pdf.cell(0, 9, clinic, align="C", new_x="LMARGIN", new_y="NEXT")
+    _set_font(11)
+    pdf.cell(0, 7, "病  历  记  录", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(2)
+    pdf.set_draw_color(60, 80, 140)
+    pdf.set_line_width(0.5)
     pdf.line(20, pdf.get_y(), pdf.w - 20, pdf.get_y())
-    pdf.ln(4)
-
-    # ---- Patient info ----
-    _set_font(10)
-    info_parts = []
-    if patient_name:
-        info_parts.append(f"患者：{patient_name}")
-    if doctor_name:
-        info_parts.append(f"医生：{doctor_name}")
-    info_parts.append(f"导出时间：{datetime.now().strftime('%Y-%m-%d')}")
-    info_parts.append(f"共 {len(records)} 条记录")
-    pdf.cell(0, 7, "  |  ".join(info_parts), new_x="LMARGIN", new_y="NEXT")
+    pdf.set_line_width(0.2)
+    pdf.set_draw_color(180, 180, 180)
     pdf.ln(5)
 
-    # ---- Records ----
-    for i, rec in enumerate(records):
-        if pdf.get_y() > pdf.h - 60:
-            pdf.add_page()
+    # ── Patient demographics block ───────────────────────────────────────────
+    p_name = (getattr(patient, "name", None) if patient else None) or patient_name or "—"
+    p_gender = getattr(patient, "gender", None) if patient else None
+    p_yob = getattr(patient, "year_of_birth", None) if patient else None
+    p_age = _age_from_year(p_yob)
+    p_risk = getattr(patient, "primary_risk_level", None) if patient else None
+    p_category = getattr(patient, "primary_category", None) if patient else None
 
-        # Record header
-        date_str = _fmt_date(getattr(rec, "created_at", None))
-        rtype = _record_type_label(getattr(rec, "record_type", "visit") or "visit")
-        _set_font(11, bold=True)
-        pdf.set_fill_color(245, 247, 250)
-        pdf.cell(0, 8, f"  {i + 1}.  {date_str}  [{rtype}]", fill=True, new_x="LMARGIN", new_y="NEXT")
+    pdf.set_fill_color(240, 245, 255)
+    pdf.set_draw_color(180, 200, 240)
+    box_y = pdf.get_y()
+    box_h = 22
+    pdf.rect(20, box_y, pdf.w - 40, box_h, style="FD")
 
-        # Content
-        content = (getattr(rec, "content", None) or "").strip()
-        if content:
-            _set_font(10)
-            pdf.set_x(pdf.l_margin)
-            pdf.multi_cell(0, 6, content, new_x="LMARGIN", new_y="NEXT")
+    pdf.set_y(box_y + 2)
+    _set_font(13, bold=True)
+    pdf.set_x(25)
+    pdf.cell(0, 8, f"患者：{p_name}", new_x="LMARGIN", new_y="NEXT")
 
-        # Tags
-        tags = _parse_tags(getattr(rec, "tags", None))
-        if tags:
-            _set_font(9)
-            pdf.set_text_color(80, 80, 180)
-            pdf.cell(0, 6, "标签：" + "  ".join(tags), new_x="LMARGIN", new_y="NEXT")
+    _set_font(9)
+    pdf.set_text_color(80, 80, 80)
+    meta_parts: list[str] = []
+    if p_gender:
+        meta_parts.append(p_gender)
+    if p_age is not None:
+        meta_parts.append(f"{p_age} 岁（{p_yob} 年生）")
+    if p_category:
+        meta_parts.append(f"专科：{p_category}")
+    if p_risk:
+        meta_parts.append(f"风险：{_RISK_LABEL.get(p_risk, p_risk)}")
+    if doctor_name:
+        meta_parts.append(f"医生：{doctor_name}")
+    meta_parts.append(f"共 {len(records)} 条记录")
+    meta_parts.append(f"导出日期：{datetime.now().strftime('%Y-%m-%d')}")
+    pdf.set_x(25)
+    pdf.cell(0, 6, "  ｜  ".join(meta_parts), new_x="LMARGIN", new_y="NEXT")
+    pdf.set_text_color(0, 0, 0)
+
+    pdf.set_y(box_y + box_h + 4)
+    pdf.set_draw_color(180, 180, 180)
+
+    # ── Records ──────────────────────────────────────────────────────────────
+    if not records:
+        _set_font(10)
+        pdf.set_text_color(120, 120, 120)
+        pdf.cell(0, 10, "（暂无病历记录）", align="C", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_text_color(0, 0, 0)
+    else:
+        for i, rec in enumerate(records):
+            if pdf.get_y() > pdf.h - 55:
+                pdf.add_page()
+
+            # Record header
+            date_str = _fmt_datetime(getattr(rec, "created_at", None))
+            rtype = _record_type_label(getattr(rec, "record_type", "visit") or "visit")
+            enc = getattr(rec, "encounter_type", "unknown") or "unknown"
+            enc_label = _ENCOUNTER_LABEL.get(enc, "")
+            signed = getattr(rec, "is_signed_off", False)
+            signed_at = getattr(rec, "signed_off_at", None)
+            rec_id = getattr(rec, "id", None)
+
+            header_parts = [f"{i + 1}.", date_str, f"[{rtype}]"]
+            if enc_label:
+                header_parts.append(f"[{enc_label}]")
+            if signed:
+                sign_date = _fmt_date(signed_at) if signed_at else ""
+                header_parts.append(f"[已签字]{(' ' + sign_date) if sign_date else ''}")
+            if rec_id is not None:
+                header_parts.append(f"#R{rec_id}")
+
+            _set_font(10, bold=True)
+            pdf.set_fill_color(235, 240, 250)
+            pdf.set_text_color(30, 50, 100)
+            pdf.cell(0, 7, "  " + "  ".join(header_parts), fill=True, new_x="LMARGIN", new_y="NEXT")
             pdf.set_text_color(0, 0, 0)
 
-        pdf.ln(4)
+            # Content
+            content = (getattr(rec, "content", None) or "").strip()
+            if content:
+                _set_font(10)
+                pdf.set_x(pdf.l_margin + 3)
+                pdf.multi_cell(0, 5.5, content, new_x="LMARGIN", new_y="NEXT")
 
-    # ---- Footer ----
-    pdf.set_y(-15)
-    _set_font(8)
-    pdf.set_text_color(150, 150, 150)
-    pdf.cell(0, 5, f"本文件由 AI 助手生成，仅供参考，以原始病历为准  |  共 {pdf.page} 页", align="C")
+            # Tags
+            tags = _parse_tags(getattr(rec, "tags", None))
+            if tags:
+                _set_font(9)
+                pdf.set_text_color(60, 80, 180)
+                pdf.set_x(pdf.l_margin + 3)
+                pdf.cell(0, 5, "标签：" + "  ·  ".join(tags), new_x="LMARGIN", new_y="NEXT")
+                pdf.set_text_color(0, 0, 0)
+
+            pdf.set_draw_color(210, 215, 225)
+            pdf.line(20, pdf.get_y() + 2, pdf.w - 20, pdf.get_y() + 2)
+            pdf.ln(6)
 
     return bytes(pdf.output())
 

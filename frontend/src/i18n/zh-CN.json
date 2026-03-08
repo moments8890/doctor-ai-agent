@@ -158,6 +158,9 @@
         "recordCount": "病历数",
         "createdAt": "创建时间",
         "filterRecords": "按此患者筛选病历",
+        "exportPdf": "导出病历 PDF",
+        "exporting": "导出中…",
+        "exportFailed": "PDF 导出失败",
         "empty": "暂无患者。"
       },
       "record": {

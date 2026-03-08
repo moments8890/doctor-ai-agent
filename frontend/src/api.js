@@ -124,6 +124,24 @@ export async function getPatients(doctorId, filters = {}, limit = 50, offset = 0
   return request(`/api/manage/patients?${qs.toString()}`);
 }
 
+export async function exportPatientPdf(patientId, doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  const headers = {};
+  if (_webToken) headers["Authorization"] = `Bearer ${_webToken}`;
+  const response = await fetch(`/api/export/patient/${patientId}/pdf?${qs.toString()}`, { headers });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `HTTP ${response.status}`);
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `病历_patient_${patientId}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export async function getRecords({ doctorId, patientId, patientName, dateFrom, dateTo, limit = 50, offset = 0 }) {
   const qs = new URLSearchParams({ doctor_id: doctorId, limit: String(limit), offset: String(offset) });
   if (patientId) qs.set("patient_id", patientId);

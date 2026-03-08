@@ -5,14 +5,17 @@ import {
   Card,
   CardContent,
   Chip,
+  CircularProgress,
   FormControl,
   InputLabel,
   MenuItem,
   Select,
   Stack,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { t } from "../../i18n";
+import { exportPatientPdf } from "../../api";
 
 const RISK_BORDER = {
   critical: "#ef4444",
@@ -28,9 +31,23 @@ const RISK_CHIP_COLOR = {
   low: "success",
 };
 
-function PatientCard({ p, labels, onViewRecords, onToggleLabel }) {
+function PatientCard({ p, labels, doctorId, onViewRecords, onToggleLabel }) {
   const [expanded, setExpanded] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
   const borderColor = RISK_BORDER[p.primary_risk_level] || "transparent";
+
+  async function handleExportPdf() {
+    setExporting(true);
+    setExportError("");
+    try {
+      await exportPatientPdf(p.id, doctorId);
+    } catch (err) {
+      setExportError(err.message || t("manage.patient.exportFailed"));
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
     <Card
@@ -81,10 +98,24 @@ function PatientCard({ p, labels, onViewRecords, onToggleLabel }) {
               />
             ))}
           </Stack>
-          <Stack direction="row" spacing={0.7}>
+          <Stack direction="row" spacing={0.7} alignItems="center">
             <Button size="small" variant="outlined" onClick={() => onViewRecords(p)}>
               {t("manage.patient.filterRecords")}
             </Button>
+            <Tooltip title={exportError || t("manage.patient.exportPdf")} arrow>
+              <span>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color={exportError ? "error" : "primary"}
+                  onClick={handleExportPdf}
+                  disabled={exporting}
+                  startIcon={exporting ? <CircularProgress size={14} /> : null}
+                >
+                  {exporting ? t("manage.patient.exporting") : t("manage.patient.exportPdf")}
+                </Button>
+              </span>
+            </Tooltip>
             <Button
               size="small"
               variant={expanded ? "contained" : "outlined"}
@@ -141,6 +172,7 @@ function PatientCard({ p, labels, onViewRecords, onToggleLabel }) {
 export default function PatientPanel({
   patients,
   labels,
+  doctorId,
   riskFilter,
   followUpFilter,
   tagFilter,
@@ -214,6 +246,7 @@ export default function PatientPanel({
           key={p.id}
           p={p}
           labels={labels}
+          doctorId={doctorId}
           onViewRecords={onViewRecords}
           onToggleLabel={onToggleLabel}
         />
