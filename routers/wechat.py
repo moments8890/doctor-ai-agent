@@ -1065,7 +1065,7 @@ async def handle_message(request: Request):
     try:
         async with AsyncSessionLocal() as _db:
             from db.crud import create_pending_message as _create_pm
-            await _create_pm(_db, msg_id, msg.source, msg.content, msg_type="text")
+            await _create_pm(_db, msg_id, msg.source, msg.content)
     except Exception as _e:
         log(f"[WeChat msg] pending_message persist FAILED (non-fatal): {_e}")
         msg_id = ""

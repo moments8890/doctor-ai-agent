@@ -24,7 +24,6 @@ async def create_pending_record(
     record_id: str,
     doctor_id: str,
     draft_json: str,
-    raw_input: Optional[str] = None,
     patient_id: Optional[int] = None,
     patient_name: Optional[str] = None,
     ttl_minutes: int = 10,
@@ -36,7 +35,6 @@ async def create_pending_record(
         patient_id=patient_id,
         patient_name=patient_name,
         draft_json=draft_json,
-        raw_input=raw_input,
         status="awaiting",
         created_at=now,
         expires_at=now + timedelta(minutes=ttl_minutes),
@@ -122,13 +120,11 @@ async def create_pending_message(
     msg_id: str,
     doctor_id: str,
     raw_content: str,
-    msg_type: str = "text",
 ) -> PendingMessage:
     row = PendingMessage(
         id=msg_id,
         doctor_id=doctor_id,
         raw_content=raw_content,
-        msg_type=msg_type,
         status="pending",
         created_at=datetime.now(timezone.utc),
     )
@@ -141,12 +137,11 @@ async def mark_pending_message(
     session: AsyncSession,
     msg_id: str,
     status: str,
-    error: Optional[str] = None,
 ) -> None:
     await session.execute(
         sa_update(PendingMessage)
         .where(PendingMessage.id == msg_id)
-        .values(status=status, error=error, processed_at=datetime.now(timezone.utc))
+        .values(status=status)
     )
     await session.commit()
 

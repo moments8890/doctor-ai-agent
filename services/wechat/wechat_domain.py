@@ -198,7 +198,6 @@ async def handle_add_record(
             record_id=draft_id,
             doctor_id=doctor_id,
             draft_json=json.dumps(record.model_dump(), ensure_ascii=False),
-            raw_input=text[:2000],
             patient_id=patient_id,
             patient_name=patient_name,
             ttl_minutes=_DRAFT_TTL_MINUTES,
@@ -248,9 +247,9 @@ async def save_pending_record(doctor_id: str, pending: Any) -> Optional[str]:
         asyncio.create_task(_bg_auto_tasks(
             doctor_id, db_record.id, patient_name, pending.patient_id, _content_for_rules
         ))
-    asyncio.create_task(_bg_auto_learn(doctor_id, pending.raw_input or "", record))
+    asyncio.create_task(_bg_auto_learn(doctor_id, record.content or "", record))
     # CVD surgical context extraction (background, non-blocking)
-    if _detect_cvd_keywords(pending.raw_input or record.content or ""):
+    if _detect_cvd_keywords(record.content or ""):
         asyncio.create_task(_bg_extract_cvd_context(
             doctor_id, db_record.id, pending.patient_id, record.content or ""
         ))
@@ -826,8 +825,8 @@ def _preprocess_import_text(
     sender_filter: str | None = None,
 ) -> str:
     """Strip media prefixes and clean WeChat chat export formatting."""
-    # Strip [PDF:filename] / [Word:filename] prefix
-    text = _re.sub(r"^\[(PDF|Word):[^\]]*\]\s*", "", text, flags=_re.IGNORECASE)
+    # Strip [PDF:filename] / [Word:filename] / [Image:ocr] prefix
+    text = _re.sub(r"^\[(PDF|Word|Image):[^\]]*\]\s*", "", text, flags=_re.IGNORECASE)
     if source == "chat_export" or _looks_like_chat_export(text):
         from services.wechat.wechat_media_pipeline import preprocess_wechat_chat_export
         text = preprocess_wechat_chat_export(text, sender_filter=sender_filter)
@@ -1078,8 +1077,32 @@ def _format_import_preview(
     return "\n".join(lines)
 
 
+_OCR_NAME_RE = _re.compile(r"姓\s*名[：:]\s*([\u4e00-\u9fff]{2,5})")
+_OCR_GENDER_RE = _re.compile(r"性\s*别[：:]\s*([男女])")
+_OCR_AGE_RE = _re.compile(r"年\s*龄[：:]\s*(\d{1,3})")
+
+
+def _extract_patient_from_ocr(text: str) -> tuple[str | None, str | None, int | None]:
+    """Extract (name, gender, age) from OCR'd hospital record header."""
+    name = None
+    gender = None
+    age = None
+    # Only scan first 300 chars where header fields appear
+    sample = text[:300]
+    m = _OCR_NAME_RE.search(sample)
+    if m:
+        name = m.group(1)
+    m = _OCR_GENDER_RE.search(sample)
+    if m:
+        gender = m.group(1)
+    m = _OCR_AGE_RE.search(sample)
+    if m:
+        age = int(m.group(1))
+    return name, gender, age
+
+
 async def handle_import_history(text: str, doctor_id: str, intent_result: IntentResult) -> str:
-    """Handle bulk patient history import from PDF, Word, voice, or text."""
+    """Handle bulk patient history import from PDF, Word, image, voice, or text."""
     source = intent_result.extra_data.get("source", "text")
     patient_name = intent_result.patient_name
 
@@ -1090,11 +1113,29 @@ async def handle_import_history(text: str, doctor_id: str, intent_result: Intent
         patient_id = sess.current_patient_id
         patient_name = sess.current_patient_name
 
+    # For image OCR: extract patient name/demographics embedded in hospital record header
+    ocr_gender: str | None = None
+    ocr_age: int | None = None
+    if source == "image" and not patient_name:
+        ocr_name, ocr_gender, ocr_age = _extract_patient_from_ocr(text)
+        if ocr_name:
+            patient_name = ocr_name
+            log(f"[Import] OCR patient extracted: name={patient_name} gender={ocr_gender} age={ocr_age}")
+
     if patient_name and patient_id is None:
         async with AsyncSessionLocal() as session:
             patient = await find_patient_by_name(session, doctor_id, patient_name)
             if patient:
                 patient_id = patient.id
+            elif source == "image":
+                # Auto-create patient from OCR-extracted demographics
+                from db.crud.patient import create_patient
+                try:
+                    patient = await create_patient(session, doctor_id, patient_name, ocr_gender, ocr_age)
+                    patient_id = patient.id
+                    log(f"[Import] OCR auto-created patient {patient_name} id={patient_id}")
+                except Exception as e:
+                    log(f"[Import] OCR patient create failed: {e}")
 
     # For chat exports with multiple senders, ask which sender to import
     if source == "chat_export" or (source == "text" and _looks_like_chat_export(text)):

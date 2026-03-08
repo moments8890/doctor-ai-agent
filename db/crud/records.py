@@ -101,7 +101,6 @@ async def _ensure_auto_follow_up_task(
             DoctorTask.doctor_id == doctor_id,
             DoctorTask.record_id == record_id,
             DoctorTask.task_type == "follow_up",
-            DoctorTask.trigger_source == "risk_engine",
             DoctorTask.status == "pending",
         )
     )
@@ -110,10 +109,6 @@ async def _ensure_auto_follow_up_task(
 
     days = _extract_follow_up_days(follow_up_text)
     due_at = _utcnow().replace(microsecond=0) + timedelta(days=days)
-
-    reason = "auto follow-up from record"
-    if risk_level:
-        reason = f"{reason}; risk_level={risk_level}"
 
     session.add(
         DoctorTask(
@@ -125,8 +120,6 @@ async def _ensure_auto_follow_up_task(
             content=follow_up_text[:200],
             status="pending",
             due_at=due_at,
-            trigger_source="risk_engine",
-            trigger_reason=reason,
         )
     )
     await session.commit()

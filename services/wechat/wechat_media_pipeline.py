@@ -154,7 +154,7 @@ async def handle_image_bg(
         await send_customer_service_msg(doctor_id, "❌ 图片识别失败，请稍后重试。")
         return
 
-    await handle_intent_bg(text, doctor_id)
+    await handle_intent_bg(f"[Image:ocr]\n{text}", doctor_id)
 
 
 def preprocess_wechat_chat_export(

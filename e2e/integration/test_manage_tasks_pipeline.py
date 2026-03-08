@@ -35,7 +35,7 @@ def _task_row(task_id: int) -> tuple | None:
     conn = sqlite3.connect(DB_PATH)
     try:
         return conn.execute(
-            "SELECT id, status, notified_at FROM doctor_tasks WHERE id=?",
+            "SELECT id, status FROM doctor_tasks WHERE id=?",
             (task_id,),
         ).fetchone()
     finally:

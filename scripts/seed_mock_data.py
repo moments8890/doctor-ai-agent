@@ -242,7 +242,6 @@ def make_tasks(doctor_id, patient_id, patient_name, category, risk, fu_state):
             content=f"患者{category}，风险等级{risk}，上次随访已超期，请尽快联系。",
             status="pending",
             due_at=ago(days=7),
-            trigger_source="system",
             created_at=ago(days=14),
         ))
     elif fu_state == "due_soon":
@@ -253,7 +252,6 @@ def make_tasks(doctor_id, patient_id, patient_name, category, risk, fu_state):
             content=f"患者{category}，随访时间将至。",
             status="pending",
             due_at=ahead(days=3),
-            trigger_source="system",
             created_at=ago(days=1),
         ))
     if risk == "high":
@@ -264,7 +262,6 @@ def make_tasks(doctor_id, patient_id, patient_name, category, risk, fu_state):
             content="高风险患者，请审阅最新检查结果并更新治疗方案。",
             status="pending",
             due_at=ahead(days=5),
-            trigger_source="system",
             created_at=ago(days=2),
         ))
     return tasks

@@ -289,8 +289,6 @@ async def test_save_record_creates_auto_followup_task_when_enabled(db_session, m
     )
     task = result.scalar_one_or_none()
     assert task is not None
-    assert task.trigger_source == "risk_engine"
-    assert "risk_level=" in (task.trigger_reason or "")
 
 
 # ---------------------------------------------------------------------------

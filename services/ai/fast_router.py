@@ -764,10 +764,12 @@ def fast_route(text: str) -> Optional[IntentResult]:
     # Normalised form used for Tier 1 set lookups (strips polite particles etc.)
     normed = _normalise(stripped)
 
-    # ── Tier 0: import_history — bulk/PDF/Word imports bypass LLM entirely ─────
+    # ── Tier 0: import_history — bulk/PDF/Word/Image imports bypass LLM entirely ─
     if stripped.startswith("[PDF:") or stripped.startswith("[Word:"):
         source = "pdf" if stripped.startswith("[PDF:") else "word"
         return IntentResult(intent=Intent.import_history, extra_data={"source": source})
+    if stripped.startswith("[Image:"):
+        return IntentResult(intent=Intent.import_history, extra_data={"source": "image"})
     if any(kw in stripped for kw in _IMPORT_KEYWORDS):
         date_count = len(_IMPORT_DATE_RE.findall(stripped))
         if date_count >= 2:

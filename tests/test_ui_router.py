@@ -763,7 +763,6 @@ async def test_admin_tables_with_filters():
                             title="复查 BNP",
                             status="pending",
                             due_at=datetime(2026, 3, 5, 10, 0, 0),
-                            trigger_source="timeline_rule",
                             created_at=datetime(2026, 3, 3, 8, 0, 0),
                         ),
                         "王五",

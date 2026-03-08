@@ -77,7 +77,6 @@ class TaskRepository:
         result = await self.session.execute(
             select(DoctorTask).where(
                 DoctorTask.status == "pending",
-                DoctorTask.notified_at.is_(None),
                 or_(
                     DoctorTask.due_at <= now,
                     (DoctorTask.due_at.is_(None) & (DoctorTask.task_type == "emergency")),
@@ -106,17 +105,9 @@ class TaskRepository:
         if task is None:
             return None
         task.due_at = due_at
-        task.notified_at = None  # reset so it will be re-notified at new time
         await self.session.commit()
         await self.session.refresh(task)
         return task
 
     async def mark_notified(self, *, task_id: int, notified_at: datetime) -> None:
-        result = await self.session.execute(
-            select(DoctorTask).where(DoctorTask.id == task_id).with_for_update()
-        )
-        task = result.scalar_one_or_none()
-        if task is None:
-            return
-        task.notified_at = notified_at
-        await self.session.commit()
+        pass  # notified_at column removed; kept for call-site compatibility

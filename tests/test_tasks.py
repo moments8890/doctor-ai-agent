@@ -109,7 +109,6 @@ async def test_create_task_stores_fields(db_session):
     assert task.title == "随访提醒：张三"
     assert task.status == "pending"
     assert task.due_at == datetime(2026, 4, 1, 9, 0)
-    assert task.notified_at is None
 
 
 async def test_list_tasks_filters_by_status(db_session):
@@ -136,18 +135,17 @@ async def test_list_tasks_status_filter_excludes_completed(db_session):
     assert pending[0].title == "T2"
 
 
-async def test_get_due_tasks_excludes_notified(db_session):
-    from db.crud import create_task, get_due_tasks, mark_task_notified
+async def test_get_due_tasks_returns_pending_overdue(db_session):
+    from db.crud import create_task, get_due_tasks
     past = datetime(2026, 1, 1)
-    t1 = await create_task(db_session, "doc1", "follow_up", "Due-unnotified", due_at=past)
-    t2 = await create_task(db_session, "doc1", "follow_up", "Due-already-notified", due_at=past)
-    await mark_task_notified(db_session, t2.id)
+    t1 = await create_task(db_session, "doc1", "follow_up", "Due task 1", due_at=past)
+    t2 = await create_task(db_session, "doc1", "follow_up", "Due task 2", due_at=past)
 
     now = datetime(2026, 3, 1)
     due = await get_due_tasks(db_session, now)
     ids = [t.id for t in due]
     assert t1.id in ids
-    assert t2.id not in ids
+    assert t2.id in ids
 
 
 async def test_update_task_status_wrong_doctor_returns_none(db_session):
@@ -555,18 +553,14 @@ def test_taskout_from_orm_serializes_datetime_fields():
     obj.content = "两周后复查"
     obj.status = "pending"
     obj.due_at = datetime(2026, 3, 10, 9, 0, 0)
-    obj.notified_at = None
     obj.created_at = datetime(2026, 3, 2, 8, 0, 0)
     obj.patient_id = 11
     obj.record_id = 22
-    obj.trigger_source = "risk_engine"
-    obj.trigger_reason = "auto follow-up"
 
     out = TaskOut.from_orm(obj)
     assert out.id == 1
     assert out.due_at.startswith("2026-03-10T09:00:00")
     assert out.created_at.startswith("2026-03-02T08:00:00")
-    assert out.trigger_source == "risk_engine"
 
 
 # ===========================================================================

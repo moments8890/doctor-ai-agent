@@ -162,7 +162,7 @@ scheduler_leases        ← 定时任务互斥锁（多实例部署）
 ### pending_messages
 
 **文件**：`db/models/pending.py`
-**用途**：微信消息持久化收件箱。消息派发后台任务前先入库，处理完成后标记 done，启动时恢复超时未处理的消息（60 秒阈值）。
+**用途**：微信消息持久化收件箱。消息派发后台任务前先入库，处理完成后标记 done，启动时恢复超时未处理的消息（60 秒阈值）。刻意精简——只保留恢复所需的最少字段。
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
@@ -262,7 +262,7 @@ scheduler_leases        ← 定时任务互斥锁（多实例部署）
 | title | String(256) | 任务标题 |
 | content | Text | 任务详情 |
 | status | String(16) | pending / completed / cancelled |
-| due_at | DateTime | 到期时间 |
+| due_at | DateTime | 到期时间（可为空，紧急任务立即执行）|
 | created_at | DateTime | 创建时间 |
 | updated_at | DateTime | 更新时间 |
 

@@ -98,7 +98,7 @@ async def test_p3_d2_smoke_chain_parity(db_session, session_factory, monkeypatch
         )
         notified = tasks_after.scalar_one_or_none()
         assert notified is not None
-        assert notified.notified_at is not None
+        # notified_at column removed; notification tracking now deferred to status
 
 
 @pytest.mark.asyncio

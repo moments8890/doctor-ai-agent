@@ -197,10 +197,9 @@ def test_admin_tables_human_input_e2e():
             else:
                 os.environ["NOTIFICATION_PROVIDER"] = old_provider
 
-        task_db = _fetch_one("SELECT status, notified_at FROM doctor_tasks WHERE id=?", (task_id,))
+        task_db = _fetch_one("SELECT status FROM doctor_tasks WHERE id=?", (task_id,))
         assert task_db is not None
-        if sent_count > 0:
-            assert task_db[1] is not None
+        # notified_at column removed; skip notification timestamp assertion
 
         deleted = chat(f"删除患者ID {patient_a_id}", doctor_id=doctor_id)
         assert "已删除患者" in deleted["reply"]

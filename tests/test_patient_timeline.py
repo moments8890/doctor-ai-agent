@@ -24,7 +24,6 @@ async def test_build_patient_timeline_includes_record_and_task(db_session):
             title="随访提醒：张三",
             status="pending",
             created_at=datetime(2026, 3, 2, 10, 0, 0),
-            trigger_source="manual",
         )
     )
     await db_session.commit()

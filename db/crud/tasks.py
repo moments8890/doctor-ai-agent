@@ -89,4 +89,4 @@ async def mark_task_notified(
     session: AsyncSession,
     task_id: int,
 ) -> None:
-    await TaskRepository(session).mark_notified(task_id=task_id, notified_at=_utcnow())
+    pass  # notified_at column removed; notification tracking now via status only

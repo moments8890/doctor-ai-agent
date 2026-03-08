@@ -35,8 +35,6 @@ def _event_from_task(task: DoctorTask) -> Dict[str, object]:
             "title": task.title,
             "status": task.status,
             "due_at": task.due_at.isoformat() if task.due_at else None,
-            "trigger_source": task.trigger_source,
-            "trigger_reason": task.trigger_reason,
         },
     }
 

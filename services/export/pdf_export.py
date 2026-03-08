@@ -373,7 +373,7 @@ def generate_outpatient_report_pdf(
     pdf.ln(4)
 
     # ── Field sections ───────────────────────────────────────────────────────
-    label_w = 22  # width of label column in mm
+    label_w = 32  # width of label column in mm (widest label: 【医嘱及随访】≈28mm at 10pt)
 
     for key, label in OUTPATIENT_FIELDS:
         if key in _HEADER_ONLY_FIELDS:

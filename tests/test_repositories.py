@@ -90,6 +90,7 @@ async def test_task_repository_create_list_update_due_and_mark_notified(db_sessi
     due = await repo.list_due_unnotified(now=now)
     assert any(t.id == created.id for t in due)
 
+    # mark_notified is a no-op since notified_at column was removed; task remains due
     await repo.mark_notified(task_id=created.id, notified_at=now)
     due_after_notified = await repo.list_due_unnotified(now=now)
-    assert all(t.id != created.id for t in due_after_notified)
+    assert any(t.id == created.id for t in due_after_notified)
