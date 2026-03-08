@@ -251,3 +251,44 @@ async def get_neuro_cases_for_doctor(
         .limit(limit)
     )
     return list(result.scalars().all())
+
+
+_RECORD_CLINICAL_FIELDS = frozenset({
+    "chief_complaint", "history_of_present_illness", "past_medical_history",
+    "physical_examination", "auxiliary_examinations",
+    "diagnosis", "treatment_plan", "follow_up_plan",
+})
+
+
+async def update_latest_record_for_patient(
+    session: AsyncSession,
+    doctor_id: str,
+    patient_id: int,
+    fields: dict,
+) -> Optional[MedicalRecordDB]:
+    """Merge non-None corrected fields into the most recent record for a patient.
+
+    Only fields listed in _RECORD_CLINICAL_FIELDS and present in ``fields`` with a
+    non-None value are overwritten; all other fields are left untouched.
+    Returns the updated record, or None if no record exists.
+    """
+    result = await session.execute(
+        select(MedicalRecordDB)
+        .where(
+            MedicalRecordDB.doctor_id == doctor_id,
+            MedicalRecordDB.patient_id == patient_id,
+        )
+        .order_by(MedicalRecordDB.created_at.desc(), MedicalRecordDB.id.desc())
+        .limit(1)
+    )
+    record = result.scalar_one_or_none()
+    if record is None:
+        return None
+    changed = False
+    for field, value in fields.items():
+        if field in _RECORD_CLINICAL_FIELDS and value is not None:
+            setattr(record, field, value)
+            changed = True
+    if changed:
+        await session.commit()
+    return record

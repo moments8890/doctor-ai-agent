@@ -62,6 +62,8 @@ SYSTEM_PROMPT = (
 class Intent(str, Enum):
     create_patient = "create_patient"
     add_record = "add_record"
+    update_record = "update_record"          # correct / overwrite fields in latest record
+    update_patient = "update_patient"        # update patient demographics (gender / age)
     query_records = "query_records"
     list_patients = "list_patients"
     import_history = "import_history"

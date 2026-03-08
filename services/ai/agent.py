@@ -306,12 +306,97 @@ _TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_medical_record",
+            "description": (
+                "更正/修改患者最近一条病历中的错误字段。当医生说「刚才写错了」、「上一条病历有误」、"
+                "「主诉/诊断/治疗方案改为…」、「不是X是Y」等更正意图时调用。"
+                "只填写需要更正的字段；未提及的字段保持不变。"
+                "注意：这是原地更新，不会新增一条记录。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "patient_name": {
+                        "type": "string",
+                        "description": "要更正病历的患者姓名。",
+                    },
+                    "chief_complaint": {
+                        "type": ["string", "null"],
+                        "description": "更正后的主诉。未更正则为null。",
+                    },
+                    "history_of_present_illness": {
+                        "type": ["string", "null"],
+                        "description": "更正后的现病史。未更正则为null。",
+                    },
+                    "past_medical_history": {
+                        "type": ["string", "null"],
+                        "description": "更正后的既往史。未更正则为null。",
+                    },
+                    "physical_examination": {
+                        "type": ["string", "null"],
+                        "description": "更正后的体格检查。未更正则为null。",
+                    },
+                    "auxiliary_examinations": {
+                        "type": ["string", "null"],
+                        "description": "更正后的辅助检查。未更正则为null。",
+                    },
+                    "diagnosis": {
+                        "type": ["string", "null"],
+                        "description": "更正后的诊断。未更正则为null。",
+                    },
+                    "treatment_plan": {
+                        "type": ["string", "null"],
+                        "description": "更正后的治疗方案。未更正则为null。",
+                    },
+                    "follow_up_plan": {
+                        "type": ["string", "null"],
+                        "description": "更正后的随访计划。未更正则为null。",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_patient_info",
+            "description": (
+                "更新患者的基本信息（性别或年龄）。当医生说「修改X的年龄为50岁」、"
+                "「更新X的性别为女」、「X的年龄应该是50」等时调用。"
+                "不涉及病历内容，只改患者档案字段。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "patient_name": {
+                        "type": "string",
+                        "description": "要更新信息的患者姓名。",
+                    },
+                    "gender": {
+                        "type": "string",
+                        "description": "新的性别值，填男或女。不更改则省略。",
+                    },
+                    "age": {
+                        "type": "integer",
+                        "description": "新的年龄整数。不更改则省略。",
+                    },
+                },
+                "required": ["patient_name"],
+            },
+        },
+    },
 ]
 
 _SYSTEM_PROMPT = (
     "你是医生助手。根据医生当前消息选择工具：\n"
     "- 消息含症状/体征/诊断/用药等临床信息 → add_medical_record\n"
     "- 消息只介绍患者身份（无临床内容）或明确说建档 → create_patient\n"
+    "- 更正/修改之前已保存病历中的字段（主诉、诊断、治疗等写错了）→ update_medical_record\n"
+    "- 修改患者年龄或性别等基本信息 → update_patient_info\n"
     "- 要查看历史病历 → query_records\n"
     "- 要看所有患者列表 → list_patients\n"
     "- 历史病历导入/多次就诊记录/PDF病历/Word文件病历 → import_history\n"
@@ -337,6 +422,7 @@ _SYSTEM_PROMPT = (
 _SYSTEM_PROMPT_COMPACT = (
     "你是医生助手。根据当前消息选择工具："
     "临床信息->add_medical_record；仅建档->create_patient；"
+    "更正已保存病历字段->update_medical_record；修改患者年龄/性别->update_patient_info；"
     "查病历->query_records；看患者列表->list_patients；"
     "历史病历/PDF/Word导入->import_history；"
     "删患者->delete_patient；看待办->list_tasks；"
@@ -350,6 +436,8 @@ _SYSTEM_PROMPT_COMPACT = (
 _INTENT_MAP = {
     "create_patient": Intent.create_patient,
     "add_medical_record": Intent.add_record,
+    "update_medical_record": Intent.update_record,
+    "update_patient_info": Intent.update_patient,
     "query_records": Intent.query_records,
     "list_patients": Intent.list_patients,
     "import_history": Intent.import_history,
@@ -510,7 +598,7 @@ def _intent_result_from_tool_call(fn_name: str, args: dict, chat_reply: Optional
         extra_data["command"] = args.get("command", "")
 
     structured_fields: Optional[dict] = None
-    if fn_name == "add_medical_record":
+    if fn_name in ("add_medical_record", "update_medical_record"):
         _CLINICAL_KEYS = {
             "chief_complaint", "history_of_present_illness", "past_medical_history",
             "physical_examination", "auxiliary_examinations",

@@ -40,6 +40,7 @@ from db.crud.patient import (
     assign_label,
     remove_label,
     get_patient_labels,
+    update_patient_demographics,
 )
 from db.crud.records import (
     save_record,
@@ -47,6 +48,7 @@ from db.crud.records import (
     get_all_records_for_doctor,
     save_neuro_case,
     get_neuro_cases_for_doctor,
+    update_latest_record_for_patient,
     _env_flag_true,
     _CN_DIGITS,
     _parse_cn_or_int,
@@ -128,12 +130,14 @@ __all__ = [
     "assign_label",
     "remove_label",
     "get_patient_labels",
+    "update_patient_demographics",
     # records
     "save_record",
     "get_records_for_patient",
     "get_all_records_for_doctor",
     "save_neuro_case",
     "get_neuro_cases_for_doctor",
+    "update_latest_record_for_patient",
     "_env_flag_true",
     "_CN_DIGITS",
     "_parse_cn_or_int",

@@ -275,3 +275,30 @@ async def get_patient_labels(
     if patient is None:
         return []
     return list(patient.labels)
+
+
+async def update_patient_demographics(
+    session: AsyncSession,
+    doctor_id: str,
+    name: str,
+    gender: Optional[str] = None,
+    age: Optional[int] = None,
+) -> Optional[Patient]:
+    """Update gender and/or year_of_birth on the most recent patient row for this doctor+name."""
+    from db.repositories.patients import _year_of_birth
+    repo = PatientRepository(session)
+    patient = await repo.find_by_name(doctor_id, name)
+    if patient is None:
+        return None
+    updated = False
+    if gender in ("男", "女") and gender != patient.gender:
+        patient.gender = gender
+        updated = True
+    if age is not None:
+        new_yob = _year_of_birth(age)
+        if new_yob and new_yob != patient.year_of_birth:
+            patient.year_of_birth = new_yob
+            updated = True
+    if updated:
+        await session.commit()
+    return patient

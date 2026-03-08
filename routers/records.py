@@ -22,6 +22,8 @@ from db.crud import (
     get_records_for_patient,
     list_tasks,
     save_record,
+    update_latest_record_for_patient,
+    update_patient_demographics,
     upsert_doctor_context,
     update_task_status,
 )
@@ -635,6 +637,20 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
                             log(f"[Chat] auto-create patient validation FAILED doctor={doctor_id}: {e}")
                             return ChatResponse(reply="⚠️ 患者姓名格式无效，请更正后再试。")
                         patient_created = True
+                    else:
+                        # Apply demographic corrections from the current turn (e.g. gender/age update).
+                        updated = False
+                        if intent_result.gender and intent_result.gender != patient.gender:
+                            patient.gender = intent_result.gender
+                            updated = True
+                        if intent_result.age:
+                            from db.repositories.patients import _year_of_birth
+                            new_yob = _year_of_birth(intent_result.age)
+                            if new_yob and new_yob != patient.year_of_birth:
+                                patient.year_of_birth = new_yob
+                                updated = True
+                        if updated:
+                            log(f"[Chat] updated patient demographics [{patient_name}] doctor={doctor_id}")
                     patient_id = patient.id
                 await save_record(db, doctor_id, record, patient_id)
 
@@ -804,6 +820,91 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
                 f"任务编号：{task.id}（将在1小时前提醒）"
             )
         )
+
+    # ── update_patient (demographic correction) ───────────────────────────────
+    if intent_result.intent == Intent.update_patient:
+        name = (intent_result.patient_name or "").strip()
+        if not name:
+            return ChatResponse(reply="⚠️ 请告诉我要更新哪位患者的信息。")
+        if not intent_result.gender and not intent_result.age:
+            return ChatResponse(reply="⚠️ 请告诉我要更新的内容，例如「修改王明的年龄为50岁」。")
+        with trace_block("router", "records.chat.update_patient", {"doctor_id": doctor_id, "patient_name": name}):
+            async with AsyncSessionLocal() as db:
+                patient = await update_patient_demographics(
+                    db, doctor_id, name,
+                    gender=intent_result.gender,
+                    age=intent_result.age,
+                )
+        if patient is None:
+            return ChatResponse(reply=f"⚠️ 未找到患者【{name}】，请先建档。")
+        parts = []
+        if intent_result.gender:
+            parts.append(f"性别→{intent_result.gender}")
+        if intent_result.age:
+            parts.append(f"年龄→{intent_result.age}岁")
+        log(f"[Chat] updated patient demographics [{name}] {parts} doctor={doctor_id}")
+        asyncio.create_task(audit(
+            doctor_id, "WRITE", resource_type="patient",
+            resource_id=str(patient.id), trace_id=get_current_trace_id(),
+        ))
+        return ChatResponse(reply=f"✅ 已更新患者【{name}】的信息：{'、'.join(parts)}。")
+
+    # ── update_record (correct previous record in-place) ──────────────────────
+    if intent_result.intent == Intent.update_record:
+        name = (intent_result.patient_name or "").strip()
+        if not name:
+            return ChatResponse(reply="⚠️ 请告诉我要更正哪位患者的病历。")
+
+        # Build the corrected fields: prefer LLM-extracted structured_fields from
+        # update_medical_record tool call; fallback to re-dispatching to the LLM so the
+        # update_medical_record tool can parse the correction phrasing accurately.
+        if intent_result.structured_fields:
+            corrected = dict(intent_result.structured_fields)
+            # Patch patient name from LLM if fast_route missed it
+            if not name and intent_result.patient_name:
+                name = intent_result.patient_name.strip()
+        else:
+            try:
+                with trace_block("router", "records.chat.update_record.llm_extract", {"doctor_id": doctor_id}):
+                    # Omit history: correction texts are self-contained and history
+                    # causes the LLM to give a conversational reply instead of a tool call.
+                    llm_result = await agent_dispatch(body.text)
+                if llm_result.structured_fields:
+                    corrected = dict(llm_result.structured_fields)
+                    if not name and llm_result.patient_name:
+                        name = llm_result.patient_name.strip()
+                else:
+                    corrected = {}
+            except Exception as e:
+                log(f"[Chat] update_record LLM extraction FAILED doctor={doctor_id}: {e}")
+                return ChatResponse(reply="⚠️ 病历更正失败，请稍后重试。")
+
+        with trace_block("router", "records.chat.update_record", {"doctor_id": doctor_id, "patient_name": name}):
+            async with AsyncSessionLocal() as db:
+                patient = await find_patient_by_name(db, doctor_id, name)
+                if patient is None:
+                    return ChatResponse(reply=f"⚠️ 未找到患者【{name}】，无法更正病历。")
+                updated_rec = await update_latest_record_for_patient(
+                    db, doctor_id, patient.id, corrected
+                )
+
+        if updated_rec is None:
+            return ChatResponse(
+                reply=f"⚠️ 患者【{name}】暂无病历记录，请先保存一条再更正。"
+            )
+
+        fields_updated = [k for k in corrected if k in (
+            "chief_complaint", "history_of_present_illness", "past_medical_history",
+            "physical_examination", "auxiliary_examinations",
+            "diagnosis", "treatment_plan", "follow_up_plan",
+        )]
+        log(f"[Chat] updated record for [{name}] fields={fields_updated} doctor={doctor_id}")
+        asyncio.create_task(audit(
+            doctor_id, "WRITE", resource_type="record",
+            resource_id=str(updated_rec.id), trace_id=get_current_trace_id(),
+        ))
+        reply = intent_result.chat_reply or f"✅ 已更正患者【{name}】的最近一条病历。"
+        return ChatResponse(reply=reply)
 
     # ── unknown / conversational ──────────────────────────────────────────────
     return ChatResponse(reply=_UNCLEAR_INTENT_REPLY)

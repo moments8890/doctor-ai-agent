@@ -13,19 +13,37 @@ ROOT = Path(__file__).resolve().parents[2]
 DATA_PATH = ROOT / "e2e" / "fixtures" / "data" / "realworld_doctor_agent_chatlogs_e2e_v2.json"
 
 
-def test_realworld_v2_dataset_has_100_cases():
+def test_realworld_v2_dataset_has_1020_cases():
     raw = json.loads(DATA_PATH.read_text(encoding="utf-8"))
     assert isinstance(raw, list)
-    assert len(raw) == 100
+    assert len(raw) == 1020
+
+    correction_cases = [c for c in raw if "CORRECTION" in str(c.get("case_id", ""))]
+    assert len(correction_cases) == 20, (
+        f"Expected 20 correction cases, got {len(correction_cases)}"
+    )
+
     for case in raw:
-        assert str(case.get("case_id", "")).startswith("REALWORLD-V2-")
+        cid = str(case.get("case_id", ""))
+        assert cid.startswith("REALWORLD-V2-"), f"Bad case_id prefix: {cid}"
         chatlog = case.get("chatlog", [])
-        assert isinstance(chatlog, list) and len(chatlog) >= 4
+        assert isinstance(chatlog, list) and len(chatlog) >= 3, (
+            f"{cid}: chatlog must have ≥3 turns, got {len(chatlog)}"
+        )
         doctor_turns = [x for x in chatlog if str(x.get("speaker", "")).lower() == "doctor"]
-        assert len(doctor_turns) >= 3
+        assert len(doctor_turns) >= 3, (
+            f"{cid}: needs ≥3 doctor turns, got {len(doctor_turns)}"
+        )
         exp = case.get("expectations", {})
         assert isinstance(exp, dict)
-        assert exp.get("must_not_timeout") is True
+        assert exp.get("must_not_timeout") is True, f"{cid}: missing must_not_timeout"
+
+    # Correction cases must declare correction_type
+    for case in correction_cases:
+        exp = case.get("expectations", {})
+        assert "correction_type" in exp, (
+            f"{case['case_id']}: correction cases must have expectations.correction_type"
+        )
 
 
 def test_realworld_v2_table_coverage_e2e():

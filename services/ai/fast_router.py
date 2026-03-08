@@ -124,6 +124,9 @@ _CREATE_LEAD_RE = re.compile(
     r"|建档"
     r")"
     r"[\s,，：:]*" + _NAME_PAT
+    # Guard: the extracted name must be followed by a demographic separator or
+    # end-of-string to prevent false matches like "建档并保存" → name="并保".
+    + r"(?=[，,。！？\s男女\d]|$)"
 )
 
 # Create duplicate: "再建一个同名：NAME,gender,age" / "再来一个同名患者：NAME"
@@ -194,6 +197,30 @@ def _parse_task_num(raw: str) -> Optional[int]:
         return int(raw)
     return _CN_NUM_MAP.get(raw)
 
+
+# ── Update patient demographics ───────────────────────────────────────────────
+# "修改王明的年龄为50岁" / "更新李华的性别为女" / "王明的年龄改为50" / "把X的性别改成女"
+_UPDATE_PATIENT_DEMO_RE = re.compile(
+    r"(?:修改|更新|更改|纠正|调整|把)\s*" + _NAME_PAT + r"\s*的\s*(?:年龄|性别)"
+    r"|" + _NAME_PAT + r"\s*的\s*(?:年龄|性别)\s*(?:应该是|改为|更正为|更新为|改成|是)\s*[\d女男]"
+)
+
+# ── Record correction ─────────────────────────────────────────────────────────
+# Triggered when doctor explicitly acknowledges a previous record error.
+_CORRECT_RECORD_RE = re.compile(
+    r"刚才.{0,20}(?:写错了|有误|错误|不对|记错了|搞错了)"
+    r"|上一条.{0,15}(?:有误|写错了|错误|不对)"
+    r"|(?:病历|记录).{0,15}(?:写错了|有误|搞错了|记错了)"
+    r"|(?:更正|纠正).{0,5}(?:上一条|刚才|最近)?.{0,5}(?:病历|记录)"
+)
+
+# Name extraction for correction messages where name follows "刚才/上一条".
+# E.g. "刚才李波的主诉写错了" → "李波"
+#      "上一条陈刚的诊断有误" → "陈刚"
+_CORRECT_NAME_RE = re.compile(
+    r"(?:刚才|上一条(?:病历|记录)?)\s*([\u4e00-\u9fff]{2,3})\s*的"
+    r"|(?:更正|纠正)\s*\S{0,5}\s*([\u4e00-\u9fff]{2,3})\s*的(?:病历|记录)"
+)
 
 # ── Tier 3: clinical keyword set ───────────────────────────────────────────────
 # High-specificity terms that strongly imply clinical content. Conservative — if
@@ -398,6 +425,41 @@ def fast_route(text: str) -> Optional[IntentResult]:
                 patient_name=m.group(2),
                 extra_data={"occurrence_index": occurrence},
             )
+
+    # ── Tier 2: update_patient_info (demographic correction) ─────────────────
+    for target in (normed, stripped):
+        m = _UPDATE_PATIENT_DEMO_RE.search(target)
+        if m:
+            name = m.group(1) or (m.group(2) if m.lastindex and m.lastindex >= 2 else None)
+            if name and name not in _NON_NAME_KEYWORDS:
+                gender, age = _extract_demographics(stripped)
+                return IntentResult(
+                    intent=Intent.update_patient,
+                    patient_name=name,
+                    gender=gender,
+                    age=age,
+                )
+
+    # ── Tier 2.5: update_record — MUST come before Tier 3 ────────────────────
+    # Correction messages often contain clinical keywords (e.g. "胸痛", "STEMI")
+    # which would otherwise be caught by Tier 3 and mis-routed as add_record.
+    # Detecting correction intent first ensures the update_record handler runs.
+    # Field extraction is deliberately left to the LLM (no structured_fields here)
+    # so the update_medical_record tool can parse correction phrasing accurately.
+    if _CORRECT_RECORD_RE.search(stripped):
+        name = None
+        # Try correction-specific pattern first: "刚才[NAME]的..." / "上一条[NAME]的..."
+        cm = _CORRECT_NAME_RE.search(stripped)
+        if cm:
+            name = cm.group(1) or (cm.group(2) if cm.lastindex and cm.lastindex >= 2 else None)
+            if name in _TIER3_BAD_NAME or name in _NON_NAME_KEYWORDS:
+                name = None
+        # Fallback: name at message start (less common in correction phrasing)
+        if name is None:
+            m = _TIER3_NAME_RE.match(stripped)
+            if m and m.group(1) not in _TIER3_BAD_NAME:
+                name = m.group(1)
+        return IntentResult(intent=Intent.update_record, patient_name=name)
 
     # ── Tier 3: high-confidence clinical content → add_record ────────────────
     # Skips the routing LLM call entirely; structuring LLM still runs.
