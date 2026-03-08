@@ -434,3 +434,61 @@ export async function updateDoctorProfile(doctorId, { name, specialty }) {
     body: JSON.stringify({ name, specialty: specialty || null }),
   });
 }
+
+// ---------------------------------------------------------------------------
+// Patient portal API (uses X-Patient-Token header, not doctor Bearer token)
+// ---------------------------------------------------------------------------
+
+async function patientRequest(url, patientToken, options = {}) {
+  const headers = {
+    ...(options.headers || {}),
+    "X-Patient-Token": patientToken || "",
+  };
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(url, { ...options, headers, signal: controller.signal });
+    if (!response.ok) {
+      const err = new Error(await readError(response));
+      err.status = response.status;
+      throw err;
+    }
+    return response.json();
+  } catch (err) {
+    if (err.name === "AbortError") throw new Error("Request timed out");
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+export async function patientSession(doctorId, patientName) {
+  return fetch("/api/patient/session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ doctor_id: doctorId, patient_name: patientName }),
+  }).then(async (res) => {
+    if (!res.ok) {
+      const err = new Error(await readError(res));
+      err.status = res.status;
+      throw err;
+    }
+    return res.json();
+  });
+}
+
+export async function getPatientMe(patientToken) {
+  return patientRequest("/api/patient/me", patientToken);
+}
+
+export async function getPatientRecords(patientToken) {
+  return patientRequest("/api/patient/records", patientToken);
+}
+
+export async function sendPatientMessage(patientToken, text) {
+  return patientRequest("/api/patient/message", patientToken, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+}

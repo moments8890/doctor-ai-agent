@@ -5,6 +5,7 @@ import AdminPage from "./pages/AdminPage";
 import AdminLoginPage from "./pages/AdminLoginPage";
 import DebugPage from "./pages/DebugPage";
 import LoginPage from "./pages/LoginPage";
+import PatientPage from "./pages/PatientPage";
 import { useDoctorStore } from "./store/doctorStore";
 import { setWebToken } from "./api";
 
@@ -55,6 +56,7 @@ export default function App() {
       <Route path="/admin/:section" element={<AdminPage />} />
       <Route path="/debug" element={<DebugPage />} />
       <Route path="/debug/:section" element={<DebugPage />} />
+      <Route path="/patient" element={<PatientPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

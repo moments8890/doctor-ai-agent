@@ -36,6 +36,7 @@ from routers.neuro import router as neuro_router
 from routers.tasks import router as tasks_router
 from routers.voice import router as voice_router
 from routers.export import router as export_router
+from routers.patient_portal import router as patient_portal_router
 from db.init_db import create_tables, seed_prompts, backfill_doctors_registry
 from db.engine import engine, AsyncSessionLocal
 from db.crud import get_due_tasks, purge_conversation_turns_before
@@ -501,6 +502,7 @@ app.include_router(neuro_router)
 app.include_router(tasks_router)
 app.include_router(voice_router)
 app.include_router(export_router)
+app.include_router(patient_portal_router)
 
 
 @app.get("/")
