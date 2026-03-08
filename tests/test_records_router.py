@@ -189,6 +189,9 @@ async def test_chat_add_record_clears_hallucinated_treatment_when_no_signal():
     fake_db = object()
     from db.models.medical_record import MedicalRecord as _MR
     with patch(
+        "routers.records.fast_route",
+        return_value=None,
+    ), patch(
         "routers.records.agent_dispatch",
         new=AsyncMock(
             return_value=_intent(
@@ -220,6 +223,9 @@ async def test_chat_add_record_clears_hallucinated_treatment_when_no_signal():
 async def test_chat_force_add_record_when_intent_drifts_but_text_is_clinical():
     fake_db = object()
     with patch(
+        "routers.records.fast_route",
+        return_value=None,
+    ), patch(
         "routers.records.agent_dispatch",
         new=AsyncMock(return_value=_intent(Intent.unknown, patient_name=None, chat_reply=None)),
     ), patch(

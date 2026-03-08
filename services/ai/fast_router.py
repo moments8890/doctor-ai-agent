@@ -514,6 +514,47 @@ _TIER3_QUESTION_RE = re.compile(
     r"|是[：:]?\s*$|为[：:]?\s*$|属于\s*$|体位\s*$|类型\s*$"
     r"|出现\s*$|宜用\s*$|选用\s*$|宜选用\s*$|不宜用\s*$"
     r"|何药|何种|何法"
+    # CHIP-MDCFNPC / MedDG patient-turn FP guards (online consultation messages)
+    # Patient demographic tag: "(男，45岁)" / "（女，32岁）" at message end
+    # Handles both ASCII () and full-width （） parentheses
+    r"|[（(](?:男|女)[，,]?\s*\d+岁[）)][。！]?\s*$"
+    # Causal question: "引起的" at sentence end — patient asking cause of symptom
+    r"|引起的[。？]?\s*$"
+    # Soft question particles at sentence end — never in clinical dictation
+    r"|吧[。！？]?\s*$|呀[。！？]?\s*$|么[？！]?\s*$"
+    # Patient-addressing openers — patient talking TO a doctor
+    r"|医生您好|医生你好|大夫您好|大夫你好"
+    # Knowledge query suffix
+    r"|什么意思[？。]?\s*$"
+    # "是不是" — "is it or not" patient question pattern (CHIP-STS/MedDG)
+    r"|是不是"
+    # "能否" — "can or not" question (CHIP-STS: 80 FPs)
+    r"|能否"
+    # Knowledge lookup suffixes (CHIP-STS: patient disease queries)
+    r"|的定义[？。]?\s*$|的危害[？。]?\s*$|的影响[？。]?\s*$|的护理[？。]?\s*$"
+    # Bare "如何" at sentence end — "how?" without treatment verb (CHIP-STS)
+    r"|如何[？。]?\s*$"
+    # "吃什么" — generalises "吃什么药"; patient diet/medication queries (CHIP-STS)
+    r"|吃什么"
+    # "怎么样" at sentence end — "how is it?" (CHIP-STS: patient status queries)
+    r"|怎么样[？。]?\s*$"
+    # "有什么" food/medication/remedy queries — "xxx有什么症状/用药"
+    r"|有什么.*(?:吗|呢)[？?]?\s*$"
+    # Baidu encyclopedia format: "short question？long answer" concatenated.
+    # Requires a question word (什么/如何/怎么/会…吗/多久/可以) before the ？
+    # so that BP uncertainty "170/？mmhg" and differential "肿瘤？" are NOT matched.
+    # The doctor anchor (收入我科/收入我院/门诊以/诊断) overrides for real clinical notes.
+    r"|^.{0,35}(?:什么|如何|怎么|怎样|会.{0,8}吗|能.{0,8}吗|多久|可以|为什么|是否).{0,15}[？?].{20,}"
+    # MedDialog-CN: patients describing family member's condition to an online doctor
+    # "我妈妈...","我父亲...","我孩子..." — first-person family reference is near-absent in clinical notes
+    r"|我(?:妈|爸|母亲|父亲|女儿|儿子|老公|老婆|爱人|孩子|宝宝|小孩|家人|丈夫|妻子)"
+    # Patients addressing a specific doctor by title: "王主任，您好" / "李教授，您好"
+    r"|[\u4e00-\u9fff]{1,4}(?:主任|教授)[，,]?您好"
+    # Consultation-seeking openers missed by 请问 guard (MedDialog-CN / CMID)
+    r"|(?:问一下|请教一下|咨询一下|想咨询|想请教|想问一下)"
+    r"|(?:求助|求解答|帮我看看|帮忙看看|帮我分析)"
+    # Gratitude to the doctor — patient closing phrase, never in clinical dictation
+    r"|(?:感谢|谢谢|万分感谢)(?:医生|大夫|您|你)"
 )
 
 # First-person patient voice — two tiers:
@@ -533,9 +574,12 @@ _TIER3_CONSULT_RE = re.compile(r"宝宝|宝贝|孩子|小孩")
 
 # Doctor-voice anchor: overrides the question guards when present.
 # A doctor may include a question within a clinical note.
+# Clinical admission phrases (收入我科/收入我院/门诊以) are also anchors — they are
+# exclusive to hospital documentation and never appear in patient messages or encyclopedia.
 _TIER3_DOCTOR_ANCHOR_RE = re.compile(
-    r"^(?:患者|患儿|病人)|主诉[：:]|诊断[：:]|补充[：:]|记录[一下]?[：:]|录入[：:]"
+    r"^(?:患者|患儿|病人)|主诉[：:]|诊断.{0,2}[：:]|补充[：:]|记录[一下]?[：:]|录入[：:]"
     r"|(?:患者|患儿|病人).{0,5}(?:主诉|诊断|检查|血压|血糖|体温)"
+    r"|收入我科|收入我院|门诊以.{0,10}收入"
 )
 
 # Exam-specific question endings — ALWAYS block, even when doctor anchor is present.

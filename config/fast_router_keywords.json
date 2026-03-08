@@ -158,6 +158,57 @@
         "大动脉转位", "室间隔缺损", "尿痛", "无压痛", "淋巴结转移",
         "疼痛", "红肿", "给予", "肿块", "肿胀", "面色苍白", "高热"
       ]
+    },
+    "oncology_expanded": {
+      "description": "Extended oncology terms from CHIP-CDEE discharge summary FN analysis.",
+      "description_zh": "从 CHIP-CDEE 出院记录假阴性分析中补充的肿瘤相关词汇。",
+      "keywords": [
+        "腺癌", "转移瘤", "脾大", "淋巴瘤", "直肠癌", "直肠"
+      ]
+    },
+    "hepatology": {
+      "description": "Hepatic and urological oncology terms from CHIP-CDEE FN analysis.",
+      "description_zh": "从 CHIP-CDEE 假阴性分析中补充的肝胆和泌尿肿瘤词汇。",
+      "keywords": [
+        "肝硬化", "肝癌", "前列腺癌", "肝功能"
+      ]
+    },
+    "gastrointestinal_expanded": {
+      "description": "Extended GI diseases and symptoms from MedDG missing-entity analysis.",
+      "description_zh": "从 MedDG 缺失实体分析中补充的消化系统疾病与症状词汇。",
+      "keywords": [
+        "胃溃疡", "胆囊炎", "肠易激综合征", "胰腺炎", "便血", "黑便",
+        "呕血", "肠梗阻", "吞咽困难", "反酸", "嗳气"
+      ]
+    },
+    "systemic_symptoms_expanded": {
+      "description": "Systemic symptoms from MedDG and CMeEE-V2 that are high-confidence clinical indicators.",
+      "description_zh": "从 MedDG 和 CMeEE-V2 中补充的全身症状高置信度临床指示词。",
+      "keywords": [
+        "贫血", "寒战", "皮疹", "蛋白尿", "昏迷", "血尿", "尿频", "尿急"
+      ]
+    },
+    "critical_care_neurological": {
+      "description": "Critical care and neurological terms from CMeEE-V2 NER dataset.",
+      "description_zh": "从 CMeEE-V2 命名实体识别数据集中补充的重症监护与神经系统词汇。",
+      "keywords": [
+        "癫痫", "脑积水", "呼吸衰竭", "休克", "败血症", "低氧血症",
+        "颅内出血", "心力衰竭"
+      ]
+    },
+    "pathology_imaging": {
+      "description": "Pathology and imaging findings commonly present in clinical discharge summaries.",
+      "description_zh": "出院记录中常见的病理与影像学发现词汇。",
+      "keywords": [
+        "结节", "积液", "钙化", "占位", "梗阻", "免疫组化", "彩超提示"
+      ]
+    },
+    "clinical_admin": {
+      "description": "Hospital admission and clinical documentation phrases unique to discharge records. Near-zero false-positive rate in patient consultation messages.",
+      "description_zh": "出院记录特有的住院记录与临床文档短语，在患者咨询消息中的假阳性率接近零。",
+      "keywords": [
+        "收入我科", "收治入院", "神志清", "门诊以"
+      ]
     }
   }
 }
