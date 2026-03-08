@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Alert,
@@ -30,8 +30,12 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
+import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import LogoutIcon from "@mui/icons-material/Logout";
-import { getPatients, getRecords, getTasks, patchTask, updateRecord } from "../api";
+import { Paper } from "@mui/material";
+import { getPatients, getRecords, getTasks, patchTask, updateRecord, sendChat } from "../api";
+import RecordFields from "../components/RecordFields";
 import { useDoctorStore } from "../store/doctorStore";
 import { t } from "../i18n";
 
@@ -56,6 +60,7 @@ const RECORD_FIELDS = [
 ];
 
 const NAV = [
+  { key: "chat", label: "AI 助手", icon: <ChatOutlinedIcon fontSize="small" /> },
   { key: "home", label: "首页", icon: <HomeOutlinedIcon fontSize="small" /> },
   { key: "patients", label: "患者", icon: <PeopleOutlineIcon fontSize="small" /> },
   { key: "tasks", label: "任务", icon: <AssignmentOutlinedIcon fontSize="small" /> },
@@ -489,6 +494,117 @@ function TasksSection({ doctorId }) {
   );
 }
 
+// ─── Chat section ───────────────────────────────────────────────────────────
+
+function MsgBubble({ msg }) {
+  const isUser = msg.role === "user";
+  return (
+    <Box sx={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start", px: 1 }}>
+      <Paper elevation={0} sx={{
+        maxWidth: "min(85%, 720px)", p: 1.5, borderRadius: 2,
+        bgcolor: isUser ? "#eaf4ff" : "#f0faf4",
+        border: "1px solid", borderColor: isUser ? "#c8def6" : "#c9e8d4",
+      }}>
+        <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{msg.content}</Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5, textAlign: "right" }}>{msg.ts}</Typography>
+        {!isUser && msg.record ? <RecordFields record={msg.record} /> : null}
+      </Paper>
+    </Box>
+  );
+}
+
+function ChatSection({ doctorId }) {
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const bottomRef = useRef(null);
+
+  function nowTs() {
+    const d = new Date();
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  }
+  const storageKey = `doctor_ai_chat_history:${(doctorId || "anon")}`;
+
+  useEffect(() => {
+    const raw = localStorage.getItem(storageKey);
+    try {
+      const parsed = raw ? JSON.parse(raw) : null;
+      setMessages(Array.isArray(parsed) && parsed.length ? parsed : [{ role: "assistant", content: t("chat.welcome"), ts: nowTs() }]);
+    } catch {
+      setMessages([{ role: "assistant", content: t("chat.welcome"), ts: nowTs() }]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doctorId]);
+
+  useEffect(() => {
+    if (messages.length) localStorage.setItem(storageKey, JSON.stringify(messages));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages]);
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  const history = useMemo(() => messages.map((m) => ({ role: m.role, content: m.content })), [messages]);
+
+  function onClear() {
+    const fresh = [{ role: "assistant", content: t("chat.welcome"), ts: nowTs() }];
+    setMessages(fresh);
+    localStorage.setItem(storageKey, JSON.stringify(fresh));
+  }
+
+  async function onSend() {
+    const text = input.trim();
+    if (!text || loading) return;
+    setMessages((prev) => [...prev, { role: "user", content: text, ts: nowTs() }]);
+    setInput("");
+    setLoading(true);
+    try {
+      const data = await sendChat({ text, doctor_id: doctorId, history });
+      setMessages((prev) => [...prev, { role: "assistant", content: data.reply || t("chat.received"), record: data.record || null, ts: nowTs() }]);
+    } catch (error) {
+      setMessages((prev) => [...prev, { role: "assistant", content: t("chat.requestFailed", { message: error.message }), ts: nowTs() }]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      {/* Topbar */}
+      <Box sx={{ px: 3, py: 1.2, borderBottom: "1px solid #e2e8f0", backgroundColor: "#fff", display: "flex", alignItems: "center" }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "text.secondary", flex: 1 }}>{t("chat.workspaceTitle")}</Typography>
+        <Tooltip title="清空对话">
+          <IconButton size="small" onClick={onClear} sx={{ color: "text.secondary" }}>
+            <DeleteOutlineIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      </Box>
+      {/* Messages */}
+      <Box sx={{ flex: 1, overflowY: "auto", py: 2, display: "flex", flexDirection: "column", gap: 1.4 }}>
+        {messages.map((msg, idx) => <MsgBubble key={`${msg.role}-${idx}`} msg={msg} />)}
+        {loading && <Box sx={{ px: 2 }}><Typography variant="caption" color="text.secondary">AI 正在回复…</Typography></Box>}
+        <div ref={bottomRef} />
+      </Box>
+      {/* Input */}
+      <Box sx={{ px: 2, py: 1.5, borderTop: "1px solid #e2e8f0", backgroundColor: "#fff" }}>
+        <Stack direction="row" spacing={1} alignItems="flex-end">
+          <TextField
+            multiline minRows={2} maxRows={6} fullWidth size="small"
+            placeholder={t("chat.placeholder")}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); } }}
+            sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.5 } }}
+          />
+          <Button variant="contained" onClick={onSend} disabled={loading || !input.trim()}
+            sx={{ borderRadius: 1.5, minWidth: 48, height: 48, flexShrink: 0 }}>
+            <SendOutlinedIcon fontSize="small" />
+          </Button>
+        </Stack>
+      </Box>
+    </Box>
+  );
+}
+
 // ─── Home / dashboard ───────────────────────────────────────────────────────
 
 function StatCard({ label, value, color = "primary.main" }) {
@@ -614,10 +730,10 @@ export default function DoctorPage() {
   const navigate = useNavigate();
   const { doctorId, doctorName, clearAuth } = useDoctorStore();
 
-  const activeSection = patientId ? "patients" : (section || "home");
+  const activeSection = patientId ? "patients" : (section || "chat");
 
   function handleNav(key) {
-    if (key === "home") navigate("/manage");
+    if (key === "chat") navigate("/manage");
     else navigate(`/manage/${key}`);
   }
 
@@ -646,10 +762,6 @@ export default function DoctorPage() {
               {item.label}
             </NavBtn>
           ))}
-          <Divider sx={{ my: 1 }} />
-          <NavBtn icon={<ChatOutlinedIcon fontSize="small" />} onClick={() => navigate("/")}>
-            AI 助手
-          </NavBtn>
         </Stack>
 
         {/* Footer */}
@@ -665,17 +777,20 @@ export default function DoctorPage() {
 
       {/* Main content */}
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        {/* Topbar */}
-        <Box sx={{ px: 3, py: 1.5, borderBottom: "1px solid #e2e8f0", backgroundColor: "#fff" }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "text.secondary" }}>
-            {activeSection === "home" && "首页"}
-            {activeSection === "patients" && "患者管理"}
-            {activeSection === "tasks" && "任务列表"}
-          </Typography>
-        </Box>
+        {/* Topbar — hidden for chat (ChatSection has its own) */}
+        {activeSection !== "chat" && (
+          <Box sx={{ px: 3, py: 1.5, borderBottom: "1px solid #e2e8f0", backgroundColor: "#fff" }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "text.secondary" }}>
+              {activeSection === "home" && "首页"}
+              {activeSection === "patients" && "患者管理"}
+              {activeSection === "tasks" && "任务列表"}
+            </Typography>
+          </Box>
+        )}
 
         {/* Section content */}
         <Box sx={{ flex: 1, overflow: "hidden" }}>
+          {activeSection === "chat" && <ChatSection doctorId={doctorId} />}
           {activeSection === "home" && <HomeSection doctorId={doctorId} navigate={navigate} />}
           {activeSection === "patients" && <PatientsSection doctorId={doctorId} />}
           {activeSection === "tasks" && <TasksSection doctorId={doctorId} />}
