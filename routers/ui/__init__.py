@@ -35,15 +35,24 @@ from db.crud import (
 )
 from db.engine import AsyncSessionLocal
 from db.models import (
+    AuditLog,
     Doctor,
     DoctorContext,
+    DoctorKnowledgeItem,
     DoctorTask,
     InviteCode,
     MedicalRecordDB,
+    MedicalRecordExport,
+    MedicalRecordVersion,
     NeuroCaseDB,
+    NeuroCVDContext,
     Patient,
     PatientLabel,
+    PendingMessage,
+    PendingRecord,
+    SpecialtyScore,
     SystemPrompt,
+    SystemPromptVersion,
     patient_label_assignments,
 )
 from services.patient.patient_timeline import build_patient_timeline
@@ -1011,15 +1020,13 @@ async def admin_tables(
     needle = f"%{patient_name.strip()}%" if patient_name and patient_name.strip() else None
 
     counts = {
-        "doctors": 0,
-        "patients": 0,
-        "medical_records": 0,
-        "doctor_tasks": 0,
-        "neuro_cases": 0,
-        "patient_labels": 0,
-        "patient_label_assignments": 0,
-        "system_prompts": 0,
-        "doctor_contexts": 0,
+        "doctors": 0, "patients": 0, "medical_records": 0, "doctor_tasks": 0,
+        "neuro_cases": 0, "neuro_cvd_context": 0, "specialty_scores": 0,
+        "medical_record_versions": 0, "medical_record_exports": 0,
+        "pending_records": 0, "pending_messages": 0, "audit_log": 0,
+        "doctor_knowledge_items": 0, "patient_labels": 0,
+        "patient_label_assignments": 0, "system_prompts": 0,
+        "system_prompt_versions": 0, "doctor_contexts": 0,
     }
 
     async with AsyncSessionLocal() as db:
@@ -1102,16 +1109,33 @@ async def admin_tables(
             context_stmt = apply_exclude_test_doctors(context_stmt, DoctorContext.doctor_id)
         counts["doctor_contexts"] = int((await db.execute(context_stmt)).scalar() or 0)
 
+        # new tables
+        for model, key, col in [
+            (NeuroCVDContext, "neuro_cvd_context", NeuroCVDContext.doctor_id),
+            (SpecialtyScore, "specialty_scores", SpecialtyScore.doctor_id),
+            (MedicalRecordVersion, "medical_record_versions", MedicalRecordVersion.doctor_id),
+            (MedicalRecordExport, "medical_record_exports", MedicalRecordExport.doctor_id),
+            (PendingRecord, "pending_records", PendingRecord.doctor_id),
+            (PendingMessage, "pending_messages", PendingMessage.doctor_id),
+            (AuditLog, "audit_log", AuditLog.doctor_id),
+            (DoctorKnowledgeItem, "doctor_knowledge_items", DoctorKnowledgeItem.doctor_id),
+        ]:
+            s = select(func.count()).select_from(model)
+            if doctor_id:
+                s = s.where(col == doctor_id)
+            else:
+                s = apply_exclude_test_doctors(s, col)
+            counts[key] = int((await db.execute(s)).scalar() or 0)
+
+        spv_s = select(func.count(SystemPromptVersion.id))
+        counts["system_prompt_versions"] = int((await db.execute(spv_s)).scalar() or 0)
+
     ordered = [
-        "doctors",
-        "patients",
-        "medical_records",
-        "doctor_tasks",
-        "neuro_cases",
-        "patient_labels",
-        "patient_label_assignments",
-        "system_prompts",
-        "doctor_contexts",
+        "doctors", "patients", "medical_records", "medical_record_versions",
+        "medical_record_exports", "doctor_tasks", "neuro_cases", "neuro_cvd_context",
+        "specialty_scores", "pending_records", "pending_messages", "audit_log",
+        "doctor_knowledge_items", "patient_labels", "patient_label_assignments",
+        "system_prompts", "system_prompt_versions", "doctor_contexts",
     ]
     return {"items": [{"key": key, "count": counts[key]} for key in ordered]}
 
@@ -1308,12 +1332,148 @@ async def admin_table_rows(
             else:
                 stmt = apply_exclude_test_doctors(stmt, DoctorContext.doctor_id)
             items = [
-                {
-                    "doctor_id": c.doctor_id,
-                    "summary": c.summary,
-                    "updated_at": _fmt_ts(c.updated_at),
-                }
+                {"doctor_id": c.doctor_id, "summary": c.summary, "updated_at": _fmt_ts(c.updated_at)}
                 for c in (await db.execute(stmt)).scalars().all()
+            ]
+        elif table_key == "neuro_cvd_context":
+            stmt = (
+                select(NeuroCVDContext, Patient.name.label("patient_name"))
+                .outerjoin(Patient, NeuroCVDContext.patient_id == Patient.id)
+                .order_by(NeuroCVDContext.created_at.desc()).limit(limit)
+            )
+            if doctor_id:
+                stmt = stmt.where(NeuroCVDContext.doctor_id == doctor_id)
+            else:
+                stmt = apply_exclude_test_doctors(stmt, NeuroCVDContext.doctor_id)
+            if needle:
+                stmt = stmt.where(Patient.name.ilike(needle))
+            items = [
+                {
+                    "id": r.id, "doctor_id": r.doctor_id, "patient_id": r.patient_id,
+                    "patient_name": pname, "record_id": r.record_id,
+                    "diagnosis_subtype": r.diagnosis_subtype, "hemorrhage_location": r.hemorrhage_location,
+                    "gcs_score": r.gcs_score, "ich_score": r.ich_score, "ich_volume_ml": r.ich_volume_ml,
+                    "hunt_hess_grade": r.hunt_hess_grade, "fisher_grade": r.fisher_grade,
+                    "spetzler_martin_grade": r.spetzler_martin_grade,
+                    "aneurysm_location": r.aneurysm_location, "aneurysm_size_mm": r.aneurysm_size_mm,
+                    "aneurysm_treatment": r.aneurysm_treatment, "surgery_type": r.surgery_type,
+                    "surgery_status": r.surgery_status, "surgery_date": r.surgery_date,
+                    "mrs_score": r.mrs_score, "barthel_index": r.barthel_index,
+                    "source": r.source, "created_at": _fmt_ts(r.created_at),
+                }
+                for r, pname in (await db.execute(stmt)).all()
+            ]
+        elif table_key == "specialty_scores":
+            stmt = select(SpecialtyScore).order_by(SpecialtyScore.id.desc()).limit(limit)
+            if doctor_id:
+                stmt = stmt.where(SpecialtyScore.doctor_id == doctor_id)
+            else:
+                stmt = apply_exclude_test_doctors(stmt, SpecialtyScore.doctor_id)
+            items = [
+                {
+                    "id": s.id, "record_id": s.record_id, "doctor_id": s.doctor_id,
+                    "score_type": s.score_type, "score_value": s.score_value, "raw_text": s.raw_text,
+                    "patient_id": getattr(s, "patient_id", None),
+                    "extracted_at": _fmt_ts(getattr(s, "extracted_at", None)),
+                }
+                for s in (await db.execute(stmt)).scalars().all()
+            ]
+        elif table_key == "medical_record_versions":
+            stmt = select(MedicalRecordVersion).order_by(MedicalRecordVersion.changed_at.desc()).limit(limit)
+            if doctor_id:
+                stmt = stmt.where(MedicalRecordVersion.doctor_id == doctor_id)
+            else:
+                stmt = apply_exclude_test_doctors(stmt, MedicalRecordVersion.doctor_id)
+            items = [
+                {
+                    "id": v.id, "record_id": v.record_id, "doctor_id": v.doctor_id,
+                    "old_content": v.old_content, "old_tags": _parse_tags(v.old_tags),
+                    "old_record_type": v.old_record_type, "changed_at": _fmt_ts(v.changed_at),
+                }
+                for v in (await db.execute(stmt)).scalars().all()
+            ]
+        elif table_key == "medical_record_exports":
+            stmt = select(MedicalRecordExport).order_by(MedicalRecordExport.exported_at.desc()).limit(limit)
+            if doctor_id:
+                stmt = stmt.where(MedicalRecordExport.doctor_id == doctor_id)
+            else:
+                stmt = apply_exclude_test_doctors(stmt, MedicalRecordExport.doctor_id)
+            items = [
+                {
+                    "id": e.id, "record_id": e.record_id, "doctor_id": e.doctor_id,
+                    "export_format": e.export_format, "pdf_hash": e.pdf_hash,
+                    "exported_at": _fmt_ts(e.exported_at),
+                }
+                for e in (await db.execute(stmt)).scalars().all()
+            ]
+        elif table_key == "pending_records":
+            stmt = select(PendingRecord).order_by(PendingRecord.created_at.desc()).limit(limit)
+            if doctor_id:
+                stmt = stmt.where(PendingRecord.doctor_id == doctor_id)
+            else:
+                stmt = apply_exclude_test_doctors(stmt, PendingRecord.doctor_id)
+            if needle:
+                stmt = stmt.where(PendingRecord.patient_name.ilike(needle))
+            items = [
+                {
+                    "id": p.id, "doctor_id": p.doctor_id, "patient_id": p.patient_id,
+                    "patient_name": p.patient_name, "status": p.status,
+                    "raw_input": p.raw_input, "created_at": _fmt_ts(p.created_at),
+                    "expires_at": _fmt_ts(p.expires_at),
+                }
+                for p in (await db.execute(stmt)).scalars().all()
+            ]
+        elif table_key == "pending_messages":
+            stmt = select(PendingMessage).order_by(PendingMessage.created_at.desc()).limit(limit)
+            if doctor_id:
+                stmt = stmt.where(PendingMessage.doctor_id == doctor_id)
+            else:
+                stmt = apply_exclude_test_doctors(stmt, PendingMessage.doctor_id)
+            items = [
+                {
+                    "id": p.id, "doctor_id": p.doctor_id,
+                    "raw_content": p.raw_content, "msg_type": p.msg_type,
+                    "status": p.status, "created_at": _fmt_ts(p.created_at),
+                    "processed_at": _fmt_ts(getattr(p, "processed_at", None)),
+                }
+                for p in (await db.execute(stmt)).scalars().all()
+            ]
+        elif table_key == "audit_log":
+            stmt = select(AuditLog).order_by(AuditLog.ts.desc()).limit(limit)
+            if doctor_id:
+                stmt = stmt.where(AuditLog.doctor_id == doctor_id)
+            else:
+                stmt = apply_exclude_test_doctors(stmt, AuditLog.doctor_id)
+            items = [
+                {
+                    "id": a.id, "ts": _fmt_ts(a.ts), "doctor_id": a.doctor_id,
+                    "action": a.action, "resource_type": a.resource_type,
+                    "resource_id": a.resource_id, "ok": a.ok, "ip": a.ip,
+                }
+                for a in (await db.execute(stmt)).scalars().all()
+            ]
+        elif table_key == "doctor_knowledge_items":
+            stmt = select(DoctorKnowledgeItem).order_by(DoctorKnowledgeItem.updated_at.desc()).limit(limit)
+            if doctor_id:
+                stmt = stmt.where(DoctorKnowledgeItem.doctor_id == doctor_id)
+            else:
+                stmt = apply_exclude_test_doctors(stmt, DoctorKnowledgeItem.doctor_id)
+            items = [
+                {
+                    "id": k.id, "doctor_id": k.doctor_id, "content": k.content,
+                    "created_at": _fmt_ts(k.created_at), "updated_at": _fmt_ts(k.updated_at),
+                }
+                for k in (await db.execute(stmt)).scalars().all()
+            ]
+        elif table_key == "system_prompt_versions":
+            stmt = select(SystemPromptVersion).order_by(SystemPromptVersion.changed_at.desc()).limit(limit)
+            items = [
+                {
+                    "id": v.id, "prompt_key": v.prompt_key, "changed_by": v.changed_by,
+                    "changed_at": _fmt_ts(v.changed_at),
+                    "content": (v.content[:200] + "…") if v.content and len(v.content) > 200 else v.content,
+                }
+                for v in (await db.execute(stmt)).scalars().all()
             ]
         else:
             raise HTTPException(status_code=404, detail="Unknown table")

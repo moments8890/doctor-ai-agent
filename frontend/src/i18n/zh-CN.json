@@ -295,7 +295,16 @@
         "doctor_contexts": "医生上下文表",
         "runtime_config": "系统配置(JSON)",
         "routing_keywords": "路由关键词",
-        "observability": "接口延迟与追踪"
+        "observability": "接口延迟与追踪",
+        "medical_record_versions": "病历版本表",
+        "medical_record_exports": "病历导出表",
+        "neuro_cvd_context": "脑血管手术上下文",
+        "specialty_scores": "专科评分表",
+        "pending_records": "待确认记录",
+        "pending_messages": "待处理消息",
+        "audit_log": "操作审计日志",
+        "doctor_knowledge_items": "医生知识库",
+        "system_prompt_versions": "提示词版本表"
       },
       "config": {
         "title": "可热更新配置",

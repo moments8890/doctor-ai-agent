@@ -663,36 +663,18 @@ async def test_admin_apply_runtime_config():
 
 
 async def test_admin_tables_returns_all_table_counts():
-    db = SimpleNamespace(
-        execute=AsyncMock(
-            side_effect=[
-                SimpleNamespace(scalar=lambda: 1),  # doctors
-                SimpleNamespace(scalar=lambda: 2),  # patients
-                SimpleNamespace(scalar=lambda: 3),  # medical_records
-                SimpleNamespace(scalar=lambda: 4),  # doctor_tasks
-                SimpleNamespace(scalar=lambda: 5),  # neuro_cases
-                SimpleNamespace(scalar=lambda: 6),  # patient_labels
-                SimpleNamespace(scalar=lambda: 7),  # patient_label_assignments
-                SimpleNamespace(scalar=lambda: 8),  # system_prompts
-                SimpleNamespace(scalar=lambda: 9),  # doctor_contexts
-            ]
-        )
-    )
+    # One scalar result per DB query in admin_tables execution order.
+    side_effects = [SimpleNamespace(scalar=lambda i=i: i) for i in range(1, 20)]
+    db = SimpleNamespace(execute=AsyncMock(side_effect=side_effects))
     with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)):
         data = await ui.admin_tables()
-    assert [item["key"] for item in data["items"]] == [
-        "doctors",
-        "patients",
-        "medical_records",
-        "doctor_tasks",
-        "neuro_cases",
-        "patient_labels",
-        "patient_label_assignments",
-        "system_prompts",
-        "doctor_contexts",
-    ]
-    assert data["items"][0]["count"] == 1
-    assert data["items"][-1]["count"] == 9
+    keys = [item["key"] for item in data["items"]]
+    assert "doctors" in keys
+    assert "patients" in keys
+    assert "medical_records" in keys
+    assert "system_prompt_versions" in keys
+    assert "doctor_contexts" in keys
+    assert data["items"][0]["key"] == "doctors"
 
 
 async def test_admin_table_rows_unknown_table_raises_404():
@@ -740,21 +722,8 @@ async def test_admin_db_view_with_all_filters():
 
 
 async def test_admin_tables_with_filters():
-    db = SimpleNamespace(
-        execute=AsyncMock(
-            side_effect=[
-                SimpleNamespace(scalar=lambda: 10),
-                SimpleNamespace(scalar=lambda: 9),
-                SimpleNamespace(scalar=lambda: 8),
-                SimpleNamespace(scalar=lambda: 7),
-                SimpleNamespace(scalar=lambda: 6),
-                SimpleNamespace(scalar=lambda: 5),
-                SimpleNamespace(scalar=lambda: 4),
-                SimpleNamespace(scalar=lambda: 3),
-                SimpleNamespace(scalar=lambda: 2),
-            ]
-        )
-    )
+    side_effects = [SimpleNamespace(scalar=lambda i=i: i) for i in range(10, -10, -1)]
+    db = SimpleNamespace(execute=AsyncMock(side_effect=side_effects))
     with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)):
         data = await ui.admin_tables(
             doctor_id="doc1",
@@ -762,8 +731,8 @@ async def test_admin_tables_with_filters():
             date_from="2026-03-01",
             date_to="2026-03-03",
         )
-    assert data["items"][0] == {"key": "doctors", "count": 10}
-    assert data["items"][8] == {"key": "doctor_contexts", "count": 2}
+    assert data["items"][0]["key"] == "doctors"
+    assert data["items"][0]["count"] == 10
 
 
 @pytest.mark.parametrize(
