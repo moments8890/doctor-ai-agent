@@ -76,25 +76,32 @@ import { t } from "../i18n";
 const ADMIN_TOKEN_KEY = "adminToken";
 
 
-const DATA_TABS = [
+const CORE_TABS = [
   { key: "invite_codes", icon: <BadgeOutlinedIcon fontSize="small" /> },
   { key: "doctors", icon: <BadgeOutlinedIcon fontSize="small" /> },
   { key: "patients", icon: <PeopleOutlineOutlinedIcon fontSize="small" /> },
   { key: "medical_records", icon: <DescriptionOutlinedIcon fontSize="small" /> },
-  { key: "medical_record_versions", icon: <DescriptionOutlinedIcon fontSize="small" /> },
-  { key: "medical_record_exports", icon: <DescriptionOutlinedIcon fontSize="small" /> },
-  { key: "doctor_tasks", icon: <AssignmentOutlinedIcon fontSize="small" /> },
-  { key: "neuro_cases", icon: <PsychologyAltOutlinedIcon fontSize="small" /> },
-  { key: "neuro_cvd_context", icon: <PsychologyAltOutlinedIcon fontSize="small" /> },
-  { key: "specialty_scores", icon: <AssignmentOutlinedIcon fontSize="small" /> },
   { key: "pending_records", icon: <InboxOutlinedIcon fontSize="small" /> },
   { key: "pending_messages", icon: <InboxOutlinedIcon fontSize="small" /> },
+  { key: "doctor_session_states", icon: <AccountTreeOutlinedIcon fontSize="small" /> },
+];
+
+const FUTURE_TABS = [
+  { key: "doctor_tasks", icon: <AssignmentOutlinedIcon fontSize="small" /> },
   { key: "audit_log", icon: <VisibilityOutlinedIcon fontSize="small" /> },
+  { key: "chat_archive", icon: <TextSnippetOutlinedIcon fontSize="small" /> },
+  { key: "doctor_contexts", icon: <AccountTreeOutlinedIcon fontSize="small" /> },
   { key: "doctor_knowledge_items", icon: <TextSnippetOutlinedIcon fontSize="small" /> },
   { key: "patient_labels", icon: <LabelOutlinedIcon fontSize="small" /> },
   { key: "patient_label_assignments", icon: <LinkOutlinedIcon fontSize="small" /> },
-  { key: "doctor_contexts", icon: <AccountTreeOutlinedIcon fontSize="small" /> },
+  { key: "medical_record_versions", icon: <DescriptionOutlinedIcon fontSize="small" /> },
+  { key: "medical_record_exports", icon: <DescriptionOutlinedIcon fontSize="small" /> },
+  { key: "neuro_cases", icon: <PsychologyAltOutlinedIcon fontSize="small" /> },
+  { key: "neuro_cvd_context", icon: <PsychologyAltOutlinedIcon fontSize="small" /> },
+  { key: "specialty_scores", icon: <AssignmentOutlinedIcon fontSize="small" /> },
 ];
+
+const DATA_TABS = [...CORE_TABS, ...FUTURE_TABS];
 // Tables that have row counts in the sidebar
 const TABLES = DATA_TABS.filter((t) => t.key !== "invite_codes");
 
@@ -647,10 +654,30 @@ function AdminDashboard({ onLockout }) {
             <Card sx={{ borderRadius: 1.5 }}>
               <CardContent sx={{ p: 1.8 }}>
                 <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1, fontWeight: 700 }}>
-                  数据表
+                  数据表（核心）
                 </Typography>
                 <Stack spacing={0.8}>
-                  {DATA_TABS.map((item) => (
+                  {CORE_TABS.map((item) => (
+                    <NavTab
+                      key={item.key}
+                      active={activeTable === item.key}
+                      icon={item.icon}
+                      onClick={() => setActiveTable(item.key)}
+                    >
+                      {t(`admin.tables.${item.key}`) || item.key}
+                    </NavTab>
+                  ))}
+                </Stack>
+              </CardContent>
+            </Card>
+
+            <Card sx={{ borderRadius: 1.5 }}>
+              <CardContent sx={{ p: 1.8 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1, fontWeight: 700 }}>
+                  数据表（扩展）
+                </Typography>
+                <Stack spacing={0.8}>
+                  {FUTURE_TABS.map((item) => (
                     <NavTab
                       key={item.key}
                       active={activeTable === item.key}

@@ -301,6 +301,8 @@
         "specialty_scores": "专科评分表",
         "pending_records": "待确认记录",
         "pending_messages": "待处理消息",
+        "doctor_session_states": "会话状态表",
+        "chat_archive": "对话存档",
         "audit_log": "操作审计日志",
         "doctor_knowledge_items": "医生知识库",
         "system_prompt_versions": "提示词版本表"
