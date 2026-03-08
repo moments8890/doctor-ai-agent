@@ -55,6 +55,12 @@ const FOLLOWUP_LABEL = {
   not_needed: "无需随访", scheduled: "已安排", due_soon: "即将到期", overdue: "已逾期",
 };
 const FOLLOWUP_COLOR = { not_needed: "default", scheduled: "info", due_soon: "warning", overdue: "error" };
+const TASK_TYPE_LABEL = {
+  follow_up: "随访", review: "复查", call: "电话联系", message: "发送消息",
+  prescription: "处方续开", referral: "转诊", education: "患者教育",
+};
+const TASK_STATUS_LABEL = { pending: "待处理", done: "已完成", cancelled: "已取消", snoozed: "已推迟" };
+const ENCOUNTER_LABEL = { inpatient: "住院", outpatient: "门诊", first_visit: "初诊", follow_up_visit: "复诊", unknown: "未知" };
 
 const RECORD_FIELDS = [
   { key: "content", label: "临床笔记" },
@@ -630,7 +636,7 @@ function TasksSection({ doctorId }) {
               <CardContent sx={{ py: 1.5, px: 2, "&:last-child": { pb: 1.5 } }}>
                 <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
                   <Box sx={{ flex: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{task.title || task.task_type}</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{task.title || TASK_TYPE_LABEL[task.task_type] || task.task_type}</Typography>
                     {task.description && (
                       <Typography variant="caption" color="text.secondary">{task.description}</Typography>
                     )}
@@ -863,7 +869,7 @@ function HomeSection({ doctorId, navigate }) {
                   <CardContent sx={{ py: 1, px: 1.5, "&:last-child": { pb: 1 } }}>
                     <Stack direction="row" alignItems="center" spacing={1}>
                       <Box sx={{ flex: 1 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>{task.title || task.task_type}</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>{task.title || TASK_TYPE_LABEL[task.task_type] || task.task_type}</Typography>
                         {task.due_at && (
                           <Typography variant="caption" sx={{ color: isOverdue ? "error.main" : "text.secondary" }}>
                             {isOverdue ? "已逾期 · " : "到期 · "}{task.due_at.slice(0, 10)}

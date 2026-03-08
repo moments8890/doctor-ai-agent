@@ -115,6 +115,36 @@ const RECORD_EDIT_FIELDS = [
   { key: "tags", label: "关键词标签" },
 ];
 
+// Translate all DB enum values to Chinese for display in admin tables
+const ENUM_ZH = {
+  // task_type
+  follow_up: "随访", review: "复查", call: "电话联系", message: "发送消息",
+  prescription: "处方续开", referral: "转诊", education: "患者教育",
+  // task / record status
+  pending: "待处理", done: "已完成", cancelled: "已取消", snoozed: "已推迟",
+  active: "有效", expired: "已过期", confirmed: "已确认", abandoned: "已撤销",
+  // trigger_source
+  system: "系统", doctor: "医生", patient: "患者", ai: "AI",
+  // encounter_type
+  inpatient: "住院", outpatient: "门诊", unknown: "未知",
+  first_visit: "初诊", follow_up_visit: "复诊",
+  // record_type
+  visit: "门诊记录", dictation: "语音录入", import: "导入", interview_summary: "问诊总结",
+  // follow_up_state
+  overdue: "已逾期", due_soon: "即将到期", ok: "正常", not_needed: "无需随访",
+  scheduled: "已安排",
+  // risk
+  critical: "危重", high: "高风险", medium: "中风险", low: "低风险",
+  // gender
+  male: "男", female: "女",
+  // channel
+  app: "邀请码登录", wechat_mini: "微信小程序",
+  // category
+  stroke: "脑卒中", parkinson: "帕金森", dementia: "痴呆", epilepsy: "癫痫",
+  headache: "头痛", heart_failure: "心力衰竭", arrhythmia: "心律失常",
+  hypertension: "高血压", coronary: "冠心病", diabetes: "糖尿病",
+};
+
 function toCell(value) {
   if (value === null || value === undefined || value === "") return "-";
   if (typeof value === "object") return JSON.stringify(value);
@@ -128,7 +158,7 @@ function renderCellContent(value) {
   if (typeof value === "boolean") {
     return (
       <Chip
-        label={value ? "true" : "false"}
+        label={value ? "是" : "否"}
         size="small"
         color={value ? "success" : "default"}
         sx={{ height: 18, fontSize: 10, fontFamily: "inherit" }}
@@ -136,6 +166,8 @@ function renderCellContent(value) {
     );
   }
   const str = typeof value === "object" ? JSON.stringify(value) : String(value);
+  // Translate known enum values
+  if (ENUM_ZH[str]) return ENUM_ZH[str];
   // Format ISO datetime strings
   if (/^\d{4}-\d{2}-\d{2}T/.test(str)) {
     return <span style={{ whiteSpace: "nowrap" }}>{str.slice(0, 16).replace("T", " ")}</span>;
