@@ -452,6 +452,71 @@ async def handle_pending_create(text: str, doctor_id: str) -> str:
     return f"好的，{name}已建档{info}。"
 
 
+async def handle_export_records(doctor_id: str, intent_result: IntentResult) -> str:
+    """Generate a PDF of patient records and send via WeCom file message.
+
+    Falls back to formatted text summary if PDF upload is not available.
+    """
+    from sqlalchemy import select
+    from db.models import MedicalRecordDB
+
+    patient_id = None
+    patient_name = None
+
+    async with AsyncSessionLocal() as session:
+        if intent_result.patient_name:
+            patient = await find_patient_by_name(session, doctor_id, intent_result.patient_name)
+            if patient:
+                patient_id = patient.id
+                patient_name = patient.name
+
+        if patient_id is None:
+            sess = get_session(doctor_id)
+            patient_id = sess.current_patient_id
+            patient_name = sess.current_patient_name
+
+        if patient_id is None:
+            return "❓ 请先告知患者姓名，例如：「导出张三的病历」"
+
+        result = await session.execute(
+            select(MedicalRecordDB)
+            .where(
+                MedicalRecordDB.patient_id == patient_id,
+                MedicalRecordDB.doctor_id == doctor_id,
+            )
+            .order_by(MedicalRecordDB.created_at.asc())
+            .limit(200)
+        )
+        records = list(result.scalars().all())
+
+    if not records:
+        return f"📂 患者【{patient_name}】暂无历史记录，无法导出。"
+
+    # Attempt PDF generation + WeCom file upload
+    try:
+        from services.export.pdf_export import generate_records_pdf
+        pdf_bytes = generate_records_pdf(records=records, patient_name=patient_name)
+
+        from services.wechat.wechat_notify import upload_temp_media, send_file_message
+        safe_name = (patient_name or "patient").replace(" ", "_")
+        filename = f"病历_{safe_name}.pdf"
+        media_id = await upload_temp_media(pdf_bytes, filename)
+        await send_file_message(doctor_id, media_id)
+        return f"📄 【{patient_name}】共 {len(records)} 条记录的病历 PDF 已发送。"
+    except Exception as exc:
+        log(f"[WeChat] export PDF via WeCom file failed ({exc}), falling back to text")
+
+    # Fallback: formatted text summary
+    lines = [f"📄 【{patient_name}】病历摘要（共 {len(records)} 条）\n"]
+    for r in records[:10]:
+        date_str = r.created_at.strftime("%Y-%m-%d") if r.created_at else "?"
+        snippet = _t(r.content or "—", 60)
+        lines.append(f"▪ {date_str}\n{snippet}")
+    if len(records) > 10:
+        lines.append(f"\n… 还有 {len(records) - 10} 条记录，请在管理后台导出完整 PDF。")
+    return "\n".join(lines)
+
+
 async def handle_list_tasks(doctor_id: str) -> str:
     async with AsyncSessionLocal() as session:
         tasks = await list_tasks(session, doctor_id, status="pending")

@@ -168,9 +168,10 @@
         },
         "empty": "未找到病历。"
       },
-      "timeline": {
-        "title": "患者时间线（调试）",
-        "emptyHint": "请先在“患者”页签选择患者后再加载时间线。",
+      “timeline”: {
+        “title”: “患者时间线（调试）”,
+        “exportPdf”: “导出病历 PDF”,
+        “emptyHint”: “请先在”患者”页签选择患者后再加载时间线。”,
         "empty": "暂无时间线事件。",
         "showDetails": "查看详情",
         "hideDetails": "收起详情",

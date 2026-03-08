@@ -62,6 +62,14 @@ _RECORD_KW = r"(?:病历|记录|情况|病情|近况|状态)"
 # "补充：…", "补一句：…", "加上…", "再补充…" are unambiguously record additions.
 # This covers the single most common LLM-fallback pattern in real chatlogs:
 #   "补充：建议门诊随访，按计划复查。"  (appears 895× in e2e corpus)
+# Export: 导出/打印/下载 [name] 的病历/记录/报告
+_EXPORT_RE = re.compile(
+    r"^(?:帮我)?(?:导出|打印|下载|生成)\s*([\u4e00-\u9fff]{2,4}?)\s*(?:的)?\s*(?:病历|记录|报告|医疗记录)?(?:pdf|PDF)?$"
+)
+_EXPORT_NONAME_RE = re.compile(
+    r"^(?:帮我)?(?:导出|打印|下载|生成)\s*(?:(?:目前|当前|这个|这位|患者)的?)?\s*(?:病历|记录|报告|医疗记录)(?:pdf|PDF)?$"
+)
+
 _SUPPLEMENT_RE = re.compile(
     r"^(?:补充[：:。\s]|补一句[：:。\s]?|再补充|加上.{0,8}[，,]?|追加[：:]"
     r"|(?:好[，,]?\s*)?写进去[。！]?$)"
@@ -512,6 +520,15 @@ def fast_route(text: str) -> Optional[IntentResult]:
                 intent=Intent.complete_task,
                 extra_data={"task_id": task_id},
             )
+
+    # ── Tier 2: export_records ────────────────────────────────────────────────
+    for target in (normed, stripped):
+        m = _EXPORT_RE.match(target)
+        if m:
+            name = m.group(1).strip() or None
+            return IntentResult(intent=Intent.export_records, patient_name=name or None)
+    if _EXPORT_NONAME_RE.match(normed) or _EXPORT_NONAME_RE.match(stripped):
+        return IntentResult(intent=Intent.export_records)
 
     # ── Tier 2: supplement / record continuation → add_record ─────────────────
     # "补充：…", "补一句：…", "加上…" are unambiguously appending to a record.

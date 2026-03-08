@@ -76,6 +76,7 @@ class Intent(str, Enum):
     list_tasks = "list_tasks"
     complete_task = "complete_task"
     schedule_appointment = "schedule_appointment"
+    export_records = "export_records"
     unknown = "unknown"
 
 

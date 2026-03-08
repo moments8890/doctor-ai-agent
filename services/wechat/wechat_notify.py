@@ -148,6 +148,71 @@ def _split_message(text: str, limit: int = 600) -> List[str]:
     return chunks
 
 
+async def upload_temp_media(content: bytes, filename: str, filetype: str = "file") -> str:
+    """Upload a file to WeCom temp media store. Returns media_id (valid 3 days).
+
+    filetype: 'image' | 'voice' | 'video' | 'file'
+    """
+    cfg = _get_config()
+    access_token = await _get_access_token(cfg["app_id"], cfg["app_secret"])
+    use_kf = cfg.get("is_kf", False) or cfg.get("is_wecom_app", False)
+    if use_kf:
+        url = f"https://qyapi.weixin.qq.com/cgi-bin/media/upload?access_token={access_token}&type={filetype}"
+    else:
+        url = f"https://api.weixin.qq.com/cgi-bin/media/upload?access_token={access_token}&type={filetype}"
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        resp = await client.post(
+            url,
+            files={"media": (filename, content, "application/octet-stream")},
+        )
+    resp.raise_for_status()
+    data = resp.json()
+    errcode = int(data.get("errcode") or 0)
+    if errcode != 0:
+        raise RuntimeError(f"upload_temp_media failed: errcode={errcode} errmsg={data.get('errmsg')}")
+    media_id = str(data.get("media_id") or "").strip()
+    if not media_id:
+        raise RuntimeError("upload_temp_media: no media_id returned")
+    log(f"[WeChat media] uploaded {filename} → media_id={media_id}")
+    return media_id
+
+
+async def send_file_message(to_user: str, media_id: str, open_kfid: str = "") -> None:
+    """Send a file message (already uploaded as temp media) via WeCom customer service or app."""
+    cfg = _get_config()
+    access_token = await _get_access_token(cfg["app_id"], cfg["app_secret"])
+    if cfg.get("is_wecom_app", False):
+        url = f"https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token={access_token}"
+        payload = {
+            "touser": to_user,
+            "msgtype": "file",
+            "agentid": int(cfg["agent_id"]),
+            "file": {"media_id": media_id},
+        }
+    elif cfg.get("is_kf", False):
+        kf_id = open_kfid.strip() or cfg["open_kfid"]
+        url = f"https://qyapi.weixin.qq.com/cgi-bin/kf/send_msg?access_token={access_token}"
+        payload = {
+            "touser": to_user,
+            "msgtype": "file",
+            "open_kfid": kf_id,
+            "file": {"media_id": media_id},
+        }
+    else:
+        url = f"https://api.weixin.qq.com/cgi-bin/message/custom/send?access_token={access_token}"
+        payload = {"touser": to_user, "msgtype": "file", "file": {"media_id": media_id}}
+
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        resp = await client.post(url, json=payload)
+    resp.raise_for_status()
+    data = resp.json()
+    errcode = int(data.get("errcode") or 0)
+    if errcode != 0:
+        raise RuntimeError(f"send_file_message failed: errcode={errcode} errmsg={data.get('errmsg')}")
+    log(f"[WeChat media] file message sent to {to_user}")
+
+
 async def _send_customer_service_msg(
     to_user: str,
     content: str,

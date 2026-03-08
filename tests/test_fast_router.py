@@ -332,6 +332,32 @@ def test_correction_name_not_domain_keyword():
         assert r.patient_name != "病历"
 
 
+# ── export_records ─────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("text, expected_name", [
+    ("导出张三的病历", "张三"),
+    ("帮我导出李明的记录", "李明"),
+    ("打印王五的报告", "王五"),
+    ("下载陈刚的病历PDF", "陈刚"),
+])
+def test_export_records_with_name(text, expected_name):
+    r = fast_route(text)
+    assert r is not None, f"fast_route({text!r}) returned None"
+    assert r.intent == Intent.export_records
+    assert r.patient_name == expected_name
+
+
+@pytest.mark.parametrize("text", [
+    "导出当前患者的病历",
+    "帮我导出这位患者的记录",
+    "下载病历",
+])
+def test_export_records_no_name(text):
+    r = fast_route(text)
+    assert r is not None, f"fast_route({text!r}) returned None"
+    assert r.intent == Intent.export_records
+
+
 # ── Tier 3 edge cases ──────────────────────────────────────────────────────────
 
 def test_tier3_fucha_with_reminder_falls_through():

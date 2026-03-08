@@ -368,6 +368,7 @@ export default function ManagePage() {
                   records={records}
                   timeline={timeline}
                   selectedPatientId={selectedPatientId}
+                  doctorId={doctor}
                   patientNameFilter={recordPatientNameFilter}
                   dateFrom={recordDateFrom}
                   dateTo={recordDateTo}

@@ -83,6 +83,7 @@ export default function RecordPanel({
   records,
   timeline,
   selectedPatientId,
+  doctorId,
   patientNameFilter,
   dateFrom,
   dateTo,
@@ -197,9 +198,23 @@ export default function RecordPanel({
       </Stack>
 
       <Divider sx={{ my: 2.2 }} />
-      <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
-        {t("manage.timeline.title")}
-      </Typography>
+      <Stack direction="row" sx={{ alignItems: "center", mb: 1, gap: 1 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 700, flex: 1 }}>
+          {t("manage.timeline.title")}
+        </Typography>
+        {selectedPatientId ? (
+          <Button
+            size="small"
+            variant="outlined"
+            component="a"
+            href={`/api/export/patient/${selectedPatientId}/pdf?doctor_id=${encodeURIComponent(doctorId || "")}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            📄 {t("manage.timeline.exportPdf")}
+          </Button>
+        ) : null}
+      </Stack>
       {!selectedPatientId ? (
         <Typography color="text.secondary">{t("manage.timeline.emptyHint")}</Typography>
       ) : null}
