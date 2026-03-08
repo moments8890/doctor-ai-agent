@@ -154,7 +154,7 @@ export default function ChatPage() {
         <Stack spacing={0.5} sx={{ flex: 1 }}>
           <Button
             startIcon={<PeopleOutlineIcon fontSize="small" />}
-            onClick={() => navigate("/manage")}
+            onClick={() => navigate("/doctor")}
             variant="text"
             sx={{ justifyContent: "flex-start", borderRadius: 1.5, color: "text.secondary", py: 1 }}
           >

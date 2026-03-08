@@ -364,7 +364,7 @@ function PatientsSection({ doctorId }) {
               <Card
                 key={p.id}
                 variant="outlined"
-                onClick={() => navigate(`/manage/patients/${p.id}`)}
+                onClick={() => navigate(`/doctor/patients/${p.id}`)}
                 sx={{
                   mb: 0.8, borderRadius: 1.5, cursor: "pointer",
                   borderColor: isSelected ? "primary.main" : "divider",
@@ -662,7 +662,7 @@ function HomeSection({ doctorId, navigate }) {
         <>
           <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>待处理任务</Typography>
-            <Button size="small" onClick={() => navigate("/manage/tasks")}>查看全部</Button>
+            <Button size="small" onClick={() => navigate("/doctor/tasks")}>查看全部</Button>
           </Stack>
           <Stack spacing={0.8} sx={{ mb: 3 }}>
             {pendingTasks.map((task) => {
@@ -693,7 +693,7 @@ function HomeSection({ doctorId, navigate }) {
         <>
           <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>最近病历</Typography>
-            <Button size="small" onClick={() => navigate("/manage/patients")}>查看患者</Button>
+            <Button size="small" onClick={() => navigate("/doctor/patients")}>查看患者</Button>
           </Stack>
           <Stack spacing={0.8}>
             {recentRecords.map((r) => (
@@ -708,7 +708,7 @@ function HomeSection({ doctorId, navigate }) {
                       <Typography variant="caption" color="text.secondary">{r.chief_complaint || "无主诉"} · {r.created_at?.slice(0, 10)}</Typography>
                     </Box>
                     {r.patient_id && (
-                      <IconButton size="small" onClick={() => navigate(`/manage/patients/${r.patient_id}`)}>
+                      <IconButton size="small" onClick={() => navigate(`/doctor/patients/${r.patient_id}`)}>
                         <PeopleOutlineIcon fontSize="small" />
                       </IconButton>
                     )}
@@ -733,8 +733,8 @@ export default function DoctorPage() {
   const activeSection = patientId ? "patients" : (section || "chat");
 
   function handleNav(key) {
-    if (key === "chat") navigate("/manage");
-    else navigate(`/manage/${key}`);
+    if (key === "chat") navigate("/doctor");
+    else navigate(`/doctor/${key}`);
   }
 
   function handleLogout() {

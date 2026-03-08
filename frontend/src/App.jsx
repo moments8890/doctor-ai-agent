@@ -26,10 +26,11 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/" element={<Navigate to="/manage" replace />} />
-      <Route path="/manage" element={<RequireAuth><DoctorPage /></RequireAuth>} />
-      <Route path="/manage/patients/:patientId" element={<RequireAuth><DoctorPage /></RequireAuth>} />
-      <Route path="/manage/:section" element={<RequireAuth><DoctorPage /></RequireAuth>} />
+      <Route path="/" element={<Navigate to="/doctor" replace />} />
+      <Route path="/manage" element={<Navigate to="/doctor" replace />} />
+      <Route path="/doctor" element={<RequireAuth><DoctorPage /></RequireAuth>} />
+      <Route path="/doctor/patients/:patientId" element={<RequireAuth><DoctorPage /></RequireAuth>} />
+      <Route path="/doctor/:section" element={<RequireAuth><DoctorPage /></RequireAuth>} />
       <Route path="/admin/login" element={<AdminLoginPage />} />
       <Route path="/admin" element={<AdminPage />} />
       <Route path="/admin/:section" element={<AdminPage />} />
