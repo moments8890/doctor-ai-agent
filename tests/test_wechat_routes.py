@@ -733,7 +733,7 @@ async def test_voice_and_image_bg_error_paths():
 
 async def test_pdf_file_bg_success_routes_to_intent():
     with patch("routers.wechat._get_access_token", new=AsyncMock(return_value="tok")), \
-         patch("routers.wechat.download_voice", new=AsyncMock(return_value=b"%PDF-1.7")), \
+         patch("routers.wechat.download_media", new=AsyncMock(return_value=b"%PDF-1.7")), \
          patch("routers.wechat.extract_text_from_pdf", return_value="章三 偏头痛 3天"), \
          patch("routers.wechat._handle_intent_bg", new=AsyncMock()) as intent_bg, \
          patch("routers.wechat._send_customer_service_msg", new=AsyncMock()) as send_msg:
@@ -744,7 +744,7 @@ async def test_pdf_file_bg_success_routes_to_intent():
 
 async def test_file_bg_detects_pdf_by_header_without_pdf_extension():
     with patch("routers.wechat._get_access_token", new=AsyncMock(return_value="tok")), \
-         patch("routers.wechat.download_voice", new=AsyncMock(return_value=b"%PDF-1.7\n...")), \
+         patch("routers.wechat.download_media", new=AsyncMock(return_value=b"%PDF-1.7\n...")), \
          patch("routers.wechat._handle_pdf_file_bg", new=AsyncMock()) as pdf_bg:
         await wechat._handle_file_bg("m-file", "文件", DOCTOR, open_kfid="kf1")
     pdf_bg.assert_awaited_once()
@@ -752,7 +752,7 @@ async def test_file_bg_detects_pdf_by_header_without_pdf_extension():
 
 async def test_file_bg_non_pdf_sends_notice():
     with patch("routers.wechat._get_access_token", new=AsyncMock(return_value="tok")), \
-         patch("routers.wechat.download_voice", new=AsyncMock(return_value=b"PK\x03\x04...")), \
+         patch("routers.wechat.download_media", new=AsyncMock(return_value=b"PK\x03\x04...")), \
          patch("routers.wechat._send_customer_service_msg", new=AsyncMock()) as send_msg:
         await wechat._handle_file_bg("m-file", "报告.docx", DOCTOR, open_kfid="kf1")
     send_msg.assert_awaited_once()
@@ -760,7 +760,7 @@ async def test_file_bg_non_pdf_sends_notice():
 
 async def test_file_bg_download_failure_sends_generic_error():
     with patch("routers.wechat._get_access_token", new=AsyncMock(return_value="tok")), \
-         patch("routers.wechat.download_voice", new=AsyncMock(side_effect=RuntimeError("network secret"))), \
+         patch("routers.wechat.download_media", new=AsyncMock(side_effect=RuntimeError("network secret"))), \
          patch("routers.wechat._send_customer_service_msg", new=AsyncMock()) as send_msg:
         await wechat._handle_file_bg("m-file", "报告.docx", DOCTOR, open_kfid="kf1")
     send_msg.assert_awaited_once()
@@ -771,7 +771,7 @@ async def test_file_bg_download_failure_sends_generic_error():
 
 async def test_pdf_file_bg_failure_sends_error_notice():
     with patch("routers.wechat._get_access_token", new=AsyncMock(return_value="tok")), \
-         patch("routers.wechat.download_voice", new=AsyncMock(return_value=b"%PDF-1.7")), \
+         patch("routers.wechat.download_media", new=AsyncMock(return_value=b"%PDF-1.7")), \
          patch("routers.wechat.extract_text_from_pdf", side_effect=RuntimeError("pdftotext failed")), \
          patch("routers.wechat._send_customer_service_msg", new=AsyncMock()) as send_msg:
         await wechat._handle_pdf_file_bg("m-pdf", "case.pdf", DOCTOR, open_kfid="kf1")

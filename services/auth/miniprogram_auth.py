@@ -4,14 +4,12 @@
 
 from __future__ import annotations
 
-import base64
-import hashlib
-import hmac
-import json
 import os
 import time
 from dataclasses import dataclass
 from typing import Dict, Optional
+
+import jwt
 
 
 class MiniProgramAuthError(ValueError):
@@ -25,17 +23,22 @@ class MiniProgramPrincipal:
     wechat_openid: Optional[str]
 
 
-def _b64url_encode(raw: bytes) -> str:
-    return base64.urlsafe_b64encode(raw).decode("utf-8").rstrip("=")
-
-
-def _b64url_decode(raw: str) -> bytes:
-    padding = "=" * (-len(raw) % 4)
-    return base64.urlsafe_b64decode((raw + padding).encode("utf-8"))
-
-
 def _token_secret() -> str:
-    return (os.environ.get("MINIPROGRAM_TOKEN_SECRET") or "dev-miniprogram-secret").strip()
+    secret = os.environ.get("MINIPROGRAM_TOKEN_SECRET", "").strip()
+    if not secret:
+        env = os.environ.get("APP_ENV", "").strip().lower()
+        if env in {"production", "prod"}:
+            raise RuntimeError(
+                "MINIPROGRAM_TOKEN_SECRET must be set in production. "
+                "Generate a strong random secret and set it in your environment."
+            )
+        secret = "dev-miniprogram-secret"
+    return secret
+
+
+def assert_auth_config() -> None:
+    """Call at startup to fail fast if auth secrets are missing in production."""
+    _token_secret()
 
 
 def _token_ttl_seconds() -> int:
@@ -61,10 +64,7 @@ def issue_miniprogram_token(
         "iat": now,
         "exp": now + ttl,
     }
-    payload_json = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    payload_part = _b64url_encode(payload_json)
-    sig = hmac.new(_token_secret().encode("utf-8"), payload_part.encode("utf-8"), hashlib.sha256).hexdigest()
-    token = f"{payload_part}.{sig}"
+    token = jwt.encode(payload, _token_secret(), algorithm="HS256")
     return {
         "access_token": token,
         "token_type": "Bearer",
@@ -74,28 +74,24 @@ def issue_miniprogram_token(
 
 def verify_miniprogram_token(token: str) -> MiniProgramPrincipal:
     token_value = (token or "").strip()
-    if not token_value or "." not in token_value:
+    if not token_value:
         raise MiniProgramAuthError("Invalid token format")
 
-    payload_part, sig = token_value.rsplit(".", 1)
-    expected_sig = hmac.new(
-        _token_secret().encode("utf-8"),
-        payload_part.encode("utf-8"),
-        hashlib.sha256,
-    ).hexdigest()
-    if not hmac.compare_digest(sig, expected_sig):
-        raise MiniProgramAuthError("Invalid token signature")
-
     try:
-        payload = json.loads(_b64url_decode(payload_part).decode("utf-8"))
-    except Exception as exc:  # pragma: no cover
-        raise MiniProgramAuthError("Invalid token payload") from exc
+        payload = jwt.decode(
+            token_value,
+            _token_secret(),
+            algorithms=["HS256"],
+            options={"verify_exp": False},
+        )
+    except jwt.InvalidTokenError:
+        raise MiniProgramAuthError("Invalid token")
 
     doctor_id = str(payload.get("sub") or "").strip()
-    channel = str(payload.get("channel") or "").strip() or "wechat_mini"
     if not doctor_id:
         raise MiniProgramAuthError("Token subject missing")
 
+    # Validate expiry using time.time() so tests can patch it.
     now = int(time.time())
     exp_raw = payload.get("exp")
     try:
@@ -104,6 +100,8 @@ def verify_miniprogram_token(token: str) -> MiniProgramPrincipal:
         raise MiniProgramAuthError("Token exp invalid")
     if exp <= now:
         raise MiniProgramAuthError("Token expired")
+
+    channel = str(payload.get("channel") or "").strip() or "wechat_mini"
 
     wechat_openid_raw = payload.get("wechat_openid")
     wechat_openid = None if wechat_openid_raw in (None, "") else str(wechat_openid_raw)

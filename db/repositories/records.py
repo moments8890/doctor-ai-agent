@@ -38,7 +38,7 @@ class RecordRepository:
             follow_up_plan=record.follow_up_plan,
         )
         self.session.add(db_record)
-        await self.session.commit()
+        await self.session.flush()
         return db_record
 
     async def list_for_patient(

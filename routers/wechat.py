@@ -4,7 +4,9 @@ WeChat/WeCom 消息路由：接收微信事件、异步调度意图处理并管�
 
 import asyncio
 import json
+import os
 import re
+from collections import deque
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
@@ -25,7 +27,7 @@ from services.knowledge.pdf_extract import extract_text_from_pdf
 from services.wechat import wechat_domain as wd
 from services.wechat import wechat_media_pipeline as wmp
 from services.wechat import wecom_kf_sync as kfsync
-from services.wechat.wechat_voice import download_and_convert, download_voice
+from services.wechat.wechat_voice import download_and_convert, download_media, download_voice
 from services.ai.intent import Intent, IntentResult
 from services.ai.agent import dispatch as agent_dispatch
 from services.wechat.wechat_menu import create_menu
@@ -97,8 +99,9 @@ _DOCTOR_CACHE_TTL = 300  # seconds
 
 router = APIRouter(prefix="/wechat", tags=["wechat"])
 _WECHAT_KF_SYNC_CURSOR: str = ""
-_WECHAT_KF_SEEN_MSG_IDS: set = set()
+_WECHAT_KF_SEEN_MSG_IDS: "deque[str]" = deque(maxlen=2000)
 _WECHAT_KF_CURSOR_LOADED: bool = False
+_KF_CURSOR_LOCK = asyncio.Lock()
 _WECHAT_KF_CURSOR_FILE = Path(__file__).resolve().parents[1] / "logs" / "wechat_kf_sync_state.json"
 _WECHAT_KF_CURSOR_KEY = "wecom_kf_sync_cursor"
 
@@ -383,6 +386,16 @@ async def _handle_bash_command(intent_result) -> str:
     command = (intent_result.extra_data.get("command") or "").strip()
     if not command:
         return "⚠️ 未收到命令内容。"
+    # Security: only execute if an explicit allowlist is configured.
+    allowlist_raw = os.environ.get("BASH_COMMAND_ALLOWLIST", "").strip()
+    if not allowlist_raw:
+        log(f"[Bash] BLOCKED (no allowlist): {command!r}")
+        return "⚠️ Shell 命令执行未启用。\n请联系管理员配置 BASH_COMMAND_ALLOWLIST。"
+    import re as _re
+    allowed_patterns = [p.strip() for p in allowlist_raw.split(",") if p.strip()]
+    if not any(_re.fullmatch(pattern, command) for pattern in allowed_patterns):
+        log(f"[Bash] BLOCKED (not in allowlist): {command!r}")
+        return f"⚠️ 命令不在许可列表中：`{command}`"
     try:
         proc = await asyncio.create_subprocess_shell(
             command,
@@ -432,7 +445,10 @@ async def _confirm_pending_record(doctor_id: str, pending_id: str) -> str:
     from models.medical_record import MedicalRecord
     async with AsyncSessionLocal() as session:
         pending = await get_pending_record(session, pending_id, doctor_id)
-        if pending is None or pending.status != "awaiting":
+        from datetime import timezone as _tz
+        _now = datetime.now(_tz.utc).replace(tzinfo=None)
+        expired = pending is not None and pending.expires_at and pending.expires_at.replace(tzinfo=None) <= _now
+        if pending is None or pending.status != "awaiting" or expired:
             clear_pending_record_id(doctor_id)
             return "⚠️ 草稿已过期\n请重新录入病历。"
         try:
@@ -440,11 +456,11 @@ async def _confirm_pending_record(doctor_id: str, pending_id: str) -> str:
             record = MedicalRecord(**{k: draft.get(k) for k in MedicalRecord.model_fields})
         except Exception as e:
             log(f"[Confirm] parse draft FAILED doctor={doctor_id}: {e}")
-            await abandon_pending_record(session, pending_id)
+            await abandon_pending_record(session, pending_id, doctor_id=doctor_id)
             clear_pending_record_id(doctor_id)
             return "⚠️ 草稿解析失败\n请重新录入。"
         db_record = await save_record(session, doctor_id, record, pending.patient_id)
-        await confirm_pending_record(session, pending_id)
+        await confirm_pending_record(session, pending_id, doctor_id=doctor_id)
         patient_name = pending.patient_name or "未关联患者"
         patient_id = pending.patient_id
     clear_pending_record_id(doctor_id)
@@ -465,15 +481,16 @@ async def _handle_pending_record_reply(text: str, doctor_id: str, sess) -> str:
         return await _confirm_pending_record(doctor_id, pending_id)
     if stripped in ("取消", "cancel", "Cancel", "不要", "放弃", "no", "No"):
         async with AsyncSessionLocal() as session:
-            await abandon_pending_record(session, pending_id)
+            await abandon_pending_record(session, pending_id, doctor_id=doctor_id)
         clear_pending_record_id(doctor_id)
         return "已放弃草稿。"
     # Any other input: abandon draft, then route as new intent
     async with AsyncSessionLocal() as session:
-        await abandon_pending_record(session, pending_id)
+        await abandon_pending_record(session, pending_id, doctor_id=doctor_id)
     clear_pending_record_id(doctor_id)
     log(f"[WeChat] pending record abandoned (new intent), doctor={doctor_id}")
-    return await _handle_intent(text, doctor_id)
+    new_result = await _handle_intent(text, doctor_id)
+    return f"草稿已放弃。\n\n{new_result}"
 
 
 async def _confirm_pending_import(
@@ -485,14 +502,16 @@ async def _confirm_pending_import(
     from models.medical_record import MedicalRecord
     async with AsyncSessionLocal() as session:
         pending = await get_pending_import(session, import_id, doctor_id)
-        if pending is None or pending.status != "awaiting":
+        now_utc = datetime.utcnow().replace(tzinfo=None)
+        import_expired = pending is not None and pending.expires_at and pending.expires_at.replace(tzinfo=None) <= now_utc
+        if pending is None or pending.status != "awaiting" or import_expired:
             clear_pending_import_id(doctor_id)
             return "⚠️ 导入草稿已过期\n请重新发送文件。"
         try:
             chunks = json.loads(pending.chunks_json)
         except Exception as e:
             log(f"[ImportConfirm] parse chunks FAILED doctor={doctor_id}: {e}")
-            await abandon_pending_import(session, import_id)
+            await abandon_pending_import(session, import_id, doctor_id=doctor_id)
             clear_pending_import_id(doctor_id)
             return "⚠️ 草稿解析失败\n请重新发送文件。"
 
@@ -513,7 +532,7 @@ async def _confirm_pending_import(
             except Exception as e:
                 log(f"[ImportConfirm] save chunk FAILED doctor={doctor_id}: {e}")
 
-        await confirm_pending_import(session, import_id)
+        await confirm_pending_import(session, import_id, doctor_id=doctor_id)
         patient_name = pending.patient_name or "未关联患者"
 
     clear_pending_import_id(doctor_id)
@@ -534,13 +553,13 @@ async def _handle_pending_import_reply(text: str, doctor_id: str, sess) -> str:
 
     if stripped in ("取消", "cancel", "Cancel", "不要", "放弃", "no", "No"):
         async with AsyncSessionLocal() as session:
-            await abandon_pending_import(session, import_id)
+            await abandon_pending_import(session, import_id, doctor_id=doctor_id)
         clear_pending_import_id(doctor_id)
         return "已取消导入。"
 
     # Any other input: abandon import, route as new intent
     async with AsyncSessionLocal() as session:
-        await abandon_pending_import(session, import_id)
+        await abandon_pending_import(session, import_id, doctor_id=doctor_id)
     clear_pending_import_id(doctor_id)
     log(f"[WeChat] pending import abandoned (new intent), doctor={doctor_id}")
     return await _handle_intent(text, doctor_id)
@@ -672,7 +691,7 @@ async def _handle_image_bg(media_id: str, doctor_id: str, open_kfid: str = ""):
         doctor_id,
         get_config=_get_config,
         get_access_token=_get_access_token,
-        download_media=download_voice,
+        download_media=download_media,
         extract_image_text=extract_text_from_image,
         send_customer_service_msg=lambda uid, content: _send_customer_service_msg(
             uid, content, open_kfid=open_kfid
@@ -689,7 +708,7 @@ async def _handle_pdf_file_bg(media_id: str, filename: str, doctor_id: str, open
         doctor_id,
         get_config=_get_config,
         get_access_token=_get_access_token,
-        download_media=download_voice,
+        download_media=download_media,
         extract_pdf_text=extract_text_from_pdf,
         send_customer_service_msg=lambda uid, content: _send_customer_service_msg(
             uid, content, open_kfid=open_kfid
@@ -707,7 +726,7 @@ async def _handle_word_file_bg(media_id: str, filename: str, doctor_id: str, ope
         doctor_id,
         get_config=_get_config,
         get_access_token=_get_access_token,
-        download_media=download_voice,
+        download_media=download_media,
         extract_word_text=extract_text_from_docx,
         send_customer_service_msg=lambda uid, content: _send_customer_service_msg(
             uid, content, open_kfid=open_kfid
@@ -724,7 +743,7 @@ async def _handle_file_bg(media_id: str, filename: str, doctor_id: str, open_kfi
         doctor_id,
         get_config=_get_config,
         get_access_token=_get_access_token,
-        download_media=download_voice,
+        download_media=download_media,
         send_customer_service_msg=lambda uid, content: _send_customer_service_msg(
             uid, content, open_kfid=open_kfid
         ),
@@ -774,47 +793,48 @@ async def _handle_wecom_kf_event_bg(
     async def _enqueue_file(media_id: str, filename: str, doctor_id: str, open_kfid: str) -> None:
         asyncio.create_task(_handle_file_bg(media_id, filename, doctor_id, open_kfid=open_kfid))
 
-    if not _WECHAT_KF_CURSOR_LOADED:
-        shared_cursor = ""
-        if not _create_task_is_mocked():
-            shared_cursor = await _load_wecom_kf_sync_cursor_shared()
-        if shared_cursor:
-            _WECHAT_KF_SYNC_CURSOR = shared_cursor
-        _WECHAT_KF_CURSOR_LOADED = True
+    async with _KF_CURSOR_LOCK:
+        if not _WECHAT_KF_CURSOR_LOADED:
+            shared_cursor = ""
+            if not _create_task_is_mocked():
+                shared_cursor = await _load_wecom_kf_sync_cursor_shared()
+            if shared_cursor:
+                _WECHAT_KF_SYNC_CURSOR = shared_cursor
+            _WECHAT_KF_CURSOR_LOADED = True
 
-    previous_cursor = _WECHAT_KF_SYNC_CURSOR
-    state = await kfsync.handle_event(
-        expected_msgid=expected_msgid,
-        event_create_time=event_create_time,
-        event_token=event_token,
-        event_open_kfid=event_open_kfid,
-        sync_cursor=_WECHAT_KF_SYNC_CURSOR,
-        cursor_loaded=_WECHAT_KF_CURSOR_LOADED,
-        seen_msg_ids=_WECHAT_KF_SEEN_MSG_IDS,
-        load_cursor=lambda: _WECHAT_KF_SYNC_CURSOR,
-        persist_cursor=lambda _cursor: None,
-        log=log,
-        get_config=_get_config,
-        get_access_token=_get_access_token,
-        msg_to_text=_wecom_kf_msg_to_text,
-        msg_is_processable=_wecom_msg_is_processable,
-        msg_time=_wecom_msg_time,
-        send_customer_service_msg=lambda uid, content, open_kfid: _send_customer_service_msg(
-            uid, content, open_kfid=open_kfid
-        ),
-        handle_voice_bg=_enqueue_voice,
-        handle_image_bg=_enqueue_image,
-        handle_file_bg=_enqueue_file,
-        handle_intent_bg=_enqueue_intent,
-        async_client_cls=httpx.AsyncClient,
-    )
-    _WECHAT_KF_SYNC_CURSOR = state.get("sync_cursor", _WECHAT_KF_SYNC_CURSOR)
-    _WECHAT_KF_CURSOR_LOADED = bool(state.get("cursor_loaded", _WECHAT_KF_CURSOR_LOADED))
-    if _WECHAT_KF_SYNC_CURSOR and _WECHAT_KF_SYNC_CURSOR != previous_cursor:
-        if _create_task_is_mocked():
-            _persist_wecom_kf_sync_cursor(_WECHAT_KF_SYNC_CURSOR)
-        else:
-            await _persist_wecom_kf_sync_cursor_shared(_WECHAT_KF_SYNC_CURSOR)
+        previous_cursor = _WECHAT_KF_SYNC_CURSOR
+        state = await kfsync.handle_event(
+            expected_msgid=expected_msgid,
+            event_create_time=event_create_time,
+            event_token=event_token,
+            event_open_kfid=event_open_kfid,
+            sync_cursor=_WECHAT_KF_SYNC_CURSOR,
+            cursor_loaded=_WECHAT_KF_CURSOR_LOADED,
+            seen_msg_ids=_WECHAT_KF_SEEN_MSG_IDS,
+            load_cursor=lambda: _WECHAT_KF_SYNC_CURSOR,
+            persist_cursor=lambda _cursor: None,
+            log=log,
+            get_config=_get_config,
+            get_access_token=_get_access_token,
+            msg_to_text=_wecom_kf_msg_to_text,
+            msg_is_processable=_wecom_msg_is_processable,
+            msg_time=_wecom_msg_time,
+            send_customer_service_msg=lambda uid, content, open_kfid: _send_customer_service_msg(
+                uid, content, open_kfid=open_kfid
+            ),
+            handle_voice_bg=_enqueue_voice,
+            handle_image_bg=_enqueue_image,
+            handle_file_bg=_enqueue_file,
+            handle_intent_bg=_enqueue_intent,
+            async_client_cls=httpx.AsyncClient,
+        )
+        _WECHAT_KF_SYNC_CURSOR = state.get("sync_cursor", _WECHAT_KF_SYNC_CURSOR)
+        _WECHAT_KF_CURSOR_LOADED = bool(state.get("cursor_loaded", _WECHAT_KF_CURSOR_LOADED))
+        if _WECHAT_KF_SYNC_CURSOR and _WECHAT_KF_SYNC_CURSOR != previous_cursor:
+            if _create_task_is_mocked():
+                _persist_wecom_kf_sync_cursor(_WECHAT_KF_SYNC_CURSOR)
+            else:
+                await _persist_wecom_kf_sync_cursor_shared(_WECHAT_KF_SYNC_CURSOR)
 
 
 @router.get("")
@@ -876,6 +896,8 @@ async def _handle_intent_bg(text: str, doctor_id: str, open_kfid: str = "", msg_
     async with get_session_lock(doctor_id):
         await hydrate_session_state(doctor_id)
         sess = get_session(doctor_id)
+        # Compress rolling window if full or idle — runs for all intent branches
+        await maybe_compress(doctor_id, sess)
         if sess.pending_import_id:
             result = await _handle_pending_import_reply(text, doctor_id, sess)
             push_turn(doctor_id, text, result)
@@ -893,15 +915,13 @@ async def _handle_intent_bg(text: str, doctor_id: str, open_kfid: str = "", msg_
             push_turn(doctor_id, text, result)
             await flush_turns(doctor_id)
         else:
-            # Compress rolling window if full or idle before adding new turn
-            await maybe_compress(doctor_id, sess)
 
-            # Build history: inject persisted context only when starting a fresh session
+            # Build history: always prepend persisted summary so older context
+            # is not lost when recent turns exist after a reboot or between sessions.
             history = list(sess.conversation_history)
-            if not history:
-                ctx_msg = await load_context_message(doctor_id)
-                if ctx_msg:
-                    history = [ctx_msg]
+            ctx_msg = await load_context_message(doctor_id)
+            if ctx_msg:
+                history = [ctx_msg] + history
 
             try:
                 result = await _handle_intent(text, doctor_id, history=history)
@@ -945,7 +965,10 @@ async def _handle_voice_bg(media_id: str, doctor_id: str, open_kfid: str = ""):
         await hydrate_session_state(doctor_id)
         sess = get_session(doctor_id)
         try:
-            if sess.pending_import_id:
+            if sess.pending_record_id:
+                result = await _handle_pending_record_reply(text, doctor_id, sess)
+                route = "done"
+            elif sess.pending_import_id:
                 result = await _handle_pending_import_reply(text, doctor_id, sess)
                 route = "done"
             elif sess.pending_create_name:
@@ -1042,6 +1065,12 @@ async def handle_message(request: Request):
         reply = TextReply(content=reply_text, message=msg)
         return Response(content=reply.render(), media_type="application/xml")
 
+    # ── Patient pipeline guard — only registered doctors get agent access ──────
+    if not await _is_registered_doctor(msg.source):
+        log(f"[WeChat] unknown sender (patient?) rejected: open_id={msg.source}")
+        reply = TextReply(content=_PATIENT_REPLY, message=msg)
+        return Response(content=reply.render(), media_type="application/xml")
+
     # Voice message: ACK immediately, process in background
     if msg.type == "voice":
         asyncio.create_task(_handle_voice_bg(msg.media_id, msg.source, _extract_open_kfid(msg)))
@@ -1087,12 +1116,6 @@ async def handle_message(request: Request):
 
     if msg.type != "text" or not msg.content.strip():
         reply = TextReply(content="请发送文字、语音或图片消息。", message=msg)
-        return Response(content=reply.render(), media_type="application/xml")
-
-    # ── Patient pipeline guard — only registered doctors get agent access ──────
-    if not await _is_registered_doctor(msg.source):
-        log(f"[WeChat] unknown sender (patient?) rejected: open_id={msg.source}")
-        reply = TextReply(content=_PATIENT_REPLY, message=msg)
         return Response(content=reply.render(), media_type="application/xml")
 
     # Stateful flows take priority over intent detection

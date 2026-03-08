@@ -32,6 +32,22 @@ async def download_voice(media_id: str, access_token: str) -> bytes:
         return resp.content
 
 
+async def download_media(media_id: str, access_token: str) -> bytes:
+    """Download any WeChat media file (image, PDF, Word, etc.) without audio conversion."""
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.get(
+            _media_get_url(),
+            params={"access_token": access_token, "media_id": media_id},
+        )
+        if resp.status_code != 200:
+            raise RuntimeError(f"WeChat media download failed: HTTP {resp.status_code}")
+        content_type = resp.headers.get("content-type", "")
+        if "application/json" in content_type:
+            raise RuntimeError(f"WeChat media error: {resp.json()}")
+        log(f"[Media] downloaded {len(resp.content)} bytes, content-type={content_type!r}")
+        return resp.content
+
+
 def _ffmpeg_to_wav(audio_bytes: bytes) -> bytes:
     """Convert AMR/SILK audio to 16kHz mono WAV using ffmpeg (via stdin/stdout)."""
     result = subprocess.run(

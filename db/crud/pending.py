@@ -60,20 +60,30 @@ async def get_pending_record(
     return result.scalar_one_or_none()
 
 
-async def confirm_pending_record(session: AsyncSession, record_id: str) -> None:
+async def confirm_pending_record(
+    session: AsyncSession,
+    record_id: str,
+    doctor_id: Optional[str] = None,
+) -> None:
+    where = [PendingRecord.id == record_id, PendingRecord.status == "awaiting"]
+    if doctor_id:
+        where.append(PendingRecord.doctor_id == doctor_id)
     await session.execute(
-        sa_update(PendingRecord)
-        .where(PendingRecord.id == record_id)
-        .values(status="confirmed")
+        sa_update(PendingRecord).where(*where).values(status="confirmed")
     )
     await session.commit()
 
 
-async def abandon_pending_record(session: AsyncSession, record_id: str) -> None:
+async def abandon_pending_record(
+    session: AsyncSession,
+    record_id: str,
+    doctor_id: Optional[str] = None,
+) -> None:
+    where = [PendingRecord.id == record_id]
+    if doctor_id:
+        where.append(PendingRecord.doctor_id == doctor_id)
     await session.execute(
-        sa_update(PendingRecord)
-        .where(PendingRecord.id == record_id)
-        .values(status="abandoned")
+        sa_update(PendingRecord).where(*where).values(status="abandoned")
     )
     await session.commit()
 
@@ -135,20 +145,30 @@ async def get_pending_import(
     return result.scalar_one_or_none()
 
 
-async def confirm_pending_import(session: AsyncSession, import_id: str) -> None:
+async def confirm_pending_import(
+    session: AsyncSession,
+    import_id: str,
+    doctor_id: Optional[str] = None,
+) -> None:
+    where = [PendingImport.id == import_id, PendingImport.status == "awaiting"]
+    if doctor_id:
+        where.append(PendingImport.doctor_id == doctor_id)
     await session.execute(
-        sa_update(PendingImport)
-        .where(PendingImport.id == import_id)
-        .values(status="confirmed")
+        sa_update(PendingImport).where(*where).values(status="confirmed")
     )
     await session.commit()
 
 
-async def abandon_pending_import(session: AsyncSession, import_id: str) -> None:
+async def abandon_pending_import(
+    session: AsyncSession,
+    import_id: str,
+    doctor_id: Optional[str] = None,
+) -> None:
+    where = [PendingImport.id == import_id]
+    if doctor_id:
+        where.append(PendingImport.doctor_id == doctor_id)
     await session.execute(
-        sa_update(PendingImport)
-        .where(PendingImport.id == import_id)
-        .values(status="abandoned")
+        sa_update(PendingImport).where(*where).values(status="abandoned")
     )
     await session.commit()
 
@@ -213,5 +233,6 @@ async def list_stale_pending_messages(
         select(PendingMessage)
         .where(PendingMessage.status == "pending", PendingMessage.created_at < cutoff)
         .order_by(PendingMessage.created_at)
+        .limit(500)
     )
     return list(result.scalars().all())

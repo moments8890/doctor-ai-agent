@@ -400,18 +400,4 @@ async def run_due_task_cycle(
             "skipped_by_lease": False,
         }
     finally:
-        if lease_enabled and lease_acquired:
-            try:
-                async with AsyncSessionLocal() as session:
-                    await release_scheduler_lease(
-                        session=session,
-                        lease_key=_LEASE_KEY,
-                        owner_id=owner_id,
-                        now=datetime.now(timezone.utc),
-                    )
-            except Exception as e:
-                await _emit_task_log(
-                    "scheduler_lease_release_failed",
-                    owner_id=owner_id,
-                    error=str(e),
-                )
+        pass  # Lease expires naturally via TTL; no explicit release needed.

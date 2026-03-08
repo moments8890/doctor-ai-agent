@@ -448,32 +448,6 @@ _INTENT_MAP = {
     "bash": Intent.bash_command,
 }
 
-# Module-level singleton cache: one HTTP connection pool per provider.
-# Avoids TCP/TLS handshake overhead on every request (~150-300ms saved).
-_CLIENT_CACHE: dict[str, AsyncOpenAI] = {}
-
-
-def _get_client(provider_name: str, provider: dict) -> AsyncOpenAI:
-    extra_headers = {"anthropic-version": "2023-06-01"} if provider_name == "claude" else {}
-    # Skip singleton cache in test environments so mock patches can intercept.
-    if os.environ.get("PYTEST_CURRENT_TEST") or "pytest" in os.environ.get("_", ""):
-        return AsyncOpenAI(
-            base_url=provider["base_url"],
-            api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
-            timeout=float(os.environ.get("AGENT_LLM_TIMEOUT", "45")),
-            max_retries=0,
-            default_headers=extra_headers,
-        )
-    if provider_name not in _CLIENT_CACHE:
-        _CLIENT_CACHE[provider_name] = AsyncOpenAI(
-            base_url=provider["base_url"],
-            api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
-            timeout=float(os.environ.get("AGENT_LLM_TIMEOUT", "45")),
-            max_retries=0,
-            default_headers=extra_headers,
-        )
-    return _CLIENT_CACHE[provider_name]
-
 
 def _strip_descriptions(node: Any) -> Any:
     if isinstance(node, list):
@@ -763,13 +737,11 @@ async def dispatch(
             op_name="agent.chat_completion",
         )
     except Exception as e:
-        if provider_name == "ollama":
-            log(f"[Agent:ollama] tool-call failed, using local fallback: {e}")
-            from services.observability.routing_metrics import record as _record_metric
-            _record_metric("fallback:regex")
-            with trace_block("agent", "agent.local_fallback", {"reason": "ollama_error"}):
-                return _fallback_intent_from_text(text)
-        raise
+        log(f"[Agent:{provider_name}] tool-call failed, using local fallback: {e}")
+        from services.observability.routing_metrics import record as _record_metric
+        _record_metric("fallback:regex")
+        with trace_block("agent", "agent.local_fallback", {"reason": f"{provider_name}_error"}):
+            return _fallback_intent_from_text(text)
 
     message = completion.choices[0].message
     # Capture natural reply regardless of whether a tool was called

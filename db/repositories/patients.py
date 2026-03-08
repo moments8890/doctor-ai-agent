@@ -75,11 +75,13 @@ class PatientRepository:
         )
         return list(result.scalars().all())
 
-    async def list_for_doctor(self, doctor_id: str) -> List[Patient]:
+    async def list_for_doctor(self, doctor_id: str, limit: int = 200, offset: int = 0) -> List[Patient]:
         result = await self.session.execute(
             select(Patient)
             .where(Patient.doctor_id == doctor_id)
             .order_by(Patient.created_at.desc())
             .options(selectinload(Patient.labels))
+            .limit(limit)
+            .offset(offset)
         )
         return list(result.scalars().all())

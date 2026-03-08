@@ -7,7 +7,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.models import DoctorTask
@@ -77,14 +77,19 @@ class TaskRepository:
         result = await self.session.execute(
             select(DoctorTask).where(
                 DoctorTask.status == "pending",
-                DoctorTask.due_at <= now,
                 DoctorTask.notified_at.is_(None),
+                or_(
+                    DoctorTask.due_at <= now,
+                    (DoctorTask.due_at.is_(None) & (DoctorTask.task_type == "emergency")),
+                ),
             )
         )
         return list(result.scalars().all())
 
     async def mark_notified(self, *, task_id: int, notified_at: datetime) -> None:
-        result = await self.session.execute(select(DoctorTask).where(DoctorTask.id == task_id))
+        result = await self.session.execute(
+            select(DoctorTask).where(DoctorTask.id == task_id).with_for_update()
+        )
         task = result.scalar_one_or_none()
         if task is None:
             return

@@ -25,6 +25,7 @@ chardet==5.2.0
 python-docx
 pydantic==2.12.5
 anyio==4.12.1
+PyJWT==2.11.0
 # NOTE: ffmpeg must be installed at the system level (brew install ffmpeg / apt install ffmpeg)
 #       It is used by services/voice.py to convert WeChat AMR/SILK audio to 16kHz WAV.
 #

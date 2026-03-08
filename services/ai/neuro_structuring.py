@@ -13,8 +13,12 @@ from typing import Optional, Tuple
 from openai import AsyncOpenAI
 
 from models.neuro_case import ExtractionLog, NeuroCase
+from services.ai.llm_client import _PROVIDERS
 from services.ai.llm_resilience import call_with_retry_and_fallback
 from utils.log import log
+
+# Module-level singleton cache: one HTTP connection pool per provider.
+_CLIENT_CACHE: dict[str, AsyncOpenAI] = {}
 
 # ---------------------------------------------------------------------------
 # Seed prompt — written to DB on first startup. After that, DB is the source of truth.
@@ -177,33 +181,6 @@ async def _get_system_prompt() -> str:
     return content
 
 
-_PROVIDERS = {
-    "gemini": {
-        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
-        "api_key_env": "GEMINI_API_KEY",
-        "model": "gemini-2.0-flash",
-    },
-    "deepseek": {
-        "base_url": "https://api.deepseek.com",
-        "api_key_env": "DEEPSEEK_API_KEY",
-        "model": "deepseek-chat",
-    },
-    "groq": {
-        "base_url": "https://api.groq.com/openai/v1",
-        "api_key_env": "GROQ_API_KEY",
-        "model": "llama-3.3-70b-versatile",
-    },
-    "ollama": {
-        "base_url": os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
-        "api_key_env": "OLLAMA_API_KEY",
-        "model": "qwen2.5:7b",
-    },
-    "tencent_lkeap": {
-        "base_url": os.environ.get("TENCENT_LKEAP_BASE_URL", "https://api.lkeap.cloud.tencent.com/v1"),
-        "api_key_env": "TENCENT_LKEAP_API_KEY",
-        "model": os.environ.get("TENCENT_LKEAP_MODEL", "deepseek-v3-1"),
-    },
-}
 
 _FENCED_JSON_RE = re.compile(r"```(?:json)?\s*([\s\S]*?)```", re.IGNORECASE)
 
@@ -280,12 +257,14 @@ async def extract_neuro_case(text: str) -> Tuple[NeuroCase, ExtractionLog]:
         provider["model"] = os.environ.get("TENCENT_LKEAP_MODEL", provider["model"])
     log(f"[NeuroLLM:{provider_name}] calling API: {text[:80]}")
 
-    client = AsyncOpenAI(
-        base_url=provider["base_url"],
-        api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
-        timeout=float(os.environ.get("NEURO_LLM_TIMEOUT", "60")),
-        max_retries=0,
-    )
+    if provider_name not in _CLIENT_CACHE or os.environ.get("PYTEST_CURRENT_TEST") or "pytest" in os.environ.get("_", ""):
+        _CLIENT_CACHE[provider_name] = AsyncOpenAI(
+            base_url=provider["base_url"],
+            api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
+            timeout=float(os.environ.get("NEURO_LLM_TIMEOUT", "60")),
+            max_retries=0,
+        )
+    client = _CLIENT_CACHE[provider_name]
     system_prompt = await _get_system_prompt()
     async def _call(model_name: str):
         return await client.chat.completions.create(

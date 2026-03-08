@@ -54,7 +54,6 @@ _PERSIST_DIR = Path(os.environ.get("OBSERVABILITY_DIR", "logs"))
 _PERSIST_TRACES_FILE = _PERSIST_DIR / "observability_traces.jsonl"
 _PERSIST_SPANS_FILE = _PERSIST_DIR / "observability_spans.jsonl"
 _TTL_DAYS = int(os.environ.get("OBSERVABILITY_TTL_DAYS", "7"))
-_WRITE_COUNT = 0
 _PRUNE_EVERY = 200
 _LOADED = False
 _SPAN_WRITE_QUEUE: "asyncio.Queue[tuple[Path, dict]] | None" = None
@@ -122,6 +121,7 @@ async def _disk_writer() -> None:
     """Background coroutine: drains the write queue to disk without blocking the event loop."""
     global _SPAN_WRITE_QUEUE
     _SPAN_WRITE_QUEUE = asyncio.Queue(maxsize=5000)
+    _items_written = 0
     while True:
         try:
             path, payload = await _SPAN_WRITE_QUEUE.get()
@@ -129,6 +129,9 @@ async def _disk_writer() -> None:
                 path.parent.mkdir(parents=True, exist_ok=True)
                 with path.open("a", encoding="utf-8") as f:
                     f.write(json.dumps(payload, ensure_ascii=False) + "\n")
+                _items_written += 1
+                if _items_written % _PRUNE_EVERY == 0:
+                    await asyncio.get_event_loop().run_in_executor(None, _prune_disk_files)
             except Exception:
                 pass
             finally:
@@ -221,7 +224,6 @@ def add_trace(
     latency_ms: float,
 ) -> None:
     _ensure_loaded()
-    global _WRITE_COUNT
     with _LOCK:
         _TRACE_BUFFER.append(
             TraceRecord(
@@ -245,9 +247,6 @@ def add_trace(
                 "latency_ms": latency_ms,
             },
         )
-        _WRITE_COUNT += 1
-        if _WRITE_COUNT % _PRUNE_EVERY == 0:
-            _prune_disk_files()
 
 
 def set_current_trace_id(trace_id: str) -> Token:
@@ -315,9 +314,6 @@ def add_span(
                 "meta": rec.meta,
             },
         )
-        _WRITE_COUNT += 1
-        if _WRITE_COUNT % _PRUNE_EVERY == 0:
-            _prune_disk_files()
 
 
 @contextmanager

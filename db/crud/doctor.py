@@ -73,21 +73,20 @@ async def _resolve_doctor_id(session: AsyncSession, doctor_id: str, name: Option
                 existing_by_wechat.name = name
             return existing_by_wechat.doctor_id
 
-    session.add(
-        Doctor(
-            doctor_id=incoming,
-            name=name,
-            channel=channel,
-            wechat_user_id=wechat_user_id,
-            created_at=now,
-            updated_at=now,
-        )
-    )
     try:
-        await session.flush()
+        async with session.begin_nested():
+            session.add(
+                Doctor(
+                    doctor_id=incoming,
+                    name=name,
+                    channel=channel,
+                    wechat_user_id=wechat_user_id,
+                    created_at=now,
+                    updated_at=now,
+                )
+            )
         return incoming
     except IntegrityError:
-        await session.rollback()
         if wechat_user_id:
             row = (
                 await session.execute(

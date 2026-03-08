@@ -211,7 +211,7 @@ async def test_handle_pending_import_reply_cancel():
     ):
         result = await wechat_router._handle_pending_import_reply("取消", DOCTOR, sess)
 
-    mock_abandon.assert_called_once_with(mock_session, "def456")
+    mock_abandon.assert_called_once_with(mock_session, "def456", doctor_id=DOCTOR)
     mock_clear.assert_called_once_with(DOCTOR)
     assert "取消" in result or "放弃" in result
 

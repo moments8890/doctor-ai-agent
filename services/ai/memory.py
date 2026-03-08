@@ -59,8 +59,11 @@ async def _summarise(history: List[dict]) -> str:
         for m in history
     )
 
+    # Providers that support the json_object response format
+    _JSON_FORMAT_PROVIDERS = {"deepseek", "openai", "gemini", "tencent_lkeap"}
+
     async def _call(model_name: str):
-        return await client.chat.completions.create(
+        kwargs: dict = dict(
             model=model_name,
             messages=[
                 {"role": "system", "content": _build_compress_prompt()},
@@ -69,6 +72,9 @@ async def _summarise(history: List[dict]) -> str:
             max_tokens=int(os.environ.get("MEMORY_MAX_TOKENS", "400")),
             temperature=0,
         )
+        if provider_name in _JSON_FORMAT_PROVIDERS:
+            kwargs["response_format"] = {"type": "json_object"}
+        return await client.chat.completions.create(**kwargs)
 
     fallback_model = None
     if provider_name == "ollama":
@@ -109,22 +115,26 @@ async def maybe_compress(doctor_id: str, sess: "DoctorSession") -> None:
 
     reason = "full" if full else "idle"
     log(f"[Memory:{doctor_id}] compressing ({reason}): {len(history)} messages")
+    succeeded = False
     try:
         summary = await _summarise(history)
         async with AsyncSessionLocal() as db:
             await upsert_doctor_context(db, doctor_id, summary)
         log(f"[Memory:{doctor_id}] saved summary: {summary[:80]}")
+        succeeded = True
     except Exception as e:
         log(f"[Memory:{doctor_id}] compression FAILED: {e}")
     finally:
-        # Always clear the window so we don't retry on every subsequent message
+        # Always clear the in-memory window to avoid retrying on every message.
+        # Only clear DB turns on success — on failure they survive for reboot recovery.
         sess.conversation_history = []
         sess.last_active = time.time()
-        try:
-            async with AsyncSessionLocal() as db:
-                await clear_conversation_turns(db, doctor_id)
-        except Exception as e:
-            log(f"[Memory:{doctor_id}] clear persisted turns FAILED: {e}")
+        if succeeded:
+            try:
+                async with AsyncSessionLocal() as db:
+                    await clear_conversation_turns(db, doctor_id)
+            except Exception as e:
+                log(f"[Memory:{doctor_id}] clear persisted turns FAILED: {e}")
 
 
 def _render_structured_summary(data: dict) -> str:

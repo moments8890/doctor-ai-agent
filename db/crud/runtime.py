@@ -116,7 +116,10 @@ async def try_acquire_scheduler_lease(
     lease_until = now + timedelta(seconds=ttl_seconds)
 
     existing = await session.execute(
-        select(SchedulerLease).where(SchedulerLease.lease_key == lease_key).limit(1)
+        select(SchedulerLease)
+        .where(SchedulerLease.lease_key == lease_key)
+        .with_for_update(skip_locked=True)
+        .limit(1)
     )
     row = existing.scalar_one_or_none()
     if row is None:

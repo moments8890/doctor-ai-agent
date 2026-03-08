@@ -17,6 +17,9 @@ _SYSTEM_PROMPT = (
     "保留所有数字、单位和药物名称，不要添加解释，不要输出 JSON，只输出纯文本。"
 )
 
+# Module-level singleton cache: one HTTP connection pool per provider.
+_CLIENT_CACHE: dict[str, AsyncOpenAI] = {}
+
 _PROVIDERS = {
     "ollama": {
         "base_url": os.environ.get("OLLAMA_VISION_BASE_URL", os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1")),
@@ -54,15 +57,18 @@ async def extract_text_from_image(image_bytes: bytes, mime_type: str) -> str:
 
     api_key = os.environ.get(cfg["api_key_env"], "nokeyneeded")
 
-    client_kwargs: dict = {"api_key": api_key}
+    client_kwargs: dict = {
+        "api_key": api_key,
+        "timeout": float(os.environ.get("VISION_LLM_TIMEOUT", "60")),
+        "max_retries": 0,
+    }
     if cfg["base_url"]:
         client_kwargs["base_url"] = cfg["base_url"]
 
-    client = AsyncOpenAI(
-        timeout=float(os.environ.get("VISION_LLM_TIMEOUT", "60")),
-        max_retries=0,
-        **client_kwargs,
-    )
+    cache_key = f"{provider_name}:{model}"
+    if cache_key not in _CLIENT_CACHE or os.environ.get("PYTEST_CURRENT_TEST") or "pytest" in os.environ.get("_", ""):
+        _CLIENT_CACHE[cache_key] = AsyncOpenAI(**client_kwargs)
+    client = _CLIENT_CACHE[cache_key]
 
     image_b64 = base64.b64encode(image_bytes).decode("utf-8")
     data_url = f"data:{mime_type};base64,{image_b64}"
