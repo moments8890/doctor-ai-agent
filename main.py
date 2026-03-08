@@ -25,8 +25,6 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
-from sqladmin import Admin, ModelView
-from sqladmin.authentication import AuthenticationBackend
 from starlette.responses import Response
 
 from routers.records import router as records_router
@@ -39,7 +37,6 @@ from routers.tasks import router as tasks_router
 from routers.voice import router as voice_router
 from db.init_db import create_tables, seed_prompts, backfill_doctors_registry
 from db.engine import engine, AsyncSessionLocal
-from db.models import Doctor, Patient, MedicalRecordDB, DoctorContext, SystemPrompt, NeuroCaseDB, DoctorTask
 from db.crud import get_due_tasks, purge_conversation_turns_before
 from services.notify.tasks import check_and_send_due_tasks
 from services.session import prune_inactive_sessions
@@ -52,154 +49,6 @@ from services.observability.observability import (
     set_current_span_id,
     set_current_trace_id,
 )
-
-
-# ---------------------------------------------------------------------------
-# Admin views
-# ---------------------------------------------------------------------------
-
-class PatientAdmin(ModelView, model=Patient):
-    name = "Patient"
-    name_plural = "Patients"
-    icon = "fa-solid fa-user"
-    column_list = [
-        Patient.id,
-        Patient.name,
-        Patient.gender,
-        Patient.year_of_birth,
-        Patient.records,          # shows linked records count + clickable list
-        Patient.doctor_id,
-        Patient.created_at,
-    ]
-    column_searchable_list = [Patient.name, Patient.doctor_id]
-    column_sortable_list = [Patient.id, Patient.name, Patient.created_at]
-    column_default_sort = [(Patient.created_at, True)]
-
-
-class DoctorAdmin(ModelView, model=Doctor):
-    name = "Doctor"
-    name_plural = "Doctors"
-    icon = "fa-solid fa-user-doctor"
-    column_list = [
-        Doctor.doctor_id,
-        Doctor.name,
-        Doctor.updated_at,
-        Doctor.created_at,
-    ]
-    column_searchable_list = [Doctor.doctor_id, Doctor.name]
-    column_sortable_list = [Doctor.updated_at, Doctor.created_at]
-    column_default_sort = [(Doctor.updated_at, True)]
-
-
-class MedicalRecordAdmin(ModelView, model=MedicalRecordDB):
-    name = "Medical Record"
-    name_plural = "Medical Records"
-    icon = "fa-solid fa-file-medical"
-    column_list = [
-        MedicalRecordDB.id,
-        MedicalRecordDB.patient,  # shows patient name as a link instead of raw id
-        MedicalRecordDB.chief_complaint,
-        MedicalRecordDB.diagnosis,
-        MedicalRecordDB.treatment_plan,
-        MedicalRecordDB.doctor_id,
-        MedicalRecordDB.created_at,
-    ]
-    column_details_list = [
-        MedicalRecordDB.id,
-        MedicalRecordDB.patient,
-        MedicalRecordDB.chief_complaint,
-        MedicalRecordDB.history_of_present_illness,
-        MedicalRecordDB.past_medical_history,
-        MedicalRecordDB.physical_examination,
-        MedicalRecordDB.auxiliary_examinations,
-        MedicalRecordDB.diagnosis,
-        MedicalRecordDB.treatment_plan,
-        MedicalRecordDB.follow_up_plan,
-        MedicalRecordDB.doctor_id,
-        MedicalRecordDB.created_at,
-    ]
-    column_searchable_list = [MedicalRecordDB.chief_complaint, MedicalRecordDB.diagnosis]
-    column_sortable_list = [MedicalRecordDB.id, MedicalRecordDB.created_at]
-    column_default_sort = [(MedicalRecordDB.created_at, True)]
-
-
-class SystemPromptAdmin(ModelView, model=SystemPrompt):
-    name = "System Prompt"
-    name_plural = "System Prompts"
-    icon = "fa-solid fa-wand-magic-sparkles"
-    column_list = [SystemPrompt.key, SystemPrompt.updated_at]
-    column_details_list = [SystemPrompt.key, SystemPrompt.content, SystemPrompt.updated_at]
-    form_include_pk = True          # allow setting the key on create
-    column_sortable_list = [SystemPrompt.updated_at]
-
-
-class DoctorContextAdmin(ModelView, model=DoctorContext):
-    name = "Doctor Context"
-    name_plural = "Doctor Contexts"
-    icon = "fa-solid fa-brain"
-    column_list = [
-        DoctorContext.doctor_id,
-        DoctorContext.summary,
-        DoctorContext.updated_at,
-    ]
-    column_details_list = [
-        DoctorContext.doctor_id,
-        DoctorContext.summary,
-        DoctorContext.updated_at,
-    ]
-    column_searchable_list = [DoctorContext.doctor_id]
-    column_sortable_list = [DoctorContext.updated_at]
-    column_default_sort = [(DoctorContext.updated_at, True)]
-
-
-class NeuroCaseAdmin(ModelView, model=NeuroCaseDB):
-    name = "Neuro Case"
-    name_plural = "Neuro Cases"
-    icon = "fa-solid fa-brain-circuit"
-    column_list = [
-        NeuroCaseDB.id,
-        NeuroCaseDB.patient_name,
-        NeuroCaseDB.chief_complaint,
-        NeuroCaseDB.primary_diagnosis,
-        NeuroCaseDB.nihss,
-        NeuroCaseDB.doctor_id,
-        NeuroCaseDB.created_at,
-    ]
-    column_details_list = [
-        NeuroCaseDB.id,
-        NeuroCaseDB.patient_name,
-        NeuroCaseDB.gender,
-        NeuroCaseDB.age,
-        NeuroCaseDB.encounter_type,
-        NeuroCaseDB.chief_complaint,
-        NeuroCaseDB.primary_diagnosis,
-        NeuroCaseDB.nihss,
-        NeuroCaseDB.raw_json,
-        NeuroCaseDB.extraction_log_json,
-        NeuroCaseDB.doctor_id,
-        NeuroCaseDB.created_at,
-    ]
-    column_searchable_list = [NeuroCaseDB.patient_name, NeuroCaseDB.primary_diagnosis]
-    column_sortable_list = [NeuroCaseDB.id, NeuroCaseDB.created_at]
-    column_default_sort = [(NeuroCaseDB.created_at, True)]
-
-
-class DoctorTaskAdmin(ModelView, model=DoctorTask):
-    name = "Doctor Task"
-    name_plural = "Doctor Tasks"
-    icon = "fa-solid fa-list-check"
-    column_list = [
-        DoctorTask.id,
-        DoctorTask.doctor_id,
-        DoctorTask.task_type,
-        DoctorTask.title,
-        DoctorTask.status,
-        DoctorTask.due_at,
-        DoctorTask.created_at,
-    ]
-    column_searchable_list = [DoctorTask.doctor_id, DoctorTask.title]
-    column_sortable_list = [DoctorTask.id, DoctorTask.due_at, DoctorTask.created_at]
-    column_default_sort = [(DoctorTask.created_at, True)]
 
 
 # ---------------------------------------------------------------------------
@@ -596,15 +445,6 @@ async def trace_requests_middleware(request: Request, call_next):
         reset_current_span_id(span_token)
         reset_current_trace_id(trace_token)
 
-
-admin = Admin(app, engine, title="DB Admin")
-admin.add_view(SystemPromptAdmin)
-admin.add_view(DoctorAdmin)
-admin.add_view(PatientAdmin)
-admin.add_view(MedicalRecordAdmin)
-admin.add_view(DoctorContextAdmin)
-admin.add_view(NeuroCaseAdmin)
-admin.add_view(DoctorTaskAdmin)
 
 app.include_router(records_router)
 app.include_router(wechat_router)

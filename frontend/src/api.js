@@ -204,6 +204,20 @@ export async function getAdminTunnelUrl() {
   return adminRequest("/api/admin/dev/tunnel-url");
 }
 
+export async function getAdminRoutingKeywords(token) {
+  return adminRequest("/api/admin/fast-router/keywords");
+}
+export async function putAdminRoutingKeywords(token, body) {
+  return adminRequest("/api/admin/fast-router/keywords", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+export async function reloadAdminRoutingKeywords(token) {
+  return adminRequest("/api/admin/fast-router/keywords/reload", { method: "POST" });
+}
+
 export async function getTasks(doctorId, status = null) {
   const qs = new URLSearchParams({ doctor_id: doctorId });
   if (status) qs.set("status", status);

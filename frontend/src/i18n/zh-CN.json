@@ -266,6 +266,7 @@
         "system_prompts": "提示词表",
         "doctor_contexts": "医生上下文表",
         "runtime_config": "系统配置(JSON)",
+        "routing_keywords": "路由关键词",
         "observability": "接口延迟与追踪"
       },
       "config": {
