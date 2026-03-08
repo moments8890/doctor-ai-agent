@@ -43,3 +43,6 @@ config/local.secrets
 # Mined routing rules and turn log (generated artifacts)
 data/*.json
 logs/turn_log.jsonl
+
+# local training data
+train

@@ -495,9 +495,16 @@ def _preprocess_import_text(
     return text.strip()
 
 
-# Sections in 体检报告 that contain the clinically actionable summary
+# Sections in 体检报告 that contain the clinically actionable summary.
+# Must appear at the START of a line (with optional section number prefix).
+# Covers: 江南大学附属医院, 爱康国宾, and common national templates.
 _EXAM_SUMMARY_RE = _re.compile(
-    r"(?:检查综述|体检结论|健康评估|主要.*?问题|检查结论|体检小结)",
+    r"(?:^|\n)(?:\d+[.．、]\s*)?(?:"
+    r"检查综述|体检结论|健康评估|主要.*?问题|检查结论|体检小结"
+    r"|体检重要异常结果|阳性结果和异常情况|异常结果及建议"
+    r"|重要检查结论|体检报告总结"
+    r")",
+    _re.MULTILINE,
 )
 # 体检报告 header junk: lines before the clinical summary
 _EXAM_HEADER_JUNK_RE = _re.compile(
@@ -511,24 +518,31 @@ def _preprocess_exam_report(text: str) -> str:
     Keeps: 检查综述, 主要/次要健康问题, 体检结论及建议.
     Discards: header junk, raw lab tables (too large for LLM).
     """
-    # Find where the clinical summary starts
+    # Find where the clinical summary starts (line-anchored — won't match inline text).
+    # TOC entries in 爱康国宾 use spaces (`1      体检...`) not period (`1. 体检...`),
+    # so they're skipped by the (?:\d+[.．、]\s*)? prefix requirement in the regex.
     m = _EXAM_SUMMARY_RE.search(text)
     if not m:
         return text  # can't identify structure — pass as-is
+    # m.start() may point to the leading \n — find the actual keyword start
+    body_start = m.start() + (1 if text[m.start()] in "\n\r" else 0)
 
-    # Get patient identity from the header (before summary)
-    header = text[:m.start()]
-    # Extract name, gender, age, date from header
-    name_m = _re.search(r"姓\s*名\s+(\S+)", header)
-    gender_m = _re.search(r"性别\s+([男女])", header)
+    # Get patient identity from the full header (everything before the body section)
+    header = text[:body_start]
+    # Extract name, gender, age, date from header (multiple format support)
+    name_m = _re.search(r"姓\s*名\s+(\S+)", header) or _re.search(r"REPORT\s+(\S{2,4})\s+(?:女士|先生|男士)", header)
+    gender_m = _re.search(r"性别\s+([男女])", header) or _re.search(r"(\S{2,4})\s+(女士|先生)", header)
     age_m = _re.search(r"年龄\s+(\d+\s*岁?)", header)
-    date_m = _re.search(r"体检日期\s+(\S+)", header)
+    date_m = _re.search(r"体检日期\s+(\S+)", header) or _re.search(r"(\d{4}年\d{1,2}月\d{1,2}日)的体检报告", header)
 
     identity_parts = []
     if name_m:
         identity_parts.append(f"姓名：{name_m.group(1)}")
     if gender_m:
-        identity_parts.append(f"性别：{gender_m.group(1)}")
+        # gender_m.group(1) may be name, group(2) may be 女士/先生 — normalize
+        raw_gender = gender_m.group(2) if gender_m.lastindex and gender_m.lastindex >= 2 else gender_m.group(1)
+        gender_val = "女" if "女" in raw_gender else ("男" if "男" in raw_gender else raw_gender)
+        identity_parts.append(f"性别：{gender_val}")
     if age_m:
         identity_parts.append(f"年龄：{age_m.group(1)}")
     if date_m:
@@ -537,13 +551,21 @@ def _preprocess_exam_report(text: str) -> str:
     identity_line = "  ".join(identity_parts) if identity_parts else ""
 
     # Keep only from the summary onwards, up to reasonable length
-    clinical = text[m.start():].strip()
+    clinical = text[body_start:].strip()
 
-    # Discard raw data tables after 体检结论 section (usually very long)
-    conclusion_m = _re.search(r"(?:体检结论|健康建议|医师签名)", clinical)
+    # Discard raw data tables after the conclusion / expert advice section
+    # Matches common stopping points: 江南大学 format + 爱康国宾 detailed results section
+    conclusion_m = _re.search(
+        r"(?:体检结论|健康建议|医师签名"
+        r"|(?:^|\n)\s*3[\s、.．]+健康体检结果"   # 爱康国宾 section 3 (raw detailed tables)
+        r"|(?:^|\n)\s*[三3][\s、.．]+检查详细"   # alternative heading
+        r")",
+        clinical,
+        _re.MULTILINE,
+    )
     if conclusion_m:
-        # Keep up to end of conclusion section (next 1500 chars)
-        clinical = clinical[:conclusion_m.start() + 1500]
+        # Keep up to end of conclusion section (next 2000 chars)
+        clinical = clinical[:conclusion_m.start() + 2000]
 
     result = (identity_line + "\n\n" + clinical).strip() if identity_line else clinical
     return result
@@ -552,13 +574,23 @@ def _preprocess_exam_report(text: str) -> str:
 # Structured single-document report markers: header fields that indicate the
 # entire text is ONE encounter (体检报告, 化验单, 出院记录, 影像报告 etc.)
 _STRUCTURED_REPORT_RE = _re.compile(
+    r"(?:"
+    # Standard form layout: 姓名 ... 性别/年龄 nearby
     r"(?:姓\s*名|患者姓名|检查日期|报告日期|体检编号|住院号|门诊号|标本编号|送检日期)"
     r".{0,20}"
-    r"(?:性\s*别|年\s*龄|科\s*室|床\s*号|检查者)",
+    r"(?:性\s*别|年\s*龄|科\s*室|床\s*号|检查者)"
+    r"|"
+    # 爱康国宾 / 美年健康 inline format: "健康体检报告" + 体检号
+    r"(?:健康体检报告|MEDICAL EXAMINATION REPORT).{0,60}(?:体检号|用户ID|检查日期)"
+    r")",
     _re.DOTALL,
 )
-# Section headers found in structured reports (【血常规】, 一、检查结果 etc.)
-_REPORT_SECTION_RE = _re.compile(r"(?:^|\n)【[^】]{2,12}】|(?:^|\n)[一二三四五六七八九十]+[、.．]\s*\S")
+# Section headers found in structured reports (【血常规】, 一、检查结果, 1  体检重要异常 etc.)
+_REPORT_SECTION_RE = _re.compile(
+    r"(?:^|\n)【[^】]{2,12}】"
+    r"|(?:^|\n)[一二三四五六七八九十]+[、.．]\s*\S"
+    r"|(?:^|\n)\d+\s{2,}[\u4e00-\u9fff]"  # Arabic numeral + spaces + Chinese (爱康国宾 TOC)
+)
 
 
 def _looks_like_structured_report(text: str) -> bool:
