@@ -16,7 +16,11 @@
       "logout": "退出登录",
       "doctorIdRequired": "请输入医生账号",
       "failed": "登录失败，请重试",
-      "loggedInAs": "当前账号"
+      "loggedInAs": "当前账号",
+      "wecomLogin": "企业微信扫码登录",
+      "wecomFailed": "企业微信登录失败：{message}",
+      "wecomUnavailable": "企业微信登录暂不可用",
+      "orDivider": "或"
     },
     "common": {
       "all": "全部",

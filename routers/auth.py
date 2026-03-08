@@ -5,12 +5,15 @@
 from __future__ import annotations
 
 import os
+import secrets
+import urllib.parse
 from datetime import datetime, timezone
 import logging
-from typing import Optional
+from typing import Optional, Tuple
 
 import httpx
 from fastapi import APIRouter, Header, HTTPException
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 
@@ -52,6 +55,10 @@ class WebLoginResponse(BaseModel):
     expires_in: int
     doctor_id: str
     channel: str
+
+
+class WecomLoginUrlResponse(BaseModel):
+    url: str
 
 
 class MeResponse(BaseModel):
@@ -219,6 +226,136 @@ async def web_login(body: WebLoginInput) -> WebLoginResponse:
         doctor_id=doctor_id,
         channel="app",
     )
+
+
+def _wecom_corp_id() -> str:
+    return (os.environ.get("WECOM_CORP_ID") or "").strip()
+
+
+def _wecom_secret() -> str:
+    return (os.environ.get("WECOM_SECRET") or "").strip()
+
+
+def _wecom_agent_id() -> str:
+    return (os.environ.get("WECOM_AGENT_ID") or "").strip()
+
+
+def _api_base_url() -> str:
+    return (os.environ.get("MINIPROGRAM_API_BASE_URL") or "http://127.0.0.1:8000").rstrip("/")
+
+
+async def _wecom_access_token() -> str:
+    corp_id = _wecom_corp_id()
+    secret = _wecom_secret()
+    if not corp_id or not secret:
+        raise HTTPException(status_code=500, detail="WECOM_CORP_ID/WECOM_SECRET not configured")
+    async with httpx.AsyncClient(timeout=8.0) as client:
+        resp = await client.get(
+            "https://qyapi.weixin.qq.com/cgi-bin/gettoken",
+            params={"corpid": corp_id, "corpsecret": secret},
+        )
+    resp.raise_for_status()
+    data = resp.json()
+    if int(data.get("errcode") or 0) != 0:
+        raise HTTPException(status_code=500, detail=f"WeCom gettoken failed: {data.get('errmsg')}")
+    return str(data["access_token"])
+
+
+async def _wecom_user_info(code: str) -> Tuple[str, Optional[str]]:
+    """Exchange OAuth code for (user_id, display_name)."""
+    access_token = await _wecom_access_token()
+    async with httpx.AsyncClient(timeout=8.0) as client:
+        resp = await client.get(
+            "https://qyapi.weixin.qq.com/cgi-bin/user/getuserinfo",
+            params={"access_token": access_token, "code": code},
+        )
+    resp.raise_for_status()
+    data = resp.json()
+    if int(data.get("errcode") or 0) != 0:
+        raise HTTPException(status_code=401, detail=f"WeCom getuserinfo failed: {data.get('errmsg')}")
+    user_id = str(data.get("UserId") or "").strip()
+    if not user_id:
+        raise HTTPException(status_code=401, detail="WeCom: only internal corp members are supported")
+
+    # Attempt to fetch the display name from the user profile
+    name: Optional[str] = None
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            r2 = await client.get(
+                "https://qyapi.weixin.qq.com/cgi-bin/user/get",
+                params={"access_token": access_token, "userid": user_id},
+            )
+        if r2.is_success:
+            u = r2.json()
+            name = str(u.get("name") or "").strip() or None
+    except Exception:
+        pass
+
+    return user_id, name
+
+
+async def _upsert_wecom_doctor(user_id: str, name: Optional[str]) -> str:
+    doctor_id = f"wecom_{user_id}"
+    now = datetime.now(timezone.utc)
+    async with AsyncSessionLocal() as session:
+        existing = (
+            await session.execute(select(Doctor).where(Doctor.doctor_id == doctor_id).limit(1))
+        ).scalar_one_or_none()
+        if existing is None:
+            session.add(
+                Doctor(
+                    doctor_id=doctor_id,
+                    name=name,
+                    channel="wecom",
+                    wechat_user_id=user_id,
+                    created_at=now,
+                    updated_at=now,
+                )
+            )
+        else:
+            existing.updated_at = now
+            if name and not existing.name:
+                existing.name = name
+        await session.commit()
+    return doctor_id
+
+
+@router.get("/wecom/login-url", response_model=WecomLoginUrlResponse)
+async def wecom_login_url() -> WecomLoginUrlResponse:
+    corp_id = _wecom_corp_id()
+    agent_id = _wecom_agent_id()
+    if not corp_id or not agent_id:
+        raise HTTPException(status_code=500, detail="WECOM_CORP_ID/WECOM_AGENT_ID not configured")
+
+    callback = f"{_api_base_url()}/api/auth/wecom/callback"
+    state = secrets.token_urlsafe(16)
+    url = (
+        "https://open.work.weixin.qq.com/wwopen/sso/qrConnect"
+        f"?appid={urllib.parse.quote(corp_id)}"
+        f"&agentid={urllib.parse.quote(str(agent_id))}"
+        f"&redirect_uri={urllib.parse.quote(callback, safe='')}"
+        f"&state={urllib.parse.quote(state)}"
+    )
+    return WecomLoginUrlResponse(url=url)
+
+
+@router.get("/wecom/callback")
+async def wecom_callback(code: str = "", state: str = "") -> RedirectResponse:
+    if not code:
+        return RedirectResponse(url="/login?error=missing_code")
+    try:
+        user_id, name = await _wecom_user_info(code)
+        doctor_id = await _upsert_wecom_doctor(user_id, name)
+        enforce_doctor_rate_limit(doctor_id, scope="auth.login")
+        token_data = issue_miniprogram_token(doctor_id, channel="wecom")
+        qs = urllib.parse.urlencode({
+            "token": token_data["access_token"],
+            "doctor_id": doctor_id,
+            "name": name or doctor_id,
+        })
+        return RedirectResponse(url=f"/login?{qs}")
+    except HTTPException as exc:
+        return RedirectResponse(url=f"/login?error={urllib.parse.quote(str(exc.detail))}")
 
 
 @router.get("/me", response_model=MeResponse)
