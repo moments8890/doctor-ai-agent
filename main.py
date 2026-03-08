@@ -23,7 +23,7 @@ init_logging()
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from sqlalchemy import text
 from starlette.responses import Response
 
@@ -483,6 +483,18 @@ app.include_router(export_router)
 @app.get("/")
 def root():
     return {"status": "ok", "docs": "/docs"}
+
+
+# WeChat domain verification — serves any file placed in static/wechat/
+# WeChat requires: GET https://yourdomain.com/<hash>.txt  → 200 OK, plain text content
+_WECHAT_STATIC_DIR = os.path.join(os.path.dirname(__file__), "static", "wechat")
+
+@app.get("/{filename}.txt")
+def wechat_verify(filename: str):
+    path = os.path.join(_WECHAT_STATIC_DIR, f"{filename}.txt")
+    if os.path.isfile(path):
+        return FileResponse(path, media_type="text/plain")
+    return JSONResponse(status_code=404, content={"detail": "not found"})
 
 
 @app.get("/healthz")
