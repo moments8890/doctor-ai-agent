@@ -923,14 +923,48 @@ function HomeSection({ doctorId, navigate }) {
 export default function DoctorPage() {
   const { section, patientId } = useParams();
   const navigate = useNavigate();
-  const { doctorId, doctorName, clearAuth } = useDoctorStore();
+  const { doctorId, doctorName, accessToken, clearAuth, setAuth } = useDoctorStore();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
   const [pendingRecord, setPendingRecord] = useState(null);
   const [confirmSnackbar, setConfirmSnackbar] = useState(false);
 
+  // Onboarding dialog state
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardName, setOnboardName] = useState("");
+  const [onboardSpecialty, setOnboardSpecialty] = useState("");
+  const [onboardSaving, setOnboardSaving] = useState(false);
+
   const activeSection = patientId ? "patients" : (section || "home");
+
+  // Check onboarding status on mount
+  useEffect(() => {
+    if (!doctorId) return;
+    getDoctorProfile(doctorId)
+      .then((profile) => {
+        if (!profile.onboarded) {
+          setOnboardName(profile.name || "");
+          setShowOnboarding(true);
+        }
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doctorId]);
+
+  async function handleOnboardSubmit() {
+    if (!onboardName.trim() || onboardSaving) return;
+    setOnboardSaving(true);
+    try {
+      await updateDoctorProfile(doctorId, { name: onboardName.trim(), specialty: onboardSpecialty });
+      setAuth(doctorId, onboardName.trim(), accessToken);
+      setShowOnboarding(false);
+    } catch {
+      // ignore — leave dialog open so user can retry
+    } finally {
+      setOnboardSaving(false);
+    }
+  }
 
   useEffect(() => {
     if (!doctorId) return;
@@ -1093,6 +1127,43 @@ export default function DoctorPage() {
           病历已保存
         </Alert>
       </Snackbar>
+
+      {/* First-time onboarding dialog — not dismissable */}
+      <Dialog open={showOnboarding} maxWidth="xs" fullWidth>
+        <DialogTitle>欢迎，请完成初始设置</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              label="您的姓名"
+              value={onboardName}
+              onChange={(e) => setOnboardName(e.target.value)}
+              fullWidth
+              autoFocus
+              required
+            />
+            <TextField
+              select
+              label="科室 / 专科"
+              value={onboardSpecialty}
+              onChange={(e) => setOnboardSpecialty(e.target.value)}
+              fullWidth
+            >
+              {["神经内科", "心内科", "骨科", "呼吸科", "消化科", "妇产科", "儿科", "肿瘤科", "其他"].map((s) => (
+                <MenuItem key={s} value={s}>{s}</MenuItem>
+              ))}
+            </TextField>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            variant="contained"
+            disabled={!onboardName.trim() || onboardSaving}
+            onClick={handleOnboardSubmit}
+          >
+            {onboardSaving ? "保存中..." : "完成设置"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

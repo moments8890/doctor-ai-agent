@@ -90,6 +90,7 @@ class Doctor(Base):
 
     doctor_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    specialty: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     channel: Mapped[str] = mapped_column(String(32), nullable=False, default="app")
     wechat_user_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)

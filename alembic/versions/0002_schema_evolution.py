@@ -85,6 +85,7 @@ def upgrade() -> None:
     for col, typedef in {
         "channel": "VARCHAR(32) DEFAULT NULL",
         "wechat_user_id": "VARCHAR(128) DEFAULT NULL",
+        "specialty": "VARCHAR(64) DEFAULT NULL",
     }.items():
         _add("doctors", col, typedef)
 
