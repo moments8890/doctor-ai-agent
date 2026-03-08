@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -80,6 +81,7 @@ from routers.ui._utils import (
     _require_ui_debug_access,
     _parse_admin_filters,
     _apply_created_at_filters,
+    apply_exclude_test_doctors,
 )
 
 router = APIRouter(tags=["ui"])
@@ -341,7 +343,10 @@ async def _manage_records_for_doctor(
                     "record_type": r.record_type or "visit",
                     "content": r.content,
                     "tags": _parse_tags(r.tags),
+                    "encounter_type": r.encounter_type or "unknown",
+                    "is_signed_off": bool(r.is_signed_off),
                     "created_at": _fmt_ts(r.created_at),
+                    "updated_at": _fmt_ts(r.updated_at),
                 }
                 for r in records
             ]
@@ -356,7 +361,10 @@ async def _manage_records_for_doctor(
                     "record_type": r.record_type or "visit",
                     "content": r.content,
                     "tags": _parse_tags(r.tags),
+                    "encounter_type": r.encounter_type or "unknown",
+                    "is_signed_off": bool(r.is_signed_off),
                     "created_at": _fmt_ts(r.created_at),
+                    "updated_at": _fmt_ts(r.updated_at),
                 }
                 for r in records
             ]
@@ -841,7 +849,9 @@ async def admin_filter_options(
             PatientLabel.doctor_id,
         ]
         for col in doctor_sources:
-            rows = (await db.execute(select(col).where(col.is_not(None)))).scalars().all()
+            stmt = select(col).where(col.is_not(None))
+            stmt = apply_exclude_test_doctors(stmt, col)
+            rows = (await db.execute(stmt)).scalars().all()
             for value in rows:
                 if isinstance(value, str) and value.strip():
                     doctor_candidates.add(value.strip())
@@ -849,6 +859,8 @@ async def admin_filter_options(
         patient_stmt = select(Patient.name).where(Patient.name.is_not(None))
         if doctor_id:
             patient_stmt = patient_stmt.where(Patient.doctor_id == doctor_id)
+        else:
+            patient_stmt = apply_exclude_test_doctors(patient_stmt, Patient.doctor_id)
         patient_rows = (await db.execute(patient_stmt)).scalars().all()
 
     return {
@@ -887,6 +899,9 @@ async def admin_db_view(
     if doctor_id:
         patient_stmt = patient_stmt.where(Patient.doctor_id == doctor_id)
         record_stmt = record_stmt.where(MedicalRecordDB.doctor_id == doctor_id)
+    else:
+        patient_stmt = apply_exclude_test_doctors(patient_stmt, Patient.doctor_id)
+        record_stmt = apply_exclude_test_doctors(record_stmt, MedicalRecordDB.doctor_id)
     if patient_name:
         needle = f"%{patient_name.strip()}%"
         patient_stmt = patient_stmt.where(Patient.name.ilike(needle))
@@ -920,7 +935,10 @@ async def admin_db_view(
             "record_type": record.record_type or "visit",
             "content": record.content,
             "tags": _parse_tags(record.tags),
+            "encounter_type": record.encounter_type or "unknown",
+            "is_signed_off": bool(record.is_signed_off),
             "created_at": _fmt_ts(record.created_at),
+            "updated_at": _fmt_ts(record.updated_at),
         }
         for record, patient_name_value in records
     ]
@@ -969,12 +987,16 @@ async def admin_tables(
         doctors_stmt = select(func.count(Doctor.doctor_id))
         if doctor_id:
             doctors_stmt = doctors_stmt.where(Doctor.doctor_id == doctor_id)
+        else:
+            doctors_stmt = apply_exclude_test_doctors(doctors_stmt, Doctor.doctor_id)
         counts["doctors"] = int((await db.execute(doctors_stmt)).scalar() or 0)
 
         patients_stmt = select(func.count(Patient.id))
         patients_stmt = _apply_created_at_filters(patients_stmt, Patient, dt_from, dt_to_exclusive)
         if doctor_id:
             patients_stmt = patients_stmt.where(Patient.doctor_id == doctor_id)
+        else:
+            patients_stmt = apply_exclude_test_doctors(patients_stmt, Patient.doctor_id)
         if needle:
             patients_stmt = patients_stmt.where(Patient.name.ilike(needle))
         counts["patients"] = int((await db.execute(patients_stmt)).scalar() or 0)
@@ -983,6 +1005,8 @@ async def admin_tables(
         records_stmt = _apply_created_at_filters(records_stmt, MedicalRecordDB, dt_from, dt_to_exclusive)
         if doctor_id:
             records_stmt = records_stmt.where(MedicalRecordDB.doctor_id == doctor_id)
+        else:
+            records_stmt = apply_exclude_test_doctors(records_stmt, MedicalRecordDB.doctor_id)
         if needle:
             records_stmt = records_stmt.where(Patient.name.ilike(needle))
         counts["medical_records"] = int((await db.execute(records_stmt)).scalar() or 0)
@@ -991,6 +1015,8 @@ async def admin_tables(
         tasks_stmt = _apply_created_at_filters(tasks_stmt, DoctorTask, dt_from, dt_to_exclusive)
         if doctor_id:
             tasks_stmt = tasks_stmt.where(DoctorTask.doctor_id == doctor_id)
+        else:
+            tasks_stmt = apply_exclude_test_doctors(tasks_stmt, DoctorTask.doctor_id)
         if needle:
             tasks_stmt = tasks_stmt.where(Patient.name.ilike(needle))
         counts["doctor_tasks"] = int((await db.execute(tasks_stmt)).scalar() or 0)
@@ -999,6 +1025,8 @@ async def admin_tables(
         neuro_stmt = _apply_created_at_filters(neuro_stmt, NeuroCaseDB, dt_from, dt_to_exclusive)
         if doctor_id:
             neuro_stmt = neuro_stmt.where(NeuroCaseDB.doctor_id == doctor_id)
+        else:
+            neuro_stmt = apply_exclude_test_doctors(neuro_stmt, NeuroCaseDB.doctor_id)
         if needle:
             neuro_stmt = neuro_stmt.where(NeuroCaseDB.patient_name.ilike(needle))
         counts["neuro_cases"] = int((await db.execute(neuro_stmt)).scalar() or 0)
@@ -1007,6 +1035,8 @@ async def admin_tables(
         labels_stmt = _apply_created_at_filters(labels_stmt, PatientLabel, dt_from, dt_to_exclusive)
         if doctor_id:
             labels_stmt = labels_stmt.where(PatientLabel.doctor_id == doctor_id)
+        else:
+            labels_stmt = apply_exclude_test_doctors(labels_stmt, PatientLabel.doctor_id)
         counts["patient_labels"] = int((await db.execute(labels_stmt)).scalar() or 0)
 
         assignments_stmt = (
@@ -1017,6 +1047,8 @@ async def admin_tables(
         )
         if doctor_id:
             assignments_stmt = assignments_stmt.where(PatientLabel.doctor_id == doctor_id)
+        else:
+            assignments_stmt = apply_exclude_test_doctors(assignments_stmt, PatientLabel.doctor_id)
         if needle:
             assignments_stmt = assignments_stmt.where(Patient.name.ilike(needle))
         counts["patient_label_assignments"] = int((await db.execute(assignments_stmt)).scalar() or 0)
@@ -1027,6 +1059,8 @@ async def admin_tables(
         context_stmt = select(func.count(DoctorContext.doctor_id))
         if doctor_id:
             context_stmt = context_stmt.where(DoctorContext.doctor_id == doctor_id)
+        else:
+            context_stmt = apply_exclude_test_doctors(context_stmt, DoctorContext.doctor_id)
         counts["doctor_contexts"] = int((await db.execute(context_stmt)).scalar() or 0)
 
     ordered = [
@@ -1064,6 +1098,8 @@ async def admin_table_rows(
             stmt = select(Doctor).order_by(Doctor.updated_at.desc()).limit(limit)
             if doctor_id:
                 stmt = stmt.where(Doctor.doctor_id == doctor_id)
+            else:
+                stmt = apply_exclude_test_doctors(stmt, Doctor.doctor_id)
             items = [
                 {
                     "doctor_id": d.doctor_id,
@@ -1078,6 +1114,8 @@ async def admin_table_rows(
             stmt = _apply_created_at_filters(stmt, Patient, dt_from, dt_to_exclusive)
             if doctor_id:
                 stmt = stmt.where(Patient.doctor_id == doctor_id)
+            else:
+                stmt = apply_exclude_test_doctors(stmt, Patient.doctor_id)
             if needle:
                 stmt = stmt.where(Patient.name.ilike(needle))
             items = [
@@ -1101,6 +1139,8 @@ async def admin_table_rows(
             stmt = _apply_created_at_filters(stmt, MedicalRecordDB, dt_from, dt_to_exclusive)
             if doctor_id:
                 stmt = stmt.where(MedicalRecordDB.doctor_id == doctor_id)
+            else:
+                stmt = apply_exclude_test_doctors(stmt, MedicalRecordDB.doctor_id)
             if needle:
                 stmt = stmt.where(Patient.name.ilike(needle))
             items = [
@@ -1126,6 +1166,8 @@ async def admin_table_rows(
             stmt = _apply_created_at_filters(stmt, DoctorTask, dt_from, dt_to_exclusive)
             if doctor_id:
                 stmt = stmt.where(DoctorTask.doctor_id == doctor_id)
+            else:
+                stmt = apply_exclude_test_doctors(stmt, DoctorTask.doctor_id)
             if needle:
                 stmt = stmt.where(Patient.name.ilike(needle))
             items = [
@@ -1148,6 +1190,8 @@ async def admin_table_rows(
             stmt = _apply_created_at_filters(stmt, NeuroCaseDB, dt_from, dt_to_exclusive)
             if doctor_id:
                 stmt = stmt.where(NeuroCaseDB.doctor_id == doctor_id)
+            else:
+                stmt = apply_exclude_test_doctors(stmt, NeuroCaseDB.doctor_id)
             if needle:
                 stmt = stmt.where(NeuroCaseDB.patient_name.ilike(needle))
             items = [
@@ -1166,6 +1210,8 @@ async def admin_table_rows(
             stmt = _apply_created_at_filters(stmt, PatientLabel, dt_from, dt_to_exclusive)
             if doctor_id:
                 stmt = stmt.where(PatientLabel.doctor_id == doctor_id)
+            else:
+                stmt = apply_exclude_test_doctors(stmt, PatientLabel.doctor_id)
             items = [
                 {
                     "id": l.id,
@@ -1192,6 +1238,8 @@ async def admin_table_rows(
             )
             if doctor_id:
                 stmt = stmt.where(PatientLabel.doctor_id == doctor_id)
+            else:
+                stmt = apply_exclude_test_doctors(stmt, PatientLabel.doctor_id)
             if needle:
                 stmt = stmt.where(Patient.name.ilike(needle))
             items = [
@@ -1218,6 +1266,8 @@ async def admin_table_rows(
             stmt = select(DoctorContext).order_by(DoctorContext.updated_at.desc()).limit(limit)
             if doctor_id:
                 stmt = stmt.where(DoctorContext.doctor_id == doctor_id)
+            else:
+                stmt = apply_exclude_test_doctors(stmt, DoctorContext.doctor_id)
             items = [
                 {
                     "doctor_id": c.doctor_id,
@@ -1430,6 +1480,7 @@ import secrets as _secrets
 class InviteCodeCreate(BaseModel):
     doctor_id: str
     doctor_name: Optional[str] = None
+    code: Optional[str] = None  # custom code; auto-generated if omitted
 
 
 class InviteCodeRow(BaseModel):
@@ -1470,9 +1521,21 @@ async def create_invite_code(
     doctor_id = (body.doctor_id or "").strip()
     if not doctor_id:
         raise HTTPException(status_code=422, detail="doctor_id is required")
-    code = _secrets.token_urlsafe(9)  # 12-char URL-safe string
+    # Validate or generate code
+    if body.code:
+        custom = body.code.strip()
+        if not re.match(r'^[A-Za-z0-9_-]{4,32}$', custom):
+            raise HTTPException(status_code=422, detail="邀请码只能包含字母、数字、- 和 _，长度 4-32 位")
+        code = custom
+    else:
+        code = _secrets.token_urlsafe(9)  # 12-char URL-safe string
     now = datetime.now(timezone.utc)
     async with AsyncSessionLocal() as session:
+        existing = (await session.execute(
+            select(InviteCode).where(InviteCode.code == code).limit(1)
+        )).scalar_one_or_none()
+        if existing is not None:
+            raise HTTPException(status_code=409, detail="该邀请码已存在")
         session.add(InviteCode(
             code=code,
             doctor_id=doctor_id,

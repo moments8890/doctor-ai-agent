@@ -933,7 +933,6 @@ export default function DoctorPage() {
   // Onboarding dialog state
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardName, setOnboardName] = useState("");
-  const [onboardSpecialty, setOnboardSpecialty] = useState("");
   const [onboardSaving, setOnboardSaving] = useState(false);
 
   const activeSection = patientId ? "patients" : (section || "home");
@@ -956,7 +955,7 @@ export default function DoctorPage() {
     if (!onboardName.trim() || onboardSaving) return;
     setOnboardSaving(true);
     try {
-      await updateDoctorProfile(doctorId, { name: onboardName.trim(), specialty: onboardSpecialty });
+      await updateDoctorProfile(doctorId, { name: onboardName.trim() });
       setAuth(doctorId, onboardName.trim(), accessToken);
       setShowOnboarding(false);
     } catch {
@@ -1141,17 +1140,6 @@ export default function DoctorPage() {
               autoFocus
               required
             />
-            <TextField
-              select
-              label="科室 / 专科"
-              value={onboardSpecialty}
-              onChange={(e) => setOnboardSpecialty(e.target.value)}
-              fullWidth
-            >
-              {["神经内科", "心内科", "骨科", "呼吸科", "消化科", "妇产科", "儿科", "肿瘤科", "其他"].map((s) => (
-                <MenuItem key={s} value={s}>{s}</MenuItem>
-              ))}
-            </TextField>
           </Stack>
         </DialogContent>
         <DialogActions>

@@ -242,6 +242,7 @@ function AdminDashboard({ onLockout }) {
   const [inviteCodes, setInviteCodes] = useState([]);
   const [newInviteDoctorId, setNewInviteDoctorId] = useState("");
   const [newInviteName, setNewInviteName] = useState("");
+  const [newInviteCode, setNewInviteCode] = useState("");
   const [sortCol, setSortCol] = useState("");
   const [sortDir, setSortDir] = useState("asc");
   const [selectedRow, setSelectedRow] = useState(null);
@@ -512,9 +513,10 @@ function AdminDashboard({ onLockout }) {
     const id = newInviteDoctorId.trim();
     if (!id) return;
     try {
-      await createAdminInviteCode(id, newInviteName.trim() || undefined);
+      await createAdminInviteCode(id, newInviteName.trim() || undefined, newInviteCode.trim() || undefined);
       setNewInviteDoctorId("");
       setNewInviteName("");
+      setNewInviteCode("");
       await loadInviteCodes();
       showSnack("邀请码已生成");
     } catch (error) {
@@ -1183,6 +1185,15 @@ function AdminDashboard({ onLockout }) {
                       value={newInviteName}
                       onChange={(e) => setNewInviteName(e.target.value)}
                       sx={{ minWidth: 160 }}
+                    />
+                    <TextField
+                      size="small"
+                      label="自定义邀请码（可选）"
+                      value={newInviteCode}
+                      onChange={(e) => setNewInviteCode(e.target.value)}
+                      placeholder="留空则自动生成"
+                      inputProps={{ maxLength: 32 }}
+                      sx={{ minWidth: 180 }}
                     />
                     <Button variant="contained" size="small" onClick={onCreateInviteCode} disabled={!newInviteDoctorId.trim()}>
                       生成邀请码

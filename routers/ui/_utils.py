@@ -122,3 +122,31 @@ def _apply_created_at_filters(stmt, model, dt_from: datetime | None, dt_to_exclu
     if dt_to_exclusive is not None and hasattr(model, "created_at"):
         stmt = stmt.where(model.created_at < dt_to_exclusive)
     return stmt
+
+
+# ---------------------------------------------------------------------------
+# E2E / integration-test doctor ID filtering
+# ---------------------------------------------------------------------------
+
+# doctor_id prefixes used exclusively by automated tests.
+# Rows belonging to these doctors are hidden from production UI views by default
+# so test noise never appears alongside real clinical data.
+E2E_DOCTOR_PREFIXES: tuple[str, ...] = ("inttest_", "chatlog_e2e_")
+
+
+def _is_test_doctor_id(doctor_id: str) -> bool:
+    return any(doctor_id.startswith(p) for p in E2E_DOCTOR_PREFIXES)
+
+
+def apply_exclude_test_doctors(stmt, doctor_id_col):
+    """Exclude test doctor rows when no specific doctor filter is active.
+
+    Pass the SQLAlchemy column expression that holds doctor_id, e.g.
+    ``Doctor.doctor_id`` or ``Patient.doctor_id``.
+    """
+    from sqlalchemy import and_, not_
+
+    conditions = [not_(doctor_id_col.like(f"{prefix}%")) for prefix in E2E_DOCTOR_PREFIXES]
+    if len(conditions) == 1:
+        return stmt.where(conditions[0])
+    return stmt.where(and_(*conditions))

@@ -30,7 +30,10 @@ def _record(**kwargs):
         record_type="visit",
         content="患者复诊，胸闷两周，血压偏高，诊断冠心病，两周后随访。",
         tags='["冠心病", "两周后随访"]',
+        encounter_type="follow_up",
+        is_signed_off=False,
         created_at=datetime(2026, 3, 2, 10, 0, 0),
+        updated_at=datetime(2026, 3, 2, 10, 0, 0),
         patient=SimpleNamespace(name="张三"),
     )
     defaults.update(kwargs)
