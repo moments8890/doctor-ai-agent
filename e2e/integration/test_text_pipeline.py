@@ -67,7 +67,7 @@ def _record_count_for_patient(doctor_id: str, patient_name: str) -> int:
 @pytest.mark.integration
 def test_name_in_text_saves_record():
     """Patient name present in input → record created and persisted in DB."""
-    doctor_id = "inttest_text_1"
+    doctor_id = f"inttest_text_1_{uuid.uuid4().hex[:8]}"
 
     # Single-turn input with demographics + complaint should route directly
     # to add_record and persist both patient linkage and record data.
@@ -84,7 +84,7 @@ def test_name_in_text_saves_record():
 @pytest.mark.integration
 def test_missing_name_asks_then_saves():
     """No name in text → agent asks for name → doctor provides it → record saved."""
-    doctor_id = "inttest_text_2"
+    doctor_id = f"inttest_text_2_{uuid.uuid4().hex[:8]}"
 
     # Turn 1: no name -> assistant should ask for patient name.
     data = chat("突发胸痛两小时，伴大汗", doctor_id=doctor_id)
@@ -107,7 +107,7 @@ def test_missing_name_asks_then_saves():
 @pytest.mark.integration
 def test_emergency_input_produces_record():
     """STEMI / emergency input → record saved with chief_complaint populated."""
-    doctor_id = "inttest_text_3"
+    doctor_id = f"inttest_text_3_{uuid.uuid4().hex[:8]}"
 
     # Emergency lexical cues should still produce a valid structured record
     # and be persisted with non-null chief complaint.
@@ -124,8 +124,8 @@ def test_emergency_input_produces_record():
 
 @pytest.mark.integration
 def test_sparse_input_no_hallucinated_treatment():
-    """Sparse input with no treatment mentioned → treatment_plan must be null."""
-    doctor_id = "inttest_text_4"
+    """Sparse input with no treatment mentioned → treatment_plan must be null (API + DB)."""
+    doctor_id = f"inttest_text_4_{uuid.uuid4().hex[:8]}"
 
     # Note intentionally omits explicit treatment directives.
     # Structuring output should keep treatment_plan null.
@@ -134,7 +134,14 @@ def test_sparse_input_no_hallucinated_treatment():
     assert data["record"] is not None
     treatment = data["record"].get("treatment_plan")
     assert treatment is None, (
-        f"LLM fabricated a treatment plan not in input: '{treatment}'"
+        f"LLM fabricated a treatment plan not in input (API layer): '{treatment}'"
+    )
+
+    # DB-level guard: validate null is actually persisted, not just returned in API response.
+    rec = db_record(doctor_id, "赵丽")
+    assert rec is not None, "Record not saved to DB for sparse note"
+    assert rec[2] is None, (
+        f"DB treatment_plan should be NULL but got: '{rec[2]}' — hallucination persisted to DB"
     )
 
 

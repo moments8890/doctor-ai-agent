@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import sqlite3
 import uuid
+from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
 import pytest
@@ -141,7 +142,7 @@ def test_realworld_note_styles_db_correctness(
 
     blob = _record_text_blob(db_rec)
     matched = [token for token in expected_tokens if token.lower() in blob]
-    required_hits = max(1, len(expected_tokens) - 1)
+    required_hits = len(expected_tokens)
     assert len(matched) >= required_hits, (
         "Insufficient token coverage for case={0}; matched={1}/{2}; missing={3}".format(
             case_id,
@@ -437,8 +438,9 @@ def test_update_patient_age_via_direct_command():
 
     yob_before = _patient_year_of_birth(doctor_id, patient_name)
     assert yob_before is not None, "Patient row not created"
-    # year_of_birth should be roughly 2026 - 40 = 1986
-    assert abs(yob_before - (2026 - 40)) <= 1
+    _current_year = datetime.now().year
+    # year_of_birth should be roughly current_year - 40
+    assert abs(yob_before - (_current_year - 40)) <= 1
 
     # Turn 2: direct age correction command
     r2 = chat("修改王明的年龄为50岁", doctor_id=doctor_id)
@@ -446,8 +448,8 @@ def test_update_patient_age_via_direct_command():
 
     yob_after = _patient_year_of_birth(doctor_id, patient_name)
     assert yob_after is not None
-    assert abs(yob_after - (2026 - 50)) <= 1, (
-        "Expected year_of_birth ~{0}, got {1}".format(2026 - 50, yob_after)
+    assert abs(yob_after - (_current_year - 50)) <= 1, (
+        "Expected year_of_birth ~{0}, got {1}".format(_current_year - 50, yob_after)
     )
     # Still exactly 1 patient row
     assert _patient_count(doctor_id, patient_name) == 1

@@ -75,6 +75,61 @@ def require_ollama():
 
 
 # ---------------------------------------------------------------------------
+# DB cleanup helpers
+# ---------------------------------------------------------------------------
+
+def _purge_inttest_rows(conn: sqlite3.Connection) -> None:
+    """Delete all inttest_* rows from every relevant table.
+
+    Schema-aware: skips tables that may not exist in older DB schemas.
+    """
+    tables_always = [
+        "medical_records",
+        "patients",
+        "doctor_contexts",
+        "doctor_session_states",
+        "conversation_turns",
+    ]
+    tables_optional = ["doctor_tasks", "neuro_cases", "pending_records", "pending_imports"]
+
+    for table in tables_always:
+        try:
+            conn.execute(f"DELETE FROM {table} WHERE doctor_id LIKE 'inttest_%'")
+        except sqlite3.OperationalError:
+            pass  # table may not exist in this schema version
+
+    for table in tables_optional:
+        exists = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+        ).fetchone()
+        if exists:
+            conn.execute(f"DELETE FROM {table} WHERE doctor_id LIKE 'inttest_%'")
+
+    conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# Session-level pre-sweep — clears debris from any previously cancelled run
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(scope="session", autouse=True)
+def presweep_inttest_rows(require_server):
+    """Wipe inttest_* rows before the suite starts.
+
+    This ensures that data left behind by a previously cancelled/crashed run
+    does not interfere with the current session.  require_server is listed as
+    a dependency so we only run against a live DB, not a stale one.
+    """
+    if not DB_PATH.exists():
+        return
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        _purge_inttest_rows(conn)
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------------------
 # Per-test DB cleanup — removes inttest_* rows after each test
 # ---------------------------------------------------------------------------
 
@@ -82,27 +137,16 @@ def require_ollama():
 def clean_integration_db():
     """Best-effort cleanup for `inttest_*` rows after each test.
 
-    Cleanup is schema-aware (doctor_tasks table may not exist in older DBs).
+    Runs after every test so the DB stays lean during a full run.
+    If a test is cancelled mid-flight the session-level presweep above
+    will catch the leftover rows on the next run.
     """
     yield
     if not DB_PATH.exists():
         return
     conn = sqlite3.connect(DB_PATH)
     try:
-        has_doctor_tasks = conn.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='doctor_tasks'"
-        ).fetchone()
-        has_neuro_cases = conn.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='neuro_cases'"
-        ).fetchone()
-        if has_doctor_tasks:
-            conn.execute("DELETE FROM doctor_tasks WHERE doctor_id LIKE 'inttest_%'")
-        if has_neuro_cases:
-            conn.execute("DELETE FROM neuro_cases WHERE doctor_id LIKE 'inttest_%'")
-        conn.execute("DELETE FROM medical_records WHERE doctor_id LIKE 'inttest_%'")
-        conn.execute("DELETE FROM patients WHERE doctor_id LIKE 'inttest_%'")
-        conn.execute("DELETE FROM doctor_contexts WHERE doctor_id LIKE 'inttest_%'")
-        conn.commit()
+        _purge_inttest_rows(conn)
     finally:
         conn.close()
 

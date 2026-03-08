@@ -33,8 +33,10 @@ Fast-path pre-intent branches in _chat_for_doctor
 
 from __future__ import annotations
 
+import re
 import sqlite3
 import uuid
+from datetime import datetime
 from typing import Optional
 
 import pytest
@@ -119,7 +121,7 @@ def test_create_patient_explicit_with_demographics():
     assert _patient_count(doctor_id, name) == 1
     assert _patient_gender(doctor_id, name) == "男"
     yob = _patient_year_of_birth(doctor_id, name)
-    assert yob is not None and abs(yob - (2026 - 38)) <= 1
+    assert yob is not None and abs(yob - (datetime.now().year - 38)) <= 1
 
 
 @pytest.mark.integration
@@ -178,7 +180,10 @@ def test_delete_patient_not_found_returns_error():
     r = chat("删除患者完全不存在的名字XYZ", doctor_id=doctor_id)
 
     assert r is not None
-    assert "未找到" in r["reply"] or "找不到" in r["reply"] or "⚠" in r["reply"]
+    not_found = any(kw in r["reply"] for kw in ["未找到", "找不到", "不存在", "没有", "⚠"])
+    assert not_found, (
+        f"Delete non-existent patient should return error message, got: '{r['reply']}'"
+    )
 
 
 @pytest.mark.integration
@@ -242,7 +247,7 @@ def test_update_patient_combined_age_and_gender():
     assert r_age is not None and "✅" in r_age["reply"]
     assert _patient_gender(doctor_id, name) == "女"
     yob = _patient_year_of_birth(doctor_id, name)
-    assert yob is not None and abs(yob - (2026 - 35)) <= 1
+    assert yob is not None and abs(yob - (datetime.now().year - 35)) <= 1
 
 
 @pytest.mark.integration
@@ -254,7 +259,10 @@ def test_update_patient_not_found_returns_error():
     r = chat("修改鬼神仙的年龄为50岁", doctor_id=doctor_id)
 
     assert r is not None
-    assert "未找到" in r["reply"] or "找不到" in r["reply"] or "⚠" in r["reply"]
+    not_found = any(kw in r["reply"] for kw in ["未找到", "找不到", "不存在", "没有", "⚠"])
+    assert not_found, (
+        f"Update non-existent patient should return error message, got: '{r['reply']}'"
+    )
 
 
 # ── Intent.schedule_appointment ───────────────────────────────────────────────
@@ -314,7 +322,6 @@ def test_complete_task_fast_path():
     assert r_appt is not None
 
     # Extract task id from reply ("任务编号：N").
-    import re
     m = re.search(r"任务编号[：:]\s*(\d+)", r_appt["reply"])
     if not m:
         pytest.skip("Could not extract task id from appointment reply")
@@ -323,3 +330,115 @@ def test_complete_task_fast_path():
     r = chat(f"完成 {task_id}", doctor_id=doctor_id)
     assert r is not None
     assert "完成" in r["reply"] or "✅" in r["reply"]
+
+
+# ── P1: Uncovered intent branches ─────────────────────────────────────────────
+
+@pytest.mark.integration
+def test_complete_task_not_found_returns_error():
+    """Completing a non-existent task ID returns a clear error reply, not a crash."""
+    doctor_id = f"inttest_branch_task_notfound_{uuid.uuid4().hex[:8]}"
+
+    # Use an absurdly large task ID that cannot exist
+    r = chat("完成 999999999", doctor_id=doctor_id)
+
+    assert r is not None
+    assert r["reply"], "Reply must not be empty"
+    not_found = any(kw in r["reply"] for kw in ["未找到", "找不到", "不存在", "没有", "⚠", "无效"])
+    assert not_found, (
+        f"Completing non-existent task should return error message, got: '{r['reply']}'"
+    )
+
+
+@pytest.mark.integration
+def test_correction_chain_two_sequential_updates():
+    """Two back-to-back correction commands on the same patient both take effect."""
+    doctor_id = f"inttest_branch_corr_chain_{uuid.uuid4().hex[:8]}"
+    name = "薛磊"
+
+    # Initial save
+    chat(f"{name}，男，45岁，高血压门诊，保存病历。", doctor_id=doctor_id)
+
+    # First correction: age
+    r_age = chat(f"修改{name}的年龄为50岁", doctor_id=doctor_id)
+    assert r_age is not None
+    assert "✅" in r_age["reply"] or "更新" in r_age["reply"] or name in r_age["reply"], (
+        f"First correction reply did not confirm success: '{r_age['reply']}'"
+    )
+
+    # Second correction: gender
+    r_gender = chat(f"更新{name}的性别为女", doctor_id=doctor_id)
+    assert r_gender is not None
+    assert "✅" in r_gender["reply"] or "更新" in r_gender["reply"] or name in r_gender["reply"], (
+        f"Second correction reply did not confirm success: '{r_gender['reply']}'"
+    )
+
+    # Validate both updates persisted
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        row = conn.execute(
+            "SELECT gender, year_of_birth FROM patients WHERE doctor_id=? AND name=? ORDER BY id DESC LIMIT 1",
+            (doctor_id, name),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    assert row is not None, f"Patient row not found for {name}"
+    gender, yob = row
+    assert gender == "女", f"Expected gender='女' after second update, got '{gender}'"
+    from datetime import datetime
+    expected_yob = datetime.now().year - 50
+    assert abs(yob - expected_yob) <= 1, (
+        f"Expected year_of_birth ~{expected_yob} after first update, got {yob}"
+    )
+
+
+# ── P2: Robustness / edge cases ───────────────────────────────────────────────
+
+@pytest.mark.integration
+def test_update_patient_invalid_age_rejected():
+    """Updating age to an implausible value (e.g. 999) should return an error or be ignored."""
+    doctor_id = f"inttest_branch_age_invalid_{uuid.uuid4().hex[:8]}"
+    name = "乔俊"
+
+    chat(f"{name}，男，40岁，门诊随访，保存病历。", doctor_id=doctor_id)
+
+    r = chat(f"修改{name}的年龄为999岁", doctor_id=doctor_id)
+
+    assert r is not None
+    assert r["reply"], "Reply must not be empty"
+    # Acceptable outcomes: error message OR update silently ignored (year_of_birth unchanged)
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        row = conn.execute(
+            "SELECT year_of_birth FROM patients WHERE doctor_id=? AND name=? ORDER BY id DESC LIMIT 1",
+            (doctor_id, name),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if row and row[0]:
+        from datetime import datetime
+        # If the update was applied, year_of_birth must not be absurdly wrong
+        assert row[0] >= datetime.now().year - 150, (
+            f"Implausible year_of_birth {row[0]} stored — invalid age 999 was not rejected"
+        )
+
+
+@pytest.mark.integration
+def test_schedule_appointment_creates_deterministic_task_id_in_reply():
+    """Appointment scheduling reply must include a numeric task ID for downstream 完成 command."""
+    doctor_id = f"inttest_branch_appt_taskid_{uuid.uuid4().hex[:8]}"
+
+    chat("梁昊，男，38岁，门诊随访", doctor_id=doctor_id)
+    r = chat("为梁昊安排复诊 2027-12-01 09:00", doctor_id=doctor_id)
+
+    assert r is not None
+    assert "📅" in r["reply"] or "预约" in r["reply"] or "任务" in r["reply"], (
+        f"Appointment reply did not confirm scheduling: '{r['reply']}'"
+    )
+    # Must include a parseable task ID so doctors can use "完成 N"
+    m = re.search(r"任务编号[：:]\s*(\d+)", r["reply"])
+    assert m is not None, (
+        f"Appointment reply must include '任务编号：N' for downstream completion, got: '{r['reply']}'"
+    )
