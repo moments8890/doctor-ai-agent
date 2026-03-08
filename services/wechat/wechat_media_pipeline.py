@@ -157,32 +157,22 @@ async def handle_image_bg(
     await handle_intent_bg(text, doctor_id)
 
 
-def preprocess_wechat_chat_export(text: str) -> str:
-    """Strip WeChat chat export headers and normalize for clinical import.
+def preprocess_wechat_chat_export(
+    text: str,
+    sender_filter: str | None = None,
+) -> str:
+    """Parse a WeChat PC chat export and return clinical content as plain text.
 
-    WeChat exports look like:
-        2023-11-15
-        张三（13800000000）: 头疼三天了
-        医生: 有发烧吗？
-        张三: 没有
+    Delegates to the dedicated parser in wechat_chat_export.py which handles:
+    - Personal and group chat formats
+    - Sender identification and optional filtering
+    - Clinical vs non-clinical message filtering
+    - Timestamp preservation for date-boundary chunking
 
-    Returns cleaned text keeping meaningful content.
+    Args:
+        text: Raw WeChat export text.
+        sender_filter: Only include messages from this sender name.
+                       If None, include all senders' clinical messages.
     """
-    import re
-    lines = text.splitlines()
-    cleaned = []
-    # Strip pure date lines (YYYY-MM-DD or YYYY/MM/DD)
-    date_only = re.compile(r"^\d{4}[-/]\d{2}[-/]\d{2}\s*$")
-    # Strip timestamp lines (HH:MM or HH:MM:SS)
-    time_only = re.compile(r"^\d{2}:\d{2}(:\d{2})?\s*$")
-    # Strip phone numbers from speaker labels
-    phone_strip = re.compile(r"（\d{7,15}）")
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-        if date_only.match(line) or time_only.match(line):
-            continue
-        line = phone_strip.sub("", line)
-        cleaned.append(line)
-    return "\n".join(cleaned)
+    from services.wechat.wechat_chat_export import extract_clinical_text
+    return extract_clinical_text(text, sender_filter=sender_filter)

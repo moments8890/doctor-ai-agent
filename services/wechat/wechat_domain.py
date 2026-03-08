@@ -468,13 +468,28 @@ _VISIT_BOUNDARY_RE = _re.compile(
 _DATE_IN_TEXT_RE = _re.compile(r"\d{4}[-/年]\d{1,2}[-/月]\d{1,2}")
 
 
-def _preprocess_import_text(text: str, source: str) -> str:
+_CHAT_EXPORT_HEADER_RE = _re.compile(
+    r"^\d{4}[-/]\d{1,2}[-/]\d{1,2}\s+\d{1,2}:\d{2}(:\d{2})?\s+\S",
+    _re.MULTILINE,
+)
+
+
+def _looks_like_chat_export(text: str) -> bool:
+    """Heuristic: does the text look like a WeChat chat export?"""
+    return bool(_CHAT_EXPORT_HEADER_RE.search(text[:2000]))
+
+
+def _preprocess_import_text(
+    text: str,
+    source: str,
+    sender_filter: str | None = None,
+) -> str:
     """Strip media prefixes and clean WeChat chat export formatting."""
     # Strip [PDF:filename] / [Word:filename] prefix
     text = _re.sub(r"^\[(PDF|Word):[^\]]*\]\s*", "", text, flags=_re.IGNORECASE)
-    if source == "chat_export" or "微信" in text[:100]:
+    if source == "chat_export" or _looks_like_chat_export(text):
         from services.wechat.wechat_media_pipeline import preprocess_wechat_chat_export
-        text = preprocess_wechat_chat_export(text)
+        text = preprocess_wechat_chat_export(text, sender_filter=sender_filter)
     return text.strip()
 
 
@@ -628,8 +643,22 @@ async def handle_import_history(text: str, doctor_id: str, intent_result: Intent
             if patient:
                 patient_id = patient.id
 
-    # Pre-process and chunk
-    clean_text = _preprocess_import_text(text, source)
+    # For chat exports with multiple senders, ask which sender to import
+    if source == "chat_export" or (source == "text" and _looks_like_chat_export(text)):
+        from services.wechat.wechat_chat_export import list_senders
+        senders = list_senders(text)
+        sender_filter = intent_result.extra_data.get("sender_filter")
+        if len(senders) > 1 and not sender_filter:
+            sender_list = "\n".join(f"  {i+1}. {s}" for i, s in enumerate(senders))
+            return (
+                f"检测到群聊记录，共 {len(senders)} 位发言人：\n{sender_list}\n\n"
+                f"请回复发言人姓名或序号，指定导入哪位医生的记录。"
+            )
+        # Single sender or already selected
+        clean_text = _preprocess_import_text(text, source, sender_filter=sender_filter or (senders[0] if senders else None))
+    else:
+        clean_text = _preprocess_import_text(text, source)
+
     chunks_raw = _chunk_history_text(clean_text)
 
     if not chunks_raw:
