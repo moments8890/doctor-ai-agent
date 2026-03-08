@@ -80,6 +80,30 @@ export async function webLogin(doctorId, name) {
   });
 }
 
+export async function inviteLogin(code) {
+  return request("/api/auth/invite/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code }),
+  });
+}
+
+export async function getAdminInviteCodes() {
+  return adminRequest("/api/admin/invite-codes");
+}
+
+export async function createAdminInviteCode(doctorId, doctorName) {
+  return adminRequest("/api/admin/invite-codes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ doctor_id: doctorId, doctor_name: doctorName || undefined }),
+  });
+}
+
+export async function revokeAdminInviteCode(code) {
+  return adminRequest(`/api/admin/invite-codes/${encodeURIComponent(code)}`, { method: "DELETE" });
+}
+
 
 export async function sendChat(payload) {
   return request("/api/records/chat", {

@@ -9,12 +9,11 @@
     },
     "login": {
       "title": "医生登录",
-      "doctorId": "医生账号",
-      "name": "显示姓名（可选）",
-      "nameHelper": "用于界面显示，可留空",
+      "inviteCode": "邀请码",
+      "inviteCodeHelper": "请联系管理员获取邀请码",
       "submit": "登录",
       "logout": "退出登录",
-      "doctorIdRequired": "请输入医生账号",
+      "codeRequired": "请输入邀请码",
       "failed": "登录失败，请重试",
       "loggedInAs": "当前账号"
     },
@@ -267,6 +266,7 @@
         "seedFailed": "生成样例追踪失败：{message}"
       },
       "tables": {
+        "invite_codes": "医生邀请码",
         "doctors": "医生表",
         "patients": "患者表",
         "medical_records": "病历表",

@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 
 from db.engine import AsyncSessionLocal
-from db.models import Doctor
+from db.models import Doctor, InviteCode
 from services.auth.miniprogram_auth import (
     MiniProgramAuthError,
     issue_miniprogram_token,
@@ -52,6 +52,10 @@ class WebLoginResponse(BaseModel):
     expires_in: int
     doctor_id: str
     channel: str
+
+
+class InviteLoginInput(BaseModel):
+    code: str
 
 
 class MeResponse(BaseModel):
@@ -210,6 +214,34 @@ async def web_login(body: WebLoginInput) -> WebLoginResponse:
 
     enforce_doctor_rate_limit(doctor_id, scope="auth.login")
     await _upsert_web_doctor(doctor_id, body.name)
+    token_data = issue_miniprogram_token(doctor_id, channel="app")
+
+    return WebLoginResponse(
+        access_token=str(token_data["access_token"]),
+        token_type=str(token_data["token_type"]),
+        expires_in=int(token_data["expires_in"]),
+        doctor_id=doctor_id,
+        channel="app",
+    )
+
+
+@router.post("/invite/login", response_model=WebLoginResponse)
+async def invite_login(body: InviteLoginInput) -> WebLoginResponse:
+    code = (body.code or "").strip()
+    if not code:
+        raise HTTPException(status_code=422, detail="code is required")
+
+    async with AsyncSessionLocal() as session:
+        invite = (
+            await session.execute(select(InviteCode).where(InviteCode.code == code).limit(1))
+        ).scalar_one_or_none()
+
+    if invite is None or not invite.active:
+        raise HTTPException(status_code=401, detail="Invalid or inactive invite code")
+
+    doctor_id = invite.doctor_id
+    enforce_doctor_rate_limit(doctor_id, scope="auth.login")
+    await _upsert_web_doctor(doctor_id, invite.doctor_name)
     token_data = issue_miniprogram_token(doctor_id, channel="app")
 
     return WebLoginResponse(

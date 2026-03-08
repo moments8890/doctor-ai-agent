@@ -2,7 +2,7 @@ from db.models.base import _utcnow
 from db.models.system import SystemPrompt, SystemPromptVersion
 from db.models.doctor import (
     DoctorContext, DoctorKnowledgeItem, DoctorSessionState,
-    DoctorNotifyPreference, DoctorConversationTurn, Doctor,
+    DoctorNotifyPreference, DoctorConversationTurn, Doctor, InviteCode,
 )
 from db.models.patient import Patient, PatientLabel, patient_label_assignments
 from db.models.records import MedicalRecordDB, NeuroCaseDB
@@ -15,7 +15,7 @@ __all__ = [
     "_utcnow",
     "SystemPrompt", "SystemPromptVersion",
     "DoctorContext", "DoctorKnowledgeItem", "DoctorSessionState",
-    "DoctorNotifyPreference", "DoctorConversationTurn", "Doctor",
+    "DoctorNotifyPreference", "DoctorConversationTurn", "Doctor", "InviteCode",
     "Patient", "PatientLabel", "patient_label_assignments",
     "MedicalRecordDB", "NeuroCaseDB",
     "DoctorTask",

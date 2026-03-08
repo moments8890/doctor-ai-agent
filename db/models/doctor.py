@@ -73,6 +73,17 @@ class DoctorConversationTurn(Base):
     )
 
 
+class InviteCode(Base):
+    """Admin-provisioned access codes that grant a doctor login access to the web UI."""
+    __tablename__ = "invite_codes"
+
+    code: Mapped[str] = mapped_column(String(32), primary_key=True)
+    doctor_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    doctor_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    active: Mapped[bool] = mapped_column(Integer, nullable=False, default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+
+
 class Doctor(Base):
     """Doctor registry table for admin-level querying/filtering."""
     __tablename__ = "doctors"

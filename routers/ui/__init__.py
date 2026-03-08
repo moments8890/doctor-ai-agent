@@ -32,6 +32,7 @@ from db.models import (
     Doctor,
     DoctorContext,
     DoctorTask,
+    InviteCode,
     MedicalRecordDB,
     NeuroCaseDB,
     Patient,
@@ -1320,4 +1321,91 @@ async def debug_routing_metrics_reset(
     _require_ui_debug_access(x_debug_token)
     from services.observability.routing_metrics import reset
     reset()
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Invite code management (admin only)
+# ---------------------------------------------------------------------------
+
+import secrets as _secrets
+
+
+class InviteCodeCreate(BaseModel):
+    doctor_id: str
+    doctor_name: Optional[str] = None
+
+
+class InviteCodeRow(BaseModel):
+    code: str
+    doctor_id: str
+    doctor_name: Optional[str]
+    active: bool
+    created_at: str
+
+
+@router.get("/api/admin/invite-codes")
+async def list_invite_codes(
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+):
+    _require_ui_admin_access(x_admin_token)
+    async with AsyncSessionLocal() as session:
+        rows = (await session.execute(select(InviteCode).order_by(InviteCode.created_at.desc()))).scalars().all()
+    return {
+        "items": [
+            InviteCodeRow(
+                code=r.code,
+                doctor_id=r.doctor_id,
+                doctor_name=r.doctor_name,
+                active=bool(r.active),
+                created_at=_fmt_ts(r.created_at),
+            )
+            for r in rows
+        ]
+    }
+
+
+@router.post("/api/admin/invite-codes")
+async def create_invite_code(
+    body: InviteCodeCreate,
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+):
+    _require_ui_admin_access(x_admin_token)
+    doctor_id = (body.doctor_id or "").strip()
+    if not doctor_id:
+        raise HTTPException(status_code=422, detail="doctor_id is required")
+    code = _secrets.token_urlsafe(9)  # 12-char URL-safe string
+    now = datetime.now(timezone.utc)
+    async with AsyncSessionLocal() as session:
+        session.add(InviteCode(
+            code=code,
+            doctor_id=doctor_id,
+            doctor_name=(body.doctor_name or "").strip() or None,
+            active=1,
+            created_at=now,
+        ))
+        await session.commit()
+    return InviteCodeRow(
+        code=code,
+        doctor_id=doctor_id,
+        doctor_name=(body.doctor_name or "").strip() or None,
+        active=True,
+        created_at=_fmt_ts(now),
+    )
+
+
+@router.delete("/api/admin/invite-codes/{code}")
+async def revoke_invite_code(
+    code: str,
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+):
+    _require_ui_admin_access(x_admin_token)
+    async with AsyncSessionLocal() as session:
+        invite = (
+            await session.execute(select(InviteCode).where(InviteCode.code == code).limit(1))
+        ).scalar_one_or_none()
+        if invite is None:
+            raise HTTPException(status_code=404, detail="Invite code not found")
+        invite.active = 0
+        await session.commit()
     return {"ok": True}

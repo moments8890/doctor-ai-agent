@@ -51,6 +51,9 @@ import {
   setAdminToken,
   onAdminAuthError,
   getAdminRoutingMetrics,
+  getAdminInviteCodes,
+  createAdminInviteCode,
+  revokeAdminInviteCode,
 } from "../api";
 import { t } from "../i18n";
 
@@ -69,6 +72,7 @@ const TABLES = [
   { key: "doctor_contexts", icon: <AccountTreeOutlinedIcon fontSize="small" /> },
 ];
 const NAV_TABS = [
+  { key: "invite_codes", icon: <BadgeOutlinedIcon fontSize="small" /> },
   ...TABLES,
   { key: "runtime_config", icon: <TuneOutlinedIcon fontSize="small" /> },
   { key: "routing_keywords", icon: <TuneOutlinedIcon fontSize="small" /> },
@@ -180,6 +184,9 @@ function AdminDashboard({ onLockout }) {
   const [patientOptions, setPatientOptions] = useState([]);
   const [routingKeywords, setRoutingKeywords] = useState({});
   const [newKwInputs, setNewKwInputs] = useState({});
+  const [inviteCodes, setInviteCodes] = useState([]);
+  const [newInviteDoctorId, setNewInviteDoctorId] = useState("");
+  const [newInviteName, setNewInviteName] = useState("");
   const columns = useMemo(() => {
     const allKeys = [];
     for (const row of rows) {
@@ -364,6 +371,33 @@ function AdminDashboard({ onLockout }) {
     );
   }
 
+  async function loadInviteCodes() {
+    const data = await getAdminInviteCodes();
+    setInviteCodes(data.items || []);
+  }
+
+  async function onCreateInviteCode() {
+    const id = newInviteDoctorId.trim();
+    if (!id) return;
+    try {
+      await createAdminInviteCode(id, newInviteName.trim() || undefined);
+      setNewInviteDoctorId("");
+      setNewInviteName("");
+      await loadInviteCodes();
+    } catch (error) {
+      setStatus({ type: "error", text: error.message });
+    }
+  }
+
+  async function onRevokeInviteCode(code) {
+    try {
+      await revokeAdminInviteCode(code);
+      await loadInviteCodes();
+    } catch (error) {
+      setStatus({ type: "error", text: error.message });
+    }
+  }
+
   async function loadAll(tableKey = activeTable, overrides = {}) {
     setLoading(true);
     setStatus({ type: "info", text: "" });
@@ -374,6 +408,9 @@ function AdminDashboard({ onLockout }) {
         setRows([]);
       } else if (tableKey === "routing_keywords") {
         await Promise.all([loadTableList(f), loadRoutingKeywords(), loadFilterOptions(f.doctorId)]);
+        setRows([]);
+      } else if (tableKey === "invite_codes") {
+        await loadInviteCodes();
         setRows([]);
       } else {
         await Promise.all([loadTableList(f), loadTableData(tableKey, f), loadFilterOptions(f.doctorId)]);
@@ -922,6 +959,59 @@ function AdminDashboard({ onLockout }) {
                       <Typography color="text.secondary" variant="body2">暂无关键词配置，请点击"加载"。</Typography>
                     ) : null}
                   </Stack>
+                </Box>
+              ) : activeTable === "invite_codes" ? (
+                <Box>
+                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 2 }}>
+                    <TextField
+                      size="small"
+                      label="医生账号 ID"
+                      value={newInviteDoctorId}
+                      onChange={(e) => setNewInviteDoctorId(e.target.value)}
+                      sx={{ minWidth: 180 }}
+                    />
+                    <TextField
+                      size="small"
+                      label="显示姓名（可选）"
+                      value={newInviteName}
+                      onChange={(e) => setNewInviteName(e.target.value)}
+                      sx={{ minWidth: 160 }}
+                    />
+                    <Button variant="contained" size="small" onClick={onCreateInviteCode} disabled={!newInviteDoctorId.trim()}>
+                      生成邀请码
+                    </Button>
+                  </Stack>
+                  <TableContainer sx={{ border: "1px solid #d8e3e8", borderRadius: 1.5, backgroundColor: "#f8fbfc" }}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          {["邀请码", "医生账号", "姓名", "状态", "创建时间", "操作"].map((h) => (
+                            <TableCell key={h} sx={{ fontWeight: 700, fontSize: 12, backgroundColor: "#eef4f6", color: "text.secondary" }}>{h}</TableCell>
+                          ))}
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {inviteCodes.length === 0 ? (
+                          <TableRow><TableCell colSpan={6}><Typography variant="body2" color="text.secondary">暂无邀请码</Typography></TableCell></TableRow>
+                        ) : inviteCodes.map((row) => (
+                          <TableRow key={row.code}>
+                            <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{row.code}</TableCell>
+                            <TableCell>{row.doctor_id}</TableCell>
+                            <TableCell>{row.doctor_name || "-"}</TableCell>
+                            <TableCell>
+                              <Chip size="small" label={row.active ? "有效" : "已吊销"} color={row.active ? "success" : "default"} />
+                            </TableCell>
+                            <TableCell>{row.created_at}</TableCell>
+                            <TableCell>
+                              {row.active && (
+                                <Button size="small" color="error" onClick={() => onRevokeInviteCode(row.code)}>吊销</Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
                 </Box>
               ) : (
                 <TableContainer

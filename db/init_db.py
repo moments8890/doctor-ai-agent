@@ -140,6 +140,8 @@ async def create_tables() -> None:
                 text("ALTER TABLE doctor_tasks ADD COLUMN updated_at DATETIME DEFAULT NULL")
             )
 
+        # invite_codes table is created by create_all; no inline migration needed.
+
         # Safe index-add migrations for new composite indexes (MySQL only — SQLite uses CREATE TABLE indexes)
         if dialect_name == "mysql":
             _new_indexes = [

@@ -11,7 +11,7 @@ import {
   Typography,
 } from "@mui/material";
 import MedicalServicesOutlinedIcon from "@mui/icons-material/MedicalServicesOutlined";
-import { webLogin, setWebToken } from "../api";
+import { inviteLogin, setWebToken } from "../api";
 import { useDoctorStore } from "../store/doctorStore";
 import { t } from "../i18n";
 
@@ -19,8 +19,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { setAuth } = useDoctorStore();
-  const [doctorId, setDoctorId] = useState("");
-  const [name, setName] = useState("");
+  const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -32,17 +31,17 @@ export default function LoginPage() {
 
   async function onLogin(e) {
     e.preventDefault();
-    const id = doctorId.trim();
-    if (!id) {
-      setError(t("login.doctorIdRequired"));
+    const c = code.trim();
+    if (!c) {
+      setError(t("login.codeRequired"));
       return;
     }
     setLoading(true);
     setError("");
     try {
-      const data = await webLogin(id, name.trim() || undefined);
+      const data = await inviteLogin(c);
       setWebToken(data.access_token);
-      setAuth(data.doctor_id, name.trim() || data.doctor_id, data.access_token);
+      setAuth(data.doctor_id, data.doctor_id, data.access_token);
       navigate("/", { replace: true });
     } catch (err) {
       setError(err.message || t("login.failed"));
@@ -73,22 +72,14 @@ export default function LoginPage() {
             <Box component="form" onSubmit={onLogin} sx={{ width: "100%" }}>
               <Stack spacing={2}>
                 <TextField
-                  label={t("login.doctorId")}
-                  value={doctorId}
-                  onChange={(e) => setDoctorId(e.target.value)}
+                  label={t("login.inviteCode")}
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
                   autoFocus
                   fullWidth
                   size="small"
-                  inputProps={{ autoComplete: "username" }}
-                />
-                <TextField
-                  label={t("login.name")}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  fullWidth
-                  size="small"
-                  inputProps={{ autoComplete: "name" }}
-                  helperText={t("login.nameHelper")}
+                  helperText={t("login.inviteCodeHelper")}
+                  inputProps={{ autoComplete: "off" }}
                 />
                 {error && (
                   <Typography variant="body2" color="error">
