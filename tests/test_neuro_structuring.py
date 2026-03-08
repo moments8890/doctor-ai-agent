@@ -137,7 +137,7 @@ def test_parse_markdown_extracts_json():
     log_dict = _make_log_dict()
     md = _make_markdown(case_dict, log_dict)
 
-    neuro_case, _ = _parse_markdown_output(md)
+    neuro_case, _, _cvd = _parse_markdown_output(md)
 
     assert isinstance(neuro_case, NeuroCase)
     assert neuro_case.patient_profile.get("name") == "张三"
@@ -158,7 +158,7 @@ def test_parse_markdown_extracts_log():
     log_dict = _make_log_dict()
     md = _make_markdown(case_dict, log_dict)
 
-    _, extraction_log = _parse_markdown_output(md)
+    _, extraction_log, _cvd = _parse_markdown_output(md)
 
     assert isinstance(extraction_log, ExtractionLog)
     assert "family_history_cvd" in extraction_log.missing_fields
@@ -177,7 +177,7 @@ def test_missing_imaging_returns_empty_list():
     log_dict = _make_log_dict()
     md = _make_markdown(case_dict, log_dict)
 
-    neuro_case, _ = _parse_markdown_output(md)
+    neuro_case, _, _cvd = _parse_markdown_output(md)
 
     assert neuro_case.imaging == []
 
@@ -213,7 +213,7 @@ async def test_extract_neuro_case_calls_llm_with_prompt(mock_llm):
     md = _make_markdown(case_dict, log_dict)
     mock_llm.return_value = _make_completion(md)
 
-    neuro_case, _ = await extract_neuro_case("患者张三，男，65岁，突发右侧肢体无力2小时")
+    neuro_case, _, _cvd = await extract_neuro_case("患者张三，男，65岁，突发右侧肢体无力2小时")
 
     assert mock_llm.called
     call_kwargs = mock_llm.call_args.kwargs

@@ -146,6 +146,55 @@ export async function exportPatientPdf(patientId, doctorId) {
   URL.revokeObjectURL(url);
 }
 
+export async function exportOutpatientReport(patientId, doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  const headers = {};
+  if (_webToken) headers["Authorization"] = `Bearer ${_webToken}`;
+  const response = await fetch(`/api/export/patient/${patientId}/outpatient-report?${qs.toString()}`, { headers });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `HTTP ${response.status}`);
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `门诊病历_patient_${patientId}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export async function getTemplateStatus(doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/export/template/status?${qs.toString()}`);
+}
+
+export async function uploadTemplate(doctorId, file) {
+  const headers = {};
+  if (_webToken) headers["Authorization"] = `Bearer ${_webToken}`;
+  const form = new FormData();
+  form.append("file", file);
+  form.append("doctor_id", doctorId);
+  const response = await fetch("/api/export/template/upload", { method: "POST", headers, body: form });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function deleteTemplate(doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  const headers = {};
+  if (_webToken) headers["Authorization"] = `Bearer ${_webToken}`;
+  const response = await fetch(`/api/export/template?${qs.toString()}`, { method: "DELETE", headers });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
 export async function getRecords({ doctorId, patientId, patientName, dateFrom, dateTo, limit = 50, offset = 0 }) {
   const qs = new URLSearchParams({ doctor_id: doctorId, limit: String(limit), offset: String(offset) });
   if (patientId) qs.set("patient_id", patientId);
@@ -179,6 +228,11 @@ export async function updatePrompt(key, content) {
 export async function getPatientTimeline({ doctorId, patientId, limit = 100 }) {
   const qs = new URLSearchParams({ doctor_id: doctorId, limit: String(limit) });
   return request(`/api/manage/patients/${patientId}/timeline?${qs.toString()}`);
+}
+
+export async function getCvdContext(patientId, doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/patients/${patientId}/cvd-context?${qs.toString()}`);
 }
 
 export async function getLabels(doctorId) {

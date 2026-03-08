@@ -50,7 +50,7 @@ async def neuro_from_text(
     if not body.text.strip():
         raise HTTPException(status_code=422, detail="Text input cannot be empty.")
     try:
-        neuro_case, extraction_log = await extract_neuro_case(body.text)
+        neuro_case, extraction_log, _cvd_ctx = await extract_neuro_case(body.text)
     except ValueError as exc:
         log(f"[Neuro] extract validation FAILED doctor={doctor_id}: {exc}")
         raise HTTPException(status_code=422, detail="Invalid neuro case content")

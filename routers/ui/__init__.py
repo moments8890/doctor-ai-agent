@@ -31,6 +31,7 @@ from db.crud import (
     get_pending_record,
     confirm_pending_record,
     abandon_pending_record,
+    get_cvd_context_for_patient,
 )
 from db.engine import AsyncSessionLocal
 from db.models import (
@@ -285,6 +286,44 @@ async def manage_patient_timeline(
     if data is None:
         raise HTTPException(status_code=404, detail="Patient not found")
     return {"doctor_id": doctor_id, **data}
+
+
+@router.get("/api/manage/patients/{patient_id}/cvd-context")
+async def manage_patient_cvd_context(
+    patient_id: int,
+    doctor_id: str = Query(default="web_doctor"),
+    authorization: str | None = Header(default=None),
+):
+    """Return the most recent neurosurgical CVD clinical context for a patient."""
+    doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    async with AsyncSessionLocal() as db:
+        row = await get_cvd_context_for_patient(db, doctor_id, patient_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="No CVD context found")
+    return {
+        "patient_id": patient_id,
+        "record_id": row.record_id,
+        "diagnosis_subtype": row.diagnosis_subtype,
+        "hemorrhage_location": row.hemorrhage_location,
+        "ich_score": row.ich_score,
+        "ich_volume_ml": row.ich_volume_ml,
+        "hunt_hess_grade": row.hunt_hess_grade,
+        "fisher_grade": row.fisher_grade,
+        "spetzler_martin_grade": row.spetzler_martin_grade,
+        "gcs_score": row.gcs_score,
+        "aneurysm_location": row.aneurysm_location,
+        "aneurysm_size_mm": row.aneurysm_size_mm,
+        "aneurysm_morphology": row.aneurysm_morphology,
+        "aneurysm_treatment": row.aneurysm_treatment,
+        "surgery_type": row.surgery_type,
+        "surgery_date": row.surgery_date,
+        "surgery_status": row.surgery_status,
+        "surgical_approach": row.surgical_approach,
+        "mrs_score": row.mrs_score,
+        "barthel_index": row.barthel_index,
+        "source": row.source,
+        "created_at": _fmt_ts(row.created_at),
+    }
 
 
 @router.get("/api/manage/records")
