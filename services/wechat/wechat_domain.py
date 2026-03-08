@@ -739,6 +739,10 @@ def wecom_kf_msg_to_text(msg: Dict[str, Any]) -> str:
         return f"[小程序消息] {title or page}".strip()
     if msgtype == "video":
         return "[视频消息]"
+    if msgtype == "merged_msg":
+        merged = msg.get("merged_msg") or {}
+        title = str(merged.get("title") or "聊天记录").strip()
+        return f"[合并消息] {title}"
     return ""
 
 
@@ -746,7 +750,7 @@ def wecom_msg_is_processable(msg: Dict[str, Any]) -> bool:
     msgtype = str(msg.get("msgtype", "")).lower()
     if msgtype in ("text", "location", "link", "weapp", "miniprogram"):
         return bool(wecom_kf_msg_to_text(msg))
-    if msgtype in ("voice", "image", "file", "video"):
+    if msgtype in ("voice", "image", "file", "video", "merged_msg"):
         return True
     return bool(msgtype)
 

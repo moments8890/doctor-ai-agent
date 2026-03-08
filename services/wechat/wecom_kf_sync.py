@@ -234,6 +234,35 @@ async def handle_event(
             log(f"[WeCom KF] video received user={external_userid} kf={open_kfid} msgid={msg_id or 'n/a'}")
             return {"sync_cursor": sync_cursor, "cursor_loaded": cursor_loaded}
 
+        if msgtype == "merged_msg":
+            merged = selected.get("merged_msg") or {}
+            items = merged.get("item") or []
+            parts: list[str] = []
+            for item in items:
+                item_type = str(item.get("msgtype") or "").lower()
+                from_name = str(item.get("from_name") or "").strip()
+                if item_type == "text":
+                    content = str((item.get("text") or {}).get("content") or "").strip()
+                    if content:
+                        parts.append(f"{from_name}：{content}" if from_name else content)
+            if parts:
+                merged_text = "\n".join(parts)
+                await handle_intent_bg(merged_text, external_userid, open_kfid)
+                log(
+                    f"[WeCom KF] merged_msg extracted {len(parts)} text items "
+                    f"user={external_userid} kf={open_kfid} msgid={msg_id or 'n/a'}"
+                )
+            else:
+                await send_customer_service_msg(
+                    external_userid,
+                    "已收到合并转发消息，但未找到可提取的文字内容，请改发文字描述。",
+                    open_kfid,
+                )
+                log(
+                    f"[WeCom KF] merged_msg no text items user={external_userid} kf={open_kfid} msgid={msg_id or 'n/a'}"
+                )
+            return {"sync_cursor": sync_cursor, "cursor_loaded": cursor_loaded}
+
         if not text:
             await send_customer_service_msg(
                 external_userid,
