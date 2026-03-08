@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
+  Autocomplete,
   Box,
   Button,
   Card,
@@ -14,6 +15,22 @@ import MedicalServicesOutlinedIcon from "@mui/icons-material/MedicalServicesOutl
 import { inviteLogin, setWebToken } from "../api";
 import { useDoctorStore } from "../store/doctorStore";
 import { t } from "../i18n";
+
+const SPECIALTIES = [
+  // 内科
+  "心内科", "神经内科", "呼吸内科", "消化内科", "肾内科",
+  "内分泌科", "血液科", "风湿免疫科", "感染科", "老年医学科",
+  // 外科
+  "普外科", "骨科", "神经外科", "心胸外科", "泌尿外科",
+  "血管外科", "整形外科", "肛肠外科",
+  // 妇儿
+  "妇科", "产科", "儿科", "新生儿科",
+  // 五官
+  "眼科", "耳鼻喉科", "口腔科",
+  // 其他
+  "皮肤科", "精神科", "肿瘤科", "急诊科", "重症医学科",
+  "康复科", "中医科", "全科医学科", "放射科", "检验科",
+];
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -82,14 +99,20 @@ export default function LoginPage() {
                   helperText={t("login.inviteCodeHelper")}
                   inputProps={{ autoComplete: "off" }}
                 />
-                <TextField
-                  label={t("login.specialty")}
+                <Autocomplete
+                  freeSolo
+                  options={SPECIALTIES}
                   value={specialty}
-                  onChange={(e) => setSpecialty(e.target.value)}
-                  fullWidth
-                  size="small"
-                  helperText={t("login.specialtyHelper")}
-                  inputProps={{ autoComplete: "off" }}
+                  onInputChange={(_, val) => setSpecialty(val)}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label={t("login.specialty")}
+                      size="small"
+                      helperText={t("login.specialtyHelper")}
+                      inputProps={{ ...params.inputProps, autoComplete: "off" }}
+                    />
+                  )}
                 />
                 {error && (
                   <Typography variant="body2" color="error">
