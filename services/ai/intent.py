@@ -45,7 +45,7 @@ SYSTEM_PROMPT = (
     "你是医生助手意图识别器。分析消息并输出JSON，字段：\n"
     "- intent: 必填，值为 create_patient / add_record / query_records / list_patients / "
     "import_history / delete_patient / list_tasks / complete_task / schedule_appointment / "
-    "bash_command / unknown\n"
+    "unknown\n"
     "- patient_name: 提到的患者姓名（字符串或null）\n"
     "- gender: 性别，男/女 或 null\n"
     "- age: 年龄数字或null\n\n"
@@ -59,7 +59,6 @@ SYSTEM_PROMPT = (
     "- 任务/待办/提醒 → list_tasks\n"
     "- 完成任务+编号 → complete_task\n"
     "- 预约/安排复诊+时间 → schedule_appointment\n"
-    "- 执行命令/查系统/运行脚本 → bash_command\n"
     "- 其他 → unknown\n"
     "只输出JSON，不要解释。"
 )
@@ -77,7 +76,6 @@ class Intent(str, Enum):
     list_tasks = "list_tasks"
     complete_task = "complete_task"
     schedule_appointment = "schedule_appointment"
-    bash_command = "bash_command"
     unknown = "unknown"
 
 

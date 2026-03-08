@@ -383,43 +383,6 @@ async def _handle_complete_task(doctor_id: str, intent_result) -> str:
     return await wd.handle_complete_task(doctor_id, intent_result)
 
 
-async def _handle_bash_command(intent_result) -> str:
-    import asyncio
-    command = (intent_result.extra_data.get("command") or "").strip()
-    if not command:
-        return "⚠️ 未收到命令内容。"
-    # Security: only execute if an explicit allowlist is configured.
-    allowlist_raw = os.environ.get("BASH_COMMAND_ALLOWLIST", "").strip()
-    if not allowlist_raw:
-        log(f"[Bash] BLOCKED (no allowlist): {command!r}")
-        return "⚠️ Shell 命令执行未启用。\n请联系管理员配置 BASH_COMMAND_ALLOWLIST。"
-    import re as _re
-    allowed_patterns = [p.strip() for p in allowlist_raw.split(",") if p.strip()]
-    if not any(_re.fullmatch(pattern, command) for pattern in allowed_patterns):
-        log(f"[Bash] BLOCKED (not in allowlist): {command!r}")
-        return f"⚠️ 命令不在许可列表中：`{command}`"
-    try:
-        proc = await asyncio.create_subprocess_shell(
-            command,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT,
-        )
-        try:
-            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=30)
-        except asyncio.TimeoutError:
-            proc.kill()
-            return f"⏱️ 命令超时（30s）：`{command}`"
-        output = stdout.decode("utf-8", errors="replace").strip()
-        rc = proc.returncode
-        header = f"$ {command}\n"
-        if not output:
-            return header + f"(退出码 {rc}，无输出)"
-        return header + output[:1500] + (f"\n…(截断，退出码 {rc})" if len(output) > 1500 else f"\n(退出码 {rc})")
-    except Exception as e:
-        log(f"[Bash] FAILED: {e}")
-        return f"❌ 执行失败：{e}"
-
-
 async def _handle_schedule_appointment(doctor_id: str, intent_result) -> str:
     patient_name = intent_result.patient_name
     if not patient_name:
@@ -663,8 +626,6 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
         return await _handle_complete_task(doctor_id, intent_result)
     elif intent_result.intent == Intent.schedule_appointment:
         return await _handle_schedule_appointment(doctor_id, intent_result)
-    elif intent_result.intent == Intent.bash_command:
-        return await _handle_bash_command(intent_result)
     elif intent_result.intent == Intent.import_history:
         return await wd.handle_import_history(text, doctor_id, intent_result)
     elif intent_result.intent == Intent.unknown:

@@ -288,27 +288,6 @@ _TOOLS = [
     {
         "type": "function",
         "function": {
-            "name": "bash",
-            "description": (
-                "在服务器上执行一条 shell 命令并返回输出。"
-                "仅在医生明确请求执行命令、查询系统信息或运行脚本时调用。"
-                "示例：'帮我执行 ls logs'、'查一下磁盘空间'、'运行 python script.py'。"
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "command": {
-                        "type": "string",
-                        "description": "要执行的 bash 命令。",
-                    },
-                },
-                "required": ["command"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
             "name": "update_medical_record",
             "description": (
                 "更正/修改患者最近一条病历中的错误字段。当医生说「刚才写错了」、「上一条病历有误」、"
@@ -404,7 +383,6 @@ _SYSTEM_PROMPT = (
     "- 查看任务/待办/提醒 → list_tasks\n"
     "- 完成任务/标记完成 + 编号 → complete_task\n"
     "- 预约/安排/约诊 + 时间 → schedule_appointment\n"
-    "- 执行命令/查系统/运行脚本 → bash\n"
     "- 普通对话/问候 → 直接回复，不调用工具\n\n"
     "特殊规则：若上一条助手消息询问了患者姓名（如'请问这位患者叫什么名字'），"
     "医生的回复即为患者姓名，应调用 add_medical_record 并将该姓名填入 patient_name，"
@@ -426,7 +404,7 @@ _SYSTEM_PROMPT_COMPACT = (
     "查病历->query_records；看患者列表->list_patients；"
     "历史病历/PDF/Word导入->import_history；"
     "删患者->delete_patient；看待办->list_tasks；"
-    "完成任务+编号->complete_task；预约+时间->schedule_appointment；执行命令->bash；"
+    "完成任务+编号->complete_task；预约+时间->schedule_appointment；"
     "普通问候可直接回复。"
     "工具参数仅填确定信息。"
     "意图不清时先澄清，不要猜测也不要调用工具。"
@@ -445,7 +423,6 @@ _INTENT_MAP = {
     "list_tasks": Intent.list_tasks,
     "complete_task": Intent.complete_task,
     "schedule_appointment": Intent.schedule_appointment,
-    "bash": Intent.bash_command,
 }
 
 
