@@ -22,6 +22,18 @@ async function request(url, options = {}) {
   }
 }
 
+let _adminToken = "";
+
+export function setAdminToken(token) {
+  _adminToken = token || "";
+}
+
+async function adminRequest(url, options = {}) {
+  const headers = { ...(options.headers || {}) };
+  if (_adminToken) headers["X-Admin-Token"] = _adminToken;
+  return request(url, { ...options, headers });
+}
+
 export async function sendChat(payload) {
   return request("/api/records/chat", {
     method: "POST",
@@ -108,7 +120,7 @@ export async function getAdminDbView({ doctorId, patientName, dateFrom, dateTo, 
   if (dateFrom) qs.set("date_from", dateFrom);
   if (dateTo) qs.set("date_to", dateTo);
   qs.set("limit", String(limit));
-  return request(`/api/admin/db-view?${qs.toString()}`);
+  return adminRequest(`/api/admin/db-view?${qs.toString()}`);
 }
 
 export async function getAdminTables({ doctorId, patientName, dateFrom, dateTo }) {
@@ -117,7 +129,7 @@ export async function getAdminTables({ doctorId, patientName, dateFrom, dateTo }
   if (patientName) qs.set("patient_name", patientName);
   if (dateFrom) qs.set("date_from", dateFrom);
   if (dateTo) qs.set("date_to", dateTo);
-  return request(`/api/admin/tables?${qs.toString()}`);
+  return adminRequest(`/api/admin/tables?${qs.toString()}`);
 }
 
 export async function getAdminTableRows({ tableKey, doctorId, patientName, dateFrom, dateTo, limit = 200 }) {
@@ -127,13 +139,13 @@ export async function getAdminTableRows({ tableKey, doctorId, patientName, dateF
   if (dateFrom) qs.set("date_from", dateFrom);
   if (dateTo) qs.set("date_to", dateTo);
   qs.set("limit", String(limit));
-  return request(`/api/admin/tables/${encodeURIComponent(tableKey)}?${qs.toString()}`);
+  return adminRequest(`/api/admin/tables/${encodeURIComponent(tableKey)}?${qs.toString()}`);
 }
 
 export async function getAdminFilterOptions({ doctorId } = {}) {
   const qs = new URLSearchParams();
   if (doctorId) qs.set("doctor_id", doctorId);
-  return request(`/api/admin/filter-options?${qs.toString()}`);
+  return adminRequest(`/api/admin/filter-options?${qs.toString()}`);
 }
 
 export async function getAdminObservability({
@@ -152,24 +164,24 @@ export async function getAdminObservability({
     scope,
   });
   if (traceId) qs.set("trace_id", traceId);
-  return request(`/api/admin/observability?${qs.toString()}`);
+  return adminRequest(`/api/admin/observability?${qs.toString()}`);
 }
 
 export async function clearAdminObservabilityTraces() {
-  return request("/api/admin/observability/traces", { method: "DELETE" });
+  return adminRequest("/api/admin/observability/traces", { method: "DELETE" });
 }
 
 export async function seedAdminObservabilitySamples(count = 3) {
   const qs = new URLSearchParams({ count: String(count) });
-  return request(`/api/admin/observability/sample?${qs.toString()}`, { method: "POST" });
+  return adminRequest(`/api/admin/observability/sample?${qs.toString()}`, { method: "POST" });
 }
 
 export async function getAdminRuntimeConfig() {
-  return request("/api/admin/config");
+  return adminRequest("/api/admin/config");
 }
 
 export async function updateAdminRuntimeConfig(config) {
-  return request("/api/admin/config", {
+  return adminRequest("/api/admin/config", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ config }),
@@ -177,7 +189,7 @@ export async function updateAdminRuntimeConfig(config) {
 }
 
 export async function verifyAdminRuntimeConfig(config) {
-  return request("/api/admin/config/verify", {
+  return adminRequest("/api/admin/config/verify", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ config }),
@@ -185,11 +197,11 @@ export async function verifyAdminRuntimeConfig(config) {
 }
 
 export async function applyAdminRuntimeConfig() {
-  return request("/api/admin/config/apply", { method: "POST" });
+  return adminRequest("/api/admin/config/apply", { method: "POST" });
 }
 
 export async function getAdminTunnelUrl() {
-  return request("/api/admin/dev/tunnel-url");
+  return adminRequest("/api/admin/dev/tunnel-url");
 }
 
 export async function getTasks(doctorId, status = null) {

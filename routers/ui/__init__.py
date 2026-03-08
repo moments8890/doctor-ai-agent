@@ -1132,3 +1132,71 @@ async def admin_table_rows(
             raise HTTPException(status_code=404, detail="Unknown table")
 
     return {"table": table_key, "items": items}
+
+
+# ── Fast-router keyword management ───────────────────────────────────────────
+
+@router.get("/api/admin/fast-router/keywords")
+async def admin_get_keywords(
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+):
+    """Return all keyword sets loaded from config/fast_router_keywords.json."""
+    _require_ui_admin_access(x_admin_token)
+    from services.ai.fast_router import (
+        _IMPORT_KEYWORDS, _LIST_PATIENTS_EXACT, _LIST_PATIENTS_SHORT,
+        _LIST_TASKS_EXACT, _LIST_TASKS_SHORT, _NON_NAME_KEYWORDS,
+        _CLINICAL_KW_TIER3, _TIER3_BAD_NAME, get_extra_keywords,
+    )
+    return {
+        "counts": {
+            "tier3": len(_CLINICAL_KW_TIER3),
+            "import_keywords": len(_IMPORT_KEYWORDS),
+            "list_patients_exact": len(_LIST_PATIENTS_EXACT),
+            "list_patients_short": len(_LIST_PATIENTS_SHORT),
+            "list_tasks_exact": len(_LIST_TASKS_EXACT),
+            "list_tasks_short": len(_LIST_TASKS_SHORT),
+            "non_name_keywords": len(_NON_NAME_KEYWORDS),
+            "tier3_bad_name": len(_TIER3_BAD_NAME),
+        },
+        "config": get_extra_keywords(),
+    }
+
+
+class KeywordsUpdateBody(BaseModel):
+    model_config = {"extra": "allow"}
+
+
+@router.put("/api/admin/fast-router/keywords")
+async def admin_put_keywords(
+    body: KeywordsUpdateBody,
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+):
+    """Overwrite sections of the keywords config and hot-reload."""
+    _require_ui_admin_access(x_admin_token)
+    import json as _json
+    from services.ai.fast_router import reload_extra_keywords, _EXTRA_KW_PATH
+    path = Path(_EXTRA_KW_PATH)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    existing: dict = {}
+    if path.exists():
+        try:
+            existing = _json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    # Merge all provided fields into existing config
+    updates = body.model_dump(exclude_none=True)
+    existing.update(updates)
+    path.write_text(_json.dumps(existing, ensure_ascii=False, indent=2), encoding="utf-8")
+    result = reload_extra_keywords()
+    return {"ok": True, **result}
+
+
+@router.post("/api/admin/fast-router/keywords/reload")
+async def admin_reload_keywords(
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+):
+    """Hot-reload extra keywords from data/fast_router_keywords.json without restart."""
+    _require_ui_admin_access(x_admin_token)
+    from services.ai.fast_router import reload_extra_keywords
+    result = reload_extra_keywords()
+    return {"ok": True, **result}

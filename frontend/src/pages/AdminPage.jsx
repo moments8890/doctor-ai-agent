@@ -47,8 +47,52 @@ import {
   updateAdminRuntimeConfig,
   verifyAdminRuntimeConfig,
   getAdminTunnelUrl,
+  setAdminToken,
 } from "../api";
 import { t } from "../i18n";
+
+const ADMIN_TOKEN_KEY = "adminToken";
+
+function TokenGate({ onUnlock }) {
+  const [input, setInput] = useState("");
+  const [error, setError] = useState("");
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    const token = input.trim();
+    if (!token) { setError("请输入 Token"); return; }
+    localStorage.setItem(ADMIN_TOKEN_KEY, token);
+    setAdminToken(token);
+    onUnlock(token);
+  }
+
+  return (
+    <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f3f7f8" }}>
+      <Card sx={{ width: 360, borderRadius: 2 }}>
+        <CardContent sx={{ p: 3 }}>
+          <Typography variant="h6" sx={{ mb: 0.5, fontWeight: 700 }}>Admin 访问</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>请输入 UI_ADMIN_TOKEN 以继续</Typography>
+          <form onSubmit={handleSubmit}>
+            <Stack spacing={2}>
+              <TextField
+                label="Admin Token"
+                type="password"
+                size="small"
+                fullWidth
+                autoFocus
+                value={input}
+                onChange={(e) => { setInput(e.target.value); setError(""); }}
+                error={!!error}
+                helperText={error}
+              />
+              <Button type="submit" variant="contained" fullWidth>进入</Button>
+            </Stack>
+          </form>
+        </CardContent>
+      </Card>
+    </Box>
+  );
+}
 
 const TABLES = [
   { key: "doctors", icon: <BadgeOutlinedIcon fontSize="small" /> },
@@ -207,6 +251,27 @@ const COL_WIDTH = {
 };
 
 export default function AdminPage() {
+  const [adminToken, setAdminTokenState] = useState(() => {
+    const stored = localStorage.getItem(ADMIN_TOKEN_KEY) || "";
+    if (stored) setAdminToken(stored);
+    return stored;
+  });
+
+  function handleUnlock(token) {
+    setAdminTokenState(token);
+  }
+
+  function handleLockout() {
+    localStorage.removeItem(ADMIN_TOKEN_KEY);
+    setAdminToken("");
+    setAdminTokenState("");
+  }
+
+  if (!adminToken) return <TokenGate onUnlock={handleUnlock} />;
+  return <AdminDashboard onLockout={handleLockout} />;
+}
+
+function AdminDashboard({ onLockout }) {
   const [doctorId, setDoctorId] = useState("");
   const [patientName, setPatientName] = useState("");
   const [doctorInput, setDoctorInput] = useState("");
@@ -537,7 +602,10 @@ export default function AdminPage() {
           <Stack spacing={1.4} sx={{ position: { lg: "sticky" }, top: { lg: 16 } }}>
             <Card sx={{ borderRadius: 1.5 }}>
               <CardContent>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{t("admin.pageTitle")}</Typography>
+                <Stack direction="row" alignItems="center" justifyContent="space-between">
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{t("admin.pageTitle")}</Typography>
+                  <Button size="small" color="inherit" onClick={onLockout} sx={{ fontSize: 12, color: "text.secondary" }}>退出</Button>
+                </Stack>
                 <Typography variant="caption" color="text.secondary" sx={{ mt: 0.2, display: "block" }}>
                   {t("admin.pageSubtitle")}
                 </Typography>

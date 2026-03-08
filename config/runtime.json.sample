@@ -334,6 +334,11 @@
           "value": "https://nano-redhead-attitudes-attachment.trycloudflare.com",
           "description": "Public HTTPS API base URL used by mini client config.",
           "description_zh": "小程序客户端使用的公网 HTTPS API 基地址。"
+        },
+        "UI_ADMIN_TOKEN": {
+          "value": "",
+          "description": "Bearer token required for admin UI endpoints (X-Admin-Token header).",
+          "description_zh": "Admin UI 端点所需的令牌（X-Admin-Token 请求头）。"
         }
       }
     },

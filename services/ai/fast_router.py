@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional
 from services.ai.intent import Intent, IntentResult
 
 # ── Import history detection ───────────────────────────────────────────────────
-_IMPORT_KEYWORDS = frozenset({"导入病历", "导入历史", "历史记录导入", "过往记录", "既往病历"})
+_IMPORT_KEYWORDS: frozenset[str] = frozenset()
 _IMPORT_DATE_RE = re.compile(r"\d{4}[-/年]\d{1,2}")
 
 # ── Text normalisation ─────────────────────────────────────────────────────────
@@ -29,35 +29,12 @@ def _normalise(text: str) -> str:
 
 # ── Tier 1: Exact / normalised keyword sets ────────────────────────────────────
 
-_LIST_PATIENTS_EXACT: frozenset[str] = frozenset(
-    {
-        "患者列表", "所有患者", "全部患者", "患者名单", "病人列表",
-        "病人名单", "我的患者", "我的病人", "列出患者", "列出病人",
-        "看看患者", "查看患者", "患者信息", "显示患者", "所有病人",
-        "有哪些患者", "有哪些病人", "患者都有谁", "病人都有谁",
-        "列出所有患者", "列出所有病人",
-        # Common e2e corpus variants
-        "再给我所有患者列表", "再给所有患者列表", "再看所有患者",
-        "再看一下所有患者", "再看一下患者列表",
-    }
-)
+_LIST_PATIENTS_EXACT: frozenset[str] = frozenset()
 # Very short triggers — only match if the entire message is exactly these chars
-_LIST_PATIENTS_SHORT: frozenset[str] = frozenset({"患者", "病人"})
+_LIST_PATIENTS_SHORT: frozenset[str] = frozenset()
 
-_LIST_TASKS_EXACT: frozenset[str] = frozenset(
-    {
-        "待办任务", "任务列表", "我的任务", "查看任务", "待处理",
-        "待办事项", "有什么任务", "有啥任务", "待处理任务",
-        "查看待办", "显示任务", "显示待办", "有哪些任务",
-        "最近任务", "今天任务", "所有任务",
-        # Common e2e corpus variants ("先看下我还有几个待办" etc.)
-        "先看下我还有几个待办", "先看下我今天待办", "先看下今天待办",
-        "我还有几个待办", "今天有什么待办", "先看下我的待办",
-        "先看下我今天的任务", "先看下我的任务",
-        "先看下我今天待办事项",
-    }
-)
-_LIST_TASKS_SHORT: frozenset[str] = frozenset({"待办", "任务"})
+_LIST_TASKS_EXACT: frozenset[str] = frozenset()
+_LIST_TASKS_SHORT: frozenset[str] = frozenset()
 
 # Flex patterns: "先看下.*待办" / "再给我所有患者" that don't fit exact sets
 _LIST_TASKS_FLEX_RE = re.compile(
@@ -69,10 +46,7 @@ _LIST_PATIENTS_FLEX_RE = re.compile(
 )
 
 # ── Domain keywords that must never be treated as patient names ────────────────
-_NON_NAME_KEYWORDS: frozenset[str] = frozenset({
-    "病历", "记录", "情况", "病情", "近况", "状态",
-    "任务", "待办", "患者", "病人", "诊断", "治疗",
-})
+_NON_NAME_KEYWORDS: frozenset[str] = frozenset()
 
 # ── Chinese name pattern ───────────────────────────────────────────────────────
 # Names: 2-3 chars (most Chinese names); 4-char names are rare and we avoid
@@ -273,32 +247,186 @@ _CLINICAL_KW_TIER3: frozenset[str] = frozenset({
     "乳腺增生", "囊肿",
     # Signs / lab — local dataset mined
     "心电图", "白细胞", "血红蛋白", "出血", "尿痛",
+    # Lab markers (discovered from personal test documents)
+    "空腹血糖", "餐后血糖", "血糖升高", "血糖偏高", "血糖控制", "血糖异常",
+    # Neurological / cerebrovascular (from 烟雾病 patient records)
+    "烟雾病", "视野缺损", "视野缩窄", "脑梗", "脑梗死", "脑梗塞",
+    "脑动脉", "颅内动脉", "颅外颅内", "搭桥手术",
 })
+
+# ── Extra Tier-3 keywords loaded from data/fast_router_keywords.json ─────────
+# Starts empty; populated by load_extra_keywords() at module import time.
+# Use reload_extra_keywords() for hot-reload without restart.
+_EXTRA_KW_TIER3: frozenset[str] = frozenset()
+_EXTRA_KW_PATH = "config/fast_router_keywords.json"
+
+
+def _load_kw_section(data: dict, key: str) -> frozenset[str]:
+    """Extract keywords from a section that is either a list or {keywords: [...]}."""
+    val = data.get(key, [])
+    if isinstance(val, list):
+        return frozenset(str(k) for k in val if k)
+    if isinstance(val, dict):
+        return frozenset(str(k) for k in val.get("keywords", []) if k)
+    return frozenset()
+
+
+def load_extra_keywords(path: str = _EXTRA_KW_PATH) -> int:
+    """Load all keyword sets from the JSON config file.
+
+    Populates the following module-level frozensets from the config:
+    - ``_IMPORT_KEYWORDS`` — import_history triggers
+    - ``_LIST_PATIENTS_EXACT`` / ``_LIST_PATIENTS_SHORT`` — list_patients triggers
+    - ``_LIST_TASKS_EXACT`` / ``_LIST_TASKS_SHORT`` — list_tasks triggers
+    - ``_NON_NAME_KEYWORDS`` — words excluded from patient-name extraction
+    - ``_TIER3_BAD_NAME`` — words excluded from Tier-3 name extraction
+    - ``_EXTRA_KW_TIER3`` / ``_CLINICAL_KW_TIER3`` — extra Tier-3 clinical terms
+
+    Supports two category formats for the ``tier3`` section::
+
+        # Object format (recommended) — with description/description_zh
+        "tier3": {
+          "<category>": {
+            "description": "...",
+            "description_zh": "...",
+            "keywords": ["term1", "term2"]
+          }
+        }
+
+        # Legacy list format
+        "tier3": {"<category>": ["term1", "term2"]}
+
+    Silently no-ops if the file does not exist.
+
+    Returns the total number of keywords loaded across all sets.
+    """
+    global _EXTRA_KW_TIER3, _IMPORT_KEYWORDS, _LIST_PATIENTS_EXACT, _LIST_PATIENTS_SHORT
+    global _LIST_TASKS_EXACT, _LIST_TASKS_SHORT, _NON_NAME_KEYWORDS, _CLINICAL_KW_TIER3, _TIER3_BAD_NAME
+    p = Path(path)
+    if not p.exists():
+        return 0
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+        _IMPORT_KEYWORDS = _load_kw_section(data, "import_keywords")
+        _LIST_PATIENTS_EXACT = _load_kw_section(data, "list_patients_exact")
+        _LIST_PATIENTS_SHORT = _load_kw_section(data, "list_patients_short")
+        _LIST_TASKS_EXACT = _load_kw_section(data, "list_tasks_exact")
+        _LIST_TASKS_SHORT = _load_kw_section(data, "list_tasks_short")
+        _NON_NAME_KEYWORDS = _load_kw_section(data, "non_name_keywords")
+        _TIER3_BAD_NAME = _load_kw_section(data, "tier3_bad_name")
+        # tier3 handled separately (multi-category)
+        tier3 = data.get("tier3", {})
+        terms: list[str] = []
+        for cat_value in tier3.values():
+            if isinstance(cat_value, list):
+                terms.extend(str(k) for k in cat_value if k)
+            elif isinstance(cat_value, dict):
+                for k in cat_value.get("keywords", []):
+                    if k:
+                        terms.append(str(k))
+        _EXTRA_KW_TIER3 = frozenset(terms)
+        _CLINICAL_KW_TIER3 = _EXTRA_KW_TIER3  # alias — tier3 is now fully in JSON
+        return (
+            len(_IMPORT_KEYWORDS)
+            + len(_LIST_PATIENTS_EXACT)
+            + len(_LIST_PATIENTS_SHORT)
+            + len(_LIST_TASKS_EXACT)
+            + len(_LIST_TASKS_SHORT)
+            + len(_NON_NAME_KEYWORDS)
+            + len(_TIER3_BAD_NAME)
+            + len(_EXTRA_KW_TIER3)
+        )
+    except Exception:
+        return 0
+
+
+def reload_extra_keywords(path: str = _EXTRA_KW_PATH) -> dict:
+    """Hot-reload extra Tier-3 keywords from disk.
+
+    Returns a summary dict ``{"loaded": N, "path": path}``.
+    """
+    n = load_extra_keywords(path)
+    return {"loaded": n, "path": path}
+
+
+def get_extra_keywords() -> dict:
+    """Return the full keywords config, all sections."""
+    p = Path(_EXTRA_KW_PATH)
+    if not p.exists():
+        return {}
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+        # Return all sections except metadata fields
+        return {k: v for k, v in data.items() if k not in ("format", "description", "description_zh", "_comment")}
+    except Exception:
+        return {}
+
+
+# Load at module import time (no-op if file absent).
+load_extra_keywords()
 
 # Name at message start: "张三，…" / "患者张三" / "病人李明"
 _TIER3_NAME_RE = re.compile(
     r"^(?:患者|病人)?\s*([\u4e00-\u9fff]{2,3})[，,。：:\s男女\d]"
 )
-_TIER3_BAD_NAME: frozenset[str] = frozenset({
-    "患者", "病人", "主诉", "诊断", "治疗", "随访", "复查", "处置",
-})
+_TIER3_BAD_NAME: frozenset[str] = frozenset()
 
 
 _REMINDER_RE = re.compile(r"提醒|设.*\d+[点时:：]|设.*复查提醒")
 
+# ── Tier 3 patient-question guards ───────────────────────────────────────────
+# Patient questions from lay users (CMedQA2 analysis: 45% FP rate without guards).
+# These patterns identify text that is almost certainly a patient asking a
+# question — not a doctor dictating a clinical note.
+
+# Question-phrase signal: colloquial "what should I do", "why", "is it normal?"
+_TIER3_QUESTION_RE = re.compile(
+    r"怎么办|怎么回事|是怎么回事|该怎么|是什么原因|有什么办法|有什么方法"
+    r"|怎么治疗|如何治疗|会不会|能不能|吃什么药|是什么病"
+    r"|有什么关系|正常吗|严重吗|有没有问题|是否严重"
+)
+
+# First-person patient voice: "我…怎么办", "我家宝宝…", etc.
+_TIER3_PATIENT_VOICE_RE = re.compile(
+    r"^(?:我|我家|我妈|我爸|我爷|我奶|我老|我儿|我女|我孩|我宝|我老婆|我丈夫|我先生)"
+    r".{0,30}(?:怎么|是否|会不会|能不能|为什么|什么原因|[？?])"
+)
+
+# Doctor-voice anchor: overrides the question guards when present.
+# A doctor may include a question within a clinical note.
+_TIER3_DOCTOR_ANCHOR_RE = re.compile(
+    r"^(?:患者|病人)|主诉[：:]|诊断[：:]|补充[：:]|记录[一下]?[：:]|录入[：:]"
+    r"|(?:患者|病人).{0,5}(?:主诉|诊断|检查|血压|血糖|体温)"
+)
+
 
 def _is_clinical_tier3(text: str) -> bool:
-    """Return True when the message contains a high-confidence clinical keyword.
+    """Return True when the message contains a high-confidence clinical keyword
+    AND does not appear to be a patient question in lay language.
 
-    Special case: 复查 (follow-up) is clinical only when the message is not a
-    reminder-setting command (e.g. "帮我设今天18:00复查提醒" → schedule intent).
+    Checks both the hardcoded ``_CLINICAL_KW_TIER3`` set and the extra keywords
+    loaded from ``config/fast_router_keywords.json``.
+
+    Guards (skip Tier 3 → fall through to LLM):
+    - 复查-only signal that looks like a reminder command
+    - Colloquial patient question phrases (怎么办, 会不会, 正常吗…)
+    - First-person patient voice (我头晕怎么办…)
+    These guards are bypassed when a doctor-voice anchor is detected
+    (患者…, 主诉：, 诊断：, 补充：…).
     """
-    if not any(kw in text for kw in _CLINICAL_KW_TIER3):
+    all_kw = _CLINICAL_KW_TIER3 | _EXTRA_KW_TIER3
+    if not any(kw in text for kw in all_kw):
         return False
-    # Guard: if the only clinical signal is 复查 and it looks like a reminder, skip.
+
+    # Guard: 复查-only + reminder command
     if "复查" in text and _REMINDER_RE.search(text):
-        other_kw = _CLINICAL_KW_TIER3 - {"复查"}
+        other_kw = all_kw - {"复查"}
         return any(kw in text for kw in other_kw)
+
+    # Guard: patient-question / lay-language voice — skip unless doctor anchor present
+    if _TIER3_QUESTION_RE.search(text) or _TIER3_PATIENT_VOICE_RE.match(text):
+        return bool(_TIER3_DOCTOR_ANCHOR_RE.search(text))
+
     return True
 
 
