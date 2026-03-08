@@ -247,6 +247,19 @@ _CLINICAL_KW_TIER3: frozenset[str] = frozenset({
     "复查",
     # English clinical terms (mixed-language doctor notes)
     "chest", "ECG", "NIHSS", "dyspnea", "palpitation",
+    # Neurological (CBLUE-expanded)
+    "颅内高压", "颅内压增高", "颅压高", "脑水肿", "脑疝", "颅内肿瘤", "颅内占位性病变",
+    "视乳头水肿",
+    # Metabolic / systemic (CBLUE-expanded)
+    "低血糖", "高氨血症", "代谢性酸中毒", "黄疸",
+    # Cardiology (CBLUE-expanded)
+    "胸腔积液", "室间隔缺损", "动脉导管未闭", "大动脉转位",
+    # Common symptoms (CBLUE-expanded)
+    "高热", "肺炎", "便秘",
+    # Signs / oncology (CBLUE-expanded)
+    "淋巴结转移", "血管瘤",
+    # Procedures / drugs (CBLUE-expanded)
+    "腰椎穿刺", "抗生素",
 })
 
 # Name at message start: "张三，…" / "患者张三" / "病人李明"
