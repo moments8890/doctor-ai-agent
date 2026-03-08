@@ -8,7 +8,7 @@
       "description_zh": "LLM 提供商路由与模型选择。",
       "settings": {
         "ROUTING_LLM": {
-          "value": "ollama",
+          "value": "deepseek",
           "description": "Provider for intent/tool routing. Note: Ollama is LAN/local LLM (can be slower); DeepSeek is online LLM (billed).",
           "description_zh": "意图/工具路由使用的提供商。说明：Ollama 通常是局域网/本地 LLM（可能较慢）；DeepSeek 是在线 LLM（按量计费）。",
           "options": [
@@ -21,7 +21,7 @@
           ]
         },
         "STRUCTURING_LLM": {
-          "value": "ollama",
+          "value": "deepseek",
           "description": "Provider for medical record structuring. Note: Ollama is LAN/local LLM (can be slower); DeepSeek is online LLM (billed).",
           "description_zh": "病历结构化使用的提供商。说明：Ollama 通常是局域网/本地 LLM（可能较慢）；DeepSeek 是在线 LLM（按量计费）。",
           "options": [
@@ -34,7 +34,7 @@
           ]
         },
         "INTENT_PROVIDER": {
-          "value": "local",
+          "value": "model-driven",
           "description": "Intent mode: local or model-driven.",
           "description_zh": "意图模式：local 或 model-driven。",
           "options": [
@@ -43,7 +43,7 @@
           ]
         },
         "LLM_PROVIDER_STRICT_MODE": {
-          "value": true,
+          "value": "true",
           "description": "When true, use selected provider only and never fallback to others.",
           "description_zh": "为 true 时仅使用所选提供商，不会自动回退到其它提供商。",
           "options": [
@@ -85,9 +85,9 @@
           "description_zh": "OpenAI API 基地址。"
         },
         "OPENAI_MODEL": {
-          "value": "gpt-5-codex",
-          "description": "OpenAI/Codex model name for routing/structuring.",
-          "description_zh": "路由/结构化使用的 OpenAI/Codex 模型名。"
+          "value": "gpt-4o",
+          "description": "OpenAI model name for routing/structuring.",
+          "description_zh": "路由/结构化使用的 OpenAI 模型名。"
         },
         "OPENAI_API_KEY": {
           "value": "",
@@ -100,12 +100,12 @@
           "description_zh": "腾讯云 LKEAP（OpenAI 兼容）API 基地址。"
         },
         "TENCENT_LKEAP_MODEL": {
-          "value": "deepseek-v3-1",
+          "value": "deepseek-v3.1",
           "description": "Tencent LKEAP model name for routing/structuring.",
           "description_zh": "路由/结构化使用的腾讯云 LKEAP 模型名。"
         },
         "TENCENT_LKEAP_API_KEY": {
-          "value": "",
+          "value": "<TENCENT_LKEAP_API_KEY>",
           "description": "Tencent LKEAP API key.",
           "description_zh": "腾讯云 LKEAP API Key。"
         },
@@ -115,7 +115,7 @@
           "description_zh": "Groq API Key。"
         },
         "DEEPSEEK_API_KEY": {
-          "value": "",
+          "value": "<DEEPSEEK_API_KEY>",
           "description": "DeepSeek API key.",
           "description_zh": "DeepSeek API Key。"
         },
@@ -161,12 +161,12 @@
       "description_zh": "数据库与存储路径配置。",
       "settings": {
         "DATABASE_URL": {
-          "value": "",
+          "value": "mysql+aiomysql://<DB_USER>:<DB_PASSWORD>@127.0.0.1:3306/<DB_NAME>?charset=utf8mb4",
           "description": "Shared DB URL (recommended in multi-instance).",
           "description_zh": "共享数据库 URL（多实例推荐）。"
         },
         "PATIENTS_DB_PATH": {
-          "value": "/Users/jingwuxu/Documents/Code/doctor-ai-agent/patients.db",
+          "value": "patients.db",
           "description": "SQLite DB path when DATABASE_URL is empty.",
           "description_zh": "DATABASE_URL 为空时使用的 SQLite 路径。"
         }
@@ -202,7 +202,7 @@
       "description_zh": "临床自动化与调度行为。",
       "settings": {
         "AUTO_FOLLOWUP_TASKS_ENABLED": {
-          "value": false,
+          "value": "false",
           "description": "Enable auto follow-up task generation.",
           "description_zh": "是否开启自动生成随访任务。"
         },
@@ -216,7 +216,7 @@
           ]
         },
         "TASK_SCHEDULER_INTERVAL_MINUTES": {
-          "value": 1,
+          "value": "1",
           "description": "Interval mode cadence in minutes.",
           "description_zh": "interval 模式的分钟间隔。"
         },
@@ -226,47 +226,47 @@
           "description_zh": "cron 模式表达式。"
         },
         "TASK_SCHEDULER_LEASE_ENABLED": {
-          "value": true,
+          "value": "true",
           "description": "Enable distributed lease to avoid duplicate runs.",
           "description_zh": "是否启用分布式租约防重复执行。"
         },
         "TASK_SCHEDULER_LEASE_TTL_SECONDS": {
-          "value": 90,
+          "value": "90",
           "description": "Lease TTL for failover recovery.",
           "description_zh": "租约 TTL（故障恢复用）。"
         },
         "TASK_NOTIFY_RETRY_COUNT": {
-          "value": 3,
+          "value": "3",
           "description": "Retry attempts for notification sends.",
           "description_zh": "通知失败重试次数。"
         },
         "TASK_NOTIFY_RETRY_DELAY_SECONDS": {
-          "value": 1,
+          "value": "1.0",
           "description": "Delay between retries.",
           "description_zh": "重试间隔秒数。"
         },
         "KNOWLEDGE_CANDIDATE_LIMIT": {
-          "value": 30,
+          "value": "30",
           "description": "How many knowledge items to scan per doctor before ranking.",
           "description_zh": "每次检索医生知识库时参与排序的候选条数。"
         },
         "KNOWLEDGE_MAX_ITEMS": {
-          "value": 3,
+          "value": "3",
           "description": "Maximum number of knowledge snippets injected into routing prompt.",
           "description_zh": "注入路由 prompt 的知识片段最大条数。"
         },
         "KNOWLEDGE_MAX_CHARS": {
-          "value": 1200,
+          "value": "1200",
           "description": "Total character budget for injected knowledge prompt section.",
           "description_zh": "注入知识片段的总字符预算上限。"
         },
         "KNOWLEDGE_MAX_ITEM_CHARS": {
-          "value": 320,
+          "value": "320",
           "description": "Per-knowledge-item character cap before prompt injection.",
           "description_zh": "单条知识片段注入前的字符截断上限。"
         },
         "KNOWLEDGE_AUTO_LEARN_ENABLED": {
-          "value": true,
+          "value": "true",
           "description": "Enable automatic knowledge capture from successful clinical turns.",
           "description_zh": "是否开启从临床对话自动沉淀知识。",
           "options": [
@@ -275,23 +275,48 @@
           ]
         },
         "KNOWLEDGE_AUTO_MAX_NEW_PER_TURN": {
-          "value": 1,
+          "value": "1",
           "description": "Maximum auto-learned snippets inserted per chat turn.",
           "description_zh": "每轮对话最多自动新增的知识条数。"
         },
         "KNOWLEDGE_AUTO_MIN_TEXT_CHARS": {
-          "value": 8,
+          "value": "8",
           "description": "Minimum user-text length to consider for auto-learning.",
           "description_zh": "触发自动沉淀时，医生输入的最小长度阈值。"
         }
       }
     },
-    "notification": {
-      "description": "Outgoing doctor notification delivery settings.",
-      "description_zh": "医生通知发送配置。",
+    "wecom": {
+      "description": "WeCom (企业微信) custom app integration for internal doctor messaging.",
+      "description_zh": "企业微信自建应用集成与通知配置。",
       "settings": {
+        "WECOM_CORP_ID": {
+          "value": "<WECOM_CORP_ID>",
+          "description": "WeCom CorpID (starts with ww), from 我的企业 → 企业信息.",
+          "description_zh": "企业微信企业ID（ww开头），在「我的企业 → 企业信息」中查看。"
+        },
+        "WECOM_AGENT_ID": {
+          "value": "<WECOM_AGENT_ID>",
+          "description": "WeCom app AgentID, from 应用管理 → your app.",
+          "description_zh": "自建应用的AgentID，在「应用管理」中查看。"
+        },
+        "WECOM_SECRET": {
+          "value": "<WECOM_SECRET>",
+          "description": "WeCom app Secret, from 应用管理 → your app.",
+          "description_zh": "自建应用的Secret，在「应用管理」中查看。"
+        },
+        "WECHAT_TOKEN": {
+          "value": "<WECHAT_CALLBACK_TOKEN>",
+          "description": "Callback verification Token (set freely in WeCom app callback config).",
+          "description_zh": "回调验证Token，在应用回调配置中自行设置。"
+        },
+        "WECHAT_AES_KEY": {
+          "value": "<WECHAT_ENCODING_AES_KEY_43_CHARS>",
+          "description": "Callback EncodingAESKey (43 chars, generated in WeCom app callback config).",
+          "description_zh": "回调加密密钥（43位），在应用回调配置中随机生成。"
+        },
         "NOTIFICATION_PROVIDER": {
-          "value": "log",
+          "value": "wechat",
           "description": "Notification backend (log or wechat).",
           "description_zh": "通知后端（log 或 wechat）。",
           "options": [
@@ -303,6 +328,21 @@
           "value": "",
           "description": "Fallback external_userid for failed direct recipient.",
           "description_zh": "主接收人失败时的兜底 external_userid。"
+        },
+        "WECHAT_KF_CORP_ID": {
+          "value": "<WECOM_CORP_ID>",
+          "description": "WeCom KF corp ID (usually same as WECOM_CORP_ID).",
+          "description_zh": "企业微信客服 corp ID（通常与 WECOM_CORP_ID 相同）。"
+        },
+        "WECHAT_KF_SECRET": {
+          "value": "<WECHAT_KF_SECRET>",
+          "description": "WeCom KF secret.",
+          "description_zh": "企业微信客服 Secret。"
+        },
+        "WECHAT_KF_OPEN_KFID": {
+          "value": "<WECHAT_KF_OPEN_KFID>",
+          "description": "WeCom KF open_kfid.",
+          "description_zh": "企业微信客服 open_kfid。"
         }
       }
     },
@@ -321,27 +361,27 @@
           "description_zh": "code2session 使用的小程序密钥。"
         },
         "MINIPROGRAM_TOKEN_SECRET": {
-          "value": "dev-miniprogram-secret",
+          "value": "<MINIPROGRAM_TOKEN_SECRET>",
           "description": "Signing key for mini access tokens.",
           "description_zh": "小程序访问令牌签名密钥。"
         },
         "MINIPROGRAM_TOKEN_TTL_SECONDS": {
-          "value": 604800,
+          "value": "604800",
           "description": "Mini access token expiration in seconds.",
           "description_zh": "小程序访问令牌有效期（秒）。"
         },
         "MINIPROGRAM_API_BASE_URL": {
-          "value": "https://nano-redhead-attitudes-attachment.trycloudflare.com",
+          "value": "https://<YOUR_PUBLIC_API_DOMAIN>",
           "description": "Public HTTPS API base URL used by mini client config.",
           "description_zh": "小程序客户端使用的公网 HTTPS API 基地址。"
         },
         "UI_ADMIN_TOKEN": {
-          "value": "",
+          "value": "<UI_ADMIN_TOKEN>",
           "description": "Bearer token required for admin UI endpoints (X-Admin-Token header).",
           "description_zh": "Admin UI 端点所需的令牌（X-Admin-Token 请求头）。"
         },
         "UI_DEBUG_TOKEN": {
-          "value": "",
+          "value": "<UI_DEBUG_TOKEN>",
           "description": "Bearer token required for debug UI endpoints (X-Debug-Token header). Grants access to /debug page — metrics, observability, logs.",
           "description_zh": "Debug UI 端点所需的令牌（X-Debug-Token 请求头），用于访问 /debug 页面（指标、可观测性、日志）。"
         }
@@ -369,7 +409,7 @@
           "description_zh": "Python 日志格式字符串。"
         },
         "LOG_TO_FILE": {
-          "value": true,
+          "value": "true",
           "description": "Enable rotating file logging.",
           "description_zh": "是否启用文件滚动日志。"
         },
@@ -384,12 +424,12 @@
           "description_zh": "主日志文件名。"
         },
         "LOG_MAX_BYTES": {
-          "value": 10485760,
+          "value": "10485760",
           "description": "Max bytes per log file before rotation.",
           "description_zh": "单文件最大字节数，超过后滚动。"
         },
         "LOG_BACKUP_COUNT": {
-          "value": 5,
+          "value": "5",
           "description": "Number of rotated log backups to keep.",
           "description_zh": "日志备份保留数量。"
         }

@@ -1,3 +1,10 @@
+# doctor-ai-webhook.service — Gitee Webhook 自动部署守护服务
+#
+# 用途：将 webhook_server.py 注册为 systemd 服务，开机自启，崩溃自动重启。
+# 安装：由 setup_webhook.sh 自动安装到 /etc/systemd/system/
+# 环境：从 /home/ubuntu/.webhook.env 读取 WEBHOOK_SECRET / WEBHOOK_PORT / DEPLOY_SCRIPT
+# 日志：sudo journalctl -u doctor-ai-webhook -f
+
 [Unit]
 Description=Doctor AI Gitee Webhook Listener
 After=network.target

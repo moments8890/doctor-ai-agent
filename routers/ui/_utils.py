@@ -97,6 +97,10 @@ def _require_ui_admin_access(x_admin_token: str | None) -> None:
     require_admin_token(x_admin_token, env_name="UI_ADMIN_TOKEN")
 
 
+def _require_ui_debug_access(x_debug_token: str | None) -> None:
+    require_admin_token(x_debug_token, env_name="UI_DEBUG_TOKEN")
+
+
 def _parse_admin_filters(
     doctor_id: str | None,
     patient_name: str | None,

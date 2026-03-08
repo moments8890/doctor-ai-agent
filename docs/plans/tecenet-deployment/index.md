@@ -21,12 +21,13 @@
 
 部署工件目录：
 
-1. `deploy/tencent/README.md`
-2. `deploy/tencent/docker-compose.prod.yml`
-3. `deploy/tencent/nginx.conf`
-4. `deploy/tencent/runtime.prod.example.json`
-5. `.github/workflows/ci.yml`
-6. `.github/workflows/deploy-prod.yml`
+1. `deploy/tencent/README.md` — 部署操作手册（当前生产配置）
+2. `deploy/tencent/docker-compose.prod.yml` — 容器化备选方案
+3. `deploy/tencent/nginx.conf` — 前端 Nginx 配置
+4. `config/runtime.json.vm` — **生产运行时配置模板**（推荐，v2 结构化格式）
+5. `deploy/tencent/runtime.example.json` — 生产配置参考（扁平格式）
+6. `.github/workflows/ci.yml`
+7. `.github/workflows/deploy-prod.yml`
 
 ## 里程碑（建议）
 

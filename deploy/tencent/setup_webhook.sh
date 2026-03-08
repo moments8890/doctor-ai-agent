@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
-# Run this ONCE on the Tencent VM to install the webhook auto-deploy pipeline.
-# Usage:  bash setup_webhook.sh <webhook-secret>
+# setup_webhook.sh — Webhook 自动部署一键安装脚本
+#
+# 用途：在腾讯云 CVM 上首次安装自动部署流水线（只需执行一次）。
+# 安装内容：
+#   1. 写入 ~/.webhook.env（含 Webhook Secret）
+#   2. 将 deploy.sh 复制到 ~/deploy.sh 并赋予执行权限
+#   3. 配置 sudoers 允许 ubuntu 用户无密码重启后端服务
+#   4. 安装并启动 doctor-ai-webhook systemd 服务（监听 9000 端口）
+#   5. 开放 ufw 防火墙端口 9000（如已启用）
+# 用法：bash setup_webhook.sh <webhook-secret>
 set -euo pipefail
 
 SECRET="${1:?Usage: $0 <webhook-secret>}"

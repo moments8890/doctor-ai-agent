@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """
-Minimal Gitee webhook listener.
-Listens on port 9000, verifies X-Gitee-Token, then runs /home/ubuntu/deploy.sh.
+webhook_server.py — Gitee Webhook 监听服务
 
-Usage:
+用途：监听来自 Gitee 的 push 事件，验证 X-Gitee-Token 后异步执行 deploy.sh。
+运行方式：由 doctor-ai-webhook systemd 服务托管，读取 ~/.webhook.env 中的环境变量。
+监听端口：9000（由 nginx 代理，对外路径为 /hooks/deploy）
+并发保护：同一时刻只允许一个 deploy.sh 实例运行，重复请求直接跳过。
+
+使用方法（手动测试）：
     WEBHOOK_SECRET=<your-secret> python3 webhook_server.py
 """
 import hashlib

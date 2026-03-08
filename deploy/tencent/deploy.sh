@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
-# deploy.sh — pull latest code from Gitee and restart the backend.
-# Must be idempotent and safe to run concurrently (webhook_server holds a lock).
+# deploy.sh — 自动部署脚本
+#
+# 用途：从 Gitee 拉取最新代码，同步 Python 依赖，重启后端服务。
+# 触发方式：由 webhook_server.py 在收到 Gitee push 事件后调用，也可手动执行。
+# 幂等性：可重复运行，webhook_server 持有锁防止并发重入。
+# 日志输出至：$APP_DIR/logs/deploy.log
 set -euo pipefail
 
 APP_DIR="/home/ubuntu/doctor-ai-agent"
