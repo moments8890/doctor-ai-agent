@@ -32,6 +32,7 @@ import {
   seedDebugObservabilitySamples,
   setDebugToken,
   onDebugAuthError,
+  getDebugRoutingMetrics,
 } from "../api";
 import { t } from "../i18n";
 
@@ -652,30 +653,50 @@ function DebugDashboard({ onLockout }) {
 }
 
 export default function DebugPage() {
-  const [debugToken, setDebugTokenState] = useState(() => {
-    const stored = localStorage.getItem(DEBUG_TOKEN_KEY) || "";
-    if (stored) setDebugToken(stored);
-    return stored;
-  });
   const [authError, setAuthError] = useState("");
+  const [status, setStatus] = useState(() =>
+    localStorage.getItem(DEBUG_TOKEN_KEY) ? "verifying" : "locked"
+  );
 
   function handleUnlock(token) {
     setAuthError("");
-    setDebugTokenState(token);
+    setDebugToken(token);
+    setStatus("verifying");
+    getDebugRoutingMetrics()
+      .then(() => setStatus("ok"))
+      .catch(() => {
+        localStorage.removeItem(DEBUG_TOKEN_KEY);
+        setDebugToken("");
+        setAuthError("Token 不正确，请重新输入");
+        setStatus("locked");
+      });
   }
 
   function handleLockout() {
     localStorage.removeItem(DEBUG_TOKEN_KEY);
     setDebugToken("");
-    setDebugTokenState("");
     setAuthError("Token 不正确，请重新输入");
+    setStatus("locked");
   }
 
   useEffect(() => {
     onDebugAuthError(handleLockout);
+    const stored = localStorage.getItem(DEBUG_TOKEN_KEY) || "";
+    if (stored) {
+      setDebugToken(stored);
+      getDebugRoutingMetrics()
+        .then(() => setStatus("ok"))
+        .catch(() => {
+          localStorage.removeItem(DEBUG_TOKEN_KEY);
+          setDebugToken("");
+          setAuthError("Token 不正确，请重新输入");
+          setStatus("locked");
+        });
+    }
     return () => onDebugAuthError(null);
   }, []);
 
-  if (!debugToken) return <TokenGate onUnlock={handleUnlock} initialError={authError} />;
+  if (status === "verifying") return null;
+  if (status === "locked") return <TokenGate onUnlock={handleUnlock} initialError={authError} />;
   return <DebugDashboard onLockout={handleLockout} />;
 }

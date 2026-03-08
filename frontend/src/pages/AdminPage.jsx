@@ -50,6 +50,7 @@ import {
   getAdminTunnelUrl,
   setAdminToken,
   onAdminAuthError,
+  getAdminRoutingMetrics,
 } from "../api";
 import { t } from "../i18n";
 
@@ -155,31 +156,52 @@ const COL_WIDTH = {
 };
 
 export default function AdminPage() {
-  const [adminToken, setAdminTokenState] = useState(() => {
-    const stored = localStorage.getItem(ADMIN_TOKEN_KEY) || "";
-    if (stored) setAdminToken(stored);
-    return stored;
-  });
   const [authError, setAuthError] = useState("");
+  // "verifying" while checking stored token, "ok" once confirmed, "locked" if no/bad token
+  const [status, setStatus] = useState(() =>
+    localStorage.getItem(ADMIN_TOKEN_KEY) ? "verifying" : "locked"
+  );
 
   function handleUnlock(token) {
     setAuthError("");
-    setAdminTokenState(token);
+    setAdminToken(token);
+    setStatus("verifying");
+    getAdminRoutingMetrics()
+      .then(() => setStatus("ok"))
+      .catch(() => {
+        localStorage.removeItem(ADMIN_TOKEN_KEY);
+        setAdminToken("");
+        setAuthError("Token 不正确，请重新输入");
+        setStatus("locked");
+      });
   }
 
   function handleLockout() {
     localStorage.removeItem(ADMIN_TOKEN_KEY);
     setAdminToken("");
-    setAdminTokenState("");
     setAuthError("Token 不正确，请重新输入");
+    setStatus("locked");
   }
 
   useEffect(() => {
     onAdminAuthError(handleLockout);
+    const stored = localStorage.getItem(ADMIN_TOKEN_KEY) || "";
+    if (stored) {
+      setAdminToken(stored);
+      getAdminRoutingMetrics()
+        .then(() => setStatus("ok"))
+        .catch(() => {
+          localStorage.removeItem(ADMIN_TOKEN_KEY);
+          setAdminToken("");
+          setAuthError("Token 不正确，请重新输入");
+          setStatus("locked");
+        });
+    }
     return () => onAdminAuthError(null);
   }, []);
 
-  if (!adminToken) return <TokenGate onUnlock={handleUnlock} initialError={authError} />;
+  if (status === "verifying") return null;
+  if (status === "locked") return <TokenGate onUnlock={handleUnlock} initialError={authError} />;
   return <AdminDashboard onLockout={handleLockout} />;
 }
 
