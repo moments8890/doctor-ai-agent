@@ -1248,7 +1248,7 @@ async def debug_observability(
     """Observability data for the debug page."""
     _require_ui_debug_access(x_debug_token)
     summary = get_latency_summary_scoped(limit=summary_limit, scope=scope)
-    recent_traces = get_recent_traces_scoped(limit=trace_limit, scope=scope, trace_id=trace_id)
+    recent_traces = get_recent_traces_scoped(limit=trace_limit, scope=scope)
     recent_spans = get_recent_spans_scoped(limit=span_limit, scope=scope, trace_id=trace_id)
     slow_spans = get_slowest_spans_scoped(limit=slow_span_limit, scope=scope)
     trace_timeline = get_trace_timeline(trace_id=trace_id) if trace_id else []
