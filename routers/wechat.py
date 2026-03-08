@@ -58,8 +58,6 @@ from services.session import (
     set_current_patient,
     hydrate_session_state,
     clear_pending_record_id,
-    set_pending_import_id,
-    clear_pending_import_id,
 )
 from services.observability.audit import audit
 from services.ai.memory import maybe_compress, load_context_message
@@ -87,9 +85,6 @@ from db.crud import (
     get_pending_record,
     confirm_pending_record,
     abandon_pending_record,
-    get_pending_import,
-    confirm_pending_import,
-    abandon_pending_import,
 )
 from services.knowledge.doctor_knowledge import (
     load_knowledge_context_for_prompt,
@@ -449,77 +444,6 @@ async def _handle_pending_record_reply(text: str, doctor_id: str, sess) -> str:
     new_result = await _handle_intent(text, doctor_id)
     return f"{save_notice}{new_result}"
 
-
-async def _confirm_pending_import(
-    doctor_id: str,
-    import_id: str,
-    skip_duplicates: bool = False,
-) -> str:
-    """Save confirmed import chunks to medical_records."""
-    from db.models.medical_record import MedicalRecord
-    async with AsyncSessionLocal() as session:
-        pending = await get_pending_import(session, import_id, doctor_id)
-        now_utc = datetime.utcnow().replace(tzinfo=None)
-        import_expired = pending is not None and pending.expires_at and pending.expires_at.replace(tzinfo=None) <= now_utc
-        if pending is None or pending.status != "awaiting" or import_expired:
-            clear_pending_import_id(doctor_id)
-            return "⚠️ 导入草稿已过期\n请重新发送文件。"
-        try:
-            chunks = json.loads(pending.chunks_json)
-        except Exception as e:
-            log(f"[ImportConfirm] parse chunks FAILED doctor={doctor_id}: {e}")
-            await abandon_pending_import(session, import_id, doctor_id=doctor_id)
-            clear_pending_import_id(doctor_id)
-            return "⚠️ 草稿解析失败\n请重新发送文件。"
-
-        saved = 0
-        skipped = 0
-        for chunk in chunks:
-            if skip_duplicates and chunk.get("status") == "duplicate":
-                skipped += 1
-                continue
-            try:
-                fields = chunk.get("structured", {})
-                record = MedicalRecord(**{k: fields.get(k) for k in MedicalRecord.model_fields})
-                db_record = await save_record(session, doctor_id, record, pending.patient_id)
-                asyncio.create_task(
-                    audit(doctor_id, "WRITE", resource_type="record", resource_id=str(db_record.id))
-                )
-                saved += 1
-            except Exception as e:
-                log(f"[ImportConfirm] save chunk FAILED doctor={doctor_id}: {e}")
-
-        await confirm_pending_import(session, import_id, doctor_id=doctor_id)
-        patient_name = pending.patient_name or "未关联患者"
-
-    clear_pending_import_id(doctor_id)
-    skipped_str = f"\n已跳过 {skipped} 条重复" if skipped else ""
-    return f"✅ 已导入 {saved} 条病历\n患者：【{patient_name}】{skipped_str}"
-
-
-async def _handle_pending_import_reply(text: str, doctor_id: str, sess) -> str:
-    """Route doctor reply when a bulk import is awaiting confirmation."""
-    import_id = sess.pending_import_id
-    stripped = text.strip()
-
-    if stripped in ("确认导入", "全部导入", "确认", "确定", "ok", "OK", "好的", "yes", "Yes"):
-        return await _confirm_pending_import(doctor_id, import_id, skip_duplicates=False)
-
-    if stripped in ("跳过重复", "仅新记录", "只保存新的"):
-        return await _confirm_pending_import(doctor_id, import_id, skip_duplicates=True)
-
-    if stripped in ("取消", "cancel", "Cancel", "不要", "放弃", "no", "No"):
-        async with AsyncSessionLocal() as session:
-            await abandon_pending_import(session, import_id, doctor_id=doctor_id)
-        clear_pending_import_id(doctor_id)
-        return "已取消导入。"
-
-    # Any other input: abandon import, route as new intent
-    async with AsyncSessionLocal() as session:
-        await abandon_pending_import(session, import_id, doctor_id=doctor_id)
-    clear_pending_import_id(doctor_id)
-    log(f"[WeChat] pending import abandoned (new intent), doctor={doctor_id}")
-    return await _handle_intent(text, doctor_id)
 
 
 async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str:
@@ -882,11 +806,7 @@ async def _handle_intent_bg(text: str, doctor_id: str, open_kfid: str = "", msg_
         sess = get_session(doctor_id)
         # Compress rolling window if full or idle — runs for all intent branches
         await maybe_compress(doctor_id, sess)
-        if sess.pending_import_id:
-            result = await _handle_pending_import_reply(text, doctor_id, sess)
-            push_turn(doctor_id, text, result)
-            await flush_turns(doctor_id)
-        elif sess.pending_record_id:
+        if sess.pending_record_id:
             result = await _handle_pending_record_reply(text, doctor_id, sess)
             push_turn(doctor_id, text, result)
             await flush_turns(doctor_id)
@@ -957,9 +877,6 @@ async def _handle_voice_bg(media_id: str, doctor_id: str, open_kfid: str = ""):
         try:
             if sess.pending_record_id:
                 result = await _handle_pending_record_reply(text, doctor_id, sess)
-                route = "done"
-            elif sess.pending_import_id:
-                result = await _handle_pending_import_reply(text, doctor_id, sess)
                 route = "done"
             elif sess.pending_create_name:
                 result = await _handle_pending_create(text, doctor_id)

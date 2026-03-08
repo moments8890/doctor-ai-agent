@@ -51,7 +51,7 @@ from services.notify.notify_control import (
     format_notify_pref,
 )
 from services.ai.structuring import structure_medical_record
-from services.notify.tasks import create_appointment_task, run_due_task_cycle
+from services.notify.tasks import create_appointment_task, create_general_task, run_due_task_cycle
 from services.ai.transcription import transcribe_audio
 from services.ai.vision import extract_text_from_image
 from services.observability.observability import trace_block
@@ -126,6 +126,10 @@ _WARM_GREETING_REPLY = (
     "请直接说您想做什么，或描述患者情况开始录入。"
 )
 _MENU_NUMBER_RE = re.compile(r"^\s*([1-7])\s*$")
+# Detects inline reminder in a compound message: "下午提醒我查心肌酶", "稍后提醒我…"
+_REMINDER_IN_MSG_RE = re.compile(
+    r"(?:下午|明天|早上|晚上|今天|稍后|待会|一会儿?)?[，,\s]*提醒我\s*(.{2,20}?)(?:[。！\s]|$)"
+)
 _ROUTING_HISTORY_MAX_MESSAGES = max(0, int(os.environ.get("ROUTING_HISTORY_MAX_MESSAGES", "2")))
 _REQUESTS_PER_MINUTE = max(1, int(os.environ.get("RECORDS_CHAT_RATE_LIMIT_PER_MINUTE", "100")))
 _RATE_WINDOWS: dict[str, deque] = {}
@@ -642,6 +646,37 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
             resource_id=str(patient.id),
             trace_id=get_current_trace_id(),
         ))
+
+        # ── Compound: also save record when clinical content follows demographics ─
+        if _contains_clinical_content(body.text):
+            try:
+                with trace_block("router", "records.chat.compound_record"):
+                    record = await structure_medical_record(body.text)
+                async with AsyncSessionLocal() as db:
+                    saved = await save_record(db, patient.id, doctor_id, record)
+                preview = record.content[:50] + ("…" if len(record.content) > 50 else "")
+                reply += f"\n✅ 已录入病历：{preview}"
+                asyncio.create_task(audit(
+                    doctor_id, "WRITE", resource_type="record",
+                    resource_id=str(saved.id), trace_id=get_current_trace_id(),
+                ))
+                log(f"[Chat] compound record saved [{name}] record_id={saved.id} doctor={doctor_id}")
+            except Exception as e:
+                log(f"[Chat] compound record save FAILED doctor={doctor_id}: {e}")
+                reply += "\n⚠️ 病历录入失败，请稍后单独补充。"
+
+        # ── Compound: create reminder task when "提醒我…" is present ─────────────
+        _reminder_m = _REMINDER_IN_MSG_RE.search(body.text)
+        if _reminder_m:
+            task_title_raw = _reminder_m.group(1).strip().rstrip("。！")
+            task_title = f"【{name}】{task_title_raw}"
+            try:
+                task = await create_general_task(doctor_id, task_title, patient_id=patient.id)
+                reply += f"\n📋 已创建提醒任务：{task_title}（编号 {task.id}）"
+                log(f"[Chat] compound task created [{task_title}] id={task.id} doctor={doctor_id}")
+            except Exception as e:
+                log(f"[Chat] compound task create FAILED doctor={doctor_id}: {e}")
+
         return ChatResponse(reply=reply)
 
     # ── add_medical_record ────────────────────────────────────────────────────

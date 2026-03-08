@@ -278,16 +278,6 @@ async def _expire_stale_pending_records() -> None:
         _log.warning("[PendingRecords] auto-save job FAILED: %s", _e)
 
 
-async def _expire_stale_pending_imports() -> None:
-    try:
-        from db.crud import expire_stale_pending_imports
-        async with AsyncSessionLocal() as session:
-            n = await expire_stale_pending_imports(session)
-        if n:
-            logging.getLogger("scheduler").info("[Scheduler] expired %s pending imports", n)
-    except Exception as e:
-        logging.getLogger("scheduler").warning("[Scheduler] expire_pending_imports FAILED: %s", e)
-
 
 def _configure_task_scheduler(startup_log: logging.Logger) -> None:
     _scheduler.remove_all_jobs()
@@ -329,14 +319,6 @@ def _configure_task_scheduler(startup_log: logging.Logger) -> None:
 
     _scheduler.add_job(_expire_stale_pending_records, "interval", minutes=5)
     startup_log.info("[PendingRecords] expiry scheduler configured | every_minutes=5")
-
-    _scheduler.add_job(
-        _expire_stale_pending_imports,
-        "interval",
-        minutes=5,
-        id="expire_pending_imports",
-    )
-    startup_log.info("[PendingImports] expiry scheduler configured | every_minutes=5")
 
 
 async def _runtime_apply_hook(_config: dict) -> None:

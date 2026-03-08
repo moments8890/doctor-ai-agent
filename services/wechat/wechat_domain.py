@@ -14,7 +14,6 @@ from typing import Any, Dict, List, Optional
 from db.crud import (
     create_patient,
     create_pending_record,
-    create_pending_import,
     confirm_pending_record,
     delete_patient_for_doctor,
     find_patient_by_name,
@@ -41,8 +40,6 @@ from services.session import (
     set_current_patient,
     set_pending_create,
     set_pending_record_id,
-    set_pending_import_id,
-    clear_pending_import_id,
 )
 from services.ai.structuring import structure_medical_record
 from services.patient.score_extraction import detect_score_keywords, extract_specialty_scores
@@ -1141,29 +1138,23 @@ async def handle_import_history(text: str, doctor_id: str, intent_result: Intent
     if patient_id:
         structured_chunks = await _mark_duplicates(structured_chunks, doctor_id, patient_id)
 
-    # Persist as PendingImport
-    import_id = uuid.uuid4().hex
+    # 直接保存到病历（MVP阶段暂不支持分批确认导入）
     async with AsyncSessionLocal() as session:
-        await create_pending_import(
-            session,
-            import_id,
-            doctor_id,
-            patient_id=patient_id,
-            patient_name=patient_name,
-            source=source,
-            chunks_json=json.dumps(structured_chunks, ensure_ascii=False),
-            ttl_minutes=30,
-        )
-    set_pending_import_id(doctor_id, import_id)
+        saved = 0
+        for chunk in structured_chunks:
+            if chunk.get("status") == "duplicate":
+                continue
+            try:
+                from db.models.medical_record import MedicalRecord as MR
+                fields = chunk.get("structured", {})
+                record = MR(**{k: fields.get(k) for k in MR.model_fields})
+                await save_record(session, doctor_id, record, patient_id)
+                saved += 1
+            except Exception as e:
+                log(f"[Import] save chunk FAILED doctor={doctor_id}: {e}")
 
-    # Build preview; prepend patient question if unknown
-    preview = _format_import_preview(structured_chunks, patient_name, source)
-    if patient_id is None:
-        preview = (
-            "未识别到患者姓名，请先告知患者姓名（如「这是张三的记录」），"
-            "或直接回复「确认导入」关联到当前患者。\n\n" + preview
-        )
-    return preview
+    patient_label = f"【{patient_name}】" if patient_name else "当前患者"
+    return f"✅ 已导入 {saved} 条病历\n患者：{patient_label}"
 
 
 def wecom_kf_msg_to_text(msg: Dict[str, Any]) -> str:

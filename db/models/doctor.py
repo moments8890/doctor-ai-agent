@@ -40,7 +40,6 @@ class DoctorSessionState(Base):
     current_patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id"), nullable=True)
     pending_create_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     pending_record_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    pending_import_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
 
@@ -93,11 +92,13 @@ class Doctor(Base):
     specialty: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     channel: Mapped[str] = mapped_column(String(32), nullable=False, default="app")
     wechat_user_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    mini_openid: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
     __table_args__ = (
         Index("ux_doctors_channel_wechat_user_id", "channel", "wechat_user_id", unique=True),
+        Index("ux_doctors_mini_openid", "mini_openid", unique=True),
     )
 
     def __str__(self) -> str:

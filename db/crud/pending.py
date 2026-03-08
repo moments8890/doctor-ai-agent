@@ -1,5 +1,5 @@
 """
-待确认病历、批量导入和待处理消息的数据库操作。
+待确认病历和待处理消息的数据库操作。
 """
 
 from __future__ import annotations
@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from sqlalchemy import select, update as sa_update
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.models import PendingRecord, PendingImport, PendingMessage
+from db.models import PendingRecord, PendingMessage
 
 
 def _utcnow() -> datetime:
@@ -111,91 +111,6 @@ async def expire_stale_pending_records(session: AsyncSession) -> int:
     await session.commit()
     return result.rowcount if result.rowcount else 0
 
-
-# ---------------------------------------------------------------------------
-# PendingImport helpers (Bulk History Import Gate)
-# ---------------------------------------------------------------------------
-
-async def create_pending_import(
-    session: AsyncSession,
-    import_id: str,
-    doctor_id: str,
-    *,
-    patient_id: Optional[int],
-    patient_name: Optional[str],
-    source: str,
-    chunks_json: str,
-    ttl_minutes: int = 30,
-) -> PendingImport:
-    expires = datetime.now(timezone.utc) + timedelta(minutes=ttl_minutes)
-    obj = PendingImport(
-        id=import_id,
-        doctor_id=doctor_id,
-        patient_id=patient_id,
-        patient_name=patient_name,
-        source=source,
-        chunks_json=chunks_json,
-        status="awaiting",
-        expires_at=expires,
-    )
-    session.add(obj)
-    await session.commit()
-    return obj
-
-
-async def get_pending_import(
-    session: AsyncSession,
-    import_id: str,
-    doctor_id: str,
-) -> Optional[PendingImport]:
-    result = await session.execute(
-        select(PendingImport).where(
-            PendingImport.id == import_id,
-            PendingImport.doctor_id == doctor_id,
-        )
-    )
-    return result.scalar_one_or_none()
-
-
-async def confirm_pending_import(
-    session: AsyncSession,
-    import_id: str,
-    doctor_id: Optional[str] = None,
-) -> None:
-    where = [PendingImport.id == import_id, PendingImport.status == "awaiting"]
-    if doctor_id:
-        where.append(PendingImport.doctor_id == doctor_id)
-    await session.execute(
-        sa_update(PendingImport).where(*where).values(status="confirmed")
-    )
-    await session.commit()
-
-
-async def abandon_pending_import(
-    session: AsyncSession,
-    import_id: str,
-    doctor_id: Optional[str] = None,
-) -> None:
-    where = [PendingImport.id == import_id]
-    if doctor_id:
-        where.append(PendingImport.doctor_id == doctor_id)
-    await session.execute(
-        sa_update(PendingImport).where(*where).values(status="abandoned")
-    )
-    await session.commit()
-
-
-async def expire_stale_pending_imports(session: AsyncSession) -> int:
-    result = await session.execute(
-        sa_update(PendingImport)
-        .where(
-            PendingImport.status == "awaiting",
-            PendingImport.expires_at < datetime.now(timezone.utc),
-        )
-        .values(status="expired")
-    )
-    await session.commit()
-    return result.rowcount
 
 
 # ---------------------------------------------------------------------------

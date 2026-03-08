@@ -7,14 +7,11 @@ from db.models.doctor import (
 from db.models.patient import Patient, PatientLabel, patient_label_assignments
 from db.models.records import MedicalRecordDB, NeuroCaseDB, MedicalRecordVersion, MedicalRecordExport
 from db.models.tasks import DoctorTask
-from db.models.pending import PendingRecord, PendingImport, PendingMessage
+from db.models.pending import PendingRecord, PendingMessage
 from db.models.runtime import RuntimeCursor, RuntimeToken, RuntimeConfig, SchedulerLease
 from db.models.audit import AuditLog
 from db.models.scores import SpecialtyScore
-from db.models.specialty import (
-    StrokeClinicalContext, EpilepsyClinicalContext, ParkinsonClinicalContext,
-    DementiaClinicalContext, HeadacheClinicalContext, NeuroCVDContext,
-)
+from db.models.specialty import NeuroCVDContext
 from db.models.medical_record import MedicalRecord
 from db.models.neuro_case import (
     NeuroCase, Hypertension, RiskFactors, ImagingFinding, ImagingStudy,
@@ -29,12 +26,11 @@ __all__ = [
     "Patient", "PatientLabel", "patient_label_assignments",
     "MedicalRecordDB", "NeuroCaseDB", "MedicalRecordVersion", "MedicalRecordExport",
     "DoctorTask",
-    "PendingRecord", "PendingImport", "PendingMessage",
+    "PendingRecord", "PendingMessage",
     "RuntimeCursor", "RuntimeToken", "RuntimeConfig", "SchedulerLease",
     "AuditLog",
     "SpecialtyScore",
-    "StrokeClinicalContext", "EpilepsyClinicalContext", "ParkinsonClinicalContext",
-    "DementiaClinicalContext", "HeadacheClinicalContext", "NeuroCVDContext",
+    "NeuroCVDContext",
     "MedicalRecord",
     "NeuroCase", "Hypertension", "RiskFactors", "ImagingFinding", "ImagingStudy",
     "LabResult", "PlanOrder", "ExtractionLog", "NeuroCVDSurgicalContext",

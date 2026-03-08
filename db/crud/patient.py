@@ -17,7 +17,6 @@ from db.models import (
     DoctorTask,
     DoctorSessionState,
     PendingRecord,
-    PendingImport,
 )
 from db.repositories import PatientRepository
 from services.observability.observability import trace_block
@@ -116,12 +115,6 @@ async def delete_patient_for_doctor(
         delete(PendingRecord).where(
             PendingRecord.doctor_id == doctor_id,
             PendingRecord.patient_id == patient_id,
-        )
-    )
-    await session.execute(
-        delete(PendingImport).where(
-            PendingImport.doctor_id == doctor_id,
-            PendingImport.patient_id == patient_id,
         )
     )
     await session.execute(

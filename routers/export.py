@@ -8,6 +8,7 @@ import hashlib
 import os
 import re
 from datetime import datetime, timezone
+from urllib.parse import quote
 
 from fastapi import APIRouter, File, Header, HTTPException, Query, UploadFile
 from fastapi.responses import JSONResponse, Response
@@ -40,6 +41,16 @@ def _safe_pdf_filename(prefix: str, patient_id: int, suffix: str = "") -> str:
     if safe_suffix:
         parts.append(safe_suffix)
     return "_".join(parts) + ".pdf"
+
+
+def _content_disposition(filename: str) -> str:
+    """RFC 5987 Content-Disposition header value safe for any Unicode filename.
+
+    Starlette encodes header values as latin-1, so we must percent-encode the
+    filename and use the filename* parameter (RFC 6266 / RFC 5987).
+    """
+    encoded = quote(filename, safe="")
+    return f"attachment; filename*=UTF-8''{encoded}"
 
 
 # ---------------------------------------------------------------------------
@@ -159,7 +170,7 @@ async def export_patient_pdf(
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{filename}"},
+        headers={"Content-Disposition": _content_disposition(filename)},
     )
 
 
@@ -224,7 +235,7 @@ async def export_record_pdf(
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{filename}"},
+        headers={"Content-Disposition": _content_disposition(filename)},
     )
 
 
@@ -307,7 +318,7 @@ async def export_outpatient_report(
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{filename}"},
+        headers={"Content-Disposition": _content_disposition(filename)},
     )
 
 

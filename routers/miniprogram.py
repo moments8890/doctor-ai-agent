@@ -14,12 +14,23 @@ import routers.records as records_router
 import routers.tasks as tasks_router
 import routers.ui as ui_router
 import routers.voice as voice_router
+from db.crud import (
+    append_conversation_turns,
+    create_patient,
+    delete_patient_for_doctor,
+    get_patient_for_doctor,
+    get_recent_conversation_turns,
+    save_record,
+)
+from db.engine import AsyncSessionLocal
+from db.models.medical_record import MedicalRecord
 from services.auth.miniprogram_auth import (
     MiniProgramAuthError,
     MiniProgramPrincipal,
     parse_bearer_token,
     verify_miniprogram_token,
 )
+from services.auth.rate_limit import enforce_doctor_rate_limit
 
 router = APIRouter(prefix="/api/mini", tags=["mini"])
 
@@ -38,33 +49,24 @@ def _require_mini_principal(authorization: Optional[str] = Header(default=None))
     return principal
 
 
+# ── Chat ─────────────────────────────────────────────────────────────────────
+
 class MiniChatInput(BaseModel):
     text: str
-    history: List[records_router.HistoryMessage] = Field(default_factory=list)
+    # history is optional; if omitted the server loads it from DB
+    history: Optional[List[records_router.HistoryMessage]] = None
 
 
-class MiniTaskPatchBody(BaseModel):
-    status: str
-
-
-class MiniTaskDueBody(BaseModel):
-    due_at: str
-
-
-class MiniTaskCreateBody(BaseModel):
-    task_type: str
-    title: str
-    due_at: Optional[str] = None
-    patient_id: Optional[int] = None
-    content: Optional[str] = None
-
-
-@router.get("/me")
-async def mini_me(principal: MiniProgramPrincipal = Depends(_require_mini_principal)) -> dict:
+@router.get("/history")
+async def mini_history(
+    limit: int = 20,
+    principal: MiniProgramPrincipal = Depends(_require_mini_principal),
+) -> dict:
+    """Return recent conversation turns from the shared DB-backed history."""
+    async with AsyncSessionLocal() as db:
+        turns = await get_recent_conversation_turns(db, principal.doctor_id, limit=limit)
     return {
-        "doctor_id": principal.doctor_id,
-        "channel": principal.channel,
-        "wechat_openid": principal.wechat_openid,
+        "history": [{"role": t.role, "content": t.content} for t in turns]
     }
 
 
@@ -73,14 +75,47 @@ async def mini_chat(
     body: MiniChatInput,
     principal: MiniProgramPrincipal = Depends(_require_mini_principal),
 ) -> records_router.ChatResponse:
-    return await records_router._chat_for_doctor(
+    enforce_doctor_rate_limit(principal.doctor_id, scope="mini.chat")
+
+    # Load history from DB if not provided by client.
+    if body.history is None:
+        async with AsyncSessionLocal() as db:
+            turns = await get_recent_conversation_turns(db, principal.doctor_id, limit=20)
+        history = [records_router.HistoryMessage(role=t.role, content=t.content) for t in turns]
+    else:
+        history = body.history
+
+    response = await records_router._chat_for_doctor(
         records_router.ChatInput(
             text=body.text,
-            history=body.history,
+            history=history,
             doctor_id=principal.doctor_id,
         ),
         principal.doctor_id,
     )
+
+    # Persist this exchange to shared conversation turns.
+    async with AsyncSessionLocal() as db:
+        await append_conversation_turns(db, principal.doctor_id, [
+            {"role": "user", "content": body.text},
+            {"role": "assistant", "content": response.reply},
+        ])
+        await db.commit()
+
+    return response
+
+
+# ── Patients ─────────────────────────────────────────────────────────────────
+
+class MiniPatientCreateBody(BaseModel):
+    name: str
+    gender: Optional[str] = None
+    age: Optional[int] = None
+
+
+class MiniPatientUpdateBody(BaseModel):
+    gender: Optional[str] = None
+    age: Optional[int] = None
 
 
 @router.get("/patients")
@@ -100,6 +135,74 @@ async def mini_patients(
     )
 
 
+@router.post("/patients", status_code=201)
+async def mini_create_patient(
+    body: MiniPatientCreateBody,
+    principal: MiniProgramPrincipal = Depends(_require_mini_principal),
+) -> dict:
+    enforce_doctor_rate_limit(principal.doctor_id, scope="mini.patients.write")
+    name = (body.name or "").strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="name is required")
+    async with AsyncSessionLocal() as db:
+        patient = await create_patient(db, principal.doctor_id, name, body.gender, body.age)
+    return {
+        "id": patient.id,
+        "name": patient.name,
+        "gender": patient.gender,
+        "year_of_birth": patient.year_of_birth,
+    }
+
+
+@router.patch("/patients/{patient_id}")
+async def mini_update_patient(
+    patient_id: int,
+    body: MiniPatientUpdateBody,
+    principal: MiniProgramPrincipal = Depends(_require_mini_principal),
+) -> dict:
+    enforce_doctor_rate_limit(principal.doctor_id, scope="mini.patients.write")
+    async with AsyncSessionLocal() as db:
+        patient = await get_patient_for_doctor(db, principal.doctor_id, patient_id)
+        if patient is None:
+            raise HTTPException(status_code=404, detail="Patient not found")
+        if body.gender in ("男", "女") and body.gender != patient.gender:
+            patient.gender = body.gender
+        if body.age is not None:
+            from db.repositories.patients import _year_of_birth
+            yob = _year_of_birth(body.age)
+            if yob:
+                patient.year_of_birth = yob
+        await db.commit()
+        await db.refresh(patient)
+    return {
+        "id": patient.id,
+        "name": patient.name,
+        "gender": patient.gender,
+        "year_of_birth": patient.year_of_birth,
+    }
+
+
+@router.delete("/patients/{patient_id}", status_code=204)
+async def mini_delete_patient(
+    patient_id: int,
+    principal: MiniProgramPrincipal = Depends(_require_mini_principal),
+) -> None:
+    enforce_doctor_rate_limit(principal.doctor_id, scope="mini.patients.write")
+    async with AsyncSessionLocal() as db:
+        deleted = await delete_patient_for_doctor(db, principal.doctor_id, patient_id)
+    if deleted is None:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+
+# ── Records ───────────────────────────────────────────────────────────────────
+
+class MiniRecordCreateBody(BaseModel):
+    patient_id: int
+    content: str
+    record_type: str = "visit"
+    tags: List[str] = Field(default_factory=list)
+
+
 @router.get("/records")
 async def mini_records(
     patient_id: Optional[int] = None,
@@ -117,6 +220,49 @@ async def mini_records(
         date_to=date_to,
         limit=limit,
     )
+
+
+@router.post("/records", status_code=201)
+async def mini_create_record(
+    body: MiniRecordCreateBody,
+    principal: MiniProgramPrincipal = Depends(_require_mini_principal),
+) -> dict:
+    enforce_doctor_rate_limit(principal.doctor_id, scope="mini.records.write")
+    content = (body.content or "").strip()
+    if not content:
+        raise HTTPException(status_code=422, detail="content is required")
+    record = MedicalRecord(content=content, record_type=body.record_type, tags=body.tags)
+    async with AsyncSessionLocal() as db:
+        # Verify patient belongs to this doctor.
+        patient = await get_patient_for_doctor(db, principal.doctor_id, body.patient_id)
+        if patient is None:
+            raise HTTPException(status_code=404, detail="Patient not found")
+        db_record = await save_record(db, principal.doctor_id, record, body.patient_id)
+    return {
+        "id": db_record.id,
+        "patient_id": db_record.patient_id,
+        "content": db_record.content,
+        "record_type": db_record.record_type,
+        "created_at": db_record.created_at.isoformat() if db_record.created_at else None,
+    }
+
+
+# ── Tasks ─────────────────────────────────────────────────────────────────────
+
+class MiniTaskPatchBody(BaseModel):
+    status: str
+
+
+class MiniTaskDueBody(BaseModel):
+    due_at: str
+
+
+class MiniTaskCreateBody(BaseModel):
+    task_type: str
+    title: str
+    due_at: Optional[str] = None
+    patient_id: Optional[int] = None
+    content: Optional[str] = None
 
 
 @router.get("/tasks", response_model=List[tasks_router.TaskOut])
@@ -170,14 +316,28 @@ async def mini_create_task(
     )
 
 
+# ── Voice ─────────────────────────────────────────────────────────────────────
+
 @router.post("/voice/chat", response_model=voice_router.VoiceChatResponse)
 async def mini_voice_chat(
     audio: UploadFile = File(...),
     history: Optional[str] = Form(default=None),
     principal: MiniProgramPrincipal = Depends(_require_mini_principal),
 ) -> voice_router.VoiceChatResponse:
+    enforce_doctor_rate_limit(principal.doctor_id, scope="mini.voice")
     return await voice_router._voice_chat_for_doctor(
         audio=audio,
         doctor_id=principal.doctor_id,
         history=history,
     )
+
+
+# ── Identity ──────────────────────────────────────────────────────────────────
+
+@router.get("/me")
+async def mini_me(principal: MiniProgramPrincipal = Depends(_require_mini_principal)) -> dict:
+    return {
+        "doctor_id": principal.doctor_id,
+        "channel": principal.channel,
+        "wechat_openid": principal.wechat_openid,
+    }

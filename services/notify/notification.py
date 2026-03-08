@@ -8,7 +8,7 @@ import os
 import time
 
 import httpx
-from db.crud import get_doctor_wechat_user_id
+from db.crud import get_doctor_wechat_user_id, get_doctor_mini_openid
 from db.engine import AsyncSessionLocal
 from services.wechat.wechat_notify import _send_customer_service_msg
 from utils.log import log
@@ -155,19 +155,24 @@ async def send_doctor_notification(doctor_id: str, message: str) -> None:
         return
 
     if provider == "wechat_mini_subscribe":
-        target_user = doctor_id
         try:
             async with AsyncSessionLocal() as db:
-                mapped = await get_doctor_wechat_user_id(db, doctor_id)
-            if mapped:
-                target_user = mapped
+                target_user = await get_doctor_mini_openid(db, doctor_id)
+            if not target_user:
+                log(
+                    "[Notify:wechat_mini_subscribe] no mini_openid linked for doctor; skipping",
+                    logger_name="tasks",
+                    doctor_id=doctor_id,
+                )
+                return
         except Exception as map_err:
             log(
-                "[Notify:wechat_mini_subscribe] resolve mapped wechat_user_id failed; fallback to doctor_id",
+                "[Notify:wechat_mini_subscribe] resolve mini_openid failed; skipping",
                 logger_name="tasks",
                 doctor_id=doctor_id,
                 error=str(map_err),
             )
+            return
 
         await _send_miniprogram_subscribe_msg(target_user, message)
         return

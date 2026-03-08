@@ -52,7 +52,6 @@ class DoctorSession:
     current_patient_name: Optional[str] = None
     pending_create_name: Optional[str] = None   # waiting for gender/age to create a new patient
     pending_record_id: Optional[str] = None     # UUID of draft PendingRecord awaiting confirmation
-    pending_import_id: Optional[str] = None   # UUID of PendingImport awaiting confirmation
     interview: Optional[InterviewState] = None  # active guided intake interview
     conversation_history: List[dict] = field(default_factory=list)  # rolling window
     last_active: float = field(default_factory=time.time)
@@ -84,7 +83,6 @@ async def hydrate_session_state(doctor_id: str) -> DoctorSession:
                 if state is not None:
                     sess.pending_create_name = state.pending_create_name
                     sess.pending_record_id = getattr(state, "pending_record_id", None)
-                    sess.pending_import_id = getattr(state, "pending_import_id", None)
                     sess.current_patient_id = state.current_patient_id
                     if state.current_patient_id is not None:
                         patient = await get_patient_for_doctor(db, doctor_id, state.current_patient_id)
@@ -117,7 +115,6 @@ async def persist_session_state(doctor_id: str) -> None:
                 current_patient_id=sess.current_patient_id,
                 pending_create_name=sess.pending_create_name,
                 pending_record_id=sess.pending_record_id,
-                pending_import_id=sess.pending_import_id,
             )
     except Exception as e:
         log(f"[Session] persist FAILED: {e}")
@@ -246,23 +243,6 @@ def clear_pending_record_id(doctor_id: str, persist: bool = True) -> None:
     if persist:
         _schedule_persist(doctor_id)
 
-
-def set_pending_import_id(doctor_id: str, import_id: str, persist: bool = True) -> None:
-    with _registry_lock:
-        session = get_session(doctor_id)
-        session.pending_import_id = import_id
-        session.updated_at = _utcnow()
-    if persist:
-        _schedule_persist(doctor_id)
-
-
-def clear_pending_import_id(doctor_id: str, persist: bool = True) -> None:
-    with _registry_lock:
-        session = get_session(doctor_id)
-        session.pending_import_id = None
-        session.updated_at = _utcnow()
-    if persist:
-        _schedule_persist(doctor_id)
 
 
 def prune_inactive_sessions(max_idle_seconds: int = 3600) -> Dict[str, int]:

@@ -179,7 +179,6 @@ async def upsert_doctor_session_state(
     current_patient_id: Optional[int],
     pending_create_name: Optional[str],
     pending_record_id: Optional[str] = None,
-    pending_import_id: Optional[str] = None,
 ) -> None:
     doctor_id = await _ensure_doctor_exists(session, doctor_id)
     row = await get_doctor_session_state(session, doctor_id)
@@ -187,7 +186,6 @@ async def upsert_doctor_session_state(
         row.current_patient_id = current_patient_id
         row.pending_create_name = pending_create_name
         row.pending_record_id = pending_record_id
-        row.pending_import_id = pending_import_id
         row.updated_at = _utcnow()
     else:
         session.add(
@@ -196,7 +194,6 @@ async def upsert_doctor_session_state(
                 current_patient_id=current_patient_id,
                 pending_create_name=pending_create_name,
                 pending_record_id=pending_record_id,
-                pending_import_id=pending_import_id,
                 updated_at=_utcnow(),
             )
         )
@@ -325,3 +322,31 @@ async def purge_conversation_turns_before(
     )
     await session.commit()
     return int(result.rowcount or 0)
+
+
+async def get_doctor_mini_openid(session: AsyncSession, doctor_id: str) -> Optional[str]:
+    row = await get_doctor_by_id(session, doctor_id)
+    if row is None or not row.mini_openid:
+        return None
+    return str(row.mini_openid).strip() or None
+
+
+async def get_doctor_by_mini_openid(session: AsyncSession, openid: str) -> Optional[Doctor]:
+    result = await session.execute(
+        select(Doctor).where(Doctor.mini_openid == openid).limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+async def link_mini_openid(session: AsyncSession, doctor_id: str, openid: str) -> None:
+    """Store a mini app openid on an existing doctor record (idempotent)."""
+    row = await get_doctor_by_id(session, doctor_id)
+    if row is None:
+        raise ValueError(f"Doctor {doctor_id!r} not found")
+    if row.mini_openid and row.mini_openid != openid:
+        raise ValueError(
+            f"Doctor {doctor_id!r} already linked to a different mini openid"
+        )
+    row.mini_openid = openid
+    row.updated_at = _utcnow()
+    await session.commit()

@@ -81,7 +81,6 @@ _CLEANUP_TABLES = [
     ("doctor_tasks",          "doctor_id"),
     ("neuro_cases",           "doctor_id"),
     ("pending_records",       "doctor_id"),
-    ("pending_imports",       "doctor_id"),
     ("medical_records",       "doctor_id"),
     ("patients",              "doctor_id"),
     ("doctor_contexts",       "doctor_id"),

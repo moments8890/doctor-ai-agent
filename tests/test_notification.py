@@ -92,14 +92,15 @@ async def test_send_doctor_notification_wechat_mini_subscribe_provider_calls_sen
         },
         clear=False,
     ), patch("services.notify.notification.AsyncSessionLocal", return_value=_SessionCtx()), \
-        patch("services.notify.notification.get_doctor_wechat_user_id", new=AsyncMock(return_value="openid_mini_1")), \
+        patch("services.notify.notification.get_doctor_mini_openid", new=AsyncMock(return_value="openid_mini_1")), \
         patch("services.notify.notification._send_miniprogram_subscribe_msg", mock_send):
         await send_doctor_notification("doc-mini", "hello mini")
 
     mock_send.assert_awaited_once_with("openid_mini_1", "hello mini")
 
 
-async def test_send_doctor_notification_wechat_mini_subscribe_mapping_fail_fallbacks_to_doctor():
+async def test_send_doctor_notification_wechat_mini_subscribe_no_openid_skips():
+    """When no mini_openid is linked, the subscribe notification is silently skipped."""
     mock_send = AsyncMock()
     with patch.dict(
         "os.environ",
@@ -109,12 +110,32 @@ async def test_send_doctor_notification_wechat_mini_subscribe_mapping_fail_fallb
         },
         clear=False,
     ), patch("services.notify.notification.AsyncSessionLocal", return_value=_SessionCtx()), \
-        patch("services.notify.notification.get_doctor_wechat_user_id", new=AsyncMock(side_effect=RuntimeError("db down"))), \
+        patch("services.notify.notification.get_doctor_mini_openid", new=AsyncMock(return_value=None)), \
+        patch("services.notify.notification._send_miniprogram_subscribe_msg", mock_send), \
+        patch("services.notify.notification.log") as mock_log:
+        await send_doctor_notification("doc-mini-no-link", "hello mini")
+
+    mock_send.assert_not_awaited()
+    assert mock_log.call_count >= 1
+
+
+async def test_send_doctor_notification_wechat_mini_subscribe_mapping_fail_skips():
+    """When mini_openid lookup fails, the notification is skipped (not sent to raw doctor_id)."""
+    mock_send = AsyncMock()
+    with patch.dict(
+        "os.environ",
+        {
+            "NOTIFICATION_PROVIDER": "wechat_mini_subscribe",
+            "MINIPROGRAM_SUBSCRIBE_TEMPLATE_ID": "tpl_123",
+        },
+        clear=False,
+    ), patch("services.notify.notification.AsyncSessionLocal", return_value=_SessionCtx()), \
+        patch("services.notify.notification.get_doctor_mini_openid", new=AsyncMock(side_effect=RuntimeError("db down"))), \
         patch("services.notify.notification._send_miniprogram_subscribe_msg", mock_send), \
         patch("services.notify.notification.log") as mock_log:
         await send_doctor_notification("doc-mini-fallback", "hello mini")
 
-    mock_send.assert_awaited_once_with("doc-mini-fallback", "hello mini")
+    mock_send.assert_not_awaited()
     assert mock_log.call_count >= 1
 
 

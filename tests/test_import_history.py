@@ -1,13 +1,11 @@
 """
-Tests for the import_history feature (wechat_domain helpers + router confirmation flow).
+Tests for the import_history feature (wechat_domain pure helpers).
 """
 
 from __future__ import annotations
 
-import asyncio
-import json
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -19,7 +17,6 @@ from services.wechat.wechat_domain import (
     _preprocess_import_text,
     _format_import_preview,
     _mark_duplicates,
-    handle_import_history,
 )
 
 
@@ -127,93 +124,6 @@ def test_format_preview_with_duplicates():
     assert "跳过重复" in preview
     assert "1 条新记录" in preview
 
-
-# ---------------------------------------------------------------------------
-# 7. handle_import_history — mocked structuring + create_pending_import
-# ---------------------------------------------------------------------------
-
-@pytest.mark.asyncio
-async def test_handle_import_history_full_flow():
-    from services.ai.intent import IntentResult, Intent
-    from db.models.medical_record import MedicalRecord
-
-    text = (
-        "2023-11-01\n头痛，BP 130/80，给予布洛芬。\n\n"
-        "2023-12-05\n复诊，症状改善，停药观察。"
-    )
-    intent_result = IntentResult(
-        intent=Intent.import_history,
-        patient_name="张三",
-        extra_data={"source": "text"},
-    )
-
-    fake_record = MedicalRecord(content="头痛")
-
-    with (
-        patch("services.wechat.wechat_domain.find_patient_by_name", new=AsyncMock(return_value=SimpleNamespace(id=42))),
-        patch("services.wechat.wechat_domain.structure_medical_record", new=AsyncMock(return_value=fake_record)),
-        patch("services.wechat.wechat_domain.get_records_for_patient", new=AsyncMock(return_value=[])),
-        patch("services.wechat.wechat_domain.create_pending_import", new=AsyncMock()),
-        patch("services.wechat.wechat_domain.AsyncSessionLocal") as mock_session_cls,
-        patch("services.wechat.wechat_domain.set_pending_import_id") as mock_set_id,
-    ):
-        # Make AsyncSessionLocal work as async context manager
-        mock_session = AsyncMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=False)
-        mock_session_cls.return_value = mock_session
-
-        result = await handle_import_history(text, DOCTOR, intent_result)
-
-    assert "张三" in result or "确认导入" in result
-    mock_set_id.assert_called_once()
-
-
-# ---------------------------------------------------------------------------
-# 8. _handle_pending_import_reply — "确认导入" calls _confirm_pending_import
-# ---------------------------------------------------------------------------
-
-@pytest.mark.asyncio
-async def test_handle_pending_import_reply_confirm_all():
-    import routers.wechat as wechat_router
-
-    sess = SimpleNamespace(pending_import_id="abc123")
-
-    with patch.object(
-        wechat_router,
-        "_confirm_pending_import",
-        new=AsyncMock(return_value="✅ 已成功导入 2 条历史病历，患者：【张三】"),
-    ) as mock_confirm:
-        result = await wechat_router._handle_pending_import_reply("确认导入", DOCTOR, sess)
-
-    mock_confirm.assert_called_once_with(DOCTOR, "abc123", skip_duplicates=False)
-    assert "已成功导入" in result
-
-
-# ---------------------------------------------------------------------------
-# 9. _handle_pending_import_reply — "取消" abandons and clears session
-# ---------------------------------------------------------------------------
-
-@pytest.mark.asyncio
-async def test_handle_pending_import_reply_cancel():
-    import routers.wechat as wechat_router
-
-    sess = SimpleNamespace(pending_import_id="def456")
-
-    mock_session = AsyncMock()
-    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-    mock_session.__aexit__ = AsyncMock(return_value=False)
-
-    with (
-        patch("routers.wechat.AsyncSessionLocal", return_value=mock_session),
-        patch("routers.wechat.abandon_pending_import", new=AsyncMock()) as mock_abandon,
-        patch("routers.wechat.clear_pending_import_id") as mock_clear,
-    ):
-        result = await wechat_router._handle_pending_import_reply("取消", DOCTOR, sess)
-
-    mock_abandon.assert_called_once_with(mock_session, "def456", doctor_id=DOCTOR)
-    mock_clear.assert_called_once_with(DOCTOR)
-    assert "取消" in result or "放弃" in result
 
 
 # ---------------------------------------------------------------------------
