@@ -470,23 +470,118 @@ _REMINDER_RE = re.compile(r"提醒|设.*\d+[点时:：]|设.*复查提醒")
 # question — not a doctor dictating a clinical note.
 
 # Question-phrase signal: colloquial "what should I do", "why", "is it normal?"
+# Extended with IMCS-DAC + CMedQA2 analysis: duration questions, choice questions,
+# inquiry patterns, consultation-seeking phrases, and question-ending particles.
 _TIER3_QUESTION_RE = re.compile(
     r"怎么办|怎么回事|是怎么回事|该怎么|是什么原因|有什么办法|有什么方法"
     r"|怎么治疗|如何治疗|会不会|能不能|吃什么药|是什么病"
     r"|有什么关系|正常吗|严重吗|有没有问题|是否严重"
+    # Duration questions (IMCS-DAC: "咳嗽几天了", "发烧多长时间了")
+    r"|几天了$|多久了$|多长时间|多少天了$"
+    # Choice questions (IMCS-DAC: "是夜间严重还是白天严重")
+    r"|是.{1,8}还是"
+    # Inquiry pattern (IMCS-DAC: "有没有咳嗽", "有没有检查血常规")
+    r"|有没有"
+    # Question-ending particles — almost never appear at end of specialist clinical notes
+    r"|了吗[？?]?$|吗[？?]?$|呢[？?]?$"
+    # Consultation-seeking phrases (CMedQA2: patient Q&A forum patterns)
+    r"|请问|请指教|请教|请.*帮.*解答|请.*分析"
+    # Treatment-seeking verb variants missed before (CMedQA2: "怎样治疗")
+    r"|怎样治疗|怎样用药|怎样处理|怎样调理"
+    # Standalone question mark at sentence end (CMedQA2: 26% of patient question FPs)
+    r"|[？?]\s*$"
+    # Advice-seeking phrases
+    r"|该如何|该怎样|应该怎么"
+    # Structured patient portal format (Baidu list: "全部症状：…发病时间及原因：…")
+    r"|全部症状[：:]|发病时间及原因|治疗情况[：:]|发病时间[：:]"
+    # Medical knowledge queries — knowledge-seeking suffix patterns (Baidu finetune)
+    r"|的鉴别诊断$|的并发症$|的并发症有|的症状有哪些|的诊断依据|的发病机制|的病因$|的病因有"
+    r"|的治疗方法|的处理原则|的预防措施|的检查方法"
+    # Medical exam MCQ stems (CMExam: "下列…属于", "正确的是", "错误的是")
+    r"|^下列|^以下(?:哪|各)项|正确的是$|错误的是$|不正确的是$|不包括$"
+    r"|属于.*的是$|应首选$|最可能.*诊断$|最佳.*是$"
+    # Additional CMExam endings — non-vignette questions without doctor anchor
+    # (vignette patterns handled by _TIER3_EXAM_ENDING_RE which ignores anchor)
+    r"|考虑的是[：:]?\s*$|的(?:疾病|症状|体征|病因|改变|类型)是[：:]?\s*$"
+    r"|(?:特点|原因|表现|机制|体征|检查|热型)是[：:]?\s*$"
+    r"|(?:最?常?多?)见于\s*$|可见于\s*$|常伴有\s*$|放射至\s*$"
+    r"|治疗应首选\s*$|意义的是[：:]?\s*$"
+    r"|(?:药物|成药|方剂|措施|方法|方案|证候|证型|治法|病原体)是\s*$"
+    r"|(?:并发症|不良反应)是\s*$|诊断为\s*$|部位在\s*$"
+    # "哪种/哪项/哪个" — explicit question words in MCQ stems
+    r"|哪种|哪项|哪个|哪类|哪些"
+    # Bare 是/为 (optional colon) at sentence end; specific noun/verb endings
+    r"|是[：:]?\s*$|为[：:]?\s*$|属于\s*$|体位\s*$|类型\s*$"
+    r"|出现\s*$|宜用\s*$|选用\s*$|宜选用\s*$|不宜用\s*$"
+    r"|何药|何种|何法"
 )
 
-# First-person patient voice: "我…怎么办", "我家宝宝…", etc.
+# First-person patient voice — two tiers:
+# Tier A (original): "我…怎么办/会不会/？" — explicit question
+# Tier B (CMedQA2): "我/本人…不舒服/疼痛/症状…" — patient self-description without
+#   explicit question word (e.g. "我最近头痛，做过CT，不知该如何…").
 _TIER3_PATIENT_VOICE_RE = re.compile(
     r"^(?:我|我家|我妈|我爸|我爷|我奶|我老|我儿|我女|我孩|我宝|我老婆|我丈夫|我先生)"
     r".{0,30}(?:怎么|是否|会不会|能不能|为什么|什么原因|[？?])"
+    r"|^(?:我|本人).{0,50}(?:不舒服|不好|难受|疼痛|疼痛感|痒|肿胀|头晕|乏力|出血|不适|有症状|做了检查|做过检查|手术后|术后|患病|得了)"
 )
+
+# Online-consultation context: pediatric terms signal patient-facing consultation,
+# not a specialist clinical note. (IMCS-DAC analysis: 42% of FPs contained these terms.)
+# Bypassed by doctor-voice anchor (患者/患儿/主诉: etc.).
+_TIER3_CONSULT_RE = re.compile(r"宝宝|宝贝|孩子|小孩")
 
 # Doctor-voice anchor: overrides the question guards when present.
 # A doctor may include a question within a clinical note.
 _TIER3_DOCTOR_ANCHOR_RE = re.compile(
-    r"^(?:患者|病人)|主诉[：:]|诊断[：:]|补充[：:]|记录[一下]?[：:]|录入[：:]"
-    r"|(?:患者|病人).{0,5}(?:主诉|诊断|检查|血压|血糖|体温)"
+    r"^(?:患者|患儿|病人)|主诉[：:]|诊断[：:]|补充[：:]|记录[一下]?[：:]|录入[：:]"
+    r"|(?:患者|患儿|病人).{0,5}(?:主诉|诊断|检查|血压|血糖|体温)"
+)
+
+# Exam-specific question endings — ALWAYS block, even when doctor anchor is present.
+# These endings are exclusive to medical exam MCQs and never appear at the end of
+# real clinical dictation. They handle cases where an exam vignette starts with
+# "患者，男，45岁..." (which triggers the doctor anchor) but ends with a question.
+# CMExam analysis: 40/200 FPs end with "考虑的是", 9 with "治疗应首选", etc.
+_TIER3_EXAM_ENDING_RE = re.compile(
+    # "应首先考虑的是" / "考虑的是" — single most common MCQ ending (40/200 FPs)
+    r"考虑的是[：:]?\s*$"
+    # "其诊断是" / "的诊断是" — diagnosis question
+    r"|(?:其|的)诊断(?:应)?是[：:]?\s*$"
+    # "的疾病是" / "的症状是" / "的体征是" / "的特点是" / etc.
+    r"|的(?:疾病|症状|体征|病因|机制|检查|热型|痰液|表现|证候|治法|改变|类型)是[：:]?\s*$"
+    # Endings without 的 prefix (e.g. "胸痛特点是", "死亡原因是", "临床表现是")
+    r"|(?:特点|原因|表现|机制|体征|检查|热型)是[：:]?\s*$"
+    # "临床表现是" / "常见表现是" / "主要表现是"
+    r"|(?:临床|常见|主要)表现是[：:]?\s*$"
+    # "可见于" / "可见" / "最常见于" / "多见于" / "常伴有" / "放射至"
+    r"|(?:最?常?多?)见于\s*$|可见于?\s*$|常伴有\s*$|并伴有\s*$|放射至\s*$"
+    # "治疗应首选" / "首选…是" — treatment choice questions
+    r"|治疗应首选\s*$|首选.{0,4}是\s*$"
+    # "最有意义的是" / "有意义的是"
+    r"|意义的是[：:]?\s*$"
+    # High-frequency MCQ endings (CMExam analysis: top remaining FP patterns)
+    r"|(?:药物|成药|方剂|措施|方法|方案|类型|证候|证型|治法|病原体)是\s*$"
+    r"|(?:并发症|不良反应|适应症|禁忌症|副作用)是\s*$"
+    # "应诊断为" / "可能诊断为" — diagnosis question ending
+    r"|诊断为\s*$|诊断是\s*$"
+    # "其部位在" / "位置在"
+    r"|部位在\s*$|位置在\s*$"
+    # "浊音界呈" / "叩诊音呈" — physical exam findings question
+    r"|(?:界|音)[呈在]\s*$"
+    # Broad catch: bare 是/为 at end, with optional trailing colon.
+    # Real clinical notes always follow 是/为 with the actual value;
+    # MCQ questions omit the answer (or follow with a colon for options).
+    r"|是[：:]?\s*$|为[：:]?\s*$"
+    # Noun/verb-ending MCQ questions (answer is implicit)
+    r"|体位\s*$|出现\s*$"
+    r"|宜用\s*$|选用\s*$|宜选\s*$|宜选用\s*$|不宜用\s*$|不应用\s*$"
+    # "哪项/哪种/哪个" / "何药/何种" — explicit question words; hard block ignores doctor anchor
+    r"|哪种|哪项|哪个|哪类|哪些|何药|何种|何法"
+    # Quantity questions ("多少个白细胞", "多少mg")
+    r"|多少"
+    # "属于$" — "大叶性肺炎属于" (without "的是") and "应首选$" with doctor anchor
+    r"|属于\s*$|应首选\s*$"
 )
 
 
@@ -499,10 +594,14 @@ def _is_clinical_tier3(text: str) -> bool:
 
     Guards (skip Tier 3 → fall through to LLM):
     - 复查-only signal that looks like a reminder command
+    - MCQ exam endings (考虑的是, 可见于, 的疾病是…) — hard block, ignores anchor
     - Colloquial patient question phrases (怎么办, 会不会, 正常吗…)
+    - Duration/choice/inquiry question patterns (几天了, 是X还是Y, 有没有…)
+    - Question-ending particles (吗, 呢 at sentence end)
     - First-person patient voice (我头晕怎么办…)
-    These guards are bypassed when a doctor-voice anchor is detected
-    (患者…, 主诉：, 诊断：, 补充：…).
+    - Online-consultation pediatric context (宝宝, 宝贝, 孩子, 小孩)
+    Most guards are bypassed when a doctor-voice anchor is detected
+    (患者/患儿…, 主诉：, 诊断：, 补充：…). Exam endings are never bypassed.
     """
     all_kw = _CLINICAL_KW_TIER3 | _EXTRA_KW_TIER3
     if not any(kw in text for kw in all_kw):
@@ -513,8 +612,18 @@ def _is_clinical_tier3(text: str) -> bool:
         other_kw = all_kw - {"复查"}
         return any(kw in text for kw in other_kw)
 
+    # Guard: MCQ exam endings — hard block, NOT overridden by doctor anchor.
+    # Exam vignettes start with "患者，男，N岁..." (triggering doctor anchor) but
+    # end with a question stem — we detect and reject them here first.
+    if _TIER3_EXAM_ENDING_RE.search(text):
+        return False
+
     # Guard: patient-question / lay-language voice — skip unless doctor anchor present
     if _TIER3_QUESTION_RE.search(text) or _TIER3_PATIENT_VOICE_RE.match(text):
+        return bool(_TIER3_DOCTOR_ANCHOR_RE.search(text))
+
+    # Guard: online-consultation pediatric context — skip unless doctor anchor present
+    if _TIER3_CONSULT_RE.search(text):
         return bool(_TIER3_DOCTOR_ANCHOR_RE.search(text))
 
     return True

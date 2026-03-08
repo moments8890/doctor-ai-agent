@@ -155,6 +155,29 @@ def load_cmexam(data_dir: Path, max_rows: int = 60_000) -> Counter:
     return counts
 
 
+def load_baidu_list(data_dir: Path, max_rows: int = 100_000) -> Counter:
+    """Load Baidu list train_list.txt — tab-separated [id, question, answer] triples."""
+    path = data_dir / "baidu" / "list" / "train_list.txt"
+    if not path.exists():
+        print(f"  SKIP: {path} not found")
+        return Counter()
+
+    counts: Counter = Counter()
+    rows = 0
+    with open(path, encoding="utf-8", errors="replace") as f:
+        for line in f:
+            parts = line.strip().split("\t")
+            # Extract both question (parts[1]) and answer (parts[2]) text
+            for idx in (1, 2):
+                if idx < len(parts) and parts[idx]:
+                    counts.update(_extract_terms(parts[idx]))
+            rows += 1
+            if rows >= max_rows:
+                break
+    print(f"  Baidu list: {rows} rows, {len(counts)} unique terms")
+    return counts
+
+
 def load_baidu_finetune_sample(data_dir: Path, sample: int = 10_000) -> Counter:
     """Load a sample of Baidu finetune train_zh_0.json (too large to load all)."""
     path = data_dir / "baidu" / "medical_data" / "finetune" / "train_zh_0.json"
@@ -278,6 +301,8 @@ def main() -> None:
                         help="Save candidates to JSON (default: data/local_dataset_keywords.json)")
     parser.add_argument("--no-baidu-finetune", action="store_true",
                         help="Skip Baidu finetune (1.3GB) even in sample mode")
+    parser.add_argument("--no-baidu-list", action="store_true",
+                        help="Skip Baidu list QA (226k pairs)")
     args = parser.parse_args()
 
     data_dir = Path(args.data_dir)
@@ -290,6 +315,8 @@ def main() -> None:
     counts.update(load_rag_80k(data_dir))
     counts.update(load_cmedqa2(data_dir))
     counts.update(load_cmexam(data_dir))
+    if not args.no_baidu_list:
+        counts.update(load_baidu_list(data_dir))
     if not args.no_baidu_finetune:
         counts.update(load_baidu_finetune_sample(data_dir))
 
