@@ -13,9 +13,14 @@ echo "=== deploy started at $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
 
 cd "$APP_DIR"
 
-# Pull latest from Gitee (origin)
-git fetch origin
-git reset --hard origin/main
+# Ensure gitee remote exists
+if ! git remote get-url gitee &>/dev/null; then
+    git remote add gitee git@gitee.com:moments6674/doctor-ai-agent.git
+fi
+
+# Pull latest from Gitee
+git fetch gitee
+git reset --hard gitee/main
 
 # Sync Python dependencies
 "$VENV/bin/pip" install -q -r requirements.txt
