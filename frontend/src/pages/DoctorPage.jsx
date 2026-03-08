@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Alert,
+  AlertTitle,
   Badge,
   Box,
   Button,
@@ -18,6 +19,7 @@ import {
   IconButton,
   InputAdornment,
   MenuItem,
+  Snackbar,
   Stack,
   TextField,
   Tooltip,
@@ -40,7 +42,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import LogoutIcon from "@mui/icons-material/Logout";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { Paper } from "@mui/material";
-import { getPatients, getRecords, getTasks, patchTask, updateRecord, sendChat } from "../api";
+import { getPatients, getRecords, getTasks, patchTask, updateRecord, sendChat, getPendingRecord, confirmPendingRecord, abandonPendingRecord, getDoctorProfile, updateDoctorProfile } from "../api";
 import RecordFields from "../components/RecordFields";
 import { useDoctorStore } from "../store/doctorStore";
 import { t } from "../i18n";
@@ -925,6 +927,8 @@ export default function DoctorPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
+  const [pendingRecord, setPendingRecord] = useState(null);
+  const [confirmSnackbar, setConfirmSnackbar] = useState(false);
 
   const activeSection = patientId ? "patients" : (section || "home");
 
@@ -937,6 +941,33 @@ export default function DoctorPage() {
       })
       .catch(() => {});
   }, [doctorId]);
+
+  useEffect(() => {
+    if (!doctorId) return;
+    const fetchPending = () => {
+      getPendingRecord(doctorId)
+        .then((data) => setPendingRecord(data || null))
+        .catch(() => {});
+    };
+    fetchPending();
+    const id = setInterval(fetchPending, 30000);
+    return () => clearInterval(id);
+  }, [doctorId]);
+
+  async function handleConfirmPending() {
+    try {
+      await confirmPendingRecord(doctorId);
+      setPendingRecord(null);
+      setConfirmSnackbar(true);
+    } catch (_) {}
+  }
+
+  async function handleAbandonPending() {
+    try {
+      await abandonPendingRecord(doctorId);
+      setPendingRecord(null);
+    } catch (_) {}
+  }
 
   function handleNav(key) {
     if (key === "chat") navigate("/doctor/chat");
@@ -1002,6 +1033,21 @@ export default function DoctorPage() {
           </Box>
         )}
 
+        {/* Pending record confirmation banner */}
+        {pendingRecord && (
+          <Alert severity="warning" sx={{ mx: 2, mt: 1.5, borderRadius: 1.5 }}
+            action={
+              <Stack direction="row" spacing={1}>
+                <Button size="small" color="success" variant="contained" onClick={handleConfirmPending}>确认保存</Button>
+                <Button size="small" color="error" variant="outlined" onClick={handleAbandonPending}>撤销</Button>
+              </Stack>
+            }
+          >
+            <AlertTitle>待确认病历草稿</AlertTitle>
+            患者：{pendingRecord.patient_name || "未关联"} · {pendingRecord.content_preview}
+          </Alert>
+        )}
+
         {/* Section content */}
         <Box sx={{ flex: 1, overflow: "hidden" }}>
           {activeSection === "chat" && <ChatSection doctorId={doctorId} onMessageCountChange={() => {}} />}
@@ -1035,6 +1081,18 @@ export default function DoctorPage() {
           </BottomNavigation>
         </Box>
       )}
+
+      {/* Confirm success snackbar */}
+      <Snackbar
+        open={confirmSnackbar}
+        autoHideDuration={3000}
+        onClose={() => setConfirmSnackbar(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert onClose={() => setConfirmSnackbar(false)} severity="success" sx={{ width: "100%" }}>
+          病历已保存
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -26,6 +27,9 @@ from db.crud import (
     delete_label,
     assign_label,
     remove_label,
+    get_pending_record,
+    confirm_pending_record,
+    abandon_pending_record,
 )
 from db.engine import AsyncSessionLocal
 from db.models import (
@@ -52,6 +56,7 @@ from services.observability.observability import (
     get_trace_timeline,
 )
 from services.auth.rate_limit import enforce_doctor_rate_limit
+from services.session import get_session, clear_pending_record_id
 from utils.errors import DomainError
 from utils.runtime_config import (
     apply_runtime_config,
@@ -1045,7 +1050,7 @@ async def admin_table_rows(
     patient_name: str | None = Query(default=None),
     date_from: str | None = Query(default=None),
     date_to: str | None = Query(default=None),
-    limit: int = Query(default=200, ge=1, le=1000),
+    limit: int = Query(default=200, ge=1, le=5000),
     x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
 ):
     _require_ui_admin_access(x_admin_token)
@@ -1500,3 +1505,140 @@ async def revoke_invite_code(
         invite.active = 0
         await session.commit()
     return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Pending record confirmation endpoints (web UI ↔ AI confirmation gate)
+# ---------------------------------------------------------------------------
+
+@router.get("/api/manage/pending-record")
+async def get_pending_record_endpoint(
+    doctor_id: str = Query(...),
+    authorization: str | None = Header(default=None),
+):
+    """Return the current pending record draft for a doctor, or null if none."""
+    _resolve_ui_doctor_id(doctor_id, authorization)
+    sess = get_session(doctor_id)
+    pending_id = sess.pending_record_id
+    if not pending_id:
+        return None
+    async with AsyncSessionLocal() as session:
+        pending = await get_pending_record(session, pending_id, doctor_id)
+    if pending is None or pending.status != "awaiting":
+        clear_pending_record_id(doctor_id)
+        return None
+    # Check expiry
+    now = datetime.now(timezone.utc)
+    if pending.expires_at and pending.expires_at < now:
+        clear_pending_record_id(doctor_id)
+        return None
+    try:
+        draft = json.loads(pending.draft_json)
+        raw_content = draft.get("content", "")
+        content_preview = raw_content[:100] + ("…" if len(raw_content) > 100 else "")
+    except Exception:
+        content_preview = ""
+    return {
+        "id": pending.id,
+        "patient_name": pending.patient_name or "未关联",
+        "content_preview": content_preview,
+        "created_at": pending.created_at.isoformat() if pending.created_at else None,
+    }
+
+
+@router.post("/api/manage/pending-record/confirm")
+async def confirm_pending_record_endpoint(
+    doctor_id: str = Query(...),
+    authorization: str | None = Header(default=None),
+):
+    """Confirm the pending record draft → save to medical_records."""
+    from services.wechat.wechat_domain import save_pending_record
+    _resolve_ui_doctor_id(doctor_id, authorization)
+    sess = get_session(doctor_id)
+    pending_id = sess.pending_record_id
+    if not pending_id:
+        raise HTTPException(status_code=404, detail="No pending record")
+    async with AsyncSessionLocal() as session:
+        pending = await get_pending_record(session, pending_id, doctor_id)
+    if pending is None or pending.status != "awaiting":
+        clear_pending_record_id(doctor_id)
+        raise HTTPException(status_code=404, detail="Pending record not found or already processed")
+    patient_name = await save_pending_record(doctor_id, pending)
+    clear_pending_record_id(doctor_id)
+    return {"ok": True, "patient_name": patient_name or "未关联"}
+
+
+@router.post("/api/manage/pending-record/abandon")
+async def abandon_pending_record_endpoint(
+    doctor_id: str = Query(...),
+    authorization: str | None = Header(default=None),
+):
+    """Abandon the pending record draft."""
+    _resolve_ui_doctor_id(doctor_id, authorization)
+    sess = get_session(doctor_id)
+    pending_id = sess.pending_record_id
+    if not pending_id:
+        raise HTTPException(status_code=404, detail="No pending record")
+    async with AsyncSessionLocal() as session:
+        await abandon_pending_record(session, pending_id, doctor_id=doctor_id)
+    clear_pending_record_id(doctor_id)
+    return {"ok": True}
+
+
+# ─── Doctor profile ──────────────────────────────────────────────────────────
+
+class DoctorProfileUpdate(BaseModel):
+    name: str
+    specialty: Optional[str] = None
+
+
+@router.get("/api/manage/profile")
+async def get_doctor_profile(
+    doctor_id: str = Query(...),
+    authorization: str | None = Header(default=None),
+):
+    """Return the doctor's display name, specialty, and onboarding status."""
+    resolved_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(select(Doctor).where(Doctor.doctor_id == resolved_id))
+        doctor = result.scalar_one_or_none()
+
+    if doctor is None:
+        raise HTTPException(status_code=404, detail="Doctor not found")
+
+    name = doctor.name or ""
+    specialty = getattr(doctor, "specialty", None) or ""
+    onboarded = bool(name and name != resolved_id)
+    return {
+        "doctor_id": resolved_id,
+        "name": name,
+        "specialty": specialty,
+        "onboarded": onboarded,
+    }
+
+
+@router.patch("/api/manage/profile")
+async def patch_doctor_profile(
+    body: DoctorProfileUpdate,
+    doctor_id: str = Query(...),
+    authorization: str | None = Header(default=None),
+):
+    """Update the doctor's display name and specialty."""
+    resolved_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="name is required")
+
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(select(Doctor).where(Doctor.doctor_id == resolved_id))
+        doctor = result.scalar_one_or_none()
+        if doctor is None:
+            raise HTTPException(status_code=404, detail="Doctor not found")
+        doctor.name = name
+        try:
+            doctor.specialty = body.specialty or None
+        except Exception:
+            pass  # specialty column not yet migrated — skip
+        await db.commit()
+
+    return {"ok": True, "name": name, "specialty": body.specialty or ""}

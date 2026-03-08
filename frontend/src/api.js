@@ -386,6 +386,21 @@ export async function createTask(doctorId, { taskType, title, dueAt, patientId, 
   });
 }
 
+export async function getPendingRecord(doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/pending-record?${qs.toString()}`);
+}
+
+export async function confirmPendingRecord(doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/pending-record/confirm?${qs.toString()}`, { method: "POST" });
+}
+
+export async function abandonPendingRecord(doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/pending-record/abandon?${qs.toString()}`, { method: "POST" });
+}
+
 export async function updateAdminRecord(recordId, fields) {
   return adminRequest(`/api/admin/records/${recordId}`, {
     method: "PATCH",
@@ -403,5 +418,19 @@ export async function updateAdminPrompt(key, content) {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ content }),
+  });
+}
+
+export async function getDoctorProfile(doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/profile?${qs.toString()}`);
+}
+
+export async function updateDoctorProfile(doctorId, { name, specialty }) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/profile?${qs.toString()}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, specialty: specialty || null }),
   });
 }
