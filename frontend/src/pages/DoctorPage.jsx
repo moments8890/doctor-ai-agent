@@ -1331,7 +1331,7 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
               <Box
                 key={cmd.label}
                 component="button"
-                onClick={() => setInput((prev) => prev ? prev + cmd.insert : cmd.insert)}
+                onClick={() => setInput(cmd.insert)}
                 sx={{
                   display: "inline-flex", alignItems: "center", gap: 0.5,
                   px: 1.2, py: 0.5, borderRadius: "16px",
