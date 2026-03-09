@@ -47,8 +47,10 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
-import { Paper } from "@mui/material";
-import { getPatients, getRecords, getTasks, patchTask, createTask, updateRecord, sendChat, transcribeAudio, ocrImage, getPendingRecord, confirmPendingRecord, abandonPendingRecord, getDoctorProfile, updateDoctorProfile, exportPatientPdf, exportOutpatientReport, getTemplateStatus, uploadTemplate, deleteTemplate, getCvdContext, getLabels, createLabel, deleteLabelById, assignLabelToPatient, removeLabelFromPatient } from "../api";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import { Paper, Popover } from "@mui/material";
+import { getPatients, getRecords, getTasks, patchTask, postponeTask, createTask, updateRecord, sendChat, transcribeAudio, ocrImage, getPendingRecord, confirmPendingRecord, abandonPendingRecord, getDoctorProfile, updateDoctorProfile, exportPatientPdf, exportOutpatientReport, getTemplateStatus, uploadTemplate, deleteTemplate, getCvdContext, getLabels, createLabel, deleteLabelById, assignLabelToPatient, removeLabelFromPatient } from "../api";
 import RecordFields from "../components/RecordFields";
 import { useDoctorStore } from "../store/doctorStore";
 import { t } from "../i18n";
@@ -406,6 +408,18 @@ function NeuroCVDContextCard({ patientId, doctorId }) {
 
 const LABEL_PRESET_COLORS = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#8b5cf6"];
 
+const RECORD_TYPE_FILTER_OPTS = [
+  { value: "", label: "全部" },
+  { value: "visit", label: "门诊" },
+  { value: "dictation", label: "语音录入" },
+  { value: "import", label: "导入" },
+  { value: "lab", label: "检验" },
+  { value: "imaging", label: "影像" },
+  { value: "surgery", label: "手术" },
+  { value: "referral", label: "转诊" },
+  { value: "interview_summary", label: "问诊总结" },
+];
+
 function PatientDetail({ patient, doctorId }) {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -413,6 +427,7 @@ function PatientDetail({ patient, doctorId }) {
   const [exportingPdf, setExportingPdf] = useState(false);
   const [exportingReport, setExportingReport] = useState(false);
   const [exportError, setExportError] = useState("");
+  const [recordTypeFilter, setRecordTypeFilter] = useState("");
 
   // Label management
   const [allLabels, setAllLabels] = useState([]);
@@ -646,9 +661,24 @@ function PatientDetail({ patient, doctorId }) {
       <NeuroCVDContextCard patientId={patient.id} doctorId={doctorId} />
 
       {/* Records */}
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
         <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>病历记录</Typography>
         {loading && <CircularProgress size={16} />}
+      </Stack>
+
+      {/* Record type filter */}
+      <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mb: 1.5 }}>
+        {RECORD_TYPE_FILTER_OPTS.map((opt) => (
+          <Chip
+            key={opt.value}
+            label={opt.label}
+            size="small"
+            clickable
+            variant={recordTypeFilter === opt.value ? "filled" : "outlined"}
+            color={recordTypeFilter === opt.value ? "primary" : "default"}
+            onClick={() => setRecordTypeFilter(opt.value)}
+          />
+        ))}
       </Stack>
 
       {error && (
@@ -659,9 +689,18 @@ function PatientDetail({ patient, doctorId }) {
         <Typography variant="body2" color="text.secondary">暂无病历。</Typography>
       )}
 
-      {records.map((r) => (
-        <RecordCard key={r.id} record={r} doctorId={doctorId} onUpdated={handleRecordUpdated} />
-      ))}
+      {(() => {
+        const filteredRecords = recordTypeFilter
+          ? records.filter((r) => r.record_type === recordTypeFilter)
+          : records;
+        return filteredRecords.length === 0 && records.length > 0 ? (
+          <Typography variant="body2" color="text.secondary">该类型暂无病历。</Typography>
+        ) : (
+          filteredRecords.map((r) => (
+            <RecordCard key={r.id} record={r} doctorId={doctorId} onUpdated={handleRecordUpdated} />
+          ))
+        );
+      })()}
     </Box>
   );
 }
@@ -676,7 +715,7 @@ const RISK_OPTS = [
   { value: "low", label: "低风险" },
 ];
 
-function PatientsSection({ doctorId }) {
+function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatientSelected }) {
   const { patientId } = useParams();
   const navigate = useNavigate();
   const theme = useTheme();
@@ -689,6 +728,10 @@ function PatientsSection({ doctorId }) {
 
   const selectedId = patientId ? Number(patientId) : null;
   const selectedPatient = patients.find((p) => p.id === selectedId) || null;
+
+  useEffect(() => {
+    onPatientSelected?.(selectedPatient?.name || "");
+  }, [selectedPatient?.name]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const load = useCallback(() => {
     setLoading(true);
@@ -743,7 +786,28 @@ function PatientsSection({ doctorId }) {
         <Box sx={{ flex: 1, overflowY: "auto", p: 1 }}>
           {loading && <Box sx={{ p: 2, textAlign: "center" }}><CircularProgress size={20} /></Box>}
           {!loading && filtered.length === 0 && !error && (
-            <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>暂无患者</Typography>
+            search.trim() ? (
+              <Box sx={{ p: 2 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  未找到患者「{search.trim()}」。说「建档{search.trim()}」可创建新患者。
+                </Typography>
+                <Chip
+                  label={`建档${search.trim()}`}
+                  size="small"
+                  clickable
+                  color="primary"
+                  variant="outlined"
+                  onClick={() => { onInsertChatText?.(`建档${search.trim()}`); onNavigateToChat?.(); }}
+                />
+              </Box>
+            ) : (
+              <Box sx={{ p: 2 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  暂无患者。在聊天中说「建档姓名」即可创建。
+                </Typography>
+                <Button size="small" variant="outlined" onClick={onNavigateToChat}>去聊天</Button>
+              </Box>
+            )
           )}
           {filtered.map((p) => {
             const age = p.year_of_birth ? new Date().getFullYear() - p.year_of_birth : null;
@@ -812,7 +876,28 @@ function PatientsSection({ doctorId }) {
         <Box sx={{ flex: 1, overflowY: "auto", p: 1 }}>
           {loading && <Box sx={{ p: 2, textAlign: "center" }}><CircularProgress size={20} /></Box>}
           {!loading && filtered.length === 0 && !error && (
-            <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>暂无患者</Typography>
+            search.trim() ? (
+              <Box sx={{ p: 2 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  未找到患者「{search.trim()}」。说「建档{search.trim()}」可创建新患者。
+                </Typography>
+                <Chip
+                  label={`建档${search.trim()}`}
+                  size="small"
+                  clickable
+                  color="primary"
+                  variant="outlined"
+                  onClick={() => { onInsertChatText?.(`建档${search.trim()}`); onNavigateToChat?.(); }}
+                />
+              </Box>
+            ) : (
+              <Box sx={{ p: 2 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  暂无患者。在聊天中说「建档姓名」即可创建。
+                </Typography>
+                <Button size="small" variant="outlined" onClick={onNavigateToChat}>去聊天</Button>
+              </Box>
+            )
           )}
           {filtered.map((p) => {
             const age = p.year_of_birth ? new Date().getFullYear() - p.year_of_birth : null;
@@ -877,9 +962,13 @@ function TasksSection({ doctorId }) {
   const [error, setError] = useState("");
   const [statusFilter, setStatusFilter] = useState("pending");
   const [createOpen, setCreateOpen] = useState(false);
-  const [createForm, setCreateForm] = useState({ taskType: "follow_up", title: "", dueAt: "", patientId: "" });
+  const [createForm, setCreateForm] = useState({ taskType: "follow_up", title: "", dueAt: "", patientId: "", content: "" });
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
+  // Postpone popover state
+  const [postponeAnchor, setPostponeAnchor] = useState(null);
+  const [postponeTaskId, setPostponeTaskId] = useState(null);
+  const [postponeDate, setPostponeDate] = useState("");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -911,14 +1000,39 @@ function TasksSection({ doctorId }) {
         title: createForm.title || TASK_TYPE_LABEL[createForm.taskType] || createForm.taskType,
         dueAt: createForm.dueAt || undefined,
         patientId: createForm.patientId ? Number(createForm.patientId) : undefined,
+        content: createForm.content || undefined,
       });
       setCreateOpen(false);
-      setCreateForm({ taskType: "follow_up", title: "", dueAt: "", patientId: "" });
+      setCreateForm({ taskType: "follow_up", title: "", dueAt: "", patientId: "", content: "" });
       load();
     } catch (e) {
       setCreateError(e.message || "创建失败");
     } finally {
       setCreating(false);
+    }
+  }
+
+  function handleOpenPostpone(e, taskId) {
+    setPostponeAnchor(e.currentTarget);
+    setPostponeTaskId(taskId);
+    setPostponeDate("");
+  }
+
+  function handleClosePostpone() {
+    setPostponeAnchor(null);
+    setPostponeTaskId(null);
+    setPostponeDate("");
+  }
+
+  async function handleConfirmPostpone() {
+    if (!postponeDate || !postponeTaskId) return;
+    try {
+      await postponeTask(postponeTaskId, doctorId, postponeDate);
+      handleClosePostpone();
+      load();
+    } catch (e) {
+      setError(e.message || "推迟失败");
+      handleClosePostpone();
     }
   }
 
@@ -949,7 +1063,9 @@ function TasksSection({ doctorId }) {
       )}
 
       {!loading && !error && tasks.length === 0 && (
-        <Typography color="text.secondary" variant="body2">暂无{TASK_STATUS_OPTS.find(o => o.value === statusFilter)?.label}任务。</Typography>
+        <Typography color="text.secondary" variant="body2">
+          暂无任务。在聊天中说「待办任务」可查看，或点击「新建任务」创建。
+        </Typography>
       )}
 
       <Stack spacing={1.2}>
@@ -974,6 +1090,7 @@ function TasksSection({ doctorId }) {
                     <Stack direction="row" spacing={0.5}>
                       <Button size="small" variant="contained" onClick={() => handleStatus(task.id, "completed")}>完成</Button>
                       <Button size="small" color="inherit" onClick={() => handleStatus(task.id, "cancelled")}>取消</Button>
+                      <Button size="small" color="warning" variant="outlined" onClick={(e) => handleOpenPostpone(e, task.id)}>推迟</Button>
                     </Stack>
                   )}
                 </Stack>
@@ -982,6 +1099,31 @@ function TasksSection({ doctorId }) {
           );
         })}
       </Stack>
+
+      {/* 推迟任务 Popover */}
+      <Popover
+        open={Boolean(postponeAnchor)}
+        anchorEl={postponeAnchor}
+        onClose={handleClosePostpone}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+      >
+        <Box sx={{ p: 2, minWidth: 220 }}>
+          <Typography variant="caption" sx={{ fontWeight: 700, display: "block", mb: 1 }}>选择新到期日</Typography>
+          <TextField
+            type="date"
+            size="small"
+            fullWidth
+            InputLabelProps={{ shrink: true }}
+            value={postponeDate}
+            onChange={(e) => setPostponeDate(e.target.value)}
+            sx={{ mb: 1.5 }}
+          />
+          <Stack direction="row" spacing={1}>
+            <Button size="small" variant="contained" disabled={!postponeDate} onClick={handleConfirmPostpone} sx={{ flex: 1 }}>确认</Button>
+            <Button size="small" color="inherit" onClick={handleClosePostpone}>取消</Button>
+          </Stack>
+        </Box>
+      </Popover>
 
       {/* 新建任务 Dialog */}
       <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="xs" fullWidth>
@@ -1013,6 +1155,11 @@ function TasksSection({ doctorId }) {
               label="关联患者 ID（可选）" size="small" fullWidth
               value={createForm.patientId}
               onChange={(e) => setCreateForm((f) => ({ ...f, patientId: e.target.value }))}
+            />
+            <TextField
+              label="备注/说明（可选）" size="small" fullWidth multiline minRows={2}
+              value={createForm.content}
+              onChange={(e) => setCreateForm((f) => ({ ...f, content: e.target.value }))}
             />
           </Stack>
         </DialogContent>
@@ -1046,7 +1193,20 @@ function MsgBubble({ msg }) {
   );
 }
 
-function ChatSection({ doctorId, onMessageCountChange }) {
+const QUICK_COMMANDS = [
+  // Row 1 — Patient management
+  { label: "建档[姓名]", insert: "建档" },
+  { label: "查[姓名]", insert: "查" },
+  { label: "删除[姓名]", insert: "删除" },
+  { label: "患者列表", insert: "患者列表" },
+  // Row 2 — Records
+  { label: "补充：...", insert: "补充：" },
+  { label: "刚才写错了", insert: "刚才写错了，应该是" },
+  { label: "PDF:...", insert: "PDF:" },
+  { label: "今天任务", insert: "今天任务" },
+];
+
+function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternalInputConsumed }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -1054,6 +1214,9 @@ function ChatSection({ doctorId, onMessageCountChange }) {
   const [recording, setRecording] = useState(false);
   const [mediaProcessing, setMediaProcessing] = useState(false);
   const [mediaError, setMediaError] = useState(null);
+  const [commandsShown, setCommandsShown] = useState(() => {
+    try { return localStorage.getItem("chat_commands_shown") !== "false"; } catch { return true; }
+  });
   const bottomRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -1084,6 +1247,22 @@ function ChatSection({ doctorId, onMessageCountChange }) {
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   useEffect(() => { onMessageCountChange?.(messages.length); }, [messages.length, onMessageCountChange]);
+
+  // Consume external input (e.g. inserted from PatientsSection quick action)
+  useEffect(() => {
+    if (externalInput) {
+      setInput(externalInput);
+      onExternalInputConsumed?.();
+    }
+  }, [externalInput]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function toggleCommands() {
+    setCommandsShown((v) => {
+      const next = !v;
+      try { localStorage.setItem("chat_commands_shown", String(next)); } catch {}
+      return next;
+    });
+  }
 
   const history = useMemo(() => messages.map((m) => ({ role: m.role, content: m.content })), [messages]);
 
@@ -1186,6 +1365,36 @@ function ChatSection({ doctorId, onMessageCountChange }) {
         {loading && <Box sx={{ px: 2 }}><Typography variant="caption" color="text.secondary">AI 正在回复…</Typography></Box>}
         <div ref={bottomRef} />
       </Box>
+      {/* Quick commands panel */}
+      <Box sx={{ px: 2, pt: 1, borderTop: "1px solid #e2e8f0", backgroundColor: "#fafbfc" }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: commandsShown ? 0.5 : 0 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>常用命令</Typography>
+          <IconButton size="small" onClick={toggleCommands} sx={{ color: "text.secondary" }}>
+            {commandsShown ? <KeyboardArrowUpIcon fontSize="small" /> : <KeyboardArrowDownIcon fontSize="small" />}
+          </IconButton>
+        </Stack>
+        {commandsShown && (
+          <>
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.8, fontSize: 11 }}>
+              点击插入常用指令（~1ms，无需等待 AI）
+            </Typography>
+            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0.6, mb: 1 }}>
+              {QUICK_COMMANDS.map((cmd) => (
+                <Chip
+                  key={cmd.label}
+                  label={cmd.label}
+                  size="small"
+                  clickable
+                  variant="outlined"
+                  onClick={() => setInput((prev) => prev ? prev + cmd.insert : cmd.insert)}
+                  sx={{ fontSize: 11, justifyContent: "flex-start" }}
+                />
+              ))}
+            </Box>
+          </>
+        )}
+      </Box>
+
       {/* Input */}
       <Box sx={{ px: 2, py: 1.5, borderTop: "1px solid #e2e8f0", backgroundColor: "#fff" }}>
         {mediaError && (
@@ -1506,6 +1715,11 @@ export default function DoctorPage() {
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
   const [pendingRecord, setPendingRecord] = useState(null);
   const [confirmSnackbar, setConfirmSnackbar] = useState(false);
+  const [pendingError, setPendingError] = useState("");
+  // Cross-section: text to insert into chat input
+  const [chatInsertText, setChatInsertText] = useState("");
+  // Selected patient name for mobile topbar
+  const [selectedPatientName, setSelectedPatientName] = useState("");
 
   // Onboarding dialog state
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -1576,7 +1790,10 @@ export default function DoctorPage() {
     try {
       await abandonPendingRecord(doctorId);
       setPendingRecord(null);
-    } catch (_) {}
+      setPendingError("");
+    } catch (e) {
+      setPendingError(e.message || "操作失败，请重试");
+    }
   }
 
   function handleNav(key) {
@@ -1593,7 +1810,7 @@ export default function DoctorPage() {
     navigate("/login");
   }
 
-  const navBadge = { tasks: pendingTaskCount };
+  const navBadge = { tasks: pendingTaskCount, chat: pendingRecord ? 1 : 0 };
 
   return (
     <Box sx={{ display: "flex", height: "100vh", background: "#f8fafb" }}>
@@ -1637,7 +1854,7 @@ export default function DoctorPage() {
           <Box sx={{ px: 3, py: 1.5, borderBottom: "1px solid #e2e8f0", backgroundColor: "#fff" }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "text.secondary" }}>
               {activeSection === "home" && "首页"}
-              {activeSection === "patients" && "患者管理"}
+              {activeSection === "patients" && (isMobile && patientId && selectedPatientName ? selectedPatientName : "患者管理")}
               {activeSection === "tasks" && "任务列表"}
               {activeSection === "settings" && "设置"}
             </Typography>
@@ -1645,6 +1862,11 @@ export default function DoctorPage() {
         )}
 
         {/* Pending record confirmation banner */}
+        {pendingError && (
+          <Alert severity="error" sx={{ mx: 2, mt: 1.5, borderRadius: 1.5 }} onClose={() => setPendingError("")}>
+            {pendingError}
+          </Alert>
+        )}
         {pendingRecord && (
           <Alert severity="warning" sx={{ mx: 2, mt: 1.5, borderRadius: 1.5 }}
             action={
@@ -1661,9 +1883,23 @@ export default function DoctorPage() {
 
         {/* Section content */}
         <Box sx={{ flex: 1, overflow: "hidden" }}>
-          {activeSection === "chat" && <ChatSection doctorId={doctorId} onMessageCountChange={() => {}} />}
+          {activeSection === "chat" && (
+            <ChatSection
+              doctorId={doctorId}
+              onMessageCountChange={() => {}}
+              externalInput={chatInsertText}
+              onExternalInputConsumed={() => setChatInsertText("")}
+            />
+          )}
           {activeSection === "home" && <HomeSection doctorId={doctorId} navigate={navigate} />}
-          {activeSection === "patients" && <PatientsSection doctorId={doctorId} />}
+          {activeSection === "patients" && (
+            <PatientsSection
+              doctorId={doctorId}
+              onNavigateToChat={() => navigate("/doctor/chat")}
+              onInsertChatText={(text) => { setChatInsertText(text); navigate("/doctor/chat"); }}
+              onPatientSelected={(name) => setSelectedPatientName(name || "")}
+            />
+          )}
           {activeSection === "tasks" && <TasksSection doctorId={doctorId} />}
           {activeSection === "settings" && <SettingsSection doctorId={doctorId} />}
         </Box>
@@ -1685,6 +1921,8 @@ export default function DoctorPage() {
                 icon={
                   item.key === "tasks" && pendingTaskCount > 0
                     ? <Badge badgeContent={pendingTaskCount} color="error">{item.icon}</Badge>
+                    : item.key === "chat" && pendingRecord
+                    ? <Badge variant="dot" color="warning">{item.icon}</Badge>
                     : item.icon
                 }
                 sx={{ minWidth: 0, fontSize: 10 }}
