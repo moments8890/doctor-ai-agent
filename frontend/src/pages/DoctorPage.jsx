@@ -1066,10 +1066,10 @@ function TasksSection({ doctorId }) {
                     </Box>
                   </Stack>
                   {task.status === "pending" && (
-                    <Stack direction="row" spacing={1} sx={{ mt: 1.2 }}>
-                      <Button size="small" variant="contained" onClick={() => handleStatus(task.id, "completed")} sx={{ flex: 1, py: 0.6 }}>完成</Button>
-                      <Button size="small" variant="outlined" color="warning" onClick={(e) => handleOpenPostpone(e, task.id)} sx={{ flex: 1, py: 0.6 }}>推迟</Button>
-                      <Button size="small" variant="outlined" color="error" onClick={() => setCancelConfirmId(task.id)} sx={{ flex: 1, py: 0.6 }}>取消</Button>
+                    <Stack direction="row" spacing={0.5} sx={{ mt: 1, justifyContent: "flex-end" }}>
+                      <Button size="small" variant="outlined" color="success" onClick={() => handleStatus(task.id, "completed")} sx={{ fontSize: 11, py: 0.3, px: 1.2, minWidth: "auto" }}>完成</Button>
+                      <Button size="small" variant="text" color="text.secondary" onClick={(e) => handleOpenPostpone(e, task.id)} sx={{ fontSize: 11, py: 0.3, px: 1, minWidth: "auto", color: "text.secondary" }}>推迟</Button>
+                      <Button size="small" variant="text" onClick={() => setCancelConfirmId(task.id)} sx={{ fontSize: 11, py: 0.3, px: 1, minWidth: "auto", color: "text.disabled" }}>取消</Button>
                     </Stack>
                   )}
                 </Box>
