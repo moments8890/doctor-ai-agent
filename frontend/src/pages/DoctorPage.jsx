@@ -1216,7 +1216,9 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
     });
   }
 
-  const history = useMemo(() => messages.map((m) => ({ role: m.role, content: m.content })), [messages]);
+  // Trim to last 20 messages before sending — backend rejects history > 40 entries,
+  // and routing only uses the last 2 anyway.
+  const history = useMemo(() => messages.slice(-20).map((m) => ({ role: m.role, content: m.content })), [messages]);
 
   function onClear() {
     const fresh = [{ role: "assistant", content: t("chat.welcome"), ts: nowTs() }];

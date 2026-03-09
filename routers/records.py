@@ -331,8 +331,8 @@ class ChatInput(BaseModel):
     @field_validator("history")
     @classmethod
     def _validate_history(cls, value: List[HistoryMessage]) -> List[HistoryMessage]:
-        if len(value) > 40:
-            raise ValueError("history exceeds max length (40)")
+        if len(value) > 100:
+            raise ValueError("history exceeds max length (100)")
         return value
 
 
