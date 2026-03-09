@@ -2095,13 +2095,19 @@ export default function DoctorPage() {
           <BottomNavigation
             value={activeSection}
             onChange={(_, val) => handleNav(val)}
-            sx={{ height: 64, "& .MuiBottomNavigationAction-root": { minWidth: 56, paddingTop: "10px" } }}
+            sx={{
+              height: 64,
+              "& .MuiBottomNavigationAction-root": { minWidth: 56, paddingTop: "8px", color: "#888" },
+              "& .Mui-selected": { color: "#07C160" },
+              "& .Mui-selected .MuiBottomNavigationAction-label": { color: "#07C160", fontWeight: 600 },
+            }}
           >
             {NAV.map((item) => (
               <BottomNavigationAction
                 key={item.key}
                 label={item.label}
                 value={item.key}
+                showLabel
                 icon={
                   item.key === "tasks" && pendingTaskCount > 0
                     ? <Badge badgeContent={pendingTaskCount} color="error">{item.icon}</Badge>
@@ -2109,7 +2115,7 @@ export default function DoctorPage() {
                     ? <Badge variant="dot" color="warning">{item.icon}</Badge>
                     : item.icon
                 }
-                sx={{ minWidth: 0, fontSize: 10 }}
+                sx={{ minWidth: 0, "& .MuiBottomNavigationAction-label": { fontSize: 11 } }}
               />
             ))}
           </BottomNavigation>
