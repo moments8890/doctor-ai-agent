@@ -93,6 +93,7 @@ class IntentResult(BaseModel):
     extra_data: dict = Field(default_factory=dict)
     chat_reply: Optional[str] = None
     structured_fields: Optional[dict] = None  # 8 clinical fields from single LLM call
+    confidence: float = 1.0  # 1.0 = high-confidence rule/LLM; 0.8 = Tier-3 keyword match
 
 
 async def detect_intent(text: str) -> IntentResult:

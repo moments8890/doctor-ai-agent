@@ -221,6 +221,12 @@ _CREATE_TRAIL_RE = re.compile(
     _NAME_PAT + r"\s*(?:新患者|新病人|建档|建个档)"
 )
 
+# Create: terse "[name] [gender/age/clinical...] 建档" at end of message
+# e.g. "王琴 女47 胆囊术后D1 建档" — name is the FIRST Chinese word in the text.
+_CREATE_TERSE_END_RE = re.compile(
+    r"^(" + _NAME_PAT[1:-1] + r")\s+(?:[男女\d]|\w).*?(?:建档|建个档)\s*$"
+)
+
 # Demographics helpers
 _GENDER_RE = re.compile(r"[男女](?:性)?")
 _AGE_RE = re.compile(r"(\d{1,3})\s*岁")
@@ -293,6 +299,10 @@ _CORRECT_RECORD_RE = re.compile(
     r"|上一条.{0,15}(?:有误|写错了|错误|不对)"
     r"|(?:病历|记录).{0,15}(?:写错了|有误|搞错了|记错了)"
     r"|(?:更正|纠正).{0,5}(?:上一条|刚才|最近)?.{0,5}(?:病历|记录)"
+    # Natural-language field corrections: "主诉改为…", "诊断调整为…", "不是X是Y"
+    r"|(?:主诉|诊断|治疗|用药|处置|病史|手术|年龄|性别).{0,6}(?:改为|改成|更正为|更新为|应该是|调整为)"
+    r"|(?:不是|非).{1,10}(?:是|，|,).{0,10}(?:对|才对|才是对的|正确)"
+    r"|(?:应该|应是|应为).{0,4}(?:主诉|诊断|治疗|用药|手术)"
 )
 
 # Name extraction for correction messages where name follows "刚才/上一条".
@@ -435,7 +445,7 @@ def load_extra_keywords(path: str = _EXTRA_KW_PATH) -> int:
                     if k:
                         terms.append(str(k))
         _EXTRA_KW_TIER3 = frozenset(terms)
-        _CLINICAL_KW_TIER3 = _EXTRA_KW_TIER3  # alias — tier3 is now fully in JSON
+        _CLINICAL_KW_TIER3 = _CLINICAL_KW_TIER3 | _EXTRA_KW_TIER3  # merge JSON into hardcoded baseline
         return (
             len(_IMPORT_KEYWORDS)
             + len(_LIST_PATIENTS_EXACT)
@@ -928,6 +938,17 @@ def fast_route(text: str) -> Optional[IntentResult]:
                 age=age,
             )
 
+        m = _CREATE_TERSE_END_RE.match(target)
+        if m and m.group(1) not in _NON_NAME_KEYWORDS:
+            name = m.group(1)
+            gender, age = _extract_demographics(stripped)
+            return IntentResult(
+                intent=Intent.create_patient,
+                patient_name=name,
+                gender=gender,
+                age=age,
+            )
+
     # ── Tier 2: delete_patient ────────────────────────────────────────────────
     for target in (normed, stripped):
         m = _DELETE_LEAD_RE.match(target)
@@ -1005,6 +1026,7 @@ def fast_route(text: str) -> Optional[IntentResult]:
             patient_name=name,
             gender=gender,
             age=age,
+            confidence=0.8,
         )
 
     return None

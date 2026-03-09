@@ -579,7 +579,9 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
     _fast = fast_route(text)
     if _fast is not None:
         _latency_ms = (time.perf_counter() - _t0) * 1000.0
-        log(f"[WeChat] fast_route hit: {fast_route_label(text)} text={text[:60]!r}")
+        log(f"[WeChat] fast_route hit: {fast_route_label(text)} confidence={_fast.confidence:.2f} text={text[:60]!r}")
+        if _fast.confidence < 1.0:
+            log(f"[WeChat] fast_route low-confidence ({_fast.confidence:.2f}): intent={_fast.intent.value} text={text[:80]!r}")
         intent_result = _fast
         log_turn(text, intent_result.intent.value, "fast", doctor_id, _latency_ms, patient_name=intent_result.patient_name)
     else:

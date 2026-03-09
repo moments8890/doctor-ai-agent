@@ -70,6 +70,18 @@ _SEED_PROMPT = """\
     · 随访时间：如 "随访3个月" "1周后复诊" "下周随访"
     · 数量：3～8 个标签，无法确定时返回 []
 
+  "record_type"（选填）
+    · 本次记录类型，从以下取值：
+      "outpatient"（门诊）| "inpatient"（住院）| "emergency"（急诊）|
+      "followup"（随访/复诊）| "consultation"（会诊）| "discharge_summary"（出院小结）|
+      "procedure_note"（操作记录）| "other"
+    · 无法判断时省略此字段
+
+  "specialty_scores"（选填，仅含明确出现的评分）
+    · 只列出原文中有明确数值的专科评分，JSON对象，键为评分名，值为整数
+    · 常见：{"NIHSS": 8, "GCS": 14, "mRS": 3, "Hunt-Hess": 2, "ICH_score": 4}
+    · 未提及的评分不得填入，无评分时省略此字段
+
 不加任何解释或 markdown，只输出 JSON。
 """
 

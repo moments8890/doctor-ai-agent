@@ -239,7 +239,8 @@ async def test_dispatch_injects_knowledge_context_as_system_message(mock_llm):
     assert len(messages) == 4
     assert messages[0]["role"] == "system"
     assert "医生助手" in messages[0]["content"]
-    assert messages[1]["role"] == "system"
+    assert messages[1]["role"] == "user"
+    assert "背景知识" in messages[1]["content"]
     assert "医生知识库" in messages[1]["content"]
     assert messages[2]["content"] == "上一条"
     assert messages[3]["content"] == "当前消息"
