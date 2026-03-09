@@ -302,10 +302,23 @@ function RecordCard({ record, doctorId, onUpdated }) {
 
 const CVD_SUBTYPE_LABEL = {
   ICH: "脑出血(ICH)", SAH: "蛛网膜下腔出血(SAH)", ischemic: "缺血性卒中",
-  AVM: "动静脉畸形(AVM)", aneurysm: "动脉瘤", other: "其他",
+  AVM: "动静脉畸形(AVM)", aneurysm: "动脉瘤", moyamoya: "烟雾病", other: "其他",
 };
 const CVD_SURGERY_STATUS_LABEL = {
   planned: "已计划", done: "已完成", cancelled: "已取消", conservative: "保守治疗",
+};
+const CVD_VASOSPASM_LABEL = {
+  none: "无", clinical: "临床血管痉挛", radiographic: "影像血管痉挛", severe: "重度",
+};
+const CVD_HYDROCEPHALUS_LABEL = {
+  none: "无", acute: "急性脑积水", chronic: "慢性脑积水", shunt_dependent: "分流依赖",
+};
+const CVD_BYPASS_LABEL = {
+  direct_sta_mca: "直接吻合(STA-MCA)", indirect_edas: "间接贴敷(EDAS)",
+  combined: "联合手术", other: "其他",
+};
+const CVD_PERFUSION_LABEL = {
+  normal: "正常", mildly_reduced: "轻度减低", severely_reduced: "重度减低", improved: "改善",
 };
 const MRS_COLOR = (s) => s <= 2 ? "#22c55e" : s <= 4 ? "#eab308" : "#ef4444";
 
@@ -326,17 +339,38 @@ function NeuroCVDContextCard({ patientId, doctorId }) {
     ctx.diagnosis_subtype && ["诊断亚型", CVD_SUBTYPE_LABEL[ctx.diagnosis_subtype] || ctx.diagnosis_subtype],
     ctx.hemorrhage_location && ["出血部位", ctx.hemorrhage_location],
     ctx.gcs_score != null && ["GCS", ctx.gcs_score],
+    // ICH
     ctx.ich_score != null && ["ICH评分", `${ctx.ich_score} 分`],
     ctx.ich_volume_ml != null && ["出血量", `${ctx.ich_volume_ml} mL`],
+    ctx.hemorrhage_etiology && ["出血病因", ctx.hemorrhage_etiology],
+    // SAH grading
     ctx.hunt_hess_grade != null && ["Hunt-Hess", `${ctx.hunt_hess_grade} 级`],
     ctx.fisher_grade != null && ["Fisher", `${ctx.fisher_grade} 级`],
+    ctx.wfns_grade != null && ["WFNS", `${ctx.wfns_grade} 级`],
+    ctx.modified_fisher_grade != null && ["改良Fisher", `${ctx.modified_fisher_grade} 级`],
+    // SAH post-op
+    ctx.vasospasm_status && ctx.vasospasm_status !== "none" && ["血管痉挛", CVD_VASOSPASM_LABEL[ctx.vasospasm_status] || ctx.vasospasm_status],
+    ctx.nimodipine_regimen && ["尼莫地平方案", ctx.nimodipine_regimen],
+    // Shared complication
+    ctx.hydrocephalus_status && ctx.hydrocephalus_status !== "none" && ["脑积水", CVD_HYDROCEPHALUS_LABEL[ctx.hydrocephalus_status] || ctx.hydrocephalus_status],
+    // AVM
     ctx.spetzler_martin_grade != null && ["Spetzler-Martin", `${ctx.spetzler_martin_grade} 级`],
+    // Aneurysm
     ctx.aneurysm_location && ["动脉瘤位置", ctx.aneurysm_location],
     ctx.aneurysm_size_mm != null && ["动脉瘤大小", `${ctx.aneurysm_size_mm} mm`],
+    ctx.aneurysm_neck_width_mm != null && ["瘤颈宽度", `${ctx.aneurysm_neck_width_mm} mm`],
+    ctx.aneurysm_daughter_sac === "yes" && ["子囊", "有"],
     ctx.aneurysm_treatment && ["动脉瘤处理", ctx.aneurysm_treatment],
+    ctx.phases_score != null && ["PHASES评分", `${ctx.phases_score} 分`],
+    // Moyamoya
+    ctx.suzuki_stage != null && ["铃木分期", `${ctx.suzuki_stage} 期`],
+    ctx.bypass_type && ["搭桥方式", CVD_BYPASS_LABEL[ctx.bypass_type] || ctx.bypass_type],
+    ctx.perfusion_status && ["灌注状态", CVD_PERFUSION_LABEL[ctx.perfusion_status] || ctx.perfusion_status],
+    // Surgical
     ctx.surgery_type && ["手术方式", ctx.surgery_type],
     ctx.surgery_status && ["手术状态", CVD_SURGERY_STATUS_LABEL[ctx.surgery_status] || ctx.surgery_status],
     ctx.surgery_date && ["手术日期", ctx.surgery_date],
+    // Outcome
     ctx.mrs_score != null && ["mRS", ctx.mrs_score],
     ctx.barthel_index != null && ["Barthel指数", ctx.barthel_index],
   ].filter(Boolean);

@@ -632,6 +632,11 @@ async def handle_export_records(doctor_id: str, intent_result: IntentResult) -> 
         patient_id, patient_name, _patient, records = await _fetch_patient_and_records(
             session, doctor_id, intent_result
         )
+        # Fetch CVD specialty context for this patient (may be None)
+        cvd_ctx = None
+        if patient_id:
+            from db.crud.specialty import get_cvd_context_for_patient
+            cvd_ctx = await get_cvd_context_for_patient(session, doctor_id, patient_id)
 
     if patient_id is None:
         return "❓ 请先告知患者姓名，例如：「导出张三的病历」"
@@ -647,7 +652,7 @@ async def handle_export_records(doctor_id: str, intent_result: IntentResult) -> 
     pdf_error: str | None = None
     try:
         from services.export.pdf_export import generate_records_pdf
-        pdf_bytes = generate_records_pdf(records=records, patient_name=patient_name)
+        pdf_bytes = generate_records_pdf(records=records, patient_name=patient_name, cvd_context=cvd_ctx)
 
         from services.wechat.wechat_notify import upload_temp_media, send_file_message
         filename = f"病历_{patient_id}.pdf"
@@ -663,6 +668,8 @@ async def handle_export_records(doctor_id: str, intent_result: IntentResult) -> 
         f"⚠️ 病历 PDF 发送失败（{pdf_error}），以下为文字摘要：",
         f"📄 【{patient_name}】病历摘要（共 {len(records)} 条）\n",
     ]
+    if cvd_ctx:
+        lines.append(_format_cvd_summary(cvd_ctx.__dict__ if hasattr(cvd_ctx, "__dict__") else {}))
     for r in records[:10]:
         date_str = r.created_at.strftime("%Y-%m-%d") if r.created_at else "?"
         snippet = _t(r.content or "—", 60)

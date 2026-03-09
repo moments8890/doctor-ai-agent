@@ -302,20 +302,42 @@ async def manage_patient_cvd_context(
         "record_id": row.record_id,
         "diagnosis_subtype": row.diagnosis_subtype,
         "hemorrhage_location": row.hemorrhage_location,
+        # ICH
         "ich_score": row.ich_score,
         "ich_volume_ml": row.ich_volume_ml,
+        "hemorrhage_etiology": row.hemorrhage_etiology,
+        # SAH grading
         "hunt_hess_grade": row.hunt_hess_grade,
         "fisher_grade": row.fisher_grade,
+        "wfns_grade": row.wfns_grade,
+        "modified_fisher_grade": row.modified_fisher_grade,
+        # SAH post-op
+        "vasospasm_status": row.vasospasm_status,
+        "nimodipine_regimen": row.nimodipine_regimen,
+        # ICH/SAH shared
+        "hydrocephalus_status": row.hydrocephalus_status,
+        # AVM
         "spetzler_martin_grade": row.spetzler_martin_grade,
+        # General severity
         "gcs_score": row.gcs_score,
+        # Aneurysm
         "aneurysm_location": row.aneurysm_location,
         "aneurysm_size_mm": row.aneurysm_size_mm,
+        "aneurysm_neck_width_mm": row.aneurysm_neck_width_mm,
         "aneurysm_morphology": row.aneurysm_morphology,
+        "aneurysm_daughter_sac": row.aneurysm_daughter_sac,
         "aneurysm_treatment": row.aneurysm_treatment,
+        "phases_score": row.phases_score,
+        # Moyamoya
+        "suzuki_stage": row.suzuki_stage,
+        "bypass_type": row.bypass_type,
+        "perfusion_status": row.perfusion_status,
+        # Surgical
         "surgery_type": row.surgery_type,
         "surgery_date": row.surgery_date,
         "surgery_status": row.surgery_status,
         "surgical_approach": row.surgical_approach,
+        # Outcome
         "mrs_score": row.mrs_score,
         "barthel_index": row.barthel_index,
         "source": row.source,

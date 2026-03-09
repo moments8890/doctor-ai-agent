@@ -115,6 +115,7 @@ def generate_records_pdf(
     patient: object = None,
     clinic_name: Optional[str] = None,
     doctor_name: Optional[str] = None,
+    cvd_context: object = None,
 ) -> bytes:
     """
     Generate a PDF containing one or more MedicalRecordDB rows.
@@ -125,6 +126,7 @@ def generate_records_pdf(
         patient: Patient ORM object for rich demographics block
         clinic_name: overrides CLINIC_NAME env var
         doctor_name: attending physician name
+        cvd_context: optional NeuroCVDContext ORM row for specialty block
     Returns raw PDF bytes. Raises RuntimeError if fpdf2 is not installed.
     """
     try:
@@ -227,6 +229,65 @@ def generate_records_pdf(
 
     pdf.set_y(box_y + box_h + 4)
     pdf.set_draw_color(180, 180, 180)
+
+    # ── CVD specialty context (if present) ───────────────────────────────────
+    if cvd_context is not None:
+        _CVD_FIELD_LABELS = [
+            ("diagnosis_subtype", "诊断亚型"),
+            ("hemorrhage_location", "出血部位"),
+            ("gcs_score", "GCS"),
+            ("ich_score", "ICH评分"),
+            ("ich_volume_ml", "出血量(mL)"),
+            ("hemorrhage_etiology", "出血病因"),
+            ("hunt_hess_grade", "Hunt-Hess级"),
+            ("fisher_grade", "Fisher级"),
+            ("wfns_grade", "WFNS级"),
+            ("modified_fisher_grade", "改良Fisher级"),
+            ("vasospasm_status", "血管痉挛"),
+            ("hydrocephalus_status", "脑积水"),
+            ("spetzler_martin_grade", "Spetzler-Martin级"),
+            ("aneurysm_location", "动脉瘤位置"),
+            ("aneurysm_size_mm", "动脉瘤(mm)"),
+            ("aneurysm_neck_width_mm", "瘤颈(mm)"),
+            ("aneurysm_treatment", "动脉瘤处理"),
+            ("phases_score", "PHASES评分"),
+            ("suzuki_stage", "铃木分期"),
+            ("bypass_type", "搭桥方式"),
+            ("perfusion_status", "灌注状态"),
+            ("surgery_type", "手术方式"),
+            ("surgery_status", "手术状态"),
+            ("surgery_date", "手术日期"),
+            ("mrs_score", "mRS"),
+            ("barthel_index", "Barthel指数"),
+        ]
+        cvd_pairs = [
+            (label, str(getattr(cvd_context, field, None)))
+            for field, label in _CVD_FIELD_LABELS
+            if getattr(cvd_context, field, None) is not None
+        ]
+        if cvd_pairs:
+            pdf.ln(2)
+            _set_font(9, bold=True)
+            pdf.set_text_color(0, 100, 90)
+            pdf.cell(0, 6, "【脑血管专科病情】", new_x="LMARGIN", new_y="NEXT")
+            pdf.set_text_color(0, 0, 0)
+            _set_font(9)
+            # Render as two-column grid
+            col_w = (pdf.w - pdf.l_margin - pdf.r_margin) / 2
+            for j in range(0, len(cvd_pairs), 2):
+                pair_a = cvd_pairs[j]
+                pair_b = cvd_pairs[j + 1] if j + 1 < len(cvd_pairs) else None
+                pdf.set_x(pdf.l_margin + 3)
+                pdf.cell(col_w, 5, f"{pair_a[0]}: {pair_a[1]}", new_x="RIGHT", new_y="SAME")
+                if pair_b:
+                    pdf.cell(col_w, 5, f"{pair_b[0]}: {pair_b[1]}", new_x="LMARGIN", new_y="NEXT")
+                else:
+                    pdf.ln(5)
+            pdf.ln(2)
+            pdf.set_draw_color(180, 210, 200)
+            pdf.line(20, pdf.get_y(), pdf.w - 20, pdf.get_y())
+            pdf.set_draw_color(180, 180, 180)
+            pdf.ln(4)
 
     # ── Records ──────────────────────────────────────────────────────────────
     if not records:
