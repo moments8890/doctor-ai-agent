@@ -1267,15 +1267,16 @@ async def admin_table_rows(
                 stmt = apply_exclude_test_doctors(stmt, NeuroCVDContext.doctor_id)
             if needle:
                 stmt = stmt.where(Patient.name.ilike(needle))
-            import json as _json
             items = [
                 {
                     "id": r.id, "doctor_id": r.doctor_id, "patient_id": r.patient_id,
                     "patient_name": pname, "record_id": r.record_id,
-                    "diagnosis_subtype": r.diagnosis_subtype, "surgery_status": r.surgery_status,
+                    "diagnosis_subtype": r.diagnosis_subtype,
+                    "hemorrhage_location": r.hemorrhage_location,
+                    "ich_score": r.ich_score, "gcs_score": r.gcs_score,
+                    "surgery_status": r.surgery_status, "surgery_type": r.surgery_type,
+                    "mrs_score": r.mrs_score,
                     "source": r.source, "created_at": _fmt_ts(r.created_at),
-                    "updated_at": _fmt_ts(r.updated_at),
-                    **(_json.loads(r.raw_json) if r.raw_json else {}),
                 }
                 for r, pname in (await db.execute(stmt)).all()
             ]
