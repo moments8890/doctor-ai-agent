@@ -249,7 +249,14 @@ function RecordCard({ record, doctorId, onUpdated }) {
                 <Chip key={i} label={tag} size="small" sx={{ fontSize: 11, maxWidth: 160 }} />
               ))}
             </Stack>
-            <Typography variant="body2" sx={{ mt: 0.4, color: "text.primary", fontWeight: 500 }} noWrap={!expanded}>
+            <Typography variant="body2" sx={{
+              mt: 0.4, color: "text.primary", fontWeight: 500,
+              overflow: "hidden",
+              display: "-webkit-box",
+              WebkitLineClamp: expanded ? "unset" : 2,
+              WebkitBoxOrient: "vertical",
+              whiteSpace: "pre-wrap",
+            }}>
               {current.content || <span style={{ color: "#94a3b8" }}>（无记录内容）</span>}
             </Typography>
           </Box>
@@ -560,18 +567,18 @@ function PatientDetail({ patient, doctorId }) {
                   + 添加标签
                 </Button>
                 {labelPickerOpen && (
-                  <Paper elevation={4} sx={{ position: "absolute", top: "110%", left: 0, zIndex: 1300, p: 1.5, minWidth: 200, borderRadius: 2 }}>
+                  <Paper elevation={4} sx={{ position: "absolute", top: "110%", left: 0, zIndex: 1300, p: 2, minWidth: 240, borderRadius: 2 }}>
                     <Typography variant="caption" sx={{ fontWeight: 700, display: "block", mb: 1 }}>选择标签</Typography>
                     {labelError && <Alert severity="error" sx={{ mb: 1, py: 0 }}>{labelError}</Alert>}
-                    <Stack spacing={0.5} sx={{ mb: 1.5, maxHeight: 180, overflowY: "auto" }}>
+                    <Stack spacing={0.5} sx={{ mb: 1.5, maxHeight: "55vh", overflowY: "auto" }}>
                       {allLabels.length === 0 && <Typography variant="caption" color="text.secondary">暂无标签</Typography>}
                       {allLabels.map((l) => (
                         <Box
                           key={l.id}
                           onClick={() => handleAssignLabel(l)}
                           sx={{
-                            display: "flex", alignItems: "center", gap: 1, px: 1, py: 0.5,
-                            borderRadius: 1, cursor: "pointer",
+                            display: "flex", alignItems: "center", gap: 1, px: 1, py: 1,
+                            borderRadius: 1, cursor: "pointer", minHeight: 40,
                             bgcolor: patientLabels.some((pl) => pl.id === l.id) ? "#f0fdf4" : "transparent",
                             "&:hover": { bgcolor: "#f1f5f9" },
                           }}
@@ -615,10 +622,10 @@ function PatientDetail({ patient, doctorId }) {
           </Box>
           <Stack alignItems="flex-end" spacing={0.5}>
             <Typography variant="caption" color="text.secondary">{patient.record_count} 份病历</Typography>
-            <Stack direction="row" spacing={0.8}>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ width: { xs: "100%", sm: "auto" } }}>
               <Tooltip title="导出全部病历 PDF">
                 <span>
-                  <Button size="small" variant="outlined"
+                  <Button size="small" variant="outlined" fullWidth
                     startIcon={exportingPdf ? <CircularProgress size={12} /> : <FileDownloadOutlinedIcon />}
                     disabled={exportingPdf || exportingReport} onClick={handleExportPdf}>
                     病历PDF
@@ -627,7 +634,7 @@ function PatientDetail({ patient, doctorId }) {
               </Tooltip>
               <Tooltip title="AI 提取结构化字段，生成标准门诊病历报告">
                 <span>
-                  <Button size="small" variant="outlined" color="secondary"
+                  <Button size="small" variant="outlined" color="secondary" fullWidth
                     startIcon={exportingReport ? <CircularProgress size={12} /> : <FileDownloadOutlinedIcon />}
                     disabled={exportingPdf || exportingReport} onClick={handleExportReport}>
                     门诊报告
@@ -650,7 +657,7 @@ function PatientDetail({ patient, doctorId }) {
       </Stack>
 
       {/* Record type filter */}
-      <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mb: 1.5 }}>
+      <Stack direction="row" spacing={0.8} flexWrap="wrap" sx={{ mb: 1.5, "& .MuiChip-root": { minHeight: 30 } }}>
         {RECORD_TYPE_FILTER_OPTS.map((opt) => (
           <Chip
             key={opt.value}
@@ -660,6 +667,7 @@ function PatientDetail({ patient, doctorId }) {
             variant={recordTypeFilter === opt.value ? "filled" : "outlined"}
             color={recordTypeFilter === opt.value ? "primary" : "default"}
             onClick={() => setRecordTypeFilter(opt.value)}
+            sx={{ fontSize: 12 }}
           />
         ))}
       </Stack>
@@ -771,9 +779,10 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
                 />
               </Box>
             ) : (
-              <Box sx={{ p: 2 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  暂无患者。在聊天中说「建档姓名」即可创建。
+              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 6, gap: 1.5 }}>
+                <Typography variant="h6" color="text.disabled">暂无患者</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", maxWidth: 220 }}>
+                  在聊天中说「新建患者：姓名」即可创建
                 </Typography>
                 <Button size="small" variant="outlined" onClick={onNavigateToChat}>去聊天</Button>
               </Box>
@@ -846,9 +855,10 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
                 />
               </Box>
             ) : (
-              <Box sx={{ p: 2 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  暂无患者。在聊天中说「建档姓名」即可创建。
+              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 6, gap: 1.5 }}>
+                <Typography variant="h6" color="text.disabled">暂无患者</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", maxWidth: 220 }}>
+                  在聊天中说「新建患者：姓名」即可创建
                 </Typography>
                 <Button size="small" variant="outlined" onClick={onNavigateToChat}>去聊天</Button>
               </Box>
@@ -1011,9 +1021,12 @@ function TasksSection({ doctorId }) {
       )}
 
       {!loading && !error && tasks.length === 0 && (
-        <Typography color="text.secondary" variant="body2">
-          暂无任务。在聊天中说「待办任务」可查看，或点击「新建任务」创建。
-        </Typography>
+        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 6, gap: 1.5 }}>
+          <Typography variant="h6" color="text.disabled">暂无任务</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", maxWidth: 220 }}>
+            在聊天中说「今日任务」或点击右上角「+ 新建任务」
+          </Typography>
+        </Box>
       )}
 
       <Stack spacing={1.2}>
@@ -1031,6 +1044,11 @@ function TasksSection({ doctorId }) {
                     {task.due_at && (
                       <Typography variant="caption" sx={{ display: "block", mt: 0.3, color: isOverdue ? "error.main" : "text.secondary" }}>
                         {isOverdue ? "已逾期 · " : "到期 · "}{task.due_at.slice(0, 10)}
+                      </Typography>
+                    )}
+                    {task.patient_name && (
+                      <Typography variant="caption" sx={{ display: "block", mt: 0.2, color: "text.secondary" }}>
+                        👤 {task.patient_name}
                       </Typography>
                     )}
                   </Box>
@@ -1053,7 +1071,9 @@ function TasksSection({ doctorId }) {
         open={Boolean(postponeAnchor)}
         anchorEl={postponeAnchor}
         onClose={handleClosePostpone}
-        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        transformOrigin={{ vertical: "top", horizontal: "center" }}
+        PaperProps={{ sx: { mt: 1, borderRadius: 2, maxWidth: "90vw" } }}
       >
         <Box sx={{ p: 2, minWidth: 220 }}>
           <Typography variant="caption" sx={{ fontWeight: 700, display: "block", mb: 1 }}>选择新到期日</Typography>
@@ -1066,9 +1086,9 @@ function TasksSection({ doctorId }) {
             onChange={(e) => setPostponeDate(e.target.value)}
             sx={{ mb: 1.5 }}
           />
-          <Stack direction="row" spacing={1}>
-            <Button size="small" variant="contained" disabled={!postponeDate} onClick={handleConfirmPostpone} sx={{ flex: 1 }}>确认</Button>
-            <Button size="small" color="inherit" onClick={handleClosePostpone}>取消</Button>
+          <Stack direction="column" spacing={1}>
+            <Button size="small" variant="contained" disabled={!postponeDate} onClick={handleConfirmPostpone} fullWidth>确认</Button>
+            <Button size="small" color="inherit" onClick={handleClosePostpone} fullWidth>取消</Button>
           </Stack>
         </Box>
       </Popover>
@@ -1090,7 +1110,7 @@ function TasksSection({ doctorId }) {
         <DialogTitle sx={{ fontWeight: 700 }}>新建任务</DialogTitle>
         <DialogContent dividers>
           {createError && <Alert severity="error" sx={{ mb: 2 }}>{createError}</Alert>}
-          <Stack spacing={2} sx={{ mt: 0.5 }}>
+          <Stack spacing={2.5} sx={{ mt: 0.5 }}>
             <TextField
               select label="任务类型" size="small" fullWidth
               value={createForm.taskType}
@@ -1203,9 +1223,12 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [failedText, setFailedText] = useState(null);
   const [messages, setMessages] = useState([]);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const recordingTimerRef = useRef(null);
   const [mediaProcessing, setMediaProcessing] = useState(false);
   const [mediaError, setMediaError] = useState(null);
   const [commandsShown, setCommandsShown] = useState(() => {
@@ -1241,6 +1264,8 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   useEffect(() => { onMessageCountChange?.(messages.length); }, [messages.length, onMessageCountChange]);
+
+  useEffect(() => () => clearInterval(recordingTimerRef.current), []);
 
   // Consume external input (e.g. inserted from PatientsSection quick action)
   useEffect(() => {
@@ -1291,12 +1316,15 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
       mr.start();
       mediaRecorderRef.current = mr;
       setRecording(true);
+      setRecordingSeconds(0);
+      recordingTimerRef.current = setInterval(() => setRecordingSeconds(s => s + 1), 1000);
     } catch {
       setMediaError("无法访问麦克风，请检查权限");
     }
   }
 
   function stopRecording() {
+    clearInterval(recordingTimerRef.current);
     mediaRecorderRef.current?.stop();
     setRecording(false);
   }
@@ -1327,6 +1355,7 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
   async function onSend() {
     const text = input.trim();
     if (!text || loading) return;
+    setFailedText(null);
     setMessages((prev) => [...prev, { role: "user", content: text, ts: nowTs() }]);
     setInput("");
     setLoading(true);
@@ -1343,16 +1372,31 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
         ? "网络连接失败，请检查网络后重试。"
         : t("chat.requestFailed", { message: error.message });
       setMessages((prev) => [...prev, { role: "assistant", content: friendlyMsg, ts: nowTs() }]);
+      setFailedText(text);
     } finally {
       setLoading(false);
     }
+  }
+
+  async function onRetry() {
+    if (!failedText) return;
+    const t = failedText;
+    setFailedText(null);
+    setInput(t);
   }
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Topbar */}
       <Box sx={{ px: isMobile ? 2 : 3, py: 1.2, borderBottom: "1px solid #e2e8f0", backgroundColor: isMobile ? "#ededed" : "#fff", display: "flex", alignItems: "center" }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "text.secondary", flex: 1, textAlign: isMobile ? "center" : "left" }}>{t("chat.workspaceTitle")}</Typography>
+        <Box sx={{ flex: 1, textAlign: isMobile ? "center" : "left" }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "text.secondary" }}>{t("chat.workspaceTitle")}</Typography>
+          {isMobile && doctorId && (
+            <Typography variant="caption" sx={{ color: "#999", fontSize: 10, display: "block", lineHeight: 1 }}>
+              ID: {doctorId}
+            </Typography>
+          )}
+        </Box>
         <Tooltip title="清空对话">
           <IconButton size="small" onClick={() => setClearConfirmOpen(true)} sx={{ color: "text.secondary" }}>
             <DeleteOutlineIcon fontSize="small" />
@@ -1387,24 +1431,27 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
           </IconButton>
         </Stack>
         {commandsShown && (
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.7, mb: 0.8 }}>
+          <Box sx={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(4, 1fr)" : "repeat(8, 1fr)", gap: isMobile ? 0.8 : 0.7, mb: 0.8 }}>
             {QUICK_COMMANDS.map((cmd) => (
               <Box
                 key={cmd.label}
                 component="button"
                 onClick={() => setInput(cmd.insert)}
                 sx={{
-                  display: "inline-flex", alignItems: "center", gap: 0.5,
-                  px: 1.4, py: 0.8, borderRadius: "16px",
+                  display: "inline-flex", flexDirection: isMobile ? "column" : "row", alignItems: "center", justifyContent: "center",
+                  gap: isMobile ? 0.2 : 0.5,
+                  px: isMobile ? 0.5 : 1.4, py: isMobile ? 0.8 : 0.8,
+                  borderRadius: isMobile ? "10px" : "16px",
                   border: "1px solid #dde3ea", backgroundColor: "#fff",
-                  cursor: "pointer", fontSize: 12, color: "#374151",
-                  fontFamily: "inherit", lineHeight: 1.4, whiteSpace: "nowrap",
-                  transition: "all 0.15s", minHeight: 34,
+                  cursor: "pointer", fontSize: isMobile ? 10 : 12, color: "#374151",
+                  fontFamily: "inherit", lineHeight: 1.3, whiteSpace: "nowrap", width: "100%",
+                  minHeight: isMobile ? 52 : 34,
+                  transition: "all 0.15s",
                   "&:hover": { backgroundColor: "#f0f7ff", borderColor: "#93c5fd", color: "#1d4ed8" },
                   "&:active": { backgroundColor: "#dbeafe", transform: "scale(0.97)" },
                 }}
               >
-                <span style={{ fontSize: 13 }}>{cmd.icon}</span>
+                <span style={{ fontSize: isMobile ? 18 : 13 }}>{cmd.icon}</span>
                 {cmd.label}
               </Box>
             ))}
@@ -1416,6 +1463,22 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
       <input ref={fileInputRef} type="file" accept="audio/*,image/*" style={{ display: "none" }} onChange={onFileSelect} />
       {isMobile ? (
         <Box sx={{ borderTop: "1px solid #d9d9d9", backgroundColor: "#f5f5f5" }}>
+          {failedText && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 2, py: 0.5, bgcolor: "#fff0f0", borderTop: "1px solid #fecaca" }}>
+              <Typography variant="caption" color="error" sx={{ flex: 1 }}>上条消息发送失败</Typography>
+              <Button size="small" variant="text" color="error" sx={{ fontSize: 12, py: 0, minWidth: "auto" }} onClick={onRetry}>重试</Button>
+              <Button size="small" variant="text" sx={{ fontSize: 12, py: 0, minWidth: "auto", color: "text.secondary" }} onClick={() => setFailedText(null)}>忽略</Button>
+            </Box>
+          )}
+          {recording && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 2, py: 0.5, bgcolor: "#fff0f0" }}>
+              <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: "error.main", animation: "recBlink 1s ease-in-out infinite", "@keyframes recBlink": { "0%,100%": { opacity: 1 }, "50%": { opacity: 0.3 } } }} />
+              <Typography variant="caption" color="error" sx={{ fontWeight: 700 }}>
+                录音中 {Math.floor(recordingSeconds/60)}:{String(recordingSeconds%60).padStart(2,"0")}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">· 点击停止</Typography>
+            </Box>
+          )}
           {mediaError && (
             <Alert severity="error" onClose={() => setMediaError(null)} sx={{ mx: 1, mt: 0.5, py: 0 }}>{mediaError}</Alert>
           )}
@@ -1461,6 +1524,13 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
         </Box>
       ) : (
         <Box sx={{ px: 2, py: 1.5, borderTop: "1px solid #e2e8f0", backgroundColor: "#fff" }}>
+          {failedText && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 2, py: 0.5, bgcolor: "#fff0f0", borderTop: "1px solid #fecaca", mb: 1 }}>
+              <Typography variant="caption" color="error" sx={{ flex: 1 }}>上条消息发送失败</Typography>
+              <Button size="small" variant="text" color="error" sx={{ fontSize: 12, py: 0, minWidth: "auto" }} onClick={onRetry}>重试</Button>
+              <Button size="small" variant="text" sx={{ fontSize: 12, py: 0, minWidth: "auto", color: "text.secondary" }} onClick={() => setFailedText(null)}>忽略</Button>
+            </Box>
+          )}
           {mediaError && (
             <Alert severity="error" onClose={() => setMediaError(null)} sx={{ mb: 1, py: 0 }}>{mediaError}</Alert>
           )}
