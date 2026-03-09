@@ -47,7 +47,6 @@ from db.models import (
     MedicalRecordDB,
     MedicalRecordExport,
     MedicalRecordVersion,
-    NeuroCaseDB,
     NeuroCVDContext,
     Patient,
     PatientLabel,
@@ -819,7 +818,6 @@ async def admin_filter_options(
             Patient.doctor_id,
             MedicalRecordDB.doctor_id,
             DoctorTask.doctor_id,
-            NeuroCaseDB.doctor_id,
             DoctorContext.doctor_id,
             PatientLabel.doctor_id,
         ]
@@ -994,14 +992,16 @@ async def admin_tables(
             tasks_stmt = tasks_stmt.where(Patient.name.ilike(needle))
         counts["doctor_tasks"] = int((await db.execute(tasks_stmt)).scalar() or 0)
 
-        neuro_stmt = select(func.count(NeuroCaseDB.id))
-        neuro_stmt = _apply_created_at_filters(neuro_stmt, NeuroCaseDB, dt_from, dt_to_exclusive)
+        neuro_stmt = select(func.count(MedicalRecordDB.id)).where(
+            MedicalRecordDB.record_type == "neuro_case"
+        )
+        neuro_stmt = _apply_created_at_filters(neuro_stmt, MedicalRecordDB, dt_from, dt_to_exclusive)
         if doctor_id:
-            neuro_stmt = neuro_stmt.where(NeuroCaseDB.doctor_id == doctor_id)
+            neuro_stmt = neuro_stmt.where(MedicalRecordDB.doctor_id == doctor_id)
         else:
-            neuro_stmt = apply_exclude_test_doctors(neuro_stmt, NeuroCaseDB.doctor_id)
+            neuro_stmt = apply_exclude_test_doctors(neuro_stmt, MedicalRecordDB.doctor_id)
         if needle:
-            neuro_stmt = neuro_stmt.where(NeuroCaseDB.patient_name.ilike(needle))
+            neuro_stmt = neuro_stmt.where(MedicalRecordDB.neuro_patient_name.ilike(needle))
         counts["neuro_cases"] = int((await db.execute(neuro_stmt)).scalar() or 0)
 
         labels_stmt = select(func.count(PatientLabel.id))
@@ -1187,20 +1187,26 @@ async def admin_table_rows(
                 for t, pname in (await db.execute(stmt)).all()
             ]
         elif table_key == "neuro_cases":
-            stmt = select(NeuroCaseDB).order_by(NeuroCaseDB.created_at.desc()).limit(limit).offset(offset)
-            stmt = _apply_created_at_filters(stmt, NeuroCaseDB, dt_from, dt_to_exclusive)
+            stmt = (
+                select(MedicalRecordDB)
+                .where(MedicalRecordDB.record_type == "neuro_case")
+                .order_by(MedicalRecordDB.created_at.desc())
+                .limit(limit)
+                .offset(offset)
+            )
+            stmt = _apply_created_at_filters(stmt, MedicalRecordDB, dt_from, dt_to_exclusive)
             if doctor_id:
-                stmt = stmt.where(NeuroCaseDB.doctor_id == doctor_id)
+                stmt = stmt.where(MedicalRecordDB.doctor_id == doctor_id)
             else:
-                stmt = apply_exclude_test_doctors(stmt, NeuroCaseDB.doctor_id)
+                stmt = apply_exclude_test_doctors(stmt, MedicalRecordDB.doctor_id)
             if needle:
-                stmt = stmt.where(NeuroCaseDB.patient_name.ilike(needle))
+                stmt = stmt.where(MedicalRecordDB.neuro_patient_name.ilike(needle))
             items = [
                 {
                     "id": n.id,
                     "doctor_id": n.doctor_id,
                     "patient_id": n.patient_id,
-                    "patient_name": n.patient_name,
+                    "patient_name": n.neuro_patient_name,
                     "nihss": n.nihss,
                     "created_at": _fmt_ts(n.created_at),
                 }

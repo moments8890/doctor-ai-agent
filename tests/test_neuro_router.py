@@ -72,7 +72,7 @@ async def test_list_neuro_cases_shapes_response(monkeypatch):
             return_value=[
                 SimpleNamespace(
                     id=1,
-                    patient_name="李四",
+                    neuro_patient_name="李四",
                     chief_complaint="右侧肢体无力",
                     primary_diagnosis="急性脑梗死",
                     nihss=6,
@@ -80,7 +80,7 @@ async def test_list_neuro_cases_shapes_response(monkeypatch):
                 ),
                 SimpleNamespace(
                     id=2,
-                    patient_name=None,
+                    neuro_patient_name=None,
                     chief_complaint=None,
                     primary_diagnosis=None,
                     nihss=None,

@@ -249,13 +249,13 @@ async def test_save_neuro_case_promotes_scalars(session_factory):
 
     assert row.id is not None
     assert row.doctor_id == "doc_001"
-    assert row.patient_name == "张三"
+    assert row.neuro_patient_name == "张三"
     assert row.nihss == 8
 
     # Full JSON blobs round-trip
-    raw = json.loads(row.raw_json)
+    raw = json.loads(row.neuro_raw_json)
     assert raw["patient_profile"]["name"] == "张三"
-    log_parsed = json.loads(row.extraction_log_json)
+    log_parsed = json.loads(row.neuro_extraction_log_json)
     assert "family_history_cvd" in log_parsed["missing_fields"]
 
 

@@ -496,7 +496,6 @@ async def test_admin_filter_options_returns_doctors_and_patients_by_doctor():
                 _exec_scalars(["doc1", "doc2"]),  # Patient.doctor_id
                 _exec_scalars(["doc2", "doc3"]),  # MedicalRecordDB.doctor_id
                 _exec_scalars(["doc3", None]),    # DoctorTask.doctor_id
-                _exec_scalars([]),                # NeuroCaseDB.doctor_id
                 _exec_scalars(["doc_ctx"]),       # DoctorContext.doctor_id
                 _exec_scalars(["doc_label"]),     # PatientLabel.doctor_id
                 _exec_scalars(["张三", "李四", "张三"]),  # Patient.name filtered by doctor_id
@@ -739,7 +738,7 @@ async def test_admin_tables_with_filters():
                         id=91,
                         doctor_id="doc1",
                         patient_id=31,
-                        patient_name="王五",
+                        neuro_patient_name="王五",
                         nihss=2,
                         created_at=datetime(2026, 3, 3, 7, 0, 0),
                     )

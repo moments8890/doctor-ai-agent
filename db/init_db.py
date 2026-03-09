@@ -5,7 +5,7 @@
 import db.models  # noqa: F401 — ensure models are registered before create_all
 import re
 from db.engine import Base, engine, AsyncSessionLocal
-from db.models import Doctor, Patient, MedicalRecordDB, DoctorTask, NeuroCaseDB, DoctorContext, PatientLabel
+from db.models import Doctor, Patient, MedicalRecordDB, DoctorTask, DoctorContext, PatientLabel
 from sqlalchemy import select
 
 
@@ -74,7 +74,6 @@ async def backfill_doctors_registry() -> int:
         Patient.doctor_id,
         MedicalRecordDB.doctor_id,
         DoctorTask.doctor_id,
-        NeuroCaseDB.doctor_id,
         DoctorContext.doctor_id,
         PatientLabel.doctor_id,
     ]

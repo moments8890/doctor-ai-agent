@@ -169,7 +169,14 @@ async def handle_add_record(
         record = MedicalRecord(content=content_text, record_type="dictation")
     else:
         try:
-            doctor_ctx = [m["content"] for m in (history or [])[-10:] if m["role"] == "user"]
+            # Only include history turns that look like clinical dictation (≥15 chars),
+            # not short command messages like "患者列表", "删除 张三", "今天任务".
+            _CMD_PREFIXES = ("患者列表", "所有患者", "删除", "建档", "查", "待办", "今天任务", "PDF")
+            doctor_ctx = [
+                m["content"] for m in (history or [])[-6:] if m["role"] == "user"
+                and len(m["content"]) >= 15
+                and not any(m["content"].startswith(p) for p in _CMD_PREFIXES)
+            ]
             doctor_ctx.append(text)
             from services.patient.prior_visit import get_prior_visit_summary as _get_pvs
             async def _detect_enc():

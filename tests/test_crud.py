@@ -23,7 +23,7 @@ from db.crud import (
     remove_label,
     get_patient_labels,
 )
-from db.models import Doctor, DoctorTask, NeuroCaseDB
+from db.models import Doctor, DoctorTask, MedicalRecordDB
 from db.models.medical_record import MedicalRecord
 from db.models.neuro_case import ExtractionLog, NeuroCase
 from utils.errors import InvalidMedicalRecordError
@@ -414,7 +414,11 @@ async def test_delete_patient_for_doctor_removes_related_rows(db_session):
     patient = await create_patient(db_session, DOCTOR, "待删除患者", None, None)
     await save_record(db_session, DOCTOR, SAMPLE_RECORD, patient.id)
     db_session.add(DoctorTask(doctor_id=DOCTOR, patient_id=patient.id, task_type="follow_up", title="随访", status="pending"))
-    db_session.add(NeuroCaseDB(doctor_id=DOCTOR, patient_id=patient.id, patient_name="待删除患者"))
+    db_session.add(MedicalRecordDB(
+        doctor_id=DOCTOR, patient_id=patient.id,
+        record_type="neuro_case", encounter_type="unknown",
+        neuro_patient_name="待删除患者",
+    ))
     db_session.add(DoctorSessionState(doctor_id=DOCTOR, current_patient_id=patient.id, pending_create_name=None))
     await db_session.commit()
 
@@ -427,8 +431,6 @@ async def test_delete_patient_for_doctor_removes_related_rows(db_session):
     assert records == []
     tasks = (await db_session.execute(select(DoctorTask).where(DoctorTask.patient_id == patient.id))).scalars().all()
     assert tasks == []
-    neuro_rows = (await db_session.execute(select(NeuroCaseDB).where(NeuroCaseDB.patient_id == patient.id))).scalars().all()
-    assert neuro_rows == []
     session_state = (await db_session.execute(select(DoctorSessionState).where(DoctorSessionState.doctor_id == DOCTOR))).scalar_one()
     assert session_state.current_patient_id is None
 
@@ -451,17 +453,19 @@ async def test_save_neuro_case_inserts_into_neuro_cases_table(db_session):
 
     row = await save_neuro_case(db_session, DOCTOR, neuro_case, extraction_log)
     assert row.id is not None
-    assert row.patient_name == "神经甲"
+    assert row.neuro_patient_name == "神经甲"
     assert row.nihss == 8
+    assert row.record_type == "neuro_case"
 
     listed = await get_neuro_cases_for_doctor(db_session, DOCTOR, limit=10)
     assert any(r.id == row.id for r in listed)
 
     persisted = (
         await db_session.execute(
-            select(NeuroCaseDB).where(
-                NeuroCaseDB.doctor_id == DOCTOR,
-                NeuroCaseDB.id == row.id,
+            select(MedicalRecordDB).where(
+                MedicalRecordDB.doctor_id == DOCTOR,
+                MedicalRecordDB.id == row.id,
+                MedicalRecordDB.record_type == "neuro_case",
             )
         )
     ).scalars().all()

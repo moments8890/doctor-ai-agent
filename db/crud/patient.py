@@ -13,7 +13,6 @@ from db.models import (
     Patient,
     PatientLabel,
     MedicalRecordDB,
-    NeuroCaseDB,
     DoctorTask,
     DoctorSessionState,
     PendingRecord,
@@ -105,12 +104,8 @@ async def delete_patient_for_doctor(
             DoctorTask.patient_id == patient_id,
         )
     )
-    await session.execute(
-        delete(NeuroCaseDB).where(
-            NeuroCaseDB.doctor_id == doctor_id,
-            NeuroCaseDB.patient_id == patient_id,
-        )
-    )
+    # neuro_case records (now stored in medical_records) are cascade-deleted
+    # when the patient row is deleted; no explicit delete needed here.
     await session.execute(
         delete(PendingRecord).where(
             PendingRecord.doctor_id == doctor_id,

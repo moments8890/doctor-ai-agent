@@ -15,7 +15,6 @@ from db.models import (
     Patient,
     MedicalRecordDB,
     MedicalRecordVersion,
-    NeuroCaseDB,
     DoctorTask,
 )
 from db.repositories import RecordRepository
@@ -206,13 +205,11 @@ async def save_neuro_case(
     case: "NeuroCase",  # type: ignore[name-defined]
     log: "ExtractionLog",  # type: ignore[name-defined]
     patient_id: Optional[int] = None,
-) -> NeuroCaseDB:
-    """Promote key scalar fields, serialise both objects, persist row."""
+) -> MedicalRecordDB:
+    """Promote key scalar fields, serialise both objects, persist as a MedicalRecordDB row
+    with record_type='neuro_case'."""
     pp = case.patient_profile if isinstance(case.patient_profile, dict) else {}
     ne = case.neuro_exam if isinstance(case.neuro_exam, dict) else {}
-    cc = case.chief_complaint if isinstance(case.chief_complaint, dict) else {}
-    dx = case.diagnosis if isinstance(case.diagnosis, dict) else {}
-    enc = case.encounter if isinstance(case.encounter, dict) else {}
 
     nihss_raw = ne.get("nihss_total")
     nihss: Optional[int] = None
@@ -222,22 +219,16 @@ async def save_neuro_case(
         except (TypeError, ValueError):
             nihss = None
 
-    age_raw = pp.get("age")
-    age: Optional[int] = None
-    if age_raw is not None:
-        try:
-            age = int(age_raw)
-        except (TypeError, ValueError):
-            age = None
-
     doctor_id = await _ensure_doctor_exists(session, doctor_id)
-    row = NeuroCaseDB(
+    row = MedicalRecordDB(
         doctor_id=doctor_id,
         patient_id=patient_id,
-        patient_name=pp.get("name"),
+        record_type="neuro_case",
+        encounter_type="unknown",
+        neuro_patient_name=pp.get("name"),
         nihss=nihss,
-        raw_json=json.dumps(case.model_dump(), ensure_ascii=False),
-        extraction_log_json=json.dumps(log.model_dump(), ensure_ascii=False),
+        neuro_raw_json=json.dumps(case.model_dump(), ensure_ascii=False),
+        neuro_extraction_log_json=json.dumps(log.model_dump(), ensure_ascii=False),
     )
     session.add(row)
     await session.commit()
@@ -248,12 +239,15 @@ async def get_neuro_cases_for_doctor(
     session: AsyncSession,
     doctor_id: str,
     limit: int = 20,
-) -> List[NeuroCaseDB]:
+) -> List[MedicalRecordDB]:
     """Return most-recent neuro cases for a doctor."""
     result = await session.execute(
-        select(NeuroCaseDB)
-        .where(NeuroCaseDB.doctor_id == doctor_id)
-        .order_by(NeuroCaseDB.created_at.desc())
+        select(MedicalRecordDB)
+        .where(
+            MedicalRecordDB.doctor_id == doctor_id,
+            MedicalRecordDB.record_type == "neuro_case",
+        )
+        .order_by(MedicalRecordDB.created_at.desc())
         .limit(limit)
     )
     return list(result.scalars().all())

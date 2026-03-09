@@ -88,7 +88,7 @@ async def list_neuro_cases(
     return [
         NeuroCaseSummary(
             id=r.id,
-            patient_name=r.patient_name,
+            patient_name=r.neuro_patient_name,
             nihss=r.nihss,
             created_at=r.created_at.isoformat() if r.created_at else "",
         )
