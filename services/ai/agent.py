@@ -537,11 +537,12 @@ def _strip_descriptions(node: Any) -> Any:
 _TOOLS_COMPACT = _strip_descriptions(_TOOLS)
 
 
-def _selected_system_prompt() -> str:
+async def _get_routing_prompt() -> str:
+    from utils.prompt_loader import get_prompt
     mode = os.environ.get("AGENT_ROUTING_PROMPT_MODE", "compact").strip().lower()
-    if mode in {"full"}:
-        return _SYSTEM_PROMPT
-    return _SYSTEM_PROMPT_COMPACT
+    if mode == "full":
+        return await get_prompt("agent.routing", _SYSTEM_PROMPT)
+    return await get_prompt("agent.routing.compact", _SYSTEM_PROMPT_COMPACT)
 
 
 def _selected_tools() -> List[dict]:
@@ -784,7 +785,7 @@ async def dispatch(
             )
     log(f"[Agent:{provider_name}] dispatching: {text[:80]}")
 
-    system_prompt = _selected_system_prompt()
+    system_prompt = await _get_routing_prompt()
     if specialty and specialty.strip():
         system_prompt = f"你是{specialty.strip()}科医生助手。\n" + system_prompt
     messages = [{"role": "system", "content": system_prompt}]

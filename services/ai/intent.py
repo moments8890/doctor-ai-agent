@@ -110,11 +110,14 @@ async def detect_intent(text: str) -> IntentResult:
         default_headers=extra_headers,
     )
 
+    from utils.prompt_loader import get_prompt
+    intent_prompt = await get_prompt("agent.intent_classifier", SYSTEM_PROMPT)
+
     async def _call(model_name: str):
         return await client.chat.completions.create(
             model=model_name,
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": intent_prompt},
                 {"role": "user", "content": text},
             ],
             response_format={"type": "json_object"},

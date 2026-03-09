@@ -75,11 +75,14 @@ async def extract_text_from_image(image_bytes: bytes, mime_type: str) -> str:
 
     log(f"[Vision:{provider_name}] model={model} image_size={len(image_bytes)} bytes")
 
+    from utils.prompt_loader import get_prompt
+    vision_prompt = await get_prompt("vision.ocr", _SYSTEM_PROMPT)
+
     async def _call(model_name: str):
         return await client.chat.completions.create(
             model=model_name,
             messages=[
-                {"role": "system", "content": _SYSTEM_PROMPT},
+                {"role": "system", "content": vision_prompt},
                 {
                     "role": "user",
                     "content": [

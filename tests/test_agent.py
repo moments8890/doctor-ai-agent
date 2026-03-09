@@ -509,9 +509,11 @@ def test_selected_tools_compact_removes_descriptions(monkeypatch):
     assert "description" not in first_fn
 
 
-def test_selected_system_prompt_compact(monkeypatch):
+async def test_get_routing_prompt_compact(monkeypatch):
+    """_get_routing_prompt() falls back to hardcoded compact prompt when DB unavailable."""
     monkeypatch.setenv("AGENT_ROUTING_PROMPT_MODE", "compact")
-    prompt = agent._selected_system_prompt()
+    # DB not available in tests → prompt_loader falls back to hardcoded constant
+    prompt = await agent._get_routing_prompt()
     assert "根据当前消息选择工具" in prompt
 
 

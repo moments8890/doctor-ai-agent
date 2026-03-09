@@ -86,10 +86,12 @@ async def extract_specialty_scores(text: str) -> List[dict]:
             max_retries=0,
             default_headers=extra_headers,
         )
+        from utils.prompt_loader import get_prompt
+        extraction_prompt = await get_prompt("extraction.specialty_scores", _EXTRACTION_PROMPT)
         completion = await client.chat.completions.create(
             model=provider["model"],
             messages=[
-                {"role": "system", "content": _EXTRACTION_PROMPT},
+                {"role": "system", "content": extraction_prompt},
                 {"role": "user", "content": text[:2000]},
             ],
             response_format={"type": "json_object"},

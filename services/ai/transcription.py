@@ -80,7 +80,11 @@ async def transcribe_audio(
 
     Falls back to OpenAI Whisper API if faster_whisper is not installed.
     """
-    initial_prompt = _CONSULTATION_PROMPT if consultation_mode else _MEDICAL_PROMPT
+    from utils.prompt_loader import get_prompt
+    if consultation_mode:
+        initial_prompt = await get_prompt("transcription.consultation", _CONSULTATION_PROMPT)
+    else:
+        initial_prompt = await get_prompt("transcription.medical", _MEDICAL_PROMPT)
     try:
         async with _model_lock:
             loop = asyncio.get_event_loop()

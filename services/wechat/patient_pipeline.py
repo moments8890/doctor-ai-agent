@@ -133,9 +133,11 @@ async def handle_patient_message(text: str, open_id: str) -> str:
     except RuntimeError:
         return "您好！如需就医请联系主治医生或前往医院就诊。如有紧急情况请拨打 120。"
 
+    from utils.prompt_loader import get_prompt
+    patient_prompt = await get_prompt("patient.chat", _PATIENT_SYSTEM_PROMPT)
     sess = _get_patient_session(open_id)
     sess.history = _trim_history(sess.history)
-    messages = [{"role": "system", "content": _PATIENT_SYSTEM_PROMPT}]
+    messages = [{"role": "system", "content": patient_prompt}]
     messages.extend(sess.history)
     messages.append({"role": "user", "content": text})
 

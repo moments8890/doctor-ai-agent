@@ -7,7 +7,6 @@ from __future__ import annotations
 import json
 import os
 import re
-import time
 from typing import Optional, Tuple
 
 from openai import AsyncOpenAI
@@ -112,37 +111,14 @@ _FOLLOWUP_KEYWORDS = frozenset({
     "之前开的药", "药吃完", "回来复查", "按时随访",
 })
 
-_PROMPT_CACHE: Optional[Tuple[float, str]] = None  # (fetched_at, content)
-_PROMPT_CACHE_TTL = 60  # seconds — changes take effect within 1 minute
-
-
 async def _get_system_prompt() -> str:
-    """Load structuring prompt from DB with optional extension.
-
-    Combines two DB keys:
-      'structuring'           — base prompt (seeded from _SEED_PROMPT on first start)
-      'structuring.extension' — optional doctor-defined additions appended to the base
-
-    Falls back to _SEED_PROMPT only if the DB has no base row at all.
-    Cache TTL: 60 seconds — changes take effect within 1 minute.
-    """
-    global _PROMPT_CACHE
-    if _PROMPT_CACHE and time.time() - _PROMPT_CACHE[0] < _PROMPT_CACHE_TTL:
-        return _PROMPT_CACHE[1]
-    try:
-        from db.crud import get_system_prompt
-        from db.engine import AsyncSessionLocal
-        async with AsyncSessionLocal() as db:
-            base_row = await get_system_prompt(db, "structuring")
-            ext_row = await get_system_prompt(db, "structuring.extension")
-        base = base_row.content if base_row else _SEED_PROMPT
-        extension = ext_row.content.strip() if ext_row and ext_row.content.strip() else None
-        content = base + "\n\n" + extension if extension else base
-    except Exception as exc:
-        log("[Structuring] load prompt from DB failed, falling back to seed prompt: {0}".format(exc))
-        content = _SEED_PROMPT
-    _PROMPT_CACHE = (time.time(), content)
-    return content
+    """Load structuring prompt from DB, appending optional extension if set."""
+    from utils.prompt_loader import get_prompt
+    base = await get_prompt("structuring", _SEED_PROMPT)
+    extension = await get_prompt("structuring.extension", "")
+    if extension.strip():
+        return base + "\n\n" + extension.strip()
+    return base
 
 
 
@@ -192,12 +168,13 @@ async def structure_medical_record(
     log(f"[LLM:{provider_name}] calling API: {text[:80]}")
 
     client = _get_structuring_client(provider_name, provider)
+    from utils.prompt_loader import get_prompt
     with trace_block("llm", "structuring.load_prompt"):
         system_prompt = await _get_system_prompt()
     if consultation_mode:
-        system_prompt = system_prompt + _CONSULTATION_SUFFIX
+        system_prompt = system_prompt + await get_prompt("structuring.consultation_suffix", _CONSULTATION_SUFFIX)
     if encounter_type == "follow_up":
-        system_prompt = system_prompt + _FOLLOWUP_SUFFIX
+        system_prompt = system_prompt + await get_prompt("structuring.followup_suffix", _FOLLOWUP_SUFFIX)
     user_content = text
     if prior_visit_summary:
         user_content = f"【上次就诊参考】\n{prior_visit_summary}\n\n【本次记录】\n{text}"

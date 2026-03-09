@@ -7,7 +7,6 @@ from __future__ import annotations
 import json
 import os
 import re
-import time
 from typing import Optional, Tuple
 
 from openai import AsyncOpenAI
@@ -212,25 +211,9 @@ plan.orders 数组中每个元素格式：
 【保留专业缩写】NIHSS、mRS、TOAST、tPA、rt-PA、TIA、DVT、AF、INR、APTT、CTA、MRA、DSA、TCD、ASPECT、ICH、SAH、AVM、GCS、Hunt-Hess、Fisher、WFNS、Spetzler-Martin、PHASES、Raymond-Roy、Suzuki、DCI、EVD、CPP、EDAS、STA-MCA 等缩写不得翻译或展开。
 """
 
-_PROMPT_CACHE: Optional[Tuple[float, str]] = None
-_PROMPT_CACHE_TTL = 60  # seconds
-
-
 async def _get_system_prompt() -> str:
-    global _PROMPT_CACHE
-    if _PROMPT_CACHE and time.time() - _PROMPT_CACHE[0] < _PROMPT_CACHE_TTL:
-        return _PROMPT_CACHE[1]
-    try:
-        from db.crud import get_system_prompt
-        from db.engine import AsyncSessionLocal
-        async with AsyncSessionLocal() as db:
-            row = await get_system_prompt(db, "structuring.neuro_cvd")
-        content = row.content if row else _SEED_PROMPT
-    except Exception as exc:
-        log("[NeuroLLM] load prompt from DB failed, falling back to seed prompt: {0}".format(exc))
-        content = _SEED_PROMPT
-    _PROMPT_CACHE = (time.time(), content)
-    return content
+    from utils.prompt_loader import get_prompt
+    return await get_prompt("structuring.neuro_cvd", _SEED_PROMPT)
 
 
 
@@ -462,12 +445,14 @@ async def extract_fast_cvd_context(text: str) -> Optional[NeuroCVDSurgicalContex
             max_retries=0,
         )
     client = _CLIENT_CACHE[provider_name]
+    from utils.prompt_loader import get_prompt
+    fast_cvd_prompt = await get_prompt("structuring.fast_cvd", _FAST_CVD_PROMPT)
 
     async def _call(model_name: str):
         return await client.chat.completions.create(
             model=model_name,
             messages=[
-                {"role": "system", "content": _FAST_CVD_PROMPT},
+                {"role": "system", "content": fast_cvd_prompt},
                 {"role": "user", "content": text},
             ],
             max_tokens=600,

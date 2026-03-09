@@ -43,8 +43,10 @@ _COMPRESS_PROMPT_TEMPLATE = """\
 不可省略，这些值是下次会话的重要上下文。"""
 
 
-def _build_compress_prompt() -> str:
-    return _COMPRESS_PROMPT_TEMPLATE.format(today=date.today().isoformat())
+async def _build_compress_prompt() -> str:
+    from utils.prompt_loader import get_prompt
+    template = await get_prompt("memory.compress", _COMPRESS_PROMPT_TEMPLATE)
+    return template.format(today=date.today().isoformat())
 
 
 async def _summarise(history: List[dict]) -> str:
@@ -66,7 +68,7 @@ async def _summarise(history: List[dict]) -> str:
         kwargs: dict = dict(
             model=model_name,
             messages=[
-                {"role": "system", "content": _build_compress_prompt()},
+                {"role": "system", "content": await _build_compress_prompt()},
                 {"role": "user", "content": turns_text},
             ],
             max_tokens=int(os.environ.get("MEMORY_MAX_TOKENS", "400")),

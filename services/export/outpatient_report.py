@@ -157,7 +157,9 @@ async def extract_outpatient_fields(
     # Optionally append custom template text (first 500 chars only)
     template_text = await _get_custom_template(doctor_id)
 
-    prompt = _EXTRACT_PROMPT.format(records_text=records_text)
+    from utils.prompt_loader import get_prompt
+    extract_prompt_template = await get_prompt("report.extract", _EXTRACT_PROMPT)
+    prompt = extract_prompt_template.format(records_text=records_text)
     if template_text:
         prompt += f"\n\n【自定义模板参考格式（仅作参考，字段定义以上文为准）】\n{template_text[:500]}"
 
