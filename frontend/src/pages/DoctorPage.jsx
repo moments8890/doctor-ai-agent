@@ -1885,7 +1885,7 @@ export default function DoctorPage() {
   const [onboardName, setOnboardName] = useState("");
   const [onboardSaving, setOnboardSaving] = useState(false);
 
-  const activeSection = patientId ? "patients" : (section || "patients");
+  const activeSection = patientId ? "patients" : (section || "chat");
 
   // Check onboarding status on mount
   useEffect(() => {
