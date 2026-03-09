@@ -94,7 +94,16 @@ async def hydrate_session_state(doctor_id: str) -> DoctorSession:
                 state = await get_doctor_session_state(db, doctor_id)
                 if state is not None:
                     sess.pending_create_name = state.pending_create_name
-                    sess.pending_record_id = getattr(state, "pending_record_id", None)
+                    _restored_pending_id = getattr(state, "pending_record_id", None)
+                    if _restored_pending_id:
+                        from db.crud import get_pending_record as _get_pr
+                        from datetime import timezone as _tz
+                        _pr = await _get_pr(db, _restored_pending_id, doctor_id)
+                        _now = __import__("datetime").datetime.now(_tz.utc).replace(tzinfo=None)
+                        _expired = _pr is not None and _pr.expires_at and _pr.expires_at.replace(tzinfo=None) <= _now
+                        if _pr is None or _pr.status != "awaiting" or _expired:
+                            _restored_pending_id = None
+                    sess.pending_record_id = _restored_pending_id
                     sess.current_patient_id = state.current_patient_id
                     if state.current_patient_id is not None:
                         patient = await get_patient_for_doctor(db, doctor_id, state.current_patient_id)

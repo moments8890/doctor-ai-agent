@@ -60,7 +60,7 @@ def _t(s: str | None, n: int = 30) -> str:
     return s[:n] + "…" if len(s) > n else s
 
 
-_DRAFT_TTL_MINUTES = int(__import__("os").environ.get("PENDING_RECORD_TTL_MINUTES", "10"))
+_DRAFT_TTL_MINUTES = int(__import__("os").environ.get("PENDING_RECORD_TTL_MINUTES", "30"))
 
 _MENU_EVENT_REPLIES = {
     "DOCTOR_NEW_PATIENT": "🆕 请发送患者信息，例如：帮我建个新患者，张三，30岁男性。",
@@ -224,12 +224,15 @@ async def handle_add_record(
         )
     set_pending_record_id(doctor_id, draft_id)
 
-    patient_display = f"【{patient_name}】" if patient_name else ""
-    confirmation = f"✅ 已为{patient_display}创建病历草稿"
+    preview = format_draft_preview(record, patient_name)
     if cvd_raw:
-        confirmation += "\n" + _format_cvd_summary(cvd_raw)
-    confirmation += "\n「撤销」可取消"
-    return confirmation
+        footer = "\n\n「撤销」可取消"
+        cvd_line = "\n" + _format_cvd_summary(cvd_raw)
+        if preview.endswith(footer):
+            preview = preview[: -len(footer)] + cvd_line + footer
+        else:
+            preview += cvd_line
+    return preview
 
 
 async def save_pending_record(doctor_id: str, pending: Any) -> Optional[tuple]:
@@ -574,6 +577,20 @@ async def handle_pending_create(text: str, doctor_id: str) -> str:
     if m:
         age = int(m.group(1))
     if gender is None and age is None:
+        # If the message looks like clinical content, auto-create the patient and proceed
+        from services.ai.fast_router import fast_route as _fast_route
+        from services.ai.intent import Intent as _Intent
+        _probe = _fast_route(text)
+        if _probe is not None and _probe.intent == _Intent.add_record:
+            async with AsyncSessionLocal() as session:
+                patient = await find_patient_by_name(session, doctor_id, name)
+                if patient is None:
+                    patient = await create_patient(session, doctor_id, name, None, None)
+                    asyncio.create_task(audit(doctor_id, "WRITE", resource_type="patient", resource_id=str(patient.id)))
+                set_current_patient(doctor_id, patient.id, patient.name)
+            clear_pending_create(doctor_id)
+            fake_intent = IntentResult(intent=_Intent.add_record, patient_name=name)
+            return await handle_add_record(doctor_id, fake_intent, text)
         return f"还在为{name}建档\n请补充性别和年龄\n（如：男，17岁）\n或发「取消」放弃。"
 
     new_patient_id = None
@@ -676,7 +693,7 @@ async def handle_export_records(doctor_id: str, intent_result: IntentResult) -> 
 
     # Fallback: formatted text summary — warn doctor that PDF delivery failed
     lines = [
-        f"⚠️ 病历 PDF 发送失败（{pdf_error}），以下为文字摘要：",
+        "⚠️ 病历 PDF 发送失败，以下为文字摘要：",
         f"📄 【{patient_name}】病历摘要（共 {len(records)} 条）\n",
     ]
     if cvd_ctx and cvd_ctx.raw_json:

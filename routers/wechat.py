@@ -497,6 +497,16 @@ async def _confirm_pending_record(doctor_id: str, pending_id: str) -> str:
         expired = pending is not None and pending.expires_at and pending.expires_at.replace(tzinfo=None) <= _now
         if pending is None or pending.status != "awaiting" or expired:
             clear_pending_record_id(doctor_id)
+            if expired and pending is not None:
+                try:
+                    import json as _json
+                    _draft = _json.loads(pending.draft_json or "{}")
+                    _snippet = (_draft.get("content") or "")[:60]
+                    _pname = pending.patient_name or "未关联患者"
+                    if _snippet:
+                        return f"⚠️ 草稿已过期（{_pname}：{_snippet}…）\n请重新录入病历。"
+                except Exception:
+                    pass
             return "⚠️ 草稿已过期\n请重新录入病历。"
     result = await wd.save_pending_record(doctor_id, pending)
     clear_pending_record_id(doctor_id)
@@ -790,7 +800,16 @@ async def _handle_wecom_kf_event_bg(
     global _WECHAT_KF_SYNC_CURSOR, _WECHAT_KF_CURSOR_LOADED
     async def _enqueue_intent(text: str, user_id: str, open_kfid: str) -> None:
         if await _is_registered_doctor(user_id):
-            asyncio.create_task(_handle_intent_bg(text, user_id, open_kfid=open_kfid))
+            import uuid as _uuid
+            msg_id = _uuid.uuid4().hex
+            try:
+                async with AsyncSessionLocal() as _db:
+                    from db.crud import create_pending_message as _create_pm
+                    await _create_pm(_db, msg_id, user_id, text)
+            except Exception as _e:
+                log(f"[KF] pending_message persist FAILED (non-fatal): {_e}")
+                msg_id = ""
+            asyncio.create_task(_handle_intent_bg(text, user_id, open_kfid=open_kfid, msg_id=msg_id))
         else:
             asyncio.create_task(_handle_patient_bg(text, user_id, open_kfid=open_kfid))
 
