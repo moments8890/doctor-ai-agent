@@ -498,10 +498,24 @@ async def _confirm_pending_record(doctor_id: str, pending_id: str) -> str:
         if pending is None or pending.status != "awaiting" or expired:
             clear_pending_record_id(doctor_id)
             return "⚠️ 草稿已过期\n请重新录入病历。"
-    patient_name = await wd.save_pending_record(doctor_id, pending)
+    result = await wd.save_pending_record(doctor_id, pending)
     clear_pending_record_id(doctor_id)
-    if patient_name is None:
+    if result is None:
         return "⚠️ 草稿解析失败\n请重新录入。"
+    patient_name, record_id = result
+    # CVD scale follow-up: ask for the one most critical missing scale
+    import json as _json
+    try:
+        _draft = _json.loads(pending.draft_json)
+        _cvd_raw = _draft.get("cvd_context")
+        _content = _draft.get("content", "")
+    except Exception:
+        _cvd_raw, _content = None, ""
+    from services.patient.cvd_scale_interview import build_cvd_scale_session
+    cvd_sess = build_cvd_scale_session(record_id, pending.patient_id, _content, _cvd_raw)
+    if cvd_sess:
+        get_session(doctor_id).pending_cvd_scale = cvd_sess
+        return f"✅ 病历已保存！患者：【{patient_name}】\n\n{cvd_sess.question()}"
     return f"✅ 病历已保存！患者：【{patient_name}】"
 
 
@@ -525,9 +539,10 @@ async def _handle_pending_record_reply(text: str, doctor_id: str, sess) -> str:
     # Context switch: any new intent auto-saves the draft first, then handles the new request
     async with AsyncSessionLocal() as session:
         pending = await get_pending_record(session, pending_id, doctor_id)
-    saved_name = await wd.save_pending_record(doctor_id, pending) if pending else None
+    _save_result = await wd.save_pending_record(doctor_id, pending) if pending else None
     clear_pending_record_id(doctor_id)
     log(f"[WeChat] pending record auto-saved on context switch, doctor={doctor_id}")
+    saved_name = _save_result[0] if _save_result else None
     save_notice = f"已为【{saved_name}】自动保存病历。\n\n" if saved_name else ""
     new_result = await _handle_intent(text, doctor_id)
     return f"{save_notice}{new_result}"
@@ -907,6 +922,10 @@ async def _handle_intent_bg(text: str, doctor_id: str, open_kfid: str = "", msg_
             await flush_turns(doctor_id)
         elif sess.pending_create_name:
             result = await _handle_pending_create(text, doctor_id)
+            push_turn(doctor_id, text, result)
+            await flush_turns(doctor_id)
+        elif sess.pending_cvd_scale is not None:
+            result = await wd.handle_cvd_scale_reply(text, doctor_id)
             push_turn(doctor_id, text, result)
             await flush_turns(doctor_id)
         elif sess.interview is not None:

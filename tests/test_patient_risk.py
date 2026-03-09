@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 
-from services.patient.patient_risk import compute_patient_risk
+from services.patient.patient_risk import _compute_cvd_risk, compute_patient_risk
 
 
 def _patient(**kwargs):
@@ -81,3 +81,80 @@ def test_compute_patient_risk_aligns_with_high_risk_category():
 
     assert result.primary_risk_level == "high"
     assert result.risk_score >= 70
+
+
+# ── CVD risk-v2 tests ────────────────────────────────────────────────────────
+
+def _cvd(**kwargs):
+    return SimpleNamespace(**kwargs)
+
+
+def test_compute_cvd_risk_ich_critical():
+    rules = []
+    level, score = _compute_cvd_risk(_cvd(ich_score=5, hunt_hess_grade=None, gcs_score=None, phases_score=None, mrs_score=None), rules)
+    assert level == "critical"
+    assert score >= 90
+    assert any("ich_score_critical" in r for r in rules)
+
+
+def test_compute_cvd_risk_ich_high():
+    rules = []
+    level, score = _compute_cvd_risk(_cvd(ich_score=3, hunt_hess_grade=None, gcs_score=None, phases_score=None, mrs_score=None), rules)
+    assert level == "high"
+    assert score >= 70
+
+
+def test_compute_cvd_risk_hunt_hess_critical():
+    rules = []
+    level, score = _compute_cvd_risk(_cvd(ich_score=None, hunt_hess_grade=4, gcs_score=None, phases_score=None, mrs_score=None), rules)
+    assert level == "critical"
+    assert any("hunt_hess_critical" in r for r in rules)
+
+
+def test_compute_cvd_risk_gcs_critical():
+    rules = []
+    level, score = _compute_cvd_risk(_cvd(ich_score=None, hunt_hess_grade=None, gcs_score=6, phases_score=None, mrs_score=None), rules)
+    assert level == "critical"
+    assert any("gcs_critical" in r for r in rules)
+
+
+def test_compute_cvd_risk_phases_high():
+    rules = []
+    level, score = _compute_cvd_risk(_cvd(ich_score=None, hunt_hess_grade=None, gcs_score=None, phases_score=8, mrs_score=None), rules)
+    assert level == "high"
+    assert any("phases_high" in r for r in rules)
+
+
+def test_compute_cvd_risk_mrs_high_dependency():
+    rules = []
+    level, score = _compute_cvd_risk(_cvd(ich_score=None, hunt_hess_grade=None, gcs_score=None, phases_score=None, mrs_score=5), rules)
+    assert level == "high"
+    assert any("mrs_high_dependency" in r for r in rules)
+
+
+def test_compute_cvd_risk_no_data_returns_empty():
+    rules = []
+    level, score = _compute_cvd_risk(_cvd(ich_score=None, hunt_hess_grade=None, gcs_score=None, phases_score=None, mrs_score=None), rules)
+    assert level == ""
+    assert score == 0
+    assert rules == []
+
+
+def test_compute_patient_risk_cvd_overrides_keyword():
+    """CVD rules should override keyword-based risk when cvd_contexts provided."""
+    now = datetime(2026, 3, 2, 12, 0, 0)
+    # Record has low-risk keyword, but CVD context shows critical
+    record = _record(diagnosis="普通复诊")
+    cvd = _cvd(ich_score=5, hunt_hess_grade=None, gcs_score=None, phases_score=None, mrs_score=None)
+    result = compute_patient_risk(_patient(), records=[record], cvd_contexts=[cvd], now=now)
+    assert result.primary_risk_level == "critical"
+    assert "cvd_risk_computed" in result.risk_tags
+
+
+def test_compute_patient_risk_falls_back_to_keywords_without_cvd():
+    """Without cvd_contexts, keyword matching still works."""
+    now = datetime(2026, 3, 2, 12, 0, 0)
+    record = _record(diagnosis="急性心梗", follow_up_plan="两周复诊")
+    result = compute_patient_risk(_patient(), records=[record], cvd_contexts=[], now=now)
+    assert result.primary_risk_level == "high"
+    assert "cvd_risk_computed" not in result.risk_tags

@@ -261,8 +261,9 @@ async def _expire_stale_pending_records() -> None:
         saved = 0
         for pending in stale:
             try:
-                patient_name = await save_pending_record(pending.doctor_id, pending)
+                _result = await save_pending_record(pending.doctor_id, pending)
                 clear_pending_record_id(pending.doctor_id)
+                patient_name = _result[0] if _result else None
                 if patient_name:
                     asyncio.ensure_future(create_general_task(
                         pending.doctor_id,

@@ -50,6 +50,35 @@ async def save_cvd_context(
     return row
 
 
+async def upsert_cvd_field(
+    session: AsyncSession,
+    record_id: int,
+    patient_id: Optional[int],
+    doctor_id: str,
+    field_name: str,
+    value: int,
+) -> None:
+    """Set a single field on an existing neuro_cvd_context row, or create a minimal row if none exists."""
+    result = await session.execute(
+        select(NeuroCVDContext)
+        .where(NeuroCVDContext.record_id == record_id)
+        .limit(1)
+    )
+    existing = result.scalar_one_or_none()
+    if existing:
+        setattr(existing, field_name, value)
+    else:
+        row = NeuroCVDContext(
+            record_id=record_id,
+            patient_id=patient_id,
+            doctor_id=doctor_id,
+            source="manual",
+        )
+        setattr(row, field_name, value)
+        session.add(row)
+    await session.commit()
+
+
 async def get_cvd_context_for_patient(
     session: AsyncSession,
     doctor_id: str,

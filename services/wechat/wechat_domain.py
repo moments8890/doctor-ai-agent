@@ -41,7 +41,7 @@ from services.session import (
     set_pending_create,
     set_pending_record_id,
 )
-from services.ai.structuring import structure_medical_record
+from services.ai.structuring import structure_medical_record, detect_followup_from_text
 from services.patient.score_extraction import detect_score_keywords, extract_specialty_scores
 from services.notify.tasks import create_appointment_task, create_emergency_task, create_follow_up_task
 from utils.text_parsing import (
@@ -162,7 +162,8 @@ async def handle_add_record(
         try:
             doctor_ctx = [m["content"] for m in (history or [])[-10:] if m["role"] == "user"]
             doctor_ctx.append(text)
-            record = await structure_medical_record("\n".join(doctor_ctx))
+            _enc_type = "follow_up" if detect_followup_from_text(text) else "unknown"
+            record = await structure_medical_record("\n".join(doctor_ctx), encounter_type=_enc_type)
         except ValueError:
             return "没能识别病历内容，请重新描述一下。"
         except Exception as e:
@@ -218,10 +219,10 @@ async def handle_add_record(
     return confirmation
 
 
-async def save_pending_record(doctor_id: str, pending: Any) -> Optional[str]:
+async def save_pending_record(doctor_id: str, pending: Any) -> Optional[tuple]:
     """Parse a PendingRecord draft and save it to medical_records.
 
-    Returns the patient_name on success, None on failure.
+    Returns (patient_name, record_id) on success, None on failure.
     Side effects: fires audit, follow-up task, and auto-learn as background tasks.
     Does NOT touch session state — caller is responsible for clear_pending_record_id.
     """
@@ -255,27 +256,56 @@ async def save_pending_record(doctor_id: str, pending: Any) -> Optional[str]:
         log(f"[PendingRecord] save FAILED doctor={doctor_id} id={pending.id}: {e}")
         return None
     patient_name = pending.patient_name or "未关联患者"
-    asyncio.create_task(audit(doctor_id, "WRITE", resource_type="record", resource_id=str(db_record.id)))
+    record_id = db_record.id
+    asyncio.create_task(audit(doctor_id, "WRITE", resource_type="record", resource_id=str(record_id)))
     _follow_up_hint = next(
         (t for t in record.tags if "随访" in t or "复诊" in t), None
     ) or ("随访" in record.content or "复诊" in record.content and record.content or None)
     if _follow_up_hint:
         asyncio.create_task(create_follow_up_task(
-            doctor_id, db_record.id, patient_name, str(_follow_up_hint), pending.patient_id
+            doctor_id, record_id, patient_name, str(_follow_up_hint), pending.patient_id
         ))
     # Auto-create specialist tasks from record content (lab, referral, imaging, medication)
     _content_for_rules = record.content or ""
     if _content_for_rules:
         asyncio.create_task(_bg_auto_tasks(
-            doctor_id, db_record.id, patient_name, pending.patient_id, _content_for_rules
+            doctor_id, record_id, patient_name, pending.patient_id, _content_for_rules
         ))
     asyncio.create_task(_bg_auto_learn(doctor_id, record.content or "", record))
     # CVD background extraction only as fallback when agent did not extract structured fields
     if not cvd_raw and _detect_cvd_keywords(record.content or ""):
         asyncio.create_task(_bg_extract_cvd_context(
-            doctor_id, db_record.id, pending.patient_id, record.content or ""
+            doctor_id, record_id, pending.patient_id, record.content or ""
         ))
-    return patient_name
+    return patient_name, record_id
+
+
+async def handle_cvd_scale_reply(text: str, doctor_id: str) -> str:
+    """Handle doctor reply to a pending CVD scale question."""
+    from services.patient.cvd_scale_interview import CVDScaleSession
+    from db.crud.specialty import upsert_cvd_field
+
+    sess = get_session(doctor_id)
+    cvd_sess: CVDScaleSession = sess.pending_cvd_scale
+    sess.pending_cvd_scale = None  # always clear
+
+    answer = cvd_sess.parse_answer(text)
+    if answer is None:
+        return "已跳过量表录入。"
+    try:
+        async with AsyncSessionLocal() as session:
+            await upsert_cvd_field(
+                session,
+                record_id=cvd_sess.record_id,
+                patient_id=cvd_sess.patient_id,
+                doctor_id=doctor_id,
+                field_name=cvd_sess.field_name,
+                value=answer,
+            )
+        return f"✅ 已记录 {cvd_sess.field_label()}：{answer}分"
+    except Exception as exc:
+        log(f"[CVD scale] save failed (non-fatal): {exc}")
+        return "已收到量表评分（保存失败，请稍后补录）。"
 
 
 _CVD_KEYWORDS = frozenset({

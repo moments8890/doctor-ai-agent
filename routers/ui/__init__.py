@@ -1830,8 +1830,9 @@ async def confirm_pending_record_endpoint(
     if pending is None or pending.status != "awaiting":
         clear_pending_record_id(doctor_id)
         raise HTTPException(status_code=404, detail="Pending record not found or already processed")
-    patient_name = await save_pending_record(doctor_id, pending)
+    result = await save_pending_record(doctor_id, pending)
     clear_pending_record_id(doctor_id)
+    patient_name = result[0] if result else None
     return {"ok": True, "patient_name": patient_name or "未关联"}
 
 

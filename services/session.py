@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from services.patient.interview import InterviewState
+from services.patient.cvd_scale_interview import CVDScaleSession
 from db.engine import AsyncSessionLocal
 from db.crud import (
     get_doctor_session_state,
@@ -54,8 +55,9 @@ class DoctorSession:
     current_patient_name: Optional[str] = None
     pending_create_name: Optional[str] = None   # waiting for gender/age to create a new patient
     pending_record_id: Optional[str] = None     # UUID of draft PendingRecord awaiting confirmation
-    interview: Optional[InterviewState] = None  # active guided intake interview
-    specialty: Optional[str] = None             # doctor's specialty, injected into agent prompt
+    interview: Optional[InterviewState] = None          # active guided intake interview
+    pending_cvd_scale: Optional[CVDScaleSession] = None # awaiting doctor reply for a missing CVD scale
+    specialty: Optional[str] = None                     # doctor's specialty, injected into agent prompt
     conversation_history: List[dict] = field(default_factory=list)  # rolling window
     last_active: float = field(default_factory=time.time)
     updated_at: datetime = field(default_factory=_utcnow)

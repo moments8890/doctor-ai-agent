@@ -84,6 +84,22 @@ _CONSULTATION_SUFFIX = """
 - tags 从整合后的信息中提取
 """
 
+_FOLLOWUP_SUFFIX = """
+
+【复诊记录模式】
+本次为复诊/随访记录，重点关注：
+- 自上次就诊以来症状的变化（好转/加重/无变化）
+- 用药依从性和副作用
+- 新发或加重的体征/检查结果
+- 治疗方案调整（剂量、药物变化）
+- 下次随访计划
+content 以「复诊：」开头，简洁记录间期变化，无需重复既往完整病史。"""
+
+_FOLLOWUP_KEYWORDS = frozenset({
+    "复诊", "随访", "复查", "上次", "那次", "上回", "继续上次",
+    "之前开的药", "药吃完", "回来复查", "按时随访",
+})
+
 _PROMPT_CACHE: Optional[Tuple[float, str]] = None  # (fetched_at, content)
 _PROMPT_CACHE_TTL = 60  # seconds — changes take effect within 1 minute
 
@@ -119,9 +135,15 @@ async def _get_system_prompt() -> str:
 
 
 
+def detect_followup_from_text(text: str) -> bool:
+    """Return True if the text suggests a follow-up/return visit."""
+    return any(kw in text for kw in _FOLLOWUP_KEYWORDS)
+
+
 async def structure_medical_record(
     text: str,
     consultation_mode: bool = False,
+    encounter_type: str = "unknown",
 ) -> MedicalRecord:
     provider_name = os.environ.get("STRUCTURING_LLM", "deepseek")
     provider = _PROVIDERS.get(provider_name)
@@ -161,6 +183,8 @@ async def structure_medical_record(
         system_prompt = await _get_system_prompt()
     if consultation_mode:
         system_prompt = system_prompt + _CONSULTATION_SUFFIX
+    if encounter_type == "follow_up":
+        system_prompt = system_prompt + _FOLLOWUP_SUFFIX
     async def _call(model_name: str):
         with trace_block("llm", "structuring.chat_completion", {"provider": provider_name, "model": model_name}):
             return await client.chat.completions.create(
