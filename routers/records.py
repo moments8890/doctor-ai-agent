@@ -32,6 +32,7 @@ from db.engine import AsyncSessionLocal
 from db.models.medical_record import MedicalRecord
 from services.ai.agent import dispatch as agent_dispatch
 from services.ai.fast_router import fast_route, fast_route_label
+from services.session import get_session
 from services.knowledge.doctor_knowledge import (
     load_knowledge_context_for_prompt,
     maybe_auto_learn_knowledge,
@@ -596,7 +597,7 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
         log(f"[Chat] menu_shortcut intent={intent_result.intent.value} doctor={doctor_id}")
     else:
         _t0 = time.perf_counter()
-        _fast = fast_route(body_text)
+        _fast = fast_route(body_text, session=get_session(doctor_id))
         if _fast is not None:
             _latency_ms = (time.perf_counter() - _t0) * 1000.0
             log(f"[Chat] fast_route hit: {fast_route_label(body_text)} doctor={doctor_id}")

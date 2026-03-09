@@ -4,6 +4,12 @@ Unit tests for services/fast_router.py — tier 1/2 intent routing without LLM.
 
 from __future__ import annotations
 
+import json
+import re
+import tempfile
+from pathlib import Path
+from unittest.mock import patch
+
 import pytest
 
 from services.ai.fast_router import fast_route, fast_route_label
@@ -426,3 +432,370 @@ def test_delete_patient_occurrence_index(text, expected_name, expected_occurrenc
     assert r.intent == Intent.delete_patient
     assert r.patient_name == expected_name
     assert r.extra_data.get("occurrence_index") == expected_occurrence
+
+
+# ── Fix 1: hot-reload accumulation bug ─────────────────────────────────────────
+
+def test_reload_extra_keywords_does_not_accumulate():
+    """Calling reload_extra_keywords() twice must not grow _CLINICAL_KW_TIER3.
+
+    The bug: line 499 merged _EXTRA_KW_TIER3 into _CLINICAL_KW_TIER3 each call,
+    so removed keywords persisted across hot-reloads.
+    """
+    import services.ai.fast_router as fr
+
+    # Save ALL module globals that load_extra_keywords() may modify
+    saved = {
+        "_EXTRA_KW_TIER3": fr._EXTRA_KW_TIER3,
+        "_IMPORT_KEYWORDS": fr._IMPORT_KEYWORDS,
+        "_LIST_PATIENTS_EXACT": fr._LIST_PATIENTS_EXACT,
+        "_LIST_PATIENTS_SHORT": fr._LIST_PATIENTS_SHORT,
+        "_LIST_TASKS_EXACT": fr._LIST_TASKS_EXACT,
+        "_LIST_TASKS_SHORT": fr._LIST_TASKS_SHORT,
+        "_NON_NAME_KEYWORDS": fr._NON_NAME_KEYWORDS,
+        "_CLINICAL_KW_TIER3": fr._CLINICAL_KW_TIER3,
+        "_TIER3_BAD_NAME": fr._TIER3_BAD_NAME,
+    }
+
+    kw_data = {
+        "tier3": {
+            "test_cat": {"keywords": ["独特临床术语A", "独特临床术语B"]}
+        }
+    }
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
+            json.dump(kw_data, f, ensure_ascii=False)
+            tmp_path = f.name
+
+        # Capture the baseline before any test-specific load
+        baseline_size = len(fr._CLINICAL_KW_TIER3)
+
+        # Load once — adds test keywords
+        fr.load_extra_keywords(tmp_path)
+        assert "独特临床术语A" in fr._EXTRA_KW_TIER3
+        size_after_first = len(fr._CLINICAL_KW_TIER3)
+
+        # Load again with same file — _CLINICAL_KW_TIER3 must NOT grow
+        fr.load_extra_keywords(tmp_path)
+        assert len(fr._CLINICAL_KW_TIER3) == size_after_first, (
+            "_CLINICAL_KW_TIER3 grew on second reload — accumulation bug present"
+        )
+
+        # Swap to a smaller keyword set — old keywords must NOT persist in _EXTRA_KW_TIER3
+        kw_data2 = {"tier3": {"test_cat": {"keywords": ["独特临床术语C"]}}}
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(kw_data2, f, ensure_ascii=False)
+
+        fr.load_extra_keywords(tmp_path)
+        assert "独特临床术语A" not in fr._EXTRA_KW_TIER3, (
+            "Removed keyword still in _EXTRA_KW_TIER3 after hot-reload"
+        )
+        assert "独特临床术语C" in fr._EXTRA_KW_TIER3
+
+        # _is_clinical_tier3 must reflect the new set (A gone, C present)
+        from services.ai.fast_router import _is_clinical_tier3
+        # C is present — clinical check should pass on a clearly clinical message containing C
+        assert _is_clinical_tier3("患者独特临床术语C三天，给予治疗")
+    finally:
+        # Restore all module globals to prevent state leakage between tests
+        for attr, val in saved.items():
+            setattr(fr, attr, val)
+        if tmp_path:
+            Path(tmp_path).unlink(missing_ok=True)
+
+
+# ── Fix 2: query_records name extraction consistent with update_record ──────────
+
+def test_query_records_rejects_tier3_bad_name():
+    """Names in _TIER3_BAD_NAME must be rejected in query_records, not just update_record."""
+    import services.ai.fast_router as fr
+    original = fr._TIER3_BAD_NAME
+    try:
+        fr._TIER3_BAD_NAME = frozenset({"病历", "记录"})
+        # "查病历" — '病历' is a bad name, should fall through or not extract '病历' as name
+        r = fast_route("查病历")
+        if r is not None and r.intent == Intent.query_records:
+            assert r.patient_name != "病历", "Bad name '病历' should not be extracted in query_records"
+    finally:
+        fr._TIER3_BAD_NAME = original
+
+
+# ── Fix 3: mined_rules structured extraction ────────────────────────────────────
+
+def test_mined_rules_patient_name_group_extraction():
+    """patient_name_group in a mined rule extracts name from the regex capture group."""
+    import services.ai.fast_router as fr
+    rules_json = json.dumps([
+        {
+            "intent": "query_records",
+            "patterns": [r"^找(?P<dummy>.{0,5})?(\S{2,3})的资料$"],
+            "patient_name_group": 2,
+            "enabled": True,
+        }
+    ])
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
+        f.write(rules_json)
+        tmp = f.name
+
+    original_rules = fr._MINED_RULES
+    try:
+        fr.load_mined_rules(tmp)
+        r = fast_route("找张三的资料")
+        assert r is not None, "Mined rule should have matched"
+        assert r.intent == Intent.query_records
+        assert r.patient_name == "张三"
+    finally:
+        fr._MINED_RULES = original_rules
+        Path(tmp).unlink(missing_ok=True)
+
+
+def test_mined_rules_extra_data_static():
+    """extra_data dict from mined rule is included in IntentResult."""
+    import services.ai.fast_router as fr
+    rules_json = json.dumps([
+        {
+            "intent": "add_record",
+            "patterns": [r"^【紧急】"],
+            "extra_data": {"source": "mined", "priority": "high"},
+            "enabled": True,
+        }
+    ])
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
+        f.write(rules_json)
+        tmp = f.name
+
+    original_rules = fr._MINED_RULES
+    try:
+        fr.load_mined_rules(tmp)
+        r = fast_route("【紧急】患者心跳骤停")
+        assert r is not None
+        assert r.extra_data.get("source") == "mined"
+        assert r.extra_data.get("priority") == "high"
+    finally:
+        fr._MINED_RULES = original_rules
+        Path(tmp).unlink(missing_ok=True)
+
+
+def test_mined_rules_confidence_field():
+    """confidence field from mined rule propagates to IntentResult."""
+    import services.ai.fast_router as fr
+    rules_json = json.dumps([
+        {
+            "intent": "add_record",
+            "patterns": [r"^医嘱[：:]"],
+            "confidence": 0.85,
+            "enabled": True,
+        }
+    ])
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
+        f.write(rules_json)
+        tmp = f.name
+
+    original_rules = fr._MINED_RULES
+    try:
+        fr.load_mined_rules(tmp)
+        r = fast_route("医嘱：阿司匹林100mg qd")
+        assert r is not None
+        assert r.intent == Intent.add_record
+        assert abs(r.confidence - 0.85) < 0.001
+    finally:
+        fr._MINED_RULES = original_rules
+        Path(tmp).unlink(missing_ok=True)
+
+
+# ── Fix 4: mined_rules error logging (not silent) ──────────────────────────────
+
+def test_mined_rules_logs_unknown_intent(caplog):
+    """Rules with unknown intent values must be logged and skipped, not silently dropped."""
+    import logging
+    import services.ai.fast_router as fr
+
+    rules_json = json.dumps([
+        {"intent": "not_a_real_intent", "patterns": [r"^test"], "enabled": True},
+        {"intent": "add_record", "patterns": [r"^valid_test_prefix_xyz"], "enabled": True},
+    ])
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
+        f.write(rules_json)
+        tmp = f.name
+
+    original_rules = fr._MINED_RULES
+    log_messages: list[str] = []
+    import utils.log as log_mod
+    original_log_fn = log_mod.log
+
+    def capturing_log(msg, *args, **kwargs):
+        log_messages.append(str(msg))
+        original_log_fn(msg, *args, **kwargs)
+
+    try:
+        log_mod.log = capturing_log
+        fr.load_mined_rules(tmp)
+        # Valid rule should still be loaded
+        assert len(fr._MINED_RULES) == 1
+        assert fr._MINED_RULES[0]["intent"] == "add_record"
+        # Unknown intent should have been logged
+        assert any("not_a_real_intent" in m for m in log_messages), (
+            "Expected log message about unknown intent, got: " + str(log_messages)
+        )
+    finally:
+        fr._MINED_RULES = original_rules
+        log_mod.log = original_log_fn
+        Path(tmp).unlink(missing_ok=True)
+
+
+def test_mined_rules_logs_invalid_regex(caplog):
+    """Rules with invalid regex patterns must be logged and skipped."""
+    import services.ai.fast_router as fr
+    import utils.log as log_mod
+
+    rules_json = json.dumps([
+        {"intent": "add_record", "patterns": [r"[invalid(regex"], "enabled": True},
+        {"intent": "add_record", "patterns": [r"^valid_xyz_prefix"], "enabled": True},
+    ])
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
+        f.write(rules_json)
+        tmp = f.name
+
+    original_rules = fr._MINED_RULES
+    log_messages = []
+    original_log_fn = log_mod.log
+
+    def capturing_log(msg, *args, **kwargs):
+        log_messages.append(msg)
+        original_log_fn(msg, *args, **kwargs)
+
+    try:
+        log_mod.log = capturing_log
+        fr.load_mined_rules(tmp)
+        # Valid rule still loaded
+        assert len(fr._MINED_RULES) == 1
+        # Invalid regex should have been logged
+        assert any("invalid" in m.lower() or "pattern" in m.lower() for m in log_messages), (
+            "Expected log about invalid pattern, got: " + str(log_messages)
+        )
+    finally:
+        fr._MINED_RULES = original_rules
+        log_mod.log = original_log_fn
+        Path(tmp).unlink(missing_ok=True)
+
+
+# ── Question guard decomposition: _is_patient_question sub-groups ──────────────
+
+def test_qg_colloquial_blocks_basic_questions():
+    """_QG_COLLOQUIAL_RE should block common lay question phrases."""
+    from services.ai.fast_router import _is_patient_question
+    assert _is_patient_question("胸痛怎么办")
+    assert _is_patient_question("会不会有心脏病")
+    assert _is_patient_question("正常吗")
+    assert _is_patient_question("能否服用阿司匹林")
+    assert _is_patient_question("是不是高血压")
+
+
+def test_qg_ending_particle_blocks_question_marks():
+    """_QG_ENDING_PARTICLE_RE should block messages ending with ？ or soft particles."""
+    from services.ai.fast_router import _is_patient_question
+    assert _is_patient_question("血压高吗？")
+    assert _is_patient_question("这是什么病呢")
+    assert _is_patient_question("需要手术吗")
+    assert _is_patient_question("引起的？")
+
+
+def test_qg_consult_opener_blocks_consultation_phrases():
+    """_QG_CONSULT_OPENER_RE should block patient consultation-seeking openers."""
+    from services.ai.fast_router import _is_patient_question
+    assert _is_patient_question("请问医生，我头痛")
+    assert _is_patient_question("想咨询一下高血压的问题")
+    assert _is_patient_question("谢谢医生")
+
+
+def test_qg_mcq_stem_blocks_exam_question_words():
+    """_QG_MCQ_STEM_RE should block messages with MCQ question words."""
+    from services.ai.fast_router import _is_patient_question
+    assert _is_patient_question("下列哪项不符合心肌梗死")
+    assert _is_patient_question("哪种药物首选")
+    assert _is_patient_question("何药治疗")
+
+
+def test_qg_knowledge_query_blocks_disease_lookups():
+    """_QG_KNOWLEDGE_QUERY_RE should block disease knowledge queries."""
+    from services.ai.fast_router import _is_patient_question
+    assert _is_patient_question("高血压的治疗方法")
+    assert _is_patient_question("心衰的并发症有哪些")
+    assert _is_patient_question("糖尿病的危害")
+
+
+def test_qg_family_ref_blocks_family_descriptions():
+    """_QG_FAMILY_REF_RE should block messages describing family members' conditions."""
+    from services.ai.fast_router import _is_patient_question
+    assert _is_patient_question("我妈最近血压高")
+    assert _is_patient_question("我老公心悸三天")
+
+
+def test_is_patient_question_does_not_block_clinical_note():
+    """Doctor clinical notes should NOT be flagged as patient questions."""
+    from services.ai.fast_router import _is_patient_question
+    assert not _is_patient_question("患者张三，男，58岁，劳力性胸闷3天，BNP 1200")
+    assert not _is_patient_question("给予阿司匹林100mg qd，倍他乐克25mg bid")
+    assert not _is_patient_question("诊断：不稳定型心绞痛，建议住院")
+
+
+# ── Multi-turn context: session patient_name backfill ─────────────────────────
+
+class _FakeSession:
+    """Minimal session stub for testing."""
+    def __init__(self, name=None, patient_id=None):
+        self.current_patient_name = name
+        self.current_patient_id = patient_id
+
+
+def test_session_backfills_name_for_supplement():
+    """'补充：…' routes add_record with no name; session should fill in patient_name."""
+    sess = _FakeSession(name="张三")
+    r = fast_route("补充：建议复查心电图", session=sess)
+    assert r is not None
+    assert r.intent == Intent.add_record
+    assert r.patient_name == "张三"
+
+
+def test_session_does_not_override_explicit_name():
+    """When the message already has a name, session must NOT override it."""
+    sess = _FakeSession(name="李明")
+    r = fast_route("查张三的病历", session=sess)
+    assert r is not None
+    assert r.intent == Intent.query_records
+    assert r.patient_name == "张三"  # explicitly extracted, not overridden by session
+
+
+def test_session_not_applied_to_non_patient_intents():
+    """list_patients / list_tasks do not need a patient name — session must not inject one."""
+    sess = _FakeSession(name="张三")
+    r = fast_route("患者列表", session=sess)
+    assert r is not None
+    assert r.intent == Intent.list_patients
+    assert r.patient_name is None
+
+
+def test_no_session_still_works():
+    """fast_route without session parameter (default None) must be unchanged."""
+    r = fast_route("补充：血压稳定")
+    assert r is not None
+    assert r.intent == Intent.add_record
+    assert r.patient_name is None  # no session, no backfill
+
+
+def test_session_with_none_name_does_not_inject():
+    """Session with current_patient_name=None must not inject patient_name."""
+    sess = _FakeSession(name=None)
+    r = fast_route("补充：建议随访", session=sess)
+    assert r is not None
+    assert r.patient_name is None
+
+
+def test_session_backfills_outpatient_report():
+    """export_outpatient_report with no name should get session patient_name."""
+    sess = _FakeSession(name="王五")
+    r = fast_route("生成门诊病历", session=sess)
+    assert r is not None
+    assert r.intent == Intent.export_outpatient_report
+    assert r.patient_name == "王五"

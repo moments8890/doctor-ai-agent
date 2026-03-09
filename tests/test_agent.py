@@ -531,3 +531,61 @@ async def test_dispatch_embedded_tool_call_content_is_parsed(mock_llm):
     assert result.intent == Intent.query_records
     assert result.patient_name == "钱芳"
     assert result.chat_reply is None
+
+
+# ---------------------------------------------------------------------------
+# CVD field extraction completeness (P0 fix verification)
+# ---------------------------------------------------------------------------
+
+
+async def test_cvd_record_extracts_all_12_fields(mock_llm):
+    """All 12 _CVD_KEYS fields must survive extraction into extra_data["cvd_context"]."""
+    mock_llm.return_value = _make_tool_call("add_cvd_record", {
+        "patient_name": "刘川",
+        "diagnosis_subtype": "SAH",
+        "gcs_score": 12,
+        "hunt_hess_grade": 3,
+        "wfns_grade": 3,
+        "fisher_grade": 3,
+        "modified_fisher_grade": 2,   # formerly missing
+        "ich_score": 2,
+        "nihss_score": 15,            # formerly missing
+        "surgery_status": "planned",
+        "mrs_score": 4,
+        "suzuki_stage": None,
+        "spetzler_martin_grade": 3,   # formerly missing
+    })
+    result = await dispatch("刘川SAH Hunt-Hess 3级 改良Fisher 2级 NIHSS 15")
+    assert result.intent == Intent.add_record
+    ctx = result.extra_data.get("cvd_context", {})
+    assert ctx.get("modified_fisher_grade") == 2, "modified_fisher_grade must be extracted"
+    assert ctx.get("nihss_score") == 15, "nihss_score must be extracted"
+    assert ctx.get("spetzler_martin_grade") == 3, "spetzler_martin_grade must be extracted"
+    assert ctx.get("hunt_hess_grade") == 3
+    assert ctx.get("fisher_grade") == 3
+    assert ctx.get("diagnosis_subtype") == "SAH"
+
+
+async def test_cvd_record_sets_record_subtype_marker(mock_llm):
+    """add_cvd_record must set extra_data['record_subtype'] = 'cvd'."""
+    mock_llm.return_value = _make_tool_call("add_cvd_record", {
+        "patient_name": "张伟",
+        "diagnosis_subtype": "ICH",
+        "ich_score": 3,
+    })
+    result = await dispatch("张伟脑出血ICH评分3")
+    assert result.extra_data.get("record_subtype") == "cvd"
+
+
+async def test_cvd_record_nihss_not_extracted_when_absent(mock_llm):
+    """Fields absent from LLM args must not appear in cvd_context."""
+    mock_llm.return_value = _make_tool_call("add_cvd_record", {
+        "patient_name": "王明",
+        "diagnosis_subtype": "ischemic",
+        "gcs_score": 14,
+    })
+    result = await dispatch("王明缺血性脑卒中GCS14")
+    ctx = result.extra_data.get("cvd_context", {})
+    assert "nihss_score" not in ctx
+    assert "modified_fisher_grade" not in ctx
+    assert ctx.get("gcs_score") == 14

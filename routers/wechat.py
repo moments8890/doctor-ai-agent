@@ -576,7 +576,7 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
 
     # ── Fast router: resolve common intents without LLM (~0ms vs ~6s) ─────────
     _t0 = time.perf_counter()
-    _fast = fast_route(text)
+    _fast = fast_route(text, session=get_session(doctor_id))
     if _fast is not None:
         _latency_ms = (time.perf_counter() - _t0) * 1000.0
         log(f"[WeChat] fast_route hit: {fast_route_label(text)} confidence={_fast.confidence:.2f} text={text[:60]!r}")

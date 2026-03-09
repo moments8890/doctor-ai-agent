@@ -8,9 +8,12 @@ import json
 import pickle
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from services.ai.intent import Intent, IntentResult
+
+if TYPE_CHECKING:
+    from services.session import DoctorSession
 
 # ── Tier-3 binary classifier (TF-IDF + logistic regression) ──────────────────
 # Loaded once at import; used as the final gate in _is_clinical_tier3().
@@ -48,12 +51,20 @@ def _normalise(text: str) -> str:
 
 # ── Tier 1: Exact / normalised keyword sets ────────────────────────────────────
 
-_LIST_PATIENTS_EXACT: frozenset[str] = frozenset()
+# Built-in minimal fallbacks ensure Tier-1 works even when JSON config fails to load.
+# load_extra_keywords() will union these with any additional keywords from the config.
+_LIST_PATIENTS_EXACT: frozenset[str] = frozenset({
+    "所有患者", "全部患者", "患者列表", "病人列表", "患者名单",
+    "显示患者", "我的患者", "查看患者",
+})
 # Very short triggers — only match if the entire message is exactly these chars
-_LIST_PATIENTS_SHORT: frozenset[str] = frozenset()
+_LIST_PATIENTS_SHORT: frozenset[str] = frozenset({"患者列表", "患者名单"})
 
-_LIST_TASKS_EXACT: frozenset[str] = frozenset()
-_LIST_TASKS_SHORT: frozenset[str] = frozenset()
+_LIST_TASKS_EXACT: frozenset[str] = frozenset({
+    "所有任务", "全部任务", "待办列表", "任务列表", "我的待办",
+    "显示任务", "查看任务", "待办事项",
+})
+_LIST_TASKS_SHORT: frozenset[str] = frozenset({"待办", "任务列表"})
 
 # Flex patterns: "先看下.*待办" / "再给我所有患者" that don't fit exact sets
 _LIST_TASKS_FLEX_RE = re.compile(
@@ -131,6 +142,26 @@ _FOLLOW_UP_KW = r"(?:随访|复诊|复查|随诊|随访提醒|复查提醒)"
 
 _LAZY_NAME_PAT = r"([\u4e00-\u9fff]{2,3}?)"
 _RELATIVE_TIME = r"(?:下周|下个月|下次|明天|后天|近期)"
+
+# ── Tier 2: schedule_appointment ───────────────────────────────────────────────
+# "给张三预约下周三10点", "约李明3月15号上午", "帮王五安排复诊明天下午"
+_DATE_TIME_PAT = (
+    r"(?:"
+    r"\d+月\d+[日号]"          # 3月15日
+    r"|下周[一二三四五六七日]?"  # 下周三
+    r"|" + _RELATIVE_TIME +
+    r")"
+    r"(?:\s*\d{1,2}[点时:：]\d{0,2})?"  # optional hour
+)
+_APPOINTMENT_RE = re.compile(
+    r"^(?:给|为|帮|替)?\s*" + _LAZY_NAME_PAT + r"\s*"
+    r"(?:预约|约诊|挂号|安排(?:复诊|门诊|预约))\s*"
+    r"(?:" + _DATE_TIME_PAT + r")?\s*$"
+)
+_APPOINTMENT_VERB_FIRST_RE = re.compile(
+    r"^(?:预约|约)\s*" + _LAZY_NAME_PAT + r"\s*"
+    r"(?:" + _DATE_TIME_PAT + r")?\s*$"
+)
 
 _FOLLOWUP_WITH_NAME_RE = re.compile(
     r"^(?:给|为)?\s*" + _LAZY_NAME_PAT + r"\s*"
@@ -367,6 +398,29 @@ _CLINICAL_KW_TIER3: frozenset[str] = frozenset({
     # Neurological / cerebrovascular (from 烟雾病 patient records)
     "烟雾病", "视野缺损", "视野缩窄", "脑梗", "脑梗死", "脑梗塞",
     "脑动脉", "颅内动脉", "颅外颅内", "搭桥手术",
+    # Neurological — strokes / CVD (reviewer-identified gaps)
+    "偏瘫", "单瘫", "截瘫", "失语", "构音障碍", "共济失调",
+    "脑出血", "脑血栓", "脑栓塞", "蛛网膜下腔出血", "SAH",
+    "动脉瘤", "颅内动脉瘤", "血肿", "硬膜下血肿", "硬膜外血肿",
+    "脑积水", "脑脊液", "再出血", "血管痉挛",
+    "意识障碍", "昏迷", "谵妄",
+    # Neurological — imaging descriptors
+    "DWI", "FLAIR", "弥散受限",
+    # Surgical / procedural
+    "介入", "介入治疗", "开颅",
+    # Emergency markers (also used for is_emergency detection below)
+    "绿色通道", "急性心肌梗死", "心跳骤停", "心脏骤停", "室颤", "休克", "抢救",
+})
+
+# ── Emergency keyword set — triggers is_emergency=True in Tier-3 ──────────────
+# Keywords that unambiguously indicate a life-threatening situation.
+# Kept conservative: only terms that leave no doubt about emergency status.
+_EMERGENCY_KW: frozenset[str] = frozenset({
+    "STEMI", "急性心肌梗死", "急性下壁", "急性前壁", "急性高侧壁",
+    "心跳骤停", "心脏骤停", "室颤", "心室颤动",
+    "脑疝", "脑干受压", "GCS急剧",
+    "绿色通道", "休克", "抢救", "急救", "CPR", "心肺复苏",
+    "大量咯血", "张力性气胸",
 })
 
 # ── Extra Tier-3 keywords loaded from data/fast_router_keywords.json ─────────
@@ -427,13 +481,23 @@ def load_extra_keywords(path: str = _EXTRA_KW_PATH) -> int:
         return 0
     try:
         data = json.loads(p.read_text(encoding="utf-8"))
-        _IMPORT_KEYWORDS = _load_kw_section(data, "import_keywords")
-        _LIST_PATIENTS_EXACT = _load_kw_section(data, "list_patients_exact")
-        _LIST_PATIENTS_SHORT = _load_kw_section(data, "list_patients_short")
-        _LIST_TASKS_EXACT = _load_kw_section(data, "list_tasks_exact")
-        _LIST_TASKS_SHORT = _load_kw_section(data, "list_tasks_short")
-        _NON_NAME_KEYWORDS = _load_kw_section(data, "non_name_keywords")
-        _TIER3_BAD_NAME = _load_kw_section(data, "tier3_bad_name")
+        # Only update a section if the JSON file explicitly contains it.
+        # Absent sections preserve the current value (built-in default or previously loaded).
+        # This prevents partial config files from accidentally clearing built-in keyword sets.
+        if "import_keywords" in data:
+            _IMPORT_KEYWORDS = _load_kw_section(data, "import_keywords")
+        if "list_patients_exact" in data:
+            _LIST_PATIENTS_EXACT = _load_kw_section(data, "list_patients_exact")
+        if "list_patients_short" in data:
+            _LIST_PATIENTS_SHORT = _load_kw_section(data, "list_patients_short")
+        if "list_tasks_exact" in data:
+            _LIST_TASKS_EXACT = _load_kw_section(data, "list_tasks_exact")
+        if "list_tasks_short" in data:
+            _LIST_TASKS_SHORT = _load_kw_section(data, "list_tasks_short")
+        if "non_name_keywords" in data:
+            _NON_NAME_KEYWORDS = _load_kw_section(data, "non_name_keywords")
+        if "tier3_bad_name" in data:
+            _TIER3_BAD_NAME = _load_kw_section(data, "tier3_bad_name")
         # tier3 handled separately (multi-category)
         tier3 = data.get("tier3", {})
         terms: list[str] = []
@@ -445,7 +509,10 @@ def load_extra_keywords(path: str = _EXTRA_KW_PATH) -> int:
                     if k:
                         terms.append(str(k))
         _EXTRA_KW_TIER3 = frozenset(terms)
-        _CLINICAL_KW_TIER3 = _CLINICAL_KW_TIER3 | _EXTRA_KW_TIER3  # merge JSON into hardcoded baseline
+        # NOTE: do NOT merge into _CLINICAL_KW_TIER3 here — _is_clinical_tier3() already
+        # unions them at query time (all_kw = _CLINICAL_KW_TIER3 | _EXTRA_KW_TIER3).
+        # Merging here would cause accumulation on hot-reload: removed keywords would
+        # persist in _CLINICAL_KW_TIER3 across subsequent reload calls.
         return (
             len(_IMPORT_KEYWORDS)
             + len(_LIST_PATIENTS_EXACT)
@@ -495,96 +562,127 @@ _REMINDER_RE = re.compile(r"提醒|设.*\d+[点时:：]|设.*复查提醒")
 
 # ── Tier 3 patient-question guards ───────────────────────────────────────────
 # Patient questions from lay users (CMedQA2 analysis: 45% FP rate without guards).
-# These patterns identify text that is almost certainly a patient asking a
-# question — not a doctor dictating a clinical note.
+# The original single monolithic regex has been decomposed into named sub-groups
+# for maintainability. Behaviour is identical — _is_patient_question() ORs them all.
 
-# Question-phrase signal: colloquial "what should I do", "why", "is it normal?"
-# Extended with IMCS-DAC + CMedQA2 analysis: duration questions, choice questions,
-# inquiry patterns, consultation-seeking phrases, and question-ending particles.
-_TIER3_QUESTION_RE = re.compile(
+# Group 1: Colloquial question phrases — "what should I do", "is it normal?", etc.
+# Sources: CMedQA2, CHIP-STS, IMCS-DAC
+_QG_COLLOQUIAL_RE = re.compile(
     r"怎么办|怎么回事|是怎么回事|该怎么|是什么原因|有什么办法|有什么方法"
     r"|怎么治疗|如何治疗|会不会|能不能|吃什么药|是什么病"
     r"|有什么关系|正常吗|严重吗|有没有问题|是否严重"
-    # Duration questions (IMCS-DAC: "咳嗽几天了", "发烧多长时间了")
-    r"|几天了$|多久了$|多长时间|多少天了$"
-    # Choice questions (IMCS-DAC: "是夜间严重还是白天严重")
-    r"|是.{1,8}还是"
-    # Inquiry pattern (IMCS-DAC: "有没有咳嗽", "有没有检查血常规")
-    r"|有没有"
-    # Question-ending particles — almost never appear at end of specialist clinical notes
-    r"|了吗[？?]?$|吗[？?]?$|呢[？?]?$"
-    # Consultation-seeking phrases (CMedQA2: patient Q&A forum patterns)
-    r"|请问|请指教|请教|请.*帮.*解答|请.*分析"
-    # Treatment-seeking verb variants missed before (CMedQA2: "怎样治疗")
     r"|怎样治疗|怎样用药|怎样处理|怎样调理"
-    # Standalone question mark at sentence end (CMedQA2: 26% of patient question FPs)
-    r"|[？?]\s*$"
-    # Advice-seeking phrases
     r"|该如何|该怎样|应该怎么"
-    # Structured patient portal format (Baidu list: "全部症状：…发病时间及原因：…")
-    r"|全部症状[：:]|发病时间及原因|治疗情况[：:]|发病时间[：:]"
-    # Medical knowledge queries — knowledge-seeking suffix patterns (Baidu finetune)
-    r"|的鉴别诊断$|的并发症$|的并发症有|的症状有哪些|的诊断依据|的发病机制|的病因$|的病因有"
+    r"|是不是|能否"
+    r"|吃什么"
+    r"|怎么样[？。]?\s*$"
+    r"|如何[？。]?\s*$"
+    r"|什么意思[？。]?\s*$"
+)
+
+# Group 2: Duration / choice / inquiry patterns (IMCS-DAC)
+# "咳嗽几天了", "是夜间严重还是白天严重", "有没有咳嗽"
+_QG_DURATION_INQUIRY_RE = re.compile(
+    r"几天了$|多久了$|多长时间|多少天了$"
+    r"|是.{1,8}还是"
+    r"|有没有"
+)
+
+# Group 3: Question-ending particles and causal questions
+# These particles almost never end a real clinical dictation
+_QG_ENDING_PARTICLE_RE = re.compile(
+    r"了吗[？?]?$|吗[？?]?$|呢[？?]?$"
+    r"|吧[。！？]?\s*$|呀[。！？]?\s*$|么[？！]?\s*$"
+    r"|引起的[。？]?\s*$"
+    r"|[？?]\s*$"
+)
+
+# Group 4: Consultation-seeking openers and patient gratitude (MedDialog-CN / CMID)
+_QG_CONSULT_OPENER_RE = re.compile(
+    r"请问|请指教|请教|请.*帮.*解答|请.*分析"
+    r"|(?:问一下|请教一下|咨询一下|想咨询|想请教|想问一下)"
+    r"|(?:求助|求解答|帮我看看|帮忙看看|帮我分析)"
+    r"|(?:感谢|谢谢|万分感谢)(?:医生|大夫|您|你)"
+)
+
+# Group 5: Patient addressing the doctor by name/title
+# "医生您好", "王主任，您好", "李教授您好"
+_QG_DOCTOR_ADDR_RE = re.compile(
+    r"医生您好|医生你好|大夫您好|大夫你好"
+    r"|[\u4e00-\u9fff]{1,4}(?:主任|教授)[，,]?您好"
+)
+
+# Group 6: First-person family-member reference (MedDialog-CN)
+# "我妈妈…", "我父亲…" — near-absent in clinical dictation
+_QG_FAMILY_REF_RE = re.compile(
+    r"我(?:妈|爸|母亲|父亲|女儿|儿子|老公|老婆|爱人|孩子|宝宝|小孩|家人|丈夫|妻子)"
+)
+
+# Group 7: Knowledge / disease query suffixes (Baidu finetune, CHIP-STS)
+# "高血压的治疗方法", "肺癌的并发症有", "xxx有什么症状吗"
+_QG_KNOWLEDGE_QUERY_RE = re.compile(
+    r"的鉴别诊断$|的并发症$|的并发症有|的症状有哪些|的诊断依据|的发病机制|的病因$|的病因有"
     r"|的治疗方法|的处理原则|的预防措施|的检查方法"
-    # Medical exam MCQ stems (CMExam: "下列…属于", "正确的是", "错误的是")
-    r"|^下列|^以下(?:哪|各)项|正确的是$|错误的是$|不正确的是$|不包括$"
+    r"|的定义[？。]?\s*$|的危害[？。]?\s*$|的影响[？。]?\s*$|的护理[？。]?\s*$"
+    r"|有什么.*(?:吗|呢)[？?]?\s*$"
+)
+
+# Group 8: MCQ stems — explicit question words in exam questions (CMExam)
+# "下列哪项", "哪种药物", "正确的是", "最佳方案是"
+_QG_MCQ_STEM_RE = re.compile(
+    r"^下列|^以下(?:哪|各)项|正确的是$|错误的是$|不正确的是$|不包括$"
     r"|属于.*的是$|应首选$|最可能.*诊断$|最佳.*是$"
-    # Additional CMExam endings — non-vignette questions without doctor anchor
-    # (vignette patterns handled by _TIER3_EXAM_ENDING_RE which ignores anchor)
-    r"|考虑的是[：:]?\s*$|的(?:疾病|症状|体征|病因|改变|类型)是[：:]?\s*$"
+    r"|哪种|哪项|哪个|哪类|哪些"
+    r"|何药|何种|何法"
+)
+
+# Group 9: MCQ answer endings without doctor anchor — non-vignette CMExam questions
+# Vignette patterns (starting with "患者，男，N岁…") are handled by _TIER3_EXAM_ENDING_RE.
+# These endings appear in standalone MCQs that don't trigger the doctor anchor.
+_QG_MCQ_ENDING_RE = re.compile(
+    r"考虑的是[：:]?\s*$|的(?:疾病|症状|体征|病因|改变|类型)是[：:]?\s*$"
     r"|(?:特点|原因|表现|机制|体征|检查|热型)是[：:]?\s*$"
     r"|(?:最?常?多?)见于\s*$|可见于\s*$|常伴有\s*$|放射至\s*$"
     r"|治疗应首选\s*$|意义的是[：:]?\s*$"
     r"|(?:药物|成药|方剂|措施|方法|方案|证候|证型|治法|病原体)是\s*$"
     r"|(?:并发症|不良反应)是\s*$|诊断为\s*$|部位在\s*$"
-    # "哪种/哪项/哪个" — explicit question words in MCQ stems
-    r"|哪种|哪项|哪个|哪类|哪些"
-    # Bare 是/为 (optional colon) at sentence end; specific noun/verb endings
     r"|是[：:]?\s*$|为[：:]?\s*$|属于\s*$|体位\s*$|类型\s*$"
     r"|出现\s*$|宜用\s*$|选用\s*$|宜选用\s*$|不宜用\s*$"
-    r"|何药|何种|何法"
-    # CHIP-MDCFNPC / MedDG patient-turn FP guards (online consultation messages)
-    # Patient demographic tag: "(男，45岁)" / "（女，32岁）" at message end
-    # Handles both ASCII () and full-width （） parentheses
-    r"|[（(](?:男|女)[，,]?\s*\d+岁[）)][。！]?\s*$"
-    # Causal question: "引起的" at sentence end — patient asking cause of symptom
-    r"|引起的[。？]?\s*$"
-    # Soft question particles at sentence end — never in clinical dictation
-    r"|吧[。！？]?\s*$|呀[。！？]?\s*$|么[？！]?\s*$"
-    # Patient-addressing openers — patient talking TO a doctor
-    r"|医生您好|医生你好|大夫您好|大夫你好"
-    # Knowledge query suffix
-    r"|什么意思[？。]?\s*$"
-    # "是不是" — "is it or not" patient question pattern (CHIP-STS/MedDG)
-    r"|是不是"
-    # "能否" — "can or not" question (CHIP-STS: 80 FPs)
-    r"|能否"
-    # Knowledge lookup suffixes (CHIP-STS: patient disease queries)
-    r"|的定义[？。]?\s*$|的危害[？。]?\s*$|的影响[？。]?\s*$|的护理[？。]?\s*$"
-    # Bare "如何" at sentence end — "how?" without treatment verb (CHIP-STS)
-    r"|如何[？。]?\s*$"
-    # "吃什么" — generalises "吃什么药"; patient diet/medication queries (CHIP-STS)
-    r"|吃什么"
-    # "怎么样" at sentence end — "how is it?" (CHIP-STS: patient status queries)
-    r"|怎么样[？。]?\s*$"
-    # "有什么" food/medication/remedy queries — "xxx有什么症状/用药"
-    r"|有什么.*(?:吗|呢)[？?]?\s*$"
-    # Baidu encyclopedia format: "short question？long answer" concatenated.
-    # Requires a question word (什么/如何/怎么/会…吗/多久/可以) before the ？
-    # so that BP uncertainty "170/？mmhg" and differential "肿瘤？" are NOT matched.
-    # The doctor anchor (收入我科/收入我院/门诊以/诊断) overrides for real clinical notes.
-    r"|^.{0,35}(?:什么|如何|怎么|怎样|会.{0,8}吗|能.{0,8}吗|多久|可以|为什么|是否).{0,15}[？?].{20,}"
-    # MedDialog-CN: patients describing family member's condition to an online doctor
-    # "我妈妈...","我父亲...","我孩子..." — first-person family reference is near-absent in clinical notes
-    r"|我(?:妈|爸|母亲|父亲|女儿|儿子|老公|老婆|爱人|孩子|宝宝|小孩|家人|丈夫|妻子)"
-    # Patients addressing a specific doctor by title: "王主任，您好" / "李教授，您好"
-    r"|[\u4e00-\u9fff]{1,4}(?:主任|教授)[，,]?您好"
-    # Consultation-seeking openers missed by 请问 guard (MedDialog-CN / CMID)
-    r"|(?:问一下|请教一下|咨询一下|想咨询|想请教|想问一下)"
-    r"|(?:求助|求解答|帮我看看|帮忙看看|帮我分析)"
-    # Gratitude to the doctor — patient closing phrase, never in clinical dictation
-    r"|(?:感谢|谢谢|万分感谢)(?:医生|大夫|您|你)"
 )
+
+# Group 10: Structured patient portal format + demographic tag (Baidu list, CHIP-MDCFNPC)
+# "全部症状：…", "(男，45岁)" at message end
+_QG_PATIENT_PORTAL_RE = re.compile(
+    r"全部症状[：:]|发病时间及原因|治疗情况[：:]|发病时间[：:]"
+    r"|[（(](?:男|女)[，,]?\s*\d+岁[）)][。！]?\s*$"
+)
+
+# Group 11: Baidu encyclopedia Q+A format — question word before ？ + long answer after
+# Requires a question word before ？ to avoid matching BP "170/？mmhg" or differential "肿瘤？"
+_QG_BAIDU_ENCYC_RE = re.compile(
+    r"^.{0,35}(?:什么|如何|怎么|怎样|会.{0,8}吗|能.{0,8}吗|多久|可以|为什么|是否).{0,15}[？?].{20,}"
+)
+
+
+def _is_patient_question(text: str) -> bool:
+    """Return True if the text matches any patient-question guard pattern.
+
+    Checks all 11 named sub-groups. Replaces the former monolithic
+    ``_TIER3_QUESTION_RE`` for maintainability; semantics are identical.
+    """
+    return bool(
+        _QG_COLLOQUIAL_RE.search(text)
+        or _QG_DURATION_INQUIRY_RE.search(text)
+        or _QG_ENDING_PARTICLE_RE.search(text)
+        or _QG_CONSULT_OPENER_RE.search(text)
+        or _QG_DOCTOR_ADDR_RE.search(text)
+        or _QG_FAMILY_REF_RE.search(text)
+        or _QG_KNOWLEDGE_QUERY_RE.search(text)
+        or _QG_MCQ_STEM_RE.search(text)
+        or _QG_MCQ_ENDING_RE.search(text)
+        or _QG_PATIENT_PORTAL_RE.search(text)
+        or _QG_BAIDU_ENCYC_RE.search(text)
+    )
 
 # First-person patient voice — two tiers:
 # Tier A (original): "我…怎么办/会不会/？" — explicit question
@@ -624,6 +722,22 @@ _TIER3_DOCTOR_ANCHOR_RE = re.compile(
     r"|^随访[：:,，]"
     r"|^[\u4e00-\u9fff]{2,3}(?:复查|随访)[，,]"
     # Blood pressure reading in doctor note: "120/80" — lay patients don't write this way
+    r"|\d{2,3}/\d{2,3}"
+)
+
+# Stronger anchor used only when a question pattern was already detected.
+# Excludes the bare "^患者/病人" prefix because patients can write "患者头痛怎么办？"
+# referring to themselves. Requires an unambiguously clinical signal.
+_TIER3_STRONG_DOCTOR_ANCHOR_RE = re.compile(
+    r"主诉[：:]|诊断.{0,2}[：:]|补充[：:]|记录[一下]?[：:]|录入[：:]"
+    r"|(?:患者|患儿|病人).{0,5}(?:主诉|诊断|检查|血压|血糖|体温)"
+    r"|收入我科|收入我院|门诊以.{0,10}收入"
+    r"|^[\u4e00-\u9fff]{2,3}[，,\s]*[男女](?:性)?[，,\s]*\d+岁"
+    r"|给予[\u4e00-\u9fffe-zA-Z]"
+    r"|建议(?:观察|随访|复查|门诊|住院|手术|化疗|保守)"
+    r"|排除[\u4e00-\u9fff]{1,8}(?:炎|症|癌|瘤|病|塞|梗|折)"
+    r"|^随访[：:,，]"
+    r"|^[\u4e00-\u9fff]{2,3}(?:复查|随访)[，,]"
     r"|\d{2,3}/\d{2,3}"
 )
 
@@ -707,13 +821,15 @@ def _is_clinical_tier3(text: str) -> bool:
     if _TIER3_EXAM_ENDING_RE.search(text):
         return False
 
-    # Guard: patient-question / lay-language voice — skip unless doctor anchor present
-    if _TIER3_QUESTION_RE.search(text) or _TIER3_PATIENT_VOICE_RE.match(text):
-        return bool(_TIER3_DOCTOR_ANCHOR_RE.search(text))
+    # Guard: patient-question / lay-language voice — skip unless STRONG doctor anchor.
+    # Uses _TIER3_STRONG_DOCTOR_ANCHOR_RE (excludes bare "患者" prefix) because
+    # patients can write "患者头痛怎么办？" referring to themselves.
+    if _is_patient_question(text) or _TIER3_PATIENT_VOICE_RE.match(text):
+        return bool(_TIER3_STRONG_DOCTOR_ANCHOR_RE.search(text))
 
-    # Guard: online-consultation pediatric context — skip unless doctor anchor present
+    # Guard: online-consultation pediatric context — skip unless strong doctor anchor
     if _TIER3_CONSULT_RE.search(text):
-        return bool(_TIER3_DOCTOR_ANCHOR_RE.search(text))
+        return bool(_TIER3_STRONG_DOCTOR_ANCHOR_RE.search(text))
 
     # If a doctor-voice anchor is present, trust it unconditionally — the message is
     # a clinical note and the classifier would only introduce unnecessary FNs on short
@@ -759,14 +875,21 @@ def _extract_demographics(text: str) -> tuple[Optional[str], Optional[int]]:
 
 # ── Public API ─────────────────────────────────────────────────────────────────
 
-def fast_route(text: str) -> Optional[IntentResult]:
-    """
-    Attempt to resolve intent without LLM.
+# Intents for which patient_name is meaningful and should be backfilled from session
+_PATIENT_NAME_INTENTS: frozenset[Intent] = frozenset({
+    Intent.add_record,
+    Intent.query_records,
+    Intent.update_record,
+    Intent.export_records,
+    Intent.export_outpatient_report,
+    Intent.schedule_follow_up,
+    Intent.schedule_appointment,
+    Intent.import_history,
+})
 
-    Returns IntentResult on high-confidence match, None if uncertain (LLM fallback).
-    All matches are intentionally conservative — a false negative (LLM handles it) is
-    always safer than a false positive (wrong intent served without LLM confirmation).
-    """
+
+def _fast_route_core(text: str) -> Optional[IntentResult]:
+    """Internal routing logic — no session context applied here."""
     stripped = text.strip()
     if not stripped:
         return None
@@ -866,6 +989,15 @@ def fast_route(text: str) -> Optional[IntentResult]:
                 extra_data={"follow_up_plan": f"{n_raw}{unit}后随访"},
             )
 
+    # ── Tier 2: schedule_appointment ─────────────────────────────────────────────
+    for target in (normed, stripped):
+        for pat in (_APPOINTMENT_RE, _APPOINTMENT_VERB_FIRST_RE):
+            m = pat.match(target)
+            if m:
+                appt_name = m.group(1)
+                if appt_name and appt_name not in _NON_NAME_KEYWORDS:
+                    return IntentResult(intent=Intent.schedule_appointment, patient_name=appt_name)
+
     # ── Tier 2: export_outpatient_report (卫生部 2010 标准门诊病历) ───────────
     for target in (normed, stripped):
         m = _OUTPATIENT_REPORT_RE.match(target)
@@ -892,15 +1024,15 @@ def fast_route(text: str) -> Optional[IntentResult]:
     # ── Tier 2: query_records ─────────────────────────────────────────────────
     for target in (normed, stripped):
         m = _QUERY_PREFIX_RE.match(target)
-        if m and m.group(1) not in _NON_NAME_KEYWORDS:
+        if m and m.group(1) not in _NON_NAME_KEYWORDS and m.group(1) not in _TIER3_BAD_NAME:
             return IntentResult(intent=Intent.query_records, patient_name=m.group(1))
 
         m = _QUERY_SUFFIX_RE.match(target)
-        if m and m.group(1) not in _NON_NAME_KEYWORDS:
+        if m and m.group(1) not in _NON_NAME_KEYWORDS and m.group(1) not in _TIER3_BAD_NAME:
             return IntentResult(intent=Intent.query_records, patient_name=m.group(1))
 
         m = _QUERY_NAME_QUESTION_RE.match(target)
-        if m and m.group(1) not in _NON_NAME_KEYWORDS:
+        if m and m.group(1) not in _NON_NAME_KEYWORDS and m.group(1) not in _TIER3_BAD_NAME:
             return IntentResult(intent=Intent.query_records, patient_name=m.group(1))
 
     # ── Tier 2: create_patient ────────────────────────────────────────────────
@@ -1009,11 +1141,31 @@ def fast_route(text: str) -> Optional[IntentResult]:
             continue
         if len(stripped) < rule.get("min_length", 0):
             continue
-        matched = any(p.search(stripped) for p in rule["patterns"])
-        if not matched and rule.get("keywords_any"):
-            matched = any(k in stripped for k in rule["keywords_any"])
-        if matched:
-            return IntentResult(intent=Intent[rule["intent"]])
+        matched_obj = None
+        for p in rule["patterns"]:
+            matched_obj = p.search(stripped)
+            if matched_obj:
+                break
+        if matched_obj is None and rule.get("keywords_any"):
+            if any(k in stripped for k in rule["keywords_any"]):
+                matched_obj = True  # sentinel — no group extraction possible via keywords
+        if matched_obj:
+            # Extract patient_name from regex group if configured
+            patient_name: Optional[str] = None
+            grp = rule.get("patient_name_group")
+            if grp is not None and matched_obj is not True:
+                try:
+                    candidate = matched_obj.group(grp)
+                    if candidate and candidate not in _NON_NAME_KEYWORDS and candidate not in _TIER3_BAD_NAME:
+                        patient_name = candidate
+                except (IndexError, AttributeError):
+                    pass
+            return IntentResult(
+                intent=Intent[rule["intent"]],
+                patient_name=patient_name,
+                extra_data=dict(rule.get("extra_data") or {}),
+                confidence=float(rule.get("confidence", 1.0)),
+            )
 
     # ── Tier 3: high-confidence clinical content → add_record ────────────────
     # Skips the routing LLM call entirely; structuring LLM still runs.
@@ -1021,15 +1173,73 @@ def fast_route(text: str) -> Optional[IntentResult]:
     # one term that is almost exclusively used in clinical contexts.
     if len(stripped) >= 6 and _is_clinical_tier3(stripped):
         name, gender, age = _extract_tier3_demographics(stripped)
+        is_emergency = any(kw in stripped for kw in _EMERGENCY_KW)
         return IntentResult(
             intent=Intent.add_record,
             patient_name=name,
             gender=gender,
             age=age,
+            is_emergency=is_emergency,
             confidence=0.8,
         )
 
     return None
+
+
+def fast_route(
+    text: str,
+    session: Optional["DoctorSession"] = None,
+) -> Optional[IntentResult]:
+    """
+    Attempt to resolve intent without LLM.
+
+    Returns IntentResult on high-confidence match, None if uncertain (LLM fallback).
+    All matches are intentionally conservative — a false negative (LLM handles it) is
+    always safer than a false positive (wrong intent served without LLM confirmation).
+
+    Args:
+        text: The message text to route.
+        session: Optional doctor session. When provided and the result has no
+            patient_name, the session's ``current_patient_name`` is used as a
+            fallback for intents where patient context is meaningful. This lets
+            follow-up messages like "补充：…" or "查一下" skip the LLM even when
+            the patient name is omitted from the message.
+    """
+    result = _fast_route_core(text)
+    if result is not None and session is not None:
+        result = _apply_session_context(result, session)
+    return result
+
+
+def _apply_session_context(
+    result: IntentResult,
+    session: Optional["DoctorSession"],
+) -> IntentResult:
+    """Backfill patient_name from session when the result has none.
+
+    Only applies to intents where a patient context is meaningful.
+    Never overwrites an explicitly extracted name.
+    """
+    if session is None:
+        return result
+    if result.patient_name is not None:
+        return result
+    if result.intent not in _PATIENT_NAME_INTENTS:
+        return result
+    session_name: Optional[str] = getattr(session, "current_patient_name", None)
+    if session_name:
+        result = IntentResult(
+            intent=result.intent,
+            patient_name=session_name,
+            gender=result.gender,
+            age=result.age,
+            is_emergency=result.is_emergency,
+            extra_data=result.extra_data,
+            chat_reply=result.chat_reply,
+            structured_fields=result.structured_fields,
+            confidence=result.confidence,
+        )
+    return result
 
 
 def fast_route_label(text: str) -> str:
@@ -1059,12 +1269,21 @@ def load_mined_rules(path: str) -> None:
             "patterns": ["^先记[：:]", "^早班.*记[：:]"],
             "keywords_any": ["先记", "早班记"],
             "min_length": 4,
+            "patient_name_group": 1,
+            "extra_data": {"source": "mined"},
+            "confidence": 0.9,
             "enabled": true
           }
         ]
 
-    Silently skips if the file does not exist.
+    Optional fields:
+    - ``patient_name_group``: int — regex capture group index to use as patient_name
+    - ``extra_data``: dict — static key-value pairs added to IntentResult.extra_data
+    - ``confidence``: float — confidence score (default 1.0)
+
+    Silently skips if the file does not exist. Logs errors on malformed content.
     """
+    from utils.log import log
     global _MINED_RULES
     p = Path(path)
     if not p.exists():
@@ -1072,23 +1291,33 @@ def load_mined_rules(path: str) -> None:
     try:
         raw: List[Dict[str, Any]] = json.loads(p.read_text(encoding="utf-8"))
         compiled: List[Dict[str, Any]] = []
-        for rule in raw:
+        for i, rule in enumerate(raw):
             if not isinstance(rule, dict):
+                log(f"[mined_rules] rule[{i}] is not a dict, skipping")
                 continue
             intent_name = rule.get("intent", "")
             if intent_name not in Intent.__members__:
+                log(f"[mined_rules] rule[{i}] unknown intent {intent_name!r}, skipping")
                 continue
-            patterns = [re.compile(pat) for pat in rule.get("patterns", [])]
+            try:
+                patterns = [re.compile(pat) for pat in rule.get("patterns", [])]
+            except re.error as e:
+                log(f"[mined_rules] rule[{i}] invalid pattern: {e}, skipping")
+                continue
             compiled.append({
                 "intent": intent_name,
                 "patterns": patterns,
                 "keywords_any": list(rule.get("keywords_any") or []),
                 "min_length": int(rule.get("min_length", 0)),
+                "patient_name_group": rule.get("patient_name_group"),  # int or None
+                "extra_data": dict(rule.get("extra_data") or {}),
+                "confidence": float(rule.get("confidence", 1.0)),
                 "enabled": bool(rule.get("enabled", True)),
             })
         _MINED_RULES = compiled
-    except Exception:
-        pass
+        log(f"[mined_rules] loaded {len(compiled)} rules from {path}")
+    except Exception as e:
+        log(f"[mined_rules] failed to load {path}: {e}")
 
 
 def reload_mined_rules(path: str = "data/mined_rules.json") -> int:

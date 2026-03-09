@@ -43,22 +43,30 @@ _PROVIDERS = {
 
 SYSTEM_PROMPT = (
     "你是医生助手意图识别器。分析消息并输出JSON，字段：\n"
-    "- intent: 必填，值为 create_patient / add_record / query_records / list_patients / "
-    "import_history / delete_patient / list_tasks / complete_task / schedule_appointment / "
-    "unknown\n"
+    "- intent: 必填，值为 create_patient / add_record / update_record / update_patient / "
+    "query_records / list_patients / import_history / delete_patient / list_tasks / "
+    "complete_task / schedule_appointment / export_records / export_outpatient_report / "
+    "schedule_follow_up / postpone_task / cancel_task / unknown\n"
     "- patient_name: 提到的患者姓名（字符串或null）\n"
     "- gender: 性别，男/女 或 null\n"
     "- age: 年龄数字或null\n\n"
     "规则：\n"
     "- 建档/新患者/新病人 → create_patient\n"
     "- 病历记录/症状/诊断/治疗 → add_record\n"
+    "- 刚才写错/上一条有误/主诉改为 → update_record\n"
+    "- 修改患者年龄/性别 → update_patient\n"
     "- 查询/历史记录/看一下 → query_records\n"
     "- 所有患者/患者列表 → list_patients\n"
     "- 历史病历导入/多次就诊记录/PDF病历/Word文件病历 → import_history\n"
     "- 删除患者/移除病人 → delete_patient\n"
-    "- 任务/待办/提醒 → list_tasks\n"
+    "- 任务/待办/提醒列表 → list_tasks\n"
     "- 完成任务+编号 → complete_task\n"
+    "- 取消任务+编号 → cancel_task\n"
+    "- 推迟/延迟任务+时间 → postpone_task\n"
     "- 预约/安排复诊+时间 → schedule_appointment\n"
+    "- X个月后随访/随访提醒 → schedule_follow_up\n"
+    "- 导出/打印病历 → export_records\n"
+    "- 生成标准门诊病历 → export_outpatient_report\n"
     "- 其他 → unknown\n"
     "只输出JSON，不要解释。"
 )
@@ -137,5 +145,9 @@ async def detect_intent(text: str) -> IntentResult:
     )
     raw = completion.choices[0].message.content
     log(f"[Intent:{intent_provider}] result: {raw}")
-    data = json.loads(raw)
-    return IntentResult.model_validate(data)
+    try:
+        data = json.loads(raw)
+        return IntentResult.model_validate(data)
+    except Exception as e:
+        log(f"[Intent:{intent_provider}] parse error: {e}, raw={raw!r}")
+        return IntentResult(intent=Intent.unknown)

@@ -641,9 +641,6 @@ def _intent_result_from_tool_call(fn_name: str, args: dict, chat_reply: Optional
     elif fn_name == "schedule_appointment":
         extra_data["appointment_time"] = args.get("appointment_time")
         extra_data["notes"] = args.get("notes")
-    elif fn_name == "bash":
-        extra_data["command"] = args.get("command", "")
-
     structured_fields: Optional[dict] = None
     if fn_name in ("add_medical_record", "update_medical_record"):
         _CLINICAL_KEYS = {
@@ -657,11 +654,14 @@ def _intent_result_from_tool_call(fn_name: str, args: dict, chat_reply: Optional
     elif fn_name == "add_cvd_record":
         _CVD_KEYS = {
             "diagnosis_subtype", "gcs_score", "hunt_hess_grade", "wfns_grade",
-            "fisher_grade", "ich_score", "surgery_status", "mrs_score", "suzuki_stage",
+            "fisher_grade", "modified_fisher_grade",
+            "ich_score", "nihss_score",
+            "surgery_status", "mrs_score", "suzuki_stage", "spetzler_martin_grade",
         }
         cvd_fields = {k: args[k] for k in _CVD_KEYS if args.get(k) is not None}
         if cvd_fields:
             extra_data["cvd_context"] = cvd_fields
+        extra_data["record_subtype"] = "cvd"
 
     return IntentResult(
         intent=intent,
@@ -738,6 +738,15 @@ def _fallback_intent_from_text(text: str) -> IntentResult:
 
     if any(k in text for k in ["建档", "新患者", "新病人"]):
         return IntentResult(intent=Intent.create_patient, patient_name=name, gender=gender, age=age)
+
+    if any(k in text for k in ["刚才", "上一条", "写错", "有误", "记错", "改为", "改成", "更正"]):
+        return IntentResult(intent=Intent.update_record, patient_name=name, confidence=0.7)
+
+    if any(k in text for k in ["修改", "更新", "更改"]) and any(k in text for k in ["年龄", "性别"]):
+        return IntentResult(intent=Intent.update_patient, patient_name=name, gender=gender, age=age, confidence=0.7)
+
+    if any(k in text for k in ["导入", "历史病历", "[PDF:", "[Word:", "全部就诊"]):
+        return IntentResult(intent=Intent.import_history, patient_name=name, confidence=0.7)
 
     if any(k in lower for k in ["hello", "hi", "你好"]):
         return IntentResult(intent=Intent.unknown, chat_reply="您好！有什么可以帮您？")

@@ -266,25 +266,24 @@ async def _send_customer_service_msg(
         raise RuntimeError("empty notification content")
 
     try:
+        # Single token fetch covers all paths (same credentials).
+        access_token = await _get_access_token(cfg["app_id"], cfg["app_secret"])
         chunks = _split_message(content)
         kf_id = open_kfid.strip() or cfg.get("open_kfid", "")
 
         # When open_kfid is present, always use WeCom KF send endpoint regardless of
         # is_wecom_app — external KF customer user IDs are invalid for /message/send.
+        # The WeCom custom-app token (WECOM_SECRET) has kf/send_msg permissions here.
         if kf_id:
-            access_token = await _get_kf_access_token()
             url = f"https://qyapi.weixin.qq.com/cgi-bin/kf/send_msg?access_token={access_token}"
             mode = "wecom_kf"
         elif cfg.get("is_wecom_app", False):
-            access_token = await _get_access_token(cfg["app_id"], cfg["app_secret"])
             url = f"https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token={access_token}"
             mode = "wecom_app"
         elif cfg.get("is_kf", False):
-            access_token = await _get_access_token(cfg["app_id"], cfg["app_secret"])
             url = f"https://qyapi.weixin.qq.com/cgi-bin/kf/send_msg?access_token={access_token}"
             mode = "kf"
         else:
-            access_token = await _get_access_token(cfg["app_id"], cfg["app_secret"])
             url = f"https://api.weixin.qq.com/cgi-bin/message/custom/send?access_token={access_token}"
             mode = "oa"
         log(f"[WeChat cs] sending {len(chunks)} message(s) to {to_user} mode={mode}")
