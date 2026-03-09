@@ -49,6 +49,8 @@ import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
+import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
 import { Paper, Popover } from "@mui/material";
 import { getPatients, getRecords, getTasks, patchTask, postponeTask, createTask, updateRecord, sendChat, transcribeAudio, ocrImage, getPendingRecord, confirmPendingRecord, abandonPendingRecord, getDoctorProfile, updateDoctorProfile, exportPatientPdf, exportOutpatientReport, getTemplateStatus, uploadTemplate, deleteTemplate, getCvdContext, getLabels, createLabel, deleteLabelById, assignLabelToPatient, removeLabelFromPatient } from "../api";
 import RecordFields from "../components/RecordFields";
@@ -1174,7 +1176,9 @@ function MsgBubble({ msg }) {
           bgcolor: isUser ? "#5b9bd5" : "#07C160",
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
-          <Typography sx={{ color: "#fff", fontSize: 11, fontWeight: 700 }}>{isUser ? "医" : "AI"}</Typography>
+          {isUser
+            ? <LocalHospitalOutlinedIcon sx={{ color: "#fff", fontSize: 20 }} />
+            : <SmartToyOutlinedIcon sx={{ color: "#fff", fontSize: 20 }} />}
         </Box>
         <Box sx={{ maxWidth: "72%", display: "flex", flexDirection: "column", alignItems: isUser ? "flex-end" : "flex-start" }}>
           <Box sx={{
@@ -1410,7 +1414,7 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
           isMobile
             ? <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1, px: 1.5 }}>
                 <Box sx={{ width: 36, height: 36, borderRadius: "8px", bgcolor: "#07C160", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <Typography sx={{ color: "#fff", fontSize: 11, fontWeight: 700 }}>AI</Typography>
+                  <SmartToyOutlinedIcon sx={{ color: "#fff", fontSize: 20 }} />
                 </Box>
                 <Box sx={{ px: "12px", py: "10px", borderRadius: "2px 14px 14px 14px", bgcolor: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,0.1)", display: "flex", alignItems: "center", gap: 0.5 }}>
                   {[0, 1, 2].map((i) => (
