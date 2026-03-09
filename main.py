@@ -343,9 +343,6 @@ async def _run_alembic_migrations() -> None:
     def _run_sync() -> None:
         cfg = Config("alembic.ini")
         cfg.set_main_option("script_location", "alembic")
-        # Prevent alembic from calling logging.config.fileConfig() which would
-        # reset the root logger's handlers and remove our app.log file handler.
-        cfg.attributes["configure_logger"] = False
         command.upgrade(cfg, "head")
 
     try:
