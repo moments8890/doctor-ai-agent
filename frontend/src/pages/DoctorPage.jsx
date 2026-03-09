@@ -100,7 +100,6 @@ const RECORD_TYPE_LABEL = {
 
 const NAV = [
   { key: "chat", label: "AI 助手", icon: <ChatOutlinedIcon fontSize="small" /> },
-  { key: "home", label: "首页", icon: <HomeOutlinedIcon fontSize="small" /> },
   { key: "patients", label: "患者", icon: <PeopleOutlineIcon fontSize="small" /> },
   { key: "tasks", label: "任务", icon: <AssignmentOutlinedIcon fontSize="small" /> },
   { key: "settings", label: "设置", icon: <SettingsOutlinedIcon fontSize="small" /> },
@@ -1886,7 +1885,7 @@ export default function DoctorPage() {
   const [onboardName, setOnboardName] = useState("");
   const [onboardSaving, setOnboardSaving] = useState(false);
 
-  const activeSection = patientId ? "patients" : (section || "home");
+  const activeSection = patientId ? "patients" : (section || "patients");
 
   // Check onboarding status on mount
   useEffect(() => {
@@ -2022,7 +2021,6 @@ export default function DoctorPage() {
         {activeSection !== "chat" && (
           <Box sx={{ px: isMobile ? 2 : 3, py: 1.2, borderBottom: "1px solid #e2e8f0", backgroundColor: "#fff" }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "text.secondary" }}>
-              {activeSection === "home" && "首页"}
               {activeSection === "patients" && (isMobile && patientId && selectedPatientName ? selectedPatientName : "患者管理")}
               {activeSection === "tasks" && "任务列表"}
               {activeSection === "settings" && "设置"}
@@ -2077,7 +2075,6 @@ export default function DoctorPage() {
               onPatientCreated={() => setPatientRefreshKey((k) => k + 1)}
             />
           )}
-          {activeSection === "home" && <HomeSection doctorId={doctorId} navigate={navigate} />}
           {activeSection === "patients" && (
             <PatientsSection
               doctorId={doctorId}
