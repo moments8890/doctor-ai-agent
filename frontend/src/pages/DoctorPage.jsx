@@ -908,6 +908,8 @@ function TasksSection({ doctorId }) {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
   const [patientOptions, setPatientOptions] = useState([]);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   // Postpone popover state
   const [postponeAnchor, setPostponeAnchor] = useState(null);
   const [postponeTaskId, setPostponeTaskId] = useState(null);
@@ -980,7 +982,7 @@ function TasksSection({ doctorId }) {
   }
 
   return (
-    <Box sx={{ p: 3, overflowY: "auto", height: "100%" }}>
+    <Box sx={{ p: isMobile ? 2 : 3, overflowY: "auto", height: "100%" }}>
       <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2.5 }}>
         <Typography variant="h6" sx={{ fontWeight: 700 }}>任务列表</Typography>
         {loading && <CircularProgress size={18} />}
@@ -1069,7 +1071,7 @@ function TasksSection({ doctorId }) {
       </Popover>
 
       {/* 新建任务 Dialog */}
-      <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="xs" fullWidth>
+      <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="xs" fullWidth fullScreen={isMobile}>
         <DialogTitle sx={{ fontWeight: 700 }}>新建任务</DialogTitle>
         <DialogContent dividers>
           {createError && <Alert severity="error" sx={{ mb: 2 }}>{createError}</Alert>}
@@ -1153,6 +1155,8 @@ const QUICK_COMMANDS = [
 ];
 
 function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternalInputConsumed, onPatientCreated }) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -1303,7 +1307,7 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Topbar */}
-      <Box sx={{ px: 3, py: 1.2, borderBottom: "1px solid #e2e8f0", backgroundColor: "#fff", display: "flex", alignItems: "center" }}>
+      <Box sx={{ px: isMobile ? 2 : 3, py: 1.2, borderBottom: "1px solid #e2e8f0", backgroundColor: "#fff", display: "flex", alignItems: "center" }}>
         <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "text.secondary", flex: 1 }}>{t("chat.workspaceTitle")}</Typography>
         <Tooltip title="清空对话">
           <IconButton size="small" onClick={() => setClearConfirmOpen(true)} sx={{ color: "text.secondary" }}>
@@ -1318,7 +1322,7 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
         <div ref={bottomRef} />
       </Box>
       {/* Quick commands panel */}
-      <Box sx={{ px: 1.5, pt: 0.8, pb: 0.5, borderTop: "1px solid #e2e8f0", backgroundColor: "#fafbfc" }}>
+      <Box sx={{ px: isMobile ? 1 : 1.5, pt: 0.8, pb: 0.5, borderTop: "1px solid #e2e8f0", backgroundColor: "#fafbfc" }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: commandsShown ? 0.6 : 0 }}>
           <Typography variant="caption" sx={{ color: "text.disabled", fontSize: 11, letterSpacing: 0.3 }}>快捷指令</Typography>
           <IconButton size="small" onClick={toggleCommands} sx={{ color: "text.disabled", p: 0.3 }}>
@@ -1326,7 +1330,7 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
           </IconButton>
         </Stack>
         {commandsShown && (
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.7, mb: 0.8 }}>
+          <Box sx={{ display: "flex", flexWrap: isMobile ? "nowrap" : "wrap", overflowX: isMobile ? "auto" : "visible", gap: 0.7, mb: 0.8, pb: isMobile ? 0.5 : 0, WebkitOverflowScrolling: "touch" }}>
             {QUICK_COMMANDS.map((cmd) => (
               <Box
                 key={cmd.label}
@@ -1352,7 +1356,7 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
       </Box>
 
       {/* Input */}
-      <Box sx={{ px: 2, py: 1.5, borderTop: "1px solid #e2e8f0", backgroundColor: "#fff" }}>
+      <Box sx={{ px: isMobile ? 1 : 2, py: isMobile ? 1 : 1.5, borderTop: "1px solid #e2e8f0", backgroundColor: "#fff" }}>
         {mediaError && (
           <Alert severity="error" onClose={() => setMediaError(null)} sx={{ mb: 1, py: 0 }}>
             {mediaError}
@@ -1363,7 +1367,7 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
           <input ref={fileInputRef} type="file" accept="audio/*,image/*" style={{ display: "none" }} onChange={onFileSelect} />
           <Box sx={{ flex: 1 }}>
             <TextField
-              multiline minRows={2} maxRows={6} fullWidth size="small"
+              multiline minRows={isMobile ? 1 : 2} maxRows={isMobile ? 4 : 6} fullWidth size="small"
               placeholder={t("chat.placeholder")}
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -1371,7 +1375,7 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
               disabled={mediaProcessing}
               sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.5 } }}
             />
-            {input.length > 0 && (
+            {!isMobile && input.length > 0 && (
               <Typography variant="caption" color="text.secondary" sx={{ display: "block", textAlign: "right", mt: 0.3 }}>
                 {input.length} 字
               </Typography>
@@ -1442,6 +1446,8 @@ function HomeSection({ doctorId, navigate }) {
   const [pendingTasks, setPendingTasks] = useState([]);
   const [recentRecords, setRecentRecords] = useState([]);
   const [loading, setLoading] = useState(true);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   useEffect(() => {
     Promise.all([
@@ -1464,7 +1470,7 @@ function HomeSection({ doctorId, navigate }) {
   if (loading) return <Box sx={{ p: 4, textAlign: "center" }}><CircularProgress /></Box>;
 
   return (
-    <Box sx={{ p: 3, overflowY: "auto", height: "100%" }}>
+    <Box sx={{ p: isMobile ? 2 : 3, overflowY: "auto", height: "100%" }}>
       {/* Stats */}
       <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>总览</Typography>
       <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
@@ -1557,6 +1563,8 @@ function SettingsSection({ doctorId }) {
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [msg, setMsg] = useState({ type: "", text: "" });
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const fileRef = useRef(null);
 
   const loadStatus = useCallback(() => {
@@ -1598,7 +1606,7 @@ function SettingsSection({ doctorId }) {
   }
 
   return (
-    <Box sx={{ p: 3, maxWidth: 560 }}>
+    <Box sx={{ p: isMobile ? 2 : 3, maxWidth: 560 }}>
       <Typography variant="h6" sx={{ fontWeight: 700, mb: 3 }}>设置</Typography>
 
       {/* Report template */}
@@ -1805,7 +1813,7 @@ export default function DoctorPage() {
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", pb: isMobile ? "56px" : 0 }}>
         {/* Topbar — hidden for chat (ChatSection has its own) */}
         {activeSection !== "chat" && (
-          <Box sx={{ px: 3, py: 1.5, borderBottom: "1px solid #e2e8f0", backgroundColor: "#fff" }}>
+          <Box sx={{ px: isMobile ? 2 : 3, py: 1.2, borderBottom: "1px solid #e2e8f0", backgroundColor: "#fff" }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "text.secondary" }}>
               {activeSection === "home" && "首页"}
               {activeSection === "patients" && (isMobile && patientId && selectedPatientName ? selectedPatientName : "患者管理")}
@@ -1822,21 +1830,38 @@ export default function DoctorPage() {
           </Alert>
         )}
         {pendingRecord && (
-          <Alert severity="warning" sx={{ mx: 2, mt: 1.5, borderRadius: 1.5 }}
-            action={
-              <Stack direction="row" spacing={1} flexShrink={0}>
-                <Button size="small" color="success" variant="contained" onClick={handleConfirmPending}>确认保存</Button>
-                <Button size="small" color="error" variant="outlined" onClick={handleAbandonPending}>撤销</Button>
+          isMobile ? (
+            <Box sx={{ mx: 1.5, mt: 1, p: 1.5, borderRadius: 1.5, backgroundColor: "#fffbeb", border: "1px solid #fcd34d" }}>
+              <Typography variant="caption" sx={{ fontWeight: 700, display: "block", mb: 0.3 }}>⚠️ 待确认病历草稿</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                {pendingRecord.patient_name || "未关联"}：{pendingRecord.content_preview}
+                {pendingRecord.expires_at && (() => {
+                  const mins = Math.max(0, Math.round((new Date(pendingRecord.expires_at) - Date.now()) / 60000));
+                  return mins > 0 ? `（${mins}分钟后过期）` : "（即将过期）";
+                })()}
+              </Typography>
+              <Stack direction="row" spacing={1}>
+                <Button size="small" color="success" variant="contained" fullWidth onClick={handleConfirmPending}>确认保存</Button>
+                <Button size="small" color="error" variant="outlined" fullWidth onClick={handleAbandonPending}>撤销</Button>
               </Stack>
-            }
-          >
-            <AlertTitle>待确认病历草稿</AlertTitle>
-            患者：{pendingRecord.patient_name || "未关联"} · {pendingRecord.content_preview}
-            {pendingRecord.expires_at && (() => {
-              const mins = Math.max(0, Math.round((new Date(pendingRecord.expires_at) - Date.now()) / 60000));
-              return mins > 0 ? <Typography component="span" variant="caption" sx={{ ml: 1, color: "warning.dark" }}>（{mins} 分钟后过期）</Typography> : <Typography component="span" variant="caption" sx={{ ml: 1, color: "error.main" }}>（即将过期）</Typography>;
-            })()}
-          </Alert>
+            </Box>
+          ) : (
+            <Alert severity="warning" sx={{ mx: 2, mt: 1.5, borderRadius: 1.5 }}
+              action={
+                <Stack direction="row" spacing={1} flexShrink={0}>
+                  <Button size="small" color="success" variant="contained" onClick={handleConfirmPending}>确认保存</Button>
+                  <Button size="small" color="error" variant="outlined" onClick={handleAbandonPending}>撤销</Button>
+                </Stack>
+              }
+            >
+              <AlertTitle>待确认病历草稿</AlertTitle>
+              患者：{pendingRecord.patient_name || "未关联"} · {pendingRecord.content_preview}
+              {pendingRecord.expires_at && (() => {
+                const mins = Math.max(0, Math.round((new Date(pendingRecord.expires_at) - Date.now()) / 60000));
+                return mins > 0 ? <Typography component="span" variant="caption" sx={{ ml: 1, color: "warning.dark" }}>（{mins} 分钟后过期）</Typography> : <Typography component="span" variant="caption" sx={{ ml: 1, color: "error.main" }}>（即将过期）</Typography>;
+              })()}
+            </Alert>
+          )
         )}
 
         {/* Section content */}
