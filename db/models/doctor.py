@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import ForeignKey, Index, Integer, String, DateTime, Text
+from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, DateTime, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from db.engine import Base
 from db.models.base import _utcnow
@@ -65,7 +65,7 @@ class ChatArchive(Base):
     __tablename__ = "chat_archive"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False, index=True)
+    doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False)
     role: Mapped[str] = mapped_column(String(16), nullable=False)  # user | assistant
     content: Mapped[str] = mapped_column(Text, nullable=False)
     intent_label: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)  # human review annotation
@@ -81,7 +81,7 @@ class DoctorConversationTurn(Base):
     __tablename__ = "doctor_conversation_turns"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False, index=True)
+    doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False)
     role: Mapped[str] = mapped_column(String(16), nullable=False)  # user | assistant | system
     content: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
@@ -98,7 +98,7 @@ class InviteCode(Base):
     code: Mapped[str] = mapped_column(String(32), primary_key=True)
     doctor_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     doctor_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    active: Mapped[bool] = mapped_column(Integer, nullable=False, default=1)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
 

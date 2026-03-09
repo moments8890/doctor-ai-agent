@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Optional, List
-from sqlalchemy import ForeignKey, Index, Integer, String, DateTime, Text, Table, Column, PrimaryKeyConstraint
+from sqlalchemy import ForeignKey, Index, Integer, String, DateTime, Text, Table, Column, PrimaryKeyConstraint, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from db.engine import Base
 from db.models.base import _utcnow
@@ -25,7 +25,7 @@ class Patient(Base):
     __tablename__ = "patients"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    doctor_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     gender: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
     year_of_birth: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
@@ -36,6 +36,7 @@ class Patient(Base):
     category_tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)   # JSON list
 
     __table_args__ = (
+        Index("ix_patients_doctor_created", "doctor_id", "created_at"),
         Index("ix_patients_doctor_category", "doctor_id", "primary_category"),
     )
 
@@ -53,13 +54,18 @@ class PatientLabel(Base):
     __tablename__ = "patient_labels"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    doctor_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False)
     name: Mapped[str] = mapped_column(String(64), nullable=False)
     color: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
     patients: Mapped[List["Patient"]] = relationship(
         "Patient", secondary=patient_label_assignments, back_populates="labels"
+    )
+
+    __table_args__ = (
+        Index("ix_labels_doctor_created", "doctor_id", "created_at"),
+        UniqueConstraint("doctor_id", "name", name="uq_labels_doctor_name"),
     )
 
     def __str__(self) -> str:
