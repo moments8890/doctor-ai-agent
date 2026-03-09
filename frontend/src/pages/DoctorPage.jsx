@@ -1443,7 +1443,7 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
         <div ref={bottomRef} />
       </Box>
       {/* Quick commands panel */}
-      <Box sx={{ px: isMobile ? 0.5 : 1.5, pt: 0.8, pb: isMobile ? 0 : 0.5, borderTop: "1px solid #e5e5e5", backgroundColor: "#f7f7f7" }}>
+      <Box sx={{ px: isMobile ? 0.5 : 1.5, pt: 0.5, pb: isMobile ? 0.3 : 0.4, borderTop: "1px solid #e5e5e5", backgroundColor: "#f7f7f7" }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: commandsShown ? 0.6 : 0 }}>
           <Typography sx={{ color: "#888", fontSize: 11, fontWeight: 600 }}>常用命令</Typography>
           <IconButton size="small" onClick={toggleCommands} sx={{ color: "text.disabled", p: 0.3 }}>
@@ -1459,25 +1459,25 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
                 onClick={() => setInput(cmd.insert)}
                 sx={{
                   display: "inline-flex", flexDirection: isMobile ? "column" : "row", alignItems: "center", justifyContent: "center",
-                  gap: isMobile ? 0.4 : 0.5,
-                  px: isMobile ? 0.5 : 1.4, py: isMobile ? 1 : 0.8,
-                  borderRadius: isMobile ? "8px" : "16px",
+                  gap: isMobile ? 0.3 : 0.5,
+                  px: isMobile ? 0.3 : 1.2, py: isMobile ? 0.5 : 0.5,
+                  borderRadius: isMobile ? "8px" : "14px",
                   border: isMobile ? "none" : "1px solid #e5e5e5",
                   backgroundColor: isMobile ? "transparent" : "#fff",
-                  cursor: "pointer", fontSize: isMobile ? 11 : 12, color: "#555",
+                  cursor: "pointer", fontSize: isMobile ? 10 : 11, color: "#555",
                   fontFamily: "inherit", lineHeight: 1.3, whiteSpace: "nowrap", width: "100%",
-                  minHeight: isMobile ? 60 : 34,
+                  minHeight: isMobile ? 46 : 28,
                   transition: "all 0.1s",
                   "&:hover": { backgroundColor: isMobile ? "rgba(0,0,0,0.04)" : "#f0f7ff" },
                   "&:active": { opacity: 0.7, transform: "scale(0.96)" },
                 }}
               >
                 {isMobile ? (
-                  <Box sx={{ width: 44, height: 44, borderRadius: "10px", bgcolor: "#f2f2f2", display: "flex", alignItems: "center", justifyContent: "center", mb: 0.2 }}>
-                    <span style={{ fontSize: 22 }}>{cmd.icon}</span>
+                  <Box sx={{ width: 32, height: 32, borderRadius: "8px", bgcolor: "#f2f2f2", display: "flex", alignItems: "center", justifyContent: "center", mb: 0.2 }}>
+                    <span style={{ fontSize: 17 }}>{cmd.icon}</span>
                   </Box>
                 ) : (
-                  <span style={{ fontSize: 13 }}>{cmd.icon}</span>
+                  <span style={{ fontSize: 12 }}>{cmd.icon}</span>
                 )}
                 {cmd.label}
               </Box>
