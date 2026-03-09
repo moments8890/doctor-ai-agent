@@ -664,6 +664,7 @@ async def test_handle_intent_bg_uses_context_and_fallback():
     clear_pending_record_id(DOCTOR)
     clear_pending_create(DOCTOR)
     with patch("routers.wechat.get_session_lock", return_value=DummyLock()), \
+         patch("routers.wechat.hydrate_session_state", new=AsyncMock()), \
          patch("routers.wechat.maybe_compress", new=AsyncMock()), \
          patch("routers.wechat.load_context_message", new=AsyncMock(return_value={"role": "system", "content": "ctx"})), \
          patch("routers.wechat._handle_intent", new=AsyncMock(side_effect=RuntimeError("x"))), \
@@ -680,6 +681,7 @@ async def test_handle_intent_bg_pending_create_bypasses_llm():
     clear_pending_record_id(DOCTOR)
     set_pending_create(DOCTOR, "章三")
     with patch("routers.wechat.get_session_lock", return_value=DummyLock()), \
+         patch("routers.wechat.hydrate_session_state", new=AsyncMock()), \
          patch("routers.wechat._handle_pending_create", new=AsyncMock(return_value="好的，章三已建档（男、17岁）。")) as pending_mock, \
          patch("routers.wechat._handle_intent", new=AsyncMock()) as intent_mock, \
          patch("routers.wechat.push_turn") as push_turn, \

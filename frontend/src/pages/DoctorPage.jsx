@@ -264,7 +264,9 @@ function RecordCard({ record, doctorId, onUpdated }) {
             {RECORD_FIELDS.map(({ key, label }) => current[key] ? (
               <Box key={key}>
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: "block" }}>{label}</Typography>
-                <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>{current[key]}</Typography>
+                <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
+                  {key === "record_type" ? (RECORD_TYPE_LABEL[current[key]] || current[key]) : current[key]}
+                </Typography>
               </Box>
             ) : null)}
           </Stack>

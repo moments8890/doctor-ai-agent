@@ -673,11 +673,8 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
         async with AsyncSessionLocal() as db:
             _candidates = await find_patients_by_exact_name(db, doctor_id, name)
         if _yob is not None:
-            patient = next((p for p in _candidates if p.year_of_birth == _yob), None)
-            if patient is None and not _candidates:
-                patient = None  # no name match at all → create
-            elif patient is None and _candidates:
-                patient = None  # same name, different DOB → treat as new patient
+            yob_match = next((p for p in _candidates if p.year_of_birth == _yob), None)
+            patient = yob_match or (_candidates[0] if _candidates else None)
         else:
             patient = _candidates[0] if _candidates else None
 
@@ -715,7 +712,8 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
                 # Strip leading patient-creation preamble so the structuring LLM
                 # receives clean clinical text, not "帮我录入一个新病人，张三，男…"
                 _create_preamble_re = re.compile(
-                    r"^(?:帮我?|请)?(?:录入|建立|新建|建档).*?(?:新病人|新患者|患者|病人)"
+                    r"^(?:帮我?|请)?(?:录入|建立|新建|建档)"
+                    r"(?:.*?(?:新病人|新患者|患者|病人))?"  # optional keyword
                     r"\s*[，,]?\s*[\u4e00-\u9fff]{2,4}\s*[，,]?"
                     r"(?:\s*[男女](?:性)?\s*[，,]?)?"
                     r"(?:\s*\d+\s*岁\s*[，,。]?)?\s*",
