@@ -15,8 +15,10 @@ from db.crud import get_runtime_token, upsert_runtime_token
 from db.engine import AsyncSessionLocal
 from utils.log import log
 
-# Access token cache
+# Access token cache (WeCom app / WeChat OA)
 _token_cache: dict = {"token": "", "expires_at": 0.0}
+# Separate cache for WeCom KF access tokens (different corpsecret → different token/permissions)
+_kf_token_cache: dict = {"token": "", "expires_at": 0.0}
 
 
 def _env_first(*names: str) -> str:
@@ -132,6 +134,44 @@ async def _get_access_token(app_id: str, app_secret: str) -> str:
         return _token_cache["token"]
 
 
+async def _get_kf_access_token() -> str:
+    """Get a WeCom KF access token using WECHAT_KF_CORP_ID + WECHAT_KF_SECRET.
+
+    Uses a separate in-memory cache (_kf_token_cache) to avoid colliding with the
+    WeCom custom-app token (_token_cache) when both share the same corp_id.
+    The KF token may have different API permissions (e.g. kf/send_msg access).
+    Falls back to the regular _get_access_token path if KF credentials are absent.
+    """
+    kf_corp_id = os.environ.get("WECHAT_KF_CORP_ID", "").strip()
+    kf_secret = os.environ.get("WECHAT_KF_SECRET", "").strip()
+    if not kf_corp_id or not kf_secret:
+        # Fall back: no dedicated KF credentials — reuse whatever is configured
+        cfg = _get_config()
+        return await _get_access_token(cfg["app_id"], cfg["app_secret"])
+
+    now = time.time()
+    if _kf_token_cache["token"] and now < _kf_token_cache["expires_at"]:
+        log(f"[WeChat KF token] using cached KF token (expires in {int(_kf_token_cache['expires_at'] - now)}s)")
+        return _kf_token_cache["token"]
+
+    # Fetch fresh token with KF credentials
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            "https://qyapi.weixin.qq.com/cgi-bin/gettoken",
+            params={"corpid": kf_corp_id, "corpsecret": kf_secret},
+        )
+        if hasattr(resp, "raise_for_status"):
+            resp.raise_for_status()
+        data = resp.json()
+    if not isinstance(data, dict) or "access_token" not in data:
+        raise RuntimeError(f"WeChat KF token fetch failed: {data}")
+    ttl_seconds = max(1, int(data.get("expires_in", 7200)) - 60)
+    _kf_token_cache["token"] = data["access_token"]
+    _kf_token_cache["expires_at"] = now + ttl_seconds
+    log(f"[WeChat KF token] fetched new KF token (expires in {ttl_seconds}s)")
+    return _kf_token_cache["token"]
+
+
 def _split_message(text: str, limit: int = 600) -> List[str]:
     if len(text) <= limit:
         return [text]
@@ -226,33 +266,39 @@ async def _send_customer_service_msg(
         raise RuntimeError("empty notification content")
 
     try:
-        access_token = await _get_access_token(cfg["app_id"], cfg["app_secret"])
         chunks = _split_message(content)
-        kf_id = ""
-        if cfg.get("is_wecom_app", False):
-            url = f"https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token={access_token}"
-        elif cfg.get("is_kf", False):
-            kf_id = open_kfid.strip() or cfg["open_kfid"]
-            if not kf_id:
-                raise RuntimeError("WECHAT_KF_OPEN_KFID not configured for WeChat KF send")
+        kf_id = open_kfid.strip() or cfg.get("open_kfid", "")
+
+        # When open_kfid is present, always use WeCom KF send endpoint regardless of
+        # is_wecom_app — external KF customer user IDs are invalid for /message/send.
+        if kf_id:
+            access_token = await _get_kf_access_token()
             url = f"https://qyapi.weixin.qq.com/cgi-bin/kf/send_msg?access_token={access_token}"
+            mode = "wecom_kf"
+        elif cfg.get("is_wecom_app", False):
+            access_token = await _get_access_token(cfg["app_id"], cfg["app_secret"])
+            url = f"https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token={access_token}"
+            mode = "wecom_app"
+        elif cfg.get("is_kf", False):
+            access_token = await _get_access_token(cfg["app_id"], cfg["app_secret"])
+            url = f"https://qyapi.weixin.qq.com/cgi-bin/kf/send_msg?access_token={access_token}"
+            mode = "kf"
         else:
+            access_token = await _get_access_token(cfg["app_id"], cfg["app_secret"])
             url = f"https://api.weixin.qq.com/cgi-bin/message/custom/send?access_token={access_token}"
-        log(
-            f"[WeChat cs] sending {len(chunks)} message(s) to {to_user} "
-            f"mode={'wecom_app' if cfg.get('is_wecom_app', False) else 'kf' if cfg.get('is_kf', False) else 'oa'}"
-        )
+            mode = "oa"
+        log(f"[WeChat cs] sending {len(chunks)} message(s) to {to_user} mode={mode}")
         async with httpx.AsyncClient() as client:
             for i, chunk in enumerate(chunks):
-                if cfg.get("is_wecom_app", False):
+                if kf_id:
+                    payload = {"touser": to_user, "msgtype": "text", "open_kfid": kf_id, "text": {"content": chunk}}
+                elif cfg.get("is_wecom_app", False):
                     payload = {
                         "touser": to_user,
                         "msgtype": "text",
                         "agentid": int(cfg["agent_id"]),
                         "text": {"content": chunk},
                     }
-                elif cfg.get("is_kf", False):
-                    payload = {"touser": to_user, "msgtype": "text", "open_kfid": kf_id, "text": {"content": chunk}}
                 else:
                     payload = {"touser": to_user, "msgtype": "text", "text": {"content": chunk}}
                 resp = await client.post(url, json=payload)
