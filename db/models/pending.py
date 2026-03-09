@@ -18,7 +18,7 @@ class PendingRecord(Base):
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False)
-    patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id"), nullable=True)
+    patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id", ondelete="SET NULL"), nullable=True)
     patient_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     draft_json: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="awaiting")

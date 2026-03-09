@@ -18,17 +18,18 @@ class DoctorTask(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False, index=True)
     patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id", ondelete="CASCADE"), nullable=True)
-    record_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("medical_records.id"), nullable=True)
+    record_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("medical_records.id", ondelete="SET NULL"), nullable=True)
     task_type: Mapped[str] = mapped_column(String(32), nullable=False)  # follow_up | emergency | appointment
     title: Mapped[str] = mapped_column(String(256), nullable=False)
     content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")  # pending | completed | cancelled
     due_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=True)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=_utcnow, nullable=True)
 
     __table_args__ = (
         Index("ix_tasks_doctor_status_due", "doctor_id", "status", "due_at"),
+        Index("ix_tasks_status_due", "status", "due_at"),  # scheduler: list_due_unnotified queries across all doctors
     )
 
     def __str__(self) -> str:
