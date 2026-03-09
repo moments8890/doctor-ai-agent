@@ -117,26 +117,22 @@ async def maybe_compress(doctor_id: str, sess: "DoctorSession") -> None:
 
     reason = "full" if full else "idle"
     log(f"[Memory:{doctor_id}] compressing ({reason}): {len(history)} messages")
-    succeeded = False
     try:
         summary = await _summarise(history)
         async with AsyncSessionLocal() as db:
             await upsert_doctor_context(db, doctor_id, summary)
         log(f"[Memory:{doctor_id}] saved summary: {summary[:80]}")
-        succeeded = True
-    except Exception as e:
-        log(f"[Memory:{doctor_id}] compression FAILED: {e}")
-    finally:
-        # Always clear the in-memory window to avoid retrying on every message.
-        # Only clear DB turns on success — on failure they survive for reboot recovery.
-        sess.conversation_history = []
+        sess.conversation_history = []   # only clear on success
         sess.last_active = time.time()
-        if succeeded:
-            try:
-                async with AsyncSessionLocal() as db:
-                    await clear_conversation_turns(db, doctor_id)
-            except Exception as e:
-                log(f"[Memory:{doctor_id}] clear persisted turns FAILED: {e}")
+        log("[Memory] compressed conversation history successfully")
+        try:
+            async with AsyncSessionLocal() as db:
+                await clear_conversation_turns(db, doctor_id)
+        except Exception as e:
+            log(f"[Memory:{doctor_id}] clear persisted turns FAILED: {e}")
+    except Exception as e:
+        log(f"[Memory] compression failed, keeping history: {e}")
+        # DO NOT clear history here
 
 
 def _render_structured_summary(data: dict) -> str:

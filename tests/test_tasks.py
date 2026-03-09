@@ -600,13 +600,13 @@ async def test_dispatch_list_tasks_intent(mock_llm):
 
 
 async def test_dispatch_complete_task_intent(mock_llm):
-    mock_llm.return_value = _make_tool_call("complete_task", {"task_id": 7})
+    mock_llm.return_value = _make_tool_call("manage_task", {"task_id": 7, "action": "complete"})
     result = await dispatch("完成任务7")
     assert result.intent == Intent.complete_task
 
 
 async def test_dispatch_complete_task_extra_data(mock_llm):
-    mock_llm.return_value = _make_tool_call("complete_task", {"task_id": 42})
+    mock_llm.return_value = _make_tool_call("manage_task", {"task_id": 42, "action": "complete"})
     result = await dispatch("完成任务42")
     assert result.extra_data.get("task_id") == 42
 

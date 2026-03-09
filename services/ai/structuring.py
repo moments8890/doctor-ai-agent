@@ -85,6 +85,10 @@ _SEED_PROMPT = """\
     · 常见：{"NIHSS": 8, "GCS": 14, "mRS": 3, "Hunt-Hess": 2, "ICH_score": 4}
     · 若原文用中文"X分"或罗马数字（如"II级"）表达，转为阿拉伯数字
     · 未提及的评分不得填入，无评分时省略此字段
+
+【示例】
+输入："患者王女士38岁，主诉头痛3天，血压150/90，心率88。诊断高血压病。开阿司匹林100mg qd，3个月后复查。"
+输出：{"content":"患者主诉头痛3天。血压150/90 mmHg，心率88次/分。诊断：高血压病。处置：阿司匹林100mg qd。随访：3个月后复查。","tags":["头痛","高血压病","阿司匹林100mg","随访3个月"],"record_type":"outpatient","specialty_scores":null}
 """
 
 _CONSULTATION_SUFFIX = """
@@ -215,6 +219,17 @@ async def structure_medical_record(
     log(f"[LLM:{provider_name}] response: {raw}")
     with trace_block("llm", "structuring.parse_response"):
         data = json.loads(raw)
+
+    # Validate minimum required fields are present
+    _required_fields = {"content", "tags"}
+    _missing = _required_fields - set(data.keys() if isinstance(data, dict) else [])
+    if _missing:
+        log(f"[Structuring] WARNING: LLM response missing fields {_missing}; raw={raw[:200]!r}")
+        if "content" not in data:
+            data["content"] = text[:300]  # fall back to raw text
+        if "tags" not in data:
+            data["tags"] = []
+
     if isinstance(data, list):
         data = data[0] if data else {}
 
@@ -231,7 +246,7 @@ async def structure_medical_record(
     # Hard fallback: content must never be empty
     if not (data.get("content") or "").strip():
         stripped = re.sub(r'^[\u4e00-\u9fff]{2,4}[，,]?(男|女)?[，,]?\d+岁[，,]?', '', text).strip()
-        data["content"] = stripped[:200] or "门诊就诊"
+        data["content"] = stripped[:200] or text[:300]
         log(f"[LLM:{provider_name}] content was empty, derived from input")
 
     # Ensure tags is a list of strings

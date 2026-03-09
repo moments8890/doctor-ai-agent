@@ -105,7 +105,14 @@ class IntentResult(BaseModel):
 
 
 async def detect_intent(text: str) -> IntentResult:
+    """[DEPRECATED] Standalone LLM intent classifier — not used in the active message flow.
+    The main routing path uses services/ai/agent.py::dispatch() instead.
+    Kept for offline debugging and evaluation only.
+    """
     intent_provider = os.environ.get("INTENT_PROVIDER", "local")
+    if intent_provider not in _PROVIDERS:
+        log(f"[Intent] unknown INTENT_PROVIDER={intent_provider!r}, falling back to 'ollama'")
+        intent_provider = "ollama"
 
     provider = _PROVIDERS[intent_provider]
     log(f"[Intent:{intent_provider}] detecting: {text[:80]}")

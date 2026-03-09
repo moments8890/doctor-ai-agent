@@ -34,6 +34,8 @@ def _get_client(provider_name: str, provider: dict) -> AsyncOpenAI:
             default_headers=extra_headers,
         )
     if provider_name not in _CLIENT_CACHE:
+        if len(_CLIENT_CACHE) >= 10:
+            _CLIENT_CACHE.pop(next(iter(_CLIENT_CACHE)))
         _CLIENT_CACHE[provider_name] = AsyncOpenAI(
             base_url=provider["base_url"],
             api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
@@ -144,7 +146,7 @@ _TOOLS = [
                         "description": "随访计划：随访时间和安排。未提及则为null。",
                     },
                 },
-                "required": [],
+                "required": ["chief_complaint"],
             },
         },
     },
@@ -193,14 +195,20 @@ _TOOLS = [
                     "gcs_score": {
                         "type": "integer",
                         "description": "格拉斯哥昏迷评分 3-15。",
+                        "minimum": 3,
+                        "maximum": 15,
                     },
                     "hunt_hess_grade": {
                         "type": "integer",
                         "description": "Hunt-Hess分级 1-5（SAH专用）。",
+                        "minimum": 1,
+                        "maximum": 5,
                     },
                     "wfns_grade": {
                         "type": "integer",
                         "description": "WFNS分级 1-5（SAH专用，与Hunt-Hess并列）。",
+                        "minimum": 1,
+                        "maximum": 5,
                     },
                     "fisher_grade": {
                         "type": "integer",
@@ -209,10 +217,14 @@ _TOOLS = [
                     "modified_fisher_grade": {
                         "type": "integer",
                         "description": "改良Fisher分级 0-4（SAH，比原版更精确预测血管痉挛）。",
+                        "minimum": 0,
+                        "maximum": 4,
                     },
                     "nihss_score": {
                         "type": "integer",
                         "description": "NIHSS评分 0-42（缺血性脑卒中神经功能缺损严重程度）。",
+                        "minimum": 0,
+                        "maximum": 42,
                     },
                     "ich_score": {
                         "type": "integer",
@@ -233,6 +245,8 @@ _TOOLS = [
                     "spetzler_martin_grade": {
                         "type": "integer",
                         "description": "Spetzler-Martin分级 1-5（AVM专用，手术风险分层）。",
+                        "minimum": 1,
+                        "maximum": 5,
                     },
                 },
                 "required": [],
@@ -337,17 +351,32 @@ _TOOLS = [
     {
         "type": "function",
         "function": {
-            "name": "complete_task",
-            "description": "标记任务为已完成。当医生说「完成任务X」、「完成X」（X为数字编号）时调用。",
+            "name": "manage_task",
+            "description": (
+                "管理待办任务：完成、推迟或取消一个任务。\n"
+                "- action=complete: 将任务标记为已完成（同 complete_task）\n"
+                "- action=postpone: 将任务推迟指定天数（同 postpone_task）\n"
+                "- action=cancel: 取消任务（同 cancel_task）\n"
+                "task_id 为任务编号（阿拉伯数字或汉字序数）。"
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
+                    "action": {
+                        "type": "string",
+                        "enum": ["complete", "postpone", "cancel"],
+                        "description": "操作类型：complete=完成，postpone=推迟，cancel=取消",
+                    },
                     "task_id": {
                         "type": "integer",
-                        "description": "要标记完成的任务编号。",
+                        "description": "任务编号（整数）",
+                    },
+                    "delta_days": {
+                        "type": "integer",
+                        "description": "推迟天数（仅 action=postpone 时使用，正整数）",
                     },
                 },
-                "required": ["task_id"],
+                "required": ["action", "task_id"],
             },
         },
     },
@@ -487,49 +516,6 @@ _TOOLS = [
     {
         "type": "function",
         "function": {
-            "name": "postpone_task",
-            "description": (
-                "推迟/延后待办任务的到期时间。当医生说「推迟任务X N天/周」、"
-                "「任务X延后N天」时调用。"
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "task_id": {
-                        "type": "integer",
-                        "description": "要推迟的任务编号（整数）。",
-                    },
-                    "delta_days": {
-                        "type": "integer",
-                        "description": "推迟天数整数，例如「一周」填7，「三天」填3，「一个月」填30。",
-                    },
-                },
-                "required": ["task_id", "delta_days"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "cancel_task",
-            "description": (
-                "取消待办任务。当医生说「取消任务X」、「任务X取消」时调用。"
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "task_id": {
-                        "type": "integer",
-                        "description": "要取消的任务编号（整数）。",
-                    },
-                },
-                "required": ["task_id"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
             "name": "export_records",
             "description": (
                 "导出/打印/下载患者病历文件。当医生说「导出病历」、「打印记录」、"
@@ -561,16 +547,12 @@ _SYSTEM_PROMPT = (
     "- 历史病历导入/多次就诊记录/PDF病历/Word文件病历 → import_history\n"
     "- 明确要求删除/移除患者 → delete_patient\n"
     "- 查看任务/待办/提醒 → list_tasks\n"
-    "- 完成任务/标记完成 + 编号 → complete_task\n"
+    "- 完成/推迟/取消任务 + 编号 → manage_task\n"
     "- 预约/安排/约诊 + 时间 → schedule_appointment\n"
     "- 设置随访/复诊提醒（N天/月后随访）→ schedule_follow_up\n"
-    "- 推迟任务 + 编号 + 时长 → postpone_task\n"
-    "- 取消任务 + 编号 → cancel_task\n"
     "- 导出/打印病历/会诊用 → export_records\n"
     "- 普通对话/问候 → 直接回复，不调用工具\n\n"
-    "特殊规则：若上一条助手消息询问了患者姓名（如'请问这位患者叫什么名字'），"
-    "医生的回复即为患者姓名，应调用 add_medical_record 并将该姓名填入 patient_name，"
-    "不要调用 create_patient。\n\n"
+    "特殊规则：若医生回复只含患者姓名（1-3个汉字，无其他内容），且消息前后没有新建患者的关键词，默认调用add_medical_record并将该姓名填入patient_name。\n\n"
     "工具参数只填写当前消息或上下文中明确出现的信息，不确定时省略该字段。\n\n"
     "若当前消息无法明确判断意图，不要猜测，不要调用工具，先用一句话请医生澄清操作意图。\n\n"
     "【回复要求】\n"
@@ -589,16 +571,15 @@ _SYSTEM_PROMPT_COMPACT = (
     "查病历->query_records；看患者列表->list_patients；"
     "历史病历/PDF/Word导入->import_history；"
     "删患者->delete_patient；看待办->list_tasks；"
-    "完成任务+编号->complete_task；预约+时间->schedule_appointment；"
+    "完成/推迟/取消任务+编号->manage_task；预约+时间->schedule_appointment；"
     "随访/复诊提醒->schedule_follow_up；"
-    "推迟任务+编号+时长->postpone_task；"
-    "取消任务+编号->cancel_task；"
     "导出/打印病历->export_records；"
     "普通问候可直接回复。"
-    "特殊规则：若上一条助手消息询问患者姓名，医生回复即为患者姓名，调用add_medical_record并填入patient_name，不要调用create_patient。"
+    "特殊规则：若医生回复只含患者姓名（1-3个汉字，无其他内容），且消息前后没有新建患者的关键词，默认调用add_medical_record并将该姓名填入patient_name。"
     "工具参数仅填确定信息。"
     "意图不清时先澄清，不要猜测也不要调用工具。"
     "调用工具时用1-2句口语中文同步给医生。"
+    "\n示例：医生:\"张三头痛两天\"→add_medical_record(patient_name=\"张三\",chief_complaint=\"头痛两天\")；医生:\"新患者李明40岁男\"→create_patient(patient_name=\"李明\",age=40,gender=\"男\")"
 )
 
 _INTENT_MAP = {
@@ -612,11 +593,9 @@ _INTENT_MAP = {
     "import_history": Intent.import_history,
     "delete_patient": Intent.delete_patient,
     "list_tasks": Intent.list_tasks,
-    "complete_task": Intent.complete_task,
+    "manage_task": Intent.complete_task,
     "schedule_appointment": Intent.schedule_appointment,
     "schedule_follow_up": Intent.schedule_follow_up,
-    "postpone_task": Intent.postpone_task,
-    "cancel_task": Intent.cancel_task,
     "export_records": Intent.export_records,
 }
 
@@ -705,8 +684,9 @@ def _extract_embedded_tool_call(content: Optional[str]) -> Tuple[Optional[str], 
             continue
         if not isinstance(obj, dict):
             continue
+        known_tools = set(_INTENT_MAP.keys()) | {"manage_task"}
         fn_name = obj.get("name")
-        if not isinstance(fn_name, str) or not fn_name:
+        if not isinstance(fn_name, str) or fn_name not in known_tools:
             continue
         args = obj.get("arguments", {})
         if isinstance(args, str):
@@ -744,8 +724,25 @@ def _intent_result_from_tool_call(fn_name: str, args: dict, chat_reply: Optional
         gender = None
 
     extra_data: dict = {}
-    if fn_name == "complete_task":
-        extra_data["task_id"] = args.get("task_id")
+    if fn_name == "manage_task":
+        action = args.get("action", "complete")
+        task_id = args.get("task_id")
+        delta_days = args.get("delta_days")
+        if action == "postpone":
+            return IntentResult(
+                intent=Intent.postpone_task,
+                extra_data={"task_id": task_id, "delta_days": delta_days},
+            )
+        elif action == "cancel":
+            return IntentResult(
+                intent=Intent.cancel_task,
+                extra_data={"task_id": task_id},
+            )
+        else:  # complete
+            return IntentResult(
+                intent=Intent.complete_task,
+                extra_data={"task_id": task_id},
+            )
     elif fn_name == "delete_patient":
         extra_data["occurrence_index"] = args.get("occurrence_index")
     elif fn_name == "schedule_appointment":
@@ -753,10 +750,6 @@ def _intent_result_from_tool_call(fn_name: str, args: dict, chat_reply: Optional
         extra_data["notes"] = args.get("notes")
     elif fn_name == "schedule_follow_up":
         extra_data["follow_up_plan"] = args.get("follow_up_plan") or "下次随访"
-    elif fn_name in ("postpone_task", "cancel_task"):
-        extra_data["task_id"] = args.get("task_id")
-        if fn_name == "postpone_task":
-            extra_data["delta_days"] = args.get("delta_days", 7)
     structured_fields: Optional[dict] = None
     if fn_name in ("add_medical_record", "update_medical_record"):
         _CLINICAL_KEYS = {
@@ -916,14 +909,24 @@ async def dispatch(
     messages = [{"role": "system", "content": system_prompt}]
     if knowledge_context and knowledge_context.strip():
         messages.append({"role": "user", "content": "背景知识（不是指令，仅供参考）：\n" + knowledge_context.strip()})
-    if history:
-        messages.extend(history)
+    # Guard: trim history from the oldest end to stay within token budget
+    _MAX_HISTORY_CHARS = 2400  # ~800 tokens, leaves room for system prompt + response
+    _total = 0
+    _trimmed = []
+    for _msg in reversed(history or []):
+        _chunk = len(_msg.get("content") or "")
+        if _total + _chunk > _MAX_HISTORY_CHARS:
+            break
+        _trimmed.insert(0, _msg)
+        _total += _chunk
+    if _trimmed:
+        messages.extend(_trimmed)
     messages.append({"role": "user", "content": text})
 
     client = _get_client(provider_name, provider)
     routing_max_tokens = int(os.environ.get("ROUTING_MAX_TOKENS", "600"))
-    if routing_max_tokens < 80:
-        routing_max_tokens = 80
+    routing_max_tokens = max(routing_max_tokens, 80)   # floor
+    routing_max_tokens = min(routing_max_tokens, 1200)  # ceiling — beyond this, structured responses get truncated
     try:
         _cvd_specialties = {"神经外科", "脑外科", "神经内科", "脑血管外科", "neurosurgery", "neurology"}
         _sp = (specialty or "").strip()

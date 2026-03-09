@@ -137,18 +137,18 @@ async def test_compress_clears_history_when_idle(mock_summarise, mock_upsert, mo
 
 
 # ---------------------------------------------------------------------------
-# maybe_compress — always clears history, even on LLM failure
+# maybe_compress — keeps history when compression fails (safe fallback)
 # ---------------------------------------------------------------------------
 
 
-async def test_compress_clears_history_even_if_llm_fails(mock_upsert):
+async def test_compress_keeps_history_when_llm_fails(mock_upsert):
     with patch("services.ai.memory._summarise", new_callable=AsyncMock, side_effect=RuntimeError("LLM down")):
         sess = get_session(DOCTOR_A)
         sess.conversation_history = list(FULL_HISTORY)
         sess.last_active = time.time()
         await maybe_compress(DOCTOR_A, sess)
-    # History must be cleared regardless of error
-    assert sess.conversation_history == []
+    # History must be preserved on failure so the context is not lost
+    assert sess.conversation_history == list(FULL_HISTORY)
 
 
 # ---------------------------------------------------------------------------
