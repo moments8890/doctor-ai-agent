@@ -156,6 +156,7 @@ async def structure_medical_record(
     text: str,
     consultation_mode: bool = False,
     encounter_type: str = "unknown",
+    prior_visit_summary: Optional[str] = None,
 ) -> MedicalRecord:
     provider_name = os.environ.get("STRUCTURING_LLM", "deepseek")
     provider = _PROVIDERS.get(provider_name)
@@ -197,13 +198,17 @@ async def structure_medical_record(
         system_prompt = system_prompt + _CONSULTATION_SUFFIX
     if encounter_type == "follow_up":
         system_prompt = system_prompt + _FOLLOWUP_SUFFIX
+    user_content = text
+    if prior_visit_summary:
+        user_content = f"【上次就诊参考】\n{prior_visit_summary}\n\n【本次记录】\n{text}"
+
     async def _call(model_name: str):
         with trace_block("llm", "structuring.chat_completion", {"provider": provider_name, "model": model_name}):
             return await client.chat.completions.create(
                 model=model_name,
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": text},
+                    {"role": "user", "content": user_content},
                 ],
                 response_format={"type": "json_object"},
                 max_tokens=1500,

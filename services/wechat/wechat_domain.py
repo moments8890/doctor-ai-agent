@@ -163,7 +163,18 @@ async def handle_add_record(
             doctor_ctx = [m["content"] for m in (history or [])[-10:] if m["role"] == "user"]
             doctor_ctx.append(text)
             _enc_type = "follow_up" if detect_followup_from_text(text) else "unknown"
-            record = await structure_medical_record("\n".join(doctor_ctx), encounter_type=_enc_type)
+            _prior_summary: Optional[str] = None
+            if _enc_type == "follow_up" and patient_id is not None:
+                from services.patient.prior_visit import get_prior_visit_summary
+                try:
+                    _prior_summary = await get_prior_visit_summary(doctor_id, patient_id)
+                except Exception:
+                    pass
+            record = await structure_medical_record(
+                "\n".join(doctor_ctx),
+                encounter_type=_enc_type,
+                prior_visit_summary=_prior_summary,
+            )
         except ValueError:
             return "没能识别病历内容，请重新描述一下。"
         except Exception as e:

@@ -652,7 +652,7 @@ async def test_admin_apply_runtime_config():
 
 async def test_admin_tables_returns_all_table_counts():
     # One scalar result per DB query in admin_tables execution order.
-    side_effects = [SimpleNamespace(scalar=lambda i=i: i) for i in range(1, 20)]
+    side_effects = [SimpleNamespace(scalar=lambda i=i: i) for i in range(1, 25)]
     db = SimpleNamespace(execute=AsyncMock(side_effect=side_effects))
     with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)):
         data = await ui.admin_tables()
