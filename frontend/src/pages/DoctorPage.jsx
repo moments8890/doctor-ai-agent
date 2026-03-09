@@ -700,6 +700,25 @@ function PatientDetail({ patient, doctorId }) {
 
 // ─── Patient list panel ─────────────────────────────────────────────────────
 
+const AVATAR_COLORS = ["#07C160","#5b9bd5","#e8833a","#9b59b6","#e74c3c","#16a085","#d35400","#8e44ad","#2980b9","#c0392b"];
+function nameColor(name) {
+  let h = 0;
+  for (let i = 0; i < (name||"").length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+function PatientAvatar({ name, size = 42 }) {
+  return (
+    <Box sx={{ width: size, height: size, borderRadius: "50%", flexShrink: 0, bgcolor: nameColor(name), display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <Typography sx={{ color: "#fff", fontSize: size * 0.42, fontWeight: 600, lineHeight: 1 }}>{(name||"?")[0]}</Typography>
+    </Box>
+  );
+}
+function groupPatients(list) {
+  const groups = {};
+  list.forEach(p => { const k = (p.name||"#")[0]; (groups[k] = groups[k]||[]).push(p); });
+  return Object.entries(groups).sort(([a],[b]) => a.localeCompare(b, "zh-CN"));
+}
+
 function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatientSelected, refreshKey = 0 }) {
   const { patientId } = useParams();
   const navigate = useNavigate();
@@ -751,34 +770,26 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
   // Mobile: full-width patient list (no split layout)
   if (isMobile) {
     return (
-      <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-        <Box sx={{ p: 1.5, borderBottom: "1px solid #e2e8f0" }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-            患者管理{patients.length > 0 ? ` (${patients.length})` : ""}
-          </Typography>
+      <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
+        <Box sx={{ px: 1.5, py: 1, borderBottom: "1px solid #e2e8f0", bgcolor: "#f7f7f7" }}>
           <TextField
-            size="small" fullWidth placeholder="搜索患者姓名"
+            size="small" fullWidth placeholder={`搜索患者${patients.length > 0 ? ` (共${patients.length}人)` : ""}`}
             value={search} onChange={(e) => setSearch(e.target.value)}
             InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
+            sx={{ "& .MuiOutlinedInput-root": { borderRadius: "20px", bgcolor: "#fff" } }}
           />
         </Box>
         {error && <Alert severity="error" action={<Button size="small" onClick={load}>重试</Button>}>{error}</Alert>}
-        <Box sx={{ flex: 1, overflowY: "auto", p: 1 }}>
+        <Box sx={{ flex: 1, overflowY: "auto", bgcolor: "#fff" }}>
           {loading && <Box sx={{ p: 2, textAlign: "center" }}><CircularProgress size={20} /></Box>}
           {!loading && filtered.length === 0 && !error && (
             search.trim() ? (
               <Box sx={{ p: 2 }}>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  未找到患者「{search.trim()}」。说「建档{search.trim()}」可创建新患者。
+                  未找到患者「{search.trim()}」
                 </Typography>
-                <Chip
-                  label={`建档${search.trim()}`}
-                  size="small"
-                  clickable
-                  color="primary"
-                  variant="outlined"
-                  onClick={() => { onInsertChatText?.(`建档${search.trim()}`); onNavigateToChat?.(); }}
-                />
+                <Chip label={`建档 ${search.trim()}`} size="small" clickable color="primary" variant="outlined"
+                  onClick={() => { onInsertChatText?.(`建档${search.trim()}`); onNavigateToChat?.(); }} />
               </Box>
             ) : (
               <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 6, gap: 1.5 }}>
@@ -790,32 +801,35 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
               </Box>
             )
           )}
-          {filtered.map((p) => {
-            const age = p.year_of_birth ? new Date().getFullYear() - p.year_of_birth : null;
-            const isSelected = p.id === selectedId;
-            return (
-              <Card
-                key={p.id}
-                variant="outlined"
-                onClick={() => navigate(`/doctor/patients/${p.id}`)}
-                sx={{
-                  mb: 0.8, borderRadius: 1.5, cursor: "pointer",
-                  borderColor: isSelected ? "primary.main" : "divider",
-                  backgroundColor: isSelected ? "primary.50" : "background.paper",
-                  "&:hover": { borderColor: "primary.main", backgroundColor: "primary.50" },
-                }}
-              >
-                <CardContent sx={{ py: 1.8, px: 1.5, "&:last-child": { pb: 1.8 } }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>{p.name}</Typography>
-                  <Stack direction="row" spacing={1} sx={{ mt: 0.4 }} flexWrap="wrap">
-                    {p.gender && <Typography variant="caption" color="text.secondary">{{ male: "男", female: "女" }[p.gender] || p.gender}</Typography>}
-                    {age && <Typography variant="caption" color="text.secondary">{age} 岁</Typography>}
-                    <Typography variant="caption" color="text.secondary">{p.record_count} 份病历</Typography>
-                  </Stack>
-                </CardContent>
-              </Card>
-            );
-          })}
+          {groupPatients(filtered).map(([letter, group]) => (
+            <Box key={letter}>
+              <Box sx={{ px: 2, py: 0.5, bgcolor: "#f7f7f7", borderBottom: "1px solid #ebebeb" }}>
+                <Typography sx={{ fontSize: 12, color: "#888", fontWeight: 600 }}>{letter}</Typography>
+              </Box>
+              {group.map((p, idx) => {
+                const age = p.year_of_birth ? new Date().getFullYear() - p.year_of_birth : null;
+                const isSelected = p.id === selectedId;
+                return (
+                  <Box key={p.id} onClick={() => navigate(`/doctor/patients/${p.id}`)}
+                    sx={{
+                      display: "flex", alignItems: "center", gap: 1.5,
+                      px: 2, py: 1.2, bgcolor: isSelected ? "#f0faf4" : "#fff",
+                      borderBottom: idx < group.length - 1 ? "1px solid #f2f2f2" : "none",
+                      cursor: "pointer", "&:active": { bgcolor: "#f5f5f5" },
+                    }}>
+                    <PatientAvatar name={p.name} />
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography sx={{ fontWeight: 500, fontSize: "15px" }}>{p.name}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {[p.gender ? ({ male: "男", female: "女" }[p.gender] || p.gender) : null, age ? `${age}岁` : null, `${p.record_count}份病历`].filter(Boolean).join(" · ")}
+                      </Typography>
+                    </Box>
+                    {isSelected && <Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: "#07C160", flexShrink: 0 }} />}
+                  </Box>
+                );
+              })}
+            </Box>
+          ))}
         </Box>
       </Box>
     );
@@ -825,36 +839,28 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
   return (
     <Box sx={{ display: "flex", height: "100%", overflow: "hidden" }}>
       {/* Left: patient list */}
-      <Box sx={{ width: 320, flexShrink: 0, borderRight: "1px solid #e2e8f0", display: "flex", flexDirection: "column" }}>
-        <Box sx={{ p: 1.5, borderBottom: "1px solid #e2e8f0" }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-            患者管理{patients.length > 0 ? ` (${patients.length})` : ""}
-          </Typography>
+      <Box sx={{ width: 300, flexShrink: 0, borderRight: "1px solid #e2e8f0", display: "flex", flexDirection: "column", bgcolor: "#f7f7f7" }}>
+        <Box sx={{ px: 1.5, py: 1, borderBottom: "1px solid #e2e8f0", bgcolor: "#f7f7f7" }}>
           <TextField
-            size="small" fullWidth placeholder="搜索患者姓名"
+            size="small" fullWidth placeholder={`搜索患者${patients.length > 0 ? ` (共${patients.length}人)` : ""}`}
             value={search} onChange={(e) => setSearch(e.target.value)}
             InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
+            sx={{ "& .MuiOutlinedInput-root": { borderRadius: "20px", bgcolor: "#fff" } }}
           />
         </Box>
 
         {error && <Alert severity="error" action={<Button size="small" onClick={load}>重试</Button>}>{error}</Alert>}
 
-        <Box sx={{ flex: 1, overflowY: "auto", p: 1 }}>
+        <Box sx={{ flex: 1, overflowY: "auto", bgcolor: "#fff" }}>
           {loading && <Box sx={{ p: 2, textAlign: "center" }}><CircularProgress size={20} /></Box>}
           {!loading && filtered.length === 0 && !error && (
             search.trim() ? (
               <Box sx={{ p: 2 }}>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  未找到患者「{search.trim()}」。说「建档{search.trim()}」可创建新患者。
+                  未找到患者「{search.trim()}」
                 </Typography>
-                <Chip
-                  label={`建档${search.trim()}`}
-                  size="small"
-                  clickable
-                  color="primary"
-                  variant="outlined"
-                  onClick={() => { onInsertChatText?.(`建档${search.trim()}`); onNavigateToChat?.(); }}
-                />
+                <Chip label={`建档 ${search.trim()}`} size="small" clickable color="primary" variant="outlined"
+                  onClick={() => { onInsertChatText?.(`建档${search.trim()}`); onNavigateToChat?.(); }} />
               </Box>
             ) : (
               <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 6, gap: 1.5 }}>
@@ -866,32 +872,37 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
               </Box>
             )
           )}
-          {filtered.map((p) => {
-            const age = p.year_of_birth ? new Date().getFullYear() - p.year_of_birth : null;
-            const isSelected = p.id === selectedId;
-            return (
-              <Card
-                key={p.id}
-                variant="outlined"
-                onClick={() => navigate(`/doctor/patients/${p.id}`)}
-                sx={{
-                  mb: 0.8, borderRadius: 1.5, cursor: "pointer",
-                  borderColor: isSelected ? "primary.main" : "divider",
-                  backgroundColor: isSelected ? "primary.50" : "background.paper",
-                  "&:hover": { borderColor: "primary.main", backgroundColor: "primary.50" },
-                }}
-              >
-                <CardContent sx={{ py: 1.8, px: 1.5, "&:last-child": { pb: 1.8 } }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>{p.name}</Typography>
-                  <Stack direction="row" spacing={1} sx={{ mt: 0.4 }} flexWrap="wrap">
-                    {p.gender && <Typography variant="caption" color="text.secondary">{{ male: "男", female: "女" }[p.gender] || p.gender}</Typography>}
-                    {age && <Typography variant="caption" color="text.secondary">{age} 岁</Typography>}
-                    <Typography variant="caption" color="text.secondary">{p.record_count} 份病历</Typography>
-                  </Stack>
-                </CardContent>
-              </Card>
-            );
-          })}
+          {groupPatients(filtered).map(([letter, group]) => (
+            <Box key={letter}>
+              <Box sx={{ px: 2, py: 0.5, bgcolor: "#f7f7f7", borderBottom: "1px solid #ebebeb" }}>
+                <Typography sx={{ fontSize: 12, color: "#888", fontWeight: 600 }}>{letter}</Typography>
+              </Box>
+              {group.map((p, idx) => {
+                const age = p.year_of_birth ? new Date().getFullYear() - p.year_of_birth : null;
+                const isSelected = p.id === selectedId;
+                return (
+                  <Box key={p.id} onClick={() => navigate(`/doctor/patients/${p.id}`)}
+                    sx={{
+                      display: "flex", alignItems: "center", gap: 1.5,
+                      px: 2, py: 1.2, bgcolor: isSelected ? "#f0faf4" : "#fff",
+                      borderBottom: idx < group.length - 1 ? "1px solid #f2f2f2" : "none",
+                      cursor: "pointer",
+                      "&:hover": { bgcolor: "#f5f5f5" },
+                      "&:active": { bgcolor: "#ebebeb" },
+                    }}>
+                    <PatientAvatar name={p.name} size={38} />
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography sx={{ fontWeight: 500, fontSize: "14px" }}>{p.name}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {[p.gender ? ({ male: "男", female: "女" }[p.gender] || p.gender) : null, age ? `${age}岁` : null, `${p.record_count}份病历`].filter(Boolean).join(" · ")}
+                      </Typography>
+                    </Box>
+                    {isSelected && <Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: "#07C160", flexShrink: 0 }} />}
+                  </Box>
+                );
+              })}
+            </Box>
+          ))}
         </Box>
       </Box>
 
