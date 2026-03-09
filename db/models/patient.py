@@ -38,6 +38,7 @@ class Patient(Base):
     __table_args__ = (
         Index("ix_patients_doctor_created", "doctor_id", "created_at"),
         Index("ix_patients_doctor_category", "doctor_id", "primary_category"),
+        Index("ix_patients_name", "name"),
     )
 
     records: Mapped[List["MedicalRecordDB"]] = relationship("MedicalRecordDB", back_populates="patient")

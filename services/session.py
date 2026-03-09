@@ -31,7 +31,8 @@ def _utcnow() -> datetime:
 _sessions: dict[str, "DoctorSession"] = {}
 
 _locks: Dict[str, asyncio.Lock] = {}
-_loaded_from_db: set[str] = set()
+_HYDRATION_TTL_SECONDS = 300  # Re-hydrate from DB every 5 min (multi-device freshness)
+_loaded_from_db: dict[str, float] = {}  # doctor_id → monotonic time of last hydration
 _persist_tasks: Dict[str, asyncio.Task] = {}
 _persist_turn_tasks: Dict[str, asyncio.Task] = {}
 _pending_turns: Dict[str, List[dict]] = {}
@@ -71,14 +72,24 @@ def get_session(doctor_id: str) -> DoctorSession:
 
 
 async def hydrate_session_state(doctor_id: str) -> DoctorSession:
-    """Load persistent session state once per doctor into in-memory session."""
+    """Load persistent session state from DB into in-memory session.
+
+    Re-hydrates every _HYDRATION_TTL_SECONDS (5 min) so that a doctor
+    switching devices picks up the latest persisted state without waiting for
+    the old in-memory entry to be evicted.
+    """
+    _now_mono = time.monotonic()
     with _registry_lock:
-        already_loaded = doctor_id in _loaded_from_db
+        last_loaded = _loaded_from_db.get(doctor_id, 0.0)
+        already_loaded = (_now_mono - last_loaded) < _HYDRATION_TTL_SECONDS
     if already_loaded:
         return get_session(doctor_id)
 
     async with get_session_lock(doctor_id):
-        if doctor_id in _loaded_from_db:
+        # Double-check inside lock — another coroutine may have hydrated first.
+        with _registry_lock:
+            last_loaded = _loaded_from_db.get(doctor_id, 0.0)
+        if (_now_mono - last_loaded) < _HYDRATION_TTL_SECONDS:
             return get_session(doctor_id)
 
         sess = get_session(doctor_id)
@@ -100,7 +111,8 @@ async def hydrate_session_state(doctor_id: str) -> DoctorSession:
                         from datetime import timezone as _tz
                         _pr = await _get_pr(db, _restored_pending_id, doctor_id)
                         _now = __import__("datetime").datetime.now(_tz.utc).replace(tzinfo=None)
-                        _expired = _pr is not None and _pr.expires_at and _pr.expires_at.replace(tzinfo=None) <= _now
+                        from datetime import timedelta as _td
+                        _expired = _pr is not None and _pr.expires_at and _pr.expires_at.replace(tzinfo=None) <= (_now - _td(seconds=5))
                         if _pr is None or _pr.status != "awaiting" or _expired:
                             _restored_pending_id = None
                     sess.pending_record_id = _restored_pending_id
@@ -110,6 +122,30 @@ async def hydrate_session_state(doctor_id: str) -> DoctorSession:
                         sess.current_patient_name = patient.name if patient is not None else None
                     else:
                         sess.current_patient_name = None
+                    # Restore in-progress interview and CVD scale sessions
+                    import json as _json
+                    _interview_json = getattr(state, "interview_json", None)
+                    if _interview_json:
+                        try:
+                            _iv = _json.loads(_interview_json)
+                            iv_state = InterviewState()
+                            iv_state.step = int(_iv.get("step", 0))
+                            iv_state.answers = dict(_iv.get("answers", {}))
+                            sess.interview = iv_state
+                        except Exception:
+                            sess.interview = None
+                    _cvd_json = getattr(state, "cvd_scale_json", None)
+                    if _cvd_json:
+                        try:
+                            _cvd = _json.loads(_cvd_json)
+                            sess.pending_cvd_scale = CVDScaleSession(
+                                record_id=_cvd["record_id"],
+                                patient_id=_cvd.get("patient_id"),
+                                field_name=_cvd["field_name"],
+                                subtype=_cvd["subtype"],
+                            )
+                        except Exception:
+                            sess.pending_cvd_scale = None
 
                 # Recover recent conversation turns so another instance can continue context.
                 turns = await get_recent_conversation_turns(db, doctor_id, limit=MAX_TURNS * 2)
@@ -121,13 +157,32 @@ async def hydrate_session_state(doctor_id: str) -> DoctorSession:
         except Exception as e:
             log(f"[Session] hydrate FAILED: {e}")
         with _registry_lock:
-            _loaded_from_db.add(doctor_id)
+            _loaded_from_db[doctor_id] = time.monotonic()
         return sess
 
 
 async def persist_session_state(doctor_id: str) -> None:
     """Persist minimal session context so deployment restarts can restore it."""
+    import json as _json
     sess = get_session(doctor_id)
+    # Serialize optional mid-session states
+    interview_json: Optional[str] = None
+    if sess.interview is not None:
+        try:
+            interview_json = _json.dumps({"step": sess.interview.step, "answers": sess.interview.answers})
+        except Exception:
+            pass
+    cvd_scale_json: Optional[str] = None
+    if sess.pending_cvd_scale is not None:
+        try:
+            cvd_scale_json = _json.dumps({
+                "record_id": sess.pending_cvd_scale.record_id,
+                "patient_id": sess.pending_cvd_scale.patient_id,
+                "field_name": sess.pending_cvd_scale.field_name,
+                "subtype": sess.pending_cvd_scale.subtype,
+            })
+        except Exception:
+            pass
     try:
         async with AsyncSessionLocal() as db:
             await upsert_doctor_session_state(
@@ -136,6 +191,8 @@ async def persist_session_state(doctor_id: str) -> None:
                 current_patient_id=sess.current_patient_id,
                 pending_create_name=sess.pending_create_name,
                 pending_record_id=sess.pending_record_id,
+                interview_json=interview_json,
+                cvd_scale_json=cvd_scale_json,
             )
     except Exception as e:
         log(f"[Session] persist FAILED: {e}")
@@ -285,7 +342,7 @@ def prune_inactive_sessions(max_idle_seconds: int = 3600) -> Dict[str, int]:
             if (now - float(session.last_active)) < idle_threshold:
                 continue
             _sessions.pop(doctor_id, None)
-            _loaded_from_db.discard(doctor_id)
+            _loaded_from_db.pop(doctor_id, None)
             _pending_turns.pop(doctor_id, None)
             evicted += 1
 

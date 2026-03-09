@@ -49,7 +49,7 @@ async def _build_compress_prompt() -> str:
     return template.format(today=date.today().isoformat())
 
 
-async def _summarise(history: List[dict]) -> str:
+async def _summarise(history: List[dict], specialty: Optional[str] = None) -> str:
     """Call LLM to compress a conversation into a structured clinical context."""
     from services.ai.llm_client import _PROVIDERS  # shared provider registry
     from services.ai.agent import _get_client  # reuse singleton client
@@ -65,10 +65,13 @@ async def _summarise(history: List[dict]) -> str:
     _JSON_FORMAT_PROVIDERS = {"deepseek", "openai", "gemini", "tencent_lkeap"}
 
     async def _call(model_name: str):
+        _prompt = await _build_compress_prompt()
+        if specialty and specialty.strip():
+            _prompt = f"【医生专科：{specialty.strip()}】\n" + _prompt
         kwargs: dict = dict(
             model=model_name,
             messages=[
-                {"role": "system", "content": await _build_compress_prompt()},
+                {"role": "system", "content": _prompt},
                 {"role": "user", "content": turns_text},
             ],
             max_tokens=int(os.environ.get("MEMORY_MAX_TOKENS", "400")),
@@ -89,14 +92,20 @@ async def _summarise(history: List[dict]) -> str:
         op_name="memory.chat_completion",
     )
     raw = (completion.choices[0].message.content or "").strip()
-    # Validate that the LLM returned JSON; if not, keep as plain-text fallback.
+    _REQUIRED_SUMMARY_FIELDS = {"current_patient", "active_diagnoses", "current_medications",
+                                 "allergies", "key_lab_values", "recent_action", "pending"}
     try:
         parsed = json.loads(raw)
         if isinstance(parsed, dict):
-            return raw  # valid structured summary
+            _missing = _REQUIRED_SUMMARY_FIELDS - set(parsed.keys())
+            if _missing:
+                log(f"[Memory] compression output missing fields {_missing}; keeping raw")
+            if "key_lab_values" not in parsed or not parsed.get("key_lab_values"):
+                log("[Memory] WARNING: key_lab_values absent from compression output — lab values may be lost")
+            return raw  # valid structured summary (even if fields missing — log only, don't abort)
     except (json.JSONDecodeError, TypeError):
         pass
-    return raw  # plain-text fallback (older format or model variance)
+    return raw  # plain-text fallback
 
 
 async def maybe_compress(doctor_id: str, sess: "DoctorSession") -> None:
@@ -110,15 +119,19 @@ async def maybe_compress(doctor_id: str, sess: "DoctorSession") -> None:
         return
 
     full = len(history) >= MAX_TURNS * 2   # each turn = 2 messages
+    # Also compress when estimated token count exceeds budget (~3 chars per token, 4K window)
+    _TOKEN_BUDGET = int(os.environ.get("MEMORY_TOKEN_BUDGET", "3600"))
+    _est_tokens = sum(len(m.get("content") or "") for m in history) // 3
+    token_full = _est_tokens >= _TOKEN_BUDGET
     idle = (time.time() - sess.last_active) > IDLE_SECONDS
 
-    if not full and not idle:
+    if not full and not token_full and not idle:
         return
 
-    reason = "full" if full else "idle"
+    reason = "full" if full else ("token_budget" if token_full else "idle")
     log(f"[Memory:{doctor_id}] compressing ({reason}): {len(history)} messages")
     try:
-        summary = await _summarise(history)
+        summary = await _summarise(history, specialty=sess.specialty)
         async with AsyncSessionLocal() as db:
             await upsert_doctor_context(db, doctor_id, summary)
         log(f"[Memory:{doctor_id}] saved summary: {summary[:80]}")

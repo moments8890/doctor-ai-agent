@@ -52,6 +52,7 @@ _SEED_PROMPT = """\
 【严禁虚构】只能使用原文中明确出现的信息，不得推断或补充任何未提及的内容。
 · 规范化仅限于纠正语音识别错误（同音字、断句错误），不得将模糊描述（"有点高""用了点药"）替换为具体数值或具体药名
 · 阴性发现（"未见异常""否认胸痛"）和方位描述（"左侧""双侧"）须原样保留，不得省略
+· 阴性示例：输入"否认发热、咳嗽" → content 保留"否认发热、咳嗽"，不得改写为"无发热、咳嗽"或省略
 · 过敏信息（如"青霉素过敏"）视为高优先级临床信息，必须保留在 content 中
 
 【输出格式】只输出合法 JSON 对象，不加任何解释或 markdown，包含以下字段：
@@ -117,7 +118,8 @@ _FOLLOWUP_SUFFIX = """
 
 【严禁推断基线】content 只记录本次就诊中明确陈述的数据，不得根据"控制不错""好多了"等描述性语言推断具体数值，不得补充上次就诊的数据（除非医生本次明确引用）。
 
-content 以「复诊：」开头，简洁记录间期变化；慢性基础病可一句带过（如"高血压病史"），无需重复既往完整病史和用药。"""
+content 以「复诊：」开头，简洁记录间期变化；慢性基础病可一句带过（如"高血压病史"），无需重复既往完整病史和用药。
+· 示例（无变化）：输入"没什么新情况，血压还行" → content: "复诊：患者自述无新发症状，血压控制尚可。"，不得补充具体血压数值。"""
 
 _FOLLOWUP_KEYWORDS = frozenset({
     "复诊", "随访", "复查", "上次", "那次", "上回", "继续上次",
@@ -208,17 +210,50 @@ async def structure_medical_record(
     fallback_model = None
     if provider_name == "ollama":
         fallback_model = os.environ.get("OLLAMA_FALLBACK_MODEL", "qwen2.5:7b")
-    completion = await call_with_retry_and_fallback(
-        _call,
-        primary_model=provider["model"],
-        fallback_model=fallback_model,
-        max_attempts=int(os.environ.get("STRUCTURING_LLM_ATTEMPTS", "3")),
-        op_name="structuring.chat_completion",
-    )
-    raw = completion.choices[0].message.content
+    try:
+        completion = await call_with_retry_and_fallback(
+            _call,
+            primary_model=provider["model"],
+            fallback_model=fallback_model,
+            max_attempts=int(os.environ.get("STRUCTURING_LLM_ATTEMPTS", "3")),
+            op_name="structuring.chat_completion",
+        )
+    except Exception as _ollama_err:
+        _cloud_fallback = os.environ.get("OLLAMA_CLOUD_FALLBACK", "").strip() if provider_name == "ollama" else ""
+        if not _cloud_fallback:
+            raise
+        log(f"[LLM:ollama] all retries failed ({_ollama_err}); trying cloud fallback={_cloud_fallback}")
+        _cloud_provider = _PROVIDERS.get(_cloud_fallback)
+        if _cloud_provider is None:
+            raise
+        _cloud_provider = dict(_cloud_provider)
+        _cloud_client = _get_structuring_client(_cloud_fallback, _cloud_provider)
+        async def _cloud_call(model_name: str):
+            with trace_block("llm", "structuring.chat_completion", {"provider": _cloud_fallback, "model": model_name}):
+                return await _cloud_client.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_content},
+                    ],
+                    response_format={"type": "json_object"},
+                    max_tokens=1500,
+                    temperature=0,
+                )
+        completion = await call_with_retry_and_fallback(
+            _cloud_call,
+            primary_model=_cloud_provider["model"],
+            max_attempts=2,
+            op_name="structuring.chat_completion.cloud_fallback",
+        )
+    raw = completion.choices[0].message.content or ""
     log(f"[LLM:{provider_name}] response: {raw}")
     with trace_block("llm", "structuring.parse_response"):
-        data = json.loads(raw)
+        try:
+            data = json.loads(raw)
+        except (json.JSONDecodeError, TypeError) as _e:
+            log(f"[LLM:{provider_name}] JSON parse FAILED ({_e}); falling back to raw text")
+            data = {"content": text[:500], "tags": []}
 
     # Validate minimum required fields are present
     _required_fields = {"content", "tags"}

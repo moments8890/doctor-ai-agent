@@ -87,12 +87,18 @@ async def call_with_retry_and_fallback(
     max_attempts: int = 3,
     backoff_seconds: Optional[Sequence[float]] = None,
     op_name: str = "llm_call",
+    circuit_key_suffix: str = "",
 ) -> T:
-    """Retry LLM calls with exponential backoff and circuit breaker support."""
+    """Retry LLM calls with exponential backoff and circuit breaker support.
+
+    circuit_key_suffix: optional discriminator (e.g. doctor_id) for per-entity circuits.
+    When set, failures from one entity cannot open the circuit for others.
+    """
     attempts = max(1, int(max_attempts))
-    backoff = list(backoff_seconds or (1.0, 2.0, 4.0))
+    backoff = list(backoff_seconds or (0.5, 1.0))
     last_error: Optional[Exception] = None
-    primary_key = _circuit_key(op_name, primary_model)
+    _key_base = "{0}:{1}".format(op_name, primary_model)
+    primary_key = "{0}:{1}".format(_key_base, circuit_key_suffix) if circuit_key_suffix else _key_base
 
     if _is_circuit_open(primary_key):
         last_error = RuntimeError("circuit_open model={0} op={1}".format(primary_model, op_name))
@@ -121,7 +127,8 @@ async def call_with_retry_and_fallback(
                 await asyncio.sleep(delay)
 
     if fallback_model and fallback_model != primary_model and last_error:
-        fallback_key = _circuit_key(op_name, fallback_model)
+        _fb_key_base = "{0}:{1}".format(op_name, fallback_model)
+        fallback_key = "{0}:{1}".format(_fb_key_base, circuit_key_suffix) if circuit_key_suffix else _fb_key_base
         if _is_circuit_open(fallback_key):
             raise RuntimeError("circuit_open model={0} op={1}".format(fallback_model, op_name))
 

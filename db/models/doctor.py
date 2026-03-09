@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, DateTime, Text
+from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, DateTime, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from db.engine import Base
 from db.models.base import _utcnow
@@ -16,7 +16,7 @@ class DoctorContext(Base):
     """Persistent compressed memory for a doctor — survives server restarts."""
     __tablename__ = "doctor_contexts"
 
-    doctor_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), primary_key=True)
     summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
@@ -36,10 +36,12 @@ class DoctorSessionState(Base):
     """Persistent light session state for each doctor/external user."""
     __tablename__ = "doctor_session_states"
 
-    doctor_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), primary_key=True)
     current_patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id", ondelete="SET NULL"), nullable=True)
     pending_create_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     pending_record_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    interview_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    cvd_scale_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
 
@@ -47,7 +49,7 @@ class DoctorNotifyPreference(Base):
     """Per-doctor notification mode and cadence controls."""
     __tablename__ = "doctor_notify_preferences"
 
-    doctor_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), primary_key=True)
     notify_mode: Mapped[str] = mapped_column(String(16), nullable=False, default="auto")  # auto | manual
     schedule_type: Mapped[str] = mapped_column(String(16), nullable=False, default="immediate")  # immediate | interval | cron
     interval_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
@@ -96,10 +98,13 @@ class InviteCode(Base):
     __tablename__ = "invite_codes"
 
     code: Mapped[str] = mapped_column(String(32), primary_key=True)
-    doctor_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    doctor_id: Mapped[Optional[str]] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="SET NULL"), nullable=True, index=True)
     doctor_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    max_uses: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    used_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
 
 class Doctor(Base):

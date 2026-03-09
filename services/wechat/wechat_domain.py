@@ -129,27 +129,35 @@ async def handle_add_record(
     patient_id = None
     patient_name = None
     new_patient_created = False
-    async with AsyncSessionLocal() as session:
-        if intent_result.patient_name:
-            patient = await find_patient_by_name(session, doctor_id, intent_result.patient_name)
-            if patient:
-                patient_id = patient.id
-                patient_name = patient.name
-                set_current_patient(doctor_id, patient.id, patient.name)
-            else:
-                patient = await create_patient(
-                    session, doctor_id, intent_result.patient_name, intent_result.gender, intent_result.age
-                )
-                patient_id = patient.id
-                patient_name = patient.name
-                new_patient_created = True
-                set_current_patient(doctor_id, patient.id, patient.name)
-                log(f"[WeChat] auto-created patient [{patient_name}] id={patient_id}")
+    # Fast path: if the requested patient name matches the in-session current patient, skip DB lookup
+    _sess_check = get_session(doctor_id)
+    if (intent_result.patient_name and _sess_check.current_patient_name
+            and intent_result.patient_name == _sess_check.current_patient_name
+            and _sess_check.current_patient_id is not None):
+        patient_id = _sess_check.current_patient_id
+        patient_name = _sess_check.current_patient_name
+    else:
+        async with AsyncSessionLocal() as session:
+            if intent_result.patient_name:
+                patient = await find_patient_by_name(session, doctor_id, intent_result.patient_name)
+                if patient:
+                    patient_id = patient.id
+                    patient_name = patient.name
+                    set_current_patient(doctor_id, patient.id, patient.name)
+                else:
+                    patient = await create_patient(
+                        session, doctor_id, intent_result.patient_name, intent_result.gender, intent_result.age
+                    )
+                    patient_id = patient.id
+                    patient_name = patient.name
+                    new_patient_created = True
+                    set_current_patient(doctor_id, patient.id, patient.name)
+                    log(f"[WeChat] auto-created patient [{patient_name}] id={patient_id}")
 
-        if patient_id is None:
-            sess = get_session(doctor_id)
-            patient_id = sess.current_patient_id
-            patient_name = sess.current_patient_name
+            if patient_id is None:
+                sess = get_session(doctor_id)
+                patient_id = sess.current_patient_id
+                patient_name = sess.current_patient_name
 
     if new_patient_created:
         asyncio.create_task(audit(doctor_id, "WRITE", resource_type="patient", resource_id=str(patient_id)))
@@ -163,15 +171,19 @@ async def handle_add_record(
         try:
             doctor_ctx = [m["content"] for m in (history or [])[-10:] if m["role"] == "user"]
             doctor_ctx.append(text)
-            async with AsyncSessionLocal() as _enc_sess:
-                _enc_type = await detect_encounter_type(_enc_sess, doctor_id, patient_id, text)
-            _prior_summary: Optional[str] = None
-            if _enc_type == "follow_up" and patient_id is not None:
-                from services.patient.prior_visit import get_prior_visit_summary
+            from services.patient.prior_visit import get_prior_visit_summary as _get_pvs
+            async def _detect_enc():
+                async with AsyncSessionLocal() as _enc_sess:
+                    return await detect_encounter_type(_enc_sess, doctor_id, patient_id, text)
+            async def _get_prior():
+                if patient_id is None:
+                    return None
                 try:
-                    _prior_summary = await get_prior_visit_summary(doctor_id, patient_id)
+                    return await _get_pvs(doctor_id, patient_id)
                 except Exception:
-                    pass
+                    return None
+            _enc_type, _prior_summary_maybe = await asyncio.gather(_detect_enc(), _get_prior())
+            _prior_summary: Optional[str] = _prior_summary_maybe if _enc_type == "follow_up" else None
             record = await structure_medical_record(
                 "\n".join(doctor_ctx),
                 encounter_type=_enc_type,

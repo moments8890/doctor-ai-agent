@@ -27,9 +27,19 @@ Page({
 
     this.setData({ url: webBase + "/doctor?" + qs });
 
-    // Request subscribe-message permission so the backend can push task
-    // notifications to this doctor's WeChat account.
-    this._requestSubscription();
+    // Subscription requested on first user tap (see onLoadingTap) to satisfy
+    // WeChat's requirement that requestSubscribeMessage is called from a TAP.
+    this._subscriptionPending = true;
+  },
+
+  // Called when the user taps the loading overlay — the first natural tap
+  // gesture on this page. We use it to fire requestSubscribeMessage, which
+  // WeChat requires to originate from a user TAP event.
+  onLoadingTap() {
+    if (this._subscriptionPending) {
+      this._subscriptionPending = false;
+      this._requestSubscription();
+    }
   },
 
   _requestSubscription() {

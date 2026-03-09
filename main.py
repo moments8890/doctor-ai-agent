@@ -280,6 +280,58 @@ async def _expire_stale_pending_records() -> None:
 
 
 
+async def _purge_old_pending_data() -> None:
+    """Daily job: hard-delete expired/abandoned pending records and done messages older than 30 days."""
+    _log = logging.getLogger("scheduler")
+    try:
+        from db.crud import purge_old_pending_records, purge_old_pending_messages
+        async with AsyncSessionLocal() as _session:
+            deleted_records = await purge_old_pending_records(_session)
+            deleted_messages = await purge_old_pending_messages(_session)
+        _log.info(
+            "[Pending] purge complete | deleted_records=%s deleted_messages=%s",
+            deleted_records, deleted_messages,
+        )
+    except Exception as _e:
+        _log.warning("[Pending] purge job FAILED: %s", _e)
+
+
+async def _cleanup_chat_archive() -> None:
+    """Daily job: hard-delete ChatArchive rows older than 90 days."""
+    _log = logging.getLogger("scheduler")
+    try:
+        from db.crud import cleanup_chat_archive
+        async with AsyncSessionLocal() as _session:
+            deleted = await cleanup_chat_archive(_session)
+        _log.info("[ChatArchive] cleanup complete | deleted=%s", deleted)
+    except Exception as _e:
+        _log.warning("[ChatArchive] cleanup job FAILED: %s", _e)
+
+
+async def _audit_log_retention() -> None:
+    """Monthly job: delete audit log entries older than 365 days."""
+    _log = logging.getLogger("scheduler")
+    try:
+        from db.crud import archive_old_audit_logs
+        async with AsyncSessionLocal() as _session:
+            deleted = await archive_old_audit_logs(_session)
+        _log.info("[AuditLog] retention purge complete | deleted=%s", deleted)
+    except Exception as _e:
+        _log.warning("[AuditLog] retention job FAILED: %s", _e)
+
+
+async def _record_version_retention() -> None:
+    """Monthly job: delete medical record versions older than 2 years."""
+    _log = logging.getLogger("scheduler")
+    try:
+        from db.crud import prune_record_versions
+        async with AsyncSessionLocal() as _session:
+            deleted = await prune_record_versions(_session)
+        _log.info("[RecordVersions] retention purge complete | deleted=%s", deleted)
+    except Exception as _e:
+        _log.warning("[RecordVersions] retention job FAILED: %s", _e)
+
+
 def _configure_task_scheduler(startup_log: logging.Logger) -> None:
     _scheduler.remove_all_jobs()
     mode = _scheduler_mode()
@@ -320,6 +372,22 @@ def _configure_task_scheduler(startup_log: logging.Logger) -> None:
 
     _scheduler.add_job(_expire_stale_pending_records, "interval", minutes=5)
     startup_log.info("[PendingRecords] expiry scheduler configured | every_minutes=5")
+
+    # Daily at 04:00 — purge old pending data (records + messages)
+    _scheduler.add_job(_purge_old_pending_data, "cron", hour=4, minute=0)
+    startup_log.info("[Pending] purge scheduler configured | daily at 04:00")
+
+    # Daily at 04:30 — clean up old ChatArchive rows (> 90 days)
+    _scheduler.add_job(_cleanup_chat_archive, "cron", hour=4, minute=30)
+    startup_log.info("[ChatArchive] cleanup scheduler configured | daily at 04:30")
+
+    # Monthly on the 1st at 03:00 — audit log retention (> 365 days)
+    _scheduler.add_job(_audit_log_retention, "cron", day=1, hour=3, minute=0)
+    startup_log.info("[AuditLog] retention scheduler configured | monthly day=1 at 03:00")
+
+    # Monthly on the 1st at 03:30 — record version retention (> 2 years)
+    _scheduler.add_job(_record_version_retention, "cron", day=1, hour=3, minute=30)
+    startup_log.info("[RecordVersions] retention scheduler configured | monthly day=1 at 03:30")
 
 
 async def _runtime_apply_hook(_config: dict) -> None:
@@ -366,6 +434,9 @@ async def lifespan(app: FastAPI):
     # Start async observability disk writer — eliminates blocking file I/O on every request
     from services.observability.observability import _disk_writer
     asyncio.create_task(_disk_writer())
+    # Start audit log drain worker — buffers audit writes in batches for efficiency
+    from services.observability.audit import _audit_drain_worker
+    asyncio.create_task(_audit_drain_worker())
     await _cleanup_old_conversation_turns()
     await _cleanup_inactive_session_cache()
 

@@ -78,6 +78,8 @@ from db.crud.pending import (
     confirm_pending_record,
     abandon_pending_record,
     expire_stale_pending_records,
+    purge_old_pending_records,
+    purge_old_pending_messages,
     create_pending_message,
     mark_pending_message,
     list_stale_pending_messages,
@@ -99,6 +101,11 @@ from db.crud.runtime import (
     upsert_runtime_config,
     try_acquire_scheduler_lease,
     release_scheduler_lease,
+)
+from db.crud.retention import (
+    archive_old_audit_logs,
+    prune_record_versions,
+    cleanup_chat_archive,
 )
 
 __all__ = [
@@ -177,6 +184,8 @@ __all__ = [
     "confirm_pending_record",
     "abandon_pending_record",
     "expire_stale_pending_records",
+    "purge_old_pending_records",
+    "purge_old_pending_messages",
     "create_pending_message",
     "mark_pending_message",
     "list_stale_pending_messages",
@@ -195,4 +204,8 @@ __all__ = [
     "upsert_runtime_config",
     "try_acquire_scheduler_lease",
     "release_scheduler_lease",
+    # retention
+    "archive_old_audit_logs",
+    "prune_record_versions",
+    "cleanup_chat_archive",
 ]

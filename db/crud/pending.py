@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from sqlalchemy import select, update as sa_update
+from sqlalchemy import delete, select, update as sa_update
 from sqlalchemy.ext.asyncio import AsyncSession
 from db.models import PendingRecord, PendingMessage
 
@@ -109,6 +109,31 @@ async def expire_stale_pending_records(session: AsyncSession) -> int:
     await session.commit()
     return result.rowcount if result.rowcount else 0
 
+
+async def purge_old_pending_records(session: AsyncSession, days: int = 30) -> int:
+    """Hard-delete expired/abandoned/confirmed pending records older than `days` days."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    result = await session.execute(
+        delete(PendingRecord).where(
+            PendingRecord.status.in_(["expired", "abandoned", "confirmed"]),
+            PendingRecord.expires_at < cutoff,
+        )
+    )
+    await session.commit()
+    return result.rowcount if result.rowcount else 0
+
+
+async def purge_old_pending_messages(session: AsyncSession, days: int = 30) -> int:
+    """Hard-delete done PendingMessage rows older than `days` days."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    result = await session.execute(
+        delete(PendingMessage).where(
+            PendingMessage.status == "done",
+            PendingMessage.created_at < cutoff,
+        )
+    )
+    await session.commit()
+    return result.rowcount if result.rowcount else 0
 
 
 # ---------------------------------------------------------------------------

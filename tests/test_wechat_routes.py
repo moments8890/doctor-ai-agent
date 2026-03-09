@@ -29,6 +29,15 @@ class DummyRequest:
 
 
 class DummyLock:
+    def locked(self) -> bool:
+        return False
+
+    async def acquire(self) -> bool:
+        return True
+
+    def release(self) -> None:
+        pass
+
     async def __aenter__(self):
         return self
 

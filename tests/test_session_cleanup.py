@@ -12,7 +12,7 @@ from services.session import get_session, get_session_lock, prune_inactive_sessi
 def test_prune_inactive_sessions_evicts_idle_entries() -> None:
     idle = get_session("doc_idle")
     idle.last_active = time.time() - 7200
-    sess_mod._loaded_from_db.add("doc_idle")
+    sess_mod._loaded_from_db["doc_idle"] = time.monotonic()
     sess_mod._pending_turns["doc_idle"] = [{"role": "user", "content": "x"}]
 
     active = get_session("doc_active")

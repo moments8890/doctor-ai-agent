@@ -18,7 +18,8 @@ class AuditLog(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     ts: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False, index=True)
-    doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False)
+    doctor_id: Mapped[Optional[str]] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="SET NULL"), nullable=True)
+    doctor_display_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     action: Mapped[str] = mapped_column(String(32), nullable=False)        # READ | WRITE | DELETE | LOGIN
     resource_type: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # patient | record | task
     resource_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)

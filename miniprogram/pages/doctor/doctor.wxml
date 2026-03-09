@@ -1,4 +1,4 @@
-<view wx:if="{{loading && url}}" class="loading">
+<view wx:if="{{loading && url}}" class="loading" bindtap="onLoadingTap">
   <view class="loading-spinner" />
   <text class="loading-text">加载中…</text>
 </view>

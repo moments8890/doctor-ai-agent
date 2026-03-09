@@ -30,6 +30,7 @@ class MedicalRecordDB(Base):
     __table_args__ = (
         Index("ix_records_patient_created", "patient_id", "created_at"),
         Index("ix_records_doctor_created", "doctor_id", "created_at"),
+        Index("ix_records_created", "created_at"),
     )
 
     def __str__(self) -> str:
@@ -79,7 +80,7 @@ class MedicalRecordVersion(Base):
     changed_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
 
     __table_args__ = (
-        Index("ix_record_versions_record_id", "record_id"),
+        Index("ix_record_versions_record_doctor_changed", "record_id", "doctor_id", "changed_at"),
     )
 
 
@@ -98,4 +99,5 @@ class MedicalRecordExport(Base):
     __table_args__ = (
         Index("ix_record_exports_record_id", "record_id"),
         Index("ix_record_exports_doctor_exported", "doctor_id", "exported_at"),
+        Index("ix_record_exports_record_exported", "record_id", "exported_at"),
     )

@@ -213,7 +213,8 @@ async def test_dispatch_passes_history_between_system_and_user(mock_llm):
     assert messages[0]["role"] == "system"
     assert messages[1]["content"] == "上一条消息"
     assert messages[2]["content"] == "好的"
-    assert messages[3]["content"] == "当前消息"
+    assert messages[3]["content"].endswith("当前消息")
+    assert "今天日期" in messages[3]["content"]
 
 
 async def test_dispatch_no_history_sends_system_plus_user_only(mock_llm):
@@ -243,7 +244,8 @@ async def test_dispatch_injects_knowledge_context_as_system_message(mock_llm):
     assert "背景知识" in messages[1]["content"]
     assert "医生知识库" in messages[1]["content"]
     assert messages[2]["content"] == "上一条"
-    assert messages[3]["content"] == "当前消息"
+    assert messages[3]["content"].endswith("当前消息")
+    assert "今天日期" in messages[3]["content"]
 
 
 # ---------------------------------------------------------------------------

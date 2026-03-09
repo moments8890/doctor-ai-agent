@@ -7,7 +7,7 @@ import json
 import os
 import re
 import time
-from collections import deque
+from collections import deque, OrderedDict
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
@@ -97,9 +97,45 @@ from utils.log import log, bind_log_context
 
 _COMPLETE_RE = re.compile(r'^完成\s*(\d+)$')
 
-# ── Doctor identity cache (5-min TTL) to avoid DB hit on every message ─────────
-_DOCTOR_CACHE: dict[str, tuple[float, bool]] = {}  # open_id → (expires_ts, is_doctor)
-_DOCTOR_CACHE_TTL = 300  # seconds
+# ── Doctor identity cache (bounded LRU + 5-min TTL) ─────────────────────────
+# Uses a hand-rolled OrderedDict-based cache to avoid adding a cachetools dep.
+# Evicts the oldest entry when maxsize is reached; stale entries expire after TTL.
+
+class _BoundedTTLCache:
+    """Thread-safe (GIL-safe for CPython) bounded dict with per-entry TTL."""
+
+    def __init__(self, maxsize: int, ttl: float) -> None:
+        self._cache: OrderedDict = OrderedDict()
+        self._expiry: dict = {}
+        self._maxsize = maxsize
+        self._ttl = ttl
+
+    def get(self, key):
+        if key in self._cache:
+            if time.time() < self._expiry[key]:
+                self._cache.move_to_end(key)
+                return self._cache[key]
+            # Expired — evict eagerly
+            del self._cache[key]
+            del self._expiry[key]
+        return None
+
+    def set(self, key, value) -> None:
+        if key in self._cache:
+            self._cache.move_to_end(key)
+        elif len(self._cache) >= self._maxsize:
+            oldest = next(iter(self._cache))
+            del self._cache[oldest]
+            del self._expiry[oldest]
+        self._cache[key] = value
+        self._expiry[key] = time.time() + self._ttl
+
+
+_DOCTOR_CACHE = _BoundedTTLCache(maxsize=2000, ttl=300)
+
+# Knowledge context cache: doctor_id → (content, expiry_monotonic)
+_KB_CONTEXT_CACHE: dict[str, tuple[str, float]] = {}
+_KB_CONTEXT_TTL = 300.0  # 5 minutes
 
 router = APIRouter(prefix="/wechat", tags=["wechat"])
 _WECHAT_KF_SYNC_CURSOR: str = ""
@@ -113,21 +149,19 @@ _WECHAT_KF_CURSOR_KEY = "wecom_kf_sync_cursor"
 async def _is_registered_doctor(open_id: str) -> bool:
     """Return True if the WeChat OpenID belongs to a registered doctor.
 
-    Results are cached for _DOCTOR_CACHE_TTL seconds to avoid a DB round-trip
-    on every incoming message.  Unknown senders are denied the agent pipeline —
-    they receive a static patient-facing reply instead.
+    Results are cached in _DOCTOR_CACHE (bounded 2000-entry LRU, 5-min TTL) to
+    avoid a DB round-trip on every incoming message.  Unknown senders are denied
+    the agent pipeline — they receive a static patient-facing reply instead.
 
     In test environments the check is bypassed so existing unit tests that stub
     the DB at a different level are not broken by the new guard.
     """
     import os as _os
-    import time as _time
     if _os.environ.get("PYTEST_CURRENT_TEST"):
         return True
-    now = _time.time()
     cached = _DOCTOR_CACHE.get(open_id)
-    if cached and now < cached[0]:
-        return cached[1]
+    if cached is not None:
+        return cached
     try:
         async with AsyncSessionLocal() as _session:
             doctor = await get_doctor_by_id(_session, open_id)
@@ -135,7 +169,7 @@ async def _is_registered_doctor(open_id: str) -> bool:
     except Exception as _e:
         log(f"[WeChat] doctor lookup FAILED for {open_id}: {_e}")
         result = False
-    _DOCTOR_CACHE[open_id] = (now + _DOCTOR_CACHE_TTL, result)
+    _DOCTOR_CACHE.set(open_id, result)
     return result
 
 
@@ -510,6 +544,7 @@ async def _confirm_pending_record(doctor_id: str, pending_id: str) -> str:
             return "⚠️ 草稿已过期\n请重新录入病历。"
     result = await wd.save_pending_record(doctor_id, pending)
     clear_pending_record_id(doctor_id)
+    asyncio.create_task(audit(doctor_id, "WRITE", "pending_record", str(pending.id)))
     if result is None:
         return "⚠️ 草稿解析失败\n请重新录入。"
     patient_name, record_id = result
@@ -542,6 +577,7 @@ async def _handle_pending_record_reply(text: str, doctor_id: str, sess) -> str:
         async with AsyncSessionLocal() as session:
             await abandon_pending_record(session, pending_id, doctor_id=doctor_id)
         clear_pending_record_id(doctor_id)
+        asyncio.create_task(audit(doctor_id, "DELETE", "pending_record", str(pending_id)))
         return "已撤销。"
     # Explicit confirm (optional convenience — auto-save handles it too)
     if stripped in ("确认", "确定", "保存", "ok", "OK", "好的", "yes", "Yes"):
@@ -596,12 +632,17 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
         log_turn(text, intent_result.intent.value, "fast", doctor_id, _latency_ms, patient_name=intent_result.patient_name)
     else:
         knowledge_context = ""
-        try:
-            async with AsyncSessionLocal() as session:
-                knowledge_context = await load_knowledge_context_for_prompt(session, doctor_id, text)
-        except Exception as e:
-            log(f"[WeChat] knowledge context load FAILED doctor={doctor_id}: {e}")
-            knowledge_context = ""
+        _kb_cached, _kb_expiry = _KB_CONTEXT_CACHE.get(doctor_id, ("", 0.0))
+        if _kb_expiry > time.perf_counter():
+            knowledge_context = _kb_cached
+        else:
+            try:
+                async with AsyncSessionLocal() as session:
+                    knowledge_context = await load_knowledge_context_for_prompt(session, doctor_id, text)
+                _KB_CONTEXT_CACHE[doctor_id] = (knowledge_context, time.perf_counter() + _KB_CONTEXT_TTL)
+            except Exception as e:
+                log(f"[WeChat] knowledge context load FAILED doctor={doctor_id}: {e}")
+                knowledge_context = ""
 
         try:
             dispatch_kwargs = {"history": history or []}
@@ -932,44 +973,69 @@ async def _handle_intent_bg(text: str, doctor_id: str, open_kfid: str = "", msg_
         # Non-blocking enrichment from WeCom customer profile.
         asyncio.create_task(prefetch_customer_profile(doctor_id))
 
-    await hydrate_session_state(doctor_id)
-    async with get_session_lock(doctor_id):
-        sess = get_session(doctor_id)
-        # Compress rolling window if full or idle — runs for all intent branches
-        await maybe_compress(doctor_id, sess)
-        if sess.pending_record_id:
-            result = await _handle_pending_record_reply(text, doctor_id, sess)
-            push_turn(doctor_id, text, result)
-            await flush_turns(doctor_id)
-        elif sess.pending_create_name:
-            result = await _handle_pending_create(text, doctor_id)
-            push_turn(doctor_id, text, result)
-            await flush_turns(doctor_id)
-        elif sess.pending_cvd_scale is not None:
-            result = await wd.handle_cvd_scale_reply(text, doctor_id)
-            push_turn(doctor_id, text, result)
-            await flush_turns(doctor_id)
-        elif sess.interview is not None:
-            result = await _handle_interview_step(text, doctor_id)
-            push_turn(doctor_id, text, result)
-            await flush_turns(doctor_id)
-        else:
-
-            # Build history: always prepend persisted summary so older context
-            # is not lost when recent turns exist after a reboot or between sessions.
-            history = list(sess.conversation_history)
-            ctx_msg = await load_context_message(doctor_id)
-            if ctx_msg:
-                history = [ctx_msg] + history
-
+    _OVERALL_TIMEOUT = float(os.environ.get("INTENT_BG_TIMEOUT", "4.5"))
+    _LOCK_TIMEOUT = float(os.environ.get("INTENT_LOCK_TIMEOUT", "3.0"))
+    result = "正在处理，请稍候片刻再问一次。"
+    try:
+        async with asyncio.timeout(_OVERALL_TIMEOUT):
+            await hydrate_session_state(doctor_id)
+            _lock = get_session_lock(doctor_id)
+            _lock_acquired = False
+            _lock_wait_start = time.perf_counter()
             try:
-                result = await _handle_intent(text, doctor_id, history=history)
-            except Exception as e:
-                log(f"[WeChat bg] FAILED: {e}")
-                result = "不好意思，出了点问题，能再说一遍吗？"
+                await asyncio.wait_for(_lock.acquire(), timeout=_LOCK_TIMEOUT)
+                _lock_acquired = True
+                _lock_wait_ms = (time.perf_counter() - _lock_wait_start) * 1000
+                if _lock_wait_ms > 100:
+                    log(f"[WeChat bg] session lock wait {_lock_wait_ms:.0f}ms doctor={doctor_id}")
+            except asyncio.TimeoutError:
+                log(f"[WeChat bg] lock timeout after {_LOCK_TIMEOUT}s doctor={doctor_id}")
+                result = "正在处理上一条消息，请稍候再发一次。"
+            if _lock_acquired:
+                try:
+                    sess = get_session(doctor_id)
+                    # Compress rolling window if full or idle — runs for all intent branches
+                    await maybe_compress(doctor_id, sess)
+                    if sess.pending_record_id:
+                        result = await _handle_pending_record_reply(text, doctor_id, sess)
+                        push_turn(doctor_id, text, result)
+                        await flush_turns(doctor_id)
+                    elif sess.pending_create_name:
+                        result = await _handle_pending_create(text, doctor_id)
+                        push_turn(doctor_id, text, result)
+                        await flush_turns(doctor_id)
+                    elif sess.pending_cvd_scale is not None:
+                        result = await wd.handle_cvd_scale_reply(text, doctor_id)
+                        push_turn(doctor_id, text, result)
+                        await flush_turns(doctor_id)
+                    elif sess.interview is not None:
+                        result = await _handle_interview_step(text, doctor_id)
+                        push_turn(doctor_id, text, result)
+                        await flush_turns(doctor_id)
+                    else:
 
-            push_turn(doctor_id, text, result)
-            await flush_turns(doctor_id)
+                        # Build history: always prepend persisted summary so older context
+                        # is not lost when recent turns exist after a reboot or between sessions.
+                        history = list(sess.conversation_history)
+                        ctx_msg = await load_context_message(doctor_id)
+                        if ctx_msg:
+                            history = [ctx_msg] + history
+
+                        try:
+                            result = await _handle_intent(text, doctor_id, history=history)
+                        except Exception as e:
+                            log(f"[WeChat bg] FAILED: {e}")
+                            result = "不好意思，出了点问题，能再说一遍吗？"
+
+                        push_turn(doctor_id, text, result)
+                        await flush_turns(doctor_id)
+                finally:
+                    _lock.release()
+    except asyncio.TimeoutError:
+        log(f"[WeChat bg] TIMEOUT after {_OVERALL_TIMEOUT}s doctor={doctor_id}")
+    except Exception as e:
+        log(f"[WeChat bg] FAILED (outer): {e}")
+        result = "不好意思，出了点问题，能再说一遍吗？"
     if msg_id:
         try:
             async with AsyncSessionLocal() as _mdb:
@@ -1023,6 +1089,9 @@ async def _handle_voice_bg(media_id: str, doctor_id: str, open_kfid: str = ""):
             log(f"[Voice] routing FAILED: {e}")
             result = "处理失败，请稍后重试。"
             route = "done"
+        if route == "done" and result is not None:
+            push_turn(doctor_id, text, result)
+            await flush_turns(doctor_id)
 
     if route == "done":
         await _send_customer_service_msg(doctor_id, f'🎙️ 「{text}」\n\n{result}', open_kfid=open_kfid)

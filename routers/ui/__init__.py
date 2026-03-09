@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import re
@@ -69,6 +70,7 @@ from services.observability.observability import (
     get_trace_timeline,
 )
 from services.auth.rate_limit import enforce_doctor_rate_limit
+from services.observability.audit import audit
 from services.session import get_session, clear_pending_record_id
 from utils.errors import DomainError
 from utils.runtime_config import (
@@ -132,6 +134,7 @@ async def _manage_patients_for_doctor(
 ):
     enforce_doctor_rate_limit(doctor_id, scope="ui.manage_patients")
     category = _normalize_query_str(category)
+    asyncio.create_task(audit(doctor_id, "READ", "patient", "list"))
 
     async with AsyncSessionLocal() as db:
         patients = await get_all_patients(db, doctor_id)
@@ -290,6 +293,9 @@ async def _manage_records_for_doctor(
     patient_name = _normalize_query_str(patient_name)
     date_from = _normalize_date_yyyy_mm_dd(date_from)
     date_to = _normalize_date_yyyy_mm_dd(date_to)
+    # Log record list READ — use patient_id as resource_id when filtering by patient
+    _audit_resource_id = str(patient_id) if patient_id is not None else "list"
+    asyncio.create_task(audit(doctor_id, "READ", "record", _audit_resource_id))
 
     async with AsyncSessionLocal() as db:
         if patient_id is not None:
@@ -439,6 +445,7 @@ async def create_label_endpoint(body: LabelCreate, authorization: str | None = H
     enforce_doctor_rate_limit(doctor_id, scope="ui.labels.create")
     async with AsyncSessionLocal() as db:
         lbl = await create_label(db, doctor_id, body.name, body.color)
+    asyncio.create_task(audit(doctor_id, "WRITE", "label", str(lbl.id)))
     return {"id": lbl.id, "name": lbl.name, "color": lbl.color, "created_at": _fmt_ts(lbl.created_at)}
 
 
@@ -450,6 +457,7 @@ async def update_label_endpoint(label_id: int, body: LabelUpdate, authorization:
         lbl = await update_label(db, label_id, doctor_id, name=body.name, color=body.color)
     if lbl is None:
         raise HTTPException(status_code=404, detail="Label not found")
+    asyncio.create_task(audit(doctor_id, "WRITE", "label", str(label_id)))
     return {"id": lbl.id, "name": lbl.name, "color": lbl.color}
 
 
@@ -543,6 +551,7 @@ async def delete_label_endpoint(
         found = await delete_label(db, label_id, doctor_id)
     if not found:
         raise HTTPException(status_code=404, detail="Label not found")
+    asyncio.create_task(audit(doctor_id, "DELETE", "label", str(label_id)))
     return {"ok": True}
 
 
@@ -560,6 +569,7 @@ async def assign_label_endpoint(
             await assign_label(db, patient_id, label_id, doctor_id)
         except DomainError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc))
+    asyncio.create_task(audit(doctor_id, "WRITE", "label", f"{patient_id}:{label_id}"))
     return {"ok": True}
 
 
@@ -577,6 +587,7 @@ async def remove_label_endpoint(
             await remove_label(db, patient_id, label_id, doctor_id)
         except DomainError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc))
+    asyncio.create_task(audit(doctor_id, "DELETE", "label", f"{patient_id}:{label_id}"))
     return {"ok": True}
 
 
@@ -1066,7 +1077,8 @@ async def admin_table_rows(
     patient_name: str | None = Query(default=None),
     date_from: str | None = Query(default=None),
     date_to: str | None = Query(default=None),
-    limit: int = Query(default=200, ge=1, le=5000),
+    # TODO: replace with keyset pagination (cursor-based) for large result sets
+    limit: int = Query(default=100, ge=1, le=500),
     offset: int = 0,
     x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
 ):
@@ -1075,6 +1087,11 @@ async def admin_table_rows(
         doctor_id, patient_name, date_from, date_to
     )
     needle = f"%{patient_name.strip()}%" if patient_name and patient_name.strip() else None
+
+    # Audit sensitive table access by admin
+    _SENSITIVE_TABLES = {"chat_archive", "medical_records", "doctor_conversation_turns"}
+    if table_key in _SENSITIVE_TABLES:
+        asyncio.create_task(audit("admin", "READ", table_key, "admin_query"))
 
     async with AsyncSessionLocal() as db:
         if table_key == "doctors":

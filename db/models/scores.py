@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Boolean, Float, ForeignKey, Index, Integer, String, DateTime, Text
+from sqlalchemy import Float, ForeignKey, Index, Integer, String, DateTime, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from db.engine import Base
@@ -31,8 +31,6 @@ class SpecialtyScore(Base):
     details_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id", ondelete="SET NULL"), nullable=True, index=True)
     source: Mapped[str] = mapped_column(String(16), nullable=False, default="chat")  # chat|import|manual
-    confidence_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    validation_status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")  # pending|confirmed|rejected
     extracted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
@@ -40,4 +38,5 @@ class SpecialtyScore(Base):
         Index("ix_specialty_scores_record_id", "record_id"),
         Index("ix_specialty_scores_doctor_id", "doctor_id"),
         Index("ix_specialty_scores_patient_score_ts", "patient_id", "score_type", "extracted_at"),
+        Index("ix_specialty_scores_doctor_type_ts", "doctor_id", "score_type", "extracted_at"),
     )

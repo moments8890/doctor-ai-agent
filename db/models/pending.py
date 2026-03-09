@@ -28,6 +28,7 @@ class PendingRecord(Base):
     __table_args__ = (
         Index("ix_pending_records_doctor_status", "doctor_id", "status"),
         Index("ix_pending_records_expires", "expires_at"),
+        Index("ix_pending_records_status_expires", "status", "expires_at"),
     )
 
 
