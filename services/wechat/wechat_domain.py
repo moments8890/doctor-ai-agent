@@ -282,9 +282,10 @@ async def save_pending_record(doctor_id: str, pending: Any) -> Optional[tuple]:
         asyncio.create_task(_bg_auto_tasks(
             doctor_id, record_id, patient_name, pending.patient_id, _content_for_rules
         ))
-    asyncio.create_task(_bg_auto_learn(doctor_id, record.content or "", record))
+    _raw_input = getattr(pending, "raw_input", None) or record.content or ""
+    asyncio.create_task(_bg_auto_learn(doctor_id, _raw_input, record))
     # CVD background extraction only as fallback when agent did not extract structured fields
-    if not cvd_raw and _detect_cvd_keywords(record.content or ""):
+    if not cvd_raw and _detect_cvd_keywords(_raw_input):
         asyncio.create_task(_bg_extract_cvd_context(
             doctor_id, record_id, pending.patient_id, record.content or ""
         ))
@@ -328,39 +329,6 @@ _CVD_KEYWORDS = frozenset({
 
 def _detect_cvd_keywords(text: str) -> bool:
     return any(kw in text for kw in _CVD_KEYWORDS)
-
-
-def _format_cvd_summary(cvd: dict) -> str:
-    """Compact mobile-friendly CVD field summary for confirmation preview."""
-    parts = []
-    subtype_labels = {
-        "ICH": "脑出血", "SAH": "蛛网膜下腔出血", "ischemic": "缺血性卒中",
-        "AVM": "AVM", "aneurysm": "动脉瘤", "moyamoya": "烟雾病", "other": "脑血管病",
-    }
-    subtype = cvd.get("diagnosis_subtype")
-    if subtype:
-        parts.append(subtype_labels.get(subtype, subtype))
-    if cvd.get("gcs_score") is not None:
-        parts.append(f"GCS {cvd['gcs_score']}")
-    if cvd.get("hunt_hess_grade") is not None:
-        parts.append(f"H-H {cvd['hunt_hess_grade']}级")
-    if cvd.get("wfns_grade") is not None:
-        parts.append(f"WFNS {cvd['wfns_grade']}级")
-    if cvd.get("fisher_grade") is not None:
-        parts.append(f"Fisher {cvd['fisher_grade']}级")
-    if cvd.get("ich_score") is not None:
-        parts.append(f"ICH评分 {cvd['ich_score']}")
-    if cvd.get("suzuki_stage") is not None:
-        parts.append(f"Suzuki {cvd['suzuki_stage']}期")
-    if cvd.get("mrs_score") is not None:
-        parts.append(f"mRS {cvd['mrs_score']}")
-    surgery_labels = {"planned": "手术计划中", "done": "已手术", "cancelled": "手术取消", "conservative": "保守治疗"}
-    surgery = cvd.get("surgery_status")
-    if surgery:
-        parts.append(surgery_labels.get(surgery, surgery))
-    if not parts:
-        return ""
-    return "🧠 脑血管专科：" + " | ".join(parts)
 
 
 async def _bg_extract_cvd_context(

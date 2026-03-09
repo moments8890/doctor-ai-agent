@@ -1334,7 +1334,7 @@ async def admin_table_rows(
                 {
                     "id": p.id, "doctor_id": p.doctor_id, "patient_id": p.patient_id,
                     "patient_name": p.patient_name, "status": p.status,
-                    "created_at": _fmt_ts(p.created_at),
+                    "raw_input": p.raw_input, "created_at": _fmt_ts(p.created_at),
                     "expires_at": _fmt_ts(p.expires_at),
                 }
                 for p in (await db.execute(stmt)).scalars().all()
@@ -1348,8 +1348,9 @@ async def admin_table_rows(
             items = [
                 {
                     "id": p.id, "doctor_id": p.doctor_id,
-                    "raw_content": p.raw_content,
+                    "raw_content": p.raw_content, "msg_type": p.msg_type,
                     "status": p.status, "created_at": _fmt_ts(p.created_at),
+                    "processed_at": _fmt_ts(getattr(p, "processed_at", None)),
                 }
                 for p in (await db.execute(stmt)).scalars().all()
             ]

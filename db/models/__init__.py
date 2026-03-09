@@ -11,7 +11,10 @@ from db.models.pending import PendingRecord, PendingMessage
 from db.models.runtime import RuntimeCursor, RuntimeToken, RuntimeConfig, SchedulerLease
 from db.models.audit import AuditLog
 from db.models.scores import SpecialtyScore
-from db.models.specialty import NeuroCVDContext
+from db.models.specialty import (
+    StrokeClinicalContext, EpilepsyClinicalContext, ParkinsonClinicalContext,
+    DementiaClinicalContext, HeadacheClinicalContext, NeuroCVDContext,
+)
 from db.models.medical_record import MedicalRecord
 from db.models.neuro_case import (
     NeuroCase, Hypertension, RiskFactors, ImagingFinding, ImagingStudy,
@@ -30,7 +33,8 @@ __all__ = [
     "RuntimeCursor", "RuntimeToken", "RuntimeConfig", "SchedulerLease",
     "AuditLog",
     "SpecialtyScore",
-    "NeuroCVDContext",
+    "StrokeClinicalContext", "EpilepsyClinicalContext", "ParkinsonClinicalContext",
+    "DementiaClinicalContext", "HeadacheClinicalContext", "NeuroCVDContext",
     "MedicalRecord",
     "NeuroCase", "Hypertension", "RiskFactors", "ImagingFinding", "ImagingStudy",
     "LabResult", "PlanOrder", "ExtractionLog", "NeuroCVDSurgicalContext",

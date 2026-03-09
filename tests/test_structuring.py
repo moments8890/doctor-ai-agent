@@ -232,12 +232,11 @@ async def test_structure_user_message_is_input_text(mock_llm):
 
 async def test_structure_consultation_mode_appends_suffix(mock_llm):
     """consultation_mode=True appends _CONSULTATION_SUFFIX to the system prompt."""
-    from services.ai.structuring import _CONSULTATION_SUFFIX
     mock_llm.return_value = _make_completion({"content": "胸痛问诊记录。", "tags": []})
     await structure_medical_record("医患对话转写", consultation_mode=True)
     messages = mock_llm.call_args.kwargs["messages"]
     system_content = messages[0]["content"]
-    assert _CONSULTATION_SUFFIX.strip() in system_content
+    assert "【问诊对话模式】" in system_content
 
 
 async def test_get_system_prompt_falls_back_when_db_unavailable():
