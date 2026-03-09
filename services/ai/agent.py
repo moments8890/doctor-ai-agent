@@ -459,6 +459,94 @@ _TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "schedule_follow_up",
+            "description": (
+                "为患者设置随访/复诊/复查提醒任务。当医生说「N天/周/月后随访」、"
+                "「安排复诊提醒」、「设随访」、「N个月后复查」、「随访提醒」时调用。"
+                "不需要同时记录病历——仅创建任务。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "patient_name": {
+                        "type": "string",
+                        "description": "患者姓名。当前消息中明确提到时填写，否则省略（系统将使用上下文中的当前患者）。",
+                    },
+                    "follow_up_plan": {
+                        "type": "string",
+                        "description": "随访计划描述，例如「3个月后随访」、「下次复诊」、「一周后复查」。",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "postpone_task",
+            "description": (
+                "推迟/延后待办任务的到期时间。当医生说「推迟任务X N天/周」、"
+                "「任务X延后N天」时调用。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "task_id": {
+                        "type": "integer",
+                        "description": "要推迟的任务编号（整数）。",
+                    },
+                    "delta_days": {
+                        "type": "integer",
+                        "description": "推迟天数整数，例如「一周」填7，「三天」填3，「一个月」填30。",
+                    },
+                },
+                "required": ["task_id", "delta_days"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "cancel_task",
+            "description": (
+                "取消待办任务。当医生说「取消任务X」、「任务X取消」时调用。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "task_id": {
+                        "type": "integer",
+                        "description": "要取消的任务编号（整数）。",
+                    },
+                },
+                "required": ["task_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "export_records",
+            "description": (
+                "导出/打印/下载患者病历文件。当医生说「导出病历」、「打印记录」、"
+                "「需要病历文件」、「准备会诊」、「会诊用」、「导出给MDT」时调用。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "patient_name": {
+                        "type": "string",
+                        "description": "要导出病历的患者姓名。未明确提到时省略。",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
 ]
 
 _SYSTEM_PROMPT = (
@@ -475,6 +563,10 @@ _SYSTEM_PROMPT = (
     "- 查看任务/待办/提醒 → list_tasks\n"
     "- 完成任务/标记完成 + 编号 → complete_task\n"
     "- 预约/安排/约诊 + 时间 → schedule_appointment\n"
+    "- 设置随访/复诊提醒（N天/月后随访）→ schedule_follow_up\n"
+    "- 推迟任务 + 编号 + 时长 → postpone_task\n"
+    "- 取消任务 + 编号 → cancel_task\n"
+    "- 导出/打印病历/会诊用 → export_records\n"
     "- 普通对话/问候 → 直接回复，不调用工具\n\n"
     "特殊规则：若上一条助手消息询问了患者姓名（如'请问这位患者叫什么名字'），"
     "医生的回复即为患者姓名，应调用 add_medical_record 并将该姓名填入 patient_name，"
@@ -498,6 +590,10 @@ _SYSTEM_PROMPT_COMPACT = (
     "历史病历/PDF/Word导入->import_history；"
     "删患者->delete_patient；看待办->list_tasks；"
     "完成任务+编号->complete_task；预约+时间->schedule_appointment；"
+    "随访/复诊提醒->schedule_follow_up；"
+    "推迟任务+编号+时长->postpone_task；"
+    "取消任务+编号->cancel_task；"
+    "导出/打印病历->export_records；"
     "普通问候可直接回复。"
     "特殊规则：若上一条助手消息询问患者姓名，医生回复即为患者姓名，调用add_medical_record并填入patient_name，不要调用create_patient。"
     "工具参数仅填确定信息。"
@@ -518,6 +614,10 @@ _INTENT_MAP = {
     "list_tasks": Intent.list_tasks,
     "complete_task": Intent.complete_task,
     "schedule_appointment": Intent.schedule_appointment,
+    "schedule_follow_up": Intent.schedule_follow_up,
+    "postpone_task": Intent.postpone_task,
+    "cancel_task": Intent.cancel_task,
+    "export_records": Intent.export_records,
 }
 
 
@@ -562,6 +662,16 @@ _BAD_NAME_TOKENS = {
     "患者", "病人", "新患者", "新病人", "门诊", "复查", "记录", "查询", "提醒",
     "胸痛", "胸闷", "心悸", "咳嗽", "头痛", "发热", "化疗", "术后", "治疗", "安排",
 }
+
+# Pattern: Ollama reply that verbally "performed" an action without calling a tool.
+# Used to trigger a retry with an explicit tool-use instruction.
+_VERBAL_ACTION_RE = re.compile(
+    r"已(?:为您|帮您)?(?:记录|保存|登记|安排|创建|设置|建档|更新|建好|录入|建立|添加|预约|随访|存入)"
+    r"|为您(?:记录|安排|创建|设置|完成|建档|更新|添加|预约)"
+    r"|帮您(?:记录|安排|建档|保存|添加|预约)"
+    r"|(?:随访提醒|随访任务|复诊提醒)(?:已|将)?(?:设置|创建|安排)"
+    r"|(?:病历|记录)(?:已|将)?(?:记录|保存|录入|存入)"
+)
 
 
 def _extract_embedded_tool_call(content: Optional[str]) -> Tuple[Optional[str], dict]:
@@ -641,6 +751,12 @@ def _intent_result_from_tool_call(fn_name: str, args: dict, chat_reply: Optional
     elif fn_name == "schedule_appointment":
         extra_data["appointment_time"] = args.get("appointment_time")
         extra_data["notes"] = args.get("notes")
+    elif fn_name == "schedule_follow_up":
+        extra_data["follow_up_plan"] = args.get("follow_up_plan") or "下次随访"
+    elif fn_name in ("postpone_task", "cancel_task"):
+        extra_data["task_id"] = args.get("task_id")
+        if fn_name == "postpone_task":
+            extra_data["delta_days"] = args.get("delta_days", 7)
     structured_fields: Optional[dict] = None
     if fn_name in ("add_medical_record", "update_medical_record"):
         _CLINICAL_KEYS = {
@@ -859,6 +975,33 @@ async def dispatch(
             if _looks_like_tool_markup(cleaned_reply):
                 cleaned_reply = None
             return _intent_result_from_tool_call(embedded_fn, embedded_args, cleaned_reply)
+        # Retry once for Ollama when reply looks like a verbal action (tool was
+        # expected but not called). Append an explicit instruction to call the tool.
+        if provider_name == "ollama" and chat_reply and not _looks_like_tool_markup(chat_reply):
+            if _VERBAL_ACTION_RE.search(chat_reply):
+                log(f"[Agent:ollama] verbal action detected, retrying with tool-use hint: {chat_reply[:60]}")
+                retry_messages = messages + [
+                    {"role": "assistant", "content": chat_reply},
+                    {
+                        "role": "user",
+                        "content": "[系统提示：请务必调用相应工具执行操作，不要只用文字回复。]",
+                    },
+                ]
+                try:
+                    retry_completion = await _call(provider["model"])
+                    retry_msg = retry_completion.choices[0].message
+                    if retry_msg.tool_calls:
+                        retry_fn = retry_msg.tool_calls[0].function.name
+                        try:
+                            retry_args = json.loads(retry_msg.tool_calls[0].function.arguments)
+                            if not isinstance(retry_args, dict):
+                                retry_args = {}
+                        except (json.JSONDecodeError, TypeError):
+                            retry_args = {}
+                        log(f"[Agent:ollama] retry tool_call: {retry_fn}({retry_args})")
+                        return _intent_result_from_tool_call(retry_fn, retry_args, retry_msg.content or chat_reply)
+                except Exception as retry_err:
+                    log(f"[Agent:ollama] retry failed: {retry_err}")
         if provider_name == "ollama" and (not chat_reply or _looks_like_tool_markup(chat_reply)):
             log("[Agent:ollama] no formal tool call, using local fallback")
             from services.observability.routing_metrics import record as _record_metric

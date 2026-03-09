@@ -226,24 +226,50 @@ _HISTORY_PATIENT_BRACKET_RE = re.compile(r"【([\u4e00-\u9fff]{2,4})】")
 # Matches "NAME的档案" / "NAME的病历" in assistant replies.
 _HISTORY_PATIENT_ARCHIVE_RE = re.compile(r"([\u4e00-\u9fff]{2,4})的(?:档案|病历)")
 
+# Extract patient name from doctor/user turns — catches names that precede task/time markers.
+# More conservative than assistant patterns: requires action-verb prefix OR name+的 at turn-start.
+_HISTORY_DOCTOR_TURN_RE = re.compile(
+    # "把NAME..." / "将NAME..." / "找NAME..." / "看下NAME..." / "查NAME..."
+    r"(?:^|[。！\n])\s*(?:把|将|找到?|看[看下]?|查|调出?|给)\s*([\u4e00-\u9fff]{2,3})"
+    r"(?=[，,的今昨\s]|的['\u201c「]|$)"
+    r"|"
+    # "NAME的'TASK'" or "NAME的任务/记录/病历" at start of message
+    r"^([\u4e00-\u9fff]{2,3})的(?:['\u201c「]|(?:任务|记录|手术|评估|化疗|随访|透析|指标))"
+    r"|"
+    # "NAME + 今天/全年/20XX年" — explicit time reference after a name
+    r"([\u4e00-\u9fff]{2,3})(?:今天|全年|20\d\d年)"
+)
+
 
 def _patient_name_from_history(history: List[dict]) -> Optional[str]:
     """Scan recent conversation history for the most recently mentioned patient name.
 
-    Looks at the last 8 messages (both assistant and user), scanning for
-    【NAME】 bracket patterns used in all create/save/query reply templates.
+    Checks assistant turns for 【NAME】 bracket / NAME的档案 patterns.
+    Also checks doctor/user turns for names appearing before task/time markers.
     Returns the first (most recent) valid patient name found, or None.
     """
     for msg in reversed(history[-8:]):
+        role = msg.get("role", "")
         content = (msg.get("content") or "").strip()
         if not content:
             continue
-        for pattern in (_HISTORY_PATIENT_BRACKET_RE, _HISTORY_PATIENT_ARCHIVE_RE):
-            m = pattern.search(content)
-            if m:
-                name = m.group(1)
-                if _is_valid_patient_name(name):
-                    return name
+        if role == "assistant":
+            for pattern in (_HISTORY_PATIENT_BRACKET_RE, _HISTORY_PATIENT_ARCHIVE_RE):
+                m = pattern.search(content)
+                if m:
+                    name = m.group(1)
+                    if _is_valid_patient_name(name):
+                        return name
+        elif role == "user":
+            # Scan doctor turns for names before task/time markers
+            for m in _HISTORY_DOCTOR_TURN_RE.finditer(content):
+                for g in (1, 2, 3):
+                    try:
+                        name = m.group(g)
+                    except IndexError:
+                        continue
+                    if name and _is_valid_patient_name(name):
+                        return name
     return None
 
 

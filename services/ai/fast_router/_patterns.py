@@ -56,6 +56,9 @@ _EXPORT_RE = re.compile(
 )
 _EXPORT_NONAME_RE = re.compile(
     r"^(?:帮我)?(?:导出|打印|下载|生成)\s*(?:(?:目前|当前|这个|这位|患者)的?)?\s*(?:病历|记录|报告|医疗记录)(?:pdf|PDF)?$"
+    # Context-triggered export: "准备会诊用", "会诊前导出", "MDT用", "需要病历文件"
+    r"|^(?:准备会诊|会诊用|MDT用|需要病历文件)[。！\s]*$"
+    r"|^(?:导出|打印|下载).{0,20}(?:会诊|MDT|全部记录|所有记录)\s*$"
 )
 
 # Outpatient report (卫生部 2010 门诊病历 standard format)
@@ -160,6 +163,23 @@ _FOLLOWUP_RELATIVE_RE = re.compile(
 _FOLLOWUP_TIME_FIRST_RE = re.compile(
     r"^(" + _CN_NUM + r")\s*(" + _TIME_UNIT + r")后\s*" + _FOLLOW_UP_KW + r"\s*"
     + _LAZY_NAME_PAT + r"$"
+)
+
+# Follow-up without explicit patient name — relies on session context to fill in name.
+# Covers: "3个月后随访", "安排复查", "设个随访提醒", "下次复诊记一下", "给他安排随访"
+_FOLLOWUP_NONAME_RELATIVE_RE = re.compile(
+    r"^(?:给(?:他|她|这位|这个)|帮(?:他|她|这位))?\s*"
+    r"(?:设|安排|创建|建|定)?\s*"
+    r"(下周|下个月|下次|近期|明天|后天)\s*"
+    r"(?:随访|复诊|复查|随诊)(?:提醒)?$"
+)
+_FOLLOWUP_NONAME_RE = re.compile(
+    r"^(?:给(?:他|她|这位|这个)|帮(?:他|她|这位))?\s*"
+    r"(?:设|安排|创建|建|定)?\s*"
+    r"(?:(" + r"[一两二三四五六七八九十\d]+" + r")\s*"
+    r"(" + r"(?:天|日|周|个月|月)" + r")后)?\s*"
+    r"(?:随访|复诊|复查|随诊|随访提醒|复查提醒)"
+    r"(?:提醒)?$"
 )
 
 # ── Tier 2: postpone_task ──────────────────────────────────────────────────────
