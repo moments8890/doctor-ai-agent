@@ -154,11 +154,6 @@ export async function ocrImage(imageFile) {
 export async function getPatients(doctorId, filters = {}, limit = 50, offset = 0) {
   const qs = new URLSearchParams({ doctor_id: doctorId, limit: String(limit), offset: String(offset) });
   if (filters.category) qs.set("category", filters.category);
-  if (filters.risk) qs.set("risk", filters.risk);
-  if (filters.followUpState) qs.set("follow_up_state", filters.followUpState);
-  if (filters.staleRisk !== undefined && filters.staleRisk !== null && filters.staleRisk !== "") {
-    qs.set("stale_risk", String(filters.staleRisk));
-  }
   return request(`/api/manage/patients?${qs.toString()}`);
 }
 

@@ -17,25 +17,10 @@ import {
 import { t } from "../../i18n";
 import { exportPatientPdf } from "../../api";
 
-const RISK_BORDER = {
-  critical: "#ef4444",
-  high: "#f97316",
-  medium: "#f59e0b",
-  low: "#22c55e",
-};
-
-const RISK_CHIP_COLOR = {
-  critical: "error",
-  high: "warning",
-  medium: "default",
-  low: "success",
-};
-
 function PatientCard({ p, labels, doctorId, onViewRecords, onToggleLabel }) {
   const [expanded, setExpanded] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
-  const borderColor = RISK_BORDER[p.primary_risk_level] || "transparent";
 
   async function handleExportPdf() {
     setExporting(true);
@@ -50,12 +35,7 @@ function PatientCard({ p, labels, doctorId, onViewRecords, onToggleLabel }) {
   }
 
   return (
-    <Card
-      sx={{
-        borderRadius: 1.5,
-        borderLeft: `4px solid ${borderColor}`,
-      }}
-    >
+    <Card sx={{ borderRadius: 1.5 }}>
       <CardContent sx={{ p: 1.5 }}>
         <Stack
           direction={{ xs: "column", sm: "row" }}
@@ -68,21 +48,6 @@ function PatientCard({ p, labels, doctorId, onViewRecords, onToggleLabel }) {
             </Typography>
             {p.primary_category ? (
               <Chip size="small" label={`${t("manage.patient.categoryPrefix")}：${p.primary_category}`} />
-            ) : null}
-            {p.primary_risk_level ? (
-              <Chip
-                size="small"
-                color={RISK_CHIP_COLOR[p.primary_risk_level] || "default"}
-                label={`${t("manage.patient.riskPrefix")}：${t("manage.risk." + p.primary_risk_level) || p.primary_risk_level}`}
-              />
-            ) : null}
-            {p.follow_up_state && p.follow_up_state !== "not_needed" ? (
-              <Chip
-                size="small"
-                variant="outlined"
-                color={p.follow_up_state === "overdue" ? "error" : p.follow_up_state === "due_soon" ? "warning" : "default"}
-                label={t("manage.followUp." + p.follow_up_state) || p.follow_up_state}
-              />
             ) : null}
             {(p.labels || []).map((label) => (
               <Chip
@@ -137,9 +102,6 @@ function PatientCard({ p, labels, doctorId, onViewRecords, onToggleLabel }) {
           {expanded ? (
             <Box sx={{ mt: 0.35 }}>
               <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                risk_score={p.risk_score ?? "-"}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
                 {t("manage.patient.createdAt")}：{p.created_at || "-"}
               </Typography>
               {labels.length > 0 ? (
@@ -172,12 +134,8 @@ export default function PatientPanel({
   patients,
   labels,
   doctorId,
-  riskFilter,
-  followUpFilter,
   tagFilter,
   loading,
-  onRiskFilterChange,
-  onFollowUpFilterChange,
   onTagFilterChange,
   onViewRecords,
   onToggleLabel,
@@ -191,36 +149,6 @@ export default function PatientPanel({
     <Stack spacing={1.25}>
       <Card sx={{ borderRadius: 1.5 }}>
         <CardContent sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-          <FormControl size="small" sx={{ minWidth: 170 }}>
-            <InputLabel id="risk-filter-label">{t("manage.filters.risk")}</InputLabel>
-            <Select
-              labelId="risk-filter-label"
-              label={t("manage.filters.risk")}
-              value={riskFilter}
-              onChange={(e) => onRiskFilterChange(e.target.value)}
-            >
-              <MenuItem value="">{t("common.all")}</MenuItem>
-              <MenuItem value="critical">{t("manage.risk.critical")}</MenuItem>
-              <MenuItem value="high">{t("manage.risk.high")}</MenuItem>
-              <MenuItem value="medium">{t("manage.risk.medium")}</MenuItem>
-              <MenuItem value="low">{t("manage.risk.low")}</MenuItem>
-            </Select>
-          </FormControl>
-          <FormControl size="small" sx={{ minWidth: 190 }}>
-            <InputLabel id="followup-filter-label">{t("manage.filters.followUp")}</InputLabel>
-            <Select
-              labelId="followup-filter-label"
-              label={t("manage.filters.followUp")}
-              value={followUpFilter}
-              onChange={(e) => onFollowUpFilterChange(e.target.value)}
-            >
-              <MenuItem value="">{t("common.all")}</MenuItem>
-              <MenuItem value="not_needed">{t("manage.followUp.not_needed")}</MenuItem>
-              <MenuItem value="scheduled">{t("manage.followUp.scheduled")}</MenuItem>
-              <MenuItem value="due_soon">{t("manage.followUp.due_soon")}</MenuItem>
-              <MenuItem value="overdue">{t("manage.followUp.overdue")}</MenuItem>
-            </Select>
-          </FormControl>
           <FormControl size="small" sx={{ minWidth: 180 }}>
             <InputLabel id="tag-filter-label">{t("manage.filters.tag")}</InputLabel>
             <Select

@@ -57,12 +57,6 @@ import { t } from "../i18n";
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 
-const RISK_COLOR = { critical: "#ef4444", high: "#f97316", medium: "#eab308", low: "#22c55e" };
-const RISK_LABEL = { critical: "危重", high: "高风险", medium: "中风险", low: "低风险" };
-const FOLLOWUP_LABEL = {
-  not_needed: "无需随访", scheduled: "已安排", due_soon: "即将到期", overdue: "已逾期",
-};
-const FOLLOWUP_COLOR = { not_needed: "default", scheduled: "info", due_soon: "warning", overdue: "error" };
 const TASK_TYPE_LABEL = {
   follow_up: "随访", review: "复查", call: "电话联系", message: "发送消息",
   prescription: "处方续开", referral: "转诊", education: "患者教育",
@@ -107,18 +101,6 @@ const NAV = [
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-function RiskBadge({ level }) {
-  if (!level) return null;
-  return (
-    <Box component="span" sx={{
-      display: "inline-block", px: 0.8, py: 0.1, borderRadius: 1,
-      fontSize: 11, fontWeight: 700, color: "#fff",
-      backgroundColor: RISK_COLOR[level] || "#94a3b8",
-    }}>
-      {RISK_LABEL[level] || level}
-    </Box>
-  );
-}
 
 function NavBtn({ active, icon, children, onClick, badgeCount }) {
   const content = (
@@ -547,14 +529,6 @@ function PatientDetail({ patient, doctorId }) {
             <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }} flexWrap="wrap">
               {patient.gender && <Typography variant="caption" color="text.secondary">{{ male: "男", female: "女" }[patient.gender] || patient.gender}</Typography>}
               {age && <Typography variant="caption" color="text.secondary">{age} 岁</Typography>}
-              <RiskBadge level={patient.primary_risk_level} />
-              {patient.follow_up_state && (
-                <Chip
-                  label={FOLLOWUP_LABEL[patient.follow_up_state] || patient.follow_up_state}
-                  size="small"
-                  color={FOLLOWUP_COLOR[patient.follow_up_state] || "default"}
-                />
-              )}
             </Stack>
             <Stack direction="row" spacing={0.5} sx={{ mt: 0.8 }} flexWrap="wrap" alignItems="center">
               {patientLabels.map((l) => (
@@ -825,23 +799,12 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
                 }}
               >
                 <CardContent sx={{ py: 1.2, px: 1.5, "&:last-child": { pb: 1.2 } }}>
-                  <Stack direction="row" alignItems="center" justifyContent="space-between">
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{p.name}</Typography>
-                    <RiskBadge level={p.primary_risk_level} />
-                  </Stack>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>{p.name}</Typography>
                   <Stack direction="row" spacing={1} sx={{ mt: 0.4 }} flexWrap="wrap">
                     {p.gender && <Typography variant="caption" color="text.secondary">{p.gender}</Typography>}
                     {age && <Typography variant="caption" color="text.secondary">{age} 岁</Typography>}
                     <Typography variant="caption" color="text.secondary">{p.record_count} 份病历</Typography>
                   </Stack>
-                  {p.follow_up_state && p.follow_up_state !== "not_needed" && (
-                    <Chip
-                      label={FOLLOWUP_LABEL[p.follow_up_state] || p.follow_up_state}
-                      size="small"
-                      color={FOLLOWUP_COLOR[p.follow_up_state] || "default"}
-                      sx={{ mt: 0.5, fontSize: 10, height: 18 }}
-                    />
-                  )}
                 </CardContent>
               </Card>
             );
@@ -915,23 +878,12 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
                 }}
               >
                 <CardContent sx={{ py: 1.2, px: 1.5, "&:last-child": { pb: 1.2 } }}>
-                  <Stack direction="row" alignItems="center" justifyContent="space-between">
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{p.name}</Typography>
-                    <RiskBadge level={p.primary_risk_level} />
-                  </Stack>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>{p.name}</Typography>
                   <Stack direction="row" spacing={1} sx={{ mt: 0.4 }} flexWrap="wrap">
                     {p.gender && <Typography variant="caption" color="text.secondary">{p.gender}</Typography>}
                     {age && <Typography variant="caption" color="text.secondary">{age} 岁</Typography>}
                     <Typography variant="caption" color="text.secondary">{p.record_count} 份病历</Typography>
                   </Stack>
-                  {p.follow_up_state && p.follow_up_state !== "not_needed" && (
-                    <Chip
-                      label={FOLLOWUP_LABEL[p.follow_up_state] || p.follow_up_state}
-                      size="small"
-                      color={FOLLOWUP_COLOR[p.follow_up_state] || "default"}
-                      sx={{ mt: 0.5, fontSize: 10, height: 18 }}
-                    />
-                  )}
                 </CardContent>
               </Card>
             );
@@ -1499,8 +1451,6 @@ function HomeSection({ doctorId, navigate }) {
       setStats({
         patients: patients.length,
         pendingTasks: tasks.length,
-        highRisk: patients.filter((p) => p.primary_risk_level === "critical" || p.primary_risk_level === "high").length,
-        overdue: patients.filter((p) => p.follow_up_state === "overdue").length,
       });
       setPendingTasks(tasks.slice(0, 5));
       setRecentRecords(records.slice(0, 5));
@@ -1516,15 +1466,13 @@ function HomeSection({ doctorId, navigate }) {
       <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
         <StatCard label="患者总数" value={stats?.patients} />
         <StatCard label="待处理任务" value={stats?.pendingTasks} color={stats?.pendingTasks > 0 ? "warning.main" : "success.main"} />
-        <StatCard label="高风险患者" value={stats?.highRisk} color={stats?.highRisk > 0 ? "error.main" : "success.main"} />
-        <StatCard label="逾期随访" value={stats?.overdue} color={stats?.overdue > 0 ? "error.main" : "success.main"} />
       </Stack>
 
       {/* Quick actions */}
       <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 3 }}>
         <Button size="small" variant="outlined" onClick={() => navigate("/doctor/chat")}>新建对话</Button>
-        <Button size="small" variant="outlined" onClick={() => navigate("/doctor/patients")}>查看高风险患者</Button>
-        <Button size="small" variant="outlined" onClick={() => navigate("/doctor/tasks")}>查看逾期任务</Button>
+        <Button size="small" variant="outlined" onClick={() => navigate("/doctor/patients")}>查看患者</Button>
+        <Button size="small" variant="outlined" onClick={() => navigate("/doctor/tasks")}>查看任务</Button>
       </Stack>
 
       {/* Pending tasks */}

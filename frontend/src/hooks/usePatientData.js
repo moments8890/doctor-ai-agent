@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { getPatients } from "../api";
 
-export function usePatientData(doctorId, riskFilter, followUpFilter) {
+export function usePatientData(doctorId) {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -10,14 +10,14 @@ export function usePatientData(doctorId, riskFilter, followUpFilter) {
     setLoading(true);
     setError("");
     try {
-      const result = await getPatients(doctorId, { risk: riskFilter, followUpState: followUpFilter });
+      const result = await getPatients(doctorId);
       setPatients(result.items || []);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [doctorId, riskFilter, followUpFilter]);
+  }, [doctorId]);
 
   useEffect(() => {
     reload();

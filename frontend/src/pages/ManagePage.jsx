@@ -14,8 +14,6 @@ import {
 } from "@mui/material";
 import FolderSharedOutlinedIcon from "@mui/icons-material/FolderSharedOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
-import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
-import EventBusyOutlinedIcon from "@mui/icons-material/EventBusyOutlined";
 import LabelOutlinedIcon from "@mui/icons-material/LabelOutlined";
 import AssignmentLateOutlinedIcon from "@mui/icons-material/AssignmentLateOutlined";
 import PeopleOutlineOutlinedIcon from "@mui/icons-material/PeopleOutlineOutlined";
@@ -77,8 +75,6 @@ export default function ManagePage() {
   }
   const [status, setStatus] = useState({ type: "info", text: "" });
 
-  const [riskFilter, setRiskFilter] = useState("");
-  const [followUpFilter, setFollowUpFilter] = useState("");
   const [tagFilter, setTagFilter] = useState("");
 
   // Records state (kept inline — complex with timeline)
@@ -96,20 +92,12 @@ export default function ManagePage() {
 
   const doctor = doctorId || "";
 
-  const { patients, loading: patientsLoading, reload: reloadPatients } = usePatientData(doctor, riskFilter, followUpFilter);
+  const { patients, loading: patientsLoading, reload: reloadPatients } = usePatientData(doctor);
   const { tasks, loading: tasksLoading, error: taskError, reload: reloadTasks, completeTask, cancelTask, postponeTask, createTask } = useTaskData(doctor);
   const { labels, reload: reloadLabels, createLabel: createLabelFn, deleteLabel: deleteLabelFn } = useLabelData(doctor);
 
   const loading = patientsLoading || recordsLoading || tasksLoading;
 
-  const highRiskCount = useMemo(
-    () => patients.filter((p) => p.primary_risk_level === "high" || p.primary_risk_level === "critical").length,
-    [patients]
-  );
-  const overdueCount = useMemo(
-    () => patients.filter((p) => p.follow_up_state === "overdue").length,
-    [patients]
-  );
   const pendingTaskCount = useMemo(
     () => tasks.filter((tk) => tk.status === "pending").length,
     [tasks]
@@ -118,8 +106,6 @@ export default function ManagePage() {
   const statsRows = [
     { key: "patients", label: t("manage.stats.patients"), value: patients.length, icon: <FolderSharedOutlinedIcon fontSize="small" /> },
     { key: "records", label: t("manage.stats.records"), value: records.length, icon: <DescriptionOutlinedIcon fontSize="small" /> },
-    { key: "highRisk", label: t("manage.stats.highRisk"), value: highRiskCount, icon: <WarningAmberRoundedIcon fontSize="small" /> },
-    { key: "overdue", label: t("manage.stats.overdue"), value: overdueCount, icon: <EventBusyOutlinedIcon fontSize="small" /> },
     { key: "pendingTasks", label: t("manage.stats.pendingTasks"), value: pendingTaskCount, icon: <AssignmentLateOutlinedIcon fontSize="small" /> },
     { key: "tags", label: t("manage.stats.tags"), value: labels.length, icon: <LabelOutlinedIcon fontSize="small" /> },
   ];
@@ -354,12 +340,8 @@ export default function ManagePage() {
                   patients={patients}
                   labels={labels}
                   doctorId={doctor}
-                  riskFilter={riskFilter}
-                  followUpFilter={followUpFilter}
                   tagFilter={tagFilter}
                   loading={patientsLoading}
-                  onRiskFilterChange={setRiskFilter}
-                  onFollowUpFilterChange={setFollowUpFilter}
                   onTagFilterChange={setTagFilter}
                   onViewRecords={onViewRecords}
                   onToggleLabel={onTogglePatientLabel}
