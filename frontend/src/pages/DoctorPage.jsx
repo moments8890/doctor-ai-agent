@@ -1009,42 +1009,37 @@ function TasksSection({ doctorId }) {
   }
 
   return (
-    <Box sx={{ p: isMobile ? 2 : 3, overflowY: "auto", height: "100%", bgcolor: "#f7f7f7" }}>
-      {/* Header row */}
-      <Stack direction="row" alignItems="center" sx={{ mb: 1.5 }}>
-        <Typography variant="h6" sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>任务列表</Typography>
-        {loading && <CircularProgress size={16} sx={{ ml: 1 }} />}
-        <Box sx={{ flex: 1 }} />
-        <Button
-          size="small" variant="contained"
-          onClick={() => { setCreateOpen(true); setCreateError(""); getPatients(doctorId, {}, 200).then((d) => setPatientOptions(d.items || [])).catch(() => {}); }}
-          sx={{ whiteSpace: "nowrap", minWidth: "auto" }}
-        >
-          + 新建
-        </Button>
-      </Stack>
-      {/* Filter chips — single scrollable row */}
-      <Box sx={{ display: "flex", gap: 0.8, mb: 2, overflowX: "auto", pb: 0.5, WebkitOverflowScrolling: "touch" }}>
-        {TASK_STATUS_OPTS.map((o) => (
-          <Chip
-            key={o.value}
-            label={o.label}
-            size="small"
-            onClick={() => setStatusFilter(o.value)}
-            variant={statusFilter === o.value ? "filled" : "outlined"}
-            color={statusFilter === o.value ? "primary" : "default"}
-            clickable
-            sx={{ flexShrink: 0 }}
-          />
-        ))}
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
+      {/* WeChat-style topbar */}
+      <Box sx={{ display: "flex", alignItems: "center", px: 2, height: 48, bgcolor: "#fff", borderBottom: "1px solid #e5e5e5", flexShrink: 0 }}>
+        <Box sx={{ display: "flex", gap: 0.6, flex: 1, overflowX: "auto", WebkitOverflowScrolling: "touch", "&::-webkit-scrollbar": { display: "none" } }}>
+          {TASK_STATUS_OPTS.map((o) => (
+            <Box key={o.value} onClick={() => setStatusFilter(o.value)}
+              sx={{ px: 1.4, py: 0.4, borderRadius: "12px", cursor: "pointer", flexShrink: 0, fontSize: 13,
+                bgcolor: statusFilter === o.value ? "#07C160" : "transparent",
+                color: statusFilter === o.value ? "#fff" : "#555",
+                fontWeight: statusFilter === o.value ? 600 : 400,
+                "&:active": { opacity: 0.7 },
+              }}>
+              {o.label}
+            </Box>
+          ))}
+        </Box>
+        {loading && <CircularProgress size={14} sx={{ mr: 1, color: "#07C160" }} />}
+        <Box onClick={() => { setCreateOpen(true); setCreateError(""); getPatients(doctorId, {}, 200).then((d) => setPatientOptions(d.items || [])).catch(() => {}); }}
+          sx={{ width: 28, height: 28, borderRadius: "50%", bgcolor: "#07C160", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, "&:active": { opacity: 0.8 } }}>
+          <Typography sx={{ color: "#fff", fontSize: 20, lineHeight: 1, mt: "-2px" }}>+</Typography>
+        </Box>
       </Box>
+      {/* Scrollable content */}
+      <Box sx={{ flex: 1, overflowY: "auto", pt: 1.5 }}>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setError("")}>{error}</Alert>
+        <Alert severity="error" sx={{ mb: 1.5, mx: 2 }} onClose={() => setError("")}>{error}</Alert>
       )}
 
       {!loading && !error && tasks.length === 0 && (
-        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 6, gap: 1.5 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 6, gap: 1.5, px: 2 }}>
           <Typography variant="h6" color="text.disabled">暂无任务</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", maxWidth: 220 }}>
             在聊天中说「今日任务」或点击右上角「+ 新建任务」
@@ -1052,11 +1047,11 @@ function TasksSection({ doctorId }) {
         </Box>
       )}
 
-      <Box sx={{ bgcolor: "#fff", borderRadius: 1.5, overflow: "hidden" }}>
+      <Box sx={{ bgcolor: "#fff", borderRadius: 1.5, overflow: "hidden", mx: 2 }}>
         {tasks.map((task, idx) => {
           const isOverdue = task.due_at && new Date(task.due_at) < new Date() && task.status === "pending";
           return (
-            <Box key={task.id} sx={{ px: 2, py: 1.4, borderBottom: idx < tasks.length - 1 ? "1px solid #f2f2f2" : "none" }}>
+            <Box key={task.id} sx={{ px: 2, py: 1.4, borderBottom: idx < tasks.length - 1 ? "1px solid #f2f2f2" : "none", borderLeft: `3px solid ${task.task_type === "follow_up" ? "#07C160" : task.task_type === "review" ? "#1890ff" : "#fa8c16"}` }}>
               <Typography variant="body2" sx={{ fontWeight: 600 }}>{task.title || TASK_TYPE_LABEL[task.task_type] || task.task_type}</Typography>
               {task.content && (
                 <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>{task.content}</Typography>
@@ -1082,6 +1077,7 @@ function TasksSection({ doctorId }) {
           );
         })}
       </Box>
+      </Box>{/* end scrollable content */}
 
       {/* 推迟任务 Popover */}
       <Popover
@@ -1212,16 +1208,22 @@ function MsgBubble({ msg }) {
   }
 
   return (
-    <Box sx={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start", px: 1 }}>
-      <Paper elevation={0} sx={{
-        maxWidth: "min(85%, 720px)", p: 1.5, borderRadius: 2,
-        bgcolor: isUser ? "#eaf4ff" : "#f0faf4",
-        border: "1px solid", borderColor: isUser ? "#c8def6" : "#c9e8d4",
-      }}>
-        <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{msg.content}</Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5, textAlign: "right" }}>{msg.ts}</Typography>
-        {!isUser && msg.record ? <RecordFields record={msg.record} /> : null}
-      </Paper>
+    <Box sx={{ display: "flex", flexDirection: isUser ? "row-reverse" : "row", alignItems: "flex-end", gap: 1.2, px: 2 }}>
+      <Box sx={{ width: 38, height: 38, borderRadius: "8px", flexShrink: 0, mb: 0.5,
+        bgcolor: isUser ? "#5b9bd5" : "#07C160", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        {isUser ? <LocalHospitalOutlinedIcon sx={{ color: "#fff", fontSize: 20 }} /> : <SmartToyOutlinedIcon sx={{ color: "#fff", fontSize: 20 }} />}
+      </Box>
+      <Box sx={{ maxWidth: "min(70%, 600px)", display: "flex", flexDirection: "column", alignItems: isUser ? "flex-end" : "flex-start" }}>
+        <Box sx={{ px: "14px", py: "10px",
+          borderRadius: isUser ? "14px 2px 14px 14px" : "2px 14px 14px 14px",
+          bgcolor: isUser ? "#07C160" : "#fff",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+        }}>
+          <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", lineHeight: 1.7, color: isUser ? "#fff" : "#191919" }}>{msg.content}</Typography>
+          {!isUser && msg.record ? <RecordFields record={msg.record} /> : null}
+        </Box>
+        <Typography sx={{ mt: 0.4, px: 0.5, color: "#aaa", fontSize: 11 }}>{msg.ts}</Typography>
+      </Box>
     </Box>
   );
 }
@@ -1407,9 +1409,9 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Topbar */}
-      <Box sx={{ px: isMobile ? 2 : 3, py: 1.2, borderBottom: "1px solid #e2e8f0", backgroundColor: isMobile ? "#ededed" : "#fff", display: "flex", alignItems: "center" }}>
+      <Box sx={{ px: isMobile ? 2 : 3, height: 48, borderBottom: "1px solid #e5e5e5", backgroundColor: isMobile ? "#ededed" : "#fff", display: "flex", alignItems: "center" }}>
         <Box sx={{ flex: 1, textAlign: isMobile ? "center" : "left" }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "text.secondary" }}>{t("chat.workspaceTitle")}</Typography>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "#191919", fontSize: 15 }}>{t("chat.workspaceTitle")}</Typography>
           {isMobile && doctorId && (
             <Typography variant="caption" sx={{ color: "#999", fontSize: 10, display: "block", lineHeight: 1 }}>
               ID: {doctorId}
@@ -1423,7 +1425,7 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
         </Tooltip>
       </Box>
       {/* Messages */}
-      <Box sx={{ flex: 1, overflowY: "auto", py: 2, display: "flex", flexDirection: "column", gap: isMobile ? 1.8 : 1.4, bgcolor: isMobile ? "#ededed" : "transparent" }}>
+      <Box sx={{ flex: 1, overflowY: "auto", py: 2, display: "flex", flexDirection: "column", gap: isMobile ? 1.8 : 1.4, bgcolor: "#ededed" }}>
         {messages.map((msg, idx) => <MsgBubble key={`${msg.role}-${idx}`} msg={msg} />)}
         {loading && (
           isMobile
@@ -1442,9 +1444,9 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
         <div ref={bottomRef} />
       </Box>
       {/* Quick commands panel */}
-      <Box sx={{ px: isMobile ? 1 : 1.5, pt: 0.8, pb: 0.5, borderTop: "1px solid #e2e8f0", backgroundColor: isMobile ? "#f5f5f5" : "#fafbfc" }}>
+      <Box sx={{ px: isMobile ? 0.5 : 1.5, pt: 0.8, pb: isMobile ? 0 : 0.5, borderTop: "1px solid #e5e5e5", backgroundColor: "#f7f7f7" }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: commandsShown ? 0.6 : 0 }}>
-          <Typography variant="caption" sx={{ color: "text.disabled", fontSize: 11, letterSpacing: 0.3 }}>快捷指令</Typography>
+          <Typography sx={{ color: "#888", fontSize: 11, fontWeight: 600 }}>常用命令</Typography>
           <IconButton size="small" onClick={toggleCommands} sx={{ color: "text.disabled", p: 0.3 }}>
             {commandsShown ? <KeyboardArrowUpIcon sx={{ fontSize: 16 }} /> : <KeyboardArrowDownIcon sx={{ fontSize: 16 }} />}
           </IconButton>
@@ -1458,19 +1460,26 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
                 onClick={() => setInput(cmd.insert)}
                 sx={{
                   display: "inline-flex", flexDirection: isMobile ? "column" : "row", alignItems: "center", justifyContent: "center",
-                  gap: isMobile ? 0.2 : 0.5,
-                  px: isMobile ? 0.5 : 1.4, py: isMobile ? 0.8 : 0.8,
-                  borderRadius: isMobile ? "10px" : "16px",
-                  border: "1px solid #dde3ea", backgroundColor: "#fff",
-                  cursor: "pointer", fontSize: isMobile ? 10 : 12, color: "#374151",
+                  gap: isMobile ? 0.4 : 0.5,
+                  px: isMobile ? 0.5 : 1.4, py: isMobile ? 1 : 0.8,
+                  borderRadius: isMobile ? "8px" : "16px",
+                  border: isMobile ? "none" : "1px solid #e5e5e5",
+                  backgroundColor: isMobile ? "transparent" : "#fff",
+                  cursor: "pointer", fontSize: isMobile ? 11 : 12, color: "#555",
                   fontFamily: "inherit", lineHeight: 1.3, whiteSpace: "nowrap", width: "100%",
-                  minHeight: isMobile ? 52 : 34,
-                  transition: "all 0.15s",
-                  "&:hover": { backgroundColor: "#f0f7ff", borderColor: "#93c5fd", color: "#1d4ed8" },
-                  "&:active": { backgroundColor: "#dbeafe", transform: "scale(0.97)" },
+                  minHeight: isMobile ? 60 : 34,
+                  transition: "all 0.1s",
+                  "&:hover": { backgroundColor: isMobile ? "rgba(0,0,0,0.04)" : "#f0f7ff" },
+                  "&:active": { opacity: 0.7, transform: "scale(0.96)" },
                 }}
               >
-                <span style={{ fontSize: isMobile ? 18 : 13 }}>{cmd.icon}</span>
+                {isMobile ? (
+                  <Box sx={{ width: 44, height: 44, borderRadius: "10px", bgcolor: "#f2f2f2", display: "flex", alignItems: "center", justifyContent: "center", mb: 0.2 }}>
+                    <span style={{ fontSize: 22 }}>{cmd.icon}</span>
+                  </Box>
+                ) : (
+                  <span style={{ fontSize: 13 }}>{cmd.icon}</span>
+                )}
                 {cmd.label}
               </Box>
             ))}
@@ -1542,7 +1551,7 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
           </Stack>
         </Box>
       ) : (
-        <Box sx={{ px: 2, py: 1.5, borderTop: "1px solid #e2e8f0", backgroundColor: "#fff" }}>
+        <Box sx={{ px: 2, py: 1.2, borderTop: "1px solid #e5e5e5", backgroundColor: "#f7f7f7" }}>
           {failedText && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 2, py: 0.5, bgcolor: "#fff0f0", borderTop: "1px solid #fecaca", mb: 1 }}>
               <Typography variant="caption" color="error" sx={{ flex: 1 }}>上条消息发送失败</Typography>
@@ -1964,37 +1973,46 @@ export default function DoctorPage() {
   const navBadge = { tasks: pendingTaskCount, chat: pendingRecord ? 1 : 0 };
 
   return (
-    <Box sx={{ display: "flex", height: "100vh", background: "#f8fafb" }}>
+    <Box sx={{ display: "flex", height: "100vh", bgcolor: "#f7f7f7" }}>
       {/* Sidebar — desktop only */}
       {!isMobile && (
         <Box sx={{
-          width: 220, flexShrink: 0, borderRight: "1px solid #e2e8f0",
-          backgroundColor: "#fff", display: "flex", flexDirection: "column", py: 2, px: 1.5,
+          width: 220, flexShrink: 0, borderRight: "1px solid #e5e5e5",
+          backgroundColor: "#f7f7f7", display: "flex", flexDirection: "column", py: 2, px: 0,
         }}>
           {/* Header */}
-          <Box sx={{ mb: 3, px: 0.5 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "primary.main" }}>医生工作台</Typography>
+          <Box sx={{ mb: 2, px: 2 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#07C160" }}>医生工作台</Typography>
             <Typography variant="caption" color="text.secondary">{doctorName || doctorId}</Typography>
           </Box>
 
           {/* Nav */}
-          <Stack spacing={0.5} sx={{ flex: 1 }}>
+          <Box sx={{ flex: 1 }}>
             {NAV.map((item) => (
-              <NavBtn key={item.key} active={activeSection === item.key} icon={item.icon} onClick={() => handleNav(item.key)} badgeCount={navBadge[item.key] || 0}>
-                {item.label}
-              </NavBtn>
+              <Box key={item.key} onClick={() => handleNav(item.key)}
+                sx={{ display: "flex", alignItems: "center", gap: 1.2, px: 2, py: 1.2, cursor: "pointer", borderRadius: 0,
+                  bgcolor: activeSection === item.key ? "#07C160" : "transparent",
+                  color: activeSection === item.key ? "#fff" : "#555",
+                  "&:hover": { bgcolor: activeSection === item.key ? "#07C160" : "rgba(0,0,0,0.05)" },
+                  "&:active": { opacity: 0.8 },
+                }}>
+                <Box sx={{ "& svg": { fontSize: 20, color: activeSection === item.key ? "#fff" : "#555" } }}>
+                  {navBadge[item.key] > 0
+                    ? <Badge badgeContent={navBadge[item.key]} color="error">{item.icon}</Badge>
+                    : item.icon}
+                </Box>
+                <Typography sx={{ fontSize: 14, fontWeight: activeSection === item.key ? 600 : 400, color: "inherit" }}>{item.label}</Typography>
+              </Box>
             ))}
-          </Stack>
+          </Box>
 
           {/* Footer */}
-          <Button
-            startIcon={<LogoutIcon fontSize="small" />}
-            onClick={handleLogout}
-            size="small"
-            sx={{ justifyContent: "flex-start", color: "text.secondary", mt: 1 }}
-          >
-            退出登录
-          </Button>
+          <Box onClick={handleLogout}
+            sx={{ display: "flex", alignItems: "center", gap: 1.2, px: 2, py: 1.2, cursor: "pointer",
+              color: "#888", "&:hover": { bgcolor: "rgba(0,0,0,0.05)" }, "&:active": { opacity: 0.8 } }}>
+            <LogoutIcon fontSize="small" sx={{ color: "#888" }} />
+            <Typography sx={{ fontSize: 14, color: "#888" }}>退出登录</Typography>
+          </Box>
         </Box>
       )}
 
@@ -2020,40 +2038,31 @@ export default function DoctorPage() {
         )}
         {pendingRecord && (
           isMobile ? (
-            <Box sx={{ mx: 1.5, mt: 1, p: 1.5, borderRadius: 1.5, backgroundColor: "#fffbeb", border: "1px solid #fcd34d" }}>
-              <Typography variant="caption" sx={{ fontWeight: 700, display: "block", mb: 0.3 }}>⚠️ 待确认病历草稿</Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
-                {pendingRecord.patient_name || "未关联"}：{pendingRecord.content_preview}
+            <Box sx={{ mx: 0, mt: 0, px: 2, py: 1.2, backgroundColor: "#fff7e6", borderBottom: "1px solid #ffd666", display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography sx={{ fontSize: 13, color: "#d46b08", flex: 1 }}>
+                ⏳ 待确认：{pendingRecord.patient_name || "未关联"} — {pendingRecord.content_preview?.slice(0, 20)}{pendingRecord.content_preview?.length > 20 ? "…" : ""}
+                {pendingRecord.expires_at && (() => { const mins = Math.max(0, Math.round((new Date(pendingRecord.expires_at) - Date.now()) / 60000)); return <span style={{ marginLeft: 4, fontWeight: 700, color: mins <= 2 ? "#cf1322" : "#d46b08" }}>({mins}分钟)</span>; })()}
               </Typography>
-              {pendingRecord.expires_at && (() => {
-                const mins = Math.max(0, Math.round((new Date(pendingRecord.expires_at) - Date.now()) / 60000));
-                return mins > 0
-                  ? <Typography variant="caption" sx={{ color: mins <= 2 ? "error.main" : "warning.main", fontWeight: 700, display: "block", mb: 1 }}>⏰ {mins} 分钟后过期</Typography>
-                  : <Typography variant="caption" sx={{ color: "error.main", fontWeight: 700, display: "block", mb: 1 }}>⏰ 即将过期</Typography>;
-              })()}
-              <Stack direction="row" spacing={1}>
-                <Button size="small" color="success" variant="contained" fullWidth onClick={handleConfirmPending}>确认保存</Button>
-                <Button size="small" color="error" variant="outlined" fullWidth onClick={handleAbandonPending}>撤销</Button>
-              </Stack>
+              <Box onClick={handleConfirmPending} sx={{ px: 1.5, py: 0.4, borderRadius: "12px", bgcolor: "#07C160", cursor: "pointer", "&:active": { opacity: 0.8 } }}>
+                <Typography sx={{ color: "#fff", fontSize: 12, fontWeight: 600 }}>确认</Typography>
+              </Box>
+              <Box onClick={handleAbandonPending} sx={{ px: 1.5, py: 0.4, borderRadius: "12px", bgcolor: "#f2f2f2", cursor: "pointer", "&:active": { opacity: 0.8 } }}>
+                <Typography sx={{ color: "#555", fontSize: 12 }}>撤销</Typography>
+              </Box>
             </Box>
           ) : (
-            <Alert severity="warning" sx={{ mx: 2, mt: 1.5, borderRadius: 1.5 }}
-              action={
-                <Stack direction="row" spacing={1} flexShrink={0}>
-                  <Button size="small" color="success" variant="contained" onClick={handleConfirmPending}>确认保存</Button>
-                  <Button size="small" color="error" variant="outlined" onClick={handleAbandonPending}>撤销</Button>
-                </Stack>
-              }
-            >
-              <AlertTitle>待确认病历草稿</AlertTitle>
-              患者：{pendingRecord.patient_name || "未关联"} · {pendingRecord.content_preview}
-              {pendingRecord.expires_at && (() => {
-                const mins = Math.max(0, Math.round((new Date(pendingRecord.expires_at) - Date.now()) / 60000));
-                return mins > 0
-                  ? <Typography component="span" variant="caption" sx={{ ml: 1, color: mins <= 2 ? "error.main" : "warning.dark", fontWeight: 700 }}>⏰ {mins} 分钟后过期</Typography>
-                  : <Typography component="span" variant="caption" sx={{ ml: 1, color: "error.main", fontWeight: 700 }}>⏰ 即将过期</Typography>;
-              })()}
-            </Alert>
+            <Box sx={{ mx: 2, mt: 1, px: 2, py: 1, backgroundColor: "#fff7e6", border: "1px solid #ffd666", borderRadius: 1.5, display: "flex", alignItems: "center", gap: 1.5 }}>
+              <Typography sx={{ fontSize: 13, color: "#d46b08", flex: 1 }}>
+                ⏳ <strong>待确认病历</strong>：{pendingRecord.patient_name || "未关联"} — {pendingRecord.content_preview}
+                {pendingRecord.expires_at && (() => { const mins = Math.max(0, Math.round((new Date(pendingRecord.expires_at) - Date.now()) / 60000)); return <span style={{ marginLeft: 8, fontWeight: 700, color: mins <= 2 ? "#cf1322" : "#d46b08" }}>{mins <= 0 ? "即将过期" : `${mins}分钟后过期`}</span>; })()}
+              </Typography>
+              <Box onClick={handleConfirmPending} sx={{ px: 2, py: 0.6, borderRadius: "12px", bgcolor: "#07C160", cursor: "pointer", flexShrink: 0, "&:active": { opacity: 0.8 } }}>
+                <Typography sx={{ color: "#fff", fontSize: 13, fontWeight: 600 }}>确认保存</Typography>
+              </Box>
+              <Box onClick={handleAbandonPending} sx={{ px: 2, py: 0.6, borderRadius: "12px", bgcolor: "#f2f2f2", cursor: "pointer", flexShrink: 0, "&:active": { opacity: 0.8 } }}>
+                <Typography sx={{ color: "#555", fontSize: 13 }}>撤销</Typography>
+              </Box>
+            </Box>
           )
         )}
 
