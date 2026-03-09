@@ -1348,9 +1348,8 @@ async def admin_table_rows(
             items = [
                 {
                     "id": p.id, "doctor_id": p.doctor_id,
-                    "raw_content": p.raw_content, "msg_type": p.msg_type,
+                    "raw_content": p.raw_content,
                     "status": p.status, "created_at": _fmt_ts(p.created_at),
-                    "processed_at": _fmt_ts(getattr(p, "processed_at", None)),
                 }
                 for p in (await db.execute(stmt)).scalars().all()
             ]
