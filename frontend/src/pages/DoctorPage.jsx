@@ -1142,16 +1142,14 @@ function MsgBubble({ msg }) {
 }
 
 const QUICK_COMMANDS = [
-  // Row 1 — Patient management
-  { label: "建档[姓名]", insert: "建档" },
-  { label: "查[姓名]", insert: "查" },
-  { label: "删除[姓名]", insert: "删除" },
-  { label: "患者列表", insert: "患者列表" },
-  // Row 2 — Records
-  { label: "补充：...", insert: "补充：" },
-  { label: "刚才写错了", insert: "刚才写错了，应该是" },
-  { label: "PDF:...", insert: "PDF:" },
-  { label: "今天任务", insert: "今天任务" },
+  { label: "新建患者", icon: "👤", insert: "建档" },
+  { label: "查询患者", icon: "🔍", insert: "查" },
+  { label: "患者列表", icon: "📋", insert: "患者列表" },
+  { label: "补充记录", icon: "➕", insert: "补充：" },
+  { label: "修正上条", icon: "✏️", insert: "刚才写错了，应该是" },
+  { label: "导出PDF", icon: "📄", insert: "PDF:" },
+  { label: "今日任务", icon: "📌", insert: "今天任务" },
+  { label: "功能帮助", icon: "💡", insert: "帮助" },
 ];
 
 function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternalInputConsumed, onPatientCreated }) {
@@ -1320,32 +1318,36 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
         <div ref={bottomRef} />
       </Box>
       {/* Quick commands panel */}
-      <Box sx={{ px: 2, pt: 1, borderTop: "1px solid #e2e8f0", backgroundColor: "#fafbfc" }}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: commandsShown ? 0.5 : 0 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>常用命令</Typography>
-          <IconButton size="small" onClick={toggleCommands} sx={{ color: "text.secondary" }}>
-            {commandsShown ? <KeyboardArrowUpIcon fontSize="small" /> : <KeyboardArrowDownIcon fontSize="small" />}
+      <Box sx={{ px: 1.5, pt: 0.8, pb: 0.5, borderTop: "1px solid #e2e8f0", backgroundColor: "#fafbfc" }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: commandsShown ? 0.6 : 0 }}>
+          <Typography variant="caption" sx={{ color: "text.disabled", fontSize: 11, letterSpacing: 0.3 }}>快捷指令</Typography>
+          <IconButton size="small" onClick={toggleCommands} sx={{ color: "text.disabled", p: 0.3 }}>
+            {commandsShown ? <KeyboardArrowUpIcon sx={{ fontSize: 16 }} /> : <KeyboardArrowDownIcon sx={{ fontSize: 16 }} />}
           </IconButton>
         </Stack>
         {commandsShown && (
-          <>
-            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.8, fontSize: 11 }}>
-              点击插入常用指令（~1ms，无需等待 AI）
-            </Typography>
-            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0.6, mb: 1 }}>
-              {QUICK_COMMANDS.map((cmd) => (
-                <Chip
-                  key={cmd.label}
-                  label={cmd.label}
-                  size="small"
-                  clickable
-                  variant="outlined"
-                  onClick={() => setInput((prev) => prev ? prev + cmd.insert : cmd.insert)}
-                  sx={{ fontSize: 11, justifyContent: "flex-start" }}
-                />
-              ))}
-            </Box>
-          </>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.7, mb: 0.8 }}>
+            {QUICK_COMMANDS.map((cmd) => (
+              <Box
+                key={cmd.label}
+                component="button"
+                onClick={() => setInput((prev) => prev ? prev + cmd.insert : cmd.insert)}
+                sx={{
+                  display: "inline-flex", alignItems: "center", gap: 0.5,
+                  px: 1.2, py: 0.5, borderRadius: "16px",
+                  border: "1px solid #dde3ea", backgroundColor: "#fff",
+                  cursor: "pointer", fontSize: 12, color: "#374151",
+                  fontFamily: "inherit", lineHeight: 1.4, whiteSpace: "nowrap",
+                  transition: "all 0.15s",
+                  "&:hover": { backgroundColor: "#f0f7ff", borderColor: "#93c5fd", color: "#1d4ed8" },
+                  "&:active": { backgroundColor: "#dbeafe" },
+                }}
+              >
+                <span style={{ fontSize: 13 }}>{cmd.icon}</span>
+                {cmd.label}
+              </Box>
+            ))}
+          </Box>
         )}
       </Box>
 
