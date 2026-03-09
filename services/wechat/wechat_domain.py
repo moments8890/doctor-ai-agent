@@ -41,7 +41,8 @@ from services.session import (
     set_pending_create,
     set_pending_record_id,
 )
-from services.ai.structuring import structure_medical_record, detect_followup_from_text
+from services.ai.structuring import structure_medical_record
+from services.patient.encounter_detection import detect_encounter_type
 from services.patient.score_extraction import detect_score_keywords, extract_specialty_scores
 from services.notify.tasks import create_appointment_task, create_emergency_task, create_follow_up_task
 from utils.text_parsing import (
@@ -162,7 +163,8 @@ async def handle_add_record(
         try:
             doctor_ctx = [m["content"] for m in (history or [])[-10:] if m["role"] == "user"]
             doctor_ctx.append(text)
-            _enc_type = "follow_up" if detect_followup_from_text(text) else "unknown"
+            async with AsyncSessionLocal() as _enc_sess:
+                _enc_type = await detect_encounter_type(_enc_sess, doctor_id, patient_id, text)
             _prior_summary: Optional[str] = None
             if _enc_type == "follow_up" and patient_id is not None:
                 from services.patient.prior_visit import get_prior_visit_summary
@@ -1094,19 +1096,24 @@ async def _mark_duplicates(
     doctor_id: str,
     patient_id: int,
 ) -> list[dict]:
-    """Mark chunks that appear to duplicate existing records."""
+    """Mark chunks that appear to duplicate existing records using content matching."""
     async with AsyncSessionLocal() as session:
         existing = await get_records_for_patient(session, doctor_id, patient_id)
     if not existing:
         return chunks
+    existing_contents = [
+        (rec.content or "").strip().lower()
+        for rec in existing
+        if rec.content
+    ]
     for chunk in chunks:
         s = chunk.get("structured", {})
-        cc = (s.get("chief_complaint") or "").strip().lower()
-        if not cc:
+        chunk_content = (s.get("content") or "").strip().lower()
+        if len(chunk_content) < 20:
             continue
-        for rec in existing:
-            existing_cc = (rec.chief_complaint or "").strip().lower()
-            if cc and existing_cc and (cc in existing_cc or existing_cc in cc):
+        chunk_prefix = chunk_content[:80]
+        for existing_content in existing_contents:
+            if chunk_prefix in existing_content or existing_content[:80] in chunk_content:
                 chunk["status"] = "duplicate"
                 break
     return chunks
@@ -1135,8 +1142,9 @@ def _format_import_preview(
         s = chunk.get("structured", {})
         icon = ICONS[i] if i < len(ICONS) else f"{i+1}."
         date_str = _extract_chunk_date(chunk.get("raw_text", "")) or "?"
-        cc = _t(s.get("chief_complaint") or "—", 14)
-        diag = _t(s.get("diagnosis") or "", 12)
+        cc = _t(s.get("content") or "—", 14)
+        tags_list = s.get("tags") or []
+        diag = _t(tags_list[0] if tags_list else "", 12)
         diag_part = f"·{diag}" if diag else ""
         dup_tag = "⚠️疑似重复" if chunk["status"] == "duplicate" else ""
         lines.append(f"{icon} {date_str} {cc}{diag_part} {dup_tag}".strip())

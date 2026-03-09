@@ -132,19 +132,19 @@ def test_format_preview_with_duplicates():
 
 @pytest.mark.asyncio
 async def test_mark_duplicates_flags_matching_complaint():
-    existing_rec = SimpleNamespace(chief_complaint="头痛")
+    existing_rec = SimpleNamespace(content="患者头痛伴恶心，持续3天，无发热，血压正常范围")
 
     chunks = [
         {
             "idx": 1,
             "raw_text": "2023-01-01\n头痛",
-            "structured": {"chief_complaint": "头痛"},
+            "structured": {"content": "患者头痛伴恶心，持续3天，无发热，血压正常范围"},
             "status": "pending",
         },
         {
             "idx": 2,
             "raw_text": "2023-02-01\n腹泻",
-            "structured": {"chief_complaint": "腹泻"},
+            "structured": {"content": "患者腹泻水样便，每日5次，无血便，发病2天"},
             "status": "pending",
         },
     ]

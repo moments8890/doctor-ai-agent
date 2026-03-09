@@ -58,8 +58,13 @@ import { t } from "../i18n";
 // ─── Constants ─────────────────────────────────────────────────────────────
 
 const TASK_TYPE_LABEL = {
-  follow_up: "随访", review: "复查", call: "电话联系", message: "发送消息",
-  prescription: "处方续开", referral: "转诊", education: "患者教育",
+  follow_up:   "随访",
+  medication:  "用药管理",
+  lab_review:  "检验复查",
+  referral:    "转诊",
+  imaging:     "影像检查",
+  appointment: "预约就诊",
+  general:     "通用任务",
 };
 const TASK_STATUS_LABEL = { pending: "待处理", done: "已完成", cancelled: "已取消", snoozed: "已推迟" };
 const ENCOUNTER_LABEL = { inpatient: "住院", outpatient: "门诊", first_visit: "初诊", follow_up_visit: "复诊", unknown: "未知" };
