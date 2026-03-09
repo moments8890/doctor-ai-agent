@@ -11,8 +11,13 @@ from db.engine import Base, DATABASE_URL
 
 config = context.config
 
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+# Do NOT call fileConfig here — it resets the root logger's handlers (removing
+# the RotatingFileHandler for app.log set up by utils/log.py init_logging()).
+# Logging is fully managed by utils/log.py when running inside the application.
+# The [loggers] sections in alembic.ini are kept for standalone `alembic` CLI
+# usage but are intentionally skipped when migrating inside the app process.
+# if config.config_file_name is not None:
+#     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
 
