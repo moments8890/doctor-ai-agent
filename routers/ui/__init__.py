@@ -1219,6 +1219,8 @@ async def admin_table_rows(
                     "title": t.title,
                     "status": t.status,
                     "due_at": _fmt_ts(t.due_at),
+                    "record_id": t.record_id,
+                    "updated_at": _fmt_ts(t.updated_at),
                     "created_at": _fmt_ts(t.created_at),
                 }
                 for t, pname in (await db.execute(stmt)).all()
@@ -1329,6 +1331,7 @@ async def admin_table_rows(
                     "patient_name": pname, "record_id": r.record_id,
                     "diagnosis_subtype": r.diagnosis_subtype, "surgery_status": r.surgery_status,
                     "source": r.source, "created_at": _fmt_ts(r.created_at),
+                    "updated_at": _fmt_ts(r.updated_at),
                     **(_json.loads(r.raw_json) if r.raw_json else {}),
                 }
                 for r, pname in (await db.execute(stmt)).all()
