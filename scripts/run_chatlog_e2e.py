@@ -29,6 +29,21 @@ except ImportError:
     sys.exit(1)
 
 try:
+    import jwt as _pyjwt
+    _HAS_JWT = True
+except ImportError:
+    _HAS_JWT = False
+
+
+def _make_jwt(doctor_id: str, secret: str) -> str:
+    """Issue a short-lived HS256 JWT for a given doctor_id."""
+    if not _HAS_JWT:
+        raise RuntimeError("PyJWT not installed; run: pip install PyJWT")
+    now = int(time.time())
+    payload = {"sub": doctor_id, "channel": "e2e", "iat": now, "exp": now + 3600}
+    return _pyjwt.encode(payload, secret, algorithm="HS256")
+
+try:
     from dotenv import load_dotenv
 
     shared_env = Path("/Users/jingwuxu/Documents/code/shared-db/.env")
@@ -661,6 +676,12 @@ def main() -> None:
         default=os.environ.get("E2E_AUTH_TOKEN", ""),
         help="Bearer token for Authorization header (also reads E2E_AUTH_TOKEN env var)",
     )
+    parser.add_argument(
+        "--token-secret",
+        default=os.environ.get("MINIPROGRAM_TOKEN_SECRET", "dev-miniprogram-secret"),
+        help="JWT secret for per-case token generation (avoids shared rate-limit bucket). "
+             "Reads MINIPROGRAM_TOKEN_SECRET env var; defaults to 'dev-miniprogram-secret'.",
+    )
     args = parser.parse_args()
 
     data_path = Path(args.data_path)
@@ -692,9 +713,19 @@ def main() -> None:
     print(f"{GRAY}  run_id    : {run_id}{RESET}\n")
 
     auth_token: Optional[str] = args.auth_token.strip() or None
+    token_secret: Optional[str] = (args.token_secret or "").strip() or None
+    # Per-case tokens are used when no static auth_token is given but a secret is available.
+    use_per_case_tokens = (auth_token is None) and (token_secret is not None)
+    if use_per_case_tokens:
+        print(f"{GRAY}  auth      : per-case JWT (secret len={len(token_secret)}){RESET}\n")
+    elif auth_token:
+        print(f"{GRAY}  auth      : static Bearer token{RESET}\n")
 
     def _run_one(case: Case) -> CaseResult:
         doctor_id = f"{args.doctor_prefix}_{run_id}_{case.case_id.lower()}"
+        case_token: Optional[str] = auth_token
+        if use_per_case_tokens:
+            case_token = _make_jwt(doctor_id, token_secret)
         try:
             return run_case(
                 case=case,
@@ -707,7 +738,7 @@ def main() -> None:
                 keywords_mode=args.keywords_mode,
                 require_db_persistence=args.require_db_persistence,
                 allow_model_limitations=not args.no_model_fallback,
-                auth_token=auth_token,
+                auth_token=case_token,
             )
         except Exception as exc:  # noqa: BLE001
             return CaseResult(
