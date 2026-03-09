@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -7,14 +8,20 @@ from unittest.mock import MagicMock, patch
 import utils.log as logmod
 
 
-def test_log_includes_sorted_kv_fields():
+def test_log_passes_fields_as_kwargs():
+    """Fields are forwarded as kwargs (separate JSON keys), not embedded in msg."""
     logger = MagicMock()
     with patch("utils.log.get_logger", return_value=logger):
         logmod.log("event", logger_name="tasks", z=2, a=1, none_val=None)
 
     logger.info.assert_called_once()
-    payload = logger.info.call_args.args[0]
-    assert payload == "event | a=1 z=2"
+    call = logger.info.call_args
+    # Message is the first positional arg
+    assert call.args[0] == "event"
+    # Non-None fields passed as kwargs (none_val is dropped)
+    assert call.kwargs.get("a") == 1
+    assert call.kwargs.get("z") == 2
+    assert "none_val" not in call.kwargs
 
 
 def test_task_log_uses_tasks_logger_name():
@@ -23,9 +30,9 @@ def test_task_log_uses_tasks_logger_name():
         logmod.task_log("tick", task_id=3)
 
     get_logger.assert_called_once_with("tasks")
-    payload = logger.info.call_args.args[0]
-    assert "tick" in payload
-    assert "task_id=3" in payload
+    call = logger.info.call_args
+    assert call.args[0] == "tick"
+    assert call.kwargs.get("task_id") == 3
 
 
 def test_init_logging_with_console_only():
@@ -50,7 +57,7 @@ def test_log_unknown_level_falls_back_to_info():
         def __init__(self):
             self.messages = []
 
-        def info(self, payload):
+        def info(self, payload, **_kw):
             self.messages.append(payload)
 
     logger = _DummyLogger()
@@ -121,3 +128,33 @@ def test_init_logging_scheduler_can_propagate_to_console_when_enabled():
 
     scheduler_logger = logging.getLogger("apscheduler")
     assert scheduler_logger.propagate is True
+
+
+def test_json_mode_fields_are_separate_keys(tmp_path: Path):
+    """In LOG_JSON=true mode, fields appear as separate JSON keys (not embedded in msg)."""
+    with patch.dict(
+        "os.environ",
+        {
+            "LOG_LEVEL": "INFO",
+            "LOG_JSON": "true",
+            "LOG_TO_FILE": "true",
+            "LOG_DIR": str(tmp_path),
+            "LOG_FILE": "app.log",
+        },
+        clear=False,
+    ):
+        logmod.init_logging()
+
+    logmod.log("test-event", provider="deepseek", tokens=42)
+
+    log_path = tmp_path / "app.log"
+    assert log_path.exists()
+    lines = [l for l in log_path.read_text().splitlines() if l.strip()]
+    assert lines, "log file should have at least one line"
+
+    # The last line should be valid JSON with separate field keys
+    last = json.loads(lines[-1])
+    assert last.get("event") == "test-event"
+    assert last.get("provider") == "deepseek"
+    assert last.get("tokens") == 42
+    assert last.get("level") == "info"

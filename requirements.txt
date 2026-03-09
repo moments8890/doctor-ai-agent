@@ -37,3 +37,4 @@ PyJWT==2.11.0
 #   Requires: ollama pull qwen2.5vl:7b  (or set OLLAMA_VISION_MODEL to another vision model)
 #   Env vars: VISION_LLM=ollama (default) | openai
 #             OLLAMA_VISION_MODEL=qwen2.5vl:7b (default)
+structlog>=21.5.0              # structured JSON logging
