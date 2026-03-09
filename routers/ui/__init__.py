@@ -297,51 +297,14 @@ async def manage_patient_cvd_context(
         row = await get_cvd_context_for_patient(db, doctor_id, patient_id)
     if row is None:
         raise HTTPException(status_code=404, detail="No CVD context found")
+    import json as _json
+    data = _json.loads(row.raw_json or "{}") if row.raw_json else {}
     return {
         "patient_id": patient_id,
         "record_id": row.record_id,
-        "diagnosis_subtype": row.diagnosis_subtype,
-        "hemorrhage_location": row.hemorrhage_location,
-        # ICH
-        "ich_score": row.ich_score,
-        "ich_volume_ml": row.ich_volume_ml,
-        "hemorrhage_etiology": row.hemorrhage_etiology,
-        # SAH grading
-        "hunt_hess_grade": row.hunt_hess_grade,
-        "fisher_grade": row.fisher_grade,
-        "wfns_grade": row.wfns_grade,
-        "modified_fisher_grade": row.modified_fisher_grade,
-        # SAH post-op
-        "vasospasm_status": row.vasospasm_status,
-        "nimodipine_regimen": row.nimodipine_regimen,
-        # ICH/SAH shared
-        "hydrocephalus_status": row.hydrocephalus_status,
-        # AVM
-        "spetzler_martin_grade": row.spetzler_martin_grade,
-        # General severity
-        "gcs_score": row.gcs_score,
-        # Aneurysm
-        "aneurysm_location": row.aneurysm_location,
-        "aneurysm_size_mm": row.aneurysm_size_mm,
-        "aneurysm_neck_width_mm": row.aneurysm_neck_width_mm,
-        "aneurysm_morphology": row.aneurysm_morphology,
-        "aneurysm_daughter_sac": row.aneurysm_daughter_sac,
-        "aneurysm_treatment": row.aneurysm_treatment,
-        "phases_score": row.phases_score,
-        # Moyamoya
-        "suzuki_stage": row.suzuki_stage,
-        "bypass_type": row.bypass_type,
-        "perfusion_status": row.perfusion_status,
-        # Surgical
-        "surgery_type": row.surgery_type,
-        "surgery_date": row.surgery_date,
-        "surgery_status": row.surgery_status,
-        "surgical_approach": row.surgical_approach,
-        # Outcome
-        "mrs_score": row.mrs_score,
-        "barthel_index": row.barthel_index,
         "source": row.source,
         "created_at": _fmt_ts(row.created_at),
+        **data,
     }
 
 
@@ -1353,19 +1316,14 @@ async def admin_table_rows(
                 stmt = apply_exclude_test_doctors(stmt, NeuroCVDContext.doctor_id)
             if needle:
                 stmt = stmt.where(Patient.name.ilike(needle))
+            import json as _json
             items = [
                 {
                     "id": r.id, "doctor_id": r.doctor_id, "patient_id": r.patient_id,
                     "patient_name": pname, "record_id": r.record_id,
-                    "diagnosis_subtype": r.diagnosis_subtype, "hemorrhage_location": r.hemorrhage_location,
-                    "gcs_score": r.gcs_score, "ich_score": r.ich_score, "ich_volume_ml": r.ich_volume_ml,
-                    "hunt_hess_grade": r.hunt_hess_grade, "fisher_grade": r.fisher_grade,
-                    "spetzler_martin_grade": r.spetzler_martin_grade,
-                    "aneurysm_location": r.aneurysm_location, "aneurysm_size_mm": r.aneurysm_size_mm,
-                    "aneurysm_treatment": r.aneurysm_treatment, "surgery_type": r.surgery_type,
-                    "surgery_status": r.surgery_status, "surgery_date": r.surgery_date,
-                    "mrs_score": r.mrs_score, "barthel_index": r.barthel_index,
+                    "diagnosis_subtype": r.diagnosis_subtype, "surgery_status": r.surgery_status,
                     "source": r.source, "created_at": _fmt_ts(r.created_at),
+                    **(_json.loads(r.raw_json) if r.raw_json else {}),
                 }
                 for r, pname in (await db.execute(stmt)).all()
             ]

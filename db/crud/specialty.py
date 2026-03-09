@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Optional
 
 from sqlalchemy import select
@@ -9,6 +10,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.models.neuro_case import NeuroCVDSurgicalContext
 from db.models.specialty import NeuroCVDContext
+
+
+def _parse_cvd_json(row: NeuroCVDContext) -> Optional[NeuroCVDSurgicalContext]:
+    """Deserialize raw_json back to the Pydantic model. Returns None if empty."""
+    if not row.raw_json:
+        return None
+    try:
+        return NeuroCVDSurgicalContext.model_validate(json.loads(row.raw_json))
+    except Exception:
+        return None
 
 
 async def save_cvd_context(
@@ -19,30 +30,15 @@ async def save_cvd_context(
     ctx: NeuroCVDSurgicalContext,
     source: str = "chat",
 ) -> NeuroCVDContext:
-    """Persist a NeuroCVDSurgicalContext to the neuro_cvd_context table."""
+    """Persist a NeuroCVDSurgicalContext to neuro_cvd_context."""
     row = NeuroCVDContext(
         doctor_id=doctor_id,
         patient_id=patient_id,
         record_id=record_id,
         diagnosis_subtype=ctx.diagnosis_subtype,
-        hemorrhage_location=ctx.hemorrhage_location,
-        ich_score=ctx.ich_score,
-        ich_volume_ml=ctx.ich_volume_ml,
-        hunt_hess_grade=ctx.hunt_hess_grade,
-        fisher_grade=ctx.fisher_grade,
-        spetzler_martin_grade=ctx.spetzler_martin_grade,
-        gcs_score=ctx.gcs_score,
-        aneurysm_location=ctx.aneurysm_location,
-        aneurysm_size_mm=ctx.aneurysm_size_mm,
-        aneurysm_morphology=ctx.aneurysm_morphology,
-        aneurysm_treatment=ctx.aneurysm_treatment,
-        surgery_type=ctx.surgery_type,
-        surgery_date=ctx.surgery_date,
         surgery_status=ctx.surgery_status,
-        surgical_approach=ctx.surgical_approach,
-        mrs_score=ctx.mrs_score,
-        barthel_index=ctx.barthel_index,
         source=source,
+        raw_json=json.dumps(ctx.model_dump(exclude_none=True), ensure_ascii=False),
     )
     session.add(row)
     await session.commit()
@@ -58,7 +54,7 @@ async def upsert_cvd_field(
     field_name: str,
     value: int,
 ) -> None:
-    """Set a single field on an existing neuro_cvd_context row, or create a minimal row if none exists."""
+    """Set a single field on an existing neuro_cvd_context row, or create a minimal row."""
     result = await session.execute(
         select(NeuroCVDContext)
         .where(NeuroCVDContext.record_id == record_id)
@@ -66,15 +62,23 @@ async def upsert_cvd_field(
     )
     existing = result.scalar_one_or_none()
     if existing:
-        setattr(existing, field_name, value)
+        data = json.loads(existing.raw_json or "{}")
+        data[field_name] = value
+        existing.raw_json = json.dumps(data, ensure_ascii=False)
+        # Keep promoted columns in sync
+        if field_name == "diagnosis_subtype":
+            existing.diagnosis_subtype = value
+        elif field_name == "surgery_status":
+            existing.surgery_status = value
     else:
+        data = {field_name: value}
         row = NeuroCVDContext(
             record_id=record_id,
             patient_id=patient_id,
             doctor_id=doctor_id,
             source="manual",
+            raw_json=json.dumps(data, ensure_ascii=False),
         )
-        setattr(row, field_name, value)
         session.add(row)
     await session.commit()
 

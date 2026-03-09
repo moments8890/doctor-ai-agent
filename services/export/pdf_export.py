@@ -260,10 +260,12 @@ def generate_records_pdf(
             ("mrs_score", "mRS"),
             ("barthel_index", "Barthel指数"),
         ]
+        import json as _json
+        _cvd_data = _json.loads(cvd_context.raw_json or "{}") if hasattr(cvd_context, "raw_json") else {}
         cvd_pairs = [
-            (label, str(getattr(cvd_context, field, None)))
+            (label, str(_cvd_data[field]))
             for field, label in _CVD_FIELD_LABELS
-            if getattr(cvd_context, field, None) is not None
+            if _cvd_data.get(field) is not None
         ]
         if cvd_pairs:
             pdf.ln(2)

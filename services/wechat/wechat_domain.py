@@ -698,8 +698,8 @@ async def handle_export_records(doctor_id: str, intent_result: IntentResult) -> 
         f"⚠️ 病历 PDF 发送失败（{pdf_error}），以下为文字摘要：",
         f"📄 【{patient_name}】病历摘要（共 {len(records)} 条）\n",
     ]
-    if cvd_ctx:
-        lines.append(_format_cvd_summary(cvd_ctx.__dict__ if hasattr(cvd_ctx, "__dict__") else {}))
+    if cvd_ctx and cvd_ctx.raw_json:
+        lines.append(_format_cvd_summary(json.loads(cvd_ctx.raw_json)))
     for r in records[:10]:
         date_str = r.created_at.strftime("%Y-%m-%d") if r.created_at else "?"
         snippet = _t(r.content or "—", 60)

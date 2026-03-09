@@ -13,7 +13,7 @@ import routers.wechat as wechat
 from db.models.medical_record import MedicalRecord
 from services.ai.intent import Intent, IntentResult
 from services.patient.interview import InterviewState, STEPS
-from services.session import clear_pending_create, get_session, set_pending_create
+from services.session import clear_pending_create, clear_pending_record_id, get_session, set_pending_create
 
 
 DOCTOR = "wechat_routes_doc"
@@ -661,6 +661,8 @@ def test_verify_missing_signature_returns_echo_or_ok():
 
 
 async def test_handle_intent_bg_uses_context_and_fallback():
+    clear_pending_record_id(DOCTOR)
+    clear_pending_create(DOCTOR)
     with patch("routers.wechat.get_session_lock", return_value=DummyLock()), \
          patch("routers.wechat.maybe_compress", new=AsyncMock()), \
          patch("routers.wechat.load_context_message", new=AsyncMock(return_value={"role": "system", "content": "ctx"})), \
@@ -675,6 +677,7 @@ async def test_handle_intent_bg_uses_context_and_fallback():
 
 
 async def test_handle_intent_bg_pending_create_bypasses_llm():
+    clear_pending_record_id(DOCTOR)
     set_pending_create(DOCTOR, "章三")
     with patch("routers.wechat.get_session_lock", return_value=DummyLock()), \
          patch("routers.wechat._handle_pending_create", new=AsyncMock(return_value="好的，章三已建档（男、17岁）。")) as pending_mock, \
