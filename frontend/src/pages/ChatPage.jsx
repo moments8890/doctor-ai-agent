@@ -125,9 +125,13 @@ export default function ChatPage() {
         { role: "assistant", content: data.reply || t("chat.received"), record: data.record || null, ts: nowTs() },
       ]);
     } catch (error) {
+      const isNetworkError = error.message === "Failed to fetch" || error.message === "NetworkError" || error.name === "TypeError";
+      const friendlyMsg = isNetworkError
+        ? "网络连接失败，请检查网络后重试。"
+        : t("chat.requestFailed", { message: error.message });
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: t("chat.requestFailed", { message: error.message }), ts: nowTs() },
+        { role: "assistant", content: friendlyMsg, ts: nowTs() },
       ]);
     } finally {
       setLoading(false);
