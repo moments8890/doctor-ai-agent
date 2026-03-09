@@ -48,7 +48,7 @@ import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import { Paper } from "@mui/material";
-import { getPatients, getRecords, getTasks, patchTask, updateRecord, sendChat, transcribeAudio, ocrImage, getPendingRecord, confirmPendingRecord, abandonPendingRecord, getDoctorProfile, updateDoctorProfile, exportPatientPdf, exportOutpatientReport, getTemplateStatus, uploadTemplate, deleteTemplate, getCvdContext } from "../api";
+import { getPatients, getRecords, getTasks, patchTask, createTask, updateRecord, sendChat, transcribeAudio, ocrImage, getPendingRecord, confirmPendingRecord, abandonPendingRecord, getDoctorProfile, updateDoctorProfile, exportPatientPdf, exportOutpatientReport, getTemplateStatus, uploadTemplate, deleteTemplate, getCvdContext, getLabels, createLabel, deleteLabelById, assignLabelToPatient, removeLabelFromPatient } from "../api";
 import RecordFields from "../components/RecordFields";
 import { useDoctorStore } from "../store/doctorStore";
 import { t } from "../i18n";
@@ -404,6 +404,8 @@ function NeuroCVDContextCard({ patientId, doctorId }) {
   );
 }
 
+const LABEL_PRESET_COLORS = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#8b5cf6"];
+
 function PatientDetail({ patient, doctorId }) {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -411,6 +413,16 @@ function PatientDetail({ patient, doctorId }) {
   const [exportingPdf, setExportingPdf] = useState(false);
   const [exportingReport, setExportingReport] = useState(false);
   const [exportError, setExportError] = useState("");
+
+  // Label management
+  const [allLabels, setAllLabels] = useState([]);
+  const [labelPickerOpen, setLabelPickerOpen] = useState(false);
+  const [labelError, setLabelError] = useState("");
+  const [creatingLabel, setCreatingLabel] = useState(false);
+  const [newLabelName, setNewLabelName] = useState("");
+  const [newLabelColor, setNewLabelColor] = useState(LABEL_PRESET_COLORS[0]);
+  const [patientLabels, setPatientLabels] = useState(patient?.labels || []);
+  const labelAnchorRef = useRef(null);
 
   const load = useCallback(() => {
     if (!patient) return;
@@ -423,6 +435,63 @@ function PatientDetail({ patient, doctorId }) {
   }, [patient?.id, doctorId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { load(); }, [load]);
+
+  // Sync label state when patient changes
+  useEffect(() => { setPatientLabels(patient?.labels || []); }, [patient?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function loadAllLabels() {
+    getLabels(doctorId).then((d) => setAllLabels(Array.isArray(d) ? d : (d.items || []))).catch(() => {});
+  }
+
+  function handleOpenLabelPicker() {
+    setLabelPickerOpen(true);
+    setLabelError("");
+    setNewLabelName("");
+    setNewLabelColor(LABEL_PRESET_COLORS[0]);
+    loadAllLabels();
+  }
+
+  async function handleRemoveLabel(labelId) {
+    setLabelError("");
+    try {
+      await removeLabelFromPatient({ doctorId, patientId: patient.id, labelId });
+      setPatientLabels((prev) => prev.filter((l) => l.id !== labelId));
+    } catch (e) {
+      setLabelError(e.message || "移除标签失败");
+    }
+  }
+
+  async function handleAssignLabel(label) {
+    setLabelError("");
+    if (patientLabels.some((l) => l.id === label.id)) {
+      setLabelPickerOpen(false);
+      return;
+    }
+    try {
+      await assignLabelToPatient({ doctorId, patientId: patient.id, labelId: label.id });
+      setPatientLabels((prev) => [...prev, { id: label.id, name: label.name, color: label.color }]);
+      setLabelPickerOpen(false);
+    } catch (e) {
+      setLabelError(e.message || "分配标签失败");
+    }
+  }
+
+  async function handleCreateAndAssignLabel() {
+    if (!newLabelName.trim() || creatingLabel) return;
+    setCreatingLabel(true);
+    setLabelError("");
+    try {
+      const created = await createLabel({ doctorId, name: newLabelName.trim(), color: newLabelColor });
+      await assignLabelToPatient({ doctorId, patientId: patient.id, labelId: created.id });
+      setPatientLabels((prev) => [...prev, { id: created.id, name: created.name, color: created.color }]);
+      setNewLabelName("");
+      setLabelPickerOpen(false);
+    } catch (e) {
+      setLabelError(e.message || "标签创建失败");
+    } finally {
+      setCreatingLabel(false);
+    }
+  }
 
   if (!patient) {
     return (
@@ -472,13 +541,79 @@ function PatientDetail({ patient, doctorId }) {
                 />
               )}
             </Stack>
-            {patient.labels?.length > 0 && (
-              <Stack direction="row" spacing={0.5} sx={{ mt: 0.8 }} flexWrap="wrap">
-                {patient.labels.map((l) => (
-                  <Chip key={l.id} label={l.name} size="small" sx={{ backgroundColor: l.color || "#e2e8f0", fontSize: 11 }} />
-                ))}
-              </Stack>
-            )}
+            <Stack direction="row" spacing={0.5} sx={{ mt: 0.8 }} flexWrap="wrap" alignItems="center">
+              {patientLabels.map((l) => (
+                <Chip
+                  key={l.id}
+                  label={l.name}
+                  size="small"
+                  sx={{ backgroundColor: l.color || "#e2e8f0", fontSize: 11 }}
+                  onDelete={() => handleRemoveLabel(l.id)}
+                />
+              ))}
+              <Box sx={{ position: "relative" }}>
+                <Button
+                  ref={labelAnchorRef}
+                  size="small"
+                  variant="outlined"
+                  sx={{ fontSize: 11, py: 0.2, px: 1, minWidth: 0, borderRadius: 2 }}
+                  onClick={handleOpenLabelPicker}
+                >
+                  + 添加标签
+                </Button>
+                {labelPickerOpen && (
+                  <Paper elevation={4} sx={{ position: "absolute", top: "110%", left: 0, zIndex: 1300, p: 1.5, minWidth: 200, borderRadius: 2 }}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, display: "block", mb: 1 }}>选择标签</Typography>
+                    {labelError && <Alert severity="error" sx={{ mb: 1, py: 0 }}>{labelError}</Alert>}
+                    <Stack spacing={0.5} sx={{ mb: 1.5, maxHeight: 180, overflowY: "auto" }}>
+                      {allLabels.length === 0 && <Typography variant="caption" color="text.secondary">暂无标签</Typography>}
+                      {allLabels.map((l) => (
+                        <Box
+                          key={l.id}
+                          onClick={() => handleAssignLabel(l)}
+                          sx={{
+                            display: "flex", alignItems: "center", gap: 1, px: 1, py: 0.5,
+                            borderRadius: 1, cursor: "pointer",
+                            bgcolor: patientLabels.some((pl) => pl.id === l.id) ? "#f0fdf4" : "transparent",
+                            "&:hover": { bgcolor: "#f1f5f9" },
+                          }}
+                        >
+                          <Box sx={{ width: 12, height: 12, borderRadius: "50%", bgcolor: l.color || "#94a3b8", flexShrink: 0 }} />
+                          <Typography variant="caption">{l.name}</Typography>
+                          {patientLabels.some((pl) => pl.id === l.id) && <Typography variant="caption" color="success.main" sx={{ ml: "auto" }}>✓</Typography>}
+                        </Box>
+                      ))}
+                    </Stack>
+                    <Divider sx={{ mb: 1 }} />
+                    <Typography variant="caption" sx={{ fontWeight: 700, display: "block", mb: 0.5 }}>新建标签</Typography>
+                    <TextField
+                      size="small" fullWidth placeholder="标签名称"
+                      value={newLabelName}
+                      onChange={(e) => setNewLabelName(e.target.value)}
+                      sx={{ mb: 0.8 }}
+                    />
+                    <Stack direction="row" spacing={0.5} sx={{ mb: 1 }}>
+                      {LABEL_PRESET_COLORS.map((c) => (
+                        <Box
+                          key={c}
+                          onClick={() => setNewLabelColor(c)}
+                          sx={{
+                            width: 20, height: 20, borderRadius: "50%", bgcolor: c, cursor: "pointer",
+                            border: newLabelColor === c ? "2px solid #1e293b" : "2px solid transparent",
+                          }}
+                        />
+                      ))}
+                    </Stack>
+                    <Stack direction="row" spacing={1}>
+                      <Button size="small" variant="contained" disabled={!newLabelName.trim() || creatingLabel} onClick={handleCreateAndAssignLabel} sx={{ flex: 1 }}>
+                        {creatingLabel ? <CircularProgress size={14} /> : "创建并添加"}
+                      </Button>
+                      <Button size="small" color="inherit" onClick={() => setLabelPickerOpen(false)}>关闭</Button>
+                    </Stack>
+                  </Paper>
+                )}
+              </Box>
+            </Stack>
           </Box>
           <Stack alignItems="flex-end" spacing={0.5}>
             <Typography variant="caption" color="text.secondary">{patient.record_count} 份病历</Typography>
@@ -731,6 +866,7 @@ function PatientsSection({ doctorId }) {
 
 const TASK_STATUS_OPTS = [
   { value: "pending", label: "待处理" },
+  { value: "snoozed", label: "已推迟" },
   { value: "completed", label: "已完成" },
   { value: "cancelled", label: "已取消" },
 ];
@@ -738,13 +874,19 @@ const TASK_STATUS_OPTS = [
 function TasksSection({ doctorId }) {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [statusFilter, setStatusFilter] = useState("pending");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState({ taskType: "follow_up", title: "", dueAt: "", patientId: "" });
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState("");
 
   const load = useCallback(() => {
     setLoading(true);
+    setError("");
     getTasks(doctorId, statusFilter || null)
       .then((d) => setTasks(Array.isArray(d) ? d : (d.items || [])))
-      .catch(() => {})
+      .catch((e) => setError(e.message || "任务加载失败"))
       .finally(() => setLoading(false));
   }, [doctorId, statusFilter]);
 
@@ -754,7 +896,30 @@ function TasksSection({ doctorId }) {
     try {
       await patchTask(taskId, doctorId, status);
       load();
-    } catch { /* ignore */ }
+    } catch (e) {
+      setError(e.message || "任务状态更新失败");
+    }
+  }
+
+  async function handleCreate() {
+    if (!createForm.taskType) return;
+    setCreating(true);
+    setCreateError("");
+    try {
+      await createTask(doctorId, {
+        taskType: createForm.taskType,
+        title: createForm.title || TASK_TYPE_LABEL[createForm.taskType] || createForm.taskType,
+        dueAt: createForm.dueAt || undefined,
+        patientId: createForm.patientId ? Number(createForm.patientId) : undefined,
+      });
+      setCreateOpen(false);
+      setCreateForm({ taskType: "follow_up", title: "", dueAt: "", patientId: "" });
+      load();
+    } catch (e) {
+      setCreateError(e.message || "创建失败");
+    } finally {
+      setCreating(false);
+    }
   }
 
   return (
@@ -763,7 +928,8 @@ function TasksSection({ doctorId }) {
         <Typography variant="h6" sx={{ fontWeight: 700 }}>任务列表</Typography>
         {loading && <CircularProgress size={18} />}
         <Box sx={{ flex: 1 }} />
-        <Stack direction="row" spacing={0.5}>
+        <Button size="small" variant="contained" onClick={() => { setCreateOpen(true); setCreateError(""); }}>+ 新建任务</Button>
+        <Stack direction="row" spacing={0.5} flexWrap="wrap">
           {TASK_STATUS_OPTS.map((o) => (
             <Chip
               key={o.value}
@@ -778,7 +944,11 @@ function TasksSection({ doctorId }) {
         </Stack>
       </Stack>
 
-      {!loading && tasks.length === 0 && (
+      {error && (
+        <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setError("")}>{error}</Alert>
+      )}
+
+      {!loading && !error && tasks.length === 0 && (
         <Typography color="text.secondary" variant="body2">暂无{TASK_STATUS_OPTS.find(o => o.value === statusFilter)?.label}任务。</Typography>
       )}
 
@@ -812,6 +982,47 @@ function TasksSection({ doctorId }) {
           );
         })}
       </Stack>
+
+      {/* 新建任务 Dialog */}
+      <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>新建任务</DialogTitle>
+        <DialogContent dividers>
+          {createError && <Alert severity="error" sx={{ mb: 2 }}>{createError}</Alert>}
+          <Stack spacing={2} sx={{ mt: 0.5 }}>
+            <TextField
+              select label="任务类型" size="small" fullWidth
+              value={createForm.taskType}
+              onChange={(e) => setCreateForm((f) => ({ ...f, taskType: e.target.value }))}
+            >
+              {Object.entries(TASK_TYPE_LABEL).map(([k, v]) => (
+                <MenuItem key={k} value={k}>{v}</MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              label="标题（可选）" size="small" fullWidth
+              value={createForm.title}
+              onChange={(e) => setCreateForm((f) => ({ ...f, title: e.target.value }))}
+            />
+            <TextField
+              label="到期日期" size="small" fullWidth type="date"
+              InputLabelProps={{ shrink: true }}
+              value={createForm.dueAt}
+              onChange={(e) => setCreateForm((f) => ({ ...f, dueAt: e.target.value }))}
+            />
+            <TextField
+              label="关联患者 ID（可选）" size="small" fullWidth
+              value={createForm.patientId}
+              onChange={(e) => setCreateForm((f) => ({ ...f, patientId: e.target.value }))}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCreateOpen(false)} color="inherit">取消</Button>
+          <Button onClick={handleCreate} variant="contained" disabled={creating}>
+            {creating ? <CircularProgress size={16} /> : "创建"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

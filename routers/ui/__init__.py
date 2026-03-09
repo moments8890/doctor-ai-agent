@@ -36,9 +36,11 @@ from db.crud import (
 from db.engine import AsyncSessionLocal
 from db.models import (
     AuditLog,
+    ChatArchive,
     Doctor,
     DoctorContext,
     DoctorKnowledgeItem,
+    DoctorSessionState,
     DoctorTask,
     InviteCode,
     MedicalRecordDB,
@@ -997,6 +999,7 @@ async def admin_tables(
         "doctor_knowledge_items": 0, "patient_labels": 0,
         "patient_label_assignments": 0, "system_prompts": 0,
         "system_prompt_versions": 0, "doctor_contexts": 0,
+        "doctor_session_states": 0, "chat_archive": 0,
     }
 
     async with AsyncSessionLocal() as db:
@@ -1089,6 +1092,8 @@ async def admin_tables(
             (PendingMessage, "pending_messages", PendingMessage.doctor_id),
             (AuditLog, "audit_log", AuditLog.doctor_id),
             (DoctorKnowledgeItem, "doctor_knowledge_items", DoctorKnowledgeItem.doctor_id),
+            (DoctorSessionState, "doctor_session_states", DoctorSessionState.doctor_id),
+            (ChatArchive, "chat_archive", ChatArchive.doctor_id),
         ]:
             s = select(func.count()).select_from(model)
             if doctor_id:
@@ -1106,6 +1111,7 @@ async def admin_tables(
         "specialty_scores", "pending_records", "pending_messages", "audit_log",
         "doctor_knowledge_items", "patient_labels", "patient_label_assignments",
         "system_prompts", "system_prompt_versions", "doctor_contexts",
+        "doctor_session_states", "chat_archive",
     ]
     return {"items": [{"key": key, "count": counts[key]} for key in ordered]}
 
@@ -1437,6 +1443,38 @@ async def admin_table_rows(
                     "content": (v.content[:200] + "…") if v.content and len(v.content) > 200 else v.content,
                 }
                 for v in (await db.execute(stmt)).scalars().all()
+            ]
+        elif table_key == "doctor_session_states":
+            stmt = select(DoctorSessionState).order_by(DoctorSessionState.updated_at.desc()).limit(limit)
+            if doctor_id:
+                stmt = stmt.where(DoctorSessionState.doctor_id == doctor_id)
+            else:
+                stmt = apply_exclude_test_doctors(stmt, DoctorSessionState.doctor_id)
+            items = [
+                {
+                    "doctor_id": s.doctor_id,
+                    "current_patient_id": s.current_patient_id,
+                    "pending_create_name": s.pending_create_name,
+                    "pending_record_id": s.pending_record_id,
+                    "updated_at": _fmt_ts(s.updated_at),
+                }
+                for s in (await db.execute(stmt)).scalars().all()
+            ]
+        elif table_key == "chat_archive":
+            stmt = select(ChatArchive).order_by(ChatArchive.created_at.desc()).limit(limit)
+            if doctor_id:
+                stmt = stmt.where(ChatArchive.doctor_id == doctor_id)
+            else:
+                stmt = apply_exclude_test_doctors(stmt, ChatArchive.doctor_id)
+            items = [
+                {
+                    "id": a.id, "doctor_id": a.doctor_id,
+                    "role": a.role,
+                    "content": (a.content[:200] + "…") if a.content and len(a.content) > 200 else a.content,
+                    "intent_label": a.intent_label,
+                    "created_at": _fmt_ts(a.created_at),
+                }
+                for a in (await db.execute(stmt)).scalars().all()
             ]
         else:
             raise HTTPException(status_code=404, detail="Unknown table")

@@ -200,6 +200,37 @@ def _contains_clinical_content(text: str) -> bool:
     return any(hint in (text or "") for hint in _CLINICAL_CONTENT_HINTS)
 
 
+# Patterns to extract patient name from assistant history messages.
+# Matches 【NAME】 bracket pattern used in all create/save/query reply templates.
+_HISTORY_PATIENT_BRACKET_RE = re.compile(r"【([\u4e00-\u9fff]{2,4})】")
+# Matches "NAME的档案" / "NAME的病历" in assistant replies.
+_HISTORY_PATIENT_ARCHIVE_RE = re.compile(r"([\u4e00-\u9fff]{2,4})的(?:档案|病历)")
+
+
+def _patient_name_from_history(history: List[dict]) -> Optional[str]:
+    """Scan recent conversation history for the most recently mentioned patient name.
+
+    Looks at the last 8 messages (both assistant and user), scanning for
+    【NAME】 bracket patterns used in all create/save/query reply templates.
+    Returns the first (most recent) valid patient name found, or None.
+    """
+    for msg in reversed(history[-8:]):
+        content = (msg.get("content") or "").strip()
+        if not content:
+            continue
+        for pattern in (_HISTORY_PATIENT_BRACKET_RE, _HISTORY_PATIENT_ARCHIVE_RE):
+            m = pattern.search(content)
+            if m:
+                name = m.group(1)
+                if _is_valid_patient_name(name):
+                    return name
+    return None
+
+
+# Voice transcription prefix pattern — strip before routing
+_VOICE_TRANSCRIPTION_PREFIX_RE = re.compile(r"^语音转文字[：:]\s*")
+
+
 _TREATMENT_HINTS = (
     "用药", "开药", "处方", "给予", "服用", "口服", "静滴", "输液",
     "手术", "PCI", "pci", "CTA", "cta", "介入", "化疗", "放疗", "靶向", "治疗", "方案", "plan",
@@ -403,8 +434,12 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
     if notify_reply is not None:
         return ChatResponse(reply=notify_reply)
 
+    # ── Strip voice transcription prefix ─────────────────────────────────────
+    # "语音转文字：新病人，王叔，62岁，先建档" → "新病人，王叔，62岁，先建档"
+    body_text = _VOICE_TRANSCRIPTION_PREFIX_RE.sub("", body.text).strip() or body.text
+
     # ── Greeting fast path ────────────────────────────────────────────────────
-    if _GREETING_RE.match(body.text.strip()):
+    if _GREETING_RE.match(body_text.strip()):
         return ChatResponse(reply=_WARM_GREETING_REPLY)
 
     # ── Context-aware menu number → intent mapping ────────────────────────────
@@ -561,17 +596,17 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
         log(f"[Chat] menu_shortcut intent={intent_result.intent.value} doctor={doctor_id}")
     else:
         _t0 = time.perf_counter()
-        _fast = fast_route(body.text)
+        _fast = fast_route(body_text)
         if _fast is not None:
             _latency_ms = (time.perf_counter() - _t0) * 1000.0
-            log(f"[Chat] fast_route hit: {fast_route_label(body.text)} doctor={doctor_id}")
+            log(f"[Chat] fast_route hit: {fast_route_label(body_text)} doctor={doctor_id}")
             intent_result = _fast
             log_turn(body.text, intent_result.intent.value, "fast", doctor_id, _latency_ms, patient_name=intent_result.patient_name)
         else:
             knowledge_context = ""
             try:
                 async with AsyncSessionLocal() as db:
-                    knowledge_context = await load_knowledge_context_for_prompt(db, doctor_id, body.text)
+                    knowledge_context = await load_knowledge_context_for_prompt(db, doctor_id, body_text)
             except Exception as e:
                 log(f"[Chat] knowledge context load failed doctor={doctor_id}: {e}")
                 knowledge_context = ""
@@ -581,7 +616,7 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
                     dispatch_kwargs = {"history": history_for_routing}
                     if knowledge_context:
                         dispatch_kwargs["knowledge_context"] = knowledge_context
-                    intent_result = await agent_dispatch(body.text, **dispatch_kwargs)
+                    intent_result = await agent_dispatch(body_text, **dispatch_kwargs)
                 _latency_ms = (time.perf_counter() - _t0) * 1000.0
                 log_turn(body.text, intent_result.intent.value, "llm", doctor_id, _latency_ms, patient_name=intent_result.patient_name)
             except Exception as e:
@@ -589,7 +624,7 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
                 status = 429 if "rate_limit" in msg or "Rate limit" in msg or "429" in msg else 503
                 log(
                     f"[Chat] agent dispatch FAILED doctor={doctor_id} status={status} "
-                    f"text={body.text[:80]!r} err={msg}"
+                    f"text={body_text[:80]!r} err={msg}"
                 )
                 detail = "rate_limit_exceeded" if status == 429 else "Service temporarily unavailable"
                 raise HTTPException(status_code=status, detail=detail)
@@ -601,19 +636,23 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
             intent_result.intent = Intent.add_record
             intent_result.patient_name = followup_name
         elif intent_result.intent == Intent.add_record and not intent_result.patient_name:
-            # Deterministic fallback for one-shot notes that start with patient name.
-            # Prevents LLM routing variance from dropping patient linkage.
-            leading_name = _leading_name_with_clinical_context(body.text)
+            # Deterministic fallback 1: leading patient name in current message.
+            leading_name = _leading_name_with_clinical_context(body_text)
             if leading_name:
                 intent_result.patient_name = leading_name
+            else:
+                # Deterministic fallback 2: most recently mentioned patient in history.
+                # Covers the "query then add" flow where patient context was established
+                # earlier (e.g. create_patient T1 → clinical data T2 with no name).
+                intent_result.patient_name = _patient_name_from_history(history)
         else:
             # Deterministic rescue for routing drift:
             # If input is clearly clinical dictation with a leading patient name,
             # force add_record so record persistence remains stable.
-            leading_name = _leading_name_with_clinical_context(body.text)
+            leading_name = _leading_name_with_clinical_context(body_text)
             if (
                 leading_name
-                and _contains_clinical_content(body.text)
+                and _contains_clinical_content(body_text)
                 and intent_result.intent != Intent.add_record
             ):
                 intent_result.intent = Intent.add_record
@@ -671,7 +710,7 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
             ))
 
         # ── Compound: also save record when clinical content follows demographics ─
-        if _contains_clinical_content(body.text):
+        if _contains_clinical_content(body_text):
             try:
                 # Strip leading patient-creation preamble so the structuring LLM
                 # receives clean clinical text, not "帮我录入一个新病人，张三，男…"
@@ -682,7 +721,7 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
                     r"(?:\s*\d+\s*岁\s*[，,。]?)?\s*",
                     re.DOTALL,
                 )
-                _clinical_text = _create_preamble_re.sub("", body.text).strip() or body.text
+                _clinical_text = _create_preamble_re.sub("", body_text).strip() or body_text
                 with trace_block("router", "records.chat.compound_record"):
                     record = await structure_medical_record(_clinical_text)
                 async with AsyncSessionLocal() as db:
@@ -715,7 +754,13 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
     # ── add_medical_record ────────────────────────────────────────────────────
     if intent_result.intent == Intent.add_record:
         if not intent_result.patient_name or not _is_valid_patient_name(intent_result.patient_name):
-            return ChatResponse(reply="请问这位患者叫什么名字？")
+            # Last resort: scan history for a recently established patient name.
+            _hist_name = _patient_name_from_history(history)
+            if _hist_name:
+                intent_result.patient_name = _hist_name
+                log(f"[Chat] resolved patient from history: {_hist_name} doctor={doctor_id}")
+            else:
+                return ChatResponse(reply="请问这位患者叫什么名字？")
 
         # Build MedicalRecord: prefer single-LLM structured_fields, fallback to dedicated LLM
         if intent_result.structured_fields:

@@ -159,6 +159,27 @@ const ENUM_ZH = {
   stroke: "脑卒中", parkinson: "帕金森", dementia: "痴呆", epilepsy: "癫痫",
   headache: "头痛", heart_failure: "心力衰竭", arrhythmia: "心律失常",
   hypertension: "高血压", coronary: "冠心病", diabetes: "糖尿病",
+  // CVD diagnosis_subtype
+  ICH: "脑出血(ICH)", SAH: "蛛网膜下腔出血(SAH)", ischemic: "缺血性卒中",
+  AVM: "动静脉畸形", aneurysm: "动脉瘤", moyamoya: "烟雾病",
+  // surgery_status
+  planned: "已计划", conservative: "保守治疗",
+  // aneurysm_morphology
+  saccular: "囊状", fusiform: "梭形",
+  // aneurysm_treatment
+  clipping: "开颅夹闭", coiling: "介入栓塞", pipeline: "血流导向装置",
+  // source
+  chat: "对话", voice: "语音",
+  // vasospasm_status / hydrocephalus_status (none = 无)
+  none: "无", clinical: "临床血管痉挛", radiographic: "影像血管痉挛", severe: "重度血管痉挛",
+  // hydrocephalus_status
+  acute: "急性脑积水", chronic: "慢性脑积水", shunt_dependent: "分流依赖",
+  // bypass_type
+  direct_sta_mca: "直接吻合(STA-MCA)", indirect_edas: "间接贴敷(EDAS)", combined: "联合手术",
+  // perfusion_status
+  normal: "正常", mildly_reduced: "轻度减低", severely_reduced: "重度减低", improved: "改善",
+  // aneurysm_daughter_sac
+  yes: "有", no: "无",
 };
 
 function toCell(value) {
