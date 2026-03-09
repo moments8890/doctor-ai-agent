@@ -1009,7 +1009,7 @@ function TasksSection({ doctorId }) {
   }
 
   return (
-    <Box sx={{ p: isMobile ? 2 : 3, overflowY: "auto", height: "100%" }}>
+    <Box sx={{ p: isMobile ? 2 : 3, overflowY: "auto", height: "100%", bgcolor: "#f7f7f7" }}>
       {/* Header row */}
       <Stack direction="row" alignItems="center" sx={{ mb: 1.5 }}>
         <Typography variant="h6" sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>任务列表</Typography>
@@ -1052,44 +1052,36 @@ function TasksSection({ doctorId }) {
         </Box>
       )}
 
-      <Stack spacing={1.2}>
-        {tasks.map((task) => {
+      <Box sx={{ bgcolor: "#fff", borderRadius: 1.5, overflow: "hidden" }}>
+        {tasks.map((task, idx) => {
           const isOverdue = task.due_at && new Date(task.due_at) < new Date() && task.status === "pending";
           return (
-            <Card key={task.id} variant="outlined" sx={{ borderRadius: 1.5 }}>
-              <CardContent sx={{ py: 1.5, px: 2, "&:last-child": { pb: 1.5 } }}>
-                <Box>
-                  <Stack direction="row" alignItems="flex-start" spacing={1}>
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>{task.title || TASK_TYPE_LABEL[task.task_type] || task.task_type}</Typography>
-                      {task.content && (
-                        <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>{task.content}</Typography>
-                      )}
-                      <Stack direction="row" spacing={1.5} sx={{ mt: 0.4, flexWrap: "wrap" }}>
-                        {task.due_at && (
-                          <Typography variant="caption" sx={{ color: isOverdue ? "error.main" : "text.secondary" }}>
-                            {isOverdue ? "⚠ 已逾期 " : "📅 "}{task.due_at.slice(0, 10)}
-                          </Typography>
-                        )}
-                        {task.patient_name && (
-                          <Typography variant="caption" color="text.secondary">👤 {task.patient_name}</Typography>
-                        )}
-                      </Stack>
-                    </Box>
-                  </Stack>
-                  {task.status === "pending" && (
-                    <Stack direction="row" spacing={0.5} sx={{ mt: 1, justifyContent: "flex-end" }}>
-                      <Button size="small" variant="outlined" color="success" onClick={() => handleStatus(task.id, "completed")} sx={{ fontSize: 11, py: 0.3, px: 1.2, minWidth: "auto" }}>完成</Button>
-                      <Button size="small" variant="text" color="text.secondary" onClick={(e) => handleOpenPostpone(e, task.id)} sx={{ fontSize: 11, py: 0.3, px: 1, minWidth: "auto", color: "text.secondary" }}>推迟</Button>
-                      <Button size="small" variant="text" onClick={() => setCancelConfirmId(task.id)} sx={{ fontSize: 11, py: 0.3, px: 1, minWidth: "auto", color: "text.disabled" }}>取消</Button>
-                    </Stack>
-                  )}
-                </Box>
-              </CardContent>
-            </Card>
+            <Box key={task.id} sx={{ px: 2, py: 1.4, borderBottom: idx < tasks.length - 1 ? "1px solid #f2f2f2" : "none" }}>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>{task.title || TASK_TYPE_LABEL[task.task_type] || task.task_type}</Typography>
+              {task.content && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>{task.content}</Typography>
+              )}
+              <Stack direction="row" spacing={1.5} sx={{ mt: 0.3, flexWrap: "wrap" }}>
+                {task.due_at && (
+                  <Typography variant="caption" sx={{ color: isOverdue ? "error.main" : "text.secondary" }}>
+                    {isOverdue ? "⚠ 已逾期 " : "📅 "}{task.due_at.slice(0, 10)}
+                  </Typography>
+                )}
+                {task.patient_name && (
+                  <Typography variant="caption" color="text.secondary">👤 {task.patient_name}</Typography>
+                )}
+              </Stack>
+              {task.status === "pending" && (
+                <Stack direction="row" spacing={0.5} sx={{ mt: 0.8, justifyContent: "flex-end" }}>
+                  <Button size="small" variant="outlined" color="success" onClick={() => handleStatus(task.id, "completed")} sx={{ fontSize: 11, py: 0.3, px: 1.2, minWidth: "auto" }}>完成</Button>
+                  <Button size="small" variant="text" onClick={(e) => handleOpenPostpone(e, task.id)} sx={{ fontSize: 11, py: 0.3, px: 1, minWidth: "auto", color: "text.secondary" }}>推迟</Button>
+                  <Button size="small" variant="text" onClick={() => setCancelConfirmId(task.id)} sx={{ fontSize: 11, py: 0.3, px: 1, minWidth: "auto", color: "text.disabled" }}>取消</Button>
+                </Stack>
+              )}
+            </Box>
           );
         })}
-      </Stack>
+      </Box>
 
       {/* 推迟任务 Popover */}
       <Popover
@@ -1630,12 +1622,14 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
 
 function StatCard({ label, value, color = "primary.main", onClick }) {
   return (
-    <Card variant="outlined" onClick={onClick} sx={{ borderRadius: 2, flex: 1, minWidth: 120, cursor: onClick ? "pointer" : "default", "&:hover": onClick ? { borderColor: "primary.main" } : {}, "&:active": onClick ? { backgroundColor: "rgba(33, 150, 243, 0.06)", transform: "scale(0.98)" } : {} }}>
-      <CardContent>
-        <Typography variant="h4" sx={{ fontWeight: 800, color }}>{value ?? "—"}</Typography>
-        <Typography variant="caption" color="text.secondary">{label}</Typography>
-      </CardContent>
-    </Card>
+    <Box onClick={onClick} sx={{
+      flex: 1, minWidth: 100, textAlign: "center", py: 2.5, px: 1,
+      bgcolor: "#fff", borderRadius: 1.5, cursor: onClick ? "pointer" : "default",
+      "&:active": onClick ? { bgcolor: "#f5f5f5" } : {},
+    }}>
+      <Typography variant="h4" sx={{ fontWeight: 800, color, lineHeight: 1 }}>{value ?? "—"}</Typography>
+      <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>{label}</Typography>
+    </Box>
   );
 }
 
@@ -1668,86 +1662,83 @@ function HomeSection({ doctorId, navigate }) {
   if (loading) return <Box sx={{ p: 4, textAlign: "center" }}><CircularProgress /></Box>;
 
   return (
-    <Box sx={{ p: isMobile ? 2 : 3, overflowY: "auto", height: "100%" }}>
-      {/* Stats */}
-      <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>总览</Typography>
-      <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
+    <Box sx={{ overflowY: "auto", height: "100%", bgcolor: "#f7f7f7" }}>
+      {/* Stats row */}
+      <Stack direction="row" spacing={0} sx={{ mx: 2, mt: 2, mb: 2, gap: 1 }}>
         <StatCard label="患者总数" value={stats?.patients} onClick={() => navigate("/doctor/patients")} />
         <StatCard label="待处理任务" value={stats?.pendingTasks} color={stats?.pendingTasks > 0 ? "warning.main" : "success.main"} onClick={() => navigate("/doctor/tasks")} />
       </Stack>
 
       {/* Quick actions */}
-      <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 3 }}>
-        <Button size="small" variant="outlined" onClick={() => navigate("/doctor/chat")}>新建对话</Button>
-        <Button size="small" variant="outlined" onClick={() => navigate("/doctor/patients")}>查看患者</Button>
-        <Button size="small" variant="outlined" onClick={() => navigate("/doctor/tasks")}>查看任务</Button>
-      </Stack>
+      <Box sx={{ bgcolor: "#fff", borderRadius: 1.5, mx: 2, mb: 2, overflow: "hidden" }}>
+        {[
+          { label: "进入对话", sub: "记录病历、查询患者", path: "/doctor/chat" },
+          { label: "患者列表", sub: "查看所有患者", path: "/doctor/patients" },
+          { label: "任务列表", sub: "待办随访提醒", path: "/doctor/tasks" },
+        ].map((item, idx, arr) => (
+          <Box key={item.path} onClick={() => navigate(item.path)}
+            sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, cursor: "pointer",
+              borderBottom: idx < arr.length - 1 ? "1px solid #f2f2f2" : "none",
+              "&:active": { bgcolor: "#f5f5f5" } }}>
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>{item.label}</Typography>
+              <Typography variant="caption" color="text.secondary">{item.sub}</Typography>
+            </Box>
+            <Typography sx={{ color: "#ccc", fontSize: 18, lineHeight: 1 }}>›</Typography>
+          </Box>
+        ))}
+      </Box>
 
       {/* Pending tasks */}
       {pendingTasks.length > 0 && (
-        <>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>待处理任务</Typography>
-            <Button size="small" onClick={() => navigate("/doctor/tasks")}>查看全部</Button>
+        <Box sx={{ mb: 2 }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 2, py: 0.8 }}>
+            <Typography variant="caption" sx={{ color: "#888", fontWeight: 600, fontSize: 12 }}>待处理任务</Typography>
+            <Typography variant="caption" sx={{ color: "#07C160", cursor: "pointer" }} onClick={() => navigate("/doctor/tasks")}>查看全部 ›</Typography>
           </Stack>
-          <Stack spacing={0.8} sx={{ mb: 3 }}>
-            {pendingTasks.map((task) => {
+          <Box sx={{ bgcolor: "#fff", borderRadius: 1.5, mx: 2, overflow: "hidden" }}>
+            {pendingTasks.map((task, idx) => {
               const isOverdue = task.due_at && new Date(task.due_at) < new Date();
               return (
-                <Card key={task.id} variant="outlined" sx={{ borderRadius: 1.5 }}>
-                  <CardContent sx={{ py: 1, px: 1.5, "&:last-child": { pb: 1 } }}>
-                    <Stack direction="row" alignItems="center" spacing={1}>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>{task.title || TASK_TYPE_LABEL[task.task_type] || task.task_type}</Typography>
-                        {task.due_at && (
-                          <Typography variant="caption" sx={{ color: isOverdue ? "error.main" : "text.secondary" }}>
-                            {isOverdue ? "已逾期 · " : "到期 · "}{task.due_at.slice(0, 10)}
-                          </Typography>
-                        )}
-                      </Box>
-                    </Stack>
-                  </CardContent>
-                </Card>
+                <Box key={task.id} sx={{ px: 2, py: 1.2, borderBottom: idx < pendingTasks.length - 1 ? "1px solid #f2f2f2" : "none" }}>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>{task.title || TASK_TYPE_LABEL[task.task_type] || task.task_type}</Typography>
+                  {task.due_at && (
+                    <Typography variant="caption" sx={{ color: isOverdue ? "error.main" : "text.secondary" }}>
+                      {isOverdue ? "⚠ 已逾期 " : "📅 "}{task.due_at.slice(0, 10)}
+                    </Typography>
+                  )}
+                </Box>
               );
             })}
-          </Stack>
-        </>
+          </Box>
+        </Box>
       )}
 
       {/* Recent records */}
       {recentRecords.length > 0 && (
-        <>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>最近病历</Typography>
-            <Button size="small" onClick={() => navigate("/doctor/patients")}>查看患者</Button>
+        <Box sx={{ mb: 2 }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 2, py: 0.8 }}>
+            <Typography variant="caption" sx={{ color: "#888", fontWeight: 600, fontSize: 12 }}>最近病历</Typography>
+            <Typography variant="caption" sx={{ color: "#07C160", cursor: "pointer" }} onClick={() => navigate("/doctor/patients")}>查看患者 ›</Typography>
           </Stack>
-          <Stack spacing={0.8}>
-            {recentRecords.map((r) => (
-              <Card key={r.id} variant="outlined" sx={{ borderRadius: 1.5 }}>
-                <CardContent sx={{ py: 1, px: 1.5, "&:last-child": { pb: 1 } }}>
-                  <Stack direction="row" alignItems="center" spacing={1.5}>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        {r.patient_name || "未知患者"}
-                        {(Array.isArray(r.tags) ? r.tags : []).slice(0, 2).map((tag, i) => (
-                          <Chip key={i} label={tag} size="small" sx={{ ml: 0.5, fontSize: 10, height: 18 }} />
-                        ))}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" noWrap>
-                        {r.content ? (r.content.length > 40 ? r.content.slice(0, 40) + "…" : r.content) : "无记录"} · {r.created_at?.slice(0, 10)}
-                      </Typography>
-                    </Box>
-                    {r.patient_id && (
-                      <IconButton size="small" onClick={() => navigate(`/doctor/patients/${r.patient_id}`)}>
-                        <PeopleOutlineIcon fontSize="small" />
-                      </IconButton>
-                    )}
-                  </Stack>
-                </CardContent>
-              </Card>
+          <Box sx={{ bgcolor: "#fff", borderRadius: 1.5, mx: 2, overflow: "hidden" }}>
+            {recentRecords.map((r, idx) => (
+              <Box key={r.id} onClick={() => r.patient_id && navigate(`/doctor/patients/${r.patient_id}`)}
+                sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1.2,
+                  borderBottom: idx < recentRecords.length - 1 ? "1px solid #f2f2f2" : "none",
+                  cursor: r.patient_id ? "pointer" : "default", "&:active": r.patient_id ? { bgcolor: "#f5f5f5" } : {} }}>
+                <PatientAvatar name={r.patient_name || "?"} size={36} />
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>{r.patient_name || "未知患者"}</Typography>
+                  <Typography variant="caption" color="text.secondary" noWrap>
+                    {r.content ? (r.content.length > 40 ? r.content.slice(0, 40) + "…" : r.content) : "无记录"} · {r.created_at?.slice(0, 10)}
+                  </Typography>
+                </Box>
+                <Typography sx={{ color: "#ccc", fontSize: 18, lineHeight: 1 }}>›</Typography>
+              </Box>
             ))}
-          </Stack>
-        </>
+          </Box>
+        </Box>
       )}
     </Box>
   );
@@ -1804,60 +1795,60 @@ function SettingsSection({ doctorId }) {
   }
 
   return (
-    <Box sx={{ p: isMobile ? 2 : 3, maxWidth: 560 }}>
-      <Typography variant="h6" sx={{ fontWeight: 700, mb: 3 }}>设置</Typography>
-
-      {/* Report template */}
-      <Card variant="outlined" sx={{ borderRadius: 2, mb: 2 }}>
-        <CardContent>
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-            <UploadFileOutlinedIcon fontSize="small" color="primary" />
-            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>门诊病历报告模板</Typography>
+    <Box sx={{ overflowY: "auto", height: "100%", bgcolor: "#f7f7f7" }}>
+      <Box sx={{ px: 2, py: 1, mt: 1 }}>
+        <Typography variant="caption" sx={{ color: "#888", fontWeight: 600, fontSize: 12 }}>报告模板</Typography>
+      </Box>
+      <Box sx={{ bgcolor: "#fff", mx: 0, overflow: "hidden" }}>
+        {/* Status row */}
+        <Box sx={{ px: 2, py: 1.5, borderBottom: "1px solid #f2f2f2" }}>
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            <UploadFileOutlinedIcon sx={{ color: "#07C160", fontSize: 22 }} />
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>门诊病历报告模板</Typography>
+              <Typography variant="caption" color="text.secondary">
+                {loading ? "加载中…" : status?.has_template ? `已上传自定义模板（${status.char_count?.toLocaleString()} 字符）` : "未上传，使用国家卫生部2010年标准格式"}
+              </Typography>
+            </Box>
           </Stack>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            上传您医院的门诊病历模板（PDF、Word 或图片），AI 将参照模板格式生成报告。
-            支持格式：PDF、DOCX、DOC、TXT、JPG、PNG，最大 1 MB。
-          </Typography>
-
-          {loading ? <CircularProgress size={18} /> : (
-            <>
-              {status?.has_template ? (
-                <Alert severity="success" sx={{ mb: 1.5 }}>
-                  已上传自定义模板（{status.char_count?.toLocaleString()} 字符）
-                </Alert>
-              ) : (
-                <Alert severity="info" sx={{ mb: 1.5 }}>
-                  暂未上传模板，将使用国家卫生部2010年标准格式
-                </Alert>
-              )}
-              {msg.text && (
-                <Alert severity={msg.type || "info"} sx={{ mb: 1.5 }} onClose={() => setMsg({ type: "", text: "" })}>
-                  {msg.text}
-                </Alert>
-              )}
-              <Stack direction="row" spacing={1}>
-                <Button
-                  variant="contained" size="small"
-                  startIcon={uploading ? <CircularProgress size={14} /> : <UploadFileOutlinedIcon />}
-                  disabled={uploading || deleting}
-                  onClick={() => fileRef.current?.click()}
-                >
-                  {uploading ? "上传中…" : status?.has_template ? "替换模板" : "上传模板"}
-                </Button>
-                {status?.has_template && (
-                  <Button variant="outlined" color="error" size="small" disabled={deleting || uploading}
-                    onClick={handleDelete}>
-                    {deleting ? "删除中…" : "删除模板"}
-                  </Button>
-                )}
-              </Stack>
-              <input ref={fileRef} type="file" hidden
-                accept=".pdf,.docx,.doc,.txt,image/jpeg,image/png,image/webp"
-                onChange={handleUpload} />
-            </>
-          )}
-        </CardContent>
-      </Card>
+        </Box>
+        {/* Upload row */}
+        <Box sx={{ px: 2, py: 1.5, borderBottom: "1px solid #f2f2f2", cursor: "pointer", "&:active": { bgcolor: "#f5f5f5" } }}
+          onClick={() => fileRef.current?.click()}>
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            <Box sx={{ width: 22, display: "flex", justifyContent: "center" }}>
+              {uploading ? <CircularProgress size={18} /> : <Typography sx={{ color: "#07C160", fontSize: 20 }}>↑</Typography>}
+            </Box>
+            <Typography variant="body2" sx={{ color: uploading ? "text.secondary" : "#07C160", fontWeight: 500 }}>
+              {uploading ? "上传中…" : status?.has_template ? "替换模板" : "上传模板"}
+            </Typography>
+          </Stack>
+        </Box>
+        {/* Delete row — only if template exists */}
+        {status?.has_template && (
+          <Box sx={{ px: 2, py: 1.5, cursor: "pointer", "&:active": { bgcolor: "#f5f5f5" } }}
+            onClick={!deleting ? handleDelete : undefined}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box sx={{ width: 22, display: "flex", justifyContent: "center" }}>
+                {deleting ? <CircularProgress size={18} /> : <Typography sx={{ color: "error.main", fontSize: 20 }}>✕</Typography>}
+              </Box>
+              <Typography variant="body2" sx={{ color: "error.main" }}>
+                {deleting ? "删除中…" : "删除模板"}
+              </Typography>
+            </Stack>
+          </Box>
+        )}
+      </Box>
+      {/* Feedback message */}
+      {msg.text && (
+        <Alert severity={msg.type || "info"} sx={{ mx: 2, mt: 1.5, borderRadius: 1.5 }} onClose={() => setMsg({ type: "", text: "" })}>
+          {msg.text}
+        </Alert>
+      )}
+      <Typography variant="caption" color="text.secondary" sx={{ display: "block", px: 2, mt: 1.5, lineHeight: 1.6 }}>
+        支持格式：PDF、DOCX、DOC、TXT、JPG、PNG，最大 1 MB。
+      </Typography>
+      <input ref={fileRef} type="file" hidden accept=".pdf,.docx,.doc,.txt,image/jpeg,image/png,image/webp" onChange={handleUpload} />
     </Box>
   );
 }
