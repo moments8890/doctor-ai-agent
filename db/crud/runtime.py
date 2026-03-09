@@ -112,6 +112,8 @@ async def try_acquire_scheduler_lease(
     lease_ttl_seconds: int,
 ) -> bool:
     """Attempt to acquire distributed lease for scheduler execution."""
+    # MySQL DateTime stores naive UTC; strip timezone so comparisons don't fail.
+    now = now.replace(tzinfo=None) if now.tzinfo is not None else now
     ttl_seconds = max(1, int(lease_ttl_seconds))
     lease_until = now + timedelta(seconds=ttl_seconds)
 
@@ -155,6 +157,7 @@ async def release_scheduler_lease(
     owner_id: str,
     now: datetime,
 ) -> None:
+    now = now.replace(tzinfo=None) if now.tzinfo is not None else now
     row = (
         await session.execute(
             select(SchedulerLease).where(SchedulerLease.lease_key == lease_key).limit(1)
