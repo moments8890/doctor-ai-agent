@@ -151,29 +151,31 @@ async def test_create_tables_idempotent_on_full_schema(monkeypatch):
     assert conn.executed_sql == []
 
 
-async def test_seed_prompts_inserts_both_defaults_when_missing(monkeypatch):
+async def test_seed_prompts_inserts_all_when_missing(monkeypatch):
+    """All 14 seed-only keys are inserted when missing; neuro_cvd always upserted."""
     monkeypatch.setattr(init_db, "AsyncSessionLocal", lambda: _SessionCtx())
     with patch("db.crud.get_system_prompt", new=AsyncMock(return_value=None)) as get_prompt, \
          patch("db.crud.upsert_system_prompt", new=AsyncMock()) as upsert:
         await init_db.seed_prompts()
 
-    assert get_prompt.await_count == 1  # only structuring; neuro_cvd is always upserted
-    assert upsert.await_count == 2
-    first_call = upsert.await_args_list[0].args
-    second_call = upsert.await_args_list[1].args
-    assert first_call[1] == "structuring"
-    assert second_call[1] == "structuring.neuro_cvd"
+    # 14 seed-only checks + 1 always-upsert for neuro_cvd
+    assert get_prompt.await_count == 14
+    assert upsert.await_count == 15  # 14 inserts + 1 always-upsert
+    upserted_keys = [call.args[1] for call in upsert.await_args_list]
+    assert "structuring" in upserted_keys
+    assert "structuring.neuro_cvd" in upserted_keys
+    assert "agent.routing.compact" in upserted_keys
 
 
 async def test_seed_prompts_neuro_cvd_always_upserted(monkeypatch):
-    """neuro_cvd prompt is always upserted (so expanded fields reach production)."""
+    """neuro_cvd is always upserted; other keys are skipped when already present."""
     monkeypatch.setattr(init_db, "AsyncSessionLocal", lambda: _SessionCtx())
     with patch("db.crud.get_system_prompt", new=AsyncMock(return_value=object())) as get_prompt, \
          patch("db.crud.upsert_system_prompt", new=AsyncMock()) as upsert:
         await init_db.seed_prompts()
 
-    assert get_prompt.await_count == 1  # only structuring
-    assert upsert.await_count == 1      # neuro_cvd always upserted; structuring skipped
+    assert get_prompt.await_count == 14  # all seed-only keys checked
+    assert upsert.await_count == 1       # only neuro_cvd always upserted
     assert upsert.await_args_list[0].args[1] == "structuring.neuro_cvd"
 
 

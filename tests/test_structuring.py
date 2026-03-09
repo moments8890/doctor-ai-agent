@@ -210,7 +210,6 @@ async def test_structure_uses_max_tokens_1500(mock_llm):
 
 async def test_structure_system_prompt_contains_field_names(mock_llm):
     import services.ai.structuring as struct_mod
-    struct_mod._PROMPT_CACHE = None  # force reload
     mock_llm.return_value = _make_completion({"content": "头痛两天。", "tags": []})
     # Patch _get_system_prompt to return the seed prompt (new schema)
     with patch("services.ai.structuring._get_system_prompt", new=AsyncMock(return_value=struct_mod._SEED_PROMPT)):
@@ -241,17 +240,15 @@ async def test_structure_consultation_mode_appends_suffix(mock_llm):
     assert _CONSULTATION_SUFFIX.strip() in system_content
 
 
-async def test_get_system_prompt_logs_when_db_load_fails():
+async def test_get_system_prompt_falls_back_when_db_unavailable():
+    """_get_system_prompt() silently falls back to hardcoded seed when DB is down."""
     import services.ai.structuring as struct_mod
 
-    struct_mod._PROMPT_CACHE = None
-    with patch("db.engine.AsyncSessionLocal", side_effect=RuntimeError("db down")), \
-         patch("services.ai.structuring.log") as log_mock:
+    with patch("db.engine.AsyncSessionLocal", side_effect=RuntimeError("db down")):
         prompt = await struct_mod._get_system_prompt()
 
     assert isinstance(prompt, str) and prompt
     assert "严禁虚构" in prompt
-    assert log_mock.called
 
 
 async def test_structure_consultation_mode_false_no_suffix(mock_llm):
