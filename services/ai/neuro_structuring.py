@@ -161,28 +161,55 @@ plan.orders 数组中每个元素格式：
 
 ```json
 {
-  "diagnosis_subtype": "ICH|SAH|ischemic|AVM|aneurysm|other 或 null",
-  "hemorrhage_location": "解剖部位（如基底节、小脑、脑干、蛛网膜下腔）或 null",
+  "diagnosis_subtype": "ICH|SAH|ischemic|AVM|aneurysm|moyamoya|other 或 null",
+  "hemorrhage_location": "解剖部位（基底节/小脑/脑干/蛛网膜下腔等）或 null",
+
   "ich_score": null,
   "ich_volume_ml": null,
+  "hemorrhage_etiology": "hypertensive|caa|avm|coagulopathy|tumor|unknown 或 null（仅ICH亚型填写）",
+
   "hunt_hess_grade": null,
   "fisher_grade": null,
+  "wfns_grade": null,
+  "modified_fisher_grade": null,
+  "vasospasm_status": "none|clinical|radiographic|severe 或 null（SAH术后监测状态）",
+  "nimodipine_regimen": "尼莫地平方案描述（途径/剂量/疗程）或 null",
+
+  "hydrocephalus_status": "none|acute|chronic|shunt_dependent 或 null（ICH/SAH共用）",
+
   "spetzler_martin_grade": null,
   "gcs_score": null,
+
   "aneurysm_location": null,
   "aneurysm_size_mm": null,
+  "aneurysm_neck_width_mm": null,
   "aneurysm_morphology": "saccular|fusiform|other 或 null",
+  "aneurysm_daughter_sac": "yes|no 或 null",
   "aneurysm_treatment": "clipping|coiling|pipeline|conservative 或 null",
+  "phases_score": null,
+
+  "suzuki_stage": null,
+  "bypass_type": "direct_sta_mca|indirect_edas|combined|other 或 null（烟雾病/复杂动脉瘤）",
+  "perfusion_status": "normal|mildly_reduced|severely_reduced|improved 或 null（烟雾病灌注状态）",
+
   "surgery_type": null,
   "surgery_date": null,
   "surgery_status": "planned|done|cancelled|conservative 或 null",
   "surgical_approach": null,
+
   "mrs_score": null,
   "barthel_index": null
 }
 ```
 
-【保留专业缩写】NIHSS、mRS、TOAST、tPA、rt-PA、TIA、DVT、AF、INR、APTT、CTA、MRA、DSA、TCD、ASPECT、ICH、SAH、AVM、GCS、Hunt-Hess、Fisher、Spetzler-Martin等缩写不得翻译或展开。
+【CVD字段约束】
+- `hemorrhage_etiology`：仅当 `diagnosis_subtype` 为 `ICH` 时填写，其他亚型返回 null
+- `hunt_hess_grade` / `wfns_grade` / `fisher_grade` / `modified_fisher_grade`：仅 SAH 亚型相关
+- `suzuki_stage` / `bypass_type` / `perfusion_status`：仅烟雾病（moyamoya）亚型相关
+- `phases_score`：仅未破裂动脉瘤填写（`diagnosis_subtype: aneurysm`）
+- `diagnosis.etiology_toast`（Structured_JSON节）：仅当 `diagnosis_subtype` 为 `ischemic` 时填写，出血性病变/AVM/烟雾病返回 null
+
+【保留专业缩写】NIHSS、mRS、TOAST、tPA、rt-PA、TIA、DVT、AF、INR、APTT、CTA、MRA、DSA、TCD、ASPECT、ICH、SAH、AVM、GCS、Hunt-Hess、Fisher、WFNS、Spetzler-Martin、PHASES、Raymond-Roy、Suzuki、DCI、EVD、CPP、EDAS、STA-MCA 等缩写不得翻译或展开。
 """
 
 _PROMPT_CACHE: Optional[Tuple[float, str]] = None
@@ -325,3 +352,86 @@ async def extract_neuro_case(text: str) -> Tuple[NeuroCase, ExtractionLog, Optio
     raw_md = completion.choices[0].message.content
     log(f"[NeuroLLM:{provider_name}] response length={len(raw_md)}")
     return _parse_markdown_output(raw_md)
+
+
+_FAST_CVD_PROMPT = """\
+从以下神经外科脑血管病记录中提取结构化字段。只输出合法JSON对象，无额外文字。
+所有字段只能使用原文中明确出现的信息，未提及的字段返回null。
+
+输出格式：
+{
+  "diagnosis_subtype": "ICH|SAH|ischemic|AVM|aneurysm|moyamoya|other|null",
+  "gcs_score": null,
+  "hunt_hess_grade": null,
+  "wfns_grade": null,
+  "fisher_grade": null,
+  "modified_fisher_grade": null,
+  "ich_score": null,
+  "hemorrhage_etiology": "hypertensive|caa|avm|coagulopathy|tumor|unknown|null（仅ICH）",
+  "vasospasm_status": "none|clinical|radiographic|severe|null",
+  "hydrocephalus_status": "none|acute|chronic|shunt_dependent|null",
+  "aneurysm_location": null,
+  "aneurysm_size_mm": null,
+  "aneurysm_neck_width_mm": null,
+  "phases_score": null,
+  "suzuki_stage": null,
+  "bypass_type": "direct_sta_mca|indirect_edas|combined|other|null",
+  "perfusion_status": "normal|mildly_reduced|severely_reduced|improved|null",
+  "surgery_status": "planned|done|cancelled|conservative|null",
+  "mrs_score": null
+}
+"""
+
+
+async def extract_fast_cvd_context(text: str) -> Optional[NeuroCVDSurgicalContext]:
+    """Fast CVD-only extraction (~400 tokens max). Use for short dictations with explicit scores.
+
+    Returns None if extraction fails or no CVD data found.
+    """
+    provider_name = os.environ.get("STRUCTURING_LLM", "deepseek")
+    provider = dict(_PROVIDERS[provider_name])
+    if provider_name == "ollama":
+        provider["model"] = os.environ.get("OLLAMA_MODEL", provider["model"])
+    elif provider_name == "tencent_lkeap":
+        provider["base_url"] = os.environ.get("TENCENT_LKEAP_BASE_URL", provider["base_url"])
+        provider["model"] = os.environ.get("TENCENT_LKEAP_MODEL", provider["model"])
+
+    if provider_name not in _CLIENT_CACHE or os.environ.get("PYTEST_CURRENT_TEST") or "pytest" in os.environ.get("_", ""):
+        _CLIENT_CACHE[provider_name] = AsyncOpenAI(
+            base_url=provider["base_url"],
+            api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
+            timeout=float(os.environ.get("NEURO_LLM_TIMEOUT", "60")),
+            max_retries=0,
+        )
+    client = _CLIENT_CACHE[provider_name]
+
+    async def _call(model_name: str):
+        return await client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": _FAST_CVD_PROMPT},
+                {"role": "user", "content": text},
+            ],
+            max_tokens=400,
+            temperature=0,
+        )
+
+    fallback_model = None
+    if provider_name == "ollama":
+        fallback_model = os.environ.get("OLLAMA_FALLBACK_MODEL", "qwen2.5:7b")
+    try:
+        completion = await call_with_retry_and_fallback(
+            _call,
+            primary_model=provider["model"],
+            fallback_model=fallback_model,
+            max_attempts=2,
+            op_name="neuro.fast_cvd",
+        )
+        raw = completion.choices[0].message.content or ""
+        json_str = _extract_fenced_json(raw) or raw.strip()
+        data = json.loads(json_str)
+        ctx = NeuroCVDSurgicalContext.model_validate(data)
+        return ctx if ctx.has_data() else None
+    except Exception as exc:
+        log(f"[FastCVD] extraction failed (non-fatal): {exc}")
+        return None

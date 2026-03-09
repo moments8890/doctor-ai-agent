@@ -151,6 +151,83 @@ _TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "add_cvd_record",
+            "description": (
+                "当医生描述神经外科脑血管病（ICH/SAH/动脉瘤/AVM/烟雾病）临床内容，"
+                "且明确提及以下任一评分或评级时调用：\n"
+                "- GCS评分（如GCS 8）\n"
+                "- Hunt-Hess分级（如Hunt-Hess III、H-H 3级）\n"
+                "- WFNS分级\n"
+                "- Fisher或改良Fisher分级\n"
+                "- ICH评分\n"
+                "- 铃木分期（Suzuki）\n"
+                "- mRS评分\n"
+                "- 手术状态（如计划开颅夹闭、已行弹簧圈栓塞、保守治疗）\n"
+                "如果是普通脑血管病记录但无上述明确评分，使用 add_medical_record 代替。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "patient_name": {
+                        "type": "string",
+                        "description": "患者姓名。只填写当前消息中明确出现的姓名，否则省略。",
+                    },
+                    "gender": {
+                        "type": "string",
+                        "description": "性别，填男或女。只在明确提到时填写。",
+                    },
+                    "age": {
+                        "type": "integer",
+                        "description": "患者年龄整数。只在明确提到时填写。",
+                    },
+                    "is_emergency": {
+                        "type": "boolean",
+                        "description": "是否急诊：脑疝、脑干受压、GCS急剧下降、再出血时设为true。",
+                    },
+                    "diagnosis_subtype": {
+                        "type": "string",
+                        "description": "脑血管病亚型：ICH|SAH|ischemic|AVM|aneurysm|moyamoya|other",
+                    },
+                    "gcs_score": {
+                        "type": "integer",
+                        "description": "格拉斯哥昏迷评分 3-15。",
+                    },
+                    "hunt_hess_grade": {
+                        "type": "integer",
+                        "description": "Hunt-Hess分级 1-5（SAH专用）。",
+                    },
+                    "wfns_grade": {
+                        "type": "integer",
+                        "description": "WFNS分级 1-5（SAH专用，与Hunt-Hess并列）。",
+                    },
+                    "fisher_grade": {
+                        "type": "integer",
+                        "description": "Fisher分级 1-4（SAH，预测血管痉挛风险）。",
+                    },
+                    "ich_score": {
+                        "type": "integer",
+                        "description": "ICH评分 0-6（脑出血专用）。",
+                    },
+                    "surgery_status": {
+                        "type": "string",
+                        "description": "手术状态：planned|done|cancelled|conservative",
+                    },
+                    "mrs_score": {
+                        "type": "integer",
+                        "description": "改良Rankin量表评分 0-6。",
+                    },
+                    "suzuki_stage": {
+                        "type": "integer",
+                        "description": "铃木分期 1-6（烟雾病专用，DSA形态学分期）。",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "import_history",
             "description": (
                 "当医生发送的内容是患者的历史病历记录、过往多次就诊记录，或来自PDF/Word文件的批量病历时调用。\n"
@@ -372,6 +449,7 @@ _TOOLS = [
 
 _SYSTEM_PROMPT = (
     "你是医生助手。根据医生当前消息选择工具：\n"
+    "- 脑血管病（ICH/SAH/动脉瘤/AVM/烟雾病）且含明确评分（GCS/Hunt-Hess/WFNS/Fisher/ICH评分/铃木分期/mRS）或手术状态 → add_cvd_record\n"
     "- 消息含症状/体征/诊断/用药等临床信息 → add_medical_record\n"
     "- 消息只介绍患者身份（无临床内容）或明确说建档 → create_patient\n"
     "- 更正/修改之前已保存病历中的字段（主诉、诊断、治疗等写错了）→ update_medical_record\n"
@@ -399,6 +477,7 @@ _SYSTEM_PROMPT = (
 
 _SYSTEM_PROMPT_COMPACT = (
     "你是医生助手。根据当前消息选择工具："
+    "脑血管病+明确评分(GCS/Hunt-Hess/WFNS/Fisher/ICH评分/铃木/mRS/手术状态)->add_cvd_record；"
     "临床信息->add_medical_record；仅建档->create_patient；"
     "更正已保存病历字段->update_medical_record；修改患者年龄/性别->update_patient_info；"
     "查病历->query_records；看患者列表->list_patients；"
@@ -414,6 +493,7 @@ _SYSTEM_PROMPT_COMPACT = (
 _INTENT_MAP = {
     "create_patient": Intent.create_patient,
     "add_medical_record": Intent.add_record,
+    "add_cvd_record": Intent.add_record,
     "update_medical_record": Intent.update_record,
     "update_patient_info": Intent.update_patient,
     "query_records": Intent.query_records,
@@ -558,6 +638,14 @@ def _intent_result_from_tool_call(fn_name: str, args: dict, chat_reply: Optional
         extracted = {k: args[k] for k in _CLINICAL_KEYS if args.get(k)}
         if extracted:
             structured_fields = extracted
+    elif fn_name == "add_cvd_record":
+        _CVD_KEYS = {
+            "diagnosis_subtype", "gcs_score", "hunt_hess_grade", "wfns_grade",
+            "fisher_grade", "ich_score", "surgery_status", "mrs_score", "suzuki_stage",
+        }
+        cvd_fields = {k: args[k] for k in _CVD_KEYS if args.get(k) is not None}
+        if cvd_fields:
+            extra_data["cvd_context"] = cvd_fields
 
     return IntentResult(
         intent=intent,
@@ -696,12 +784,18 @@ async def dispatch(
     if routing_max_tokens < 80:
         routing_max_tokens = 80
     try:
+        _cvd_specialties = {"神经外科", "脑外科", "神经内科", "neurosurgery", "neurology"}
+        _include_cvd = specialty and any(s in (specialty or "") for s in _cvd_specialties)
+        _tools_for_call = _selected_tools() if _include_cvd else [
+            t for t in _selected_tools() if t.get("function", {}).get("name") != "add_cvd_record"
+        ]
+
         async def _call(model_name: str):
             with trace_block("llm", "agent.chat_completion", {"provider": provider_name, "model": model_name}):
                 return await client.chat.completions.create(
                     model=model_name,
                     messages=messages,
-                    tools=_selected_tools(),
+                    tools=_tools_for_call,
                     tool_choice="auto",
                     max_tokens=routing_max_tokens,
                     temperature=0,

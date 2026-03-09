@@ -98,12 +98,6 @@ class IntentResult(BaseModel):
 async def detect_intent(text: str) -> IntentResult:
     intent_provider = os.environ.get("INTENT_PROVIDER", "local")
 
-    if intent_provider == "local":
-        from services.intent_rules import detect_intent_rules
-        result = detect_intent_rules(text)
-        log(f"[Intent:local] {result.intent} patient={result.patient_name}")
-        return result
-
     provider = _PROVIDERS[intent_provider]
     log(f"[Intent:{intent_provider}] detecting: {text[:80]}")
     extra_headers = {"anthropic-version": "2023-06-01"} if intent_provider == "claude" else {}

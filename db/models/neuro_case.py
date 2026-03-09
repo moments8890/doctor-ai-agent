@@ -65,32 +65,67 @@ class ExtractionLog(BaseModel):
 
 class NeuroCVDSurgicalContext(BaseModel):
     """结构化的神经外科脑血管疾病专科字段，从 LLM 提取后存入 neuro_cvd_context 表。"""
-    diagnosis_subtype: Optional[str] = None       # ICH|SAH|ischemic|AVM|aneurysm|other
+    # Diagnosis classification
+    diagnosis_subtype: Optional[str] = None       # ICH|SAH|ischemic|AVM|aneurysm|moyamoya|other
     hemorrhage_location: Optional[str] = None
-    ich_score: Optional[int] = None
+
+    # ICH-specific
+    ich_score: Optional[int] = None               # 0-6
     ich_volume_ml: Optional[float] = None
-    hunt_hess_grade: Optional[int] = None
-    fisher_grade: Optional[int] = None
-    spetzler_martin_grade: Optional[int] = None
-    gcs_score: Optional[int] = None
+    hemorrhage_etiology: Optional[str] = None     # hypertensive|caa|avm|coagulopathy|tumor|unknown
+
+    # SAH grading
+    hunt_hess_grade: Optional[int] = None         # 1-5
+    fisher_grade: Optional[int] = None            # 1-4 (原始Fisher)
+    wfns_grade: Optional[int] = None              # 1-5; WFNS分级，与Hunt-Hess并列
+    modified_fisher_grade: Optional[int] = None   # 0-4; 改良Fisher，预测血管痉挛更准
+
+    # SAH post-op monitoring
+    vasospasm_status: Optional[str] = None        # none|clinical|radiographic|severe
+    nimodipine_regimen: Optional[str] = None      # 尼莫地平方案（途径/剂量/天数）
+
+    # ICH/SAH shared complication
+    hydrocephalus_status: Optional[str] = None    # none|acute|chronic|shunt_dependent
+
+    # AVM
+    spetzler_martin_grade: Optional[int] = None   # 1-5
+
+    # General severity
+    gcs_score: Optional[int] = None               # 3-15
+
+    # Aneurysm details
     aneurysm_location: Optional[str] = None
     aneurysm_size_mm: Optional[float] = None
+    aneurysm_neck_width_mm: Optional[float] = None  # 瘤颈宽度，决定手术方式
     aneurysm_morphology: Optional[str] = None     # saccular|fusiform|other
+    aneurysm_daughter_sac: Optional[str] = None   # yes|no; 子囊（破裂风险高）
     aneurysm_treatment: Optional[str] = None      # clipping|coiling|pipeline|conservative
+    phases_score: Optional[int] = None            # 0-12; 未破裂动脉瘤破裂风险PHASES评分
+
+    # Moyamoya disease
+    suzuki_stage: Optional[int] = None            # 1-6; 铃木分期，烟雾病DSA形态学分期
+    bypass_type: Optional[str] = None             # direct_sta_mca|indirect_edas|combined|other
+    perfusion_status: Optional[str] = None        # normal|mildly_reduced|severely_reduced|improved
+
+    # Surgical decision
     surgery_type: Optional[str] = None
     surgery_date: Optional[str] = None
     surgery_status: Optional[str] = None          # planned|done|cancelled|conservative
     surgical_approach: Optional[str] = None
-    mrs_score: Optional[int] = None
-    barthel_index: Optional[int] = None
+
+    # Functional outcome
+    mrs_score: Optional[int] = None               # 0-6
+    barthel_index: Optional[int] = None           # 0-100
 
     def has_data(self) -> bool:
         """True if at least one clinical field is non-null."""
         return any(
             getattr(self, f) is not None
             for f in ("diagnosis_subtype", "ich_score", "hunt_hess_grade",
-                      "fisher_grade", "gcs_score", "spetzler_martin_grade",
-                      "aneurysm_location", "surgery_type", "mrs_score")
+                      "wfns_grade", "fisher_grade", "gcs_score", "spetzler_martin_grade",
+                      "vasospasm_status", "hydrocephalus_status", "suzuki_stage",
+                      "bypass_type", "phases_score", "aneurysm_location",
+                      "surgery_type", "surgery_status", "mrs_score")
         )
 
 

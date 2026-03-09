@@ -86,6 +86,8 @@ from db.crud import (
     confirm_pending_record,
     abandon_pending_record,
 )
+from db.crud.records import update_latest_record_for_patient
+from db.crud.patient import update_patient_demographics
 from services.knowledge.doctor_knowledge import (
     load_knowledge_context_for_prompt,
     parse_add_to_knowledge_command,
@@ -400,6 +402,57 @@ async def _handle_schedule_appointment(doctor_id: str, intent_result) -> str:
     )
 
 
+async def _handle_update_record(doctor_id: str, intent_result) -> str:
+    """Patch corrected fields into the most recent record for the named patient."""
+    patient_name = (intent_result.patient_name or "").strip()
+    sess = get_session(doctor_id)
+    if not patient_name and sess.current_patient_name:
+        patient_name = sess.current_patient_name
+    if not patient_name:
+        return "⚠️ 未能识别患者姓名，请说明要更正哪位患者的病历。"
+
+    fields = intent_result.structured_fields or {}
+    if not fields:
+        return "⚠️ 未能识别需要更正的字段内容，请重新描述。"
+
+    async with AsyncSessionLocal() as session:
+        patient = await find_patient_by_name(session, doctor_id, patient_name)
+        if patient is None:
+            return f"⚠️ 未找到患者【{patient_name}】，请确认姓名后重试。"
+        record = await update_latest_record_for_patient(session, doctor_id, patient.id, fields)
+
+    if record is None:
+        return f"⚠️ 患者【{patient_name}】暂无病历记录，无法更正。"
+
+    updated_keys = "、".join(fields.keys())
+    return f"✅ 已更正患者【{patient_name}】最近一条病历\n更新字段：{updated_keys}"
+
+
+async def _handle_update_patient(doctor_id: str, intent_result) -> str:
+    """Update patient demographics (gender/age)."""
+    patient_name = (intent_result.patient_name or "").strip()
+    if not patient_name:
+        return "⚠️ 未能识别患者姓名，请说明要修改哪位患者的信息。"
+
+    gender = intent_result.gender
+    age = intent_result.age
+    if not gender and age is None:
+        return "⚠️ 未能识别需要修改的信息，请说明新的年龄或性别。"
+
+    async with AsyncSessionLocal() as session:
+        patient = await update_patient_demographics(session, doctor_id, patient_name, gender, age)
+
+    if patient is None:
+        return f"⚠️ 未找到患者【{patient_name}】，请确认姓名后重试。"
+
+    changes = []
+    if gender:
+        changes.append(f"性别→{gender}")
+    if age is not None:
+        changes.append(f"年龄→{age}岁")
+    return f"✅ 已更新患者【{patient_name}】信息：{'、'.join(changes)}"
+
+
 async def _confirm_pending_record(doctor_id: str, pending_id: str) -> str:
     """Save the pending draft to medical_records, fire follow-up tasks, clear session state."""
     async with AsyncSessionLocal() as session:
@@ -558,6 +611,10 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
         return await wd.handle_postpone_task(doctor_id, intent_result)
     elif intent_result.intent == Intent.import_history:
         return await wd.handle_import_history(text, doctor_id, intent_result)
+    elif intent_result.intent == Intent.update_record:
+        return await _handle_update_record(doctor_id, intent_result)
+    elif intent_result.intent == Intent.update_patient:
+        return await _handle_update_patient(doctor_id, intent_result)
     elif intent_result.intent == Intent.unknown:
         explicit_name = _explicit_name_or_none(text)
         if explicit_name:

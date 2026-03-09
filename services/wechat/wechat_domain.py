@@ -190,6 +190,12 @@ async def handle_add_record(
         reply = intent_result.chat_reply or (f"{patient_name}的病历已记录。" if patient_name else "病历已保存。")
         return "🚨 " + reply
 
+    # Embed CVD structured context in draft if agent extracted it (add_cvd_record tool)
+    cvd_raw: Optional[dict] = intent_result.extra_data.get("cvd_context")
+    draft_data = record.model_dump()
+    if cvd_raw:
+        draft_data["cvd_context"] = cvd_raw
+
     # Save as pending draft — doctor must confirm before it hits medical_records
     draft_id = uuid.uuid4().hex
     async with AsyncSessionLocal() as session:
@@ -197,7 +203,7 @@ async def handle_add_record(
             session,
             record_id=draft_id,
             doctor_id=doctor_id,
-            draft_json=json.dumps(record.model_dump(), ensure_ascii=False),
+            draft_json=json.dumps(draft_data, ensure_ascii=False),
             patient_id=patient_id,
             patient_name=patient_name,
             ttl_minutes=_DRAFT_TTL_MINUTES,
@@ -205,7 +211,11 @@ async def handle_add_record(
     set_pending_record_id(doctor_id, draft_id)
 
     patient_display = f"【{patient_name}】" if patient_name else ""
-    return f"✅ 已为{patient_display}创建病历草稿，回复「确认」保存，「撤销」取消"
+    confirmation = f"✅ 已为{patient_display}创建病历草稿"
+    if cvd_raw:
+        confirmation += "\n" + _format_cvd_summary(cvd_raw)
+    confirmation += "\n「撤销」可取消"
+    return confirmation
 
 
 async def save_pending_record(doctor_id: str, pending: Any) -> Optional[str]:
@@ -216,8 +226,10 @@ async def save_pending_record(doctor_id: str, pending: Any) -> Optional[str]:
     Does NOT touch session state — caller is responsible for clear_pending_record_id.
     """
     from db.models.medical_record import MedicalRecord
+    from db.models.neuro_case import NeuroCVDSurgicalContext
     try:
         draft = json.loads(pending.draft_json)
+        cvd_raw = draft.pop("cvd_context", None)
         record = MedicalRecord(**{k: draft.get(k) for k in MedicalRecord.model_fields})
     except Exception as e:
         log(f"[PendingRecord] parse draft FAILED doctor={doctor_id} id={pending.id}: {e}")
@@ -228,6 +240,16 @@ async def save_pending_record(doctor_id: str, pending: Any) -> Optional[str]:
             if record.specialty_scores:
                 from db.crud.scores import save_specialty_scores
                 await save_specialty_scores(session, db_record.id, doctor_id, record.specialty_scores)
+            # Save CVD context directly if agent already extracted it (skip background task)
+            if cvd_raw:
+                try:
+                    from db.crud.specialty import save_cvd_context
+                    cvd_ctx = NeuroCVDSurgicalContext.model_validate(cvd_raw)
+                    if cvd_ctx.has_data():
+                        await save_cvd_context(session, doctor_id, pending.patient_id, db_record.id, cvd_ctx, source="chat")
+                        log(f"[CVD] context saved inline for record={db_record.id}")
+                except Exception as exc:
+                    log(f"[CVD] inline save failed (non-fatal): {exc}")
             await confirm_pending_record(session, pending.id, doctor_id=doctor_id)
     except Exception as e:
         log(f"[PendingRecord] save FAILED doctor={doctor_id} id={pending.id}: {e}")
@@ -248,8 +270,8 @@ async def save_pending_record(doctor_id: str, pending: Any) -> Optional[str]:
             doctor_id, db_record.id, patient_name, pending.patient_id, _content_for_rules
         ))
     asyncio.create_task(_bg_auto_learn(doctor_id, record.content or "", record))
-    # CVD surgical context extraction (background, non-blocking)
-    if _detect_cvd_keywords(record.content or ""):
+    # CVD background extraction only as fallback when agent did not extract structured fields
+    if not cvd_raw and _detect_cvd_keywords(record.content or ""):
         asyncio.create_task(_bg_extract_cvd_context(
             doctor_id, db_record.id, pending.patient_id, record.content or ""
         ))
@@ -265,6 +287,39 @@ _CVD_KEYWORDS = frozenset({
 
 def _detect_cvd_keywords(text: str) -> bool:
     return any(kw in text for kw in _CVD_KEYWORDS)
+
+
+def _format_cvd_summary(cvd: dict) -> str:
+    """Compact mobile-friendly CVD field summary for confirmation preview."""
+    parts = []
+    subtype_labels = {
+        "ICH": "脑出血", "SAH": "蛛网膜下腔出血", "ischemic": "缺血性卒中",
+        "AVM": "AVM", "aneurysm": "动脉瘤", "moyamoya": "烟雾病", "other": "脑血管病",
+    }
+    subtype = cvd.get("diagnosis_subtype")
+    if subtype:
+        parts.append(subtype_labels.get(subtype, subtype))
+    if cvd.get("gcs_score") is not None:
+        parts.append(f"GCS {cvd['gcs_score']}")
+    if cvd.get("hunt_hess_grade") is not None:
+        parts.append(f"H-H {cvd['hunt_hess_grade']}级")
+    if cvd.get("wfns_grade") is not None:
+        parts.append(f"WFNS {cvd['wfns_grade']}级")
+    if cvd.get("fisher_grade") is not None:
+        parts.append(f"Fisher {cvd['fisher_grade']}级")
+    if cvd.get("ich_score") is not None:
+        parts.append(f"ICH评分 {cvd['ich_score']}")
+    if cvd.get("suzuki_stage") is not None:
+        parts.append(f"Suzuki {cvd['suzuki_stage']}期")
+    if cvd.get("mrs_score") is not None:
+        parts.append(f"mRS {cvd['mrs_score']}")
+    surgery_labels = {"planned": "手术计划中", "done": "已手术", "cancelled": "手术取消", "conservative": "保守治疗"}
+    surgery = cvd.get("surgery_status")
+    if surgery:
+        parts.append(surgery_labels.get(surgery, surgery))
+    if not parts:
+        return ""
+    return "🧠 脑血管专科：" + " | ".join(parts)
 
 
 async def _bg_extract_cvd_context(
@@ -427,6 +482,8 @@ async def handle_interview_step(text: str, doctor_id: str) -> str:
 
     sess = get_session(doctor_id)
     iv = sess.interview
+    if iv is None:
+        return "当前没有进行中的问诊，请先说「开始问诊」。"
     iv.record_answer(text)
     if iv.active:
         return f"{iv.progress}\n{iv.current_question}"
@@ -1160,6 +1217,7 @@ async def handle_import_history(text: str, doctor_id: str, intent_result: Intent
 
     # Structure each chunk (cap at 10 to avoid excessive LLM calls)
     structured_chunks: list[dict] = []
+    failed_chunks: list[int] = []
     for i, chunk_text in enumerate(chunks_raw[:10]):
         try:
             record = await structure_medical_record(chunk_text)
@@ -1171,6 +1229,7 @@ async def handle_import_history(text: str, doctor_id: str, intent_result: Intent
             })
         except Exception as e:
             log(f"[Import] chunk {i+1} structuring FAILED doctor={doctor_id}: {e}")
+            failed_chunks.append(i + 1)
 
     if not structured_chunks:
         return "未能解析病历内容，请确认文件是否包含可读文字后重试。"
@@ -1195,7 +1254,10 @@ async def handle_import_history(text: str, doctor_id: str, intent_result: Intent
                 log(f"[Import] save chunk FAILED doctor={doctor_id}: {e}")
 
     patient_label = f"【{patient_name}】" if patient_name else "当前患者"
-    return f"✅ 已导入 {saved} 条病历\n患者：{patient_label}"
+    reply = f"✅ 已导入 {saved} 条病历\n患者：{patient_label}"
+    if failed_chunks:
+        reply += f"\n⚠️ {len(failed_chunks)} 条记录解析失败（片段 {', '.join(str(n) for n in failed_chunks)}），已跳过"
+    return reply
 
 
 def wecom_kf_msg_to_text(msg: Dict[str, Any]) -> str:

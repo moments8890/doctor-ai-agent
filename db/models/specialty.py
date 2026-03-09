@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Float, ForeignKey, Index, Integer, String, DateTime
+from sqlalchemy import Float, ForeignKey, Index, Integer, String, DateTime, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from db.engine import Base
@@ -25,16 +25,26 @@ class NeuroCVDContext(Base):
     doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False)
 
     # Diagnosis classification
-    diagnosis_subtype: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)   # ICH|SAH|ischemic|AVM|aneurysm|other
-    hemorrhage_location: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)  # 出血部位
+    diagnosis_subtype: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)   # ICH|SAH|ischemic|AVM|aneurysm|moyamoya|other
+    hemorrhage_location: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
     # ICH-specific
     ich_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)               # 0-6
     ich_volume_ml: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    hemorrhage_etiology: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # hypertensive|caa|avm|coagulopathy|tumor|unknown
 
-    # SAH / aneurysm grading
+    # SAH grading
     hunt_hess_grade: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)         # 1-5
     fisher_grade: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)            # 1-4
+    wfns_grade: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)              # 1-5; WFNS分级
+    modified_fisher_grade: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)   # 0-4; 改良Fisher
+
+    # SAH post-op monitoring
+    vasospasm_status: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)     # none|clinical|radiographic|severe
+    nimodipine_regimen: Mapped[Optional[str]] = mapped_column(Text, nullable=True)         # 尼莫地平方案
+
+    # ICH/SAH shared complication
+    hydrocephalus_status: Mapped[Optional[str]] = mapped_column(String(32), nullable=True) # none|acute|chronic|shunt_dependent
 
     # AVM
     spetzler_martin_grade: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)   # 1-5
@@ -45,8 +55,16 @@ class NeuroCVDContext(Base):
     # Aneurysm details
     aneurysm_location: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     aneurysm_size_mm: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    aneurysm_neck_width_mm: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 瘤颈宽度mm
     aneurysm_morphology: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # saccular|fusiform|other
+    aneurysm_daughter_sac: Mapped[Optional[str]] = mapped_column(String(8), nullable=True) # yes|no
     aneurysm_treatment: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)   # clipping|coiling|pipeline|conservative
+    phases_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)            # 0-12; PHASES评分
+
+    # Moyamoya disease
+    suzuki_stage: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)            # 1-6; 铃木分期
+    bypass_type: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)          # direct_sta_mca|indirect_edas|combined|other
+    perfusion_status: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)     # normal|mildly_reduced|severely_reduced|improved
 
     # Surgical decision
     surgery_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)

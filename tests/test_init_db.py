@@ -153,11 +153,11 @@ async def test_create_tables_idempotent_on_full_schema(monkeypatch):
 
 async def test_seed_prompts_inserts_both_defaults_when_missing(monkeypatch):
     monkeypatch.setattr(init_db, "AsyncSessionLocal", lambda: _SessionCtx())
-    with patch("db.crud.get_system_prompt", new=AsyncMock(side_effect=[None, None])) as get_prompt, \
+    with patch("db.crud.get_system_prompt", new=AsyncMock(return_value=None)) as get_prompt, \
          patch("db.crud.upsert_system_prompt", new=AsyncMock()) as upsert:
         await init_db.seed_prompts()
 
-    assert get_prompt.await_count == 2
+    assert get_prompt.await_count == 1  # only structuring; neuro_cvd is always upserted
     assert upsert.await_count == 2
     first_call = upsert.await_args_list[0].args
     second_call = upsert.await_args_list[1].args
@@ -165,14 +165,16 @@ async def test_seed_prompts_inserts_both_defaults_when_missing(monkeypatch):
     assert second_call[1] == "structuring.neuro_cvd"
 
 
-async def test_seed_prompts_is_idempotent_when_rows_exist(monkeypatch):
+async def test_seed_prompts_neuro_cvd_always_upserted(monkeypatch):
+    """neuro_cvd prompt is always upserted (so expanded fields reach production)."""
     monkeypatch.setattr(init_db, "AsyncSessionLocal", lambda: _SessionCtx())
-    with patch("db.crud.get_system_prompt", new=AsyncMock(side_effect=[object(), object()])) as get_prompt, \
+    with patch("db.crud.get_system_prompt", new=AsyncMock(return_value=object())) as get_prompt, \
          patch("db.crud.upsert_system_prompt", new=AsyncMock()) as upsert:
         await init_db.seed_prompts()
 
-    assert get_prompt.await_count == 2
-    upsert.assert_not_awaited()
+    assert get_prompt.await_count == 1  # only structuring
+    assert upsert.await_count == 1      # neuro_cvd always upserted; structuring skipped
+    assert upsert.await_args_list[0].args[1] == "structuring.neuro_cvd"
 
 
 async def test_backfill_doctors_registry_inserts_missing_doctors(monkeypatch):
