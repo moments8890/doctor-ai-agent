@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import select
@@ -65,6 +66,7 @@ async def upsert_cvd_field(
         data = json.loads(existing.raw_json or "{}")
         data[field_name] = value
         existing.raw_json = json.dumps(data, ensure_ascii=False)
+        existing.updated_at = datetime.now(timezone.utc)
         # Keep promoted columns in sync
         if field_name == "diagnosis_subtype":
             existing.diagnosis_subtype = value

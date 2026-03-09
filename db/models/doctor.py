@@ -37,7 +37,7 @@ class DoctorSessionState(Base):
     __tablename__ = "doctor_session_states"
 
     doctor_id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    current_patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id"), nullable=True)
+    current_patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id", ondelete="SET NULL"), nullable=True)
     pending_create_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     pending_record_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)

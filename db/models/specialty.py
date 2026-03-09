@@ -46,6 +46,7 @@ class NeuroCVDContext(Base):
     raw_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=_utcnow, nullable=True)
 
     __table_args__ = (
         Index("ix_neuro_cvd_doctor_patient", "doctor_id", "patient_id"),

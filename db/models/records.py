@@ -23,7 +23,7 @@ class MedicalRecordDB(Base):
     tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array of keyword strings
     encounter_type: Mapped[str] = mapped_column(String(32), nullable=False, default="unknown")  # first_visit|follow_up|unknown
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=True)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=_utcnow, nullable=True)
 
     patient: Mapped[Optional["Patient"]] = relationship("Patient", back_populates="records")
 
