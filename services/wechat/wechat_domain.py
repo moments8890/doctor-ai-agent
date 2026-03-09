@@ -129,14 +129,25 @@ async def handle_add_record(
     patient_id = None
     patient_name = None
     new_patient_created = False
-    # Fast path: if the requested patient name matches the in-session current patient, skip DB lookup
+    # Fast path: if the requested patient name matches the in-session current patient, skip DB lookup.
+    # Perform a lightweight DB fetch to confirm the name hasn't changed (e.g. renamed on another device).
     _sess_check = get_session(doctor_id)
     if (intent_result.patient_name and _sess_check.current_patient_name
             and intent_result.patient_name == _sess_check.current_patient_name
             and _sess_check.current_patient_id is not None):
-        patient_id = _sess_check.current_patient_id
-        patient_name = _sess_check.current_patient_name
-    else:
+        try:
+            async with AsyncSessionLocal() as _fp_sess:
+                from db.crud import get_patient_for_doctor as _get_pt_for_doctor
+                _cached_pt = await _get_pt_for_doctor(_fp_sess, doctor_id, _sess_check.current_patient_id)
+            if _cached_pt and _cached_pt.name == _sess_check.current_patient_name:
+                patient_id = _sess_check.current_patient_id
+                patient_name = _sess_check.current_patient_name
+            # else: fall through to normal lookup path below
+        except Exception as _fpe:
+            log(f"[WeChat] fast-path DB verify failed for {doctor_id}: {_fpe}")
+            # fall through to normal lookup path
+
+    if patient_id is None:  # not resolved by fast path above
         async with AsyncSessionLocal() as session:
             if intent_result.patient_name:
                 patient = await find_patient_by_name(session, doctor_id, intent_result.patient_name)
@@ -182,15 +193,22 @@ async def handle_add_record(
             async def _detect_enc():
                 async with AsyncSessionLocal() as _enc_sess:
                     return await detect_encounter_type(_enc_sess, doctor_id, patient_id, text)
-            async def _get_prior():
-                if patient_id is None:
-                    return None
-                try:
-                    return await _get_pvs(doctor_id, patient_id)
-                except Exception:
-                    return None
-            _enc_type, _prior_summary_maybe = await asyncio.gather(_detect_enc(), _get_prior())
-            _prior_summary: Optional[str] = _prior_summary_maybe if _enc_type == "follow_up" else None
+            if patient_id is not None:
+                async def _get_prior():
+                    try:
+                        return await _get_pvs(doctor_id, patient_id)
+                    except Exception:
+                        return None
+                _enc_type, _prior_summary_maybe = await asyncio.gather(_detect_enc(), _get_prior())
+            else:
+                _enc_type = await _detect_enc()
+                _prior_summary_maybe = None
+            _raw_summary: Optional[str] = _prior_summary_maybe if _enc_type == "follow_up" else None
+            if _raw_summary:
+                _safe_summary = _raw_summary.strip()[:500]
+                _prior_summary: Optional[str] = f"\n# 既往摘要（仅参考）:\n{_safe_summary}\n"
+            else:
+                _prior_summary = None
             record = await structure_medical_record(
                 "\n".join(doctor_ctx),
                 encounter_type=_enc_type,

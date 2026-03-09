@@ -29,6 +29,7 @@ class PendingRecord(Base):
         Index("ix_pending_records_doctor_status", "doctor_id", "status"),
         Index("ix_pending_records_expires", "expires_at"),
         Index("ix_pending_records_status_expires", "status", "expires_at"),
+        Index("ix_pending_records_doctor_status_expires", "doctor_id", "status", "expires_at"),
     )
 
 

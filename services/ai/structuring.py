@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import re
@@ -240,11 +241,15 @@ async def structure_medical_record(
                     max_tokens=1500,
                     temperature=0,
                 )
-        completion = await call_with_retry_and_fallback(
-            _cloud_call,
-            primary_model=_cloud_provider["model"],
-            max_attempts=2,
-            op_name="structuring.chat_completion.cloud_fallback",
+        _cloud_timeout = float(os.environ.get("STRUCTURING_CLOUD_FALLBACK_TIMEOUT", "3.0"))
+        completion = await asyncio.wait_for(
+            call_with_retry_and_fallback(
+                _cloud_call,
+                primary_model=_cloud_provider["model"],
+                max_attempts=2,
+                op_name="structuring.chat_completion.cloud_fallback",
+            ),
+            timeout=_cloud_timeout,
         )
     raw = completion.choices[0].message.content or ""
     log(f"[LLM:{provider_name}] response: {raw}")

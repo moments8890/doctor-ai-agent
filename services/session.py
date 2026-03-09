@@ -87,9 +87,12 @@ async def hydrate_session_state(doctor_id: str) -> DoctorSession:
 
     async with get_session_lock(doctor_id):
         # Double-check inside lock — another coroutine may have hydrated first.
+        # Capture a fresh monotonic timestamp after lock acquisition to avoid using
+        # the stale value from function entry (lock wait can be 100-5000ms).
+        _now_mono_fresh = time.monotonic()
         with _registry_lock:
             last_loaded = _loaded_from_db.get(doctor_id, 0.0)
-        if (_now_mono - last_loaded) < _HYDRATION_TTL_SECONDS:
+        if (_now_mono_fresh - last_loaded) < _HYDRATION_TTL_SECONDS:
             return get_session(doctor_id)
 
         sess = get_session(doctor_id)
@@ -108,11 +111,14 @@ async def hydrate_session_state(doctor_id: str) -> DoctorSession:
                     _restored_pending_id = getattr(state, "pending_record_id", None)
                     if _restored_pending_id:
                         from db.crud import get_pending_record as _get_pr
-                        from datetime import timezone as _tz
+                        from datetime import timezone as _tz, timedelta as _td
                         _pr = await _get_pr(db, _restored_pending_id, doctor_id)
-                        _now = __import__("datetime").datetime.now(_tz.utc).replace(tzinfo=None)
-                        from datetime import timedelta as _td
-                        _expired = _pr is not None and _pr.expires_at and _pr.expires_at.replace(tzinfo=None) <= (_now - _td(seconds=5))
+                        _now_utc = datetime.now(_tz.utc)
+                        if _pr is not None and _pr.expires_at:
+                            _exp_at = _pr.expires_at if _pr.expires_at.tzinfo is not None else _pr.expires_at.replace(tzinfo=_tz.utc)
+                            _expired = (_exp_at - _td(seconds=5)) <= _now_utc
+                        else:
+                            _expired = False
                         if _pr is None or _pr.status != "awaiting" or _expired:
                             _restored_pending_id = None
                     sess.pending_record_id = _restored_pending_id
@@ -132,7 +138,8 @@ async def hydrate_session_state(doctor_id: str) -> DoctorSession:
                             iv_state.step = int(_iv.get("step", 0))
                             iv_state.answers = dict(_iv.get("answers", {}))
                             sess.interview = iv_state
-                        except Exception:
+                        except Exception as _iv_err:
+                            log(f"[Session] invalid interview_json for {doctor_id}: {_iv_err}")
                             sess.interview = None
                     _cvd_json = getattr(state, "cvd_scale_json", None)
                     if _cvd_json:
@@ -144,7 +151,8 @@ async def hydrate_session_state(doctor_id: str) -> DoctorSession:
                                 field_name=_cvd["field_name"],
                                 subtype=_cvd["subtype"],
                             )
-                        except Exception:
+                        except Exception as _cvd_err:
+                            log(f"[Session] invalid cvd_scale_json for {doctor_id}: {_cvd_err}")
                             sess.pending_cvd_scale = None
 
                 # Recover recent conversation turns so another instance can continue context.

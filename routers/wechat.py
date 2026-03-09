@@ -6,6 +6,7 @@ import asyncio
 import json
 import os
 import re
+import threading
 import time
 from collections import deque, OrderedDict
 from datetime import datetime
@@ -136,6 +137,15 @@ _DOCTOR_CACHE = _BoundedTTLCache(maxsize=2000, ttl=300)
 # Knowledge context cache: doctor_id → (content, expiry_monotonic)
 _KB_CONTEXT_CACHE: dict[str, tuple[str, float]] = {}
 _KB_CONTEXT_TTL = 300.0  # 5 minutes
+_KB_CONTEXT_LOCKS: dict[str, asyncio.Lock] = {}
+_KB_REGISTRY_LOCK = threading.Lock()
+
+
+def _get_kb_lock(doctor_id: str) -> asyncio.Lock:
+    with _KB_REGISTRY_LOCK:
+        if doctor_id not in _KB_CONTEXT_LOCKS:
+            _KB_CONTEXT_LOCKS[doctor_id] = asyncio.Lock()
+        return _KB_CONTEXT_LOCKS[doctor_id]
 
 router = APIRouter(prefix="/wechat", tags=["wechat"])
 _WECHAT_KF_SYNC_CURSOR: str = ""
@@ -526,9 +536,13 @@ async def _confirm_pending_record(doctor_id: str, pending_id: str) -> str:
     """Save the pending draft to medical_records, fire follow-up tasks, clear session state."""
     async with AsyncSessionLocal() as session:
         pending = await get_pending_record(session, pending_id, doctor_id)
-        from datetime import timezone as _tz
-        _now = datetime.now(_tz.utc).replace(tzinfo=None)
-        expired = pending is not None and pending.expires_at and pending.expires_at.replace(tzinfo=None) <= _now
+        from datetime import timezone as _tz, timedelta as _td
+        _now_utc = datetime.now(_tz.utc)
+        if pending is not None and pending.expires_at:
+            _exp_at = pending.expires_at if pending.expires_at.tzinfo is not None else pending.expires_at.replace(tzinfo=_tz.utc)
+            expired = (_exp_at - _td(seconds=5)) <= _now_utc
+        else:
+            expired = False
         if pending is None or pending.status != "awaiting" or expired:
             clear_pending_record_id(doctor_id)
             if expired and pending is not None:
@@ -632,20 +646,21 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
         log_turn(text, intent_result.intent.value, "fast", doctor_id, _latency_ms, patient_name=intent_result.patient_name)
     else:
         knowledge_context = ""
-        _kb_cached, _kb_expiry = _KB_CONTEXT_CACHE.get(doctor_id, ("", 0.0))
-        if _kb_expiry > time.perf_counter():
-            knowledge_context = _kb_cached
-        else:
-            try:
-                async with AsyncSessionLocal() as session:
-                    knowledge_context = await load_knowledge_context_for_prompt(session, doctor_id, text)
-                _KB_CONTEXT_CACHE[doctor_id] = (knowledge_context, time.perf_counter() + _KB_CONTEXT_TTL)
-            except Exception as e:
-                log(f"[WeChat] knowledge context load FAILED doctor={doctor_id}: {e}")
-                knowledge_context = ""
+        async with _get_kb_lock(doctor_id):
+            _kb_cached, _kb_expiry = _KB_CONTEXT_CACHE.get(doctor_id, ("", 0.0))
+            if _kb_expiry > time.perf_counter():
+                knowledge_context = _kb_cached
+            else:
+                try:
+                    async with AsyncSessionLocal() as session:
+                        knowledge_context = await load_knowledge_context_for_prompt(session, doctor_id, text)
+                    _KB_CONTEXT_CACHE[doctor_id] = (knowledge_context, time.perf_counter() + _KB_CONTEXT_TTL)
+                except Exception as e:
+                    log(f"[WeChat] knowledge context load FAILED doctor={doctor_id}: {e}")
+                    knowledge_context = ""
 
         try:
-            dispatch_kwargs = {"history": history or []}
+            dispatch_kwargs = {"history": history or [], "doctor_id": doctor_id}
             if knowledge_context:
                 dispatch_kwargs["knowledge_context"] = knowledge_context
             _sess_specialty = get_session(doctor_id).specialty
@@ -995,7 +1010,7 @@ async def _handle_intent_bg(text: str, doctor_id: str, open_kfid: str = "", msg_
         asyncio.create_task(prefetch_customer_profile(doctor_id))
 
     _OVERALL_TIMEOUT = float(os.environ.get("INTENT_BG_TIMEOUT", "4.5"))
-    _LOCK_TIMEOUT = float(os.environ.get("INTENT_LOCK_TIMEOUT", "3.0"))
+    _LOCK_TIMEOUT = float(os.environ.get("INTENT_LOCK_TIMEOUT", "1.0"))
     result = "处理超时，请重新发送。"
     try:
         async with asyncio.timeout(_OVERALL_TIMEOUT):
@@ -1086,49 +1101,58 @@ async def _handle_patient_bg(text: str, open_id: str, open_kfid: str = "") -> No
     await _send_customer_service_msg(open_id, reply, open_kfid=open_kfid)
 
 
-async def _handle_voice_bg(media_id: str, doctor_id: str, open_kfid: str = ""):
+async def _handle_voice_bg(media_id: str, doctor_id: str, open_kfid: str = "", msg_id: str = ""):
     """Download, convert, transcribe WeChat voice, then route through normal pipeline."""
     # --- IO outside lock: no session state accessed ---
     cfg = _get_config()
     try:
-        access_token = await _get_access_token(cfg["app_id"], cfg["app_secret"])
-        wav = await download_and_convert(media_id, access_token)
-        text = await transcribe_audio(wav, "voice.wav")
-        log(f"[Voice] transcribed for {doctor_id}: {text!r}")
-    except Exception as e:
-        log(f"[Voice] transcription FAILED: {e}")
-        await _send_customer_service_msg(doctor_id, "❌ 语音识别失败，请稍后重试。", open_kfid=open_kfid)
-        return
-
-    # --- state check + stateful routing under lock ---
-    route = "intent"
-    result = None
-    async with get_session_lock(doctor_id):
-        await hydrate_session_state(doctor_id)
-        sess = get_session(doctor_id)
         try:
-            if sess.pending_record_id:
-                result = await _handle_pending_record_reply(text, doctor_id, sess)
-                route = "done"
-            elif sess.pending_create_name:
-                result = await _handle_pending_create(text, doctor_id)
-                route = "done"
-            elif sess.interview is not None:
-                result = await _handle_interview_step(text, doctor_id)
-                route = "done"
+            access_token = await _get_access_token(cfg["app_id"], cfg["app_secret"])
+            wav = await download_and_convert(media_id, access_token)
+            text = await transcribe_audio(wav, "voice.wav")
+            log(f"[Voice] transcribed for {doctor_id}: {text!r}")
         except Exception as e:
-            log(f"[Voice] routing FAILED: {e}")
-            result = "处理失败，请稍后重试。"
-            route = "done"
-        if route == "done" and result is not None:
-            push_turn(doctor_id, text, result)
-            await flush_turns(doctor_id)
+            log(f"[Voice] transcription FAILED: {e}")
+            await _send_customer_service_msg(doctor_id, "❌ 语音识别失败，请稍后重试。", open_kfid=open_kfid)
+            return
 
-    if route == "done":
-        await _send_customer_service_msg(doctor_id, f'🎙️ 「{text}」\n\n{result}', open_kfid=open_kfid)
-    else:
-        # delegate — _handle_intent_bg acquires its own lock
-        await _handle_intent_bg(text, doctor_id, open_kfid=open_kfid)
+        # --- state check + stateful routing under lock ---
+        route = "intent"
+        result = None
+        async with get_session_lock(doctor_id):
+            await hydrate_session_state(doctor_id)
+            sess = get_session(doctor_id)
+            try:
+                if sess.pending_record_id:
+                    result = await _handle_pending_record_reply(text, doctor_id, sess)
+                    route = "done"
+                elif sess.pending_create_name:
+                    result = await _handle_pending_create(text, doctor_id)
+                    route = "done"
+                elif sess.interview is not None:
+                    result = await _handle_interview_step(text, doctor_id)
+                    route = "done"
+            except Exception as e:
+                log(f"[Voice] routing FAILED: {e}")
+                result = "处理失败，请稍后重试。"
+                route = "done"
+            if route == "done" and result is not None:
+                push_turn(doctor_id, text, result)
+                await flush_turns(doctor_id)
+
+        if route == "done":
+            await _send_customer_service_msg(doctor_id, f'🎙️ 「{text}」\n\n{result}', open_kfid=open_kfid)
+        else:
+            # delegate — _handle_intent_bg acquires its own lock
+            await _handle_intent_bg(text, doctor_id, open_kfid=open_kfid)
+    finally:
+        if msg_id:
+            try:
+                async with AsyncSessionLocal() as _mdb:
+                    from db.crud import mark_pending_message as _mark_pm
+                    await _mark_pm(_mdb, msg_id, "done")
+            except Exception as _e:
+                log(f"[Voice] mark pending_message done FAILED: {_e}")
 
 
 @router.post("")
