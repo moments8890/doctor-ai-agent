@@ -918,7 +918,8 @@ function TasksSection({ doctorId }) {
   const [error, setError] = useState("");
   const [statusFilter, setStatusFilter] = useState("pending");
   const [createOpen, setCreateOpen] = useState(false);
-  const [createForm, setCreateForm] = useState({ taskType: "follow_up", title: "", dueAt: "", patientId: "", patientSearch: "", content: "" });
+  function tomorrowStr() { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); }
+  const [createForm, setCreateForm] = useState({ taskType: "follow_up", title: "", dueAt: tomorrowStr(), patientId: "", patientSearch: "", content: "" });
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
   const [patientOptions, setPatientOptions] = useState([]);
@@ -963,7 +964,7 @@ function TasksSection({ doctorId }) {
         content: createForm.content || undefined,
       });
       setCreateOpen(false);
-      setCreateForm({ taskType: "follow_up", title: "", dueAt: "", patientId: "", patientSearch: "", content: "" });
+      setCreateForm({ taskType: "follow_up", title: "", dueAt: tomorrowStr(), patientId: "", patientSearch: "", content: "" });
       load();
     } catch (e) {
       setCreateError(e.message || "创建失败");
