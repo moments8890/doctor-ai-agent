@@ -138,6 +138,8 @@ function RecordEditDialog({ record, doctorId, open, onClose, onSaved }) {
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   useEffect(() => {
     if (record) {
@@ -164,7 +166,7 @@ function RecordEditDialog({ record, doctorId, open, onClose, onSaved }) {
   }
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth fullScreen={isMobile}>
       <DialogTitle sx={{ fontWeight: 700 }}>编辑病历 <Typography component="span" variant="body2" color="text.secondary">#{record?.id}</Typography></DialogTitle>
       <DialogContent dividers>
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -204,7 +206,7 @@ function RecordEditDialog({ record, doctorId, open, onClose, onSaved }) {
           </Box>
         </Stack>
       </DialogContent>
-      <DialogActions>
+      <DialogActions sx={{ gap: 1, px: 2, pb: 2 }}>
         <Button onClick={onClose} disabled={saving}>取消</Button>
         <Button variant="contained" onClick={handleSave} disabled={saving}>
           {saving ? "保存中…" : "保存"}
@@ -792,7 +794,7 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
                   "&:hover": { borderColor: "primary.main", backgroundColor: "primary.50" },
                 }}
               >
-                <CardContent sx={{ py: 1.2, px: 1.5, "&:last-child": { pb: 1.2 } }}>
+                <CardContent sx={{ py: 1.8, px: 1.5, "&:last-child": { pb: 1.8 } }}>
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>{p.name}</Typography>
                   <Stack direction="row" spacing={1} sx={{ mt: 0.4 }} flexWrap="wrap">
                     {p.gender && <Typography variant="caption" color="text.secondary">{{ male: "男", female: "女" }[p.gender] || p.gender}</Typography>}
@@ -867,7 +869,7 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
                   "&:hover": { borderColor: "primary.main", backgroundColor: "primary.50" },
                 }}
               >
-                <CardContent sx={{ py: 1.2, px: 1.5, "&:last-child": { pb: 1.2 } }}>
+                <CardContent sx={{ py: 1.8, px: 1.5, "&:last-child": { pb: 1.8 } }}>
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>{p.name}</Typography>
                   <Stack direction="row" spacing={1} sx={{ mt: 0.4 }} flexWrap="wrap">
                     {p.gender && <Typography variant="caption" color="text.secondary">{{ male: "男", female: "女" }[p.gender] || p.gender}</Typography>}
@@ -1033,10 +1035,10 @@ function TasksSection({ doctorId }) {
                     )}
                   </Box>
                   {task.status === "pending" && (
-                    <Stack direction="row" spacing={0.5}>
-                      <Button size="small" variant="contained" onClick={() => handleStatus(task.id, "completed")}>完成</Button>
-                      <Button size="small" color="inherit" onClick={() => setCancelConfirmId(task.id)}>取消</Button>
-                      <Button size="small" color="warning" variant="outlined" onClick={(e) => handleOpenPostpone(e, task.id)}>推迟</Button>
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={0.8} sx={{ flexShrink: 0 }}>
+                      <Button size="small" variant="contained" fullWidth onClick={() => handleStatus(task.id, "completed")}>完成</Button>
+                      <Button size="small" color="inherit" fullWidth onClick={() => setCancelConfirmId(task.id)}>取消</Button>
+                      <Button size="small" color="warning" variant="outlined" fullWidth onClick={(e) => handleOpenPostpone(e, task.id)}>推迟</Button>
                     </Stack>
                   )}
                 </Stack>
@@ -1158,13 +1160,13 @@ function MsgBubble({ msg }) {
           <Box sx={{
             px: "12px", py: "9px",
             borderRadius: isUser ? "14px 2px 14px 14px" : "2px 14px 14px 14px",
-            bgcolor: isUser ? "#95ec69" : "#fff",
+            bgcolor: isUser ? "#07C160" : "#fff",
             boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
           }}>
-            <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", lineHeight: 1.65, color: "#111" }}>{msg.content}</Typography>
+            <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", lineHeight: 1.8, color: isUser ? "#fff" : "#111" }}>{msg.content}</Typography>
             {!isUser && msg.record ? <RecordFields record={msg.record} /> : null}
           </Box>
-          <Typography sx={{ mt: 0.3, px: 0.5, color: "#aaa", fontSize: 10 }}>{msg.ts}</Typography>
+          <Typography sx={{ mt: 0.3, px: 0.5, color: "#888", fontSize: 11 }}>{msg.ts}</Typography>
         </Box>
       </Box>
     );
@@ -1366,8 +1368,10 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
                 <Box sx={{ width: 36, height: 36, borderRadius: "8px", bgcolor: "#07C160", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <Typography sx={{ color: "#fff", fontSize: 11, fontWeight: 700 }}>AI</Typography>
                 </Box>
-                <Box sx={{ px: "12px", py: "9px", borderRadius: "2px 14px 14px 14px", bgcolor: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
-                  <Typography variant="caption" color="text.secondary">…</Typography>
+                <Box sx={{ px: "12px", py: "10px", borderRadius: "2px 14px 14px 14px", bgcolor: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,0.1)", display: "flex", alignItems: "center", gap: 0.5 }}>
+                  {[0, 1, 2].map((i) => (
+                    <Box key={i} sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "#aaa", animation: "dotPulse 1.4s ease-in-out infinite", animationDelay: `${i * 0.2}s`, "@keyframes dotPulse": { "0%, 80%, 100%": { opacity: 0.3, transform: "scale(0.8)" }, "40%": { opacity: 1, transform: "scale(1)" } } }} />
+                  ))}
                 </Box>
               </Box>
             : <Box sx={{ px: 2 }}><Typography variant="caption" color="text.secondary">AI 正在回复…</Typography></Box>
@@ -1391,13 +1395,13 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
                 onClick={() => setInput(cmd.insert)}
                 sx={{
                   display: "inline-flex", alignItems: "center", gap: 0.5,
-                  px: 1.2, py: 0.5, borderRadius: "16px",
+                  px: 1.4, py: 0.8, borderRadius: "16px",
                   border: "1px solid #dde3ea", backgroundColor: "#fff",
                   cursor: "pointer", fontSize: 12, color: "#374151",
                   fontFamily: "inherit", lineHeight: 1.4, whiteSpace: "nowrap",
-                  transition: "all 0.15s",
+                  transition: "all 0.15s", minHeight: 34,
                   "&:hover": { backgroundColor: "#f0f7ff", borderColor: "#93c5fd", color: "#1d4ed8" },
-                  "&:active": { backgroundColor: "#dbeafe" },
+                  "&:active": { backgroundColor: "#dbeafe", transform: "scale(0.97)" },
                 }}
               >
                 <span style={{ fontSize: 13 }}>{cmd.icon}</span>
@@ -1422,7 +1426,7 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
           )}
           <Stack direction="row" alignItems="center" sx={{ px: 1, py: 0.8, gap: 0.5 }}>
             <IconButton size="small" onClick={() => fileInputRef.current?.click()} disabled={mediaProcessing || recording}
-              sx={{ color: "#666", p: 0.8 }}>
+              sx={{ color: "#666", p: 1.1 }}>
               <AttachFileOutlinedIcon />
             </IconButton>
             <TextField
@@ -1442,14 +1446,14 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
             />
             {input.trim() ? (
               <IconButton onClick={onSend} disabled={loading}
-                sx={{ bgcolor: "#07C160", color: "#fff", p: 1, borderRadius: "50%", "&:hover": { bgcolor: "#06ad56" }, flexShrink: 0 }}>
+                sx={{ bgcolor: "#07C160", color: "#fff", p: 1.2, borderRadius: "50%", "&:hover": { bgcolor: "#06ad56" }, flexShrink: 0, minWidth: 44, minHeight: 44 }}>
                 <SendOutlinedIcon fontSize="small" />
               </IconButton>
             ) : (
               <IconButton size="small"
                 onClick={recording ? stopRecording : startRecording}
                 disabled={mediaProcessing}
-                sx={{ color: recording ? "error.main" : "#666", p: 0.8 }}>
+                sx={{ color: recording ? "error.main" : "#666", p: 1.1, minWidth: 44, minHeight: 44 }}>
                 {recording ? <StopCircleOutlinedIcon /> : <MicOutlinedIcon />}
               </IconButton>
             )}
@@ -1529,7 +1533,7 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
 
 function StatCard({ label, value, color = "primary.main", onClick }) {
   return (
-    <Card variant="outlined" onClick={onClick} sx={{ borderRadius: 2, flex: 1, minWidth: 120, cursor: onClick ? "pointer" : "default", "&:hover": onClick ? { borderColor: "primary.main" } : {} }}>
+    <Card variant="outlined" onClick={onClick} sx={{ borderRadius: 2, flex: 1, minWidth: 120, cursor: onClick ? "pointer" : "default", "&:hover": onClick ? { borderColor: "primary.main" } : {}, "&:active": onClick ? { backgroundColor: "rgba(33, 150, 243, 0.06)", transform: "scale(0.98)" } : {} }}>
       <CardContent>
         <Typography variant="h4" sx={{ fontWeight: 800, color }}>{value ?? "—"}</Typography>
         <Typography variant="caption" color="text.secondary">{label}</Typography>
@@ -1930,13 +1934,15 @@ export default function DoctorPage() {
           isMobile ? (
             <Box sx={{ mx: 1.5, mt: 1, p: 1.5, borderRadius: 1.5, backgroundColor: "#fffbeb", border: "1px solid #fcd34d" }}>
               <Typography variant="caption" sx={{ fontWeight: 700, display: "block", mb: 0.3 }}>⚠️ 待确认病历草稿</Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
                 {pendingRecord.patient_name || "未关联"}：{pendingRecord.content_preview}
-                {pendingRecord.expires_at && (() => {
-                  const mins = Math.max(0, Math.round((new Date(pendingRecord.expires_at) - Date.now()) / 60000));
-                  return mins > 0 ? `（${mins}分钟后过期）` : "（即将过期）";
-                })()}
               </Typography>
+              {pendingRecord.expires_at && (() => {
+                const mins = Math.max(0, Math.round((new Date(pendingRecord.expires_at) - Date.now()) / 60000));
+                return mins > 0
+                  ? <Typography variant="caption" sx={{ color: mins <= 2 ? "error.main" : "warning.main", fontWeight: 700, display: "block", mb: 1 }}>⏰ {mins} 分钟后过期</Typography>
+                  : <Typography variant="caption" sx={{ color: "error.main", fontWeight: 700, display: "block", mb: 1 }}>⏰ 即将过期</Typography>;
+              })()}
               <Stack direction="row" spacing={1}>
                 <Button size="small" color="success" variant="contained" fullWidth onClick={handleConfirmPending}>确认保存</Button>
                 <Button size="small" color="error" variant="outlined" fullWidth onClick={handleAbandonPending}>撤销</Button>
@@ -1955,7 +1961,9 @@ export default function DoctorPage() {
               患者：{pendingRecord.patient_name || "未关联"} · {pendingRecord.content_preview}
               {pendingRecord.expires_at && (() => {
                 const mins = Math.max(0, Math.round((new Date(pendingRecord.expires_at) - Date.now()) / 60000));
-                return mins > 0 ? <Typography component="span" variant="caption" sx={{ ml: 1, color: "warning.dark" }}>（{mins} 分钟后过期）</Typography> : <Typography component="span" variant="caption" sx={{ ml: 1, color: "error.main" }}>（即将过期）</Typography>;
+                return mins > 0
+                  ? <Typography component="span" variant="caption" sx={{ ml: 1, color: mins <= 2 ? "error.main" : "warning.dark", fontWeight: 700 }}>⏰ {mins} 分钟后过期</Typography>
+                  : <Typography component="span" variant="caption" sx={{ ml: 1, color: "error.main", fontWeight: 700 }}>⏰ 即将过期</Typography>;
               })()}
             </Alert>
           )
@@ -1993,7 +2001,7 @@ export default function DoctorPage() {
           <BottomNavigation
             value={activeSection}
             onChange={(_, val) => handleNav(val)}
-            sx={{ height: 56 }}
+            sx={{ height: 64, "& .MuiBottomNavigationAction-root": { minWidth: 56, paddingTop: "10px" } }}
           >
             {NAV.map((item) => (
               <BottomNavigationAction
