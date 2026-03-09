@@ -242,9 +242,6 @@ async def test_create_patient_stamps_category_new(db_session):
     patient = await create_patient(db_session, DOCTOR, "新患者", None, None)
     assert patient.primary_category == "new"
     assert patient.category_tags == "[]"
-    assert patient.primary_risk_level == "low"
-    assert patient.risk_tags == '["no_records"]'
-    assert patient.follow_up_state == "not_needed"
 
 
 async def test_save_record_triggers_category_recompute(db_session):

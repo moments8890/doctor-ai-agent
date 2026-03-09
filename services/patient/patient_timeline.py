@@ -74,9 +74,6 @@ async def build_patient_timeline(
         "patient": {
             "id": patient.id,
             "name": patient.name,
-            "primary_risk_level": patient.primary_risk_level,
-            "risk_score": patient.risk_score,
-            "follow_up_state": patient.follow_up_state,
         },
         "events": events,
     }

@@ -1,1 +1,0 @@
-../../docs/train/data/image_cases_cardiology_v1.md

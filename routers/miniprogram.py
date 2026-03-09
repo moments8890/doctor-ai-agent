@@ -124,17 +124,11 @@ class MiniPatientUpdateBody(BaseModel):
 @router.get("/patients")
 async def mini_patients(
     category: Optional[str] = None,
-    risk: Optional[str] = None,
-    follow_up_state: Optional[str] = None,
-    stale_risk: Optional[str] = None,
     principal: MiniProgramPrincipal = Depends(_require_mini_principal),
 ):
     return await ui_router._manage_patients_for_doctor(
         principal.doctor_id,
         category=category,
-        risk=risk,
-        follow_up_state=follow_up_state,
-        stale_risk=stale_risk,
     )
 
 

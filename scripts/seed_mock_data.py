@@ -40,18 +40,18 @@ INVITE_CODES = [
 ]
 
 # ── patients ──────────────────────────────────────────────────────────────────
-# (doctor_id, name, gender, yob, category, risk, follow_up_state)
+# (doctor_id, name, gender, yob, category)
 PATIENTS = [
-    ("demo_neuro",  "王建国", "male",   1955, "stroke",       "high",   "overdue"),
-    ("demo_neuro",  "陈秀英", "female", 1962, "parkinson",    "medium", "due_soon"),
-    ("demo_neuro",  "赵志强", "male",   1948, "dementia",     "high",   "overdue"),
-    ("demo_neuro",  "刘桂兰", "female", 1970, "epilepsy",     "low",    "ok"),
-    ("demo_neuro",  "孙明远", "male",   1980, "headache",     "low",    "ok"),
-    ("demo_neuro",  "周海燕", "female", 1958, "stroke",       "medium", "due_soon"),
-    ("demo_cardio", "吴国强", "male",   1950, "heart_failure","high",   "overdue"),
-    ("demo_cardio", "郑淑华", "female", 1965, "arrhythmia",   "medium", "due_soon"),
-    ("demo_cardio", "冯建军", "male",   1972, "hypertension", "low",    "ok"),
-    ("demo_cardio", "蒋雪梅", "female", 1957, "coronary",     "high",   "overdue"),
+    ("demo_neuro",  "王建国", "male",   1955, "stroke"),
+    ("demo_neuro",  "陈秀英", "female", 1962, "parkinson"),
+    ("demo_neuro",  "赵志强", "male",   1948, "dementia"),
+    ("demo_neuro",  "刘桂兰", "female", 1970, "epilepsy"),
+    ("demo_neuro",  "孙明远", "male",   1980, "headache"),
+    ("demo_neuro",  "周海燕", "female", 1958, "stroke"),
+    ("demo_cardio", "吴国强", "male",   1950, "heart_failure"),
+    ("demo_cardio", "郑淑华", "female", 1965, "arrhythmia"),
+    ("demo_cardio", "冯建军", "male",   1972, "hypertension"),
+    ("demo_cardio", "蒋雪梅", "female", 1957, "coronary"),
 ]
 
 # ── records ───────────────────────────────────────────────────────────────────
@@ -300,11 +300,10 @@ async def seed():
         await session.commit()
         print(f"✓ Created {len(DOCTORS)} doctors, {len(INVITE_CODES)} invite codes")
 
-        for i, (doc_id, name, gender, yob, category, risk, fu_state) in enumerate(PATIENTS):
+        for i, (doc_id, name, gender, yob, category) in enumerate(PATIENTS):
             patient = Patient(
                 doctor_id=doc_id, name=name, gender=gender,
                 year_of_birth=yob, primary_category=category,
-                primary_risk_level=risk, follow_up_state=fu_state,
                 created_at=ago(days=30 + i * 5),
             )
             session.add(patient)

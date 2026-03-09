@@ -39,10 +39,6 @@ class PatientRepository:
             year_of_birth=_year_of_birth(age),
             primary_category="new",
             category_tags="[]",
-            primary_risk_level="low",
-            risk_tags='["no_records"]',
-            risk_score=0,
-            follow_up_state="not_needed",
         )
         self.session.add(patient)
         await self.session.commit()

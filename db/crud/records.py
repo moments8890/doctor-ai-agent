@@ -21,7 +21,6 @@ from db.models import (
 from db.repositories import RecordRepository
 from db.models.medical_record import MedicalRecord
 from services.patient.patient_categorization import recompute_patient_category
-from services.patient.patient_risk import recompute_patient_risk
 from services.observability.observability import trace_block
 from db.crud.doctor import _ensure_doctor_exists
 
@@ -94,7 +93,6 @@ async def _ensure_auto_follow_up_task(
     record_id: int,
     patient_name: str,
     follow_up_text: str,
-    risk_level: Optional[str] = None,
 ) -> None:
     existing = await session.execute(
         select(DoctorTask).where(
@@ -158,7 +156,6 @@ async def save_record(
         )
         if patient_id is not None:
             await recompute_patient_category(patient_id, session)
-            risk = await recompute_patient_risk(patient_id, session)
             _has_follow_up = (
                 any("随访" in t or "复诊" in t for t in record.tags)
                 or bool(re.search(r'随访|复诊|下次|下周', record.content))
@@ -171,7 +168,6 @@ async def save_record(
                     record_id=db_record.id,
                     patient_name=await _patient_name(session, patient_id),
                     follow_up_text=record.content,
-                    risk_level=risk.primary_risk_level if risk else None,
                 )
         return db_record
 

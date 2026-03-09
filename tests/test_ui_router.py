@@ -61,10 +61,6 @@ def _patient_ns(**kwargs):
         created_at=datetime(2026, 3, 1, 8, 0, 0),
         primary_category="new",
         category_tags="[]",
-        primary_risk_level="low",
-        risk_tags='["no_records"]',
-        risk_score=0,
-        follow_up_state="not_needed",
         labels=[],
     )
     defaults.update(kwargs)
@@ -209,10 +205,6 @@ def _patient(**kwargs):
         created_at=datetime(2026, 3, 1, 8, 0, 0),
         primary_category="new",
         category_tags='["recent_visit"]',
-        primary_risk_level="low",
-        risk_tags='["no_records"]',
-        risk_score=0,
-        follow_up_state="not_needed",
         labels=[],
     )
     defaults.update(kwargs)
@@ -237,10 +229,6 @@ async def test_manage_patients_includes_category_fields():
     item = data["items"][0]
     assert item["primary_category"] == "new"
     assert item["category_tags"] == ["recent_visit"]
-    assert item["primary_risk_level"] == "low"
-    assert item["risk_tags"] == ["no_records"]
-    assert item["risk_score"] == 0
-    assert item["follow_up_state"] == "not_needed"
 
 
 async def test_manage_patients_category_filter():
@@ -258,21 +246,6 @@ async def test_manage_patients_category_filter():
     assert len(data["items"]) == 1
     assert data["items"][0]["name"] == "高风险患者"
 
-
-async def test_manage_patients_risk_filter():
-    db = SimpleNamespace(
-        execute=AsyncMock(return_value=SimpleNamespace(all=lambda: []))
-    )
-    patients = [
-        _patient_ns(id=11, name="高风险患者", primary_risk_level="high"),
-        _patient_ns(id=12, name="低风险患者", primary_risk_level="low"),
-    ]
-    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
-         patch("routers.ui.get_all_patients", new=AsyncMock(return_value=patients)):
-        data = await ui.manage_patients("doc1", risk="high")
-
-    assert len(data["items"]) == 1
-    assert data["items"][0]["name"] == "高风险患者"
 
 
 async def test_manage_patients_grouped():
@@ -315,21 +288,6 @@ async def test_manage_patients_grouped_unknown_category_goes_to_uncategorized():
     assert uncategorized["count"] == 1
     assert uncategorized["items"][0]["name"] == "未知分类患者"
 
-
-async def test_manage_patients_grouped_risk():
-    db = SimpleNamespace()
-    patients = [
-        _patient_ns(id=11, name="危重", primary_risk_level="critical", risk_score=99),
-        _patient_ns(id=12, name="高风险", primary_risk_level="high", risk_score=75),
-    ]
-    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
-         patch("routers.ui.get_all_patients", new=AsyncMock(return_value=patients)):
-        data = await ui.manage_patients_grouped_risk("doc1")
-
-    assert data["doctor_id"] == "doc1"
-    critical = next(g for g in data["groups"] if g["group"] == "critical")
-    assert critical["count"] == 1
-    assert critical["items"][0]["name"] == "危重"
 
 
 async def test_manage_patient_timeline_not_found():

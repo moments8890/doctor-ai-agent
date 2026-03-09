@@ -1,1 +1,0 @@
-../../docs/train/data/clinic_raw_cases_cardiology_v2.md

@@ -110,9 +110,6 @@ class RuntimeConfigUpdate(BaseModel):
 async def manage_patients(
     doctor_id: str = Query(default="web_doctor"),
     category: str | None = Query(default=None),
-    risk: str | None = Query(default=None),
-    follow_up_state: str | None = Query(default=None),
-    stale_risk: str | None = Query(default=None),
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
     authorization: str | None = Header(default=None),
@@ -121,9 +118,6 @@ async def manage_patients(
     return await _manage_patients_for_doctor(
         resolved_doctor_id,
         category=category,
-        risk=risk,
-        follow_up_state=follow_up_state,
-        stale_risk=stale_risk,
         limit=limit,
         offset=offset,
     )
@@ -133,17 +127,11 @@ async def _manage_patients_for_doctor(
     doctor_id: str,
     *,
     category: str | None = None,
-    risk: str | None = None,
-    follow_up_state: str | None = None,
-    stale_risk: str | None = None,
     limit: int = 50,
     offset: int = 0,
 ):
     enforce_doctor_rate_limit(doctor_id, scope="ui.manage_patients")
     category = _normalize_query_str(category)
-    risk = _normalize_query_str(risk)
-    follow_up_state = _normalize_query_str(follow_up_state)
-    stale_risk = _normalize_query_str(stale_risk)
 
     async with AsyncSessionLocal() as db:
         patients = await get_all_patients(db, doctor_id)
@@ -164,10 +152,6 @@ async def _manage_patients_for_doctor(
             "record_count": int(count_map.get(p.id, 0)),
             "primary_category": p.primary_category,
             "category_tags": _parse_tags(p.category_tags),
-            "primary_risk_level": p.primary_risk_level,
-            "risk_tags": _parse_tags(p.risk_tags),
-            "risk_score": p.risk_score,
-            "follow_up_state": p.follow_up_state,
             "labels": [{"id": lbl.id, "name": lbl.name, "color": lbl.color} for lbl in (p.labels or [])],
         }
         for p in patients
@@ -175,14 +159,6 @@ async def _manage_patients_for_doctor(
 
     if category is not None:
         items = [item for item in items if item["primary_category"] == category]
-    if risk is not None:
-        items = [item for item in items if item["primary_risk_level"] == risk]
-    if follow_up_state is not None:
-        items = [item for item in items if item["follow_up_state"] == follow_up_state]
-
-    stale_filter = _parse_bool(stale_risk)
-    if stale_filter is not None:
-        items = [item for item in items if bool(item["stale_risk"]) is stale_filter]
 
     total = len(items)
     return {"doctor_id": doctor_id, "items": items[offset:offset + limit], "total": total, "limit": limit, "offset": offset}
@@ -217,10 +193,6 @@ async def manage_patients_grouped(
             "record_count": int(count_map.get(p.id, 0)),
             "primary_category": p.primary_category,
             "category_tags": _parse_tags(p.category_tags),
-            "primary_risk_level": p.primary_risk_level,
-            "risk_tags": _parse_tags(p.risk_tags),
-            "risk_score": p.risk_score,
-            "follow_up_state": p.follow_up_state,
             "labels": [{"id": lbl.id, "name": lbl.name, "color": lbl.color} for lbl in (p.labels or [])],
         }
         for p in patients
@@ -240,35 +212,6 @@ async def manage_patients_grouped(
 
     return {"doctor_id": doctor_id, "groups": groups}
 
-
-@router.get("/api/manage/patients/grouped-risk")
-async def manage_patients_grouped_risk(
-    doctor_id: str = Query(default="web_doctor"),
-    authorization: str | None = Header(default=None),
-):
-    doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
-    enforce_doctor_rate_limit(doctor_id, scope="ui.manage_patients_grouped_risk")
-    async with AsyncSessionLocal() as db:
-        patients = await get_all_patients(db, doctor_id)
-
-    order = ["critical", "high", "medium", "low", "unknown"]
-    bucket: dict = {key: [] for key in order}
-    for p in patients:
-        key = p.primary_risk_level or "unknown"
-        if key not in bucket:
-            key = "unknown"
-        bucket[key].append(
-            {
-                "id": p.id,
-                "name": p.name,
-                "primary_risk_level": p.primary_risk_level,
-                "risk_score": p.risk_score,
-                "follow_up_state": p.follow_up_state,
-            }
-        )
-
-    groups = [{"group": key, "count": len(bucket[key]), "items": bucket[key]} for key in order]
-    return {"doctor_id": doctor_id, "groups": groups}
 
 
 @router.get("/api/manage/patients/{patient_id}/timeline")
