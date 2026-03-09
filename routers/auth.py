@@ -17,6 +17,7 @@ from sqlalchemy import select
 from db.crud import get_doctor_by_mini_openid, get_doctor_by_id, link_mini_openid
 from db.engine import AsyncSessionLocal
 from db.models import Doctor, InviteCode
+from services.auth.wechat_id_hash import hash_wechat_id
 from services.auth.miniprogram_auth import (
     MiniProgramAuthError,
     issue_miniprogram_token,
@@ -152,7 +153,7 @@ async def _upsert_mini_doctor(
                     )
                 ).scalar_one_or_none()
                 if target is not None:
-                    target.mini_openid = openid
+                    target.mini_openid = hash_wechat_id(openid)
                     target.updated_at = now
                     if doctor_name and not target.name:
                         target.name = doctor_name
@@ -163,13 +164,13 @@ async def _upsert_mini_doctor(
         existing_by_wechat = (
             await session.execute(
                 select(Doctor)
-                .where(Doctor.channel == "wechat_mini", Doctor.wechat_user_id == openid)
+                .where(Doctor.channel == "wechat_mini", Doctor.wechat_user_id == hash_wechat_id(openid))
                 .limit(1)
             )
         ).scalar_one_or_none()
         if existing_by_wechat is not None:
             if not existing_by_wechat.mini_openid:
-                existing_by_wechat.mini_openid = openid
+                existing_by_wechat.mini_openid = hash_wechat_id(openid)
             existing_by_wechat.updated_at = now
             if doctor_name and not existing_by_wechat.name:
                 existing_by_wechat.name = doctor_name
@@ -187,8 +188,8 @@ async def _upsert_mini_doctor(
                     doctor_id=doctor_id,
                     name=doctor_name,
                     channel="wechat_mini",
-                    wechat_user_id=openid,
-                    mini_openid=openid,
+                    wechat_user_id=hash_wechat_id(openid),
+                    mini_openid=hash_wechat_id(openid),
                     created_at=now,
                     updated_at=now,
                 )
@@ -196,9 +197,9 @@ async def _upsert_mini_doctor(
         else:
             existing_by_id.updated_at = now
             existing_by_id.channel = "wechat_mini"
-            existing_by_id.wechat_user_id = openid
+            existing_by_id.wechat_user_id = hash_wechat_id(openid)
             if not existing_by_id.mini_openid:
-                existing_by_id.mini_openid = openid
+                existing_by_id.mini_openid = hash_wechat_id(openid)
             if doctor_name and not existing_by_id.name:
                 existing_by_id.name = doctor_name
 

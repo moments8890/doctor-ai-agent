@@ -48,5 +48,5 @@ def format_draft_preview(record: Any, patient_name: Optional[str] = None) -> str
                 lines.append(f'  • {score_type}：{score_value}  ("{raw_text}")')
             else:
                 lines.append(f'  • {score_type}  ("{raw_text}")')
-    lines.extend(["", "「撤销」可取消"])
+    lines.extend(["", "「确认」保存 · 「撤销」放弃"])
     return "\n".join(lines)

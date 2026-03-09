@@ -1269,6 +1269,7 @@ async def handle_import_history(text: str, doctor_id: str, intent_result: Intent
         return "未能从内容中提取有效病历记录，请检查格式后重试。"
 
     # Structure each chunk (cap at 10 to avoid excessive LLM calls)
+    _total_chunks = len(chunks_raw)
     structured_chunks: list[dict] = []
     failed_chunks: list[int] = []
     for i, chunk_text in enumerate(chunks_raw[:10]):
@@ -1310,6 +1311,8 @@ async def handle_import_history(text: str, doctor_id: str, intent_result: Intent
     reply = f"✅ 已导入 {saved} 条病历\n患者：{patient_label}"
     if failed_chunks:
         reply += f"\n⚠️ {len(failed_chunks)} 条记录解析失败（片段 {', '.join(str(n) for n in failed_chunks)}），已跳过"
+    if _total_chunks > 10:
+        reply += f"\n⚠️ 共检测到 {_total_chunks} 条记录，本次仅处理前10条。如需导入剩余记录，请分批发送。"
     return reply
 
 

@@ -1756,6 +1756,7 @@ async def get_pending_record_endpoint(
         "patient_name": pending.patient_name or "未关联",
         "content_preview": content_preview,
         "created_at": pending.created_at.isoformat() if pending.created_at else None,
+        "expires_at": pending.expires_at.isoformat() if pending.expires_at else None,
     }
 
 

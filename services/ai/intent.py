@@ -89,6 +89,7 @@ class Intent(str, Enum):
     schedule_follow_up = "schedule_follow_up"   # standalone follow-up task without a record
     postpone_task = "postpone_task"             # push a task's due date forward
     cancel_task = "cancel_task"                 # cancel a pending task
+    help = "help"                               # show capability list
     unknown = "unknown"
 
 

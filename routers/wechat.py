@@ -718,6 +718,27 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
         return await _handle_update_record(doctor_id, intent_result)
     elif intent_result.intent == Intent.update_patient:
         return await _handle_update_patient(doctor_id, intent_result)
+    elif intent_result.intent == Intent.help:
+        return (
+            "可用功能：\n"
+            "📋 患者管理\n"
+            "  建档[姓名] — 创建新患者\n"
+            "  查[姓名] — 查看患者病历\n"
+            "  删除[姓名] — 删除患者\n"
+            "  患者列表 — 显示全部患者\n\n"
+            "📝 病历\n"
+            "  [描述病情] — 自动保存结构化病历\n"
+            "  补充：... — 补充当前患者记录\n"
+            "  刚才写错了，应该是... — 修正上一条\n\n"
+            "📌 任务\n"
+            "  待办任务 — 查看所有任务\n"
+            "  完成 3 — 标记任务#3完成\n"
+            "  3个月后随访 — 安排随访提醒\n\n"
+            "📊 其他\n"
+            "  导入病历 — 导入历史记录（PDF/图片/文字）\n"
+            "  开始问诊 — 开启结构化问诊流程\n"
+            "  PDF:患者姓名 — 导出病历PDF"
+        )
     elif intent_result.intent == Intent.unknown:
         explicit_name = _explicit_name_or_none(text)
         if explicit_name:
@@ -975,7 +996,7 @@ async def _handle_intent_bg(text: str, doctor_id: str, open_kfid: str = "", msg_
 
     _OVERALL_TIMEOUT = float(os.environ.get("INTENT_BG_TIMEOUT", "4.5"))
     _LOCK_TIMEOUT = float(os.environ.get("INTENT_LOCK_TIMEOUT", "3.0"))
-    result = "正在处理，请稍候片刻再问一次。"
+    result = "处理超时，请重新发送。"
     try:
         async with asyncio.timeout(_OVERALL_TIMEOUT):
             await hydrate_session_state(doctor_id)
@@ -990,7 +1011,7 @@ async def _handle_intent_bg(text: str, doctor_id: str, open_kfid: str = "", msg_
                     log(f"[WeChat bg] session lock wait {_lock_wait_ms:.0f}ms doctor={doctor_id}")
             except asyncio.TimeoutError:
                 log(f"[WeChat bg] lock timeout after {_LOCK_TIMEOUT}s doctor={doctor_id}")
-                result = "正在处理上一条消息，请稍候再发一次。"
+                result = "上一条消息处理中，请稍候重发。"
             if _lock_acquired:
                 try:
                     sess = get_session(doctor_id)
@@ -1013,6 +1034,15 @@ async def _handle_intent_bg(text: str, doctor_id: str, open_kfid: str = "", msg_
                         push_turn(doctor_id, text, result)
                         await flush_turns(doctor_id)
                     else:
+                        # First-contact welcome: inject when doctor has no conversation history
+                        _is_first_contact = not sess.conversation_history
+                        _welcome_prefix = ""
+                        if _is_first_contact:
+                            _welcome_prefix = (
+                                "欢迎使用门诊AI助手！\n"
+                                "我可以帮您：建档、记录病历、查询患者、安排随访。\n"
+                                "发「帮助」可查看完整功能列表。\n\n"
+                            )
 
                         # Build history: always prepend persisted summary so older context
                         # is not lost when recent turns exist after a reboot or between sessions.
@@ -1022,7 +1052,8 @@ async def _handle_intent_bg(text: str, doctor_id: str, open_kfid: str = "", msg_
                             history = [ctx_msg] + history
 
                         try:
-                            result = await _handle_intent(text, doctor_id, history=history)
+                            _intent_result = await _handle_intent(text, doctor_id, history=history)
+                            result = _welcome_prefix + _intent_result if _welcome_prefix else _intent_result
                         except Exception as e:
                             log(f"[WeChat bg] FAILED: {e}")
                             result = "不好意思，出了点问题，能再说一遍吗？"
@@ -1215,22 +1246,11 @@ async def handle_message(request: Request):
         return Response(content=reply.render(), media_type="application/xml")
 
     if msg.type == "location":
-        label = str(getattr(msg, "label", "") or "")
-        x = str(getattr(msg, "location_x", "") or "")
-        y = str(getattr(msg, "location_y", "") or "")
-        text = f"[位置消息] {label}".strip()
-        if x and y:
-            text += f" ({x},{y})"
-        asyncio.create_task(_handle_intent_bg(text, msg.source, _extract_open_kfid(msg)))
-        reply = TextReply(content="📍 已收到位置，正在处理…", message=msg)
+        reply = TextReply(content="📍 暂不支持位置消息，请发文字描述。", message=msg)
         return Response(content=reply.render(), media_type="application/xml")
 
     if msg.type == "link":
-        title = str(getattr(msg, "title", "") or "")
-        url = str(getattr(msg, "url", "") or "")
-        text = f"[链接消息] {title or url}".strip()
-        asyncio.create_task(_handle_intent_bg(text, msg.source, _extract_open_kfid(msg)))
-        reply = TextReply(content="🔗 已收到链接，正在处理…", message=msg)
+        reply = TextReply(content="🔗 暂不支持链接消息，请发文字描述。", message=msg)
         return Response(content=reply.render(), media_type="application/xml")
 
     if msg.type != "text" or not msg.content.strip():

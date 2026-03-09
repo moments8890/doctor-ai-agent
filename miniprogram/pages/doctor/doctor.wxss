@@ -1,3 +1,4 @@
+/* Loading overlay */
 .loading {
   position: fixed;
   inset: 0;
@@ -26,4 +27,62 @@
 .loading-text {
   font-size: 28rpx;
   color: #64748b;
+}
+
+/* Notification permission prompt */
+.permission-prompt {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, #eff6ff 0%, #e0f2fe 100%);
+  z-index: 20;
+  padding: 48rpx;
+}
+
+.permission-card {
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 64rpx 48rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 8rpx 40rpx rgba(0, 0, 0, 0.08);
+  width: 100%;
+}
+
+.permission-icon {
+  font-size: 80rpx;
+  margin-bottom: 32rpx;
+}
+
+.permission-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #1e3a5f;
+  margin-bottom: 20rpx;
+}
+
+.permission-desc {
+  font-size: 28rpx;
+  color: #64748b;
+  text-align: center;
+  line-height: 1.6;
+  margin-bottom: 56rpx;
+}
+
+.permission-btn {
+  width: 100%;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 32rpx;
+  font-weight: 600;
+  border-radius: 16rpx;
+  padding: 28rpx 0;
+  border: none;
+}
+
+.permission-btn::after {
+  border: none;
 }

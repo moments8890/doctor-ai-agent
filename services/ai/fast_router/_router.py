@@ -12,7 +12,7 @@ from services.ai.intent import Intent, IntentResult
 from ._keywords import (
     _IMPORT_KEYWORDS, _LIST_PATIENTS_EXACT, _LIST_PATIENTS_SHORT,
     _LIST_TASKS_EXACT, _LIST_TASKS_SHORT, _NON_NAME_KEYWORDS,
-    _TIER3_BAD_NAME, _EMERGENCY_KW,
+    _TIER3_BAD_NAME, _EMERGENCY_KW, _HELP_KEYWORDS,
 )
 from . import _mined_rules
 from ._patterns import (
@@ -102,6 +102,10 @@ def _fast_route_core(text: str, specialty: Optional[str] = None) -> Optional[Int
 
     # Normalised form used for Tier 1 set lookups (strips polite particles etc.)
     normed = _normalise(stripped)
+
+    # ── Tier 0: help — capability list ────────────────────────────────────────
+    if normed in _HELP_KEYWORDS or stripped in _HELP_KEYWORDS:
+        return IntentResult(intent=Intent.help)
 
     # ── Tier 0: import_history — bulk/PDF/Word/Image imports bypass LLM entirely ─
     if stripped.startswith("[PDF:") or stripped.startswith("[Word:"):

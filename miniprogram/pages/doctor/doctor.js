@@ -4,6 +4,9 @@ Page({
   data: {
     url: "",
     loading: true,
+    // True while the notification-permission prompt is shown.
+    // Skipped automatically when no subscribeTemplateId is configured.
+    showPermissionPrompt: false,
   },
 
   onLoad() {
@@ -27,37 +30,29 @@ Page({
 
     this.setData({ url: webBase + "/doctor?" + qs });
 
-    // Subscription requested on first user tap (see onLoadingTap) to satisfy
-    // WeChat's requirement that requestSubscribeMessage is called from a TAP.
-    this._subscriptionPending = true;
-  },
-
-  // Called when the user taps the loading overlay — the first natural tap
-  // gesture on this page. We use it to fire requestSubscribeMessage, which
-  // WeChat requires to originate from a user TAP event.
-  onLoadingTap() {
-    if (this._subscriptionPending) {
-      this._subscriptionPending = false;
-      this._requestSubscription();
+    // Show the permission prompt if a template is configured and the user
+    // hasn't been asked yet this session. The prompt's CTA button provides
+    // the TAP gesture that wx.requestSubscribeMessage requires.
+    if (runtimeConfig.subscribeTemplateId) {
+      this.setData({ showPermissionPrompt: true, loading: false });
     }
   },
 
-  _requestSubscription() {
+  // Called when the doctor taps "开始使用" on the permission prompt.
+  // This is the TAP gesture required by wx.requestSubscribeMessage.
+  onEnterTap() {
     const tmplId = runtimeConfig.subscribeTemplateId;
-    if (!tmplId) return;  // Template not configured; skip.
-
-    wx.requestSubscribeMessage({
-      tmplIds: [tmplId],
-      success() {
-        // User's response (accept/reject) is handled by WeChat natively.
-        // We don't need to do anything special here — the backend will
-        // attempt to send messages and WeChat will deliver only if accepted.
-      },
-      fail(err) {
-        // Subscription request declined or unsupported (e.g. in DevTools).
-        console.warn("[doctor] requestSubscribeMessage failed:", err);
-      },
-    });
+    if (tmplId) {
+      wx.requestSubscribeMessage({
+        tmplIds: [tmplId],
+        complete: () => {
+          // Proceed regardless of accept/reject — the WebView should load.
+          this.setData({ showPermissionPrompt: false, loading: true });
+        },
+      });
+    } else {
+      this.setData({ showPermissionPrompt: false, loading: true });
+    }
   },
 
   onWebViewLoad() {

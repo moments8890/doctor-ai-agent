@@ -8,10 +8,10 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import delete
+from sqlalchemy import delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from db.models import AuditLog, ChatArchive, MedicalRecordVersion
+from db.models import AuditLog, ChatArchive, DoctorConversationTurn, MedicalRecordVersion
 
 
 def _utcnow() -> datetime:
@@ -69,6 +69,32 @@ async def cleanup_chat_archive(session: AsyncSession, days: int = 90) -> int:
     cutoff = _utcnow() - timedelta(days=days)
     result = await session.execute(
         delete(ChatArchive).where(ChatArchive.created_at < cutoff)
+    )
+    await session.commit()
+    return result.rowcount if result.rowcount else 0
+
+
+# ---------------------------------------------------------------------------
+# Conversation turn content redaction
+# ---------------------------------------------------------------------------
+
+async def redact_old_conversation_content(session: AsyncSession, days: int = 30) -> int:
+    """Replace content of DoctorConversationTurn rows older than *days* days with '[redacted]'.
+
+    Turns older than the rolling LLM window are already excluded from context;
+    redacting their content limits exposure of PHI in the turns table while
+    preserving the row-count / timing metadata for audits.
+
+    Returns the number of rows updated.
+    """
+    cutoff = _utcnow() - timedelta(days=days)
+    result = await session.execute(
+        update(DoctorConversationTurn)
+        .where(
+            DoctorConversationTurn.created_at < cutoff,
+            DoctorConversationTurn.content != "[redacted]",
+        )
+        .values(content="[redacted]")
     )
     await session.commit()
     return result.rowcount if result.rowcount else 0

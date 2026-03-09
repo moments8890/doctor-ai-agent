@@ -25,6 +25,12 @@ class MedicalRecordDB(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
 
+    # Neuro-case extra fields — populated when record_type == "neuro_case"
+    neuro_patient_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    nihss: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    neuro_raw_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    neuro_extraction_log_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
     patient: Mapped[Optional["Patient"]] = relationship("Patient", back_populates="records")
 
     __table_args__ = (

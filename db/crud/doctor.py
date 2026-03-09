@@ -19,6 +19,7 @@ from db.models import (
     DoctorConversationTurn,
     ChatArchive,
 )
+from services.auth.wechat_id_hash import hash_wechat_id
 
 
 def _utcnow() -> datetime:
@@ -46,6 +47,7 @@ async def _resolve_doctor_id(session: AsyncSession, doctor_id: str, name: Option
     now = _utcnow()
     channel = _infer_channel(incoming)
     wechat_user_id = incoming if channel == "wechat" else None
+    stored_wechat_id = hash_wechat_id(wechat_user_id)  # None if not a wechat ID
 
     existing_by_id = (
         await session.execute(select(Doctor).where(Doctor.doctor_id == incoming).limit(1))
@@ -56,15 +58,15 @@ async def _resolve_doctor_id(session: AsyncSession, doctor_id: str, name: Option
             existing_by_id.name = name
         if existing_by_id.channel != channel and existing_by_id.channel == "app":
             existing_by_id.channel = channel
-        if wechat_user_id and not existing_by_id.wechat_user_id:
-            existing_by_id.wechat_user_id = wechat_user_id
+        if stored_wechat_id and not existing_by_id.wechat_user_id:
+            existing_by_id.wechat_user_id = stored_wechat_id
         return existing_by_id.doctor_id
 
-    if wechat_user_id:
+    if stored_wechat_id:
         existing_by_wechat = (
             await session.execute(
                 select(Doctor)
-                .where(Doctor.channel == "wechat", Doctor.wechat_user_id == wechat_user_id)
+                .where(Doctor.channel == "wechat", Doctor.wechat_user_id == stored_wechat_id)
                 .limit(1)
             )
         ).scalar_one_or_none()
@@ -81,18 +83,18 @@ async def _resolve_doctor_id(session: AsyncSession, doctor_id: str, name: Option
                     doctor_id=incoming,
                     name=name,
                     channel=channel,
-                    wechat_user_id=wechat_user_id,
+                    wechat_user_id=stored_wechat_id,
                     created_at=now,
                     updated_at=now,
                 )
             )
         return incoming
     except IntegrityError:
-        if wechat_user_id:
+        if stored_wechat_id:
             row = (
                 await session.execute(
                     select(Doctor)
-                    .where(Doctor.channel == "wechat", Doctor.wechat_user_id == wechat_user_id)
+                    .where(Doctor.channel == "wechat", Doctor.wechat_user_id == stored_wechat_id)
                     .limit(1)
                 )
             ).scalar_one_or_none()
@@ -359,21 +361,23 @@ async def get_doctor_mini_openid(session: AsyncSession, doctor_id: str) -> Optio
 
 
 async def get_doctor_by_mini_openid(session: AsyncSession, openid: str) -> Optional[Doctor]:
+    stored = hash_wechat_id(openid)
     result = await session.execute(
-        select(Doctor).where(Doctor.mini_openid == openid).limit(1)
+        select(Doctor).where(Doctor.mini_openid == stored).limit(1)
     )
     return result.scalar_one_or_none()
 
 
 async def link_mini_openid(session: AsyncSession, doctor_id: str, openid: str) -> None:
     """Store a mini app openid on an existing doctor record (idempotent)."""
+    stored = hash_wechat_id(openid)
     row = await get_doctor_by_id(session, doctor_id)
     if row is None:
         raise ValueError(f"Doctor {doctor_id!r} not found")
-    if row.mini_openid and row.mini_openid != openid:
+    if row.mini_openid and row.mini_openid != stored:
         raise ValueError(
             f"Doctor {doctor_id!r} already linked to a different mini openid"
         )
-    row.mini_openid = openid
+    row.mini_openid = stored
     row.updated_at = _utcnow()
     await session.commit()

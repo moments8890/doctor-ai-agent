@@ -145,6 +145,12 @@ _CLINICAL_KW_TIER3: frozenset[str] = frozenset({
     "绿色通道", "急性心肌梗死", "心跳骤停", "心脏骤停", "室颤", "抢救",
 })
 
+# ── Help / capability list ────────────────────────────────────────────────────
+_HELP_KEYWORDS: frozenset[str] = frozenset({
+    "帮助", "help", "?", "？", "功能列表", "怎么用", "使用说明",
+    "有哪些功能", "能做什么", "能干嘛", "有什么功能", "怎么操作",
+})
+
 # ── Emergency keyword set — triggers is_emergency=True in Tier-3 ──────────────
 # Keywords that unambiguously indicate a life-threatening situation.
 # Kept conservative: only terms that leave no doubt about emergency status.

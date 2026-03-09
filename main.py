@@ -332,6 +332,19 @@ async def _record_version_retention() -> None:
         _log.warning("[RecordVersions] retention job FAILED: %s", _e)
 
 
+async def _redact_old_conversation_content() -> None:
+    """Daily job: replace content of conversation turns older than 30 days with '[redacted]'."""
+    _log = logging.getLogger("scheduler")
+    try:
+        from db.crud import redact_old_conversation_content
+        async with AsyncSessionLocal() as _session:
+            updated = await redact_old_conversation_content(_session)
+        if updated:
+            _log.info("[Conversation] content redaction complete | updated=%s", updated)
+    except Exception as _e:
+        _log.warning("[Conversation] content redaction job FAILED: %s", _e)
+
+
 def _configure_task_scheduler(startup_log: logging.Logger) -> None:
     _scheduler.remove_all_jobs()
     mode = _scheduler_mode()
@@ -388,6 +401,10 @@ def _configure_task_scheduler(startup_log: logging.Logger) -> None:
     # Monthly on the 1st at 03:30 — record version retention (> 2 years)
     _scheduler.add_job(_record_version_retention, "cron", day=1, hour=3, minute=30)
     startup_log.info("[RecordVersions] retention scheduler configured | monthly day=1 at 03:30")
+
+    # Daily at 05:00 — redact content of conversation turns older than 30 days
+    _scheduler.add_job(_redact_old_conversation_content, "cron", hour=5, minute=0)
+    startup_log.info("[Conversation] content redaction scheduler configured | daily at 05:00")
 
 
 async def _runtime_apply_hook(_config: dict) -> None:

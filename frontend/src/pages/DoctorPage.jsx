@@ -688,14 +688,6 @@ function PatientDetail({ patient, doctorId }) {
 
 // ─── Patient list panel ─────────────────────────────────────────────────────
 
-const RISK_OPTS = [
-  { value: "", label: "全部风险" },
-  { value: "critical", label: "危重" },
-  { value: "high", label: "高风险" },
-  { value: "medium", label: "中风险" },
-  { value: "low", label: "低风险" },
-];
-
 function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatientSelected, refreshKey = 0 }) {
   const { patientId } = useParams();
   const navigate = useNavigate();
@@ -705,7 +697,6 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [risk, setRisk] = useState("");
 
   const selectedId = patientId ? Number(patientId) : null;
   const selectedPatient = patients.find((p) => p.id === selectedId) || null;
@@ -717,11 +708,11 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
   const load = useCallback(() => {
     setLoading(true);
     setError("");
-    getPatients(doctorId, risk ? { risk } : {}, 200)
+    getPatients(doctorId, {}, 200)
       .then((d) => setPatients(d.items || []))
       .catch((e) => setError(e.message || "加载失败"))
       .finally(() => setLoading(false));
-  }, [doctorId, risk]);
+  }, [doctorId]);
 
   useEffect(() => { load(); }, [load, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -757,11 +748,7 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
             size="small" fullWidth placeholder="搜索患者姓名"
             value={search} onChange={(e) => setSearch(e.target.value)}
             InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
-            sx={{ mb: 1 }}
           />
-          <TextField select size="small" fullWidth value={risk} onChange={(e) => setRisk(e.target.value)} label="风险筛选">
-            {RISK_OPTS.map((o) => <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>)}
-          </TextField>
         </Box>
         {error && <Alert severity="error" action={<Button size="small" onClick={load}>重试</Button>}>{error}</Alert>}
         <Box sx={{ flex: 1, overflowY: "auto", p: 1 }}>
@@ -808,7 +795,7 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
                 <CardContent sx={{ py: 1.2, px: 1.5, "&:last-child": { pb: 1.2 } }}>
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>{p.name}</Typography>
                   <Stack direction="row" spacing={1} sx={{ mt: 0.4 }} flexWrap="wrap">
-                    {p.gender && <Typography variant="caption" color="text.secondary">{p.gender}</Typography>}
+                    {p.gender && <Typography variant="caption" color="text.secondary">{{ male: "男", female: "女" }[p.gender] || p.gender}</Typography>}
                     {age && <Typography variant="caption" color="text.secondary">{age} 岁</Typography>}
                     <Typography variant="caption" color="text.secondary">{p.record_count} 份病历</Typography>
                   </Stack>
@@ -834,11 +821,7 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
             size="small" fullWidth placeholder="搜索患者姓名"
             value={search} onChange={(e) => setSearch(e.target.value)}
             InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
-            sx={{ mb: 1 }}
           />
-          <TextField select size="small" fullWidth value={risk} onChange={(e) => setRisk(e.target.value)} label="风险筛选">
-            {RISK_OPTS.map((o) => <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>)}
-          </TextField>
         </Box>
 
         {error && <Alert severity="error" action={<Button size="small" onClick={load}>重试</Button>}>{error}</Alert>}
@@ -887,7 +870,7 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
                 <CardContent sx={{ py: 1.2, px: 1.5, "&:last-child": { pb: 1.2 } }}>
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>{p.name}</Typography>
                   <Stack direction="row" spacing={1} sx={{ mt: 0.4 }} flexWrap="wrap">
-                    {p.gender && <Typography variant="caption" color="text.secondary">{p.gender}</Typography>}
+                    {p.gender && <Typography variant="caption" color="text.secondary">{{ male: "男", female: "女" }[p.gender] || p.gender}</Typography>}
                     {age && <Typography variant="caption" color="text.secondary">{age} 岁</Typography>}
                     <Typography variant="caption" color="text.secondary">{p.record_count} 份病历</Typography>
                   </Stack>
@@ -921,9 +904,10 @@ function TasksSection({ doctorId }) {
   const [error, setError] = useState("");
   const [statusFilter, setStatusFilter] = useState("pending");
   const [createOpen, setCreateOpen] = useState(false);
-  const [createForm, setCreateForm] = useState({ taskType: "follow_up", title: "", dueAt: "", patientId: "", content: "" });
+  const [createForm, setCreateForm] = useState({ taskType: "follow_up", title: "", dueAt: "", patientId: "", patientSearch: "", content: "" });
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
+  const [patientOptions, setPatientOptions] = useState([]);
   // Postpone popover state
   const [postponeAnchor, setPostponeAnchor] = useState(null);
   const [postponeTaskId, setPostponeTaskId] = useState(null);
@@ -962,7 +946,7 @@ function TasksSection({ doctorId }) {
         content: createForm.content || undefined,
       });
       setCreateOpen(false);
-      setCreateForm({ taskType: "follow_up", title: "", dueAt: "", patientId: "", content: "" });
+      setCreateForm({ taskType: "follow_up", title: "", dueAt: "", patientId: "", patientSearch: "", content: "" });
       load();
     } catch (e) {
       setCreateError(e.message || "创建失败");
@@ -1001,7 +985,7 @@ function TasksSection({ doctorId }) {
         <Typography variant="h6" sx={{ fontWeight: 700 }}>任务列表</Typography>
         {loading && <CircularProgress size={18} />}
         <Box sx={{ flex: 1 }} />
-        <Button size="small" variant="contained" onClick={() => { setCreateOpen(true); setCreateError(""); }}>+ 新建任务</Button>
+        <Button size="small" variant="contained" onClick={() => { setCreateOpen(true); setCreateError(""); getPatients(doctorId, {}, 200).then((d) => setPatientOptions(d.items || [])).catch(() => {}); }}>+ 新建任务</Button>
         <Stack direction="row" spacing={0.5} flexWrap="wrap">
           {TASK_STATUS_OPTS.map((o) => (
             <Chip
@@ -1111,10 +1095,15 @@ function TasksSection({ doctorId }) {
               onChange={(e) => setCreateForm((f) => ({ ...f, dueAt: e.target.value }))}
             />
             <TextField
-              label="关联患者 ID（可选）" size="small" fullWidth
+              select size="small" fullWidth label="关联患者（可选）"
               value={createForm.patientId}
               onChange={(e) => setCreateForm((f) => ({ ...f, patientId: e.target.value }))}
-            />
+            >
+              <MenuItem value=""><em>不关联患者</em></MenuItem>
+              {patientOptions.filter((p) => !createForm.patientSearch || p.name.includes(createForm.patientSearch)).map((p) => (
+                <MenuItem key={p.id} value={String(p.id)}>{p.name}</MenuItem>
+              ))}
+            </TextField>
             <TextField
               label="备注/说明（可选）" size="small" fullWidth multiline minRows={2}
               value={createForm.content}
@@ -1435,9 +1424,9 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
 
 // ─── Home / dashboard ───────────────────────────────────────────────────────
 
-function StatCard({ label, value, color = "primary.main" }) {
+function StatCard({ label, value, color = "primary.main", onClick }) {
   return (
-    <Card variant="outlined" sx={{ borderRadius: 2, flex: 1, minWidth: 120 }}>
+    <Card variant="outlined" onClick={onClick} sx={{ borderRadius: 2, flex: 1, minWidth: 120, cursor: onClick ? "pointer" : "default", "&:hover": onClick ? { borderColor: "primary.main" } : {} }}>
       <CardContent>
         <Typography variant="h4" sx={{ fontWeight: 800, color }}>{value ?? "—"}</Typography>
         <Typography variant="caption" color="text.secondary">{label}</Typography>
@@ -1477,8 +1466,8 @@ function HomeSection({ doctorId, navigate }) {
       {/* Stats */}
       <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>总览</Typography>
       <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
-        <StatCard label="患者总数" value={stats?.patients} />
-        <StatCard label="待处理任务" value={stats?.pendingTasks} color={stats?.pendingTasks > 0 ? "warning.main" : "success.main"} />
+        <StatCard label="患者总数" value={stats?.patients} onClick={() => navigate("/doctor/patients")} />
+        <StatCard label="待处理任务" value={stats?.pendingTasks} color={stats?.pendingTasks > 0 ? "warning.main" : "success.main"} onClick={() => navigate("/doctor/tasks")} />
       </Stack>
 
       {/* Quick actions */}
@@ -1833,7 +1822,7 @@ export default function DoctorPage() {
         {pendingRecord && (
           <Alert severity="warning" sx={{ mx: 2, mt: 1.5, borderRadius: 1.5 }}
             action={
-              <Stack direction="row" spacing={1}>
+              <Stack direction="row" spacing={1} flexShrink={0}>
                 <Button size="small" color="success" variant="contained" onClick={handleConfirmPending}>确认保存</Button>
                 <Button size="small" color="error" variant="outlined" onClick={handleAbandonPending}>撤销</Button>
               </Stack>
@@ -1841,6 +1830,10 @@ export default function DoctorPage() {
           >
             <AlertTitle>待确认病历草稿</AlertTitle>
             患者：{pendingRecord.patient_name || "未关联"} · {pendingRecord.content_preview}
+            {pendingRecord.expires_at && (() => {
+              const mins = Math.max(0, Math.round((new Date(pendingRecord.expires_at) - Date.now()) / 60000));
+              return mins > 0 ? <Typography component="span" variant="caption" sx={{ ml: 1, color: "warning.dark" }}>（{mins} 分钟后过期）</Typography> : <Typography component="span" variant="caption" sx={{ ml: 1, color: "error.main" }}>（即将过期）</Typography>;
+            })()}
           </Alert>
         )}
 

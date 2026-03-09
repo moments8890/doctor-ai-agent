@@ -106,6 +106,7 @@ from db.crud.retention import (
     archive_old_audit_logs,
     prune_record_versions,
     cleanup_chat_archive,
+    redact_old_conversation_content,
 )
 
 __all__ = [
@@ -208,4 +209,5 @@ __all__ = [
     "archive_old_audit_logs",
     "prune_record_versions",
     "cleanup_chat_archive",
+    "redact_old_conversation_content",
 ]
