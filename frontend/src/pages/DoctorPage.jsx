@@ -914,6 +914,7 @@ function TasksSection({ doctorId }) {
   const [postponeAnchor, setPostponeAnchor] = useState(null);
   const [postponeTaskId, setPostponeTaskId] = useState(null);
   const [postponeDate, setPostponeDate] = useState("");
+  const [cancelConfirmId, setCancelConfirmId] = useState(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -1034,7 +1035,7 @@ function TasksSection({ doctorId }) {
                   {task.status === "pending" && (
                     <Stack direction="row" spacing={0.5}>
                       <Button size="small" variant="contained" onClick={() => handleStatus(task.id, "completed")}>完成</Button>
-                      <Button size="small" color="inherit" onClick={() => handleStatus(task.id, "cancelled")}>取消</Button>
+                      <Button size="small" color="inherit" onClick={() => setCancelConfirmId(task.id)}>取消</Button>
                       <Button size="small" color="warning" variant="outlined" onClick={(e) => handleOpenPostpone(e, task.id)}>推迟</Button>
                     </Stack>
                   )}
@@ -1069,6 +1070,18 @@ function TasksSection({ doctorId }) {
           </Stack>
         </Box>
       </Popover>
+
+      {/* 取消任务确认 */}
+      <Dialog open={Boolean(cancelConfirmId)} onClose={() => setCancelConfirmId(null)}>
+        <DialogTitle>取消任务</DialogTitle>
+        <DialogContent>
+          <Typography>确定取消这个任务？</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCancelConfirmId(null)}>保留</Button>
+          <Button color="error" onClick={() => { handleStatus(cancelConfirmId, "cancelled"); setCancelConfirmId(null); }}>确认取消</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* 新建任务 Dialog */}
       <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="xs" fullWidth fullScreen={isMobile}>
@@ -1127,7 +1140,36 @@ function TasksSection({ doctorId }) {
 // ─── Chat section ───────────────────────────────────────────────────────────
 
 function MsgBubble({ msg }) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isUser = msg.role === "user";
+
+  if (isMobile) {
+    return (
+      <Box sx={{ display: "flex", flexDirection: isUser ? "row-reverse" : "row", alignItems: "flex-end", gap: 1, px: 1.5 }}>
+        <Box sx={{
+          width: 36, height: 36, borderRadius: "8px", flexShrink: 0, mb: 0.5,
+          bgcolor: isUser ? "#5b9bd5" : "#07C160",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <Typography sx={{ color: "#fff", fontSize: 11, fontWeight: 700 }}>{isUser ? "医" : "AI"}</Typography>
+        </Box>
+        <Box sx={{ maxWidth: "72%", display: "flex", flexDirection: "column", alignItems: isUser ? "flex-end" : "flex-start" }}>
+          <Box sx={{
+            px: "12px", py: "9px",
+            borderRadius: isUser ? "14px 2px 14px 14px" : "2px 14px 14px 14px",
+            bgcolor: isUser ? "#95ec69" : "#fff",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
+          }}>
+            <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", lineHeight: 1.65, color: "#111" }}>{msg.content}</Typography>
+            {!isUser && msg.record ? <RecordFields record={msg.record} /> : null}
+          </Box>
+          <Typography sx={{ mt: 0.3, px: 0.5, color: "#aaa", fontSize: 10 }}>{msg.ts}</Typography>
+        </Box>
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start", px: 1 }}>
       <Paper elevation={0} sx={{
@@ -1307,8 +1349,8 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Topbar */}
-      <Box sx={{ px: isMobile ? 2 : 3, py: 1.2, borderBottom: "1px solid #e2e8f0", backgroundColor: "#fff", display: "flex", alignItems: "center" }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "text.secondary", flex: 1 }}>{t("chat.workspaceTitle")}</Typography>
+      <Box sx={{ px: isMobile ? 2 : 3, py: 1.2, borderBottom: "1px solid #e2e8f0", backgroundColor: isMobile ? "#ededed" : "#fff", display: "flex", alignItems: "center" }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "text.secondary", flex: 1, textAlign: isMobile ? "center" : "left" }}>{t("chat.workspaceTitle")}</Typography>
         <Tooltip title="清空对话">
           <IconButton size="small" onClick={() => setClearConfirmOpen(true)} sx={{ color: "text.secondary" }}>
             <DeleteOutlineIcon fontSize="small" />
@@ -1316,13 +1358,24 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
         </Tooltip>
       </Box>
       {/* Messages */}
-      <Box sx={{ flex: 1, overflowY: "auto", py: 2, display: "flex", flexDirection: "column", gap: 1.4 }}>
+      <Box sx={{ flex: 1, overflowY: "auto", py: 2, display: "flex", flexDirection: "column", gap: isMobile ? 1.8 : 1.4, bgcolor: isMobile ? "#ededed" : "transparent" }}>
         {messages.map((msg, idx) => <MsgBubble key={`${msg.role}-${idx}`} msg={msg} />)}
-        {loading && <Box sx={{ px: 2 }}><Typography variant="caption" color="text.secondary">AI 正在回复…</Typography></Box>}
+        {loading && (
+          isMobile
+            ? <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1, px: 1.5 }}>
+                <Box sx={{ width: 36, height: 36, borderRadius: "8px", bgcolor: "#07C160", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Typography sx={{ color: "#fff", fontSize: 11, fontWeight: 700 }}>AI</Typography>
+                </Box>
+                <Box sx={{ px: "12px", py: "9px", borderRadius: "2px 14px 14px 14px", bgcolor: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
+                  <Typography variant="caption" color="text.secondary">…</Typography>
+                </Box>
+              </Box>
+            : <Box sx={{ px: 2 }}><Typography variant="caption" color="text.secondary">AI 正在回复…</Typography></Box>
+        )}
         <div ref={bottomRef} />
       </Box>
       {/* Quick commands panel */}
-      <Box sx={{ px: isMobile ? 1 : 1.5, pt: 0.8, pb: 0.5, borderTop: "1px solid #e2e8f0", backgroundColor: "#fafbfc" }}>
+      <Box sx={{ px: isMobile ? 1 : 1.5, pt: 0.8, pb: 0.5, borderTop: "1px solid #e2e8f0", backgroundColor: isMobile ? "#f5f5f5" : "#fafbfc" }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: commandsShown ? 0.6 : 0 }}>
           <Typography variant="caption" sx={{ color: "text.disabled", fontSize: 11, letterSpacing: 0.3 }}>快捷指令</Typography>
           <IconButton size="small" onClick={toggleCommands} sx={{ color: "text.disabled", p: 0.3 }}>
@@ -1330,7 +1383,7 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
           </IconButton>
         </Stack>
         {commandsShown && (
-          <Box sx={{ display: "flex", flexWrap: isMobile ? "nowrap" : "wrap", overflowX: isMobile ? "auto" : "visible", gap: 0.7, mb: 0.8, pb: isMobile ? 0.5 : 0, WebkitOverflowScrolling: "touch" }}>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.7, mb: 0.8 }}>
             {QUICK_COMMANDS.map((cmd) => (
               <Box
                 key={cmd.label}
@@ -1356,62 +1409,106 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
       </Box>
 
       {/* Input */}
-      <Box sx={{ px: isMobile ? 1 : 2, py: isMobile ? 1 : 1.5, borderTop: "1px solid #e2e8f0", backgroundColor: "#fff" }}>
-        {mediaError && (
-          <Alert severity="error" onClose={() => setMediaError(null)} sx={{ mb: 1, py: 0 }}>
-            {mediaError}
-          </Alert>
-        )}
-        <Stack direction="row" spacing={1} alignItems="flex-end">
-          {/* Hidden file input for audio + image uploads */}
-          <input ref={fileInputRef} type="file" accept="audio/*,image/*" style={{ display: "none" }} onChange={onFileSelect} />
-          <Box sx={{ flex: 1 }}>
+      <input ref={fileInputRef} type="file" accept="audio/*,image/*" style={{ display: "none" }} onChange={onFileSelect} />
+      {isMobile ? (
+        <Box sx={{ borderTop: "1px solid #d9d9d9", backgroundColor: "#f5f5f5" }}>
+          {mediaError && (
+            <Alert severity="error" onClose={() => setMediaError(null)} sx={{ mx: 1, mt: 0.5, py: 0 }}>{mediaError}</Alert>
+          )}
+          {mediaProcessing && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: "flex", alignItems: "center", gap: 0.5, px: 2, pt: 0.5 }}>
+              <CircularProgress size={10} /> 处理中…
+            </Typography>
+          )}
+          <Stack direction="row" alignItems="center" sx={{ px: 1, py: 0.8, gap: 0.5 }}>
+            <IconButton size="small" onClick={() => fileInputRef.current?.click()} disabled={mediaProcessing || recording}
+              sx={{ color: "#666", p: 0.8 }}>
+              <AttachFileOutlinedIcon />
+            </IconButton>
             <TextField
-              multiline minRows={isMobile ? 1 : 2} maxRows={isMobile ? 4 : 6} fullWidth size="small"
+              multiline minRows={1} maxRows={4} fullWidth size="small"
               placeholder={t("chat.placeholder")}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); } }}
               disabled={mediaProcessing}
-              sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.5 } }}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: "20px", backgroundColor: "#fff",
+                  fontSize: "0.9rem",
+                  "& fieldset": { borderColor: "#ddd" },
+                },
+              }}
             />
-            {!isMobile && input.length > 0 && (
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block", textAlign: "right", mt: 0.3 }}>
-                {input.length} 字
-              </Typography>
+            {input.trim() ? (
+              <IconButton onClick={onSend} disabled={loading}
+                sx={{ bgcolor: "#07C160", color: "#fff", p: 1, borderRadius: "50%", "&:hover": { bgcolor: "#06ad56" }, flexShrink: 0 }}>
+                <SendOutlinedIcon fontSize="small" />
+              </IconButton>
+            ) : (
+              <IconButton size="small"
+                onClick={recording ? stopRecording : startRecording}
+                disabled={mediaProcessing}
+                sx={{ color: recording ? "error.main" : "#666", p: 0.8 }}>
+                {recording ? <StopCircleOutlinedIcon /> : <MicOutlinedIcon />}
+              </IconButton>
             )}
-            {mediaProcessing && (
-              <Typography variant="caption" color="text.secondary" sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.3 }}>
-                <CircularProgress size={10} /> 处理中…
-              </Typography>
-            )}
-          </Box>
-          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexShrink: 0 }}>
-            <Tooltip title="上传音频或图片">
-              <span>
-                <IconButton size="small" onClick={() => fileInputRef.current?.click()} disabled={mediaProcessing || recording}
-                  sx={{ color: "text.secondary" }}>
-                  <AttachFileOutlinedIcon fontSize="small" />
-                </IconButton>
-              </span>
-            </Tooltip>
-            <Tooltip title={recording ? "停止录音" : "语音输入"}>
-              <span>
-                <IconButton size="small"
-                  onClick={recording ? stopRecording : startRecording}
-                  disabled={mediaProcessing}
-                  sx={{ color: recording ? "error.main" : "text.secondary" }}>
-                  {recording ? <StopCircleOutlinedIcon fontSize="small" /> : <MicOutlinedIcon fontSize="small" />}
-                </IconButton>
-              </span>
-            </Tooltip>
-            <Button variant="contained" onClick={onSend} disabled={loading || !input.trim()}
-              sx={{ borderRadius: 1.5, minWidth: 48, height: 48 }}>
-              <SendOutlinedIcon fontSize="small" />
-            </Button>
           </Stack>
-        </Stack>
-      </Box>
+        </Box>
+      ) : (
+        <Box sx={{ px: 2, py: 1.5, borderTop: "1px solid #e2e8f0", backgroundColor: "#fff" }}>
+          {mediaError && (
+            <Alert severity="error" onClose={() => setMediaError(null)} sx={{ mb: 1, py: 0 }}>{mediaError}</Alert>
+          )}
+          <Stack direction="row" spacing={1} alignItems="flex-end">
+            <Box sx={{ flex: 1 }}>
+              <TextField
+                multiline minRows={2} maxRows={6} fullWidth size="small"
+                placeholder={t("chat.placeholder")}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); } }}
+                disabled={mediaProcessing}
+                sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.5 } }}
+              />
+              {input.length > 0 && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", textAlign: "right", mt: 0.3 }}>
+                  {input.length} 字
+                </Typography>
+              )}
+              {mediaProcessing && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.3 }}>
+                  <CircularProgress size={10} /> 处理中…
+                </Typography>
+              )}
+            </Box>
+            <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexShrink: 0 }}>
+              <Tooltip title="上传音频或图片">
+                <span>
+                  <IconButton size="small" onClick={() => fileInputRef.current?.click()} disabled={mediaProcessing || recording}
+                    sx={{ color: "text.secondary" }}>
+                    <AttachFileOutlinedIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title={recording ? "停止录音" : "语音输入"}>
+                <span>
+                  <IconButton size="small"
+                    onClick={recording ? stopRecording : startRecording}
+                    disabled={mediaProcessing}
+                    sx={{ color: recording ? "error.main" : "text.secondary" }}>
+                    {recording ? <StopCircleOutlinedIcon fontSize="small" /> : <MicOutlinedIcon fontSize="small" />}
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Button variant="contained" onClick={onSend} disabled={loading || !input.trim()}
+                sx={{ borderRadius: 1.5, minWidth: 48, height: 48 }}>
+                <SendOutlinedIcon fontSize="small" />
+              </Button>
+            </Stack>
+          </Stack>
+        </Box>
+      )}
 
       {/* Clear confirmation dialog */}
       <Dialog open={clearConfirmOpen} onClose={() => setClearConfirmOpen(false)}>
