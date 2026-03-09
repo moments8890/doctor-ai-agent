@@ -300,6 +300,8 @@ function AdminDashboard({ onLockout }) {
   const [status, setStatus] = useState({ type: "info", text: "" });
   const [tableCounts, setTableCounts] = useState({});
   const [rows, setRows] = useState([]);
+  const [rowsHasMore, setRowsHasMore] = useState(false);
+  const [rowsLoadingMore, setRowsLoadingMore] = useState(false);
   const [runtimeConfigMap, setRuntimeConfigMap] = useState({});
   const [runtimeCategories, setRuntimeCategories] = useState([]);
   const [runtimeConfigSource, setRuntimeConfigSource] = useState("");
@@ -480,19 +482,45 @@ function AdminDashboard({ onLockout }) {
 
   async function loadTableData(tableKey = activeTable, overrides = {}) {
     if (tableKey === "observability") {
-      setRows([]);
+      setRows([]); setRowsHasMore(false);
       return;
     }
     const f = _resolveFilters(overrides);
+    const PAGE = 50;
     const data = await getAdminTableRows({
       tableKey,
       doctorId: f.doctorId,
       patientName: f.patientName,
       dateFrom: f.dateFrom,
       dateTo: f.dateTo,
-      limit: 300,
+      limit: PAGE + 1,
     });
-    setRows(data.items || []);
+    const items = data.items || [];
+    setRowsHasMore(items.length > PAGE);
+    setRows(items.slice(0, PAGE));
+  }
+
+  async function loadMoreRows() {
+    if (rowsLoadingMore || !rowsHasMore) return;
+    setRowsLoadingMore(true);
+    const PAGE = 50;
+    const f = _resolveFilters({});
+    try {
+      const data = await getAdminTableRows({
+        tableKey: activeTable,
+        doctorId: f.doctorId,
+        patientName: f.patientName,
+        dateFrom: f.dateFrom,
+        dateTo: f.dateTo,
+        limit: PAGE + 1,
+        offset: rows.length,
+      });
+      const items = data.items || [];
+      setRowsHasMore(items.length > PAGE);
+      setRows((prev) => [...prev, ...items.slice(0, PAGE)]);
+    } finally {
+      setRowsLoadingMore(false);
+    }
   }
 
   async function loadRuntimeConfig() {
@@ -610,16 +638,16 @@ function AdminDashboard({ onLockout }) {
       const f = _resolveFilters(overrides);
       if (tableKey === "runtime_config") {
         await Promise.all([loadTableList(f), loadRuntimeConfig(), loadTunnelUrl(), loadFilterOptions(f.doctorId)]);
-        setRows([]);
+        setRows([]); setRowsHasMore(false);
       } else if (tableKey === "routing_keywords") {
         await Promise.all([loadTableList(f), loadRoutingKeywords(), loadFilterOptions(f.doctorId)]);
-        setRows([]);
+        setRows([]); setRowsHasMore(false);
       } else if (tableKey === "invite_codes") {
         await loadInviteCodes();
-        setRows([]);
+        setRows([]); setRowsHasMore(false);
       } else if (tableKey === "system_prompts") {
         await Promise.all([loadTableList(f), loadPrompts()]);
-        setRows([]);
+        setRows([]); setRowsHasMore(false);
       } else {
         await Promise.all([loadTableList(f), loadTableData(tableKey, f), loadFilterOptions(f.doctorId)]);
       }
@@ -829,12 +857,15 @@ function AdminDashboard({ onLockout }) {
                     <Typography variant="caption" color="text.secondary" sx={{ alignSelf: "center", mr: 1 }}>
                       {rows.length} 行
                     </Typography>
-                    {rows.length >= 300 && (
+                    {rowsHasMore && (
                       <Chip
-                        label="已达 300 行上限，请缩小筛选范围"
+                        label={rowsLoadingMore ? "加载中…" : "加载更多"}
                         size="small"
-                        color="warning"
-                        sx={{ fontSize: 11 }}
+                        color="primary"
+                        variant="outlined"
+                        onClick={loadMoreRows}
+                        disabled={rowsLoadingMore}
+                        sx={{ fontSize: 11, cursor: "pointer" }}
                       />
                     )}
                     <Button variant="outlined" size="small" startIcon={<DownloadOutlinedIcon fontSize="small" />} onClick={exportCsv} disabled={!rows.length}>

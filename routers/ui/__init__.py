@@ -1067,6 +1067,7 @@ async def admin_table_rows(
     date_from: str | None = Query(default=None),
     date_to: str | None = Query(default=None),
     limit: int = Query(default=200, ge=1, le=5000),
+    offset: int = 0,
     x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
 ):
     _require_ui_admin_access(x_admin_token)
@@ -1077,7 +1078,7 @@ async def admin_table_rows(
 
     async with AsyncSessionLocal() as db:
         if table_key == "doctors":
-            stmt = select(Doctor).order_by(Doctor.updated_at.desc()).limit(limit)
+            stmt = select(Doctor).order_by(Doctor.updated_at.desc()).limit(limit).offset(offset)
             if doctor_id:
                 stmt = stmt.where(Doctor.doctor_id == doctor_id)
             else:
@@ -1092,7 +1093,7 @@ async def admin_table_rows(
                 for d in (await db.execute(stmt)).scalars().all()
             ]
         elif table_key == "patients":
-            stmt = select(Patient).order_by(Patient.created_at.desc()).limit(limit)
+            stmt = select(Patient).order_by(Patient.created_at.desc()).limit(limit).offset(offset)
             stmt = _apply_created_at_filters(stmt, Patient, dt_from, dt_to_exclusive)
             if doctor_id:
                 stmt = stmt.where(Patient.doctor_id == doctor_id)
@@ -1116,7 +1117,7 @@ async def admin_table_rows(
                 select(MedicalRecordDB, Patient.name.label("patient_name"))
                 .outerjoin(Patient, MedicalRecordDB.patient_id == Patient.id)
                 .order_by(MedicalRecordDB.created_at.desc())
-                .limit(limit)
+                .limit(limit).offset(offset)
             )
             stmt = _apply_created_at_filters(stmt, MedicalRecordDB, dt_from, dt_to_exclusive)
             if doctor_id:
@@ -1143,7 +1144,7 @@ async def admin_table_rows(
                 select(DoctorTask, Patient.name.label("patient_name"))
                 .outerjoin(Patient, DoctorTask.patient_id == Patient.id)
                 .order_by(DoctorTask.created_at.desc())
-                .limit(limit)
+                .limit(limit).offset(offset)
             )
             stmt = _apply_created_at_filters(stmt, DoctorTask, dt_from, dt_to_exclusive)
             if doctor_id:
@@ -1169,7 +1170,7 @@ async def admin_table_rows(
                 for t, pname in (await db.execute(stmt)).all()
             ]
         elif table_key == "neuro_cases":
-            stmt = select(NeuroCaseDB).order_by(NeuroCaseDB.created_at.desc()).limit(limit)
+            stmt = select(NeuroCaseDB).order_by(NeuroCaseDB.created_at.desc()).limit(limit).offset(offset)
             stmt = _apply_created_at_filters(stmt, NeuroCaseDB, dt_from, dt_to_exclusive)
             if doctor_id:
                 stmt = stmt.where(NeuroCaseDB.doctor_id == doctor_id)
@@ -1189,7 +1190,7 @@ async def admin_table_rows(
                 for n in (await db.execute(stmt)).scalars().all()
             ]
         elif table_key == "patient_labels":
-            stmt = select(PatientLabel).order_by(PatientLabel.created_at.desc()).limit(limit)
+            stmt = select(PatientLabel).order_by(PatientLabel.created_at.desc()).limit(limit).offset(offset)
             stmt = _apply_created_at_filters(stmt, PatientLabel, dt_from, dt_to_exclusive)
             if doctor_id:
                 stmt = stmt.where(PatientLabel.doctor_id == doctor_id)
@@ -1217,7 +1218,7 @@ async def admin_table_rows(
                 .select_from(patient_label_assignments)
                 .join(Patient, patient_label_assignments.c.patient_id == Patient.id)
                 .join(PatientLabel, patient_label_assignments.c.label_id == PatientLabel.id)
-                .limit(limit)
+                .limit(limit).offset(offset)
             )
             if doctor_id:
                 stmt = stmt.where(PatientLabel.doctor_id == doctor_id)
@@ -1236,7 +1237,7 @@ async def admin_table_rows(
                 for pid, lid, pname, lname, did in (await db.execute(stmt)).all()
             ]
         elif table_key == "system_prompts":
-            stmt = select(SystemPrompt).order_by(SystemPrompt.updated_at.desc()).limit(limit)
+            stmt = select(SystemPrompt).order_by(SystemPrompt.updated_at.desc()).limit(limit).offset(offset)
             items = [
                 {
                     "key": p.key,
@@ -1246,7 +1247,7 @@ async def admin_table_rows(
                 for p in (await db.execute(stmt)).scalars().all()
             ]
         elif table_key == "doctor_contexts":
-            stmt = select(DoctorContext).order_by(DoctorContext.updated_at.desc()).limit(limit)
+            stmt = select(DoctorContext).order_by(DoctorContext.updated_at.desc()).limit(limit).offset(offset)
             if doctor_id:
                 stmt = stmt.where(DoctorContext.doctor_id == doctor_id)
             else:
@@ -1259,7 +1260,7 @@ async def admin_table_rows(
             stmt = (
                 select(NeuroCVDContext, Patient.name.label("patient_name"))
                 .outerjoin(Patient, NeuroCVDContext.patient_id == Patient.id)
-                .order_by(NeuroCVDContext.created_at.desc()).limit(limit)
+                .order_by(NeuroCVDContext.created_at.desc()).limit(limit).offset(offset)
             )
             if doctor_id:
                 stmt = stmt.where(NeuroCVDContext.doctor_id == doctor_id)
@@ -1267,21 +1268,22 @@ async def admin_table_rows(
                 stmt = apply_exclude_test_doctors(stmt, NeuroCVDContext.doctor_id)
             if needle:
                 stmt = stmt.where(Patient.name.ilike(needle))
+            import json as _json
             items = [
                 {
                     "id": r.id, "doctor_id": r.doctor_id, "patient_id": r.patient_id,
                     "patient_name": pname, "record_id": r.record_id,
                     "diagnosis_subtype": r.diagnosis_subtype,
-                    "hemorrhage_location": r.hemorrhage_location,
-                    "ich_score": r.ich_score, "gcs_score": r.gcs_score,
-                    "surgery_status": r.surgery_status, "surgery_type": r.surgery_type,
-                    "mrs_score": r.mrs_score,
-                    "source": r.source, "created_at": _fmt_ts(r.created_at),
+                    "surgery_status": r.surgery_status,
+                    "source": r.source,
+                    "created_at": _fmt_ts(r.created_at),
+                    "updated_at": _fmt_ts(r.updated_at),
+                    **(_json.loads(r.raw_json) if r.raw_json else {}),
                 }
                 for r, pname in (await db.execute(stmt)).all()
             ]
         elif table_key == "specialty_scores":
-            stmt = select(SpecialtyScore).order_by(SpecialtyScore.id.desc()).limit(limit)
+            stmt = select(SpecialtyScore).order_by(SpecialtyScore.id.desc()).limit(limit).offset(offset)
             if doctor_id:
                 stmt = stmt.where(SpecialtyScore.doctor_id == doctor_id)
             else:
@@ -1296,7 +1298,7 @@ async def admin_table_rows(
                 for s in (await db.execute(stmt)).scalars().all()
             ]
         elif table_key == "medical_record_versions":
-            stmt = select(MedicalRecordVersion).order_by(MedicalRecordVersion.changed_at.desc()).limit(limit)
+            stmt = select(MedicalRecordVersion).order_by(MedicalRecordVersion.changed_at.desc()).limit(limit).offset(offset)
             if doctor_id:
                 stmt = stmt.where(MedicalRecordVersion.doctor_id == doctor_id)
             else:
@@ -1310,7 +1312,7 @@ async def admin_table_rows(
                 for v in (await db.execute(stmt)).scalars().all()
             ]
         elif table_key == "medical_record_exports":
-            stmt = select(MedicalRecordExport).order_by(MedicalRecordExport.exported_at.desc()).limit(limit)
+            stmt = select(MedicalRecordExport).order_by(MedicalRecordExport.exported_at.desc()).limit(limit).offset(offset)
             if doctor_id:
                 stmt = stmt.where(MedicalRecordExport.doctor_id == doctor_id)
             else:
@@ -1324,7 +1326,7 @@ async def admin_table_rows(
                 for e in (await db.execute(stmt)).scalars().all()
             ]
         elif table_key == "pending_records":
-            stmt = select(PendingRecord).order_by(PendingRecord.created_at.desc()).limit(limit)
+            stmt = select(PendingRecord).order_by(PendingRecord.created_at.desc()).limit(limit).offset(offset)
             if doctor_id:
                 stmt = stmt.where(PendingRecord.doctor_id == doctor_id)
             else:
@@ -1341,7 +1343,7 @@ async def admin_table_rows(
                 for p in (await db.execute(stmt)).scalars().all()
             ]
         elif table_key == "pending_messages":
-            stmt = select(PendingMessage).order_by(PendingMessage.created_at.desc()).limit(limit)
+            stmt = select(PendingMessage).order_by(PendingMessage.created_at.desc()).limit(limit).offset(offset)
             if doctor_id:
                 stmt = stmt.where(PendingMessage.doctor_id == doctor_id)
             else:
@@ -1355,7 +1357,7 @@ async def admin_table_rows(
                 for p in (await db.execute(stmt)).scalars().all()
             ]
         elif table_key == "audit_log":
-            stmt = select(AuditLog).order_by(AuditLog.ts.desc()).limit(limit)
+            stmt = select(AuditLog).order_by(AuditLog.ts.desc()).limit(limit).offset(offset)
             if doctor_id:
                 stmt = stmt.where(AuditLog.doctor_id == doctor_id)
             else:
@@ -1369,7 +1371,7 @@ async def admin_table_rows(
                 for a in (await db.execute(stmt)).scalars().all()
             ]
         elif table_key == "doctor_knowledge_items":
-            stmt = select(DoctorKnowledgeItem).order_by(DoctorKnowledgeItem.updated_at.desc()).limit(limit)
+            stmt = select(DoctorKnowledgeItem).order_by(DoctorKnowledgeItem.updated_at.desc()).limit(limit).offset(offset)
             if doctor_id:
                 stmt = stmt.where(DoctorKnowledgeItem.doctor_id == doctor_id)
             else:
@@ -1382,7 +1384,7 @@ async def admin_table_rows(
                 for k in (await db.execute(stmt)).scalars().all()
             ]
         elif table_key == "system_prompt_versions":
-            stmt = select(SystemPromptVersion).order_by(SystemPromptVersion.changed_at.desc()).limit(limit)
+            stmt = select(SystemPromptVersion).order_by(SystemPromptVersion.changed_at.desc()).limit(limit).offset(offset)
             items = [
                 {
                     "id": v.id, "prompt_key": v.prompt_key, "changed_by": v.changed_by,
@@ -1392,7 +1394,7 @@ async def admin_table_rows(
                 for v in (await db.execute(stmt)).scalars().all()
             ]
         elif table_key == "doctor_session_states":
-            stmt = select(DoctorSessionState).order_by(DoctorSessionState.updated_at.desc()).limit(limit)
+            stmt = select(DoctorSessionState).order_by(DoctorSessionState.updated_at.desc()).limit(limit).offset(offset)
             if doctor_id:
                 stmt = stmt.where(DoctorSessionState.doctor_id == doctor_id)
             else:
@@ -1408,7 +1410,7 @@ async def admin_table_rows(
                 for s in (await db.execute(stmt)).scalars().all()
             ]
         elif table_key == "chat_archive":
-            stmt = select(ChatArchive).order_by(ChatArchive.created_at.desc()).limit(limit)
+            stmt = select(ChatArchive).order_by(ChatArchive.created_at.desc()).limit(limit).offset(offset)
             if doctor_id:
                 stmt = stmt.where(ChatArchive.doctor_id == doctor_id)
             else:

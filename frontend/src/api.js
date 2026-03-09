@@ -317,13 +317,14 @@ export async function getAdminTables({ doctorId, patientName, dateFrom, dateTo }
   return adminRequest(`/api/admin/tables?${qs.toString()}`);
 }
 
-export async function getAdminTableRows({ tableKey, doctorId, patientName, dateFrom, dateTo, limit = 200 }) {
+export async function getAdminTableRows({ tableKey, doctorId, patientName, dateFrom, dateTo, limit = 200, offset = 0 }) {
   const qs = new URLSearchParams();
   if (doctorId) qs.set("doctor_id", doctorId);
   if (patientName) qs.set("patient_name", patientName);
   if (dateFrom) qs.set("date_from", dateFrom);
   if (dateTo) qs.set("date_to", dateTo);
   qs.set("limit", String(limit));
+  if (offset > 0) qs.set("offset", String(offset));
   return adminRequest(`/api/admin/tables/${encodeURIComponent(tableKey)}?${qs.toString()}`);
 }
 
