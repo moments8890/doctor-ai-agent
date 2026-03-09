@@ -73,7 +73,21 @@ async def _background_auto_learn(doctor_id: str, text: str, fields: dict) -> Non
         log(f"[Chat] background auto-learn failed doctor={doctor_id}: {e}")
 
 # Phrases that indicate the LLM accidentally extracted a question/non-name as a patient name
-_BAD_NAME_FRAGMENTS = ["叫什么名字", "这位患者", "请问", "患者姓名"]
+_BAD_NAME_FRAGMENTS = [
+    "叫什么名字", "这位患者", "请问", "患者姓名",
+    # Clinical action phrases wrongly extracted as names
+    "入院前", "入院体征", "入院查", "入院后",
+    "补一条", "补病程", "补病历", "补全", "补记录",
+    "急查", "查体", "急诊",
+]
+# Structural patterns that are never valid patient names
+_BAD_NAME_RE = re.compile(
+    r"^[0-9一二三四五六七八九十百]+床$"    # bed numbers: "3床", "第七床"
+    r"|^第[一二三四五六七八九十]+床$"       # "第三床"
+    r"|^[0-9]+[MF]$"                        # demographic codes: "62M", "53F"
+    r"|^[男女][，,\s]*[0-9]+岁$"            # "女65岁", "男，42岁"
+    r"|^[0-9]+[，,\s]*[男女]$"              # "65，女"
+)
 _NAME_ONLY = re.compile(r"^[\u4e00-\u9fff]{2,4}$")
 _ASK_NAME_FRAGMENTS = ("叫什么名字", "患者姓名", "请提供姓名", "请告知姓名")
 _LEADING_NAME = re.compile(r"^\s*([\u4e00-\u9fff]{2,4})(?:[，,\s]|$)")
@@ -146,9 +160,14 @@ def _is_valid_patient_name(name: str) -> bool:
     """Return False if the extracted name is clearly not a real patient name."""
     if not name or not name.strip():
         return False
-    if len(name.strip()) > 20:          # real Chinese names are ≤ 4 chars typically
+    n = name.strip()
+    if len(n) > 20:          # real Chinese names are ≤ 4 chars typically
         return False
-    return not any(frag in name for frag in _BAD_NAME_FRAGMENTS)
+    if any(frag in n for frag in _BAD_NAME_FRAGMENTS):
+        return False
+    if _BAD_NAME_RE.match(n):
+        return False
+    return True
 
 
 def _assistant_asked_for_name(history: List[dict]) -> bool:

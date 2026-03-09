@@ -1,0 +1,157 @@
+"""
+Keyword frozensets for fast_router.
+
+All frozensets are static immutable literals — no loading at runtime.
+"""
+
+from __future__ import annotations
+
+# ── Import history detection ───────────────────────────────────────────────────
+_IMPORT_KEYWORDS: frozenset[str] = frozenset({
+    "导入病历", "导入历史", "历史记录导入", "过往记录", "既往病历",
+})
+
+# ── Tier 1: Exact / normalised keyword sets ────────────────────────────────────
+
+_LIST_PATIENTS_EXACT: frozenset[str] = frozenset({
+    "所有患者", "全部患者", "患者列表", "病人列表", "患者名单",
+    "显示患者", "我的患者", "查看患者",
+    "病人名单", "我的病人", "列出患者", "列出病人",
+    "看看患者", "患者信息", "所有病人",
+    "有哪些患者", "有哪些病人", "患者都有谁", "病人都有谁",
+    "列出所有患者", "列出所有病人",
+    "再给我所有患者列表", "再给所有患者列表", "再看所有患者",
+    "再看一下所有患者", "再看一下患者列表",
+})
+
+# Very short triggers — only match if the entire message is exactly these chars
+_LIST_PATIENTS_SHORT: frozenset[str] = frozenset({
+    "患者列表", "患者名单",
+    "患者", "病人",
+})
+
+_LIST_TASKS_EXACT: frozenset[str] = frozenset({
+    "所有任务", "全部任务", "待办列表", "任务列表", "我的待办",
+    "显示任务", "查看任务", "待办事项",
+    "待办任务", "我的任务", "待处理",
+    "有什么任务", "有啥任务", "待处理任务",
+    "查看待办", "显示待办", "有哪些任务",
+    "最近任务", "今天任务", "所有任务",
+    "先看下我还有几个待办", "先看下我今天待办", "先看下今天待办",
+    "我还有几个待办", "今天有什么待办", "先看下我的待办",
+    "先看下我今天的任务", "先看下我的任务",
+    "先看下我今天待办事项",
+})
+
+_LIST_TASKS_SHORT: frozenset[str] = frozenset({
+    "待办", "任务列表",
+    "任务",
+})
+
+# ── Domain keywords that must never be treated as patient names ────────────────
+_NON_NAME_KEYWORDS: frozenset[str] = frozenset({
+    "病历", "记录", "情况", "病情", "近况", "状态", "任务", "待办",
+    "患者", "病人", "诊断", "治疗",
+})
+
+# ── Tier 3: name-extraction bad-name guard ─────────────────────────────────────
+_TIER3_BAD_NAME: frozenset[str] = frozenset({
+    "患者", "病人", "主诉", "诊断", "治疗", "随访", "复查", "处置",
+})
+
+# ── Tier 3: clinical keyword set ───────────────────────────────────────────────
+# High-specificity terms that strongly imply clinical content. Conservative — if
+# a keyword could appear in a non-clinical question, it is omitted here. Border-
+# line messages still fall through to the routing LLM.
+_CLINICAL_KW_TIER3: frozenset[str] = frozenset({
+    # Cardinal symptoms
+    "胸痛", "胸闷", "心悸", "气促", "气短", "头痛", "发热", "发烧",
+    "咳嗽", "腹痛", "恶心", "呕吐", "乏力", "眩晕", "水肿",
+    "呼吸困难", "阵发性", "晕厥", "心绞痛", "发绀",
+    "头晕", "浮肿", "偏头痛", "头晕耳鸣",
+    # Cardiovascular diagnoses / procedures
+    "心衰", "心梗", "房颤", "STEMI", "PCI", "溶栓", "消融", "支架",
+    "心律失常", "心慌", "心脏病", "心电图", "心力衰竭",
+    # Oncology
+    "化疗", "靶向", "放疗", "肿瘤", "升白",
+    "肺癌", "血管瘤", "颅内肿瘤",
+    "腺癌", "转移瘤", "脾大", "淋巴瘤", "直肠癌", "直肠",
+    "肝癌", "前列腺癌",
+    # Specific lab markers (unlikely in non-clinical speech)
+    "BNP", "肌钙蛋白", "HbA1c", "CEA", "ANC", "EGFR", "HER2",
+    "INR", "血常规", "抗凝",
+    "白细胞", "血红蛋白",
+    "空腹血糖", "餐后血糖", "血糖升高", "血糖偏高", "血糖控制", "血糖异常",
+    # Prescribing action ("give/administer" — almost always clinical)
+    "给予",
+    # Follow-up / re-check
+    "复查",
+    # English clinical terms (mixed-language doctor notes)
+    "chest", "ECG", "NIHSS", "dyspnea", "palpitation",
+    # Neurological (CBLUE-expanded)
+    "颅内高压", "颅内压增高", "颅压高", "脑水肿", "脑疝", "颅内占位性病变",
+    "视乳头水肿",
+    "三叉神经痛", "搭桥手术", "烟雾病", "脑动脉", "脑梗", "脑梗死", "脑梗塞",
+    "脑血管病", "视野缺损", "视野缩窄", "颅内动脉", "颅外颅内", "颈椎病",
+    # Neurological — strokes / CVD (reviewer-identified gaps)
+    "偏瘫", "单瘫", "截瘫", "失语", "构音障碍", "共济失调",
+    "脑出血", "脑血栓", "脑栓塞", "蛛网膜下腔出血", "SAH", "TIA",
+    "动脉瘤", "颅内动脉瘤", "血肿", "硬膜下血肿", "硬膜外血肿",
+    "脑积水", "脑脊液", "再出血", "血管痉挛",
+    "意识障碍", "昏迷", "谵妄",
+    # Neurological — imaging descriptors
+    "DWI", "FLAIR", "弥散受限",
+    # Metabolic / systemic
+    "低血糖", "高氨血症", "代谢性酸中毒", "黄疸",
+    "低蛋白血症", "低血压", "糖尿病", "高脂血症", "高血压", "高血压病史",
+    # Cardiology
+    "胸腔积液", "室间隔缺损", "动脉导管未闭", "大动脉转位",
+    # Respiratory
+    "肺炎", "肺结核", "肺气肿", "胸膜炎",
+    # Gastrointestinal
+    "便秘", "腹泻", "腹胀", "胃炎", "胃痛",
+    "胃溃疡", "胆囊炎", "肠易激综合征", "胰腺炎", "便血", "黑便",
+    "呕血", "肠梗阻", "吞咽困难", "反酸", "嗳气",
+    # Obstetric / gynecologic
+    "乳房胀痛", "乳腺增生", "妇科炎症", "子宫内膜炎", "痛经", "盆腔炎", "阴道炎",
+    # Musculoskeletal
+    "椎管狭窄", "腰椎穿刺", "腰痛",
+    # Infectious
+    "前列腺炎", "抗生素", "鼻炎",
+    # Systemic symptoms
+    "高热", "全身无力", "四肢无力", "面色苍白",
+    "贫血", "寒战", "皮疹", "蛋白尿", "血尿", "尿频", "尿急",
+    # Critical care / neurological
+    "癫痫", "呼吸衰竭", "休克", "败血症", "低氧血症", "颅内出血",
+    # Pathology / imaging
+    "结节", "积液", "钙化", "占位", "梗阻", "免疫组化", "彩超提示",
+    # Hepatology
+    "肝硬化", "肝功能",
+    # Signs / oncology
+    "淋巴结转移",
+    # Surgical / procedural
+    "介入", "介入治疗", "开颅",
+    "换药", "引流", "TKA", "THA", "PACU",  # procedural (dressing/drain/joint-replacement/PACU)
+    # Pain / mental health scores (mixed-language clinical notes)
+    "NRS", "PHQ",
+    # Common symptoms / signs
+    "疼痛", "肿胀", "压痛", "无压痛", "反跳痛", "咽痛", "咽喉肿痛",
+    "刺痛", "红肿", "肿块", "心慌",
+    # Signs / lab
+    "出血", "尿痛",
+    # Clinical admin (exclusive to hospital documentation)
+    "收入我科", "收治入院", "神志清", "门诊以",
+    # Emergency markers (also used for is_emergency detection below)
+    "绿色通道", "急性心肌梗死", "心跳骤停", "心脏骤停", "室颤", "抢救",
+})
+
+# ── Emergency keyword set — triggers is_emergency=True in Tier-3 ──────────────
+# Keywords that unambiguously indicate a life-threatening situation.
+# Kept conservative: only terms that leave no doubt about emergency status.
+_EMERGENCY_KW: frozenset[str] = frozenset({
+    "STEMI", "急性心肌梗死", "急性下壁", "急性前壁", "急性高侧壁",
+    "心跳骤停", "心脏骤停", "室颤", "心室颤动",
+    "脑疝", "脑干受压", "GCS急剧",
+    "绿色通道", "休克", "抢救", "急救", "CPR", "心肺复苏",
+    "大量咯血", "张力性气胸",
+})
