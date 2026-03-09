@@ -1,0 +1,4873 @@
+[
+  {
+    "case_id": "LLM-GEN-CODEX-001",
+    "title": "LLM-generated (codex) batch 1: emergency",
+    "source": "codex",
+    "batch": 0,
+    "intent_sequence": [
+      "create_patient",
+      "add_record"
+    ],
+    "clinical_domain": "emergency",
+    "chatlog": [
+      {
+        "text": "赵强 男 61 急诊",
+        "speaker": "doctor"
+      },
+      {
+        "text": "建档 胸痛 90分钟 下壁STEMI",
+        "speaker": "doctor"
+      },
+      {
+        "text": "加记录 hs-cTnI 3.2 BNP 168 EF 45 阿司匹林300mg 氯吡格雷300mg",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "STEMI",
+          "hs-cTnI",
+          "BNP",
+          "EF",
+          "胸痛"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-002",
+    "title": "LLM-generated (codex) batch 1: cardiology",
+    "source": "codex",
+    "batch": 0,
+    "intent_sequence": [
+      "query_records",
+      "add_record"
+    ],
+    "clinical_domain": "cardiology",
+    "chatlog": [
+      {
+        "text": "查王丽既往胸痛记录",
+        "speaker": "doctor"
+      },
+      {
+        "text": "62F, HFpEF史, 今晨端坐呼吸, BP 158/96, HR 112, SpO2 89%",
+        "speaker": "doctor"
+      },
+      {
+        "text": "补进展: BNP 1860 pg/mL, hs-cTnT 0.038 ng/mL, NRS6, 呋塞米40mg iv已给",
+        "speaker": "doctor"
+      },
+      {
+        "text": "再补一句: 不对，肌钙蛋白是0.033，刚录高了",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "HFpEF",
+          "BNP",
+          "hs-cTnT",
+          "NRS",
+          "端坐呼吸"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-003",
+    "title": "LLM-generated (codex) batch 1: cardiac ICU",
+    "source": "codex",
+    "batch": 0,
+    "intent_sequence": [
+      "list_tasks",
+      "complete_task",
+      "add_record"
+    ],
+    "clinical_domain": "cardiac ICU",
+    "chatlog": [
+      {
+        "text": "先看我待办里7床",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把“复测12导联ECG”标记完成，already done at 09:40",
+        "speaker": "doctor"
+      },
+      {
+        "text": "记录一下：70M, VT storm后复律, K+ 3.1 mmol/L, Mg2+ 0.62 mmol/L, amiodarone 150mg iv bolus then 1mg/min",
+        "speaker": "doctor"
+      },
+      {
+        "text": "addendum: QTc 512 ms, 先停左氧",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "VT",
+          "QTc",
+          "K+",
+          "Mg2+",
+          "amiodarone"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-004",
+    "title": "LLM-generated (codex) batch 1: emergency",
+    "source": "codex",
+    "batch": 0,
+    "intent_sequence": [
+      "list_patients",
+      "create_patient",
+      "add_record"
+    ],
+    "clinical_domain": "emergency",
+    "chatlog": [
+      {
+        "text": "请先列出我名下今日未建档的胸痛留观患者。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "新增患者：陈某某，女，47岁，门诊转急诊，主诉活动后胸闷胸痛3天，加重4小时。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "入院记录：既往高脂血症；BP 146/88 mmHg，HR 98次/分；ECG示V2-V4 ST压低0.1mV；hs-cTnI 0.12 ng/mL；TIMI 3分。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "补充治疗记录：给予阿托伐他汀40mg qn、依诺肝素4000IU q12h皮下。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "TIMI",
+          "hs-cTnI",
+          "ST压低",
+          "阿托伐他汀",
+          "依诺肝素"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-005",
+    "title": "LLM-generated (codex) batch 1: cardiology",
+    "source": "codex",
+    "batch": 0,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "cardiology",
+    "chatlog": [
+      {
+        "text": "我先说这个新病人，等等别急",
+        "speaker": "doctor"
+      },
+      {
+        "text": "女，33岁，产后第10天，昨晚心悸胸闷来急诊，先建档，名字周宁",
+        "speaker": "doctor"
+      },
+      {
+        "text": "先记成房颤快速心室率，啊不对是房扑2:1传导，HR 156，BP 104/68，NT-proBNP 2450",
+        "speaker": "doctor"
+      },
+      {
+        "text": "加治疗：美托洛尔5mg iv后心率到118，再口服47.5mg qd",
+        "speaker": "doctor"
+      },
+      {
+        "text": "给她约3天后心超复查，重点看EF和左房内径",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "房扑",
+          "NT-proBNP",
+          "美托洛尔",
+          "EF",
+          "心悸"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-006",
+    "title": "LLM-generated (codex) batch 1: cardiac ICU",
+    "source": "codex",
+    "batch": 0,
+    "intent_sequence": [
+      "query_records",
+      "update_record",
+      "add_record"
+    ],
+    "clinical_domain": "cardiac ICU",
+    "chatlog": [
+      {
+        "text": "语音转文字开始，先查李建国昨天那条",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把昨天记录里‘EF35’改成‘EF53’，就这个，刚拿到正式超声",
+        "speaker": "doctor"
+      },
+      {
+        "text": "再加一条今天病程，58男，前壁MI术后第2天，胸痛NRS2，BP 118/72，乳酸1.6，尿量0.9 ml/kg/h",
+        "speaker": "doctor"
+      },
+      {
+        "text": "还有药物记上，替格瑞洛90mg bid，瑞舒伐他汀20mg qn",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "EF",
+          "MI",
+          "NRS",
+          "替格瑞洛",
+          "瑞舒伐他汀"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-007",
+    "title": "LLM-generated (codex) batch 1: cardiology",
+    "source": "codex",
+    "batch": 0,
+    "intent_sequence": [
+      "list_tasks",
+      "postpone_task",
+      "add_record"
+    ],
+    "clinical_domain": "cardiology",
+    "chatlog": [
+      {
+        "text": "先给我看下午所有胸痛随访任务",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把‘14:00复测BNP’顺延到18:00，病人正在CT",
+        "speaker": "doctor"
+      },
+      {
+        "text": "然后写病程：79F, CHF急性加重，双下肢水肿++，BNP从920升到1310，Cr 1.9 mg/dL",
+        "speaker": "doctor"
+      },
+      {
+        "text": "补一句，利尿后24h出量2100mL，体重降1.4kg",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "CHF",
+          "BNP",
+          "Cr",
+          "利尿",
+          "胸痛随访"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-008",
+    "title": "LLM-generated (codex) batch 1: emergency",
+    "source": "codex",
+    "batch": 0,
+    "intent_sequence": [
+      "create_patient",
+      "update_patient",
+      "add_record",
+      "export_records"
+    ],
+    "clinical_domain": "emergency",
+    "chatlog": [
+      {
+        "text": "待办清单模式：1先建档 2补过敏史 3写记录 4导出",
+        "speaker": "doctor"
+      },
+      {
+        "text": "1完成：新患者吴某，男，68岁，急诊胸痛4小时，吸烟40包年",
+        "speaker": "doctor"
+      },
+      {
+        "text": "2完成：更新患者信息，青霉素过敏，家族史父亲52岁猝死",
+        "speaker": "doctor"
+      },
+      {
+        "text": "3完成：记录NSTEMI，hs-cTnI 1.4→2.1 ng/mL，GRACE 142，已用阿司匹林300mg+肝素5000IU",
+        "speaker": "doctor"
+      },
+      {
+        "text": "4执行：导出该患者今日全部病历给胸痛中心质控",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "NSTEMI",
+          "hs-cTnI",
+          "GRACE",
+          "阿司匹林",
+          "肝素"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-009",
+    "title": "LLM-generated (codex) batch 1: cardiology",
+    "source": "codex",
+    "batch": 0,
+    "intent_sequence": [
+      "query_records",
+      "add_record",
+      "cancel_task"
+    ],
+    "clinical_domain": "cardiology",
+    "chatlog": [
+      {
+        "text": "帮我先翻下刘阿姨上周心衰记录",
+        "speaker": "doctor"
+      },
+      {
+        "text": "有了就加今天门诊随访：65F，夜间憋醒2次，NYHA III，BP 132/84，HR 96不齐",
+        "speaker": "doctor"
+      },
+      {
+        "text": "化验补录：BNP 780，K 4.8，eGFR 42，地高辛0.125mg qd继续",
+        "speaker": "doctor"
+      },
+      {
+        "text": "原定明天电话随访先取消，她后天自己来复诊",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "NYHA",
+          "BNP",
+          "eGFR",
+          "地高辛",
+          "心衰"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-010",
+    "title": "LLM-generated (codex) batch 1: emergency",
+    "source": "codex",
+    "batch": 0,
+    "intent_sequence": [
+      "list_patients",
+      "query_records",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "emergency",
+    "chatlog": [
+      {
+        "text": "今天急诊胸痛新来的里，先把赵晨找出来",
+        "speaker": "doctor"
+      },
+      {
+        "text": "再查他去年是否有房颤或PCI记录",
+        "speaker": "doctor"
+      },
+      {
+        "text": "记录本次入院：29M，突发胸痛伴出汗1h，ECG窦速110，D-dimer 0.28 mg/L，hs-cTnI <0.01，考虑non-cardiac chest pain但需观察",
+        "speaker": "doctor"
+      },
+      {
+        "text": "补充：不对，疼痛评分是NRS7不是5，已给硝酸甘油0.5mg舌下后降到3",
+        "speaker": "doctor"
+      },
+      {
+        "text": "安排48小时后门诊复评+运动平板",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "PCI",
+          "hs-cTnI",
+          "NRS",
+          "硝酸甘油",
+          "chest pain"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-011",
+    "title": "LLM-generated (codex) batch 2: emergency neurology",
+    "source": "codex",
+    "batch": 1,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "emergency neurology",
+    "chatlog": [
+      {
+        "text": "张桂兰 女72 急诊 右偏瘫1h",
+        "speaker": "doctor"
+      },
+      {
+        "text": "建档 NIHSS9 BP178 96 血糖7.4",
+        "speaker": "doctor"
+      },
+      {
+        "text": "加急诊入院记录 阿替普酶0.9mgkg 54mg 随访7天",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "急性缺血性卒中",
+          "NIHSS",
+          "阿替普酶",
+          "急诊入院"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-012",
+    "title": "LLM-generated (codex) batch 2: neurology",
+    "source": "codex",
+    "batch": 1,
+    "intent_sequence": [
+      "query_records",
+      "update_record",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "text": "先查下赵某旧病历，67M，TIA史，昨晚再发言语含糊20min",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把2026-01-14那条进展记录改一下：不对，ABCD2应为5分，不是4分",
+        "speaker": "doctor"
+      },
+      {
+        "text": "补一条lab update：LDL-C 3.6 mmol/L，D-dimer 0.78 mg/L FEU，NIHSS 1",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "TIA",
+          "ABCD2",
+          "LDL-C",
+          "D-dimer"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-013",
+    "title": "LLM-generated (codex) batch 2: neurology",
+    "source": "codex",
+    "batch": 1,
+    "intent_sequence": [
+      "list_patients",
+      "create_patient",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "text": "今天门诊有个young guy，list一下同名陈昊先",
+        "speaker": "doctor"
+      },
+      {
+        "text": "没有就新建：陈昊，M29，outpatient，发作性意识中断3个月",
+        "speaker": "doctor"
+      },
+      {
+        "text": "add note: probable focal epilepsy，EEG右颞区棘波，LEV 500 mg bid起始，NRS头痛2/10",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "epilepsy",
+          "EEG",
+          "LEV",
+          "门诊"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-014",
+    "title": "LLM-generated (codex) batch 2: stroke unit",
+    "source": "codex",
+    "batch": 1,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "update_patient",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "stroke unit",
+    "chatlog": [
+      {
+        "text": "患者刘某某，男，81岁，因突发左侧肢体无力并言语不清5小时由急诊收入卒中单元。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "请建立住院患者信息：既往房颤、高血压20年，入院BP 164/88 mmHg，NIHSS评分6分。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "补充入院记录：头颅MRI示右侧基底节急性梗死，拟予阿司匹林100 mg qd+阿托伐他汀40 mg qn。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "同时更新患者资料为吞咽筛查阳性、鼻饲管理；预约14天后复诊评估mRS。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "入院记录",
+          "NIHSS",
+          "MRI",
+          "mRS"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-015",
+    "title": "LLM-generated (codex) batch 2: emergency neurology",
+    "source": "codex",
+    "batch": 1,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "update_record"
+    ],
+    "clinical_domain": "emergency neurology",
+    "chatlog": [
+      {
+        "text": "我连发几条你别介意，先建档，王女士44岁，急诊抽搐后恢复。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "发作大概2分钟，家属说先尖叫后四肢强直。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "等下，刚才说错了，不是44岁，是42岁。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "先记进病程：GCS 15，乳酸2.9 mmol/L，丙戊酸钠缓释片500 mg bid。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把上一条年龄同步改成42，诊断写疑似全面性癫痫发作待排因。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "癫痫发作",
+          "GCS",
+          "乳酸",
+          "更正"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-016",
+    "title": "LLM-generated (codex) batch 2: neuro ICU",
+    "source": "codex",
+    "batch": 1,
+    "intent_sequence": [
+      "add_record",
+      "query_records",
+      "export_records"
+    ],
+    "clinical_domain": "neuro ICU",
+    "chatlog": [
+      {
+        "text": "口述记录：急会诊，床旁见男58岁，脑出血术后第3天，镇静减量中。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "先查他前两天神经查体记录，确认瞳孔是不是一直3mm等大等圆。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "就这样，新增ICU进展：GCS E3VtM5，Na 148 mmol/L，甘露醇125 ml q8h；然后导出本次住院神经记录。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "脑出血",
+          "ICU进展",
+          "GCS",
+          "甘露醇"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-017",
+    "title": "LLM-generated (codex) batch 2: stroke unit",
+    "source": "codex",
+    "batch": 1,
+    "intent_sequence": [
+      "query_records",
+      "create_patient",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "stroke unit",
+    "chatlog": [
+      {
+        "text": "先别建新档，查一下孙阿姨去年TIA记录，有没有颈动脉斑块超声结果。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "查不到完整资料就新建：孙某，女，69岁，门诊复诊，今晨右手麻木15分钟已缓解。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "记录门诊病程：ABCD2 6分，CTA提示左侧颈内动脉约60%狭窄，氯吡格雷75 mg qd。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "安排3天后复诊并带24h动态血压结果。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "TIA",
+          "ABCD2",
+          "CTA",
+          "氯吡格雷"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-018",
+    "title": "LLM-generated (codex) batch 2: stroke unit",
+    "source": "codex",
+    "batch": 1,
+    "intent_sequence": [
+      "list_tasks",
+      "complete_task",
+      "add_record",
+      "postpone_task"
+    ],
+    "clinical_domain": "stroke unit",
+    "chatlog": [
+      {
+        "text": "先看我的待办清单，卒中单元晨会后要清任务。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把复核李某出院小结标记完成。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "新加一条进展：李某，F76，脑梗死恢复期，NIHSS由4降到2，步行50米需一人搀扶。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "两周后MoCA复测这个任务先顺延到下周一，家属今天不在。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "待办管理",
+          "出院小结",
+          "NIHSS",
+          "MoCA"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-019",
+    "title": "LLM-generated (codex) batch 2: emergency neurology",
+    "source": "codex",
+    "batch": 1,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "cancel_task",
+      "update_record"
+    ],
+    "clinical_domain": "emergency neurology",
+    "chatlog": [
+      {
+        "text": "夜班补录一例癫痫持续状态，先建患者：何某，男，33岁，急诊留观。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "病程先记：入院时持续抽搐>30 min，咪达唑仑10 mg iv后缓解，SpO2 89%升至96%。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把系统里明早8点脑电图任务取消，病人已转上级医院。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "再更正下：不对，咪达唑仑总量是12 mg，不是10 mg。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "癫痫持续状态",
+          "咪达唑仑",
+          "SpO2",
+          "任务取消"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-020",
+    "title": "LLM-generated (codex) batch 2: neurology memory clinic",
+    "source": "codex",
+    "batch": 1,
+    "intent_sequence": [
+      "list_patients",
+      "query_records",
+      "update_patient",
+      "add_record"
+    ],
+    "clinical_domain": "neurology memory clinic",
+    "chatlog": [
+      {
+        "text": "名单里有没有周某，记得上月做过MoCA。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "先查她历史记录：女，74岁，记忆门诊，2026-02-10 MoCA 19分。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "更新患者信息：联系人电话换成儿子，合并糖尿病用药改为二甲双胍0.5 g bid。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "补今天随访：MMSE 22分，ADL 55分，家属诉近两周夜间游走2次，先给美金刚5 mg qd。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "dementia",
+          "MoCA",
+          "MMSE",
+          "ADL"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-021",
+    "title": "LLM-generated (codex) batch 3: endocrinology",
+    "source": "codex",
+    "batch": 2,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "endocrinology",
+    "chatlog": [
+      {
+        "text": "周岚 女47 首诊 建档",
+        "speaker": "doctor"
+      },
+      {
+        "text": "T2DM八年 HbA1c9.8 BP156/96",
+        "speaker": "doctor"
+      },
+      {
+        "text": "二甲双胍0.5g bid 缬沙坦80mg",
+        "speaker": "doctor"
+      },
+      {
+        "text": "加甘精12U qn 二周复诊",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "HbA1c",
+          "甘精胰岛素",
+          "高血压",
+          "复诊"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-022",
+    "title": "LLM-generated (codex) batch 3: internal_medicine",
+    "source": "codex",
+    "batch": 2,
+    "intent_sequence": [
+      "query_records",
+      "add_record",
+      "update_record"
+    ],
+    "clinical_domain": "internal_medicine",
+    "chatlog": [
+      {
+        "text": "查赵建国既往糖化+降压方案",
+        "speaker": "doctor"
+      },
+      {
+        "text": "62M, T2DM+HTN, HbA1c 8.7%, FPG 10.4, Cr 98 umol/L, eGFR 72",
+        "speaker": "doctor"
+      },
+      {
+        "text": "今晨低血糖3.2 mmol/L，不对，复测3.8；甘精24U->20U，门冬早10U午8U晚8U",
+        "speaker": "doctor"
+      },
+      {
+        "text": "补记：NRS足麻痛4/10，二甲双胍0.5g tid续用，氨氯地平5mg qd+厄贝沙坦150mg qd",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "低血糖",
+          "HbA1c",
+          "胰岛素调整",
+          "NRS"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-023",
+    "title": "LLM-generated (codex) batch 3: outpatient_chronic_disease",
+    "source": "codex",
+    "batch": 2,
+    "intent_sequence": [
+      "list_patients",
+      "add_record",
+      "postpone_task"
+    ],
+    "clinical_domain": "outpatient_chronic_disease",
+    "chatlog": [
+      {
+        "text": "先看下我名下慢病名单，找刘阿姨那个糖压共管档",
+        "speaker": "doctor"
+      },
+      {
+        "text": "add today note: BP 148/88, HR 78, HbA1c 7.9%, UACR 46 mg/g",
+        "speaker": "doctor"
+      },
+      {
+        "text": "metformin XR 1g qn keep, add empagliflozin 10mg qd, consider insulin later",
+        "speaker": "doctor"
+      },
+      {
+        "text": "等下，insulin先不加，先把复诊任务 postpone 到 4 weeks",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "UACR",
+          "HbA1c",
+          "SGLT2",
+          "血压"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-024",
+    "title": "LLM-generated (codex) batch 3: endocrinology",
+    "source": "codex",
+    "batch": 2,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "update_patient",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "endocrinology",
+    "chatlog": [
+      {
+        "text": "患者陈某某，男，55岁，初次至内分泌门诊就诊，请先建立档案。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "其主诉为“口干、多尿伴体重下降3个月”，既往高血压5年，长期服用缬沙坦80mg qd。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "今日检查结果：空腹血糖12.6 mmol/L，餐后2小时血糖18.2 mmol/L，HbA1c 10.4%，BMI 29.1 kg/m2。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "请记录评估与处置：予二甲双胍0.5g bid起始，德谷胰岛素14U qn，并建议低盐低碳饮食与每周150分钟有氧运动。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "另外请更新患者信息为“急诊留观转普通门诊随访”，并预约14天后复诊评估血压与血糖达标情况。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "BMI",
+          "德谷胰岛素",
+          "HbA1c",
+          "高血压"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-025",
+    "title": "LLM-generated (codex) batch 3: oncology",
+    "source": "codex",
+    "batch": 2,
+    "intent_sequence": [
+      "query_records",
+      "add_record",
+      "complete_task",
+      "export_records"
+    ],
+    "clinical_domain": "oncology",
+    "chatlog": [
+      {
+        "text": "把王姐上周化验先调出来，我记不清糖化了",
+        "speaker": "doctor"
+      },
+      {
+        "text": "她49岁，乳腺癌术后内分泌治疗中，最近激素后血糖飙到11点多",
+        "speaker": "doctor"
+      },
+      {
+        "text": "先记进展：HbA1c 8.3%，空腹9.7，BP 162/94，PHQ-9 6分",
+        "speaker": "doctor"
+      },
+      {
+        "text": "等等，BP写错，不对，应该是152/94",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把“3月控糖宣教”这个任务标完成，然后导出她近3个月记录给肿瘤科会诊",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "激素相关高血糖",
+          "PHQ-9",
+          "HbA1c",
+          "会诊"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-026",
+    "title": "LLM-generated (codex) batch 3: ICU",
+    "source": "codex",
+    "batch": 2,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "list_tasks",
+      "complete_task"
+    ],
+    "clinical_domain": "ICU",
+    "chatlog": [
+      {
+        "text": "听写，急诊收一个男的，67岁，意识差，先建档。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "就这样记：DKA合并高血压危象，血糖33.4 mmol/L，酮体3+，pH 7.21，K 5.6，BP 186/108。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "医嘱也记上，普通胰岛素静滴0.1U/kg/h，0.9%NS首小时1000ml，然后每小时500ml。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把我待办里“复查血气”列出来，done那个“补液第二袋”。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "DKA",
+          "胰岛素静滴",
+          "血气",
+          "高血压危象"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-027",
+    "title": "LLM-generated (codex) batch 3: nephrology",
+    "source": "codex",
+    "batch": 2,
+    "intent_sequence": [
+      "query_records",
+      "update_patient",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "nephrology",
+    "chatlog": [
+      {
+        "text": "先查李某（女，72）去年肾内科糖肾病记录，再决定今天怎么改。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "查到后更新患者状态：门诊->日间病房，CKD G3b，eGFR 38 ml/min/1.73m2。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "新增病程：HbA1c 7.6%，空腹8.9，UACR 312 mg/g，BP 146/86；胰岛素预混30R 早18U晚14U。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "加一句更正：不对，早晨应为16U；并预约2周后复查肌酐、钾和尿白蛋白。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "CKD",
+          "eGFR",
+          "UACR",
+          "预混胰岛素"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-028",
+    "title": "LLM-generated (codex) batch 3: outpatient_chronic_disease",
+    "source": "codex",
+    "batch": 2,
+    "intent_sequence": [
+      "list_tasks",
+      "postpone_task",
+      "add_record",
+      "complete_task"
+    ],
+    "clinical_domain": "outpatient_chronic_disease",
+    "chatlog": [
+      {
+        "text": "先看今日待办清单：糖压共管随访有哪些未完成。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把“张阿姨3天后电话回访”延期到下周一。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "记录门诊随访：女60岁，HbA1c 8.1%，BP 150/92，NRS足痛3分，继续二甲双胍1g bid，加贝那普利10mg qd。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "“提醒自测血压7天”这个任务标记完成。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "HbA1c",
+          "NRS",
+          "贝那普利",
+          "随访任务"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-029",
+    "title": "LLM-generated (codex) batch 3: surgery",
+    "source": "codex",
+    "batch": 2,
+    "intent_sequence": [
+      "list_patients",
+      "query_records",
+      "add_record",
+      "cancel_task"
+    ],
+    "clinical_domain": "surgery",
+    "chatlog": [
+      {
+        "text": "名单里找孙师傅，先拉既往手术前评估",
+        "speaker": "doctor"
+      },
+      {
+        "text": "58M, 普外择期胆囊切除, T2DM 10y+HTN, last HbA1c 9.1%",
+        "speaker": "doctor"
+      },
+      {
+        "text": "加术前记录: FBG 13.2, K 4.3, BP 158/98, ASA III, 建议甘精22U qn+门冬按滑动",
+        "speaker": "doctor"
+      },
+      {
+        "text": "取消明天口服降糖药提醒任务，因NPO禁食改胰岛素方案",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "术前评估",
+          "NPO",
+          "ASA III",
+          "胰岛素滑动"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-030",
+    "title": "LLM-generated (codex) batch 3: psychiatry",
+    "source": "codex",
+    "batch": 2,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "update_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "psychiatry",
+    "chatlog": [
+      {
+        "text": "新建一个共病门诊档：赵某，女，34岁，先录入基本信息。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "today note: postpartum depression + obesity + newly found HTN, PHQ-9 15, HbA1c 6.9%, BP 142/96",
+        "speaker": "doctor"
+      },
+      {
+        "text": "先写治疗：sertraline 50mg qd，生活方式干预，暂不启用胰岛素；不对，补充二甲双胍0.5g qn。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把刚才记录更新成“哺乳期可用药已宣教”，并安排4周后复诊复测PHQ-9和血压血糖。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "PHQ-9",
+          "产后抑郁",
+          "HbA1c",
+          "高血压"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-031",
+    "title": "LLM-generated (codex) batch 4: hematology",
+    "source": "codex",
+    "batch": 3,
+    "intent_sequence": [
+      "create_patient",
+      "add_record"
+    ],
+    "clinical_domain": "hematology",
+    "chatlog": [
+      {
+        "text": "赵敏 女49 乳腺癌化疗后发热 建档",
+        "speaker": "doctor"
+      },
+      {
+        "text": "急诊留观 ANC 0.42×10^9/L Hb 86 PLT 58 CRP 76",
+        "speaker": "doctor"
+      },
+      {
+        "text": "加一条：入院记录，T 38.6℃，NRS 5，先用头孢哌酮舒巴坦3g q8h",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "ANC",
+          "发热性中性粒细胞减少",
+          "化疗后",
+          "入院记录",
+          "NRS"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-032",
+    "title": "LLM-generated (codex) batch 4: oncology",
+    "source": "codex",
+    "batch": 3,
+    "intent_sequence": [
+      "query_records",
+      "create_patient",
+      "add_record"
+    ],
+    "clinical_domain": "oncology",
+    "chatlog": [
+      {
+        "text": "62F 卵巢Ca术后第3疗程, 先查她既往CA125趋势",
+        "speaker": "doctor"
+      },
+      {
+        "text": "没找到本院旧记录，今天补建档：王X，门诊，KPS 70",
+        "speaker": "doctor"
+      },
+      {
+        "text": "progress note: 恶心CTCAE 2级, WBC 2.1, ANC 0.9, ALT 68, 给昂丹司琼8mg bid",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "CA125",
+          "KPS",
+          "CTCAE",
+          "ANC",
+          "昂丹司琼"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-033",
+    "title": "LLM-generated (codex) batch 4: hematology",
+    "source": "codex",
+    "batch": 3,
+    "intent_sequence": [
+      "list_tasks",
+      "complete_task",
+      "add_record"
+    ],
+    "clinical_domain": "hematology",
+    "chatlog": [
+      {
+        "text": "先看今天待办，17床化疗毒性随访那个",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把“复查血常规”任务先标完成，结果已回",
+        "speaker": "doctor"
+      },
+      {
+        "text": "记进病程：DLBCL化疗D+9，WBC 1.6，ANC 0.6，PLT 72，口腔黏膜炎2级，KPS 60",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "DLBCL",
+          "骨髓抑制",
+          "黏膜炎",
+          "KPS",
+          "病程记录"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-034",
+    "title": "LLM-generated (codex) batch 4: palliative care",
+    "source": "codex",
+    "batch": 3,
+    "intent_sequence": [
+      "list_patients",
+      "update_patient",
+      "add_record"
+    ],
+    "clinical_domain": "palliative care",
+    "chatlog": [
+      {
+        "text": "患者李某，男，71岁，肺腺癌IV期，今日门诊复评。请先调出名单定位该患者。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "将联系方式更新为家属电话13800001111，并补充“主要照护者为女儿”。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "新增门诊进展记录：ECOG 2，KPS 50，食欲下降，体重1月减3.2kg，CEA 48.7ng/mL，建议营养支持与止痛方案调整。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "肺腺癌",
+          "KPS",
+          "ECOG",
+          "CEA",
+          "营养支持"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-035",
+    "title": "LLM-generated (codex) batch 4: oncology",
+    "source": "codex",
+    "batch": 3,
+    "intent_sequence": [
+      "add_record",
+      "update_record",
+      "export_records"
+    ],
+    "clinical_domain": "oncology",
+    "chatlog": [
+      {
+        "text": "先记一条：结直肠癌FOLFOX后手麻脚麻，CTCAE周围神经毒性2级",
+        "speaker": "doctor"
+      },
+      {
+        "text": "等下，刚才写NRS 7不对，应该是NRS 4，夜间加重",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把那条记录改成“奥沙利铂减量20%建议”，然后导出本周毒副反应记录给MDT",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "FOLFOX",
+          "奥沙利铂",
+          "CTCAE",
+          "NRS",
+          "MDT"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-036",
+    "title": "LLM-generated (codex) batch 4: hematology",
+    "source": "codex",
+    "batch": 3,
+    "intent_sequence": [
+      "query_records",
+      "update_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "hematology",
+    "chatlog": [
+      {
+        "text": "就这样记，先翻上次病程，淋巴瘤那位25床",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把昨晚那条改一下：不是“无出血”，是“牙龈少量渗血”，PLT 18×10^9/L",
+        "speaker": "doctor"
+      },
+      {
+        "text": "再约一个3天后复诊随访，复查CBC、凝血、LDH；KPS 40也写上",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 0
+      },
+      "must_include_any_of": [
+        [
+          "血小板减少",
+          "CBC",
+          "LDH",
+          "KPS",
+          "随访"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-037",
+    "title": "LLM-generated (codex) batch 4: oncology",
+    "source": "codex",
+    "batch": 3,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "postpone_task"
+    ],
+    "clinical_domain": "oncology",
+    "chatlog": [
+      {
+        "text": "先建个新档：周阿姨，58岁，宫颈癌同步放化疗后乏力明显",
+        "speaker": "doctor"
+      },
+      {
+        "text": "补一条出院小结：Hb 74g/L，WBC 2.8，KPS 60，输注RBC 2U后症状缓解",
+        "speaker": "doctor"
+      },
+      {
+        "text": "复查任务先往后顺延3天，不对，顺延到下周二上午",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "宫颈癌",
+          "出院小结",
+          "Hb",
+          "输血",
+          "KPS"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-038",
+    "title": "LLM-generated (codex) batch 4: palliative care",
+    "source": "codex",
+    "batch": 3,
+    "intent_sequence": [
+      "list_tasks",
+      "cancel_task",
+      "add_record",
+      "export_records"
+    ],
+    "clinical_domain": "palliative care",
+    "chatlog": [
+      {
+        "text": "今天待办发我，尤其是安宁疗护病房镇痛评估",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把“凌晨2点再评NRS”那个任务取消，病人已连续睡眠6小时",
+        "speaker": "doctor"
+      },
+      {
+        "text": "新增记录：胰腺癌终末期，吗啡缓释片30mg q12h，爆发痛吗啡5mg prn，今日NRS 3，便秘已用乳果糖15mL bid",
+        "speaker": "doctor"
+      },
+      {
+        "text": "顺便导出本周镇痛记录给家属沟通",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "胰腺癌",
+          "镇痛",
+          "吗啡",
+          "NRS",
+          "安宁疗护"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-039",
+    "title": "LLM-generated (codex) batch 4: oncology",
+    "source": "codex",
+    "batch": 3,
+    "intent_sequence": [
+      "query_records",
+      "update_patient",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "oncology",
+    "chatlog": [
+      {
+        "text": "先查陈某上月肿瘤标志物，看看CA19-9有没有继续掉",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把患者信息改下：现在是日间化疗，不是住院；联系人改儿子",
+        "speaker": "doctor"
+      },
+      {
+        "text": "加个化疗后实验室更新：CA19-9 1260→980 U/mL，TBil 34 umol/L，AST 88，食欲差，KPS 50",
+        "speaker": "doctor"
+      },
+      {
+        "text": "安排5天后电话随访，重点问黄疸、体重、NRS",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "CA19-9",
+          "肿瘤标志物",
+          "KPS",
+          "肝功能",
+          "电话随访"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-040",
+    "title": "LLM-generated (codex) batch 4: hematology",
+    "source": "codex",
+    "batch": 3,
+    "intent_sequence": [
+      "list_patients",
+      "create_patient",
+      "add_record",
+      "export_records"
+    ],
+    "clinical_domain": "hematology",
+    "chatlog": [
+      {
+        "text": "名册里先找一下有没有“孙X”，没有就新建",
+        "speaker": "doctor"
+      },
+      {
+        "text": "新建患者：男，33岁，急诊转入，急性白血病诱导后D+12",
+        "speaker": "doctor"
+      },
+      {
+        "text": "补充病程：发热39.1℃，PCT 1.9ng/mL，ANC 0.2，PHQ-9 11分（焦虑抑郁倾向），先行美罗培南1g q8h",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把本次入院记录和化疗毒性摘要导出，发科内交班",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "急性白血病",
+          "ANC",
+          "PCT",
+          "PHQ-9",
+          "交班"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-041",
+    "title": "LLM-generated (codex) batch 5: pulmonology",
+    "source": "codex",
+    "batch": 4,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "pulmonology",
+    "chatlog": [
+      {
+        "text": "李明 男72 喘3天 建档",
+        "speaker": "doctor"
+      },
+      {
+        "text": "COPD急性加重 室气SpO2 86 FEV1预计38%",
+        "speaker": "doctor"
+      },
+      {
+        "text": "甲强龙40mg qd 异丙托溴铵0.5mg q6h 3天后复诊",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "COPD急性加重",
+          "SpO2",
+          "FEV1",
+          "甲强龙",
+          "复诊"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-042",
+    "title": "LLM-generated (codex) batch 5: emergency",
+    "source": "codex",
+    "batch": 4,
+    "intent_sequence": [
+      "query_records",
+      "add_record",
+      "update_patient"
+    ],
+    "clinical_domain": "emergency",
+    "chatlog": [
+      {
+        "text": "急诊刘医生：先查旧档，周某女45，胸闷突发2h。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "CTA示右下叶段动脉PE，D-dimer 4.2mg/L FEU，Wells 7分，sPESI 1分。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "先记治疗：依诺肝素1mg/kg q12h皮下；不对，体重58kg，改60mg q12h。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "补充患者资料：吸烟史0包年，口服避孕药3月，过敏史更新为无。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "PE",
+          "CTA",
+          "D-dimer",
+          "Wells",
+          "依诺肝素"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-043",
+    "title": "LLM-generated (codex) batch 5: respiratory_icu",
+    "source": "codex",
+    "batch": 4,
+    "intent_sequence": [
+      "list_tasks",
+      "complete_task",
+      "add_record"
+    ],
+    "clinical_domain": "respiratory_icu",
+    "chatlog": [
+      {
+        "text": "ICU夜班先看待办，9床复评氧合。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把“02:00复查血气”先标done。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "Now add note: 67M severe CAP, HFNC 50L/min, FiO2 0.60, SpO2 92%.",
+        "speaker": "doctor"
+      },
+      {
+        "text": "ABG: pH 7.32, PaCO2 55mmHg, PaO2 68mmHg, Lactate 1.9mmol/L.",
+        "speaker": "doctor"
+      },
+      {
+        "text": "抗感染 piperacillin/tazobactam 4.5g q8h + azithro 0.5g qd, CURB-65=3。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "HFNC",
+          "ABG",
+          "CAP",
+          "CURB-65",
+          "PaCO2"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-044",
+    "title": "LLM-generated (codex) batch 5: pulmonology",
+    "source": "codex",
+    "batch": 4,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "update_record"
+    ],
+    "clinical_domain": "pulmonology",
+    "chatlog": [
+      {
+        "text": "呼吸科门诊接诊：患者王某某，女，63岁，因“发热咳脓痰5天、气促1天”就诊，现予以建档。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "入院记录：T 38.7℃，RR 28次/分，BP 128/76mmHg，SpO2 89%（室气）；胸部CT提示右下叶实变，PCT 1.6ng/mL，CRP 126mg/L。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "初始医嘱记录：头孢曲松2g qd静滴，雾化布地奈德2mg bid，NRS胸痛3分。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "更正：患者青霉素皮试阳性，不对，上一条抗菌方案作废，改左氧氟沙星0.5g qd。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "社区获得性肺炎",
+          "PCT",
+          "CRP",
+          "SpO2",
+          "更正"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-045",
+    "title": "LLM-generated (codex) batch 5: emergency",
+    "source": "codex",
+    "batch": 4,
+    "intent_sequence": [
+      "query_records",
+      "create_patient",
+      "add_record"
+    ],
+    "clinical_domain": "emergency",
+    "chatlog": [
+      {
+        "text": "先别记新病人，我查下“陈立”有没有旧记录。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "没有，那就新建：男59岁，急诊，喘到说不完整句子。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "主诉先写COPD急性加重，可能感染诱发，体温37.9℃。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "等等，刚才说错了，血氧不是90%，是室气84%，上氧后92%。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "用药记上：甲泼尼龙40mg iv q12h，沙丁胺醇2.5mg+异丙托溴铵0.5mg雾化q6h。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "补一条：mMRC 4级，NRS 6分，今晚再评估是否转RICU。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "COPD急性加重",
+          "mMRC",
+          "甲泼尼龙",
+          "雾化",
+          "血氧"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-046",
+    "title": "LLM-generated (codex) batch 5: pulmonology",
+    "source": "codex",
+    "batch": 4,
+    "intent_sequence": [
+      "list_patients",
+      "create_patient",
+      "add_record",
+      "export_records"
+    ],
+    "clinical_domain": "pulmonology",
+    "chatlog": [
+      {
+        "text": "门诊我口述一下，先看患者列表里有没有孙桂兰，65岁，老慢支反复发作那个。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "没有就新建：孙桂兰，女，65岁，门诊复诊。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "记录：近2天黄痰增多、夜间气促，CAT 22分，FEV1/FVC 0.48，考虑AECOPD轻中度。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "就这样，阿莫西林克拉维酸875/125mg bid 5天，维持布地格福吸入。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把她近一年呼吸科记录导出pdf给家属。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "AECOPD",
+          "CAT",
+          "FEV1/FVC",
+          "阿莫西林克拉维酸",
+          "导出"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-047",
+    "title": "LLM-generated (codex) batch 5: pulmonology",
+    "source": "codex",
+    "batch": 4,
+    "intent_sequence": [
+      "query_records",
+      "add_record",
+      "schedule_follow_up",
+      "postpone_task"
+    ],
+    "clinical_domain": "pulmonology",
+    "chatlog": [
+      {
+        "text": "先给我看李某上次肺栓塞复查记录，再决定今天怎么写。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "补充进展：男70岁，利伐沙班20mg qn第14天，D-dimer从2.1降到0.62mg/L。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "安排2周后门诊随访，复查凝血功能和下肢静脉超声。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "原定明天的“电话随访”任务往后顺延3天，他周一才能接电话。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "肺栓塞",
+          "利伐沙班",
+          "D-dimer",
+          "随访",
+          "凝血"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-048",
+    "title": "LLM-generated (codex) batch 5: respiratory_icu",
+    "source": "codex",
+    "batch": 4,
+    "intent_sequence": [
+      "list_tasks",
+      "complete_task",
+      "update_record",
+      "add_record"
+    ],
+    "clinical_domain": "respiratory_icu",
+    "chatlog": [
+      {
+        "text": "先过待办：把“12床HFNC参数复核”调出来。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "这条我已完成，标记done。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "再改一下旧病程：FiO2不是0.45，应该0.55。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "新增记录：12床女81岁，吸入性肺炎，HFNC 45L/min，FiO2 0.55，SpO2 94%。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "qSOFA 2分，今晨尿量0.4ml/kg/h，继续严密观察。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "HFNC",
+          "FiO2",
+          "吸入性肺炎",
+          "qSOFA",
+          "尿量"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-049",
+    "title": "LLM-generated (codex) batch 5: surgery",
+    "source": "codex",
+    "batch": 4,
+    "intent_sequence": [
+      "list_tasks",
+      "cancel_task",
+      "add_record"
+    ],
+    "clinical_domain": "surgery",
+    "chatlog": [
+      {
+        "text": "外科会诊 先看待办",
+        "speaker": "doctor"
+      },
+      {
+        "text": "取消15床今日出院任务 术后肺炎未稳",
+        "speaker": "doctor"
+      },
+      {
+        "text": "补记病程 男54 WBC 15.2×10^9/L CRP 98mg/L 美罗培南1g q8h NRS4",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "术后肺炎",
+          "WBC",
+          "CRP",
+          "美罗培南",
+          "NRS"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-050",
+    "title": "LLM-generated (codex) batch 5: respiratory_icu",
+    "source": "codex",
+    "batch": 4,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "update_patient",
+      "export_records"
+    ],
+    "clinical_domain": "respiratory_icu",
+    "chatlog": [
+      {
+        "text": "神经急诊转来一个重症肺炎并意识模糊，先新建患者：周阿婆，女，88岁。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "入科记录：RR 30次/分，BP 96/54mmHg，SpO2 88%(RA)，GCS 13分，考虑肺炎合并脓毒症风险。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "先上HFNC 60L/min, FiO2 0.70；抗菌先用头孢哌酮舒巴坦3g q8h。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "补充基本信息：既往慢性肾病3期，不对，eGFR 42ml/min/1.73m2，药物剂量需按肾功能评估。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把本次急诊到RICU交接记录导出一份给质控。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "重症肺炎",
+          "HFNC",
+          "GCS",
+          "eGFR",
+          "脓毒症风险"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-051",
+    "title": "LLM-generated (codex) batch 6: general surgery",
+    "source": "codex",
+    "batch": 5,
+    "intent_sequence": [
+      "create_patient",
+      "add_record"
+    ],
+    "clinical_domain": "general surgery",
+    "chatlog": [
+      {
+        "text": "赵海燕 女34 阑尾术后D2 建档",
+        "speaker": "doctor"
+      },
+      {
+        "text": "急诊入院 伤口干 引流18ml NRS4",
+        "speaker": "doctor"
+      },
+      {
+        "text": "补记 头孢呋辛1.5g q8h 体温37.8",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "阑尾切除",
+          "引流量",
+          "NRS",
+          "头孢呋辛"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-052",
+    "title": "LLM-generated (codex) batch 6: orthopedics",
+    "source": "codex",
+    "batch": 5,
+    "intent_sequence": [
+      "query_records",
+      "add_record"
+    ],
+    "clinical_domain": "orthopedics",
+    "chatlog": [
+      {
+        "text": "先查王建国记录，65M 髋关节置换POD3",
+        "speaker": "doctor"
+      },
+      {
+        "text": "昨夜引流120ml serosang, Hb 98 g/L, NRS7",
+        "speaker": "doctor"
+      },
+      {
+        "text": "不对，NRS应为6，吗啡2mg iv prn已用2次",
+        "speaker": "doctor"
+      },
+      {
+        "text": "新增进展：踝泵训练每2h一次，可下床助行器5米",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "髋关节置换",
+          "Hb",
+          "NRS",
+          "康复训练"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-053",
+    "title": "LLM-generated (codex) batch 6: urology",
+    "source": "codex",
+    "batch": 5,
+    "intent_sequence": [
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "urology",
+    "chatlog": [
+      {
+        "text": "李阿姨先记一下：F72，TURBT术后第1天，尿管在位",
+        "speaker": "doctor"
+      },
+      {
+        "text": "Urine output 1450 ml/24h, 尿色淡红, pain NRS3, Cr 96 umol/L",
+        "speaker": "doctor"
+      },
+      {
+        "text": "安排 follow-up：术后7天门诊换药+病理回看，若肉眼血尿加重提前来",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "TURBT",
+          "尿量",
+          "Cr",
+          "随访"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-054",
+    "title": "LLM-generated (codex) batch 6: post-anesthesia",
+    "source": "codex",
+    "batch": 5,
+    "intent_sequence": [
+      "list_tasks",
+      "complete_task",
+      "add_record"
+    ],
+    "clinical_domain": "post-anesthesia",
+    "chatlog": [
+      {
+        "text": "麻醉恢复室这位陈某某，男，58岁，结肠癌根治术后6小时，请先把我的待办调出来。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把“30分钟评估PONV”任务标记完成，评分目前为1分，无呕吐，仅轻度恶心。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "新增病程记录：RASS 0分，SpO2 97%（鼻导管2 L/min），血压118/72 mmHg。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "补充：切口敷料清洁干燥，腹腔引流45 ml/6h，NRS静息2分、活动5分。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "PONV",
+          "RASS",
+          "SpO2",
+          "腹腔引流"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-055",
+    "title": "LLM-generated (codex) batch 6: neurosurgery",
+    "source": "codex",
+    "batch": 5,
+    "intent_sequence": [
+      "list_patients",
+      "update_patient",
+      "add_record"
+    ],
+    "clinical_domain": "neurosurgery",
+    "chatlog": [
+      {
+        "text": "哎先看下我名下患者列表，找刘婷，女29，开颅血肿清除术后D4",
+        "speaker": "doctor"
+      },
+      {
+        "text": "找到了就把她状态改成住院康复阶段，今天开始床边坐起训练",
+        "speaker": "doctor"
+      },
+      {
+        "text": "记录一下：GCS 14，NIHSS 6，切口边缘有点红",
+        "speaker": "doctor"
+      },
+      {
+        "text": "等下，刚才说错了，不是渗液多，是少量浆液样约5ml/班",
+        "speaker": "doctor"
+      },
+      {
+        "text": "镇痛改曲马多50mg po q8h，NRS从7降到4",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "开颅术后",
+          "GCS",
+          "NIHSS",
+          "曲马多"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-056",
+    "title": "LLM-generated (codex) batch 6: thoracic surgery",
+    "source": "codex",
+    "batch": 5,
+    "intent_sequence": [
+      "query_records",
+      "update_record",
+      "add_record"
+    ],
+    "clinical_domain": "thoracic surgery",
+    "chatlog": [
+      {
+        "text": "听写：先调周师傅既往记录，男67，肺叶切除术后第二天",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把昨晚那条改一下，胸腔引流不是260，是206 ml，颜色淡血性，就这样",
+        "speaker": "doctor"
+      },
+      {
+        "text": "再记新进展，呼吸频率22次，SpO2 95% 室空气，咳痰可",
+        "speaker": "doctor"
+      },
+      {
+        "text": "加一句，布洛芬缓释0.3g bid后NRS 5到3，今天步行80米",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "肺叶切除",
+          "胸腔引流",
+          "SpO2",
+          "布洛芬"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-057",
+    "title": "LLM-generated (codex) batch 6: oncology surgery",
+    "source": "codex",
+    "batch": 5,
+    "intent_sequence": [
+      "query_records",
+      "export_records",
+      "add_record"
+    ],
+    "clinical_domain": "oncology surgery",
+    "chatlog": [
+      {
+        "text": "先别新建，先查孙女士乳腺癌改良根治术后记录",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把近72小时伤口+引流数据导出给MDT，CSV就行",
+        "speaker": "doctor"
+      },
+      {
+        "text": "然后补一条：POD5，引流由65降到28 ml/24h，体温36.9，WBC 7.2x10^9/L",
+        "speaker": "doctor"
+      },
+      {
+        "text": "附注：右上肢抬高训练每日3组，每组15次，NRS活动痛4",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "乳腺癌术后",
+          "MDT",
+          "WBC",
+          "功能锻炼"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-058",
+    "title": "LLM-generated (codex) batch 6: hepatobiliary surgery",
+    "source": "codex",
+    "batch": 5,
+    "intent_sequence": [
+      "list_tasks",
+      "postpone_task",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "hepatobiliary surgery",
+    "chatlog": [
+      {
+        "text": "今日待办先过一遍：赵叔，男61，胆囊切除+胆总管探查术后D3",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把“下午拔管评估”延后到明早8点，今晨引流还有52 ml",
+        "speaker": "doctor"
+      },
+      {
+        "text": "病程补录：TBil 34 umol/L，ALT 86 U/L，伤口无红肿，NRS 3",
+        "speaker": "doctor"
+      },
+      {
+        "text": "顺便约复诊：出院后第5天门诊复查肝功和换药",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "胆囊切除",
+          "TBil",
+          "ALT",
+          "拔管评估"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-059",
+    "title": "LLM-generated (codex) batch 6: colorectal surgery",
+    "source": "codex",
+    "batch": 5,
+    "intent_sequence": [
+      "list_tasks",
+      "cancel_task",
+      "add_record"
+    ],
+    "clinical_domain": "colorectal surgery",
+    "chatlog": [
+      {
+        "text": "小李这个直肠癌Miles术后患者，先看任务清单",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把“今晚再留置尿管”任务取消，已自主排尿420 ml，无潴留",
+        "speaker": "doctor"
+      },
+      {
+        "text": "新增记录：会阴切口干燥，盆腔引流12 ml/24h，PHQ-9 4分，NRS 2",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "Miles术",
+          "盆腔引流",
+          "PHQ-9",
+          "排尿"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-060",
+    "title": "LLM-generated (codex) batch 6: hand surgery",
+    "source": "codex",
+    "batch": 5,
+    "intent_sequence": [
+      "list_patients",
+      "create_patient",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "hand surgery",
+    "chatlog": [
+      {
+        "text": "门诊这会儿先拉一下患者列表，我要加个新术后随访",
+        "speaker": "doctor"
+      },
+      {
+        "text": "新建：林某，女24，昨晚急诊行前臂肌腱吻合术，现门诊换药",
+        "speaker": "doctor"
+      },
+      {
+        "text": "记录：切口长约6 cm，对合可，渗血阴性，手指末梢毛细血管再充盈<2秒",
+        "speaker": "doctor"
+      },
+      {
+        "text": "不对，疼痛分刚问是NRS 5，不是4；口服对乙酰氨基酚0.5g q6h prn",
+        "speaker": "doctor"
+      },
+      {
+        "text": "安排7天后复诊拆线评估ROM，若麻木加重提前返院",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "肌腱吻合",
+          "换药",
+          "NRS",
+          "ROM"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-061",
+    "title": "LLM-generated (codex) batch 7: ICU sepsis",
+    "source": "codex",
+    "batch": 6,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "ICU sepsis",
+    "chatlog": [
+      {
+        "text": "新收 赵建国 67男",
+        "speaker": "doctor"
+      },
+      {
+        "text": "高热低压 急诊转入 建档",
+        "speaker": "doctor"
+      },
+      {
+        "text": "PCT18 乳酸4.9 去甲0.22",
+        "speaker": "doctor"
+      },
+      {
+        "text": "VC 420 FiO2 60",
+        "speaker": "doctor"
+      },
+      {
+        "text": "6h集束完成 明早复评",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "PCT",
+          "乳酸",
+          "去甲肾上腺素",
+          "6h集束",
+          "呼吸机"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-062",
+    "title": "LLM-generated (codex) batch 7: critical care",
+    "source": "codex",
+    "batch": 6,
+    "intent_sequence": [
+      "query_records",
+      "add_record",
+      "update_record"
+    ],
+    "clinical_domain": "critical care",
+    "chatlog": [
+      {
+        "text": "先查刘阿姨既往ICU记录，72F，COPD+DM。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "补今晨进展：T39.1, MAP58, Lactate 5.6, PCT 26, qSOFA 3, NE 0.30 μg/kg/min已上。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "机械通气A/C-VC: VT 380, PEEP 10, FiO2 0.7；尿量0.3 ml/kg/h。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "更正下，NE不是0.30，是0.24；20:00乳酸复测4.2，记录更新。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "qSOFA",
+          "PCT",
+          "Lactate",
+          "NE",
+          "A/C-VC"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-063",
+    "title": "LLM-generated (codex) batch 7: sepsis management",
+    "source": "codex",
+    "batch": 6,
+    "intent_sequence": [
+      "list_tasks",
+      "complete_task",
+      "add_record"
+    ],
+    "clinical_domain": "sepsis management",
+    "chatlog": [
+      {
+        "text": "先看我今天Sepsis待办清单。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把“14:00重测乳酸”标记完成，结果3.1 mmol/L。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "新增病程：女56岁，胆源性感染入ICU第2天，PCT 9.4降到7.8，NE 0.12维持MAP 68。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "补一句，NRS 3分，镇痛芬太尼25 μg/h持续泵入。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "PCT",
+          "乳酸",
+          "NE",
+          "MAP",
+          "NRS"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-064",
+    "title": "LLM-generated (codex) batch 7: ICU obstetric sepsis",
+    "source": "codex",
+    "batch": 6,
+    "intent_sequence": [
+      "list_patients",
+      "create_patient",
+      "add_record",
+      "update_patient"
+    ],
+    "clinical_domain": "ICU obstetric sepsis",
+    "chatlog": [
+      {
+        "text": "请先列出我名下目前ICU在院患者，我要确认床位后再录入新入科病例。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "现新增患者：陈某某，女，44岁，产后第5天，因高热伴意识淡漠由急诊转入，初步考虑脓毒症相关脑病，请创建档案。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "入院记录：体温39.4℃，血压86/52 mmHg，HR 128次/分，乳酸6.2 mmol/L，PCT 32 ng/mL，SOFA 11分；已于17:20完成血培养、广谱抗菌药首剂（美罗培南1 g q8h）、液体复苏30 mL/kg，并启动去甲肾上腺素0.18 μg/kg/min。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "更新患者信息：过敏史补充为青霉素皮疹；当前通气模式为PCV，FiO2 50%，PEEP 8 cmH2O。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "SOFA",
+          "PCT",
+          "乳酸",
+          "美罗培南",
+          "PCV"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-065",
+    "title": "LLM-generated (codex) batch 7: respiratory ICU",
+    "source": "codex",
+    "batch": 6,
+    "intent_sequence": [
+      "add_record",
+      "postpone_task",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "respiratory ICU",
+    "chatlog": [
+      {
+        "text": "王叔这个床先记一下，脓毒症肺源性，今天第3天。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "刚抽的乳酸2.7，哎不对我看错了，是3.7 mmol/L，PCT 4.6。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "原定16:00撤NE评估先延期到20:00，他现在NE还要0.10 μg/kg/min才稳。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "再约个随访任务，明早06:00复查乳酸+ABG，顺便看能不能把FiO2从45%降到40%。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "肺源性脓毒症",
+          "乳酸",
+          "PCT",
+          "NE",
+          "ABG"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-066",
+    "title": "LLM-generated (codex) batch 7: nephrology critical care",
+    "source": "codex",
+    "batch": 6,
+    "intent_sequence": [
+      "query_records",
+      "update_patient",
+      "add_record"
+    ],
+    "clinical_domain": "nephrology critical care",
+    "chatlog": [
+      {
+        "text": "先把床12李女士过去48小时记录调出来，我再下结论。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "确认后更新患者资料：58岁，基础病加上CKD4期，体重从62改60 kg用于液体平衡计算。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "新增今日记录：CRRT持续中，超滤100 mL/h；PCT 12.3→10.1，乳酸1.9，NE已降至0.06 μg/kg/min，MAP 72。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "补充：机械通气改PSV，压力支持10，PEEP 6，SpO2 96%。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "CKD",
+          "CRRT",
+          "PCT",
+          "乳酸",
+          "PSV"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-067",
+    "title": "LLM-generated (codex) batch 7: ICU septic shock",
+    "source": "codex",
+    "batch": 6,
+    "intent_sequence": [
+      "list_tasks",
+      "cancel_task",
+      "add_record",
+      "export_records"
+    ],
+    "clinical_domain": "ICU septic shock",
+    "chatlog": [
+      {
+        "text": "Morning round前先拉一下我的tasks list。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把“17:00 repeat blood culture”取消，already drew at 15:40。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "写一条progress note：68M septic shock, source likely urinary, PCT 15.7, lactate 4.8 to 3.9 after 1.5L crystalloid, vasopressin 0.03 U/min + NE 0.14 μg/kg/min。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "Vent setting同步：VC, VT 450, RR 20, PEEP 8, FiO2 55%, PaO2/FiO2=170。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把这个患者近72小时记录导出，我要发给会诊组。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "vasopressin",
+          "NE",
+          "lactate",
+          "PCT",
+          "PaO2/FiO2"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-068",
+    "title": "LLM-generated (codex) batch 7: oncology critical care",
+    "source": "codex",
+    "batch": 6,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "update_record",
+      "export_records"
+    ],
+    "clinical_domain": "oncology critical care",
+    "chatlog": [
+      {
+        "text": "口述录入，新病人，孙某，男，79岁，肿瘤化疗后粒缺合并脓毒症，先建档。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "就这样记：入科时GCS 12分，体温38.8，MAP 54，乳酸5.1，PCT 41，先液体复苏后NE 0.26 μg/kg/min。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "再记通气，A/C，潮气量400，PEEP 10，FiO2 0.6，气道压28。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "刚才那条改一下，NE峰值不是0.26，是0.22；抗菌药是哌拉西林他唑巴坦4.5 g q6h。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把今天全部病程导出PDF，给肿瘤科和家属沟通用。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "粒缺",
+          "PCT",
+          "乳酸",
+          "A/C",
+          "哌拉西林他唑巴坦"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-069",
+    "title": "LLM-generated (codex) batch 7: neurocritical care",
+    "source": "codex",
+    "batch": 6,
+    "intent_sequence": [
+      "list_patients",
+      "query_records",
+      "add_record"
+    ],
+    "clinical_domain": "neurocritical care",
+    "chatlog": [
+      {
+        "text": "夜班交接前先给我列一下神经重症在院名单。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "再查床5周某既往记录，昨天说乳酸回落我想确认时间点。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "补新记录：男46岁，脑出血术后并发肺部感染，今晨PCT 3.2升到6.9，乳酸2.4，体温38.5。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "目前NE 0.08维持，RASS -2，芬太尼50 μg/h，呼吸机SIMV，FiO2 40%，PEEP 5。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "脑出血术后",
+          "PCT",
+          "乳酸",
+          "RASS",
+          "SIMV"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-070",
+    "title": "LLM-generated (codex) batch 7: surgical ICU",
+    "source": "codex",
+    "batch": 6,
+    "intent_sequence": [
+      "add_record",
+      "update_record",
+      "postpone_task"
+    ],
+    "clinical_domain": "surgical ICU",
+    "chatlog": [
+      {
+        "text": "SICU这位阑尾穿孔的年轻患者我先补一条。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "27F，术后第1天突发寒战高热，PCT 8.8，乳酸3.3，NRS 6，去甲暂用0.05 μg/kg/min。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "不对，NRS不是6，是4；镇痛方案改成舒芬太尼0.03 μg/kg/h持续泵。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "原计划18:00拔管评估先推迟到明早09:00，FiO2现在还要50%。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "术后脓毒症",
+          "PCT",
+          "乳酸",
+          "NRS",
+          "去甲肾上腺素"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-071",
+    "title": "LLM-generated (codex) batch 8: nephrology",
+    "source": "codex",
+    "batch": 7,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "nephrology",
+    "chatlog": [
+      {
+        "text": "新号 赵建国 67男",
+        "speaker": "doctor"
+      },
+      {
+        "text": "CKD4 糖肾 Cr 312 eGFR 18",
+        "speaker": "doctor"
+      },
+      {
+        "text": "门诊 乏力 1周 EPO 10000u qw 记进展 下周复查K",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "CKD4",
+          "Cr 312",
+          "eGFR 18",
+          "EPO",
+          "门诊"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-072",
+    "title": "LLM-generated (codex) batch 8: dialysis_unit",
+    "source": "codex",
+    "batch": 7,
+    "intent_sequence": [
+      "query_records",
+      "add_record",
+      "update_record"
+    ],
+    "clinical_domain": "dialysis_unit",
+    "chatlog": [
+      {
+        "text": "查刘阿姨既往透析记录，72F ESRD, HD tiw",
+        "speaker": "doctor"
+      },
+      {
+        "text": "今日透前K 6.1 mmol/L, HCO3- 17, BP 168/96, NRS4",
+        "speaker": "doctor"
+      },
+      {
+        "text": "先加一条：急诊加做2h低钾透析，Ca gluconate 10% 10ml iv",
+        "speaker": "doctor"
+      },
+      {
+        "text": "更正：K复测5.8，不是6.1；把上一条化验值改掉",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "ESRD",
+          "HD",
+          "K 5.8",
+          "HCO3- 17",
+          "急诊"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-073",
+    "title": "LLM-generated (codex) batch 8: nephrology_ward",
+    "source": "codex",
+    "batch": 7,
+    "intent_sequence": [
+      "list_tasks",
+      "complete_task",
+      "add_record"
+    ],
+    "clinical_domain": "nephrology_ward",
+    "chatlog": [
+      {
+        "text": "先看我今天肾内待办清单",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把“王某导管口红肿复评”标记完成",
+        "speaker": "doctor"
+      },
+      {
+        "text": "补病程：住院D5，Cr 486→452 umol/L，尿量1450 ml/24h，体重-0.8kg",
+        "speaker": "doctor"
+      },
+      {
+        "text": "再记一句，磷1.92 mmol/L，司维拉姆0.8g tid继续",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "住院D5",
+          "Cr",
+          "尿量",
+          "磷",
+          "司维拉姆"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-074",
+    "title": "LLM-generated (codex) batch 8: icu_nephrology",
+    "source": "codex",
+    "batch": 7,
+    "intent_sequence": [
+      "list_patients",
+      "create_patient",
+      "add_record"
+    ],
+    "clinical_domain": "icu_nephrology",
+    "chatlog": [
+      {
+        "text": "名单里有没新来的急诊AKI? 我先过一眼",
+        "speaker": "doctor"
+      },
+      {
+        "text": "建档：Chen XX, 29F, postpartum day 6, oliguria 400ml/24h",
+        "speaker": "doctor"
+      },
+      {
+        "text": "Add note: BP 146/92, Cr 221, eGFR 28, UACR 680 mg/g, consider preeclampsia-related kidney injury",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "AKI",
+          "postpartum",
+          "oliguria",
+          "UACR 680",
+          "急诊"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-075",
+    "title": "LLM-generated (codex) batch 8: transplant_clinic",
+    "source": "codex",
+    "batch": 7,
+    "intent_sequence": [
+      "query_records",
+      "update_patient",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "transplant_clinic",
+    "chatlog": [
+      {
+        "text": "患者周某，男，54岁，肾移植术后第38天，拟行门诊随访。请先调取其近两周病历与化验。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "另将联系方式更新为138****7712，居住地改为苏州工业园区。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "本次记录：Scr 176 umol/L，eGFR 41 ml/min/1.73m2，Tacrolimus trough 5.2 ng/ml，尿蛋白阴性。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "补充更正：不是阴性，应为尿蛋白1+，请在同条记录内修订。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "安排7天后复诊，复查Scr、Tac trough、K、Mg。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "肾移植",
+          "Tacrolimus",
+          "Scr 176",
+          "尿蛋白1+",
+          "随访"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-076",
+    "title": "LLM-generated (codex) batch 8: dialysis_unit",
+    "source": "codex",
+    "batch": 7,
+    "intent_sequence": [
+      "list_tasks",
+      "postpone_task",
+      "add_record",
+      "export_records"
+    ],
+    "clinical_domain": "dialysis_unit",
+    "chatlog": [
+      {
+        "text": "我先看下今天透析室未完成任务哈",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把“李叔下周一营养宣教”往后顺延3天",
+        "speaker": "doctor"
+      },
+      {
+        "text": "然后记病程：65M，维持透析，透后BP 98/62，有点头晕",
+        "speaker": "doctor"
+      },
+      {
+        "text": "等等刚才说反了，是透前98/62，透后112/70",
+        "speaker": "doctor"
+      },
+      {
+        "text": "药就先不加，干体重下调0.3kg，EPO 4000u iv qHD",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把这个病例今天导出给质控，按姓名+日期",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "维持透析",
+          "低血压",
+          "干体重",
+          "EPO 4000u",
+          "质控"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-077",
+    "title": "LLM-generated (codex) batch 8: icu",
+    "source": "codex",
+    "batch": 7,
+    "intent_sequence": [
+      "query_records",
+      "cancel_task",
+      "add_record"
+    ],
+    "clinical_domain": "icu",
+    "chatlog": [
+      {
+        "text": "先查张某历史记录，尤其上次高钾处理单",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把“明早复测电解质”的任务取消，病人今晚已转ICU连续CRRT",
+        "speaker": "doctor"
+      },
+      {
+        "text": "新增记录：急诊入院，CKD5基础上感染性休克，K 6.7，乳酸4.9，已予CRRT+去甲肾上腺素0.12 ug/kg/min",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "CKD5",
+          "高钾",
+          "CRRT",
+          "感染性休克",
+          "去甲肾上腺素"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-078",
+    "title": "LLM-generated (codex) batch 8: nephrology",
+    "source": "codex",
+    "batch": 7,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "update_patient"
+    ],
+    "clinical_domain": "nephrology",
+    "chatlog": [
+      {
+        "text": "口述一下，建个新病人，孙阿姨，61岁，女，慢性肾病门诊复诊",
+        "speaker": "doctor"
+      },
+      {
+        "text": "就这样记：近3个月乏力、夜尿3次，Cr 268，eGFR 19，Hb 89，TSAT 18%",
+        "speaker": "doctor"
+      },
+      {
+        "text": "再加一句，达依泊汀40ug皮下注每2周一次，口服碳酸氢钠0.5g tid",
+        "speaker": "doctor"
+      },
+      {
+        "text": "联系方式也改下，家属电话139****2048",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "CKD",
+          "eGFR 19",
+          "Hb 89",
+          "达依泊汀",
+          "夜尿"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-079",
+    "title": "LLM-generated (codex) batch 8: glomerular_disease_clinic",
+    "source": "codex",
+    "batch": 7,
+    "intent_sequence": [
+      "list_patients",
+      "query_records",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "glomerular_disease_clinic",
+    "chatlog": [
+      {
+        "text": "我这边先看一下门诊患者列表，有没有王某某",
+        "speaker": "doctor"
+      },
+      {
+        "text": "再拉他的既往记录，重点看ACEI停药时间",
+        "speaker": "doctor"
+      },
+      {
+        "text": "今天补进展：42M，IgA肾病，UACR 1240→910 mg/g，Cr 156，BP 128/78，洛沙坦50mg qd继续",
+        "speaker": "doctor"
+      },
+      {
+        "text": "安排4周后复查尿蛋白、Scr、K，并评估是否加SGLT2i",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "IgA肾病",
+          "UACR",
+          "洛沙坦",
+          "SGLT2i",
+          "复查"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-080",
+    "title": "LLM-generated (codex) batch 8: nephrology_rheumatology",
+    "source": "codex",
+    "batch": 7,
+    "intent_sequence": [
+      "query_records",
+      "add_record",
+      "export_records"
+    ],
+    "clinical_domain": "nephrology_rheumatology",
+    "chatlog": [
+      {
+        "text": "请调取赵某，女，33岁，系统性红斑狼疮相关肾炎的全部住院记录。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "新增出院小结补充：本次住院14天，Scr 132降至104 umol/L，24h尿蛋白2.6g降至1.4g。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "治疗方案记录为：甲泼尼龙40mg qd后改泼尼松30mg qd，吗替麦考酚酯0.75g bid。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "附注：PHQ-9评分11分，已会诊身心科并宣教睡眠管理。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "请导出该患者本次住院全部医疗记录用于病案归档。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "狼疮肾炎",
+          "出院小结",
+          "24h尿蛋白",
+          "甲泼尼龙",
+          "PHQ-9"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-081",
+    "title": "LLM-generated (codex) batch 9: outpatient_mental_health",
+    "source": "codex",
+    "batch": 8,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "outpatient_mental_health",
+    "chatlog": [
+      {
+        "text": "赵敏 女29 初诊 建档",
+        "speaker": "doctor"
+      },
+      {
+        "text": "PHQ-9 17 GAD-7 15 失眠3周 食欲差 NRS焦虑7",
+        "speaker": "doctor"
+      },
+      {
+        "text": "舍曲林25mg qd×3天后50mg qd 复评2周",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "PHQ-9",
+          "GAD-7",
+          "舍曲林",
+          "失眠",
+          "复评"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-082",
+    "title": "LLM-generated (codex) batch 9: psychiatry",
+    "source": "codex",
+    "batch": 8,
+    "intent_sequence": [
+      "query_records",
+      "update_patient",
+      "add_record"
+    ],
+    "clinical_domain": "psychiatry",
+    "chatlog": [
+      {
+        "text": "62F 抑郁复诊, 先查既往记录",
+        "speaker": "doctor"
+      },
+      {
+        "text": "既往escitalopram 10mg qn 6周, PHQ-9 from 19->11, 近1周晨醒提前",
+        "speaker": "doctor"
+      },
+      {
+        "text": "更新资料：体重54kg，不对，应该53.4kg；加今日进展：GAD-7 9，计划维持10mg再2周",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "PHQ-9",
+          "GAD-7",
+          "艾司西酞普兰",
+          "复诊",
+          "体重"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-083",
+    "title": "LLM-generated (codex) batch 9: consult_liaison_psychiatry",
+    "source": "codex",
+    "batch": 8,
+    "intent_sequence": [
+      "add_record",
+      "export_records"
+    ],
+    "clinical_domain": "consult_liaison_psychiatry",
+    "chatlog": [
+      {
+        "text": "先记一下：病房会诊，躁狂发作第4天，YMRS 31，睡眠<2h",
+        "speaker": "doctor"
+      },
+      {
+        "text": "lithium carbonate 0.3g bid + quetiapine 100mg qn，今晨血锂0.62 mmol/L，手抖轻度",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把这周进展导出给家属沟通，隐去身份证号",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "YMRS",
+          "碳酸锂",
+          "喹硫平",
+          "血锂",
+          "躁狂"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-084",
+    "title": "LLM-generated (codex) batch 9: psychiatry_inpatient",
+    "source": "codex",
+    "batch": 8,
+    "intent_sequence": [
+      "list_tasks",
+      "complete_task",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "psychiatry_inpatient",
+    "chatlog": [
+      {
+        "text": "患者王某，男，45岁，急诊后转入精神科观察，请先查看我未完成事项。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "将“补录入院病程”标记完成。入院记录如下：患者近2月情绪低落、兴趣减退、早醒，PHQ-9评分21分，GAD-7评分13分，无明确自杀计划但反复消极意念。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "治疗方面已启动文拉法辛37.5mg qd，第4天拟增至75mg qd；今日血压118/76 mmHg，HR 82次/分。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "请安排7天后门诊随访，重点复测PHQ-9与自杀风险分层。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "入院记录",
+          "PHQ-9",
+          "GAD-7",
+          "文拉法辛",
+          "随访"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-085",
+    "title": "LLM-generated (codex) batch 9: psychology",
+    "source": "codex",
+    "batch": 8,
+    "intent_sequence": [
+      "list_patients",
+      "create_patient",
+      "add_record"
+    ],
+    "clinical_domain": "psychology",
+    "chatlog": [
+      {
+        "text": "门诊这会儿人多，先看下我名下患者列表",
+        "speaker": "doctor"
+      },
+      {
+        "text": "等下，新来的李阿姨要建档，女67，丧偶后半年反复心慌失眠",
+        "speaker": "doctor"
+      },
+      {
+        "text": "补一条首诊心理评估：PHQ-9 14，GAD-7 16，MoCA 25/30，先做睡眠卫生教育+米氮平7.5mg qn",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "首诊",
+          "PHQ-9",
+          "GAD-7",
+          "MoCA",
+          "米氮平"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-086",
+    "title": "LLM-generated (codex) batch 9: outpatient_psychology",
+    "source": "codex",
+    "batch": 8,
+    "intent_sequence": [
+      "query_records",
+      "update_record",
+      "add_record"
+    ],
+    "clinical_domain": "outpatient_psychology",
+    "chatlog": [
+      {
+        "text": "语音记录：男，33岁，复工后焦虑，今天门诊复查。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把上次病程里“PHQ-9 6分”改成8分，刚核对量表原件了。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "再加今天进展：GAD-7 12，心率96次/分，普萘洛尔10mg prn，继续CBT每周1次。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "更正",
+          "PHQ-9",
+          "GAD-7",
+          "CBT",
+          "普萘洛尔"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-087",
+    "title": "LLM-generated (codex) batch 9: psychiatry",
+    "source": "codex",
+    "batch": 8,
+    "intent_sequence": [
+      "query_records",
+      "create_patient",
+      "add_record",
+      "postpone_task"
+    ],
+    "clinical_domain": "psychiatry",
+    "chatlog": [
+      {
+        "text": "先查下有没有陈某的历史病历，女24，昨晚急诊来过",
+        "speaker": "doctor"
+      },
+      {
+        "text": "没有就新建：双相障碍I型，当前轻躁狂，YMRS 18，睡眠4小时",
+        "speaker": "doctor"
+      },
+      {
+        "text": "加记录：丙戊酸钠缓释片500mg qn起始，3天后500mg bid；不对，备孕计划已否认，再补充在社会史",
+        "speaker": "doctor"
+      },
+      {
+        "text": "原定3天复诊先顺延到5天后，家属说明天外地出差",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "双相障碍",
+          "YMRS",
+          "丙戊酸钠",
+          "社会史",
+          "复诊顺延"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-088",
+    "title": "LLM-generated (codex) batch 9: addiction_psychiatry",
+    "source": "codex",
+    "batch": 8,
+    "intent_sequence": [
+      "list_tasks",
+      "cancel_task",
+      "add_record"
+    ],
+    "clinical_domain": "addiction_psychiatry",
+    "chatlog": [
+      {
+        "text": "先把待办拉出来，我按条处理",
+        "speaker": "doctor"
+      },
+      {
+        "text": "“周三心理团体随访”这个任务取消，患者已转外院",
+        "speaker": "doctor"
+      },
+      {
+        "text": "然后补病程：男52，酒精使用障碍合并抑郁，PHQ-9 16，CIWA-Ar 9，纳曲酮25mg qd 3天后50mg qd",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "待办",
+          "取消任务",
+          "PHQ-9",
+          "CIWA-Ar",
+          "纳曲酮"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-089",
+    "title": "LLM-generated (codex) batch 9: perinatal_mental_health",
+    "source": "codex",
+    "batch": 8,
+    "intent_sequence": [
+      "update_patient",
+      "add_record",
+      "export_records"
+    ],
+    "clinical_domain": "perinatal_mental_health",
+    "chatlog": [
+      {
+        "text": "把周琳的联系方式更新一下，换成她女儿手机号 138xxxx2219",
+        "speaker": "doctor"
+      },
+      {
+        "text": "顺便记今日随诊：女38，产后5月，EPDS 15，PHQ-9 13，否认自伤意念，哺乳中",
+        "speaker": "doctor"
+      },
+      {
+        "text": "治疗先不加苯二氮䓬，继续舍曲林50mg qd，导出最近4周记录给产科联合门诊",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "EPDS",
+          "PHQ-9",
+          "产后抑郁",
+          "舍曲林",
+          "联合门诊"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-090",
+    "title": "LLM-generated (codex) batch 9: geriatric_psychiatry",
+    "source": "codex",
+    "batch": 8,
+    "intent_sequence": [
+      "query_records",
+      "add_record",
+      "schedule_follow_up",
+      "export_records"
+    ],
+    "clinical_domain": "geriatric_psychiatry",
+    "chatlog": [
+      {
+        "text": "麻烦先调出刘某最近三次复诊记录，我要对比评分趋势。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "新增出院小结补充：男71岁，住院14天后出院，入院PHQ-9 22，出院PHQ-9 9，GAD-7 6，MMSE 27/30。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "出院带药：度洛西汀60mg qd，曲唑酮25mg qn；等下，曲唑酮应为50mg qn，已更正。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "安排出院后第14天随访，并导出出院相关病历用于社区精防对接。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "出院小结",
+          "PHQ-9",
+          "GAD-7",
+          "MMSE",
+          "度洛西汀"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-091",
+    "title": "LLM-generated (codex) batch 10: cardiology",
+    "source": "codex",
+    "batch": 9,
+    "intent_sequence": [
+      "list_patients",
+      "create_patient",
+      "add_record"
+    ],
+    "clinical_domain": "cardiology",
+    "chatlog": [
+      {
+        "text": "先查下我名下患者列表，看看有没有“李明”。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "没有就建档：李明，男，58岁，急诊，主诉胸痛2小时。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "补一条入院记录：胸骨后压榨痛，NRS 8分，BP 92/58 mmHg，HR 64次/分，III导联ST抬高0.2mV，考虑下壁STEMI。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "更正，不是HR 64，是62，阿司匹林300mg嚼服已给。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "STEMI",
+          "NRS",
+          "胸痛",
+          "阿司匹林"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-092",
+    "title": "LLM-generated (codex) batch 10: neurology",
+    "source": "codex",
+    "batch": 9,
+    "intent_sequence": [
+      "query_records",
+      "update_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "text": "72F 急性脑梗死术后，先调既往记录。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把昨晚进展记错处改掉：NIHSS 不是 9，改 7；mRS 术前3。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "加随访：14天神经内科门诊复评，复查头颅MRI+DWI。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 0
+      },
+      "must_include_any_of": [
+        [
+          "NIHSS",
+          "mRS",
+          "脑梗死",
+          "MRI"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-093",
+    "title": "LLM-generated (codex) batch 10: oncology",
+    "source": "codex",
+    "batch": 9,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "schedule_follow_up",
+      "export_records"
+    ],
+    "clinical_domain": "oncology",
+    "chatlog": [
+      {
+        "text": "先记一个新门诊：陈女士，46岁，乳腺肿瘤复诊。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "Add note: HER2 3+, ER 80%, PR 20%, Ki-67 35%, ECOG 1。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "今天方案写上：多西他赛 75 mg/m2 + 曲妥珠单抗 8 mg/kg 首剂。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "不对，曲妥珠单抗维持剂量应是 6 mg/kg，从下周期开始。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "安排 21 天后复诊，并导出她近3次化疗相关记录给日间病房。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "HER2",
+          "ECOG",
+          "化疗",
+          "曲妥珠单抗"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-094",
+    "title": "LLM-generated (codex) batch 10: nephrology",
+    "source": "codex",
+    "batch": 9,
+    "intent_sequence": [
+      "list_tasks",
+      "complete_task",
+      "add_record"
+    ],
+    "clinical_domain": "nephrology",
+    "chatlog": [
+      {
+        "text": "患者王某，男，67岁，慢性肾病4期住院中；请先列出我今天未完成任务。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "将“复核24小时出入量”标记为已完成，尿量1240 mL，入量1700 mL。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "补充病程记录：Scr 386 μmol/L，eGFR 14 mL/min/1.73m2，K+ 5.6 mmol/L，已予聚苯乙烯磺酸钠15 g口服。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "另作补记：血压 168/96 mmHg，拟加用氨氯地平 5 mg qd。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "eGFR",
+          "Scr",
+          "高钾",
+          "出入量"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-095",
+    "title": "LLM-generated (codex) batch 10: ICU",
+    "source": "codex",
+    "batch": 9,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "update_record",
+      "postpone_task"
+    ],
+    "clinical_domain": "ICU",
+    "chatlog": [
+      {
+        "text": "收个新ICU，赵叔，79岁，肺部感染并脓毒症。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "先写入院：乳酸4.8 mmol/L，PCT 12.6 ng/mL，SOFA 9分，去甲肾上腺素0.18 μg/kg/min维持。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "等等，刚才SOFA算高了，不对，改成8分。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把这条改成“目前MAP 67 mmHg，尿量0.4 mL/kg/h”。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "还有“72小时后评估降阶抗生素”这个任务先顺延24小时。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "SOFA",
+          "乳酸",
+          "PCT",
+          "去甲肾上腺素"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-096",
+    "title": "LLM-generated (codex) batch 10: surgery",
+    "source": "codex",
+    "batch": 9,
+    "intent_sequence": [
+      "list_patients",
+      "query_records",
+      "update_patient",
+      "add_record"
+    ],
+    "clinical_domain": "surgery",
+    "chatlog": [
+      {
+        "text": "就这样，先看我名下有没有周琴，术后第三天那个。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把她昨天手术记录和今晨化验先调出来。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "家属电话改一下，138****2241，不是2247。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "记一条：腹腔镜胆囊切除术后D3，切口干燥，NRS 3分，WBC 9.2×10^9/L，继续头孢呋辛1.5g q12h。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "术后",
+          "NRS",
+          "WBC",
+          "头孢呋辛"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-097",
+    "title": "LLM-generated (codex) batch 10: psychiatry",
+    "source": "codex",
+    "batch": 9,
+    "intent_sequence": [
+      "query_records",
+      "create_patient",
+      "add_record"
+    ],
+    "clinical_domain": "psychiatry",
+    "chatlog": [
+      {
+        "text": "先帮我查下“林某某”之前有没有精神科记录。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "没有的话建档：女，29岁，门诊首诊，近2月情绪低落、早醒。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "加首诊评估：PHQ-9 19分，GAD-7 14分，无明确自杀计划。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "补充，不是“无自杀意念”，应写“偶有一过性轻生想法但可自控”。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "PHQ-9",
+          "GAD-7",
+          "抑郁",
+          "首诊"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-098",
+    "title": "LLM-generated (codex) batch 10: infectious_disease",
+    "source": "codex",
+    "batch": 9,
+    "intent_sequence": [
+      "list_tasks",
+      "complete_task",
+      "schedule_follow_up",
+      "cancel_task"
+    ],
+    "clinical_domain": "infectious_disease",
+    "chatlog": [
+      {
+        "text": "今日待办先列出。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "[x] 完成“复核血培养结果”：患者郭某，63岁，血培养大肠埃希菌阳性。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "新建随访任务：出院后第7天感染门诊复查CRP和PCT。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把“明天重复胸片”这个任务取消，改为症状驱动复查。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 0
+      },
+      "must_include_any_of": [
+        [
+          "血培养",
+          "CRP",
+          "PCT",
+          "随访"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-099",
+    "title": "LLM-generated (codex) batch 10: orthopedics",
+    "source": "codex",
+    "batch": 9,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "update_patient",
+      "export_records"
+    ],
+    "clinical_domain": "orthopedics",
+    "chatlog": [
+      {
+        "text": "急诊新来一个，孙建国，男，34岁，摩托车摔伤右小腿。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "先录：开放性胫腓骨骨折，Gustilo II型，疼痛NRS 7。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "把联系人改成配偶，电话139****7712。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "导出他的急诊记录+影像报告摘要给手术室，顺便补一句：破伤风抗毒素1500 IU已肌注。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "开放性骨折",
+          "Gustilo",
+          "NRS",
+          "破伤风"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-100",
+    "title": "LLM-generated (codex) batch 10: neurology",
+    "source": "codex",
+    "batch": 9,
+    "intent_sequence": [
+      "list_patients",
+      "query_records",
+      "update_record",
+      "export_records"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "text": "先把我神内在管患者名单调出来，我要补出院小结。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "检索刘某（女，61岁）本次住院全部病程及化验更新。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "修订出院记录：诊断“短暂性脑缺血发作”，ABCD2评分应为5分，不是4分。",
+        "speaker": "doctor"
+      },
+      {
+        "text": "然后导出她的出院摘要和用药单：氯吡格雷75mg qd，阿托伐他汀20mg qn。",
+        "speaker": "doctor"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 0
+      },
+      "must_include_any_of": [
+        [
+          "TIA",
+          "ABCD2",
+          "出院小结",
+          "氯吡格雷"
+        ]
+      ]
+    }
+  }
+]
