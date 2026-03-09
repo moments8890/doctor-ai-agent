@@ -696,7 +696,7 @@ const RISK_OPTS = [
   { value: "low", label: "低风险" },
 ];
 
-function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatientSelected }) {
+function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatientSelected, refreshKey = 0 }) {
   const { patientId } = useParams();
   const navigate = useNavigate();
   const theme = useTheme();
@@ -723,7 +723,7 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
       .finally(() => setLoading(false));
   }, [doctorId, risk]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtered = search.trim()
     ? patients.filter((p) => p.name.includes(search.trim()))
@@ -1036,8 +1036,8 @@ function TasksSection({ doctorId }) {
                 <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
                   <Box sx={{ flex: 1 }}>
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>{task.title || TASK_TYPE_LABEL[task.task_type] || task.task_type}</Typography>
-                    {task.description && (
-                      <Typography variant="caption" color="text.secondary">{task.description}</Typography>
+                    {task.content && (
+                      <Typography variant="caption" color="text.secondary">{task.content}</Typography>
                     )}
                     {task.due_at && (
                       <Typography variant="caption" sx={{ display: "block", mt: 0.3, color: isOverdue ? "error.main" : "text.secondary" }}>
@@ -1165,7 +1165,7 @@ const QUICK_COMMANDS = [
   { label: "今天任务", insert: "今天任务" },
 ];
 
-function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternalInputConsumed }) {
+function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternalInputConsumed, onPatientCreated }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -1297,7 +1297,11 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
     setLoading(true);
     try {
       const data = await sendChat({ text, doctor_id: doctorId, history });
-      setMessages((prev) => [...prev, { role: "assistant", content: data.reply || t("chat.received"), record: data.record || null, ts: nowTs() }]);
+      const reply = data.reply || t("chat.received");
+      setMessages((prev) => [...prev, { role: "assistant", content: reply, record: data.record || null, ts: nowTs() }]);
+      if (onPatientCreated && (reply.includes("已建档") || reply.includes("已为") && reply.includes("建档"))) {
+        onPatientCreated();
+      }
     } catch (error) {
       const isNetworkError = error.message === "Failed to fetch" || error.message === "NetworkError" || error.name === "TypeError";
       const friendlyMsg = isNetworkError
@@ -1675,6 +1679,8 @@ export default function DoctorPage() {
   const [pendingError, setPendingError] = useState("");
   // Cross-section: text to insert into chat input
   const [chatInsertText, setChatInsertText] = useState("");
+  // Increment to force PatientsSection to re-fetch after chat creates a patient
+  const [patientRefreshKey, setPatientRefreshKey] = useState(0);
   // Selected patient name for mobile topbar
   const [selectedPatientName, setSelectedPatientName] = useState("");
 
@@ -1846,6 +1852,7 @@ export default function DoctorPage() {
               onMessageCountChange={() => {}}
               externalInput={chatInsertText}
               onExternalInputConsumed={() => setChatInsertText("")}
+              onPatientCreated={() => setPatientRefreshKey((k) => k + 1)}
             />
           )}
           {activeSection === "home" && <HomeSection doctorId={doctorId} navigate={navigate} />}
@@ -1855,6 +1862,7 @@ export default function DoctorPage() {
               onNavigateToChat={() => navigate("/doctor/chat")}
               onInsertChatText={(text) => { setChatInsertText(text); navigate("/doctor/chat"); }}
               onPatientSelected={(name) => setSelectedPatientName(name || "")}
+              refreshKey={patientRefreshKey}
             />
           )}
           {activeSection === "tasks" && <TasksSection doctorId={doctorId} />}
