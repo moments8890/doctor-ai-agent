@@ -998,25 +998,34 @@ function TasksSection({ doctorId }) {
 
   return (
     <Box sx={{ p: isMobile ? 2 : 3, overflowY: "auto", height: "100%" }}>
-      <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2.5 }}>
-        <Typography variant="h6" sx={{ fontWeight: 700 }}>任务列表</Typography>
-        {loading && <CircularProgress size={18} />}
+      {/* Header row */}
+      <Stack direction="row" alignItems="center" sx={{ mb: 1.5 }}>
+        <Typography variant="h6" sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>任务列表</Typography>
+        {loading && <CircularProgress size={16} sx={{ ml: 1 }} />}
         <Box sx={{ flex: 1 }} />
-        <Button size="small" variant="contained" onClick={() => { setCreateOpen(true); setCreateError(""); getPatients(doctorId, {}, 200).then((d) => setPatientOptions(d.items || [])).catch(() => {}); }}>+ 新建任务</Button>
-        <Stack direction="row" spacing={0.5} flexWrap="wrap">
-          {TASK_STATUS_OPTS.map((o) => (
-            <Chip
-              key={o.value}
-              label={o.label}
-              size="small"
-              onClick={() => setStatusFilter(o.value)}
-              variant={statusFilter === o.value ? "filled" : "outlined"}
-              color={statusFilter === o.value ? "primary" : "default"}
-              clickable
-            />
-          ))}
-        </Stack>
+        <Button
+          size="small" variant="contained"
+          onClick={() => { setCreateOpen(true); setCreateError(""); getPatients(doctorId, {}, 200).then((d) => setPatientOptions(d.items || [])).catch(() => {}); }}
+          sx={{ whiteSpace: "nowrap", minWidth: "auto" }}
+        >
+          + 新建
+        </Button>
       </Stack>
+      {/* Filter chips — single scrollable row */}
+      <Box sx={{ display: "flex", gap: 0.8, mb: 2, overflowX: "auto", pb: 0.5, WebkitOverflowScrolling: "touch" }}>
+        {TASK_STATUS_OPTS.map((o) => (
+          <Chip
+            key={o.value}
+            label={o.label}
+            size="small"
+            onClick={() => setStatusFilter(o.value)}
+            variant={statusFilter === o.value ? "filled" : "outlined"}
+            color={statusFilter === o.value ? "primary" : "default"}
+            clickable
+            sx={{ flexShrink: 0 }}
+          />
+        ))}
+      </Box>
 
       {error && (
         <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setError("")}>{error}</Alert>
@@ -1037,31 +1046,33 @@ function TasksSection({ doctorId }) {
           return (
             <Card key={task.id} variant="outlined" sx={{ borderRadius: 1.5 }}>
               <CardContent sx={{ py: 1.5, px: 2, "&:last-child": { pb: 1.5 } }}>
-                <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{task.title || TASK_TYPE_LABEL[task.task_type] || task.task_type}</Typography>
-                    {task.content && (
-                      <Typography variant="caption" color="text.secondary">{task.content}</Typography>
-                    )}
-                    {task.due_at && (
-                      <Typography variant="caption" sx={{ display: "block", mt: 0.3, color: isOverdue ? "error.main" : "text.secondary" }}>
-                        {isOverdue ? "已逾期 · " : "到期 · "}{task.due_at.slice(0, 10)}
-                      </Typography>
-                    )}
-                    {task.patient_name && (
-                      <Typography variant="caption" sx={{ display: "block", mt: 0.2, color: "text.secondary" }}>
-                        👤 {task.patient_name}
-                      </Typography>
-                    )}
-                  </Box>
+                <Box>
+                  <Stack direction="row" alignItems="flex-start" spacing={1}>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>{task.title || TASK_TYPE_LABEL[task.task_type] || task.task_type}</Typography>
+                      {task.content && (
+                        <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>{task.content}</Typography>
+                      )}
+                      <Stack direction="row" spacing={1.5} sx={{ mt: 0.4, flexWrap: "wrap" }}>
+                        {task.due_at && (
+                          <Typography variant="caption" sx={{ color: isOverdue ? "error.main" : "text.secondary" }}>
+                            {isOverdue ? "⚠ 已逾期 " : "📅 "}{task.due_at.slice(0, 10)}
+                          </Typography>
+                        )}
+                        {task.patient_name && (
+                          <Typography variant="caption" color="text.secondary">👤 {task.patient_name}</Typography>
+                        )}
+                      </Stack>
+                    </Box>
+                  </Stack>
                   {task.status === "pending" && (
-                    <Stack direction={{ xs: "column", sm: "row" }} spacing={0.8} sx={{ flexShrink: 0 }}>
-                      <Button size="small" variant="contained" fullWidth onClick={() => handleStatus(task.id, "completed")}>完成</Button>
-                      <Button size="small" color="inherit" fullWidth onClick={() => setCancelConfirmId(task.id)}>取消</Button>
-                      <Button size="small" color="warning" variant="outlined" fullWidth onClick={(e) => handleOpenPostpone(e, task.id)}>推迟</Button>
+                    <Stack direction="row" spacing={1} sx={{ mt: 1.2 }}>
+                      <Button size="small" variant="contained" onClick={() => handleStatus(task.id, "completed")} sx={{ flex: 1, py: 0.6 }}>完成</Button>
+                      <Button size="small" variant="outlined" color="warning" onClick={(e) => handleOpenPostpone(e, task.id)} sx={{ flex: 1, py: 0.6 }}>推迟</Button>
+                      <Button size="small" variant="outlined" color="error" onClick={() => setCancelConfirmId(task.id)} sx={{ flex: 1, py: 0.6 }}>取消</Button>
                     </Stack>
                   )}
-                </Stack>
+                </Box>
               </CardContent>
             </Card>
           );
