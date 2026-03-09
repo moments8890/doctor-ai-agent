@@ -203,7 +203,7 @@ _CANCEL_TASK_C_RE = re.compile(r"^取消第([一两二三四五六七八九十\d
 # Record keyword is optional (e.g. "查张三" / "查询华宁" with no trailing keyword).
 # Allow trailing text (e.g. "查询张三的病历概要", "查询赵峰历史病历").
 _QUERY_PREFIX_RE = re.compile(
-    r"^(?:再)?(?:帮我查|查询|查看|查一下|看一下|查)\s*([\u4e00-\u9fff]{2,3}?)\s*"
+    r"^(?:再)?(?:帮我查|查询|查看|查一下|看一下|查)\s*(?:患者|病人)?[：:\s]*\s*([\u4e00-\u9fff]{2,3}?)\s*"
     r"(?:的)?(?:(?:历史|全部|所有)?\s*" + _RECORD_KW + r"\S*)?$"
 )
 

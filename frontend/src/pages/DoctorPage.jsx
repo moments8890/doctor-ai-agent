@@ -1142,13 +1142,13 @@ function MsgBubble({ msg }) {
 }
 
 const QUICK_COMMANDS = [
-  { label: "新建患者", icon: "👤", insert: "建档" },
-  { label: "查询患者", icon: "🔍", insert: "查" },
+  { label: "新建患者", icon: "👤", insert: "新建患者：" },
+  { label: "查询患者", icon: "🔍", insert: "查询患者：" },
   { label: "患者列表", icon: "📋", insert: "患者列表" },
-  { label: "补充记录", icon: "➕", insert: "补充：" },
+  { label: "补充记录", icon: "➕", insert: "补充记录：" },
   { label: "修正上条", icon: "✏️", insert: "刚才写错了，应该是" },
-  { label: "导出PDF", icon: "📄", insert: "PDF:" },
-  { label: "今日任务", icon: "📌", insert: "今天任务" },
+  { label: "导出PDF", icon: "📄", insert: "导出病历PDF：" },
+  { label: "今日任务", icon: "📌", insert: "今日任务" },
   { label: "功能帮助", icon: "💡", insert: "帮助" },
 ];
 
