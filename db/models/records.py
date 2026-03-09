@@ -23,12 +23,13 @@ class MedicalRecordDB(Base):
     tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array of keyword strings
     encounter_type: Mapped[str] = mapped_column(String(32), nullable=False, default="unknown")  # first_visit|follow_up|unknown
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
-    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=_utcnow, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
 
     patient: Mapped[Optional["Patient"]] = relationship("Patient", back_populates="records")
 
     __table_args__ = (
         Index("ix_records_patient_created", "patient_id", "created_at"),
+        Index("ix_records_doctor_created", "doctor_id", "created_at"),
     )
 
     def __str__(self) -> str:
@@ -52,7 +53,12 @@ class NeuroCaseDB(Base):
     extraction_log_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=True)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=_utcnow, nullable=True)
+
+    __table_args__ = (
+        Index("ix_neuro_cases_doctor_created", "doctor_id", "created_at"),
+    )
+
     patient: Mapped[Optional["Patient"]] = relationship("Patient")
 
     def __str__(self) -> str:

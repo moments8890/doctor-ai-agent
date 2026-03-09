@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import ForeignKey, Index, Integer, String, DateTime, Text
+from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, DateTime, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from db.engine import Base
 from db.models.base import _utcnow
@@ -24,7 +24,7 @@ class AuditLog(Base):
     resource_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     ip: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
     trace_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    ok: Mapped[bool] = mapped_column(default=True, nullable=False)
+    ok: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     __table_args__ = (
         Index("ix_audit_log_doctor_ts", "doctor_id", "ts"),
