@@ -1,6 +1,13 @@
 """
 Tier-3 binary classifier and clinical keyword gate for fast_router.
 
+NOTE (2026-03-09): This module is NO LONGER called from the routing path.
+Tier 3 was removed in favour of routing all semantic content through a single
+LLM call (Claude Sonnet 4.6 with tool_use) which correctly discriminates
+add_record / query_records / update_record without keyword heuristics.
+
+Retained for offline evaluation, accuracy measurement, and reference.
+
 P1: accepts optional specialty parameter for specialty-aware keyword expansion.
 """
 
@@ -17,8 +24,8 @@ from ._patterns import _extract_demographics, _TIER3_NAME_RE
 
 # ── Tier-3 binary classifier (TF-IDF + logistic regression) ──────────────────
 # Loaded once at import; used as the final gate in _is_clinical_tier3().
-# Falls back to True (old behaviour) if the model file is absent — i.e. the
-# system works without the classifier, just with the old ~10-19% FP hard floors.
+# When absent/broken the function falls through to LLM routing (False) — i.e.
+# missing classifier degrades recall, not precision.
 _TIER3_CLASSIFIER = None
 _TIER3_CLASSIFIER_PATH = Path(__file__).parent.parent / "tier3_classifier.pkl"
 
@@ -34,8 +41,6 @@ def _load_tier3_classifier() -> None:
 
 
 _load_tier3_classifier()
-
-_REMINDER_RE = re.compile(r"提醒|设.*\d+[点时:：]|设.*复查提醒")
 
 # First-person patient voice — two tiers:
 # Tier A (original): "我…怎么办/会不会/？" — explicit question
@@ -56,42 +61,41 @@ _TIER3_CONSULT_RE = re.compile(r"宝宝|宝贝|孩子|小孩")
 # A doctor may include a question within a clinical note.
 # Clinical admission phrases (收入我科/收入我院/门诊以) are also anchors — they are
 # exclusive to hospital documentation and never appear in patient messages or encyclopedia.
+# NOTE: bare "^患者/病人" prefix intentionally excluded — too permissive for lay summaries
+# and family-mediated consult text. Use 患者/病人 + clinical qualifier below instead.
 _TIER3_DOCTOR_ANCHOR_RE = re.compile(
-    r"^(?:患者|患儿|病人)|主诉[：:]|诊断.{0,2}[：:]|补充[：:]|记录[一下]?[：:]|录入[：:]"
-    r"|(?:患者|患儿|病人).{0,5}(?:主诉|诊断|检查|血压|血糖|体温)"
+    r"主诉[：:]|诊断.{0,2}[：:]|补充[：:]|记录[一下]?[：:]|录入[：:]"
+    r"|(?:患者|患儿|病人).{0,5}(?:主诉|诊断|检查|血糖|体温)"
     r"|收入我科|收入我院|门诊以.{0,10}收入"
     # Doctor dictation format: "NAME，gender，age，…"
     # e.g. "李四，女，52岁，反复胸闷" / "王五男58岁冠心病"
     # Patients writing about themselves use first-person ("我" / "我老婆") so this is safe.
     r"|^[\u4e00-\u9fff]{2,3}[，,\s]*[男女](?:性)?[，,\s]*\d+岁"
     # Clinical action phrases — exclusively doctor language.
-    # "给予X" = "administer X" (doctor orders treatment, never patient self-report)
     # "建议观察/随访/…" = "recommend …" (doctor assessment sign-off)
     # "排除X病/症/…" = "rule out X" (doctor differential diagnosis)
-    r"|给予[\u4e00-\u9fffe-zA-Z]"
     r"|建议(?:观察|随访|复查|门诊|住院|手术|化疗|保守)"
     r"|排除[\u4e00-\u9fff]{1,8}(?:炎|症|癌|瘤|病|塞|梗|折)"
     # Follow-up note prefix: "随访：张三…" / "复查，血压稳定…" — doctor write-up only
     r"|^随访[：:,，]"
     r"|^[\u4e00-\u9fff]{2,3}(?:复查|随访)[，,]"
-    # Blood pressure reading in doctor note: "120/80" — lay patients don't write this way
-    r"|\d{2,3}/\d{2,3}"
+    # Treatment prescription: "给予倍他乐克" / "给予扩冠治疗" — exclusively doctor dictation.
+    # Bare "给予" is too broad; require at least 1 Chinese char following it.
+    r"|给予[\u4e00-\u9fff]"
 )
 
 # Stronger anchor used only when a question pattern was already detected.
-# Excludes the bare "^患者/病人" prefix because patients can write "患者头痛怎么办？"
-# referring to themselves. Requires an unambiguously clinical signal.
+# Requires an unambiguously clinical signal — no bare patient-prefix, no BP ratio,
+# no 给予 (all too easily matched by lay text).
 _TIER3_STRONG_DOCTOR_ANCHOR_RE = re.compile(
     r"主诉[：:]|诊断.{0,2}[：:]|补充[：:]|记录[一下]?[：:]|录入[：:]"
-    r"|(?:患者|患儿|病人).{0,5}(?:主诉|诊断|检查|血压|血糖|体温)"
+    r"|(?:患者|患儿|病人).{0,5}(?:主诉|诊断|检查|血糖|体温)"
     r"|收入我科|收入我院|门诊以.{0,10}收入"
     r"|^[\u4e00-\u9fff]{2,3}[，,\s]*[男女](?:性)?[，,\s]*\d+岁"
-    r"|给予[\u4e00-\u9fffe-zA-Z]"
     r"|建议(?:观察|随访|复查|门诊|住院|手术|化疗|保守)"
     r"|排除[\u4e00-\u9fff]{1,8}(?:炎|症|癌|瘤|病|塞|梗|折)"
     r"|^随访[：:,，]"
     r"|^[\u4e00-\u9fff]{2,3}(?:复查|随访)[，,]"
-    r"|\d{2,3}/\d{2,3}"
 )
 
 # Exam-specific question endings — ALWAYS block, even when doctor anchor is present.
@@ -151,7 +155,6 @@ def _is_clinical_tier3(text: str, specialty: Optional[str] = None) -> bool:
     expansion; currently unused.
 
     Guards (skip Tier 3 → fall through to LLM):
-    - 复查-only signal that looks like a reminder command
     - MCQ exam endings (考虑的是, 可见于, 的疾病是…) — hard block, ignores anchor
     - Colloquial patient question phrases (怎么办, 会不会, 正常吗…)
     - Duration/choice/inquiry question patterns (几天了, 是X还是Y, 有没有…)
@@ -166,11 +169,6 @@ def _is_clinical_tier3(text: str, specialty: Optional[str] = None) -> bool:
 
     if not any(kw in text for kw in all_kw):
         return False
-
-    # Guard: 复查-only + reminder command
-    if "复查" in text and _REMINDER_RE.search(text):
-        other_kw = all_kw - {"复查"}
-        return any(kw in text for kw in other_kw)
 
     # Guard: MCQ exam endings — hard block, NOT overridden by doctor anchor.
     # Exam vignettes start with "患者，男，N岁..." (triggering doctor anchor) but
@@ -198,11 +196,12 @@ def _is_clinical_tier3(text: str, specialty: Optional[str] = None) -> bool:
     # hard-floor patient messages (short symptom descriptions, online consultation
     # histories) that keyword/regex rules cannot separate without semantic understanding.
     # Only applied when no doctor anchor is present — those cases are handled above.
-    # Falls back to True if the model is not loaded (no performance regression).
+    # Falls through to LLM (False) when classifier is absent — degrades recall, not
+    # precision, which is the correct bias for a precision-first router.
     if _TIER3_CLASSIFIER is not None:
         return bool(_TIER3_CLASSIFIER.predict([text])[0])
 
-    return True
+    return False
 
 
 def _extract_tier3_demographics(

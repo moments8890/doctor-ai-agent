@@ -46,6 +46,7 @@ def _make_chat_reply(content: str):
 @pytest.fixture
 def mock_llm(monkeypatch):
     monkeypatch.setenv("LLM_PROVIDER", "deepseek")
+    monkeypatch.setenv("ROUTING_LLM", "deepseek")
     monkeypatch.setenv("DEEPSEEK_API_KEY", "fake-key-for-tests")
     mock_client = AsyncMock()
     mock_create = AsyncMock()

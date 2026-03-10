@@ -207,7 +207,7 @@ async def save_neuro_case(
     session: AsyncSession,
     doctor_id: str,
     case: "NeuroCase",  # type: ignore[name-defined]
-    log: "ExtractionLog",  # type: ignore[name-defined]
+    extraction_log: "ExtractionLog",  # type: ignore[name-defined]
     patient_id: Optional[int] = None,
 ) -> MedicalRecordDB:
     """Promote key scalar fields, serialise both objects, persist as a MedicalRecordDB row
@@ -232,7 +232,7 @@ async def save_neuro_case(
         neuro_patient_name=pp.get("name"),
         nihss=nihss,
         neuro_raw_json=json.dumps(case.model_dump(), ensure_ascii=False),
-        neuro_extraction_log_json=json.dumps(log.model_dump(), ensure_ascii=False),
+        neuro_extraction_log_json=json.dumps(extraction_log.model_dump(), ensure_ascii=False),
     )
     session.add(row)
     await session.commit()

@@ -116,8 +116,8 @@ _CORPUS: list[tuple[str, Optional[Intent]]] = [
     ("随访：张三血糖控制良好，HbA1c 6.8%，继续二甲双胍", Intent.add_record),
     # ── Tier 3: 复查 (follow-up) in clinical note context → add_record ────────
     ("王五复查，血压稳定，120/80，继续当前方案", Intent.add_record),
-    # ── LLM required (no strong clinical keyword — borderline cases) ──────────
-    ("患者血压160/100，目前服用氨氯地平5mg，考虑加量", None),
+    # ── borderline cases: now fast-routed with 血压 in keywords + TF-IDF classifier ──
+    ("患者血压160/100，目前服用氨氯地平5mg，考虑加量", Intent.add_record),
     ("今天看了李明，他的情况明显改善了，可以减量", None),
 
     # ── LLM required (ambiguous / conversational) ─────────────────────────────

@@ -4,7 +4,6 @@ Core routing logic for fast_router.
 
 from __future__ import annotations
 
-import re
 from typing import TYPE_CHECKING, Optional
 
 from services.ai.intent import Intent, IntentResult
@@ -66,32 +65,6 @@ from ._session import _apply_session_context
 if TYPE_CHECKING:
     from services.session import DoctorSession
 
-
-# Continuation-indicator verbs used in chains where session provides patient context
-_CHAIN_CONTINUATION_RE = re.compile(
-    r"^(?:RICU|ICU|CCU|PACU|NICU|HDU|普外科?|泌外科?|胸外科?|心内科?|神外科?|骨科|妇科|肿瘤科|内科|外科)"
-    r"(?:这位|那位|患者)?[，,\s]*(?:先)?(?:续记|记录|补记|补充|记下|继续)[，,。！\s]?"
-    r"|^(?:刚才那位|这位|那位)[，,\s]*(?:先)?(?:记|补|续记)"
-    r"|^(?:上面那个|上一个|刚那个)[，,\s]*(?:先)?(?:记|补)"
-    r"|^他(?:的|今天|昨天|最近|现在)?[，,\s]*(?:血压|血糖|体温|心率|血氧|心电图|症状|用药|检查)"
-    r"|^她(?:的|今天|昨天|最近|现在)?[，,\s]*(?:血压|血糖|体温|心率|血氧|心电图|症状|用药|检查)"
-)
-
-
-def _is_session_chain_add_record(text: str, specialty: Optional[str] = None) -> bool:
-    """Return True when *text* looks like a chain-continuation add_record for the session patient.
-
-    Only fires when fast_route found no match (caller guarantees this).
-    Uses two gates: explicit continuation verb OR Tier-3 clinical keyword hit.
-    Requires message length >= 4 to avoid routing greetings/single-chars.
-    """
-    if len(text) < 4:
-        return False
-    if _CHAIN_CONTINUATION_RE.search(text):
-        return True
-    # Clinical content but no routing match → likely a short note continuing the session
-    from services.ai.fast_router._tier3 import _is_clinical_tier3
-    return _is_clinical_tier3(text, specialty=specialty)
 
 
 def _fast_route_core(text: str, specialty: Optional[str] = None) -> Optional[IntentResult]:
@@ -412,6 +385,9 @@ def _fast_route_core(text: str, specialty: Optional[str] = None) -> Optional[Int
             confidence=0.8,
         )
 
+    # All remaining messages fall through to the LLM for semantic routing.
+    # The LLM handles add_record / query_records / update_record discrimination
+    # and structured field extraction in a single call.
     return None
 
 
@@ -438,22 +414,6 @@ def fast_route(
     result = _fast_route_core(text, specialty=specialty)
     if result is not None and session is not None:
         result = _apply_session_context(result, session)
-        return result
-    # Tier 2.8: session-context chain continuation.
-    # When fast_route found no match but the session has a current patient,
-    # and the message is short + looks like a chain continuation (clinical
-    # content or a continuation verb), fast-route to add_record without LLM.
-    # This covers chains like update_patient→add_record where the add_record
-    # turn has clinical content but no explicit patient name.
-    if result is None and session is not None:
-        _sess_name: Optional[str] = getattr(session, "current_patient_name", None)
-        if _sess_name and _is_session_chain_add_record(text.strip(), specialty):
-            from services.ai.fast_router._tier3 import _is_clinical_tier3
-            result = IntentResult(
-                intent=Intent.add_record,
-                patient_name=_sess_name,
-                confidence=0.75,
-            )
     return result
 
 

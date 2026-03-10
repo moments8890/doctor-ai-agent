@@ -31,7 +31,7 @@ from services.wechat import wechat_media_pipeline as wmp
 from services.wechat import wecom_kf_sync as kfsync
 from services.wechat.wechat_voice import download_and_convert, download_media, download_voice
 from services.ai.intent import Intent, IntentResult
-from services.ai.agent import dispatch as agent_dispatch
+from services.ai.router import route_message
 from services.wechat.wechat_menu import create_menu
 from services.wechat.wechat_notify import (
     _get_config, _get_access_token, _send_customer_service_msg, _split_message as _notify_split_message,
@@ -62,7 +62,6 @@ from services.session import (
 )
 from services.observability.audit import audit
 from services.ai.memory import maybe_compress, load_context_message
-from services.ai.fast_router import fast_route, fast_route_label
 from services.observability.turn_log import log_turn
 from services.notify.tasks import (
     create_follow_up_task,
@@ -560,56 +559,41 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
             return "⚠️ 知识内容为空，未保存。"
         return "✅ 已加入医生知识库（#{0}）：{1}".format(item.id, knowledge_payload)
 
-    # ── Fast router: resolve common intents without LLM (~0ms vs ~6s) ─────────
-    _t0 = time.perf_counter()
-    _fast = fast_route(text, session=get_session(doctor_id))
-    if _fast is not None:
-        _latency_ms = (time.perf_counter() - _t0) * 1000.0
-        log(f"[WeChat] fast_route hit: {fast_route_label(text)} confidence={_fast.confidence:.2f} text={text[:60]!r}")
-        if _fast.confidence < 1.0:
-            log(f"[WeChat] fast_route low-confidence ({_fast.confidence:.2f}): intent={_fast.intent.value} text={text[:80]!r}")
-        intent_result = _fast
-        log_turn(text, intent_result.intent.value, "fast", doctor_id, _latency_ms, patient_name=intent_result.patient_name)
-    else:
-        knowledge_context = ""
-        async with _get_kb_lock(doctor_id):
-            _kb_cached, _kb_expiry = _KB_CONTEXT_CACHE.get(doctor_id, ("", 0.0))
-            if _kb_expiry > time.perf_counter():
-                knowledge_context = _kb_cached
-            else:
-                try:
-                    async with AsyncSessionLocal() as session:
-                        knowledge_context = await load_knowledge_context_for_prompt(session, doctor_id, text)
-                    _KB_CONTEXT_CACHE[doctor_id] = (knowledge_context, time.perf_counter() + _KB_CONTEXT_TTL)
-                except Exception as e:
-                    log(f"[WeChat] knowledge context load FAILED doctor={doctor_id}: {e}")
-                    knowledge_context = ""
-
-        try:
-            dispatch_kwargs = {"history": history or [], "doctor_id": doctor_id}
-            if knowledge_context:
-                dispatch_kwargs["knowledge_context"] = knowledge_context
-            _sess = get_session(doctor_id)
-            if _sess.specialty:
-                dispatch_kwargs["specialty"] = _sess.specialty
-            if _sess.doctor_name:
-                dispatch_kwargs["doctor_name"] = _sess.doctor_name
-            intent_result = await agent_dispatch(text, **dispatch_kwargs)
-            _latency_ms = (time.perf_counter() - _t0) * 1000.0
-            log_turn(text, intent_result.intent.value, "llm", doctor_id, _latency_ms, patient_name=intent_result.patient_name)
-        except Exception as e:
-            log(f"[WeChat] agent dispatch FAILED: {e}, falling back to structuring")
-            from services.observability.routing_metrics import record as _record_metric
-            _record_metric("fallback:structuring")
+    # ── Routing: fast_route → agent dispatch ──────────────────────────────────
+    knowledge_context = ""
+    async with _get_kb_lock(doctor_id):
+        _kb_cached, _kb_expiry = _KB_CONTEXT_CACHE.get(doctor_id, ("", 0.0))
+        if _kb_expiry > time.perf_counter():
+            knowledge_context = _kb_cached
+        else:
             try:
-                record = await structure_medical_record(text)
-                return _format_record(record)
-            except ValueError:
-                return "没能识别病历内容，请重新描述一下。"
-            except Exception as ex:
-                log(f"[WeChat] structuring fallback FAILED doctor={doctor_id}: {ex}")
-                _record_metric("fallback:error")
-                return "不好意思，出了点问题，能再说一遍吗？"
+                async with AsyncSessionLocal() as session:
+                    knowledge_context = await load_knowledge_context_for_prompt(session, doctor_id, text)
+                _KB_CONTEXT_CACHE[doctor_id] = (knowledge_context, time.perf_counter() + _KB_CONTEXT_TTL)
+            except Exception as e:
+                log(f"[WeChat] knowledge context load FAILED doctor={doctor_id}: {e}")
+
+    try:
+        intent_result = await route_message(
+            text,
+            doctor_id,
+            history or [],
+            knowledge_context=knowledge_context,
+            channel="wechat",
+        )
+    except Exception as e:
+        log(f"[WeChat] agent dispatch FAILED: {e}, falling back to structuring")
+        from services.observability.routing_metrics import record as _record_metric
+        _record_metric("fallback:structuring")
+        try:
+            record = await structure_medical_record(text)
+            return _format_record(record)
+        except ValueError:
+            return "没能识别病历内容，请重新描述一下。"
+        except Exception as ex:
+            log(f"[WeChat] structuring fallback FAILED doctor={doctor_id}: {ex}")
+            _record_metric("fallback:error")
+            return "不好意思，出了点问题，能再说一遍吗？"
 
     bind_log_context(intent=intent_result.intent.value)
     log(f"[WeChat] intent={intent_result.intent} patient={intent_result.patient_name}")

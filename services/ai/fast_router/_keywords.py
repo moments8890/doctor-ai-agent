@@ -8,7 +8,8 @@ from __future__ import annotations
 
 # ── Import history detection ───────────────────────────────────────────────────
 _IMPORT_KEYWORDS: frozenset[str] = frozenset({
-    "导入病历", "导入历史", "历史记录导入", "过往记录", "既往病历",
+    "导入病历", "导入历史", "历史记录导入", "既往病历",
+    # "过往记录" removed — ambiguous with query_patient_records; let LLM decide
 })
 
 # ── Tier 1: Exact / normalised keyword sets ────────────────────────────────────
@@ -36,7 +37,7 @@ _LIST_TASKS_EXACT: frozenset[str] = frozenset({
     "待办任务", "我的任务", "待处理",
     "有什么任务", "有啥任务", "待处理任务",
     "查看待办", "显示待办", "有哪些任务",
-    "最近任务", "今天任务", "今日任务", "所有任务",
+    "最近任务", "今天任务", "今日任务",
     "先看下我还有几个待办", "先看下我今天待办", "先看下今天待办",
     "我还有几个待办", "今天有什么待办", "先看下我的待办",
     "先看下我今天的任务", "先看下我的任务",
@@ -66,28 +67,32 @@ _TIER3_BAD_NAME: frozenset[str] = frozenset({
 _CLINICAL_KW_TIER3: frozenset[str] = frozenset({
     # Cardinal symptoms
     "胸痛", "胸闷", "心悸", "气促", "气短", "头痛", "发热", "发烧",
-    "咳嗽", "腹痛", "恶心", "呕吐", "乏力", "眩晕", "水肿",
-    "呼吸困难", "阵发性", "晕厥", "心绞痛", "发绀",
-    "头晕", "浮肿", "偏头痛", "头晕耳鸣",
+    "咳嗽", "腹痛", "呕吐", "眩晕", "水肿",
+    # removed: 乏力 (too generic — "I'm tired" is universal; let LLM decide)
+    # removed: 恶心 (dual meaning: nausea / disgusting in everyday Chinese)
+    # removed: 阵发性 (bare modifier — any message worth routing here already has another kw)
+    # removed: 头晕 (too colloquial; Tier-B patient voice guard misses many forms)
+    "呼吸困难", "晕厥", "心绞痛", "发绀",
+    "浮肿", "偏头痛", "头晕耳鸣",
     # Cardiovascular diagnoses / procedures
     "心衰", "心梗", "房颤", "STEMI", "PCI", "溶栓", "消融", "支架",
-    "心律失常", "心慌", "心脏病", "心电图", "心力衰竭",
+    "心律失常", "心脏病", "心电图", "心力衰竭",
+    # removed: 心慌 (colloquial for nervousness as much as palpitations; also was duplicate)
     # Oncology
     "化疗", "靶向", "放疗", "肿瘤", "升白",
     "肺癌", "血管瘤", "颅内肿瘤",
-    "腺癌", "转移瘤", "脾大", "淋巴瘤", "直肠癌", "直肠",
+    "腺癌", "转移瘤", "脾大", "淋巴瘤", "直肠癌",
+    # removed: 直肠 (bare anatomy noun; 直肠癌 above covers the clinical case)
     "肝癌", "前列腺癌",
     # Specific lab markers (unlikely in non-clinical speech)
     "BNP", "肌钙蛋白", "HbA1c", "CEA", "ANC", "EGFR", "HER2",
     "INR", "血常规", "抗凝",
-    "白细胞", "血红蛋白",
+    # removed: 白细胞, 血红蛋白 — valid clinical terms but frequently appear in
+    # patient questions about their own lab results; not strong doctor-note signals
     "空腹血糖", "餐后血糖", "血糖升高", "血糖偏高", "血糖控制", "血糖异常",
-    # Prescribing action ("give/administer" — almost always clinical)
-    "给予",
-    # Follow-up / re-check
-    "复查",
     # English clinical terms (mixed-language doctor notes)
-    "chest", "ECG", "NIHSS", "dyspnea", "palpitation",
+    # removed: chest (single common English word; countless non-clinical uses)
+    "ECG", "NIHSS", "dyspnea", "palpitation",
     # Neurological (CBLUE-expanded)
     "颅内高压", "颅内压增高", "颅压高", "脑水肿", "脑疝", "颅内占位性病变",
     "视乳头水肿",
@@ -103,13 +108,19 @@ _CLINICAL_KW_TIER3: frozenset[str] = frozenset({
     "DWI", "FLAIR", "弥散受限",
     # Metabolic / systemic
     "低血糖", "高氨血症", "代谢性酸中毒", "黄疸",
-    "低蛋白血症", "低血压", "糖尿病", "高脂血症", "高血压", "高血压病史",
+    "低蛋白血症", "低血压", "高脂血症", "高血压病史",
+    "血压",  # Doctor follow-up notes: "血压稳定", "血压120/80". Patient questions containing
+    # 血压 are guarded by _is_patient_question (怎么办, 多少 etc.) or the MCQ ending block.
+    # removed: 高血压, 糖尿病 — common chronic disease names; appear heavily in patient
+    # questions and family summaries; 高血压病史 above is a stronger doctor-note signal
     # Cardiology
     "胸腔积液", "室间隔缺损", "动脉导管未闭", "大动脉转位",
     # Respiratory
     "肺炎", "肺结核", "肺气肿", "胸膜炎",
     # Gastrointestinal
-    "便秘", "腹泻", "腹胀", "胃炎", "胃痛",
+    # removed: 便秘, 腹泻, 胃痛 — top everyday self-reported complaints; not
+    # high-specificity doctor-dictation signals; 腹痛/便血/呕血 etc. already present
+    "腹胀", "胃炎",
     "胃溃疡", "胆囊炎", "肠易激综合征", "胰腺炎", "便血", "黑便",
     "呕血", "肠梗阻", "吞咽困难", "反酸", "嗳气",
     # Obstetric / gynecologic
@@ -117,28 +128,36 @@ _CLINICAL_KW_TIER3: frozenset[str] = frozenset({
     # Musculoskeletal
     "椎管狭窄", "腰椎穿刺", "腰痛",
     # Infectious
-    "前列腺炎", "抗生素", "鼻炎",
+    "前列腺炎", "抗生素",
+    # removed: 鼻炎 (extremely common self-reported condition; discussed constantly outside clinical notes)
     # Systemic symptoms
     "高热", "全身无力", "四肢无力", "面色苍白",
     "贫血", "寒战", "皮疹", "蛋白尿", "血尿", "尿频", "尿急",
     # Critical care / neurological
     "癫痫", "呼吸衰竭", "休克", "败血症", "低氧血症", "颅内出血",
     # Pathology / imaging
-    "结节", "积液", "钙化", "占位", "梗阻", "免疫组化", "彩超提示",
+    # removed: 结节, 积液, 钙化, 梗阻 — common in report-interpretation requests and
+    # patient questions about their own imaging; 占位/免疫组化/彩超提示 are stronger
+    "占位", "免疫组化", "彩超提示",
     # Hepatology
     "肝硬化", "肝功能",
     # Signs / oncology
     "淋巴结转移",
     # Surgical / procedural
-    "介入", "介入治疗", "开颅",
+    "介入治疗", "开颅",
+    # removed: 介入 (everyday Chinese verb "to intervene"; 介入治疗 above covers the clinical case)
     "换药", "引流", "TKA", "THA", "PACU",  # procedural (dressing/drain/joint-replacement/PACU)
     # Pain / mental health scores (mixed-language clinical notes)
     "NRS", "PHQ",
-    # Common symptoms / signs
-    "疼痛", "肿胀", "压痛", "无压痛", "反跳痛", "咽痛", "咽喉肿痛",
-    "刺痛", "红肿", "肿块", "心慌",
+    # Common symptoms / signs (kept: unambiguous clinical exam findings only)
+    # removed: 疼痛 (too generic; specific compounds 胸痛/腹痛/… already present)
+    # removed: 肿胀, 红肿 (generic swelling/redness — common in patient self-reports)
+    # removed: 咽喉肿痛 (top everyday self-reported complaint)
+    # removed: 出血 (too generic; specific forms 脑出血/便血/呕血/颅内出血 already in set)
+    "压痛", "无压痛", "反跳痛", "咽痛",
+    "刺痛", "肿块",
     # Signs / lab
-    "出血", "尿痛",
+    "尿痛",
     # Clinical admin (exclusive to hospital documentation)
     "收入我科", "收治入院", "神志清", "门诊以",
     # Emergency markers (also used for is_emergency detection below)

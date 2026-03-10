@@ -52,7 +52,8 @@ _RECORD_KW = r"(?:病历|记录|情况|病情|近况|状态)"
 #   "补充：建议门诊随访，按计划复查。"  (appears 895× in e2e corpus)
 # Export: 导出/打印/下载 [name] 的病历/记录/报告
 _EXPORT_RE = re.compile(
-    r"^(?:帮我)?(?:导出|打印|下载|生成)\s*([\u4e00-\u9fff]{2,4}?)\s*(?:的)?\s*(?:病历|记录|报告|医疗记录)?(?:pdf|PDF)?$"
+    # Negative lookahead prevents domain keywords (病历/记录/…) being captured as a name.
+    r"^(?:帮我)?(?:导出|打印|下载|生成)\s*(?!病历|记录|报告|医疗记录)([\u4e00-\u9fff]{2,4}?)\s*(?:的)?\s*(?:病历|记录|报告|医疗记录)?(?:pdf|PDF)?$"
 )
 _EXPORT_NONAME_RE = re.compile(
     r"^(?:帮我)?(?:导出|打印|下载|生成)\s*(?:(?:目前|当前|这个|这位|患者)的?)?\s*(?:病历|记录|报告|医疗记录)(?:pdf|PDF)?$"
@@ -64,7 +65,7 @@ _EXPORT_NONAME_RE = re.compile(
 # Outpatient report (卫生部 2010 门诊病历 standard format)
 # Trigger phrases: 标准病历/门诊病历/卫生部病历/正式病历 with optional patient name
 _OUTPATIENT_REPORT_RE = re.compile(
-    r"^(?:帮我)?(?:生成|导出|打印|下载)\s*([\u4e00-\u9fff]{2,4}?)\s*(?:的)?\s*"
+    r"^(?:帮我)?(?:生成|导出|打印|下载)\s*(?!标准门诊病历|门诊病历|卫生部病历|正式病历|标准病历)([\u4e00-\u9fff]{2,4}?)\s*(?:的)?\s*"
     r"(?:标准门诊病历|门诊病历|卫生部病历|正式病历|标准病历)(?:pdf|PDF)?$"
 )
 _OUTPATIENT_REPORT_NONAME_RE = re.compile(
@@ -73,6 +74,9 @@ _OUTPATIENT_REPORT_NONAME_RE = re.compile(
 )
 
 _SUPPLEMENT_RE = re.compile(
+    # Mixed anchoring is intentional:
+    #   branches WITH trailing $ (写进去, 记进展…) are standalone-only triggers;
+    #   branches WITHOUT $ (先记下, 补录…) are prefix triggers — clinical content follows.
     r"^(?:补充[：:。\s]|补一句[：:。\s]?|再补充|加上.{0,8}[，,]?|追加[：:]"
     r"|(?:好[，,]?\s*)?写进去[。！]?$"
     # Terse add_record triggers — short doctor phrases that unambiguously mean
@@ -97,14 +101,29 @@ _SUPPLEMENT_RE = re.compile(
 # "给张三设3个月后随访提醒", "张三3个月后复诊", "三个月后随访张三"
 _CN_NUM = r"[一两二三四五六七八九十\d]+"
 
-_CN_DIGIT_MAP = {
-    "一": 1, "两": 2, "二": 2, "三": 3, "四": 4,
-    "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10,
+# Single unified map — used by both _cn_or_arabic (follow-up scheduling) and
+# _parse_task_num (task indexing).  Covers the full range that the Chinese-numeral
+# regex _CN_NUM / _CN_DIGIT can produce, including two-character compounds.
+_CN_NUM_MAP = {
+    "一": 1, "两": 2, "二": 2, "三": 3, "四": 4, "五": 5,
+    "六": 6, "七": 7, "八": 8, "九": 9, "十": 10,
+    "十一": 11, "十二": 12, "十三": 13, "十四": 14, "十五": 15,
+    "十六": 16, "十七": 17, "十八": 18, "十九": 19, "二十": 20,
 }
 
 
 def _cn_or_arabic(s: str) -> int:
-    return _CN_DIGIT_MAP.get(s, 0) or (int(s) if s.isdigit() else 1)
+    """Parse a Chinese or Arabic numeral string.
+
+    Raises ValueError for unrecognised tokens so callers see an explicit
+    failure instead of silently scheduling a 1-day follow-up.
+    """
+    if s.isdigit():
+        return int(s)
+    v = _CN_NUM_MAP.get(s)
+    if v is None:
+        raise ValueError(f"unrecognised number token: {s!r}")
+    return v
 
 
 def _time_unit_to_days(n_str: str, unit: str) -> int:
@@ -132,14 +151,16 @@ _DATE_TIME_PAT = (
     r")"
     r"(?:\s*\d{1,2}[点时:：]\d{0,2})?"  # optional hour
 )
+# Time is required: "给张三预约" without a date is semantically incomplete and
+# too close to generic follow-up/task-creation to route with confidence.
 _APPOINTMENT_RE = re.compile(
     r"^(?:给|为|帮|替)?\s*" + _LAZY_NAME_PAT + r"\s*"
     r"(?:预约|约诊|挂号|安排(?:复诊|门诊|预约))\s*"
-    r"(?:" + _DATE_TIME_PAT + r")?\s*$"
+    r"(?:" + _DATE_TIME_PAT + r")\s*$"
 )
 _APPOINTMENT_VERB_FIRST_RE = re.compile(
     r"^(?:预约|约)\s*" + _LAZY_NAME_PAT + r"\s*"
-    r"(?:" + _DATE_TIME_PAT + r")?\s*$"
+    r"(?:" + _DATE_TIME_PAT + r")\s*$"
 )
 
 _FOLLOWUP_WITH_NAME_RE = re.compile(
@@ -174,12 +195,20 @@ _FOLLOWUP_NONAME_RELATIVE_RE = re.compile(
     r"(?:随访|复诊|复查|随诊)(?:提醒)?$"
 )
 _FOLLOWUP_NONAME_RE = re.compile(
-    r"^(?:给(?:他|她|这位|这个)|帮(?:他|她|这位))?\s*"
+    # Bare "随访"/"复查" with no pronoun and no time is too weak to route with
+    # confidence; require at least one substantive signal.
+    r"^(?:"
+    # Branch A: explicit pronoun — "给他/她/这位 [verb] [time] 随访"
+    r"(?:给(?:他|她|这位|这个)|帮(?:他|她|这位))\s*"
     r"(?:设|安排|创建|建|定)?\s*"
-    r"(?:(" + r"[一两二三四五六七八九十\d]+" + r")\s*"
-    r"(" + r"(?:天|日|周|个月|月)" + r")后)?\s*"
-    r"(?:随访|复诊|复查|随诊|随访提醒|复查提醒)"
-    r"(?:提醒)?$"
+    r"(?:(?:[一两二三四五六七八九十\d]+)\s*(?:天|日|周|个月|月)后\s*)?"
+    r"(?:随访|复诊|复查|随诊|随访提醒|复查提醒)(?:提醒)?"
+    r"|"
+    # Branch B: explicit time clause — "N单位后 随访" (no pronoun needed)
+    r"(?:设|安排|创建|建|定)?\s*"
+    r"(?:[一两二三四五六七八九十\d]+)\s*(?:天|日|周|个月|月)后\s*"
+    r"(?:随访|复诊|复查|随诊|随访提醒|复查提醒)(?:提醒)?"
+    r")$"
 )
 
 # ── Tier 2: postpone_task ──────────────────────────────────────────────────────
@@ -261,14 +290,18 @@ _CREATE_TERSE_END_RE = re.compile(
 _GENDER_RE = re.compile(r"[男女](?:性)?")
 _AGE_RE = re.compile(r"(\d{1,3})\s*岁")
 
+# Delete patterns use a 4-char name variant: a wrong match on a destructive
+# action is unacceptable, and compound surnames (司徒, 欧阳, 上官…) yield 4-char names.
+_NAME_PAT_4 = r"([\u4e00-\u9fff]{2,4})"
+
 # Delete leading: "删除/删掉/移除 [患者/病人] [name]"
 _DELETE_LEAD_RE = re.compile(
-    r"^(?:删除|删掉|移除|删)(?:患者|病人)?\s*" + _NAME_PAT + r"\s*$"
+    r"^(?:删除|删掉|移除|删)(?:患者|病人)?\s*" + _NAME_PAT_4 + r"\s*$"
 )
 
 # Delete trailing: "把[name]删了/删掉" or "[name]删除/删掉"
 _DELETE_TRAIL_RE = re.compile(
-    r"^(?:把\s*)?" + _NAME_PAT + r"\s*(?:删了|删掉|删除|移除)\s*$"
+    r"^(?:把\s*)?" + _NAME_PAT_4 + r"\s*(?:删了|删掉|删除|移除)\s*$"
 )
 
 # Complete task: "完成任务N", "完成N", "标记N完成", "任务N完成", "N完成"
@@ -297,16 +330,8 @@ _COMPLETE_TASK_D_RE = re.compile(
 # Also handles conditional prefix: "如果有重复名字，删除第二个患者NAME" (10× in e2e corpus).
 _DELETE_OCCINDEX_RE = re.compile(
     r"^(?:如果有重复名字[，,]?\s*)?"
-    r"(?:删除|删掉|移除|删)第\s*" + _TASK_NUM + r"\s*个(?:患者|病人)?\s*" + _NAME_PAT + r"[。]?\s*$"
+    r"(?:删除|删掉|移除|删)第\s*" + _TASK_NUM + r"\s*个(?:患者|病人)?\s*" + _NAME_PAT_4 + r"[。]?\s*$"
 )
-
-_CN_NUM_MAP = {
-    "一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5,
-    "六": 6, "七": 7, "八": 8, "九": 9, "十": 10,
-    "十一": 11, "十二": 12, "十三": 13, "十四": 14, "十五": 15,
-    "十六": 16, "十七": 17, "十八": 18, "十九": 19, "二十": 20,
-}
-
 
 def _parse_task_num(raw: str) -> Optional[int]:
     if raw.isdigit():
@@ -316,9 +341,11 @@ def _parse_task_num(raw: str) -> Optional[int]:
 
 # ── Update patient demographics ───────────────────────────────────────────────
 # "修改王明的年龄为50岁" / "更新李华的性别为女" / "王明的年龄改为50" / "把X的性别改成女"
+# Negative lookahead before the name slot guards against domain nouns (病历, 诊断…)
+# landing in the name capture; downstream _NON_NAME_KEYWORDS provides a second pass.
 _UPDATE_PATIENT_DEMO_RE = re.compile(
-    r"(?:修改|更新|更改|纠正|调整|把)\s*" + _NAME_PAT + r"\s*的\s*(?:年龄|性别)"
-    r"|" + _NAME_PAT + r"\s*的\s*(?:年龄|性别)\s*(?:应该是|改为|更正为|更新为|改成|是)\s*[\d女男]"
+    r"(?:修改|更新|更改|纠正|调整|把)\s*(?!病历|记录|情况|病情|状态|诊断|治疗)([\u4e00-\u9fff]{2,3})\s*的\s*(?:年龄|性别)"
+    r"|(?!病历|记录|情况|病情|状态|诊断|治疗)([\u4e00-\u9fff]{2,3})\s*的\s*(?:年龄|性别)\s*(?:应该是|改为|更正为|更新为|改成|是)\s*[\d女男]"
 )
 
 # ── Record correction ─────────────────────────────────────────────────────────
@@ -343,7 +370,11 @@ _CORRECT_NAME_RE = re.compile(
 )
 
 # Name at message start: "张三，…" / "患者张三" / "病人李明"
-# Also used by _tier3.py and _router.py
+# Also used by _tier3.py and _router.py.
+# Best-effort only: the following-char set [，,。：:\s男女\d] intentionally excludes
+# bare Chinese characters to avoid greedily consuming clinical terms as part of the
+# name (e.g. "张三胸痛" would capture "张三胸").  Callers MUST apply _TIER3_BAD_NAME
+# filtering — this regex is not sufficient on its own.
 _TIER3_NAME_RE = re.compile(
     r"^(?:患者|病人)?\s*([\u4e00-\u9fff]{2,3})[，,。：:\s男女\d]"
 )

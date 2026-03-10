@@ -442,7 +442,7 @@ async def test_pending_create_reuses_existing_patient_without_duplicate(session_
 
 async def test_handle_intent_add_record_asks_for_name_without_session():
     with patch(
-        "routers.wechat.agent_dispatch",
+        "routers.wechat.route_message",
         new=AsyncMock(return_value=IntentResult(intent=Intent.add_record, patient_name=None)),
     ), patch("routers.wechat.get_all_patients", new=AsyncMock(return_value=[])):
         msg = await wechat._handle_intent("发烧一天", DOCTOR)
@@ -451,7 +451,7 @@ async def test_handle_intent_add_record_asks_for_name_without_session():
 
 async def test_handle_intent_add_record_name_token_routes_to_lookup():
     with patch(
-        "routers.wechat.agent_dispatch",
+        "routers.wechat.route_message",
         new=AsyncMock(return_value=IntentResult(intent=Intent.add_record, patient_name=None)),
     ), patch("routers.wechat.get_all_patients", new=AsyncMock(return_value=[])), \
        patch("routers.wechat._handle_name_lookup", new=AsyncMock(return_value="lookup-name")) as lookup_mock:
@@ -471,7 +471,7 @@ async def test_handle_intent_add_record_rebinds_single_patient_when_session_miss
 
     with patch("routers.wechat.AsyncSessionLocal", session_factory), \
          patch(
-             "routers.wechat.agent_dispatch",
+             "routers.wechat.route_message",
              new=AsyncMock(return_value=IntentResult(intent=Intent.add_record, patient_name=None)),
          ), \
          patch("routers.wechat._handle_add_record", new=AsyncMock(return_value="saved")) as add_mock:
@@ -484,16 +484,16 @@ async def test_handle_intent_add_record_rebinds_single_patient_when_session_miss
 
 async def test_handle_intent_unknown_no_longer_routes_to_name_lookup():
     with patch(
-        "routers.wechat.agent_dispatch",
+        "routers.wechat.route_message",
         new=AsyncMock(return_value=IntentResult(intent=Intent.unknown, chat_reply=None)),
     ), patch("routers.wechat._handle_name_lookup", new=AsyncMock(return_value="lookup")):
         out = await wechat._handle_intent("张三", DOCTOR)
-    assert "请直接描述病历" in out
+    assert "直接描述病历" in out or "无法判断操作意图" in out
 
 
 async def test_handle_intent_unknown_explicit_name_routes_to_lookup():
     with patch(
-        "routers.wechat.agent_dispatch",
+        "routers.wechat.route_message",
         new=AsyncMock(return_value=IntentResult(intent=Intent.unknown, chat_reply=None)),
     ), patch("routers.wechat._handle_name_lookup", new=AsyncMock(return_value="name-anchor")) as lookup_mock:
         out = await wechat._handle_intent("我是张三", DOCTOR)
@@ -506,7 +506,7 @@ async def test_handle_intent_unknown_symptom_with_current_patient_saves_brief_re
     sess.current_patient_id = 101
     sess.current_patient_name = "章三"
     with patch(
-        "routers.wechat.agent_dispatch",
+        "routers.wechat.route_message",
         new=AsyncMock(return_value=IntentResult(intent=Intent.unknown, chat_reply=None)),
     ), patch("routers.wechat._handle_add_record", new=AsyncMock(return_value="saved-brief")) as add_mock:
         out = await wechat._handle_intent("我又有偏头痛", DOCTOR)
@@ -516,12 +516,12 @@ async def test_handle_intent_unknown_symptom_with_current_patient_saves_brief_re
 
 async def test_handle_intent_unknown_greeting_not_routed_as_name():
     with patch(
-        "routers.wechat.agent_dispatch",
+        "routers.wechat.route_message",
         new=AsyncMock(return_value=IntentResult(intent=Intent.unknown, chat_reply=None)),
     ), patch("routers.wechat._handle_name_lookup", new=AsyncMock(return_value="lookup")) as lookup_mock:
         out = await wechat._handle_intent("你好", DOCTOR)
 
-    assert "您好" in out or "请直接描述病历" in out
+    assert "直接描述病历" in out or "无法判断操作意图" in out
     lookup_mock.assert_not_called()
 
 
@@ -563,7 +563,7 @@ async def test_handle_list_tasks_and_complete_task_and_schedule_routes():
     )
     assert "时间格式无法识别" in bad_format
 
-    with patch("services.notify.tasks.create_appointment_task", new=AsyncMock(return_value=SimpleNamespace(id=5))):
+    with patch("routers.wechat.create_appointment_task", new=AsyncMock(return_value=SimpleNamespace(id=5))):
         scheduled = await wechat._handle_schedule_appointment(
             DOCTOR,
             IntentResult(
@@ -582,22 +582,22 @@ async def test_handle_intent_fast_complete_and_task_intents():
         direct = await wechat._handle_intent("完成 7", DOCTOR)
     assert "已标记完成" in direct
 
-    with patch("routers.wechat.agent_dispatch", new=AsyncMock(return_value=IntentResult(intent=Intent.list_tasks))), \
+    with patch("routers.wechat.route_message", new=AsyncMock(return_value=IntentResult(intent=Intent.list_tasks))), \
          patch("routers.wechat._handle_list_tasks", new=AsyncMock(return_value="tasks")):
         r1 = await wechat._handle_intent("我的待办", DOCTOR)
     assert r1 == "tasks"
 
-    with patch("routers.wechat.agent_dispatch", new=AsyncMock(return_value=IntentResult(intent=Intent.complete_task, extra_data={"task_id": 3}))), \
+    with patch("routers.wechat.route_message", new=AsyncMock(return_value=IntentResult(intent=Intent.complete_task, extra_data={"task_id": 3}))), \
          patch("routers.wechat._handle_complete_task", new=AsyncMock(return_value="done")):
         r2 = await wechat._handle_intent("完成任务3", DOCTOR)
     assert r2 == "done"
 
-    with patch("routers.wechat.agent_dispatch", new=AsyncMock(return_value=IntentResult(intent=Intent.schedule_appointment, patient_name="赵六", extra_data={"appointment_time": "2026-03-18T09:00:00"}))), \
+    with patch("routers.wechat.route_message", new=AsyncMock(return_value=IntentResult(intent=Intent.schedule_appointment, patient_name="赵六", extra_data={"appointment_time": "2026-03-18T09:00:00"}))), \
          patch("routers.wechat._handle_schedule_appointment", new=AsyncMock(return_value="appt")):
         r3 = await wechat._handle_intent("约诊", DOCTOR)
     assert r3 == "appt"
 
-    with patch("routers.wechat.agent_dispatch", new=AsyncMock(return_value=IntentResult(intent=Intent.delete_patient, patient_name="章三", extra_data={"occurrence_index": 2}))), \
+    with patch("routers.wechat.route_message", new=AsyncMock(return_value=IntentResult(intent=Intent.delete_patient, patient_name="章三", extra_data={"occurrence_index": 2}))), \
          patch("routers.wechat.wd.handle_delete_patient", new=AsyncMock(return_value="deleted")):
         r4 = await wechat._handle_intent("删除第二个患者章三", DOCTOR)
     assert r4 == "deleted"
@@ -1314,7 +1314,7 @@ async def test_handle_add_record_uses_structured_fields(session_factory):
     )
     structure_mock = AsyncMock()
     with patch("routers.wechat.AsyncSessionLocal", session_factory), \
-         patch("routers.wechat.structure_medical_record", structure_mock):
+         patch("services.domain.record_ops.structure_medical_record", structure_mock):
         reply = await wechat._handle_add_record("张三头痛两天", DOCTOR, intent)
     structure_mock.assert_not_called()
     # Ack reply — no explicit confirmation required
@@ -1333,7 +1333,7 @@ async def test_handle_add_record_falls_back_to_structuring_llm(session_factory):
     fake_record = MedicalRecord(content="头痛 偏头痛", tags=["偏头痛"])
     structure_mock = AsyncMock(return_value=fake_record)
     with patch("routers.wechat.AsyncSessionLocal", session_factory), \
-         patch("routers.wechat.structure_medical_record", structure_mock):
+         patch("services.domain.record_ops.structure_medical_record", structure_mock):
         reply = await wechat._handle_add_record("张三头痛两天", DOCTOR, intent)
     structure_mock.assert_called_once()
     assert "张三" in reply or "病历" in reply
@@ -1390,7 +1390,7 @@ async def test_handle_add_record_structuring_value_error_returns_natural_msg(ses
         chat_reply=None,
     )
     with patch("routers.wechat.AsyncSessionLocal", session_factory), \
-         patch("routers.wechat.structure_medical_record", new=AsyncMock(side_effect=ValueError("bad"))):
+         patch("services.domain.record_ops.structure_medical_record", new=AsyncMock(side_effect=ValueError("bad"))):
         reply = await wechat._handle_add_record("不完整的输入", DOCTOR, intent)
     assert "没能识别" in reply
 
@@ -1404,7 +1404,7 @@ async def test_handle_add_record_structuring_generic_error_returns_natural_msg(s
         chat_reply=None,
     )
     with patch("routers.wechat.AsyncSessionLocal", session_factory), \
-         patch("routers.wechat.structure_medical_record", new=AsyncMock(side_effect=RuntimeError("boom"))):
+         patch("services.domain.record_ops.structure_medical_record", new=AsyncMock(side_effect=RuntimeError("boom"))):
         reply = await wechat._handle_add_record("张三胸痛", DOCTOR, intent)
     assert "不好意思" in reply or "出了点问题" in reply
 

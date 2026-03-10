@@ -36,8 +36,8 @@ def wechat(session_factory):
 
 async def test_handle_intent_routes_create_patient(wechat, session_factory):
     # "帮我建个新患者，李明，45岁男性" is now handled by the fast router (no LLM call).
-    # agent_dispatch mock is provided but won't be invoked for this fast-path message.
-    with patch("routers.wechat.agent_dispatch", new=AsyncMock(
+    # route_message mock is provided but won't be invoked for this fast-path message.
+    with patch("routers.wechat.route_message", new=AsyncMock(
         return_value=_intent(Intent.create_patient, name="李明", gender="男", age=45)
     )), patch("routers.wechat.AsyncSessionLocal", session_factory):
         reply = await wechat._handle_intent("帮我建个新患者，李明，45岁男性", DOCTOR)
@@ -47,7 +47,7 @@ async def test_handle_intent_routes_create_patient(wechat, session_factory):
 
 async def test_handle_intent_routes_unknown_to_help_message(wechat):
     from services.ai.intent import IntentResult
-    with patch("routers.wechat.agent_dispatch", new=AsyncMock(
+    with patch("routers.wechat.route_message", new=AsyncMock(
         return_value=IntentResult(intent=Intent.unknown, chat_reply="您好，有什么可以帮您？")
     )):
         reply = await wechat._handle_intent("今天天气真好", DOCTOR)
@@ -57,7 +57,7 @@ async def test_handle_intent_routes_unknown_to_help_message(wechat):
 async def test_handle_intent_falls_back_on_detection_error(wechat):
     from db.models.medical_record import MedicalRecord
     fake_record = MedicalRecord(content="发烧")
-    with patch("routers.wechat.agent_dispatch", side_effect=Exception("LLM down")), \
+    with patch("routers.wechat.route_message", side_effect=Exception("LLM down")), \
          patch("routers.wechat.structure_medical_record", new=AsyncMock(return_value=fake_record)) as mock_struct:
         reply = await wechat._handle_intent("some text", DOCTOR)
     mock_struct.assert_awaited_once()
@@ -68,13 +68,13 @@ async def test_handle_intent_logs_and_continues_when_knowledge_context_load_fail
     from services.ai.intent import IntentResult
 
     with patch("routers.wechat.load_knowledge_context_for_prompt", new=AsyncMock(side_effect=RuntimeError("db busy"))), \
-         patch("routers.wechat.agent_dispatch", new=AsyncMock(return_value=IntentResult(intent=Intent.unknown, chat_reply="ok"))):
+         patch("routers.wechat.route_message", new=AsyncMock(return_value=IntentResult(intent=Intent.unknown, chat_reply="ok"))):
         reply = await wechat._handle_intent("今天天气", DOCTOR)
     assert reply == "ok"
 
 
 async def test_handle_intent_structuring_fallback_unexpected_error_returns_generic_message(wechat):
-    with patch("routers.wechat.agent_dispatch", side_effect=Exception("LLM down")), \
+    with patch("routers.wechat.route_message", side_effect=Exception("LLM down")), \
          patch("routers.wechat.structure_medical_record", new=AsyncMock(side_effect=RuntimeError("boom"))):
         reply = await wechat._handle_intent("some text", DOCTOR)
     assert "不好意思" in reply
@@ -88,7 +88,7 @@ async def test_handle_intent_routes_delete_patient(wechat, session_factory):
         await create_patient(s, DOCTOR, "章三", None, None)
 
     with patch(
-        "routers.wechat.agent_dispatch",
+        "routers.wechat.route_message",
         new=AsyncMock(
             return_value=IntentResult(
                 intent=Intent.delete_patient,
@@ -158,7 +158,7 @@ async def test_add_record_uses_session_patient_when_no_name_in_message(wechat, s
         tags=["紧张性头痛"],
     )
     with patch("routers.wechat.AsyncSessionLocal", session_factory), \
-         patch("routers.wechat.structure_medical_record", new=AsyncMock(return_value=fake_record)):
+         patch("services.domain.record_ops.structure_medical_record", new=AsyncMock(return_value=fake_record)):
         reply = await wechat._handle_add_record(FAKE_RECORD_TEXT, DOCTOR, _intent(Intent.add_record))
 
     assert "李明" in reply  # natural reply contains patient name
@@ -176,7 +176,7 @@ async def test_add_record_links_patient_from_message_name(wechat, session_factor
         tags=["上呼吸道感染"],
     )
     with patch("routers.wechat.AsyncSessionLocal", session_factory), \
-         patch("routers.wechat.structure_medical_record", new=AsyncMock(return_value=fake_record)):
+         patch("services.domain.record_ops.structure_medical_record", new=AsyncMock(return_value=fake_record)):
         reply = await wechat._handle_add_record(
             "张三今天咳嗽", DOCTOR, _intent(Intent.add_record, name="张三")
         )
@@ -191,7 +191,7 @@ async def test_add_record_auto_creates_patient_when_not_in_db(wechat, session_fa
         content="头疼 最近头疼很久 多喝热水",
     )
     with patch("routers.wechat.AsyncSessionLocal", session_factory), \
-         patch("routers.wechat.structure_medical_record", new=AsyncMock(return_value=fake_record)):
+         patch("services.domain.record_ops.structure_medical_record", new=AsyncMock(return_value=fake_record)):
         reply = await wechat._handle_add_record(
             "王芳，最近头疼很久，需要多喝热水", DOCTOR, _intent(Intent.add_record, name="王芳")
         )
@@ -212,7 +212,7 @@ async def test_add_record_works_without_patient(wechat, session_factory):
         tags=["病毒感染"],
     )
     with patch("routers.wechat.AsyncSessionLocal", session_factory), \
-         patch("routers.wechat.structure_medical_record", new=AsyncMock(return_value=fake_record)):
+         patch("services.domain.record_ops.structure_medical_record", new=AsyncMock(return_value=fake_record)):
         reply = await wechat._handle_add_record(
             "患者发烧一天", DOCTOR, _intent(Intent.add_record)
         )
@@ -329,7 +329,7 @@ async def test_add_record_emergency_reply_has_prefix(wechat, session_factory):
         is_emergency=True,
     )
     with patch("routers.wechat.AsyncSessionLocal", session_factory), \
-         patch("routers.wechat.structure_medical_record", new=AsyncMock(return_value=fake_record)):
+         patch("services.domain.record_ops.structure_medical_record", new=AsyncMock(return_value=fake_record)):
         reply = await wechat._handle_add_record("3床室颤，立即除颤", DOCTOR, emergency_intent)
 
     assert "🚨" in reply  # emergency prefix always present
@@ -343,7 +343,7 @@ async def test_add_record_emergency_reply_has_prefix(wechat, session_factory):
 async def test_handle_intent_routes_list_patients(wechat, session_factory):
     from services.ai.intent import IntentResult
 
-    with patch("routers.wechat.agent_dispatch", new=AsyncMock(
+    with patch("routers.wechat.route_message", new=AsyncMock(
         return_value=IntentResult(intent=Intent.list_patients)
     )), patch("routers.wechat.AsyncSessionLocal", session_factory):
         reply = await wechat._handle_intent("所有患者", DOCTOR)

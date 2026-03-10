@@ -23,8 +23,7 @@ from . import _router
 
 # ── Public API re-exports ─────────────────────────────────────────────────────
 from ._keywords import (
-    _EMERGENCY_KW,
-    _CLINICAL_KW_TIER3,
+    _CLINICAL_KW_TIER3,  # retained for reference/analytics — not used in routing path
     _IMPORT_KEYWORDS,
     _LIST_PATIENTS_EXACT,
     _LIST_PATIENTS_SHORT,
@@ -36,7 +35,6 @@ from ._keywords import (
 from ._mined_rules import load_mined_rules, reload_mined_rules
 from ._router import fast_route, fast_route_label, _fast_route_core
 from ._session import _apply_session_context, _PATIENT_NAME_INTENTS
-from ._tier3 import _is_clinical_tier3, _extract_tier3_demographics
 from ._patient_guard import _is_patient_question
 from ._patterns import _normalise, _extract_demographics
 
