@@ -16,8 +16,13 @@ class MedicalRecord(BaseModel):
     tags: List[str] = Field(default_factory=list)
     """关键词标签：诊断名称、药品、随访时间等，用于过滤和风险评估。"""
 
-    record_type: str = Field(default="visit")
+    record_type: Optional[str] = Field(default="visit")
     """记录类型：visit | dictation | import | interview_summary"""
+
+    @field_validator("record_type", mode="before")
+    @classmethod
+    def _default_record_type(cls, v: object) -> str:
+        return v if isinstance(v, str) and v.strip() else "visit"
 
     specialty_scores: List[dict] = Field(default_factory=list)
     """专科量表评分列表：[{"score_type": "NIHSS", "score_value": 8, "raw_text": "..."}]"""
