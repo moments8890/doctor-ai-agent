@@ -157,7 +157,7 @@
         "speaker": "doctor"
       },
       {
-        "text": "新增患者：陈某某，女，47岁，门诊转急诊，主诉活动后胸闷胸痛3天，加重4小时。",
+        "text": "新增患者：陈大为，女，47岁，门诊转急诊，主诉活动后胸闷胸痛3天，加重4小时。",
         "speaker": "doctor"
       },
       {
@@ -358,7 +358,7 @@
         "speaker": "doctor"
       },
       {
-        "text": "1完成：新患者吴某，男，68岁，急诊胸痛4小时，吸烟40包年",
+        "text": "1完成：新患者吴桂芳，男，68岁，急诊胸痛4小时，吸烟40包年",
         "speaker": "doctor"
       },
       {
@@ -554,7 +554,7 @@
     "clinical_domain": "neurology",
     "chatlog": [
       {
-        "text": "先查下赵某旧病历，67M，TIA史，昨晚再发言语含糊20min",
+        "text": "先查下赵志远旧病历，67M，TIA史，昨晚再发言语含糊20min",
         "speaker": "doctor"
       },
       {
@@ -643,7 +643,7 @@
     "clinical_domain": "stroke unit",
     "chatlog": [
       {
-        "text": "患者刘某某，男，81岁，因突发左侧肢体无力并言语不清5小时由急诊收入卒中单元。",
+        "text": "患者刘丽萍，男，81岁，因突发左侧肢体无力并言语不清5小时由急诊收入卒中单元。",
         "speaker": "doctor"
       },
       {
@@ -792,7 +792,7 @@
         "speaker": "doctor"
       },
       {
-        "text": "查不到完整资料就新建：孙某，女，69岁，门诊复诊，今晨右手麻木15分钟已缓解。",
+        "text": "查不到完整资料就新建：孙春燕，女，69岁，门诊复诊，今晨右手麻木15分钟已缓解。",
         "speaker": "doctor"
       },
       {
@@ -841,11 +841,11 @@
         "speaker": "doctor"
       },
       {
-        "text": "把复核李某出院小结标记完成。",
+        "text": "把复核李亚男出院小结标记完成。",
         "speaker": "doctor"
       },
       {
-        "text": "新加一条进展：李某，F76，脑梗死恢复期，NIHSS由4降到2，步行50米需一人搀扶。",
+        "text": "新加一条进展：李文博，F76，脑梗死恢复期，NIHSS由4降到2，步行50米需一人搀扶。",
         "speaker": "doctor"
       },
       {
@@ -886,7 +886,7 @@
     "clinical_domain": "emergency neurology",
     "chatlog": [
       {
-        "text": "夜班补录一例癫痫持续状态，先建患者：何某，男，33岁，急诊留观。",
+        "text": "夜班补录一例癫痫持续状态，先建患者：何桂芳，男，33岁，急诊留观。",
         "speaker": "doctor"
       },
       {
@@ -935,7 +935,7 @@
     "clinical_domain": "neurology memory clinic",
     "chatlog": [
       {
-        "text": "名单里有没有周某，记得上月做过MoCA。",
+        "text": "名单里有没有周秀英，记得上月做过MoCA。",
         "speaker": "doctor"
       },
       {
@@ -1128,7 +1128,7 @@
     "clinical_domain": "endocrinology",
     "chatlog": [
       {
-        "text": "患者陈某某，男，55岁，初次至内分泌门诊就诊，请先建立档案。",
+        "text": "患者陈秀英，男，55岁，初次至内分泌门诊就诊，请先建立档案。",
         "speaker": "doctor"
       },
       {
@@ -1283,7 +1283,7 @@
     "clinical_domain": "nephrology",
     "chatlog": [
       {
-        "text": "先查李某（女，72）去年肾内科糖肾病记录，再决定今天怎么改。",
+        "text": "先查李大为（女，72）去年肾内科糖肾病记录，再决定今天怎么改。",
         "speaker": "doctor"
       },
       {
@@ -1430,7 +1430,7 @@
     "clinical_domain": "psychiatry",
     "chatlog": [
       {
-        "text": "新建一个共病门诊档：赵某，女，34岁，先录入基本信息。",
+        "text": "新建一个共病门诊档：赵淑华，女，34岁，先录入基本信息。",
         "speaker": "doctor"
       },
       {
@@ -1612,7 +1612,7 @@
     "clinical_domain": "palliative care",
     "chatlog": [
       {
-        "text": "患者李某，男，71岁，肺腺癌IV期，今日门诊复评。请先调出名单定位该患者。",
+        "text": "患者李春梅，男，71岁，肺腺癌IV期，今日门诊复评。请先调出名单定位该患者。",
         "speaker": "doctor"
       },
       {
@@ -1843,7 +1843,7 @@
     "clinical_domain": "oncology",
     "chatlog": [
       {
-        "text": "先查陈某上月肿瘤标志物，看看CA19-9有没有继续掉",
+        "text": "先查陈丽萍上月肿瘤标志物，看看CA19-9有没有继续掉",
         "speaker": "doctor"
       },
       {
@@ -1987,7 +1987,7 @@
     "clinical_domain": "emergency",
     "chatlog": [
       {
-        "text": "急诊刘医生：先查旧档，周某女45，胸闷突发2h。",
+        "text": "急诊刘医生：先查旧档，周长江女45，胸闷突发2h。",
         "speaker": "doctor"
       },
       {
@@ -2089,7 +2089,7 @@
     "clinical_domain": "pulmonology",
     "chatlog": [
       {
-        "text": "呼吸科门诊接诊：患者王某某，女，63岁，因“发热咳脓痰5天、气促1天”就诊，现予以建档。",
+        "text": "呼吸科门诊接诊：患者王志刚，女，63岁，因“发热咳脓痰5天、气促1天”就诊，现予以建档。",
         "speaker": "doctor"
       },
       {
@@ -2250,7 +2250,7 @@
     "clinical_domain": "pulmonology",
     "chatlog": [
       {
-        "text": "先给我看李某上次肺栓塞复查记录，再决定今天怎么写。",
+        "text": "先给我看李淑华上次肺栓塞复查记录，再决定今天怎么写。",
         "speaker": "doctor"
       },
       {
@@ -2585,7 +2585,7 @@
     "clinical_domain": "post-anesthesia",
     "chatlog": [
       {
-        "text": "麻醉恢复室这位陈某某，男，58岁，结肠癌根治术后6小时，请先把我的待办调出来。",
+        "text": "麻醉恢复室这位陈小燕，男，58岁，结肠癌根治术后6小时，请先把我的待办调出来。",
         "speaker": "doctor"
       },
       {
@@ -2879,7 +2879,7 @@
         "speaker": "doctor"
       },
       {
-        "text": "新建：林某，女24，昨晚急诊行前臂肌腱吻合术，现门诊换药",
+        "text": "新建：林志远，女24，昨晚急诊行前臂肌腱吻合术，现门诊换药",
         "speaker": "doctor"
       },
       {
@@ -3083,7 +3083,7 @@
         "speaker": "doctor"
       },
       {
-        "text": "现新增患者：陈某某，女，44岁，产后第5天，因高热伴意识淡漠由急诊转入，初步考虑脓毒症相关脑病，请创建档案。",
+        "text": "现新增患者：陈永强，女，44岁，产后第5天，因高热伴意识淡漠由急诊转入，初步考虑脓毒症相关脑病，请创建档案。",
         "speaker": "doctor"
       },
       {
@@ -3281,7 +3281,7 @@
     "clinical_domain": "oncology critical care",
     "chatlog": [
       {
-        "text": "口述录入，新病人，孙某，男，79岁，肿瘤化疗后粒缺合并脓毒症，先建档。",
+        "text": "口述录入，新病人，孙国强，男，79岁，肿瘤化疗后粒缺合并脓毒症，先建档。",
         "speaker": "doctor"
       },
       {
@@ -3338,7 +3338,7 @@
         "speaker": "doctor"
       },
       {
-        "text": "再查床5周某既往记录，昨天说乳酸回落我想确认时间点。",
+        "text": "再查床5周文博既往记录，昨天说乳酸回落我想确认时间点。",
         "speaker": "doctor"
       },
       {
@@ -3530,7 +3530,7 @@
         "speaker": "doctor"
       },
       {
-        "text": "把“王某导管口红肿复评”标记完成",
+        "text": "把“王建华导管口红肿复评”标记完成",
         "speaker": "doctor"
       },
       {
@@ -3579,7 +3579,7 @@
         "speaker": "doctor"
       },
       {
-        "text": "建档：Chen XX, 29F, postpartum day 6, oliguria 400ml/24h",
+        "text": "建档：Chen Lihua, 29F, postpartum day 6, oliguria 400ml/24h",
         "speaker": "doctor"
       },
       {
@@ -3621,7 +3621,7 @@
     "clinical_domain": "transplant_clinic",
     "chatlog": [
       {
-        "text": "患者周某，男，54岁，肾移植术后第38天，拟行门诊随访。请先调取其近两周病历与化验。",
+        "text": "患者周海燕，男，54岁，肾移植术后第38天，拟行门诊随访。请先调取其近两周病历与化验。",
         "speaker": "doctor"
       },
       {
@@ -3732,7 +3732,7 @@
     "clinical_domain": "icu",
     "chatlog": [
       {
-        "text": "先查张某历史记录，尤其上次高钾处理单",
+        "text": "先查张国庆历史记录，尤其上次高钾处理单",
         "speaker": "doctor"
       },
       {
@@ -3827,7 +3827,7 @@
     "clinical_domain": "glomerular_disease_clinic",
     "chatlog": [
       {
-        "text": "我这边先看一下门诊患者列表，有没有王某某",
+        "text": "我这边先看一下门诊患者列表，有没有王桂英",
         "speaker": "doctor"
       },
       {
@@ -3876,7 +3876,7 @@
     "clinical_domain": "nephrology_rheumatology",
     "chatlog": [
       {
-        "text": "请调取赵某，女，33岁，系统性红斑狼疮相关肾炎的全部住院记录。",
+        "text": "请调取赵亚男，女，33岁，系统性红斑狼疮相关肾炎的全部住院记录。",
         "speaker": "doctor"
       },
       {
@@ -4064,7 +4064,7 @@
     "clinical_domain": "psychiatry_inpatient",
     "chatlog": [
       {
-        "text": "患者王某，男，45岁，急诊后转入精神科观察，请先查看我未完成事项。",
+        "text": "患者王世杰，男，45岁，急诊后转入精神科观察，请先查看我未完成事项。",
         "speaker": "doctor"
       },
       {
@@ -4204,7 +4204,7 @@
     "clinical_domain": "psychiatry",
     "chatlog": [
       {
-        "text": "先查下有没有陈某的历史病历，女24，昨晚急诊来过",
+        "text": "先查下有没有陈健康的历史病历，女24，昨晚急诊来过",
         "speaker": "doctor"
       },
       {
@@ -4344,7 +4344,7 @@
     "clinical_domain": "geriatric_psychiatry",
     "chatlog": [
       {
-        "text": "麻烦先调出刘某最近三次复诊记录，我要对比评分趋势。",
+        "text": "麻烦先调出刘晓明最近三次复诊记录，我要对比评分趋势。",
         "speaker": "doctor"
       },
       {
@@ -4538,7 +4538,7 @@
     "clinical_domain": "nephrology",
     "chatlog": [
       {
-        "text": "患者王某，男，67岁，慢性肾病4期住院中；请先列出我今天未完成任务。",
+        "text": "患者王凤英，男，67岁，慢性肾病4期住院中；请先列出我今天未完成任务。",
         "speaker": "doctor"
       },
       {
@@ -4688,7 +4688,7 @@
     "clinical_domain": "psychiatry",
     "chatlog": [
       {
-        "text": "先帮我查下“林某某”之前有没有精神科记录。",
+        "text": "先帮我查下“林建军”之前有没有精神科记录。",
         "speaker": "doctor"
       },
       {
@@ -4741,7 +4741,7 @@
         "speaker": "doctor"
       },
       {
-        "text": "[x] 完成“复核血培养结果”：患者郭某，63岁，血培养大肠埃希菌阳性。",
+        "text": "[x] 完成“复核血培养结果”：患者郭玉梅，63岁，血培养大肠埃希菌阳性。",
         "speaker": "doctor"
       },
       {
@@ -4839,7 +4839,7 @@
         "speaker": "doctor"
       },
       {
-        "text": "检索刘某（女，61岁）本次住院全部病程及化验更新。",
+        "text": "检索刘建军（女，61岁）本次住院全部病程及化验更新。",
         "speaker": "doctor"
       },
       {

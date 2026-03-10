@@ -311,7 +311,6 @@ function AdminDashboard({ onLockout }) {
   const [routingKeywords, setRoutingKeywords] = useState({});
   const [newKwInputs, setNewKwInputs] = useState({});
   const [inviteCodes, setInviteCodes] = useState([]);
-  const [newInviteDoctorId, setNewInviteDoctorId] = useState("");
   const [newInviteName, setNewInviteName] = useState("");
   const [newInviteCode, setNewInviteCode] = useState("");
   const [sortCol, setSortCol] = useState("");
@@ -607,11 +606,8 @@ function AdminDashboard({ onLockout }) {
   }
 
   async function onCreateInviteCode() {
-    const id = newInviteDoctorId.trim();
-    if (!id) return;
     try {
-      await createAdminInviteCode(id, newInviteName.trim() || undefined, newInviteCode.trim() || undefined);
-      setNewInviteDoctorId("");
+      await createAdminInviteCode(newInviteName.trim() || undefined, newInviteCode.trim() || undefined);
       setNewInviteName("");
       setNewInviteCode("");
       await loadInviteCodes();
@@ -1294,13 +1290,6 @@ function AdminDashboard({ onLockout }) {
                   <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 2 }}>
                     <TextField
                       size="small"
-                      label="医生账号 ID"
-                      value={newInviteDoctorId}
-                      onChange={(e) => setNewInviteDoctorId(e.target.value)}
-                      sx={{ minWidth: 180 }}
-                    />
-                    <TextField
-                      size="small"
                       label="显示姓名（可选）"
                       value={newInviteName}
                       onChange={(e) => setNewInviteName(e.target.value)}
@@ -1315,7 +1304,7 @@ function AdminDashboard({ onLockout }) {
                       inputProps={{ maxLength: 32 }}
                       sx={{ minWidth: 180 }}
                     />
-                    <Button variant="contained" size="small" onClick={onCreateInviteCode} disabled={!newInviteDoctorId.trim()}>
+                    <Button variant="contained" size="small" onClick={onCreateInviteCode}>
                       生成邀请码
                     </Button>
                   </Stack>
@@ -1334,7 +1323,9 @@ function AdminDashboard({ onLockout }) {
                         ) : inviteCodes.map((row) => (
                           <TableRow key={row.code}>
                             <TableCell sx={{ fontFamily: "monospace", fontWeight: 700 }}>{row.code}</TableCell>
-                            <TableCell>{row.doctor_id}</TableCell>
+                            <TableCell sx={{ color: row.doctor_id ? "text.primary" : "text.disabled", fontStyle: row.doctor_id ? "normal" : "italic" }}>
+                              {row.doctor_id || "待首次登录"}
+                            </TableCell>
                             <TableCell>{row.doctor_name || "-"}</TableCell>
                             <TableCell>
                               <Chip size="small" label={row.active ? "有效" : "已吊销"} color={row.active ? "success" : "default"} />

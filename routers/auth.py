@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import os
+import secrets
 from datetime import datetime, timezone
 import logging
 from typing import Optional
@@ -287,10 +288,17 @@ async def invite_login(body: InviteLoginInput) -> WebLoginResponse:
             await session.execute(select(InviteCode).where(InviteCode.code == code).limit(1))
         ).scalar_one_or_none()
 
-    if invite is None or not invite.active:
-        raise HTTPException(status_code=401, detail="Invalid or inactive invite code")
+        if invite is None or not invite.active:
+            raise HTTPException(status_code=401, detail="Invalid or inactive invite code")
 
-    doctor_id = invite.doctor_id
+        if invite.doctor_id is None:
+            # First login with this code — provision a new doctor now.
+            invite.doctor_id = f"inv_{secrets.token_urlsafe(8)}"
+            invite.used_count = (invite.used_count or 0) + 1
+            await session.commit()
+
+        doctor_id = invite.doctor_id
+
     enforce_doctor_rate_limit(doctor_id, scope="auth.login")
     await _upsert_web_doctor(doctor_id, invite.doctor_name, specialty=(body.specialty or "").strip() or None)
 

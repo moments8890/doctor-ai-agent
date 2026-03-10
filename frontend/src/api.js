@@ -122,12 +122,11 @@ export async function getAdminInviteCodes() {
   return adminRequest("/api/admin/invite-codes");
 }
 
-export async function createAdminInviteCode(doctorId, doctorName, customCode) {
+export async function createAdminInviteCode(doctorName, customCode) {
   return adminRequest("/api/admin/invite-codes", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      doctor_id: doctorId,
       doctor_name: doctorName || undefined,
       code: customCode || undefined,
     }),

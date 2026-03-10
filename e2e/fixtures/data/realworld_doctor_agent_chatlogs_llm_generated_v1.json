@@ -1107,7 +1107,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "今天这个先开：何阿姨，81岁，记忆差3年，最近1月出现傍晚躁动。"
+        "text": "今天这个先开：何海燕，81岁，记忆差3年，最近1月出现傍晚躁动。"
       },
       {
         "speaker": "doctor",
@@ -1941,7 +1941,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "查一下沈阿姨上月随访记录，我要对比HbA1c。"
+        "text": "查一下沈荣华上月随访记录，我要对比HbA1c。"
       },
       {
         "speaker": "doctor",
@@ -5663,7 +5663,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "沈阿姨这个先记一下：感染性休克，昨晚乳酸4.9，PCT 16.3。"
+        "text": "沈爱莲这个先记一下：感染性休克，昨晚乳酸4.9，PCT 16.3。"
       },
       {
         "speaker": "doctor",
@@ -6613,7 +6613,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "把许阿姨今天任务取消，先别做腹透导管评估。"
+        "text": "把许淑华今天任务取消，先别做腹透导管评估。"
       },
       {
         "speaker": "doctor",

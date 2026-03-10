@@ -1668,14 +1668,13 @@ import secrets as _secrets
 
 
 class InviteCodeCreate(BaseModel):
-    doctor_id: str
     doctor_name: Optional[str] = None
     code: Optional[str] = None  # custom code; auto-generated if omitted
 
 
 class InviteCodeRow(BaseModel):
     code: str
-    doctor_id: str
+    doctor_id: Optional[str]  # None until first login
     doctor_name: Optional[str]
     active: bool
     created_at: str
@@ -1708,9 +1707,6 @@ async def create_invite_code(
     x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
 ):
     _require_ui_admin_access(x_admin_token)
-    doctor_id = (body.doctor_id or "").strip()
-    if not doctor_id:
-        raise HTTPException(status_code=422, detail="doctor_id is required")
     # Validate or generate code
     if body.code:
         custom = body.code.strip()
@@ -1719,6 +1715,7 @@ async def create_invite_code(
         code = custom
     else:
         code = _secrets.token_urlsafe(9)  # 12-char URL-safe string
+    doctor_name = (body.doctor_name or "").strip() or None
     now = datetime.now(timezone.utc)
     async with AsyncSessionLocal() as session:
         existing = (await session.execute(
@@ -1728,16 +1725,16 @@ async def create_invite_code(
             raise HTTPException(status_code=409, detail="该邀请码已存在")
         session.add(InviteCode(
             code=code,
-            doctor_id=doctor_id,
-            doctor_name=(body.doctor_name or "").strip() or None,
+            doctor_id=None,  # doctor_id is assigned on first login
+            doctor_name=doctor_name,
             active=1,
             created_at=now,
         ))
         await session.commit()
     return InviteCodeRow(
         code=code,
-        doctor_id=doctor_id,
-        doctor_name=(body.doctor_name or "").strip() or None,
+        doctor_id=None,
+        doctor_name=doctor_name,
         active=True,
         created_at=_fmt_ts(now),
     )
