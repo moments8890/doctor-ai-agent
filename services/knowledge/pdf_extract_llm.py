@@ -1,45 +1,106 @@
 """
-LLM-based PDF text extractor using Anthropic's native PDF document support.
+LLM-based PDF text extractor using the OpenAI SDK (same provider config as vision.py).
 
-Supports both digital and scanned PDFs without needing pdftotext/pdftoppm.
-Activated when ANTHROPIC_API_KEY is set and PDF_LLM != "none".
+Strategy: convert PDF pages to JPEG images via pdftoppm, then send all pages
+as image_url blocks to the configured vision LLM in a single request.
 
-Usage:
-    result = await extract_text_from_pdf_llm(pdf_bytes)
-    # Returns None if LLM is not configured — caller falls back to pdftotext.
+Activated when PDF_LLM != "none" and pdftoppm is available.
+Falls back to pdftotext if pdftoppm is missing or LLM is disabled.
+
+Env vars (shared with vision.py):
+    VISION_LLM          Provider: ollama | gemini | openai  (default: ollama)
+    OLLAMA_VISION_MODEL / OLLAMA_BASE_URL / OLLAMA_API_KEY
+    GEMINI_API_KEY / GEMINI_VISION_MODEL
+    OPENAI_API_KEY
+
+    PDF_LLM             Set to "none" to disable and force pdftotext fallback
+    PDF_LLM_MAX_PAGES   Max pages to extract (default: 10)
+    PDF_LLM_DPI         pdftoppm resolution in dpi (default: 120)
+    PDF_LLM_TIMEOUT     Seconds before LLM call times out (default: 90)
 """
 
 from __future__ import annotations
 
 import base64
 import os
+import subprocess
+import tempfile
+from pathlib import Path
+
+from openai import AsyncOpenAI
 
 from utils.log import log
 
 _SYSTEM_PROMPT = (
-    "你是一名医疗文档识别助手。请将 PDF 中所有临床文字原样提取为纯文本，"
+    "你是一名医疗文档识别助手。请将图片中所有临床文字原样提取为纯文本，"
     "保留所有数字、单位、药物名称、检验值和日期，不要添加解释，不要输出 JSON，只输出纯文本。"
 )
 
-_USER_PROMPT = "请提取此 PDF 文件中的所有临床文字内容。"
+_PROVIDERS = {
+    "ollama": {
+        "base_url": lambda: os.environ.get("OLLAMA_VISION_BASE_URL", os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1")),
+        "api_key_env": "OLLAMA_API_KEY",
+        "model_env": "OLLAMA_VISION_MODEL",
+        "model_default": "qwen2.5vl:7b",
+    },
+    "gemini": {
+        "base_url": lambda: "https://generativelanguage.googleapis.com/v1beta/openai/",
+        "api_key_env": "GEMINI_API_KEY",
+        "model_env": "GEMINI_VISION_MODEL",
+        "model_default": "gemini-2.0-flash",
+    },
+    "openai": {
+        "base_url": lambda: None,
+        "api_key_env": "OPENAI_API_KEY",
+        "model_env": None,
+        "model_default": "gpt-4o-mini",
+    },
+}
 
 
 def _is_enabled() -> bool:
-    """Return True if LLM PDF extraction is configured."""
     if os.environ.get("PDF_LLM", "").lower() == "none":
         return False
-    return bool(os.environ.get("ANTHROPIC_API_KEY", "").strip())
+    try:
+        subprocess.run(["pdftoppm", "-v"], capture_output=True, check=True)
+        return True
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return False
+
+
+def _pdf_to_images(pdf_bytes: bytes, max_pages: int, dpi: int) -> list[bytes]:
+    """Convert PDF pages to JPEG bytes using pdftoppm."""
+    with tempfile.TemporaryDirectory() as tmp:
+        pdf_path = Path(tmp) / "input.pdf"
+        img_prefix = Path(tmp) / "page"
+        pdf_path.write_bytes(pdf_bytes)
+
+        r = subprocess.run(
+            [
+                "pdftoppm",
+                "-r", str(dpi),
+                "-jpeg",
+                "-l", str(max_pages),
+                str(pdf_path),
+                str(img_prefix),
+            ],
+            capture_output=True,
+        )
+        if r.returncode != 0:
+            return []
+
+        images = sorted(Path(tmp).glob("page*.jpg"))
+        return [img.read_bytes() for img in images[:max_pages]]
 
 
 async def extract_text_from_pdf_llm(
     pdf_bytes: bytes,
     max_chars: int = 12000,
-    model: str | None = None,
 ) -> str | None:
-    """Extract text from PDF using Claude's native PDF support.
+    """Extract text from PDF pages using a vision LLM via the OpenAI SDK.
 
-    Returns extracted text string, or None if LLM extraction is not
-    configured (caller should fall back to pdftotext).
+    Returns extracted text, or None if LLM extraction is disabled/unavailable
+    (caller should fall back to pdftotext).
     """
     if not _is_enabled():
         return None
@@ -47,46 +108,51 @@ async def extract_text_from_pdf_llm(
     if not pdf_bytes:
         return ""
 
-    import anthropic
+    max_pages = int(os.environ.get("PDF_LLM_MAX_PAGES", "10"))
+    dpi = int(os.environ.get("PDF_LLM_DPI", "120"))
 
-    resolved_model = (
-        model
-        or os.environ.get("PDF_LLM_MODEL", "claude-haiku-4-5-20251001")
-    )
+    page_images = _pdf_to_images(pdf_bytes, max_pages, dpi)
+    if not page_images:
+        log("[PDF-LLM] pdftoppm produced no images — falling back")
+        return None
 
-    pdf_b64 = base64.standard_b64encode(pdf_bytes).decode("utf-8")
+    provider_name = os.environ.get("VISION_LLM", "ollama")
+    cfg = _PROVIDERS.get(provider_name, _PROVIDERS["ollama"])
 
-    log(f"[PDF-LLM] model={resolved_model} pdf_size={len(pdf_bytes)} bytes")
+    model = os.environ.get(cfg["model_env"] or "", "") or cfg["model_default"]
+    api_key = os.environ.get(cfg["api_key_env"], "nokeyneeded")
+    base_url = cfg["base_url"]()
+    timeout = float(os.environ.get("PDF_LLM_TIMEOUT", "90"))
 
-    client = anthropic.AsyncAnthropic(
-        api_key=os.environ["ANTHROPIC_API_KEY"],
-        timeout=float(os.environ.get("PDF_LLM_TIMEOUT", "90")),
-    )
+    client_kwargs: dict = {"api_key": api_key, "timeout": timeout, "max_retries": 0}
+    if base_url:
+        client_kwargs["base_url"] = base_url
+    client = AsyncOpenAI(**client_kwargs)
 
-    message = await client.messages.create(
-        model=resolved_model,
-        max_tokens=4096,
-        system=_SYSTEM_PROMPT,
+    log(f"[PDF-LLM:{provider_name}] model={model} pages={len(page_images)}")
+
+    # Build one image_url block per page
+    content: list[dict] = []
+    for i, img_bytes in enumerate(page_images):
+        b64 = base64.b64encode(img_bytes).decode("utf-8")
+        content.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
+        })
+    content.append({"type": "text", "text": "请提取以上所有页面中的临床文字内容。"})
+
+    completion = await client.chat.completions.create(
+        model=model,
         messages=[
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "document",
-                        "source": {
-                            "type": "base64",
-                            "media_type": "application/pdf",
-                            "data": pdf_b64,
-                        },
-                    },
-                    {"type": "text", "text": _USER_PROMPT},
-                ],
-            }
+            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "user", "content": content},
         ],
+        max_tokens=4096,
+        temperature=0,
     )
 
-    text = (message.content[0].text if message.content else "").strip()
-    log(f"[PDF-LLM] extracted {len(text)} chars: {text[:80]!r}")
+    text = (completion.choices[0].message.content or "").strip()
+    log(f"[PDF-LLM:{provider_name}] extracted {len(text)} chars: {text[:80]!r}")
 
     if max_chars > 0 and len(text) > max_chars:
         text = text[:max_chars]
