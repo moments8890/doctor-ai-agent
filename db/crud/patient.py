@@ -19,6 +19,7 @@ from db.models import (
 )
 from db.repositories import PatientRepository
 from services.observability.observability import trace_block
+from services.observability.audit import audit
 from utils.errors import InvalidMedicalRecordError, LabelNotFoundError, PatientNotFoundError
 from db.crud.doctor import _ensure_doctor_exists
 
@@ -144,6 +145,8 @@ async def create_label(
     label = PatientLabel(doctor_id=doctor_id, name=name, color=color)
     session.add(label)
     await session.commit()
+    import asyncio
+    asyncio.ensure_future(audit(doctor_id, "WRITE", resource_type="patient_label", resource_id=str(label.id)))
     return label
 
 
@@ -181,6 +184,8 @@ async def update_label(
     if color is not None:
         label.color = color
     await session.commit()
+    import asyncio
+    asyncio.ensure_future(audit(doctor_id, "WRITE", resource_type="patient_label", resource_id=str(label_id)))
     return label
 
 
@@ -206,6 +211,8 @@ async def delete_label(
     await session.flush()
     await session.delete(label)
     await session.commit()
+    import asyncio
+    asyncio.ensure_future(audit(doctor_id, "DELETE", resource_type="patient_label", resource_id=str(label_id)))
     return True
 
 
@@ -241,6 +248,8 @@ async def assign_label(
     if label not in patient.labels:
         patient.labels.append(label)
         await session.commit()
+        import asyncio
+        asyncio.ensure_future(audit(doctor_id, "WRITE", resource_type="patient_label", resource_id=f"{patient_id}:{label_id}"))
 
 
 async def remove_label(
@@ -261,6 +270,8 @@ async def remove_label(
         )
     patient.labels = [lbl for lbl in patient.labels if lbl.id != label_id]
     await session.commit()
+    import asyncio
+    asyncio.ensure_future(audit(doctor_id, "DELETE", resource_type="patient_label", resource_id=f"{patient_id}:{label_id}"))
 
 
 async def get_patient_labels(

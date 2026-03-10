@@ -5,7 +5,7 @@ from db.models.doctor import (
     DoctorNotifyPreference, DoctorConversationTurn, Doctor, InviteCode, ChatArchive,
 )
 from db.models.patient import Patient, PatientLabel, patient_label_assignments
-from db.models.records import MedicalRecordDB, NeuroCaseDB, MedicalRecordVersion, MedicalRecordExport
+from db.models.records import MedicalRecordDB, MedicalRecordVersion, MedicalRecordExport
 from db.models.tasks import DoctorTask
 from db.models.pending import PendingRecord, PendingMessage
 from db.models.runtime import RuntimeCursor, RuntimeToken, RuntimeConfig, SchedulerLease
@@ -24,7 +24,7 @@ __all__ = [
     "DoctorContext", "DoctorKnowledgeItem", "DoctorSessionState",
     "DoctorNotifyPreference", "DoctorConversationTurn", "Doctor", "InviteCode", "ChatArchive",
     "Patient", "PatientLabel", "patient_label_assignments",
-    "MedicalRecordDB", "NeuroCaseDB", "MedicalRecordVersion", "MedicalRecordExport",
+    "MedicalRecordDB", "MedicalRecordVersion", "MedicalRecordExport",
     "DoctorTask",
     "PendingRecord", "PendingMessage",
     "RuntimeCursor", "RuntimeToken", "RuntimeConfig", "SchedulerLease",

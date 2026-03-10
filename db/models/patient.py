@@ -35,10 +35,19 @@ class Patient(Base):
     primary_category: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     category_tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)   # JSON list
 
+    # Demographics (v2) — optional for MVP; required when hospital integration is active
+    phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    patient_id_number: Mapped[Optional[str]] = mapped_column(String(18), nullable=True)  # 身份证号
+
+    # Patient portal access code — stored as PBKDF2-SHA256 hash (NULL = name-only fallback).
+    # Plaintext is NEVER stored; use services.auth.access_code_hash.hash_access_code() to set.
+    access_code: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
+
     __table_args__ = (
         Index("ix_patients_doctor_created", "doctor_id", "created_at"),
         Index("ix_patients_doctor_category", "doctor_id", "primary_category"),
-        Index("ix_patients_name", "name"),
+        # NOTE: global ix_patients_name removed — name searches are always scoped by doctor_id;
+        # use ix_patients_doctor_created + filter in app layer.
         UniqueConstraint("id", "doctor_id", name="uq_patients_id_doctor"),
     )
 

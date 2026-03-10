@@ -17,7 +17,7 @@ class DoctorTask(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False)
-    patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id", ondelete="CASCADE"), nullable=True)
+    patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id", ondelete="SET NULL"), nullable=True)
     record_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("medical_records.id", ondelete="SET NULL"), nullable=True)
     task_type: Mapped[str] = mapped_column(String(32), nullable=False)  # follow_up | emergency | appointment
     title: Mapped[str] = mapped_column(String(256), nullable=False)
@@ -30,6 +30,7 @@ class DoctorTask(Base):
     __table_args__ = (
         Index("ix_tasks_doctor_status_due", "doctor_id", "status", "due_at"),
         Index("ix_tasks_status_due", "status", "due_at"),  # scheduler: list_due_unnotified queries across all doctors
+        Index("ix_tasks_status_task_type_due", "status", "task_type", "due_at"),
     )
 
     def __str__(self) -> str:

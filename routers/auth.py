@@ -18,6 +18,7 @@ from db.crud import get_doctor_by_mini_openid, get_doctor_by_id, link_mini_openi
 from db.engine import AsyncSessionLocal
 from db.models import Doctor, InviteCode
 from services.auth.wechat_id_hash import hash_wechat_id
+from services.observability.audit import audit
 from services.auth.miniprogram_auth import (
     MiniProgramAuthError,
     issue_miniprogram_token,
@@ -311,6 +312,9 @@ async def invite_login(body: InviteLoginInput) -> WebLoginResponse:
         channel="wechat_mini" if mini_openid else "app",
         wechat_openid=mini_openid,
     )
+
+    import asyncio
+    asyncio.ensure_future(audit(doctor_id, "LOGIN", resource_type="invite_code", resource_id=code))
 
     return WebLoginResponse(
         access_token=str(token_data["access_token"]),

@@ -1,5 +1,7 @@
 """
-病历（MedicalRecordDB）和神经专科病例（NeuroCaseDB）的数据库模型。
+病历（MedicalRecordDB）的数据库模型。
+
+注意：NeuroCaseDB（neuro_cases 表）已在 migration 0015 中删除，此文件中的类已移除。
 """
 
 from __future__ import annotations
@@ -27,6 +29,8 @@ class MedicalRecordDB(Base):
 
     # Neuro-case extra fields — populated when record_type == "neuro_case"
     neuro_patient_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    # NOTE: nihss here is deprecated — specialty_scores is the authoritative source for NIHSS.
+    # This column is kept for backwards-compat reads only; new writes should go to specialty_scores.
     nihss: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     neuro_raw_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     neuro_extraction_log_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -36,6 +40,7 @@ class MedicalRecordDB(Base):
     __table_args__ = (
         Index("ix_records_patient_created", "patient_id", "created_at"),
         Index("ix_records_doctor_created", "doctor_id", "created_at"),
+        Index("ix_records_doctor_type_created", "doctor_id", "record_type", "created_at"),
         Index("ix_records_created", "created_at"),
     )
 
@@ -44,33 +49,6 @@ class MedicalRecordDB(Base):
         snippet = (self.content or "—")[:30]
         return f"{snippet} [{date}]"
 
-
-class NeuroCaseDB(Base):
-    __tablename__ = "neuro_cases"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False, index=True)
-    patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id", ondelete="CASCADE"), nullable=True)
-
-    patient_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    nihss: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # promoted for filtering
-
-    # Full extracted payloads
-    raw_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    extraction_log_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
-    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=_utcnow, nullable=True)
-
-    __table_args__ = (
-        Index("ix_neuro_cases_doctor_created", "doctor_id", "created_at"),
-    )
-
-    patient: Mapped[Optional["Patient"]] = relationship("Patient")
-
-    def __str__(self) -> str:
-        date = self.created_at.strftime("%Y-%m-%d") if self.created_at else "—"
-        return f"{self.patient_name or '—'} [{date}]"
 
 
 class MedicalRecordVersion(Base):

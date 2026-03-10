@@ -1,5 +1,6 @@
 module.exports = {
-  apiBase: "https://api.doctoragentai.cn",
+  // Local dev: http://localhost:5173  |  Prod: https://api.doctoragentai.cn
+  apiBase: "http://localhost:5173",
 
   // WeChat subscribe-message template ID.
   // Register a template in the WeChat Mini Program admin, then paste the ID here.

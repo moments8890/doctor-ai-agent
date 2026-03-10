@@ -444,7 +444,7 @@ async def test_handle_intent_add_record_asks_for_name_without_session():
     with patch(
         "routers.wechat.agent_dispatch",
         new=AsyncMock(return_value=IntentResult(intent=Intent.add_record, patient_name=None)),
-    ):
+    ), patch("routers.wechat.get_all_patients", new=AsyncMock(return_value=[])):
         msg = await wechat._handle_intent("发烧一天", DOCTOR)
     assert "叫什么名字" in msg
 
@@ -453,7 +453,8 @@ async def test_handle_intent_add_record_name_token_routes_to_lookup():
     with patch(
         "routers.wechat.agent_dispatch",
         new=AsyncMock(return_value=IntentResult(intent=Intent.add_record, patient_name=None)),
-    ), patch("routers.wechat._handle_name_lookup", new=AsyncMock(return_value="lookup-name")) as lookup_mock:
+    ), patch("routers.wechat.get_all_patients", new=AsyncMock(return_value=[])), \
+       patch("routers.wechat._handle_name_lookup", new=AsyncMock(return_value="lookup-name")) as lookup_mock:
         msg = await wechat._handle_intent("张三", DOCTOR)
     assert msg == "lookup-name"
     lookup_mock.assert_awaited_once_with("张三", DOCTOR)
@@ -801,6 +802,7 @@ async def test_voice_bg_pending_create_route_done():
          patch("routers.wechat.download_and_convert", new=AsyncMock(return_value=b"wav")), \
          patch("routers.wechat.transcribe_audio", new=AsyncMock(return_value="男，40岁")), \
          patch("routers.wechat.get_session_lock", return_value=DummyLock()), \
+         patch("routers.wechat.hydrate_session_state", new=AsyncMock()), \
          patch("routers.wechat._handle_pending_create", new=AsyncMock(return_value="ok")), \
          patch("routers.wechat._send_customer_service_msg", new=AsyncMock()) as send_msg, \
          patch("routers.wechat._handle_intent_bg", new=AsyncMock()) as intent_bg:

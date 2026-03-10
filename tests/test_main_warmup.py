@@ -121,7 +121,7 @@ def test_conversation_turn_retention_days_parsing(monkeypatch):
     monkeypatch.setenv("CONVERSATION_TURN_RETENTION_DAYS", "0")
     assert main._conversation_turn_retention_days() == 1
     monkeypatch.setenv("CONVERSATION_TURN_RETENTION_DAYS", "abc")
-    assert main._conversation_turn_retention_days() == 7
+    assert main._conversation_turn_retention_days() == 1095
 
 
 def test_session_cache_cleanup_parsing(monkeypatch):

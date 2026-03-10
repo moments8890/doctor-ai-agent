@@ -196,11 +196,11 @@ def _scheduler_cron_expr() -> str:
 
 
 def _conversation_turn_retention_days() -> int:
-    raw = os.environ.get("CONVERSATION_TURN_RETENTION_DAYS", "7")
+    raw = os.environ.get("CONVERSATION_TURN_RETENTION_DAYS", "1095")
     try:
         return max(1, int(raw))
     except (TypeError, ValueError):
-        return 7
+        return 1095
 
 
 def _session_cache_cleanup_interval_minutes() -> int:
@@ -309,7 +309,7 @@ async def _cleanup_chat_archive() -> None:
 
 
 async def _audit_log_retention() -> None:
-    """Monthly job: delete audit log entries older than 365 days."""
+    """Monthly job: delete audit log entries older than 7 years (2555 days)."""
     _log = logging.getLogger("scheduler")
     try:
         from db.crud import archive_old_audit_logs
@@ -321,7 +321,7 @@ async def _audit_log_retention() -> None:
 
 
 async def _record_version_retention() -> None:
-    """Monthly job: delete medical record versions older than 2 years."""
+    """Monthly job: delete medical record versions older than 30 years (10950 days)."""
     _log = logging.getLogger("scheduler")
     try:
         from db.crud import prune_record_versions
@@ -394,11 +394,11 @@ def _configure_task_scheduler(startup_log: logging.Logger) -> None:
     _scheduler.add_job(_cleanup_chat_archive, "cron", hour=4, minute=30)
     startup_log.info("[ChatArchive] cleanup scheduler configured | daily at 04:30")
 
-    # Monthly on the 1st at 03:00 — audit log retention (> 365 days)
+    # Monthly on the 1st at 03:00 — audit log retention (> 7 years)
     _scheduler.add_job(_audit_log_retention, "cron", day=1, hour=3, minute=0)
     startup_log.info("[AuditLog] retention scheduler configured | monthly day=1 at 03:00")
 
-    # Monthly on the 1st at 03:30 — record version retention (> 2 years)
+    # Monthly on the 1st at 03:30 — record version retention (> 30 years)
     _scheduler.add_job(_record_version_retention, "cron", day=1, hour=3, minute=30)
     startup_log.info("[RecordVersions] retention scheduler configured | monthly day=1 at 03:30")
 
@@ -473,6 +473,15 @@ async def lifespan(app: FastAPI):
             _startup_log.info("[Recovery] re-queued stale pending_message(s) | count=%s", _recovered)
     except Exception as _e:
         _startup_log.warning("[Recovery] stale pending_message recovery FAILED: %s", _e)
+
+    # Enforce WECHAT_ID_HMAC_KEY in production
+    _env = os.environ.get("APP_ENV", "").strip().lower()
+    if _env in {"production", "prod"}:
+        if not os.environ.get("WECHAT_ID_HMAC_KEY", "").strip():
+            raise RuntimeError(
+                "WECHAT_ID_HMAC_KEY must be set in production to ensure "
+                "WeChat identifiers are hashed at rest. Refusing to start."
+            )
 
     _configure_task_scheduler(_startup_log)
     _scheduler.start()

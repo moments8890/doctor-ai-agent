@@ -281,6 +281,8 @@ async def _send_customer_service_msg(
             url = f"https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token={access_token}"
             mode = "wecom_app"
         elif cfg.get("is_kf", False):
+            if not kf_id:
+                raise RuntimeError("WECHAT_KF_OPEN_KFID is required when is_kf=True")
             url = f"https://qyapi.weixin.qq.com/cgi-bin/kf/send_msg?access_token={access_token}"
             mode = "kf"
         else:

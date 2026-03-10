@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Optional
-from sqlalchemy import Index, Integer, String, DateTime, Text
+from sqlalchemy import ForeignKey, Index, Integer, String, DateTime, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from db.engine import Base
 from db.models.base import _utcnow
@@ -29,7 +29,7 @@ class SystemPromptVersion(Base):
     __tablename__ = "system_prompt_versions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    prompt_key: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    prompt_key: Mapped[str] = mapped_column(String(64), ForeignKey("system_prompts.key", ondelete="CASCADE"), nullable=False, index=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     changed_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     changed_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)

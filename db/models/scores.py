@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Float, ForeignKey, Index, Integer, String, DateTime, Text
+from sqlalchemy import Float, ForeignKey, Index, Integer, String, DateTime, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from db.engine import Base
@@ -39,4 +39,6 @@ class SpecialtyScore(Base):
         Index("ix_specialty_scores_doctor_id", "doctor_id"),
         Index("ix_specialty_scores_patient_score_ts", "patient_id", "score_type", "extracted_at"),
         Index("ix_specialty_scores_doctor_type_ts", "doctor_id", "score_type", "extracted_at"),
+        # Prevents duplicate score entries (e.g. NIHSS) for the same record
+        UniqueConstraint("record_id", "score_type", name="uq_specialty_scores_record_type"),
     )

@@ -79,8 +79,10 @@ def _extract_follow_up_days(follow_up_plan: str) -> int:
     return 7
 
 
-async def _patient_name(session: AsyncSession, patient_id: int) -> str:
-    result = await session.execute(select(Patient).where(Patient.id == patient_id))
+async def _patient_name(session: AsyncSession, patient_id: int, doctor_id: str) -> str:
+    result = await session.execute(
+        select(Patient).where(Patient.id == patient_id, Patient.doctor_id == doctor_id)
+    )
     patient = result.scalar_one_or_none()
     return patient.name if patient is not None else "患者"
 
@@ -165,7 +167,7 @@ async def save_record(
                     doctor_id=doctor_id,
                     patient_id=patient_id,
                     record_id=db_record.id,
-                    patient_name=await _patient_name(session, patient_id),
+                    patient_name=await _patient_name(session, patient_id, doctor_id),
                     follow_up_text=record.content,
                 )
         return db_record

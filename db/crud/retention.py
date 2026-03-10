@@ -22,9 +22,10 @@ def _utcnow() -> datetime:
 # AuditLog retention
 # ---------------------------------------------------------------------------
 
-async def archive_old_audit_logs(session: AsyncSession, days: int = 365) -> int:
-    """Delete audit log entries older than *days* days.
+async def archive_old_audit_logs(session: AsyncSession, days: int = 2555) -> int:
+    """Delete audit log entries older than *days* days (default 7 years / 2555 days).
 
+    Chinese MoH best practice: retain audit logs 7+ years for regulatory compliance.
     In production, export to cold storage before calling this.
     Returns the number of rows deleted.
     """
@@ -40,12 +41,11 @@ async def archive_old_audit_logs(session: AsyncSession, days: int = 365) -> int:
 # MedicalRecordVersion retention
 # ---------------------------------------------------------------------------
 
-async def prune_record_versions(session: AsyncSession, max_age_days: int = 730) -> int:
-    """Delete medical record version entries older than *max_age_days* days.
+async def prune_record_versions(session: AsyncSession, max_age_days: int = 10950) -> int:
+    """Delete medical record version entries older than *max_age_days* days (default 30 years).
 
-    Keeps recent history intact; removes entries older than 2 years (default).
-    A more sophisticated per-record "keep last N" strategy can be layered on
-    top later via keyset pagination when needed.
+    Chinese MoH regulation (医疗机构病历管理规定 2013): inpatient records must be
+    retained for 30 years after discharge. Record version history should match.
 
     Returns the number of rows deleted.
     """
@@ -61,9 +61,11 @@ async def prune_record_versions(session: AsyncSession, max_age_days: int = 730) 
 # ChatArchive TTL retention
 # ---------------------------------------------------------------------------
 
-async def cleanup_chat_archive(session: AsyncSession, days: int = 90) -> int:
-    """Hard-delete ChatArchive rows older than *days* days.
+async def cleanup_chat_archive(session: AsyncSession, days: int = 365) -> int:
+    """Hard-delete ChatArchive rows older than *days* days (default 1 year).
 
+    Chat archives contain clinical context used for model evaluation. 365 days
+    balances storage cost against the need to reconstruct care timelines.
     Returns the number of rows deleted.
     """
     cutoff = _utcnow() - timedelta(days=days)
@@ -78,12 +80,13 @@ async def cleanup_chat_archive(session: AsyncSession, days: int = 90) -> int:
 # Conversation turn content redaction
 # ---------------------------------------------------------------------------
 
-async def redact_old_conversation_content(session: AsyncSession, days: int = 30) -> int:
+async def redact_old_conversation_content(session: AsyncSession, days: int = 90) -> int:
     """Replace content of DoctorConversationTurn rows older than *days* days with '[redacted]'.
 
     Turns older than the rolling LLM window are already excluded from context;
     redacting their content limits exposure of PHI in the turns table while
-    preserving the row-count / timing metadata for audits.
+    preserving the row-count / timing metadata for audits. Default 90 days gives
+    doctors reasonable clinical continuity before content is anonymised.
 
     Returns the number of rows updated.
     """

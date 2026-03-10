@@ -51,11 +51,12 @@ def mock_upsert():
 
 @pytest.fixture
 def mock_db_session():
-    """Patch AsyncSessionLocal so load_context_message doesn't open a real DB."""
+    """Patch AsyncSessionLocal and clear_conversation_turns so memory ops don't open a real DB."""
     ctx_mgr = MagicMock()
     ctx_mgr.__aenter__ = AsyncMock(return_value=MagicMock())
     ctx_mgr.__aexit__ = AsyncMock(return_value=False)
-    with patch("services.ai.memory.AsyncSessionLocal", return_value=ctx_mgr):
+    with patch("services.ai.memory.AsyncSessionLocal", return_value=ctx_mgr), \
+         patch("services.ai.memory.clear_conversation_turns", new_callable=AsyncMock):
         yield ctx_mgr
 
 
