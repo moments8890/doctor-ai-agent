@@ -291,16 +291,29 @@ async def invite_login(body: InviteLoginInput) -> WebLoginResponse:
         if invite is None or not invite.active:
             raise HTTPException(status_code=401, detail="Invalid or inactive invite code")
 
+        new_doctor_id = None
         if invite.doctor_id is None:
-            # First login with this code — provision a new doctor now.
-            invite.doctor_id = f"inv_{secrets.token_urlsafe(8)}"
-            invite.used_count = (invite.used_count or 0) + 1
-            await session.commit()
+            # First login — generate the doctor_id but don't write it yet;
+            # the doctor row must exist before the FK update.
+            new_doctor_id = f"inv_{secrets.token_urlsafe(8)}"
 
-        doctor_id = invite.doctor_id
+        doctor_id = invite.doctor_id or new_doctor_id
+        doctor_name = invite.doctor_name
 
     enforce_doctor_rate_limit(doctor_id, scope="auth.login")
-    await _upsert_web_doctor(doctor_id, invite.doctor_name, specialty=(body.specialty or "").strip() or None)
+    # Create the doctor row first so the FK constraint is satisfied.
+    await _upsert_web_doctor(doctor_id, doctor_name, specialty=(body.specialty or "").strip() or None)
+
+    if new_doctor_id:
+        # Now that the doctor exists, write the doctor_id back to the invite code.
+        async with AsyncSessionLocal() as session:
+            invite_row = (
+                await session.execute(select(InviteCode).where(InviteCode.code == code).limit(1))
+            ).scalar_one_or_none()
+            if invite_row is not None:
+                invite_row.doctor_id = new_doctor_id
+                invite_row.used_count = (invite_row.used_count or 0) + 1
+                await session.commit()
 
     # If a WeChat mini app js_code is provided, link the openid to this doctor.
     mini_openid: Optional[str] = None
