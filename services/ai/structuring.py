@@ -285,6 +285,17 @@ async def structure_medical_record(
     if isinstance(data, list):
         data = data[0] if data else {}
 
+    # Coerce specialty_scores: LLM prompt asks for dict {"NIHSS": 8} but schema expects list
+    scores_val = data.get("specialty_scores")
+    if isinstance(scores_val, dict):
+        data["specialty_scores"] = [
+            {"score_type": k, "score_value": v}
+            for k, v in scores_val.items()
+            if v is not None
+        ]
+    elif not isinstance(scores_val, list):
+        data["specialty_scores"] = []
+
     # Coerce content to string if model returns unexpected type
     content_val = data.get("content")
     if content_val is None or not isinstance(content_val, str):

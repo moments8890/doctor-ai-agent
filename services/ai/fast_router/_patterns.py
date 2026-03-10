@@ -229,6 +229,8 @@ _CREATE_LEAD_RE = re.compile(
     r"|加个患者|加个病人"
     r"|录入患者|录入病人"
     r"|新患者|新病人"
+    r"|建个新档|先建个档|先建档"  # e.g. "先建个档：乔慕言", "建个新档，贺清和"
+    r"|新收[：:]?"                # e.g. "神经内科新收：顾清妍"
     r"|建档"
     r")"
     r"[\s,，：:]*" + _NAME_PAT
@@ -249,9 +251,10 @@ _CREATE_TRAIL_RE = re.compile(
 )
 
 # Create: terse "[name] [gender/age/clinical...] 建档" at end of message
-# e.g. "王琴 女47 胆囊术后D1 建档" — name is the FIRST Chinese word in the text.
+# e.g. "王琴 女47 胆囊术后D1 建档", "林若安，女，78岁，...建档"
+# Separator after name is whitespace or Chinese comma/punctuation.
 _CREATE_TERSE_END_RE = re.compile(
-    r"^(" + _NAME_PAT[1:-1] + r")\s+(?:[男女\d]|\w).*?(?:建档|建个档)\s*$"
+    r"^(" + _NAME_PAT[1:-1] + r")[，,\s]+(?:[男女\d]|\w).*?(?:建档|建个档|先建档|先建个档)\s*$"
 )
 
 # Demographics helpers
