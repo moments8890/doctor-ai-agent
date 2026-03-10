@@ -11,7 +11,7 @@ from services.ai.intent import Intent, IntentResult
 from ._keywords import (
     _IMPORT_KEYWORDS, _LIST_PATIENTS_EXACT, _LIST_PATIENTS_SHORT,
     _LIST_TASKS_EXACT, _LIST_TASKS_SHORT, _NON_NAME_KEYWORDS,
-    _TIER3_BAD_NAME, _EMERGENCY_KW, _HELP_KEYWORDS,
+    _TIER3_BAD_NAME, _HELP_KEYWORDS,
 )
 from . import _mined_rules
 from ._patterns import (
@@ -59,7 +59,6 @@ from ._patterns import (
     _time_unit_to_days,
     _extract_demographics,
 )
-from ._tier3 import _is_clinical_tier3, _extract_tier3_demographics
 from ._session import _apply_session_context
 
 if TYPE_CHECKING:
@@ -369,23 +368,10 @@ def _fast_route_core(text: str, specialty: Optional[str] = None) -> Optional[Int
                 confidence=float(rule.get("confidence", 1.0)),
             )
 
-    # ── Tier 3: high-confidence clinical content → add_record ────────────────
-    # Skips the routing LLM call entirely; structuring LLM still runs.
-    # Conservative: only fires for messages long enough and containing at least
-    # one term that is almost exclusively used in clinical contexts.
-    if len(stripped) >= 6 and _is_clinical_tier3(stripped, specialty=specialty):
-        name, gender, age = _extract_tier3_demographics(stripped)
-        is_emergency = any(kw in stripped for kw in _EMERGENCY_KW)
-        return IntentResult(
-            intent=Intent.add_record,
-            patient_name=name,
-            gender=gender,
-            age=age,
-            is_emergency=is_emergency,
-            confidence=0.8,
-        )
-
     # All remaining messages fall through to the LLM for semantic routing.
+    # Tier 3 (clinical keyword → add_record) was removed 2026-03-09.
+    # The LLM correctly discriminates add_record / query_records / update_record
+    # without keyword heuristics. A wrong fast-route is worse than a 1.5s LLM call.
     # The LLM handles add_record / query_records / update_record discrimination
     # and structured field extraction in a single call.
     return None
