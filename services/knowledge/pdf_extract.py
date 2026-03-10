@@ -35,8 +35,9 @@ def extract_text_from_pdf(pdf_bytes: bytes, max_chars: int = 12000) -> str:
 
     try:
         result = subprocess.run(
-            ["pdftotext", "-layout", "-enc", "UTF-8", src_path, dst_path],
+            ["pdftotext", "-layout", "-enc", "UTF-8", "-l", "15", src_path, dst_path],
             capture_output=True,
+            timeout=60,
         )
         if result.returncode != 0:
             err = (result.stderr or b"").decode("utf-8", errors="ignore").strip()

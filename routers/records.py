@@ -1254,8 +1254,11 @@ async def extract_file_for_chat(file: UploadFile = File(...)):
     """
     content_type = (file.content_type or "").split(";")[0].strip()
     filename = file.filename or ""
+    MAX_BYTES = 20 * 1024 * 1024  # 20 MB
     try:
         raw = await file.read()
+        if len(raw) > MAX_BYTES:
+            raise HTTPException(status_code=413, detail="文件过大，请上传 20 MB 以内的文件")
         if content_type == "application/pdf" or filename.lower().endswith(".pdf"):
             import asyncio as _asyncio
             text = await _asyncio.get_event_loop().run_in_executor(

@@ -808,8 +808,12 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onAutoS
       } else {
         setImportError("未能从文件中提取到文字，请尝试其他文件");
       }
-    } catch {
-      setImportError("文件解析失败，请重试");
+    } catch (err) {
+      if (err?.message === "Request timed out") {
+        setImportError("文件较大，解析超时，请尝试上传页数更少的 PDF");
+      } else {
+        setImportError("文件解析失败，请重试");
+      }
     } finally {
       setImporting(false);
     }

@@ -40,7 +40,8 @@ function _getToken() {
 
 async function request(url, options = {}) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  const timeoutMs = options._timeout ?? 15000;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const headers = { ...(options.headers || {}) };
     const token = _getToken();
@@ -161,7 +162,7 @@ export async function ocrImage(imageFile) {
 export async function extractFileForChat(file) {
   const form = new FormData();
   form.append("file", file, file.name);
-  return request("/api/records/extract-file", { method: "POST", body: form });
+  return request("/api/records/extract-file", { method: "POST", body: form, _timeout: 120000 });
 }
 
 export async function getPatients(doctorId, filters = {}, limit = 50, offset = 0) {
