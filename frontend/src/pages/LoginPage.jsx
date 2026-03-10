@@ -28,7 +28,7 @@ export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const { setAuth } = useDoctorStore();
   const [code, setCode] = useState("");
-  const [specialty, setSpecialty] = useState("");
+  const [specialty, setSpecialty] = useState("神经外科");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 

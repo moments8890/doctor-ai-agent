@@ -48,7 +48,7 @@ import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
 import { Paper } from "@mui/material";
-import { getPatients, getRecords, getTasks, patchTask, postponeTask, createTask, updateRecord, sendChat, transcribeAudio, ocrImage, extractFileForChat, getPendingRecord, confirmPendingRecord, abandonPendingRecord, getDoctorProfile, updateDoctorProfile, exportPatientPdf, exportOutpatientReport, getTemplateStatus, uploadTemplate, deleteTemplate, getCvdContext, getLabels, createLabel, deleteLabelById, assignLabelToPatient, removeLabelFromPatient, deletePatient } from "../api";
+import { getPatients, getRecords, getTasks, patchTask, postponeTask, createTask, updateRecord, deleteRecord, sendChat, transcribeAudio, ocrImage, extractFileForChat, getPendingRecord, confirmPendingRecord, abandonPendingRecord, getDoctorProfile, updateDoctorProfile, exportPatientPdf, exportOutpatientReport, getTemplateStatus, uploadTemplate, deleteTemplate, getCvdContext, getLabels, createLabel, deleteLabelById, assignLabelToPatient, removeLabelFromPatient, deletePatient } from "../api";
 import RecordFields from "../components/RecordFields";
 import { useDoctorStore } from "../store/doctorStore";
 import { t } from "../i18n";
@@ -215,14 +215,27 @@ function RecordEditDialog({ record, doctorId, open, onClose, onSaved }) {
 
 // ─── Single record card ────────────────────────────────────────────────────
 
-function RecordCard({ record, doctorId, onUpdated }) {
+function RecordCard({ record, doctorId, onUpdated, onDeleted }) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [current, setCurrent] = useState(record);
 
   function handleSaved(updated) {
     setCurrent(updated);
     onUpdated?.(updated);
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      await deleteRecord(doctorId, current.id);
+      onDeleted?.(current.id);
+    } finally {
+      setDeleting(false);
+      setConfirmingDelete(false);
+    }
   }
 
   const date = current.created_at ? current.created_at.slice(0, 10) : "—";
@@ -265,7 +278,25 @@ function RecordCard({ record, doctorId, onUpdated }) {
 
       {expanded && (
         <Box sx={{ px: 2, pb: 1.5, pt: 0 }}>
-          <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 0.5 }}>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
+            {confirmingDelete ? (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Typography sx={{ fontSize: 12, color: "#e74c3c" }}>确认删除？</Typography>
+                <Box onClick={!deleting ? handleDelete : undefined}
+                  sx={{ fontSize: 12, color: "#fff", bgcolor: "#e74c3c", px: 1, py: 0.3, borderRadius: 1, cursor: deleting ? "default" : "pointer", "&:active": { opacity: 0.7 } }}>
+                  {deleting ? "删除中…" : "确认"}
+                </Box>
+                <Box onClick={() => setConfirmingDelete(false)}
+                  sx={{ fontSize: 12, color: "#666", cursor: "pointer", "&:active": { opacity: 0.7 } }}>
+                  取消
+                </Box>
+              </Box>
+            ) : (
+              <Box onClick={(e) => { e.stopPropagation(); setConfirmingDelete(true); }}
+                sx={{ fontSize: 12, color: "#e74c3c", cursor: "pointer", display: "flex", alignItems: "center", gap: 0.4 }}>
+                <DeleteOutlineIcon sx={{ fontSize: 13 }} />删除
+              </Box>
+            )}
             <Box onClick={(e) => { e.stopPropagation(); setEditing(true); }}
               sx={{ fontSize: 12, color: "#07C160", cursor: "pointer", display: "flex", alignItems: "center", gap: 0.4 }}>
               <EditOutlinedIcon sx={{ fontSize: 13 }} />编辑
@@ -527,6 +558,10 @@ function PatientDetail({ patient, doctorId, onDeleted }) {
     setRecords((prev) => prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)));
   }
 
+  function handleRecordDeleted(recordId) {
+    setRecords((prev) => prev.filter((r) => r.id !== recordId));
+  }
+
   async function handleExportPdf() {
     setExportingPdf(true); setExportError("");
     try { await exportPatientPdf(patient.id, doctorId); }
@@ -706,7 +741,7 @@ function PatientDetail({ patient, doctorId, onDeleted }) {
             </Box>
           ) : (
             filteredRecords.map((r) => (
-              <RecordCard key={r.id} record={r} doctorId={doctorId} onUpdated={handleRecordUpdated} />
+              <RecordCard key={r.id} record={r} doctorId={doctorId} onUpdated={handleRecordUpdated} onDeleted={handleRecordDeleted} />
             ))
           );
         })()}
@@ -747,11 +782,6 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onAutoS
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  // Delete flow: action sheet target + confirm dialog
-  const [deleteTarget, setDeleteTarget] = useState(null); // { id, name }
-  const [confirmDelete, setConfirmDelete] = useState(null); // { id, name }
-  const [deleting, setDeleting] = useState(false);
-  const longPressTimer = useRef(null);
   const importFileRef = useRef(null);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState("");
@@ -765,7 +795,14 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onAutoS
     try {
       const { text } = await extractFileForChat(file);
       if (text?.trim()) {
-        onAutoSendToChat?.(text.trim());
+        // Extract patient name from various Chinese medical document formats
+        // so the AI uses the real name instead of a document header like "医疗机构".
+        const nameMatch =
+          text.match(/(?:患者姓名|病人姓名|姓\s*名)[：:﹕]\s*([^\s\u3000，,（(]{2,6})/) || // 门诊病历、出院小结
+          text.match(/(?:送检者|申请人|患者)[：:﹕]\s*([^\s\u3000，,（(]{2,6})/) ||         // 检验/检查报告
+          text.match(/(?:报告对象|受检者|体检者)[：:﹕]\s*([^\s\u3000，,（(]{2,6})/);      // 体检报告
+        const prefix = nameMatch ? `录入患者【${nameMatch[1]}】的病历：\n` : "";
+        onAutoSendToChat?.((prefix + text.trim()));
       } else {
         setImportError("未能从文件中提取到文字，请尝试其他文件");
       }
@@ -778,28 +815,6 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onAutoS
 
   const selectedId = patientId ? Number(patientId) : null;
   const selectedPatient = patients.find((p) => p.id === selectedId) || null;
-
-  function startLongPress(p) {
-    longPressTimer.current = setTimeout(() => setDeleteTarget({ id: p.id, name: p.name }), 500);
-  }
-  function cancelLongPress() {
-    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
-  }
-
-  async function handleDeleteConfirm() {
-    if (!confirmDelete) return;
-    setDeleting(true);
-    try {
-      await deletePatient(confirmDelete.id, doctorId);
-      setPatients((prev) => prev.filter((p) => p.id !== confirmDelete.id));
-      if (selectedId === confirmDelete.id) navigate("/doctor/patients");
-    } catch (e) {
-      setError(e.message || "删除失败");
-    } finally {
-      setDeleting(false);
-      setConfirmDelete(null);
-    }
-  }
 
   useEffect(() => {
     onPatientSelected?.(selectedPatient?.name || "");
@@ -929,13 +944,7 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onAutoS
                 const isSelected = p.id === selectedId;
                 return (
                   <Box key={p.id}
-                    onClick={() => { cancelLongPress(); navigate(`/doctor/patients/${p.id}`); }}
-                    onMouseDown={() => startLongPress(p)}
-                    onMouseUp={cancelLongPress}
-                    onMouseLeave={cancelLongPress}
-                    onTouchStart={() => startLongPress(p)}
-                    onTouchEnd={cancelLongPress}
-                    onTouchMove={cancelLongPress}
+                    onClick={() => navigate(`/doctor/patients/${p.id}`)}
                     sx={{
                       display: "flex", alignItems: "center", gap: 1.5,
                       px: 2, py: 1.2, bgcolor: isSelected ? "#f0faf4" : "#fff",
@@ -959,53 +968,6 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onAutoS
         </Box>
       </Box>
 
-      {/* WeChat-style action sheet — appears after long press */}
-      <Dialog
-        open={Boolean(deleteTarget)}
-        onClose={() => setDeleteTarget(null)}
-        PaperProps={{ sx: { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "16px 16px 0 0", width: "100%" } }}
-        sx={{ "& .MuiDialog-container": { alignItems: "flex-end" } }}
-      >
-        <Box sx={{ pb: 2 }}>
-          <Box sx={{ textAlign: "center", py: 1.5, borderBottom: "1px solid #f2f2f2" }}>
-            <Typography sx={{ fontSize: 13, color: "#999" }}>{deleteTarget?.name}</Typography>
-          </Box>
-          <Box onClick={() => { setConfirmDelete(deleteTarget); setDeleteTarget(null); }}
-            sx={{ textAlign: "center", py: 1.8, cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
-            <Typography sx={{ fontSize: 17, color: "#e74c3c" }}>删除患者</Typography>
-          </Box>
-          <Box sx={{ height: 8, bgcolor: "#f7f7f7" }} />
-          <Box onClick={() => setDeleteTarget(null)}
-            sx={{ textAlign: "center", py: 1.8, cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
-            <Typography sx={{ fontSize: 17, color: "#333" }}>取消</Typography>
-          </Box>
-        </Box>
-      </Dialog>
-
-      {/* Confirm delete dialog */}
-      <Dialog
-        open={Boolean(confirmDelete)}
-        onClose={() => setConfirmDelete(null)}
-        PaperProps={{ sx: { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "16px 16px 0 0", width: "100%" } }}
-        sx={{ "& .MuiDialog-container": { alignItems: "flex-end" } }}
-      >
-        <Box sx={{ p: 2.5 }}>
-          <Typography sx={{ fontWeight: 600, fontSize: 16, textAlign: "center", mb: 0.8 }}>删除患者</Typography>
-          <Typography sx={{ fontSize: 13, color: "#999", textAlign: "center", mb: 2.5, lineHeight: 1.7 }}>
-            确定删除「{confirmDelete?.name}」？{"\n"}所有病历和任务将一并删除，无法恢复。
-          </Typography>
-          <Box sx={{ display: "flex", gap: 1.5 }}>
-            <Box onClick={() => setConfirmDelete(null)}
-              sx={{ flex: 1, textAlign: "center", py: 1.3, borderRadius: 1.5, bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 15, color: "#666", "&:active": { opacity: 0.7 } }}>
-              取消
-            </Box>
-            <Box onClick={!deleting ? handleDeleteConfirm : undefined}
-              sx={{ flex: 1, textAlign: "center", py: 1.3, borderRadius: 1.5, bgcolor: "#e74c3c", cursor: deleting ? "default" : "pointer", fontSize: 15, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
-              {deleting ? "删除中…" : "删除"}
-            </Box>
-          </Box>
-        </Box>
-      </Dialog>
       </>
     );
   }
@@ -1104,7 +1066,6 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onAutoS
                       borderBottom: idx < group.length - 1 ? "1px solid #f2f2f2" : "none",
                       cursor: "pointer", position: "relative",
                       "&:hover": { bgcolor: "#f5f5f5" },
-                      "&:hover .del-btn": { opacity: 1 },
                       "&:active": { bgcolor: "#ebebeb" },
                     }}>
                     <PatientAvatar name={p.name} size={38} />
@@ -1115,13 +1076,6 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onAutoS
                       </Typography>
                     </Box>
                     {isSelected && <Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: "#07C160", flexShrink: 0 }} />}
-                    {/* Desktop: delete icon appears on hover */}
-                    <Box className="del-btn"
-                      onClick={(e) => { e.stopPropagation(); setConfirmDelete({ id: p.id, name: p.name }); }}
-                      sx={{ opacity: 0, transition: "opacity 0.15s", ml: 0.5, p: 0.5, borderRadius: 1,
-                        "&:hover": { bgcolor: "#fef2f2" }, "&:active": { opacity: 0.7 } }}>
-                      <DeleteOutlineIcon sx={{ fontSize: 17, color: "#e74c3c" }} />
-                    </Box>
                   </Box>
                 );
               })}
@@ -1136,25 +1090,7 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onAutoS
           onDeleted={(id) => { setPatients((prev) => prev.filter((p) => p.id !== id)); navigate("/doctor/patients"); }} />
       </Box>
 
-      {/* Confirm delete dialog (desktop) */}
-      <Dialog open={Boolean(confirmDelete)} onClose={() => setConfirmDelete(null)} PaperProps={{ sx: { borderRadius: 2, minWidth: 300 } }}>
-        <Box sx={{ p: 3 }}>
-          <Typography sx={{ fontWeight: 600, fontSize: 16, mb: 0.8 }}>删除患者</Typography>
-          <Typography sx={{ fontSize: 13, color: "#999", mb: 2.5, lineHeight: 1.7 }}>
-            确定删除「{confirmDelete?.name}」？所有病历和任务将一并删除，无法恢复。
-          </Typography>
-          <Box sx={{ display: "flex", gap: 1.5, justifyContent: "flex-end" }}>
-            <Box onClick={() => setConfirmDelete(null)}
-              sx={{ px: 2, py: 0.8, borderRadius: 1.5, bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 14, color: "#666", "&:active": { opacity: 0.7 } }}>
-              取消
-            </Box>
-            <Box onClick={!deleting ? handleDeleteConfirm : undefined}
-              sx={{ px: 2, py: 0.8, borderRadius: 1.5, bgcolor: "#e74c3c", cursor: deleting ? "default" : "pointer", fontSize: 14, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
-              {deleting ? "删除中…" : "确认删除"}
-            </Box>
-          </Box>
-        </Box>
-      </Dialog>
+      <input ref={importFileRef} type="file" hidden accept=".pdf,image/jpeg,image/png,image/webp" onChange={handleImportFile} />
     </Box>
   );
 }
@@ -1583,6 +1519,7 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [input, setInput] = useState("");
+  const autoSentRef = useRef("");
   const [loading, setLoading] = useState(false);
   const [failedText, setFailedText] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -1743,8 +1680,10 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
   }
 
   // Auto-send from external source (e.g. PDF import)
+  // Guard ref prevents StrictMode double-fire or stale re-render from sending twice.
   useEffect(() => {
-    if (autoSendText) {
+    if (autoSendText && autoSendText !== autoSentRef.current) {
+      autoSentRef.current = autoSendText;
       onAutoSendConsumed?.();
       sendText(autoSendText);
     }
@@ -2236,6 +2175,13 @@ function TemplateSubpage({ doctorId, onBack }) {
   );
 }
 
+const SPECIALTY_OPTIONS = [
+  "神经外科", "神经内科", "心内科", "内科", "外科",
+  "骨科", "妇产科", "儿科", "眼科", "耳鼻喉科",
+  "口腔科", "皮肤科", "精神科", "肿瘤科", "急诊科",
+  "重症医学科", "康复科", "中医科", "全科医学科",
+];
+
 function SettingsSection({ doctorId, onLogout }) {
   const [subpage, setSubpage] = useState(null); // null | "template"
   const theme = useTheme();
@@ -2245,11 +2191,26 @@ function SettingsSection({ doctorId, onLogout }) {
   const [nameInput, setNameInput] = useState("");
   const [nameSaving, setNameSaving] = useState(false);
   const [nameError, setNameError] = useState("");
+  const [specialty, setSpecialty] = useState("");
+  const [specialtyDialogOpen, setSpecialtyDialogOpen] = useState(false);
+  const [specialtyInput, setSpecialtyInput] = useState("");
+  const [specialtySaving, setSpecialtySaving] = useState(false);
+  const [specialtyError, setSpecialtyError] = useState("");
+
+  useEffect(() => {
+    getDoctorProfile(doctorId).then((p) => setSpecialty(p.specialty || "")).catch(() => {});
+  }, [doctorId]);
 
   function openNameDialog() {
     setNameInput(doctorName || "");
     setNameError("");
     setNameDialogOpen(true);
+  }
+
+  function openSpecialtyDialog() {
+    setSpecialtyInput(specialty || "神经外科");
+    setSpecialtyError("");
+    setSpecialtyDialogOpen(true);
   }
 
   async function handleSaveName() {
@@ -2264,6 +2225,20 @@ function SettingsSection({ doctorId, onLogout }) {
       setNameError(e.message || "保存失败");
     } finally {
       setNameSaving(false);
+    }
+  }
+
+  async function handleSaveSpecialty() {
+    const trimmed = specialtyInput.trim();
+    setSpecialtySaving(true); setSpecialtyError("");
+    try {
+      await updateDoctorProfile(doctorId, { specialty: trimmed || null });
+      setSpecialty(trimmed);
+      setSpecialtyDialogOpen(false);
+    } catch (e) {
+      setSpecialtyError(e.message || "保存失败");
+    } finally {
+      setSpecialtySaving(false);
     }
   }
 
@@ -2317,6 +2292,12 @@ function SettingsSection({ doctorId, onLogout }) {
         <Box onClick={openNameDialog} sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, borderTop: "1px solid #f2f2f2", cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
           <Typography sx={{ fontSize: 14, color: "#555", flex: 1 }}>昵称</Typography>
           <Typography sx={{ fontSize: 14, color: "#999", mr: 0.8 }}>{doctorName || "未设置"}</Typography>
+          <ArrowBackIcon sx={{ fontSize: 16, color: "#ccc", transform: "rotate(180deg)" }} />
+        </Box>
+        {/* Specialty edit row */}
+        <Box onClick={openSpecialtyDialog} sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, borderTop: "1px solid #f2f2f2", cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
+          <Typography sx={{ fontSize: 14, color: "#555", flex: 1 }}>科室专业</Typography>
+          <Typography sx={{ fontSize: 14, color: "#999", mr: 0.8 }}>{specialty || "未设置"}</Typography>
           <ArrowBackIcon sx={{ fontSize: 16, color: "#ccc", transform: "rotate(180deg)" }} />
         </Box>
       </Box>
@@ -2376,6 +2357,42 @@ function SettingsSection({ doctorId, onLogout }) {
             <Box onClick={!nameSaving ? handleSaveName : undefined}
               sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: 1.5, bgcolor: "#07C160", cursor: nameSaving ? "default" : "pointer", fontSize: 14, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
               {nameSaving ? "保存中…" : "保存"}
+            </Box>
+          </Box>
+        </Box>
+      </Dialog>
+
+      {/* Specialty edit Dialog */}
+      <Dialog open={specialtyDialogOpen} onClose={() => setSpecialtyDialogOpen(false)}
+        PaperProps={{ sx: isMobile ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "16px 16px 0 0", width: "100%" } : { borderRadius: 2, minWidth: 320 } }}
+        sx={isMobile ? { "& .MuiDialog-container": { alignItems: "flex-end" } } : {}}>
+        <Box sx={{ p: 2.5 }}>
+          <Typography sx={{ fontWeight: 600, fontSize: 15, mb: 2, color: "#333" }}>科室专业</Typography>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.8, mb: 2 }}>
+            {SPECIALTY_OPTIONS.map((s) => (
+              <Box key={s} onClick={() => setSpecialtyInput(s)}
+                sx={{ px: 1.4, py: 0.4, borderRadius: "12px", cursor: "pointer", fontSize: 13,
+                  bgcolor: specialtyInput === s ? "#07C160" : "#f2f2f2",
+                  color: specialtyInput === s ? "#fff" : "#555",
+                  fontWeight: specialtyInput === s ? 600 : 400 }}>
+                {s}
+              </Box>
+            ))}
+          </Box>
+          <TextField
+            fullWidth size="small" placeholder="或直接输入科室名称"
+            value={specialtyInput} onChange={(e) => setSpecialtyInput(e.target.value)}
+            sx={{ mb: specialtyError ? 0.5 : 2 }}
+          />
+          {specialtyError && <Typography sx={{ fontSize: 12, color: "#e74c3c", mb: 1.5 }}>{specialtyError}</Typography>}
+          <Box sx={{ display: "flex", gap: 1.5 }}>
+            <Box onClick={() => setSpecialtyDialogOpen(false)}
+              sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: 1.5, bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 14, color: "#666", "&:active": { opacity: 0.7 } }}>
+              取消
+            </Box>
+            <Box onClick={!specialtySaving ? handleSaveSpecialty : undefined}
+              sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: 1.5, bgcolor: "#07C160", cursor: specialtySaving ? "default" : "pointer", fontSize: 14, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
+              {specialtySaving ? "保存中…" : "保存"}
             </Box>
           </Box>
         </Box>

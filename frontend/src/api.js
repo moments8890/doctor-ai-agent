@@ -257,6 +257,11 @@ export async function updateRecord(doctorId, recordId, fields) {
   });
 }
 
+export async function deleteRecord(doctorId, recordId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/records/${recordId}?${qs.toString()}`, { method: "DELETE" });
+}
+
 export async function getPrompts() {
   return request("/api/manage/prompts");
 }

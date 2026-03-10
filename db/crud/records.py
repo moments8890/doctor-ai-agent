@@ -293,6 +293,26 @@ async def get_record_versions(
 _RECORD_CLINICAL_FIELDS = frozenset({"content", "tags", "record_type"})
 
 
+async def delete_record(
+    session: AsyncSession,
+    doctor_id: str,
+    record_id: int,
+) -> bool:
+    """Delete a single record. Returns True if deleted, False if not found."""
+    result = await session.execute(
+        select(MedicalRecordDB).where(
+            MedicalRecordDB.id == record_id,
+            MedicalRecordDB.doctor_id == doctor_id,
+        ).limit(1)
+    )
+    record = result.scalar_one_or_none()
+    if record is None:
+        return False
+    await session.delete(record)
+    await session.commit()
+    return True
+
+
 async def update_latest_record_for_patient(
     session: AsyncSession,
     doctor_id: str,
