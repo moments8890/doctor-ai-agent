@@ -55,6 +55,7 @@ from services.notify.tasks import create_appointment_task, create_general_task, 
 from services.ai.transcription import transcribe_audio
 from services.ai.vision import extract_text_from_image
 from services.knowledge.pdf_extract import extract_text_from_pdf
+from services.knowledge.pdf_extract_llm import extract_text_from_pdf_llm
 from services.observability.observability import trace_block
 from services.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
 from services.observability.audit import audit
@@ -1260,10 +1261,14 @@ async def extract_file_for_chat(file: UploadFile = File(...)):
         if len(raw) > MAX_BYTES:
             raise HTTPException(status_code=413, detail="文件过大，请上传 20 MB 以内的文件")
         if content_type == "application/pdf" or filename.lower().endswith(".pdf"):
-            import asyncio as _asyncio
-            text = await _asyncio.get_event_loop().run_in_executor(
-                None, extract_text_from_pdf, raw
-            )
+            # Try LLM extraction first (handles both digital and scanned PDFs).
+            # Falls back to pdftotext if ANTHROPIC_API_KEY is not set or PDF_LLM=none.
+            text = await extract_text_from_pdf_llm(raw)
+            if text is None:
+                import asyncio as _asyncio
+                text = await _asyncio.get_event_loop().run_in_executor(
+                    None, extract_text_from_pdf, raw
+                )
         elif content_type in SUPPORTED_IMAGE_TYPES:
             text = await extract_text_from_image(raw, content_type)
         else:
