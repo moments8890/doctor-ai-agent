@@ -47,6 +47,16 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
+import EventRepeatOutlinedIcon from "@mui/icons-material/EventRepeatOutlined";
+import MedicationOutlinedIcon from "@mui/icons-material/MedicationOutlined";
+import BiotechOutlinedIcon from "@mui/icons-material/BiotechOutlined";
+import TransferWithinAStationOutlinedIcon from "@mui/icons-material/TransferWithinAStationOutlined";
+import MonitorHeartOutlinedIcon from "@mui/icons-material/MonitorHeartOutlined";
+import EventAvailableOutlinedIcon from "@mui/icons-material/EventAvailableOutlined";
+import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
+import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
+import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
+import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import { Paper } from "@mui/material";
 import { getPatients, searchPatients, getRecords, getTasks, patchTask, postponeTask, createTask, updateRecord, deleteRecord, sendChat, transcribeAudio, ocrImage, extractFileForChat, getPendingRecord, confirmPendingRecord, abandonPendingRecord, getDoctorProfile, updateDoctorProfile, exportPatientPdf, exportOutpatientReport, getTemplateStatus, uploadTemplate, deleteTemplate, getCvdContext, getLabels, createLabel, deleteLabelById, assignLabelToPatient, removeLabelFromPatient, deletePatient } from "../api";
 import RecordFields from "../components/RecordFields";
@@ -1279,14 +1289,14 @@ function TasksSection({ doctorId }) {
     appointment: "#16a085",
     general:     "#8e44ad",
   };
-  const TASK_TYPE_ICON_CHAR = {
-    follow_up:   "随",
-    medication:  "药",
-    lab_review:  "检",
-    referral:    "转",
-    imaging:     "影",
-    appointment: "约",
-    general:     "务",
+  const TASK_TYPE_ICON = {
+    follow_up:   EventRepeatOutlinedIcon,
+    medication:  MedicationOutlinedIcon,
+    lab_review:  BiotechOutlinedIcon,
+    referral:    TransferWithinAStationOutlinedIcon,
+    imaging:     MonitorHeartOutlinedIcon,
+    appointment: EventAvailableOutlinedIcon,
+    general:     AssignmentOutlinedIcon,
   };
 
   return (
@@ -1344,14 +1354,14 @@ function TasksSection({ doctorId }) {
               {taskGroups[group].map((task, idx) => {
                 const isOverdue = group === "已逾期";
                 const iconColor = TASK_TYPE_ICON_COLOR[task.task_type] || "#999";
-                const iconChar = TASK_TYPE_ICON_CHAR[task.task_type] || "务";
+                const TaskIcon = TASK_TYPE_ICON[task.task_type] || AssignmentOutlinedIcon;
                 return (
                   <Box key={task.id} sx={{ display: "flex", alignItems: "flex-start", px: 2, py: 1.4,
                     borderBottom: idx < taskGroups[group].length - 1 ? "1px solid #f2f2f2" : "none" }}>
                     {/* Left avatar */}
                     <Box sx={{ width: 40, height: 40, borderRadius: "10px", bgcolor: iconColor,
                       display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, mr: 1.5, mt: 0.3 }}>
-                      <Typography sx={{ color: "#fff", fontSize: 14, fontWeight: 600 }}>{iconChar}</Typography>
+                      <TaskIcon sx={{ color: "#fff", fontSize: 22 }} />
                     </Box>
                     {/* Content */}
                     <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -1375,15 +1385,24 @@ function TasksSection({ doctorId }) {
                           {task.patient_name}
                         </Typography>
                       )}
-                      {/* Actions — WeChat-style text links */}
+                      {/* Actions — icon + text links */}
                       {task.status === "pending" && (
-                        <Box sx={{ display: "flex", gap: 2, mt: 0.8 }}>
-                          <Typography onClick={() => handleStatus(task.id, "completed")}
-                            sx={{ fontSize: 12, color: "#07C160", cursor: "pointer", "&:active": { opacity: 0.6 } }}>完成</Typography>
-                          <Typography onClick={(e) => handleOpenPostpone(e, task.id)}
-                            sx={{ fontSize: 12, color: "#999", cursor: "pointer", "&:active": { opacity: 0.6 } }}>推迟</Typography>
-                          <Typography onClick={() => setCancelConfirmId(task.id)}
-                            sx={{ fontSize: 12, color: "#ccc", cursor: "pointer", "&:active": { opacity: 0.6 } }}>取消</Typography>
+                        <Box sx={{ display: "flex", gap: 2, mt: 0.8, alignItems: "center" }}>
+                          <Box onClick={() => handleStatus(task.id, "completed")}
+                            sx={{ display: "flex", alignItems: "center", gap: 0.4, cursor: "pointer", "&:active": { opacity: 0.6 } }}>
+                            <CheckCircleOutlinedIcon sx={{ fontSize: 14, color: "#07C160" }} />
+                            <Typography sx={{ fontSize: 12, color: "#07C160" }}>完成</Typography>
+                          </Box>
+                          <Box onClick={(e) => handleOpenPostpone(e, task.id)}
+                            sx={{ display: "flex", alignItems: "center", gap: 0.4, cursor: "pointer", "&:active": { opacity: 0.6 } }}>
+                            <CalendarTodayOutlinedIcon sx={{ fontSize: 14, color: "#999" }} />
+                            <Typography sx={{ fontSize: 12, color: "#999" }}>推迟</Typography>
+                          </Box>
+                          <Box onClick={() => setCancelConfirmId(task.id)}
+                            sx={{ display: "flex", alignItems: "center", gap: 0.4, cursor: "pointer", "&:active": { opacity: 0.6 } }}>
+                            <CancelOutlinedIcon sx={{ fontSize: 14, color: "#ccc" }} />
+                            <Typography sx={{ fontSize: 12, color: "#ccc" }}>取消</Typography>
+                          </Box>
                         </Box>
                       )}
                     </Box>
@@ -1466,9 +1485,16 @@ function TasksSection({ doctorId }) {
               value={createForm.taskType}
               onChange={(e) => setCreateForm((f) => ({ ...f, taskType: e.target.value }))}
             >
-              {Object.entries(TASK_TYPE_LABEL).map(([k, v]) => (
-                <MenuItem key={k} value={k}>{v}</MenuItem>
-              ))}
+              {Object.entries(TASK_TYPE_LABEL).map(([k, v]) => {
+                const ItemIcon = { follow_up: EventRepeatOutlinedIcon, medication: MedicationOutlinedIcon, lab_review: BiotechOutlinedIcon, referral: TransferWithinAStationOutlinedIcon, imaging: MonitorHeartOutlinedIcon, appointment: EventAvailableOutlinedIcon, general: AssignmentOutlinedIcon }[k] || AssignmentOutlinedIcon;
+                const ic = { follow_up: "#07C160", medication: "#5b9bd5", lab_review: "#e8833a", referral: "#9b59b6", imaging: "#1890ff", appointment: "#16a085", general: "#8e44ad" }[k] || "#999";
+                return (
+                  <MenuItem key={k} value={k} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <ItemIcon sx={{ fontSize: 18, color: ic }} />
+                    {v}
+                  </MenuItem>
+                );
+              })}
             </TextField>
             <TextField
               label="标题（可选）" size="small" fullWidth
@@ -2059,14 +2085,26 @@ function HomeSection({ doctorId, navigate }) {
           <Box sx={{ bgcolor: "#fff", borderRadius: 1.5, mx: 2, overflow: "hidden" }}>
             {pendingTasks.map((task, idx) => {
               const isOverdue = task.due_at && new Date(task.due_at) < new Date();
+              const TaskIcon = { follow_up: EventRepeatOutlinedIcon, medication: MedicationOutlinedIcon, lab_review: BiotechOutlinedIcon, referral: TransferWithinAStationOutlinedIcon, imaging: MonitorHeartOutlinedIcon, appointment: EventAvailableOutlinedIcon, general: AssignmentOutlinedIcon }[task.task_type] || AssignmentOutlinedIcon;
+              const iconColor = { follow_up: "#07C160", medication: "#5b9bd5", lab_review: "#e8833a", referral: "#9b59b6", imaging: "#1890ff", appointment: "#16a085", general: "#8e44ad" }[task.task_type] || "#999";
               return (
-                <Box key={task.id} sx={{ px: 2, py: 1.2, borderBottom: idx < pendingTasks.length - 1 ? "1px solid #f2f2f2" : "none" }}>
-                  <Typography variant="body2" sx={{ fontWeight: 500 }}>{task.title || TASK_TYPE_LABEL[task.task_type] || task.task_type}</Typography>
-                  {task.due_at && (
-                    <Typography variant="caption" sx={{ color: isOverdue ? "error.main" : "text.secondary" }}>
-                      {isOverdue ? "⚠ 已逾期 " : "📅 "}{task.due_at.slice(0, 10)}
-                    </Typography>
-                  )}
+                <Box key={task.id} sx={{ display: "flex", alignItems: "center", gap: 1.2, px: 2, py: 1.2, borderBottom: idx < pendingTasks.length - 1 ? "1px solid #f2f2f2" : "none" }}>
+                  <Box sx={{ width: 32, height: 32, borderRadius: "8px", bgcolor: iconColor, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <TaskIcon sx={{ color: "#fff", fontSize: 18 }} />
+                  </Box>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{task.title || TASK_TYPE_LABEL[task.task_type] || task.task_type}</Typography>
+                    {task.due_at && (
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.4, mt: 0.2 }}>
+                        {isOverdue
+                          ? <WarningAmberOutlinedIcon sx={{ fontSize: 12, color: "error.main" }} />
+                          : <CalendarTodayOutlinedIcon sx={{ fontSize: 12, color: "text.secondary" }} />}
+                        <Typography variant="caption" sx={{ color: isOverdue ? "error.main" : "text.secondary" }}>
+                          {isOverdue ? "已逾期 " : ""}{task.due_at.slice(0, 10)}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
                 </Box>
               );
             })}
