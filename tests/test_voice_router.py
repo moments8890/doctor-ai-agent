@@ -1,3 +1,5 @@
+"""语音路由测试：验证语音对话（voice_chat）和问诊录音（voice_consultation）接口的错误处理、意图派发、患者建档及病历保存全链路逻辑。"""
+
 from __future__ import annotations
 
 import json

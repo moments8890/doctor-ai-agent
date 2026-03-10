@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """
+向 V2 聊天日志 fixture 追加 20 条 REALWORLD-V2-CORRECTION-XXX 更正案例。
+
 Append 20 REALWORLD-V2-CORRECTION-XXX cases to v2 chatlog fixture.
 
 Each case exercises a doctor correcting or updating patient information mid-conversation:

@@ -1,4 +1,6 @@
-"""Integration tests for the image → extracted text → structured record pipeline.
+"""图像 → 文本提取 → 结构化病历全流程集成测试。
+
+Integration tests for the image → extracted text → structured record pipeline.
 
 Requires: running server + Ollama with vision model (auto-skipped otherwise).
 Vision model: set OLLAMA_VISION_MODEL=qwen2.5vl:7b in .env

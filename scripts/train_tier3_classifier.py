@@ -1,4 +1,6 @@
 """
+训练 Tier-3 路由用 TF-IDF + 逻辑回归二元分类器。
+
 Train a TF-IDF + logistic regression binary classifier for Tier-3 routing.
 
 Usage:
@@ -175,78 +177,69 @@ def load_webmedqa() -> list[str]:
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--out", default="services/ai/tier3_classifier.pkl")
-    parser.add_argument("--max-neg", type=int, default=100_000,
-                        help="Max negative samples per source (default: 100k)")
-    parser.add_argument("--seed", type=int, default=42)
-    args = parser.parse_args()
 
-    from sklearn.feature_extraction.text import TfidfVectorizer
-    from sklearn.linear_model import LogisticRegression
-    from sklearn.pipeline import Pipeline
-    from sklearn.model_selection import cross_val_score
-    import numpy as np
-
-    rng = random.Random(args.seed)
-
+def _load_training_data(max_neg: int, rng: random.Random) -> tuple:
+    """加载正负样本并按 5:1 比例均衡后返回 (X, y)。"""
     print("\n=== Loading positive samples (clinical notes) ===")
     pos = load_chip_cdee() + load_yidu_s4k()
     print(f"Total positive: {len(pos)}")
 
     print("\n=== Loading negative samples (patient messages) ===")
     neg = (
-        load_meddialog_patient(args.max_neg)
-        + load_huatuo_consultation(args.max_neg)
+        load_meddialog_patient(max_neg)
+        + load_huatuo_consultation(max_neg)
         + load_webmedqa()
     )
     print(f"Total negative: {len(neg)}")
 
-    # Balance: downsample negative to 5× positive (keeps more signal than 1:1)
-    max_neg = min(len(neg), len(pos) * 5)
+    cap = min(len(neg), len(pos) * 5)
     rng.shuffle(neg)
-    neg = neg[:max_neg]
+    neg = neg[:cap]
     print(f"Negative after balancing (5:1): {len(neg)}")
 
     X = pos + neg
     y = [1] * len(pos) + [0] * len(neg)
-
-    # Shuffle
     combined = list(zip(X, y))
     rng.shuffle(combined)
-    X, y = zip(*combined)
+    X_out, y_out = zip(*combined)
+    return X_out, y_out
 
-    print("\n=== Training TF-IDF + Logistic Regression ===")
-    print(f"Total samples: {len(X)} ({sum(y)} positive, {len(y)-sum(y)} negative)")
 
-    pipeline = Pipeline([
+def _build_pipeline(seed: int):
+    """构建并返回 TF-IDF + 逻辑回归 sklearn Pipeline。"""
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import Pipeline
+    return Pipeline([
         ("tfidf", TfidfVectorizer(
-            analyzer="char_wb",   # character n-grams with word boundaries
-            ngram_range=(2, 4),   # bigrams to 4-grams; captures clinical phrases
+            analyzer="char_wb",
+            ngram_range=(2, 4),
             max_features=100_000,
-            sublinear_tf=True,    # log(1+tf) — reduces dominance of very frequent n-grams
-            min_df=2,             # ignore n-grams appearing in fewer than 2 samples
+            sublinear_tf=True,
+            min_df=2,
         )),
         ("clf", LogisticRegression(
             C=1.0,
             max_iter=1000,
             solver="lbfgs",
-            class_weight="balanced",  # compensate for any remaining class imbalance
-            random_state=args.seed,
+            class_weight="balanced",
+            random_state=seed,
         )),
     ])
 
-    # 5-fold CV for a quick sanity check
+
+def _train_and_eval(pipeline, X, y) -> None:
+    """交叉验证、全量训练并打印自评估指标。"""
+    from sklearn.model_selection import cross_val_score
+    import numpy as np
+
+    print("\n=== Training TF-IDF + Logistic Regression ===")
+    print(f"Total samples: {len(X)} ({sum(y)} positive, {len(y)-sum(y)} negative)")
     print("Running 5-fold cross-validation...")
     scores = cross_val_score(pipeline, X, y, cv=5, scoring="f1", n_jobs=-1)
     print(f"F1 (5-fold CV): {scores.mean():.3f} ± {scores.std():.3f}")
-
-    # Train on full data
     print("Training on full dataset...")
     pipeline.fit(X, y)
-
-    # Quick self-evaluation
     y_pred = pipeline.predict(X)
     y_arr = np.array(y)
     tp = ((y_pred == 1) & (y_arr == 1)).sum()
@@ -256,14 +249,14 @@ def main() -> None:
     print(f"Train set: TP={tp}, FP={fp}, FN={fn}, TN={tn}")
     print(f"Train precision: {tp/(tp+fp):.3f}, recall: {tp/(tp+fn):.3f}")
 
-    # Save
-    out_path = BASE / args.out
+
+def _save_and_report(pipeline, out_arg: str) -> None:
+    """保存模型到 pickle 文件并打印 top n-gram 特征。"""
+    out_path = BASE / out_arg
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("wb") as f:
         pickle.dump(pipeline, f, protocol=5)
     print(f"\nSaved to {out_path}")
-
-    # Feature importance: top clinical vs patient n-grams
     tfidf = pipeline.named_steps["tfidf"]
     clf = pipeline.named_steps["clf"]
     feature_names = tfidf.get_feature_names_out()
@@ -276,6 +269,21 @@ def main() -> None:
     print("\nTop patient n-grams (→ LLM):")
     for coef, feat in top_patient:
         print(f"  {feat!r:20s}  {coef:+.3f}")
+
+
+def main() -> None:
+    """命令行入口：解析参数，加载数据，训练并保存模型。"""
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--out", default="services/ai/tier3_classifier.pkl")
+    parser.add_argument("--max-neg", type=int, default=100_000,
+                        help="Max negative samples per source (default: 100k)")
+    parser.add_argument("--seed", type=int, default=42)
+    args = parser.parse_args()
+    rng = random.Random(args.seed)
+    X, y = _load_training_data(args.max_neg, rng)
+    pipeline = _build_pipeline(args.seed)
+    _train_and_eval(pipeline, X, y)
+    _save_and_report(pipeline, args.out)
 
 
 if __name__ == "__main__":

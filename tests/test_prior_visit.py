@@ -1,4 +1,4 @@
-"""Tests for services/patient/prior_visit.py."""
+"""历次就诊摘要测试：验证 CVD 评分格式化、历史就诊摘要查询及结构化病历注入先前就诊参考的逻辑。"""
 
 from __future__ import annotations
 

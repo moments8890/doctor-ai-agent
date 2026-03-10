@@ -41,11 +41,12 @@ async def save_specialty_scores(
 async def get_scores_for_record(
     session: AsyncSession,
     record_id: int,
+    doctor_id: str,
 ) -> List[SpecialtyScore]:
-    """Return all specialty scores for a given medical record."""
+    """Return all specialty scores for a given medical record, scoped to the requesting doctor."""
     result = await session.execute(
         select(SpecialtyScore)
-        .where(SpecialtyScore.record_id == record_id)
+        .where(SpecialtyScore.record_id == record_id, SpecialtyScore.doctor_id == doctor_id)
         .order_by(SpecialtyScore.id)
     )
     return list(result.scalars().all())

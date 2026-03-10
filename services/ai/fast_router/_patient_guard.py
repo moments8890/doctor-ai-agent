@@ -1,6 +1,6 @@
-"""
-Patient-question guard patterns for fast_router.
+"""fast_router 患者提问检测守卫：正则模式组与判断函数。
 
+Patient-question guard patterns for fast_router.
 No intra-package dependencies — safe to import directly everywhere.
 """
 

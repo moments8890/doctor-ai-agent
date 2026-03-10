@@ -1,3 +1,5 @@
+"""UI 路由测试：验证患者列表/分组、病历筛选、Prompt 管理、标签 CRUD、可观测性视图及管理员数据库视图等接口的响应格式与业务逻辑。"""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -111,9 +113,9 @@ async def test_manage_records_with_patient_filter():
     db = SimpleNamespace()
     records = [_record(id=21, patient_id=11, patient=None)]
     patients = [SimpleNamespace(id=11, name="张三"), SimpleNamespace(id=12, name="李四")]
-    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
-         patch("routers.ui.get_records_for_patient", new=AsyncMock(return_value=records)), \
-         patch("routers.ui.get_all_patients", new=AsyncMock(return_value=patients)):
+    with patch("routers.ui.record_handlers.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.record_handlers.get_records_for_patient", new=AsyncMock(return_value=records)), \
+         patch("routers.ui.record_handlers.get_all_patients", new=AsyncMock(return_value=patients)):
         data = await ui.manage_records(doctor_id="doc1", patient_id=11, limit=5)
 
     assert data["doctor_id"] == "doc1"
@@ -128,8 +130,8 @@ async def test_manage_records_without_patient_filter():
         _record(id=31, patient=SimpleNamespace(name="王五")),
         _record(id=32, patient=None, created_at=None),
     ]
-    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
-         patch("routers.ui.get_all_records_for_doctor", new=AsyncMock(return_value=records)):
+    with patch("routers.ui.record_handlers.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.record_handlers.get_all_records_for_doctor", new=AsyncMock(return_value=records)):
         data = await ui.manage_records(doctor_id="doc2", patient_id=None, limit=10)
 
     assert data["doctor_id"] == "doc2"
@@ -145,8 +147,8 @@ async def test_manage_records_filter_by_patient_name():
         _record(id=41, patient=SimpleNamespace(name="沈梅")),
         _record(id=42, patient=SimpleNamespace(name="王五")),
     ]
-    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
-         patch("routers.ui.get_all_records_for_doctor", new=AsyncMock(return_value=records)):
+    with patch("routers.ui.record_handlers.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.record_handlers.get_all_records_for_doctor", new=AsyncMock(return_value=records)):
         data = await ui.manage_records(doctor_id="doc2", patient_id=None, patient_name="沈", limit=50)
 
     assert len(data["items"]) == 1
@@ -159,8 +161,8 @@ async def test_manage_records_filter_by_date_range():
         _record(id=51, created_at=datetime(2026, 3, 1, 9, 0, 0), patient=SimpleNamespace(name="张三")),
         _record(id=52, created_at=datetime(2026, 3, 3, 9, 0, 0), patient=SimpleNamespace(name="李四")),
     ]
-    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
-         patch("routers.ui.get_all_records_for_doctor", new=AsyncMock(return_value=records)):
+    with patch("routers.ui.record_handlers.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.record_handlers.get_all_records_for_doctor", new=AsyncMock(return_value=records)):
         data = await ui.manage_records(
             doctor_id="doc2",
             patient_id=None,
@@ -313,7 +315,7 @@ async def test_manage_patient_timeline_success():
 
 
 async def test_admin_get_tunnel_url_log_missing_returns_not_found_payload():
-    with patch("routers.ui.Path.exists", return_value=False):
+    with patch("routers.ui.admin_config.Path.exists", return_value=False):
         data = await ui.admin_get_tunnel_url()
 
     assert data["ok"] is False
@@ -323,8 +325,8 @@ async def test_admin_get_tunnel_url_log_missing_returns_not_found_payload():
 
 
 async def test_admin_get_tunnel_url_read_failure_is_sanitized():
-    with patch("routers.ui.Path.exists", return_value=True), \
-         patch("routers.ui.Path.read_text", side_effect=RuntimeError("permission denied: /etc/passwd")):
+    with patch("routers.ui.admin_config.Path.exists", return_value=True), \
+         patch("routers.ui.admin_config.Path.read_text", side_effect=RuntimeError("permission denied: /etc/passwd")):
         data = await ui.admin_get_tunnel_url()
 
     assert data["ok"] is False
@@ -472,7 +474,7 @@ async def test_admin_db_view_returns_patients_and_records():
             ]
         )
     )
-    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)):
+    with patch("routers.ui.admin_handlers.AsyncSessionLocal", return_value=_SessionCtx(db)):
         data = await ui.admin_db_view(doctor_id="doc1", limit=50)
 
     assert data["counts"]["patients"] == 1
@@ -502,7 +504,7 @@ async def test_admin_filter_options_returns_doctors_and_patients_by_doctor():
             ]
         )
     )
-    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)):
+    with patch("routers.ui.admin_config.AsyncSessionLocal", return_value=_SessionCtx(db)):
         data = await ui.admin_filter_options(doctor_id="doc2")
 
     assert data["selected_doctor_id"] == "doc2"
@@ -515,10 +517,10 @@ async def test_admin_observability_returns_summary_and_traces():
     traces = [{"trace_id": "t1", "path": "/api/manage/patients"}]
     spans = [{"trace_id": "t1", "name": "agent.chat_completion"}]
     slow_spans = [{"trace_id": "t1", "name": "agent.chat_completion", "latency_ms": 320.0}]
-    with patch("routers.ui.get_latency_summary_scoped", return_value=summary), \
-         patch("routers.ui.get_recent_traces_scoped", return_value=traces), \
-         patch("routers.ui.get_recent_spans_scoped", return_value=spans), \
-         patch("routers.ui.get_slowest_spans_scoped", return_value=slow_spans):
+    with patch("routers.ui.admin_config.get_latency_summary_scoped", return_value=summary), \
+         patch("routers.ui.admin_config.get_recent_traces_scoped", return_value=traces), \
+         patch("routers.ui.admin_config.get_recent_spans_scoped", return_value=spans), \
+         patch("routers.ui.admin_config.get_slowest_spans_scoped", return_value=slow_spans):
         data = await ui.admin_observability(trace_limit=10, summary_limit=20)
 
     assert data["scope"] == "all"
@@ -529,35 +531,35 @@ async def test_admin_observability_returns_summary_and_traces():
 
 
 async def test_admin_observability_with_trace_id_returns_timeline():
-    with patch("routers.ui.get_latency_summary_scoped", return_value={"count": 1}), \
-         patch("routers.ui.get_recent_traces_scoped", return_value=[]), \
-         patch("routers.ui.get_recent_spans_scoped", return_value=[]), \
-         patch("routers.ui.get_slowest_spans_scoped", return_value=[]), \
-         patch("routers.ui.get_trace_timeline", return_value=[{"trace_id": "abc", "name": "chat"}]) as timeline_mock:
+    with patch("routers.ui.admin_config.get_latency_summary_scoped", return_value={"count": 1}), \
+         patch("routers.ui.admin_config.get_recent_traces_scoped", return_value=[]), \
+         patch("routers.ui.admin_config.get_recent_spans_scoped", return_value=[]), \
+         patch("routers.ui.admin_config.get_slowest_spans_scoped", return_value=[]), \
+         patch("routers.ui.admin_config.get_trace_timeline", return_value=[{"trace_id": "abc", "name": "chat"}]) as timeline_mock:
         data = await ui.admin_observability(trace_id="abc")
     timeline_mock.assert_called_once_with(trace_id="abc", limit=200)
     assert data["trace_timeline"] == [{"trace_id": "abc", "name": "chat"}]
 
 
 async def test_admin_observability_public_scope_passed_through():
-    with patch("routers.ui.get_latency_summary_scoped", return_value={"count": 2}) as summary_mock, \
-         patch("routers.ui.get_recent_traces_scoped", return_value=[]), \
-         patch("routers.ui.get_recent_spans_scoped", return_value=[]), \
-         patch("routers.ui.get_slowest_spans_scoped", return_value=[]):
+    with patch("routers.ui.admin_config.get_latency_summary_scoped", return_value={"count": 2}) as summary_mock, \
+         patch("routers.ui.admin_config.get_recent_traces_scoped", return_value=[]), \
+         patch("routers.ui.admin_config.get_recent_spans_scoped", return_value=[]), \
+         patch("routers.ui.admin_config.get_slowest_spans_scoped", return_value=[]):
         data = await ui.admin_observability(scope="public")
     assert data["scope"] == "public"
     summary_mock.assert_any_call(limit=500, scope="public")
 
 
 async def test_admin_clear_observability_traces():
-    with patch("routers.ui.clear_traces") as clear_mock:
+    with patch("routers.ui.admin_config.clear_traces") as clear_mock:
         data = await ui.admin_clear_observability_traces()
     clear_mock.assert_called_once()
     assert data == {"ok": True}
 
 
 async def test_admin_seed_observability_samples():
-    with patch("routers.ui.add_trace") as add_trace_mock, patch("routers.ui.add_span") as add_span_mock:
+    with patch("routers.ui.admin_handlers.add_trace") as add_trace_mock, patch("routers.ui.admin_handlers.add_span") as add_span_mock:
         data = await ui.admin_seed_observability_samples(count=2)
     assert data["ok"] is True
     assert data["count"] == 2
@@ -567,8 +569,8 @@ async def test_admin_seed_observability_samples():
 
 
 async def test_admin_get_runtime_config():
-    with patch("routers.ui.load_runtime_config_dict", new=AsyncMock(return_value={"TASK_SCHEDULER_MODE": "interval"})), \
-         patch("routers.ui.runtime_config_source_path", return_value="/tmp/runtime.json"):
+    with patch("routers.ui.admin_config.load_runtime_config_dict", new=AsyncMock(return_value={"TASK_SCHEDULER_MODE": "interval"})), \
+         patch("routers.ui.admin_config.runtime_config_source_path", return_value="/tmp/runtime.json"):
         data = await ui.admin_get_runtime_config()
     assert data["source"] == "/tmp/runtime.json"
     assert data["config"]["TASK_SCHEDULER_MODE"] == "interval"
@@ -576,8 +578,8 @@ async def test_admin_get_runtime_config():
 
 async def test_admin_update_runtime_config():
     body = ui.RuntimeConfigUpdate(config={"TASK_SCHEDULER_MODE": "cron"})
-    with patch("routers.ui.save_runtime_config_dict", new=AsyncMock(return_value={"TASK_SCHEDULER_MODE": "cron"})) as save_mock, \
-         patch("routers.ui.runtime_config_source_path", return_value="/tmp/runtime.json"):
+    with patch("routers.ui.admin_config.save_runtime_config_dict", new=AsyncMock(return_value={"TASK_SCHEDULER_MODE": "cron"})) as save_mock, \
+         patch("routers.ui.admin_config.runtime_config_source_path", return_value="/tmp/runtime.json"):
         data = await ui.admin_update_runtime_config(body)
 
     save_mock.assert_awaited_once_with({"TASK_SCHEDULER_MODE": "cron"})
@@ -589,7 +591,7 @@ async def test_admin_update_runtime_config():
 async def test_admin_verify_runtime_config():
     body = ui.RuntimeConfigUpdate(config={"TASK_SCHEDULER_MODE": "interval"})
     with patch(
-        "routers.ui.validate_runtime_config",
+        "routers.ui.admin_config.validate_runtime_config",
         return_value={"ok": True, "errors": [], "warnings": [], "sanitized": {"TASK_SCHEDULER_MODE": "interval"}},
     ):
         data = await ui.admin_verify_runtime_config(body)
@@ -598,9 +600,9 @@ async def test_admin_verify_runtime_config():
 
 
 async def test_admin_apply_runtime_config():
-    with patch("routers.ui.load_runtime_config_dict", new=AsyncMock(return_value={"TASK_SCHEDULER_MODE": "interval"})), \
-         patch("routers.ui.apply_runtime_config", new=AsyncMock()) as apply_mock, \
-         patch("routers.ui.runtime_config_source_path", return_value="/tmp/runtime.json"):
+    with patch("routers.ui.admin_config.load_runtime_config_dict", new=AsyncMock(return_value={"TASK_SCHEDULER_MODE": "interval"})), \
+         patch("routers.ui.admin_config.apply_runtime_config", new=AsyncMock()) as apply_mock, \
+         patch("routers.ui.admin_config.runtime_config_source_path", return_value="/tmp/runtime.json"):
         data = await ui.admin_apply_runtime_config()
     apply_mock.assert_awaited_once_with({"TASK_SCHEDULER_MODE": "interval"})
     assert data["ok"] is True
@@ -611,7 +613,7 @@ async def test_admin_tables_returns_all_table_counts():
     # One scalar result per DB query in admin_tables execution order.
     side_effects = [SimpleNamespace(scalar=lambda i=i: i) for i in range(1, 25)]
     db = SimpleNamespace(execute=AsyncMock(side_effect=side_effects))
-    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)):
+    with patch("routers.ui.admin_handlers.AsyncSessionLocal", return_value=_SessionCtx(db)):
         data = await ui.admin_tables()
     keys = [item["key"] for item in data["items"]]
     assert "doctors" in keys
@@ -624,7 +626,7 @@ async def test_admin_tables_returns_all_table_counts():
 
 async def test_admin_table_rows_unknown_table_raises_404():
     db = SimpleNamespace(execute=AsyncMock())
-    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)):
+    with patch("routers.ui.admin_table_rows.AsyncSessionLocal", return_value=_SessionCtx(db)):
         with pytest.raises(HTTPException) as exc:
             await ui.admin_table_rows("not_exists")
     assert exc.value.status_code == 404
@@ -653,7 +655,7 @@ async def test_admin_db_view_with_all_filters():
             ]
         )
     )
-    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)):
+    with patch("routers.ui.admin_handlers.AsyncSessionLocal", return_value=_SessionCtx(db)):
         data = await ui.admin_db_view(
             doctor_id="doc1",
             patient_name="张",
@@ -669,7 +671,7 @@ async def test_admin_db_view_with_all_filters():
 async def test_admin_tables_with_filters():
     side_effects = [SimpleNamespace(scalar=lambda i=i: i) for i in range(10, -10, -1)]
     db = SimpleNamespace(execute=AsyncMock(side_effect=side_effects))
-    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)):
+    with patch("routers.ui.admin_handlers.AsyncSessionLocal", return_value=_SessionCtx(db)):
         data = await ui.admin_tables(
             doctor_id="doc1",
             patient_name="张",
@@ -780,7 +782,7 @@ async def test_admin_tables_with_filters():
 )
 async def test_admin_table_rows_each_table(table_key, exec_result, expected_key):
     db = SimpleNamespace(execute=AsyncMock(return_value=exec_result))
-    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)):
+    with patch("routers.ui.admin_table_rows.AsyncSessionLocal", return_value=_SessionCtx(db)):
         data = await ui.admin_table_rows(
             table_key,
             doctor_id="doc1",

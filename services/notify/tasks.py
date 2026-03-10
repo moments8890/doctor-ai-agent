@@ -309,6 +309,88 @@ async def check_and_send_due_tasks() -> None:
     await run_due_task_cycle()
 
 
+async def _try_acquire_lease(
+    owner_id: str,
+    now: datetime,
+) -> tuple[bool, bool]:
+    """尝试获取调度器租约；返回 (lease_acquired, should_skip)。"""
+    try:
+        async with AsyncSessionLocal() as session:
+            acquired = await try_acquire_scheduler_lease(
+                session=session,
+                lease_key=_LEASE_KEY,
+                owner_id=owner_id,
+                now=now,
+                lease_ttl_seconds=_scheduler_lease_ttl_seconds(),
+            )
+    except Exception as e:
+        await _emit_task_log(
+            "scheduler_lease_acquire_failed_fallback_to_run",
+            owner_id=owner_id,
+            error=str(e),
+        )
+        return True, False  # fallback: run anyway
+    if not acquired:
+        await _emit_task_log(
+            "scheduler_tick_skipped_lease_not_acquired",
+            owner_id=owner_id,
+        )
+        return False, True  # skip cycle
+    return True, False
+
+
+async def _fetch_and_filter_tasks(
+    doctor_id: Optional[str],
+    now: datetime,
+    include_manual: bool,
+    force: bool,
+) -> tuple[List[DoctorTask], List[DoctorTask]]:
+    """拉取到期任务并按医生通知偏好筛选；返回 (all_tasks, eligible_tasks)。"""
+    async with AsyncSessionLocal() as session:
+        tasks = await get_due_tasks(session, now)
+    if doctor_id:
+        tasks = [t for t in tasks if t.doctor_id == doctor_id]
+
+    tasks_by_doctor: Dict[str, List[DoctorTask]] = {}
+    for task in tasks:
+        tasks_by_doctor.setdefault(task.doctor_id, []).append(task)
+
+    allowed_doctors: set = set()
+    for did in tasks_by_doctor.keys():
+        try:
+            async with AsyncSessionLocal() as session:
+                pref = await get_doctor_notify_preference(session, did)
+                if should_auto_run_now(pref, now, include_manual=include_manual, force=force):
+                    allowed_doctors.add(did)
+                    await upsert_doctor_notify_preference(session, did, last_auto_run_at=now)
+        except Exception as e:
+            await _emit_task_log("scheduler_pref_check_failed", doctor_id=did, error=str(e))
+            allowed_doctors.add(did)
+
+    filtered_tasks = [t for t in tasks if t.doctor_id in allowed_doctors]
+    return tasks, filtered_tasks
+
+
+async def _send_eligible_tasks(filtered_tasks: List[DoctorTask]) -> tuple[int, int]:
+    """依次发送通知给所有合格任务；返回 (success_count, failed_count)。"""
+    success_count = 0
+    failed_count = 0
+    for task in filtered_tasks:
+        try:
+            await send_task_notification(task.doctor_id, task)
+            success_count += 1
+        except Exception as e:
+            failed_count += 1
+            await _emit_task_log(
+                "task_notify_failed",
+                task_id=task.id,
+                doctor_id=task.doctor_id,
+                task_type=task.task_type,
+                error=str(e),
+            )
+    return success_count, failed_count
+
+
 async def run_due_task_cycle(
     doctor_id: Optional[str] = None,
     *,
@@ -319,100 +401,30 @@ async def run_due_task_cycle(
     """Run one due-task notification cycle and return summary stats."""
     await _emit_task_log("scheduler_tick_start", level="debug")
     now = datetime.now(timezone.utc)
-    lease_acquired = False
-    lease_enabled = (
-        use_scheduler_lease
-        and _scheduler_lease_enabled()
-        and doctor_id is None
-    )
     owner_id = _scheduler_owner_id()
+    lease_enabled = use_scheduler_lease and _scheduler_lease_enabled() and doctor_id is None
 
     if lease_enabled:
-        try:
-            async with AsyncSessionLocal() as session:
-                lease_acquired = await try_acquire_scheduler_lease(
-                    session=session,
-                    lease_key=_LEASE_KEY,
-                    owner_id=owner_id,
-                    now=now,
-                    lease_ttl_seconds=_scheduler_lease_ttl_seconds(),
-                )
-        except Exception as e:
-            await _emit_task_log(
-                "scheduler_lease_acquire_failed_fallback_to_run",
-                owner_id=owner_id,
-                error=str(e),
-            )
-            lease_acquired = True
-        if not lease_acquired:
-            await _emit_task_log(
-                "scheduler_tick_skipped_lease_not_acquired",
-                owner_id=owner_id,
-            )
+        _acquired, should_skip = await _try_acquire_lease(owner_id, now)
+        if should_skip:
             return {
-                "due_count": 0,
-                "eligible_count": 0,
-                "sent_count": 0,
-                "failed_count": 0,
+                "due_count": 0, "eligible_count": 0,
+                "sent_count": 0, "failed_count": 0,
                 "skipped_by_lease": True,
             }
 
     try:
-        async with AsyncSessionLocal() as session:
-            tasks = await get_due_tasks(session, now)
-
-        if doctor_id:
-            tasks = [t for t in tasks if t.doctor_id == doctor_id]
-
-        tasks_by_doctor: Dict[str, List[DoctorTask]] = {}
-        for task in tasks:
-            tasks_by_doctor.setdefault(task.doctor_id, []).append(task)
-
-        allowed_doctors = set()
-        for did in tasks_by_doctor.keys():
-            try:
-                async with AsyncSessionLocal() as session:
-                    pref = await get_doctor_notify_preference(session, did)
-                    if should_auto_run_now(
-                        pref, now, include_manual=include_manual, force=force
-                    ):
-                        allowed_doctors.add(did)
-                        await upsert_doctor_notify_preference(
-                            session,
-                            did,
-                            last_auto_run_at=now,
-                        )
-            except Exception as e:
-                await _emit_task_log(
-                    "scheduler_pref_check_failed",
-                    doctor_id=did,
-                    error=str(e),
-                )
-                allowed_doctors.add(did)
-
-        filtered_tasks = [t for t in tasks if t.doctor_id in allowed_doctors]
-
+        tasks, filtered_tasks = await _fetch_and_filter_tasks(
+            doctor_id, now, include_manual, force
+        )
         due_count = len(tasks)
         eligible_count = len(filtered_tasks)
         if due_count > 0:
             await _emit_task_log("scheduler_due_tasks", count=due_count, eligible_count=eligible_count)
         else:
             await _emit_task_log("scheduler_due_tasks", level="debug", count=0)
-        success_count = 0
-        failed_count = 0
-        for task in filtered_tasks:
-            try:
-                await send_task_notification(task.doctor_id, task)
-                success_count += 1
-            except Exception as e:
-                failed_count += 1
-                await _emit_task_log(
-                    "task_notify_failed",
-                    task_id=task.id,
-                    doctor_id=task.doctor_id,
-                    task_type=task.task_type,
-                    error=str(e),
-                )
+
+        success_count, failed_count = await _send_eligible_tasks(filtered_tasks)
         return {
             "due_count": due_count,
             "eligible_count": eligible_count,

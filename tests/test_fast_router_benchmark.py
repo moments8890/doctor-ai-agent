@@ -1,13 +1,6 @@
-"""
-E2E benchmark test for fast_router.py.
+"""快速路由基准测试：在真实医生输入语料库上测量 Tier 1/2/3 命中率和每次调用延迟。"""
 
-Run standalone to measure hit rate on realistic doctor inputs:
-    pytest tests/test_fast_router_benchmark.py -v -s
-
-This test does NOT call the LLM. It measures how many doctor inputs are
-resolved by the fast router vs requiring LLM dispatch, and validates that
-fast-routed results are correct for known cases.
-"""
+# E2E benchmark test for fast_router.py.
 
 from __future__ import annotations
 
@@ -106,18 +99,16 @@ _CORPUS: list[tuple[str, Optional[Intent]]] = [
     # ── create with new keyword ───────────────────────────────────────────────
     ("录入患者赵六", Intent.create_patient),
 
-    # ── Tier 3 fast-route (clinical keywords → add_record, no routing LLM) ────
-    ("张三，男，58岁，胸闷气促3天，BNP 980，EF 50%，心衰III级，给予利尿剂调整", Intent.add_record),
-    ("李明发烧三天，体温38.5，咳嗽，给予对乙酰氨基酚退烧", Intent.add_record),
-    ("王五腹痛，排除阑尾炎，建议观察48小时", Intent.add_record),
-    ("张三心悸三天，心电图提示AF，给予倍他乐克12.5mg", Intent.add_record),
-    ("李红，女，45岁，主诉：头痛两周，诊断：偏头痛，处置：布洛芬", Intent.add_record),
-    ("患者主诉胸痛，查肌钙蛋白I 0.3，考虑急性心肌梗死，立即溶栓", Intent.add_record),
-    ("随访：张三血糖控制良好，HbA1c 6.8%，继续二甲双胍", Intent.add_record),
-    # ── Tier 3: 复查 (follow-up) in clinical note context → add_record ────────
-    ("王五复查，血压稳定，120/80，继续当前方案", Intent.add_record),
-    # ── borderline cases: now fast-routed with 血压 in keywords + TF-IDF classifier ──
-    ("患者血压160/100，目前服用氨氯地平5mg，考虑加量", Intent.add_record),
+    # ── Clinical notes → LLM (Tier 3 removed 2026-03-09, mined rules removed 2026-03-10) ──
+    ("张三，男，58岁，胸闷气促3天，BNP 980，EF 50%，心衰III级，给予利尿剂调整", None),
+    ("李明发烧三天，体温38.5，咳嗽，给予对乙酰氨基酚退烧", None),
+    ("王五腹痛，排除阑尾炎，建议观察48小时", None),
+    ("张三心悸三天，心电图提示AF，给予倍他乐克12.5mg", None),
+    ("李红，女，45岁，主诉：头痛两周，诊断：偏头痛，处置：布洛芬", None),
+    ("患者主诉胸痛，查肌钙蛋白I 0.3，考虑急性心肌梗死，立即溶栓", None),
+    ("随访：张三血糖控制良好，HbA1c 6.8%，继续二甲双胍", None),
+    ("王五复查，血压稳定，120/80，继续当前方案", None),
+    ("患者血压160/100，目前服用氨氯地平5mg，考虑加量", None),
     ("今天看了李明，他的情况明显改善了，可以减量", None),
 
     # ── LLM required (ambiguous / conversational) ─────────────────────────────

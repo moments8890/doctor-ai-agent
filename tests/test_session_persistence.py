@@ -1,6 +1,4 @@
-"""
-Persistence tests for services/session.py.
-"""
+"""会话持久化测试：验证会话状态写入数据库、重启后水合恢复及历史对话轮次的持久化行为。"""
 
 import asyncio
 from unittest.mock import patch

@@ -1,3 +1,5 @@
+"""数据访问层仓库测试：验证患者、病历及任务 Repository 的 CRUD 操作行为，使用真实内存数据库。"""
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone

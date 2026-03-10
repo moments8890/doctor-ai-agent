@@ -1,4 +1,6 @@
-"""Branch-coverage integration tests for /api/records/chat.
+"""聊天接口分支覆盖集成测试（/api/records/chat）。
+
+Branch-coverage integration tests for /api/records/chat.
 
 Each test targets a specific handler branch that is NOT covered by
 test_text_pipeline.py or test_realworld_doctor_agent_e2e.py.

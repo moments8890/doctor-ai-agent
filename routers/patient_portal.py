@@ -127,10 +127,31 @@ class PatientMessageResponse(BaseModel):
 # Endpoints
 # ---------------------------------------------------------------------------
 
+_AUTH_FAIL = "姓名、医生编号或访问码不正确，请重新确认。"
+
+
+async def _lookup_patient_by_name(doctor_id: str, patient_name: str) -> "Patient | None":
+    """Exact-name lookup of a patient within a doctor's namespace."""
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(Patient)
+            .where(Patient.doctor_id == doctor_id, Patient.name == patient_name)
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
+
+def _verify_patient_access_code(patient: "Patient", supplied_code: str) -> None:
+    """Raise HTTPException if the patient's access code is missing or incorrect."""
+    if not patient.access_code:
+        raise HTTPException(status_code=401, detail="此患者未配置访问码，请联系您的医生。")
+    if not supplied_code or not verify_access_code(supplied_code, patient.access_code):
+        raise HTTPException(status_code=401, detail=_AUTH_FAIL)
+
+
 @router.post("/session", response_model=PatientSessionResponse)
 async def create_patient_session(body: PatientSessionRequest):
-    """
-    Patient login: name + doctor_id, plus access_code if the patient record has one set.
+    """Patient login: name + doctor_id, plus access_code.
 
     Rate-limited to 5 attempts per minute per doctor_id to prevent name enumeration.
     When a patient has an access_code, it MUST be supplied — name-only fallback is
@@ -141,43 +162,13 @@ async def create_patient_session(body: PatientSessionRequest):
     if not doctor_id or not patient_name:
         raise HTTPException(status_code=422, detail="doctor_id and patient_name are required")
 
-    # Rate-limit: 5 attempts per minute per doctor namespace to prevent enumeration
     enforce_doctor_rate_limit(doctor_id, scope="patient_portal.session", max_requests=5)
 
-    async with AsyncSessionLocal() as db:
-        # Exact-name match first; fall back to prefix match for common short names.
-        result = await db.execute(
-            select(Patient)
-            .where(
-                Patient.doctor_id == doctor_id,
-                Patient.name == patient_name,
-            )
-            .limit(1)
-        )
-        patient = result.scalar_one_or_none()
-
-        if patient is None:
-            # Try case-insensitive prefix match (handles nickname vs. full name)
-            result = await db.execute(
-                select(Patient)
-                .where(
-                    Patient.doctor_id == doctor_id,
-                    Patient.name.ilike(f"{patient_name}%"),
-                )
-                .limit(1)
-            )
-            patient = result.scalar_one_or_none()
-
-    _AUTH_FAIL = "姓名、医生编号或访问码不正确，请重新确认。"
-
+    patient = await _lookup_patient_by_name(doctor_id, patient_name)
     if patient is None:
         raise HTTPException(status_code=401, detail=_AUTH_FAIL)
 
-    # If the patient has an access_code set, require it — name-only is insufficient
-    if patient.access_code:
-        supplied = (body.access_code or "").strip()
-        if not supplied or not verify_access_code(supplied, patient.access_code):
-            raise HTTPException(status_code=401, detail=_AUTH_FAIL)
+    _verify_patient_access_code(patient, (body.access_code or "").strip())
 
     token = _issue_patient_token(patient.id)
     logger.info(
@@ -188,11 +179,7 @@ async def create_patient_session(body: PatientSessionRequest):
         doctor_id, "LOGIN",
         resource_type="patient", resource_id=str(patient.id),
     ))
-    return PatientSessionResponse(
-        token=token,
-        patient_id=patient.id,
-        patient_name=patient.name,
-    )
+    return PatientSessionResponse(token=token, patient_id=patient.id, patient_name=patient.name)
 
 
 @router.get("/me", response_model=PatientMeResponse)

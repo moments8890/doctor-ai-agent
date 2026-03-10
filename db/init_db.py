@@ -67,56 +67,66 @@ async def seed_prompts() -> None:
         await upsert_system_prompt(db, "structuring", _SEED_PROMPT)
 
 
+_WECHAT_RE = re.compile(r"^(?:wm|wx|ww|wo)[A-Za-z0-9_-]{6,}$")
+
+_DOCTOR_SOURCES = [
+    Patient.doctor_id,
+    MedicalRecordDB.doctor_id,
+    DoctorTask.doctor_id,
+    DoctorContext.doctor_id,
+    PatientLabel.doctor_id,
+]
+
+
+async def _collect_all_doctor_ids(db) -> set:
+    """Scan historical tables for all doctor_id values."""
+    doctor_ids = set()
+    for col in _DOCTOR_SOURCES:
+        rows = (await db.execute(select(col).where(col.is_not(None)))).scalars().all()
+        for value in rows:
+            if isinstance(value, str) and value.strip():
+                doctor_ids.add(value.strip())
+    return doctor_ids
+
+
+def _backfill_existing_row(row, seen_wechat: set) -> bool:
+    """Apply channel/wechat_user_id backfill to an existing Doctor row. Returns True if changed."""
+    if not isinstance(row.doctor_id, str):
+        return False
+    doctor_id = row.doctor_id.strip()
+    if not doctor_id:
+        return False
+    is_wechat = bool(_WECHAT_RE.match(doctor_id))
+    changed = False
+    if not getattr(row, "channel", None):
+        row.channel = "wechat" if is_wechat else "app"
+        changed = True
+    if is_wechat and not getattr(row, "wechat_user_id", None) and doctor_id not in seen_wechat:
+        row.wechat_user_id = doctor_id
+        changed = True
+    if getattr(row, "wechat_user_id", None):
+        seen_wechat.add(str(row.wechat_user_id))
+    return changed
+
+
 async def backfill_doctors_registry() -> int:
     """Populate doctors table from historical tables (idempotent)."""
-    wechat_re = re.compile(r"^(?:wm|wx|ww|wo)[A-Za-z0-9_-]{6,}$")
-    doctor_ids = set()
-    doctor_sources = [
-        Patient.doctor_id,
-        MedicalRecordDB.doctor_id,
-        DoctorTask.doctor_id,
-        DoctorContext.doctor_id,
-        PatientLabel.doctor_id,
-    ]
-
     async with AsyncSessionLocal() as db:
-        for col in doctor_sources:
-            rows = (await db.execute(select(col).where(col.is_not(None)))).scalars().all()
-            for value in rows:
-                if isinstance(value, str) and value.strip():
-                    doctor_ids.add(value.strip())
-
+        doctor_ids = await _collect_all_doctor_ids(db)
         existing_rows = (await db.execute(select(Doctor))).scalars().all()
         existing = {row.doctor_id for row in existing_rows}
         missing = sorted(doctor_ids - existing)
         for doctor_id in missing:
-            is_wechat = bool(wechat_re.match(doctor_id))
-            db.add(
-                Doctor(
-                    doctor_id=doctor_id,
-                    channel="wechat" if is_wechat else "app",
-                    wechat_user_id=doctor_id if is_wechat else None,
-                )
-            )
-
-        # Backfill existing rows with identity metadata where possible.
-        updated_existing = False
-        seen_wechat = set()
-        for row in existing_rows:
-            if not isinstance(row.doctor_id, str):
-                continue
-            doctor_id = row.doctor_id.strip()
-            if not doctor_id:
-                continue
-            is_wechat = bool(wechat_re.match(doctor_id))
-            if not getattr(row, "channel", None):
-                row.channel = "wechat" if is_wechat else "app"
-                updated_existing = True
-            if is_wechat and not getattr(row, "wechat_user_id", None) and doctor_id not in seen_wechat:
-                row.wechat_user_id = doctor_id
-                updated_existing = True
-            if getattr(row, "wechat_user_id", None):
-                seen_wechat.add(str(row.wechat_user_id))
+            is_wechat = bool(_WECHAT_RE.match(doctor_id))
+            db.add(Doctor(
+                doctor_id=doctor_id,
+                channel="wechat" if is_wechat else "app",
+                wechat_user_id=doctor_id if is_wechat else None,
+            ))
+        seen_wechat: set = set()
+        updated_existing = any(
+            _backfill_existing_row(row, seen_wechat) for row in existing_rows
+        )
         if missing or updated_existing:
             await db.commit()
         return len(missing)

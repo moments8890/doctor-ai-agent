@@ -1,5 +1,5 @@
 """
-Core routing logic for fast_router.
+快速意图路由核心：无 LLM 多层级意图匹配，支持 Tier 1/2/3 路由。
 """
 
 from __future__ import annotations
@@ -13,7 +13,6 @@ from ._keywords import (
     _LIST_TASKS_EXACT, _LIST_TASKS_SHORT, _NON_NAME_KEYWORDS,
     _TIER3_BAD_NAME, _HELP_KEYWORDS,
 )
-from . import _mined_rules
 from ._patterns import (
     _normalise,
     _IMPORT_DATE_RE,
@@ -52,8 +51,6 @@ from ._patterns import (
     _DELETE_TRAIL_RE,
     _DELETE_OCCINDEX_RE,
     _UPDATE_PATIENT_DEMO_RE,
-    _CORRECT_RECORD_RE,
-    _CORRECT_NAME_RE,
     _TIER3_NAME_RE,
     _parse_task_num,
     _time_unit_to_days,
@@ -65,34 +62,38 @@ if TYPE_CHECKING:
     from services.session import DoctorSession
 
 
+# ---------------------------------------------------------------------------
+# Tier 0 helpers
+# ---------------------------------------------------------------------------
 
-def _fast_route_core(text: str, specialty: Optional[str] = None) -> Optional[IntentResult]:
-    """Internal routing logic — no session context applied here."""
-    stripped = text.strip()
-    if not stripped:
-        return None
-
-    # Normalised form used for Tier 1 set lookups (strips polite particles etc.)
-    normed = _normalise(stripped)
-
-    # ── Tier 0: help — capability list ────────────────────────────────────────
+def _route_tier0_help(normed: str, stripped: str) -> Optional[IntentResult]:
+    """Tier 0: capability-list / help intent."""
     if normed in _HELP_KEYWORDS or stripped in _HELP_KEYWORDS:
         return IntentResult(intent=Intent.help)
+    return None
 
-    # ── Tier 0: import_history — bulk/PDF/Word/Image imports bypass LLM entirely ─
+
+def _route_tier0_import(stripped: str) -> Optional[IntentResult]:
+    """Tier 0: bulk / PDF / Word / Image import bypasses LLM entirely."""
     if stripped.startswith("[PDF:") or stripped.startswith("[Word:"):
         source = "pdf" if stripped.startswith("[PDF:") else "word"
         return IntentResult(intent=Intent.import_history, extra_data={"source": source})
     if stripped.startswith("[Image:"):
         return IntentResult(intent=Intent.import_history, extra_data={"source": "image"})
     if any(kw in stripped for kw in _IMPORT_KEYWORDS):
-        date_count = len(_IMPORT_DATE_RE.findall(stripped))
-        if date_count >= 2:
+        if len(_IMPORT_DATE_RE.findall(stripped)) >= 2:
             return IntentResult(intent=Intent.import_history, extra_data={"source": "text"})
     if len(stripped) > 800 and len(_IMPORT_DATE_RE.findall(stripped)) >= 2:
         return IntentResult(intent=Intent.import_history, extra_data={"source": "text"})
+    return None
 
-    # ── Tier 1: list_patients ──────────────────────────────────────────────────
+
+# ---------------------------------------------------------------------------
+# Tier 1 helpers
+# ---------------------------------------------------------------------------
+
+def _route_tier1_lists(normed: str, stripped: str) -> Optional[IntentResult]:
+    """Tier 1: list_patients and list_tasks — exact set + flex regex."""
     if normed in _LIST_PATIENTS_EXACT or stripped in _LIST_PATIENTS_EXACT:
         return IntentResult(intent=Intent.list_patients)
     if normed in _LIST_PATIENTS_SHORT or stripped in _LIST_PATIENTS_SHORT:
@@ -100,43 +101,46 @@ def _fast_route_core(text: str, specialty: Optional[str] = None) -> Optional[Int
     if _LIST_PATIENTS_FLEX_RE.match(normed) or _LIST_PATIENTS_FLEX_RE.match(stripped):
         return IntentResult(intent=Intent.list_patients)
 
-    # ── Tier 1: list_tasks ────────────────────────────────────────────────────
     if normed in _LIST_TASKS_EXACT or stripped in _LIST_TASKS_EXACT:
         return IntentResult(intent=Intent.list_tasks)
     if normed in _LIST_TASKS_SHORT or stripped in _LIST_TASKS_SHORT:
         return IntentResult(intent=Intent.list_tasks)
     if _LIST_TASKS_FLEX_RE.match(normed) or _LIST_TASKS_FLEX_RE.match(stripped):
         return IntentResult(intent=Intent.list_tasks)
+    return None
 
-    # ── Tier 2: complete_task (fully deterministic — no LLM needed) ───────────
+
+# ---------------------------------------------------------------------------
+# Tier 2 helpers
+# ---------------------------------------------------------------------------
+
+def _route_tier2_task_actions(normed: str, stripped: str) -> Optional[IntentResult]:
+    """Tier 2: complete_task, cancel_task, postpone_task — fully deterministic."""
     for _pat in (_COMPLETE_TASK_A_RE, _COMPLETE_TASK_B_RE, _COMPLETE_TASK_C_RE, _COMPLETE_TASK_D_RE):
         m = _pat.match(normed) or _pat.match(stripped)
         if m:
-            task_id = _parse_task_num(m.group(1))
-            return IntentResult(
-                intent=Intent.complete_task,
-                extra_data={"task_id": task_id},
-            )
+            return IntentResult(intent=Intent.complete_task, extra_data={"task_id": _parse_task_num(m.group(1))})
 
-    # ── Tier 2: cancel_task ──────────────────────────────────────────────────
     for _pat in (_CANCEL_TASK_A_RE, _CANCEL_TASK_B_RE, _CANCEL_TASK_C_RE):
         m = _pat.match(normed) or _pat.match(stripped)
         if m:
-            task_id = _parse_task_num(m.group(1))
-            return IntentResult(intent=Intent.cancel_task, extra_data={"task_id": task_id})
+            return IntentResult(intent=Intent.cancel_task, extra_data={"task_id": _parse_task_num(m.group(1))})
 
-    # ── Tier 2: postpone_task ────────────────────────────────────────────────
     for _pat in (_POSTPONE_TASK_RE, _POSTPONE_TASK_B_RE):
         m = _pat.match(normed) or _pat.match(stripped)
         if m:
-            task_id = _parse_task_num(m.group(1))
-            delta_days = _time_unit_to_days(m.group(2), m.group(3))
             return IntentResult(
                 intent=Intent.postpone_task,
-                extra_data={"task_id": task_id, "delta_days": delta_days},
+                extra_data={
+                    "task_id": _parse_task_num(m.group(1)),
+                    "delta_days": _time_unit_to_days(m.group(2), m.group(3)),
+                },
             )
+    return None
 
-    # ── Tier 2: schedule_follow_up (standalone, no record needed) ────────────
+
+def _route_followup_with_name(normed: str, stripped: str) -> Optional[IntentResult]:
+    """Match follow-up patterns that include a patient name."""
     for _pat in (_FOLLOWUP_WITH_NAME_RE, _FOLLOWUP_LEAD_TIME_RE):
         m = _pat.match(normed) or _pat.match(stripped)
         if m:
@@ -152,6 +156,7 @@ def _fast_route_core(text: str, specialty: Optional[str] = None) -> Optional[Int
                     patient_name=name,
                     extra_data={"follow_up_plan": follow_up_plan or "下次随访"},
                 )
+
     m = _FOLLOWUP_RELATIVE_RE.match(normed) or _FOLLOWUP_RELATIVE_RE.match(stripped)
     if m:
         name, rel_time = m.group(1), m.group(2)
@@ -161,6 +166,7 @@ def _fast_route_core(text: str, specialty: Optional[str] = None) -> Optional[Int
                 patient_name=name,
                 extra_data={"follow_up_plan": f"{rel_time}随访"},
             )
+
     m = _FOLLOWUP_TIME_FIRST_RE.match(normed) or _FOLLOWUP_TIME_FIRST_RE.match(stripped)
     if m:
         n_raw, unit, name = m.group(1), m.group(2), m.group(3)
@@ -170,27 +176,37 @@ def _fast_route_core(text: str, specialty: Optional[str] = None) -> Optional[Int
                 patient_name=name,
                 extra_data={"follow_up_plan": f"{n_raw}{unit}后随访"},
             )
+    return None
 
-    # Follow-up without name — session context provides the patient name.
-    # Fires only when neither the normed nor stripped form matched a named pattern.
+
+def _route_followup_noname(normed: str, stripped: str) -> Optional[IntentResult]:
+    """Match follow-up patterns without a patient name (session provides context)."""
     m = _FOLLOWUP_NONAME_RE.match(normed) or _FOLLOWUP_NONAME_RE.match(stripped)
     if m:
         n_raw = m.group(1) if m.lastindex and m.lastindex >= 1 else None
         unit = m.group(2) if m.lastindex and m.lastindex >= 2 else None
-        follow_up_plan = f"{n_raw}{unit}后随访" if (n_raw and unit) else "下次随访"
-        return IntentResult(
-            intent=Intent.schedule_follow_up,
-            extra_data={"follow_up_plan": follow_up_plan},
-        )
+        plan = f"{n_raw}{unit}后随访" if (n_raw and unit) else "下次随访"
+        return IntentResult(intent=Intent.schedule_follow_up, extra_data={"follow_up_plan": plan})
+
     m = _FOLLOWUP_NONAME_RELATIVE_RE.match(normed) or _FOLLOWUP_NONAME_RELATIVE_RE.match(stripped)
     if m:
-        rel = m.group(1)
         return IntentResult(
             intent=Intent.schedule_follow_up,
-            extra_data={"follow_up_plan": f"{rel}随访"},
+            extra_data={"follow_up_plan": f"{m.group(1)}随访"},
         )
+    return None
 
-    # ── Tier 2: schedule_appointment ─────────────────────────────────────────────
+
+def _route_tier2_followup(normed: str, stripped: str) -> Optional[IntentResult]:
+    """Tier 2: schedule_follow_up — with name, relative time, or no name."""
+    result = _route_followup_with_name(normed, stripped)
+    if result is not None:
+        return result
+    return _route_followup_noname(normed, stripped)
+
+
+def _route_tier2_appointment(normed: str, stripped: str) -> Optional[IntentResult]:
+    """Tier 2: schedule_appointment."""
     for target in (normed, stripped):
         for pat in (_APPOINTMENT_RE, _APPOINTMENT_VERB_FIRST_RE):
             m = pat.match(target)
@@ -198,31 +214,34 @@ def _fast_route_core(text: str, specialty: Optional[str] = None) -> Optional[Int
                 appt_name = m.group(1)
                 if appt_name and appt_name not in _NON_NAME_KEYWORDS:
                     return IntentResult(intent=Intent.schedule_appointment, patient_name=appt_name)
+    return None
 
-    # ── Tier 2: export_outpatient_report (卫生部 2010 标准门诊病历) ───────────
+
+def _route_tier2_export(normed: str, stripped: str) -> Optional[IntentResult]:
+    """Tier 2: export_outpatient_report and export_records."""
     for target in (normed, stripped):
         m = _OUTPATIENT_REPORT_RE.match(target)
         if m:
             name = m.group(1).strip() or None
-            return IntentResult(intent=Intent.export_outpatient_report, patient_name=name or None)
+            return IntentResult(intent=Intent.export_outpatient_report, patient_name=name)
     if _OUTPATIENT_REPORT_NONAME_RE.match(normed) or _OUTPATIENT_REPORT_NONAME_RE.match(stripped):
         return IntentResult(intent=Intent.export_outpatient_report)
 
-    # ── Tier 2: export_records ────────────────────────────────────────────────
     for target in (normed, stripped):
         m = _EXPORT_RE.match(target)
         if m:
             name = m.group(1).strip() or None
-            return IntentResult(intent=Intent.export_records, patient_name=name or None)
+            return IntentResult(intent=Intent.export_records, patient_name=name)
     if _EXPORT_NONAME_RE.match(normed) or _EXPORT_NONAME_RE.match(stripped):
         return IntentResult(intent=Intent.export_records)
+    return None
 
-    # ── Tier 2: supplement / record continuation → add_record ─────────────────
-    # "补充：…", "补一句：…", "加上…" are unambiguously appending to a record.
+
+def _route_tier2_query(normed: str, stripped: str) -> Optional[IntentResult]:
+    """Tier 2: query_records and supplement/add_record continuation."""
     if _SUPPLEMENT_RE.match(stripped):
         return IntentResult(intent=Intent.add_record)
 
-    # ── Tier 2: query_records ─────────────────────────────────────────────────
     for target in (normed, stripped):
         m = _QUERY_PREFIX_RE.match(target)
         if m and m.group(1) not in _NON_NAME_KEYWORDS and m.group(1) not in _TIER3_BAD_NAME:
@@ -235,54 +254,36 @@ def _fast_route_core(text: str, specialty: Optional[str] = None) -> Optional[Int
         m = _QUERY_NAME_QUESTION_RE.match(target)
         if m and m.group(1) not in _NON_NAME_KEYWORDS and m.group(1) not in _TIER3_BAD_NAME:
             return IntentResult(intent=Intent.query_records, patient_name=m.group(1))
+    return None
 
-    # ── Tier 2: create_patient ────────────────────────────────────────────────
+
+def _route_tier2_create_patient(normed: str, stripped: str) -> Optional[IntentResult]:
+    """Tier 2: create_patient — lead keyword, duplicate, trailing keyword, terse."""
     for target in (normed, stripped):
         m = _CREATE_DUPLICATE_RE.match(target)
         if m and m.group(1) not in _NON_NAME_KEYWORDS:
-            name = m.group(1)
             gender, age = _extract_demographics(stripped)
-            return IntentResult(
-                intent=Intent.create_patient,
-                patient_name=name,
-                gender=gender,
-                age=age,
-            )
+            return IntentResult(intent=Intent.create_patient, patient_name=m.group(1), gender=gender, age=age)
 
         m = _CREATE_LEAD_RE.search(target)
         if m and m.group(1) not in _NON_NAME_KEYWORDS:
-            name = m.group(1)
             gender, age = _extract_demographics(stripped)
-            return IntentResult(
-                intent=Intent.create_patient,
-                patient_name=name,
-                gender=gender,
-                age=age,
-            )
+            return IntentResult(intent=Intent.create_patient, patient_name=m.group(1), gender=gender, age=age)
 
         m = _CREATE_TRAIL_RE.match(target)
         if m and m.group(1) not in _NON_NAME_KEYWORDS:
-            name = m.group(1)
             gender, age = _extract_demographics(stripped)
-            return IntentResult(
-                intent=Intent.create_patient,
-                patient_name=name,
-                gender=gender,
-                age=age,
-            )
+            return IntentResult(intent=Intent.create_patient, patient_name=m.group(1), gender=gender, age=age)
 
         m = _CREATE_TERSE_END_RE.match(target)
         if m and m.group(1) not in _NON_NAME_KEYWORDS:
-            name = m.group(1)
             gender, age = _extract_demographics(stripped)
-            return IntentResult(
-                intent=Intent.create_patient,
-                patient_name=name,
-                gender=gender,
-                age=age,
-            )
+            return IntentResult(intent=Intent.create_patient, patient_name=m.group(1), gender=gender, age=age)
+    return None
 
-    # ── Tier 2: delete_patient ────────────────────────────────────────────────
+
+def _route_tier2_delete_patient(normed: str, stripped: str) -> Optional[IntentResult]:
+    """Tier 2: delete_patient — lead, trailing, and occurrence-index patterns."""
     for target in (normed, stripped):
         m = _DELETE_LEAD_RE.match(target)
         if m and m.group(1) not in _NON_NAME_KEYWORDS:
@@ -294,86 +295,78 @@ def _fast_route_core(text: str, specialty: Optional[str] = None) -> Optional[Int
 
         m = _DELETE_OCCINDEX_RE.match(target)
         if m and m.group(2) not in _NON_NAME_KEYWORDS:
-            occurrence = _parse_task_num(m.group(1))
             return IntentResult(
                 intent=Intent.delete_patient,
                 patient_name=m.group(2),
-                extra_data={"occurrence_index": occurrence},
+                extra_data={"occurrence_index": _parse_task_num(m.group(1))},
             )
+    return None
 
-    # ── Tier 2: update_patient_info (demographic correction) ─────────────────
+
+def _route_tier2_update_patient(normed: str, stripped: str) -> Optional[IntentResult]:
+    """Tier 2: update_patient_info — demographic correction."""
     for target in (normed, stripped):
         m = _UPDATE_PATIENT_DEMO_RE.search(target)
         if m:
             name = m.group(1) or (m.group(2) if m.lastindex and m.lastindex >= 2 else None)
             if name and name not in _NON_NAME_KEYWORDS:
                 gender, age = _extract_demographics(stripped)
-                return IntentResult(
-                    intent=Intent.update_patient,
-                    patient_name=name,
-                    gender=gender,
-                    age=age,
-                )
+                return IntentResult(intent=Intent.update_patient, patient_name=name, gender=gender, age=age)
+    return None
 
-    # ── Tier 2.5: update_record — MUST come before Tier 3 ────────────────────
-    # Correction messages often contain clinical keywords (e.g. "胸痛", "STEMI")
-    # which would otherwise be caught by Tier 3 and mis-routed as add_record.
-    # Detecting correction intent first ensures the update_record handler runs.
-    # Field extraction is deliberately left to the LLM (no structured_fields here)
-    # so the update_medical_record tool can parse correction phrasing accurately.
-    if _CORRECT_RECORD_RE.search(stripped):
-        name = None
-        # Try correction-specific pattern first: "刚才[NAME]的..." / "上一条[NAME]的..."
-        cm = _CORRECT_NAME_RE.search(stripped)
-        if cm:
-            name = cm.group(1) or (cm.group(2) if cm.lastindex and cm.lastindex >= 2 else None)
-            if name in _TIER3_BAD_NAME or name in _NON_NAME_KEYWORDS:
-                name = None
-        # Fallback: name at message start (less common in correction phrasing)
-        if name is None:
-            m = _TIER3_NAME_RE.match(stripped)
-            if m and m.group(1) not in _TIER3_BAD_NAME:
-                name = m.group(1)
-        return IntentResult(intent=Intent.update_record, patient_name=name)
 
-    # ── Mined rules (loaded from data/mined_rules.json) ──────────────────────
-    for rule in _mined_rules._MINED_RULES:
-        if not rule["enabled"]:
-            continue
-        if len(stripped) < rule.get("min_length", 0):
-            continue
-        matched_obj = None
-        for p in rule["patterns"]:
-            matched_obj = p.search(stripped)
-            if matched_obj:
-                break
-        if matched_obj is None and rule.get("keywords_any"):
-            if any(k in stripped for k in rule["keywords_any"]):
-                matched_obj = True  # sentinel — no group extraction possible via keywords
-        if matched_obj:
-            # Extract patient_name from regex group if configured
-            patient_name: Optional[str] = None
-            grp = rule.get("patient_name_group")
-            if grp is not None and matched_obj is not True:
-                try:
-                    candidate = matched_obj.group(grp)
-                    if candidate and candidate not in _NON_NAME_KEYWORDS and candidate not in _TIER3_BAD_NAME:
-                        patient_name = candidate
-                except (IndexError, AttributeError):
-                    pass
-            return IntentResult(
-                intent=Intent[rule["intent"]],
-                patient_name=patient_name,
-                extra_data=dict(rule.get("extra_data") or {}),
-                confidence=float(rule.get("confidence", 1.0)),
-            )
+
+# ---------------------------------------------------------------------------
+# Main routing entry point
+# ---------------------------------------------------------------------------
+
+def _route_tier2_all(normed: str, stripped: str) -> Optional[IntentResult]:
+    """Run all Tier 2 sub-matchers in priority order."""
+    for _fn in (
+        lambda: _route_tier2_task_actions(normed, stripped),
+        lambda: _route_tier2_followup(normed, stripped),
+        lambda: _route_tier2_appointment(normed, stripped),
+        lambda: _route_tier2_export(normed, stripped),
+        lambda: _route_tier2_query(normed, stripped),
+        lambda: _route_tier2_create_patient(normed, stripped),
+        lambda: _route_tier2_delete_patient(normed, stripped),
+        lambda: _route_tier2_update_patient(normed, stripped),
+    ):
+        result = _fn()
+        if result is not None:
+            return result
+    return None
+
+
+def _fast_route_core(text: str, specialty: Optional[str] = None) -> Optional[IntentResult]:
+    """Internal routing logic — no session context applied here."""
+    stripped = text.strip()
+    if not stripped:
+        return None
+
+    # Normalised form used for Tier 1 set lookups (strips polite particles etc.)
+    normed = _normalise(stripped)
+
+    result = _route_tier0_help(normed, stripped)
+    if result is not None:
+        return result
+
+    result = _route_tier0_import(stripped)
+    if result is not None:
+        return result
+
+    result = _route_tier1_lists(normed, stripped)
+    if result is not None:
+        return result
+
+    result = _route_tier2_all(normed, stripped)
+    if result is not None:
+        return result
 
     # All remaining messages fall through to the LLM for semantic routing.
     # Tier 3 (clinical keyword → add_record) was removed 2026-03-09.
-    # The LLM correctly discriminates add_record / query_records / update_record
-    # without keyword heuristics. A wrong fast-route is worse than a 1.5s LLM call.
-    # The LLM handles add_record / query_records / update_record discrimination
-    # and structured field extraction in a single call.
+    # Mined rules and confidence threshold removed 2026-03-10 — available in
+    # _mined_rules.py / FAST_ROUTE_CONFIDENCE_THRESHOLD if needed in future.
     return None
 
 

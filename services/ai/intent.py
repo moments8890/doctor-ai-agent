@@ -105,6 +105,30 @@ class IntentResult(BaseModel):
     confidence: float = 1.0  # 1.0 = high-confidence rule/LLM; 0.8 = Tier-3 keyword match
 
 
+def _build_intent_client(intent_provider: str) -> AsyncOpenAI:
+    """构造指定提供商的 OpenAI 兼容客户端。"""
+    provider = _PROVIDERS[intent_provider]
+    extra_headers = {"anthropic-version": "2023-06-01"} if intent_provider == "claude" else {}
+    return AsyncOpenAI(
+        base_url=provider["base_url"],
+        api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
+        timeout=float(os.environ.get("INTENT_LLM_TIMEOUT", "30")),
+        max_retries=0,
+        default_headers=extra_headers,
+    )
+
+
+def _parse_intent_response(raw: str, intent_provider: str) -> IntentResult:
+    """解析 LLM 返回的 JSON 字符串为 IntentResult，解析失败返回 unknown。"""
+    log(f"[Intent:{intent_provider}] result: {raw}")
+    try:
+        data = json.loads(raw)
+        return IntentResult.model_validate(data)
+    except Exception as e:
+        log(f"[Intent:{intent_provider}] parse error: {e}, raw={raw!r}")
+        return IntentResult(intent=Intent.unknown)
+
+
 async def detect_intent(text: str) -> IntentResult:
     """[DEPRECATED] Standalone LLM intent classifier — not used in the active message flow.
     The main routing path uses services/ai/agent.py::dispatch() instead.
@@ -117,14 +141,7 @@ async def detect_intent(text: str) -> IntentResult:
 
     provider = _PROVIDERS[intent_provider]
     log(f"[Intent:{intent_provider}] detecting: {text[:80]}")
-    extra_headers = {"anthropic-version": "2023-06-01"} if intent_provider == "claude" else {}
-    client = AsyncOpenAI(
-        base_url=provider["base_url"],
-        api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
-        timeout=float(os.environ.get("INTENT_LLM_TIMEOUT", "30")),
-        max_retries=0,
-        default_headers=extra_headers,
-    )
+    client = _build_intent_client(intent_provider)
 
     from utils.prompt_loader import get_prompt
     intent_prompt = await get_prompt("agent.intent_classifier", SYSTEM_PROMPT)
@@ -152,10 +169,4 @@ async def detect_intent(text: str) -> IntentResult:
         op_name="intent.chat_completion",
     )
     raw = completion.choices[0].message.content
-    log(f"[Intent:{intent_provider}] result: {raw}")
-    try:
-        data = json.loads(raw)
-        return IntentResult.model_validate(data)
-    except Exception as e:
-        log(f"[Intent:{intent_provider}] parse error: {e}, raw={raw!r}")
-        return IntentResult(intent=Intent.unknown)
+    return _parse_intent_response(raw, intent_provider)

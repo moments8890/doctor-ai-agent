@@ -1,4 +1,5 @@
-"""
+"""微信身份标识的 HMAC-SHA256 哈希工具，用于医生注册表中标识符的脱敏存储。
+
 HMAC-SHA256 hashing for WeChat identifiers stored in the Doctor registry.
 
 When WECHAT_ID_HMAC_KEY is set in the environment, wechat_user_id and

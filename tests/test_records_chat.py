@@ -1,8 +1,4 @@
-"""Unit tests for /api/records/chat fallback logic.
-
-These tests mock LLM routing and structuring, and patch DB session factory to
-an in-memory SQLite session so no external I/O is required.
-"""
+"""病历对话接口测试：验证 /api/records/chat 的意图路由、患者姓名补全、任务管理及预约创建逻辑，LLM 和数据库均使用模拟对象。"""
 
 import pytest
 from datetime import datetime

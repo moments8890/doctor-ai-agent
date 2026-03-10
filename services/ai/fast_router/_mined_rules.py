@@ -1,5 +1,5 @@
 """
-Mined routing rules for fast_router.
+挖掘路由规则加载器：从 JSON 文件加载数据挖掘得出的意图路由规则。
 
 P0: Rules include a ``priority`` field (default 700). After loading, rules are
 sorted by priority descending so higher-priority rules are checked first.
@@ -23,6 +23,35 @@ from services.ai.intent import Intent
 _MINED_RULES: List[Dict[str, Any]] = []
 
 
+def _compile_single_rule(
+    i: int, rule: Dict[str, Any], log_fn
+) -> Optional[Dict[str, Any]]:
+    """编译单条路由规则；格式错误时记录日志并返回 None。"""
+    if not isinstance(rule, dict):
+        log_fn(f"[mined_rules] rule[{i}] is not a dict, skipping")
+        return None
+    intent_name = rule.get("intent", "")
+    if intent_name not in Intent.__members__:
+        log_fn(f"[mined_rules] rule[{i}] unknown intent {intent_name!r}, skipping")
+        return None
+    try:
+        patterns = [re.compile(pat) for pat in rule.get("patterns", [])]
+    except re.error as e:
+        log_fn(f"[mined_rules] rule[{i}] invalid pattern: {e}, skipping")
+        return None
+    return {
+        "intent": intent_name,
+        "patterns": patterns,
+        "keywords_any": list(rule.get("keywords_any") or []),
+        "min_length": int(rule.get("min_length", 0)),
+        "patient_name_group": rule.get("patient_name_group"),
+        "extra_data": dict(rule.get("extra_data") or {}),
+        "confidence": float(rule.get("confidence", 1.0)),
+        "priority": int(rule.get("priority", 700)),
+        "enabled": bool(rule.get("enabled", True)),
+    }
+
+
 def load_mined_rules(path: str) -> None:
     """Load mined routing rules from a JSON file.
 
@@ -42,15 +71,6 @@ def load_mined_rules(path: str) -> None:
           }
         ]
 
-    Optional fields:
-    - ``patient_name_group``: int — regex capture group index to use as patient_name
-    - ``extra_data``: dict — static key-value pairs added to IntentResult.extra_data
-    - ``confidence``: float — confidence score (default 1.0)
-    - ``priority``: int — sort key; higher values are evaluated first (default 700)
-
-    After loading, rules are sorted by ``priority`` descending so that higher-priority
-    rules are evaluated before lower-priority ones.
-
     Silently skips if the file does not exist. Logs errors on malformed content.
     """
     from utils.log import log
@@ -60,31 +80,10 @@ def load_mined_rules(path: str) -> None:
         return
     try:
         raw: List[Dict[str, Any]] = json.loads(p.read_text(encoding="utf-8"))
-        compiled: List[Dict[str, Any]] = []
-        for i, rule in enumerate(raw):
-            if not isinstance(rule, dict):
-                log(f"[mined_rules] rule[{i}] is not a dict, skipping")
-                continue
-            intent_name = rule.get("intent", "")
-            if intent_name not in Intent.__members__:
-                log(f"[mined_rules] rule[{i}] unknown intent {intent_name!r}, skipping")
-                continue
-            try:
-                patterns = [re.compile(pat) for pat in rule.get("patterns", [])]
-            except re.error as e:
-                log(f"[mined_rules] rule[{i}] invalid pattern: {e}, skipping")
-                continue
-            compiled.append({
-                "intent": intent_name,
-                "patterns": patterns,
-                "keywords_any": list(rule.get("keywords_any") or []),
-                "min_length": int(rule.get("min_length", 0)),
-                "patient_name_group": rule.get("patient_name_group"),  # int or None
-                "extra_data": dict(rule.get("extra_data") or {}),
-                "confidence": float(rule.get("confidence", 1.0)),
-                "priority": int(rule.get("priority", 700)),
-                "enabled": bool(rule.get("enabled", True)),
-            })
+        compiled = [
+            r for i, rule in enumerate(raw)
+            if (r := _compile_single_rule(i, rule, log)) is not None
+        ]
         _MINED_RULES = sorted(compiled, key=lambda r: r["priority"], reverse=True)
         log(f"[mined_rules] loaded {len(compiled)} rules from {path}")
     except Exception as e:

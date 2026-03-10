@@ -1,6 +1,4 @@
-"""
-Tests for outpatient report PDF and field extraction.
-"""
+"""门诊报告测试：验证 LLM 门诊字段提取及门诊报告 PDF 生成的正确性。"""
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch

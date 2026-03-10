@@ -1,4 +1,11 @@
-"""WeChat KF end-to-end style tests (callback/sync_msg path).
+"""微信客服（WeCom KF）端到端测试（callback/sync_msg 路径）。
+
+覆盖目标：
+- 通过 WeCom KF sync payload 重跑真实医生笔记场景。
+- 验证消息接入 -> 意图路由 -> DB 持久化 -> KF 回复全链路。
+- 验证 KF 文档中 image/voice/video 媒体 payload 形态均被正确处理。
+
+WeChat KF end-to-end style tests (callback/sync_msg path).
 
 Coverage goals:
 - Reuse real-world doctor note scenarios through WeCom KF sync payloads.
@@ -114,27 +121,9 @@ async def _latest_record_for(session_factory, doctor_id: str, patient_name: str)
         return patient, records[0]
 
 
-@pytest.mark.parametrize(
-    "case_id,patient_name,input_text,expected_tokens,expect_no_treatment",
-    REALWORLD_SCENARIOS,
-)
-async def test_wecom_kf_text_realworld_matrix_e2e(
-    session_factory,
-    case_id: str,
-    patient_name: str,
-    input_text: str,
-    expected_tokens: List[str],
-    expect_no_treatment: bool,
-):
-    """Reuse all real-world cases via WeCom KF sync_msg text ingestion."""
-    wechat._WECHAT_KF_SYNC_CURSOR = ""
-    wechat._WECHAT_KF_CURSOR_LOADED = True
-    wechat._WECHAT_KF_SEEN_MSG_IDS.clear()
-
-    doctor_id = "inttest_kf_{0}".format(case_id)
-    open_kfid = "kf_{0}".format(case_id)
-
-    payload = {
+def _build_kf_text_payload(case_id: str, doctor_id: str, open_kfid: str, input_text: str) -> dict:
+    """构建 WeCom KF sync_msg 文本消息 payload。"""
+    return {
         "errcode": 0,
         "has_more": 0,
         "next_cursor": "c1",
@@ -151,6 +140,9 @@ async def test_wecom_kf_text_realworld_matrix_e2e(
         ],
     }
 
+
+async def _run_kf_event_with_mocks(session_factory, payload: dict) -> AsyncMock:
+    """在 mock 环境中触发 KF 事件并等待消息发送；返回 send_mock。"""
     spawned_tasks: List[asyncio.Task] = []
 
     def _track_task(coro):
@@ -173,24 +165,51 @@ async def test_wecom_kf_text_realworld_matrix_e2e(
         if spawned_tasks:
             await asyncio.gather(*spawned_tasks)
         await _wait_for_awaited(send_mock, min_calls=1)
+    return send_mock
+
+
+def _assert_kf_record_tokens(record, case_id: str, expected_tokens: List[str],
+                              expect_no_treatment: bool) -> None:
+    """断言病历字段包含期望关键词，并可选地验证 treatment_plan 为空。"""
+    blob = "\n".join([
+        record.chief_complaint or "",
+        record.diagnosis or "",
+        record.treatment_plan or "",
+        record.follow_up_plan or "",
+    ]).lower()
+    for token in expected_tokens:
+        assert token.lower() in blob, "missing token={0} case={1}".format(token, case_id)
+    if expect_no_treatment:
+        assert not (record.treatment_plan or "").strip()
+
+
+@pytest.mark.parametrize(
+    "case_id,patient_name,input_text,expected_tokens,expect_no_treatment",
+    REALWORLD_SCENARIOS,
+)
+async def test_wecom_kf_text_realworld_matrix_e2e(
+    session_factory,
+    case_id: str,
+    patient_name: str,
+    input_text: str,
+    expected_tokens: List[str],
+    expect_no_treatment: bool,
+):
+    """Reuse all real-world cases via WeCom KF sync_msg text ingestion."""
+    wechat._WECHAT_KF_SYNC_CURSOR = ""
+    wechat._WECHAT_KF_CURSOR_LOADED = True
+    wechat._WECHAT_KF_SEEN_MSG_IDS.clear()
+
+    doctor_id = "inttest_kf_{0}".format(case_id)
+    open_kfid = "kf_{0}".format(case_id)
+
+    payload = _build_kf_text_payload(case_id, doctor_id, open_kfid, input_text)
+    await _run_kf_event_with_mocks(session_factory, payload)
 
     patient, record = await _latest_record_for(session_factory, doctor_id, patient_name)
     assert patient is not None, "patient not persisted for case={0}".format(case_id)
     assert record is not None, "record not persisted for case={0}".format(case_id)
-
-    blob = "\n".join(
-        [
-            record.chief_complaint or "",
-            record.diagnosis or "",
-            record.treatment_plan or "",
-            record.follow_up_plan or "",
-        ]
-    ).lower()
-    for token in expected_tokens:
-        assert token.lower() in blob, "missing token={0} case={1}".format(token, case_id)
-
-    if expect_no_treatment:
-        assert not (record.treatment_plan or "").strip()
+    _assert_kf_record_tokens(record, case_id, expected_tokens, expect_no_treatment)
 
 
 @pytest.mark.parametrize(

@@ -1,3 +1,5 @@
+"""患者时间线测试：验证患者就诊事件与任务的时间轴聚合查询及缺失患者的处理逻辑。"""
+
 from __future__ import annotations
 
 from datetime import datetime

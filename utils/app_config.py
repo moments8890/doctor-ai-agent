@@ -1,3 +1,4 @@
+"""应用配置加载：从环境变量或 runtime.json 构建 AppConfig 数据类。"""
 from __future__ import annotations
 
 import os
@@ -138,23 +139,17 @@ class AppConfig:
     log_backup_count: int
 
     @classmethod
-    def from_env(cls, env: Optional[Mapping[str, str]] = None, *, env_source: str) -> "AppConfig":
-        values: Mapping[str, str] = env if env is not None else os.environ
-        return cls(
-            env_source=env_source,
+    def _llm_fields(cls, values: Mapping[str, str]) -> dict:
+        """LLM 路由、模型和 API Key 字段。"""
+        _ollama_default = "http://192.168.0.123:11434/v1"
+        return dict(
             routing_llm=values.get("ROUTING_LLM", "deepseek"),
             structuring_llm=values.get("STRUCTURING_LLM", "deepseek"),
             intent_provider=values.get("INTENT_PROVIDER", "local"),
-            llm_provider_strict_mode=_as_bool(
-                values.get("LLM_PROVIDER_STRICT_MODE"),
-                default=True,
-            ),
+            llm_provider_strict_mode=_as_bool(values.get("LLM_PROVIDER_STRICT_MODE"), default=True),
             vision_llm=values.get("VISION_LLM", "ollama"),
-            ollama_base_url=values.get("OLLAMA_BASE_URL", "http://192.168.0.123:11434/v1"),
-            ollama_vision_base_url=values.get(
-                "OLLAMA_VISION_BASE_URL",
-                values.get("OLLAMA_BASE_URL", "http://192.168.0.123:11434/v1"),
-            ),
+            ollama_base_url=values.get("OLLAMA_BASE_URL", _ollama_default),
+            ollama_vision_base_url=values.get("OLLAMA_VISION_BASE_URL", values.get("OLLAMA_BASE_URL", _ollama_default)),
             ollama_model=values.get("OLLAMA_MODEL", "qwen2.5:14b"),
             ollama_vision_model=values.get("OLLAMA_VISION_MODEL", "qwen2.5vl:7b"),
             ollama_api_key=values.get("OLLAMA_API_KEY", "ollama"),
@@ -166,24 +161,23 @@ class AppConfig:
             tencent_lkeap_api_key=values.get("TENCENT_LKEAP_API_KEY"),
             gemini_api_key=values.get("GEMINI_API_KEY"),
             gemini_vision_model=values.get("GEMINI_VISION_MODEL", "gemini-2.0-flash"),
+        )
+
+    @classmethod
+    def _wechat_and_infra_fields(cls, values: Mapping[str, str]) -> dict:
+        """微信/企业微信凭证及基础设施（语音/日志）字段。"""
+        return dict(
             wechat_token=_env_first(values, "WECHAT_KF_TOKEN", "WECHAT_TOKEN"),
             wechat_app_id=_env_first(values, "WECHAT_KF_CORP_ID", "WECHAT_APP_ID"),
             wechat_app_secret=_env_first(values, "WECHAT_KF_SECRET", "WECHAT_APP_SECRET"),
             wechat_mini_app_id=values.get("WECHAT_MINI_APP_ID"),
             wechat_mini_app_secret=values.get("WECHAT_MINI_APP_SECRET"),
-            wechat_encoding_aes_key=_env_first(
-                values,
-                "WECHAT_KF_ENCODING_AES_KEY",
-                "WECHAT_ENCODING_AES_KEY",
-            ),
+            wechat_encoding_aes_key=_env_first(values, "WECHAT_KF_ENCODING_AES_KEY", "WECHAT_ENCODING_AES_KEY"),
             patients_db_path=values.get("PATIENTS_DB_PATH"),
             whisper_model=values.get("WHISPER_MODEL", "large-v3"),
             whisper_device=values.get("WHISPER_DEVICE", "cpu"),
             whisper_compute_type=values.get("WHISPER_COMPUTE_TYPE", "int8"),
-            auto_followup_tasks_enabled=_as_bool(
-                values.get("AUTO_FOLLOWUP_TASKS_ENABLED"),
-                default=False,
-            ),
+            auto_followup_tasks_enabled=_as_bool(values.get("AUTO_FOLLOWUP_TASKS_ENABLED"), default=False),
             log_level=values.get("LOG_LEVEL", "INFO").upper(),
             log_format=values.get("LOG_FORMAT", "%(asctime)s [%(levelname)s] %(name)s: %(message)s"),
             log_to_file=_as_bool(values.get("LOG_TO_FILE"), default=True),
@@ -191,6 +185,16 @@ class AppConfig:
             log_file=values.get("LOG_FILE", "app.log"),
             log_max_bytes=_as_int(values.get("LOG_MAX_BYTES"), default=10485760),
             log_backup_count=_as_int(values.get("LOG_BACKUP_COUNT"), default=5),
+        )
+
+    @classmethod
+    def from_env(cls, env: Optional[Mapping[str, str]] = None, *, env_source: str) -> "AppConfig":
+        """从环境变量映射（或 os.environ）构建 AppConfig 实例。"""
+        values: Mapping[str, str] = env if env is not None else os.environ
+        return cls(
+            env_source=env_source,
+            **cls._llm_fields(values),
+            **cls._wechat_and_infra_fields(values),
         )
 
     def to_log_fields(self) -> Dict[str, str]:

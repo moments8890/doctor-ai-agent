@@ -134,19 +134,8 @@ class ExtractionError(RuntimeError):
     """Raised when LLM is unavailable and no fields could be extracted."""
 
 
-async def extract_outpatient_fields(
-    records: list,
-    patient: Any = None,
-    doctor_id: Optional[str] = None,
-) -> dict[str, str]:
-    """
-    Use LLM to extract 10 standard outpatient fields from records.
-
-    Returns dict keyed by field key (see OUTPATIENT_FIELDS).
-    Raises ExtractionError if the LLM is completely unavailable so callers
-    can surface a meaningful error instead of silently returning a blank form.
-    """
-    # Collect record text
+async def _build_extraction_prompt(records: list, doctor_id: Optional[str]) -> str:
+    """拼装门诊病历字段提取 prompt（含自定义模板）。"""
     parts: list[str] = []
     for rec in records:
         content = (getattr(rec, "content", None) or "").strip()
@@ -154,15 +143,23 @@ async def extract_outpatient_fields(
             parts.append(content)
     records_text = "\n---\n".join(parts) if parts else ""
 
-    # Optionally append custom template text (first 500 chars only)
-    template_text = await _get_custom_template(doctor_id)
-
     from utils.prompt_loader import get_prompt
     extract_prompt_template = await get_prompt("report.extract", _EXTRACT_PROMPT)
     prompt = extract_prompt_template.format(records_text=records_text)
+
+    template_text = await _get_custom_template(doctor_id)
     if template_text:
         prompt += f"\n\n【自定义模板参考格式（仅作参考，字段定义以上文为准）】\n{template_text[:500]}"
+    return prompt
 
+
+async def extract_outpatient_fields(
+    records: list,
+    patient: Any = None,
+    doctor_id: Optional[str] = None,
+) -> dict[str, str]:
+    """调用 LLM 从病历记录中提取门诊标准字段；LLM 不可用时抛出 ExtractionError。"""
+    prompt = await _build_extraction_prompt(records, doctor_id)
     client, model = _get_llm_client()
     fallback_model = os.environ.get("STRUCTURING_LLM_FALLBACK_MODEL", "")
 
@@ -186,7 +183,6 @@ async def extract_outpatient_fields(
         raw = resp.choices[0].message.content or "{}"
         data = json.loads(raw)
         result = {k: str(data.get(k, "") or "") for k in _FIELD_KEYS}
-        # Normalise encounter_type to only accept 初诊/复诊
         if result.get("encounter_type") not in ("初诊", "复诊"):
             result["encounter_type"] = "初诊"
         log(

@@ -59,59 +59,52 @@ def _format_cvd_summary(raw_json_str: Optional[str], visit_date: Optional[str]) 
     return f"上次量表{date_str}：" + "，".join(parts)
 
 
+async def _fetch_cvd_summary(session: object, doctor_id: str, patient_id: int) -> Optional[str]:
+    """查询最近一条 CVD 量表记录并格式化为摘要行；无数据时返回 None。"""
+    from sqlalchemy import select
+    from db.models.specialty import NeuroCVDContext
+    cvd_result = await session.execute(
+        select(NeuroCVDContext)
+        .where(NeuroCVDContext.doctor_id == doctor_id, NeuroCVDContext.patient_id == patient_id)
+        .order_by(NeuroCVDContext.created_at.desc())
+        .limit(1)
+    )
+    cvd_row = cvd_result.scalar_one_or_none()
+    if not cvd_row:
+        return None
+    visit_date = cvd_row.created_at.strftime("%Y-%m-%d") if cvd_row.created_at else None
+    return _format_cvd_summary(cvd_row.raw_json, visit_date)
+
+
+async def _fetch_record_snippet(session: object, doctor_id: str, patient_id: int) -> Optional[str]:
+    """查询最近一条病历内容并截取为摘要行；无数据时返回 None。"""
+    from sqlalchemy import select
+    from db.models.records import MedicalRecordDB
+    rec_result = await session.execute(
+        select(MedicalRecordDB)
+        .where(MedicalRecordDB.doctor_id == doctor_id, MedicalRecordDB.patient_id == patient_id)
+        .order_by(MedicalRecordDB.created_at.desc())
+        .limit(1)
+    )
+    rec = rec_result.scalar_one_or_none()
+    if rec and rec.content:
+        date_str = rec.created_at.strftime("%Y-%m-%d") if rec.created_at else ""
+        snippet = rec.content[:120].rstrip()
+        return f"上次就诊（{date_str}）：{snippet}{'…' if len(rec.content) > 120 else ''}"
+    return None
+
+
 async def get_prior_visit_summary(
     doctor_id: str,
     patient_id: int,
 ) -> Optional[str]:
-    """Return a one-line summary of the patient's most recent visit for follow-up context.
-
-    Priority:
-    1. Most recent neuro_cvd_context row (CVD patients) — key scores
-    2. Most recent medical_record content snippet (all patients)
-
-    Returns None if no data found or on any DB error.
-    """
+    """返回患者最近一次就诊的单行摘要（CVD 量表优先，其次病历内容截取）。"""
     try:
-        from sqlalchemy import select
-        from db.models.specialty import NeuroCVDContext
-        from db.models.records import MedicalRecordDB
-
         async with AsyncSessionLocal() as session:
-            # 1. Try CVD context first
-            cvd_result = await session.execute(
-                select(NeuroCVDContext)
-                .where(
-                    NeuroCVDContext.doctor_id == doctor_id,
-                    NeuroCVDContext.patient_id == patient_id,
-                )
-                .order_by(NeuroCVDContext.created_at.desc())
-                .limit(1)
-            )
-            cvd_row = cvd_result.scalar_one_or_none()
-
-            if cvd_row:
-                visit_date = cvd_row.created_at.strftime("%Y-%m-%d") if cvd_row.created_at else None
-                summary = _format_cvd_summary(cvd_row.raw_json, visit_date)
-                if summary:
-                    return summary
-
-            # 2. Fall back to last record content snippet
-            rec_result = await session.execute(
-                select(MedicalRecordDB)
-                .where(
-                    MedicalRecordDB.doctor_id == doctor_id,
-                    MedicalRecordDB.patient_id == patient_id,
-                )
-                .order_by(MedicalRecordDB.created_at.desc())
-                .limit(1)
-            )
-            rec = rec_result.scalar_one_or_none()
-            if rec and rec.content:
-                date_str = rec.created_at.strftime("%Y-%m-%d") if rec.created_at else ""
-                snippet = rec.content[:120].rstrip()
-                return f"上次就诊（{date_str}）：{snippet}{'…' if len(rec.content) > 120 else ''}"
-
+            cvd_summary = await _fetch_cvd_summary(session, doctor_id, patient_id)
+            if cvd_summary:
+                return cvd_summary
+            return await _fetch_record_snippet(session, doctor_id, patient_id)
     except Exception as exc:
         log(f"[PriorVisit] fetch failed for patient={patient_id}: {exc}")
-
     return None

@@ -1,3 +1,5 @@
+"""运行时配置服务测试：验证配置分类接口包含受限键的选项列表，以及配置校验对非法枚举值的拒绝行为。"""
+
 from __future__ import annotations
 
 from utils.runtime_config import runtime_config_categories, validate_runtime_config

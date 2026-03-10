@@ -1,3 +1,5 @@
+"""数据库初始化单元测试：覆盖 create_tables、seed_prompts 和医生注册表回填等启动逻辑。"""
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch

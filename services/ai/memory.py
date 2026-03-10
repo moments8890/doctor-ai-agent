@@ -49,21 +49,20 @@ async def _build_compress_prompt() -> str:
     return template.format(today=date.today().isoformat())
 
 
-async def _summarise(history: List[dict], specialty: Optional[str] = None, doctor_id: Optional[str] = None) -> str:
-    """Call LLM to compress a conversation into a structured clinical context."""
-    from services.ai.llm_client import _PROVIDERS  # shared provider registry
-    from services.ai.agent import _get_client  # reuse singleton client
-    provider_name = os.environ.get("STRUCTURING_LLM", "deepseek")
-    provider = _PROVIDERS[provider_name]
-    client = _get_client(provider_name, provider)
-    turns_text = "\n".join(
-        f"{'医生' if m['role'] == 'user' else '助手'}：{m['content']}"
-        for m in history
-    )
+_REQUIRED_SUMMARY_FIELDS = frozenset({
+    "current_patient", "active_diagnoses", "current_medications",
+    "allergies", "key_lab_values", "recent_action", "pending",
+})
+_JSON_FORMAT_PROVIDERS = frozenset({"deepseek", "openai", "gemini", "tencent_lkeap"})
 
-    # Providers that support the json_object response format
-    _JSON_FORMAT_PROVIDERS = {"deepseek", "openai", "gemini", "tencent_lkeap"}
 
+async def _build_summarise_call(
+    client,
+    provider_name: str,
+    turns_text: str,
+    specialty: Optional[str],
+):
+    """构造并返回用于压缩摘要的 LLM 调用协程工厂。"""
     async def _call(model_name: str):
         _prompt = await _build_compress_prompt()
         if specialty and specialty.strip():
@@ -80,7 +79,37 @@ async def _summarise(history: List[dict], specialty: Optional[str] = None, docto
         if provider_name in _JSON_FORMAT_PROVIDERS:
             kwargs["response_format"] = {"type": "json_object"}
         return await client.chat.completions.create(**kwargs)
+    return _call
 
+
+def _validate_summary_json(raw: str) -> str:
+    """验证压缩摘要 JSON 格式，返回原始字符串（校验失败则抛出 ValueError）。"""
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, dict):
+            _missing = _REQUIRED_SUMMARY_FIELDS - set(parsed.keys())
+            if _missing:
+                log(f"[Memory] compression output missing fields {_missing}; keeping raw")
+            if "key_lab_values" not in parsed or not parsed.get("key_lab_values"):
+                log("[Memory] WARNING: key_lab_values absent from compression output — lab values may be lost")
+            return raw
+        raise ValueError(f"[Memory] compression produced non-dict JSON; raw={raw[:200]!r}")
+    except (json.JSONDecodeError, TypeError, ValueError) as _e:
+        raise ValueError(f"[Memory] compression produced invalid JSON: {_e}; raw={raw[:200]!r}") from _e
+
+
+async def _summarise(history: List[dict], specialty: Optional[str] = None, doctor_id: Optional[str] = None) -> str:
+    """Call LLM to compress a conversation into a structured clinical context."""
+    from services.ai.llm_client import _PROVIDERS  # shared provider registry
+    from services.ai.agent import _get_client  # reuse singleton client
+    provider_name = os.environ.get("STRUCTURING_LLM", "deepseek")
+    provider = _PROVIDERS[provider_name]
+    client = _get_client(provider_name, provider)
+    turns_text = "\n".join(
+        f"{'医生' if m['role'] == 'user' else '助手'}：{m['content']}"
+        for m in history
+    )
+    _call = await _build_summarise_call(client, provider_name, turns_text, specialty)
     fallback_model = None
     if provider_name == "ollama":
         fallback_model = os.environ.get("OLLAMA_FALLBACK_MODEL", "qwen2.5:7b")
@@ -93,20 +122,7 @@ async def _summarise(history: List[dict], specialty: Optional[str] = None, docto
         circuit_key_suffix=doctor_id or "",
     )
     raw = (completion.choices[0].message.content or "").strip()
-    _REQUIRED_SUMMARY_FIELDS = {"current_patient", "active_diagnoses", "current_medications",
-                                 "allergies", "key_lab_values", "recent_action", "pending"}
-    try:
-        parsed = json.loads(raw)
-        if isinstance(parsed, dict):
-            _missing = _REQUIRED_SUMMARY_FIELDS - set(parsed.keys())
-            if _missing:
-                log(f"[Memory] compression output missing fields {_missing}; keeping raw")
-            if "key_lab_values" not in parsed or not parsed.get("key_lab_values"):
-                log("[Memory] WARNING: key_lab_values absent from compression output — lab values may be lost")
-            return raw  # valid structured summary (even if fields missing — log only, don't abort)
-        raise ValueError(f"[Memory] compression produced non-dict JSON; raw={raw[:200]!r}")
-    except (json.JSONDecodeError, TypeError, ValueError) as _e:
-        raise ValueError(f"[Memory] compression produced invalid JSON: {_e}; raw={raw[:200]!r}") from _e
+    return _validate_summary_json(raw)
 
 
 async def maybe_compress(doctor_id: str, sess: "DoctorSession") -> None:

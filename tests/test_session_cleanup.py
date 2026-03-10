@@ -1,3 +1,5 @@
+"""会话清理测试：验证空闲会话驱逐、锁定会话保护、异步任务引用清理及过时锁回收的逻辑。"""
+
 from __future__ import annotations
 
 import asyncio

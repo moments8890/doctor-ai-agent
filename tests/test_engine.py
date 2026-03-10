@@ -1,3 +1,5 @@
+"""数据库引擎单元测试：验证 DATABASE_URL 和 PATIENTS_DB_PATH 环境变量的优先级与路径创建行为。"""
+
 from __future__ import annotations
 
 import importlib

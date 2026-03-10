@@ -95,49 +95,53 @@ def _follow_up_state(records: List[object], now: datetime, matched_rules: List[s
     return "scheduled"
 
 
-def _compute_cvd_risk(cvd_ctx: object, matched_rules: List[str]) -> tuple:
-    """Derive (level, score) from NeuroCVDContext fields.
-
-    CVD-specific scales take precedence over generic keyword matching for
-    神经外科脑血管 pilot patients.  Returns ("", 0) if no CVD fields are set.
-    """
-    level = ""
-    score = 0
-
-    # ICH Score 0-6: 30-day mortality predictor
+def _apply_ich_score(cvd_ctx: object, level: str, score: int, matched_rules: List[str]) -> tuple:
+    """ICH Score 0-6（30天死亡预测）对 level/score 的影响。"""
     ich = getattr(cvd_ctx, "ich_score", None)
-    if ich is not None:
-        if ich >= 5:
-            level, score = "critical", 95
-            matched_rules.append("cvd:ich_score_critical(%d)" % ich)
-        elif ich >= 3:
-            level, score = "high", 75
-            matched_rules.append("cvd:ich_score_high(%d)" % ich)
-        elif ich >= 2:
-            level, score = "medium", 45
-            matched_rules.append("cvd:ich_score_medium(%d)" % ich)
+    if ich is None:
+        return level, score
+    if ich >= 5:
+        matched_rules.append("cvd:ich_score_critical(%d)" % ich)
+        return "critical", 95
+    if ich >= 3:
+        matched_rules.append("cvd:ich_score_high(%d)" % ich)
+        return "high", 75
+    if ich >= 2:
+        matched_rules.append("cvd:ich_score_medium(%d)" % ich)
+        return "medium", 45
+    return level, score
 
-    # Hunt-Hess grade 1-5: SAH severity
+
+def _apply_hunt_hess(cvd_ctx: object, level: str, score: int, matched_rules: List[str]) -> tuple:
+    """Hunt-Hess grade 1-5（SAH严重度）对 level/score 的影响。"""
     hh = getattr(cvd_ctx, "hunt_hess_grade", None)
-    if hh is not None:
-        if hh >= 4 and level not in {"critical"}:
-            level, score = "critical", 95
-            matched_rules.append("cvd:hunt_hess_critical(%d)" % hh)
-        elif hh == 3 and level not in {"critical", "high"}:
-            level, score = "medium", 50
-            matched_rules.append("cvd:hunt_hess_medium(%d)" % hh)
+    if hh is None:
+        return level, score
+    if hh >= 4 and level not in {"critical"}:
+        matched_rules.append("cvd:hunt_hess_critical(%d)" % hh)
+        return "critical", 95
+    if hh == 3 and level not in {"critical", "high"}:
+        matched_rules.append("cvd:hunt_hess_medium(%d)" % hh)
+        return "medium", 50
+    return level, score
 
-    # GCS 3-15: consciousness level
+
+def _apply_gcs(cvd_ctx: object, level: str, score: int, matched_rules: List[str]) -> tuple:
+    """GCS 3-15（意识水平）对 level/score 的影响。"""
     gcs = getattr(cvd_ctx, "gcs_score", None)
-    if gcs is not None:
-        if gcs <= 8 and level not in {"critical"}:
-            level, score = "critical", 95
-            matched_rules.append("cvd:gcs_critical(%d)" % gcs)
-        elif gcs <= 12 and level not in {"critical", "high"}:
-            level, score = "high", 70
-            matched_rules.append("cvd:gcs_high(%d)" % gcs)
+    if gcs is None:
+        return level, score
+    if gcs <= 8 and level not in {"critical"}:
+        matched_rules.append("cvd:gcs_critical(%d)" % gcs)
+        return "critical", 95
+    if gcs <= 12 and level not in {"critical", "high"}:
+        matched_rules.append("cvd:gcs_high(%d)" % gcs)
+        return "high", 70
+    return level, score
 
-    # PHASES score 0-12: unruptured aneurysm rupture risk
+
+def _apply_phases_mrs(cvd_ctx: object, level: str, score: int, matched_rules: List[str]) -> tuple:
+    """PHASES 0-12（未破裂动脉瘤）和 mRS 0-6（功能依赖）对 level/score 的影响。"""
     phases = getattr(cvd_ctx, "phases_score", None)
     if phases is not None:
         if phases >= 7 and level not in {"critical", "high"}:
@@ -146,14 +150,64 @@ def _compute_cvd_risk(cvd_ctx: object, matched_rules: List[str]) -> tuple:
         elif phases >= 4 and level not in {"critical", "high", "medium"}:
             level, score = "medium", 45
             matched_rules.append("cvd:phases_medium(%d)" % phases)
-
-    # mRS 0-6: functional dependency — high follow-up urgency regardless of level
     mrs = getattr(cvd_ctx, "mrs_score", None)
     if mrs is not None and mrs >= 4 and level not in {"critical"}:
         level = level if level == "high" else "high"
         score = max(score, 70)
         matched_rules.append("cvd:mrs_high_dependency(%d)" % mrs)
+    return level, score
 
+
+def _compute_cvd_risk(cvd_ctx: object, matched_rules: List[str]) -> tuple:
+    """从 NeuroCVDContext 字段推导 (level, score)；无 CVD 数据时返回 ('', 0)。"""
+    level, score = "", 0
+    level, score = _apply_ich_score(cvd_ctx, level, score, matched_rules)
+    level, score = _apply_hunt_hess(cvd_ctx, level, score, matched_rules)
+    level, score = _apply_gcs(cvd_ctx, level, score, matched_rules)
+    level, score = _apply_phases_mrs(cvd_ctx, level, score, matched_rules)
+    return level, score
+
+
+def _apply_keyword_risk(
+    latest: object,
+    now: datetime,
+    level: str,
+    score: int,
+    tags: List[str],
+    matched_rules: List[str],
+) -> tuple:
+    """关键词规则：基于最近病历文本判断风险等级。"""
+    if latest is None:
+        tags.append("no_records")
+        matched_rules.append("risk:low:no_records")
+        return level, score
+
+    combined = _record_combined_text(latest)
+    for kw in _CRITICAL_RISK_KEYWORDS:
+        if kw in combined:
+            tags.extend(["critical_keyword", "needs_immediate_action"])
+            matched_rules.append("risk:critical_keyword=%s" % kw)
+            return "critical", 95
+
+    if any(kw in combined for kw in _HIGH_RISK_KEYWORDS):
+        level, score = "high", 75
+        tags.append("high_risk_keyword")
+        matched_rules.append("risk:high_keyword")
+
+    days_since_latest = _days_ago(latest.created_at, now)
+    if days_since_latest > 120:
+        score += 10
+        tags.append("very_stale_record")
+        matched_rules.append("risk:add_stale_record")
+    if _record_has_follow_up(latest):
+        score += 5
+        tags.append("has_follow_up_plan")
+        matched_rules.append("risk:add_follow_up_plan")
+    if level == "low":
+        if score >= 70:
+            level = "high"
+        elif score >= 40:
+            level = "medium"
     return level, score
 
 
@@ -163,62 +217,24 @@ def compute_patient_risk(
     cvd_contexts: Optional[List[object]] = None,
     now: Optional[datetime] = None,
 ) -> RiskResult:
+    """计算患者随访优先级和风险等级（CVD 量表优先，无量表则关键词兜底）。"""
     if now is None:
         now = datetime.now(timezone.utc)
 
-    matched_rules = []
-    tags = []
+    matched_rules: List[str] = []
+    tags: List[str] = []
     latest = records[0] if records else None
-
     score = 0
     level = "low"
 
-    # --- CVD-specific rules (神经外科脑血管 pilot) take precedence ---
     if cvd_contexts:
         cvd_level, cvd_score = _compute_cvd_risk(cvd_contexts[0], matched_rules)
         if cvd_level:
-            level = cvd_level
-            score = cvd_score
+            level, score = cvd_level, cvd_score
             tags.append("cvd_risk_computed")
 
-    # --- Keyword-based fallback (only when CVD rules produced no signal) ---
-    if not tags or "cvd_risk_computed" not in tags:
-        if latest is None:
-            tags.append("no_records")
-            matched_rules.append("risk:low:no_records")
-        else:
-            combined = _record_combined_text(latest)
-            for kw in _CRITICAL_RISK_KEYWORDS:
-                if kw in combined:
-                    level = "critical"
-                    score = 95
-                    tags.extend(["critical_keyword", "needs_immediate_action"])
-                    matched_rules.append("risk:critical_keyword=%s" % kw)
-                    break
-
-            if level != "critical":
-                if any(kw in combined for kw in _HIGH_RISK_KEYWORDS):
-                    level = "high"
-                    score = 75
-                    tags.append("high_risk_keyword")
-                    matched_rules.append("risk:high_keyword")
-
-                days_since_latest = _days_ago(latest.created_at, now)
-                if days_since_latest > 120:
-                    score += 10
-                    tags.append("very_stale_record")
-                    matched_rules.append("risk:add_stale_record")
-
-                if _record_has_follow_up(latest):
-                    score += 5
-                    tags.append("has_follow_up_plan")
-                    matched_rules.append("risk:add_follow_up_plan")
-
-                if level == "low":
-                    if score >= 70:
-                        level = "high"
-                    elif score >= 40:
-                        level = "medium"
+    if "cvd_risk_computed" not in tags:
+        level, score = _apply_keyword_risk(latest, now, level, score, tags, matched_rules)
 
     follow_up_state = _follow_up_state(records, now, matched_rules)
     if follow_up_state == "overdue":

@@ -1,3 +1,5 @@
+"""医生知识库单元测试：覆盖知识条目的解析、渲染、自动学习和错误降级逻辑。"""
+
 from __future__ import annotations
 
 from datetime import datetime, timezone

@@ -52,16 +52,11 @@ def detect_score_keywords(text: str) -> bool:
     return False
 
 
-async def extract_specialty_scores(text: str) -> List[dict]:
-    """Call LLM to extract specialty scale scores from text.
-
-    Only call this after detect_score_keywords() returns True.
-    Returns list of dicts: [{"score_type": str, "score_value": float|None, "raw_text": str}]
-    """
-    provider_name = os.environ.get("STRUCTURING_LLM", "deepseek")
+def _resolve_score_provider(provider_name: str) -> "Optional[dict]":
+    """根据提供商名称构建并返回带运行时覆盖的 provider 配置字典。"""
     provider = _PROVIDERS.get(provider_name)
     if provider is None:
-        return []
+        return None
     provider = dict(provider)
     if provider_name == "ollama":
         provider["model"] = (
@@ -76,6 +71,29 @@ async def extract_specialty_scores(text: str) -> List[dict]:
         provider["model"] = os.environ.get("TENCENT_LKEAP_MODEL", provider["model"])
     elif provider_name == "claude":
         provider["model"] = os.environ.get("CLAUDE_MODEL", provider["model"])
+    return provider
+
+
+def _parse_score_response(raw: str) -> List[dict]:
+    """将 LLM 的 JSON 响应解析为量表条目列表。"""
+    data = json.loads(raw)
+    if isinstance(data, list):
+        items = data
+    elif isinstance(data, dict):
+        items = data.get("scores") or []
+        if not isinstance(items, list):
+            items = []
+    else:
+        items = []
+    return [s for s in items if isinstance(s, dict) and s.get("score_type")]
+
+
+async def extract_specialty_scores(text: str) -> List[dict]:
+    """调用 LLM 从文本中提取专科量表评分；仅在 detect_score_keywords() 为 True 时调用。"""
+    provider_name = os.environ.get("STRUCTURING_LLM", "deepseek")
+    provider = _resolve_score_provider(provider_name)
+    if provider is None:
+        return []
 
     try:
         extra_headers = {"anthropic-version": "2023-06-01"} if provider_name == "claude" else {}
@@ -98,17 +116,7 @@ async def extract_specialty_scores(text: str) -> List[dict]:
             max_tokens=400,
             temperature=0,
         )
-        raw = completion.choices[0].message.content
-        data = json.loads(raw)
-        if isinstance(data, list):
-            items = data
-        elif isinstance(data, dict):
-            items = data.get("scores") or []
-            if not isinstance(items, list):
-                items = []
-        else:
-            items = []
-        return [s for s in items if isinstance(s, dict) and s.get("score_type")]
+        return _parse_score_response(completion.choices[0].message.content)
     except Exception as exc:
         log(f"[ScoreExtraction] LLM call failed: {exc}")
         return []

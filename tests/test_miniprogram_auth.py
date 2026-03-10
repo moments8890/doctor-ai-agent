@@ -1,3 +1,5 @@
+"""小程序鉴权单元测试：覆盖微信小程序登录、Bearer Token 签发验证、篡改检测和过期处理。"""
+
 from __future__ import annotations
 
 from unittest.mock import patch

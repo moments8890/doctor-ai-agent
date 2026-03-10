@@ -57,96 +57,110 @@ from services.observability.observability import (
 # App
 # ---------------------------------------------------------------------------
 
-async def _warmup(config: AppConfig):
-    # Warm up jieba (builds prefix dict on first import)
+async def _warmup_jieba(log: logging.Logger) -> None:
+    """预加载 jieba 分词词典（首次导入时构建前缀词典）。"""
     import jieba
     jieba.initialize()
-    log = logging.getLogger("warmup")
     log.info("jieba initialised")
 
-    # Verify/warm up Ollama — ping the model so it's loaded into memory.
-    if config.routing_llm == "ollama" or config.structuring_llm == "ollama":
-        from openai import AsyncOpenAI
 
-        model = config.ollama_model
-        max_attempts = 3
-        warmup_timeout = _ollama_warmup_timeout_seconds()
-        candidates = ollama_base_url_candidates(config.ollama_base_url)
-        chosen_url = None
-        last_error = None
-
-        for candidate_url in candidates:
-            client = AsyncOpenAI(
-                base_url=candidate_url,
-                api_key=config.ollama_api_key or "ollama",
-                timeout=warmup_timeout,
-                max_retries=0,
+async def _ping_ollama_candidate(
+    candidate_url: str, model: str, api_key: str, timeout: float, max_attempts: int, log: logging.Logger
+) -> bool:
+    """尝试 ping 单个候选 URL；成功返回 True，连接失败返回 False，其他错误抛出。"""
+    from openai import AsyncOpenAI
+    client = AsyncOpenAI(base_url=candidate_url, api_key=api_key, timeout=timeout, max_retries=0)
+    for attempt in range(1, max_attempts + 1):
+        try:
+            await client.chat.completions.create(
+                model=model, messages=[{"role": "user", "content": "ping"}], max_tokens=1,
             )
-            for attempt in range(1, max_attempts + 1):
-                try:
-                    await client.chat.completions.create(
-                        model=model,
-                        messages=[{"role": "user", "content": "ping"}],
-                        max_tokens=1,
-                    )
-                    chosen_url = candidate_url
-                    break
-                except Exception as e:
-                    last_error = e
-                    if _is_connectivity_error(e):
-                        log.warning(
-                            f"Ollama connectivity check failed | "
-                            f"base_url={candidate_url} model={model} attempt={attempt}/{max_attempts} error={e}"
-                        )
-                    else:
-                        raise RuntimeError(
-                            f"Ollama startup warmup failed with non-connectivity error "
-                            f"(base_url={candidate_url}, model={model}): {e}"
-                        ) from e
-                    if attempt < max_attempts:
-                        await asyncio.sleep(_ollama_warmup_backoff_seconds(attempt))
-            if chosen_url:
-                break
-
-        if chosen_url:
-            if chosen_url != config.ollama_base_url:
-                os.environ["OLLAMA_BASE_URL"] = chosen_url
-                if os.environ.get("OLLAMA_VISION_BASE_URL", "").strip() == config.ollama_base_url:
-                    os.environ["OLLAMA_VISION_BASE_URL"] = chosen_url
+            return True
+        except Exception as e:
+            if _is_connectivity_error(e):
                 log.warning(
-                    f"Ollama startup fallback selected | original_base_url={config.ollama_base_url} "
-                    f"effective_base_url={chosen_url} model={model}"
+                    f"Ollama connectivity check failed | "
+                    f"base_url={candidate_url} model={model} attempt={attempt}/{max_attempts} error={e}"
                 )
             else:
-                log.info(
-                    f"Ollama startup connectivity check passed | "
-                    f"base_url={chosen_url} model={model}"
-                )
-        else:
-            # Keep startup alive; runtime calls can still fallback or fail with explicit errors.
-            log.error(
-                f"Ollama unavailable on startup | attempted_base_urls={candidates} "
-                f"model={model} error={last_error}. Continuing without warmup."
-            )
+                raise RuntimeError(
+                    f"Ollama startup warmup failed with non-connectivity error "
+                    f"(base_url={candidate_url}, model={model}): {e}"
+                ) from e
+            if attempt < max_attempts:
+                await asyncio.sleep(_ollama_warmup_backoff_seconds(attempt))
+    return False
 
-    # Warm up LKEAP connection — pre-establishes TCP/TLS so first request is fast
+
+def _apply_ollama_url_override(config: AppConfig, chosen_url: str, log: logging.Logger) -> None:
+    """将选中的候选 URL 写入环境变量（当它与配置中的原始 URL 不同时）。"""
+    if chosen_url != config.ollama_base_url:
+        os.environ["OLLAMA_BASE_URL"] = chosen_url
+        if os.environ.get("OLLAMA_VISION_BASE_URL", "").strip() == config.ollama_base_url:
+            os.environ["OLLAMA_VISION_BASE_URL"] = chosen_url
+        log.warning(
+            f"Ollama startup fallback selected | original_base_url={config.ollama_base_url} "
+            f"effective_base_url={chosen_url} model={config.ollama_model}"
+        )
+    else:
+        log.info(
+            f"Ollama startup connectivity check passed | "
+            f"base_url={chosen_url} model={config.ollama_model}"
+        )
+
+
+async def _warmup_ollama(config: AppConfig, log: logging.Logger) -> None:
+    """Ping Ollama 以将模型预加载进显存，并选取可用的 base_url。"""
+    model = config.ollama_model
+    max_attempts = 3
+    warmup_timeout = _ollama_warmup_timeout_seconds()
+    candidates = ollama_base_url_candidates(config.ollama_base_url)
+    api_key = config.ollama_api_key or "ollama"
+    chosen_url = None
+
+    for candidate_url in candidates:
+        if await _ping_ollama_candidate(candidate_url, model, api_key, warmup_timeout, max_attempts, log):
+            chosen_url = candidate_url
+            break
+
+    if chosen_url:
+        _apply_ollama_url_override(config, chosen_url, log)
+    else:
+        log.error(
+            f"Ollama unavailable on startup | attempted_base_urls={candidates} "
+            f"model={model}. Continuing without warmup."
+        )
+
+
+async def _warmup_lkeap(log: logging.Logger) -> None:
+    """预建立 LKEAP TCP/TLS 连接，加速首次请求。"""
+    lkeap_key = os.environ.get("TENCENT_LKEAP_API_KEY", "").strip()
+    if not lkeap_key:
+        return
+    try:
+        from services.ai.agent import _get_client, _PROVIDERS
+        lkeap_provider = _PROVIDERS.get("tencent_lkeap", {})
+        if lkeap_provider:
+            lkeap_client = _get_client("tencent_lkeap", dict(lkeap_provider))
+            lkeap_model = os.environ.get("TENCENT_LKEAP_MODEL", lkeap_provider.get("model", "deepseek-v3-1"))
+            await lkeap_client.chat.completions.create(
+                model=lkeap_model,
+                messages=[{"role": "user", "content": "hi"}],
+                max_tokens=1,
+            )
+            log.info("[Warmup] LKEAP connection established")
+    except Exception as e:
+        log.warning("[Warmup] LKEAP warmup failed (non-fatal): %s", e)
+
+
+async def _warmup(config: AppConfig):
+    """依次执行各组件预热：jieba、Ollama、LKEAP。"""
+    log = logging.getLogger("warmup")
+    await _warmup_jieba(log)
+    if config.routing_llm == "ollama" or config.structuring_llm == "ollama":
+        await _warmup_ollama(config, log)
     if config.routing_llm == "tencent_lkeap" or config.structuring_llm == "tencent_lkeap":
-        lkeap_key = os.environ.get("TENCENT_LKEAP_API_KEY", "").strip()
-        if lkeap_key:
-            try:
-                from services.ai.agent import _get_client, _PROVIDERS
-                lkeap_provider = _PROVIDERS.get("tencent_lkeap", {})
-                if lkeap_provider:
-                    lkeap_client = _get_client("tencent_lkeap", dict(lkeap_provider))
-                    lkeap_model = os.environ.get("TENCENT_LKEAP_MODEL", lkeap_provider.get("model", "deepseek-v3-1"))
-                    await lkeap_client.chat.completions.create(
-                        model=lkeap_model,
-                        messages=[{"role": "user", "content": "hi"}],
-                        max_tokens=1,
-                    )
-                    log.info("[Warmup] LKEAP connection established")
-            except Exception as e:
-                log.warning("[Warmup] LKEAP warmup failed (non-fatal): %s", e)
+        await _warmup_lkeap(log)
 
 
 def _ollama_warmup_timeout_seconds() -> float:
@@ -345,8 +359,8 @@ async def _redact_old_conversation_content() -> None:
         _log.warning("[Conversation] content redaction job FAILED: %s", _e)
 
 
-def _configure_task_scheduler(startup_log: logging.Logger) -> None:
-    _scheduler.remove_all_jobs()
+def _schedule_task_notifications(startup_log: logging.Logger) -> None:
+    """注册任务通知定时器（interval 或 cron 模式）。"""
     mode = _scheduler_mode()
     if mode == "cron":
         cron_expr = _scheduler_cron_expr()
@@ -375,6 +389,9 @@ def _configure_task_scheduler(startup_log: logging.Logger) -> None:
         _scheduler.add_job(check_and_send_due_tasks, "interval", minutes=interval_minutes)
         startup_log.info("[Tasks] scheduler configured | mode=interval minutes=%s", interval_minutes)
 
+
+def _schedule_cleanup_jobs(startup_log: logging.Logger) -> None:
+    """注册对话清理、Session 缓存清理和草稿过期定时器。"""
     cleanup_hours = max(1, int(os.environ.get("CONVERSATION_CLEANUP_INTERVAL_HOURS", "6")))
     _scheduler.add_job(_cleanup_old_conversation_turns, "interval", hours=cleanup_hours)
     startup_log.info("[Conversation] cleanup scheduler configured | every_hours=%s", cleanup_hours)
@@ -386,25 +403,31 @@ def _configure_task_scheduler(startup_log: logging.Logger) -> None:
     _scheduler.add_job(_expire_stale_pending_records, "interval", minutes=5)
     startup_log.info("[PendingRecords] expiry scheduler configured | every_minutes=5")
 
-    # Daily at 04:00 — purge old pending data (records + messages)
+
+def _schedule_retention_jobs(startup_log: logging.Logger) -> None:
+    """注册数据保留/合规定时任务（每日/每月）。"""
     _scheduler.add_job(_purge_old_pending_data, "cron", hour=4, minute=0)
     startup_log.info("[Pending] purge scheduler configured | daily at 04:00")
 
-    # Daily at 04:30 — clean up old ChatArchive rows (> 90 days)
     _scheduler.add_job(_cleanup_chat_archive, "cron", hour=4, minute=30)
     startup_log.info("[ChatArchive] cleanup scheduler configured | daily at 04:30")
 
-    # Monthly on the 1st at 03:00 — audit log retention (> 7 years)
     _scheduler.add_job(_audit_log_retention, "cron", day=1, hour=3, minute=0)
     startup_log.info("[AuditLog] retention scheduler configured | monthly day=1 at 03:00")
 
-    # Monthly on the 1st at 03:30 — record version retention (> 30 years)
     _scheduler.add_job(_record_version_retention, "cron", day=1, hour=3, minute=30)
     startup_log.info("[RecordVersions] retention scheduler configured | monthly day=1 at 03:30")
 
-    # Daily at 05:00 — redact content of conversation turns older than 30 days
     _scheduler.add_job(_redact_old_conversation_content, "cron", hour=5, minute=0)
     startup_log.info("[Conversation] content redaction scheduler configured | daily at 05:00")
+
+
+def _configure_task_scheduler(startup_log: logging.Logger) -> None:
+    """清除所有任务并重新注册全部定时器。"""
+    _scheduler.remove_all_jobs()
+    _schedule_task_notifications(startup_log)
+    _schedule_cleanup_jobs(startup_log)
+    _schedule_retention_jobs(startup_log)
 
 
 async def _runtime_apply_hook(_config: dict) -> None:
@@ -437,44 +460,46 @@ async def _run_alembic_migrations() -> None:
         log.warning("[DB] Alembic migration failed — continuing anyway: %s", exc)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    global _startup_ready
-    _startup_log = logging.getLogger("startup")
-    _startup_log.info("[Config] loaded environment\n%s", APP_CONFIG.to_pretty_log())
+async def _startup_db_and_warmup(startup_log: logging.Logger) -> None:
+    """初始化数据库表、迁移、填充提示词并预热 LLM。"""
+    startup_log.info("[Config] loaded environment\n%s", APP_CONFIG.to_pretty_log())
     await create_tables()
     await _run_alembic_migrations()
     _added_doctors = await backfill_doctors_registry()
-    _startup_log.info("[DB] doctors backfill completed | inserted=%s", _added_doctors)
+    startup_log.info("[DB] doctors backfill completed | inserted=%s", _added_doctors)
     await seed_prompts()
     await _warmup(APP_CONFIG)
-    # Start async observability disk writer — eliminates blocking file I/O on every request
+
+
+async def _startup_background_workers() -> None:
+    """启动可观测性写入器和审计 drain worker 异步任务。"""
     from services.observability.observability import _disk_writer
     asyncio.create_task(_disk_writer())
-    # Start audit log drain worker — buffers audit writes in batches for efficiency
     from services.observability.audit import _audit_drain_worker
     asyncio.create_task(_audit_drain_worker())
+
+
+async def _startup_recovery(startup_log: logging.Logger) -> None:
+    """清理过期 session、记录待发任务数量并重新入队崩溃遗留消息。"""
     await _cleanup_old_conversation_turns()
     await _cleanup_inactive_session_cache()
-
-    # Log pending unnotified tasks on startup
     try:
         async with AsyncSessionLocal() as _session:
             _pending = await get_due_tasks(_session, datetime.now(timezone.utc))
-            _startup_log.info(f"[Tasks] {len(_pending)} pending unnotified task(s) at startup")
+            startup_log.info(f"[Tasks] {len(_pending)} pending unnotified task(s) at startup")
     except Exception as _e:
-        _startup_log.warning(f"[Tasks] startup task count failed: {_e}")
-
-    # Re-queue messages left unprocessed from previous crash
+        startup_log.warning(f"[Tasks] startup task count failed: {_e}")
     try:
         from routers.wechat import recover_stale_pending_messages
         _recovered = await recover_stale_pending_messages(older_than_seconds=60)
         if _recovered:
-            _startup_log.info("[Recovery] re-queued stale pending_message(s) | count=%s", _recovered)
+            startup_log.info("[Recovery] re-queued stale pending_message(s) | count=%s", _recovered)
     except Exception as _e:
-        _startup_log.warning("[Recovery] stale pending_message recovery FAILED: %s", _e)
+        startup_log.warning("[Recovery] stale pending_message recovery FAILED: %s", _e)
 
-    # Enforce WECHAT_ID_HMAC_KEY in production
+
+def _enforce_production_guards() -> None:
+    """生产环境安全检查：确保 WECHAT_ID_HMAC_KEY 已设置。"""
     _env = os.environ.get("APP_ENV", "").strip().lower()
     if _env in {"production", "prod"}:
         if not os.environ.get("WECHAT_ID_HMAC_KEY", "").strip():
@@ -483,6 +508,15 @@ async def lifespan(app: FastAPI):
                 "WeChat identifiers are hashed at rest. Refusing to start."
             )
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global _startup_ready
+    _startup_log = logging.getLogger("startup")
+    await _startup_db_and_warmup(_startup_log)
+    await _startup_background_workers()
+    await _startup_recovery(_startup_log)
+    _enforce_production_guards()
     _configure_task_scheduler(_startup_log)
     _scheduler.start()
     _startup_ready = True

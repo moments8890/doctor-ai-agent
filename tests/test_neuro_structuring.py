@@ -1,4 +1,6 @@
-"""Tests for services/neuro_structuring.py — LLM is mocked.
+"""神经科结构化单元测试：验证神经系统病历的 LLM 结构化解析逻辑。
+
+Tests for services/neuro_structuring.py — LLM is mocked.
 
 Verifies that:
 - Markdown response is correctly parsed into NeuroCase + ExtractionLog
@@ -23,6 +25,50 @@ from db.crud import get_neuro_cases_for_doctor, save_neuro_case
 # Helpers
 # ---------------------------------------------------------------------------
 
+def _default_risk_factors() -> dict:
+    return {
+        "hypertension": {"has_htn": "yes", "years": 10, "control_status": "uncontrolled"},
+        "diabetes": "no",
+        "hyperlipidemia": "yes",
+        "smoking": "yes",
+        "drinking": "no",
+        "family_history_cvd": "unknown",
+    }
+
+
+def _default_imaging() -> list:
+    return [
+        {
+            "modality": "MRI",
+            "datetime": None,
+            "summary": "左侧基底节区急性梗死",
+            "findings": [
+                {
+                    "vessel": "大脑中动脉",
+                    "lesion_type": "occlusion",
+                    "severity_percent": None,
+                    "side": "left",
+                    "collateral": None,
+                    "notes": None,
+                }
+            ],
+        }
+    ]
+
+
+def _default_labs() -> list:
+    return [
+        {
+            "name": "血糖",
+            "datetime": None,
+            "result": "7.2",
+            "unit": "mmol/L",
+            "flag": "high",
+            "source_text": "血糖7.2 mmol/L",
+        }
+    ]
+
+
 def _make_neuro_case_dict(**overrides) -> dict:
     base = {
         "case_id": "CVD-TEST-001",
@@ -31,43 +77,11 @@ def _make_neuro_case_dict(**overrides) -> dict:
         "chief_complaint": {"text": "突发右侧肢体无力伴言语不清2小时", "duration": "2小时"},
         "hpi": {"onset": "突发", "progression": "持续", "associated_symptoms": [], "prior_treatment": None},
         "past_history": {},
-        "risk_factors": {
-            "hypertension": {"has_htn": "yes", "years": 10, "control_status": "uncontrolled"},
-            "diabetes": "no",
-            "hyperlipidemia": "yes",
-            "smoking": "yes",
-            "drinking": "no",
-            "family_history_cvd": "unknown",
-        },
+        "risk_factors": _default_risk_factors(),
         "physical_exam": {"bp_systolic": 180, "bp_diastolic": 110},
         "neuro_exam": {"nihss_total": 8, "consciousness": "清醒", "speech": "构音障碍"},
-        "imaging": [
-            {
-                "modality": "MRI",
-                "datetime": None,
-                "summary": "左侧基底节区急性梗死",
-                "findings": [
-                    {
-                        "vessel": "大脑中动脉",
-                        "lesion_type": "occlusion",
-                        "severity_percent": None,
-                        "side": "left",
-                        "collateral": None,
-                        "notes": None,
-                    }
-                ],
-            }
-        ],
-        "labs": [
-            {
-                "name": "血糖",
-                "datetime": None,
-                "result": "7.2",
-                "unit": "mmol/L",
-                "flag": "high",
-                "source_text": "血糖7.2 mmol/L",
-            }
-        ],
+        "imaging": _default_imaging(),
+        "labs": _default_labs(),
         "diagnosis": {
             "primary": "急性脑梗死（左侧基底节区）",
             "secondary": [],

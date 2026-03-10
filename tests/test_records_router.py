@@ -1,3 +1,5 @@
+"""病历路由单元测试：覆盖病历创建、查询、更新和语音/图像录入端点的完整路径。"""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -248,8 +250,10 @@ async def test_chat_force_add_record_when_intent_drifts_but_text_is_clinical():
     assert mock_save.await_count == 1
 
 
-async def test_chat_query_records_branches():
+async def test_chat_query_records_named_patient_branches():
     fake_db = object()
+    patient = SimpleNamespace(id=11, name="张三")
+
     with patch(
         "routers.records.agent_dispatch",
         new=AsyncMock(return_value=_intent(Intent.query_records, patient_name="张三")),
@@ -260,7 +264,6 @@ async def test_chat_query_records_branches():
         resp = await records.chat(records.ChatInput(text="查张三", doctor_id=DOCTOR))
     assert "未找到患者" in resp.reply
 
-    patient = SimpleNamespace(id=11, name="张三")
     with patch(
         "routers.records.agent_dispatch",
         new=AsyncMock(return_value=_intent(Intent.query_records, patient_name="张三")),
@@ -290,7 +293,11 @@ async def test_chat_query_records_branches():
         resp3 = await records.chat(records.ChatInput(text="查张三", doctor_id=DOCTOR))
     assert "最近 1 条记录" in resp3.reply
 
+
+async def test_chat_query_records_all_doctor_records_branches():
+    fake_db = object()
     all_records = [SimpleNamespace(patient=None, content=None, tags=None, created_at=None)]
+
     with patch(
         "routers.records.agent_dispatch",
         new=AsyncMock(return_value=_intent(Intent.query_records, patient_name=None)),
@@ -468,7 +475,7 @@ async def test_chat_notify_control_commands_fastpath():
     assert "sent=1" in resp3.reply
 
 
-async def test_from_text_image_audio_endpoints():
+async def test_create_record_from_text_endpoint():
     with pytest.raises(HTTPException) as exc:
         await records.create_record_from_text(records.TextInput(text=" "))
     assert exc.value.status_code == 422
@@ -482,12 +489,15 @@ async def test_from_text_image_audio_endpoints():
             await records.create_record_from_text(records.TextInput(text="胸痛"))
     assert exc2.value.status_code == 500
     assert exc2.value.detail == "Internal server error"
+
     with patch("routers.records.structure_medical_record", new=AsyncMock(side_effect=ValueError("bad input"))):
         with pytest.raises(HTTPException) as exc2b:
             await records.create_record_from_text(records.TextInput(text="胸痛"))
     assert exc2b.value.status_code == 422
     assert exc2b.value.detail == "Invalid medical record content"
 
+
+async def test_create_record_from_image_endpoint():
     with pytest.raises(HTTPException) as exc3:
         await records.create_record_from_image(_Upload(content_type="image/tiff"))
     assert exc3.value.status_code == 422
@@ -502,6 +512,7 @@ async def test_from_text_image_audio_endpoints():
             await records.create_record_from_image(_Upload(content_type="image/png", data=b"img"))
     assert exc4.value.status_code == 500
     assert exc4.value.detail == "Internal server error"
+
     with patch("routers.records.extract_text_from_image", new=AsyncMock(return_value="识别文本")), \
          patch("routers.records.structure_medical_record", new=AsyncMock(side_effect=ValueError("bad image record"))):
         with pytest.raises(HTTPException) as exc4b:
@@ -509,6 +520,8 @@ async def test_from_text_image_audio_endpoints():
     assert exc4b.value.status_code == 422
     assert exc4b.value.detail == "Invalid medical record content"
 
+
+async def test_create_record_from_audio_endpoint():
     with pytest.raises(HTTPException) as exc5:
         await records.create_record_from_audio(_Upload(content_type="audio/aac"))
     assert exc5.value.status_code == 422
@@ -523,6 +536,7 @@ async def test_from_text_image_audio_endpoints():
             await records.create_record_from_audio(_Upload(content_type="audio/wav", data=b"wav", filename="a.wav"))
     assert exc6.value.status_code == 500
     assert exc6.value.detail == "Internal server error"
+
     with patch("routers.records.transcribe_audio", new=AsyncMock(return_value="转写文本")), \
          patch("routers.records.structure_medical_record", new=AsyncMock(side_effect=ValueError("bad audio record"))):
         with pytest.raises(HTTPException) as exc6b:

@@ -1,8 +1,4 @@
-"""Tests for services/transcription.py — faster_whisper is mocked.
-
-Covers the new consultation_mode parameter and initial_prompt selection logic
-added in the voice input feature.
-"""
+"""语音转文字服务测试：验证医嘱录入与问诊对话两种模式下的提示词选择，以及 OpenAI API 回退路径的弹性包装调用。"""
 
 from __future__ import annotations
 

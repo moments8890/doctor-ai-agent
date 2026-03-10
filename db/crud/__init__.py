@@ -1,3 +1,4 @@
+"""db.crud 包初始化：聚合所有 CRUD 子模块的公开接口。"""
 from db.crud.doctor import (
     _utcnow,
     _WECHAT_ID_RE,

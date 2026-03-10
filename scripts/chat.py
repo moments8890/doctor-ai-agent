@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """
-Interactive CLI chatbot for testing the doctor AI agent.
+交互式命令行聊天客户端 — 用于手动测试医生AI助手的对话接口。
 
-Usage:
-    python scripts/chat.py                        # connects to localhost:8000
+用法：
+    python scripts/chat.py                        # 连接到 localhost:8000
     python scripts/chat.py http://other-host:8000
 
-Commands:
-    /clear    reset conversation history
-    /history  show how many turns are in context
-    /quit     exit
+内置命令：
+    /clear    重置对话历史
+    /history  显示当前上下文轮数
+    /quit     退出
+
+Interactive CLI chatbot for testing the doctor AI agent.
 """
 
 import json
@@ -63,63 +65,65 @@ def _send(base_url: str, text: str, history: list, doctor_id: str) -> tuple:
     return data["reply"], data.get("record")
 
 
-def main() -> None:
-    base_url = sys.argv[1].rstrip("/") if len(sys.argv) > 1 else BASE_URL
-    doctor_id = sys.argv[2] if len(sys.argv) > 2 else DOCTOR_ID
+def _handle_command(raw: str, history: list) -> bool:
+    """Handle /clear, /history, /quit commands; return True if loop should continue."""
+    if raw in ("/quit", "/exit", "quit", "exit"):
+        print("Bye!")
+        return False
+    if raw == "/clear":
+        history.clear()
+        print(f"{GRAY}  History cleared.{RESET}\n")
+        return True
+    if raw == "/history":
+        turns = len(history) // 2
+        print(f"{GRAY}  {turns} turn(s) in context window{RESET}\n")
+        return True
+    return None  # not a command
+
+
+def _chat_loop(base_url: str, doctor_id: str) -> None:
+    """Run the interactive chat read-eval-print loop."""
     history: list = []
-
-    print(f"\n{BOLD}🩺  Doctor AI Agent — Chat Tester{RESET}")
-    print(f"{GRAY}  server    : {base_url}{RESET}")
-    print(f"{GRAY}  doctor_id : {doctor_id}{RESET}")
-    print(f"{GRAY}  /clear  reset history  |  /history  show context size  |  /quit  exit{RESET}\n")
-
     while True:
         try:
             raw = input(f"{CYAN}You:{RESET} ").strip()
         except (EOFError, KeyboardInterrupt):
             print("\nBye!")
             break
-
         if not raw:
             continue
-
-        # ── built-in commands ────────────────────────────────────────────────
-        if raw in ("/quit", "/exit", "quit", "exit"):
-            print("Bye!")
+        cmd_result = _handle_command(raw, history)
+        if cmd_result is False:
             break
-
-        if raw == "/clear":
-            history.clear()
-            print(f"{GRAY}  History cleared.{RESET}\n")
+        if cmd_result is True:
             continue
-
-        if raw == "/history":
-            turns = len(history) // 2
-            print(f"{GRAY}  {turns} turn(s) in context window{RESET}\n")
-            continue
-
-        # ── send to server ───────────────────────────────────────────────────
         try:
             reply, record = _send(base_url, raw, history, doctor_id)
         except httpx.ConnectError:
-            print(f"{YELLOW}  ⚠  Cannot connect to {base_url} — is the server running?{RESET}\n")
+            print(f"{YELLOW}  Cannot connect to {base_url} — is the server running?{RESET}\n")
             continue
         except httpx.HTTPStatusError as e:
-            print(f"{YELLOW}  ⚠  HTTP {e.response.status_code}: {e.response.text[:200]}{RESET}\n")
+            print(f"{YELLOW}  HTTP {e.response.status_code}: {e.response.text[:200]}{RESET}\n")
             continue
         except Exception as e:
-            print(f"{YELLOW}  ⚠  {e}{RESET}\n")
+            print(f"{YELLOW}  {e}{RESET}\n")
             continue
-
-        # ── display response ─────────────────────────────────────────────────
         print(f"{GREEN}Agent:{RESET} {reply}")
         if record:
             _print_record(record)
         print()
-
-        # Append to local history so next turn has context
-        history.append({"role": "user",      "content": raw})
+        history.append({"role": "user", "content": raw})
         history.append({"role": "assistant", "content": reply})
+
+
+def main() -> None:
+    """Entry point: parse args and start the chat loop."""
+    base_url = sys.argv[1].rstrip("/") if len(sys.argv) > 1 else BASE_URL
+    doctor_id = sys.argv[2] if len(sys.argv) > 2 else DOCTOR_ID
+    print(f"\n{BOLD}Doctor AI Agent — Chat Tester{RESET}")
+    print(f"{GRAY}  server={base_url}  doctor_id={doctor_id}{RESET}")
+    print(f"{GRAY}  /clear  reset history  |  /history  show context size  |  /quit  exit{RESET}\n")
+    _chat_loop(base_url, doctor_id)
 
 
 if __name__ == "__main__":

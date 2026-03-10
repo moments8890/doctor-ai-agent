@@ -1,4 +1,6 @@
-"""Integration tests for the doctor-input text pipeline (`/api/records/chat`).
+"""医生输入文本管道集成测试（/api/records/chat）。
+
+Integration tests for the doctor-input text pipeline (`/api/records/chat`).
 
 These tests are true end-to-end from doctor text input through:
   doctor text -> intent dispatch -> structuring -> DB write -> API reply.

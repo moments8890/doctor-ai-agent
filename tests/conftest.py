@@ -1,6 +1,4 @@
-"""
-Shared fixtures for all test modules.
-"""
+"""测试共享 Fixtures：提供数据库会话、AsyncClient、Mock LLM 等公共测试夹具。"""
 
 import pytest
 import pytest_asyncio

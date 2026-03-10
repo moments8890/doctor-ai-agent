@@ -59,17 +59,146 @@ async def voice_chat(
     return await _voice_chat_for_doctor(audio, resolved_doctor_id, history=history)
 
 
+async def _transcribe_upload(
+    audio: UploadFile,
+    doctor_id: str,
+) -> tuple[bytes, str]:
+    """读取上传文件并转录，返回 (audio_bytes, transcript)；失败时抛 HTTPException。"""
+    audio_bytes = await audio.read()
+    try:
+        transcript = await transcribe_audio(audio_bytes, audio.filename or "audio.wav")
+    except Exception as e:
+        log(f"[VoiceChat] transcription FAILED doctor={doctor_id} file={audio.filename}: {e}")
+        raise HTTPException(status_code=500, detail="Transcription failed")
+    if not transcript.strip():
+        raise HTTPException(status_code=422, detail="Transcription produced empty text.")
+    return audio_bytes, transcript
+
+
+async def _run_intent_dispatch(transcript: str, history_list: list, doctor_id: str):
+    """调用 agent_dispatch 并处理速率限制/服务不可用错误。"""
+    try:
+        return await agent_dispatch(transcript, history=history_list)
+    except Exception as e:
+        msg = str(e)
+        log(f"[VoiceChat] dispatch FAILED doctor={doctor_id} msg={transcript[:80]!r}: {msg}")
+        status = 429 if "rate_limit" in msg or "Rate limit" in msg or "429" in msg else 503
+        detail = "rate_limit_exceeded" if status == 429 else "Service temporarily unavailable"
+        raise HTTPException(status_code=status, detail=detail)
+
+
+async def _handle_create_patient(transcript: str, intent_result, doctor_id: str) -> VoiceChatResponse:
+    """处理建档意图：验证姓名后写入数据库并返回确认回复。"""
+    name = intent_result.patient_name
+    if not name:
+        return VoiceChatResponse(transcript=transcript, reply="好的，请告诉我患者的姓名。")
+    async with AsyncSessionLocal() as db:
+        try:
+            patient = await db_create_patient(
+                db, doctor_id, name, intent_result.gender, intent_result.age
+            )
+        except InvalidMedicalRecordError:
+            return VoiceChatResponse(transcript=transcript, reply="⚠️ 患者姓名格式无效，请更正后重试。")
+    parts = "、".join(filter(None, [
+        intent_result.gender,
+        f"{intent_result.age}岁" if intent_result.age else None,
+    ]))
+    reply = f"✅ 已为患者【{patient.name}】建档" + (f"（{parts}）" if parts else "") + "。"
+    log(f"[VoiceChat] created patient [{patient.name}] id={patient.id} doctor={doctor_id}")
+    return VoiceChatResponse(transcript=transcript, reply=reply)
+
+
+async def _build_record_from_intent(
+    transcript: str,
+    intent_result,
+    doctor_id: str,
+    history_list: list,
+    followup_name: Optional[str],
+) -> tuple:
+    """从意图结果或历史对话中构建 MedicalRecord；失败返回 (None, error_reply)。"""
+    if intent_result.structured_fields:
+        fields = dict(intent_result.structured_fields)
+        if not fields.get("content"):
+            fields["content"] = "门诊就诊"
+        record = MedicalRecord(**{k: v for k, v in fields.items() if k in MedicalRecord.model_fields and v is not None})
+        return record, None
+    doctor_ctx = [m["content"] for m in history_list[-10:] if m.get("role") == "user"]
+    if not (followup_name and transcript.strip() == followup_name):
+        doctor_ctx.append(transcript)
+    if not doctor_ctx:
+        doctor_ctx.append(transcript)
+    try:
+        record = await structure_medical_record("\n".join(doctor_ctx))
+        return record, None
+    except Exception as e:
+        log(f"[VoiceChat] structuring FAILED doctor={doctor_id} patient={intent_result.patient_name}: {e}")
+        return None, "病历生成失败，请稍后重试。"
+
+
+async def _save_record_for_patient(
+    transcript: str, record, intent_result, doctor_id: str
+) -> tuple:
+    """查找或创建患者，保存病历；返回 (patient_name, patient_created, error_reply)。"""
+    patient_name = intent_result.patient_name
+    patient_created = False
+    patient_id = None
+    async with AsyncSessionLocal() as db:
+        if patient_name:
+            patient = await find_patient_by_name(db, doctor_id, patient_name)
+            if not patient:
+                try:
+                    patient = await db_create_patient(
+                        db, doctor_id, patient_name, intent_result.gender, intent_result.age,
+                    )
+                except InvalidMedicalRecordError:
+                    return patient_name, False, "⚠️ 患者姓名格式无效，请更正后重试。"
+                patient_created = True
+            patient_id = patient.id
+        await save_record(db, doctor_id, record, patient_id)
+    return patient_name, patient_created, None
+
+
+async def _handle_add_record(
+    transcript: str,
+    intent_result,
+    doctor_id: str,
+    history_list: list,
+    followup_name: Optional[str],
+) -> VoiceChatResponse:
+    """处理记录意图：结构化病历并保存，自动建档（如患者不存在）。"""
+    if not intent_result.patient_name or not _is_valid_patient_name(intent_result.patient_name):
+        return VoiceChatResponse(transcript=transcript, reply="请问这位患者叫什么名字？")
+    record, err = await _build_record_from_intent(
+        transcript, intent_result, doctor_id, history_list, followup_name
+    )
+    if err:
+        return VoiceChatResponse(transcript=transcript, reply=err)
+    patient_name, patient_created, err = await _save_record_for_patient(
+        transcript, record, intent_result, doctor_id
+    )
+    if err:
+        return VoiceChatResponse(transcript=transcript, reply=err)
+    reply = intent_result.chat_reply
+    if not reply:
+        if patient_name:
+            reply = "✅ 已为【" + patient_name + "】" + ("新建档并" if patient_created else "") + "保存病历。"
+        else:  # pragma: no cover
+            reply = "✅ 病历已保存。"
+    log(f"[VoiceChat] saved record patient={patient_name} doctor={doctor_id}")
+    return VoiceChatResponse(transcript=transcript, reply=reply, record=record)
+
+
 async def _voice_chat_for_doctor(
     audio: UploadFile,
     doctor_id: str,
     history: Optional[str] = None,
 ) -> VoiceChatResponse:
+    """转录音频，路由意图，分发至对应处理函数，返回结构化回复。"""
     enforce_doctor_rate_limit(doctor_id, scope="voice.chat")
 
     if audio.content_type not in SUPPORTED_AUDIO_TYPES:
         raise HTTPException(status_code=422, detail=f"Unsupported file type: {audio.content_type}. Supported: mp3, mp4, wav, webm, ogg, flac, m4a.")  # noqa: E501
 
-    # Parse history JSON string
     history_list: List[dict] = []
     if history:
         try:
@@ -79,107 +208,23 @@ async def _voice_chat_for_doctor(
         except (json.JSONDecodeError, ValueError) as e:
             raise HTTPException(status_code=422, detail=f"Malformed history: {e}")
 
-    audio_bytes = await audio.read()
-
-    try:
-        transcript = await transcribe_audio(audio_bytes, audio.filename or "audio.wav")
-    except Exception as e:
-        log(f"[VoiceChat] transcription FAILED doctor={doctor_id} file={audio.filename}: {e}")
-        raise HTTPException(status_code=500, detail="Transcription failed")
-
-    if not transcript.strip():
-        raise HTTPException(status_code=422, detail="Transcription produced empty text.")
+    _audio_bytes, transcript = await _transcribe_upload(audio, doctor_id)
 
     asked_name_in_last_turn = _assistant_asked_for_name(history_list)
     followup_name = _name_only_text(transcript) if asked_name_in_last_turn else None
 
-    try:
-        intent_result = await agent_dispatch(transcript, history=history_list)
-    except Exception as e:
-        msg = str(e)
-        log(f"[VoiceChat] dispatch FAILED doctor={doctor_id} msg={transcript[:80]!r}: {msg}")
-        status = 429 if "rate_limit" in msg or "Rate limit" in msg or "429" in msg else 503
-        detail = "rate_limit_exceeded" if status == 429 else "Service temporarily unavailable"
-        raise HTTPException(status_code=status, detail=detail)
+    intent_result = await _run_intent_dispatch(transcript, history_list, doctor_id)
 
-    # Two-turn name followup: assistant asked for name -> doctor replies with name only
     if followup_name:
         intent_result.intent = Intent.add_record
         intent_result.patient_name = followup_name
 
-    reply: str = ""
-    record: Optional[MedicalRecord] = None
-
-    # ── create_patient ─────────────────────────────────────────────────────────
     if intent_result.intent == Intent.create_patient:
-        name = intent_result.patient_name
-        if not name:
-            return VoiceChatResponse(transcript=transcript, reply="好的，请告诉我患者的姓名。")
-        async with AsyncSessionLocal() as db:
-            try:
-                patient = await db_create_patient(
-                    db, doctor_id, name, intent_result.gender, intent_result.age
-                )
-            except InvalidMedicalRecordError:
-                return VoiceChatResponse(transcript=transcript, reply="⚠️ 患者姓名格式无效，请更正后重试。")
-        parts = "、".join(filter(None, [
-            intent_result.gender,
-            f"{intent_result.age}岁" if intent_result.age else None,
-        ]))
-        reply = f"✅ 已为患者【{patient.name}】建档" + (f"（{parts}）" if parts else "") + "。"
-        log(f"[VoiceChat] created patient [{patient.name}] id={patient.id} doctor={doctor_id}")
-        return VoiceChatResponse(transcript=transcript, reply=reply)
+        return await _handle_create_patient(transcript, intent_result, doctor_id)
 
-    # ── add_record ─────────────────────────────────────────────────────────────
     if intent_result.intent == Intent.add_record:
-        if not intent_result.patient_name or not _is_valid_patient_name(intent_result.patient_name):
-            return VoiceChatResponse(transcript=transcript, reply="请问这位患者叫什么名字？")
+        return await _handle_add_record(transcript, intent_result, doctor_id, history_list, followup_name)
 
-        if intent_result.structured_fields:
-            fields = dict(intent_result.structured_fields)
-            if not fields.get("content"):
-                fields["content"] = "门诊就诊"
-            record = MedicalRecord(**{k: v for k, v in fields.items() if k in MedicalRecord.model_fields and v is not None})
-        else:
-            doctor_ctx = [m["content"] for m in history_list[-10:] if m.get("role") == "user"]
-            if not (followup_name and transcript.strip() == followup_name):
-                doctor_ctx.append(transcript)
-            if not doctor_ctx:
-                doctor_ctx.append(transcript)
-            try:
-                record = await structure_medical_record("\n".join(doctor_ctx))
-            except Exception as e:
-                log(f"[VoiceChat] structuring FAILED doctor={doctor_id} patient={intent_result.patient_name}: {e}")
-                return VoiceChatResponse(transcript=transcript, reply="病历生成失败，请稍后重试。")
-
-        patient_id = None
-        patient_name = intent_result.patient_name
-        patient_created = False
-        async with AsyncSessionLocal() as db:
-            if patient_name:
-                patient = await find_patient_by_name(db, doctor_id, patient_name)
-                if not patient:
-                    try:
-                        patient = await db_create_patient(
-                            db, doctor_id, patient_name,
-                            intent_result.gender, intent_result.age,
-                        )
-                    except InvalidMedicalRecordError:
-                        return VoiceChatResponse(transcript=transcript, reply="⚠️ 患者姓名格式无效，请更正后重试。")
-                    patient_created = True
-                patient_id = patient.id
-            await save_record(db, doctor_id, record, patient_id)
-
-        reply = intent_result.chat_reply
-        if not reply:
-            if patient_name:
-                reply = "✅ 已为【" + patient_name + "】" + ("新建档并" if patient_created else "") + "保存病历。"
-            else:  # pragma: no cover
-                reply = "✅ 病历已保存。"
-        log(f"[VoiceChat] saved record patient={patient_name} doctor={doctor_id}")
-        return VoiceChatResponse(transcript=transcript, reply=reply, record=record)
-
-    # ── unknown / conversational ───────────────────────────────────────────────
     return VoiceChatResponse(
         transcript=transcript,
         reply=intent_result.chat_reply or "您好！有什么可以帮您？",

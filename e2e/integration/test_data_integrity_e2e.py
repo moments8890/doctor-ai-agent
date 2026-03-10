@@ -1,4 +1,6 @@
-"""P0 data-integrity integration tests for /api/records/chat.
+"""P0 级数据完整性集成测试（/api/records/chat）。
+
+P0 data-integrity integration tests for /api/records/chat.
 
 These tests validate that what the AI agent returns is faithfully persisted to
 the DB, and that destructive operations (delete, update) have correct cascade

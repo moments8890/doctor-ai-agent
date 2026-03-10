@@ -26,10 +26,10 @@ class MiniProgramPrincipal:
 def _token_secret() -> str:
     secret = os.environ.get("MINIPROGRAM_TOKEN_SECRET", "").strip()
     if not secret:
-        env = os.environ.get("APP_ENV", "").strip().lower()
-        if env in {"production", "prod"}:
+        _is_dev = os.environ.get("ENVIRONMENT", "").strip().lower() in {"development", "dev", "test"}
+        if not _is_dev:
             raise RuntimeError(
-                "MINIPROGRAM_TOKEN_SECRET must be set in production. "
+                "MINIPROGRAM_TOKEN_SECRET must be set. "
                 "Generate a strong random secret and set it in your environment."
             )
         secret = "dev-miniprogram-secret"

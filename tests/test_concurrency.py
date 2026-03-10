@@ -1,8 +1,6 @@
-"""Concurrency regression tests for per-doctor asyncio session locking.
+"""并发回归测试：验证每位医生的 asyncio 会话锁在并发场景下正确串行化，防止历史记录损坏和患者重复创建。"""
 
-Verifies that concurrent background tasks for the same doctor serialise
-correctly and do not corrupt session state or create duplicate records.
-"""
+# Concurrency regression tests for per-doctor asyncio session locking.
 
 from __future__ import annotations
 import asyncio
@@ -106,8 +104,8 @@ async def test_concurrent_pending_create_no_duplicate(session_factory):
         patch("routers.wechat.load_context_message", new=AsyncMock(return_value=None)),
         patch("routers.wechat.hydrate_session_state", new=AsyncMock()),
         patch("routers.wechat._handle_intent", new=AsyncMock(return_value="intent reply")),
-        patch("routers.wechat.create_patient", new=AsyncMock(side_effect=fake_create_patient)),
-        patch("routers.wechat.find_patient_by_name", new=AsyncMock(return_value=None)),
+        patch("services.wechat.wechat_domain.create_patient", new=AsyncMock(side_effect=fake_create_patient)),
+        patch("services.wechat.wechat_domain.find_patient_by_name", new=AsyncMock(return_value=None)),
     ):
         # Two concurrent tasks both responding to the pending-create prompt
         t1 = asyncio.create_task(wechat._handle_intent_bg("男，30岁", DOCTOR))

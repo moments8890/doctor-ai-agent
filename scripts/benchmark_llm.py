@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """
+完整 dispatch 管道基准测试：fast_router + 路由 LLM + 结构化 LLM。
+
 Benchmark the full dispatch pipeline: fast_router + routing LLM + structuring LLM.
 
 Fast-router pass only (no network, always works):

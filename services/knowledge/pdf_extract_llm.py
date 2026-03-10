@@ -1,4 +1,6 @@
 """
+基于视觉 LLM 的 PDF 文字提取：将 PDF 页转为图片后送入视觉模型，提取临床文本。
+
 LLM-based PDF text extractor using the OpenAI SDK (same provider config as vision.py).
 
 Strategy: convert PDF pages to JPEG images via pdftoppm, then send all pages
@@ -93,6 +95,55 @@ def _pdf_to_images(pdf_bytes: bytes, max_pages: int, dpi: int) -> list[bytes]:
         return [img.read_bytes() for img in images[:max_pages]]
 
 
+def _build_llm_client(provider_name: str) -> tuple["AsyncOpenAI", str]:
+    """Construct the AsyncOpenAI client and model name for the given provider."""
+    cfg = _PROVIDERS.get(provider_name, _PROVIDERS["ollama"])
+    model = os.environ.get(cfg["model_env"] or "", "") or cfg["model_default"]
+    api_key = os.environ.get(cfg["api_key_env"], "nokeyneeded")
+    base_url = cfg["base_url"]()
+    timeout = float(os.environ.get("PDF_LLM_TIMEOUT", "90"))
+    client_kwargs: dict = {"api_key": api_key, "timeout": timeout, "max_retries": 0}
+    if base_url:
+        client_kwargs["base_url"] = base_url
+    return AsyncOpenAI(**client_kwargs), model
+
+
+def _build_page_content(page_images: list[bytes]) -> list[dict]:
+    """Convert JPEG page bytes to image_url content blocks for the LLM."""
+    content: list[dict] = []
+    for img_bytes in page_images:
+        b64 = base64.b64encode(img_bytes).decode("utf-8")
+        content.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
+        })
+    content.append({"type": "text", "text": "请提取以上所有页面中的临床文字内容。"})
+    return content
+
+
+async def _call_vision_llm(
+    client: "AsyncOpenAI",
+    model: str,
+    page_images: list[bytes],
+    provider_name: str,
+) -> str:
+    """Send page images to the vision LLM and return the extracted text."""
+    content = _build_page_content(page_images)
+    log(f"[PDF-LLM:{provider_name}] model={model} pages={len(page_images)}")
+    completion = await client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "user", "content": content},
+        ],
+        max_tokens=4096,
+        temperature=0,
+    )
+    text = (completion.choices[0].message.content or "").strip()
+    log(f"[PDF-LLM:{provider_name}] extracted {len(text)} chars: {text[:80]!r}")
+    return text
+
+
 async def extract_text_from_pdf_llm(
     pdf_bytes: bytes,
     max_chars: int = 12000,
@@ -104,57 +155,20 @@ async def extract_text_from_pdf_llm(
     """
     if not _is_enabled():
         return None
-
     if not pdf_bytes:
         return ""
 
     max_pages = int(os.environ.get("PDF_LLM_MAX_PAGES", "10"))
     dpi = int(os.environ.get("PDF_LLM_DPI", "120"))
-
     page_images = _pdf_to_images(pdf_bytes, max_pages, dpi)
     if not page_images:
         log("[PDF-LLM] pdftoppm produced no images — falling back")
         return None
 
     provider_name = os.environ.get("VISION_LLM", "ollama")
-    cfg = _PROVIDERS.get(provider_name, _PROVIDERS["ollama"])
-
-    model = os.environ.get(cfg["model_env"] or "", "") or cfg["model_default"]
-    api_key = os.environ.get(cfg["api_key_env"], "nokeyneeded")
-    base_url = cfg["base_url"]()
-    timeout = float(os.environ.get("PDF_LLM_TIMEOUT", "90"))
-
-    client_kwargs: dict = {"api_key": api_key, "timeout": timeout, "max_retries": 0}
-    if base_url:
-        client_kwargs["base_url"] = base_url
-    client = AsyncOpenAI(**client_kwargs)
-
-    log(f"[PDF-LLM:{provider_name}] model={model} pages={len(page_images)}")
-
-    # Build one image_url block per page
-    content: list[dict] = []
-    for i, img_bytes in enumerate(page_images):
-        b64 = base64.b64encode(img_bytes).decode("utf-8")
-        content.append({
-            "type": "image_url",
-            "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
-        })
-    content.append({"type": "text", "text": "请提取以上所有页面中的临床文字内容。"})
-
-    completion = await client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": _SYSTEM_PROMPT},
-            {"role": "user", "content": content},
-        ],
-        max_tokens=4096,
-        temperature=0,
-    )
-
-    text = (completion.choices[0].message.content or "").strip()
-    log(f"[PDF-LLM:{provider_name}] extracted {len(text)} chars: {text[:80]!r}")
+    client, model = _build_llm_client(provider_name)
+    text = await _call_vision_llm(client, model, page_images, provider_name)
 
     if max_chars > 0 and len(text) > max_chars:
         text = text[:max_chars]
-
     return text

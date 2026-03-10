@@ -1,4 +1,6 @@
-"""Human-language E2E tests for manage/tasks APIs.
+"""任务管理接口自然语言端到端测试（manage/tasks APIs）。
+
+Human-language E2E tests for manage/tasks APIs.
 
 All scenarios start from doctor natural-language input through `/api/records/chat`,
 then validate API behavior and DB persistence.

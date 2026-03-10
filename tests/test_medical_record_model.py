@@ -1,3 +1,5 @@
+"""病历数据模型单元测试：验证 MedicalRecord Pydantic 模型的内容校验、长度限制和默认字段行为。"""
+
 from __future__ import annotations
 
 import pytest

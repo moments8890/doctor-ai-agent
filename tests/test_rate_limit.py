@@ -1,3 +1,5 @@
+"""速率限制测试：验证医生请求速率控制逻辑，包括限额内放行、超限返回 429 及多维度隔离行为。"""
+
 from __future__ import annotations
 
 import pytest

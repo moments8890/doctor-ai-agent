@@ -1,6 +1,4 @@
-"""
-Tests for specialty scale detection and WeChat draft preview rendering.
-"""
+"""专科量表评分测试：验证量表关键词检测、LLM 评分提取及微信草稿预览中评分展示的正确性。"""
 from __future__ import annotations
 
 import pytest

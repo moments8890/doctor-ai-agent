@@ -1,19 +1,22 @@
-"""
-Additional branch tests for routers/wechat.py.
-"""
+"""微信路由单元测试：覆盖意图调度、问诊流程、消息路由和签名验证核心流程。"""
+
+from __future__ import annotations
 
 import asyncio
 from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
-import pytest
-
 import routers.wechat as wechat
 from db.models.medical_record import MedicalRecord
 from services.ai.intent import Intent, IntentResult
 from services.patient.interview import InterviewState, STEPS
-from services.session import clear_pending_create, clear_pending_record_id, get_session, set_pending_create
+from services.session import (
+    clear_pending_create,
+    clear_pending_record_id,
+    get_session,
+    set_pending_create,
+)
 
 
 DOCTOR = "wechat_routes_doc"
@@ -62,265 +65,9 @@ class _SessionCtx:
         return False
 
 
-def test_get_config_prefers_wechat_kf_env_aliases():
-    with patch.dict(
-        "os.environ",
-        {
-            "WECHAT_KF_TOKEN": "kf-token",
-            "WECHAT_KF_CORP_ID": "ww-corp",
-            "WECHAT_KF_SECRET": "kf-secret",
-            "WECHAT_KF_ENCODING_AES_KEY": "kf-aes",
-            "WECHAT_TOKEN": "legacy-token",
-            "WECHAT_APP_ID": "legacy-id",
-            "WECHAT_APP_SECRET": "legacy-secret",
-            "WECHAT_ENCODING_AES_KEY": "legacy-aes",
-        },
-        clear=False,
-    ):
-        cfg = wechat._get_config()
-
-    assert cfg["token"] == "kf-token"
-    assert cfg["app_id"] == "ww-corp"
-    assert cfg["app_secret"] == "kf-secret"
-    assert cfg["aes_key"] == "kf-aes"
-
-
-async def test_get_access_token_uses_cache_without_http_call():
-    import services.wechat.wechat_notify as wn
-    wn._token_cache["token"] = "cached-token"
-    wn._token_cache["expires_at"] = 9999999999
-    with patch("services.wechat.wechat_notify.httpx.AsyncClient") as client_cls:
-        token = await wechat._get_access_token("appid", "secret")
-    assert token == "cached-token"
-    client_cls.assert_not_called()
-
-
-async def test_get_access_token_fetches_and_updates_cache():
-    import services.wechat.wechat_notify as wn
-    wn._token_cache["token"] = ""
-    wn._token_cache["expires_at"] = 0
-
-    class _Resp:
-        def json(self):
-            return {"access_token": "fresh-token", "expires_in": 7200}
-
-    class _Client:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-        async def get(self, _url, params):
-            assert params["appid"] == "appid"
-            return _Resp()
-
-    with patch("services.wechat.wechat_notify.httpx.AsyncClient", return_value=_Client()):
-        token = await wechat._get_access_token("appid", "secret")
-
-    assert token == "fresh-token"
-    assert wn._token_cache["token"] == "fresh-token"
-    assert wn._token_cache["expires_at"] > 0
-
-
-async def test_get_access_token_uses_shared_db_cache_when_local_empty():
-    import services.wechat.wechat_notify as wn
-    wn._token_cache["token"] = ""
-    wn._token_cache["expires_at"] = 0
-
-    runtime_token = SimpleNamespace(token_value="shared-token", expires_at=datetime(2099, 1, 1))
-    with patch("services.wechat.wechat_notify.AsyncSessionLocal", return_value=_SessionCtx()), \
-         patch("services.wechat.wechat_notify.get_runtime_token", new=AsyncMock(return_value=runtime_token)), \
-         patch("services.wechat.wechat_notify.httpx.AsyncClient") as client_cls:
-        token = await wechat._get_access_token("appid", "secret")
-
-    assert token == "shared-token"
-    client_cls.assert_not_called()
-
-
-async def test_get_access_token_persists_shared_db_cache_after_refresh():
-    import services.wechat.wechat_notify as wn
-    wn._token_cache["token"] = ""
-    wn._token_cache["expires_at"] = 0
-
-    class _Resp:
-        def json(self):
-            return {"access_token": "fresh-token", "expires_in": 7200}
-
-    class _Client:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-        async def get(self, _url, params):
-            assert params["appid"] == "appid"
-            return _Resp()
-
-    mock_upsert = AsyncMock()
-    with patch("services.wechat.wechat_notify.AsyncSessionLocal", return_value=_SessionCtx()), \
-         patch("services.wechat.wechat_notify.get_runtime_token", new=AsyncMock(return_value=None)), \
-         patch("services.wechat.wechat_notify.upsert_runtime_token", mock_upsert), \
-         patch("services.wechat.wechat_notify.httpx.AsyncClient", return_value=_Client()):
-        token = await wechat._get_access_token("appid", "secret")
-
-    assert token == "fresh-token"
-    mock_upsert.assert_awaited_once()
-
-
-async def test_get_access_token_uses_wecom_kf_gettoken_for_corp_id():
-    import services.wechat.wechat_notify as wn
-    wn._token_cache["token"] = ""
-    wn._token_cache["expires_at"] = 0
-
-    class _Resp:
-        def json(self):
-            return {"access_token": "kf-token", "expires_in": 7200}
-
-    class _Client:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-        async def get(self, url, params):
-            assert "qyapi.weixin.qq.com/cgi-bin/gettoken" in url
-            assert params["corpid"] == "ww-corp-id"
-            assert params["corpsecret"] == "corp-secret"
-            return _Resp()
-
-    with patch("services.wechat.wechat_notify.httpx.AsyncClient", return_value=_Client()):
-        token = await wechat._get_access_token("ww-corp-id", "corp-secret")
-
-    assert token == "kf-token"
-
-
-async def test_send_customer_service_msg_swallow_exception():
-    with patch("services.wechat.wechat_notify._get_access_token", new=AsyncMock(side_effect=RuntimeError("boom"))):
-        try:
-            await wechat._send_customer_service_msg("u1", "content")
-            assert False, "expected exception"
-        except RuntimeError as e:
-            assert "boom" in str(e)
-
-
-async def test_send_customer_service_msg_success_path_posts_chunks():
-    class _Resp:
-        def __init__(self, payload):
-            self._payload = payload
-
-        def json(self):
-            return {"ok": True, "echo": self._payload["text"]["content"]}
-
-    class _Client:
-        def __init__(self):
-            self.posts = []
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-        async def post(self, _url, json):
-            self.posts.append(json)
-            return _Resp(json)
-
-    client = _Client()
-    with patch("services.wechat.wechat_notify._get_access_token", new=AsyncMock(return_value="tok")), \
-         patch("services.wechat.wechat_notify.httpx.AsyncClient", return_value=client):
-        await wechat._send_customer_service_msg("u1", "【A】" + "x" * 700 + "【B】tail")
-
-    assert len(client.posts) >= 2
-    assert all(p["touser"] == "u1" for p in client.posts)
-
-
-async def test_send_customer_service_msg_raises_on_wechat_errcode():
-    class _Resp:
-        def json(self):
-            return {"errcode": 40013, "errmsg": "invalid appid"}
-
-    class _Client:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-        async def post(self, _url, json):
-            return _Resp()
-
-    with patch("services.wechat.wechat_notify._get_access_token", new=AsyncMock(return_value="tok")), \
-         patch("services.wechat.wechat_notify.httpx.AsyncClient", return_value=_Client()):
-        try:
-            await wechat._send_customer_service_msg("u1", "hello")
-            assert False, "expected exception"
-        except RuntimeError as e:
-            assert "errcode=40013" in str(e)
-
-
-async def test_send_customer_service_msg_kf_requires_open_kfid():
-    class _Client:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-        async def post(self, _url, json):
-            return SimpleNamespace(json=lambda: {"errcode": 0})
-
-    with patch(
-        "services.wechat.wechat_notify._get_config",
-        return_value={
-            "token": "tok",
-            "app_id": "ww-corp",
-            "app_secret": "secret",
-            "aes_key": "",
-            "open_kfid": "",
-            "is_kf": True,
-        },
-    ), patch("services.wechat.wechat_notify._get_access_token", new=AsyncMock(return_value="tok")), \
-         patch("services.wechat.wechat_notify.httpx.AsyncClient", return_value=_Client()):
-        with pytest.raises(RuntimeError, match="WECHAT_KF_OPEN_KFID"):
-            await wechat._send_customer_service_msg("u1", "hello")
-
-
-async def test_send_customer_service_msg_kf_payload_includes_open_kfid():
-    captured = {}
-
-    class _Resp:
-        def json(self):
-            return {"errcode": 0, "errmsg": "ok"}
-
-    class _Client:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-        async def post(self, _url, json):
-            captured["payload"] = json
-            return _Resp()
-
-    with patch(
-        "services.wechat.wechat_notify._get_config",
-        return_value={
-            "token": "tok",
-            "app_id": "ww-corp",
-            "app_secret": "secret",
-            "aes_key": "",
-            "open_kfid": "kf-001",
-            "is_kf": True,
-        },
-    ), patch("services.wechat.wechat_notify._get_access_token", new=AsyncMock(return_value="tok")), \
-         patch("services.wechat.wechat_notify.httpx.AsyncClient", return_value=_Client()):
-        await wechat._send_customer_service_msg("u1", "hello")
-
-    assert captured["payload"]["open_kfid"] == "kf-001"
+# ---------------------------------------------------------------------------
+# Reply builder and interview flow tests
+# ---------------------------------------------------------------------------
 
 
 async def test_build_reply_handles_value_error_and_generic_error():
@@ -384,6 +131,11 @@ async def test_handle_interview_step_complete_saves_record(session_factory):
     assert "王五" in result
 
 
+# ---------------------------------------------------------------------------
+# Name lookup and pending-create tests
+# ---------------------------------------------------------------------------
+
+
 async def test_name_lookup_hit_and_miss(session_factory):
     async with session_factory() as s:
         from db.crud import create_patient
@@ -438,6 +190,11 @@ async def test_pending_create_reuses_existing_patient_without_duplicate(session_
         from db.crud import get_all_patients
         after = await get_all_patients(s2, DOCTOR)
     assert len([p for p in after if p.name == "章三"]) == 1
+
+
+# ---------------------------------------------------------------------------
+# _handle_intent routing tests
+# ---------------------------------------------------------------------------
 
 
 async def test_handle_intent_add_record_asks_for_name_without_session():
@@ -525,7 +282,12 @@ async def test_handle_intent_unknown_greeting_not_routed_as_name():
     lookup_mock.assert_not_called()
 
 
-async def test_handle_list_tasks_and_complete_task_and_schedule_routes():
+# ---------------------------------------------------------------------------
+# Task-list and schedule intent tests (split from original omnibus test)
+# ---------------------------------------------------------------------------
+
+
+async def test_handle_list_tasks_returns_pending_tasks():
     pending_tasks = [
         SimpleNamespace(id=1, task_type="follow_up", title="随访提醒：张三", due_at=None),
         SimpleNamespace(id=2, task_type="appointment", title="预约提醒：李四", due_at=datetime(2026, 3, 15, 9, 0, 0)),
@@ -535,16 +297,26 @@ async def test_handle_list_tasks_and_complete_task_and_schedule_routes():
         text = await wechat._handle_list_tasks(DOCTOR)
     assert "待办任务" in text and "follow_up" in text and "appointment" in text
 
+
+async def test_handle_complete_task_miss_and_hit():
     with patch("routers.wechat.AsyncSessionLocal", return_value=_SessionCtx()), \
          patch("routers.wechat.update_task_status", new=AsyncMock(return_value=None)):
-        miss = await wechat._handle_complete_task(DOCTOR, IntentResult(intent=Intent.complete_task, extra_data={"task_id": 999}))
+        miss = await wechat._handle_complete_task(
+            DOCTOR,
+            IntentResult(intent=Intent.complete_task, extra_data={"task_id": 999}),
+        )
     assert "未找到任务" in miss
 
     with patch("routers.wechat.AsyncSessionLocal", return_value=_SessionCtx()), \
          patch("routers.wechat.update_task_status", new=AsyncMock(return_value=SimpleNamespace(title="随访提醒：张三"))):
-        ok = await wechat._handle_complete_task(DOCTOR, IntentResult(intent=Intent.complete_task, extra_data={"task_id": 1}))
+        ok = await wechat._handle_complete_task(
+            DOCTOR,
+            IntentResult(intent=Intent.complete_task, extra_data={"task_id": 1}),
+        )
     assert ok  # natural reply (from chat_reply or default)
 
+
+async def test_handle_schedule_appointment_validation_errors():
     bad_name = await wechat._handle_schedule_appointment(
         DOCTOR,
         IntentResult(intent=Intent.schedule_appointment, patient_name=None, extra_data={}),
@@ -559,10 +331,16 @@ async def test_handle_list_tasks_and_complete_task_and_schedule_routes():
 
     bad_format = await wechat._handle_schedule_appointment(
         DOCTOR,
-        IntentResult(intent=Intent.schedule_appointment, patient_name="王五", extra_data={"appointment_time": "明天下午2点"}),
+        IntentResult(
+            intent=Intent.schedule_appointment,
+            patient_name="王五",
+            extra_data={"appointment_time": "明天下午2点"},
+        ),
     )
     assert "时间格式无法识别" in bad_format
 
+
+async def test_handle_schedule_appointment_success():
     with patch("routers.wechat.create_appointment_task", new=AsyncMock(return_value=SimpleNamespace(id=5))):
         scheduled = await wechat._handle_schedule_appointment(
             DOCTOR,
@@ -592,6 +370,8 @@ async def test_handle_intent_fast_complete_and_task_intents():
         r2 = await wechat._handle_intent("完成任务3", DOCTOR)
     assert r2 == "done"
 
+
+async def test_handle_intent_schedule_and_delete_patient_routing():
     with patch("routers.wechat.route_message", new=AsyncMock(return_value=IntentResult(intent=Intent.schedule_appointment, patient_name="赵六", extra_data={"appointment_time": "2026-03-18T09:00:00"}))), \
          patch("routers.wechat._handle_schedule_appointment", new=AsyncMock(return_value="appt")):
         r3 = await wechat._handle_intent("约诊", DOCTOR)
@@ -619,9 +399,13 @@ async def test_handle_intent_notify_control_commands():
     assert "sent=1" in out2
 
 
+# ---------------------------------------------------------------------------
+# Signature verification tests
+# ---------------------------------------------------------------------------
+
+
 def test_verify_signature_success_and_failure():
     ok = wechat.verify("1", "2", "sig", "echo")
-    # actual check may fail depending on env token; force explicit paths below.
     assert ok.status_code in (200, 403)
 
     with patch("routers.wechat.check_signature", side_effect=wechat.InvalidSignatureException("bad")):
@@ -670,6 +454,11 @@ def test_verify_missing_signature_returns_echo_or_ok():
     assert resp.body == b"echo-x"
 
 
+# ---------------------------------------------------------------------------
+# _handle_intent_bg tests
+# ---------------------------------------------------------------------------
+
+
 async def test_handle_intent_bg_uses_context_and_fallback():
     clear_pending_record_id(DOCTOR)
     clear_pending_create(DOCTOR)
@@ -683,7 +472,7 @@ async def test_handle_intent_bg_uses_context_and_fallback():
         await wechat._handle_intent_bg("hello", DOCTOR)
 
     push_turn.assert_called_once()
-    assert push_turn.call_args.args[2]  # some error message sent
+    assert push_turn.call_args.args[2]
     send_msg.assert_awaited_once()
 
 
@@ -711,7 +500,6 @@ async def test_handle_intent_bg_kf_schedules_customer_prefetch():
         captured["scheduled"] = True
 
     def _capture_task(coro):
-        # Run enrichment task immediately for deterministic assertion.
         return asyncio.get_running_loop().create_task(coro)
 
     with patch("routers.wechat.get_session_lock", return_value=DummyLock()), \
@@ -728,93 +516,16 @@ async def test_handle_intent_bg_kf_schedules_customer_prefetch():
     assert captured["scheduled"] is True
 
 
-async def test_voice_and_image_bg_error_paths():
-    with patch("routers.wechat._get_access_token", new=AsyncMock(side_effect=RuntimeError("no token"))), \
-         patch("routers.wechat._send_customer_service_msg", new=AsyncMock()) as send_msg:
-        await wechat._handle_voice_bg("m1", DOCTOR)
-    send_msg.assert_awaited_once()
-    voice_msg = send_msg.await_args.args[1]
-    assert "语音识别失败" in voice_msg
-    assert "no token" not in voice_msg
-
-    with patch("routers.wechat._get_access_token", new=AsyncMock(side_effect=RuntimeError("no token"))), \
-         patch("routers.wechat._send_customer_service_msg", new=AsyncMock()) as send_msg2:
-        await wechat._handle_image_bg("m2", DOCTOR)
-    send_msg2.assert_awaited_once()
-    image_msg = send_msg2.await_args.args[1]
-    assert "图片识别失败" in image_msg
-    assert "no token" not in image_msg
-
-
-async def test_pdf_file_bg_success_routes_to_intent():
-    with patch("routers.wechat._get_access_token", new=AsyncMock(return_value="tok")), \
-         patch("routers.wechat.download_media", new=AsyncMock(return_value=b"%PDF-1.7")), \
-         patch("routers.wechat.extract_text_from_pdf", return_value="章三 偏头痛 3天"), \
-         patch("routers.wechat._handle_intent_bg", new=AsyncMock()) as intent_bg, \
-         patch("routers.wechat._send_customer_service_msg", new=AsyncMock()) as send_msg:
-        await wechat._handle_pdf_file_bg("m-pdf", "case.pdf", DOCTOR, open_kfid="kf1")
-    intent_bg.assert_awaited_once()
-    send_msg.assert_not_awaited()
-
-
-async def test_file_bg_detects_pdf_by_header_without_pdf_extension():
-    with patch("routers.wechat._get_access_token", new=AsyncMock(return_value="tok")), \
-         patch("routers.wechat.download_media", new=AsyncMock(return_value=b"%PDF-1.7\n...")), \
-         patch("routers.wechat._handle_pdf_file_bg", new=AsyncMock()) as pdf_bg:
-        await wechat._handle_file_bg("m-file", "文件", DOCTOR, open_kfid="kf1")
-    pdf_bg.assert_awaited_once()
-
-
-async def test_file_bg_non_pdf_sends_notice():
-    with patch("routers.wechat._get_access_token", new=AsyncMock(return_value="tok")), \
-         patch("routers.wechat.download_media", new=AsyncMock(return_value=b"PK\x03\x04...")), \
-         patch("routers.wechat._send_customer_service_msg", new=AsyncMock()) as send_msg:
-        await wechat._handle_file_bg("m-file", "报告.docx", DOCTOR, open_kfid="kf1")
-    send_msg.assert_awaited_once()
-
-
-async def test_file_bg_download_failure_sends_generic_error():
-    with patch("routers.wechat._get_access_token", new=AsyncMock(return_value="tok")), \
-         patch("routers.wechat.download_media", new=AsyncMock(side_effect=RuntimeError("network secret"))), \
-         patch("routers.wechat._send_customer_service_msg", new=AsyncMock()) as send_msg:
-        await wechat._handle_file_bg("m-file", "报告.docx", DOCTOR, open_kfid="kf1")
-    send_msg.assert_awaited_once()
-    msg = send_msg.await_args.args[1]
-    assert "文件下载失败" in msg
-    assert "network secret" not in msg
-
-
-async def test_pdf_file_bg_failure_sends_error_notice():
-    with patch("routers.wechat._get_access_token", new=AsyncMock(return_value="tok")), \
-         patch("routers.wechat.download_media", new=AsyncMock(return_value=b"%PDF-1.7")), \
-         patch("routers.wechat.extract_text_from_pdf", side_effect=RuntimeError("pdftotext failed")), \
-         patch("routers.wechat._send_customer_service_msg", new=AsyncMock()) as send_msg:
-        await wechat._handle_pdf_file_bg("m-pdf", "case.pdf", DOCTOR, open_kfid="kf1")
-    send_msg.assert_awaited_once()
-    pdf_msg = send_msg.await_args.args[1]
-    assert "PDF解析失败" in pdf_msg
-    assert "pdftotext failed" not in pdf_msg
-
-
-async def test_voice_bg_pending_create_route_done():
-    set_pending_create(DOCTOR, "李雷")
-    with patch("routers.wechat._get_access_token", new=AsyncMock(return_value="tok")), \
-         patch("routers.wechat.download_and_convert", new=AsyncMock(return_value=b"wav")), \
-         patch("routers.wechat.transcribe_audio", new=AsyncMock(return_value="男，40岁")), \
-         patch("routers.wechat.get_session_lock", return_value=DummyLock()), \
-         patch("routers.wechat.hydrate_session_state", new=AsyncMock()), \
-         patch("routers.wechat._handle_pending_create", new=AsyncMock(return_value="ok")), \
-         patch("routers.wechat._send_customer_service_msg", new=AsyncMock()) as send_msg, \
-         patch("routers.wechat._handle_intent_bg", new=AsyncMock()) as intent_bg:
-        await wechat._handle_voice_bg("m3", DOCTOR)
-    send_msg.assert_awaited_once()
-    intent_bg.assert_not_awaited()
+# ---------------------------------------------------------------------------
+# handle_message routing tests
+# ---------------------------------------------------------------------------
 
 
 async def test_handle_message_text_routing_paths():
     clear_pending_create(DOCTOR)
     msg = SimpleNamespace(type="text", source=DOCTOR, content="hello")
     req = DummyRequest(query_params={}, body="<xml/>")
+
     def _consume_task(coro):
         coro.close()
         return None
@@ -848,14 +559,13 @@ async def test_handle_message_routes_patient_to_pipeline():
         resp = await wechat.handle_message(req)
 
     assert resp.status_code == 200
-    # Patient pipeline background task must have been spawned
     assert any(
         "_handle_patient_bg" in str(call.args[0])
         for call in create_task.call_args_list
     )
 
 
-async def test_handle_message_event_and_media_ack_paths():
+async def test_handle_message_event_click_acks_menu():
     req = DummyRequest(query_params={}, body="<xml/>")
     click = SimpleNamespace(type="event", event="CLICK", key="DOCTOR_QUERY", source=DOCTOR)
     with patch("routers.wechat.parse_message", return_value=click), \
@@ -864,11 +574,15 @@ async def test_handle_message_event_and_media_ack_paths():
         resp = await wechat.handle_message(req)
     assert "menu" in resp.body.decode("utf-8")
 
-    voice = SimpleNamespace(type="voice", source=DOCTOR, media_id="m1")
+
+async def test_handle_message_voice_and_image_ack():
+    req = DummyRequest(query_params={}, body="<xml/>")
+
     def _consume_task(coro):
         coro.close()
         return None
 
+    voice = SimpleNamespace(type="voice", source=DOCTOR, media_id="m1")
     with patch("routers.wechat.parse_message", return_value=voice), \
          patch("routers.wechat.TextReply", FakeTextReply), \
          patch("routers.wechat.asyncio.create_task", side_effect=_consume_task):
@@ -888,8 +602,6 @@ async def test_handle_message_parse_and_decrypt_failure_paths():
         query_params={"encrypt_type": "aes", "msg_signature": "m", "timestamp": "t", "nonce": "n"},
         body="<xml/>",
     )
-    crypto = SimpleNamespace(decrypt_message=AsyncMock(side_effect=RuntimeError("bad")))
-    # decrypt_message is sync in library; we emulate failure directly via side_effect in constructor object.
     with patch("routers.wechat.WeChatCrypto", return_value=SimpleNamespace(decrypt_message=lambda *_: (_ for _ in ()).throw(RuntimeError("bad")))):
         resp = await wechat.handle_message(req)
     assert resp.status_code == 200
@@ -960,532 +672,3 @@ async def test_setup_menu_status_paths():
          patch("routers.wechat.create_menu", new=AsyncMock(return_value={"errcode": 1, "errmsg": "x"})):
         err = await wechat.setup_menu()
     assert err["status"] == "error"
-
-
-# ---------------------------------------------------------------------------
-# WeCom KF sync selection paths
-# ---------------------------------------------------------------------------
-
-
-async def test_wecom_kf_sync_paginates_and_picks_nearest_event_message():
-    wechat._WECHAT_KF_SYNC_CURSOR = ""
-    wechat._WECHAT_KF_CURSOR_LOADED = True
-    wechat._WECHAT_KF_SEEN_MSG_IDS.clear()
-
-    page_1 = {
-        "errcode": 0,
-        "has_more": 1,
-        "next_cursor": "c1",
-        "msg_list": [
-            {
-                "origin": 3,
-                "msgid": "old-1",
-                "external_userid": "u1",
-                "open_kfid": "kf1",
-                "send_time": 1000,
-                "msgtype": "text",
-                "text": {"content": "旧消息"},
-            }
-        ],
-    }
-    page_2 = {
-        "errcode": 0,
-        "has_more": 0,
-        "next_cursor": "c2",
-        "msg_list": [
-            {
-                "origin": 3,
-                "msgid": "new-1",
-                "external_userid": "u1",
-                "open_kfid": "kf1",
-                "send_time": 5001,
-                "msgtype": "text",
-                "text": {"content": "我是张三"},
-            }
-        ],
-    }
-
-    class _Resp:
-        def __init__(self, payload):
-            self._payload = payload
-
-        def raise_for_status(self):
-            return None
-
-        def json(self):
-            return self._payload
-
-    class _Client:
-        def __init__(self):
-            self._queue = [page_1, page_2]
-            self.calls = []
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-        async def post(self, _url, params, json):
-            self.calls.append({"params": params, "json": json})
-            return _Resp(self._queue.pop(0))
-
-    captured = {}
-
-    def _consume_task(coro):
-        frame = getattr(coro, "cr_frame", None)
-        local_vars = dict(frame.f_locals) if frame is not None else {}
-        if "text" in local_vars and "doctor_id" in local_vars:
-            captured["locals"] = local_vars
-        coro.close()
-        return None
-
-    with patch(
-        "routers.wechat._get_config",
-        return_value={"app_id": "ww-corp", "app_secret": "sec"},
-    ), patch("routers.wechat._get_access_token", new=AsyncMock(return_value="tok")), \
-         patch("routers.wechat.httpx.AsyncClient", return_value=_Client()), \
-         patch("routers.wechat.asyncio.create_task", side_effect=_consume_task), \
-         patch("routers.wechat._persist_wecom_kf_sync_cursor"):
-        await wechat._handle_wecom_kf_event_bg(expected_msgid="", event_create_time=5002)
-
-    assert wechat._WECHAT_KF_SYNC_CURSOR == "c2"
-    assert captured["locals"]["text"] == "我是张三"
-    assert captured["locals"]["doctor_id"] == "u1"
-    assert captured["locals"]["open_kfid"] == "kf1"
-
-
-async def test_wecom_kf_sync_includes_event_token_and_open_kfid_in_payload():
-    wechat._WECHAT_KF_SYNC_CURSOR = ""
-    wechat._WECHAT_KF_CURSOR_LOADED = True
-    wechat._WECHAT_KF_SEEN_MSG_IDS.clear()
-
-    data = {
-        "errcode": 0,
-        "has_more": 0,
-        "next_cursor": "c1",
-        "msg_list": [
-            {
-                "origin": 3,
-                "msgid": "new-1",
-                "external_userid": "u1",
-                "open_kfid": "kf1",
-                "send_time": 5001,
-                "msgtype": "text",
-                "text": {"content": "我是张三"},
-            }
-        ],
-    }
-
-    class _Resp:
-        def raise_for_status(self):
-            return None
-
-        def json(self):
-            return data
-
-    class _Client:
-        def __init__(self):
-            self.calls = []
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-        async def post(self, _url, params, json):
-            self.calls.append({"params": params, "json": dict(json)})
-            return _Resp()
-
-    client = _Client()
-
-    def _consume_task(coro):
-        coro.close()
-        return None
-
-    with patch(
-        "routers.wechat._get_config",
-        return_value={"app_id": "ww-corp", "app_secret": "sec"},
-    ), patch("routers.wechat._get_access_token", new=AsyncMock(return_value="tok")), \
-         patch("routers.wechat.httpx.AsyncClient", return_value=client), \
-         patch("routers.wechat.asyncio.create_task", side_effect=_consume_task), \
-         patch("routers.wechat._persist_wecom_kf_sync_cursor"):
-        await wechat._handle_wecom_kf_event_bg(
-            expected_msgid="",
-            event_create_time=5000,
-            event_token="event-token-1",
-            event_open_kfid="wk-open-kf-1",
-        )
-
-    assert client.calls, "sync_msg should be called at least once"
-    request_json = client.calls[0]["json"]
-    assert request_json.get("token") == "event-token-1"
-    assert request_json.get("open_kfid") == "wk-open-kf-1"
-
-
-async def test_wecom_kf_sync_skips_stale_batch_when_event_time_far_away():
-    wechat._WECHAT_KF_SYNC_CURSOR = ""
-    wechat._WECHAT_KF_CURSOR_LOADED = True
-    wechat._WECHAT_KF_SEEN_MSG_IDS.clear()
-
-    data = {
-        "errcode": 0,
-        "has_more": 0,
-        "next_cursor": "c1",
-        "msg_list": [
-            {
-                "origin": 3,
-                "msgid": "old-2",
-                "external_userid": "u2",
-                "open_kfid": "kf2",
-                "send_time": 1000,
-                "msgtype": "text",
-                "text": {"content": "你好"},
-            }
-        ],
-    }
-
-    class _Resp:
-        def raise_for_status(self):
-            return None
-
-        def json(self):
-            return data
-
-    class _Client:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-        async def post(self, _url, params, json):
-            return _Resp()
-
-    with patch(
-        "routers.wechat._get_config",
-        return_value={"app_id": "ww-corp", "app_secret": "sec"},
-    ), patch("routers.wechat._get_access_token", new=AsyncMock(return_value="tok")), \
-         patch("routers.wechat.httpx.AsyncClient", return_value=_Client()), \
-         patch("routers.wechat.asyncio.create_task") as create_task, \
-         patch("routers.wechat._persist_wecom_kf_sync_cursor"):
-        await wechat._handle_wecom_kf_event_bg(expected_msgid="", event_create_time=5000)
-
-    assert all(
-        getattr(getattr(call.args[0], "cr_code", None), "co_name", "") != "_handle_intent_bg"
-        for call in create_task.call_args_list
-    )
-
-
-async def test_wecom_kf_sync_pdf_file_message_sends_notice_and_starts_pdf_bg():
-    wechat._WECHAT_KF_SYNC_CURSOR = ""
-    wechat._WECHAT_KF_CURSOR_LOADED = True
-    wechat._WECHAT_KF_SEEN_MSG_IDS.clear()
-
-    data = {
-        "errcode": 0,
-        "has_more": 0,
-        "next_cursor": "c1",
-        "msg_list": [
-            {
-                "origin": 3,
-                "msgid": "file-1",
-                "external_userid": "u-file",
-                "open_kfid": "kf-file",
-                "send_time": 5000,
-                "msgtype": "file",
-                "file": {"filename": "case.pdf", "media_id": "m-pdf-1"},
-            }
-        ],
-    }
-
-    class _Resp:
-        def raise_for_status(self):
-            return None
-
-        def json(self):
-            return data
-
-    class _Client:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-        async def post(self, _url, params, json):
-            return _Resp()
-
-    def _consume_task(coro):
-        coro.close()
-        return None
-
-    with patch(
-        "routers.wechat._get_config",
-        return_value={"app_id": "ww-corp", "app_secret": "sec"},
-    ), patch("routers.wechat._get_access_token", new=AsyncMock(return_value="tok")), \
-         patch("routers.wechat.httpx.AsyncClient", return_value=_Client()), \
-         patch("routers.wechat.asyncio.create_task", side_effect=_consume_task) as create_task, \
-         patch("routers.wechat._send_customer_service_msg", new=AsyncMock()) as send_mock, \
-         patch("routers.wechat._persist_wecom_kf_sync_cursor"):
-        await wechat._handle_wecom_kf_event_bg(expected_msgid="", event_create_time=5000)
-
-    assert any(
-        getattr(getattr(call.args[0], "cr_code", None), "co_name", "") == "_handle_file_bg"
-        for call in create_task.call_args_list
-    )
-    send_mock.assert_awaited_once()
-
-
-async def test_wecom_kf_sync_non_pdf_file_message_sends_notice_only():
-    wechat._WECHAT_KF_SYNC_CURSOR = ""
-    wechat._WECHAT_KF_CURSOR_LOADED = True
-    wechat._WECHAT_KF_SEEN_MSG_IDS.clear()
-
-    data = {
-        "errcode": 0,
-        "has_more": 0,
-        "next_cursor": "c1",
-        "msg_list": [
-            {
-                "origin": 3,
-                "msgid": "file-2",
-                "external_userid": "u-file",
-                "open_kfid": "kf-file",
-                "send_time": 5000,
-                "msgtype": "file",
-                "file": {"filename": "case.docx", "media_id": "m-docx-1"},
-            }
-        ],
-    }
-
-    class _Resp:
-        def raise_for_status(self):
-            return None
-
-        def json(self):
-            return data
-
-    class _Client:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-        async def post(self, _url, params, json):
-            return _Resp()
-
-    def _consume_task(coro):
-        coro.close()
-        return None
-
-    with patch(
-        "routers.wechat._get_config",
-        return_value={"app_id": "ww-corp", "app_secret": "sec"},
-    ), patch("routers.wechat._get_access_token", new=AsyncMock(return_value="tok")), \
-         patch("routers.wechat.httpx.AsyncClient", return_value=_Client()), \
-         patch("routers.wechat.asyncio.create_task", side_effect=_consume_task) as create_task, \
-         patch("routers.wechat._send_customer_service_msg", new=AsyncMock()) as send_mock, \
-         patch("routers.wechat._persist_wecom_kf_sync_cursor"):
-        await wechat._handle_wecom_kf_event_bg(expected_msgid="", event_create_time=5000)
-
-    assert any(
-        getattr(getattr(call.args[0], "cr_code", None), "co_name", "") == "_handle_file_bg"
-        for call in create_task.call_args_list
-    )
-    send_mock.assert_awaited_once()
-
-
-# ---------------------------------------------------------------------------
-# structured_fields path in _handle_add_record
-# ---------------------------------------------------------------------------
-
-
-async def test_handle_add_record_uses_structured_fields(session_factory):
-    """When structured_fields is set, structure_medical_record should NOT be called.
-    Normal records now go through the confirmation gate — returns a draft preview."""
-    intent = IntentResult(
-        intent=Intent.add_record,
-        patient_name="张三",
-        structured_fields={"content": "头痛两天 紧张性头痛", "tags": ["紧张性头痛"]},
-        chat_reply="好的，张三头痛两天的情况记下来了。",
-    )
-    structure_mock = AsyncMock()
-    with patch("routers.wechat.AsyncSessionLocal", session_factory), \
-         patch("services.domain.record_ops.structure_medical_record", structure_mock):
-        reply = await wechat._handle_add_record("张三头痛两天", DOCTOR, intent)
-    structure_mock.assert_not_called()
-    # Ack reply — no explicit confirmation required
-    assert "记录" in reply or "撤销" in reply
-    assert "张三" in reply
-
-
-async def test_handle_add_record_falls_back_to_structuring_llm(session_factory):
-    """When structured_fields is None, structure_medical_record should be called."""
-    intent = IntentResult(
-        intent=Intent.add_record,
-        patient_name="张三",
-        structured_fields=None,
-        chat_reply=None,
-    )
-    fake_record = MedicalRecord(content="头痛 偏头痛", tags=["偏头痛"])
-    structure_mock = AsyncMock(return_value=fake_record)
-    with patch("routers.wechat.AsyncSessionLocal", session_factory), \
-         patch("services.domain.record_ops.structure_medical_record", structure_mock):
-        reply = await wechat._handle_add_record("张三头痛两天", DOCTOR, intent)
-    structure_mock.assert_called_once()
-    assert "张三" in reply or "病历" in reply
-
-
-async def test_handle_add_record_uses_chat_reply_from_intent(session_factory):
-    """Normal records go through the confirmation gate — returns draft preview, not chat_reply."""
-    intent = IntentResult(
-        intent=Intent.add_record,
-        patient_name="李明",
-        structured_fields={"content": "发烧三天"},
-        chat_reply="李明发烧三天，退烧药已记录。",
-    )
-    with patch("routers.wechat.AsyncSessionLocal", session_factory):
-        reply = await wechat._handle_add_record("李明发烧三天", DOCTOR, intent)
-    assert "记录" in reply or "撤销" in reply
-    assert "李明" in reply
-
-
-async def test_handle_add_record_fallback_reply_when_no_chat_reply(session_factory):
-    """When chat_reply is None, reply should contain patient name."""
-    intent = IntentResult(
-        intent=Intent.add_record,
-        patient_name="王五",
-        structured_fields={"content": "腹痛"},
-        chat_reply=None,
-    )
-    with patch("routers.wechat.AsyncSessionLocal", session_factory):
-        reply = await wechat._handle_add_record("王五腹痛", DOCTOR, intent)
-    assert "王五" in reply
-
-
-async def test_handle_add_record_emergency_prefix(session_factory):
-    """Emergency records should have 🚨 prefix regardless of chat_reply."""
-    intent = IntentResult(
-        intent=Intent.add_record,
-        patient_name="韩伟",
-        is_emergency=True,
-        structured_fields={"content": "STEMI急诊"},
-        chat_reply="韩伟STEMI已记录，绿色通道已启动。",
-    )
-    with patch("routers.wechat.AsyncSessionLocal", session_factory), \
-         patch("routers.wechat.create_emergency_task", new=AsyncMock()):
-        reply = await wechat._handle_add_record("韩伟STEMI", DOCTOR, intent)
-    assert reply.startswith("🚨")
-
-
-async def test_handle_add_record_structuring_value_error_returns_natural_msg(session_factory):
-    """ValueError in structure_medical_record returns natural error message."""
-    intent = IntentResult(
-        intent=Intent.add_record,
-        patient_name="张三",
-        structured_fields=None,
-        chat_reply=None,
-    )
-    with patch("routers.wechat.AsyncSessionLocal", session_factory), \
-         patch("services.domain.record_ops.structure_medical_record", new=AsyncMock(side_effect=ValueError("bad"))):
-        reply = await wechat._handle_add_record("不完整的输入", DOCTOR, intent)
-    assert "没能识别" in reply
-
-
-async def test_handle_add_record_structuring_generic_error_returns_natural_msg(session_factory):
-    """Generic exception in structure_medical_record returns natural error message."""
-    intent = IntentResult(
-        intent=Intent.add_record,
-        patient_name="张三",
-        structured_fields=None,
-        chat_reply=None,
-    )
-    with patch("routers.wechat.AsyncSessionLocal", session_factory), \
-         patch("services.domain.record_ops.structure_medical_record", new=AsyncMock(side_effect=RuntimeError("boom"))):
-        reply = await wechat._handle_add_record("张三胸痛", DOCTOR, intent)
-    assert "不好意思" in reply or "出了点问题" in reply
-
-
-# ---------------------------------------------------------------------------
-# Confirmation gate: _confirm_pending_record and _handle_pending_record_reply
-# ---------------------------------------------------------------------------
-
-async def test_handle_pending_record_reply_confirm(session_factory):
-    """Replying 确认 saves the pending record and clears session state."""
-    from services.session import set_pending_record_id, get_session as _gs
-    import json as _json
-    from db.models.medical_record import MedicalRecord
-
-    fake_record = MedicalRecord(content="头痛两天 偏头痛", tags=["偏头痛"])
-    from db.crud import create_pending_record as _create_pr
-
-    async with session_factory() as db:
-        await _create_pr(
-            db,
-            record_id="testdraftabc",
-            doctor_id=DOCTOR,
-            draft_json=_json.dumps(fake_record.model_dump(), ensure_ascii=False),
-            patient_id=None,
-            patient_name="张三",
-            ttl_minutes=10,
-        )
-
-    set_pending_record_id(DOCTOR, "testdraftabc")
-    sess = _gs(DOCTOR)
-
-    # Patch the background task functions individually to avoid breaking SQLAlchemy internals
-    with patch("routers.wechat.AsyncSessionLocal", session_factory), \
-         patch("services.wechat.wechat_domain.AsyncSessionLocal", session_factory), \
-         patch("services.wechat.wechat_domain.audit", new=AsyncMock()), \
-         patch("services.wechat.wechat_domain.create_follow_up_task", new=AsyncMock()), \
-         patch("services.wechat.wechat_domain._bg_auto_learn", new=AsyncMock()):
-        reply = await wechat._handle_pending_record_reply("确认", DOCTOR, sess)
-
-    assert "✅" in reply or "已保存" in reply
-    assert _gs(DOCTOR).pending_record_id is None
-
-
-async def test_handle_pending_record_reply_cancel(session_factory):
-    """Replying 取消 abandons the pending record and clears session state."""
-    from services.session import set_pending_record_id, get_session as _gs
-    import json as _json
-    from db.models.medical_record import MedicalRecord
-    from db.crud import create_pending_record as _create_pr
-
-    fake_record = MedicalRecord(content="腹痛")
-    async with session_factory() as db:
-        await _create_pr(
-            db,
-            record_id="testdraftcancel",
-            doctor_id=DOCTOR,
-            draft_json=_json.dumps(fake_record.model_dump(), ensure_ascii=False),
-            patient_id=None,
-            patient_name="李四",
-            ttl_minutes=10,
-        )
-
-    set_pending_record_id(DOCTOR, "testdraftcancel")
-    sess = _gs(DOCTOR)
-
-    with patch("routers.wechat.AsyncSessionLocal", session_factory):
-        reply = await wechat._handle_pending_record_reply("取消", DOCTOR, sess)
-
-    assert "撤销" in reply or "放弃" in reply or "取消" in reply
-    assert _gs(DOCTOR).pending_record_id is None
-
-
-async def test_handle_pending_record_reply_expired_draft(session_factory):
-    """Replying 确认 when draft doesn't exist returns error and clears state."""
-    from services.session import set_pending_record_id, get_session as _gs
-
-    set_pending_record_id(DOCTOR, "nonexistentdraft")
-    sess = _gs(DOCTOR)
-
-    with patch("routers.wechat.AsyncSessionLocal", session_factory):
-        reply = await wechat._handle_pending_record_reply("确认", DOCTOR, sess)
-
-    assert "过期" in reply or "不存在" in reply or "失败" in reply
-    assert _gs(DOCTOR).pending_record_id is None

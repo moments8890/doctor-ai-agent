@@ -1,3 +1,5 @@
+"""运行时 JSON 配置测试：验证腾讯 LKE-AP 提供商的配置允许值及默认值是否正确注册。"""
+
 from __future__ import annotations
 
 from utils.runtime_config import CONFIG_ALLOWED_VALUES, DEFAULT_RUNTIME_CONFIG

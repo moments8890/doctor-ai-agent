@@ -53,6 +53,19 @@ from utils.text_parsing import (
 )
 from utils.log import log
 
+# Re-export from sub-modules for backward compatibility
+from services.wechat.wechat_export import (
+    handle_export_records,
+    handle_export_outpatient_report,
+)
+from services.wechat.wechat_import import (
+    handle_import_history,
+    _chunk_history_text,
+    _preprocess_import_text,
+    _format_import_preview,
+    _mark_duplicates,
+)
+
 
 def _t(s: str | None, n: int = 30) -> str:
     """Truncate string for mobile display."""
@@ -118,104 +131,144 @@ async def handle_create_patient(doctor_id: str, intent_result: IntentResult) -> 
     return f"✅ 已为患者【{name}】建档{gender_str}{age_str}。\n后续病历自动关联。"
 
 
+
+async def _resolve_add_record_patient(doctor_id, intent_result):
+    """Resolve patient for add_record. Returns (patient_id, patient_name, new_patient_created)."""
+    _sess_check = get_session(doctor_id)
+    if (intent_result.patient_name and _sess_check.current_patient_name
+            and intent_result.patient_name == _sess_check.current_patient_name
+            and _sess_check.current_patient_id is not None):
+        pid = _sess_check.current_patient_id
+        pname = _sess_check.current_patient_name
+        set_current_patient(doctor_id, pid, pname)
+        return pid, pname, False
+    if intent_result.patient_name:
+        async with AsyncSessionLocal() as session:
+            patient = await find_patient_by_name(session, doctor_id, intent_result.patient_name)
+            if patient:
+                set_current_patient(doctor_id, patient.id, patient.name)
+                return patient.id, patient.name, False
+            patient = await create_patient(
+                session, doctor_id, intent_result.patient_name,
+                intent_result.gender, intent_result.age,
+            )
+            set_current_patient(doctor_id, patient.id, patient.name)
+            log(f"[WeChat] auto-created patient [{patient.name}] id={patient.id}")
+            return patient.id, patient.name, True
+    sess = get_session(doctor_id)
+    return sess.current_patient_id, sess.current_patient_name, False
+
+
+async def _build_record_from_text(text, history, doctor_id, patient_id):
+    """Structure a medical record from doctor text + conversation history."""
+    from services.patient.prior_visit import get_prior_visit_summary as _get_pvs
+    _CMD = ("患者列表", "所有患者", "删除", "建档", "查", "待办", "今天任务", "PDF")
+    ctx = [
+        m["content"] for m in (history or [])[-6:] if m["role"] == "user"
+        and len(m["content"]) >= 15 and not any(m["content"].startswith(p) for p in _CMD)
+    ]
+    ctx.append(text)
+
+    async def _detect_enc():
+        async with AsyncSessionLocal() as _s:
+            return await detect_encounter_type(_s, doctor_id, patient_id, text)
+
+    if patient_id is not None:
+        async def _get_prior():
+            try:
+                return await _get_pvs(doctor_id, patient_id)
+            except Exception:
+                return None
+        _enc, _prior = await asyncio.gather(_detect_enc(), _get_prior())
+    else:
+        _enc = await _detect_enc()
+        _prior = None
+
+    _prior_summary = None
+    if _prior and _enc == "follow_up":
+        safe = [l for l in _prior.strip().splitlines()
+                if not any(l.lstrip().startswith(k) for k in ("忽略", "SYSTEM", "system", "#", "---"))]
+        _prior_summary = f"\n<prior_summary>\n{'\n'.join(safe)[:500]}\n</prior_summary>\n"
+    return await structure_medical_record("\n".join(ctx), encounter_type=_enc, prior_visit_summary=_prior_summary)
+
+
+async def _save_emergency_record(doctor_id, record, patient_id, patient_name, text, intent_result):
+    """紧急病历直接保存，不经于确认门。"""
+    log(
+        f"[silent-save] emergency record saved WITHOUT confirmation "
+        f"doctor={doctor_id} patient={patient_name!r} patient_id={patient_id}"
+    )
+    async with AsyncSessionLocal() as session:
+        db_record = await save_record(session, doctor_id, record, patient_id)
+    asyncio.create_task(audit(doctor_id, "WRITE", resource_type="record", resource_id=str(patient_id)))
+    asyncio.create_task(create_emergency_task(
+        doctor_id, db_record.id, patient_name or "未关联患者", None, patient_id
+    ))
+    asyncio.create_task(_bg_auto_learn(doctor_id, text, record))
+    reply = intent_result.chat_reply or (
+        f"{patient_name}的病历已记录。" if patient_name else "病历已保存。"
+    )
+    return "🚨 " + reply
+
+
+async def _save_draft_and_preview(doctor_id, record, patient_id, patient_name, intent_result):
+    """将病历保存为待确认草稿并返回预览消息。"""
+    cvd_raw = intent_result.extra_data.get("cvd_context")
+    draft_data = record.model_dump()
+    if cvd_raw:
+        draft_data["cvd_context"] = cvd_raw
+    draft_id = uuid.uuid4().hex
+    async with AsyncSessionLocal() as session:
+        await create_pending_record(
+            session, record_id=draft_id, doctor_id=doctor_id,
+            draft_json=json.dumps(draft_data, ensure_ascii=False),
+            patient_id=patient_id, patient_name=patient_name, ttl_minutes=_DRAFT_TTL_MINUTES,
+        )
+    set_pending_record_id(doctor_id, draft_id)
+    preview = format_draft_preview(record, patient_name)
+    if cvd_raw:
+        footer = "\n\n「撤销」可取消"
+        try:
+            from services.patient.prior_visit import _format_cvd_summary as _fmt_cvd
+            cvd_str = _fmt_cvd(json.dumps(cvd_raw, ensure_ascii=False), None) or ""
+        except Exception:
+            cvd_str = ""
+        if cvd_str:
+            cvd_line = "\n" + cvd_str
+            preview = (preview[:-len(footer)] + cvd_line + footer) if preview.endswith(footer) else preview + cvd_line
+    return preview
+
+
 async def handle_add_record(
     text: str,
     doctor_id: str,
     intent_result: IntentResult,
     history: Optional[List[Dict[str, str]]] = None,
 ) -> str:
-    """Structure a medical record and save it as a pending draft for doctor confirmation."""
+    """将病历结构化并保存为待确认草稿。"""
     from db.models.medical_record import MedicalRecord
 
-    patient_id = None
-    patient_name = None
-    new_patient_created = False
-    # Fast path: if the requested patient name matches the in-session current patient, skip DB lookup.
-    # Perform a lightweight DB fetch to confirm the name hasn't changed (e.g. renamed on another device).
-    _sess_check = get_session(doctor_id)
-    if (intent_result.patient_name and _sess_check.current_patient_name
-            and intent_result.patient_name == _sess_check.current_patient_name
-            and _sess_check.current_patient_id is not None):
-        patient_id = _sess_check.current_patient_id
-        patient_name = _sess_check.current_patient_name
-        set_current_patient(doctor_id, patient_id, patient_name)
-
-    if patient_id is None:  # not resolved by fast path above
-        async with AsyncSessionLocal() as session:
-            if intent_result.patient_name:
-                patient = await find_patient_by_name(session, doctor_id, intent_result.patient_name)
-                if patient:
-                    patient_id = patient.id
-                    patient_name = patient.name
-                    set_current_patient(doctor_id, patient.id, patient.name)
-                else:
-                    patient = await create_patient(
-                        session, doctor_id, intent_result.patient_name, intent_result.gender, intent_result.age
-                    )
-                    patient_id = patient.id
-                    patient_name = patient.name
-                    new_patient_created = True
-                    set_current_patient(doctor_id, patient.id, patient.name)
-                    log(f"[WeChat] auto-created patient [{patient_name}] id={patient_id}")
-
-            if patient_id is None:
-                sess = get_session(doctor_id)
-                patient_id = sess.current_patient_id
-                patient_name = sess.current_patient_name
-
+    patient_id, patient_name, new_patient_created = await _resolve_add_record_patient(
+        doctor_id, intent_result
+    )
     if new_patient_created:
-        asyncio.create_task(audit(doctor_id, "WRITE", resource_type="patient", resource_id=str(patient_id)))
+        asyncio.create_task(
+            audit(doctor_id, "WRITE", resource_type="patient", resource_id=str(patient_id))
+        )
 
-    # Structure the record
     if intent_result.structured_fields:
         fields = dict(intent_result.structured_fields)
         content_text = (fields.get("content") or text).strip() or "门诊就诊"
         record = MedicalRecord(content=content_text, record_type="dictation")
     else:
         try:
-            # Only include history turns that look like clinical dictation (≥15 chars),
-            # not short command messages like "患者列表", "删除 张三", "今天任务".
-            _CMD_PREFIXES = ("患者列表", "所有患者", "删除", "建档", "查", "待办", "今天任务", "PDF")
-            doctor_ctx = [
-                m["content"] for m in (history or [])[-6:] if m["role"] == "user"
-                and len(m["content"]) >= 15
-                and not any(m["content"].startswith(p) for p in _CMD_PREFIXES)
-            ]
-            doctor_ctx.append(text)
-            from services.patient.prior_visit import get_prior_visit_summary as _get_pvs
-            async def _detect_enc():
-                async with AsyncSessionLocal() as _enc_sess:
-                    return await detect_encounter_type(_enc_sess, doctor_id, patient_id, text)
-            if patient_id is not None:
-                async def _get_prior():
-                    try:
-                        return await _get_pvs(doctor_id, patient_id)
-                    except Exception:
-                        return None
-                _enc_type, _prior_summary_maybe = await asyncio.gather(_detect_enc(), _get_prior())
-            else:
-                _enc_type = await _detect_enc()
-                _prior_summary_maybe = None
-            _raw_summary: Optional[str] = _prior_summary_maybe if _enc_type == "follow_up" else None
-            if _raw_summary:
-                _safe_lines = [line for line in _raw_summary.strip().splitlines()
-                    if not any(line.lstrip().startswith(kw) for kw in ("忽略", "SYSTEM", "system", "System", "#", "---"))]
-                _safe_summary = "\n".join(_safe_lines)[:500]
-                _prior_summary: Optional[str] = f"\n<prior_summary>\n{_safe_summary}\n</prior_summary>\n"
-            else:
-                _prior_summary = None
-            record = await structure_medical_record(
-                "\n".join(doctor_ctx),
-                encounter_type=_enc_type,
-                prior_visit_summary=_prior_summary,
-            )
+            record = await _build_record_from_text(text, history, doctor_id, patient_id)
         except ValueError:
             return "没能识别病历内容，请重新描述一下。"
         except Exception as e:
             log(f"[WeChat] structuring FAILED: {e}")
             return "不好意思，刚才出了点问题，能再说一遍吗？"
 
-    # Specialty score extraction — fast keyword check then LLM if needed
     if detect_score_keywords(text):
         try:
             record.specialty_scores = await extract_specialty_scores(record.content or text)
@@ -224,111 +277,94 @@ async def handle_add_record(
         except Exception as exc:
             log(f"[WeChat] score extraction failed (non-fatal): {exc}")
 
-    # Emergency records skip the confirmation gate — saved immediately
     if intent_result.is_emergency:
-        log(f"[silent-save] emergency record saved WITHOUT confirmation doctor={doctor_id} patient={patient_name!r} patient_id={patient_id}")
-        async with AsyncSessionLocal() as session:
-            db_record = await save_record(session, doctor_id, record, patient_id)
-        asyncio.create_task(audit(doctor_id, "WRITE", resource_type="record", resource_id=str(patient_id)))
-        asyncio.create_task(create_emergency_task(
-            doctor_id, db_record.id, patient_name or "未关联患者", None, patient_id
-        ))
-        asyncio.create_task(_bg_auto_learn(doctor_id, text, record))
-        reply = intent_result.chat_reply or (f"{patient_name}的病历已记录。" if patient_name else "病历已保存。")
-        return "🚨 " + reply
-
-    # Embed CVD structured context in draft if agent extracted it (add_cvd_record tool)
-    cvd_raw: Optional[dict] = intent_result.extra_data.get("cvd_context")
-    draft_data = record.model_dump()
-    if cvd_raw:
-        draft_data["cvd_context"] = cvd_raw
-
-    # Save as pending draft — doctor must confirm before it hits medical_records
-    draft_id = uuid.uuid4().hex
-    async with AsyncSessionLocal() as session:
-        await create_pending_record(
-            session,
-            record_id=draft_id,
-            doctor_id=doctor_id,
-            draft_json=json.dumps(draft_data, ensure_ascii=False),
-            patient_id=patient_id,
-            patient_name=patient_name,
-            ttl_minutes=_DRAFT_TTL_MINUTES,
+        return await _save_emergency_record(
+            doctor_id, record, patient_id, patient_name, text, intent_result
         )
-    set_pending_record_id(doctor_id, draft_id)
-
-    preview = format_draft_preview(record, patient_name)
-    if cvd_raw:
-        footer = "\n\n「撤销」可取消"
-        cvd_line = "\n" + _format_cvd_summary(cvd_raw)
-        if preview.endswith(footer):
-            preview = preview[: -len(footer)] + cvd_line + footer
-        else:
-            preview += cvd_line
-    return preview
+    return await _save_draft_and_preview(doctor_id, record, patient_id, patient_name, intent_result)
 
 
-async def save_pending_record(doctor_id: str, pending: Any) -> Optional[tuple]:
-    """Parse a PendingRecord draft and save it to medical_records.
-
-    Returns (patient_name, record_id) on success, None on failure.
-    Side effects: fires audit, follow-up task, and auto-learn as background tasks.
-    Does NOT touch session state — caller is responsible for clear_pending_record_id.
-    """
+async def _parse_pending_draft(pending, doctor_id):
+    """解析草稿 JSON，返回 (record, cvd_raw) 或 None。"""
     from db.models.medical_record import MedicalRecord
-    from db.models.neuro_case import NeuroCVDSurgicalContext
     try:
         draft = json.loads(pending.draft_json)
         cvd_raw = draft.pop("cvd_context", None)
         record = MedicalRecord(**{k: draft.get(k) for k in MedicalRecord.model_fields})
+        return record, cvd_raw
     except Exception as e:
         log(f"[PendingRecord] parse draft FAILED doctor={doctor_id} id={pending.id}: {e}")
         return None
+
+
+async def _persist_pending_record(pending, record, cvd_raw, doctor_id):
+    """将记录、分数、CVD上下文入库并确认草稿。返回 db_record 或 None。"""
+    from db.models.neuro_case import NeuroCVDSurgicalContext
     try:
         async with AsyncSessionLocal() as session:
             db_record = await save_record(session, doctor_id, record, pending.patient_id)
             if record.specialty_scores:
                 from db.crud.scores import save_specialty_scores
                 await save_specialty_scores(session, db_record.id, doctor_id, record.specialty_scores)
-            # Save CVD context directly if agent already extracted it (skip background task)
             if cvd_raw:
                 try:
                     from db.crud.specialty import save_cvd_context
                     cvd_ctx = NeuroCVDSurgicalContext.model_validate(cvd_raw)
                     if cvd_ctx.has_data():
-                        await save_cvd_context(session, doctor_id, pending.patient_id, db_record.id, cvd_ctx, source="chat")
+                        await save_cvd_context(
+                            session, doctor_id, pending.patient_id, db_record.id, cvd_ctx, source="chat"
+                        )
                         log(f"[CVD] context saved inline for record={db_record.id}")
                 except Exception as exc:
                     log(f"[CVD] inline save failed (non-fatal): {exc}")
             await confirm_pending_record(session, pending.id, doctor_id=doctor_id)
+        return db_record
     except Exception as e:
         log(f"[PendingRecord] save FAILED doctor={doctor_id} id={pending.id}: {e}")
         return None
-    patient_name = pending.patient_name or "未关联患者"
-    record_id = db_record.id
+
+
+def _fire_post_save_tasks(doctor_id, record, record_id, patient_name, pending, cvd_raw):
+    """将保存后的后台任务（审计、随访、自学习等）全部触发。"""
     asyncio.create_task(audit(doctor_id, "WRITE", resource_type="record", resource_id=str(record_id)))
     _follow_up_hint = next(
         (t for t in record.tags if "随访" in t or "复诊" in t), None
-    ) or (("随访" in record.content or "复诊" in record.content) and record.content) or None
+    ) or (("随访" in (record.content or "") or "复诊" in (record.content or "")) and record.content) or None
     if _follow_up_hint:
         asyncio.create_task(create_follow_up_task(
             doctor_id, record_id, patient_name, str(_follow_up_hint), pending.patient_id
         ))
-    # Auto-create specialist tasks from record content (lab, referral, imaging, medication)
-    _content_for_rules = record.content or ""
-    if _content_for_rules:
+    content = record.content or ""
+    if content:
         asyncio.create_task(_bg_auto_tasks(
-            doctor_id, record_id, patient_name, pending.patient_id, _content_for_rules
+            doctor_id, record_id, patient_name, pending.patient_id, content
         ))
-    _raw_input = getattr(pending, "raw_input", None) or record.content or ""
-    asyncio.create_task(_bg_auto_learn(doctor_id, _raw_input, record))
-    # CVD background extraction only as fallback when agent did not extract structured fields
-    if not cvd_raw and _detect_cvd_keywords(_raw_input):
+    raw_input = getattr(pending, "raw_input", None) or record.content or ""
+    asyncio.create_task(_bg_auto_learn(doctor_id, raw_input, record))
+    if not cvd_raw and _detect_cvd_keywords(raw_input):
         asyncio.create_task(_bg_extract_cvd_context(
             doctor_id, record_id, pending.patient_id, record.content or ""
         ))
-    return patient_name, record_id
 
+
+async def save_pending_record(doctor_id: str, pending: Any) -> Optional[tuple]:
+    """解析 PendingRecord 并保存到 medical_records。
+
+    成功返回 (patient_name, record_id)，失败返回 None。
+    副作用：触发审计、随访任务和自学习后台任务。
+    不更改会话状态——调用方负责清除 pending_record_id。
+    """
+    parsed = await _parse_pending_draft(pending, doctor_id)
+    if parsed is None:
+        return None
+    record, cvd_raw = parsed
+    db_record = await _persist_pending_record(pending, record, cvd_raw, doctor_id)
+    if db_record is None:
+        return None
+    patient_name = pending.patient_name or "未关联患者"
+    record_id = db_record.id
+    _fire_post_save_tasks(doctor_id, record, record_id, patient_name, pending, cvd_raw)
+    return patient_name, record_id
 
 async def handle_cvd_scale_reply(text: str, doctor_id: str) -> str:
     """Handle doctor reply to a pending CVD scale question."""
@@ -358,80 +394,13 @@ async def handle_cvd_scale_reply(text: str, doctor_id: str) -> str:
         return "已收到量表评分（保存失败，请稍后补录）。"
 
 
-_CVD_KEYWORDS = frozenset({
-    "动脉瘤", "蛛网膜下腔", "脑出血", "颅内出血", "ICH", "SAH",
-    "Hunt", "Fisher", "AVM", "动静脉畸形", "Spetzler", "开颅",
-    "夹闭", "栓塞", "介入", "GCS", "格拉斯哥",
-})
-
-
-def _detect_cvd_keywords(text: str) -> bool:
-    return any(kw in text for kw in _CVD_KEYWORDS)
-
-
-async def _bg_extract_cvd_context(
-    doctor_id: str,
-    record_id: int,
-    patient_id: Optional[int],
-    content: str,
-) -> None:
-    """Background: run neuro CVD LLM extraction and save to neuro_cvd_context."""
-    try:
-        from services.ai.neuro_structuring import extract_neuro_case
-        from db.crud.specialty import save_cvd_context
-        _, __, cvd_ctx = await extract_neuro_case(content)
-        if cvd_ctx and cvd_ctx.has_data():
-            async with AsyncSessionLocal() as session:
-                await save_cvd_context(session, doctor_id, patient_id, record_id, cvd_ctx, source="chat")
-            log(f"[CVD] context saved for record={record_id}")
-    except Exception as exc:
-        log(f"[CVD] extraction failed (non-fatal) record={record_id}: {exc}")
-
-
-async def _bg_auto_tasks(
-    doctor_id: str,
-    record_id: int,
-    patient_name: str,
-    patient_id: Optional[int],
-    content: str,
-) -> None:
-    """Background: detect task signals in record content and create tasks."""
-    from services.notify.task_rules import detect_auto_tasks, refine_due_days
-    from services.notify.tasks import create_task as _create_task
-    from datetime import timedelta, timezone
-
-    specs = detect_auto_tasks(content, patient_name)
-    for spec in specs:
-        try:
-            due_days = refine_due_days(content, spec.due_days)
-            due_at = datetime.now(timezone.utc) + timedelta(days=due_days)
-            async with AsyncSessionLocal() as session:
-                await _create_task(
-                    session,
-                    doctor_id=doctor_id,
-                    task_type=spec.task_type,
-                    title=spec.title,
-                    content=spec.content,
-                    patient_id=patient_id,
-                    record_id=record_id,
-                    due_at=due_at,
-                )
-            log(f"[TaskRules] auto-created {spec.task_type} task for {patient_name} in {due_days}d")
-        except Exception as exc:
-            log(f"[TaskRules] failed to create {spec.task_type} task: {exc}")
-
-
-async def _bg_auto_learn(doctor_id: str, text: str, record: Any) -> None:
-    """Run knowledge auto-learning in the background (non-blocking)."""
-    try:
-        async with AsyncSessionLocal() as session:
-            await maybe_auto_learn_knowledge(
-                session, doctor_id, text,
-                structured_fields=record.model_dump(exclude_none=True),
-            )
-    except Exception as e:
-        log(f"[WeChat] bg auto-learn FAILED doctor={doctor_id}: {e}")
-
+# CVD detection and background helpers (imported from wechat_bg for modularity)
+from services.wechat.wechat_bg import (
+    detect_cvd_keywords as _detect_cvd_keywords,
+    bg_extract_cvd_context as _bg_extract_cvd_context,
+    bg_auto_tasks as _bg_auto_tasks,
+    bg_auto_learn as _bg_auto_learn,
+)
 
 async def handle_query_records(doctor_id: str, intent_result: IntentResult) -> str:
     patient_id = None
@@ -643,166 +612,6 @@ async def handle_pending_create(text: str, doctor_id: str) -> str:
     return f"好的，{name}已建档{info}。"
 
 
-async def _fetch_patient_and_records(
-    session,
-    doctor_id: str,
-    intent_result: IntentResult,
-    limit: int = 200,
-):
-    """Shared helper: resolve patient from intent or session, fetch records."""
-    from sqlalchemy import select
-    from db.models import MedicalRecordDB
-
-    patient_id = None
-    patient_name = None
-    patient_obj = None
-
-    if intent_result.patient_name:
-        patient_obj = await find_patient_by_name(session, doctor_id, intent_result.patient_name)
-        if patient_obj:
-            patient_id = patient_obj.id
-            patient_name = patient_obj.name
-
-    if patient_id is None:
-        sess = get_session(doctor_id)
-        patient_id = sess.current_patient_id
-        patient_name = sess.current_patient_name
-
-    records = []
-    if patient_id is not None:
-        result = await session.execute(
-            select(MedicalRecordDB)
-            .where(
-                MedicalRecordDB.patient_id == patient_id,
-                MedicalRecordDB.doctor_id == doctor_id,
-            )
-            .order_by(MedicalRecordDB.created_at.asc())
-            .limit(limit)
-        )
-        records = list(result.scalars().all())
-
-    return patient_id, patient_name, patient_obj, records
-
-
-async def handle_export_records(doctor_id: str, intent_result: IntentResult) -> str:
-    """Generate a PDF of patient records and send via WeCom file message.
-
-    Falls back to formatted text summary if PDF upload is not available,
-    with an explicit warning so the doctor knows the PDF was not sent.
-    """
-    async with AsyncSessionLocal() as session:
-        patient_id, patient_name, _patient, records = await _fetch_patient_and_records(
-            session, doctor_id, intent_result
-        )
-        # Fetch CVD specialty context for this patient (may be None)
-        cvd_ctx = None
-        if patient_id:
-            from db.crud.specialty import get_cvd_context_for_patient
-            cvd_ctx = await get_cvd_context_for_patient(session, doctor_id, patient_id)
-
-    if patient_id is None:
-        return "❓ 请先告知患者姓名，例如：「导出张三的病历」"
-
-    if not records:
-        return f"📂 患者【{patient_name}】暂无历史记录，无法导出。"
-
-    asyncio.create_task(
-        audit(doctor_id, "EXPORT", resource_type="patient", resource_id=str(patient_id))
-    )
-
-    # Attempt PDF generation + WeCom file upload
-    pdf_error: str | None = None
-    try:
-        from services.export.pdf_export import generate_records_pdf
-        pdf_bytes = generate_records_pdf(records=records, patient_name=patient_name, cvd_context=cvd_ctx)
-
-        from services.wechat.wechat_notify import upload_temp_media, send_file_message
-        filename = f"病历_{patient_id}.pdf"
-        media_id = await upload_temp_media(pdf_bytes, filename)
-        await send_file_message(doctor_id, media_id)
-        return f"📄 【{patient_name}】共 {len(records)} 条记录的病历 PDF 已发送。"
-    except Exception as exc:
-        pdf_error = str(exc)
-        log(f"[WeChat] export PDF via WeCom file failed ({exc}), falling back to text")
-
-    # Fallback: formatted text summary — warn doctor that PDF delivery failed
-    lines = [
-        "⚠️ 病历 PDF 发送失败，以下为文字摘要：",
-        f"📄 【{patient_name}】病历摘要（共 {len(records)} 条）\n",
-    ]
-    if cvd_ctx and cvd_ctx.raw_json:
-        lines.append(_format_cvd_summary(json.loads(cvd_ctx.raw_json)))
-    for r in records[:10]:
-        date_str = r.created_at.strftime("%Y-%m-%d") if r.created_at else "?"
-        snippet = _t(r.content or "—", 60)
-        lines.append(f"▪ {date_str}\n{snippet}")
-    if len(records) > 10:
-        lines.append(f"\n… 还有 {len(records) - 10} 条记录，可在管理后台导出完整 PDF。")
-    return "\n".join(lines)
-
-
-async def handle_export_outpatient_report(doctor_id: str, intent_result: IntentResult) -> str:
-    """Generate a 卫生部 2010 标准门诊病历 PDF and send via WeCom file message.
-
-    Uses LLM to extract structured fields from all records.
-    Falls back to a text explanation if PDF generation or upload fails.
-    """
-    async with AsyncSessionLocal() as session:
-        patient_id, patient_name, patient_obj, records = await _fetch_patient_and_records(
-            session, doctor_id, intent_result
-        )
-
-    if patient_id is None:
-        return "❓ 请先告知患者姓名，例如：「生成张三的标准门诊病历」"
-
-    if not records:
-        return f"📂 患者【{patient_name}】暂无历史记录，无法生成门诊病历。"
-
-    asyncio.create_task(
-        audit(doctor_id, "EXPORT", resource_type="outpatient_report", resource_id=str(patient_id))
-    )
-
-    from services.export.outpatient_report import ExtractionError, extract_outpatient_fields
-    from services.export.pdf_export import generate_outpatient_report_pdf
-
-    try:
-        fields = await extract_outpatient_fields(records, patient_obj, doctor_id=doctor_id)
-    except ExtractionError as exc:
-        log(f"[WeChat] outpatient report LLM extraction failed: {exc}")
-        return "⚠️ AI 字段提取失败，暂时无法生成门诊病历 PDF，请稍后重试。"
-
-    # Build patient info line
-    info_parts: list[str] = []
-    if patient_obj and getattr(patient_obj, "gender", None):
-        info_parts.append(patient_obj.gender)
-    if patient_obj and getattr(patient_obj, "year_of_birth", None):
-        from datetime import date
-        age = date.today().year - int(patient_obj.year_of_birth)
-        info_parts.append(f"{age}岁")
-    patient_info = "  ".join(info_parts) if info_parts else None
-
-    try:
-        pdf_bytes = generate_outpatient_report_pdf(
-            fields=fields,
-            patient_name=patient_name,
-            patient_info=patient_info,
-        )
-        from services.wechat.wechat_notify import upload_temp_media, send_file_message
-        filename = f"门诊病历_{patient_id}.pdf"
-        media_id = await upload_temp_media(pdf_bytes, filename)
-        await send_file_message(doctor_id, media_id)
-        filled = sum(1 for v in fields.values() if v)
-        return f"📋 【{patient_name}】卫生部 2010 标准门诊病历已发送（已填写 {filled}/10 项）。"
-    except Exception as exc:
-        log(f"[WeChat] outpatient report PDF/upload failed: {exc}")
-        return (
-            f"⚠️ 门诊病历 PDF 发送失败（{exc}）。\n"
-            f"初步诊断：{fields.get('diagnosis') or '—'}\n"
-            f"治疗方案：{fields.get('treatment') or '—'}\n"
-            f"请在管理后台导出完整 PDF。"
-        )
-
-
 async def handle_list_tasks(doctor_id: str) -> str:
     async with AsyncSessionLocal() as session:
         tasks = await list_tasks(session, doctor_id, status="pending")
@@ -931,6 +740,35 @@ _CLINICAL_KEYS_ZH = {
 }
 
 
+async def _restructure_and_save_record(
+    doctor_id: str,
+    patient_id: int,
+    patient_name: str,
+    existing_content: str,
+    fields: dict,
+) -> str:
+    """Re-structure the record with the given field corrections and save it."""
+    correction_lines = "\n".join(
+        f"{_CLINICAL_KEYS_ZH.get(k, k)}：{v}" for k, v in fields.items() if v
+    )
+    correction_text = (
+        f"原有病历：\n{existing_content}\n\n"
+        f"更正以下字段（以更正内容为准）：\n{correction_lines}"
+    )
+    try:
+        new_record = await structure_medical_record(correction_text)
+    except Exception as e:
+        log(f"[WeChat] update_record re-structure FAILED doctor={doctor_id}: {e}")
+        return "⚠️ 病历更正失败，请稍后重试。"
+    async with AsyncSessionLocal() as session:
+        await update_latest_record_for_patient(
+            session, doctor_id, patient_id,
+            {"content": new_record.content, "tags": new_record.tags},
+        )
+    updated_labels = "、".join(_CLINICAL_KEYS_ZH.get(k, k) for k in fields)
+    return f"✅ 已更正患者【{patient_name}】最近一条病历\n更新字段：{updated_labels}"
+
+
 async def handle_update_record(doctor_id: str, intent_result: IntentResult) -> str:
     """Re-structure the most recent record with the corrected fields applied."""
     patient_name = (intent_result.patient_name or "").strip()
@@ -939,518 +777,20 @@ async def handle_update_record(doctor_id: str, intent_result: IntentResult) -> s
         patient_name = sess.current_patient_name
     if not patient_name:
         return "⚠️ 未能识别患者姓名，请说明要更正哪位患者的病历。"
-
     fields = intent_result.structured_fields or {}
     if not fields:
         return "⚠️ 未能识别需要更正的字段内容，请重新描述。"
-
-    # Fetch existing record
     async with AsyncSessionLocal() as session:
         patient = await find_patient_by_name(session, doctor_id, patient_name)
         if patient is None:
             return f"⚠️ 未找到患者【{patient_name}】，请确认姓名后重试。"
         existing = await update_latest_record_for_patient(session, doctor_id, patient.id, {})
-
     if existing is None:
         return f"⚠️ 患者【{patient_name}】暂无病历记录，无法更正。"
-
-    # Build a correction text and re-structure so the free-text content stays coherent
-    correction_lines = "\n".join(
-        f"{_CLINICAL_KEYS_ZH.get(k, k)}：{v}" for k, v in fields.items() if v
+    return await _restructure_and_save_record(
+        doctor_id, patient.id, patient_name, existing.content or "", fields
     )
-    correction_text = (
-        f"原有病历：\n{existing.content or ''}\n\n"
-        f"更正以下字段（以更正内容为准）：\n{correction_lines}"
-    )
-    try:
-        new_record = await structure_medical_record(correction_text)
-    except Exception as e:
-        log(f"[WeChat] update_record re-structure FAILED doctor={doctor_id}: {e}")
-        return "⚠️ 病历更正失败，请稍后重试。"
 
-    async with AsyncSessionLocal() as session:
-        await update_latest_record_for_patient(
-            session, doctor_id, patient.id,
-            {"content": new_record.content, "tags": new_record.tags},
-        )
 
-    updated_labels = "、".join(_CLINICAL_KEYS_ZH.get(k, k) for k in fields)
-    return f"✅ 已更正患者【{patient_name}】最近一条病历\n更新字段：{updated_labels}"
-
-
-# ── History import helpers ────────────────────────────────────────────────────
-
-import re as _re
-
-_VISIT_BOUNDARY_RE = _re.compile(
-    r"(?:^|\n)(?="
-    r"\d{4}[-/年]\d{1,2}[-/月]\d{1,2}"   # 2023-11-01 / 2023年11月1日
-    r"|第\d+次|初诊|复诊|【\d{4}"          # 第1次/初诊/复诊/【2023
-    r")",
-    _re.MULTILINE,
-)
-
-_DATE_IN_TEXT_RE = _re.compile(r"\d{4}[-/年]\d{1,2}[-/月]\d{1,2}")
-
-
-_CHAT_EXPORT_HEADER_RE = _re.compile(
-    r"^\d{4}[-/]\d{1,2}[-/]\d{1,2}\s+\d{1,2}:\d{2}(:\d{2})?\s+\S",
-    _re.MULTILINE,
-)
-
-
-def _looks_like_chat_export(text: str) -> bool:
-    """Heuristic: does the text look like a WeChat chat export?"""
-    return bool(_CHAT_EXPORT_HEADER_RE.search(text[:2000]))
-
-
-def _preprocess_import_text(
-    text: str,
-    source: str,
-    sender_filter: str | None = None,
-) -> str:
-    """Strip media prefixes and clean WeChat chat export formatting."""
-    # Strip [PDF:filename] / [Word:filename] / [Image:ocr] prefix
-    text = _re.sub(r"^\[(PDF|Word|Image):[^\]]*\]\s*", "", text, flags=_re.IGNORECASE)
-    if source == "chat_export" or _looks_like_chat_export(text):
-        from services.wechat.wechat_media_pipeline import preprocess_wechat_chat_export
-        text = preprocess_wechat_chat_export(text, sender_filter=sender_filter)
-    elif _looks_like_structured_report(text):
-        text = _preprocess_exam_report(text)
-    return text.strip()
-
-
-# Sections in 体检报告 that contain the clinically actionable summary.
-# Must appear at the START of a line (with optional section number prefix).
-# Covers: 江南大学附属医院, 爱康国宾, and common national templates.
-_EXAM_SUMMARY_RE = _re.compile(
-    r"(?:^|\n)(?:\d+[.．、]\s*)?(?:"
-    r"检查综述|体检结论|健康评估|主要.*?问题|检查结论|体检小结"
-    r"|体检重要异常结果|阳性结果和异常情况|异常结果及建议"
-    r"|重要检查结论|体检报告总结"
-    r")",
-    _re.MULTILINE,
-)
-# 体检报告 header junk: lines before the clinical summary
-_EXAM_HEADER_JUNK_RE = _re.compile(
-    r"^[\s姓名身份证单位部门工号体检号电话日期年月\d\*\-（）()\s江南大学附属医院健康体检报告您的健康我们共同目标页共您的健康:：]+$",
-)
-
-
-def _preprocess_exam_report(text: str) -> str:
-    """Extract clinically relevant sections from a 体检报告.
-
-    Keeps: 检查综述, 主要/次要健康问题, 体检结论及建议.
-    Discards: header junk, raw lab tables (too large for LLM).
-    """
-    # Find where the clinical summary starts (line-anchored — won't match inline text).
-    # TOC entries in 爱康国宾 use spaces (`1      体检...`) not period (`1. 体检...`),
-    # so they're skipped by the (?:\d+[.．、]\s*)? prefix requirement in the regex.
-    m = _EXAM_SUMMARY_RE.search(text)
-    if not m:
-        return text  # can't identify structure — pass as-is
-    # m.start() may point to the leading \n — find the actual keyword start
-    body_start = m.start() + (1 if text[m.start()] in "\n\r" else 0)
-
-    # Get patient identity from the full header (everything before the body section)
-    header = text[:body_start]
-    # Extract name, gender, age, date from header (multiple format support)
-    name_m = _re.search(r"姓\s*名\s+(\S+)", header) or _re.search(r"REPORT\s+(\S{2,4})\s+(?:女士|先生|男士)", header)
-    gender_m = _re.search(r"性别\s+([男女])", header) or _re.search(r"(\S{2,4})\s+(女士|先生)", header)
-    age_m = _re.search(r"年龄\s+(\d+\s*岁?)", header)
-    date_m = _re.search(r"体检日期\s+(\S+)", header) or _re.search(r"(\d{4}年\d{1,2}月\d{1,2}日)的体检报告", header)
-
-    identity_parts = []
-    if name_m:
-        identity_parts.append(f"姓名：{name_m.group(1)}")
-    if gender_m:
-        # gender_m.group(1) may be name, group(2) may be 女士/先生 — normalize
-        raw_gender = gender_m.group(2) if gender_m.lastindex and gender_m.lastindex >= 2 else gender_m.group(1)
-        gender_val = "女" if "女" in raw_gender else ("男" if "男" in raw_gender else raw_gender)
-        identity_parts.append(f"性别：{gender_val}")
-    if age_m:
-        identity_parts.append(f"年龄：{age_m.group(1)}")
-    if date_m:
-        identity_parts.append(f"体检日期：{date_m.group(1)}")
-
-    identity_line = "  ".join(identity_parts) if identity_parts else ""
-
-    # Keep only from the summary onwards, up to reasonable length
-    clinical = text[body_start:].strip()
-
-    # Discard raw data tables after the conclusion / expert advice section
-    # Matches common stopping points: 江南大学 format + 爱康国宾 detailed results section
-    conclusion_m = _re.search(
-        r"(?:体检结论|健康建议|医师签名"
-        r"|(?:^|\n)\s*3[\s、.．]+健康体检结果"   # 爱康国宾 section 3 (raw detailed tables)
-        r"|(?:^|\n)\s*[三3][\s、.．]+检查详细"   # alternative heading
-        r")",
-        clinical,
-        _re.MULTILINE,
-    )
-    if conclusion_m:
-        # Keep up to end of conclusion section (next 2000 chars)
-        clinical = clinical[:conclusion_m.start() + 2000]
-
-    result = (identity_line + "\n\n" + clinical).strip() if identity_line else clinical
-    return result
-
-
-# Structured single-document report markers: header fields that indicate the
-# entire text is ONE encounter (体检报告, 化验单, 出院记录, 影像报告 etc.)
-_STRUCTURED_REPORT_RE = _re.compile(
-    r"(?:"
-    # Standard form layout: 姓名 ... 性别/年龄 nearby
-    r"(?:姓\s*名|患者姓名|检查日期|报告日期|体检编号|住院号|门诊号|标本编号|送检日期)"
-    r".{0,20}"
-    r"(?:性\s*别|年\s*龄|科\s*室|床\s*号|检查者)"
-    r"|"
-    # 爱康国宾 / 美年健康 inline format: "健康体检报告" + 体检号
-    r"(?:健康体检报告|MEDICAL EXAMINATION REPORT).{0,60}(?:体检号|用户ID|检查日期)"
-    r")",
-    _re.DOTALL,
-)
-# Section headers found in structured reports (【血常规】, 一、检查结果, 1  体检重要异常 etc.)
-_REPORT_SECTION_RE = _re.compile(
-    r"(?:^|\n)【[^】]{2,12}】"
-    r"|(?:^|\n)[一二三四五六七八九十]+[、.．]\s*\S"
-    r"|(?:^|\n)\d+\s{2,}[\u4e00-\u9fff]"  # Arabic numeral + spaces + Chinese (爱康国宾 TOC)
-)
-
-
-def _looks_like_structured_report(text: str) -> bool:
-    """Return True if text is a single structured report (体检报告, 化验单, etc.)
-    that should be kept as one chunk rather than split by paragraphs."""
-    sample = text[:1500]
-    return bool(_STRUCTURED_REPORT_RE.search(sample)) and bool(_REPORT_SECTION_RE.search(sample))
-
-
-def _chunk_history_text(text: str) -> list[str]:
-    """Split bulk history text into individual visit chunks.
-
-    Strategy:
-    0. Detect single structured reports (体检报告, 化验单) → return as-is.
-    1. Try splitting on date/visit boundaries (most reliable).
-    2. Fall back to paragraph splitting (double newline).
-    3. If single block, return as-is.
-    """
-    # ── Strategy 0: structured single-document report ────────────────────────
-    if _looks_like_structured_report(text):
-        return [text]
-
-    # _VISIT_BOUNDARY_RE uses (?:^|\n)(?=...) so m.start() may land on a \n;
-    # adjust each boundary to point to the actual first character of the section.
-    raw_boundaries = [m.start() for m in _VISIT_BOUNDARY_RE.finditer(text)]
-    boundaries: list[int] = []
-    for pos in raw_boundaries:
-        actual = pos + 1 if pos < len(text) and text[pos] == "\n" else pos
-        if not boundaries or actual != boundaries[-1]:
-            boundaries.append(actual)
-
-    # ── Strategy 1: paragraph splitting (blank lines) ────────────────────────
-    # Split on blank lines first; this cleanly separates visits when the doctor
-    # has already separated them with empty lines.
-    paragraphs = [p.strip() for p in _re.split(r"\n{2,}", text) if p.strip()]
-    if len(paragraphs) >= 2:
-        # Only merge truly tiny stub fragments (< 15 chars) into the following
-        # paragraph.  Keep normal-length paragraphs as separate visit chunks.
-        merged: list[str] = []
-        buf = ""
-        for p in paragraphs:
-            if buf and len(buf) < 15:
-                buf = (buf + "\n" + p).strip()
-            else:
-                if buf:
-                    merged.append(buf)
-                buf = p
-        if buf:
-            merged.append(buf)
-        if len(merged) >= 2:
-            return merged
-
-    # ── Strategy 2: date/keyword boundary regex ───────────────────────────────
-    if len(boundaries) >= 2:
-        raw_chunks: list[str] = []
-        for i, start in enumerate(boundaries):
-            end = boundaries[i + 1] if i + 1 < len(boundaries) else len(text)
-            chunk = text[start:end].strip()
-            if chunk:
-                raw_chunks.append(chunk)
-        # Merge adjacent short fragments into the next one.
-        sections: list[str] = []
-        buf = ""
-        for chunk in raw_chunks:
-            buf = (buf + "\n" + chunk).strip() if buf else chunk
-            if len(buf) >= 40:
-                sections.append(buf)
-                buf = ""
-        if buf:
-            if sections:
-                sections[-1] = (sections[-1] + "\n" + buf).strip()
-            else:
-                sections.append(buf)
-        if len(sections) >= 2:
-            return sections
-
-    return [text]
-
-
-def _extract_chunk_date(chunk: str) -> str | None:
-    """Extract the first date string from a chunk for display."""
-    m = _DATE_IN_TEXT_RE.search(chunk)
-    return m.group(0) if m else None
-
-
-async def _mark_duplicates(
-    chunks: list[dict],
-    doctor_id: str,
-    patient_id: int,
-) -> list[dict]:
-    """Mark chunks that appear to duplicate existing records using content matching."""
-    async with AsyncSessionLocal() as session:
-        existing = await get_records_for_patient(session, doctor_id, patient_id)
-    if not existing:
-        return chunks
-    existing_contents = [
-        (rec.content or "").strip().lower()
-        for rec in existing
-        if rec.content
-    ]
-    for chunk in chunks:
-        s = chunk.get("structured", {})
-        chunk_content = (s.get("content") or "").strip().lower()
-        if len(chunk_content) < 20:
-            continue
-        chunk_prefix = chunk_content[:80]
-        for existing_content in existing_contents:
-            if chunk_prefix in existing_content or existing_content[:80] in chunk_content:
-                chunk["status"] = "duplicate"
-                break
-    return chunks
-
-
-def _format_import_preview(
-    chunks: list[dict],
-    patient_name: str | None,
-    source: str,
-) -> str:
-    """Build the confirmation message shown to the doctor."""
-    source_label = {
-        "pdf": "PDF文件",
-        "word": "Word文件",
-        "voice": "语音",
-        "chat_export": "微信聊天记录",
-    }.get(source, "文字")
-    name_part = f"患者【{patient_name}】" if patient_name else "未关联患者"
-    total = len(chunks)
-    dup_count = sum(1 for c in chunks if c["status"] == "duplicate")
-    new_count = total - dup_count
-
-    lines = [f"📂 {name_part}历史记录\n共 {total} 条（来自{source_label}）\n"]
-    ICONS = ["1.", "2.", "3.", "4.", "5.", "6.", "7.", "8.", "9.", "10."]
-    for i, chunk in enumerate(chunks):
-        s = chunk.get("structured", {})
-        icon = ICONS[i] if i < len(ICONS) else f"{i+1}."
-        date_str = _extract_chunk_date(chunk.get("raw_text", "")) or "?"
-        cc = _t(s.get("content") or "—", 14)
-        tags_list = s.get("tags") or []
-        diag = _t(tags_list[0] if tags_list else "", 12)
-        diag_part = f"·{diag}" if diag else ""
-        dup_tag = "⚠️疑似重复" if chunk["status"] == "duplicate" else ""
-        lines.append(f"{icon} {date_str} {cc}{diag_part} {dup_tag}".strip())
-
-    lines.append("")
-    if dup_count > 0:
-        lines.append(f"{new_count} 条新记录，{dup_count} 条疑似重复。")
-        lines.append("「确认导入」保存全部\n「跳过重复」仅存新记录\n「取消」放弃")
-    else:
-        lines.append(f"「确认导入」保存全部 {total} 条\n「取消」放弃")
-    return "\n".join(lines)
-
-
-_OCR_NAME_RE = _re.compile(r"姓\s*名[：:]\s*([\u4e00-\u9fff]{2,5})")
-_OCR_GENDER_RE = _re.compile(r"性\s*别[：:]\s*([男女])")
-_OCR_AGE_RE = _re.compile(r"年\s*龄[：:]\s*(\d{1,3})")
-
-
-def _extract_patient_from_ocr(text: str) -> tuple[str | None, str | None, int | None]:
-    """Extract (name, gender, age) from OCR'd hospital record header."""
-    name = None
-    gender = None
-    age = None
-    # Only scan first 300 chars where header fields appear
-    sample = text[:300]
-    m = _OCR_NAME_RE.search(sample)
-    if m:
-        name = m.group(1)
-    m = _OCR_GENDER_RE.search(sample)
-    if m:
-        gender = m.group(1)
-    m = _OCR_AGE_RE.search(sample)
-    if m:
-        age = int(m.group(1))
-    return name, gender, age
-
-
-async def handle_import_history(text: str, doctor_id: str, intent_result: IntentResult) -> str:
-    """Handle bulk patient history import from PDF, Word, image, voice, or text."""
-    source = intent_result.extra_data.get("source", "text")
-    patient_name = intent_result.patient_name
-
-    # Resolve patient from session if not in intent
-    sess = get_session(doctor_id)
-    patient_id: int | None = None
-    if not patient_name and sess.current_patient_id:
-        patient_id = sess.current_patient_id
-        patient_name = sess.current_patient_name
-
-    # For image OCR: extract patient name/demographics embedded in hospital record header
-    ocr_gender: str | None = None
-    ocr_age: int | None = None
-    if source == "image" and not patient_name:
-        ocr_name, ocr_gender, ocr_age = _extract_patient_from_ocr(text)
-        if ocr_name:
-            patient_name = ocr_name
-            log(f"[Import] OCR patient extracted: name={patient_name} gender={ocr_gender} age={ocr_age}")
-
-    if patient_name and patient_id is None:
-        async with AsyncSessionLocal() as session:
-            patient = await find_patient_by_name(session, doctor_id, patient_name)
-            if patient:
-                patient_id = patient.id
-            elif source == "image":
-                # Auto-create patient from OCR-extracted demographics
-                from db.crud.patient import create_patient
-                try:
-                    patient = await create_patient(session, doctor_id, patient_name, ocr_gender, ocr_age)
-                    patient_id = patient.id
-                    log(f"[Import] OCR auto-created patient {patient_name} id={patient_id}")
-                except Exception as e:
-                    log(f"[Import] OCR patient create failed: {e}")
-
-    # For chat exports with multiple senders, ask which sender to import
-    if source == "chat_export" or (source == "text" and _looks_like_chat_export(text)):
-        from services.wechat.wechat_chat_export import list_senders
-        senders = list_senders(text)
-        sender_filter = intent_result.extra_data.get("sender_filter")
-        if len(senders) > 1 and not sender_filter:
-            sender_list = "\n".join(f"  {i+1}. {s}" for i, s in enumerate(senders))
-            return (
-                f"检测到群聊记录，共 {len(senders)} 位发言人：\n{sender_list}\n\n"
-                f"请回复发言人姓名或序号，指定导入哪位医生的记录。"
-            )
-        # Single sender or already selected
-        clean_text = _preprocess_import_text(text, source, sender_filter=sender_filter or (senders[0] if senders else None))
-    else:
-        clean_text = _preprocess_import_text(text, source)
-
-    chunks_raw = _chunk_history_text(clean_text)
-
-    if not chunks_raw:
-        return "未能从内容中提取有效病历记录，请检查格式后重试。"
-
-    # Structure each chunk (cap at 10 to avoid excessive LLM calls)
-    _total_chunks = len(chunks_raw)
-    structured_chunks: list[dict] = []
-    failed_chunks: list[int] = []
-    for i, chunk_text in enumerate(chunks_raw[:10]):
-        try:
-            record = await structure_medical_record(chunk_text)
-            structured_chunks.append({
-                "idx": i + 1,
-                "raw_text": chunk_text[:600],
-                "structured": record.model_dump(),
-                "status": "pending",
-            })
-        except Exception as e:
-            log(f"[Import] chunk {i+1} structuring FAILED doctor={doctor_id}: {e}")
-            failed_chunks.append(i + 1)
-
-    if not structured_chunks:
-        return "未能解析病历内容，请确认文件是否包含可读文字后重试。"
-
-    # Deduplicate
-    if patient_id:
-        structured_chunks = await _mark_duplicates(structured_chunks, doctor_id, patient_id)
-
-    # 直接保存到病历（MVP阶段暂不支持分批确认导入）
-    log(f"[silent-save] bulk import starting WITHOUT confirmation doctor={doctor_id} patient_id={patient_id} chunks={len(structured_chunks)}")
-    async with AsyncSessionLocal() as session:
-        saved = 0
-        for chunk in structured_chunks:
-            if chunk.get("status") == "duplicate":
-                continue
-            try:
-                from db.models.medical_record import MedicalRecord as MR
-                fields = chunk.get("structured", {})
-                record = MR(**{k: fields.get(k) for k in MR.model_fields})
-                await save_record(session, doctor_id, record, patient_id)
-                saved += 1
-            except Exception as e:
-                log(f"[Import] save chunk FAILED doctor={doctor_id}: {e}")
-    log(f"[silent-save] bulk import done doctor={doctor_id} patient_id={patient_id} saved={saved}/{len(structured_chunks)}")
-
-    patient_label = f"【{patient_name}】" if patient_name else "当前患者"
-    reply = f"✅ 已导入 {saved} 条病历\n患者：{patient_label}"
-    if failed_chunks:
-        reply += f"\n⚠️ {len(failed_chunks)} 条记录解析失败（片段 {', '.join(str(n) for n in failed_chunks)}），已跳过"
-    if _total_chunks > 10:
-        reply += f"\n⚠️ 共检测到 {_total_chunks} 条记录，本次仅处理前10条。如需导入剩余记录，请分批发送。"
-    return reply
-
-
-def wecom_kf_msg_to_text(msg: Dict[str, Any]) -> str:
-    msgtype = str(msg.get("msgtype", "")).lower()
-    if msgtype == "text":
-        return str((msg.get("text") or {}).get("content") or "").strip()
-    if msgtype == "voice":
-        rec = str((msg.get("voice") or {}).get("recognition") or "").strip()
-        return rec or "[语音消息]"
-    if msgtype == "image":
-        return "[图片消息]"
-    if msgtype == "file":
-        filename = str((msg.get("file") or {}).get("filename") or "").strip()
-        return f"[文件消息]{(' ' + filename) if filename else ''}"
-    if msgtype == "location":
-        location = msg.get("location") or {}
-        title = str(location.get("title") or location.get("name") or "").strip()
-        addr = str(location.get("address") or "").strip()
-        return f"[位置消息] {title or addr}".strip()
-    if msgtype == "link":
-        link = msg.get("link") or {}
-        title = str(link.get("title") or "").strip()
-        url = str(link.get("url") or "").strip()
-        return f"[链接消息] {title or url}".strip()
-    if msgtype in ("weapp", "miniprogram"):
-        app = msg.get("weapp") or msg.get("miniprogram") or {}
-        title = str(app.get("title") or "").strip()
-        page = str(app.get("pagepath") or "").strip()
-        return f"[小程序消息] {title or page}".strip()
-    if msgtype == "video":
-        return "[视频消息]"
-    if msgtype == "merged_msg":
-        merged = msg.get("merged_msg") or {}
-        title = str(merged.get("title") or "聊天记录").strip()
-        return f"[合并消息] {title}"
-    return ""
-
-
-def wecom_msg_is_processable(msg: Dict[str, Any]) -> bool:
-    msgtype = str(msg.get("msgtype", "")).lower()
-    if msgtype in ("text", "location", "link", "weapp", "miniprogram"):
-        return bool(wecom_kf_msg_to_text(msg))
-    if msgtype in ("voice", "image", "file", "video", "merged_msg"):
-        return True
-    return bool(msgtype)
-
-
-def wecom_msg_time(msg: Dict[str, Any]) -> int:
-    for key in ("send_time", "create_time", "msg_time"):
-        raw = msg.get(key)
-        try:
-            t = int(raw or 0)
-            if t > 0:
-                return t
-        except (TypeError, ValueError):
-            continue
-    return 0
+# WeCom KF message parsing helpers (re-exported from wechat_bg)
+from services.wechat.wechat_bg import wecom_kf_msg_to_text, wecom_msg_is_processable, wecom_msg_time

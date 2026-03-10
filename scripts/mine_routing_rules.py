@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """
-Offline LLM rule mining script.
+离线LLM规则挖掘脚本 — 从 turn_log.jsonl 中读取 LLM 路由的对话轮次，
+按意图分组，让 LLM 生成适用于 fast_router 的正则/关键词规则，
+精度达标的规则写入输出文件。
 
-Reads turn_log.jsonl, finds LLM-routed turns, groups by intent,
-and asks an LLM to produce fast-router regex/keyword rules.
-Approved rules (precision >= threshold) are written to the output file.
-
-Usage:
+用法：
     python scripts/mine_routing_rules.py \\
       --input logs/turn_log.jsonl \\
       --output data/mined_rules.json \\
       --min-examples 10 \\
       --min-precision 0.95 \\
       --provider deepseek
+
+Offline LLM rule mining script for the fast_router.
 """
 
 from __future__ import annotations
@@ -245,73 +245,65 @@ def merge_rules(
     return result
 
 
+async def _mine_intent_rules(
+    eligible: Dict[str, List[str]], all_turns: List[Dict[str, Any]],
+    client: Any, model: str, min_precision: float,
+) -> List[Dict[str, Any]]:
+    """Mine and validate rules for each eligible intent; return approved rules."""
+    approved: List[Dict[str, Any]] = []
+    header = f"{'Intent':<20} {'Examples':>8} {'Patterns':>8} {'Precision':>9} {'Coverage':>8}  Status"
+    print(header)
+    print("-" * len(header))
+    for intent, examples in sorted(eligible.items()):
+        rule_dict = await ask_llm_for_rules(intent, examples, client, model)
+        if rule_dict is None:
+            print(f"{'  ' + intent:<20} {len(examples):>8}  {'?':>8}  {'?':>9}  {'?':>8}  LLM error")
+            continue
+        precision, coverage, approved_flag = validate_rule(rule_dict, all_turns, intent, min_precision)
+        n_patterns = len(rule_dict.get("patterns", []))
+        status = "approved" if approved_flag else "below threshold"
+        print(f"{intent:<20} {len(examples):>8} {n_patterns:>8} {precision:>9.2f} {coverage:>8.2f}  {status}")
+        if approved_flag:
+            approved.append(_rule_to_serializable(rule_dict))
+    return approved
+
+
+async def _write_approved_rules(approved_rules: List[Dict[str, Any]], output_path: Path) -> None:
+    """Merge approved rules with existing and write to file."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    existing = load_existing_rules(output_path)
+    merged = merge_rules(existing, approved_rules)
+    output_path.write_text(json.dumps(merged, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(f"\n{len(approved_rules)} rule(s) approved. Written to {output_path} ({len(merged)} total rules).")
+
+
 async def main(args: argparse.Namespace) -> None:
+    """Async entry point: load turn log, mine rules, write output."""
     input_path = Path(args.input)
     output_path = Path(args.output)
-    min_examples: int = args.min_examples
-    min_precision: float = args.min_precision
-    provider_name: str = args.provider
-
     print(f"Loading turn log from {input_path} ...")
     all_turns = load_turn_log(input_path)
     print(f"  {len(all_turns)} total turns loaded.")
-
-    # Filter to LLM-routed turns (these are the candidates for new fast rules).
     llm_turns = [t for t in all_turns if t.get("routing") == "llm"]
     print(f"  {len(llm_turns)} LLM-routed turns.")
-
-    # Group by intent.
     by_intent: Dict[str, List[str]] = defaultdict(list)
     for t in llm_turns:
         intent = t.get("intent", "")
         text = t.get("text", "")
         if intent and text:
             by_intent[intent].append(text)
-
-    # Filter intents with enough examples.
-    eligible = {k: v for k, v in by_intent.items() if len(v) >= min_examples}
+    eligible = {k: v for k, v in by_intent.items() if len(v) >= args.min_examples}
     if not eligible:
-        print(f"No intents with >= {min_examples} LLM-routed examples. Exiting.")
+        print(f"No intents with >= {args.min_examples} LLM-routed examples. Exiting.")
         return
-
     print(f"\n{len(eligible)} eligible intent(s): {', '.join(sorted(eligible.keys()))}")
-
-    client, model = _get_client(provider_name)
-    print(f"Using provider={provider_name!r} model={model!r}\n")
-
-    approved_rules: List[Dict[str, Any]] = []
-
-    # Print report header.
-    header = f"{'Intent':<20} {'Examples':>8} {'Patterns':>8} {'Precision':>9} {'Coverage':>8}  Status"
-    print(header)
-    print("-" * len(header))
-
-    for intent, examples in sorted(eligible.items()):
-        rule_dict = await ask_llm_for_rules(intent, examples, client, model)
-        if rule_dict is None:
-            print(f"{'  ' + intent:<20} {len(examples):>8}  {'?':>8}  {'?':>9}  {'?':>8}  ❌ LLM error")
-            continue
-
-        precision, coverage, approved = validate_rule(rule_dict, all_turns, intent, min_precision)
-        n_patterns = len(rule_dict.get("patterns", []))
-        status = "✅ approved" if approved else "❌ below threshold"
-        print(
-            f"{intent:<20} {len(examples):>8} {n_patterns:>8} {precision:>9.2f} {coverage:>8.2f}  {status}"
-        )
-
-        if approved:
-            approved_rules.append(_rule_to_serializable(rule_dict))
-
+    client, model = _get_client(args.provider)
+    print(f"Using provider={args.provider!r} model={model!r}\n")
+    approved_rules = await _mine_intent_rules(eligible, all_turns, client, model, args.min_precision)
     if not approved_rules:
         print("\nNo rules approved. Output file not modified.")
         return
-
-    # Merge with existing rules and write output.
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    existing = load_existing_rules(output_path)
-    merged = merge_rules(existing, approved_rules)
-    output_path.write_text(json.dumps(merged, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"\n{len(approved_rules)} rule(s) approved. Written to {output_path} ({len(merged)} total rules).")
+    await _write_approved_rules(approved_rules, output_path)
 
 
 def parse_args() -> argparse.Namespace:

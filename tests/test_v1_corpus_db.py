@@ -1,13 +1,4 @@
-"""Tests for v1 corpus behaviour: minimal single-sentence inputs → DB.
-
-Contract (updated for content-first schema):
-- content  non-null and non-empty (the LLM-cleaned prose note)
-- tags  list (may be empty)
-- record_type  defaults to "visit"
-
-All tests write through the real CRUD layer to an in-memory SQLite DB to verify
-that the content field is properly stored and linked to patients.
-"""
+"""V1 语料库数据库测试：验证 v1 单句输入经由 CRUD 层写入内存 SQLite 后，content 字段非空、关联患者 ID 正确，覆盖高血压、胸闷、胸痛、房颤等典型病例。"""
 
 import pytest
 import pytest_asyncio

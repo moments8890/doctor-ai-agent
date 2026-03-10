@@ -71,18 +71,8 @@ def _dt_to_ts(value: datetime) -> float:
     return value.astimezone(timezone.utc).timestamp()
 
 
-async def _get_access_token(app_id: str, app_secret: str) -> str:
-    if not app_id or not app_secret:
-        raise RuntimeError("WECHAT_APP_ID/WECHAT_APP_SECRET not configured")
-
-    now = time.time()
-    if _token_cache["token"] and now < _token_cache["expires_at"]:
-        log(f"[WeChat token] using cached token (expires in {int(_token_cache['expires_at'] - now)}s)")
-        return _token_cache["token"]
-
-    # Shared cache lookup (cross-instance/restart safe).
-    now_dt = datetime.now(timezone.utc)
-    token_key = _token_key(app_id)
+async def _check_db_token_cache(app_id: str, now: float, token_key: str) -> "Optional[str]":
+    """检查数据库共享 Token 缓存；命中时更新内存缓存并返回 token，否则返回 None。"""
     try:
         async with AsyncSessionLocal() as session:
             runtime_token = await get_runtime_token(session, token_key)
@@ -98,7 +88,12 @@ async def _get_access_token(app_id: str, app_secret: str) -> str:
             return runtime_token.token_value
     except Exception as e:
         log(f"[WeChat token] shared cache lookup FAILED: {e}")
+    return None
 
+
+async def _fetch_fresh_token(app_id: str, app_secret: str, now: float, token_key: str) -> str:
+    """从微信/企业微信 API 获取新 Token，更新内存和数据库缓存后返回。"""
+    now_dt = datetime.now(timezone.utc)
     use_kf = app_id.startswith("ww")
     url = "https://qyapi.weixin.qq.com/cgi-bin/gettoken" if use_kf else "https://api.weixin.qq.com/cgi-bin/token"
     params = (
@@ -111,27 +106,45 @@ async def _get_access_token(app_id: str, app_secret: str) -> str:
         if hasattr(resp, "raise_for_status"):
             resp.raise_for_status()
         data = resp.json()
-        log(f"[WeChat token] fetched new token: {data}")
-        if not isinstance(data, dict) or "access_token" not in data:
-            errcode = data.get("errcode") if isinstance(data, dict) else None
-            errmsg = data.get("errmsg") if isinstance(data, dict) else str(data)
-            raise RuntimeError(f"WeChat token fetch failed: errcode={errcode}, errmsg={errmsg}")
+    log(f"[WeChat token] fetched new token: {data}")
+    if not isinstance(data, dict) or "access_token" not in data:
+        errcode = data.get("errcode") if isinstance(data, dict) else None
+        errmsg = data.get("errmsg") if isinstance(data, dict) else str(data)
+        raise RuntimeError(f"WeChat token fetch failed: errcode={errcode}, errmsg={errmsg}")
 
-        _token_cache["token"] = data["access_token"]
-        ttl_seconds = max(1, int(data["expires_in"]) - 60)
-        _token_cache["expires_at"] = now + ttl_seconds
-        expires_at = now_dt + timedelta(seconds=ttl_seconds)
-        try:
-            async with AsyncSessionLocal() as session:
-                await upsert_runtime_token(
-                    session,
-                    token_key=token_key,
-                    token_value=data["access_token"],
-                    expires_at=expires_at,
-                )
-        except Exception as e:
-            log(f"[WeChat token] shared cache persist FAILED: {e}")
+    _token_cache["token"] = data["access_token"]
+    ttl_seconds = max(1, int(data["expires_in"]) - 60)
+    _token_cache["expires_at"] = now + ttl_seconds
+    expires_at = now_dt + timedelta(seconds=ttl_seconds)
+    try:
+        async with AsyncSessionLocal() as session:
+            await upsert_runtime_token(
+                session,
+                token_key=token_key,
+                token_value=data["access_token"],
+                expires_at=expires_at,
+            )
+    except Exception as e:
+        log(f"[WeChat token] shared cache persist FAILED: {e}")
+    return _token_cache["token"]
+
+
+async def _get_access_token(app_id: str, app_secret: str) -> str:
+    """获取微信/企业微信 Access Token，优先内存缓存，其次 DB 共享缓存，最后远程刷新。"""
+    if not app_id or not app_secret:
+        raise RuntimeError("WECHAT_APP_ID/WECHAT_APP_SECRET not configured")
+
+    now = time.time()
+    if _token_cache["token"] and now < _token_cache["expires_at"]:
+        log(f"[WeChat token] using cached token (expires in {int(_token_cache['expires_at'] - now)}s)")
         return _token_cache["token"]
+
+    token_key = _token_key(app_id)
+    db_token = await _check_db_token_cache(app_id, now, token_key)
+    if db_token is not None:
+        return db_token
+
+    return await _fetch_fresh_token(app_id, app_secret, now, token_key)
 
 
 async def _get_kf_access_token() -> str:
@@ -253,12 +266,35 @@ async def send_file_message(to_user: str, media_id: str, open_kfid: str = "") ->
     log(f"[WeChat media] file message sent to {to_user}")
 
 
+def _cs_send_url_and_mode(cfg: dict, access_token: str, kf_id: str) -> "tuple[str, str]":
+    """根据配置选择客服消息发送 URL 和模式名。"""
+    if kf_id:
+        return f"https://qyapi.weixin.qq.com/cgi-bin/kf/send_msg?access_token={access_token}", "wecom_kf"
+    if cfg.get("is_wecom_app", False):
+        return f"https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token={access_token}", "wecom_app"
+    if cfg.get("is_kf", False):
+        if not kf_id:
+            raise RuntimeError("WECHAT_KF_OPEN_KFID is required when is_kf=True")
+        return f"https://qyapi.weixin.qq.com/cgi-bin/kf/send_msg?access_token={access_token}", "kf"
+    return f"https://api.weixin.qq.com/cgi-bin/message/custom/send?access_token={access_token}", "oa"
+
+
+def _cs_build_payload(to_user: str, chunk: str, cfg: dict, kf_id: str) -> dict:
+    """构建单条客服消息 payload。"""
+    if kf_id:
+        return {"touser": to_user, "msgtype": "text", "open_kfid": kf_id, "text": {"content": chunk}}
+    if cfg.get("is_wecom_app", False):
+        return {"touser": to_user, "msgtype": "text", "agentid": int(cfg["agent_id"]), "text": {"content": chunk}}
+    return {"touser": to_user, "msgtype": "text", "text": {"content": chunk}}
+
+
 async def _send_customer_service_msg(
     to_user: str,
     content: str,
     *,
     open_kfid: str = "",
 ) -> None:
+    """向企业微信用户发送客服文本消息，自动分片处理超长内容。"""
     cfg = _get_config()
     if not to_user:
         raise RuntimeError("missing to_user")
@@ -266,42 +302,14 @@ async def _send_customer_service_msg(
         raise RuntimeError("empty notification content")
 
     try:
-        # Single token fetch covers all paths (same credentials).
         access_token = await _get_access_token(cfg["app_id"], cfg["app_secret"])
         chunks = _split_message(content)
         kf_id = open_kfid.strip() or cfg.get("open_kfid", "")
-
-        # When open_kfid is present, always use WeCom KF send endpoint regardless of
-        # is_wecom_app — external KF customer user IDs are invalid for /message/send.
-        # The WeCom custom-app token (WECOM_SECRET) has kf/send_msg permissions here.
-        if kf_id:
-            url = f"https://qyapi.weixin.qq.com/cgi-bin/kf/send_msg?access_token={access_token}"
-            mode = "wecom_kf"
-        elif cfg.get("is_wecom_app", False):
-            url = f"https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token={access_token}"
-            mode = "wecom_app"
-        elif cfg.get("is_kf", False):
-            if not kf_id:
-                raise RuntimeError("WECHAT_KF_OPEN_KFID is required when is_kf=True")
-            url = f"https://qyapi.weixin.qq.com/cgi-bin/kf/send_msg?access_token={access_token}"
-            mode = "kf"
-        else:
-            url = f"https://api.weixin.qq.com/cgi-bin/message/custom/send?access_token={access_token}"
-            mode = "oa"
+        url, mode = _cs_send_url_and_mode(cfg, access_token, kf_id)
         log(f"[WeChat cs] sending {len(chunks)} message(s) to {to_user} mode={mode}")
         async with httpx.AsyncClient() as client:
             for i, chunk in enumerate(chunks):
-                if kf_id:
-                    payload = {"touser": to_user, "msgtype": "text", "open_kfid": kf_id, "text": {"content": chunk}}
-                elif cfg.get("is_wecom_app", False):
-                    payload = {
-                        "touser": to_user,
-                        "msgtype": "text",
-                        "agentid": int(cfg["agent_id"]),
-                        "text": {"content": chunk},
-                    }
-                else:
-                    payload = {"touser": to_user, "msgtype": "text", "text": {"content": chunk}}
+                payload = _cs_build_payload(to_user, chunk, cfg, kf_id)
                 resp = await client.post(url, json=payload)
                 if hasattr(resp, "raise_for_status"):
                     resp.raise_for_status()

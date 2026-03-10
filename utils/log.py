@@ -1,3 +1,4 @@
+"""结构化日志初始化与辅助函数（基于 structlog）。"""
 from __future__ import annotations
 
 import logging
@@ -83,31 +84,27 @@ def _to_bool(raw: Optional[str], default: bool) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def init_logging() -> None:
-    """Initialize logging with structlog.
+def _build_formatter(use_json: bool) -> logging.Formatter:
+    """根据 LOG_JSON 配置构建 structlog ProcessorFormatter。"""
+    if use_json:
+        return structlog.stdlib.ProcessorFormatter(
+            processors=[
+                structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+                structlog.processors.ExceptionRenderer(),
+                structlog.processors.JSONRenderer(sort_keys=False),
+            ],
+        )
+    return structlog.stdlib.ProcessorFormatter(
+        processors=[
+            structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+            structlog.processors.ExceptionRenderer(),
+            structlog.dev.ConsoleRenderer(colors=False),
+        ],
+    )
 
-    In JSON mode (LOG_JSON=true) each log line is a JSON object where every
-    field passed to log() appears as a separate top-level key — queryable by
-    Loki, Elasticsearch, etc.  In text mode the output is a human-readable
-    timestamped line.
 
-    Environment variables:
-    - LOG_LEVEL (default: INFO)
-    - LOG_JSON (default: false) — emit JSON; fields as separate keys
-    - LOG_TO_FILE (default: true)
-    - LOG_DIR (default: logs)
-    - LOG_FILE (default: app.log)
-    - LOG_MAX_BYTES (default: 10485760)
-    - LOG_BACKUP_COUNT (default: 5)
-    - TASK_LOG_TO_CONSOLE (default: false)
-    - SCHEDULER_LOG_TO_CONSOLE (default: false)
-    """
-    level_name = os.environ.get("LOG_LEVEL", "INFO").upper()
-    level = getattr(logging, level_name, logging.INFO)
-    use_json = _to_bool(os.environ.get("LOG_JSON"), default=False)
-
-    # Processors applied before stdlib routing (shared by all handlers).
-    # These build the event_dict that the final renderer turns into a string.
+def _configure_structlog(formatter: logging.Formatter, level: int) -> None:
+    """配置 structlog 处理器链并初始化根 logger 的流处理器。"""
     pre_chain: list = [
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
@@ -115,10 +112,8 @@ def init_logging() -> None:
         _inject_context_vars,
         structlog.stdlib.PositionalArgumentsFormatter(),
         structlog.processors.StackInfoRenderer(),
-        # Hand off to the stdlib ProcessorFormatter attached to each handler.
         structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
     ]
-
     structlog.configure(
         processors=pre_chain,
         context_class=dict,
@@ -126,91 +121,70 @@ def init_logging() -> None:
         wrapper_class=structlog.stdlib.BoundLogger,
         cache_logger_on_first_use=True,
     )
-
-    # Final rendering — JSON for machines, plain text for humans.
-    if use_json:
-        formatter: logging.Formatter = structlog.stdlib.ProcessorFormatter(
-            processors=[
-                structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-                structlog.processors.ExceptionRenderer(),
-                structlog.processors.JSONRenderer(sort_keys=False),
-            ],
-        )
-    else:
-        formatter = structlog.stdlib.ProcessorFormatter(
-            processors=[
-                structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-                structlog.processors.ExceptionRenderer(),
-                structlog.dev.ConsoleRenderer(colors=False),
-            ],
-        )
-
-    # ── Root logger ──────────────────────────────────────────────────────────
     root = logging.getLogger()
     root.setLevel(level)
     for h in list(root.handlers):
         root.removeHandler(h)
-
     stream_handler = logging.StreamHandler()
     stream_handler.setLevel(level)
     stream_handler.setFormatter(formatter)
     root.addHandler(stream_handler)
 
-    # ── Tasks logger ─────────────────────────────────────────────────────────
-    task_logger = logging.getLogger("tasks")
-    task_logger.setLevel(level)
-    for h in list(task_logger.handlers):
-        task_logger.removeHandler(h)
-    task_log_to_console = _to_bool(os.environ.get("TASK_LOG_TO_CONSOLE"), default=False)
-    task_logger.propagate = task_log_to_console
 
-    # ── Scheduler logger ─────────────────────────────────────────────────────
-    scheduler_logger = logging.getLogger("apscheduler")
-    scheduler_logger.setLevel(level)
-    for h in list(scheduler_logger.handlers):
-        scheduler_logger.removeHandler(h)
-    scheduler_log_to_console = _to_bool(
-        os.environ.get("SCHEDULER_LOG_TO_CONSOLE"), default=False
-    )
-    scheduler_logger.propagate = scheduler_log_to_console
+def _configure_named_logger(name: str, level: int, console_env_var: str) -> logging.Logger:
+    """清空并配置指定名称 logger，按环境变量决定是否 propagate 到控制台。"""
+    named_logger = logging.getLogger(name)
+    named_logger.setLevel(level)
+    for h in list(named_logger.handlers):
+        named_logger.removeHandler(h)
+    named_logger.propagate = _to_bool(os.environ.get(console_env_var), default=False)
+    return named_logger
 
-    # ── Rotating file handlers ───────────────────────────────────────────────
+
+def _attach_file_handlers(
+    formatter: logging.Formatter,
+    level: int,
+    root: logging.Logger,
+    task_logger: logging.Logger,
+    scheduler_logger: logging.Logger,
+) -> None:
+    """为根 / tasks / apscheduler logger 各添加滚动文件处理器。"""
+    log_dir = Path(os.environ.get("LOG_DIR", "logs"))
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_file = os.environ.get("LOG_FILE", "app.log")
+    max_bytes = int(os.environ.get("LOG_MAX_BYTES", "10485760"))
+    backup_count = int(os.environ.get("LOG_BACKUP_COUNT", "5"))
+
+    def _make_handler(filename: str) -> RotatingFileHandler:
+        h = RotatingFileHandler(log_dir / filename, maxBytes=max_bytes, backupCount=backup_count, encoding="utf-8")
+        h.setLevel(level)
+        h.setFormatter(formatter)
+        return h
+
+    root.addHandler(_make_handler(log_file))
+    task_logger.addHandler(_make_handler("tasks.log"))
+    scheduler_logger.addHandler(_make_handler("scheduler.log"))
+
+
+def init_logging() -> None:
+    """初始化 structlog 日志系统（JSON 或文本模式，可选滚动文件输出）。
+
+    环境变量：LOG_LEVEL / LOG_JSON / LOG_TO_FILE / LOG_DIR / LOG_FILE /
+    LOG_MAX_BYTES / LOG_BACKUP_COUNT / TASK_LOG_TO_CONSOLE / SCHEDULER_LOG_TO_CONSOLE。
+    """
+    level_name = os.environ.get("LOG_LEVEL", "INFO").upper()
+    level = getattr(logging, level_name, logging.INFO)
+    use_json = _to_bool(os.environ.get("LOG_JSON"), default=False)
+
+    formatter = _build_formatter(use_json)
+    _configure_structlog(formatter, level)
+
+    root = logging.getLogger()
+    task_logger = _configure_named_logger("tasks", level, "TASK_LOG_TO_CONSOLE")
+    scheduler_logger = _configure_named_logger("apscheduler", level, "SCHEDULER_LOG_TO_CONSOLE")
+
     if _to_bool(os.environ.get("LOG_TO_FILE"), default=True):
-        log_dir = Path(os.environ.get("LOG_DIR", "logs"))
-        log_dir.mkdir(parents=True, exist_ok=True)
-        log_file = os.environ.get("LOG_FILE", "app.log")
-        max_bytes = int(os.environ.get("LOG_MAX_BYTES", "10485760"))
-        backup_count = int(os.environ.get("LOG_BACKUP_COUNT", "5"))
-
-        file_handler = RotatingFileHandler(
-            log_dir / log_file,
-            maxBytes=max_bytes,
-            backupCount=backup_count,
-            encoding="utf-8",
-        )
-        file_handler.setLevel(level)
-        file_handler.setFormatter(formatter)
-        root.addHandler(file_handler)
-
-        task_file_handler = RotatingFileHandler(
-            log_dir / "tasks.log",
-            maxBytes=max_bytes,
-            backupCount=backup_count,
-            encoding="utf-8",
-        )
-        task_file_handler.setLevel(level)
-        task_file_handler.setFormatter(formatter)
-        task_logger.addHandler(task_file_handler)
-
-        scheduler_file_handler = RotatingFileHandler(
-            log_dir / "scheduler.log",
-            maxBytes=max_bytes,
-            backupCount=backup_count,
-            encoding="utf-8",
-        )
-        scheduler_file_handler.setLevel(level)
-        scheduler_file_handler.setFormatter(formatter)
-        scheduler_logger.addHandler(scheduler_file_handler)
+        _attach_file_handlers(formatter, level, root, task_logger, scheduler_logger)
 
 
 # ---------------------------------------------------------------------------

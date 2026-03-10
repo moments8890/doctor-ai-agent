@@ -1,6 +1,8 @@
 """
+向本地 SQLite 数据库填充真实的模拟数据（用于开发/演示环境）。
+运行方式：python scripts/seed_mock_data.py
+
 Seed the local SQLite DB with realistic mock data for development/demo.
-Run: python scripts/seed_mock_data.py
 """
 import asyncio
 import json
@@ -267,68 +269,64 @@ def make_tasks(doctor_id, patient_id, patient_name, category, risk, fu_state):
     return tasks
 
 
-async def seed():
+async def _wipe_tables(session) -> None:
+    """Delete all rows from data tables (preserves schema)."""
+    for tbl in [
+        "audit_log", "doctor_conversation_turns", "doctor_session_states",
+        "pending_records", "pending_messages", "medical_record_exports",
+        "medical_record_versions", "doctor_tasks", "medical_records",
+        "patient_label_assignments", "patient_labels", "patients",
+        "invite_codes", "doctor_knowledge_items", "doctor_notify_preferences",
+        "doctor_contexts", "doctors",
+    ]:
+        await session.execute(text(f"DELETE FROM {tbl}"))
+    await session.commit()
+    print("Cleared existing data")
+
+
+async def _seed_doctors(session) -> None:
+    """Insert demo doctors and invite codes."""
+    now = utcnow()
+    for d in DOCTORS:
+        session.add(Doctor(doctor_id=d["doctor_id"], name=d["name"],
+                           specialty=d["specialty"], channel=d["channel"],
+                           created_at=now, updated_at=now))
+    for ic in INVITE_CODES:
+        session.add(InviteCode(code=ic["code"], doctor_id=ic["doctor_id"],
+                               doctor_name=ic["doctor_name"], active=True, created_at=now))
+    await session.commit()
+    print(f"Created {len(DOCTORS)} doctors, {len(INVITE_CODES)} invite codes")
+
+
+async def _seed_patients(session) -> None:
+    """Insert demo patients with records and tasks."""
+    for i, (doc_id, name, gender, yob, category) in enumerate(PATIENTS):
+        patient = Patient(doctor_id=doc_id, name=name, gender=gender,
+                          year_of_birth=yob, primary_category=category,
+                          created_at=ago(days=30 + i * 5))
+        session.add(patient)
+        await session.flush()
+        for content, tags, enc_type, d, _signed in RECORDS[i]:
+            session.add(MedicalRecordDB(patient_id=patient.id, doctor_id=doc_id,
+                                        content=content, tags=tags,
+                                        record_type="visit", encounter_type=enc_type,
+                                        created_at=ago(days=d), updated_at=ago(days=d)))
+        for task in make_tasks(doc_id, patient.id, name, category, "medium", "due_soon"):
+            session.add(task)
+    await session.commit()
+    print(f"Created {len(PATIENTS)} patients with records and tasks")
+
+
+async def seed() -> None:
+    """Main seed coroutine: wipe, then insert doctors, patients, tasks."""
     await create_tables()
-
     async with AsyncSessionLocal() as session:
-        # Wipe data tables (preserve schema / alembic)
-        for tbl in [
-            "audit_log", "doctor_conversation_turns", "doctor_session_states",
-            "pending_records", "pending_messages", "medical_record_exports",
-            "medical_record_versions", "doctor_tasks", "medical_records",
-            "patient_label_assignments", "patient_labels", "patients",
-            "invite_codes", "doctor_knowledge_items", "doctor_notify_preferences",
-            "doctor_contexts", "doctors",
-        ]:
-            await session.execute(text(f"DELETE FROM {tbl}"))
-        await session.commit()
-        print("✓ Cleared existing data")
-
-        now = utcnow()
-        for d in DOCTORS:
-            session.add(Doctor(
-                doctor_id=d["doctor_id"], name=d["name"],
-                specialty=d["specialty"], channel=d["channel"],
-                created_at=now, updated_at=now,
-            ))
-        for ic in INVITE_CODES:
-            session.add(InviteCode(
-                code=ic["code"], doctor_id=ic["doctor_id"],
-                doctor_name=ic["doctor_name"], active=True,
-                created_at=now,
-            ))
-        await session.commit()
-        print(f"✓ Created {len(DOCTORS)} doctors, {len(INVITE_CODES)} invite codes")
-
-        for i, (doc_id, name, gender, yob, category) in enumerate(PATIENTS):
-            patient = Patient(
-                doctor_id=doc_id, name=name, gender=gender,
-                year_of_birth=yob, primary_category=category,
-                created_at=ago(days=30 + i * 5),
-            )
-            session.add(patient)
-            await session.flush()
-
-            for content, tags, enc_type, d, signed in RECORDS[i]:
-                session.add(MedicalRecordDB(
-                    patient_id=patient.id, doctor_id=doc_id,
-                    content=content, tags=tags,
-                    record_type="visit", encounter_type=enc_type,
-                    created_at=ago(days=d), updated_at=ago(days=d),
-                ))
-
-            for task in make_tasks(doc_id, patient.id, name, category, risk, fu_state):
-                session.add(task)
-
-        await session.commit()
-        print(f"✓ Created {len(PATIENTS)} patients with records and tasks")
-
+        await _wipe_tables(session)
+        await _seed_doctors(session)
+        await _seed_patients(session)
     print("\nSeed complete!")
     print("  Doctors  :", ", ".join(f"{d['name']} ({d['doctor_id']})" for d in DOCTORS))
     print("  Inv codes:", ", ".join(ic["code"] for ic in INVITE_CODES))
-    print("  Patients :")
-    for doc_id, name, _, yob, cat, risk, fu in PATIENTS:
-        print(f"    {name:6s}  {cat:14s}  risk={risk:6s}  fu={fu}")
 
 
 asyncio.run(seed())

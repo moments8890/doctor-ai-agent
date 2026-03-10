@@ -1,4 +1,5 @@
-"""
+"""患者门户访问码的 PBKDF2-SHA256 哈希与校验工具。
+
 Patient portal access code hashing using PBKDF2-SHA256.
 
 Hashes are stored as:  pbkdf2sha256$<iterations>$<salt_hex>$<hash_hex>

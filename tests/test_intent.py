@@ -1,6 +1,4 @@
-"""
-Tests for services/intent.py — LLM call is mocked.
-"""
+"""意图识别单元测试：使用 Mock LLM 覆盖 detect_intent() 的意图路由、字段提取和参数验证。"""
 
 import json
 import pytest

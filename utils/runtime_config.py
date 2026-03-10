@@ -1,3 +1,4 @@
+"""运行时配置加载、保存与校验：读写 config/runtime.json，校验合法性，热应用环境变量。"""
 from __future__ import annotations
 
 import inspect
@@ -473,21 +474,10 @@ def _stringify(value: Any) -> str:
     return str(value)
 
 
-def _sanitize_config(raw: Dict[str, Any]) -> Dict[str, str]:
-    sanitized: Dict[str, str] = {}
-    merged = dict(DEFAULT_RUNTIME_CONFIG)
-    merged.update(raw)
-    for key, default in DEFAULT_RUNTIME_CONFIG.items():
-        raw_value = merged.get(key, default)
-        value = _stringify(raw_value)
-        if not value and key in {"TASK_SCHEDULER_MODE", "TASK_SCHEDULER_INTERVAL_MINUTES", "TASK_SCHEDULER_CRON"}:
-            value = _stringify(default)
-        sanitized[key] = value
-
+def _sanitize_scheduler_fields(sanitized: Dict[str, str]) -> None:
+    """校验并规范化调度器相关字段（原地修改 sanitized）。"""
     mode = sanitized["TASK_SCHEDULER_MODE"].lower()
-    if mode not in {"interval", "cron"}:
-        mode = "interval"
-    sanitized["TASK_SCHEDULER_MODE"] = mode
+    sanitized["TASK_SCHEDULER_MODE"] = mode if mode in {"interval", "cron"} else "interval"
 
     try:
         interval_minutes = max(1, int(sanitized["TASK_SCHEDULER_INTERVAL_MINUTES"]))
@@ -518,6 +508,9 @@ def _sanitize_config(raw: Dict[str, Any]) -> Dict[str, str]:
         retry_delay = float(DEFAULT_RUNTIME_CONFIG["TASK_NOTIFY_RETRY_DELAY_SECONDS"])
     sanitized["TASK_NOTIFY_RETRY_DELAY_SECONDS"] = str(retry_delay)
 
+
+def _sanitize_knowledge_fields(sanitized: Dict[str, str]) -> None:
+    """校验并规范化知识库相关整型字段（原地修改 sanitized）。"""
     for key, minimum in (
         ("KNOWLEDGE_CANDIDATE_LIMIT", 1),
         ("KNOWLEDGE_MAX_ITEMS", 1),
@@ -527,25 +520,40 @@ def _sanitize_config(raw: Dict[str, Any]) -> Dict[str, str]:
         ("KNOWLEDGE_AUTO_MIN_TEXT_CHARS", 4),
     ):
         try:
-            parsed = int(sanitized[key])
-            parsed = max(minimum, parsed)
+            parsed = max(minimum, int(sanitized[key]))
         except (TypeError, ValueError):
             parsed = int(DEFAULT_RUNTIME_CONFIG[key])
         sanitized[key] = str(parsed)
 
+
+def _sanitize_bool_and_enum_fields(sanitized: Dict[str, str]) -> None:
+    """规范化布尔值与枚举字段（原地修改 sanitized）。"""
+    _TRUE_VALS = {"1", "true", "yes", "on"}
+    for key in ("TASK_SCHEDULER_LEASE_ENABLED", "LLM_PROVIDER_STRICT_MODE", "KNOWLEDGE_AUTO_LEARN_ENABLED"):
+        sanitized[key] = "true" if sanitized[key].lower() in _TRUE_VALS else "false"
+
     provider = sanitized["NOTIFICATION_PROVIDER"].lower()
     sanitized["NOTIFICATION_PROVIDER"] = provider if provider in {"log", "wechat"} else "log"
-
-    lease_enabled = sanitized["TASK_SCHEDULER_LEASE_ENABLED"].lower()
-    sanitized["TASK_SCHEDULER_LEASE_ENABLED"] = "true" if lease_enabled in {"1", "true", "yes", "on"} else "false"
-    strict_mode = sanitized["LLM_PROVIDER_STRICT_MODE"].lower()
-    sanitized["LLM_PROVIDER_STRICT_MODE"] = "true" if strict_mode in {"1", "true", "yes", "on"} else "false"
-    auto_learn = sanitized["KNOWLEDGE_AUTO_LEARN_ENABLED"].lower()
-    sanitized["KNOWLEDGE_AUTO_LEARN_ENABLED"] = "true" if auto_learn in {"1", "true", "yes", "on"} else "false"
 
     log_level = sanitized["LOG_LEVEL"].upper()
     sanitized["LOG_LEVEL"] = log_level if log_level in CONFIG_ALLOWED_VALUES["LOG_LEVEL"] else "INFO"
 
+
+def _sanitize_config(raw: Dict[str, Any]) -> Dict[str, str]:
+    """将原始配置字典规范化为合法的 str→str 字典，确保所有字段均有效。"""
+    sanitized: Dict[str, str] = {}
+    merged = dict(DEFAULT_RUNTIME_CONFIG)
+    merged.update(raw)
+    for key, default in DEFAULT_RUNTIME_CONFIG.items():
+        raw_value = merged.get(key, default)
+        value = _stringify(raw_value)
+        if not value and key in {"TASK_SCHEDULER_MODE", "TASK_SCHEDULER_INTERVAL_MINUTES", "TASK_SCHEDULER_CRON"}:
+            value = _stringify(default)
+        sanitized[key] = value
+
+    _sanitize_scheduler_fields(sanitized)
+    _sanitize_knowledge_fields(sanitized)
+    _sanitize_bool_and_enum_fields(sanitized)
     return sanitized
 
 
@@ -618,55 +626,43 @@ async def save_runtime_config_dict(raw: Dict[str, Any]) -> Dict[str, str]:
     return sanitized
 
 
-def validate_runtime_config(raw: Dict[str, Any]) -> Dict[str, Any]:
-    errors: List[str] = []
-    warnings: List[str] = []
+_LOWER_CASE_ENUM_KEYS = {
+    "ROUTING_LLM", "STRUCTURING_LLM", "INTENT_PROVIDER", "VISION_LLM",
+    "LLM_PROVIDER_STRICT_MODE", "AGENT_ROUTING_PROMPT_MODE", "AGENT_TOOL_SCHEMA_MODE",
+    "KNOWLEDGE_AUTO_LEARN_ENABLED", "WHISPER_DEVICE", "TASK_SCHEDULER_MODE",
+    "NOTIFICATION_PROVIDER",
+}
 
-    if not isinstance(raw, dict):
-        return {"ok": False, "errors": ["config must be a JSON object"], "warnings": warnings, "sanitized": {}}
 
+def _validate_enum_fields(raw: Dict[str, Any], errors: List[str]) -> None:
+    """将允许值列表中的字段与提交值比对，将违规项追加到 errors。"""
     for key, allowed in CONFIG_ALLOWED_VALUES.items():
         if key not in raw:
             continue
         value = str(raw.get(key, ""))
-        if key in {
-            "ROUTING_LLM",
-            "STRUCTURING_LLM",
-            "INTENT_PROVIDER",
-            "VISION_LLM",
-            "LLM_PROVIDER_STRICT_MODE",
-            "AGENT_ROUTING_PROMPT_MODE",
-            "AGENT_TOOL_SCHEMA_MODE",
-            "KNOWLEDGE_AUTO_LEARN_ENABLED",
-            "WHISPER_DEVICE",
-            "TASK_SCHEDULER_MODE",
-            "NOTIFICATION_PROVIDER",
-        }:
+        if key in _LOWER_CASE_ENUM_KEYS:
             value = value.lower()
         elif key == "LOG_LEVEL":
             value = value.upper()
         if value not in allowed:
             errors.append("{0}: unsupported value '{1}', allowed={2}".format(key, raw.get(key), ",".join(allowed)))
 
+
+def _validate_scheduler_fields(raw: Dict[str, Any], errors: List[str], warnings: List[str]) -> None:
+    """校验调度器字段的语义合法性，将问题追加到 errors / warnings。"""
     mode = str(raw.get("TASK_SCHEDULER_MODE", DEFAULT_RUNTIME_CONFIG["TASK_SCHEDULER_MODE"])).lower()
     cron_expr = str(raw.get("TASK_SCHEDULER_CRON", DEFAULT_RUNTIME_CONFIG["TASK_SCHEDULER_CRON"]))
     if mode == "cron" and len(cron_expr.split()) != 5:
         errors.append("TASK_SCHEDULER_CRON: must contain 5 cron fields when TASK_SCHEDULER_MODE=cron")
-
     try:
         lease_ttl = int(raw.get("TASK_SCHEDULER_LEASE_TTL_SECONDS", DEFAULT_RUNTIME_CONFIG["TASK_SCHEDULER_LEASE_TTL_SECONDS"]))
         if lease_ttl < 10:
             warnings.append("TASK_SCHEDULER_LEASE_TTL_SECONDS < 10; will be clamped to 10")
     except (TypeError, ValueError):
         errors.append("TASK_SCHEDULER_LEASE_TTL_SECONDS: must be an integer")
-
     for key in (
-        "KNOWLEDGE_CANDIDATE_LIMIT",
-        "KNOWLEDGE_MAX_ITEMS",
-        "KNOWLEDGE_MAX_CHARS",
-        "KNOWLEDGE_MAX_ITEM_CHARS",
-        "KNOWLEDGE_AUTO_MAX_NEW_PER_TURN",
-        "KNOWLEDGE_AUTO_MIN_TEXT_CHARS",
+        "KNOWLEDGE_CANDIDATE_LIMIT", "KNOWLEDGE_MAX_ITEMS", "KNOWLEDGE_MAX_CHARS",
+        "KNOWLEDGE_MAX_ITEM_CHARS", "KNOWLEDGE_AUTO_MAX_NEW_PER_TURN", "KNOWLEDGE_AUTO_MIN_TEXT_CHARS",
     ):
         if key not in raw:
             continue
@@ -675,6 +671,17 @@ def validate_runtime_config(raw: Dict[str, Any]) -> Dict[str, Any]:
         except (TypeError, ValueError):
             errors.append("{0}: must be an integer".format(key))
 
+
+def validate_runtime_config(raw: Dict[str, Any]) -> Dict[str, Any]:
+    """校验原始配置字典，返回含 ok / errors / warnings / sanitized 的结果字典。"""
+    errors: List[str] = []
+    warnings: List[str] = []
+
+    if not isinstance(raw, dict):
+        return {"ok": False, "errors": ["config must be a JSON object"], "warnings": warnings, "sanitized": {}}
+
+    _validate_enum_fields(raw, errors)
+    _validate_scheduler_fields(raw, errors, warnings)
     sanitized = _sanitize_config(raw)
     return {"ok": not errors, "errors": errors, "warnings": warnings, "sanitized": sanitized}
 

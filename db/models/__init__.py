@@ -1,3 +1,4 @@
+"""db.models 包初始化：聚合所有 ORM 模型定义。"""
 from db.models.base import _utcnow
 from db.models.system import SystemPrompt, SystemPromptVersion
 from db.models.doctor import (

@@ -1,6 +1,6 @@
-"""
-Session-context helpers for fast_router.
+"""fast_router 会话上下文辅助函数：从会话状态回填患者姓名等字段。
 
+Session-context helpers for fast_router.
 No intra-package dependencies — safe to import directly everywhere.
 """
 

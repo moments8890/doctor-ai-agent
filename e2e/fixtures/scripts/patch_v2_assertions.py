@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """
+断言补丁工具 — 原地修补 realworld_doctor_agent_chatlogs_e2e_v2.json 的断言字段。
+
 patch_v2_assertions.py — Patch realworld_doctor_agent_chatlogs_e2e_v2.json in-place.
 
 Patches applied:
@@ -147,118 +149,76 @@ def _is_clinical_case_range(num: int | None) -> bool:
     return num is not None and 101 <= num <= 1000
 
 
-def patch_case(case: dict) -> dict:
-    """Apply all patches to a single case dict. Returns modified case."""
-    case_id: str = case["case_id"]
-    exp: dict = case["expectations"]
+def _patch_table_counts(exp: dict, case_id: str, num) -> None:
+    """补丁A：为缺少 expected_table_min_counts_by_doctor 的案例填充默认值。"""
+    if "expected_table_min_counts_by_doctor" in exp:
+        return
+    is_dup = case_id in DUPLICATE_DELETE_IDS
+    if is_dup:
+        exp["expected_table_min_counts_by_doctor"] = {"patients": 1}
+    elif _is_correction_case(case_id) or _is_main_case_range(num) or _is_clinical_case_range(num):
+        exp["expected_table_min_counts_by_doctor"] = {"patients": 1, "medical_records": 1}
 
-    num = _parse_case_number(case_id)
-    is_correction = _is_correction_case(case_id)
-    is_duplicate_delete = case_id in DUPLICATE_DELETE_IDS
 
-    # ── Patch A: expected_table_min_counts_by_doctor ──────────────────────────
-    if "expected_table_min_counts_by_doctor" not in exp:
-        if is_duplicate_delete:
-            # Only 1 patient remains after the delete
-            exp["expected_table_min_counts_by_doctor"] = {"patients": 1}
-        elif is_correction:
-            # Correction cases create a patient + a record
-            exp["expected_table_min_counts_by_doctor"] = {
-                "patients": 1,
-                "medical_records": 1,
-            }
-        elif _is_main_case_range(num):
-            # Template cases 001-100: create patient + add record
-            exp["expected_table_min_counts_by_doctor"] = {
-                "patients": 1,
-                "medical_records": 1,
-            }
-        elif _is_clinical_case_range(num):
-            # Clinical scenario cases 101-1000: create patient + add record
-            exp["expected_table_min_counts_by_doctor"] = {
-                "patients": 1,
-                "medical_records": 1,
-            }
-
-    # ── Patch B: zero-assertion duplicate-delete cases ────────────────────────
-    if is_duplicate_delete and "must_include_any_of" not in exp:
+def _patch_duplicate_delete(exp: dict, case_id: str) -> None:
+    """补丁B：为零断言的重复建档/删除案例添加 must_include_any_of。"""
+    if case_id in DUPLICATE_DELETE_IDS and "must_include_any_of" not in exp:
         exp["must_include_any_of"] = DUPLICATE_DELETE_KEYWORDS
 
-    # ── Patch C: correction cases — enforce corrected value in keywords ────────
-    if is_correction and case_id in CORRECTION_PATCHES:
+
+def _patch_correction(exp: dict, case_id: str) -> None:
+    """补丁C：为更正案例强制设置精确的 must_include_any_of/must_not_include。"""
+    if _is_correction_case(case_id) and case_id in CORRECTION_PATCHES:
         patch_info = CORRECTION_PATCHES[case_id]
-        # Overwrite must_include_any_of with the stronger version
         exp["must_include_any_of"] = patch_info["must_include_any_of"]
-        # Add must_not_include if applicable
         if patch_info.get("must_not_include"):
             exp["must_not_include"] = patch_info["must_not_include"]
 
-    # ── Patch D: clinical cases 101-1000 — ensure ≥5 terms per group ─────────
-    # The existing keywords already have 5-8 terms; no data change needed.
-    # This pass just validates and leaves them as-is (no truncation).
-    if _is_clinical_case_range(num) and "must_include_any_of" in exp:
-        for group in exp["must_include_any_of"]:
-            if len(group) < 5:
-                # Defensive: add a generic fallback term so group length ≥ 5
-                # (In practice, the existing fixture already has 7-9 terms.)
-                pass  # Already satisfied; nothing to do.
 
+def patch_case(case: dict) -> dict:
+    """对单个案例字典应用所有补丁，返回修改后的案例。"""
+    case_id: str = case["case_id"]
+    exp: dict = case["expectations"]
+    num = _parse_case_number(case_id)
+    _patch_table_counts(exp, case_id, num)
+    _patch_duplicate_delete(exp, case_id)
+    _patch_correction(exp, case_id)
+    # Patch D: clinical 101-1000 keywords already ≥5 terms; no-op validation.
     return case
 
 
-def main() -> None:
-    # ── Load ──────────────────────────────────────────────────────────────────
-    raw = DATA_PATH.read_text(encoding="utf-8")
-    data: list[dict] = json.loads(raw)
-    original_count = len(data)
-    print(f"Loaded {original_count} cases from {DATA_PATH.name}")
-
-    # ── Backup ────────────────────────────────────────────────────────────────
-    shutil.copy2(DATA_PATH, BAK_PATH)
-    print(f"Backup written to {BAK_PATH.name}")
-
-    # ── Apply patches ─────────────────────────────────────────────────────────
-    patched_db_count = 0
-    patched_keywords_count = 0
-    patched_must_not_include_count = 0
-
+def _apply_all_patches(data: list) -> tuple:
+    """对列表中所有案例应用补丁，返回 (patched_db, patched_keywords, patched_mni) 计数。"""
+    patched_db = patched_kw = patched_mni = 0
     for i, case in enumerate(data):
         before_keys = set(case["expectations"].keys())
         before_mia = case["expectations"].get("must_include_any_of")
-
         data[i] = patch_case(case)
-
         after_keys = set(data[i]["expectations"].keys())
         after_mia = data[i]["expectations"].get("must_include_any_of")
-
         if "expected_table_min_counts_by_doctor" in after_keys - before_keys:
-            patched_db_count += 1
+            patched_db += 1
         if before_mia != after_mia:
-            patched_keywords_count += 1
+            patched_kw += 1
         if "must_not_include" in after_keys - before_keys:
-            patched_must_not_include_count += 1
+            patched_mni += 1
+    return patched_db, patched_kw, patched_mni
 
-    # ── Write back ────────────────────────────────────────────────────────────
-    DATA_PATH.write_text(
-        json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
 
-    # ── Summary ───────────────────────────────────────────────────────────────
+def _print_patch_summary(data: list, original_count: int,
+                         patched_db: int, patched_kw: int, patched_mni: int) -> None:
+    """打印补丁摘要并验证剩余违规案例。"""
     print()
     print("=== Patch summary ===")
     print(f"  Total cases:                         {len(data)}")
     print(f"  Cases unchanged:                     {original_count}")
-    print(f"  [A] Added expected_table_min_counts_by_doctor: {patched_db_count}")
-    print(f"  [B/C] Updated must_include_any_of:   {patched_keywords_count}")
-    print(f"  [C] Added must_not_include:           {patched_must_not_include_count}")
+    print(f"  [A] Added expected_table_min_counts_by_doctor: {patched_db}")
+    print(f"  [B/C] Updated must_include_any_of:   {patched_kw}")
+    print(f"  [C] Added must_not_include:           {patched_mni}")
     print()
-
-    # Verify zero-assertion cases are fixed
     still_zero = [
-        c["case_id"]
-        for c in data
-        if "must_include_any_of" not in c["expectations"]
-        and "CORRECTION" not in c["case_id"]
+        c["case_id"] for c in data
+        if "must_include_any_of" not in c["expectations"] and "CORRECTION" not in c["case_id"]
     ]
     if still_zero:
         print(f"WARNING: {len(still_zero)} non-correction cases still lack must_include_any_of:")
@@ -266,11 +226,8 @@ def main() -> None:
             print(f"    {cid}")
     else:
         print("All non-correction cases now have must_include_any_of.")
-
-    # Verify all cases have by_doctor counts
     missing_by_doctor = [
-        c["case_id"]
-        for c in data
+        c["case_id"] for c in data
         if "expected_table_min_counts_by_doctor" not in c["expectations"]
     ]
     if missing_by_doctor:
@@ -279,9 +236,21 @@ def main() -> None:
             print(f"    {cid}")
     else:
         print("All cases now have expected_table_min_counts_by_doctor.")
-
     print()
     print(f"Output written to {DATA_PATH}")
+
+
+def main() -> None:
+    """命令行主入口：加载、备份、补丁、写回并打印摘要。"""
+    raw = DATA_PATH.read_text(encoding="utf-8")
+    data: list = json.loads(raw)
+    original_count = len(data)
+    print(f"Loaded {original_count} cases from {DATA_PATH.name}")
+    shutil.copy2(DATA_PATH, BAK_PATH)
+    print(f"Backup written to {BAK_PATH.name}")
+    patched_db, patched_kw, patched_mni = _apply_all_patches(data)
+    DATA_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    _print_patch_summary(data, original_count, patched_db, patched_kw, patched_mni)
 
 
 if __name__ == "__main__":

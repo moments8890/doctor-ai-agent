@@ -1,6 +1,4 @@
-"""
-Tests for services/session.py — pure in-memory, no async needed.
-"""
+"""会话管理基础测试：验证医生会话的创建、患者上下文设置、隔离性及清除逻辑，纯内存操作无需异步。"""
 
 import pytest
 from services.session import get_session, set_current_patient, clear_current_patient, DoctorSession

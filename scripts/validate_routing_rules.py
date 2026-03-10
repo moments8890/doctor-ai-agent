@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """
+根据转录轮次日志验证挖掘出的路由规则的精准率与召回率。
+
 Validate mined routing rules against the turn log.
 
 Reports precision, recall, and coverage for each rule, which is useful for

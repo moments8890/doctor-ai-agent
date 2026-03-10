@@ -79,6 +79,65 @@ def _looks_like_timeout_error(exc: Exception) -> bool:
     return "apitimeouterror" in name
 
 
+def _make_circuit_key(op_name: str, model: str, suffix: str) -> str:
+    base = "{0}:{1}".format(op_name, model)
+    return "{0}:{1}".format(base, suffix) if suffix else base
+
+
+async def _retry_primary(
+    call_for_model: Callable[[str], Awaitable[T]],
+    primary_model: str,
+    primary_key: str,
+    attempts: int,
+    backoff: list,
+    op_name: str,
+) -> tuple[Optional[T], Optional[Exception]]:
+    """Run primary-model retry loop. Returns (result, None) on success or (None, last_error)."""
+    last_error: Optional[Exception] = None
+    for attempt in range(1, attempts + 1):
+        try:
+            result = await call_for_model(primary_model)
+            _record_success(primary_key)
+            return result, None
+        except Exception as exc:
+            last_error = exc
+            _record_failure(primary_key)
+            if attempt >= attempts:
+                break
+            delay = backoff[min(attempt - 1, len(backoff) - 1)]
+            log(
+                "[LLM] {0} retrying model={1} attempt={2}/{3} delay={4}s error={5}".format(
+                    op_name, primary_model, attempt, attempts, delay, exc,
+                )
+            )
+            await asyncio.sleep(delay)
+    return None, last_error
+
+
+async def _try_fallback(
+    call_for_model: Callable[[str], Awaitable[T]],
+    fallback_model: str,
+    fallback_key: str,
+    primary_model: str,
+    last_error: Exception,
+    op_name: str,
+) -> T:
+    """Attempt fallback model call; raises on circuit-open or call failure."""
+    if _is_circuit_open(fallback_key):
+        raise RuntimeError("circuit_open model={0} op={1}".format(fallback_model, op_name))
+    if _looks_like_timeout_error(last_error):
+        log("[LLM] {0} timeout on model={1}; falling back to model={2}".format(
+            op_name, primary_model, fallback_model,
+        ))
+    try:
+        result = await call_for_model(fallback_model)
+        _record_success(fallback_key)
+        return result
+    except Exception as exc:
+        _record_failure(fallback_key)
+        raise exc
+
+
 async def call_with_retry_and_fallback(
     call_for_model: Callable[[str], Awaitable[T]],
     *,
@@ -96,58 +155,23 @@ async def call_with_retry_and_fallback(
     """
     attempts = max(1, int(max_attempts))
     backoff = list(backoff_seconds or (0.5, 1.0))
-    last_error: Optional[Exception] = None
-    _key_base = "{0}:{1}".format(op_name, primary_model)
-    primary_key = "{0}:{1}".format(_key_base, circuit_key_suffix) if circuit_key_suffix else _key_base
+    primary_key = _make_circuit_key(op_name, primary_model, circuit_key_suffix)
 
+    last_error: Optional[Exception] = None
     if _is_circuit_open(primary_key):
         last_error = RuntimeError("circuit_open model={0} op={1}".format(primary_model, op_name))
     else:
-        for attempt in range(1, attempts + 1):
-            try:
-                result = await call_for_model(primary_model)
-                _record_success(primary_key)
-                return result
-            except Exception as exc:
-                last_error = exc
-                _record_failure(primary_key)
-                if attempt >= attempts:
-                    break
-                delay = backoff[min(attempt - 1, len(backoff) - 1)]
-                log(
-                    "[LLM] {0} retrying model={1} attempt={2}/{3} delay={4}s error={5}".format(
-                        op_name,
-                        primary_model,
-                        attempt,
-                        attempts,
-                        delay,
-                        exc,
-                    )
-                )
-                await asyncio.sleep(delay)
+        result, last_error = await _retry_primary(
+            call_for_model, primary_model, primary_key, attempts, backoff, op_name
+        )
+        if last_error is None:
+            return result  # type: ignore[return-value]
 
     if fallback_model and fallback_model != primary_model and last_error:
-        _fb_key_base = "{0}:{1}".format(op_name, fallback_model)
-        fallback_key = "{0}:{1}".format(_fb_key_base, circuit_key_suffix) if circuit_key_suffix else _fb_key_base
-        if _is_circuit_open(fallback_key):
-            raise RuntimeError("circuit_open model={0} op={1}".format(fallback_model, op_name))
-
-        if _looks_like_timeout_error(last_error):
-            log(
-                "[LLM] {0} timeout on model={1}; falling back to model={2}".format(
-                    op_name,
-                    primary_model,
-                    fallback_model,
-                )
-            )
-
-        try:
-            result = await call_for_model(fallback_model)
-            _record_success(fallback_key)
-            return result
-        except Exception as exc:
-            _record_failure(fallback_key)
-            raise exc
+        fallback_key = _make_circuit_key(op_name, fallback_model, circuit_key_suffix)
+        return await _try_fallback(
+            call_for_model, fallback_model, fallback_key, primary_model, last_error, op_name
+        )
 
     if last_error is not None:
         raise last_error

@@ -1,8 +1,5 @@
 """
-Compiled regex patterns and pure helpers for fast_router.
-
-No intra-package dependencies — safe to import directly everywhere.
-All patterns here are immutable after module load.
+快速路由正则模式库：编译后的正则表达式和纯辅助函数，无包内依赖。
 """
 
 from __future__ import annotations
@@ -350,25 +347,6 @@ _UPDATE_PATIENT_DEMO_RE = re.compile(
 
 # ── Record correction ─────────────────────────────────────────────────────────
 # Triggered when doctor explicitly acknowledges a previous record error.
-_CORRECT_RECORD_RE = re.compile(
-    r"刚才.{0,20}(?:写错了|有误|错误|不对|记错了|搞错了)"
-    r"|上一条.{0,15}(?:有误|写错了|错误|不对)"
-    r"|(?:病历|记录).{0,15}(?:写错了|有误|搞错了|记错了)"
-    r"|(?:更正|纠正).{0,5}(?:上一条|刚才|最近)?.{0,5}(?:病历|记录)"
-    # Natural-language field corrections: "主诉改为…", "诊断调整为…", "不是X是Y"
-    r"|(?:主诉|诊断|治疗|用药|处置|病史|手术|年龄|性别).{0,6}(?:改为|改成|更正为|更新为|应该是|调整为)"
-    r"|(?:不是|非).{1,10}(?:是|，|,).{0,10}(?:对|才对|才是对的|正确)"
-    r"|(?:应该|应是|应为).{0,4}(?:主诉|诊断|治疗|用药|手术)"
-)
-
-# Name extraction for correction messages where name follows "刚才/上一条".
-# E.g. "刚才李波的主诉写错了" → "李波"
-#      "上一条陈刚的诊断有误" → "陈刚"
-_CORRECT_NAME_RE = re.compile(
-    r"(?:刚才|上一条(?:病历|记录)?)\s*([\u4e00-\u9fff]{2,3})\s*的"
-    r"|(?:更正|纠正)\s*\S{0,5}\s*([\u4e00-\u9fff]{2,3})\s*的(?:病历|记录)"
-)
-
 # Name at message start: "张三，…" / "患者张三" / "病人李明"
 # Also used by _tier3.py and _router.py.
 # Best-effort only: the following-char set [，,。：:\s男女\d] intentionally excludes

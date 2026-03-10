@@ -1,4 +1,4 @@
-"""CRUD helpers for specialty clinical context tables."""
+"""专科临床上下文表的 CRUD 辅助函数：神经外科 CVD 数据的读写与更新。"""
 
 from __future__ import annotations
 

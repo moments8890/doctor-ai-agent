@@ -1,7 +1,4 @@
-"""Tests for DoctorTask system: extract_follow_up_days, CRUD, services/tasks.py, agent dispatch.
-
-All I/O (DB sessions, LLM calls, WeChat push) is mocked — no real network or DB calls.
-"""
+"""任务系统测试：验证随访天数提取、任务 CRUD、任务服务（创建/通知/重试）、Agent 派发及 REST API 端点的完整流程，所有 I/O 均使用模拟对象。"""
 
 from __future__ import annotations
 

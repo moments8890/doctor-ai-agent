@@ -38,8 +38,21 @@ def _infer_channel(doctor_id: str) -> str:
     return "wechat" if _is_wechat_identifier(doctor_id) else "app"
 
 
+async def _lookup_doctor_by_wechat_id(
+    session: AsyncSession, stored_wechat_id: str
+) -> Optional[Doctor]:
+    """按哈希后的微信 ID 查询医生记录。"""
+    return (
+        await session.execute(
+            select(Doctor)
+            .where(Doctor.channel == "wechat", Doctor.wechat_user_id == stored_wechat_id)
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+
 async def _resolve_doctor_id(session: AsyncSession, doctor_id: str, name: Optional[str] = None) -> str:
-    """Resolve incoming identifier to canonical doctor_id and keep doctors registry fresh."""
+    """将传入标识符解析为规范 doctor_id，并保持 doctors 注册表最新。"""
     incoming = (doctor_id or "").strip()
     if not incoming:
         return doctor_id
@@ -47,7 +60,7 @@ async def _resolve_doctor_id(session: AsyncSession, doctor_id: str, name: Option
     now = _utcnow()
     channel = _infer_channel(incoming)
     wechat_user_id = incoming if channel == "wechat" else None
-    stored_wechat_id = hash_wechat_id(wechat_user_id)  # None if not a wechat ID
+    stored_wechat_id = hash_wechat_id(wechat_user_id)
 
     existing_by_id = (
         await session.execute(select(Doctor).where(Doctor.doctor_id == incoming).limit(1))
@@ -63,13 +76,7 @@ async def _resolve_doctor_id(session: AsyncSession, doctor_id: str, name: Option
         return existing_by_id.doctor_id
 
     if stored_wechat_id:
-        existing_by_wechat = (
-            await session.execute(
-                select(Doctor)
-                .where(Doctor.channel == "wechat", Doctor.wechat_user_id == stored_wechat_id)
-                .limit(1)
-            )
-        ).scalar_one_or_none()
+        existing_by_wechat = await _lookup_doctor_by_wechat_id(session, stored_wechat_id)
         if existing_by_wechat is not None:
             existing_by_wechat.updated_at = now
             if name and not existing_by_wechat.name:
@@ -78,26 +85,14 @@ async def _resolve_doctor_id(session: AsyncSession, doctor_id: str, name: Option
 
     try:
         async with session.begin_nested():
-            session.add(
-                Doctor(
-                    doctor_id=incoming,
-                    name=name,
-                    channel=channel,
-                    wechat_user_id=stored_wechat_id,
-                    created_at=now,
-                    updated_at=now,
-                )
-            )
+            session.add(Doctor(
+                doctor_id=incoming, name=name, channel=channel,
+                wechat_user_id=stored_wechat_id, created_at=now, updated_at=now,
+            ))
         return incoming
     except IntegrityError:
         if stored_wechat_id:
-            row = (
-                await session.execute(
-                    select(Doctor)
-                    .where(Doctor.channel == "wechat", Doctor.wechat_user_id == stored_wechat_id)
-                    .limit(1)
-                )
-            ).scalar_one_or_none()
+            row = await _lookup_doctor_by_wechat_id(session, stored_wechat_id)
             if row is not None:
                 return row.doctor_id
         raise
@@ -295,20 +290,20 @@ async def append_conversation_turns(
         )
     await session.flush()
 
-    keep_result = await session.execute(
+    # Atomic rollover: single DELETE … WHERE id NOT IN (subquery) — no race window.
+    keep_subq = (
         select(DoctorConversationTurn.id)
         .where(DoctorConversationTurn.doctor_id == doctor_id)
         .order_by(DoctorConversationTurn.created_at.desc(), DoctorConversationTurn.id.desc())
         .limit(safe_max_messages)
+        .scalar_subquery()
     )
-    keep_ids = list(keep_result.scalars().all())
-    if keep_ids:
-        await session.execute(
-            delete(DoctorConversationTurn).where(
-                DoctorConversationTurn.doctor_id == doctor_id,
-                DoctorConversationTurn.id.notin_(keep_ids),
-            )
+    await session.execute(
+        delete(DoctorConversationTurn).where(
+            DoctorConversationTurn.doctor_id == doctor_id,
+            DoctorConversationTurn.id.notin_(keep_subq),
         )
+    )
     await session.commit()
 
 

@@ -1,12 +1,4 @@
-"""Tests for services/structuring.py — LLM is mocked.
-
-Verifies that:
-- LLM JSON output is correctly parsed into MedicalRecord
-- content and tags fields are mapped correctly
-- Empty/null content triggers fallback (uses input text)
-- Optional tags remain empty list when absent
-- LLM is called with correct parameters (temperature=0, json mode, max_tokens=1500)
-"""
+"""病历结构化服务测试：验证 LLM 返回 JSON 正确解析为 MedicalRecord、字段映射、空值回退及调用参数（temperature=0、JSON 模式、max_tokens=1500）的正确性。"""
 
 import json
 import pytest

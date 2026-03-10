@@ -1,3 +1,5 @@
+"""运行时状态持久化测试：验证运行时游标、Token 及会话对话轮次的数据库读写与清理操作。"""
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone

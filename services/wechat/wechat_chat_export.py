@@ -83,16 +83,12 @@ class ParseResult:
 
 # ── Parser ────────────────────────────────────────────────────────────────────
 
-def parse_wechat_export(text: str) -> ParseResult:
-    """Parse a WeChat PC chat export into structured messages.
-
-    Handles both personal and group chat export formats.
-    Does NOT filter by sender — returns all messages so the caller can choose.
-    """
-    lines = text.splitlines()
+def _iter_chat_lines(
+    lines: List[str],
+) -> "tuple[List[ChatMessage], dict[str, int]]":
+    """逐行解析聊天记录，返回 (messages, seen_senders)。"""
     messages: List[ChatMessage] = []
-    seen_senders: dict[str, int] = {}  # sender → first-appearance order
-
+    seen_senders: dict[str, int] = {}
     current_ts: Optional[str] = None
     current_sender: Optional[str] = None
     current_lines: List[str] = []
@@ -112,16 +108,10 @@ def parse_wechat_export(text: str) -> ParseResult:
 
     for line in lines:
         stripped = line.strip()
-
-        # Skip export header lines like "导出时间：..." or "———————"
         if stripped.startswith("导出时间") or set(stripped) <= {"—", "－", "-", " ", "="}:
             continue
-
-        # Skip pure date separators
         if _DATE_ONLY_RE.match(stripped):
             continue
-
-        # Try to match a new message header
         m = _MSG_HEADER_RE.match(stripped)
         if m:
             _flush()
@@ -129,22 +119,23 @@ def parse_wechat_export(text: str) -> ParseResult:
             current_sender = m.group(2).strip()
             current_lines = []
             continue
-
-        # Continuation line — append to current message
         if stripped:
             current_lines.append(stripped)
 
     _flush()
+    return messages, seen_senders
 
-    # Build ordered sender list
+
+def parse_wechat_export(text: str) -> ParseResult:
+    """将微信 PC 导出聊天记录解析为结构化消息列表（个人聊天和群聊均支持）。"""
+    lines = text.splitlines()
+    messages, seen_senders = _iter_chat_lines(lines)
     ordered_senders = sorted(seen_senders.keys(), key=lambda s: seen_senders[s])
-
-    result = ParseResult(
+    return ParseResult(
         messages=messages,
         senders=ordered_senders,
         total_messages=len(messages),
     )
-    return result
 
 
 # ── Clinical filter ───────────────────────────────────────────────────────────

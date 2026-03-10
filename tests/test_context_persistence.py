@@ -1,22 +1,6 @@
-"""Integration tests for the full doctor-context memory cycle.
+"""上下文持久化集成测试：验证会话压缩写入数据库、摘要加载注入 Agent 历史的完整周期。"""
 
-Exercises the path:
-  push_turn × N turns
-    → maybe_compress (triggers on full window)
-      → _summarise (LLM mocked)
-      → upsert_doctor_context (writes to real in-memory SQLite)
-    → load_context_message (reads from same in-memory SQLite)
-      → system message injected into next agent call
-
-Verifies that:
-- Compression actually writes a row to the doctor_contexts table
-- The stored summary matches what the LLM returned
-- load_context_message returns the correct role/content shape
-- After injection, the summary content is visible in agent history
-- A second compression (new conversation) overwrites the previous row
-- Two doctors get independent context rows
-- Expired summary is replaced, not accumulated
-"""
+# Integration tests for the full doctor-context memory cycle.
 
 import time
 import pytest

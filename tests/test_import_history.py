@@ -1,6 +1,4 @@
-"""
-Tests for the import_history feature (wechat_domain pure helpers).
-"""
+"""历史病历导入单元测试：覆盖文本分块、预处理、预览格式化和重复检测等纯函数逻辑。"""
 
 from __future__ import annotations
 

@@ -1,3 +1,5 @@
+"""日志工具单元测试：覆盖结构化日志字段传递、文件轮转、JSON 模式输出和日志级别解析。"""
+
 from __future__ import annotations
 
 import json

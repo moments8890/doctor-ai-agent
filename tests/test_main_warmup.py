@@ -1,3 +1,5 @@
+"""主应用启动预热测试：覆盖 Ollama 连接失败回退、健康检查快照和调度器清理任务的行为。"""
+
 from __future__ import annotations
 
 import importlib

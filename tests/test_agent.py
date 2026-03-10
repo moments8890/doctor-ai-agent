@@ -1,14 +1,6 @@
-"""Tests for services/agent.py — LLM function calling is mocked.
+"""Agent 调度单元测试：覆盖 dispatch()、工具调用解析和多提供商故障转移。"""
 
-Verifies that:
-- Each tool name maps to the correct Intent
-- patient_name / gender / age are extracted from tool args
-- is_emergency flag is correctly read
-- Invalid age/gender are coerced to None
-- No tool call → chat_reply is returned
-- conversation history is forwarded to the LLM
-- Malformed JSON args don't raise
-"""
+# Tests for services/agent.py — LLM function calling is mocked.
 
 import json
 import pytest

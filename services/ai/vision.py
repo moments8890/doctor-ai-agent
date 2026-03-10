@@ -42,21 +42,13 @@ _PROVIDERS = {
 }
 
 
-async def extract_text_from_image(image_bytes: bytes, mime_type: str) -> str:
-    """Extract all clinical text from an image using a vision LLM.
-
-    Provider is selected via the VISION_LLM env var (default: 'ollama').
-    For ollama, the model is OLLAMA_VISION_MODEL (default: 'qwen2.5vl:7b').
-    """
-    provider_name = os.environ.get("VISION_LLM", "ollama")
+def _build_vision_client(provider_name: str) -> tuple[AsyncOpenAI, str]:
+    """构造视觉 LLM 客户端，返回 (client, model_name)，使用模块级缓存。"""
     cfg = _PROVIDERS[provider_name]
-
     model = cfg["model_default"]
     if cfg["model_env"]:
         model = os.environ.get(cfg["model_env"], model)
-
     api_key = os.environ.get(cfg["api_key_env"], "nokeyneeded")
-
     client_kwargs: dict = {
         "api_key": api_key,
         "timeout": float(os.environ.get("VISION_LLM_TIMEOUT", "60")),
@@ -64,41 +56,47 @@ async def extract_text_from_image(image_bytes: bytes, mime_type: str) -> str:
     }
     if cfg["base_url"]:
         client_kwargs["base_url"] = cfg["base_url"]
-
     cache_key = f"{provider_name}:{model}"
-    if cache_key not in _CLIENT_CACHE or os.environ.get("PYTEST_CURRENT_TEST") or "pytest" in os.environ.get("_", ""):
+    is_test = os.environ.get("PYTEST_CURRENT_TEST") or "pytest" in os.environ.get("_", "")
+    if cache_key not in _CLIENT_CACHE or is_test:
         _CLIENT_CACHE[cache_key] = AsyncOpenAI(**client_kwargs)
-    client = _CLIENT_CACHE[cache_key]
+    return _CLIENT_CACHE[cache_key], model
+
+
+def _build_vision_messages(data_url: str, vision_prompt: str) -> list:
+    """构建图像提取请求的消息列表。"""
+    return [
+        {"role": "system", "content": vision_prompt},
+        {
+            "role": "user",
+            "content": [
+                {"type": "image_url", "image_url": {"url": data_url}},
+                {"type": "text", "text": "请提取图片中所有临床文字。"},
+            ],
+        },
+    ]
+
+
+async def extract_text_from_image(image_bytes: bytes, mime_type: str) -> str:
+    """Extract all clinical text from an image using a vision LLM.
+
+    Provider is selected via the VISION_LLM env var (default: 'ollama').
+    For ollama, the model is OLLAMA_VISION_MODEL (default: 'qwen2.5vl:7b').
+    """
+    provider_name = os.environ.get("VISION_LLM", "ollama")
+    client, model = _build_vision_client(provider_name)
+    log(f"[Vision:{provider_name}] model={model} image_size={len(image_bytes)} bytes")
 
     image_b64 = base64.b64encode(image_bytes).decode("utf-8")
     data_url = f"data:{mime_type};base64,{image_b64}"
 
-    log(f"[Vision:{provider_name}] model={model} image_size={len(image_bytes)} bytes")
-
     from utils.prompt_loader import get_prompt
     vision_prompt = await get_prompt("vision.ocr", _SYSTEM_PROMPT)
+    messages = _build_vision_messages(data_url, vision_prompt)
 
     async def _call(model_name: str):
         return await client.chat.completions.create(
-            model=model_name,
-            messages=[
-                {"role": "system", "content": vision_prompt},
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image_url",
-                            "image_url": {"url": data_url},
-                        },
-                        {
-                            "type": "text",
-                            "text": "请提取图片中所有临床文字。",
-                        },
-                    ],
-                },
-            ],
-            max_tokens=2000,
-            temperature=0,
+            model=model_name, messages=messages, max_tokens=2000, temperature=0,
         )
 
     fallback_model = None
@@ -114,8 +112,6 @@ async def extract_text_from_image(image_bytes: bytes, mime_type: str) -> str:
 
     extracted = (completion.choices[0].message.content or "").strip()
     log(f"[Vision:{provider_name}] extracted {len(extracted)} chars: {extracted[:80]!r}")
-
     if not extracted:
         raise RuntimeError("Vision LLM returned empty text — check image quality or model availability.")
-
     return extracted

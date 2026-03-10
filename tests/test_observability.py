@@ -1,3 +1,5 @@
+"""可观测性模块测试：验证链路追踪记录、延迟统计、Span 嵌套及请求中间件的追踪行为。"""
+
 from __future__ import annotations
 
 from datetime import datetime, timezone

@@ -1,4 +1,6 @@
 """
+微信入口多输入类型路由端到端测试。
+
 E2E-style multi-input routing tests for WeChat entrypoints.
 """
 

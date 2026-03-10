@@ -1,3 +1,5 @@
+"""知识库 Pipeline 单元测试：覆盖指南抓取、去重策略、声明排名、摘要构建和接地上下文生成。"""
+
 from __future__ import annotations
 
 from datetime import datetime

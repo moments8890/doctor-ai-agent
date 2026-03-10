@@ -1,6 +1,4 @@
-"""
-Tests for db/crud.py — all run against an in-memory SQLite database.
-"""
+"""数据库 CRUD 单元测试：使用内存 SQLite 覆盖患者、病历、标签及权限隔离的增删改查逻辑。"""
 
 import pytest
 from datetime import datetime

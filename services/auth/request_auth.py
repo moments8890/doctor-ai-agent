@@ -17,6 +17,8 @@ from services.auth.miniprogram_auth import MiniProgramAuthError, parse_bearer_to
 def _allow_insecure_doctor_id_fallback(flag_name: str) -> bool:
     if os.environ.get("PYTEST_CURRENT_TEST"):
         return True
+    if os.environ.get("ENVIRONMENT", "").strip().lower() in {"production", "prod"}:
+        return False  # hard-disabled in production regardless of flag
     return (os.environ.get(flag_name) or "").strip().lower() in {"1", "true", "yes", "on"}
 
 

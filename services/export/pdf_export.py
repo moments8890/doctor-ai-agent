@@ -109,87 +109,19 @@ def _age_from_year(year_of_birth: Optional[int]) -> Optional[int]:
     return datetime.now().year - int(year_of_birth)
 
 
-def generate_records_pdf(
-    records: list,
-    patient_name: Optional[str] = None,
-    patient: object = None,
-    clinic_name: Optional[str] = None,
-    doctor_name: Optional[str] = None,
-    cvd_context: object = None,
-) -> bytes:
-    """
-    Generate a PDF containing one or more MedicalRecordDB rows.
-
-    Args:
-        records: list of MedicalRecordDB ORM objects
-        patient_name: fallback name string if patient object not given
-        patient: Patient ORM object for rich demographics block
-        clinic_name: overrides CLINIC_NAME env var
-        doctor_name: attending physician name
-        cvd_context: optional NeuroCVDContext ORM row for specialty block
-    Returns raw PDF bytes. Raises RuntimeError if fpdf2 is not installed.
-    """
-    try:
-        from fpdf import FPDF
-    except ImportError:
-        raise RuntimeError("fpdf2 is not installed. Run: pip install fpdf2")
-
-    clinic = clinic_name or os.environ.get("CLINIC_NAME", "医疗机构")
-    font_path = _resolve_font_path()
-
-    class _PDF(FPDF):
-        """FPDF subclass with per-page footer showing page numbers."""
-        _font_path = font_path
-        _has_cjk = False
-        _footer_text = "本文件由 AI 助手生成，仅供参考，以原始病历为准"
-
-        def footer(self):
-            self.set_y(-13)
-            if self._has_cjk:
-                self.set_font("CJK", size=8)
-            else:
-                self.set_font("Helvetica", size=8)
-            self.set_text_color(150, 150, 150)
-            self.cell(0, 5, f"{self._footer_text}  |  第 {self.page_no()} / {{nb}} 页", align="C")
-
-    pdf = _PDF()
-    pdf.alias_nb_pages()          # enable {nb} placeholder in footer
-    pdf.set_margins(left=20, top=20, right=20)
-    pdf.set_auto_page_break(auto=True, margin=18)
-
-    has_cjk = False
-    if font_path:
-        try:
-            pdf.add_font("CJK", fname=font_path)
-            has_cjk = True
-            _PDF._has_cjk = True
-            log(f"[PDF] using font: {font_path}")
-        except Exception as exc:
-            log(f"[PDF] font load failed ({font_path}): {exc}")
-
+def _make_set_font(pdf, has_cjk: bool):
+    """返回闭包，按 CJK 可用情况设置字体。"""
     def _set_font(size: int, bold: bool = False):
         if has_cjk:
             pdf.set_font("CJK", size=size)
         else:
             style = "B" if bold else ""
             pdf.set_font("Helvetica", style=style, size=size)
+    return _set_font
 
-    pdf.add_page()
 
-    # ── Clinic header ────────────────────────────────────────────────────────
-    _set_font(15, bold=True)
-    pdf.cell(0, 9, clinic, align="C", new_x="LMARGIN", new_y="NEXT")
-    _set_font(11)
-    pdf.cell(0, 7, "病  历  记  录", align="C", new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(2)
-    pdf.set_draw_color(60, 80, 140)
-    pdf.set_line_width(0.5)
-    pdf.line(20, pdf.get_y(), pdf.w - 20, pdf.get_y())
-    pdf.set_line_width(0.2)
-    pdf.set_draw_color(180, 180, 180)
-    pdf.ln(5)
-
-    # ── Patient demographics block ───────────────────────────────────────────
+def _draw_patient_block(pdf, _set_font, patient, patient_name, doctor_name, records) -> None:
+    """绘制患者人口学信息块（含彩色背景矩形）。"""
     p_name = (getattr(patient, "name", None) if patient else None) or patient_name or "—"
     p_gender = getattr(patient, "gender", None) if patient else None
     p_yob = getattr(patient, "year_of_birth", None) if patient else None
@@ -202,7 +134,6 @@ def generate_records_pdf(
     box_y = pdf.get_y()
     box_h = 22
     pdf.rect(20, box_y, pdf.w - 40, box_h, style="FD")
-
     pdf.set_y(box_y + 2)
     _set_font(13, bold=True)
     pdf.set_x(25)
@@ -226,72 +157,183 @@ def generate_records_pdf(
     pdf.set_x(25)
     pdf.cell(0, 6, "  ｜  ".join(meta_parts), new_x="LMARGIN", new_y="NEXT")
     pdf.set_text_color(0, 0, 0)
-
     pdf.set_y(box_y + box_h + 4)
     pdf.set_draw_color(180, 180, 180)
 
-    # ── CVD specialty context (if present) ───────────────────────────────────
-    if cvd_context is not None:
-        _CVD_FIELD_LABELS = [
-            ("diagnosis_subtype", "诊断亚型"),
-            ("hemorrhage_location", "出血部位"),
-            ("gcs_score", "GCS"),
-            ("ich_score", "ICH评分"),
-            ("ich_volume_ml", "出血量(mL)"),
-            ("hemorrhage_etiology", "出血病因"),
-            ("hunt_hess_grade", "Hunt-Hess级"),
-            ("fisher_grade", "Fisher级"),
-            ("wfns_grade", "WFNS级"),
-            ("modified_fisher_grade", "改良Fisher级"),
-            ("vasospasm_status", "血管痉挛"),
-            ("hydrocephalus_status", "脑积水"),
-            ("spetzler_martin_grade", "Spetzler-Martin级"),
-            ("aneurysm_location", "动脉瘤位置"),
-            ("aneurysm_size_mm", "动脉瘤(mm)"),
-            ("aneurysm_neck_width_mm", "瘤颈(mm)"),
-            ("aneurysm_treatment", "动脉瘤处理"),
-            ("phases_score", "PHASES评分"),
-            ("suzuki_stage", "铃木分期"),
-            ("bypass_type", "搭桥方式"),
-            ("perfusion_status", "灌注状态"),
-            ("surgery_type", "手术方式"),
-            ("surgery_status", "手术状态"),
-            ("surgery_date", "手术日期"),
-            ("mrs_score", "mRS"),
-            ("barthel_index", "Barthel指数"),
-        ]
-        import json as _json
-        _cvd_data = _json.loads(cvd_context.raw_json or "{}") if hasattr(cvd_context, "raw_json") else {}
-        cvd_pairs = [
-            (label, str(_cvd_data[field]))
-            for field, label in _CVD_FIELD_LABELS
-            if _cvd_data.get(field) is not None
-        ]
-        if cvd_pairs:
-            pdf.ln(2)
-            _set_font(9, bold=True)
-            pdf.set_text_color(0, 100, 90)
-            pdf.cell(0, 6, "【脑血管专科病情】", new_x="LMARGIN", new_y="NEXT")
-            pdf.set_text_color(0, 0, 0)
-            _set_font(9)
-            # Render as two-column grid
-            col_w = (pdf.w - pdf.l_margin - pdf.r_margin) / 2
-            for j in range(0, len(cvd_pairs), 2):
-                pair_a = cvd_pairs[j]
-                pair_b = cvd_pairs[j + 1] if j + 1 < len(cvd_pairs) else None
-                pdf.set_x(pdf.l_margin + 3)
-                pdf.cell(col_w, 5, f"{pair_a[0]}: {pair_a[1]}", new_x="RIGHT", new_y="SAME")
-                if pair_b:
-                    pdf.cell(col_w, 5, f"{pair_b[0]}: {pair_b[1]}", new_x="LMARGIN", new_y="NEXT")
-                else:
-                    pdf.ln(5)
-            pdf.ln(2)
-            pdf.set_draw_color(180, 210, 200)
-            pdf.line(20, pdf.get_y(), pdf.w - 20, pdf.get_y())
-            pdf.set_draw_color(180, 180, 180)
-            pdf.ln(4)
 
-    # ── Records ──────────────────────────────────────────────────────────────
+def _draw_cvd_block(pdf, _set_font, cvd_context) -> None:
+    """绘制脑血管专科病情区块（两列网格）。"""
+    _CVD_FIELD_LABELS = [
+        ("diagnosis_subtype", "诊断亚型"), ("hemorrhage_location", "出血部位"),
+        ("gcs_score", "GCS"), ("ich_score", "ICH评分"),
+        ("ich_volume_ml", "出血量(mL)"), ("hemorrhage_etiology", "出血病因"),
+        ("hunt_hess_grade", "Hunt-Hess级"), ("fisher_grade", "Fisher级"),
+        ("wfns_grade", "WFNS级"), ("modified_fisher_grade", "改良Fisher级"),
+        ("vasospasm_status", "血管痉挛"), ("hydrocephalus_status", "脑积水"),
+        ("spetzler_martin_grade", "Spetzler-Martin级"), ("aneurysm_location", "动脉瘤位置"),
+        ("aneurysm_size_mm", "动脉瘤(mm)"), ("aneurysm_neck_width_mm", "瘤颈(mm)"),
+        ("aneurysm_treatment", "动脉瘤处理"), ("phases_score", "PHASES评分"),
+        ("suzuki_stage", "铃木分期"), ("bypass_type", "搭桥方式"),
+        ("perfusion_status", "灌注状态"), ("surgery_type", "手术方式"),
+        ("surgery_status", "手术状态"), ("surgery_date", "手术日期"),
+        ("mrs_score", "mRS"), ("barthel_index", "Barthel指数"),
+    ]
+    import json as _json
+    _cvd_data = _json.loads(cvd_context.raw_json or "{}") if hasattr(cvd_context, "raw_json") else {}
+    cvd_pairs = [
+        (label, str(_cvd_data[field]))
+        for field, label in _CVD_FIELD_LABELS
+        if _cvd_data.get(field) is not None
+    ]
+    if not cvd_pairs:
+        return
+    pdf.ln(2)
+    _set_font(9, bold=True)
+    pdf.set_text_color(0, 100, 90)
+    pdf.cell(0, 6, "【脑血管专科病情】", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_text_color(0, 0, 0)
+    _set_font(9)
+    col_w = (pdf.w - pdf.l_margin - pdf.r_margin) / 2
+    for j in range(0, len(cvd_pairs), 2):
+        pair_a = cvd_pairs[j]
+        pair_b = cvd_pairs[j + 1] if j + 1 < len(cvd_pairs) else None
+        pdf.set_x(pdf.l_margin + 3)
+        pdf.cell(col_w, 5, f"{pair_a[0]}: {pair_a[1]}", new_x="RIGHT", new_y="SAME")
+        if pair_b:
+            pdf.cell(col_w, 5, f"{pair_b[0]}: {pair_b[1]}", new_x="LMARGIN", new_y="NEXT")
+        else:
+            pdf.ln(5)
+    pdf.ln(2)
+    pdf.set_draw_color(180, 210, 200)
+    pdf.line(20, pdf.get_y(), pdf.w - 20, pdf.get_y())
+    pdf.set_draw_color(180, 180, 180)
+    pdf.ln(4)
+
+
+def _draw_record_entry(pdf, _set_font, i: int, rec) -> None:
+    """绘制单条病历记录（标题行 + 内容 + 标签 + 分隔线）。"""
+    if pdf.get_y() > pdf.h - 55:
+        pdf.add_page()
+
+    date_str = _fmt_datetime(getattr(rec, "created_at", None))
+    rtype = _record_type_label(getattr(rec, "record_type", "visit") or "visit")
+    enc = getattr(rec, "encounter_type", "unknown") or "unknown"
+    enc_label = _ENCOUNTER_LABEL.get(enc, "")
+    rec_id = getattr(rec, "id", None)
+
+    header_parts = [f"{i + 1}.", date_str, f"[{rtype}]"]
+    if enc_label:
+        header_parts.append(f"[{enc_label}]")
+    if rec_id is not None:
+        header_parts.append(f"#R{rec_id}")
+
+    _set_font(10, bold=True)
+    pdf.set_fill_color(235, 240, 250)
+    pdf.set_text_color(30, 50, 100)
+    pdf.cell(0, 7, "  " + "  ".join(header_parts), fill=True, new_x="LMARGIN", new_y="NEXT")
+    pdf.set_text_color(0, 0, 0)
+
+    content = (getattr(rec, "content", None) or "").strip()
+    if content:
+        _set_font(10)
+        pdf.set_x(pdf.l_margin + 3)
+        pdf.multi_cell(0, 5.5, content, new_x="LMARGIN", new_y="NEXT")
+
+    tags = _parse_tags(getattr(rec, "tags", None))
+    if tags:
+        _set_font(9)
+        pdf.set_text_color(60, 80, 180)
+        pdf.set_x(pdf.l_margin + 3)
+        pdf.cell(0, 5, "标签：" + "  ·  ".join(tags), new_x="LMARGIN", new_y="NEXT")
+        pdf.set_text_color(0, 0, 0)
+
+    pdf.set_draw_color(210, 215, 225)
+    pdf.line(20, pdf.get_y() + 2, pdf.w - 20, pdf.get_y() + 2)
+    pdf.ln(6)
+
+
+def _create_records_pdf_doc():
+    """创建病历 PDF 文档对象并注册字体，返回 (pdf, _set_font)。"""
+    from fpdf import FPDF
+    font_path = _resolve_font_path()
+    _footer_text = "本文件由 AI 助手生成，仅供参考，以原始病历为准"
+
+    class _PDF(FPDF):
+        """FPDF subclass with per-page footer."""
+        _has_cjk = False
+
+        def footer(self):
+            self.set_y(-13)
+            if self._has_cjk:
+                self.set_font("CJK", size=8)
+            else:
+                self.set_font("Helvetica", size=8)
+            self.set_text_color(150, 150, 150)
+            self.cell(0, 5, f"{_footer_text}  |  第 {self.page_no()} / {{nb}} 页", align="C")
+
+    pdf = _PDF()
+    pdf.alias_nb_pages()
+    pdf.set_margins(left=20, top=20, right=20)
+    pdf.set_auto_page_break(auto=True, margin=18)
+    has_cjk = False
+    if font_path:
+        try:
+            pdf.add_font("CJK", fname=font_path)
+            has_cjk = True
+            _PDF._has_cjk = True
+            log(f"[PDF] using font: {font_path}")
+        except Exception as exc:
+            log(f"[PDF] font load failed ({font_path}): {exc}")
+    return pdf, _make_set_font(pdf, has_cjk)
+
+
+def _draw_records_title(pdf, _set_font, clinic: str) -> None:
+    """绘制病历记录标题和分隔线。"""
+    _set_font(15, bold=True)
+    pdf.cell(0, 9, clinic, align="C", new_x="LMARGIN", new_y="NEXT")
+    _set_font(11)
+    pdf.cell(0, 7, "病  历  记  录", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(2)
+    pdf.set_draw_color(60, 80, 140)
+    pdf.set_line_width(0.5)
+    pdf.line(20, pdf.get_y(), pdf.w - 20, pdf.get_y())
+    pdf.set_line_width(0.2)
+    pdf.set_draw_color(180, 180, 180)
+    pdf.ln(5)
+
+
+def generate_records_pdf(
+    records: list,
+    patient_name: Optional[str] = None,
+    patient: object = None,
+    clinic_name: Optional[str] = None,
+    doctor_name: Optional[str] = None,
+    cvd_context: object = None,
+) -> bytes:
+    """
+    Generate a PDF containing one or more MedicalRecordDB rows.
+
+    Args:
+        records: list of MedicalRecordDB ORM objects
+        patient_name: fallback name string if patient object not given
+        patient: Patient ORM object for rich demographics block
+        clinic_name: overrides CLINIC_NAME env var
+        doctor_name: attending physician name
+        cvd_context: optional NeuroCVDContext ORM row for specialty block
+    Returns raw PDF bytes. Raises RuntimeError if fpdf2 is not installed.
+    """
+    from fpdf import FPDF  # raises ImportError if not installed
+    clinic = clinic_name or os.environ.get("CLINIC_NAME", "医疗机构")
+    pdf, _set_font = _create_records_pdf_doc()
+    pdf.add_page()
+
+    _draw_records_title(pdf, _set_font, clinic)
+
+    _draw_patient_block(pdf, _set_font, patient, patient_name, doctor_name, records)
+
+    if cvd_context is not None:
+        _draw_cvd_block(pdf, _set_font, cvd_context)
+
     if not records:
         _set_font(10)
         pdf.set_text_color(120, 120, 120)
@@ -299,47 +341,7 @@ def generate_records_pdf(
         pdf.set_text_color(0, 0, 0)
     else:
         for i, rec in enumerate(records):
-            if pdf.get_y() > pdf.h - 55:
-                pdf.add_page()
-
-            # Record header
-            date_str = _fmt_datetime(getattr(rec, "created_at", None))
-            rtype = _record_type_label(getattr(rec, "record_type", "visit") or "visit")
-            enc = getattr(rec, "encounter_type", "unknown") or "unknown"
-            enc_label = _ENCOUNTER_LABEL.get(enc, "")
-            rec_id = getattr(rec, "id", None)
-
-            header_parts = [f"{i + 1}.", date_str, f"[{rtype}]"]
-            if enc_label:
-                header_parts.append(f"[{enc_label}]")
-            if rec_id is not None:
-                header_parts.append(f"#R{rec_id}")
-
-            _set_font(10, bold=True)
-            pdf.set_fill_color(235, 240, 250)
-            pdf.set_text_color(30, 50, 100)
-            pdf.cell(0, 7, "  " + "  ".join(header_parts), fill=True, new_x="LMARGIN", new_y="NEXT")
-            pdf.set_text_color(0, 0, 0)
-
-            # Content
-            content = (getattr(rec, "content", None) or "").strip()
-            if content:
-                _set_font(10)
-                pdf.set_x(pdf.l_margin + 3)
-                pdf.multi_cell(0, 5.5, content, new_x="LMARGIN", new_y="NEXT")
-
-            # Tags
-            tags = _parse_tags(getattr(rec, "tags", None))
-            if tags:
-                _set_font(9)
-                pdf.set_text_color(60, 80, 180)
-                pdf.set_x(pdf.l_margin + 3)
-                pdf.cell(0, 5, "标签：" + "  ·  ".join(tags), new_x="LMARGIN", new_y="NEXT")
-                pdf.set_text_color(0, 0, 0)
-
-            pdf.set_draw_color(210, 215, 225)
-            pdf.line(20, pdf.get_y() + 2, pdf.w - 20, pdf.get_y() + 2)
-            pdf.ln(6)
+            _draw_record_entry(pdf, _set_font, i, rec)
 
     return bytes(pdf.output())
 
@@ -348,60 +350,12 @@ def generate_records_pdf(
 # China Standard Outpatient Report PDF (卫生部 2010 门诊病历格式)
 # ---------------------------------------------------------------------------
 
-def generate_outpatient_report_pdf(
-    fields: dict,
-    patient_name: Optional[str] = None,
-    patient_info: Optional[str] = None,
-    clinic_name: Optional[str] = None,
-    doctor_name: Optional[str] = None,
-) -> bytes:
-    """
-    Render a form-style PDF following the 卫生部 2010 门诊病历 standard.
-
-    Args:
-        fields: dict with keys from outpatient_report.OUTPATIENT_FIELDS
-        patient_name: patient full name
-        patient_info: extra info line (age, gender, DOB …)
-        clinic_name: defaults to CLINIC_NAME env var
-        doctor_name: attending physician
-    Returns:
-        Raw PDF bytes.
-    """
-    try:
-        from fpdf import FPDF
-    except ImportError:
-        raise RuntimeError("fpdf2 is not installed. Run: pip install fpdf2")
-
-    from services.export.outpatient_report import OUTPATIENT_FIELDS, _HEADER_ONLY_FIELDS
-
-    clinic = clinic_name or os.environ.get("CLINIC_NAME", "医疗机构")
-    font_path = _resolve_font_path()
-
-    # Extract header-only fields before rendering
-    encounter_type = (fields.get("encounter_type") or "初诊").strip()
-    department = (fields.get("department") or "").strip()
-
-    pdf = FPDF()
-    pdf.set_margins(left=18, top=18, right=18)
-    pdf.set_auto_page_break(auto=True, margin=18)
-
-    has_cjk = False
-    if font_path:
-        try:
-            pdf.add_font("CJK", fname=font_path)
-            has_cjk = True
-        except Exception as exc:
-            log(f"[PDF] font load failed ({font_path}): {exc}")
-
-    def _sf(size: int, bold: bool = False):
-        if has_cjk:
-            pdf.set_font("CJK", size=size)
-        else:
-            pdf.set_font("Helvetica", style="B" if bold else "", size=size)
-
-    pdf.add_page()
-
-    # ── Title block ──────────────────────────────────────────────────────────
+def _draw_outpatient_header(
+    pdf, _sf, clinic: str, encounter_type: str,
+    patient_name: Optional[str], patient_info: Optional[str],
+    department: str, doctor_name: Optional[str],
+) -> None:
+    """绘制门诊病历标题块和患者/医生信息行。"""
     _sf(16, bold=True)
     pdf.cell(0, 10, clinic, align="C", new_x="LMARGIN", new_y="NEXT")
     _sf(13, bold=True)
@@ -418,7 +372,6 @@ def generate_outpatient_report_pdf(
     pdf.set_draw_color(180, 180, 180)
     pdf.ln(4)
 
-    # ── Patient / doctor info row ────────────────────────────────────────────
     _sf(10)
     row_parts: list[str] = []
     if patient_name:
@@ -435,44 +388,54 @@ def generate_outpatient_report_pdf(
     pdf.line(18, pdf.get_y(), pdf.w - 18, pdf.get_y())
     pdf.ln(4)
 
-    # ── Field sections ───────────────────────────────────────────────────────
-    label_w = 32  # width of label column in mm (widest label: 【医嘱及随访】≈28mm at 10pt)
 
+def _draw_outpatient_fields(pdf, _sf, fields: dict, OUTPATIENT_FIELDS, _HEADER_ONLY_FIELDS) -> None:
+    """绘制门诊病历各字段节（标签列 + 内容列 + 分隔线）。"""
+    label_w = 32
     for key, label in OUTPATIENT_FIELDS:
         if key in _HEADER_ONLY_FIELDS:
-            continue  # already rendered in header row above
+            continue
         value = (fields.get(key) or "").strip()
-
         if pdf.get_y() > pdf.h - 40:
             pdf.add_page()
-
-        # Section label (shaded row)
         pdf.set_fill_color(235, 240, 250)
         _sf(10, bold=True)
         pdf.cell(label_w, 7, f"【{label}】", fill=True, new_x="RIGHT", new_y="TOP")
-
-        # Value
         _sf(10)
         if value:
-            # Calculate remaining width
             x_start = pdf.get_x()
             avail_w = pdf.w - pdf.r_margin - x_start
             pdf.multi_cell(avail_w, 7, value, new_x="LMARGIN", new_y="NEXT")
         else:
             pdf.cell(0, 7, "", new_x="LMARGIN", new_y="NEXT")
-
-        # Thin separator
         pdf.set_draw_color(210, 210, 210)
         pdf.line(18, pdf.get_y(), pdf.w - 18, pdf.get_y())
         pdf.ln(2)
 
-    # ── Signature block ──────────────────────────────────────────────────────
+
+def _create_outpatient_pdf_doc():
+    """创建门诊病历 PDF 文档对象并注册字体，返回 (pdf, _sf)。"""
+    from fpdf import FPDF
+    font_path = _resolve_font_path()
+    pdf = FPDF()
+    pdf.set_margins(left=18, top=18, right=18)
+    pdf.set_auto_page_break(auto=True, margin=18)
+    has_cjk = False
+    if font_path:
+        try:
+            pdf.add_font("CJK", fname=font_path)
+            has_cjk = True
+        except Exception as exc:
+            log(f"[PDF] font load failed ({font_path}): {exc}")
+    return pdf, _make_set_font(pdf, has_cjk)
+
+
+def _draw_outpatient_footer(pdf, _sf) -> None:
+    """绘制门诊病历签名栏和页脚。"""
     pdf.ln(6)
     _sf(10)
     sig_line = f"接诊医师签名：{'_' * 12}    日期：{'_' * 10}"
     pdf.cell(0, 7, sig_line, new_x="LMARGIN", new_y="NEXT")
-
-    # ── Footer ───────────────────────────────────────────────────────────────
     pdf.set_y(-15)
     _sf(8)
     pdf.set_text_color(150, 150, 150)
@@ -483,4 +446,25 @@ def generate_outpatient_report_pdf(
         align="C",
     )
 
+
+def generate_outpatient_report_pdf(
+    fields: dict,
+    patient_name: Optional[str] = None,
+    patient_info: Optional[str] = None,
+    clinic_name: Optional[str] = None,
+    doctor_name: Optional[str] = None,
+) -> bytes:
+    """按卫生部 2010 门诊病历格式生成 PDF，返回原始字节。"""
+    from services.export.outpatient_report import OUTPATIENT_FIELDS, _HEADER_ONLY_FIELDS
+    clinic = clinic_name or os.environ.get("CLINIC_NAME", "医疗机构")
+    encounter_type = (fields.get("encounter_type") or "初诊").strip()
+    department = (fields.get("department") or "").strip()
+    pdf, _sf = _create_outpatient_pdf_doc()
+    pdf.add_page()
+    _draw_outpatient_header(
+        pdf, _sf, clinic, encounter_type,
+        patient_name, patient_info, department, doctor_name,
+    )
+    _draw_outpatient_fields(pdf, _sf, fields, OUTPATIENT_FIELDS, _HEADER_ONLY_FIELDS)
+    _draw_outpatient_footer(pdf, _sf)
     return bytes(pdf.output())

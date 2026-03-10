@@ -1,3 +1,4 @@
+"""域错误基类及常用异常类型定义。"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field

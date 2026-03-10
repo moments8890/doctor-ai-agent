@@ -1,3 +1,4 @@
+"""Alembic 迁移环境配置：同步/离线双模式，兼容 SQLite 与 MySQL 异步驱动。"""
 from __future__ import annotations
 
 from logging.config import fileConfig

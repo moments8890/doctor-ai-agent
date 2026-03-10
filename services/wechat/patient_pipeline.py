@@ -1,4 +1,5 @@
-"""
+"""面向患者的微信消息处理流水线：健康问答、急症关键词检测与会话管理。
+
 Patient-facing WeChat message pipeline.
 
 Non-doctor senders receive a helpful health Q&A response instead of a static

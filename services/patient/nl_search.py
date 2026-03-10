@@ -75,80 +75,72 @@ def _cn_or_int(s: str) -> Optional[int]:
         return None
 
 
-def extract_criteria(query: str) -> PatientSearchCriteria:
-    """Parse a free-form Chinese query and return structured search criteria."""
-    c = PatientSearchCriteria()
-    q = query.strip()
-
-    # ── Surname: 姓X / 姓XX / 那个X先生 ────────────────────────────────────
-    m = re.search(r'姓([^\s，,的]{1,3})', q)
-    if m:
-        c.surname = m.group(1).strip()
-
-    # ── Gender ──────────────────────────────────────────────────────────────
-    if any(h in q for h in _FEMALE_HINTS):
-        c.gender = "女"
-    elif any(h in q for h in _MALE_HINTS):
-        c.gender = "男"
-
-    # ── Age ─────────────────────────────────────────────────────────────────
-    # "60多岁" / "六十多岁"
+def _extract_age(q: str, c: PatientSearchCriteria) -> None:
+    """从查询字符串提取年龄范围并写入 c.age_min / c.age_max。"""
     m = re.search(r'([一二三四五六七八九十\d]{1,3})多岁', q)
     if m:
         base = _cn_or_int(m.group(1))
         if base is not None:
             c.age_min, c.age_max = base, base + 9
+            return
+    m = re.search(r'([一二三四五六七八九\d])([零一二三四五六七八九十几]?)十(?:多|几)?岁', q)
+    if m:
+        base = (_cn_or_int(m.group(1)) or 1) * 10
+        c.age_min, c.age_max = base, base + 9
+        return
+    if "中年" in q:
+        c.age_min, c.age_max = 35, 59
+    elif "老年" in q or "老人" in q or "老爷爷" in q or "老奶奶" in q:
+        c.age_min = 60
+    elif "年轻" in q or "小伙" in q or "小姑娘" in q:
+        c.age_max = 35
 
-    # "五六十岁" / "五十几岁"
-    if c.age_min is None:
-        m = re.search(r'([一二三四五六七八九\d])([零一二三四五六七八九十几]?)十(?:多|几)?岁', q)
-        if m:
-            base = (_cn_or_int(m.group(1)) or 1) * 10
-            c.age_min, c.age_max = base, base + 9
 
-    # Semantic age groups
-    if c.age_min is None:
-        if "中年" in q:
-            c.age_min, c.age_max = 35, 59
-        elif "老年" in q or "老人" in q or "老爷爷" in q or "老奶奶" in q:
-            c.age_min = 60
-        elif "年轻" in q or "小伙" in q or "小姑娘" in q:
-            c.age_max = 35
+def _extract_keywords(q: str) -> list:
+    """剥离姓名/性别/年龄/时间结构词后，提取剩余中文医学关键词。"""
+    residual = q
+    residual = re.sub(r'姓[^\s，,的]{1,3}', '', residual)
+    for h in _FEMALE_HINTS + _MALE_HINTS:
+        residual = residual.replace(h, ' ')
+    residual = re.sub(r'[一二三四五六七八九十\d]{1,3}多岁', '', residual)
+    residual = re.sub(r'[一二三四五六七八九\d][零一二三四五六七八九十几]?十(?:多|几)?岁', '', residual)
+    for phrase in _RECENCY_MAP:
+        residual = residual.replace(phrase, ' ')
+    for word in ["患者", "病人", "病患"]:
+        residual = residual.replace(word, ' ')
+    residual = re.sub(r'[那这哪一个的来了得有和与及或]{1,2}', ' ', residual)
 
-    # ── Recency ─────────────────────────────────────────────────────────────
+    tokens = re.findall(r'[\u4e00-\u9fa5]{2,6}', residual)
+    seen: set[str] = set()
+    result = []
+    for t in tokens:
+        if t in seen or t in _STOPWORDS:
+            continue
+        seen.add(t)
+        result.append(t)
+    return result
+
+
+def extract_criteria(query: str) -> PatientSearchCriteria:
+    """将中文自由文本查询解析为结构化搜索条件。"""
+    c = PatientSearchCriteria()
+    q = query.strip()
+
+    m = re.search(r'姓([^\s，,的]{1,3})', q)
+    if m:
+        c.surname = m.group(1).strip()
+
+    if any(h in q for h in _FEMALE_HINTS):
+        c.gender = "女"
+    elif any(h in q for h in _MALE_HINTS):
+        c.gender = "男"
+
+    _extract_age(q, c)
+
     for phrase, days in _RECENCY_MAP.items():
         if phrase in q:
             c.days_since_visit = days
             break
 
-    # ── Keywords (medical terms) ─────────────────────────────────────────────
-    # Strategy: strip out structural parts of the query, then extract what's left.
-    # This avoids capturing sentence fragments like "那个姓张的阿" as keywords.
-    residual = q
-
-    # Remove surname pattern
-    residual = re.sub(r'姓[^\s，,的]{1,3}', '', residual)
-    # Remove gender hint words
-    for h in _FEMALE_HINTS + _MALE_HINTS:
-        residual = residual.replace(h, ' ')
-    # Remove age patterns
-    residual = re.sub(r'[一二三四五六七八九十\d]{1,3}多岁', '', residual)
-    residual = re.sub(r'[一二三四五六七八九\d][零一二三四五六七八九十几]?十(?:多|几)?岁', '', residual)
-    # Remove recency phrases
-    for phrase in _RECENCY_MAP:
-        residual = residual.replace(phrase, ' ')
-    # Remove common sentence glue words, connectors, and noun suffixes
-    for word in ["患者", "病人", "病患"]:
-        residual = residual.replace(word, ' ')
-    residual = re.sub(r'[那这哪一个的来了得有和与及或]{1,2}', ' ', residual)
-
-    # Extract remaining 2–6 char CJK tokens separated by spaces/punctuation
-    tokens = re.findall(r'[\u4e00-\u9fa5]{2,6}', residual)
-    seen: set[str] = set()
-    for t in tokens:
-        if t in seen or t in _STOPWORDS:
-            continue
-        seen.add(t)
-        c.keywords.append(t)
-
+    c.keywords = _extract_keywords(q)
     return c

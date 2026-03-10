@@ -114,77 +114,72 @@ async def _send_miniprogram_subscribe_msg(target_user: str, message: str) -> Non
         )
 
 
-async def send_doctor_notification(doctor_id: str, message: str) -> None:
-    """Send doctor notification via configured provider.
-
-    Providers:
-    - log (default): log-only sink for local/dev, always succeeds
-    - wechat: send through WeChat customer service API
-    """
-    provider = _provider()
-    if provider == "wechat":
-        target_user = doctor_id
-        try:
-            async with AsyncSessionLocal() as db:
-                mapped = await get_doctor_wechat_user_id(db, doctor_id)
-            if mapped:
-                target_user = mapped
-        except Exception as map_err:
-            log(
-                "[Notify:wechat] resolve mapped wechat_user_id failed; fallback to doctor_id",
-                logger_name="tasks",
-                doctor_id=doctor_id,
-                error=str(map_err),
-            )
-        try:
-            await _send_customer_service_msg(target_user, message)
-            return
-        except Exception as e:
-            fallback_to_user = _wechat_fallback_to_user()
-            if _is_invalid_wechat_user_error(e) and fallback_to_user and fallback_to_user != target_user:
-                log(
-                    "[Notify:wechat] primary recipient invalid; retrying with fallback recipient",
-                    logger_name="tasks",
-                    doctor_id=doctor_id,
-                    target_user=target_user,
-                    fallback_to_user=fallback_to_user,
-                )
-                await _send_customer_service_msg(fallback_to_user, message)
-                return
-            raise
-        return
-
-    if provider == "wechat_mini_subscribe":
-        try:
-            async with AsyncSessionLocal() as db:
-                target_user = await get_doctor_mini_openid(db, doctor_id)
-            if not target_user:
-                log(
-                    "[Notify:wechat_mini_subscribe] no mini_openid linked for doctor; skipping",
-                    logger_name="tasks",
-                    doctor_id=doctor_id,
-                )
-                return
-        except Exception as map_err:
-            log(
-                "[Notify:wechat_mini_subscribe] resolve mini_openid failed; skipping",
-                logger_name="tasks",
-                doctor_id=doctor_id,
-                error=str(map_err),
-            )
-            return
-
-        await _send_miniprogram_subscribe_msg(target_user, message)
-        return
-
-    if provider == "log":
-        preview = message.replace("\n", " ")[:120]
+async def _send_via_wechat(doctor_id: str, message: str) -> None:
+    """通过企业微信客服消息通道发送通知，支持兜底接收人。"""
+    target_user = doctor_id
+    try:
+        async with AsyncSessionLocal() as db:
+            mapped = await get_doctor_wechat_user_id(db, doctor_id)
+        if mapped:
+            target_user = mapped
+    except Exception as map_err:
         log(
-            "[Notify:log] delivered",
+            "[Notify:wechat] resolve mapped wechat_user_id failed; fallback to doctor_id",
             logger_name="tasks",
             doctor_id=doctor_id,
-            preview=preview,
+            error=str(map_err),
+        )
+    try:
+        await _send_customer_service_msg(target_user, message)
+    except Exception as e:
+        fallback_to_user = _wechat_fallback_to_user()
+        if _is_invalid_wechat_user_error(e) and fallback_to_user and fallback_to_user != target_user:
+            log(
+                "[Notify:wechat] primary recipient invalid; retrying with fallback recipient",
+                logger_name="tasks",
+                doctor_id=doctor_id,
+                target_user=target_user,
+                fallback_to_user=fallback_to_user,
+            )
+            await _send_customer_service_msg(fallback_to_user, message)
+            return
+        raise
+
+
+async def _send_via_wechat_mini(doctor_id: str, message: str) -> None:
+    """通过微信小程序订阅消息通道发送通知。"""
+    try:
+        async with AsyncSessionLocal() as db:
+            target_user = await get_doctor_mini_openid(db, doctor_id)
+        if not target_user:
+            log(
+                "[Notify:wechat_mini_subscribe] no mini_openid linked for doctor; skipping",
+                logger_name="tasks",
+                doctor_id=doctor_id,
+            )
+            return
+    except Exception as map_err:
+        log(
+            "[Notify:wechat_mini_subscribe] resolve mini_openid failed; skipping",
+            logger_name="tasks",
+            doctor_id=doctor_id,
+            error=str(map_err),
         )
         return
+    await _send_miniprogram_subscribe_msg(target_user, message)
 
+
+async def send_doctor_notification(doctor_id: str, message: str) -> None:
+    """按配置的通知渠道（log / wechat / wechat_mini_subscribe）向医生发送通知。"""
+    provider = _provider()
+    if provider == "wechat":
+        await _send_via_wechat(doctor_id, message)
+        return
+    if provider == "wechat_mini_subscribe":
+        await _send_via_wechat_mini(doctor_id, message)
+        return
+    if provider == "log":
+        preview = message.replace("\n", " ")[:120]
+        log("[Notify:log] delivered", logger_name="tasks", doctor_id=doctor_id, preview=preview)
+        return
     raise RuntimeError(f"Unsupported NOTIFICATION_PROVIDER: {provider}")

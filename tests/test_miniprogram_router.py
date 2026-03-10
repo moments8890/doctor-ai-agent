@@ -1,3 +1,5 @@
+"""小程序路由单元测试：覆盖 principal 鉴权注入、聊天和任务端点的 doctor_id 传递行为。"""
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch

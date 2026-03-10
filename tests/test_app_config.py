@@ -1,3 +1,5 @@
+"""应用配置单元测试：覆盖 AppConfig 的环境变量解析、敏感字段脱敏和默认值稳定性。"""
+
 from __future__ import annotations
 
 from pathlib import Path

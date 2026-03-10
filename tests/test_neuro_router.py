@@ -1,3 +1,5 @@
+"""神经科病例路由测试：验证神经科病例文本提取、错误处理及病例列表接口的正确性。"""
+
 from __future__ import annotations
 
 from datetime import datetime

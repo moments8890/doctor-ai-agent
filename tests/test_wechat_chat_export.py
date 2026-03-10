@@ -1,6 +1,4 @@
-"""
-Tests for WeChat chat export parser (wechat_chat_export.py).
-"""
+"""微信聊天记录导出解析测试：验证个人聊天与群聊的消息解析、发送者过滤、临床内容识别及文本提取的正确性。"""
 
 from services.wechat.wechat_chat_export import (
     extract_clinical_text,

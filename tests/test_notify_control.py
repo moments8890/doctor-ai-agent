@@ -1,3 +1,5 @@
+"""通知控制策略测试：验证通知命令解析、cron 表达式解析及自动发送时机判断逻辑。"""
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone

@@ -1,10 +1,13 @@
 #!/usr/bin/env python
-"""CLI to recompute patient categories for all or one doctor's patients.
+"""
+患者分类重计算脚本 — 对指定医生（或所有医生）的患者批量重新计算分类标签。
 
-Usage:
+用法：
     python scripts/recompute_patient_categories.py [--doctor-id ID] [--dry-run]
 
-Exits with the count of changed rows as the exit code (capped at 255).
+退出码为变更行数（最大255）。
+
+CLI to recompute patient categories for all or one doctor's patients.
 """
 from __future__ import annotations
 
@@ -24,59 +27,51 @@ from db.models import Patient, MedicalRecordDB
 from services.patient.patient_categorization import categorize_patient
 
 
-async def _run(doctor_id: str | None, dry_run: bool) -> int:
+async def _process_patient(session, patient, dry_run: bool) -> bool:
+    """Recompute category for a single patient; return True if changed."""
+    records_result = await session.execute(
+        select(MedicalRecordDB)
+        .where(MedicalRecordDB.patient_id == patient.id,
+               MedicalRecordDB.doctor_id == patient.doctor_id)
+        .order_by(MedicalRecordDB.created_at.desc())
+    )
+    records = list(records_result.scalars().all())
+    cat_result = categorize_patient(patient, records)
+    old_cat = patient.primary_category
+    new_cat = cat_result.primary_category
+    label = "CHANGED" if old_cat != new_cat else "same"
+    print(f"  [{label}] patient_id={patient.id} name={patient.name!r}"
+          f" {old_cat!r} -> {new_cat!r}"
+          f" tags={json.dumps(cat_result.category_tags, ensure_ascii=False)}")
+    if not dry_run:
+        patient.primary_category = new_cat
+        patient.category_tags = json.dumps(cat_result.category_tags, ensure_ascii=False)
+        patient.category_computed_at = cat_result.computed_at
+        patient.category_rules_version = cat_result.rules_version
+    return old_cat != new_cat
+
+
+async def _run(doctor_id: str, dry_run: bool) -> int:
+    """Recompute categories for all matching patients; return changed count."""
     async with AsyncSessionLocal() as session:
         query = select(Patient)
         if doctor_id is not None:
             query = query.where(Patient.doctor_id == doctor_id)
-
         result = await session.execute(query)
         patients = list(result.scalars().all())
-
         changed = 0
         errors = 0
         for patient in patients:
             try:
-                records_result = await session.execute(
-                    select(MedicalRecordDB)
-                    .where(
-                        MedicalRecordDB.patient_id == patient.id,
-                        MedicalRecordDB.doctor_id == patient.doctor_id,
-                    )
-                    .order_by(MedicalRecordDB.created_at.desc())
-                )
-                records = list(records_result.scalars().all())
-
-                cat_result = categorize_patient(patient, records)
-
-                old_cat = patient.primary_category
-                new_cat = cat_result.primary_category
-                label = "CHANGED" if old_cat != new_cat else "same"
-                print(
-                    f"  [{label}] patient_id={patient.id} name={patient.name!r}"
-                    f" {old_cat!r} → {new_cat!r}"
-                    f" tags={json.dumps(cat_result.category_tags, ensure_ascii=False)}"
-                )
-                if old_cat != new_cat:
+                if await _process_patient(session, patient, dry_run):
                     changed += 1
-
-                if not dry_run:
-                    patient.primary_category = new_cat
-                    patient.category_tags = json.dumps(cat_result.category_tags, ensure_ascii=False)
-                    patient.category_computed_at = cat_result.computed_at
-                    patient.category_rules_version = cat_result.rules_version
-
             except Exception as exc:  # noqa: BLE001
                 print(f"  [ERROR] patient_id={patient.id}: {exc}", file=sys.stderr)
                 errors += 1
-
         if not dry_run:
             await session.commit()
-
     mode = "(dry-run)" if dry_run else ""
-    print(
-        f"\nDone {mode}: total={len(patients)}, changed={changed}, errors={errors}"
-    )
+    print(f"\nDone {mode}: total={len(patients)}, changed={changed}, errors={errors}")
     return changed
 
 

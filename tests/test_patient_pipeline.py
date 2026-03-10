@@ -1,4 +1,4 @@
-"""Tests for services/wechat/patient_pipeline.py."""
+"""患者消息处理管道测试：验证急诊关键词检测、LLM 回复及患者端微信消息处理流程。"""
 from __future__ import annotations
 
 import os

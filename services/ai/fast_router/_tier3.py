@@ -1,4 +1,6 @@
 """
+Tier 3 临床关键词分类器：基于锚词门控和 TF-IDF 的临床意图识别。
+
 Tier-3 binary classifier and clinical keyword gate for fast_router.
 
 NOTE (2026-03-09): This module is NO LONGER called from the routing path.
@@ -145,6 +147,23 @@ _TIER3_EXAM_ENDING_RE = re.compile(
 )
 
 
+def _tier3_check_patient_guards(text: str) -> Optional[bool]:
+    """检查患者声音和在线咨询语境守卫，返回 True/False 或 None（继续后续检查）。"""
+    # Guard: MCQ exam endings — hard block, NOT overridden by doctor anchor.
+    if _TIER3_EXAM_ENDING_RE.search(text):
+        return False
+
+    # Guard: patient-question / lay-language voice — skip unless STRONG doctor anchor.
+    if _is_patient_question(text) or _TIER3_PATIENT_VOICE_RE.match(text):
+        return bool(_TIER3_STRONG_DOCTOR_ANCHOR_RE.search(text))
+
+    # Guard: online-consultation pediatric context — skip unless strong doctor anchor
+    if _TIER3_CONSULT_RE.search(text):
+        return bool(_TIER3_STRONG_DOCTOR_ANCHOR_RE.search(text))
+
+    return None  # no guard triggered
+
+
 def _is_clinical_tier3(text: str, specialty: Optional[str] = None) -> bool:
     """Return True when the message contains a high-confidence clinical keyword
     AND does not appear to be a patient question in lay language.
@@ -161,41 +180,22 @@ def _is_clinical_tier3(text: str, specialty: Optional[str] = None) -> bool:
     - Question-ending particles (吗, 呢 at sentence end)
     - First-person patient voice (我头晕怎么办…)
     - Online-consultation pediatric context (宝宝, 宝贝, 孩子, 小孩)
-    Most guards are bypassed when a doctor-voice anchor is detected
-    (患者/患儿…, 主诉：, 诊断：, 补充：…). Exam endings are never bypassed.
+    Most guards are bypassed when a doctor-voice anchor is detected.
+    Exam endings are never bypassed.
     """
     # P1: specialty parameter reserved for future specialty-aware expansion
-    all_kw = _CLINICAL_KW_TIER3
-
-    if not any(kw in text for kw in all_kw):
+    if not any(kw in text for kw in _CLINICAL_KW_TIER3):
         return False
 
-    # Guard: MCQ exam endings — hard block, NOT overridden by doctor anchor.
-    # Exam vignettes start with "患者，男，N岁..." (triggering doctor anchor) but
-    # end with a question stem — we detect and reject them here first.
-    if _TIER3_EXAM_ENDING_RE.search(text):
-        return False
+    guard_result = _tier3_check_patient_guards(text)
+    if guard_result is not None:
+        return guard_result
 
-    # Guard: patient-question / lay-language voice — skip unless STRONG doctor anchor.
-    # Uses _TIER3_STRONG_DOCTOR_ANCHOR_RE (excludes bare "患者" prefix) because
-    # patients can write "患者头痛怎么办？" referring to themselves.
-    if _is_patient_question(text) or _TIER3_PATIENT_VOICE_RE.match(text):
-        return bool(_TIER3_STRONG_DOCTOR_ANCHOR_RE.search(text))
-
-    # Guard: online-consultation pediatric context — skip unless strong doctor anchor
-    if _TIER3_CONSULT_RE.search(text):
-        return bool(_TIER3_STRONG_DOCTOR_ANCHOR_RE.search(text))
-
-    # If a doctor-voice anchor is present, trust it unconditionally — the message is
-    # a clinical note and the classifier would only introduce unnecessary FNs on short
-    # dictation that lacks the long-document structure the classifier was trained on.
+    # If a doctor-voice anchor is present, trust it unconditionally.
     if _TIER3_DOCTOR_ANCHOR_RE.search(text):
         return True
 
-    # Final gate: TF-IDF binary classifier distinguishes real clinical notes from
-    # hard-floor patient messages (short symptom descriptions, online consultation
-    # histories) that keyword/regex rules cannot separate without semantic understanding.
-    # Only applied when no doctor anchor is present — those cases are handled above.
+    # Final gate: TF-IDF binary classifier.
     # Falls through to LLM (False) when classifier is absent — degrades recall, not
     # precision, which is the correct bias for a precision-first router.
     if _TIER3_CLASSIFIER is not None:

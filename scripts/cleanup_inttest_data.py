@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Manually purge all inttest_* rows left by integration tests.
+"""手动清理集成测试遗留的 inttest_* 数据行。
+
+Manually purge all inttest_* rows left by integration tests.
 
 Usage
 -----

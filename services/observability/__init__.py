@@ -1,3 +1,4 @@
+"""services.observability 包初始化：链路追踪与性能可观测性接口。"""
 from services.observability.observability import (  # noqa: F401
     trace_block,
     clear_traces,

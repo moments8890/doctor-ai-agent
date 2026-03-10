@@ -1,15 +1,6 @@
-"""Tests for services/memory.py — LLM and DB are mocked.
+"""会话压缩与记忆单元测试：覆盖 maybe_compress 触发条件、摘要持久化和 load_context_message 格式。"""
 
-Verifies that:
-- maybe_compress is a no-op when history is short or empty
-- maybe_compress fires when the rolling window is full (≥ MAX_TURNS*2 messages)
-- maybe_compress fires when the doctor has been idle for ≥ IDLE_SECONDS
-- After compression the in-memory history is always cleared (even on LLM failure)
-- The LLM summary is persisted to DB via upsert_doctor_context
-- load_context_message returns None when no DB context exists
-- load_context_message returns a properly formatted system message when context exists
-- Two doctors' contexts are stored and loaded independently
-"""
+# Tests for services/memory.py — LLM and DB are mocked.
 
 import time
 import pytest

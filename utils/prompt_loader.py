@@ -1,4 +1,6 @@
-"""Shared DB-backed prompt loader with TTL cache.
+"""数据库驱动的提示词加载器（含 TTL 缓存）。
+
+Shared DB-backed prompt loader with TTL cache.
 
 All AI prompts are stored in the ``system_prompts`` table under a symbolic key.
 Hardcoded constants in each service module serve as:

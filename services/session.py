@@ -72,13 +72,95 @@ def get_session(doctor_id: str) -> DoctorSession:
         return _sessions[doctor_id]
 
 
-async def hydrate_session_state(doctor_id: str) -> DoctorSession:
-    """Load persistent session state from DB into in-memory session.
+async def _restore_pending_record_id(db: object, doctor_id: str, state: object) -> "Optional[str]":
+    """验证并恢复未过期的 pending_record_id，已过期或不存在则返回 None。"""
+    from datetime import timezone as _tz, timedelta as _td
+    _restored = getattr(state, "pending_record_id", None)
+    if not _restored:
+        return None
+    from db.crud import get_pending_record as _get_pr
+    _pr = await _get_pr(db, _restored, doctor_id)
+    _now_utc = datetime.now(_tz.utc)
+    if _pr is not None and _pr.expires_at:
+        _exp_at = _pr.expires_at if _pr.expires_at.tzinfo is not None else _pr.expires_at.replace(tzinfo=_tz.utc)
+        _expired = (_exp_at - _td(seconds=5)) <= _now_utc
+    else:
+        _expired = False
+    if _pr is None or _pr.status != "awaiting" or _expired:
+        return None
+    return _restored
 
-    Re-hydrates every _HYDRATION_TTL_SECONDS (5 min) so that a doctor
-    switching devices picks up the latest persisted state without waiting for
-    the old in-memory entry to be evicted.
-    """
+
+def _restore_interview(sess: "DoctorSession", doctor_id: str, state: object) -> None:
+    """从 state.interview_json 恢复面诊状态到 sess.interview。"""
+    import json as _json
+    _interview_json = getattr(state, "interview_json", None)
+    if not _interview_json:
+        return
+    try:
+        _iv = _json.loads(_interview_json)
+        iv_state = InterviewState()
+        iv_state.step = int(_iv.get("step", 0))
+        iv_state.answers = dict(_iv.get("answers", {}))
+        sess.interview = iv_state
+    except Exception as _iv_err:
+        log(f"[Session] invalid interview_json for {doctor_id}: {_iv_err}")
+        sess.interview = None
+
+
+def _restore_cvd_scale(sess: "DoctorSession", doctor_id: str, state: object) -> None:
+    """从 state.cvd_scale_json 恢复 CVD 量表会话到 sess.pending_cvd_scale。"""
+    import json as _json
+    _cvd_json = getattr(state, "cvd_scale_json", None)
+    if not _cvd_json:
+        return
+    try:
+        _cvd = _json.loads(_cvd_json)
+        sess.pending_cvd_scale = CVDScaleSession(
+            record_id=_cvd["record_id"],
+            patient_id=_cvd.get("patient_id"),
+            field_name=_cvd["field_name"],
+            subtype=_cvd["subtype"],
+        )
+    except Exception as _cvd_err:
+        log(f"[Session] invalid cvd_scale_json for {doctor_id}: {_cvd_err}")
+        sess.pending_cvd_scale = None
+
+
+async def _hydrate_from_db(sess: "DoctorSession", doctor_id: str) -> None:
+    """从数据库读取医生会话状态到内存 sess（在锁内调用）。"""
+    async with AsyncSessionLocal() as db:
+        from db.models.doctor import Doctor as DoctorModel
+        doctor_row = (
+            await db.execute(select(DoctorModel).where(DoctorModel.doctor_id == doctor_id).limit(1))
+        ).scalar_one_or_none()
+        if doctor_row is not None:
+            sess.specialty = doctor_row.specialty or None
+            sess.doctor_name = doctor_row.name or None
+
+        state = await get_doctor_session_state(db, doctor_id)
+        if state is not None:
+            sess.pending_create_name = state.pending_create_name
+            sess.pending_record_id = await _restore_pending_record_id(db, doctor_id, state)
+            sess.current_patient_id = state.current_patient_id
+            if state.current_patient_id is not None:
+                patient = await get_patient_for_doctor(db, doctor_id, state.current_patient_id)
+                sess.current_patient_name = patient.name if patient is not None else None
+            else:
+                sess.current_patient_name = None
+            _restore_interview(sess, doctor_id, state)
+            _restore_cvd_scale(sess, doctor_id, state)
+
+        turns = await get_recent_conversation_turns(db, doctor_id, limit=MAX_TURNS * 2)
+        if turns:
+            sess.conversation_history = [
+                {"role": turn.role, "content": turn.content}
+                for turn in turns
+            ]
+
+
+async def hydrate_session_state(doctor_id: str) -> DoctorSession:
+    """从数据库加载持久化会话状态到内存，每 5 分钟重新拉取以支持多设备切换。"""
     _now_mono = time.monotonic()
     with _registry_lock:
         last_loaded = _loaded_from_db.get(doctor_id, 0.0)
@@ -88,8 +170,6 @@ async def hydrate_session_state(doctor_id: str) -> DoctorSession:
 
     async with get_session_lock(doctor_id):
         # Double-check inside lock — another coroutine may have hydrated first.
-        # Capture a fresh monotonic timestamp after lock acquisition to avoid using
-        # the stale value from function entry (lock wait can be 100-5000ms).
         _now_mono_fresh = time.monotonic()
         with _registry_lock:
             last_loaded = _loaded_from_db.get(doctor_id, 0.0)
@@ -98,72 +178,7 @@ async def hydrate_session_state(doctor_id: str) -> DoctorSession:
 
         sess = get_session(doctor_id)
         try:
-            async with AsyncSessionLocal() as db:
-                from db.models.doctor import Doctor as DoctorModel
-                doctor_row = (
-                    await db.execute(select(DoctorModel).where(DoctorModel.doctor_id == doctor_id).limit(1))
-                ).scalar_one_or_none()
-                if doctor_row is not None:
-                    sess.specialty = doctor_row.specialty or None
-                    sess.doctor_name = doctor_row.name or None
-
-                state = await get_doctor_session_state(db, doctor_id)
-                if state is not None:
-                    sess.pending_create_name = state.pending_create_name
-                    _restored_pending_id = getattr(state, "pending_record_id", None)
-                    if _restored_pending_id:
-                        from db.crud import get_pending_record as _get_pr
-                        from datetime import timezone as _tz, timedelta as _td
-                        _pr = await _get_pr(db, _restored_pending_id, doctor_id)
-                        _now_utc = datetime.now(_tz.utc)
-                        if _pr is not None and _pr.expires_at:
-                            _exp_at = _pr.expires_at if _pr.expires_at.tzinfo is not None else _pr.expires_at.replace(tzinfo=_tz.utc)
-                            _expired = (_exp_at - _td(seconds=5)) <= _now_utc
-                        else:
-                            _expired = False
-                        if _pr is None or _pr.status != "awaiting" or _expired:
-                            _restored_pending_id = None
-                    sess.pending_record_id = _restored_pending_id
-                    sess.current_patient_id = state.current_patient_id
-                    if state.current_patient_id is not None:
-                        patient = await get_patient_for_doctor(db, doctor_id, state.current_patient_id)
-                        sess.current_patient_name = patient.name if patient is not None else None
-                    else:
-                        sess.current_patient_name = None
-                    # Restore in-progress interview and CVD scale sessions
-                    import json as _json
-                    _interview_json = getattr(state, "interview_json", None)
-                    if _interview_json:
-                        try:
-                            _iv = _json.loads(_interview_json)
-                            iv_state = InterviewState()
-                            iv_state.step = int(_iv.get("step", 0))
-                            iv_state.answers = dict(_iv.get("answers", {}))
-                            sess.interview = iv_state
-                        except Exception as _iv_err:
-                            log(f"[Session] invalid interview_json for {doctor_id}: {_iv_err}")
-                            sess.interview = None
-                    _cvd_json = getattr(state, "cvd_scale_json", None)
-                    if _cvd_json:
-                        try:
-                            _cvd = _json.loads(_cvd_json)
-                            sess.pending_cvd_scale = CVDScaleSession(
-                                record_id=_cvd["record_id"],
-                                patient_id=_cvd.get("patient_id"),
-                                field_name=_cvd["field_name"],
-                                subtype=_cvd["subtype"],
-                            )
-                        except Exception as _cvd_err:
-                            log(f"[Session] invalid cvd_scale_json for {doctor_id}: {_cvd_err}")
-                            sess.pending_cvd_scale = None
-
-                # Recover recent conversation turns so another instance can continue context.
-                turns = await get_recent_conversation_turns(db, doctor_id, limit=MAX_TURNS * 2)
-                if turns:
-                    sess.conversation_history = [
-                        {"role": turn.role, "content": turn.content}
-                        for turn in turns
-                    ]
+            await _hydrate_from_db(sess, doctor_id)
         except Exception as e:
             log(f"[Session] hydrate FAILED: {e}")
         with _registry_lock:

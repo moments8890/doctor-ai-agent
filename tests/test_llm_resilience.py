@@ -1,3 +1,5 @@
+"""LLM 韧性单元测试：覆盖重试退避、超时触发 fallback 模型和熔断器开路/短路行为。"""
+
 from __future__ import annotations
 
 from typing import List

@@ -1,3 +1,5 @@
+"""ORM 模型单元测试：验证 Patient、MedicalRecordDB、DoctorTask 和 SystemPrompt 的 __str__ 方法输出格式。"""
+
 from __future__ import annotations
 
 from datetime import datetime

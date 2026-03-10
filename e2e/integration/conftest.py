@@ -1,4 +1,10 @@
-"""Shared fixtures for integration tests.
+"""集成测试共享 fixtures。
+
+所有集成测试均需要：
+- 运行在 http://127.0.0.1:8001 的服务器
+- 运行在局域网 192.168.0.123:11434 的 Ollama（请勿使用本机 ollama）
+
+Shared fixtures for integration tests.
 
 All integration tests require:
   - A running server at http://127.0.0.1:8001  (uvicorn main:app --port 8001 --reload)

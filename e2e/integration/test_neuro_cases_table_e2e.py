@@ -1,4 +1,6 @@
-"""E2E coverage for neuro_cases table persistence.
+"""神经病例表持久化端到端覆盖测试（neuro_cases）。
+
+E2E coverage for neuro_cases table persistence.
 
 Starts from doctor natural language input to `/api/neuro/from-text`,
 then verifies row persistence in `neuro_cases` and API visibility.

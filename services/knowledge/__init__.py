@@ -1,4 +1,6 @@
-"""Knowledge management submodule.
+"""services.knowledge 包初始化：临床知识管理子模块。
+
+Knowledge management submodule.
 
 Provides clinical knowledge crawling, curation, ranking, grounding,
 guideline diffing, PDF extraction, and doctor-level knowledge management.

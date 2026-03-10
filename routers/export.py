@@ -105,54 +105,33 @@ _ALLOWED_MIME_TYPES = {
 _MAX_TEMPLATE_BYTES = 1 * 1024 * 1024  # 1 MB (was 10 MB — only 500 chars used in prompt)
 
 
-@router.get("/patient/{patient_id}/pdf")
-async def export_patient_pdf(
+async def _fetch_patient_and_records(
+    db,
     patient_id: int,
-    doctor_id: str = Query(default="web_doctor"),
-    authorization: str | None = Header(default=None),
-    limit: int = Query(default=200, ge=1, le=500),
+    resolved_doctor_id: str,
+    limit: int,
 ):
-    """
-    Export all medical records for a patient as a PDF file.
-    Returns: application/pdf with Content-Disposition: attachment.
-    Filename uses patient_id only (no PHI in filename).
-    """
-    resolved_doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
-
-    async with AsyncSessionLocal() as db:
-        patient_result = await db.execute(
-            select(Patient).where(Patient.id == patient_id, Patient.doctor_id == resolved_doctor_id)
+    """Fetch patient row and associated records; raises 404 if patient not found."""
+    patient_result = await db.execute(
+        select(Patient).where(Patient.id == patient_id, Patient.doctor_id == resolved_doctor_id)
+    )
+    patient = patient_result.scalar_one_or_none()
+    if patient is None:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    records_result = await db.execute(
+        select(MedicalRecordDB)
+        .where(
+            MedicalRecordDB.patient_id == patient_id,
+            MedicalRecordDB.doctor_id == resolved_doctor_id,
         )
-        patient = patient_result.scalar_one_or_none()
-        if patient is None:
-            raise HTTPException(status_code=404, detail="Patient not found")
+        .order_by(MedicalRecordDB.created_at.asc())
+        .limit(limit)
+    )
+    return patient, list(records_result.scalars().all())
 
-        records_result = await db.execute(
-            select(MedicalRecordDB)
-            .where(
-                MedicalRecordDB.patient_id == patient_id,
-                MedicalRecordDB.doctor_id == resolved_doctor_id,
-            )
-            .order_by(MedicalRecordDB.created_at.asc())
-            .limit(limit)
-        )
-        records = list(records_result.scalars().all())
 
-    # Audit: log the export action
-    asyncio.create_task(audit(resolved_doctor_id, "EXPORT", resource_type="patient", resource_id=str(patient_id)))
-
-    try:
-        pdf_bytes = generate_records_pdf(
-            records=records,
-            patient=patient,
-            patient_name=patient.name,
-        )
-    except Exception as exc:
-        log(f"[Export] PDF generation failed for patient {patient_id}: {exc}")
-        raise HTTPException(status_code=500, detail="PDF generation failed")
-
-    # Write export audit rows for each record
-    pdf_hash = _sha256_hex(pdf_bytes)
+def _write_patient_export_audit_task(records, resolved_doctor_id: str, pdf_hash: str) -> None:
+    """Schedule a background task to write MedicalRecordExport rows for all records."""
     async def _write_export_audit():
         async with AsyncSessionLocal() as db:
             for rec in records:
@@ -166,12 +145,56 @@ async def export_patient_pdf(
             await db.commit()
     asyncio.create_task(_write_export_audit())
 
+
+@router.get("/patient/{patient_id}/pdf")
+async def export_patient_pdf(
+    patient_id: int,
+    doctor_id: str = Query(default="web_doctor"),
+    authorization: str | None = Header(default=None),
+    limit: int = Query(default=200, ge=1, le=500),
+):
+    """
+    Export all medical records for a patient as a PDF file.
+    Returns: application/pdf with Content-Disposition: attachment.
+    Filename uses patient_id only (no PHI in filename).
+    """
+    resolved_doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    async with AsyncSessionLocal() as db:
+        patient, records = await _fetch_patient_and_records(db, patient_id, resolved_doctor_id, limit)
+    asyncio.create_task(audit(resolved_doctor_id, "EXPORT", resource_type="patient", resource_id=str(patient_id)))
+    try:
+        pdf_bytes = generate_records_pdf(records=records, patient=patient, patient_name=patient.name)
+    except Exception as exc:
+        log(f"[Export] PDF generation failed for patient {patient_id}: {exc}")
+        raise HTTPException(status_code=500, detail="PDF generation failed")
+    pdf_hash = _sha256_hex(pdf_bytes)
+    _write_patient_export_audit_task(records, resolved_doctor_id, pdf_hash)
     filename = _safe_pdf_filename("病历", patient_id)
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
         headers={"Content-Disposition": _content_disposition(filename)},
     )
+
+
+async def _fetch_record_and_patient_name(db, record_id: int, resolved_doctor_id: str):
+    """Fetch a single medical record and its patient's name; raises 404 if not found."""
+    record_result = await db.execute(
+        select(MedicalRecordDB).where(
+            MedicalRecordDB.id == record_id,
+            MedicalRecordDB.doctor_id == resolved_doctor_id,
+        )
+    )
+    record = record_result.scalar_one_or_none()
+    if record is None:
+        raise HTTPException(status_code=404, detail="Record not found")
+    patient_name = None
+    if record.patient_id is not None:
+        patient_result = await db.execute(select(Patient).where(Patient.id == record.patient_id))
+        p = patient_result.scalar_one_or_none()
+        if p:
+            patient_name = p.name
+    return record, patient_name
 
 
 @router.get("/record/{record_id}/pdf")
@@ -185,39 +208,14 @@ async def export_record_pdf(
     Filename uses record_id only (no PHI in filename).
     """
     resolved_doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
-
     async with AsyncSessionLocal() as db:
-        record_result = await db.execute(
-            select(MedicalRecordDB).where(
-                MedicalRecordDB.id == record_id,
-                MedicalRecordDB.doctor_id == resolved_doctor_id,
-            )
-        )
-        record = record_result.scalar_one_or_none()
-        if record is None:
-            raise HTTPException(status_code=404, detail="Record not found")
-
-        patient_name = None
-        if record.patient_id is not None:
-            patient_result = await db.execute(
-                select(Patient).where(Patient.id == record.patient_id)
-            )
-            p = patient_result.scalar_one_or_none()
-            if p:
-                patient_name = p.name
-
+        record, patient_name = await _fetch_record_and_patient_name(db, record_id, resolved_doctor_id)
     asyncio.create_task(audit(resolved_doctor_id, "EXPORT", resource_type="record", resource_id=str(record_id)))
-
     try:
-        pdf_bytes = generate_records_pdf(
-            records=[record],
-            patient_name=patient_name,
-        )
+        pdf_bytes = generate_records_pdf(records=[record], patient_name=patient_name)
     except Exception as exc:
         log(f"[Export] PDF generation failed for record {record_id}: {exc}")
         raise HTTPException(status_code=500, detail="PDF generation failed")
-
-    # Write export audit row
     pdf_hash = _sha256_hex(pdf_bytes)
     async def _write_record_export_audit():
         async with AsyncSessionLocal() as db:
@@ -230,7 +228,6 @@ async def export_record_pdf(
             ))
             await db.commit()
     asyncio.create_task(_write_record_export_audit())
-
     filename = _safe_pdf_filename("病历_record", record_id)
     return Response(
         content=pdf_bytes,
@@ -242,6 +239,31 @@ async def export_record_pdf(
 # ---------------------------------------------------------------------------
 # China Standard Outpatient Report
 # ---------------------------------------------------------------------------
+
+def _build_patient_info_line(patient) -> Optional[str]:
+    """Build a concise '男  45岁' info line for the outpatient report header."""
+    from datetime import date
+    parts: list[str] = []
+    if getattr(patient, "gender", None):
+        parts.append(patient.gender)
+    if getattr(patient, "year_of_birth", None):
+        age = date.today().year - int(patient.year_of_birth)
+        parts.append(f"{age}岁")
+    return "  ".join(parts) if parts else None
+
+
+async def _extract_outpatient_fields_safe(records, patient, resolved_doctor_id: str, patient_id: int):
+    """Call LLM field extraction; raises HTTPException 502 on ExtractionError."""
+    from services.export.outpatient_report import ExtractionError, extract_outpatient_fields
+    try:
+        return await extract_outpatient_fields(records, patient, doctor_id=resolved_doctor_id)
+    except ExtractionError as exc:
+        log(f"[Export] outpatient field extraction unavailable for patient {patient_id}: {exc}")
+        raise HTTPException(
+            status_code=502,
+            detail="LLM service unavailable for field extraction. Please retry.",
+        )
+
 
 @router.get("/patient/{patient_id}/outpatient-report")
 async def export_outpatient_report(
@@ -256,54 +278,15 @@ async def export_outpatient_report(
     Filename uses patient_id only (no PHI).
     """
     resolved_doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
-
     async with AsyncSessionLocal() as db:
-        patient_result = await db.execute(
-            select(Patient).where(Patient.id == patient_id, Patient.doctor_id == resolved_doctor_id)
-        )
-        patient = patient_result.scalar_one_or_none()
-        if patient is None:
-            raise HTTPException(status_code=404, detail="Patient not found")
-
-        records_result = await db.execute(
-            select(MedicalRecordDB)
-            .where(
-                MedicalRecordDB.patient_id == patient_id,
-                MedicalRecordDB.doctor_id == resolved_doctor_id,
-            )
-            .order_by(MedicalRecordDB.created_at.asc())
-            .limit(limit)
-        )
-        records = list(records_result.scalars().all())
-
+        patient, records = await _fetch_patient_and_records(db, patient_id, resolved_doctor_id, limit)
     if not records:
         raise HTTPException(status_code=404, detail="No records found for this patient")
-
     asyncio.create_task(
         audit(resolved_doctor_id, "EXPORT", resource_type="outpatient_report", resource_id=str(patient_id))
     )
-
-    from services.export.outpatient_report import ExtractionError, extract_outpatient_fields
-
-    try:
-        fields = await extract_outpatient_fields(records, patient, doctor_id=resolved_doctor_id)
-    except ExtractionError as exc:
-        log(f"[Export] outpatient field extraction unavailable for patient {patient_id}: {exc}")
-        raise HTTPException(
-            status_code=502,
-            detail="LLM service unavailable for field extraction. Please retry.",
-        )
-
-    # Build patient info line (age calculated properly)
-    parts: list[str] = []
-    if getattr(patient, "gender", None):
-        parts.append(patient.gender)
-    if getattr(patient, "year_of_birth", None):
-        from datetime import date
-        age = date.today().year - int(patient.year_of_birth)
-        parts.append(f"{age}岁")
-    patient_info = "  ".join(parts) if parts else None
-
+    fields = await _extract_outpatient_fields_safe(records, patient, resolved_doctor_id, patient_id)
+    patient_info = _build_patient_info_line(patient)
     try:
         pdf_bytes = generate_outpatient_report_pdf(
             fields=fields,
@@ -313,7 +296,6 @@ async def export_outpatient_report(
     except Exception as exc:
         log(f"[Export] outpatient report PDF render failed for patient {patient_id}: {exc}")
         raise HTTPException(status_code=500, detail="PDF generation failed")
-
     filename = _safe_pdf_filename("门诊病历", patient_id)
     return Response(
         content=pdf_bytes,

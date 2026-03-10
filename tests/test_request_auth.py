@@ -1,3 +1,5 @@
+"""请求鉴权测试：验证医生身份解析（Token 优先、回退模式）及管理员 Token 校验逻辑。"""
+
 from __future__ import annotations
 
 from types import SimpleNamespace

@@ -1,7 +1,4 @@
-"""Tests for the intent dispatch logic in routers/wechat.py.
-
-All LLM calls and DB sessions are mocked — no network or disk I/O.
-"""
+"""微信意图派发测试：验证微信路由中创建患者、添加病历、查询记录、列出患者及删除患者等意图的处理逻辑，LLM 和数据库均使用模拟对象。"""
 
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock

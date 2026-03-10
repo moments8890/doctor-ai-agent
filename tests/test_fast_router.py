@@ -1,6 +1,4 @@
-"""
-Unit tests for services/fast_router.py — tier 1/2 intent routing without LLM.
-"""
+"""快速路由单元测试：覆盖 Tier 1/2/3 路由规则和多意图场景。"""
 
 from __future__ import annotations
 
@@ -176,10 +174,10 @@ def test_list_tasks_normalised(text):
 # ── should NOT match (LLM fallback) ───────────────────────────────────────────
 
 @pytest.mark.parametrize("text, expected_intent", [
-    # Clinical notes → Tier 3 fast-routes directly to add_record
-    ("张三，男，58岁，胸闷气促3天，BNP 980，EF 50%，心衰III级", Intent.add_record),
-    ("李明发烧三天，体温38.5，给予退烧药", Intent.add_record),
-    ("王五腹痛，排除阑尾炎，建议观察", Intent.add_record),
+    # Clinical notes → LLM (Tier 3 removed 2026-03-09)
+    ("张三，男，58岁，胸闷气促3天，BNP 980，EF 50%，心衰III级", None),
+    ("李明发烧三天，体温38.5，给予退烧药", None),
+    ("王五腹痛，排除阑尾炎，建议观察", None),
     # Ambiguous / conversational — still falls through to LLM
     ("你好", None),
     ("有问题", None),
@@ -217,15 +215,6 @@ def test_fast_route_label_miss():
     assert fast_route_label("你好") == "llm"
 
 
-def test_fast_route_label_tier3():
-    # Clinical messages fast-route to add_record (Tier 3), not LLM.
-    # Messages with a doctor anchor (name+gender+age, 给予, 患者…) are fast-routed.
-    # Ambiguous short notes without anchor (e.g. bare "张三胸闷三天") fall to LLM
-    # since the TF-IDF classifier cannot distinguish them from patient symptom reports.
-    assert fast_route_label("张三，男，42岁，胸闷三天") == "fast:add_record"
-    assert fast_route_label("李明胸闷三天，给予扩冠治疗") == "fast:add_record"
-
-
 # ── Benchmark: coverage measurement ───────────────────────────────────────────
 
 _SAMPLE_CLINICAL_INPUTS = [
@@ -238,9 +227,7 @@ _SAMPLE_CLINICAL_INPUTS = [
     ("张三的病历", Intent.query_records),
     ("新患者李明", Intent.create_patient),
     ("删除王五", Intent.delete_patient),
-    # Expected fast-route hits — Tier 3 (clinical keywords)
-    ("张三心悸三天，给予倍他乐克", Intent.add_record),
-    # Expected LLM fallback (no strong clinical keyword)
+    # Expected LLM fallback
     ("李明血压160/100，建议调整降压药", None),
     ("你好", None),
 ]
@@ -263,21 +250,6 @@ def test_fast_route_hit_rate():
     print(f"\nFast-route hit rate: {hits}/{len(_SAMPLE_CLINICAL_INPUTS)} = {rate:.0f}%")
     assert hits == expected_hits
 
-
-# ── Tier 2.5: update_record correction ─────────────────────────────────────────
-
-@pytest.mark.parametrize("text, expected_name", [
-    ("刚才李波的主诉写错了，应该是胸痛不是胸闷", "李波"),
-    ("刚才陈刚的诊断写错了，应更正为STEMI", "陈刚"),
-    ("上一条张三的病历有误，主诉改为头痛", "张三"),
-    ("刚才写错了，主诉应该是心悸", None),        # no name → name=None, still update_record
-    ("病历写错了，诊断改为高血压", None),
-])
-def test_correction_update_record(text, expected_name):
-    r = fast_route(text)
-    assert r is not None, f"fast_route({text!r}) returned None"
-    assert r.intent == Intent.update_record
-    assert r.patient_name == expected_name
 
 
 # ── Tier 2: update_patient demographics ────────────────────────────────────────
@@ -333,13 +305,6 @@ def test_update_patient_not_triggered_by_domain_keywords():
     if r is not None and r.intent == Intent.update_patient:
         assert r.patient_name != "病历"
 
-
-def test_correction_name_not_domain_keyword():
-    """'上一条病历的诊断有误' should not extract '病历' as patient name."""
-    r = fast_route("上一条病历的诊断有误，应更正")
-    if r is not None:
-        assert r.intent == Intent.update_record
-        assert r.patient_name != "病历"
 
 
 # ── export_records ─────────────────────────────────────────────────────────────
@@ -402,22 +367,6 @@ def test_tier3_fucha_with_reminder_falls_through():
     assert r is None, "复查 + 提醒 should fall through to LLM, not Tier 3 add_record"
 
 
-def test_tier3_clinical_keyword_routes_add_record():
-    """A message with high-specificity clinical keywords → add_record via Tier 3."""
-    r = fast_route("患者心悸3天，BNP升高，考虑心衰")
-    assert r is not None
-    assert r.intent == Intent.add_record
-
-
-def test_tier3_stemi_correction_routes_update_record_not_add():
-    """A correction message containing STEMI keyword must route update_record, not add_record."""
-    r = fast_route("刚才陈刚的诊断写错了，应更正诊断为STEMI，请更正上一条病历")
-    assert r is not None
-    assert r.intent == Intent.update_record, (
-        "Correction message with clinical keyword must be update_record, not add_record"
-    )
-    assert r.patient_name == "陈刚"
-
 
 # ── delete_patient with occurrence index ────────────────────────────────────────
 
@@ -450,163 +399,10 @@ def test_query_records_rejects_tier3_bad_name():
         fr._TIER3_BAD_NAME = original
 
 
-# ── Fix 3: mined_rules structured extraction ────────────────────────────────────
-
 def test_mined_rules_patient_name_group_extraction():
-    """patient_name_group in a mined rule extracts name from the regex capture group."""
-    import services.ai.fast_router as fr
-    rules_json = json.dumps([
-        {
-            "intent": "query_records",
-            "patterns": [r"^找(?P<dummy>.{0,5})?(\S{2,3})的资料$"],
-            "patient_name_group": 2,
-            "enabled": True,
-        }
-    ])
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
-        f.write(rules_json)
-        tmp = f.name
-
-    original_rules = fr._MINED_RULES
-    try:
-        fr.load_mined_rules(tmp)
-        r = fast_route("找张三的资料")
-        assert r is not None, "Mined rule should have matched"
-        assert r.intent == Intent.query_records
-        assert r.patient_name == "张三"
-    finally:
-        fr._MINED_RULES = original_rules
-        Path(tmp).unlink(missing_ok=True)
-
-
-def test_mined_rules_extra_data_static():
-    """extra_data dict from mined rule is included in IntentResult."""
-    import services.ai.fast_router as fr
-    rules_json = json.dumps([
-        {
-            "intent": "add_record",
-            "patterns": [r"^【紧急】"],
-            "extra_data": {"source": "mined", "priority": "high"},
-            "enabled": True,
-        }
-    ])
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
-        f.write(rules_json)
-        tmp = f.name
-
-    original_rules = fr._MINED_RULES
-    try:
-        fr.load_mined_rules(tmp)
-        r = fast_route("【紧急】患者心跳骤停")
-        assert r is not None
-        assert r.extra_data.get("source") == "mined"
-        assert r.extra_data.get("priority") == "high"
-    finally:
-        fr._MINED_RULES = original_rules
-        Path(tmp).unlink(missing_ok=True)
-
-
-def test_mined_rules_confidence_field():
-    """confidence field from mined rule propagates to IntentResult."""
-    import services.ai.fast_router as fr
-    rules_json = json.dumps([
-        {
-            "intent": "add_record",
-            "patterns": [r"^医嘱[：:]"],
-            "confidence": 0.85,
-            "enabled": True,
-        }
-    ])
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
-        f.write(rules_json)
-        tmp = f.name
-
-    original_rules = fr._MINED_RULES
-    try:
-        fr.load_mined_rules(tmp)
-        r = fast_route("医嘱：阿司匹林100mg qd")
-        assert r is not None
-        assert r.intent == Intent.add_record
-        assert abs(r.confidence - 0.85) < 0.001
-    finally:
-        fr._MINED_RULES = original_rules
-        Path(tmp).unlink(missing_ok=True)
-
-
-# ── Fix 4: mined_rules error logging (not silent) ──────────────────────────────
-
-def test_mined_rules_logs_unknown_intent(caplog):
-    """Rules with unknown intent values must be logged and skipped, not silently dropped."""
-    import logging
-    import services.ai.fast_router as fr
-
-    rules_json = json.dumps([
-        {"intent": "not_a_real_intent", "patterns": [r"^test"], "enabled": True},
-        {"intent": "add_record", "patterns": [r"^valid_test_prefix_xyz"], "enabled": True},
-    ])
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
-        f.write(rules_json)
-        tmp = f.name
-
-    original_rules = fr._MINED_RULES
-    log_messages: list[str] = []
-    import utils.log as log_mod
-    original_log_fn = log_mod.log
-
-    def capturing_log(msg, *args, **kwargs):
-        log_messages.append(str(msg))
-        original_log_fn(msg, *args, **kwargs)
-
-    try:
-        log_mod.log = capturing_log
-        fr.load_mined_rules(tmp)
-        # Valid rule should still be loaded
-        assert len(fr._MINED_RULES) == 1
-        assert fr._MINED_RULES[0]["intent"] == "add_record"
-        # Unknown intent should have been logged
-        assert any("not_a_real_intent" in m for m in log_messages), (
-            "Expected log message about unknown intent, got: " + str(log_messages)
-        )
-    finally:
-        fr._MINED_RULES = original_rules
-        log_mod.log = original_log_fn
-        Path(tmp).unlink(missing_ok=True)
-
-
-def test_mined_rules_logs_invalid_regex(caplog):
-    """Rules with invalid regex patterns must be logged and skipped."""
-    import services.ai.fast_router as fr
-    import utils.log as log_mod
-
-    rules_json = json.dumps([
-        {"intent": "add_record", "patterns": [r"[invalid(regex"], "enabled": True},
-        {"intent": "add_record", "patterns": [r"^valid_xyz_prefix"], "enabled": True},
-    ])
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
-        f.write(rules_json)
-        tmp = f.name
-
-    original_rules = fr._MINED_RULES
-    log_messages = []
-    original_log_fn = log_mod.log
-
-    def capturing_log(msg, *args, **kwargs):
-        log_messages.append(msg)
-        original_log_fn(msg, *args, **kwargs)
-
-    try:
-        log_mod.log = capturing_log
-        fr.load_mined_rules(tmp)
-        # Valid rule still loaded
-        assert len(fr._MINED_RULES) == 1
-        # Invalid regex should have been logged
-        assert any("invalid" in m.lower() or "pattern" in m.lower() for m in log_messages), (
-            "Expected log about invalid pattern, got: " + str(log_messages)
-        )
-    finally:
-        fr._MINED_RULES = original_rules
-        log_mod.log = original_log_fn
-        Path(tmp).unlink(missing_ok=True)
+    # Mined rules removed from active routing 2026-03-10.
+    # Infrastructure preserved in _mined_rules.py for future use.
+    pass
 
 
 # ── Question guard decomposition: _is_patient_question sub-groups ──────────────

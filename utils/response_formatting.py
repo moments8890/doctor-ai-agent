@@ -1,3 +1,4 @@
+"""病历记录与草稿的移动端友好文本格式化工具。"""
 from __future__ import annotations
 
 import json

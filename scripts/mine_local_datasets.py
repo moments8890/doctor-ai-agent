@@ -287,64 +287,37 @@ def apply_to_fast_router(candidates: list[tuple[str, int, float]], max_terms: in
     print(f"\n✅ Updated fast_router.py — added {len(top)} terms to _CLINICAL_KW_TIER3")
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Mine clinical keywords from local medical datasets")
-    parser.add_argument("--data-dir", default="/Volumes/ORICO/doctor-ai-agent/train/data",
-                        help="Root directory of train/data (default: /Volumes/ORICO/...)")
-    parser.add_argument("--min-freq", type=int, default=MIN_FREQ,
-                        help=f"Min frequency across all datasets (default: {MIN_FREQ})")
-    parser.add_argument("--top", type=int, default=100,
-                        help="Show top N candidates (default: 100)")
-    parser.add_argument("--apply", action="store_true",
-                        help="Auto-apply top terms to fast_router.py (default: dry run)")
-    parser.add_argument("--output", default="data/local_dataset_keywords.json",
-                        help="Save candidates to JSON (default: data/local_dataset_keywords.json)")
-    parser.add_argument("--no-baidu-finetune", action="store_true",
-                        help="Skip Baidu finetune (1.3GB) even in sample mode")
-    parser.add_argument("--no-baidu-list", action="store_true",
-                        help="Skip Baidu list QA (226k pairs)")
-    args = parser.parse_args()
-
-    data_dir = Path(args.data_dir)
-    if not data_dir.exists():
-        print(f"ERROR: data-dir not found: {data_dir}")
-        sys.exit(1)
-
+def _load_all_datasets(data_dir: Path, no_baidu_list: bool, no_baidu_finetune: bool) -> Counter:
+    """Load and merge all local medical datasets; return combined term counts."""
     print("Loading datasets...")
     counts: Counter = Counter()
     counts.update(load_rag_80k(data_dir))
     counts.update(load_cmedqa2(data_dir))
     counts.update(load_cmexam(data_dir))
-    if not args.no_baidu_list:
+    if not no_baidu_list:
         counts.update(load_baidu_list(data_dir))
-    if not args.no_baidu_finetune:
+    if not no_baidu_finetune:
         counts.update(load_baidu_finetune_sample(data_dir))
-
     print(f"\nTotal unique terms across all datasets: {len(counts)}")
+    return counts
 
-    existing = load_existing_keywords()
-    print(f"Existing Tier 3 keywords: {len(existing)}")
 
-    candidates = filter_candidates(counts, existing, args.min_freq)
-    print(f"New candidates (freq >= {args.min_freq}): {len(candidates)}")
-
-    # Save all candidates
-    out = Path(args.output)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(
-        json.dumps(
-            {"candidates": [{"term": t, "freq": f, "score": round(s, 1)} for t, f, s in candidates]},
-            ensure_ascii=False,
-            indent=2,
-        ),
+def _save_candidates(candidates: list, out_path: Path) -> None:
+    """Save candidate terms to a JSON file."""
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(
+        json.dumps({"candidates": [{"term": t, "freq": f, "score": round(s, 1)} for t, f, s in candidates]},
+                   ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
-    print(f"Saved {len(candidates)} candidates to {out}")
+    print(f"Saved {len(candidates)} candidates to {out_path}")
 
-    # Display top N
+
+def _print_candidates(candidates: list, top: int) -> None:
+    """Print top N candidates with category classification."""
     print(f"\n{'Term':<12} {'Freq':>6} {'Score':>7}  {'Category'}")
     print("-" * 50)
-    for term, freq, score in candidates[:args.top]:
+    for term, freq, score in candidates[:top]:
         cat = ""
         if re.search(r"炎|肺|肝|肾|心|脑|胃|肠|血|尿|骨", term):
             cat = "organ/disease"
@@ -356,6 +329,29 @@ def main() -> None:
             cat = "symptom"
         print(f"{term:<12} {freq:>6} {score:>7.0f}  {cat}")
 
+
+def main() -> None:
+    """Entry point: parse args, load datasets, filter and report candidates."""
+    parser = argparse.ArgumentParser(description="Mine clinical keywords from local medical datasets")
+    parser.add_argument("--data-dir", default="/Volumes/ORICO/doctor-ai-agent/train/data")
+    parser.add_argument("--min-freq", type=int, default=MIN_FREQ)
+    parser.add_argument("--top", type=int, default=100)
+    parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--output", default="data/local_dataset_keywords.json")
+    parser.add_argument("--no-baidu-finetune", action="store_true")
+    parser.add_argument("--no-baidu-list", action="store_true")
+    args = parser.parse_args()
+    data_dir = Path(args.data_dir)
+    if not data_dir.exists():
+        print(f"ERROR: data-dir not found: {data_dir}")
+        sys.exit(1)
+    counts = _load_all_datasets(data_dir, args.no_baidu_list, args.no_baidu_finetune)
+    existing = load_existing_keywords()
+    print(f"Existing Tier 3 keywords: {len(existing)}")
+    candidates = filter_candidates(counts, existing, args.min_freq)
+    print(f"New candidates (freq >= {args.min_freq}): {len(candidates)}")
+    _save_candidates(candidates, Path(args.output))
+    _print_candidates(candidates, args.top)
     if args.apply:
         apply_to_fast_router(candidates, MAX_TERMS_APPLY)
     else:

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-from __future__ import annotations
 """
+从命令行检查 patients.db 数据库内容。
+
 Inspect patients.db from the command line.
 
 Usage:

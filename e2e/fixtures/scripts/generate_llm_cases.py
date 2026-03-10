@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """
+使用大语言模型（Claude CLI / Codex CLI / Claude API）生成多样化的端到端测试用例。
+
 Generate diverse e2e test cases using LLMs (Claude CLI + Codex CLI + Claude API).
 
 Usage:
@@ -411,58 +413,116 @@ def parse_cases(text: str, source: str, batch_idx: int, start_id: int) -> list[d
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--codex-only", action="store_true",
-                        help="Use only codex (skip Claude even if API key is set)")
-    parser.add_argument("--claude-only", action="store_true",
-                        help="Use only Claude API (requires ANTHROPIC_API_KEY)")
-    parser.add_argument("--no-codex", action="store_true",
-                        help="Skip codex even if available")
-    parser.add_argument("--no-claude", action="store_true",
-                        help="Skip Claude API/CLI even if available")
-    parser.add_argument("--claude-cli", action="store_true",
-                        help="Use `claude -p` CLI instead of Anthropic SDK (no API key needed, "
-                             "run from a normal terminal outside Claude Code)")
-    parser.add_argument("--cases-per-batch", type=int, default=10,
-                        help="Cases to request per batch per model (default: 10)")
-    parser.add_argument("--rounds", type=int, default=1,
-                        help="Repeat the full BASE_BATCHES set N times (default: 1)")
-    parser.add_argument("--extra-neuro-specialty-batches", type=int, default=0,
-                        metavar="N",
-                        help="Append N 神经/脑血管专科 batches (0-10, default: 0)")
-    parser.add_argument("--neuro-cerebro-only", action="store_true",
-                        help="Skip BASE_BATCHES; use only NEURO_CEREBRO_SPECIALTY_BATCHES "
-                             "(combine with --extra-neuro-specialty-batches to limit count)")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Print first batch prompt and exit without calling LLMs")
-    parser.add_argument("--out", default=str(OUT_PATH),
-                        help="Output file path")
-    args = parser.parse_args()
 
-    no_codex = args.no_codex or args.codex_only is False and args.claude_only
+def _build_arg_parser() -> argparse.ArgumentParser:
+    """构建并返回命令行参数解析器。"""
+    p = argparse.ArgumentParser()
+    p.add_argument("--codex-only", action="store_true",
+                   help="Use only codex (skip Claude even if API key is set)")
+    p.add_argument("--claude-only", action="store_true",
+                   help="Use only Claude API (requires ANTHROPIC_API_KEY)")
+    p.add_argument("--no-codex", action="store_true", help="Skip codex even if available")
+    p.add_argument("--no-claude", action="store_true", help="Skip Claude API/CLI even if available")
+    p.add_argument("--claude-cli", action="store_true",
+                   help="Use `claude -p` CLI instead of Anthropic SDK")
+    p.add_argument("--cases-per-batch", type=int, default=10,
+                   help="Cases to request per batch per model (default: 10)")
+    p.add_argument("--rounds", type=int, default=1,
+                   help="Repeat the full BASE_BATCHES set N times (default: 1)")
+    p.add_argument("--extra-neuro-specialty-batches", type=int, default=0, metavar="N",
+                   help="Append N 神经/脑血管专科 batches (0-10, default: 0)")
+    p.add_argument("--neuro-cerebro-only", action="store_true",
+                   help="Skip BASE_BATCHES; use only NEURO_CEREBRO_SPECIALTY_BATCHES")
+    p.add_argument("--dry-run", action="store_true",
+                   help="Print first batch prompt and exit without calling LLMs")
+    p.add_argument("--out", default=str(OUT_PATH), help="Output file path")
+    return p
+
+
+def _resolve_active_batches(args) -> list:
+    """根据 CLI 参数确定本次运行的批次列表。"""
+    neuro_count = min(max(args.extra_neuro_specialty_batches, 0), len(NEURO_CEREBRO_SPECIALTY_BATCHES))
+    neuro_batches = NEURO_CEREBRO_SPECIALTY_BATCHES[:neuro_count] if neuro_count else []
+    if args.neuro_cerebro_only:
+        if neuro_count == 0:
+            neuro_batches = NEURO_CEREBRO_SPECIALTY_BATCHES
+        return neuro_batches
+    return BATCHES * args.rounds + neuro_batches
+
+
+def _resolve_models(args) -> list:
+    """根据 CLI 参数确定要调用的模型列表；无可用模型时退出。"""
+    no_codex = args.no_codex or (not args.codex_only and args.claude_only)
     no_claude = args.no_claude or args.codex_only
-
     has_claude_cli = args.claude_cli and not no_claude
     has_anthropic = bool(os.environ.get("ANTHROPIC_API_KEY")) and not no_claude and not args.claude_cli
     has_codex = not no_codex and not args.claude_only
-
     if not has_claude_cli and not has_anthropic and not has_codex:
-        print("ERROR: No LLM available. Use --claude-cli, set ANTHROPIC_API_KEY, or ensure 'codex' is in PATH.", file=sys.stderr)
+        print("ERROR: No LLM available. Use --claude-cli, set ANTHROPIC_API_KEY, or ensure 'codex' is in PATH.",
+              file=sys.stderr)
         sys.exit(1)
+    models = []
+    if has_claude_cli:
+        models.append("claude-cli")
+    if has_anthropic:
+        models.append("claude")
+    if has_codex:
+        models.append("codex")
+    return models
 
-    # Build the active batch list
-    neuro_count = min(max(args.extra_neuro_specialty_batches, 0), len(NEURO_CEREBRO_SPECIALTY_BATCHES))
-    neuro_batches = NEURO_CEREBRO_SPECIALTY_BATCHES[:neuro_count] if neuro_count else []
 
-    if args.neuro_cerebro_only:
-        # --neuro-cerebro-only: skip base batches entirely; default to all 10 if --extra-neuro-specialty-batches not set
-        if neuro_count == 0:
-            neuro_batches = NEURO_CEREBRO_SPECIALTY_BATCHES
-        active_batches = neuro_batches
-        rounds = 1  # rounds only applies to base batches
-    else:
-        active_batches = BATCHES * args.rounds + neuro_batches
+def _run_batch(batch: dict, batch_idx: int, total_batches: int,
+               models: list, cases_per_batch: int,
+               all_cases: list, global_id_ref: list) -> None:
+    """运行单个批次（所有模型），将解析出的案例追加到 all_cases。"""
+    sys_prompt, user_prompt = _build_prompt(batch, cases_per_batch)
+    is_neuro = "score_hint" in batch
+    tag = "🧠 " if is_neuro else "  "
+    print(f"{tag}Batch {batch_idx + 1:2d}/{total_batches}  theme: {batch['theme'][:60]}")
+    for model in models:
+        print(f"           [{model}] calling...", end=" ", flush=True)
+        t0 = time.time()
+        try:
+            if model == "claude-cli":
+                raw = call_claude_cli(user_prompt, sys_prompt)
+            elif model == "claude":
+                raw = call_claude_api(user_prompt, sys_prompt)
+            else:
+                raw = call_codex(user_prompt, sys_prompt)
+            source_label = "claude" if model == "claude-cli" else model
+            parsed = parse_cases(raw, source_label, batch_idx, global_id_ref[0])
+            global_id_ref[0] += len(parsed)
+            all_cases.extend(parsed)
+            elapsed = time.time() - t0
+            print(f"{len(parsed)} cases ({elapsed:.1f}s)")
+        except Exception as exc:
+            print(f"FAILED: {exc}")
+
+
+def _save_and_print_stats(all_cases: list, out_arg: str, active_batches: list,
+                          models: list, neuro_batches_len: int,
+                          neuro_cerebro_only: bool, rounds: int) -> None:
+    """保存生成的案例并打印统计摘要。"""
+    print()
+    print(f"Total cases generated: {len(all_cases)}")
+    out_path = _versioned_path(Path(out_arg))
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(all_cases, ensure_ascii=False, indent=2))
+    print(f"Saved to: {out_path}")
+    by_model: dict = {}
+    by_domain: dict = {}
+    for c in all_cases:
+        by_model[c["source"]] = by_model.get(c["source"], 0) + 1
+        by_domain[c["clinical_domain"]] = by_domain.get(c["clinical_domain"], 0) + 1
+    print("\nBy model:", by_model)
+    print("Top domains:", sorted(by_domain.items(), key=lambda x: -x[1])[:10])
+
+
+def main() -> None:
+    """命令行主入口：解析参数，按批次生成并保存测试案例。"""
+    args = _build_arg_parser().parse_args()
+    active_batches = _resolve_active_batches(args)
+    models = _resolve_models(args)
 
     if args.dry_run:
         first = active_batches[0]
@@ -473,15 +533,9 @@ def main() -> None:
         print(user_prompt)
         return
 
-    models = []
-    if has_claude_cli:
-        models.append("claude-cli")
-    if has_anthropic:
-        models.append("claude")
-    if has_codex:
-        models.append("codex")
-
     total_batches = len(active_batches)
+    neuro_count = min(max(args.extra_neuro_specialty_batches, 0), len(NEURO_CEREBRO_SPECIALTY_BATCHES))
+    neuro_batches = NEURO_CEREBRO_SPECIALTY_BATCHES[:neuro_count] if neuro_count else []
     print(f"Models: {', '.join(models)}")
     print(f"Batches: {total_batches} × {args.cases_per_batch} cases per model")
     if not args.neuro_cerebro_only and args.rounds > 1:
@@ -491,55 +545,16 @@ def main() -> None:
     print(f"Target total: {total_batches * args.cases_per_batch * len(models)} cases")
     print()
 
-    all_cases: list[dict] = []
-    global_id = 1
-
+    all_cases: list = []
+    global_id_ref = [1]
     for batch_idx, batch in enumerate(active_batches):
-        sys_prompt, user_prompt = _build_prompt(batch, args.cases_per_batch)
-        is_neuro = "score_hint" in batch
-        tag = "🧠 " if is_neuro else "  "
-        print(f"{tag}Batch {batch_idx + 1:2d}/{total_batches}  theme: {batch['theme'][:60]}")
-
-        for model in models:
-            print(f"           [{model}] calling...", end=" ", flush=True)
-            t0 = time.time()
-            try:
-                if model == "claude-cli":
-                    raw = call_claude_cli(user_prompt, sys_prompt)
-                elif model == "claude":
-                    raw = call_claude_api(user_prompt, sys_prompt)
-                else:
-                    raw = call_codex(user_prompt, sys_prompt)
-
-                source_label = "claude" if model == "claude-cli" else model
-                parsed = parse_cases(raw, source_label, batch_idx, global_id)
-                global_id += len(parsed)
-                all_cases.extend(parsed)
-                elapsed = time.time() - t0
-                print(f"{len(parsed)} cases ({elapsed:.1f}s)")
-            except Exception as exc:
-                print(f"FAILED: {exc}")
-
-        # Small delay between batches to avoid rate limits
+        _run_batch(batch, batch_idx, total_batches, models, args.cases_per_batch,
+                   all_cases, global_id_ref)
         if batch_idx < total_batches - 1:
             time.sleep(1)
 
-    print()
-    print(f"Total cases generated: {len(all_cases)}")
-
-    out_path = _versioned_path(Path(args.out))
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(all_cases, ensure_ascii=False, indent=2))
-    print(f"Saved to: {out_path}")
-
-    # Quick stats
-    by_model = {}
-    by_domain = {}
-    for c in all_cases:
-        by_model[c["source"]] = by_model.get(c["source"], 0) + 1
-        by_domain[c["clinical_domain"]] = by_domain.get(c["clinical_domain"], 0) + 1
-    print("\nBy model:", by_model)
-    print("Top domains:", sorted(by_domain.items(), key=lambda x: -x[1])[:10])
+    _save_and_print_stats(all_cases, args.out, active_batches, models,
+                          len(neuro_batches), args.neuro_cerebro_only, args.rounds)
 
 
 if __name__ == "__main__":

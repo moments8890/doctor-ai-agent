@@ -1,4 +1,6 @@
-"""Gemini template integration tests for WeChat-like scenarios.
+"""Gemini 模板集成测试（微信场景）。
+
+Gemini template integration tests for WeChat-like scenarios.
 
 Run:
   export RUN_GEMINI_TEMPLATE=1

@@ -124,6 +124,71 @@ async def _fetch_wechat_openid(js_code: str) -> str:
     return openid
 
 
+async def _try_link_via_invite(
+    session,
+    openid: str,
+    invite_code: str,
+    doctor_name: Optional[str],
+    now: datetime,
+) -> Optional[str]:
+    """Attempt to link openid to an existing doctor via invite code. Returns doctor_id or None."""
+    invite = (
+        await session.execute(
+            select(InviteCode).where(InviteCode.code == invite_code).limit(1)
+        )
+    ).scalar_one_or_none()
+    if invite is None or not invite.active:
+        return None
+    target = (
+        await session.execute(
+            select(Doctor).where(Doctor.doctor_id == invite.doctor_id).limit(1)
+        )
+    ).scalar_one_or_none()
+    if target is None:
+        return None
+    target.mini_openid = hash_wechat_id(openid)
+    target.updated_at = now
+    if doctor_name and not target.name:
+        target.name = doctor_name
+    await session.commit()
+    return invite.doctor_id
+
+
+async def _upsert_mini_doctor_new(
+    session,
+    openid: str,
+    doctor_name: Optional[str],
+    now: datetime,
+) -> str:
+    """Create or touch the fallback wxmini_ doctor row. Returns doctor_id."""
+    doctor_id = f"wxmini_{openid}"
+    existing_by_id = (
+        await session.execute(select(Doctor).where(Doctor.doctor_id == doctor_id).limit(1))
+    ).scalar_one_or_none()
+    if existing_by_id is None:
+        session.add(
+            Doctor(
+                doctor_id=doctor_id,
+                name=doctor_name,
+                channel="wechat_mini",
+                wechat_user_id=hash_wechat_id(openid),
+                mini_openid=hash_wechat_id(openid),
+                created_at=now,
+                updated_at=now,
+            )
+        )
+    else:
+        existing_by_id.updated_at = now
+        existing_by_id.channel = "wechat_mini"
+        existing_by_id.wechat_user_id = hash_wechat_id(openid)
+        if not existing_by_id.mini_openid:
+            existing_by_id.mini_openid = hash_wechat_id(openid)
+        if doctor_name and not existing_by_id.name:
+            existing_by_id.name = doctor_name
+    await session.commit()
+    return doctor_id
+
+
 async def _upsert_mini_doctor(
     openid: str,
     doctor_name: Optional[str],
@@ -142,25 +207,9 @@ async def _upsert_mini_doctor(
 
         # 2. Invite code provided — link this openid to the existing doctor.
         if invite_code:
-            invite = (
-                await session.execute(
-                    select(InviteCode).where(InviteCode.code == invite_code).limit(1)
-                )
-            ).scalar_one_or_none()
-            if invite is not None and invite.active:
-                target_doctor_id = invite.doctor_id
-                target = (
-                    await session.execute(
-                        select(Doctor).where(Doctor.doctor_id == target_doctor_id).limit(1)
-                    )
-                ).scalar_one_or_none()
-                if target is not None:
-                    target.mini_openid = hash_wechat_id(openid)
-                    target.updated_at = now
-                    if doctor_name and not target.name:
-                        target.name = doctor_name
-                    await session.commit()
-                    return target_doctor_id
+            linked_id = await _try_link_via_invite(session, openid, invite_code, doctor_name, now)
+            if linked_id is not None:
+                return linked_id
 
         # 3. Legacy fallback: find by old wechat_mini channel + wechat_user_id.
         existing_by_wechat = (
@@ -180,33 +229,7 @@ async def _upsert_mini_doctor(
             return existing_by_wechat.doctor_id
 
         # 4. No existing record — create a standalone mini app doctor.
-        doctor_id = f"wxmini_{openid}"
-        existing_by_id = (
-            await session.execute(select(Doctor).where(Doctor.doctor_id == doctor_id).limit(1))
-        ).scalar_one_or_none()
-        if existing_by_id is None:
-            session.add(
-                Doctor(
-                    doctor_id=doctor_id,
-                    name=doctor_name,
-                    channel="wechat_mini",
-                    wechat_user_id=hash_wechat_id(openid),
-                    mini_openid=hash_wechat_id(openid),
-                    created_at=now,
-                    updated_at=now,
-                )
-            )
-        else:
-            existing_by_id.updated_at = now
-            existing_by_id.channel = "wechat_mini"
-            existing_by_id.wechat_user_id = hash_wechat_id(openid)
-            if not existing_by_id.mini_openid:
-                existing_by_id.mini_openid = hash_wechat_id(openid)
-            if doctor_name and not existing_by_id.name:
-                existing_by_id.name = doctor_name
-
-        await session.commit()
-        return doctor_id
+        return await _upsert_mini_doctor_new(session, openid, doctor_name, now)
 
 
 @router.post("/wechat-mini/login", response_model=MiniProgramLoginResponse)
@@ -277,63 +300,69 @@ async def web_login(body: WebLoginInput) -> WebLoginResponse:
     )
 
 
+async def _resolve_invite_doctor_id(code: str) -> tuple[str, Optional[str], Optional[str]]:
+    """Validate invite code and return (doctor_id, doctor_name, new_doctor_id_or_None)."""
+    async with AsyncSessionLocal() as session:
+        invite = (
+            await session.execute(select(InviteCode).where(InviteCode.code == code).limit(1))
+        ).scalar_one_or_none()
+        if invite is None or not invite.active:
+            raise HTTPException(status_code=401, detail="Invalid or inactive invite code")
+        new_doctor_id = None
+        if invite.doctor_id is None:
+            new_doctor_id = f"inv_{secrets.token_urlsafe(8)}"
+        doctor_id = invite.doctor_id or new_doctor_id
+        return doctor_id, invite.doctor_name, new_doctor_id
+
+
+async def _bind_new_doctor_to_invite(code: str, new_doctor_id: str) -> str:
+    """Write new_doctor_id back to invite code row. Returns final doctor_id (may differ on race)."""
+    async with AsyncSessionLocal() as session:
+        invite_row = (
+            await session.execute(
+                select(InviteCode).where(InviteCode.code == code).limit(1).with_for_update()
+            )
+        ).scalar_one_or_none()
+        if invite_row is not None and invite_row.doctor_id is None:
+            invite_row.doctor_id = new_doctor_id
+            invite_row.used_count = (invite_row.used_count or 0) + 1
+            await session.commit()
+            return new_doctor_id
+        if invite_row is not None and invite_row.doctor_id != new_doctor_id:
+            return invite_row.doctor_id
+    return new_doctor_id
+
+
+async def _link_mini_openid_from_jscode(js_code: str, doctor_id: str) -> Optional[str]:
+    """Exchange js_code for openid and link it to the doctor. Returns openid or None on error."""
+    try:
+        mini_openid = await _fetch_wechat_openid(js_code)
+        async with AsyncSessionLocal() as session:
+            await link_mini_openid(session, doctor_id, mini_openid)
+        return mini_openid
+    except Exception as link_err:
+        logging.getLogger("auth").warning(
+            "[Auth] invite/login mini openid link failed: %s", link_err
+        )
+        return None
+
+
 @router.post("/invite/login", response_model=WebLoginResponse)
 async def invite_login(body: InviteLoginInput) -> WebLoginResponse:
     code = (body.code or "").strip()
     if not code:
         raise HTTPException(status_code=422, detail="code is required")
 
-    async with AsyncSessionLocal() as session:
-        invite = (
-            await session.execute(select(InviteCode).where(InviteCode.code == code).limit(1))
-        ).scalar_one_or_none()
-
-        if invite is None or not invite.active:
-            raise HTTPException(status_code=401, detail="Invalid or inactive invite code")
-
-        new_doctor_id = None
-        if invite.doctor_id is None:
-            # First login — generate the doctor_id but don't write it yet;
-            # the doctor row must exist before the FK update.
-            new_doctor_id = f"inv_{secrets.token_urlsafe(8)}"
-
-        doctor_id = invite.doctor_id or new_doctor_id
-        doctor_name = invite.doctor_name
-
+    doctor_id, doctor_name, new_doctor_id = await _resolve_invite_doctor_id(code)
     enforce_doctor_rate_limit(doctor_id, scope="auth.login")
-    # Create the doctor row first so the FK constraint is satisfied.
     await _upsert_web_doctor(doctor_id, doctor_name, specialty=(body.specialty or "").strip() or None)
 
     if new_doctor_id:
-        # Now that the doctor exists, write the doctor_id back to the invite code.
-        # Re-read with FOR UPDATE to guard against concurrent first-time logins with
-        # the same invite code both seeing doctor_id=None and generating different ids.
-        async with AsyncSessionLocal() as session:
-            invite_row = (
-                await session.execute(
-                    select(InviteCode).where(InviteCode.code == code).limit(1).with_for_update()
-                )
-            ).scalar_one_or_none()
-            if invite_row is not None and invite_row.doctor_id is None:
-                invite_row.doctor_id = new_doctor_id
-                invite_row.used_count = (invite_row.used_count or 0) + 1
-                await session.commit()
-            elif invite_row is not None and invite_row.doctor_id != new_doctor_id:
-                # Another concurrent request already bound a doctor_id; use theirs.
-                doctor_id = invite_row.doctor_id
+        doctor_id = await _bind_new_doctor_to_invite(code, new_doctor_id)
 
-    # If a WeChat mini app js_code is provided, link the openid to this doctor.
     mini_openid: Optional[str] = None
     if body.js_code:
-        try:
-            mini_openid = await _fetch_wechat_openid(body.js_code)
-            async with AsyncSessionLocal() as session:
-                await link_mini_openid(session, doctor_id, mini_openid)
-        except Exception as link_err:
-            logging.getLogger("auth").warning(
-                "[Auth] invite/login mini openid link failed: %s", link_err
-            )
-            mini_openid = None
+        mini_openid = await _link_mini_openid_from_jscode(body.js_code, doctor_id)
 
     token_data = issue_miniprogram_token(
         doctor_id,

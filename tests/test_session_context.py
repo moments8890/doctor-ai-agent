@@ -1,13 +1,4 @@
-"""Tests for services/session.py — in-memory only, no mocking needed.
-
-Verifies that:
-- Each doctor gets an independent session
-- push_turn accumulates history in the correct order
-- set_current_patient / clear_current_patient update state
-- Switching patients replaces context without wiping history
-- pending_create state transitions work
-- last_active timestamp is refreshed on push_turn
-"""
+"""会话上下文测试：验证医生会话隔离、对话轮次追加顺序、患者上下文切换及 pending_create 状态流转逻辑。"""
 
 import time
 import pytest

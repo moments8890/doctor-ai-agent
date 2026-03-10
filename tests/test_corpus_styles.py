@@ -1,21 +1,6 @@
-"""Corpus-style tests — one representative case per style in clinic_raw_cases_cardiology_v2.md.
+"""语料风格测试：覆盖心内科病历语料库中每种记录风格的路由正确性和结构化字段提取。"""
 
-Verifies that:
-- Every corpus input routes to Intent.add_record (not unknown)
-- Emergency cases (701–703) set is_emergency=True
-- Conversational-prefix styles (201, 1001) still route to add_record
-- Incomplete-info cases (901–903) route to add_record when clinical content present
-- Structuring produces correct field placement per style:
-    * Trend data (BNP/EF comparisons) → auxiliary_examinations
-    * Planned tests → treatment_plan; existing results → auxiliary_examinations
-    * Instructional prefixes are stripped; clinical content lands in chief_complaint
-    * Fragmented / self-correcting input still populates the required fields
-    * Heavy abbreviation cases map specialist terms to correct fields
-    * Multi-morbidity cases produce multi-diagnosis strings
-    * Follow-up / delta cases capture only new findings
-
-LLM is mocked in all tests — we validate the pipeline logic, not LLM quality.
-"""
+# Corpus-style tests — one representative case per style in clinic_raw_cases_cardiology_v2.md.
 
 import json
 import pytest

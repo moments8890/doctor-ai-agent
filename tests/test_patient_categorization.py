@@ -1,8 +1,4 @@
-"""Unit tests for services/patient_categorization.py.
-
-All tests are pure (no DB, no I/O). Patient and Record objects are built
-from SimpleNamespace mocks.
-"""
+"""患者分类服务测试：验证患者风险分级（高风险、随访中、稳定、新患者）及分类标签的规则逻辑，所有测试均为纯内存操作。"""
 
 from __future__ import annotations
 

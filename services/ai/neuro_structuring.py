@@ -234,61 +234,86 @@ def _extract_fenced_json(text: str) -> Optional[str]:
     return m.group(1).strip() if m else None
 
 
-def _validate_cvd_constraints(ctx: NeuroCVDSurgicalContext) -> NeuroCVDSurgicalContext:
-    """Enforce clinical range constraints and cross-field consistency rules."""
-    # GCS range 3-15
-    if ctx.gcs_score is not None and not (3 <= ctx.gcs_score <= 15):
-        log(f"[CVD] gcs_score={ctx.gcs_score} out of range [3,15]; clearing")
-        ctx = ctx.model_copy(update={"gcs_score": None})
-    # Hunt-Hess range 1-5
-    if ctx.hunt_hess_grade is not None and not (1 <= ctx.hunt_hess_grade <= 5):
-        log(f"[CVD] hunt_hess_grade={ctx.hunt_hess_grade} out of range [1,5]; clearing")
-        ctx = ctx.model_copy(update={"hunt_hess_grade": None})
-    # WFNS range 1-5
-    if ctx.wfns_grade is not None and not (1 <= ctx.wfns_grade <= 5):
-        log(f"[CVD] wfns_grade={ctx.wfns_grade} out of range [1,5]; clearing")
-        ctx = ctx.model_copy(update={"wfns_grade": None})
-    # Fisher range 1-4
-    if ctx.fisher_grade is not None and not (1 <= ctx.fisher_grade <= 4):
-        log(f"[CVD] fisher_grade={ctx.fisher_grade} out of range [1,4]; clearing")
-        ctx = ctx.model_copy(update={"fisher_grade": None})
-    # Modified Fisher range 0-4
-    if ctx.modified_fisher_grade is not None and not (0 <= ctx.modified_fisher_grade <= 4):
-        log(f"[CVD] modified_fisher_grade={ctx.modified_fisher_grade} out of range [0,4]; clearing")
-        ctx = ctx.model_copy(update={"modified_fisher_grade": None})
-    # ICH score range 0-6
-    if ctx.ich_score is not None and not (0 <= ctx.ich_score <= 6):
-        log(f"[CVD] ich_score={ctx.ich_score} out of range [0,6]; clearing")
-        ctx = ctx.model_copy(update={"ich_score": None})
-    # mRS range 0-6
-    if ctx.mrs_score is not None and not (0 <= ctx.mrs_score <= 6):
-        log(f"[CVD] mrs_score={ctx.mrs_score} out of range [0,6]; clearing")
-        ctx = ctx.model_copy(update={"mrs_score": None})
-    # Suzuki range 1-6
-    if ctx.suzuki_stage is not None and not (1 <= ctx.suzuki_stage <= 6):
-        log(f"[CVD] suzuki_stage={ctx.suzuki_stage} out of range [1,6]; clearing")
-        ctx = ctx.model_copy(update={"suzuki_stage": None})
-    # Spetzler-Martin range 1-5
-    if ctx.spetzler_martin_grade is not None and not (1 <= ctx.spetzler_martin_grade <= 5):
-        log(f"[CVD] spetzler_martin_grade={ctx.spetzler_martin_grade} out of range [1,5]; clearing")
-        ctx = ctx.model_copy(update={"spetzler_martin_grade": None})
-    # Cross-field: SAH-only scores require SAH subtype
-    if ctx.diagnosis_subtype and ctx.diagnosis_subtype not in ("SAH", None):
+def _clamp_numeric_cvd_scores(ctx: NeuroCVDSurgicalContext) -> NeuroCVDSurgicalContext:
+    """Clear out-of-range numeric CVD scores and return updated context."""
+    _ranges = [
+        ("gcs_score", 3, 15),
+        ("hunt_hess_grade", 1, 5),
+        ("wfns_grade", 1, 5),
+        ("fisher_grade", 1, 4),
+        ("modified_fisher_grade", 0, 4),
+        ("ich_score", 0, 6),
+        ("mrs_score", 0, 6),
+        ("suzuki_stage", 1, 6),
+        ("spetzler_martin_grade", 1, 5),
+    ]
+    for field, lo, hi in _ranges:
+        val = getattr(ctx, field, None)
+        if val is not None and not (lo <= val <= hi):
+            log(f"[CVD] {field}={val} out of range [{lo},{hi}]; clearing")
+            ctx = ctx.model_copy(update={field: None})
+    return ctx
+
+
+def _enforce_cvd_cross_field_rules(ctx: NeuroCVDSurgicalContext) -> NeuroCVDSurgicalContext:
+    """Clear subtype-specific fields when diagnosis_subtype does not match."""
+    subtype = ctx.diagnosis_subtype
+    if not subtype:
+        return ctx
+    # SAH-only scores
+    if subtype != "SAH":
         if ctx.hunt_hess_grade is not None:
-            log(f"[CVD] hunt_hess_grade set for non-SAH subtype={ctx.diagnosis_subtype}; clearing")
+            log(f"[CVD] hunt_hess_grade set for non-SAH subtype={subtype}; clearing")
             ctx = ctx.model_copy(update={"hunt_hess_grade": None})
         if ctx.wfns_grade is not None:
-            log(f"[CVD] wfns_grade set for non-SAH subtype={ctx.diagnosis_subtype}; clearing")
+            log(f"[CVD] wfns_grade set for non-SAH subtype={subtype}; clearing")
             ctx = ctx.model_copy(update={"wfns_grade": None})
-    # Cross-field: Suzuki/bypass only for moyamoya
-    if ctx.diagnosis_subtype and ctx.diagnosis_subtype != "moyamoya":
-        if ctx.suzuki_stage is not None:
-            ctx = ctx.model_copy(update={"suzuki_stage": None})
-    # Cross-field: Spetzler-Martin only for AVM
-    if ctx.diagnosis_subtype and ctx.diagnosis_subtype != "AVM":
-        if ctx.spetzler_martin_grade is not None:
-            ctx = ctx.model_copy(update={"spetzler_martin_grade": None})
+    # Moyamoya-only scores
+    if subtype != "moyamoya" and ctx.suzuki_stage is not None:
+        ctx = ctx.model_copy(update={"suzuki_stage": None})
+    # AVM-only scores
+    if subtype != "AVM" and ctx.spetzler_martin_grade is not None:
+        ctx = ctx.model_copy(update={"spetzler_martin_grade": None})
     return ctx
+
+
+def _validate_cvd_constraints(ctx: NeuroCVDSurgicalContext) -> NeuroCVDSurgicalContext:
+    """Enforce clinical range constraints and cross-field consistency rules."""
+    ctx = _clamp_numeric_cvd_scores(ctx)
+    ctx = _enforce_cvd_cross_field_rules(ctx)
+    return ctx
+
+
+def _split_markdown_sections(md: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
+    """Split a three-section LLM Markdown response into (case_json, log_json, cvd_json) strings."""
+    case_json_str: Optional[str] = None
+    log_json_str: Optional[str] = None
+    cvd_json_str: Optional[str] = None
+    if "## Structured_JSON" in md or "## Extraction_Log" in md:
+        parts = re.split(r"^##\s+", md, flags=re.MULTILINE)
+        for part in parts:
+            title, _, body = part.partition("\n")
+            title = title.strip()
+            if title == "Structured_JSON":
+                case_json_str = _extract_fenced_json(body) or body.strip()
+            elif title == "Extraction_Log":
+                log_json_str = _extract_fenced_json(body) or body.strip()
+            elif title == "CVD_Surgical_Context":
+                cvd_json_str = _extract_fenced_json(body) or body.strip()
+    if case_json_str is None:
+        case_json_str = _extract_fenced_json(md) or md.strip()
+    return case_json_str, log_json_str, cvd_json_str
+
+
+def _parse_cvd_context(cvd_json_str: str) -> Optional[NeuroCVDSurgicalContext]:
+    """Parse and validate a CVD surgical context JSON string; returns None on any failure."""
+    try:
+        cvd_data = json.loads(cvd_json_str)
+        cvd_context = NeuroCVDSurgicalContext.model_validate(cvd_data)
+        cvd_context = _validate_cvd_constraints(cvd_context)
+        return cvd_context if cvd_context.has_data() else None
+    except (json.JSONDecodeError, Exception):
+        return None
 
 
 def _parse_markdown_output(md: str) -> Tuple[NeuroCase, ExtractionLog, Optional[NeuroCVDSurgicalContext]]:
@@ -301,41 +326,14 @@ def _parse_markdown_output(md: str) -> Tuple[NeuroCase, ExtractionLog, Optional[
 
     Fallback: if no ## sections found, treat entire response as NeuroCase JSON.
     """
-    case_json_str: Optional[str] = None
-    log_json_str: Optional[str] = None
-    cvd_json_str: Optional[str] = None
+    case_json_str, log_json_str, cvd_json_str = _split_markdown_sections(md)
 
-    if "## Structured_JSON" in md or "## Extraction_Log" in md:
-        parts = re.split(r"^##\s+", md, flags=re.MULTILINE)
-        for part in parts:
-            title, _, body = part.partition("\n")
-            title = title.strip()
-            if title == "Structured_JSON":
-                case_json_str = _extract_fenced_json(body)
-                if case_json_str is None:
-                    case_json_str = body.strip()
-            elif title == "Extraction_Log":
-                log_json_str = _extract_fenced_json(body)
-                if log_json_str is None:
-                    log_json_str = body.strip()
-            elif title == "CVD_Surgical_Context":
-                cvd_json_str = _extract_fenced_json(body)
-                if cvd_json_str is None:
-                    cvd_json_str = body.strip()
-
-    if case_json_str is None:
-        raw = _extract_fenced_json(md) or md.strip()
-        case_json_str = raw
-
-    # Parse NeuroCase
     try:
         case_data = json.loads(case_json_str)
     except json.JSONDecodeError as exc:
         raise ValueError(f"NeuroCase JSON parse error: {exc}") from exc
-
     neuro_case = NeuroCase.model_validate(case_data)
 
-    # Parse ExtractionLog (optional)
     extraction_log = ExtractionLog()
     if log_json_str:
         try:
@@ -343,17 +341,9 @@ def _parse_markdown_output(md: str) -> Tuple[NeuroCase, ExtractionLog, Optional[
         except (json.JSONDecodeError, Exception):
             pass
 
-    # Parse NeuroCVDSurgicalContext (optional)
     cvd_context: Optional[NeuroCVDSurgicalContext] = None
     if cvd_json_str:
-        try:
-            cvd_data = json.loads(cvd_json_str)
-            cvd_context = NeuroCVDSurgicalContext.model_validate(cvd_data)
-            cvd_context = _validate_cvd_constraints(cvd_context)
-            if not cvd_context.has_data():
-                cvd_context = None
-        except (json.JSONDecodeError, Exception):
-            pass
+        cvd_context = _parse_cvd_context(cvd_json_str)
 
     return neuro_case, extraction_log, cvd_context
 
@@ -440,27 +430,33 @@ _FAST_CVD_PROMPT = """\
 """
 
 
-async def extract_fast_cvd_context(text: str) -> Optional[NeuroCVDSurgicalContext]:
-    """Fast CVD-only extraction (~400 tokens max). Use for short dictations with explicit scores.
-
-    Returns None if extraction fails or no CVD data found.
-    """
-    provider_name = os.environ.get("STRUCTURING_LLM", "deepseek")
+def _resolve_neuro_provider(provider_name: str) -> tuple[dict, AsyncOpenAI]:
+    """解析提供商配置并返回 (provider_dict, client)，使用模块级客户端缓存。"""
     provider = dict(_PROVIDERS[provider_name])
     if provider_name == "ollama":
         provider["model"] = os.environ.get("OLLAMA_MODEL", provider["model"])
     elif provider_name == "tencent_lkeap":
         provider["base_url"] = os.environ.get("TENCENT_LKEAP_BASE_URL", provider["base_url"])
         provider["model"] = os.environ.get("TENCENT_LKEAP_MODEL", provider["model"])
-
-    if provider_name not in _CLIENT_CACHE or os.environ.get("PYTEST_CURRENT_TEST") or "pytest" in os.environ.get("_", ""):
+    is_test = os.environ.get("PYTEST_CURRENT_TEST") or "pytest" in os.environ.get("_", "")
+    if provider_name not in _CLIENT_CACHE or is_test:
         _CLIENT_CACHE[provider_name] = AsyncOpenAI(
             base_url=provider["base_url"],
             api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
             timeout=float(os.environ.get("NEURO_LLM_TIMEOUT", "60")),
             max_retries=0,
         )
-    client = _CLIENT_CACHE[provider_name]
+    return provider, _CLIENT_CACHE[provider_name]
+
+
+async def extract_fast_cvd_context(text: str) -> Optional[NeuroCVDSurgicalContext]:
+    """Fast CVD-only extraction (~400 tokens max). Use for short dictations with explicit scores.
+
+    Returns None if extraction fails or no CVD data found.
+    """
+    provider_name = os.environ.get("STRUCTURING_LLM", "deepseek")
+    provider, client = _resolve_neuro_provider(provider_name)
+
     from utils.prompt_loader import get_prompt
     fast_cvd_prompt = await get_prompt("structuring.fast_cvd", _FAST_CVD_PROMPT)
 

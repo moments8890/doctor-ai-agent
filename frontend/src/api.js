@@ -537,6 +537,14 @@ export async function abandonPendingRecord(doctorId) {
   return request(`/api/manage/pending-record/abandon?${qs.toString()}`, { method: "POST" });
 }
 
+export async function confirmPendingRecordById(pendingId) {
+  return request(`/api/records/pending/${encodeURIComponent(pendingId)}/confirm`, { method: "POST" });
+}
+
+export async function abandonPendingRecordById(pendingId) {
+  return request(`/api/records/pending/${encodeURIComponent(pendingId)}/abandon`, { method: "POST" });
+}
+
 export async function updateAdminRecord(recordId, fields) {
   return adminRequest(`/api/admin/records/${recordId}`, {
     method: "PATCH",

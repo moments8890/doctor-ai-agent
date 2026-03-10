@@ -1,3 +1,5 @@
+"""微信语音服务测试：验证企业微信客服与公众号环境下语音媒体文件下载 URL 的正确选择逻辑。"""
+
 from __future__ import annotations
 
 from unittest.mock import patch

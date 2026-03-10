@@ -337,7 +337,7 @@ async def search_patients_nl(
         rec_q = rec_q.distinct()
         q = q.where(Patient.id.in_(rec_q))
 
-    q = q.order_by(Patient.created_at.desc()).limit(limit)
+    q = q.options(selectinload(Patient.labels)).order_by(Patient.created_at.desc()).limit(limit)
     result = await session.execute(q)
     return list(result.scalars().all())
 

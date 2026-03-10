@@ -1,5 +1,7 @@
-"""Security boundary tests: auth enforcement, admin token protection,
-cross-doctor isolation, and rate-limit 429 behaviour."""
+"""鉴权边界测试：覆盖 Auth 强制执行、Admin Token 保护、跨医生隔离和限流 429 行为。"""
+
+# Security boundary tests: auth enforcement, admin token protection,
+# cross-doctor isolation, and rate-limit 429 behaviour.
 
 from __future__ import annotations
 

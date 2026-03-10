@@ -43,20 +43,40 @@ def get_cached_customer_profile(external_userid: str) -> Optional[Dict[str, Any]
     return None
 
 
+async def _call_customer_batchget(
+    external_userid: str,
+    access_token: str,
+    need_enter_session_context: bool,
+) -> "Optional[Dict[str, Any]]":
+    """调用 WeCom KF customer.batchget API，返回原始 JSON 或 None（请求失败时）。"""
+    payload: Dict[str, Any] = {
+        "external_userid_list": [external_userid],
+        "need_enter_session_context": 1 if need_enter_session_context else 0,
+    }
+    url = "https://qyapi.weixin.qq.com/cgi-bin/kf/customer/batchget"
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.post(url, params={"access_token": access_token}, json=payload)
+        if hasattr(resp, "raise_for_status"):
+            resp.raise_for_status()
+        data = resp.json()
+    if not isinstance(data, dict) or data.get("errcode", 0) != 0:
+        log(f"[WeCom KF] customer.batchget failed: {data}")
+        return None
+    return data
+
+
 async def prefetch_customer_profile(
     external_userid: str,
     *,
     need_enter_session_context: bool = True,
 ) -> Optional[Dict[str, Any]]:
-    """Best-effort fetch of WeCom KF customer profile; failures never raise."""
+    """尽力拉取企业微信客服用户画像；任何失败均静默返回 None。"""
     if not _enabled() or not external_userid:
         return None
 
     now = time.time()
-    negative_until = _NEGATIVE_CACHE.get(external_userid, 0.0)
-    if negative_until > now:
+    if _NEGATIVE_CACHE.get(external_userid, 0.0) > now:
         return None
-
     cached = get_cached_customer_profile(external_userid)
     if cached is not None:
         return cached
@@ -67,19 +87,8 @@ async def prefetch_customer_profile(
 
     try:
         access_token = await _get_access_token(cfg["app_id"], cfg["app_secret"])
-        payload: Dict[str, Any] = {
-            "external_userid_list": [external_userid],
-            "need_enter_session_context": 1 if need_enter_session_context else 0,
-        }
-        url = "https://qyapi.weixin.qq.com/cgi-bin/kf/customer/batchget"
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.post(url, params={"access_token": access_token}, json=payload)
-            if hasattr(resp, "raise_for_status"):
-                resp.raise_for_status()
-            data = resp.json()
-
-        if not isinstance(data, dict) or data.get("errcode", 0) != 0:
-            log(f"[WeCom KF] customer.batchget failed: {data}")
+        data = await _call_customer_batchget(external_userid, access_token, need_enter_session_context)
+        if data is None:
             return None
 
         invalid = data.get("invalid_external_userid") or []
@@ -96,13 +105,9 @@ async def prefetch_customer_profile(
             if str(item.get("external_userid") or "") != external_userid:
                 continue
             ttl = _cache_ttl_seconds()
-            _PROFILE_CACHE[external_userid] = {
-                "profile": item,
-                "expires_at": now + float(ttl),
-            }
+            _PROFILE_CACHE[external_userid] = {"profile": item, "expires_at": now + float(ttl)}
             return item
     except Exception as e:
         log(f"[WeCom KF] customer.batchget FAILED: {e}")
-        return None
 
     return None

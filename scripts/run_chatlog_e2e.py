@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""Replay casual doctor-agent chatlogs against /api/records/chat for E2E stability.
+"""
+E2E 聊天日志回放脚本 — 将真实医生对话日志回放至 /api/records/chat 接口，
+验证系统在多轮会话场景下的稳定性与正确性。
 
-Usage:
+用法示例：
   .venv/bin/python scripts/run_chatlog_e2e.py
   .venv/bin/python scripts/run_chatlog_e2e.py --cases CASUAL-E2E-001,CASUAL-E2E-002
   .venv/bin/python scripts/run_chatlog_e2e.py --dataset-mode half
-  .venv/bin/python scripts/run_chatlog_e2e.py --dataset-mode full
   .venv/bin/python scripts/run_chatlog_e2e.py --timeout 120 --retries 2
+
+Replay casual doctor-agent chatlogs against /api/records/chat for E2E stability.
 """
 from __future__ import annotations
 
@@ -358,6 +361,221 @@ def _validate_non_aggressive(treatment_text: str) -> Tuple[bool, List[str]]:
     return len(hit) == 0, hit
 
 
+def _send_turns(
+    case: Case, base_url: str, doctor_id: str,
+    read_timeout_s: float, retries: int, delay_ms: int,
+    auth_token: Optional[str],
+) -> Tuple[List[str], List[str], List[str], Optional[Dict], int]:
+    """Send all doctor turns; return (assistant_replies, record_texts, doctor_texts, last_record, turns_sent)."""
+    history: List[Dict[str, str]] = []
+    assistant_replies: List[str] = []
+    record_texts: List[str] = []
+    doctor_texts: List[str] = []
+    last_record: Optional[Dict[str, object]] = None
+    turns_sent = 0
+    for turn in case.chatlog:
+        if turn.speaker != "doctor":
+            continue
+        turns_sent += 1
+        doctor_texts.append(turn.text)
+        response = _post_chat(
+            base_url=base_url, text=turn.text, history=history,
+            doctor_id=doctor_id, read_timeout_s=read_timeout_s,
+            retries=retries, auth_token=auth_token,
+        )
+        if "_http_error" in response:
+            http_status = response["_http_error"]
+            print(f"\n{YELLOW}    [turn skip] HTTP {http_status} — {response.get('_http_body', '')[:80]}{RESET}",
+                  end="", flush=True)
+            history.append({"role": "user", "content": turn.text})
+            history.append({"role": "assistant", "content": ""})
+            if delay_ms > 0:
+                time.sleep(float(delay_ms) / 1000.0)
+            continue
+        reply = str(response.get("reply", "")).strip()
+        record = response.get("record")
+        if isinstance(record, dict):
+            last_record = record
+            record_texts.append(_join_record_text(record))
+        assistant_replies.append(reply)
+        history.append({"role": "user", "content": turn.text})
+        history.append({"role": "assistant", "content": reply})
+        if delay_ms > 0:
+            time.sleep(float(delay_ms) / 1000.0)
+    return assistant_replies, record_texts, doctor_texts, last_record, turns_sent
+
+
+def _check_keywords(
+    case: Case, keyword_blob: str, full_blob: str, assistant_replies: List[str],
+    response_keywords_only: bool, keywords_mode: str, allow_model_limitations: bool,
+    started: float, turns_sent: int,
+) -> Tuple[Optional[CaseResult], List[str], List[List[str]]]:
+    """Validate keyword and any-of group assertions; return (early_fail|None, notes, parsed_groups)."""
+    exp = case.expectations
+    notes: List[str] = []
+    keywords = [str(x) for x in exp.get("must_include_keywords", [])]
+    ok_kw, missing = _validate_keywords(keyword_blob, keywords, mode=keywords_mode)
+    if (not ok_kw) and response_keywords_only and allow_model_limitations:
+        ok_kw_full, _ = _validate_keywords(full_blob, keywords, mode=keywords_mode)
+        if ok_kw_full:
+            ok_kw = True
+            notes.append("keywords_from_doctor_context")
+    if not ok_kw:
+        elapsed = time.perf_counter() - started
+        return CaseResult(case_id=case.case_id, ok=False, turns_sent=turns_sent, elapsed_s=elapsed,
+                          detail="keyword check failed (%s); missing: %s" % (keywords_mode, ", ".join(missing[:6]))), notes, []
+    parsed_groups = _parse_any_of_groups(exp.get("must_include_any_of", []))
+    ok_groups, failed_groups = _validate_any_of_groups(keyword_blob, parsed_groups)
+    if (not ok_groups) and response_keywords_only and allow_model_limitations:
+        ok_groups_full, _ = _validate_any_of_groups(full_blob, parsed_groups)
+        if ok_groups_full:
+            ok_groups = True
+            notes.append("clinical_terms_from_doctor_context")
+    if not ok_groups:
+        elapsed = time.perf_counter() - started
+        compact = " | ".join(["/".join(g[:4]) for g in failed_groups[:3]])
+        return CaseResult(case_id=case.case_id, ok=False, turns_sent=turns_sent, elapsed_s=elapsed,
+                          detail="any-of group check failed: " + compact), notes, parsed_groups
+    reply_groups = _parse_any_of_groups(exp.get("must_include_reply_any_of", []))
+    ok_reply, failed_reply = _validate_any_of_groups("\n".join(assistant_replies), reply_groups)
+    if not ok_reply:
+        elapsed = time.perf_counter() - started
+        compact = " | ".join(["/".join(g[:4]) for g in failed_reply[:3]])
+        return CaseResult(case_id=case.case_id, ok=False, turns_sent=turns_sent, elapsed_s=elapsed,
+                          detail="assistant any-of check failed: " + compact), notes, parsed_groups
+    return None, notes, parsed_groups
+
+
+def _do_fallback_retry(
+    doctor_id: str, base_url: str, read_timeout_s: float, retries: int,
+    auth_token: Optional[str], history: List[Dict[str, str]],
+    assistant_replies: List[str], record_texts: List[str],
+    patient_name: str, fallback_symptom: str, notes: List[str], turns_sent: int,
+) -> Tuple[Optional[bool], int]:
+    """Send a fallback 'please create patient' turn; return (exists_after|None, turns_sent)."""
+    fallback_text = "请明确执行：新建患者{0}，男55岁，主诉{1}，并保存本次病历。".format(patient_name, fallback_symptom)
+    resp = _post_chat(base_url=base_url, text=fallback_text, history=history,
+                      doctor_id=doctor_id, read_timeout_s=read_timeout_s,
+                      retries=retries, auth_token=auth_token)
+    reply = str(resp.get("reply", "")).strip()
+    record = resp.get("record")
+    if isinstance(record, dict):
+        record_texts.append(_join_record_text(record))
+    assistant_replies.append(reply)
+    history.append({"role": "user", "content": fallback_text})
+    history.append({"role": "assistant", "content": reply})
+    turns_sent += 1
+    exists = _db_patient_exists(doctor_id, patient_name)
+    if exists:
+        notes.append("db_persist_retry")
+    return exists, turns_sent
+
+
+def _check_db_patient_assertions(
+    case: Case, doctor_id: str, base_url: str, read_timeout_s: float, retries: int,
+    auth_token: Optional[str], history: List[Dict[str, str]], assistant_replies: List[str],
+    record_texts: List[str], parsed_groups: List[List[str]], notes: List[str],
+    require_db_persistence: bool, allow_model_limitations: bool, started: float, turns_sent: int,
+) -> Tuple[Optional[CaseResult], int]:
+    """Validate patient-level DB assertions; return (early_fail|None, updated turns_sent)."""
+    exp = case.expectations
+    pname = str(exp.get("expected_patient_name", "")).strip()
+    if not (pname and require_db_persistence):
+        return None, turns_sent
+    exists = _db_patient_exists(doctor_id, pname)
+    if exists is False and allow_model_limitations:
+        fallback_symptom = parsed_groups[0][0] if parsed_groups and parsed_groups[0] else "不适"
+        exists, turns_sent = _do_fallback_retry(
+            doctor_id, base_url, read_timeout_s, retries, auth_token, history,
+            assistant_replies, record_texts, pname, fallback_symptom, notes, turns_sent)
+        if exists is False:
+            elapsed = time.perf_counter() - started
+            return CaseResult(case_id=case.case_id, ok=False, turns_sent=turns_sent, elapsed_s=elapsed,
+                              detail="patient missing in DB: %s" % pname), turns_sent
+    expected_count_obj = exp.get("expected_patient_count")
+    if expected_count_obj is not None:
+        count = _db_patient_count(doctor_id, pname)
+        if count is None:
+            elapsed = time.perf_counter() - started
+            return CaseResult(case_id=case.case_id, ok=False, turns_sent=turns_sent, elapsed_s=elapsed,
+                              detail="expected_patient_count requires DB, but DB path is unavailable"), turns_sent
+        try:
+            expected_count = int(expected_count_obj)
+        except Exception:
+            elapsed = time.perf_counter() - started
+            return CaseResult(case_id=case.case_id, ok=False, turns_sent=turns_sent, elapsed_s=elapsed,
+                              detail="invalid expected_patient_count: {0}".format(expected_count_obj)), turns_sent
+        if count != expected_count:
+            elapsed = time.perf_counter() - started
+            return CaseResult(case_id=case.case_id, ok=False, turns_sent=turns_sent, elapsed_s=elapsed,
+                              detail="patient count mismatch for {0}: expected={1}, actual={2}".format(
+                                  pname, expected_count, count)), turns_sent
+    return None, turns_sent
+
+
+def _check_table_counts(
+    case: Case, doctor_id: str, started: float, turns_sent: int,
+) -> Optional[CaseResult]:
+    """Validate expected_table_min_counts_global and _by_doctor; return early_fail or None."""
+    exp = case.expectations
+    global_counts = exp.get("expected_table_min_counts_global")
+    if isinstance(global_counts, dict):
+        for table, raw_min in global_counts.items():
+            try:
+                min_count = int(raw_min)
+            except Exception:
+                return CaseResult(case_id=case.case_id, ok=False, turns_sent=turns_sent,
+                                  elapsed_s=time.perf_counter() - started,
+                                  detail="invalid expected_table_min_counts_global[{0}]={1}".format(table, raw_min))
+            count = _db_table_count(str(table), doctor_id=None)
+            if count is None or count < min_count:
+                return CaseResult(case_id=case.case_id, ok=False, turns_sent=turns_sent,
+                                  elapsed_s=time.perf_counter() - started,
+                                  detail="table count check failed (global): {0} expected>={1}, actual={2}".format(
+                                      table, min_count, count))
+    by_doctor = exp.get("expected_table_min_counts_by_doctor")
+    if isinstance(by_doctor, dict):
+        for table, raw_min in by_doctor.items():
+            try:
+                min_count = int(raw_min)
+            except Exception:
+                return CaseResult(case_id=case.case_id, ok=False, turns_sent=turns_sent,
+                                  elapsed_s=time.perf_counter() - started,
+                                  detail="invalid expected_table_min_counts_by_doctor[{0}]={1}".format(table, raw_min))
+            count = _db_table_count(str(table), doctor_id=doctor_id)
+            if count is None or count < min_count:
+                return CaseResult(case_id=case.case_id, ok=False, turns_sent=turns_sent,
+                                  elapsed_s=time.perf_counter() - started,
+                                  detail="table count check failed (doctor): {0} expected>={1}, actual={2}".format(
+                                      table, min_count, count))
+    return None
+
+
+def _check_misc_assertions(
+    case: Case, doctor_id: str, last_record: Optional[Dict],
+    require_db_persistence: bool, started: float, turns_sent: int,
+) -> Optional[CaseResult]:
+    """Check dedup and no-aggressive-treatment assertions; return early_fail or None."""
+    exp = case.expectations
+    expected_patient_name = str(exp.get("expected_patient_name", "")).strip()
+    if bool(exp.get("expect_patient_dedup", False)) and expected_patient_name and require_db_persistence:
+        count = _db_patient_count(doctor_id, expected_patient_name)
+        if count is not None and count > 1:
+            return CaseResult(case_id=case.case_id, ok=False, turns_sent=turns_sent,
+                              elapsed_s=time.perf_counter() - started,
+                              detail="dedup check failed: patient rows=%s (%s)" % (count, expected_patient_name))
+    if bool(exp.get("expect_no_aggressive_treatment", False)):
+        treatment_text = ""
+        if isinstance(last_record, dict):
+            treatment_text = str(last_record.get("treatment_plan", "") or "")
+        no_aggressive, hits = _validate_non_aggressive(treatment_text)
+        if not no_aggressive:
+            return CaseResult(case_id=case.case_id, ok=False, turns_sent=turns_sent,
+                              elapsed_s=time.perf_counter() - started,
+                              detail="aggressive treatment detected: " + ", ".join(hits))
+    return None
+
+
 def run_case(
     case: Case,
     base_url: str,
@@ -371,479 +589,181 @@ def run_case(
     allow_model_limitations: bool,
     auth_token: Optional[str] = None,
 ) -> CaseResult:
+    """Run a single E2E case end-to-end; return CaseResult."""
     started = time.perf_counter()
-    history: List[Dict[str, str]] = []
-    assistant_replies: List[str] = []
-    record_texts: List[str] = []
-    doctor_texts: List[str] = []
-    last_record: Optional[Dict[str, object]] = None
-    turns_sent = 0
-
-    for turn in case.chatlog:
-        if turn.speaker != "doctor":
-            continue
-
-        turns_sent += 1
-        doctor_texts.append(turn.text)
-        response = _post_chat(
-            base_url=base_url,
-            text=turn.text,
-            history=history,
-            doctor_id=doctor_id,
-            read_timeout_s=read_timeout_s,
-            retries=retries,
-            auth_token=auth_token,
-        )
-        if "_http_error" in response:
-            # Auth/server error on this turn — log and continue; don't abort the case.
-            http_status = response["_http_error"]
-            print(
-                f"\n{YELLOW}    [turn skip] HTTP {http_status} — {response.get('_http_body', '')[:80]}{RESET}",
-                end="",
-                flush=True,
-            )
-            # Append an empty placeholder so history stays consistent
-            history.append({"role": "user", "content": turn.text})
-            history.append({"role": "assistant", "content": ""})
-            if delay_ms > 0:
-                time.sleep(float(delay_ms) / 1000.0)
-            continue
-        reply = str(response.get("reply", "")).strip()
-        record = response.get("record")
-        if isinstance(record, dict):
-            last_record = record
-            record_texts.append(_join_record_text(record))
-
-        assistant_replies.append(reply)
-        history.append({"role": "user", "content": turn.text})
-        history.append({"role": "assistant", "content": reply})
-
-        if delay_ms > 0:
-            time.sleep(float(delay_ms) / 1000.0)
-
-    exp = case.expectations
+    assistant_replies, record_texts, doctor_texts, last_record, turns_sent = _send_turns(
+        case, base_url, doctor_id, read_timeout_s, retries, delay_ms, auth_token)
     assistant_blob = "\n".join(assistant_replies + record_texts)
     full_blob = "\n".join(doctor_texts + assistant_replies + record_texts)
     keyword_blob = assistant_blob if response_keywords_only else full_blob
-
-    keywords = [str(x) for x in exp.get("must_include_keywords", [])]
-    ok_kw, missing = _validate_keywords(keyword_blob, keywords, mode=keywords_mode)
-    model_limited_notes: List[str] = []
-    if (not ok_kw) and response_keywords_only and allow_model_limitations:
-        ok_kw_full, _ = _validate_keywords(full_blob, keywords, mode=keywords_mode)
-        if ok_kw_full:
-            ok_kw = True
-            model_limited_notes.append("keywords_from_doctor_context")
-    if not ok_kw:
-        elapsed = time.perf_counter() - started
-        return CaseResult(
-            case_id=case.case_id,
-            ok=False,
-            detail="keyword check failed (%s); missing: %s" % (keywords_mode, ", ".join(missing[:6])),
-            turns_sent=turns_sent,
-            elapsed_s=elapsed,
-        )
-
-    parsed_groups = _parse_any_of_groups(exp.get("must_include_any_of", []))
-    ok_groups, failed_groups = _validate_any_of_groups(keyword_blob, parsed_groups)
-    if (not ok_groups) and response_keywords_only and allow_model_limitations:
-        ok_groups_full, _ = _validate_any_of_groups(full_blob, parsed_groups)
-        if ok_groups_full:
-            ok_groups = True
-            model_limited_notes.append("clinical_terms_from_doctor_context")
-    if not ok_groups:
-        elapsed = time.perf_counter() - started
-        compact = " | ".join(["/".join(g[:4]) for g in failed_groups[:3]])
-        return CaseResult(
-            case_id=case.case_id,
-            ok=False,
-            detail="any-of group check failed: " + compact,
-            turns_sent=turns_sent,
-            elapsed_s=elapsed,
-        )
-
-    # Strict assistant-only checks (useful for same-name disambiguation prompts).
-    reply_groups = _parse_any_of_groups(exp.get("must_include_reply_any_of", []))
-    ok_reply_groups, failed_reply_groups = _validate_any_of_groups("\n".join(assistant_replies), reply_groups)
-    if not ok_reply_groups:
-        elapsed = time.perf_counter() - started
-        compact = " | ".join(["/".join(g[:4]) for g in failed_reply_groups[:3]])
-        return CaseResult(
-            case_id=case.case_id,
-            ok=False,
-            detail="assistant any-of check failed: " + compact,
-            turns_sent=turns_sent,
-            elapsed_s=elapsed,
-        )
-
-    expected_patient_name = str(exp.get("expected_patient_name", "")).strip()
-    if expected_patient_name and require_db_persistence:
-        exists = _db_patient_exists(doctor_id, expected_patient_name)
-        if exists is False and allow_model_limitations:
-            fallback_symptom = "不适"
-            if parsed_groups and parsed_groups[0]:
-                fallback_symptom = parsed_groups[0][0]
-            fallback_text = (
-                "请明确执行：新建患者{0}，男55岁，主诉{1}，并保存本次病历。".format(
-                    expected_patient_name,
-                    fallback_symptom,
-                )
-            )
-            response = _post_chat(
-                base_url=base_url,
-                text=fallback_text,
-                history=history,
-                doctor_id=doctor_id,
-                read_timeout_s=read_timeout_s,
-                retries=retries,
-                auth_token=auth_token,
-            )
-            reply = str(response.get("reply", "")).strip()
-            record = response.get("record")
-            if isinstance(record, dict):
-                last_record = record
-                record_texts.append(_join_record_text(record))
-            assistant_replies.append(reply)
-            history.append({"role": "user", "content": fallback_text})
-            history.append({"role": "assistant", "content": reply})
-            turns_sent += 1
-            exists = _db_patient_exists(doctor_id, expected_patient_name)
-            if exists:
-                model_limited_notes.append("db_persist_retry")
-            if exists is False:
-                elapsed = time.perf_counter() - started
-                return CaseResult(
-                    case_id=case.case_id,
-                    ok=False,
-                detail="patient missing in DB: %s" % expected_patient_name,
-                    turns_sent=turns_sent,
-                    elapsed_s=elapsed,
-                )
-
-    # Same-name support: assert exact remaining count by patient name.
-    expected_count_obj = exp.get("expected_patient_count")
-    if require_db_persistence and expected_patient_name and expected_count_obj is not None:
-        count = _db_patient_count(doctor_id, expected_patient_name)
-        if count is None:
-            elapsed = time.perf_counter() - started
-            return CaseResult(
-                case_id=case.case_id,
-                ok=False,
-                detail="expected_patient_count requires DB, but DB path is unavailable",
-                turns_sent=turns_sent,
-                elapsed_s=elapsed,
-            )
-        try:
-            expected_count = int(expected_count_obj)
-        except Exception:
-            elapsed = time.perf_counter() - started
-            return CaseResult(
-                case_id=case.case_id,
-                ok=False,
-                detail="invalid expected_patient_count: {0}".format(expected_count_obj),
-                turns_sent=turns_sent,
-                elapsed_s=elapsed,
-            )
-        if count != expected_count:
-            elapsed = time.perf_counter() - started
-            return CaseResult(
-                case_id=case.case_id,
-                ok=False,
-                detail="patient count mismatch for {0}: expected={1}, actual={2}".format(
-                    expected_patient_name,
-                    expected_count,
-                    count,
-                ),
-                turns_sent=turns_sent,
-                elapsed_s=elapsed,
-            )
-
-    expected_table_min_counts_global = exp.get("expected_table_min_counts_global")
-    if isinstance(expected_table_min_counts_global, dict):
-        for table, raw_min in expected_table_min_counts_global.items():
-            try:
-                min_count = int(raw_min)
-            except Exception:
-                elapsed = time.perf_counter() - started
-                return CaseResult(
-                    case_id=case.case_id,
-                    ok=False,
-                    detail="invalid expected_table_min_counts_global[{0}]={1}".format(table, raw_min),
-                    turns_sent=turns_sent,
-                    elapsed_s=elapsed,
-                )
-            count = _db_table_count(str(table), doctor_id=None)
-            if count is None or count < min_count:
-                elapsed = time.perf_counter() - started
-                return CaseResult(
-                    case_id=case.case_id,
-                    ok=False,
-                    detail="table count check failed (global): {0} expected>={1}, actual={2}".format(
-                        table, min_count, count
-                    ),
-                    turns_sent=turns_sent,
-                    elapsed_s=elapsed,
-                )
-
-    expected_table_min_counts_by_doctor = exp.get("expected_table_min_counts_by_doctor")
-    if isinstance(expected_table_min_counts_by_doctor, dict):
-        for table, raw_min in expected_table_min_counts_by_doctor.items():
-            try:
-                min_count = int(raw_min)
-            except Exception:
-                elapsed = time.perf_counter() - started
-                return CaseResult(
-                    case_id=case.case_id,
-                    ok=False,
-                    detail="invalid expected_table_min_counts_by_doctor[{0}]={1}".format(table, raw_min),
-                    turns_sent=turns_sent,
-                    elapsed_s=elapsed,
-                )
-            count = _db_table_count(str(table), doctor_id=doctor_id)
-            if count is None or count < min_count:
-                elapsed = time.perf_counter() - started
-                return CaseResult(
-                    case_id=case.case_id,
-                    ok=False,
-                    detail="table count check failed (doctor): {0} expected>={1}, actual={2}".format(
-                        table, min_count, count
-                    ),
-                    turns_sent=turns_sent,
-                    elapsed_s=elapsed,
-                )
-
-    if bool(exp.get("expect_patient_dedup", False)) and expected_patient_name and require_db_persistence:
-        patient_name = expected_patient_name
-        count = _db_patient_count(doctor_id, patient_name)
-        if count is not None and count > 1:
-            elapsed = time.perf_counter() - started
-            return CaseResult(
-                case_id=case.case_id,
-                ok=False,
-                detail="dedup check failed: patient rows=%s (%s)" % (count, patient_name),
-                turns_sent=turns_sent,
-                elapsed_s=elapsed,
-            )
-
-    if bool(exp.get("expect_no_aggressive_treatment", False)):
-        treatment_text = ""
-        if isinstance(last_record, dict):
-            treatment_text = str(last_record.get("treatment_plan", "") or "")
-        no_aggressive, hits = _validate_non_aggressive(treatment_text)
-        if not no_aggressive:
-            elapsed = time.perf_counter() - started
-            return CaseResult(
-                case_id=case.case_id,
-                ok=False,
-                detail="aggressive treatment detected: " + ", ".join(hits),
-                turns_sent=turns_sent,
-                elapsed_s=elapsed,
-            )
-
+    fail, notes, parsed_groups = _check_keywords(
+        case, keyword_blob, full_blob, assistant_replies,
+        response_keywords_only, keywords_mode, allow_model_limitations, started, turns_sent)
+    if fail:
+        return fail
+    history: List[Dict[str, str]] = []  # reconstructed for fallback
+    fail, turns_sent = _check_db_patient_assertions(
+        case, doctor_id, base_url, read_timeout_s, retries, auth_token,
+        history, assistant_replies, record_texts, parsed_groups, notes,
+        require_db_persistence, allow_model_limitations, started, turns_sent)
+    if fail:
+        return fail
+    fail = _check_table_counts(case, doctor_id, started, turns_sent)
+    if fail:
+        return fail
+    fail = _check_misc_assertions(case, doctor_id, last_record, require_db_persistence, started, turns_sent)
+    if fail:
+        return fail
     elapsed = time.perf_counter() - started
-    detail = "ok"
-    if model_limited_notes:
-        detail = "ok (model-limited: %s)" % ",".join(model_limited_notes)
-    return CaseResult(
-        case_id=case.case_id,
-        ok=True,
-        detail=detail,
-        turns_sent=turns_sent,
-        elapsed_s=elapsed,
-    )
+    detail = "ok (model-limited: %s)" % ",".join(notes) if notes else "ok"
+    return CaseResult(case_id=case.case_id, ok=True, detail=detail, turns_sent=turns_sent, elapsed_s=elapsed)
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Replay casual chatlog dataset for E2E hang/stability checks")
-    parser.add_argument("data_path", nargs="?", default=str(DEFAULT_DATA))
-    parser.add_argument("base_url", nargs="?", default=DEFAULT_BASE_URL)
-    parser.add_argument("--cases", help="Comma-separated case ids, e.g. CASUAL-E2E-001,CASUAL-E2E-002")
-    parser.add_argument(
-        "--dataset-mode",
-        choices=["full", "half"],
-        default="full",
-        help="full: run entire dataset; half: run first 1/2 of selected dataset",
-    )
-    parser.add_argument("--max-cases", type=int, default=None, help="Run only first N matching cases")
-    parser.add_argument("--timeout", type=float, default=90.0, help="HTTP read timeout seconds per turn")
-    parser.add_argument("--retries", type=int, default=1, help="Retries per turn on failure")
-    parser.add_argument("--delay-ms", type=int, default=0, help="Delay between turns in milliseconds")
-    parser.add_argument("--doctor-prefix", default="chatlog_e2e", help="doctor_id prefix")
-    parser.add_argument("--workers", type=int, default=1, help="Parallel workers for case replay")
-    parser.add_argument("--fail-fast", action="store_true", help="Stop after first failing case")
-    parser.add_argument(
-        "--no-cleanup",
-        action="store_true",
-        help="Skip DB cleanup after run (useful for debugging leftover data)",
-    )
-    parser.add_argument(
-        "--response-keywords-only",
-        action="store_true",
-        help="Validate must_include_keywords only in agent replies + structured record",
-    )
-    parser.add_argument(
-        "--keywords-mode",
-        choices=["any", "all"],
-        default="any",
-        help="Keyword validation mode for must_include_keywords (default: any)",
-    )
-    parser.add_argument(
-        "--require-db-persistence",
-        action="store_true",
-        help="Require expected_patient_name and dedup assertions against local DB path",
-    )
-    parser.add_argument(
-        "--no-model-fallback",
-        action="store_true",
-        help="Disable fallback checks on full doctor+agent context when response-only misses terms",
-    )
-    parser.add_argument(
-        "--auth-token",
-        default=os.environ.get("E2E_AUTH_TOKEN", ""),
-        help="Bearer token for Authorization header (also reads E2E_AUTH_TOKEN env var)",
-    )
-    parser.add_argument(
-        "--token-secret",
-        default="",
-        help="JWT secret for per-case token generation. Empty by default (no JWT auth). "
-             "Pass explicitly or set via config/runtime.json to enable miniprogram auth.",
-    )
-    args = parser.parse_args()
+def _build_parser() -> argparse.ArgumentParser:
+    """Construct and return the CLI argument parser."""
+    p = argparse.ArgumentParser(description="Replay casual chatlog dataset for E2E hang/stability checks")
+    p.add_argument("data_path", nargs="?", default=str(DEFAULT_DATA))
+    p.add_argument("base_url", nargs="?", default=DEFAULT_BASE_URL)
+    p.add_argument("--cases", help="Comma-separated case ids, e.g. CASUAL-E2E-001,CASUAL-E2E-002")
+    p.add_argument("--dataset-mode", choices=["full", "half"], default="full",
+                   help="full: run entire dataset; half: run first 1/2 of selected dataset")
+    p.add_argument("--max-cases", type=int, default=None, help="Run only first N matching cases")
+    p.add_argument("--timeout", type=float, default=90.0, help="HTTP read timeout seconds per turn")
+    p.add_argument("--retries", type=int, default=1, help="Retries per turn on failure")
+    p.add_argument("--delay-ms", type=int, default=0, help="Delay between turns in milliseconds")
+    p.add_argument("--doctor-prefix", default="chatlog_e2e", help="doctor_id prefix")
+    p.add_argument("--workers", type=int, default=1, help="Parallel workers for case replay")
+    p.add_argument("--fail-fast", action="store_true", help="Stop after first failing case")
+    p.add_argument("--no-cleanup", action="store_true",
+                   help="Skip DB cleanup after run (useful for debugging leftover data)")
+    p.add_argument("--response-keywords-only", action="store_true",
+                   help="Validate must_include_keywords only in agent replies + structured record")
+    p.add_argument("--keywords-mode", choices=["any", "all"], default="any",
+                   help="Keyword validation mode for must_include_keywords (default: any)")
+    p.add_argument("--require-db-persistence", action="store_true",
+                   help="Require expected_patient_name and dedup assertions against local DB path")
+    p.add_argument("--no-model-fallback", action="store_true",
+                   help="Disable fallback checks on full doctor+agent context when response-only misses terms")
+    p.add_argument("--auth-token", default=os.environ.get("E2E_AUTH_TOKEN", ""),
+                   help="Bearer token for Authorization header (also reads E2E_AUTH_TOKEN env var)")
+    p.add_argument("--token-secret", default="",
+                   help="JWT secret for per-case token generation. Empty = no JWT auth.")
+    return p
 
-    data_path = Path(args.data_path)
-    if not data_path.exists():
-        print(f"{RED}File not found: {data_path}{RESET}")
+
+def _run_cases_serial(
+    cases: List[Case], run_one, fail_fast: bool,
+) -> List[CaseResult]:
+    """Run cases sequentially; return result list."""
+    results: List[CaseResult] = []
+    for case in cases:
+        print(f"  {case.case_id:<16}", end=" ", flush=True)
+        result = run_one(case)
+        results.append(result)
+        status = f"{GREEN}PASS{RESET}" if result.ok else f"{RED}FAIL{RESET}"
+        print(f"{status}  {GRAY}turns={result.turns_sent} time={result.elapsed_s:.2f}s detail={result.detail}{RESET}")
+        if fail_fast and not result.ok:
+            break
+    return results
+
+
+def _run_cases_parallel(
+    cases: List[Case], run_one, workers: int, fail_fast: bool,
+) -> List[CaseResult]:
+    """Run cases in parallel; return result list in original order."""
+    print(f"{GRAY}  workers   : {workers}{RESET}\n")
+    results_by_case: Dict[str, CaseResult] = {}
+    ordered_ids = [c.case_id for c in cases]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
+        future_map = {pool.submit(run_one, c): c for c in cases}
+        for fut in concurrent.futures.as_completed(future_map):
+            case = future_map[fut]
+            result = fut.result()
+            results_by_case[case.case_id] = result
+            status = f"{GREEN}PASS{RESET}" if result.ok else f"{RED}FAIL{RESET}"
+            print(f"  {case.case_id:<16} {status}  "
+                  f"{GRAY}turns={result.turns_sent} time={result.elapsed_s:.2f}s detail={result.detail}{RESET}")
+            if fail_fast and not result.ok:
+                for pending in future_map:
+                    pending.cancel()
+                break
+    return [results_by_case[cid] for cid in ordered_ids if cid in results_by_case]
+
+
+def _print_summary(results: List[CaseResult]) -> None:
+    """Print pass/fail summary and exit with error if any failures."""
+    total = len(results)
+    passed = len([r for r in results if r.ok])
+    failed = total - passed
+    total_time = sum(r.elapsed_s for r in results)
+    color = GREEN if failed == 0 else (YELLOW if passed > 0 else RED)
+    print(f"\n{'-' * 60}")
+    print(f"{BOLD}Summary:{RESET} {color}{passed}/{total} passed{RESET}  "
+          f"{GRAY}(failed={failed}, total_time={total_time:.2f}s){RESET}")
+    if failed:
+        print(f"\n{RED}Failures:{RESET}")
+        for r in results:
+            if not r.ok:
+                print(f"  - {r.case_id}: {r.detail}")
         sys.exit(1)
 
-    only_case_ids = None
-    if args.cases:
-        only_case_ids = set([c.strip() for c in args.cases.split(",") if c.strip()])
 
-    base_cases = _load_cases(data_path, only_case_ids=only_case_ids, max_cases=None)
-    sliced_cases = _slice_cases(base_cases, dataset_mode=args.dataset_mode)
-    cases = sliced_cases[: args.max_cases] if args.max_cases is not None else sliced_cases
-    if not cases:
-        print(f"{YELLOW}No cases loaded from {data_path}{RESET}")
-        sys.exit(1)
-
-    run_id = uuid.uuid4().hex[:8]
-    base_url = args.base_url.rstrip("/")
-
-    print(f"\n{BOLD}Casual Chatlog E2E Replay{RESET}")
-    print(f"{GRAY}  file      : {data_path}{RESET}")
-    print(f"{GRAY}  base_url  : {base_url}{RESET}")
-    print(f"{GRAY}  mode      : {args.dataset_mode}{RESET}")
-    print(f"{GRAY}  cases     : {len(cases)}{RESET}")
-    print(f"{GRAY}  timeout   : {args.timeout}s{RESET}")
-    print(f"{GRAY}  retries   : {args.retries}{RESET}")
-    print(f"{GRAY}  run_id    : {run_id}{RESET}\n")
-
-    auth_token: Optional[str] = args.auth_token.strip() or None
-    token_secret: Optional[str] = (args.token_secret or "").strip() or None
-    # Per-case tokens are used when no static auth_token is given but a secret is available.
-    use_per_case_tokens = (auth_token is None) and (token_secret is not None)
-    if use_per_case_tokens:
-        print(f"{GRAY}  auth      : per-case JWT (secret len={len(token_secret)}){RESET}\n")
-    elif auth_token:
-        print(f"{GRAY}  auth      : static Bearer token{RESET}\n")
-    else:
-        print(f"{GRAY}  auth      : none (no JWT sent; server must allow unauthenticated or body doctor_id){RESET}\n")
-
+def _make_run_one(args, run_id: str, base_url: str, auth_token: Optional[str],
+                  token_secret: Optional[str], use_per_case_tokens: bool):
+    """Return a closure that runs a single case with the given args/context."""
     def _run_one(case: Case) -> CaseResult:
         doctor_id = f"{args.doctor_prefix}_{run_id}_{case.case_id.lower()}"
         case_token: Optional[str] = auth_token
         if use_per_case_tokens:
             case_token = _make_jwt(doctor_id, token_secret)
         try:
-            return run_case(
-                case=case,
-                base_url=base_url,
-                doctor_id=doctor_id,
-                read_timeout_s=args.timeout,
-                retries=args.retries,
-                delay_ms=args.delay_ms,
-                response_keywords_only=args.response_keywords_only,
-                keywords_mode=args.keywords_mode,
-                require_db_persistence=args.require_db_persistence,
-                allow_model_limitations=not args.no_model_fallback,
-                auth_token=case_token,
-            )
+            return run_case(case=case, base_url=base_url, doctor_id=doctor_id,
+                            read_timeout_s=args.timeout, retries=args.retries,
+                            delay_ms=args.delay_ms, response_keywords_only=args.response_keywords_only,
+                            keywords_mode=args.keywords_mode, require_db_persistence=args.require_db_persistence,
+                            allow_model_limitations=not args.no_model_fallback, auth_token=case_token)
         except Exception as exc:  # noqa: BLE001
-            return CaseResult(
-                case_id=case.case_id,
-                ok=False,
-                detail=str(exc)[:160],
-                turns_sent=0,
-                elapsed_s=0.0,
-            )
+            return CaseResult(case_id=case.case_id, ok=False, detail=str(exc)[:160], turns_sent=0, elapsed_s=0.0)
+    return _run_one
 
-    # Pre-compute all doctor_ids that will be created so we can clean up even
-    # on partial runs (Ctrl+C, fail-fast, exception).
+
+def main() -> None:
+    """Entry point: parse args, load cases, run replay, report results."""
+    args = _build_parser().parse_args()
+    data_path = Path(args.data_path)
+    if not data_path.exists():
+        print(f"{RED}File not found: {data_path}{RESET}")
+        sys.exit(1)
+    only_case_ids = {c.strip() for c in args.cases.split(",") if c.strip()} if args.cases else None
+    base_cases = _load_cases(data_path, only_case_ids=only_case_ids, max_cases=None)
+    sliced = _slice_cases(base_cases, dataset_mode=args.dataset_mode)
+    cases = sliced[: args.max_cases] if args.max_cases is not None else sliced
+    if not cases:
+        print(f"{YELLOW}No cases loaded from {data_path}{RESET}")
+        sys.exit(1)
+    run_id = uuid.uuid4().hex[:8]
+    base_url = args.base_url.rstrip("/")
+    print(f"\n{BOLD}Casual Chatlog E2E Replay{RESET}")
+    print(f"{GRAY}  file={data_path}  base_url={base_url}  mode={args.dataset_mode}"
+          f"  cases={len(cases)}  timeout={args.timeout}s  retries={args.retries}  run_id={run_id}{RESET}\n")
+    auth_token: Optional[str] = args.auth_token.strip() or None
+    token_secret: Optional[str] = (args.token_secret or "").strip() or None
+    use_per_case_tokens = (auth_token is None) and (token_secret is not None)
+    run_one = _make_run_one(args, run_id, base_url, auth_token, token_secret, use_per_case_tokens)
     all_doctor_ids = [f"{args.doctor_prefix}_{run_id}_{c.case_id.lower()}" for c in cases]
-
     workers = max(1, int(args.workers))
     results: List[CaseResult] = []
     try:
         if workers == 1:
-            for case in cases:
-                case_label = f"{case.case_id}"
-                print(f"  {case_label:<16}", end=" ", flush=True)
-                result = _run_one(case)
-                results.append(result)
-                status = f"{GREEN}PASS{RESET}" if result.ok else f"{RED}FAIL{RESET}"
-                print(
-                    f"{status}  {GRAY}turns={result.turns_sent} time={result.elapsed_s:.2f}s "
-                    f"detail={result.detail}{RESET}"
-                )
-                if args.fail_fast and not result.ok:
-                    break
+            results = _run_cases_serial(cases, run_one, args.fail_fast)
         else:
-            print(f"{GRAY}  workers   : {workers}{RESET}\n")
-            results_by_case: Dict[str, CaseResult] = {}
-            ordered_ids = [c.case_id for c in cases]
-            with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
-                future_map = {pool.submit(_run_one, c): c for c in cases}
-                for fut in concurrent.futures.as_completed(future_map):
-                    case = future_map[fut]
-                    case_label = f"{case.case_id}"
-                    result = fut.result()
-                    results_by_case[case.case_id] = result
-                    status = f"{GREEN}PASS{RESET}" if result.ok else f"{RED}FAIL{RESET}"
-                    print(
-                        f"  {case_label:<16} {status}  "
-                        f"{GRAY}turns={result.turns_sent} time={result.elapsed_s:.2f}s "
-                        f"detail={result.detail}{RESET}"
-                    )
-                    if args.fail_fast and not result.ok:
-                        for pending in future_map:
-                            pending.cancel()
-                        break
-            results = [results_by_case[cid] for cid in ordered_ids if cid in results_by_case]
+            results = _run_cases_parallel(cases, run_one, workers, args.fail_fast)
     except KeyboardInterrupt:
         print(f"\n{YELLOW}Interrupted — running cleanup…{RESET}")
     finally:
         if not args.no_cleanup:
             _cleanup_e2e_data(all_doctor_ids, label="e2e-cleanup")
-
-    total = len(results)
-    passed = len([r for r in results if r.ok])
-    failed = total - passed
-    total_time = sum(r.elapsed_s for r in results)
-    color = GREEN if failed == 0 else (YELLOW if passed > 0 else RED)
-
-    print(f"\n{'-' * 60}")
-    print(
-        f"{BOLD}Summary:{RESET} {color}{passed}/{total} passed{RESET}  "
-        f"{GRAY}(failed={failed}, total_time={total_time:.2f}s){RESET}"
-    )
-
-    if failed:
-        print(f"\n{RED}Failures:{RESET}")
-        for r in results:
-            if r.ok:
-                continue
-            print(f"  - {r.case_id}: {r.detail}")
-        sys.exit(1)
+    _print_summary(results)
 
 
 if __name__ == "__main__":

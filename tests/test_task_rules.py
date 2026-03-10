@@ -1,6 +1,4 @@
-"""
-Tests for rule-based auto task detection (services/notify/task_rules.py).
-"""
+"""任务规则测试：验证基于规则的自动任务检测（化验、转诊、影像、用药）、截止日期精化及快速路由中任务意图的提取。"""
 from __future__ import annotations
 
 import pytest

@@ -1,3 +1,5 @@
+"""通知服务测试：验证多种通知提供商（log、微信客服、微信小程序订阅）的发送逻辑及回退机制。"""
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch

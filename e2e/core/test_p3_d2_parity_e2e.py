@@ -1,3 +1,7 @@
+"""P3-D2 平价烟雾测试：验证从接诊到通知的完整链路。
+
+从患者建档、病历保存、风险计算，到随访任务创建和通知发送全流程验证。
+"""
 from __future__ import annotations
 
 from typing import List, Tuple
@@ -41,6 +45,42 @@ async def _fetch_patient(session, patient_id: int) -> Patient:
     return patient
 
 
+async def _assert_patient_risk_and_task(db_session, doctor_id: str, patient) -> "DoctorTask":
+    """验证患者风险字段已计算且待办随访任务已创建。"""
+    patient_row = await _fetch_patient(db_session, patient.id)
+    assert patient_row.primary_risk_level in {"medium", "high", "critical"}
+    assert patient_row.risk_score is not None and patient_row.risk_score > 0
+
+    tasks_result = await db_session.execute(
+        select(DoctorTask).where(
+            DoctorTask.doctor_id == doctor_id,
+            DoctorTask.patient_id == patient.id,
+            DoctorTask.task_type == "follow_up",
+        )
+    )
+    followup = tasks_result.scalar_one_or_none()
+    assert followup is not None
+    assert followup.status == "pending"
+    return followup
+
+
+async def _assert_notification_sent(session_factory, mocked_notify, followup) -> None:
+    """验证通知周期已执行且任务状态更新正确。"""
+    summary = await run_due_task_cycle()
+    assert summary["due_count"] >= 1
+    assert summary["sent_count"] >= 1
+    assert summary["failed_count"] == 0
+    assert mocked_notify.await_count >= 1
+
+    async with session_factory() as verify_session:
+        tasks_after = await verify_session.execute(
+            select(DoctorTask).where(DoctorTask.id == followup.id)
+        )
+        notified = tasks_after.scalar_one_or_none()
+        assert notified is not None
+        # notified_at column removed; notification tracking now deferred to status
+
+
 @pytest.mark.asyncio
 async def test_p3_d2_smoke_chain_parity(db_session, session_factory, monkeypatch) -> None:
     """OpenClaw parity smoke:
@@ -49,8 +89,6 @@ async def test_p3_d2_smoke_chain_parity(db_session, session_factory, monkeypatch
     import services.notify.tasks as tasks_service
 
     monkeypatch.setenv("AUTO_FOLLOWUP_TASKS_ENABLED", "true")
-
-    # Route task notification DB writes through the same in-memory test DB.
     monkeypatch.setattr(tasks_service, "AsyncSessionLocal", session_factory)
     mocked_notify = AsyncMock()
     monkeypatch.setattr(tasks_service, "send_doctor_notification", mocked_notify)
@@ -71,34 +109,8 @@ async def test_p3_d2_smoke_chain_parity(db_session, session_factory, monkeypatch
     saved = await save_record(db_session, doctor_id, record, patient.id)
     assert saved.id is not None
 
-    patient_row = await _fetch_patient(db_session, patient.id)
-    assert patient_row.primary_risk_level in {"medium", "high", "critical"}
-    assert patient_row.risk_score is not None and patient_row.risk_score > 0
-
-    tasks_before = await db_session.execute(
-        select(DoctorTask).where(
-            DoctorTask.doctor_id == doctor_id,
-            DoctorTask.patient_id == patient.id,
-            DoctorTask.task_type == "follow_up",
-        )
-    )
-    followup = tasks_before.scalar_one_or_none()
-    assert followup is not None
-    assert followup.status == "pending"
-
-    summary = await run_due_task_cycle()
-    assert summary["due_count"] >= 1
-    assert summary["sent_count"] >= 1
-    assert summary["failed_count"] == 0
-    assert mocked_notify.await_count >= 1
-
-    async with session_factory() as verify_session:
-        tasks_after = await verify_session.execute(
-            select(DoctorTask).where(DoctorTask.id == followup.id)
-        )
-        notified = tasks_after.scalar_one_or_none()
-        assert notified is not None
-        # notified_at column removed; notification tracking now deferred to status
+    followup = await _assert_patient_risk_and_task(db_session, doctor_id, patient)
+    await _assert_notification_sent(session_factory, mocked_notify, followup)
 
 
 @pytest.mark.asyncio

@@ -1,6 +1,4 @@
-"""
-Tests for PDF export service.
-"""
+"""PDF 导出服务测试：验证病历记录 PDF 生成的字节有效性及 PDF 格式头正确性。"""
 from __future__ import annotations
 
 from datetime import datetime, timezone

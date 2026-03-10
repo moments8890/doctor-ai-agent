@@ -157,57 +157,47 @@ def apply_to_fast_router(new_terms: list[tuple[str, int]], dry_run: bool = True)
             print(f"Updated fast_router.py — added {min(60, len(new_terms))} terms")
 
 
+def _save_terms(new_terms: list, out_path: Path) -> None:
+    """Write extracted terms to a JSON file."""
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(
+        json.dumps({"terms": [{"term": t, "freq": f} for t, f in new_terms]},
+                   ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    print(f"Saved to {out_path}")
+
+
+def _print_top_terms(new_terms: list, top: int) -> None:
+    """Print the top N new clinical terms to stdout."""
+    print(f"\n=== Top {top} new clinical terms ===")
+    print(f"{'Term':<15} {'Freq':>6}")
+    print("-" * 25)
+    for term, freq in new_terms[:top]:
+        print(f"{term:<15} {freq:>6}")
+
+
 def main() -> None:
+    """Entry point: parse args, load CBLUE data, filter and apply new keywords."""
     parser = argparse.ArgumentParser(description="Expand fast router clinical keywords from CBLUE")
     parser.add_argument("--min-freq", type=int, default=MIN_FREQ,
                         help=f"Minimum entity frequency to include (default: {MIN_FREQ})")
-    parser.add_argument("--top", type=int, default=80,
-                        help="Show top N new terms (default: 80)")
+    parser.add_argument("--top", type=int, default=80, help="Show top N new terms (default: 80)")
     parser.add_argument("--apply", action="store_true",
                         help="Actually update fast_router.py (default: dry run)")
     parser.add_argument("--output", type=str, default="data/cblue_clinical_keywords.json",
                         help="Save extracted terms to this JSON file")
     args = parser.parse_args()
-
-    # Load data
-    cmeee_counts = load_cmeee()
-    cdn_counts = load_cdn()
-
-    # Merge counts
     merged: Counter = Counter()
-    merged.update(cmeee_counts)
-    merged.update(cdn_counts)
-
-    # Compare against existing keywords
+    merged.update(load_cmeee())
+    merged.update(load_cdn())
     existing = load_existing_keywords()
     print(f"\nExisting Tier 3 keywords: {len(existing)}")
-
     new_terms = filter_new_terms(merged, existing, args.min_freq)
     print(f"New terms found (freq >= {args.min_freq}): {len(new_terms)}")
-
-    # Save to file
-    out_path = Path(args.output)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(
-        json.dumps(
-            {"terms": [{"term": t, "freq": f} for t, f in new_terms]},
-            ensure_ascii=False,
-            indent=2,
-        ),
-        encoding="utf-8",
-    )
-    print(f"Saved to {out_path}")
-
-    # Print top N
-    print(f"\n=== Top {args.top} new clinical terms ===")
-    print(f"{'Term':<15} {'Freq':>6}")
-    print("-" * 25)
-    for term, freq in new_terms[:args.top]:
-        print(f"{term:<15} {freq:>6}")
-
-    # Apply or dry-run
+    _save_terms(new_terms, Path(args.output))
+    _print_top_terms(new_terms, args.top)
     apply_to_fast_router(new_terms, dry_run=not args.apply)
-
     if not args.apply:
         print("\nRun with --apply to update fast_router.py")
 

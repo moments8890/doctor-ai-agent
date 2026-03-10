@@ -1,3 +1,4 @@
+"""db.repositories 包初始化：聚合仓储层公开接口。"""
 from __future__ import annotations
 
 from db.repositories.patients import PatientRepository

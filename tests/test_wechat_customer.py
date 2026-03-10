@@ -1,6 +1,4 @@
-"""
-Tests for services/wechat_customer.py.
-"""
+"""微信客户信息测试：验证企业微信客户档案的拉取、缓存命中、无效用户负缓存及功能关闭时的跳过行为。"""
 
 from __future__ import annotations
 

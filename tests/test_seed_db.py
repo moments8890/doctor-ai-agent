@@ -1,6 +1,4 @@
-"""
-Unit tests for scripts/seed_db.py — all I/O (sqlite3, file) is mocked.
-"""
+"""数据库种子脚本测试：验证 seed_db.py 的导出、导入、重置及去重逻辑，所有 SQLite 和文件 I/O 均使用模拟对象。"""
 
 from __future__ import annotations
 

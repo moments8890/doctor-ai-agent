@@ -1,4 +1,6 @@
-"""Real-world doctor↔agent text E2E scenarios.
+"""真实医生↔智能助手文本端到端场景测试。
+
+Real-world doctor↔agent text E2E scenarios.
 
 These tests exercise realistic input styles against `/api/records/chat`:
 - verbose dictation

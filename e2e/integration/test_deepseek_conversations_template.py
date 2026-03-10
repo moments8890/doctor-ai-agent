@@ -1,4 +1,12 @@
-"""DeepSeek conversation template tests (data-driven).
+"""DeepSeek 对话模板数据驱动集成测试。
+
+如何运行：
+  1) export RUN_DEEPSEEK_TEMPLATE=1
+  2) 可选：export AUTO_FOLLOWUP_TASKS_ENABLED=true
+  3) 配置 provider 环境变量
+  4) pytest e2e/integration/test_deepseek_conversations_template.py -v
+
+DeepSeek conversation template tests (data-driven).
 
 How to run:
   1) export RUN_DEEPSEEK_TEMPLATE=1
@@ -111,23 +119,8 @@ def _is_ollama_provider() -> bool:
     )
 
 
-@pytest.mark.integration
-@pytest.mark.parametrize("case", _load_cases(), ids=lambda c: c["case_id"])
-def test_deepseek_conversation_case_template(case: Dict):
-    """Run one realistic conversation case and verify core outputs.
-
-    Verifies:
-    - API returns structured record
-    - Patient row exists and has expected risk bucket
-    - Optional follow-up task is created when enabled and expected
-    """
-    doctor_id = "inttest_deepseek_%s_%s" % (case["case_id"].lower(), uuid.uuid4().hex[:6])
-    expected = case["expected"]
-
-    data = chat(case["input_text"], doctor_id=doctor_id)
-    record = data.get("record")
-    assert record is not None, "record should not be null"
-
+def _assert_record_fields(record: Dict, expected: Dict) -> None:
+    """验证结构化病历各字段包含期望关键词。"""
     chief_text = _join_fields(record, ["chief_complaint", "history_of_present_illness", "diagnosis"])
     diagnosis_text = _join_fields(record, ["diagnosis", "history_of_present_illness", "auxiliary_examinations", "treatment_plan"])
     treatment_text = _join_fields(record, ["treatment_plan", "follow_up_plan", "diagnosis", "auxiliary_examinations"])
@@ -145,13 +138,48 @@ def test_deepseek_conversation_case_template(case: Dict):
     assert _contains_any(treatment_text, expected.get("treatment_plan_contains_any", [])), (
         "treatment_plan mismatch: %r" % (treatment_text,)
     )
-    assert _contains_any(
-        aux_text,
-        expected.get("auxiliary_examinations_contains_any", []),
-    ), "auxiliary_examinations mismatch: %r" % (aux_text,)
+    assert _contains_any(aux_text, expected.get("auxiliary_examinations_contains_any", [])), (
+        "auxiliary_examinations mismatch: %r" % (aux_text,)
+    )
     assert _contains_any(follow_text, expected.get("follow_up_plan_contains_any", [])), (
         "follow_up_plan mismatch: %r" % (follow_text,)
     )
+
+
+def _assert_followup_task(doctor_id: str, patient_id: int, expected: Dict) -> None:
+    """若期望随访任务，验证任务存在且 due_at 在允许偏差范围内。"""
+    if not expected.get("expect_follow_up_task"):
+        return
+    if os.environ.get("AUTO_FOLLOWUP_TASKS_ENABLED", "").lower() not in {"1", "true", "yes", "on"}:
+        pytest.skip("AUTO_FOLLOWUP_TASKS_ENABLED is off; skip follow_up task assertion.")
+    task = _latest_follow_up_task(doctor_id, patient_id)
+    assert task is not None, "expected follow_up task not found"
+    assert task["task_type"] == "follow_up"
+    assert task["status"] == "pending"
+    due_at = datetime.fromisoformat(task["due_at"])
+    days = (due_at - datetime.now(timezone.utc)).days
+    target = int(expected.get("follow_up_task_due_days", 7))
+    assert abs(days - target) <= 2, "due_at days mismatch: got=%s expected~%s" % (days, target)
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("case", _load_cases(), ids=lambda c: c["case_id"])
+def test_deepseek_conversation_case_template(case: Dict):
+    """Run one realistic conversation case and verify core outputs.
+
+    Verifies:
+    - API returns structured record
+    - Patient row exists and has expected risk bucket
+    - Optional follow-up task is created when enabled and expected
+    """
+    doctor_id = "inttest_deepseek_%s_%s" % (case["case_id"].lower(), uuid.uuid4().hex[:6])
+    expected = case["expected"]
+
+    data = chat(case["input_text"], doctor_id=doctor_id)
+    record = data.get("record")
+    assert record is not None, "record should not be null"
+
+    _assert_record_fields(record, expected)
 
     patient = _latest_patient_row(doctor_id, expected["patient_name"])
     assert patient is not None, "patient should exist in DB"
@@ -159,15 +187,4 @@ def test_deepseek_conversation_case_template(case: Dict):
         "unexpected risk level: %r" % (patient["primary_risk_level"],)
     )
 
-    if expected.get("expect_follow_up_task"):
-        if os.environ.get("AUTO_FOLLOWUP_TASKS_ENABLED", "").lower() not in {"1", "true", "yes", "on"}:
-            pytest.skip("AUTO_FOLLOWUP_TASKS_ENABLED is off; skip follow_up task assertion.")
-        task = _latest_follow_up_task(doctor_id, int(patient["id"]))
-        assert task is not None, "expected follow_up task not found"
-        assert task["task_type"] == "follow_up"
-        assert task["status"] == "pending"
-        due_at = datetime.fromisoformat(task["due_at"])
-        days = (due_at - datetime.now(timezone.utc)).days
-        target = int(expected.get("follow_up_task_due_days", 7))
-        # Keep a loose window because execution time and rounding vary.
-        assert abs(days - target) <= 2, "due_at days mismatch: got=%s expected~%s" % (days, target)
+    _assert_followup_task(doctor_id, int(patient["id"]), expected)
