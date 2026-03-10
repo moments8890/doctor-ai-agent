@@ -87,7 +87,6 @@ from db.crud import (
     confirm_pending_record,
     abandon_pending_record,
 )
-from db.crud.records import update_latest_record_for_patient
 from db.crud.patient import update_patient_demographics
 from services.knowledge.doctor_knowledge import (
     load_knowledge_context_for_prompt,
@@ -425,86 +424,13 @@ async def _handle_complete_task(doctor_id: str, intent_result) -> str:
 
 
 async def _handle_schedule_appointment(doctor_id: str, intent_result) -> str:
-    patient_name = intent_result.patient_name
-    if not patient_name:
-        return "⚠️ 未能识别患者姓名，请重新说明预约信息。"
-    raw_time = intent_result.extra_data.get("appointment_time")
-    if not raw_time:
-        return "⚠️ 未能识别预约时间，请使用格式如「明天下午2点」或「2026-03-15 14:00」。"
-    try:
-        appointment_dt = datetime.fromisoformat(str(raw_time))
-    except (ValueError, TypeError):
-        return "⚠️ 时间格式无法识别，请使用格式如「2026-03-15T14:00:00」。"
-    notes = intent_result.extra_data.get("notes")
-    from services.notify.tasks import create_appointment_task as _create_appt
-
-    task = await _create_appt(doctor_id, patient_name, appointment_dt, notes)
-    return (
-        f"📅 已为患者【{patient_name}】安排预约\n"
-        f"时间：{appointment_dt.strftime('%m-%d %H:%M')}\n"
-        f"任务编号：{task.id}（1小时前提醒）"
-    )
-
-
-_CLINICAL_KEYS_ZH = {
-    "chief_complaint": "主诉",
-    "history_of_present_illness": "现病史",
-    "past_medical_history": "既往史",
-    "physical_examination": "体格检查",
-    "auxiliary_examinations": "辅助检查",
-    "diagnosis": "诊断",
-    "treatment_plan": "治疗方案",
-    "follow_up_plan": "随访计划",
-}
+    _sync_wechat_domain_bindings()
+    return await wd.handle_schedule_appointment(doctor_id, intent_result)
 
 
 async def _handle_update_record(doctor_id: str, intent_result) -> str:
-    """Re-structure the most recent record with the corrected fields applied."""
-    from services.ai.structuring import structure_medical_record
-
-    patient_name = (intent_result.patient_name or "").strip()
-    sess = get_session(doctor_id)
-    if not patient_name and sess.current_patient_name:
-        patient_name = sess.current_patient_name
-    if not patient_name:
-        return "⚠️ 未能识别患者姓名，请说明要更正哪位患者的病历。"
-
-    fields = intent_result.structured_fields or {}
-    if not fields:
-        return "⚠️ 未能识别需要更正的字段内容，请重新描述。"
-
-    # Fetch existing record
-    async with AsyncSessionLocal() as session:
-        patient = await find_patient_by_name(session, doctor_id, patient_name)
-        if patient is None:
-            return f"⚠️ 未找到患者【{patient_name}】，请确认姓名后重试。"
-        existing = await update_latest_record_for_patient(session, doctor_id, patient.id, {})
-
-    if existing is None:
-        return f"⚠️ 患者【{patient_name}】暂无病历记录，无法更正。"
-
-    # Build a correction text and re-structure so the free-text content stays coherent
-    correction_lines = "\n".join(
-        f"{_CLINICAL_KEYS_ZH.get(k, k)}：{v}" for k, v in fields.items() if v
-    )
-    correction_text = (
-        f"原有病历：\n{existing.content or ''}\n\n"
-        f"更正以下字段（以更正内容为准）：\n{correction_lines}"
-    )
-    try:
-        new_record = await structure_medical_record(correction_text)
-    except Exception as e:
-        log(f"[WeChat] update_record re-structure FAILED doctor={doctor_id}: {e}")
-        return "⚠️ 病历更正失败，请稍后重试。"
-
-    async with AsyncSessionLocal() as session:
-        await update_latest_record_for_patient(
-            session, doctor_id, patient.id,
-            {"content": new_record.content, "tags": new_record.tags},
-        )
-
-    updated_labels = "、".join(_CLINICAL_KEYS_ZH.get(k, k) for k in fields)
-    return f"✅ 已更正患者【{patient_name}】最近一条病历\n更新字段：{updated_labels}"
+    _sync_wechat_domain_bindings()
+    return await wd.handle_update_record(doctor_id, intent_result)
 
 
 async def _handle_update_patient(doctor_id: str, intent_result) -> str:

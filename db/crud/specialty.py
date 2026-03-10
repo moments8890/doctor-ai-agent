@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.models.neuro_case import NeuroCVDSurgicalContext
 from db.models.specialty import NeuroCVDContext
+from utils.log import log
 
 
 def _parse_cvd_json(row: NeuroCVDContext) -> Optional[NeuroCVDSurgicalContext]:
@@ -44,6 +45,7 @@ async def save_cvd_context(
     session.add(row)
     await session.commit()
     await session.refresh(row)
+    log(f"[silent-save] cvd_context saved doctor={doctor_id} patient_id={patient_id} record_id={record_id} source={source!r} subtype={ctx.diagnosis_subtype!r}")
     return row
 
 
@@ -83,6 +85,7 @@ async def upsert_cvd_field(
         )
         session.add(row)
     await session.commit()
+    log(f"[silent-save] cvd_field upserted doctor={doctor_id} record_id={record_id} patient_id={patient_id} field={field_name!r} value={value}")
 
 
 async def get_cvd_context_for_patient(

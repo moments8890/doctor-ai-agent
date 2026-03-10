@@ -22,6 +22,7 @@ from db.models.medical_record import MedicalRecord
 from services.patient.patient_categorization import recompute_patient_category
 from services.observability.observability import trace_block
 from db.crud.doctor import _ensure_doctor_exists
+from utils.log import log
 
 
 def _utcnow() -> datetime:
@@ -122,6 +123,7 @@ async def _ensure_auto_follow_up_task(
         )
     )
     await session.commit()
+    log(f"[silent-save] auto follow-up task created doctor={doctor_id} patient_id={patient_id} record_id={record_id} due={due_at.date()}")
 
 
 async def _detect_encounter_type(session: AsyncSession, doctor_id: str, patient_id: int | None) -> str:
@@ -234,6 +236,7 @@ async def save_neuro_case(
     )
     session.add(row)
     await session.commit()
+    log(f"[silent-save] neuro_case saved doctor={doctor_id} patient_id={patient_id} nihss={nihss} name={pp.get('name')!r}")
     return row
 
 
@@ -348,4 +351,5 @@ async def update_latest_record_for_patient(
         for field, value in updates.items():
             setattr(record, field, value)
         await session.commit()
+        log(f"[silent-save] record correction applied doctor={doctor_id} record_id={record.id} patient_id={patient_id} fields={list(updates.keys())}")
     return record

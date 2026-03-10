@@ -539,16 +539,6 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
     asked_name_in_last_turn = _assistant_asked_for_name(history)
     followup_name = _name_only_text(body.text) if asked_name_in_last_turn else None
 
-    complete_match = _COMPLETE_RE.match(body.text)
-    if complete_match:
-        task_id = int(complete_match.group(1))
-        with trace_block("router", "records.chat.complete_task.fastpath", {"doctor_id": doctor_id, "task_id": task_id}):
-            async with AsyncSessionLocal() as db:
-                task = await update_task_status(db, task_id, doctor_id, "completed")
-        if task is None:
-            return ChatResponse(reply=f"⚠️ 未找到任务 {task_id}，请确认编号是否正确。")
-        return ChatResponse(reply=f"✅ 任务【{task.title}】已标记完成。")
-
     # Deterministic count query fast path: avoid LLM paraphrase-only replies.
     if _PATIENT_COUNT_RE.search(body.text):
         with trace_block("router", "records.chat.patient_count.fastpath", {"doctor_id": doctor_id}):
@@ -559,89 +549,23 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
             return ChatResponse(reply="👥 当前您管理的患者数量：0。")
         return ChatResponse(reply="👥 当前您管理的患者数量：{0}。可发送「所有患者」查看名单。".format(count))
 
-    delete_patient_id, delete_patient_name, delete_occurrence_index = _parse_delete_patient_target(body.text)
-    if delete_patient_id is not None or delete_patient_name:
+    # Delete by numeric ID is not covered by fast_route — handle it here directly.
+    delete_patient_id, _discard_name, _discard_idx = _parse_delete_patient_target(body.text)
+    if delete_patient_id is not None:
         with trace_block(
             "router",
-            "records.chat.delete_patient.fastpath",
-            {
-                "doctor_id": doctor_id,
-                "patient_id": delete_patient_id,
-                "patient_name": delete_patient_name,
-                "occurrence": delete_occurrence_index,
-            },
+            "records.chat.delete_patient_by_id.fastpath",
+            {"doctor_id": doctor_id, "patient_id": delete_patient_id},
         ):
             async with AsyncSessionLocal() as db:
-                if delete_patient_id is not None:
-                    deleted = await delete_patient_for_doctor(db, doctor_id, delete_patient_id)
-                    if deleted is None:
-                        return ChatResponse(reply=f"⚠️ 未找到患者 ID {delete_patient_id}。")
-                    asyncio.create_task(audit(
-                        doctor_id, "DELETE", resource_type="patient",
-                        resource_id=str(deleted.id), trace_id=get_current_trace_id(),
-                    ))
-                    return ChatResponse(reply=f"✅ 已删除患者【{deleted.name}】(ID {deleted.id}) 及其相关记录。")
-
-                matches = await find_patients_by_exact_name(db, doctor_id, delete_patient_name or "")
-                if not matches:
-                    return ChatResponse(reply=f"⚠️ 未找到患者【{delete_patient_name}】。")
-                if delete_occurrence_index is None and len(matches) > 1:
-                    preview = [f"{i + 1}. {p.name}（ID {p.id}）" for i, p in enumerate(matches[:5])]
-                    prompt = "\n".join(preview)
-                    return ChatResponse(
-                        reply=(
-                            f"⚠️ 找到同名患者【{delete_patient_name}】共 {len(matches)} 位，请指定第几个。\n"
-                            f"{prompt}\n"
-                            f"例如：删除第2个患者{delete_patient_name}"
-                        )
-                    )
-                if delete_occurrence_index is not None:
-                    if delete_occurrence_index <= 0 or delete_occurrence_index > len(matches):
-                        return ChatResponse(
-                            reply=f"⚠️ 序号超出范围。同名患者【{delete_patient_name}】共 {len(matches)} 位。"
-                        )
-                    target = matches[delete_occurrence_index - 1]
-                else:
-                    target = matches[0]
-                deleted = await delete_patient_for_doctor(db, doctor_id, target.id)
-                if deleted is None:
-                    return ChatResponse(reply=f"⚠️ 删除失败，未找到患者【{delete_patient_name}】。")
-                asyncio.create_task(audit(
-                    doctor_id, "DELETE", resource_type="patient",
-                    resource_id=str(deleted.id), trace_id=get_current_trace_id(),
-                ))
-                return ChatResponse(reply=f"✅ 已删除患者【{deleted.name}】(ID {deleted.id}) 及其相关记录。")
-
-    schedule_patient_name, schedule_iso_time = _parse_schedule_appointment_target(body.text)
-    if schedule_patient_name and schedule_iso_time:
-        try:
-            appointment_dt = datetime.fromisoformat(schedule_iso_time)
-        except (TypeError, ValueError):
-            return ChatResponse(reply="⚠️ 时间格式无法识别，请使用格式如「2026年3月15日14:00」或「2026-03-15 14:00」。")
-        patient_id = None
-        async with AsyncSessionLocal() as db:
-            patient = await find_patient_by_name(db, doctor_id, schedule_patient_name)
-            if patient is not None:
-                patient_id = patient.id
-        with trace_block(
-            "router",
-            "records.chat.schedule_appointment.fastpath",
-            {"doctor_id": doctor_id, "patient_name": schedule_patient_name},
-        ):
-            task = await create_appointment_task(
-                doctor_id=doctor_id,
-                patient_name=schedule_patient_name,
-                appointment_dt=appointment_dt,
-                notes="",
-                patient_id=patient_id,
-            )
-        return ChatResponse(
-            reply=(
-                f"📅 已为患者【{schedule_patient_name}】安排预约\n"
-                f"预约时间：{appointment_dt.strftime('%Y-%m-%d %H:%M')}\n"
-                f"任务编号：{task.id}（将在1小时前提醒）"
-            )
-        )
+                deleted = await delete_patient_for_doctor(db, doctor_id, delete_patient_id)
+            if deleted is None:
+                return ChatResponse(reply=f"⚠️ 未找到患者 ID {delete_patient_id}。")
+            asyncio.create_task(audit(
+                doctor_id, "DELETE", resource_type="patient",
+                resource_id=str(deleted.id), trace_id=get_current_trace_id(),
+            ))
+            return ChatResponse(reply=f"✅ 已删除患者【{deleted.name}】(ID {deleted.id}) 及其相关记录。")
 
     context_match = _CONTEXT_SAVE_RE.match(body.text)
     if context_match:

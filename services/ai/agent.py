@@ -958,6 +958,82 @@ def _fallback_intent_from_text(text: str) -> IntentResult:
     return IntentResult(intent=Intent.unknown, patient_name=name, gender=gender, age=age)
 
 
+async def _ollama_post_process(
+    message: Any,
+    text: str,
+    messages: List[dict],
+    client: Any,
+    model_name: str,
+    tools: list,
+    routing_max_tokens: int,
+) -> Optional[IntentResult]:
+    """Handle Ollama-specific post-processing when no formal tool_calls are present.
+
+    Covers three cases in order:
+    1. Embedded tool call in text content (also tried for other providers in dispatch()).
+    2. Verbal-action retry: Ollama described an action in words → nudge it to call the tool.
+    3. No-tool-call fallback: Ollama returned markup or empty content → regex fallback.
+
+    Returns an IntentResult on success, or None to signal that the caller should fall
+    through to _fallback_intent_from_text().
+    """
+    chat_reply = message.content or None
+
+    # 1. Embedded tool call extraction
+    embedded_fn, embedded_args = _extract_embedded_tool_call(chat_reply)
+    if embedded_fn:
+        log(f"[Agent:ollama] embedded tool_call: {embedded_fn}({embedded_args})")
+        cleaned_reply = chat_reply
+        if _looks_like_tool_markup(cleaned_reply):
+            cleaned_reply = None
+        return _intent_result_from_tool_call(embedded_fn, embedded_args, cleaned_reply)
+
+    # 2. Verbal action retry
+    if chat_reply and not _looks_like_tool_markup(chat_reply):
+        if _VERBAL_ACTION_RE.search(chat_reply):
+            log(f"[Agent:ollama] verbal action detected, retrying with tool-use hint: {chat_reply[:60]}")
+            retry_messages = messages + [
+                {"role": "assistant", "content": chat_reply},
+                {
+                    "role": "user",
+                    "content": "[系统提示：请务必调用相应工具执行操作，不要只用文字回复。]",
+                },
+            ]
+            try:
+                with trace_block("llm", "agent.chat_completion", {"provider": "ollama", "model": model_name, "retry": True}):
+                    retry_completion = await client.chat.completions.create(
+                        model=model_name,
+                        messages=retry_messages,
+                        tools=tools,
+                        tool_choice="auto",
+                        max_tokens=routing_max_tokens,
+                        temperature=0,
+                    )
+                retry_msg = retry_completion.choices[0].message
+                if retry_msg.tool_calls:
+                    retry_fn = retry_msg.tool_calls[0].function.name
+                    try:
+                        retry_args = json.loads(retry_msg.tool_calls[0].function.arguments)
+                        if not isinstance(retry_args, dict):
+                            retry_args = {}
+                    except (json.JSONDecodeError, TypeError):
+                        retry_args = {}
+                    log(f"[Agent:ollama] retry tool_call: {retry_fn}({retry_args})")
+                    return _intent_result_from_tool_call(retry_fn, retry_args, retry_msg.content or chat_reply)
+            except Exception as retry_err:
+                log(f"[Agent:ollama] retry failed: {retry_err}")
+
+    # 3. No-tool-call fallback: empty or markup-only content
+    if not chat_reply or _looks_like_tool_markup(chat_reply):
+        log("[Agent:ollama] no formal tool call, using local fallback")
+        from services.observability.routing_metrics import record as _record_metric
+        _record_metric("fallback:regex")
+        with trace_block("agent", "agent.local_fallback", {"reason": "no_tool_call"}):
+            return _fallback_intent_from_text(text)
+
+    return None
+
+
 async def dispatch(
     text: str,
     history: Optional[List[dict]] = None,
@@ -1105,7 +1181,34 @@ async def dispatch(
     # Capture natural reply regardless of whether a tool was called
     chat_reply = message.content or None
 
-    if not message.tool_calls:
+    if message.tool_calls:
+        tool_call = message.tool_calls[0]
+        fn_name = tool_call.function.name
+        try:
+            args = json.loads(tool_call.function.arguments)
+            if not isinstance(args, dict):
+                args = {}
+        except (json.JSONDecodeError, TypeError):
+            args = {}
+        log(f"[Agent:{provider_name}] tool_call: {fn_name}({args})")
+        return _intent_result_from_tool_call(fn_name, args, chat_reply)
+
+    elif provider_name == "ollama":
+        result = await _ollama_post_process(
+            message=message,
+            text=text,
+            messages=messages,
+            client=client,
+            model_name=provider["model"],
+            tools=_tools_for_call,
+            routing_max_tokens=routing_max_tokens,
+        )
+        if result is not None:
+            return result
+        return _fallback_intent_from_text(text)
+
+    else:
+        # Non-Ollama providers: attempt embedded tool call extraction, then chat reply.
         embedded_fn, embedded_args = _extract_embedded_tool_call(chat_reply)
         if embedded_fn:
             log(f"[Agent:{provider_name}] embedded tool_call: {embedded_fn}({embedded_args})")
@@ -1113,61 +1216,6 @@ async def dispatch(
             if _looks_like_tool_markup(cleaned_reply):
                 cleaned_reply = None
             return _intent_result_from_tool_call(embedded_fn, embedded_args, cleaned_reply)
-        # Retry once for Ollama when reply looks like a verbal action (tool was
-        # expected but not called). Append an explicit instruction to call the tool.
-        if provider_name == "ollama" and chat_reply and not _looks_like_tool_markup(chat_reply):
-            if _VERBAL_ACTION_RE.search(chat_reply):
-                log(f"[Agent:ollama] verbal action detected, retrying with tool-use hint: {chat_reply[:60]}")
-                retry_messages = messages + [
-                    {"role": "assistant", "content": chat_reply},
-                    {
-                        "role": "user",
-                        "content": "[系统提示：请务必调用相应工具执行操作，不要只用文字回复。]",
-                    },
-                ]
-                try:
-                    with trace_block("llm", "agent.chat_completion", {"provider": provider_name, "model": provider["model"], "retry": True}):
-                        retry_completion = await client.chat.completions.create(
-                            model=provider["model"],
-                            messages=retry_messages,
-                            tools=_tools_for_call,
-                            tool_choice="auto",
-                            max_tokens=routing_max_tokens,
-                            temperature=0,
-                        )
-                    retry_msg = retry_completion.choices[0].message
-                    if retry_msg.tool_calls:
-                        retry_fn = retry_msg.tool_calls[0].function.name
-                        try:
-                            retry_args = json.loads(retry_msg.tool_calls[0].function.arguments)
-                            if not isinstance(retry_args, dict):
-                                retry_args = {}
-                        except (json.JSONDecodeError, TypeError):
-                            retry_args = {}
-                        log(f"[Agent:ollama] retry tool_call: {retry_fn}({retry_args})")
-                        return _intent_result_from_tool_call(retry_fn, retry_args, retry_msg.content or chat_reply)
-                except Exception as retry_err:
-                    log(f"[Agent:ollama] retry failed: {retry_err}")
-        if provider_name == "ollama" and (not chat_reply or _looks_like_tool_markup(chat_reply)):
-            log("[Agent:ollama] no formal tool call, using local fallback")
-            from services.observability.routing_metrics import record as _record_metric
-            _record_metric("fallback:regex")
-            with trace_block("agent", "agent.local_fallback", {"reason": "no_tool_call"}):
-                return _fallback_intent_from_text(text)
         reply_text = chat_reply or "您好！有什么可以帮您？"
         log(f"[Agent:{provider_name}] no tool call → chat reply: {reply_text[:80]}")
         return IntentResult(intent=Intent.unknown, chat_reply=reply_text)
-
-    tool_call = message.tool_calls[0]
-    fn_name = tool_call.function.name
-
-    try:
-        args = json.loads(tool_call.function.arguments)
-        if not isinstance(args, dict):
-            args = {}
-    except (json.JSONDecodeError, TypeError):
-        args = {}
-
-    log(f"[Agent:{provider_name}] tool_call: {fn_name}({args})")
-
-    return _intent_result_from_tool_call(fn_name, args, chat_reply)

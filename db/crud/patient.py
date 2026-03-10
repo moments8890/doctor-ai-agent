@@ -22,6 +22,7 @@ from services.observability.observability import trace_block
 from services.observability.audit import audit
 from utils.errors import InvalidMedicalRecordError, LabelNotFoundError, PatientNotFoundError
 from db.crud.doctor import _ensure_doctor_exists
+from utils.log import log
 
 
 def _utcnow() -> datetime:
@@ -365,4 +366,5 @@ async def update_patient_demographics(
             updated = True
     if updated:
         await session.commit()
+        log(f"[silent-save] patient demographics updated doctor={doctor_id} patient={patient.id} name={name!r} gender={gender} age={age}")
     return patient

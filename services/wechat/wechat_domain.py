@@ -28,6 +28,7 @@ from db.crud import (
     update_task_status,
 )
 from db.engine import AsyncSessionLocal
+from db.crud.records import update_latest_record_for_patient
 from services.ai.agent import dispatch as agent_dispatch
 from services.observability.audit import audit
 from services.knowledge.doctor_knowledge import maybe_auto_learn_knowledge
@@ -225,6 +226,7 @@ async def handle_add_record(
 
     # Emergency records skip the confirmation gate — saved immediately
     if intent_result.is_emergency:
+        log(f"[silent-save] emergency record saved WITHOUT confirmation doctor={doctor_id} patient={patient_name!r} patient_id={patient_id}")
         async with AsyncSessionLocal() as session:
             db_record = await save_record(session, doctor_id, record, patient_id)
         asyncio.create_task(audit(doctor_id, "WRITE", resource_type="record", resource_id=str(patient_id)))
@@ -917,6 +919,65 @@ async def handle_schedule_appointment(doctor_id: str, intent_result: IntentResul
     )
 
 
+_CLINICAL_KEYS_ZH = {
+    "chief_complaint": "主诉",
+    "history_of_present_illness": "现病史",
+    "past_medical_history": "既往史",
+    "physical_examination": "体格检查",
+    "auxiliary_examinations": "辅助检查",
+    "diagnosis": "诊断",
+    "treatment_plan": "治疗方案",
+    "follow_up_plan": "随访计划",
+}
+
+
+async def handle_update_record(doctor_id: str, intent_result: IntentResult) -> str:
+    """Re-structure the most recent record with the corrected fields applied."""
+    patient_name = (intent_result.patient_name or "").strip()
+    sess = get_session(doctor_id)
+    if not patient_name and sess.current_patient_name:
+        patient_name = sess.current_patient_name
+    if not patient_name:
+        return "⚠️ 未能识别患者姓名，请说明要更正哪位患者的病历。"
+
+    fields = intent_result.structured_fields or {}
+    if not fields:
+        return "⚠️ 未能识别需要更正的字段内容，请重新描述。"
+
+    # Fetch existing record
+    async with AsyncSessionLocal() as session:
+        patient = await find_patient_by_name(session, doctor_id, patient_name)
+        if patient is None:
+            return f"⚠️ 未找到患者【{patient_name}】，请确认姓名后重试。"
+        existing = await update_latest_record_for_patient(session, doctor_id, patient.id, {})
+
+    if existing is None:
+        return f"⚠️ 患者【{patient_name}】暂无病历记录，无法更正。"
+
+    # Build a correction text and re-structure so the free-text content stays coherent
+    correction_lines = "\n".join(
+        f"{_CLINICAL_KEYS_ZH.get(k, k)}：{v}" for k, v in fields.items() if v
+    )
+    correction_text = (
+        f"原有病历：\n{existing.content or ''}\n\n"
+        f"更正以下字段（以更正内容为准）：\n{correction_lines}"
+    )
+    try:
+        new_record = await structure_medical_record(correction_text)
+    except Exception as e:
+        log(f"[WeChat] update_record re-structure FAILED doctor={doctor_id}: {e}")
+        return "⚠️ 病历更正失败，请稍后重试。"
+
+    async with AsyncSessionLocal() as session:
+        await update_latest_record_for_patient(
+            session, doctor_id, patient.id,
+            {"content": new_record.content, "tags": new_record.tags},
+        )
+
+    updated_labels = "、".join(_CLINICAL_KEYS_ZH.get(k, k) for k in fields)
+    return f"✅ 已更正患者【{patient_name}】最近一条病历\n更新字段：{updated_labels}"
+
+
 # ── History import helpers ────────────────────────────────────────────────────
 
 import re as _re
@@ -1313,6 +1374,7 @@ async def handle_import_history(text: str, doctor_id: str, intent_result: Intent
         structured_chunks = await _mark_duplicates(structured_chunks, doctor_id, patient_id)
 
     # 直接保存到病历（MVP阶段暂不支持分批确认导入）
+    log(f"[silent-save] bulk import starting WITHOUT confirmation doctor={doctor_id} patient_id={patient_id} chunks={len(structured_chunks)}")
     async with AsyncSessionLocal() as session:
         saved = 0
         for chunk in structured_chunks:
@@ -1326,6 +1388,7 @@ async def handle_import_history(text: str, doctor_id: str, intent_result: Intent
                 saved += 1
             except Exception as e:
                 log(f"[Import] save chunk FAILED doctor={doctor_id}: {e}")
+    log(f"[silent-save] bulk import done doctor={doctor_id} patient_id={patient_id} saved={saved}/{len(structured_chunks)}")
 
     patient_label = f"【{patient_name}】" if patient_name else "当前患者"
     reply = f"✅ 已导入 {saved} 条病历\n患者：{patient_label}"
