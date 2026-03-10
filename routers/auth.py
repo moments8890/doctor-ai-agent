@@ -306,14 +306,21 @@ async def invite_login(body: InviteLoginInput) -> WebLoginResponse:
 
     if new_doctor_id:
         # Now that the doctor exists, write the doctor_id back to the invite code.
+        # Re-read with FOR UPDATE to guard against concurrent first-time logins with
+        # the same invite code both seeing doctor_id=None and generating different ids.
         async with AsyncSessionLocal() as session:
             invite_row = (
-                await session.execute(select(InviteCode).where(InviteCode.code == code).limit(1))
+                await session.execute(
+                    select(InviteCode).where(InviteCode.code == code).limit(1).with_for_update()
+                )
             ).scalar_one_or_none()
-            if invite_row is not None:
+            if invite_row is not None and invite_row.doctor_id is None:
                 invite_row.doctor_id = new_doctor_id
                 invite_row.used_count = (invite_row.used_count or 0) + 1
                 await session.commit()
+            elif invite_row is not None and invite_row.doctor_id != new_doctor_id:
+                # Another concurrent request already bound a doctor_id; use theirs.
+                doctor_id = invite_row.doctor_id
 
     # If a WeChat mini app js_code is provided, link the openid to this doctor.
     mini_openid: Optional[str] = None

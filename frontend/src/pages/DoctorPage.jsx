@@ -2474,6 +2474,9 @@ export default function DoctorPage() {
   const [chatInsertText, setChatInsertText] = useState("");
   // Text to auto-send in chat (e.g. extracted PDF content from patients section)
   const [chatAutoSendText, setChatAutoSendText] = useState("");
+  // Parent-level dedup ref: tracks last value consumed by ChatSection so that
+  // remounts (React StrictMode double-invoke, route transitions) don't re-fire the send.
+  const chatAutoSendConsumedRef = useRef("");
   // Increment to force PatientsSection to re-fetch after chat creates a patient
   const [patientRefreshKey, setPatientRefreshKey] = useState(0);
   // Selected patient name for mobile topbar
@@ -2672,8 +2675,8 @@ export default function DoctorPage() {
               externalInput={chatInsertText}
               onExternalInputConsumed={() => setChatInsertText("")}
               onPatientCreated={() => setPatientRefreshKey((k) => k + 1)}
-              autoSendText={chatAutoSendText}
-              onAutoSendConsumed={() => setChatAutoSendText("")}
+              autoSendText={chatAutoSendText !== chatAutoSendConsumedRef.current ? chatAutoSendText : ""}
+              onAutoSendConsumed={() => { chatAutoSendConsumedRef.current = chatAutoSendText; setChatAutoSendText(""); }}
             />
           )}
           {activeSection === "patients" && (
@@ -2681,7 +2684,7 @@ export default function DoctorPage() {
               doctorId={doctorId}
               onNavigateToChat={() => navigate("/doctor/chat")}
               onInsertChatText={(text) => { setChatInsertText(text); navigate("/doctor/chat"); }}
-              onAutoSendToChat={(text) => { setChatAutoSendText(text); navigate("/doctor/chat"); }}
+              onAutoSendToChat={(text) => { chatAutoSendConsumedRef.current = ""; setChatAutoSendText(text); navigate("/doctor/chat"); }}
               onPatientSelected={(name) => setSelectedPatientName(name || "")}
               refreshKey={patientRefreshKey}
             />
