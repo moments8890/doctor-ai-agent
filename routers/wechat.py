@@ -777,10 +777,28 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
                 ),
             )
             return await _handle_add_record(text, doctor_id, synthetic, history=history)
-        fallback = "请直接描述病历内容\n或说「新患者姓名」建档\n或说「查询姓名」查记录"
+        fallback = (
+            "我理解您发送了一条消息，但暂时无法判断操作意图。\n\n"
+            "作为医生助手，我可以帮您：\n"
+            "• 记录病历 — 直接描述症状、诊断、治疗\n"
+            "• 建档/查档 — 「新患者姓名」或「查询姓名」\n"
+            "• 随访提醒 — 「X个月后随访」\n"
+            "• 任务管理 — 「待办」查看，「完成1」标记\n"
+            "• 导出报告 — 「导出张三病历」\n\n"
+            "请告诉我您想操作哪位患者，或直接描述病历内容。"
+        )
         return intent_result.chat_reply or fallback
     else:
-        return intent_result.chat_reply or "请直接描述病历内容\n或说「新患者姓名」建档\n或说「查询姓名」查记录"
+        return intent_result.chat_reply or (
+            "我理解您发送了一条消息，但暂时无法判断操作意图。\n\n"
+            "作为医生助手，我可以帮您：\n"
+            "• 记录病历 — 直接描述症状、诊断、治疗\n"
+            "• 建档/查档 — 「新患者姓名」或「查询姓名」\n"
+            "• 随访提醒 — 「X个月后随访」\n"
+            "• 任务管理 — 「待办」查看，「完成1」标记\n"
+            "• 导出报告 — 「导出张三病历」\n\n"
+            "请告诉我您想操作哪位患者，或直接描述病历内容。"
+        )
 
 
 async def _handle_image_bg(media_id: str, doctor_id: str, open_kfid: str = ""):
