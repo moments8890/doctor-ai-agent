@@ -319,4 +319,9 @@ async def structure_medical_record(
     else:
         data["tags"] = [str(t) for t in tags_val if t]
 
+    # Ensure record_type is a non-empty string (LLM may return null)
+    rt = data.get("record_type")
+    if not isinstance(rt, str) or not rt.strip():
+        data["record_type"] = "visit"
+
     return MedicalRecord.model_validate(data)
