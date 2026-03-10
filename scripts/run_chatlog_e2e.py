@@ -43,22 +43,21 @@ def _make_jwt(doctor_id: str, secret: str) -> str:
     payload = {"sub": doctor_id, "channel": "e2e", "iat": now, "exp": now + 3600}
     return _pyjwt.encode(payload, secret, algorithm="HS256")
 
-try:
-    from dotenv import load_dotenv
-
-    shared_env = Path("/Users/jingwuxu/Documents/code/shared-db/.env")
-    if shared_env.exists():
-        load_dotenv(shared_env)
-    else:
-        load_dotenv()
-except Exception:
-    pass
-
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_DATA = ROOT / "e2e" / "fixtures" / "data" / "realworld_doctor_agent_chatlogs_e2e_v1.json"
-DEFAULT_BASE_URL = "http://127.0.0.1:8000"
-DB_PATH = Path(os.environ.get("PATIENTS_DB_PATH", str(ROOT / "patients.db"))).expanduser()
+DEFAULT_BASE_URL = "http://127.0.0.1:8001"
+
+sys.path.insert(0, str(ROOT))
+try:
+    from utils.runtime_config import load_runtime_json as _load_runtime_json
+    _RUNTIME_CONFIG = _load_runtime_json()
+except Exception:
+    _RUNTIME_CONFIG = {}
+
+DB_PATH = Path(
+    os.environ.get("PATIENTS_DB_PATH", str(_RUNTIME_CONFIG.get("PATIENTS_DB_PATH") or ROOT / "patients.db"))
+).expanduser()
 
 GREEN = "\033[32m"
 RED = "\033[31m"
@@ -81,6 +80,12 @@ _TABLES_WITH_DOCTOR_ID = {
     "doctor_contexts",
     "doctors",
     "neuro_cases",
+}
+
+# Map stale fixture table names → current schema names.
+_TABLE_ALIASES: dict[str, str] = {
+    "tasks": "doctor_tasks",
+    "follow_ups": "doctor_tasks",
 }
 _TABLES_GLOBAL_ONLY = {
     "system_prompts",
@@ -235,6 +240,14 @@ def _post_chat(
     for attempt in range(retries + 1):
         try:
             resp = httpx.post(f"{base_url}/api/records/chat", json=payload, headers=headers, timeout=timeout)
+            # Auth errors (401/403) and server errors (5xx) are returned as soft failures
+            # so the caller can decide whether to skip/continue rather than abort the whole case.
+            if resp.status_code in (401, 403, 500, 502, 503):
+                return {
+                    "reply": "",
+                    "_http_error": resp.status_code,
+                    "_http_body": resp.text[:200],
+                }
             resp.raise_for_status()
             return resp.json()
         except Exception as exc:  # noqa: BLE001
@@ -275,7 +288,7 @@ def _db_table_count(table: str, doctor_id: Optional[str]) -> Optional[int]:
         return None
     conn = sqlite3.connect(DB_PATH)
     try:
-        table_name = table.strip()
+        table_name = _TABLE_ALIASES.get(table.strip(), table.strip())
         exists = conn.execute(
             "SELECT 1 FROM sqlite_master WHERE type='table' AND name=? LIMIT 1",
             (table_name,),
@@ -381,6 +394,20 @@ def run_case(
             retries=retries,
             auth_token=auth_token,
         )
+        if "_http_error" in response:
+            # Auth/server error on this turn — log and continue; don't abort the case.
+            http_status = response["_http_error"]
+            print(
+                f"\n{YELLOW}    [turn skip] HTTP {http_status} — {response.get('_http_body', '')[:80]}{RESET}",
+                end="",
+                flush=True,
+            )
+            # Append an empty placeholder so history stays consistent
+            history.append({"role": "user", "content": turn.text})
+            history.append({"role": "assistant", "content": ""})
+            if delay_ms > 0:
+                time.sleep(float(delay_ms) / 1000.0)
+            continue
         reply = str(response.get("reply", "")).strip()
         record = response.get("record")
         if isinstance(record, dict):
@@ -677,9 +704,9 @@ def main() -> None:
     )
     parser.add_argument(
         "--token-secret",
-        default=os.environ.get("MINIPROGRAM_TOKEN_SECRET", "dev-miniprogram-secret"),
-        help="JWT secret for per-case token generation (avoids shared rate-limit bucket). "
-             "Reads MINIPROGRAM_TOKEN_SECRET env var; defaults to 'dev-miniprogram-secret'.",
+        default="",
+        help="JWT secret for per-case token generation. Empty by default (no JWT auth). "
+             "Pass explicitly or set via config/runtime.json to enable miniprogram auth.",
     )
     args = parser.parse_args()
 
@@ -719,6 +746,8 @@ def main() -> None:
         print(f"{GRAY}  auth      : per-case JWT (secret len={len(token_secret)}){RESET}\n")
     elif auth_token:
         print(f"{GRAY}  auth      : static Bearer token{RESET}\n")
+    else:
+        print(f"{GRAY}  auth      : none (no JWT sent; server must allow unauthenticated or body doctor_id){RESET}\n")
 
     def _run_one(case: Case) -> CaseResult:
         doctor_id = f"{args.doctor_prefix}_{run_id}_{case.case_id.lower()}"
