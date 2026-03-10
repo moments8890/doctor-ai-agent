@@ -23,7 +23,8 @@ The plan file must include:
 - `config/runtime.json` is the **sole local configuration file** — never create or suggest `.env` / `.env.local` for the main application
 - `config/runtime.json` is gitignored; `config/runtime.json.sample` is the reference template
 - Scripts under `scripts/` may use `python-dotenv` standalone, but this does not affect the main app
-- **Always prefer the LAN inference server (`http://192.168.0.123:11434`) over local Ollama** — set `OLLAMA_BASE_URL` and `OLLAMA_VISION_BASE_URL` to the LAN address in `config/runtime.json`
+- **Always prefer the LAN inference server (`http://192.168.0.123:11434`) over local Ollama** — set `OLLAMA_BASE_URL` and `OLLAMA_VISION_BASE_URL` to the LAN address in `config/runtime.json`; never use `ollama serve` locally
+- **Benchmark server runs on port 8001** — the separate benchmark/integration system runs on port 8001, not 8000; start with `uvicorn main:app --port 8001 --reload`
 
 ## Codex Execution Rules
 

@@ -1,8 +1,8 @@
 """Shared fixtures for integration tests.
 
 All integration tests require:
-  - A running server at http://127.0.0.1:8000  (uvicorn main:app --reload)
-  - Ollama running at localhost:11434           (ollama serve)
+  - A running server at http://127.0.0.1:8001  (uvicorn main:app --port 8001 --reload)
+  - Ollama running on LAN at 192.168.0.123:11434  (do NOT use local ollama)
 
 Both are checked once per session; the entire integration suite is skipped
 if either dependency is unavailable.
@@ -27,8 +27,8 @@ _RUNTIME_CONFIG = load_runtime_json()
 DB_PATH = Path(
     os.environ.get("PATIENTS_DB_PATH", str(_RUNTIME_CONFIG.get("PATIENTS_DB_PATH") or (ROOT / "patients.db")))
 ).expanduser()
-SERVER = os.environ.get("INTEGRATION_SERVER_URL", "http://127.0.0.1:8000")
-OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", str(_RUNTIME_CONFIG.get("OLLAMA_BASE_URL") or "http://localhost:11434/v1"))
+SERVER = os.environ.get("INTEGRATION_SERVER_URL", "http://127.0.0.1:8001")
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", str(_RUNTIME_CONFIG.get("OLLAMA_BASE_URL") or "http://192.168.0.123:11434/v1"))
 
 
 def _ollama_tags_url(base_url: str) -> str:
@@ -57,7 +57,7 @@ def require_server():
     except Exception:
         pytest.skip(
             "Integration tests skipped — server not running. "
-            "Start with: uvicorn main:app --reload",
+            "Start with: uvicorn main:app --port 8001 --reload",
             allow_module_level=True,
         )
 
@@ -68,8 +68,8 @@ def require_ollama():
         httpx.get(_ollama_tags_url(OLLAMA_BASE_URL), timeout=3).raise_for_status()
     except Exception:
         pytest.skip(
-            "Integration tests skipped — Ollama not running. "
-            "Start with: ollama serve",
+            "Integration tests skipped — Ollama not reachable on LAN. "
+            "Ensure LAN Ollama is running (do not use local ollama serve).",
             allow_module_level=True,
         )
 

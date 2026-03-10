@@ -8,7 +8,7 @@ import pytest
 from pathlib import Path
 import httpx
 
-SERVER = "http://127.0.0.1:8000"
+SERVER = "http://127.0.0.1:8001"
 IMAGES_DIR = Path(__file__).resolve().parents[2] / "train" / "images"
 
 
