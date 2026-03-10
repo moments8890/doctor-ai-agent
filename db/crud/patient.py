@@ -4,9 +4,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
-from sqlalchemy import delete, select, update
+from sqlalchemy import and_, delete, or_, select, update
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from db.models import (
@@ -288,6 +288,57 @@ async def get_patient_labels(
     if patient is None:
         return []
     return list(patient.labels)
+
+
+async def search_patients_nl(
+    session: AsyncSession,
+    doctor_id: str,
+    criteria: "PatientSearchCriteria",  # type: ignore[name-defined]
+    limit: int = 20,
+) -> list[Patient]:
+    """Search patients using structured criteria extracted from a natural language query."""
+    from services.patient.nl_search import PatientSearchCriteria  # local import avoids circular
+
+    q = select(Patient).where(Patient.doctor_id == doctor_id)
+
+    if criteria.surname:
+        q = q.where(Patient.name.like(f"{criteria.surname}%"))
+
+    if criteria.gender:
+        q = q.where(Patient.gender == criteria.gender)
+
+    current_year = datetime.now(timezone.utc).year
+    if criteria.age_min is not None:
+        q = q.where(Patient.year_of_birth <= current_year - criteria.age_min)
+    if criteria.age_max is not None:
+        q = q.where(Patient.year_of_birth >= current_year - criteria.age_max)
+
+    if criteria.keywords or criteria.days_since_visit is not None:
+        since = (
+            datetime.now(timezone.utc) - timedelta(days=criteria.days_since_visit)
+            if criteria.days_since_visit is not None else None
+        )
+        rec_q = select(MedicalRecordDB.patient_id).where(
+            MedicalRecordDB.doctor_id == doctor_id,
+            MedicalRecordDB.patient_id.is_not(None),
+        )
+        if criteria.keywords:
+            kw_filters = [
+                or_(
+                    MedicalRecordDB.content.like(f"%{kw}%"),
+                    MedicalRecordDB.tags.like(f"%{kw}%"),
+                )
+                for kw in criteria.keywords
+            ]
+            rec_q = rec_q.where(and_(*kw_filters))
+        if since is not None:
+            rec_q = rec_q.where(MedicalRecordDB.created_at >= since)
+        rec_q = rec_q.distinct()
+        q = q.where(Patient.id.in_(rec_q))
+
+    q = q.order_by(Patient.created_at.desc()).limit(limit)
+    result = await session.execute(q)
+    return list(result.scalars().all())
 
 
 async def update_patient_demographics(

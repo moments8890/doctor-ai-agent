@@ -36,6 +36,8 @@ from db.crud import (
     delete_patient_for_doctor,
 )
 from db.crud.records import delete_record
+from db.crud.patient import search_patients_nl
+from services.patient.nl_search import extract_criteria
 from db.engine import AsyncSessionLocal
 from db.models import (
     AuditLog,
@@ -216,6 +218,54 @@ async def manage_patients_grouped(
 
     return {"doctor_id": doctor_id, "groups": groups}
 
+
+@router.get("/api/manage/patients/search")
+async def search_patients_endpoint(
+    q: str = Query(..., min_length=1, max_length=200),
+    doctor_id: str = Query(default="web_doctor"),
+    authorization: str | None = Header(default=None),
+):
+    resolved_doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    enforce_doctor_rate_limit(resolved_doctor_id, scope="ui.search_patients")
+    criteria = extract_criteria(q)
+    async with AsyncSessionLocal() as db:
+        patients = await search_patients_nl(db, resolved_doctor_id, criteria)
+        counts_result = await db.execute(
+            select(MedicalRecordDB.patient_id, func.count(MedicalRecordDB.id))
+            .where(
+                MedicalRecordDB.doctor_id == resolved_doctor_id,
+                MedicalRecordDB.patient_id.in_([p.id for p in patients]),
+            )
+            .group_by(MedicalRecordDB.patient_id)
+        )
+        count_map = {pid: count for pid, count in counts_result.all()}
+
+    items = [
+        {
+            "id": p.id,
+            "name": p.name,
+            "gender": p.gender,
+            "year_of_birth": p.year_of_birth,
+            "created_at": _fmt_ts(p.created_at),
+            "record_count": int(count_map.get(p.id, 0)),
+            "primary_category": p.primary_category,
+            "category_tags": _parse_tags(p.category_tags),
+            "labels": [{"id": lbl.id, "name": lbl.name, "color": lbl.color} for lbl in (p.labels or [])],
+        }
+        for p in patients
+    ]
+    return {
+        "items": items,
+        "total": len(items),
+        "criteria": {
+            "surname": criteria.surname,
+            "gender": criteria.gender,
+            "age_min": criteria.age_min,
+            "age_max": criteria.age_max,
+            "keywords": criteria.keywords,
+            "days_since_visit": criteria.days_since_visit,
+        },
+    }
 
 
 @router.get("/api/manage/patients/{patient_id}/timeline")

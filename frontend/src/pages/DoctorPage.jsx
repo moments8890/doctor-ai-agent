@@ -48,7 +48,7 @@ import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
 import { Paper } from "@mui/material";
-import { getPatients, getRecords, getTasks, patchTask, postponeTask, createTask, updateRecord, deleteRecord, sendChat, transcribeAudio, ocrImage, extractFileForChat, getPendingRecord, confirmPendingRecord, abandonPendingRecord, getDoctorProfile, updateDoctorProfile, exportPatientPdf, exportOutpatientReport, getTemplateStatus, uploadTemplate, deleteTemplate, getCvdContext, getLabels, createLabel, deleteLabelById, assignLabelToPatient, removeLabelFromPatient, deletePatient } from "../api";
+import { getPatients, searchPatients, getRecords, getTasks, patchTask, postponeTask, createTask, updateRecord, deleteRecord, sendChat, transcribeAudio, ocrImage, extractFileForChat, getPendingRecord, confirmPendingRecord, abandonPendingRecord, getDoctorProfile, updateDoctorProfile, exportPatientPdf, exportOutpatientReport, getTemplateStatus, uploadTemplate, deleteTemplate, getCvdContext, getLabels, createLabel, deleteLabelById, assignLabelToPatient, removeLabelFromPatient, deletePatient } from "../api";
 import RecordFields from "../components/RecordFields";
 import { useDoctorStore } from "../store/doctorStore";
 import { t } from "../i18n";
@@ -782,6 +782,8 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onAutoS
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [nlResults, setNlResults] = useState(null);   // null = not in NL mode
+  const [nlLoading, setNlLoading] = useState(false);
   const importFileRef = useRef(null);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState("");
@@ -831,9 +833,32 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onAutoS
 
   useEffect(() => { load(); }, [load, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const filtered = search.trim()
-    ? patients.filter((p) => p.name.includes(search.trim()))
-    : patients;
+  // Detect natural-language queries: contains sentence-level words beyond a simple name
+  function isNLQuery(q) {
+    return /[的得了这那哪]{1}|姓|阿姨|叔叔|奶奶|大爷|多岁|中年|老年|男性|女性|上周|本周|最近|昨天/.test(q);
+  }
+
+  function handleSearchChange(val) {
+    setSearch(val);
+    setNlResults(null);  // clear previous NL results on every keystroke
+  }
+
+  function handleSearchSubmit() {
+    const q = search.trim();
+    if (!q || !isNLQuery(q)) return;
+    setNlLoading(true);
+    searchPatients(doctorId, q)
+      .then((d) => setNlResults(d.items || []))
+      .catch(() => setNlResults([]))
+      .finally(() => setNlLoading(false));
+  }
+
+  const filtered = (() => {
+    const q = search.trim();
+    if (!q) return patients;
+    if (nlResults !== null) return nlResults;
+    return patients.filter((p) => p.name.includes(q));
+  })();
 
   // Mobile: show only detail when a patient is selected
   if (isMobile && selectedId) {
@@ -863,11 +888,27 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onAutoS
       <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
         <Box sx={{ px: 1.5, py: 1, borderBottom: "1px solid #e2e8f0", bgcolor: "#f7f7f7" }}>
           <TextField
-            size="small" fullWidth placeholder={`搜索患者${patients.length > 0 ? ` (共${patients.length}人)` : ""}`}
-            value={search} onChange={(e) => setSearch(e.target.value)}
-            InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
+            size="small" fullWidth
+            placeholder={`搜索患者${patients.length > 0 ? ` (共${patients.length}人)` : ""}，或用自然语言描述`}
+            value={search}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit()}
+            InputProps={{
+              startAdornment: <InputAdornment position="start">{nlLoading ? <CircularProgress size={14} /> : <SearchIcon fontSize="small" />}</InputAdornment>,
+              endAdornment: search.trim() && isNLQuery(search) && nlResults === null ? (
+                <InputAdornment position="end">
+                  <Box onClick={handleSearchSubmit} sx={{ fontSize: 11, color: "#07C160", cursor: "pointer", whiteSpace: "nowrap", pr: 0.5 }}>智能搜索</Box>
+                </InputAdornment>
+              ) : null,
+            }}
             sx={{ "& .MuiOutlinedInput-root": { borderRadius: "20px", bgcolor: "#fff" } }}
           />
+          {nlResults !== null && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, pt: 0.5 }}>
+              <Typography sx={{ fontSize: 11, color: "#888" }}>智能搜索结果 ({nlResults.length}人)</Typography>
+              <Box onClick={() => { setNlResults(null); setSearch(""); }} sx={{ fontSize: 11, color: "#07C160", cursor: "pointer" }}>清除</Box>
+            </Box>
+          )}
         </Box>
         {error && <Alert severity="error" action={<Button size="small" onClick={load}>重试</Button>}>{error}</Alert>}
         <Box sx={{ flex: 1, overflowY: "auto", bgcolor: "#fff" }}>
@@ -979,11 +1020,27 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onAutoS
       <Box sx={{ width: 300, flexShrink: 0, borderRight: "1px solid #e2e8f0", display: "flex", flexDirection: "column", bgcolor: "#f7f7f7" }}>
         <Box sx={{ px: 1.5, py: 1, borderBottom: "1px solid #e2e8f0", bgcolor: "#f7f7f7" }}>
           <TextField
-            size="small" fullWidth placeholder={`搜索患者${patients.length > 0 ? ` (共${patients.length}人)` : ""}`}
-            value={search} onChange={(e) => setSearch(e.target.value)}
-            InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
+            size="small" fullWidth
+            placeholder={`搜索患者${patients.length > 0 ? ` (共${patients.length}人)` : ""}，或用自然语言描述`}
+            value={search}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit()}
+            InputProps={{
+              startAdornment: <InputAdornment position="start">{nlLoading ? <CircularProgress size={14} /> : <SearchIcon fontSize="small" />}</InputAdornment>,
+              endAdornment: search.trim() && isNLQuery(search) && nlResults === null ? (
+                <InputAdornment position="end">
+                  <Box onClick={handleSearchSubmit} sx={{ fontSize: 11, color: "#07C160", cursor: "pointer", whiteSpace: "nowrap", pr: 0.5 }}>智能搜索</Box>
+                </InputAdornment>
+              ) : null,
+            }}
             sx={{ "& .MuiOutlinedInput-root": { borderRadius: "20px", bgcolor: "#fff" } }}
           />
+          {nlResults !== null && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, pt: 0.5 }}>
+              <Typography sx={{ fontSize: 11, color: "#888" }}>智能搜索结果 ({nlResults.length}人)</Typography>
+              <Box onClick={() => { setNlResults(null); setSearch(""); }} sx={{ fontSize: 11, color: "#07C160", cursor: "pointer" }}>清除</Box>
+            </Box>
+          )}
         </Box>
 
         {error && <Alert severity="error" action={<Button size="small" onClick={load}>重试</Button>}>{error}</Alert>}

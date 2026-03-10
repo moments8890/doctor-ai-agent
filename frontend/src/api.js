@@ -171,6 +171,11 @@ export async function getPatients(doctorId, filters = {}, limit = 50, offset = 0
   return request(`/api/manage/patients?${qs.toString()}`);
 }
 
+export async function searchPatients(doctorId, q) {
+  const qs = new URLSearchParams({ doctor_id: doctorId, q });
+  return request(`/api/manage/patients/search?${qs.toString()}`);
+}
+
 export async function exportPatientPdf(patientId, doctorId) {
   const qs = new URLSearchParams({ doctor_id: doctorId });
   const headers = {};
