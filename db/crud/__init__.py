@@ -82,6 +82,7 @@ from db.crud.pending import (
     purge_old_pending_messages,
     create_pending_message,
     mark_pending_message,
+    increment_pending_message_attempt,
     list_stale_pending_messages,
 )
 from db.crud.scores import (
@@ -189,6 +190,7 @@ __all__ = [
     "purge_old_pending_messages",
     "create_pending_message",
     "mark_pending_message",
+    "increment_pending_message_attempt",
     "list_stale_pending_messages",
     # scores
     "save_specialty_scores",

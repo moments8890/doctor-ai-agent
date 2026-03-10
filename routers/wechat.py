@@ -9,7 +9,7 @@ import re
 import threading
 import time
 from collections import deque, OrderedDict
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
 from unittest.mock import Mock
@@ -256,7 +256,7 @@ async def _persist_wecom_kf_sync_cursor_shared(cursor: str) -> None:
     if not cursor:
         return
     try:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         async with DB_ENGINE.begin() as conn:
             await conn.execute(
                 sql_text("DELETE FROM runtime_cursors WHERE cursor_key=:cursor_key"),
@@ -896,7 +896,16 @@ async def _handle_wecom_kf_event_bg(
 
     async def _enqueue_voice(media_id: str, user_id: str, open_kfid: str) -> None:
         if await _is_registered_doctor(user_id):
-            asyncio.create_task(_handle_voice_bg(media_id, user_id, open_kfid=open_kfid))
+            import uuid as _uuid
+            _voice_msg_id = _uuid.uuid4().hex
+            try:
+                async with AsyncSessionLocal() as _db:
+                    from db.crud import create_pending_message as _create_pm
+                    await _create_pm(_db, _voice_msg_id, user_id, f"[voice:{media_id}]")
+            except Exception as _e:
+                log(f"[KF] voice pending_message persist FAILED (non-fatal): {_e}")
+                _voice_msg_id = ""
+            asyncio.create_task(_handle_voice_bg(media_id, user_id, open_kfid=open_kfid, msg_id=_voice_msg_id))
         else:
             asyncio.create_task(_handle_patient_bg(_PATIENT_NON_TEXT_REPLY, user_id, open_kfid=open_kfid))
 
@@ -1017,86 +1026,91 @@ async def _handle_intent_bg(text: str, doctor_id: str, open_kfid: str = "", msg_
     _LOCK_TIMEOUT = float(os.environ.get("INTENT_LOCK_TIMEOUT", "1.0"))
     result = "处理超时，请重新发送。"
     try:
-        async with asyncio.timeout(_OVERALL_TIMEOUT):
-            await hydrate_session_state(doctor_id)
-            _lock = get_session_lock(doctor_id)
-            _lock_acquired = False
-            _lock_wait_start = time.perf_counter()
-            try:
-                await asyncio.wait_for(_lock.acquire(), timeout=_LOCK_TIMEOUT)
-                _lock_acquired = True
-                _lock_wait_ms = (time.perf_counter() - _lock_wait_start) * 1000
-                if _lock_wait_ms > 100:
-                    log(f"[WeChat bg] session lock wait {_lock_wait_ms:.0f}ms doctor={doctor_id}")
-            except asyncio.TimeoutError:
-                log(f"[WeChat bg] lock timeout after {_LOCK_TIMEOUT}s doctor={doctor_id}")
-                result = "上一条消息处理中，请稍候重发。"
-            if _lock_acquired:
-                try:
-                    sess = get_session(doctor_id)
-                    # Compress rolling window if full or idle — runs for all intent branches
-                    await maybe_compress(doctor_id, sess)
-                    if sess.pending_record_id:
-                        result = await _handle_pending_record_reply(text, doctor_id, sess)
-                        push_turn(doctor_id, text, result)
-                        await flush_turns(doctor_id)
-                    elif sess.pending_create_name:
-                        result = await _handle_pending_create(text, doctor_id)
-                        push_turn(doctor_id, text, result)
-                        await flush_turns(doctor_id)
-                    elif sess.pending_cvd_scale is not None:
-                        result = await wd.handle_cvd_scale_reply(text, doctor_id)
-                        push_turn(doctor_id, text, result)
-                        await flush_turns(doctor_id)
-                    elif sess.interview is not None:
-                        result = await _handle_interview_step(text, doctor_id)
-                        push_turn(doctor_id, text, result)
-                        await flush_turns(doctor_id)
-                    else:
-                        # First-contact welcome: inject when doctor has no conversation history
-                        _is_first_contact = not sess.conversation_history
-                        _welcome_prefix = ""
-                        if _is_first_contact:
-                            _welcome_prefix = (
-                                "欢迎使用门诊AI助手！\n"
-                                "我可以帮您：建档、记录病历、查询患者、安排随访。\n"
-                                "发「帮助」可查看完整功能列表。\n\n"
-                            )
-
-                        # Build history: always prepend persisted summary so older context
-                        # is not lost when recent turns exist after a reboot or between sessions.
-                        history = list(sess.conversation_history)
-                        ctx_msg = await load_context_message(doctor_id)
-                        if ctx_msg:
-                            history = [ctx_msg] + history
-
-                        try:
-                            _intent_result = await _handle_intent(text, doctor_id, history=history)
-                            result = _welcome_prefix + _intent_result if _welcome_prefix else _intent_result
-                        except Exception as e:
-                            log(f"[WeChat bg] FAILED: {e}")
-                            result = "不好意思，出了点问题，能再说一遍吗？"
-
-                        push_turn(doctor_id, text, result)
-                        await flush_turns(doctor_id)
-                finally:
-                    _lock.release()
-    except asyncio.TimeoutError:
-        log(f"[WeChat bg] TIMEOUT after {_OVERALL_TIMEOUT}s doctor={doctor_id}")
-    except Exception as e:
-        log(f"[WeChat bg] FAILED (outer): {e}")
-        result = "不好意思，出了点问题，能再说一遍吗？"
-    if msg_id:
         try:
-            async with AsyncSessionLocal() as _mdb:
-                from db.crud import mark_pending_message as _mark_pm
-                await _mark_pm(_mdb, msg_id, "done")
-        except Exception as _e:
-            log(f"[WeChat bg] mark pending_message done FAILED: {_e}")
-    try:
-        await _send_customer_service_msg(doctor_id, result, open_kfid=open_kfid)
-    except Exception as e:
-        log(f"[WeChat bg] send FAILED: {e}")
+            async with asyncio.timeout(_OVERALL_TIMEOUT):
+                await hydrate_session_state(doctor_id)
+                _lock = get_session_lock(doctor_id)
+                _lock_acquired = False
+                _lock_wait_start = time.perf_counter()
+                try:
+                    await asyncio.wait_for(_lock.acquire(), timeout=_LOCK_TIMEOUT)
+                    _lock_acquired = True
+                    _lock_wait_ms = (time.perf_counter() - _lock_wait_start) * 1000
+                    if _lock_wait_ms > 100:
+                        log(f"[WeChat bg] session lock wait {_lock_wait_ms:.0f}ms doctor={doctor_id}")
+                except asyncio.TimeoutError:
+                    log(f"[WeChat bg] lock timeout after {_LOCK_TIMEOUT}s doctor={doctor_id}")
+                    result = "上一条消息处理中，请稍候重发。"
+                if _lock_acquired:
+                    try:
+                        sess = get_session(doctor_id)
+                        # Compress rolling window if full or idle — runs for all intent branches
+                        try:
+                            await asyncio.wait_for(maybe_compress(doctor_id, sess), timeout=2.0)
+                        except asyncio.TimeoutError:
+                            log(f"[WeChat bg] maybe_compress timed out for doctor={doctor_id}, skipping")
+                        if sess.pending_record_id:
+                            result = await _handle_pending_record_reply(text, doctor_id, sess)
+                            push_turn(doctor_id, text, result)
+                            await flush_turns(doctor_id)
+                        elif sess.pending_create_name:
+                            result = await _handle_pending_create(text, doctor_id)
+                            push_turn(doctor_id, text, result)
+                            await flush_turns(doctor_id)
+                        elif sess.pending_cvd_scale is not None:
+                            result = await wd.handle_cvd_scale_reply(text, doctor_id)
+                            push_turn(doctor_id, text, result)
+                            await flush_turns(doctor_id)
+                        elif sess.interview is not None:
+                            result = await _handle_interview_step(text, doctor_id)
+                            push_turn(doctor_id, text, result)
+                            await flush_turns(doctor_id)
+                        else:
+                            # First-contact welcome: inject when doctor has no conversation history
+                            _is_first_contact = not sess.conversation_history
+                            _welcome_prefix = ""
+                            if _is_first_contact:
+                                _welcome_prefix = (
+                                    "欢迎使用门诊AI助手！\n"
+                                    "我可以帮您：建档、记录病历、查询患者、安排随访。\n"
+                                    "发「帮助」可查看完整功能列表。\n\n"
+                                )
+
+                            # Build history: always prepend persisted summary so older context
+                            # is not lost when recent turns exist after a reboot or between sessions.
+                            history = list(sess.conversation_history)
+                            ctx_msg = await load_context_message(doctor_id)
+                            if ctx_msg:
+                                history = [ctx_msg] + history
+
+                            try:
+                                _intent_result = await _handle_intent(text, doctor_id, history=history)
+                                result = _welcome_prefix + _intent_result if _welcome_prefix else _intent_result
+                            except Exception as e:
+                                log(f"[WeChat bg] FAILED: {e}")
+                                result = "不好意思，出了点问题，能再说一遍吗？"
+
+                            push_turn(doctor_id, text, result)
+                            await flush_turns(doctor_id)
+                    finally:
+                        _lock.release()
+        except asyncio.TimeoutError:
+            log(f"[WeChat bg] TIMEOUT after {_OVERALL_TIMEOUT}s doctor={doctor_id}")
+        except Exception as e:
+            log(f"[WeChat bg] FAILED (outer): {e}")
+            result = "不好意思，出了点问题，能再说一遍吗？"
+    finally:
+        if msg_id:
+            try:
+                async with AsyncSessionLocal() as _mdb:
+                    from db.crud import mark_pending_message as _mark_pm
+                    await _mark_pm(_mdb, msg_id, "done")
+            except Exception as _e:
+                log(f"[WeChat bg] mark pending_message done FAILED: {_e}")
+        try:
+            await _send_customer_service_msg(doctor_id, result, open_kfid=open_kfid)
+        except Exception as e:
+            log(f"[WeChat bg] send FAILED: {e}")
 
 
 async def _handle_patient_bg(text: str, open_id: str, open_kfid: str = "") -> None:
@@ -1324,16 +1338,29 @@ async def handle_message(request: Request):
     return Response(content=reply.render(), media_type="application/xml")
 
 
+_PENDING_MESSAGE_MAX_ATTEMPTS = 3
+
+
 async def recover_stale_pending_messages(older_than_seconds: int = 60) -> int:
     """Re-queue pending messages left unprocessed after a crash. Call on startup."""
     try:
-        async with AsyncSessionLocal() as session:
-            from db.crud import list_stale_pending_messages
-            stale = await list_stale_pending_messages(session, older_than_seconds=older_than_seconds)
-        for msg in stale:
+        async with AsyncSessionLocal() as _db:
+            from db.crud import list_stale_pending_messages as _list_pm, mark_pending_message as _mark_pm2, increment_pending_message_attempt as _inc_attempt
+            msgs = await _list_pm(_db, older_than_seconds=older_than_seconds)
+        for msg in msgs:
+            attempt_count = getattr(msg, "attempt_count", 0)
+            if attempt_count >= _PENDING_MESSAGE_MAX_ATTEMPTS:
+                async with AsyncSessionLocal() as _db:
+                    from db.crud import mark_pending_message as _mark_pm2, increment_pending_message_attempt as _inc_attempt
+                    await _mark_pm2(_db, msg.id, "dead")
+                log(f"[Recovery] dead-lettering message {msg.id} after {attempt_count} attempts")
+                continue
+            async with AsyncSessionLocal() as _db:
+                from db.crud import increment_pending_message_attempt as _inc_attempt
+                await _inc_attempt(_db, msg.id)
             asyncio.create_task(_handle_intent_bg(msg.raw_content, msg.doctor_id, msg_id=msg.id))
             log(f"[Recovery] re-queued stale pending_message id={msg.id} doctor={msg.doctor_id}")
-        return len(stale)
+        return len(msgs)
     except Exception as e:
         log(f"[Recovery] stale pending_message recovery FAILED: {e}")
         return 0

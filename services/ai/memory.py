@@ -49,7 +49,7 @@ async def _build_compress_prompt() -> str:
     return template.format(today=date.today().isoformat())
 
 
-async def _summarise(history: List[dict], specialty: Optional[str] = None) -> str:
+async def _summarise(history: List[dict], specialty: Optional[str] = None, doctor_id: Optional[str] = None) -> str:
     """Call LLM to compress a conversation into a structured clinical context."""
     from services.ai.llm_client import _PROVIDERS  # shared provider registry
     from services.ai.agent import _get_client  # reuse singleton client
@@ -90,6 +90,7 @@ async def _summarise(history: List[dict], specialty: Optional[str] = None) -> st
         fallback_model=fallback_model,
         max_attempts=int(os.environ.get("MEMORY_LLM_ATTEMPTS", "3")),
         op_name="memory.chat_completion",
+        circuit_key_suffix=doctor_id or "",
     )
     raw = (completion.choices[0].message.content or "").strip()
     _REQUIRED_SUMMARY_FIELDS = {"current_patient", "active_diagnoses", "current_medications",
@@ -103,9 +104,9 @@ async def _summarise(history: List[dict], specialty: Optional[str] = None) -> st
             if "key_lab_values" not in parsed or not parsed.get("key_lab_values"):
                 log("[Memory] WARNING: key_lab_values absent from compression output — lab values may be lost")
             return raw  # valid structured summary (even if fields missing — log only, don't abort)
-    except (json.JSONDecodeError, TypeError):
-        pass
-    return raw  # plain-text fallback
+        raise ValueError(f"[Memory] compression produced non-dict JSON; raw={raw[:200]!r}")
+    except (json.JSONDecodeError, TypeError, ValueError) as _e:
+        raise ValueError(f"[Memory] compression produced invalid JSON: {_e}; raw={raw[:200]!r}") from _e
 
 
 async def maybe_compress(doctor_id: str, sess: "DoctorSession") -> None:
@@ -131,7 +132,7 @@ async def maybe_compress(doctor_id: str, sess: "DoctorSession") -> None:
     reason = "full" if full else ("token_budget" if token_full else "idle")
     log(f"[Memory:{doctor_id}] compressing ({reason}): {len(history)} messages")
     try:
-        summary = await _summarise(history, specialty=sess.specialty)
+        summary = await _summarise(history, specialty=sess.specialty, doctor_id=doctor_id)
         async with AsyncSessionLocal() as db:
             await upsert_doctor_context(db, doctor_id, summary)
             await clear_conversation_turns(db, doctor_id)
@@ -144,8 +145,8 @@ async def maybe_compress(doctor_id: str, sess: "DoctorSession") -> None:
         log(f"[Memory] WARNING: compression failed for {doctor_id}: {e}")
         # DO NOT clear history here — but hard-cap to prevent unbounded growth
         if len(sess.conversation_history) > MAX_TURNS * 3:
-            log(f"[Memory:{doctor_id}] hard-capping history at {MAX_TURNS} turns after repeated compression failures")
-            sess.conversation_history = sess.conversation_history[-MAX_TURNS:]
+            log(f"[Memory:{doctor_id}] hard-capping history at {MAX_TURNS * 2} turns after repeated compression failures")
+            sess.conversation_history = sess.conversation_history[-(MAX_TURNS * 2):]
 
 
 def _render_structured_summary(data: dict) -> str:

@@ -63,12 +63,13 @@ _TOOLS = [
                     "name": {
                         "type": "string",
                         "description": "患者姓名。只填写当前消息中明确出现的姓名，绝不从上下文推断，不确定时省略。",
-                        "maxLength": 5,
-                        "pattern": "^[\\u4e00-\\u9fff]{2,5}$",
+                        "maxLength": 10,
+                        "pattern": "^[\\u4e00-\\u9fff\\u3400-\\u4dbfA-Za-z·•]{1,10}$",
                     },
                     "gender": {
                         "type": "string",
                         "description": "性别，填男或女。只在当前消息中明确提到时填写，否则省略。",
+                        "enum": ["男", "女"],
                     },
                     "age": {
                         "type": "integer",
@@ -100,12 +101,13 @@ _TOOLS = [
                     "patient_name": {
                         "type": "string",
                         "description": "患者姓名。只填写当前消息中明确出现的姓名，否则省略。",
-                        "maxLength": 5,
-                        "pattern": "^[\\u4e00-\\u9fff]{2,5}$",
+                        "maxLength": 10,
+                        "pattern": "^[\\u4e00-\\u9fff\\u3400-\\u4dbfA-Za-z·•]{1,10}$",
                     },
                     "gender": {
                         "type": "string",
                         "description": "性别，填男或女。只在当前消息中明确提到时填写，否则省略。",
+                        "enum": ["男", "女"],
                     },
                     "age": {
                         "type": "integer",
@@ -189,12 +191,13 @@ _TOOLS = [
                     "patient_name": {
                         "type": "string",
                         "description": "患者姓名。只填写当前消息中明确出现的姓名，否则省略。",
-                        "maxLength": 5,
-                        "pattern": "^[\\u4e00-\\u9fff]{2,5}$",
+                        "maxLength": 10,
+                        "pattern": "^[\\u4e00-\\u9fff\\u3400-\\u4dbfA-Za-z·•]{1,10}$",
                     },
                     "gender": {
                         "type": "string",
                         "description": "性别，填男或女。只在明确提到时填写。",
+                        "enum": ["男", "女"],
                     },
                     "age": {
                         "type": "integer",
@@ -299,8 +302,8 @@ _TOOLS = [
                     "patient_name": {
                         "type": "string",
                         "description": "患者姓名。从历史记录内容中提取，未明确提到则省略。",
-                        "maxLength": 5,
-                        "pattern": "^[\\u4e00-\\u9fff]{2,5}$",
+                        "maxLength": 10,
+                        "pattern": "^[\\u4e00-\\u9fff\\u3400-\\u4dbfA-Za-z·•]{1,10}$",
                     },
                     "source": {
                         "type": "string",
@@ -322,8 +325,8 @@ _TOOLS = [
                     "patient_name": {
                         "type": "string",
                         "description": "要查询的患者姓名。只在明确提到时填写，否则省略此字段。",
-                        "maxLength": 5,
-                        "pattern": "^[\\u4e00-\\u9fff]{2,5}$",
+                        "maxLength": 10,
+                        "pattern": "^[\\u4e00-\\u9fff\\u3400-\\u4dbfA-Za-z·•]{1,10}$",
                     },
                 },
                 "required": [],
@@ -422,8 +425,8 @@ _TOOLS = [
                     "patient_name": {
                         "type": "string",
                         "description": "患者姓名。",
-                        "maxLength": 5,
-                        "pattern": "^[\\u4e00-\\u9fff]{2,5}$",
+                        "maxLength": 10,
+                        "pattern": "^[\\u4e00-\\u9fff\\u3400-\\u4dbfA-Za-z·•]{1,10}$",
                     },
                     "appointment_time": {
                         "type": "string",
@@ -455,8 +458,8 @@ _TOOLS = [
                     "patient_name": {
                         "type": "string",
                         "description": "要更正病历的患者姓名。",
-                        "maxLength": 5,
-                        "pattern": "^[\\u4e00-\\u9fff]{2,5}$",
+                        "maxLength": 10,
+                        "pattern": "^[\\u4e00-\\u9fff\\u3400-\\u4dbfA-Za-z·•]{1,10}$",
                     },
                     "chief_complaint": {
                         "type": ["string", "null"],
@@ -510,12 +513,13 @@ _TOOLS = [
                     "patient_name": {
                         "type": "string",
                         "description": "要更新信息的患者姓名。",
-                        "maxLength": 5,
-                        "pattern": "^[\\u4e00-\\u9fff]{2,5}$",
+                        "maxLength": 10,
+                        "pattern": "^[\\u4e00-\\u9fff\\u3400-\\u4dbfA-Za-z·•]{1,10}$",
                     },
                     "gender": {
                         "type": "string",
                         "description": "新的性别值，填男或女。不更改则省略。",
+                        "enum": ["男", "女"],
                     },
                     "age": {
                         "type": "integer",
@@ -541,8 +545,8 @@ _TOOLS = [
                     "patient_name": {
                         "type": "string",
                         "description": "患者姓名。当前消息中明确提到时填写，否则省略（系统将使用上下文中的当前患者）。",
-                        "maxLength": 5,
-                        "pattern": "^[\\u4e00-\\u9fff]{2,5}$",
+                        "maxLength": 10,
+                        "pattern": "^[\\u4e00-\\u9fff\\u3400-\\u4dbfA-Za-z·•]{1,10}$",
                     },
                     "follow_up_plan": {
                         "type": "string",
@@ -567,8 +571,31 @@ _TOOLS = [
                     "patient_name": {
                         "type": "string",
                         "description": "要导出病历的患者姓名。未明确提到时省略。",
-                        "maxLength": 5,
-                        "pattern": "^[\\u4e00-\\u9fff]{2,5}$",
+                        "maxLength": 10,
+                        "pattern": "^[\\u4e00-\\u9fff\\u3400-\\u4dbfA-Za-z·•]{1,10}$",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "export_outpatient_report",
+            "description": "导出门诊报告",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "patient_name": {
+                        "type": "string",
+                        "description": "患者姓名",
+                        "pattern": "^[\\u4e00-\\u9fff\\u3400-\\u4dbfA-Za-z·•]{1,10}$",
+                        "maxLength": 10,
+                    },
+                    "date_range": {
+                        "type": "string",
+                        "description": "日期范围，如「最近3个月」或「2024年1月」",
                     },
                 },
                 "required": [],
@@ -593,6 +620,7 @@ _SYSTEM_PROMPT = (
     "- 预约/安排/约诊 + 时间 → schedule_appointment\n"
     "- 设置随访/复诊提醒（N天/月后随访）→ schedule_follow_up\n"
     "- 导出/打印病历/会诊用 → export_records\n"
+    "- 生成标准门诊报告 → export_outpatient_report\n"
     "- 普通对话/问候 → 直接回复，不调用工具\n\n"
     "特殊规则：若医生回复只含患者姓名（1-3个汉字，无其他内容），且消息前后没有新建患者的关键词，默认调用add_medical_record并将该姓名填入patient_name。\n\n"
     "工具参数只填写当前消息或上下文中明确出现的信息，不确定时省略该字段。\n\n"
@@ -618,6 +646,7 @@ _SYSTEM_PROMPT_COMPACT = (
     "完成/推迟/取消任务+编号->manage_task；预约+时间->schedule_appointment；"
     "N天/月后随访提醒->schedule_follow_up（不同时创建病历）；"
     "导出/打印病历->export_records；"
+    "生成门诊报告->export_outpatient_report；"
     "普通问候直接回复，不调用工具。\n"
     "【CVD歧义】消息含脑血管病内容但无明确评分数值 → add_medical_record，不用add_cvd_record。\n"
     "【复诊歧义】\"复诊提醒\"->schedule_follow_up；\"记录复诊情况\"->add_medical_record。\n"
@@ -648,6 +677,7 @@ _INTENT_MAP = {
     "schedule_appointment": Intent.schedule_appointment,
     "schedule_follow_up": Intent.schedule_follow_up,
     "export_records": Intent.export_records,
+    "export_outpatient_report": Intent.export_outpatient_report,
 }
 
 
@@ -963,7 +993,8 @@ async def dispatch(
 
     system_prompt = await _get_routing_prompt()
     if specialty and specialty.strip():
-        system_prompt = f"你是{specialty.strip()}科医生助手。\n" + system_prompt
+        _dn = specialty.strip().replace('\n', ' ').replace('\r', ' ') if specialty else ""
+        system_prompt = f"你是{_dn}科医生助手。\n" + system_prompt
     if doctor_name and doctor_name.strip():
         _dn = doctor_name.strip()
         system_prompt = f"当前医生姓名：{_dn}。在回复中可以称呼医生为「{_dn}医生」（例如：好的，{_dn}医生）。\n" + system_prompt
@@ -992,15 +1023,7 @@ async def dispatch(
     routing_max_tokens = max(routing_max_tokens, 80)   # floor
     routing_max_tokens = min(routing_max_tokens, 1200)  # ceiling — beyond this, structured responses get truncated
     try:
-        _cvd_specialties = {"神经外科", "脑外科", "神经内科", "脑血管外科", "neurosurgery", "neurology"}
-        _sp = (specialty or "").strip()
-        _include_cvd = bool(_sp) and any(
-            _sp == s or _sp.endswith(s) or s in _sp.split("/") or s in _sp.split("、")
-            for s in _cvd_specialties
-        )
-        _tools_for_call = _selected_tools() if _include_cvd else [
-            t for t in _selected_tools() if t.get("function", {}).get("name") != "add_cvd_record"
-        ]
+        _tools_for_call = _selected_tools()
 
         async def _call(model_name: str):
             with trace_block("llm", "agent.chat_completion", {"provider": provider_name, "model": model_name}):
@@ -1023,6 +1046,7 @@ async def dispatch(
                 fallback_model=fallback_model,
                 max_attempts=int(os.environ.get("AGENT_LLM_ATTEMPTS", "3")),
                 op_name="agent.chat_completion",
+                circuit_key_suffix=doctor_id or "",
             )
         except Exception as _ollama_err:
             # When Ollama fails completely, optionally fall back to a cloud provider.
@@ -1046,16 +1070,21 @@ async def dispatch(
                         temperature=0,
                     )
             _cloud_timeout = float(os.environ.get("AGENT_CLOUD_FALLBACK_TIMEOUT", "3.0"))
-            completion = await asyncio.wait_for(
-                call_with_retry_and_fallback(
-                    _cloud_call,
-                    primary_model=_cloud_provider["model"],
-                    max_attempts=2,
-                    op_name="agent.chat_completion.cloud_fallback",
-                    circuit_key_suffix=doctor_id or "",
-                ),
-                timeout=_cloud_timeout,
-            )
+            try:
+                completion = await asyncio.wait_for(
+                    call_with_retry_and_fallback(
+                        _cloud_call,
+                        primary_model=_cloud_provider["model"],
+                        max_attempts=2,
+                        op_name="agent.chat_completion.cloud_fallback",
+                        circuit_key_suffix=doctor_id or "",
+                    ),
+                    timeout=_cloud_timeout,
+                )
+            except asyncio.TimeoutError:
+                _cloud_timeout = float(os.environ.get("AGENT_CLOUD_FALLBACK_TIMEOUT", "3.0"))
+                log(f"[Agent] cloud fallback timed out after {_cloud_timeout}s")
+                raise
     except Exception as e:
         log(f"[Agent:{provider_name}] tool-call failed, using local fallback: {e}")
         from services.observability.routing_metrics import record as _record_metric

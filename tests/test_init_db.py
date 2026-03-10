@@ -158,9 +158,9 @@ async def test_seed_prompts_inserts_all_when_missing(monkeypatch):
          patch("db.crud.upsert_system_prompt", new=AsyncMock()) as upsert:
         await init_db.seed_prompts()
 
-    # 14 seed-only checks + 1 always-upsert for neuro_cvd
+    # 14 seed-only checks + 2 always-upserts (neuro_cvd + structuring)
     assert get_prompt.await_count == 14
-    assert upsert.await_count == 15  # 14 inserts + 1 always-upsert
+    assert upsert.await_count == 16  # 14 inserts + 2 always-upserts
     upserted_keys = [call.args[1] for call in upsert.await_args_list]
     assert "structuring" in upserted_keys
     assert "structuring.neuro_cvd" in upserted_keys
@@ -175,8 +175,10 @@ async def test_seed_prompts_neuro_cvd_always_upserted(monkeypatch):
         await init_db.seed_prompts()
 
     assert get_prompt.await_count == 14  # all seed-only keys checked
-    assert upsert.await_count == 1       # only neuro_cvd always upserted
-    assert upsert.await_args_list[0].args[1] == "structuring.neuro_cvd"
+    assert upsert.await_count == 2       # neuro_cvd and structuring always upserted
+    always_upserted_keys = {call.args[1] for call in upsert.await_args_list}
+    assert "structuring.neuro_cvd" in always_upserted_keys
+    assert "structuring" in always_upserted_keys
 
 
 async def test_backfill_doctors_registry_inserts_missing_doctors(monkeypatch):

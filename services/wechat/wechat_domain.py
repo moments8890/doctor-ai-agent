@@ -135,17 +135,9 @@ async def handle_add_record(
     if (intent_result.patient_name and _sess_check.current_patient_name
             and intent_result.patient_name == _sess_check.current_patient_name
             and _sess_check.current_patient_id is not None):
-        try:
-            async with AsyncSessionLocal() as _fp_sess:
-                from db.crud import get_patient_for_doctor as _get_pt_for_doctor
-                _cached_pt = await _get_pt_for_doctor(_fp_sess, doctor_id, _sess_check.current_patient_id)
-            if _cached_pt and _cached_pt.name == _sess_check.current_patient_name:
-                patient_id = _sess_check.current_patient_id
-                patient_name = _sess_check.current_patient_name
-            # else: fall through to normal lookup path below
-        except Exception as _fpe:
-            log(f"[WeChat] fast-path DB verify failed for {doctor_id}: {_fpe}")
-            # fall through to normal lookup path
+        patient_id = _sess_check.current_patient_id
+        patient_name = _sess_check.current_patient_name
+        set_current_patient(doctor_id, patient_id, patient_name)
 
     if patient_id is None:  # not resolved by fast path above
         async with AsyncSessionLocal() as session:
@@ -205,8 +197,10 @@ async def handle_add_record(
                 _prior_summary_maybe = None
             _raw_summary: Optional[str] = _prior_summary_maybe if _enc_type == "follow_up" else None
             if _raw_summary:
-                _safe_summary = _raw_summary.strip()[:500]
-                _prior_summary: Optional[str] = f"\n# 既往摘要（仅参考）:\n{_safe_summary}\n"
+                _safe_lines = [line for line in _raw_summary.strip().splitlines()
+                    if not any(line.lstrip().startswith(kw) for kw in ("忽略", "SYSTEM", "system", "System", "#", "---"))]
+                _safe_summary = "\n".join(_safe_lines)[:500]
+                _prior_summary: Optional[str] = f"\n<prior_summary>\n{_safe_summary}\n</prior_summary>\n"
             else:
                 _prior_summary = None
             record = await structure_medical_record(
@@ -313,7 +307,7 @@ async def save_pending_record(doctor_id: str, pending: Any) -> Optional[tuple]:
     asyncio.create_task(audit(doctor_id, "WRITE", resource_type="record", resource_id=str(record_id)))
     _follow_up_hint = next(
         (t for t in record.tags if "随访" in t or "复诊" in t), None
-    ) or ("随访" in record.content or "复诊" in record.content and record.content or None)
+    ) or (("随访" in record.content or "复诊" in record.content) and record.content) or None
     if _follow_up_hint:
         asyncio.create_task(create_follow_up_task(
             doctor_id, record_id, patient_name, str(_follow_up_hint), pending.patient_id
@@ -527,7 +521,8 @@ async def start_interview(doctor_id: str) -> str:
 
 
 async def handle_interview_step(text: str, doctor_id: str) -> str:
-    if text.strip() in ("取消", "退出", "结束", "cancel"):
+    _EXIT_WORDS = {"取消", "退出", "结束", "cancel", "停止", "不要了", "中断", "重来", "stop", "终止", "算了", "放弃"}
+    if text.strip() in _EXIT_WORDS:
         get_session(doctor_id).interview = None
         return "好的，问诊结束了。"
 
@@ -627,7 +622,7 @@ async def handle_pending_create(text: str, doctor_id: str) -> str:
                 set_current_patient(doctor_id, patient.id, patient.name)
             clear_pending_create(doctor_id)
             fake_intent = IntentResult(intent=_Intent.add_record, patient_name=name)
-            return await handle_add_record(doctor_id, fake_intent, text)
+            return await handle_add_record(text, doctor_id, fake_intent)
         return f"还在为{name}建档\n请补充性别和年龄\n（如：男，17岁）\n或发「取消」放弃。"
 
     new_patient_id = None

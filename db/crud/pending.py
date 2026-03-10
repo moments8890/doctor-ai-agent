@@ -61,13 +61,14 @@ async def get_pending_record(
 async def confirm_pending_record(
     session: AsyncSession,
     record_id: str,
-    doctor_id: Optional[str] = None,
+    doctor_id: str,
 ) -> None:
-    where = [PendingRecord.id == record_id, PendingRecord.status == "awaiting"]
-    if doctor_id:
-        where.append(PendingRecord.doctor_id == doctor_id)
     await session.execute(
-        sa_update(PendingRecord).where(*where).values(status="confirmed")
+        sa_update(PendingRecord).where(
+            PendingRecord.id == record_id,
+            PendingRecord.doctor_id == doctor_id,
+            PendingRecord.status == "awaiting",
+        ).values(status="confirmed")
     )
     await session.commit()
 
@@ -75,13 +76,13 @@ async def confirm_pending_record(
 async def abandon_pending_record(
     session: AsyncSession,
     record_id: str,
-    doctor_id: Optional[str] = None,
+    doctor_id: str,
 ) -> None:
-    where = [PendingRecord.id == record_id]
-    if doctor_id:
-        where.append(PendingRecord.doctor_id == doctor_id)
     await session.execute(
-        sa_update(PendingRecord).where(*where).values(status="abandoned")
+        sa_update(PendingRecord).where(
+            PendingRecord.id == record_id,
+            PendingRecord.doctor_id == doctor_id,
+        ).values(status="abandoned")
     )
     await session.commit()
 
@@ -167,6 +168,19 @@ async def mark_pending_message(
         sa_update(PendingMessage)
         .where(PendingMessage.id == msg_id)
         .values(status=status)
+    )
+    await session.commit()
+
+
+async def increment_pending_message_attempt(
+    session: AsyncSession,
+    msg_id: str,
+) -> None:
+    """Increment attempt_count for a PendingMessage row."""
+    await session.execute(
+        sa_update(PendingMessage)
+        .where(PendingMessage.id == msg_id)
+        .values(attempt_count=PendingMessage.attempt_count + 1)
     )
     await session.commit()
 

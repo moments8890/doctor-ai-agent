@@ -26,7 +26,6 @@ class PendingRecord(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
     __table_args__ = (
-        Index("ix_pending_records_doctor_status", "doctor_id", "status"),
         Index("ix_pending_records_expires", "expires_at"),
         Index("ix_pending_records_status_expires", "status", "expires_at"),
         Index("ix_pending_records_doctor_status_expires", "doctor_id", "status", "expires_at"),
@@ -41,6 +40,7 @@ class PendingMessage(Base):
     doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False)
     raw_content: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
 
     __table_args__ = (

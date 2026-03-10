@@ -28,16 +28,17 @@ async def detect_encounter_type(
     4. Prior records exist → follow_up
     5. No patient_id known → unknown
     """
-    # Keyword fast-path
+    # First-visit keywords are highest priority — always trusted regardless of DB state.
     for kw in _FIRST_VISIT_KEYWORDS:
         if kw in text:
             return "first_visit"
-    for kw in _FOLLOW_UP_KEYWORDS:
-        if kw in text:
-            return "follow_up"
+
+    # Detect follow-up keywords but defer the decision until after DB lookup.
+    _has_follow_up_keyword = any(kw in text for kw in _FOLLOW_UP_KEYWORDS)
 
     if patient_id is None:
-        return "unknown"
+        # No DB record to check — return keyword result if present, else unknown.
+        return "follow_up" if _has_follow_up_keyword else "unknown"
 
     result = await session.execute(
         select(MedicalRecordDB.id)
@@ -48,4 +49,10 @@ async def detect_encounter_type(
         .limit(1)
     )
     has_prior = result.scalar_one_or_none() is not None
+
+    if _has_follow_up_keyword:
+        # Follow-up keyword is only meaningful when the patient actually has prior records.
+        # If text says "复查" but this is a brand-new patient, treat it as first_visit.
+        return "follow_up" if has_prior else "first_visit"
+
     return "follow_up" if has_prior else "first_visit"

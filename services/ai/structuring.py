@@ -154,6 +154,7 @@ async def structure_medical_record(
     consultation_mode: bool = False,
     encounter_type: str = "unknown",
     prior_visit_summary: Optional[str] = None,
+    doctor_id: Optional[str] = None,
 ) -> MedicalRecord:
     provider_name = os.environ.get("STRUCTURING_LLM", "deepseek")
     provider = _PROVIDERS.get(provider_name)
@@ -223,6 +224,7 @@ async def structure_medical_record(
             fallback_model=fallback_model,
             max_attempts=int(os.environ.get("STRUCTURING_LLM_ATTEMPTS", "3")),
             op_name="structuring.chat_completion",
+            circuit_key_suffix=doctor_id or "",
         )
     except Exception as _ollama_err:
         _cloud_fallback = os.environ.get("OLLAMA_CLOUD_FALLBACK", "").strip() if provider_name == "ollama" else ""
@@ -247,15 +249,20 @@ async def structure_medical_record(
                     temperature=0,
                 )
         _cloud_timeout = float(os.environ.get("STRUCTURING_CLOUD_FALLBACK_TIMEOUT", "3.0"))
-        completion = await asyncio.wait_for(
-            call_with_retry_and_fallback(
-                _cloud_call,
-                primary_model=_cloud_provider["model"],
-                max_attempts=2,
-                op_name="structuring.chat_completion.cloud_fallback",
-            ),
-            timeout=_cloud_timeout,
-        )
+        try:
+            result = await asyncio.wait_for(
+                call_with_retry_and_fallback(
+                    _cloud_call,
+                    primary_model=_cloud_provider["model"],
+                    max_attempts=2,
+                    op_name="structuring.chat_completion.cloud_fallback",
+                ),
+                timeout=_cloud_timeout,
+            )
+        except asyncio.TimeoutError:
+            log(f"[Structuring] cloud fallback timed out")
+            raise
+        completion = result
     raw = completion.choices[0].message.content or ""
     log(f"[LLM:{provider_name}] response: {raw}")
     with trace_block("llm", "structuring.parse_response"):
