@@ -925,6 +925,7 @@ async def dispatch(
     knowledge_context: Optional[str] = None,
     specialty: Optional[str] = None,
     doctor_id: Optional[str] = None,
+    doctor_name: Optional[str] = None,
 ) -> IntentResult:
     """Call LLM with function-calling tools and return an IntentResult.
 
@@ -963,6 +964,9 @@ async def dispatch(
     system_prompt = await _get_routing_prompt()
     if specialty and specialty.strip():
         system_prompt = f"你是{specialty.strip()}科医生助手。\n" + system_prompt
+    if doctor_name and doctor_name.strip():
+        _dn = doctor_name.strip()
+        system_prompt = f"当前医生姓名：{_dn}。在回复中可以称呼医生为「{_dn}医生」（例如：好的，{_dn}医生）。\n" + system_prompt
     messages = [{"role": "system", "content": system_prompt}]
     if knowledge_context and knowledge_context.strip():
         _kc = knowledge_context.strip()[:3000]

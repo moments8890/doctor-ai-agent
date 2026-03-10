@@ -6,9 +6,6 @@ import {
   Badge,
   Box,
   Button,
-  Card,
-  CardActionArea,
-  CardContent,
   Chip,
   CircularProgress,
   Dialog,
@@ -29,7 +26,6 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import BottomNavigation from "@mui/material/BottomNavigation";
 import BottomNavigationAction from "@mui/material/BottomNavigationAction";
-import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import SearchIcon from "@mui/icons-material/Search";
@@ -51,8 +47,8 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
-import { Paper, Popover } from "@mui/material";
-import { getPatients, getRecords, getTasks, patchTask, postponeTask, createTask, updateRecord, sendChat, transcribeAudio, ocrImage, getPendingRecord, confirmPendingRecord, abandonPendingRecord, getDoctorProfile, updateDoctorProfile, exportPatientPdf, exportOutpatientReport, getTemplateStatus, uploadTemplate, deleteTemplate, getCvdContext, getLabels, createLabel, deleteLabelById, assignLabelToPatient, removeLabelFromPatient } from "../api";
+import { Paper } from "@mui/material";
+import { getPatients, getRecords, getTasks, patchTask, postponeTask, createTask, updateRecord, sendChat, transcribeAudio, ocrImage, extractFileForChat, getPendingRecord, confirmPendingRecord, abandonPendingRecord, getDoctorProfile, updateDoctorProfile, exportPatientPdf, exportOutpatientReport, getTemplateStatus, uploadTemplate, deleteTemplate, getCvdContext, getLabels, createLabel, deleteLabelById, assignLabelToPatient, removeLabelFromPatient, deletePatient } from "../api";
 import RecordFields from "../components/RecordFields";
 import { useDoctorStore } from "../store/doctorStore";
 import { t } from "../i18n";
@@ -230,61 +226,56 @@ function RecordCard({ record, doctorId, onUpdated }) {
   }
 
   const date = current.created_at ? current.created_at.slice(0, 10) : "—";
+  const typeColor = { visit: "#07C160", dictation: "#5b9bd5", import: "#e8833a", lab: "#9b59b6", imaging: "#1890ff", surgery: "#e74c3c", referral: "#16a085", interview_summary: "#8e44ad" };
+  const dotColor = typeColor[current.record_type] || "#bbb";
 
   return (
-    <Card variant="outlined" sx={{ borderRadius: 1.5, mb: 1.2 }}>
-      <CardActionArea onClick={() => setExpanded((v) => !v)} sx={{ px: 2, py: 1.2 }}>
-        <Stack direction="row" alignItems="flex-start" spacing={1.5}>
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-              <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>{date}</Typography>
+    <Box sx={{ borderBottom: "1px solid #f2f2f2" }}>
+      {/* Row header — tap to expand */}
+      <Box onClick={() => setExpanded((v) => !v)} sx={{ display: "flex", alignItems: "flex-start", px: 2, py: 1.3, cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
+        {/* colored dot */}
+        <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: dotColor, flexShrink: 0, mt: 0.7, mr: 1.4 }} />
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, mb: 0.3 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, flexWrap: "wrap" }}>
               {current.record_type && (
-                <Chip
-                  label={RECORD_TYPE_LABEL[current.record_type] || current.record_type}
-                  size="small"
-                  color={RECORD_TYPE_COLOR[current.record_type] || "default"}
-                  sx={{ fontSize: 11, height: 18 }}
-                />
+                <Typography sx={{ fontSize: 12, color: dotColor, fontWeight: 600 }}>
+                  {RECORD_TYPE_LABEL[current.record_type] || current.record_type}
+                </Typography>
               )}
               {(Array.isArray(current.tags) ? current.tags : []).map((tag, i) => (
-                <Chip key={i} label={tag} size="small" sx={{ fontSize: 11, maxWidth: 160 }} />
+                <Typography key={i} sx={{ fontSize: 11, color: "#999", bgcolor: "#f5f5f5", px: 0.6, borderRadius: 0.5 }}>{tag}</Typography>
               ))}
-            </Stack>
-            <Typography variant="body2" sx={{
-              mt: 0.4, color: "text.primary", fontWeight: 500,
-              overflow: "hidden",
-              display: "-webkit-box",
-              WebkitLineClamp: expanded ? "unset" : 2,
-              WebkitBoxOrient: "vertical",
-              whiteSpace: "pre-wrap",
-            }}>
-              {current.content || <span style={{ color: "#94a3b8" }}>（无记录内容）</span>}
-            </Typography>
+            </Box>
+            <Typography sx={{ fontSize: 11, color: "#bbb", flexShrink: 0, fontFamily: "monospace" }}>{date}</Typography>
           </Box>
-          <Stack direction="row" spacing={0.5} alignItems="center" onClick={(e) => e.stopPropagation()}>
-            <Tooltip title="编辑">
-              <IconButton size="small" onClick={() => setEditing(true)}>
-                <EditOutlinedIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            {expanded ? <ExpandLessIcon fontSize="small" sx={{ color: "text.secondary" }} /> : <ExpandMoreIcon fontSize="small" sx={{ color: "text.secondary" }} />}
-          </Stack>
-        </Stack>
-      </CardActionArea>
+          <Typography sx={{
+            fontSize: 13, color: current.content ? "text.primary" : "#bbb",
+            overflow: "hidden", display: "-webkit-box",
+            WebkitLineClamp: expanded ? "unset" : 2,
+            WebkitBoxOrient: "vertical", whiteSpace: "pre-wrap",
+          }}>
+            {current.content || "（无记录内容）"}
+          </Typography>
+        </Box>
+        <Box sx={{ ml: 1, flexShrink: 0, display: "flex", alignItems: "center", mt: 0.2 }}>
+          {expanded ? <ExpandLessIcon sx={{ fontSize: 18, color: "#bbb" }} /> : <ExpandMoreIcon sx={{ fontSize: 18, color: "#bbb" }} />}
+        </Box>
+      </Box>
 
       {expanded && (
-        <Box sx={{ px: 2, pb: 2, pt: 0.5 }}>
-          <Divider sx={{ mb: 1.5 }} />
-          <Stack spacing={1.2}>
-            {RECORD_FIELDS.map(({ key, label }) => current[key] ? (
-              <Box key={key}>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: "block" }}>{label}</Typography>
-                <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
-                  {key === "record_type" ? (RECORD_TYPE_LABEL[current[key]] || current[key]) : current[key]}
-                </Typography>
-              </Box>
-            ) : null)}
-          </Stack>
+        <Box sx={{ px: 2, pb: 1.5, pt: 0 }}>
+          <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 0.5 }}>
+            <Box onClick={(e) => { e.stopPropagation(); setEditing(true); }}
+              sx={{ fontSize: 12, color: "#07C160", cursor: "pointer", display: "flex", alignItems: "center", gap: 0.4 }}>
+              <EditOutlinedIcon sx={{ fontSize: 13 }} />编辑
+            </Box>
+          </Box>
+          <Box sx={{ bgcolor: "#f9f9f9", borderRadius: 1.5, p: 1.5 }}>
+            <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", fontSize: 13, color: "#333" }}>
+              {current.content || "（无记录内容）"}
+            </Typography>
+          </Box>
         </Box>
       )}
 
@@ -295,7 +286,7 @@ function RecordCard({ record, doctorId, onUpdated }) {
         onClose={() => setEditing(false)}
         onSaved={handleSaved}
       />
-    </Card>
+    </Box>
   );
 }
 
@@ -379,29 +370,23 @@ function NeuroCVDContextCard({ patientId, doctorId }) {
   if (rows.length === 0) return null;
 
   return (
-    <Card variant="outlined" sx={{ borderRadius: 2, mb: 2, borderColor: "#b2dfdb" }}>
-      <CardContent sx={{ py: 1.5, px: 2, "&:last-child": { pb: 1.5 } }}>
-        <Typography variant="caption" sx={{ fontWeight: 700, color: "teal", letterSpacing: 0.5, textTransform: "uppercase" }}>
-          脑血管专科病情
-        </Typography>
-        <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "4px 12px", mt: 0.8 }}>
-          {rows.map(([label, value]) => (
-            <Box key={label}>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: 10 }}>{label}</Typography>
-              <Typography variant="body2" sx={{
-                fontWeight: 600, fontSize: 13,
-                color: label === "mRS" ? MRS_COLOR(value) : "text.primary",
-              }}>
-                {value}
-              </Typography>
-            </Box>
-          ))}
-        </Box>
-        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
-          更新于 {ctx.created_at}
-        </Typography>
-      </CardContent>
-    </Card>
+    <Box sx={{ bgcolor: "#fff", mb: 0.8, px: 2, pt: 1.5, pb: 1.8 }}>
+      <Box sx={{ display: "flex", alignItems: "center", mb: 1, gap: 0.8 }}>
+        <Box sx={{ width: 3, height: 14, borderRadius: 1, bgcolor: "#009688", flexShrink: 0 }} />
+        <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#009688" }}>脑血管专科病情</Typography>
+        <Typography sx={{ fontSize: 11, color: "#bbb", ml: "auto" }}>更新于 {ctx.created_at}</Typography>
+      </Box>
+      <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: "8px 16px" }}>
+        {rows.map(([label, value]) => (
+          <Box key={label}>
+            <Typography sx={{ fontSize: 10, color: "#999", display: "block", mb: 0.2 }}>{label}</Typography>
+            <Typography sx={{ fontWeight: 600, fontSize: 13, color: label === "mRS" ? MRS_COLOR(value) : "#222" }}>
+              {value}
+            </Typography>
+          </Box>
+        ))}
+      </Box>
+    </Box>
   );
 }
 
@@ -419,7 +404,8 @@ const RECORD_TYPE_FILTER_OPTS = [
   { value: "interview_summary", label: "问诊总结" },
 ];
 
-function PatientDetail({ patient, doctorId }) {
+function PatientDetail({ patient, doctorId, onDeleted }) {
+  const navigate = useNavigate();
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -427,6 +413,25 @@ function PatientDetail({ patient, doctorId }) {
   const [exportingReport, setExportingReport] = useState(false);
   const [exportError, setExportError] = useState("");
   const [recordTypeFilter, setRecordTypeFilter] = useState("");
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      await deletePatient(patient.id, doctorId);
+      setDeleteConfirmOpen(false);
+      if (onDeleted) { onDeleted(patient.id); return; }
+      navigate("/doctor/patients");
+    } catch (e) {
+      setError(e.message || "删除失败");
+      setDeleteConfirmOpen(false);
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   // Label management
   const [allLabels, setAllLabels] = useState([]);
@@ -537,162 +542,177 @@ function PatientDetail({ patient, doctorId }) {
   }
 
   return (
-    <Box sx={{ p: 2.5, overflowY: "auto", height: "100%" }}>
-      {/* Patient header */}
-      <Card variant="outlined" sx={{ borderRadius: 2, mb: 2.5, p: 2 }}>
-        <Stack direction="row" alignItems="flex-start" justifyContent="space-between" flexWrap="wrap" spacing={1}>
-          <Box>
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>{patient.name}</Typography>
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }} flexWrap="wrap">
-              {patient.gender && <Typography variant="caption" color="text.secondary">{{ male: "男", female: "女" }[patient.gender] || patient.gender}</Typography>}
-              {age && <Typography variant="caption" color="text.secondary">{age} 岁</Typography>}
-            </Stack>
-            <Stack direction="row" spacing={0.5} sx={{ mt: 0.8 }} flexWrap="wrap" alignItems="center">
-              {patientLabels.map((l) => (
-                <Chip
-                  key={l.id}
-                  label={l.name}
-                  size="small"
-                  sx={{ backgroundColor: l.color || "#e2e8f0", fontSize: 11 }}
-                  onDelete={() => handleRemoveLabel(l.id)}
-                />
-              ))}
-              <Box sx={{ position: "relative" }}>
-                <Button
-                  ref={labelAnchorRef}
-                  size="small"
-                  variant="outlined"
-                  sx={{ fontSize: 11, py: 0.2, px: 1, minWidth: 0, borderRadius: 2 }}
-                  onClick={handleOpenLabelPicker}
-                >
-                  + 添加标签
-                </Button>
-                {labelPickerOpen && (
-                  <Paper elevation={4} sx={{ position: "absolute", top: "110%", left: 0, zIndex: 1300, p: 2, minWidth: 240, borderRadius: 2 }}>
-                    <Typography variant="caption" sx={{ fontWeight: 700, display: "block", mb: 1 }}>选择标签</Typography>
-                    {labelError && <Alert severity="error" sx={{ mb: 1, py: 0 }}>{labelError}</Alert>}
-                    <Stack spacing={0.5} sx={{ mb: 1.5, maxHeight: "55vh", overflowY: "auto" }}>
-                      {allLabels.length === 0 && <Typography variant="caption" color="text.secondary">暂无标签</Typography>}
-                      {allLabels.map((l) => (
-                        <Box
-                          key={l.id}
-                          onClick={() => handleAssignLabel(l)}
-                          sx={{
-                            display: "flex", alignItems: "center", gap: 1, px: 1, py: 1,
-                            borderRadius: 1, cursor: "pointer", minHeight: 40,
-                            bgcolor: patientLabels.some((pl) => pl.id === l.id) ? "#f0fdf4" : "transparent",
-                            "&:hover": { bgcolor: "#f1f5f9" },
-                          }}
-                        >
-                          <Box sx={{ width: 12, height: 12, borderRadius: "50%", bgcolor: l.color || "#94a3b8", flexShrink: 0 }} />
-                          <Typography variant="caption">{l.name}</Typography>
-                          {patientLabels.some((pl) => pl.id === l.id) && <Typography variant="caption" color="success.main" sx={{ ml: "auto" }}>✓</Typography>}
-                        </Box>
-                      ))}
-                    </Stack>
-                    <Divider sx={{ mb: 1 }} />
-                    <Typography variant="caption" sx={{ fontWeight: 700, display: "block", mb: 0.5 }}>新建标签</Typography>
-                    <TextField
-                      size="small" fullWidth placeholder="标签名称"
-                      value={newLabelName}
-                      onChange={(e) => setNewLabelName(e.target.value)}
-                      sx={{ mb: 0.8 }}
-                    />
-                    <Stack direction="row" spacing={0.5} sx={{ mb: 1 }}>
-                      {LABEL_PRESET_COLORS.map((c) => (
-                        <Box
-                          key={c}
-                          onClick={() => setNewLabelColor(c)}
-                          sx={{
-                            width: 20, height: 20, borderRadius: "50%", bgcolor: c, cursor: "pointer",
-                            border: newLabelColor === c ? "2px solid #1e293b" : "2px solid transparent",
-                          }}
-                        />
-                      ))}
-                    </Stack>
-                    <Stack direction="row" spacing={1}>
-                      <Button size="small" variant="contained" disabled={!newLabelName.trim() || creatingLabel} onClick={handleCreateAndAssignLabel} sx={{ flex: 1 }}>
-                        {creatingLabel ? <CircularProgress size={14} /> : "创建并添加"}
-                      </Button>
-                      <Button size="small" color="inherit" onClick={() => setLabelPickerOpen(false)}>关闭</Button>
-                    </Stack>
-                  </Paper>
-                )}
-              </Box>
-            </Stack>
-          </Box>
-          <Stack alignItems="flex-end" spacing={0.5}>
-            <Typography variant="caption" color="text.secondary">{patient.record_count} 份病历</Typography>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ width: { xs: "100%", sm: "auto" } }}>
-              <Tooltip title="导出全部病历 PDF">
-                <span>
-                  <Button size="small" variant="outlined" fullWidth
-                    startIcon={exportingPdf ? <CircularProgress size={12} /> : <FileDownloadOutlinedIcon />}
-                    disabled={exportingPdf || exportingReport} onClick={handleExportPdf}>
-                    病历PDF
-                  </Button>
-                </span>
-              </Tooltip>
-              <Tooltip title="AI 提取结构化字段，生成标准门诊病历报告">
-                <span>
-                  <Button size="small" variant="outlined" color="secondary" fullWidth
-                    startIcon={exportingReport ? <CircularProgress size={12} /> : <FileDownloadOutlinedIcon />}
-                    disabled={exportingPdf || exportingReport} onClick={handleExportReport}>
-                    门诊报告
-                  </Button>
-                </span>
-              </Tooltip>
-            </Stack>
-            {exportError && <Typography variant="caption" color="error.main">{exportError}</Typography>}
-          </Stack>
-        </Stack>
-      </Card>
+    <Box sx={{ overflowY: "auto", height: "100%", bgcolor: "#f7f7f7" }}>
 
-      {/* CVD specialty context */}
+      {/* ── Patient profile block ─────────────────────────────────────── */}
+      <Box sx={{ bgcolor: "#fff", px: 2.5, pt: 2.5, pb: 2, mb: 0.8 }}>
+        <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 1.5 }}>
+          <PatientAvatar name={patient.name} size={60} />
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography sx={{ fontWeight: 700, fontSize: 18 }}>{patient.name}</Typography>
+            <Typography variant="caption" color="text.secondary">
+              {[
+                patient.gender ? { male: "男", female: "女" }[patient.gender] || patient.gender : null,
+                age ? `${age} 岁` : null,
+                `${patient.record_count} 份病历`,
+              ].filter(Boolean).join(" · ")}
+            </Typography>
+          </Box>
+        </Stack>
+
+        {/* Labels row */}
+        <Stack direction="row" spacing={0.5} flexWrap="wrap" alignItems="center" sx={{ mb: 1 }}>
+          {patientLabels.map((l) => (
+            <Chip key={l.id} label={l.name} size="small"
+              sx={{ backgroundColor: l.color || "#e2e8f0", fontSize: 11, height: 22 }}
+              onDelete={() => handleRemoveLabel(l.id)} />
+          ))}
+          <Box sx={{ position: "relative" }}>
+            <Box ref={labelAnchorRef} onClick={handleOpenLabelPicker}
+              sx={{ fontSize: 12, color: "#07C160", cursor: "pointer", px: 0.8, py: 0.3, borderRadius: 1, border: "1px dashed #b7ebd0" }}>
+              + 标签
+            </Box>
+            {labelPickerOpen && (
+              <Paper elevation={4} sx={{ position: "absolute", top: "110%", left: 0, zIndex: 1300, p: 2, minWidth: 240, borderRadius: 2 }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, display: "block", mb: 1 }}>选择标签</Typography>
+                {labelError && <Alert severity="error" sx={{ mb: 1, py: 0 }}>{labelError}</Alert>}
+                <Stack spacing={0.5} sx={{ mb: 1.5, maxHeight: "50vh", overflowY: "auto" }}>
+                  {allLabels.length === 0 && <Typography variant="caption" color="text.secondary">暂无标签</Typography>}
+                  {allLabels.map((l) => (
+                    <Box key={l.id} onClick={() => handleAssignLabel(l)}
+                      sx={{ display: "flex", alignItems: "center", gap: 1, px: 1, py: 1, borderRadius: 1, cursor: "pointer", minHeight: 40,
+                        bgcolor: patientLabels.some((pl) => pl.id === l.id) ? "#f0fdf4" : "transparent",
+                        "&:hover": { bgcolor: "#f1f5f9" } }}>
+                      <Box sx={{ width: 12, height: 12, borderRadius: "50%", bgcolor: l.color || "#94a3b8", flexShrink: 0 }} />
+                      <Typography variant="caption">{l.name}</Typography>
+                      {patientLabels.some((pl) => pl.id === l.id) && <Typography variant="caption" color="success.main" sx={{ ml: "auto" }}>✓</Typography>}
+                    </Box>
+                  ))}
+                </Stack>
+                <Divider sx={{ mb: 1 }} />
+                <Typography variant="caption" sx={{ fontWeight: 700, display: "block", mb: 0.5 }}>新建标签</Typography>
+                <TextField size="small" fullWidth placeholder="标签名称" value={newLabelName}
+                  onChange={(e) => setNewLabelName(e.target.value)} sx={{ mb: 0.8 }} />
+                <Stack direction="row" spacing={0.5} sx={{ mb: 1 }}>
+                  {LABEL_PRESET_COLORS.map((c) => (
+                    <Box key={c} onClick={() => setNewLabelColor(c)}
+                      sx={{ width: 20, height: 20, borderRadius: "50%", bgcolor: c, cursor: "pointer",
+                        border: newLabelColor === c ? "2px solid #1e293b" : "2px solid transparent" }} />
+                  ))}
+                </Stack>
+                <Stack direction="row" spacing={1}>
+                  <Button size="small" variant="contained" disabled={!newLabelName.trim() || creatingLabel} onClick={handleCreateAndAssignLabel} sx={{ flex: 1 }}>
+                    {creatingLabel ? <CircularProgress size={14} /> : "创建并添加"}
+                  </Button>
+                  <Button size="small" color="inherit" onClick={() => setLabelPickerOpen(false)}>关闭</Button>
+                </Stack>
+              </Paper>
+            )}
+          </Box>
+        </Stack>
+
+        {/* Export text links + delete */}
+        <Stack direction="row" spacing={2} sx={{ pt: 0.5, borderTop: "1px solid #f2f2f2" }} alignItems="center">
+          <Box onClick={!exportingPdf && !exportingReport ? handleExportPdf : undefined}
+            sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: exportingPdf ? "default" : "pointer", color: exportingPdf ? "#ccc" : "#07C160", fontSize: 13 }}>
+            {exportingPdf ? <CircularProgress size={12} sx={{ color: "#ccc" }} /> : <FileDownloadOutlinedIcon sx={{ fontSize: 16 }} />}
+            病历PDF
+          </Box>
+          <Box onClick={!exportingPdf && !exportingReport ? handleExportReport : undefined}
+            sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: exportingReport ? "default" : "pointer", color: exportingReport ? "#ccc" : "#5b9bd5", fontSize: 13 }}>
+            {exportingReport ? <CircularProgress size={12} sx={{ color: "#ccc" }} /> : <FileDownloadOutlinedIcon sx={{ fontSize: 16 }} />}
+            门诊报告
+          </Box>
+          <Box sx={{ flex: 1 }} />
+          <Box onClick={() => setDeleteConfirmOpen(true)}
+            sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: "pointer", color: "#e74c3c", fontSize: 13, "&:active": { opacity: 0.6 } }}>
+            <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+            删除患者
+          </Box>
+        </Stack>
+        {exportError && <Typography variant="caption" color="error.main" sx={{ display: "block", mt: 0.5 }}>{exportError}</Typography>}
+      </Box>
+
+      {/* Delete confirm dialog */}
+      <Dialog
+        open={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        PaperProps={{ sx: isMobile ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "16px 16px 0 0", width: "100%" } : { borderRadius: 2, minWidth: 300 } }}
+        sx={isMobile ? { "& .MuiDialog-container": { alignItems: "flex-end" } } : {}}
+      >
+        <Box sx={{ p: 2.5 }}>
+          <Typography sx={{ fontWeight: 600, fontSize: 16, textAlign: "center", mb: 0.8 }}>删除患者</Typography>
+          <Typography sx={{ fontSize: 13, color: "#999", textAlign: "center", mb: 2.5, lineHeight: 1.7 }}>
+            确定删除「{patient.name}」？{"\n"}所有病历和任务将一并删除，无法恢复。
+          </Typography>
+          <Box sx={{ display: "flex", gap: 1.5 }}>
+            <Box onClick={() => setDeleteConfirmOpen(false)}
+              sx={{ flex: 1, textAlign: "center", py: 1.3, borderRadius: 1.5, bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 15, color: "#666", "&:active": { opacity: 0.7 } }}>
+              取消
+            </Box>
+            <Box onClick={!deleting ? handleDelete : undefined}
+              sx={{ flex: 1, textAlign: "center", py: 1.3, borderRadius: 1.5, bgcolor: "#e74c3c", cursor: deleting ? "default" : "pointer", fontSize: 15, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
+              {deleting ? "删除中…" : "确认删除"}
+            </Box>
+          </Box>
+        </Box>
+      </Dialog>
+
+      {/* ── CVD specialty context ─────────────────────────────────────── */}
       <NeuroCVDContextCard patientId={patient.id} doctorId={doctorId} />
 
-      {/* Records */}
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>病历记录</Typography>
-        {loading && <CircularProgress size={16} />}
-      </Stack>
+      {/* ── Records section ───────────────────────────────────────────── */}
+      <Box sx={{ bgcolor: "#fff", mb: 0.8 }}>
+        {/* Section header */}
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 2, pt: 1.5, pb: 1 }}>
+          <Typography sx={{ fontWeight: 600, fontSize: 14, color: "#333" }}>病历记录</Typography>
+          {loading && <CircularProgress size={14} sx={{ color: "#07C160" }} />}
+        </Box>
 
-      {/* Record type filter */}
-      <Stack direction="row" spacing={0.8} flexWrap="wrap" sx={{ mb: 1.5, "& .MuiChip-root": { minHeight: 30 } }}>
-        {RECORD_TYPE_FILTER_OPTS.map((opt) => (
-          <Chip
-            key={opt.value}
-            label={opt.label}
-            size="small"
-            clickable
-            variant={recordTypeFilter === opt.value ? "filled" : "outlined"}
-            color={recordTypeFilter === opt.value ? "primary" : "default"}
-            onClick={() => setRecordTypeFilter(opt.value)}
-            sx={{ fontSize: 12 }}
-          />
-        ))}
-      </Stack>
+        {/* Record type filter pills */}
+        <Box sx={{ display: "flex", gap: 0.6, px: 2, pb: 1.2, overflowX: "auto", WebkitOverflowScrolling: "touch", "&::-webkit-scrollbar": { display: "none" } }}>
+          {RECORD_TYPE_FILTER_OPTS.map((opt) => (
+            <Box key={opt.value} onClick={() => setRecordTypeFilter(opt.value)}
+              sx={{ px: 1.4, py: 0.35, borderRadius: "12px", cursor: "pointer", flexShrink: 0, fontSize: 12,
+                bgcolor: recordTypeFilter === opt.value ? "#07C160" : "#f2f2f2",
+                color: recordTypeFilter === opt.value ? "#fff" : "#666",
+                fontWeight: recordTypeFilter === opt.value ? 600 : 400,
+              }}>
+              {opt.label}
+            </Box>
+          ))}
+        </Box>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 1.5 }} action={<Button size="small" onClick={load}>重试</Button>}>{error}</Alert>
-      )}
+        {error && (
+          <Box sx={{ px: 2, pb: 1 }}>
+            <Alert severity="error" action={<Button size="small" onClick={load}>重试</Button>}>{error}</Alert>
+          </Box>
+        )}
 
-      {!loading && !error && records.length === 0 && (
-        <Typography variant="body2" color="text.secondary">暂无病历。</Typography>
-      )}
+        {!loading && !error && records.length === 0 && (
+          <Box sx={{ px: 2, pb: 2, color: "text.secondary" }}>
+            <Typography variant="body2" color="text.secondary">暂无病历。</Typography>
+          </Box>
+        )}
 
-      {(() => {
-        const filteredRecords = recordTypeFilter
-          ? records.filter((r) => r.record_type === recordTypeFilter)
-          : records;
-        return filteredRecords.length === 0 && records.length > 0 ? (
-          <Typography variant="body2" color="text.secondary">该类型暂无病历。</Typography>
-        ) : (
-          filteredRecords.map((r) => (
-            <RecordCard key={r.id} record={r} doctorId={doctorId} onUpdated={handleRecordUpdated} />
-          ))
-        );
-      })()}
+        {/* Record rows */}
+        {(() => {
+          const filteredRecords = recordTypeFilter
+            ? records.filter((r) => r.record_type === recordTypeFilter)
+            : records;
+          return filteredRecords.length === 0 && records.length > 0 ? (
+            <Box sx={{ px: 2, pb: 2 }}>
+              <Typography variant="body2" color="text.secondary">该类型暂无病历。</Typography>
+            </Box>
+          ) : (
+            filteredRecords.map((r) => (
+              <RecordCard key={r.id} record={r} doctorId={doctorId} onUpdated={handleRecordUpdated} />
+            ))
+          );
+        })()}
+      </Box>
+
+      <Box sx={{ height: 24 }} />
     </Box>
   );
 }
@@ -718,7 +738,7 @@ function groupPatients(list) {
   return Object.entries(groups).sort(([a],[b]) => a.localeCompare(b, "zh-CN"));
 }
 
-function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatientSelected, refreshKey = 0 }) {
+function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onAutoSendToChat, onPatientSelected, refreshKey = 0 }) {
   const { patientId } = useParams();
   const navigate = useNavigate();
   const theme = useTheme();
@@ -727,9 +747,59 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  // Delete flow: action sheet target + confirm dialog
+  const [deleteTarget, setDeleteTarget] = useState(null); // { id, name }
+  const [confirmDelete, setConfirmDelete] = useState(null); // { id, name }
+  const [deleting, setDeleting] = useState(false);
+  const longPressTimer = useRef(null);
+  const importFileRef = useRef(null);
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState("");
+
+  async function handleImportFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setImporting(true);
+    setImportError("");
+    try {
+      const { text } = await extractFileForChat(file);
+      if (text?.trim()) {
+        onAutoSendToChat?.(text.trim());
+      } else {
+        setImportError("未能从文件中提取到文字，请尝试其他文件");
+      }
+    } catch {
+      setImportError("文件解析失败，请重试");
+    } finally {
+      setImporting(false);
+    }
+  }
 
   const selectedId = patientId ? Number(patientId) : null;
   const selectedPatient = patients.find((p) => p.id === selectedId) || null;
+
+  function startLongPress(p) {
+    longPressTimer.current = setTimeout(() => setDeleteTarget({ id: p.id, name: p.name }), 500);
+  }
+  function cancelLongPress() {
+    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+  }
+
+  async function handleDeleteConfirm() {
+    if (!confirmDelete) return;
+    setDeleting(true);
+    try {
+      await deletePatient(confirmDelete.id, doctorId);
+      setPatients((prev) => prev.filter((p) => p.id !== confirmDelete.id));
+      if (selectedId === confirmDelete.id) navigate("/doctor/patients");
+    } catch (e) {
+      setError(e.message || "删除失败");
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(null);
+    }
+  }
 
   useEffect(() => {
     onPatientSelected?.(selectedPatient?.name || "");
@@ -753,11 +823,16 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
   // Mobile: show only detail when a patient is selected
   if (isMobile && selectedId) {
     return (
-      <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-        <Box sx={{ px: 1.5, py: 1, borderBottom: "1px solid #e2e8f0", backgroundColor: "#fff" }}>
-          <Button startIcon={<ArrowBackIcon />} onClick={() => navigate("/doctor/patients")} size="small">
-            返回列表
-          </Button>
+      <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
+        {/* WeChat-style topbar */}
+        <Box sx={{ display: "flex", alignItems: "center", height: 48, px: 1, bgcolor: "#fff", borderBottom: "1px solid #e5e5e5", flexShrink: 0 }}>
+          <Box onClick={() => navigate("/doctor/patients")} sx={{ display: "flex", alignItems: "center", gap: 0.3, cursor: "pointer", color: "#07C160", pr: 2, py: 1 }}>
+            <ArrowBackIcon sx={{ fontSize: 20 }} />
+            <Typography sx={{ fontSize: 15, color: "#07C160" }}>患者</Typography>
+          </Box>
+          <Typography sx={{ flex: 1, textAlign: "center", fontWeight: 600, fontSize: 16, mr: 5 }} noWrap>
+            {selectedPatient?.name || ""}
+          </Typography>
         </Box>
         <Box sx={{ flex: 1, overflow: "hidden" }}>
           <PatientDetail patient={selectedPatient} doctorId={doctorId} />
@@ -769,6 +844,7 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
   // Mobile: full-width patient list (no split layout)
   if (isMobile) {
     return (
+      <>
       <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
         <Box sx={{ px: 1.5, py: 1, borderBottom: "1px solid #e2e8f0", bgcolor: "#f7f7f7" }}>
           <TextField
@@ -781,6 +857,50 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
         {error && <Alert severity="error" action={<Button size="small" onClick={load}>重试</Button>}>{error}</Alert>}
         <Box sx={{ flex: 1, overflowY: "auto", bgcolor: "#fff" }}>
           {loading && <Box sx={{ p: 2, textAlign: "center" }}><CircularProgress size={20} /></Box>}
+
+          {/* Import card — always visible at top */}
+          {!loading && !search.trim() && (
+            <Box sx={{ bgcolor: "#f7f7f7", borderBottom: "1px solid #e5e5e5" }}>
+              <Box sx={{ px: 2, py: 0.5 }}>
+                <Typography sx={{ fontSize: 11, color: "#aaa", fontWeight: 600, letterSpacing: 0.3 }}>导入患者</Typography>
+              </Box>
+              <Box
+                onClick={() => importFileRef.current?.click()}
+                sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1.2, bgcolor: "#fff",
+                  borderBottom: "1px solid #f2f2f2", cursor: "pointer", userSelect: "none", WebkitUserSelect: "none",
+                  "&:active": { bgcolor: "#f5f5f5" } }}>
+                <Box sx={{ width: 36, height: 36, borderRadius: "8px", bgcolor: "#e8f5e9", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  {importing ? <CircularProgress size={18} sx={{ color: "#07C160" }} /> : <UploadFileOutlinedIcon sx={{ fontSize: 20, color: "#07C160" }} />}
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography sx={{ fontSize: 14, fontWeight: 500 }}>{importing ? "解析中…" : "上传 PDF / 图片"}</Typography>
+                  <Typography sx={{ fontSize: 12, color: "#aaa" }}>出院小结、检验报告、门诊病历</Typography>
+                </Box>
+                <KeyboardArrowDownIcon sx={{ fontSize: 18, color: "#ccc", transform: "rotate(-90deg)" }} />
+              </Box>
+              <Box
+                onClick={() => { onNavigateToChat?.(); }}
+                sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1.2, bgcolor: "#fff",
+                  cursor: "pointer", userSelect: "none", WebkitUserSelect: "none",
+                  "&:active": { bgcolor: "#f5f5f5" } }}>
+                <Box sx={{ width: 36, height: 36, borderRadius: "8px", bgcolor: "#e3f2fd", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <ChatOutlinedIcon sx={{ fontSize: 20, color: "#1976d2" }} />
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography sx={{ fontSize: 14, fontWeight: 500 }}>粘贴微信聊天记录</Typography>
+                  <Typography sx={{ fontSize: 12, color: "#aaa" }}>在聊天框直接粘贴，自动提取建档</Typography>
+                </Box>
+                <KeyboardArrowDownIcon sx={{ fontSize: 18, color: "#ccc", transform: "rotate(-90deg)" }} />
+              </Box>
+              {importError && (
+                <Box sx={{ px: 2, py: 0.8, bgcolor: "#fff3f3" }}>
+                  <Typography sx={{ fontSize: 12, color: "#e74c3c" }}>{importError}</Typography>
+                </Box>
+              )}
+            </Box>
+          )}
+          <input ref={importFileRef} type="file" hidden accept=".pdf,image/jpeg,image/png,image/webp" onChange={handleImportFile} />
+
           {!loading && filtered.length === 0 && !error && (
             search.trim() ? (
               <Box sx={{ p: 2 }}>
@@ -791,12 +911,11 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
                   onClick={() => { onInsertChatText?.(`建档${search.trim()}`); onNavigateToChat?.(); }} />
               </Box>
             ) : (
-              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 6, gap: 1.5 }}>
-                <Typography variant="h6" color="text.disabled">暂无患者</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", maxWidth: 220 }}>
-                  在聊天中说「新建患者：姓名」即可创建
+              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 4, gap: 1 }}>
+                <Typography variant="body2" color="text.disabled">暂无患者档案</Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ textAlign: "center" }}>
+                  通过上方方式导入，或在聊天中建档
                 </Typography>
-                <Button size="small" variant="outlined" onClick={onNavigateToChat}>去聊天</Button>
               </Box>
             )
           )}
@@ -809,12 +928,20 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
                 const age = p.year_of_birth ? new Date().getFullYear() - p.year_of_birth : null;
                 const isSelected = p.id === selectedId;
                 return (
-                  <Box key={p.id} onClick={() => navigate(`/doctor/patients/${p.id}`)}
+                  <Box key={p.id}
+                    onClick={() => { cancelLongPress(); navigate(`/doctor/patients/${p.id}`); }}
+                    onMouseDown={() => startLongPress(p)}
+                    onMouseUp={cancelLongPress}
+                    onMouseLeave={cancelLongPress}
+                    onTouchStart={() => startLongPress(p)}
+                    onTouchEnd={cancelLongPress}
+                    onTouchMove={cancelLongPress}
                     sx={{
                       display: "flex", alignItems: "center", gap: 1.5,
                       px: 2, py: 1.2, bgcolor: isSelected ? "#f0faf4" : "#fff",
                       borderBottom: idx < group.length - 1 ? "1px solid #f2f2f2" : "none",
-                      cursor: "pointer", "&:active": { bgcolor: "#f5f5f5" },
+                      cursor: "pointer", userSelect: "none", WebkitUserSelect: "none",
+                      "&:active": { bgcolor: "#f5f5f5" },
                     }}>
                     <PatientAvatar name={p.name} />
                     <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -831,6 +958,55 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
           ))}
         </Box>
       </Box>
+
+      {/* WeChat-style action sheet — appears after long press */}
+      <Dialog
+        open={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        PaperProps={{ sx: { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "16px 16px 0 0", width: "100%" } }}
+        sx={{ "& .MuiDialog-container": { alignItems: "flex-end" } }}
+      >
+        <Box sx={{ pb: 2 }}>
+          <Box sx={{ textAlign: "center", py: 1.5, borderBottom: "1px solid #f2f2f2" }}>
+            <Typography sx={{ fontSize: 13, color: "#999" }}>{deleteTarget?.name}</Typography>
+          </Box>
+          <Box onClick={() => { setConfirmDelete(deleteTarget); setDeleteTarget(null); }}
+            sx={{ textAlign: "center", py: 1.8, cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
+            <Typography sx={{ fontSize: 17, color: "#e74c3c" }}>删除患者</Typography>
+          </Box>
+          <Box sx={{ height: 8, bgcolor: "#f7f7f7" }} />
+          <Box onClick={() => setDeleteTarget(null)}
+            sx={{ textAlign: "center", py: 1.8, cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
+            <Typography sx={{ fontSize: 17, color: "#333" }}>取消</Typography>
+          </Box>
+        </Box>
+      </Dialog>
+
+      {/* Confirm delete dialog */}
+      <Dialog
+        open={Boolean(confirmDelete)}
+        onClose={() => setConfirmDelete(null)}
+        PaperProps={{ sx: { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "16px 16px 0 0", width: "100%" } }}
+        sx={{ "& .MuiDialog-container": { alignItems: "flex-end" } }}
+      >
+        <Box sx={{ p: 2.5 }}>
+          <Typography sx={{ fontWeight: 600, fontSize: 16, textAlign: "center", mb: 0.8 }}>删除患者</Typography>
+          <Typography sx={{ fontSize: 13, color: "#999", textAlign: "center", mb: 2.5, lineHeight: 1.7 }}>
+            确定删除「{confirmDelete?.name}」？{"\n"}所有病历和任务将一并删除，无法恢复。
+          </Typography>
+          <Box sx={{ display: "flex", gap: 1.5 }}>
+            <Box onClick={() => setConfirmDelete(null)}
+              sx={{ flex: 1, textAlign: "center", py: 1.3, borderRadius: 1.5, bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 15, color: "#666", "&:active": { opacity: 0.7 } }}>
+              取消
+            </Box>
+            <Box onClick={!deleting ? handleDeleteConfirm : undefined}
+              sx={{ flex: 1, textAlign: "center", py: 1.3, borderRadius: 1.5, bgcolor: "#e74c3c", cursor: deleting ? "default" : "pointer", fontSize: 15, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
+              {deleting ? "删除中…" : "删除"}
+            </Box>
+          </Box>
+        </Box>
+      </Dialog>
+      </>
     );
   }
 
@@ -852,6 +1028,47 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
 
         <Box sx={{ flex: 1, overflowY: "auto", bgcolor: "#fff" }}>
           {loading && <Box sx={{ p: 2, textAlign: "center" }}><CircularProgress size={20} /></Box>}
+
+          {/* Import card — always visible at top */}
+          {!loading && !search.trim() && (
+            <Box sx={{ bgcolor: "#f7f7f7", borderBottom: "1px solid #e5e5e5" }}>
+              <Box sx={{ px: 2, py: 0.5 }}>
+                <Typography sx={{ fontSize: 11, color: "#aaa", fontWeight: 600, letterSpacing: 0.3 }}>导入患者</Typography>
+              </Box>
+              <Box
+                onClick={() => importFileRef.current?.click()}
+                sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1.2, bgcolor: "#fff",
+                  borderBottom: "1px solid #f2f2f2", cursor: "pointer", "&:hover": { bgcolor: "#f5f5f5" }, "&:active": { bgcolor: "#ebebeb" } }}>
+                <Box sx={{ width: 36, height: 36, borderRadius: "8px", bgcolor: "#e8f5e9", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  {importing ? <CircularProgress size={18} sx={{ color: "#07C160" }} /> : <UploadFileOutlinedIcon sx={{ fontSize: 20, color: "#07C160" }} />}
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography sx={{ fontSize: 14, fontWeight: 500 }}>{importing ? "解析中…" : "上传 PDF / 图片"}</Typography>
+                  <Typography sx={{ fontSize: 12, color: "#aaa" }}>出院小结、检验报告、门诊病历</Typography>
+                </Box>
+                <KeyboardArrowDownIcon sx={{ fontSize: 18, color: "#ccc", transform: "rotate(-90deg)" }} />
+              </Box>
+              <Box
+                onClick={() => { onNavigateToChat?.(); }}
+                sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1.2, bgcolor: "#fff",
+                  cursor: "pointer", "&:hover": { bgcolor: "#f5f5f5" }, "&:active": { bgcolor: "#ebebeb" } }}>
+                <Box sx={{ width: 36, height: 36, borderRadius: "8px", bgcolor: "#e3f2fd", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <ChatOutlinedIcon sx={{ fontSize: 20, color: "#1976d2" }} />
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography sx={{ fontSize: 14, fontWeight: 500 }}>粘贴微信聊天记录</Typography>
+                  <Typography sx={{ fontSize: 12, color: "#aaa" }}>在聊天框直接粘贴，自动提取建档</Typography>
+                </Box>
+                <KeyboardArrowDownIcon sx={{ fontSize: 18, color: "#ccc", transform: "rotate(-90deg)" }} />
+              </Box>
+              {importError && (
+                <Box sx={{ px: 2, py: 0.8, bgcolor: "#fff3f3" }}>
+                  <Typography sx={{ fontSize: 12, color: "#e74c3c" }}>{importError}</Typography>
+                </Box>
+              )}
+            </Box>
+          )}
+
           {!loading && filtered.length === 0 && !error && (
             search.trim() ? (
               <Box sx={{ p: 2 }}>
@@ -862,12 +1079,11 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
                   onClick={() => { onInsertChatText?.(`建档${search.trim()}`); onNavigateToChat?.(); }} />
               </Box>
             ) : (
-              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 6, gap: 1.5 }}>
-                <Typography variant="h6" color="text.disabled">暂无患者</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", maxWidth: 220 }}>
-                  在聊天中说「新建患者：姓名」即可创建
+              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 4, gap: 1 }}>
+                <Typography variant="body2" color="text.disabled">暂无患者档案</Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ textAlign: "center" }}>
+                  通过上方方式导入，或在聊天中建档
                 </Typography>
-                <Button size="small" variant="outlined" onClick={onNavigateToChat}>去聊天</Button>
               </Box>
             )
           )}
@@ -880,13 +1096,15 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
                 const age = p.year_of_birth ? new Date().getFullYear() - p.year_of_birth : null;
                 const isSelected = p.id === selectedId;
                 return (
-                  <Box key={p.id} onClick={() => navigate(`/doctor/patients/${p.id}`)}
+                  <Box key={p.id}
+                    onClick={() => navigate(`/doctor/patients/${p.id}`)}
                     sx={{
                       display: "flex", alignItems: "center", gap: 1.5,
                       px: 2, py: 1.2, bgcolor: isSelected ? "#f0faf4" : "#fff",
                       borderBottom: idx < group.length - 1 ? "1px solid #f2f2f2" : "none",
-                      cursor: "pointer",
+                      cursor: "pointer", position: "relative",
                       "&:hover": { bgcolor: "#f5f5f5" },
+                      "&:hover .del-btn": { opacity: 1 },
                       "&:active": { bgcolor: "#ebebeb" },
                     }}>
                     <PatientAvatar name={p.name} size={38} />
@@ -897,6 +1115,13 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
                       </Typography>
                     </Box>
                     {isSelected && <Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: "#07C160", flexShrink: 0 }} />}
+                    {/* Desktop: delete icon appears on hover */}
+                    <Box className="del-btn"
+                      onClick={(e) => { e.stopPropagation(); setConfirmDelete({ id: p.id, name: p.name }); }}
+                      sx={{ opacity: 0, transition: "opacity 0.15s", ml: 0.5, p: 0.5, borderRadius: 1,
+                        "&:hover": { bgcolor: "#fef2f2" }, "&:active": { opacity: 0.7 } }}>
+                      <DeleteOutlineIcon sx={{ fontSize: 17, color: "#e74c3c" }} />
+                    </Box>
                   </Box>
                 );
               })}
@@ -907,8 +1132,29 @@ function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onPatie
 
       {/* Right: patient detail */}
       <Box sx={{ flex: 1, overflow: "hidden" }}>
-        <PatientDetail patient={selectedPatient} doctorId={doctorId} />
+        <PatientDetail patient={selectedPatient} doctorId={doctorId}
+          onDeleted={(id) => { setPatients((prev) => prev.filter((p) => p.id !== id)); navigate("/doctor/patients"); }} />
       </Box>
+
+      {/* Confirm delete dialog (desktop) */}
+      <Dialog open={Boolean(confirmDelete)} onClose={() => setConfirmDelete(null)} PaperProps={{ sx: { borderRadius: 2, minWidth: 300 } }}>
+        <Box sx={{ p: 3 }}>
+          <Typography sx={{ fontWeight: 600, fontSize: 16, mb: 0.8 }}>删除患者</Typography>
+          <Typography sx={{ fontSize: 13, color: "#999", mb: 2.5, lineHeight: 1.7 }}>
+            确定删除「{confirmDelete?.name}」？所有病历和任务将一并删除，无法恢复。
+          </Typography>
+          <Box sx={{ display: "flex", gap: 1.5, justifyContent: "flex-end" }}>
+            <Box onClick={() => setConfirmDelete(null)}
+              sx={{ px: 2, py: 0.8, borderRadius: 1.5, bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 14, color: "#666", "&:active": { opacity: 0.7 } }}>
+              取消
+            </Box>
+            <Box onClick={!deleting ? handleDeleteConfirm : undefined}
+              sx={{ px: 2, py: 0.8, borderRadius: 1.5, bgcolor: "#e74c3c", cursor: deleting ? "default" : "pointer", fontSize: 14, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
+              {deleting ? "删除中…" : "确认删除"}
+            </Box>
+          </Box>
+        </Box>
+      </Dialog>
     </Box>
   );
 }
@@ -984,7 +1230,7 @@ function TasksSection({ doctorId }) {
   }
 
   function handleOpenPostpone(e, taskId) {
-    setPostponeAnchor(e.currentTarget);
+    setPostponeAnchor(true);
     setPostponeTaskId(taskId);
     setPostponeDate("");
   }
@@ -1006,6 +1252,45 @@ function TasksSection({ doctorId }) {
       handleClosePostpone();
     }
   }
+
+  // Group tasks by due date into WeChat-style sections
+  const today = new Date(); today.setHours(0,0,0,0);
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+  const weekEnd = new Date(today); weekEnd.setDate(today.getDate() + 7);
+
+  function taskDateGroup(task) {
+    if (!task.due_at) return "无截止日期";
+    const d = new Date(task.due_at); d.setHours(0,0,0,0);
+    if (d < today) return "已逾期";
+    if (d.getTime() === today.getTime()) return "今天";
+    if (d.getTime() === tomorrow.getTime()) return "明天";
+    if (d < weekEnd) return "本周";
+    return "之后";
+  }
+
+  const GROUP_ORDER = ["已逾期", "今天", "明天", "本周", "之后", "无截止日期"];
+  const taskGroups = {};
+  tasks.forEach(t => { const g = taskDateGroup(t); (taskGroups[g] = taskGroups[g] || []).push(t); });
+  const sortedGroups = GROUP_ORDER.filter(g => taskGroups[g]);
+
+  const TASK_TYPE_ICON_COLOR = {
+    follow_up:   "#07C160",
+    medication:  "#5b9bd5",
+    lab_review:  "#e8833a",
+    referral:    "#9b59b6",
+    imaging:     "#1890ff",
+    appointment: "#16a085",
+    general:     "#8e44ad",
+  };
+  const TASK_TYPE_ICON_CHAR = {
+    follow_up:   "随",
+    medication:  "药",
+    lab_review:  "检",
+    referral:    "转",
+    imaging:     "影",
+    appointment: "约",
+    general:     "务",
+  };
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
@@ -1030,91 +1315,147 @@ function TasksSection({ doctorId }) {
           <Typography sx={{ color: "#fff", fontSize: 20, lineHeight: 1, mt: "-2px" }}>+</Typography>
         </Box>
       </Box>
+
       {/* Scrollable content */}
-      <Box sx={{ flex: 1, overflowY: "auto", pt: 1.5 }}>
+      <Box sx={{ flex: 1, overflowY: "auto" }}>
+        {error && (
+          <Box sx={{ px: 2, pt: 1.5 }}>
+            <Alert severity="error" onClose={() => setError("")}>{error}</Alert>
+          </Box>
+        )}
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 1.5, mx: 2 }} onClose={() => setError("")}>{error}</Alert>
-      )}
+        {!loading && !error && tasks.length === 0 && (
+          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 8, gap: 1, px: 2 }}>
+            <AssignmentOutlinedIcon sx={{ fontSize: 48, color: "#ccc" }} />
+            <Typography variant="body2" color="text.disabled" sx={{ fontWeight: 500 }}>暂无任务</Typography>
+            <Typography variant="caption" color="text.disabled" sx={{ textAlign: "center", maxWidth: 200 }}>
+              在聊天中说「今日任务」或点击 + 新建
+            </Typography>
+          </Box>
+        )}
 
-      {!loading && !error && tasks.length === 0 && (
-        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 6, gap: 1.5, px: 2 }}>
-          <Typography variant="h6" color="text.disabled">暂无任务</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", maxWidth: 220 }}>
-            在聊天中说「今日任务」或点击右上角「+ 新建任务」
-          </Typography>
-        </Box>
-      )}
-
-      <Box sx={{ bgcolor: "#fff", borderRadius: 1.5, overflow: "hidden", mx: 2 }}>
-        {tasks.map((task, idx) => {
-          const isOverdue = task.due_at && new Date(task.due_at) < new Date() && task.status === "pending";
-          return (
-            <Box key={task.id} sx={{ px: 2, py: 1.4, borderBottom: idx < tasks.length - 1 ? "1px solid #f2f2f2" : "none", borderLeft: `3px solid ${task.task_type === "follow_up" ? "#07C160" : task.task_type === "review" ? "#1890ff" : "#fa8c16"}` }}>
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>{task.title || TASK_TYPE_LABEL[task.task_type] || task.task_type}</Typography>
-              {task.content && (
-                <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>{task.content}</Typography>
-              )}
-              <Stack direction="row" spacing={1.5} sx={{ mt: 0.3, flexWrap: "wrap" }}>
-                {task.due_at && (
-                  <Typography variant="caption" sx={{ color: isOverdue ? "error.main" : "text.secondary" }}>
-                    {isOverdue ? "⚠ 已逾期 " : "📅 "}{task.due_at.slice(0, 10)}
-                  </Typography>
-                )}
-                {task.patient_name && (
-                  <Typography variant="caption" color="text.secondary">👤 {task.patient_name}</Typography>
-                )}
-              </Stack>
-              {task.status === "pending" && (
-                <Stack direction="row" spacing={0.5} sx={{ mt: 0.8, justifyContent: "flex-end" }}>
-                  <Button size="small" variant="outlined" color="success" onClick={() => handleStatus(task.id, "completed")} sx={{ fontSize: 11, py: 0.3, px: 1.2, minWidth: "auto" }}>完成</Button>
-                  <Button size="small" variant="text" onClick={(e) => handleOpenPostpone(e, task.id)} sx={{ fontSize: 11, py: 0.3, px: 1, minWidth: "auto", color: "text.secondary" }}>推迟</Button>
-                  <Button size="small" variant="text" onClick={() => setCancelConfirmId(task.id)} sx={{ fontSize: 11, py: 0.3, px: 1, minWidth: "auto", color: "text.disabled" }}>取消</Button>
-                </Stack>
-              )}
+        {sortedGroups.map((group) => (
+          <Box key={group}>
+            {/* Date section header */}
+            <Box sx={{ px: 2, py: 0.6, pt: 1.2 }}>
+              <Typography sx={{ fontSize: 12, color: group === "已逾期" ? "#e74c3c" : "#999", fontWeight: 500 }}>
+                {group}
+              </Typography>
             </Box>
-          );
-        })}
-      </Box>
+            {/* Task rows — full-width white cell group */}
+            <Box sx={{ bgcolor: "#fff" }}>
+              {taskGroups[group].map((task, idx) => {
+                const isOverdue = group === "已逾期";
+                const iconColor = TASK_TYPE_ICON_COLOR[task.task_type] || "#999";
+                const iconChar = TASK_TYPE_ICON_CHAR[task.task_type] || "务";
+                return (
+                  <Box key={task.id} sx={{ display: "flex", alignItems: "flex-start", px: 2, py: 1.4,
+                    borderBottom: idx < taskGroups[group].length - 1 ? "1px solid #f2f2f2" : "none" }}>
+                    {/* Left avatar */}
+                    <Box sx={{ width: 40, height: 40, borderRadius: "10px", bgcolor: iconColor,
+                      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, mr: 1.5, mt: 0.3 }}>
+                      <Typography sx={{ color: "#fff", fontSize: 14, fontWeight: 600 }}>{iconChar}</Typography>
+                    </Box>
+                    {/* Content */}
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Box sx={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 1 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: isOverdue ? "#e74c3c" : "text.primary", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+                          {task.title || TASK_TYPE_LABEL[task.task_type] || task.task_type}
+                        </Typography>
+                        {task.due_at && (
+                          <Typography variant="caption" sx={{ color: isOverdue ? "#e74c3c" : "#bbb", flexShrink: 0, fontSize: 11 }}>
+                            {task.due_at.slice(5, 10)}
+                          </Typography>
+                        )}
+                      </Box>
+                      {task.content && (
+                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {task.content}
+                        </Typography>
+                      )}
+                      {task.patient_name && (
+                        <Typography variant="caption" sx={{ color: "#999", display: "block", mt: 0.2 }}>
+                          {task.patient_name}
+                        </Typography>
+                      )}
+                      {/* Actions — WeChat-style text links */}
+                      {task.status === "pending" && (
+                        <Box sx={{ display: "flex", gap: 2, mt: 0.8 }}>
+                          <Typography onClick={() => handleStatus(task.id, "completed")}
+                            sx={{ fontSize: 12, color: "#07C160", cursor: "pointer", "&:active": { opacity: 0.6 } }}>完成</Typography>
+                          <Typography onClick={(e) => handleOpenPostpone(e, task.id)}
+                            sx={{ fontSize: 12, color: "#999", cursor: "pointer", "&:active": { opacity: 0.6 } }}>推迟</Typography>
+                          <Typography onClick={() => setCancelConfirmId(task.id)}
+                            sx={{ fontSize: 12, color: "#ccc", cursor: "pointer", "&:active": { opacity: 0.6 } }}>取消</Typography>
+                        </Box>
+                      )}
+                    </Box>
+                  </Box>
+                );
+              })}
+            </Box>
+          </Box>
+        ))}
+
+        <Box sx={{ height: 24 }} />
       </Box>{/* end scrollable content */}
 
-      {/* 推迟任务 Popover */}
-      <Popover
+      {/* 推迟任务 — WeChat-style bottom sheet on mobile, popover on desktop */}
+      <Dialog
         open={Boolean(postponeAnchor)}
-        anchorEl={postponeAnchor}
         onClose={handleClosePostpone}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-        transformOrigin={{ vertical: "top", horizontal: "center" }}
-        PaperProps={{ sx: { mt: 1, borderRadius: 2, maxWidth: "90vw" } }}
+        PaperProps={{ sx: isMobile
+          ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "16px 16px 0 0", width: "100%" }
+          : { borderRadius: 2, minWidth: 240 }
+        }}
+        sx={isMobile ? { "& .MuiDialog-container": { alignItems: "flex-end" } } : {}}
       >
-        <Box sx={{ p: 2, minWidth: 220 }}>
-          <Typography variant="caption" sx={{ fontWeight: 700, display: "block", mb: 1 }}>选择新到期日</Typography>
+        <Box sx={{ p: 2.5 }}>
+          <Typography sx={{ fontWeight: 600, fontSize: 15, mb: 1.5, color: "#333" }}>选择新到期日</Typography>
           <TextField
-            type="date"
-            size="small"
-            fullWidth
+            type="date" size="small" fullWidth
             InputLabelProps={{ shrink: true }}
             value={postponeDate}
             onChange={(e) => setPostponeDate(e.target.value)}
-            sx={{ mb: 1.5 }}
+            sx={{ mb: 2 }}
           />
-          <Stack direction="column" spacing={1}>
-            <Button size="small" variant="contained" disabled={!postponeDate} onClick={handleConfirmPostpone} fullWidth>确认</Button>
-            <Button size="small" color="inherit" onClick={handleClosePostpone} fullWidth>取消</Button>
-          </Stack>
+          <Box sx={{ display: "flex", gap: 1.5 }}>
+            <Box onClick={handleClosePostpone}
+              sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: 1.5, bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 14, color: "#666", "&:active": { opacity: 0.7 } }}>
+              取消
+            </Box>
+            <Box onClick={postponeDate ? handleConfirmPostpone : undefined}
+              sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: 1.5, bgcolor: postponeDate ? "#07C160" : "#e0e0e0", cursor: postponeDate ? "pointer" : "default", fontSize: 14, color: "#fff", fontWeight: 600, "&:active": postponeDate ? { opacity: 0.7 } : {} }}>
+              确认
+            </Box>
+          </Box>
         </Box>
-      </Popover>
+      </Dialog>
 
-      {/* 取消任务确认 */}
-      <Dialog open={Boolean(cancelConfirmId)} onClose={() => setCancelConfirmId(null)}>
-        <DialogTitle>取消任务</DialogTitle>
-        <DialogContent>
-          <Typography>确定取消这个任务？</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setCancelConfirmId(null)}>保留</Button>
-          <Button color="error" onClick={() => { handleStatus(cancelConfirmId, "cancelled"); setCancelConfirmId(null); }}>确认取消</Button>
-        </DialogActions>
+      {/* 取消任务 — WeChat action-sheet style */}
+      <Dialog
+        open={Boolean(cancelConfirmId)}
+        onClose={() => setCancelConfirmId(null)}
+        PaperProps={{ sx: isMobile
+          ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "16px 16px 0 0", width: "100%" }
+          : { borderRadius: 2, minWidth: 240 }
+        }}
+        sx={isMobile ? { "& .MuiDialog-container": { alignItems: "flex-end" } } : {}}
+      >
+        <Box sx={{ p: 2.5 }}>
+          <Typography sx={{ fontWeight: 600, fontSize: 15, mb: 0.5, textAlign: "center", color: "#333" }}>取消任务</Typography>
+          <Typography sx={{ fontSize: 13, color: "#999", mb: 2.5, textAlign: "center" }}>此任务将被标记为已取消</Typography>
+          <Box sx={{ display: "flex", gap: 1.5 }}>
+            <Box onClick={() => setCancelConfirmId(null)}
+              sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: 1.5, bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 14, color: "#666", "&:active": { opacity: 0.7 } }}>
+              保留
+            </Box>
+            <Box onClick={() => { handleStatus(cancelConfirmId, "cancelled"); setCancelConfirmId(null); }}
+              sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: 1.5, bgcolor: "#e74c3c", cursor: "pointer", fontSize: 14, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
+              确认取消
+            </Box>
+          </Box>
+        </Box>
       </Dialog>
 
       {/* 新建任务 Dialog */}
@@ -1238,7 +1579,7 @@ const QUICK_COMMANDS = [
   { label: "功能帮助", icon: "💡", insert: "帮助" },
 ];
 
-function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternalInputConsumed, onPatientCreated }) {
+function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternalInputConsumed, onPatientCreated, autoSendText, onAutoSendConsumed }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [input, setInput] = useState("");
@@ -1372,8 +1713,7 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
     }
   }
 
-  async function onSend() {
-    const text = input.trim();
+  async function sendText(text) {
     if (!text || loading) return;
     setFailedText(null);
     setMessages((prev) => [...prev, { role: "user", content: text, ts: nowTs() }]);
@@ -1397,6 +1737,18 @@ function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternal
       setLoading(false);
     }
   }
+
+  async function onSend() {
+    await sendText(input.trim());
+  }
+
+  // Auto-send from external source (e.g. PDF import)
+  useEffect(() => {
+    if (autoSendText) {
+      onAutoSendConsumed?.();
+      sendText(autoSendText);
+    }
+  }, [autoSendText]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function onRetry() {
     if (!failedText) return;
@@ -1754,14 +2106,12 @@ function HomeSection({ doctorId, navigate }) {
 
 // ─── Settings section ────────────────────────────────────────────────────────
 
-function SettingsSection({ doctorId }) {
-  const [status, setStatus] = useState(null);       // { has_template, char_count }
+function TemplateSubpage({ doctorId, onBack }) {
+  const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [msg, setMsg] = useState({ type: "", text: "" });
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const fileRef = useRef(null);
 
   const loadStatus = useCallback(() => {
@@ -1799,64 +2149,237 @@ function SettingsSection({ doctorId }) {
     } catch (err) {
       setMsg({ type: "error", text: err.message || "删除失败" });
     } finally {
-      setDeleting(false); }
+      setDeleting(false);
+    }
   }
 
   return (
-    <Box sx={{ overflowY: "auto", height: "100%", bgcolor: "#f7f7f7" }}>
-      <Box sx={{ px: 2, py: 1, mt: 1 }}>
-        <Typography variant="caption" sx={{ color: "#888", fontWeight: 600, fontSize: 12 }}>报告模板</Typography>
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
+      {/* WeChat-style topbar */}
+      <Box sx={{ display: "flex", alignItems: "center", height: 48, px: 1, bgcolor: "#fff", borderBottom: "1px solid #e5e5e5", flexShrink: 0 }}>
+        <Box onClick={onBack} sx={{ display: "flex", alignItems: "center", gap: 0.3, cursor: "pointer", color: "#07C160", pr: 2, py: 1 }}>
+          <ArrowBackIcon sx={{ fontSize: 20 }} />
+          <Typography sx={{ fontSize: 15, color: "#07C160" }}>设置</Typography>
+        </Box>
+        <Typography sx={{ flex: 1, textAlign: "center", fontWeight: 600, fontSize: 16, mr: 5 }}>报告模板</Typography>
       </Box>
-      <Box sx={{ bgcolor: "#fff", mx: 0, overflow: "hidden" }}>
-        {/* Status row */}
-        <Box sx={{ px: 2, py: 1.5, borderBottom: "1px solid #f2f2f2" }}>
-          <Stack direction="row" alignItems="center" spacing={1.5}>
-            <UploadFileOutlinedIcon sx={{ color: "#07C160", fontSize: 22 }} />
+
+      <Box sx={{ flex: 1, overflowY: "auto" }}>
+        {/* Current status */}
+        <Box sx={{ px: 2, pt: 2, pb: 0.6 }}>
+          <Typography sx={{ fontSize: 12, color: "#999", fontWeight: 500 }}>当前模板</Typography>
+        </Box>
+        <Box sx={{ bgcolor: "#fff", px: 2, py: 2, mb: 0.8 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Box sx={{ width: 44, height: 44, borderRadius: "10px", bgcolor: "#e8f5e9", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <UploadFileOutlinedIcon sx={{ color: "#07C160", fontSize: 22 }} />
+            </Box>
             <Box sx={{ flex: 1 }}>
-              <Typography variant="body2" sx={{ fontWeight: 500 }}>门诊病历报告模板</Typography>
+              <Typography sx={{ fontWeight: 500, fontSize: 14 }}>门诊病历报告模板</Typography>
               <Typography variant="caption" color="text.secondary">
-                {loading ? "加载中…" : status?.has_template ? `已上传自定义模板（${status.char_count?.toLocaleString()} 字符）` : "未上传，使用国家卫生部2010年标准格式"}
+                {loading ? "加载中…" : status?.has_template
+                  ? `已上传自定义模板（${status.char_count?.toLocaleString()} 字符）`
+                  : "使用国家卫生部 2010 年标准格式"}
               </Typography>
             </Box>
-          </Stack>
-        </Box>
-        {/* Upload row */}
-        <Box sx={{ px: 2, py: 1.5, borderBottom: "1px solid #f2f2f2", cursor: "pointer", "&:active": { bgcolor: "#f5f5f5" } }}
-          onClick={() => fileRef.current?.click()}>
-          <Stack direction="row" alignItems="center" spacing={1.5}>
-            <Box sx={{ width: 22, display: "flex", justifyContent: "center" }}>
-              {uploading ? <CircularProgress size={18} /> : <Typography sx={{ color: "#07C160", fontSize: 20 }}>↑</Typography>}
-            </Box>
-            <Typography variant="body2" sx={{ color: uploading ? "text.secondary" : "#07C160", fontWeight: 500 }}>
-              {uploading ? "上传中…" : status?.has_template ? "替换模板" : "上传模板"}
-            </Typography>
-          </Stack>
-        </Box>
-        {/* Delete row — only if template exists */}
-        {status?.has_template && (
-          <Box sx={{ px: 2, py: 1.5, cursor: "pointer", "&:active": { bgcolor: "#f5f5f5" } }}
-            onClick={!deleting ? handleDelete : undefined}>
-            <Stack direction="row" alignItems="center" spacing={1.5}>
-              <Box sx={{ width: 22, display: "flex", justifyContent: "center" }}>
-                {deleting ? <CircularProgress size={18} /> : <Typography sx={{ color: "error.main", fontSize: 20 }}>✕</Typography>}
+            {status?.has_template && (
+              <Box sx={{ px: 1, py: 0.3, borderRadius: "10px", bgcolor: "#e8f5e9" }}>
+                <Typography sx={{ fontSize: 11, color: "#07C160", fontWeight: 600 }}>已自定义</Typography>
               </Box>
-              <Typography variant="body2" sx={{ color: "error.main" }}>
-                {deleting ? "删除中…" : "删除模板"}
+            )}
+          </Box>
+        </Box>
+
+        {/* Actions */}
+        <Box sx={{ px: 2, pb: 0.6 }}>
+          <Typography sx={{ fontSize: 12, color: "#999", fontWeight: 500 }}>操作</Typography>
+        </Box>
+        <Box sx={{ bgcolor: "#fff" }}>
+          <Box onClick={() => fileRef.current?.click()} sx={{ display: "flex", alignItems: "center", px: 2, py: 1.6,
+            borderBottom: status?.has_template ? "1px solid #f2f2f2" : "none", cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
+            {uploading
+              ? <CircularProgress size={18} sx={{ mr: 1.5, color: "#07C160" }} />
+              : <Box sx={{ width: 18, mr: 1.5 }} />}
+            <Typography sx={{ flex: 1, fontSize: 15, color: uploading ? "#999" : "#07C160", fontWeight: 500 }}>
+              {uploading ? "上传中…" : status?.has_template ? "替换模板文件" : "上传模板文件"}
+            </Typography>
+            <ArrowBackIcon sx={{ fontSize: 16, color: "#ccc", transform: "rotate(180deg)" }} />
+          </Box>
+          {status?.has_template && (
+            <Box onClick={!deleting ? handleDelete : undefined} sx={{ display: "flex", alignItems: "center", px: 2, py: 1.6, cursor: deleting ? "default" : "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
+              {deleting
+                ? <CircularProgress size={18} sx={{ mr: 1.5, color: "#e74c3c" }} />
+                : <Box sx={{ width: 18, mr: 1.5 }} />}
+              <Typography sx={{ flex: 1, fontSize: 15, color: deleting ? "#999" : "#e74c3c" }}>
+                {deleting ? "删除中…" : "删除模板，恢复默认"}
               </Typography>
-            </Stack>
+            </Box>
+          )}
+        </Box>
+
+        {msg.text && (
+          <Box sx={{ mx: 2, mt: 1.5 }}>
+            <Alert severity={msg.type || "info"} onClose={() => setMsg({ type: "", text: "" })}>{msg.text}</Alert>
           </Box>
         )}
+
+        <Box sx={{ px: 2, mt: 2 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.8 }}>
+            支持格式：PDF、DOCX、DOC、TXT、JPG、PNG，最大 1 MB。{"\n"}
+            上传后，AI 生成门诊病历报告时将参照您的格式。
+          </Typography>
+        </Box>
+
+        <input ref={fileRef} type="file" hidden accept=".pdf,.docx,.doc,.txt,image/jpeg,image/png,image/webp" onChange={handleUpload} />
       </Box>
-      {/* Feedback message */}
-      {msg.text && (
-        <Alert severity={msg.type || "info"} sx={{ mx: 2, mt: 1.5, borderRadius: 1.5 }} onClose={() => setMsg({ type: "", text: "" })}>
-          {msg.text}
-        </Alert>
+    </Box>
+  );
+}
+
+function SettingsSection({ doctorId, onLogout }) {
+  const [subpage, setSubpage] = useState(null); // null | "template"
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const { doctorName, setAuth, accessToken } = useDoctorStore();
+  const [nameDialogOpen, setNameDialogOpen] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const [nameSaving, setNameSaving] = useState(false);
+  const [nameError, setNameError] = useState("");
+
+  function openNameDialog() {
+    setNameInput(doctorName || "");
+    setNameError("");
+    setNameDialogOpen(true);
+  }
+
+  async function handleSaveName() {
+    const trimmed = nameInput.trim();
+    if (!trimmed) { setNameError("姓名不能为空"); return; }
+    setNameSaving(true); setNameError("");
+    try {
+      await updateDoctorProfile(doctorId, { name: trimmed });
+      setAuth(doctorId, trimmed, accessToken);
+      setNameDialogOpen(false);
+    } catch (e) {
+      setNameError(e.message || "保存失败");
+    } finally {
+      setNameSaving(false);
+    }
+  }
+
+  if (subpage === "template") {
+    return <TemplateSubpage doctorId={doctorId} onBack={() => setSubpage(null)} />;
+  }
+
+  function SettingsRow({ icon, label, sublabel, onClick, danger }) {
+    return (
+      <Box onClick={onClick} sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, cursor: onClick ? "pointer" : "default",
+        borderBottom: "1px solid #f2f2f2", "&:active": onClick ? { bgcolor: "#f9f9f9" } : {} }}>
+        <Box sx={{ width: 36, height: 36, borderRadius: "8px", bgcolor: danger ? "#fef2f2" : "#f0faf4",
+          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, mr: 1.5 }}>
+          {icon}
+        </Box>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography sx={{ fontSize: 15, color: danger ? "#e74c3c" : "#222" }}>{label}</Typography>
+          {sublabel && <Typography variant="caption" color="text.secondary">{sublabel}</Typography>}
+        </Box>
+        {onClick && !danger && <ArrowBackIcon sx={{ fontSize: 16, color: "#ccc", transform: "rotate(180deg)" }} />}
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
+      {/* WeChat-style topbar (mobile only — desktop uses sidebar) */}
+      {isMobile && (
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: 48, bgcolor: "#fff", borderBottom: "1px solid #e5e5e5", flexShrink: 0 }}>
+          <Typography sx={{ fontWeight: 600, fontSize: 16 }}>设置</Typography>
+        </Box>
       )}
-      <Typography variant="caption" color="text.secondary" sx={{ display: "block", px: 2, mt: 1.5, lineHeight: 1.6 }}>
-        支持格式：PDF、DOCX、DOC、TXT、JPG、PNG，最大 1 MB。
-      </Typography>
-      <input ref={fileRef} type="file" hidden accept=".pdf,.docx,.doc,.txt,image/jpeg,image/png,image/webp" onChange={handleUpload} />
+
+      <Box sx={{ flex: 1, overflowY: "auto" }}>
+
+      {/* Account group */}
+      <Box sx={{ px: 2, pt: 2, pb: 0.6 }}>
+        <Typography sx={{ fontSize: 12, color: "#999", fontWeight: 500 }}>账户</Typography>
+      </Box>
+      <Box sx={{ bgcolor: "#fff" }}>
+        <Box sx={{ display: "flex", alignItems: "center", px: 2, py: 1.8, borderBottom: "1px solid #f2f2f2" }}>
+          <Box sx={{ width: 52, height: 52, borderRadius: "50%", bgcolor: "#07C160", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, mr: 1.5 }}>
+            <LocalHospitalOutlinedIcon sx={{ color: "#fff", fontSize: 26 }} />
+          </Box>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography sx={{ fontWeight: 600, fontSize: 16 }}>{doctorName || doctorId}</Typography>
+            <Typography variant="caption" color="text.secondary">{doctorId}</Typography>
+          </Box>
+        </Box>
+        {/* Name edit row */}
+        <Box onClick={openNameDialog} sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, borderTop: "1px solid #f2f2f2", cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
+          <Typography sx={{ fontSize: 14, color: "#555", flex: 1 }}>昵称</Typography>
+          <Typography sx={{ fontSize: 14, color: "#999", mr: 0.8 }}>{doctorName || "未设置"}</Typography>
+          <ArrowBackIcon sx={{ fontSize: 16, color: "#ccc", transform: "rotate(180deg)" }} />
+        </Box>
+      </Box>
+
+      {/* Tools group */}
+      <Box sx={{ px: 2, pt: 2, pb: 0.6 }}>
+        <Typography sx={{ fontSize: 12, color: "#999", fontWeight: 500 }}>工具</Typography>
+      </Box>
+      <Box sx={{ bgcolor: "#fff" }}>
+        <SettingsRow
+          icon={<UploadFileOutlinedIcon sx={{ color: "#07C160", fontSize: 20 }} />}
+          label="报告模板"
+          sublabel="自定义门诊病历报告格式"
+          onClick={() => setSubpage("template")}
+        />
+      </Box>
+
+      {/* Logout — only shown on mobile (desktop has sidebar) */}
+      {isMobile && (
+        <>
+          <Box sx={{ px: 2, pt: 2, pb: 0.6 }}>
+            <Typography sx={{ fontSize: 12, color: "#999", fontWeight: 500 }}>账户操作</Typography>
+          </Box>
+          <Box sx={{ bgcolor: "#fff" }}>
+            <SettingsRow
+              icon={<LogoutIcon sx={{ color: "#e74c3c", fontSize: 20 }} />}
+              label="退出登录"
+              onClick={onLogout}
+              danger
+            />
+          </Box>
+        </>
+      )}
+
+      <Box sx={{ height: 32 }} />
+      </Box>{/* end inner scroll */}
+
+      {/* Name edit Dialog */}
+      <Dialog open={nameDialogOpen} onClose={() => setNameDialogOpen(false)}
+        PaperProps={{ sx: isMobile ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "16px 16px 0 0", width: "100%" } : { borderRadius: 2, minWidth: 300 } }}
+        sx={isMobile ? { "& .MuiDialog-container": { alignItems: "flex-end" } } : {}}>
+        <Box sx={{ p: 2.5 }}>
+          <Typography sx={{ fontWeight: 600, fontSize: 15, mb: 0.5, color: "#333" }}>设置昵称</Typography>
+          <Typography sx={{ fontSize: 12, color: "#999", mb: 2 }}>AI 助手将用此姓名称呼您，例如「好的，张医生」</Typography>
+          <TextField
+            fullWidth size="small" placeholder="请输入您的姓名（如：张伟）"
+            value={nameInput} onChange={(e) => setNameInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleSaveName(); }}
+            autoFocus sx={{ mb: nameError ? 0.5 : 2 }}
+          />
+          {nameError && <Typography sx={{ fontSize: 12, color: "#e74c3c", mb: 1.5 }}>{nameError}</Typography>}
+          <Box sx={{ display: "flex", gap: 1.5 }}>
+            <Box onClick={() => setNameDialogOpen(false)}
+              sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: 1.5, bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 14, color: "#666", "&:active": { opacity: 0.7 } }}>
+              取消
+            </Box>
+            <Box onClick={!nameSaving ? handleSaveName : undefined}
+              sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: 1.5, bgcolor: "#07C160", cursor: nameSaving ? "default" : "pointer", fontSize: 14, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
+              {nameSaving ? "保存中…" : "保存"}
+            </Box>
+          </Box>
+        </Box>
+      </Dialog>
     </Box>
   );
 }
@@ -1875,6 +2398,8 @@ export default function DoctorPage() {
   const [pendingError, setPendingError] = useState("");
   // Cross-section: text to insert into chat input
   const [chatInsertText, setChatInsertText] = useState("");
+  // Text to auto-send in chat (e.g. extracted PDF content from patients section)
+  const [chatAutoSendText, setChatAutoSendText] = useState("");
   // Increment to force PatientsSection to re-fetch after chat creates a patient
   const [patientRefreshKey, setPatientRefreshKey] = useState(0);
   // Selected patient name for mobile topbar
@@ -2017,8 +2542,8 @@ export default function DoctorPage() {
 
       {/* Main content */}
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", pb: isMobile ? "56px" : 0 }}>
-        {/* Topbar — hidden for chat (ChatSection has its own) */}
-        {activeSection !== "chat" && (
+        {/* Topbar — hidden for chat/tasks/settings/patients (each has its own topbar) */}
+        {activeSection !== "chat" && activeSection !== "tasks" && activeSection !== "settings" && activeSection !== "patients" && (
           <Box sx={{ px: isMobile ? 2 : 3, py: 1.2, borderBottom: "1px solid #e2e8f0", backgroundColor: "#fff" }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "text.secondary" }}>
               {activeSection === "patients" && (isMobile && patientId && selectedPatientName ? selectedPatientName : "患者管理")}
@@ -2073,6 +2598,8 @@ export default function DoctorPage() {
               externalInput={chatInsertText}
               onExternalInputConsumed={() => setChatInsertText("")}
               onPatientCreated={() => setPatientRefreshKey((k) => k + 1)}
+              autoSendText={chatAutoSendText}
+              onAutoSendConsumed={() => setChatAutoSendText("")}
             />
           )}
           {activeSection === "patients" && (
@@ -2080,12 +2607,13 @@ export default function DoctorPage() {
               doctorId={doctorId}
               onNavigateToChat={() => navigate("/doctor/chat")}
               onInsertChatText={(text) => { setChatInsertText(text); navigate("/doctor/chat"); }}
+              onAutoSendToChat={(text) => { setChatAutoSendText(text); navigate("/doctor/chat"); }}
               onPatientSelected={(name) => setSelectedPatientName(name || "")}
               refreshKey={patientRefreshKey}
             />
           )}
           {activeSection === "tasks" && <TasksSection doctorId={doctorId} />}
-          {activeSection === "settings" && <SettingsSection doctorId={doctorId} />}
+          {activeSection === "settings" && <SettingsSection doctorId={doctorId} onLogout={handleLogout} />}
         </Box>
       </Box>
 

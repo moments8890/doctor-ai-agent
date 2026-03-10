@@ -54,6 +54,7 @@ from services.ai.structuring import structure_medical_record
 from services.notify.tasks import create_appointment_task, create_general_task, run_due_task_cycle
 from services.ai.transcription import transcribe_audio
 from services.ai.vision import extract_text_from_image
+from services.knowledge.pdf_extract import extract_text_from_pdf
 from services.observability.observability import trace_block
 from services.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
 from services.observability.audit import audit
@@ -117,14 +118,41 @@ _CN_ORDINAL = {
 }
 
 _UNCLEAR_INTENT_REPLY = (
-    "我还不能确定您的操作意图。请直接说明您要执行哪一种：\n"
-    "1) 新建患者（例：新患者张三，男，45岁）\n"
-    "2) 记录病历（例：张三，胸痛2小时，保存）\n"
-    "3) 查询病历（例：查询张三）\n"
-    "4) 列出患者（例：所有患者）\n"
-    "5) 删除患者（例：删除第二个患者张三）\n"
-    "6) 任务操作（例：看待办 / 完成 5）\n"
-    "7) 预约随访（例：为张三安排复诊 2026年3月15日14:00）"
+    "没太理解您的意思，可以这样试试：\n\n"
+    "📥 导入患者（最常用）\n"
+    "  直接发送 PDF/图片，或粘贴微信聊天记录\n\n"
+    "📋 患者管理\n"
+    "  「新患者张三，男，45岁」— 建档\n"
+    "  「查张三」— 查看病历\n"
+    "  「患者列表」— 所有患者\n\n"
+    "📝 记录病历\n"
+    "  「张三，胸痛2小时，心电图正常」— 直接描述即可\n\n"
+    "📌 任务\n"
+    "  「待办任务」/「完成 3」/「3个月后随访」\n\n"
+    "发送「帮助」可随时查看完整功能列表。"
+)
+
+_HELP_REPLY = (
+    "📥 导入患者（最常用）\n"
+    "  直接发送 PDF / 图片 — 自动识别并建档\n"
+    "  粘贴聊天记录 — 将微信问诊记录直接发过来，自动提取患者信息和病历\n"
+    "  支持：出院小结、门诊病历、检验报告、问诊截图\n\n"
+    "📋 患者管理\n"
+    "  建档[姓名] — 创建新患者\n"
+    "  查[姓名] — 查看患者病历\n"
+    "  删除[姓名] — 删除患者\n"
+    "  患者列表 — 显示全部患者\n\n"
+    "📝 病历\n"
+    "  [描述病情] — 自动保存结构化病历\n"
+    "  补充：... — 补充当前患者记录\n"
+    "  刚才写错了，应该是... — 修正上一条\n\n"
+    "📌 任务\n"
+    "  待办任务 — 查看所有任务\n"
+    "  完成 3 — 标记任务#3完成\n"
+    "  3个月后随访 — 安排随访提醒\n\n"
+    "📊 其他\n"
+    "  开始问诊 — 开启结构化问诊流程\n"
+    "  PDF:患者姓名 — 导出病历PDF"
 )
 _GREETING_RE = re.compile(
     r"^(?:你好|您好|hi|hello|嗨|哈喽|早上好|下午好|晚上好|早|在吗|在不在)[！!？?。，,\s]*$",
@@ -1107,6 +1135,10 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
         reply = intent_result.chat_reply or f"✅ 已更正患者【{name}】的最近一条病历。"
         return ChatResponse(reply=reply)
 
+    # ── help ──────────────────────────────────────────────────────────────────
+    if intent_result.intent == Intent.help:
+        return ChatResponse(reply=_HELP_REPLY)
+
     # ── unknown / conversational ──────────────────────────────────────────────
     return ChatResponse(reply=intent_result.chat_reply or _UNCLEAR_INTENT_REPLY)
 
@@ -1211,6 +1243,37 @@ async def ocr_image_only(image: UploadFile = File(...)):
     except Exception as e:
         log(f"[Records] ocr failed: {e}")
         raise HTTPException(status_code=500, detail="OCR failed")
+
+
+@router.post("/extract-file")
+async def extract_file_for_chat(file: UploadFile = File(...)):
+    """Extract text from a PDF or image for pasting into the chat input.
+
+    Accepts PDF, JPEG, PNG, or WebP. Returns {text, filename}.
+    Used by the web UI import flow in the patients section.
+    """
+    content_type = (file.content_type or "").split(";")[0].strip()
+    filename = file.filename or ""
+    try:
+        raw = await file.read()
+        if content_type == "application/pdf" or filename.lower().endswith(".pdf"):
+            import asyncio as _asyncio
+            text = await _asyncio.get_event_loop().run_in_executor(
+                None, extract_text_from_pdf, raw
+            )
+        elif content_type in SUPPORTED_IMAGE_TYPES:
+            text = await extract_text_from_image(raw, content_type)
+        else:
+            raise HTTPException(
+                status_code=422,
+                detail="不支持的文件格式，请上传 PDF 或图片（JPG/PNG）",
+            )
+        return {"text": text, "filename": filename}
+    except HTTPException:
+        raise
+    except Exception as e:
+        log(f"[Records] extract-file failed: {e}")
+        raise HTTPException(status_code=500, detail="文件解析失败，请重试")
 
 
 # ---------------------------------------------------------------------------

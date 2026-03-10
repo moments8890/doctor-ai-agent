@@ -33,6 +33,7 @@ from db.crud import (
     confirm_pending_record,
     abandon_pending_record,
     get_cvd_context_for_patient,
+    delete_patient_for_doctor,
 )
 from db.engine import AsyncSessionLocal
 from db.models import (
@@ -552,6 +553,23 @@ async def delete_label_endpoint(
         raise HTTPException(status_code=404, detail="Label not found")
     asyncio.create_task(audit(doctor_id, "DELETE", "label", str(label_id)))
     return {"ok": True}
+
+
+@router.delete("/api/manage/patients/{patient_id}")
+async def delete_patient_endpoint(
+    patient_id: int,
+    doctor_id: str = Query(default="web_doctor"),
+    authorization: str | None = Header(default=None),
+):
+    """Delete a patient and all their records/tasks."""
+    doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    enforce_doctor_rate_limit(doctor_id, scope="ui.patients.delete")
+    async with AsyncSessionLocal() as db:
+        deleted = await delete_patient_for_doctor(db, doctor_id, patient_id)
+    if deleted is None:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    asyncio.create_task(audit(doctor_id, "DELETE", "patient", str(patient_id)))
+    return {"ok": True, "patient_id": patient_id}
 
 
 @router.post("/api/manage/patients/{patient_id}/labels/{label_id}")
@@ -1861,5 +1879,16 @@ async def patch_doctor_profile(
         except Exception:
             pass  # specialty column not yet migrated — skip
         await db.commit()
+
+    # Invalidate in-memory session cache so the agent picks up the new name immediately
+    try:
+        from services.session import get_session, _loaded_from_db
+        sess = get_session(resolved_id)
+        sess.doctor_name = name
+        if body.specialty is not None:
+            sess.specialty = body.specialty or None
+        _loaded_from_db.pop(resolved_id, None)  # force re-hydration next message
+    except Exception:
+        pass
 
     return {"ok": True, "name": name, "specialty": body.specialty or ""}

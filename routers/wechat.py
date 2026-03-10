@@ -663,9 +663,11 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
             dispatch_kwargs = {"history": history or [], "doctor_id": doctor_id}
             if knowledge_context:
                 dispatch_kwargs["knowledge_context"] = knowledge_context
-            _sess_specialty = get_session(doctor_id).specialty
-            if _sess_specialty:
-                dispatch_kwargs["specialty"] = _sess_specialty
+            _sess = get_session(doctor_id)
+            if _sess.specialty:
+                dispatch_kwargs["specialty"] = _sess.specialty
+            if _sess.doctor_name:
+                dispatch_kwargs["doctor_name"] = _sess.doctor_name
             intent_result = await agent_dispatch(text, **dispatch_kwargs)
             _latency_ms = (time.perf_counter() - _t0) * 1000.0
             log_turn(text, intent_result.intent.value, "llm", doctor_id, _latency_ms, patient_name=intent_result.patient_name)
@@ -735,7 +737,10 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
         return await _handle_update_patient(doctor_id, intent_result)
     elif intent_result.intent == Intent.help:
         return (
-            "可用功能：\n"
+            "📥 导入患者（最常用）\n"
+            "  直接发送 PDF / 图片 — 自动识别并建档\n"
+            "  粘贴聊天记录 — 将微信问诊记录直接发过来，自动提取患者信息和病历\n"
+            "  支持：出院小结、门诊病历、检验报告、问诊截图\n\n"
             "📋 患者管理\n"
             "  建档[姓名] — 创建新患者\n"
             "  查[姓名] — 查看患者病历\n"
@@ -750,7 +755,6 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
             "  完成 3 — 标记任务#3完成\n"
             "  3个月后随访 — 安排随访提醒\n\n"
             "📊 其他\n"
-            "  导入病历 — 导入历史记录（PDF/图片/文字）\n"
             "  开始问诊 — 开启结构化问诊流程\n"
             "  PDF:患者姓名 — 导出病历PDF"
         )

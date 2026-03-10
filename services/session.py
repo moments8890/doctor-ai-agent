@@ -59,6 +59,7 @@ class DoctorSession:
     interview: Optional[InterviewState] = None          # active guided intake interview
     pending_cvd_scale: Optional[CVDScaleSession] = None # awaiting doctor reply for a missing CVD scale
     specialty: Optional[str] = None                     # doctor's specialty, injected into agent prompt
+    doctor_name: Optional[str] = None                   # doctor's display name, e.g. "张伟" → agent says "张医生"
     conversation_history: List[dict] = field(default_factory=list)  # rolling window
     last_active: float = field(default_factory=time.time)
     updated_at: datetime = field(default_factory=_utcnow)
@@ -104,6 +105,7 @@ async def hydrate_session_state(doctor_id: str) -> DoctorSession:
                 ).scalar_one_or_none()
                 if doctor_row is not None:
                     sess.specialty = doctor_row.specialty or None
+                    sess.doctor_name = doctor_row.name or None
 
                 state = await get_doctor_session_state(db, doctor_id)
                 if state is not None:

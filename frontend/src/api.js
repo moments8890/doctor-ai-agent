@@ -1,3 +1,11 @@
+// In mobile builds (Capacitor), set VITE_API_BASE_URL to the backend origin,
+// e.g. https://your-server.com — relative /api/... paths don't resolve in WebView.
+const _API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+
+function apiUrl(path) {
+  return `${_API_BASE}${path}`;
+}
+
 async function readError(response) {
   const text = await response.text();
   return text || `HTTP ${response.status}`;
@@ -39,7 +47,7 @@ async function request(url, options = {}) {
     if (token && !headers["Authorization"]) {
       headers["Authorization"] = `Bearer ${token}`;
     }
-    const response = await fetch(url, { ...options, headers, signal: controller.signal });
+    const response = await fetch(apiUrl(url), { ...options, headers, signal: controller.signal });
     if (!response.ok) {
       const err = new Error(await readError(response));
       err.status = response.status;
@@ -151,6 +159,12 @@ export async function ocrImage(imageFile) {
   return request("/api/records/ocr", { method: "POST", body: form });
 }
 
+export async function extractFileForChat(file) {
+  const form = new FormData();
+  form.append("file", file, file.name);
+  return request("/api/records/extract-file", { method: "POST", body: form });
+}
+
 export async function getPatients(doctorId, filters = {}, limit = 50, offset = 0) {
   const qs = new URLSearchParams({ doctor_id: doctorId, limit: String(limit), offset: String(offset) });
   if (filters.risk) qs.set("risk", filters.risk);
@@ -162,7 +176,7 @@ export async function exportPatientPdf(patientId, doctorId) {
   const qs = new URLSearchParams({ doctor_id: doctorId });
   const headers = {};
   if (_webToken) headers["Authorization"] = `Bearer ${_webToken}`;
-  const response = await fetch(`/api/export/patient/${patientId}/pdf?${qs.toString()}`, { headers });
+  const response = await fetch(apiUrl(`/api/export/patient/${patientId}/pdf?${qs.toString()}`), { headers });
   if (!response.ok) {
     const text = await response.text();
     throw new Error(text || `HTTP ${response.status}`);
@@ -180,7 +194,7 @@ export async function exportOutpatientReport(patientId, doctorId) {
   const qs = new URLSearchParams({ doctor_id: doctorId });
   const headers = {};
   if (_webToken) headers["Authorization"] = `Bearer ${_webToken}`;
-  const response = await fetch(`/api/export/patient/${patientId}/outpatient-report?${qs.toString()}`, { headers });
+  const response = await fetch(apiUrl(`/api/export/patient/${patientId}/outpatient-report?${qs.toString()}`), { headers });
   if (!response.ok) {
     const text = await response.text();
     throw new Error(text || `HTTP ${response.status}`);
@@ -205,7 +219,7 @@ export async function uploadTemplate(doctorId, file) {
   const form = new FormData();
   form.append("file", file);
   form.append("doctor_id", doctorId);
-  const response = await fetch("/api/export/template/upload", { method: "POST", headers, body: form });
+  const response = await fetch(apiUrl("/api/export/template/upload"), { method: "POST", headers, body: form });
   if (!response.ok) {
     const text = await response.text();
     throw new Error(text || `HTTP ${response.status}`);
@@ -217,7 +231,7 @@ export async function deleteTemplate(doctorId) {
   const qs = new URLSearchParams({ doctor_id: doctorId });
   const headers = {};
   if (_webToken) headers["Authorization"] = `Bearer ${_webToken}`;
-  const response = await fetch(`/api/export/template?${qs.toString()}`, { method: "DELETE", headers });
+  const response = await fetch(apiUrl(`/api/export/template?${qs.toString()}`), { method: "DELETE", headers });
   if (!response.ok) {
     const text = await response.text();
     throw new Error(text || `HTTP ${response.status}`);
@@ -297,6 +311,11 @@ export async function removeLabelFromPatient({ doctorId, patientId, labelId }) {
   return request(`/api/manage/patients/${patientId}/labels/${labelId}?${qs.toString()}`, {
     method: "DELETE",
   });
+}
+
+export async function deletePatient(patientId, doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/patients/${patientId}?${qs.toString()}`, { method: "DELETE" });
 }
 
 export async function getAdminDbView({ doctorId, patientName, dateFrom, dateTo, limit = 100 }) {
@@ -554,7 +573,7 @@ async function patientRequest(url, patientToken, options = {}) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
   try {
-    const response = await fetch(url, { ...options, headers, signal: controller.signal });
+    const response = await fetch(apiUrl(url), { ...options, headers, signal: controller.signal });
     if (!response.ok) {
       const err = new Error(await readError(response));
       err.status = response.status;
@@ -570,7 +589,7 @@ async function patientRequest(url, patientToken, options = {}) {
 }
 
 export async function patientSession(doctorId, patientName) {
-  return fetch("/api/patient/session", {
+  return fetch(apiUrl("/api/patient/session"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ doctor_id: doctorId, patient_name: patientName }),

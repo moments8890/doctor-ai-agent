@@ -62,8 +62,9 @@ async def seed_prompts() -> None:
             if not existing:
                 await upsert_system_prompt(db, key, content)
 
-        # Always upsert neuro_cvd so expanded field definitions reach production on deploy.
+        # Always upsert these so improved prompt rules reach production on deploy.
         await upsert_system_prompt(db, "structuring.neuro_cvd", _NEURO_SEED)
+        await upsert_system_prompt(db, "structuring", _SEED_PROMPT)
 
 
 async def backfill_doctors_registry() -> int:
