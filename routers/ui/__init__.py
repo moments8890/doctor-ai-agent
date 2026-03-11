@@ -588,6 +588,72 @@ async def admin_table_rows(
 
 
 # ---------------------------------------------------------------------------
+# Doctor working context — single lightweight endpoint for the workbench header
+# ---------------------------------------------------------------------------
+
+@router.get("/api/manage/working-context")
+async def get_working_context(
+    doctor_id: str = Query(...),
+    authorization: str | None = Header(default=None),
+):
+    """Return the current working context for the doctor workbench header.
+
+    Combines current patient, pending draft, and next-step state into one
+    response so the UI can render the context header without multiple calls.
+    """
+    _resolve_ui_doctor_id(doctor_id, authorization)
+    sess = get_session(doctor_id)
+
+    # Current patient
+    current_patient = None
+    if sess.current_patient_id is not None:
+        current_patient = {
+            "id": sess.current_patient_id,
+            "name": sess.current_patient_name or "未知",
+        }
+
+    # Pending draft
+    pending_draft = None
+    pending_id = sess.pending_record_id
+    if pending_id:
+        async with AsyncSessionLocal() as session:
+            pending = await get_pending_record(session, pending_id, doctor_id)
+        now = datetime.now(timezone.utc)
+        _exp = pending.expires_at if pending else None
+        if _exp and _exp.tzinfo is None:
+            _exp = _exp.replace(tzinfo=timezone.utc)
+        if pending and pending.status == "awaiting" and (not _exp or _exp >= now):
+            try:
+                draft = json.loads(pending.draft_json)
+                preview = draft.get("content", "")[:60]
+            except Exception:
+                preview = ""
+            pending_draft = {
+                "id": pending.id,
+                "patient_name": pending.patient_name or "未关联",
+                "preview": preview,
+                "expires_at": pending.expires_at.isoformat() if pending.expires_at else None,
+            }
+        else:
+            clear_pending_record_id(doctor_id)
+
+    # Next step — what the system is waiting for
+    next_step = None
+    if pending_draft:
+        next_step = "请确认或撤销待审病历草稿"
+    elif sess.pending_create_name:
+        next_step = f"请补充【{sess.pending_create_name}】的信息"
+    elif current_patient is None:
+        next_step = "发送病历或患者姓名开始工作"
+
+    return {
+        "current_patient": current_patient,
+        "pending_draft": pending_draft,
+        "next_step": next_step,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Pending record confirmation endpoints (web UI ↔ AI confirmation gate)
 # ---------------------------------------------------------------------------
 
