@@ -39,7 +39,10 @@ from services.domain.name_utils import is_valid_patient_name, patient_name_from_
 from services.notify.tasks import create_general_task
 from services.observability.audit import audit
 from services.observability.observability import get_current_trace_id, trace_block
-from services.session import set_current_patient, set_pending_record_id
+from services.session import (
+    set_current_patient, set_pending_record_id,
+    set_patient_not_found, clear_candidate_patient, clear_patient_not_found,
+)
 from utils.errors import InvalidMedicalRecordError
 from utils.log import log
 
@@ -79,7 +82,7 @@ async def background_auto_learn(doctor_id: str, text: str, fields: dict) -> None
 async def handle_create_patient(
     body_text: str, original_text: str, doctor_id: str, intent_result: IntentResult,
 ):
-    """建档：创建或复用患者档案，可附带病历和提醒任务。"""
+    """创建：创建或复用患者档案，可附带病历和提醒任务。"""
     name = intent_result.patient_name
     if not name:
         return _chat_response("好的，请告诉我患者的姓名。")
@@ -108,7 +111,7 @@ async def handle_create_patient(
 async def _create_or_reuse_patient(
     doctor_id: str, name: str, patient: Optional[object], intent_result: IntentResult,
 ) -> tuple[str, object]:
-    """建档或复用已有患者，返回 (reply, patient)。"""
+    """创建或复用已有患者，返回 (reply, patient)。"""
     if patient is not None:
         _age_str = (
             f"{datetime.now().year - patient.year_of_birth}岁"
@@ -135,7 +138,7 @@ async def _create_or_reuse_patient(
         intent_result.gender,
         f"{intent_result.age}岁" if intent_result.age else None,
     ]))
-    reply = f"✅ 已为患者【{patient.name}】建档" + (f"（{parts}）" if parts else "") + "。"
+    reply = f"✅ 已为患者【{patient.name}】创建" + (f"（{parts}）" if parts else "") + "。"
     log(f"[Chat] created patient [{patient.name}] id={patient.id} doctor={doctor_id}")
     asyncio.create_task(audit(
         doctor_id, "WRITE", resource_type="patient",
@@ -147,7 +150,7 @@ async def _create_or_reuse_patient(
 async def _append_compound_record(
     doctor_id: str, patient: object, body_text: str, name: str, reply: str,
 ) -> str:
-    """附加病历录入到建档回复中。"""
+    """附加病历录入到创建回复中。"""
     try:
         _clinical_text = _CREATE_PREAMBLE_RE.sub("", body_text).strip() or body_text
         with trace_block("router", "records.chat.compound_record"):
@@ -170,7 +173,7 @@ async def _append_compound_record(
 async def _append_reminder_task(
     doctor_id: str, patient: object, name: str, reminder_match: re.Match, reply: str,
 ) -> str:
-    """附加提醒任务到建档回复中。"""
+    """附加提醒任务到创建回复中。"""
     task_title_raw = reminder_match.group(1).strip().rstrip("。！")
     task_title = f"【{name}】{task_title_raw}"
     try:
@@ -301,15 +304,37 @@ async def handle_add_record(
             intent_result.patient_name = _hist_name
             log(f"[Chat] resolved patient from history: {_hist_name} doctor={doctor_id}")
         else:
-            # 078/089 fix: LLM may omit patient_name from add_medical_record args
-            # when [当前接诊患者] context is injected — use session-pinned patient.
             from services.session import get_session as _get_session
-            _sess_name = _get_session(doctor_id).current_patient_name
+            _sess = _get_session(doctor_id)
+            _sess_name = _sess.current_patient_name
             if _sess_name and is_valid_patient_name(_sess_name):
                 intent_result.patient_name = _sess_name
                 log(f"[Chat] resolved patient from session: {_sess_name} doctor={doctor_id}")
             else:
-                return _chat_response("请问这位患者叫什么名字？")
+                # Step 4: candidate patient — name+demographics captured from a prior
+                # mixed-intent turn (e.g. list_tasks with patient intro).
+                # Creates a pending draft (not final save) with caution reply.
+                _cand_name = getattr(_sess, "candidate_patient_name", None)
+                _not_found_name = getattr(_sess, "patient_not_found_name", None)
+                if _cand_name and is_valid_patient_name(_cand_name):
+                    intent_result.patient_name = _cand_name
+                    if not intent_result.gender:
+                        intent_result.gender = getattr(_sess, "candidate_patient_gender", None)
+                    if not intent_result.age:
+                        intent_result.age = getattr(_sess, "candidate_patient_age", None)
+                    clear_candidate_patient(doctor_id)
+                    log(f"[Chat] resolved patient from candidate: {_cand_name} doctor={doctor_id}")
+                    if not intent_result.chat_reply:
+                        intent_result.chat_reply = f"已为候选患者【{_cand_name}】生成病历草稿，请确认后保存。"
+                elif _not_found_name and is_valid_patient_name(_not_found_name):
+                    # Patient was queried but not found — auto-create + pending draft.
+                    intent_result.patient_name = _not_found_name
+                    clear_patient_not_found(doctor_id)
+                    log(f"[Chat] creating patient from not-found query: {_not_found_name} doctor={doctor_id}")
+                    if not intent_result.chat_reply:
+                        intent_result.chat_reply = f"未找到【{_not_found_name}】，已为新患者生成病历草稿，请确认后保存。"
+                else:
+                    return _chat_response("请问这位患者叫什么名字？")
 
     patient_name = intent_result.patient_name
 
@@ -341,6 +366,7 @@ async def handle_query_records(doctor_id: str, intent_result: IntentResult):
             if name:
                 patient = await find_patient_by_name(db, doctor_id, name)
                 if not patient:
+                    set_patient_not_found(doctor_id, name)
                     return _chat_response(f"未找到患者【{name}】。")
                 # Pin this patient to session so follow-up add_record turns can
                 # resolve them without re-scanning history (fixes Category D).

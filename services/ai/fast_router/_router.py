@@ -370,7 +370,23 @@ def _fast_route_core(text: str, specialty: Optional[str] = None) -> Optional[Int
     if _last_sep >= 0:
         _tail = stripped[_last_sep + 1:].strip()
         if _tail and (_TAIL_TASK_RE.match(_tail) or _TAIL_TASK_RE.match(_normalise(_tail))):
-            return IntentResult(intent=Intent.list_tasks)
+            # Candidate capture: extract name+demographics from the pre-comma clause.
+            # Requires name + at least one demographic anchor (gender/age) to prevent
+            # over-capturing from noisy clinical text (e.g. "头痛两小时，查我的待办").
+            _pre = stripped[:_last_sep].strip()
+            _extra: Optional[dict] = None
+            _nm = _TIER3_NAME_RE.match(_pre)
+            if _nm:
+                _cname = _nm.group(1)
+                if _cname not in _NON_NAME_KEYWORDS and _cname not in _TIER3_BAD_NAME:
+                    _cg, _ca = _extract_demographics(_pre)
+                    if _cg is not None or _ca is not None:
+                        _extra = {
+                            "candidate_name": _cname,
+                            "candidate_gender": _cg,
+                            "candidate_age": _ca,
+                        }
+            return IntentResult(intent=Intent.list_tasks, extra_data=_extra)
 
     result = _route_tier2_all(normed, stripped)
     if result is not None:
@@ -418,6 +434,8 @@ def fast_route(
         and not getattr(session, "current_patient_id", None)
         and not getattr(session, "current_patient_name", None)
         and not getattr(session, "pending_record_id", None)
+        and not getattr(session, "candidate_patient_name", None)
+        and not getattr(session, "patient_not_found_name", None)
     ):
         result = None
 

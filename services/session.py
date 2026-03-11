@@ -54,6 +54,10 @@ MAX_TURNS = 10
 class DoctorSession:
     current_patient_id: Optional[int] = None
     current_patient_name: Optional[str] = None
+    candidate_patient_name: Optional[str] = None    # mentioned but not DB-confirmed (ephemeral)
+    candidate_patient_gender: Optional[str] = None
+    candidate_patient_age: Optional[int] = None
+    patient_not_found_name: Optional[str] = None    # last query returned empty for this name
     pending_create_name: Optional[str] = None   # waiting for gender/age to create a new patient
     pending_record_id: Optional[str] = None     # UUID of draft PendingRecord awaiting confirmation
     interview: Optional[InterviewState] = None          # active guided intake interview
@@ -152,7 +156,9 @@ async def _hydrate_from_db(sess: "DoctorSession", doctor_id: str) -> None:
             _restore_cvd_scale(sess, doctor_id, state)
 
         turns = await get_recent_conversation_turns(db, doctor_id, limit=MAX_TURNS * 2)
-        if turns:
+        # Only restore from DB if no in-memory turns exist — prevents overwriting
+        # turns that were push_turn()'d since this session was created (H3 fix).
+        if turns and not sess.conversation_history:
             sess.conversation_history = [
                 {"role": turn.role, "content": turn.content}
                 for turn in turns
@@ -292,14 +298,73 @@ async def flush_turns(doctor_id: str) -> None:
     await _flush_pending_turns(doctor_id)
 
 
+async def push_and_flush_turn(doctor_id: str, user_text: str, assistant_reply: str) -> None:
+    """Append one exchange to the rolling window and flush to DB atomically.
+
+    Preferred over calling push_turn() + flush_turns() separately — ensures the
+    flush contract is always satisfied, bounding the data-loss window on crash.
+    """
+    push_turn(doctor_id, user_text, assistant_reply)
+    await flush_turns(doctor_id)
+
+
 def set_current_patient(doctor_id: str, patient_id: int, name: str, persist: bool = True) -> None:
     with _registry_lock:
         session = get_session(doctor_id)
         session.current_patient_id = patient_id
         session.current_patient_name = name
+        session.candidate_patient_name = None
+        session.candidate_patient_gender = None
+        session.candidate_patient_age = None
+        session.patient_not_found_name = None
         session.updated_at = _utcnow()
     if persist:
         _schedule_persist(doctor_id)
+
+
+def set_candidate_patient(
+    doctor_id: str, name: str,
+    gender: Optional[str] = None, age: Optional[int] = None,
+) -> None:
+    """Store a candidate patient extracted from a mixed-intent message (not DB-confirmed).
+    Ephemeral — not persisted to DB. Cleared when any patient is resolved.
+    """
+    with _registry_lock:
+        session = get_session(doctor_id)
+        session.candidate_patient_name = name
+        session.candidate_patient_gender = gender
+        session.candidate_patient_age = age
+        session.patient_not_found_name = None
+        session.updated_at = _utcnow()
+
+
+def clear_candidate_patient(doctor_id: str) -> None:
+    with _registry_lock:
+        session = get_session(doctor_id)
+        session.candidate_patient_name = None
+        session.candidate_patient_gender = None
+        session.candidate_patient_age = None
+        session.updated_at = _utcnow()
+
+
+def set_patient_not_found(doctor_id: str, name: str) -> None:
+    """Record that the last query returned no patient for this name.
+    Ephemeral — not persisted. Clears stale candidate state.
+    """
+    with _registry_lock:
+        session = get_session(doctor_id)
+        session.patient_not_found_name = name
+        session.candidate_patient_name = None
+        session.candidate_patient_gender = None
+        session.candidate_patient_age = None
+        session.updated_at = _utcnow()
+
+
+def clear_patient_not_found(doctor_id: str) -> None:
+    with _registry_lock:
+        session = get_session(doctor_id)
+        session.patient_not_found_name = None
+        session.updated_at = _utcnow()
 
 
 def clear_current_patient(doctor_id: str, persist: bool = True) -> None:

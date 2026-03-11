@@ -32,7 +32,10 @@ from db.engine import AsyncSessionLocal
 from db.models.medical_record import MedicalRecord
 from services.ai.agent import dispatch as agent_dispatch
 from services.ai.fast_router import fast_route, fast_route_label
-from services.session import get_session, set_pending_record_id, clear_pending_record_id
+from services.session import (
+    get_session, set_pending_record_id, clear_pending_record_id,
+    set_candidate_patient, set_current_patient,
+)
 from db.crud.pending import get_pending_record, abandon_pending_record
 from services.knowledge.doctor_knowledge import (
     load_knowledge_context_for_prompt,
@@ -296,8 +299,21 @@ async def _handle_delete_patient(doctor_id: str, intent_result: IntentResult) ->
     return ChatResponse(reply=intent_result.chat_reply or f"✅ 已删除患者【{name}】及其相关记录。")
 
 
-async def _handle_list_tasks(doctor_id: str) -> ChatResponse:
+async def _handle_list_tasks(doctor_id: str, intent_result: Optional[IntentResult] = None) -> ChatResponse:
     """待办任务列表：展示全部待办任务。"""
+    # Candidate capture: when list_tasks was triggered by a mixed-intent turn containing
+    # a patient name + demographics (054/084/094 fix), pin the candidate to session so
+    # subsequent clinical turns can resolve the patient without LLM context scanning.
+    if intent_result is not None:
+        _extra = intent_result.extra_data or {}
+        _cand_name = _extra.get("candidate_name")
+        if _cand_name:
+            set_candidate_patient(
+                doctor_id, _cand_name,
+                gender=_extra.get("candidate_gender"),
+                age=_extra.get("candidate_age"),
+            )
+            log(f"[Chat] candidate patient captured from list_tasks: {_cand_name} doctor={doctor_id}")
     with trace_block("router", "records.chat.list_tasks", {"doctor_id": doctor_id}):
         async with AsyncSessionLocal() as db:
             tasks = await list_tasks(db, doctor_id, status="pending")
@@ -379,12 +395,13 @@ async def _handle_update_patient(doctor_id: str, intent_result: IntentResult) ->
                 db, doctor_id, name, gender=intent_result.gender, age=intent_result.age,
             )
     if patient is None:
-        return ChatResponse(reply=f"⚠️ 未找到患者【{name}】，请先建档。")
+        return ChatResponse(reply=f"⚠️ 未找到患者【{name}】，请先创建。")
     parts = []
     if intent_result.gender:
         parts.append(f"性别→{intent_result.gender}")
     if intent_result.age:
         parts.append(f"年龄→{intent_result.age}岁")
+    set_current_patient(doctor_id, patient.id, patient.name)
     log(f"[Chat] updated patient demographics [{name}] {parts} doctor={doctor_id}")
     asyncio.create_task(audit(
         doctor_id, "WRITE", resource_type="patient",
@@ -534,7 +551,7 @@ async def _dispatch_intent(
     if intent == Intent.delete_patient:
         return await _handle_delete_patient(doctor_id, intent_result)
     if intent == Intent.list_tasks:
-        return await _handle_list_tasks(doctor_id)
+        return await _handle_list_tasks(doctor_id, intent_result)
     if intent == Intent.complete_task:
         return await _handle_complete_task(body.text, doctor_id, intent_result)
     if intent == Intent.schedule_appointment:
