@@ -330,14 +330,15 @@ async def handle_pending_record_reply(text: str, doctor_id: str, sess) -> str:
         return "已撤销。"
     if stripped in ("确认", "确定", "保存", "ok", "OK", "好的", "yes", "Yes"):
         return await confirm_pending_record(doctor_id, pending_id)
-    _save_result = await wd.save_pending_record(doctor_id, pending) if pending else None
+    # Explicit-confirmation only: abandon unconfirmed draft (UX principle 5).
+    async with AsyncSessionLocal() as session:
+        await abandon_pending_record(session, pending_id, doctor_id=doctor_id)
     clear_pending_record_id(doctor_id)
-    log(f"[WeChat] pending record auto-saved on context switch, doctor={doctor_id}")
-    saved_name = _save_result[0] if _save_result else None
-    save_notice = f"已为【{saved_name}】自动保存病历。\n\n" if saved_name else ""
+    _pname = pending.patient_name or "未关联患者"
+    log(f"[WeChat] pending record abandoned on context switch, doctor={doctor_id} patient={_pname}")
     from routers import wechat as _wechat_router
     new_result = await _wechat_router._handle_intent(text, doctor_id)
-    return f"{save_notice}{new_result}"
+    return f"⚠️ 【{_pname}】的病历草稿已放弃。\n\n{new_result}"
 
 
 # ── Intent dispatch helpers ──────────────────────────────────────────────────

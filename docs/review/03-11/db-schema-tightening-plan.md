@@ -2,7 +2,7 @@
 Tighten the current single-doctor patient-pool schema so DB constraints match the product rules: no duplicate patient names per doctor, single active session semantics, and safer pending-record / record persistence.
 
 # Affected files
-- docs/plans/db-schema-tightening-plan.md
+- docs/review/03-11/db-schema-tightening-plan.md
 - db/models/patient.py
 - db/models/pending.py
 - db/models/tasks.py
@@ -55,7 +55,7 @@ Tighten the current single-doctor patient-pool schema so DB constraints match th
 
 ## Deferred — separate follow-up
 
-5. **Structured record payload (`structured_json`)** — Deferred to a dedicated plan.
+8. **Structured record payload (`structured_json`)** — Deferred to a dedicated plan.
    - `medical_records.content` remains the single source of truth.
    - A future plan may add an optional `structured_json` column for evaluation/quality-check use, but that is out of scope for this integrity-hardening task.
 

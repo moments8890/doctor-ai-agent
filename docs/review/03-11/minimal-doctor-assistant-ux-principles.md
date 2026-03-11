@@ -157,9 +157,13 @@ Define a doctor-facing UX contract that keeps the product lightweight, safe, and
 
 - Replaced verbose WeChat `_FALLBACK_TEXT` (6-item menu dump) with one-line message consistent with Web's `UNCLEAR_INTENT_REPLY`: "没太理解您的意思，能说得更具体一些吗？发送「帮助」可查看完整功能列表。"
 
-## Satisfied by existing implementation
+## Done — draft auto-save removed (Principle 5)
 
-- Draft handling: drafts already require explicit confirmation (`确认`/`保存`/`ok`) or cancellation (`撤销`/`取消`). Auto-save on context switch is logged and notified.
+- WeChat `handle_pending_record_reply` previously auto-saved unconfirmed drafts when the doctor sent a new message (silent high-risk automation). Changed to **abandon** the draft and notify: `⚠️ 【患者】的病历草稿已放弃。`
+- Drafts now require explicit confirmation (`确认`/`保存`/`ok`) or explicit cancellation (`撤销`/`取消`) on both Web and WeChat. Any other message abandons the pending draft with a visible notice.
+- Web path was already correct (explicit confirm/abandon endpoints, no auto-save).
+
+## Satisfied by existing implementation
 - Error messages: most error replies already follow the "one missing thing" pattern (e.g. "请问这位患者叫什么名字？", "⚠️ 未找到患者【X】").
 - Free text / voice as default input: both Web and WeChat accept natural language as the primary input method. Intent is inferred, not form-driven.
 
@@ -186,7 +190,7 @@ Define a doctor-facing UX contract that keeps the product lightweight, safe, and
 - services/session.py — `set_current_patient()` returns `Optional[str]` (previous patient name on switch)
 - routers/records_intent_handlers.py — switch notifications in create_patient, add_record, query_records
 - services/wechat/wechat_domain.py — switch notifications in create_patient, add_record (via `_resolve_add_record_patient`), query_records, name_lookup
-- routers/wechat_flows.py — shortened `_FALLBACK_TEXT`; switch notification in single-patient auto-bind
+- routers/wechat_flows.py — shortened `_FALLBACK_TEXT`; switch notification in single-patient auto-bind; **replaced draft auto-save with abandon + notify**
 - tests/test_wechat_routes.py — updated fallback text assertions
 
 # Risks / open questions
