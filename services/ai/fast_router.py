@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from services.ai.intent import Intent, IntentResult
+from services.domain.chat_constants import WARM_GREETING_REPLY as _WARM_GREETING_REPLY
 
 if TYPE_CHECKING:
     from services.session import DoctorSession
@@ -911,7 +912,7 @@ def _fast_route_core(text: str) -> Optional[IntentResult]:
     # ── Tier 0a: greeting → immediate reply without LLM ──────────────────────
     _s_lower = stripped.lower()
     if stripped in _GREETING_EXACT or normed in _GREETING_EXACT or _s_lower in _GREETING_EXACT or _GREETING_RE.match(stripped):
-        return IntentResult(intent=Intent.unknown, chat_reply="您好！有什么可以帮您？")
+        return IntentResult(intent=Intent.unknown, chat_reply=_WARM_GREETING_REPLY)
 
     # ── Tier 0b: help command → return help intent without LLM ───────────────
     if stripped in _HELP_EXACT or normed in _HELP_EXACT or _s_lower in _HELP_EXACT:
