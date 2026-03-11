@@ -33,6 +33,17 @@ def _load_tier3_classifier() -> None:
 
 _load_tier3_classifier()
 
+# ── Greeting / help fast-path (no LLM needed) ────────────────────────────────
+_GREETING_EXACT: frozenset[str] = frozenset({
+    "你好", "您好", "你好啊", "您好啊", "在吗", "有人吗", "在不在",
+    "hi", "hello", "嗨",
+})
+_GREETING_RE = re.compile(r"^(?:你|您)好[啊呀哇]?[！!。]?$")
+
+_HELP_EXACT: frozenset[str] = frozenset({
+    "帮助", "help", "功能", "使用说明", "怎么用", "怎么使用", "命令列表", "菜单",
+})
+
 # ── Import history detection ───────────────────────────────────────────────────
 _IMPORT_KEYWORDS: frozenset[str] = frozenset()
 _IMPORT_DATE_RE = re.compile(r"\d{4}[-/年]\d{1,2}")
@@ -896,6 +907,15 @@ def _fast_route_core(text: str) -> Optional[IntentResult]:
 
     # Normalised form used for Tier 1 set lookups (strips polite particles etc.)
     normed = _normalise(stripped)
+
+    # ── Tier 0a: greeting → immediate reply without LLM ──────────────────────
+    _s_lower = stripped.lower()
+    if stripped in _GREETING_EXACT or normed in _GREETING_EXACT or _s_lower in _GREETING_EXACT or _GREETING_RE.match(stripped):
+        return IntentResult(intent=Intent.unknown, chat_reply="您好！有什么可以帮您？")
+
+    # ── Tier 0b: help command → return help intent without LLM ───────────────
+    if stripped in _HELP_EXACT or normed in _HELP_EXACT or _s_lower in _HELP_EXACT:
+        return IntentResult(intent=Intent.help)
 
     # ── Tier 0: import_history — bulk/PDF/Word/Image imports bypass LLM entirely ─
     if stripped.startswith("[PDF:") or stripped.startswith("[Word:"):
