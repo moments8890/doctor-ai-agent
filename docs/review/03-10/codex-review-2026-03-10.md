@@ -208,5 +208,5 @@ Both channels use the same draft-first, confirm-before-persist write safety mode
 - `routers/records.py`
 - `routers/wechat.py`
 - `services/wechat/wechat_domain.py`
-- `docs/agent_workflow_review.md`
+- `docs/review/03-09/agent_workflow_review.md`
 - `docs/product/message-routing-pipeline.md`

@@ -1,26 +1,29 @@
 # Architecture Overview
-**Last updated:** 2026-03-10 (context management refactor)
+**Last updated:** 2026-03-11
 
 ---
 
 ## System Overview
 
-A FastAPI backend + React SPA serving doctors through two channels: **WeChat/WeCom** (primary mobile interface) and a **web dashboard**. A WeChat Mini Program acts as a thin launcher bridging into the web dashboard.
+A FastAPI backend + React SPA serving doctors through two main channels:
+**WeChat/WeCom** (primary mobile interface) and a **web dashboard**. A WeChat
+Mini Program uses dedicated `/api/mini/*` endpoints and shares the same core
+doctor workflow and persistence model.
 
 ---
 
 ## Channels & Entry Points
 
 ```
-WeChat/WeCom ──► POST /wechat          routers/wechat.py
-                                        ↓ async background task
-Web Dashboard ──► POST /api/chat        routers/records.py
+WeChat/WeCom ──► POST /wechat               routers/wechat.py
+                                             ↓ async background task
+Web Dashboard ──► POST /api/records/chat    routers/records.py
                   (React SPA)
 
-Mini Program ──► GET /api/miniprogram   routers/miniprogram.py
-                 (WebView bridge to SPA)
+Mini Program ──► POST /api/mini/chat        routers/miniprogram.py
+                 POST /api/mini/voice/chat
 
-Patient Portal ──► POST /api/patient    routers/patient_portal.py
+Patient Portal ──► POST /api/patient        routers/patient_portal.py
 ```
 
 ---
@@ -72,8 +75,9 @@ fast_route()                    services/ai/fast_router/
   #   _mined_rules.py — data-driven JSON rules (data/mined_rules.json)
   #   FAST_ROUTE_CONFIDENCE_THRESHOLD — env var to push low-confidence hits to LLM
 agent_dispatch()                services/ai/agent.py
-  LLM function-calling           ROUTING_LLM (deepseek/ollama/openai)
-  Context: system prompt + [current_patient] + [knowledge] + trimmed history
+  LLM function-calling           ROUTING_LLM provider registry
+  Context: system prompt + [current_patient] + [candidate/not_found]
+           + [knowledge] + value-trimmed history + current doctor message
   Tool: IntentResult extraction  8 structured clinical fields
   Fallback chain: primary → cloud → regex heuristic
   │
@@ -140,7 +144,7 @@ add_record intent
                 │
                 ├─ cancel  ──► abandon_pending_record()
                 │
-                └─ timeout ──► scheduler auto-saves every 5min
+                └─ timeout ──► scheduler marks expired every 5 min
 ```
 
 Web confirm/abandon: `POST /api/records/pending/{id}/confirm|abandon`
@@ -210,17 +214,18 @@ Patient portal: separate PatientPage.jsx, PBKDF2 access code auth
 
 ```
 FastAPI (async) + SQLAlchemy async + SQLite (dev) / MySQL/Postgres (prod)
-APScheduler — 6 background jobs:
+APScheduler — task delivery plus cleanup/retention jobs:
   check_and_send_due_tasks       interval (configurable)
   _expire_stale_pending_records  every 5 min
-  _cleanup_old_conversation_turns  daily
+  _cleanup_old_conversation_turns  interval hours (configurable)
   _cleanup_inactive_session_cache  interval
   _purge_old_pending_data        daily 04:00
   _cleanup_chat_archive          daily 04:30
   _audit_log_retention           monthly
   _record_version_retention      monthly
+  _redact_old_conversation_content daily 05:00
 
-LLM providers — Ollama (local) / DeepSeek / OpenAI, configurable via ROUTING_LLM
+LLM providers — Ollama / DeepSeek / OpenAI / Tencent LKEAP / Claude / Gemini / Groq
 config/runtime.json — live config reload without restart
 ```
 
@@ -230,10 +235,10 @@ config/runtime.json — live config reload without restart
 
 | Router | Prefix | Purpose |
 |---|---|---|
-| `records.py` | `/api` | Chat, CRUD records, pending-draft confirm/abandon |
+| `records.py` | `/api/records` | Chat, CRUD records, pending-draft confirm/abandon |
 | `wechat.py` | `/wechat` | WeChat/WeCom webhook handler |
 | `auth.py` | `/api/auth` | Doctor login, invite codes |
-| `miniprogram.py` | `/api/miniprogram` | Mini Program auth + token hand-off |
+| `miniprogram.py` | `/api/mini` | Mini Program chat, voice, and doctor workflow endpoints |
 | `patient_portal.py` | `/api/patient` | Patient self-service portal |
 | `tasks.py` | `/api/tasks` | Task management |
 | `voice.py` | `/api/voice` | Voice transcription |

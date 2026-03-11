@@ -79,11 +79,13 @@ export TENCENT_LKEAP_MODEL="deepseek-v3-1"
 
 ## Docs
 
-- `docs/root/ARCHITECTURE.md`
-- `docs/TESTING.md`
-- `docs/ARCHITECTURE.zh.patient-data-model.md`
 - `docs/README.md`
-- `docs/root/AGENTS.md`
+- `docs/TESTING.md`
+- `docs/review/architecture-overview.md`
+- `docs/ai/AI提示词文档.md`
+- `docs/ai/context-and-prompt-contract.md`
+- `docs/adr/README.md`
+- `AGENTS.md`
 
 ---
 
@@ -148,8 +150,10 @@ export TENCENT_LKEAP_MODEL="deepseek-v3-1"
 
 ## 文档
 
-- `docs/root/ARCHITECTURE.md`
-- `docs/TESTING.md`
-- `docs/ARCHITECTURE.zh.patient-data-model.md`
 - `docs/README.md`
-- `docs/root/AGENTS.md`
+- `docs/TESTING.md`
+- `docs/review/architecture-overview.md`
+- `docs/ai/AI提示词文档.md`
+- `docs/ai/context-and-prompt-contract.md`
+- `docs/adr/README.md`
+- `AGENTS.md`
