@@ -14,7 +14,7 @@ from db.crud import add_doctor_knowledge_item, list_doctor_knowledge_items
 from db.models import DoctorKnowledgeItem
 from utils.log import log
 
-_KNOWLEDGE_CACHE: dict[str, tuple[float, str]] = {}
+_KNOWLEDGE_ITEMS_CACHE: dict[str, tuple[float, list]] = {}  # doctor_id → (timestamp, raw items)
 _KNOWLEDGE_CACHE_TTL = 300  # 5 minutes
 
 _ADD_TO_KNOWLEDGE_RE = re.compile(
@@ -220,24 +220,30 @@ def render_knowledge_context(query: str, items: Sequence[DoctorKnowledgeItem]) -
 
 
 async def load_knowledge_context_for_prompt(session, doctor_id: str, query: str) -> str:
+    """Load knowledge items (cached by doctor_id) and render per-query.
+
+    Raw items are cached by doctor_id with a 5-minute TTL to avoid repeated DB reads.
+    Rendering (scoring/ranking against the query) is always done fresh so that
+    different queries surface the most relevant items.
+    """
     now = _time.time()
-    cached = _KNOWLEDGE_CACHE.get(doctor_id)
+    cached = _KNOWLEDGE_ITEMS_CACHE.get(doctor_id)
     if cached and now - cached[0] < _KNOWLEDGE_CACHE_TTL:
-        return cached[1]
-    limits = knowledge_limits()
-    items = await list_doctor_knowledge_items(
-        session,
-        doctor_id,
-        limit=limits["candidate_limit"],
-    )
-    result = render_knowledge_context(query=query, items=items)
-    _KNOWLEDGE_CACHE[doctor_id] = (now, result)
-    return result
+        items = cached[1]
+    else:
+        limits = knowledge_limits()
+        items = await list_doctor_knowledge_items(
+            session,
+            doctor_id,
+            limit=limits["candidate_limit"],
+        )
+        _KNOWLEDGE_ITEMS_CACHE[doctor_id] = (now, list(items))
+    return render_knowledge_context(query=query, items=items)
 
 
 def invalidate_knowledge_cache(doctor_id: str) -> None:
-    """Invalidate cached knowledge context when new items are added."""
-    _KNOWLEDGE_CACHE.pop(doctor_id, None)
+    """Invalidate cached knowledge items when new items are added."""
+    _KNOWLEDGE_ITEMS_CACHE.pop(doctor_id, None)
 
 
 async def save_knowledge_item(

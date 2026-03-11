@@ -18,7 +18,7 @@ class RuntimeCursor(Base):
 
     cursor_key: Mapped[str] = mapped_column(String(128), primary_key=True)
     cursor_value: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
 
 
 class RuntimeToken(Base):
@@ -28,7 +28,7 @@ class RuntimeToken(Base):
     token_key: Mapped[str] = mapped_column(String(128), primary_key=True)
     token_value: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
 
 
 class RuntimeConfig(Base):
@@ -37,7 +37,7 @@ class RuntimeConfig(Base):
 
     config_key: Mapped[str] = mapped_column(String(64), primary_key=True)
     content_json: Mapped[str] = mapped_column(Text, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
 
 
 class SchedulerLease(Base):
@@ -47,4 +47,4 @@ class SchedulerLease(Base):
     lease_key: Mapped[str] = mapped_column(String(64), primary_key=True)
     owner_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     lease_until: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)

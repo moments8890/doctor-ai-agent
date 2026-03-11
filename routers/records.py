@@ -455,26 +455,40 @@ async def _handle_update_record(text: str, doctor_id: str, intent_result: Intent
 def _apply_name_fallbacks(
     body_text: str, history: list, followup_name: Optional[str], intent_result: IntentResult,
 ) -> IntentResult:
-    """Apply deterministic patient-name fallback rules after routing."""
+    """Apply deterministic patient-name field completion after routing.
+
+    PRINCIPLE: This function ONLY fills missing fields (patient_name).
+    It NEVER changes the intent classification — that is the router's job.
+    Changing intent here would silently override the router's decision,
+    making misrouting invisible and undebuggable.
+    """
     if followup_name:
-        intent_result.intent = Intent.add_record
-        intent_result.patient_name = followup_name
+        # Name continuation: the previous turn asked for a name and the user
+        # replied with one.  Fill the name but preserve the classified intent.
+        # The router should have already classified this as add_record via
+        # pending-record continuation; if it didn't, we don't override.
+        if not intent_result.patient_name:
+            intent_result.patient_name = followup_name
+            intent_result.extra_data = {
+                **(intent_result.extra_data or {}),
+                "patient_source": "followup_name",
+            }
     elif intent_result.intent == Intent.add_record and not intent_result.patient_name:
         leading_name = _leading_name_with_clinical_context(body_text)
         if leading_name:
             intent_result.patient_name = leading_name
+            intent_result.extra_data = {
+                **(intent_result.extra_data or {}),
+                "patient_source": "text_leading_name",
+            }
         else:
-            intent_result.patient_name = _patient_name_from_history(history)
-    else:
-        leading_name = _leading_name_with_clinical_context(body_text)
-        if (
-            leading_name
-            and _contains_clinical_content(body_text)
-            and intent_result.intent != Intent.add_record
-        ):
-            intent_result.intent = Intent.add_record
-            if not intent_result.patient_name:
-                intent_result.patient_name = leading_name
+            _hist_name = _patient_name_from_history(history)
+            if _hist_name:
+                intent_result.patient_name = _hist_name
+                intent_result.extra_data = {
+                    **(intent_result.extra_data or {}),
+                    "patient_source": "history",
+                }
     return intent_result
 
 
@@ -634,6 +648,9 @@ async def chat_core(
 ) -> ChatResponse:
     """Channel-agnostic intent routing and execution.
 
+    Uses the intent workflow pipeline (classify -> extract -> bind -> plan -> gate)
+    to produce a structured WorkflowResult, then dispatches to the appropriate handler.
+
     Args:
         text: Processed message text (e.g. transcription prefix stripped).
         doctor_id: The resolved doctor identifier.
@@ -656,9 +673,54 @@ async def chat_core(
     if fast_resp is not None:
         return fast_resp
 
-    intent_result = await _resolve_intent(
-        text, original_text, doctor_id, history_for_routing, followup_name, effective_intent,
-    )
+    # Load knowledge context for LLM dispatch
+    knowledge_context = ""
+    try:
+        async with AsyncSessionLocal() as db:
+            knowledge_context = await load_knowledge_context_for_prompt(db, doctor_id, text)
+    except Exception as e:
+        log(f"[Chat] knowledge context load failed doctor={doctor_id}: {e}")
+
+    # Run the 5-layer intent workflow pipeline
+    from services.intent_workflow import run as workflow_run
+
+    try:
+        result = await workflow_run(
+            text, doctor_id, history_for_routing,
+            original_text=original_text,
+            followup_name=followup_name,
+            effective_intent=effective_intent,
+            knowledge_context=knowledge_context,
+            channel="web",
+        )
+    except Exception as e:
+        msg = str(e)
+        status = 429 if "rate_limit" in msg or "Rate limit" in msg or "429" in msg else 503
+        log(
+            f"[Chat] workflow FAILED doctor={doctor_id} status={status} "
+            f"text={text[:80]!r} err={msg}"
+        )
+        detail = "rate_limit_exceeded" if status == 429 else "Service temporarily unavailable"
+        raise HTTPException(status_code=status, detail=detail)
+
+    # Gate check: block unsafe operations before dispatching
+    if not result.gate.approved:
+        return ChatResponse(reply=result.gate.clarification_message or _UNCLEAR_INTENT_REPLY)
+
+    intent_result = result.to_intent_result()
+
+    # Followup-name override: when the assistant asked for a patient name and
+    # the user replied with just a name, always treat as add_record using
+    # clinical content from history (regardless of what the LLM classified).
+    if followup_name and intent_result.intent != Intent.add_record:
+        intent_result = IntentResult(
+            intent=Intent.add_record,
+            patient_name=followup_name,
+            gender=intent_result.gender,
+            age=intent_result.age,
+            extra_data=intent_result.extra_data,
+        )
+
     return await _dispatch_intent(text, original_text, doctor_id, history, intent_result, followup_name)
 
 

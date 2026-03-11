@@ -46,9 +46,8 @@ class Patient(Base):
     __table_args__ = (
         Index("ix_patients_doctor_created", "doctor_id", "created_at"),
         Index("ix_patients_doctor_category", "doctor_id", "primary_category"),
-        # NOTE: global ix_patients_name removed — name searches are always scoped by doctor_id;
-        # use ix_patients_doctor_created + filter in app layer.
         UniqueConstraint("id", "doctor_id", name="uq_patients_id_doctor"),
+        UniqueConstraint("doctor_id", "name", name="uq_patients_doctor_name"),
     )
 
     records: Mapped[List["MedicalRecordDB"]] = relationship("MedicalRecordDB", back_populates="patient")

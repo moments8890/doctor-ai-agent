@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from typing import Optional
 
 from db.engine import AsyncSessionLocal
@@ -13,7 +14,30 @@ from utils.log import log
 
 # History turns shorter than this are likely commands ("查", "删除张三"), not clinical content.
 _MIN_HISTORY_TURN_LEN = 15
-_CMD_PREFIXES = ("患者列表", "所有患者", "删除", "创建", "查", "待办", "今天任务", "PDF")
+# Prefix-based exclusion: turns starting with these are admin/task/control, not clinical.
+_CMD_PREFIXES = (
+    "患者列表", "所有患者", "删除", "创建", "查", "待办", "今天任务", "PDF",
+    "建档", "导入", "导出", "帮助", "help", "Help",
+    "确认", "保存", "取消", "撤销", "不要",
+)
+# Regex-based exclusion: turns matching these patterns are non-clinical.
+_NON_CLINICAL_RE = re.compile(
+    r"^(?:"
+    r"你好|早上?好|晚上好|下午好|嗨|hi|hello"            # greetings
+    r"|好的[，。]?"                                        # acknowledgements
+    r"|完成\s*\d+"                                         # task completion
+    r"|取消\s*(?:任务|待办)"                               # task cancellation
+    r"|推迟\s*(?:任务|待办)"                               # task postponement
+    r"|(?:查询|查看|调出).*(?:病历|记录|档案)"             # record queries
+    r"|帮我?(?:查|看|找|建|删)"                            # admin requests
+    r"|请?问.*叫什么"                                      # name asking
+    r"|.*有哪些功能"                                       # feature inquiry
+    r"|怎么用"                                             # usage inquiry
+    r"|预约.*(?:门诊|复查)"                                # appointment scheduling
+    r"|(?:设|安排).*随访"                                  # follow-up scheduling
+    r")$",
+    re.IGNORECASE,
+)
 
 # Clinical section keys from the add_medical_record / update_medical_record tool schema.
 _CLINICAL_KEYS = [
@@ -43,13 +67,26 @@ def _record_from_structured_fields(
     return MedicalRecord(content=content_text, record_type="dictation")
 
 
-def _build_full_text(text: str, history: list[dict]) -> str:
-    """Filter history to clinical turns and append current text, deduplicated."""
+def _is_clinical_turn(content: str) -> bool:
+    """Return True if a history turn looks like clinical content (not admin/task/control)."""
+    if len(content) < _MIN_HISTORY_TURN_LEN:
+        return False
+    if any(content.startswith(p) for p in _CMD_PREFIXES):
+        return False
+    if _NON_CLINICAL_RE.match(content.strip()):
+        return False
+    return True
+
+
+def build_clinical_context(text: str, history: list[dict]) -> str:
+    """Filter history to clinical-only turns and append current text, deduplicated.
+
+    This is the single source of truth for building the LLM structuring input.
+    Excludes task operations, queries, greetings, and other admin chatter.
+    """
     doctor_ctx = [
         m["content"] for m in (history or [])[-6:]
-        if m["role"] == "user"
-        and len(m["content"]) >= _MIN_HISTORY_TURN_LEN
-        and not any(m["content"].startswith(p) for p in _CMD_PREFIXES)
+        if m["role"] == "user" and _is_clinical_turn(m["content"])
     ]
     doctor_ctx.append(text)
     return "\n".join(dict.fromkeys(filter(None, doctor_ctx)))
@@ -92,7 +129,7 @@ async def assemble_record(
     if intent_result.structured_fields:
         return _record_from_structured_fields(intent_result, text)
 
-    full_text = _build_full_text(text, history)
+    full_text = build_clinical_context(text, history)
 
     async def _detect() -> str:
         async with AsyncSessionLocal() as s:

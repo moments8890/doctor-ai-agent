@@ -30,6 +30,7 @@ from db.engine import AsyncSessionLocal
 from db.models.medical_record import MedicalRecord
 from services.ai.intent import IntentResult
 from services.ai.structuring import structure_medical_record
+from services.domain.record_ops import assemble_record
 from services.domain.chat_constants import (
     CREATE_PREAMBLE_RE as _CREATE_PREAMBLE_RE,
     CLINICAL_CONTENT_HINTS as _CLINICAL_CONTENT_HINTS,
@@ -40,6 +41,7 @@ from services.notify.tasks import create_general_task
 from services.observability.audit import audit
 from services.observability.observability import get_current_trace_id, trace_block
 from services.session import (
+    hydrate_session_state,
     set_current_patient, set_pending_record_id,
     set_patient_not_found, clear_candidate_patient, clear_patient_not_found,
 )
@@ -59,6 +61,19 @@ def _chat_response(reply: str, **kwargs):
 
 def _contains_clinical_content(text: str) -> bool:
     return any(hint in (text or "") for hint in _CLINICAL_CONTENT_HINTS)
+
+
+# ICU/PACU/bed-context detection for stricter anonymous draft rules.
+_LOCATION_CONTEXT_RE = re.compile(
+    r"(?:ICU|PACU|CCU|NICU|急诊|抢救室|手术室|监护室|留观|绿色通道"
+    r"|\d+床|\d+号床|[A-Z]?\d+病房|[A-Z]?\d+号)",
+    re.IGNORECASE,
+)
+
+
+def _has_clinical_location_context(text: str) -> bool:
+    """Return True if text contains explicit clinical location markers (ICU, bed, ward)."""
+    return bool(_LOCATION_CONTEXT_RE.search(text or ""))
 
 
 # ---------------------------------------------------------------------------
@@ -223,21 +238,26 @@ async def _persist_add_record_patient(
 async def _build_record_from_input(
     text: str, history: list, intent_result: IntentResult,
     patient_name: str, doctor_id: str, followup_name: Optional[str],
+    patient_id: Optional[int] = None,
 ) -> "MedicalRecord | object":
-    """将意图结果转化为 MedicalRecord；失败返回 ChatResponse 错误。"""
-    if intent_result.structured_fields:
-        with trace_block("router", "records.chat.structured_fields_to_record"):
-            fields = dict(intent_result.structured_fields)
-            content_text = (fields.get("content") or text).strip() or "门诊就诊"
-            return MedicalRecord(content=content_text, record_type="dictation")
-    doctor_ctx = [m["content"] for m in history[-10:] if m["role"] == "user"]
-    if not (followup_name and text.strip() == followup_name):
-        doctor_ctx.append(text)
-    if not doctor_ctx:
-        doctor_ctx.append(text)
+    """将意图结果转化为 MedicalRecord；失败返回 ChatResponse 错误。
+
+    Delegates to the shared assemble_record() in record_ops which applies
+    clinical context filtering, encounter-type detection, and prior-visit
+    summary injection — same logic as the WeChat path.
+    """
+    # When the text is just a bare follow-up name, skip it to avoid feeding
+    # a patient name as clinical content.  Pass None so assemble_record
+    # uses history-only mode.
+    effective_text: str | None = text
+    if followup_name and text.strip() == followup_name:
+        effective_text = None
     try:
-        with trace_block("router", "records.chat.structure_medical_record"):
-            return await structure_medical_record("\n".join(doctor_ctx))
+        with trace_block("router", "records.chat.assemble_record"):
+            return await assemble_record(
+                intent_result, effective_text or "", history, doctor_id,
+                patient_id=patient_id,
+            )
     except Exception as e:
         log(f"[Chat] structuring FAILED doctor={doctor_id} patient={patient_name}: {e}")
         return _chat_response("病历生成失败，请稍后重试。")
@@ -298,6 +318,10 @@ async def handle_add_record(
     (set by handle_create_patient / handle_query_records on prior turns).
     History scanning is a fallback when no session context exists.
     """
+    # Force-refresh session from DB on write-capable intents to prevent
+    # stale patient attribution in multi-device/multi-tab workflows.
+    await hydrate_session_state(doctor_id, write_intent=True)
+
     if not intent_result.patient_name or not is_valid_patient_name(intent_result.patient_name):
         _hist_name = patient_name_from_history(history)
         if _hist_name:
@@ -311,11 +335,13 @@ async def handle_add_record(
                 intent_result.patient_name = _sess_name
                 log(f"[Chat] resolved patient from session: {_sess_name} doctor={doctor_id}")
             else:
-                # Step 4: candidate patient — name+demographics captured from a prior
-                # mixed-intent turn (e.g. list_tasks with patient intro).
-                # Creates a pending draft (not final save) with caution reply.
+                # Weak-attribution fallback: candidate/not-found patient names
+                # from ephemeral session state. Only allow when the message has
+                # explicit clinical/location context (ICU, PACU, bed number) to
+                # reduce the risk of silent mis-attribution.
                 _cand_name = getattr(_sess, "candidate_patient_name", None)
                 _not_found_name = getattr(_sess, "patient_not_found_name", None)
+                _has_location_ctx = _has_clinical_location_context(text)
                 if _cand_name and is_valid_patient_name(_cand_name):
                     intent_result.patient_name = _cand_name
                     if not intent_result.gender:
@@ -323,31 +349,57 @@ async def handle_add_record(
                     if not intent_result.age:
                         intent_result.age = getattr(_sess, "candidate_patient_age", None)
                     clear_candidate_patient(doctor_id)
-                    log(f"[Chat] resolved patient from candidate: {_cand_name} doctor={doctor_id}")
+                    intent_result.extra_data = intent_result.extra_data or {}
+                    intent_result.extra_data["needs_review"] = True
+                    intent_result.extra_data["attribution_source"] = "candidate"
+                    log(f"[Chat] resolved patient from candidate: {_cand_name} doctor={doctor_id} location_ctx={_has_location_ctx}")
                     if not intent_result.chat_reply:
-                        intent_result.chat_reply = f"已为候选患者【{_cand_name}】生成病历草稿，请确认后保存。"
-                elif _not_found_name and is_valid_patient_name(_not_found_name):
-                    # Patient was queried but not found — auto-create + pending draft.
+                        intent_result.chat_reply = (
+                            f"⚠️ 已为候选患者【{_cand_name}】生成病历草稿，"
+                            "请核实患者信息后确认保存。"
+                        )
+                elif _not_found_name and is_valid_patient_name(_not_found_name) and _has_location_ctx:
+                    # Only auto-create from not-found when there is explicit
+                    # clinical location context (ICU/PACU/bed).
                     intent_result.patient_name = _not_found_name
                     clear_patient_not_found(doctor_id)
+                    intent_result.extra_data = intent_result.extra_data or {}
+                    intent_result.extra_data["needs_review"] = True
+                    intent_result.extra_data["attribution_source"] = "not_found_with_location"
                     log(f"[Chat] creating patient from not-found query: {_not_found_name} doctor={doctor_id}")
                     if not intent_result.chat_reply:
-                        intent_result.chat_reply = f"未找到【{_not_found_name}】，已为新患者生成病历草稿，请确认后保存。"
+                        intent_result.chat_reply = (
+                            f"⚠️ 未找到【{_not_found_name}】，已为新患者生成病历草稿，"
+                            "请核实后确认保存。"
+                        )
+                elif _not_found_name and is_valid_patient_name(_not_found_name):
+                    # No location context — force explicit patient resolution
+                    # instead of hiding a potential attribution failure.
+                    clear_patient_not_found(doctor_id)
+                    log(f"[Chat] weak attribution blocked (no location ctx): {_not_found_name} doctor={doctor_id}")
+                    return _chat_response(
+                        f"未找到患者【{_not_found_name}】，请先创建患者或明确指定患者姓名。"
+                    )
                 else:
                     return _chat_response("请问这位患者叫什么名字？")
 
     patient_name = intent_result.patient_name
-
-    record = await _build_record_from_input(text, history, intent_result, patient_name, doctor_id, followup_name)
     from routers.records import ChatResponse
-    if isinstance(record, ChatResponse):
-        return record
 
+    # Resolve patient FIRST so assemble_record gets patient_id for encounter
+    # type detection and prior-visit summary injection.
     with trace_block("router", "records.chat.persist_record", {"doctor_id": doctor_id, "patient_name": patient_name}):
         async with AsyncSessionLocal() as db:
             patient_id, _ = await _persist_add_record_patient(db, doctor_id, patient_name, intent_result)
             if isinstance(patient_id, ChatResponse):
                 return patient_id
+
+    record = await _build_record_from_input(
+        text, history, intent_result, patient_name, doctor_id, followup_name,
+        patient_id=patient_id,
+    )
+    if isinstance(record, ChatResponse):
+        return record
 
     if getattr(intent_result, "is_emergency", False):
         return await _save_emergency_record(doctor_id, text, record, patient_id, patient_name, intent_result)

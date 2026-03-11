@@ -233,7 +233,7 @@ async def test_dispatch_injects_knowledge_context_as_system_message(mock_llm):
     assert len(messages) == 4
     assert messages[0]["role"] == "system"
     assert "医生助手" in messages[0]["content"]
-    assert messages[1]["role"] == "user"
+    assert messages[1]["role"] == "system"
     assert "背景知识" in messages[1]["content"]
     assert "医生知识库" in messages[1]["content"]
     assert messages[2]["content"] == "上一条"
@@ -357,11 +357,14 @@ async def test_add_record_null_clinical_fields_excluded(mock_llm):
 
 
 def test_fallback_extract_name_gender_age_with_clinical_keywords():
+    """Fallback with clinical keywords returns unknown (conservative) with clarification,
+    not add_record — LLM failure should not assume write intent."""
     out = agent._fallback_intent_from_text("患者张三男62岁，胸痛两小时，考虑STEMI")
-    assert out.intent == Intent.add_record
+    assert out.intent == Intent.unknown
     assert out.patient_name == "张三"
     assert out.gender == "男"
     assert out.age == 62
+    assert out.chat_reply  # should have a clarification message
 
 
 def test_fallback_list_patients_branch():
@@ -417,13 +420,15 @@ def test_fallback_unknown_branch_keeps_extracted_demographics():
 
 
 async def test_dispatch_ollama_exception_uses_local_fallback(monkeypatch):
+    """When LLM fails entirely, fallback returns unknown (conservative) for clinical text."""
     monkeypatch.setenv("ROUTING_LLM", "ollama")
     monkeypatch.setenv("OLLAMA_MODEL", "qwen2.5:7b")
     mock_client = AsyncMock()
     mock_client.chat.completions.create = AsyncMock(side_effect=RuntimeError("timeout"))
     with patch("services.ai.agent.AsyncOpenAI", return_value=mock_client):
         out = await dispatch("张三胸痛两小时")
-    assert out.intent == Intent.add_record
+    assert out.intent == Intent.unknown
+    assert out.chat_reply  # should prompt for clarification
 
 
 async def test_dispatch_strict_mode_blocks_missing_provider_key(monkeypatch):

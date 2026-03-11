@@ -38,12 +38,13 @@ from utils.response_formatting import format_draft_preview, format_record
 from services.session import (
     clear_pending_create,
     get_session,
+    hydrate_session_state,
     set_current_patient,
     set_pending_create,
     set_pending_record_id,
 )
 from services.ai.structuring import structure_medical_record
-from services.patient.encounter_detection import detect_encounter_type
+from services.domain.record_ops import assemble_record
 from services.patient.score_extraction import detect_score_keywords, extract_specialty_scores
 from services.notify.tasks import create_appointment_task, create_emergency_task, create_follow_up_task
 from utils.text_parsing import (
@@ -160,37 +161,16 @@ async def _resolve_add_record_patient(doctor_id, intent_result):
 
 
 async def _build_record_from_text(text, history, doctor_id, patient_id):
-    """Structure a medical record from doctor text + conversation history."""
-    from services.patient.prior_visit import get_prior_visit_summary as _get_pvs
-    _CMD = ("患者列表", "所有患者", "删除", "建档", "查", "待办", "今天任务", "PDF")
-    ctx = [
-        m["content"] for m in (history or [])[-6:] if m["role"] == "user"
-        and len(m["content"]) >= 15 and not any(m["content"].startswith(p) for p in _CMD)
-    ]
-    ctx.append(text)
+    """Structure a medical record from doctor text + conversation history.
 
-    async def _detect_enc():
-        async with AsyncSessionLocal() as _s:
-            return await detect_encounter_type(_s, doctor_id, patient_id, text)
-
-    if patient_id is not None:
-        async def _get_prior():
-            try:
-                return await _get_pvs(doctor_id, patient_id)
-            except Exception:
-                return None
-        _enc, _prior = await asyncio.gather(_detect_enc(), _get_prior())
-    else:
-        _enc = await _detect_enc()
-        _prior = None
-
-    _prior_summary = None
-    if _prior and _enc == "follow_up":
-        safe = [l for l in _prior.strip().splitlines()
-                if not any(l.lstrip().startswith(k) for k in ("忽略", "SYSTEM", "system", "#", "---"))]
-        _prior_text = "\n".join(safe)[:500]
-        _prior_summary = f"\n<prior_summary>\n{_prior_text}\n</prior_summary>\n"
-    return await structure_medical_record("\n".join(ctx), encounter_type=_enc, prior_visit_summary=_prior_summary)
+    Delegates to the shared assemble_record() which handles clinical context
+    filtering, encounter-type detection, and prior-visit summary injection.
+    """
+    from services.ai.intent import IntentResult, Intent
+    # Wrap as IntentResult with no structured_fields so assemble_record
+    # takes the LLM structuring path with full clinical context filtering.
+    stub = IntentResult(intent=Intent.add_record)
+    return await assemble_record(stub, text, history, doctor_id, patient_id=patient_id)
 
 
 async def _save_emergency_record(doctor_id, record, patient_id, patient_name, text, intent_result):
@@ -248,6 +228,10 @@ async def handle_add_record(
 ) -> str:
     """将病历结构化并保存为待确认草稿。"""
     from db.models.medical_record import MedicalRecord
+
+    # Force-refresh session from DB on write-capable intents to prevent
+    # stale patient attribution in multi-device workflows.
+    await hydrate_session_state(doctor_id, write_intent=True)
 
     patient_id, patient_name, new_patient_created = await _resolve_add_record_patient(
         doctor_id, intent_result

@@ -69,9 +69,19 @@ def _parse_occurrence_index(text: str) -> Optional[int]:
 
 
 def _fallback_clinical(text: str, name: Optional[str], gender: Optional[str], age: Optional[int]) -> Optional[IntentResult]:
-    """若文本含临床关键词，返回 add_record IntentResult，否则返回 None。"""
+    """若文本含临床关键词，返回 unknown + clarify（不假设 add_record），否则返回 None。
+
+    Principle: When LLM fails and we only have keyword evidence, we should
+    ask the doctor to clarify rather than assume they want to write a record.
+    """
     if any(k in text for k in _CLINICAL_KEYWORDS):
-        return IntentResult(intent=Intent.add_record, patient_name=name, gender=gender, age=age)
+        return IntentResult(
+            intent=Intent.unknown,
+            patient_name=name,
+            gender=gender,
+            age=age,
+            chat_reply="检测到临床内容，请问您需要记录病历还是有其他需要？",
+        )
     return None
 
 

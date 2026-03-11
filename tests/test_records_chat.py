@@ -16,7 +16,7 @@ DOCTOR = "unit_doc_records_chat"
 
 def _record() -> MedicalRecord:
     return MedicalRecord(
-        content="突发胸痛两小时，伴大汗，急性冠脉综合征待排",
+        content="突发剧烈胸痛两小时，伴大汗淋漓，急性冠脉综合征待排，急性冠脉综合征待排",
         tags=["急性冠脉综合征待排"],
     )
 
@@ -24,13 +24,13 @@ def _record() -> MedicalRecord:
 @pytest.mark.asyncio
 async def test_name_followup_overrides_create_patient_and_saves_record(session_factory):
     history = [
-        HistoryMessage(role="user", content="突发胸痛两小时，伴大汗"),
+        HistoryMessage(role="user", content="突发剧烈胸痛两小时，伴大汗淋漓，急性冠脉综合征待排"),
         HistoryMessage(role="assistant", content="请问这位患者叫什么名字？"),
     ]
 
     with patch("routers.records.AsyncSessionLocal", session_factory), \
          patch(
-             "routers.records.agent_dispatch",
+             "services.ai.agent.dispatch",
              new=AsyncMock(
                  return_value=IntentResult(
                      intent=Intent.create_patient,
@@ -39,7 +39,7 @@ async def test_name_followup_overrides_create_patient_and_saves_record(session_f
              ),
          ), \
          patch(
-             "routers.records_intent_handlers.structure_medical_record",
+             "services.domain.record_ops.structure_medical_record",
              new=AsyncMock(return_value=_record()),
          ) as mock_structure:
         response = await chat(ChatInput(text="陈明", history=history, doctor_id=DOCTOR))
@@ -47,23 +47,23 @@ async def test_name_followup_overrides_create_patient_and_saves_record(session_f
     assert response.record is not None
     assert "陈明" in response.reply
     # The follow-up name turn must not be used as clinical content.
-    assert mock_structure.await_args.args[0] == "突发胸痛两小时，伴大汗"
+    assert mock_structure.await_args.args[0] == "突发剧烈胸痛两小时，伴大汗淋漓，急性冠脉综合征待排"
 
 
 @pytest.mark.asyncio
 async def test_name_followup_overrides_unknown_and_saves_record(session_factory):
     history = [
-        HistoryMessage(role="user", content="突发胸痛两小时，伴大汗"),
+        HistoryMessage(role="user", content="突发剧烈胸痛两小时，伴大汗淋漓，急性冠脉综合征待排"),
         HistoryMessage(role="assistant", content="请问这位患者叫什么名字？"),
     ]
 
     with patch("routers.records.AsyncSessionLocal", session_factory), \
          patch(
-             "routers.records.agent_dispatch",
+             "services.ai.agent.dispatch",
              new=AsyncMock(return_value=IntentResult(intent=Intent.unknown, chat_reply="好的")),
          ), \
          patch(
-             "routers.records_intent_handlers.structure_medical_record",
+             "services.domain.record_ops.structure_medical_record",
              new=AsyncMock(return_value=_record()),
          ):
         response = await chat(ChatInput(text="陈明", history=history, doctor_id=DOCTOR))
@@ -75,17 +75,17 @@ async def test_name_followup_overrides_unknown_and_saves_record(session_factory)
 @pytest.mark.asyncio
 async def test_name_followup_fills_missing_name_when_intent_is_add_record(session_factory):
     history = [
-        HistoryMessage(role="user", content="突发胸痛两小时，伴大汗"),
+        HistoryMessage(role="user", content="突发剧烈胸痛两小时，伴大汗淋漓，急性冠脉综合征待排"),
         HistoryMessage(role="assistant", content="请问这位患者叫什么名字？"),
     ]
 
     with patch("routers.records.AsyncSessionLocal", session_factory), \
          patch(
-             "routers.records.agent_dispatch",
+             "services.ai.agent.dispatch",
              new=AsyncMock(return_value=IntentResult(intent=Intent.add_record, patient_name=None)),
          ), \
          patch(
-             "routers.records_intent_handlers.structure_medical_record",
+             "services.domain.record_ops.structure_medical_record",
              new=AsyncMock(return_value=_record()),
          ):
         response = await chat(ChatInput(text="陈明", history=history, doctor_id=DOCTOR))
@@ -106,7 +106,7 @@ async def test_list_tasks_intent_returns_pending_tasks(session_factory):
         )
 
     with patch("routers.records.AsyncSessionLocal", session_factory), patch(
-        "routers.records.agent_dispatch",
+        "services.ai.agent.dispatch",
         new=AsyncMock(return_value=IntentResult(intent=Intent.list_tasks)),
     ):
         response = await chat(ChatInput(text="查看待办", history=[], doctor_id=DOCTOR))
@@ -127,7 +127,7 @@ async def test_complete_task_fastpath_marks_task_done(session_factory):
 
     agent_mock = AsyncMock()
     with patch("routers.records.AsyncSessionLocal", session_factory), patch(
-        "routers.records.agent_dispatch",
+        "services.ai.agent.dispatch",
         new=agent_mock,
     ):
         response = await chat(ChatInput(text=f"完成 {task.id}", history=[], doctor_id=DOCTOR))
@@ -145,7 +145,7 @@ async def test_complete_task_fastpath_marks_task_done(session_factory):
 @pytest.mark.asyncio
 async def test_complete_task_intent_requires_task_id(session_factory):
     with patch("routers.records.AsyncSessionLocal", session_factory), patch(
-        "routers.records.agent_dispatch",
+        "services.ai.agent.dispatch",
         new=AsyncMock(
             return_value=IntentResult(intent=Intent.complete_task, extra_data={}),
         ),
@@ -160,7 +160,7 @@ async def test_schedule_appointment_intent_creates_task(session_factory):
     fake_task = SimpleNamespace(id=99)
 
     with patch("routers.records.AsyncSessionLocal", session_factory), patch(
-        "routers.records.agent_dispatch",
+        "services.ai.agent.dispatch",
         new=AsyncMock(
             return_value=IntentResult(
                 intent=Intent.schedule_appointment,

@@ -398,11 +398,26 @@ async def test_remove_label_missing_patient_raises_patient_not_found(db_session)
         await remove_label(db_session, patient_id=999999, label_id=label.id, doctor_id=DOCTOR)
 
 
-async def test_find_patients_by_exact_name_returns_latest_first(db_session):
+async def test_find_patients_by_exact_name_returns_match(db_session):
+    """With the unique (doctor_id, name) constraint, find_by_exact_name returns at most 1 match."""
     p1 = await create_patient(db_session, DOCTOR, "章三", "男", 30)
-    p2 = await create_patient(db_session, DOCTOR, "章三", "男", 29)
     matches = await find_patients_by_exact_name(db_session, DOCTOR, "章三")
-    assert [p.id for p in matches] == [p2.id, p1.id]
+    assert [p.id for p in matches] == [p1.id]
+
+
+async def test_duplicate_patient_name_same_doctor_raises(db_session):
+    """Creating two patients with the same name under one doctor must fail."""
+    from sqlalchemy.exc import IntegrityError
+    await create_patient(db_session, DOCTOR, "重名患者", "男", 30)
+    with pytest.raises(IntegrityError):
+        await create_patient(db_session, DOCTOR, "重名患者", "女", 25)
+
+
+async def test_same_name_different_doctors_ok(db_session):
+    """Same patient name is allowed under different doctors."""
+    p1 = await create_patient(db_session, DOCTOR, "同名允许", "男", 30)
+    p2 = await create_patient(db_session, "other_doc", "同名允许", "女", 25)
+    assert p1.id != p2.id
 
 
 async def test_delete_patient_for_doctor_removes_related_rows(db_session):

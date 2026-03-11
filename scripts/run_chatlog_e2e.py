@@ -161,6 +161,12 @@ class CaseResult:
     detail: str
     turns_sent: int
     elapsed_s: float
+    # Layered accuracy metrics (populated during evaluation)
+    routing_ok: bool = True          # intent classification correct
+    patient_resolution_ok: bool = True  # patient attributed correctly
+    structuring_ok: bool = True      # clinical content structured correctly
+    save_ok: bool = True             # record persisted to DB
+    used_fallback: bool = False      # required fallback retry
 
 
 def _normalize(s: str) -> str:
@@ -589,34 +595,67 @@ def run_case(
     allow_model_limitations: bool,
     auth_token: Optional[str] = None,
 ) -> CaseResult:
-    """Run a single E2E case end-to-end; return CaseResult."""
+    """Run a single E2E case end-to-end; return CaseResult with layered metrics."""
     started = time.perf_counter()
     assistant_replies, record_texts, doctor_texts, last_record, turns_sent = _send_turns(
         case, base_url, doctor_id, read_timeout_s, retries, delay_ms, auth_token)
     assistant_blob = "\n".join(assistant_replies + record_texts)
     full_blob = "\n".join(doctor_texts + assistant_replies + record_texts)
     keyword_blob = assistant_blob if response_keywords_only else full_blob
+
+    # Layer 1: Intent routing accuracy (keyword/any-of checks proxy for correct routing)
     fail, notes, parsed_groups = _check_keywords(
         case, keyword_blob, full_blob, assistant_replies,
         response_keywords_only, keywords_mode, allow_model_limitations, started, turns_sent)
     if fail:
+        fail.routing_ok = False
+        fail.structuring_ok = False
+        fail.patient_resolution_ok = False
+        fail.save_ok = False
         return fail
+
+    # Layer 2: Patient resolution accuracy (DB patient assertions)
     history: List[Dict[str, str]] = []  # reconstructed for fallback
     fail, turns_sent = _check_db_patient_assertions(
         case, doctor_id, base_url, read_timeout_s, retries, auth_token,
         history, assistant_replies, record_texts, parsed_groups, notes,
         require_db_persistence, allow_model_limitations, started, turns_sent)
+    used_fallback = "db_persist_retry" in notes
     if fail:
+        fail.routing_ok = True  # routing was correct (keywords passed)
+        fail.patient_resolution_ok = False
+        fail.structuring_ok = bool(record_texts)  # had structured output
+        fail.save_ok = False
+        fail.used_fallback = used_fallback
         return fail
+
+    # Layer 3: Structuring accuracy (table count assertions)
     fail = _check_table_counts(case, doctor_id, started, turns_sent)
     if fail:
+        fail.routing_ok = True
+        fail.patient_resolution_ok = True
+        fail.structuring_ok = False
+        fail.save_ok = False
+        fail.used_fallback = used_fallback
         return fail
+
+    # Layer 4: Confirmed-save accuracy (misc assertions: dedup, safety, record content)
     fail = _check_misc_assertions(case, doctor_id, last_record, require_db_persistence, started, turns_sent)
     if fail:
+        fail.routing_ok = True
+        fail.patient_resolution_ok = True
+        fail.structuring_ok = True
+        fail.save_ok = False
+        fail.used_fallback = used_fallback
         return fail
+
     elapsed = time.perf_counter() - started
     detail = "ok (model-limited: %s)" % ",".join(notes) if notes else "ok"
-    return CaseResult(case_id=case.case_id, ok=True, detail=detail, turns_sent=turns_sent, elapsed_s=elapsed)
+    return CaseResult(
+        case_id=case.case_id, ok=True, detail=detail,
+        turns_sent=turns_sent, elapsed_s=elapsed,
+        used_fallback=used_fallback,
+    )
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -691,15 +730,34 @@ def _run_cases_parallel(
 
 
 def _print_summary(results: List[CaseResult]) -> None:
-    """Print pass/fail summary and exit with error if any failures."""
+    """Print pass/fail summary with layered accuracy metrics."""
     total = len(results)
     passed = len([r for r in results if r.ok])
     failed = total - passed
     total_time = sum(r.elapsed_s for r in results)
+
+    # Layered metrics
+    routing_ok = sum(1 for r in results if r.routing_ok)
+    patient_ok = sum(1 for r in results if r.patient_resolution_ok)
+    struct_ok = sum(1 for r in results if r.structuring_ok)
+    save_ok = sum(1 for r in results if r.save_ok)
+    fallback_count = sum(1 for r in results if r.used_fallback)
+
     color = GREEN if failed == 0 else (YELLOW if passed > 0 else RED)
     print(f"\n{'-' * 60}")
     print(f"{BOLD}Summary:{RESET} {color}{passed}/{total} passed{RESET}  "
           f"{GRAY}(failed={failed}, total_time={total_time:.2f}s){RESET}")
+
+    # Layered accuracy breakdown
+    print(f"\n{BOLD}Accuracy Layers:{RESET}")
+    _layer_color = lambda ok, tot: GREEN if ok == tot else (YELLOW if ok > tot * 0.8 else RED)
+    print(f"  1. Intent routing:      {_layer_color(routing_ok, total)}{routing_ok}/{total}{RESET}")
+    print(f"  2. Patient resolution:  {_layer_color(patient_ok, total)}{patient_ok}/{total}{RESET}")
+    print(f"  3. Structuring:         {_layer_color(struct_ok, total)}{struct_ok}/{total}{RESET}")
+    print(f"  4. Confirmed save:      {_layer_color(save_ok, total)}{save_ok}/{total}{RESET}")
+    if fallback_count:
+        print(f"  {YELLOW}⚠ {fallback_count} case(s) required fallback retry{RESET}")
+
     if failed:
         print(f"\n{RED}Failures:{RESET}")
         for r in results:

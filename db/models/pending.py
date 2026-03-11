@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import ForeignKey, Index, Integer, String, DateTime, Text
+from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, String, DateTime, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from db.engine import Base
 from db.models.base import _utcnow
@@ -26,6 +26,7 @@ class PendingRecord(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
     __table_args__ = (
+        CheckConstraint("status IN ('awaiting','confirmed','abandoned','expired')", name="ck_pending_records_status"),
         Index("ix_pending_records_expires", "expires_at"),
         Index("ix_pending_records_status_expires", "status", "expires_at"),
         Index("ix_pending_records_doctor_status_expires", "doctor_id", "status", "expires_at"),
@@ -44,6 +45,7 @@ class PendingMessage(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
 
     __table_args__ = (
+        CheckConstraint("status IN ('pending','done','dead')", name="ck_pending_messages_status"),
         Index("ix_pending_messages_status_created", "status", "created_at"),
         Index("ix_pending_messages_doctor", "doctor_id"),
     )

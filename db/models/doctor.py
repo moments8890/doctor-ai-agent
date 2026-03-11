@@ -21,7 +21,7 @@ class DoctorContext(Base):
 
     doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), primary_key=True)
     summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
 
 
 class DoctorKnowledgeItem(Base):
@@ -32,7 +32,7 @@ class DoctorKnowledgeItem(Base):
     doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False, index=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
 
 
 class DoctorSessionState(Base):
@@ -45,7 +45,7 @@ class DoctorSessionState(Base):
     pending_record_id: Mapped[Optional[str]] = mapped_column(String(64), ForeignKey("pending_records.id", ondelete="SET NULL"), nullable=True)
     interview_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     cvd_scale_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
 
 
 class DoctorNotifyPreference(Base):
@@ -58,7 +58,7 @@ class DoctorNotifyPreference(Base):
     interval_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     cron_expr: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     last_auto_run_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
 
 
 class ChatArchive(Base):
@@ -121,7 +121,7 @@ class Doctor(Base):
     wechat_user_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     mini_openid: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
 
     __table_args__ = (
         Index("ux_doctors_channel_wechat_user_id", "channel", "wechat_user_id", unique=True),

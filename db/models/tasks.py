@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import ForeignKey, Index, Integer, String, DateTime, Text
+from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, String, DateTime, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from db.engine import Base
 from db.models.base import _utcnow
@@ -25,9 +25,11 @@ class DoctorTask(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")  # pending | completed | cancelled
     due_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
-    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=_utcnow, nullable=True)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=True)
 
     __table_args__ = (
+        CheckConstraint("status IN ('pending','completed','cancelled')", name="ck_doctor_tasks_status"),
+        CheckConstraint("task_type IN ('follow_up','emergency','appointment')", name="ck_doctor_tasks_task_type"),
         Index("ix_tasks_doctor_status_due", "doctor_id", "status", "due_at"),
         Index("ix_tasks_status_due", "status", "due_at"),  # scheduler: list_due_unnotified queries across all doctors
         Index("ix_tasks_status_task_type_due", "status", "task_type", "due_at"),

@@ -109,13 +109,15 @@ def test_enforce_rate_limit_raises_429():
 
 
 async def test_chat_dispatch_errors_map_to_429_and_503():
-    with patch("routers.records.agent_dispatch", new=AsyncMock(side_effect=RuntimeError("429 rate_limit"))):
+    # Patch at the source module — chat_core now uses the intent workflow which
+    # imports dispatch from services.ai.agent inside the classifier function.
+    with patch("services.ai.agent.dispatch", new=AsyncMock(side_effect=RuntimeError("429 rate_limit"))):
         with pytest.raises(HTTPException) as exc:
             await records.chat(records.ChatInput(text="x", doctor_id=DOCTOR))
     assert exc.value.status_code == 429
     assert exc.value.detail == "rate_limit_exceeded"
 
-    with patch("routers.records.agent_dispatch", new=AsyncMock(side_effect=RuntimeError("service down"))):
+    with patch("services.ai.agent.dispatch", new=AsyncMock(side_effect=RuntimeError("service down"))):
         with pytest.raises(HTTPException) as exc2:
             await records.chat(records.ChatInput(text="x", doctor_id=DOCTOR))
     assert exc2.value.status_code == 503
@@ -128,7 +130,7 @@ async def test_chat_patient_count_fastpath_returns_real_count_and_skips_agent():
     with patch("routers.records.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
         "routers.records.get_all_patients",
         new=AsyncMock(return_value=patients),
-    ), patch("routers.records.agent_dispatch", new=agent_mock):
+    ), patch("services.ai.agent.dispatch", new=agent_mock):
         resp = await records.chat(records.ChatInput(text="我现有多少病人", doctor_id=DOCTOR))
 
     agent_mock.assert_not_awaited()
@@ -137,7 +139,7 @@ async def test_chat_patient_count_fastpath_returns_real_count_and_skips_agent():
 
 async def test_chat_create_patient_no_name_and_success():
     with patch(
-        "routers.records.agent_dispatch",
+        "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.create_patient, patient_name=None)),
     ):
         resp = await records.chat(records.ChatInput(text="创建", doctor_id=DOCTOR))
@@ -145,7 +147,7 @@ async def test_chat_create_patient_no_name_and_success():
 
     fake_db = object()
     with patch(
-        "routers.records.agent_dispatch",
+        "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.create_patient, patient_name="李明", gender="男", age=40)),
     ), patch("routers.records.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
         "routers.records.find_patients_by_exact_name",
@@ -159,7 +161,7 @@ async def test_chat_create_patient_no_name_and_success():
     assert "李明" in resp2.reply
 
     with patch(
-        "routers.records.agent_dispatch",
+        "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.create_patient, patient_name="李明", gender="男", age=40)),
     ), patch(
         "routers.records.db_create_patient",
@@ -171,7 +173,7 @@ async def test_chat_create_patient_no_name_and_success():
 
 async def test_chat_add_record_invalid_name_and_structuring_error():
     with patch(
-        "routers.records.agent_dispatch",
+        "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.add_record, patient_name=None)),
     ):
         resp = await records.chat(records.ChatInput(text="胸痛", doctor_id=DOCTOR))
@@ -179,7 +181,7 @@ async def test_chat_add_record_invalid_name_and_structuring_error():
 
     fake_db = object()
     with patch(
-        "routers.records.agent_dispatch",
+        "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.add_record, patient_name="张三")),
     ), patch("routers.records.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
         "routers.records.structure_medical_record",
@@ -197,7 +199,7 @@ async def test_chat_add_record_clears_hallucinated_treatment_when_no_signal():
         "routers.records.fast_route",
         return_value=None,
     ), patch(
-        "routers.records.agent_dispatch",
+        "services.ai.agent.dispatch",
         new=AsyncMock(
             return_value=_intent(
                 Intent.add_record,
@@ -231,7 +233,7 @@ async def test_chat_force_add_record_when_intent_drifts_but_text_is_clinical():
         "routers.records.fast_route",
         return_value=None,
     ), patch(
-        "routers.records.agent_dispatch",
+        "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.unknown, patient_name=None, chat_reply=None)),
     ), patch(
         "routers.records.structure_medical_record",
@@ -255,7 +257,7 @@ async def test_chat_query_records_named_patient_branches():
     patient = SimpleNamespace(id=11, name="张三")
 
     with patch(
-        "routers.records.agent_dispatch",
+        "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.query_records, patient_name="张三")),
     ), patch("routers.records.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
         "routers.records.find_patient_by_name",
@@ -265,7 +267,7 @@ async def test_chat_query_records_named_patient_branches():
     assert "未找到患者" in resp.reply
 
     with patch(
-        "routers.records.agent_dispatch",
+        "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.query_records, patient_name="张三")),
     ), patch("routers.records.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
         "routers.records.find_patient_by_name",
@@ -281,7 +283,7 @@ async def test_chat_query_records_named_patient_branches():
         SimpleNamespace(content="胸痛 冠心病", tags='["冠心病"]', created_at=datetime(2026, 3, 2))
     ]
     with patch(
-        "routers.records.agent_dispatch",
+        "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.query_records, patient_name="张三")),
     ), patch("routers.records.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
         "routers.records.find_patient_by_name",
@@ -299,7 +301,7 @@ async def test_chat_query_records_all_doctor_records_branches():
     all_records = [SimpleNamespace(patient=None, content=None, tags=None, created_at=None)]
 
     with patch(
-        "routers.records.agent_dispatch",
+        "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.query_records, patient_name=None)),
     ), patch("routers.records.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
         "routers.records.get_all_records_for_doctor",
@@ -309,7 +311,7 @@ async def test_chat_query_records_all_doctor_records_branches():
     assert "暂无任何病历记录" in resp4.reply
 
     with patch(
-        "routers.records.agent_dispatch",
+        "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.query_records, patient_name=None)),
     ), patch("routers.records.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
         "routers.records.get_all_records_for_doctor",
@@ -322,7 +324,7 @@ async def test_chat_query_records_all_doctor_records_branches():
 async def test_chat_list_patients_and_unknown_reply():
     fake_db = object()
     with patch(
-        "routers.records.agent_dispatch",
+        "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.list_patients)),
     ), patch("routers.records.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
         "routers.records.get_all_patients",
@@ -333,7 +335,7 @@ async def test_chat_list_patients_and_unknown_reply():
 
     patients = [SimpleNamespace(name="张三", gender="男", year_of_birth=1980)]
     with patch(
-        "routers.records.agent_dispatch",
+        "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.list_patients)),
     ), patch("routers.records.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
         "routers.records.get_all_patients",
@@ -344,7 +346,7 @@ async def test_chat_list_patients_and_unknown_reply():
     assert "张三" in resp2.reply
 
     with patch(
-        "routers.records.agent_dispatch",
+        "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.unknown, chat_reply="你好医生")),
     ):
         resp3 = await records.chat(records.ChatInput(text="hi", doctor_id=DOCTOR))
@@ -352,7 +354,7 @@ async def test_chat_list_patients_and_unknown_reply():
     assert "专属医助" in resp3.reply
 
     with patch(
-        "routers.records.agent_dispatch",
+        "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.unknown, chat_reply=None)),
     ):
         resp4 = await records.chat(records.ChatInput(text="hi", doctor_id=DOCTOR))
@@ -386,7 +388,7 @@ async def test_chat_delete_patient_fastpath_and_intent_branches():
     assert "已删除患者【章三】(ID 2)" in resp3.reply
 
     with patch(
-        "routers.records.agent_dispatch",
+        "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.delete_patient, patient_name="张三", extra_data={"occurrence_index": 1})),
     ), patch("routers.records.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
         "routers.records.find_patients_by_exact_name",
@@ -425,7 +427,7 @@ async def test_chat_add_to_knowledge_base_fastpath():
     with patch("routers.records.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
         "routers.records.save_knowledge_item",
         new=AsyncMock(return_value=SimpleNamespace(id=12, content="胸痛先排除ACS")),
-    ) as add_knowledge, patch("routers.records.agent_dispatch", new=AsyncMock()) as agent_mock:
+    ) as add_knowledge, patch("services.ai.agent.dispatch", new=AsyncMock()) as agent_mock:
         resp = await records.chat(
             records.ChatInput(text="add_to_knowledge_base 胸痛先排除ACS", doctor_id=DOCTOR)
         )
@@ -441,7 +443,7 @@ async def test_chat_dispatch_passes_knowledge_context():
         "routers.records.load_knowledge_context_for_prompt",
         new=AsyncMock(return_value="【医生知识库（仅作背景约束）】\n1. 胸痛先排除ACS"),
     ) as load_ctx, patch(
-        "routers.records.agent_dispatch",
+        "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.unknown, chat_reply="你好")),
     ) as dispatch_mock:
         resp = await records.chat(records.ChatInput(text="今天门诊有点忙", doctor_id=DOCTOR))

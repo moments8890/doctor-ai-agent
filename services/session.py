@@ -32,6 +32,7 @@ _sessions: dict[str, "DoctorSession"] = {}
 
 _locks: Dict[str, asyncio.Lock] = {}
 _HYDRATION_TTL_SECONDS = 300  # Re-hydrate from DB every 5 min (multi-device freshness)
+_WRITE_HYDRATION_TTL_SECONDS = 5  # Tight refresh for write-capable intents
 _loaded_from_db: dict[str, float] = {}  # doctor_id → monotonic time of last hydration
 _persist_tasks: Dict[str, asyncio.Task] = {}
 _persist_turn_tasks: Dict[str, asyncio.Task] = {}
@@ -165,12 +166,22 @@ async def _hydrate_from_db(sess: "DoctorSession", doctor_id: str) -> None:
             ]
 
 
-async def hydrate_session_state(doctor_id: str) -> DoctorSession:
-    """从数据库加载持久化会话状态到内存，每 5 分钟重新拉取以支持多设备切换。"""
+async def hydrate_session_state(
+    doctor_id: str, *, write_intent: bool = False,
+) -> DoctorSession:
+    """从数据库加载持久化会话状态到内存，每 5 分钟重新拉取以支持多设备切换。
+
+    Args:
+        write_intent: When True, use a tighter TTL (5s) to prevent stale
+            patient attribution in multi-device workflows. Does NOT force
+            a full refresh if the session was recently updated in-memory
+            (e.g. by set_current_patient on the same request).
+    """
+    ttl = _WRITE_HYDRATION_TTL_SECONDS if write_intent else _HYDRATION_TTL_SECONDS
     _now_mono = time.monotonic()
     with _registry_lock:
         last_loaded = _loaded_from_db.get(doctor_id, 0.0)
-        already_loaded = (_now_mono - last_loaded) < _HYDRATION_TTL_SECONDS
+        already_loaded = (_now_mono - last_loaded) < ttl
     if already_loaded:
         return get_session(doctor_id)
 
@@ -179,7 +190,7 @@ async def hydrate_session_state(doctor_id: str) -> DoctorSession:
         _now_mono_fresh = time.monotonic()
         with _registry_lock:
             last_loaded = _loaded_from_db.get(doctor_id, 0.0)
-        if (_now_mono_fresh - last_loaded) < _HYDRATION_TTL_SECONDS:
+        if (_now_mono_fresh - last_loaded) < ttl:
             return get_session(doctor_id)
 
         sess = get_session(doctor_id)

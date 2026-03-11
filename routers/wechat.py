@@ -109,7 +109,6 @@ from routers.wechat_flows import (
     confirm_pending_record as _confirm_pending_record,
     handle_pending_record_reply as _handle_pending_record_reply,
     load_knowledge_context as _load_knowledge_context,
-    route_with_fallback as _route_with_fallback,
     dispatch_intent_result as _dispatch_intent_result,
     handle_image_bg as _handle_image_bg,
     handle_pdf_file_bg as _handle_pdf_file_bg,
@@ -173,9 +172,37 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
         return "✅ 已加入医生知识库（#{0}）：{1}".format(item.id, knowledge_payload)
 
     knowledge_context = await _load_knowledge_context(doctor_id, text)
-    intent_result = await _route_with_fallback(text, doctor_id, history, knowledge_context)
-    if isinstance(intent_result, str):
-        return intent_result
+
+    # Use the unified intent workflow pipeline (same as web path).
+    from services.intent_workflow import run as workflow_run
+
+    try:
+        result = await workflow_run(
+            text, doctor_id, history or [],
+            knowledge_context=knowledge_context,
+            channel="wechat",
+        )
+    except Exception as e:
+        log(f"[WeChat] workflow FAILED: {e}, falling back to structuring")
+        from services.observability.routing_metrics import record as _record_metric
+        _record_metric("fallback:structuring")
+        try:
+            record = await structure_medical_record(text)
+            return wd.format_record(record)
+        except ValueError:
+            return "没能识别病历内容，请重新描述一下。"
+        except Exception as ex:
+            log(f"[WeChat] structuring fallback FAILED doctor={doctor_id}: {ex}")
+            _record_metric("fallback:error")
+            return "不好意思，出了点问题，能再说一遍吗？"
+
+    if not result.gate.approved:
+        # For add_record blocked by no_patient_name, let the handler's own
+        # patient resolution run (single-patient auto-bind, name token lookup).
+        if result.gate.reason != "no_patient_name":
+            return result.gate.clarification_message or _FALLBACK_TEXT
+
+    intent_result = result.to_intent_result()
     bind_log_context(intent=intent_result.intent.value)
     log(f"[WeChat] intent={intent_result.intent} patient={intent_result.patient_name}")
     return await _dispatch_intent_result(text, doctor_id, intent_result, history)
