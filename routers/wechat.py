@@ -7,6 +7,10 @@ import json
 import os
 import re
 import time
+try:
+    from asyncio import timeout as _async_timeout
+except ImportError:
+    from async_timeout import timeout as _async_timeout
 from collections import deque
 from datetime import datetime, timezone
 from typing import Any, Dict, List
@@ -392,7 +396,7 @@ async def _handle_intent_bg(text: str, doctor_id: str, open_kfid: str = "", msg_
     result = "处理超时，请重新发送。"
     try:
         try:
-            async with asyncio.timeout(_OVERALL_TIMEOUT):
+            async with _async_timeout(_OVERALL_TIMEOUT):
                 _lock = get_session_lock(doctor_id)
                 _lock_acquired = False
                 _lock_wait_start = time.perf_counter()
