@@ -114,7 +114,9 @@ async def handle_create_patient(
 
     reply, patient = await _create_or_reuse_patient(doctor_id, name, patient, intent_result)
     # Pin resolved patient to session → subsequent add_record turns bind by ID (Category C fix).
-    set_current_patient(doctor_id, patient.id, patient.name)
+    _prev = set_current_patient(doctor_id, patient.id, patient.name)
+    if _prev:
+        reply = f"🔄 已从【{_prev}】切换到【{patient.name}】\n{reply}"
     if _contains_clinical_content(body_text):
         reply = await _append_compound_record(doctor_id, patient, body_text, name, reply)
     _reminder_m = _REMINDER_IN_MSG_RE.search(original_text)
@@ -395,8 +397,9 @@ async def handle_add_record(
                 return patient_id
 
     # Pin resolved patient so follow-up turns bind by ID, not by re-scanning.
+    _prev = None
     if isinstance(patient_id, int):
-        set_current_patient(doctor_id, patient_id, patient_name)
+        _prev = set_current_patient(doctor_id, patient_id, patient_name)
 
     record = await _build_record_from_input(
         text, history, intent_result, patient_name, doctor_id, followup_name,
@@ -406,8 +409,12 @@ async def handle_add_record(
         return record
 
     if getattr(intent_result, "is_emergency", False):
-        return await _save_emergency_record(doctor_id, text, record, patient_id, patient_name, intent_result)
-    return await _create_pending_draft(doctor_id, record, patient_id, patient_name, intent_result)
+        result = await _save_emergency_record(doctor_id, text, record, patient_id, patient_name, intent_result)
+    else:
+        result = await _create_pending_draft(doctor_id, record, patient_id, patient_name, intent_result)
+    if _prev:
+        result.reply = f"🔄 已从【{_prev}】切换到【{patient_name}】\n{result.reply}"
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -426,11 +433,12 @@ async def handle_query_records(doctor_id: str, intent_result: IntentResult):
                     return _chat_response(f"未找到患者【{name}】。")
                 # Pin this patient to session so follow-up add_record turns can
                 # resolve them without re-scanning history (fixes Category D).
-                set_current_patient(doctor_id, patient.id, patient.name)
+                _prev = set_current_patient(doctor_id, patient.id, patient.name)
+                _switch = f"🔄 已从【{_prev}】切换到【{patient.name}】\n" if _prev else ""
                 records = await get_records_for_patient(db, doctor_id, patient.id)
                 if not records:
-                    return _chat_response(f"📂 患者【{name}】暂无历史记录。")
-                lines = [f"📂 患者【{name}】最近 {len(records)} 条记录："]
+                    return _chat_response(f"{_switch}📂 患者【{name}】暂无历史记录。")
+                lines = [f"{_switch}📂 患者【{name}】最近 {len(records)} 条记录："]
                 for i, r in enumerate(records, 1):
                     date = r.created_at.strftime("%Y-%m-%d") if r.created_at else "—"
                     lines.append(f"{i}. [{date}] {(r.content or '—')[:60]}")

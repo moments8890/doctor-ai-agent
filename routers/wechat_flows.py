@@ -365,16 +365,7 @@ _HELP_TEXT = (
     "  PDF:患者姓名 — 导出病历PDF"
 )
 
-_FALLBACK_TEXT = (
-    "我理解您发送了一条消息，但暂时无法判断操作意图。\n\n"
-    "作为医生助手，我可以帮您：\n"
-    "• 记录病历 — 直接描述症状、诊断、治疗\n"
-    "• 创建/查档 — 「新患者姓名」或「查询姓名」\n"
-    "• 随访提醒 — 「X个月后随访」\n"
-    "• 任务管理 — 「待办」查看，「完成1」标记\n"
-    "• 导出报告 — 「导出张三病历」\n\n"
-    "请告诉我您想操作哪位患者，或直接描述病历内容。"
-)
+_FALLBACK_TEXT = "没太理解您的意思，能说得更具体一些吗？发送「帮助」可查看完整功能列表。"
 
 
 async def dispatch_intent_result(text: str, doctor_id: str, intent_result, history: list):
@@ -430,9 +421,12 @@ async def handle_add_record_intent(text: str, doctor_id: str, intent_result, his
         patients = await _w.get_all_patients(session, doctor_id)
     if len(patients) == 1:
         only = patients[0]
-        set_current_patient(doctor_id, only.id, only.name)
+        _prev = set_current_patient(doctor_id, only.id, only.name)
         log(f"[WeChat] rebound single patient context: doctor={doctor_id} patient={only.name}")
-        return await _w._handle_add_record(text, doctor_id, intent_result, history=history)
+        result = await _w._handle_add_record(text, doctor_id, intent_result, history=history)
+        if _prev:
+            result = f"🔄 已从【{_prev}】切换到【{only.name}】\n{result}"
+        return result
     candidate_name = wd.name_token_or_none(text)
     if candidate_name:
         return await _w._handle_name_lookup(candidate_name, doctor_id)

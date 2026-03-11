@@ -319,9 +319,15 @@ async def push_and_flush_turn(doctor_id: str, user_text: str, assistant_reply: s
     await flush_turns(doctor_id)
 
 
-def set_current_patient(doctor_id: str, patient_id: int, name: str, persist: bool = True) -> None:
+def set_current_patient(doctor_id: str, patient_id: int, name: str, persist: bool = True) -> Optional[str]:
+    """Set the current patient. Returns previous patient name if switched, else None."""
     with _registry_lock:
         session = get_session(doctor_id)
+        prev_name = (
+            session.current_patient_name
+            if session.current_patient_id is not None and session.current_patient_id != patient_id
+            else None
+        )
         session.current_patient_id = patient_id
         session.current_patient_name = name
         session.candidate_patient_name = None
@@ -331,6 +337,7 @@ def set_current_patient(doctor_id: str, patient_id: int, name: str, persist: boo
         session.updated_at = _utcnow()
     if persist:
         _schedule_persist(doctor_id)
+    return prev_name
 
 
 def set_candidate_patient(

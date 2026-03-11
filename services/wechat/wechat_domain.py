@@ -122,19 +122,20 @@ async def handle_create_patient(doctor_id: str, intent_result: IntentResult) -> 
             patient = await create_patient(session, doctor_id, name, intent_result.gender, intent_result.age)
             created = True
         patient_id = patient.id
-        set_current_patient(doctor_id, patient.id, patient.name)
+        _prev = set_current_patient(doctor_id, patient.id, patient.name)
     if created:
         asyncio.create_task(audit(doctor_id, "WRITE", resource_type="patient", resource_id=str(patient_id)))
     if not created and intent_result.gender is None and intent_result.age is None:
         return f"✅ 已切换到患者【{name}】。\n后续病历自动关联。"
+    _switch = f"🔄 已从【{_prev}】切换\n" if _prev else ""
     age_str = f"，{intent_result.age}岁" if intent_result.age else ""
     gender_str = f"，{intent_result.gender}性" if intent_result.gender else ""
-    return f"✅ 已为患者【{name}】建档{gender_str}{age_str}。\n后续病历自动关联。"
+    return f"{_switch}✅ 已为患者【{name}】建档{gender_str}{age_str}。\n后续病历自动关联。"
 
 
 
 async def _resolve_add_record_patient(doctor_id, intent_result):
-    """Resolve patient for add_record. Returns (patient_id, patient_name, new_patient_created)."""
+    """Resolve patient for add_record. Returns (patient_id, patient_name, new_patient_created, switched_from)."""
     _sess_check = get_session(doctor_id)
     if (intent_result.patient_name and _sess_check.current_patient_name
             and intent_result.patient_name == _sess_check.current_patient_name
@@ -142,22 +143,22 @@ async def _resolve_add_record_patient(doctor_id, intent_result):
         pid = _sess_check.current_patient_id
         pname = _sess_check.current_patient_name
         set_current_patient(doctor_id, pid, pname)
-        return pid, pname, False
+        return pid, pname, False, None
     if intent_result.patient_name:
         async with AsyncSessionLocal() as session:
             patient = await find_patient_by_name(session, doctor_id, intent_result.patient_name)
             if patient:
-                set_current_patient(doctor_id, patient.id, patient.name)
-                return patient.id, patient.name, False
+                _prev = set_current_patient(doctor_id, patient.id, patient.name)
+                return patient.id, patient.name, False, _prev
             patient = await create_patient(
                 session, doctor_id, intent_result.patient_name,
                 intent_result.gender, intent_result.age,
             )
-            set_current_patient(doctor_id, patient.id, patient.name)
+            _prev = set_current_patient(doctor_id, patient.id, patient.name)
             log(f"[WeChat] auto-created patient [{patient.name}] id={patient.id}")
-            return patient.id, patient.name, True
+            return patient.id, patient.name, True, _prev
     sess = get_session(doctor_id)
-    return sess.current_patient_id, sess.current_patient_name, False
+    return sess.current_patient_id, sess.current_patient_name, False, None
 
 
 async def _build_record_from_text(text, history, doctor_id, patient_id):
@@ -233,7 +234,7 @@ async def handle_add_record(
     # stale patient attribution in multi-device workflows.
     await hydrate_session_state(doctor_id, write_intent=True)
 
-    patient_id, patient_name, new_patient_created = await _resolve_add_record_patient(
+    patient_id, patient_name, new_patient_created, _switched_from = await _resolve_add_record_patient(
         doctor_id, intent_result
     )
     if new_patient_created:
@@ -263,10 +264,14 @@ async def handle_add_record(
             log(f"[WeChat] score extraction failed (non-fatal): {exc}")
 
     if intent_result.is_emergency:
-        return await _save_emergency_record(
+        reply = await _save_emergency_record(
             doctor_id, record, patient_id, patient_name, text, intent_result
         )
-    return await _save_draft_and_preview(doctor_id, record, patient_id, patient_name, intent_result)
+    else:
+        reply = await _save_draft_and_preview(doctor_id, record, patient_id, patient_name, intent_result)
+    if _switched_from:
+        reply = f"🔄 已从【{_switched_from}】切换到【{patient_name}】\n{reply}"
+    return reply
 
 
 async def _parse_pending_draft(pending, doctor_id):
@@ -390,6 +395,7 @@ from services.wechat.wechat_bg import (
 async def handle_query_records(doctor_id: str, intent_result: IntentResult) -> str:
     patient_id = None
     patient_name = None
+    _prev = None
 
     async with AsyncSessionLocal() as session:
         if intent_result.patient_name:
@@ -398,7 +404,7 @@ async def handle_query_records(doctor_id: str, intent_result: IntentResult) -> s
                 patient_id = patient.id
                 patient_name = patient.name
                 # Pin queried patient so follow-up turns bind by ID.
-                set_current_patient(doctor_id, patient.id, patient.name)
+                _prev = set_current_patient(doctor_id, patient.id, patient.name)
 
         if patient_id is None:
             sess = get_session(doctor_id)
@@ -406,10 +412,11 @@ async def handle_query_records(doctor_id: str, intent_result: IntentResult) -> s
             patient_name = sess.current_patient_name
 
         if patient_id is not None:
+            _switch = f"🔄 已从【{_prev}】切换到【{patient_name}】\n" if _prev else ""
             records = await get_records_for_patient(session, doctor_id, patient_id)
             if not records:
-                return f"📂 患者【{patient_name}】暂无历史记录。"
-            lines = [f"📂 【{patient_name}】最近 {len(records)} 条记录\n"]
+                return f"{_switch}📂 患者【{patient_name}】暂无历史记录。"
+            lines = [f"{_switch}📂 【{patient_name}】最近 {len(records)} 条记录\n"]
             for i, r in enumerate(records, 1):
                 date_str = r.created_at.strftime("%m-%d") if r.created_at else "?"
                 snippet = _t(r.content or "—", 30)
@@ -540,10 +547,13 @@ async def handle_name_lookup(name: str, doctor_id: str) -> str:
     async with AsyncSessionLocal() as session:
         patient = await find_patient_by_name(session, doctor_id, name)
     if patient:
-        set_current_patient(doctor_id, patient.id, patient.name)
+        _prev = set_current_patient(doctor_id, patient.id, patient.name)
         log(f"[WeChat] name lookup hit: {name} → patient_id={patient.id}")
         fake = IntentResult(intent=Intent.query_records, patient_name=name)
-        return await handle_query_records(doctor_id, fake)
+        result = await handle_query_records(doctor_id, fake)
+        if _prev:
+            result = f"🔄 已从【{_prev}】切换到【{patient.name}】\n{result}"
+        return result
 
     set_pending_create(doctor_id, name)
     log(f"[WeChat] name lookup miss: {name} → pending create")
