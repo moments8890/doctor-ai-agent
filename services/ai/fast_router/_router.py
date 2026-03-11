@@ -57,6 +57,7 @@ from ._patterns import (
     _extract_demographics,
     _PENDING_RECORD_ABORT_RE,
     _TAIL_TASK_RE,
+    _NAME_SUPPLEMENT_RE,
 )
 from ._session import _apply_session_context
 
@@ -387,6 +388,15 @@ def _fast_route_core(text: str, specialty: Optional[str] = None) -> Optional[Int
                             "candidate_age": _ca,
                         }
             return IntentResult(intent=Intent.list_tasks, extra_data=_extra)
+
+    # Name-prefixed supplement (053 fix): "李阿姨先记一下：…" — explicit name before trigger.
+    # Separated from _SUPPLEMENT_RE to allow precise name extraction rather than a single
+    # broad pattern. The 079 guard does not fire because patient_name is set.
+    _ns_m = _NAME_SUPPLEMENT_RE.match(stripped)
+    if _ns_m:
+        _ns_name = _ns_m.group(1)
+        if _ns_name not in _NON_NAME_KEYWORDS and _ns_name not in _TIER3_BAD_NAME:
+            return IntentResult(intent=Intent.add_record, patient_name=_ns_name)
 
     result = _route_tier2_all(normed, stripped)
     if result is not None:

@@ -114,7 +114,20 @@ _SUPPLEMENT_RE = re.compile(
     r"|顺便记.{0,8}[：:]"         # "顺便记今日随诊：女38，产后5月..."
     r"|记病程[，,。！\s：:]"       # "记病程：65M，维持透析，透后BP..."
     r"|[Nn]ow\s+add\s+(?:[Tt]oday\s+)?[Nn]ote\s*:"  # "Now add note: 67M severe CAP..."
+    # Step 3: additional patterns from failure analysis
+    r"|再记新进展[，,。！\s：:]?"          # "再记新进展：踝泵训练…" (case 056)
+    r"|新增.{0,10}补充[：:]"             # "新增出院小结补充：…" (case 090)
     r")"
+)
+
+# ── Name-prefixed supplement detection ────────────────────────────────────────
+# Matches "李阿姨先记一下：…" — explicit name capture followed by supplement keyword.
+# Handles case 053: doctor addresses patient by name/nickname before the trigger word.
+# Named group "name" is consumed by _router.py for patient_name extraction.
+_NAME_SUPPLEMENT_RE = re.compile(
+    r"^(?:患者|病人)?\s*([\u4e00-\u9fff]{2,3})\s*"
+    r"(?:先记一下|先记下|先续记|先补记录|先补记|先补病程|就这样记|记一下|记下)"
+    r"[，,。！\s：:]"
 )
 
 # ── Tail-command detection ─────────────────────────────────────────────────────

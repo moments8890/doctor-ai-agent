@@ -75,6 +75,10 @@ class WorkflowState:
     """
     current_patient_id: Optional[int] = None
     current_patient_name: Optional[str] = None
+    candidate_patient_name: Optional[str] = None    # mentioned but not DB-confirmed
+    candidate_patient_gender: Optional[str] = None
+    candidate_patient_age: Optional[int] = None
+    patient_not_found_name: Optional[str] = None    # last query returned empty
     pending_record_id: Optional[str] = None
     pending_create_name: Optional[str] = None
     interview: Optional["InterviewState"] = None
@@ -150,6 +154,10 @@ async def assemble_turn_context(
         workflow = WorkflowState(
             current_patient_id=sess.current_patient_id,
             current_patient_name=sess.current_patient_name,
+            candidate_patient_name=sess.candidate_patient_name,
+            candidate_patient_gender=sess.candidate_patient_gender,
+            candidate_patient_age=sess.candidate_patient_age,
+            patient_not_found_name=sess.patient_not_found_name,
             pending_record_id=sess.pending_record_id,
             pending_create_name=sess.pending_create_name,
             interview=sess.interview,

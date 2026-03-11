@@ -384,6 +384,8 @@ def _build_messages(
     history: Optional[List[dict]],
     knowledge_context: Optional[str],
     current_patient_context: Optional[str] = None,
+    candidate_patient_context: Optional[str] = None,
+    patient_not_found_context: Optional[str] = None,
 ) -> List[dict]:
     """Assemble the messages list for the LLM, trimming history to fit token budget.
 
@@ -395,6 +397,13 @@ def _build_messages(
     # when history is trimmed). Placed before knowledge context so the LLM sees it early.
     if current_patient_context and current_patient_context.strip():
         messages.append({"role": "system", "content": f"[当前接诊患者：{current_patient_context.strip()}]"})
+    if candidate_patient_context and candidate_patient_context.strip():
+        messages.append({"role": "system", "content": f"[候选接诊患者：{candidate_patient_context.strip()}]"})
+    if patient_not_found_context and patient_not_found_context.strip():
+        messages.append({"role": "system", "content": (
+            f"[最近查询未找到患者：{patient_not_found_context.strip()}。"
+            "若当前是在补充病历，可考虑新建患者后生成草稿；不要臆造其他患者。]"
+        )})
     if knowledge_context and knowledge_context.strip():
         # Guard against prompt injection from untrusted uploaded documents (PDFs, Word files).
         _INJECTION_KW = frozenset({"系统", "忽略", "指令", "扮演", "绕过", "越权"})
@@ -615,6 +624,8 @@ async def dispatch(
     doctor_id: Optional[str] = None,
     doctor_name: Optional[str] = None,
     current_patient_context: Optional[str] = None,
+    candidate_patient_context: Optional[str] = None,
+    patient_not_found_context: Optional[str] = None,
 ) -> IntentResult:
     """Call LLM with function-calling tools and return an IntentResult.
 
@@ -628,7 +639,10 @@ async def dispatch(
     log(f"[Agent:{provider_name}] dispatching: {text[:80]}")
 
     system_prompt = await _build_system_prompt(specialty, doctor_name)
-    messages = _build_messages(text, system_prompt, history, knowledge_context, current_patient_context)
+    messages = _build_messages(
+        text, system_prompt, history, knowledge_context,
+        current_patient_context, candidate_patient_context, patient_not_found_context,
+    )
     client = _get_client(provider_name, provider)
     routing_max_tokens = _clamp_max_tokens()
     tools_for_call = _selected_tools()

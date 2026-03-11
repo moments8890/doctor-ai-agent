@@ -491,9 +491,25 @@ async def _dispatch_via_llm(
 
     try:
         with trace_block("router", "records.chat.agent_dispatch", {"doctor_id": doctor_id}):
-            dispatch_kwargs: dict = {"history": history_for_routing}
+            _sess = get_session(doctor_id)
+            dispatch_kwargs: dict = {"history": history_for_routing, "doctor_id": doctor_id}
             if knowledge_context:
                 dispatch_kwargs["knowledge_context"] = knowledge_context
+            if _sess.specialty:
+                dispatch_kwargs["specialty"] = _sess.specialty
+            if _sess.doctor_name:
+                dispatch_kwargs["doctor_name"] = _sess.doctor_name
+            if _sess.current_patient_name:
+                dispatch_kwargs["current_patient_context"] = _sess.current_patient_name
+            if _sess.candidate_patient_name:
+                _cand_parts = [_sess.candidate_patient_name]
+                if _sess.candidate_patient_gender:
+                    _cand_parts.append(_sess.candidate_patient_gender)
+                if _sess.candidate_patient_age:
+                    _cand_parts.append(f"{_sess.candidate_patient_age}岁")
+                dispatch_kwargs["candidate_patient_context"] = "，".join(_cand_parts)
+            if _sess.patient_not_found_name:
+                dispatch_kwargs["patient_not_found_context"] = _sess.patient_not_found_name
             intent_result = await agent_dispatch(body_text, **dispatch_kwargs)
         _latency_ms = (time.perf_counter() - t0) * 1000.0
         log_turn(body.text, intent_result.intent.value, "llm", doctor_id, _latency_ms, patient_name=intent_result.patient_name)
