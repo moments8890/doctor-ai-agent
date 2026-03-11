@@ -368,6 +368,7 @@ async def _handle_schedule_appointment(doctor_id: str, intent_result: IntentResu
         patient = await find_patient_by_name(db, doctor_id, patient_name)
         if patient:
             patient_id = patient.id
+            set_current_patient(doctor_id, patient.id, patient.name)
     with trace_block("router", "records.chat.schedule_appointment", {"doctor_id": doctor_id, "patient_name": patient_name}):
         task = await create_appointment_task(
             doctor_id=doctor_id, patient_name=patient_name,
@@ -438,6 +439,7 @@ async def _handle_update_record(text: str, doctor_id: str, intent_result: Intent
             patient = await find_patient_by_name(db, doctor_id, name)
             if patient is None:
                 return ChatResponse(reply=f"⚠️ 未找到患者【{name}】，无法更正病历。")
+            set_current_patient(doctor_id, patient.id, patient.name)
             updated_rec = await update_latest_record_for_patient(db, doctor_id, patient.id, corrected)
     if updated_rec is None:
         return ChatResponse(reply=f"⚠️ 患者【{name}】暂无病历记录，请先保存一条再更正。")

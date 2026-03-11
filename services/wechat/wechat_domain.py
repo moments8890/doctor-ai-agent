@@ -397,6 +397,8 @@ async def handle_query_records(doctor_id: str, intent_result: IntentResult) -> s
             if patient:
                 patient_id = patient.id
                 patient_name = patient.name
+                # Pin queried patient so follow-up turns bind by ID.
+                set_current_patient(doctor_id, patient.id, patient.name)
 
         if patient_id is None:
             sess = get_session(doctor_id)

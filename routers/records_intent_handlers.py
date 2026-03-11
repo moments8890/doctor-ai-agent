@@ -394,6 +394,10 @@ async def handle_add_record(
             if isinstance(patient_id, ChatResponse):
                 return patient_id
 
+    # Pin resolved patient so follow-up turns bind by ID, not by re-scanning.
+    if isinstance(patient_id, int):
+        set_current_patient(doctor_id, patient_id, patient_name)
+
     record = await _build_record_from_input(
         text, history, intent_result, patient_name, doctor_id, followup_name,
         patient_id=patient_id,

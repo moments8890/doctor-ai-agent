@@ -87,6 +87,8 @@ class WorkflowResult(BaseModel):
         if self.binding.needs_review:
             extra["needs_review"] = True
             extra["attribution_source"] = self.binding.source
+        if self.plan.is_compound:
+            extra["compound_actions"] = [a.action for a in self.plan.actions]
 
         return IntentResult(
             intent=self.decision.intent,

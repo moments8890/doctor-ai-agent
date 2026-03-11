@@ -10,6 +10,7 @@ Runs the 5-layer pipeline:
 
 from __future__ import annotations
 
+import time
 from typing import Optional
 
 from services.ai.intent import Intent, IntentResult
@@ -61,6 +62,7 @@ async def run(
         for backward-compatible handler dispatch.
     """
     original_text = original_text or text
+    _t0 = time.perf_counter()
 
     # Layer 1: Classification
     decision, raw_intent = await classify(
@@ -69,6 +71,7 @@ async def run(
         knowledge_context=knowledge_context,
         channel=channel,
     )
+    _t_classify = time.perf_counter()
 
     # For write intents, refresh session from DB before entity extraction
     # so we get fresh patient context in multi-device scenarios.
@@ -80,6 +83,7 @@ async def run(
         raw_intent, decision.source, text, history, doctor_id,
         followup_name=followup_name,
     )
+    _t_entities = time.perf_counter()
 
     # Consume session state for candidate/not_found to prevent re-use
     if entities.patient_name:
@@ -90,12 +94,14 @@ async def run(
 
     # Layer 3: Patient binding (read-only)
     binding = await bind_patient(decision, entities, doctor_id)
+    _t_bind = time.perf_counter()
 
     # Layer 4: Action planning
     plan = plan_actions(decision, entities, binding)
 
     # Layer 5: Execution gate
     gate = check_gate(plan, decision.intent, entities, binding, original_text)
+    _t_done = time.perf_counter()
 
     result = WorkflowResult(
         decision=decision,
@@ -105,12 +111,24 @@ async def run(
         gate=gate,
     )
 
+    # Structured layer-level metrics for benchmarking
+    _ms = lambda a, b: round((b - a) * 1000, 1)
+    _metrics = {
+        "classify_ms": _ms(_t0, _t_classify),
+        "entities_ms": _ms(_t_classify, _t_entities),
+        "bind_ms": _ms(_t_entities, _t_bind),
+        "plan_gate_ms": _ms(_t_bind, _t_done),
+        "total_ms": _ms(_t0, _t_done),
+    }
+    _compound_str = f" compound={[a.action for a in plan.actions]}" if plan.is_compound else ""
+
     log(
         f"[workflow] intent={decision.intent.value} source={decision.source} "
         f"patient={entities.patient_name.value if entities.patient_name else None}"
         f"({entities.patient_name.source if entities.patient_name else 'none'}) "
         f"binding={binding.status}/{binding.source} "
-        f"gate={'OK' if gate.approved else gate.reason} "
+        f"gate={'OK' if gate.approved else gate.reason}{_compound_str} "
+        f"latency={_metrics} "
         f"doctor={doctor_id}"
     )
 
