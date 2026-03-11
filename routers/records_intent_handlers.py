@@ -39,7 +39,7 @@ from services.domain.name_utils import is_valid_patient_name, patient_name_from_
 from services.notify.tasks import create_general_task
 from services.observability.audit import audit
 from services.observability.observability import get_current_trace_id, trace_block
-from services.session import set_pending_record_id
+from services.session import set_current_patient, set_pending_record_id
 from utils.errors import InvalidMedicalRecordError
 from utils.log import log
 
@@ -95,6 +95,8 @@ async def handle_create_patient(
         patient = _candidates[0] if _candidates else None
 
     reply, patient = await _create_or_reuse_patient(doctor_id, name, patient, intent_result)
+    # Pin resolved patient to session → subsequent add_record turns bind by ID (Category C fix).
+    set_current_patient(doctor_id, patient.id, patient.name)
     if _contains_clinical_content(body_text):
         reply = await _append_compound_record(doctor_id, patient, body_text, name, reply)
     _reminder_m = _REMINDER_IN_MSG_RE.search(original_text)
@@ -286,14 +288,28 @@ async def handle_add_record(
     body, doctor_id: str, history: list, intent_result: IntentResult,
     followup_name: Optional[str],
 ):
-    """录入病历：解析患者、生成结构化病历并保存。"""
+    """录入病历：解析患者、生成结构化病历并保存。
+
+    Patient resolution: intent_result.patient_name is already backfilled from
+    session by _apply_session_context when the session has current_patient_id
+    (set by handle_create_patient / handle_query_records on prior turns).
+    History scanning is a fallback when no session context exists.
+    """
     if not intent_result.patient_name or not is_valid_patient_name(intent_result.patient_name):
         _hist_name = patient_name_from_history(history)
         if _hist_name:
             intent_result.patient_name = _hist_name
             log(f"[Chat] resolved patient from history: {_hist_name} doctor={doctor_id}")
         else:
-            return _chat_response("请问这位患者叫什么名字？")
+            # 078/089 fix: LLM may omit patient_name from add_medical_record args
+            # when [当前接诊患者] context is injected — use session-pinned patient.
+            from services.session import get_session as _get_session
+            _sess_name = _get_session(doctor_id).current_patient_name
+            if _sess_name and is_valid_patient_name(_sess_name):
+                intent_result.patient_name = _sess_name
+                log(f"[Chat] resolved patient from session: {_sess_name} doctor={doctor_id}")
+            else:
+                return _chat_response("请问这位患者叫什么名字？")
 
     patient_name = intent_result.patient_name
 
@@ -326,6 +342,9 @@ async def handle_query_records(doctor_id: str, intent_result: IntentResult):
                 patient = await find_patient_by_name(db, doctor_id, name)
                 if not patient:
                     return _chat_response(f"未找到患者【{name}】。")
+                # Pin this patient to session so follow-up add_record turns can
+                # resolve them without re-scanning history (fixes Category D).
+                set_current_patient(doctor_id, patient.id, patient.name)
                 records = await get_records_for_patient(db, doctor_id, patient.id)
                 if not records:
                     return _chat_response(f"📂 患者【{name}】暂无历史记录。")

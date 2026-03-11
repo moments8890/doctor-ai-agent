@@ -39,7 +39,7 @@ async def test_name_followup_overrides_create_patient_and_saves_record(session_f
              ),
          ), \
          patch(
-             "routers.records.structure_medical_record",
+             "routers.records_intent_handlers.structure_medical_record",
              new=AsyncMock(return_value=_record()),
          ) as mock_structure:
         response = await chat(ChatInput(text="陈明", history=history, doctor_id=DOCTOR))
@@ -63,7 +63,7 @@ async def test_name_followup_overrides_unknown_and_saves_record(session_factory)
              new=AsyncMock(return_value=IntentResult(intent=Intent.unknown, chat_reply="好的")),
          ), \
          patch(
-             "routers.records.structure_medical_record",
+             "routers.records_intent_handlers.structure_medical_record",
              new=AsyncMock(return_value=_record()),
          ):
         response = await chat(ChatInput(text="陈明", history=history, doctor_id=DOCTOR))
@@ -85,7 +85,7 @@ async def test_name_followup_fills_missing_name_when_intent_is_add_record(sessio
              new=AsyncMock(return_value=IntentResult(intent=Intent.add_record, patient_name=None)),
          ), \
          patch(
-             "routers.records.structure_medical_record",
+             "routers.records_intent_handlers.structure_medical_record",
              new=AsyncMock(return_value=_record()),
          ):
         response = await chat(ChatInput(text="陈明", history=history, doctor_id=DOCTOR))

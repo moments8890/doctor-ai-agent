@@ -53,6 +53,12 @@ _LIST_TASKS_SHORT: frozenset[str] = frozenset({
 _NON_NAME_KEYWORDS: frozenset[str] = frozenset({
     "病历", "记录", "情况", "病情", "近况", "状态", "任务", "待办",
     "患者", "病人", "诊断", "治疗",
+    # Action verbs / non-names that _CREATE_LEAD_RE can falsely capture at
+    # end-of-string (e.g. "建档查看" → name="查看").  Blocklist over regex
+    # because CJK verb phrases are indistinguishable from names by pattern.
+    "查看", "存档", "住院", "保存", "确认", "取消", "更新", "使用",
+    "档案", "一个", "一下", "备注", "创建", "操作",
+    "建档", "等下",  # P3: prevent lead-keyword from capturing itself or filler as name
 })
 
 # ── Tier 3: name-extraction bad-name guard ─────────────────────────────────────

@@ -55,6 +55,8 @@ from ._patterns import (
     _parse_task_num,
     _time_unit_to_days,
     _extract_demographics,
+    _PENDING_RECORD_ABORT_RE,
+    _TAIL_TASK_RE,
 )
 from ._session import _apply_session_context
 
@@ -266,7 +268,7 @@ def _route_tier2_create_patient(normed: str, stripped: str) -> Optional[IntentRe
             return IntentResult(intent=Intent.create_patient, patient_name=m.group(1), gender=gender, age=age)
 
         m = _CREATE_LEAD_RE.search(target)
-        if m and m.group(1) not in _NON_NAME_KEYWORDS:
+        if m and m.group(1) not in _NON_NAME_KEYWORDS and m.group(1) not in _TIER3_BAD_NAME:
             gender, age = _extract_demographics(stripped)
             return IntentResult(intent=Intent.create_patient, patient_name=m.group(1), gender=gender, age=age)
 
@@ -359,6 +361,17 @@ def _fast_route_core(text: str, specialty: Optional[str] = None) -> Optional[Int
     if result is not None:
         return result
 
+    # Tail-command detection (054 fix): in mixed messages like
+    # "clinical note，请先把我的待办调出来", the explicit imperative at
+    # the END beats any incidental phrasing in the body (including
+    # pending-record continuation in fast_route).  Only fires when the
+    # message contains at least one comma and the last segment matches.
+    _last_sep = max(stripped.rfind("，"), stripped.rfind(","))
+    if _last_sep >= 0:
+        _tail = stripped[_last_sep + 1:].strip()
+        if _tail and (_TAIL_TASK_RE.match(_tail) or _TAIL_TASK_RE.match(_normalise(_tail))):
+            return IntentResult(intent=Intent.list_tasks)
+
     result = _route_tier2_all(normed, stripped)
     if result is not None:
         return result
@@ -391,6 +404,40 @@ def fast_route(
     """
     specialty: Optional[str] = getattr(session, "specialty", None) if session else None
     result = _fast_route_core(text, specialty=specialty)
+
+    # 079 fix: supplement patterns (_SUPPLEMENT_RE) route add_record without a
+    # patient name.  When the session has NO active patient and NO pending draft,
+    # the record would fail with "patient not found".  Fall through to LLM so it
+    # can resolve the patient first.  (When session IS available with a pinned
+    # patient, _apply_session_context below backfills the name — keep result.)
+    if (
+        result is not None
+        and result.intent == Intent.add_record
+        and result.patient_name is None
+        and session is not None
+        and not getattr(session, "current_patient_id", None)
+        and not getattr(session, "current_patient_name", None)
+        and not getattr(session, "pending_record_id", None)
+    ):
+        result = None
+
+    # Fix 3: pending-record continuation — when an explicit draft exists, route
+    # pure clinical content as add_record without LLM.  Guard: must not be a
+    # confirm/abort token, must not be a question, must be >= 10 chars.
+    if result is None and session is not None:
+        pending_record_id: Optional[str] = getattr(session, "pending_record_id", None)
+        if pending_record_id:
+            _stripped = text.strip()
+            if (
+                len(_stripped) >= 10
+                and not _stripped.endswith("？")
+                and not _PENDING_RECORD_ABORT_RE.match(_stripped)
+            ):
+                result = IntentResult(
+                    intent=Intent.add_record,
+                    extra_data={"pending_record_id": pending_record_id, "continuation": True},
+                )
+
     if result is not None and session is not None:
         result = _apply_session_context(result, session)
     return result

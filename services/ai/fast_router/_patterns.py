@@ -82,6 +82,7 @@ _SUPPLEMENT_RE = re.compile(
     r"|先记下[，,。！\s]"          # "先记下，TIA发作…"
     r"|先续记[，,。！\s]?"         # "RICU这位先续记" — can end immediately
     r"|补录[：:。\s]"              # "补录：体温正常…"
+    r"|补记[：:。\s]"              # "补记：NRS足麻痛4/10..."
     r"|补记录[：:。\s]"            # "补记录：换药完…"
     r"|先补记录[，,。！\s：:]?"     # "先补记录再约复诊" or "先补记录：..."
     r"|记进展[，,。！\s]?$"        # "记进展" as standalone or short phrase
@@ -91,7 +92,48 @@ _SUPPLEMENT_RE = re.compile(
     r"|顺手补病程[，,。！\s]?"     # "顺手补病程"
     r"|先补病程[，,。！\s]?"       # "这位先补病程"
     r"|这位先补[，,。！\s：:]"     # "这位先补：…"
+    # Fix 1: additional terse triggers confirmed in production corpus
+    r"|新增记录[：:]"              # "新增记录：胰腺癌终末期..."
+    r"|先记一下[，,。！\s：:]"     # "李阿姨先记一下：F72..."
+    r"|补.{0,4}进展[：:]"         # "补进展:", "补今晨进展:", "补近期进展:"
+    r"|记录一下[：:]"              # "记录一下：70M..."
+    r"|本次记录[：:]"              # "本次记录：Scr 176..."
+    r"|加今日进展[：:]"            # "加今日进展：GAD-7..."
+    r"|记录门诊随访[：:]"          # "记录门诊随访：女60岁..."
+    # P1: additional missing supplement patterns from corpus
+    r"|补一条.{0,15}[：:]"         # "补一条lab update：", "补一条首诊心理评估：", "补一条记录："
+    r"|补.{0,4}随访[：:]"         # "补今天随访：", "补近期随访："
+    r"|加术前记录[：:]"            # "加术前记录："
+    r"|新增.{0,8}记录[：:]"        # "新增门诊进展记录：", "新增随访记录："
+    # P2: additional patterns identified from run6 failures
+    r"|新增进展[：:]"              # "新增进展：踝泵训练每2h一次..."
+    r"|加.{0,6}入院记录[\s：:]"   # "加急诊入院记录 阿替普酶..."
+    r"|记一下.{0,10}[，,]"        # "记一下今天的调整，低血糖处理经过..."
+    r"|add\s+(?:today\s+)?note\s*:"  # "add today note: BP 148/88..."
     r")"
+)
+
+# ── Tail-command detection ─────────────────────────────────────────────────────
+# In mixed messages ("clinical content，请先把我的待办调出来"), the explicit
+# imperative at the END should override incidental clinical phrasing.
+# Applied to the last clause only (after the last Chinese/ASCII comma).
+_TAIL_TASK_RE = re.compile(
+    r"^(?:请\s*)?(?:先|再)?\s*"
+    r"(?:(?:把|帮(?:我)?)\s*)?(?:我\s*的\s*)?"
+    r"(?:所有\s*)?(?:待办|任务)(?:\s*列表)?"
+    r"\s*(?:调出来|列出来|查一下|看一下|看看|找出来|显示一下|显示出来|弄出来)?"
+    r"\s*[。！]?$"
+)
+
+# ── Pending-record continuation abort guard ────────────────────────────────────
+# When a pending_record_id draft exists, route pure clinical content as
+# add_record without LLM — UNLESS the message matches this abort/confirm guard.
+# Short exhaustive-anchor pattern: only applies to standalone tokens.
+_PENDING_RECORD_ABORT_RE = re.compile(
+    r"^(?:"
+    r"确认|保存|提交|好的|确定|没了|就这样|就这些"        # confirm
+    r"|取消|算了|不要|不用了|放弃|撤销|清空|重来|不对|重新|先不|不记了"  # abort
+    r")[了吗的呢吧。！？\s]*$"
 )
 
 # ── Tier 2: schedule_follow_up ─────────────────────────────────────────────────
@@ -258,6 +300,12 @@ _CREATE_LEAD_RE = re.compile(
     r"|建个新档|先建个档|先建档"  # e.g. "先建个档：乔慕言", "建个新档，贺清和"
     r"|新收[：:]?"                # e.g. "神经内科新收：顾清妍"
     r"|建档"
+    # Fix 2: additional create_patient triggers confirmed in production corpus
+    r"|新增患者|新增病人"          # "新增患者：陈大为，女，47岁"
+    r"|先建患者|先建病人"          # "先建患者：何桂芳，男，55岁"
+    r"|收个新"                    # "收个新ICU，赵叔，65M"
+    r"|就新建"                    # "就新建：孙春燕..."
+    r"|补建档"                    # "今天补建档：王X女65"
     r")"
     r"[\s,，：:]*" + _NAME_PAT
     # Guard: the extracted name must be followed by a demographic separator or

@@ -509,12 +509,12 @@ def test_no_session_still_works():
     assert r.patient_name is None  # no session, no backfill
 
 
-def test_session_with_none_name_does_not_inject():
-    """Session with current_patient_name=None must not inject patient_name."""
+def test_session_with_none_name_falls_through_to_llm():
+    """Supplement patterns require an active patient; without one, fall through to LLM."""
     sess = _FakeSession(name=None)
     r = fast_route("补充：建议随访", session=sess)
-    assert r is not None
-    assert r.patient_name is None
+    # 079 fix: no patient in session → fall through to LLM so it can resolve the patient.
+    assert r is None
 
 
 def test_session_backfills_outpatient_report():
