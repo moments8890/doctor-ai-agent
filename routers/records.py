@@ -102,7 +102,9 @@ from services.domain.name_utils import (
 
 # ── Unclear-intent reply builder ──────────────────────────────────────────────
 
-# LLM generic defaults — treated as zero-signal and skipped in the summary.
+_UNCLEAR_PREVIEW_MAX = 40  # chars shown from the user's own message as fallback
+
+# LLM generic defaults — zero-signal, skip as summary source.
 _GENERIC_LLM_REPLIES: frozenset[str] = frozenset({
     "您好！有什么可以帮您？",
     "您好，有什么可以帮您的吗？",
@@ -112,40 +114,41 @@ _GENERIC_LLM_REPLIES: frozenset[str] = frozenset({
 })
 
 
-def _build_unclear_reply(chat_reply: Optional[str]) -> str:
-    """Build the fallback reply for unknown intent.
+def _build_unclear_reply(user_text: str, chat_reply: Optional[str] = None) -> str:
+    """Build the fallback reply for unknown intent with a tentative summary.
 
-    When the LLM produced a short, non-generic response, prepend a tentative
-    one-sentence summary so the doctor can quickly spot and correct any
-    misunderstanding.  Pattern:
-
+    Pattern:
         我理解到您可能是在说：{summary}
         没太理解您的意思，能说得更具体一些吗？发送「帮助」可查看完整功能列表。
 
-    Rules (per product spec):
-    - 1 sentence max (truncated at first 。？！ within 50 chars)
-    - only reflect explicit LLM interpretation — no patient-binding inference
-    - skip summary if reply is generic, empty, or too verbose (> 50 chars)
-    - always end with the standard clarification request
+    Summary source priority:
+    1. LLM chat_reply — if short, non-generic, and ends with a sentence break
+       (the LLM provides a more natural paraphrase than a raw echo)
+    2. First ~40 chars of the user's own message — reliable fallback when the
+       LLM produced nothing useful (e.g. Ollama no-tool path)
+    3. Plain _UNCLEAR_INTENT_REPLY when neither source is informative
     """
-    if not chat_reply:
+    # ── 1. Try LLM chat_reply ──────────────────────────────────────────────
+    if chat_reply:
+        llm_summary = chat_reply.strip()
+        if llm_summary not in _GENERIC_LLM_REPLIES:
+            for punct in ("。", "？", "！"):
+                idx = llm_summary.find(punct)
+                if 0 < idx < 50:
+                    llm_summary = llm_summary[: idx + 1]
+                    break
+            else:
+                llm_summary = ""  # no sentence break within 50 chars → too verbose
+            if len(llm_summary) >= 6:
+                return f"我理解到您可能是在说：{llm_summary}\n{_UNCLEAR_INTENT_REPLY}"
+
+    # ── 2. Fall back to first ~40 chars of user's own message ─────────────
+    preview = " ".join(user_text.strip().split())  # collapse newlines
+    if len(preview) < 8:
         return _UNCLEAR_INTENT_REPLY
-    summary = chat_reply.strip()
-    if summary in _GENERIC_LLM_REPLIES:
-        return _UNCLEAR_INTENT_REPLY
-    # Extract first sentence
-    for punct in ("。", "？", "！"):
-        idx = summary.find(punct)
-        if 0 < idx < 50:
-            summary = summary[: idx + 1]
-            break
-    else:
-        if len(summary) > 50:
-            return _UNCLEAR_INTENT_REPLY
-    # Skip summaries too short to be informative (e.g. "好的", "嗯")
-    if len(summary) < 6:
-        return _UNCLEAR_INTENT_REPLY
-    return f"我理解到您可能是在说：{summary}\n{_UNCLEAR_INTENT_REPLY}"
+    if len(preview) > _UNCLEAR_PREVIEW_MAX:
+        preview = preview[:_UNCLEAR_PREVIEW_MAX] + "…"
+    return f"我理解到您可能是在说：{preview}\n{_UNCLEAR_INTENT_REPLY}"
 
 
 router = APIRouter(prefix="/api/records", tags=["records"])
@@ -542,7 +545,7 @@ async def _dispatch_intent(
         return await _handle_update_record(body, doctor_id, intent_result)
     if intent == Intent.help:
         return ChatResponse(reply=_HELP_REPLY)
-    return ChatResponse(reply=_build_unclear_reply(intent_result.chat_reply))
+    return ChatResponse(reply=_build_unclear_reply(body.text, intent_result.chat_reply))
 
 
 async def _try_fast_paths(
