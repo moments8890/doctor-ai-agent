@@ -18,7 +18,7 @@ _TOOLS = [
             "name": "create_patient",
             "description": (
                 "当医生介绍或登记新患者，且消息中没有临床症状时调用。"
-                "示例：'我有个病人叫张三'、'新患者李明35岁男'、'建档'、'新病人'。"
+                "示例：'我有个病人叫张三'、'新患者李明35岁男'、'创建'、'新病人'。"
                 "如果消息同时含有症状或诊断，则改用 add_medical_record。"
             ),
             "parameters": {
@@ -588,7 +588,7 @@ _SYSTEM_PROMPT = (
     "▌续记信号\n"
     "消息含「继续」「再加」「另外」「还有」「接着」「补一下」且无新患者名→ add_medical_record（在上一条患者记录中追加）\n\n"
     "▌其他意图\n"
-    "- 仅介绍患者身份（无临床内容）或明确建档 → create_patient\n"
+    "- 仅介绍患者身份（无临床内容）或明确创建 → create_patient\n"
     "- 修改患者年龄/性别 → update_patient_info\n"
     "- 查患者列表 → list_patients\n"
     "- 历史病历/PDF/Word导入，或医生说「这是过往记录」「帮我录入历史」「历史资料导入」→ import_history\n"
@@ -634,7 +634,7 @@ _SYSTEM_PROMPT = (
 _SYSTEM_PROMPT_COMPACT = (
     "你是医生助手。根据当前消息选择工具："
     "脑血管病(ICH/SAH/缺血性脑卒中/动脉瘤/AVM/烟雾病)+明确评分(GCS/Hunt-Hess/WFNS/Fisher/改良Fisher/ICH评分/NIHSS/铃木/mRS/Spetzler-Martin/手术状态)->add_cvd_record；"
-    "临床信息->add_medical_record；仅建档->create_patient；"
+    "临床信息->add_medical_record；仅创建->create_patient；"
     "更正已保存病历字段->update_medical_record；修改患者年龄/性别->update_patient_info；"
     "查病历->query_records；看患者列表->list_patients；"
     "历史病历/PDF/Word导入->import_history；"
