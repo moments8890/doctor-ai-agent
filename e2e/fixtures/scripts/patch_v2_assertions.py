@@ -123,7 +123,7 @@ DUPLICATE_DELETE_IDS = {
 }
 
 # Keywords for the duplicate-delete scenario
-DUPLICATE_DELETE_KEYWORDS = [["删除", "建档", "心悸", "确认", "已删"]]
+DUPLICATE_DELETE_KEYWORDS = [["删除", "创建", "心悸", "确认", "已删"]]
 
 
 def _parse_case_number(case_id: str) -> int | None:
@@ -161,7 +161,7 @@ def _patch_table_counts(exp: dict, case_id: str, num) -> None:
 
 
 def _patch_duplicate_delete(exp: dict, case_id: str) -> None:
-    """补丁B：为零断言的重复建档/删除案例添加 must_include_any_of。"""
+    """补丁B：为零断言的重复创建/删除案例添加 must_include_any_of。"""
     if case_id in DUPLICATE_DELETE_IDS and "must_include_any_of" not in exp:
         exp["must_include_any_of"] = DUPLICATE_DELETE_KEYWORDS
 

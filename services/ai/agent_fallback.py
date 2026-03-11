@@ -101,7 +101,7 @@ def _fallback_from_keywords(text: str, lower: str, name: Optional[str], gender: 
     if any(k in text for k in ["查询", "历史病历", "病历记录", "调取病历"]):
         return IntentResult(intent=Intent.query_records, patient_name=name)
 
-    if any(k in text for k in ["建档", "新患者", "新病人"]):
+    if any(k in text for k in ["创建", "新患者", "新病人"]):
         return IntentResult(intent=Intent.create_patient, patient_name=name, gender=gender, age=age)
 
     if any(k in text for k in ["刚才", "上一条", "写错", "有误", "记错", "改为", "改成", "更正"]):

@@ -27,13 +27,13 @@ from services.ai.intent import Intent, IntentResult
 def _build_records_dispatch(patient_name: str):
     """构建文字网关的模拟 dispatch 函数。"""
     async def _records_dispatch(text: str, history=None):
-        if "建档" in text:
+        if "创建" in text:
             return IntentResult(
                 intent=Intent.create_patient,
                 patient_name=patient_name,
                 gender="男",
                 age=57,
-                chat_reply="已建档",
+                chat_reply="已创建",
             )
         return IntentResult(
             intent=Intent.add_record,
@@ -72,12 +72,12 @@ async def _send_multi_gateway_requests(client, doctor_id: str, patient_name: str
         "/api/records/chat",
         json={
             "doctor_id": doctor_id,
-            "text": f"请帮我建档，{patient_name}，男，57岁",
+            "text": f"请帮我创建，{patient_name}，男，57岁",
             "history": [],
         },
     )
     assert create_resp.status_code == 200
-    assert "建档" in create_resp.json()["reply"]
+    assert "创建" in create_resp.json()["reply"]
 
     text_record_resp = await client.post(
         "/api/records/chat",

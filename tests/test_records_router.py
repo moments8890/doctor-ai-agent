@@ -140,7 +140,7 @@ async def test_chat_create_patient_no_name_and_success():
         "routers.records.agent_dispatch",
         new=AsyncMock(return_value=_intent(Intent.create_patient, patient_name=None)),
     ):
-        resp = await records.chat(records.ChatInput(text="建档", doctor_id=DOCTOR))
+        resp = await records.chat(records.ChatInput(text="创建", doctor_id=DOCTOR))
     assert "姓名" in resp.reply
 
     fake_db = object()
@@ -154,8 +154,8 @@ async def test_chat_create_patient_no_name_and_success():
         "routers.records.db_create_patient",
         new=AsyncMock(return_value=SimpleNamespace(id=1, name="李明")),
     ):
-        resp2 = await records.chat(records.ChatInput(text="建档李明", doctor_id=DOCTOR))
-    assert "建档" in resp2.reply
+        resp2 = await records.chat(records.ChatInput(text="创建李明", doctor_id=DOCTOR))
+    assert "创建" in resp2.reply
     assert "李明" in resp2.reply
 
     with patch(
@@ -165,7 +165,7 @@ async def test_chat_create_patient_no_name_and_success():
         "routers.records.db_create_patient",
         new=AsyncMock(side_effect=InvalidMedicalRecordError("invalid")),
     ):
-        resp3 = await records.chat(records.ChatInput(text="建档李明", doctor_id=DOCTOR))
+        resp3 = await records.chat(records.ChatInput(text="创建李明", doctor_id=DOCTOR))
     assert "格式不正确" in resp3.reply
 
 

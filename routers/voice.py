@@ -88,7 +88,7 @@ async def _run_intent_dispatch(transcript: str, history_list: list, doctor_id: s
 
 
 async def _handle_create_patient(transcript: str, intent_result, doctor_id: str) -> VoiceChatResponse:
-    """处理建档意图：验证姓名后写入数据库并返回确认回复。"""
+    """处理创建意图：验证姓名后写入数据库并返回确认回复。"""
     name = intent_result.patient_name
     if not name:
         return VoiceChatResponse(transcript=transcript, reply="好的，请告诉我患者的姓名。")
@@ -103,7 +103,7 @@ async def _handle_create_patient(transcript: str, intent_result, doctor_id: str)
         intent_result.gender,
         f"{intent_result.age}岁" if intent_result.age else None,
     ]))
-    reply = f"✅ 已为患者【{patient.name}】建档" + (f"（{parts}）" if parts else "") + "。"
+    reply = f"✅ 已为患者【{patient.name}】创建" + (f"（{parts}）" if parts else "") + "。"
     log(f"[VoiceChat] created patient [{patient.name}] id={patient.id} doctor={doctor_id}")
     return VoiceChatResponse(transcript=transcript, reply=reply)
 
@@ -165,7 +165,7 @@ async def _handle_add_record(
     history_list: list,
     followup_name: Optional[str],
 ) -> VoiceChatResponse:
-    """处理记录意图：结构化病历并保存，自动建档（如患者不存在）。"""
+    """处理记录意图：结构化病历并保存，自动创建（如患者不存在）。"""
     if not intent_result.patient_name or not _is_valid_patient_name(intent_result.patient_name):
         return VoiceChatResponse(transcript=transcript, reply="请问这位患者叫什么名字？")
     record, err = await _build_record_from_intent(
@@ -181,7 +181,7 @@ async def _handle_add_record(
     reply = intent_result.chat_reply
     if not reply:
         if patient_name:
-            reply = "✅ 已为【" + patient_name + "】" + ("新建档并" if patient_created else "") + "保存病历。"
+            reply = "✅ 已为【" + patient_name + "】" + ("新创建并" if patient_created else "") + "保存病历。"
         else:  # pragma: no cover
             reply = "✅ 病历已保存。"
     log(f"[VoiceChat] saved record patient={patient_name} doctor={doctor_id}")

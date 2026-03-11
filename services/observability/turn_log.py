@@ -31,6 +31,7 @@ def log_turn(
     doctor_id: str,
     latency_ms: float,
     patient_name: Optional[str] = None,
+    provenance: Optional[dict] = None,
 ) -> None:
     """Write a single routing decision to the turn log JSONL file.
 
@@ -41,6 +42,8 @@ def log_turn(
         doctor_id: The doctor's identifier.
         latency_ms: End-to-end routing latency in milliseconds.
         patient_name: Optional patient name extracted from the message.
+        provenance: Optional DoctorTurnContext provenance dict for observability
+                    (current_patient_source, memory_used, knowledge_used).
     """
     if not _ENABLED or _is_test():
         return
@@ -55,6 +58,8 @@ def log_turn(
     }
     if patient_name:
         payload["patient_name"] = patient_name
+    if provenance:
+        payload["provenance"] = provenance
 
     # Try to use the async write queue from observability if available.
     try:

@@ -1,4 +1,4 @@
-"""语音路由测试：验证语音对话（voice_chat）和问诊录音（voice_consultation）接口的错误处理、意图派发、患者建档及病历保存全链路逻辑。"""
+"""语音路由测试：验证语音对话（voice_chat）和问诊录音（voice_consultation）接口的错误处理、意图派发、患者创建及病历保存全链路逻辑。"""
 
 from __future__ import annotations
 
@@ -149,7 +149,7 @@ async def test_voice_chat_create_patient_with_name():
     upload = _Upload(content_type="audio/wav")
     fake_db = object()
     patient = SimpleNamespace(id=5, name="赵六")
-    with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="建档赵六")), \
+    with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="创建赵六")), \
          patch("routers.voice.agent_dispatch", new=AsyncMock(
              return_value=_intent(Intent.create_patient, patient_name="赵六", gender="女", age=30)
          )), \
@@ -157,13 +157,13 @@ async def test_voice_chat_create_patient_with_name():
          patch("routers.voice.db_create_patient", new=AsyncMock(return_value=patient)):
         resp = await voice.voice_chat(audio=upload, doctor_id=DOCTOR, history=None)
     assert "赵六" in resp.reply
-    assert resp.transcript == "建档赵六"
+    assert resp.transcript == "创建赵六"
 
 
 async def test_voice_chat_create_patient_invalid_name():
     upload = _Upload(content_type="audio/wav")
     fake_db = object()
-    with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="建档异常姓名")), \
+    with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="创建异常姓名")), \
          patch("routers.voice.agent_dispatch", new=AsyncMock(
              return_value=_intent(Intent.create_patient, patient_name="异常姓名", gender="女", age=30)
          )), \
@@ -360,7 +360,7 @@ async def test_voice_chat_followup_name_two_turn():
 async def test_voice_chat_create_patient_no_name_asks():
     """create_patient with no name returns ask-for-name reply."""
     upload = _Upload(content_type="audio/wav")
-    with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="建档")), \
+    with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="创建")), \
          patch("routers.voice.agent_dispatch", new=AsyncMock(
              return_value=_intent(Intent.create_patient, patient_name=None)
          )):
@@ -426,7 +426,7 @@ async def test_voice_chat_add_record_new_patient_created():
          patch("routers.voice.save_record", new=AsyncMock()):
         resp = await voice.voice_chat(audio=upload, doctor_id=DOCTOR, history=None)
     create_mock.assert_called_once()
-    assert "新建档并" in resp.reply
+    assert "新创建并" in resp.reply
 
 
 async def test_voice_chat_add_record_new_patient_invalid_name():

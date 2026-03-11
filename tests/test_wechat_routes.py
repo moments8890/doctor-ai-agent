@@ -161,7 +161,7 @@ async def test_pending_create_cancel_and_create(session_factory):
     set_pending_create(DOCTOR, "陈明")
     with patch("routers.wechat.AsyncSessionLocal", session_factory):
         created = await wechat._handle_pending_create("男，30岁", DOCTOR)
-    assert "建档" in created or "陈明" in created
+    assert "创建" in created or "陈明" in created
     assert "30岁" in created
     assert get_session(DOCTOR).pending_create_name is None
 
@@ -184,7 +184,7 @@ async def test_pending_create_reuses_existing_patient_without_duplicate(session_
     set_pending_create(DOCTOR, "章三")
     with patch("routers.wechat.AsyncSessionLocal", session_factory):
         out = await wechat._handle_pending_create("男，17岁", DOCTOR)
-    assert "章三已建档" in out
+    assert "章三已创建" in out
 
     async with session_factory() as s2:
         from db.crud import get_all_patients
@@ -481,7 +481,7 @@ async def test_handle_intent_bg_pending_create_bypasses_llm():
     set_pending_create(DOCTOR, "章三")
     with patch("routers.wechat.get_session_lock", return_value=DummyLock()), \
          patch("routers.wechat.hydrate_session_state", new=AsyncMock()), \
-         patch("routers.wechat._handle_pending_create", new=AsyncMock(return_value="好的，章三已建档（男、17岁）。")) as pending_mock, \
+         patch("routers.wechat._handle_pending_create", new=AsyncMock(return_value="好的，章三已创建（男、17岁）。")) as pending_mock, \
          patch("routers.wechat._handle_intent", new=AsyncMock()) as intent_mock, \
          patch("routers.wechat.push_turn") as push_turn, \
          patch("routers.wechat._send_customer_service_msg", new=AsyncMock()) as send_msg:

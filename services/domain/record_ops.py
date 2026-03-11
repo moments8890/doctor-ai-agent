@@ -13,7 +13,7 @@ from utils.log import log
 
 # History turns shorter than this are likely commands ("查", "删除张三"), not clinical content.
 _MIN_HISTORY_TURN_LEN = 15
-_CMD_PREFIXES = ("患者列表", "所有患者", "删除", "建档", "查", "待办", "今天任务", "PDF")
+_CMD_PREFIXES = ("患者列表", "所有患者", "删除", "创建", "查", "待办", "今天任务", "PDF")
 
 # Clinical section keys from the add_medical_record / update_medical_record tool schema.
 _CLINICAL_KEYS = [

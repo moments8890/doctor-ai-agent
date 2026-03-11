@@ -51,7 +51,7 @@ def test_realworld_v2_dataset_has_1020_cases():
 
 
 def _send_e2e_chat_turns(doctor_id: str) -> None:
-    """发送建档、病历、上下文、随访任务四轮对话，并断言响应。"""
+    """发送创建、病历、上下文、随访任务四轮对话，并断言响应。"""
     r1 = chat("新患者张城，男，47岁。", doctor_id=doctor_id, server_url=SERVER)
     assert "reply" in r1
 

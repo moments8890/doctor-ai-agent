@@ -112,7 +112,7 @@ def _pending_task_count(doctor_id: str) -> int:
 
 @pytest.mark.integration
 def test_create_patient_explicit_with_demographics():
-    """Standalone '建档' command creates patient row with correct gender/age."""
+    """Standalone '创建' command creates patient row with correct gender/age."""
     doctor_id = f"inttest_branch_create_{uuid.uuid4().hex[:8]}"
     name = "郑伟"
 
@@ -128,11 +128,11 @@ def test_create_patient_explicit_with_demographics():
 
 @pytest.mark.integration
 def test_create_patient_missing_name_then_supplied():
-    """'建档' without a name → agent asks → doctor replies with name → patient created."""
+    """'创建' without a name → agent asks → doctor replies with name → patient created."""
     doctor_id = f"inttest_branch_create_name_{uuid.uuid4().hex[:8]}"
 
     # Turn 1: intent detected but name is absent → agent should ask
-    r1 = chat("帮我建档一位新患者，女，42岁", doctor_id=doctor_id)
+    r1 = chat("帮我创建一位新患者，女，42岁", doctor_id=doctor_id)
     assert r1 is not None
     # The agent either asks for the name or creates with a placeholder;
     # either way no crash, and reply is non-empty.
@@ -274,7 +274,7 @@ def test_schedule_appointment_patient_not_in_db():
     """Scheduling for an unknown patient still creates the task (patient_id=None)."""
     doctor_id = f"inttest_branch_appt_{uuid.uuid4().hex[:8]}"
 
-    r = chat("为完全没建档的患者匿名甲安排复诊 2027-06-15 09:00", doctor_id=doctor_id)
+    r = chat("为完全没创建的患者匿名甲安排复诊 2027-06-15 09:00", doctor_id=doctor_id)
 
     assert r is not None
     # Should succeed with a task created, not crash.

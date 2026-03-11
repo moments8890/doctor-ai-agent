@@ -26,6 +26,10 @@ def _build_dispatch_kwargs(
         kwargs["specialty"] = session.specialty  # type: ignore[union-attr]
     if session.doctor_name:  # type: ignore[union-attr]
         kwargs["doctor_name"] = session.doctor_name  # type: ignore[union-attr]
+    # Inject current patient as explicit context so the LLM knows who is active
+    # even when conversation history has been trimmed.
+    if session.current_patient_name:  # type: ignore[union-attr]
+        kwargs["current_patient_context"] = session.current_patient_name  # type: ignore[union-attr]
     return kwargs
 
 

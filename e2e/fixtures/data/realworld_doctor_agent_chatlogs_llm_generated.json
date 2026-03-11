@@ -15,7 +15,7 @@
         "speaker": "doctor"
       },
       {
-        "text": "建档 胸痛 90分钟 下壁STEMI",
+        "text": "创建 胸痛 90分钟 下壁STEMI",
         "speaker": "doctor"
       },
       {
@@ -153,7 +153,7 @@
     "clinical_domain": "emergency",
     "chatlog": [
       {
-        "text": "请先列出我名下今日未建档的胸痛留观患者。",
+        "text": "请先列出我名下今日未创建的胸痛留观患者。",
         "speaker": "doctor"
       },
       {
@@ -206,7 +206,7 @@
         "speaker": "doctor"
       },
       {
-        "text": "女，33岁，产后第10天，昨晚心悸胸闷来急诊，先建档，名字周宁",
+        "text": "女，33岁，产后第10天，昨晚心悸胸闷来急诊，先创建，名字周宁",
         "speaker": "doctor"
       },
       {
@@ -354,7 +354,7 @@
     "clinical_domain": "emergency",
     "chatlog": [
       {
-        "text": "待办清单模式：1先建档 2补过敏史 3写记录 4导出",
+        "text": "待办清单模式：1先创建 2补过敏史 3写记录 4导出",
         "speaker": "doctor"
       },
       {
@@ -514,7 +514,7 @@
         "speaker": "doctor"
       },
       {
-        "text": "建档 NIHSS9 BP178 96 血糖7.4",
+        "text": "创建 NIHSS9 BP178 96 血糖7.4",
         "speaker": "doctor"
       },
       {
@@ -691,7 +691,7 @@
     "clinical_domain": "emergency neurology",
     "chatlog": [
       {
-        "text": "我连发几条你别介意，先建档，王女士44岁，急诊抽搐后恢复。",
+        "text": "我连发几条你别介意，先创建，王女士44岁，急诊抽搐后恢复。",
         "speaker": "doctor"
       },
       {
@@ -983,7 +983,7 @@
     "clinical_domain": "endocrinology",
     "chatlog": [
       {
-        "text": "周岚 女47 首诊 建档",
+        "text": "周岚 女47 首诊 创建",
         "speaker": "doctor"
       },
       {
@@ -1234,7 +1234,7 @@
     "clinical_domain": "ICU",
     "chatlog": [
       {
-        "text": "听写，急诊收一个男的，67岁，意识差，先建档。",
+        "text": "听写，急诊收一个男的，67岁，意识差，先创建。",
         "speaker": "doctor"
       },
       {
@@ -1477,7 +1477,7 @@
     "clinical_domain": "hematology",
     "chatlog": [
       {
-        "text": "赵敏 女49 乳腺癌化疗后发热 建档",
+        "text": "赵敏 女49 乳腺癌化疗后发热 创建",
         "speaker": "doctor"
       },
       {
@@ -1526,7 +1526,7 @@
         "speaker": "doctor"
       },
       {
-        "text": "没找到本院旧记录，今天补建档：王X，门诊，KPS 70",
+        "text": "没找到本院旧记录，今天补创建：王X，门诊，KPS 70",
         "speaker": "doctor"
       },
       {
@@ -1942,7 +1942,7 @@
     "clinical_domain": "pulmonology",
     "chatlog": [
       {
-        "text": "李明 男72 喘3天 建档",
+        "text": "李明 男72 喘3天 创建",
         "speaker": "doctor"
       },
       {
@@ -2089,7 +2089,7 @@
     "clinical_domain": "pulmonology",
     "chatlog": [
       {
-        "text": "呼吸科门诊接诊：患者王志刚，女，63岁，因“发热咳脓痰5天、气促1天”就诊，现予以建档。",
+        "text": "呼吸科门诊接诊：患者王志刚，女，63岁，因“发热咳脓痰5天、气促1天”就诊，现予以创建。",
         "speaker": "doctor"
       },
       {
@@ -2451,7 +2451,7 @@
     "clinical_domain": "general surgery",
     "chatlog": [
       {
-        "text": "赵海燕 女34 阑尾术后D2 建档",
+        "text": "赵海燕 女34 阑尾术后D2 创建",
         "speaker": "doctor"
       },
       {
@@ -2931,7 +2931,7 @@
         "speaker": "doctor"
       },
       {
-        "text": "高热低压 急诊转入 建档",
+        "text": "高热低压 急诊转入 创建",
         "speaker": "doctor"
       },
       {
@@ -3083,7 +3083,7 @@
         "speaker": "doctor"
       },
       {
-        "text": "现新增患者：陈永强，女，44岁，产后第5天，因高热伴意识淡漠由急诊转入，初步考虑脓毒症相关脑病，请创建档案。",
+        "text": "现新增患者：陈永强，女，44岁，产后第5天，因高热伴意识淡漠由急诊转入，初步考虑脓毒症相关脑病，请创创建案。",
         "speaker": "doctor"
       },
       {
@@ -3281,7 +3281,7 @@
     "clinical_domain": "oncology critical care",
     "chatlog": [
       {
-        "text": "口述录入，新病人，孙国强，男，79岁，肿瘤化疗后粒缺合并脓毒症，先建档。",
+        "text": "口述录入，新病人，孙国强，男，79岁，肿瘤化疗后粒缺合并脓毒症，先创建。",
         "speaker": "doctor"
       },
       {
@@ -3579,7 +3579,7 @@
         "speaker": "doctor"
       },
       {
-        "text": "建档：Chen Lihua, 29F, postpartum day 6, oliguria 400ml/24h",
+        "text": "创建：Chen Lihua, 29F, postpartum day 6, oliguria 400ml/24h",
         "speaker": "doctor"
       },
       {
@@ -3929,7 +3929,7 @@
     "clinical_domain": "outpatient_mental_health",
     "chatlog": [
       {
-        "text": "赵敏 女29 初诊 建档",
+        "text": "赵敏 女29 初诊 创建",
         "speaker": "doctor"
       },
       {
@@ -4117,7 +4117,7 @@
         "speaker": "doctor"
       },
       {
-        "text": "等下，新来的李阿姨要建档，女67，丧偶后半年反复心慌失眠",
+        "text": "等下，新来的李阿姨要创建，女67，丧偶后半年反复心慌失眠",
         "speaker": "doctor"
       },
       {
@@ -4397,7 +4397,7 @@
         "speaker": "doctor"
       },
       {
-        "text": "没有就建档：李明，男，58岁，急诊，主诉胸痛2小时。",
+        "text": "没有就创建：李明，男，58岁，急诊，主诉胸痛2小时。",
         "speaker": "doctor"
       },
       {
@@ -4692,7 +4692,7 @@
         "speaker": "doctor"
       },
       {
-        "text": "没有的话建档：女，29岁，门诊首诊，近2月情绪低落、早醒。",
+        "text": "没有的话创建：女，29岁，门诊首诊，近2月情绪低落、早醒。",
         "speaker": "doctor"
       },
       {

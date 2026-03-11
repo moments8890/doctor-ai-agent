@@ -12,7 +12,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "王建国 男68 急诊 右瘫1h 建档"
+        "text": "王建国 男68 急诊 右瘫1h 创建"
       },
       {
         "speaker": "doctor",
@@ -56,7 +56,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "先建档：赵雪琴，72F，突发失语70min，NIHSS 11，准备阿替普酶0.9mg/kg。"
+        "text": "先创建：赵雪琴，72F，突发失语70min，NIHSS 11，准备阿替普酶0.9mg/kg。"
       },
       {
         "speaker": "doctor",
@@ -147,7 +147,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "患者孙雅静，女，59岁，因突发右侧肢体无力伴口角歪斜2.5小时就诊，请先建档。"
+        "text": "患者孙雅静，女，59岁，因突发右侧肢体无力伴口角歪斜2.5小时就诊，请先创建。"
       },
       {
         "speaker": "doctor",
@@ -370,7 +370,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "新开一位：周宁涛，男，81岁，养老院送来，最后正常时间13:10，现在16:40，先建档。"
+        "text": "新开一位：周宁涛，男，81岁，养老院送来，最后正常时间13:10，现在16:40，先创建。"
       },
       {
         "speaker": "doctor",
@@ -462,7 +462,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "赵海峰 男58 急诊 建档"
+        "text": "赵海峰 男58 急诊 创建"
       },
       {
         "speaker": "doctor",
@@ -917,7 +917,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "王建国 男68 右麻20min 建档"
+        "text": "王建国 男68 右麻20min 创建"
       },
       {
         "speaker": "doctor",
@@ -1371,7 +1371,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "周雅琴 34F 失神发作3月 建档"
+        "text": "周雅琴 34F 失神发作3月 创建"
       },
       {
         "speaker": "doctor",
@@ -1837,7 +1837,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "先建档 王绍安 67男 震颤8年"
+        "text": "先创建 王绍安 67男 震颤8年"
       },
       {
         "speaker": "doctor",
@@ -2284,7 +2284,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "先建档 赵文谦 74男 记忆门诊"
+        "text": "先创建 赵文谦 74男 记忆门诊"
       },
       {
         "speaker": "doctor",
@@ -2763,7 +2763,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "王海峰 58M 脑梗后3月 复诊建档"
+        "text": "王海峰 58M 脑梗后3月 复诊创建"
       },
       {
         "speaker": "doctor",
@@ -3084,7 +3084,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "新收一个：高文静，女，79岁，急诊来时短暂失语40min，考虑高危TIA，先建档"
+        "text": "新收一个：高文静，女，79岁，急诊来时短暂失语40min，考虑高危TIA，先创建"
       },
       {
         "speaker": "doctor",
@@ -3229,7 +3229,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "王海川 车祸昏迷 1h 建档"
+        "text": "王海川 车祸昏迷 1h 创建"
       },
       {
         "speaker": "doctor",
@@ -3323,7 +3323,7 @@
       },
       {
         "speaker": "doctor",
-        "text": "患者叫周砚秋，男，45岁，补建档"
+        "text": "患者叫周砚秋，男，45岁，补创建"
       },
       {
         "speaker": "doctor",
@@ -3690,7 +3690,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "王海宁 58男 糖周病 3年建档"
+        "text": "王海宁 58男 糖周病 3年创建"
       },
       {
         "speaker": "doctor",
@@ -4155,7 +4155,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "周奕辰 术后7天 建档"
+        "text": "周奕辰 术后7天 创建"
       },
       {
         "speaker": "doctor",

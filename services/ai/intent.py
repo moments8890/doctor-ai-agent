@@ -51,7 +51,7 @@ SYSTEM_PROMPT = (
     "- gender: 性别，男/女 或 null\n"
     "- age: 年龄数字或null\n\n"
     "规则：\n"
-    "- 建档/新患者/新病人 → create_patient\n"
+    "- 创建/新患者/新病人 → create_patient\n"
     "- 病历记录/症状/诊断/治疗 → add_record\n"
     "- 刚才写错/上一条有误/主诉改为 → update_record\n"
     "- 修改患者年龄/性别 → update_patient\n"

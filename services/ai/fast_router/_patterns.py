@@ -86,7 +86,7 @@ _SUPPLEMENT_RE = re.compile(
     r"|补记录[：:。\s]"            # "补记录：换药完…"
     r"|先补记录[，,。！\s：:]?"     # "先补记录再约复诊" or "先补记录：..."
     r"|记进展[，,。！\s]?$"        # "记进展" as standalone or short phrase
-    r"|就这样记[，,。！]"          # "就这样记，肿瘤科会诊后…"
+    r"|就这样记[，,。！：:]"        # "就这样记，肿瘤科会诊后…" / "就这样记：近3个月乏力…"
     r"|补条记录[，,。！\s]?"       # "补条记录"
     r"|再记一条[，,。！\s]?"       # "导出前再记一条"
     r"|顺手补病程[，,。！\s]?"     # "顺手补病程"
@@ -110,6 +110,10 @@ _SUPPLEMENT_RE = re.compile(
     r"|加.{0,6}入院记录[\s：:]"   # "加急诊入院记录 阿替普酶..."
     r"|记一下.{0,10}[，,]"        # "记一下今天的调整，低血糖处理经过..."
     r"|add\s+(?:today\s+)?note\s*:"  # "add today note: BP 148/88..."
+    # P3: additional patterns from run7 failure analysis
+    r"|顺便记.{0,8}[：:]"         # "顺便记今日随诊：女38，产后5月..."
+    r"|记病程[，,。！\s：:]"       # "记病程：65M，维持透析，透后BP..."
+    r"|[Nn]ow\s+add\s+(?:[Tt]oday\s+)?[Nn]ote\s*:"  # "Now add note: 67M severe CAP..."
     r")"
 )
 
@@ -287,7 +291,7 @@ _QUERY_NAME_QUESTION_RE = re.compile(
 
 # Create: leading keyword directly before the name.
 # Longer alternatives listed first so Python re tries them left-to-right.
-# Separator allows whitespace, comma, or colon (e.g. "先建档：陈涛").
+# Separator allows whitespace, comma, or colon (e.g. "先创建：陈涛").
 _CREATE_LEAD_RE = re.compile(
     r"(?:"
     r"帮我建个新患者|帮我建个新病人|帮我加个患者|帮我加个病人"
@@ -297,19 +301,19 @@ _CREATE_LEAD_RE = re.compile(
     r"|加个患者|加个病人"
     r"|录入患者|录入病人"
     r"|新患者|新病人"
-    r"|建个新档|先建个档|先建档"  # e.g. "先建个档：乔慕言", "建个新档，贺清和"
+    r"|建个新档|先建个档|先创建"  # e.g. "先建个档：乔慕言", "建个新档，贺清和"
     r"|新收[：:]?"                # e.g. "神经内科新收：顾清妍"
-    r"|建档"
+    r"|创建"
     # Fix 2: additional create_patient triggers confirmed in production corpus
     r"|新增患者|新增病人"          # "新增患者：陈大为，女，47岁"
     r"|先建患者|先建病人"          # "先建患者：何桂芳，男，55岁"
     r"|收个新"                    # "收个新ICU，赵叔，65M"
     r"|就新建"                    # "就新建：孙春燕..."
-    r"|补建档"                    # "今天补建档：王X女65"
+    r"|补创建"                    # "今天补创建：王X女65"
     r")"
     r"[\s,，：:]*" + _NAME_PAT
     # Guard: the extracted name must be followed by a demographic separator or
-    # end-of-string to prevent false matches like "建档并保存" → name="并保".
+    # end-of-string to prevent false matches like "创建并保存" → name="并保".
     + r"(?=[，,。！？\s男女\d]|$)"
 )
 
@@ -321,14 +325,14 @@ _CREATE_DUPLICATE_RE = re.compile(
 
 # Create: "[name] + trailing keyword"
 _CREATE_TRAIL_RE = re.compile(
-    _NAME_PAT + r"\s*(?:新患者|新病人|建档|建个档)"
+    _NAME_PAT + r"\s*(?:新患者|新病人|创建|建个档)"
 )
 
-# Create: terse "[name] [gender/age/clinical...] 建档" at end of message
-# e.g. "王琴 女47 胆囊术后D1 建档", "林若安，女，78岁，...建档"
+# Create: terse "[name] [gender/age/clinical...] 创建" at end of message
+# e.g. "王琴 女47 胆囊术后D1 创建", "林若安，女，78岁，...创建"
 # Separator after name is whitespace or Chinese comma/punctuation.
 _CREATE_TERSE_END_RE = re.compile(
-    r"^(" + _NAME_PAT[1:-1] + r")[，,\s]+(?:[男女\d]|\w).*?(?:建档|建个档|先建档|先建个档)\s*$"
+    r"^(" + _NAME_PAT[1:-1] + r")[，,\s]+(?:[男女\d]|\w).*?(?:创建|建个档|先创建|先建个档)\s*$"
 )
 
 # Demographics helpers

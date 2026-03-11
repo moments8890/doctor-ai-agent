@@ -57,7 +57,7 @@
 
 ### 1. `agent.routing.compact` — 意图路由（精简版）
 
-**用途：** 医生发送一条消息后，该提示词让 LLM 判断医生意图（建档、记录病历、查询、删除等），并选择调用哪个工具（Tool Call）。精简版去掉了工具参数描述，节省 Token，是默认使用的版本。
+**用途：** 医生发送一条消息后，该提示词让 LLM 判断医生意图（创建、记录病历、查询、删除等），并选择调用哪个工具（Tool Call）。精简版去掉了工具参数描述，节省 Token，是默认使用的版本。
 
 **触发条件：**
 - 快速路由（fast_router）无法命中时，进入 LLM 路由
@@ -72,7 +72,7 @@
 ```
 你是医生助手。根据当前消息选择工具：
 脑血管病(ICH/SAH/缺血性脑卒中/动脉瘤/AVM/烟雾病)+明确评分(GCS/Hunt-Hess/WFNS/Fisher/改良Fisher/ICH评分/NIHSS/铃木/mRS/Spetzler-Martin/手术状态)->add_cvd_record；
-临床信息->add_medical_record；仅建档->create_patient；
+临床信息->add_medical_record；仅创建->create_patient；
 更正已保存病历字段->update_medical_record；修改患者年龄/性别->update_patient_info；
 查病历->query_records；看患者列表->list_patients；
 历史病历/PDF/Word导入->import_history；
@@ -99,7 +99,7 @@
 你是医生助手。根据医生当前消息选择工具：
 - 脑血管病（ICH/SAH/缺血性脑卒中/动脉瘤/AVM/烟雾病）且含明确评分（GCS/Hunt-Hess/WFNS/Fisher/改良Fisher/ICH评分/NIHSS/铃木分期/mRS/Spetzler-Martin）或手术状态 → add_cvd_record
 - 消息含症状/体征/诊断/用药等临床信息 → add_medical_record
-- 消息只介绍患者身份（无临床内容）或明确说建档 → create_patient
+- 消息只介绍患者身份（无临床内容）或明确说创建 → create_patient
 - 更正/修改之前已保存病历中的字段（主诉、诊断、治疗等写错了）→ update_medical_record
 - 修改患者年龄或性别等基本信息 → update_patient_info
 - 要查看历史病历 → query_records
@@ -149,7 +149,7 @@
 - age: 年龄数字或null
 
 规则：
-- 建档/新患者/新病人 → create_patient
+- 创建/新患者/新病人 → create_patient
 - 病历记录/症状/诊断/治疗 → add_record
 - 查询/历史记录/看一下 → query_records
 - 所有患者/患者列表 → list_patients
@@ -562,7 +562,7 @@ invalidate()                          # 刷新所有
 
 | 场景 | 建议修改的键 |
 |------|------------|
-| 意图识别不准（把聊天当成建档）| `agent.routing.compact` |
+| 意图识别不准（把聊天当成创建）| `agent.routing.compact` |
 | 结构化病历质量差（漏字段、乱填）| `structuring` |
 | 脑血管病评分提取不准 | `structuring.fast_cvd` 或 `structuring.neuro_cvd` |
 | 复诊记录格式不对 | `structuring.followup_suffix` |

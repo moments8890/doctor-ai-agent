@@ -63,8 +63,8 @@ async def test_miniprogram_login_and_chat_e2e(session_factory):
 
 def _make_scripted_turns() -> list[dict]:
     return [
-        {"user": "你好，我是今天门诊值班医生。", "reply": "您好，我可以协助建档、记录病历和查询随访任务。", "keyword": "协助"},
-        {"user": "新建患者 张建国 男 58岁。", "reply": "已为患者【张建国】建档（男、58岁）。", "keyword": "建档"},
+        {"user": "你好，我是今天门诊值班医生。", "reply": "您好，我可以协助创建、记录病历和查询随访任务。", "keyword": "协助"},
+        {"user": "新建患者 张建国 男 58岁。", "reply": "已为患者【张建国】创建（男、58岁）。", "keyword": "创建"},
         {"user": "张建国，反复胸痛2天，活动后加重。", "reply": "已记录主诉：反复胸痛2天，活动后加重。", "keyword": "主诉"},
         {"user": "补充：既往高血压10年，长期口服缬沙坦。", "reply": "已补充既往史与用药信息。", "keyword": "既往史"},
         {"user": "今天心电图提示V1-V4导联ST段压低。", "reply": "已记录辅助检查：V1-V4导联ST段压低。", "keyword": "辅助检查"},

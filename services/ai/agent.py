@@ -74,9 +74,9 @@ async def _get_routing_prompt() -> str:
 # Pattern: Ollama reply that verbally "performed" an action without calling a tool.
 # Used to trigger a retry with an explicit tool-use instruction.
 _VERBAL_ACTION_RE = re.compile(
-    r"已(?:为您|帮您)?(?:记录|保存|登记|安排|创建|设置|建档|更新|建好|录入|建立|添加|预约|随访|存入)"
-    r"|为您(?:记录|安排|创建|设置|完成|建档|更新|添加|预约)"
-    r"|帮您(?:记录|安排|建档|保存|添加|预约)"
+    r"已(?:为您|帮您)?(?:记录|保存|登记|安排|创建|设置|创建|更新|建好|录入|建立|添加|预约|随访|存入)"
+    r"|为您(?:记录|安排|创建|设置|完成|创建|更新|添加|预约)"
+    r"|帮您(?:记录|安排|创建|保存|添加|预约)"
     r"|(?:随访提醒|随访任务|复诊提醒)(?:已|将)?(?:设置|创建|安排)"
     r"|(?:病历|记录)(?:已|将)?(?:记录|保存|录入|存入)"
 )

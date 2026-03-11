@@ -1,5 +1,5 @@
 # Architecture Overview
-**Last updated:** 2026-03-10
+**Last updated:** 2026-03-10 (context management refactor)
 
 ---
 
@@ -25,6 +25,35 @@ Patient Portal ──► POST /api/patient    routers/patient_portal.py
 
 ---
 
+## Context Assembly Pipeline
+
+Before routing, each turn assembles a `DoctorTurnContext` that separates authoritative from advisory context:
+
+```
+assemble_turn_context(doctor_id)     services/ai/turn_context.py
+  │
+  ├─ [under session lock]
+  │    WorkflowState (AUTHORITATIVE)
+  │      current_patient_id/name      — controls patient binding
+  │      pending_record_id            — controls confirmation flow
+  │      interview / pending_cvd_scale — active workflow state
+  │
+  └─ [outside session lock]
+       AdvisoryContext
+         recent_history               — rolling 10-turn window
+         context_message              — compressed long-term summary (fresh sessions only)
+         knowledge_snippet            — doctor KB snippet
+       Provenance
+         current_patient_source       — "session" | "none"
+         memory_used / knowledge_used — observability flags
+```
+
+**Authority rules (from Codex review):**
+- `WorkflowState` fields are authoritative — never subject to TTL eviction, never overridden by advisory context
+- `AdvisoryContext` fields are advisory — LLM background hints only, must not influence patient binding or write-path decisions
+
+---
+
 ## AI Routing Pipeline
 
 Every message (WeChat or web) flows through the same two-stage router:
@@ -44,6 +73,7 @@ fast_route()                    services/ai/fast_router/
   #   FAST_ROUTE_CONFIDENCE_THRESHOLD — env var to push low-confidence hits to LLM
 agent_dispatch()                services/ai/agent.py
   LLM function-calling           ROUTING_LLM (deepseek/ollama/openai)
+  Context: system prompt + [current_patient] + [knowledge] + trimmed history
   Tool: IntentResult extraction  8 structured clinical fields
   Fallback chain: primary → cloud → regex heuristic
   │
@@ -65,12 +95,31 @@ services/session.py
   push_turn() / flush_turns() batch-write conversation history to DB
 
 DoctorSession fields:
-  current_patient_id/name    active patient context
-  pending_record_id          awaiting doctor confirmation
-  pending_create_name        mid-flow patient creation
-  pending_cvd_scale          CVD scale interview in progress
-  interview                  structured interview flow
-  conversation_history       rolling 10-turn window
+  current_patient_id/name    active patient context        ← AUTHORITATIVE
+  pending_record_id          awaiting doctor confirmation  ← AUTHORITATIVE
+  pending_create_name        mid-flow patient creation     ← AUTHORITATIVE
+  pending_cvd_scale          CVD scale interview in progress ← AUTHORITATIVE
+  interview                  structured interview flow     ← AUTHORITATIVE
+  conversation_history       rolling 10-turn window        ← advisory (history)
+  specialty / doctor_name    injected into LLM prompt      ← advisory (profile)
+```
+
+**Context compression** (`services/ai/memory.py`):
+```
+maybe_compress()   — must be called inside session lock
+  triggers: MAX_TURNS (20 msgs) | MEMORY_TOKEN_BUDGET (1200 tokens, CJK-aware) | 30-min idle
+  on success: upsert DoctorContext → clear DB turns → clear in-memory history
+  on ValueError (bad LLM JSON): preserve history, do not truncate
+  on transient error: preserve history, hard-cap only if severely over limit
+
+Compression schema (structured JSON):
+  current_patient      {name, gender, age}
+  active_diagnoses     [{name, status: acute|chronic|resolved}]
+  current_medications  [{name, dose}]
+  key_lab_values       [{name, value, date, abnormal: bool, trend: improving|stable|worsening}]
+  recent_action        string
+  pending              string
+  condition_trend      improving|stable|worsening
 ```
 
 ---
@@ -125,6 +174,7 @@ Doctor
 | Package | Responsibility |
 |---|---|
 | `services/ai/` | fast_router, agent dispatch, structuring LLM, vision OCR, transcription, memory compression |
+| `services/ai/turn_context.py` | `DoctorTurnContext` assembly — two-tier authoritative/advisory model, narrow lock scope, provenance tracking |
 | `services/session.py` | In-memory session, lock registry, hydration |
 | `services/wechat/` | WeChat domain logic, media pipeline, KF sync, notifications, patient pipeline |
 | `services/auth/` | JWT (miniprogram), PBKDF2 (patient access codes), rate limiting, request auth |

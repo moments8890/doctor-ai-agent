@@ -38,7 +38,7 @@ CORRECTION_CASES = [
         "chatlog": [
             {"speaker": "doctor", "text": "张晴，男，35岁，头痛2天，睡眠差。"},
             {"speaker": "doctor", "text": "等等，张晴是女性，刚才性别说错了，请更正为女。"},
-            {"speaker": "doctor", "text": "确认患者张晴，女，35岁，主诉头痛，请建档并保存本次病历。"},
+            {"speaker": "doctor", "text": "确认患者张晴，女，35岁，主诉头痛，请创建并保存本次病历。"},
         ],
         "expectations": {
             "must_not_timeout": True,
@@ -56,7 +56,7 @@ CORRECTION_CASES = [
         "chatlog": [
             {"speaker": "doctor", "text": "陈旭，男，45岁，胸闷1周，活动后加重。"},
             {"speaker": "doctor", "text": "不对，年龄写错了，陈旭是54岁，不是45岁，帮我改一下。"},
-            {"speaker": "doctor", "text": "确认患者陈旭，男，54岁，主诉胸闷，请建档并保存本次病历。"},
+            {"speaker": "doctor", "text": "确认患者陈旭，男，54岁，主诉胸闷，请创建并保存本次病历。"},
         ],
         "expectations": {
             "must_not_timeout": True,
@@ -74,7 +74,7 @@ CORRECTION_CASES = [
         "chatlog": [
             {"speaker": "doctor", "text": "李波，男，52岁，主诉胸闷3天，活动后加重。"},
             {"speaker": "doctor", "text": "不对，李波的主诉是胸痛，不是胸闷，请帮我更正。"},
-            {"speaker": "doctor", "text": "确认患者李波，主诉胸痛，请建档并保存本次病历。"},
+            {"speaker": "doctor", "text": "确认患者李波，主诉胸痛，请创建并保存本次病历。"},
         ],
         "expectations": {
             "must_not_timeout": True,
@@ -92,7 +92,7 @@ CORRECTION_CASES = [
         "chatlog": [
             {"speaker": "doctor", "text": "吴强，男，63岁，高血压门诊，血压150/90mmHg，心率80次/分。"},
             {"speaker": "doctor", "text": "血压读错了，实际是170/105，请更正，刚才记错了。"},
-            {"speaker": "doctor", "text": "确认患者吴强，血压170/105，高血压，请建档并保存本次病历。"},
+            {"speaker": "doctor", "text": "确认患者吴强，血压170/105，高血压，请创建并保存本次病历。"},
         ],
         "expectations": {
             "must_not_timeout": True,
@@ -110,7 +110,7 @@ CORRECTION_CASES = [
         "chatlog": [
             {"speaker": "doctor", "text": "孙明，男，48岁，头痛2天。"},
             {"speaker": "doctor", "text": "补充一下：还有恶心和发热38.5℃，昨晚畏光明显。"},
-            {"speaker": "doctor", "text": "孙明，头痛伴恶心发热畏光，请建档并保存本次病历。"},
+            {"speaker": "doctor", "text": "孙明，头痛伴恶心发热畏光，请创建并保存本次病历。"},
         ],
         "expectations": {
             "must_not_timeout": True,
@@ -126,7 +126,7 @@ CORRECTION_CASES = [
         "chatlog": [
             {"speaker": "doctor", "text": "王磊，男，58岁，PCI术后，出院带药阿司匹林100mg qd。"},
             {"speaker": "doctor", "text": "刚才药名说错了，应该是氯吡格雷75mg，不是阿司匹林，请更正。"},
-            {"speaker": "doctor", "text": "确认患者王磊，PCI术后，带药氯吡格雷75mg，请建档并保存本次病历。"},
+            {"speaker": "doctor", "text": "确认患者王磊，PCI术后，带药氯吡格雷75mg，请创建并保存本次病历。"},
         ],
         "expectations": {
             "must_not_timeout": True,
@@ -144,7 +144,7 @@ CORRECTION_CASES = [
         "chatlog": [
             {"speaker": "doctor", "text": "赵敏，女，67岁，心衰随访，BNP 1200pg/mL，EF 32%。"},
             {"speaker": "doctor", "text": "BNP那个数值我看错了，是2100，不是1200，帮我改掉。"},
-            {"speaker": "doctor", "text": "确认患者赵敏，BNP 2100，心衰，请建档并保存本次病历。"},
+            {"speaker": "doctor", "text": "确认患者赵敏，BNP 2100，心衰，请创建并保存本次病历。"},
         ],
         "expectations": {
             "must_not_timeout": True,
@@ -162,7 +162,7 @@ CORRECTION_CASES = [
         "chatlog": [
             {"speaker": "doctor", "text": "刘洋，男，44岁，咳嗽2天，有痰。"},
             {"speaker": "doctor", "text": "不对，咳嗽是2周了，不是2天，时间说错了。"},
-            {"speaker": "doctor", "text": "确认患者刘洋，咳嗽2周，请建档并保存本次病历。"},
+            {"speaker": "doctor", "text": "确认患者刘洋，咳嗽2周，请创建并保存本次病历。"},
         ],
         "expectations": {
             "must_not_timeout": True,
@@ -180,7 +180,7 @@ CORRECTION_CASES = [
         "chatlog": [
             {"speaker": "doctor", "text": "陈默，男，58岁，突发胸痛2小时，STEMI可能，急诊就诊。"},
             {"speaker": "doctor", "text": "家族史补充一下：父亲有早发冠心病，55岁心梗，刚才忘记说了。"},
-            {"speaker": "doctor", "text": "确认患者陈默，主诉急性胸痛，家族史阳性，请建档并保存本次病历。"},
+            {"speaker": "doctor", "text": "确认患者陈默，主诉急性胸痛，家族史阳性，请创建并保存本次病历。"},
         ],
         "expectations": {
             "must_not_timeout": True,
@@ -196,7 +196,7 @@ CORRECTION_CASES = [
         "chatlog": [
             {"speaker": "doctor", "text": "孟晨，女，55岁，2型糖尿病，甘精胰岛素8U每晚皮下注射。"},
             {"speaker": "doctor", "text": "剂量有误，应该是16U，不是8U，帮我更正胰岛素剂量。"},
-            {"speaker": "doctor", "text": "确认患者孟晨，糖尿病，甘精胰岛素16U，请建档并保存本次病历。"},
+            {"speaker": "doctor", "text": "确认患者孟晨，糖尿病，甘精胰岛素16U，请创建并保存本次病历。"},
         ],
         "expectations": {
             "must_not_timeout": True,
@@ -214,7 +214,7 @@ CORRECTION_CASES = [
         "chatlog": [
             {"speaker": "doctor", "text": "周楠，男，61岁，心电图ST段抬高，考虑STEMI。"},
             {"speaker": "doctor", "text": "更新一下，肌钙蛋白回来了，明确STEMI，不是疑似，已开启PCI绿色通道。"},
-            {"speaker": "doctor", "text": "确认患者周楠，明确STEMI诊断，急诊PCI，请建档并保存本次病历。"},
+            {"speaker": "doctor", "text": "确认患者周楠，明确STEMI诊断，急诊PCI，请创建并保存本次病历。"},
         ],
         "expectations": {
             "must_not_timeout": True,
@@ -230,7 +230,7 @@ CORRECTION_CASES = [
         "chatlog": [
             {"speaker": "doctor", "text": "唐慧，女，42岁，社区获得性肺炎，予头孢曲松2g qd治疗。"},
             {"speaker": "doctor", "text": "等等，患者有青霉素过敏史，头孢类也需要谨慎，过敏史刚才漏了，帮我补上。"},
-            {"speaker": "doctor", "text": "确认患者唐慧，肺炎，青霉素过敏史，请建档并保存本次病历。"},
+            {"speaker": "doctor", "text": "确认患者唐慧，肺炎，青霉素过敏史，请创建并保存本次病历。"},
         ],
         "expectations": {
             "must_not_timeout": True,
@@ -244,9 +244,9 @@ CORRECTION_CASES = [
         "case_id": "REALWORLD-V2-CORRECTION-013",
         "title": "Doctor corrects patient name spelling (王铭→王明)",
         "chatlog": [
-            {"speaker": "doctor", "text": "帮我建档：王铭，男，47岁，心悸反复发作。"},
+            {"speaker": "doctor", "text": "帮我创建：王铭，男，47岁，心悸反复发作。"},
             {"speaker": "doctor", "text": "名字写错了，是王明，不是王铭，两个字读音一样，帮我改正。"},
-            {"speaker": "doctor", "text": "确认患者王明，男，47岁，心悸，请建档并保存本次病历。"},
+            {"speaker": "doctor", "text": "确认患者王明，男，47岁，心悸，请创建并保存本次病历。"},
         ],
         "expectations": {
             "must_not_timeout": True,
@@ -264,7 +264,7 @@ CORRECTION_CASES = [
         "chatlog": [
             {"speaker": "doctor", "text": "林宇，男，66岁，乏力——不对，主诉是气短，不是乏力，气短3天，活动后加重。"},
             {"speaker": "doctor", "text": "气短伴轻度下肢水肿，SpO₂ 92%，考虑心功能不全。"},
-            {"speaker": "doctor", "text": "确认患者林宇，主诉气短，请建档并保存本次病历。"},
+            {"speaker": "doctor", "text": "确认患者林宇，主诉气短，请创建并保存本次病历。"},
         ],
         "expectations": {
             "must_not_timeout": True,
@@ -281,7 +281,7 @@ CORRECTION_CASES = [
             {"speaker": "doctor", "text": "黄梅，男，38岁，反复发作性头痛，持续约2小时。"},
             {"speaker": "doctor", "text": "性别说错了，黄梅是女性。"},
             {"speaker": "doctor", "text": "年龄也记错了，是43岁，不是38岁。"},
-            {"speaker": "doctor", "text": "确认患者黄梅，女，43岁，头痛，请建档并保存本次病历。"},
+            {"speaker": "doctor", "text": "确认患者黄梅，女，43岁，头痛，请创建并保存本次病历。"},
         ],
         "expectations": {
             "must_not_timeout": True,
@@ -297,7 +297,7 @@ CORRECTION_CASES = [
         "chatlog": [
             {"speaker": "doctor", "text": "卫东，男，72岁，急性缺血性卒中，NIHSS评分6分入院。"},
             {"speaker": "doctor", "text": "重新评估了，NIHSS是10分，不是6分，评分偏低了，请更正。"},
-            {"speaker": "doctor", "text": "确认患者卫东，NIHSS 10分，急性卒中，请建档并保存本次病历。"},
+            {"speaker": "doctor", "text": "确认患者卫东，NIHSS 10分，急性卒中，请创建并保存本次病历。"},
         ],
         "expectations": {
             "must_not_timeout": True,
@@ -315,7 +315,7 @@ CORRECTION_CASES = [
         "chatlog": [
             {"speaker": "doctor", "text": "方刚，男，65岁，三支病变，计划急诊PCI手术。"},
             {"speaker": "doctor", "text": "手术方式说错了，应该是CABG，不是PCI，三支病变应该搭桥，请更正。"},
-            {"speaker": "doctor", "text": "确认患者方刚，三支病变，计划CABG，请建档并保存本次病历。"},
+            {"speaker": "doctor", "text": "确认患者方刚，三支病变，计划CABG，请创建并保存本次病历。"},
         ],
         "expectations": {
             "must_not_timeout": True,
@@ -333,7 +333,7 @@ CORRECTION_CASES = [
         "chatlog": [
             {"speaker": "doctor", "text": "蒋慧，女，59岁，2型糖尿病随访，HbA1c 7.2%，血压138/88mmHg，空腹血糖8.2。"},
             {"speaker": "doctor", "text": "HbA1c数值更新一下，今天报告出来了是8.1%，不是7.2%，其他不变。"},
-            {"speaker": "doctor", "text": "确认患者蒋慧，HbA1c 8.1%，糖尿病随访，请建档并保存本次病历。"},
+            {"speaker": "doctor", "text": "确认患者蒋慧，HbA1c 8.1%，糖尿病随访，请创建并保存本次病历。"},
         ],
         "expectations": {
             "must_not_timeout": True,
@@ -352,7 +352,7 @@ CORRECTION_CASES = [
             {"speaker": "doctor", "text": "谭峰，男，55岁，肾功能异常，肌酐偏高。"},
             {"speaker": "doctor", "text": "补充具体数值：肌酐416μmol/L，eGFR 14，属于CKD G5期。"},
             {"speaker": "doctor", "text": "再查一下谭峰的既往透析记录。"},
-            {"speaker": "doctor", "text": "确认患者谭峰，CKD G5期，肌酐416，请建档并保存本次病历。"},
+            {"speaker": "doctor", "text": "确认患者谭峰，CKD G5期，肌酐416，请创建并保存本次病历。"},
         ],
         "expectations": {
             "must_not_timeout": True,
@@ -368,7 +368,7 @@ CORRECTION_CASES = [
         "chatlog": [
             {"speaker": "doctor", "text": "叶雪，女，34岁，持续性心悸，心电图室性早搏。"},
             {"speaker": "doctor", "text": "不是室性早搏，是室上性心动过速，心电图科重新判读了，请改过来。"},
-            {"speaker": "doctor", "text": "确认患者叶雪，室上性心动过速，请建档并保存本次病历。"},
+            {"speaker": "doctor", "text": "确认患者叶雪，室上性心动过速，请创建并保存本次病历。"},
         ],
         "expectations": {
             "must_not_timeout": True,

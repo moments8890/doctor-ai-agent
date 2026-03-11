@@ -39,7 +39,7 @@ async def test_handle_intent_routes_create_patient(wechat, session_factory):
     )), patch("routers.wechat.AsyncSessionLocal", session_factory):
         reply = await wechat._handle_intent("帮我建个新患者，李明，45岁男性", DOCTOR)
     assert "李明" in reply
-    assert "建档" in reply or "✅" in reply or "已为" in reply
+    assert "创建" in reply or "✅" in reply or "已为" in reply
 
 
 async def test_handle_intent_routes_unknown_to_help_message(wechat):

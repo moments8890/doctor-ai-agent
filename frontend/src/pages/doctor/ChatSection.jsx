@@ -336,7 +336,7 @@ async function performSend({ text, loading, doctorId, history, setMessages, setI
       pending_patient_name: data.pending_patient_name || null,
       pending_expires_at: data.pending_expires_at || null,
     }]);
-    if (onPatientCreated && (reply.includes("已建档") || (reply.includes("已为") && reply.includes("建档")))) {
+    if (onPatientCreated && (reply.includes("已创建") || (reply.includes("已为") && reply.includes("创建")))) {
       onPatientCreated();
     }
   } catch (error) {

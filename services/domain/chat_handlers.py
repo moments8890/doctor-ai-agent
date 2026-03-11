@@ -1,6 +1,6 @@
 """
 聊天意图处理器：将各类医生操作意图分发到对应的业务逻辑，
-包括建档、录入病历、查询、删除、任务管理和预约等功能。
+包括创建、录入病历、查询、删除、任务管理和预约等功能。
 """
 
 from __future__ import annotations
@@ -81,7 +81,7 @@ _REMINDER_IN_MSG_RE = re.compile(
 )
 _COMPLETE_RE = re.compile(r'^\s*完成\s*(\d+)\s*$')
 _CREATE_PREAMBLE_RE = re.compile(
-    r"^(?:帮我?|请)?(?:录入|建立|新建|建档)"
+    r"^(?:帮我?|请)?(?:录入|建立|新建|创建)"
     r"(?:.*?(?:新病人|新患者|患者|病人))?"
     r"\s*[，,]?\s*[\u4e00-\u9fff]{2,4}\s*[，,]?"
     r"(?:\s*[男女](?:性)?\s*[，,]?)?"
@@ -134,7 +134,7 @@ async def handle_create_patient(
     doctor_id: str,
     intent_result: "IntentResult",  # type: ignore[name-defined]
 ) -> ChatResponse:
-    """处理建档意图：创建或复用患者档案，可附带病历和提醒。"""
+    """处理创建意图：创建或复用患者档案，可附带病历和提醒。"""
     name = intent_result.patient_name
     if not name:
         return ChatResponse(reply="好的，请告诉我患者的姓名。")
@@ -167,7 +167,7 @@ async def _create_or_reuse_patient(
     patient: Optional[object],
     intent_result: "IntentResult",  # type: ignore[name-defined]
 ) -> tuple[str, object]:
-    """建档或复用已有患者，返回 (reply, patient)。"""
+    """创建或复用已有患者，返回 (reply, patient)。"""
     if patient is not None:
         _age_str = (
             f"{datetime.now().year - patient.year_of_birth}岁"
@@ -195,7 +195,7 @@ async def _create_or_reuse_patient(
         intent_result.gender,
         f"{intent_result.age}岁" if intent_result.age else None,
     ]))
-    reply = f"✅ 已为患者【{patient.name}】建档" + (f"（{parts}）" if parts else "") + "。"
+    reply = f"✅ 已为患者【{patient.name}】创建" + (f"（{parts}）" if parts else "") + "。"
     log(f"[Chat] created patient [{patient.name}] id={patient.id} doctor={doctor_id}")
     asyncio.create_task(audit(
         doctor_id, "WRITE", resource_type="patient",
@@ -211,7 +211,7 @@ async def _append_compound_record(
     name: str,
     reply: str,
 ) -> str:
-    """附加病历录入到建档回复中。"""
+    """附加病历录入到创建回复中。"""
     try:
         _clinical_text = _CREATE_PREAMBLE_RE.sub("", body_text).strip() or body_text
         with trace_block("router", "records.chat.compound_record"):
@@ -238,7 +238,7 @@ async def _append_reminder_task(
     reminder_match: "re.Match",
     reply: str,
 ) -> str:
-    """附加提醒任务到建档回复中。"""
+    """附加提醒任务到创建回复中。"""
     task_title_raw = reminder_match.group(1).strip().rstrip("。！")
     task_title = f"【{name}】{task_title_raw}"
     try:
@@ -595,7 +595,7 @@ async def handle_update_patient(
                 age=intent_result.age,
             )
     if patient is None:
-        return ChatResponse(reply=f"⚠️ 未找到患者【{name}】，请先建档。")
+        return ChatResponse(reply=f"⚠️ 未找到患者【{name}】，请先创建。")
 
     parts = []
     if intent_result.gender:

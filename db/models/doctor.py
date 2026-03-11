@@ -15,6 +15,9 @@ from db.models.base import _utcnow
 class DoctorContext(Base):
     """Persistent compressed memory for a doctor — survives server restarts."""
     __tablename__ = "doctor_contexts"
+    __table_args__ = (
+        Index("ix_doctor_contexts_updated_at", "updated_at"),
+    )
 
     doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), primary_key=True)
     summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

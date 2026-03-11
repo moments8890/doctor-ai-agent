@@ -190,7 +190,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "新建档：黎星野，男，58岁"
+        "text": "新创建：黎星野，男，58岁"
       },
       {
         "speaker": "doctor",
@@ -332,7 +332,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "心脏ICU新收，先建档：韩景行，男，65岁，急性广泛前壁STEMI合并心源性休克"
+        "text": "心脏ICU新收，先创建：韩景行，男，65岁，急性广泛前壁STEMI合并心源性休克"
       },
       {
         "speaker": "doctor",
@@ -613,7 +613,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "贺清和 男 28岁 癫痫全面强直阵挛发作 昨晚急诊来的 先建档"
+        "text": "贺清和 男 28岁 癫痫全面强直阵挛发作 昨晚急诊来的 先创建"
       },
       {
         "speaker": "doctor",
@@ -658,7 +658,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "林若安，女，78岁，家属诉记忆力进行性下降2年，近半年出门找不到路，MMSE 14分，建档"
+        "text": "林若安，女，78岁，家属诉记忆力进行性下降2年，近半年出门找不到路，MMSE 14分，创建"
       },
       {
         "speaker": "doctor",
@@ -749,7 +749,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "急！许明轩 男 58岁 醒后卒中 左侧MCA M1段闭塞 NIHSS 18分 已进导管室 先建档"
+        "text": "急！许明轩 男 58岁 醒后卒中 左侧MCA M1段闭塞 NIHSS 18分 已进导管室 先创建"
       },
       {
         "speaker": "doctor",
@@ -885,7 +885,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "脑出血急诊！陆承安 男 54岁 突发剧烈头痛伴意识障碍30分钟 无明显诱因 先建档"
+        "text": "脑出血急诊！陆承安 男 54岁 突发剧烈头痛伴意识障碍30分钟 无明显诱因 先创建"
       },
       {
         "speaker": "doctor",
@@ -931,7 +931,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "急诊神经科先建档：乔慕言，男，68岁，右侧肢体无力2h伴言语不清40min。"
+        "text": "急诊神经科先创建：乔慕言，男，68岁，右侧肢体无力2h伴言语不清40min。"
       },
       {
         "speaker": "doctor",
@@ -1541,7 +1541,7 @@
       },
       {
         "speaker": "doctor",
-        "text": "先建档，把今天的初诊评估记录上去"
+        "text": "先创建，把今天的初诊评估记录上去"
       }
     ],
     "expectations": {
@@ -1731,7 +1731,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "新患者建档：陆承安，男，52岁，发现高血压5年、血糖升高1年"
+        "text": "新患者创建：陆承安，男，52岁，发现高血压5年、血糖升高1年"
       },
       {
         "speaker": "doctor",
@@ -1747,7 +1747,7 @@
       },
       {
         "speaker": "doctor",
-        "text": "先建档，记初诊评估，1个月后复诊看BP达标情况，帮我约"
+        "text": "先创建，记初诊评估，1个月后复诊看BP达标情况，帮我约"
       }
     ],
     "expectations": {
@@ -1893,7 +1893,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "先建档：乔慕言，男52岁，内分泌科初诊。"
+        "text": "先创建：乔慕言，男52岁，内分泌科初诊。"
       },
       {
         "speaker": "doctor",
@@ -2511,7 +2511,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "新患者：梁国安，男，42岁，弥漫大B细胞淋巴瘤，初诊，今天收入院，先建档"
+        "text": "新患者：梁国安，男，42岁，弥漫大B细胞淋巴瘤，初诊，今天收入院，先创建"
       },
       {
         "speaker": "doctor",
@@ -2655,7 +2655,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "新来血液科：苏景澄，女，67岁，多发性骨髓瘤IgG-κ型，DS分期IIIA，今天入院，建档"
+        "text": "新来血液科：苏景澄，女，67岁，多发性骨髓瘤IgG-κ型，DS分期IIIA，今天入院，创建"
       },
       {
         "speaker": "doctor",
@@ -2853,7 +2853,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "新收一个乳腺Ca术后患者，先建档。"
+        "text": "新收一个乳腺Ca术后患者，先创建。"
       },
       {
         "speaker": "doctor",
@@ -3184,7 +3184,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "今天新建档，卵巢癌术后第3次化疗。"
+        "text": "今天新创建，卵巢癌术后第3次化疗。"
       },
       {
         "speaker": "doctor",
@@ -3408,7 +3408,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "新患者：乔慕言，女，52岁，突发胸痛+呼吸困难2小时，既往下肢DVT病史，先建档"
+        "text": "新患者：乔慕言，女，52岁，突发胸痛+呼吸困难2小时，既往下肢DVT病史，先创建"
       },
       {
         "speaker": "doctor",
@@ -3547,7 +3547,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "新收一个：梁国安，女，44岁，社区获得性肺炎，发热5天，体温38.9℃，咳铁锈色痰，右侧胸痛，先建档"
+        "text": "新收一个：梁国安，女，44岁，社区获得性肺炎，发热5天，体温38.9℃，咳铁锈色痰，右侧胸痛，先创建"
       },
       {
         "speaker": "doctor",
@@ -3717,7 +3717,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "新患者：秦予安，男，63岁，建档"
+        "text": "新患者：秦予安，男，63岁，创建"
       },
       {
         "speaker": "doctor",
@@ -3758,7 +3758,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "晨交班先建档：乔慕言，男，72岁，40包年吸烟史，主诉咳嗽咳痰加重伴气促3天。"
+        "text": "晨交班先创建：乔慕言，男，72岁，40包年吸烟史，主诉咳嗽咳痰加重伴气促3天。"
       },
       {
         "speaker": "doctor",
@@ -3890,7 +3890,7 @@
       },
       {
         "speaker": "doctor",
-        "text": "建档后补病历：T 38.6℃，P 112次/分，RR 30次/分，BP 96/58mmHg，qSOFA 2分；WBC 17.53×10^9/L，中性粒88.9%，PCT 2.6ng/mL。"
+        "text": "创建后补病历：T 38.6℃，P 112次/分，RR 30次/分，BP 96/58mmHg，qSOFA 2分；WBC 17.53×10^9/L，中性粒88.9%，PCT 2.6ng/mL。"
       },
       {
         "speaker": "doctor",
@@ -3981,7 +3981,7 @@
       },
       {
         "speaker": "doctor",
-        "text": "建档并记治疗：依诺肝素60mg q12h皮下注射，后桥接利伐沙班15mg bid。"
+        "text": "创建并记治疗：依诺肝素60mg q12h皮下注射，后桥接利伐沙班15mg bid。"
       },
       {
         "speaker": "doctor",
@@ -4067,7 +4067,7 @@
       },
       {
         "speaker": "doctor",
-        "text": "建档并记：CURB-65 2分，尿素9.8mmol/L，RR 32次/分，SpO2 89%（空气）；予头孢曲松2g qd + 阿奇霉素0.5g qd。"
+        "text": "创建并记：CURB-65 2分，尿素9.8mmol/L，RR 32次/分，SpO2 89%（空气）；予头孢曲松2g qd + 阿奇霉素0.5g qd。"
       },
       {
         "speaker": "doctor",
@@ -5440,7 +5440,7 @@
       },
       {
         "speaker": "doctor",
-        "text": "先建档，上面这些全记进去"
+        "text": "先创建，上面这些全记进去"
       }
     ],
     "expectations": {
@@ -5570,7 +5570,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "急性胰腺炎继发脓毒症，从普外科转来，苏景澄，男，45岁，新建档案"
+        "text": "急性胰腺炎继发脓毒症，从普外科转来，苏景澄，男，45岁，新创建案"
       },
       {
         "speaker": "doctor",
@@ -5623,7 +5623,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "先建档：乔慕言，男，67岁，ICU收治，脓毒症休克6h。"
+        "text": "先创建：乔慕言，男，67岁，ICU收治，脓毒症休克6h。"
       },
       {
         "speaker": "doctor",
@@ -5989,7 +5989,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "孟书禾，54岁，ICU机械通气第3天，先建档。"
+        "text": "孟书禾，54岁，ICU机械通气第3天，先创建。"
       },
       {
         "speaker": "doctor",
@@ -6562,7 +6562,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "新收一个肾内病人，先建档。"
+        "text": "新收一个肾内病人，先创建。"
       },
       {
         "speaker": "doctor",
@@ -7092,7 +7092,7 @@
       },
       {
         "speaker": "doctor",
-        "text": "建档，记入院评估。碳酸锂0.5g tid起始+丙戊酸钠500mg bid联用，严密监测锂浓度。约4周后复评YMRS。"
+        "text": "创建，记入院评估。碳酸锂0.5g tid起始+丙戊酸钠500mg bid联用，严密监测锂浓度。约4周后复评YMRS。"
       }
     ],
     "expectations": {
@@ -7217,7 +7217,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "新患者，顾清妍，女，52岁，门诊以「重度抑郁障碍，伴精神病性症状」收入我科，帮我建档并记入院评估。"
+        "text": "新患者，顾清妍，女，52岁，门诊以「重度抑郁障碍，伴精神病性症状」收入我科，帮我创建并记入院评估。"
       },
       {
         "speaker": "doctor",
@@ -7569,7 +7569,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "夜班新收一例双相情感障碍先建档。"
+        "text": "夜班新收一例双相情感障碍先创建。"
       },
       {
         "speaker": "doctor",
@@ -7903,7 +7903,7 @@
       },
       {
         "speaker": "doctor",
-        "text": "有个新的要建档：许明轩，男，67岁，急性下壁STEMI，今天急诊入院"
+        "text": "有个新的要创建：许明轩，男，67岁，急性下壁STEMI，今天急诊入院"
       },
       {
         "speaker": "doctor",
@@ -8136,7 +8136,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "急诊来了个上消化道大出血，建档：乔慕言，男，58岁，有肝硬化病史"
+        "text": "急诊来了个上消化道大出血，创建：乔慕言，男，58岁，有肝硬化病史"
       },
       {
         "speaker": "doctor",
@@ -8283,7 +8283,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "新建档：韩景行，男，62岁，肝门部胆管癌，今天入院拟行根治性切除"
+        "text": "新创建：韩景行，男，62岁，肝门部胆管癌，今天入院拟行根治性切除"
       },
       {
         "speaker": "doctor",
@@ -8527,7 +8527,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "急诊转来一个，先建档。"
+        "text": "急诊转来一个，先创建。"
       },
       {
         "speaker": "doctor",

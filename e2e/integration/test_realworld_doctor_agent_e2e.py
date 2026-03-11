@@ -293,7 +293,7 @@ def test_correction_chief_complaint_overrides_initial():
 
     # Turn 3 — save with corrected chief complaint
     r3 = chat(
-        "确认患者李波，主诉胸痛，请建档并保存本次病历。",
+        "确认患者李波，主诉胸痛，请创建并保存本次病历。",
         history=h2,
         doctor_id=doctor_id,
     )
@@ -339,7 +339,7 @@ def test_addendum_supplements_initial_sparse_record():
 
     # Turn 3 — save with combined info
     r3 = chat(
-        "孙明，头痛伴恶心发热，请建档并保存本次病历。",
+        "孙明，头痛伴恶心发热，请创建并保存本次病历。",
         history=h2,
         doctor_id=doctor_id,
     )
@@ -391,7 +391,7 @@ def test_correction_vital_signs_replaced():
 
     # Turn 3 — save with corrected BP
     r3 = chat(
-        "确认患者吴强，血压170/105，高血压，请建档并保存本次病历。",
+        "确认患者吴强，血压170/105，高血压，请创建并保存本次病历。",
         history=h2,
         doctor_id=doctor_id,
     )

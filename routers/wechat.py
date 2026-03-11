@@ -339,31 +339,37 @@ def verify(
 
 async def _route_session_state_bg(text: str, doctor_id: str) -> str:
     """Under session lock: check stateful flows first, else call _handle_intent."""
+    from services.ai.turn_context import assemble_turn_context
     sess = get_session(doctor_id)
     try:
         await asyncio.wait_for(maybe_compress(doctor_id, sess), timeout=2.0)
     except asyncio.TimeoutError:
         log(f"[WeChat bg] maybe_compress timed out for doctor={doctor_id}, skipping")
-    if sess.pending_record_id:
+
+    # Assemble authoritative workflow state + advisory context (already under lock)
+    ctx = await assemble_turn_context(doctor_id, already_locked=True)
+
+    if ctx.workflow.pending_record_id:
         result = await _handle_pending_record_reply(text, doctor_id, sess)
-    elif sess.pending_create_name:
+    elif ctx.workflow.pending_create_name:
         result = await _handle_pending_create(text, doctor_id)
-    elif sess.pending_cvd_scale is not None:
+    elif ctx.workflow.pending_cvd_scale is not None:
         result = await wd.handle_cvd_scale_reply(text, doctor_id)
-    elif sess.interview is not None:
+    elif ctx.workflow.interview is not None:
         result = await _handle_interview_step(text, doctor_id)
     else:
         welcome = ""
-        if not sess.conversation_history:
+        if not ctx.advisory.recent_history:
             welcome = (
                 "欢迎使用门诊AI助手！\n"
                 "我可以帮您：建档、记录病历、查询患者、安排随访。\n"
                 "发「帮助」可查看完整功能列表。\n\n"
             )
-        history = list(sess.conversation_history)
-        ctx_msg = await load_context_message(doctor_id)
-        if ctx_msg:
-            history = [ctx_msg] + history
+        history = list(ctx.advisory.recent_history)
+        if ctx.advisory.context_message:
+            history = [ctx.advisory.context_message] + history
+        log(f"[WeChat bg] provenance: patient_source={ctx.provenance.current_patient_source} "
+            f"memory={ctx.provenance.memory_used} knowledge={ctx.provenance.knowledge_used}")
         try:
             _r = await _handle_intent(text, doctor_id, history=history)
             result = welcome + _r if welcome else _r

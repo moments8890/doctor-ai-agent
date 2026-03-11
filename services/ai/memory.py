@@ -31,16 +31,17 @@ _COMPRESS_PROMPT_TEMPLATE = """\
 只输出合法JSON对象，不加任何解释或markdown。字段说明（无相关信息填null）：
 {{
   "current_patient": {{"name": "姓名", "gender": "性别或null", "age": 年龄整数或null}},
-  "active_diagnoses": ["诊断1", "诊断2"],
+  "active_diagnoses": [{{"name": "诊断名", "status": "acute（急性）|chronic（慢性）|resolved（已愈）"}}],
   "current_medications": [{{"name": "药名", "dose": "剂量用法"}}],
   "allergies": ["过敏源"],
-  "key_lab_values": [{{"name": "指标名", "value": "数值+单位", "date": "检测日期或null"}}],
+  "key_lab_values": [{{"name": "指标名", "value": "数值+单位", "date": "检测日期或null", "abnormal": true或false, "trend": "improving（改善）|stable（稳定）|worsening（恶化）或null"}}],
   "recent_action": "最近一次主要操作（一句话）",
-  "pending": "待跟进事项或null"
+  "pending": "待跟进事项或null",
+  "condition_trend": "overall patient trend: improving|stable|worsening或null"
 }}
 
 重要：key_lab_values 保留所有关键检验数值（BNP、EF、HbA1c、CEA、肌钙蛋白、血压等），
-不可省略，这些值是下次会话的重要上下文。"""
+不可省略，这些值是下次会话的重要上下文。标注 abnormal=true 表示异常/危急值。"""
 
 
 async def _build_compress_prompt() -> str:
@@ -102,7 +103,9 @@ async def _summarise(history: List[dict], specialty: Optional[str] = None, docto
     """Call LLM to compress a conversation into a structured clinical context."""
     from services.ai.llm_client import _PROVIDERS  # shared provider registry
     from services.ai.agent import _get_client  # reuse singleton client
-    provider_name = os.environ.get("STRUCTURING_LLM", "deepseek")
+    # MEMORY_LLM allows a dedicated model for compression independent of record structuring.
+    # Falls back to STRUCTURING_LLM for backwards compatibility.
+    provider_name = os.environ.get("MEMORY_LLM") or os.environ.get("STRUCTURING_LLM", "deepseek")
     provider = _PROVIDERS[provider_name]
     client = _get_client(provider_name, provider)
     turns_text = "\n".join(
@@ -125,8 +128,18 @@ async def _summarise(history: List[dict], specialty: Optional[str] = None, docto
     return _validate_summary_json(raw)
 
 
+def _estimate_tokens(text: str) -> int:
+    """CJK-aware token estimator. CJK chars ≈ 1 token each; ASCII ≈ 1 token per 4 chars."""
+    cjk = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
+    ascii_len = len(text) - cjk
+    return int(cjk / 1.5 + ascii_len / 4)
+
+
 async def maybe_compress(doctor_id: str, sess: "DoctorSession") -> None:
     """Compress and flush the rolling window when the turn limit or idle timeout is hit.
+
+    IMPORTANT: This function must be called while the caller holds get_session_lock(doctor_id).
+    It does not acquire the lock itself to avoid re-entrant deadlock.
 
     After compression the in-memory history is cleared; the summary is persisted
     to DB so it can be injected as context at the start of the next session.
@@ -136,9 +149,10 @@ async def maybe_compress(doctor_id: str, sess: "DoctorSession") -> None:
         return
 
     full = len(history) >= MAX_TURNS * 2   # each turn = 2 messages
-    # Also compress when estimated token count exceeds budget (~3 chars per token, 4K window)
-    _TOKEN_BUDGET = int(os.environ.get("MEMORY_TOKEN_BUDGET", "3600"))
-    _est_tokens = sum(len(m.get("content") or "") for m in history) // 3
+    # Token budget is aligned with dispatch budget (~800 tokens). Default 1200 gives a
+    # comfortable margin above the 800-token dispatch window before compression fires.
+    _TOKEN_BUDGET = int(os.environ.get("MEMORY_TOKEN_BUDGET", "1200"))
+    _est_tokens = sum(_estimate_tokens(m.get("content") or "") for m in history)
     token_full = _est_tokens >= _TOKEN_BUDGET
     idle = (time.time() - sess.last_active) > IDLE_SECONDS
 
@@ -146,22 +160,29 @@ async def maybe_compress(doctor_id: str, sess: "DoctorSession") -> None:
         return
 
     reason = "full" if full else ("token_budget" if token_full else "idle")
-    log(f"[Memory:{doctor_id}] compressing ({reason}): {len(history)} messages")
+    log(f"[Memory:{doctor_id}] compressing ({reason}): {len(history)} messages, ~{_est_tokens} tokens")
     try:
         summary = await _summarise(history, specialty=sess.specialty, doctor_id=doctor_id)
         async with AsyncSessionLocal() as db:
             await upsert_doctor_context(db, doctor_id, summary)
+            # Clear DB turns only after upsert succeeded (same session = same transaction)
             await clear_conversation_turns(db, doctor_id)
         log(f"[Memory:{doctor_id}] saved summary: {summary[:80]}")
-        # Only clear in-memory AFTER both DB ops succeed atomically
+        # Only clear in-memory AFTER both DB ops confirm success
         sess.conversation_history = []
         sess.last_active = time.time()
+        # Invalidate advisory cache so next session loads the new summary
+        from services.ai.turn_context import invalidate_context_message_cache
+        invalidate_context_message_cache(doctor_id)
         log("[Memory] compressed conversation history successfully")
+    except ValueError as e:
+        # Permanent failure: LLM returned invalid/malformed JSON — preserve history, do not truncate
+        log(f"[Memory] ERROR: compression produced invalid summary for {doctor_id}: {e} — history preserved")
     except Exception as e:
+        # Transient failure (network, timeout, DB) — preserve history, hard-cap only if severely over limit
         log(f"[Memory] WARNING: compression failed for {doctor_id}: {e}")
-        # DO NOT clear history here — but hard-cap to prevent unbounded growth
         if len(sess.conversation_history) > MAX_TURNS * 3:
-            log(f"[Memory:{doctor_id}] hard-capping history at {MAX_TURNS * 2} turns after repeated compression failures")
+            log(f"[Memory:{doctor_id}] hard-capping history at {MAX_TURNS * 2} turns after transient failure")
             sess.conversation_history = sess.conversation_history[-(MAX_TURNS * 2):]
 
 
@@ -178,7 +199,19 @@ def _render_structured_summary(data: dict) -> str:
         lines.append("当前患者：" + "，".join(parts))
     diagnoses = data.get("active_diagnoses")
     if diagnoses and isinstance(diagnoses, list):
-        lines.append("诊断：" + "；".join(str(d) for d in diagnoses if d))
+        diag_strs = []
+        for d in diagnoses:
+            if isinstance(d, dict):
+                name = d.get("name") or ""
+                status = d.get("status") or ""
+                diag_strs.append(f"{name}（{status}）" if status else name)
+            elif d:
+                diag_strs.append(str(d))
+        if diag_strs:
+            lines.append("诊断：" + "；".join(diag_strs))
+    condition_trend = data.get("condition_trend")
+    if condition_trend:
+        lines.append("病情趋势：" + str(condition_trend))
     meds = data.get("current_medications")
     if meds and isinstance(meds, list):
         med_strs = [
@@ -197,6 +230,10 @@ def _render_structured_summary(data: dict) -> str:
             if not isinstance(lab, dict) or not lab.get("name"):
                 continue
             entry = f"{lab['name']} {lab.get('value', '')}".strip()
+            if lab.get("abnormal"):
+                entry += "⚠️"
+            if lab.get("trend"):
+                entry += f"[{lab['trend']}]"
             if lab.get("date"):
                 entry += f"（{lab['date']}）"
             lab_strs.append(entry)

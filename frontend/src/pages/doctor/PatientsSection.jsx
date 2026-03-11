@@ -87,7 +87,7 @@ function ImportCard({ importing, importError, onFileClick, onChatClick }) {
         </Box>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography sx={{ fontSize: 14, fontWeight: 500 }}>粘贴微信聊天记录</Typography>
-          <Typography sx={{ fontSize: 12, color: "#aaa" }}>在聊天框直接粘贴，自动提取建档</Typography>
+          <Typography sx={{ fontSize: 12, color: "#aaa" }}>在聊天框直接粘贴，自动提取创建</Typography>
         </Box>
         <KeyboardArrowDownIcon sx={{ fontSize: 18, color: "#ccc", transform: "rotate(-90deg)" }} />
       </Box>
@@ -144,8 +144,8 @@ function PatientGroupList({ filtered, search, selectedId, isMobile, navigate, on
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
           未找到患者「{search.trim()}」
         </Typography>
-        <Chip label={`建档 ${search.trim()}`} size="small" clickable color="primary" variant="outlined"
-          onClick={() => { onInsertChatText?.(`建档${search.trim()}`); onNavigateToChat?.(); }} />
+        <Chip label={`创建 ${search.trim()}`} size="small" clickable color="primary" variant="outlined"
+          onClick={() => { onInsertChatText?.(`创建${search.trim()}`); onNavigateToChat?.(); }} />
       </Box>
     );
   }
@@ -154,7 +154,7 @@ function PatientGroupList({ filtered, search, selectedId, isMobile, navigate, on
       <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 4, gap: 1 }}>
         <Typography variant="body2" color="text.disabled">暂无患者档案</Typography>
         <Typography variant="caption" color="text.secondary" sx={{ textAlign: "center" }}>
-          通过上方方式导入，或在聊天中建档
+          通过上方方式导入，或在聊天中创建
         </Typography>
       </Box>
     );

@@ -40,7 +40,7 @@ Doctor sends message
 │                                                     │
 │  Tier 2   Regex patterns:                           │
 │           "查[NAME]" / "[NAME]的记录" → query_records│
-│           "建档[NAME]" → create_patient             │
+│           "创建[NAME]" → create_patient             │
 │           "删除[NAME]" → delete_patient             │
 │           "[NAME]改成女" → update_patient            │
 │           "刚才写错了" / "上一条更正" → update_record │

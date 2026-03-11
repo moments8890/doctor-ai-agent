@@ -151,13 +151,13 @@ def set_reminder(name: str, when: str, rng: random.Random) -> str:
 def save_command(name: str, gender: str, age: int, chief: str, rng: random.Random) -> str:
     patterns = [
         f"请明确执行：新建患者{name}，{gender}{age}岁，主诉{chief}，并保存本次病历。",
-        f"确认患者{name}，主诉{chief}，请建档并保存本次病历。",
+        f"确认患者{name}，主诉{chief}，请创建并保存本次病历。",
         f"好，把{name}的病历保存了，主诉{chief}。",
         f"帮我把刚才{name}的记录存档，主诉{chief}。",
         f"{name}的记录整理好了，存一下，主诉{chief}。",
         f"保存{name}本次就诊记录，{gender}{age}岁，主诉{chief}。",
         f"请新建{name}并保存这次病历，主诉{chief}。",
-        f"{name}，{gender}，{age}岁，今日主诉{chief}，建档保存。",
+        f"{name}，{gender}，{age}岁，今日主诉{chief}，创建保存。",
     ]
     return rng.choice(patterns)
 

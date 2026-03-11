@@ -117,7 +117,7 @@ Each case in the output array:
   "intent_sequence": ["create_patient", "add_record"],
   "clinical_domain": "cardiology",
   "chatlog": [
-    {"speaker": "doctor", "text": "58岁男，胸痛2小时，先建档"},
+    {"speaker": "doctor", "text": "58岁男，胸痛2小时，先创建"},
     {"speaker": "doctor", "text": "hs-cTnI 2.8，心电图下壁ST抬高，确诊STEMI"}
   ],
   "expectations": {

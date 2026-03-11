@@ -13,7 +13,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "赵建国 男69 右瘫1.5h 建档"
+        "text": "赵建国 男69 右瘫1.5h 创建"
       },
       {
         "speaker": "doctor",
@@ -426,7 +426,7 @@
       },
       {
         "speaker": "doctor",
-        "text": "先建档，再写：NIHSS 7，BP 168/104，头颈CTA见右侧M2分支闭塞，阿替普酶60.3mg已给，DNT 32min，暂不取栓，先入卒中监护。"
+        "text": "先创建，再写：NIHSS 7，BP 168/104，头颈CTA见右侧M2分支闭塞，阿替普酶60.3mg已给，DNT 32min，暂不取栓，先入卒中监护。"
       },
       {
         "speaker": "doctor",
@@ -466,7 +466,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "王建国 58男 突发头痛呕吐1h 建档"
+        "text": "王建国 58男 突发头痛呕吐1h 创建"
       },
       {
         "speaker": "doctor",
@@ -786,7 +786,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "新收一个，叫周丽萍，63岁女，先建档"
+        "text": "新收一个，叫周丽萍，63岁女，先创建"
       },
       {
         "speaker": "doctor",
@@ -934,7 +934,7 @@
       },
       {
         "speaker": "doctor",
-        "text": "建档 急诊留观"
+        "text": "创建 急诊留观"
       },
       {
         "speaker": "doctor",
@@ -1079,7 +1079,7 @@
       },
       {
         "speaker": "doctor",
-        "text": "给她建档并记首诊：BP 152/92，ABCD2 3分，NIHSS 0，头MRI-DWI阴性，FLAIR未见急性灶，考虑低中危TIA。"
+        "text": "给她创建并记首诊：BP 152/92，ABCD2 3分，NIHSS 0，头MRI-DWI阴性，FLAIR未见急性灶，考虑低中危TIA。"
       },
       {
         "speaker": "doctor",
@@ -1364,7 +1364,7 @@
       },
       {
         "speaker": "doctor",
-        "text": "建档并写入院记录：BP 174/88，ABCD2 5，GCS 15，NIHSS 1分因为轻度命名迟疑，等下，刚才说错了，现在复测NIHSS 0；MRI-DWI阴性，MRA示右侧PCA P2段轻中度狭窄。"
+        "text": "创建并写入院记录：BP 174/88，ABCD2 5，GCS 15，NIHSS 1分因为轻度命名迟疑，等下，刚才说错了，现在复测NIHSS 0；MRI-DWI阴性，MRA示右侧PCA P2段轻中度狭窄。"
       },
       {
         "speaker": "doctor",
@@ -1407,7 +1407,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "王梅 34F 失神频发 先建档"
+        "text": "王梅 34F 失神频发 先创建"
       },
       {
         "speaker": "doctor",
@@ -1872,7 +1872,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "王建国 67M 帕金森8年 建档"
+        "text": "王建国 67M 帕金森8年 创建"
       },
       {
         "speaker": "doctor",
@@ -2312,7 +2312,7 @@
       },
       {
         "speaker": "doctor",
-        "text": "先建档，再写住院记录：卧位BP 146/86，站立3分钟108/68，GCS 15，MMSE 26，肌酐71 umol/L，HbA1c 6.8%。"
+        "text": "先创建，再写住院记录：卧位BP 146/86，站立3分钟108/68，GCS 15，MMSE 26，肌酐71 umol/L，HbA1c 6.8%。"
       },
       {
         "speaker": "doctor",
@@ -2358,7 +2358,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "患者王桂芬，女，74岁，记忆门诊初诊，近2年进行性记忆减退，近半年反复忘记关火、找不到回家路。请建档。"
+        "text": "患者王桂芬，女，74岁，记忆门诊初诊，近2年进行性记忆减退，近半年反复忘记关火、找不到回家路。请创建。"
       },
       {
         "speaker": "doctor",
@@ -2500,7 +2500,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "把陈建国这个门诊患者建档，男，72岁，退休教师，最近半年算账明显变差。"
+        "text": "把陈建国这个门诊患者创建，男，72岁，退休教师，最近半年算账明显变差。"
       },
       {
         "speaker": "doctor",
@@ -2853,7 +2853,7 @@
       },
       {
         "speaker": "doctor",
-        "text": "建档 加记 阿司匹林100mg qd 瑞舒伐他汀20mg qn BP目标<130/80 LDL-C 1.62"
+        "text": "创建 加记 阿司匹林100mg qd 瑞舒伐他汀20mg qn BP目标<130/80 LDL-C 1.62"
       }
     ],
     "expectations": {
@@ -3311,7 +3311,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "赵强 56M 车祸后昏迷1h 建档"
+        "text": "赵强 56M 车祸后昏迷1h 创建"
       },
       {
         "speaker": "doctor",
@@ -3481,7 +3481,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "就这样，急诊重症新收一个，男34岁，脑干出血，先建档"
+        "text": "就这样，急诊重症新收一个，男34岁，脑干出血，先创建"
       },
       {
         "speaker": "doctor",
@@ -3754,7 +3754,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "王伟民 麻木3年 建档"
+        "text": "王伟民 麻木3年 创建"
       },
       {
         "speaker": "doctor",
@@ -4207,7 +4207,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "王建国 术后7天 建档"
+        "text": "王建国 术后7天 创建"
       },
       {
         "speaker": "doctor",
@@ -4342,7 +4342,7 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "患者陈美玲，女，46岁，因左侧顶叶少突胶质细胞瘤术后复诊，今日需补建档并记录。"
+        "text": "患者陈美玲，女，46岁，因左侧顶叶少突胶质细胞瘤术后复诊，今日需补创建并记录。"
       },
       {
         "speaker": "doctor",

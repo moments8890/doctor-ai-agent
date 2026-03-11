@@ -268,6 +268,71 @@ Recommended pattern:
 
 This keeps lock scope narrow while still allowing a unified logical turn context.
 
+## Local Memory Cache Strategy
+
+Local in-process memory cache can be valuable for context management, but only for the right class of context.
+
+### Good Cache Candidates
+
+These are advisory or read-heavy context sources and can safely benefit from local memory caching:
+
+- doctor profile
+  - `doctor_name`
+  - `specialty`
+- rendered doctor knowledge context
+- compressed long-term conversation summary
+- recent prior-visit summary
+- recent read-only conversation slices prepared for routing
+
+These items are useful, relatively stable, and not by themselves sufficient to cause a dangerous write if stale.
+
+### Poor Cache Candidates
+
+These should not become cache-authoritative:
+
+- `current_patient_id`
+- `current_patient_name`
+- `pending_record_id`
+- `pending_create_name`
+- `interview_state`
+- `pending_cvd_scale`
+
+These are workflow-critical state and directly affect persistence safety.
+
+### Recommended Rule
+
+Use a two-tier context model:
+
+- authoritative context
+  - workflow state
+  - patient binding
+  - pending write state
+
+- advisory cached context
+  - doctor profile
+  - compressed memory
+  - doctor knowledge snippet
+  - prior-visit summary
+
+### Cache Design Guidance
+
+If local memory cache is used, it should have:
+
+- bounded TTLs
+- explicit invalidation on writes
+- provenance logging when cached context is consumed
+- no authority over patient binding or write-path state
+
+The goal is to reduce latency and DB read pressure, not to replace authoritative state handling.
+
+### Architectural Verdict on Local Cache
+
+Yes, local memory cache should be leveraged for context management.
+
+But it should be applied only to advisory context.
+
+Using local cache for workflow-critical state would increase the risk of stale patient binding and unsafe writes, which is the opposite of an accuracy-first design.
+
 ## Observability Recommendations
 
 The system should log context provenance per turn.

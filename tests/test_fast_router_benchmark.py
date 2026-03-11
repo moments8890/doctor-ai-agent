@@ -62,8 +62,8 @@ _CORPUS: list[tuple[str, Optional[Intent]]] = [
     # ── create_patient ────────────────────────────────────────────────────────
     ("新患者张三", Intent.create_patient),
     ("新病人李明", Intent.create_patient),
-    ("建档王五", Intent.create_patient),
-    ("张三建档", Intent.create_patient),
+    ("创建王五", Intent.create_patient),
+    ("张三创建", Intent.create_patient),
     ("添加患者赵六", Intent.create_patient),
     ("新患者张三，男，45岁", Intent.create_patient),
     ("新病人李红，女，30岁", Intent.create_patient),

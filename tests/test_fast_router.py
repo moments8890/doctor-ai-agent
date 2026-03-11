@@ -81,8 +81,8 @@ def test_query_records_patterns(text, expected_name):
 @pytest.mark.parametrize("text, expected_name", [
     ("新患者张三", "张三"),
     ("新病人李明", "李明"),
-    ("建档王五", "王五"),
-    ("张三建档", "张三"),
+    ("创建王五", "王五"),
+    ("张三创建", "张三"),
     ("添加患者赵六", "赵六"),
 ])
 def test_create_patient_patterns(text, expected_name):
@@ -289,12 +289,12 @@ def test_supplement_routes_add_record(text):
 # ── False-positive guards ───────────────────────────────────────────────────────
 
 def test_create_not_triggered_by_jiandanbing_bao():
-    """'建档并保存本次病历' must NOT extract '并保' as patient name."""
-    r = fast_route("请建档并保存本次病历")
+    """'创建并保存本次病历' must NOT extract '并保' as patient name."""
+    r = fast_route("请创建并保存本次病历")
     # Should fall through (None) or route as something other than create_patient
     if r is not None:
         assert r.intent != Intent.create_patient, (
-            "False positive: '建档并保存' should not match create_patient"
+            "False positive: '创建并保存' should not match create_patient"
         )
 
 
