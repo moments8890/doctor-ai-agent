@@ -188,7 +188,8 @@ async def _build_record_from_text(text, history, doctor_id, patient_id):
     if _prior and _enc == "follow_up":
         safe = [l for l in _prior.strip().splitlines()
                 if not any(l.lstrip().startswith(k) for k in ("忽略", "SYSTEM", "system", "#", "---"))]
-        _prior_summary = f"\n<prior_summary>\n{'\n'.join(safe)[:500]}\n</prior_summary>\n"
+        _prior_text = "\n".join(safe)[:500]
+        _prior_summary = f"\n<prior_summary>\n{_prior_text}\n</prior_summary>\n"
     return await structure_medical_record("\n".join(ctx), encounter_type=_enc, prior_visit_summary=_prior_summary)
 
 
