@@ -221,20 +221,20 @@ async def _persist_add_record_patient(
 
 
 async def _build_record_from_input(
-    body, history: list, intent_result: IntentResult,
+    text: str, history: list, intent_result: IntentResult,
     patient_name: str, doctor_id: str, followup_name: Optional[str],
 ) -> "MedicalRecord | object":
     """将意图结果转化为 MedicalRecord；失败返回 ChatResponse 错误。"""
     if intent_result.structured_fields:
         with trace_block("router", "records.chat.structured_fields_to_record"):
             fields = dict(intent_result.structured_fields)
-            content_text = (fields.get("content") or body.text).strip() or "门诊就诊"
+            content_text = (fields.get("content") or text).strip() or "门诊就诊"
             return MedicalRecord(content=content_text, record_type="dictation")
     doctor_ctx = [m["content"] for m in history[-10:] if m["role"] == "user"]
-    if not (followup_name and body.text.strip() == followup_name):
-        doctor_ctx.append(body.text)
+    if not (followup_name and text.strip() == followup_name):
+        doctor_ctx.append(text)
     if not doctor_ctx:
-        doctor_ctx.append(body.text)
+        doctor_ctx.append(text)
     try:
         with trace_block("router", "records.chat.structure_medical_record"):
             return await structure_medical_record("\n".join(doctor_ctx))
@@ -244,13 +244,13 @@ async def _build_record_from_input(
 
 
 async def _save_emergency_record(
-    doctor_id: str, body, record: MedicalRecord,
+    doctor_id: str, text: str, record: MedicalRecord,
     patient_id: int, patient_name: str, intent_result: IntentResult,
 ):
     """紧急病历：跳过确认直接保存并触发后台任务。"""
     async with AsyncSessionLocal() as db:
         saved = await save_record(db, doctor_id, record, patient_id)
-    asyncio.create_task(background_auto_learn(doctor_id, body.text, record.model_dump(exclude_none=True)))
+    asyncio.create_task(background_auto_learn(doctor_id, text, record.model_dump(exclude_none=True)))
     asyncio.create_task(audit(
         doctor_id, "WRITE", resource_type="record",
         resource_id=str(saved.id), trace_id=get_current_trace_id(),
@@ -288,7 +288,7 @@ async def _create_pending_draft(
 
 
 async def handle_add_record(
-    body, doctor_id: str, history: list, intent_result: IntentResult,
+    text: str, doctor_id: str, history: list, intent_result: IntentResult,
     followup_name: Optional[str],
 ):
     """录入病历：解析患者、生成结构化病历并保存。
@@ -338,7 +338,7 @@ async def handle_add_record(
 
     patient_name = intent_result.patient_name
 
-    record = await _build_record_from_input(body, history, intent_result, patient_name, doctor_id, followup_name)
+    record = await _build_record_from_input(text, history, intent_result, patient_name, doctor_id, followup_name)
     from routers.records import ChatResponse
     if isinstance(record, ChatResponse):
         return record
@@ -350,7 +350,7 @@ async def handle_add_record(
                 return patient_id
 
     if getattr(intent_result, "is_emergency", False):
-        return await _save_emergency_record(doctor_id, body, record, patient_id, patient_name, intent_result)
+        return await _save_emergency_record(doctor_id, text, record, patient_id, patient_name, intent_result)
     return await _create_pending_draft(doctor_id, record, patient_id, patient_name, intent_result)
 
 

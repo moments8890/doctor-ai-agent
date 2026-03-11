@@ -137,6 +137,16 @@ def _split_message(text: str, limit: int = 600) -> List[str]:
     return _notify_split_message(text, limit=limit)
 
 
+def _format_chat_result(result) -> str:
+    """Format a ChatResponse into a plain-text WeChat reply string."""
+    parts = [result.reply or ""]
+    if result.record:
+        formatted = wd.format_record(result.record)
+        if formatted:
+            parts.append(formatted)
+    return "\n".join(p for p in parts if p).strip()
+
+
 async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str:
     # Fast-path: "完成 N" bypasses LLM
     m = _COMPLETE_RE.match(text.strip())

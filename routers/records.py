@@ -410,7 +410,7 @@ async def _handle_update_patient(doctor_id: str, intent_result: IntentResult) ->
     return ChatResponse(reply=f"✅ 已更新患者【{name}】的信息：{'、'.join(parts)}。")
 
 
-async def _handle_update_record(body: ChatInput, doctor_id: str, intent_result: IntentResult) -> ChatResponse:
+async def _handle_update_record(text: str, doctor_id: str, intent_result: IntentResult) -> ChatResponse:
     """更正病历：修改最近一条病历记录。"""
     name = (intent_result.patient_name or "").strip()
     if not name:
@@ -422,7 +422,7 @@ async def _handle_update_record(body: ChatInput, doctor_id: str, intent_result: 
     else:
         try:
             with trace_block("router", "records.chat.update_record.llm_extract", {"doctor_id": doctor_id}):
-                llm_result = await agent_dispatch(body.text)
+                llm_result = await agent_dispatch(text)
             if llm_result.structured_fields:
                 corrected = dict(llm_result.structured_fields)
                 if not name and llm_result.patient_name:
@@ -479,13 +479,13 @@ def _apply_name_fallbacks(
 
 
 async def _dispatch_via_llm(
-    body: ChatInput, body_text: str, doctor_id: str, history_for_routing: list, t0: float,
+    text: str, original_text: str, doctor_id: str, history_for_routing: list, t0: float,
 ) -> IntentResult:
     """调用 LLM 调度器解析意图。"""
     knowledge_context = ""
     try:
         async with AsyncSessionLocal() as db:
-            knowledge_context = await load_knowledge_context_for_prompt(db, doctor_id, body_text)
+            knowledge_context = await load_knowledge_context_for_prompt(db, doctor_id, text)
     except Exception as e:
         log(f"[Chat] knowledge context load failed doctor={doctor_id}: {e}")
 
@@ -510,23 +510,23 @@ async def _dispatch_via_llm(
                 dispatch_kwargs["candidate_patient_context"] = "，".join(_cand_parts)
             if _sess.patient_not_found_name:
                 dispatch_kwargs["patient_not_found_context"] = _sess.patient_not_found_name
-            intent_result = await agent_dispatch(body_text, **dispatch_kwargs)
+            intent_result = await agent_dispatch(text, **dispatch_kwargs)
         _latency_ms = (time.perf_counter() - t0) * 1000.0
-        log_turn(body.text, intent_result.intent.value, "llm", doctor_id, _latency_ms, patient_name=intent_result.patient_name)
+        log_turn(original_text, intent_result.intent.value, "llm", doctor_id, _latency_ms, patient_name=intent_result.patient_name)
         return intent_result
     except Exception as e:
         msg = str(e)
         status = 429 if "rate_limit" in msg or "Rate limit" in msg or "429" in msg else 503
         log(
             f"[Chat] agent dispatch FAILED doctor={doctor_id} status={status} "
-            f"text={body_text[:80]!r} err={msg}"
+            f"text={text[:80]!r} err={msg}"
         )
         detail = "rate_limit_exceeded" if status == 429 else "Service temporarily unavailable"
         raise HTTPException(status_code=status, detail=detail)
 
 
 async def _resolve_intent(
-    body: ChatInput, body_text: str, doctor_id: str,
+    text: str, original_text: str, doctor_id: str,
     history_for_routing: list, followup_name: Optional[str],
     effective_intent: Optional[IntentResult],
 ) -> IntentResult:
@@ -536,30 +536,36 @@ async def _resolve_intent(
         return effective_intent
 
     _t0 = time.perf_counter()
-    _fast = fast_route(body_text, session=get_session(doctor_id))
+    _fast = fast_route(text, session=get_session(doctor_id))
     if _fast is not None:
         _latency_ms = (time.perf_counter() - _t0) * 1000.0
-        log(f"[Chat] fast_route hit: {fast_route_label(body_text)} doctor={doctor_id}")
-        log_turn(body.text, _fast.intent.value, "fast", doctor_id, _latency_ms, patient_name=_fast.patient_name)
+        log(f"[Chat] fast_route hit: {fast_route_label(text)} doctor={doctor_id}")
+        log_turn(original_text, _fast.intent.value, "fast", doctor_id, _latency_ms, patient_name=_fast.patient_name)
         intent_result = _fast
     else:
-        intent_result = await _dispatch_via_llm(body, body_text, doctor_id, history_for_routing, _t0)
+        intent_result = await _dispatch_via_llm(text, original_text, doctor_id, history_for_routing, _t0)
 
-    return _apply_name_fallbacks(body_text, history_for_routing, followup_name, intent_result)
+    return _apply_name_fallbacks(text, history_for_routing, followup_name, intent_result)
 
 
 # ── Dispatch table ────────────────────────────────────────────────────────────
 
 async def _dispatch_intent(
-    body: ChatInput, body_text: str, doctor_id: str, history: list,
+    text: str, original_text: str, doctor_id: str, history: list,
     intent_result: IntentResult, followup_name: Optional[str],
 ) -> ChatResponse:
-    """Route resolved intent to the appropriate handler."""
+    """Route resolved intent to the appropriate handler.
+
+    Args:
+        text: Processed message text (e.g. transcription prefix stripped).
+        original_text: Raw message text from the channel (used for reminder
+            detection and update_record re-structuring).
+    """
     intent = intent_result.intent
     if intent == Intent.create_patient:
-        return await _handle_create_patient(body_text, body.text, doctor_id, intent_result)
+        return await _handle_create_patient(text, original_text, doctor_id, intent_result)
     if intent == Intent.add_record:
-        return await _handle_add_record(body, doctor_id, history, intent_result, followup_name)
+        return await _handle_add_record(text, doctor_id, history, intent_result, followup_name)
     if intent == Intent.query_records:
         return await _handle_query_records(doctor_id, intent_result)
     if intent == Intent.list_patients:
@@ -569,23 +575,23 @@ async def _dispatch_intent(
     if intent == Intent.list_tasks:
         return await _handle_list_tasks(doctor_id, intent_result)
     if intent == Intent.complete_task:
-        return await _handle_complete_task(body.text, doctor_id, intent_result)
+        return await _handle_complete_task(original_text, doctor_id, intent_result)
     if intent == Intent.schedule_appointment:
         return await _handle_schedule_appointment(doctor_id, intent_result)
     if intent == Intent.update_patient:
         return await _handle_update_patient(doctor_id, intent_result)
     if intent == Intent.update_record:
-        return await _handle_update_record(body, doctor_id, intent_result)
+        return await _handle_update_record(original_text, doctor_id, intent_result)
     if intent == Intent.help:
         return ChatResponse(reply=_HELP_REPLY)
-    return ChatResponse(reply=_build_unclear_reply(body.text, intent_result.chat_reply))
+    return ChatResponse(reply=_build_unclear_reply(original_text, intent_result.chat_reply))
 
 
 async def _try_fast_paths(
-    body: ChatInput, body_text: str, doctor_id: str, history: list,
+    text: str, doctor_id: str, history: list,
 ) -> Optional[ChatResponse]:
     """Check deterministic fast paths before routing. Returns response or None."""
-    if _PATIENT_COUNT_RE.search(body.text):
+    if _PATIENT_COUNT_RE.search(text):
         with trace_block("router", "records.chat.patient_count.fastpath", {"doctor_id": doctor_id}):
             async with AsyncSessionLocal() as db:
                 patients = await get_all_patients(db, doctor_id)
@@ -594,15 +600,15 @@ async def _try_fast_paths(
             return ChatResponse(reply="👥 当前您管理的患者数量：0。")
         return ChatResponse(reply="👥 当前您管理的患者数量：{0}。可发送「所有患者」查看名单。".format(count))
 
-    resp = await _fastpath_delete_patient_by_id(doctor_id, body.text, _parse_delete_patient_target)
+    resp = await _fastpath_delete_patient_by_id(doctor_id, text, _parse_delete_patient_target)
     if resp is not None:
         return resp
 
-    resp = await _fastpath_save_context(doctor_id, body.text, history, _CONTEXT_SAVE_RE, upsert_doctor_context)
+    resp = await _fastpath_save_context(doctor_id, text, history, _CONTEXT_SAVE_RE, upsert_doctor_context)
     if resp is not None:
         return resp
 
-    knowledge_payload = parse_add_to_knowledge_command(body.text)
+    knowledge_payload = parse_add_to_knowledge_command(text)
     if knowledge_payload is not None:
         if not knowledge_payload:
             return ChatResponse(reply="⚠️ 请在命令后补充知识内容，例如：add_to_knowledge_base 高危胸痛需先排除ACS。")
@@ -617,13 +623,51 @@ async def _try_fast_paths(
 
 # ── Main chat orchestrator ────────────────────────────────────────────────────
 
+async def chat_core(
+    text: str,
+    doctor_id: str,
+    history: list,
+    *,
+    original_text: Optional[str] = None,
+    followup_name: Optional[str] = None,
+    effective_intent: Optional[IntentResult] = None,
+) -> ChatResponse:
+    """Channel-agnostic intent routing and execution.
+
+    Args:
+        text: Processed message text (e.g. transcription prefix stripped).
+        doctor_id: The resolved doctor identifier.
+        history: Conversation history as [{"role": "user"/"assistant", "content": str}].
+        original_text: Raw text before processing (defaults to text). Used for
+            reminder detection and record correction re-structuring.
+        followup_name: If the previous turn asked for a patient name and the
+            current message is a bare name reply, pass it here.
+        effective_intent: Pre-resolved intent (e.g. from menu shortcuts).
+
+    Returns:
+        ChatResponse with reply text, optional record, and optional pending draft
+        metadata.  Channel formatters are responsible for serialising this to
+        their wire format (JSON for web, plain text for WeChat).
+    """
+    original_text = original_text or text
+    history_for_routing = _trim_history_for_routing(history)
+
+    fast_resp = await _try_fast_paths(original_text, doctor_id, history)
+    if fast_resp is not None:
+        return fast_resp
+
+    intent_result = await _resolve_intent(
+        text, original_text, doctor_id, history_for_routing, followup_name, effective_intent,
+    )
+    return await _dispatch_intent(text, original_text, doctor_id, history, intent_result, followup_name)
+
+
 async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
-    """Main entry point for doctor chat — orchestrates routing and intent dispatch."""
+    """Main entry point for web doctor chat — thin wrapper around chat_core."""
     if not body.text.strip():
         raise HTTPException(status_code=422, detail="Text input cannot be empty.")
 
     history = [{"role": m.role, "content": m.content} for m in body.history]
-    history_for_routing = _trim_history_for_routing(history)
     _enforce_rate_limit(doctor_id)
 
     notify_reply = await _handle_notify_control_command(doctor_id, body.text)
@@ -653,14 +697,12 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
     if complete_resp is not None:
         return complete_resp
 
-    fast_resp = await _try_fast_paths(body, body_text, doctor_id, history)
-    if fast_resp is not None:
-        return fast_resp
-
-    intent_result = await _resolve_intent(
-        body, body_text, doctor_id, history_for_routing, followup_name, effective_intent,
+    return await chat_core(
+        body_text, doctor_id, history,
+        original_text=body.text,
+        followup_name=followup_name,
+        effective_intent=effective_intent,
     )
-    return await _dispatch_intent(body, body_text, doctor_id, history, intent_result, followup_name)
 
 
 # ── FastAPI endpoints ─────────────────────────────────────────────────────────
