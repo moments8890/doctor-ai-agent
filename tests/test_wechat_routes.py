@@ -245,7 +245,7 @@ async def test_handle_intent_unknown_no_longer_routes_to_name_lookup():
         new=AsyncMock(return_value=IntentResult(intent=Intent.unknown, chat_reply=None)),
     ), patch("routers.wechat._handle_name_lookup", new=AsyncMock(return_value="lookup")):
         out = await wechat._handle_intent("张三", DOCTOR)
-    assert "直接描述病历" in out or "无法判断操作意图" in out
+    assert "没太理解" in out or "帮助" in out
 
 
 async def test_handle_intent_unknown_explicit_name_routes_to_lookup():
@@ -278,7 +278,7 @@ async def test_handle_intent_unknown_greeting_not_routed_as_name():
     ), patch("routers.wechat._handle_name_lookup", new=AsyncMock(return_value="lookup")) as lookup_mock:
         out = await wechat._handle_intent("你好", DOCTOR)
 
-    assert "直接描述病历" in out or "无法判断操作意图" in out
+    assert "没太理解" in out or "帮助" in out
     lookup_mock.assert_not_called()
 
 
