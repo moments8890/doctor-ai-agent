@@ -100,6 +100,54 @@ from services.domain.name_utils import (
     patient_name_from_history as _patient_name_from_history,
 )
 
+# ── Unclear-intent reply builder ──────────────────────────────────────────────
+
+# LLM generic defaults — treated as zero-signal and skipped in the summary.
+_GENERIC_LLM_REPLIES: frozenset[str] = frozenset({
+    "您好！有什么可以帮您？",
+    "您好，有什么可以帮您的吗？",
+    "您好！请问有什么需要帮助的？",
+    "您好！",
+    "好的。",
+})
+
+
+def _build_unclear_reply(chat_reply: Optional[str]) -> str:
+    """Build the fallback reply for unknown intent.
+
+    When the LLM produced a short, non-generic response, prepend a tentative
+    one-sentence summary so the doctor can quickly spot and correct any
+    misunderstanding.  Pattern:
+
+        我理解到您可能是在说：{summary}
+        没太理解您的意思，能说得更具体一些吗？发送「帮助」可查看完整功能列表。
+
+    Rules (per product spec):
+    - 1 sentence max (truncated at first 。？！ within 50 chars)
+    - only reflect explicit LLM interpretation — no patient-binding inference
+    - skip summary if reply is generic, empty, or too verbose (> 50 chars)
+    - always end with the standard clarification request
+    """
+    if not chat_reply:
+        return _UNCLEAR_INTENT_REPLY
+    summary = chat_reply.strip()
+    if summary in _GENERIC_LLM_REPLIES:
+        return _UNCLEAR_INTENT_REPLY
+    # Extract first sentence
+    for punct in ("。", "？", "！"):
+        idx = summary.find(punct)
+        if 0 < idx < 50:
+            summary = summary[: idx + 1]
+            break
+    else:
+        if len(summary) > 50:
+            return _UNCLEAR_INTENT_REPLY
+    # Skip summaries too short to be informative (e.g. "好的", "嗯")
+    if len(summary) < 6:
+        return _UNCLEAR_INTENT_REPLY
+    return f"我理解到您可能是在说：{summary}\n{_UNCLEAR_INTENT_REPLY}"
+
+
 router = APIRouter(prefix="/api/records", tags=["records"])
 
 _ROUTING_HISTORY_MAX_MESSAGES = max(0, int(os.environ.get("ROUTING_HISTORY_MAX_MESSAGES", "2")))
@@ -494,7 +542,7 @@ async def _dispatch_intent(
         return await _handle_update_record(body, doctor_id, intent_result)
     if intent == Intent.help:
         return ChatResponse(reply=_HELP_REPLY)
-    return ChatResponse(reply=intent_result.chat_reply or _UNCLEAR_INTENT_REPLY)
+    return ChatResponse(reply=_build_unclear_reply(intent_result.chat_reply))
 
 
 async def _try_fast_paths(
