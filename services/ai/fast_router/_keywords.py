@@ -59,6 +59,7 @@ _NON_NAME_KEYWORDS: frozenset[str] = frozenset({
     "查看", "存档", "住院", "保存", "确认", "取消", "更新", "使用",
     "档案", "一个", "一下", "备注", "创建", "操作",
     "创建", "等下",  # P3: prevent lead-keyword from capturing itself or filler as name
+    "信息",  # guard for "确认患者信息" edge case
 })
 
 # ── Tier 3: name-extraction bad-name guard ─────────────────────────────────────

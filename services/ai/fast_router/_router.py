@@ -387,7 +387,7 @@ def _fast_route_core(text: str, specialty: Optional[str] = None) -> Optional[Int
                             "candidate_gender": _cg,
                             "candidate_age": _ca,
                         }
-            return IntentResult(intent=Intent.list_tasks, extra_data=_extra)
+            return IntentResult(intent=Intent.list_tasks, extra_data=_extra or {})
 
     # Name-prefixed supplement (053 fix): "李阿姨先记一下：…" — explicit name before trigger.
     # Separated from _SUPPLEMENT_RE to allow precise name extraction rather than a single

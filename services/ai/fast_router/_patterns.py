@@ -323,6 +323,9 @@ _CREATE_LEAD_RE = re.compile(
     r"|收个新"                    # "收个新ICU，赵叔，65M"
     r"|就新建"                    # "就新建：孙春燕..."
     r"|补创建"                    # "今天补创建：王X女65"
+    # Fix: "确认患者NAME，主诉…，请创建并保存本次病历。" — doctor confirms patient and
+    # requests immediate save.  Semantically equivalent to create_patient + add_record.
+    r"|确认患者"                  # "确认患者韩伟，主诉头痛，请创建并保存本次病历。"
     r")"
     r"[\s,，：:]*" + _NAME_PAT
     # Guard: the extracted name must be followed by a demographic separator or
