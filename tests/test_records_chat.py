@@ -29,6 +29,7 @@ async def test_name_followup_overrides_create_patient_and_saves_record(session_f
     ]
 
     with patch("routers.records.AsyncSessionLocal", session_factory), \
+         patch("services.domain.intent_handlers._add_record.AsyncSessionLocal", session_factory), \
          patch(
              "services.ai.agent.dispatch",
              new=AsyncMock(
@@ -58,6 +59,7 @@ async def test_name_followup_overrides_unknown_and_saves_record(session_factory)
     ]
 
     with patch("routers.records.AsyncSessionLocal", session_factory), \
+         patch("services.domain.intent_handlers._add_record.AsyncSessionLocal", session_factory), \
          patch(
              "services.ai.agent.dispatch",
              new=AsyncMock(return_value=IntentResult(intent=Intent.unknown, chat_reply="好的")),
@@ -80,6 +82,7 @@ async def test_name_followup_fills_missing_name_when_intent_is_add_record(sessio
     ]
 
     with patch("routers.records.AsyncSessionLocal", session_factory), \
+         patch("services.domain.intent_handlers._add_record.AsyncSessionLocal", session_factory), \
          patch(
              "services.ai.agent.dispatch",
              new=AsyncMock(return_value=IntentResult(intent=Intent.add_record, patient_name=None)),

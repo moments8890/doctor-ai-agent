@@ -8,6 +8,21 @@ Accepted
 
 2026-03-11
 
+## Implementation Status
+
+Partial
+
+Last reviewed: 2026-03-12
+
+Notes:
+
+- `DoctorTurnContext` and the authoritative/advisory split are implemented and
+  used in the web path.
+- The boundary is not universal yet: some channel paths still fall back to live
+  session reads instead of always using an assembled turn context.
+- This ADR should be marked complete only after Web, WeChat, and voice all use
+  the same authority-preserving context path for workflow decisions.
+
 ## Context
 
 The system uses multiple context sources during routing:

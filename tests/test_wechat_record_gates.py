@@ -180,38 +180,20 @@ async def test_pdf_file_bg_failure_sends_error_notice():
 # ---------------------------------------------------------------------------
 
 
-async def test_handle_add_record_uses_structured_fields(session_factory):
-    """When structured_fields is set, structure_medical_record should NOT be called.
-    The shared handler uses chat_reply from intent as the draft reply."""
+async def test_handle_add_record_always_calls_structuring_llm(session_factory):
+    """ADR 0008: structuring LLM is always called for add_record."""
     intent = IntentResult(
         intent=Intent.add_record,
         patient_name="张三",
-        structured_fields={"content": "头痛两天 紧张性头痛", "tags": ["紧张性头痛"]},
         chat_reply="好的，张三头痛两天的情况记下来了。",
     )
-    structure_mock = AsyncMock()
-    with _patch_all_db(session_factory), \
-         patch("services.domain.record_ops.structure_medical_record", structure_mock):
-        reply = await wechat._handle_add_record("张三头痛两天", DOCTOR, intent)
-    structure_mock.assert_not_called()
-    assert "张三" in reply
-
-
-async def test_handle_add_record_falls_back_to_structuring_llm(session_factory):
-    """When structured_fields is None, structure_medical_record should be called."""
-    intent = IntentResult(
-        intent=Intent.add_record,
-        patient_name="张三",
-        structured_fields=None,
-        chat_reply=None,
-    )
-    fake_record = MedicalRecord(content="头痛 偏头痛", tags=["偏头痛"])
+    fake_record = MedicalRecord(content="头痛两天 紧张性头痛", tags=["紧张性头痛"])
     structure_mock = AsyncMock(return_value=fake_record)
     with _patch_all_db(session_factory), \
          patch("services.domain.record_ops.structure_medical_record", structure_mock):
         reply = await wechat._handle_add_record("张三头痛两天", DOCTOR, intent)
     structure_mock.assert_called_once()
-    assert "张三" in reply or "病历" in reply
+    assert "张三" in reply
 
 
 async def test_handle_add_record_uses_chat_reply_from_intent(session_factory):
@@ -219,10 +201,11 @@ async def test_handle_add_record_uses_chat_reply_from_intent(session_factory):
     intent = IntentResult(
         intent=Intent.add_record,
         patient_name="李明",
-        structured_fields={"content": "发烧三天"},
         chat_reply="李明发烧三天，退烧药已记录。",
     )
-    with _patch_all_db(session_factory):
+    fake_record = MedicalRecord(content="发烧三天")
+    with _patch_all_db(session_factory), \
+         patch("services.domain.record_ops.structure_medical_record", AsyncMock(return_value=fake_record)):
         reply = await wechat._handle_add_record("李明发烧三天", DOCTOR, intent)
     assert "李明" in reply
 
@@ -232,10 +215,11 @@ async def test_handle_add_record_fallback_reply_when_no_chat_reply(session_facto
     intent = IntentResult(
         intent=Intent.add_record,
         patient_name="王五",
-        structured_fields={"content": "腹痛"},
         chat_reply=None,
     )
-    with _patch_all_db(session_factory):
+    fake_record = MedicalRecord(content="腹痛")
+    with _patch_all_db(session_factory), \
+         patch("services.domain.record_ops.structure_medical_record", AsyncMock(return_value=fake_record)):
         reply = await wechat._handle_add_record("王五腹痛", DOCTOR, intent)
     assert "王五" in reply
 
@@ -246,10 +230,11 @@ async def test_handle_add_record_emergency_prefix(session_factory):
         intent=Intent.add_record,
         patient_name="韩伟",
         is_emergency=True,
-        structured_fields={"content": "STEMI急诊"},
         chat_reply=None,
     )
-    with _patch_all_db(session_factory):
+    fake_record = MedicalRecord(content="STEMI急诊")
+    with _patch_all_db(session_factory), \
+         patch("services.domain.record_ops.structure_medical_record", AsyncMock(return_value=fake_record)):
         reply = await wechat._handle_add_record("韩伟STEMI", DOCTOR, intent)
     assert "🚨" in reply
     assert "韩伟" in reply
@@ -260,7 +245,6 @@ async def test_handle_add_record_structuring_value_error_returns_natural_msg(ses
     intent = IntentResult(
         intent=Intent.add_record,
         patient_name="张三",
-        structured_fields=None,
         chat_reply=None,
     )
     with _patch_all_db(session_factory), \
@@ -274,7 +258,6 @@ async def test_handle_add_record_structuring_generic_error_returns_natural_msg(s
     intent = IntentResult(
         intent=Intent.add_record,
         patient_name="张三",
-        structured_fields=None,
         chat_reply=None,
     )
     with _patch_all_db(session_factory), \

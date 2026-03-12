@@ -8,6 +8,19 @@ Accepted
 
 2026-03-11
 
+## Implementation Status
+
+Complete
+
+Last reviewed: 2026-03-12
+
+Notes:
+
+- `medical_records.content` remains the primary persisted readable note body.
+- Derived metadata remains supporting data rather than an authoritative record
+  source.
+- No shipped migration has promoted structured payloads over readable content.
+
 ## Context
 
 The codebase already persists a readable medical record body in

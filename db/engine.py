@@ -12,7 +12,7 @@ from sqlalchemy.orm import DeclarativeBase
 from utils.runtime_config import load_runtime_json
 
 ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_DB_PATH = ROOT / "patients.db"
+DEFAULT_DB_PATH = ROOT / "data" / "patients.db"
 _RUNTIME_CONFIG = load_runtime_json()
 DB_PATH = Path(
     str(os.environ.get("PATIENTS_DB_PATH") or _RUNTIME_CONFIG.get("PATIENTS_DB_PATH") or DEFAULT_DB_PATH)
@@ -50,7 +50,11 @@ else:
 
 _is_sqlite = DATABASE_URL.startswith("sqlite")
 if _is_sqlite:
-    engine = create_async_engine(DATABASE_URL, echo=False)
+    engine = create_async_engine(
+        DATABASE_URL,
+        echo=False,
+        connect_args={"timeout": 30},
+    )
 else:
     engine = create_async_engine(
         DATABASE_URL,

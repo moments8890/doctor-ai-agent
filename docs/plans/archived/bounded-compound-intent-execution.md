@@ -35,8 +35,8 @@ All 8 steps completed. 1121 tests passing (0 regressions), 32 new tests added.
 ## Steps
 
 1. [x] Lock the implementation target to the accepted policy
-   - [`docs/adr/0005-bound-single-turn-compound-intents.md`](../adr/0005-bound-single-turn-compound-intents.md)
-     and [`docs/ai/context-and-prompt-contract.md`](../ai/context-and-prompt-contract.md)
+   - [`docs/adr/0005-bound-single-turn-compound-intents.md`](../../adr/0005-bound-single-turn-compound-intents.md)
+     and [`docs/ai/context-and-prompt-contract.md`](../../ai/context-and-prompt-contract.md)
      are the product contract.
    - Allowlist preserved:
      - `create_patient + add_record`

@@ -8,6 +8,20 @@ Accepted
 
 2026-03-11
 
+## Implementation Status
+
+Complete
+
+Last reviewed: 2026-03-12
+
+Notes:
+
+- The supported messaging path is built around official WeCom callback and API
+  integration.
+- Automation-based account control is not the shipped default transport.
+- Any future production move toward automation should supersede this ADR
+  explicitly rather than arrive as an incremental implementation drift.
+
 ## Context
 
 The product needs a durable messaging channel for doctor-facing assistant usage.

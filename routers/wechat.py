@@ -168,6 +168,34 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> "_W
             return _plain_reply("⚠️ 知识内容为空，未保存。")
         return _plain_reply("✅ 已加入医生知识库（#{0}）：{1}".format(item.id, knowledge_payload))
 
+    # ── Blocked-write precheck (ADR 0007) ─────────────────────────────────
+    from services.intent_workflow.precheck import (
+        precheck_blocked_write as _precheck_blocked_write,
+        is_blocked_write_cancel_reply as _is_blocked_write_cancel_reply,
+    )
+    from services.session import (
+        set_blocked_write_context as _set_blocked_write_context,
+        clear_blocked_write_context as _clear_blocked_write_context,
+    )
+
+    if _is_blocked_write_cancel_reply(doctor_id, text):
+        _clear_blocked_write_context(doctor_id)
+        return _plain_reply("好的，已取消。")
+
+    continuation = _precheck_blocked_write(doctor_id, text)
+    if continuation is not None:
+        from services.domain.intent_handlers import handle_add_record as _shared_handle_add_record
+        _ir = IntentResult(
+            intent=Intent.add_record,
+            patient_name=continuation.patient_name,
+        )
+        hr = await _shared_handle_add_record(
+            continuation.clinical_text, doctor_id,
+            continuation.history_snapshot,
+            _ir, followup_name=continuation.patient_name,
+        )
+        return _WeChatReply(notification=hr.switch_notification, text=hr.reply)
+
     knowledge_context = await _load_knowledge_context(doctor_id, text)
 
     # Use the unified intent workflow pipeline (same as web path).
@@ -194,8 +222,19 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> "_W
             return _plain_reply("不好意思，出了点问题，能再说一遍吗？")
 
     if not result.gate.approved:
-        # For add_record blocked by no_patient_name, let the handler's own
-        # patient resolution run (single-patient auto-bind, name token lookup).
+        # Store blocked write context when add_record is gated for missing patient
+        if (
+            result.gate.reason == "no_patient_name"
+            and result.decision.intent == Intent.add_record
+        ):
+            _set_blocked_write_context(
+                doctor_id,
+                intent="add_record",
+                clinical_text=text,
+                original_text=text,
+                history_snapshot=list(history or []),
+            )
+            log(f"[WeChat] blocked write stored doctor={doctor_id} text={text[:60]!r}")
         if result.gate.reason != "no_patient_name":
             return _plain_reply(result.gate.clarification_message or _FALLBACK_TEXT)
 
@@ -715,20 +754,27 @@ async def recover_stale_pending_messages(older_than_seconds: int = 60) -> int:
         async with AsyncSessionLocal() as _db:
             from db.crud import list_stale_pending_messages as _list_pm, mark_pending_message as _mark_pm2, increment_pending_message_attempt as _inc_attempt
             msgs = await _list_pm(_db, older_than_seconds=older_than_seconds)
+        requeued = 0
         for msg in msgs:
+            doctor_id = msg.doctor_id or ""
+            # Skip test/synthetic doctor IDs — real WeChat OpenIDs are 28+ chars
+            if len(doctor_id) < 20:
+                async with AsyncSessionLocal() as _db:
+                    await _mark_pm2(_db, msg.id, "dead")
+                log(f"[Recovery] skipping non-production doctor_id={doctor_id} msg={msg.id}")
+                continue
             attempt_count = getattr(msg, "attempt_count", 0)
             if attempt_count >= _PENDING_MESSAGE_MAX_ATTEMPTS:
                 async with AsyncSessionLocal() as _db:
-                    from db.crud import mark_pending_message as _mark_pm2, increment_pending_message_attempt as _inc_attempt
                     await _mark_pm2(_db, msg.id, "dead")
                 log(f"[Recovery] dead-lettering message {msg.id} after {attempt_count} attempts")
                 continue
             async with AsyncSessionLocal() as _db:
-                from db.crud import increment_pending_message_attempt as _inc_attempt
                 await _inc_attempt(_db, msg.id)
             asyncio.create_task(_handle_intent_bg(msg.raw_content, msg.doctor_id, msg_id=msg.id))
             log(f"[Recovery] re-queued stale pending_message id={msg.id} doctor={msg.doctor_id}")
-        return len(msgs)
+            requeued += 1
+        return requeued
     except Exception as e:
         log(f"[Recovery] stale pending_message recovery FAILED: {e}")
         return 0

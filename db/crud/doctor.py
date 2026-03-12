@@ -188,6 +188,7 @@ async def upsert_doctor_session_state(
     pending_record_id: Optional[str] = None,
     interview_json: Optional[str] = None,
     cvd_scale_json: Optional[str] = None,
+    blocked_write_json: Optional[str] = None,
 ) -> None:
     doctor_id = await _ensure_doctor_exists(session, doctor_id)
     row = await get_doctor_session_state(session, doctor_id)
@@ -197,6 +198,7 @@ async def upsert_doctor_session_state(
         row.pending_record_id = pending_record_id
         row.interview_json = interview_json
         row.cvd_scale_json = cvd_scale_json
+        row.blocked_write_json = blocked_write_json
         row.updated_at = _utcnow()
     else:
         session.add(
@@ -207,6 +209,7 @@ async def upsert_doctor_session_state(
                 pending_record_id=pending_record_id,
                 interview_json=interview_json,
                 cvd_scale_json=cvd_scale_json,
+                blocked_write_json=blocked_write_json,
                 updated_at=_utcnow(),
             )
         )

@@ -12,7 +12,8 @@ project.config.json
 project.private.config.json
 
 # Database
-patients.db
+*.db
+data/*.db
 
 # Datasette / SQLite temp
 *.db-shm

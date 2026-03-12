@@ -43,7 +43,6 @@ async def run(
     history: list[dict],
     *,
     original_text: Optional[str] = None,
-    followup_name: Optional[str] = None,
     effective_intent: Optional[IntentResult] = None,
     knowledge_context: str = "",
     channel: str = "web",
@@ -56,7 +55,6 @@ async def run(
         doctor_id: Identifies the doctor.
         history: Recent conversation turns (already trimmed for routing).
         original_text: Raw text before processing (for safety gate).
-        followup_name: If the previous turn asked for a name and the user replied.
         effective_intent: Pre-resolved intent (e.g. from menu shortcuts).
         knowledge_context: Pre-loaded doctor knowledge snippet.
         channel: "web" | "wechat" | "voice" for log prefixes.
@@ -86,7 +84,6 @@ async def run(
     # Layer 2: Entity extraction
     entities = extract_entities(
         raw_intent, decision.source, text, history, doctor_id,
-        followup_name=followup_name,
     )
     _t_entities = time.perf_counter()
 

@@ -39,32 +39,9 @@ _NON_CLINICAL_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Clinical section keys from the add_medical_record / update_medical_record tool schema.
-_CLINICAL_KEYS = [
-    "chief_complaint",
-    "history_of_present_illness",
-    "past_medical_history",
-    "physical_examination",
-    "auxiliary_examinations",
-    "diagnosis",
-    "treatment_plan",
-    "follow_up_plan",
-]
-
 # Lines in a prior-visit summary that look like prompt-injection attempts.
 _SUMMARY_BLOCKED_PREFIXES = ("忽略", "SYSTEM", "system", "System", "#", "---")
 
-
-def _record_from_structured_fields(
-    intent_result: "IntentResult",  # type: ignore[name-defined]
-    text: str,
-) -> MedicalRecord:
-    """Assemble a MedicalRecord from pre-structured intent fields (no LLM call)."""
-    fields = dict(intent_result.structured_fields)
-    parts = [fields.get(k) for k in _CLINICAL_KEYS]
-    assembled = "；".join(p for p in parts if p)
-    content_text = assembled or text.strip() or "门诊就诊"
-    return MedicalRecord(content=content_text, record_type="dictation")
 
 
 def _is_clinical_turn(content: str) -> bool:
@@ -112,12 +89,9 @@ async def assemble_record(
     visit_scenario: Optional[str] = None,
     note_style: Optional[str] = None,
 ) -> MedicalRecord:
-    """Build a MedicalRecord from intent structured_fields or by calling the structuring LLM.
+    """Build a MedicalRecord by calling the structuring LLM.
 
-    When structured_fields are present (single-LLM path), content is assembled
-    from the 8 clinical section keys and no second LLM call is made.
-
-    When structured_fields are absent, the structuring LLM is called with:
+    The structuring LLM is called with:
       - Filtered history (clinical turns only, last 6)
       - Encounter type (first_visit | follow_up | unknown)
       - Prior-visit summary injected as context for follow-up encounters
@@ -128,8 +102,6 @@ async def assemble_record(
         ValueError: If structuring LLM rejects the input as non-clinical.
         Exception: Any other structuring or DB error propagates to the caller.
     """
-    if intent_result.structured_fields:
-        return _record_from_structured_fields(intent_result, text)
 
     full_text = build_clinical_context(text, history)
 

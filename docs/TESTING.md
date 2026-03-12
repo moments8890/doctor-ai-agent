@@ -1,13 +1,26 @@
 # Testing and Evaluation Guide
 
-This repo uses several test layers. Pick the lightest layer that can prove the change,
-then escalate when the change touches AI behavior, runtime state, or real API flows.
+This repo uses several test layers, but the current MVP iteration has a
+temporary policy change:
+
+- do not add or update unit tests during normal development
+- do not run unit tests as a default local gate
+- prefer integration tests and chatlog / E2E replay for behavior validation
+
+The unit-test suite remains in the repo for reference and for explicit
+test-focused work, but it is not the default development gate right now.
 
 ## Test Layers
 
 ### 1. Unit tests
 
-Use for most changes in `db/`, `services/`, `routers/`, and `utils/`.
+Current policy: frozen during normal feature development.
+
+Use only when:
+
+- the user explicitly asks for tests
+- the task is a test-only or test-fix task
+- you are debugging existing test infrastructure
 
 Commands:
 
@@ -21,8 +34,8 @@ Rules:
 
 - Unit tests in `tests/` must not make real LLM, DB, or network calls.
 - Use `AsyncMock` and `patch` for I/O.
-- Every new function or branch should have at least one direct test.
-- Coverage gate is enforced through `bash scripts/test.sh unit`.
+- Do not add new unit tests for normal product work during this temporary phase.
+- The old coverage gate is currently not the default development gate.
 
 ### 2. Core E2E tests
 
@@ -75,19 +88,20 @@ Commands:
 
 Use this when routing, prompt wording, clarification behavior, or multi-turn continuity changes materially.
 
-## Standard Pre-Push Flow
+## Standard Development Validation
 
-The default local gate for code changes is:
+The default validation path for code changes is now:
 
 ```bash
-.venv/bin/python -m pytest tests/ -v
-bash scripts/test.sh unit
-git fetch --no-tags origin main
-.venv/bin/diff-cover reports/coverage/coverage.xml --compare-branch=origin/main --diff-range-notation=.. --fail-under=81
+./dev.sh test integration
+./dev.sh e2e half
 ```
 
-If the change touches the LLM pipeline or prompts, also run integration tests.
-If the change meaningfully affects natural-language behavior, run chatlog replay as well.
+Escalate to `./dev.sh test integration-full` or `./dev.sh e2e full` when the
+change materially affects LLM routing, structuring, or multi-turn workflow
+behavior.
+
+Run unit tests only if the task explicitly calls for them.
 
 ## Change-Type Matrix
 
@@ -95,7 +109,6 @@ If the change meaningfully affects natural-language behavior, run chatlog replay
 
 Run:
 
-- unit tests that cover the touched prompt path
 - integration tests for the affected route
 - chatlog replay if wording or routing behavior may shift
 
@@ -103,8 +116,6 @@ Run:
 
 Run:
 
-- direct unit tests for the changed functions
-- `./dev.sh test unit`
 - `./dev.sh test integration-full`
 - chatlog replay for meaningful routing changes
 
@@ -112,24 +123,18 @@ Run:
 
 Run:
 
-- direct unit tests for parsing/filtering logic
-- `./dev.sh test unit`
 - integration tests hitting record creation paths
 
 ### Session/state change
 
 Run:
 
-- direct unit tests for hydration, locking, and transition logic
-- `./dev.sh test unit`
 - core E2E and integration tests if state crosses request boundaries
 
 ### Schema change
 
 Run:
 
-- direct model/CRUD tests
-- `./dev.sh test unit`
 - targeted integration tests for affected write/read paths
 
 ## Runtime Notes
@@ -142,7 +147,7 @@ Run:
 
 ## Reports and Artifacts
 
-`bash scripts/test.sh unit` writes reports to:
+Legacy unit-test reports, when run explicitly, write to:
 
 - `reports/junit/unit.xml`
 - `reports/coverage/coverage.xml`

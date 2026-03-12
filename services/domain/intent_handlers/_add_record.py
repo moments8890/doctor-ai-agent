@@ -6,7 +6,6 @@ add_record implementations into a single handler that returns HandlerResult.
 
 Web-specific traits kept:
   - Comprehensive patient resolution with weak-attribution fallbacks
-  - followup_name filtering (bare name after "请问叫什么名字")
   - hydrate_session_state before write
 
 WeChat-specific traits added:
@@ -173,29 +172,16 @@ async def _resolve_patient_name(
 
 async def _build_record(
     text: str, history: list, intent_result: IntentResult,
-    patient_name: str, doctor_id: str, followup_name: Optional[str],
+    patient_name: str, doctor_id: str,
     patient_id: Optional[int] = None,
     visit_scenario: Optional[str] = None,
     note_style: Optional[str] = None,
 ) -> "MedicalRecord | HandlerResult":
     """Build a MedicalRecord from intent; returns HandlerResult on error."""
-    # When text is a bare follow-up name, skip it to avoid feeding
-    # a patient name as clinical content.
-    effective_text: Optional[str] = text
-    if followup_name and text.strip() == followup_name:
-        effective_text = None
-
-    # WeChat structured_fields shortcut: when pre-structured fields exist,
-    # skip LLM structuring and create a minimal dictation record.
-    if intent_result.structured_fields:
-        fields = dict(intent_result.structured_fields)
-        content_text = (fields.get("content") or text).strip() or "门诊就诊"
-        return MedicalRecord(content=content_text, record_type="dictation")
-
     try:
         with trace_block("router", "records.chat.assemble_record", {"doctor_id": doctor_id, "patient_id": patient_id, "patient_name": patient_name}):
             return await assemble_record(
-                intent_result, effective_text or "", history, doctor_id,
+                intent_result, text, history, doctor_id,
                 patient_id=patient_id,
                 visit_scenario=visit_scenario,
                 note_style=note_style,
@@ -277,7 +263,6 @@ async def _create_draft(
 
 async def handle_add_record(
     text: str, doctor_id: str, history: list, intent_result: IntentResult,
-    followup_name: Optional[str] = None,
 ) -> HandlerResult:
     """Unified add_record handler for both Web and WeChat channels.
 
@@ -321,7 +306,7 @@ async def handle_add_record(
 
     # Build record
     record = await _build_record(
-        text, history, intent_result, patient_name, doctor_id, followup_name,
+        text, history, intent_result, patient_name, doctor_id,
         patient_id=patient_id,
         visit_scenario=_visit_scenario,
         note_style=_note_style,

@@ -209,8 +209,13 @@ def _build_extra_data(fn_name: str, args: dict) -> dict:
 
 
 def _build_structured_fields(fn_name: str, args: dict) -> Optional[dict]:
-    """Extract structured clinical fields if the tool supports them."""
-    if fn_name in ("add_medical_record", "update_medical_record"):
+    """Extract structured clinical fields for correction tools only.
+
+    Only update_medical_record uses structured_fields — these identify which
+    field to correct, not generate note content.  add_medical_record note
+    generation is handled exclusively by the structuring LLM (ADR 0008).
+    """
+    if fn_name == "update_medical_record":
         extracted = {k: args[k] for k in _CLINICAL_KEYS if args.get(k)}
         return extracted if extracted else None
     return None

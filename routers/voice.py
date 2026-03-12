@@ -17,9 +17,18 @@ from db.models.medical_record import MedicalRecord
 from services.domain.chat_constants import SUPPORTED_AUDIO_TYPES
 from services.domain.name_utils import (
     assistant_asked_for_name as _assistant_asked_for_name,
+    is_blocked_write_cancel as _is_blocked_write_cancel,
     name_only_text as _name_only_text,
 )
 from services.ai.intent import Intent, IntentResult
+from services.intent_workflow.precheck import (
+    precheck_blocked_write as _precheck_blocked_write,
+    is_blocked_write_cancel_reply as _is_blocked_write_cancel_reply,
+)
+from services.session import (
+    set_blocked_write_context as _set_blocked_write_context,
+    clear_blocked_write_context as _clear_blocked_write_context,
+)
 from services.auth.rate_limit import enforce_doctor_rate_limit
 from services.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
 from services.ai.structuring import structure_medical_record
@@ -214,6 +223,24 @@ async def _voice_chat_for_doctor(
     # Hydrate session state before workflow (same as WeChat path)
     await hydrate_session_state(doctor_id)
 
+    # ── Blocked-write precheck (ADR 0007) ─────────────────────────────────
+    if _is_blocked_write_cancel_reply(doctor_id, transcript):
+        _clear_blocked_write_context(doctor_id)
+        return VoiceChatResponse(transcript=transcript, reply="好的，已取消。")
+
+    continuation = _precheck_blocked_write(doctor_id, transcript)
+    if continuation is not None:
+        _ir = IntentResult(
+            intent=Intent.add_record,
+            patient_name=continuation.patient_name,
+        )
+        hr = await shared_handle_add_record(
+            continuation.clinical_text, doctor_id,
+            continuation.history_snapshot,
+            _ir, followup_name=continuation.patient_name,
+        )
+        return _handler_result_to_voice(transcript, hr)
+
     # Run the shared 5-layer intent workflow pipeline
     from services.intent_workflow import run as workflow_run
 
@@ -232,8 +259,18 @@ async def _voice_chat_for_doctor(
 
     # Gate check: block unsafe operations before dispatching
     if not result.gate.approved:
-        # For add_record blocked by no_patient_name, let the shared handler's
-        # own patient resolution run (single-patient auto-bind, candidate lookup).
+        if (
+            result.gate.reason == "no_patient_name"
+            and result.decision.intent == Intent.add_record
+        ):
+            _set_blocked_write_context(
+                doctor_id,
+                intent="add_record",
+                clinical_text=transcript,
+                original_text=transcript,
+                history_snapshot=list(history_list),
+            )
+            log(f"[VoiceChat] blocked write stored doctor={doctor_id} text={transcript[:60]!r}")
         if result.gate.reason != "no_patient_name":
             return VoiceChatResponse(
                 transcript=transcript,

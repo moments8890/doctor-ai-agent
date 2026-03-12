@@ -249,7 +249,7 @@ Primary files:
 - `e2e/README.md`
 - `docs/review/architecture-overview.md`
 - `docs/product/message-routing-pipeline.md`
-- `docs/plans/mvp-hero-loop-progress.md`
+- `docs/plans/archived/mvp-hero-loop-progress.md`
 
 Exit criteria:
 

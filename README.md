@@ -53,12 +53,14 @@ export TENCENT_LKEAP_MODEL="deepseek-v3-1"
 ./dev.sh vm-up --llm-provider tencent_lkeap
 ```
 
-3. Run tests
+3. Validate behavior
 ```bash
-./dev.sh test unit
 ./dev.sh test integration
 ./dev.sh e2e half
 ```
+
+Current MVP policy: skip unit tests during normal development unless you are
+doing explicit test work.
 
 4. Manage dev data
 ```bash
@@ -68,7 +70,7 @@ export TENCENT_LKEAP_MODEL="deepseek-v3-1"
 ./dev.sh data reset-from-seed
 ```
 
-## Common Test Modes
+## Common Validation Modes
 
 - `unit`
 - `integration`
@@ -76,6 +78,9 @@ export TENCENT_LKEAP_MODEL="deepseek-v3-1"
 - `chatlog-half`
 - `chatlog-full`
 - `all`
+
+`unit` still exists, but it is not the default development gate in the current
+MVP phase.
 
 ## Docs
 
@@ -124,12 +129,13 @@ export TENCENT_LKEAP_MODEL="deepseek-v3-1"
 ./dev.sh start
 ```
 
-3. 执行测试
+3. 验证行为
 ```bash
-./dev.sh test unit
 ./dev.sh test integration
 ./dev.sh e2e half
 ```
+
+当前 MVP 阶段默认跳过单元测试；只有在明确做测试工作时才运行或修改单元测试。
 
 4. 管理开发数据
 ```bash
@@ -139,7 +145,7 @@ export TENCENT_LKEAP_MODEL="deepseek-v3-1"
 ./dev.sh data reset-from-seed
 ```
 
-## 常用测试模式
+## 常用验证模式
 
 - `unit`
 - `integration`
@@ -147,6 +153,8 @@ export TENCENT_LKEAP_MODEL="deepseek-v3-1"
 - `chatlog-half`
 - `chatlog-full`
 - `all`
+
+`unit` 仍然可用，但在当前 MVP 阶段不作为默认开发门槛。
 
 ## 文档
 

@@ -85,48 +85,8 @@ _TOOLS = [
                             "休克、血压90/60以下、心跳骤停、呼吸骤停、室颤。"
                         ),
                     },
-                    "chief_complaint": {
-                        "type": "string",
-                        "description": "主诉：患者最主要的症状或就诊原因（不超过20字）。必须填写，不可省略。",
-                        "maxLength": 200,
-                    },
-                    "history_of_present_illness": {
-                        "type": ["string", "null"],
-                        "description": "现病史：症状发展过程、伴随症状、加重/缓解因素、已做检查结果。未提及则为null。",
-                        "maxLength": 500,
-                    },
-                    "past_medical_history": {
-                        "type": ["string", "null"],
-                        "description": "既往史：既往疾病、手术、过敏史、长期用药。未提及则为null。",
-                        "maxLength": 500,
-                    },
-                    "physical_examination": {
-                        "type": ["string", "null"],
-                        "description": "体格检查：体征、生命体征（BP、HR等）、听诊触诊结果。未提及则为null。",
-                        "maxLength": 500,
-                    },
-                    "auxiliary_examinations": {
-                        "type": ["string", "null"],
-                        "description": "辅助检查：已出结果的化验、影像、心电图。保留数值和单位（BNP 980pg/mL）。未提及则为null。",
-                        "maxLength": 500,
-                    },
-                    "diagnosis": {
-                        "type": ["string", "null"],
-                        "description": "诊断：明确诊断或考虑诊断。保留缩写（STEMI、PCI、HER2、EGFR）。未提及则为null。",
-                        "maxLength": 500,
-                    },
-                    "treatment_plan": {
-                        "type": ["string", "null"],
-                        "description": "治疗方案：用药、手术、处置措施。未提及则为null。",
-                        "maxLength": 500,
-                    },
-                    "follow_up_plan": {
-                        "type": ["string", "null"],
-                        "description": "随访计划：随访时间和安排。未提及则为null。",
-                        "maxLength": 500,
-                    },
                 },
-                "required": ["chief_complaint"],
+                "required": [],
             },
         },
     },
@@ -604,12 +564,13 @@ _SYSTEM_PROMPT = (
     "只填写当前消息中明确出现的姓名（2-4个汉字）。\n"
     "不从对话历史推断——系统会自动补充上下文患者。\n"
     "特殊：医生回复只含患者姓名（1-3汉字，无其他内容）→ add_medical_record，填入patient_name。\n\n"
-    "【字段提取要求（add_medical_record / add_cvd_record）】\n"
-    "- chief_complaint：必填，≤20字，核心主诉\n"
-    "- 其余字段：有明确信息时填写，未提及时省略（null）\n"
-    "- 保留所有数值和单位（BNP 980 pg/mL、EF 38%、血压130/80）\n"
-    "- 保留所有英文缩写（STEMI、PCI、HER2、EGFR、ANC、NIHSS）\n"
-    "- 禁止推断或补全未明确提到的信息\n\n"
+    "【add_medical_record 注意】\n"
+    "- add_medical_record 只需填 patient_name、gender、age、is_emergency\n"
+    "- 临床笔记内容由系统另行生成，不需要在此工具中提取\n"
+    "- 保留所有英文缩写（STEMI、PCI、HER2、EGFR、ANC、NIHSS）\n\n"
+    "【更正病历字段（update_medical_record）】\n"
+    "- 仅填写需要更正的字段\n"
+    "- 未提及的字段保持不变\n\n"
     "【意图不明确时】\n"
     "不调用工具，用1-2句自然语言回复：\n"
     "- 第一句：用「您说的是……」或「您提到了……」简洁转述用户消息的核心内容（≤15字，不评价是否与医疗相关）\n"
@@ -646,6 +607,7 @@ _SYSTEM_PROMPT_COMPACT = (
     "导出/打印病历->export_records；"
     "普通问候可直接回复。"
     "特殊规则：若上一条助手消息询问患者姓名，医生回复即为患者姓名，调用add_medical_record并填入patient_name，不要调用create_patient。"
+    "add_medical_record只需patient_name/gender/age/is_emergency，临床笔记由系统另行生成。"
     "工具参数仅填确定信息。"
     "意图不清时：先用1句话转述用户说的内容（不评价相关性），再邀请说更具体；不调用工具。"
     "调用工具时用1-2句口语中文同步给医生。"

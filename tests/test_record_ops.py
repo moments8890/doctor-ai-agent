@@ -12,7 +12,6 @@ from db.models.medical_record import MedicalRecord
 from services.ai.intent import Intent, IntentResult
 from services.domain.record_ops import (
     _is_clinical_turn,
-    _record_from_structured_fields,
     _sanitize_prior_summary,
     build_clinical_context,
     assemble_record,
@@ -137,50 +136,7 @@ class TestBuildClinicalContext:
 
 
 # ---------------------------------------------------------------------------
-# 3. _record_from_structured_fields
-# ---------------------------------------------------------------------------
-
-class TestRecordFromStructuredFields:
-    """_record_from_structured_fields: assembles content from fields or falls back."""
-
-    def _make_intent(self, fields: dict) -> IntentResult:
-        return IntentResult(
-            intent=Intent.add_record,
-            structured_fields=fields,
-        )
-
-    def test_assembles_content_from_clinical_keys(self) -> None:
-        intent = self._make_intent({
-            "chief_complaint": "胸闷气短3天",
-            "diagnosis": "冠心病",
-            "treatment_plan": "阿司匹林100mg qd",
-        })
-        rec = _record_from_structured_fields(intent, "原始文本")
-        assert rec.content == "胸闷气短3天；冠心病；阿司匹林100mg qd"
-        assert rec.record_type == "dictation"
-
-    def test_falls_back_to_text_when_fields_empty(self) -> None:
-        intent = self._make_intent({})
-        rec = _record_from_structured_fields(intent, "  患者主诉头痛  ")
-        assert rec.content == "患者主诉头痛"
-
-    def test_falls_back_to_default_when_both_empty(self) -> None:
-        intent = self._make_intent({})
-        rec = _record_from_structured_fields(intent, "  ")
-        assert rec.content == "门诊就诊"
-
-    def test_ignores_non_clinical_keys(self) -> None:
-        intent = self._make_intent({
-            "chief_complaint": "发热",
-            "random_key": "should be ignored",
-        })
-        rec = _record_from_structured_fields(intent, "text")
-        assert rec.content == "发热"
-        assert "should be ignored" not in rec.content
-
-
-# ---------------------------------------------------------------------------
-# 4. _sanitize_prior_summary
+# 3. _sanitize_prior_summary
 # ---------------------------------------------------------------------------
 
 class TestSanitizePriorSummary:
@@ -221,40 +177,17 @@ class TestSanitizePriorSummary:
 
 
 # ---------------------------------------------------------------------------
-# 5. assemble_record (async)
+# 4. assemble_record (async)
 # ---------------------------------------------------------------------------
 
 class TestAssembleRecord:
-    """assemble_record: structured-fields path vs LLM-structuring path."""
+    """assemble_record: always calls structuring LLM (ADR 0008)."""
 
     @pytest.mark.asyncio
-    async def test_with_structured_fields_no_llm_call(self) -> None:
-        """When structured_fields are present, LLM structuring is NOT called."""
+    async def test_calls_llm_structuring(self) -> None:
+        """assemble_record always calls the structuring LLM."""
         intent = IntentResult(
             intent=Intent.add_record,
-            structured_fields={
-                "chief_complaint": "头痛三天",
-                "diagnosis": "偏头痛",
-            },
-        )
-        with patch("services.domain.record_ops.structure_medical_record") as mock_struct:
-            rec = await assemble_record(
-                intent_result=intent,
-                text="头痛三天",
-                history=[],
-                doctor_id="doc1",
-                patient_id=1,
-            )
-        mock_struct.assert_not_called()
-        assert rec.content == "头痛三天；偏头痛"
-        assert rec.record_type == "dictation"
-
-    @pytest.mark.asyncio
-    async def test_without_structured_fields_calls_llm(self) -> None:
-        """When structured_fields are absent, LLM structuring IS called."""
-        intent = IntentResult(
-            intent=Intent.add_record,
-            structured_fields=None,
         )
         mock_record = MedicalRecord(content="LLM整理后的病历", record_type="visit")
         mock_session_ctx = AsyncMock()
@@ -287,7 +220,7 @@ class TestAssembleRecord:
     @pytest.mark.asyncio
     async def test_without_fields_follow_up_with_prior_summary(self) -> None:
         """Follow-up encounters inject a prior_summary into the structuring call."""
-        intent = IntentResult(intent=Intent.add_record, structured_fields=None)
+        intent = IntentResult(intent=Intent.add_record)
         mock_record = MedicalRecord(content="随访病历", record_type="visit")
         mock_session_ctx = AsyncMock()
         mock_session_ctx.__aenter__ = AsyncMock(return_value=AsyncMock())
@@ -327,7 +260,7 @@ class TestAssembleRecord:
     @pytest.mark.asyncio
     async def test_without_fields_prior_summary_error_is_swallowed(self) -> None:
         """If get_prior_visit_summary raises, the error is swallowed and prior is None."""
-        intent = IntentResult(intent=Intent.add_record, structured_fields=None)
+        intent = IntentResult(intent=Intent.add_record)
         mock_record = MedicalRecord(content="结果", record_type="visit")
         mock_session_ctx = AsyncMock()
         mock_session_ctx.__aenter__ = AsyncMock(return_value=AsyncMock())
@@ -365,7 +298,7 @@ class TestAssembleRecord:
     @pytest.mark.asyncio
     async def test_assemble_record_calls_structuring_llm_when_no_fields(self) -> None:
         """When structured_fields are absent, assemble_record calls structure_medical_record."""
-        intent = IntentResult(intent=Intent.add_record, structured_fields=None)
+        intent = IntentResult(intent=Intent.add_record)
         mock_record = MedicalRecord(content="LLM整理后的病历", record_type="visit")
         mock_session_ctx = AsyncMock()
         mock_session_ctx.__aenter__ = AsyncMock(return_value=AsyncMock())
@@ -397,7 +330,7 @@ class TestAssembleRecord:
     @pytest.mark.asyncio
     async def test_assemble_record_omits_profile_fields_when_none(self) -> None:
         """When visit_scenario/note_style are None, they are still passed (as None)."""
-        intent = IntentResult(intent=Intent.add_record, structured_fields=None)
+        intent = IntentResult(intent=Intent.add_record)
         mock_record = MedicalRecord(content="LLM整理后的病历", record_type="visit")
         mock_session_ctx = AsyncMock()
         mock_session_ctx.__aenter__ = AsyncMock(return_value=AsyncMock())

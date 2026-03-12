@@ -1,6 +1,6 @@
 # MVP Hero Loop — Execution Progress
 
-Tracking file for the [execution plan](./mvp-hero-loop-execution-plan.md).
+Tracking file for the [execution plan](../mvp-hero-loop-execution-plan.md).
 Last updated: 2026-03-12
 
 ---
@@ -135,7 +135,7 @@ Status: **done** (tooling complete; hero-loop cases need live validation)
 
 Status: **done**
 
-- [x] Release checklist with benchmark gate: [`mvp-release-checklist.md`](./mvp-release-checklist.md)
+- [x] Release checklist with benchmark gate: [`mvp-release-checklist.md`](../mvp-release-checklist.md)
 - [x] Baseline artifact storage convention documented (`reports/baseline/{sha}-hero.json`)
 - [x] Regression = release blocker policy documented
 - [x] P1 work must prove no P0 degradation (before/after hero-loop comparison required)

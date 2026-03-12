@@ -45,6 +45,7 @@ class DoctorSessionState(Base):
     pending_record_id: Mapped[Optional[str]] = mapped_column(String(64), ForeignKey("pending_records.id", ondelete="SET NULL"), nullable=True)
     interview_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     cvd_scale_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    blocked_write_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
 
 

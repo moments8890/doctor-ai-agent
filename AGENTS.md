@@ -16,6 +16,7 @@ The plan file must include:
 - **No auto-commit** — never commit unless explicitly asked
 - **Preserve medical abbreviations** — do not translate or expand STEMI, BNP, PCI, EGFR, ANC, HER2, EF, NYHA, ICD, etc.
 - **Tests mock all I/O** — unit tests in `tests/` must not make real LLM, DB, or network calls; use `AsyncMock` / `patch`
+- **Temporary testing policy** — during the current MVP iteration, do not add, update, or run unit tests as part of normal development unless the user explicitly asks for tests or the task is itself a test-only fix
 - **DB schema changes** — add to `db/models.py`; `create_tables()` handles creation automatically; document any manual cleanup/migration impact in the commit message and PR description
 - **LLM provider defaults** — local model is `qwen2.5:14b` via Ollama; prefer this in examples and defaults
 
@@ -30,6 +31,7 @@ The plan file must include:
 
 - **Full permissions** — Codex has full permission to run commands needed to complete tasks.
 - **Complex task decomposition** — for complex tasks, break work into smaller subtasks and spawn sub-agents when beneficial.
+- **Development default** — prefer code changes plus doc updates without adding tests. For verification, favor integration / E2E / chatlog replay over new unit-test coverage during this phase.
 
 ## Branch & PR Workflow
 
@@ -37,18 +39,9 @@ Direct pushes to `main` are allowed.
 
 ### Steps for every change
 
-1. **Unit tests** — `.venv/bin/python -m pytest tests/ -v` — must be 100% green before pushing
-   - **Coverage gates** — overall coverage must be `>80%`, and changed/new lines coverage in PR must be `>80%`
-   - **Every new function or branch** (new `def`, `if`, `except`, `elif`) must have at least one test that exercises it directly
-   - **Verify diff coverage locally before pushing** — run the full check:
-     ```bash
-     bash scripts/test.sh unit
-     git fetch --no-tags origin main
-     .venv/bin/diff-cover reports/coverage/coverage.xml --compare-branch=origin/main --diff-range-notation=.. --fail-under=81
-     ```
-     If diff-cover reports missing lines, add tests for those lines before pushing.
-2. **Integration tests** — `pytest e2e/integration/` — only when LLM pipeline or prompt changed (requires `uvicorn main:app --reload` + `ollama serve`); auto-skipped if deps not running
-3. **Corpus/E2E replay** (optional) — `bash scripts/test.sh chatlog-full` — full human-language chatlog replay against API + DB checks
+1. **Do not add or update unit tests by default** — unit coverage is temporarily frozen during the current MVP iteration unless the user explicitly requests test work
+2. **Integration tests** — `pytest e2e/integration/` — run when the LLM pipeline, prompts, or end-to-end workflow behavior changed
+3. **Corpus/E2E replay** — `bash scripts/test.sh chatlog-full` or `./dev.sh e2e <half|full>` — use for human-language regression checks on meaningful workflow changes
 4. **Document changes in commit message** — include what changed and any migration/manual cleanup impact
 5. **Update `ARCHITECTURE.md`** — only if schema, env vars, API endpoints, or service structure changed
 6. **Update progress** — tick completed items in `debug/iteration_*.md`

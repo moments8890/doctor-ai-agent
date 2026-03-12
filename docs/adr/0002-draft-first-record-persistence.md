@@ -8,6 +8,21 @@ Accepted
 
 2026-03-11
 
+## Implementation Status
+
+Complete
+
+Last reviewed: 2026-03-12
+
+Notes:
+
+- The normal shared `add_record` flow creates a pending draft first and requires
+  explicit confirmation before final persistence.
+- Web, WeChat, and voice chat all expose pending-draft state through the shared
+  handler path.
+- Separate explicit exception paths still exist, such as emergency direct-save
+  handling and the dedicated `/api/voice/consultation` flow.
+
 ## Context
 
 Doctor messages often mix partial dictation, clarification, and task language.

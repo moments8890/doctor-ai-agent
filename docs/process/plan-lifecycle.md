@@ -19,6 +19,20 @@ Do not use for:
 - completed readiness reports
 - post-implementation assessment writeups
 
+### `docs/plans/archived/`
+
+Use for:
+
+- closed implementation plans kept for traceability
+- completed plan docs that are no longer active but still worth retaining near
+  related active plans
+
+Do not use for:
+
+- active implementation work
+- new planning drafts
+- dated review writeups that belong in `docs/review/`
+
 ### `docs/review/`
 
 Use for:
@@ -66,7 +80,9 @@ As work lands, update the plan so it reflects reality:
 ### 3. Review
 
 Once the plan has been reviewed, partially completed, or converted into a decision record,
-move the reviewed version into `docs/review/<date>/`.
+move the reviewed version into `docs/review/<date>/` when it is primarily a
+dated assessment. If it is a closed implementation plan that should stay near
+active plans for traceability, move it to `docs/plans/archived/`.
 
 ### 4. Close
 
@@ -74,6 +90,7 @@ After closure:
 
 - keep only the reviewed copy if the doc is historical
 - keep an active copy in `docs/plans/` only if there is still open implementation work
+- move finished-but-retained plans to `docs/plans/archived/`
 
 ## Status Language
 
@@ -106,9 +123,10 @@ Before creating a new plan:
 
 1. Check whether an active plan already exists for the same workstream.
 2. If a reviewed plan already exists in `docs/review/`, update or supersede it instead of creating a conflicting duplicate.
-3. If a doc is historical, do not put it back into `docs/plans/`.
+3. If a doc is historical, do not put it back into active `docs/plans/`.
 
 When in doubt:
 
 - active future work -> `docs/plans/`
+- closed retained plan -> `docs/plans/archived/`
 - dated assessment or reviewed plan -> `docs/review/`

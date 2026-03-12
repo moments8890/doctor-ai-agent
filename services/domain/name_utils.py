@@ -107,6 +107,37 @@ def leading_name_with_clinical_context(text: str) -> Optional[str]:
     return candidate
 
 
+_CANCEL_KEYWORDS = ("取消", "算了", "不要了", "放弃", "不用了", "不记了")
+
+
+def is_blocked_write_cancel(text: str) -> bool:
+    """Return True if text is a cancel command for a blocked write."""
+    stripped = text.strip()
+    return any(stripped.startswith(kw) for kw in _CANCEL_KEYWORDS)
+
+
+def name_with_supplement(text: str) -> "Optional[tuple[str, str]]":
+    """Parse a reply like '张三，还有头痛三天' into (name, supplement).
+
+    Returns (patient_name, supplement_text) or None.
+    The supplement is the text after the name and separator.
+    Only matches when there is actual supplement content after the name.
+    """
+    m = _LEADING_NAME.match(text or "")
+    if not m:
+        return None
+    candidate = m.group(1).strip()
+    if not is_valid_patient_name(candidate):
+        return None
+    # Get text after the name
+    remainder = (text or "")[m.end():].strip()
+    # Strip leading separator chars
+    remainder = remainder.lstrip("，,、 \t")
+    if not remainder:
+        return None  # bare name, use name_only_text() instead
+    return candidate, remainder
+
+
 def patient_name_from_history(history: List[dict]) -> Optional[str]:
     """Scan recent conversation history for the most recently mentioned patient name.
 

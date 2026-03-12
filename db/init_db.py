@@ -4,8 +4,9 @@
 
 import db.models  # noqa: F401 — ensure models are registered before create_all
 import re
+from datetime import datetime, timezone
 from db.engine import Base, engine, AsyncSessionLocal
-from db.models import Doctor, Patient, MedicalRecordDB, DoctorTask, DoctorContext, PatientLabel
+from db.models import Doctor, Patient, MedicalRecordDB, DoctorTask, DoctorContext, PatientLabel, SystemPrompt
 from sqlalchemy import select
 
 
@@ -60,11 +61,21 @@ async def seed_prompts() -> None:
         for key, content in _SEED_ONLY:
             existing = await get_system_prompt(db, key)
             if not existing:
-                await upsert_system_prompt(db, key, content)
+                db.add(SystemPrompt(key=key, content=content))
 
         # Always upsert these so improved prompt rules reach production on deploy.
-        await upsert_system_prompt(db, "structuring.neuro_cvd", _NEURO_SEED)
-        await upsert_system_prompt(db, "structuring", _SEED_PROMPT)
+        for key, content in [
+            ("structuring.neuro_cvd", _NEURO_SEED),
+            ("structuring", _SEED_PROMPT),
+        ]:
+            row = await get_system_prompt(db, key)
+            if row:
+                row.content = content
+                row.updated_at = datetime.now(timezone.utc)
+            else:
+                db.add(SystemPrompt(key=key, content=content))
+
+        await db.commit()
 
 
 _WECHAT_RE = re.compile(r"^(?:wm|wx|ww|wo)[A-Za-z0-9_-]{6,}$")

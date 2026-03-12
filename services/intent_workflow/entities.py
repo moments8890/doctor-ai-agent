@@ -40,18 +40,15 @@ def extract_entities(
     text: str,
     history: list[dict],
     doctor_id: str,
-    *,
-    followup_name: Optional[str] = None,
 ) -> EntityResolution:
     """Extract entities from the raw IntentResult with provenance tracking.
 
     Name resolution priority:
-    1. followup_name (previous turn asked for name, user replied)
-    2. IntentResult.patient_name (from LLM or fast_route)
-    3. Leading name pattern in text (add_record only)
-    4. Patient name from recent history
-    5. Session current_patient_name
-    6. Candidate / not-found from session (weak)
+    1. IntentResult.patient_name (from LLM or fast_route)
+    2. Leading name pattern in text (add_record only)
+    3. Patient name from recent history
+    4. Session current_patient_name
+    5. Candidate / not-found from session (weak)
     """
     intent = raw.intent
 
@@ -66,9 +63,7 @@ def extract_entities(
     # Patient name — multi-source resolution
     name_slot: Optional[EntitySlot] = None
 
-    if followup_name:
-        name_slot = EntitySlot(value=followup_name, source="followup")
-    elif raw.patient_name and is_valid_patient_name(raw.patient_name):
+    if raw.patient_name and is_valid_patient_name(raw.patient_name):
         # Propagate patient_source from fast_router session backfill if present
         _ps = (raw.extra_data or {}).get("patient_source", decision_source)
         name_slot = EntitySlot(value=raw.patient_name, source=_ps)

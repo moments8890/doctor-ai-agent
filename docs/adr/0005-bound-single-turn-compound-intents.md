@@ -8,6 +8,20 @@ Accepted
 
 2026-03-11
 
+## Implementation Status
+
+Complete
+
+Last reviewed: 2026-03-12
+
+Notes:
+
+- The shared intent workflow planner implements a bounded allowlist of
+  same-turn compound patterns.
+- Tests cover the supported combinations and keep the execution model scoped to
+  one core patient transaction per turn.
+- The repo does not expose a general multi-intent free-text execution engine.
+
 ## Context
 
 Doctor messages may mix patient creation, record dictation, correction language,

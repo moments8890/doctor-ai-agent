@@ -85,8 +85,17 @@ from services.domain.intent_handlers import (
 from services.domain.name_utils import (
     is_valid_patient_name as _is_valid_patient_name,
     assistant_asked_for_name as _assistant_asked_for_name,
+    is_blocked_write_cancel as _is_blocked_write_cancel,
     last_assistant_was_unclear_menu as _last_assistant_was_unclear_menu,
     name_only_text as _name_only_text,
+)
+from services.intent_workflow.precheck import (
+    precheck_blocked_write as _precheck_blocked_write,
+    is_blocked_write_cancel_reply as _is_blocked_write_cancel_reply,
+)
+from services.session import (
+    set_blocked_write_context as _set_blocked_write_context,
+    clear_blocked_write_context as _clear_blocked_write_context,
 )
 
 # ── Unclear-intent reply builder ──────────────────────────────────────────────
@@ -252,7 +261,7 @@ async def _handler_result_to_chat(hr: _HandlerResult) -> ChatResponse:
 
 async def _dispatch_intent(
     text: str, original_text: str, doctor_id: str, history: list,
-    intent_result: IntentResult, followup_name: Optional[str],
+    intent_result: IntentResult,
 ) -> ChatResponse:
     """Route resolved intent to the shared domain handlers and convert to ChatResponse."""
     intent = intent_result.intent
@@ -265,7 +274,7 @@ async def _dispatch_intent(
 
     if intent == Intent.add_record:
         hr = await shared_handle_add_record(
-            text, doctor_id, history, intent_result, followup_name=followup_name,
+            text, doctor_id, history, intent_result,
         )
         return await _handler_result_to_chat(hr)
 
@@ -383,6 +392,26 @@ async def chat_core(
     if fast_resp is not None:
         return fast_resp
 
+    # ── Blocked-write precheck (ADR 0007) ─────────────────────────────────
+    # Check for cancel BEFORE precheck to return a user-facing reply.
+    if _is_blocked_write_cancel_reply(doctor_id, text):
+        _clear_blocked_write_context(doctor_id)
+        return ChatResponse(reply="好的，已取消。")
+
+    continuation = _precheck_blocked_write(doctor_id, text)
+    if continuation is not None:
+        # Resume blocked write with stored clinical text and resolved name.
+        _ir = IntentResult(
+            intent=Intent.add_record,
+            patient_name=continuation.patient_name,
+        )
+        hr = await shared_handle_add_record(
+            continuation.clinical_text, doctor_id,
+            continuation.history_snapshot,
+            _ir, followup_name=continuation.patient_name,
+        )
+        return await _handler_result_to_chat(hr)
+
     # Assemble per-turn context (snapshot session state + advisory)
     from services.ai.turn_context import assemble_turn_context
     turn_ctx = await assemble_turn_context(doctor_id)
@@ -421,6 +450,22 @@ async def chat_core(
 
     # Gate check: block unsafe operations before dispatching
     if not result.gate.approved:
+        # Store blocked write context when add_record is gated for missing patient
+        if (
+            result.gate.reason == "no_patient_name"
+            and result.decision.intent == Intent.add_record
+        ):
+            _set_blocked_write_context(
+                doctor_id,
+                intent="add_record",
+                clinical_text=text,
+                original_text=original_text,
+                history_snapshot=list(history),
+            )
+            log(
+                f"[Chat] blocked write stored doctor={doctor_id} "
+                f"text={text[:60]!r}"
+            )
         return ChatResponse(reply=result.gate.clarification_message or _UNCLEAR_INTENT_REPLY)
 
     intent_result = result.to_intent_result()

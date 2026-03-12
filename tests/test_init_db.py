@@ -51,9 +51,38 @@ class _BeginCtx:
         return False
 
 
+class _SeedSession:
+    """Minimal mock session for seed_prompts tests."""
+    def __init__(self, get_prompt_return=None):
+        self.added = []
+        self.committed = False
+        self._get_prompt_return = get_prompt_return
+
+    def add(self, obj):
+        self.added.append(obj)
+
+    async def commit(self):
+        self.committed = True
+
+    async def execute(self, stmt):
+        """Stub for get_system_prompt's select()."""
+        return _ExecResult_Scalar(self._get_prompt_return)
+
+
+class _ExecResult_Scalar:
+    def __init__(self, value):
+        self._value = value
+
+    def scalar_one_or_none(self):
+        return self._value
+
+
 class _SessionCtx:
+    def __init__(self, session=None):
+        self._session = session or _SeedSession()
+
     async def __aenter__(self):
-        return object()
+        return self._session
 
     async def __aexit__(self, exc_type, exc, tb):
         return False
@@ -154,33 +183,36 @@ async def test_create_tables_idempotent_on_full_schema(monkeypatch):
 
 
 async def test_seed_prompts_inserts_all_when_missing(monkeypatch):
-    """All 14 seed-only keys are inserted when missing; neuro_cvd always upserted."""
-    monkeypatch.setattr(init_db, "AsyncSessionLocal", lambda: _SessionCtx())
-    with patch("db.crud.get_system_prompt", new=AsyncMock(return_value=None)) as get_prompt, \
-         patch("db.crud.upsert_system_prompt", new=AsyncMock()) as upsert:
-        await init_db.seed_prompts()
+    """All 14 seed-only keys are inserted when missing; neuro_cvd + structuring always upserted."""
+    session = _SeedSession(get_prompt_return=None)  # all keys missing
+    monkeypatch.setattr(init_db, "AsyncSessionLocal", lambda: _SessionCtx(session))
 
-    # 14 seed-only checks + 2 always-upserts (neuro_cvd + structuring)
-    assert get_prompt.await_count == 14
-    assert upsert.await_count == 16  # 14 inserts + 2 always-upserts
-    upserted_keys = [call.args[1] for call in upsert.await_args_list]
-    assert "structuring" in upserted_keys
-    assert "structuring.neuro_cvd" in upserted_keys
-    assert "agent.routing.compact" in upserted_keys
+    await init_db.seed_prompts()
+
+    assert session.committed is True
+    # 14 seed-only inserts + 2 always-upsert inserts (neuro_cvd + structuring)
+    added_keys = [obj.key for obj in session.added]
+    assert len(added_keys) == 16
+    assert "structuring" in added_keys
+    assert "structuring.neuro_cvd" in added_keys
+    assert "agent.routing.compact" in added_keys
 
 
 async def test_seed_prompts_neuro_cvd_always_upserted(monkeypatch):
-    """neuro_cvd is always upserted; other keys are skipped when already present."""
-    monkeypatch.setattr(init_db, "AsyncSessionLocal", lambda: _SessionCtx())
-    with patch("db.crud.get_system_prompt", new=AsyncMock(return_value=object())) as get_prompt, \
-         patch("db.crud.upsert_system_prompt", new=AsyncMock()) as upsert:
-        await init_db.seed_prompts()
+    """neuro_cvd + structuring are always upserted; other keys skipped when present."""
+    existing = SimpleNamespace(key="existing", content="old content", updated_at=None)
+    session = _SeedSession(get_prompt_return=existing)  # all keys exist
+    monkeypatch.setattr(init_db, "AsyncSessionLocal", lambda: _SessionCtx(session))
 
-    assert get_prompt.await_count == 14  # all seed-only keys checked
-    assert upsert.await_count == 2       # neuro_cvd and structuring always upserted
-    always_upserted_keys = {call.args[1] for call in upsert.await_args_list}
-    assert "structuring.neuro_cvd" in always_upserted_keys
-    assert "structuring" in always_upserted_keys
+    await init_db.seed_prompts()
+
+    assert session.committed is True
+    # Seed-only keys skipped (all exist), but neuro_cvd + structuring always updated.
+    # Since existing rows are updated in-place, session.added only has entries
+    # if the always-upsert keys were missing. With all existing, added == 0.
+    assert len(session.added) == 0
+    # The existing row's content+updated_at should be mutated for the 2 always-upserts
+    assert existing.updated_at is not None
 
 
 async def test_backfill_doctors_registry_inserts_missing_doctors(monkeypatch):

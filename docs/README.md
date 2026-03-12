@@ -11,7 +11,7 @@ AI coding agents.
 - [`/README.md`](../README.md)
   Daily development entrypoints such as `./dev.sh start`, `./dev.sh test`, and `./dev.sh e2e`.
 - [`docs/TESTING.md`](TESTING.md)
-  Current test and evaluation workflow for unit, integration, and chatlog replay.
+  Current validation workflow, including the temporary no-new-unit-tests policy for the MVP phase.
 - [`docs/review/architecture-overview.md`](review/architecture-overview.md)
   Current architecture overview and system map.
 
@@ -21,8 +21,8 @@ AI coding agents.
   Prompt inventory, DB keys, and fallback prompt behavior.
 - [`docs/ai/context-and-prompt-contract.md`](ai/context-and-prompt-contract.md)
   Normative contract for AI context assembly, prompt boundaries, and output expectations.
-- [`docs/plans/component-critical-closure-plan-2026-03-12.md`](plans/component-critical-closure-plan-2026-03-12.md)
-  Current component-level closure plan based on the 2026-03-12 critical-path review.
+- [`docs/plans/adr-0007-blocked-write-continuation-execution-plan.md`](plans/adr-0007-blocked-write-continuation-execution-plan.md)
+  Execution plan for ADR 0007: stateful blocked-write continuation and routing/structuring separation.
 - [`docs/review/03-11/minimal-doctor-assistant-ux-principles.md`](review/03-11/minimal-doctor-assistant-ux-principles.md)
   Current doctor-facing UX contract.
 - [`docs/review/03-11/llm-context-architecture-review-and-plan.md`](review/03-11/llm-context-architecture-review-and-plan.md)
@@ -36,6 +36,8 @@ AI coding agents.
 
 - `docs/plans/`
   Active plans and still-actionable backlog docs. This folder should not hold historical review snapshots.
+- `docs/plans/archived/`
+  Closed implementation plans retained for traceability after execution.
 - `docs/review/`
   Dated reviews, reviewed plans, and architecture assessment material.
 - `docs/product/`
@@ -54,15 +56,15 @@ AI coding agents.
 - Repo workflow rules come from [`/AGENTS.md`](../AGENTS.md).
 - Current runtime behavior is defined by code first, then summarized in
   [`docs/review/architecture-overview.md`](review/architecture-overview.md).
-- Active implementation intent belongs in `docs/plans/`.
-- Once a plan is reviewed or partially completed, move the reviewed version into `docs/review/<date>/`.
+- Active implementation intent belongs in `docs/plans/` and not in `docs/plans/archived/`.
+- Once a plan is reviewed or closed, move the historical or retained version into `docs/review/<date>/` or `docs/plans/archived/`.
 
 ## When Adding or Updating Docs
 
 1. Prefer updating an existing authoritative doc over creating a new near-duplicate.
 2. Put active work in `docs/plans/`.
 3. Put dated reviews and reviewed plans in `docs/review/`.
-4. If a doc is historical and no longer actionable, remove it from `docs/plans/`.
+4. If a doc is historical and no longer actionable, move it out of active `docs/plans/` into `docs/plans/archived/` or `docs/review/`.
 5. If a doc is still useful but references stale file paths or old runtime assumptions, rewrite it instead of keeping two competing versions.
 
 ## Related Process Docs

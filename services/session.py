@@ -25,8 +25,22 @@ from sqlalchemy import select
 from utils.log import log
 
 
+_BLOCKED_WRITE_TTL_SECONDS = 300  # 5 minutes — matches _HYDRATION_TTL_SECONDS
+
+
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+@dataclass
+class BlockedWriteContext:
+    """Authoritative state for a blocked write awaiting patient name."""
+
+    intent: str                         # e.g. "add_record"
+    clinical_text: str                  # original clinical content from the blocked turn
+    original_text: str                  # raw doctor input before processing
+    created_at: float = field(default_factory=time.monotonic)  # monotonic for TTL
+    history_snapshot: List[dict] = field(default_factory=list)  # history at block time
 
 _sessions: dict[str, "DoctorSession"] = {}
 
@@ -63,6 +77,7 @@ class DoctorSession:
     pending_record_id: Optional[str] = None     # UUID of draft PendingRecord awaiting confirmation
     interview: Optional[InterviewState] = None          # active guided intake interview
     pending_cvd_scale: Optional[CVDScaleSession] = None # awaiting doctor reply for a missing CVD scale
+    blocked_write: Optional[BlockedWriteContext] = None # blocked write awaiting patient name (ADR 0007)
     specialty: Optional[str] = None                     # doctor's specialty, injected into agent prompt
     doctor_name: Optional[str] = None                   # doctor's display name, e.g. "张伟" → agent says "张医生"
     conversation_history: List[dict] = field(default_factory=list)  # rolling window
@@ -132,6 +147,25 @@ def _restore_cvd_scale(sess: "DoctorSession", doctor_id: str, state: object) -> 
         sess.pending_cvd_scale = None
 
 
+def _restore_blocked_write(sess: "DoctorSession", doctor_id: str, state: object) -> None:
+    """从 state.blocked_write_json 恢复 blocked write 上下文到 sess.blocked_write。"""
+    import json as _json
+    _bw_json = getattr(state, "blocked_write_json", None)
+    if not _bw_json:
+        return
+    try:
+        _bw = _json.loads(_bw_json)
+        sess.blocked_write = BlockedWriteContext(
+            intent=_bw["intent"],
+            clinical_text=_bw["clinical_text"],
+            original_text=_bw["original_text"],
+            history_snapshot=_bw.get("history_snapshot", []),
+        )
+    except Exception as _bw_err:
+        log(f"[Session] invalid blocked_write_json for {doctor_id}: {_bw_err}")
+        sess.blocked_write = None
+
+
 async def _hydrate_from_db(sess: "DoctorSession", doctor_id: str) -> None:
     """从数据库读取医生会话状态到内存 sess（在锁内调用）。"""
     async with AsyncSessionLocal() as db:
@@ -155,6 +189,7 @@ async def _hydrate_from_db(sess: "DoctorSession", doctor_id: str) -> None:
                 sess.current_patient_name = None
             _restore_interview(sess, doctor_id, state)
             _restore_cvd_scale(sess, doctor_id, state)
+            _restore_blocked_write(sess, doctor_id, state)
 
         turns = await get_recent_conversation_turns(db, doctor_id, limit=MAX_TURNS * 2)
         # Only restore from DB if no in-memory turns exist — prevents overwriting
@@ -225,6 +260,17 @@ async def persist_session_state(doctor_id: str) -> None:
             })
         except Exception:
             pass
+    blocked_write_json: Optional[str] = None
+    if sess.blocked_write is not None:
+        try:
+            blocked_write_json = _json.dumps({
+                "intent": sess.blocked_write.intent,
+                "clinical_text": sess.blocked_write.clinical_text,
+                "original_text": sess.blocked_write.original_text,
+                "history_snapshot": sess.blocked_write.history_snapshot,
+            }, ensure_ascii=False)
+        except Exception:
+            pass
     try:
         async with AsyncSessionLocal() as db:
             await upsert_doctor_session_state(
@@ -235,6 +281,7 @@ async def persist_session_state(doctor_id: str) -> None:
                 pending_record_id=sess.pending_record_id,
                 interview_json=interview_json,
                 cvd_scale_json=cvd_scale_json,
+                blocked_write_json=blocked_write_json,
             )
     except Exception as e:
         log(f"[Session] persist FAILED: {e}")
@@ -430,6 +477,47 @@ def clear_pending_record_id(doctor_id: str, persist: bool = True) -> None:
     if persist:
         _schedule_persist(doctor_id)
 
+
+
+def set_blocked_write_context(
+    doctor_id: str,
+    intent: str,
+    clinical_text: str,
+    original_text: str,
+    history_snapshot: Optional[List[dict]] = None,
+) -> None:
+    """Store a blocked write context when add_record is gated for missing patient name."""
+    with _registry_lock:
+        session = get_session(doctor_id)
+        session.blocked_write = BlockedWriteContext(
+            intent=intent,
+            clinical_text=clinical_text,
+            original_text=original_text,
+            history_snapshot=list(history_snapshot or []),
+        )
+        session.updated_at = _utcnow()
+
+
+def get_blocked_write_context(doctor_id: str) -> Optional[BlockedWriteContext]:
+    """Return the blocked write context if it exists and has not expired."""
+    with _registry_lock:
+        session = get_session(doctor_id)
+        ctx = session.blocked_write
+        if ctx is None:
+            return None
+        elapsed = time.monotonic() - ctx.created_at
+        if elapsed > _BLOCKED_WRITE_TTL_SECONDS:
+            session.blocked_write = None
+            return None
+        return ctx
+
+
+def clear_blocked_write_context(doctor_id: str) -> None:
+    """Clear the blocked write context after successful continuation or cancel."""
+    with _registry_lock:
+        session = get_session(doctor_id)
+        session.blocked_write = None
+        session.updated_at = _utcnow()
 
 
 def prune_inactive_sessions(max_idle_seconds: int = 3600) -> Dict[str, int]:

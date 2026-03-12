@@ -8,6 +8,21 @@ Accepted
 
 2026-03-11
 
+## Implementation Status
+
+Partial
+
+Last reviewed: 2026-03-12
+
+Notes:
+
+- The workflow and handlers preserve a single patient-scoped transaction model,
+  and same-name ambiguity already clarifies instead of guessing.
+- Explicit free-text multi-patient detection is still not fully implemented;
+  earlier implementation notes already defer that detection work.
+- This ADR should be marked complete only after multi-patient free-text turns
+  reliably clarify rather than depending on incidental routing behavior.
+
 ## Context
 
 Doctor messages sometimes mention more than one patient in a single sentence,

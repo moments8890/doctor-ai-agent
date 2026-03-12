@@ -219,16 +219,6 @@ class TestBuildRecord:
     """Test _build_record — structured_fields shortcut vs LLM structuring."""
 
     @pytest.mark.asyncio
-    async def test_structured_fields_shortcut(self):
-        """When intent has structured_fields, skip LLM and return dictation record."""
-        from services.domain.intent_handlers._add_record import _build_record
-        ir = _intent(structured_fields={"content": "血压140/90mmHg"})
-        result = await _build_record("测试", [], ir, "张三", "doc1", None)
-        assert isinstance(result, MedicalRecord)
-        assert result.content == "血压140/90mmHg"
-        assert result.record_type == "dictation"
-
-    @pytest.mark.asyncio
     async def test_assemble_record_success(self):
         """Normal path → calls assemble_record."""
         from services.domain.intent_handlers._add_record import _build_record
