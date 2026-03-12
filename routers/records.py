@@ -31,9 +31,8 @@ from db.crud import (
 from db.engine import AsyncSessionLocal
 from db.models.medical_record import MedicalRecord
 from services.ai.agent import dispatch as agent_dispatch
-from services.ai.fast_router import fast_route, fast_route_label
 from services.session import (
-    get_session, set_pending_record_id, clear_pending_record_id,
+    set_pending_record_id, clear_pending_record_id,
     set_candidate_patient, set_current_patient,
 )
 from db.crud.pending import get_pending_record, abandon_pending_record
@@ -53,7 +52,6 @@ from services.observability.observability import trace_block
 from services.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
 from services.observability.audit import audit
 from services.observability.observability import get_current_trace_id
-from services.observability.turn_log import log_turn
 from utils.log import log
 
 # ── Re-export constants and utilities from domain modules ─────────────────────
@@ -92,15 +90,12 @@ from routers.records_intent_handlers import (
     handle_add_record as _handle_add_record,
     handle_query_records as _handle_query_records,
     handle_list_patients as _handle_list_patients,
-    background_auto_learn as _background_auto_learn,
 )
 from services.domain.name_utils import (
     is_valid_patient_name as _is_valid_patient_name,
     assistant_asked_for_name as _assistant_asked_for_name,
     last_assistant_was_unclear_menu as _last_assistant_was_unclear_menu,
     name_only_text as _name_only_text,
-    leading_name_with_clinical_context as _leading_name_with_clinical_context,
-    patient_name_from_history as _patient_name_from_history,
 )
 
 # ── Unclear-intent reply builder ──────────────────────────────────────────────
@@ -249,15 +244,6 @@ def _enforce_rate_limit(doctor_id: str) -> None:
     if len(q) >= _REQUESTS_PER_MINUTE:
         raise HTTPException(status_code=429, detail="rate_limit_exceeded")
     q.append(now)
-
-
-async def _background_auto_learn(doctor_id: str, text: str, fields: dict) -> None:
-    """Run knowledge auto-learning in the background after returning the response."""
-    try:
-        async with AsyncSessionLocal() as db:
-            await maybe_auto_learn_knowledge(db, doctor_id, text, structured_fields=fields)
-    except Exception as e:
-        log(f"[Chat] background auto-learn failed doctor={doctor_id}: {e}")
 
 
 # ── Remaining intent handlers ─────────────────────────────────────────────────
@@ -450,118 +436,6 @@ async def _handle_update_record(text: str, doctor_id: str, intent_result: Intent
         resource_id=str(updated_rec.id), trace_id=get_current_trace_id(),
     ))
     return ChatResponse(reply=intent_result.chat_reply or f"✅ 已更正患者【{name}】的最近一条病历。")
-
-
-# ── Routing: resolve IntentResult from fast_route or LLM ─────────────────────
-
-def _apply_name_fallbacks(
-    body_text: str, history: list, followup_name: Optional[str], intent_result: IntentResult,
-) -> IntentResult:
-    """Apply deterministic patient-name field completion after routing.
-
-    PRINCIPLE: This function ONLY fills missing fields (patient_name).
-    It NEVER changes the intent classification — that is the router's job.
-    Changing intent here would silently override the router's decision,
-    making misrouting invisible and undebuggable.
-    """
-    if followup_name:
-        # Name continuation: the previous turn asked for a name and the user
-        # replied with one.  Fill the name but preserve the classified intent.
-        # The router should have already classified this as add_record via
-        # pending-record continuation; if it didn't, we don't override.
-        if not intent_result.patient_name:
-            intent_result.patient_name = followup_name
-            intent_result.extra_data = {
-                **(intent_result.extra_data or {}),
-                "patient_source": "followup_name",
-            }
-    elif intent_result.intent == Intent.add_record and not intent_result.patient_name:
-        leading_name = _leading_name_with_clinical_context(body_text)
-        if leading_name:
-            intent_result.patient_name = leading_name
-            intent_result.extra_data = {
-                **(intent_result.extra_data or {}),
-                "patient_source": "text_leading_name",
-            }
-        else:
-            _hist_name = _patient_name_from_history(history)
-            if _hist_name:
-                intent_result.patient_name = _hist_name
-                intent_result.extra_data = {
-                    **(intent_result.extra_data or {}),
-                    "patient_source": "history",
-                }
-    return intent_result
-
-
-async def _dispatch_via_llm(
-    text: str, original_text: str, doctor_id: str, history_for_routing: list, t0: float,
-) -> IntentResult:
-    """调用 LLM 调度器解析意图。"""
-    knowledge_context = ""
-    try:
-        async with AsyncSessionLocal() as db:
-            knowledge_context = await load_knowledge_context_for_prompt(db, doctor_id, text)
-    except Exception as e:
-        log(f"[Chat] knowledge context load failed doctor={doctor_id}: {e}")
-
-    try:
-        with trace_block("router", "records.chat.agent_dispatch", {"doctor_id": doctor_id}):
-            _sess = get_session(doctor_id)
-            dispatch_kwargs: dict = {"history": history_for_routing, "doctor_id": doctor_id}
-            if knowledge_context:
-                dispatch_kwargs["knowledge_context"] = knowledge_context
-            if _sess.specialty:
-                dispatch_kwargs["specialty"] = _sess.specialty
-            if _sess.doctor_name:
-                dispatch_kwargs["doctor_name"] = _sess.doctor_name
-            if _sess.current_patient_name:
-                dispatch_kwargs["current_patient_context"] = _sess.current_patient_name
-            if _sess.candidate_patient_name:
-                _cand_parts = [_sess.candidate_patient_name]
-                if _sess.candidate_patient_gender:
-                    _cand_parts.append(_sess.candidate_patient_gender)
-                if _sess.candidate_patient_age:
-                    _cand_parts.append(f"{_sess.candidate_patient_age}岁")
-                dispatch_kwargs["candidate_patient_context"] = "，".join(_cand_parts)
-            if _sess.patient_not_found_name:
-                dispatch_kwargs["patient_not_found_context"] = _sess.patient_not_found_name
-            intent_result = await agent_dispatch(text, **dispatch_kwargs)
-        _latency_ms = (time.perf_counter() - t0) * 1000.0
-        log_turn(original_text, intent_result.intent.value, "llm", doctor_id, _latency_ms, patient_name=intent_result.patient_name)
-        return intent_result
-    except Exception as e:
-        msg = str(e)
-        status = 429 if "rate_limit" in msg or "Rate limit" in msg or "429" in msg else 503
-        log(
-            f"[Chat] agent dispatch FAILED doctor={doctor_id} status={status} "
-            f"text={text[:80]!r} err={msg}"
-        )
-        detail = "rate_limit_exceeded" if status == 429 else "Service temporarily unavailable"
-        raise HTTPException(status_code=status, detail=detail)
-
-
-async def _resolve_intent(
-    text: str, original_text: str, doctor_id: str,
-    history_for_routing: list, followup_name: Optional[str],
-    effective_intent: Optional[IntentResult],
-) -> IntentResult:
-    """确定意图：先尝试快速路由，再尝试 LLM 调度。"""
-    if effective_intent is not None:
-        log(f"[Chat] menu_shortcut intent={effective_intent.intent.value} doctor={doctor_id}")
-        return effective_intent
-
-    _t0 = time.perf_counter()
-    _fast = fast_route(text, session=get_session(doctor_id))
-    if _fast is not None:
-        _latency_ms = (time.perf_counter() - _t0) * 1000.0
-        log(f"[Chat] fast_route hit: {fast_route_label(text)} doctor={doctor_id}")
-        log_turn(original_text, _fast.intent.value, "fast", doctor_id, _latency_ms, patient_name=_fast.patient_name)
-        intent_result = _fast
-    else:
-        intent_result = await _dispatch_via_llm(text, original_text, doctor_id, history_for_routing, _t0)
-
-    return _apply_name_fallbacks(text, history_for_routing, followup_name, intent_result)
 
 
 # ── Dispatch table ────────────────────────────────────────────────────────────

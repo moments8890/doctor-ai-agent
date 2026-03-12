@@ -14,6 +14,7 @@ import routers.records as records
 from db.models.medical_record import MedicalRecord
 from utils.errors import InvalidMedicalRecordError
 from services.ai.intent import Intent, IntentResult
+from services.domain.name_utils import leading_name_with_clinical_context as _leading_name_with_clinical_context
 from services.session import reset_session_state_for_tests
 
 
@@ -72,8 +73,8 @@ def test_helper_name_validation_and_parsing():
     assert records._assistant_asked_for_name([{"role": "user", "content": "x"}]) is False
     assert records._name_only_text("陈明") == "陈明"
     assert records._name_only_text("陈明，胸痛") is None
-    assert records._leading_name_with_clinical_context("张三，男，52岁，胸闷三周") == "张三"
-    assert records._leading_name_with_clinical_context("张三") is None
+    assert _leading_name_with_clinical_context("张三，男，52岁，胸闷三周") == "张三"
+    assert _leading_name_with_clinical_context("张三") is None
     assert records._contains_clinical_content("反复胸痛，拟复查")
     assert not records._contains_clinical_content("你好")
     assert records._contains_treatment_signal("建议口服阿司匹林")
@@ -230,9 +231,6 @@ async def test_chat_add_record_clears_hallucinated_treatment_when_no_signal():
     fake_db = object()
     from db.models.medical_record import MedicalRecord as _MR
     with patch(
-        "routers.records.fast_route",
-        return_value=None,
-    ), patch(
         "services.ai.agent.dispatch",
         new=AsyncMock(
             return_value=_intent(
@@ -273,9 +271,6 @@ async def test_chat_force_add_record_when_intent_drifts_but_text_is_clinical():
     # We mock the agent dispatch to return add_record (since the workflow now
     # handles this differently than the old direct add_record override).
     with patch(
-        "routers.records.fast_route",
-        return_value=None,
-    ), patch(
         "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.add_record, patient_name="钱芳")),
     ), patch("routers.records_intent_handlers.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(

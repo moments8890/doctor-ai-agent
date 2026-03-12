@@ -9,6 +9,7 @@ set -euo pipefail
 #   bash scripts/test.sh integration-full
 #   bash scripts/test.sh chatlog-half
 #   bash scripts/test.sh chatlog-full
+#   bash scripts/test.sh benchmark-gate
 #   bash scripts/test.sh all
 
 MODE="${1:-unit}"
@@ -81,13 +82,17 @@ case "$MODE" in
   chatlog-full)
     run_chatlog_full
     ;;
+  benchmark-gate)
+    echo "[test] Delegating to benchmark_gate.sh..."
+    bash "$ROOT_DIR/scripts/benchmark_gate.sh"
+    ;;
   all)
     run_unit
     run_integration
     ;;
   *)
     echo "Unknown mode: $MODE"
-    echo "Usage: bash scripts/test.sh [unit|integration|integration-full|chatlog-half|chatlog-full|all]"
+    echo "Usage: bash scripts/test.sh [unit|integration|integration-full|chatlog-half|chatlog-full|benchmark-gate|all]"
     exit 2
     ;;
 esac

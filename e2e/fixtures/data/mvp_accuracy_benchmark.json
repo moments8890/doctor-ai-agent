@@ -1109,5 +1109,698 @@
         ]
       ]
     }
+  },
+
+  {
+    "case_id": "MVP-ACC-030",
+    "title": "Specialty: cardiology ACS with emergent PCI",
+    "group": "create_save",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "记录张三ACS确诊 ST段抬高 需紧急PCI"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_patient_name": "张三",
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "ACS",
+          "ST段",
+          "PCI"
+        ]
+      ],
+      "must_include_reply_any_of": [
+        [
+          "病历",
+          "记录",
+          "保存",
+          "已录入"
+        ],
+        [
+          "张三"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-031",
+    "title": "Specialty: neurology ICH with GCS and NIHSS",
+    "group": "create_save",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "记录李四脑出血 GCS 8分 术后NIHSS 12分"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_patient_name": "李四",
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "脑出血",
+          "GCS",
+          "NIHSS"
+        ]
+      ],
+      "must_include_reply_any_of": [
+        [
+          "病历",
+          "记录",
+          "保存",
+          "已录入"
+        ],
+        [
+          "李四"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-032",
+    "title": "Specialty: general medicine URI with fever",
+    "group": "create_save",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "创建患者王五，男35岁，门诊。上呼吸道感染，发热38.5℃，咽充血，白细胞正常，予对症处理。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_patient_name": "王五",
+      "expected_patient_count": 1,
+      "expect_patient_dedup": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "上呼吸道感染",
+          "发热",
+          "38.5",
+          "咽充血"
+        ]
+      ],
+      "must_include_reply_any_of": [
+        [
+          "创建",
+          "已为患者",
+          "已为",
+          "保存",
+          "病历"
+        ],
+        [
+          "王五"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-033",
+    "title": "Specialty: endocrine DKA emergency with lab values",
+    "group": "create_save",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "创建患者赵敏，女29岁，急诊。1型糖尿病DKA，血糖28.6 mmol/L，血酮5.2 mmol/L，pH 7.18，HCO3- 8 mmol/L，予胰岛素泵持续静滴及补液。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_patient_name": "赵敏",
+      "expected_patient_count": 1,
+      "expect_patient_dedup": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "DKA",
+          "血糖",
+          "血酮",
+          "pH",
+          "HCO3"
+        ]
+      ],
+      "must_include_reply_any_of": [
+        [
+          "创建",
+          "已为患者",
+          "已为",
+          "保存",
+          "病历"
+        ],
+        [
+          "赵敏"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-034",
+    "title": "Specialty: nephrology CKD with eGFR and proteinuria",
+    "group": "create_save",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "创建患者李建国，男68岁，肾内科门诊。CKD G4期，eGFR 22 mL/min/1.73m2，24h尿蛋白3.2g，Scr 268 μmol/L，K+ 5.6 mmol/L，限钾饮食并调整降压方案。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_patient_name": "李建国",
+      "expected_patient_count": 1,
+      "expect_patient_dedup": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "CKD",
+          "eGFR",
+          "尿蛋白",
+          "Scr"
+        ]
+      ],
+      "must_include_reply_any_of": [
+        [
+          "创建",
+          "已为患者",
+          "已为",
+          "保存",
+          "病历"
+        ],
+        [
+          "李建国"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-035",
+    "title": "Specialty: oncology breast cancer HER2 targeted therapy",
+    "group": "create_save",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "创建患者周慧，女52岁，肿瘤科。左乳浸润性导管癌T2N1M0，ER+/PR+/HER2 3+，Ki-67 40%，已行AC-TH方案化疗第4周期，今日曲妥珠单抗维持治疗。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_patient_name": "周慧",
+      "expected_patient_count": 1,
+      "expect_patient_dedup": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "HER2",
+          "Ki-67",
+          "ER",
+          "曲妥珠单抗",
+          "导管癌"
+        ]
+      ],
+      "must_include_reply_any_of": [
+        [
+          "创建",
+          "已为患者",
+          "已为",
+          "保存",
+          "病历"
+        ],
+        [
+          "周慧"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-036",
+    "title": "Specialty: cardiology query with specialty terms",
+    "group": "query_history",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "创建患者钱伟，男56岁，心内科。心衰NYHA III级，EF 30%，BNP 2400 pg/mL，予沙库巴曲缬沙坦及利尿。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查钱伟最近的EF和BNP记录"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_patient_name": "钱伟",
+      "expected_patient_count": 1,
+      "expect_patient_dedup": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "NYHA",
+          "EF",
+          "BNP",
+          "心衰"
+        ]
+      ],
+      "must_include_reply_any_of": [
+        [
+          "最近",
+          "历史记录",
+          "记录",
+          "病历"
+        ],
+        [
+          "钱伟"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-037",
+    "title": "Specialty: gastroenterology liver cirrhosis with Child-Pugh",
+    "group": "create_save",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "创建患者郑国强，男55岁，消化内科。乙肝后肝硬化Child-Pugh B级，腹水中量，ALT 86 U/L，AST 102 U/L，ALB 28 g/L，予利尿及保肝治疗。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_patient_name": "郑国强",
+      "expected_patient_count": 1,
+      "expect_patient_dedup": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "Child-Pugh",
+          "肝硬化",
+          "ALT",
+          "AST",
+          "ALB"
+        ]
+      ],
+      "must_include_reply_any_of": [
+        [
+          "创建",
+          "已为患者",
+          "已为",
+          "保存",
+          "病历"
+        ],
+        [
+          "郑国强"
+        ]
+      ]
+    }
+  },
+
+  {
+    "case_id": "MVP-ACC-038",
+    "title": "Clarification: ambiguous patient — record without name",
+    "group": "clarification",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "记录头痛"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_reply_any_of": [
+        [
+          "请问这位患者叫什么名字",
+          "请提供姓名",
+          "患者姓名",
+          "叫什么名字",
+          "哪位患者"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-039",
+    "title": "Clarification: ambiguous intent — name only no action",
+    "group": "clarification",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "张三"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_max_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 0
+      },
+      "must_include_reply_any_of": [
+        [
+          "请问",
+          "需要",
+          "什么",
+          "帮您",
+          "您好",
+          "操作"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-040",
+    "title": "Clarification: multi-intent record then query different patients",
+    "group": "unsupported_combo",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先记录张三头痛两天再查询李四病历"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_max_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 0
+      },
+      "must_include_reply_any_of": [
+        [
+          "分两步",
+          "分开",
+          "先完成",
+          "请先",
+          "单独执行",
+          "分别",
+          "请分",
+          "逐步"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-041",
+    "title": "Clarification: vague record with clinical content but no name",
+    "group": "clarification",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "血压160/100，头晕两天，需要调整降压药"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_reply_any_of": [
+        [
+          "请问这位患者叫什么名字",
+          "请提供姓名",
+          "患者姓名",
+          "叫什么名字",
+          "哪位患者"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-042",
+    "title": "Clarification: correction without prior context",
+    "group": "clarification",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "更正一下刚才的病历，血压应该是140/90"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_reply_any_of": [
+        [
+          "请问",
+          "哪位患者",
+          "患者姓名",
+          "未找到",
+          "没有找到"
+        ]
+      ]
+    }
+  },
+
+  {
+    "case_id": "MVP-ACC-043",
+    "title": "Edge case: very short input — single character",
+    "group": "edge_case",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "查"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_max_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 0
+      },
+      "must_include_reply_any_of": [
+        [
+          "请问",
+          "哪位",
+          "患者",
+          "帮您",
+          "需要"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-044",
+    "title": "Edge case: greeting mixed with query intent",
+    "group": "edge_case",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "你好，帮我查一下张三的病历"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_reply_any_of": [
+        [
+          "张三",
+          "未找到",
+          "病历",
+          "记录"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-045",
+    "title": "Edge case: complete task with large ID number",
+    "group": "task_action",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "完成 999"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_reply_any_of": [
+        [
+          "完成",
+          "已标记",
+          "已完成",
+          "未找到任务",
+          "不存在"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-046",
+    "title": "Edge case: special chars — parentheses around patient name",
+    "group": "edge_case",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "记录患者（张三）头痛2天，伴恶心呕吐，无发热"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_any_of": [
+        [
+          "头痛",
+          "恶心",
+          "呕吐"
+        ]
+      ],
+      "must_include_reply_any_of": [
+        [
+          "病历",
+          "记录",
+          "保存",
+          "已录入",
+          "张三",
+          "患者姓名",
+          "叫什么名字"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-047",
+    "title": "Edge case: repeated greeting should not create patient or record",
+    "group": "safety",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "你好你好你好"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_max_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 0
+      },
+      "must_include_reply_any_of": [
+        [
+          "您好",
+          "你好",
+          "医助",
+          "帮您"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-048",
+    "title": "Edge case: help request should show capabilities",
+    "group": "safety",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "帮助"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_max_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 0
+      },
+      "must_include_reply_any_of": [
+        [
+          "创建",
+          "记录",
+          "查询",
+          "功能",
+          "帮助",
+          "支持"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-049",
+    "title": "Edge case: numeric-only input should not crash",
+    "group": "edge_case",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "12345"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_max_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 0
+      },
+      "must_include_reply_any_of": [
+        [
+          "请问",
+          "帮您",
+          "需要",
+          "操作",
+          "您好"
+        ]
+      ]
+    }
   }
 ]
