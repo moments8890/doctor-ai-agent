@@ -187,6 +187,210 @@ remaining direct-save exception on the voice side.
 
 ---
 
+## Workflow Types and LLM Integration
+
+The repo now uses LLMs in two distinct roles:
+
+- **routing LLM** in `services/ai/agent.py`
+  - decides semantic intent
+  - extracts coarse routing entities
+  - does not author the final `add_record` note
+- **structuring LLM** in `services/ai/structuring.py`
+  - turns clinical text into readable doctor-facing note content
+  - is used only on note-producing or structuring-specific paths
+
+Deterministic state and code still own:
+
+- blocked-write continuation
+- patient-binding approval
+- gate checks
+- pending-draft confirmation
+- final persistence decisions
+
+### Workflow map
+
+| Workflow | Routing LLM | Structuring LLM | Deterministic control / notes |
+| --- | --- | --- | --- |
+| Read/query/task workflows | Usually yes when `fast_route()` does not match | No | Query/task handlers execute directly after bind/gate; no note generation |
+| Standard `add_record` | Yes for intent + coarse entities | Yes via `assemble_record()` | Gate may block for missing patient; non-emergency path creates pending draft; emergency can direct-save |
+| Blocked-write continuation | No on successful precheck resume | Yes after resume | `precheck_blocked_write()` resolves bare-name / name+supplement continuations from session state |
+| `create_patient` only | Yes for intent + name/demographics unless deterministic match hits first | No | Patient create/reuse is normal handler logic |
+| `create_patient + clinical content` compound | Yes for create intent + coarse entities | Yes | Current handler still structures and directly saves the compound record; this is not yet unified with the draft-first `add_record` path |
+| `update_record` correction | Yes | Indirect / compatibility path | Correction still uses routing `structured_fields` compatibility and may re-call routing LLM for field extraction; this is one of the remaining ADR 0008 transition areas |
+| Voice consultation (`/api/voice/consultation`) | No | Yes | Explicit structuring-only recording flow; optional direct save when `save=true` |
+| WeChat workflow failure fallback | No after workflow failure | Yes | If workflow execution fails, WeChat may still call `structure_medical_record()` and reply with formatted text as a resilience fallback |
+
+### 1. Standard doctor command workflows
+
+Examples:
+
+- `查一下张三最近病历`
+- `列出今天的任务`
+- `把 12 号任务推迟一周`
+
+Flow:
+
+```text
+message
+-> fast_route() or routing LLM
+-> extract / bind / gate
+-> shared handler
+-> direct reply
+```
+
+LLM role:
+
+- routing LLM is used when deterministic routing does not confidently match
+- structuring LLM is not used because no doctor-facing note body is being built
+
+### 2. Standard add-record workflow
+
+Examples:
+
+- `张三胸痛两天，血压150/90`
+- `给李四补一条今天复诊记录`
+
+Flow:
+
+```text
+message
+-> blocked-write precheck (if applicable)
+-> fast_route() or routing LLM
+-> extract / bind / plan / gate
+-> handle_add_record()
+-> assemble_record()
+-> structure_medical_record()
+-> pending draft or emergency direct save
+```
+
+LLM role:
+
+- routing LLM decides `add_record` and extracts coarse fields such as patient
+  name and emergency signal
+- structuring LLM produces the readable medical note body
+
+Deterministic role:
+
+- gate decides whether patient context is sufficient
+- session state decides whether the turn is a continuation
+- pending-draft confirmation decides whether the note becomes final
+
+### 3. Blocked-write continuation workflow
+
+Example:
+
+1. `胸痛两天，血压150/90`
+2. system asks for patient name
+3. `张三`
+
+Flow:
+
+```text
+turn 1
+-> routing + gate
+-> blocked on missing patient name
+-> store blocked_write context
+
+turn 2
+-> precheck_blocked_write()
+-> resume add_record deterministically
+-> structuring LLM
+-> pending draft
+```
+
+LLM role:
+
+- first turn may use routing LLM
+- second-turn resume does not need the routing LLM if precheck resolves the
+  continuation
+- structuring still runs on the clinical text when the write resumes
+
+This is the clearest example of the architecture rule:
+
+- LLM decides **what the doctor means**
+- deterministic session state decides **whether this turn is a continuation**
+
+### 4. Compound create-patient workflows
+
+Example:
+
+- `新患者王芳，女，52岁，胸闷一周，明天提醒复诊`
+
+Flow today:
+
+```text
+message
+-> fast_route() or routing LLM
+-> create_patient handler
+-> create/reuse patient
+-> optional structure_medical_record() for residual clinical content
+-> optional task creation
+```
+
+LLM role:
+
+- routing LLM resolves the create intent plus demographics
+- structuring LLM is used only if the same message also contains clinical
+  content that should become a record
+
+Important current-state nuance:
+
+- this compound path still saves the structured record directly inside the
+  create-patient handler
+- it is not yet fully converged with the pending-draft `add_record` path
+
+### 5. Update-record correction workflow
+
+Example:
+
+- `把张三最近一条病历里的诊断改成不稳定型心绞痛`
+
+Flow today:
+
+```text
+message
+-> fast_route() or routing LLM
+-> handle_update_record()
+-> use routing structured_fields if present
+-> otherwise re-call routing LLM for correction extraction
+-> update latest persisted record
+```
+
+LLM role:
+
+- routing LLM is doing double duty here:
+  - intent selection
+  - correction-field extraction
+
+This is one of the main remaining exceptions to the cleaner ADR 0008 target,
+because correction still relies on router-side `structured_fields`
+compatibility.
+
+### 6. Voice consultation workflow
+
+Example:
+
+- uploaded ambient consultation recording
+
+Flow:
+
+```text
+audio
+-> transcribe_audio(consultation_mode=True)
+-> structure_medical_record(consultation_mode=True)
+-> optional direct save
+```
+
+LLM role:
+
+- no routing LLM
+- structuring LLM only
+
+This is not a conversational workflow. It is an explicit recording-processing
+workflow.
+
+---
+
 ## 5-Layer Intent Workflow
 
 Defined in `services/intent_workflow/`.

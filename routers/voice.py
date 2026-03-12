@@ -15,11 +15,6 @@ from pydantic import BaseModel
 
 from db.models.medical_record import MedicalRecord
 from services.domain.chat_constants import SUPPORTED_AUDIO_TYPES
-from services.domain.name_utils import (
-    assistant_asked_for_name as _assistant_asked_for_name,
-    is_blocked_write_cancel as _is_blocked_write_cancel,
-    name_only_text as _name_only_text,
-)
 from services.ai.intent import Intent, IntentResult
 from services.intent_workflow.precheck import (
     precheck_blocked_write as _precheck_blocked_write,
@@ -117,7 +112,6 @@ async def _dispatch_voice_intent(
     doctor_id: str,
     intent_result: IntentResult,
     history_list: list,
-    followup_name: Optional[str],
 ) -> VoiceChatResponse:
     """Route resolved intent to shared domain handlers and convert to VoiceChatResponse."""
     intent = intent_result.intent
@@ -131,7 +125,6 @@ async def _dispatch_voice_intent(
     if intent == Intent.add_record:
         hr = await shared_handle_add_record(
             transcript, doctor_id, history_list, intent_result,
-            followup_name=followup_name,
         )
         return _handler_result_to_voice(transcript, hr)
 
@@ -217,9 +210,6 @@ async def _voice_chat_for_doctor(
 
     _audio_bytes, transcript = await _transcribe_upload(audio, doctor_id)
 
-    asked_name_in_last_turn = _assistant_asked_for_name(history_list)
-    followup_name = _name_only_text(transcript) if asked_name_in_last_turn else None
-
     # Hydrate session state before workflow (same as WeChat path)
     await hydrate_session_state(doctor_id)
 
@@ -236,8 +226,7 @@ async def _voice_chat_for_doctor(
         )
         hr = await shared_handle_add_record(
             continuation.clinical_text, doctor_id,
-            continuation.history_snapshot,
-            _ir, followup_name=continuation.patient_name,
+            continuation.history_snapshot, _ir,
         )
         return _handler_result_to_voice(transcript, hr)
 
@@ -247,7 +236,6 @@ async def _voice_chat_for_doctor(
     try:
         result = await workflow_run(
             transcript, doctor_id, history_list,
-            followup_name=followup_name,
             channel="voice",
         )
     except Exception as e:
@@ -279,20 +267,8 @@ async def _voice_chat_for_doctor(
 
     intent_result = result.to_intent_result()
 
-    # Followup-name override: when the assistant asked for a patient name and
-    # the user replied with just a name, always treat as add_record using
-    # clinical content from history (regardless of what the LLM classified).
-    if followup_name and intent_result.intent != Intent.add_record:
-        intent_result = IntentResult(
-            intent=Intent.add_record,
-            patient_name=followup_name,
-            gender=intent_result.gender,
-            age=intent_result.age,
-            extra_data=intent_result.extra_data,
-        )
-
     return await _dispatch_voice_intent(
-        transcript, doctor_id, intent_result, history_list, followup_name,
+        transcript, doctor_id, intent_result, history_list,
     )
 
 

@@ -191,8 +191,7 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> "_W
         )
         hr = await _shared_handle_add_record(
             continuation.clinical_text, doctor_id,
-            continuation.history_snapshot,
-            _ir, followup_name=continuation.patient_name,
+            continuation.history_snapshot, _ir,
         )
         return _WeChatReply(notification=hr.switch_notification, text=hr.reply)
 

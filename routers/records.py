@@ -84,10 +84,8 @@ from services.domain.intent_handlers import (
 )
 from services.domain.name_utils import (
     is_valid_patient_name as _is_valid_patient_name,
-    assistant_asked_for_name as _assistant_asked_for_name,
     is_blocked_write_cancel as _is_blocked_write_cancel,
     last_assistant_was_unclear_menu as _last_assistant_was_unclear_menu,
-    name_only_text as _name_only_text,
 )
 from services.intent_workflow.precheck import (
     precheck_blocked_write as _precheck_blocked_write,
@@ -362,7 +360,6 @@ async def chat_core(
     history: list,
     *,
     original_text: Optional[str] = None,
-    followup_name: Optional[str] = None,
     effective_intent: Optional[IntentResult] = None,
 ) -> ChatResponse:
     """Channel-agnostic intent routing and execution.
@@ -376,8 +373,6 @@ async def chat_core(
         history: Conversation history as [{"role": "user"/"assistant", "content": str}].
         original_text: Raw text before processing (defaults to text). Used for
             reminder detection and record correction re-structuring.
-        followup_name: If the previous turn asked for a patient name and the
-            current message is a bare name reply, pass it here.
         effective_intent: Pre-resolved intent (e.g. from menu shortcuts).
 
     Returns:
@@ -407,8 +402,7 @@ async def chat_core(
         )
         hr = await shared_handle_add_record(
             continuation.clinical_text, doctor_id,
-            continuation.history_snapshot,
-            _ir, followup_name=continuation.patient_name,
+            continuation.history_snapshot, _ir,
         )
         return await _handler_result_to_chat(hr)
 
@@ -432,7 +426,6 @@ async def chat_core(
         result = await workflow_run(
             text, doctor_id, history_for_routing,
             original_text=original_text,
-            followup_name=followup_name,
             effective_intent=effective_intent,
             knowledge_context=knowledge_context,
             channel="web",
@@ -470,19 +463,7 @@ async def chat_core(
 
     intent_result = result.to_intent_result()
 
-    # Followup-name override: when the assistant asked for a patient name and
-    # the user replied with just a name, always treat as add_record using
-    # clinical content from history (regardless of what the LLM classified).
-    if followup_name and intent_result.intent != Intent.add_record:
-        intent_result = IntentResult(
-            intent=Intent.add_record,
-            patient_name=followup_name,
-            gender=intent_result.gender,
-            age=intent_result.age,
-            extra_data=intent_result.extra_data,
-        )
-
-    return await _dispatch_intent(text, original_text, doctor_id, history, intent_result, followup_name)
+    return await _dispatch_intent(text, original_text, doctor_id, history, intent_result)
 
 
 async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
@@ -515,9 +496,6 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
         elif _digit == "6":
             effective_intent = IntentResult(intent=Intent.list_tasks)
 
-    asked_name_in_last_turn = _assistant_asked_for_name(history)
-    followup_name = _name_only_text(body.text) if asked_name_in_last_turn else None
-
     complete_resp = await _fastpath_complete_task(body.text, doctor_id, _COMPLETE_RE)
     if complete_resp is not None:
         return complete_resp
@@ -525,7 +503,6 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
     return await chat_core(
         body_text, doctor_id, history,
         original_text=body.text,
-        followup_name=followup_name,
         effective_intent=effective_intent,
     )
 
