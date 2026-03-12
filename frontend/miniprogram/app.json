@@ -1,0 +1,14 @@
+{
+  "pages": [
+    "pages/login/login",
+    "pages/doctor/doctor",
+    "pages/chat/chat"
+  ],
+  "window": {
+    "navigationBarTitleText": "Doctor AI",
+    "navigationBarBackgroundColor": "#ffffff",
+    "navigationBarTextStyle": "black"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

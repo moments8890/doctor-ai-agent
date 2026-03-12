@@ -21,6 +21,8 @@ AI coding agents.
   Prompt inventory, DB keys, and fallback prompt behavior.
 - [`docs/ai/context-and-prompt-contract.md`](ai/context-and-prompt-contract.md)
   Normative contract for AI context assembly, prompt boundaries, and output expectations.
+- [`docs/plans/component-critical-closure-plan-2026-03-12.md`](plans/component-critical-closure-plan-2026-03-12.md)
+  Current component-level closure plan based on the 2026-03-12 critical-path review.
 - [`docs/review/03-11/minimal-doctor-assistant-ux-principles.md`](review/03-11/minimal-doctor-assistant-ux-principles.md)
   Current doctor-facing UX contract.
 - [`docs/review/03-11/llm-context-architecture-review-and-plan.md`](review/03-11/llm-context-architecture-review-and-plan.md)

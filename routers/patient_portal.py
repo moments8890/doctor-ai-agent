@@ -1,11 +1,10 @@
 """
 患者自助门户 API：患者可查看自己的病历并向医生发送消息。
 
-认证流程（MVP）：
-  患者输入姓名 + 医生 doctor_id → 模糊匹配 Patient 表 → 签发短期 JWT。
-
-TODO: 升级为真实的访问码（6 位 access_code 存储在 Patient 表），
-      或接入手机号 OTP，避免纯姓名匹配的身份假冒风险。
+认证流程：
+  患者输入姓名 + 医生 doctor_id + 6 位 access_code → 精确匹配 Patient 表
+  → 校验 PBKDF2-SHA256 哈希 → 签发短期 JWT。
+  旧患者（access_code 为 NULL）允许仅姓名登录，并在日志中记录 deprecation 警告。
 """
 
 from __future__ import annotations
@@ -142,20 +141,34 @@ async def _lookup_patient_by_name(doctor_id: str, patient_name: str) -> "Patient
 
 
 def _verify_patient_access_code(patient: "Patient", supplied_code: str) -> None:
-    """Raise HTTPException if the patient's access code is missing or incorrect."""
+    """Validate the access code, with backward-compat for legacy patients.
+
+    - Patient **has** an access_code hash → supplied code must match.
+    - Patient has **no** access_code (legacy / NULL) → allow name-only login
+      but emit a deprecation warning so operators can migrate.
+    """
     if not patient.access_code:
-        raise HTTPException(status_code=401, detail="此患者未配置访问码，请联系您的医生。")
+        # Legacy patient — no access code configured yet.
+        logger.warning(
+            "[PatientPortal] DEPRECATION: name-only login for patient_id=%s "
+            "(no access_code set). Migrate this patient to access-code auth.",
+            patient.id,
+        )
+        return
     if not supplied_code or not verify_access_code(supplied_code, patient.access_code):
         raise HTTPException(status_code=401, detail=_AUTH_FAIL)
 
 
 @router.post("/session", response_model=PatientSessionResponse)
 async def create_patient_session(body: PatientSessionRequest):
-    """Patient login: name + doctor_id, plus access_code.
+    """Patient login: name + doctor_id + access_code.
 
-    Rate-limited to 5 attempts per minute per doctor_id to prevent name enumeration.
-    When a patient has an access_code, it MUST be supplied — name-only fallback is
-    disabled for that patient, reducing PHI-breach risk.
+    Rate-limited to 5 attempts per minute per doctor_id to prevent enumeration.
+
+    - Patient **with** access_code: code MUST be supplied and match the stored hash.
+    - Legacy patient (access_code is NULL): name-only login still works but a
+      deprecation warning is logged.  Operators should call
+      ``set_patient_access_code`` to upgrade legacy patients.
     """
     doctor_id = (body.doctor_id or "").strip()
     patient_name = (body.patient_name or "").strip()

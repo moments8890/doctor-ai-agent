@@ -11,12 +11,26 @@ from __future__ import annotations
 import hashlib
 import hmac
 import os
+import secrets
+import string
 
 
 _ALGORITHM = "pbkdf2sha256"
 _ITERATIONS = 600_000
 _SALT_BYTES = 32
 _HASH_BYTES = 32
+
+_CODE_LENGTH = 6
+_CODE_ALPHABET = string.digits  # 0-9
+
+
+def generate_access_code() -> str:
+    """Generate a cryptographically random 6-digit access code.
+
+    Returns the plaintext code (e.g. ``"482901"``).  The caller is responsible
+    for hashing it via :func:`hash_access_code` before persistence.
+    """
+    return "".join(secrets.choice(_CODE_ALPHABET) for _ in range(_CODE_LENGTH))
 
 
 def hash_access_code(plaintext: str) -> str:

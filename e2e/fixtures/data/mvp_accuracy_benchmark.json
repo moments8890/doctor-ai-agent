@@ -1,0 +1,1113 @@
+[
+  {
+    "case_id": "MVP-ACC-001",
+    "title": "Compound create-save: STEMI emergency intake",
+    "group": "create_save",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "创建患者赵强，男61岁，急诊。胸痛90分钟伴大汗，下壁STEMI，hs-cTnI 3.2 ng/mL，BNP 168 pg/mL，EF 45%，阿司匹林300mg，氯吡格雷300mg。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_patient_name": "赵强",
+      "expected_patient_count": 1,
+      "expect_patient_dedup": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "STEMI",
+          "hs-cTnI",
+          "BNP",
+          "EF",
+          "胸痛"
+        ]
+      ],
+      "must_include_reply_any_of": [
+        [
+          "创建",
+          "已为患者",
+          "已为",
+          "紧急",
+          "保存"
+        ],
+        [
+          "已录入病历",
+          "病历",
+          "保存"
+        ],
+        [
+          "赵强"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-002",
+    "title": "Compound create-save: acute stroke admission",
+    "group": "create_save",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "创建患者刘丽萍，男81岁，卒中单元。突发左侧肢体无力并言语不清5小时，NIHSS 6分，头颅MRI示右侧基底节急性梗死，阿司匹林100mg qd，阿托伐他汀40mg qn。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_patient_name": "刘丽萍",
+      "expected_patient_count": 1,
+      "expect_patient_dedup": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "NIHSS",
+          "MRI",
+          "梗死",
+          "言语不清"
+        ]
+      ],
+      "must_include_reply_any_of": [
+        [
+          "创建",
+          "已为患者",
+          "已为",
+          "紧急",
+          "保存"
+        ],
+        [
+          "已录入病历",
+          "病历",
+          "保存"
+        ],
+        [
+          "刘丽萍"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-003",
+    "title": "Compound create-save: COPD exacerbation",
+    "group": "create_save",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "创建患者周明哲，男72岁，呼吸门诊。COPD急性加重3天，SpO2 88%，RR 28次/分，双肺哮鸣音，WBC 12.4，CRP 38，予布地奈德雾化和哌拉西林他唑巴坦。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_patient_name": "周明哲",
+      "expected_patient_count": 1,
+      "expect_patient_dedup": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "COPD",
+          "SpO2",
+          "CRP",
+          "哮鸣音"
+        ]
+      ],
+      "must_include_reply_any_of": [
+        [
+          "创建",
+          "已为患者",
+          "已为",
+          "紧急",
+          "保存"
+        ],
+        [
+          "已录入病历",
+          "病历",
+          "保存"
+        ],
+        [
+          "周明哲"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-004",
+    "title": "Compound create-save: depression intake",
+    "group": "create_save",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "创建患者陈雪宁，女34岁，心理门诊。情绪低落2月，早醒，注意力下降，PHQ-9 17分，GAD-7 11分，否认自杀计划，拟舍曲林50mg qd并安排2周复诊。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_patient_name": "陈雪宁",
+      "expected_patient_count": 1,
+      "expect_patient_dedup": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "PHQ-9",
+          "GAD-7",
+          "舍曲林",
+          "情绪低落"
+        ]
+      ],
+      "must_include_reply_any_of": [
+        [
+          "创建",
+          "已为患者",
+          "已为",
+          "紧急",
+          "保存"
+        ],
+        [
+          "已录入病历",
+          "病历",
+          "保存"
+        ],
+        [
+          "陈雪宁"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-005",
+    "title": "Create then query history: cardiology follow-up",
+    "group": "query_history",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "创建患者王丽，女62岁，心内门诊。既往HFpEF，今晨端坐呼吸，BP 158/96，HR 112，SpO2 89%，BNP 1860 pg/mL，呋塞米40mg iv。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查王丽刚才那条记录"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_patient_name": "王丽",
+      "expected_patient_count": 1,
+      "expect_patient_dedup": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "HFpEF",
+          "BNP",
+          "端坐呼吸"
+        ]
+      ],
+      "must_include_reply_any_of": [
+        [
+          "最近",
+          "历史记录",
+          "记录"
+        ],
+        [
+          "王丽"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-006",
+    "title": "Create then query history: stroke clinic",
+    "group": "query_history",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "创建患者张桂兰，女72岁，卒中门诊。右侧肢体麻木反复3天，既往TIA史，ABCD2 5分，颈动脉超声示右侧斑块，氯吡格雷75mg qd。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查张桂兰最近病历"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_patient_name": "张桂兰",
+      "expected_patient_count": 1,
+      "expect_patient_dedup": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "TIA",
+          "ABCD2",
+          "颈动脉",
+          "氯吡格雷"
+        ]
+      ],
+      "must_include_reply_any_of": [
+        [
+          "最近",
+          "历史记录",
+          "记录"
+        ],
+        [
+          "张桂兰"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-007",
+    "title": "Create then query history: oncology note retrieval",
+    "group": "query_history",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "创建患者何志远，男58岁，肿瘤科。结肠癌化疗后第5天，ANC 0.8，Hb 92，PLT 76，体温38.2度，考虑G-CSF并经验性抗感染。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查何志远最近记录"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_patient_name": "何志远",
+      "expected_patient_count": 1,
+      "expect_patient_dedup": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "ANC",
+          "PLT",
+          "G-CSF",
+          "化疗"
+        ]
+      ],
+      "must_include_reply_any_of": [
+        [
+          "最近",
+          "历史记录",
+          "记录"
+        ],
+        [
+          "何志远"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-008",
+    "title": "Create then correct latest record: troponin correction",
+    "group": "update_record",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "创建患者林秋月，女67岁，心内监护。胸闷伴气促，hs-cTnT 0.038 ng/mL，BNP 1220 pg/mL，双下肢轻度水肿，呋塞米40mg iv。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "更正林秋月刚才那条病历：肌钙蛋白不是0.038，是0.033。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_patient_name": "林秋月",
+      "expected_patient_count": 1,
+      "expect_patient_dedup": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_reply_any_of": [
+        [
+          "已更正",
+          "更正"
+        ],
+        [
+          "林秋月"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-009",
+    "title": "Create then correct latest record: insulin dose correction",
+    "group": "update_record",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "创建患者孙雅宁，女59岁，内分泌门诊。2型糖尿病伴CKD G3b，eGFR 38 mL/min/1.73m2，UACR 312 mg/g，预混30R早18U晚14U。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "更正孙雅宁刚才那条病历：早晨胰岛素不是18U，是16U。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_patient_name": "孙雅宁",
+      "expected_patient_count": 1,
+      "expect_patient_dedup": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_reply_any_of": [
+        [
+          "已更正",
+          "更正"
+        ],
+        [
+          "孙雅宁"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-010",
+    "title": "Duplicate create should reuse the same patient",
+    "group": "dedup",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "创建患者周宁，女48岁，门诊。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再建一次同一位患者周宁，女48岁，门诊。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_patient_name": "周宁",
+      "expected_patient_count": 1,
+      "expect_patient_dedup": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1
+      },
+      "must_include_reply_any_of": [
+        [
+          "已存在",
+          "复用",
+          "创建",
+          "患者"
+        ],
+        [
+          "周宁"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-011",
+    "title": "Clarification: missing patient name on record intake",
+    "group": "clarification",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "记录一下：胸痛2小时伴大汗，心电图提示下壁ST段抬高。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_reply_any_of": [
+        [
+          "请问这位患者叫什么名字",
+          "请提供姓名",
+          "患者姓名",
+          "叫什么名字"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-012",
+    "title": "Clarification: query on non-existent patient",
+    "group": "clarification",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "查李梦妍既往胸痛记录"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_reply_any_of": [
+        [
+          "未找到患者",
+          "未找到"
+        ],
+        [
+          "李梦妍"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-013",
+    "title": "Schedule follow-up for existing patient",
+    "group": "schedule",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "创建患者杨志明，男55岁，心内门诊。冠心病PCI术后随访，血压正常，血脂达标。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "给杨志明安排三个月后复查心电图"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_patient_name": "杨志明",
+      "expected_patient_count": 1,
+      "expect_patient_dedup": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_reply_any_of": [
+        [
+          "随访",
+          "复查",
+          "安排",
+          "提醒"
+        ],
+        [
+          "杨志明"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-014",
+    "title": "Complete task by ID",
+    "group": "task_action",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "完成 1"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_reply_any_of": [
+        [
+          "完成",
+          "已标记",
+          "已完成",
+          "未找到任务"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-015",
+    "title": "List all patients",
+    "group": "list",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "所有患者"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_reply_any_of": [
+        [
+          "患者",
+          "暂无患者"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-016",
+    "title": "Greeting should not trigger any clinical action",
+    "group": "safety",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "你好"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "must_include_reply_any_of": [
+        [
+          "您好",
+          "你好",
+          "医助",
+          "帮您"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-017",
+    "title": "Compound: clinical note wins over scheduling hint",
+    "group": "compound_priority",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "创建患者吴海燕，女58岁，心内门诊。反复胸闷两周，活动后加重，心电图ST段压低，三个月后随访。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_patient_name": "吴海燕",
+      "expected_patient_count": 1,
+      "expect_patient_dedup": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "胸闷",
+          "ST段",
+          "心电图"
+        ]
+      ],
+      "must_include_reply_any_of": [
+        [
+          "创建",
+          "已为患者",
+          "已为",
+          "紧急",
+          "保存",
+          "病历"
+        ],
+        [
+          "吴海燕"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-018",
+    "title": "Compound: create patient with clinical content appends record",
+    "group": "compound_priority",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "新患者陈伟强，男42岁，头痛三天伴恶心呕吐，血压165/100，CT未见出血。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_patient_name": "陈伟强",
+      "expected_patient_count": 1,
+      "expect_patient_dedup": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "头痛",
+          "血压",
+          "CT"
+        ]
+      ],
+      "must_include_reply_any_of": [
+        [
+          "创建",
+          "已为患者",
+          "已为",
+          "紧急",
+          "保存",
+          "病历"
+        ],
+        [
+          "陈伟强"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-019",
+    "title": "Compound create-save: dermatology (non-cardiology specialty)",
+    "group": "create_save",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "创建患者黄丽华，女28岁，皮肤科门诊。全身散在红色丘疹伴瘙痒1周，双下肢为著，查IgE升高，予西替利嗪10mg qd。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_patient_name": "黄丽华",
+      "expected_patient_count": 1,
+      "expect_patient_dedup": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "丘疹",
+          "IgE",
+          "瘙痒",
+          "西替利嗪"
+        ]
+      ],
+      "must_include_reply_any_of": [
+        [
+          "创建",
+          "已为患者",
+          "已为",
+          "紧急",
+          "保存"
+        ],
+        [
+          "已录入病历",
+          "病历",
+          "保存"
+        ],
+        [
+          "黄丽华"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-020",
+    "title": "Same-turn correction: correction rewrites unsaved payload",
+    "group": "correction",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "创建患者马建国，男50岁，心内门诊。胸痛1小时，说错了，应该是胸闷2天。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_patient_name": "马建国",
+      "expected_patient_count": 1,
+      "expect_patient_dedup": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_reply_any_of": [
+        [
+          "创建",
+          "已为患者",
+          "已为",
+          "紧急",
+          "保存",
+          "病历"
+        ],
+        [
+          "马建国"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-021",
+    "title": "Unsupported combo: query then write should clarify",
+    "group": "unsupported_combo",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "查看张三的病历，然后录入新记录"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_max_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 0
+      },
+      "must_include_reply_any_of": [
+        [
+          "分两步",
+          "分开",
+          "先完成",
+          "请先"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-022",
+    "title": "Unsupported combo: delete then create should clarify",
+    "group": "unsupported_combo",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "删除张三，再创建李四"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_max_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 0
+      },
+      "must_include_reply_any_of": [
+        [
+          "单独执行",
+          "分两步",
+          "分开",
+          "请先"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-023",
+    "title": "Compound create-save: orthopedics (non-cardiology specialty)",
+    "group": "create_save",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "创建患者刘志强，男65岁，骨科门诊。腰椎间盘突出L4/5复发，左下肢放射痛VAS 7分，直腿抬高试验阳性，MRI示椎间盘突出压迫左侧神经根。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_patient_name": "刘志强",
+      "expected_patient_count": 1,
+      "expect_patient_dedup": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "腰椎",
+          "VAS",
+          "MRI",
+          "神经根"
+        ]
+      ],
+      "must_include_reply_any_of": [
+        [
+          "创建",
+          "已为患者",
+          "已为",
+          "紧急",
+          "保存"
+        ],
+        [
+          "已录入病历",
+          "病历",
+          "保存"
+        ],
+        [
+          "刘志强"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-024",
+    "title": "Compound create + record: pending draft, no auto-save",
+    "group": "compound_pending",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "创建患者王芳，胸痛3天"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_patient_name": "王芳",
+      "expected_patient_count": 1,
+      "expect_patient_dedup": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1
+      },
+      "must_include_reply_any_of": [
+        [
+          "创建",
+          "已为患者",
+          "已为",
+          "保存",
+          "病历",
+          "草稿"
+        ],
+        [
+          "王芳"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-025",
+    "title": "Same-turn correction: should draft corrected content only",
+    "group": "correction",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "创建患者王芳，胸痛，说错了，头痛"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_patient_name": "王芳",
+      "expected_patient_count": 1,
+      "expect_patient_dedup": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1
+      },
+      "must_include_reply_any_of": [
+        [
+          "创建",
+          "已为患者",
+          "已为",
+          "保存",
+          "病历",
+          "草稿"
+        ],
+        [
+          "王芳"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-026",
+    "title": "Compound record + task: record draft and reminder for existing patient",
+    "group": "compound_record_task",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "创建患者张三，男45岁，内科门诊。高血压病史3年。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "给张三补充胸闷，明天提醒复查"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_patient_name": "张三",
+      "expected_patient_count": 1,
+      "expect_patient_dedup": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_reply_any_of": [
+        [
+          "胸闷",
+          "补充",
+          "病历",
+          "记录"
+        ],
+        [
+          "提醒",
+          "复查",
+          "任务",
+          "随访"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-027",
+    "title": "Query only: no write side effects",
+    "group": "query_only",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "创建患者张三，男45岁，内科门诊。高血压病史3年，BP 145/92。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查张三最近病历"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_patient_name": "张三",
+      "expected_patient_count": 1,
+      "expect_patient_dedup": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "expected_table_max_counts_by_doctor": {
+        "medical_records": 1
+      },
+      "must_include_reply_any_of": [
+        [
+          "最近",
+          "历史记录",
+          "记录",
+          "病历"
+        ],
+        [
+          "张三"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-028",
+    "title": "Unsupported mixed: query + write should clarify, not execute",
+    "group": "unsupported_combo",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "查张三最近病历并把诊断改成高血压"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_max_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 0
+      },
+      "must_include_reply_any_of": [
+        [
+          "分两步",
+          "分开",
+          "先完成",
+          "请先",
+          "单独执行",
+          "分别",
+          "请分",
+          "逐步"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "MVP-ACC-029",
+    "title": "Multiple-patient mixed: create + delete should clarify",
+    "group": "unsupported_combo",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "创建赵六，再删除王芳"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_max_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 0
+      },
+      "must_include_reply_any_of": [
+        [
+          "单独执行",
+          "分两步",
+          "分开",
+          "请先",
+          "分别",
+          "请分",
+          "逐步"
+        ]
+      ]
+    }
+  }
+]

@@ -20,8 +20,18 @@ def _intent(intent: Intent, name=None, gender=None, age=None) -> IntentResult:
 
 @pytest.fixture
 def wechat(session_factory):
-    """Import wechat module with DB patched to in-memory SQLite."""
-    with patch("routers.wechat.AsyncSessionLocal", session_factory):
+    """Import wechat module with DB patched to in-memory SQLite.
+
+    Shared intent handlers import AsyncSessionLocal at module level, so
+    we must patch the reference in each handler module as well.
+    """
+    with patch("routers.wechat.AsyncSessionLocal", session_factory), \
+         patch("routers.wechat_flows.AsyncSessionLocal", session_factory), \
+         patch("services.domain.intent_handlers._simple_intents.AsyncSessionLocal", session_factory), \
+         patch("services.domain.intent_handlers._create_patient.AsyncSessionLocal", session_factory), \
+         patch("services.domain.intent_handlers._add_record.AsyncSessionLocal", session_factory), \
+         patch("services.domain.intent_handlers._query_records.AsyncSessionLocal", session_factory), \
+         patch("services.domain.intent_handlers._confirm_pending.AsyncSessionLocal", session_factory):
         import routers.wechat as mod
         yield mod
 
@@ -38,8 +48,8 @@ async def test_handle_intent_routes_create_patient(wechat, session_factory):
         return_value=_intent(Intent.create_patient, name="李明", gender="男", age=45)
     )), patch("routers.wechat.AsyncSessionLocal", session_factory):
         reply = await wechat._handle_intent("帮我建个新患者，李明，45岁男性", DOCTOR)
-    assert "李明" in reply
-    assert "创建" in reply or "✅" in reply or "已为" in reply
+    assert "李明" in reply.text
+    assert "创建" in reply.text or "✅" in reply.text or "已为" in reply.text or "已复用" in reply.text
 
 
 async def test_handle_intent_routes_unknown_to_help_message(wechat):
@@ -48,7 +58,7 @@ async def test_handle_intent_routes_unknown_to_help_message(wechat):
         return_value=IntentResult(intent=Intent.unknown, chat_reply="您好，有什么可以帮您？")
     )):
         reply = await wechat._handle_intent("今天天气真好", DOCTOR)
-    assert reply  # any non-empty reply is acceptable for conversational fallback
+    assert reply.text  # any non-empty reply is acceptable for conversational fallback
 
 
 async def test_handle_intent_falls_back_on_detection_error(wechat):
@@ -58,7 +68,7 @@ async def test_handle_intent_falls_back_on_detection_error(wechat):
          patch("routers.wechat.structure_medical_record", new=AsyncMock(return_value=fake_record)) as mock_struct:
         reply = await wechat._handle_intent("some text", DOCTOR)
     mock_struct.assert_awaited_once()
-    assert reply  # non-empty reply (formatted record or short error)
+    assert reply.text  # non-empty reply (formatted record or short error)
 
 
 async def test_handle_intent_logs_and_continues_when_knowledge_context_load_fails(wechat):
@@ -67,14 +77,14 @@ async def test_handle_intent_logs_and_continues_when_knowledge_context_load_fail
     with patch("routers.wechat.load_knowledge_context_for_prompt", new=AsyncMock(side_effect=RuntimeError("db busy"))), \
          patch("services.ai.agent.dispatch", new=AsyncMock(return_value=IntentResult(intent=Intent.unknown, chat_reply="ok"))):
         reply = await wechat._handle_intent("今天天气", DOCTOR)
-    assert reply == "ok"
+    assert reply.text == "ok"
 
 
 async def test_handle_intent_structuring_fallback_unexpected_error_returns_generic_message(wechat):
     with patch("services.ai.agent.dispatch", side_effect=Exception("LLM down")), \
          patch("routers.wechat.structure_medical_record", new=AsyncMock(side_effect=RuntimeError("boom"))):
         reply = await wechat._handle_intent("some text", DOCTOR)
-    assert "不好意思" in reply
+    assert "不好意思" in reply.text
 
 
 async def test_handle_intent_routes_delete_patient(wechat, session_factory):
@@ -94,7 +104,7 @@ async def test_handle_intent_routes_delete_patient(wechat, session_factory):
     ), patch("routers.wechat.AsyncSessionLocal", session_factory):
         wechat._sync_wechat_domain_bindings()
         reply = await wechat._handle_intent("删除患者章三", DOCTOR)
-    assert "已删除患者【章三】" in reply
+    assert "已删除患者【章三】" in reply.text
 
     async with session_factory() as s:
         patients = await get_all_patients(s, DOCTOR)
@@ -108,7 +118,7 @@ async def test_handle_intent_routes_delete_patient(wechat, session_factory):
 
 async def test_create_patient_without_name_returns_error(wechat):
     reply = await wechat._handle_create_patient(DOCTOR, _intent(Intent.create_patient, name=None))
-    assert "⚠️" in reply
+    assert "姓名" in reply  # shared handler asks for name with natural language
 
 
 async def test_create_patient_sets_session(wechat, session_factory):
@@ -200,7 +210,7 @@ async def test_add_record_auto_creates_patient_when_not_in_db(wechat, session_fa
 
 
 async def test_add_record_works_without_patient(wechat, session_factory):
-    """Records with no patient context are still saved (patient_id=None)."""
+    """When no patient context exists, the handler asks for a patient name."""
     from db.models.medical_record import MedicalRecord
     fake_record = MedicalRecord(
         content="发烧 发烧一天 病毒感染 退烧药",
@@ -212,7 +222,8 @@ async def test_add_record_works_without_patient(wechat, session_factory):
             "患者发烧一天", DOCTOR, _intent(Intent.add_record)
         )
 
-    assert "病历" in reply  # natural fallback reply
+    # Shared handler requires a patient; asks for name when none is in context.
+    assert "患者" in reply or "名字" in reply
 
 
 # ---------------------------------------------------------------------------
@@ -244,7 +255,8 @@ async def test_query_records_no_patient_returns_all_records(wechat, session_fact
     with patch("routers.wechat.AsyncSessionLocal", session_factory):
         reply = await wechat._handle_query_records(DOCTOR, _intent(Intent.query_records))
 
-    assert "所有患者" in reply
+    # Shared handler format: "📂 最近 N 条记录" (not "所有患者" as before)
+    assert "记录" in reply
     assert "李明" in reply
     assert "王芳" in reply
 
@@ -313,6 +325,12 @@ async def test_query_records_empty_history(wechat, session_factory):
 async def test_add_record_emergency_reply_has_prefix(wechat, session_factory):
     from db.models.medical_record import MedicalRecord
     from services.ai.intent import IntentResult
+    from db.crud import create_patient
+
+    # Emergency records still need a patient in context.
+    async with session_factory() as s:
+        p = await create_patient(s, DOCTOR, "李明", None, None)
+    set_current_patient(DOCTOR, p.id, p.name)
 
     fake_record = MedicalRecord(
         content="室颤 突发室颤 立即除颤",
@@ -320,7 +338,7 @@ async def test_add_record_emergency_reply_has_prefix(wechat, session_factory):
     )
     emergency_intent = IntentResult(
         intent=Intent.add_record,
-        patient_name=None,
+        patient_name="李明",
         is_emergency=True,
     )
     with patch("routers.wechat.AsyncSessionLocal", session_factory), \
@@ -344,7 +362,7 @@ async def test_handle_intent_routes_list_patients(wechat, session_factory):
         reply = await wechat._handle_intent("所有患者", DOCTOR)
 
     # Empty DB → helpful prompt
-    assert "患者" in reply
+    assert "患者" in reply.text
 
 
 async def test_handle_all_patients_empty(wechat, session_factory):

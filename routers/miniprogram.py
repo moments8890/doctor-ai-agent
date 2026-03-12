@@ -143,11 +143,15 @@ async def mini_create_patient(
         raise HTTPException(status_code=422, detail="name is required")
     async with AsyncSessionLocal() as db:
         patient = await create_patient(db, principal.doctor_id, name, body.gender, body.age)
+    # Return the one-time plaintext access code so the doctor can share it
+    # with the patient for portal login.
+    access_code = getattr(patient, "_plaintext_access_code", None)
     return {
         "id": patient.id,
         "name": patient.name,
         "gender": patient.gender,
         "year_of_birth": patient.year_of_birth,
+        "access_code": access_code,
     }
 
 

@@ -49,18 +49,37 @@ async def test_concurrent_intent_bg_no_history_corruption():
 
     call_order: list[int] = []
 
+    from routers.wechat_flows import WeChatReply
+
     async def slow_handle_intent(text: str, doctor_id: str, history=None):
         # Simulate LLM latency; yields so the event loop can schedule task 2
         await asyncio.sleep(0.01)
-        call_order.append(len(history))
-        return f"reply-{text}"
+        call_order.append(len(history or []))
+        return WeChatReply(notification=None, text=f"reply-{text}")
+
+    from services.ai.turn_context import DoctorTurnContext, WorkflowState, AdvisoryContext, Provenance
+
+    def _make_mock_ctx(doctor_id):
+        sess = get_session(doctor_id)
+        return DoctorTurnContext(
+            doctor_id=doctor_id,
+            doctor_name=None,
+            specialty=None,
+            workflow=WorkflowState(),
+            advisory=AdvisoryContext(recent_history=list(sess.conversation_history)),
+            provenance=Provenance(),
+        )
+
+    async def _mock_assemble(doctor_id, **kw):
+        return _make_mock_ctx(doctor_id)
 
     with (
         patch("routers.wechat._handle_intent", new=slow_handle_intent),
         patch("routers.wechat._send_customer_service_msg", new=_make_send_mock()),
         patch("routers.wechat.maybe_compress", new=AsyncMock()),
-        patch("routers.wechat.load_context_message", new=AsyncMock(return_value=None)),
+        patch("routers.wechat.flush_turns", new=AsyncMock()),
         patch("routers.wechat.hydrate_session_state", new=AsyncMock()),
+        patch("services.ai.turn_context.assemble_turn_context", new=_mock_assemble),
     ):
         t1 = asyncio.create_task(wechat._handle_intent_bg("msg1", DOCTOR))
         t2 = asyncio.create_task(wechat._handle_intent_bg("msg2", DOCTOR))

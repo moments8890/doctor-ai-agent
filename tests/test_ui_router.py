@@ -77,8 +77,8 @@ async def test_manage_patients_includes_record_counts():
         _patient_ns(id=11, name="张三", gender="男", year_of_birth=1980, created_at=datetime(2026, 3, 1, 8, 0, 0)),
         _patient_ns(id=12, name="李四", gender=None, year_of_birth=None, created_at=None),
     ]
-    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
-         patch("routers.ui.get_all_patients", new=AsyncMock(return_value=patients)):
+    with patch("routers.ui.record_handlers.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.record_handlers.get_all_patients", new=AsyncMock(return_value=patients)):
         data = await ui.manage_patients("doc1", category=None)
 
     assert data["doctor_id"] == "doc1"
@@ -90,9 +90,9 @@ async def test_manage_patients_includes_record_counts():
 
 async def test_manage_patients_uses_resolved_doctor_id():
     db = SimpleNamespace(execute=AsyncMock(return_value=SimpleNamespace(all=lambda: [])))
-    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+    with patch("routers.ui.record_handlers.AsyncSessionLocal", return_value=_SessionCtx(db)), \
          patch("routers.ui._resolve_ui_doctor_id", return_value="resolved_doc"), \
-         patch("routers.ui.get_all_patients", new=AsyncMock(return_value=[])) as get_patients:
+         patch("routers.ui.record_handlers.get_all_patients", new=AsyncMock(return_value=[])) as get_patients:
         data = await ui.manage_patients(doctor_id="doc1", authorization="Bearer x")
 
     assert data["doctor_id"] == "resolved_doc"
@@ -101,7 +101,7 @@ async def test_manage_patients_uses_resolved_doctor_id():
 
 async def test_manage_patients_invalid_authorization_raises_401():
     with patch(
-        "routers.ui.resolve_doctor_id_from_auth_or_fallback",
+        "routers.ui._utils.resolve_doctor_id_from_auth_or_fallback",
         side_effect=HTTPException(status_code=401, detail="bad token"),
     ):
         with pytest.raises(HTTPException) as exc:
@@ -224,8 +224,8 @@ async def test_manage_patients_includes_category_fields():
         execute=AsyncMock(return_value=SimpleNamespace(all=lambda: [(11, 3)]))
     )
     patients = [_patient()]
-    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
-         patch("routers.ui.get_all_patients", new=AsyncMock(return_value=patients)):
+    with patch("routers.ui.record_handlers.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.record_handlers.get_all_patients", new=AsyncMock(return_value=patients)):
         data = await ui.manage_patients("doc1", category=None)
 
     item = data["items"][0]
@@ -241,8 +241,8 @@ async def test_manage_patients_category_filter():
         _patient_ns(id=11, name="高风险患者", primary_category="high_risk"),
         _patient_ns(id=12, name="新患者", primary_category="new"),
     ]
-    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
-         patch("routers.ui.get_all_patients", new=AsyncMock(return_value=patients)):
+    with patch("routers.ui.record_handlers.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.record_handlers.get_all_patients", new=AsyncMock(return_value=patients)):
         data = await ui.manage_patients("doc1", category="high_risk")
 
     assert len(data["items"]) == 1
@@ -259,8 +259,8 @@ async def test_manage_patients_grouped():
         _patient_ns(id=12, name="随访患者", primary_category="active_followup"),
         _patient_ns(id=13, name="新患者", primary_category="new"),
     ]
-    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
-         patch("routers.ui.get_all_patients", new=AsyncMock(return_value=patients)):
+    with patch("routers.ui.record_handlers.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.record_handlers.get_all_patients", new=AsyncMock(return_value=patients)):
         data = await ui.manage_patients_grouped("doc1")
 
     assert data["doctor_id"] == "doc1"
@@ -282,8 +282,8 @@ async def test_manage_patients_grouped_unknown_category_goes_to_uncategorized():
     patients = [
         _patient_ns(id=21, name="未知分类患者", primary_category="custom_future_category"),
     ]
-    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
-         patch("routers.ui.get_all_patients", new=AsyncMock(return_value=patients)):
+    with patch("routers.ui.record_handlers.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.record_handlers.get_all_patients", new=AsyncMock(return_value=patients)):
         data = await ui.manage_patients_grouped("doc1")
 
     uncategorized = next(g for g in data["groups"] if g["group"] == "uncategorized")
@@ -429,8 +429,8 @@ async def test_patients_list_includes_labels_field():
         execute=AsyncMock(return_value=SimpleNamespace(all=lambda: [(11, 1)]))
     )
     patients = [_patient_ns(id=11, name="张三", labels=[])]
-    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
-         patch("routers.ui.get_all_patients", new=AsyncMock(return_value=patients)):
+    with patch("routers.ui.record_handlers.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.record_handlers.get_all_patients", new=AsyncMock(return_value=patients)):
         data = await ui.manage_patients("doc1", category=None)
     assert "labels" in data["items"][0]
     assert data["items"][0]["labels"] == []
@@ -442,8 +442,8 @@ async def test_patients_list_labels_populated():
     )
     lbl = SimpleNamespace(id=7, name="转诊候选", color="#FF4444")
     patients = [_patient_ns(id=11, name="张三", labels=[lbl])]
-    with patch("routers.ui.AsyncSessionLocal", return_value=_SessionCtx(db)), \
-         patch("routers.ui.get_all_patients", new=AsyncMock(return_value=patients)):
+    with patch("routers.ui.record_handlers.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.record_handlers.get_all_patients", new=AsyncMock(return_value=patients)):
         data = await ui.manage_patients("doc1", category=None)
     assert data["items"][0]["labels"] == [{"id": 7, "name": "转诊候选", "color": "#FF4444"}]
 

@@ -34,6 +34,7 @@ from db.crud.system import (
 from db.crud.patient import (
     get_patient_for_doctor,
     create_patient,
+    set_patient_access_code,
     find_patient_by_name,
     find_patients_by_exact_name,
     delete_patient_for_doctor,
@@ -145,6 +146,7 @@ __all__ = [
     # patient
     "get_patient_for_doctor",
     "create_patient",
+    "set_patient_access_code",
     "find_patient_by_name",
     "find_patients_by_exact_name",
     "delete_patient_for_doctor",

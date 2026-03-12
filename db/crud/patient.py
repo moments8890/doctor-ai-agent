@@ -18,6 +18,7 @@ from db.models import (
     PendingRecord,
 )
 from db.repositories import PatientRepository
+from services.auth.access_code_hash import generate_access_code, hash_access_code
 from services.observability.observability import trace_block
 from services.observability.audit import audit
 from utils.errors import InvalidMedicalRecordError, LabelNotFoundError, PatientNotFoundError
@@ -41,18 +42,59 @@ async def create_patient(
     gender: Optional[str],
     age: Optional[int],
 ) -> Patient:
+    """Create a patient and auto-generate a 6-digit portal access code.
+
+    The plaintext code is stored transiently on ``patient._plaintext_access_code``
+    so the caller can display it **once** to the doctor.  It is **not** persisted
+    in the database — only the PBKDF2-SHA256 hash is stored.
+    """
     with trace_block("db", "crud.create_patient", {"doctor_id": doctor_id}):
         cleaned_name = (name or "").strip()
         if not cleaned_name or len(cleaned_name) > 128:
             raise InvalidMedicalRecordError("Invalid patient name", context={"doctor_id": doctor_id})
         doctor_id = await _ensure_doctor_exists(session, doctor_id)
+
+        plaintext_code = generate_access_code()
+        hashed_code = hash_access_code(plaintext_code)
+
         repo = PatientRepository(session)
-        return await repo.create(
+        patient = await repo.create(
             doctor_id=doctor_id,
             name=cleaned_name,
             gender=gender,
             age=age,
+            access_code_hash=hashed_code,
         )
+        # Transient attribute — NOT persisted, available only on this instance.
+        patient._plaintext_access_code = plaintext_code  # type: ignore[attr-defined]
+        log(f"[create_patient] access code generated for patient [{cleaned_name}] id={patient.id}")
+        return patient
+
+
+async def set_patient_access_code(
+    session: AsyncSession,
+    doctor_id: str,
+    patient_id: int,
+) -> str:
+    """Generate a new access code for an existing patient.
+
+    Returns the **plaintext** 6-digit code so the doctor can share it with the
+    patient.  Only the PBKDF2-SHA256 hash is stored in the database.
+
+    Raises:
+        PatientNotFoundError: If no patient with *patient_id* belongs to *doctor_id*.
+    """
+    repo = PatientRepository(session)
+    patient = await repo.get_for_doctor(doctor_id, patient_id)
+    if patient is None:
+        raise PatientNotFoundError(
+            context={"doctor_id": doctor_id, "patient_id": str(patient_id)}
+        )
+    plaintext_code = generate_access_code()
+    patient.access_code = hash_access_code(plaintext_code)
+    await session.commit()
+    log(f"[set_patient_access_code] new access code set for patient id={patient_id} doctor={doctor_id}")
+    return plaintext_code
 
 
 async def find_patient_by_name(

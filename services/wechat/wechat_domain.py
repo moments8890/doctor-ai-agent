@@ -1,5 +1,10 @@
 """
-WeChat 意图处理层：创建患者、保存病历、查询、删除、引导问诊和历史导入的业务逻辑。
+WeChat 意图处理层：引导问诊、待确认病历保存、CVD量表回复和历史导入的业务逻辑。
+
+Intent handling for create_patient, add_record, query_records, delete_patient,
+list_tasks, complete_task, schedule_follow_up, cancel_task, postpone_task,
+schedule_appointment, update_record, and name_lookup has been moved to the
+shared handler layer at ``services/domain/intent_handlers/``.
 """
 
 from __future__ import annotations
@@ -9,44 +14,29 @@ import json
 import re
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from db.crud import (
     create_patient,
     create_pending_record,
     confirm_pending_record,
-    delete_patient_for_doctor,
     find_patient_by_name,
-    find_patients_by_exact_name,
     get_all_patients,
-    get_all_records_for_doctor,
-    get_records_for_patient,
-    get_task_by_id,
-    list_tasks,
     save_record,
-    update_task_due_at,
-    update_task_status,
 )
 from db.engine import AsyncSessionLocal
-from db.crud.records import update_latest_record_for_patient
-from services.ai.agent import dispatch as agent_dispatch
 from services.observability.audit import audit
-from services.knowledge.doctor_knowledge import maybe_auto_learn_knowledge
-from services.ai.intent import Intent, IntentResult
+from services.ai.intent import IntentResult
 from services.patient.interview import InterviewState, STEPS
 from utils.response_formatting import format_draft_preview, format_record
 from services.session import (
     clear_pending_create,
     get_session,
-    hydrate_session_state,
     set_current_patient,
-    set_pending_create,
     set_pending_record_id,
 )
 from services.ai.structuring import structure_medical_record
-from services.domain.record_ops import assemble_record
-from services.patient.score_extraction import detect_score_keywords, extract_specialty_scores
-from services.notify.tasks import create_appointment_task, create_emergency_task, create_follow_up_task
+from services.notify.tasks import create_follow_up_task
 from utils.text_parsing import (
     explicit_name_or_none,
     looks_like_symptom_note,
@@ -66,13 +56,6 @@ from services.wechat.wechat_import import (
     _format_import_preview,
     _mark_duplicates,
 )
-
-
-def _t(s: str | None, n: int = 30) -> str:
-    """Truncate string for mobile display."""
-    if not s:
-        return ""
-    return s[:n] + "…" if len(s) > n else s
 
 
 _DRAFT_TTL_MINUTES = int(__import__("os").environ.get("PENDING_RECORD_TTL_MINUTES", "30"))
@@ -108,170 +91,6 @@ async def build_reply(content: str) -> str:
     except Exception as e:
         log(f"[WeChat] structuring FAILED: {e}")
         return "处理失败，请稍后重试。"
-
-
-async def handle_create_patient(doctor_id: str, intent_result: IntentResult) -> str:
-    name = intent_result.patient_name
-    if not name:
-        return "⚠️ 未识别到患者姓名\n例：张三，30岁男性"
-    created = False
-    patient_id = None
-    async with AsyncSessionLocal() as session:
-        patient = await find_patient_by_name(session, doctor_id, name)
-        if patient is None:
-            patient = await create_patient(session, doctor_id, name, intent_result.gender, intent_result.age)
-            created = True
-        patient_id = patient.id
-        _prev = set_current_patient(doctor_id, patient.id, patient.name)
-    if created:
-        asyncio.create_task(audit(doctor_id, "WRITE", resource_type="patient", resource_id=str(patient_id)))
-    if not created and intent_result.gender is None and intent_result.age is None:
-        return f"✅ 已切换到患者【{name}】。\n后续病历自动关联。"
-    _switch = f"🔄 已从【{_prev}】切换\n" if _prev else ""
-    age_str = f"，{intent_result.age}岁" if intent_result.age else ""
-    gender_str = f"，{intent_result.gender}性" if intent_result.gender else ""
-    return f"{_switch}✅ 已为患者【{name}】建档{gender_str}{age_str}。\n后续病历自动关联。"
-
-
-
-async def _resolve_add_record_patient(doctor_id, intent_result):
-    """Resolve patient for add_record. Returns (patient_id, patient_name, new_patient_created, switched_from)."""
-    _sess_check = get_session(doctor_id)
-    if (intent_result.patient_name and _sess_check.current_patient_name
-            and intent_result.patient_name == _sess_check.current_patient_name
-            and _sess_check.current_patient_id is not None):
-        pid = _sess_check.current_patient_id
-        pname = _sess_check.current_patient_name
-        set_current_patient(doctor_id, pid, pname)
-        return pid, pname, False, None
-    if intent_result.patient_name:
-        async with AsyncSessionLocal() as session:
-            patient = await find_patient_by_name(session, doctor_id, intent_result.patient_name)
-            if patient:
-                _prev = set_current_patient(doctor_id, patient.id, patient.name)
-                return patient.id, patient.name, False, _prev
-            patient = await create_patient(
-                session, doctor_id, intent_result.patient_name,
-                intent_result.gender, intent_result.age,
-            )
-            _prev = set_current_patient(doctor_id, patient.id, patient.name)
-            log(f"[WeChat] auto-created patient [{patient.name}] id={patient.id}")
-            return patient.id, patient.name, True, _prev
-    sess = get_session(doctor_id)
-    return sess.current_patient_id, sess.current_patient_name, False, None
-
-
-async def _build_record_from_text(text, history, doctor_id, patient_id):
-    """Structure a medical record from doctor text + conversation history.
-
-    Delegates to the shared assemble_record() which handles clinical context
-    filtering, encounter-type detection, and prior-visit summary injection.
-    """
-    from services.ai.intent import IntentResult, Intent
-    # Wrap as IntentResult with no structured_fields so assemble_record
-    # takes the LLM structuring path with full clinical context filtering.
-    stub = IntentResult(intent=Intent.add_record)
-    return await assemble_record(stub, text, history, doctor_id, patient_id=patient_id)
-
-
-async def _save_emergency_record(doctor_id, record, patient_id, patient_name, text, intent_result):
-    """紧急病历直接保存，不经于确认门。"""
-    log(
-        f"[silent-save] emergency record saved WITHOUT confirmation "
-        f"doctor={doctor_id} patient={patient_name!r} patient_id={patient_id}"
-    )
-    async with AsyncSessionLocal() as session:
-        db_record = await save_record(session, doctor_id, record, patient_id)
-    asyncio.create_task(audit(doctor_id, "WRITE", resource_type="record", resource_id=str(patient_id)))
-    asyncio.create_task(create_emergency_task(
-        doctor_id, db_record.id, patient_name or "未关联患者", None, patient_id
-    ))
-    asyncio.create_task(_bg_auto_learn(doctor_id, text, record))
-    reply = intent_result.chat_reply or (
-        f"{patient_name}的病历已记录。" if patient_name else "病历已保存。"
-    )
-    return "🚨 " + reply
-
-
-async def _save_draft_and_preview(doctor_id, record, patient_id, patient_name, intent_result):
-    """将病历保存为待确认草稿并返回预览消息。"""
-    cvd_raw = intent_result.extra_data.get("cvd_context")
-    draft_data = record.model_dump()
-    if cvd_raw:
-        draft_data["cvd_context"] = cvd_raw
-    draft_id = uuid.uuid4().hex
-    async with AsyncSessionLocal() as session:
-        await create_pending_record(
-            session, record_id=draft_id, doctor_id=doctor_id,
-            draft_json=json.dumps(draft_data, ensure_ascii=False),
-            patient_id=patient_id, patient_name=patient_name, ttl_minutes=_DRAFT_TTL_MINUTES,
-        )
-    set_pending_record_id(doctor_id, draft_id)
-    preview = format_draft_preview(record, patient_name)
-    if cvd_raw:
-        footer = "\n\n「撤销」可取消"
-        try:
-            from services.patient.prior_visit import _format_cvd_summary as _fmt_cvd
-            cvd_str = _fmt_cvd(json.dumps(cvd_raw, ensure_ascii=False), None) or ""
-        except Exception:
-            cvd_str = ""
-        if cvd_str:
-            cvd_line = "\n" + cvd_str
-            preview = (preview[:-len(footer)] + cvd_line + footer) if preview.endswith(footer) else preview + cvd_line
-    return preview
-
-
-async def handle_add_record(
-    text: str,
-    doctor_id: str,
-    intent_result: IntentResult,
-    history: Optional[List[Dict[str, str]]] = None,
-) -> str:
-    """将病历结构化并保存为待确认草稿。"""
-    from db.models.medical_record import MedicalRecord
-
-    # Force-refresh session from DB on write-capable intents to prevent
-    # stale patient attribution in multi-device workflows.
-    await hydrate_session_state(doctor_id, write_intent=True)
-
-    patient_id, patient_name, new_patient_created, _switched_from = await _resolve_add_record_patient(
-        doctor_id, intent_result
-    )
-    if new_patient_created:
-        asyncio.create_task(
-            audit(doctor_id, "WRITE", resource_type="patient", resource_id=str(patient_id))
-        )
-
-    if intent_result.structured_fields:
-        fields = dict(intent_result.structured_fields)
-        content_text = (fields.get("content") or text).strip() or "门诊就诊"
-        record = MedicalRecord(content=content_text, record_type="dictation")
-    else:
-        try:
-            record = await _build_record_from_text(text, history, doctor_id, patient_id)
-        except ValueError:
-            return "没能识别病历内容，请重新描述一下。"
-        except Exception as e:
-            log(f"[WeChat] structuring FAILED: {e}")
-            return "不好意思，刚才出了点问题，能再说一遍吗？"
-
-    if detect_score_keywords(text):
-        try:
-            record.specialty_scores = await extract_specialty_scores(record.content or text)
-            if record.specialty_scores:
-                log(f"[WeChat] extracted {len(record.specialty_scores)} specialty score(s)")
-        except Exception as exc:
-            log(f"[WeChat] score extraction failed (non-fatal): {exc}")
-
-    if intent_result.is_emergency:
-        reply = await _save_emergency_record(
-            doctor_id, record, patient_id, patient_name, text, intent_result
-        )
-    else:
-        reply = await _save_draft_and_preview(doctor_id, record, patient_id, patient_name, intent_result)
-    if _switched_from:
-        reply = f"🔄 已从【{_switched_from}】切换到【{patient_name}】\n{reply}"
-    return reply
 
 
 async def _parse_pending_draft(pending, doctor_id):
@@ -392,49 +211,6 @@ from services.wechat.wechat_bg import (
     bg_auto_learn as _bg_auto_learn,
 )
 
-async def handle_query_records(doctor_id: str, intent_result: IntentResult) -> str:
-    patient_id = None
-    patient_name = None
-    _prev = None
-
-    async with AsyncSessionLocal() as session:
-        if intent_result.patient_name:
-            patient = await find_patient_by_name(session, doctor_id, intent_result.patient_name)
-            if patient:
-                patient_id = patient.id
-                patient_name = patient.name
-                # Pin queried patient so follow-up turns bind by ID.
-                _prev = set_current_patient(doctor_id, patient.id, patient.name)
-
-        if patient_id is None:
-            sess = get_session(doctor_id)
-            patient_id = sess.current_patient_id
-            patient_name = sess.current_patient_name
-
-        if patient_id is not None:
-            _switch = f"🔄 已从【{_prev}】切换到【{patient_name}】\n" if _prev else ""
-            records = await get_records_for_patient(session, doctor_id, patient_id)
-            if not records:
-                return f"{_switch}📂 患者【{patient_name}】暂无历史记录。"
-            lines = [f"{_switch}📂 【{patient_name}】最近 {len(records)} 条记录\n"]
-            for i, r in enumerate(records, 1):
-                date_str = r.created_at.strftime("%m-%d") if r.created_at else "?"
-                snippet = _t(r.content or "—", 30)
-                lines.append(f"{i}. {date_str} {snippet}")
-            return "\n".join(lines)
-
-        records = await get_all_records_for_doctor(session, doctor_id)
-
-    if not records:
-        return "📂 暂无任何病历记录。"
-    lines = [f"📂 所有患者最近 {len(records)} 条记录\n"]
-    for i, r in enumerate(records, 1):
-        pname = r.patient.name if r.patient else "未关联患者"
-        date_str = r.created_at.strftime("%m-%d") if r.created_at else "?"
-        snippet = _t(r.content or "—", 30)
-        lines.append(f"{i}. 【{pname}】{date_str} {snippet}")
-    return "\n".join(lines)
-
 
 async def handle_all_patients(doctor_id: str) -> str:
     async with AsyncSessionLocal() as session:
@@ -450,33 +226,6 @@ async def handle_all_patients(doctor_id: str) -> str:
         lines.append(f"{i}. {p.name}{suffix}")
     lines.append("\n发「查询[姓名]」看病历")
     return "\n".join(lines)
-
-
-async def handle_delete_patient(doctor_id: str, intent_result: IntentResult) -> str:
-    name = (intent_result.patient_name or "").strip()
-    occurrence_raw = intent_result.extra_data.get("occurrence_index")
-    occurrence_index = occurrence_raw if isinstance(occurrence_raw, int) else None
-    if not name:
-        return "⚠️ 请告诉我要删除的患者姓名，例如：删除患者张三。"
-
-    async with AsyncSessionLocal() as session:
-        matches = await find_patients_by_exact_name(session, doctor_id, name)
-        if not matches:
-            return f"⚠️ 未找到患者【{name}】。"
-        if occurrence_index is None and len(matches) > 1:
-            return f"⚠️ 找到同名患者【{name}】共 {len(matches)} 位，请发送「删除第2个患者{name}」。"
-        if occurrence_index is not None:
-            if occurrence_index <= 0 or occurrence_index > len(matches):
-                return f"⚠️ 序号超出范围。同名患者【{name}】共 {len(matches)} 位。"
-            target = matches[occurrence_index - 1]
-        else:
-            target = matches[0]
-
-        deleted = await delete_patient_for_doctor(session, doctor_id, target.id)
-    if deleted is None:
-        return f"⚠️ 删除失败，未找到患者【{name}】。"
-    asyncio.create_task(audit(doctor_id, "DELETE", resource_type="patient", resource_id=str(deleted.id)))
-    return intent_result.chat_reply or f"✅ 已删除患者【{deleted.name}】(ID {deleted.id}) 及其相关记录。"
 
 
 async def start_interview(doctor_id: str) -> str:
@@ -543,23 +292,6 @@ async def handle_menu_event(event_key: str, doctor_id: str) -> str:
     return _MENU_EVENT_REPLIES.get(event_key, "请通过菜单或文字与我们互动。")
 
 
-async def handle_name_lookup(name: str, doctor_id: str) -> str:
-    async with AsyncSessionLocal() as session:
-        patient = await find_patient_by_name(session, doctor_id, name)
-    if patient:
-        _prev = set_current_patient(doctor_id, patient.id, patient.name)
-        log(f"[WeChat] name lookup hit: {name} → patient_id={patient.id}")
-        fake = IntentResult(intent=Intent.query_records, patient_name=name)
-        result = await handle_query_records(doctor_id, fake)
-        if _prev:
-            result = f"🔄 已从【{_prev}】切换到【{patient.name}】\n{result}"
-        return result
-
-    set_pending_create(doctor_id, name)
-    log(f"[WeChat] name lookup miss: {name} → pending create")
-    return f"没找到{name}这位患者，请问性别和年龄？（或发送「取消」放弃）"
-
-
 async def handle_pending_create(text: str, doctor_id: str) -> str:
     sess = get_session(doctor_id)
     name = sess.pending_create_name
@@ -590,7 +322,10 @@ async def handle_pending_create(text: str, doctor_id: str) -> str:
                 set_current_patient(doctor_id, patient.id, patient.name)
             clear_pending_create(doctor_id)
             fake_intent = IntentResult(intent=_Intent.add_record, patient_name=name)
-            return await handle_add_record(text, doctor_id, fake_intent)
+            # Delegate to the shared add_record handler.
+            from services.domain.intent_handlers import handle_add_record as _shared_add_record
+            hr = await _shared_add_record(text, doctor_id, [], fake_intent)
+            return hr.reply
         return f"还在为{name}建档\n请补充性别和年龄\n（如：男，17岁）\n或发「取消」放弃。"
 
     new_patient_id = None
@@ -607,186 +342,6 @@ async def handle_pending_create(text: str, doctor_id: str) -> str:
     parts = "、".join(filter(None, [gender, f"{age}岁" if age else None]))
     info = f"（{parts}）" if parts else ""
     return f"好的，{name}已建档{info}。"
-
-
-async def handle_list_tasks(doctor_id: str) -> str:
-    async with AsyncSessionLocal() as session:
-        tasks = await list_tasks(session, doctor_id, status="pending")
-    if not tasks:
-        return "📋 暂无待办任务。"
-    lines = [f"📋 待办任务 {len(tasks)}条\n"]
-    for t in tasks:
-        due = t.due_at.strftime('%m-%d') if t.due_at else ""
-        due_str = f"  📅{due}" if due else ""
-        lines.append(f"· {_t(t.title, 18)}{due_str}")
-        lines.append(f"  #{t.id} · {t.task_type}")
-    return "\n".join(lines)
-
-
-async def handle_complete_task(doctor_id: str, intent_result: IntentResult) -> str:
-    task_id = intent_result.extra_data.get("task_id")
-    if not isinstance(task_id, int):
-        return "⚠️ 未能识别任务编号，请发送「完成 5」（5为任务编号）。"
-    async with AsyncSessionLocal() as session:
-        task = await update_task_status(session, task_id, doctor_id, "completed")
-    if task is None:
-        return f"⚠️ 未找到任务 {task_id}，请确认编号是否正确。"
-    return intent_result.chat_reply or "好的，任务完成了。"
-
-
-async def handle_schedule_follow_up(doctor_id: str, intent_result: IntentResult) -> str:
-    """Create a standalone follow-up task for a patient without needing a record save."""
-    from datetime import timedelta, timezone
-    from services.notify.tasks import create_follow_up_task, extract_follow_up_days
-
-    patient_name = intent_result.patient_name
-    if not patient_name:
-        return "⚠️ 未能识别患者姓名，请说明如「给张三设3个月后随访」"
-
-    follow_up_plan = intent_result.extra_data.get("follow_up_plan") or "下次随访"
-
-    async with AsyncSessionLocal() as session:
-        patient = await find_patient_by_name(session, doctor_id, patient_name)
-
-    patient_id = patient.id if patient else None
-
-    # Resolve due days from the follow_up_plan text
-    days = extract_follow_up_days(follow_up_plan)
-    task = await create_follow_up_task(
-        doctor_id=doctor_id,
-        record_id=0,          # no linked record
-        patient_name=patient_name,
-        follow_up_plan=follow_up_plan,
-        patient_id=patient_id,
-    )
-    from datetime import datetime, timezone as tz
-    due_str = task.due_at.strftime("%Y-%m-%d") if task.due_at else f"{days}天后"
-    return (
-        f"✅ 已为【{patient_name}】创建随访提醒\n"
-        f"计划：{follow_up_plan}\n"
-        f"到期：{due_str}（任务编号 {task.id}）"
-    )
-
-
-async def handle_cancel_task(doctor_id: str, intent_result: IntentResult) -> str:
-    """Cancel a pending task by ID."""
-    task_id = intent_result.extra_data.get("task_id")
-    if not task_id:
-        return "⚠️ 未能识别任务编号，请发送「取消任务 5」（5为任务编号）。"
-    async with AsyncSessionLocal() as session:
-        task = await update_task_status(session, task_id, doctor_id, "cancelled")
-    if task is None:
-        return f"⚠️ 未找到任务 {task_id}，请确认编号是否正确。"
-    return f"🚫 任务 {task_id}（{task.title}）已取消。"
-
-
-async def handle_postpone_task(doctor_id: str, intent_result: IntentResult) -> str:
-    """Push a task's due date forward by N days."""
-    from datetime import timedelta, timezone
-    from db.crud import update_task_due_at, get_task_by_id
-
-    task_id = intent_result.extra_data.get("task_id")
-    delta_days = intent_result.extra_data.get("delta_days", 7)
-    if not task_id:
-        return "⚠️ 未能识别任务编号，请发送「推迟任务 5 一周」。"
-
-    async with AsyncSessionLocal() as session:
-        task = await get_task_by_id(session, task_id, doctor_id)
-        if task is None:
-            return f"⚠️ 未找到任务 {task_id}，请确认编号是否正确。"
-        now = datetime.now(timezone.utc)
-        base = task.due_at if task.due_at and task.due_at > now else now
-        new_due = base + timedelta(days=delta_days)
-        await update_task_due_at(session, task_id, doctor_id, new_due)
-
-    return (
-        f"⏰ 任务 {task_id}（{task.title}）已推迟 {delta_days} 天\n"
-        f"新到期时间：{new_due.strftime('%Y-%m-%d')}"
-    )
-
-
-async def handle_schedule_appointment(doctor_id: str, intent_result: IntentResult) -> str:
-    patient_name = intent_result.patient_name
-    if not patient_name:
-        return "⚠️ 未能识别患者姓名，请重新说明预约信息。"
-    raw_time = intent_result.extra_data.get("appointment_time")
-    if not raw_time:
-        return "⚠️ 未能识别预约时间，请使用格式如「明天下午2点」或「2026-03-15 14:00」。"
-    try:
-        appointment_dt = datetime.fromisoformat(str(raw_time))
-    except (ValueError, TypeError):
-        return "⚠️ 时间格式无法识别，请使用格式如「2026-03-15T14:00:00」。"
-    notes = intent_result.extra_data.get("notes")
-    task = await create_appointment_task(doctor_id, patient_name, appointment_dt, notes)
-    return (
-        f"📅 已为患者【{patient_name}】安排预约\n"
-        f"时间：{appointment_dt.strftime('%m-%d %H:%M')}\n"
-        f"任务编号：{task.id}（1小时前提醒）"
-    )
-
-
-_CLINICAL_KEYS_ZH = {
-    "chief_complaint": "主诉",
-    "history_of_present_illness": "现病史",
-    "past_medical_history": "既往史",
-    "physical_examination": "体格检查",
-    "auxiliary_examinations": "辅助检查",
-    "diagnosis": "诊断",
-    "treatment_plan": "治疗方案",
-    "follow_up_plan": "随访计划",
-}
-
-
-async def _restructure_and_save_record(
-    doctor_id: str,
-    patient_id: int,
-    patient_name: str,
-    existing_content: str,
-    fields: dict,
-) -> str:
-    """Re-structure the record with the given field corrections and save it."""
-    correction_lines = "\n".join(
-        f"{_CLINICAL_KEYS_ZH.get(k, k)}：{v}" for k, v in fields.items() if v
-    )
-    correction_text = (
-        f"原有病历：\n{existing_content}\n\n"
-        f"更正以下字段（以更正内容为准）：\n{correction_lines}"
-    )
-    try:
-        new_record = await structure_medical_record(correction_text)
-    except Exception as e:
-        log(f"[WeChat] update_record re-structure FAILED doctor={doctor_id}: {e}")
-        return "⚠️ 病历更正失败，请稍后重试。"
-    async with AsyncSessionLocal() as session:
-        await update_latest_record_for_patient(
-            session, doctor_id, patient_id,
-            {"content": new_record.content, "tags": new_record.tags},
-        )
-    updated_labels = "、".join(_CLINICAL_KEYS_ZH.get(k, k) for k in fields)
-    return f"✅ 已更正患者【{patient_name}】最近一条病历\n更新字段：{updated_labels}"
-
-
-async def handle_update_record(doctor_id: str, intent_result: IntentResult) -> str:
-    """Re-structure the most recent record with the corrected fields applied."""
-    patient_name = (intent_result.patient_name or "").strip()
-    sess = get_session(doctor_id)
-    if not patient_name and sess.current_patient_name:
-        patient_name = sess.current_patient_name
-    if not patient_name:
-        return "⚠️ 未能识别患者姓名，请说明要更正哪位患者的病历。"
-    fields = intent_result.structured_fields or {}
-    if not fields:
-        return "⚠️ 未能识别需要更正的字段内容，请重新描述。"
-    async with AsyncSessionLocal() as session:
-        patient = await find_patient_by_name(session, doctor_id, patient_name)
-        if patient is None:
-            return f"⚠️ 未找到患者【{patient_name}】，请确认姓名后重试。"
-        existing = await update_latest_record_for_patient(session, doctor_id, patient.id, {})
-    if existing is None:
-        return f"⚠️ 患者【{patient_name}】暂无病历记录，无法更正。"
-    return await _restructure_and_save_record(
-        doctor_id, patient.id, patient_name, existing.content or "", fields
-    )
 
 
 # WeCom KF message parsing helpers (re-exported from wechat_bg)

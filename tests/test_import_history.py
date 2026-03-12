@@ -152,9 +152,9 @@ async def test_mark_duplicates_flags_matching_complaint():
     mock_session.__aexit__ = AsyncMock(return_value=False)
 
     with (
-        patch("services.wechat.wechat_domain.AsyncSessionLocal", return_value=mock_session),
+        patch("services.wechat.wechat_import.AsyncSessionLocal", return_value=mock_session),
         patch(
-            "services.wechat.wechat_domain.get_records_for_patient",
+            "db.crud.get_records_for_patient",
             new=AsyncMock(return_value=[existing_rec]),
         ),
     ):

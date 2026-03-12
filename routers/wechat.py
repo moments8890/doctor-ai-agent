@@ -100,11 +100,6 @@ from routers.wechat_flows import (
     handle_menu_event as _handle_menu_event,
     handle_name_lookup as _handle_name_lookup,
     handle_pending_create as _handle_pending_create,
-    handle_list_tasks as _handle_list_tasks,
-    handle_complete_task as _handle_complete_task,
-    handle_schedule_appointment as _handle_schedule_appointment,
-    handle_update_record as _handle_update_record,
-    handle_update_patient as _handle_update_patient,
     build_reply as _build_reply,
     confirm_pending_record as _confirm_pending_record,
     handle_pending_record_reply as _handle_pending_record_reply,
@@ -116,6 +111,8 @@ from routers.wechat_flows import (
     _handle_file_bg,
     _HELP_TEXT,
     _FALLBACK_TEXT,
+    WeChatReply as _WeChatReply,
+    _plain as _plain_reply,
 )
 
 def _extract_open_kfid(msg) -> str:
@@ -146,7 +143,7 @@ def _format_chat_result(result) -> str:
     return "\n".join(p for p in parts if p).strip()
 
 
-async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str:
+async def _handle_intent(text: str, doctor_id: str, history: list = None) -> "_WeChatReply":
     # Fast-path: "完成 N" bypasses LLM
     m = _COMPLETE_RE.match(text.strip())
     if m:
@@ -154,22 +151,22 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
         async with AsyncSessionLocal() as session:
             task = await update_task_status(session, task_id, doctor_id, "completed")
         if task is None:
-            return f"⚠️ 未找到任务 {task_id}，请确认编号是否正确。"
-        return f"✅ 任务【{task.title}】已标记完成。"
+            return _plain_reply(f"⚠️ 未找到任务 {task_id}，请确认编号是否正确。")
+        return _plain_reply(f"✅ 任务【{task.title}】已标记完成。")
 
     notify_reply = await _handle_notify_control_command(doctor_id, text)
     if notify_reply:
-        return notify_reply
+        return _plain_reply(notify_reply)
 
     knowledge_payload = parse_add_to_knowledge_command(text)
     if knowledge_payload is not None:
         if not knowledge_payload:
-            return "⚠️ 请在命令后补充知识内容，例如：add_to_knowledge_base 高危胸痛需先排除ACS。"
+            return _plain_reply("⚠️ 请在命令后补充知识内容，例如：add_to_knowledge_base 高危胸痛需先排除ACS。")
         async with AsyncSessionLocal() as session:
             item = await save_knowledge_item(session, doctor_id, knowledge_payload, source="doctor", confidence=1.0)
         if item is None:
-            return "⚠️ 知识内容为空，未保存。"
-        return "✅ 已加入医生知识库（#{0}）：{1}".format(item.id, knowledge_payload)
+            return _plain_reply("⚠️ 知识内容为空，未保存。")
+        return _plain_reply("✅ 已加入医生知识库（#{0}）：{1}".format(item.id, knowledge_payload))
 
     knowledge_context = await _load_knowledge_context(doctor_id, text)
 
@@ -188,19 +185,19 @@ async def _handle_intent(text: str, doctor_id: str, history: list = None) -> str
         _record_metric("fallback:structuring")
         try:
             record = await structure_medical_record(text)
-            return wd.format_record(record)
+            return _plain_reply(wd.format_record(record))
         except ValueError:
-            return "没能识别病历内容，请重新描述一下。"
+            return _plain_reply("没能识别病历内容，请重新描述一下。")
         except Exception as ex:
             log(f"[WeChat] structuring fallback FAILED doctor={doctor_id}: {ex}")
             _record_metric("fallback:error")
-            return "不好意思，出了点问题，能再说一遍吗？"
+            return _plain_reply("不好意思，出了点问题，能再说一遍吗？")
 
     if not result.gate.approved:
         # For add_record blocked by no_patient_name, let the handler's own
         # patient resolution run (single-patient auto-bind, name token lookup).
         if result.gate.reason != "no_patient_name":
-            return result.gate.clarification_message or _FALLBACK_TEXT
+            return _plain_reply(result.gate.clarification_message or _FALLBACK_TEXT)
 
     intent_result = result.to_intent_result()
     bind_log_context(intent=intent_result.intent.value)
@@ -378,7 +375,7 @@ def verify(
         return Response(content="Invalid signature", status_code=403)
 
 
-async def _route_session_state_bg(text: str, doctor_id: str) -> str:
+async def _route_session_state_bg(text: str, doctor_id: str) -> "_WeChatReply":
     """Under session lock: check stateful flows first, else call _handle_intent."""
     from services.ai.turn_context import assemble_turn_context
     sess = get_session(doctor_id)
@@ -390,14 +387,15 @@ async def _route_session_state_bg(text: str, doctor_id: str) -> str:
     # Assemble authoritative workflow state + advisory context (already under lock)
     ctx = await assemble_turn_context(doctor_id, already_locked=True)
 
+    reply_parts: "_WeChatReply"
     if ctx.workflow.pending_record_id:
-        result = await _handle_pending_record_reply(text, doctor_id, sess)
+        reply_parts = _plain_reply(await _handle_pending_record_reply(text, doctor_id, sess))
     elif ctx.workflow.pending_create_name:
-        result = await _handle_pending_create(text, doctor_id)
+        reply_parts = _plain_reply(await _handle_pending_create(text, doctor_id))
     elif ctx.workflow.pending_cvd_scale is not None:
-        result = await wd.handle_cvd_scale_reply(text, doctor_id)
+        reply_parts = _plain_reply(await wd.handle_cvd_scale_reply(text, doctor_id))
     elif ctx.workflow.interview is not None:
-        result = await _handle_interview_step(text, doctor_id)
+        reply_parts = _plain_reply(await _handle_interview_step(text, doctor_id))
     else:
         welcome = ""
         if not ctx.advisory.recent_history:
@@ -412,25 +410,38 @@ async def _route_session_state_bg(text: str, doctor_id: str) -> str:
         log(f"[WeChat bg] provenance: patient_source={ctx.provenance.current_patient_source} "
             f"memory={ctx.provenance.memory_used} knowledge={ctx.provenance.knowledge_used}")
         try:
-            _r = await _handle_intent(text, doctor_id, history=history)
-            result = welcome + _r if welcome else _r
+            reply_parts = await _handle_intent(text, doctor_id, history=history)
+            if welcome:
+                reply_parts = _WeChatReply(
+                    notification=reply_parts.notification,
+                    text=welcome + reply_parts.text,
+                )
         except Exception as e:
             log(f"[WeChat bg] FAILED: {e}")
-            result = "不好意思，出了点问题，能再说一遍吗？"
-    push_turn(doctor_id, text, result)
+            reply_parts = _plain_reply("不好意思，出了点问题，能再说一遍吗？")
+    # Store combined text for conversation history (notification + reply).
+    combined = reply_parts.text
+    if reply_parts.notification:
+        combined = f"{reply_parts.notification}\n{reply_parts.text}"
+    push_turn(doctor_id, text, combined)
     await flush_turns(doctor_id)
-    return result
+    return reply_parts
 
 
 async def _handle_intent_bg(text: str, doctor_id: str, open_kfid: str = "", msg_id: str = ""):
-    """Process intent in background and deliver result via customer service API."""
+    """Process intent in background and deliver result via customer service API.
+
+    When ``_route_session_state_bg`` returns a ``WeChatReply`` with a non-None
+    ``notification`` (e.g. a patient-switch bubble), that notification is sent
+    as a separate CS-API message *before* the main reply text.
+    """
     bind_log_context(doctor_id=doctor_id)
     if open_kfid:
         asyncio.create_task(prefetch_customer_profile(doctor_id))
 
     _OVERALL_TIMEOUT = float(os.environ.get("INTENT_BG_TIMEOUT", "4.5"))
     _LOCK_TIMEOUT = float(os.environ.get("INTENT_LOCK_TIMEOUT", "1.0"))
-    result = "处理超时，请重新发送。"
+    reply_parts: "_WeChatReply" = _plain_reply("处理超时，请重新发送。")
     try:
         try:
             async with _async_timeout(_OVERALL_TIMEOUT):
@@ -445,18 +456,18 @@ async def _handle_intent_bg(text: str, doctor_id: str, open_kfid: str = "", msg_
                         log(f"[WeChat bg] session lock wait {_lock_wait_ms:.0f}ms doctor={doctor_id}")
                 except asyncio.TimeoutError:
                     log(f"[WeChat bg] lock timeout after {_LOCK_TIMEOUT}s doctor={doctor_id}")
-                    result = "上一条消息处理中，请稍候重发。"
+                    reply_parts = _plain_reply("上一条消息处理中，请稍候重发。")
                 if _lock_acquired:
                     try:
                         await hydrate_session_state(doctor_id)  # inside lock: no TOCTOU
-                        result = await _route_session_state_bg(text, doctor_id)
+                        reply_parts = await _route_session_state_bg(text, doctor_id)
                     finally:
                         _lock.release()
         except asyncio.TimeoutError:
             log(f"[WeChat bg] TIMEOUT after {_OVERALL_TIMEOUT}s doctor={doctor_id}")
         except Exception as e:
             log(f"[WeChat bg] FAILED (outer): {e}")
-            result = "不好意思，出了点问题，能再说一遍吗？"
+            reply_parts = _plain_reply("不好意思，出了点问题，能再说一遍吗？")
     finally:
         if msg_id:
             try:
@@ -466,7 +477,15 @@ async def _handle_intent_bg(text: str, doctor_id: str, open_kfid: str = "", msg_
             except Exception as _e:
                 log(f"[WeChat bg] mark pending_message done FAILED: {_e}")
         try:
-            await _send_customer_service_msg(doctor_id, result, open_kfid=open_kfid)
+            # Send switch notification as a separate chat bubble before the main reply.
+            if reply_parts.notification:
+                try:
+                    await _send_customer_service_msg(
+                        doctor_id, reply_parts.notification, open_kfid=open_kfid,
+                    )
+                except Exception as ne:
+                    log(f"[WeChat bg] switch notification send FAILED: {ne}")
+            await _send_customer_service_msg(doctor_id, reply_parts.text, open_kfid=open_kfid)
         except Exception as e:
             log(f"[WeChat bg] send FAILED: {e}")
 

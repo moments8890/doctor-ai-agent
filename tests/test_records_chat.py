@@ -126,10 +126,9 @@ async def test_complete_task_fastpath_marks_task_done(session_factory):
         )
 
     agent_mock = AsyncMock()
-    with patch("routers.records.AsyncSessionLocal", session_factory), patch(
-        "services.ai.agent.dispatch",
-        new=agent_mock,
-    ):
+    with patch("routers.records.AsyncSessionLocal", session_factory), \
+         patch("services.domain.chat_handlers.AsyncSessionLocal", session_factory), \
+         patch("services.ai.agent.dispatch", new=agent_mock):
         response = await chat(ChatInput(text=f"完成 {task.id}", history=[], doctor_id=DOCTOR))
 
     agent_mock.assert_not_awaited()

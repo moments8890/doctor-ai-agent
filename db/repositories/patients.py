@@ -31,6 +31,7 @@ class PatientRepository:
         name: str,
         gender: Optional[str],
         age: Optional[int],
+        access_code_hash: Optional[str] = None,
     ) -> Patient:
         patient = Patient(
             doctor_id=doctor_id,
@@ -39,6 +40,7 @@ class PatientRepository:
             year_of_birth=_year_of_birth(age),
             primary_category="new",
             category_tags="[]",
+            access_code=access_code_hash,
         )
         self.session.add(patient)
         await self.session.commit()

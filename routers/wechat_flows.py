@@ -7,47 +7,67 @@ from __future__ import annotations
 import asyncio
 import time
 from datetime import datetime
-from typing import List
+from typing import NamedTuple, Optional
 
 from db.engine import AsyncSessionLocal
 from db.crud import (
     create_patient,
-    delete_patient_for_doctor,
     find_patient_by_name,
-    find_patients_by_exact_name,
     save_record,
-    get_records_for_patient,
-    get_all_records_for_doctor,
     get_all_patients,
-    list_tasks,
-    update_task_status,
     get_pending_record,
     abandon_pending_record,
 )
-from db.crud.patient import update_patient_demographics
 from services.ai.intent import Intent, IntentResult
-from services.ai.structuring import structure_medical_record
 from services.ai.vision import extract_text_from_image
 from services.knowledge.pdf_extract import extract_text_from_pdf
-from services.knowledge.doctor_knowledge import load_knowledge_context_for_prompt
-from services.ai.router import route_message
 from services.notify.notify_control import (
     parse_notify_command, get_notify_pref, set_notify_mode, set_notify_interval,
     set_notify_cron, set_notify_immediate, format_notify_pref,
 )
-from services.notify.tasks import (
-    create_follow_up_task, create_emergency_task, create_appointment_task, run_due_task_cycle,
-)
+from services.notify.tasks import create_follow_up_task
 from services.session import get_session, set_current_patient, clear_pending_record_id
 from services.observability.audit import audit
 from services.wechat import wechat_domain as wd
+from services.domain.intent_handlers import (
+    handle_add_record as _shared_add_record,
+    handle_cancel_task as _shared_cancel_task,
+    handle_create_patient as _shared_create_patient,
+    handle_complete_task as _shared_complete_task,
+    handle_delete_patient as _shared_delete_patient,
+    handle_list_patients as _shared_list_patients,
+    handle_list_tasks as _shared_list_tasks,
+    handle_postpone_task as _shared_postpone_task,
+    handle_query_records as _shared_query_records,
+    handle_schedule_appointment as _shared_schedule_appointment,
+    handle_schedule_follow_up as _shared_schedule_follow_up,
+    handle_update_patient as _shared_update_patient,
+    handle_update_record as _shared_update_record,
+    HandlerResult as _HandlerResult,
+)
 from services.wechat import wechat_media_pipeline as wmp
-from services.wechat.wechat_voice import download_and_convert
-from services.ai.transcription import transcribe_audio
 from services.wechat.wechat_notify import _get_config, _get_access_token, _send_customer_service_msg
 from services.wechat.wechat_voice import download_media
 from routers.wechat_infra import KB_CONTEXT_CACHE as _KB_CONTEXT_CACHE, KB_CONTEXT_TTL as _KB_CONTEXT_TTL, get_kb_lock as _get_kb_lock
 from utils.log import log
+
+
+# ── WeChatReply type ─────────────────────────────────────────────────────────
+
+class WeChatReply(NamedTuple):
+    """Structured reply from intent dispatch, carrying an optional switch notification."""
+    notification: Optional[str]
+    text: str
+
+
+def _hr_to_parts(hr: _HandlerResult) -> WeChatReply:
+    """Convert a shared-layer HandlerResult to a WeChatReply."""
+    return WeChatReply(notification=hr.switch_notification, text=hr.reply)
+
+
+def _plain(text: str) -> WeChatReply:
+    """Wrap a plain string as a WeChatReply with no notification."""
+    return WeChatReply(notification=None, text=text)
 
 
 # ── WeCom domain binding ─────────────────────────────────────────────────────
@@ -58,34 +78,34 @@ def sync_wechat_domain_bindings() -> None:
     wd.structure_medical_record = _w.structure_medical_record
     wd.create_patient = create_patient
     wd.find_patient_by_name = find_patient_by_name
-    wd.find_patients_by_exact_name = find_patients_by_exact_name
-    wd.delete_patient_for_doctor = delete_patient_for_doctor
     wd.save_record = save_record
-    wd.get_records_for_patient = get_records_for_patient
-    wd.get_all_records_for_doctor = get_all_records_for_doctor
     wd.get_all_patients = _w.get_all_patients
-    wd.list_tasks = _w.list_tasks
-    wd.update_task_status = _w.update_task_status
     wd.create_follow_up_task = create_follow_up_task
-    wd.create_emergency_task = _w.create_emergency_task
-    wd.create_appointment_task = _w.create_appointment_task
 
 
-# ── Domain handler shims ─────────────────────────────────────────────────────
+# ── Shared handler helper ─────────────────────────────────────────────────────
+
+from services.domain.adapters import WeChatAdapter as _WeChatAdapter
+_wechat_adapter = _WeChatAdapter()
+
+
+async def _hr_to_text(hr: _HandlerResult) -> str:
+    """Convert HandlerResult to WeChat plain-text, prepending switch notification."""
+    return await _wechat_adapter.format_reply(hr)
+
+
+# ── Domain handler shims (unique-to-WeChat functions) ─────────────────────────
 
 async def handle_create_patient(doctor_id: str, intent_result) -> str:
-    sync_wechat_domain_bindings()
-    return await wd.handle_create_patient(doctor_id, intent_result)
+    return await _hr_to_text(await _shared_create_patient(doctor_id, intent_result))
 
 
 async def handle_add_record(text: str, doctor_id: str, intent_result, history: list = None) -> str:
-    sync_wechat_domain_bindings()
-    return await wd.handle_add_record(text, doctor_id, intent_result, history=history)
+    return await _hr_to_text(await _shared_add_record(text, doctor_id, history or [], intent_result))
 
 
 async def handle_query_records(doctor_id: str, intent_result) -> str:
-    sync_wechat_domain_bindings()
-    return await wd.handle_query_records(doctor_id, intent_result)
+    return await _hr_to_text(await _shared_query_records(doctor_id, intent_result))
 
 
 async def handle_all_patients(doctor_id: str) -> str:
@@ -108,26 +128,6 @@ async def handle_pending_create(text: str, doctor_id: str) -> str:
     return await wd.handle_pending_create(text, doctor_id)
 
 
-async def handle_list_tasks(doctor_id: str) -> str:
-    sync_wechat_domain_bindings()
-    return await wd.handle_list_tasks(doctor_id)
-
-
-async def handle_complete_task(doctor_id: str, intent_result) -> str:
-    sync_wechat_domain_bindings()
-    return await wd.handle_complete_task(doctor_id, intent_result)
-
-
-async def handle_schedule_appointment(doctor_id: str, intent_result) -> str:
-    sync_wechat_domain_bindings()
-    return await wd.handle_schedule_appointment(doctor_id, intent_result)
-
-
-async def handle_update_record(doctor_id: str, intent_result) -> str:
-    sync_wechat_domain_bindings()
-    return await wd.handle_update_record(doctor_id, intent_result)
-
-
 async def build_reply(content: str) -> str:
     sync_wechat_domain_bindings()
     return await wd.build_reply(content)
@@ -148,35 +148,21 @@ async def handle_menu_event(event_key: str, doctor_id: str) -> str:
 
 
 async def handle_name_lookup(name: str, doctor_id: str) -> str:
-    from routers import wechat as _w
-    sync_wechat_domain_bindings()
-    original_query = wd.handle_query_records
-    wd.handle_query_records = _w._handle_query_records
-    try:
-        return await wd.handle_name_lookup(name, doctor_id)
-    finally:
-        wd.handle_query_records = original_query
-
-
-async def handle_update_patient(doctor_id: str, intent_result) -> str:
-    """Update patient demographics (gender/age)."""
-    patient_name = (intent_result.patient_name or "").strip()
-    if not patient_name:
-        return "⚠️ 未能识别患者姓名，请说明要修改哪位患者的信息。"
-    gender = intent_result.gender
-    age = intent_result.age
-    if not gender and age is None:
-        return "⚠️ 未能识别需要修改的信息，请说明新的年龄或性别。"
+    """Resolve a bare patient name: query records if found, or start pending create."""
+    from services.session import set_pending_create
     async with AsyncSessionLocal() as session:
-        patient = await update_patient_demographics(session, doctor_id, patient_name, gender, age)
-    if patient is None:
-        return f"⚠️ 未找到患者【{patient_name}】，请确认姓名后重试。"
-    changes = []
-    if gender:
-        changes.append(f"性别→{gender}")
-    if age is not None:
-        changes.append(f"年龄→{age}岁")
-    return f"✅ 已更新患者【{patient_name}】信息：{'、'.join(changes)}"
+        patient = await find_patient_by_name(session, doctor_id, name)
+    if patient:
+        _prev = set_current_patient(doctor_id, patient.id, patient.name)
+        log(f"[WeChat] name lookup hit: {name} -> patient_id={patient.id}")
+        fake = IntentResult(intent=Intent.query_records, patient_name=name)
+        result = await _hr_to_text(await _shared_query_records(doctor_id, fake))
+        if _prev:
+            result = f"🔄 已从【{_prev}】切换到【{patient.name}】\n{result}"
+        return result
+    set_pending_create(doctor_id, name)
+    log(f"[WeChat] name lookup miss: {name} -> pending create")
+    return f"没找到{name}这位患者，请问性别和年龄？（或发送「取消」放弃）"
 
 
 # ── Notify control ───────────────────────────────────────────────────────────
@@ -320,7 +306,8 @@ async def handle_pending_record_reply(text: str, doctor_id: str, sess) -> str:
         clear_pending_record_id(doctor_id)
         log(f"[WeChat] pending record {pending_id} not found or expired, doctor={doctor_id}")
         from routers import wechat as _wechat_router
-        return await _wechat_router._handle_intent(text, doctor_id)
+        _fallback = await _wechat_router._handle_intent(text, doctor_id)
+        return _fallback.text
     stripped = text.strip()
     if stripped in ("撤销", "取消", "cancel", "Cancel", "不要", "放弃", "no", "No"):
         async with AsyncSessionLocal() as session:
@@ -337,8 +324,8 @@ async def handle_pending_record_reply(text: str, doctor_id: str, sess) -> str:
     _pname = pending.patient_name or "未关联患者"
     log(f"[WeChat] pending record abandoned on context switch, doctor={doctor_id} patient={_pname}")
     from routers import wechat as _wechat_router
-    new_result = await _wechat_router._handle_intent(text, doctor_id)
-    return f"⚠️ 【{_pname}】的病历草稿已放弃。\n\n{new_result}"
+    _new_parts = await _wechat_router._handle_intent(text, doctor_id)
+    return f"⚠️ 【{_pname}】的病历草稿已放弃。\n\n{_new_parts.text}"
 
 
 # ── Intent dispatch helpers ──────────────────────────────────────────────────
@@ -369,79 +356,77 @@ _HELP_TEXT = (
 _FALLBACK_TEXT = "没太理解您的意思，能说得更具体一些吗？发送「帮助」可查看完整功能列表。"
 
 
-async def dispatch_intent_result(text: str, doctor_id: str, intent_result, history: list):
+async def dispatch_intent_result(text: str, doctor_id: str, intent_result, history: list) -> WeChatReply:
     """Route an IntentResult to the appropriate domain handler."""
     from routers import wechat as _w
     i = intent_result.intent
     if i == Intent.create_patient:
-        return await handle_create_patient(doctor_id, intent_result)
+        return _hr_to_parts(await _shared_create_patient(doctor_id, intent_result))
     if i == Intent.add_record:
         return await handle_add_record_intent(text, doctor_id, intent_result, history)
     if i == Intent.query_records:
-        return await _w._handle_query_records(doctor_id, intent_result)
+        return _hr_to_parts(await _shared_query_records(doctor_id, intent_result))
     if i == Intent.list_patients:
-        return await _w._handle_all_patients(doctor_id)
+        return _hr_to_parts(await _shared_list_patients(doctor_id))
     if i == Intent.delete_patient:
-        return await wd.handle_delete_patient(doctor_id, intent_result)
+        return _hr_to_parts(await _shared_delete_patient(doctor_id, intent_result))
     if i == Intent.list_tasks:
-        return await _w._handle_list_tasks(doctor_id)
+        return _hr_to_parts(await _shared_list_tasks(doctor_id))
     if i == Intent.complete_task:
-        return await _w._handle_complete_task(doctor_id, intent_result)
+        return _hr_to_parts(await _shared_complete_task(doctor_id, intent_result))
     if i == Intent.schedule_appointment:
-        return await _w._handle_schedule_appointment(doctor_id, intent_result)
+        return _hr_to_parts(await _shared_schedule_appointment(doctor_id, intent_result))
     if i == Intent.export_records:
-        return await wd.handle_export_records(doctor_id, intent_result)
+        return _plain(await wd.handle_export_records(doctor_id, intent_result))
     if i == Intent.export_outpatient_report:
-        return await wd.handle_export_outpatient_report(doctor_id, intent_result)
+        return _plain(await wd.handle_export_outpatient_report(doctor_id, intent_result))
     if i == Intent.schedule_follow_up:
-        return await wd.handle_schedule_follow_up(doctor_id, intent_result)
+        return _hr_to_parts(await _shared_schedule_follow_up(doctor_id, intent_result))
     if i == Intent.cancel_task:
-        return await wd.handle_cancel_task(doctor_id, intent_result)
+        return _hr_to_parts(await _shared_cancel_task(doctor_id, intent_result))
     if i == Intent.postpone_task:
-        return await wd.handle_postpone_task(doctor_id, intent_result)
+        return _hr_to_parts(await _shared_postpone_task(doctor_id, intent_result))
     if i == Intent.import_history:
-        return await wd.handle_import_history(text, doctor_id, intent_result)
+        return _plain(await wd.handle_import_history(text, doctor_id, intent_result))
     if i == Intent.update_record:
-        return await handle_update_record(doctor_id, intent_result)
+        return _hr_to_parts(await _shared_update_record(doctor_id, intent_result))
     if i == Intent.update_patient:
-        return await handle_update_patient(doctor_id, intent_result)
+        return _hr_to_parts(await _shared_update_patient(doctor_id, intent_result))
     if i == Intent.help:
-        return _HELP_TEXT
+        return _plain(_HELP_TEXT)
     if i == Intent.unknown:
         return await handle_unknown_intent(text, doctor_id, intent_result, history)
-    return intent_result.chat_reply or _FALLBACK_TEXT
+    return _plain(intent_result.chat_reply or _FALLBACK_TEXT)
 
 
-async def handle_add_record_intent(text: str, doctor_id: str, intent_result, history: list) -> str:
-    """Resolve patient context for add_record intent then delegate."""
+async def handle_add_record_intent(text: str, doctor_id: str, intent_result, history: list) -> WeChatReply:
+    """Resolve patient context for add_record intent then delegate to shared handler."""
     from routers import wechat as _w
     sess = get_session(doctor_id)
     if intent_result.patient_name or sess.current_patient_id:
-        return await _w._handle_add_record(text, doctor_id, intent_result, history=history)
-    async with _w.AsyncSessionLocal() as session:
-        patients = await _w.get_all_patients(session, doctor_id)
+        return _hr_to_parts(await _shared_add_record(text, doctor_id, history or [], intent_result))
+    async with AsyncSessionLocal() as db:
+        patients = await get_all_patients(db, doctor_id)
     if len(patients) == 1:
         only = patients[0]
-        _prev = set_current_patient(doctor_id, only.id, only.name)
-        log(f"[WeChat] rebound single patient context: doctor={doctor_id} patient={only.name}")
-        result = await _w._handle_add_record(text, doctor_id, intent_result, history=history)
-        if _prev:
-            result = f"🔄 已从【{_prev}】切换到【{only.name}】\n{result}"
-        return result
+        set_current_patient(doctor_id, only.id, only.name)
+        intent_result.patient_name = only.name
+        log(f"[WeChat] single-patient auto-bind: {only.name} doctor={doctor_id}")
+        return _hr_to_parts(await _shared_add_record(text, doctor_id, history or [], intent_result))
     candidate_name = wd.name_token_or_none(text)
     if candidate_name:
-        return await _w._handle_name_lookup(candidate_name, doctor_id)
-    return "请问这位患者叫什么名字？"
+        return _plain(await _w._handle_name_lookup(candidate_name, doctor_id))
+    return _plain("请问这位患者叫什么名字？")
 
 
-async def handle_unknown_intent(text: str, doctor_id: str, intent_result, history: list) -> str:
+async def handle_unknown_intent(text: str, doctor_id: str, intent_result, history: list) -> WeChatReply:
     """Handle Intent.unknown: try name lookup, symptom shortcut, then fallback."""
     from routers import wechat as _w
     explicit_name = wd.explicit_name_or_none(text)
     if explicit_name:
         looked_up = await _w._handle_name_lookup(explicit_name, doctor_id)
         if looked_up:
-            return looked_up
+            return _plain(looked_up)
     sess = get_session(doctor_id)
     if sess.current_patient_id and wd.looks_like_symptom_note(text):
         synthetic = IntentResult(
@@ -454,8 +439,8 @@ async def handle_unknown_intent(text: str, doctor_id: str, intent_result, histor
                 "可继续补充时长/诱因完善病历"
             ),
         )
-        return await _w._handle_add_record(text, doctor_id, synthetic, history=history)
-    return intent_result.chat_reply or _FALLBACK_TEXT
+        return _hr_to_parts(await _shared_add_record(text, doctor_id, history or [], synthetic))
+    return _plain(intent_result.chat_reply or _FALLBACK_TEXT)
 
 
 # ── Media background handlers ────────────────────────────────────────────────

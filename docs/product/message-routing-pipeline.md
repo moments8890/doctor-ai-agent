@@ -1,234 +1,365 @@
 # Message Routing Pipeline
 
-> Last updated: 2026-03-08
+> Last updated: 2026-03-12
 
-How a doctor's message travels from WeChat (or the REST API) to the LLM — or bypasses the LLM entirely.
+Current routing flow for doctor messages across all three channels: web chat,
+WeChat, and voice.
+
+This document replaces the older Tier-3 clinical-keyword description. The live
+system now uses a shared 5-layer intent workflow, with `fast_route` limited to
+deterministic Tier 0-2 rules and the LLM used as a classification fallback
+when rules do not match.
 
 ---
 
-## Overview
+## Scope
 
-The system routes ~90% of doctor messages without ever calling an LLM, resolving intent in under 1ms via keyword matching and regex rules. Only ambiguous messages fall through to the LLM (~3–6s).
+This is the canonical pipeline for:
 
-```
+- Web doctor chat: `POST /api/records/chat`
+- Main WeChat doctor message handling in `routers/wechat.py`
+- Voice doctor chat: `POST /api/voice/chat` (transcription + shared workflow)
+
+All three channels use the same `services.intent_workflow.run()` entry point
+and dispatch to the same set of shared handlers in `services/domain/intent_handlers/`.
+
+Notes:
+
+- `routers/voice.py` `/api/voice/consultation` endpoint is a separate explicit
+  structured-recording flow that does not use the shared workflow
+- `services/ai/router.py` remains as a legacy helper for some WeChat flow
+  helpers, but it is not the main pipeline documented here
+
+---
+
+## End-to-End Flow
+
+```text
 Doctor sends message
         │
         ▼
-┌─────────────────────────────────────────────────────┐
-│  records.chat()  (routers/records.py)               │
-│                                                     │
-│  Pre-checks (always run first):                     │
-│  1. Rate limit check                                │
-│  2. Notify control commands  ("通知"/"提醒" cmds)    │
-│  3. Knowledge base commands  ("/加入知识库")          │
-└─────────────────────────────────────────────────────┘
+Channel entrypoint
+  Web:    routers/records.py::_chat_for_doctor()
+  WeChat: routers/wechat.py::_handle_intent()
+  Voice:  routers/voice.py::_voice_chat_for_doctor() (after transcription)
         │
         ▼
-┌─────────────────────────────────────────────────────┐
-│  fast_route(text)                                   │
-│  services/ai/fast_router.py  — ~1ms, no LLM         │
-│                                                     │
-│  Tier 0   [PDF:/Word: prefix] → import_history      │
-│           Long text (>800 chars) with 2+ dates      │
-│           → import_history                          │
-│                                                     │
-│  Tier 1   Exact keyword sets (hot-reloadable from   │
-│           config/fast_router_keywords.json):        │
-│           "患者列表" / "所有患者" → list_patients    │
-│           "待办任务" / "今天任务" → list_tasks        │
-│           Flex regex for variants of the above      │
-│                                                     │
-│  Tier 2   Regex patterns:                           │
-│           "查[NAME]" / "[NAME]的记录" → query_records│
-│           "创建[NAME]" → create_patient             │
-│           "删除[NAME]" → delete_patient             │
-│           "[NAME]改成女" → update_patient            │
-│           "刚才写错了" / "上一条更正" → update_record │
-│           "完成任务1" → complete_task                │
-│           "补充：…" / "加上…" → add_record           │
-│                                                     │
-│  Tier 2.5 Mined rules (data/mined_rules.json)       │
-│           Learned patterns from production logs     │
-│                                                     │
-│  Tier 3   Clinical keyword detection → add_record   │
-│           (see detail below)                        │
-│                                                     │
-│  Returns: IntentResult  OR  None                    │
-└─────────────────────────────────────────────────────┘
-        │                        │
-   IntentResult (~90%)       None (~10%)
-        │                        │
-        ▼                        ▼
-  Skip LLM entirely      ┌────────────────────────────┐
-  Use intent directly     │  agent_dispatch()          │
-                          │  services/ai/agent.py      │
-                          │  ~3–6s                     │
-                          │                            │
-                          │  System prompt + history   │
-                          │  + tool definitions        │
-                          │  → LLM (Claude / DeepSeek) │
-                          │                            │
-                          │  Returns IntentResult      │
-                          │  (may include              │
-                          │   structured_fields)       │
-                          └────────────────────────────┘
-        │                        │
-        └──────────┬─────────────┘
-                   ▼
-       Intent handler in records.chat()
-       add_record / query / create / update / etc.
-```
-
----
-
-## Tier 3 — Clinical Keyword Detection (Most Complex)
-
-Tier 3 decides whether a message is a **doctor dictating a clinical note** (→ `add_record`) or a **patient question / exam MCQ / encyclopedia article** (→ LLM fallback).
-
-### Decision flow
-
-```
-Message reaches Tier 3
+Channel prechecks / deterministic fast paths
+  - rate limit / greeting / menu shortcut / notify control
+  - knowledge-base command interception
+  - task completion and a few channel-specific direct handlers
         │
         ▼
-Contains a clinical keyword?  ──── No ──→ return None (→ LLM)
-  (胸痛, 脑梗, 化疗, 结节, …)
-        │ Yes
+Load doctor knowledge context (best effort)
+  services/knowledge/knowledge_cache.py — per-doctor TTL cache (5 min)
+        │
         ▼
-复查-only + reminder command?  ─── Yes ──→ return None (→ LLM)
-  ("复查提醒张三")
-        │ No
+services.intent_workflow.run()
+  1. classify  -> menu shortcut OR fast_route OR LLM dispatch
+  2. extract   -> resolve patient/gender/age with provenance
+  3. bind      -> decide bound / has_name / no_name / not_applicable
+  4. plan      -> annotate compound actions
+  5. gate      -> block unsafe writes / require clarification
+        │
         ▼
-MCQ exam ending?               ─── Yes ──→ return None (→ LLM)
-  (考虑的是, 可见于, 哪种, …)   [hard block — ignores doctor anchor]
-        │ No
+WorkflowResult -> IntentResult
+        │
         ▼
-Patient question pattern?      ─── Yes ──┐
-  OR first-person patient voice?          │
-  (怎么办, 吗?, 是不是, 我妈…)           │
-        │ No                              ▼
-        │                    Doctor anchor present?
-        │                    (患者/主诉:/ 收入我科…)
-        │                         │         │
-        │                        Yes        No
-        │                         │         │
-        │                         ▼         ▼
-        │                    return True  return None
-        │                    (add_record) (→ LLM)
-        │ No patient pattern
-        ▼
-Pediatric online consult?      ─── Yes ──→ same doctor-anchor check
-  (宝宝, 宝贝, 小孩…)
-        │ No
-        ▼
-return True → add_record
+Intent handler dispatch (shared handlers)
+  create_patient / add_record / query_records / list_tasks / ...
+        │
+        ├─ add_record / update_record
+        │    -> assemble record from structured fields or structuring LLM
+        │    -> emergency record saves immediately
+        │    -> non-emergency record becomes pending draft for confirmation
+        │
+        └─ read / task / export / patient-management intents
+             -> execute directly
 ```
-
-### Keyword sources
-
-| Source | Count | Location |
-|--------|-------|----------|
-| Hardcoded baseline | ~80 terms | `_CLINICAL_KW_TIER3` in `fast_router.py` |
-| JSON extended (hot-reloadable) | ~110 terms | `config/fast_router_keywords.json` |
-
-Categories: cardinal symptoms, cardiovascular, oncology, respiratory, GI, neurological, metabolic, lab markers, pathology/imaging, clinical admin phrases, English abbreviations (ECG, BNP, HbA1c…).
-
-### FP guard layers (in order)
-
-| Guard | What it blocks | Can be overridden by doctor anchor? |
-|-------|---------------|-------------------------------------|
-| `_TIER3_EXAM_ENDING_RE` | MCQ question stems (考虑的是, 可见于, 哪种…) | **No** — hard block |
-| `_TIER3_QUESTION_RE` | Patient question phrases, knowledge queries, family references | Yes |
-| `_TIER3_PATIENT_VOICE_RE` | "我…怎么办", "我头晕" etc. | Yes |
-| `_TIER3_CONSULT_RE` | Pediatric online consult language (宝宝, 宝贝…) | Yes |
 
 ---
 
-## Benchmark Results (2026-03-08)
+## Channel Entry And Prechecks
 
-### False Negative rate — real clinical notes missed by fast_route (lower is better)
+### Web (`routers/records.py`)
 
-| Dataset | Notes | FN Rate |
-|---------|-------|---------|
-| Yidu-S4K (CCKS 2019) | 1,379 real EMR discharge records from multiple hospitals | **0.4%** |
-| CHIP-CDEE train | 1,587 discharge event sentences | 21.2% |
-| CHIP-CDEE dev | 384 discharge event sentences | 19.5% |
+Before the workflow runs, web chat may intercept:
 
-> CHIP-CDEE's 21% FN is intentional: those records are short system-review sentences ("食欲正常，神志清醒") that are structurally identical to patient messages. Adding those keywords would create ~3,000 patient false positives.
+- rate limiting
+- notify-control commands
+- greetings
+- menu-number shortcuts after an unclear-intent menu
+- bare-name follow-up replies
+- task completion fast path
+- additional direct fast paths inside `chat_core()`:
+  - patient count
+  - delete patient by numeric ID
+  - save doctor context
+  - knowledge-base commands
 
-### False Positive rate — non-clinical messages wrongly routed to add_record (lower is better)
+If none of those returns a response, web loads doctor knowledge context and
+calls `services.intent_workflow.run()`.
 
-| Dataset | Description | FP Rate |
-|---------|-------------|---------|
-| CMExam | 54K medical licensing exam MCQs | 3.3% |
-| KUAKE-QIC | 6.9K labeled patient search queries | 4.5% |
-| Huatuo encyclopedia | 362K medical encyclopedia Q&A | 4.8% |
-| MedDG patient turns | 209K gastroenterology dialogue patient turns | 6.0% |
-| CHIP-MDCFNPC patient | 113K online consultation patient turns | 6.2% |
-| CMID patient queries | 12K intent-labeled patient queries | 6.8% |
-| CHIP-STS | 20K disease sentence pairs | 17.3% |
-| Huatuo consultation | 32.7M patient health questions | 10.4% |
-| webMedQA | 12.6K patient questions from Baidu Doctor | 10.9% |
-| MedDialog-CN patient | 5.6M haodf.com consultation patient turns | 18.8% |
+### WeChat (`routers/wechat.py`)
 
-### Hard floors
+Before the workflow runs, WeChat may intercept:
 
-The ~10–19% FP rates on consultation datasets are **irreducible** with keyword/regex rules:
+- task completion fast path
+- notify-control commands
+- knowledge-base commands
 
-- **~10% floor**: Short symptom descriptions without question markers ("胸闷心慌头晕") are structurally identical to brief clinical dictation. Only semantic understanding can distinguish them.
-- **~18–20% floor**: Patients on haodf.com write full clinical histories in medical language when consulting online doctors — indistinguishable from doctor notes without reading intent.
+If no interception matches, WeChat loads doctor knowledge context and calls
+the same workflow.
 
----
+If the workflow itself fails, WeChat still has a structuring fallback for
+resilience: try `structure_medical_record(text)`, on failure return a generic
+retry message.
 
-## Configuration
+### Voice (`routers/voice.py`)
 
-### Hot-reload keywords (no restart needed)
+Voice entry:
 
-Edit `config/fast_router_keywords.json`, then:
+1. Transcribe uploaded audio via `transcribe_audio()`
+2. Check for followup-name pattern (if the last turn asked for a patient name)
+3. Run the shared 5-layer workflow with `channel="voice"`
+4. Dispatch to the same shared handlers used by Web and WeChat
 
-```
-POST /api/admin/fast-router/keywords/reload
-```
-
-### Mined rules
-
-`data/mined_rules.json` — JSON array of learned routing rules. Each rule has `intent`, `patterns` (regex list), `keywords_any`, `min_length`, and `enabled` flag.
+Voice follows the same draft-first safety model: non-emergency records create
+a pending draft for explicit confirmation rather than saving directly.
 
 ---
 
-## Tier-3 Binary Classifier (2026-03-08)
+## Layer 1: Classification
 
-A lightweight **TF-IDF + logistic regression binary classifier** is deployed as the final gate inside `_is_clinical_tier3()`, running only when keyword detection and all FP guards pass but no doctor-voice anchor is present.
+Classification happens in `services/intent_workflow/classifier.py`.
 
-### Architecture
+Resolution order:
 
-- **Vectorizer**: `TfidfVectorizer(analyzer="char_wb", ngram_range=(2,4), max_features=100k, sublinear_tf=True)` — character n-grams for Chinese
-- **Classifier**: `LogisticRegression(C=1.0, class_weight="balanced")`
-- **Inference**: `~0.1ms` (loaded once at module import from `services/ai/tier3_classifier.pkl`)
+1. `effective_intent` / menu shortcut if the channel already resolved one
+2. `fast_route(text, session=...)`
+3. `agent_dispatch(...)` if `fast_route` returns `None`
 
-### Training data
+### What `fast_route` does now
 
-| Split | Source | Count |
-|-------|--------|-------|
-| Positive | CHIP-CDEE train + dev | 1,971 |
-| Positive | Yidu-S4K (all splits) | 1,379 |
-| Negative | MedDialog-CN patient turns | 100,000 (sampled) |
-| Negative | Huatuo consultation questions | 100,000 (sampled) |
-| Negative | webMedQA patient questions | 12,632 |
+`fast_route` is conservative and deterministic. It no longer performs Tier-3
+clinical keyword routing.
 
-Class ratio balanced 5:1 negative:positive → 3,350 pos + 16,750 neg = 20,100 total.
+Current coverage:
 
-### Results
+- Tier 0
+  - `help`
+  - `import_history` for `[PDF:]`, `[Word:]`, `[Image:]`, or long multi-date
+    history text
+- Tier 1
+  - `list_patients`
+  - `list_tasks`
+- Tier 2
+  - task actions: `complete_task`, `cancel_task`, `postpone_task`
+  - follow-up scheduling: `schedule_follow_up`
+  - appointment scheduling: `schedule_appointment`
+  - export actions: `export_records`, `export_outpatient_report`
+  - record queries: `query_records`
+  - patient CRUD: `create_patient`, `delete_patient`, `update_patient`
+  - explicit supplement patterns: `add_record`
+  - mixed-message tail-command override such as clinical text followed by a
+    command suffix
+  - pending-draft continuation when a session already has `pending_record_id`
 
-| Dataset | FP Before | FP After | Change |
-|---------|-----------|----------|--------|
-| Huatuo consultation (hard floor) | 10.4% | **0.3%** | −10.1 pp |
-| Yidu-S4K FN (clinical notes missed) | 0.4% | **0.4%** | unchanged |
+Session-aware behavior:
 
-5-fold CV F1: **0.978 ± 0.002**
+- when a matched intent has no `patient_name`, `fast_route` can backfill the
+  current patient from session state
+- LLM dispatch also receives session context such as `specialty`,
+  `doctor_name`, `current_patient_context`, candidate patient context, and
+  not-found patient context
 
-### Integration
+---
 
-The classifier is the **final gate** in `_is_clinical_tier3()` — only reached after all keyword and regex guards pass. The doctor-voice anchor (`患者/主诉：/给予/建议观察/NAME+gender+age…`) bypasses it entirely, ensuring short doctor dictation is never blocked by the classifier.
+## Layer 2: Entity Extraction
 
-To retrain: `python scripts/train_tier3_classifier.py`
+Entity extraction happens in `services/intent_workflow/entities.py`.
+
+It does more than trust the raw classifier output. Patient name resolution
+follows a fallback cascade:
+
+1. follow-up bare-name reply from the previous turn
+2. `IntentResult.patient_name` from fast route or LLM
+3. leading-name pattern in the current text for `add_record`
+4. recent history
+5. current patient in session
+6. weak session candidates:
+   - `candidate_patient_name`
+   - `patient_not_found_name`
+
+Each entity keeps provenance, for example:
+
+- `fast_route`
+- `llm`
+- `followup`
+- `text_leading_name`
+- `history`
+- `session`
+- `candidate`
+- `not_found`
+
+This provenance is used downstream by binding, gating, logging, and
+draft-confirmation behavior.
+
+---
+
+## Layer 3: Patient Binding
+
+Patient binding happens in `services/intent_workflow/binder.py`.
+
+It does not write to the database. It only decides how strong the current
+patient context is:
+
+- `bound`
+  - patient already resolved by ID from session
+- `has_name`
+  - a patient name exists, but the handler still needs to resolve or create
+    the patient
+- `no_name`
+  - no usable patient context is available
+- `not_applicable`
+  - the intent does not need a patient
+
+Weak sources such as `candidate` and `not_found` are marked
+`needs_review=True`.
+
+---
+
+## Layer 4: Action Planning
+
+Planning happens in `services/intent_workflow/planner.py`.
+
+This layer annotates compound intent patterns so downstream handlers and logs
+have structure, for example:
+
+- `create_patient` + clinical content -> create patient, then add record
+- `create_patient` + reminder text -> create patient, then create task
+
+The planner is metadata-oriented. Actual execution still happens in the
+existing intent handlers.
+
+---
+
+## Layer 5: Safety Gate
+
+Safety checks happen in `services/intent_workflow/gate.py`.
+
+Current gate rules:
+
+- read-only intents are allowed through
+- write intents with no patient context are blocked with a clarification
+  question
+- `not_found` attribution without explicit location context (`ICU`, `PACU`,
+  bed number, ward, etc.) is blocked
+- weak attribution may be allowed, but flagged for confirmation
+
+Typical blocked replies:
+
+- `Please specify the patient name`
+- `Patient [X] not found, please create or specify`
+
+Typical allowed-but-review-required behavior:
+
+- create a pending draft instead of silently saving
+- return a warning such as "draft generated for candidate patient, please
+  verify before confirming"
+
+Channel note:
+
+- Web respects the gate directly and returns the clarification message
+- WeChat has one intentional exception: when the gate reason is
+  `no_patient_name`, it still lets the downstream handler attempt its own
+  patient-resolution logic before giving up
+
+---
+
+## Handler Execution
+
+After gating, `WorkflowResult` is converted back into a backward-compatible
+`IntentResult` and dispatched to shared handlers in
+`services/domain/intent_handlers/`.
+
+Common handlers:
+
+- `create_patient`
+- `add_record`
+- `query_records`
+- `list_patients`
+- `delete_patient`
+- `list_tasks`
+- `complete_task`
+- `schedule_appointment`
+- `update_patient`
+- `update_record`
+- `help`
+
+### `add_record`
+
+This is the most important post-routing path:
+
+1. resolve or create the patient
+2. pin the resolved patient into session state
+3. build the record
+   - reuse `structured_fields` from the routing LLM when available, or
+   - call `assemble_record()` which filters history down to clinical-only
+     turns and may call the structuring LLM
+4. save immediately only for emergency records
+5. otherwise create a pending draft and require confirmation
+
+The shared record-assembly path also adds:
+
+- clinical-only history filtering
+- encounter-type detection
+- prior-visit summary injection for follow-up encounters
+
+### Query / list / export / task intents
+
+These typically execute directly after routing and may also update session
+context, for example:
+
+- querying a patient record pins that patient as the current session patient
+- some list-task mixed messages capture a candidate patient into session for
+  the next turn
+
+---
+
+## Session State Matters
+
+The workflow is intentionally session-aware. Routing quality depends on state
+captured from prior turns, including:
+
+- current patient ID and name
+- pending draft ID
+- candidate patient name, gender, age
+- last not-found patient name
+- doctor specialty and doctor name
+
+This is why short follow-up messages can often resolve without a new patient
+name.
+
+---
+
+## Operational Notes
+
+- The active fast router lives in the package `services/ai/fast_router/`, not
+  the old monolithic `services/ai/fast_router.py`
+- Tier-3 clinical keyword routing is not part of the live path anymore
+- Keywords are compiled into `services/ai/fast_router/_keywords.py`; the admin
+  reload endpoint is now informational and does not hot-reload runtime behavior
+- `data/mined_rules.json` loader still exists, but mined rules are not part of
+  the current canonical routing path
+
+---
+
+## Historical: Tier-3 Classifier Benchmark (2026-03-08)
+
+The TF-IDF + logistic regression binary classifier (`services/ai/tier3_classifier.pkl`)
+was deployed as a final gate inside `_is_clinical_tier3()`. This path is now
+inactive -- the live system routes ambiguous clinical messages through LLM
+dispatch instead. The classifier remains available for future use.
+
+5-fold CV F1: **0.978 +/- 0.002**. See git history for full benchmark tables.

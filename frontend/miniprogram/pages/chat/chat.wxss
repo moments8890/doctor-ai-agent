@@ -1,0 +1,58 @@
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  padding: 20rpx 24rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.messages {
+  flex: 1;
+  padding: 20rpx;
+}
+
+.item {
+  margin-bottom: 16rpx;
+  padding: 16rpx;
+  border-radius: 16rpx;
+  max-width: 88%;
+  word-break: break-word;
+}
+
+.item.user {
+  margin-left: auto;
+  background: #dbeafe;
+}
+
+.item.assistant {
+  background: #ffffff;
+}
+
+.composer {
+  display: flex;
+  gap: 12rpx;
+  padding: 16rpx;
+  background: #ffffff;
+  border-top: 1px solid #e5e7eb;
+}
+
+.input {
+  flex: 1;
+  height: 72rpx;
+  border: 1px solid #d1d5db;
+  border-radius: 12rpx;
+  padding: 0 16rpx;
+}
+
+.send {
+  width: 140rpx;
+  background: #1d4ed8;
+  color: #ffffff;
+  border-radius: 12rpx;
+}
