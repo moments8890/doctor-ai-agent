@@ -28,6 +28,10 @@ adapters.
 
 - `medical_records.content` remains the source of truth for doctor-facing notes.
 - Normal `add_record` flows are draft-first and require explicit confirmation.
+- Blocked-write continuation is stateful, persisted, and shared across web,
+  WeChat, and voice chat.
+- Normal `add_record` note generation uses routing for control flow and
+  structuring for final note content.
 - The system keeps one core patient-scoped transaction per turn.
 - Official WeCom integration is the supported messaging channel model.
 - The workflow uses a shared classify -> extract -> bind -> plan -> gate stack.
@@ -36,11 +40,9 @@ adapters.
 
 - `DoctorTurnContext` is implemented, but not passed through every channel in
   the same way yet.
-- Blocked-write continuation state is implemented and persisted, but older
-  `followup_name` continuation logic still coexists.
-- `add_record` now uses structuring as the note-generation path, but
-  `structured_fields` compatibility still exists in routing and update/correction
-  flows.
+- `update_record` still keeps a narrow correction-oriented
+  `structured_fields` compatibility path separate from the normal `add_record`
+  write flow.
 - Channel adapters exist, but only some adapter methods are part of the main
   runtime path today.
 
@@ -171,19 +173,17 @@ audio upload
 Voice chat shares the same draft-first semantics as web and WeChat for normal
 record creation.
 
-### Voice consultation exception
+### Modality normalization (ADR 0009)
 
-`POST /api/voice/consultation` is a separate explicit recording flow:
+All non-text inputs are normalized before workflow entry:
 
-```text
-audio upload
--> transcribe_audio(consultation_mode=True)
--> structure_medical_record(consultation_mode=True)
--> optional direct save when save=true
-```
-
-This endpoint is intentionally outside the main intent workflow and is the main
-remaining direct-save exception on the voice side.
+- **Voice** (including `/api/voice/consultation`): transcribed then enters the
+  same 5-layer workflow as typed text. `consultation_mode=True` is a
+  transcription hint only, not a workflow bypass.
+- **Image/PDF** (`/from-image`, `/from-audio`): extracted text dispatches to
+  `import_history` for chunking, dedup, and persistence.
+- **Extraction-only helpers** (`/ocr`, `/extract-file`, `/transcribe`): remain
+  as stateless utilities for UI preview.
 
 ---
 
@@ -216,8 +216,8 @@ Deterministic state and code still own:
 | Blocked-write continuation | No on successful precheck resume | Yes after resume | `precheck_blocked_write()` resolves bare-name / name+supplement continuations from session state |
 | `create_patient` only | Yes for intent + name/demographics unless deterministic match hits first | No | Patient create/reuse is normal handler logic |
 | `create_patient + clinical content` compound | Yes for create intent + coarse entities | Yes | Current handler still structures and directly saves the compound record; this is not yet unified with the draft-first `add_record` path |
-| `update_record` correction | Yes | Indirect / compatibility path | Correction still uses routing `structured_fields` compatibility and may re-call routing LLM for field extraction; this is one of the remaining ADR 0008 transition areas |
-| Voice consultation (`/api/voice/consultation`) | No | Yes | Explicit structuring-only recording flow; optional direct save when `save=true` |
+| `update_record` correction | Yes | Indirect / compatibility path | Correction still uses routing `structured_fields` compatibility and may re-call routing LLM for field extraction; this is a narrow correction path, not the normal note-generation path |
+| Voice consultation (`/api/voice/consultation`) | Yes (via workflow) | Yes (via workflow) | ADR 0009: consultation now enters the same 5-layer workflow as voice_chat; `consultation_mode` is a transcription hint only |
 | WeChat workflow failure fallback | No after workflow failure | Yes | If workflow execution fails, WeChat may still call `structure_medical_record()` and reply with formatted text as a resilience fallback |
 
 ### 1. Standard doctor command workflows
@@ -362,11 +362,10 @@ LLM role:
   - intent selection
   - correction-field extraction
 
-This is one of the main remaining exceptions to the cleaner ADR 0008 target,
-because correction still relies on router-side `structured_fields`
-compatibility.
+This remains a correction-specific compatibility path. It does not change the
+fact that normal `add_record` note generation now follows the ADR 0008 model.
 
-### 6. Voice consultation workflow
+### 6. Voice consultation workflow (ADR 0009)
 
 Example:
 
@@ -377,17 +376,17 @@ Flow:
 ```text
 audio
 -> transcribe_audio(consultation_mode=True)
--> structure_medical_record(consultation_mode=True)
--> optional direct save
+-> 5-layer workflow (same as voice_chat / typed text)
+-> intent dispatch → pending draft if add_record
 ```
 
 LLM role:
 
-- no routing LLM
-- structuring LLM only
+- routing LLM (via workflow)
+- structuring LLM (via workflow, if add_record intent)
 
-This is not a conversational workflow. It is an explicit recording-processing
-workflow.
+Per ADR 0009, consultation no longer bypasses routing or draft-first safety.
+`consultation_mode=True` is a transcription hint only.
 
 ---
 
@@ -414,9 +413,10 @@ Current order:
 2. deterministic `fast_route()`
 3. routing LLM in `services/ai/agent.py`
 
-`fast_route()` is still broader than the target ADR 0008 end state. It handles
-exact operational commands, task operations, queries, some patient CRUD, and a
-small number of explicit write/supplement patterns.
+`fast_route()` is intentionally narrower than the old semantic clinical router.
+It handles deterministic operational commands, task operations, queries, some
+patient CRUD, and explicit workflow-state / supplement patterns before falling
+back to the routing LLM.
 
 ### Routing LLM
 
@@ -434,7 +434,9 @@ Important compatibility nuance:
 - `update_record` correction flows still use `structured_fields` compatibility
   to identify corrected fields
 
-That means ADR 0008 is directionally implemented, but not fully complete yet.
+That closes the main ADR 0008 rollout for normal doctor-authored record
+creation, while keeping a narrower correction-specific compatibility path for
+`update_record`.
 
 ### Binding and Gate
 
@@ -480,9 +482,9 @@ Current rollout status:
 
 - shared precheck logic exists in `services/intent_workflow/precheck.py`
 - web, WeChat, and voice chat all call that precheck
-- legacy `followup_name` behavior still exists in parallel in some paths
+- blocked-write state is persisted through `DoctorSessionState.blocked_write_json`
 
-So the architecture is already stateful here, but not fully cleaned up yet.
+This workflow is now the authoritative continuation path for blocked writes.
 
 ---
 
@@ -636,8 +638,8 @@ Architecture decision records live in `docs/adr/`.
 | [0004](/Volumes/ORICO/Code/doctor-ai-agent/docs/adr/0004-prefer-official-wecom-channel-over-automation.md) | Prefer Official WeCom Channel Over Automation | Complete |
 | [0005](/Volumes/ORICO/Code/doctor-ai-agent/docs/adr/0005-bound-single-turn-compound-intents.md) | Bound Single-Turn Compound Intents | Complete |
 | [0006](/Volumes/ORICO/Code/doctor-ai-agent/docs/adr/0006-one-patient-scope-per-turn.md) | One Patient Scope Per Turn | Partial |
-| [0007](/Volumes/ORICO/Code/doctor-ai-agent/docs/adr/0007-stateful-blocked-write-continuations.md) | Stateful Blocked-Write Continuations | Partial |
-| [0008](/Volumes/ORICO/Code/doctor-ai-agent/docs/adr/0008-minimal-routing-and-structuring-only-note-generation.md) | Minimal Routing and Structuring-Only Note Generation | Partial |
+| [0007](/Volumes/ORICO/Code/doctor-ai-agent/docs/adr/0007-stateful-blocked-write-continuations.md) | Stateful Blocked-Write Continuations | Complete |
+| [0008](/Volumes/ORICO/Code/doctor-ai-agent/docs/adr/0008-minimal-routing-and-structuring-only-note-generation.md) | Minimal Routing and Structuring-Only Note Generation | Complete |
 
 ---
 

@@ -10,8 +10,8 @@ from fastapi import HTTPException
 
 from db.models.medical_record import MedicalRecord
 from routers.records_media import (
-    create_record_from_audio,
-    create_record_from_image,
+    import_from_audio,
+    import_from_image,
     create_record_from_text,
     extract_file_for_chat,
     ocr_image_only,
@@ -85,79 +85,86 @@ class TestCreateRecordFromText:
 
 
 # ---------------------------------------------------------------------------
-# /from-image
+# /from-image (ADR 0009: OCR → import_history)
 # ---------------------------------------------------------------------------
-class TestCreateRecordFromImage:
+DOCTOR = "test_media_doc"
+
+
+class TestImportFromImage:
     @pytest.mark.asyncio
-    async def test_success(self):
+    async def test_success_routes_to_import(self):
         upload = _Upload(content_type="image/png")
+        import_mock = AsyncMock(return_value="已导入 1 条病历记录")
         with patch("routers.records_media.extract_text_from_image", new_callable=AsyncMock, return_value="OCR结果") as mock_ocr, \
-             patch("routers.records_media.structure_medical_record", new_callable=AsyncMock, return_value=_record()):
-            result = await create_record_from_image(upload)
-        assert result.content == "胸痛 冠心病 随访"
+             patch("routers.records_media._import_extracted_text", new=import_mock):
+            result = await import_from_image(image=upload, doctor_id=DOCTOR)
+        assert result.reply == "已导入 1 条病历记录"
+        assert result.source == "image"
+        assert result.extracted_text == "OCR结果"
         mock_ocr.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_unsupported_type_raises_422(self):
         upload = _Upload(content_type="application/pdf")
         with pytest.raises(HTTPException) as exc_info:
-            await create_record_from_image(upload)
+            await import_from_image(image=upload, doctor_id=DOCTOR)
         assert exc_info.value.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_value_error_raises_422(self):
-        upload = _Upload(content_type="image/jpeg")
-        with patch("routers.records_media.extract_text_from_image", new_callable=AsyncMock, return_value="text"), \
-             patch("routers.records_media.structure_medical_record", new_callable=AsyncMock, side_effect=ValueError("bad")):
-            with pytest.raises(HTTPException) as exc_info:
-                await create_record_from_image(upload)
-        assert exc_info.value.status_code == 422
-
-    @pytest.mark.asyncio
-    async def test_generic_error_raises_500(self):
+    async def test_ocr_failure_raises_500(self):
         upload = _Upload(content_type="image/jpeg")
         with patch("routers.records_media.extract_text_from_image", new_callable=AsyncMock, side_effect=RuntimeError("boom")):
             with pytest.raises(HTTPException) as exc_info:
-                await create_record_from_image(upload)
+                await import_from_image(image=upload, doctor_id=DOCTOR)
         assert exc_info.value.status_code == 500
 
+    @pytest.mark.asyncio
+    async def test_empty_ocr_raises_422(self):
+        upload = _Upload(content_type="image/jpeg")
+        with patch("routers.records_media.extract_text_from_image", new_callable=AsyncMock, return_value="   "):
+            with pytest.raises(HTTPException) as exc_info:
+                await import_from_image(image=upload, doctor_id=DOCTOR)
+        assert exc_info.value.status_code == 422
+
 
 # ---------------------------------------------------------------------------
-# /from-audio
+# /from-audio (ADR 0009: transcribe → import_history)
 # ---------------------------------------------------------------------------
-class TestCreateRecordFromAudio:
+class TestImportFromAudio:
     @pytest.mark.asyncio
-    async def test_success(self):
+    async def test_success_routes_to_import(self):
         upload = _Upload(content_type="audio/mpeg", filename="rec.mp3")
+        import_mock = AsyncMock(return_value="已导入 1 条病历记录")
         with patch("routers.records_media.transcribe_audio", new_callable=AsyncMock, return_value="转录文本") as mock_asr, \
-             patch("routers.records_media.structure_medical_record", new_callable=AsyncMock, return_value=_record()):
-            result = await create_record_from_audio(upload)
-        assert result.content == "胸痛 冠心病 随访"
+             patch("routers.records_media._import_extracted_text", new=import_mock):
+            result = await import_from_audio(audio=upload, doctor_id=DOCTOR)
+        assert result.reply == "已导入 1 条病历记录"
+        assert result.source == "voice"
+        assert result.extracted_text == "转录文本"
         mock_asr.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_unsupported_type_raises_422(self):
         upload = _Upload(content_type="video/mp4")
         with pytest.raises(HTTPException) as exc_info:
-            await create_record_from_audio(upload)
+            await import_from_audio(audio=upload, doctor_id=DOCTOR)
         assert exc_info.value.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_value_error_raises_422(self):
-        upload = _Upload(content_type="audio/wav")
-        with patch("routers.records_media.transcribe_audio", new_callable=AsyncMock, return_value="text"), \
-             patch("routers.records_media.structure_medical_record", new_callable=AsyncMock, side_effect=ValueError("bad")):
-            with pytest.raises(HTTPException) as exc_info:
-                await create_record_from_audio(upload)
-        assert exc_info.value.status_code == 422
-
-    @pytest.mark.asyncio
-    async def test_generic_error_raises_500(self):
+    async def test_transcription_failure_raises_500(self):
         upload = _Upload(content_type="audio/wav")
         with patch("routers.records_media.transcribe_audio", new_callable=AsyncMock, side_effect=RuntimeError("boom")):
             with pytest.raises(HTTPException) as exc_info:
-                await create_record_from_audio(upload)
+                await import_from_audio(audio=upload, doctor_id=DOCTOR)
         assert exc_info.value.status_code == 500
+
+    @pytest.mark.asyncio
+    async def test_empty_transcript_raises_422(self):
+        upload = _Upload(content_type="audio/wav")
+        with patch("routers.records_media.transcribe_audio", new_callable=AsyncMock, return_value="   "):
+            with pytest.raises(HTTPException) as exc_info:
+                await import_from_audio(audio=upload, doctor_id=DOCTOR)
+        assert exc_info.value.status_code == 422
 
 
 # ---------------------------------------------------------------------------

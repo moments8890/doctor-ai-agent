@@ -1,17 +1,21 @@
 """
-病历媒体端点：处理文本、图片、音频文件上传及 OCR/转录，
-不含聊天意图路由逻辑。
+病历媒体端点：处理文本、图片、音频文件上传及 OCR/转录。
+
+ADR 0009: image/PDF uploads default to import_history after extraction.
+Extraction-only helpers (/ocr, /extract-file, /transcribe) are unchanged.
 """
 
 from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Header
+from fastapi import APIRouter, Form, HTTPException, UploadFile, File, Header
+from pydantic import BaseModel
 
 from db.engine import AsyncSessionLocal
 from db.models.medical_record import MedicalRecord
 from routers.records import SUPPORTED_AUDIO_TYPES, SUPPORTED_IMAGE_TYPES, TextInput
+from services.ai.intent import IntentResult, Intent
 from services.ai.structuring import structure_medical_record
 from services.ai.transcription import transcribe_audio
 from services.ai.vision import extract_text_from_image
@@ -37,8 +41,30 @@ async def create_record_from_text(body: TextInput):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/from-image", response_model=MedicalRecord)
-async def create_record_from_image(image: UploadFile = File(...)):
+class ImportMediaResponse(BaseModel):
+    """Response for media import endpoints (ADR 0009)."""
+    reply: str
+    source: str
+    extracted_text: Optional[str] = None
+
+
+@router.post("/from-image", response_model=ImportMediaResponse)
+async def import_from_image(
+    image: UploadFile = File(...),
+    doctor_id: str = Form(default="test_doctor"),
+    authorization: Optional[str] = Header(default=None),
+):
+    """OCR an image then import via import_history (ADR 0009).
+
+    Previously returned a single MedicalRecord from direct structuring.
+    Now extracts text and dispatches to the import workflow for chunking,
+    dedup, and persistence.
+    """
+    resolved_doctor_id = resolve_doctor_id_from_auth_or_fallback(
+        doctor_id, authorization,
+        fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
+        default_doctor_id="test_doctor",
+    )
     if image.content_type not in SUPPORTED_IMAGE_TYPES:
         raise HTTPException(
             status_code=422,
@@ -47,17 +73,33 @@ async def create_record_from_image(image: UploadFile = File(...)):
     try:
         image_bytes = await image.read()
         text = await extract_text_from_image(image_bytes, image.content_type)
-        return await structure_medical_record(text)
-    except ValueError as e:
-        log(f"[Records] from-image validation failed: {e}")
-        raise HTTPException(status_code=422, detail="Invalid medical record content")
     except Exception as e:
-        log(f"[Records] from-image failed: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        log(f"[Records] from-image OCR failed: {e}")
+        raise HTTPException(status_code=500, detail="OCR failed")
+
+    if not text or not text.strip():
+        raise HTTPException(status_code=422, detail="OCR 未能从图片中提取文字")
+
+    reply = await _import_extracted_text(text, resolved_doctor_id, source="image")
+    return ImportMediaResponse(reply=reply, source="image", extracted_text=text)
 
 
-@router.post("/from-audio", response_model=MedicalRecord)
-async def create_record_from_audio(audio: UploadFile = File(...)):
+@router.post("/from-audio")
+async def import_from_audio(
+    audio: UploadFile = File(...),
+    doctor_id: str = Form(default="test_doctor"),
+    authorization: Optional[str] = Header(default=None),
+):
+    """Transcribe audio then import via import_history (ADR 0009).
+
+    Previously returned a single MedicalRecord from direct structuring.
+    Now transcribes and dispatches to the import workflow.
+    """
+    resolved_doctor_id = resolve_doctor_id_from_auth_or_fallback(
+        doctor_id, authorization,
+        fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
+        default_doctor_id="test_doctor",
+    )
     if audio.content_type not in SUPPORTED_AUDIO_TYPES:
         raise HTTPException(
             status_code=422,
@@ -66,13 +108,15 @@ async def create_record_from_audio(audio: UploadFile = File(...)):
     try:
         audio_bytes = await audio.read()
         transcript = await transcribe_audio(audio_bytes, audio.filename or "audio.wav")
-        return await structure_medical_record(transcript)
-    except ValueError as e:
-        log(f"[Records] from-audio validation failed: {e}")
-        raise HTTPException(status_code=422, detail="Invalid medical record content")
     except Exception as e:
-        log(f"[Records] from-audio failed: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        log(f"[Records] from-audio transcription failed: {e}")
+        raise HTTPException(status_code=500, detail="Transcription failed")
+
+    if not transcript or not transcript.strip():
+        raise HTTPException(status_code=422, detail="转录未产生有效文本")
+
+    reply = await _import_extracted_text(transcript, resolved_doctor_id, source="voice")
+    return ImportMediaResponse(reply=reply, source="voice", extracted_text=transcript)
 
 
 @router.post("/transcribe")
@@ -142,6 +186,21 @@ async def extract_file_for_chat(file: UploadFile = File(...)):
     except Exception as e:
         log(f"[Records] extract-file failed: {e}")
         raise HTTPException(status_code=500, detail="文件解析失败，请重试")
+
+
+async def _import_extracted_text(text: str, doctor_id: str, *, source: str) -> str:
+    """Dispatch extracted text to import_history with source metadata."""
+    from services.wechat.wechat_import import handle_import_history
+
+    intent_result = IntentResult(
+        intent=Intent.import_history,
+        extra_data={"source": source},
+    )
+    try:
+        return await handle_import_history(text, doctor_id, intent_result)
+    except Exception as e:
+        log(f"[Records] import failed source={source} doctor={doctor_id}: {e}")
+        raise HTTPException(status_code=500, detail="导入处理失败，请重试")
 
 
 @router.get("/{record_id}/history")

@@ -26,7 +26,6 @@ from services.session import (
 )
 from services.auth.rate_limit import enforce_doctor_rate_limit
 from services.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
-from services.ai.structuring import structure_medical_record
 from services.ai.transcription import transcribe_audio
 from services.domain.intent_handlers import (
     HandlerResult,
@@ -63,23 +62,22 @@ class VoiceChatResponse(BaseModel):
     switch_notification: Optional[str] = None
 
 
-class ConsultationResponse(BaseModel):
-    transcript: str
-    record: MedicalRecord
-    patient_id: Optional[int] = None
-
-
 # ── Transcription ──────────────────────────────────────────────────────────
 
 
 async def _transcribe_upload(
     audio: UploadFile,
     doctor_id: str,
+    *,
+    consultation_mode: bool = False,
 ) -> tuple[bytes, str]:
     """读取上传文件并转录，返回 (audio_bytes, transcript)；失败时抛 HTTPException。"""
     audio_bytes = await audio.read()
     try:
-        transcript = await transcribe_audio(audio_bytes, audio.filename or "audio.wav")
+        transcript = await transcribe_audio(
+            audio_bytes, audio.filename or "audio.wav",
+            consultation_mode=consultation_mode,
+        )
     except Exception as e:
         log(f"[VoiceChat] transcription FAILED doctor={doctor_id} file={audio.filename}: {e}")
         raise HTTPException(status_code=500, detail="Transcription failed")
@@ -192,6 +190,8 @@ async def _voice_chat_for_doctor(
     audio: UploadFile,
     doctor_id: str,
     history: Optional[str] = None,
+    *,
+    consultation_mode: bool = False,
 ) -> VoiceChatResponse:
     """转录音频，经 5-layer 工作流路由意图，分发至共享处理函数，返回结构化回复。"""
     enforce_doctor_rate_limit(doctor_id, scope="voice.chat")
@@ -208,7 +208,9 @@ async def _voice_chat_for_doctor(
         except (json.JSONDecodeError, ValueError) as e:
             raise HTTPException(status_code=422, detail=f"Malformed history: {e}")
 
-    _audio_bytes, transcript = await _transcribe_upload(audio, doctor_id)
+    _audio_bytes, transcript = await _transcribe_upload(
+        audio, doctor_id, consultation_mode=consultation_mode,
+    )
 
     # Hydrate session state before workflow (same as WeChat path)
     await hydrate_session_state(doctor_id)
@@ -293,84 +295,30 @@ async def voice_chat(
     return await _voice_chat_for_doctor(audio, resolved_doctor_id, history=history)
 
 
-# ── Consultation endpoint (unchanged — transcribe + structure, no workflow) ─
+# ── Consultation endpoint (ADR 0009: transcribe + workflow, no direct save) ─
 
 
-@router.post("/consultation", response_model=ConsultationResponse)
+@router.post("/consultation", response_model=VoiceChatResponse)
 async def voice_consultation(
     audio: UploadFile = File(...),
     doctor_id: str = Form(default="test_doctor"),
-    patient_name: Optional[str] = Form(default=None),
-    save: bool = Form(default=False),
+    history: Optional[str] = Form(default=None),
     authorization: Optional[str] = Header(default=None),
-) -> ConsultationResponse:
+) -> VoiceChatResponse:
     """Doctor uploads an ambient consultation recording; transcribed with
-    dialogue-aware prompt then structured into a MedicalRecord."""
+    dialogue-aware prompt then routed through the 5-layer intent workflow.
+
+    Previously this endpoint structured and saved directly. Per ADR 0009 it
+    now shares the same routing, gating, and draft-first safety as voice_chat.
+    The only difference is consultation_mode=True for the transcription step.
+    """
     resolved_doctor_id = resolve_doctor_id_from_auth_or_fallback(
         doctor_id,
         authorization,
         fallback_env_flag="VOICE_ALLOW_BODY_DOCTOR_ID",
         default_doctor_id="test_doctor",
     )
-    return await _voice_consultation_for_doctor(
-        audio,
-        resolved_doctor_id,
-        patient_name=patient_name,
-        save=save,
-    )
-
-
-async def _voice_consultation_for_doctor(
-    audio: UploadFile,
-    doctor_id: str,
-    *,
-    patient_name: Optional[str] = None,
-    save: bool = False,
-) -> ConsultationResponse:
-    enforce_doctor_rate_limit(doctor_id, scope="voice.consultation")
-
-    if audio.content_type not in SUPPORTED_AUDIO_TYPES:
-        raise HTTPException(status_code=422, detail=f"Unsupported file type: {audio.content_type}. Supported: mp3, mp4, wav, webm, ogg, flac, m4a.")  # noqa: E501
-
-    audio_bytes = await audio.read()
-
-    try:
-        transcript = await transcribe_audio(
-            audio_bytes, audio.filename or "audio.wav", consultation_mode=True
-        )
-    except Exception as e:
-        log(f"[VoiceConsultation] transcription FAILED doctor={doctor_id} file={audio.filename}: {e}")
-        raise HTTPException(status_code=500, detail="Transcription failed")
-
-    if not transcript.strip():
-        raise HTTPException(status_code=422, detail="Transcription produced empty text.")
-
-    try:
-        record = await structure_medical_record(transcript, consultation_mode=True)
-    except Exception as e:
-        log(f"[VoiceConsultation] structuring FAILED doctor={doctor_id} patient={patient_name}: {e}")
-        raise HTTPException(status_code=500, detail="Structuring failed")
-
-    saved_patient_id: Optional[int] = None
-    if save:
-        from db.crud import create_patient as db_create_patient, find_patient_by_name, save_record
-        from db.engine import AsyncSessionLocal
-        from utils.errors import InvalidMedicalRecordError
-
-        async with AsyncSessionLocal() as db:
-            if patient_name:
-                patient = await find_patient_by_name(db, doctor_id, patient_name)
-                if not patient:
-                    try:
-                        patient = await db_create_patient(db, doctor_id, patient_name)
-                    except InvalidMedicalRecordError:
-                        raise HTTPException(status_code=422, detail="Invalid patient name")
-                saved_patient_id = patient.id
-            await save_record(db, doctor_id, record, saved_patient_id)
-        log(f"[VoiceConsultation] saved record patient={patient_name} doctor={doctor_id}")
-
-    return ConsultationResponse(
-        transcript=transcript,
-        record=record,
-        patient_id=saved_patient_id,
+    return await _voice_chat_for_doctor(
+        audio, resolved_doctor_id, history=history,
+        consultation_mode=True,
     )

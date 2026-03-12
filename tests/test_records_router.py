@@ -69,11 +69,12 @@ def test_helper_name_validation_and_parsing():
     assert not records._is_valid_patient_name("这位患者叫什么名字")
     assert not records._is_valid_patient_name("张" * 25)
 
+    from services.domain.name_utils import assistant_asked_for_name, name_only_text
     history = [{"role": "assistant", "content": "请问这位患者叫什么名字？"}]
-    assert records._assistant_asked_for_name(history) is True
-    assert records._assistant_asked_for_name([{"role": "user", "content": "x"}]) is False
-    assert records._name_only_text("陈明") == "陈明"
-    assert records._name_only_text("陈明，胸痛") is None
+    assert assistant_asked_for_name(history) is True
+    assert assistant_asked_for_name([{"role": "user", "content": "x"}]) is False
+    assert name_only_text("陈明") == "陈明"
+    assert name_only_text("陈明，胸痛") is None
     assert _leading_name_with_clinical_context("张三，男，52岁，胸闷三周") == "张三"
     assert _leading_name_with_clinical_context("张三") is None
     assert records._contains_clinical_content("反复胸痛，拟复查")
@@ -505,48 +506,79 @@ async def test_create_record_from_text_endpoint():
 
 
 async def test_create_record_from_image_endpoint():
+    """ADR 0009: /from-image now OCRs then routes to import_history."""
+    DOCTOR = "test_records_doc"
+
+    # Unsupported type → 422
     with pytest.raises(HTTPException) as exc3:
-        await records.create_record_from_image(_Upload(content_type="image/tiff"))
+        await records.create_record_from_image(
+            image=_Upload(content_type="image/tiff"), doctor_id=DOCTOR,
+        )
     assert exc3.value.status_code == 422
 
+    # Success → returns import reply
+    import_mock = AsyncMock(return_value="已导入 1 条病历记录")
     with patch("routers.records.extract_text_from_image", new=AsyncMock(return_value="识别文本")), \
-         patch("routers.records.structure_medical_record", new=AsyncMock(return_value=_record())):
-        rec2 = await records.create_record_from_image(_Upload(content_type="image/png", data=b"img"))
-    assert "胸痛" in rec2.content
+         patch("routers.records._import_extracted_text", new=import_mock):
+        result = await records.create_record_from_image(
+            image=_Upload(content_type="image/png", data=b"img"), doctor_id=DOCTOR,
+        )
+    assert result["reply"] == "已导入 1 条病历记录"
+    assert result["source"] == "image"
 
+    # OCR failure → 500
     with patch("routers.records.extract_text_from_image", new=AsyncMock(side_effect=RuntimeError("ocr fail"))):
         with pytest.raises(HTTPException) as exc4:
-            await records.create_record_from_image(_Upload(content_type="image/png", data=b"img"))
+            await records.create_record_from_image(
+                image=_Upload(content_type="image/png", data=b"img"), doctor_id=DOCTOR,
+            )
     assert exc4.value.status_code == 500
-    assert exc4.value.detail == "Internal server error"
 
-    with patch("routers.records.extract_text_from_image", new=AsyncMock(return_value="识别文本")), \
-         patch("routers.records.structure_medical_record", new=AsyncMock(side_effect=ValueError("bad image record"))):
+    # Empty OCR → 422
+    with patch("routers.records.extract_text_from_image", new=AsyncMock(return_value="  ")):
         with pytest.raises(HTTPException) as exc4b:
-            await records.create_record_from_image(_Upload(content_type="image/png", data=b"img"))
+            await records.create_record_from_image(
+                image=_Upload(content_type="image/png", data=b"img"), doctor_id=DOCTOR,
+            )
     assert exc4b.value.status_code == 422
-    assert exc4b.value.detail == "Invalid medical record content"
 
 
 async def test_create_record_from_audio_endpoint():
+    """ADR 0009: /from-audio now transcribes then routes to import_history."""
+    DOCTOR = "test_records_doc"
+
+    # Unsupported type → 422
     with pytest.raises(HTTPException) as exc5:
-        await records.create_record_from_audio(_Upload(content_type="audio/aac"))
+        await records.create_record_from_audio(
+            audio=_Upload(content_type="audio/aac"), doctor_id=DOCTOR,
+        )
     assert exc5.value.status_code == 422
 
+    # Success → returns import reply
+    import_mock = AsyncMock(return_value="已导入 1 条病历记录")
     with patch("routers.records.transcribe_audio", new=AsyncMock(return_value="转写文本")), \
-         patch("routers.records.structure_medical_record", new=AsyncMock(return_value=_record())):
-        rec3 = await records.create_record_from_audio(_Upload(content_type="audio/wav", data=b"wav", filename="a.wav"))
-    assert "胸痛" in rec3.content
+         patch("routers.records._import_extracted_text", new=import_mock):
+        result = await records.create_record_from_audio(
+            audio=_Upload(content_type="audio/wav", data=b"wav", filename="a.wav"),
+            doctor_id=DOCTOR,
+        )
+    assert result["reply"] == "已导入 1 条病历记录"
+    assert result["source"] == "voice"
 
+    # Transcription failure → 500
     with patch("routers.records.transcribe_audio", new=AsyncMock(side_effect=RuntimeError("asr fail"))):
         with pytest.raises(HTTPException) as exc6:
-            await records.create_record_from_audio(_Upload(content_type="audio/wav", data=b"wav", filename="a.wav"))
+            await records.create_record_from_audio(
+                audio=_Upload(content_type="audio/wav", data=b"wav", filename="a.wav"),
+                doctor_id=DOCTOR,
+            )
     assert exc6.value.status_code == 500
-    assert exc6.value.detail == "Internal server error"
 
-    with patch("routers.records.transcribe_audio", new=AsyncMock(return_value="转写文本")), \
-         patch("routers.records.structure_medical_record", new=AsyncMock(side_effect=ValueError("bad audio record"))):
+    # Empty transcript → 422
+    with patch("routers.records.transcribe_audio", new=AsyncMock(return_value="  ")):
         with pytest.raises(HTTPException) as exc6b:
-            await records.create_record_from_audio(_Upload(content_type="audio/wav", data=b"wav", filename="a.wav"))
+            await records.create_record_from_audio(
+                audio=_Upload(content_type="audio/wav", data=b"wav", filename="a.wav"),
+                doctor_id=DOCTOR,
+            )
     assert exc6b.value.status_code == 422
-    assert exc6b.value.detail == "Invalid medical record content"

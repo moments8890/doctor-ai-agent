@@ -12,7 +12,6 @@ from fastapi import HTTPException
 
 import routers.voice as voice
 from db.models.medical_record import MedicalRecord
-from utils.errors import InvalidMedicalRecordError
 from services.ai.intent import Intent, IntentResult
 from services.domain.intent_handlers._types import HandlerResult
 from services.intent_workflow.models import (
@@ -370,44 +369,6 @@ async def test_voice_chat_help_intent():
 
 
 # --------------------------------------------------------------------------
-# voice_chat — followup name override
-# --------------------------------------------------------------------------
-
-
-async def test_voice_chat_followup_name_forces_add_record():
-    """When previous turn asked for name and transcript is name-only,
-    intent is overridden to add_record regardless of workflow classification."""
-    upload = _Upload(content_type="audio/wav")
-    history_json = json.dumps([{"role": "assistant", "content": "请问这位患者叫什么名字？"}])
-    wf = _workflow_result(intent=Intent.unknown, chat_reply="ok")
-    hr = _hr(reply="📋 已为【李四】生成病历草稿。", record=_record(), pending_id="draft-fu")
-    add_record_mock = AsyncMock(return_value=hr)
-    with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="李四")), \
-         patch("routers.voice.hydrate_session_state", new=AsyncMock()), \
-         patch("services.intent_workflow.run", new=AsyncMock(return_value=wf)), \
-         patch("routers.voice.shared_handle_add_record", new=add_record_mock):
-        resp = await voice.voice_chat(audio=upload, doctor_id=DOCTOR, history=history_json)
-    add_record_mock.assert_called_once()
-    assert resp.pending_id == "draft-fu"
-    _, kwargs = add_record_mock.call_args
-    assert kwargs.get("followup_name") == "李四"
-
-
-async def test_voice_chat_followup_name_already_add_record():
-    """When followup_name is set and workflow classified as add_record, handler still called."""
-    upload = _Upload(content_type="audio/wav")
-    history_json = json.dumps([{"role": "assistant", "content": "请问这位患者叫什么名字？"}])
-    wf = _workflow_result(intent=Intent.add_record, patient_name="李四")
-    hr = _hr(reply="📋 已为【李四】生成病历草稿。", record=_record(), pending_id="draft-ok")
-    with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="李四")), \
-         patch("routers.voice.hydrate_session_state", new=AsyncMock()), \
-         patch("services.intent_workflow.run", new=AsyncMock(return_value=wf)), \
-         patch("routers.voice.shared_handle_add_record", new=AsyncMock(return_value=hr)):
-        resp = await voice.voice_chat(audio=upload, doctor_id=DOCTOR, history=history_json)
-    assert resp.pending_id == "draft-ok"
-
-
-# --------------------------------------------------------------------------
 # voice_chat — history passed to workflow
 # --------------------------------------------------------------------------
 
@@ -472,7 +433,7 @@ async def test_voice_chat_schedule_follow_up():
 
 
 # --------------------------------------------------------------------------
-# voice_consultation tests (unchanged — consultation still saves directly)
+# voice_consultation tests (ADR 0009: consultation now routes through workflow)
 # --------------------------------------------------------------------------
 
 
@@ -480,7 +441,7 @@ async def test_consultation_unsupported_type():
     upload = _Upload(content_type="audio/aac")
     with pytest.raises(HTTPException) as exc:
         await voice.voice_consultation(
-            audio=upload, doctor_id=DOCTOR, patient_name=None, save=False
+            audio=upload, doctor_id=DOCTOR, history=None
         )
     assert exc.value.status_code == 422
 
@@ -490,104 +451,9 @@ async def test_consultation_transcription_error():
     with patch("routers.voice.transcribe_audio", new=AsyncMock(side_effect=RuntimeError("fail"))):
         with pytest.raises(HTTPException) as exc:
             await voice.voice_consultation(
-                audio=upload, doctor_id=DOCTOR, patient_name=None, save=False
+                audio=upload, doctor_id=DOCTOR, history=None
             )
     assert exc.value.status_code == 500
-
-
-async def test_consultation_structuring_error():
-    upload = _Upload(content_type="audio/wav")
-    with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="医患对话")), \
-         patch("routers.voice.structure_medical_record", new=AsyncMock(side_effect=RuntimeError("llm down"))):
-        with pytest.raises(HTTPException) as exc:
-            await voice.voice_consultation(
-                audio=upload, doctor_id=DOCTOR, patient_name=None, save=False
-            )
-    assert exc.value.status_code == 500
-
-
-async def test_consultation_no_save():
-    upload = _Upload(content_type="audio/wav")
-    with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="医患对话")), \
-         patch("routers.voice.structure_medical_record", new=AsyncMock(return_value=_record())):
-        resp = await voice.voice_consultation(
-            audio=upload, doctor_id=DOCTOR, patient_name=None, save=False
-        )
-    assert "胸痛" in resp.record.content
-    assert resp.patient_id is None
-
-
-async def test_consultation_save_existing_patient():
-    upload = _Upload(content_type="audio/wav")
-    fake_db = object()
-    patient = SimpleNamespace(id=42, name="张三")
-    with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="医患对话")), \
-         patch("routers.voice.structure_medical_record", new=AsyncMock(return_value=_record())), \
-         patch("db.engine.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), \
-         patch("db.crud.find_patient_by_name", new=AsyncMock(return_value=patient)), \
-         patch("db.crud.save_record", new=AsyncMock()):
-        resp = await voice.voice_consultation(
-            audio=upload, doctor_id=DOCTOR, patient_name="张三", save=True
-        )
-    assert resp.patient_id == 42
-
-
-async def test_consultation_save_creates_new_patient():
-    upload = _Upload(content_type="audio/wav")
-    fake_db = object()
-    new_patient = SimpleNamespace(id=99, name="王五")
-    with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="医患对话")), \
-         patch("routers.voice.structure_medical_record", new=AsyncMock(return_value=_record())), \
-         patch("db.engine.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), \
-         patch("db.crud.find_patient_by_name", new=AsyncMock(return_value=None)), \
-         patch("db.crud.create_patient", new=AsyncMock(return_value=new_patient)) as create_mock, \
-         patch("db.crud.save_record", new=AsyncMock()):
-        resp = await voice.voice_consultation(
-            audio=upload, doctor_id=DOCTOR, patient_name="王五", save=True
-        )
-    assert resp.patient_id == 99
-    create_mock.assert_called_once()
-
-
-async def test_consultation_save_no_patient_name():
-    upload = _Upload(content_type="audio/wav")
-    fake_db = object()
-    save_mock = AsyncMock()
-    with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="医患对话")), \
-         patch("routers.voice.structure_medical_record", new=AsyncMock(return_value=_record())), \
-         patch("db.engine.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), \
-         patch("db.crud.save_record", new=save_mock):
-        resp = await voice.voice_consultation(
-            audio=upload, doctor_id=DOCTOR, patient_name=None, save=True
-        )
-    assert resp.patient_id is None
-    save_mock.assert_called_once()
-
-
-async def test_consultation_transcribe_consultation_mode():
-    upload = _Upload(content_type="audio/wav")
-    transcribe_mock = AsyncMock(return_value="医患对话")
-    with patch("routers.voice.transcribe_audio", new=transcribe_mock), \
-         patch("routers.voice.structure_medical_record", new=AsyncMock(return_value=_record())):
-        await voice.voice_consultation(
-            audio=upload, doctor_id=DOCTOR, patient_name=None, save=False
-        )
-    transcribe_mock.assert_called_once()
-    _, kwargs = transcribe_mock.call_args
-    assert kwargs.get("consultation_mode") is True
-
-
-async def test_consultation_structure_consultation_mode():
-    upload = _Upload(content_type="audio/wav")
-    structure_mock = AsyncMock(return_value=_record())
-    with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="医患对话")), \
-         patch("routers.voice.structure_medical_record", new=structure_mock):
-        await voice.voice_consultation(
-            audio=upload, doctor_id=DOCTOR, patient_name=None, save=False
-        )
-    structure_mock.assert_called_once()
-    _, kwargs = structure_mock.call_args
-    assert kwargs.get("consultation_mode") is True
 
 
 async def test_consultation_empty_transcript():
@@ -596,6 +462,55 @@ async def test_consultation_empty_transcript():
     with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="   ")):
         with pytest.raises(HTTPException) as exc:
             await voice.voice_consultation(
-                audio=upload, doctor_id=DOCTOR, patient_name=None, save=False
+                audio=upload, doctor_id=DOCTOR, history=None
             )
     assert exc.value.status_code == 422
+
+
+async def test_consultation_transcribe_consultation_mode():
+    """consultation_mode=True is passed to transcribe_audio."""
+    upload = _Upload(content_type="audio/wav")
+    transcribe_mock = AsyncMock(return_value="医患对话转写内容")
+    wf = _workflow_result(intent=Intent.unknown, chat_reply="好的")
+    with patch("routers.voice.transcribe_audio", new=transcribe_mock), \
+         patch("routers.voice.hydrate_session_state", new=AsyncMock()), \
+         patch("services.intent_workflow.run", new=AsyncMock(return_value=wf)):
+        await voice.voice_consultation(
+            audio=upload, doctor_id=DOCTOR, history=None
+        )
+    transcribe_mock.assert_called_once()
+    _, kwargs = transcribe_mock.call_args
+    assert kwargs.get("consultation_mode") is True
+
+
+async def test_consultation_routes_through_workflow():
+    """consultation enters the 5-layer workflow (same as voice_chat)."""
+    upload = _Upload(content_type="audio/wav")
+    wf = _workflow_result(intent=Intent.add_record, patient_name="张三")
+    workflow_mock = AsyncMock(return_value=wf)
+    hr = _hr("已为患者【张三】创建病历草稿", record=_record())
+    with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="患者张三胸痛两小时")), \
+         patch("routers.voice.hydrate_session_state", new=AsyncMock()), \
+         patch("services.intent_workflow.run", new=workflow_mock), \
+         patch("routers.voice.shared_handle_add_record", new=AsyncMock(return_value=hr)):
+        resp = await voice.voice_consultation(
+            audio=upload, doctor_id=DOCTOR, history=None
+        )
+    workflow_mock.assert_awaited_once()
+    assert resp.transcript == "患者张三胸痛两小时"
+    assert "张三" in resp.reply
+
+
+async def test_consultation_no_direct_save():
+    """consultation no longer structures or saves directly (ADR 0009)."""
+    upload = _Upload(content_type="audio/wav")
+    wf = _workflow_result(intent=Intent.unknown, chat_reply="好的")
+    with patch("routers.voice.transcribe_audio", new=AsyncMock(return_value="医患对话")), \
+         patch("routers.voice.hydrate_session_state", new=AsyncMock()), \
+         patch("services.intent_workflow.run", new=AsyncMock(return_value=wf)):
+        resp = await voice.voice_consultation(
+            audio=upload, doctor_id=DOCTOR, history=None
+        )
+    # No record created — must go through workflow draft-first flow
+    assert resp.record is None
+    assert resp.reply  # got a reply from the workflow

@@ -7,7 +7,7 @@ from __future__ import annotations
 import os
 import time
 from collections import deque
-from fastapi import APIRouter, HTTPException, UploadFile, File, Header
+from fastapi import APIRouter, Form, HTTPException, UploadFile, File, Header
 from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional
 
@@ -533,8 +533,18 @@ async def create_record_from_text(body: TextInput):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/from-image", response_model=MedicalRecord)
-async def create_record_from_image(image: UploadFile = File(...)):
+@router.post("/from-image")
+async def create_record_from_image(
+    image: UploadFile = File(...),
+    doctor_id: str = Form(default="test_doctor"),
+    authorization: Optional[str] = Header(default=None),
+):
+    """OCR an image then import via import_history (ADR 0009)."""
+    resolved_doctor_id = resolve_doctor_id_from_auth_or_fallback(
+        doctor_id, authorization,
+        fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
+        default_doctor_id="test_doctor",
+    )
     if image.content_type not in SUPPORTED_IMAGE_TYPES:
         raise HTTPException(
             status_code=422,
@@ -543,17 +553,29 @@ async def create_record_from_image(image: UploadFile = File(...)):
     try:
         image_bytes = await image.read()
         text = await extract_text_from_image(image_bytes, image.content_type)
-        return await structure_medical_record(text)
-    except ValueError as e:
-        log(f"[Records] from-image validation failed: {e}")
-        raise HTTPException(status_code=422, detail="Invalid medical record content")
     except Exception as e:
-        log(f"[Records] from-image failed: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        log(f"[Records] from-image OCR failed: {e}")
+        raise HTTPException(status_code=500, detail="OCR failed")
+
+    if not text or not text.strip():
+        raise HTTPException(status_code=422, detail="OCR 未能从图片中提取文字")
+
+    reply = await _import_extracted_text(text, resolved_doctor_id, source="image")
+    return {"reply": reply, "source": "image", "extracted_text": text}
 
 
-@router.post("/from-audio", response_model=MedicalRecord)
-async def create_record_from_audio(audio: UploadFile = File(...)):
+@router.post("/from-audio")
+async def create_record_from_audio(
+    audio: UploadFile = File(...),
+    doctor_id: str = Form(default="test_doctor"),
+    authorization: Optional[str] = Header(default=None),
+):
+    """Transcribe audio then import via import_history (ADR 0009)."""
+    resolved_doctor_id = resolve_doctor_id_from_auth_or_fallback(
+        doctor_id, authorization,
+        fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
+        default_doctor_id="test_doctor",
+    )
     if audio.content_type not in SUPPORTED_AUDIO_TYPES:
         raise HTTPException(
             status_code=422,
@@ -562,13 +584,28 @@ async def create_record_from_audio(audio: UploadFile = File(...)):
     try:
         audio_bytes = await audio.read()
         transcript = await transcribe_audio(audio_bytes, audio.filename or "audio.wav")
-        return await structure_medical_record(transcript)
-    except ValueError as e:
-        log(f"[Records] from-audio validation failed: {e}")
-        raise HTTPException(status_code=422, detail="Invalid medical record content")
     except Exception as e:
-        log(f"[Records] from-audio failed: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        log(f"[Records] from-audio transcription failed: {e}")
+        raise HTTPException(status_code=500, detail="Transcription failed")
+
+    if not transcript or not transcript.strip():
+        raise HTTPException(status_code=422, detail="转录未产生有效文本")
+
+    reply = await _import_extracted_text(transcript, resolved_doctor_id, source="voice")
+    return {"reply": reply, "source": "voice", "extracted_text": transcript}
+
+
+async def _import_extracted_text(text: str, doctor_id: str, *, source: str) -> str:
+    """Dispatch extracted text to import_history with source metadata."""
+    from services.ai.intent import IntentResult as _IR, Intent as _I
+    from services.wechat.wechat_import import handle_import_history
+
+    intent_result = _IR(intent=_I.import_history, extra_data={"source": source})
+    try:
+        return await handle_import_history(text, doctor_id, intent_result)
+    except Exception as e:
+        log(f"[Records] import failed source={source} doctor={doctor_id}: {e}")
+        raise HTTPException(status_code=500, detail="导入处理失败，请重试")
 
 
 @router.post("/transcribe")
