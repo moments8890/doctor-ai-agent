@@ -361,6 +361,24 @@ async def dispatch_intent_result(text: str, doctor_id: str, intent_result, histo
     from routers import wechat as _w
     i = intent_result.intent
     if i == Intent.create_patient:
+        compound = (intent_result.extra_data or {}).get("compound_actions") or []
+        if "add_record" in compound:
+            hr_create = await _shared_create_patient(doctor_id, intent_result)
+            if hr_create.reply and "⚠️" not in hr_create.reply:
+                from services.ai.intent import IntentResult as _IR
+                add_ir = _IR(
+                    intent=Intent.add_record,
+                    patient_name=intent_result.patient_name,
+                    is_emergency=intent_result.is_emergency,
+                )
+                hr_record = await _shared_add_record(text, doctor_id, history or [], add_ir)
+                combined = hr_create.reply + ("\n" + hr_record.reply if hr_record.reply else "")
+                parts = _hr_to_parts(hr_record)
+                return WeChatReply(
+                    notification=hr_create.switch_notification or parts.notification,
+                    text=combined,
+                )
+            return _hr_to_parts(hr_create)
         return _hr_to_parts(await _shared_create_patient(doctor_id, intent_result))
     if i == Intent.add_record:
         return await handle_add_record_intent(text, doctor_id, intent_result, history)

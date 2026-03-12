@@ -265,6 +265,38 @@ async def _dispatch_intent(
     intent = intent_result.intent
 
     if intent == Intent.create_patient:
+        # Compound create_patient + clinical content → route through add_record
+        # so the record gets a pending draft instead of legacy inline save.
+        compound = intent_result.extra_data.get("compound_actions") or []
+        if "add_record" in compound:
+            hr = await shared_handle_create_patient(
+                doctor_id, intent_result,
+            )
+            if hr.reply and "⚠️" not in hr.reply:
+                # Patient created/reused OK — now route clinical text to add_record
+                add_ir = IntentResult(
+                    intent=Intent.add_record,
+                    patient_name=intent_result.patient_name,
+                    is_emergency=intent_result.is_emergency,
+                )
+                hr2 = await shared_handle_add_record(
+                    text, doctor_id, history, add_ir,
+                )
+                # Combine create reply + record reply
+                combined_reply = hr.reply
+                if hr2.reply:
+                    combined_reply += "\n" + hr2.reply
+                hr2 = _HandlerResult(
+                    reply=combined_reply,
+                    record=hr2.record,
+                    pending_id=hr2.pending_id,
+                    pending_patient_name=hr2.pending_patient_name,
+                    pending_expires_at=hr2.pending_expires_at,
+                    switch_notification=hr.switch_notification or hr2.switch_notification,
+                )
+                return await _handler_result_to_chat(hr2)
+            return await _handler_result_to_chat(hr)
+
         hr = await shared_handle_create_patient(
             doctor_id, intent_result, body_text=text, original_text=original_text,
         )

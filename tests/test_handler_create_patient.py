@@ -159,38 +159,14 @@ class TestCompoundRecord:
              patch(f"{_MOD}.set_current_patient", return_value=None), \
              patch(f"{_MOD}.audit", new_callable=AsyncMock), \
              patch(f"{_MOD}.get_current_trace_id", return_value="t1"), \
-             patch(f"{_MOD}.trace_block", _noop_trace), \
-             patch(f"{_MOD}._contains_clinical_content", return_value=True), \
-             patch(f"{_MOD}.strip_leading_create_demographics", return_value="头痛三天伴恶心呕吐"), \
-             patch(f"{_MOD}.structure_medical_record", new_callable=AsyncMock, return_value=record), \
-             patch(f"{_MOD}.save_record", new_callable=AsyncMock, return_value=saved):
+             patch(f"{_MOD}.trace_block", _noop_trace):
             result = await handle_create_patient(
                 "doc1", ir, body_text="头痛三天伴恶心呕吐，血压160/100mmHg"
             )
 
-        assert "已录入病历" in result.reply
-
-    @pytest.mark.asyncio
-    async def test_compound_record_failure_shows_warning(self):
-        """If compound record save fails → warning appended."""
-        from services.domain.intent_handlers._create_patient import handle_create_patient
-        ir = _intent(name="张三")
-        new_patient = _patient(pid=1, name="张三")
-
-        mock_ctx, _ = _mock_db_ctx()
-        with patch(f"{_MOD}.AsyncSessionLocal", return_value=mock_ctx), \
-             patch(f"{_MOD}.find_patients_by_exact_name", new_callable=AsyncMock, return_value=[]), \
-             patch(f"{_MOD}.db_create_patient", new_callable=AsyncMock, return_value=new_patient), \
-             patch(f"{_MOD}.set_current_patient", return_value=None), \
-             patch(f"{_MOD}.audit", new_callable=AsyncMock), \
-             patch(f"{_MOD}.get_current_trace_id", return_value="t1"), \
-             patch(f"{_MOD}.trace_block", _noop_trace), \
-             patch(f"{_MOD}._contains_clinical_content", return_value=True), \
-             patch(f"{_MOD}.strip_leading_create_demographics", return_value="text"), \
-             patch(f"{_MOD}.structure_medical_record", new_callable=AsyncMock, side_effect=Exception("LLM down")):
-            result = await handle_create_patient("doc1", ir, body_text="临床内容")
-
-        assert "病历录入失败" in result.reply
+        # Compound records are now handled by the dispatch layer, not here.
+        assert "已录入病历" not in result.reply
+        assert "已为患者" in result.reply
 
 
 # ============================================================================
@@ -213,7 +189,6 @@ class TestReminderTask:
         with patch(f"{_MOD}.AsyncSessionLocal", return_value=mock_ctx), \
              patch(f"{_MOD}.find_patients_by_exact_name", new_callable=AsyncMock, return_value=[existing]), \
              patch(f"{_MOD}.set_current_patient", return_value=None), \
-             patch(f"{_MOD}._contains_clinical_content", return_value=False), \
              patch(f"{_MOD}._REMINDER_IN_MSG_RE") as mock_re:
             # Simulate regex match
             mock_match = MagicMock()

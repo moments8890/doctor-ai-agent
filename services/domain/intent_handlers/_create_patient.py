@@ -21,29 +21,17 @@ from typing import Optional
 from db.crud import (
     create_patient as db_create_patient,
     find_patients_by_exact_name,
-    save_record,
 )
 from db.engine import AsyncSessionLocal
 from services.ai.intent import IntentResult
-from services.ai.structuring import structure_medical_record
 from services.domain.intent_handlers._types import HandlerResult
 from services.domain.chat_constants import REMINDER_IN_MSG_RE as _REMINDER_IN_MSG_RE
-from services.domain.compound_normalizer import has_residual_clinical_content
-from services.domain.text_cleanup import strip_leading_create_demographics
 from services.notify.tasks import create_general_task
 from services.observability.audit import audit
 from services.observability.observability import get_current_trace_id, trace_block
 from services.session import set_current_patient
 from utils.errors import InvalidMedicalRecordError
 from utils.log import log
-
-
-def _contains_clinical_content(text: str, intent_result: Optional[IntentResult] = None) -> bool:
-    """Check if text has meaningful clinical content after stripping demographics."""
-    has_content, _ = has_residual_clinical_content(
-        text or "", intent_result,
-    )
-    return has_content
 
 
 async def _create_or_reuse_patient(
@@ -84,29 +72,6 @@ async def _create_or_reuse_patient(
     ))
     return reply, patient
 
-
-async def _append_compound_record(
-    doctor_id: str, patient: object, body_text: str, name: str, reply: str,
-    intent_result: Optional[IntentResult] = None,
-) -> str:
-    """附加病历录入到创建回复中。"""
-    try:
-        _clinical_text = strip_leading_create_demographics(body_text, intent_result).strip() or body_text
-        with trace_block("router", "records.chat.compound_record", {"doctor_id": doctor_id, "patient_id": patient.id, "patient_name": name}):
-            record = await structure_medical_record(_clinical_text)
-        async with AsyncSessionLocal() as db:
-            saved = await save_record(db, doctor_id, record, patient.id)
-        preview = record.content[:50] + ("…" if len(record.content) > 50 else "")
-        reply += f"\n✅ 已录入病历：{preview}"
-        asyncio.create_task(audit(
-            doctor_id, "WRITE", resource_type="record",
-            resource_id=str(saved.id), trace_id=get_current_trace_id(),
-        ))
-        log(f"[create_patient] compound record saved [{name}] record_id={saved.id} doctor={doctor_id}")
-    except Exception as e:
-        log(f"[create_patient] compound record save FAILED doctor={doctor_id}: {e}")
-        reply += "\n⚠️ 病历录入失败，请稍后单独补充。"
-    return reply
 
 
 async def _append_reminder_task(
@@ -163,10 +128,6 @@ async def handle_create_patient(
     # Pin resolved patient to session
     _prev = set_current_patient(doctor_id, patient.id, patient.name)
     _switch = f"🔄 已从【{_prev}】切换到【{patient.name}】" if _prev else None
-
-    # Compound record (Web channel typically provides body_text)
-    if body_text and _contains_clinical_content(body_text, intent_result):
-        reply = await _append_compound_record(doctor_id, patient, body_text, name, reply, intent_result)
 
     # Reminder task (Web channel typically provides original_text)
     if original_text:
