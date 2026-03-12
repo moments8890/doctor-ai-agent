@@ -5,14 +5,16 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
+from datetime import datetime
+from typing import Optional, Tuple
 
 from db.crud import (
     get_all_records_for_doctor,
     get_records_for_patient,
     get_all_patients,
 )
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
+from sqlalchemy.orm import selectinload
 from db.engine import AsyncSessionLocal
 from db.models import MedicalRecordDB, Patient
 from services.auth.rate_limit import enforce_doctor_rate_limit
@@ -22,6 +24,8 @@ from routers.ui._utils import (
     _parse_tags,
     _normalize_query_str,
     _normalize_date_yyyy_mm_dd,
+    encode_cursor,
+    decode_cursor,
 )
 
 
@@ -117,19 +121,118 @@ async def _fetch_patients_with_record_counts(db, doctor_id: str) -> tuple[list, 
     return patients, count_map
 
 
+async def _fetch_patients_cursor_page(
+    db,
+    doctor_id: str,
+    *,
+    category: Optional[str] = None,
+    cursor_pair: Optional[Tuple[datetime, int]] = None,
+    limit: int = 50,
+) -> Tuple[list, dict]:
+    """Fetch one page of patients using keyset pagination.
+
+    Ordering is ``(created_at DESC, id DESC)`` — deterministic even when
+    ``created_at`` values collide.
+
+    When *cursor_pair* is ``(ts, id)`` the query returns only rows that
+    come **after** that position in the sort order.
+
+    Returns ``(patients_page, count_map)`` where *patients_page* has at
+    most *limit* rows.
+    """
+    stmt = (
+        select(Patient)
+        .where(Patient.doctor_id == doctor_id)
+        .options(selectinload(Patient.labels))
+        .order_by(Patient.created_at.desc(), Patient.id.desc())
+    )
+    if category is not None:
+        stmt = stmt.where(Patient.primary_category == category)
+    if cursor_pair is not None:
+        cursor_ts, cursor_id = cursor_pair
+        # Keyset condition: row comes after (cursor_ts, cursor_id) in
+        # ``(created_at DESC, id DESC)`` order.
+        stmt = stmt.where(
+            or_(
+                Patient.created_at < cursor_ts,
+                and_(Patient.created_at == cursor_ts, Patient.id < cursor_id),
+            )
+        )
+    stmt = stmt.limit(limit)
+
+    patients = list((await db.execute(stmt)).scalars().all())
+
+    # Record counts for the patient IDs in this page
+    pids = [p.id for p in patients]
+    if pids:
+        counts_result = await db.execute(
+            select(MedicalRecordDB.patient_id, func.count(MedicalRecordDB.id))
+            .where(
+                MedicalRecordDB.doctor_id == doctor_id,
+                MedicalRecordDB.patient_id.in_(pids),
+            )
+            .group_by(MedicalRecordDB.patient_id)
+        )
+        count_map = {pid: cnt for pid, cnt in counts_result.all()}
+    else:
+        count_map = {}
+
+    return patients, count_map
+
+
 async def manage_patients_for_doctor(
     doctor_id: str,
     *,
-    category: str | None = None,
+    category: Optional[str] = None,
+    cursor: Optional[str] = None,
     limit: int = 50,
     offset: int = 0,
 ) -> dict:
-    """患者列表：按医生 ID 查询患者，支持分类过滤和分页。"""
+    """患者列表：按医生 ID 查询患者，支持分类过滤和游标/偏移分页。
+
+    When *cursor* is provided, keyset (cursor-based) pagination is used
+    and *offset* is ignored.  The response includes a ``next_cursor``
+    field that the client should pass for the next page.
+
+    When *cursor* is ``None`` and *offset* is 0, the first page is
+    returned — fully backward-compatible with the old offset pagination.
+    """
     enforce_doctor_rate_limit(doctor_id, scope="ui.manage_patients")
     category = _normalize_query_str(category)
     asyncio.create_task(audit(doctor_id, "READ", "patient", "list"))
+
+    # Normalize cursor — could be None, empty string, or a real cursor token
+    effective_cursor: Optional[str] = cursor if isinstance(cursor, str) and cursor else None
+    cursor_pair = decode_cursor(effective_cursor)
+
+    # Use cursor-mode when a cursor is explicitly provided, or when the
+    # client requests the first page (offset == 0).  Legacy offset mode
+    # is only entered when offset > 0 *without* a cursor.
+    use_cursor_mode = effective_cursor is not None or offset == 0
+
     async with AsyncSessionLocal() as db:
-        patients, count_map = await _fetch_patients_with_record_counts(db, doctor_id)
+        if use_cursor_mode:
+            patients, count_map = await _fetch_patients_cursor_page(
+                db, doctor_id, category=category, cursor_pair=cursor_pair, limit=limit,
+            )
+            items = [_serialize_patient_item(p, count_map) for p in patients]
+
+            # Build next_cursor from the last item when there may be more rows
+            next_cursor: Optional[str] = None
+            if len(patients) == limit:
+                last = patients[-1]
+                next_cursor = encode_cursor(last.created_at, last.id)
+
+            return {
+                "doctor_id": doctor_id,
+                "items": items,
+                "limit": limit,
+                "next_cursor": next_cursor,
+            }
+        else:
+            # Legacy offset mode (offset > 0 without cursor)
+            patients, count_map = await _fetch_patients_with_record_counts(db, doctor_id)
+
     items = [_serialize_patient_item(p, count_map) for p in patients]
     if category is not None:
         items = [item for item in items if item["primary_category"] == category]

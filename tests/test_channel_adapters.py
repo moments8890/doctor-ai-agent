@@ -285,7 +285,8 @@ async def test_wechat_send_notification_calls_cs_api():
 async def test_wechat_get_history_empty_session():
     """get_history with no session data returns empty list."""
     adapter = WeChatAdapter()
-    with patch("services.session.get_session") as mock_get:
+    with patch("services.session.hydrate_session_state", new=AsyncMock()), \
+         patch("services.session.get_session") as mock_get:
         mock_get.return_value = type("FakeSession", (), {"conversation_history": []})()
         history = await adapter.get_history("openid_doc")
         assert history == []
@@ -293,20 +294,23 @@ async def test_wechat_get_history_empty_session():
 
 @pytest.mark.asyncio
 async def test_wechat_get_history_returns_conversation_history():
-    """get_history uses the correct field (conversation_history, not history)."""
+    """get_history hydrates session then returns conversation_history."""
     adapter = WeChatAdapter()
     expected = [{"role": "user", "content": "hello"}]
-    with patch("services.session.get_session") as mock_get:
+    hydrate_mock = AsyncMock()
+    with patch("services.session.hydrate_session_state", new=hydrate_mock), \
+         patch("services.session.get_session") as mock_get:
         mock_get.return_value = type("FakeSession", (), {"conversation_history": expected})()
         history = await adapter.get_history("openid_doc")
         assert history == expected
+        hydrate_mock.assert_called_once_with("openid_doc")
 
 
 @pytest.mark.asyncio
 async def test_wechat_get_history_import_error():
     """get_history gracefully handles import/session errors."""
     adapter = WeChatAdapter()
-    with patch("services.session.get_session", side_effect=RuntimeError):
+    with patch("services.session.hydrate_session_state", new=AsyncMock(side_effect=RuntimeError)):
         history = await adapter.get_history("openid_doc")
         assert history == []
 

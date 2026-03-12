@@ -27,7 +27,6 @@ routers/              Channel entry points (FastAPI routers)
   neuro.py              Neurology/CVD specialist endpoints
   wechat_flows.py       WeChat multi-turn flow helpers
   wechat_infra.py       WeChat platform infrastructure
-  records_intent_handlers.py   Web-side intent handler dispatch
   records_media.py      Media upload for records
   ui/                   Admin + debug UI endpoints
 
@@ -120,8 +119,14 @@ Channel-specific response formatting
 ```
 
 Web returns the response synchronously in the HTTP body. WeChat sends via
-customer-service message API in a background task. Voice follows the same
-pattern as Web.
+customer-service message API in a background task. Voice `/chat` follows the
+same pattern as Web.
+
+**Voice `/consultation` exception:** The `POST /api/voice/consultation` endpoint
+is a separate ambient-recording flow that transcribes audio and structures it
+into a medical record without using the intent pipeline. It does not create
+pending drafts -- if `save=True`, the record is persisted directly. This is
+intentional: consultations are complete recordings, not interactive commands.
 
 ---
 
@@ -182,9 +187,12 @@ The `ChannelAdapter` protocol (`services/domain/message.py`) defines
 | `send_notification` | Stub | Stub | Deferred |
 | `get_history` | No-op | Reads from session | Production |
 
-Web has no async push channel -- replies are in the HTTP response body.
-WeChat send-path calls go through `services/wechat/wechat_notify.py` directly.
-Full adapter integration for the send path is deferred.
+**Current send paths** (until full adapter integration):
+- Web: replies are returned in the HTTP response body (no async push channel).
+- WeChat: direct calls to `services/wechat/wechat_notify._send_customer_service_msg()`.
+  The `WeChatAdapter.send_notification()` delegates to this function; `send_reply()`
+  remains a stub. See ADR 0004 for channel choice rationale.
+- Voice: replies are returned in the HTTP response body (same as Web).
 
 ### Record Operations (`services/domain/record_ops.py`)
 

@@ -64,10 +64,14 @@ async def _create_or_reuse_patient(
         return reply, patient
 
     with trace_block("router", "records.chat.create_patient", {"doctor_id": doctor_id, "patient_name": name}):
-        async with AsyncSessionLocal() as db:
-            patient = await db_create_patient(
-                db, doctor_id, name, intent_result.gender, intent_result.age
-            )
+        try:
+            async with AsyncSessionLocal() as db:
+                patient = await db_create_patient(
+                    db, doctor_id, name, intent_result.gender, intent_result.age
+                )
+        except InvalidMedicalRecordError as e:
+            log(f"[create_patient] validation FAILED doctor={doctor_id}: {e}")
+            return "⚠️ 患者信息不完整或格式不正确，请检查后重试。", None
     parts = "、".join(filter(None, [
         intent_result.gender,
         f"{intent_result.age}岁" if intent_result.age else None,
@@ -153,6 +157,8 @@ async def handle_create_patient(
         patient = _candidates[0] if _candidates else None
 
     reply, patient = await _create_or_reuse_patient(doctor_id, name, patient, intent_result)
+    if patient is None:
+        return HandlerResult(reply=reply)
 
     # Pin resolved patient to session
     _prev = set_current_patient(doctor_id, patient.id, patient.name)

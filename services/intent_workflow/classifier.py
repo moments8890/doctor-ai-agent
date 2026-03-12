@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import time
-from typing import Optional
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Optional
 
 from services.ai.fast_router import fast_route, fast_route_label
 from services.ai.intent import IntentResult
@@ -12,6 +13,9 @@ from services.session import get_session
 from utils.log import log
 
 from .models import IntentDecision
+
+if TYPE_CHECKING:
+    from services.ai.turn_context import DoctorTurnContext
 
 
 def _decision_from(result: IntentResult, source: str) -> IntentDecision:
@@ -25,6 +29,29 @@ def _decision_from(result: IntentResult, source: str) -> IntentDecision:
     )
 
 
+def _session_proxy_from_context(ctx: "DoctorTurnContext") -> SimpleNamespace:
+    """Build a duck-typed session proxy from DoctorTurnContext.
+
+    fast_route and _build_llm_kwargs read session fields via getattr();
+    this proxy exposes the same attributes from the unified context.
+    """
+    wf = ctx.workflow
+    return SimpleNamespace(
+        specialty=ctx.specialty,
+        doctor_name=ctx.doctor_name,
+        current_patient_id=wf.current_patient_id,
+        current_patient_name=wf.current_patient_name,
+        candidate_patient_name=wf.candidate_patient_name,
+        candidate_patient_gender=wf.candidate_patient_gender,
+        candidate_patient_age=wf.candidate_patient_age,
+        patient_not_found_name=wf.patient_not_found_name,
+        pending_record_id=wf.pending_record_id,
+        pending_create_name=wf.pending_create_name,
+        interview=wf.interview,
+        pending_cvd_scale=wf.pending_cvd_scale,
+    )
+
+
 async def classify(
     text: str,
     doctor_id: str,
@@ -33,17 +60,24 @@ async def classify(
     effective_intent: Optional[IntentResult] = None,
     knowledge_context: str = "",
     channel: str = "web",
+    turn_context: Optional["DoctorTurnContext"] = None,
 ) -> tuple[IntentDecision, IntentResult]:
     """Classify intent via fast_route -> LLM dispatch.
 
     Returns (IntentDecision, raw IntentResult). The raw result carries entity
     data (patient_name, gender, age) consumed by the entity extraction layer.
+
+    When *turn_context* is provided, session state is read from the
+    pre-assembled context instead of calling ``get_session()``.
     """
     if effective_intent is not None:
         log(f"[{channel}] menu_shortcut intent={effective_intent.intent.value} doctor={doctor_id}")
         return _decision_from(effective_intent, "menu_shortcut"), effective_intent
 
-    session = get_session(doctor_id)
+    session = (
+        _session_proxy_from_context(turn_context) if turn_context is not None
+        else get_session(doctor_id)
+    )
     _t0 = time.perf_counter()
 
     # Stage 1: fast_route (regex/rules, ~0-5 ms, no LLM)

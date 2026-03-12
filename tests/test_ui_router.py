@@ -10,6 +10,7 @@ import pytest
 from fastapi import HTTPException
 
 import routers.ui as ui
+from routers.ui._utils import encode_cursor, decode_cursor
 from utils.errors import LabelNotFoundError, PatientNotFoundError
 
 
@@ -70,15 +71,14 @@ def _patient_ns(**kwargs):
 
 
 async def test_manage_patients_includes_record_counts():
-    db = SimpleNamespace(
-        execute=AsyncMock(return_value=SimpleNamespace(all=lambda: [(11, 2), (12, 1)]))
-    )
     patients = [
         _patient_ns(id=11, name="张三", gender="男", year_of_birth=1980, created_at=datetime(2026, 3, 1, 8, 0, 0)),
         _patient_ns(id=12, name="李四", gender=None, year_of_birth=None, created_at=None),
     ]
+    count_map = {11: 2, 12: 1}
+    db = SimpleNamespace()
     with patch("routers.ui.record_handlers.AsyncSessionLocal", return_value=_SessionCtx(db)), \
-         patch("routers.ui.record_handlers.get_all_patients", new=AsyncMock(return_value=patients)):
+         patch("routers.ui.record_handlers._fetch_patients_cursor_page", new=AsyncMock(return_value=(patients, count_map))):
         data = await ui.manage_patients("doc1", category=None)
 
     assert data["doctor_id"] == "doc1"
@@ -89,14 +89,15 @@ async def test_manage_patients_includes_record_counts():
 
 
 async def test_manage_patients_uses_resolved_doctor_id():
-    db = SimpleNamespace(execute=AsyncMock(return_value=SimpleNamespace(all=lambda: [])))
+    db = SimpleNamespace()
+    fetch_mock = AsyncMock(return_value=([], {}))
     with patch("routers.ui.record_handlers.AsyncSessionLocal", return_value=_SessionCtx(db)), \
          patch("routers.ui._resolve_ui_doctor_id", return_value="resolved_doc"), \
-         patch("routers.ui.record_handlers.get_all_patients", new=AsyncMock(return_value=[])) as get_patients:
+         patch("routers.ui.record_handlers._fetch_patients_cursor_page", new=fetch_mock):
         data = await ui.manage_patients(doctor_id="doc1", authorization="Bearer x")
 
     assert data["doctor_id"] == "resolved_doc"
-    assert get_patients.await_args.args[1] == "resolved_doc"
+    assert fetch_mock.await_args.args[1] == "resolved_doc"
 
 
 async def test_manage_patients_invalid_authorization_raises_401():
@@ -220,12 +221,11 @@ def _label_ns(**kwargs):
 
 
 async def test_manage_patients_includes_category_fields():
-    db = SimpleNamespace(
-        execute=AsyncMock(return_value=SimpleNamespace(all=lambda: [(11, 3)]))
-    )
     patients = [_patient()]
+    count_map = {11: 3}
+    db = SimpleNamespace()
     with patch("routers.ui.record_handlers.AsyncSessionLocal", return_value=_SessionCtx(db)), \
-         patch("routers.ui.record_handlers.get_all_patients", new=AsyncMock(return_value=patients)):
+         patch("routers.ui.record_handlers._fetch_patients_cursor_page", new=AsyncMock(return_value=(patients, count_map))):
         data = await ui.manage_patients("doc1", category=None)
 
     item = data["items"][0]
@@ -234,15 +234,15 @@ async def test_manage_patients_includes_category_fields():
 
 
 async def test_manage_patients_category_filter():
-    db = SimpleNamespace(
-        execute=AsyncMock(return_value=SimpleNamespace(all=lambda: []))
-    )
+    # With cursor mode, category filtering is done in SQL by _fetch_patients_cursor_page,
+    # so the mock returns only matching patients.
     patients = [
         _patient_ns(id=11, name="高风险患者", primary_category="high_risk"),
-        _patient_ns(id=12, name="新患者", primary_category="new"),
     ]
+    count_map = {}
+    db = SimpleNamespace()
     with patch("routers.ui.record_handlers.AsyncSessionLocal", return_value=_SessionCtx(db)), \
-         patch("routers.ui.record_handlers.get_all_patients", new=AsyncMock(return_value=patients)):
+         patch("routers.ui.record_handlers._fetch_patients_cursor_page", new=AsyncMock(return_value=(patients, count_map))):
         data = await ui.manage_patients("doc1", category="high_risk")
 
     assert len(data["items"]) == 1
@@ -425,25 +425,23 @@ async def test_remove_label_from_patient_not_found_raises_404():
 
 
 async def test_patients_list_includes_labels_field():
-    db = SimpleNamespace(
-        execute=AsyncMock(return_value=SimpleNamespace(all=lambda: [(11, 1)]))
-    )
     patients = [_patient_ns(id=11, name="张三", labels=[])]
+    count_map = {11: 1}
+    db = SimpleNamespace()
     with patch("routers.ui.record_handlers.AsyncSessionLocal", return_value=_SessionCtx(db)), \
-         patch("routers.ui.record_handlers.get_all_patients", new=AsyncMock(return_value=patients)):
+         patch("routers.ui.record_handlers._fetch_patients_cursor_page", new=AsyncMock(return_value=(patients, count_map))):
         data = await ui.manage_patients("doc1", category=None)
     assert "labels" in data["items"][0]
     assert data["items"][0]["labels"] == []
 
 
 async def test_patients_list_labels_populated():
-    db = SimpleNamespace(
-        execute=AsyncMock(return_value=SimpleNamespace(all=lambda: [(11, 2)]))
-    )
     lbl = SimpleNamespace(id=7, name="转诊候选", color="#FF4444")
     patients = [_patient_ns(id=11, name="张三", labels=[lbl])]
+    count_map = {11: 2}
+    db = SimpleNamespace()
     with patch("routers.ui.record_handlers.AsyncSessionLocal", return_value=_SessionCtx(db)), \
-         patch("routers.ui.record_handlers.get_all_patients", new=AsyncMock(return_value=patients)):
+         patch("routers.ui.record_handlers._fetch_patients_cursor_page", new=AsyncMock(return_value=(patients, count_map))):
         data = await ui.manage_patients("doc1", category=None)
     assert data["items"][0]["labels"] == [{"id": 7, "name": "转诊候选", "color": "#FF4444"}]
 
@@ -795,3 +793,212 @@ async def test_admin_table_rows_each_table(table_key, exec_result, expected_key)
     assert data["table"] == table_key
     assert len(data["items"]) == 1
     assert expected_key in data["items"][0]
+
+
+# ---------------------------------------------------------------------------
+# Auth-boundary: workbench endpoints must use resolved doctor ID everywhere
+# ---------------------------------------------------------------------------
+
+_HYDRATE = "routers.ui.hydrate_session_state"
+
+
+def _empty_session():
+    """Return a minimal session stub with no active state."""
+    return SimpleNamespace(
+        current_patient_id=None,
+        current_patient_name=None,
+        pending_record_id=None,
+        pending_create_name=None,
+    )
+
+
+async def test_working_context_uses_resolved_doctor_id():
+    """GET /api/manage/working-context must use _resolve_ui_doctor_id return value."""
+    with patch("routers.ui._resolve_ui_doctor_id", return_value="resolved_wc") as resolve, \
+         patch(_HYDRATE, new_callable=AsyncMock) as hydrate, \
+         patch("routers.ui.get_session", return_value=_empty_session()) as gs:
+        result = await ui.get_working_context(doctor_id="raw_id", authorization="Bearer tok")
+
+    resolve.assert_called_once_with("raw_id", "Bearer tok")
+    hydrate.assert_awaited_once_with("resolved_wc")
+    gs.assert_called_once_with("resolved_wc")
+    assert result["current_patient"] is None
+
+
+async def test_pending_record_get_uses_resolved_doctor_id():
+    """GET /api/manage/pending-record must use _resolve_ui_doctor_id return value."""
+    with patch("routers.ui._resolve_ui_doctor_id", return_value="resolved_pr") as resolve, \
+         patch(_HYDRATE, new_callable=AsyncMock) as hydrate, \
+         patch("routers.ui.get_session", return_value=_empty_session()) as gs:
+        result = await ui.get_pending_record_endpoint(doctor_id="raw_id", authorization="Bearer tok")
+
+    resolve.assert_called_once_with("raw_id", "Bearer tok")
+    hydrate.assert_awaited_once_with("resolved_pr")
+    gs.assert_called_once_with("resolved_pr")
+    assert result is None
+
+
+async def test_pending_record_confirm_uses_resolved_doctor_id():
+    """POST /api/manage/pending-record/confirm must use _resolve_ui_doctor_id return value."""
+    with patch("routers.ui._resolve_ui_doctor_id", return_value="resolved_cf") as resolve, \
+         patch(_HYDRATE, new_callable=AsyncMock) as hydrate, \
+         patch("routers.ui.get_session", return_value=_empty_session()) as gs:
+        with pytest.raises(HTTPException) as exc_info:
+            await ui.confirm_pending_record_endpoint(doctor_id="raw_id", authorization="Bearer tok")
+
+    assert exc_info.value.status_code == 404
+    resolve.assert_called_once_with("raw_id", "Bearer tok")
+    hydrate.assert_awaited_once_with("resolved_cf", write_intent=True)
+    gs.assert_called_once_with("resolved_cf")
+
+
+async def test_pending_record_abandon_uses_resolved_doctor_id():
+    """POST /api/manage/pending-record/abandon must use _resolve_ui_doctor_id return value."""
+    with patch("routers.ui._resolve_ui_doctor_id", return_value="resolved_ab") as resolve, \
+         patch(_HYDRATE, new_callable=AsyncMock) as hydrate, \
+         patch("routers.ui.get_session", return_value=_empty_session()) as gs:
+        with pytest.raises(HTTPException) as exc_info:
+            await ui.abandon_pending_record_endpoint(doctor_id="raw_id", authorization="Bearer tok")
+
+    assert exc_info.value.status_code == 404
+    resolve.assert_called_once_with("raw_id", "Bearer tok")
+    hydrate.assert_awaited_once_with("resolved_ab", write_intent=True)
+    gs.assert_called_once_with("resolved_ab")
+
+
+# ---------------------------------------------------------------------------
+# Keyset (cursor-based) pagination
+# ---------------------------------------------------------------------------
+
+
+def test_encode_decode_cursor_roundtrip():
+    """encode_cursor -> decode_cursor must reproduce the original values."""
+    ts = datetime(2026, 3, 5, 14, 30, 0)
+    cursor = encode_cursor(ts, 42)
+    assert isinstance(cursor, str)
+    result = decode_cursor(cursor)
+    assert result is not None
+    decoded_ts, decoded_id = result
+    assert decoded_ts == ts
+    assert decoded_id == 42
+
+
+def test_decode_cursor_none_and_empty():
+    assert decode_cursor(None) is None
+    assert decode_cursor("") is None
+
+
+def test_decode_cursor_invalid_raises_400():
+    with pytest.raises(HTTPException) as exc:
+        decode_cursor("not-valid-base64!!!")
+    assert exc.value.status_code == 400
+    assert "cursor" in exc.value.detail.lower()
+
+
+def test_decode_cursor_non_string_returns_none():
+    """Non-string values (e.g. FastAPI Query objects) should be treated as None."""
+    assert decode_cursor(123) is None  # type: ignore[arg-type]
+
+
+async def test_manage_patients_first_page_returns_next_cursor():
+    """When page is full (len == limit), response must include next_cursor."""
+    patients = [
+        _patient_ns(id=11, name="张三", created_at=datetime(2026, 3, 5, 10, 0, 0)),
+        _patient_ns(id=12, name="李四", created_at=datetime(2026, 3, 4, 10, 0, 0)),
+    ]
+    count_map = {11: 1, 12: 2}
+    db = SimpleNamespace()
+    with patch("routers.ui.record_handlers.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.record_handlers._fetch_patients_cursor_page", new=AsyncMock(return_value=(patients, count_map))):
+        data = await ui.manage_patients("doc1", category=None, limit=2)
+
+    assert data["doctor_id"] == "doc1"
+    assert len(data["items"]) == 2
+    assert data["limit"] == 2
+    # Full page => next_cursor should be present
+    assert data["next_cursor"] is not None
+    # Decode it to verify it points at the last row
+    decoded = decode_cursor(data["next_cursor"])
+    assert decoded is not None
+    assert decoded[1] == 12  # last patient id
+
+
+async def test_manage_patients_last_page_no_next_cursor():
+    """When page is not full (len < limit), next_cursor must be None."""
+    patients = [
+        _patient_ns(id=11, name="张三", created_at=datetime(2026, 3, 5, 10, 0, 0)),
+    ]
+    count_map = {11: 1}
+    db = SimpleNamespace()
+    with patch("routers.ui.record_handlers.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.record_handlers._fetch_patients_cursor_page", new=AsyncMock(return_value=(patients, count_map))):
+        data = await ui.manage_patients("doc1", category=None, limit=50)
+
+    assert len(data["items"]) == 1
+    assert data["next_cursor"] is None
+
+
+async def test_manage_patients_with_cursor_passes_cursor_pair():
+    """When a cursor is provided, _fetch_patients_cursor_page receives the decoded pair."""
+    ts = datetime(2026, 3, 5, 10, 0, 0)
+    cursor_token = encode_cursor(ts, 11)
+
+    patients = [
+        _patient_ns(id=10, name="王五", created_at=datetime(2026, 3, 4, 10, 0, 0)),
+    ]
+    count_map = {10: 3}
+    fetch_mock = AsyncMock(return_value=(patients, count_map))
+    db = SimpleNamespace()
+    with patch("routers.ui.record_handlers.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.record_handlers._fetch_patients_cursor_page", new=fetch_mock):
+        data = await ui.manage_patients("doc1", category=None, cursor=cursor_token, limit=10)
+
+    assert len(data["items"]) == 1
+    assert data["items"][0]["name"] == "王五"
+    # Verify cursor_pair was passed correctly
+    call_kwargs = fetch_mock.call_args
+    assert call_kwargs.kwargs["cursor_pair"] == (ts, 11)
+
+
+async def test_manage_patients_empty_page_with_cursor():
+    """Cursor pointing past the last row should return empty items and no next_cursor."""
+    fetch_mock = AsyncMock(return_value=([], {}))
+    db = SimpleNamespace()
+    ts = datetime(2026, 1, 1, 0, 0, 0)
+    cursor_token = encode_cursor(ts, 1)
+    with patch("routers.ui.record_handlers.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.record_handlers._fetch_patients_cursor_page", new=fetch_mock):
+        data = await ui.manage_patients("doc1", cursor=cursor_token, limit=50)
+
+    assert data["items"] == []
+    assert data["next_cursor"] is None
+
+
+async def test_manage_patients_legacy_offset_mode():
+    """When offset > 0 and no cursor, fall back to legacy offset pagination."""
+    patients = [
+        _patient_ns(id=11, name="张三"),
+        _patient_ns(id=12, name="李四"),
+        _patient_ns(id=13, name="王五"),
+    ]
+    count_map = {11: 1, 12: 1, 13: 1}
+    db = SimpleNamespace(
+        execute=AsyncMock(return_value=SimpleNamespace(all=lambda: [(11, 1), (12, 1), (13, 1)]))
+    )
+    with patch("routers.ui.record_handlers.AsyncSessionLocal", return_value=_SessionCtx(db)), \
+         patch("routers.ui.record_handlers.get_all_patients", new=AsyncMock(return_value=patients)):
+        data = await ui.manage_patients("doc1", category=None, offset=1, limit=2)
+
+    assert data["offset"] == 1
+    assert data["limit"] == 2
+    assert data["total"] == 3
+    assert len(data["items"]) == 2
+    assert data["items"][0]["name"] == "李四"
+    assert data["items"][1]["name"] == "王五"
+
+
+async def test_manage_patients_invalid_cursor_raises_400():
+    """A malformed cursor string must produce a 400 error."""
+    with pytest.raises(HTTPException) as exc:
+        await ui.manage_patients("doc1", cursor="garbage-cursor-value")
+    assert exc.value.status_code == 400

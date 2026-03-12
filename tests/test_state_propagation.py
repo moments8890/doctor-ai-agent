@@ -44,12 +44,12 @@ async def test_add_record_pins_current_patient(session_factory):
     from db.models.medical_record import MedicalRecord
     fake_record = MedicalRecord(content="胸痛两小时", tags=["胸痛"])
 
-    with patch("routers.records_intent_handlers.AsyncSessionLocal", session_factory), \
-         patch("routers.records_intent_handlers.find_patient_by_name", new=AsyncMock(return_value=patient)), \
-         patch("routers.records_intent_handlers.hydrate_session_state", new=AsyncMock()), \
+    with patch("services.domain.intent_handlers._add_record.AsyncSessionLocal", session_factory), \
+         patch("services.domain.intent_handlers._add_record.find_patient_by_name", new=AsyncMock(return_value=patient)), \
+         patch("services.domain.intent_handlers._add_record.hydrate_session_state", new=AsyncMock()), \
          patch("services.domain.record_ops.structure_medical_record", new=AsyncMock(return_value=fake_record)), \
-         patch("routers.records_intent_handlers.create_pending_record", new=AsyncMock()):
-        from routers.records_intent_handlers import handle_add_record
+         patch("services.domain.intent_handlers._add_record.create_pending_record", new=AsyncMock()):
+        from services.domain.intent_handlers import handle_add_record
         await handle_add_record("张三胸痛两小时伴大汗淋漓", DOCTOR, [], intent_result, None)
 
     sess = get_session(DOCTOR)
@@ -57,7 +57,7 @@ async def test_add_record_pins_current_patient(session_factory):
     assert sess.current_patient_name == "张三"
 
 
-# ── _handle_schedule_appointment pins patient ─────────────────────────────────
+# ── handle_schedule_appointment pins patient ──────────────────────────────────
 
 @pytest.mark.asyncio
 async def test_schedule_appointment_pins_current_patient(session_factory):
@@ -72,18 +72,18 @@ async def test_schedule_appointment_pins_current_patient(session_factory):
         extra_data={"appointment_time": "2026-03-15T14:00:00", "notes": "复查"},
     )
 
-    with patch("routers.records.AsyncSessionLocal", session_factory), \
-         patch("routers.records.find_patient_by_name", new=AsyncMock(return_value=patient)), \
-         patch("routers.records.create_appointment_task", new=AsyncMock(return_value=fake_task)):
-        from routers.records import _handle_schedule_appointment
-        await _handle_schedule_appointment(DOCTOR, intent_result)
+    with patch("services.domain.intent_handlers._simple_intents.AsyncSessionLocal", session_factory), \
+         patch("services.domain.intent_handlers._simple_intents.find_patient_by_name", new=AsyncMock(return_value=patient)), \
+         patch("services.domain.intent_handlers._simple_intents.create_appointment_task", new=AsyncMock(return_value=fake_task)):
+        from services.domain.intent_handlers import handle_schedule_appointment
+        await handle_schedule_appointment(DOCTOR, intent_result)
 
     sess = get_session(DOCTOR)
     assert sess.current_patient_id == 55
     assert sess.current_patient_name == "王五"
 
 
-# ── _handle_update_record pins patient ────────────────────────────────────────
+# ── handle_update_record pins patient ─────────────────────────────────────────
 
 @pytest.mark.asyncio
 async def test_update_record_pins_current_patient(session_factory):
@@ -98,11 +98,11 @@ async def test_update_record_pins_current_patient(session_factory):
         structured_fields={"diagnosis": "高血压"},
     )
 
-    with patch("routers.records.AsyncSessionLocal", session_factory), \
-         patch("routers.records.find_patient_by_name", new=AsyncMock(return_value=patient)), \
-         patch("routers.records.update_latest_record_for_patient", new=AsyncMock(return_value=fake_record)):
-        from routers.records import _handle_update_record
-        await _handle_update_record("更正李四诊断", DOCTOR, intent_result)
+    with patch("services.domain.intent_handlers._simple_intents.AsyncSessionLocal", session_factory), \
+         patch("services.domain.intent_handlers._simple_intents.find_patient_by_name", new=AsyncMock(return_value=patient)), \
+         patch("services.domain.intent_handlers._simple_intents.update_latest_record_for_patient", new=AsyncMock(return_value=fake_record)):
+        from services.domain.intent_handlers import handle_update_record
+        await handle_update_record(DOCTOR, intent_result, text="更正李四诊断")
 
     sess = get_session(DOCTOR)
     assert sess.current_patient_id == 77

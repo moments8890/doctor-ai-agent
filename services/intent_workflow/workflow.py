@@ -11,7 +11,7 @@ Runs the 5-layer pipeline:
 from __future__ import annotations
 
 import time
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from services.ai.intent import Intent, IntentResult
 from services.session import (
@@ -27,6 +27,9 @@ from .entities import extract_entities
 from .gate import check_gate
 from .models import WorkflowResult
 from .planner import plan_actions
+
+if TYPE_CHECKING:
+    from services.ai.turn_context import DoctorTurnContext
 
 _WRITE_INTENTS: frozenset[Intent] = frozenset({
     Intent.add_record,
@@ -44,6 +47,7 @@ async def run(
     effective_intent: Optional[IntentResult] = None,
     knowledge_context: str = "",
     channel: str = "web",
+    turn_context: Optional["DoctorTurnContext"] = None,
 ) -> WorkflowResult:
     """Run the full intent workflow pipeline.
 
@@ -70,6 +74,7 @@ async def run(
         effective_intent=effective_intent,
         knowledge_context=knowledge_context,
         channel=channel,
+        turn_context=turn_context,
     )
     _t_classify = time.perf_counter()
 

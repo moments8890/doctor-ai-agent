@@ -49,7 +49,7 @@ from db.models import (
 from services.patient.patient_timeline import build_patient_timeline
 from services.auth.rate_limit import enforce_doctor_rate_limit
 from services.observability.audit import audit
-from services.session import get_session, clear_pending_record_id
+from services.session import get_session, clear_pending_record_id, hydrate_session_state
 from utils.errors import DomainError
 from services.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
 from routers.ui.record_handlers import (
@@ -122,14 +122,15 @@ class PromptUpdate(BaseModel):
 @router.get("/api/manage/patients")
 async def manage_patients(
     doctor_id: str = Query(default="web_doctor"),
-    category: str | None = Query(default=None),
+    category: Optional[str] = Query(default=None),
+    cursor: Optional[str] = Query(default=None),
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
-    authorization: str | None = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
     resolved_doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
     return await _manage_patients_for_doctor_impl(
-        resolved_doctor_id, category=category, limit=limit, offset=offset,
+        resolved_doctor_id, category=category, cursor=cursor, limit=limit, offset=offset,
     )
 
 
@@ -577,6 +578,7 @@ async def admin_table_rows(
     date_from: str | None = Query(default=None),
     date_to: str | None = Query(default=None),
     # TODO: replace with keyset pagination (cursor-based) for large result sets
+    # (see /api/manage/patients for the reference implementation)
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = 0,
     x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
@@ -601,8 +603,9 @@ async def get_working_context(
     Combines current patient, pending draft, and next-step state into one
     response so the UI can render the context header without multiple calls.
     """
-    _resolve_ui_doctor_id(doctor_id, authorization)
-    sess = get_session(doctor_id)
+    resolved_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    await hydrate_session_state(resolved_id)
+    sess = get_session(resolved_id)
 
     # Current patient
     current_patient = None
@@ -617,7 +620,7 @@ async def get_working_context(
     pending_id = sess.pending_record_id
     if pending_id:
         async with AsyncSessionLocal() as session:
-            pending = await get_pending_record(session, pending_id, doctor_id)
+            pending = await get_pending_record(session, pending_id, resolved_id)
         now = datetime.now(timezone.utc)
         _exp = pending.expires_at if pending else None
         if _exp and _exp.tzinfo is None:
@@ -635,7 +638,7 @@ async def get_working_context(
                 "expires_at": pending.expires_at.isoformat() if pending.expires_at else None,
             }
         else:
-            clear_pending_record_id(doctor_id)
+            clear_pending_record_id(resolved_id)
 
     # Next step — what the system is waiting for
     next_step = None
@@ -663,20 +666,21 @@ async def get_pending_record_endpoint(
     authorization: str | None = Header(default=None),
 ):
     """Return the current pending record draft for a doctor, or null if none."""
-    _resolve_ui_doctor_id(doctor_id, authorization)
-    sess = get_session(doctor_id)
+    resolved_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    await hydrate_session_state(resolved_id)
+    sess = get_session(resolved_id)
     pending_id = sess.pending_record_id
     if not pending_id:
         return None
     async with AsyncSessionLocal() as session:
-        pending = await get_pending_record(session, pending_id, doctor_id)
+        pending = await get_pending_record(session, pending_id, resolved_id)
     if pending is None or pending.status != "awaiting":
-        clear_pending_record_id(doctor_id)
+        clear_pending_record_id(resolved_id)
         return None
     # Check expiry
     now = datetime.now(timezone.utc)
     if pending.expires_at and pending.expires_at < now:
-        clear_pending_record_id(doctor_id)
+        clear_pending_record_id(resolved_id)
         return None
     try:
         draft = json.loads(pending.draft_json)
@@ -700,18 +704,19 @@ async def confirm_pending_record_endpoint(
 ):
     """Confirm the pending record draft → save to medical_records."""
     from services.wechat.wechat_domain import save_pending_record
-    _resolve_ui_doctor_id(doctor_id, authorization)
-    sess = get_session(doctor_id)
+    resolved_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    await hydrate_session_state(resolved_id, write_intent=True)
+    sess = get_session(resolved_id)
     pending_id = sess.pending_record_id
     if not pending_id:
         raise HTTPException(status_code=404, detail="No pending record")
     async with AsyncSessionLocal() as session:
-        pending = await get_pending_record(session, pending_id, doctor_id)
+        pending = await get_pending_record(session, pending_id, resolved_id)
     if pending is None or pending.status != "awaiting":
-        clear_pending_record_id(doctor_id)
+        clear_pending_record_id(resolved_id)
         raise HTTPException(status_code=404, detail="Pending record not found or already processed")
-    result = await save_pending_record(doctor_id, pending)
-    clear_pending_record_id(doctor_id)
+    result = await save_pending_record(resolved_id, pending)
+    clear_pending_record_id(resolved_id)
     patient_name = result[0] if result else None
     return {"ok": True, "patient_name": patient_name or "未关联"}
 
@@ -722,14 +727,15 @@ async def abandon_pending_record_endpoint(
     authorization: str | None = Header(default=None),
 ):
     """Abandon the pending record draft."""
-    _resolve_ui_doctor_id(doctor_id, authorization)
-    sess = get_session(doctor_id)
+    resolved_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    await hydrate_session_state(resolved_id, write_intent=True)
+    sess = get_session(resolved_id)
     pending_id = sess.pending_record_id
     if not pending_id:
         raise HTTPException(status_code=404, detail="No pending record")
     async with AsyncSessionLocal() as session:
-        await abandon_pending_record(session, pending_id, doctor_id=doctor_id)
-    clear_pending_record_id(doctor_id)
+        await abandon_pending_record(session, pending_id, doctor_id=resolved_id)
+    clear_pending_record_id(resolved_id)
     return {"ok": True}
 
 

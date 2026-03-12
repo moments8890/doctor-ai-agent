@@ -687,6 +687,8 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="Bearer token for Authorization header (also reads E2E_AUTH_TOKEN env var)")
     p.add_argument("--token-secret", default="",
                    help="JWT secret for per-case token generation. Empty = no JWT auth.")
+    p.add_argument("--summary-json", default="",
+                   help="Write a JSON summary artifact to this path (for baseline comparison)")
     return p
 
 
@@ -727,6 +729,48 @@ def _run_cases_parallel(
                     pending.cancel()
                 break
     return [results_by_case[cid] for cid in ordered_ids if cid in results_by_case]
+
+
+def _write_summary_json(path: str, results: List[CaseResult], data_path: str) -> None:
+    """Write a machine-readable JSON summary artifact for baseline comparison."""
+    import datetime
+    import subprocess
+    git_sha = "unknown"
+    try:
+        git_sha = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"], stderr=subprocess.DEVNULL
+        ).decode().strip()
+    except Exception:
+        pass
+    total = len(results)
+    passed = sum(1 for r in results if r.ok)
+    routing_ok = sum(1 for r in results if r.routing_ok)
+    patient_ok = sum(1 for r in results if r.patient_resolution_ok)
+    struct_ok = sum(1 for r in results if r.structuring_ok)
+    save_ok = sum(1 for r in results if r.save_ok)
+    fallback_count = sum(1 for r in results if r.used_fallback)
+    summary = {
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "git_sha": git_sha,
+        "dataset": str(data_path),
+        "total": total,
+        "passed": passed,
+        "failed": total - passed,
+        "accuracy_pct": round(passed / max(total, 1) * 100, 1),
+        "layers": {
+            "routing_ok": routing_ok,
+            "patient_resolution_ok": patient_ok,
+            "structuring_ok": struct_ok,
+            "save_ok": save_ok,
+        },
+        "fallback_count": fallback_count,
+        "failures": [r.case_id for r in results if not r.ok],
+        "failure_details": {r.case_id: r.detail for r in results if not r.ok},
+    }
+    out = Path(path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(f"{GRAY}  summary artifact written to {out}{RESET}")
 
 
 def _print_summary(results: List[CaseResult]) -> None:
@@ -806,6 +850,18 @@ def main() -> None:
           f"  cases={len(cases)}  timeout={args.timeout}s  retries={args.retries}  run_id={run_id}{RESET}\n")
     auth_token: Optional[str] = args.auth_token.strip() or None
     token_secret: Optional[str] = (args.token_secret or "").strip() or None
+    # Auto-detect dev token secret so e2e "just works" against a local dev server
+    # without requiring --auth-token or --token-secret every time.
+    if auth_token is None and token_secret is None:
+        token_secret = (
+            os.environ.get("MINIPROGRAM_TOKEN_SECRET", "").strip()
+            or _RUNTIME_CONFIG.get("MINIPROGRAM_TOKEN_SECRET", "")
+            or None
+        )
+        if token_secret is None and ("127.0.0.1" in base_url or "localhost" in base_url):
+            token_secret = "dev-miniprogram-secret"
+        if token_secret:
+            print(f"{GRAY}  auth      : auto per-case JWT (dev secret){RESET}")
     use_per_case_tokens = (auth_token is None) and (token_secret is not None)
     run_one = _make_run_one(args, run_id, base_url, auth_token, token_secret, use_per_case_tokens)
     all_doctor_ids = [f"{args.doctor_prefix}_{run_id}_{c.case_id.lower()}" for c in cases]
@@ -821,6 +877,8 @@ def main() -> None:
     finally:
         if not args.no_cleanup:
             _cleanup_e2e_data(all_doctor_ids, label="e2e-cleanup")
+    if args.summary_json and results:
+        _write_summary_json(args.summary_json, results, data_path=str(data_path))
     _print_summary(results)
 
 

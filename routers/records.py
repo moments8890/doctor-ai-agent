@@ -4,36 +4,22 @@
 
 from __future__ import annotations
 
-import asyncio
-import json
-import re
 import os
 import time
-import uuid
-from datetime import datetime, timedelta, timezone
 from collections import deque
 from fastapi import APIRouter, HTTPException, UploadFile, File, Header
 from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional
 
 from db.crud import (
-    delete_patient_for_doctor,
-    find_patient_by_name,
-    find_patients_by_exact_name,
     get_all_patients,
     get_record_versions,
-    list_tasks,
-    update_latest_record_for_patient,
-    update_patient_demographics,
     upsert_doctor_context,
-    update_task_status,
 )
 from db.engine import AsyncSessionLocal
 from db.models.medical_record import MedicalRecord
-from services.ai.agent import dispatch as agent_dispatch
 from services.session import (
-    set_pending_record_id, clear_pending_record_id,
-    set_candidate_patient, set_current_patient,
+    clear_pending_record_id,
 )
 from db.crud.pending import get_pending_record, abandon_pending_record
 from services.knowledge.doctor_knowledge import (
@@ -43,15 +29,12 @@ from services.knowledge.doctor_knowledge import (
 )
 from services.ai.intent import Intent, IntentResult
 from services.ai.structuring import structure_medical_record
-from services.notify.tasks import create_appointment_task
 from services.ai.transcription import transcribe_audio
 from services.ai.vision import extract_text_from_image
 from services.knowledge.pdf_extract import extract_text_from_pdf
 from services.knowledge.pdf_extract_llm import extract_text_from_pdf_llm
 from services.observability.observability import trace_block
 from services.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
-from services.observability.audit import audit
-from services.observability.observability import get_current_trace_id
 from utils.log import log
 
 # ── Re-export constants and utilities from domain modules ─────────────────────
@@ -85,11 +68,19 @@ from services.domain.chat_handlers import (
     fastpath_delete_patient_by_id as _fastpath_delete_patient_by_id,
     fastpath_save_context as _fastpath_save_context,
 )
-from routers.records_intent_handlers import (
-    handle_create_patient as _handle_create_patient,
-    handle_add_record as _handle_add_record,
-    handle_query_records as _handle_query_records,
-    handle_list_patients as _handle_list_patients,
+from services.domain.adapters.web_adapter import WebAdapter as _WebAdapter
+from services.domain.intent_handlers import (
+    HandlerResult as _HandlerResult,
+    handle_add_record as shared_handle_add_record,
+    handle_create_patient as shared_handle_create_patient,
+    handle_query_records as shared_handle_query_records,
+    handle_list_patients as shared_handle_list_patients,
+    handle_delete_patient as shared_handle_delete_patient,
+    handle_list_tasks as shared_handle_list_tasks,
+    handle_complete_task as shared_handle_complete_task,
+    handle_schedule_appointment as shared_handle_schedule_appointment,
+    handle_update_patient as shared_handle_update_patient,
+    handle_update_record as shared_handle_update_record,
 )
 from services.domain.name_utils import (
     is_valid_patient_name as _is_valid_patient_name,
@@ -246,196 +237,15 @@ def _enforce_rate_limit(doctor_id: str) -> None:
     q.append(now)
 
 
-# ── Remaining intent handlers ─────────────────────────────────────────────────
+# ── Adapter and HandlerResult → ChatResponse conversion ──────────────────────
+
+_web_adapter = _WebAdapter()
 
 
-async def _handle_delete_patient(doctor_id: str, intent_result: IntentResult) -> ChatResponse:
-    """删除患者：支持按姓名和序号精确删除。"""
-    name = (intent_result.patient_name or "").strip()
-    occurrence_index_raw = intent_result.extra_data.get("occurrence_index")
-    occurrence_index = occurrence_index_raw if isinstance(occurrence_index_raw, int) else None
-    if not name:
-        return ChatResponse(reply="⚠️ 请告诉我要删除的患者姓名，例如：删除患者张三。")
-
-    with trace_block(
-        "router", "records.chat.delete_patient",
-        {"doctor_id": doctor_id, "patient_name": name, "occurrence": occurrence_index},
-    ):
-        async with AsyncSessionLocal() as db:
-            matches = await find_patients_by_exact_name(db, doctor_id, name)
-            if not matches:
-                return ChatResponse(reply=f"⚠️ 未找到患者【{name}】。")
-            if occurrence_index is None and len(matches) > 1:
-                return ChatResponse(
-                    reply=f"⚠️ 找到同名患者【{name}】共 {len(matches)} 位，请发送「删除第2个患者{name}」这类指令。"
-                )
-            if occurrence_index is not None:
-                if occurrence_index <= 0 or occurrence_index > len(matches):
-                    return ChatResponse(reply=f"⚠️ 序号超出范围。同名患者【{name}】共 {len(matches)} 位。")
-                target = matches[occurrence_index - 1]
-            else:
-                target = matches[0]
-            deleted = await delete_patient_for_doctor(db, doctor_id, target.id)
-            if deleted is None:
-                return ChatResponse(reply=f"⚠️ 删除失败，未找到患者【{name}】。")
-            asyncio.create_task(audit(
-                doctor_id, "DELETE", resource_type="patient",
-                resource_id=str(deleted.id), trace_id=get_current_trace_id(),
-            ))
-    return ChatResponse(reply=intent_result.chat_reply or f"✅ 已删除患者【{name}】及其相关记录。")
-
-
-async def _handle_list_tasks(doctor_id: str, intent_result: Optional[IntentResult] = None) -> ChatResponse:
-    """待办任务列表：展示全部待办任务。"""
-    # Candidate capture: when list_tasks was triggered by a mixed-intent turn containing
-    # a patient name + demographics (054/084/094 fix), pin the candidate to session so
-    # subsequent clinical turns can resolve the patient without LLM context scanning.
-    if intent_result is not None:
-        _extra = intent_result.extra_data or {}
-        _cand_name = _extra.get("candidate_name")
-        if _cand_name:
-            set_candidate_patient(
-                doctor_id, _cand_name,
-                gender=_extra.get("candidate_gender"),
-                age=_extra.get("candidate_age"),
-            )
-            log(f"[Chat] candidate patient captured from list_tasks: {_cand_name} doctor={doctor_id}")
-    with trace_block("router", "records.chat.list_tasks", {"doctor_id": doctor_id}):
-        async with AsyncSessionLocal() as db:
-            tasks = await list_tasks(db, doctor_id, status="pending")
-    if not tasks:
-        return ChatResponse(reply="📋 暂无待办任务。")
-    lines = [f"📋 待办任务（共 {len(tasks)} 条）：\n"]
-    for i, task in enumerate(tasks, 1):
-        due = f" | ⏰ {task.due_at.strftime('%Y-%m-%d')}" if task.due_at else ""
-        lines.append(f"{i}. [{task.id}] [{task.task_type}] {task.title}{due}")
-    lines.append("\n回复「完成 编号」标记任务完成")
-    return ChatResponse(reply="\n".join(lines))
-
-
-async def _handle_complete_task(
-    text: str, doctor_id: str, intent_result: IntentResult,
-) -> ChatResponse:
-    """标记任务完成。"""
-    task_id = intent_result.extra_data.get("task_id")
-    if not isinstance(task_id, int):
-        task_id_match = _COMPLETE_RE.match(text)
-        task_id = int(task_id_match.group(1)) if task_id_match else None
-    if not isinstance(task_id, int):
-        return ChatResponse(reply="⚠️ 未能识别任务编号，请发送「完成 5」（5为任务编号）。")
-    with trace_block("router", "records.chat.complete_task", {"doctor_id": doctor_id, "task_id": task_id}):
-        async with AsyncSessionLocal() as db:
-            task = await update_task_status(db, task_id, doctor_id, "completed")
-    if task is None:
-        return ChatResponse(reply=f"⚠️ 未找到任务 {task_id}，请确认编号是否正确。")
-    return ChatResponse(reply=intent_result.chat_reply or f"✅ 任务【{task.title}】已标记完成。")
-
-
-async def _handle_schedule_appointment(doctor_id: str, intent_result: IntentResult) -> ChatResponse:
-    """预约挂号：创建预约任务。"""
-    patient_name = intent_result.patient_name
-    if not patient_name:
-        return ChatResponse(reply="⚠️ 未能识别患者姓名，请重新说明预约信息。")
-    raw_time = intent_result.extra_data.get("appointment_time")
-    if not raw_time:
-        return ChatResponse(
-            reply="⚠️ 未能识别预约时间，请使用格式如「2026年3月15日14:00」或「2026-03-15 14:00」。"
-        )
-    normalized_time = str(raw_time).replace("Z", "+00:00")
-    try:
-        appointment_dt = datetime.fromisoformat(normalized_time)
-    except (TypeError, ValueError):
-        return ChatResponse(
-            reply="⚠️ 时间格式无法识别，请使用格式如「2026年3月15日14:00」或「2026-03-15 14:00」。"
-        )
-    notes = intent_result.extra_data.get("notes")
-    patient_id = None
-    async with AsyncSessionLocal() as db:
-        patient = await find_patient_by_name(db, doctor_id, patient_name)
-        if patient:
-            patient_id = patient.id
-            set_current_patient(doctor_id, patient.id, patient.name)
-    with trace_block("router", "records.chat.schedule_appointment", {"doctor_id": doctor_id, "patient_name": patient_name}):
-        task = await create_appointment_task(
-            doctor_id=doctor_id, patient_name=patient_name,
-            appointment_dt=appointment_dt, notes=notes, patient_id=patient_id,
-        )
-    return ChatResponse(
-        reply=(
-            f"📅 已为患者【{patient_name}】安排预约\n"
-            f"预约时间：{appointment_dt.strftime('%Y-%m-%d %H:%M')}\n"
-            f"任务编号：{task.id}（将在1小时前提醒）"
-        )
-    )
-
-
-async def _handle_update_patient(doctor_id: str, intent_result: IntentResult) -> ChatResponse:
-    """更新患者人口学信息。"""
-    name = (intent_result.patient_name or "").strip()
-    if not name:
-        return ChatResponse(reply="⚠️ 请告诉我要更新哪位患者的信息。")
-    if not intent_result.gender and not intent_result.age:
-        return ChatResponse(reply="⚠️ 请告诉我要更新的内容，例如「修改王明的年龄为50岁」。")
-    with trace_block("router", "records.chat.update_patient", {"doctor_id": doctor_id, "patient_name": name}):
-        async with AsyncSessionLocal() as db:
-            patient = await update_patient_demographics(
-                db, doctor_id, name, gender=intent_result.gender, age=intent_result.age,
-            )
-    if patient is None:
-        return ChatResponse(reply=f"⚠️ 未找到患者【{name}】，请先创建。")
-    parts = []
-    if intent_result.gender:
-        parts.append(f"性别→{intent_result.gender}")
-    if intent_result.age:
-        parts.append(f"年龄→{intent_result.age}岁")
-    set_current_patient(doctor_id, patient.id, patient.name)
-    log(f"[Chat] updated patient demographics [{name}] {parts} doctor={doctor_id}")
-    asyncio.create_task(audit(
-        doctor_id, "WRITE", resource_type="patient",
-        resource_id=str(patient.id), trace_id=get_current_trace_id(),
-    ))
-    return ChatResponse(reply=f"✅ 已更新患者【{name}】的信息：{'、'.join(parts)}。")
-
-
-async def _handle_update_record(text: str, doctor_id: str, intent_result: IntentResult) -> ChatResponse:
-    """更正病历：修改最近一条病历记录。"""
-    name = (intent_result.patient_name or "").strip()
-    if not name:
-        return ChatResponse(reply="⚠️ 请告诉我要更正哪位患者的病历。")
-    if intent_result.structured_fields:
-        corrected = dict(intent_result.structured_fields)
-        if not name and intent_result.patient_name:
-            name = intent_result.patient_name.strip()
-    else:
-        try:
-            with trace_block("router", "records.chat.update_record.llm_extract", {"doctor_id": doctor_id}):
-                llm_result = await agent_dispatch(text)
-            if llm_result.structured_fields:
-                corrected = dict(llm_result.structured_fields)
-                if not name and llm_result.patient_name:
-                    name = llm_result.patient_name.strip()
-            else:
-                corrected = {}
-        except Exception as e:
-            log(f"[Chat] update_record LLM extraction FAILED doctor={doctor_id}: {e}")
-            return ChatResponse(reply="⚠️ 病历更正失败，请稍后重试。")
-
-    with trace_block("router", "records.chat.update_record", {"doctor_id": doctor_id, "patient_name": name}):
-        async with AsyncSessionLocal() as db:
-            patient = await find_patient_by_name(db, doctor_id, name)
-            if patient is None:
-                return ChatResponse(reply=f"⚠️ 未找到患者【{name}】，无法更正病历。")
-            set_current_patient(doctor_id, patient.id, patient.name)
-            updated_rec = await update_latest_record_for_patient(db, doctor_id, patient.id, corrected)
-    if updated_rec is None:
-        return ChatResponse(reply=f"⚠️ 患者【{name}】暂无病历记录，请先保存一条再更正。")
-    fields_updated = [k for k in corrected if k in ("content", "tags", "record_type")]
-    log(f"[Chat] updated record for [{name}] fields={fields_updated} doctor={doctor_id}")
-    asyncio.create_task(audit(
-        doctor_id, "WRITE", resource_type="record",
-        resource_id=str(updated_rec.id), trace_id=get_current_trace_id(),
-    ))
-    return ChatResponse(reply=intent_result.chat_reply or f"✅ 已更正患者【{name}】的最近一条病历。")
+async def _handler_result_to_chat(hr: _HandlerResult) -> ChatResponse:
+    """Convert a shared-layer HandlerResult to web ChatResponse via adapter."""
+    d = await _web_adapter.format_reply(hr)
+    return ChatResponse(**d)
 
 
 # ── Dispatch table ────────────────────────────────────────────────────────────
@@ -444,36 +254,60 @@ async def _dispatch_intent(
     text: str, original_text: str, doctor_id: str, history: list,
     intent_result: IntentResult, followup_name: Optional[str],
 ) -> ChatResponse:
-    """Route resolved intent to the appropriate handler.
-
-    Args:
-        text: Processed message text (e.g. transcription prefix stripped).
-        original_text: Raw message text from the channel (used for reminder
-            detection and update_record re-structuring).
-    """
+    """Route resolved intent to the shared domain handlers and convert to ChatResponse."""
     intent = intent_result.intent
+
     if intent == Intent.create_patient:
-        return await _handle_create_patient(text, original_text, doctor_id, intent_result)
+        hr = await shared_handle_create_patient(
+            doctor_id, intent_result, body_text=text, original_text=original_text,
+        )
+        return await _handler_result_to_chat(hr)
+
     if intent == Intent.add_record:
-        return await _handle_add_record(text, doctor_id, history, intent_result, followup_name)
+        hr = await shared_handle_add_record(
+            text, doctor_id, history, intent_result, followup_name=followup_name,
+        )
+        return await _handler_result_to_chat(hr)
+
     if intent == Intent.query_records:
-        return await _handle_query_records(doctor_id, intent_result)
+        hr = await shared_handle_query_records(doctor_id, intent_result)
+        return await _handler_result_to_chat(hr)
+
     if intent == Intent.list_patients:
-        return await _handle_list_patients(doctor_id)
+        hr = await shared_handle_list_patients(doctor_id)
+        return await _handler_result_to_chat(hr)
+
     if intent == Intent.delete_patient:
-        return await _handle_delete_patient(doctor_id, intent_result)
+        hr = await shared_handle_delete_patient(doctor_id, intent_result)
+        return await _handler_result_to_chat(hr)
+
     if intent == Intent.list_tasks:
-        return await _handle_list_tasks(doctor_id, intent_result)
+        hr = await shared_handle_list_tasks(doctor_id, intent_result)
+        return await _handler_result_to_chat(hr)
+
     if intent == Intent.complete_task:
-        return await _handle_complete_task(original_text, doctor_id, intent_result)
+        hr = await shared_handle_complete_task(
+            doctor_id, intent_result, text=original_text,
+        )
+        return await _handler_result_to_chat(hr)
+
     if intent == Intent.schedule_appointment:
-        return await _handle_schedule_appointment(doctor_id, intent_result)
+        hr = await shared_handle_schedule_appointment(doctor_id, intent_result)
+        return await _handler_result_to_chat(hr)
+
     if intent == Intent.update_patient:
-        return await _handle_update_patient(doctor_id, intent_result)
+        hr = await shared_handle_update_patient(doctor_id, intent_result)
+        return await _handler_result_to_chat(hr)
+
     if intent == Intent.update_record:
-        return await _handle_update_record(original_text, doctor_id, intent_result)
+        hr = await shared_handle_update_record(
+            doctor_id, intent_result, text=original_text,
+        )
+        return await _handler_result_to_chat(hr)
+
     if intent == Intent.help:
         return ChatResponse(reply=_HELP_REPLY)
+
     return ChatResponse(reply=_build_unclear_reply(original_text, intent_result.chat_reply))
 
 
@@ -549,11 +383,16 @@ async def chat_core(
     if fast_resp is not None:
         return fast_resp
 
+    # Assemble per-turn context (snapshot session state + advisory)
+    from services.ai.turn_context import assemble_turn_context
+    turn_ctx = await assemble_turn_context(doctor_id)
+
     # Load knowledge context for LLM dispatch
     knowledge_context = ""
     try:
         async with AsyncSessionLocal() as db:
             knowledge_context = await load_knowledge_context_for_prompt(db, doctor_id, text)
+        turn_ctx.advisory.knowledge_snippet = knowledge_context
     except Exception as e:
         log(f"[Chat] knowledge context load failed doctor={doctor_id}: {e}")
 
@@ -568,6 +407,7 @@ async def chat_core(
             effective_intent=effective_intent,
             knowledge_context=knowledge_context,
             channel="web",
+            turn_context=turn_ctx,
         )
     except Exception as e:
         msg = str(e)
@@ -605,14 +445,16 @@ async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
     if not body.text.strip():
         raise HTTPException(status_code=422, detail="Text input cannot be empty.")
 
-    history = [{"role": m.role, "content": m.content} for m in body.history]
+    # Normalize input via adapter (voice prefix strip, history conversion)
+    msg = await _web_adapter.parse_inbound(body)
+    history = msg.history
     _enforce_rate_limit(doctor_id)
 
     notify_reply = await _handle_notify_control_command(doctor_id, body.text)
     if notify_reply is not None:
         return ChatResponse(reply=notify_reply)
 
-    body_text = _VOICE_TRANSCRIPTION_PREFIX_RE.sub("", body.text).strip() or body.text
+    body_text = msg.text or body.text  # fallback to original if empty after strip
 
     if _GREETING_RE.match(body_text.strip()):
         return ChatResponse(reply=_WARM_GREETING_REPLY)

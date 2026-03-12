@@ -6,21 +6,24 @@ the architecture level.
 
 # Status
 
-Current state as of 2026-03-12:
+**COMPLETE** — All 6 workstreams closed as of 2026-03-12.
 
-- Intent workflow core: mostly good
-- Web workbench UI: not yet trustworthy because auth and hydration are weak
-- WeChat core doctor flow: mostly good, but media and expired-draft edges are
-  regressing
-- Voice channel: not aligned with the draft-first safety model
-- Adapter layer: improved, but still only partially represents the real runtime
-  boundary
+Validation:
 
-Validation from this review pass:
+- Full test suite: `1645 passed, 0 failed, 42 skipped`
+- Critical-path suite (347 tests): `347 passed, 0 failed`
+- All `test_wechat_record_gates.py` failures resolved (WS3)
 
-- Targeted critical-path suite: `321 passed, 7 failed`
-- All 7 failures are in `tests/test_wechat_record_gates.py`
-- Highest-risk auth issue was reproduced directly against the current code
+## Workstream completion summary
+
+| WS | Title | Priority | Status |
+|----|-------|----------|--------|
+| 1 | Workbench doctor-scope authority | P0 | ✅ Done |
+| 2 | Workbench context authoritative | P0 | ✅ Done |
+| 3 | WeChat media & expired-draft recovery | P0 | ✅ Done — 18 gate tests green |
+| 4 | Voice draft-first alignment | P0 | ✅ Done |
+| 5 | Web handler convergence | P1 | ✅ Done — 10 shared handlers, legacy bypassed |
+| 6 | Component-level regression net | P1 | ✅ Done — 347 critical-path tests green |
 
 # Why this plan exists
 

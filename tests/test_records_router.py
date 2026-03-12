@@ -14,6 +14,7 @@ import routers.records as records
 from db.models.medical_record import MedicalRecord
 from utils.errors import InvalidMedicalRecordError
 from services.ai.intent import Intent, IntentResult
+from services.domain.intent_handlers._types import HandlerResult
 from services.domain.name_utils import leading_name_with_clinical_context as _leading_name_with_clinical_context
 from services.session import reset_session_state_for_tests
 
@@ -154,73 +155,55 @@ async def test_chat_patient_count_fastpath_returns_real_count_and_skips_agent():
 
 
 async def test_chat_create_patient_no_name_and_success():
+    # Case 1: no name → shared handler returns ask-for-name reply
     with patch(
         "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.create_patient, patient_name=None)),
-    ):
+    ), patch("routers.records.shared_handle_create_patient",
+             new=AsyncMock(return_value=HandlerResult(reply="好的，请告诉我患者的姓名。"))):
         resp = await records.chat(records.ChatInput(text="创建", doctor_id=DOCTOR))
     assert "姓名" in resp.reply
 
-    fake_db = object()
-    with patch(
-        "services.ai.agent.dispatch",
-        new=AsyncMock(return_value=_intent(Intent.create_patient, patient_name="李明", gender="男", age=40)),
-    ), patch("routers.records_intent_handlers.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
-        "routers.records_intent_handlers.find_patients_by_exact_name",
-        new=AsyncMock(return_value=[]),  # no existing patient
-    ), patch(
-        "routers.records_intent_handlers.db_create_patient",
-        new=AsyncMock(return_value=SimpleNamespace(id=1, name="李明")),
-    ):
-        resp2 = await records.chat(records.ChatInput(text="创建李明", doctor_id=DOCTOR))
-    assert "创建" in resp2.reply or "李明" in resp2.reply
-
+    # Case 2: name provided → shared handler creates patient
     reset_session_state_for_tests()
     with patch(
         "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.create_patient, patient_name="李明", gender="男", age=40)),
-    ), patch("routers.records_intent_handlers.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
-        "routers.records_intent_handlers.find_patients_by_exact_name",
-        new=AsyncMock(return_value=[]),
-    ), patch(
-        "routers.records_intent_handlers.db_create_patient",
-        new=AsyncMock(side_effect=InvalidMedicalRecordError("invalid")),
-    ):
-        # The handler now raises HTTPException(422) for validation errors
-        with pytest.raises(HTTPException) as exc:
-            await records.chat(records.ChatInput(text="创建李明", doctor_id=DOCTOR))
-        assert exc.value.status_code == 422
-        assert "格式不正确" in exc.value.detail
+    ), patch("routers.records.shared_handle_create_patient",
+             new=AsyncMock(return_value=HandlerResult(reply="✅ 已为患者【李明】创建（男、40岁）。"))):
+        resp2 = await records.chat(records.ChatInput(text="创建李明", doctor_id=DOCTOR))
+    assert "创建" in resp2.reply or "李明" in resp2.reply
+
+    # Case 3: validation error → shared handler returns error reply
+    reset_session_state_for_tests()
+    with patch(
+        "services.ai.agent.dispatch",
+        new=AsyncMock(return_value=_intent(Intent.create_patient, patient_name="李明", gender="男", age=40)),
+    ), patch("routers.records.shared_handle_create_patient",
+             new=AsyncMock(return_value=HandlerResult(reply="⚠️ 患者信息不完整或格式不正确，请检查后重试。"))):
+        resp3 = await records.chat(records.ChatInput(text="创建李明", doctor_id=DOCTOR))
+    assert "格式不正确" in resp3.reply
 
 
 async def test_chat_add_record_invalid_name_and_structuring_error():
     """add_record with patient_name=None asks for name; structuring error returns failure."""
-    # Case 1: no patient name and no session patient → ask for name
-    # Use a fresh doctor_id to guarantee no session state leaks.
+    # Case 1: no patient name → shared handler asks for name
     _doc = "add_record_test_no_name"
     with patch(
         "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.add_record, patient_name=None)),
-    ):
+    ), patch("routers.records.shared_handle_add_record",
+             new=AsyncMock(return_value=HandlerResult(reply="请问这位患者叫什么名字？"))):
         resp = await records.chat(records.ChatInput(text="胸痛", doctor_id=_doc))
     assert "叫什么名字" in resp.reply
 
-    # Case 2: structuring error (with patient found)
+    # Case 2: structuring error → shared handler returns error reply
     reset_session_state_for_tests()
-    fake_db = object()
     with patch(
         "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.add_record, patient_name="张三")),
-    ), patch("routers.records_intent_handlers.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
-        "routers.records_intent_handlers.find_patient_by_name",
-        new=AsyncMock(return_value=SimpleNamespace(id=1, name="张三", gender=None, year_of_birth=None)),
-    ), patch(
-        "services.domain.record_ops.structure_medical_record",
-        new=AsyncMock(side_effect=RuntimeError("llm down")),
-    ), patch(
-        "routers.records_intent_handlers.hydrate_session_state",
-        new=AsyncMock(),
-    ):
+    ), patch("routers.records.shared_handle_add_record",
+             new=AsyncMock(return_value=HandlerResult(reply="病历生成失败，请稍后重试。"))):
         resp2 = await records.chat(records.ChatInput(text="张三胸痛", doctor_id=DOCTOR))
     assert "病历生成失败" in resp2.reply
     assert "llm down" not in resp2.reply
@@ -228,7 +211,6 @@ async def test_chat_add_record_invalid_name_and_structuring_error():
 
 async def test_chat_add_record_clears_hallucinated_treatment_when_no_signal():
     """add_record with structured_fields creates a pending draft (treatment stripped)."""
-    fake_db = object()
     from db.models.medical_record import MedicalRecord as _MR
     with patch(
         "services.ai.agent.dispatch",
@@ -242,22 +224,12 @@ async def test_chat_add_record_clears_hallucinated_treatment_when_no_signal():
                 },
             )
         ),
-    ), patch("routers.records_intent_handlers.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
-        "routers.records_intent_handlers.find_patient_by_name",
-        new=AsyncMock(return_value=SimpleNamespace(id=9, name="尹晴", gender=None, year_of_birth=None)),
-    ), patch(
-        "routers.records_intent_handlers.save_record",
-        new=AsyncMock(return_value=SimpleNamespace(id=101)),
-    ), patch(
-        "services.domain.record_ops.structure_medical_record",
-        new=AsyncMock(return_value=_MR(content="头痛2天，偏头痛待排")),
-    ), patch(
-        "routers.records_intent_handlers.hydrate_session_state",
-        new=AsyncMock(),
-    ), patch(
-        "routers.records_intent_handlers.create_pending_record",
-        new=AsyncMock(),
-    ):
+    ), patch("routers.records.shared_handle_add_record",
+             new=AsyncMock(return_value=HandlerResult(
+                 reply="📋 已为【尹晴】生成病历草稿，请确认后保存。",
+                 record=_MR(content="头痛2天，偏头痛待排"),
+                 pending_id="draft-test",
+             ))):
         resp = await records.chat(records.ChatInput(text="尹晴，女，60岁，头痛2天，睡眠差。", doctor_id=DOCTOR))
 
     assert resp.record is not None
@@ -266,48 +238,28 @@ async def test_chat_add_record_clears_hallucinated_treatment_when_no_signal():
 
 async def test_chat_force_add_record_when_intent_drifts_but_text_is_clinical():
     """When intent drifts to unknown but text is clinical, the workflow may still produce add_record."""
-    fake_db = object()
-    # The workflow gate may block unknown intents or reclassify to add_record.
-    # We mock the agent dispatch to return add_record (since the workflow now
-    # handles this differently than the old direct add_record override).
     with patch(
         "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.add_record, patient_name="钱芳")),
-    ), patch("routers.records_intent_handlers.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
-        "routers.records_intent_handlers.find_patient_by_name",
-        new=AsyncMock(return_value=SimpleNamespace(id=7, name="钱芳", gender=None, year_of_birth=None)),
-    ), patch(
-        "services.domain.record_ops.structure_medical_record",
-        new=AsyncMock(return_value=_record()),
-    ), patch(
-        "routers.records_intent_handlers.save_record",
-        new=AsyncMock(return_value=SimpleNamespace(id=100)),
-    ), patch(
-        "routers.records_intent_handlers.hydrate_session_state",
-        new=AsyncMock(),
-    ), patch(
-        "routers.records_intent_handlers.create_pending_record",
-        new=AsyncMock(),
-    ) as mock_pending:
+    ), patch("routers.records.shared_handle_add_record",
+             new=AsyncMock(return_value=HandlerResult(
+                 reply="📋 已为【钱芳】生成病历草稿，请确认后保存。",
+                 record=_record(),
+                 pending_id="draft-test",
+             ))):
         resp = await records.chat(records.ChatInput(text="钱芳，女，63岁，反复胸闷3天", doctor_id=DOCTOR))
 
     assert resp.record is not None
-    # Pending draft flow — either "已为【钱芳】" or "保存" text is present.
     assert "钱芳" in resp.reply
 
 
 async def test_chat_query_records_named_patient_branches():
-    fake_db = object()
-    patient = SimpleNamespace(id=11, name="张三")
-
-    # Case 1: patient not found
+    # Case 1: patient not found → shared handler returns not-found reply
     with patch(
         "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.query_records, patient_name="张三")),
-    ), patch("routers.records_intent_handlers.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
-        "routers.records_intent_handlers.find_patient_by_name",
-        new=AsyncMock(return_value=None),
-    ):
+    ), patch("routers.records.shared_handle_query_records",
+             new=AsyncMock(return_value=HandlerResult(reply="未找到患者【张三】。"))):
         resp = await records.chat(records.ChatInput(text="查张三", doctor_id=DOCTOR))
     assert "未找到患者" in resp.reply
 
@@ -316,47 +268,31 @@ async def test_chat_query_records_named_patient_branches():
     with patch(
         "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.query_records, patient_name="张三")),
-    ), patch("routers.records_intent_handlers.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
-        "routers.records_intent_handlers.find_patient_by_name",
-        new=AsyncMock(return_value=patient),
-    ), patch(
-        "routers.records_intent_handlers.get_records_for_patient",
-        new=AsyncMock(return_value=[]),
-    ):
+    ), patch("routers.records.shared_handle_query_records",
+             new=AsyncMock(return_value=HandlerResult(reply="📂 患者【张三】暂无历史记录。"))):
         resp2 = await records.chat(records.ChatInput(text="查张三", doctor_id=DOCTOR))
     assert "暂无历史记录" in resp2.reply
 
     # Case 3: patient found with records
     reset_session_state_for_tests()
-    records_list = [
-        SimpleNamespace(content="胸痛 冠心病", tags='["冠心病"]', created_at=datetime(2026, 3, 2))
-    ]
     with patch(
         "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.query_records, patient_name="张三")),
-    ), patch("routers.records_intent_handlers.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
-        "routers.records_intent_handlers.find_patient_by_name",
-        new=AsyncMock(return_value=patient),
-    ), patch(
-        "routers.records_intent_handlers.get_records_for_patient",
-        new=AsyncMock(return_value=records_list),
-    ):
+    ), patch("routers.records.shared_handle_query_records",
+             new=AsyncMock(return_value=HandlerResult(
+                 reply="📂 患者【张三】最近 1 条记录：\n1. [2026-03-02] 胸痛 冠心病",
+             ))):
         resp3 = await records.chat(records.ChatInput(text="查张三", doctor_id=DOCTOR))
     assert "最近 1 条记录" in resp3.reply
 
 
 async def test_chat_query_records_all_doctor_records_branches():
-    fake_db = object()
-    all_records = [SimpleNamespace(patient=None, content=None, tags=None, created_at=None)]
-
-    # Case 1: no records
+    # Case 1: no records → shared handler returns empty message
     with patch(
         "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.query_records, patient_name=None)),
-    ), patch("routers.records_intent_handlers.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
-        "routers.records_intent_handlers.get_all_records_for_doctor",
-        new=AsyncMock(return_value=[]),
-    ):
+    ), patch("routers.records.shared_handle_query_records",
+             new=AsyncMock(return_value=HandlerResult(reply="📂 暂无任何病历记录。"))):
         resp4 = await records.chat(records.ChatInput(text="查病历", doctor_id=DOCTOR))
     assert "暂无任何病历记录" in resp4.reply
 
@@ -365,37 +301,31 @@ async def test_chat_query_records_all_doctor_records_branches():
     with patch(
         "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.query_records, patient_name=None)),
-    ), patch("routers.records_intent_handlers.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
-        "routers.records_intent_handlers.get_all_records_for_doctor",
-        new=AsyncMock(return_value=all_records),
-    ):
+    ), patch("routers.records.shared_handle_query_records",
+             new=AsyncMock(return_value=HandlerResult(
+                 reply="📂 最近 1 条记录：\n【未关联】[—] —",
+             ))):
         resp5 = await records.chat(records.ChatInput(text="查病历", doctor_id=DOCTOR))
     assert "最近 1 条记录" in resp5.reply
 
 
 async def test_chat_list_patients_and_unknown_reply():
-    fake_db = object()
-    # Case 1: no patients
+    # Case 1: no patients → shared handler returns empty message
     with patch(
         "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.list_patients)),
-    ), patch("routers.records_intent_handlers.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
-        "routers.records_intent_handlers.get_all_patients",
-        new=AsyncMock(return_value=[]),
-    ):
+    ), patch("routers.records.shared_handle_list_patients",
+             new=AsyncMock(return_value=HandlerResult(reply="📂 暂无患者记录。"))):
         resp = await records.chat(records.ChatInput(text="所有患者", doctor_id=DOCTOR))
     assert "暂无患者记录" in resp.reply
 
-    # Case 2: has patients
+    # Case 2: has patients → shared handler returns patient list
     reset_session_state_for_tests()
-    patients = [SimpleNamespace(name="张三", gender="男", year_of_birth=1980)]
     with patch(
         "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.list_patients)),
-    ), patch("routers.records_intent_handlers.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
-        "routers.records_intent_handlers.get_all_patients",
-        new=AsyncMock(return_value=patients),
-    ):
+    ), patch("routers.records.shared_handle_list_patients",
+             new=AsyncMock(return_value=HandlerResult(reply="👥 共 1 位患者：\n1. 张三（男、46岁）"))):
         resp2 = await records.chat(records.ChatInput(text="所有患者", doctor_id=DOCTOR))
     assert "共 1 位患者" in resp2.reply
     assert "张三" in resp2.reply
@@ -407,7 +337,6 @@ async def test_chat_list_patients_and_unknown_reply():
         new=AsyncMock(return_value=_intent(Intent.unknown, chat_reply="你好医生")),
     ):
         resp3 = await records.chat(records.ChatInput(text="hi", doctor_id=DOCTOR))
-    # "hi" matches greeting fast path → warm welcome (not the robot menu)
     assert "专属医助" in resp3.reply
 
     # Case 4: "hi" without chat_reply → same greeting path
@@ -422,9 +351,9 @@ async def test_chat_list_patients_and_unknown_reply():
 
 async def test_chat_delete_patient_fastpath_and_intent_branches():
     fake_db = object()
-    # Case 1: delete by ID — not found
+    # Case 1: delete by ID — not found (this is a fast path in records.py, not a shared handler)
     with patch("routers.records.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
-        "routers.records.delete_patient_for_doctor",
+        "services.domain.chat_handlers.delete_patient_for_doctor",
         new=AsyncMock(return_value=None),
     ):
         resp = await records.chat(records.ChatInput(text="删除患者ID 99", doctor_id=DOCTOR))
@@ -435,10 +364,10 @@ async def test_chat_delete_patient_fastpath_and_intent_branches():
     with patch(
         "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.delete_patient, patient_name="章三")),
-    ), patch("routers.records.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
-        "routers.records.find_patients_by_exact_name",
-        new=AsyncMock(return_value=[SimpleNamespace(id=1, name="章三"), SimpleNamespace(id=2, name="章三")]),
-    ):
+    ), patch("routers.records.shared_handle_delete_patient",
+             new=AsyncMock(return_value=HandlerResult(
+                 reply="⚠️ 找到同名患者【章三】共 2 位，请发送「删除第2个患者章三」这类指令。"
+             ))):
         resp2 = await records.chat(records.ChatInput(text="删除患者章三", doctor_id=DOCTOR))
     assert "同名患者" in resp2.reply
 
@@ -447,13 +376,8 @@ async def test_chat_delete_patient_fastpath_and_intent_branches():
     with patch(
         "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.delete_patient, patient_name="章三", extra_data={"occurrence_index": 2})),
-    ), patch("routers.records.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
-        "routers.records.find_patients_by_exact_name",
-        new=AsyncMock(return_value=[SimpleNamespace(id=1, name="章三"), SimpleNamespace(id=2, name="章三")]),
-    ), patch(
-        "routers.records.delete_patient_for_doctor",
-        new=AsyncMock(return_value=SimpleNamespace(id=2, name="章三")),
-    ):
+    ), patch("routers.records.shared_handle_delete_patient",
+             new=AsyncMock(return_value=HandlerResult(reply="✅ 已删除患者【章三】及其相关记录。"))):
         resp3 = await records.chat(records.ChatInput(text="删除第二个患者章三", doctor_id=DOCTOR))
     assert "已删除患者【章三】" in resp3.reply
 
@@ -462,34 +386,26 @@ async def test_chat_delete_patient_fastpath_and_intent_branches():
     with patch(
         "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(Intent.delete_patient, patient_name="张三", extra_data={"occurrence_index": 1})),
-    ), patch("routers.records.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
-        "routers.records.find_patients_by_exact_name",
-        new=AsyncMock(return_value=[SimpleNamespace(id=6, name="张三")]),
-    ), patch(
-        "routers.records.delete_patient_for_doctor",
-        new=AsyncMock(return_value=SimpleNamespace(id=6, name="张三")),
-    ):
+    ), patch("routers.records.shared_handle_delete_patient",
+             new=AsyncMock(return_value=HandlerResult(reply="✅ 已删除患者【张三】及其相关记录。"))):
         resp4 = await records.chat(records.ChatInput(text="请删除张三", doctor_id=DOCTOR))
     assert "已删除患者【张三】" in resp4.reply
 
 
 async def test_chat_schedule_appointment_and_save_context_fastpaths():
     fake_db = object()
-    # Schedule appointment — mock the agent dispatch since this goes through workflow
-    with patch("routers.records.AsyncSessionLocal", return_value=_SessionCtx(fake_db)), patch(
+    # Schedule appointment — mock the shared handler
+    with patch(
         "services.ai.agent.dispatch",
         new=AsyncMock(return_value=_intent(
             Intent.schedule_appointment,
             patient_name="张三",
             extra_data={"appointment_time": "2026-03-15T14:00:00"},
         )),
-    ), patch(
-        "routers.records.find_patient_by_name",
-        new=AsyncMock(return_value=SimpleNamespace(id=8, name="张三")),
-    ), patch(
-        "routers.records.create_appointment_task",
-        new=AsyncMock(return_value=SimpleNamespace(id=77)),
-    ):
+    ), patch("routers.records.shared_handle_schedule_appointment",
+             new=AsyncMock(return_value=HandlerResult(
+                 reply="📅 已为患者【张三】安排预约\n预约时间：2026-03-15 14:00\n任务编号：77（将在1小时前提醒）",
+             ))):
         resp = await records.chat(records.ChatInput(text="给张三安排预约 2026-03-15T14:00:00", doctor_id=DOCTOR))
     assert "任务编号：77" in resp.reply
 

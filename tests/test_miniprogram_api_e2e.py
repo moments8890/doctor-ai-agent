@@ -178,7 +178,7 @@ async def test_miniprogram_real_life_10_turn_chat_live_records_path_e2e(session_
     app.include_router(auth_router.router)
     app.include_router(mini_router.router)
 
-    async def _fake_dispatch(text: str, history=None):
+    async def _fake_dispatch(text: str, history=None, **kwargs):
         return IntentResult(intent=Intent.unknown, chat_reply="收到：" + text)
 
     with patch("routers.auth.AsyncSessionLocal", session_factory), patch(
@@ -192,7 +192,7 @@ async def test_miniprogram_real_life_10_turn_chat_live_records_path_e2e(session_
         },
         clear=False,
     ), patch(
-        "routers.records.agent_dispatch",
+        "services.ai.agent.dispatch",
         new=AsyncMock(side_effect=_fake_dispatch),
     ):
         transport = ASGITransport(app=app)

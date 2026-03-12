@@ -86,12 +86,13 @@ Status: **done** (core convergence complete; remaining items deferred)
 - [x] `_create_patient.py` — sets `switch_notification` instead of prepending to reply
 - [x] WeChat `_hr_to_text()` helper prepends notification as separate line
 - [x] All WeChat dispatch paths use `_hr_to_text()` for handlers that may switch patients
-- [x] Old inline prepend cleaned up in `records_intent_handlers.py`
+- [x] Old inline prepend cleaned up (legacy `records_intent_handlers.py` deleted)
 
 ### Deferred to next cycle
 
 - [x] Wire `ChannelAdapter` protocol (`services/domain/adapters/`) into routers -- **done** (WS4): `parse_inbound` and `format_reply` wired; `send_reply`/`send_notification` documented as deferred stubs
-- [ ] Remove legacy handler code in `records_intent_handlers.py` and `wechat_domain.py` once all paths confirmed bypassed
+- [x] Legacy `records_intent_handlers.py` deleted (all handlers now in shared layer)
+- [x] `wechat_domain.py` cleaned — only WeChat-unique functions remain
 - [ ] Confirm equivalent workflow outcomes via E2E corpus replay on both channels
 
 ---
@@ -106,9 +107,9 @@ Status: **done** (core workbench shipped; remaining polish deferred)
 ### Deferred to next cycle
 
 - [ ] First-run doctor flow (no patient -> create prompt)
-- [ ] Visible pending-draft state in workbench header
+- [x] Visible pending-draft state in workbench header — `next_step` now shows alongside `pending_draft`
 - [ ] Next-step affordance when blocked (e.g. "confirm or abandon draft")
-- [ ] Minimal advisory doctor profile fields (specialty, visit scenario, note style)
+- [x] Doctor profile fields (visit_scenario, note_style) — wired DB → session → LLM prompt → UI settings
 
 ---
 
@@ -155,7 +156,8 @@ Status: **done**
 ## Test health
 
 As of 2026-03-12 (post-closure):
-- **1426 passed**, 42 skipped, 3 pre-existing failures
+- **1645 passed**, 42 skipped, 0 failures
+- Voice router rewritten to use shared 5-layer workflow (33 voice-specific tests)
 - All shared handler mock targets updated for new module locations
 - No regressions from closure work (WS1-WS5)
 - Coverage target: >80% overall, >80% diff coverage on changed lines
@@ -195,15 +197,13 @@ The following items are explicitly deferred to the next cycle. They are
 **non-gating** for the current MVP release.
 
 ### Channel & adapter cleanup
-- ~~Wire `ChannelAdapter` protocol into routers~~ -- **done** (WS4): `parse_inbound` and `format_reply` wired; `send_reply`/`send_notification` deferred
-- Remove legacy handler code in `records_intent_handlers.py` and `wechat_domain.py`
-- E2E corpus replay parity test (same input -> equivalent outcomes on Web and WeChat)
+- ~~Wire `ChannelAdapter` protocol into routers~~ -- **done** (WS4)
+- ~~Remove legacy handler code~~ -- **done**: `records_intent_handlers.py` deleted, `wechat_domain.py` cleaned
+- E2E corpus replay parity test (same input -> equivalent outcomes on Web, WeChat, Voice)
 
 ### Web workbench polish
 - First-run doctor flow (empty state -> create patient prompt)
-- Visible pending-draft state in workbench header
 - Next-step affordance when blocked
-- Minimal advisory doctor profile fields (specialty, visit scenario, note style)
 
 ### Secondary channel improvements
 - Mini-program as independent surface

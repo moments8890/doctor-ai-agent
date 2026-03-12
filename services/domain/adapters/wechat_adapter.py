@@ -116,11 +116,13 @@ class WeChatAdapter:
         """Reconstruct history from session / turn log.
 
         In WeChat, history is not included in the request.  This method
-        should reconstruct recent turns from the session service.
+        hydrates session state from DB (if cold) then returns the
+        conversation history from the in-memory session.
         """
         # Defer to session service — import lazily to avoid circular deps.
         try:
-            from services.session import get_session
+            from services.session import get_session, hydrate_session_state
+            await hydrate_session_state(doctor_id)
             sess = get_session(doctor_id)
             return getattr(sess, "conversation_history", []) or []
         except Exception:

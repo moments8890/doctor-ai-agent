@@ -109,6 +109,26 @@ def test_create_patient_female():
     assert r.age == 30
 
 
+def test_destructive_create_conjunction_falls_through():
+    """Mixed destructive+create should NOT fast-route — falls through to LLM."""
+    r = fast_route("删除张三，再创建李四")
+    assert r is None, f"expected None (LLM fallback), got {r}"
+
+
+def test_create_patient_still_routes_normally():
+    """Pure create_patient must still fast-route after conjunction guard."""
+    r = fast_route("创建李四")
+    assert r is not None
+    assert r.intent == Intent.create_patient
+    assert r.patient_name == "李四"
+
+
+def test_create_then_destructive_conjunction_falls_through():
+    """Create-then-delete should also fall through to LLM."""
+    r = fast_route("创建赵六，再删除王芳")
+    assert r is None, f"expected None (LLM fallback), got {r}"
+
+
 # ── delete_patient ─────────────────────────────────────────────────────────────
 
 @pytest.mark.parametrize("text, expected_name", [

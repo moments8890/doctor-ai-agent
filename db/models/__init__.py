@@ -14,6 +14,7 @@ from db.models.audit import AuditLog
 from db.models.scores import SpecialtyScore
 from db.models.specialty import NeuroCVDContext
 from db.models.medical_record import MedicalRecord
+from db.models.patient_message import PatientMessage
 from db.models.neuro_case import (
     NeuroCase, Hypertension, RiskFactors, ImagingFinding, ImagingStudy,
     LabResult, PlanOrder, ExtractionLog, NeuroCVDSurgicalContext,
@@ -33,6 +34,7 @@ __all__ = [
     "SpecialtyScore",
     "NeuroCVDContext",
     "MedicalRecord",
+    "PatientMessage",
     "NeuroCase", "Hypertension", "RiskFactors", "ImagingFinding", "ImagingStudy",
     "LabResult", "PlanOrder", "ExtractionLog", "NeuroCVDSurgicalContext",
 ]

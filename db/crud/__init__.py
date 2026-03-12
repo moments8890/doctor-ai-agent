@@ -105,6 +105,10 @@ from db.crud.runtime import (
     try_acquire_scheduler_lease,
     release_scheduler_lease,
 )
+from db.crud.patient_message import (
+    save_patient_message,
+    list_patient_messages,
+)
 from db.crud.retention import (
     archive_old_audit_logs,
     prune_record_versions,
@@ -210,6 +214,9 @@ __all__ = [
     "upsert_runtime_config",
     "try_acquire_scheduler_lease",
     "release_scheduler_lease",
+    # patient_message
+    "save_patient_message",
+    "list_patient_messages",
     # retention
     "archive_old_audit_logs",
     "prune_record_versions",

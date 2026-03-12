@@ -23,8 +23,10 @@ from sqlalchemy import select
 
 from db.engine import AsyncSessionLocal
 from db.models import Patient, MedicalRecordDB
+from db.crud.patient_message import save_patient_message
 from services.auth.access_code_hash import verify_access_code
 from services.auth.rate_limit import enforce_doctor_rate_limit
+from services.notify.notification import send_doctor_notification
 from services.observability.audit import audit
 
 logger = logging.getLogger(__name__)
@@ -251,20 +253,61 @@ async def send_patient_message(
     x_patient_token: Optional[str] = Header(default=None),
 ):
     """
-    Receive a message from the patient.
-
-    MVP: logs the message and returns a static acknowledgement.
-    TODO: Persist to a PatientMessage table and notify the doctor.
+    Receive a message from the patient, persist it, and notify the doctor.
     """
     patient_id = _parse_patient_token_header(x_patient_token)
     text = (body.text or "").strip()
     if not text:
         raise HTTPException(status_code=422, detail="消息内容不能为空")
 
+    # Look up the patient to find doctor_id and patient name.
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(Patient).where(Patient.id == patient_id).limit(1)
+        )
+        patient = result.scalar_one_or_none()
+
+    if patient is None:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    doctor_id = patient.doctor_id
+    patient_name = patient.name
+
+    # Persist the inbound message.
+    async with AsyncSessionLocal() as db:
+        await save_patient_message(
+            db,
+            patient_id=patient_id,
+            doctor_id=doctor_id,
+            content=text,
+            direction="inbound",
+        )
+
     logger.info(
-        "[PatientPortal] message received | patient_id=%s length=%d",
-        patient_id, len(text),
+        "[PatientPortal] message saved | patient_id=%s doctor_id=%s length=%d",
+        patient_id, doctor_id, len(text),
     )
 
-    # TODO: Save to PatientMessage table and push notification to doctor.
+    # Notify the doctor (fire-and-forget; failure is logged but not raised).
+    preview = text[:60] + ("…" if len(text) > 60 else "")
+    notification_text = "患者【{name}】发来消息：{preview}".format(
+        name=patient_name, preview=preview,
+    )
+    asyncio.ensure_future(_notify_doctor_safe(doctor_id, notification_text))
+
+    asyncio.ensure_future(audit(
+        doctor_id, "WRITE",
+        resource_type="patient_message", resource_id=str(patient_id),
+    ))
+
     return PatientMessageResponse(reply="您的消息已收到，医生将尽快回复您。")
+
+
+async def _notify_doctor_safe(doctor_id: str, message: str) -> None:
+    """Send notification to doctor, swallowing exceptions to avoid breaking the response."""
+    try:
+        await send_doctor_notification(doctor_id, message)
+    except Exception:
+        logger.exception(
+            "[PatientPortal] failed to notify doctor_id=%s", doctor_id,
+        )

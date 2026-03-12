@@ -58,6 +58,7 @@ from ._patterns import (
     _PENDING_RECORD_ABORT_RE,
     _TAIL_TASK_RE,
     _NAME_SUPPLEMENT_RE,
+    _CONFLICTING_PREFIX_RE,
 )
 from ._session import _apply_session_context
 
@@ -270,16 +271,31 @@ def _route_tier2_create_patient(normed: str, stripped: str) -> Optional[IntentRe
 
         m = _CREATE_LEAD_RE.search(target)
         if m and m.group(1) not in _NON_NAME_KEYWORDS and m.group(1) not in _TIER3_BAD_NAME:
+            # Guard: if text before the create keyword contains a destructive
+            # verb, this is a mixed destructive+create compound (e.g.
+            # "删除张三，再创建李四").  Fall through to LLM so the planner
+            # can detect the unsupported combo and block it.
+            prefix = target[:m.start()]
+            suffix = target[m.end():]
+            if (prefix and _CONFLICTING_PREFIX_RE.search(prefix)) or \
+               (suffix and _CONFLICTING_PREFIX_RE.search(suffix)):
+                return None
             gender, age = _extract_demographics(stripped)
             return IntentResult(intent=Intent.create_patient, patient_name=m.group(1), gender=gender, age=age)
 
         m = _CREATE_TRAIL_RE.match(target)
         if m and m.group(1) not in _NON_NAME_KEYWORDS:
+            trail_suffix = target[m.end():]
+            if trail_suffix and _CONFLICTING_PREFIX_RE.search(trail_suffix):
+                return None
             gender, age = _extract_demographics(stripped)
             return IntentResult(intent=Intent.create_patient, patient_name=m.group(1), gender=gender, age=age)
 
         m = _CREATE_TERSE_END_RE.match(target)
         if m and m.group(1) not in _NON_NAME_KEYWORDS:
+            terse_suffix = target[m.end():]
+            if terse_suffix and _CONFLICTING_PREFIX_RE.search(terse_suffix):
+                return None
             gender, age = _extract_demographics(stripped)
             return IntentResult(intent=Intent.create_patient, patient_name=m.group(1), gender=gender, age=age)
     return None

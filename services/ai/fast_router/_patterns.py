@@ -333,6 +333,12 @@ _CREATE_LEAD_RE = re.compile(
     + r"(?=[，,。！？\s男女\d]|$)"
 )
 
+# Guard: if text BEFORE a _CREATE_LEAD_RE match contains a destructive verb,
+# the message is a mixed destructive+create compound — fall through to LLM.
+_CONFLICTING_PREFIX_RE = re.compile(
+    r"(?:删除|删掉|移除|删|取消|撤销|清空|作废)"
+)
+
 # Create duplicate: "再建一个同名：NAME,gender,age" / "再来一个同名患者：NAME"
 # Corpus pattern appears 13× (one per test case with duplicate-name scenario).
 _CREATE_DUPLICATE_RE = re.compile(

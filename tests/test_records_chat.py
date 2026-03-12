@@ -105,7 +105,9 @@ async def test_list_tasks_intent_returns_pending_tasks(session_factory):
             due_at=datetime(2026, 3, 20, 9, 0, 0),
         )
 
-    with patch("routers.records.AsyncSessionLocal", session_factory), patch(
+    with patch("routers.records.AsyncSessionLocal", session_factory), \
+         patch("services.domain.intent_handlers._simple_intents.AsyncSessionLocal", session_factory), \
+         patch(
         "services.ai.agent.dispatch",
         new=AsyncMock(return_value=IntentResult(intent=Intent.list_tasks)),
     ):
@@ -158,7 +160,9 @@ async def test_complete_task_intent_requires_task_id(session_factory):
 async def test_schedule_appointment_intent_creates_task(session_factory):
     fake_task = SimpleNamespace(id=99)
 
-    with patch("routers.records.AsyncSessionLocal", session_factory), patch(
+    with patch("routers.records.AsyncSessionLocal", session_factory), \
+         patch("services.domain.intent_handlers._simple_intents.AsyncSessionLocal", session_factory), \
+         patch(
         "services.ai.agent.dispatch",
         new=AsyncMock(
             return_value=IntentResult(
@@ -171,7 +175,7 @@ async def test_schedule_appointment_intent_creates_task(session_factory):
             ),
         ),
     ), patch(
-        "routers.records.create_appointment_task",
+        "services.domain.intent_handlers._simple_intents.create_appointment_task",
         new=AsyncMock(return_value=fake_task),
     ) as create_appt_mock:
         response = await chat(ChatInput(text="帮王五预约复诊", history=[], doctor_id=DOCTOR))

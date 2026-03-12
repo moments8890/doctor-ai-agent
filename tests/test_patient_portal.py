@@ -1,4 +1,4 @@
-"""患者门户安全升级测试：access_code 认证、向后兼容、自动生成。
+"""患者门户安全升级测试：access_code 认证、向后兼容、自动生成、消息持久化与通知。
 
 Tests for the patient portal security upgrade:
   - Login with correct access code succeeds
@@ -6,6 +6,7 @@ Tests for the patient portal security upgrade:
   - Legacy patient (no access_code) can still log in with deprecation warning
   - Access code is auto-generated on patient creation
   - set_patient_access_code generates a new code for existing patients
+  - send_patient_message persists to DB and notifies doctor
 """
 
 from __future__ import annotations
@@ -273,3 +274,146 @@ async def test_session_endpoint_legacy_patient_no_code(caplog):
     assert resp.token
     assert "DEPRECATION" in caplog.text
     clear_rate_limits_for_tests()
+
+
+# ---------------------------------------------------------------------------
+# 9. send_patient_message — persists and notifies
+# ---------------------------------------------------------------------------
+
+def _mock_async_session_ctx(patient_obj):
+    """Build an async context manager that mimics AsyncSessionLocal().
+
+    The first __aenter__ call returns a session whose .execute() yields the
+    patient lookup.  The second call returns a session used for save.
+    """
+    from unittest.mock import AsyncMock
+
+    call_count = {"n": 0}
+
+    class _FakeSession:
+        async def execute(self, stmt):
+            ns = SimpleNamespace()
+            ns.scalar_one_or_none = lambda: patient_obj
+            return ns
+
+        async def commit(self):
+            pass
+
+    class _FakeSaveSession:
+        add_called_with = None
+
+        def add(self, obj):
+            _FakeSaveSession.add_called_with = obj
+
+        async def commit(self):
+            pass
+
+    class _CtxMgr:
+        async def __aenter__(self):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                return _FakeSession()
+            return _FakeSaveSession()
+
+        async def __aexit__(self, *args):
+            pass
+
+    return _CtxMgr, _FakeSaveSession
+
+
+@pytest.mark.asyncio
+async def test_send_message_persists_and_notifies():
+    """POST /api/patient/message persists the message and triggers doctor notification."""
+    import asyncio
+    from routers.patient_portal import send_patient_message, PatientMessageRequest
+
+    patient = _make_patient(patient_id=10, name="赵六", doctor_id="doc_msg")
+
+    ctx_cls, save_session_cls = _mock_async_session_ctx(patient)
+    mock_save = AsyncMock()
+    mock_notify = AsyncMock()
+
+    with patch("routers.patient_portal._parse_patient_token_header", return_value=10), \
+         patch("routers.patient_portal.AsyncSessionLocal", side_effect=lambda: ctx_cls()), \
+         patch("routers.patient_portal.save_patient_message", mock_save), \
+         patch("routers.patient_portal.send_doctor_notification", mock_notify), \
+         patch("routers.patient_portal.audit", new_callable=AsyncMock):
+        resp = await send_patient_message(
+            PatientMessageRequest(text="我今天感觉好一些了"),
+            x_patient_token="fake-token",
+        )
+
+        assert resp.reply == "您的消息已收到，医生将尽快回复您。"
+
+        # Verify persistence was called with correct args
+        mock_save.assert_awaited_once()
+        call_kwargs = mock_save.call_args
+        assert call_kwargs[1]["patient_id"] == 10
+        assert call_kwargs[1]["doctor_id"] == "doc_msg"
+        assert call_kwargs[1]["content"] == "我今天感觉好一些了"
+        assert call_kwargs[1]["direction"] == "inbound"
+
+        # Give fire-and-forget task a tick to execute within the patch context
+        await asyncio.sleep(0)
+        mock_notify.assert_awaited_once()
+        notify_args = mock_notify.call_args[0]
+        assert notify_args[0] == "doc_msg"
+        assert "赵六" in notify_args[1]
+
+
+@pytest.mark.asyncio
+async def test_send_message_empty_text_returns_422():
+    """POST /api/patient/message with empty text returns 422."""
+    from routers.patient_portal import send_patient_message, PatientMessageRequest
+
+    with patch("routers.patient_portal._parse_patient_token_header", return_value=10):
+        with pytest.raises(HTTPException) as exc_info:
+            await send_patient_message(
+                PatientMessageRequest(text="   "),
+                x_patient_token="fake-token",
+            )
+
+    assert exc_info.value.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_send_message_patient_not_found_returns_404():
+    """POST /api/patient/message for non-existent patient returns 404."""
+    from routers.patient_portal import send_patient_message, PatientMessageRequest
+
+    # AsyncSessionLocal returns a session whose execute yields None
+    class _FakeSession:
+        async def execute(self, stmt):
+            ns = SimpleNamespace()
+            ns.scalar_one_or_none = lambda: None
+            return ns
+
+    class _CtxMgr:
+        async def __aenter__(self):
+            return _FakeSession()
+        async def __aexit__(self, *args):
+            pass
+
+    with patch("routers.patient_portal._parse_patient_token_header", return_value=999):
+        with patch("routers.patient_portal.AsyncSessionLocal", return_value=_CtxMgr()):
+            with pytest.raises(HTTPException) as exc_info:
+                await send_patient_message(
+                    PatientMessageRequest(text="你好医生"),
+                    x_patient_token="fake-token",
+                )
+
+    assert exc_info.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_notify_doctor_safe_swallows_exception():
+    """_notify_doctor_safe catches exceptions and logs them without re-raising."""
+    from routers.patient_portal import _notify_doctor_safe
+
+    with patch(
+        "routers.patient_portal.send_doctor_notification",
+        new_callable=AsyncMock,
+        side_effect=RuntimeError("network down"),
+    ):
+        # Should NOT raise
+        await _notify_doctor_safe("doc_1", "test message")
