@@ -88,8 +88,8 @@ All three doctor-facing channels converge on the same pipeline:
 Doctor message
     |
     v
-Channel entry point
-  Web:    routers/records.py  -> _chat_for_doctor()
+Channel entry point + adapter normalization
+  Web:    routers/records.py  -> WebAdapter.parse_inbound() -> _chat_for_doctor()
   WeChat: routers/wechat.py   -> _handle_intent()
   Voice:  routers/voice.py    -> _voice_chat_for_doctor() (after transcription)
     |
@@ -100,11 +100,15 @@ Channel prechecks (deterministic fast paths)
   - task completion, pending-draft confirmation
     |
     v
+Assemble DoctorTurnContext (session snapshot + advisory context)
+  services/ai/turn_context.py (authoritative state under lock, advisory outside lock)
+    |
+    v
 Load doctor knowledge context
   services/knowledge/knowledge_cache.py (per-doctor, 5-min TTL)
     |
     v
-services.intent_workflow.run()        <-- shared 5-layer pipeline
+services.intent_workflow.run(turn_context=ctx)  <-- shared 5-layer pipeline
     |
     v
 WorkflowResult -> IntentResult (backward-compatible)
@@ -254,6 +258,12 @@ Table creation handled by `db/init_db.py::create_tables()`.
 - `hydrate_session_state()` loads from DB with 5-min TTL
 - Context compression (`services/ai/memory.py`) triggers at 20 messages,
   1200-token budget, or 30-min idle
+
+`services/ai/turn_context.py` provides `DoctorTurnContext` -- a per-turn snapshot
+that bundles authoritative `WorkflowState` (snapshotted under lock) and
+`AdvisoryContext` (compressed memory, knowledge snippet, loaded outside lock).
+The web router assembles this before each workflow run; the classifier consumes
+it instead of calling `get_session()` directly, ensuring consistent state.
 
 See ADR 0001 for the authoritative/advisory separation rationale.
 
