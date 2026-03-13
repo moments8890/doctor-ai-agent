@@ -351,7 +351,7 @@ async def update_prompt(
         raise HTTPException(status_code=400, detail="Only structuring and structuring.extension are editable.")
     _validate_prompt_template(key, body.content)
     async with AsyncSessionLocal() as db:
-        await upsert_system_prompt(db, key, body.content)
+        await upsert_system_prompt(db, key, body.content, changed_by="admin")
     return {"ok": True, "key": key}
 
 
@@ -379,8 +379,55 @@ async def admin_update_prompt(
     _require_ui_admin_access(x_admin_token)
     _validate_prompt_template(key, body.content)
     async with AsyncSessionLocal() as db:
-        await upsert_system_prompt(db, key, body.content)
+        await upsert_system_prompt(db, key, body.content, changed_by="admin")
     return {"ok": True, "key": key}
+
+
+@router.get("/api/admin/prompts/{key}/versions", include_in_schema=False)
+async def admin_get_prompt_versions(
+    key: str,
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+    limit: int = 20,
+):
+    """Return version history for a prompt key, newest first."""
+    _require_ui_admin_access(x_admin_token)
+    from db.crud.system import list_system_prompt_versions
+    async with AsyncSessionLocal() as db:
+        versions = await list_system_prompt_versions(db, key, limit=limit)
+    return {
+        "key": key,
+        "versions": [
+            {
+                "id": v.id,
+                "content": v.content or "",
+                "changed_by": v.changed_by,
+                "changed_at": _fmt_ts(v.changed_at),
+            }
+            for v in versions
+        ],
+    }
+
+
+class PromptRollback(BaseModel):
+    version_id: int
+
+
+@router.post("/api/admin/prompts/{key}/rollback", include_in_schema=False)
+async def admin_rollback_prompt(
+    key: str,
+    body: PromptRollback,
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+):
+    """Restore a prompt to the content of a specific version entry."""
+    _require_ui_admin_access(x_admin_token)
+    from db.crud.system import rollback_system_prompt
+    async with AsyncSessionLocal() as db:
+        result = await rollback_system_prompt(db, key, body.version_id, changed_by="admin:rollback")
+    if result is None:
+        raise HTTPException(status_code=404, detail="Version not found or key mismatch")
+    from utils.prompt_loader import invalidate
+    invalidate(key)
+    return {"ok": True, "key": key, "restored_from_version": body.version_id}
 
 
 # ── Label endpoints ───────────────────────────────────────────────────────────
@@ -516,6 +563,9 @@ async def admin_update_record(
         if "tags" in updates and isinstance(updates["tags"], list):
             import json as _json
             updates["tags"] = _json.dumps(updates["tags"], ensure_ascii=False)
+        # Snapshot before mutation so admin edits appear in correction history.
+        from db.crud.records import save_record_version
+        await save_record_version(db, rec, rec.doctor_id)
         for field, value in updates.items():
             setattr(rec, field, value)
         rec.updated_at = datetime.now(timezone.utc)
@@ -699,7 +749,7 @@ async def get_working_context(
                 "expires_at": pending.expires_at.isoformat() if pending.expires_at else None,
             }
         else:
-            clear_pending_record_id(resolved_id)
+            clear_pending_record_id(resolved_id, expected_id=pending_id)
 
     # Blocked-write state: record was gated for missing patient name
     from services.session import get_blocked_write_context
@@ -745,7 +795,7 @@ async def clear_context_endpoint(
                 await abandon_pending_record(session, pending_id, doctor_id=resolved_id)
         except Exception:
             pass
-        clear_pending_record_id(resolved_id, persist=False)
+        clear_pending_record_id(resolved_id, expected_id=pending_id, persist=False)
 
     # Clear all session state
     clear_current_patient(resolved_id, persist=False)
@@ -780,7 +830,7 @@ async def get_pending_record_endpoint(
     async with AsyncSessionLocal() as session:
         pending = await get_pending_record(session, pending_id, resolved_id)
     if pending is None or pending.status != "awaiting":
-        clear_pending_record_id(resolved_id)
+        clear_pending_record_id(resolved_id, expected_id=pending_id)
         return None
     # Check expiry
     now = datetime.now(timezone.utc)
@@ -788,7 +838,7 @@ async def get_pending_record_endpoint(
     if _exp and _exp.tzinfo is None:
         _exp = _exp.replace(tzinfo=timezone.utc)
     if _exp and _exp < now:
-        clear_pending_record_id(resolved_id)
+        clear_pending_record_id(resolved_id, expected_id=pending_id)
         return None
     try:
         draft = json.loads(pending.draft_json)
@@ -821,17 +871,17 @@ async def confirm_pending_record_endpoint(
     async with AsyncSessionLocal() as session:
         pending = await get_pending_record(session, pending_id, resolved_id)
     if pending is None or pending.status != "awaiting":
-        clear_pending_record_id(resolved_id)
+        clear_pending_record_id(resolved_id, expected_id=pending_id)
         raise HTTPException(status_code=404, detail="Pending record not found or already processed")
     # Enforce TTL — reject expired drafts even if background cleanup hasn't run yet
     from datetime import datetime, timezone as _tz
     if pending.expires_at:
         _exp = pending.expires_at if pending.expires_at.tzinfo else pending.expires_at.replace(tzinfo=_tz.utc)
         if _exp <= datetime.now(_tz.utc):
-            clear_pending_record_id(resolved_id)
+            clear_pending_record_id(resolved_id, expected_id=pending_id)
             raise HTTPException(status_code=410, detail="Pending record has expired")
     result = await save_pending_record(resolved_id, pending)
-    clear_pending_record_id(resolved_id)
+    clear_pending_record_id(resolved_id, expected_id=pending_id)
     patient_name = result[0] if result else None
     return {"ok": True, "patient_name": patient_name or "未关联"}
 
@@ -850,7 +900,7 @@ async def abandon_pending_record_endpoint(
         raise HTTPException(status_code=404, detail="No pending record")
     async with AsyncSessionLocal() as session:
         await abandon_pending_record(session, pending_id, doctor_id=resolved_id)
-    clear_pending_record_id(resolved_id)
+    clear_pending_record_id(resolved_id, expected_id=pending_id)
     return {"ok": True}
 
 

@@ -382,7 +382,7 @@ async def upload_report_template(
     key = f"report.template.{resolved_doctor_id}"
     from db.crud import upsert_system_prompt
     async with AsyncSessionLocal() as db:
-        await upsert_system_prompt(db, key, text)
+        await upsert_system_prompt(db, key, text, changed_by=f"doctor:{resolved_doctor_id}")
 
     safe_filename = os.path.basename(file.filename or "unknown")
     log(f"[Export] template uploaded doctor={resolved_doctor_id} file={safe_filename!r} chars={len(text)}")
@@ -418,7 +418,7 @@ async def delete_report_template(
     key = f"report.template.{resolved_doctor_id}"
     from db.crud import upsert_system_prompt
     async with AsyncSessionLocal() as db:
-        await upsert_system_prompt(db, key, "")
+        await upsert_system_prompt(db, key, "", changed_by=f"doctor:{resolved_doctor_id}")
     safe_create_task(
         audit(resolved_doctor_id, "DELETE", resource_type="report_template", resource_id=resolved_doctor_id)
     )

@@ -56,7 +56,7 @@ class MedicalRecordVersion(Base):
     __tablename__ = "medical_record_versions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    record_id: Mapped[int] = mapped_column(Integer, ForeignKey("medical_records.id", ondelete="CASCADE"), nullable=False)
+    record_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("medical_records.id", ondelete="SET NULL"), nullable=True)
     doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False)
     old_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     old_tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array

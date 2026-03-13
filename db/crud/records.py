@@ -335,7 +335,13 @@ async def delete_record(
     doctor_id: str,
     record_id: int,
 ) -> bool:
-    """Delete a single record. Returns True if deleted, False if not found."""
+    """Delete a single record. Returns True if deleted, False if not found.
+
+    A final version snapshot is saved before deletion so the correction
+    history is preserved.  The FK uses SET NULL, so existing version rows
+    keep record_id=NULL after the parent is deleted — the audit trail
+    (content, tags, doctor_id, changed_at) survives.
+    """
     result = await session.execute(
         select(MedicalRecordDB).where(
             MedicalRecordDB.id == record_id,
@@ -345,6 +351,8 @@ async def delete_record(
     record = result.scalar_one_or_none()
     if record is None:
         return False
+    await save_record_version(session, record, doctor_id)
+    await session.flush()
     await session.delete(record)
     await session.commit()
     return True
