@@ -125,10 +125,9 @@ async def handle_pending_create(text: str, doctor_id: str) -> Optional[str]:
 
     stripped = text.strip()
 
-    # Cancel
-    if is_blocked_write_cancel(stripped) or stripped in (
-        "取消", "cancel", "Cancel", "退出", "不要",
-    ):
+    # Cancel — use the shared precheck set for consistency
+    from services.intent_workflow.precheck import _PENDING_CANCEL_TEXTS
+    if is_blocked_write_cancel(stripped) or stripped in _PENDING_CANCEL_TEXTS:
         clear_pending_create(doctor_id)
         return "好的，已取消。"
 
@@ -284,14 +283,15 @@ async def handle_pending_record_reply(text: str, doctor_id: str, sess) -> str:
         clear_pending_record_id(doctor_id)
         log(f"[WeChat] pending record {pending_id} not found or expired, doctor={doctor_id}")
         return await _reroute_with_context(text, doctor_id)
+    from services.intent_workflow.precheck import _PENDING_CANCEL_TEXTS, _PENDING_CONFIRM_TEXTS
     stripped = text.strip()
-    if stripped in ("撤销", "取消", "cancel", "Cancel", "不要", "放弃", "no", "No"):
+    if stripped in _PENDING_CANCEL_TEXTS:
         async with AsyncSessionLocal() as session:
             await abandon_pending_record(session, pending_id, doctor_id=doctor_id)
         clear_pending_record_id(doctor_id)
         safe_create_task(audit(doctor_id, "DELETE", "pending_record", str(pending_id)))
         return "已撤销。"
-    if stripped in ("确认", "确定", "保存", "ok", "OK", "好的", "yes", "Yes"):
+    if stripped in _PENDING_CONFIRM_TEXTS:
         return await confirm_pending_record(doctor_id, pending_id)
     correction_reply = await _try_draft_correction(text, doctor_id, pending)
     if correction_reply is not None:
@@ -307,29 +307,7 @@ async def handle_pending_record_reply(text: str, doctor_id: str, sess) -> str:
 
 # ── Intent dispatch helpers ──────────────────────────────────────────────────
 
-_HELP_TEXT = (
-    "📥 导入患者（最常用）\n"
-    "  直接发送 PDF / 图片 — 自动识别并创建\n"
-    "  粘贴聊天记录 — 将微信问诊记录直接发过来，自动提取患者信息和病历\n"
-    "  支持：出院小结、门诊病历、检验报告、问诊截图\n\n"
-    "📋 患者管理\n"
-    "  创建[姓名] — 创建新患者\n"
-    "  查看[姓名] — 查看患者病历\n"
-    "  删除[姓名] — 删除患者\n"
-    "  患者列表 — 显示全部患者\n\n"
-    "📝 病历\n"
-    "  [描述病情] — 自动保存结构化病历\n"
-    "  补充：... — 补充当前患者记录\n"
-    "  刚才写错了，应该是... — 修正上一条\n\n"
-    "📌 任务\n"
-    "  待办任务 — 查看所有任务\n"
-    "  完成 3 — 标记任务#3完成\n"
-    "  3个月后随访 — 安排随访提醒\n\n"
-    "📊 其他\n"
-    "  PDF:患者姓名 — 导出病历PDF"
-)
-
-_FALLBACK_TEXT = "没太理解您的意思，能说得更具体一些吗？发送「帮助」可查看完整功能列表。"
+from services.domain.chat_constants import HELP_REPLY as _HELP_TEXT, UNCLEAR_INTENT_REPLY as _FALLBACK_TEXT
 
 
 async def dispatch_intent_result(text: str, doctor_id: str, intent_result, history: list) -> WeChatReply:

@@ -2,7 +2,8 @@
 语音录入路由：接收音频上传并通过 Whisper 转录后经 5-layer 工作流结构化为病历。
 
 Voice chat routes through the shared 5-layer intent workflow and draft-first
-safety model, matching the behaviour of Web and WeChat channels.
+safety model.  Note: voice uses caller-supplied history (like Web), while
+WeChat uses server-side session history with compressed memory prepended.
 """
 
 from __future__ import annotations
@@ -122,7 +123,8 @@ async def _dispatch_voice_intent(
     """Route resolved intent to shared domain handlers and convert to VoiceChatResponse."""
     from services.domain.intent_handlers import dispatch_intent
 
-    # Channel-specific overrides
+    # Channel-specific overrides — voice uses a shorter help reply than
+    # the shared HELP_REPLY since long lists are poor UX in audio.
     if intent_result.intent == Intent.help:
         return VoiceChatResponse(
             transcript=transcript,

@@ -67,7 +67,7 @@ from services.notify.tasks import (
 from services.notify.notify_control import set_notify_mode
 from utils.log import log, bind_log_context, safe_create_task
 
-_COMPLETE_RE = re.compile(r'^完成\s*(\d+)$')
+from services.domain.chat_constants import COMPLETE_RE as _COMPLETE_RE
 
 from routers.wechat_infra import (
     is_registered_doctor as _is_registered_doctor,

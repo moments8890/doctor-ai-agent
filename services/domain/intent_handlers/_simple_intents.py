@@ -34,8 +34,8 @@ from services.ai.intent import IntentResult
 from services.notify.tasks import create_appointment_task
 from services.observability.audit import audit
 from services.observability.observability import get_current_trace_id, trace_block
-from services.session import set_candidate_patient, set_current_patient
-from utils.log import log
+from services.session import set_current_patient
+from utils.log import log, safe_create_task
 
 from services.domain.intent_handlers._types import HandlerResult
 
@@ -73,7 +73,7 @@ async def handle_delete_patient(
             deleted = await delete_patient_for_doctor(db, doctor_id, target.id)
             if deleted is None:
                 return HandlerResult(reply=f"⚠️ 删除失败，未找到患者【{name}】。")
-            asyncio.create_task(audit(
+            safe_create_task(audit(
                 doctor_id, "DELETE", resource_type="patient",
                 resource_id=str(deleted.id), trace_id=get_current_trace_id(),
             ))
@@ -105,17 +105,6 @@ async def handle_list_tasks(
     doctor_id: str, intent_result: Optional[IntentResult] = None,
 ) -> HandlerResult:
     """待办任务列表：展示全部待办任务。"""
-    # Candidate capture from mixed-intent turns containing a patient name.
-    if intent_result is not None:
-        _extra = intent_result.extra_data or {}
-        _cand_name = _extra.get("candidate_name")
-        if _cand_name:
-            set_candidate_patient(
-                doctor_id, _cand_name,
-                gender=_extra.get("candidate_gender"),
-                age=_extra.get("candidate_age"),
-            )
-            log(f"[Chat] candidate patient captured from list_tasks: {_cand_name} doctor={doctor_id}")
     with trace_block("router", "records.chat.list_tasks", {"doctor_id": doctor_id, "intent": "list_tasks"}):
         async with AsyncSessionLocal() as db:
             tasks = await list_tasks(db, doctor_id, status="pending")
@@ -135,11 +124,10 @@ async def handle_complete_task(
     doctor_id: str, intent_result: IntentResult, *, text: str = "",
 ) -> HandlerResult:
     """标记任务完成。"""
-    import re
-    _COMPLETE_RE = re.compile(r'^完成\s*(\d+)$')
+    from services.domain.chat_constants import COMPLETE_RE
     task_id = intent_result.extra_data.get("task_id")
     if not isinstance(task_id, int):
-        task_id_match = _COMPLETE_RE.match(text)
+        task_id_match = COMPLETE_RE.match(text.strip())
         task_id = int(task_id_match.group(1)) if task_id_match else None
     if not isinstance(task_id, int):
         return HandlerResult(reply="⚠️ 未能识别任务编号，请发送「完成 5」（5为任务编号）。")
@@ -220,7 +208,7 @@ async def handle_update_patient(
         parts.append(f"年龄→{intent_result.age}岁")
     set_current_patient(doctor_id, patient.id, patient.name)
     log(f"[Chat] updated patient demographics [{name}] {parts} doctor={doctor_id}")
-    asyncio.create_task(audit(
+    safe_create_task(audit(
         doctor_id, "WRITE", resource_type="patient",
         resource_id=str(patient.id), trace_id=get_current_trace_id(),
     ))
@@ -354,6 +342,10 @@ async def handle_update_record(
             log(f"[Chat] update_record LLM extraction FAILED doctor={doctor_id}: {e}")
             return HandlerResult(reply="⚠️ 病历更正失败，请稍后重试。")
 
+    # No correction fields extracted — tell the user instead of faking success.
+    if not corrected:
+        return HandlerResult(reply="⚠️ 未能从您的描述中提取到更正内容，请更具体地说明需要修改的部分。")
+
     with trace_block("router", "records.chat.update_record", {"doctor_id": doctor_id, "patient_name": name, "intent": "update_record"}):
         async with AsyncSessionLocal() as db:
             patient = await find_patient_by_name(db, doctor_id, name)
@@ -369,8 +361,10 @@ async def handle_update_record(
     if updated_rec is None:
         return HandlerResult(reply=f"⚠️ 患者【{name}】暂无病历记录，请先保存一条再更正。")
     fields_updated = [k for k in corrected if k in ("content", "tags", "record_type")]
+    if not fields_updated:
+        return HandlerResult(reply=f"⚠️ 未能匹配到可更正的病历字段，请更具体地描述需要修改的内容。")
     log(f"[Chat] updated record for [{name}] fields={fields_updated} doctor={doctor_id}")
-    asyncio.create_task(audit(
+    safe_create_task(audit(
         doctor_id, "WRITE", resource_type="record",
         resource_id=str(updated_rec.id), trace_id=get_current_trace_id(),
     ))
@@ -437,10 +431,12 @@ async def handle_schedule_follow_up(
     async with AsyncSessionLocal() as session:
         patient = await find_patient_by_name(session, doctor_id, patient_name)
     patient_id = patient.id if patient else None
+    if patient is not None:
+        set_current_patient(doctor_id, patient.id, patient.name)
     days = extract_follow_up_days(follow_up_plan)
     task = await create_follow_up_task(
         doctor_id=doctor_id,
-        record_id=0,
+        record_id=None,
         patient_name=patient_name,
         follow_up_plan=follow_up_plan,
         patient_id=patient_id,
