@@ -13,7 +13,8 @@ The current architecture is centered on one shared workflow core:
 - a shared 5-layer intent workflow in `services/intent_workflow/`
 - shared domain handlers in `services/domain/intent_handlers/`
 - draft-first persistence for normal record creation
-- one patient-scoped transaction per turn
+- separate DB sessions per operation within a turn (no single-transaction
+  guarantee across knowledge, patient, and pending-draft writes)
 
 The important nuance is that convergence is still partial. Web, WeChat, and
 voice chat all use the same workflow core, but they are not yet identical in
@@ -32,14 +33,15 @@ adapters.
   WeChat, and voice chat.
 - Normal `add_record` note generation uses routing for control flow and
   structuring for final note content.
-- The system keeps one core patient-scoped transaction per turn.
+- Compound `create_patient + add_record` routes through
+  `shared_handle_add_record` → pending draft on all channels.
 - Official WeCom integration is the supported messaging channel model.
 - The workflow uses a shared classify -> extract -> bind -> plan -> gate stack.
 
 ### Still in transition
 
-- `DoctorTurnContext` is implemented, but not passed through every channel in
-  the same way yet.
+- `DoctorTurnContext` is implemented and passed through the workflow on web and
+  WeChat, but WeChat does not populate advisory context in the same way yet.
 - `update_record` still keeps a narrow correction-oriented
   `structured_fields` compatibility path separate from the normal `add_record`
   write flow.
@@ -68,8 +70,8 @@ routers/              Channel entry points (FastAPI routers)
   neuro.py              Specialist / CVD endpoints
   wechat_flows.py       WeChat multi-turn flow helpers
   wechat_infra.py       WeChat platform infrastructure
-  records_media.py      Media upload for records
   ui/                   Admin + workbench endpoints
+  # Note: media endpoints (from-image, from-audio) live in records.py
 
 services/
   intent_workflow/      Shared 5-layer intent workflow
@@ -88,10 +90,19 @@ services/
     fast_router/        Deterministic routing rules
     agent.py            Routing LLM dispatch
     agent_fallback.py   Conservative fallback behavior
-    turn_context.py     DoctorTurnContext assembly
+    agent_tools.py      Tool definitions for LLM agent
+    intent.py           Intent enum and mapping
+    llm_client.py       Unified LLM client wrapper
+    llm_resilience.py   LLM retry and fallback logic
     memory.py           Context compression
+    multi_intent.py     Multi-intent detection
+    neuro_structuring.py  Specialty structuring (neuro/CVD)
+    provider_registry.py  LLM provider configuration registry
+    router.py           Legacy router compatibility
     structuring.py      Structuring LLM for readable notes
     transcription.py    Voice transcription
+    turn_context.py     DoctorTurnContext assembly
+    vision.py           Vision / OCR LLM helpers
   session.py            Per-doctor session state, locks, hydration, blocked writes
   auth/                 JWT, PBKDF2, rate limiting
   knowledge/            Doctor knowledge base, import, OCR
@@ -109,8 +120,7 @@ db/
   init_db.py            Table creation
 
 frontend/              React web app (Vite)
-tests/                 Unit tests
-e2e/                   Integration and replay tests
+e2e/                   Integration, replay, and unit tests (consolidated)
 scripts/               Dev and CI scripts
 docs/                  ADRs, plans, reviews, product docs
 ```
@@ -121,6 +131,22 @@ docs/                  ADRs, plans, reviews, product docs
 
 There is one shared workflow core, but the entry path varies by channel.
 
+### Pre-workflow fast paths
+
+Several deterministic checks short-circuit the workflow entirely:
+
+- **Greeting / patient-count regex** (web, WeChat)
+- **Delete-by-ID / context-save commands** (web)
+- **Task completion** (`完成 N`) (WeChat)
+- **Knowledge-base add/list commands** (web, WeChat)
+- **Notify control** (WeChat)
+- **Pending-draft correction** — detects correction patterns and edits the
+  pending draft in-place via structuring LLM (web)
+- **Blocked-write precheck** — resolves bare-name / name+supplement
+  continuations from session state (web, WeChat, voice)
+- **Stateful flow resume** — pending_record, pending_create, pending_cvd,
+  interview (WeChat)
+
 ### Web chat
 
 `POST /api/records/chat`
@@ -128,11 +154,13 @@ There is one shared workflow core, but the entry path varies by channel.
 ```text
 request body
 -> WebAdapter.parse_inbound()
--> web fast paths and workflow-state prechecks
--> blocked-write precheck
--> assemble DoctorTurnContext
+-> deterministic fast paths (patient count, delete, context save, knowledge)
+-> pending-draft correction check
+-> blocked-write precheck / cancel detection
+-> assemble DoctorTurnContext (authoritative + advisory)
 -> load knowledge context
 -> services.intent_workflow.run(turn_context=...)
+-> gate check (block unsafe writes)
 -> shared domain handler dispatch
 -> WebAdapter.format_reply()
 -> JSON response
@@ -145,17 +173,22 @@ Main doctor message handling in `routers/wechat.py`
 ```text
 webhook message
 -> session-aware router orchestration
--> notify / task / knowledge fast paths
+-> fast paths (task complete, knowledge, notify)
 -> blocked-write precheck
+-> assemble DoctorTurnContext (authoritative workflow state)
+-> stateful flow detection (pending record/create/cvd/interview)
 -> load knowledge context
--> services.intent_workflow.run(...)
+-> services.intent_workflow.run(turn_context=...)
+-> gate check
 -> shared domain handler dispatch
 -> WeChat helper formatting / customer-service send path
 ```
 
-WeChat also uses `DoctorTurnContext` around some session-orchestration paths,
-but the assembled context is not yet passed through the workflow in the same
-way as the web path.
+WeChat assembles `DoctorTurnContext` for authoritative workflow state, but does
+not yet populate advisory context in the same way as web.
+
+On workflow failure, WeChat falls back to `structure_medical_record()` and
+replies with formatted text as a resilience fallback.
 
 ### Voice chat
 
@@ -164,9 +197,11 @@ way as the web path.
 ```text
 audio upload
 -> transcribe_audio()
+-> hydrate session state
 -> blocked-write precheck
 -> services.intent_workflow.run(...)
--> shared domain handler dispatch
+-> gate check
+-> shared domain handler dispatch (including compound create+record)
 -> JSON response
 ```
 
@@ -180,8 +215,11 @@ All non-text inputs are normalized before workflow entry:
 - **Voice** (including `/api/voice/consultation`): transcribed then enters the
   same 5-layer workflow as typed text. `consultation_mode=True` is a
   transcription hint only, not a workflow bypass.
-- **Image/PDF** (`/from-image`, `/from-audio`): extracted text dispatches to
-  `import_history` for chunking, dedup, and persistence.
+- **Image** (`/from-image`): OCR-extracted text dispatches to `import_history`
+  for chunking, dedup, and persistence.
+- **Audio** (`/from-audio`): transcribed text dispatches to `import_history`.
+- **PDF**: goes through `/extract-file`, which extracts text for UI preview or
+  further processing. There is no dedicated `/from-pdf` endpoint.
 - **Extraction-only helpers** (`/ocr`, `/extract-file`, `/transcribe`): remain
   as stateless utilities for UI preview.
 
@@ -209,184 +247,24 @@ Deterministic state and code still own:
 
 ### Workflow map
 
-| Workflow | Routing LLM | Structuring LLM | Deterministic control / notes |
+| Workflow | Routing LLM | Structuring LLM | Notes |
 | --- | --- | --- | --- |
-| Read/query/task workflows | Usually yes when `fast_route()` does not match | No | Query/task handlers execute directly after bind/gate; no note generation |
-| Standard `add_record` | Yes for intent + coarse entities | Yes via `assemble_record()` | Gate may block for missing patient; non-emergency path creates pending draft; emergency can direct-save |
-| Blocked-write continuation | No on successful precheck resume | Yes after resume | `precheck_blocked_write()` resolves bare-name / name+supplement continuations from session state |
-| `create_patient` only | Yes for intent + name/demographics unless deterministic match hits first | No | Patient create/reuse is normal handler logic |
-| `create_patient + clinical content` compound | Yes for create intent + coarse entities | Yes | Current handler still structures and directly saves the compound record; this is not yet unified with the draft-first `add_record` path |
-| `update_record` correction | Yes | Indirect / compatibility path | Correction still uses routing `structured_fields` compatibility and may re-call routing LLM for field extraction; this is a narrow correction path, not the normal note-generation path |
-| Voice consultation (`/api/voice/consultation`) | Yes (via workflow) | Yes (via workflow) | ADR 0009: consultation now enters the same 5-layer workflow as voice_chat; `consultation_mode` is a transcription hint only |
-| WeChat workflow failure fallback | No after workflow failure | Yes | If workflow execution fails, WeChat may still call `structure_medical_record()` and reply with formatted text as a resilience fallback |
+| Read/query/task | When `fast_route()` misses | No | Handler executes directly after bind/gate |
+| Standard `add_record` | Yes (intent + coarse entities) | Yes (`assemble_record()`) | Gate may block; non-emergency → pending draft; emergency → direct-save |
+| Blocked-write continuation | No (precheck resumes) | Yes | `precheck_blocked_write()` resolves from session state |
+| `create_patient` only | Yes unless deterministic match | No | Normal handler logic |
+| `create_patient` + clinical compound | Yes (create intent + entities) | Yes | Planner detects compound; dispatcher calls `shared_handle_create_patient` then `shared_handle_add_record` → normal pending-draft flow |
+| `update_record` correction | Yes (double duty) | Indirect / compat | Uses routing `structured_fields` or re-calls LLM for field extraction; narrow correction path |
+| Voice consultation (ADR 0009) | Yes (via workflow) | Yes (via workflow) | `consultation_mode` is a transcription hint only |
+| WeChat workflow failure | No | Yes (fallback) | Falls back to `structure_medical_record()` and replies with formatted text |
 
-### 1. Standard doctor command workflows
+### Failure handling
 
-Examples:
-
-- `查一下张三最近病历`
-- `列出今天的任务`
-- `把 12 号任务推迟一周`
-
-Flow:
-
-```text
-message
--> fast_route() or routing LLM
--> extract / bind / gate
--> shared handler
--> direct reply
-```
-
-LLM role:
-
-- routing LLM is used when deterministic routing does not confidently match
-- structuring LLM is not used because no doctor-facing note body is being built
-
-### 2. Standard add-record workflow
-
-Examples:
-
-- `张三胸痛两天，血压150/90`
-- `给李四补一条今天复诊记录`
-
-Flow:
-
-```text
-message
--> blocked-write precheck (if applicable)
--> fast_route() or routing LLM
--> extract / bind / plan / gate
--> handle_add_record()
--> assemble_record()
--> structure_medical_record()
--> pending draft or emergency direct save
-```
-
-LLM role:
-
-- routing LLM decides `add_record` and extracts coarse fields such as patient
-  name and emergency signal
-- structuring LLM produces the readable medical note body
-
-Deterministic role:
-
-- gate decides whether patient context is sufficient
-- session state decides whether the turn is a continuation
-- pending-draft confirmation decides whether the note becomes final
-
-### 3. Blocked-write continuation workflow
-
-Example:
-
-1. `胸痛两天，血压150/90`
-2. system asks for patient name
-3. `张三`
-
-Flow:
-
-```text
-turn 1
--> routing + gate
--> blocked on missing patient name
--> store blocked_write context
-
-turn 2
--> precheck_blocked_write()
--> resume add_record deterministically
--> structuring LLM
--> pending draft
-```
-
-LLM role:
-
-- first turn may use routing LLM
-- second-turn resume does not need the routing LLM if precheck resolves the
-  continuation
-- structuring still runs on the clinical text when the write resumes
-
-This is the clearest example of the architecture rule:
-
-- LLM decides **what the doctor means**
-- deterministic session state decides **whether this turn is a continuation**
-
-### 4. Compound create-patient workflows
-
-Example:
-
-- `新患者王芳，女，52岁，胸闷一周，明天提醒复诊`
-
-Flow today:
-
-```text
-message
--> fast_route() or routing LLM
--> create_patient handler
--> create/reuse patient
--> optional structure_medical_record() for residual clinical content
--> optional task creation
-```
-
-LLM role:
-
-- routing LLM resolves the create intent plus demographics
-- structuring LLM is used only if the same message also contains clinical
-  content that should become a record
-
-Important current-state nuance:
-
-- this compound path still saves the structured record directly inside the
-  create-patient handler
-- it is not yet fully converged with the pending-draft `add_record` path
-
-### 5. Update-record correction workflow
-
-Example:
-
-- `把张三最近一条病历里的诊断改成不稳定型心绞痛`
-
-Flow today:
-
-```text
-message
--> fast_route() or routing LLM
--> handle_update_record()
--> use routing structured_fields if present
--> otherwise re-call routing LLM for correction extraction
--> update latest persisted record
-```
-
-LLM role:
-
-- routing LLM is doing double duty here:
-  - intent selection
-  - correction-field extraction
-
-This remains a correction-specific compatibility path. It does not change the
-fact that normal `add_record` note generation now follows the ADR 0008 model.
-
-### 6. Voice consultation workflow (ADR 0009)
-
-Example:
-
-- uploaded ambient consultation recording
-
-Flow:
-
-```text
-audio
--> transcribe_audio(consultation_mode=True)
--> 5-layer workflow (same as voice_chat / typed text)
--> intent dispatch → pending draft if add_record
-```
-
-LLM role:
-
-- routing LLM (via workflow)
-- structuring LLM (via workflow, if add_record intent)
-
-Per ADR 0009, consultation no longer bypasses routing or draft-first safety.
-`consultation_mode=True` is a transcription hint only.
+| Channel | Behavior on workflow failure |
+| --- | --- |
+| Web | Returns HTTP error (429/503 for rate limits, 500 for unhandled) |
+| WeChat | Falls back to `structure_medical_record()` on the raw text; replies with formatted text as resilience fallback |
+| Voice | Returns HTTP error in JSON response |
 
 ---
 
@@ -476,13 +354,17 @@ This is the main safety boundary before persistence.
 
 ### Compound planning
 
-The planner intentionally supports only bounded same-turn compounds, such as:
+The planner intentionally supports only bounded same-turn compounds:
 
-- `create_patient + add_record`
-- `create_patient + add_record + create_task`
-- `add_record + create_task`
+- `create_patient + add_record` (clinical content detected alongside create)
+- `create_patient + add_record + create_task` (clinical + reminder detected)
+- `auto_create_patient + add_record` (weak-source / not-found patient with
+  add_record intent)
 
 General multi-intent free-text execution is not part of the current model.
+
+Note: post-save follow-up task creation (e.g. from 随访/复诊 keywords) is a
+background side effect in `_confirm_pending.py`, not a planner compound action.
 
 ---
 
@@ -551,8 +433,9 @@ The adapter layer exists, but runtime wiring is partial.
 Current production transport paths:
 
 - Web replies return in the HTTP response body.
-- WeChat replies are ultimately sent through the WeCom customer-service API
-  helpers.
+- WeChat replies are sent through `_send_customer_service_msg()`, which
+  selects between WeCom KF, WeCom app messaging, or WeChat OA custom-send
+  depending on config.
 - Voice replies return in the HTTP response body.
 
 ---
@@ -572,6 +455,10 @@ These fields directly affect workflow progression and write safety:
 - `pending_cvd_scale`
 - `interview`
 - `blocked_write`
+- `candidate_patient_name` (ephemeral — cleared on patient resolve)
+- `candidate_patient_gender` (ephemeral)
+- `candidate_patient_age` (ephemeral)
+- `patient_not_found_name` (ephemeral)
 
 ### Advisory state
 
@@ -607,20 +494,37 @@ This is why ADR 0001 is still marked partial rather than complete.
 Key entities in `db/models/`:
 
 ```text
-Doctor
-  +-- Patient
-  |     +-- MedicalRecordDB
-  |     |     +-- MedicalRecordVersion
-  |     |     +-- SpecialtyScore
-  |     |     +-- NeuroCVDContext
-  |     +-- PatientLabel
-  |     +-- DoctorTask
-  |     +-- PendingRecord
-  +-- DoctorContext
-  +-- DoctorConversationTurn
-  +-- DoctorKnowledgeItem
-  +-- DoctorSessionState
-  +-- AuditLog
+Core domain
+  Doctor
+    +-- Patient
+    |     +-- MedicalRecordDB
+    |     |     +-- MedicalRecordVersion
+    |     |     +-- SpecialtyScore
+    |     |     +-- NeuroCVDContext
+    |     |     +-- MedicalRecordExport
+    |     +-- PatientLabel
+    |     +-- DoctorTask
+    |     +-- PendingRecord
+    |     +-- PatientMessage
+    +-- DoctorContext
+    +-- DoctorConversationTurn
+    +-- DoctorKnowledgeItem
+    +-- DoctorSessionState
+    +-- DoctorNotifyPreference
+    +-- ChatArchive
+    +-- AuditLog
+
+Communication
+  PendingMessage
+
+Doctor config
+  InviteCode
+
+System
+  SystemPrompt +-- SystemPromptVersion
+
+Infrastructure
+  RuntimeConfig, RuntimeCursor, RuntimeToken, SchedulerLease
 ```
 
 Storage is SQLite in development and MySQL/PostgreSQL in production, via
@@ -663,6 +567,7 @@ Architecture decision records live in `docs/adr/`.
 | [0006](/Volumes/ORICO/Code/doctor-ai-agent/docs/adr/0006-one-patient-scope-per-turn.md) | One Patient Scope Per Turn | Partial |
 | [0007](/Volumes/ORICO/Code/doctor-ai-agent/docs/adr/0007-stateful-blocked-write-continuations.md) | Stateful Blocked-Write Continuations | Complete |
 | [0008](/Volumes/ORICO/Code/doctor-ai-agent/docs/adr/0008-minimal-routing-and-structuring-only-note-generation.md) | Minimal Routing and Structuring-Only Note Generation | Complete |
+| [0009](/Volumes/ORICO/Code/doctor-ai-agent/docs/adr/0009-modality-normalization-at-workflow-entry.md) | Modality Normalization at Workflow Entry | Complete |
 
 ---
 
