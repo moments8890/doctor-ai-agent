@@ -79,6 +79,7 @@ AGGRESSIVE_TREATMENT_TOKENS = [
 _TABLES_WITH_DOCTOR_ID = {
     "patients",
     "medical_records",
+    "pending_records",
     "doctor_tasks",
     "doctor_contexts",
     "doctors",
@@ -230,6 +231,47 @@ def _slice_cases(cases: List[Case], dataset_mode: str) -> List[Case]:
     return cases
 
 
+_CONFIRM_TOKENS = frozenset({"确认", "确定", "保存", "提交", "好的"})
+
+
+def _is_confirm_turn(text: str) -> bool:
+    """Return True if *text* is a draft-confirmation token (e.g. 确认, 保存)."""
+    base = text.strip()
+    if base in _CONFIRM_TOKENS:
+        return True
+    # Strip trailing punctuation first, then particles
+    no_punct = base.rstrip("。！？ ")
+    if no_punct in _CONFIRM_TOKENS:
+        return True
+    stripped = no_punct.rstrip("了吗呢吧")
+    return stripped in _CONFIRM_TOKENS
+
+
+def _post_confirm(
+    base_url: str,
+    pending_id: str,
+    doctor_id: str,
+    read_timeout_s: float,
+    auth_token: Optional[str] = None,
+) -> Dict[str, object]:
+    """Call POST /api/records/pending/{pending_id}/confirm to finalize a draft."""
+    timeout = httpx.Timeout(connect=10.0, read=read_timeout_s, write=30.0, pool=10.0)
+    headers = {}
+    if auth_token:
+        headers["Authorization"] = f"Bearer {auth_token}"
+    params = {"doctor_id": doctor_id}
+    try:
+        resp = httpx.post(
+            f"{base_url}/api/records/pending/{pending_id}/confirm",
+            params=params, headers=headers, timeout=timeout,
+        )
+        if resp.status_code >= 400:
+            return {"_http_error": resp.status_code, "_http_body": resp.text[:200]}
+        return resp.json()
+    except Exception as exc:
+        return {"_http_error": 0, "_http_body": str(exc)[:200]}
+
+
 def _post_chat(
     base_url: str,
     text: str,
@@ -372,18 +414,50 @@ def _send_turns(
     read_timeout_s: float, retries: int, delay_ms: int,
     auth_token: Optional[str],
 ) -> Tuple[List[str], List[str], List[str], Optional[Dict], int]:
-    """Send all doctor turns; return (assistant_replies, record_texts, doctor_texts, last_record, turns_sent)."""
+    """Send all doctor turns; return (assistant_replies, record_texts, doctor_texts, last_record, turns_sent).
+
+    When a chat response includes a pending_id (draft awaiting confirmation) and
+    the next doctor turn is a confirm token (确认, 保存, etc.), the runner calls
+    the REST confirm endpoint instead of sending the text through /chat.  This
+    mirrors the product's draft-first safety model.
+    """
     history: List[Dict[str, str]] = []
     assistant_replies: List[str] = []
     record_texts: List[str] = []
     doctor_texts: List[str] = []
     last_record: Optional[Dict[str, object]] = None
+    last_pending_id: Optional[str] = None
     turns_sent = 0
     for turn in case.chatlog:
         if turn.speaker != "doctor":
             continue
         turns_sent += 1
         doctor_texts.append(turn.text)
+
+        # Draft-confirm shortcut: when a pending draft exists and the doctor
+        # sends a confirm token, call the confirm endpoint directly.
+        if last_pending_id and _is_confirm_turn(turn.text):
+            confirm_resp = _post_confirm(
+                base_url, last_pending_id, doctor_id,
+                read_timeout_s, auth_token=auth_token,
+            )
+            if "_http_error" in confirm_resp:
+                print(
+                    f"\n{YELLOW}    [confirm skip] HTTP {confirm_resp['_http_error']}"
+                    f" — {confirm_resp.get('_http_body', '')[:80]}{RESET}",
+                    end="", flush=True,
+                )
+            else:
+                _pname = confirm_resp.get("patient_name", "")
+                reply = f"✅ 病历已保存（{_pname}）"
+                assistant_replies.append(reply)
+                history.append({"role": "user", "content": turn.text})
+                history.append({"role": "assistant", "content": reply})
+            last_pending_id = None
+            if delay_ms > 0:
+                time.sleep(float(delay_ms) / 1000.0)
+            continue
+
         response = _post_chat(
             base_url=base_url, text=turn.text, history=history,
             doctor_id=doctor_id, read_timeout_s=read_timeout_s,
@@ -403,6 +477,11 @@ def _send_turns(
         if isinstance(record, dict):
             last_record = record
             record_texts.append(_join_record_text(record))
+
+        # Track pending draft ID for next-turn confirmation
+        _pid = response.get("pending_id")
+        if _pid:
+            last_pending_id = str(_pid)
         assistant_replies.append(reply)
         history.append({"role": "user", "content": turn.text})
         history.append({"role": "assistant", "content": reply})

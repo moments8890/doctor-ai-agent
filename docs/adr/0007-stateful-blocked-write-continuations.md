@@ -10,18 +10,18 @@ Accepted
 
 ## Implementation Status
 
-Partial
+Complete
 
 Last reviewed: 2026-03-12
 
 Notes:
 
-- Blocked-write session state and deterministic precheck logic have landed for
-  the web path, with dedicated regression tests.
-- Legacy history-based continuation and `followup_name` plumbing still coexist
-  in the codebase, especially outside the web path.
-- This ADR should be marked complete only after continuation handling is shared
-  across Web, WeChat, and voice without relying on the old fallback wiring.
+- Blocked-write session state, deterministic precheck logic, and DB-backed
+  persistence are now wired across web, WeChat, and voice chat.
+- The old `followup_name` continuation plumbing has been removed from the live
+  doctor-facing paths.
+- Blocked-write continuation is now authoritative workflow state rather than a
+  router/history heuristic.
 
 ## Context
 

@@ -17,7 +17,7 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
-import { sendChat, transcribeAudio, ocrImage, confirmPendingRecordById, abandonPendingRecordById } from "../../api";
+import { sendChat, transcribeAudio, ocrImage, confirmPendingRecordById, abandonPendingRecordById, clearContext } from "../../api";
 import RecordFields from "../../components/RecordFields";
 import { t } from "../../i18n";
 import { QUICK_COMMANDS } from "./constants";
@@ -349,7 +349,7 @@ async function performSend({ text, loading, doctorId, history, setMessages, setI
   }
 }
 
-function useChatState({ doctorId, onMessageCountChange, onPatientCreated }) {
+function useChatState({ doctorId, onMessageCountChange, onPatientCreated, onContextCleared }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [failedText, setFailedText] = useState(null);
@@ -375,10 +375,15 @@ function useChatState({ doctorId, onMessageCountChange, onPatientCreated }) {
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => { onMessageCountChange?.(messages.length); }, [messages.length, onMessageCountChange]);
 
-  function onClear() {
+  async function onClear() {
     const fresh = [{ role: "assistant", content: t("chat.welcome"), ts: nowTs() }];
     setMessages(fresh);
     localStorage.setItem(storageKey, JSON.stringify(fresh));
+    // Clear server-side context: pending draft, current patient, conversation history, etc.
+    if (doctorId) {
+      try { await clearContext(doctorId); } catch {}
+      onContextCleared?.();
+    }
   }
 
   function sendText(text) {
@@ -411,7 +416,7 @@ function ClearDialog({ open, onClear, onClose }) {
     <Dialog open={open} onClose={onClose}>
       <DialogTitle>清空对话记录</DialogTitle>
       <DialogContent>
-        <Typography>确定清空所有对话记录？此操作无法撤销。</Typography>
+        <Typography>确定清空所有对话记录、草稿和当前工作上下文？此操作无法撤销。</Typography>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>取消</Button>
@@ -478,7 +483,7 @@ function usePendingHandlers({ setMessages, onPatientCreated }) {
   return { handleConfirm, handleAbandon };
 }
 
-export default function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternalInputConsumed, onPatientCreated, autoSendText, onAutoSendConsumed }) {
+export default function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternalInputConsumed, onPatientCreated, autoSendText, onAutoSendConsumed, onContextCleared }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
@@ -490,7 +495,7 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
   const [mediaProcessing, setMediaProcessing] = useState(false);
 
   const { input, setInput, loading, failedText, setFailedText, messages, setMessages, bottomRef, onClear, sendText } =
-    useChatState({ doctorId, onMessageCountChange, onPatientCreated });
+    useChatState({ doctorId, onMessageCountChange, onPatientCreated, onContextCleared });
   const { recording, recordingSeconds, processing: recProcessing, start: startRec, stop: stopRec } = useAudioRecorder(
     (text) => setInput((prev) => (prev ? prev + " " + text : text)), setMediaError,
   );

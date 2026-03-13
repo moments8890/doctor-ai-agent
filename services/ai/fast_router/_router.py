@@ -9,13 +9,12 @@ from typing import TYPE_CHECKING, Optional
 from services.ai.intent import Intent, IntentResult
 
 from ._keywords import (
-    _IMPORT_KEYWORDS, _LIST_PATIENTS_EXACT, _LIST_PATIENTS_SHORT,
+    _LIST_PATIENTS_EXACT, _LIST_PATIENTS_SHORT,
     _LIST_TASKS_EXACT, _LIST_TASKS_SHORT, _NON_NAME_KEYWORDS,
     _TIER3_BAD_NAME, _HELP_KEYWORDS,
 )
 from ._patterns import (
     _normalise,
-    _IMPORT_DATE_RE,
     _LIST_TASKS_FLEX_RE,
     _LIST_PATIENTS_FLEX_RE,
     _COMPLETE_TASK_A_RE,
@@ -27,8 +26,7 @@ from ._patterns import (
     _CANCEL_TASK_C_RE,
     _POSTPONE_TASK_RE,
     _POSTPONE_TASK_B_RE,
-    _FOLLOWUP_WITH_NAME_RE,
-    _FOLLOWUP_LEAD_TIME_RE,
+    _FOLLOWUP_WITH_TIME_RE,
     _FOLLOWUP_RELATIVE_RE,
     _FOLLOWUP_TIME_FIRST_RE,
     _APPOINTMENT_RE,
@@ -37,27 +35,21 @@ from ._patterns import (
     _OUTPATIENT_REPORT_NONAME_RE,
     _EXPORT_RE,
     _EXPORT_NONAME_RE,
-    _FOLLOWUP_NONAME_RE,
-    _FOLLOWUP_NONAME_RELATIVE_RE,
     _SUPPLEMENT_RE,
     _QUERY_PREFIX_RE,
     _QUERY_SUFFIX_RE,
     _QUERY_NAME_QUESTION_RE,
     _CREATE_DUPLICATE_RE,
     _CREATE_LEAD_RE,
-    _CREATE_TRAIL_RE,
-    _CREATE_TERSE_END_RE,
     _DELETE_LEAD_RE,
     _DELETE_TRAIL_RE,
     _DELETE_OCCINDEX_RE,
     _UPDATE_PATIENT_DEMO_RE,
-    _TIER3_NAME_RE,
     _parse_task_num,
     _time_unit_to_days,
     _extract_demographics,
     _PENDING_RECORD_ABORT_RE,
-    _TAIL_TASK_RE,
-    _NAME_SUPPLEMENT_RE,
+    _PENDING_COMMAND_PREFIX_RE,
     _CONFLICTING_PREFIX_RE,
 )
 from ._session import _apply_session_context
@@ -78,17 +70,16 @@ def _route_tier0_help(normed: str, stripped: str) -> Optional[IntentResult]:
 
 
 def _route_tier0_import(stripped: str) -> Optional[IntentResult]:
-    """Tier 0: bulk / PDF / Word / Image import bypasses LLM entirely."""
+    """Tier 0: bulk / PDF / Word / Image import bypasses LLM entirely.
+
+    Only exact structural markers ([PDF:, [Word:, [Image:) are matched here.
+    Date-count heuristics for free-text import removed — deferred to LLM.
+    """
     if stripped.startswith("[PDF:") or stripped.startswith("[Word:"):
         source = "pdf" if stripped.startswith("[PDF:") else "word"
         return IntentResult(intent=Intent.import_history, extra_data={"source": source})
     if stripped.startswith("[Image:"):
         return IntentResult(intent=Intent.import_history, extra_data={"source": "image"})
-    if any(kw in stripped for kw in _IMPORT_KEYWORDS):
-        if len(_IMPORT_DATE_RE.findall(stripped)) >= 2:
-            return IntentResult(intent=Intent.import_history, extra_data={"source": "text"})
-    if len(stripped) > 800 and len(_IMPORT_DATE_RE.findall(stripped)) >= 2:
-        return IntentResult(intent=Intent.import_history, extra_data={"source": "text"})
     return None
 
 
@@ -144,23 +135,19 @@ def _route_tier2_task_actions(normed: str, stripped: str) -> Optional[IntentResu
 
 
 def _route_followup_with_name(normed: str, stripped: str) -> Optional[IntentResult]:
-    """Match follow-up patterns that include a patient name."""
-    for _pat in (_FOLLOWUP_WITH_NAME_RE, _FOLLOWUP_LEAD_TIME_RE):
-        m = _pat.match(normed) or _pat.match(stripped)
-        if m:
-            name = m.group(1)
-            if name and name not in _NON_NAME_KEYWORDS:
-                follow_up_plan = ""
-                if m.lastindex and m.lastindex >= 3:
-                    n_raw, unit = m.group(2), m.group(3)
-                    if n_raw and unit:
-                        follow_up_plan = f"{n_raw}{unit}后随访"
-                return IntentResult(
-                    intent=Intent.schedule_follow_up,
-                    patient_name=name,
-                    extra_data={"follow_up_plan": follow_up_plan or "下次随访"},
-                )
+    """Match follow-up patterns that include a patient name + explicit time."""
+    # Numeric time: "给张三设3个月后随访"
+    m = _FOLLOWUP_WITH_TIME_RE.match(normed) or _FOLLOWUP_WITH_TIME_RE.match(stripped)
+    if m:
+        name, n_raw, unit = m.group(1), m.group(2), m.group(3)
+        if name and name not in _NON_NAME_KEYWORDS:
+            return IntentResult(
+                intent=Intent.schedule_follow_up,
+                patient_name=name,
+                extra_data={"follow_up_plan": f"{n_raw}{unit}后随访"},
+            )
 
+    # Concrete relative time: "张三下周复诊", "张三明天复查"
     m = _FOLLOWUP_RELATIVE_RE.match(normed) or _FOLLOWUP_RELATIVE_RE.match(stripped)
     if m:
         name, rel_time = m.group(1), m.group(2)
@@ -171,6 +158,7 @@ def _route_followup_with_name(normed: str, stripped: str) -> Optional[IntentResu
                 extra_data={"follow_up_plan": f"{rel_time}随访"},
             )
 
+    # Time-first: "3个月后随访张三"
     m = _FOLLOWUP_TIME_FIRST_RE.match(normed) or _FOLLOWUP_TIME_FIRST_RE.match(stripped)
     if m:
         n_raw, unit, name = m.group(1), m.group(2), m.group(3)
@@ -183,30 +171,13 @@ def _route_followup_with_name(normed: str, stripped: str) -> Optional[IntentResu
     return None
 
 
-def _route_followup_noname(normed: str, stripped: str) -> Optional[IntentResult]:
-    """Match follow-up patterns without a patient name (session provides context)."""
-    m = _FOLLOWUP_NONAME_RE.match(normed) or _FOLLOWUP_NONAME_RE.match(stripped)
-    if m:
-        n_raw = m.group(1) if m.lastindex and m.lastindex >= 1 else None
-        unit = m.group(2) if m.lastindex and m.lastindex >= 2 else None
-        plan = f"{n_raw}{unit}后随访" if (n_raw and unit) else "下次随访"
-        return IntentResult(intent=Intent.schedule_follow_up, extra_data={"follow_up_plan": plan})
-
-    m = _FOLLOWUP_NONAME_RELATIVE_RE.match(normed) or _FOLLOWUP_NONAME_RELATIVE_RE.match(stripped)
-    if m:
-        return IntentResult(
-            intent=Intent.schedule_follow_up,
-            extra_data={"follow_up_plan": f"{m.group(1)}随访"},
-        )
-    return None
-
-
 def _route_tier2_followup(normed: str, stripped: str) -> Optional[IntentResult]:
-    """Tier 2: schedule_follow_up — with name, relative time, or no name."""
-    result = _route_followup_with_name(normed, stripped)
-    if result is not None:
-        return result
-    return _route_followup_noname(normed, stripped)
+    """Tier 2: schedule_follow_up — with explicit patient name only.
+
+    Nameless follow-up patterns removed — they rely on session context
+    (semantic, not deterministic) and are deferred to LLM.
+    """
+    return _route_followup_with_name(normed, stripped)
 
 
 def _route_tier2_appointment(normed: str, stripped: str) -> Optional[IntentResult]:
@@ -262,39 +233,23 @@ def _route_tier2_query(normed: str, stripped: str) -> Optional[IntentResult]:
 
 
 def _route_tier2_create_patient(normed: str, stripped: str) -> Optional[IntentResult]:
-    """Tier 2: create_patient — lead keyword, duplicate, trailing keyword, terse."""
+    """Tier 2: create_patient — only anchored 创建/新建 + duplicate patterns.
+
+    Broader create triggers (新患者, 添加患者, 录入, trailing "创建", terse end)
+    are deferred to LLM for proper semantic resolution.
+    """
     for target in (normed, stripped):
         m = _CREATE_DUPLICATE_RE.match(target)
         if m and m.group(1) not in _NON_NAME_KEYWORDS:
             gender, age = _extract_demographics(stripped)
             return IntentResult(intent=Intent.create_patient, patient_name=m.group(1), gender=gender, age=age)
 
-        m = _CREATE_LEAD_RE.search(target)
+        m = _CREATE_LEAD_RE.match(target)
         if m and m.group(1) not in _NON_NAME_KEYWORDS and m.group(1) not in _TIER3_BAD_NAME:
-            # Guard: if text before the create keyword contains a destructive
-            # verb, this is a mixed destructive+create compound (e.g.
-            # "删除张三，再创建李四").  Fall through to LLM so the planner
-            # can detect the unsupported combo and block it.
-            prefix = target[:m.start()]
+            # Guard: if trailing text contains a destructive verb, fall through
+            # to LLM (e.g. "创建赵六，再删除王芳").
             suffix = target[m.end():]
-            if (prefix and _CONFLICTING_PREFIX_RE.search(prefix)) or \
-               (suffix and _CONFLICTING_PREFIX_RE.search(suffix)):
-                return None
-            gender, age = _extract_demographics(stripped)
-            return IntentResult(intent=Intent.create_patient, patient_name=m.group(1), gender=gender, age=age)
-
-        m = _CREATE_TRAIL_RE.match(target)
-        if m and m.group(1) not in _NON_NAME_KEYWORDS:
-            trail_suffix = target[m.end():]
-            if trail_suffix and _CONFLICTING_PREFIX_RE.search(trail_suffix):
-                return None
-            gender, age = _extract_demographics(stripped)
-            return IntentResult(intent=Intent.create_patient, patient_name=m.group(1), gender=gender, age=age)
-
-        m = _CREATE_TERSE_END_RE.match(target)
-        if m and m.group(1) not in _NON_NAME_KEYWORDS:
-            terse_suffix = target[m.end():]
-            if terse_suffix and _CONFLICTING_PREFIX_RE.search(terse_suffix):
+            if suffix and _CONFLICTING_PREFIX_RE.search(suffix):
                 return None
             gender, age = _extract_demographics(stripped)
             return IntentResult(intent=Intent.create_patient, patient_name=m.group(1), gender=gender, age=age)
@@ -378,42 +333,6 @@ def _fast_route_core(text: str, specialty: Optional[str] = None) -> Optional[Int
     if result is not None:
         return result
 
-    # Tail-command detection (054 fix): in mixed messages like
-    # "clinical note，请先把我的待办调出来", the explicit imperative at
-    # the END beats any incidental phrasing in the body (including
-    # pending-record continuation in fast_route).  Only fires when the
-    # message contains at least one comma and the last segment matches.
-    _last_sep = max(stripped.rfind("，"), stripped.rfind(","))
-    if _last_sep >= 0:
-        _tail = stripped[_last_sep + 1:].strip()
-        if _tail and (_TAIL_TASK_RE.match(_tail) or _TAIL_TASK_RE.match(_normalise(_tail))):
-            # Candidate capture: extract name+demographics from the pre-comma clause.
-            # Requires name + at least one demographic anchor (gender/age) to prevent
-            # over-capturing from noisy clinical text (e.g. "头痛两小时，查我的待办").
-            _pre = stripped[:_last_sep].strip()
-            _extra: Optional[dict] = None
-            _nm = _TIER3_NAME_RE.match(_pre)
-            if _nm:
-                _cname = _nm.group(1)
-                if _cname not in _NON_NAME_KEYWORDS and _cname not in _TIER3_BAD_NAME:
-                    _cg, _ca = _extract_demographics(_pre)
-                    if _cg is not None or _ca is not None:
-                        _extra = {
-                            "candidate_name": _cname,
-                            "candidate_gender": _cg,
-                            "candidate_age": _ca,
-                        }
-            return IntentResult(intent=Intent.list_tasks, extra_data=_extra or {})
-
-    # Name-prefixed supplement (053 fix): "李阿姨先记一下：…" — explicit name before trigger.
-    # Separated from _SUPPLEMENT_RE to allow precise name extraction rather than a single
-    # broad pattern. The 079 guard does not fire because patient_name is set.
-    _ns_m = _NAME_SUPPLEMENT_RE.match(stripped)
-    if _ns_m:
-        _ns_name = _ns_m.group(1)
-        if _ns_name not in _NON_NAME_KEYWORDS and _ns_name not in _TIER3_BAD_NAME:
-            return IntentResult(intent=Intent.add_record, patient_name=_ns_name)
-
     result = _route_tier2_all(normed, stripped)
     if result is not None:
         return result
@@ -467,15 +386,19 @@ def fast_route(
 
     # Fix 3: pending-record continuation — when an explicit draft exists, route
     # pure clinical content as add_record without LLM.  Guard: must not be a
-    # confirm/abort token, must not be a question, must be >= 10 chars.
+    # confirm/abort token, must not be a question, must not start with an
+    # explicit command verb, and must be >= 10 chars.
     if result is None and session is not None:
         pending_record_id: Optional[str] = getattr(session, "pending_record_id", None)
         if pending_record_id:
             _stripped = text.strip()
+            _normed_for_guard = _normalise(_stripped)
             if (
                 len(_stripped) >= 10
                 and not _stripped.endswith("？")
                 and not _PENDING_RECORD_ABORT_RE.match(_stripped)
+                and not _PENDING_COMMAND_PREFIX_RE.match(_stripped)
+                and not _PENDING_COMMAND_PREFIX_RE.match(_normed_for_guard)
             ):
                 result = IntentResult(
                     intent=Intent.add_record,

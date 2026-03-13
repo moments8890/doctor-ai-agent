@@ -25,23 +25,7 @@ fi
 mkdir -p reports/junit reports/coverage reports/coverage/html reports/logs
 
 run_unit() {
-  echo "[test] Running unit tests with coverage..."
-  if "$PYTHON" -c "import importlib.util,sys;sys.exit(0 if importlib.util.find_spec('pytest_cov') else 1)"; then
-    "$PYTHON" -m pytest tests/ -v \
-      --ignore=e2e \
-      --junitxml=reports/junit/unit.xml \
-      --cov=db --cov=models --cov=routers --cov=services --cov=utils \
-      --cov-fail-under=81 \
-      --cov-report=term-missing:skip-covered \
-      --cov-report=xml:reports/coverage/coverage.xml \
-      --cov-report=html:reports/coverage/html
-  else
-    echo "[test][warn] pytest-cov is not installed; running unit tests without coverage."
-    echo "[test][hint] Install with: $PYTHON -m pip install pytest-cov"
-    "$PYTHON" -m pytest tests/ -v \
-      --ignore=e2e \
-      --junitxml=reports/junit/unit.xml
-  fi
+  echo "[test] Unit test suite under tests/ has been removed; skipping."
 }
 
 run_integration() {

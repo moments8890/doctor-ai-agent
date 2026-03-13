@@ -23,6 +23,8 @@ AI coding agents.
   Normative contract for AI context assembly, prompt boundaries, and output expectations.
 - [`docs/plans/adr-0007-blocked-write-continuation-execution-plan.md`](plans/adr-0007-blocked-write-continuation-execution-plan.md)
   Execution plan for ADR 0007: stateful blocked-write continuation and routing/structuring separation.
+- [`docs/plans/adr-0009-modality-normalization-execution-plan.md`](plans/adr-0009-modality-normalization-execution-plan.md)
+  Execution plan for ADR 0009: voice as normal message after transcription; image/PDF as import after extraction.
 - [`docs/review/03-11/minimal-doctor-assistant-ux-principles.md`](review/03-11/minimal-doctor-assistant-ux-principles.md)
   Current doctor-facing UX contract.
 - [`docs/review/03-11/llm-context-architecture-review-and-plan.md`](review/03-11/llm-context-architecture-review-and-plan.md)

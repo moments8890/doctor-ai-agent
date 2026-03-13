@@ -88,18 +88,15 @@ _CREATE_PREAMBLE_RE = re.compile(
     r"(?:\s*\d+\s*岁\s*[，,。]?)?\s*",
     re.DOTALL,
 )
-_CLINICAL_CONTENT_HINTS = (
-    "胸痛", "胸闷", "心悸", "头痛", "发热", "咳嗽", "气短",
-    "ST", "PCI", "BNP", "EF", "诊断", "治疗", "复查", "化疗", "靶向",
-)
-
-
 class _PatientValidationError(Exception):
     pass
 
 
 def _contains_clinical_content(text: str) -> bool:
-    return any(hint in (text or "") for hint in _CLINICAL_CONTENT_HINTS)
+    """Check if text has meaningful clinical content via residual-text heuristic."""
+    from services.domain.compound_normalizer import has_residual_clinical_content
+    has_content, _ = has_residual_clinical_content(text or "")
+    return has_content
 
 
 async def _maybe_create_followup_task(
@@ -151,8 +148,8 @@ async def handle_create_patient(
 
     reply, patient = await _create_or_reuse_patient(doctor_id, name, patient, intent_result)
 
-    if _contains_clinical_content(body_text):
-        reply = await _append_compound_record(doctor_id, patient, body_text, name, reply)
+    # Compound record creation is now handled by the dispatch layer via
+    # planner compound_actions, not inline here (draft-first safety model).
 
     _reminder_m = _REMINDER_IN_MSG_RE.search(original_text)
     if _reminder_m:

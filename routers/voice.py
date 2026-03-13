@@ -119,13 +119,15 @@ async def _dispatch_voice_intent(
         if "add_record" in compound:
             hr = await shared_handle_create_patient(doctor_id, intent_result)
             if hr.reply and "⚠️" not in hr.reply:
+                from services.domain.text_cleanup import strip_leading_create_demographics
+                clinical_text = strip_leading_create_demographics(transcript, intent_result) or transcript
                 add_ir = IntentResult(
                     intent=Intent.add_record,
                     patient_name=intent_result.patient_name,
                     is_emergency=intent_result.is_emergency,
                 )
                 hr2 = await shared_handle_add_record(
-                    transcript, doctor_id, history_list, add_ir,
+                    clinical_text, doctor_id, history_list, add_ir,
                 )
                 combined_reply = hr.reply
                 if hr2.reply:

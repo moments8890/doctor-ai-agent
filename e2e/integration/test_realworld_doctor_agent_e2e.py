@@ -26,8 +26,8 @@ from typing import Dict, List, Optional, Tuple
 
 import pytest
 
+from e2e.fixtures.realworld_cases import REALWORLD_SCENARIOS
 from e2e.integration.conftest import DB_PATH, chat
-from tests.fixtures.realworld_cases import REALWORLD_SCENARIOS
 
 
 def _latest_patient_id(doctor_id: str, patient_name: str) -> Optional[int]:

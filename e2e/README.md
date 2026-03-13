@@ -14,6 +14,15 @@ Execution:
 - Full replay: `./dev.sh e2e full`
 - Integration suite: `./dev.sh test integration` or `./dev.sh test integration-full`
 
+## Draft-First Benchmark Rule
+
+- Record-creation cases that expect final `medical_records` rows must include an
+  explicit doctor confirm turn such as `确认` or `保存`.
+- The chatlog runner will detect that confirm token and call the pending-draft
+  confirm endpoint directly.
+- Cases that intentionally stop at draft creation should assert pending-draft
+  behavior instead of final `medical_records` persistence.
+
 ## Dependency setup (recommended)
 
 1. Bootstrap runtime dependencies:

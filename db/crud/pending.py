@@ -87,6 +87,25 @@ async def abandon_pending_record(
     await session.commit()
 
 
+async def update_pending_draft(
+    session: AsyncSession,
+    record_id: str,
+    doctor_id: str,
+    new_draft_json: str,
+    ttl_minutes: int = 10,
+) -> None:
+    """Update draft_json for an awaiting pending record and reset its expiry."""
+    new_expires = datetime.now(timezone.utc) + timedelta(minutes=ttl_minutes)
+    await session.execute(
+        sa_update(PendingRecord).where(
+            PendingRecord.id == record_id,
+            PendingRecord.doctor_id == doctor_id,
+            PendingRecord.status == "awaiting",
+        ).values(draft_json=new_draft_json, expires_at=new_expires)
+    )
+    await session.commit()
+
+
 async def get_stale_pending_records(session: AsyncSession) -> list:
     """Return all 'awaiting' PendingRecord rows that have passed their expires_at."""
     now = datetime.now(timezone.utc)

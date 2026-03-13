@@ -3,12 +3,12 @@ set -euo pipefail
 #
 # Benchmark Gate — automated regression check for push workflow.
 #
-# Runs unit tests (fast sanity), then compares the most recent candidate
+# Runs the unit-test step, then compares the most recent candidate
 # hero-loop summary against the saved baseline.  Exits non-zero on regression.
 #
 # Usage:
-#   bash scripts/benchmark_gate.sh            # unit tests + baseline comparison
-#   bash scripts/benchmark_gate.sh --skip-unit # skip unit tests, comparison only
+#   bash scripts/benchmark_gate.sh            # unit-step + baseline comparison
+#   bash scripts/benchmark_gate.sh --skip-unit # skip unit-step, comparison only
 #   bash scripts/benchmark_gate.sh --help
 #
 # Prerequisites:
@@ -35,13 +35,13 @@ for arg in "$@"; do
       echo "Usage: bash scripts/benchmark_gate.sh [--skip-unit] [--help]"
       echo ""
       echo "Runs the benchmark regression gate:"
-      echo "  1. Unit tests (quick sanity check, skippable with --skip-unit)"
+      echo "  1. Unit-test step (quick sanity check, skippable with --skip-unit)"
       echo "  2. Compare reports/candidate/hero.json against latest baseline"
       echo "  3. Print summary table with pass/fail/regression status"
       echo "  4. Exit non-zero on regression"
       echo ""
       echo "Options:"
-      echo "  --skip-unit   Skip running unit tests (useful if already run)"
+      echo "  --skip-unit   Skip running the unit-test step (useful if already run)"
       echo "  --help, -h    Show this help message"
       echo ""
       echo "Prerequisites:"
@@ -75,21 +75,21 @@ YELLOW="\033[33m"
 BOLD="\033[1m"
 RESET="\033[0m"
 
-# ── Step 1: Unit tests ─────────────────────────────────────────────
+# ── Step 1: Unit-test step ─────────────────────────────────────────
 if [[ "$SKIP_UNIT" -eq 0 ]]; then
   echo ""
-  echo -e "${BOLD}[benchmark-gate] Step 1/2: Running unit tests...${RESET}"
+  echo -e "${BOLD}[benchmark-gate] Step 1/2: Running unit-test step...${RESET}"
   echo ""
   if ! bash "$ROOT_DIR/scripts/test.sh" unit; then
     echo ""
-    echo -e "${RED}[benchmark-gate] FAILED — unit tests did not pass.${RESET}"
+    echo -e "${RED}[benchmark-gate] FAILED — unit-test step did not pass.${RESET}"
     exit 1
   fi
   echo ""
-  echo -e "${GREEN}[benchmark-gate] Unit tests passed.${RESET}"
+  echo -e "${GREEN}[benchmark-gate] Unit-test step passed.${RESET}"
 else
   echo ""
-  echo -e "${YELLOW}[benchmark-gate] Skipping unit tests (--skip-unit).${RESET}"
+  echo -e "${YELLOW}[benchmark-gate] Skipping unit-test step (--skip-unit).${RESET}"
 fi
 
 # ── Step 2: Baseline comparison ─────────────────────────────────────

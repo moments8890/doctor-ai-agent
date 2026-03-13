@@ -10,20 +10,21 @@ Accepted
 
 ## Implementation Status
 
-Partial
+Complete
 
 Last reviewed: 2026-03-12
 
 Notes:
 
-- The target architecture is documented and some stateful precheck pieces are
-  already in place.
-- The routing layer still emits clinical `structured_fields`, and write paths
-  still contain a router-field shortcut instead of using structuring as the
-  only note-generation path.
-- This ADR should be marked complete only after routing is reduced to intent
-  plus coarse entities and write intents always flow through structuring before
-  draft creation.
+- The main doctor write path now matches the ADR:
+  - blocked writes resume from authoritative state
+  - `add_record` uses structuring as the single note-generation path
+  - the `add_medical_record` routing schema is reduced to coarse entities only
+- Router-produced `structured_fields` no longer drive final `add_record` note
+  generation.
+- A narrow correction-oriented compatibility path still exists for
+  `update_record`, but it does not reintroduce a second final-note path for
+  normal doctor-authored record creation.
 
 ## Context
 

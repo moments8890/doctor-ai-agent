@@ -134,7 +134,7 @@ function OnboardingDialog({ open, name, saving, onChange, onSubmit }) {
   );
 }
 
-function SectionContent({ activeSection, doctorId, navigate, chatInsertText, setChatInsertText, chatAutoSendText, setChatAutoSendText, chatAutoSendConsumedRef, patientRefreshKey, setPatientRefreshKey, handleLogout }) {
+function SectionContent({ activeSection, doctorId, navigate, chatInsertText, setChatInsertText, chatAutoSendText, setChatAutoSendText, chatAutoSendConsumedRef, patientRefreshKey, setPatientRefreshKey, handleLogout, onContextCleared }) {
   return (
     <Box sx={{ flex: 1, overflow: "hidden" }}>
       {activeSection === "chat" && (
@@ -143,7 +143,8 @@ function SectionContent({ activeSection, doctorId, navigate, chatInsertText, set
             externalInput={chatInsertText} onExternalInputConsumed={() => setChatInsertText("")}
             onPatientCreated={() => setPatientRefreshKey((k) => k + 1)}
             autoSendText={chatAutoSendText !== chatAutoSendConsumedRef.current ? chatAutoSendText : ""}
-            onAutoSendConsumed={() => { chatAutoSendConsumedRef.current = chatAutoSendText; setChatAutoSendText(""); }} />
+            onAutoSendConsumed={() => { chatAutoSendConsumedRef.current = chatAutoSendText; setChatAutoSendText(""); }}
+            onContextCleared={onContextCleared} />
         </ErrorBoundary>
       )}
       {activeSection === "patients" && (
@@ -207,7 +208,7 @@ function useDoctorPageState({ doctorId, accessToken, setAuth }) {
     catch (e) { setPendingError(e.message || "操作失败，请重试"); }
   }
 
-  return { pendingTaskCount, pendingRecord, workingContext, confirmSnackbar, setConfirmSnackbar, pendingError, setPendingError, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit, handleConfirmPending, handleAbandonPending };
+  return { pendingTaskCount, pendingRecord, setPendingRecord, workingContext, setWorkingContext, confirmSnackbar, setConfirmSnackbar, pendingError, setPendingError, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit, handleConfirmPending, handleAbandonPending };
 }
 
 export default function DoctorPage() {
@@ -221,11 +222,15 @@ export default function DoctorPage() {
   const chatAutoSendConsumedRef = useRef("");
   const [patientRefreshKey, setPatientRefreshKey] = useState(0);
 
-  const { pendingTaskCount, pendingRecord, workingContext, confirmSnackbar, setConfirmSnackbar, pendingError, setPendingError, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit, handleConfirmPending, handleAbandonPending } = useDoctorPageState({ doctorId, accessToken, setAuth });
+  const { pendingTaskCount, pendingRecord, setPendingRecord, workingContext, setWorkingContext, confirmSnackbar, setConfirmSnackbar, pendingError, setPendingError, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit, handleConfirmPending, handleAbandonPending } = useDoctorPageState({ doctorId, accessToken, setAuth });
 
   // Default to chat (composer-first). "home" section removed from primary nav.
   const activeSection = patientId ? "patients" : (section || "chat");
 
+  function handleContextCleared() {
+    setPendingRecord(null);
+    setWorkingContext(null);
+  }
   function handleNav(key) { navigate(key === "chat" ? "/doctor/chat" : `/doctor/${key}`); }
   function handleLogout() {
     clearAuth();
@@ -240,7 +245,7 @@ export default function DoctorPage() {
         <WorkingContextHeader context={workingContext} isMobile={isMobile} />
         {pendingError && <Alert severity="error" sx={{ mx: 2, mt: 1.5, borderRadius: 1.5 }} onClose={() => setPendingError("")}>{pendingError}</Alert>}
         <PendingRecordBanner isMobile={isMobile} pendingRecord={pendingRecord} onConfirm={handleConfirmPending} onAbandon={handleAbandonPending} />
-        <SectionContent activeSection={activeSection} doctorId={doctorId} navigate={navigate} chatInsertText={chatInsertText} setChatInsertText={setChatInsertText} chatAutoSendText={chatAutoSendText} setChatAutoSendText={setChatAutoSendText} chatAutoSendConsumedRef={chatAutoSendConsumedRef} patientRefreshKey={patientRefreshKey} setPatientRefreshKey={setPatientRefreshKey} handleLogout={handleLogout} />
+        <SectionContent activeSection={activeSection} doctorId={doctorId} navigate={navigate} chatInsertText={chatInsertText} setChatInsertText={setChatInsertText} chatAutoSendText={chatAutoSendText} setChatAutoSendText={setChatAutoSendText} chatAutoSendConsumedRef={chatAutoSendConsumedRef} patientRefreshKey={patientRefreshKey} setPatientRefreshKey={setPatientRefreshKey} handleLogout={handleLogout} onContextCleared={handleContextCleared} />
       </Box>
       {isMobile && <MobileBottomNav activeSection={activeSection} pendingTaskCount={pendingTaskCount} pendingRecord={pendingRecord} onNav={handleNav} />}
       <Snackbar open={confirmSnackbar} autoHideDuration={3000} onClose={() => setConfirmSnackbar(false)} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>

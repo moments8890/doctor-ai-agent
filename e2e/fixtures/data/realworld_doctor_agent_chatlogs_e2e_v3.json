@@ -21,6 +21,10 @@
       {
         "speaker": "doctor",
         "text": "请明确执行：创建保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -67,6 +71,10 @@
       {
         "speaker": "doctor",
         "text": "请明确执行：帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -113,6 +121,10 @@
       {
         "speaker": "doctor",
         "text": "请明确执行：请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -159,6 +171,10 @@
       {
         "speaker": "doctor",
         "text": "请明确执行：确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -205,6 +221,10 @@
       {
         "speaker": "doctor",
         "text": "请明确执行：确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -251,6 +271,10 @@
       {
         "speaker": "doctor",
         "text": "请明确执行：请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -297,6 +321,10 @@
       {
         "speaker": "doctor",
         "text": "请明确执行：确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -343,6 +371,10 @@
       {
         "speaker": "doctor",
         "text": "请明确执行：请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -389,6 +421,10 @@
       {
         "speaker": "doctor",
         "text": "请明确执行：请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -435,6 +471,10 @@
       {
         "speaker": "doctor",
         "text": "请明确执行：请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -481,6 +521,10 @@
       {
         "speaker": "doctor",
         "text": "请明确执行：请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -527,6 +571,10 @@
       {
         "speaker": "doctor",
         "text": "请明确执行：创建保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -573,6 +621,10 @@
       {
         "speaker": "doctor",
         "text": "请明确执行：请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -619,6 +671,10 @@
       {
         "speaker": "doctor",
         "text": "请明确执行：请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -665,6 +721,10 @@
       {
         "speaker": "doctor",
         "text": "请明确执行：确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -711,6 +771,10 @@
       {
         "speaker": "doctor",
         "text": "请明确执行：确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -757,6 +821,10 @@
       {
         "speaker": "doctor",
         "text": "请明确执行：请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -803,6 +871,10 @@
       {
         "speaker": "doctor",
         "text": "请明确执行：请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -849,6 +921,10 @@
       {
         "speaker": "doctor",
         "text": "请明确执行：请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -895,6 +971,10 @@
       {
         "speaker": "doctor",
         "text": "请明确执行：请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -941,6 +1021,10 @@
       {
         "speaker": "doctor",
         "text": "确认郭凯所有信息，请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -987,6 +1071,10 @@
       {
         "speaker": "doctor",
         "text": "确认魏鑫所有信息，创建保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -1033,6 +1121,10 @@
       {
         "speaker": "doctor",
         "text": "确认林倩所有信息，创建保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -1079,6 +1171,10 @@
       {
         "speaker": "doctor",
         "text": "确认赵勇所有信息，请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -1125,6 +1221,10 @@
       {
         "speaker": "doctor",
         "text": "确认冯梅所有信息，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -1171,6 +1271,10 @@
       {
         "speaker": "doctor",
         "text": "确认刘鹏所有信息，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -1217,6 +1321,10 @@
       {
         "speaker": "doctor",
         "text": "确认林杰帆所有信息，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -1263,6 +1371,10 @@
       {
         "speaker": "doctor",
         "text": "确认孙雪所有信息，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -1309,6 +1421,10 @@
       {
         "speaker": "doctor",
         "text": "确认傅静蕾所有信息，请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -1355,6 +1471,10 @@
       {
         "speaker": "doctor",
         "text": "确认叶奇飞所有信息，请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -1401,6 +1521,10 @@
       {
         "speaker": "doctor",
         "text": "确认朱心所有信息，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -1447,6 +1571,10 @@
       {
         "speaker": "doctor",
         "text": "确认韩伟所有信息，请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -1493,6 +1621,10 @@
       {
         "speaker": "doctor",
         "text": "确认马萍所有信息，创建保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -1539,6 +1671,10 @@
       {
         "speaker": "doctor",
         "text": "确认吴婷霞所有信息，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -1585,6 +1721,10 @@
       {
         "speaker": "doctor",
         "text": "确认薛浩辉所有信息，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -1631,6 +1771,10 @@
       {
         "speaker": "doctor",
         "text": "确认刘宇军所有信息，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -1677,6 +1821,10 @@
       {
         "speaker": "doctor",
         "text": "确认蔡奇勇所有信息，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -1723,6 +1871,10 @@
       {
         "speaker": "doctor",
         "text": "确认曾锋磊所有信息，请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -1769,6 +1921,10 @@
       {
         "speaker": "doctor",
         "text": "确认何婷所有信息，创建保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -1815,6 +1971,10 @@
       {
         "speaker": "doctor",
         "text": "确认何鹏博所有信息，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -1861,6 +2021,10 @@
       {
         "speaker": "doctor",
         "text": "请创建并保存于莉本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -1907,6 +2071,10 @@
       {
         "speaker": "doctor",
         "text": "请创建并保存沈婷欣本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -1953,6 +2121,10 @@
       {
         "speaker": "doctor",
         "text": "请创建并保存邓鑫本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -1999,6 +2171,10 @@
       {
         "speaker": "doctor",
         "text": "请创建并保存谢飞凯本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -2045,6 +2221,10 @@
       {
         "speaker": "doctor",
         "text": "请创建并保存蒋心月本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -2091,6 +2271,10 @@
       {
         "speaker": "doctor",
         "text": "请创建并保存蒋萍欣本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -2137,6 +2321,10 @@
       {
         "speaker": "doctor",
         "text": "请创建并保存胡飞本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -2183,6 +2371,10 @@
       {
         "speaker": "doctor",
         "text": "请创建并保存吕辉坚本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -2229,6 +2421,10 @@
       {
         "speaker": "doctor",
         "text": "请创建并保存马婷本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -2275,6 +2471,10 @@
       {
         "speaker": "doctor",
         "text": "请创建并保存萧梅本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -2321,6 +2521,10 @@
       {
         "speaker": "doctor",
         "text": "请创建并保存薛洁本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -2367,6 +2571,10 @@
       {
         "speaker": "doctor",
         "text": "请创建并保存杨彤本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -2413,6 +2621,10 @@
       {
         "speaker": "doctor",
         "text": "请创建并保存高倩芳本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -2459,6 +2671,10 @@
       {
         "speaker": "doctor",
         "text": "请创建并保存程锋本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -2505,6 +2721,10 @@
       {
         "speaker": "doctor",
         "text": "请创建并保存冯月本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -2551,6 +2771,10 @@
       {
         "speaker": "doctor",
         "text": "请创建并保存曹燕晴本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -2597,6 +2821,10 @@
       {
         "speaker": "doctor",
         "text": "请创建并保存叶奇本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -2643,6 +2871,10 @@
       {
         "speaker": "doctor",
         "text": "请创建并保存高洁本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -2689,6 +2921,10 @@
       {
         "speaker": "doctor",
         "text": "请创建并保存刘蕾心本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -2735,6 +2971,10 @@
       {
         "speaker": "doctor",
         "text": "请创建并保存周倩本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -2781,6 +3021,10 @@
       {
         "speaker": "doctor",
         "text": "保存蒋悦本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -2827,6 +3071,10 @@
       {
         "speaker": "doctor",
         "text": "保存萧鑫锋本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -2873,6 +3121,10 @@
       {
         "speaker": "doctor",
         "text": "保存唐辉本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -2919,6 +3171,10 @@
       {
         "speaker": "doctor",
         "text": "保存卢飞帆本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -2965,6 +3221,10 @@
       {
         "speaker": "doctor",
         "text": "保存何鹏帆本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -3011,6 +3271,10 @@
       {
         "speaker": "doctor",
         "text": "保存叶月雯本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -3057,6 +3321,10 @@
       {
         "speaker": "doctor",
         "text": "保存杨玲蕾本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -3103,6 +3371,10 @@
       {
         "speaker": "doctor",
         "text": "保存高晴晴本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -3149,6 +3421,10 @@
       {
         "speaker": "doctor",
         "text": "保存林杰本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -3195,6 +3471,10 @@
       {
         "speaker": "doctor",
         "text": "保存林强本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -3241,6 +3521,10 @@
       {
         "speaker": "doctor",
         "text": "保存萧翔亮本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -3287,6 +3571,10 @@
       {
         "speaker": "doctor",
         "text": "保存阎阳明本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -3333,6 +3621,10 @@
       {
         "speaker": "doctor",
         "text": "保存罗辉本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -3379,6 +3671,10 @@
       {
         "speaker": "doctor",
         "text": "保存丁婷欣本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -3425,6 +3721,10 @@
       {
         "speaker": "doctor",
         "text": "保存赵翔本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -3471,6 +3771,10 @@
       {
         "speaker": "doctor",
         "text": "保存沈龙坚本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -3517,6 +3821,10 @@
       {
         "speaker": "doctor",
         "text": "保存陈云本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -3563,6 +3871,10 @@
       {
         "speaker": "doctor",
         "text": "保存曹静本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -3609,6 +3921,10 @@
       {
         "speaker": "doctor",
         "text": "保存丁敏本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -3655,6 +3971,10 @@
       {
         "speaker": "doctor",
         "text": "保存吕倩本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -3701,6 +4021,10 @@
       {
         "speaker": "doctor",
         "text": "创建保存赵彤华，化疗后骨髓抑制诊断。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -3747,6 +4071,10 @@
       {
         "speaker": "doctor",
         "text": "创建保存罗伟，化疗后骨髓抑制诊断。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -3793,6 +4121,10 @@
       {
         "speaker": "doctor",
         "text": "创建保存张霞，化疗后骨髓抑制诊断。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -3839,6 +4171,10 @@
       {
         "speaker": "doctor",
         "text": "创建保存苏奇，化疗后骨髓抑制诊断。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -3885,6 +4221,10 @@
       {
         "speaker": "doctor",
         "text": "创建保存沈明，化疗后骨髓抑制诊断。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -3931,6 +4271,10 @@
       {
         "speaker": "doctor",
         "text": "创建保存孙霞心，化疗后骨髓抑制诊断。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -3977,6 +4321,10 @@
       {
         "speaker": "doctor",
         "text": "创建保存陈鹏，化疗后骨髓抑制诊断。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -4023,6 +4371,10 @@
       {
         "speaker": "doctor",
         "text": "创建保存吴强，化疗后骨髓抑制诊断。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -4069,6 +4421,10 @@
       {
         "speaker": "doctor",
         "text": "创建保存林勇，化疗后骨髓抑制诊断。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -4115,6 +4471,10 @@
       {
         "speaker": "doctor",
         "text": "创建保存阎宇鑫，化疗后骨髓抑制诊断。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -4161,6 +4521,10 @@
       {
         "speaker": "doctor",
         "text": "创建保存曾萍莉，化疗后骨髓抑制诊断。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -4207,6 +4571,10 @@
       {
         "speaker": "doctor",
         "text": "创建保存叶杰，化疗后骨髓抑制诊断。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -4253,6 +4621,10 @@
       {
         "speaker": "doctor",
         "text": "创建保存徐涛磊，化疗后骨髓抑制诊断。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -4299,6 +4671,10 @@
       {
         "speaker": "doctor",
         "text": "创建保存冯帆，化疗后骨髓抑制诊断。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -4345,6 +4721,10 @@
       {
         "speaker": "doctor",
         "text": "创建保存张华丽，化疗后骨髓抑制诊断。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -4391,6 +4771,10 @@
       {
         "speaker": "doctor",
         "text": "创建保存陈悦雪，化疗后骨髓抑制诊断。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -4437,6 +4821,10 @@
       {
         "speaker": "doctor",
         "text": "创建保存于勇，化疗后骨髓抑制诊断。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -4483,6 +4871,10 @@
       {
         "speaker": "doctor",
         "text": "创建保存郭阳芳，化疗后骨髓抑制诊断。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -4529,6 +4921,10 @@
       {
         "speaker": "doctor",
         "text": "创建保存彭怡，化疗后骨髓抑制诊断。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -4575,6 +4971,10 @@
       {
         "speaker": "doctor",
         "text": "创建保存黄梅，化疗后骨髓抑制诊断。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -4621,6 +5021,10 @@
       {
         "speaker": "doctor",
         "text": "确认曹鑫，男，61岁，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -4667,6 +5071,10 @@
       {
         "speaker": "doctor",
         "text": "确认冯彤，女，60岁，请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -4713,6 +5121,10 @@
       {
         "speaker": "doctor",
         "text": "确认萧坚杰，男，68岁，请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -4759,6 +5171,10 @@
       {
         "speaker": "doctor",
         "text": "确认陈超，男，59岁，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -4805,6 +5221,10 @@
       {
         "speaker": "doctor",
         "text": "确认袁雪，女，48岁，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -4851,6 +5271,10 @@
       {
         "speaker": "doctor",
         "text": "确认曾琳，女，60岁，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -4897,6 +5321,10 @@
       {
         "speaker": "doctor",
         "text": "确认董坚，男，50岁，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -4943,6 +5371,10 @@
       {
         "speaker": "doctor",
         "text": "确认萧蝶婷，女，76岁，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -4989,6 +5421,10 @@
       {
         "speaker": "doctor",
         "text": "确认沈鹏威，男，58岁，请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -5035,6 +5471,10 @@
       {
         "speaker": "doctor",
         "text": "确认梁昊，男，84岁，请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -5081,6 +5521,10 @@
       {
         "speaker": "doctor",
         "text": "确认韩悦，女，70岁，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -5127,6 +5571,10 @@
       {
         "speaker": "doctor",
         "text": "确认曹芳辉，男，54岁，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -5173,6 +5621,10 @@
       {
         "speaker": "doctor",
         "text": "确认董勇，男，59岁，请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -5219,6 +5671,10 @@
       {
         "speaker": "doctor",
         "text": "确认魏强，男，70岁，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -5265,6 +5721,10 @@
       {
         "speaker": "doctor",
         "text": "确认陈峰，男，49岁，创建保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -5311,6 +5771,10 @@
       {
         "speaker": "doctor",
         "text": "确认吕欣娜，女，52岁，创建保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -5357,6 +5821,10 @@
       {
         "speaker": "doctor",
         "text": "确认梁晴，女，81岁，请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -5403,6 +5871,10 @@
       {
         "speaker": "doctor",
         "text": "确认许霞，女，45岁，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -5449,6 +5921,10 @@
       {
         "speaker": "doctor",
         "text": "确认高怡静，女，77岁，请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -5495,6 +5971,10 @@
       {
         "speaker": "doctor",
         "text": "确认董军，男，33岁，请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -6521,6 +7001,10 @@
       {
         "speaker": "doctor",
         "text": "创建卢博并保存本次病历及提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -6567,6 +7051,10 @@
       {
         "speaker": "doctor",
         "text": "创建于帆并保存本次病历及提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -6613,6 +7101,10 @@
       {
         "speaker": "doctor",
         "text": "创建萧燕并保存本次病历及提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -6659,6 +7151,10 @@
       {
         "speaker": "doctor",
         "text": "创建于慧并保存本次病历及提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -6705,6 +7201,10 @@
       {
         "speaker": "doctor",
         "text": "创建蔡鑫并保存本次病历及提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -6751,6 +7251,10 @@
       {
         "speaker": "doctor",
         "text": "创建杨飞昊并保存本次病历及提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -6797,6 +7301,10 @@
       {
         "speaker": "doctor",
         "text": "创建傅芳并保存本次病历及提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -6843,6 +7351,10 @@
       {
         "speaker": "doctor",
         "text": "创建蒋静并保存本次病历及提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -6889,6 +7401,10 @@
       {
         "speaker": "doctor",
         "text": "创建魏霞并保存本次病历及提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -6935,6 +7451,10 @@
       {
         "speaker": "doctor",
         "text": "创建郑静并保存本次病历及提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -6981,6 +7501,10 @@
       {
         "speaker": "doctor",
         "text": "创建蒋峰勇并保存本次病历及提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -7027,6 +7551,10 @@
       {
         "speaker": "doctor",
         "text": "创建黄雯华并保存本次病历及提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -7073,6 +7601,10 @@
       {
         "speaker": "doctor",
         "text": "创建傅雯并保存本次病历及提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -7119,6 +7651,10 @@
       {
         "speaker": "doctor",
         "text": "创建彭鑫并保存本次病历及提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -7165,6 +7701,10 @@
       {
         "speaker": "doctor",
         "text": "创建李洁雯并保存本次病历及提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -7211,6 +7751,10 @@
       {
         "speaker": "doctor",
         "text": "创建郑芳敏并保存本次病历及提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -7257,6 +7801,10 @@
       {
         "speaker": "doctor",
         "text": "创建陈敏并保存本次病历及提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -7303,6 +7851,10 @@
       {
         "speaker": "doctor",
         "text": "创建薛宇飞并保存本次病历及提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -7349,6 +7901,10 @@
       {
         "speaker": "doctor",
         "text": "创建徐颖慧并保存本次病历及提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -7395,6 +7951,10 @@
       {
         "speaker": "doctor",
         "text": "创建刘强锋并保存本次病历及提醒。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -7441,6 +8001,10 @@
       {
         "speaker": "doctor",
         "text": "查询邓娜丽刚刚录入的记录，确认保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -7487,6 +8051,10 @@
       {
         "speaker": "doctor",
         "text": "查询高慧刚刚录入的记录，确认保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -7533,6 +8101,10 @@
       {
         "speaker": "doctor",
         "text": "查询邓宇威刚刚录入的记录，确认保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -7579,6 +8151,10 @@
       {
         "speaker": "doctor",
         "text": "查询魏彤刚刚录入的记录，确认保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -7625,6 +8201,10 @@
       {
         "speaker": "doctor",
         "text": "查询赵强军刚刚录入的记录，确认保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -7671,6 +8251,10 @@
       {
         "speaker": "doctor",
         "text": "查询叶威刚刚录入的记录，确认保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -7717,6 +8301,10 @@
       {
         "speaker": "doctor",
         "text": "查询萧雯刚刚录入的记录，确认保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -7763,6 +8351,10 @@
       {
         "speaker": "doctor",
         "text": "查询蔡蝶刚刚录入的记录，确认保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -7809,6 +8401,10 @@
       {
         "speaker": "doctor",
         "text": "查询苏慧娜刚刚录入的记录，确认保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -7855,6 +8451,10 @@
       {
         "speaker": "doctor",
         "text": "查询苏丽刚刚录入的记录，确认保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -7901,6 +8501,10 @@
       {
         "speaker": "doctor",
         "text": "查询郑宇帆刚刚录入的记录，确认保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -7947,6 +8551,10 @@
       {
         "speaker": "doctor",
         "text": "查询刘亮刚刚录入的记录，确认保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -7993,6 +8601,10 @@
       {
         "speaker": "doctor",
         "text": "查询吕锋刚刚录入的记录，确认保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -8039,6 +8651,10 @@
       {
         "speaker": "doctor",
         "text": "查询董鑫刚刚录入的记录，确认保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -8085,6 +8701,10 @@
       {
         "speaker": "doctor",
         "text": "查询梁锋刚刚录入的记录，确认保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -8131,6 +8751,10 @@
       {
         "speaker": "doctor",
         "text": "查询董勇刚刚录入的记录，确认保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -8177,6 +8801,10 @@
       {
         "speaker": "doctor",
         "text": "查询袁博涛刚刚录入的记录，确认保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -8223,6 +8851,10 @@
       {
         "speaker": "doctor",
         "text": "查询董云刚刚录入的记录，确认保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -8269,6 +8901,10 @@
       {
         "speaker": "doctor",
         "text": "查询谢蝶萍刚刚录入的记录，确认保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -8315,6 +8951,10 @@
       {
         "speaker": "doctor",
         "text": "查询蔡莉晴刚刚录入的记录，确认保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -8361,6 +9001,10 @@
       {
         "speaker": "doctor",
         "text": "确认导出完成，归档许涛龙本次就诊。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -8407,6 +9051,10 @@
       {
         "speaker": "doctor",
         "text": "确认导出完成，归档胡颖本次就诊。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -8453,6 +9101,10 @@
       {
         "speaker": "doctor",
         "text": "确认导出完成，归档萧雯燕本次就诊。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -8499,6 +9151,10 @@
       {
         "speaker": "doctor",
         "text": "确认导出完成，归档徐彤莉本次就诊。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -8545,6 +9201,10 @@
       {
         "speaker": "doctor",
         "text": "确认导出完成，归档刘晴本次就诊。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -8591,6 +9251,10 @@
       {
         "speaker": "doctor",
         "text": "确认导出完成，归档丁奇本次就诊。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -8637,6 +9301,10 @@
       {
         "speaker": "doctor",
         "text": "确认导出完成，归档杨雯梅本次就诊。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -8683,6 +9351,10 @@
       {
         "speaker": "doctor",
         "text": "确认导出完成，归档于磊本次就诊。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -8729,6 +9401,10 @@
       {
         "speaker": "doctor",
         "text": "确认导出完成，归档郑蝶霞本次就诊。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -8775,6 +9451,10 @@
       {
         "speaker": "doctor",
         "text": "确认导出完成，归档林燕本次就诊。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -8821,6 +9501,10 @@
       {
         "speaker": "doctor",
         "text": "确认导出完成，归档李浩本次就诊。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -8867,6 +9551,10 @@
       {
         "speaker": "doctor",
         "text": "确认导出完成，归档吴敏蝶本次就诊。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -8913,6 +9601,10 @@
       {
         "speaker": "doctor",
         "text": "确认导出完成，归档叶翔本次就诊。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -8959,6 +9651,10 @@
       {
         "speaker": "doctor",
         "text": "确认导出完成，归档杨伟阳本次就诊。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -9005,6 +9701,10 @@
       {
         "speaker": "doctor",
         "text": "确认导出完成，归档黄雯丽本次就诊。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -9051,6 +9751,10 @@
       {
         "speaker": "doctor",
         "text": "确认导出完成，归档林飞本次就诊。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -9097,6 +9801,10 @@
       {
         "speaker": "doctor",
         "text": "确认导出完成，归档陈静本次就诊。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -9143,6 +9851,10 @@
       {
         "speaker": "doctor",
         "text": "确认导出完成，归档苏宇本次就诊。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -9189,6 +9901,10 @@
       {
         "speaker": "doctor",
         "text": "确认导出完成，归档马飞亮本次就诊。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -9235,6 +9951,10 @@
       {
         "speaker": "doctor",
         "text": "确认导出完成，归档孙悦本次就诊。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -9281,6 +10001,10 @@
       {
         "speaker": "doctor",
         "text": "确认徐欣档案及更新后的复查时间。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -9327,6 +10051,10 @@
       {
         "speaker": "doctor",
         "text": "确认魏奇档案及更新后的复查时间。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -9373,6 +10101,10 @@
       {
         "speaker": "doctor",
         "text": "确认郭晴档案及更新后的复查时间。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -9419,6 +10151,10 @@
       {
         "speaker": "doctor",
         "text": "确认蒋博档案及更新后的复查时间。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -9465,6 +10201,10 @@
       {
         "speaker": "doctor",
         "text": "确认李强档案及更新后的复查时间。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -9511,6 +10251,10 @@
       {
         "speaker": "doctor",
         "text": "确认张敏雯档案及更新后的复查时间。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -9557,6 +10301,10 @@
       {
         "speaker": "doctor",
         "text": "确认谢燕档案及更新后的复查时间。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -9603,6 +10351,10 @@
       {
         "speaker": "doctor",
         "text": "确认蔡帆档案及更新后的复查时间。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -9649,6 +10401,10 @@
       {
         "speaker": "doctor",
         "text": "确认叶娜档案及更新后的复查时间。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -9695,6 +10451,10 @@
       {
         "speaker": "doctor",
         "text": "确认唐慧档案及更新后的复查时间。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -9741,6 +10501,10 @@
       {
         "speaker": "doctor",
         "text": "确认李昊宇档案及更新后的复查时间。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -9787,6 +10551,10 @@
       {
         "speaker": "doctor",
         "text": "确认何威帆档案及更新后的复查时间。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -9833,6 +10601,10 @@
       {
         "speaker": "doctor",
         "text": "确认贾蝶档案及更新后的复查时间。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -9879,6 +10651,10 @@
       {
         "speaker": "doctor",
         "text": "确认周奇军档案及更新后的复查时间。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -9925,6 +10701,10 @@
       {
         "speaker": "doctor",
         "text": "确认杨倩档案及更新后的复查时间。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -9971,6 +10751,10 @@
       {
         "speaker": "doctor",
         "text": "确认丁娜档案及更新后的复查时间。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -10017,6 +10801,10 @@
       {
         "speaker": "doctor",
         "text": "确认谢宇杰档案及更新后的复查时间。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -10063,6 +10851,10 @@
       {
         "speaker": "doctor",
         "text": "确认林龙档案及更新后的复查时间。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -10109,6 +10901,10 @@
       {
         "speaker": "doctor",
         "text": "确认萧倩档案及更新后的复查时间。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -10155,6 +10951,10 @@
       {
         "speaker": "doctor",
         "text": "确认陈明翔档案及更新后的复查时间。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -10201,6 +11001,10 @@
       {
         "speaker": "doctor",
         "text": "确认刘明病历已保存，提醒已取消。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -10246,6 +11050,10 @@
       {
         "speaker": "doctor",
         "text": "确认马蕾静病历已保存，提醒已取消。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -10291,6 +11099,10 @@
       {
         "speaker": "doctor",
         "text": "确认何昊鹏病历已保存，提醒已取消。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -10336,6 +11148,10 @@
       {
         "speaker": "doctor",
         "text": "确认唐芳病历已保存，提醒已取消。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -10381,6 +11197,10 @@
       {
         "speaker": "doctor",
         "text": "确认傅丽云病历已保存，提醒已取消。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -10426,6 +11246,10 @@
       {
         "speaker": "doctor",
         "text": "确认吕悦病历已保存，提醒已取消。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -10471,6 +11295,10 @@
       {
         "speaker": "doctor",
         "text": "确认唐亮病历已保存，提醒已取消。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -10516,6 +11344,10 @@
       {
         "speaker": "doctor",
         "text": "确认叶敏云病历已保存，提醒已取消。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -10561,6 +11393,10 @@
       {
         "speaker": "doctor",
         "text": "确认张芳浩病历已保存，提醒已取消。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -10606,6 +11442,10 @@
       {
         "speaker": "doctor",
         "text": "确认邓梅月病历已保存，提醒已取消。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -10651,6 +11491,10 @@
       {
         "speaker": "doctor",
         "text": "确认梁鑫病历已保存，提醒已取消。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -10696,6 +11540,10 @@
       {
         "speaker": "doctor",
         "text": "确认吕怡病历已保存，提醒已取消。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -10741,6 +11589,10 @@
       {
         "speaker": "doctor",
         "text": "确认袁彤病历已保存，提醒已取消。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -10786,6 +11638,10 @@
       {
         "speaker": "doctor",
         "text": "确认程彤慧病历已保存，提醒已取消。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -10831,6 +11687,10 @@
       {
         "speaker": "doctor",
         "text": "确认冯辉健病历已保存，提醒已取消。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -10876,6 +11736,10 @@
       {
         "speaker": "doctor",
         "text": "确认彭峰博病历已保存，提醒已取消。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -10921,6 +11785,10 @@
       {
         "speaker": "doctor",
         "text": "确认魏芳病历已保存，提醒已取消。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -10966,6 +11834,10 @@
       {
         "speaker": "doctor",
         "text": "确认吴彤病历已保存，提醒已取消。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -11011,6 +11883,10 @@
       {
         "speaker": "doctor",
         "text": "确认胡伟病历已保存，提醒已取消。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -11056,6 +11932,10 @@
       {
         "speaker": "doctor",
         "text": "确认冯翔宇病历已保存，提醒已取消。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -11097,6 +11977,10 @@
       {
         "speaker": "doctor",
         "text": "确认卢辉昊，男，74岁，请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -11139,6 +12023,10 @@
       {
         "speaker": "doctor",
         "text": "确认孙飞，男，39岁，请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -11181,6 +12069,10 @@
       {
         "speaker": "doctor",
         "text": "确认唐龙，男，75岁，创建保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -11223,6 +12115,10 @@
       {
         "speaker": "doctor",
         "text": "确认张芳莉，女，34岁，创建保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -11265,6 +12161,10 @@
       {
         "speaker": "doctor",
         "text": "确认马梅，女，62岁，请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -11307,6 +12207,10 @@
       {
         "speaker": "doctor",
         "text": "确认周心，女，45岁，创建保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -11349,6 +12253,10 @@
       {
         "speaker": "doctor",
         "text": "确认黄浩帆，男，69岁，请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -11391,6 +12299,10 @@
       {
         "speaker": "doctor",
         "text": "确认丁洁慧，女，78岁，请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -11433,6 +12345,10 @@
       {
         "speaker": "doctor",
         "text": "确认沈悦，女，39岁，创建保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -11475,6 +12391,10 @@
       {
         "speaker": "doctor",
         "text": "确认于云燕，女，70岁，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -11517,6 +12437,10 @@
       {
         "speaker": "doctor",
         "text": "确认孙强，男，43岁，请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -11559,6 +12483,10 @@
       {
         "speaker": "doctor",
         "text": "确认何鹏威，男，45岁，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -11601,6 +12529,10 @@
       {
         "speaker": "doctor",
         "text": "确认罗琳，女，28岁，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -11643,6 +12575,10 @@
       {
         "speaker": "doctor",
         "text": "确认卢颖，女，31岁，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -11685,6 +12621,10 @@
       {
         "speaker": "doctor",
         "text": "确认萧明凯，男，60岁，请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -11727,6 +12667,10 @@
       {
         "speaker": "doctor",
         "text": "确认贾静，女，46岁，创建保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -11769,6 +12713,10 @@
       {
         "speaker": "doctor",
         "text": "确认吕华敏，女，58岁，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -11811,6 +12759,10 @@
       {
         "speaker": "doctor",
         "text": "确认萧昊，男，51岁，创建保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -11853,6 +12805,10 @@
       {
         "speaker": "doctor",
         "text": "确认贾蕾，女，76岁，创建保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -11895,6 +12851,10 @@
       {
         "speaker": "doctor",
         "text": "确认叶涛，男，66岁，请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -11941,6 +12901,10 @@
       {
         "speaker": "doctor",
         "text": "创建存档 吕雯。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -11987,6 +12951,10 @@
       {
         "speaker": "doctor",
         "text": "创建存档 朱磊芳。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -12033,6 +13001,10 @@
       {
         "speaker": "doctor",
         "text": "创建存档 林昊帆。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -12079,6 +13051,10 @@
       {
         "speaker": "doctor",
         "text": "创建存档 叶奇。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -12125,6 +13101,10 @@
       {
         "speaker": "doctor",
         "text": "创建存档 高彤。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -12171,6 +13151,10 @@
       {
         "speaker": "doctor",
         "text": "创建存档 沈莉。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -12217,6 +13201,10 @@
       {
         "speaker": "doctor",
         "text": "创建存档 林丽。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -12263,6 +13251,10 @@
       {
         "speaker": "doctor",
         "text": "创建存档 冯明坚。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -12309,6 +13301,10 @@
       {
         "speaker": "doctor",
         "text": "创建存档 苏凯。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -12355,6 +13351,10 @@
       {
         "speaker": "doctor",
         "text": "创建存档 郑博。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -12401,6 +13401,10 @@
       {
         "speaker": "doctor",
         "text": "创建存档 贾萍。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -12447,6 +13451,10 @@
       {
         "speaker": "doctor",
         "text": "创建存档 孙雯。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -12493,6 +13501,10 @@
       {
         "speaker": "doctor",
         "text": "创建存档 罗奇。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -12539,6 +13551,10 @@
       {
         "speaker": "doctor",
         "text": "创建存档 刘蕾。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -12585,6 +13601,10 @@
       {
         "speaker": "doctor",
         "text": "创建存档 韩涛浩。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -12631,6 +13651,10 @@
       {
         "speaker": "doctor",
         "text": "创建存档 董奇坚。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -12677,6 +13701,10 @@
       {
         "speaker": "doctor",
         "text": "创建存档 刘超锋。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -12723,6 +13751,10 @@
       {
         "speaker": "doctor",
         "text": "创建存档 陈杰。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -12769,6 +13801,10 @@
       {
         "speaker": "doctor",
         "text": "创建存档 程杰。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -12815,6 +13851,10 @@
       {
         "speaker": "doctor",
         "text": "创建存档 王婷。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -12861,6 +13901,10 @@
       {
         "speaker": "doctor",
         "text": "确认创建并保存蒋玲蕾。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -12907,6 +13951,10 @@
       {
         "speaker": "doctor",
         "text": "确认创建并保存王芳。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -12953,6 +14001,10 @@
       {
         "speaker": "doctor",
         "text": "确认创建并保存李云。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -12999,6 +14051,10 @@
       {
         "speaker": "doctor",
         "text": "确认创建并保存孙静。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -13045,6 +14101,10 @@
       {
         "speaker": "doctor",
         "text": "确认创建并保存林杰。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -13091,6 +14151,10 @@
       {
         "speaker": "doctor",
         "text": "确认创建并保存郭倩颖。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -13137,6 +14201,10 @@
       {
         "speaker": "doctor",
         "text": "确认创建并保存沈华。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -13183,6 +14251,10 @@
       {
         "speaker": "doctor",
         "text": "确认创建并保存蔡彤。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -13229,6 +14301,10 @@
       {
         "speaker": "doctor",
         "text": "确认创建并保存杨鹏坚。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -13275,6 +14351,10 @@
       {
         "speaker": "doctor",
         "text": "确认创建并保存苏伟。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -13321,6 +14401,10 @@
       {
         "speaker": "doctor",
         "text": "确认创建并保存于晴。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -13367,6 +14451,10 @@
       {
         "speaker": "doctor",
         "text": "确认创建并保存邓鑫杰。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -13413,6 +14501,10 @@
       {
         "speaker": "doctor",
         "text": "确认创建并保存郭霞。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -13459,6 +14551,10 @@
       {
         "speaker": "doctor",
         "text": "确认创建并保存许琳。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -13505,6 +14601,10 @@
       {
         "speaker": "doctor",
         "text": "确认创建并保存李婷。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -13551,6 +14651,10 @@
       {
         "speaker": "doctor",
         "text": "确认创建并保存陈丽华。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -13597,6 +14701,10 @@
       {
         "speaker": "doctor",
         "text": "确认创建并保存蔡月。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -13643,6 +14751,10 @@
       {
         "speaker": "doctor",
         "text": "确认创建并保存贾昊昊。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -13689,6 +14801,10 @@
       {
         "speaker": "doctor",
         "text": "确认创建并保存赵飞磊。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -13735,6 +14851,10 @@
       {
         "speaker": "doctor",
         "text": "确认创建并保存阎慧雪。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -13789,6 +14909,10 @@
       {
         "speaker": "doctor",
         "text": "确认徐敏雪档案及病历已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -13843,6 +14967,10 @@
       {
         "speaker": "doctor",
         "text": "确认陈军档案及病历已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -13897,6 +15025,10 @@
       {
         "speaker": "doctor",
         "text": "确认程倩雪档案及病历已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -13951,6 +15083,10 @@
       {
         "speaker": "doctor",
         "text": "确认彭莉静档案及病历已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -14005,6 +15141,10 @@
       {
         "speaker": "doctor",
         "text": "确认王燕莉档案及病历已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -14059,6 +15199,10 @@
       {
         "speaker": "doctor",
         "text": "确认董慧档案及病历已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -14113,6 +15257,10 @@
       {
         "speaker": "doctor",
         "text": "确认罗浩档案及病历已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -14167,6 +15315,10 @@
       {
         "speaker": "doctor",
         "text": "确认程浩鹏档案及病历已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -14221,6 +15373,10 @@
       {
         "speaker": "doctor",
         "text": "确认薛欣档案及病历已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -14275,6 +15431,10 @@
       {
         "speaker": "doctor",
         "text": "确认梁鹏龙档案及病历已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -14329,6 +15489,10 @@
       {
         "speaker": "doctor",
         "text": "确认黄蝶档案及病历已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -14383,6 +15547,10 @@
       {
         "speaker": "doctor",
         "text": "确认蔡威档案及病历已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -14437,6 +15605,10 @@
       {
         "speaker": "doctor",
         "text": "确认丁婷档案及病历已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -14491,6 +15663,10 @@
       {
         "speaker": "doctor",
         "text": "确认冯凯档案及病历已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -14545,6 +15721,10 @@
       {
         "speaker": "doctor",
         "text": "确认林雪档案及病历已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -14599,6 +15779,10 @@
       {
         "speaker": "doctor",
         "text": "确认韩娜档案及病历已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -14653,6 +15837,10 @@
       {
         "speaker": "doctor",
         "text": "确认曾燕档案及病历已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -14707,6 +15895,10 @@
       {
         "speaker": "doctor",
         "text": "确认许霞档案及病历已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -14761,6 +15953,10 @@
       {
         "speaker": "doctor",
         "text": "确认赵威凯档案及病历已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -14815,6 +16011,10 @@
       {
         "speaker": "doctor",
         "text": "确认卢锋博档案及病历已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -14861,6 +16061,10 @@
       {
         "speaker": "doctor",
         "text": "确认冯莉燕出院小结已归档，随访时间已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -14907,6 +16111,10 @@
       {
         "speaker": "doctor",
         "text": "确认曹博出院小结已归档，随访时间已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -14953,6 +16161,10 @@
       {
         "speaker": "doctor",
         "text": "确认傅军出院小结已归档，随访时间已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -14999,6 +16211,10 @@
       {
         "speaker": "doctor",
         "text": "确认梁阳出院小结已归档，随访时间已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -15045,6 +16261,10 @@
       {
         "speaker": "doctor",
         "text": "确认王玲彤出院小结已归档，随访时间已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -15091,6 +16311,10 @@
       {
         "speaker": "doctor",
         "text": "确认冯悦出院小结已归档，随访时间已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -15137,6 +16361,10 @@
       {
         "speaker": "doctor",
         "text": "确认曹洁芳出院小结已归档，随访时间已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -15183,6 +16411,10 @@
       {
         "speaker": "doctor",
         "text": "确认马芳坚出院小结已归档，随访时间已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -15229,6 +16461,10 @@
       {
         "speaker": "doctor",
         "text": "确认阎帆出院小结已归档，随访时间已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -15275,6 +16511,10 @@
       {
         "speaker": "doctor",
         "text": "确认傅云静出院小结已归档，随访时间已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -15321,6 +16561,10 @@
       {
         "speaker": "doctor",
         "text": "确认许彤出院小结已归档，随访时间已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -15367,6 +16611,10 @@
       {
         "speaker": "doctor",
         "text": "确认许婷出院小结已归档，随访时间已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -15413,6 +16661,10 @@
       {
         "speaker": "doctor",
         "text": "确认罗奇出院小结已归档，随访时间已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -15459,6 +16711,10 @@
       {
         "speaker": "doctor",
         "text": "确认郑心出院小结已归档，随访时间已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -15505,6 +16761,10 @@
       {
         "speaker": "doctor",
         "text": "确认阎龙龙出院小结已归档，随访时间已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -15551,6 +16811,10 @@
       {
         "speaker": "doctor",
         "text": "确认丁莉出院小结已归档，随访时间已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -15597,6 +16861,10 @@
       {
         "speaker": "doctor",
         "text": "确认朱阳芳出院小结已归档，随访时间已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -15643,6 +16911,10 @@
       {
         "speaker": "doctor",
         "text": "确认许雪出院小结已归档，随访时间已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -15689,6 +16961,10 @@
       {
         "speaker": "doctor",
         "text": "确认丁丽雪出院小结已归档，随访时间已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -15735,6 +17011,10 @@
       {
         "speaker": "doctor",
         "text": "确认周威出院小结已归档，随访时间已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -15781,6 +17061,10 @@
       {
         "speaker": "doctor",
         "text": "确认王萍欣更新后的化验结果已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -15827,6 +17111,10 @@
       {
         "speaker": "doctor",
         "text": "确认徐心更新后的化验结果已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -15873,6 +17161,10 @@
       {
         "speaker": "doctor",
         "text": "确认卢亮亮更新后的化验结果已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -15919,6 +17211,10 @@
       {
         "speaker": "doctor",
         "text": "确认刘鹏更新后的化验结果已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -15965,6 +17261,10 @@
       {
         "speaker": "doctor",
         "text": "确认于博勇更新后的化验结果已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -16011,6 +17311,10 @@
       {
         "speaker": "doctor",
         "text": "确认程磊涛更新后的化验结果已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -16057,6 +17361,10 @@
       {
         "speaker": "doctor",
         "text": "确认王芳更新后的化验结果已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -16103,6 +17411,10 @@
       {
         "speaker": "doctor",
         "text": "确认于翔磊更新后的化验结果已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -16149,6 +17461,10 @@
       {
         "speaker": "doctor",
         "text": "确认杨怡更新后的化验结果已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -16195,6 +17511,10 @@
       {
         "speaker": "doctor",
         "text": "确认谢月燕更新后的化验结果已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -16241,6 +17561,10 @@
       {
         "speaker": "doctor",
         "text": "确认卢凯宇更新后的化验结果已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -16287,6 +17611,10 @@
       {
         "speaker": "doctor",
         "text": "确认吕博亮更新后的化验结果已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -16333,6 +17661,10 @@
       {
         "speaker": "doctor",
         "text": "确认苏昊飞更新后的化验结果已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -16379,6 +17711,10 @@
       {
         "speaker": "doctor",
         "text": "确认朱娜更新后的化验结果已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -16425,6 +17761,10 @@
       {
         "speaker": "doctor",
         "text": "确认曾昊飞更新后的化验结果已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -16471,6 +17811,10 @@
       {
         "speaker": "doctor",
         "text": "确认林超更新后的化验结果已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -16517,6 +17861,10 @@
       {
         "speaker": "doctor",
         "text": "确认阎欣心更新后的化验结果已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -16563,6 +17911,10 @@
       {
         "speaker": "doctor",
         "text": "确认朱云更新后的化验结果已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -16609,6 +17961,10 @@
       {
         "speaker": "doctor",
         "text": "确认马晴月更新后的化验结果已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -16655,6 +18011,10 @@
       {
         "speaker": "doctor",
         "text": "确认曹鹏峰更新后的化验结果已保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -16701,6 +18061,10 @@
       {
         "speaker": "doctor",
         "text": "确认张峰鑫过敏史已记录，病历保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -16747,6 +18111,10 @@
       {
         "speaker": "doctor",
         "text": "确认张坚过敏史已记录，病历保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -16793,6 +18161,10 @@
       {
         "speaker": "doctor",
         "text": "确认高慧蝶过敏史已记录，病历保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -16839,6 +18211,10 @@
       {
         "speaker": "doctor",
         "text": "确认郭彤颖过敏史已记录，病历保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -16885,6 +18261,10 @@
       {
         "speaker": "doctor",
         "text": "确认孙涛过敏史已记录，病历保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -16931,6 +18311,10 @@
       {
         "speaker": "doctor",
         "text": "确认陈月过敏史已记录，病历保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -16977,6 +18361,10 @@
       {
         "speaker": "doctor",
         "text": "确认梁娜过敏史已记录，病历保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -17023,6 +18411,10 @@
       {
         "speaker": "doctor",
         "text": "确认胡丽过敏史已记录，病历保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -17069,6 +18461,10 @@
       {
         "speaker": "doctor",
         "text": "确认萧亮过敏史已记录，病历保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -17115,6 +18511,10 @@
       {
         "speaker": "doctor",
         "text": "确认魏健过敏史已记录，病历保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -17161,6 +18561,10 @@
       {
         "speaker": "doctor",
         "text": "确认吴伟过敏史已记录，病历保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -17207,6 +18611,10 @@
       {
         "speaker": "doctor",
         "text": "确认许亮过敏史已记录，病历保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -17253,6 +18661,10 @@
       {
         "speaker": "doctor",
         "text": "确认宋伟过敏史已记录，病历保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -17299,6 +18711,10 @@
       {
         "speaker": "doctor",
         "text": "确认赵婷过敏史已记录，病历保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -17345,6 +18761,10 @@
       {
         "speaker": "doctor",
         "text": "确认曹霞过敏史已记录，病历保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -17391,6 +18811,10 @@
       {
         "speaker": "doctor",
         "text": "确认杨霞过敏史已记录，病历保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -17437,6 +18861,10 @@
       {
         "speaker": "doctor",
         "text": "确认贾月怡过敏史已记录，病历保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -17483,6 +18911,10 @@
       {
         "speaker": "doctor",
         "text": "确认袁强过敏史已记录，病历保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -17529,6 +18961,10 @@
       {
         "speaker": "doctor",
         "text": "确认曾辉凯过敏史已记录，病历保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -17575,6 +19011,10 @@
       {
         "speaker": "doctor",
         "text": "确认马超过敏史已记录，病历保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -17625,6 +19065,10 @@
       {
         "speaker": "doctor",
         "text": "保存魏燕本次复诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -17675,6 +19119,10 @@
       {
         "speaker": "doctor",
         "text": "保存孙颖洁本次复诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -17725,6 +19173,10 @@
       {
         "speaker": "doctor",
         "text": "保存董月莉本次复诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -17775,6 +19227,10 @@
       {
         "speaker": "doctor",
         "text": "保存卢明本次复诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -17825,6 +19281,10 @@
       {
         "speaker": "doctor",
         "text": "保存刘娜敏本次复诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -17875,6 +19335,10 @@
       {
         "speaker": "doctor",
         "text": "保存卢健本次复诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -17925,6 +19389,10 @@
       {
         "speaker": "doctor",
         "text": "保存韩龙本次复诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -17975,6 +19443,10 @@
       {
         "speaker": "doctor",
         "text": "保存郑蝶本次复诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -18025,6 +19497,10 @@
       {
         "speaker": "doctor",
         "text": "保存郭洁莉本次复诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -18075,6 +19551,10 @@
       {
         "speaker": "doctor",
         "text": "保存阎超峰本次复诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -18125,6 +19605,10 @@
       {
         "speaker": "doctor",
         "text": "保存阎琳本次复诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -18175,6 +19659,10 @@
       {
         "speaker": "doctor",
         "text": "保存林凯坚本次复诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -18225,6 +19713,10 @@
       {
         "speaker": "doctor",
         "text": "保存叶涛本次复诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -18275,6 +19767,10 @@
       {
         "speaker": "doctor",
         "text": "保存孙涛本次复诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -18325,6 +19821,10 @@
       {
         "speaker": "doctor",
         "text": "保存曾芳本次复诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -18375,6 +19875,10 @@
       {
         "speaker": "doctor",
         "text": "保存沈杰本次复诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -18425,6 +19929,10 @@
       {
         "speaker": "doctor",
         "text": "保存许丽霞本次复诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -18475,6 +19983,10 @@
       {
         "speaker": "doctor",
         "text": "保存高锋宇本次复诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -18525,6 +20037,10 @@
       {
         "speaker": "doctor",
         "text": "保存宋鑫本次复诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -18575,6 +20091,10 @@
       {
         "speaker": "doctor",
         "text": "保存宋翔龙本次复诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -18621,6 +20141,10 @@
       {
         "speaker": "doctor",
         "text": "更新后确认蒋丽静，女，31岁，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -18667,6 +20191,10 @@
       {
         "speaker": "doctor",
         "text": "更新后确认沈蕾，女，37岁，请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -18713,6 +20241,10 @@
       {
         "speaker": "doctor",
         "text": "更新后确认谢伟，男，46岁，请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -18759,6 +20291,10 @@
       {
         "speaker": "doctor",
         "text": "更新后确认胡静洁，女，68岁，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -18805,6 +20341,10 @@
       {
         "speaker": "doctor",
         "text": "更新后确认杨玲，女，47岁，请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -18851,6 +20391,10 @@
       {
         "speaker": "doctor",
         "text": "更新后确认程玲，女，44岁，创建保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -18897,6 +20441,10 @@
       {
         "speaker": "doctor",
         "text": "更新后确认卢坚亮，男，52岁，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -18943,6 +20491,10 @@
       {
         "speaker": "doctor",
         "text": "更新后确认孙梅梅，女，57岁，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -18989,6 +20541,10 @@
       {
         "speaker": "doctor",
         "text": "更新后确认高彤霞，女，37岁，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -19035,6 +20591,10 @@
       {
         "speaker": "doctor",
         "text": "更新后确认杨凯坚，男，54岁，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -19081,6 +20641,10 @@
       {
         "speaker": "doctor",
         "text": "更新后确认傅芳，男，80岁，创建保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -19127,6 +20691,10 @@
       {
         "speaker": "doctor",
         "text": "更新后确认许悦，女，58岁，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -19173,6 +20741,10 @@
       {
         "speaker": "doctor",
         "text": "更新后确认程明健，男，73岁，创建保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -19219,6 +20791,10 @@
       {
         "speaker": "doctor",
         "text": "更新后确认袁辉，男，79岁，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -19265,6 +20841,10 @@
       {
         "speaker": "doctor",
         "text": "更新后确认黄威，男，38岁，请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -19311,6 +20891,10 @@
       {
         "speaker": "doctor",
         "text": "更新后确认胡强磊，男，71岁，请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -19357,6 +20941,10 @@
       {
         "speaker": "doctor",
         "text": "更新后确认胡彤，女，66岁，创建保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -19403,6 +20991,10 @@
       {
         "speaker": "doctor",
         "text": "更新后确认梁蝶，女，79岁，创建保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -19449,6 +21041,10 @@
       {
         "speaker": "doctor",
         "text": "更新后确认杨鹏，男，63岁，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -19495,6 +21091,10 @@
       {
         "speaker": "doctor",
         "text": "更新后确认郭云，女，28岁，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -19541,6 +21141,10 @@
       {
         "speaker": "doctor",
         "text": "确认袁燕档案及复查提醒已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -19587,6 +21191,10 @@
       {
         "speaker": "doctor",
         "text": "确认林亮档案及复查提醒已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -19633,6 +21241,10 @@
       {
         "speaker": "doctor",
         "text": "确认程辉档案及复查提醒已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -19679,6 +21291,10 @@
       {
         "speaker": "doctor",
         "text": "确认何昊档案及复查提醒已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -19725,6 +21341,10 @@
       {
         "speaker": "doctor",
         "text": "确认李燕心档案及复查提醒已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -19771,6 +21391,10 @@
       {
         "speaker": "doctor",
         "text": "确认高博杰档案及复查提醒已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -19817,6 +21441,10 @@
       {
         "speaker": "doctor",
         "text": "确认袁芳档案及复查提醒已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -19863,6 +21491,10 @@
       {
         "speaker": "doctor",
         "text": "确认程鑫军档案及复查提醒已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -19909,6 +21541,10 @@
       {
         "speaker": "doctor",
         "text": "确认高超档案及复查提醒已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -19955,6 +21591,10 @@
       {
         "speaker": "doctor",
         "text": "确认于月颖档案及复查提醒已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -20001,6 +21641,10 @@
       {
         "speaker": "doctor",
         "text": "确认朱梅云档案及复查提醒已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -20047,6 +21691,10 @@
       {
         "speaker": "doctor",
         "text": "确认曾静悦档案及复查提醒已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -20093,6 +21741,10 @@
       {
         "speaker": "doctor",
         "text": "确认罗悦娜档案及复查提醒已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -20139,6 +21791,10 @@
       {
         "speaker": "doctor",
         "text": "确认苏慧档案及复查提醒已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -20185,6 +21841,10 @@
       {
         "speaker": "doctor",
         "text": "确认胡敏档案及复查提醒已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -20231,6 +21891,10 @@
       {
         "speaker": "doctor",
         "text": "确认彭鹏档案及复查提醒已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -20277,6 +21941,10 @@
       {
         "speaker": "doctor",
         "text": "确认魏伟档案及复查提醒已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -20323,6 +21991,10 @@
       {
         "speaker": "doctor",
         "text": "确认冯燕霞档案及复查提醒已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -20369,6 +22041,10 @@
       {
         "speaker": "doctor",
         "text": "确认宋昊档案及复查提醒已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -20415,6 +22091,10 @@
       {
         "speaker": "doctor",
         "text": "确认蒋颖档案及复查提醒已设置。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -20457,6 +22137,10 @@
       {
         "speaker": "doctor",
         "text": "确认更正后宋健的数据，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -20499,6 +22183,10 @@
       {
         "speaker": "doctor",
         "text": "确认更正后徐鑫的数据，请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -20541,6 +22229,10 @@
       {
         "speaker": "doctor",
         "text": "确认更正后高涛的数据，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -20583,6 +22275,10 @@
       {
         "speaker": "doctor",
         "text": "确认更正后魏伟的数据，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -20625,6 +22321,10 @@
       {
         "speaker": "doctor",
         "text": "确认更正后谢翔的数据，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -20667,6 +22367,10 @@
       {
         "speaker": "doctor",
         "text": "确认更正后苏雪的数据，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -20709,6 +22413,10 @@
       {
         "speaker": "doctor",
         "text": "确认更正后彭芳的数据，请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -20751,6 +22459,10 @@
       {
         "speaker": "doctor",
         "text": "确认更正后刘翔帆的数据，请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -20793,6 +22505,10 @@
       {
         "speaker": "doctor",
         "text": "确认更正后傅超的数据，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -20835,6 +22551,10 @@
       {
         "speaker": "doctor",
         "text": "确认更正后贾凯的数据，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -20877,6 +22597,10 @@
       {
         "speaker": "doctor",
         "text": "确认更正后蒋静的数据，请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -20919,6 +22643,10 @@
       {
         "speaker": "doctor",
         "text": "确认更正后冯阳的数据，请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -20961,6 +22689,10 @@
       {
         "speaker": "doctor",
         "text": "确认更正后马勇的数据，请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -21003,6 +22735,10 @@
       {
         "speaker": "doctor",
         "text": "确认更正后彭杰的数据，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -21045,6 +22781,10 @@
       {
         "speaker": "doctor",
         "text": "确认更正后郑翔的数据，请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -21087,6 +22827,10 @@
       {
         "speaker": "doctor",
         "text": "确认更正后傅峰的数据，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -21129,6 +22873,10 @@
       {
         "speaker": "doctor",
         "text": "确认更正后宋华悦的数据，创建保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -21171,6 +22919,10 @@
       {
         "speaker": "doctor",
         "text": "确认更正后沈凯的数据，请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -21213,6 +22965,10 @@
       {
         "speaker": "doctor",
         "text": "确认更正后魏昊超的数据，请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -21255,6 +23011,10 @@
       {
         "speaker": "doctor",
         "text": "确认更正后萧明芳的数据，请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -21301,6 +23061,10 @@
       {
         "speaker": "doctor",
         "text": "保存董慧玲复诊记录及过敏史更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -21347,6 +23111,10 @@
       {
         "speaker": "doctor",
         "text": "保存赵鹏复诊记录及过敏史更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -21393,6 +23161,10 @@
       {
         "speaker": "doctor",
         "text": "保存杨龙复诊记录及过敏史更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -21439,6 +23211,10 @@
       {
         "speaker": "doctor",
         "text": "保存袁蕾悦复诊记录及过敏史更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -21485,6 +23261,10 @@
       {
         "speaker": "doctor",
         "text": "保存谢彤华复诊记录及过敏史更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -21531,6 +23311,10 @@
       {
         "speaker": "doctor",
         "text": "保存傅雯复诊记录及过敏史更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -21577,6 +23361,10 @@
       {
         "speaker": "doctor",
         "text": "保存丁梅雯复诊记录及过敏史更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -21623,6 +23411,10 @@
       {
         "speaker": "doctor",
         "text": "保存王浩博复诊记录及过敏史更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -21669,6 +23461,10 @@
       {
         "speaker": "doctor",
         "text": "保存傅云静复诊记录及过敏史更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -21715,6 +23511,10 @@
       {
         "speaker": "doctor",
         "text": "保存曹强复诊记录及过敏史更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -21761,6 +23561,10 @@
       {
         "speaker": "doctor",
         "text": "保存赵雪复诊记录及过敏史更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -21807,6 +23611,10 @@
       {
         "speaker": "doctor",
         "text": "保存唐杰复诊记录及过敏史更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -21853,6 +23661,10 @@
       {
         "speaker": "doctor",
         "text": "保存丁浩飞复诊记录及过敏史更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -21899,6 +23711,10 @@
       {
         "speaker": "doctor",
         "text": "保存阎健复诊记录及过敏史更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -21945,6 +23761,10 @@
       {
         "speaker": "doctor",
         "text": "保存曹伟复诊记录及过敏史更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -21991,6 +23811,10 @@
       {
         "speaker": "doctor",
         "text": "保存曾玲复诊记录及过敏史更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -22037,6 +23861,10 @@
       {
         "speaker": "doctor",
         "text": "保存贾辉阳复诊记录及过敏史更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -22083,6 +23911,10 @@
       {
         "speaker": "doctor",
         "text": "保存韩凯复诊记录及过敏史更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -22129,6 +23961,10 @@
       {
         "speaker": "doctor",
         "text": "保存冯莉复诊记录及过敏史更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -22175,6 +24011,10 @@
       {
         "speaker": "doctor",
         "text": "保存郭鹏复诊记录及过敏史更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -22225,6 +24065,10 @@
       {
         "speaker": "doctor",
         "text": "确认张强出院信息及病历归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -22275,6 +24119,10 @@
       {
         "speaker": "doctor",
         "text": "确认阎鑫出院信息及病历归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -22325,6 +24173,10 @@
       {
         "speaker": "doctor",
         "text": "确认曹倩出院信息及病历归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -22375,6 +24227,10 @@
       {
         "speaker": "doctor",
         "text": "确认丁浩出院信息及病历归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -22425,6 +24281,10 @@
       {
         "speaker": "doctor",
         "text": "确认袁军出院信息及病历归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -22475,6 +24335,10 @@
       {
         "speaker": "doctor",
         "text": "确认杨颖婷出院信息及病历归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -22525,6 +24389,10 @@
       {
         "speaker": "doctor",
         "text": "确认宋颖雯出院信息及病历归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -22575,6 +24443,10 @@
       {
         "speaker": "doctor",
         "text": "确认傅彤出院信息及病历归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -22625,6 +24497,10 @@
       {
         "speaker": "doctor",
         "text": "确认黄凯涛出院信息及病历归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -22675,6 +24551,10 @@
       {
         "speaker": "doctor",
         "text": "确认张凯出院信息及病历归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -22725,6 +24605,10 @@
       {
         "speaker": "doctor",
         "text": "确认韩超出院信息及病历归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -22775,6 +24659,10 @@
       {
         "speaker": "doctor",
         "text": "确认邓阳出院信息及病历归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -22825,6 +24713,10 @@
       {
         "speaker": "doctor",
         "text": "确认曹霞晴出院信息及病历归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -22875,6 +24767,10 @@
       {
         "speaker": "doctor",
         "text": "确认袁娜出院信息及病历归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -22925,6 +24821,10 @@
       {
         "speaker": "doctor",
         "text": "确认苏磊博出院信息及病历归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -22975,6 +24875,10 @@
       {
         "speaker": "doctor",
         "text": "确认蔡飞出院信息及病历归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -23025,6 +24929,10 @@
       {
         "speaker": "doctor",
         "text": "确认卢彤出院信息及病历归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -23075,6 +24983,10 @@
       {
         "speaker": "doctor",
         "text": "确认李帆出院信息及病历归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -23125,6 +25037,10 @@
       {
         "speaker": "doctor",
         "text": "确认陈芳超出院信息及病历归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -23175,6 +25091,10 @@
       {
         "speaker": "doctor",
         "text": "确认沈阳超出院信息及病历归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -23229,6 +25149,10 @@
       {
         "speaker": "doctor",
         "text": "确认胡浩病历已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -23283,6 +25207,10 @@
       {
         "speaker": "doctor",
         "text": "确认贾琳琳病历已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -23337,6 +25265,10 @@
       {
         "speaker": "doctor",
         "text": "确认于洁华病历已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -23391,6 +25323,10 @@
       {
         "speaker": "doctor",
         "text": "确认丁昊病历已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -23445,6 +25381,10 @@
       {
         "speaker": "doctor",
         "text": "确认周悦病历已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -23499,6 +25439,10 @@
       {
         "speaker": "doctor",
         "text": "确认董颖病历已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -23553,6 +25497,10 @@
       {
         "speaker": "doctor",
         "text": "确认孙博病历已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -23607,6 +25555,10 @@
       {
         "speaker": "doctor",
         "text": "确认许杰健病历已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -23661,6 +25613,10 @@
       {
         "speaker": "doctor",
         "text": "确认魏磊病历已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -23715,6 +25671,10 @@
       {
         "speaker": "doctor",
         "text": "确认曾辉病历已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -23769,6 +25729,10 @@
       {
         "speaker": "doctor",
         "text": "确认张坚健病历已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -23823,6 +25787,10 @@
       {
         "speaker": "doctor",
         "text": "确认卢雯燕病历已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -23877,6 +25845,10 @@
       {
         "speaker": "doctor",
         "text": "确认周梅病历已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -23931,6 +25903,10 @@
       {
         "speaker": "doctor",
         "text": "确认谢云华病历已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -23985,6 +25961,10 @@
       {
         "speaker": "doctor",
         "text": "确认叶宇军病历已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -24039,6 +26019,10 @@
       {
         "speaker": "doctor",
         "text": "确认薛昊病历已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -24093,6 +26077,10 @@
       {
         "speaker": "doctor",
         "text": "确认高威病历已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -24147,6 +26135,10 @@
       {
         "speaker": "doctor",
         "text": "确认谢华婷病历已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -24201,6 +26193,10 @@
       {
         "speaker": "doctor",
         "text": "确认韩玲病历已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -24255,6 +26251,10 @@
       {
         "speaker": "doctor",
         "text": "确认卢浩宇病历已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -24309,6 +26309,10 @@
       {
         "speaker": "doctor",
         "text": "确认韩鹏伟病历已保存，任务状态更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -24362,6 +26366,10 @@
       {
         "speaker": "doctor",
         "text": "确认吴莉玲病历已保存，任务状态更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -24415,6 +26423,10 @@
       {
         "speaker": "doctor",
         "text": "确认许宇病历已保存，任务状态更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -24468,6 +26480,10 @@
       {
         "speaker": "doctor",
         "text": "确认蒋敏病历已保存，任务状态更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -24521,6 +26537,10 @@
       {
         "speaker": "doctor",
         "text": "确认阎凯病历已保存，任务状态更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -24574,6 +26594,10 @@
       {
         "speaker": "doctor",
         "text": "确认谢心云病历已保存，任务状态更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -24627,6 +26651,10 @@
       {
         "speaker": "doctor",
         "text": "确认程龙病历已保存，任务状态更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -24680,6 +26708,10 @@
       {
         "speaker": "doctor",
         "text": "确认于强威病历已保存，任务状态更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -24733,6 +26765,10 @@
       {
         "speaker": "doctor",
         "text": "确认马锋病历已保存，任务状态更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -24786,6 +26822,10 @@
       {
         "speaker": "doctor",
         "text": "确认胡芳病历已保存，任务状态更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -24839,6 +26879,10 @@
       {
         "speaker": "doctor",
         "text": "确认沈宇伟病历已保存，任务状态更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -24892,6 +26936,10 @@
       {
         "speaker": "doctor",
         "text": "确认贾龙亮病历已保存，任务状态更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -24945,6 +26993,10 @@
       {
         "speaker": "doctor",
         "text": "确认于博病历已保存，任务状态更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -24998,6 +27050,10 @@
       {
         "speaker": "doctor",
         "text": "确认沈颖病历已保存，任务状态更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -25051,6 +27107,10 @@
       {
         "speaker": "doctor",
         "text": "确认叶婷病历已保存，任务状态更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -25104,6 +27164,10 @@
       {
         "speaker": "doctor",
         "text": "确认孙颖病历已保存，任务状态更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -25157,6 +27221,10 @@
       {
         "speaker": "doctor",
         "text": "确认罗琳欣病历已保存，任务状态更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -25210,6 +27278,10 @@
       {
         "speaker": "doctor",
         "text": "确认蒋勇病历已保存，任务状态更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -25263,6 +27335,10 @@
       {
         "speaker": "doctor",
         "text": "确认赵杰病历已保存，任务状态更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -25316,6 +27392,10 @@
       {
         "speaker": "doctor",
         "text": "确认傅莉病历已保存，任务状态更新。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -25361,6 +27441,10 @@
       {
         "speaker": "doctor",
         "text": "确认曹月全部信息，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -25407,6 +27491,10 @@
       {
         "speaker": "doctor",
         "text": "确认曹洁全部信息，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -25453,6 +27541,10 @@
       {
         "speaker": "doctor",
         "text": "确认唐华全部信息，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -25499,6 +27591,10 @@
       {
         "speaker": "doctor",
         "text": "确认邓龙全部信息，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -25545,6 +27641,10 @@
       {
         "speaker": "doctor",
         "text": "确认袁亮凯全部信息，请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -25591,6 +27691,10 @@
       {
         "speaker": "doctor",
         "text": "确认萧勇全部信息，请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -25637,6 +27741,10 @@
       {
         "speaker": "doctor",
         "text": "确认贾芳婷全部信息，请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -25683,6 +27791,10 @@
       {
         "speaker": "doctor",
         "text": "确认梁亮全部信息，创建保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -25729,6 +27841,10 @@
       {
         "speaker": "doctor",
         "text": "确认傅超峰全部信息，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -25775,6 +27891,10 @@
       {
         "speaker": "doctor",
         "text": "确认谢洁全部信息，请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -25821,6 +27941,10 @@
       {
         "speaker": "doctor",
         "text": "确认贾雯心全部信息，创建保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -25867,6 +27991,10 @@
       {
         "speaker": "doctor",
         "text": "确认董洁全部信息，请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -25913,6 +28041,10 @@
       {
         "speaker": "doctor",
         "text": "确认赵昊涛全部信息，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -25959,6 +28091,10 @@
       {
         "speaker": "doctor",
         "text": "确认韩婷怡全部信息，请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -26005,6 +28141,10 @@
       {
         "speaker": "doctor",
         "text": "确认王洁全部信息，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -26051,6 +28191,10 @@
       {
         "speaker": "doctor",
         "text": "确认曹丽心全部信息，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -26097,6 +28241,10 @@
       {
         "speaker": "doctor",
         "text": "确认唐勇全部信息，请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -26143,6 +28291,10 @@
       {
         "speaker": "doctor",
         "text": "确认何峰全部信息，请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -26189,6 +28341,10 @@
       {
         "speaker": "doctor",
         "text": "确认薛慧颖全部信息，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -26235,6 +28391,10 @@
       {
         "speaker": "doctor",
         "text": "确认郑芳全部信息，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -26281,6 +28441,10 @@
       {
         "speaker": "doctor",
         "text": "同时更新唐华怡的康复计划记录，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -26327,6 +28491,10 @@
       {
         "speaker": "doctor",
         "text": "同时更新韩华萍的康复计划记录，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -26373,6 +28541,10 @@
       {
         "speaker": "doctor",
         "text": "同时更新邓威的康复计划记录，创建保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -26419,6 +28591,10 @@
       {
         "speaker": "doctor",
         "text": "同时更新马晴的康复计划记录，请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -26465,6 +28641,10 @@
       {
         "speaker": "doctor",
         "text": "同时更新冯婷的康复计划记录，请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -26511,6 +28691,10 @@
       {
         "speaker": "doctor",
         "text": "同时更新马勇的康复计划记录，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -26557,6 +28741,10 @@
       {
         "speaker": "doctor",
         "text": "同时更新郭欣的康复计划记录，创建保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -26603,6 +28791,10 @@
       {
         "speaker": "doctor",
         "text": "同时更新李敏蕾的康复计划记录，请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -26649,6 +28841,10 @@
       {
         "speaker": "doctor",
         "text": "同时更新赵明翔的康复计划记录，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -26695,6 +28891,10 @@
       {
         "speaker": "doctor",
         "text": "同时更新高磊峰的康复计划记录，创建保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -26741,6 +28941,10 @@
       {
         "speaker": "doctor",
         "text": "同时更新冯丽的康复计划记录，请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -26787,6 +28991,10 @@
       {
         "speaker": "doctor",
         "text": "同时更新萧欣的康复计划记录，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -26833,6 +29041,10 @@
       {
         "speaker": "doctor",
         "text": "同时更新叶强威的康复计划记录，确认创建，保存本次就诊记录。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -26879,6 +29091,10 @@
       {
         "speaker": "doctor",
         "text": "同时更新许峰健的康复计划记录，帮我录入并保存病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -26925,6 +29141,10 @@
       {
         "speaker": "doctor",
         "text": "同时更新王静的康复计划记录，请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -26971,6 +29191,10 @@
       {
         "speaker": "doctor",
         "text": "同时更新韩威的康复计划记录，请录入并归档。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -27017,6 +29241,10 @@
       {
         "speaker": "doctor",
         "text": "同时更新胡帆的康复计划记录，创建保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -27063,6 +29291,10 @@
       {
         "speaker": "doctor",
         "text": "同时更新程鹏的康复计划记录，请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -27109,6 +29341,10 @@
       {
         "speaker": "doctor",
         "text": "同时更新徐晴的康复计划记录，请创建并保存本次病历。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -27155,6 +29391,10 @@
       {
         "speaker": "doctor",
         "text": "同时更新何峰的康复计划记录，创建保存。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -27205,6 +29445,10 @@
       {
         "speaker": "doctor",
         "text": "确认赵昊鹏更新记录已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -27255,6 +29499,10 @@
       {
         "speaker": "doctor",
         "text": "确认邓凯博更新记录已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -27305,6 +29553,10 @@
       {
         "speaker": "doctor",
         "text": "确认薛静更新记录已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -27355,6 +29607,10 @@
       {
         "speaker": "doctor",
         "text": "确认蔡梅更新记录已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -27405,6 +29661,10 @@
       {
         "speaker": "doctor",
         "text": "确认徐龙鹏更新记录已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -27455,6 +29715,10 @@
       {
         "speaker": "doctor",
         "text": "确认蒋洁更新记录已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -27505,6 +29769,10 @@
       {
         "speaker": "doctor",
         "text": "确认郑月慧更新记录已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -27555,6 +29823,10 @@
       {
         "speaker": "doctor",
         "text": "确认叶晴更新记录已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -27605,6 +29877,10 @@
       {
         "speaker": "doctor",
         "text": "确认彭华更新记录已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -27655,6 +29931,10 @@
       {
         "speaker": "doctor",
         "text": "确认阎蕾更新记录已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -27705,6 +29985,10 @@
       {
         "speaker": "doctor",
         "text": "确认董梅更新记录已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -27755,6 +30039,10 @@
       {
         "speaker": "doctor",
         "text": "确认马锋强更新记录已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -27805,6 +30093,10 @@
       {
         "speaker": "doctor",
         "text": "确认罗涛浩更新记录已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -27855,6 +30147,10 @@
       {
         "speaker": "doctor",
         "text": "确认傅云更新记录已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -27905,6 +30201,10 @@
       {
         "speaker": "doctor",
         "text": "确认赵芳更新记录已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -27955,6 +30255,10 @@
       {
         "speaker": "doctor",
         "text": "确认何亮更新记录已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -28005,6 +30309,10 @@
       {
         "speaker": "doctor",
         "text": "确认何龙辉更新记录已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -28055,6 +30363,10 @@
       {
         "speaker": "doctor",
         "text": "确认魏磊更新记录已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -28105,6 +30417,10 @@
       {
         "speaker": "doctor",
         "text": "确认孙玲更新记录已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {
@@ -28155,6 +30471,10 @@
       {
         "speaker": "doctor",
         "text": "确认彭博昊更新记录已保存并导出。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认"
       }
     ],
     "expectations": {

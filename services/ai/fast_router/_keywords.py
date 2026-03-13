@@ -25,10 +25,10 @@ _LIST_PATIENTS_EXACT: frozenset[str] = frozenset({
     "再看一下所有患者", "再看一下患者列表",
 })
 
-# Very short triggers — only match if the entire message is exactly these chars
+# Very short triggers — only match if the entire message is exactly these chars.
+# Bare "患者"/"病人" removed — too ambiguous as standalone messages.
 _LIST_PATIENTS_SHORT: frozenset[str] = frozenset({
     "患者列表", "患者名单",
-    "患者", "病人",
 })
 
 _LIST_TASKS_EXACT: frozenset[str] = frozenset({
@@ -44,9 +44,9 @@ _LIST_TASKS_EXACT: frozenset[str] = frozenset({
     "先看下我今天待办事项",
 })
 
+# Bare "任务" removed — too ambiguous as standalone message.
 _LIST_TASKS_SHORT: frozenset[str] = frozenset({
     "待办", "任务列表",
-    "任务",
 })
 
 # ── Domain keywords that must never be treated as patient names ────────────────

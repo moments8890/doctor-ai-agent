@@ -5,10 +5,8 @@ from __future__ import annotations
 from typing import Optional
 
 from services.ai.intent import Intent, IntentResult
-from services.domain.chat_constants import (
-    CLINICAL_CONTENT_HINTS as _CLINICAL_CONTENT_HINTS,
-    REMINDER_IN_MSG_RE as _REMINDER_IN_MSG_RE,
-)
+from services.domain.chat_constants import REMINDER_IN_MSG_RE as _REMINDER_IN_MSG_RE
+from services.domain.compound_normalizer import has_residual_clinical_content
 from services.domain.name_utils import (
     is_valid_patient_name,
     leading_name_with_clinical_context,
@@ -87,8 +85,16 @@ def extract_entities(
     extra = dict(raw.extra_data or {})
 
     # Enrich with content signals for planner compound detection.
-    if any(hint in (text or "") for hint in _CLINICAL_CONTENT_HINTS):
-        extra["has_clinical_content"] = True
+    # Uses residual-text heuristic (compound_normalizer) instead of brittle keyword list.
+    if intent == Intent.create_patient:
+        _has_clinical, _ = has_residual_clinical_content(
+            text or "", raw,
+            patient_name=name_slot.value if name_slot else None,
+            gender=raw.gender,
+            age=raw.age,
+        )
+        if _has_clinical:
+            extra["has_clinical_content"] = True
     if _REMINDER_IN_MSG_RE.search(text or ""):
         extra["has_reminder"] = True
 

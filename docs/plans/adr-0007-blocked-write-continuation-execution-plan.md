@@ -10,9 +10,9 @@ with the smallest safe rollout:
 
 # Status
 
-`In Progress` — Phase 1 complete as of 2026-03-12.
+`Complete` — all five phases landed as of 2026-03-12.
 
-This is an active implementation plan for the ADR, not a dated review.
+This plan now serves as the implementation record for the completed rollout.
 
 # Why this plan exists
 

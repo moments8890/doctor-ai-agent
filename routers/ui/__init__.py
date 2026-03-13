@@ -49,7 +49,16 @@ from db.models import (
 from services.patient.patient_timeline import build_patient_timeline
 from services.auth.rate_limit import enforce_doctor_rate_limit
 from services.observability.audit import audit
-from services.session import get_session, clear_pending_record_id, hydrate_session_state
+from services.session import (
+    get_session,
+    clear_pending_record_id,
+    clear_current_patient,
+    clear_pending_create,
+    clear_candidate_patient,
+    clear_blocked_write_context,
+    hydrate_session_state,
+    persist_session_state,
+)
 from utils.errors import DomainError
 from services.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
 from routers.ui.record_handlers import (
@@ -656,6 +665,46 @@ async def get_working_context(
     }
 
 
+@router.post("/api/manage/clear-context")
+async def clear_context_endpoint(
+    doctor_id: str = Query(...),
+    authorization: str | None = Header(default=None),
+):
+    """Clear all working context for a doctor: current patient, pending draft,
+    blocked write, pending create, candidate patient, and conversation history.
+
+    Called when the user clears the chat in the UI so all state resets.
+    """
+    resolved_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    await hydrate_session_state(resolved_id, write_intent=True)
+    sess = get_session(resolved_id)
+
+    # Abandon pending draft if one exists
+    pending_id = sess.pending_record_id
+    if pending_id:
+        try:
+            async with AsyncSessionLocal() as session:
+                await abandon_pending_record(session, pending_id, doctor_id=resolved_id)
+        except Exception:
+            pass
+        clear_pending_record_id(resolved_id, persist=False)
+
+    # Clear all session state
+    clear_current_patient(resolved_id, persist=False)
+    clear_pending_create(resolved_id, persist=False)
+    clear_candidate_patient(resolved_id)
+    clear_blocked_write_context(resolved_id)
+    sess.conversation_history.clear()
+    sess.interview = None
+    sess.pending_cvd_scale = None
+    sess.patient_not_found_name = None
+
+    # Single persist call for all changes
+    await persist_session_state(resolved_id)
+
+    return {"ok": True}
+
+
 # ---------------------------------------------------------------------------
 # Pending record confirmation endpoints (web UI ↔ AI confirmation gate)
 # ---------------------------------------------------------------------------
@@ -677,9 +726,9 @@ async def get_pending_record_endpoint(
     if pending is None or pending.status != "awaiting":
         clear_pending_record_id(resolved_id)
         return None
-    # Check expiry
-    now = datetime.now(timezone.utc)
-    if pending.expires_at and pending.expires_at < now:
+    # Check expiry (expires_at from SQLite may be naive; compare in same tz)
+    now = datetime.utcnow()
+    if pending.expires_at and pending.expires_at.replace(tzinfo=None) < now:
         clear_pending_record_id(resolved_id)
         return None
     try:

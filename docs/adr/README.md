@@ -34,6 +34,7 @@ Use small, direct records with:
 - [ADR 0006: One Patient Scope Per Turn](0006-one-patient-scope-per-turn.md)
 - [ADR 0007: Stateful Blocked-Write Continuations](0007-stateful-blocked-write-continuations.md)
 - [ADR 0008: Minimal Routing and Structuring-Only Note Generation](0008-minimal-routing-and-structuring-only-note-generation.md)
+- [ADR 0009: Modality Normalization at Workflow Entry](0009-modality-normalization-at-workflow-entry.md)
 
 ## Status Values
 
@@ -63,5 +64,6 @@ Current rollout snapshot:
 | [ADR 0004](0004-prefer-official-wecom-channel-over-automation.md) | Accepted | Complete |
 | [ADR 0005](0005-bound-single-turn-compound-intents.md) | Accepted | Complete |
 | [ADR 0006](0006-one-patient-scope-per-turn.md) | Accepted | Partial |
-| [ADR 0007](0007-stateful-blocked-write-continuations.md) | Accepted | Partial |
-| [ADR 0008](0008-minimal-routing-and-structuring-only-note-generation.md) | Accepted | Partial |
+| [ADR 0007](0007-stateful-blocked-write-continuations.md) | Accepted | Complete |
+| [ADR 0008](0008-minimal-routing-and-structuring-only-note-generation.md) | Accepted | Complete |
+| [ADR 0009](0009-modality-normalization-at-workflow-entry.md) | Accepted | Not Started |

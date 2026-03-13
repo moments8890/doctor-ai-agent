@@ -296,6 +296,63 @@ async def confirm_pending_record(doctor_id: str, pending_id: str) -> str:
     return f"✅ 病历已保存！患者：【{patient_name}】"
 
 
+import re as _re
+
+_DRAFT_CORRECTION_RE = _re.compile(
+    r"写错了|搞错了|说错了|有误|不对[，,]|改为|改成|更正|纠正|应该是|不是.{1,8}是"
+)
+
+
+async def _try_draft_correction(text: str, doctor_id: str, pending: object) -> Optional[str]:
+    """If *text* looks like a correction, apply it to the pending draft in-place.
+
+    Returns a reply string on success, None if the text is not a correction.
+    """
+    if not _DRAFT_CORRECTION_RE.search(text):
+        return None
+
+    import json as _json
+    try:
+        draft = _json.loads(pending.draft_json or "{}")
+    except Exception:
+        return None
+
+    old_content = draft.get("content", "")
+    if not old_content:
+        return None
+
+    # Use the structured-field merge from the update_record handler
+    from services.domain.intent_handlers._simple_intents import _merge_structured_into_content
+
+    # Extract corrections via LLM
+    try:
+        from services.ai.agent import dispatch as agent_dispatch
+        llm_result = await agent_dispatch(text)
+        corrected = dict(llm_result.structured_fields or {})
+    except Exception as e:
+        log(f"[WeChat] draft correction LLM failed doctor={doctor_id}: {e}")
+        return None
+
+    if not corrected:
+        return None
+
+    merged = _merge_structured_into_content(old_content, corrected)
+    if merged is None:
+        return None
+
+    draft["content"] = merged
+    new_json = _json.dumps(draft, ensure_ascii=False)
+
+    from db.crud.pending import update_pending_draft
+    async with AsyncSessionLocal() as session:
+        await update_pending_draft(session, pending.id, doctor_id, new_json)
+
+    _pname = pending.patient_name or "未关联患者"
+    preview = merged[:100] + ("…" if len(merged) > 100 else "")
+    log(f"[WeChat] draft corrected in-place doctor={doctor_id} patient={_pname} fields={list(corrected.keys())}")
+    return f"✏️ 已更正【{_pname}】的病历草稿：\n{preview}\n\n回复「确认」保存，「取消」放弃。"
+
+
 async def handle_pending_record_reply(text: str, doctor_id: str, sess) -> str:
     """Route doctor reply when a pending record draft awaits confirmation."""
     pending_id = sess.pending_record_id
@@ -317,6 +374,10 @@ async def handle_pending_record_reply(text: str, doctor_id: str, sess) -> str:
         return "已撤销。"
     if stripped in ("确认", "确定", "保存", "ok", "OK", "好的", "yes", "Yes"):
         return await confirm_pending_record(doctor_id, pending_id)
+    # Draft correction: doctor wants to fix the unsaved draft in-place.
+    correction_reply = await _try_draft_correction(text, doctor_id, pending)
+    if correction_reply is not None:
+        return correction_reply
     # Explicit-confirmation only: abandon unconfirmed draft (UX principle 5).
     async with AsyncSessionLocal() as session:
         await abandon_pending_record(session, pending_id, doctor_id=doctor_id)
@@ -366,12 +427,14 @@ async def dispatch_intent_result(text: str, doctor_id: str, intent_result, histo
             hr_create = await _shared_create_patient(doctor_id, intent_result)
             if hr_create.reply and "⚠️" not in hr_create.reply:
                 from services.ai.intent import IntentResult as _IR
+                from services.domain.text_cleanup import strip_leading_create_demographics
+                clinical_text = strip_leading_create_demographics(text, intent_result) or text
                 add_ir = _IR(
                     intent=Intent.add_record,
                     patient_name=intent_result.patient_name,
                     is_emergency=intent_result.is_emergency,
                 )
-                hr_record = await _shared_add_record(text, doctor_id, history or [], add_ir)
+                hr_record = await _shared_add_record(clinical_text, doctor_id, history or [], add_ir)
                 combined = hr_create.reply + ("\n" + hr_record.reply if hr_record.reply else "")
                 parts = _hr_to_parts(hr_record)
                 return WeChatReply(

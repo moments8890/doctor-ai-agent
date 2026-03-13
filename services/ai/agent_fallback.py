@@ -9,6 +9,7 @@ import re
 from typing import Optional, Tuple
 
 from services.ai.intent import Intent, IntentResult
+from services.domain.compound_normalizer import has_residual_clinical_content
 
 # ---------------------------------------------------------------------------
 # Name extraction patterns and blocklist
@@ -25,12 +26,6 @@ _BAD_NAME_TOKENS = {
     "患者", "病人", "新患者", "新病人", "门诊", "复查", "记录", "查询", "提醒",
     "胸痛", "胸闷", "心悸", "咳嗽", "头痛", "发热", "化疗", "术后", "治疗", "安排",
 }
-
-_CLINICAL_KEYWORDS = [
-    "胸痛", "胸闷", "心悸", "气短", "头痛", "发热", "咳嗽",
-    "心电图", "CT", "MRI", "BNP", "EF", "ST", "PCI", "化疗", "靶向", "诊断",
-    "治疗", "复查", "门诊", "术后", "高血压", "肿瘤", "肺癌",
-]
 
 _CN_NUM_MAP = {
     "一": 1, "二": 2, "两": 2, "三": 3, "四": 4,
@@ -68,19 +63,30 @@ def _parse_occurrence_index(text: str) -> Optional[int]:
     return None
 
 
-def _fallback_clinical(text: str, name: Optional[str], gender: Optional[str], age: Optional[int]) -> Optional[IntentResult]:
-    """若文本含临床关键词，返回 unknown + clarify（不假设 add_record），否则返回 None。
+_CREATE_SIGNALS = ["创建", "新患者", "新病人", "建个", "新建", "新收"]
 
-    Principle: When LLM fails and we only have keyword evidence, we should
-    ask the doctor to clarify rather than assume they want to write a record.
+
+def _has_clinical(text: str, name: Optional[str] = None, gender: Optional[str] = None, age: Optional[int] = None) -> bool:
+    """Check if text has meaningful clinical content via residual-text heuristic."""
+    has_content, _ = has_residual_clinical_content(
+        text, patient_name=name, gender=gender, age=age,
+    )
+    return has_content
+
+
+def _fallback_clinical(text: str, name: Optional[str], gender: Optional[str], age: Optional[int]) -> Optional[IntentResult]:
+    """若文本含创建信号 + 临床内容，推断为 add_record（planner 会自动建档）。
+
+    Uses the residual-text heuristic (has_residual_clinical_content) instead of
+    a fixed keyword list.  Only triggers for the compound create+clinical case;
+    other intents are handled by _fallback_from_keywords.
     """
-    if any(k in text for k in _CLINICAL_KEYWORDS):
+    if any(k in text for k in _CREATE_SIGNALS) and _has_clinical(text, name, gender, age):
         return IntentResult(
-            intent=Intent.unknown,
+            intent=Intent.add_record,
             patient_name=name,
             gender=gender,
             age=age,
-            chat_reply="检测到临床内容，请问您需要记录病历还是有其他需要？",
         )
     return None
 
@@ -135,9 +141,23 @@ def fallback_intent_from_text(text: str) -> IntentResult:
     name, gender, age = _extract_name_gender_age(text)
     occurrence_index = _parse_occurrence_index(text)
 
-    # Clinical content takes precedence even when "查询"/"提醒" also appear.
+    # Compound create + clinical → add_record (planner auto-creates patient).
     clinical = _fallback_clinical(text, name, gender, age)
     if clinical is not None:
         return clinical
 
-    return _fallback_from_keywords(text, lower, name, gender, age, occurrence_index)
+    # Keyword-based intent matching (list, delete, query, etc.).
+    result = _fallback_from_keywords(text, lower, name, gender, age, occurrence_index)
+
+    # If keywords didn't match a specific intent but text has clinical content,
+    # add a helpful clarification message.
+    if result.intent == Intent.unknown and _has_clinical(text, name, gender, age):
+        result = IntentResult(
+            intent=Intent.unknown,
+            patient_name=name,
+            gender=gender,
+            age=age,
+            chat_reply="检测到临床内容，请问您需要记录病历还是有其他需要？",
+        )
+
+    return result

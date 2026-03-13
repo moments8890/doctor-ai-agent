@@ -55,7 +55,6 @@ from services.domain.chat_constants import (
     MENU_PROMPTS as _MENU_PROMPTS,
     parse_delete_patient_target as _parse_delete_patient_target,
     normalize_human_datetime as _normalize_human_datetime,
-    CLINICAL_CONTENT_HINTS as _CLINICAL_CONTENT_HINTS,
     TREATMENT_HINTS as _TREATMENT_HINTS,
     REMINDER_IN_MSG_RE as _REMINDER_IN_MSG_RE,
     CREATE_PREAMBLE_RE as _CREATE_PREAMBLE_RE,
@@ -202,7 +201,82 @@ def _trim_history_for_routing(history: List[dict]) -> List[dict]:
 
 
 def _contains_clinical_content(text: str) -> bool:
-    return any(hint in (text or "") for hint in _CLINICAL_CONTENT_HINTS)
+    from services.domain.compound_normalizer import has_residual_clinical_content
+    has_content, _ = has_residual_clinical_content(text or "")
+    return has_content
+
+
+import re as _re
+
+_DRAFT_CORRECTION_RE = _re.compile(
+    r"写错了|搞错了|说错了|有误|不对[，,]|改为|改成|更正|纠正|应该是|不是.{1,8}是"
+)
+
+
+async def _try_pending_draft_correction(text: str, doctor_id: str) -> Optional[ChatResponse]:
+    """If a pending draft exists and *text* is a correction, edit the draft in-place."""
+    if not _DRAFT_CORRECTION_RE.search(text):
+        return None
+
+    from services.session import get_session
+    sess = get_session(doctor_id)
+    pending_id = getattr(sess, "pending_record_id", None)
+    if not pending_id:
+        return None
+
+    import json as _json
+    from db.crud.pending import get_pending_record, update_pending_draft
+
+    async with AsyncSessionLocal() as db:
+        pending = await get_pending_record(db, pending_id, doctor_id)
+    if pending is None or pending.status != "awaiting":
+        return None
+
+    try:
+        draft = _json.loads(pending.draft_json or "{}")
+    except Exception:
+        return None
+
+    old_content = draft.get("content", "")
+    if not old_content:
+        return None
+
+    from services.domain.intent_handlers._simple_intents import _merge_structured_into_content
+
+    try:
+        from services.ai.agent import dispatch as agent_dispatch
+        llm_result = await agent_dispatch(text)
+        corrected = dict(llm_result.structured_fields or {})
+    except Exception:
+        return None
+
+    if not corrected:
+        return None
+
+    merged = _merge_structured_into_content(old_content, corrected)
+    if merged is None:
+        return None
+
+    draft["content"] = merged
+    new_json = _json.dumps(draft, ensure_ascii=False)
+
+    async with AsyncSessionLocal() as db:
+        await update_pending_draft(db, pending_id, doctor_id, new_json)
+
+    from db.models.medical_record import MedicalRecord
+    try:
+        record = MedicalRecord(**{k: v for k, v in draft.items() if k in MedicalRecord.model_fields})
+    except Exception:
+        record = None
+
+    _pname = pending.patient_name or "未关联患者"
+    preview = merged[:100] + ("…" if len(merged) > 100 else "")
+    return ChatResponse(
+        reply=f"✏️ 已更正【{_pname}】的病历草稿：\n{preview}\n\n回复「确认」保存，「取消」放弃。",
+        record=record,
+        pending_id=pending_id,
+        pending_patient_name=pending.patient_name,
+    )
 
 
 def _contains_treatment_signal(text: str) -> bool:
@@ -274,13 +348,16 @@ async def _dispatch_intent(
             )
             if hr.reply and "⚠️" not in hr.reply:
                 # Patient created/reused OK — now route clinical text to add_record
+                # Strip demographics prefix so only clinical content enters structuring.
+                from services.domain.text_cleanup import strip_leading_create_demographics
+                clinical_text = strip_leading_create_demographics(text, intent_result) or text
                 add_ir = IntentResult(
                     intent=Intent.add_record,
                     patient_name=intent_result.patient_name,
                     is_emergency=intent_result.is_emergency,
                 )
                 hr2 = await shared_handle_add_record(
-                    text, doctor_id, history, add_ir,
+                    clinical_text, doctor_id, history, add_ir,
                 )
                 # Combine create reply + record reply
                 combined_reply = hr.reply
@@ -418,6 +495,11 @@ async def chat_core(
     fast_resp = await _try_fast_paths(original_text, doctor_id, history)
     if fast_resp is not None:
         return fast_resp
+
+    # ── Pending-draft correction (edit draft in place) ────────────────────
+    draft_reply = await _try_pending_draft_correction(text, doctor_id)
+    if draft_reply is not None:
+        return draft_reply
 
     # ── Blocked-write precheck (ADR 0007) ─────────────────────────────────
     # Check for cancel BEFORE precheck to return a user-facing reply.

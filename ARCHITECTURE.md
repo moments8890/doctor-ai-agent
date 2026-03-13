@@ -414,9 +414,32 @@ Current order:
 3. routing LLM in `services/ai/agent.py`
 
 `fast_route()` is intentionally narrower than the old semantic clinical router.
-It handles deterministic operational commands, task operations, queries, some
-patient CRUD, and explicit workflow-state / supplement patterns before falling
-back to the routing LLM.
+The intended contract is:
+
+- keep only exact or near-exact operational commands in deterministic routing
+- keep explicit workflow-state guards such as confirm / cancel / continuation
+- defer free-form, semantic, mixed-clause, and specialty-specific phrasing to
+  the routing LLM
+
+Examples that should stay deterministic:
+
+- help, list, and task-id commands
+- explicit export / report commands
+- exact record-query commands like `查张三病历`
+- explicit appointment / follow-up commands with explicit patient + time
+- explicit delete / demographic-update commands
+- explicit continuation prefixes such as `补充：...`
+
+Examples that should defer to the routing LLM:
+
+- broad query wording like `查张三` or `查李梦妍既往胸痛记录`
+- patientless follow-up wording like `明天复查`
+- free-text create-patient phrasing like `新收顾清妍`
+- semantic note cues like `记录一下` or `顺便记今日随诊`
+- mixed-clause override logic and long-text import heuristics
+
+The detailed fast-route boundary is documented in
+[message-routing-pipeline.md](/Volumes/ORICO/Code/doctor-ai-agent/docs/product/message-routing-pipeline.md).
 
 ### Routing LLM
 

@@ -139,39 +139,70 @@ Resolution order:
 2. `fast_route(text, session=...)`
 3. `agent_dispatch(...)` if `fast_route` returns `None`
 
-### What `fast_route` does now
+### Fast-Route Exact-Match Contract
 
-`fast_route` is conservative and deterministic. It no longer performs Tier-3
-clinical keyword routing.
+`fast_route` should stay narrow.
 
-Current coverage:
+The deterministic router is reserved for exact or near-exact operational
+commands where regex matching is more precise than semantic LLM routing. If a
+message is free-form, mixed-clause, specialty-specific, or interpretation-heavy,
+it should fall through to the routing LLM.
 
-- Tier 0
-  - `help`
-  - `import_history` for `[PDF:]`, `[Word:]`, `[Image:]`, or long multi-date
-    history text
-- Tier 1
-  - `list_patients`
-  - `list_tasks`
-- Tier 2
-  - task actions: `complete_task`, `cancel_task`, `postpone_task`
-  - follow-up scheduling: `schedule_follow_up`
-  - appointment scheduling: `schedule_appointment`
-  - export actions: `export_records`, `export_outpatient_report`
-  - record queries: `query_records`
-  - patient CRUD: `create_patient`, `delete_patient`, `update_patient`
-  - explicit supplement patterns: `add_record`
-  - mixed-message tail-command override such as clinical text followed by a
-    command suffix
-  - pending-draft continuation when a session already has `pending_record_id`
+#### Preserve in deterministic routing
 
-Session-aware behavior:
+These are the intended fast-route categories:
 
-- when a matched intent has no `patient_name`, `fast_route` can backfill the
-  current patient from session state
-- LLM dispatch also receives session context such as `specialty`,
-  `doctor_name`, `current_patient_context`, candidate patient context, and
-  not-found patient context
+| Category | Deterministic shape to preserve | Examples |
+| --- | --- | --- |
+| Help | exact help / capability commands | `帮助`, `help`, `怎么用` |
+| Import wrappers | explicit tagged media payloads only | `[PDF:...]`, `[Word:...]`, `[Image:...]` |
+| List views | explicit list commands | `患者列表`, `所有患者`, `待办列表`, `我的任务` |
+| Task actions | explicit task verbs with explicit task id | `完成任务3`, `取消第2个任务`, `任务5推迟一周` |
+| Export/report | explicit export / print / download command with explicit target | `导出张三病历`, `打印李四标准门诊病历` |
+| Query records | explicit query verb + explicit patient name + explicit record noun | `查张三病历`, `查看李四记录`, `张三的病历` |
+| Appointment | explicit patient name + explicit appointment command + explicit date/time | `给张三预约下周三10点` |
+| Follow-up | explicit patient name + explicit follow-up command + explicit interval/time | `给张三设3个月后随访提醒` |
+| Patient admin | explicit delete / demographic update / duplicate-create forms | `删除患者张三`, `修改李四年龄为50岁`, `再建一个同名患者王芳` |
+| Continuation guards | explicit draft confirm/abort tokens and explicit continuation prefixes | `确认`, `取消`, `补充：...`, `补录：...` |
+
+#### Defer to the routing LLM
+
+These message families are intentionally *not* deterministic:
+
+| Family | Examples that should go to LLM | Why |
+| --- | --- | --- |
+| Broad query wording | `查张三`, `查李梦妍既往胸痛记录`, `看看上次那个病人情况` | requires semantic interpretation, not exact command parsing |
+| Patientless follow-up / reminder | `明天复查`, `安排复查`, `下次随访记一下` | may be plan text, reminder intent, or note continuation |
+| Free-text create-patient language | `新收顾清妍`, `王琴 女47 创建`, `确认患者韩伟，请创建并保存` | overlaps with compound create+record and should be resolved by LLM + planner |
+| Semantic write/supplement phrasing | `记录一下`, `本次记录`, `顺便记今日随诊`, `新增进展` | these are note-authoring cues, not exact operational commands |
+| Mixed tail-command overrides | `胸痛两小时，请先把我的待办调出来` | mixed-clause priority should be handled by semantic routing |
+| Long-text import/date heuristics | long multi-date free text, natural-language `帮我导入这些历史` | should be explicit import intent or LLM-routed import, not regex guesswork |
+
+#### Query-specific rule
+
+For `query_records`, the deterministic layer should only keep exact shapes such
+as:
+
+- `查张三病历`
+- `查看张三记录`
+- `张三的病历`
+
+If the query requires interpretation, extra clinical qualifiers, omitted record
+nouns, or broader context, it should go to the routing LLM instead.
+
+Examples that should defer:
+
+- `查张三`
+- `查李梦妍既往胸痛记录`
+- `看看上次那个胸痛病人`
+- `查最近住院那个王老师`
+
+Session-aware behavior remains:
+
+- when an exact matched intent has no `patient_name`, `fast_route` may still
+  backfill the current patient from authoritative session state
+- blocked-write and pending-draft state may still short-circuit routing before
+  the LLM
 
 ---
 
@@ -348,6 +379,8 @@ name.
 - The active fast router lives in the package `services/ai/fast_router/`, not
   the old monolithic `services/ai/fast_router.py`
 - Tier-3 clinical keyword routing is not part of the live path anymore
+- The intended deterministic contract is exact-match operational routing, not a
+  semantic regex substitute for the routing LLM
 - Keywords are compiled into `services/ai/fast_router/_keywords.py`; the admin
   reload endpoint is now informational and does not hot-reload runtime behavior
 - `data/mined_rules.json` loader still exists, but mined rules are not part of

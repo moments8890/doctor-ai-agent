@@ -55,15 +55,40 @@ def _is_clinical_turn(content: str) -> bool:
     return True
 
 
+# Patient-switch markers emitted by create/reuse/switch handlers.
+# When found in an assistant reply, all prior user turns belong to a
+# different patient and MUST NOT leak into the current note.
+_PATIENT_BOUNDARY_RE = re.compile(
+    r"🔄\s*已从【.+?】切换到"
+    r"|✅\s*已为患者【.+?】创建"
+    r"|ℹ️\s*患者【.+?】已存在.*已复用"
+)
+
+
 def build_clinical_context(text: str, history: list[dict]) -> str:
     """Filter history to clinical-only turns and append current text, deduplicated.
 
     This is the single source of truth for building the LLM structuring input.
     Excludes task operations, queries, greetings, and other admin chatter.
+
+    Patient-boundary aware: only includes user turns AFTER the most recent
+    patient-switch marker in assistant replies, preventing cross-patient
+    context leakage.
     """
+    recent = (history or [])[-12:]
+
+    # Find the last patient-switch boundary in assistant replies
+    boundary_idx = -1
+    for i, m in enumerate(recent):
+        if m.get("role") == "assistant" and _PATIENT_BOUNDARY_RE.search(m.get("content", "")):
+            boundary_idx = i
+
+    # Only include user turns after the boundary (or last 6 if no boundary)
+    candidate_turns = recent[boundary_idx + 1:] if boundary_idx >= 0 else recent[-6:]
+
     doctor_ctx = [
-        m["content"] for m in (history or [])[-6:]
-        if m["role"] == "user" and _is_clinical_turn(m["content"])
+        m["content"] for m in candidate_turns
+        if m.get("role") == "user" and _is_clinical_turn(m["content"])
     ]
     doctor_ctx.append(text)
     return "\n".join(dict.fromkeys(filter(None, doctor_ctx)))

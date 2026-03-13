@@ -46,6 +46,7 @@ Direct pushes to `main` are allowed.
 4. **Document changes in commit message** — include what changed and any migration/manual cleanup impact
 5. **Update `ARCHITECTURE.md`** — only if schema, env vars, API endpoints, or service structure changed
 6. **Update progress** — tick completed items in `debug/iteration_*.md`
+7. **DO NOT RUN TESTS** - do not run tests (dont run the tests to validate)
 
 ### Publishing (Direct to Main)
 
@@ -65,4 +66,10 @@ git push gitee main
 - Commit message prefixes: `feat:`, `fix:`, `ci:`, `refactor:`, `docs:`
 
 
-以后你说“self train”，我会按“全量 E2E + 修复直到通过”的流程执行。现在我先直接跑全量 E2E（chatlog full + integration full）并按失败项逐个修复。
+## E2E Failure Debugging Policy
+
+When debugging failures in E2E / MVP benchmark tests:
+1. **Investigate only** — diagnose the root cause (read code, check patterns, trace the flow)
+2. **Do NOT make code or expectation changes** — never auto-fix the failing test, the benchmark JSON, or the product code
+3. **Always ask the user** — present findings and ask which fix direction to take (e.g. fix product code vs. relax benchmark expectations vs. mark as known limitation)
+4. This applies to all files: benchmark JSON, fast router patterns, handler logic, etc.

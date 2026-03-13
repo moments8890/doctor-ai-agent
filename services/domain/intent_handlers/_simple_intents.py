@@ -10,8 +10,11 @@ their wire format (ChatResponse for Web, plain-text for WeChat).
 from __future__ import annotations
 
 import asyncio
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+
+from sqlalchemy import select
 
 from db.crud import (
     delete_patient_for_doctor,
@@ -26,6 +29,7 @@ from db.crud import (
     update_task_status,
 )
 from db.engine import AsyncSessionLocal
+from db.models.records import MedicalRecordDB
 from services.ai.intent import IntentResult
 from services.notify.tasks import create_appointment_task
 from services.observability.audit import audit
@@ -225,6 +229,96 @@ async def handle_update_patient(
 
 # ── update_record ───────────────────────────────────────────────────────────
 
+
+async def _get_latest_record(db: object, doctor_id: str, patient_id: int) -> Optional[MedicalRecordDB]:
+    """Fetch the most recent record for a patient (read-only)."""
+    result = await db.execute(
+        select(MedicalRecordDB)
+        .where(MedicalRecordDB.doctor_id == doctor_id, MedicalRecordDB.patient_id == patient_id)
+        .order_by(MedicalRecordDB.created_at.desc(), MedicalRecordDB.id.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+# Maps LLM tool-schema field names → section labels used in content text.
+_SECTION_LABELS: dict[str, tuple[str, ...]] = {
+    "chief_complaint": ("主诉",),
+    "history_of_present_illness": ("现病史",),
+    "past_medical_history": ("既往史",),
+    "physical_examination": ("查体", "体格检查"),
+    "auxiliary_examinations": ("辅助检查",),
+    "diagnosis": ("诊断",),
+    "treatment_plan": ("治疗方案", "处置"),
+    "follow_up_plan": ("随访计划", "随访"),
+}
+
+# Build a single regex that matches any known section header.
+_ALL_LABELS = [lbl for labels in _SECTION_LABELS.values() for lbl in labels]
+_SECTION_SPLIT_RE = re.compile(
+    r"(?=(?:" + "|".join(re.escape(lbl) for lbl in _ALL_LABELS) + r")[：:])"
+)
+
+
+def _merge_structured_into_content(content: str, fields: dict) -> Optional[str]:
+    """Merge structured correction fields into free-text content.
+
+    For each field like ``{"diagnosis": "冠心病"}``, finds the corresponding
+    section (e.g. "诊断：急性心梗") in the content and replaces its value.
+    Returns the merged content, or None if nothing changed.
+    """
+    if not content:
+        return None
+
+    changed = False
+    result = content
+    for field_name, new_value in fields.items():
+        labels = _SECTION_LABELS.get(field_name)
+        if not labels or new_value is None:
+            continue
+        for label in labels:
+            # Match "诊断：<old value>" up to the next section header or end-of-string
+            pattern = re.compile(
+                re.escape(label) + r"[：:]\s*" + r"(.*?)(?=\n(?:" +
+                "|".join(re.escape(lbl) for lbl in _ALL_LABELS) +
+                r")[：:]|\Z)",
+                re.DOTALL,
+            )
+            m = pattern.search(result)
+            if m:
+                old_section = m.group(0)
+                new_section = f"{label}：{new_value}"
+                result = result.replace(old_section, new_section, 1)
+                changed = True
+                break
+        else:
+            # Section not found — append at end
+            result = result.rstrip() + f"\n{labels[0]}：{new_value}"
+            changed = True
+
+    return result if changed else None
+
+
+def _normalize_correction_fields(corrected: dict, existing_content: str) -> dict:
+    """Convert structured correction fields into a content update.
+
+    The DB layer only knows about {content, tags, record_type}.  Structured
+    fields (chief_complaint, diagnosis, etc.) from the LLM tool schema need
+    to be merged into the content text before they can be persisted.
+    """
+    structured = {k: v for k, v in corrected.items() if k in _SECTION_LABELS and v is not None}
+    if not structured:
+        return corrected
+
+    merged = _merge_structured_into_content(existing_content, structured)
+    if merged is not None:
+        # Replace structured fields with a content update
+        out = {k: v for k, v in corrected.items() if k not in _SECTION_LABELS}
+        out["content"] = merged
+        return out
+    return corrected
+
+
 async def handle_update_record(
     doctor_id: str, intent_result: IntentResult, *, text: str = "",
 ) -> HandlerResult:
@@ -266,6 +360,11 @@ async def handle_update_record(
             if patient is None:
                 return HandlerResult(reply=f"⚠️ 未找到患者【{name}】，无法更正病历。")
             set_current_patient(doctor_id, patient.id, patient.name)
+            # Merge structured fields (chief_complaint, diagnosis, etc.)
+            # into content text before passing to DB layer.
+            rec = await _get_latest_record(db, doctor_id, patient.id)
+            if rec is not None:
+                corrected = _normalize_correction_fields(corrected, rec.content or "")
             updated_rec = await update_latest_record_for_patient(db, doctor_id, patient.id, corrected)
     if updated_rec is None:
         return HandlerResult(reply=f"⚠️ 患者【{name}】暂无病历记录，请先保存一条再更正。")

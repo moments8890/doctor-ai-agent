@@ -550,6 +550,11 @@ export async function getWorkingContext(doctorId) {
   return request(`/api/manage/working-context?${qs.toString()}`);
 }
 
+export async function clearContext(doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/clear-context?${qs.toString()}`, { method: "POST" });
+}
+
 export async function updateAdminRecord(recordId, fields) {
   return adminRequest(`/api/admin/records/${recordId}`, {
     method: "PATCH",

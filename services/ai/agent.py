@@ -676,7 +676,6 @@ async def _interpret_completion(
         if chat_reply and not _looks_like_tool_markup(chat_reply):
             return IntentResult(intent=Intent.unknown, chat_reply=chat_reply)
         # No readable reply — fall through to keyword fallback.
-        # (_fallback_clinical now returns unknown, not add_record)
         return _fallback_intent_from_text(text)
 
     return _handle_non_ollama_no_tool(provider_name, chat_reply)
@@ -724,6 +723,28 @@ async def dispatch(
         with trace_block("agent", "agent.local_fallback", {"reason": f"{provider_name}_error"}):
             return _fallback_intent_from_text(text)
 
-    return await _interpret_completion(
+    result = await _interpret_completion(
         completion, text, provider_name, provider, messages, tools_for_call, routing_max_tokens, client
     )
+
+    # Post-LLM guardrail: if LLM returned unknown/garbled but text clearly
+    # has create + clinical content, coerce to add_record so the planner can
+    # handle compound patient-creation automatically.
+    if result.intent == Intent.unknown:
+        from services.ai.agent_fallback import _CREATE_SIGNALS, _has_clinical, _extract_name_gender_age
+        name, gender, age = None, None, None
+        try:
+            name, gender, age = _extract_name_gender_age(text)
+        except Exception:
+            pass
+        if (any(k in text for k in _CREATE_SIGNALS)
+                and _has_clinical(text, name, gender, age)):
+            log(f"[Agent:{provider_name}] post-LLM guardrail: create+clinical → add_record")
+            result = IntentResult(
+                intent=Intent.add_record,
+                patient_name=name or result.patient_name,
+                gender=gender or result.gender,
+                age=age or result.age,
+            )
+
+    return result
