@@ -912,12 +912,12 @@ async def patch_doctor_profile(
 
     # Invalidate in-memory session cache so the agent picks up the new name immediately
     try:
-        from services.session import get_session, _loaded_from_db
+        from services.session import get_session, invalidate_hydration
         sess = get_session(resolved_id)
         sess.doctor_name = name
         if body.specialty is not None:
             sess.specialty = body.specialty or None
-        _loaded_from_db.pop(resolved_id, None)  # force re-hydration next message
+        invalidate_hydration(resolved_id)
     except Exception:
         pass
 

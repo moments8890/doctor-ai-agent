@@ -834,3 +834,11 @@ async def setup_menu(x_admin_token: str | None = Header(default=None, alias="X-A
     if result.get("errcode", -1) == 0:
         return {"status": "ok", "detail": "菜单创建成功"}
     return {"status": "error", "detail": result}
+
+
+# ── Public aliases for cross-module use ──────────────────────────────────────
+# wechat_flows.py uses these instead of reaching into private _handle_intent*.
+# Keep names stable; internal implementation may change.
+
+handle_intent = _handle_intent
+handle_intent_bg = _handle_intent_bg

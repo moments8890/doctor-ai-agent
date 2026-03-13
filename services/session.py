@@ -65,6 +65,16 @@ def _mark_session_fresh_locked(doctor_id: str) -> None:
     _loaded_from_db[doctor_id] = time.monotonic()
 
 
+def invalidate_hydration(doctor_id: str) -> None:
+    """Force the next session access for *doctor_id* to re-hydrate from DB.
+
+    Public API for callers that update doctor profile data (name, specialty)
+    outside the normal session workflow.
+    """
+    with _registry_lock:
+        _loaded_from_db.pop(doctor_id, None)
+
+
 def get_session_lock(doctor_id: str) -> asyncio.Lock:
     """Return the per-doctor asyncio lock, creating it on first access."""
     with _registry_lock:

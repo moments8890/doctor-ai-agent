@@ -118,7 +118,7 @@ async def mini_patients(
     category: Optional[str] = None,
     principal: MiniProgramPrincipal = Depends(_require_mini_principal),
 ):
-    return await ui_router._manage_patients_for_doctor(
+    return await ui_router._manage_patients_for_doctor_impl(
         principal.doctor_id,
         category=category,
     )
@@ -134,10 +134,7 @@ async def mini_create_patient(
     if not name:
         raise HTTPException(status_code=422, detail="name is required")
     async with AsyncSessionLocal() as db:
-        patient = await create_patient(db, principal.doctor_id, name, body.gender, body.age)
-    # Return the one-time plaintext access code so the doctor can share it
-    # with the patient for portal login.
-    access_code = getattr(patient, "_plaintext_access_code", None)
+        patient, access_code = await create_patient(db, principal.doctor_id, name, body.gender, body.age)
     return {
         "id": patient.id,
         "name": patient.name,
@@ -284,6 +281,7 @@ async def mini_tasks(
     status: Optional[str] = None,
     principal: MiniProgramPrincipal = Depends(_require_mini_principal),
 ) -> List[tasks_router.TaskOut]:
+    enforce_doctor_rate_limit(principal.doctor_id, scope="mini.tasks.get")
     return await tasks_router._get_tasks_for_doctor(doctor_id=principal.doctor_id, status=status)
 
 
@@ -293,6 +291,7 @@ async def mini_patch_task(
     body: MiniTaskPatchBody,
     principal: MiniProgramPrincipal = Depends(_require_mini_principal),
 ) -> tasks_router.TaskOut:
+    enforce_doctor_rate_limit(principal.doctor_id, scope="mini.tasks.write")
     return await tasks_router._patch_task_for_doctor(
         task_id=task_id,
         doctor_id=principal.doctor_id,
@@ -306,6 +305,7 @@ async def mini_postpone_task(
     body: MiniTaskDueBody,
     principal: MiniProgramPrincipal = Depends(_require_mini_principal),
 ) -> tasks_router.TaskOut:
+    enforce_doctor_rate_limit(principal.doctor_id, scope="mini.tasks.write")
     return await tasks_router._postpone_task_for_doctor(
         task_id=task_id,
         doctor_id=principal.doctor_id,
@@ -318,6 +318,7 @@ async def mini_create_task(
     body: MiniTaskCreateBody,
     principal: MiniProgramPrincipal = Depends(_require_mini_principal),
 ) -> tasks_router.TaskOut:
+    enforce_doctor_rate_limit(principal.doctor_id, scope="mini.tasks.write")
     return await tasks_router._create_task_for_doctor(
         doctor_id=principal.doctor_id,
         body=tasks_router.TaskCreate(
