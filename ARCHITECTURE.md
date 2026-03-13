@@ -158,14 +158,17 @@ Several deterministic checks short-circuit the workflow entirely:
 ```text
 request body
 -> WebAdapter.parse_inbound()
--> deterministic fast paths (patient count, delete, context save, knowledge)
--> pending-draft correction check
--> blocked-write precheck / cancel detection
--> assemble DoctorTurnContext (authoritative + advisory)
--> load knowledge context
--> services.intent_workflow.run(turn_context=...)
--> gate check (block unsafe writes)
--> shared domain handler dispatch
+-> rate limit check
+-> endpoint fast paths (notify control, greeting, menu number, 完成 N)
+-> chat_core():
+   -> deterministic fast paths (patient count, delete, context save, knowledge)
+   -> pending-draft correction check
+   -> blocked-write precheck / cancel detection
+   -> assemble DoctorTurnContext (authoritative + advisory)
+   -> load knowledge context
+   -> services.intent_workflow.run(turn_context=...)
+   -> gate check (always returns clarification on block)
+   -> shared domain handler dispatch
 -> WebAdapter.format_reply()
 -> JSON response
 ```
@@ -183,7 +186,7 @@ webhook message
 -> stateful flow detection (pending record/create/cvd/interview)
 -> load knowledge context
 -> services.intent_workflow.run(turn_context=...)
--> gate check
+-> gate check (no_patient_name falls through to handler)
 -> shared domain handler dispatch
 -> WeChat helper formatting / customer-service send path
 ```
@@ -202,15 +205,18 @@ replies with formatted text as a resilience fallback.
 audio upload
 -> transcribe_audio()
 -> hydrate session state
--> blocked-write precheck
--> services.intent_workflow.run(...)
--> gate check
+-> blocked-write precheck / cancel detection
+-> assemble DoctorTurnContext
+-> services.intent_workflow.run(turn_context=...)
+-> gate check (no_patient_name falls through to handler)
 -> shared domain handler dispatch (including compound create+record)
 -> JSON response
 ```
 
 Voice chat shares the same draft-first semantics as web and WeChat for normal
-record creation.
+record creation. Unlike web and WeChat, voice does not currently load doctor
+knowledge context before the workflow call, so routing decisions that depend on
+knowledge-base context may behave differently.
 
 ### Modality normalization (ADR 0009)
 
@@ -348,11 +354,19 @@ creation, while keeping a narrower correction-specific compatibility path for
 The binder and gate separate "what the model thinks the message means" from
 "whether the system has enough authoritative context to proceed."
 
-Examples:
+Gate rules:
 
-- write intent with no patient name -> ask for patient name
-- not-found patient without stronger location context -> block
-- weak attribution -> allow draft generation with confirmation messaging
+- `create_patient` with no name → **approved** (handler sets pending-create)
+- other write intent with no patient name → blocked, ask for name
+- not-found patient without location context (ICU/bed/ward) → blocked
+- weak attribution (candidate/not_found with review flag) → approved with
+  confirmation warning on the draft
+
+Gate bypass: when the gate blocks with `no_patient_name`, web always returns
+the clarification immediately. WeChat and voice store blocked-write context but
+let `no_patient_name` fall through to handler dispatch, allowing the handler to
+attempt resolution. This is the most visible behavioral difference between
+channels.
 
 This is the main safety boundary before persistence.
 
@@ -361,14 +375,16 @@ This is the main safety boundary before persistence.
 The planner intentionally supports only bounded same-turn compounds:
 
 - `create_patient + add_record` (clinical content detected alongside create)
-- `create_patient + add_record + create_task` (clinical + reminder detected)
-- `auto_create_patient + add_record` (weak-source / not-found patient with
-  add_record intent)
+- `create_patient + create_task` (reminder detected, no clinical content)
+- `create_patient + add_record + create_task` (clinical + reminder)
+- `add_record + create_task` (add_record with reminder keywords)
 
 General multi-intent free-text execution is not part of the current model.
 
 Note: post-save follow-up task creation (e.g. from 随访/复诊 keywords) is a
 background side effect in `_confirm_pending.py`, not a planner compound action.
+Auto-creation of not-found patients during `add_record` is handler-level logic
+in `_add_record.py`, not a planner compound.
 
 ---
 
