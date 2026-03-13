@@ -4,7 +4,6 @@
 
 import db.models  # noqa: F401 — ensure models are registered before create_all
 import re
-from datetime import datetime, timezone
 from db.engine import Base, engine, AsyncSessionLocal
 from db.models import Doctor, Patient, MedicalRecordDB, DoctorTask, DoctorContext, PatientLabel, SystemPrompt
 from sqlalchemy import select
@@ -24,8 +23,7 @@ async def seed_prompts() -> None:
     """Seed all AI prompts to DB on first startup (idempotent).
 
     New keys are only written if the row doesn't exist yet, so DB edits made
-    via the admin UI are never overwritten.  Exception: ``structuring.neuro_cvd``
-    is always upserted so expanded field definitions reach production on deploy.
+    via the admin UI are never overwritten.
     """
     from services.ai.structuring import _SEED_PROMPT, _CONSULTATION_SUFFIX, _FOLLOWUP_SUFFIX
     from services.ai.neuro_structuring import _SEED_PROMPT as _NEURO_SEED, _FAST_CVD_PROMPT
@@ -37,7 +35,7 @@ async def seed_prompts() -> None:
     from services.patient.score_extraction import _EXTRACTION_PROMPT
     from services.wechat.patient_pipeline import _PATIENT_SYSTEM_PROMPT
     from services.export.outpatient_report import _EXTRACT_PROMPT
-    from db.crud import get_system_prompt, upsert_system_prompt
+    from db.crud import get_system_prompt
 
     # Seed-only entries: only write when the key is missing (preserves DB edits).
     _SEED_ONLY: list[tuple[str, str]] = [
@@ -47,6 +45,7 @@ async def seed_prompts() -> None:
         ("structuring",                      _SEED_PROMPT),
         ("structuring.consultation_suffix",  _CONSULTATION_SUFFIX),
         ("structuring.followup_suffix",      _FOLLOWUP_SUFFIX),
+        ("structuring.neuro_cvd",            _NEURO_SEED),
         ("structuring.fast_cvd",             _FAST_CVD_PROMPT),
         ("memory.compress",                  _COMPRESS_PROMPT_TEMPLATE),
         ("vision.ocr",                       _VISION_PROMPT),
@@ -61,18 +60,6 @@ async def seed_prompts() -> None:
         for key, content in _SEED_ONLY:
             existing = await get_system_prompt(db, key)
             if not existing:
-                db.add(SystemPrompt(key=key, content=content))
-
-        # Always upsert these so improved prompt rules reach production on deploy.
-        for key, content in [
-            ("structuring.neuro_cvd", _NEURO_SEED),
-            ("structuring", _SEED_PROMPT),
-        ]:
-            row = await get_system_prompt(db, key)
-            if row:
-                row.content = content
-                row.updated_at = datetime.now(timezone.utc)
-            else:
                 db.add(SystemPrompt(key=key, content=content))
 
         await db.commit()

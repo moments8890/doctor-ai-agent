@@ -15,7 +15,9 @@ from db.models import (
     MedicalRecordDB,
     DoctorTask,
     DoctorSessionState,
+    NeuroCVDContext,
     PendingRecord,
+    SpecialtyScore,
 )
 from db.repositories import PatientRepository
 from services.auth.access_code_hash import generate_access_code, hash_access_code
@@ -23,7 +25,7 @@ from services.observability.observability import trace_block
 from services.observability.audit import audit
 from utils.errors import InvalidMedicalRecordError, LabelNotFoundError, PatientNotFoundError
 from db.crud.doctor import _ensure_doctor_exists
-from utils.log import log
+from utils.log import log, safe_create_task
 
 
 def _utcnow() -> datetime:
@@ -92,6 +94,8 @@ async def set_patient_access_code(
         )
     plaintext_code = generate_access_code()
     patient.access_code = hash_access_code(plaintext_code)
+    # Bump version to invalidate any outstanding portal JWTs.
+    patient.access_code_version = getattr(patient, "access_code_version", 0) + 1
     await session.commit()
     log(f"[set_patient_access_code] new access code set for patient id={patient_id} doctor={doctor_id}")
     return plaintext_code
@@ -157,6 +161,18 @@ async def delete_patient_for_doctor(
         )
     )
     await session.execute(
+        delete(SpecialtyScore).where(
+            SpecialtyScore.doctor_id == doctor_id,
+            SpecialtyScore.patient_id == patient_id,
+        )
+    )
+    await session.execute(
+        delete(NeuroCVDContext).where(
+            NeuroCVDContext.doctor_id == doctor_id,
+            NeuroCVDContext.patient_id == patient_id,
+        )
+    )
+    await session.execute(
         update(DoctorSessionState)
         .where(
             DoctorSessionState.doctor_id == doctor_id,
@@ -172,10 +188,11 @@ async def delete_patient_for_doctor(
 async def get_all_patients(
     session: AsyncSession,
     doctor_id: str,
+    limit: int = 10000,
 ) -> list[Patient]:
     with trace_block("db", "crud.get_all_patients", {"doctor_id": doctor_id}):
         repo = PatientRepository(session)
-        return await repo.list_for_doctor(doctor_id)
+        return await repo.list_for_doctor(doctor_id, limit=limit)
 
 
 async def create_label(
@@ -188,8 +205,7 @@ async def create_label(
     label = PatientLabel(doctor_id=doctor_id, name=name, color=color)
     session.add(label)
     await session.commit()
-    import asyncio
-    asyncio.ensure_future(audit(doctor_id, "WRITE", resource_type="patient_label", resource_id=str(label.id)))
+    safe_create_task(audit(doctor_id, "WRITE", resource_type="patient_label", resource_id=str(label.id)))
     return label
 
 
@@ -201,6 +217,7 @@ async def get_labels_for_doctor(
         select(PatientLabel)
         .where(PatientLabel.doctor_id == doctor_id)
         .order_by(PatientLabel.created_at)
+        .limit(500)
     )
     return list(result.scalars().all())
 
@@ -227,8 +244,7 @@ async def update_label(
     if color is not None:
         label.color = color
     await session.commit()
-    import asyncio
-    asyncio.ensure_future(audit(doctor_id, "WRITE", resource_type="patient_label", resource_id=str(label_id)))
+    safe_create_task(audit(doctor_id, "WRITE", resource_type="patient_label", resource_id=str(label_id)))
     return label
 
 
@@ -254,8 +270,7 @@ async def delete_label(
     await session.flush()
     await session.delete(label)
     await session.commit()
-    import asyncio
-    asyncio.ensure_future(audit(doctor_id, "DELETE", resource_type="patient_label", resource_id=str(label_id)))
+    safe_create_task(audit(doctor_id, "DELETE", resource_type="patient_label", resource_id=str(label_id)))
     return True
 
 
@@ -291,8 +306,7 @@ async def assign_label(
     if label not in patient.labels:
         patient.labels.append(label)
         await session.commit()
-        import asyncio
-        asyncio.ensure_future(audit(doctor_id, "WRITE", resource_type="patient_label", resource_id=f"{patient_id}:{label_id}"))
+        safe_create_task(audit(doctor_id, "WRITE", resource_type="patient_label", resource_id=f"{patient_id}:{label_id}"))
 
 
 async def remove_label(
@@ -313,8 +327,7 @@ async def remove_label(
         )
     patient.labels = [lbl for lbl in patient.labels if lbl.id != label_id]
     await session.commit()
-    import asyncio
-    asyncio.ensure_future(audit(doctor_id, "DELETE", resource_type="patient_label", resource_id=f"{patient_id}:{label_id}"))
+    safe_create_task(audit(doctor_id, "DELETE", resource_type="patient_label", resource_id=f"{patient_id}:{label_id}"))
 
 
 async def get_patient_labels(
@@ -366,10 +379,14 @@ async def search_patients_nl(
             MedicalRecordDB.patient_id.is_not(None),
         )
         if criteria.keywords:
+            def _escape_like(s: str) -> str:
+                """Escape SQL LIKE wildcards so user input is matched literally."""
+                return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
             kw_filters = [
                 or_(
-                    MedicalRecordDB.content.like(f"%{kw}%"),
-                    MedicalRecordDB.tags.like(f"%{kw}%"),
+                    MedicalRecordDB.content.like(f"%{_escape_like(kw)}%"),
+                    MedicalRecordDB.tags.like(f"%{_escape_like(kw)}%"),
                 )
                 for kw in criteria.keywords
             ]

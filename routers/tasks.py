@@ -14,10 +14,12 @@ from pydantic import BaseModel
 
 from db.engine import AsyncSessionLocal
 from db.crud import list_tasks, update_task_status, create_task, get_task_by_id, update_task_due_at
+from db.crud.patient import get_patient_for_doctor
 from services.auth.rate_limit import enforce_doctor_rate_limit
 from services.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
 from services.notify.tasks import run_due_task_cycle
 from services.observability.audit import audit
+from utils.log import safe_create_task
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
@@ -114,9 +116,8 @@ async def _get_tasks_for_doctor(
     offset: int = 0,
 ) -> List[TaskOut]:
     async with AsyncSessionLocal() as session:
-        tasks = await list_tasks(session, doctor_id, status=status)
-    all_tasks = [TaskOut.from_orm(t) for t in tasks]
-    return all_tasks[offset:offset + limit]
+        tasks = await list_tasks(session, doctor_id, status=status, limit=limit, offset=offset)
+    return [TaskOut.from_orm(t) for t in tasks]
 
 
 @router.post("", response_model=TaskOut, status_code=201)
@@ -142,6 +143,10 @@ async def _create_task_for_doctor(doctor_id: str, body: TaskCreate) -> TaskOut:
         raise HTTPException(status_code=422, detail="title must not be empty")
     due_at = _parse_due_at(body.due_at) if body.due_at else None
     async with AsyncSessionLocal() as session:
+        if body.patient_id is not None:
+            patient = await get_patient_for_doctor(session, doctor_id, body.patient_id)
+            if patient is None:
+                raise HTTPException(status_code=404, detail="Patient not found")
         task = await create_task(
             session,
             doctor_id=doctor_id,
@@ -151,7 +156,7 @@ async def _create_task_for_doctor(doctor_id: str, body: TaskCreate) -> TaskOut:
             patient_id=body.patient_id,
             due_at=due_at,
         )
-    asyncio.create_task(audit(doctor_id, "create_task", "doctor_task", str(task.id)))
+    safe_create_task(audit(doctor_id, "create_task", "doctor_task", str(task.id)))
     return TaskOut.from_orm(task)
 
 
@@ -207,23 +212,29 @@ async def _postpone_task_for_doctor(task_id: int, doctor_id: str, body: TaskDueU
         task = await update_task_due_at(session, task_id, doctor_id, due_at)
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
-    asyncio.create_task(audit(doctor_id, "postpone_task", "doctor_task", str(task_id)))
+    safe_create_task(audit(doctor_id, "postpone_task", "doctor_task", str(task_id)))
     return TaskOut.from_orm(task)
 
 
 @router.post("/dev/run-notifier")
 async def dev_run_notifier(
-    doctor_id: Optional[str] = None,
+    doctor_id: str,
     include_manual: bool = True,
     force: bool = True,
+    authorization: Optional[str] = Header(default=None),
 ) -> dict:
     """Dev-only endpoint: trigger one background notification cycle immediately."""
     if not _env_flag_true("TASK_DEV_ENDPOINT_ENABLED", default=False):
         raise HTTPException(status_code=404, detail="Not found")
-    if doctor_id:
-        enforce_doctor_rate_limit(doctor_id, scope="tasks.dev_notifier")
+    resolved_doctor_id = resolve_doctor_id_from_auth_or_fallback(
+        doctor_id,
+        authorization,
+        fallback_env_flag="TASKS_ALLOW_BODY_DOCTOR_ID",
+        default_doctor_id="test_doctor",
+    )
+    enforce_doctor_rate_limit(resolved_doctor_id, scope="tasks.dev_notifier")
     return await run_due_task_cycle(
-        doctor_id=doctor_id,
+        doctor_id=resolved_doctor_id,
         include_manual=include_manual,
         force=force,
     )

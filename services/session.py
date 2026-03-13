@@ -10,8 +10,6 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
-from services.patient.interview import InterviewState
-from services.patient.cvd_scale_interview import CVDScaleSession
 from db.engine import AsyncSessionLocal
 from db.crud import (
     get_doctor_session_state,
@@ -40,7 +38,10 @@ class BlockedWriteContext:
     clinical_text: str                  # original clinical content from the blocked turn
     original_text: str                  # raw doctor input before processing
     created_at: float = field(default_factory=time.monotonic)  # monotonic for TTL
-    history_snapshot: List[dict] = field(default_factory=list)  # history at block time
+    # DEPRECATED: client-supplied history is no longer stored; server-side
+    # session history is used on replay.  Kept for backward-compat deserialization
+    # of existing DB rows that may still contain the field.
+    history_snapshot: List[dict] = field(default_factory=list)
 
 _sessions: dict[str, "DoctorSession"] = {}
 
@@ -51,7 +52,17 @@ _loaded_from_db: dict[str, float] = {}  # doctor_id → monotonic time of last h
 _persist_tasks: Dict[str, asyncio.Task] = {}
 _persist_turn_tasks: Dict[str, asyncio.Task] = {}
 _pending_turns: Dict[str, List[dict]] = {}
+_persist_dirty: set[str] = set()  # doctor_ids needing re-persist after current task
 _registry_lock = threading.RLock()
+
+# Hard cap on in-memory sessions.  When exceeded, the oldest idle session
+# (by last_active) is evicted before a new one is created.
+_MAX_SESSIONS = 5000
+
+
+def _mark_session_fresh_locked(doctor_id: str) -> None:
+    """Bump the hydration marker after an in-memory workflow-state update."""
+    _loaded_from_db[doctor_id] = time.monotonic()
 
 
 def get_session_lock(doctor_id: str) -> asyncio.Lock:
@@ -75,8 +86,6 @@ class DoctorSession:
     patient_not_found_name: Optional[str] = None    # last query returned empty for this name
     pending_create_name: Optional[str] = None   # waiting for gender/age to create a new patient
     pending_record_id: Optional[str] = None     # UUID of draft PendingRecord awaiting confirmation
-    interview: Optional[InterviewState] = None          # active guided intake interview
-    pending_cvd_scale: Optional[CVDScaleSession] = None # awaiting doctor reply for a missing CVD scale
     blocked_write: Optional[BlockedWriteContext] = None # blocked write awaiting patient name (ADR 0007)
     specialty: Optional[str] = None                     # doctor's specialty, injected into agent prompt
     doctor_name: Optional[str] = None                   # doctor's display name, e.g. "张伟" → agent says "张医生"
@@ -88,8 +97,35 @@ class DoctorSession:
 def get_session(doctor_id: str) -> DoctorSession:
     with _registry_lock:
         if doctor_id not in _sessions:
+            _evict_oldest_if_full()
             _sessions[doctor_id] = DoctorSession()
         return _sessions[doctor_id]
+
+
+def _evict_oldest_if_full() -> None:
+    """Evict the oldest idle session if the cache has reached _MAX_SESSIONS.
+
+    Must be called while holding ``_registry_lock``.
+    """
+    if len(_sessions) < _MAX_SESSIONS:
+        return
+    # Find the oldest idle (unlocked, no pending turns) session.
+    best_id: Optional[str] = None
+    best_active: float = float("inf")
+    for did, sess in _sessions.items():
+        lock = _locks.get(did)
+        if lock is not None and lock.locked():
+            continue
+        if _pending_turns.get(did):
+            continue
+        if sess.last_active < best_active:
+            best_active = sess.last_active
+            best_id = did
+    if best_id is not None:
+        _sessions.pop(best_id, None)
+        _loaded_from_db.pop(best_id, None)
+        _locks.pop(best_id, None)
+        _pending_turns.pop(best_id, None)
 
 
 async def _restore_pending_record_id(db: object, doctor_id: str, state: object) -> "Optional[str]":
@@ -109,42 +145,6 @@ async def _restore_pending_record_id(db: object, doctor_id: str, state: object) 
     if _pr is None or _pr.status != "awaiting" or _expired:
         return None
     return _restored
-
-
-def _restore_interview(sess: "DoctorSession", doctor_id: str, state: object) -> None:
-    """从 state.interview_json 恢复面诊状态到 sess.interview。"""
-    import json as _json
-    _interview_json = getattr(state, "interview_json", None)
-    if not _interview_json:
-        return
-    try:
-        _iv = _json.loads(_interview_json)
-        iv_state = InterviewState()
-        iv_state.step = int(_iv.get("step", 0))
-        iv_state.answers = dict(_iv.get("answers", {}))
-        sess.interview = iv_state
-    except Exception as _iv_err:
-        log(f"[Session] invalid interview_json for {doctor_id}: {_iv_err}")
-        sess.interview = None
-
-
-def _restore_cvd_scale(sess: "DoctorSession", doctor_id: str, state: object) -> None:
-    """从 state.cvd_scale_json 恢复 CVD 量表会话到 sess.pending_cvd_scale。"""
-    import json as _json
-    _cvd_json = getattr(state, "cvd_scale_json", None)
-    if not _cvd_json:
-        return
-    try:
-        _cvd = _json.loads(_cvd_json)
-        sess.pending_cvd_scale = CVDScaleSession(
-            record_id=_cvd["record_id"],
-            patient_id=_cvd.get("patient_id"),
-            field_name=_cvd["field_name"],
-            subtype=_cvd["subtype"],
-        )
-    except Exception as _cvd_err:
-        log(f"[Session] invalid cvd_scale_json for {doctor_id}: {_cvd_err}")
-        sess.pending_cvd_scale = None
 
 
 def _restore_blocked_write(sess: "DoctorSession", doctor_id: str, state: object) -> None:
@@ -187,9 +187,15 @@ async def _hydrate_from_db(sess: "DoctorSession", doctor_id: str) -> None:
                 sess.current_patient_name = patient.name if patient is not None else None
             else:
                 sess.current_patient_name = None
-            _restore_interview(sess, doctor_id, state)
-            _restore_cvd_scale(sess, doctor_id, state)
             _restore_blocked_write(sess, doctor_id, state)
+        # Clear ephemeral fields that are not persisted to DB — prevents
+        # stale candidate/not_found names from a prior in-memory session
+        # leaking into a freshly hydrated one (multi-device scenario).
+        sess.candidate_patient_name = None
+        sess.candidate_patient_gender = None
+        sess.candidate_patient_age = None
+        sess.patient_not_found_name = None
+        sess.last_active = time.time()
 
         turns = await get_recent_conversation_turns(db, doctor_id, limit=MAX_TURNS * 2)
         # Only restore from DB if no in-memory turns exist — prevents overwriting
@@ -243,23 +249,6 @@ async def persist_session_state(doctor_id: str) -> None:
     import json as _json
     sess = get_session(doctor_id)
     # Serialize optional mid-session states
-    interview_json: Optional[str] = None
-    if sess.interview is not None:
-        try:
-            interview_json = _json.dumps({"step": sess.interview.step, "answers": sess.interview.answers})
-        except Exception:
-            pass
-    cvd_scale_json: Optional[str] = None
-    if sess.pending_cvd_scale is not None:
-        try:
-            cvd_scale_json = _json.dumps({
-                "record_id": sess.pending_cvd_scale.record_id,
-                "patient_id": sess.pending_cvd_scale.patient_id,
-                "field_name": sess.pending_cvd_scale.field_name,
-                "subtype": sess.pending_cvd_scale.subtype,
-            })
-        except Exception:
-            pass
     blocked_write_json: Optional[str] = None
     if sess.blocked_write is not None:
         try:
@@ -267,7 +256,6 @@ async def persist_session_state(doctor_id: str) -> None:
                 "intent": sess.blocked_write.intent,
                 "clinical_text": sess.blocked_write.clinical_text,
                 "original_text": sess.blocked_write.original_text,
-                "history_snapshot": sess.blocked_write.history_snapshot,
             }, ensure_ascii=False)
         except Exception:
             pass
@@ -279,8 +267,6 @@ async def persist_session_state(doctor_id: str) -> None:
                 current_patient_id=sess.current_patient_id,
                 pending_create_name=sess.pending_create_name,
                 pending_record_id=sess.pending_record_id,
-                interview_json=interview_json,
-                cvd_scale_json=cvd_scale_json,
                 blocked_write_json=blocked_write_json,
             )
     except Exception as e:
@@ -301,7 +287,24 @@ async def _flush_pending_turns(doctor_id: str) -> None:
                 await append_chat_archive(db, doctor_id, batch)
         except Exception as e:
             log(f"[Session] persist turns FAILED: {e}")
+            # Re-queue the batch so it can be retried on next flush
+            with _registry_lock:
+                existing = _pending_turns.get(doctor_id, [])
+                _pending_turns[doctor_id] = batch + existing
             return
+
+
+async def _persist_and_check_dirty(doctor_id: str) -> None:
+    """Persist session state and re-persist if mutations occurred during the write."""
+    await persist_session_state(doctor_id)
+    # Check if state was mutated while we were persisting
+    with _registry_lock:
+        needs_repersist = doctor_id in _persist_dirty
+        _persist_dirty.discard(doctor_id)
+    if not needs_repersist:
+        return
+    # One follow-up persist to capture the latest state
+    await persist_session_state(doctor_id)
 
 
 def _schedule_persist(doctor_id: str) -> None:
@@ -314,8 +317,10 @@ def _schedule_persist(doctor_id: str) -> None:
     with _registry_lock:
         existing = _persist_tasks.get(doctor_id)
         if existing is not None and not existing.done():
+            # Task in flight — mark dirty so it re-persists when done
+            _persist_dirty.add(doctor_id)
             return
-        _persist_tasks[doctor_id] = loop.create_task(persist_session_state(doctor_id))
+        _persist_tasks[doctor_id] = loop.create_task(_persist_and_check_dirty(doctor_id))
 
 
 def _schedule_turn_persist(doctor_id: str, turns: List[dict]) -> None:
@@ -335,13 +340,16 @@ def _schedule_turn_persist(doctor_id: str, turns: List[dict]) -> None:
 
 
 def push_turn(doctor_id: str, user_text: str, assistant_reply: str) -> None:
-    """Append one user+assistant exchange to the rolling window and refresh timestamp."""
+    """Append one user+assistant exchange to the rolling window and refresh timestamp.
+
+    Uses copy-on-write to avoid mutating the list while maybe_compress()
+    (running under the async session lock) iterates over a reference to it.
+    """
     user_turn = {"role": "user", "content": user_text}
     assistant_turn = {"role": "assistant", "content": assistant_reply}
     with _registry_lock:
         sess = get_session(doctor_id)
-        sess.conversation_history.append(user_turn)
-        sess.conversation_history.append(assistant_turn)
+        sess.conversation_history = sess.conversation_history + [user_turn, assistant_turn]
         sess.last_active = time.time()
         sess.updated_at = _utcnow()
     _schedule_turn_persist(doctor_id, [user_turn, assistant_turn])
@@ -366,8 +374,28 @@ async def push_and_flush_turn(doctor_id: str, user_text: str, assistant_reply: s
     await flush_turns(doctor_id)
 
 
+def _schedule_abandon_draft(doctor_id: str, draft_id: str) -> None:
+    """Fire-and-forget: mark an orphaned pending draft as abandoned in the DB."""
+    async def _do_abandon() -> None:
+        try:
+            from db.crud.pending import abandon_pending_record
+            async with AsyncSessionLocal() as db:
+                await abandon_pending_record(db, draft_id, doctor_id)
+            log(f"[Session] abandoned orphaned draft={draft_id} doctor={doctor_id}")
+        except Exception as e:
+            log(f"[Session] abandon draft FAILED draft={draft_id}: {e}")
+
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return
+    from utils.log import safe_create_task
+    safe_create_task(_do_abandon(), name=f"abandon-draft-{draft_id[:8]}")
+
+
 def set_current_patient(doctor_id: str, patient_id: int, name: str, persist: bool = True) -> Optional[str]:
     """Set the current patient. Returns previous patient name if switched, else None."""
+    orphaned_draft_id: Optional[str] = None
     with _registry_lock:
         session = get_session(doctor_id)
         prev_name = (
@@ -381,9 +409,17 @@ def set_current_patient(doctor_id: str, patient_id: int, name: str, persist: boo
         session.candidate_patient_gender = None
         session.candidate_patient_age = None
         session.patient_not_found_name = None
+        # Clear pending draft — it belongs to the previous patient context.
+        # Precheck will no longer try to resume an orphaned draft.
+        orphaned_draft_id = session.pending_record_id
+        session.pending_record_id = None
         session.updated_at = _utcnow()
+        _mark_session_fresh_locked(doctor_id)
     if persist:
         _schedule_persist(doctor_id)
+    # Mark the orphaned draft as abandoned in DB so it doesn't linger as "awaiting"
+    if orphaned_draft_id:
+        _schedule_abandon_draft(doctor_id, orphaned_draft_id)
     return prev_name
 
 
@@ -401,6 +437,7 @@ def set_candidate_patient(
         session.candidate_patient_age = age
         session.patient_not_found_name = None
         session.updated_at = _utcnow()
+        _mark_session_fresh_locked(doctor_id)
 
 
 def clear_candidate_patient(doctor_id: str) -> None:
@@ -410,6 +447,7 @@ def clear_candidate_patient(doctor_id: str) -> None:
         session.candidate_patient_gender = None
         session.candidate_patient_age = None
         session.updated_at = _utcnow()
+        _mark_session_fresh_locked(doctor_id)
 
 
 def set_patient_not_found(doctor_id: str, name: str) -> None:
@@ -423,6 +461,7 @@ def set_patient_not_found(doctor_id: str, name: str) -> None:
         session.candidate_patient_gender = None
         session.candidate_patient_age = None
         session.updated_at = _utcnow()
+        _mark_session_fresh_locked(doctor_id)
 
 
 def clear_patient_not_found(doctor_id: str) -> None:
@@ -430,6 +469,7 @@ def clear_patient_not_found(doctor_id: str) -> None:
         session = get_session(doctor_id)
         session.patient_not_found_name = None
         session.updated_at = _utcnow()
+        _mark_session_fresh_locked(doctor_id)
 
 
 def clear_current_patient(doctor_id: str, persist: bool = True) -> None:
@@ -438,6 +478,7 @@ def clear_current_patient(doctor_id: str, persist: bool = True) -> None:
         session.current_patient_id = None
         session.current_patient_name = None
         session.updated_at = _utcnow()
+        _mark_session_fresh_locked(doctor_id)
     if persist:
         _schedule_persist(doctor_id)
 
@@ -447,6 +488,7 @@ def set_pending_create(doctor_id: str, name: str, persist: bool = True) -> None:
         session = get_session(doctor_id)
         session.pending_create_name = name
         session.updated_at = _utcnow()
+        _mark_session_fresh_locked(doctor_id)
     if persist:
         _schedule_persist(doctor_id)
 
@@ -456,6 +498,7 @@ def clear_pending_create(doctor_id: str, persist: bool = True) -> None:
         session = get_session(doctor_id)
         session.pending_create_name = None
         session.updated_at = _utcnow()
+        _mark_session_fresh_locked(doctor_id)
     if persist:
         _schedule_persist(doctor_id)
 
@@ -465,6 +508,7 @@ def set_pending_record_id(doctor_id: str, record_id: str, persist: bool = True) 
         session = get_session(doctor_id)
         session.pending_record_id = record_id
         session.updated_at = _utcnow()
+        _mark_session_fresh_locked(doctor_id)
     if persist:
         _schedule_persist(doctor_id)
 
@@ -474,6 +518,7 @@ def clear_pending_record_id(doctor_id: str, persist: bool = True) -> None:
         session = get_session(doctor_id)
         session.pending_record_id = None
         session.updated_at = _utcnow()
+        _mark_session_fresh_locked(doctor_id)
     if persist:
         _schedule_persist(doctor_id)
 
@@ -484,18 +529,22 @@ def set_blocked_write_context(
     intent: str,
     clinical_text: str,
     original_text: str,
-    history_snapshot: Optional[List[dict]] = None,
 ) -> None:
-    """Store a blocked write context when add_record is gated for missing patient name."""
+    """Store a blocked write context when add_record is gated for missing patient name.
+
+    Client-supplied history is never stored — server-side session history
+    is used when the blocked write is replayed.
+    """
     with _registry_lock:
         session = get_session(doctor_id)
         session.blocked_write = BlockedWriteContext(
             intent=intent,
             clinical_text=clinical_text,
             original_text=original_text,
-            history_snapshot=list(history_snapshot or []),
         )
         session.updated_at = _utcnow()
+        _mark_session_fresh_locked(doctor_id)
+    _schedule_persist(doctor_id)
 
 
 def get_blocked_write_context(doctor_id: str) -> Optional[BlockedWriteContext]:
@@ -508,6 +557,9 @@ def get_blocked_write_context(doctor_id: str) -> Optional[BlockedWriteContext]:
         elapsed = time.monotonic() - ctx.created_at
         if elapsed > _BLOCKED_WRITE_TTL_SECONDS:
             session.blocked_write = None
+            session.updated_at = _utcnow()
+            _mark_session_fresh_locked(doctor_id)
+            _schedule_persist(doctor_id)
             return None
         return ctx
 
@@ -518,6 +570,8 @@ def clear_blocked_write_context(doctor_id: str) -> None:
         session = get_session(doctor_id)
         session.blocked_write = None
         session.updated_at = _utcnow()
+        _mark_session_fresh_locked(doctor_id)
+    _schedule_persist(doctor_id)
 
 
 def prune_inactive_sessions(max_idle_seconds: int = 3600) -> Dict[str, int]:
@@ -536,6 +590,9 @@ def prune_inactive_sessions(max_idle_seconds: int = 3600) -> Dict[str, int]:
             if lock is not None and lock.locked():
                 continue
             if (now - float(session.last_active)) < idle_threshold:
+                continue
+            # Don't evict if there are unflushed turns — they'd be lost
+            if _pending_turns.get(doctor_id):
                 continue
             _sessions.pop(doctor_id, None)
             _loaded_from_db.pop(doctor_id, None)

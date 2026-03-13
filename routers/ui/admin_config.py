@@ -46,7 +46,7 @@ from routers.ui._utils import (
 )
 from routers.ui.admin_handlers import admin_seed_samples_logic as _admin_seed_samples_logic
 
-router = APIRouter(tags=["ui"])
+router = APIRouter(tags=["ui"], include_in_schema=False)
 
 
 class RuntimeConfigUpdate(BaseModel):
@@ -255,25 +255,34 @@ async def admin_get_keywords(
         _CLINICAL_KW_TIER3, _TIER3_BAD_NAME,
     )
     return {
-        "counts": {
-            "tier3": len(_CLINICAL_KW_TIER3),
-            "import_keywords": len(_IMPORT_KEYWORDS),
-            "list_patients_exact": len(_LIST_PATIENTS_EXACT),
-            "list_patients_short": len(_LIST_PATIENTS_SHORT),
-            "list_tasks_exact": len(_LIST_TASKS_EXACT),
-            "list_tasks_short": len(_LIST_TASKS_SHORT),
-            "non_name_keywords": len(_NON_NAME_KEYWORDS),
-            "tier3_bad_name": len(_TIER3_BAD_NAME),
+        "active": {
+            "counts": {
+                "list_patients_exact": len(_LIST_PATIENTS_EXACT),
+                "list_patients_short": len(_LIST_PATIENTS_SHORT),
+                "list_tasks_exact": len(_LIST_TASKS_EXACT),
+                "list_tasks_short": len(_LIST_TASKS_SHORT),
+                "non_name_keywords": len(_NON_NAME_KEYWORDS),
+                "bad_name_exclusions": len(_TIER3_BAD_NAME),
+            },
+            "keywords": {
+                "list_patients_exact": sorted(_LIST_PATIENTS_EXACT),
+                "list_patients_short": sorted(_LIST_PATIENTS_SHORT),
+                "list_tasks_exact": sorted(_LIST_TASKS_EXACT),
+                "list_tasks_short": sorted(_LIST_TASKS_SHORT),
+                "non_name_keywords": sorted(_NON_NAME_KEYWORDS),
+                "bad_name_exclusions": sorted(_TIER3_BAD_NAME),
+            },
         },
-        "keywords": {
-            "tier3": sorted(_CLINICAL_KW_TIER3),
-            "import_keywords": sorted(_IMPORT_KEYWORDS),
-            "list_patients_exact": sorted(_LIST_PATIENTS_EXACT),
-            "list_patients_short": sorted(_LIST_PATIENTS_SHORT),
-            "list_tasks_exact": sorted(_LIST_TASKS_EXACT),
-            "list_tasks_short": sorted(_LIST_TASKS_SHORT),
-            "non_name_keywords": sorted(_NON_NAME_KEYWORDS),
-            "tier3_bad_name": sorted(_TIER3_BAD_NAME),
+        "inactive": {
+            "note": "These keyword sets are compiled but no longer used in the live routing path.",
+            "counts": {
+                "tier3_clinical": len(_CLINICAL_KW_TIER3),
+                "import_keywords": len(_IMPORT_KEYWORDS),
+            },
+            "keywords": {
+                "tier3_clinical": sorted(_CLINICAL_KW_TIER3),
+                "import_keywords": sorted(_IMPORT_KEYWORDS),
+            },
         },
         "note": "Keywords are compiled into the binary. To add keywords, edit services/ai/fast_router/_keywords.py and redeploy.",
     }

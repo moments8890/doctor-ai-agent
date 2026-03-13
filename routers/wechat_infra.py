@@ -62,8 +62,9 @@ async def is_registered_doctor(open_id: str) -> bool:
     In test environments the check is bypassed so existing unit tests that stub
     the DB at a different level are not broken by the new guard.
     """
-    import os as _os
-    if _os.environ.get("PYTEST_CURRENT_TEST"):
+    import sys as _sys
+    from services.auth import is_production
+    if not is_production() and "pytest" in _sys.modules:
         return True
     cached = _DOCTOR_CACHE.get(open_id)
     if cached is not None:

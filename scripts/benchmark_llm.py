@@ -44,14 +44,15 @@ _CORPUS = [
     ("完成任务1", "complete_task"),
     ("完成任务三", "complete_task"),
     ("帮我查李明的情况", "query_records"),
-    # Tier 3 fast-route (clinical keywords → add_record, skip routing LLM)
-    ("张三，男，58岁，胸闷气促3天，BNP 980，EF 50%，心衰III级，予以利尿强心", "add_record"),
-    ("李明发烧三天，体温38.5，咳嗽，给予对乙酰氨基酚退烧", "add_record"),
-    ("王五腹痛，排除阑尾炎，建议观察48小时", "add_record"),
-    ("张三心悸三天，心电图AF，给予倍他乐克12.5mg", "add_record"),
-    ("患者主诉胸痛，查肌钙蛋白I 0.3，考虑急性心肌梗死，立即溶栓", "add_record"),
-    ("随访：张三血糖控制良好，HbA1c 6.8%，继续二甲双胍", "add_record"),
-    ("李红化疗后乏力，WBC 2.1，ANC 0.8，暂停化疗，给予G-CSF支持", "add_record"),
+    # LLM required — Tier 3 was removed 2026-03-09; all clinical/semantic
+    # content now falls through to the LLM for routing.
+    ("张三，男，58岁，胸闷气促3天，BNP 980，EF 50%，心衰III级，予以利尿强心", "llm"),
+    ("李明发烧三天，体温38.5，咳嗽，给予对乙酰氨基酚退烧", "llm"),
+    ("王五腹痛，排除阑尾炎，建议观察48小时", "llm"),
+    ("张三心悸三天，心电图AF，给予倍他乐克12.5mg", "llm"),
+    ("患者主诉胸痛，查肌钙蛋白I 0.3，考虑急性心肌梗死，立即溶栓", "llm"),
+    ("随访：张三血糖控制良好，HbA1c 6.8%，继续二甲双胍", "llm"),
+    ("李红化疗后乏力，WBC 2.1，ANC 0.8，暂停化疗，给予G-CSF支持", "llm"),
     # LLM required (routing LLM must decide)
     ("患者血压160/100，目前服用氨氯地平5mg，考虑加量", "llm"),
     ("王五复查，血压稳定，120/80，继续当前方案", "llm"),
@@ -65,11 +66,9 @@ _CORPUS = [
 
 def _bench_fast_router(corpus: list[tuple[str, str]]) -> dict:
     from services.ai.fast_router import fast_route
-    from services.ai.intent import Intent
 
     latencies_us: list[float] = []
-    tier1_2_hits = 0
-    tier3_hits = 0
+    fast_hits = 0
     llm_required = 0
     errors: list[str] = []
 
@@ -85,19 +84,13 @@ def _bench_fast_router(corpus: list[tuple[str, str]]) -> dict:
                 errors.append(f"MISS: {text!r} → None (expected {expected})")
         else:
             intent_val = result.intent.value
-            if intent_val == "add_record":
-                tier3_hits += 1
-            else:
-                tier1_2_hits += 1
+            fast_hits += 1
             if expected != "llm" and intent_val != expected:
                 errors.append(f"WRONG: {text!r} → {intent_val} (expected {expected})")
 
     total = len(corpus)
-    fast_hits = tier1_2_hits + tier3_hits
     return {
         "total": total,
-        "tier1_2_hits": tier1_2_hits,
-        "tier3_hits": tier3_hits,
         "fast_hits": fast_hits,
         "llm_required": llm_required,
         "hit_rate_pct": fast_hits / total * 100,
@@ -145,7 +138,8 @@ async def _bench_structuring(texts: list[str]) -> dict:
             record = await structure_medical_record(text)
             elapsed_ms = (time.perf_counter() - t0) * 1000
             latencies_ms.append(elapsed_ms)
-            print(f"  [{elapsed_ms:6.0f}ms] {text[:50]!r} → cc={record.chief_complaint!r}")
+            preview = record.content[:60] if record.content else ""
+            print(f"  [{elapsed_ms:6.0f}ms] {text[:50]!r} → content={preview!r}")
         except Exception as e:
             elapsed_ms = (time.perf_counter() - t0) * 1000
             latencies_ms.append(elapsed_ms)
@@ -199,13 +193,10 @@ async def main() -> None:
             print(f"  ⚠ {e}")
     total = fr["total"]
     print(f"  Corpus size   : {total}")
-    print(f"  Tier 1/2 hits : {fr['tier1_2_hits']}  ({fr['tier1_2_hits']/total*100:.0f}%)")
-    print(f"  Tier 3 hits   : {fr['tier3_hits']}  ({fr['tier3_hits']/total*100:.0f}%  clinical fast-route)")
+    print(f"  Fast-route hits: {fr['fast_hits']}  ({fr['fast_hits']/total*100:.0f}%)")
     print(f"  LLM required  : {fr['llm_required']}  ({fr['llm_required']/total*100:.0f}%)")
-    print(f"  Total hit rate: {fr['hit_rate_pct']:.1f}%")
+    print(f"  Hit rate      : {fr['hit_rate_pct']:.1f}%")
     _print_latency("Fast-router latency", fr["latencies_us"])
-    saved_per_session = fr["fast_hits"] * 6
-    print(f"  Projected LLM savings: {fr['fast_hits']} × 6s = {saved_per_session}s per {total}-turn session")
 
     # ── Routing LLM ──────────────────────────────────────────────────────────
     if run_llm:

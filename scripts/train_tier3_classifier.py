@@ -3,12 +3,16 @@
 
 Train a TF-IDF + logistic regression binary classifier for Tier-3 routing.
 
+NOTE: Tier 3 was retired from the live routing path on 2026-03-09.
+      See services/ai/fast_router/_tier3.py for details.  This script is
+      retained for offline analysis / potential re-enablement only.
+
 Usage:
     python scripts/train_tier3_classifier.py [--out services/ai/tier3_classifier.pkl]
 
 Output: a pickle file containing a sklearn Pipeline (TfidfVectorizer → LogisticRegression).
 
-The classifier is used as the final gate in _is_clinical_tier3() in fast_router.py.
+The classifier was used as the final gate in _is_clinical_tier3() in _tier3.py.
 It fires ONLY when all keyword + regex guards would return True, so it only needs to
 distinguish real clinical notes from the hard-floor cases that keywords can't handle.
 

@@ -1,6 +1,6 @@
 # 数据库表设计文档
 
-> 最后更新：2026-03-09
+> 最后更新：2026-03-13
 > 共 26 张表：9 个 MVP 核心表 · 14 个扩展表 · 3 个暂缓表
 
 ---
@@ -23,7 +23,7 @@ pending_messages        ← 消息入库，防微信 5s 超时丢失
     ↓
 system_prompts          ← 调取 LLM 提示词（热更新）
     ↓
-pending_records         ← AI 草稿，等待医生确认（TTL 10 分钟）
+pending_records         ← AI 草稿，等待医生确认（expires_at 控制过期）
     ↓
 doctor_session_states   ← 记录 pending_record_id，跨实例恢复
     ↓
@@ -87,10 +87,13 @@ scheduler_leases        ← 定时任务互斥锁（多实例部署）
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | code | String(32) PK | 邀请码 |
-| doctor_id | String(64) | 关联医生 ID |
+| doctor_id | String(64) FK→doctors SET NULL | 关联医生 ID |
 | doctor_name | String(128) | 医生姓名（显示用）|
-| active | Integer(bool) | 是否有效（1/0）|
+| active | Boolean | 是否有效 |
 | created_at | DateTime | 创建时间 |
+| expires_at | DateTime | 过期时间（可选）|
+| max_uses | Integer | 最大使用次数（默认 1）|
+| used_count | Integer | 已使用次数（默认 0）|
 
 ---
 
@@ -102,17 +105,22 @@ scheduler_leases        ← 定时任务互斥锁（多实例部署）
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | id | Integer PK | 自增主键 |
-| doctor_id | String(64) FK | 所属医生 |
+| doctor_id | String(64) FK→doctors CASCADE | 所属医生 |
 | name | String(128) | 患者姓名 |
 | gender | String(16) | 性别 |
 | year_of_birth | Integer | 出生年份 |
 | primary_category | String(32) | 主分类（AI 计算）|
 | category_tags | Text JSON | 分类标签列表 |
+| phone | String(20) | 手机号（可选）|
+| patient_id_number | String(18) | 身份证号（可选）|
+| access_code | String(160) | 患者门户访问码（PBKDF2-SHA256 哈希，NULL = 仅姓名登录）|
+| access_code_version | Integer | 访问码版本计数器（旋转时递增，使旧 JWT 失效）|
 | created_at | DateTime | 创建时间 |
 
-**索引**：`(doctor_id, primary_category)`
+**索引**：`(doctor_id, created_at)`、`(doctor_id, primary_category)`
+**唯一约束**：`(id, doctor_id)`、`(doctor_id, name)`
 
-> **注**：`primary_risk_level`、`risk_tags`、`risk_score`、`follow_up_state` 字段已暂缓（MVP 不需要）。代码保留在 `services/patient/patient_risk.py`，可按需恢复。
+> **注**：`primary_risk_level`、`risk_tags`、`risk_score`、`follow_up_state` 字段尚未映射到模型（MVP 不需要）。计算逻辑保留在 `services/patient/patient_risk.py`，可按需添加列后启用。
 
 ---
 
@@ -126,21 +134,25 @@ scheduler_leases        ← 定时任务互斥锁（多实例部署）
 | id | Integer PK | 自增主键 |
 | patient_id | Integer FK | 关联患者 |
 | doctor_id | String(64) FK | 所属医生 |
-| record_type | String(32) | 病历类型（门诊/住院/随访等）|
-| content | Text | 病历内容（JSON）|
-| tags | Text JSON | 标签列表 |
+| record_type | String(32) | 病历类型：visit / dictation / import / neuro_case 等 |
+| content | Text | 病历内容（LLM 整理后的自由文本，非 JSON）|
+| tags | Text JSON | 关键词标签列表 |
 | encounter_type | String(32) | 就诊类型：first_visit / follow_up / unknown |
+| neuro_patient_name | String(128) | 神经科病例患者姓名（record_type=neuro_case 时使用）|
+| nihss | Integer | NIHSS 评分（已弃用，改用 specialty_scores）|
+| neuro_raw_json | Text | 神经科原始提取 JSON |
+| neuro_extraction_log_json | Text | 神经科提取日志 JSON |
 | created_at | DateTime | 创建时间 |
 | updated_at | DateTime | 更新时间 |
 
-**索引**：`(patient_id, created_at)`
+**索引**：`(patient_id, created_at)`、`(doctor_id, created_at)`、`(doctor_id, record_type, created_at)`
 
 ---
 
 ### pending_records
 
 **文件**：`db/models/pending.py`
-**用途**：AI 草稿确认门控。LLM 结构化后先存此表，医生确认后写入 `medical_records`，10 分钟自动过期。
+**用途**：AI 草稿确认门控。LLM 结构化后先存此表，医生确认后写入 `medical_records`。过期时间由 `expires_at` 字段控制（通常 10 分钟，启动时可自动保存过期草稿）。
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
@@ -165,9 +177,10 @@ scheduler_leases        ← 定时任务互斥锁（多实例部署）
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | id | String(64) PK | UUID |
-| doctor_id | String(64) FK | 所属医生 |
+| doctor_id | String(64) FK→doctors CASCADE | 所属医生 |
 | raw_content | Text | 原始消息内容 |
-| status | String(16) | pending / done / failed |
+| status | String(16) | pending / processing / done / dead |
+| attempt_count | Integer | 处理尝试次数（默认 0，超过阈值转入 dead）|
 | created_at | DateTime | 创建时间 |
 
 **索引**：`(status, created_at)`，`doctor_id`
@@ -181,13 +194,13 @@ scheduler_leases        ← 定时任务互斥锁（多实例部署）
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| doctor_id | String(64) PK | 医生 ID |
-| current_patient_id | Integer FK | 当前操作患者 |
+| doctor_id | String(64) PK FK→doctors CASCADE | 医生 ID |
+| current_patient_id | Integer FK→patients SET NULL | 当前操作患者 |
 | pending_create_name | String(128) | 待创建患者姓名 |
-| pending_record_id | String(64) | 待确认草稿 ID |
+| pending_record_id | String(64) FK→pending_records SET NULL | 待确认草稿 ID |
+| interview_json | Text | CVD 量表追问状态（JSON，服务重启时可恢复）|
+| blocked_write_json | Text | 阻塞写入上下文（ADR 0007，等待患者姓名）|
 | updated_at | DateTime | 更新时间 |
-
-**注意**：`DoctorSession`（内存）中的 `pending_cvd_scale` 字段（CVD 量表追问状态）**未持久化**到此表。服务重启时正在进行的 CVD 量表追问会静默丢失（低严重度：仅影响追问提示，不影响已确认病历）。
 
 ---
 

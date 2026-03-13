@@ -48,11 +48,18 @@ class TaskRepository:
         *,
         doctor_id: str,
         status: Optional[str] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
     ) -> List[DoctorTask]:
         stmt = select(DoctorTask).where(DoctorTask.doctor_id == doctor_id)
         if status is not None:
             stmt = stmt.where(DoctorTask.status == status)
-        result = await self.session.execute(stmt.order_by(DoctorTask.created_at.desc()))
+        stmt = stmt.order_by(DoctorTask.created_at.desc())
+        if offset is not None:
+            stmt = stmt.offset(offset)
+        if limit is not None:
+            stmt = stmt.limit(limit)
+        result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
     async def update_status(
@@ -110,4 +117,11 @@ class TaskRepository:
         return task
 
     async def mark_notified(self, *, task_id: int, notified_at: datetime) -> None:
-        pass  # notified_at column removed; kept for call-site compatibility
+        """Transition task from 'pending' to 'notified'."""
+        from sqlalchemy import update as _update
+        await self.session.execute(
+            _update(DoctorTask)
+            .where(DoctorTask.id == task_id, DoctorTask.status == "pending")
+            .values(status="notified", updated_at=notified_at)
+        )
+        await self.session.commit()

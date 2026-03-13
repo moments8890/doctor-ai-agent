@@ -290,9 +290,8 @@ async def recompute_patient_risk(patient_id: int, session: AsyncSession) -> Opti
     cvd_contexts = list(cvd_result.scalars().all())
 
     risk = compute_patient_risk(patient, records, cvd_contexts=cvd_contexts)
-    patient.primary_risk_level = risk.primary_risk_level
-    patient.risk_tags = json.dumps(risk.risk_tags, ensure_ascii=False)
-    patient.risk_score = risk.risk_score
-    patient.follow_up_state = risk.follow_up_state
-    await session.commit()
+    # NOTE: Risk fields (primary_risk_level, risk_tags, risk_score,
+    # follow_up_state) are NOT yet mapped on the Patient model.
+    # Persist only when the schema is extended.  For now, return the
+    # computed result for callers to use in-memory.
     return risk

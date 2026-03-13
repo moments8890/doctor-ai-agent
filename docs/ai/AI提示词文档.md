@@ -500,11 +500,13 @@ CEA，EGFR，HER2，ANC，化疗，靶向治疗。
 
 **用途：** 根据医生历史病历记录，自动填写卫生部「卫医政发〔2010〕11号」门诊病历标准表格的 13 个字段，含 ICD-10 编码（符合「国卫办医政发〔2024〕16号」要求）。
 
-**触发条件：** 医生在小程序点击「导出门诊病历」时调用
+> **注意：** 此提示词仅用于 PDF 导出（`services/export/outpatient_report.py`），不是通用病历结构化。通用结构化使用 `structuring` 提示词，输出 chat-first 模型 `MedicalRecord(content, tags, record_type, specialty_scores)`。
 
-**输入：** 历史病历记录文本拼接 + 可选的医生自定义模板
+**触发条件：** 医生在 Web 端点击「导出门诊病历」时调用（`GET /api/export/patient/{id}/outpatient-report`）
 
-**输出格式：** JSON，13 个固定字段（encounter_type、department、chief_complaint、present_illness、past_history、allergy_history、personal_history、family_history、physical_exam、aux_exam、diagnosis、treatment、followup）
+**输入：** 历史病历 `content` 文本拼接（`{records_text}` 占位符）+ 可选的医生自定义模板
+
+**输出格式：** JSON，13 个固定字段（仅用于 PDF 渲染，不写入 `medical_records` 表）
 
 **完整提示词：**
 

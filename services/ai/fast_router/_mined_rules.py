@@ -1,6 +1,10 @@
 """
 挖掘路由规则加载器：从 JSON 文件加载数据挖掘得出的意图路由规则。
 
+NOTE (2026-03-10): Mined rules are no longer consulted by the live routing
+path.  See _router.py line 344.  This module is retained for test injection
+and potential re-enablement only.
+
 P0: Rules include a ``priority`` field (default 700). After loading, rules are
 sorted by priority descending so higher-priority rules are checked first.
 """
@@ -99,5 +103,7 @@ def reload_mined_rules(path: str = "data/mined_rules.json") -> int:
     return len(_MINED_RULES)
 
 
-# Load rules at module import time (no-op if file absent).
-load_mined_rules("data/mined_rules.json")
+# Previously loaded rules at module import time.  Disabled because mined
+# rules are no longer part of the live routing path (see _router.py:344).
+# Call load_mined_rules() explicitly if you need rules for offline analysis.
+# load_mined_rules("data/mined_rules.json")

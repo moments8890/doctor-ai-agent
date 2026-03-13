@@ -95,6 +95,8 @@ async def _ensure_auto_follow_up_task(
     record_id: int,
     patient_name: str,
     follow_up_text: str,
+    *,
+    commit: bool = True,
 ) -> None:
     existing = await session.execute(
         select(DoctorTask).where(
@@ -122,7 +124,10 @@ async def _ensure_auto_follow_up_task(
             due_at=due_at,
         )
     )
-    await session.commit()
+    if commit:
+        await session.commit()
+    else:
+        await session.flush()
     log(f"[silent-save] auto follow-up task created doctor={doctor_id} patient_id={patient_id} record_id={record_id} due={due_at.date()}")
 
 
@@ -146,6 +151,8 @@ async def save_record(
     doctor_id: str,
     record: MedicalRecord,
     patient_id: int | None,
+    *,
+    commit: bool = True,
 ) -> MedicalRecordDB:
     with trace_block("db", "crud.save_record", {"doctor_id": doctor_id, "patient_id": patient_id}):
         doctor_id = await _ensure_doctor_exists(session, doctor_id)
@@ -158,7 +165,7 @@ async def save_record(
             encounter_type=encounter_type,
         )
         if patient_id is not None:
-            await recompute_patient_category(patient_id, session)
+            await recompute_patient_category(patient_id, session, commit=commit)
             _has_follow_up = (
                 any("随访" in t or "复诊" in t for t in record.tags)
                 or bool(re.search(r'随访|复诊|下次|下周', record.content))
@@ -171,6 +178,7 @@ async def save_record(
                     record_id=db_record.id,
                     patient_name=await _patient_name(session, patient_id, doctor_id),
                     follow_up_text=record.content,
+                    commit=commit,
                 )
         return db_record
 
@@ -194,12 +202,37 @@ async def get_all_records_for_doctor(
     session: AsyncSession,
     doctor_id: str,
     limit: int = 10,
+    offset: int = 0,
+    patient_name: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
 ) -> list[MedicalRecordDB]:
     with trace_block("db", "crud.get_all_records_for_doctor", {"doctor_id": doctor_id}):
         repo = RecordRepository(session)
         return await repo.list_for_doctor(
             doctor_id=doctor_id,
             limit=limit,
+            offset=offset,
+            patient_name=patient_name,
+            date_from=date_from,
+            date_to=date_to,
+        )
+
+
+async def count_records_for_doctor(
+    session: AsyncSession,
+    doctor_id: str,
+    patient_name: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+) -> int:
+    with trace_block("db", "crud.count_records_for_doctor", {"doctor_id": doctor_id}):
+        repo = RecordRepository(session)
+        return await repo.count_for_doctor(
+            doctor_id=doctor_id,
+            patient_name=patient_name,
+            date_from=date_from,
+            date_to=date_to,
         )
 
 
@@ -289,6 +322,7 @@ async def get_record_versions(
             MedicalRecordVersion.doctor_id == doctor_id,
         )
         .order_by(MedicalRecordVersion.changed_at.asc())
+        .limit(200)
     )
     return list(result.scalars().all())
 

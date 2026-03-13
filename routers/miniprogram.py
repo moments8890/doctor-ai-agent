@@ -15,7 +15,6 @@ import routers.tasks as tasks_router
 import routers.ui as ui_router
 import routers.voice as voice_router
 from db.crud import (
-    append_conversation_turns,
     create_patient,
     delete_patient_for_doctor,
     get_patient_for_doctor,
@@ -52,7 +51,7 @@ def _require_mini_principal(authorization: Optional[str] = Header(default=None))
 # ── Chat ─────────────────────────────────────────────────────────────────────
 
 class MiniChatInput(BaseModel):
-    text: str
+    text: str = Field(..., max_length=8000)
     # history is optional; if omitted the server loads it from DB
     history: Optional[List[records_router.HistoryMessage]] = None
 
@@ -94,16 +93,9 @@ async def mini_chat(
         principal.doctor_id,
     )
 
-    # Persist this exchange to shared conversation turns (best-effort).
-    try:
-        async with AsyncSessionLocal() as db:
-            await append_conversation_turns(db, principal.doctor_id, [
-                {"role": "user", "content": body.text},
-                {"role": "assistant", "content": response.reply},
-            ])
-            await db.commit()
-    except Exception:
-        pass  # turn persistence is non-critical; don't fail the response
+    # Turn persistence is handled inside chat_core() via push_and_flush_turn;
+    # do NOT duplicate it here — that would write the same exchange twice to
+    # doctor_conversation_turns while chat_archive stays single-copy.
 
     return response
 
@@ -193,6 +185,27 @@ async def mini_delete_patient(
         deleted = await delete_patient_for_doctor(db, principal.doctor_id, patient_id)
     if deleted is None:
         raise HTTPException(status_code=404, detail="Patient not found")
+
+
+@router.post("/patients/{patient_id}/access-code")
+async def mini_reset_access_code(
+    patient_id: int,
+    principal: MiniProgramPrincipal = Depends(_require_mini_principal),
+) -> dict:
+    """Generate or rotate a patient's portal access code.
+
+    Returns the plaintext 6-digit code once so the doctor can share it.
+    """
+    enforce_doctor_rate_limit(principal.doctor_id, scope="mini.patients.write")
+    from db.crud.patient import set_patient_access_code
+    from utils.errors import PatientNotFoundError
+
+    async with AsyncSessionLocal() as db:
+        try:
+            plaintext = await set_patient_access_code(db, principal.doctor_id, patient_id)
+        except PatientNotFoundError:
+            raise HTTPException(status_code=404, detail="Patient not found")
+    return {"patient_id": patient_id, "access_code": plaintext}
 
 
 # ── Records ───────────────────────────────────────────────────────────────────

@@ -25,12 +25,12 @@ class MiniProgramPrincipal:
 
 def _token_secret() -> str:
     secret = os.environ.get("MINIPROGRAM_TOKEN_SECRET", "").strip()
-    if not secret:
-        _is_dev = os.environ.get("ENVIRONMENT", "").strip().lower() in {"development", "dev", "test"}
-        if not _is_dev:
+    if not secret or secret == "dev-miniprogram-secret":
+        from services.auth import is_production
+        if is_production():
             raise RuntimeError(
-                "MINIPROGRAM_TOKEN_SECRET must be set. "
-                "Generate a strong random secret and set it in your environment."
+                "MINIPROGRAM_TOKEN_SECRET must be set to a strong random "
+                "value in production (not the dev default)."
             )
         secret = "dev-miniprogram-secret"
     return secret
@@ -82,8 +82,13 @@ def verify_miniprogram_token(token: str) -> MiniProgramPrincipal:
             token_value,
             _token_secret(),
             algorithms=["HS256"],
-            options={"verify_exp": False},
+            # PyJWT's built-in exp check uses datetime.now() which is hard to
+            # patch in tests.  We add a leeway of 0 so PyJWT still rejects
+            # grossly expired tokens, and perform a manual time.time() check
+            # below so tests can inject a clock via patch("time.time").
         )
+    except jwt.ExpiredSignatureError:
+        raise MiniProgramAuthError("Token expired")
     except jwt.InvalidTokenError:
         raise MiniProgramAuthError("Invalid token")
 
@@ -91,7 +96,7 @@ def verify_miniprogram_token(token: str) -> MiniProgramPrincipal:
     if not doctor_id:
         raise MiniProgramAuthError("Token subject missing")
 
-    # Validate expiry using time.time() so tests can patch it.
+    # Secondary expiry check using patchable time.time() for test control.
     now = int(time.time())
     exp_raw = payload.get("exp")
     try:

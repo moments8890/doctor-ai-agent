@@ -26,7 +26,13 @@ from services.patient.patient_risk import compute_patient_risk
 
 
 async def _process_patient_risk(session, patient, dry_run: bool) -> bool:
-    """Recompute risk for a single patient; return True if risk level changed."""
+    """Recompute risk for a single patient; return True if risk level changed.
+
+    NOTE: Risk fields (primary_risk_level, risk_tags, risk_score, follow_up_state)
+    are NOT yet mapped on the Patient model.  This script currently operates in
+    report-only mode — computed results are printed but not persisted.
+    Add the columns to db/models/patient.py before enabling writes.
+    """
     records_result = await session.execute(
         select(MedicalRecordDB)
         .where(MedicalRecordDB.patient_id == patient.id,
@@ -35,20 +41,16 @@ async def _process_patient_risk(session, patient, dry_run: bool) -> bool:
     )
     records = list(records_result.scalars().all())
     risk = compute_patient_risk(patient, records)
-    old = patient.primary_risk_level
-    label = "CHANGED" if old != risk.primary_risk_level else "same"
-    print(f"  [{label}] patient_id={patient.id} name={patient.name!r} "
-          f"{old!r} -> {risk.primary_risk_level!r} "
+    print(f"  patient_id={patient.id} name={patient.name!r} "
+          f"risk_level={risk.primary_risk_level!r} "
           f"follow_up_state={risk.follow_up_state} "
+          f"score={risk.risk_score} "
           f"tags={json.dumps(risk.risk_tags, ensure_ascii=False)}")
     if not dry_run:
-        patient.primary_risk_level = risk.primary_risk_level
-        patient.risk_tags = json.dumps(risk.risk_tags, ensure_ascii=False)
-        patient.risk_score = risk.risk_score
-        patient.follow_up_state = risk.follow_up_state
-        patient.risk_computed_at = risk.computed_at
-        patient.risk_rules_version = risk.rules_version
-    return old != risk.primary_risk_level
+        print("  [WARN] Risk fields not mapped on Patient model — skipping DB write. "
+              "Add columns to db/models/patient.py to enable persistence.")
+    # Return False since we can't detect changes without mapped fields.
+    return False
 
 
 async def _run(doctor_id: Optional[str], dry_run: bool) -> int:

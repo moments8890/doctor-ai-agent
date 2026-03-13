@@ -46,8 +46,8 @@ async def _process_patient(session, patient, dry_run: bool) -> bool:
     if not dry_run:
         patient.primary_category = new_cat
         patient.category_tags = json.dumps(cat_result.category_tags, ensure_ascii=False)
-        patient.category_computed_at = cat_result.computed_at
-        patient.category_rules_version = cat_result.rules_version
+        # NOTE: category_computed_at and category_rules_version are not
+        # mapped on the Patient model — omitted to avoid silent discard.
     return old_cat != new_cat
 
 

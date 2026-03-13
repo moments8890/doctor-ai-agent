@@ -10,7 +10,7 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
-from utils.log import init_logging
+from utils.log import init_logging, safe_create_task
 from utils.app_config import AppConfig, load_config_from_json, ollama_base_url_candidates
 
 # Must run before any module reads os.environ.
@@ -265,7 +265,7 @@ async def _expire_stale_pending_records() -> None:
     _log = logging.getLogger("scheduler")
     try:
         from db.crud import get_stale_pending_records
-        from services.wechat.wechat_domain import save_pending_record
+        from services.domain.intent_handlers import save_pending_record
         from services.notify.tasks import create_general_task
         from services.session import clear_pending_record_id
         async with AsyncSessionLocal() as _session:
@@ -275,11 +275,13 @@ async def _expire_stale_pending_records() -> None:
         saved = 0
         for pending in stale:
             try:
-                _result = await save_pending_record(pending.doctor_id, pending)
+                _result = await save_pending_record(
+                    pending.doctor_id, pending, force_confirm=True,
+                )
                 clear_pending_record_id(pending.doctor_id)
                 patient_name = _result[0] if _result else None
                 if patient_name:
-                    asyncio.ensure_future(create_general_task(
+                    safe_create_task(create_general_task(
                         pending.doctor_id,
                         title=f"病历已自动保存：【{patient_name}】",
                         patient_id=pending.patient_id,
@@ -499,14 +501,31 @@ async def _startup_recovery(startup_log: logging.Logger) -> None:
 
 
 def _enforce_production_guards() -> None:
-    """生产环境安全检查：确保 WECHAT_ID_HMAC_KEY 已设置。"""
-    _env = os.environ.get("APP_ENV", "").strip().lower()
-    if _env in {"production", "prod"}:
-        if not os.environ.get("WECHAT_ID_HMAC_KEY", "").strip():
-            raise RuntimeError(
-                "WECHAT_ID_HMAC_KEY must be set in production to ensure "
-                "WeChat identifiers are hashed at rest. Refusing to start."
-            )
+    """生产环境安全检查：确保关键密钥已设置。"""
+    from services.auth import is_production
+    if not is_production():
+        return
+    if not os.environ.get("WECHAT_ID_HMAC_KEY", "").strip():
+        raise RuntimeError(
+            "WECHAT_ID_HMAC_KEY must be set in production to ensure "
+            "WeChat identifiers are hashed at rest. Refusing to start."
+        )
+    if not os.environ.get("PATIENT_PORTAL_SECRET", "").strip():
+        raise RuntimeError(
+            "PATIENT_PORTAL_SECRET must be set in production to ensure "
+            "patient portal tokens are signed with a real secret. "
+            "Refusing to start."
+        )
+    if not os.environ.get("MINIPROGRAM_TOKEN_SECRET", "").strip() or \
+            os.environ.get("MINIPROGRAM_TOKEN_SECRET", "").strip() == "dev-miniprogram-secret":
+        raise RuntimeError(
+            "MINIPROGRAM_TOKEN_SECRET must be set to a strong random "
+            "value in production (not the dev default). Refusing to start."
+        )
+    if not os.environ.get("CORS_ALLOW_ORIGINS", "").strip():
+        raise RuntimeError(
+            "CORS_ALLOW_ORIGINS must be set in production. Refusing to start."
+        )
 
 
 @asynccontextmanager
@@ -533,7 +552,20 @@ app = FastAPI(
 )
 
 _cors_origins_raw = os.environ.get("CORS_ALLOW_ORIGINS", "").strip()
-_cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()] or ["*"]
+_cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
+if not _cors_origins:
+    # Default to permissive origins in development only; production must
+    # configure CORS_ALLOW_ORIGINS explicitly.
+    from services.auth import is_production as _is_prod_cors
+    if _is_prod_cors():
+        raise RuntimeError(
+            "CORS_ALLOW_ORIGINS must be set in production "
+            "(comma-separated list of allowed origins). Refusing to start."
+        )
+    _cors_origins = ["*"]
+    logging.getLogger("startup").warning(
+        "[CORS] CORS_ALLOW_ORIGINS not set — defaulting to ['*'] (dev only)"
+    )
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
@@ -563,6 +595,22 @@ async def _handle_domain_error(request: Request, exc: DomainError):
 async def _handle_unexpected_error(request: Request, exc: Exception):
     logging.getLogger("app").exception("[UnhandledError] path=%s err=%s", request.url.path, exc)
     return JSONResponse(status_code=500, content={"detail": "internal_server_error"})
+
+
+_MAX_REQUEST_BODY_BYTES = 50 * 1024 * 1024  # 50 MB
+
+
+@app.middleware("http")
+async def limit_request_body_middleware(request: Request, call_next):
+    """Reject requests whose Content-Length exceeds the global limit."""
+    content_length = request.headers.get("content-length")
+    if content_length is not None:
+        try:
+            if int(content_length) > _MAX_REQUEST_BODY_BYTES:
+                return JSONResponse(status_code=413, content={"detail": "Request body too large"})
+        except ValueError:
+            pass
+    return await call_next(request)
 
 
 @app.middleware("http")
@@ -636,6 +684,9 @@ _WECHAT_STATIC_DIR = os.path.join(os.path.dirname(__file__), "static", "wechat")
 @app.get("/{filename}.txt")
 def wechat_verify(filename: str):
     path = os.path.join(_WECHAT_STATIC_DIR, f"{filename}.txt")
+    # Prevent path traversal — resolved path must stay inside the static dir.
+    if not os.path.realpath(path).startswith(os.path.realpath(_WECHAT_STATIC_DIR) + os.sep):
+        return JSONResponse(status_code=404, content={"detail": "not found"})
     if os.path.isfile(path):
         return FileResponse(path, media_type="text/plain")
     return JSONResponse(status_code=404, content={"detail": "not found"})
@@ -662,6 +713,7 @@ async def _health_snapshot() -> dict:
     except Exception as exc:
         db_ok = False
         db_error = str(exc)
+        logging.getLogger("health").warning("[Healthz] database check failed: %s", db_error)
 
     scheduler_ok = bool(_scheduler.running)
     status = "ok" if db_ok and scheduler_ok else "degraded"
@@ -674,5 +726,6 @@ async def _health_snapshot() -> dict:
         },
     }
     if db_error:
-        payload["checks"]["database"]["error"] = db_error
+        # Don't leak raw exception details (may contain connection strings).
+        payload["checks"]["database"]["error"] = "database_unavailable"
     return payload

@@ -7,18 +7,25 @@ from __future__ import annotations
 import hmac
 import logging
 import os
+import sys
 from typing import Optional
 
 from fastapi import HTTPException
 
+from services.auth import is_production
 from services.auth.miniprogram_auth import MiniProgramAuthError, parse_bearer_token, verify_miniprogram_token
 
 
+def _is_running_under_pytest() -> bool:
+    """True only when the process was launched by pytest (not spoofable via env)."""
+    return "pytest" in sys.modules
+
+
 def _allow_insecure_doctor_id_fallback(flag_name: str) -> bool:
-    if os.environ.get("PYTEST_CURRENT_TEST"):
+    if is_production():
+        return False  # hard-disabled in production regardless of any flag
+    if _is_running_under_pytest():
         return True
-    if os.environ.get("ENVIRONMENT", "").strip().lower() in {"production", "prod"}:
-        return False  # hard-disabled in production regardless of flag
     return (os.environ.get(flag_name) or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
@@ -57,7 +64,7 @@ def require_admin_token(
     env_name: str = "UI_ADMIN_TOKEN",
 ) -> None:
     """Require a static admin token for sensitive non-doctor-scoped endpoints."""
-    if os.environ.get("PYTEST_CURRENT_TEST"):
+    if not is_production() and _is_running_under_pytest():
         return
 
     expected = (os.environ.get(env_name) or "").strip()

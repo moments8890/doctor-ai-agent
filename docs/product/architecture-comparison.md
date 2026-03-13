@@ -249,24 +249,30 @@ register_hook(HookStage.POST_CLASSIFY, log_classification, priority=50)
 - 未来开源或多租户场景下，第三方可扩展行为而不 fork 核心代码
 - 可观测性钩子可从硬编码改为注册式
 
-### 7.2 统一消息类型抽象 ✅ 已实现
+### 7.2 统一消息类型抽象 🔄 部分实现
 
-> **实现于 2026-03-12** — `services/domain/message.py`
+> **Message dataclass 创建于 2026-03-12** — `services/domain/message.py`
+>
+> **迁移状态**：`Message` 和 `HandlerResult` 已定义，共享意图处理器已迁移到 `services/domain/intent_handlers/`。但 Web（`routers/records.py`）和 WeChat（`routers/wechat.py`）仍通过各自的路由逻辑调用工作流，尚未将 `Message` 作为统一入口。小程序（`routers/miniprogram.py`）包装了 Web 路径，有自己的历史加载逻辑。
 
 **问题**：文本、语音、图片、文件等消息类型在 router 层分别处理，逻辑分散在 `records.py`、`wechat.py`、`voice.py` 中。
 
 **借鉴**：Wechaty 的 Sayable 抽象——统一的消息内容模型，入站和出站都经过同一转换层。
 
-**实现**：定义了 `Message` dataclass（`services/domain/message.py`），包含 `content_type` (text/voice/image/file)、`text`、`doctor_id`、`channel`、`raw_payload`、`metadata`、`history`。Web 和 WeChat 路由分别构造 `Message` 后传入共享处理层。共享意图处理器（`services/domain/intent_handlers/`）返回 `HandlerResult`，由各渠道适配为对应格式。
+**实现**：定义了 `Message` dataclass（`services/domain/message.py`），包含 `content_type` (text/voice/image/file)、`text`、`doctor_id`、`channel`、`raw_payload`、`metadata`、`history`。共享意图处理器（`services/domain/intent_handlers/`）返回 `HandlerResult`，由各渠道适配为对应格式。
 
-**收益**：
+**待完成**：将 Web/WeChat/miniprogram 路由的消息入口点统一为 `Message` 构造 → 共享处理层调用
+
+**收益（完成后）**：
 - 意图流水线不再关心消息来源和类型
 - 新增消息类型（如视频、位置）只需扩展 `Message` 和对应的 normalizer
 - 测试可以用统一的 `Message` mock，无需模拟不同渠道的 raw payload
 
-### 7.3 LLM Provider 注册表 ✅ 已实现
+### 7.3 LLM Provider 注册表 🔄 部分实现
 
-> **实现于 2026-03-12** — `services/ai/provider_registry.py` + `services/ai/llm_client.py`
+> **注册表创建于 2026-03-12** — `services/ai/provider_registry.py` + `services/ai/llm_client.py`
+>
+> **迁移状态**：注册表已建立，但生产调用方尚未完全迁移。`_PROVIDERS` 字典仍存在于 `llm_client.py`、`intent.py`、`vision.py`，`_resolve_provider()` 仍存在于 `agent.py`、`structuring.py`、`multi_intent.py`。
 
 **问题**：当前 LLM provider 切换依赖运行时配置和条件分支，`_PROVIDERS` 字典在 4 个文件中重复定义（`llm_client.py`、`intent.py`、`vision.py`、`pdf_extract_llm.py`），`_resolve_provider()` 在 3 个文件中重复实现。
 
@@ -295,13 +301,14 @@ registry.register("my_llm", ProviderConfig(
 **7 个内置 provider**：ollama、deepseek、groq、gemini、openai、tencent_lkeap、claude
 
 **关键特性**：
-- 单一真相来源——消除 4 处 `_PROVIDERS` 重复
 - 角色感知的环境变量覆盖（routing / structuring / vision / memory 各有独立覆盖规则）
 - 首匹配优先（`OLLAMA_STRUCTURING_MODEL` 优先于 `OLLAMA_MODEL`）
 - 能力元数据：`CHAT`、`TOOLS`、`VISION`、`JSON_FORMAT`
 - 集中式 `AsyncOpenAI` 客户端缓存（含测试模式旁路）
-- 100% 向后兼容——`from services.ai.llm_client import _PROVIDERS` 仍可用
+- 向后兼容——`from services.ai.llm_client import _PROVIDERS` 仍可用
 - 27 个单元测试覆盖（`tests/test_provider_registry.py`）
+
+**待完成**：将 `agent.py`、`structuring.py`、`vision.py`、`intent.py` 中的 `_PROVIDERS` / `_resolve_provider` 调用迁移到注册表 API
 
 **收益**：
 - 新增 provider 只需一行 `registry.register()`

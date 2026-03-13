@@ -49,6 +49,7 @@ from db.models import (
 from services.patient.patient_timeline import build_patient_timeline
 from services.auth.rate_limit import enforce_doctor_rate_limit
 from services.observability.audit import audit
+from utils.log import safe_create_task
 from services.session import (
     get_session,
     clear_pending_record_id,
@@ -128,6 +129,37 @@ class PromptUpdate(BaseModel):
     content: str
 
 
+# Prompt keys that are used as .format() templates at runtime.
+# Map key → set of required placeholder names.
+_TEMPLATE_PLACEHOLDERS: dict[str, set[str]] = {
+    "memory.compress": {"today"},
+    "report.extract": {"records_text"},
+}
+
+
+def _validate_prompt_template(key: str, content: str) -> None:
+    """Raise HTTPException if content breaks required format() placeholders."""
+    required = _TEMPLATE_PLACEHOLDERS.get(key)
+    if not required:
+        return
+    # Check that .format() with dummy values succeeds and all placeholders exist.
+    test_kwargs = {p: "__TEST__" for p in required}
+    try:
+        formatted = content.format(**test_kwargs)
+    except (KeyError, ValueError, IndexError) as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Prompt template error: {exc}. "
+            f"Required placeholders for '{key}': {sorted(required)}",
+        )
+    for p in required:
+        if f"__TEST__" not in formatted:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Missing required placeholder {{{p}}} in prompt '{key}'.",
+            )
+
+
 @router.get("/api/manage/patients")
 async def manage_patients(
     doctor_id: str = Query(default="web_doctor"),
@@ -161,17 +193,26 @@ async def search_patients_endpoint(
     resolved_doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
     enforce_doctor_rate_limit(resolved_doctor_id, scope="ui.search_patients")
     criteria = extract_criteria(q)
+    _SEARCH_LIMIT = 20
     async with AsyncSessionLocal() as db:
-        patients = await search_patients_nl(db, resolved_doctor_id, criteria)
-        counts_result = await db.execute(
-            select(MedicalRecordDB.patient_id, func.count(MedicalRecordDB.id))
-            .where(
-                MedicalRecordDB.doctor_id == resolved_doctor_id,
-                MedicalRecordDB.patient_id.in_([p.id for p in patients]),
+        # Fetch limit+1 to detect truncation
+        patients = await search_patients_nl(db, resolved_doctor_id, criteria, limit=_SEARCH_LIMIT + 1)
+        has_more = len(patients) > _SEARCH_LIMIT
+        if has_more:
+            patients = patients[:_SEARCH_LIMIT]
+        pids = [p.id for p in patients]
+        if pids:
+            counts_result = await db.execute(
+                select(MedicalRecordDB.patient_id, func.count(MedicalRecordDB.id))
+                .where(
+                    MedicalRecordDB.doctor_id == resolved_doctor_id,
+                    MedicalRecordDB.patient_id.in_(pids),
+                )
+                .group_by(MedicalRecordDB.patient_id)
             )
-            .group_by(MedicalRecordDB.patient_id)
-        )
-        count_map = {pid: count for pid, count in counts_result.all()}
+            count_map = {pid: count for pid, count in counts_result.all()}
+        else:
+            count_map = {}
 
     items = [
         {
@@ -190,6 +231,7 @@ async def search_patients_endpoint(
     return {
         "items": items,
         "total": len(items),
+        "has_more": has_more,
         "criteria": {
             "surname": criteria.surname,
             "gender": criteria.gender,
@@ -307,12 +349,13 @@ async def update_prompt(
     _require_ui_admin_access(x_admin_token)
     if key not in {"structuring", "structuring.extension"}:
         raise HTTPException(status_code=400, detail="Only structuring and structuring.extension are editable.")
+    _validate_prompt_template(key, body.content)
     async with AsyncSessionLocal() as db:
         await upsert_system_prompt(db, key, body.content)
     return {"ok": True, "key": key}
 
 
-@router.get("/api/admin/prompts")
+@router.get("/api/admin/prompts", include_in_schema=False)
 async def admin_get_prompts(
     x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
 ):
@@ -327,13 +370,14 @@ async def admin_get_prompts(
     }
 
 
-@router.put("/api/admin/prompts/{key}")
+@router.put("/api/admin/prompts/{key}", include_in_schema=False)
 async def admin_update_prompt(
     key: str,
     body: PromptUpdate,
     x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
 ):
     _require_ui_admin_access(x_admin_token)
+    _validate_prompt_template(key, body.content)
     async with AsyncSessionLocal() as db:
         await upsert_system_prompt(db, key, body.content)
     return {"ok": True, "key": key}
@@ -376,7 +420,7 @@ async def create_label_endpoint(body: LabelCreate, authorization: str | None = H
     enforce_doctor_rate_limit(doctor_id, scope="ui.labels.create")
     async with AsyncSessionLocal() as db:
         lbl = await create_label(db, doctor_id, body.name, body.color)
-    asyncio.create_task(audit(doctor_id, "WRITE", "label", str(lbl.id)))
+    safe_create_task(audit(doctor_id, "WRITE", "label", str(lbl.id)))
     return {"id": lbl.id, "name": lbl.name, "color": lbl.color, "created_at": _fmt_ts(lbl.created_at)}
 
 
@@ -388,7 +432,7 @@ async def update_label_endpoint(label_id: int, body: LabelUpdate, authorization:
         lbl = await update_label(db, label_id, doctor_id, name=body.name, color=body.color)
     if lbl is None:
         raise HTTPException(status_code=404, detail="Label not found")
-    asyncio.create_task(audit(doctor_id, "WRITE", "label", str(label_id)))
+    safe_create_task(audit(doctor_id, "WRITE", "label", str(label_id)))
     return {"id": lbl.id, "name": lbl.name, "color": lbl.color}
 
 
@@ -447,17 +491,18 @@ async def delete_record_endpoint(
         deleted = await delete_record(db, resolved_doctor_id, record_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Record not found")
-    asyncio.create_task(audit(resolved_doctor_id, "DELETE", "record", str(record_id)))
+    safe_create_task(audit(resolved_doctor_id, "DELETE", "record", str(record_id)))
     return {"ok": True, "record_id": record_id}
 
 
-@router.patch("/api/admin/records/{record_id}")
+@router.patch("/api/admin/records/{record_id}", include_in_schema=False)
 async def admin_update_record(
     record_id: int,
     body: RecordUpdate,
     x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
 ):
     _require_ui_admin_access(x_admin_token)
+    _ADMIN_RECORD_ALLOWED_FIELDS = {"content", "tags", "record_type"}
     async with AsyncSessionLocal() as db:
         rec = (await db.execute(
             select(MedicalRecordDB).where(MedicalRecordDB.id == record_id).limit(1)
@@ -465,14 +510,21 @@ async def admin_update_record(
         if rec is None:
             raise HTTPException(status_code=404, detail="Record not found")
         updates = body.model_dump(exclude_unset=True)
+        disallowed = set(updates.keys()) - _ADMIN_RECORD_ALLOWED_FIELDS
+        if disallowed:
+            raise HTTPException(status_code=422, detail=f"Cannot update fields: {sorted(disallowed)}")
         if "tags" in updates and isinstance(updates["tags"], list):
             import json as _json
             updates["tags"] = _json.dumps(updates["tags"], ensure_ascii=False)
         for field, value in updates.items():
             setattr(rec, field, value)
         rec.updated_at = datetime.now(timezone.utc)
+        owner_doctor_id = rec.doctor_id
         await db.commit()
         await db.refresh(rec)
+    safe_create_task(audit(
+        owner_doctor_id, "ADMIN_UPDATE", resource_type="record", resource_id=str(record_id),
+    ))
     return {
         "id": rec.id,
         "patient_id": rec.patient_id,
@@ -497,7 +549,7 @@ async def delete_label_endpoint(
         found = await delete_label(db, label_id, doctor_id)
     if not found:
         raise HTTPException(status_code=404, detail="Label not found")
-    asyncio.create_task(audit(doctor_id, "DELETE", "label", str(label_id)))
+    safe_create_task(audit(doctor_id, "DELETE", "label", str(label_id)))
     return {"ok": True}
 
 
@@ -514,7 +566,7 @@ async def delete_patient_endpoint(
         deleted = await delete_patient_for_doctor(db, doctor_id, patient_id)
     if deleted is None:
         raise HTTPException(status_code=404, detail="Patient not found")
-    asyncio.create_task(audit(doctor_id, "DELETE", "patient", str(patient_id)))
+    safe_create_task(audit(doctor_id, "DELETE", "patient", str(patient_id)))
     return {"ok": True, "patient_id": patient_id}
 
 
@@ -531,8 +583,8 @@ async def assign_label_endpoint(
         try:
             await assign_label(db, patient_id, label_id, doctor_id)
         except DomainError as exc:
-            raise HTTPException(status_code=exc.status_code, detail=str(exc))
-    asyncio.create_task(audit(doctor_id, "WRITE", "label", f"{patient_id}:{label_id}"))
+            raise HTTPException(status_code=exc.status_code, detail=exc.message)
+    safe_create_task(audit(doctor_id, "WRITE", "label", f"{patient_id}:{label_id}"))
     return {"ok": True}
 
 
@@ -549,12 +601,12 @@ async def remove_label_endpoint(
         try:
             await remove_label(db, patient_id, label_id, doctor_id)
         except DomainError as exc:
-            raise HTTPException(status_code=exc.status_code, detail=str(exc))
-    asyncio.create_task(audit(doctor_id, "DELETE", "label", f"{patient_id}:{label_id}"))
+            raise HTTPException(status_code=exc.status_code, detail=exc.message)
+    safe_create_task(audit(doctor_id, "DELETE", "label", f"{patient_id}:{label_id}"))
     return {"ok": True}
 
 
-@router.get("/api/admin/db-view")
+@router.get("/api/admin/db-view", include_in_schema=False)
 async def admin_db_view(
     doctor_id: str | None = Query(default=None),
     patient_name: str | None = Query(default=None),
@@ -567,7 +619,7 @@ async def admin_db_view(
     return await _admin_db_view_logic(doctor_id, patient_name, date_from, date_to, limit)
 
 
-@router.get("/api/admin/tables")
+@router.get("/api/admin/tables", include_in_schema=False)
 async def admin_tables(
     doctor_id: str | None = Query(default=None),
     patient_name: str | None = Query(default=None),
@@ -579,7 +631,7 @@ async def admin_tables(
     return await _admin_tables_logic(doctor_id, patient_name, date_from, date_to)
 
 
-@router.get("/api/admin/tables/{table_key}")
+@router.get("/api/admin/tables/{table_key}", include_in_schema=False)
 async def admin_table_rows(
     table_key: str,
     doctor_id: str | None = Query(default=None),
@@ -649,10 +701,16 @@ async def get_working_context(
         else:
             clear_pending_record_id(resolved_id)
 
+    # Blocked-write state: record was gated for missing patient name
+    from services.session import get_blocked_write_context
+    blocked_write = get_blocked_write_context(resolved_id)
+
     # Next step — what the system is waiting for
     next_step = None
     if pending_draft:
         next_step = "请确认或撤销待审病历草稿"
+    elif blocked_write:
+        next_step = "请提供患者姓名以继续保存病历"
     elif sess.pending_create_name:
         next_step = f"请补充【{sess.pending_create_name}】的信息"
     elif current_patient is None:
@@ -695,8 +753,6 @@ async def clear_context_endpoint(
     clear_candidate_patient(resolved_id)
     clear_blocked_write_context(resolved_id)
     sess.conversation_history.clear()
-    sess.interview = None
-    sess.pending_cvd_scale = None
     sess.patient_not_found_name = None
 
     # Single persist call for all changes
@@ -726,9 +782,12 @@ async def get_pending_record_endpoint(
     if pending is None or pending.status != "awaiting":
         clear_pending_record_id(resolved_id)
         return None
-    # Check expiry (expires_at from SQLite may be naive; compare in same tz)
-    now = datetime.utcnow()
-    if pending.expires_at and pending.expires_at.replace(tzinfo=None) < now:
+    # Check expiry
+    now = datetime.now(timezone.utc)
+    _exp = pending.expires_at
+    if _exp and _exp.tzinfo is None:
+        _exp = _exp.replace(tzinfo=timezone.utc)
+    if _exp and _exp < now:
         clear_pending_record_id(resolved_id)
         return None
     try:
@@ -752,7 +811,7 @@ async def confirm_pending_record_endpoint(
     authorization: str | None = Header(default=None),
 ):
     """Confirm the pending record draft → save to medical_records."""
-    from services.wechat.wechat_domain import save_pending_record
+    from services.domain.intent_handlers import save_pending_record
     resolved_id = _resolve_ui_doctor_id(doctor_id, authorization)
     await hydrate_session_state(resolved_id, write_intent=True)
     sess = get_session(resolved_id)
@@ -764,6 +823,13 @@ async def confirm_pending_record_endpoint(
     if pending is None or pending.status != "awaiting":
         clear_pending_record_id(resolved_id)
         raise HTTPException(status_code=404, detail="Pending record not found or already processed")
+    # Enforce TTL — reject expired drafts even if background cleanup hasn't run yet
+    from datetime import datetime, timezone as _tz
+    if pending.expires_at:
+        _exp = pending.expires_at if pending.expires_at.tzinfo else pending.expires_at.replace(tzinfo=_tz.utc)
+        if _exp <= datetime.now(_tz.utc):
+            clear_pending_record_id(resolved_id)
+            raise HTTPException(status_code=410, detail="Pending record has expired")
     result = await save_pending_record(resolved_id, pending)
     clear_pending_record_id(resolved_id)
     patient_name = result[0] if result else None

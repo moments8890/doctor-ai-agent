@@ -42,8 +42,12 @@ async def list_tasks(
     session: AsyncSession,
     doctor_id: str,
     status: Optional[str] = None,
+    limit: Optional[int] = None,
+    offset: Optional[int] = None,
 ) -> List[DoctorTask]:
-    return await TaskRepository(session).list_for_doctor(doctor_id=doctor_id, status=status)
+    return await TaskRepository(session).list_for_doctor(
+        doctor_id=doctor_id, status=status, limit=limit, offset=offset,
+    )
 
 
 async def update_task_status(
@@ -89,4 +93,25 @@ async def mark_task_notified(
     session: AsyncSession,
     task_id: int,
 ) -> None:
-    pass  # notified_at column removed; notification tracking now via status only
+    """Mark a task as notified by transitioning status from 'pending' to 'notified'."""
+    from sqlalchemy import select as _select, update as _update
+    await session.execute(
+        _update(DoctorTask)
+        .where(DoctorTask.id == task_id, DoctorTask.status == "pending")
+        .values(status="notified", updated_at=_utcnow())
+    )
+    await session.commit()
+
+
+async def revert_task_to_pending(
+    session: AsyncSession,
+    task_id: int,
+) -> None:
+    """Revert a 'notified' task back to 'pending' (used when send fails after mark)."""
+    from sqlalchemy import update as _update
+    await session.execute(
+        _update(DoctorTask)
+        .where(DoctorTask.id == task_id, DoctorTask.status == "notified")
+        .values(status="pending", updated_at=_utcnow())
+    )
+    await session.commit()

@@ -206,9 +206,9 @@ def load_baidu_finetune_sample(data_dir: Path, sample: int = 10_000) -> Counter:
 
 
 def load_existing_keywords() -> frozenset[str]:
-    """Load current Tier 3 keywords from fast_router.py."""
-    router_path = Path(__file__).resolve().parents[1] / "services" / "ai" / "fast_router.py"
-    text = router_path.read_text(encoding="utf-8")
+    """Load current Tier 3 keywords from _keywords.py."""
+    kw_path = Path(__file__).resolve().parents[1] / "services" / "ai" / "fast_router" / "_keywords.py"
+    text = kw_path.read_text(encoding="utf-8")
     m = re.search(r"_CLINICAL_KW_TIER3.*?frozenset\(\{(.*?)\}\)", text, re.DOTALL)
     if not m:
         return frozenset()
@@ -262,9 +262,9 @@ def filter_candidates(
 
 
 def apply_to_fast_router(candidates: list[tuple[str, int, float]], max_terms: int) -> None:
-    """Append top candidates to _CLINICAL_KW_TIER3 in fast_router.py."""
-    router_path = Path(__file__).resolve().parents[1] / "services" / "ai" / "fast_router.py"
-    text = router_path.read_text(encoding="utf-8")
+    """Append top candidates to _CLINICAL_KW_TIER3 in _keywords.py."""
+    kw_path = Path(__file__).resolve().parents[1] / "services" / "ai" / "fast_router" / "_keywords.py"
+    text = kw_path.read_text(encoding="utf-8")
 
     m = re.search(
         r"(_CLINICAL_KW_TIER3: frozenset\[str\] = frozenset\(\{)(.*?)(\}\))",
@@ -272,7 +272,7 @@ def apply_to_fast_router(candidates: list[tuple[str, int, float]], max_terms: in
         re.DOTALL,
     )
     if not m:
-        print("ERROR: Could not find _CLINICAL_KW_TIER3 in fast_router.py")
+        print("ERROR: Could not find _CLINICAL_KW_TIER3 in _keywords.py")
         return
 
     top = candidates[:max_terms]
@@ -283,8 +283,8 @@ def apply_to_fast_router(candidates: list[tuple[str, int, float]], max_terms: in
         + f",\n    # Local-dataset-expanded ({len(top)} terms)\n    {terms_str},\n"
         + m.group(3)
     )
-    router_path.write_text(text.replace(m.group(0), new_block), encoding="utf-8")
-    print(f"\n✅ Updated fast_router.py — added {len(top)} terms to _CLINICAL_KW_TIER3")
+    kw_path.write_text(text.replace(m.group(0), new_block), encoding="utf-8")
+    print(f"\nUpdated _keywords.py — added {len(top)} terms to _CLINICAL_KW_TIER3")
 
 
 def _load_all_datasets(data_dir: Path, no_baidu_list: bool, no_baidu_finetune: bool) -> Counter:
@@ -355,7 +355,7 @@ def main() -> None:
     if args.apply:
         apply_to_fast_router(candidates, MAX_TERMS_APPLY)
     else:
-        print(f"\nRun with --apply to add top {MAX_TERMS_APPLY} terms to fast_router.py")
+        print(f"\nRun with --apply to add top {MAX_TERMS_APPLY} terms to _keywords.py")
 
 
 if __name__ == "__main__":

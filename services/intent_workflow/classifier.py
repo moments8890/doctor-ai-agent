@@ -6,7 +6,7 @@ import time
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Optional
 
-from services.ai.fast_router import fast_route, fast_route_label
+from services.ai.fast_router import fast_route
 from services.ai.intent import IntentResult
 from services.observability.turn_log import log_turn
 from services.session import get_session
@@ -22,7 +22,6 @@ def _decision_from(result: IntentResult, source: str) -> IntentDecision:
     """Convert IntentResult -> IntentDecision (classification metadata only)."""
     return IntentDecision(
         intent=result.intent,
-        confidence=result.confidence,
         source=source,
         chat_reply=result.chat_reply,
         structured_fields=result.structured_fields,
@@ -47,8 +46,8 @@ def _session_proxy_from_context(ctx: "DoctorTurnContext") -> SimpleNamespace:
         patient_not_found_name=wf.patient_not_found_name,
         pending_record_id=wf.pending_record_id,
         pending_create_name=wf.pending_create_name,
-        interview=wf.interview,
-        pending_cvd_scale=wf.pending_cvd_scale,
+        # Server-side history for entity extraction (never trust client history)
+        conversation_history=list(ctx.advisory.recent_history),
     )
 
 
@@ -84,7 +83,10 @@ async def classify(
     _fast = fast_route(text, session=session)
     if _fast is not None:
         _ms = (time.perf_counter() - _t0) * 1000.0
-        log(f"[{channel}] fast_route hit: {fast_route_label(text)} doctor={doctor_id}")
+        _label = f"fast:{_fast.intent.value}"
+        log(f"[{channel}] fast_route hit: {_label} doctor={doctor_id}")
+        from services.observability.routing_metrics import record as _record_metric
+        _record_metric(_label)
         log_turn(text, _fast.intent.value, "fast", doctor_id, _ms, patient_name=_fast.patient_name)
         return _decision_from(_fast, "fast_route"), _fast
 

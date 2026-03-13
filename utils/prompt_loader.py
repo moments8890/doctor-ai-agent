@@ -38,12 +38,15 @@ Other AI services
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import Optional
 
 # key → (fetched_at_monotonic, content)
 _CACHE: dict[str, tuple[float, str]] = {}
 _DEFAULT_TTL: float = 60.0  # seconds
+
+_log = logging.getLogger("prompt_loader")
 
 
 async def get_prompt(key: str, fallback: str, ttl: float = _DEFAULT_TTL) -> str:
@@ -65,9 +68,12 @@ async def get_prompt(key: str, fallback: str, ttl: float = _DEFAULT_TTL) -> str:
             return entry[1]
 
     db_content = await _load_from_db(key)
-    content = db_content if db_content is not None else fallback
-    _CACHE[key] = (time.monotonic(), content)
-    return content
+    if db_content is not None:
+        _CACHE[key] = (time.monotonic(), db_content)
+        return db_content
+    # DB miss or error — use fallback but do NOT cache it so the next
+    # call retries the DB instead of serving stale defaults for 60 s.
+    return fallback
 
 
 async def _load_from_db(key: str) -> Optional[str]:
@@ -78,6 +84,7 @@ async def _load_from_db(key: str) -> Optional[str]:
             row = await get_system_prompt(session, key)
             return row.content if row else None
     except Exception:
+        _log.exception("[PromptLoader] DB read failed for key=%s — using code fallback", key)
         return None
 
 

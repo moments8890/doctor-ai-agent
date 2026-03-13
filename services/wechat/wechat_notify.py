@@ -106,7 +106,7 @@ async def _fetch_fresh_token(app_id: str, app_secret: str, now: float, token_key
         if hasattr(resp, "raise_for_status"):
             resp.raise_for_status()
         data = resp.json()
-    log(f"[WeChat token] fetched new token: {data}")
+    log(f"[WeChat token] fetched new token (expires_in={data.get('expires_in')}s)")
     if not isinstance(data, dict) or "access_token" not in data:
         errcode = data.get("errcode") if isinstance(data, dict) else None
         errmsg = data.get("errmsg") if isinstance(data, dict) else str(data)

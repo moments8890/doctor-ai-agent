@@ -8,11 +8,16 @@
 A FastAPI backend + React SPA serving doctors through three channels:
 **Web dashboard** (primary MVP surface), **WeChat/WeCom** (primary mobile
 interface), and **voice** (audio transcription + shared workflow). A WeChat
-Mini Program uses dedicated `/api/mini/*` endpoints and shares the same core
-doctor workflow and persistence model.
+Mini Program uses dedicated `/api/mini/*` endpoints and wraps the web chat
+path with its own auth and history loading.
 
-All three doctor-facing channels (Web, WeChat, voice) run through the same
-5-layer intent workflow pipeline and dispatch to unified shared handlers.
+All three doctor-facing channels share the 5-layer intent workflow pipeline
+and shared domain handlers (`services/domain/intent_handlers/`), but
+channel-level plumbing is not yet fully unified — Web and WeChat still have
+separate router entry points (`routers/records.py`, `routers/wechat.py`)
+that invoke the workflow through channel-specific paths. The `Message`
+abstraction (`services/domain/message.py`) exists but is not yet the
+universal entry point for all channels.
 
 ---
 

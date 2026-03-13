@@ -17,9 +17,10 @@ from sqlalchemy import select
 from db.engine import AsyncSessionLocal
 from db.models import MedicalRecordDB, MedicalRecordExport, Patient
 from routers.ui._utils import _resolve_ui_doctor_id
+from services.auth.rate_limit import enforce_doctor_rate_limit
 from services.export.pdf_export import generate_outpatient_report_pdf, generate_records_pdf
 from services.observability.audit import audit
-from utils.log import log
+from utils.log import log, safe_create_task
 
 
 def _sha256_hex(data: bytes) -> str:
@@ -143,7 +144,7 @@ def _write_patient_export_audit_task(records, resolved_doctor_id: str, pdf_hash:
                     pdf_hash=pdf_hash,
                 ))
             await db.commit()
-    asyncio.create_task(_write_export_audit())
+    safe_create_task(_write_export_audit())
 
 
 @router.get("/patient/{patient_id}/pdf")
@@ -159,14 +160,25 @@ async def export_patient_pdf(
     Filename uses patient_id only (no PHI in filename).
     """
     resolved_doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    enforce_doctor_rate_limit(resolved_doctor_id, scope="export.patient_pdf")
     async with AsyncSessionLocal() as db:
         patient, records = await _fetch_patient_and_records(db, patient_id, resolved_doctor_id, limit)
-    asyncio.create_task(audit(resolved_doctor_id, "EXPORT", resource_type="patient", resource_id=str(patient_id)))
+        from db.crud.specialty import get_cvd_context_for_patient
+        from db.crud.scores import get_scores_for_records
+        cvd_context = await get_cvd_context_for_patient(db, resolved_doctor_id, patient_id)
+        rec_ids = [r.id for r in records if r.id is not None]
+        scores_map = await get_scores_for_records(db, rec_ids, resolved_doctor_id) if rec_ids else {}
     try:
-        pdf_bytes = generate_records_pdf(records=records, patient=patient, patient_name=patient.name)
+        pdf_bytes = generate_records_pdf(
+            records=records, patient=patient, patient_name=patient.name,
+            cvd_context=cvd_context, scores_map=scores_map,
+        )
     except Exception as exc:
         log(f"[Export] PDF generation failed for patient {patient_id}: {exc}")
         raise HTTPException(status_code=500, detail="PDF generation failed")
+    # Audit after successful generation — not before, so failed exports
+    # don't leave a misleading EXPORT entry in the audit trail.
+    safe_create_task(audit(resolved_doctor_id, "EXPORT", resource_type="patient", resource_id=str(patient_id)))
     pdf_hash = _sha256_hex(pdf_bytes)
     _write_patient_export_audit_task(records, resolved_doctor_id, pdf_hash)
     filename = _safe_pdf_filename("病历", patient_id)
@@ -177,8 +189,8 @@ async def export_patient_pdf(
     )
 
 
-async def _fetch_record_and_patient_name(db, record_id: int, resolved_doctor_id: str):
-    """Fetch a single medical record and its patient's name; raises 404 if not found."""
+async def _fetch_record_and_patient(db, record_id: int, resolved_doctor_id: str):
+    """Fetch a single medical record and its patient; raises 404 if not found."""
     record_result = await db.execute(
         select(MedicalRecordDB).where(
             MedicalRecordDB.id == record_id,
@@ -188,13 +200,16 @@ async def _fetch_record_and_patient_name(db, record_id: int, resolved_doctor_id:
     record = record_result.scalar_one_or_none()
     if record is None:
         raise HTTPException(status_code=404, detail="Record not found")
-    patient_name = None
+    patient = None
     if record.patient_id is not None:
-        patient_result = await db.execute(select(Patient).where(Patient.id == record.patient_id))
-        p = patient_result.scalar_one_or_none()
-        if p:
-            patient_name = p.name
-    return record, patient_name
+        patient_result = await db.execute(
+            select(Patient).where(
+                Patient.id == record.patient_id,
+                Patient.doctor_id == resolved_doctor_id,
+            )
+        )
+        patient = patient_result.scalar_one_or_none()
+    return record, patient
 
 
 @router.get("/record/{record_id}/pdf")
@@ -208,14 +223,25 @@ async def export_record_pdf(
     Filename uses record_id only (no PHI in filename).
     """
     resolved_doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    enforce_doctor_rate_limit(resolved_doctor_id, scope="export.record_pdf")
     async with AsyncSessionLocal() as db:
-        record, patient_name = await _fetch_record_and_patient_name(db, record_id, resolved_doctor_id)
-    asyncio.create_task(audit(resolved_doctor_id, "EXPORT", resource_type="record", resource_id=str(record_id)))
+        record, patient = await _fetch_record_and_patient(db, record_id, resolved_doctor_id)
+        cvd_context = None
+        if patient and patient.id:
+            from db.crud.specialty import get_cvd_context_for_patient
+            cvd_context = await get_cvd_context_for_patient(db, resolved_doctor_id, patient.id)
+        from db.crud.scores import get_scores_for_records
+        scores_map = await get_scores_for_records(db, [record_id], resolved_doctor_id)
+    patient_name = patient.name if patient else None
     try:
-        pdf_bytes = generate_records_pdf(records=[record], patient_name=patient_name)
+        pdf_bytes = generate_records_pdf(
+            records=[record], patient_name=patient_name,
+            patient=patient, cvd_context=cvd_context, scores_map=scores_map,
+        )
     except Exception as exc:
         log(f"[Export] PDF generation failed for record {record_id}: {exc}")
         raise HTTPException(status_code=500, detail="PDF generation failed")
+    safe_create_task(audit(resolved_doctor_id, "EXPORT", resource_type="record", resource_id=str(record_id)))
     pdf_hash = _sha256_hex(pdf_bytes)
     async def _write_record_export_audit():
         async with AsyncSessionLocal() as db:
@@ -227,7 +253,7 @@ async def export_record_pdf(
                 pdf_hash=pdf_hash,
             ))
             await db.commit()
-    asyncio.create_task(_write_record_export_audit())
+    safe_create_task(_write_record_export_audit())
     filename = _safe_pdf_filename("病历_record", record_id)
     return Response(
         content=pdf_bytes,
@@ -252,11 +278,16 @@ def _build_patient_info_line(patient) -> Optional[str]:
     return "  ".join(parts) if parts else None
 
 
-async def _extract_outpatient_fields_safe(records, patient, resolved_doctor_id: str, patient_id: int):
+async def _extract_outpatient_fields_safe(
+    records, patient, resolved_doctor_id: str, patient_id: int,
+    scores_map: dict | None = None,
+):
     """Call LLM field extraction; raises HTTPException 502 on ExtractionError."""
     from services.export.outpatient_report import ExtractionError, extract_outpatient_fields
     try:
-        return await extract_outpatient_fields(records, patient, doctor_id=resolved_doctor_id)
+        return await extract_outpatient_fields(
+            records, patient, doctor_id=resolved_doctor_id, scores_map=scores_map,
+        )
     except ExtractionError as exc:
         log(f"[Export] outpatient field extraction unavailable for patient {patient_id}: {exc}")
         raise HTTPException(
@@ -278,14 +309,17 @@ async def export_outpatient_report(
     Filename uses patient_id only (no PHI).
     """
     resolved_doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    enforce_doctor_rate_limit(resolved_doctor_id, scope="export.outpatient_report")
     async with AsyncSessionLocal() as db:
         patient, records = await _fetch_patient_and_records(db, patient_id, resolved_doctor_id, limit)
+        from db.crud.scores import get_scores_for_records
+        rec_ids = [r.id for r in records if r.id is not None]
+        scores_map = await get_scores_for_records(db, rec_ids, resolved_doctor_id) if rec_ids else {}
     if not records:
         raise HTTPException(status_code=404, detail="No records found for this patient")
-    asyncio.create_task(
-        audit(resolved_doctor_id, "EXPORT", resource_type="outpatient_report", resource_id=str(patient_id))
+    fields = await _extract_outpatient_fields_safe(
+        records, patient, resolved_doctor_id, patient_id, scores_map=scores_map,
     )
-    fields = await _extract_outpatient_fields_safe(records, patient, resolved_doctor_id, patient_id)
     patient_info = _build_patient_info_line(patient)
     try:
         pdf_bytes = generate_outpatient_report_pdf(
@@ -296,6 +330,9 @@ async def export_outpatient_report(
     except Exception as exc:
         log(f"[Export] outpatient report PDF render failed for patient {patient_id}: {exc}")
         raise HTTPException(status_code=500, detail="PDF generation failed")
+    safe_create_task(
+        audit(resolved_doctor_id, "EXPORT", resource_type="outpatient_report", resource_id=str(patient_id))
+    )
     filename = _safe_pdf_filename("门诊病历", patient_id)
     return Response(
         content=pdf_bytes,
@@ -349,7 +386,7 @@ async def upload_report_template(
 
     safe_filename = os.path.basename(file.filename or "unknown")
     log(f"[Export] template uploaded doctor={resolved_doctor_id} file={safe_filename!r} chars={len(text)}")
-    asyncio.create_task(
+    safe_create_task(
         audit(resolved_doctor_id, "WRITE", resource_type="report_template", resource_id=resolved_doctor_id)
     )
     return JSONResponse({"status": "ok", "chars": len(text)})
@@ -382,7 +419,7 @@ async def delete_report_template(
     from db.crud import upsert_system_prompt
     async with AsyncSessionLocal() as db:
         await upsert_system_prompt(db, key, "")
-    asyncio.create_task(
+    safe_create_task(
         audit(resolved_doctor_id, "DELETE", resource_type="report_template", resource_id=resolved_doctor_id)
     )
     return {"status": "deleted"}

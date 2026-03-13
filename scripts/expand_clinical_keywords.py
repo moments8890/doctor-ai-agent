@@ -103,9 +103,9 @@ def load_cdn() -> Counter:
 
 
 def load_existing_keywords() -> frozenset[str]:
-    """Load the current Tier 3 keywords from fast_router.py."""
-    router_path = Path(__file__).resolve().parents[1] / "services" / "ai" / "fast_router.py"
-    text = router_path.read_text(encoding="utf-8")
+    """Load the current Tier 3 keywords from _keywords.py."""
+    kw_path = Path(__file__).resolve().parents[1] / "services" / "ai" / "fast_router" / "_keywords.py"
+    text = kw_path.read_text(encoding="utf-8")
     # Extract the frozenset literal
     m = re.search(r"_CLINICAL_KW_TIER3.*?frozenset\(\{(.*?)\}\)", text, re.DOTALL)
     if not m:
@@ -128,9 +128,9 @@ def filter_new_terms(counts: Counter, existing: frozenset[str], min_freq: int) -
 
 
 def apply_to_fast_router(new_terms: list[tuple[str, int]], dry_run: bool = True) -> None:
-    """Append new terms to _CLINICAL_KW_TIER3 in fast_router.py."""
-    router_path = Path(__file__).resolve().parents[1] / "services" / "ai" / "fast_router.py"
-    text = router_path.read_text(encoding="utf-8")
+    """Append new terms to _CLINICAL_KW_TIER3 in _keywords.py."""
+    kw_path = Path(__file__).resolve().parents[1] / "services" / "ai" / "fast_router" / "_keywords.py"
+    text = kw_path.read_text(encoding="utf-8")
 
     # Find the closing brace of _CLINICAL_KW_TIER3
     insert_marker = "# ── _CLINICAL_KW_TIER3 end ──"
@@ -139,7 +139,7 @@ def apply_to_fast_router(new_terms: list[tuple[str, int]], dry_run: bool = True)
         m = re.search(r"(_CLINICAL_KW_TIER3: frozenset\[str\] = frozenset\(\{)(.*?)(\}\))",
                       text, re.DOTALL)
         if not m:
-            print("ERROR: Could not locate _CLINICAL_KW_TIER3 in fast_router.py")
+            print("ERROR: Could not locate _CLINICAL_KW_TIER3 in _keywords.py")
             return
 
         # Group terms by category for readability
@@ -153,8 +153,8 @@ def apply_to_fast_router(new_terms: list[tuple[str, int]], dry_run: bool = True)
             if len(new_terms) > 20:
                 print(f"  ... and {len(new_terms) - 20} more")
         else:
-            router_path.write_text(text.replace(m.group(0), new_block), encoding="utf-8")
-            print(f"Updated fast_router.py — added {min(60, len(new_terms))} terms")
+            kw_path.write_text(text.replace(m.group(0), new_block), encoding="utf-8")
+            print(f"Updated _keywords.py — added {min(60, len(new_terms))} terms")
 
 
 def _save_terms(new_terms: list, out_path: Path) -> None:
@@ -184,7 +184,7 @@ def main() -> None:
                         help=f"Minimum entity frequency to include (default: {MIN_FREQ})")
     parser.add_argument("--top", type=int, default=80, help="Show top N new terms (default: 80)")
     parser.add_argument("--apply", action="store_true",
-                        help="Actually update fast_router.py (default: dry run)")
+                        help="Actually update _keywords.py (default: dry run)")
     parser.add_argument("--output", type=str, default="data/cblue_clinical_keywords.json",
                         help="Save extracted terms to this JSON file")
     args = parser.parse_args()
@@ -199,7 +199,7 @@ def main() -> None:
     _print_top_terms(new_terms, args.top)
     apply_to_fast_router(new_terms, dry_run=not args.apply)
     if not args.apply:
-        print("\nRun with --apply to update fast_router.py")
+        print("\nRun with --apply to update _keywords.py")
 
 
 if __name__ == "__main__":
