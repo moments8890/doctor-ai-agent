@@ -27,4 +27,3 @@ class HandlerResult:
     pending_expires_at: Optional[str] = None    # ISO-8601 UTC
     records_list: List[Any] = field(default_factory=list)
     patients_list: List[Any] = field(default_factory=list)
-    cvd_session: Optional[Any] = None           # CVD scale session after confirm

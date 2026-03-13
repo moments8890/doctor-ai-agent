@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import HTTPException, Query
+from utils.log import safe_create_task
 from sqlalchemy import func, select
 
 from db.engine import AsyncSessionLocal
@@ -116,6 +117,7 @@ async def admin_db_view_logic(
     limit: int,
 ) -> dict:
     """Core logic for admin_db_view endpoint."""
+    safe_create_task(audit("admin", "READ", "db_view", "admin_query"))
     doctor_id = _normalize_query_str(doctor_id)
     patient_name = _normalize_query_str(patient_name)
     date_from = _normalize_date_yyyy_mm_dd(date_from)
@@ -240,6 +242,18 @@ async def _count_labels_and_assignments(
     return labels_count, assignments_count
 
 
+async def _count_pending_records(db, doctor_id: Optional[str], needle: Optional[str]) -> int:
+    """Count pending_records with optional patient_name filter (matches drill-down)."""
+    stmt = select(func.count()).select_from(PendingRecord)
+    if doctor_id:
+        stmt = stmt.where(PendingRecord.doctor_id == doctor_id)
+    else:
+        stmt = apply_exclude_test_doctors(stmt, PendingRecord.doctor_id)
+    if needle:
+        stmt = stmt.where(PendingRecord.patient_name.ilike(needle))
+    return int((await db.execute(stmt)).scalar() or 0)
+
+
 async def _count_generic_tables(db, doctor_id: Optional[str]) -> dict:
     """Count rows for generic tables that only filter by doctor_id."""
     counts: dict = {}
@@ -248,7 +262,6 @@ async def _count_generic_tables(db, doctor_id: Optional[str]) -> dict:
         (SpecialtyScore, "specialty_scores", SpecialtyScore.doctor_id),
         (MedicalRecordVersion, "medical_record_versions", MedicalRecordVersion.doctor_id),
         (MedicalRecordExport, "medical_record_exports", MedicalRecordExport.doctor_id),
-        (PendingRecord, "pending_records", PendingRecord.doctor_id),
         (PendingMessage, "pending_messages", PendingMessage.doctor_id),
         (AuditLog, "audit_log", AuditLog.doctor_id),
         (DoctorKnowledgeItem, "doctor_knowledge_items", DoctorKnowledgeItem.doctor_id),
@@ -285,6 +298,7 @@ async def _count_all_tables(db, doctor_id: Optional[str], needle: Optional[str],
     counts["patient_labels"], counts["patient_label_assignments"] = (
         await _count_labels_and_assignments(db, doctor_id, needle, dt_from, dt_to_exclusive)
     )
+    counts["pending_records"] = await _count_pending_records(db, doctor_id, needle)
     counts["system_prompts"] = int(
         (await db.execute(select(func.count(SystemPrompt.key)))).scalar() or 0
     )

@@ -258,6 +258,9 @@ async def _try_cloud_fallback(
     )
     if not _cloud_fallback:
         raise original_err
+    # PHI egress gate: block cloud fallback unless explicitly allowed.
+    from services.ai.egress_policy import check_cloud_egress
+    check_cloud_egress(_cloud_fallback, "structuring", original_error=original_err)
     log(f"[LLM:ollama] all retries failed ({original_err}); trying cloud fallback={_cloud_fallback}")
     _cloud_provider = _PROVIDERS.get(_cloud_fallback)
     if _cloud_provider is None:

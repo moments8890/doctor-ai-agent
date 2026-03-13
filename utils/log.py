@@ -222,3 +222,33 @@ def log(msg: str, *, logger_name: str = "app", level: str = "info", **fields: An
 def task_log(event: str, *, level: str = "info", **fields: Any) -> None:
     """Structured task logger — routes to the dedicated tasks.log file."""
     log(event, logger_name="tasks", level=level, **fields)
+
+
+# ---------------------------------------------------------------------------
+# Safe background task helper
+# ---------------------------------------------------------------------------
+
+
+def _bg_task_done_callback(task: "asyncio.Task") -> None:  # type: ignore[name-defined]
+    """Log unhandled exceptions from background tasks instead of silently dropping them."""
+    if task.cancelled():
+        return
+    exc = task.exception()
+    if exc is not None:
+        log(
+            f"[bg-task] unhandled exception in {task.get_name()}: {exc}",
+            level="error",
+        )
+
+
+def safe_create_task(coro, *, name: str | None = None) -> "asyncio.Task":  # type: ignore[name-defined]
+    """Wrapper around asyncio.create_task that logs unhandled exceptions.
+
+    Use instead of bare ``asyncio.create_task()`` for fire-and-forget background
+    work to ensure failures are logged rather than silently swallowed.
+    """
+    import asyncio
+
+    task = asyncio.create_task(coro, name=name)
+    task.add_done_callback(_bg_task_done_callback)
+    return task

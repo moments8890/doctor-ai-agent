@@ -92,15 +92,21 @@ async def update_task_due_at(
 async def mark_task_notified(
     session: AsyncSession,
     task_id: int,
-) -> None:
-    """Mark a task as notified by transitioning status from 'pending' to 'notified'."""
+) -> bool:
+    """Atomically mark a task as notified (pending → notified).
+
+    Returns True if the transition succeeded, False if another process
+    already claimed it.  The caller should only send the notification
+    when this returns True.
+    """
     from sqlalchemy import select as _select, update as _update
-    await session.execute(
+    result = await session.execute(
         _update(DoctorTask)
         .where(DoctorTask.id == task_id, DoctorTask.status == "pending")
         .values(status="notified", updated_at=_utcnow())
     )
     await session.commit()
+    return (result.rowcount or 0) > 0
 
 
 async def revert_task_to_pending(

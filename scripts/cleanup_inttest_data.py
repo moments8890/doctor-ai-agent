@@ -35,15 +35,16 @@ from utils.runtime_config import load_runtime_json
 
 
 TABLES = [
-    # (table_name, column_with_doctor_id)
-    ("doctor_tasks",        "doctor_id"),
-    ("neuro_cases",         "doctor_id"),
-    ("pending_records",     "doctor_id"),
-    ("medical_records",     "doctor_id"),
-    ("patients",            "doctor_id"),
-    ("doctor_contexts",     "doctor_id"),
-    ("doctor_session_states", "doctor_id"),
-    ("conversation_turns",  "doctor_id"),
+    # (table_name, column_with_doctor_id) — FK-safe order (children first)
+    ("doctor_tasks",              "doctor_id"),
+    ("pending_messages",          "doctor_id"),
+    ("pending_records",           "doctor_id"),
+    ("medical_records",           "doctor_id"),
+    ("patients",                  "doctor_id"),
+    ("doctor_contexts",           "doctor_id"),
+    ("doctor_session_states",     "doctor_id"),
+    ("doctor_conversation_turns", "doctor_id"),
+    ("chat_archive",              "doctor_id"),
 ]
 
 

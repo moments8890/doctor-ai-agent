@@ -36,6 +36,7 @@ class _AuditEntry:
     ok: bool
     ts: datetime
     doctor_display_name: Optional[str]
+    _retries: int = 0  # drain-worker retry counter (not persisted)
 
 
 # ---------------------------------------------------------------------------
@@ -84,10 +85,13 @@ async def audit(
     await _write_entries([entry])
 
 
-async def _write_entries(entries: list[_AuditEntry]) -> None:
-    """Persist a batch of audit entries in a single DB session."""
+async def _write_entries(entries: list[_AuditEntry]) -> bool:
+    """Persist a batch of audit entries in a single DB session.
+
+    Returns True on success, False on failure (so the caller can re-queue).
+    """
     if not entries:
-        return
+        return True
     try:
         from db.engine import AsyncSessionLocal
         from db.models import AuditLog
@@ -112,8 +116,13 @@ async def _write_entries(entries: list[_AuditEntry]) -> None:
                         pass
                 session.add(row)
             await session.commit()
+        return True
     except Exception as exc:
         log.warning("[Audit] batch write failed (%d entries): %s", len(entries), exc)
+        return False
+
+
+_MAX_RETRIES = 3  # per-entry retry cap before dropping
 
 
 async def _audit_drain_worker() -> None:
@@ -121,6 +130,9 @@ async def _audit_drain_worker() -> None:
 
     Start this once from main.py lifespan, analogous to _disk_writer() in
     services/observability/observability.py.
+
+    On transient DB failure the batch is re-queued (up to _MAX_RETRIES per
+    entry) so a short outage doesn't permanently lose audit events.
     """
     global _AUDIT_QUEUE
     _AUDIT_QUEUE = asyncio.Queue(maxsize=_QUEUE_MAXSIZE)
@@ -136,12 +148,35 @@ async def _audit_drain_worker() -> None:
                 except asyncio.QueueEmpty:
                     break
             if batch:
-                await _write_entries(batch)
-                for _ in batch:
-                    try:
-                        _AUDIT_QUEUE.task_done()
-                    except ValueError:
-                        pass
+                ok = await _write_entries(batch)
+                if ok:
+                    for _ in batch:
+                        try:
+                            _AUDIT_QUEUE.task_done()
+                        except ValueError:
+                            pass
+                else:
+                    # Re-queue entries that haven't exhausted their retries.
+                    requeued = 0
+                    for entry in batch:
+                        retries = entry._retries
+                        if retries < _MAX_RETRIES:
+                            entry._retries = retries + 1
+                            try:
+                                _AUDIT_QUEUE.put_nowait(entry)
+                                requeued += 1
+                            except asyncio.QueueFull:
+                                pass
+                        try:
+                            _AUDIT_QUEUE.task_done()
+                        except ValueError:
+                            pass
+                    dropped = len(batch) - requeued
+                    if dropped:
+                        log.warning(
+                            "[Audit] dropped %d entries after %d retries",
+                            dropped, _MAX_RETRIES,
+                        )
         except asyncio.CancelledError:
             # Flush remaining entries before exit
             remaining: list[_AuditEntry] = []

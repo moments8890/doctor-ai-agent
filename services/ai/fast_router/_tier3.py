@@ -20,7 +20,7 @@ import re
 from pathlib import Path
 from typing import Optional
 
-from ._keywords import _CLINICAL_KW_TIER3, _TIER3_BAD_NAME, _EMERGENCY_KW
+from ._keywords import _CLINICAL_KW_TIER3, _TIER3_BAD_NAME
 from ._patient_guard import _is_patient_question
 from ._patterns import _extract_demographics, _TIER3_NAME_RE
 

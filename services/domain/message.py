@@ -1,10 +1,16 @@
 """
 统一入站消息类型和渠道适配器接口。
 
-所有渠道将原始输入规范化为 ``Message`` 后进入工作流管道。
-``ChannelAdapter`` Protocol 定义渠道特有行为的接口契约。
+``Message`` is the channel-agnostic inbound message dataclass.
+``ChannelAdapter`` Protocol defines the target adapter interface.
 
-参考设计：Wechaty Puppet 抽象 + chatgpt-on-wechat Channel 层。
+Current live usage (2026-03-13):
+  - Web: ``WebAdapter.parse_inbound()`` is called in records.py chat_core.
+  - WeChat: ``WeChatAdapter.format_reply()`` is called in wechat_flows.py.
+  - Other adapter methods (send_reply, send_notification, get_history,
+    WeChatAdapter.parse_inbound) are defined but not yet on the live
+    request path.  WeChat inbound still starts directly in wechat.py,
+    and voice has its own endpoint path in voice.py.
 """
 
 from __future__ import annotations

@@ -43,12 +43,13 @@ async def create_patient(
     name: str,
     gender: Optional[str],
     age: Optional[int],
-) -> Patient:
+) -> tuple["Patient", str]:
     """Create a patient and auto-generate a 6-digit portal access code.
 
-    The plaintext code is stored transiently on ``patient._plaintext_access_code``
-    so the caller can display it **once** to the doctor.  It is **not** persisted
-    in the database — only the PBKDF2-SHA256 hash is stored.
+    Returns ``(patient, plaintext_access_code)``.  The plaintext code is
+    returned as a separate value so the caller can display it **once** to
+    the doctor.  It is **not** persisted — only the PBKDF2-SHA256 hash is
+    stored in the database.
     """
     with trace_block("db", "crud.create_patient", {"doctor_id": doctor_id}):
         cleaned_name = (name or "").strip()
@@ -67,10 +68,8 @@ async def create_patient(
             age=age,
             access_code_hash=hashed_code,
         )
-        # Transient attribute — NOT persisted, available only on this instance.
-        patient._plaintext_access_code = plaintext_code  # type: ignore[attr-defined]
         log(f"[create_patient] access code generated for patient [{cleaned_name}] id={patient.id}")
-        return patient
+        return patient, plaintext_code
 
 
 async def set_patient_access_code(

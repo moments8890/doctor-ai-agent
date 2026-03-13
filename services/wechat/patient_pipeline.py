@@ -96,17 +96,28 @@ _CLIENT_CACHE: dict[str, AsyncOpenAI] = {}
 
 
 def _get_llm_client() -> tuple[AsyncOpenAI, str]:
-    """Return (client, model). Singleton per base_url+model, bypassed in tests."""
+    """Return (client, model). Uses the shared provider registry to stay aligned
+    with the main routing stack's configuration. Singleton per base_url+model,
+    bypassed in tests."""
     if "PYTEST_CURRENT_TEST" in os.environ:
         raise RuntimeError("patient pipeline LLM not available in test context")
-    base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+    from services.ai.llm_client import _PROVIDERS
+    provider_name = os.environ.get("STRUCTURING_LLM", "ollama")
+    # PHI egress gate: patient chat carries clinical history.
+    from services.ai.egress_policy import is_local_provider, check_cloud_egress
+    if not is_local_provider(provider_name):
+        check_cloud_egress(provider_name, "patient_pipeline")
+    provider = _PROVIDERS.get(provider_name) or _PROVIDERS.get("ollama", {})
+    base_url = os.environ.get("OLLAMA_BASE_URL") or provider.get("base_url") or "http://192.168.0.123:11434/v1"
     model = (
         os.environ.get("PATIENT_LLM_MODEL")
-        or os.environ.get("STRUCTURING_LLM_MODEL", "qwen2.5:14b")
+        or os.environ.get("STRUCTURING_LLM_MODEL")
+        or provider.get("model", "qwen2.5:14b")
     )
+    api_key = os.environ.get(provider.get("api_key_env", "OLLAMA_API_KEY"), "ollama")
     cache_key = f"{base_url}:{model}"
     if cache_key not in _CLIENT_CACHE:
-        _CLIENT_CACHE[cache_key] = AsyncOpenAI(base_url=base_url, api_key="ollama")
+        _CLIENT_CACHE[cache_key] = AsyncOpenAI(base_url=base_url, api_key=api_key)
     return _CLIENT_CACHE[cache_key], model
 
 

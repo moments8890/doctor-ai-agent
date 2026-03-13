@@ -16,7 +16,9 @@ import types
 from . import _keywords
 from . import _patterns
 from . import _patient_guard
-from . import _tier3
+# _tier3 is NOT imported here — it is no longer on the live routing path
+# (see _tier3.py docstring).  Importing it triggers pickle deserialization
+# at startup for no benefit.  Import explicitly when needed for offline eval.
 from . import _mined_rules
 from . import _session
 from . import _router

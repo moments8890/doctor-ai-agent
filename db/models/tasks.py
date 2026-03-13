@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, String, DateTime, Text
+from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, String, DateTime, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 from db.engine import Base
 from db.models.base import _utcnow
@@ -22,13 +22,13 @@ class DoctorTask(Base):
     task_type: Mapped[str] = mapped_column(String(32), nullable=False)  # follow_up | emergency | appointment | general | lab_review | referral | imaging | medication
     title: Mapped[str] = mapped_column(String(256), nullable=False)
     content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")  # pending | completed | cancelled
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")  # pending | notified | completed | cancelled
     due_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=True)
 
     __table_args__ = (
-        CheckConstraint("status IN ('pending','completed','cancelled')", name="ck_doctor_tasks_status"),
+        CheckConstraint("status IN ('pending','notified','completed','cancelled')", name="ck_doctor_tasks_status"),
         CheckConstraint(
             "task_type IN ('follow_up','emergency','appointment','general',"
             "'lab_review','referral','imaging','medication')",
@@ -37,6 +37,14 @@ class DoctorTask(Base):
         Index("ix_tasks_doctor_status_due", "doctor_id", "status", "due_at"),
         Index("ix_tasks_status_due", "status", "due_at"),  # scheduler: list_due_unnotified queries across all doctors
         Index("ix_tasks_status_task_type_due", "status", "task_type", "due_at"),
+        # Prevent duplicate pending auto-tasks for the same record+type.
+        # record_id is nullable, so this only constrains record-linked tasks.
+        Index(
+            "ix_tasks_dedup_record_type_pending",
+            "doctor_id", "record_id", "task_type", "status",
+            unique=True,
+            sqlite_where=text("record_id IS NOT NULL AND status = 'pending'"),
+        ),
     )
 
     def __str__(self) -> str:

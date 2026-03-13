@@ -4,7 +4,8 @@
 from __future__ import annotations
 
 import json
-from typing import List
+from collections import defaultdict
+from typing import Dict, List
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -50,3 +51,29 @@ async def get_scores_for_record(
         .order_by(SpecialtyScore.id)
     )
     return list(result.scalars().all())
+
+
+async def get_scores_for_records(
+    session: AsyncSession,
+    record_ids: List[int],
+    doctor_id: str,
+) -> Dict[int, List[SpecialtyScore]]:
+    """Bulk-fetch specialty scores for multiple records.
+
+    Returns a dict mapping record_id → list of SpecialtyScore rows.
+    Missing record_ids will not appear in the dict.
+    """
+    if not record_ids:
+        return {}
+    result = await session.execute(
+        select(SpecialtyScore)
+        .where(
+            SpecialtyScore.record_id.in_(record_ids),
+            SpecialtyScore.doctor_id == doctor_id,
+        )
+        .order_by(SpecialtyScore.record_id, SpecialtyScore.id)
+    )
+    scores_map: Dict[int, List[SpecialtyScore]] = defaultdict(list)
+    for row in result.scalars().all():
+        scores_map[row.record_id].append(row)
+    return dict(scores_map)

@@ -12,7 +12,7 @@ Use `./dev.sh` as the single entrypoint for daily development tasks:
 - `./dev.sh e2e <half|full>`
 - `./dev.sh data <preload|export-seed|import-seed|reset-from-seed> ...`
 - `./dev.sh chat`
-- `./dev.sh inspect-db`
+- `./dev.sh inspect-db` / `./dev.sh inspect-db --ui [port]`
 
 ## VM Commands (Separated Responsibilities)
 
@@ -56,6 +56,10 @@ export TENCENT_LKEAP_MODEL="deepseek-v3-1"
 3. Validate behavior
 ```bash
 ./dev.sh test integration
+
+# E2E chatlog replay targets port 8001 (not the default 8000 dev server).
+# Start a dedicated backend instance on 8001 first:
+./dev.sh run-backend --port 8001 &
 ./dev.sh e2e half
 ```
 

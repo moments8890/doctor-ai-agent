@@ -356,6 +356,11 @@ async def upload_report_template(
     The template text is extracted and stored in system_prompts under
     key  report.template.{doctor_id}.  Future outpatient reports for
     this doctor will use it as a format reference (first 500 chars only).
+
+    IMPORTANT: upload a **generic format template**, not a real patient document.
+    The extracted text is stored persistently outside the medical records tables
+    and is NOT subject to record-level retention or redaction policies.  Any PHI
+    in the uploaded file will persist in system_prompts indefinitely.
     """
     resolved_doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
 
@@ -378,11 +383,15 @@ async def upload_report_template(
     if not text.strip():
         raise HTTPException(status_code=422, detail="Could not extract text from the uploaded file")
 
-    # Persist to system_prompts (key scoped to doctor, never raw interpolation with user input)
+    # Store only the first 500 chars — enough for format reference, avoids
+    # retaining a full patient document if a doctor uploads one by mistake.
+    # The outpatient-report prompt already truncates to 500 chars at read time;
+    # this ensures the DB itself doesn't hold more than needed.
+    truncated = text[:500]
     key = f"report.template.{resolved_doctor_id}"
     from db.crud import upsert_system_prompt
     async with AsyncSessionLocal() as db:
-        await upsert_system_prompt(db, key, text, changed_by=f"doctor:{resolved_doctor_id}")
+        await upsert_system_prompt(db, key, truncated, changed_by=f"doctor:{resolved_doctor_id}")
 
     safe_filename = os.path.basename(file.filename or "unknown")
     log(f"[Export] template uploaded doctor={resolved_doctor_id} file={safe_filename!r} chars={len(text)}")

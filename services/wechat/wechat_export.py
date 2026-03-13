@@ -10,7 +10,7 @@ from typing import Any, Optional
 
 from db.engine import AsyncSessionLocal
 from services.observability.audit import audit
-from utils.log import log
+from utils.log import log, safe_create_task
 
 
 def _t(s: Optional[str], n: int = 30) -> str:
@@ -55,7 +55,7 @@ async def _fetch_patient_and_records(
                 MedicalRecordDB.patient_id == patient_id,
                 MedicalRecordDB.doctor_id == doctor_id,
             )
-            .order_by(MedicalRecordDB.created_at.asc())
+            .order_by(MedicalRecordDB.created_at.desc())
             .limit(limit)
         )
         records = list(result.scalars().all())
@@ -119,25 +119,32 @@ async def handle_export_records(doctor_id: str, intent_result: Any) -> str:
             session, doctor_id, intent_result
         )
         cvd_ctx = None
+        scores_map = {}
         if patient_id:
             from db.crud.specialty import get_cvd_context_for_patient
+            from db.crud.scores import get_scores_for_records
             cvd_ctx = await get_cvd_context_for_patient(session, doctor_id, patient_id)
+            rec_ids = [r.id for r in records if r.id is not None]
+            if rec_ids:
+                scores_map = await get_scores_for_records(session, rec_ids, doctor_id)
 
     if patient_id is None:
         return "❓ 请先告知患者姓名，例如：「导出张三的病历」"
     if not records:
         return f"📂 患者【{patient_name}】暂无历史记录，无法导出。"
 
-    asyncio.create_task(
-        audit(doctor_id, "EXPORT", resource_type="patient", resource_id=str(patient_id))
-    )
-
     try:
         from services.export.pdf_export import generate_records_pdf
         pdf_bytes = generate_records_pdf(
-            records=records, patient_name=patient_name, cvd_context=cvd_ctx
+            records=list(reversed(records)),  # chronological for PDF
+            patient_name=patient_name, patient=_patient,
+            cvd_context=cvd_ctx, scores_map=scores_map,
         )
         await _try_send_pdf(doctor_id, pdf_bytes, f"病历_{patient_id}.pdf")
+        # Audit after successful generation+send, not before.
+        safe_create_task(
+            audit(doctor_id, "EXPORT", resource_type="patient", resource_id=str(patient_id))
+        )
         return f"📄 【{patient_name}】共 {len(records)} 条记录的病历 PDF 已发送。"
     except Exception as exc:
         log(f"[WeChat] export PDF via WeCom file failed ({exc}), falling back to text")
@@ -195,24 +202,34 @@ async def handle_export_outpatient_report(doctor_id: str, intent_result: Any) ->
         patient_id, patient_name, patient_obj, records = await _fetch_patient_and_records(
             session, doctor_id, intent_result
         )
+        scores_map = {}
+        if patient_id:
+            from db.crud.scores import get_scores_for_records
+            rec_ids = [r.id for r in records if r.id is not None]
+            if rec_ids:
+                scores_map = await get_scores_for_records(session, rec_ids, doctor_id)
 
     if patient_id is None:
         return "❓ 请先告知患者姓名，例如：「生成张三的标准门诊病历」"
     if not records:
         return f"📂 患者【{patient_name}】暂无历史记录，无法生成门诊病历。"
 
-    asyncio.create_task(
-        audit(doctor_id, "EXPORT", resource_type="outpatient_report", resource_id=str(patient_id))
-    )
-
     from services.export.outpatient_report import ExtractionError, extract_outpatient_fields
     try:
-        fields = await extract_outpatient_fields(records, patient_obj, doctor_id=doctor_id)
+        fields = await extract_outpatient_fields(
+            records, patient_obj, doctor_id=doctor_id, scores_map=scores_map,
+        )
     except ExtractionError as exc:
         log(f"[WeChat] outpatient report LLM extraction failed: {exc}")
         return "⚠️ AI 字段提取失败，暂时无法生成门诊病历 PDF，请稍后重试。"
 
     patient_info = _build_patient_info_line(patient_obj)
-    return await _generate_and_send_outpatient_pdf(
+    reply = await _generate_and_send_outpatient_pdf(
         doctor_id, patient_id, patient_name, patient_info, fields
     )
+    # Audit only when the reply indicates success (not a fallback/failure).
+    if "已发送" in reply:
+        safe_create_task(
+            audit(doctor_id, "EXPORT", resource_type="outpatient_report", resource_id=str(patient_id))
+        )
+    return reply

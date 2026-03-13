@@ -88,6 +88,12 @@ async def redact_old_conversation_content(session: AsyncSession, days: int = 90)
     preserving the row-count / timing metadata for audits. Default 90 days gives
     doctors reasonable clinical continuity before content is anonymised.
 
+    NOTE: this affects live surfaces that read from this table:
+    - Mini-program ``GET /api/mini/history`` will return ``[redacted]`` entries
+    - Session rehydration (``hydrate_session_state``) loads recent turns from
+      this table; redacted turns provide no useful context
+    If longer retention is needed for these features, increase *days*.
+
     Returns the number of rows updated.
     """
     cutoff = _utcnow() - timedelta(days=days)

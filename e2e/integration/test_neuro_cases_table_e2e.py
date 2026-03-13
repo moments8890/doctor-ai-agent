@@ -1,13 +1,15 @@
-"""神经病例表持久化端到端覆盖测试（neuro_cases）。
+"""神经病例持久化端到端覆盖测试（medical_records, record_type='neuro_case'）。
 
-E2E coverage for neuro_cases table persistence.
+E2E coverage for neuro case persistence.
 
 Starts from doctor natural language input to `/api/neuro/from-text`,
-then verifies row persistence in `neuro_cases` and API visibility.
+then verifies row persistence in `medical_records` (record_type='neuro_case')
+and API visibility.
 """
 
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
 import time
@@ -19,17 +21,28 @@ import pytest
 from e2e.integration.conftest import DB_PATH, SERVER
 
 
-def _neuro_row(case_id: int, doctor_id: str) -> tuple | None:
+def _neuro_row(case_id: int, doctor_id: str) -> dict | None:
+    """Load a neuro_case row from medical_records by id + doctor_id."""
     conn = sqlite3.connect(DB_PATH)
     try:
-        return conn.execute(
+        row = conn.execute(
             """
-            SELECT id, doctor_id, patient_name, chief_complaint, primary_diagnosis, nihss
-            FROM neuro_cases
-            WHERE id=? AND doctor_id=?
+            SELECT id, doctor_id, neuro_patient_name, neuro_raw_json, record_type, nihss
+            FROM medical_records
+            WHERE id=? AND doctor_id=? AND record_type='neuro_case'
             """,
             (case_id, doctor_id),
         ).fetchone()
+        if not row:
+            return None
+        return {
+            "id": row[0],
+            "doctor_id": row[1],
+            "neuro_patient_name": row[2],
+            "neuro_raw_json": row[3],
+            "record_type": row[4],
+            "nihss": row[5],
+        }
     finally:
         conn.close()
 
@@ -74,13 +87,17 @@ def test_neuro_table_insert_from_human_language_e2e():
     case_id = int(payload["db_id"])
 
     row = _neuro_row(case_id, doctor_id)
-    assert row is not None, "neuro_cases row should be inserted"
-    assert row[1] == doctor_id
-    if row[2] is not None:
-        assert patient_name in row[2]
-    assert (row[3] or "").strip() != ""
-    neuro_blob = "{0}\n{1}".format(row[3] or "", row[4] or "")
-    assert ("言语" in neuro_blob) or ("乏力" in neuro_blob) or ("卒中" in neuro_blob)
+    assert row is not None, "medical_records neuro_case row should be inserted"
+    assert row["doctor_id"] == doctor_id
+    assert row["record_type"] == "neuro_case"
+    if row["neuro_patient_name"] is not None:
+        assert patient_name in row["neuro_patient_name"]
+
+    # Clinical content should appear in the serialised neuro_raw_json
+    neuro_blob = row["neuro_raw_json"] or ""
+    assert ("言语" in neuro_blob) or ("乏力" in neuro_blob) or ("卒中" in neuro_blob), (
+        f"Expected clinical tokens not found in neuro_raw_json"
+    )
 
     listed = httpx.get(
         f"{SERVER}/api/neuro/cases",

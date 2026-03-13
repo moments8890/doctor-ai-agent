@@ -7,10 +7,10 @@ from __future__ import annotations
 import asyncio
 import os
 import time
-from collections import deque
+
 from fastapi import APIRouter, Form, HTTPException, UploadFile, File, Header
 from pydantic import BaseModel, Field, field_validator
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from db.crud import (
     get_all_patients,
@@ -147,22 +147,20 @@ router = APIRouter(prefix="/api/records", tags=["records"])
 
 _ROUTING_HISTORY_MAX_MESSAGES = max(0, int(os.environ.get("ROUTING_HISTORY_MAX_MESSAGES", "2")))
 _WORKFLOW_TIMEOUT = float(os.environ.get("WEB_CHAT_WORKFLOW_TIMEOUT", "30"))
-_REQUESTS_PER_MINUTE = max(1, int(os.environ.get("RECORDS_CHAT_RATE_LIMIT_PER_MINUTE", "100")))
-_RATE_WINDOWS: dict[str, deque] = {}
 _MAX_UPLOAD_BYTES = 20 * 1024 * 1024  # 20 MB — matches /extract-file limit
 
 
 # ── Pydantic models ───────────────────────────────────────────────────────────
 
 class HistoryMessage(BaseModel):
-    role: str   # "user" or "assistant"
-    content: str
+    role: Literal["user", "assistant"] = Field(..., description="Must be 'user' or 'assistant'")
+    content: str = Field(..., max_length=16000)
 
 
 class ChatInput(BaseModel):
     text: str = Field(..., max_length=8000)
     history: List[HistoryMessage] = Field(default_factory=list)
-    doctor_id: str = "test_doctor"
+    doctor_id: str = ""
 
     @field_validator("text")
     @classmethod
@@ -178,7 +176,7 @@ class ChatInput(BaseModel):
 
 
 class TextInput(BaseModel):
-    text: str
+    text: str = Field(..., max_length=16000)
 
 
 class ChatResponse(BaseModel):
@@ -235,14 +233,7 @@ def _resolve_doctor_id(body: ChatInput, authorization: Optional[str]) -> str:
 
 
 def _enforce_rate_limit(doctor_id: str) -> None:
-    now = time.time()
-    window_start = now - 60.0
-    q = _RATE_WINDOWS.setdefault(doctor_id, deque())
-    while q and q[0] < window_start:
-        q.popleft()
-    if len(q) >= _REQUESTS_PER_MINUTE:
-        raise HTTPException(status_code=429, detail="rate_limit_exceeded")
-    q.append(now)
+    enforce_doctor_rate_limit(doctor_id, scope="records.chat")
 
 
 # ── Adapter and HandlerResult → ChatResponse conversion ──────────────────────
@@ -343,95 +334,103 @@ async def chat_core(
         their wire format (JSON for web, plain text for WeChat).
     """
     original_text = original_text or text
-    from services.session import hydrate_session_state as _hydrate_session_state
-    await _hydrate_session_state(doctor_id, write_intent=True)
-    history_for_routing = _trim_history_for_routing(history)
-
-    fast_resp = await _try_fast_paths(original_text, doctor_id, history)
-    if fast_resp is not None:
-        await _push_and_flush_turn(doctor_id, original_text, fast_resp.reply)
-        return fast_resp
-
-    # ── Shared stateful prechecks (pending record / create / blocked-write / knowledge) ──
-    from services.intent_workflow.precheck import PrecheckContext, run_stateful_prechecks
-
-    _pctx = PrecheckContext(
-        doctor_id=doctor_id, text=text, original_text=original_text,
-        history=history, channel="web",
+    from services.session import (
+        hydrate_session_state as _hydrate_session_state,
+        get_session_lock as _get_session_lock,
     )
-    _precheck = await run_stateful_prechecks(_pctx)
-    if _precheck.handled:
-        _resp = await _handler_result_to_chat(_precheck.handler_result)
-        await _push_and_flush_turn(doctor_id, original_text, _resp.reply)
-        return _resp
 
-    knowledge_context = _precheck.knowledge_context
+    # Serialize the full turn under the per-doctor session lock — same as
+    # WeChat — to prevent concurrent requests from interleaving prechecks,
+    # patient attribution, and session mutations.
+    async with _get_session_lock(doctor_id):
+        await _hydrate_session_state(doctor_id, write_intent=True)
+        history_for_routing = _trim_history_for_routing(history)
 
-    # Assemble per-turn context (snapshot session state + advisory)
-    from services.ai.turn_context import assemble_turn_context
-    turn_ctx = await assemble_turn_context(doctor_id)
-    if knowledge_context:
-        turn_ctx.advisory.knowledge_snippet = knowledge_context
+        fast_resp = await _try_fast_paths(original_text, doctor_id, history)
+        if fast_resp is not None:
+            await _push_and_flush_turn(doctor_id, original_text, fast_resp.reply)
+            return fast_resp
 
-    # Run the 5-layer intent workflow pipeline
-    from services.intent_workflow import run as workflow_run
+        # ── Shared stateful prechecks (pending record / create / blocked-write / knowledge) ──
+        from services.intent_workflow.precheck import PrecheckContext, run_stateful_prechecks
 
-    # Prepend compressed long-term memory to history (same as WeChat path)
-    _routing_history = history_for_routing
-    if turn_ctx.advisory.context_message:
-        _routing_history = [turn_ctx.advisory.context_message] + _routing_history
-
-    try:
-        result = await asyncio.wait_for(
-            workflow_run(
-                text, doctor_id, _routing_history,
-                original_text=original_text,
-                effective_intent=effective_intent,
-                knowledge_context=knowledge_context,
-                channel="web",
-                turn_context=turn_ctx,
-            ),
-            timeout=_WORKFLOW_TIMEOUT,
+        _pctx = PrecheckContext(
+            doctor_id=doctor_id, text=text, original_text=original_text,
+            history=history, channel="web",
         )
-    except asyncio.TimeoutError:
-        log(f"[Chat] workflow TIMEOUT after {_WORKFLOW_TIMEOUT}s doctor={doctor_id} text={text[:80]!r}")
-        raise HTTPException(status_code=504, detail="Processing timed out, please try again")
-    except Exception as e:
-        msg = str(e)
-        status = 429 if "rate_limit" in msg or "Rate limit" in msg or "429" in msg else 503
-        log(
-            f"[Chat] workflow FAILED doctor={doctor_id} status={status} "
-            f"text={text[:80]!r} err={msg}"
-        )
-        detail = "rate_limit_exceeded" if status == 429 else "Service temporarily unavailable"
-        raise HTTPException(status_code=status, detail=detail)
+        _precheck = await run_stateful_prechecks(_pctx)
+        if _precheck.handled:
+            _resp = await _handler_result_to_chat(_precheck.handler_result)
+            await _push_and_flush_turn(doctor_id, original_text, _resp.reply)
+            return _resp
 
-    # Gate check: block unsafe operations before dispatching
-    if not result.gate.approved:
-        # Store blocked write context when add_record is gated for missing patient
-        if (
-            result.gate.reason == "no_patient_name"
-            and result.decision.intent == Intent.add_record
-        ):
-            _set_blocked_write_context(
-                doctor_id,
-                intent="add_record",
-                clinical_text=text,
-                original_text=original_text,
+        knowledge_context = _precheck.knowledge_context
+
+        # Assemble per-turn context (snapshot session state + advisory)
+        from services.ai.turn_context import assemble_turn_context
+        turn_ctx = await assemble_turn_context(doctor_id)
+        if knowledge_context:
+            turn_ctx.advisory.knowledge_snippet = knowledge_context
+
+        # Run the 5-layer intent workflow pipeline
+        from services.intent_workflow import run as workflow_run
+
+        # Prepend compressed long-term memory to history (same as WeChat path)
+        _routing_history = history_for_routing
+        if turn_ctx.advisory.context_message:
+            _routing_history = [turn_ctx.advisory.context_message] + _routing_history
+
+        try:
+            result = await asyncio.wait_for(
+                workflow_run(
+                    text, doctor_id, _routing_history,
+                    original_text=original_text,
+                    effective_intent=effective_intent,
+                    knowledge_context=knowledge_context,
+                    channel="web",
+                    turn_context=turn_ctx,
+                ),
+                timeout=_WORKFLOW_TIMEOUT,
             )
+        except asyncio.TimeoutError:
+            log(f"[Chat] workflow TIMEOUT after {_WORKFLOW_TIMEOUT}s doctor={doctor_id} len={len(text)}")
+            raise HTTPException(status_code=504, detail="Processing timed out, please try again")
+        except Exception as e:
+            msg = str(e)
+            status = 429 if "rate_limit" in msg or "Rate limit" in msg or "429" in msg else 503
             log(
-                f"[Chat] blocked write stored doctor={doctor_id} "
-                f"text={text[:60]!r}"
+                f"[Chat] workflow FAILED doctor={doctor_id} status={status} "
+                f"len={len(text)} err={msg}"
             )
-        _gate_reply = result.gate.clarification_message or _UNCLEAR_INTENT_REPLY
-        await _push_and_flush_turn(doctor_id, original_text, _gate_reply)
-        return ChatResponse(reply=_gate_reply)
+            detail = "rate_limit_exceeded" if status == 429 else "Service temporarily unavailable"
+            raise HTTPException(status_code=status, detail=detail)
 
-    intent_result = result.to_intent_result()
+        # Gate check: block unsafe operations before dispatching
+        if not result.gate.approved:
+            # Store blocked write context when add_record is gated for missing patient
+            if (
+                result.gate.reason == "no_patient_name"
+                and result.decision.intent == Intent.add_record
+            ):
+                _set_blocked_write_context(
+                    doctor_id,
+                    intent="add_record",
+                    clinical_text=text,
+                    original_text=original_text,
+                )
+                log(
+                    f"[Chat] blocked write stored doctor={doctor_id} "
+                    f"len={len(text)}"
+                )
+            _gate_reply = result.gate.clarification_message or _UNCLEAR_INTENT_REPLY
+            await _push_and_flush_turn(doctor_id, original_text, _gate_reply)
+            return ChatResponse(reply=_gate_reply)
 
-    resp = await _dispatch_intent(text, original_text, doctor_id, history, intent_result)
-    await _push_and_flush_turn(doctor_id, original_text, resp.reply)
-    return resp
+        intent_result = result.to_intent_result()
+
+        resp = await _dispatch_intent(text, original_text, doctor_id, history, intent_result)
+        await _push_and_flush_turn(doctor_id, original_text, resp.reply)
+        return resp
 
 
 async def _chat_for_doctor(body: ChatInput, doctor_id: str) -> ChatResponse:
@@ -490,7 +489,7 @@ async def chat(
 @router.post("/from-text", response_model=MedicalRecord)
 async def create_record_from_text(
     body: TextInput,
-    doctor_id: str = "test_doctor",
+    doctor_id: str = "",
     authorization: Optional[str] = Header(default=None),
 ):
     resolved_doctor_id = resolve_doctor_id_from_auth_or_fallback(
@@ -514,7 +513,7 @@ async def create_record_from_text(
 @router.post("/from-image")
 async def create_record_from_image(
     image: UploadFile = File(...),
-    doctor_id: str = Form(default="test_doctor"),
+    doctor_id: str = Form(default=""),
     authorization: Optional[str] = Header(default=None),
 ):
     """OCR an image then import via import_history (ADR 0009)."""
@@ -523,6 +522,7 @@ async def create_record_from_image(
         fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
         default_doctor_id="test_doctor",
     )
+    enforce_doctor_rate_limit(resolved_doctor_id, scope="records.from_image")
     if image.content_type not in SUPPORTED_IMAGE_TYPES:
         raise HTTPException(
             status_code=422,
@@ -547,7 +547,7 @@ async def create_record_from_image(
 @router.post("/from-audio")
 async def create_record_from_audio(
     audio: UploadFile = File(...),
-    doctor_id: str = Form(default="test_doctor"),
+    doctor_id: str = Form(default=""),
     authorization: Optional[str] = Header(default=None),
 ):
     """Transcribe audio then import via import_history (ADR 0009)."""
@@ -556,6 +556,7 @@ async def create_record_from_audio(
         fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
         default_doctor_id="test_doctor",
     )
+    enforce_doctor_rate_limit(resolved_doctor_id, scope="records.from_audio")
     if audio.content_type not in SUPPORTED_AUDIO_TYPES:
         raise HTTPException(
             status_code=422,
@@ -593,7 +594,7 @@ async def _import_extracted_text(text: str, doctor_id: str, *, source: str) -> s
 @router.post("/transcribe")
 async def transcribe_audio_only(
     audio: UploadFile = File(...),
-    doctor_id: str = Form(default="test_doctor"),
+    doctor_id: str = Form(default=""),
     authorization: Optional[str] = Header(default=None),
 ):
     """Transcribe audio to text without creating a medical record."""
@@ -626,7 +627,7 @@ async def transcribe_audio_only(
 @router.post("/ocr")
 async def ocr_image_only(
     image: UploadFile = File(...),
-    doctor_id: str = Form(default="test_doctor"),
+    doctor_id: str = Form(default=""),
     authorization: Optional[str] = Header(default=None),
 ):
     """Extract text from an image without creating a medical record."""
@@ -658,7 +659,7 @@ async def ocr_image_only(
 @router.post("/extract-file")
 async def extract_file_for_chat(
     file: UploadFile = File(...),
-    doctor_id: str = Form(default="test_doctor"),
+    doctor_id: str = Form(default=""),
     authorization: Optional[str] = Header(default=None),
 ):
     """Extract text from a PDF or image for the chat input."""
@@ -756,7 +757,7 @@ async def confirm_pending(
         raise HTTPException(status_code=500, detail="保存失败，请重试")
 
     patient_name, record_id = result
-    clear_pending_record_id(resolved_doctor_id)
+    clear_pending_record_id(resolved_doctor_id, expected_id=pending_id)
     return {"ok": True, "record_id": record_id, "patient_name": patient_name}
 
 
@@ -776,5 +777,5 @@ async def abandon_pending(
         ok = await abandon_pending_record(db, pending_id, resolved_doctor_id)
     if not ok:
         raise HTTPException(status_code=404, detail="草稿不存在或已过期")
-    clear_pending_record_id(resolved_doctor_id)
+    clear_pending_record_id(resolved_doctor_id, expected_id=pending_id)
     return {"ok": True}

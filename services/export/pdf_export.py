@@ -126,7 +126,9 @@ def _draw_patient_block(pdf, _set_font, patient, patient_name, doctor_name, reco
     p_gender = getattr(patient, "gender", None) if patient else None
     p_yob = getattr(patient, "year_of_birth", None) if patient else None
     p_age = _age_from_year(p_yob)
-    p_risk = getattr(patient, "primary_risk_level", None) if patient else None
+    # primary_risk_level is not mapped on the Patient ORM model; always None.
+    # Kept as a placeholder for future risk-scoring integration.
+    p_risk = None
     p_category = getattr(patient, "primary_category", None) if patient else None
 
     pdf.set_fill_color(240, 245, 255)
@@ -210,8 +212,8 @@ def _draw_cvd_block(pdf, _set_font, cvd_context) -> None:
     pdf.ln(4)
 
 
-def _draw_record_entry(pdf, _set_font, i: int, rec) -> None:
-    """绘制单条病历记录（标题行 + 内容 + 标签 + 分隔线）。"""
+def _draw_record_entry(pdf, _set_font, i: int, rec, scores: list | None = None) -> None:
+    """绘制单条病历记录（标题行 + 内容 + 标签 + 量表评分 + 分隔线）。"""
     if pdf.get_y() > pdf.h - 55:
         pdf.add_page()
 
@@ -245,6 +247,17 @@ def _draw_record_entry(pdf, _set_font, i: int, rec) -> None:
         pdf.set_text_color(60, 80, 180)
         pdf.set_x(pdf.l_margin + 3)
         pdf.cell(0, 5, "标签：" + "  ·  ".join(tags), new_x="LMARGIN", new_y="NEXT")
+        pdf.set_text_color(0, 0, 0)
+
+    if scores:
+        _set_font(9)
+        pdf.set_text_color(0, 120, 80)
+        pdf.set_x(pdf.l_margin + 3)
+        score_parts = []
+        for s in scores:
+            val = f"{s.score_value:g}" if s.score_value is not None else (s.raw_text or "")
+            score_parts.append(f"{s.score_type}={val}" if val else s.score_type)
+        pdf.cell(0, 5, "量表：" + "  ·  ".join(score_parts), new_x="LMARGIN", new_y="NEXT")
         pdf.set_text_color(0, 0, 0)
 
     pdf.set_draw_color(210, 215, 225)
@@ -309,6 +322,7 @@ def generate_records_pdf(
     clinic_name: Optional[str] = None,
     doctor_name: Optional[str] = None,
     cvd_context: object = None,
+    scores_map: Optional[dict] = None,
 ) -> bytes:
     """
     Generate a PDF containing one or more MedicalRecordDB rows.
@@ -320,6 +334,7 @@ def generate_records_pdf(
         clinic_name: overrides CLINIC_NAME env var
         doctor_name: attending physician name
         cvd_context: optional NeuroCVDContext ORM row for specialty block
+        scores_map: optional dict mapping record_id → list of SpecialtyScore rows
     Returns raw PDF bytes. Raises RuntimeError if fpdf2 is not installed.
     """
     from fpdf import FPDF  # raises ImportError if not installed
@@ -340,8 +355,10 @@ def generate_records_pdf(
         pdf.cell(0, 10, "（暂无病历记录）", align="C", new_x="LMARGIN", new_y="NEXT")
         pdf.set_text_color(0, 0, 0)
     else:
+        _sm = scores_map or {}
         for i, rec in enumerate(records):
-            _draw_record_entry(pdf, _set_font, i, rec)
+            rec_scores = _sm.get(getattr(rec, "id", None), [])
+            _draw_record_entry(pdf, _set_font, i, rec, scores=rec_scores)
 
     return bytes(pdf.output())
 

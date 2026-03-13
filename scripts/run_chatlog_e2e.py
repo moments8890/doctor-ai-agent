@@ -83,7 +83,6 @@ _TABLES_WITH_DOCTOR_ID = {
     "doctor_tasks",
     "doctor_contexts",
     "doctors",
-    "neuro_cases",
 }
 
 # Map stale fixture table names → current schema names.
@@ -103,7 +102,6 @@ _TABLES_GLOBAL_ONLY = {
 # Tables to purge during cleanup, in FK-safe order (children before parents)
 _CLEANUP_TABLES = [
     ("doctor_tasks",          "doctor_id"),
-    ("neuro_cases",           "doctor_id"),
     ("pending_records",       "doctor_id"),
     ("medical_records",       "doctor_id"),
     ("patients",              "doctor_id"),
@@ -652,7 +650,7 @@ def _check_misc_assertions(
     if bool(exp.get("expect_no_aggressive_treatment", False)):
         treatment_text = ""
         if isinstance(last_record, dict):
-            treatment_text = str(last_record.get("treatment_plan", "") or "")
+            treatment_text = str(last_record.get("content", "") or "")
         no_aggressive, hits = _validate_non_aggressive(treatment_text)
         if not no_aggressive:
             return CaseResult(case_id=case.case_id, ok=False, turns_sent=turns_sent,
@@ -823,6 +821,8 @@ def _write_summary_json(path: str, results: List[CaseResult], data_path: str) ->
         pass
     total = len(results)
     passed = sum(1 for r in results if r.ok)
+    passed_organic = sum(1 for r in results if r.ok and not r.used_fallback)
+    passed_with_rescue = sum(1 for r in results if r.ok and r.used_fallback)
     routing_ok = sum(1 for r in results if r.routing_ok)
     patient_ok = sum(1 for r in results if r.patient_resolution_ok)
     struct_ok = sum(1 for r in results if r.structuring_ok)
@@ -834,8 +834,11 @@ def _write_summary_json(path: str, results: List[CaseResult], data_path: str) ->
         "dataset": str(data_path),
         "total": total,
         "passed": passed,
+        "passed_organic": passed_organic,
+        "passed_with_rescue": passed_with_rescue,
         "failed": total - passed,
         "accuracy_pct": round(passed / max(total, 1) * 100, 1),
+        "accuracy_organic_pct": round(passed_organic / max(total, 1) * 100, 1),
         "layers": {
             "routing_ok": routing_ok,
             "patient_resolution_ok": patient_ok,
@@ -866,10 +869,16 @@ def _print_summary(results: List[CaseResult]) -> None:
     save_ok = sum(1 for r in results if r.save_ok)
     fallback_count = sum(1 for r in results if r.used_fallback)
 
+    passed_organic = sum(1 for r in results if r.ok and not r.used_fallback)
+    passed_with_rescue = sum(1 for r in results if r.ok and r.used_fallback)
+
     color = GREEN if failed == 0 else (YELLOW if passed > 0 else RED)
     print(f"\n{'-' * 60}")
     print(f"{BOLD}Summary:{RESET} {color}{passed}/{total} passed{RESET}  "
           f"{GRAY}(failed={failed}, total_time={total_time:.2f}s){RESET}")
+    if passed_with_rescue:
+        print(f"  {YELLOW}Organic: {passed_organic}/{total}  "
+              f"Rescued: {passed_with_rescue}{RESET}")
 
     # Layered accuracy breakdown
     print(f"\n{BOLD}Accuracy Layers:{RESET}")

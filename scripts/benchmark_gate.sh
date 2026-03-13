@@ -3,16 +3,16 @@ set -euo pipefail
 #
 # Benchmark Gate — automated regression check for push workflow.
 #
-# Runs the unit-test step, then compares the most recent candidate
-# hero-loop summary against the saved baseline.  Exits non-zero on regression.
+# Generates a fresh candidate hero.json via chatlog replay, then compares it
+# against the saved baseline.  Exits non-zero on regression.
 #
 # Usage:
-#   bash scripts/benchmark_gate.sh            # unit-step + baseline comparison
-#   bash scripts/benchmark_gate.sh --skip-unit # skip unit-step, comparison only
+#   bash scripts/benchmark_gate.sh                # generate + compare
+#   bash scripts/benchmark_gate.sh --skip-generate # assume candidate exists, compare only
 #   bash scripts/benchmark_gate.sh --help
 #
 # Prerequisites:
-#   - reports/candidate/hero.json must exist (run hero-loop benchmark first)
+#   - A running server (for chatlog replay to generate the candidate)
 #   - reports/baseline/ should contain at least one *-hero.json baseline
 #
 # Exit codes:
@@ -23,39 +23,35 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-SKIP_UNIT=0
+SKIP_GENERATE=0
 
 # ── Argument parsing ────────────────────────────────────────────────
 for arg in "$@"; do
   case "$arg" in
-    --skip-unit)
-      SKIP_UNIT=1
+    --skip-generate|--skip-unit)
+      SKIP_GENERATE=1
       ;;
     --help|-h)
-      echo "Usage: bash scripts/benchmark_gate.sh [--skip-unit] [--help]"
+      echo "Usage: bash scripts/benchmark_gate.sh [--skip-generate] [--help]"
       echo ""
       echo "Runs the benchmark regression gate:"
-      echo "  1. Unit-test step (quick sanity check, skippable with --skip-unit)"
-      echo "  2. Compare reports/candidate/hero.json against latest baseline"
+      echo "  1. Generate reports/candidate/hero.json via chatlog replay"
+      echo "  2. Compare candidate against latest baseline"
       echo "  3. Print summary table with pass/fail/regression status"
       echo "  4. Exit non-zero on regression"
       echo ""
       echo "Options:"
-      echo "  --skip-unit   Skip running the unit-test step (useful if already run)"
-      echo "  --help, -h    Show this help message"
-      echo ""
-      echo "Prerequisites:"
-      echo "  - reports/candidate/hero.json must exist"
-      echo "  - reports/baseline/ should contain at least one *-hero.json"
+      echo "  --skip-generate   Skip generating the candidate (assume it exists)"
+      echo "  --help, -h        Show this help message"
       echo ""
       echo "Examples:"
-      echo "  bash scripts/benchmark_gate.sh              # full gate"
-      echo "  bash scripts/benchmark_gate.sh --skip-unit  # comparison only"
+      echo "  bash scripts/benchmark_gate.sh                # full gate"
+      echo "  bash scripts/benchmark_gate.sh --skip-generate # comparison only"
       exit 0
       ;;
     *)
       echo "Unknown argument: $arg"
-      echo "Usage: bash scripts/benchmark_gate.sh [--skip-unit] [--help]"
+      echo "Usage: bash scripts/benchmark_gate.sh [--skip-generate] [--help]"
       exit 2
       ;;
   esac
@@ -75,21 +71,23 @@ YELLOW="\033[33m"
 BOLD="\033[1m"
 RESET="\033[0m"
 
-# ── Step 1: Unit-test step ─────────────────────────────────────────
-if [[ "$SKIP_UNIT" -eq 0 ]]; then
+CANDIDATE="$ROOT_DIR/reports/candidate/hero.json"
+
+# ── Step 1: Generate candidate ────────────────────────────────────
+if [[ "$SKIP_GENERATE" -eq 0 ]]; then
   echo ""
-  echo -e "${BOLD}[benchmark-gate] Step 1/2: Running unit-test step...${RESET}"
+  echo -e "${BOLD}[benchmark-gate] Step 1/2: Generating candidate hero.json via chatlog replay...${RESET}"
   echo ""
-  if ! bash "$ROOT_DIR/scripts/test.sh" unit; then
-    echo ""
-    echo -e "${RED}[benchmark-gate] FAILED — unit-test step did not pass.${RESET}"
-    exit 1
-  fi
+  mkdir -p "$ROOT_DIR/reports/candidate"
+  "$PYTHON" scripts/run_chatlog_e2e.py \
+    --dataset-mode full \
+    --response-keywords-only \
+    --summary-json "$CANDIDATE"
   echo ""
-  echo -e "${GREEN}[benchmark-gate] Unit-test step passed.${RESET}"
+  echo -e "${GREEN}[benchmark-gate] Candidate generated.${RESET}"
 else
   echo ""
-  echo -e "${YELLOW}[benchmark-gate] Skipping unit-test step (--skip-unit).${RESET}"
+  echo -e "${YELLOW}[benchmark-gate] Skipping candidate generation (--skip-generate).${RESET}"
 fi
 
 # ── Step 2: Baseline comparison ─────────────────────────────────────
@@ -97,13 +95,12 @@ echo ""
 echo -e "${BOLD}[benchmark-gate] Step 2/2: Comparing candidate vs baseline...${RESET}"
 echo ""
 
-CANDIDATE="$ROOT_DIR/reports/candidate/hero.json"
 if [[ ! -f "$CANDIDATE" ]]; then
   echo -e "${RED}[benchmark-gate] ERROR: No candidate summary found at:${RESET}"
   echo "  $CANDIDATE"
   echo ""
-  echo "Run the hero-loop benchmark first to generate this file."
-  echo "  e.g.: bash scripts/test.sh chatlog-full"
+  echo "Run with --skip-generate removed, or generate manually:"
+  echo "  $PYTHON scripts/run_chatlog_e2e.py --dataset-mode full --response-keywords-only --summary-json $CANDIDATE"
   exit 1
 fi
 

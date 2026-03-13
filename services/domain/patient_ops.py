@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Optional
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.crud.patient import create_patient, find_patient_by_name
@@ -23,6 +24,10 @@ async def resolve_patient(
     If the patient already exists, demographic corrections are applied in-place
     (gender and year_of_birth) when the new values differ from stored ones.
 
+    Handles the TOCTOU race where two concurrent requests both pass the SELECT
+    check and attempt INSERT — the loser catches the IntegrityError from the
+    unique constraint (doctor_id, name) and falls back to a lookup.
+
     Args:
         session: Active async DB session.
         doctor_id: Owning doctor.
@@ -39,9 +44,18 @@ async def resolve_patient(
     patient = await find_patient_by_name(session, doctor_id, patient_name)
 
     if patient is None:
-        patient = await create_patient(session, doctor_id, patient_name, gender, age)
-        log(f"[domain] auto-created patient [{patient.name}] id={patient.id} doctor={doctor_id}")
-        return patient, True
+        try:
+            patient, _access_code = await create_patient(session, doctor_id, patient_name, gender, age)
+            log(f"[domain] auto-created patient [{patient.name}] id={patient.id} doctor={doctor_id}")
+            return patient, True
+        except IntegrityError:
+            # Another concurrent request created the same patient — look it up.
+            await session.rollback()
+            patient = await find_patient_by_name(session, doctor_id, patient_name)
+            if patient is None:
+                raise  # Unexpected — the constraint error wasn't from this name.
+            log(f"[domain] race-resolved existing patient [{patient.name}] id={patient.id} doctor={doctor_id}")
+            return patient, False
 
     # Apply demographic corrections when the current turn provides updated info.
     updated = False

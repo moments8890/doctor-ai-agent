@@ -9,6 +9,7 @@ from __future__ import annotations
 from services.domain.intent_handlers._types import HandlerResult
 from services.domain.intent_handlers._confirm_pending import (
     save_pending_record,
+    try_draft_correction,
     _parse_pending_draft,
     _persist_pending_record,
     _fire_post_save_tasks,
@@ -33,16 +34,22 @@ from services.domain.intent_handlers._add_record import (
 )
 from services.domain.intent_handlers._create_patient import (
     handle_create_patient,
+    handle_pending_create_reply,
+)
+from services.domain.intent_handlers._dispatch import (
+    dispatch_intent,
 )
 
 __all__ = [
     "HandlerResult",
     "save_pending_record",
+    "try_draft_correction",
     "_parse_pending_draft",
     "_persist_pending_record",
     "_fire_post_save_tasks",
     "handle_add_record",
     "handle_create_patient",
+    "handle_pending_create_reply",
     "handle_query_records",
     "handle_cancel_task",
     "handle_complete_task",
@@ -54,4 +61,5 @@ __all__ = [
     "handle_schedule_follow_up",
     "handle_update_patient",
     "handle_update_record",
+    "dispatch_intent",
 ]

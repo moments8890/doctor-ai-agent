@@ -302,24 +302,23 @@ async def _resolve_import_patient(
     ocr_gender: Optional[str],
     ocr_age: Optional[int],
 ) -> tuple:
-    """Resolve or create patient for import. Returns (patient_name, patient_id)."""
+    """Resolve (but do NOT auto-create) patient for import.
+
+    Returns (patient_name, patient_id, needs_create).  When needs_create
+    is True, the caller should create the patient only after confirming
+    the import has viable chunks — preventing orphan patient rows from
+    failed/empty imports.
+    """
     from db.crud import find_patient_by_name
+    needs_create = False
     if patient_name and patient_id is None:
         async with AsyncSessionLocal() as session:
             patient = await find_patient_by_name(session, doctor_id, patient_name)
             if patient:
                 patient_id = patient.id
             elif source == "image":
-                from db.crud.patient import create_patient
-                try:
-                    patient = await create_patient(
-                        session, doctor_id, patient_name, ocr_gender, ocr_age
-                    )
-                    patient_id = patient.id
-                    log(f"[Import] OCR auto-created patient {patient_name} id={patient_id}")
-                except Exception as e:
-                    log(f"[Import] OCR patient create failed: {e}")
-    return patient_name, patient_id
+                needs_create = True
+    return patient_name, patient_id, needs_create
 
 
 async def _structure_chunks(
@@ -350,7 +349,11 @@ async def _save_import_chunks(
     doctor_id: str,
     patient_id: Optional[int],
 ) -> int:
-    """Save non-duplicate structured chunks to the database. Returns save count."""
+    """Save non-duplicate structured chunks in a single transaction.
+
+    All chunks succeed or none are committed, preventing partial imports
+    with orphaned side effects (category recomputes, auto-tasks).
+    """
     from db.crud import save_record
     async with AsyncSessionLocal() as session:
         saved = 0
@@ -361,10 +364,14 @@ async def _save_import_chunks(
                 from db.models.medical_record import MedicalRecord as MR
                 fields = chunk.get("structured", {})
                 record = MR(**{k: fields.get(k) for k in MR.model_fields})
-                await save_record(session, doctor_id, record, patient_id)
+                await save_record(session, doctor_id, record, patient_id, commit=False)
                 saved += 1
             except Exception as e:
                 log(f"[Import] save chunk FAILED doctor={doctor_id}: {e}")
+                await session.rollback()
+                return 0
+        if saved:
+            await session.commit()
     return saved
 
 
@@ -447,7 +454,7 @@ async def handle_import_history(
     patient_name, patient_id, ocr_gender, ocr_age = _resolve_session_patient(
         doctor_id, patient_name, source, text
     )
-    patient_name, patient_id = await _resolve_import_patient(
+    patient_name, patient_id, _needs_create = await _resolve_import_patient(
         doctor_id, patient_name, patient_id, source, ocr_gender, ocr_age
     )
 
@@ -477,7 +484,24 @@ async def handle_import_history(
     if patient_id:
         structured_chunks = await _mark_duplicates(structured_chunks, doctor_id, patient_id)
 
-    log(f"[silent-save] bulk import starting WITHOUT confirmation doctor={doctor_id} patient_id={patient_id} chunks={len(structured_chunks)}")
+    # Deferred patient creation: only auto-create after structuring proves viable.
+    if patient_id is None and _needs_create and patient_name:
+        from db.crud.patient import create_patient
+        try:
+            async with AsyncSessionLocal() as _session:
+                patient, _access_code = await create_patient(
+                    _session, doctor_id, patient_name, ocr_gender, ocr_age
+                )
+                patient_id = patient.id
+                log(f"[Import] OCR auto-created patient {patient_name} id={patient_id}")
+        except Exception as e:
+            log(f"[Import] OCR patient create failed: {e}")
+
+    # Require a valid patient_id before bulk-persisting records.
+    if patient_id is None:
+        return "⚠️ 无法确定患者身份，请先指定患者姓名再导入历史病历。"
+
+    log(f"[silent-save] bulk import doctor={doctor_id} patient_id={patient_id} chunks={len(structured_chunks)}")
     saved = await _save_import_chunks(structured_chunks, doctor_id, patient_id)
     log(f"[silent-save] bulk import done doctor={doctor_id} patient_id={patient_id} saved={saved}/{len(structured_chunks)}")
 

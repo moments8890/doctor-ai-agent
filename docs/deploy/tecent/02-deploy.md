@@ -94,6 +94,19 @@ curl -fsS http://127.0.0.1:8000/healthz
 
 登录需填写 `config/runtime.json` 中的 `UI_ADMIN_TOKEN`。
 
+**API 访问说明**：Admin 和 Debug 端点不在 OpenAPI schema（`/docs`）中显示。
+直接调用时需在每个请求中附带对应的 Header：
+
+```bash
+# Admin 端点
+curl -H "X-Admin-Token: <UI_ADMIN_TOKEN>" http://127.0.0.1:8000/api/admin/tables
+
+# Debug 端点
+curl -H "X-Debug-Token: <UI_DEBUG_TOKEN>" http://127.0.0.1:8000/api/debug/logs
+```
+
+未配置 token 时，端点返回 HTTP 503（服务不可用），而非 403。
+
 ### 7. Docker Compose（备选方案）
 
 如需容器化部署，参见 `deploy/tencent/docker-compose.prod.yml` 和 `nginx.conf`。

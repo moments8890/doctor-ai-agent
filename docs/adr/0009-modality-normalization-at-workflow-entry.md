@@ -27,6 +27,9 @@ Notes:
 - Phase 4: All endpoints conform to ADR 0009. `records_media.py` is unmounted
   dead code (not included in main.py).
 - Phase 5: `ARCHITECTURE.md` updated to reflect modality normalization.
+- Known gap: `/api/neuro/from-text` still does direct extract → save without
+  5-layer routing or pending-draft confirmation. This specialty write path
+  predates ADR 0009 and is tracked for convergence in a future iteration.
 
 ## Context
 

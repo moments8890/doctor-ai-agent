@@ -286,6 +286,13 @@ def add_span(
 ) -> None:
     _ensure_loaded()
     global _WRITE_COUNT
+    # Redact PHI from span metadata before persisting/buffering.
+    clean_meta = dict(meta or {})
+    if "patient_name" in clean_meta:
+        import hashlib
+        _pn = str(clean_meta.pop("patient_name"))
+        clean_meta["patient_name_hash"] = hashlib.sha256(_pn.encode()).hexdigest()[:12]
+    # patient_id is an internal integer — retain for correlation but not PHI.
     rec = SpanRecord(
         trace_id=trace_id,
         span_id=span_id or uuid.uuid4().hex[:12],
@@ -295,7 +302,7 @@ def add_span(
         started_at=started_at,
         latency_ms=latency_ms,
         status=status,
-        meta=dict(meta or {}),
+        meta=clean_meta,
     )
     with _LOCK:
         _SPAN_BUFFER.append(rec)

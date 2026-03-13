@@ -29,11 +29,7 @@ from __future__ import annotations
 import time
 import os
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
-
-if TYPE_CHECKING:
-    from services.patient.interview import InterviewState
-    from services.patient.cvd_scale_interview import CVDScaleSession
+from typing import Dict, List, Optional, Tuple
 
 # ---------------------------------------------------------------------------
 # Advisory context cache (TTL-based, in-process)
@@ -81,8 +77,6 @@ class WorkflowState:
     patient_not_found_name: Optional[str] = None    # last query returned empty
     pending_record_id: Optional[str] = None
     pending_create_name: Optional[str] = None
-    interview: Optional["InterviewState"] = None
-    pending_cvd_scale: Optional["CVDScaleSession"] = None
 
 
 @dataclass
@@ -160,8 +154,6 @@ async def assemble_turn_context(
             patient_not_found_name=sess.patient_not_found_name,
             pending_record_id=sess.pending_record_id,
             pending_create_name=sess.pending_create_name,
-            interview=sess.interview,
-            pending_cvd_scale=sess.pending_cvd_scale,
         )
         # Copy list reference (safe — push_turn appends, never replaces under this lock)
         history_snapshot = list(sess.conversation_history)

@@ -157,96 +157,113 @@ async def _voice_chat_for_doctor(
     history_list: List[dict] = []
     if history:
         try:
-            history_list = json.loads(history)
-            if not isinstance(history_list, list):
+            raw = json.loads(history)
+            if not isinstance(raw, list):
                 raise ValueError("history must be a JSON array")
+            if len(raw) > 100:
+                raise ValueError("history exceeds max length (100)")
+            _VALID_ROLES = {"user", "assistant"}
+            for entry in raw:
+                if not isinstance(entry, dict):
+                    raise ValueError("each history entry must be an object")
+                role = entry.get("role", "")
+                if role not in _VALID_ROLES:
+                    raise ValueError(f"invalid role: {role!r}")
+                content = entry.get("content", "")
+                if not isinstance(content, str) or len(content) > 16000:
+                    raise ValueError("content must be a string <= 16000 chars")
+            history_list = raw
         except (json.JSONDecodeError, ValueError) as e:
-            raise HTTPException(status_code=422, detail="Malformed history: expected a JSON array")
+            raise HTTPException(status_code=422, detail=f"Malformed history: {e}")
 
     _audio_bytes, transcript = await _transcribe_upload(
         audio, doctor_id, consultation_mode=consultation_mode,
     )
 
-    # Hydrate session state before workflow (same as WeChat path)
-    await hydrate_session_state(doctor_id, write_intent=True)
+    # Serialize the full turn under the per-doctor session lock — same as
+    # WeChat — to prevent concurrent requests from interleaving prechecks
+    # and session mutations.
+    from services.session import get_session_lock as _get_session_lock
+    async with _get_session_lock(doctor_id):
+        await hydrate_session_state(doctor_id, write_intent=True)
 
-    # ── Shared stateful prechecks ─────────────────────────────────────────
-    from services.intent_workflow.precheck import PrecheckContext, run_stateful_prechecks
+        # ── Shared stateful prechecks ─────────────────────────────────────
+        from services.intent_workflow.precheck import PrecheckContext, run_stateful_prechecks
 
-    _pctx = PrecheckContext(
-        doctor_id=doctor_id, text=transcript, original_text=transcript,
-        history=history_list, channel="voice",
-    )
-    _precheck = await run_stateful_prechecks(_pctx)
-    if _precheck.handled:
-        _resp = _handler_result_to_voice(transcript, _precheck.handler_result)
-        await _push_and_flush_turn(doctor_id, transcript, _resp.reply)
-        return _resp
-
-    # Run the shared 5-layer intent workflow pipeline
-    from services.intent_workflow import run as workflow_run
-    from services.ai.turn_context import assemble_turn_context
-    turn_ctx = await assemble_turn_context(doctor_id)
-    if _precheck.knowledge_context:
-        turn_ctx.advisory.knowledge_snippet = _precheck.knowledge_context
-
-    # Trim history to match Web channel limits
-    _routing_history = history_list[-_ROUTING_HISTORY_MAX_MESSAGES:] if _ROUTING_HISTORY_MAX_MESSAGES > 0 else []
-
-    # Prepend compressed long-term memory to history (same as WeChat path)
-    if turn_ctx.advisory.context_message:
-        _routing_history = [turn_ctx.advisory.context_message] + _routing_history
-
-    try:
-        result = await asyncio.wait_for(
-            workflow_run(
-                transcript, doctor_id, _routing_history,
-                knowledge_context=_precheck.knowledge_context or "",
-                channel="voice",
-                turn_context=turn_ctx,
-            ),
-            timeout=_WORKFLOW_TIMEOUT,
+        _pctx = PrecheckContext(
+            doctor_id=doctor_id, text=transcript, original_text=transcript,
+            history=history_list, channel="voice",
         )
-    except asyncio.TimeoutError:
-        log(f"[VoiceChat] workflow TIMEOUT after {_WORKFLOW_TIMEOUT}s doctor={doctor_id}")
-        raise HTTPException(status_code=504, detail="Processing timed out, please try again")
-    except Exception as e:
-        msg = str(e)
-        log(f"[VoiceChat] workflow FAILED doctor={doctor_id} msg={transcript[:80]!r}: {msg}")
-        status = 429 if "rate_limit" in msg or "Rate limit" in msg or "429" in msg else 503
-        detail = "rate_limit_exceeded" if status == 429 else "Service temporarily unavailable"
-        raise HTTPException(status_code=status, detail=detail)
+        _precheck = await run_stateful_prechecks(_pctx)
+        if _precheck.handled:
+            _resp = _handler_result_to_voice(transcript, _precheck.handler_result)
+            await _push_and_flush_turn(doctor_id, transcript, _resp.reply)
+            return _resp
 
-    # Gate check: block unsafe operations before dispatching
-    if not result.gate.approved:
-        if (
-            result.gate.reason == "no_patient_name"
-            and result.decision.intent == Intent.add_record
-        ):
-            _set_blocked_write_context(
-                doctor_id,
-                intent="add_record",
-                clinical_text=transcript,
-                original_text=transcript,
+        # Run the shared 5-layer intent workflow pipeline
+        from services.intent_workflow import run as workflow_run
+        from services.ai.turn_context import assemble_turn_context
+        turn_ctx = await assemble_turn_context(doctor_id)
+        if _precheck.knowledge_context:
+            turn_ctx.advisory.knowledge_snippet = _precheck.knowledge_context
+
+        # Trim history to match Web channel limits
+        _routing_history = history_list[-_ROUTING_HISTORY_MAX_MESSAGES:] if _ROUTING_HISTORY_MAX_MESSAGES > 0 else []
+
+        # Prepend compressed long-term memory to history (same as WeChat path)
+        if turn_ctx.advisory.context_message:
+            _routing_history = [turn_ctx.advisory.context_message] + _routing_history
+
+        try:
+            result = await asyncio.wait_for(
+                workflow_run(
+                    transcript, doctor_id, _routing_history,
+                    knowledge_context=_precheck.knowledge_context or "",
+                    channel="voice",
+                    turn_context=turn_ctx,
+                ),
+                timeout=_WORKFLOW_TIMEOUT,
             )
-            log(f"[VoiceChat] blocked write stored doctor={doctor_id} text={transcript[:60]!r}")
-        _gate_reply = result.gate.clarification_message or "没太理解您的意思，能说得更具体一些吗？"
-        _gate_resp = VoiceChatResponse(transcript=transcript, reply=_gate_reply)
-        await _push_and_flush_turn(doctor_id, transcript, _gate_reply)
-        return _gate_resp
+        except asyncio.TimeoutError:
+            log(f"[VoiceChat] workflow TIMEOUT after {_WORKFLOW_TIMEOUT}s doctor={doctor_id}")
+            raise HTTPException(status_code=504, detail="Processing timed out, please try again")
+        except Exception as e:
+            msg = str(e)
+            log(f"[VoiceChat] workflow FAILED doctor={doctor_id} len={len(transcript)}: {msg}")
+            status = 429 if "rate_limit" in msg or "Rate limit" in msg or "429" in msg else 503
+            detail = "rate_limit_exceeded" if status == 429 else "Service temporarily unavailable"
+            raise HTTPException(status_code=status, detail=detail)
 
-    intent_result = result.to_intent_result()
+        # Gate check: block unsafe operations before dispatching
+        if not result.gate.approved:
+            if (
+                result.gate.reason == "no_patient_name"
+                and result.decision.intent == Intent.add_record
+            ):
+                _set_blocked_write_context(
+                    doctor_id,
+                    intent="add_record",
+                    clinical_text=transcript,
+                    original_text=transcript,
+                )
+                log(f"[VoiceChat] blocked write stored doctor={doctor_id} len={len(transcript)}")
+            _gate_reply = result.gate.clarification_message or "没太理解您的意思，能说得更具体一些吗？"
+            _gate_resp = VoiceChatResponse(transcript=transcript, reply=_gate_reply)
+            await _push_and_flush_turn(doctor_id, transcript, _gate_reply)
+            return _gate_resp
 
-    resp = await _dispatch_voice_intent(
-        transcript, doctor_id, intent_result, history_list,
-    )
+        intent_result = result.to_intent_result()
 
-    # Prepend abandon notice if a pending draft was discarded
-    if _precheck.abandon_notice:
-        resp.reply = f"{_precheck.abandon_notice}\n\n{resp.reply}"
+        resp = await _dispatch_voice_intent(
+            transcript, doctor_id, intent_result, history_list,
+        )
 
-    await _push_and_flush_turn(doctor_id, transcript, resp.reply)
-    return resp
+        # Prepend abandon notice if a pending draft was discarded
+        if _precheck.abandon_notice:
+            resp.reply = f"{_precheck.abandon_notice}\n\n{resp.reply}"
+
+        await _push_and_flush_turn(doctor_id, transcript, resp.reply)
+        return resp
 
 
 # ── Endpoint ───────────────────────────────────────────────────────────────
@@ -255,7 +272,7 @@ async def _voice_chat_for_doctor(
 @router.post("/chat", response_model=VoiceChatResponse)
 async def voice_chat(
     audio: UploadFile = File(...),
-    doctor_id: str = Form(default="test_doctor"),
+    doctor_id: str = Form(default=""),
     history: Optional[str] = Form(default=None),
     authorization: Optional[str] = Header(default=None),
 ) -> VoiceChatResponse:
@@ -276,7 +293,7 @@ async def voice_chat(
 @router.post("/consultation", response_model=VoiceChatResponse)
 async def voice_consultation(
     audio: UploadFile = File(...),
-    doctor_id: str = Form(default="test_doctor"),
+    doctor_id: str = Form(default=""),
     history: Optional[str] = Form(default=None),
     authorization: Optional[str] = Header(default=None),
 ) -> VoiceChatResponse:

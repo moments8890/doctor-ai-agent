@@ -62,8 +62,9 @@ async def mini_history(
     principal: MiniProgramPrincipal = Depends(_require_mini_principal),
 ) -> dict:
     """Return recent conversation turns from the shared DB-backed history."""
+    safe_limit = max(1, min(limit, 200))
     async with AsyncSessionLocal() as db:
-        turns = await get_recent_conversation_turns(db, principal.doctor_id, limit=limit)
+        turns = await get_recent_conversation_turns(db, principal.doctor_id, limit=safe_limit)
     return {
         "history": [{"role": t.role, "content": t.content} for t in turns]
     }

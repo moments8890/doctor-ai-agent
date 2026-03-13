@@ -1,7 +1,8 @@
-"""LLM Provider Registry — single source of truth for all LLM endpoints.
+"""LLM Provider Registry — centralised provider configuration.
 
-Replaces the duplicated ``_PROVIDERS`` dicts scattered across ``llm_client.py``,
-``intent.py``, ``vision.py``, and ``pdf_extract_llm.py``.
+Intended to consolidate the ``_PROVIDERS`` dicts in ``llm_client.py``,
+``intent.py``, ``vision.py``, and ``pdf_extract_llm.py``.  Migration is
+partial — those modules still maintain their own local dicts.
 
 Usage::
 

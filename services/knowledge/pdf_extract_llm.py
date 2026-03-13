@@ -40,7 +40,7 @@ _SYSTEM_PROMPT = (
 
 _PROVIDERS = {
     "ollama": {
-        "base_url": lambda: os.environ.get("OLLAMA_VISION_BASE_URL", os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1")),
+        "base_url": lambda: os.environ.get("OLLAMA_VISION_BASE_URL") or os.environ.get("OLLAMA_BASE_URL") or "http://192.168.0.123:11434/v1",
         "api_key_env": "OLLAMA_API_KEY",
         "model_env": "OLLAMA_VISION_MODEL",
         "model_default": "qwen2.5vl:7b",
@@ -166,6 +166,10 @@ async def extract_text_from_pdf_llm(
         return None
 
     provider_name = os.environ.get("VISION_LLM", "ollama")
+    # PHI egress gate: PDF page images contain clinical data.
+    from services.ai.egress_policy import is_local_provider, check_cloud_egress
+    if not is_local_provider(provider_name):
+        check_cloud_egress(provider_name, "pdf_extraction")
     client, model = _build_llm_client(provider_name)
     text = await _call_vision_llm(client, model, page_images, provider_name)
 

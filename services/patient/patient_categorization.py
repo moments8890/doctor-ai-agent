@@ -163,6 +163,8 @@ def _determine_primary(
 async def recompute_patient_category(
     patient_id: int,
     session: AsyncSession,
+    *,
+    commit: bool = True,
 ) -> None:
     """Load patient + records, compute category, persist result."""
     from db.models import Patient, MedicalRecordDB  # avoid circular at module level
@@ -188,7 +190,10 @@ async def recompute_patient_category(
 
     patient.primary_category = result.primary_category
     patient.category_tags = json.dumps(result.category_tags, ensure_ascii=False)
-    await session.commit()
+    if commit:
+        await session.commit()
+    else:
+        await session.flush()
 
 
 async def recompute_all_categories(

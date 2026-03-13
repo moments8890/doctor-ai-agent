@@ -66,4 +66,4 @@ Current rollout snapshot:
 | [ADR 0006](0006-one-patient-scope-per-turn.md) | Accepted | Partial |
 | [ADR 0007](0007-stateful-blocked-write-continuations.md) | Accepted | Complete |
 | [ADR 0008](0008-minimal-routing-and-structuring-only-note-generation.md) | Accepted | Complete |
-| [ADR 0009](0009-modality-normalization-at-workflow-entry.md) | Accepted | Not Started |
+| [ADR 0009](0009-modality-normalization-at-workflow-entry.md) | Accepted | Complete |

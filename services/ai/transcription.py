@@ -67,7 +67,7 @@ def _transcribe_sync(audio_bytes: bytes, initial_prompt: str) -> str:
         vad_parameters={"min_silence_duration_ms": 300},
     )
     text = "".join(seg.text for seg in segments).strip()
-    log(f"[Whisper] detected_language={info.language} prob={info.language_probability:.2f} text={text[:80]}")
+    log(f"[Whisper] detected_language={info.language} prob={info.language_probability:.2f} chars={len(text)}")
     return text
 
 
@@ -92,6 +92,9 @@ async def transcribe_audio(
             return await loop.run_in_executor(None, fn)
     except ImportError:
         log("[Whisper] faster_whisper not installed, falling back to OpenAI API")
+        # PHI egress gate: raw audio contains clinical speech.
+        from services.ai.egress_policy import check_cloud_egress
+        check_cloud_egress("openai", "transcription")
         from openai import AsyncOpenAI
         model = os.environ.get("WHISPER_API_MODEL", "whisper-1")
         client = AsyncOpenAI(
@@ -104,6 +107,7 @@ async def transcribe_audio(
                 model=model_name,
                 file=(filename, audio_bytes),
                 language="zh",
+                prompt=initial_prompt,
             )
 
         response = await call_with_retry_and_fallback(

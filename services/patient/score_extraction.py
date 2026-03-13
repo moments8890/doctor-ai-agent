@@ -89,13 +89,22 @@ def _parse_score_response(raw: str) -> List[dict]:
 
 
 async def extract_specialty_scores(text: str) -> List[dict]:
-    """调用 LLM 从文本中提取专科量表评分；仅在 detect_score_keywords() 为 True 时调用。"""
+    """调用 LLM 从文本中提取专科量表评分；仅在 detect_score_keywords() 为 True 时调用。
+
+    Uses the shared retry/fallback infrastructure to match the main routing
+    stack's resilience behavior (exponential backoff + circuit breaker).
+    """
+    from services.ai.llm_resilience import call_with_retry_and_fallback
+
     provider_name = os.environ.get("STRUCTURING_LLM", "deepseek")
     provider = _resolve_score_provider(provider_name)
     if provider is None:
         return []
 
-    try:
+    from utils.prompt_loader import get_prompt
+    extraction_prompt = await get_prompt("extraction.specialty_scores", _EXTRACTION_PROMPT)
+
+    async def _call_for_model(model: str) -> List[dict]:
         extra_headers = {"anthropic-version": "2023-06-01"} if provider_name == "claude" else {}
         client = AsyncOpenAI(
             base_url=provider["base_url"],
@@ -104,10 +113,8 @@ async def extract_specialty_scores(text: str) -> List[dict]:
             max_retries=0,
             default_headers=extra_headers,
         )
-        from utils.prompt_loader import get_prompt
-        extraction_prompt = await get_prompt("extraction.specialty_scores", _EXTRACTION_PROMPT)
         completion = await client.chat.completions.create(
-            model=provider["model"],
+            model=model,
             messages=[
                 {"role": "system", "content": extraction_prompt},
                 {"role": "user", "content": text[:2000]},
@@ -117,6 +124,16 @@ async def extract_specialty_scores(text: str) -> List[dict]:
             temperature=0,
         )
         return _parse_score_response(completion.choices[0].message.content)
+
+    try:
+        fallback_model = os.environ.get("OLLAMA_FALLBACK_MODEL") if provider_name != "ollama" else None
+        return await call_with_retry_and_fallback(
+            _call_for_model,
+            primary_model=provider["model"],
+            fallback_model=fallback_model,
+            max_attempts=2,
+            op_name="score_extraction",
+        )
     except Exception as exc:
-        log(f"[ScoreExtraction] LLM call failed: {exc}")
+        log(f"[ScoreExtraction] LLM call failed after retries: {exc}")
         return []

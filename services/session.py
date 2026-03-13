@@ -165,12 +165,20 @@ def _restore_blocked_write(sess: "DoctorSession", doctor_id: str, state: object)
         return
     try:
         _bw = _json.loads(_bw_json)
-        sess.blocked_write = BlockedWriteContext(
+        ctx = BlockedWriteContext(
             intent=_bw["intent"],
             clinical_text=_bw["clinical_text"],
             original_text=_bw["original_text"],
             history_snapshot=_bw.get("history_snapshot", []),
         )
+        # Restore original block time so the TTL doesn't reset on rehydration.
+        # created_at uses monotonic clock; convert persisted wall-clock offset.
+        _saved_utc = _bw.get("created_at_utc")
+        if _saved_utc is not None:
+            _age_seconds = time.time() - _saved_utc
+            if _age_seconds > 0:
+                ctx.created_at = time.monotonic() - _age_seconds
+        sess.blocked_write = ctx
     except Exception as _bw_err:
         log(f"[Session] invalid blocked_write_json for {doctor_id}: {_bw_err}")
         sess.blocked_write = None
@@ -255,17 +263,28 @@ async def hydrate_session_state(
 
 
 async def persist_session_state(doctor_id: str) -> None:
-    """Persist minimal session context so deployment restarts can restore it."""
+    """Persist minimal session context so deployment restarts can restore it.
+
+    Takes a consistent snapshot under _registry_lock so concurrent mutations
+    cannot produce a mixed state that never existed atomically in memory.
+    """
     import json as _json
-    sess = get_session(doctor_id)
-    # Serialize optional mid-session states
+    # Snapshot all fields under lock for consistency
+    with _registry_lock:
+        sess = get_session(doctor_id)
+        _current_patient_id = sess.current_patient_id
+        _pending_create_name = sess.pending_create_name
+        _pending_record_id = sess.pending_record_id
+        _blocked_write = sess.blocked_write
+    # Serialize outside the lock (no mutation, just reading immutable snapshot)
     blocked_write_json: Optional[str] = None
-    if sess.blocked_write is not None:
+    if _blocked_write is not None:
         try:
             blocked_write_json = _json.dumps({
-                "intent": sess.blocked_write.intent,
-                "clinical_text": sess.blocked_write.clinical_text,
-                "original_text": sess.blocked_write.original_text,
+                "intent": _blocked_write.intent,
+                "clinical_text": _blocked_write.clinical_text,
+                "original_text": _blocked_write.original_text,
+                "created_at_utc": time.time(),  # wall-clock snapshot for TTL on restore
             }, ensure_ascii=False)
         except Exception:
             pass
@@ -274,9 +293,9 @@ async def persist_session_state(doctor_id: str) -> None:
             await upsert_doctor_session_state(
                 db,
                 doctor_id=doctor_id,
-                current_patient_id=sess.current_patient_id,
-                pending_create_name=sess.pending_create_name,
-                pending_record_id=sess.pending_record_id,
+                current_patient_id=_current_patient_id,
+                pending_create_name=_pending_create_name,
+                pending_record_id=_pending_record_id,
                 blocked_write_json=blocked_write_json,
             )
     except Exception as e:
@@ -295,6 +314,7 @@ async def _flush_pending_turns(doctor_id: str) -> None:
             async with AsyncSessionLocal() as db:
                 await append_conversation_turns(db, doctor_id, batch, max_turns=MAX_TURNS)
                 await append_chat_archive(db, doctor_id, batch)
+                await db.commit()  # atomic: both tables or neither
         except Exception as e:
             log(f"[Session] persist turns FAILED: {e}")
             # Re-queue the batch so it can be retried on next flush
@@ -523,14 +543,28 @@ def set_pending_record_id(doctor_id: str, record_id: str, persist: bool = True) 
         _schedule_persist(doctor_id)
 
 
-def clear_pending_record_id(doctor_id: str, persist: bool = True) -> None:
+def clear_pending_record_id(
+    doctor_id: str,
+    *,
+    expected_id: Optional[str] = None,
+    persist: bool = True,
+) -> bool:
+    """Clear pending_record_id from session state.
+
+    When *expected_id* is provided, only clears if the current value matches.
+    This prevents a stale confirm/abandon from erasing a newer draft's pointer.
+    Returns True if the field was cleared, False if skipped due to mismatch.
+    """
     with _registry_lock:
         session = get_session(doctor_id)
+        if expected_id is not None and session.pending_record_id != expected_id:
+            return False
         session.pending_record_id = None
         session.updated_at = _utcnow()
         _mark_session_fresh_locked(doctor_id)
     if persist:
         _schedule_persist(doctor_id)
+    return True
 
 
 

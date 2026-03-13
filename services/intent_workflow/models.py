@@ -8,12 +8,37 @@ from pydantic import BaseModel, Field
 
 from services.ai.intent import Intent, IntentResult
 
+# Canonical set of intents that require a patient context.
+# Imported by entities.py and binder.py — single source of truth.
+PATIENT_INTENTS: frozenset[Intent] = frozenset({
+    Intent.add_record,
+    Intent.query_records,
+    Intent.update_record,
+    Intent.create_patient,
+    Intent.delete_patient,
+    Intent.update_patient,
+    Intent.export_records,
+    Intent.export_outpatient_report,
+    Intent.schedule_follow_up,
+    Intent.schedule_appointment,
+    Intent.import_history,
+})
+
+# Core hero-loop writes that need fresh workflow state and gate checks.
+HERO_WRITE_INTENTS: frozenset[Intent] = frozenset({
+    Intent.create_patient,
+    Intent.add_record,
+    Intent.update_record,
+    Intent.delete_patient,
+    Intent.schedule_appointment,
+    Intent.schedule_follow_up,
+})
+
 
 class IntentDecision(BaseModel):
     """Layer 1: What does the user want to do?"""
 
     intent: Intent
-    confidence: float = 1.0
     source: str  # "fast_route", "llm", "menu_shortcut"
     chat_reply: Optional[str] = None
     structured_fields: Optional[dict] = None
@@ -24,7 +49,7 @@ class EntitySlot(BaseModel):
 
     value: Any
     source: str  # "llm", "fast_route", "text_leading_name", "followup", "history", "session", "candidate", "not_found"
-    confidence: float = 1.0
+    confidence: float = 1.0  # 1.0 for direct extraction; 0.9 session, 0.6 candidate, 0.4 not_found
 
 
 class EntityResolution(BaseModel):
@@ -33,7 +58,6 @@ class EntityResolution(BaseModel):
     patient_name: Optional[EntitySlot] = None
     gender: Optional[EntitySlot] = None
     age: Optional[EntitySlot] = None
-    is_emergency: bool = False
     extra_data: dict = Field(default_factory=dict)
 
 
@@ -89,15 +113,17 @@ class WorkflowResult(BaseModel):
             extra["attribution_source"] = self.binding.source
         if self.plan.is_compound:
             extra["compound_actions"] = [a.action for a in self.plan.actions]
+            extra["compound_action_params"] = {
+                a.action: a.params for a in self.plan.actions if a.params
+            }
 
         return IntentResult(
             intent=self.decision.intent,
             patient_name=self.entities.patient_name.value if self.entities.patient_name else None,
             gender=self.entities.gender.value if self.entities.gender else None,
             age=self.entities.age.value if self.entities.age else None,
-            is_emergency=self.entities.is_emergency,
             extra_data=extra,
             chat_reply=self.gate.clarification_message or self.decision.chat_reply,
             structured_fields=self.decision.structured_fields,
-            confidence=self.decision.confidence,
+            confidence=1.0,
         )

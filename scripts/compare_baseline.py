@@ -72,6 +72,18 @@ def _compare(baseline: dict, candidate: dict, fail_on_regression: bool) -> int:
         if d < 0:
             exit_code = 1
 
+    # Organic accuracy (excludes rescue-succeeded cases)
+    b_organic = baseline.get("accuracy_organic_pct")
+    c_organic = candidate.get("accuracy_organic_pct")
+    if b_organic is not None or c_organic is not None:
+        b_o = b_organic if b_organic is not None else b_acc
+        c_o = c_organic if c_organic is not None else c_acc
+        d = c_o - b_o
+        color = GREEN if d >= 0 else RED
+        print(f"{'':2s}{'Accuracy (organic)':20s} {b_o:>9.1f}% {c_o:>9.1f}% {color}{d:>+9.1f}%{RESET}")
+        if d < 0:
+            exit_code = 1
+
     # Fallback
     b_fb = baseline.get("fallback_count", 0)
     c_fb = candidate.get("fallback_count", 0)

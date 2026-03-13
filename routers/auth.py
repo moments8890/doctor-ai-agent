@@ -47,11 +47,6 @@ class MiniProgramLoginResponse(BaseModel):
     wechat_openid: str
 
 
-class WebLoginInput(BaseModel):
-    doctor_id: str
-    name: Optional[str] = None
-
-
 class WebLoginResponse(BaseModel):
     access_token: str
     token_type: str = "Bearer"
@@ -83,6 +78,9 @@ def _wechat_mini_secret() -> str:
 
 
 def _allow_mock_codes() -> bool:
+    from services.auth import is_production
+    if is_production():
+        return False  # hard-disabled in production regardless of flag
     return (os.environ.get("WECHAT_MINI_ALLOW_MOCK_CODE") or "").strip().lower() in {
         "1",
         "true",
@@ -116,12 +114,26 @@ async def _fetch_wechat_openid(js_code: str) -> str:
     errcode = int(payload.get("errcode") or 0)
     if errcode != 0:
         errmsg = str(payload.get("errmsg") or "unknown")
-        raise HTTPException(status_code=401, detail=f"code2session failed: errcode={errcode}, errmsg={errmsg}")
+        logging.getLogger("auth").warning(
+            "[Auth] code2session failed: errcode=%s errmsg=%s", errcode, errmsg,
+        )
+        raise HTTPException(status_code=401, detail="WeChat login failed — please try again")
 
     openid = str(payload.get("openid") or "").strip()
     if not openid:
         raise HTTPException(status_code=401, detail="code2session missing openid")
     return openid
+
+
+def _invite_is_usable(invite: InviteCode, now: datetime) -> bool:
+    """Check active flag, expiry, and usage limits."""
+    if not invite.active:
+        return False
+    if invite.expires_at is not None and invite.expires_at <= now:
+        return False
+    if invite.max_uses and (invite.used_count or 0) >= invite.max_uses:
+        return False
+    return True
 
 
 async def _try_link_via_invite(
@@ -137,7 +149,7 @@ async def _try_link_via_invite(
             select(InviteCode).where(InviteCode.code == invite_code).limit(1)
         )
     ).scalar_one_or_none()
-    if invite is None or not invite.active:
+    if invite is None or not _invite_is_usable(invite, now):
         return None
     target = (
         await session.execute(
@@ -150,6 +162,7 @@ async def _try_link_via_invite(
     target.updated_at = now
     if doctor_name and not target.name:
         target.name = doctor_name
+    invite.used_count = (invite.used_count or 0) + 1
     await session.commit()
     return invite.doctor_id
 
@@ -281,32 +294,15 @@ async def _upsert_web_doctor(doctor_id: str, name: Optional[str], specialty: Opt
         await session.commit()
 
 
-@router.post("/web/login", response_model=WebLoginResponse)
-async def web_login(body: WebLoginInput) -> WebLoginResponse:
-    doctor_id = (body.doctor_id or "").strip()
-    if not doctor_id:
-        raise HTTPException(status_code=422, detail="doctor_id is required")
-
-    enforce_doctor_rate_limit(doctor_id, scope="auth.login")
-    await _upsert_web_doctor(doctor_id, body.name)
-    token_data = issue_miniprogram_token(doctor_id, channel="app")
-
-    return WebLoginResponse(
-        access_token=str(token_data["access_token"]),
-        token_type=str(token_data["token_type"]),
-        expires_in=int(token_data["expires_in"]),
-        doctor_id=doctor_id,
-        channel="app",
-    )
-
 
 async def _resolve_invite_doctor_id(code: str) -> tuple[str, Optional[str], Optional[str]]:
     """Validate invite code and return (doctor_id, doctor_name, new_doctor_id_or_None)."""
+    now = datetime.now(timezone.utc)
     async with AsyncSessionLocal() as session:
         invite = (
             await session.execute(select(InviteCode).where(InviteCode.code == code).limit(1))
         ).scalar_one_or_none()
-        if invite is None or not invite.active:
+        if invite is None or not _invite_is_usable(invite, now):
             raise HTTPException(status_code=401, detail="Invalid or inactive invite code")
         new_doctor_id = None
         if invite.doctor_id is None:
@@ -317,18 +313,23 @@ async def _resolve_invite_doctor_id(code: str) -> tuple[str, Optional[str], Opti
 
 async def _bind_new_doctor_to_invite(code: str, new_doctor_id: str) -> str:
     """Write new_doctor_id back to invite code row. Returns final doctor_id (may differ on race)."""
+    now = datetime.now(timezone.utc)
     async with AsyncSessionLocal() as session:
         invite_row = (
             await session.execute(
                 select(InviteCode).where(InviteCode.code == code).limit(1).with_for_update()
             )
         ).scalar_one_or_none()
-        if invite_row is not None and invite_row.doctor_id is None:
+        if invite_row is None or not _invite_is_usable(invite_row, now):
+            raise HTTPException(status_code=401, detail="Invite code expired or usage limit reached")
+        if invite_row.doctor_id is None:
             invite_row.doctor_id = new_doctor_id
             invite_row.used_count = (invite_row.used_count or 0) + 1
             await session.commit()
             return new_doctor_id
-        if invite_row is not None and invite_row.doctor_id != new_doctor_id:
+        invite_row.used_count = (invite_row.used_count or 0) + 1
+        await session.commit()
+        if invite_row.doctor_id != new_doctor_id:
             return invite_row.doctor_id
     return new_doctor_id
 
@@ -353,6 +354,10 @@ async def invite_login(body: InviteLoginInput) -> WebLoginResponse:
     if not code:
         raise HTTPException(status_code=422, detail="code is required")
 
+    # Rate-limit invite code attempts BEFORE the DB lookup to prevent
+    # brute-force enumeration of valid codes.
+    enforce_doctor_rate_limit(code, scope="auth.invite_code", max_requests=5)
+
     doctor_id, doctor_name, new_doctor_id = await _resolve_invite_doctor_id(code)
     enforce_doctor_rate_limit(doctor_id, scope="auth.login")
     await _upsert_web_doctor(doctor_id, doctor_name, specialty=(body.specialty or "").strip() or None)
@@ -370,8 +375,8 @@ async def invite_login(body: InviteLoginInput) -> WebLoginResponse:
         wechat_openid=mini_openid,
     )
 
-    import asyncio
-    asyncio.ensure_future(audit(doctor_id, "LOGIN", resource_type="invite_code", resource_id=code))
+    from utils.log import safe_create_task
+    safe_create_task(audit(doctor_id, "LOGIN", resource_type="invite_code", resource_id=code))
 
     return WebLoginResponse(
         access_token=str(token_data["access_token"]),
@@ -402,6 +407,9 @@ async def unlink_mini_openid(authorization: Optional[str] = Header(default=None)
         if row is None:
             raise HTTPException(status_code=404, detail="Doctor not found")
         row.mini_openid = None
+        # Also clear wechat_user_id so the legacy fallback lookup
+        # (channel + wechat_user_id) cannot re-find and re-link this row.
+        row.wechat_user_id = None
         row.updated_at = datetime.now(timezone.utc)
         await session.commit()
 

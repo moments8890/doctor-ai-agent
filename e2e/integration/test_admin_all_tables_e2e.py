@@ -145,7 +145,7 @@ def _assert_table_counts_and_rows(doctor_id: str, patient_a: str, patient_b: str
 
     required = {
         "doctors", "patients", "medical_records", "doctor_tasks",
-        "neuro_cases", "patient_labels", "patient_label_assignments", "doctor_contexts",
+        "patient_labels", "patient_label_assignments", "doctor_contexts",
     }
     for key in required:
         assert count_map.get(key, 0) >= 1, f"{key} should be populated by human-input flow"
@@ -155,8 +155,6 @@ def _assert_table_counts_and_rows(doctor_id: str, patient_a: str, patient_b: str
     assert any(_name_matches(row.get("patient_name"), patient_b)
                for row in _admin_rows("medical_records", doctor_id))
     assert any(int(row["id"]) == task_id for row in _admin_rows("doctor_tasks", doctor_id))
-    assert any(_name_matches(row.get("patient_name"), patient_a)
-               for row in _admin_rows("neuro_cases", doctor_id))
     assert any(row["doctor_id"] == doctor_id for row in _admin_rows("doctor_contexts", doctor_id))
     assert any(int(row["id"]) == label_id for row in _admin_rows("patient_labels", doctor_id))
     assert any(int(row["label_id"]) == label_id
@@ -186,7 +184,6 @@ def _assert_notifier_and_delete(doctor_id: str, patient_a: str, patient_a_id: in
     assert "已删除患者" in deleted["reply"]
     assert _fetch_one("SELECT id FROM patients WHERE id=?", (patient_a_id,)) is None
     assert _fetch_one("SELECT id FROM medical_records WHERE patient_id=?", (patient_a_id,)) is None
-    assert _fetch_one("SELECT id FROM neuro_cases WHERE patient_id=?", (patient_a_id,)) is None
     assert _fetch_one("SELECT 1 FROM patient_label_assignments WHERE patient_id=?", (patient_a_id,)) is None
 
 

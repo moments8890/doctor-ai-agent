@@ -94,7 +94,7 @@ async def test_p3_d2_smoke_chain_parity(db_session, session_factory, monkeypatch
     monkeypatch.setattr(tasks_service, "send_doctor_notification", mocked_notify)
 
     doctor_id = "doc_p3d2_smoke"
-    patient = await create_patient(db_session, doctor_id, "张三", "男", 52)
+    patient, _access_code = await create_patient(db_session, doctor_id, "张三", "男", 52)
 
     record = MedicalRecord(
         chief_complaint="胸痛3天",
@@ -138,7 +138,7 @@ async def test_p3_d2_realworld_matrix_parity(
     async with session_factory() as session:
         doctor_id = "doc_%s" % case_id
         patient_name = "患者_%s" % case_id[-4:]
-        patient = await create_patient(session, doctor_id, patient_name, "男", 55)
+        patient, _access_code = await create_patient(session, doctor_id, patient_name, "男", 55)
 
         record = MedicalRecord(
             chief_complaint=input_text.split("，")[0],

@@ -138,6 +138,41 @@ def name_with_supplement(text: str) -> "Optional[tuple[str, str]]":
     return candidate, remainder
 
 
+def detect_multiple_names(text: str) -> List[str]:
+    """Detect multiple distinct patient names in clinical text.
+
+    Handles patterns like "张三和李四都…", "张三、李四的…", "先看张三，再看李四".
+    Returns list of unique valid names found; empty or single-element means no conflict.
+    """
+    if not text:
+        return []
+    # Match Chinese names (2-4 chars) connected by conjunctions or separators
+    # Pattern: name + separator + name (multiple)
+    _SEP = r"[，,、和与及跟\s]+"
+    _NAME = r"[\u4e00-\u9fff]{2,4}"
+    # Strategy: find all Chinese-name-like tokens near separators
+    # First try explicit multi-name patterns
+    _MULTI_RE = re.compile(
+        rf"({_NAME}){_SEP}({_NAME})(?:{_SEP}({_NAME}))?",
+    )
+    candidates: list[str] = []
+    for m in _MULTI_RE.finditer(text):
+        for g in (1, 2, 3):
+            name = m.group(g)
+            if name and is_valid_patient_name(name) and name not in candidates:
+                candidates.append(name)
+
+    # Filter: only consider it a conflict if we found 2+ distinct valid names
+    # and none of them look like common words / medical terms
+    _COMMON_WORDS = frozenset([
+        "今天", "昨天", "明天", "上午", "下午", "医生", "护士", "患者",
+        "诊断", "治疗", "检查", "手术", "入院", "出院", "复查", "随访",
+        "胸闷", "胸痛", "头痛", "头晕", "心悸", "发热", "咳嗽", "恶心",
+    ])
+    candidates = [c for c in candidates if c not in _COMMON_WORDS]
+    return candidates if len(candidates) >= 2 else []
+
+
 def patient_name_from_history(history: List[dict]) -> Optional[str]:
     """Scan recent conversation history for the most recently mentioned patient name.
 

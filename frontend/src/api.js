@@ -103,14 +103,6 @@ async function debugRequest(url, options = {}) {
   }
 }
 
-export async function webLogin(doctorId, name) {
-  return request("/api/auth/web/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ doctor_id: doctorId, name: name || undefined }),
-  });
-}
-
 export async function inviteLogin(code, specialty) {
   return request("/api/auth/invite/login", {
     method: "POST",

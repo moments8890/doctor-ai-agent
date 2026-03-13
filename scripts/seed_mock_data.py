@@ -18,6 +18,7 @@ os.environ.setdefault("ENVIRONMENT", "development")
 from db.engine import AsyncSessionLocal
 from db.init_db import create_tables
 from db.models import Doctor, InviteCode, Patient, MedicalRecordDB, DoctorTask
+from services.auth.access_code_hash import generate_access_code, hash_access_code
 from sqlalchemy import text
 
 def utcnow():
@@ -299,13 +300,18 @@ async def _seed_doctors(session) -> None:
 
 
 async def _seed_patients(session) -> None:
-    """Insert demo patients with records and tasks."""
+    """Insert demo patients with records, tasks, and portal access codes."""
+    access_codes = []
     for i, (doc_id, name, gender, yob, category) in enumerate(PATIENTS):
+        plaintext_code = generate_access_code()
         patient = Patient(doctor_id=doc_id, name=name, gender=gender,
                           year_of_birth=yob, primary_category=category,
+                          access_code=hash_access_code(plaintext_code),
+                          access_code_version=1,
                           created_at=ago(days=30 + i * 5))
         session.add(patient)
         await session.flush()
+        access_codes.append((doc_id, name, plaintext_code))
         for content, tags, enc_type, d, _signed in RECORDS[i]:
             session.add(MedicalRecordDB(patient_id=patient.id, doctor_id=doc_id,
                                         content=content, tags=tags,
@@ -315,6 +321,9 @@ async def _seed_patients(session) -> None:
             session.add(task)
     await session.commit()
     print(f"Created {len(PATIENTS)} patients with records and tasks")
+    print("\n  Portal access codes (share with patients for login):")
+    for doc_id, name, code in access_codes:
+        print(f"    {doc_id} / {name}: {code}")
 
 
 async def seed() -> None:

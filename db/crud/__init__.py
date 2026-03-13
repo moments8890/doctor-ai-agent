@@ -52,6 +52,7 @@ from db.crud.records import (
     save_record,
     get_records_for_patient,
     get_all_records_for_doctor,
+    count_records_for_doctor,
     save_neuro_case,
     get_neuro_cases_for_doctor,
     save_record_version,
@@ -72,6 +73,7 @@ from db.crud.tasks import (
     update_task_due_at,
     get_due_tasks,
     mark_task_notified,
+    revert_task_to_pending,
 )
 from db.crud.pending import (
     create_pending_record,
@@ -86,10 +88,12 @@ from db.crud.pending import (
     mark_pending_message,
     increment_pending_message_attempt,
     list_stale_pending_messages,
+    claim_pending_message,
 )
 from db.crud.scores import (
     save_specialty_scores,
     get_scores_for_record,
+    get_scores_for_records,
 )
 from db.crud.specialty import (
     save_cvd_context,
@@ -167,6 +171,7 @@ __all__ = [
     "save_record",
     "get_records_for_patient",
     "get_all_records_for_doctor",
+    "count_records_for_doctor",
     "save_neuro_case",
     "get_neuro_cases_for_doctor",
     "save_record_version",
@@ -186,6 +191,7 @@ __all__ = [
     "update_task_due_at",
     "get_due_tasks",
     "mark_task_notified",
+    "revert_task_to_pending",
     # pending
     "create_pending_record",
     "get_pending_record",
@@ -199,9 +205,11 @@ __all__ = [
     "mark_pending_message",
     "increment_pending_message_attempt",
     "list_stale_pending_messages",
+    "claim_pending_message",
     # scores
     "save_specialty_scores",
     "get_scores_for_record",
+    "get_scores_for_records",
     # specialty context
     "save_cvd_context",
     "get_cvd_context_for_patient",

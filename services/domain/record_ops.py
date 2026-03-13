@@ -111,8 +111,6 @@ async def assemble_record(
     history: list[dict],
     doctor_id: str,
     patient_id: Optional[int] = None,
-    visit_scenario: Optional[str] = None,
-    note_style: Optional[str] = None,
 ) -> MedicalRecord:
     """Build a MedicalRecord by calling the structuring LLM.
 

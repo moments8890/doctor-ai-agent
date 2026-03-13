@@ -201,7 +201,7 @@ async def _handle_intent(
                 clinical_text=text,
                 original_text=text,
             )
-            log(f"[WeChat] blocked write stored doctor={doctor_id} text={text[:60]!r}")
+            log(f"[WeChat] blocked write stored doctor={doctor_id} len={len(text)}")
         return _plain_reply(result.gate.clarification_message or _FALLBACK_TEXT)
 
     intent_result = result.to_intent_result()
@@ -684,14 +684,14 @@ async def _handle_stateful_sync(msg) -> Response | None:
     sess = get_session(doctor_id)
     if sess.pending_record_id:
         reply_text = await _handle_pending_record_reply(msg.content, doctor_id, sess)
-        log(f"[WeChat msg] pending_record reply: {reply_text[:80]}")
+        log(f"[WeChat msg] pending_record reply len={len(reply_text)}")
         push_turn(doctor_id, msg.content, reply_text)
         await flush_turns(doctor_id)
         return Response(content=TextReply(content=reply_text, message=msg).render(), media_type="application/xml")
     if sess.pending_create_name:
         reply_text = await _handle_pending_create(msg.content, doctor_id)
         if reply_text is not None:
-            log(f"[WeChat msg] pending_create reply: {reply_text[:80]}")
+            log(f"[WeChat msg] pending_create reply len={len(reply_text)}")
             push_turn(doctor_id, msg.content, reply_text)
             await flush_turns(doctor_id)
             return Response(content=TextReply(content=reply_text, message=msg).render(), media_type="application/xml")
@@ -761,7 +761,7 @@ async def handle_message(request: Request):
         return Response(content="", media_type="application/xml")
     if msg.type == "event" and msg.event.upper() == "CLICK":
         reply_text = await _handle_menu_event(msg.key, msg.source)
-        log(f"[WeChat msg] menu click key={msg.key!r} reply={reply_text[:60]}")
+        log(f"[WeChat msg] menu click key={msg.key!r} reply_len={len(reply_text)}")
         return Response(content=TextReply(content=reply_text, message=msg).render(), media_type="application/xml")
     if not await _is_registered_doctor(msg.source):
         return await _handle_non_doctor_msg(msg)

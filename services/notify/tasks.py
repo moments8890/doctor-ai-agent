@@ -17,6 +17,7 @@ from db.crud import (
     create_task,
     get_due_tasks,
     mark_task_notified,
+    revert_task_to_pending,
     get_doctor_notify_preference,
     upsert_doctor_notify_preference,
     try_acquire_scheduler_lease,
@@ -138,7 +139,7 @@ def extract_follow_up_days(follow_up_plan: str) -> int:
 
 async def create_follow_up_task(
     doctor_id: str,
-    record_id: int,
+    record_id: Optional[int],
     patient_name: str,
     follow_up_plan: str,
     patient_id: Optional[int] = None,
@@ -268,6 +269,13 @@ async def send_task_notification(doctor_id: str, task: DoctorTask) -> None:
     lines.append(f"\n回复「完成 {task.id}」标记完成")
     message = "\n".join(lines)
 
+    # Claim-before-send: atomically transition pending → notified.
+    # If another worker already claimed this task, skip silently.
+    async with AsyncSessionLocal() as session:
+        claimed = await mark_task_notified(session, task.id)
+    if not claimed:
+        return  # another worker already notified this task
+
     retries = _notify_retry_count()
     delay_seconds = _notify_retry_delay_seconds()
     last_error = None
@@ -289,12 +297,14 @@ async def send_task_notification(doctor_id: str, task: DoctorTask) -> None:
             if attempt < retries and delay_seconds > 0:
                 await asyncio.sleep(delay_seconds)
     else:
+        # All send attempts failed — revert to 'pending' so the next cycle
+        # can retry. This is the safer direction: at worst a notification is
+        # missed this cycle, not duplicated.
+        async with AsyncSessionLocal() as session:
+            await revert_task_to_pending(session, task.id)
         raise RuntimeError(
             f"task notification failed after {retries} attempt(s) for task_id={task.id}"
         ) from last_error
-
-    async with AsyncSessionLocal() as session:
-        await mark_task_notified(session, task.id)
 
     await _emit_task_log(
         "task_notified",

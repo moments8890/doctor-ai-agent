@@ -164,9 +164,9 @@ async def maybe_compress(doctor_id: str, sess: "DoctorSession") -> None:
     try:
         summary = await _summarise(history, specialty=sess.specialty, doctor_id=doctor_id)
         async with AsyncSessionLocal() as db:
-            await upsert_doctor_context(db, doctor_id, summary)
-            # Clear DB turns only after upsert succeeded (same session = same transaction)
-            await clear_conversation_turns(db, doctor_id)
+            await upsert_doctor_context(db, doctor_id, summary, commit=False)
+            await clear_conversation_turns(db, doctor_id, commit=False)
+            await db.commit()  # atomic: both succeed or neither
         log(f"[Memory:{doctor_id}] saved summary: {summary[:80]}")
         # Only clear in-memory AFTER both DB ops confirm success
         sess.conversation_history = []
@@ -179,11 +179,15 @@ async def maybe_compress(doctor_id: str, sess: "DoctorSession") -> None:
         # Permanent failure: LLM returned invalid/malformed JSON — preserve history, do not truncate
         log(f"[Memory] ERROR: compression produced invalid summary for {doctor_id}: {e} — history preserved")
     except Exception as e:
-        # Transient failure (network, timeout, DB) — preserve history, hard-cap only if severely over limit
+        # Transient failure (network, timeout, DB) — preserve history.
+        # Use a generous hard-cap (5x) instead of aggressive truncation (2x)
+        # to avoid losing unsummarized clinical context.  The cap only prevents
+        # unbounded growth if compression stays broken for many turns.
         log(f"[Memory] WARNING: compression failed for {doctor_id}: {e}")
-        if len(sess.conversation_history) > MAX_TURNS * 3:
-            log(f"[Memory:{doctor_id}] hard-capping history at {MAX_TURNS * 2} turns after transient failure")
-            sess.conversation_history = sess.conversation_history[-(MAX_TURNS * 2):]
+        _HARD_CAP = MAX_TURNS * 5  # 50 messages — generous to avoid data loss
+        if len(sess.conversation_history) > _HARD_CAP:
+            log(f"[Memory:{doctor_id}] hard-capping history at {_HARD_CAP} messages after transient failure (no summary persisted)")
+            sess.conversation_history = sess.conversation_history[-_HARD_CAP:]
 
 
 def _render_structured_summary(data: dict) -> str:

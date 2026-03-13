@@ -30,7 +30,7 @@ _PROVIDERS = {
         "model": "llama-3.3-70b-versatile",
     },
     "ollama": {
-        "base_url": os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
+        "base_url": os.environ.get("OLLAMA_BASE_URL") or "http://192.168.0.123:11434/v1",
         "api_key_env": "OLLAMA_API_KEY",
         "model": "qwen2.5:14b",
     },
@@ -98,11 +98,10 @@ class IntentResult(BaseModel):
     patient_name: Optional[str] = None
     gender: Optional[str] = None
     age: Optional[int] = None
-    is_emergency: bool = False
     extra_data: dict = Field(default_factory=dict)
     chat_reply: Optional[str] = None
     structured_fields: Optional[dict] = None  # 8 clinical fields from single LLM call
-    confidence: float = 1.0  # 1.0 = high-confidence rule/LLM; 0.8 = Tier-3 keyword match
+    confidence: float = 1.0  # retained for DTO compatibility; not used by workflow gate
 
 
 def _build_intent_client(intent_provider: str) -> AsyncOpenAI:

@@ -9,28 +9,15 @@ from __future__ import annotations
 from services.ai.intent import Intent
 from services.session import get_session
 
-from .models import BindingDecision, EntityResolution, IntentDecision
-
-# Intents that need a patient context.
-_PATIENT_INTENTS: frozenset[Intent] = frozenset({
-    Intent.add_record,
-    Intent.query_records,
-    Intent.update_record,
-    Intent.create_patient,
-    Intent.delete_patient,
-    Intent.update_patient,
-    Intent.export_records,
-    Intent.export_outpatient_report,
-    Intent.schedule_follow_up,
-    Intent.schedule_appointment,
-    Intent.import_history,
-})
+from .models import PATIENT_INTENTS as _PATIENT_INTENTS, BindingDecision, EntityResolution, IntentDecision
 
 
 async def bind_patient(
     decision: IntentDecision,
     entities: EntityResolution,
     doctor_id: str,
+    *,
+    session: object | None = None,
 ) -> BindingDecision:
     """Resolve patient entity to a binding decision.
 
@@ -39,6 +26,10 @@ async def bind_patient(
     - 'has_name': name available but not yet looked up (handler will resolve)
     - 'no_name': no patient context available
     - 'not_applicable': intent doesn't need a patient
+
+    Args:
+        session: Optional session-like object (duck-typed). When provided,
+            used instead of ``get_session()`` for snapshot consistency.
     """
     if decision.intent not in _PATIENT_INTENTS:
         return BindingDecision(status="not_applicable", source="none")
@@ -54,12 +45,12 @@ async def bind_patient(
         )
 
     # No name — check session for patient_id (e.g. set by prior create/query)
-    sess = get_session(doctor_id)
-    _pid = getattr(sess, "current_patient_id", None)
+    _sess = session or get_session(doctor_id)
+    _pid = getattr(_sess, "current_patient_id", None)
     if _pid:
         return BindingDecision(
             patient_id=_pid,
-            patient_name=getattr(sess, "current_patient_name", None),
+            patient_name=getattr(_sess, "current_patient_name", None),
             status="bound",
             source="session_id",
         )

@@ -43,6 +43,10 @@ class Patient(Base):
     # Plaintext is NEVER stored; use services.auth.access_code_hash.hash_access_code() to set.
     access_code: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
 
+    # Monotonic counter incremented on every access-code rotation.  Embedded in
+    # portal JWTs so that rotating the code invalidates outstanding tokens.
+    access_code_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+
     __table_args__ = (
         Index("ix_patients_doctor_created", "doctor_id", "created_at"),
         Index("ix_patients_doctor_category", "doctor_id", "primary_category"),

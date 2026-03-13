@@ -140,7 +140,7 @@ def _route_followup_with_name(normed: str, stripped: str) -> Optional[IntentResu
     m = _FOLLOWUP_WITH_TIME_RE.match(normed) or _FOLLOWUP_WITH_TIME_RE.match(stripped)
     if m:
         name, n_raw, unit = m.group(1), m.group(2), m.group(3)
-        if name and name not in _NON_NAME_KEYWORDS:
+        if name and name not in _NON_NAME_KEYWORDS and name not in _TIER3_BAD_NAME:
             return IntentResult(
                 intent=Intent.schedule_follow_up,
                 patient_name=name,
@@ -151,7 +151,7 @@ def _route_followup_with_name(normed: str, stripped: str) -> Optional[IntentResu
     m = _FOLLOWUP_RELATIVE_RE.match(normed) or _FOLLOWUP_RELATIVE_RE.match(stripped)
     if m:
         name, rel_time = m.group(1), m.group(2)
-        if name and name not in _NON_NAME_KEYWORDS:
+        if name and name not in _NON_NAME_KEYWORDS and name not in _TIER3_BAD_NAME:
             return IntentResult(
                 intent=Intent.schedule_follow_up,
                 patient_name=name,
@@ -162,7 +162,7 @@ def _route_followup_with_name(normed: str, stripped: str) -> Optional[IntentResu
     m = _FOLLOWUP_TIME_FIRST_RE.match(normed) or _FOLLOWUP_TIME_FIRST_RE.match(stripped)
     if m:
         n_raw, unit, name = m.group(1), m.group(2), m.group(3)
-        if name and name not in _NON_NAME_KEYWORDS:
+        if name and name not in _NON_NAME_KEYWORDS and name not in _TIER3_BAD_NAME:
             return IntentResult(
                 intent=Intent.schedule_follow_up,
                 patient_name=name,
@@ -187,7 +187,7 @@ def _route_tier2_appointment(normed: str, stripped: str) -> Optional[IntentResul
             m = pat.match(target)
             if m:
                 appt_name = m.group(1)
-                if appt_name and appt_name not in _NON_NAME_KEYWORDS:
+                if appt_name and appt_name not in _NON_NAME_KEYWORDS and appt_name not in _TIER3_BAD_NAME:
                     return IntentResult(intent=Intent.schedule_appointment, patient_name=appt_name)
     return None
 
@@ -198,6 +198,8 @@ def _route_tier2_export(normed: str, stripped: str) -> Optional[IntentResult]:
         m = _OUTPATIENT_REPORT_RE.match(target)
         if m:
             name = m.group(1).strip() or None
+            if name and (name in _NON_NAME_KEYWORDS or name in _TIER3_BAD_NAME):
+                name = None
             return IntentResult(intent=Intent.export_outpatient_report, patient_name=name)
     if _OUTPATIENT_REPORT_NONAME_RE.match(normed) or _OUTPATIENT_REPORT_NONAME_RE.match(stripped):
         return IntentResult(intent=Intent.export_outpatient_report)
@@ -206,6 +208,8 @@ def _route_tier2_export(normed: str, stripped: str) -> Optional[IntentResult]:
         m = _EXPORT_RE.match(target)
         if m:
             name = m.group(1).strip() or None
+            if name and (name in _NON_NAME_KEYWORDS or name in _TIER3_BAD_NAME):
+                name = None
             return IntentResult(intent=Intent.export_records, patient_name=name)
     if _EXPORT_NONAME_RE.match(normed) or _EXPORT_NONAME_RE.match(stripped):
         return IntentResult(intent=Intent.export_records)
@@ -240,7 +244,7 @@ def _route_tier2_create_patient(normed: str, stripped: str) -> Optional[IntentRe
     """
     for target in (normed, stripped):
         m = _CREATE_DUPLICATE_RE.match(target)
-        if m and m.group(1) not in _NON_NAME_KEYWORDS:
+        if m and m.group(1) not in _NON_NAME_KEYWORDS and m.group(1) not in _TIER3_BAD_NAME:
             gender, age = _extract_demographics(stripped)
             return IntentResult(intent=Intent.create_patient, patient_name=m.group(1), gender=gender, age=age)
 
@@ -260,15 +264,15 @@ def _route_tier2_delete_patient(normed: str, stripped: str) -> Optional[IntentRe
     """Tier 2: delete_patient — lead, trailing, and occurrence-index patterns."""
     for target in (normed, stripped):
         m = _DELETE_LEAD_RE.match(target)
-        if m and m.group(1) not in _NON_NAME_KEYWORDS:
+        if m and m.group(1) not in _NON_NAME_KEYWORDS and m.group(1) not in _TIER3_BAD_NAME:
             return IntentResult(intent=Intent.delete_patient, patient_name=m.group(1))
 
         m = _DELETE_TRAIL_RE.match(target)
-        if m and m.group(1) not in _NON_NAME_KEYWORDS:
+        if m and m.group(1) not in _NON_NAME_KEYWORDS and m.group(1) not in _TIER3_BAD_NAME:
             return IntentResult(intent=Intent.delete_patient, patient_name=m.group(1))
 
         m = _DELETE_OCCINDEX_RE.match(target)
-        if m and m.group(2) not in _NON_NAME_KEYWORDS:
+        if m and m.group(2) not in _NON_NAME_KEYWORDS and m.group(2) not in _TIER3_BAD_NAME:
             return IntentResult(
                 intent=Intent.delete_patient,
                 patient_name=m.group(2),

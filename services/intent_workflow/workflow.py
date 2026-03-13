@@ -17,6 +17,7 @@ from services.ai.intent import Intent, IntentResult
 from services.session import (
     clear_candidate_patient,
     clear_patient_not_found,
+    get_session,
     hydrate_session_state,
 )
 from utils.log import log
@@ -25,17 +26,11 @@ from .binder import bind_patient
 from .classifier import classify
 from .entities import extract_entities
 from .gate import check_gate
-from .models import WorkflowResult
+from .models import HERO_WRITE_INTENTS as _HERO_WRITE_INTENTS, WorkflowResult
 from .planner import plan_actions
 
 if TYPE_CHECKING:
     from services.ai.turn_context import DoctorTurnContext
-
-_WRITE_INTENTS: frozenset[Intent] = frozenset({
-    Intent.add_record,
-    Intent.update_record,
-})
-
 
 async def run(
     text: str,
@@ -66,6 +61,12 @@ async def run(
     original_text = original_text or text
     _t0 = time.perf_counter()
 
+    # Consolidate knowledge: turn_context.advisory.knowledge_snippet is the
+    # canonical location.  Sync with the explicit parameter so both are set.
+    if turn_context is not None:
+        knowledge_context = knowledge_context or turn_context.advisory.knowledge_snippet
+        turn_context.advisory.knowledge_snippet = knowledge_context
+
     # Layer 1: Classification
     decision, raw_intent = await classify(
         text, doctor_id, history,
@@ -74,16 +75,29 @@ async def run(
         channel=channel,
         turn_context=turn_context,
     )
+
+    # Update provenance: mark knowledge as used if a snippet was injected
+    if turn_context is not None and knowledge_context:
+        turn_context.provenance.knowledge_used = True
     _t_classify = time.perf_counter()
 
-    # For write intents, refresh session from DB before entity extraction
-    # so we get fresh patient context in multi-device scenarios.
-    if decision.intent in _WRITE_INTENTS:
+    # Build a consistent session view for entity extraction and binding.
+    # For write intents, refresh from DB first (multi-device scenarios),
+    # then snapshot. For reads, use the turn_context proxy (if available)
+    # or live session — same state the classifier already used.
+    if decision.intent in _HERO_WRITE_INTENTS:
         await hydrate_session_state(doctor_id, write_intent=True)
+    if turn_context is not None and decision.intent not in _HERO_WRITE_INTENTS:
+        from .classifier import _session_proxy_from_context
+        _session = _session_proxy_from_context(turn_context)
+    else:
+        # Post-hydration live session (write intents) or no turn_context
+        _session = get_session(doctor_id)
 
     # Layer 2: Entity extraction
     entities = extract_entities(
         raw_intent, decision.source, text, history, doctor_id,
+        session=_session,
     )
     _t_entities = time.perf_counter()
 
@@ -95,7 +109,7 @@ async def run(
             clear_patient_not_found(doctor_id)
 
     # Layer 3: Patient binding (read-only)
-    binding = await bind_patient(decision, entities, doctor_id)
+    binding = await bind_patient(decision, entities, doctor_id, session=_session)
     _t_bind = time.perf_counter()
 
     # Layer 4: Action planning

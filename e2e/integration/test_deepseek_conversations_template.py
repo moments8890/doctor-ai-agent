@@ -120,29 +120,29 @@ def _is_ollama_provider() -> bool:
 
 
 def _assert_record_fields(record: Dict, expected: Dict) -> None:
-    """验证结构化病历各字段包含期望关键词。"""
-    chief_text = _join_fields(record, ["chief_complaint", "history_of_present_illness", "diagnosis"])
-    diagnosis_text = _join_fields(record, ["diagnosis", "history_of_present_illness", "auxiliary_examinations", "treatment_plan"])
-    treatment_text = _join_fields(record, ["treatment_plan", "follow_up_plan", "diagnosis", "auxiliary_examinations"])
-    aux_text = _join_fields(record, ["auxiliary_examinations", "history_of_present_illness", "treatment_plan"])
-    follow_text = _join_fields(record, ["follow_up_plan", "treatment_plan"])
+    """验证结构化病历 content 字段包含期望关键词。
+
+    The current record schema uses a single unified ``content`` field.
+    All keyword expectations from the fixture are checked against it.
+    """
+    content = str(record.get("content") or "")
 
     chief_expected = expected.get("chief_complaint_contains", [])
-    chief_ok = _contains_all(chief_text, chief_expected)
+    chief_ok = _contains_all(content, chief_expected)
     if not chief_ok and _is_ollama_provider() and "门诊" in chief_expected:
-        chief_ok = any(token in (chief_text or "") for token in ["复查", "复诊", "门诊"])
-    assert chief_ok, "chief_complaint mismatch: %r" % (chief_text,)
-    assert _contains_any(diagnosis_text, expected.get("diagnosis_contains_any", [])), (
-        "diagnosis mismatch: %r" % (diagnosis_text,)
+        chief_ok = any(token in content for token in ["复查", "复诊", "门诊"])
+    assert chief_ok, "chief_complaint keywords missing from content: %r" % (content[:200],)
+    assert _contains_any(content, expected.get("diagnosis_contains_any", [])), (
+        "diagnosis keywords missing from content: %r" % (content[:200],)
     )
-    assert _contains_any(treatment_text, expected.get("treatment_plan_contains_any", [])), (
-        "treatment_plan mismatch: %r" % (treatment_text,)
+    assert _contains_any(content, expected.get("treatment_plan_contains_any", [])), (
+        "treatment keywords missing from content: %r" % (content[:200],)
     )
-    assert _contains_any(aux_text, expected.get("auxiliary_examinations_contains_any", [])), (
-        "auxiliary_examinations mismatch: %r" % (aux_text,)
+    assert _contains_any(content, expected.get("auxiliary_examinations_contains_any", [])), (
+        "aux exam keywords missing from content: %r" % (content[:200],)
     )
-    assert _contains_any(follow_text, expected.get("follow_up_plan_contains_any", [])), (
-        "follow_up_plan mismatch: %r" % (follow_text,)
+    assert _contains_any(content, expected.get("follow_up_plan_contains_any", [])), (
+        "follow-up keywords missing from content: %r" % (content[:200],)
     )
 
 

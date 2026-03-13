@@ -40,6 +40,24 @@ def _hr():
     print("─" * 72)
 
 
+def _safe(row, key, default="—"):
+    """Safely fetch a column value, returning default if the column doesn't exist."""
+    try:
+        val = row[key]
+        return val if val is not None else default
+    except (IndexError, KeyError):
+        return default
+
+
+def _age_from_yob(row):
+    """Compute approximate age from year_of_birth, falling back to 'age' column for legacy DBs."""
+    yob = _safe(row, "year_of_birth", None)
+    if yob is not None:
+        from datetime import date
+        return str(date.today().year - int(yob))
+    return _safe(row, "age", "—")
+
+
 def cmd_patients(doctor_id: str | None = None):
     conn = _connect()
     if doctor_id:
@@ -61,8 +79,8 @@ def cmd_patients(doctor_id: str | None = None):
     for r in rows:
         print(fmt.format(
             r["id"], r["name"], r["doctor_id"][:16],
-            r["gender"] or "—", r["age"] or "—",
-            r["created_at"][:19] if r["created_at"] else "—",
+            _safe(r, "gender"), _age_from_yob(r),
+            (r["created_at"] or "—")[:19],
         ))
     _hr()
     conn.close()
@@ -72,7 +90,7 @@ def cmd_records(doctor_id: str | None = None):
     conn = _connect()
     sql = """
         SELECT r.id, p.name AS patient, r.doctor_id,
-               r.chief_complaint, r.diagnosis, r.created_at
+               r.content, r.record_type, r.tags, r.created_at
         FROM medical_records r
         LEFT JOIN patients p ON r.patient_id = p.id
         {where}
@@ -89,16 +107,17 @@ def cmd_records(doctor_id: str | None = None):
     title = f"Records{' — ' + doctor_id if doctor_id else ''} ({len(rows)} rows, max 30)"
     print(f"\n{title}")
     _hr()
-    fmt = "{:<5} {:<10} {:<20} {:<22} {}"
-    print(fmt.format("ID", "Patient", "Chief Complaint", "Diagnosis", "Created"))
+    fmt = "{:<5} {:<10} {:<8} {:<30} {}"
+    print(fmt.format("ID", "Patient", "Type", "Content (preview)", "Created"))
     _hr()
     for r in rows:
+        content_preview = (_safe(r, "content", "—"))[:30].replace("\n", " ")
         print(fmt.format(
             r["id"],
-            (r["patient"] or "—")[:10],
-            (r["chief_complaint"] or "—")[:20],
-            (r["diagnosis"] or "—")[:22],
-            (r["created_at"] or "—")[:19],
+            (_safe(r, "patient"))[:10],
+            (_safe(r, "record_type"))[:8],
+            content_preview,
+            (_safe(r, "created_at"))[:19],
         ))
     _hr()
     conn.close()
@@ -118,24 +137,15 @@ def cmd_record(record_id: int):
 
     print(f"\nRecord #{row['id']}  —  {row['created_at']}")
     _hr()
-    print(f"Doctor:   {row['doctor_id']}")
-    print(f"Patient:  {row['patient_name'] or '(unlinked)'} (id={row['patient_id']})")
+    print(f"Doctor:      {row['doctor_id']}")
+    print(f"Patient:     {_safe(row, 'patient_name', '(unlinked)')} (id={row['patient_id']})")
+    print(f"Type:        {_safe(row, 'record_type')}")
+    print(f"Tags:        {_safe(row, 'tags')}")
     _hr()
-    fields = [
-        ("主诉",   "chief_complaint"),
-        ("现病史", "history_of_present_illness"),
-        ("既往史", "past_medical_history"),
-        ("体格检查", "physical_examination"),
-        ("辅助检查", "auxiliary_examinations"),
-        ("诊断",   "diagnosis"),
-        ("治疗方案", "treatment_plan"),
-        ("随访计划", "follow_up_plan"),
-    ]
-    for label, key in fields:
-        val = row[key]
-        if val:
-            wrapped = textwrap.fill(val, width=60, subsequent_indent="          ")
-            print(f"【{label}】  {wrapped}")
+    content = _safe(row, "content", "")
+    if content:
+        wrapped = textwrap.fill(content, width=68, subsequent_indent="  ")
+        print(f"【内容】\n  {wrapped}")
     _hr()
     conn.close()
 
@@ -149,19 +159,20 @@ def cmd_patient(patient_id: int):
     print(f"\nPatient #{p['id']}  {p['name']}")
     _hr()
     print(f"Doctor:  {p['doctor_id']}")
-    print(f"Gender:  {p['gender'] or '—'}    Age: {p['age'] or '—'}")
+    print(f"Gender:  {_safe(p, 'gender')}    Age: {_age_from_yob(p)}")
     print(f"Created: {p['created_at']}")
 
     rows = conn.execute(
-        "SELECT id, chief_complaint, diagnosis, created_at "
+        "SELECT id, content, record_type, created_at "
         "FROM medical_records WHERE patient_id=? ORDER BY created_at DESC",
         (patient_id,),
     ).fetchall()
     print(f"\nRecords ({len(rows)}):")
     _hr()
     for r in rows:
-        print(f"  #{r['id']}  [{r['created_at'][:10]}]  "
-              f"{(r['chief_complaint'] or '—')[:28]}  |  {(r['diagnosis'] or '—')[:28]}")
+        content_preview = (_safe(r, "content", "—"))[:40].replace("\n", " ")
+        print(f"  #{r['id']}  [{(_safe(r, 'created_at'))[:10]}]  "
+              f"[{_safe(r, 'record_type')}]  {content_preview}")
     _hr()
     conn.close()
 

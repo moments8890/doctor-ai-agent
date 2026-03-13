@@ -123,7 +123,9 @@ async def get_doctor_context(session: AsyncSession, doctor_id: str) -> DoctorCon
     return result.scalar_one_or_none()
 
 
-async def upsert_doctor_context(session: AsyncSession, doctor_id: str, summary: str) -> None:
+async def upsert_doctor_context(
+    session: AsyncSession, doctor_id: str, summary: str, *, commit: bool = True,
+) -> None:
     doctor_id = await _ensure_doctor_exists(session, doctor_id)
     ctx = await get_doctor_context(session, doctor_id)
     if ctx:
@@ -140,7 +142,8 @@ async def upsert_doctor_context(session: AsyncSession, doctor_id: str, summary: 
             if ctx:
                 ctx.summary = summary
                 ctx.updated_at = _utcnow()
-    await session.commit()
+    if commit:
+        await session.commit()
 
 
 async def add_doctor_knowledge_item(session: AsyncSession, doctor_id: str, content: str) -> DoctorKnowledgeItem:
@@ -186,8 +189,6 @@ async def upsert_doctor_session_state(
     current_patient_id: Optional[int],
     pending_create_name: Optional[str],
     pending_record_id: Optional[str] = None,
-    interview_json: Optional[str] = None,
-    cvd_scale_json: Optional[str] = None,
     blocked_write_json: Optional[str] = None,
 ) -> None:
     doctor_id = await _ensure_doctor_exists(session, doctor_id)
@@ -196,8 +197,6 @@ async def upsert_doctor_session_state(
         row.current_patient_id = current_patient_id
         row.pending_create_name = pending_create_name
         row.pending_record_id = pending_record_id
-        row.interview_json = interview_json
-        row.cvd_scale_json = cvd_scale_json
         row.blocked_write_json = blocked_write_json
         row.updated_at = _utcnow()
     else:
@@ -207,8 +206,6 @@ async def upsert_doctor_session_state(
                 current_patient_id=current_patient_id,
                 pending_create_name=pending_create_name,
                 pending_record_id=pending_record_id,
-                interview_json=interview_json,
-                cvd_scale_json=cvd_scale_json,
                 blocked_write_json=blocked_write_json,
                 updated_at=_utcnow(),
             )
@@ -316,17 +313,19 @@ async def append_conversation_turns(
             DoctorConversationTurn.id.notin_(keep_subq),
         )
     )
-    await session.commit()
 
 
 async def clear_conversation_turns(
     session: AsyncSession,
     doctor_id: str,
+    *,
+    commit: bool = True,
 ) -> None:
     await session.execute(
         delete(DoctorConversationTurn).where(DoctorConversationTurn.doctor_id == doctor_id)
     )
-    await session.commit()
+    if commit:
+        await session.commit()
 
 
 async def append_chat_archive(
@@ -334,7 +333,11 @@ async def append_chat_archive(
     doctor_id: str,
     turns: List[dict],
 ) -> None:
-    """Append turns to the permanent chat archive — never truncated."""
+    """Append turns to the chat archive (retained for 365 days by default).
+
+    Does NOT commit — the caller is responsible for committing the session
+    so that conversation turns and archive can be written atomically.
+    """
     if not turns:
         return
     now = _utcnow()
@@ -346,7 +349,6 @@ async def append_chat_archive(
         if not content:
             continue
         session.add(ChatArchive(doctor_id=doctor_id, role=role, content=content, created_at=now))
-    await session.commit()
 
 
 async def purge_conversation_turns_before(

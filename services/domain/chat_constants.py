@@ -58,7 +58,6 @@ HELP_REPLY = (
     "  完成 3 — 标记任务#3完成\n"
     "  3个月后随访 — 安排随访提醒\n\n"
     "📊 其他\n"
-    "  开始问诊 — 开启结构化问诊流程\n"
     "  PDF:患者姓名 — 导出病历PDF"
 )
 
@@ -116,6 +115,10 @@ TREATMENT_HINTS = (
 
 REMINDER_IN_MSG_RE = re.compile(
     r"(?:下午|明天|早上|晚上|今天|稍后|待会|一会儿?)?[，,\s]*提醒我\s*(.{2,20}?)(?:[。！\s]|$)"
+)
+
+DRAFT_CORRECTION_RE = re.compile(
+    r"写错了|搞错了|说错了|有误|不对[，,]|改为|改成|更正|纠正|应该是|不是.{1,8}是"
 )
 
 CREATE_PREAMBLE_RE = re.compile(

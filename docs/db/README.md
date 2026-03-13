@@ -35,7 +35,7 @@ patients                ← 患者风险/分类字段自动更新
     ↓
 doctor_tasks            ← 可选：自动生成随访提醒
     ↓
-chat_archive            ← 全量对话永久存档（训练语料）
+chat_archive            ← 全量对话存档（365天保留）（训练语料）
 scheduler_leases        ← 定时任务互斥锁（多实例部署）
 ```
 
@@ -304,7 +304,7 @@ scheduler_leases        ← 定时任务互斥锁（多实例部署）
 
 ### chat_archive
 
-医生↔AI 全量对话永久存档，不截断，不滚动。用于未来词汇扩展、fast_router 覆盖率提升和模型微调。`intent_label` 由人工审核后回填。
+医生↔AI 全量对话存档，保留 365 天后由定时任务清理。用于词汇扩展、fast_router 覆盖率提升和模型微调。如需永久保留，应在清理前导出至冷存储。`intent_label` 由人工审核后回填。
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
@@ -316,7 +316,7 @@ scheduler_leases        ← 定时任务互斥锁（多实例部署）
 | created_at | DateTime | 创建时间 |
 
 **索引**：`(doctor_id, created_at)`
-**与 doctor_conversation_turns 的区别**：conversation_turns 是滚动窗口（最多保留 20 条用于上下文恢复），chat_archive 永久保存所有对话。
+**与 doctor_conversation_turns 的区别**：conversation_turns 是滚动窗口（最多保留 20 条用于上下文恢复，90 天后内容脱敏为 `[redacted]`），chat_archive 保留完整内容 365 天。
 
 ---
 

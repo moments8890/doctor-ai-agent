@@ -104,11 +104,13 @@ _CLIENT_CACHE: dict[str, AsyncOpenAI] = {}
 
 def _get_llm_client() -> tuple[AsyncOpenAI, str]:
     """Return (client, model_name). Cached singleton, bypassed in pytest."""
-    base_url = os.environ.get("STRUCTURING_LLM_BASE_URL") or os.environ.get(
-        "OLLAMA_BASE_URL", "http://localhost:11434/v1"
+    base_url = (
+        os.environ.get("STRUCTURING_LLM_BASE_URL")
+        or os.environ.get("OLLAMA_BASE_URL")
+        or "http://192.168.0.123:11434/v1"
     )
-    api_key = os.environ.get("STRUCTURING_LLM_API_KEY", "nokeyneeded")
-    model = os.environ.get("STRUCTURING_LLM_MODEL", "qwen2.5:14b")
+    api_key = os.environ.get("STRUCTURING_LLM_API_KEY") or os.environ.get("OLLAMA_API_KEY", "ollama")
+    model = os.environ.get("STRUCTURING_LLM_MODEL") or os.environ.get("OLLAMA_MODEL", "qwen2.5:14b")
 
     # Bypass singleton in test env so mock patches work
     if os.environ.get("PYTEST_CURRENT_TEST") or "pytest" in os.environ.get("_", ""):
@@ -134,18 +136,70 @@ class ExtractionError(RuntimeError):
     """Raised when LLM is unavailable and no fields could be extracted."""
 
 
-async def _build_extraction_prompt(records: list, doctor_id: Optional[str]) -> str:
-    """拼装门诊病历字段提取 prompt（含自定义模板）。"""
+async def _build_extraction_prompt(
+    records: list,
+    doctor_id: Optional[str],
+    patient: Any = None,
+    scores_map: Optional[dict] = None,
+) -> str:
+    """拼装门诊病历字段提取 prompt（含结构化元数据和自定义模板）。"""
     parts: list[str] = []
+    _sm = scores_map or {}
     for rec in records:
+        lines: list[str] = []
         content = (getattr(rec, "content", None) or "").strip()
+        # Prepend structured metadata so the LLM can reference encounter_type, tags, scores
+        enc = getattr(rec, "encounter_type", None)
+        if enc:
+            _enc_label = {"first_visit": "初诊", "follow_up": "复诊"}.get(enc, enc)
+            lines.append(f"[就诊类型: {_enc_label}]")
+        tags = getattr(rec, "tags", None)
+        if tags:
+            if isinstance(tags, str):
+                try:
+                    tags = json.loads(tags)
+                except Exception:
+                    tags = []
+            if isinstance(tags, list) and tags:
+                lines.append(f"[标签: {', '.join(tags)}]")
+        rec_id = getattr(rec, "id", None)
+        rec_scores = _sm.get(rec_id, []) if rec_id is not None else []
+        if rec_scores:
+            score_strs = []
+            for s in rec_scores:
+                val = f"{s.score_value:g}" if s.score_value is not None else (s.raw_text or "")
+                score_strs.append(f"{s.score_type}={val}" if val else s.score_type)
+            lines.append(f"[量表: {', '.join(score_strs)}]")
         if content:
-            parts.append(content)
+            lines.append(content)
+        if lines:
+            parts.append("\n".join(lines))
     records_text = "\n---\n".join(parts) if parts else ""
+
+    # Patient demographics hint
+    patient_hint = ""
+    if patient:
+        hint_parts: list[str] = []
+        name = getattr(patient, "name", None)
+        if name:
+            hint_parts.append(f"姓名: {name}")
+        gender = getattr(patient, "gender", None)
+        if gender:
+            hint_parts.append(f"性别: {gender}")
+        yob = getattr(patient, "year_of_birth", None)
+        if yob:
+            from datetime import date
+            age = date.today().year - int(yob)
+            hint_parts.append(f"年龄: {age}岁")
+        if hint_parts:
+            patient_hint = f"\n\n【患者信息】\n{', '.join(hint_parts)}"
 
     from utils.prompt_loader import get_prompt
     extract_prompt_template = await get_prompt("report.extract", _EXTRACT_PROMPT)
     prompt = extract_prompt_template.format(records_text=records_text)
+
+    if patient_hint:
+        prompt += patient_hint
 
     template_text = await _get_custom_template(doctor_id)
     if template_text:
@@ -157,9 +211,10 @@ async def extract_outpatient_fields(
     records: list,
     patient: Any = None,
     doctor_id: Optional[str] = None,
+    scores_map: Optional[dict] = None,
 ) -> dict[str, str]:
     """调用 LLM 从病历记录中提取门诊标准字段；LLM 不可用时抛出 ExtractionError。"""
-    prompt = await _build_extraction_prompt(records, doctor_id)
+    prompt = await _build_extraction_prompt(records, doctor_id, patient=patient, scores_map=scores_map)
     client, model = _get_llm_client()
     fallback_model = os.environ.get("STRUCTURING_LLM_FALLBACK_MODEL", "")
 

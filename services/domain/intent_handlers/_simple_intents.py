@@ -169,7 +169,7 @@ async def handle_schedule_appointment(
         if patient:
             patient_id = patient.id
             set_current_patient(doctor_id, patient.id, patient.name)
-    with trace_block("router", "records.chat.schedule_appointment", {"doctor_id": doctor_id, "patient_name": patient_name, "patient_id": patient_id, "intent": "schedule_appointment"}):
+    with trace_block("router", "records.chat.schedule_appointment", {"doctor_id": doctor_id, "intent": "schedule_appointment"}):
         task = await create_appointment_task(
             doctor_id=doctor_id, patient_name=patient_name,
             appointment_dt=appointment_dt, notes=notes, patient_id=patient_id,
@@ -194,7 +194,7 @@ async def handle_update_patient(
         return HandlerResult(reply="⚠️ 请告诉我要更新哪位患者的信息。")
     if not intent_result.gender and not intent_result.age:
         return HandlerResult(reply="⚠️ 请告诉我要更新的内容，例如「修改王明的年龄为50岁」。")
-    with trace_block("router", "records.chat.update_patient", {"doctor_id": doctor_id, "patient_name": name, "intent": "update_patient"}):
+    with trace_block("router", "records.chat.update_patient", {"doctor_id": doctor_id, "intent": "update_patient"}):
         async with AsyncSessionLocal() as db:
             patient = await update_patient_demographics(
                 db, doctor_id, name, gender=intent_result.gender, age=intent_result.age,
@@ -330,7 +330,7 @@ async def handle_update_record(
             name = intent_result.patient_name.strip()
     else:
         try:
-            with trace_block("router", "records.chat.update_record.llm_extract", {"doctor_id": doctor_id, "patient_name": name, "intent": "update_record"}):
+            with trace_block("router", "records.chat.update_record.llm_extract", {"doctor_id": doctor_id, "intent": "update_record"}):
                 llm_result = await agent_dispatch(text)
             if llm_result.structured_fields:
                 corrected = dict(llm_result.structured_fields)
@@ -346,7 +346,7 @@ async def handle_update_record(
     if not corrected:
         return HandlerResult(reply="⚠️ 未能从您的描述中提取到更正内容，请更具体地说明需要修改的部分。")
 
-    with trace_block("router", "records.chat.update_record", {"doctor_id": doctor_id, "patient_name": name, "intent": "update_record"}):
+    with trace_block("router", "records.chat.update_record", {"doctor_id": doctor_id, "intent": "update_record"}):
         async with AsyncSessionLocal() as db:
             patient = await find_patient_by_name(db, doctor_id, name)
             if patient is None:

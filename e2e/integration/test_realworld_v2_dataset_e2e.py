@@ -85,7 +85,7 @@ def _assert_db_table_counts(doctor_id: str) -> None:
     conn = sqlite3.connect(DB_PATH)
     try:
         counts = {}
-        for table in ["doctors", "patients", "medical_records", "doctor_tasks", "doctor_contexts", "neuro_cases"]:
+        for table in ["doctors", "patients", "medical_records", "doctor_tasks", "doctor_contexts"]:
             row = conn.execute(
                 "SELECT COUNT(1) FROM {0} WHERE doctor_id=?".format(table),
                 (doctor_id,),
@@ -100,7 +100,6 @@ def _assert_db_table_counts(doctor_id: str) -> None:
     assert counts["medical_records"] >= 1
     assert counts["doctor_tasks"] >= 1
     assert counts["doctor_contexts"] >= 1
-    assert counts["neuro_cases"] >= 1
     assert counts["system_prompts"] >= 1
 
 

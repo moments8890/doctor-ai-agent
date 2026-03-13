@@ -91,7 +91,8 @@ Usage:
   ./dev.sh data [preload|export-seed|import-seed|reset-from-seed] [args...]
   ./dev.sh load-data [args for scripts/preload_patients.py]   # compatibility alias
   ./dev.sh chat [base_url] [doctor_id]
-  ./dev.sh inspect-db
+  ./dev.sh inspect-db [patients|records|...] — CLI inspector
+  ./dev.sh inspect-db --ui [port]           — Datasette web UI (default port 8002)
 
 Compatibility:
   ./dev.sh                # same as start (foreground)
@@ -560,6 +561,10 @@ PY
         "$PYTHON_BIN" "$APP_DIR/scripts/chat.py" "${1:-http://127.0.0.1:8000}" "${2:-test_doctor}"
       ;;
     inspect-db)
+      if [[ "${1:-}" == "--ui" ]]; then
+        shift
+        exec bash "$APP_DIR/scripts/start_db_ui.sh" "${1:-8002}"
+      fi
       exec env PYTHONPATH="$APP_DIR${PYTHONPATH:+:$PYTHONPATH}" \
         "$PYTHON_BIN" "$APP_DIR/scripts/db_inspect.py" "$@"
       ;;
@@ -736,8 +741,19 @@ fi
 # ── 2. Ollama service + model ──────────────────────────────
 echo ""
 echo "[2/4] Checking Ollama endpoint..."
-OLLAMA_BASE_URL="$(read_env_var OLLAMA_BASE_URL "$SHARED_ENV" || read_env_var OLLAMA_BASE_URL "$APP_DIR/.env" || echo "http://localhost:11434/v1")"
-OLLAMA_MODEL="$(read_env_var OLLAMA_MODEL "$SHARED_ENV" || read_env_var OLLAMA_MODEL "$APP_DIR/.env" || echo "qwen2.5:14b")"
+# Prefer config/runtime.json (authoritative) over legacy .env paths.
+_RUNTIME_JSON="$APP_DIR/config/runtime.json"
+_read_runtime_key() {
+  # Extract a top-level "value" from the structured runtime config JSON.
+  # Falls back to empty string if jq is unavailable or key is missing.
+  if command -v jq &>/dev/null && [[ -f "$_RUNTIME_JSON" ]]; then
+    jq -r ".. | objects | select(has(\"$1\")) | .[\"$1\"] | .value // empty" "$_RUNTIME_JSON" 2>/dev/null | head -1
+  fi
+}
+OLLAMA_BASE_URL="$(_read_runtime_key OLLAMA_BASE_URL)"
+OLLAMA_BASE_URL="${OLLAMA_BASE_URL:-$(read_env_var OLLAMA_BASE_URL "$SHARED_ENV" || read_env_var OLLAMA_BASE_URL "$APP_DIR/.env" || echo "http://localhost:11434/v1")}"
+OLLAMA_MODEL="$(_read_runtime_key OLLAMA_MODEL)"
+OLLAMA_MODEL="${OLLAMA_MODEL:-$(read_env_var OLLAMA_MODEL "$SHARED_ENV" || read_env_var OLLAMA_MODEL "$APP_DIR/.env" || echo "qwen2.5:14b")}"
 OLLAMA_TAGS_URL="${OLLAMA_BASE_URL%/v1}/api/tags"
 OLLAMA_HOST="$(echo "$OLLAMA_BASE_URL" | sed -E 's#^https?://([^/:]+).*#\1#')"
 

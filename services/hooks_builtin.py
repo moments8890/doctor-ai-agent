@@ -3,7 +3,9 @@
 Registers lightweight logging/metrics hooks that validate the hook pipeline
 end-to-end and provide pipeline observability out of the box.
 
-Import this module at app startup (or in tests) to activate::
+STATUS: DORMANT — this module is not imported at runtime (main.py lifespan
+does not import it, and no workflow stage emits hook events).  To activate,
+add ``import services.hooks_builtin`` to main.py lifespan or a startup hook.
 
     import services.hooks_builtin  # noqa: F401 — side-effect registration
 """

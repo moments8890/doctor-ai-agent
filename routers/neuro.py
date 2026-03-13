@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import List, Optional
 
 from fastapi import APIRouter, Header, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from db.crud import get_neuro_cases_for_doctor, save_neuro_case
 from db.engine import AsyncSessionLocal
@@ -20,8 +20,8 @@ router = APIRouter(prefix="/api/neuro", tags=["neuro"])
 
 
 class NeuroFromTextInput(BaseModel):
-    text: str
-    doctor_id: str = "test_doctor"
+    text: str = Field(..., max_length=16000)
+    doctor_id: str = ""
 
 
 class NeuroCaseSummary(BaseModel):
@@ -50,7 +50,7 @@ async def neuro_from_text(
     if not body.text.strip():
         raise HTTPException(status_code=422, detail="Text input cannot be empty.")
     try:
-        neuro_case, extraction_log, _cvd_ctx = await extract_neuro_case(body.text)
+        neuro_case, extraction_log, cvd_ctx = await extract_neuro_case(body.text)
     except ValueError as exc:
         log(f"[Neuro] extract validation FAILED doctor={doctor_id}: {exc}")
         raise HTTPException(status_code=422, detail="Invalid neuro case content")
@@ -60,6 +60,18 @@ async def neuro_from_text(
 
     async with AsyncSessionLocal() as db:
         row = await save_neuro_case(db, doctor_id, neuro_case, extraction_log)
+        # Persist CVD surgical context if extracted (was previously discarded).
+        if cvd_ctx is not None:
+            try:
+                from db.crud.specialty import save_cvd_context
+                if cvd_ctx.has_data():
+                    await save_cvd_context(
+                        db, doctor_id, None, row.id, cvd_ctx,
+                        source="neuro_from_text", commit=True,
+                    )
+                    log(f"[Neuro] CVD context saved for record={row.id}")
+            except Exception as exc:
+                log(f"[Neuro] CVD context save failed (non-fatal): {exc}")
 
     return {
         "case": neuro_case.model_dump(),

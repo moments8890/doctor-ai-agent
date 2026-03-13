@@ -77,14 +77,6 @@ _TOOLS = [
                         "type": "integer",
                         "description": "患者年龄整数。只在当前消息中明确提到时填写，否则省略。",
                     },
-                    "is_emergency": {
-                        "type": "boolean",
-                        "description": (
-                            "是否为紧急/急诊情况，默认false。"
-                            "遇到以下情况设为true：STEMI、ST段抬高、急诊PCI、绿色通道、"
-                            "休克、血压90/60以下、心跳骤停、呼吸骤停、室颤。"
-                        ),
-                    },
                 },
                 "required": [],
             },
@@ -126,10 +118,6 @@ _TOOLS = [
                     "age": {
                         "type": "integer",
                         "description": "患者年龄整数。只在明确提到时填写。",
-                    },
-                    "is_emergency": {
-                        "type": "boolean",
-                        "description": "是否急诊：脑疝、脑干受压、GCS急剧下降、再出血时设为true。",
                     },
                     "diagnosis_subtype": {
                         "type": "string",
@@ -566,7 +554,7 @@ _SYSTEM_PROMPT = (
     "不从对话历史推断——系统会自动补充上下文患者。\n"
     "特殊：医生回复只含患者姓名（1-3汉字，无其他内容）→ add_medical_record，填入patient_name。\n\n"
     "【add_medical_record 注意】\n"
-    "- add_medical_record 只需填 patient_name、gender、age、is_emergency\n"
+    "- add_medical_record 只需填 patient_name、gender、age\n"
     "- 临床笔记内容由系统另行生成，不需要在此工具中提取\n"
     "- 保留所有英文缩写（STEMI、PCI、HER2、EGFR、ANC、NIHSS）\n\n"
     "【更正病历字段（update_medical_record）】\n"
@@ -608,7 +596,7 @@ _SYSTEM_PROMPT_COMPACT = (
     "导出/打印病历->export_records；"
     "普通问候可直接回复。"
     "特殊规则：若上一条助手消息询问患者姓名，医生回复即为患者姓名，调用add_medical_record并填入patient_name，不要调用create_patient。"
-    "add_medical_record只需patient_name/gender/age/is_emergency，临床笔记由系统另行生成。"
+    "add_medical_record只需patient_name/gender/age，临床笔记由系统另行生成。"
     "工具参数仅填确定信息。"
     "意图不清时：先用1句话转述用户说的内容（不评价相关性），再邀请说更具体；不调用工具。"
     "调用工具时用1-2句口语中文同步给医生。"

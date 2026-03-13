@@ -48,16 +48,21 @@ def log_turn(
     if not _ENABLED or _is_test():
         return
 
+    # Redact PHI: truncate text to first 20 chars (enough for routing analysis,
+    # not enough to reconstruct clinical content), and hash patient_name.
+    import hashlib
+    redacted_text = text[:20] + "…" if len(text) > 20 else text
     payload: dict = {
         "ts": _utc_now_iso(),
         "doctor_id": doctor_id,
-        "text": text,
+        "text_prefix": redacted_text,
+        "text_len": len(text),
         "intent": intent,
         "routing": routing,
         "latency_ms": round(latency_ms, 1),
     }
     if patient_name:
-        payload["patient_name"] = patient_name
+        payload["patient_name_hash"] = hashlib.sha256(patient_name.encode()).hexdigest()[:12]
     if provenance:
         payload["provenance"] = provenance
 
@@ -98,8 +103,9 @@ def prune_turn_log() -> int:
                 if ts >= cutoff:
                     kept.append(json.dumps(row, ensure_ascii=False))
             except Exception:
-                # Keep malformed lines to avoid data loss.
-                kept.append(line)
+                # Drop malformed lines — they cannot be dated and would
+                # accumulate indefinitely.
+                pass
         _LOG_FILE.write_text("\n".join(kept) + ("\n" if kept else ""), encoding="utf-8")
     except Exception:
         pass

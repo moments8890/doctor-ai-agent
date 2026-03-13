@@ -70,13 +70,22 @@ def annotation_to_ground_truth(ann: dict) -> str:
     return "\n".join(texts)
 
 
-def find_image_path(cmdd_dir: Path, ann: dict, index: int) -> Path | None:
-    """Find the corresponding image file for an annotation by index."""
-    src_dir = cmdd_dir / "src_image"
-    images = sorted(src_dir.glob("*.jpg"))
-    if index < len(images):
-        return images[index]
-    return None
+def _build_annotation_index(annotations: list[dict], cmdd_dir: Path) -> dict[str, dict]:
+    """Build a mapping from image filename to annotation dict.
+
+    CMDD annotations typically contain an 'image' or 'filename' key that
+    identifies the source image.  If neither is present, fall back to
+    positional pairing but log a warning.
+    """
+    index: dict[str, dict] = {}
+    for ann in annotations:
+        # Try common keys that identify the source image
+        fname = ann.get("image") or ann.get("filename") or ann.get("file")
+        if fname:
+            # Normalize to just the filename (strip any directory prefix)
+            fname = Path(fname).name
+            index[fname] = ann
+    return index
 
 
 async def eval_single(image_path: Path, ground_truth: str) -> dict:
@@ -118,16 +127,39 @@ async def main_async(args: argparse.Namespace) -> None:
 
     print(f"CMDD: {len(annotations)} annotations, {len(src_images)} source images")
     print(f"Vision provider: {os.environ.get('VISION_LLM', 'ollama')}")
+
+    # Build filename-based annotation index for reliable pairing
+    ann_index = _build_annotation_index(annotations, cmdd_dir)
+
+    if ann_index:
+        # Pair by filename — reliable
+        paired = [(img, ann_index[img.name]) for img in src_images if img.name in ann_index]
+        if not paired:
+            print("⚠️  No filename matches between annotations and images. "
+                  "Falling back to positional pairing.")
+            paired = [
+                (src_images[i], annotations[i])
+                for i in range(min(len(src_images), len(annotations)))
+            ]
+        else:
+            print(f"  Paired by filename: {len(paired)} images matched")
+    else:
+        # No filename keys in annotations — fall back to positional pairing
+        print("⚠️  Annotations lack image filename keys — using positional pairing. "
+              "Results may be unreliable if sort orders diverge.")
+        paired = [
+            (src_images[i], annotations[i])
+            for i in range(min(len(src_images), len(annotations)))
+        ]
+
     print()
 
-    # Sample N image+annotation pairs
-    n = min(args.samples, len(src_images))
-    indices = random.sample(range(len(src_images)), n)
+    # Sample N pairs
+    n = min(args.samples, len(paired))
+    sampled = random.sample(paired, n)
 
     results = []
-    for i, idx in enumerate(indices):
-        image_path = src_images[idx]
-        ann = annotations[idx] if idx < len(annotations) else {}
+    for i, (image_path, ann) in enumerate(sampled):
         gt = annotation_to_ground_truth(ann)
 
         print(f"[{i+1}/{n}] {image_path.name}  (GT: {len(gt)} chars)", end=" ... ", flush=True)
@@ -158,6 +190,7 @@ async def main_async(args: argparse.Namespace) -> None:
     # Save results
     if args.output:
         out = Path(args.output)
+        out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"\n  Full results saved to: {out}")
 

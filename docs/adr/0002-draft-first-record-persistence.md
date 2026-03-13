@@ -12,16 +12,18 @@ Accepted
 
 Complete
 
-Last reviewed: 2026-03-12
+Last reviewed: 2026-03-13
 
 Notes:
 
 - The normal shared `add_record` flow creates a pending draft first and requires
   explicit confirmation before final persistence.
-- Web, WeChat, and voice chat all expose pending-draft state through the shared
-  handler path.
-- Separate explicit exception paths still exist, such as emergency direct-save
-  handling and the dedicated `/api/voice/consultation` flow.
+- Web, WeChat, and voice chat (including `/api/voice/consultation` per ADR 0009)
+  all expose pending-draft state through the shared handler path.
+- Known exception: `/api/neuro/from-text` still does direct extract-and-save
+  without 5-layer routing or pending-draft confirmation. This is a specialty
+  write path that predates the workflow unification and should be converged in a
+  future iteration.
 
 ## Context
 

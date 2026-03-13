@@ -243,7 +243,6 @@ def _intent_result_from_tool_call(fn_name: str, args: dict, chat_reply: Optional
         patient_name=args.get("patient_name") or args.get("name"),
         gender=gender,
         age=age,
-        is_emergency=args.get("is_emergency", False),
         extra_data=extra_data,
         chat_reply=chat_reply,
         structured_fields=structured_fields,
@@ -540,6 +539,9 @@ async def _try_cloud_fallback(
     _cloud_fallback = os.environ.get("OLLAMA_CLOUD_FALLBACK", "").strip() if provider_name == "ollama" else ""
     if not _cloud_fallback:
         raise original_err
+    # PHI egress gate: block cloud fallback unless explicitly allowed.
+    from services.ai.egress_policy import check_cloud_egress
+    check_cloud_egress(_cloud_fallback, "routing", original_error=original_err)
     log(f"[Agent:ollama] all retries failed ({original_err}); trying cloud fallback={_cloud_fallback}")
     _cloud_provider = _PROVIDERS.get(_cloud_fallback)
     if _cloud_provider is None:

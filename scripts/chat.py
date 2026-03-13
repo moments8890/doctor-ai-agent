@@ -5,6 +5,7 @@
 用法：
     python scripts/chat.py                        # 连接到 localhost:8000
     python scripts/chat.py http://other-host:8000
+    python scripts/chat.py http://other-host:8000 --token <bearer-token>
 
 内置命令：
     /clear    重置对话历史
@@ -34,30 +35,32 @@ GRAY   = "\033[90m"
 BOLD   = "\033[1m"
 RESET  = "\033[0m"
 
-_RECORD_FIELDS = [
-    ("主诉",   "chief_complaint"),
-    ("现病史", "history_of_present_illness"),
-    ("既往史", "past_medical_history"),
-    ("体格检查", "physical_examination"),
-    ("辅助检查", "auxiliary_examinations"),
-    ("诊断",   "diagnosis"),
-    ("治疗方案", "treatment_plan"),
-    ("随访计划", "follow_up_plan"),
-]
-
 
 def _print_record(record: dict) -> None:
+    """Pretty-print a chat-first MedicalRecord (content + tags)."""
     print(f"\n  {YELLOW}📋 结构化病历{RESET}")
-    for label, key in _RECORD_FIELDS:
-        val = record.get(key)
-        if val:
-            print(f"  {GRAY}【{label}】{RESET} {val}")
+    content = record.get("content")
+    if content:
+        # Show first 200 chars of content
+        preview = content[:200] + ("…" if len(content) > 200 else "")
+        print(f"  {GRAY}【内容】{RESET} {preview}")
+    tags = record.get("tags")
+    if tags:
+        tag_str = ", ".join(tags) if isinstance(tags, list) else str(tags)
+        print(f"  {GRAY}【标签】{RESET} {tag_str}")
+    record_type = record.get("record_type")
+    if record_type:
+        print(f"  {GRAY}【类型】{RESET} {record_type}")
 
 
-def _send(base_url: str, text: str, history: list, doctor_id: str) -> tuple:
+def _send(base_url: str, text: str, history: list, doctor_id: str, token: str | None) -> tuple:
+    headers = {}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     resp = httpx.post(
         f"{base_url}/api/records/chat",
         json={"text": text, "history": history, "doctor_id": doctor_id},
+        headers=headers,
         timeout=60,
     )
     resp.raise_for_status()
@@ -81,7 +84,7 @@ def _handle_command(raw: str, history: list) -> bool:
     return None  # not a command
 
 
-def _chat_loop(base_url: str, doctor_id: str) -> None:
+def _chat_loop(base_url: str, doctor_id: str, token: str | None) -> None:
     """Run the interactive chat read-eval-print loop."""
     history: list = []
     while True:
@@ -98,7 +101,7 @@ def _chat_loop(base_url: str, doctor_id: str) -> None:
         if cmd_result is True:
             continue
         try:
-            reply, record = _send(base_url, raw, history, doctor_id)
+            reply, record = _send(base_url, raw, history, doctor_id, token)
         except httpx.ConnectError:
             print(f"{YELLOW}  Cannot connect to {base_url} — is the server running?{RESET}\n")
             continue
@@ -118,12 +121,19 @@ def _chat_loop(base_url: str, doctor_id: str) -> None:
 
 def main() -> None:
     """Entry point: parse args and start the chat loop."""
-    base_url = sys.argv[1].rstrip("/") if len(sys.argv) > 1 else BASE_URL
-    doctor_id = sys.argv[2] if len(sys.argv) > 2 else DOCTOR_ID
+    import argparse
+    parser = argparse.ArgumentParser(description="Interactive chat client for doctor AI agent")
+    parser.add_argument("base_url", nargs="?", default=BASE_URL, help="Server base URL")
+    parser.add_argument("--doctor-id", default=DOCTOR_ID, help="Doctor ID to use")
+    parser.add_argument("--token", default=None, help="Bearer token for authentication")
+    args = parser.parse_args()
+
+    base_url = args.base_url.rstrip("/")
+    auth_info = "  token=set" if args.token else "  token=none (dev fallback)"
     print(f"\n{BOLD}Doctor AI Agent — Chat Tester{RESET}")
-    print(f"{GRAY}  server={base_url}  doctor_id={doctor_id}{RESET}")
+    print(f"{GRAY}  server={base_url}  doctor_id={args.doctor_id}{auth_info}{RESET}")
     print(f"{GRAY}  /clear  reset history  |  /history  show context size  |  /quit  exit{RESET}\n")
-    _chat_loop(base_url, doctor_id)
+    _chat_loop(base_url, args.doctor_id, args.token)
 
 
 if __name__ == "__main__":

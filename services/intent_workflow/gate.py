@@ -13,19 +13,19 @@ import re
 
 from services.ai.intent import Intent
 
-from .models import ActionPlan, BindingDecision, EntityResolution, GateResult
+from .models import (
+    HERO_WRITE_INTENTS as _HERO_WRITE_INTENTS,
+    ActionPlan,
+    BindingDecision,
+    EntityResolution,
+    GateResult,
+)
 
 _LOCATION_CONTEXT_RE = re.compile(
     r"(?:ICU|PACU|CCU|NICU|急诊|抢救室|手术室|监护室|留观|绿色通道"
     r"|\d+床|\d+号床|[A-Z]?\d+病房|[A-Z]?\d+号)",
     re.IGNORECASE,
 )
-
-_WRITE_INTENTS: frozenset[Intent] = frozenset({
-    Intent.add_record,
-    Intent.update_record,
-})
-
 
 def check_gate(
     plan: ActionPlan,
@@ -35,8 +35,35 @@ def check_gate(
     text: str,
 ) -> GateResult:
     """Check whether planned actions should proceed."""
-    if decision_intent not in _WRITE_INTENTS:
+    if decision_intent not in _HERO_WRITE_INTENTS:
         return GateResult(approved=True)
+
+    # create_patient needs the shared handler to set pending-create state
+    # when the doctor has not supplied a name yet.
+    if decision_intent == Intent.create_patient and binding.status == "no_name":
+        return GateResult(approved=True)
+
+    # delete_patient: block when name was inherited from stale context
+    # (session/history) rather than explicitly stated by the doctor.
+    if decision_intent == Intent.delete_patient:
+        _name_source = entities.patient_name.source if entities.patient_name else None
+        if _name_source in ("session", "history"):
+            name = binding.patient_name or "未知"
+            return GateResult(
+                approved=False,
+                reason="delete_needs_explicit_name",
+                clarification_message=f"您要删除患者【{name}】吗？请再次输入患者姓名以确认。",
+            )
+
+    # Multi-patient conflict -> ask which patient
+    _multi = (entities.extra_data or {}).get("multi_patient_names")
+    if _multi and len(_multi) >= 2:
+        names_str = "、".join(f"【{n}】" for n in _multi)
+        return GateResult(
+            approved=False,
+            reason="multi_patient_conflict",
+            clarification_message=f"检测到多位患者：{names_str}，请问您要为哪位患者操作？",
+        )
 
     # No patient context at all -> ask
     if binding.status == "no_name":

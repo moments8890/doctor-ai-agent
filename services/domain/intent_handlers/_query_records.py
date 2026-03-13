@@ -16,13 +16,27 @@ from db.crud import (
     get_all_records_for_doctor,
     get_records_for_patient,
 )
+from db.crud.scores import get_scores_for_records
 from db.engine import AsyncSessionLocal
 from services.ai.intent import IntentResult
 from services.domain.intent_handlers._types import HandlerResult
 from services.observability.audit import audit
 from services.observability.observability import get_current_trace_id, trace_block
 from services.session import get_session, set_current_patient, set_patient_not_found
-from utils.log import log
+from utils.log import log, safe_create_task
+
+
+def _format_scores_short(scores: list) -> str:
+    """Format a list of SpecialtyScore rows into a compact inline string."""
+    parts = []
+    for s in scores:
+        val = s.score_value
+        label = s.score_type
+        if val is not None:
+            parts.append(f"{label}={val:g}")
+        elif s.raw_text:
+            parts.append(f"{label}:{s.raw_text[:20]}")
+    return " ".join(parts)
 
 
 async def handle_query_records(
@@ -32,7 +46,7 @@ async def handle_query_records(
     name = intent_result.patient_name
     _prev: Optional[str] = None
 
-    with trace_block("router", "records.chat.query_records", {"doctor_id": doctor_id, "patient_name": name, "intent": "query_records"}):
+    with trace_block("router", "records.chat.query_records", {"doctor_id": doctor_id, "intent": "query_records"}):
         async with AsyncSessionLocal() as db:
             # 1) Explicit patient name from user
             if name:
@@ -63,7 +77,7 @@ async def handle_query_records(
         pname = r.patient.name if r.patient else "未关联"
         date = r.created_at.strftime("%Y-%m-%d") if r.created_at else "—"
         lines.append(f"【{pname}】[{date}] {(r.content or '—')[:60]}")
-    asyncio.create_task(audit(
+    safe_create_task(audit(
         doctor_id, "READ", resource_type="record",
         resource_id="all", trace_id=get_current_trace_id(),
     ))
@@ -79,11 +93,20 @@ async def _query_patient_records(
     records = await get_records_for_patient(db, doctor_id, patient_id)
     if not records:
         return HandlerResult(reply=f"📂 患者【{patient_name}】暂无历史记录。", switch_notification=_switch)
+
+    # Bulk-fetch specialty scores for all returned records
+    rec_ids = [r.id for r in records if r.id is not None]
+    scores_map = await get_scores_for_records(db, rec_ids, doctor_id) if rec_ids else {}
+
     lines = [f"📂 患者【{patient_name}】最近 {len(records)} 条记录："]
     for i, r in enumerate(records, 1):
         date = r.created_at.strftime("%Y-%m-%d") if r.created_at else "—"
-        lines.append(f"{i}. [{date}] {(r.content or '—')[:60]}")
-    asyncio.create_task(audit(
+        line = f"{i}. [{date}] {(r.content or '—')[:60]}"
+        r_scores = scores_map.get(r.id, [])
+        if r_scores:
+            line += f"  [{_format_scores_short(r_scores)}]"
+        lines.append(line)
+    safe_create_task(audit(
         doctor_id, "READ", resource_type="record",
         resource_id=patient_name or str(patient_id), trace_id=get_current_trace_id(),
     ))

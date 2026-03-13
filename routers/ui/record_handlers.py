@@ -8,8 +8,10 @@ import asyncio
 from datetime import datetime
 from typing import Optional, Tuple
 
+from utils.log import safe_create_task
 from db.crud import (
     get_all_records_for_doctor,
+    count_records_for_doctor,
     get_records_for_patient,
     get_all_patients,
 )
@@ -63,35 +65,30 @@ async def _fetch_records_for_patient(
     return items, patient_name
 
 
-async def _fetch_all_records(doctor_id: str, limit: int) -> list[dict]:
-    """Fetch all records for a doctor, including joined patient name."""
+async def _fetch_filtered_records(
+    doctor_id: str,
+    *,
+    patient_name: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> tuple[list[dict], int]:
+    """Fetch records with filters applied at the DB level. Returns (items, total)."""
     async with AsyncSessionLocal() as db:
-        records = await get_all_records_for_doctor(db, doctor_id, limit=limit)
-
-    return [
+        records = await get_all_records_for_doctor(
+            db, doctor_id, limit=limit, offset=offset,
+            patient_name=patient_name, date_from=date_from, date_to=date_to,
+        )
+        total = await count_records_for_doctor(
+            db, doctor_id,
+            patient_name=patient_name, date_from=date_from, date_to=date_to,
+        )
+    items = [
         _serialize_record_with_patient(r, r.patient.name if r.patient else None)
         for r in records
     ]
-
-
-def _apply_name_filter(items: list[dict], patient_name: Optional[str]) -> list[dict]:
-    if not patient_name:
-        return items
-    needle = patient_name.strip().lower()
-    return [
-        item for item in items
-        if item.get("patient_name") and needle in str(item["patient_name"]).lower()
-    ]
-
-
-def _apply_date_filters(
-    items: list[dict], date_from: Optional[str], date_to: Optional[str],
-) -> list[dict]:
-    if date_from:
-        items = [i for i in items if i.get("created_at") and str(i["created_at"])[:10] >= date_from]
-    if date_to:
-        items = [i for i in items if i.get("created_at") and str(i["created_at"])[:10] <= date_to]
-    return items
+    return items, total
 
 
 CATEGORY_ORDER = ["high_risk", "active_followup", "stable", "new", "uncategorized"]
@@ -199,7 +196,7 @@ async def manage_patients_for_doctor(
     """
     enforce_doctor_rate_limit(doctor_id, scope="ui.manage_patients")
     category = _normalize_query_str(category)
-    asyncio.create_task(audit(doctor_id, "READ", "patient", "list"))
+    safe_create_task(audit(doctor_id, "READ", "patient", "list"))
 
     # Normalize cursor — could be None, empty string, or a real cursor token
     effective_cursor: Optional[str] = cursor if isinstance(cursor, str) and cursor else None
@@ -233,17 +230,26 @@ async def manage_patients_for_doctor(
             # Legacy offset mode (offset > 0 without cursor)
             patients, count_map = await _fetch_patients_with_record_counts(db, doctor_id)
 
-    items = [_serialize_patient_item(p, count_map) for p in patients]
+    # Filter by category first, then paginate the filtered list
     if category is not None:
-        items = [item for item in items if item["primary_category"] == category]
+        patients = [p for p in patients if (p.primary_category or "uncategorized") == category]
+    items = [_serialize_patient_item(p, count_map) for p in patients]
     total = len(items)
     return {"doctor_id": doctor_id, "items": items[offset:offset + limit], "total": total, "limit": limit, "offset": offset}
 
 
 async def manage_patients_grouped_for_doctor(doctor_id: str) -> dict:
-    """患者分类列表：按分类分组返回全部患者。"""
+    """患者分类列表：按分类分组返回全部患者。
+
+    Refreshes time-based categories inline before serialising so that
+    stale categories (e.g. 'active_followup' that has drifted past its
+    window) are corrected on read, not only on record-save.
+    """
     enforce_doctor_rate_limit(doctor_id, scope="ui.manage_patients_grouped")
     async with AsyncSessionLocal() as db:
+        # Refresh stale categories before reading
+        from services.patient.patient_categorization import recompute_all_categories
+        await recompute_all_categories(db, doctor_id=doctor_id)
         patients, count_map = await _fetch_patients_with_record_counts(db, doctor_id)
     all_items = [_serialize_patient_item(p, count_map) for p in patients]
     bucket: dict = {cat: [] for cat in CATEGORY_ORDER}
@@ -273,20 +279,26 @@ async def manage_records_for_doctor(
     date_to = _normalize_date_yyyy_mm_dd(date_to)
 
     _audit_resource_id = str(patient_id) if patient_id is not None else "list"
-    asyncio.create_task(audit(doctor_id, "READ", "record", _audit_resource_id))
+    safe_create_task(audit(doctor_id, "READ", "record", _audit_resource_id))
 
     if patient_id is not None:
+        # Single-patient view — no name/date filters needed beyond patient_id
         items, _ = await _fetch_records_for_patient(doctor_id, patient_id, limit)
-        patient_name = None  # name filter not applicable when filtering by id
+        total = len(items)
     else:
-        items = await _fetch_all_records(doctor_id, limit)
-        items = _apply_name_filter(items, patient_name)
+        # All-records view — push name and date filters into DB query
+        items, total = await _fetch_filtered_records(
+            doctor_id,
+            patient_name=patient_name,
+            date_from=date_from,
+            date_to=date_to,
+            limit=limit,
+            offset=offset,
+        )
 
-    items = _apply_date_filters(items, date_from, date_to)
-    total = len(items)
     return {
         "doctor_id": doctor_id,
-        "items": items[offset : offset + limit],
+        "items": items,
         "total": total,
         "limit": limit,
         "offset": offset,

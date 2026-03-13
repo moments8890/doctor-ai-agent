@@ -8,28 +8,14 @@ from services.ai.intent import Intent, IntentResult
 from services.domain.chat_constants import REMINDER_IN_MSG_RE as _REMINDER_IN_MSG_RE
 from services.domain.compound_normalizer import has_residual_clinical_content
 from services.domain.name_utils import (
+    detect_multiple_names,
     is_valid_patient_name,
     leading_name_with_clinical_context,
     patient_name_from_history,
 )
 from services.session import get_session
 
-from .models import EntityResolution, EntitySlot
-
-# Intents where patient_name is meaningful.
-_PATIENT_INTENTS: frozenset[Intent] = frozenset({
-    Intent.add_record,
-    Intent.query_records,
-    Intent.update_record,
-    Intent.create_patient,
-    Intent.delete_patient,
-    Intent.update_patient,
-    Intent.export_records,
-    Intent.export_outpatient_report,
-    Intent.schedule_follow_up,
-    Intent.schedule_appointment,
-    Intent.import_history,
-})
+from .models import PATIENT_INTENTS as _PATIENT_INTENTS, EntityResolution, EntitySlot
 
 
 def extract_entities(
@@ -38,6 +24,8 @@ def extract_entities(
     text: str,
     history: list[dict],
     doctor_id: str,
+    *,
+    session: object | None = None,
 ) -> EntityResolution:
     """Extract entities from the raw IntentResult with provenance tracking.
 
@@ -47,8 +35,14 @@ def extract_entities(
     3. Patient name from recent history
     4. Session current_patient_name
     5. Candidate / not-found from session (weak)
+
+    Args:
+        session: Optional session-like object (duck-typed). When provided,
+            used instead of ``get_session()`` for snapshot consistency with
+            the classification layer.
     """
     intent = raw.intent
+    _sess = session or get_session(doctor_id)
 
     # Gender & age from classification
     gender: Optional[EntitySlot] = (
@@ -68,17 +62,16 @@ def extract_entities(
 
     # Fallback cascade — only for intents where patient matters
     if name_slot is None and intent in _PATIENT_INTENTS:
-        name_slot = _name_fallback_cascade(text, history, doctor_id, intent)
+        name_slot = _name_fallback_cascade(text, history, _sess, intent)
 
     # If name came from candidate, also capture candidate gender/age
     if name_slot and name_slot.source == "candidate":
-        sess = get_session(doctor_id)
         if not gender:
-            _cg = getattr(sess, "candidate_patient_gender", None)
+            _cg = getattr(_sess, "candidate_patient_gender", None)
             if _cg:
                 gender = EntitySlot(value=_cg, source="candidate")
         if not age:
-            _ca = getattr(sess, "candidate_patient_age", None)
+            _ca = getattr(_sess, "candidate_patient_age", None)
             if _ca:
                 age = EntitySlot(value=_ca, source="candidate")
 
@@ -98,11 +91,15 @@ def extract_entities(
     if _REMINDER_IN_MSG_RE.search(text or ""):
         extra["has_reminder"] = True
 
+    # Multi-patient conflict detection
+    multi_names = detect_multiple_names(text or "")
+    if len(multi_names) >= 2:
+        extra["multi_patient_names"] = multi_names
+
     return EntityResolution(
         patient_name=name_slot,
         gender=gender,
         age=age,
-        is_emergency=raw.is_emergency,
         extra_data=extra,
     )
 
@@ -110,26 +107,37 @@ def extract_entities(
 def _name_fallback_cascade(
     text: str,
     history: list[dict],
-    doctor_id: str,
+    sess: object,
     intent: Intent,
 ) -> Optional[EntitySlot]:
-    """Try secondary name sources when the primary (LLM/fast_route) didn't provide one."""
+    """Try secondary name sources when the primary (LLM/fast_route) didn't provide one.
+
+    Args:
+        sess: Session-like object (real DoctorSession or snapshot proxy).
+    """
     # Text pattern: leading name with clinical context (add_record only)
     if intent == Intent.add_record:
         leading = leading_name_with_clinical_context(text)
         if leading:
             return EntitySlot(value=leading, source="text_leading_name")
 
-    # History: recent turns mentioned a patient
-    hist_name = patient_name_from_history(history)
-    if hist_name:
-        return EntitySlot(value=hist_name, source="history")
+    # create_patient: skip history/session fallback — inheriting a stale name
+    # silently reuses an existing patient instead of prompting for a new name.
+    # Only candidate/not_found are valid (e.g. "张三" not found → "新建患者").
+    _skip_stale = intent == Intent.create_patient
+
+    # History: recent turns mentioned a patient (server-side only, never client-supplied)
+    if not _skip_stale:
+        _server_history = getattr(sess, "conversation_history", [])
+        hist_name = patient_name_from_history(_server_history)
+        if hist_name:
+            return EntitySlot(value=hist_name, source="history")
 
     # Session: active patient
-    sess = get_session(doctor_id)
-    sess_name = getattr(sess, "current_patient_name", None)
-    if sess_name and is_valid_patient_name(sess_name):
-        return EntitySlot(value=sess_name, source="session", confidence=0.9)
+    if not _skip_stale:
+        sess_name = getattr(sess, "current_patient_name", None)
+        if sess_name and is_valid_patient_name(sess_name):
+            return EntitySlot(value=sess_name, source="session", confidence=0.9)
 
     # Candidate patient (from recent create/query — weak)
     cand_name = getattr(sess, "candidate_patient_name", None)

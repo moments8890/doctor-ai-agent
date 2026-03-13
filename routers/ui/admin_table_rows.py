@@ -9,6 +9,7 @@ import json as _json
 from typing import Optional
 
 from fastapi import HTTPException
+from utils.log import safe_create_task
 from sqlalchemy import select
 
 from db.engine import AsyncSessionLocal
@@ -42,7 +43,10 @@ from routers.ui._utils import (
     apply_exclude_test_doctors,
 )
 
-_SENSITIVE_TABLES = {"chat_archive", "medical_records", "doctor_conversation_turns"}
+_SENSITIVE_TABLES = {
+    "chat_archive", "medical_records", "doctor_conversation_turns",
+    "pending_records", "pending_messages",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -316,7 +320,7 @@ async def _rows_pending_records(
         {
             "id": p.id, "doctor_id": p.doctor_id, "patient_id": p.patient_id,
             "patient_name": p.patient_name, "status": p.status,
-            "raw_input": p.raw_input, "created_at": _fmt_ts(p.created_at),
+            "draft_json": p.draft_json, "created_at": _fmt_ts(p.created_at),
             "expires_at": _fmt_ts(p.expires_at),
         }
         for p in (await db.execute(stmt)).scalars().all()
@@ -331,7 +335,8 @@ async def _rows_pending_messages(db, doctor_id: Optional[str], limit: int, offse
         stmt = apply_exclude_test_doctors(stmt, PendingMessage.doctor_id)
     return [
         {"id": p.id, "doctor_id": p.doctor_id, "raw_content": p.raw_content,
-         "status": p.status, "created_at": _fmt_ts(p.created_at)}
+         "status": p.status, "attempt_count": p.attempt_count,
+         "created_at": _fmt_ts(p.created_at)}
         for p in (await db.execute(stmt)).scalars().all()
     ]
 
@@ -389,6 +394,7 @@ async def _rows_session_states(db, doctor_id: Optional[str], limit: int, offset:
             "current_patient_id": s.current_patient_id,
             "pending_create_name": s.pending_create_name,
             "pending_record_id": s.pending_record_id,
+            "blocked_write": bool(s.blocked_write_json),
             "updated_at": _fmt_ts(s.updated_at),
         }
         for s in (await db.execute(stmt)).scalars().all()
@@ -475,7 +481,7 @@ async def admin_table_rows_logic(
 ) -> dict:
     """Resolve filters and delegate to the per-table fetch helper."""
     if table_key in _SENSITIVE_TABLES:
-        asyncio.create_task(audit("admin", "READ", table_key, "admin_query"))
+        safe_create_task(audit("admin", "READ", table_key, "admin_query"))
     doctor_id, patient_name, _, _, dt_from, dt_to_exclusive = _parse_admin_filters(
         doctor_id, patient_name, date_from, date_to
     )

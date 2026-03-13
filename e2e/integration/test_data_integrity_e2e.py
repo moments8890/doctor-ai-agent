@@ -7,10 +7,10 @@ the DB, and that destructive operations (delete, update) have correct cascade
 and merge semantics.
 
 Tests:
-  [x] All 8 clinical fields round-trip from API response to DB row
-  [x] Sparse note: treatment_plan NULL is persisted (not just returned)
+  [x] Unified content field round-trips from API response to DB row
+  [x] Sparse note: content must not contain fabricated treatment
   [x] Delete patient cascades records + tasks to zero
-  [x] Record correction merges only the corrected field — untouched fields unchanged
+  [x] Record correction preserves prior content
   [x] Doctor isolation: doctor A cannot see doctor B's patients
   [x] Complete-task is idempotent (marking done twice keeps status=completed)
   [x] Records for a patient are returned latest-first in query reply
@@ -89,14 +89,7 @@ def _latest_record_fields(doctor_id: str, name: str) -> Optional[dict]:
     try:
         row = conn.execute(
             """
-            SELECT r.chief_complaint,
-                   r.history_of_present_illness,
-                   r.past_medical_history,
-                   r.physical_examination,
-                   r.auxiliary_examinations,
-                   r.diagnosis,
-                   r.treatment_plan,
-                   r.follow_up_plan
+            SELECT r.content, r.tags, r.record_type
             FROM medical_records r
             JOIN patients p ON p.id = r.patient_id
             WHERE p.doctor_id=? AND p.name=?
@@ -106,12 +99,7 @@ def _latest_record_fields(doctor_id: str, name: str) -> Optional[dict]:
         ).fetchone()
         if not row:
             return None
-        return dict(zip(
-            ["chief_complaint", "history_of_present_illness", "past_medical_history",
-             "physical_examination", "auxiliary_examinations", "diagnosis",
-             "treatment_plan", "follow_up_plan"],
-            row,
-        ))
+        return {"content": row[0], "tags": row[1], "record_type": row[2]}
     finally:
         conn.close()
 
@@ -140,11 +128,11 @@ def _pending_task_count(doctor_id: str) -> int:
         conn.close()
 
 
-# ── P0-1: All 8 clinical fields persisted ─────────────────────────────────────
+# ── P0-1: Unified content field persisted ─────────────────────────────────────
 
 @pytest.mark.integration
-def test_all_eight_fields_persisted_to_db():
-    """Rich clinical note → all 8 structured fields persist to DB, not just API response."""
+def test_content_persisted_to_db():
+    """Rich clinical note → content persists to DB with key clinical tokens."""
     doctor_id = f"inttest_di_8f_{uuid.uuid4().hex[:8]}"
     name = "陆晨"
 
@@ -166,29 +154,24 @@ def test_all_eight_fields_persisted_to_db():
     db_rec = _latest_record_fields(doctor_id, name)
     assert db_rec is not None, "No DB record found after save"
 
-    # API ↔ DB parity for chief_complaint (the most critical field)
-    assert api_rec.get("chief_complaint") == db_rec["chief_complaint"], (
-        "chief_complaint mismatch: API returned different value than DB"
+    # API ↔ DB parity for content
+    assert api_rec.get("content"), "API content must not be empty"
+    assert db_rec["content"], "DB content must not be empty"
+    assert api_rec["content"] == db_rec["content"], (
+        "content mismatch: API returned different value than DB"
     )
 
-    # All 8 fields should be non-null in the DB for this rich input
-    present_fields = [f for f, v in db_rec.items() if v and str(v).strip()]
-    assert len(present_fields) >= 6, (
-        f"Expected ≥6 of 8 clinical fields populated in DB, got {len(present_fields)}: "
-        f"{[f for f, v in db_rec.items() if not v]}"
-    )
-
-    # Key semantic tokens must appear across the persisted record
-    blob = "\n".join(v for v in db_rec.values() if isinstance(v, str)).lower()
+    # Key semantic tokens must appear in the persisted content
+    blob = (db_rec["content"] or "").lower()
     for token in ["胸闷", "高血压", "bnp"]:
-        assert token in blob, f"Expected token '{token}' not found in any DB field"
+        assert token in blob, f"Expected token '{token}' not found in DB content"
 
 
-# ── P0-2: Sparse note treatment_plan NULL validated at DB level ────────────────
+# ── P0-2: Sparse note — no fabricated treatment in content ────────────────────
 
 @pytest.mark.integration
-def test_sparse_note_treatment_null_in_db():
-    """No treatment in input → treatment_plan must be NULL in DB row (not just API response)."""
+def test_sparse_note_no_hallucinated_treatment_in_db():
+    """No treatment in input → content must not contain fabricated treatment (API + DB)."""
     doctor_id = f"inttest_di_sparse_{uuid.uuid4().hex[:8]}"
     name = "许薇"
 
@@ -197,18 +180,21 @@ def test_sparse_note_treatment_null_in_db():
     assert r is not None
     assert r.get("record") is not None
 
-    # API-level check
-    api_treatment = r["record"].get("treatment_plan")
-    assert api_treatment is None, (
-        f"API response: treatment_plan should be null, got '{api_treatment}'"
+    # Content should not contain aggressive interventions not mentioned in input.
+    _AGGRESSIVE = ["手术", "介入", "支架", "搭桥"]
+
+    api_content = r["record"].get("content", "")
+    api_hallucinated = [kw for kw in _AGGRESSIVE if kw in api_content]
+    assert not api_hallucinated, (
+        f"API: fabricated treatment in content: {api_hallucinated}"
     )
 
-    # DB-level check: hallucination must not be silently stored
     db_rec = _latest_record_fields(doctor_id, name)
     assert db_rec is not None, "Record not saved to DB"
-    db_treatment = db_rec.get("treatment_plan")
-    assert db_treatment is None or db_treatment.strip() == "", (
-        f"DB treatment_plan should be NULL but got: '{db_treatment}' — hallucination persisted"
+    db_content = db_rec.get("content") or ""
+    db_hallucinated = [kw for kw in _AGGRESSIVE if kw in db_content]
+    assert not db_hallucinated, (
+        f"DB: fabricated treatment in content: {db_hallucinated}"
     )
 
 
@@ -243,15 +229,15 @@ def test_delete_patient_cascades_records_and_tasks():
     assert _task_count_for_patient(doctor_id, pid) == 0, "Tasks not cascaded after patient delete"
 
 
-# ── P0-4: Record correction merges only the corrected field ────────────────────
+# ── P0-4: Record correction preserves prior content ──────────────────────────
 
 @pytest.mark.integration
-def test_record_correction_does_not_alter_untouched_fields():
-    """Correcting diagnosis must not overwrite treatment_plan that was not mentioned."""
+def test_record_correction_preserves_prior_content():
+    """Correcting diagnosis must preserve treatment info already in the record."""
     doctor_id = f"inttest_di_merge_{uuid.uuid4().hex[:8]}"
     name = "江涛"
 
-    # Turn 1: save full record with both diagnosis and treatment_plan
+    # Turn 1: save full record with both diagnosis and treatment
     r1 = chat(
         f"{name}，男，62岁，反复胸痛，诊断不稳定心绞痛，给予阿司匹林和他汀治疗，保存病历。",
         doctor_id=doctor_id,
@@ -260,14 +246,13 @@ def test_record_correction_does_not_alter_untouched_fields():
 
     rec_before = _latest_record_fields(doctor_id, name)
     assert rec_before is not None
-    treatment_before = rec_before.get("treatment_plan")
 
     h1 = [
         {"role": "user", "content": f"{name}，男，62岁，反复胸痛，诊断不稳定心绞痛，给予阿司匹林和他汀治疗，保存病历。"},
         {"role": "assistant", "content": r1["reply"]},
     ]
 
-    # Turn 2: correction of diagnosis only — treatment should remain unchanged
+    # Turn 2: correction of diagnosis only — treatment info should be preserved
     r2 = chat(
         f"刚才{name}的诊断写错了，心电图有ST段抬高，应该是STEMI，请更正诊断。",
         history=h1,
@@ -278,16 +263,18 @@ def test_record_correction_does_not_alter_untouched_fields():
     rec_after = _latest_record_fields(doctor_id, name)
     assert rec_after is not None
 
-    # Diagnosis updated
-    dx_blob = (rec_after.get("diagnosis") or "").lower()
-    assert "stemi" in dx_blob or "st" in dx_blob, (
-        f"Corrected diagnosis 'STEMI' not found in record; got: '{rec_after.get('diagnosis')}'"
+    # Corrected diagnosis should appear in content
+    content_lower = (rec_after.get("content") or "").lower()
+    assert "stemi" in content_lower or "st" in content_lower, (
+        f"Corrected diagnosis 'STEMI' not found in content: '{rec_after.get('content')[:120]}'"
     )
 
-    # Treatment plan not altered (only diagnosis was in the correction)
-    if treatment_before:
-        treatment_after = rec_after.get("treatment_plan")
-        assert treatment_after, "treatment_plan was wiped during diagnosis correction"
+    # Treatment info (阿司匹林/他汀) should still be present
+    content_before = (rec_before.get("content") or "").lower()
+    if "阿司匹林" in content_before or "他汀" in content_before:
+        assert "阿司匹林" in content_lower or "他汀" in content_lower, (
+            "Treatment info was wiped during diagnosis correction"
+        )
 
 
 # ── P1-1: Doctor isolation ────────────────────────────────────────────────────

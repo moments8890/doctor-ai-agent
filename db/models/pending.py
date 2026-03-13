@@ -45,7 +45,7 @@ class PendingMessage(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
 
     __table_args__ = (
-        CheckConstraint("status IN ('pending','done','dead')", name="ck_pending_messages_status"),
+        CheckConstraint("status IN ('pending','processing','done','dead')", name="ck_pending_messages_status"),
         Index("ix_pending_messages_status_created", "status", "created_at"),
         Index("ix_pending_messages_doctor", "doctor_id"),
     )

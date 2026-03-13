@@ -6,22 +6,22 @@
 Usage:
     source .venv/bin/activate
 
-    # Test a PDF
+    # Test a PDF (uses LLM extractor first, then local fallback — matches production)
     python scripts/test_document_import.py path/to/report.pdf
 
     # Test an image (体检报告截图)
     python scripts/test_document_import.py path/to/report.jpg
 
-    # Test a Word document
+    # Test a Word document (.docx only — legacy .doc is not supported)
     python scripts/test_document_import.py path/to/report.docx
 
     # Test raw text
     python scripts/test_document_import.py path/to/report.txt
 
-    # Test WeChat chat export
-    python scripts/test_document_import.py path/to/chat_export.txt --type chat
+    # Test WeChat chat export (requires --sender for multi-sender exports)
+    python scripts/test_document_import.py path/to/chat_export.txt --type chat --sender 张医生
 
-    # Skip structuring (just show extracted text)
+    # Skip structuring (just show extracted text + chunks)
     python scripts/test_document_import.py path/to/report.pdf --no-structure
 
     # Use a specific vision LLM provider for image OCR
@@ -47,8 +47,12 @@ def _detect_type(path: Path) -> str:
         return "pdf"
     if suffix in (".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff"):
         return "image"
-    if suffix in (".docx", ".doc"):
+    if suffix == ".docx":
         return "word"
+    if suffix == ".doc":
+        print("⚠️  Legacy .doc format is not supported — only .docx (OOXML) is.")
+        print("   Convert to .docx first (e.g. via LibreOffice).")
+        sys.exit(1)
     if suffix == ".txt":
         return "text"
     # Sniff bytes
@@ -74,14 +78,23 @@ def _mime_type(path: Path) -> str:
     }.get(suffix, "image/jpeg")
 
 
-def _extract_text(path: Path, doc_type: str) -> tuple[str, float]:
-    """Extract text from file. Returns (text, elapsed_seconds)."""
+async def _extract_text(path: Path, doc_type: str) -> tuple[str, float]:
+    """Extract text from file. Returns (text, elapsed_seconds).
+
+    PDF extraction mirrors the production path in /api/records/extract-file:
+    try LLM-based extraction first, fall back to local pdftotext.
+    """
     data = path.read_bytes()
     t0 = time.perf_counter()
 
     if doc_type == "pdf":
+        from services.knowledge.pdf_extract_llm import extract_text_from_pdf_llm
         from services.knowledge.pdf_extract import extract_text_from_pdf
-        text = extract_text_from_pdf(data)
+        text = await extract_text_from_pdf_llm(data)
+        if text is None:
+            print("  ℹ️  LLM PDF extractor returned None — falling back to local pdftotext")
+            loop = asyncio.get_event_loop()
+            text = await loop.run_in_executor(None, extract_text_from_pdf, data)
 
     elif doc_type == "word":
         from services.knowledge.word_extract import extract_text_from_docx
@@ -91,24 +104,15 @@ def _extract_text(path: Path, doc_type: str) -> tuple[str, float]:
         text = data.decode("utf-8", errors="replace")
 
     elif doc_type == "image":
-        # Image OCR is async — handled separately
-        text = "__IMAGE__"
+        from services.ai.vision import extract_text_from_image
+        mime = _mime_type(path)
+        text = await extract_text_from_image(data, mime)
 
     else:
         raise ValueError(f"Unknown doc type: {doc_type}")
 
     elapsed = time.perf_counter() - t0
-    return text, elapsed
-
-
-async def _extract_image_text(path: Path) -> tuple[str, float]:
-    from services.ai.vision import extract_text_from_image
-    data = path.read_bytes()
-    mime = _mime_type(path)
-    t0 = time.perf_counter()
-    text = await extract_text_from_image(data, mime)
-    elapsed = time.perf_counter() - t0
-    return text, elapsed
+    return text or "", elapsed
 
 
 async def _structure(text: str) -> tuple[dict, float]:
@@ -120,7 +124,7 @@ async def _structure(text: str) -> tuple[dict, float]:
 
 
 def _chunk(text: str, doc_type: str, sender_filter: str | None = None) -> tuple[list[str], float]:
-    from services.wechat.wechat_domain import _preprocess_import_text, _chunk_history_text
+    from services.wechat.wechat_import import _preprocess_import_text, _chunk_history_text
     t0 = time.perf_counter()
     source = "chat_export" if doc_type == "chat" else doc_type
     clean = _preprocess_import_text(text, source, sender_filter=sender_filter)
@@ -138,12 +142,12 @@ def _print_section(title: str, char: str = "─") -> None:
 def _build_parser() -> argparse.ArgumentParser:
     """构建命令行参数解析器。"""
     p = argparse.ArgumentParser(description="Test document import pipeline locally")
-    p.add_argument("file", help="Path to document (PDF, image, Word, txt)")
+    p.add_argument("file", help="Path to document (PDF, image, .docx, txt)")
     p.add_argument("--type", choices=["pdf", "image", "word", "text", "chat"],
                    help="Override auto-detected file type")
     p.add_argument("--no-structure", action="store_true",
                    help="Skip LLM structuring (just show extracted text + chunks)")
-    p.add_argument("--sender", help="For chat exports: only import this sender's messages")
+    p.add_argument("--sender", help="For chat exports: only import this sender's messages (required for multi-sender)")
     p.add_argument("--max-chunks", type=int, default=3,
                    help="Max chunks to structure (default: 3, to limit LLM calls)")
     p.add_argument("--output", help="Save full result as JSON to this file")
@@ -153,10 +157,7 @@ def _build_parser() -> argparse.ArgumentParser:
 async def _stage_extract(path: Path, doc_type: str, result: dict) -> str:
     """阶段1：文本提取；返回原始文本，并将统计写入 result。"""
     _print_section("Stage 1: Text Extraction")
-    if doc_type == "image":
-        raw_text, t1 = await _extract_image_text(path)
-    else:
-        raw_text, t1 = _extract_text(path, doc_type)
+    raw_text, t1 = await _extract_text(path, doc_type)
     result["stages"]["extraction"] = {"elapsed_s": round(t1, 2), "chars": len(raw_text)}
     print(f"  Elapsed:  {t1:.2f}s")
     print(f"  Chars:    {len(raw_text)}")
@@ -169,7 +170,7 @@ async def _stage_extract(path: Path, doc_type: str, result: dict) -> str:
     return raw_text
 
 
-def _stage_chat_senders(raw_text: str, doc_type: str, sender: str) -> None:
+def _stage_chat_senders(raw_text: str, doc_type: str, sender: str | None) -> None:
     """阶段2：聊天记录发送人检测（仅 chat 类型）。"""
     if doc_type != "chat":
         return
@@ -177,13 +178,17 @@ def _stage_chat_senders(raw_text: str, doc_type: str, sender: str) -> None:
     senders = list_senders(raw_text)
     _print_section("Stage 2: Chat Senders Detected")
     for i, s in enumerate(senders):
-        marker = " ← will import" if (sender and s == sender) or (not sender and i == 0) else ""
+        marker = " ← will import" if sender and s == sender else ""
         print(f"  {i+1}. {s}{marker}")
-    if not sender and len(senders) > 1:
-        print(f"\n  ℹ️  Use --sender NAME to filter. Importing all senders' clinical messages.")
+    if len(senders) > 1 and not sender:
+        # Match production behavior: block and require --sender
+        print(f"\n  ⛔ Multi-sender chat export detected ({len(senders)} senders).")
+        print(f"     Production would stop here and ask the user to choose.")
+        print(f"     Use --sender NAME to select a sender and continue.")
+        sys.exit(1)
 
 
-def _stage_chunk(raw_text: str, doc_type: str, sender: str, result: dict) -> list:
+def _stage_chunk(raw_text: str, doc_type: str, sender: str | None, result: dict) -> list:
     """阶段3：文本分块；返回 chunk 列表，并将统计写入 result。"""
     _print_section("Stage 3: Chunking")
     chunks, t3 = _chunk(raw_text, doc_type, sender_filter=sender)
@@ -214,17 +219,27 @@ async def _stage_structure(chunks: list, max_chunks: int, no_structure: bool, re
             record, t4 = await _structure(chunk)
             structured.append({"chunk": i+1, "elapsed_s": round(t4, 2), "record": record})
             print(f"{t4:.1f}s")
-            for field in ("chief_complaint", "diagnosis", "treatment_plan"):
-                val = record.get(field)
-                if val:
-                    print(f"    {field}: {str(val)[:80]}")
+            # Display current MedicalRecord fields (content, tags, record_type)
+            content = record.get("content", "")
+            if content:
+                preview = content[:120].replace("\n", " ")
+                print(f"    content: {preview}{'...' if len(content) > 120 else ''}")
+            tags = record.get("tags", [])
+            if tags:
+                print(f"    tags: {', '.join(str(t) for t in tags[:8])}")
+            rtype = record.get("record_type")
+            if rtype:
+                print(f"    record_type: {rtype}")
+            scores = record.get("specialty_scores", [])
+            if scores:
+                print(f"    specialty_scores: {len(scores)} item(s)")
         except Exception as e:
             print(f"FAILED — {e}")
             structured.append({"chunk": i+1, "error": str(e)})
     result["stages"]["structuring"] = structured
 
 
-def _print_final_summary(result: dict, output_path: str) -> None:
+def _print_final_summary(result: dict, output_path: str | None) -> None:
     """打印汇总信息并可选地将结果保存至 JSON 文件。"""
     _print_section("Summary", "═")
     stages = result["stages"]

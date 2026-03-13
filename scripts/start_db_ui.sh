@@ -1,8 +1,9 @@
 #!/bin/bash
-# Start datasette DB inspector on port 8001
+# Start datasette DB inspector (default port 8002 to avoid conflict with
+# the E2E benchmark server on 8001 and the dev server on 8000).
 # Usage: bash scripts/start_db_ui.sh [port]
 
-PORT=${1:-8001}
+PORT=${1:-8002}
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DB="${PATIENTS_DB_PATH:-$ROOT/patients.db}"
 

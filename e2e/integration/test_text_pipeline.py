@@ -76,11 +76,11 @@ def test_name_in_text_saves_record():
     data = chat("张伟，男，52岁，劳力性胸闷三周，休息后缓解", doctor_id=doctor_id)
 
     assert data["record"] is not None, "API should return a record"
-    assert data["record"]["chief_complaint"], "chief_complaint must not be null"
+    assert data["record"]["content"], "content must not be empty"
 
     rec = db_record(doctor_id, "张伟")
     assert rec is not None, "Patient '张伟' not found in DB"
-    assert rec[0], "chief_complaint is null in DB"
+    assert rec[0], "content is null in DB"
 
 
 @pytest.mark.integration
@@ -108,42 +108,47 @@ def test_missing_name_asks_then_saves():
 
 @pytest.mark.integration
 def test_emergency_input_produces_record():
-    """STEMI / emergency input → record saved with chief_complaint populated."""
+    """STEMI / emergency input → record saved with content populated."""
     doctor_id = f"inttest_text_3_{uuid.uuid4().hex[:8]}"
 
     # Emergency lexical cues should still produce a valid structured record
-    # and be persisted with non-null chief complaint.
+    # and be persisted with non-null content.
     data = chat(
         "韩伟，男，59岁，突发胸痛两小时，ST段抬高，急诊PCI绿色通道",
         doctor_id=doctor_id,
     )
 
     assert data["record"] is not None
-    assert data["record"]["chief_complaint"]
+    assert data["record"]["content"]
     rec = db_record(doctor_id, "韩伟")
     assert rec is not None, "Emergency record not saved to DB"
 
 
 @pytest.mark.integration
 def test_sparse_input_no_hallucinated_treatment():
-    """Sparse input with no treatment mentioned → treatment_plan must be null (API + DB)."""
+    """Sparse input with no treatment mentioned → content must not contain fabricated treatment."""
     doctor_id = f"inttest_text_4_{uuid.uuid4().hex[:8]}"
 
     # Note intentionally omits explicit treatment directives.
-    # Structuring output should keep treatment_plan null.
+    # The unified content field should reflect what was said, not hallucinate treatment.
     data = chat("赵丽，女，60岁，高血压控制差，服药依从性一般", doctor_id=doctor_id)
 
     assert data["record"] is not None
-    treatment = data["record"].get("treatment_plan")
-    assert treatment is None, (
-        f"LLM fabricated a treatment plan not in input (API layer): '{treatment}'"
+    content = data["record"].get("content", "")
+    # Content should NOT contain aggressive interventions not mentioned in input.
+    _AGGRESSIVE = ["手术", "介入", "支架", "搭桥"]
+    hallucinated = [kw for kw in _AGGRESSIVE if kw in content]
+    assert not hallucinated, (
+        f"LLM fabricated treatment not in input (API layer): {hallucinated}"
     )
 
-    # DB-level guard: validate null is actually persisted, not just returned in API response.
+    # DB-level guard
     rec = db_record(doctor_id, "赵丽")
     assert rec is not None, "Record not saved to DB for sparse note"
-    assert rec[2] is None, (
-        f"DB treatment_plan should be NULL but got: '{rec[2]}' — hallucination persisted to DB"
+    db_content = rec[0] or ""
+    db_hallucinated = [kw for kw in _AGGRESSIVE if kw in db_content]
+    assert not db_hallucinated, (
+        f"Hallucinated treatment in DB content: {db_hallucinated}"
     )
 
 

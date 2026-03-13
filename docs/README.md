@@ -15,6 +15,15 @@ AI coding agents.
 - [`docs/review/architecture-overview.md`](review/architecture-overview.md)
   Current architecture overview and system map.
 
+## Auth and Security
+
+- **Mini-program login**: `POST /api/auth/wechat-mini/login` — exchanges WeChat `js_code` for an openid-linked doctor identity + JWT (`routers/auth.py`).
+- **Invite-code web login**: `POST /api/auth/invite/login` — validates invite code, issues JWT, optionally links mini openid (`routers/auth.py`).
+- **Patient portal session**: `POST /api/patient/session` — patient authenticates with name + doctor_id + access code; returns 24h JWT with `acv` for revocation (`routers/patient_portal.py`).
+- **Access-code rotation**: `POST /api/patient/access-code` (doctor-facing) and `POST /api/mini/patients/{id}/access-code` — generates new 6-digit code, bumps `access_code_version` to invalidate outstanding patient tokens.
+- **Admin/debug endpoints**: hidden from OpenAPI schema; require `X-Admin-Token` / `X-Debug-Token` headers; return 503 when unconfigured.
+- **Production guards**: startup refuses to start without `WECHAT_ID_HMAC_KEY`, `PATIENT_PORTAL_SECRET`, `MINIPROGRAM_TOKEN_SECRET`, and `CORS_ALLOW_ORIGINS` (`main.py:_enforce_production_guards`).
+
 ## AI and Product Docs
 
 - [`docs/ai/AI提示词文档.md`](ai/AI提示词文档.md)

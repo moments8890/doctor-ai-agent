@@ -21,8 +21,8 @@ Turn the Web doctor experience into a composer-led workbench with one visible wo
 
 ## 2. Add a small backend context endpoint. ✅
 - Added `GET /api/manage/working-context` in `routers/ui/__init__.py`.
-- Returns `{ current_patient, pending_draft, next_step }` in a single lightweight call.
-- Combines session current_patient, pending_record lookup (with expiry validation), and next-step logic (pending draft → confirm prompt; pending_create → info prompt; no patient → start prompt).
+- Returns `{ current_patient, pending_draft, blocked_write, next_step }` in a single lightweight call.
+- Combines session current_patient, pending_record lookup (with expiry validation), blocked-write continuation state, and next-step logic (pending draft → confirm prompt; blocked_write → continuation prompt; pending_create → info prompt; no patient → start prompt).
 
 ## 3. Add a shared working-context state layer in the frontend. ✅
 - Added `getWorkingContext(doctorId)` API call in `frontend/src/api.js`.

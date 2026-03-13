@@ -10,7 +10,6 @@ Web-specific traits kept:
 
 WeChat-specific traits added:
   - Specialty score extraction (detect_score_keywords / extract_specialty_scores)
-  - Emergency task creation (create_emergency_task)
 """
 from __future__ import annotations
 
@@ -24,7 +23,6 @@ from typing import Any, Optional
 from db.crud import (
     create_patient as db_create_patient,
     find_patient_by_name,
-    save_record,
 )
 from db.crud.pending import create_pending_record
 from db.engine import AsyncSessionLocal
@@ -33,17 +31,17 @@ from services.ai.intent import IntentResult
 from services.domain.intent_handlers._types import HandlerResult
 from services.domain.name_utils import is_valid_patient_name, patient_name_from_history
 from services.domain.record_ops import assemble_record
-from services.notify.tasks import create_emergency_task
 from services.observability.audit import audit
 from services.observability.observability import get_current_trace_id, trace_block
 from services.patient.score_extraction import detect_score_keywords, extract_specialty_scores
 from services.session import (
+    clear_blocked_write_context,
     hydrate_session_state,
     set_current_patient, set_pending_record_id,
     set_patient_not_found, clear_candidate_patient, clear_patient_not_found,
 )
 from utils.errors import InvalidMedicalRecordError
-from utils.log import log
+from utils.log import log, safe_create_task
 from services.domain.compound_normalizer import has_clinical_location_context
 from utils.runtime_config import load_runtime_json as _load_rc
 
@@ -93,15 +91,17 @@ async def _resolve_patient_name(
     if intent_result.patient_name and is_valid_patient_name(intent_result.patient_name):
         return None  # already resolved
 
-    # 1) History scanning fallback
-    _hist_name = patient_name_from_history(history)
+    _sess = _get_session(doctor_id)
+
+    # 1) Server-side history scanning fallback (never trust client-supplied history)
+    _server_history = list(_sess.conversation_history)
+    _hist_name = patient_name_from_history(_server_history)
     if _hist_name:
         intent_result.patient_name = _hist_name
-        log(f"[add_record] resolved patient from history: {_hist_name} doctor={doctor_id}")
+        log(f"[add_record] resolved patient from server history: {_hist_name} doctor={doctor_id}")
         return None
 
     # 2) Session current_patient fallback
-    _sess = _get_session(doctor_id)
     _sess_name = _sess.current_patient_name
     if _sess_name and is_valid_patient_name(_sess_name):
         intent_result.patient_name = _sess_name
@@ -174,17 +174,13 @@ async def _build_record(
     text: str, history: list, intent_result: IntentResult,
     patient_name: str, doctor_id: str,
     patient_id: Optional[int] = None,
-    visit_scenario: Optional[str] = None,
-    note_style: Optional[str] = None,
 ) -> "MedicalRecord | HandlerResult":
     """Build a MedicalRecord from intent; returns HandlerResult on error."""
     try:
-        with trace_block("router", "records.chat.assemble_record", {"doctor_id": doctor_id, "patient_id": patient_id, "patient_name": patient_name}):
+        with trace_block("router", "records.chat.assemble_record", {"doctor_id": doctor_id}):
             return await assemble_record(
                 intent_result, text, history, doctor_id,
                 patient_id=patient_id,
-                visit_scenario=visit_scenario,
-                note_style=note_style,
             )
     except ValueError:
         return HandlerResult(reply="没能识别病历内容，请重新描述一下。")
@@ -197,43 +193,13 @@ async def _build_record(
 # Save helpers
 # ---------------------------------------------------------------------------
 
-async def _save_emergency(
-    doctor_id: str, text: str, record: MedicalRecord,
-    patient_id: int, patient_name: str, intent_result: IntentResult,
-) -> HandlerResult:
-    """Emergency record: save immediately, create emergency task, audit."""
-    log(
-        f"[silent-save] emergency record saved WITHOUT confirmation "
-        f"doctor={doctor_id} patient={patient_name!r} patient_id={patient_id}"
-    )
-    async with AsyncSessionLocal() as db:
-        saved = await save_record(db, doctor_id, record, patient_id)
-
-    # Background tasks (non-blocking)
-    from services.domain.intent_handlers._confirm_pending import _bg_auto_learn
-    asyncio.create_task(_bg_auto_learn(doctor_id, text, record))
-    asyncio.create_task(audit(
-        doctor_id, "WRITE", resource_type="record",
-        resource_id=str(saved.id), trace_id=get_current_trace_id(),
-    ))
-    asyncio.create_task(create_emergency_task(
-        doctor_id, saved.id, patient_name or "未关联患者", None, patient_id
-    ))
-
-    reply = intent_result.chat_reply or f"🚨 紧急病历已为【{patient_name}】直接保存。"
-    log(f"[add_record] emergency record saved patient={patient_name} doctor={doctor_id}")
-    return HandlerResult(reply=reply, record=record)
-
-
 async def _create_draft(
     doctor_id: str, record: MedicalRecord, patient_id: int,
     patient_name: str, intent_result: IntentResult,
 ) -> HandlerResult:
     """Create a pending draft and return preview result."""
-    _draft_ttl = int(
-        os.environ.get("PENDING_RECORD_TTL_MINUTES")
-        or _load_rc().get("PENDING_RECORD_TTL_MINUTES", 30)
-    )
+    from utils.runtime_config import get_pending_record_ttl_minutes
+    _draft_ttl = get_pending_record_ttl_minutes()
     draft_id = uuid.uuid4().hex
     draft_data = record.model_dump()
     _cvd_raw = (intent_result.extra_data or {}).get("cvd_context") if intent_result.extra_data else None
@@ -281,14 +247,14 @@ async def handle_add_record(
     patient_name = intent_result.patient_name
 
     # Resolve patient in DB (find or create)
-    with trace_block("router", "records.chat.persist_record", {"doctor_id": doctor_id, "patient_name": patient_name, "intent": "add_record"}):
+    with trace_block("router", "records.chat.persist_record", {"doctor_id": doctor_id, "intent": "add_record"}):
         async with AsyncSessionLocal() as db:
             patient_id, patient_created = await _persist_patient(db, doctor_id, patient_name, intent_result)
             if isinstance(patient_id, HandlerResult):
                 return patient_id
 
     if patient_created:
-        asyncio.create_task(audit(
+        safe_create_task(audit(
             doctor_id, "WRITE", resource_type="patient",
             resource_id=str(patient_id), trace_id=get_current_trace_id(),
         ))
@@ -298,36 +264,40 @@ async def handle_add_record(
     if isinstance(patient_id, int):
         _prev = set_current_patient(doctor_id, patient_id, patient_name)
 
-    # Read doctor profile preferences from session for structuring prompt
+    # Build record — use server-side history for clinical context
     from services.session import get_session as _get_session
     _profile_sess = _get_session(doctor_id)
-    _visit_scenario = getattr(_profile_sess, "visit_scenario", None)
-    _note_style = getattr(_profile_sess, "note_style", None)
-
-    # Build record
+    _server_history = list(_profile_sess.conversation_history)
     record = await _build_record(
-        text, history, intent_result, patient_name, doctor_id,
+        text, _server_history, intent_result, patient_name, doctor_id,
         patient_id=patient_id,
-        visit_scenario=_visit_scenario,
-        note_style=_note_style,
     )
     if isinstance(record, HandlerResult):
         return record
 
     # Specialty score extraction (merged from WeChat)
+    # Merge with scores the main structuring pass already extracted — the
+    # secondary extractor only covers a subset of score types, so an
+    # unconditional overwrite would erase scores like Hunt-Hess / ICH_score.
     if detect_score_keywords(text):
         try:
-            record.specialty_scores = await extract_specialty_scores(record.content or text)
-            if record.specialty_scores:
-                log(f"[add_record] extracted {len(record.specialty_scores)} specialty score(s)")
+            secondary_scores = await extract_specialty_scores(record.content or text)
+            if secondary_scores:
+                existing = {s["score_type"]: s for s in (record.specialty_scores or [])}
+                for s in secondary_scores:
+                    existing[s["score_type"]] = s  # secondary wins on overlap
+                record.specialty_scores = list(existing.values())
+                log(f"[add_record] merged specialty scores → {len(record.specialty_scores)} total")
         except Exception as exc:
             log(f"[add_record] score extraction failed (non-fatal): {exc}")
 
-    # Save
-    if getattr(intent_result, "is_emergency", False):
-        result = await _save_emergency(doctor_id, text, record, patient_id, patient_name, intent_result)
-    else:
-        result = await _create_draft(doctor_id, record, patient_id, patient_name, intent_result)
+    # Save — all records go through draft-first confirmation
+    result = await _create_draft(doctor_id, record, patient_id, patient_name, intent_result)
+
+    # Clear any stale blocked-write context now that the record was saved/drafted
+    # successfully. Prevents duplicate replay if the patient was resolved via
+    # single-patient auto-bind or other fallback during this handler invocation.
+    clear_blocked_write_context(doctor_id)
 
     # Patient switch notification
     if _prev:

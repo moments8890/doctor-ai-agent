@@ -74,6 +74,9 @@ DEFAULT_RUNTIME_CONFIG: Dict[str, Any] = {
     "MINIPROGRAM_API_BASE_URL": "https://nano-redhead-attitudes-attachment.trycloudflare.com",
     "UI_ADMIN_TOKEN": "",
     "UI_DEBUG_TOKEN": "",
+    "PATIENT_PORTAL_SECRET": "",
+    "PENDING_RECORD_TTL_MINUTES": 30,
+    "PHI_CLOUD_EGRESS_ALLOWED": False,
 }
 
 CONFIG_CATEGORIES: Dict[str, Dict[str, Any]] = {
@@ -130,6 +133,7 @@ CONFIG_CATEGORIES: Dict[str, Dict[str, Any]] = {
             "KNOWLEDGE_AUTO_LEARN_ENABLED",
             "KNOWLEDGE_AUTO_MAX_NEW_PER_TURN",
             "KNOWLEDGE_AUTO_MIN_TEXT_CHARS",
+            "PENDING_RECORD_TTL_MINUTES",
         ],
     },
     "wecom": {
@@ -155,11 +159,13 @@ CONFIG_CATEGORIES: Dict[str, Dict[str, Any]] = {
         ],
     },
     "ui_auth": {
-        "description": "Tokens for the admin and debug web UIs.",
-        "description_zh": "Admin 和 Debug Web UI 的访问令牌。",
+        "description": "Tokens for the admin and debug web UIs, and patient portal secret.",
+        "description_zh": "Admin/Debug Web UI 访问令牌及患者门户签名密钥。",
         "keys": [
             "UI_ADMIN_TOKEN",
             "UI_DEBUG_TOKEN",
+            "PATIENT_PORTAL_SECRET",
+            "PHI_CLOUD_EGRESS_ALLOWED",
         ],
     },
     "logging": {
@@ -243,6 +249,7 @@ CONFIG_DESCRIPTIONS: Dict[str, str] = {
     "MINIPROGRAM_API_BASE_URL": "Public HTTPS API base URL used by mini client config.",
     "UI_ADMIN_TOKEN": "Bearer token required for admin UI endpoints (X-Admin-Token header).",
     "UI_DEBUG_TOKEN": "Bearer token required for debug UI endpoints (X-Debug-Token header). Grants access to /debug page — metrics, observability, logs.",
+    "PATIENT_PORTAL_SECRET": "JWT signing secret for the patient portal. MUST be set in production; defaults to a dev value otherwise.",
     "LOG_LEVEL": "Root logging level.",
     "LOG_FORMAT": "Python logging formatter string.",
     "LOG_TO_FILE": "Enable rotating file logging.",
@@ -309,6 +316,7 @@ CONFIG_DESCRIPTIONS_ZH: Dict[str, str] = {
     "MINIPROGRAM_API_BASE_URL": "小程序客户端使用的公网 HTTPS API 基地址。",
     "UI_ADMIN_TOKEN": "Admin UI 端点所需的令牌（X-Admin-Token 请求头）。",
     "UI_DEBUG_TOKEN": "Debug UI 端点所需的令牌（X-Debug-Token 请求头），用于访问 /debug 页面（指标、可观测性、日志）。",
+    "PATIENT_PORTAL_SECRET": "患者门户 JWT 签名密钥，生产环境必须设置，否则使用开发默认值。",
     "LOG_LEVEL": "根日志级别。",
     "LOG_FORMAT": "Python 日志格式字符串。",
     "LOG_TO_FILE": "是否启用文件滚动日志。",
@@ -425,6 +433,49 @@ def load_runtime_json(path: Optional[str] = None) -> Dict[str, Any]:
     merged = dict(DEFAULT_RUNTIME_CONFIG)
     merged.update(flat)
     return merged
+
+
+# ---------------------------------------------------------------------------
+# Canonical config readers — single source of truth for cross-cutting knobs
+# ---------------------------------------------------------------------------
+
+_DEFAULT_OLLAMA_URL = DEFAULT_RUNTIME_CONFIG["OLLAMA_BASE_URL"]
+_DEFAULT_OLLAMA_VISION_URL = DEFAULT_RUNTIME_CONFIG["OLLAMA_VISION_BASE_URL"]
+
+
+def get_ollama_base_url() -> str:
+    """Return the canonical Ollama base URL (env > runtime JSON > default).
+
+    All modules that need the Ollama endpoint should call this instead of
+    hardcoding a localhost fallback.
+    """
+    return (
+        os.environ.get("OLLAMA_BASE_URL", "").strip()
+        or _DEFAULT_OLLAMA_URL
+    )
+
+
+def get_ollama_vision_base_url() -> str:
+    """Return the canonical Ollama vision base URL."""
+    return (
+        os.environ.get("OLLAMA_VISION_BASE_URL", "").strip()
+        or os.environ.get("OLLAMA_BASE_URL", "").strip()
+        or _DEFAULT_OLLAMA_VISION_URL
+    )
+
+
+def get_pending_record_ttl_minutes() -> int:
+    """Return the canonical pending-record draft TTL in minutes.
+
+    Reads env first, then runtime JSON, then default (30).
+    """
+    raw = os.environ.get("PENDING_RECORD_TTL_MINUTES", "").strip()
+    if raw:
+        try:
+            return max(1, int(raw))
+        except (TypeError, ValueError):
+            pass
+    return int(DEFAULT_RUNTIME_CONFIG.get("PENDING_RECORD_TTL_MINUTES", 30))
 
 
 def save_runtime_json(config: Dict[str, Any], path: Optional[str] = None) -> Path:

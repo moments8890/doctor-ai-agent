@@ -178,27 +178,24 @@ def render_knowledge_context(query: str, items: Sequence[DoctorKnowledgeItem]) -
         text, source, confidence = _decode_knowledge_payload(item.content)
         if not text:
             continue
-        score = _score_item(query, text)
-        weighted = float(score) + _source_weight(source) + float(confidence)
-        # Prefer relevant items, then fresher order by index (earlier = newer in query result).
-        scored.append((weighted, -idx, item, text))
+        relevance = _score_item(query, text)
+        weighted = float(relevance) + _source_weight(source) + float(confidence)
+        scored.append((weighted, relevance, -idx, item, text))
 
     scored.sort(reverse=True)
     selected: List[DoctorKnowledgeItem] = []
     selected_texts: List[str] = []
-    for score, _ord, item, text in scored:
+    for weighted, relevance, _ord, item, text in scored:
         if len(selected) >= limits["max_items"]:
             break
-        # Always allow at least one newest item, even if score=0
-        if score <= 0 and selected:
+        # Only include items with actual token overlap to the query
+        if relevance <= 0:
             continue
         selected.append(item)
         selected_texts.append(text)
 
     if not selected:
-        selected = [items[0]]
-        first_text, _source, _confidence = _decode_knowledge_payload(items[0].content)
-        selected_texts = [first_text]
+        return ""
 
     lines: List[str] = []
     total = len("【医生知识库（仅作背景约束）】\n")

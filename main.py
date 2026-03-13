@@ -318,7 +318,7 @@ async def _purge_old_pending_data() -> None:
 
 
 async def _cleanup_chat_archive() -> None:
-    """Daily job: hard-delete ChatArchive rows older than 90 days."""
+    """Daily job: hard-delete ChatArchive rows older than 365 days."""
     _log = logging.getLogger("scheduler")
     try:
         from db.crud import cleanup_chat_archive
@@ -330,13 +330,25 @@ async def _cleanup_chat_archive() -> None:
 
 
 async def _audit_log_retention() -> None:
-    """Monthly job: delete audit log entries older than 7 years (2555 days)."""
+    """Monthly job: delete audit log entries older than 7 years (2555 days).
+
+    WARNING: this directly deletes rows without archival/export.  In production,
+    configure external log shipping (e.g. to S3/object storage) before this job
+    runs, or the compliance trail will be permanently lost.
+    """
     _log = logging.getLogger("scheduler")
     try:
         from db.crud import archive_old_audit_logs
         async with AsyncSessionLocal() as _session:
             deleted = await archive_old_audit_logs(_session)
-        _log.info("[AuditLog] retention purge complete | deleted=%s", deleted)
+        if deleted:
+            _log.warning(
+                "[AuditLog] DELETED %s audit rows older than 7 years — "
+                "ensure external archival is configured for compliance",
+                deleted,
+            )
+        else:
+            _log.info("[AuditLog] retention check complete | no rows to purge")
     except Exception as _e:
         _log.warning("[AuditLog] retention job FAILED: %s", _e)
 
@@ -364,6 +376,17 @@ async def _redact_old_conversation_content() -> None:
             _log.info("[Conversation] content redaction complete | updated=%s", updated)
     except Exception as _e:
         _log.warning("[Conversation] content redaction job FAILED: %s", _e)
+
+
+async def _prune_turn_log() -> None:
+    """Daily job: remove turn log entries older than TURN_LOG_TTL_DAYS."""
+    _log = logging.getLogger("scheduler")
+    try:
+        from services.observability.turn_log import prune_turn_log
+        kept = prune_turn_log()
+        _log.info("[TurnLog] prune complete | kept=%s lines", kept)
+    except Exception as _e:
+        _log.warning("[TurnLog] prune job FAILED: %s", _e)
 
 
 def _schedule_task_notifications(startup_log: logging.Logger) -> None:
@@ -427,6 +450,9 @@ def _schedule_retention_jobs(startup_log: logging.Logger) -> None:
 
     _scheduler.add_job(_redact_old_conversation_content, "cron", hour=5, minute=0)
     startup_log.info("[Conversation] content redaction scheduler configured | daily at 05:00")
+
+    _scheduler.add_job(_prune_turn_log, "cron", hour=5, minute=30)
+    startup_log.info("[TurnLog] prune scheduler configured | daily at 05:30")
 
 
 def _configure_task_scheduler(startup_log: logging.Logger) -> None:

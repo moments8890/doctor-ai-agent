@@ -48,7 +48,6 @@ def _apply_session_context(
             patient_name=session_name,
             gender=result.gender,
             age=result.age,
-            is_emergency=result.is_emergency,
             extra_data={**(result.extra_data or {}), "patient_source": "session"},
             chat_reply=result.chat_reply,
             structured_fields=result.structured_fields,

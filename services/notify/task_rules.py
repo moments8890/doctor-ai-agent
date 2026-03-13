@@ -97,6 +97,7 @@ class AutoTaskSpec:
     title: str
     content: str    # brief reason shown in task content
     due_days: int   # from now
+    triggered_keyword: str = ""  # keyword that fired this rule
 
 
 def detect_auto_tasks(text: str, patient_name: str) -> List[AutoTaskSpec]:
@@ -135,6 +136,7 @@ def detect_auto_tasks(text: str, patient_name: str) -> List[AutoTaskSpec]:
             title=rule.title_template.format(patient_name=patient_name),
             content=f"触发关键词：「{triggered_kw}」",
             due_days=rule.default_days,
+            triggered_keyword=triggered_kw,
         ))
 
     return specs
@@ -164,12 +166,26 @@ def _cn_or_int(s: str) -> int:
     return _CN_MAP.get(s) or int(s)
 
 
-def refine_due_days(text: str, default_days: int) -> int:
+_ANCHOR_WINDOW = 40  # chars before/after keyword to search for time phrases
+
+
+def refine_due_days(text: str, default_days: int, anchor_keyword: str = "") -> int:
     """
-    If the record mentions a concrete time window near a lab/imaging keyword,
+    If the record mentions a concrete time window near the triggered keyword,
     use that instead of the rule's default.  E.g. "5天后复查CT" → 5 days.
+
+    When *anchor_keyword* is provided the search is restricted to a window
+    around the keyword occurrence so that unrelated time phrases elsewhere
+    in the note don't bleed into this task's due date.
     """
-    m = _DUE_OVERRIDE_RE.search(text)
+    search_text = text
+    if anchor_keyword:
+        idx = text.lower().find(anchor_keyword.lower())
+        if idx != -1:
+            start = max(0, idx - _ANCHOR_WINDOW)
+            end = min(len(text), idx + len(anchor_keyword) + _ANCHOR_WINDOW)
+            search_text = text[start:end]
+    m = _DUE_OVERRIDE_RE.search(search_text)
     if not m:
         return default_days
     try:

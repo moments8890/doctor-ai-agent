@@ -94,16 +94,53 @@ async def _fetch_record_snippet(session: object, doctor_id: str, patient_id: int
     return None
 
 
+async def _fetch_latest_scores_summary(
+    session: object, doctor_id: str, patient_id: int,
+) -> Optional[str]:
+    """Fetch specialty scores from the most recent record and format as summary."""
+    from sqlalchemy import select
+    from db.models.records import MedicalRecordDB
+    from db.crud.scores import get_scores_for_records
+
+    rec_result = await session.execute(
+        select(MedicalRecordDB.id)
+        .where(MedicalRecordDB.doctor_id == doctor_id, MedicalRecordDB.patient_id == patient_id)
+        .order_by(MedicalRecordDB.created_at.desc())
+        .limit(3)
+    )
+    rec_ids = [row[0] for row in rec_result.all()]
+    if not rec_ids:
+        return None
+    scores_map = await get_scores_for_records(session, rec_ids, doctor_id)
+    if not scores_map:
+        return None
+    # Collect unique score types from most recent records
+    seen: dict[str, str] = {}
+    for rid in rec_ids:
+        for s in scores_map.get(rid, []):
+            if s.score_type not in seen:
+                val = f"{s.score_value:g}" if s.score_value is not None else (s.raw_text or "?")
+                seen[s.score_type] = f"{s.score_type}={val}"
+    if not seen:
+        return None
+    return "最近量表：" + "，".join(seen.values())
+
+
 async def get_prior_visit_summary(
     doctor_id: str,
     patient_id: int,
 ) -> Optional[str]:
-    """返回患者最近一次就诊的单行摘要（CVD 量表优先，其次病历内容截取）。"""
+    """返回患者最近一次就诊的单行摘要（CVD 量表优先，其次专科量表，其次病历内容截取）。"""
     try:
         async with AsyncSessionLocal() as session:
             cvd_summary = await _fetch_cvd_summary(session, doctor_id, patient_id)
+            scores_summary = await _fetch_latest_scores_summary(session, doctor_id, patient_id)
+            if cvd_summary and scores_summary:
+                return f"{cvd_summary}；{scores_summary}"
             if cvd_summary:
                 return cvd_summary
+            if scores_summary:
+                return scores_summary
             return await _fetch_record_snippet(session, doctor_id, patient_id)
     except Exception as exc:
         log(f"[PriorVisit] fetch failed for patient={patient_id}: {exc}")

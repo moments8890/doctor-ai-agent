@@ -58,12 +58,13 @@ class PatientRepository:
         )
         return result.scalar_one_or_none()
 
-    async def find_by_exact_name(self, doctor_id: str, name: str) -> List[Patient]:
+    async def find_by_exact_name(self, doctor_id: str, name: str, limit: int = 100) -> List[Patient]:
         result = await self.session.execute(
             select(Patient)
             .options(selectinload(Patient.labels))
             .where(Patient.doctor_id == doctor_id, Patient.name == name)
             .order_by(Patient.created_at.desc(), Patient.id.desc())
+            .limit(limit)
         )
         return list(result.scalars().all())
 

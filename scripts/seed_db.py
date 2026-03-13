@@ -150,10 +150,23 @@ def export_fixture(
 # ---------------------------------------------------------------------------
 
 
-def reset_tables(db_path: Path, dry_run: bool = False) -> None:
-    """DELETE all rows from patients + medical_records and reset auto-increment.
+_RESET_TABLES = [
+    # FK-safe order (children before parents)
+    "doctor_tasks",
+    "pending_messages",
+    "pending_records",
+    "doctor_conversation_turns",
+    "chat_archive",
+    "doctor_session_states",
+    "medical_records",
+    "patients",
+]
 
-    system_prompts and doctor_contexts are intentionally left untouched.
+
+def reset_tables(db_path: Path, dry_run: bool = False) -> None:
+    """DELETE all rows from patient/record/workflow tables and reset auto-increment.
+
+    system_prompts, doctor_contexts, and doctors are intentionally left untouched.
     """
     conn = _connect(db_path)
     try:
@@ -163,15 +176,20 @@ def reset_tables(db_path: Path, dry_run: bool = False) -> None:
             return
 
         cur = conn.cursor()
-        cur.execute("DELETE FROM medical_records")
-        rec_count = cur.rowcount
-        cur.execute("DELETE FROM patients")
-        pat_count = cur.rowcount
-        cur.execute(
-            "DELETE FROM sqlite_sequence WHERE name IN ('patients', 'medical_records')"
-        )
+        deleted: Dict[str, int] = {}
+        for table in _RESET_TABLES:
+            exists = cur.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+            ).fetchone()
+            if not exists:
+                continue
+            cur.execute(f"DELETE FROM {table}")
+            deleted[table] = cur.rowcount
+        seq_names = ", ".join(f"'{t}'" for t in _RESET_TABLES)
+        cur.execute(f"DELETE FROM sqlite_sequence WHERE name IN ({seq_names})")
         conn.commit()
-        print(f"  Deleted {pat_count} patients, {rec_count} records.")
+        summary = ", ".join(f"{v} {k}" for k, v in deleted.items() if v)
+        print(f"  Deleted: {summary or '(no rows)'}.")
         print(f"  Auto-increment counters reset.")
     finally:
         conn.close()
@@ -233,7 +251,12 @@ def _import_patients(
 def _import_records(
     cur: sqlite3.Cursor, fx_records: List[Dict], id_map: Dict[int, int], dry_run: bool,
 ) -> tuple:
-    """Upsert records; return (inserted_count, skipped_count)."""
+    """Upsert records; return (inserted_count, skipped_count).
+
+    Supports both current schema (content/tags/record_type) and legacy 8-field
+    fixture data (chief_complaint/diagnosis/...).  Legacy records are merged
+    into a single ``content`` string on import.
+    """
     rec_inserted = rec_skipped = 0
     null_patient_warned = False
     for r in fx_records:
@@ -246,11 +269,28 @@ def _import_records(
                 null_patient_warned = True
         else:
             dest_patient_id = id_map[fx_patient_id]
+
+        # Resolve content: prefer unified `content` field; fall back to
+        # concatenating legacy 8-field data for old fixture files.
+        content = r.get("content")
+        if not content:
+            _LEGACY_FIELDS = [
+                "chief_complaint", "history_of_present_illness",
+                "past_medical_history", "physical_examination",
+                "auxiliary_examinations", "diagnosis",
+                "treatment_plan", "follow_up_plan",
+            ]
+            parts = [str(r[f]) for f in _LEGACY_FIELDS if r.get(f)]
+            content = "\n".join(parts) if parts else None
+
+        tags = r.get("tags")
+        record_type = r.get("record_type", "visit")
+
         if dest_patient_id is None or dest_patient_id > 0:
             dup = cur.execute(
                 "SELECT id FROM medical_records"
-                " WHERE patient_id IS ? AND chief_complaint IS ? AND created_at = ?",
-                (dest_patient_id, r.get("chief_complaint"), r.get("created_at")),
+                " WHERE patient_id IS ? AND content IS ? AND created_at = ?",
+                (dest_patient_id, content, r.get("created_at")),
             ).fetchone()
             if dup:
                 rec_skipped += 1
@@ -259,14 +299,9 @@ def _import_records(
             db_pid: Optional[int] = (dest_patient_id if (dest_patient_id is None or dest_patient_id > 0) else None)
             cur.execute(
                 "INSERT INTO medical_records"
-                " (patient_id, doctor_id, chief_complaint, history_of_present_illness,"
-                "  past_medical_history, physical_examination, auxiliary_examinations,"
-                "  diagnosis, treatment_plan, follow_up_plan, created_at)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (db_pid, r.get("doctor_id"), r.get("chief_complaint"),
-                 r.get("history_of_present_illness"), r.get("past_medical_history"),
-                 r.get("physical_examination"), r.get("auxiliary_examinations"),
-                 r.get("diagnosis"), r.get("treatment_plan"), r.get("follow_up_plan"), r.get("created_at")),
+                " (patient_id, doctor_id, content, tags, record_type, created_at)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                (db_pid, r.get("doctor_id"), content, tags, record_type, r.get("created_at")),
             )
         rec_inserted += 1
     return rec_inserted, rec_skipped

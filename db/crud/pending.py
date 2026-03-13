@@ -62,15 +62,52 @@ async def confirm_pending_record(
     session: AsyncSession,
     record_id: str,
     doctor_id: str,
-) -> None:
-    await session.execute(
+    commit: bool = True,
+) -> bool:
+    """Mark an awaiting pending record as confirmed.
+
+    Returns True if a row was updated, False if the record was not found,
+    already processed, or expired (expires_at enforced at SQL level).
+    """
+    now = datetime.now(timezone.utc)
+    result = await session.execute(
+        sa_update(PendingRecord).where(
+            PendingRecord.id == record_id,
+            PendingRecord.doctor_id == doctor_id,
+            PendingRecord.status == "awaiting",
+            PendingRecord.expires_at > now,
+        ).values(status="confirmed")
+    )
+    if commit:
+        await session.commit()
+    return (result.rowcount or 0) > 0
+
+
+async def force_confirm_pending_record(
+    session: AsyncSession,
+    record_id: str,
+    doctor_id: str,
+    commit: bool = True,
+) -> bool:
+    """Atomically mark an awaiting pending record as confirmed.
+
+    Unlike ``confirm_pending_record``, this does NOT check ``expires_at``.
+    Used by the stale-draft auto-save scheduler, which intentionally processes
+    already-expired drafts so they don't get re-processed on the next tick.
+
+    Returns True if the transition succeeded (row was still 'awaiting'),
+    False if another process already claimed it.
+    """
+    result = await session.execute(
         sa_update(PendingRecord).where(
             PendingRecord.id == record_id,
             PendingRecord.doctor_id == doctor_id,
             PendingRecord.status == "awaiting",
         ).values(status="confirmed")
     )
-    await session.commit()
+    if commit:
+        await session.commit()
+    return (result.rowcount or 0) > 0
 
 
 async def abandon_pending_record(
@@ -144,11 +181,11 @@ async def purge_old_pending_records(session: AsyncSession, days: int = 30) -> in
 
 
 async def purge_old_pending_messages(session: AsyncSession, days: int = 30) -> int:
-    """Hard-delete done PendingMessage rows older than `days` days."""
+    """Hard-delete done and dead-letter PendingMessage rows older than `days` days."""
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     result = await session.execute(
         delete(PendingMessage).where(
-            PendingMessage.status == "done",
+            PendingMessage.status.in_(["done", "dead"]),
             PendingMessage.created_at < cutoff,
         )
     )
@@ -208,7 +245,19 @@ async def list_stale_pending_messages(
     session: AsyncSession,
     older_than_seconds: int = 60,
 ) -> list:
+    """Return stale messages eligible for recovery.
+
+    First resets any long-stuck 'processing' rows back to 'pending' so
+    they can be re-claimed via the normal pending → processing path.
+    """
     cutoff = datetime.now(timezone.utc) - timedelta(seconds=older_than_seconds)
+    # Reset stuck processing rows so claim_pending_message can re-acquire them.
+    await session.execute(
+        sa_update(PendingMessage)
+        .where(PendingMessage.status == "processing", PendingMessage.created_at < cutoff)
+        .values(status="pending")
+    )
+    await session.commit()
     result = await session.execute(
         select(PendingMessage)
         .where(PendingMessage.status == "pending", PendingMessage.created_at < cutoff)
@@ -216,3 +265,27 @@ async def list_stale_pending_messages(
         .limit(500)
     )
     return list(result.scalars().all())
+
+
+async def claim_pending_message(
+    session: AsyncSession,
+    msg_id: str,
+) -> bool:
+    """Atomically claim a pending message for processing.
+
+    Transitions status from 'pending' to 'processing' and increments
+    attempt_count.  Returns True if the row was claimed (i.e. it was
+    still in 'pending' status), False otherwise (already claimed by
+    another instance or marked done/dead).
+
+    Only accepts rows in 'pending' status — rows already in 'processing'
+    are not re-claimed.  The recovery path should reset long-stuck
+    processing rows back to 'pending' before re-claiming.
+    """
+    result = await session.execute(
+        sa_update(PendingMessage)
+        .where(PendingMessage.id == msg_id, PendingMessage.status == "pending")
+        .values(status="processing", attempt_count=PendingMessage.attempt_count + 1)
+    )
+    await session.commit()
+    return result.rowcount > 0

@@ -15,23 +15,25 @@ WeChat behavior preserved:
 from __future__ import annotations
 
 import asyncio
+import re
 from datetime import datetime
 from typing import Optional
 
 from db.crud import (
     create_patient as db_create_patient,
+    find_patient_by_name,
     find_patients_by_exact_name,
 )
 from db.engine import AsyncSessionLocal
-from services.ai.intent import IntentResult
+from services.ai.intent import Intent, IntentResult
 from services.domain.intent_handlers._types import HandlerResult
 from services.domain.chat_constants import REMINDER_IN_MSG_RE as _REMINDER_IN_MSG_RE
 from services.notify.tasks import create_general_task
 from services.observability.audit import audit
 from services.observability.observability import get_current_trace_id, trace_block
-from services.session import set_current_patient
+from services.session import clear_pending_create, set_current_patient
 from utils.errors import InvalidMedicalRecordError
-from utils.log import log
+from utils.log import log, safe_create_task
 
 
 async def _create_or_reuse_patient(
@@ -51,7 +53,7 @@ async def _create_or_reuse_patient(
         log(f"[create_patient] reusing existing patient [{name}] id={patient.id} doctor={doctor_id}")
         return reply, patient
 
-    with trace_block("router", "records.chat.create_patient", {"doctor_id": doctor_id, "patient_name": name}):
+    with trace_block("router", "records.chat.create_patient", {"doctor_id": doctor_id}):
         try:
             async with AsyncSessionLocal() as db:
                 patient = await db_create_patient(
@@ -66,7 +68,7 @@ async def _create_or_reuse_patient(
     ]))
     reply = f"✅ 已为患者【{patient.name}】创建" + (f"（{parts}）" if parts else "") + "。"
     log(f"[create_patient] created patient [{patient.name}] id={patient.id} doctor={doctor_id}")
-    asyncio.create_task(audit(
+    safe_create_task(audit(
         doctor_id, "WRITE", resource_type="patient",
         resource_id=str(patient.id), trace_id=get_current_trace_id(),
     ))
@@ -109,6 +111,13 @@ async def handle_create_patient(
     """
     name = intent_result.patient_name
     if not name:
+        # Web/Voice channels pass body_text; set pending state so the next
+        # message with a bare name will resume patient creation.
+        # WeChat's non-compound path passes body_text=None and uses its own
+        # handle_name_lookup / handle_pending_create flow instead.
+        if body_text is not None:
+            from services.session import set_pending_create
+            set_pending_create(doctor_id, "__pending__")
         return HandlerResult(reply="好的，请告诉我患者的姓名。")
 
     _yob = (datetime.now().year - intent_result.age) if intent_result.age else None
@@ -136,3 +145,69 @@ async def handle_create_patient(
             reply = await _append_reminder_task(doctor_id, patient, name, _reminder_m, reply)
 
     return HandlerResult(reply=reply, switch_notification=_switch)
+
+
+async def handle_pending_create_reply(
+    text: str,
+    doctor_id: str,
+    pending_name: str,
+) -> Optional[HandlerResult]:
+    """Shared handler for pending-create state with a real patient name.
+
+    Handles the follow-up after a patient name was stored in pending_create
+    (non-sentinel path). Extracts gender/age from text.
+
+    Returns:
+        HandlerResult — demographics provided; patient created with info.
+        None — no demographics detected; patient auto-created with name only,
+               pending_create cleared, current_patient set.  Caller should
+               fall through to the normal workflow so the text is routed
+               through classify → bind → plan → gate.
+
+    Used by the shared precheck layer.
+    """
+    # Extract gender/age from text
+    gender = None
+    if re.search(r"男", text):
+        gender = "男"
+    elif re.search(r"女", text):
+        gender = "女"
+
+    age = None
+    m = re.search(r"(\d+)\s*岁", text)
+    if m:
+        age = int(m.group(1))
+
+    # No demographics → auto-create patient, let the text go through the
+    # full workflow pipeline (classify → bind → plan → gate) instead of
+    # the legacy fast_route bypass.
+    if gender is None and age is None:
+        async with AsyncSessionLocal() as db:
+            patient = await find_patient_by_name(db, doctor_id, pending_name)
+            if patient is None:
+                patient = await db_create_patient(db, doctor_id, pending_name, None, None)
+                safe_create_task(audit(
+                    doctor_id, "WRITE", resource_type="patient",
+                    resource_id=str(patient.id),
+                ))
+            set_current_patient(doctor_id, patient.id, patient.name)
+        clear_pending_create(doctor_id)
+        log(f"[pending_create] auto-created patient [{pending_name}] id={patient.id} "
+            f"doctor={doctor_id} — falling through to workflow")
+        return None
+
+    # Have demographics — create or reuse patient
+    async with AsyncSessionLocal() as db:
+        patient = await find_patient_by_name(db, doctor_id, pending_name)
+        if patient is None:
+            patient = await db_create_patient(db, doctor_id, pending_name, gender, age)
+            safe_create_task(audit(
+                doctor_id, "WRITE", resource_type="patient",
+                resource_id=str(patient.id),
+            ))
+        set_current_patient(doctor_id, patient.id, patient.name)
+
+    clear_pending_create(doctor_id)
+    parts = "、".join(filter(None, [gender, f"{age}岁" if age else None]))
+    info = f"（{parts}）" if parts else ""
+    return HandlerResult(reply=f"好的，{pending_name}已建档{info}。")

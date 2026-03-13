@@ -12,7 +12,7 @@ Accepted
 
 Complete
 
-Last reviewed: 2026-03-12
+Last reviewed: 2026-03-13
 
 Notes:
 
@@ -25,6 +25,8 @@ Notes:
 - A narrow correction-oriented compatibility path still exists for
   `update_record`, but it does not reintroduce a second final-note path for
   normal doctor-authored record creation.
+- Known gap: `/api/neuro/from-text` uses its own extract → save path outside
+  the 5-layer workflow. Tracked for convergence alongside ADR 0002/0009.
 
 ## Context
 

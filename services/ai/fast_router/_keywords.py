@@ -167,7 +167,6 @@ _CLINICAL_KW_TIER3: frozenset[str] = frozenset({
     "尿痛",
     # Clinical admin (exclusive to hospital documentation)
     "收入我科", "收治入院", "神志清", "门诊以",
-    # Emergency markers (also used for is_emergency detection below)
     "绿色通道", "急性心肌梗死", "心跳骤停", "心脏骤停", "室颤", "抢救",
 })
 
@@ -177,13 +176,3 @@ _HELP_KEYWORDS: frozenset[str] = frozenset({
     "有哪些功能", "能做什么", "能干嘛", "有什么功能", "怎么操作",
 })
 
-# ── Emergency keyword set — triggers is_emergency=True in Tier-3 ──────────────
-# Keywords that unambiguously indicate a life-threatening situation.
-# Kept conservative: only terms that leave no doubt about emergency status.
-_EMERGENCY_KW: frozenset[str] = frozenset({
-    "STEMI", "急性心肌梗死", "急性下壁", "急性前壁", "急性高侧壁",
-    "心跳骤停", "心脏骤停", "室颤", "心室颤动",
-    "脑疝", "脑干受压", "GCS急剧",
-    "绿色通道", "休克", "抢救", "急救", "CPR", "心肺复苏",
-    "大量咯血", "张力性气胸",
-})

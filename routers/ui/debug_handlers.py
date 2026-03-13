@@ -23,7 +23,7 @@ from services.observability.observability import (
 )
 from routers.ui._utils import _require_ui_debug_access
 
-router = APIRouter(tags=["ui"])
+router = APIRouter(tags=["ui"], include_in_schema=False)
 
 _LOG_SOURCES: dict[str, str] = {
     "app": "logs/app.log",

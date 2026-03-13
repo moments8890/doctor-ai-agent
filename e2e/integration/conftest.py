@@ -94,9 +94,10 @@ def _purge_inttest_rows(conn: sqlite3.Connection) -> None:
         "patients",
         "doctor_contexts",
         "doctor_session_states",
-        "conversation_turns",
+        "doctor_conversation_turns",
+        "chat_archive",
     ]
-    tables_optional = ["doctor_tasks", "neuro_cases", "pending_records"]
+    tables_optional = ["doctor_tasks", "pending_records", "pending_messages"]
 
     for table in tables_always:
         try:
@@ -169,9 +170,11 @@ def server():
 def chat(text, history=None, doctor_id="inttest_default", server_url=SERVER):
     """Call `/api/records/chat` with retry on read timeout.
 
-    This helper intentionally mirrors real client behavior:
-    - sends history + doctor_id
-    - tolerates first-call model warmup latency (configurable via env)
+    Auth note: sends doctor_id in the request body without an Authorization
+    header.  This exercises the dev-only fallback path in
+    ``resolve_doctor_id_from_auth_or_fallback()``, which is auto-enabled when
+    ``PYTEST_CURRENT_TEST`` is set.  Production clients must send a valid
+    Bearer token; see ``services/auth/request_auth.py``.
     """
     # Integration requests can be slow on shared CI runners, especially on the
     # first structured call after startup/model warmup.
@@ -204,7 +207,7 @@ def chat(text, history=None, doctor_id="inttest_default", server_url=SERVER):
 
 
 def db_record(doctor_id, patient_name):
-    """Return (chief_complaint, diagnosis, treatment_plan) for the latest record."""
+    """Return (content, tags, record_type) for the latest record, or None."""
     conn = sqlite3.connect(DB_PATH)
     try:
         cur = conn.cursor()
@@ -216,7 +219,7 @@ def db_record(doctor_id, patient_name):
         if not row:
             return None
         cur.execute(
-            "SELECT chief_complaint, diagnosis, treatment_plan "
+            "SELECT content, tags, record_type "
             "FROM medical_records WHERE patient_id=? ORDER BY id DESC LIMIT 1",
             (row[0],),
         )

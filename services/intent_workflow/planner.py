@@ -3,7 +3,7 @@
 Detects compound actions:
 - create_patient + clinical content → [create_patient, add_record]
 - create_patient + reminder → [..., create_task]
-- add_record + unbound patient → [create_patient, add_record]
+- add_record + reminder → [add_record, create_task]
 """
 
 from __future__ import annotations
@@ -45,17 +45,10 @@ def plan_actions(
             ))
             is_compound = True
 
-    # Compound: add_record for unbound patient who doesn't exist yet
-    # (binding.status == "has_name" with weak source means patient needs creation)
-    if (intent == Intent.add_record
-            and binding.status == "has_name"
-            and binding.source in ("entity",)
-            and binding.needs_review
-            and entities.patient_name
-            and entities.patient_name.source in ("not_found", "candidate")):
-        actions.insert(0, PlannedAction(
-            action=Intent.create_patient.value,
-            params={"source": "auto_create"},
+    if intent == Intent.add_record and extra.get("has_reminder"):
+        actions.append(PlannedAction(
+            action="create_task",
+            params={"source": "compound_record"},
         ))
         is_compound = True
 
