@@ -17,9 +17,9 @@ The current architecture is centered on one shared workflow core:
   guarantee across knowledge, patient, and pending-draft writes)
 
 The important nuance is that convergence is still partial. Web, WeChat, and
-voice chat all use the same workflow core, but they are not yet identical in
-how they assemble turn context, apply deterministic prechecks, and use channel
-adapters.
+voice chat all use the same workflow core, but they still differ in
+advisory-context richness, surrounding orchestration, and channel adapter
+wiring.
 
 ---
 
@@ -144,7 +144,8 @@ Several deterministic checks short-circuit the workflow entirely:
 - **Notify control** (web, WeChat)
 - **Menu number selection** (web)
 - **Pending-draft correction** — detects correction patterns and edits the
-  pending draft in-place via structuring LLM (web)
+  pending draft in-place via routing extraction (`agent.dispatch()` +
+  `structured_fields` merge) (web)
 - **Blocked-write precheck** — resolves bare-name / name+supplement
   continuations from session state (web, WeChat, voice)
 - **Stateful flow resume** — pending_record, pending_create, pending_cvd,
@@ -538,8 +539,9 @@ Important persistence rules:
 
 - readable note content remains authoritative
 - pending drafts are persisted separately from final medical records
-- session hydration supports multi-device recovery of current patient, pending
-  draft, and blocked-write context
+- session hydration supports multi-device recovery of current patient and
+  pending draft (blocked-write context is in-memory only and does not survive
+  restart)
 
 ---
 
