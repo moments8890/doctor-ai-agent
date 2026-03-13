@@ -29,8 +29,8 @@ adapters.
 
 - `medical_records.content` remains the source of truth for doctor-facing notes.
 - Normal `add_record` flows are draft-first and require explicit confirmation.
-- Blocked-write continuation is stateful, persisted, and shared across web,
-  WeChat, and voice chat.
+- Blocked-write continuation is stateful and shared across web, WeChat, and
+  voice chat (in-memory only; not yet crash-durable).
 - Normal `add_record` note generation uses routing for control flow and
   structuring for final note content.
 - Compound `create_patient + add_record` routes through
@@ -40,8 +40,9 @@ adapters.
 
 ### Still in transition
 
-- `DoctorTurnContext` is implemented and passed through the workflow on web and
-  WeChat, but WeChat does not populate advisory context in the same way yet.
+- `DoctorTurnContext` is assembled and passed through the workflow on all three
+  channels (web, WeChat, voice). Advisory-context richness still varies by
+  channel.
 - `update_record` still keeps a narrow correction-oriented
   `structured_fields` compatibility path separate from the normal `add_record`
   write flow.
@@ -135,11 +136,13 @@ There is one shared workflow core, but the entry path varies by channel.
 
 Several deterministic checks short-circuit the workflow entirely:
 
-- **Greeting / patient-count regex** (web, WeChat)
+- **Greeting regex** (web)
+- **Patient-count regex** (web)
 - **Delete-by-ID / context-save commands** (web)
-- **Task completion** (`完成 N`) (WeChat)
-- **Knowledge-base add/list commands** (web, WeChat)
-- **Notify control** (WeChat)
+- **Task completion** (`完成 N`) (web, WeChat)
+- **Knowledge-base add command** (web, WeChat)
+- **Notify control** (web, WeChat)
+- **Menu number selection** (web)
 - **Pending-draft correction** — detects correction patterns and edits the
   pending draft in-place via structuring LLM (web)
 - **Blocked-write precheck** — resolves bare-name / name+supplement
@@ -184,8 +187,8 @@ webhook message
 -> WeChat helper formatting / customer-service send path
 ```
 
-WeChat assembles `DoctorTurnContext` for authoritative workflow state, but does
-not yet populate advisory context in the same way as web.
+WeChat assembles `DoctorTurnContext` (authoritative + advisory) under lock and
+passes it into the workflow, same as web and voice.
 
 On workflow failure, WeChat falls back to `structure_medical_record()` and
 replies with formatted text as a resilience fallback.
@@ -381,13 +384,16 @@ Current model:
   - bare patient name
   - patient name plus clinical supplement
   - explicit cancel
-- blocked-write state is persisted via `DoctorSessionState.blocked_write_json`
+- blocked-write state is held in-memory on `DoctorSession.blocked_write`.
+  The DB schema (`DoctorSessionState.blocked_write_json`) and serializer exist,
+  but the runtime setter does not schedule persistence, so blocked-write
+  context does not survive process restart.
 
 Current rollout status:
 
 - shared precheck logic exists in `services/intent_workflow/precheck.py`
 - web, WeChat, and voice chat all call that precheck
-- blocked-write state is persisted through `DoctorSessionState.blocked_write_json`
+- blocked-write state is in-memory only (not crash-durable)
 
 This workflow is now the authoritative continuation path for blocked writes.
 
@@ -479,13 +485,11 @@ decisions:
 
 Current rollout status:
 
-- web passes assembled `DoctorTurnContext` into the workflow
-- WeChat assembles turn context for some stateful orchestration, but does not
-  yet pass it through the workflow in the same way
-- voice chat currently hydrates session state and uses shared workflow, but does
-  not yet use the same turn-context path as web
+- all three channels (web, WeChat, voice) assemble `DoctorTurnContext` and
+  pass it into the workflow
+- advisory-context richness still varies by channel (web is most complete)
 
-This is why ADR 0001 is still marked partial rather than complete.
+ADR 0001 is nearing complete; the remaining gap is advisory-context parity.
 
 ---
 
