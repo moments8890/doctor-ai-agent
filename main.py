@@ -14,6 +14,11 @@ from utils.log import init_logging, safe_create_task
 from utils.app_config import AppConfig, load_config_from_json, ollama_base_url_candidates
 
 # Must run before any module reads os.environ.
+# NOTE (architectural debt): several modules (llm_client, vision, etc.) snapshot
+# env vars into module-level dicts at import time.  This works because main.py
+# loads config/runtime.json here before importing routers, but alternate
+# entrypoints or early imports can freeze the wrong provider configuration.
+# TODO: migrate to lazy provider resolution via provider_registry.resolve().
 _config_source_path, _config_values = load_config_from_json()
 for _key, _value in _config_values.items():
     os.environ[_key] = _value
@@ -459,7 +464,13 @@ async def _run_alembic_migrations() -> None:
         await asyncio.get_event_loop().run_in_executor(None, _run_sync)
         log.info("[DB] Alembic migrations applied (or already at head)")
     except Exception as exc:
-        log.warning("[DB] Alembic migration failed — continuing anyway: %s", exc)
+        from services.auth import is_production as _is_prod_migration
+        if _is_prod_migration():
+            raise RuntimeError(
+                f"Alembic migration failed in production — refusing to start "
+                f"against a potentially inconsistent schema: {exc}"
+            ) from exc
+        log.warning("[DB] Alembic migration failed — continuing in dev mode: %s", exc)
 
 
 async def _startup_db_and_warmup(startup_log: logging.Logger) -> None:
@@ -473,12 +484,15 @@ async def _startup_db_and_warmup(startup_log: logging.Logger) -> None:
     await _warmup(APP_CONFIG)
 
 
+_bg_worker_tasks: list[asyncio.Task] = []
+
+
 async def _startup_background_workers() -> None:
     """启动可观测性写入器和审计 drain worker 异步任务。"""
     from services.observability.observability import _disk_writer
-    asyncio.create_task(_disk_writer())
     from services.observability.audit import _audit_drain_worker
-    asyncio.create_task(_audit_drain_worker())
+    _bg_worker_tasks.append(asyncio.create_task(_disk_writer(), name="disk_writer"))
+    _bg_worker_tasks.append(asyncio.create_task(_audit_drain_worker(), name="audit_drain"))
 
 
 async def _startup_recovery(startup_log: logging.Logger) -> None:
@@ -532,16 +546,22 @@ def _enforce_production_guards() -> None:
 async def lifespan(app: FastAPI):
     global _startup_ready
     _startup_log = logging.getLogger("startup")
+    # Production guards FIRST — before any DB/LLM/worker side effects.
+    # A missing secret should abort immediately, not after tables are
+    # created, prompts seeded, and workers started.
+    _enforce_production_guards()
     await _startup_db_and_warmup(_startup_log)
     await _startup_background_workers()
     await _startup_recovery(_startup_log)
-    _enforce_production_guards()
     _configure_task_scheduler(_startup_log)
     _scheduler.start()
     _startup_ready = True
     yield
     _startup_ready = False
     _scheduler.shutdown()
+    for task in _bg_worker_tasks:
+        task.cancel()
+    _bg_worker_tasks.clear()
 
 
 app = FastAPI(
@@ -572,6 +592,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Admin-Token", "X-Trace-Id", "X-Patient-Token"],
+    expose_headers=["X-Trace-Id", "X-API-Version"],
 )
 
 
@@ -602,7 +623,14 @@ _MAX_REQUEST_BODY_BYTES = 50 * 1024 * 1024  # 50 MB
 
 @app.middleware("http")
 async def limit_request_body_middleware(request: Request, call_next):
-    """Reject requests whose Content-Length exceeds the global limit."""
+    """Reject requests whose Content-Length exceeds the global limit.
+
+    Checks the Content-Length header first (fast path).  For requests
+    without a Content-Length (chunked transfer, missing header, or
+    untrustworthy value), the actual body is measured in a streaming
+    wrapper so oversize payloads are rejected before the full body is
+    buffered in memory by the endpoint.
+    """
     content_length = request.headers.get("content-length")
     if content_length is not None:
         try:
@@ -610,6 +638,20 @@ async def limit_request_body_middleware(request: Request, call_next):
                 return JSONResponse(status_code=413, content={"detail": "Request body too large"})
         except ValueError:
             pass
+    else:
+        # No Content-Length — wrap the receive channel to count bytes.
+        _received = 0
+
+        async def _counting_receive():
+            nonlocal _received
+            message = await request.receive()
+            body = message.get("body", b"")
+            _received += len(body)
+            if _received > _MAX_REQUEST_BODY_BYTES:
+                raise HTTPException(status_code=413, detail="Request body too large")
+            return message
+
+        request._receive = _counting_receive  # type: ignore[attr-defined]
     return await call_next(request)
 
 
@@ -693,15 +735,29 @@ def wechat_verify(filename: str):
 
 
 @app.get("/healthz")
-async def healthz() -> dict:
-    return await _health_snapshot()
+async def healthz() -> Response:
+    payload = await _health_snapshot()
+    status_code = 200 if payload["status"] == "ok" else 503
+    return JSONResponse(status_code=status_code, content=payload)
 
 
 @app.get("/readyz")
 async def readyz() -> Response:
-    if _startup_ready and _scheduler.running:
-        return JSONResponse(status_code=200, content={"status": "ready"})
-    return JSONResponse(status_code=503, content={"status": "not_ready"})
+    if not _startup_ready:
+        return JSONResponse(status_code=503, content={"status": "not_ready"})
+    payload = await _health_snapshot()
+    if payload["status"] != "ok":
+        return JSONResponse(status_code=503, content={"status": "not_ready", **payload})
+    return JSONResponse(status_code=200, content={"status": "ready"})
+
+
+def _check_bg_workers() -> tuple[bool, list[str]]:
+    """Return (all_alive, list_of_dead_worker_names)."""
+    dead: list[str] = []
+    for task in _bg_worker_tasks:
+        if task.done():
+            dead.append(task.get_name())
+    return len(dead) == 0, dead
 
 
 async def _health_snapshot() -> dict:
@@ -716,16 +772,22 @@ async def _health_snapshot() -> dict:
         logging.getLogger("health").warning("[Healthz] database check failed: %s", db_error)
 
     scheduler_ok = bool(_scheduler.running)
-    status = "ok" if db_ok and scheduler_ok else "degraded"
+    workers_ok, dead_workers = _check_bg_workers()
+
+    all_ok = db_ok and scheduler_ok and workers_ok
+    status = "ok" if all_ok else "degraded"
     payload: Dict[str, Any] = {
         "status": status,
         "checks": {
             "database": {"ok": db_ok},
-            "scheduler": {"ok": scheduler_ok, "running": bool(_scheduler.running)},
-            "startup": {"ok": bool(_startup_ready), "ready": bool(_startup_ready)},
+            "scheduler": {"ok": scheduler_ok},
+            "workers": {"ok": workers_ok},
+            "startup": {"ok": bool(_startup_ready)},
         },
     }
     if db_error:
         # Don't leak raw exception details (may contain connection strings).
         payload["checks"]["database"]["error"] = "database_unavailable"
+    if dead_workers:
+        payload["checks"]["workers"]["dead"] = dead_workers
     return payload
