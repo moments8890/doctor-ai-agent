@@ -203,28 +203,23 @@ stateDiagram-v2
     note left of Idle: Both null (mutex enforced)
 ```
 
-## memory_patch Application Rules
+## Clinical Context for Drafting (no memory_patch)
 
 ```mermaid
 flowchart TD
-    patch["memory_patch in UnderstandResult"]
+    draft["create_draft triggered"]
+    draft --> archive["Scan chat_archive<br/>(full session history)"]
+    draft --> current["Current user input"]
+    archive --> collect["Collect clinical content<br/>(all user turns for bound patient)"]
+    current --> collect
+    collect --> structure["Structure medical record<br/>(LLM structuring call)"]
+    structure --> pending["Create pending draft<br/>(confirmation required)"]
 
-    patch --> check_action{"action_type?"}
-    check_action -->|"none"| apply_always["Apply unconditionally"]
-    check_action -->|"operational"| check_clarify{"Understand<br/>clarification?"}
-
-    check_clarify -->|yes| discard1["Discard patch"]
-    check_clarify -->|no| check_resolve{"Resolve<br/>clarification<br/>or error?"}
-
-    check_resolve -->|yes| discard2["Discard patch"]
-    check_resolve -->|no| check_compose{"Compose<br/>failure?"}
-
-    check_compose -->|yes| apply_compose["Apply patch<br/>(state change is real)"]
-    check_compose -->|no| apply_success["Apply patch<br/>(full success)"]
-
-    style apply_always fill:#2ecc71,color:#fff
-    style apply_compose fill:#2ecc71,color:#fff
-    style apply_success fill:#2ecc71,color:#fff
-    style discard1 fill:#e74c3c,color:#fff
-    style discard2 fill:#e74c3c,color:#fff
+    style draft fill:#4a90d9,color:#fff
+    style collect fill:#f39c12,color:#fff
+    style structure fill:#7b68ee,color:#fff
+    style pending fill:#e74c3c,color:#fff
 ```
+
+No `memory_patch` needed — the full `chat_archive` is the clinical context
+source. Deferred until conversation history truncation is implemented.

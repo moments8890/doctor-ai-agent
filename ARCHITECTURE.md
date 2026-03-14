@@ -56,8 +56,7 @@ Key invariants:
 │     ├── Read engine (SELECT only, no writes)            │
 │     └── Commit engine (durable writes, pending state)   │
 │  5. COMPOSE — template or LLM from execution results    │
-│  6. Apply memory patch (only on success)                │
-│  7. Persist context + archive turns                     │
+│  6. Persist context + archive turns                     │
 │                                                         │
 │  Public API:                                            │
 │    process_turn()  has_pending_draft()                   │
@@ -176,7 +175,6 @@ retrying transports (e.g., WeChat webhooks) filter duplicates before calling
 | Read engine | `read_engine.py` | SELECT only, no writes; returns `ReadResult` with data + truncation info |
 | Commit engine | `commit_engine.py` | Durable writes: select_patient, create_patient, create_draft, schedule_task; returns `CommitResult` |
 | Compose | `compose.py` | Template or LLM reply from execution results; never from understand's output |
-| Memory patch | `turn.py` | Apply on success; discard on clarification/error (except: always apply for chitchat) |
 | Persist | `turn.py` | Best-effort save context + archive turns (never raises) |
 
 ### Data model
@@ -200,7 +198,6 @@ ActionType (enum):  query_records | list_patients | schedule_task
 UnderstandResult
   ├── action_type: ActionType
   ├── args: dict (typed per action_type)
-  ├── memory_patch: Optional[dict]
   ├── chat_reply: Optional[str]     # only when action_type == none
   └── clarification: Optional[Clarification]
 

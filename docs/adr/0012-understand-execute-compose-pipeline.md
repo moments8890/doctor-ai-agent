@@ -123,28 +123,17 @@ UnderstandResult
   action_type: ActionType
   args: dict
     # typed per action_type (see section 8)
-  memory_patch: optional dict
-    # optional context updates: candidate_patient, working_note, summary
-    # (same contract as ADR 0011 §9)
   chat_reply: optional str
     # only when action_type == none (chitchat/help)
   clarification: optional Clarification
     # structured clarification (see section 4)
 ```
 
-`memory_patch` application rules:
-
-- **`action_type == none`**: patch is applied unconditionally. Chitchat turns
-  may carry clinically relevant context (e.g., "这个患者主诉头痛三天") that
-  should persist even though no execution runs.
-- **Operational turn, understand clarification**: execution never starts.
-  Patch is discarded — the LLM's guess about context may be wrong if the
-  intent itself is ambiguous or unsupported.
-- **Operational turn, resolve clarification or execute error**: execution
-  started but failed. Patch is discarded.
-- **Operational turn, execute succeeds, compose fails** (section 16): the
-  state change is real. Patch IS applied — compose failure is presentational,
-  not a reason to roll back valid state.
+**No `memory_patch` in phase 1.** The conversation history (`chat_archive`)
+provides sufficient clinical context for MVP session lengths. `create_draft`
+collects content from the full archive, not just the understand context window.
+Patient binding is tracked deterministically via `patient_id` in
+`WorkflowState`. See Deferred for when to revisit.
 
 The runtime — not the LLM — derives the response mode from `action_type`:
 
@@ -462,7 +451,7 @@ args:
 
 ```text
 args:
-  (none — clinical content is collected from working_note + recent turns,
+  (none — clinical content is collected from recent turns in chat_archive,
    not from LLM-extracted args)
 ```
 
@@ -574,8 +563,7 @@ writes.
   at another patient's data without losing their current working context.
 - **Write actions** (`schedule_task`, `select_patient`, `create_patient`)
   **switch** the active context to the target patient before acting, using the
-  same switch rules as ADR 0011 (pending draft blocks, unsaved working_note
-  warns). `create_draft` is the exception — it requires the current bound
+  same switch rules as ADR 0011 (pending draft blocks). `create_draft` is the exception — it requires the current bound
   patient and does not switch.
 
 This matches how a doctor uses a chart: looking up another patient's records is
@@ -762,7 +750,6 @@ If the understand LLM call fails or returns unparseable output:
 
 - No execute or compose runs.
 - Return a generic error template reply (e.g., "抱歉，我没有理解您的意思，请再试一次").
-- `memory_patch` is not applied.
 - The turn is still archived for audit/debugging.
 
 #### Compose failure (llm_compose only)
@@ -789,7 +776,7 @@ If the compose LLM call fails after execute succeeded (read data was fetched):
 | Read binding | N/A (reads not supported) | Reads scope without switching context |
 | `clarify` action type | LLM returns freeform prose as reply | Removed; replaced by structured `Clarification` field on `UnderstandResult` |
 | `create_patient_and_draft` | Hardcoded composite action type | Removed; single actions only (see Context) |
-| Understand output | `{ reply, action_request, memory_patch }` | `UnderstandResult` (structured; `chat_reply` only for `none`) |
+| Understand output | `{ reply, action_request, memory_patch }` | `UnderstandResult` (structured; no `memory_patch` in phase 1) |
 
 ## Consequences
 
@@ -827,5 +814,13 @@ If the compose LLM call fails after execute succeeded (read data was fetched):
 - no `update_patient` in phase 1 — phone and ID number carry identity risk
   through chat/voice; gender and age alone have too little utility to justify
   the action type. Revisit with format validation and digit-level confirmation.
+- no `memory_patch` in phase 1 — conversation history (`chat_archive`)
+  provides sufficient clinical context for MVP session lengths.
+  `create_draft` collects content from the full archive, not just the
+  understand context window. Patient binding is deterministic via
+  `WorkflowState.patient_id`. Revisit when conversation history truncation
+  or summarization is added — that is when early clinical context could be
+  lost. If added, prefer deterministic append (raw turn content) over
+  LLM-authored extraction.
 - no patient rename in phase 1
 - no multi-patient active context or park-and-resume thread model
