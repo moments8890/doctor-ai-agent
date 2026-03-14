@@ -56,7 +56,7 @@ async def _create_or_reuse_patient(
     with trace_block("router", "records.chat.create_patient", {"doctor_id": doctor_id}):
         try:
             async with AsyncSessionLocal() as db:
-                patient = await db_create_patient(
+                patient, _access_code = await db_create_patient(
                     db, doctor_id, name, intent_result.gender, intent_result.age
                 )
         except InvalidMedicalRecordError as e:
@@ -185,7 +185,7 @@ async def handle_pending_create_reply(
         async with AsyncSessionLocal() as db:
             patient = await find_patient_by_name(db, doctor_id, pending_name)
             if patient is None:
-                patient = await db_create_patient(db, doctor_id, pending_name, None, None)
+                patient, _access_code = await db_create_patient(db, doctor_id, pending_name, None, None)
                 safe_create_task(audit(
                     doctor_id, "WRITE", resource_type="patient",
                     resource_id=str(patient.id),
@@ -200,7 +200,7 @@ async def handle_pending_create_reply(
     async with AsyncSessionLocal() as db:
         patient = await find_patient_by_name(db, doctor_id, pending_name)
         if patient is None:
-            patient = await db_create_patient(db, doctor_id, pending_name, gender, age)
+            patient, _access_code = await db_create_patient(db, doctor_id, pending_name, gender, age)
             safe_create_task(audit(
                 doctor_id, "WRITE", resource_type="patient",
                 resource_id=str(patient.id),

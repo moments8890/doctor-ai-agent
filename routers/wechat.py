@@ -464,6 +464,8 @@ async def _handle_intent_bg(text: str, doctor_id: str, open_kfid: str = "", msg_
     try:
         try:
             async with _async_timeout(_OVERALL_TIMEOUT):
+                # Hydrate before lock — asyncio.Lock is not re-entrant
+                await hydrate_session_state(doctor_id, write_intent=True)
                 _lock = get_session_lock(doctor_id)
                 _lock_acquired = False
                 _lock_wait_start = time.perf_counter()
@@ -478,7 +480,11 @@ async def _handle_intent_bg(text: str, doctor_id: str, open_kfid: str = "", msg_
                     reply_parts = _plain_reply("上一条消息处理中，请稍候重发。")
                 if _lock_acquired:
                     try:
-                        await hydrate_session_state(doctor_id, write_intent=True)  # inside lock: no TOCTOU
+                        # NOTE: hydrate MUST happen outside the lock — see
+                        # session.py hydrate_session_state which also acquires
+                        # get_session_lock and asyncio.Lock is not re-entrant.
+                        # The lock_acquired block only runs mutations; hydration
+                        # was moved before the lock.acquire() call.
                         reply_parts = await _route_session_state_bg(text, doctor_id)
                         _processed = True
                     finally:
@@ -547,9 +553,11 @@ async def _transcribe_voice_msg(media_id: str, doctor_id: str, open_kfid: str) -
 
 
 async def _route_voice_under_lock(text: str, doctor_id: str) -> tuple[str, str | None, str | None]:
-    """Under session lock: check stateful flows; return (route, result, abandon_notice)."""
+    """Under session lock: check stateful flows; return (route, result, abandon_notice).
+
+    NOTE: caller must hydrate session BEFORE acquiring the lock.
+    """
     route, result, abandon_notice = "intent", None, None
-    await hydrate_session_state(doctor_id, write_intent=True)
     from services.intent_workflow.precheck import PrecheckContext, run_stateful_prechecks
 
     try:
@@ -584,6 +592,8 @@ async def _handle_voice_bg(media_id: str, doctor_id: str, open_kfid: str = "", m
         if text is None:
             _send_ok = True  # nothing to deliver; mark done
             return
+        # Hydrate before lock — asyncio.Lock is not re-entrant
+        await hydrate_session_state(doctor_id, write_intent=True)
         async with get_session_lock(doctor_id):
             route, result, abandon_notice = await _route_voice_under_lock(text, doctor_id)
         if route == "done":

@@ -59,7 +59,7 @@ async def _persist_patient(
     patient = await find_patient_by_name(db, doctor_id, patient_name)
     if not patient:
         try:
-            patient = await db_create_patient(
+            patient, _access_code = await db_create_patient(
                 db, doctor_id, patient_name, intent_result.gender, intent_result.age,
             )
         except InvalidMedicalRecordError as e:

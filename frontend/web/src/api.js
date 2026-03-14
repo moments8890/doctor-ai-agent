@@ -136,6 +136,7 @@ export async function sendChat(payload) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
+    _timeout: 35000,
   });
 }
 

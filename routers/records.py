@@ -339,11 +339,16 @@ async def chat_core(
         get_session_lock as _get_session_lock,
     )
 
+    # Hydrate session BEFORE acquiring the turn lock — hydrate_session_state
+    # internally acquires the same per-doctor asyncio.Lock and asyncio.Lock
+    # is NOT re-entrant, so calling it while already holding the lock would
+    # deadlock the event loop.
+    await _hydrate_session_state(doctor_id, write_intent=True)
+
     # Serialize the full turn under the per-doctor session lock — same as
     # WeChat — to prevent concurrent requests from interleaving prechecks,
     # patient attribution, and session mutations.
     async with _get_session_lock(doctor_id):
-        await _hydrate_session_state(doctor_id, write_intent=True)
         history_for_routing = _trim_history_for_routing(history)
 
         fast_resp = await _try_fast_paths(original_text, doctor_id, history)
@@ -368,7 +373,7 @@ async def chat_core(
 
         # Assemble per-turn context (snapshot session state + advisory)
         from services.ai.turn_context import assemble_turn_context
-        turn_ctx = await assemble_turn_context(doctor_id)
+        turn_ctx = await assemble_turn_context(doctor_id, already_locked=True)
         if knowledge_context:
             turn_ctx.advisory.knowledge_snippet = knowledge_context
 

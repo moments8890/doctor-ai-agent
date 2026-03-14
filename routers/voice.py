@@ -180,12 +180,15 @@ async def _voice_chat_for_doctor(
         audio, doctor_id, consultation_mode=consultation_mode,
     )
 
+    # Hydrate BEFORE lock — hydrate_session_state acquires the same
+    # asyncio.Lock internally and asyncio.Lock is not re-entrant.
+    await hydrate_session_state(doctor_id, write_intent=True)
+
     # Serialize the full turn under the per-doctor session lock — same as
     # WeChat — to prevent concurrent requests from interleaving prechecks
     # and session mutations.
     from services.session import get_session_lock as _get_session_lock
     async with _get_session_lock(doctor_id):
-        await hydrate_session_state(doctor_id, write_intent=True)
 
         # ── Shared stateful prechecks ─────────────────────────────────────
         from services.intent_workflow.precheck import PrecheckContext, run_stateful_prechecks
@@ -203,7 +206,7 @@ async def _voice_chat_for_doctor(
         # Run the shared 5-layer intent workflow pipeline
         from services.intent_workflow import run as workflow_run
         from services.ai.turn_context import assemble_turn_context
-        turn_ctx = await assemble_turn_context(doctor_id)
+        turn_ctx = await assemble_turn_context(doctor_id, already_locked=True)
         if _precheck.knowledge_context:
             turn_ctx.advisory.knowledge_snippet = _precheck.knowledge_context
 
