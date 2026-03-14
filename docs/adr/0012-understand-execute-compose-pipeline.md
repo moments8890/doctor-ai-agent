@@ -1,8 +1,8 @@
-# ADR 0012-v2: Understand / Execute / Compose Pipeline for Operational Actions
+# ADR 0012: Understand / Execute / Compose Pipeline for Operational Actions
 
 ## Status
 
-Accepted (supersedes ADR 0012 v1)
+Accepted
 
 ## Date
 

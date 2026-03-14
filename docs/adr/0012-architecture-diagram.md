@@ -1,7 +1,7 @@
-# ADR 0012-v2: Architecture Diagram
+# ADR 0012: Architecture Diagram
 
 Companion diagram for
-[ADR 0012-v2](./0012-v2-understand-execute-compose-pipeline.md).
+[ADR 0012](./0012-understand-execute-compose-pipeline.md).
 
 ## Full Pipeline Flow
 

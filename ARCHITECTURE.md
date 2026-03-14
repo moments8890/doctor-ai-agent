@@ -8,21 +8,26 @@ Doctor AI Agent is a FastAPI backend with a React web frontend for doctor-facing
 workflows: patient management, medical record dictation, task management, and
 follow-up support.
 
-The architecture is centered on the **ADR 0011 thread-centric conversation
-runtime** — a single `process_turn()` function that every channel calls. The
-runtime owns the full per-turn pipeline: dedup, context management, draft guard,
-LLM conversation, deterministic commit engine, memory patching, and persistence.
+The architecture is centered on a **thread-centric conversation runtime**
+(ADR 0011) extended by a **three-phase Understand → Execute → Compose
+pipeline** (ADR 0012). Every channel calls `process_turn()`, which runs
+pre-pipeline guards, then the UEC pipeline for all turn types.
 
 Key invariants:
 
 - **One entry point** — all channels call `process_turn(doctor_id, text)`.
   No channel reaches into runtime internals.
-- **Single writer** — `DoctorCtx` (one row per doctor) is the authoritative
-  state. The commit engine is the only code that writes durable artifacts.
-- **Draft-first** — normal record creation produces a pending draft requiring
-  explicit confirmation before saving to `medical_records`.
-- **Deterministic commits** — the LLM proposes an `ActionRequest`; code
-  validates and executes it. LLMs never write directly.
+- **Understand never authors operational replies** — for operational turns
+  (reads, writes, patient selection), the LLM emits structured intent only.
+  Compose generates the reply from execution results.
+- **Execute splits reads from writes** — `read_engine` (SELECT only, no state
+  mutation) and `commit_engine` (durable writes, pending state) are separate
+  modules with a hard import boundary.
+- **Pending-first** — drafts and operational writes (e.g., schedule_task)
+  produce pending records requiring explicit confirmation. One pending per
+  doctor at a time (mutex enforced by commit engine + DB constraint).
+- **Deterministic commits** — the LLM proposes an `UnderstandResult`; resolve
+  validates bindings; the commit engine executes. LLMs never write directly.
 - **Services are RPC, channels choose transport** — the service layer exposes
   plain async functions (RPC-style). Channels choose the transport protocol
   (REST, webhook, XML reply) appropriate for their consumer.
@@ -45,11 +50,15 @@ Key invariants:
 │                                                         │
 │  1. Dedup (in-memory LRU, 5-min TTL)                   │
 │  2. Load DoctorCtx from DB                              │
-│  3. Draft guard (confirm / abandon / re-prompt)         │
-│  4. Conversation model (single LLM call)                │
-│  5. Commit engine (validate + execute ActionRequest)    │
-│  6. Apply memory patch                                  │
-│  7. Persist context + archive turns                     │
+│  3. Pending guard (confirm/abandon/block/pass-through)  │
+│  4. UNDERSTAND — LLM → UnderstandResult (structured)    │
+│  5. EXECUTE                                             │
+│     ├── Resolve (patient lookup, binding, dates)        │
+│     ├── Read engine (SELECT only, no writes)            │
+│     └── Commit engine (durable writes, pending state)   │
+│  6. COMPOSE — template or LLM from execution results    │
+│  7. Apply memory patch (only on success)                │
+│  8. Persist context + archive turns                     │
 │                                                         │
 │  Public API:                                            │
 │    process_turn()  has_pending_draft()                   │
@@ -151,18 +160,21 @@ TurnResult                                    # reply + optional pending draft i
 ### Pipeline (`turn.py`)
 
 ```text
-text → strip → dedup check → load DoctorCtx → draft guard
-  → conversation model (LLM) → commit engine → memory patch → persist → reply
+text → strip → dedup check → load DoctorCtx → pending guard
+  → Understand (LLM) → Execute (resolve → read/commit engine) → Compose → memory patch → persist → reply
 ```
 
 | Stage | Module | Purpose |
 |-------|--------|---------|
 | Dedup | `dedup.py` | In-memory LRU (500 entries, 5-min TTL); return cached result on duplicate `message_id` |
 | Context | `context.py` | Load/save `DoctorCtx` from `doctor_context` table; read/write `chat_archive` |
-| Draft guard | `draft_guard.py` | If `pending_draft_id` set: confirm → save record, abandon → discard, other → re-prompt |
-| Conversation | `conversation.py` | Build system prompt + recent turns + context block; single LLM call; parse `ModelOutput` |
-| Commit engine | `commit_engine.py` | Validate `ActionRequest`; execute: select_patient, create_patient, create_draft, create_patient_and_draft |
-| Memory patch | `turn.py` | Apply LLM-suggested memory updates to `DoctorCtx.memory` |
+| Pending guard | `draft_guard.py` | If `pending_draft_id` or `pending_action_id` set: confirm → commit, abandon → discard, read-looking → pass through, other → block |
+| Understand | `conversation.py` | LLM → `UnderstandResult` (structured intent, no prose for operational turns) |
+| Resolve | `resolve.py` | Patient DB lookup, binding, date normalization; shared by read and write paths |
+| Read engine | `read_engine.py` | SELECT only, no writes; returns `ReadResult` with data + truncation info |
+| Commit engine | `commit_engine.py` | Durable writes: select_patient, create_patient, create_draft, schedule_task; returns `CommitResult` |
+| Compose | `compose.py` | Template or LLM reply from execution results; never from understand's output |
+| Memory patch | `turn.py` | Apply on success; discard on clarification/error (except: always apply for chitchat) |
 | Persist | `turn.py` | Best-effort save context + archive turns (never raises) |
 
 ### Data model
@@ -173,23 +185,29 @@ DoctorCtx
   ├── workflow: WorkflowState        # authoritative (code-owned)
   │     ├── patient_id: Optional[int]
   │     ├── patient_name: Optional[str]
-  │     └── pending_draft_id: Optional[str]
+  │     ├── pending_draft_id: Optional[str]
+  │     └── pending_action_id: Optional[str]  # mutex: at most one pending
   └── memory: MemoryState            # provisional (LLM-facing)
         ├── candidate_patient: Optional[dict]
         ├── working_note: Optional[str]
         └── summary: Optional[str]
 
-ActionRequest
-  ├── type: "none"|"clarify"|"select_patient"|"create_patient"
-  │         |"create_draft"|"create_patient_and_draft"
-  ├── patient_name, patient_gender, patient_age
-  └── (type-specific fields)
+ActionType (enum):  query_records | list_patients | schedule_task
+                    | select_patient | create_patient | create_draft | none
+
+UnderstandResult
+  ├── action_type: ActionType
+  ├── args: dict (typed per action_type)
+  ├── memory_patch: Optional[dict]
+  ├── chat_reply: Optional[str]     # only when action_type == none
+  └── clarification: Optional[Clarification]
 
 TurnResult
   ├── reply: str
   ├── pending_id: Optional[str]
   ├── pending_patient_name: Optional[str]
-  └── pending_expires_at: Optional[str]  # ISO-8601 UTC
+  ├── pending_expires_at: Optional[str]  # ISO-8601 UTC
+  └── view_payload: Optional[dict]  # structured data for web rendering
 ```
 
 ---
@@ -335,12 +353,8 @@ system prompt for the conversation model.
 
 | ADR | Title | Status |
 |-----|-------|--------|
-| 0011 | Thread-centric conversation runtime and deterministic commits | **Active** — the current architecture |
-| 0002 | Draft-first record persistence | Complete |
-| 0003 | Medical record content is the source of truth | Complete |
-| 0004 | Prefer official WeCom channel over automation | Complete |
-| 0009 | Modality normalization at workflow entry | Complete |
-| 0001-0008 | Pre-ADR-0011 decisions | Superseded by ADR 0011 where they conflict |
+| 0011 | Thread-centric conversation runtime and deterministic commits | **Active** — foundation |
+| 0012 | Understand / Execute / Compose pipeline for operational actions | **Accepted** — not yet implemented |
 
 ---
 
@@ -362,4 +376,6 @@ system prompt for the conversation model.
 ## Further Reading
 
 - [ADR 0011 — Architecture and Workflows](docs/adr/0011-architecture-and-workflows.md)
+- [ADR 0012 — UEC Pipeline](docs/adr/0012-understand-execute-compose-pipeline.md)
+  ([Architecture Diagram](docs/adr/0012-architecture-diagram.md))
 - [ADR index](docs/adr/README.md)

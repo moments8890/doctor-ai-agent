@@ -29,8 +29,8 @@ Use small, direct records with:
 - [ADR 0011: Thread-Centric Conversation Runtime and Deterministic Commits](0011-thread-centric-conversation-runtime-and-deterministic-commits.md)
   — companion: [Architecture and Workflows](0011-architecture-and-workflows.md)
   ([中文](0011-architecture-and-workflows.zh-CN.md))
-- [ADR 0012: Bounded Operational Actions for the Thread-Centric Runtime](0012-bounded-operational-actions-for-runtime.md)
-  — companion: [Execution Plan](../plans/adr-0012-bounded-operational-actions-execution-plan.md)
+- [ADR 0012: Understand / Execute / Compose Pipeline for Operational Actions](0012-understand-execute-compose-pipeline.md)
+  — companion: [Architecture Diagram](0012-architecture-diagram.md)
 
 ## Status Values
 
@@ -55,4 +55,4 @@ Current rollout snapshot:
 | ADR | Decision Status | Implementation Status |
 | --- | --- | --- |
 | [ADR 0011](0011-thread-centric-conversation-runtime-and-deterministic-commits.md) | Accepted | Complete |
-| [ADR 0012](0012-bounded-operational-actions-for-runtime.md) | Proposed | Not Started |
+| [ADR 0012](0012-understand-execute-compose-pipeline.md) | Accepted | Not Started |
