@@ -7,7 +7,7 @@ E2E-style multi-input routing tests for WeChat entrypoints.
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
-import routers.wechat as wechat
+import channels.wechat.router as wechat
 
 
 class DummyRequest:

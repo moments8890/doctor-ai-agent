@@ -124,7 +124,7 @@ async def _structure(text: str) -> tuple[dict, float]:
 
 
 def _chunk(text: str, doc_type: str, sender_filter: str | None = None) -> tuple[list[str], float]:
-    from services.wechat.wechat_import import _preprocess_import_text, _chunk_history_text
+    from channels.wechat.wechat_import import _preprocess_import_text, _chunk_history_text
     t0 = time.perf_counter()
     source = "chat_export" if doc_type == "chat" else doc_type
     clean = _preprocess_import_text(text, source, sender_filter=sender_filter)
@@ -174,7 +174,7 @@ def _stage_chat_senders(raw_text: str, doc_type: str, sender: str | None) -> Non
     """阶段2：聊天记录发送人检测（仅 chat 类型）。"""
     if doc_type != "chat":
         return
-    from services.wechat.wechat_chat_export import list_senders
+    from channels.wechat.wechat_chat_export import list_senders
     senders = list_senders(raw_text)
     _print_section("Stage 2: Chat Senders Detected")
     for i, s in enumerate(senders):

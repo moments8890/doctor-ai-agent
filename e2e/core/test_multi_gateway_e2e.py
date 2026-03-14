@@ -19,8 +19,8 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from db.crud import find_patient_by_name, get_records_for_patient
-from routers.records import router as records_router
-from routers.voice import router as voice_router
+from channels.web.chat import router as records_router
+from channels.voice import router as voice_router
 from services.ai.intent import Intent, IntentResult
 
 
@@ -111,9 +111,9 @@ async def test_multi_gateway_human_language_e2e(session_factory):
     records_dispatch = _build_records_dispatch(patient_name)
     voice_dispatch = _build_voice_dispatch(patient_name)
 
-    with patch("routers.records.AsyncSessionLocal", session_factory), \
+    with patch("channels.web.chat.AsyncSessionLocal", session_factory), \
          patch("routers.voice.AsyncSessionLocal", session_factory), \
-         patch("routers.records.agent_dispatch", new=AsyncMock(side_effect=records_dispatch)), \
+         patch("channels.web.chat.agent_dispatch", new=AsyncMock(side_effect=records_dispatch)), \
          patch("routers.voice.agent_dispatch", new=AsyncMock(side_effect=voice_dispatch)), \
          patch("routers.voice.transcribe_audio", new=AsyncMock(return_value=f"{patient_name} 今天胸闷更重")):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:

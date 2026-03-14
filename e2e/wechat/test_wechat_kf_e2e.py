@@ -24,7 +24,7 @@ from unittest.mock import AsyncMock, patch
 import httpx
 import pytest
 
-import routers.wechat as wechat
+import channels.wechat.router as wechat
 from db.crud import find_patient_by_name, get_records_for_patient
 from e2e.fixtures.realworld_cases import REALWORLD_SCENARIOS
 from services.ai.intent import Intent, IntentResult

@@ -39,7 +39,7 @@ def reset_doctor_sessions():
 
     reset_session_state_for_tests()
     try:
-        import routers.records as records_mod
+        import channels.web.chat as records_mod
         records_mod._RATE_WINDOWS.clear()
     except Exception:
         pass
@@ -51,7 +51,7 @@ def reset_doctor_sessions():
     yield
     reset_session_state_for_tests()
     try:
-        import routers.records as records_mod
+        import channels.web.chat as records_mod
         records_mod._RATE_WINDOWS.clear()
     except Exception:
         pass
