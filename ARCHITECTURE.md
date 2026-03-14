@@ -23,9 +23,9 @@ Key invariants:
 - **Execute splits reads from writes** — `read_engine` (SELECT only, no state
   mutation) and `commit_engine` (durable writes, pending state) are separate
   modules with a hard import boundary.
-- **Pending-first** — drafts and operational writes (e.g., schedule_task)
-  produce pending records requiring explicit confirmation. One pending per
-  doctor at a time (mutex enforced by commit engine + DB constraint).
+- **Draft-first** — record creation produces a pending draft requiring
+  explicit confirmation. `schedule_task` commits immediately (appointments
+  are low-stakes and cancellable).
 - **Deterministic commits** — the LLM proposes an `UnderstandResult`; resolve
   validates bindings; the commit engine executes. LLMs never write directly.
 - **Services are RPC, channels choose transport** — the service layer exposes
@@ -49,7 +49,7 @@ Key invariants:
 │                 RUNTIME (services/runtime/)              │
 │                                                         │
 │  1. Load DoctorCtx from DB                              │
-│  2. Pending guard (confirm/abandon/block/pass-through)  │
+│  2. Draft guard (confirm/abandon/block/pass-through)    │
 │  3. UNDERSTAND — LLM → UnderstandResult (structured)    │
 │  4. EXECUTE                                             │
 │     ├── Resolve (patient lookup, binding, dates)        │
@@ -158,7 +158,7 @@ TurnResult                                    # reply + optional pending draft i
 ### Pipeline (`turn.py`)
 
 ```text
-text → strip → load DoctorCtx → pending guard
+text → strip → load DoctorCtx → draft guard
   → Understand (LLM) → Execute (resolve → read/commit engine) → Compose → memory patch → persist → reply
 ```
 
@@ -169,7 +169,7 @@ retrying transports (e.g., WeChat webhooks) filter duplicates before calling
 | Stage | Module | Purpose |
 |-------|--------|---------|
 | Context | `context.py` | Load/save `DoctorCtx` from `doctor_context` table; read/write `chat_archive` |
-| Pending guard | `draft_guard.py` | If `pending_draft_id` or `pending_action_id` set: confirm → commit, abandon → discard, read-looking → pass through, other → block |
+| Draft guard | `draft_guard.py` | If `pending_draft_id` set: confirm → save record, abandon → discard, read-looking → pass through, other → block |
 | Understand | `conversation.py` | LLM → `UnderstandResult` (structured intent, no prose for operational turns) |
 | Resolve | `resolve.py` | Patient DB lookup, binding, date normalization; shared by read and write paths |
 | Read engine | `read_engine.py` | SELECT only, no writes; returns `ReadResult` with data + truncation info |
@@ -185,8 +185,7 @@ DoctorCtx
   ├── workflow: WorkflowState        # authoritative (code-owned)
   │     ├── patient_id: Optional[int]
   │     ├── patient_name: Optional[str]
-  │     ├── pending_draft_id: Optional[str]
-  │     └── pending_action_id: Optional[str]  # mutex: at most one pending
+  │     └── pending_draft_id: Optional[str]
   └── memory: MemoryState            # provisional (LLM-facing)
         ├── candidate_patient: Optional[dict]
         ├── working_note: Optional[str]

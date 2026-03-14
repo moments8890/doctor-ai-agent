@@ -12,7 +12,7 @@ flowchart TD
     %% Pre-pipeline guards
     input --> det{"Deterministic action?<br/>(button click, 确认/取消)"}
     det -->|yes| det_handler["Deterministic handler → template reply"]
-    det -->|no| pending{"Pending guard<br/>pending_draft_id or<br/>pending_action_id set?"}
+    det -->|no| pending{"Draft guard<br/>pending_draft_id set?"}
 
     pending -->|"confirm/abandon regex"| commit_or_discard["Commit or discard pending → template reply"]
     pending -->|"read-only regex"| understand
@@ -87,34 +87,28 @@ sequenceDiagram
     C->>D: "张三共有23条病历记录，最近5条：..."
 ```
 
-## Data Flow: Write Confirmation Path (schedule_task)
+## Data Flow: Immediate Write Path (schedule_task)
 
 ```mermaid
 sequenceDiagram
     participant D as Doctor
-    participant PG as Pending Guard
+    participant DG as Draft Guard
     participant U as Understand (LLM)
     participant R as Resolve
     participant CE as Commit Engine
     participant Co as Compose (template)
 
-    D->>PG: "帮张三约下周三复诊"
-    PG->>U: pass through (no pending)
+    D->>DG: "帮张三约下周三复诊"
+    DG->>U: pass through (no pending draft)
     U->>R: UnderstandResult{action_type: schedule_task, args: {patient_name: "张三", task_type: appointment, scheduled_for: "下周三"}}
     R->>R: DB lookup "张三" → found
     R->>R: Normalize "下周三" → 2026-03-18T12:00 (date-only → noon default)
     R->>R: Default remind_at → 2026-03-18T11:00 (1 hour before)
     R->>R: Write action → switch context to 张三
     R->>CE: ResolvedAction{patient_id: 42, scheduled_for: "2026-03-18T12:00", remind_at: "2026-03-18T11:00"}
-    CE->>CE: Create pending_action row (TTL)
-    CE->>CE: Set ctx.workflow.pending_action_id
-    CE->>Co: CommitResult{status: pending_confirmation, data: {...}}
-    Co->>D: "确认为张三创建复诊预约，时间：3月18日中午12点？"
-
-    D->>PG: "确认"
-    PG->>PG: pending_action_id set + confirm regex
-    PG->>PG: Create DoctorTask row, clear pending_action_id
-    PG->>D: "已为张三创建复诊预约，时间：3月18日中午12点"
+    CE->>CE: Create DoctorTask row immediately
+    CE->>Co: CommitResult{status: ok, data: {task_id: 7, ...}}
+    Co->>D: "已为张三创建复诊预约，时间：3月18日中午12点"
 ```
 
 ## Data Flow: Clarification Path
@@ -188,33 +182,23 @@ graph LR
 
 ## Pending State Machine
 
-At most one pending state per doctor (mutex enforced by commit engine + DB
-CHECK constraint).
+Only `create_draft` uses pending state. `schedule_task` commits immediately.
 
 ```mermaid
 flowchart LR
-    idle(("IDLE<br/>both null"))
+    idle(("IDLE<br/>pending_draft_id null"))
 
     idle -->|create_draft| draft["PENDING DRAFT<br/>pending_draft_id set"]
-    idle -->|schedule_task| action["PENDING ACTION<br/>pending_action_id set"]
 
     draft -->|"确认 (confirm)"| save["Save record"] --> idle
-    draft -->|"取消 (cancel)"| discard1["Discard"] --> idle
-    draft -->|"TTL expired"| expire1["Auto-discard"] --> idle
-
-    action -->|"确认 (confirm)"| create["Create DoctorTask"] --> idle
-    action -->|"取消 (cancel)"| discard2["Discard"] --> idle
-    action -->|"TTL expired"| expire2["Auto-discard"] --> idle
+    draft -->|"取消 (cancel)"| discard["Discard"] --> idle
+    draft -->|"TTL expired"| expire["Auto-discard"] --> idle
 
     style idle fill:#333,color:#fff
     style draft fill:#4a90d9,color:#fff
-    style action fill:#e74c3c,color:#fff
     style save fill:#2ecc71,color:#fff
-    style create fill:#2ecc71,color:#fff
-    style discard1 fill:#95a5a6,color:#fff
-    style discard2 fill:#95a5a6,color:#fff
-    style expire1 fill:#95a5a6,color:#fff
-    style expire2 fill:#95a5a6,color:#fff
+    style discard fill:#95a5a6,color:#fff
+    style expire fill:#95a5a6,color:#fff
 ```
 
 ## Clinical Context for Drafting (no memory_patch)

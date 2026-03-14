@@ -92,8 +92,8 @@ type:
 | Typed UI action (button click) | skip | deterministic | template | 0 |
 | Pending confirm/cancel (确认/取消 regex) | skip | deterministic (pending guard) | template | 0 |
 | Read query ("查张三的病历") | LLM → structured | DB fetch | LLM summarize | 2 |
-| Write: schedule_task ("帮张三约下周三复诊") | LLM → structured | prepare pending | template confirm | 1 |
-| Write: create_draft ("写个门诊记录") | LLM → structured | collect + structure | template confirm | 2 |
+| Write: schedule_task ("帮张三约下周三复诊") | LLM → structured | immediate commit | template success | 1 |
+| Write: create_draft ("写个门诊记录") | LLM → structured | collect + structure | template confirm (pending) | 2 |
 | Chitchat / help / greeting | LLM → chat_reply | skip | skip | 1 |
 | Clarification needed | LLM → structured | skip | template (or understand's suggested_question) | 1 |
 
@@ -338,7 +338,7 @@ When `truncated` is true, compose includes `total_count` in the reply (e.g.,
 Commit engine receives a fully resolved action and executes durable writes.
 It never fails on binding — that was already validated by resolve.
 
-- `schedule_task` → prepare a pending action record (see section 15)
+- `schedule_task` → create `DoctorTask` row immediately (no confirmation)
 - `create_draft` → collect clinical content, structure, create pending draft
 - `select_patient` → update context binding
 - `create_patient` → create patient row, update context binding
@@ -364,11 +364,10 @@ always returns `ReadResult`; commit engine always returns `CommitResult`. This
 enforces the invariant that read handlers cannot produce `pending_id` and
 commit handlers cannot produce `total_count` / `truncated`.
 
-For actions requiring confirmation (`schedule_task`, `create_draft`),
-`status` is `"pending_confirmation"` and the
-result contains enough information for compose to render a confirmation prompt.
-For immediate actions (`select_patient`, `create_patient`), `status` is
-`"ok"` and compose renders a success template.
+For `create_draft`, `status` is `"pending_confirmation"` and the result
+contains enough information for compose to render a confirmation prompt.
+For immediate actions (`schedule_task`, `select_patient`, `create_patient`),
+`status` is `"ok"` and compose renders a success template.
 
 ### 6. Phase-1 action types and boundary rule
 
@@ -378,7 +377,7 @@ Supported action types in phase 1:
 | --- | --- | --- | --- |
 | `query_records` | Read | No | Fetch + LLM summarize |
 | `list_patients` | Read | No | Fetch + LLM summarize |
-| `schedule_task` | Write | Always | Smart extraction + confirm |
+| `schedule_task` | Write | No (immediate) | Smart extraction + immediate commit |
 | `select_patient` | Write (context) | No | Resolve patient, template reply |
 | `create_patient` | Write | No | Create patient, template reply |
 | `create_draft` | Write | Yes (pending) | Collect + structure, template confirm |
@@ -407,11 +406,9 @@ user_input (already deduped by channel layer)
   typed UI action? (button click with typed payload)
     → deterministic handler → template reply
   |
-  pending_guard (extended from draft_guard)
-    pending_draft_id or pending_action_id set?
+  draft_guard
+    pending_draft_id set?
       确认/取消 regex → deterministic commit or discard → template reply
-    pending_draft_id or pending_action_id set?
-      confirm/abandon regex → deterministic commit or discard → template reply
       read-only regex → pass through to pipeline (including cross-patient reads;
         execute.resolve handles cross-patient blocking, see section 10)
       other → blocked template reply
@@ -420,13 +417,12 @@ user_input (already deduped by channel layer)
   Understand → Execute → Compose
 ```
 
-Pending guard behavior with operational actions:
+Draft guard behavior with operational actions:
 
 - read-looking input (regex match) passes through to the pipeline
-- patient/task writes other than draft confirm/abandon are blocked
-  pre-pipeline
-- **cross-patient read blocking is NOT the pending guard's job** — the
-  pending guard cannot determine the target patient from regex alone. Execute.resolve
+- writes other than draft confirm/abandon are blocked pre-pipeline
+- **cross-patient read blocking is NOT the draft guard's job** — the draft
+  guard cannot determine the target patient from regex alone. Execute.resolve
   handles this: if a read action targets a different patient than the pending
   draft, resolve returns `clarification.kind="blocked"` (see section 10)
 
@@ -554,9 +550,8 @@ output — only a text reply. This keeps it simple and fast.
 | `select_patient` | "已切换到张三" |
 | `create_patient` | "已创建患者张三" / "张三已存在，已切换" |
 | `create_draft` | existing `M.draft_created` (preview + confirm prompt) |
-| `schedule_task` | "确认为张三创建随访任务，时间：3月20日下午2点？" |
-| `schedule_task` (noon default) | "确认为张三创建复诊预约，时间：3月18日中午12点？" |
-| `schedule_task` (confirmed) | "已为张三创建随访任务，时间：3月20日下午2点" |
+| `schedule_task` | "已为张三创建随访任务，时间：3月20日下午2点" |
+| `schedule_task` (noon default) | "已为张三创建复诊预约，时间：3月18日中午12点" |
 
 All template replies are deterministic and predictable. Only `query_records`
 and `list_patients` use LLM compose because their data is variable and benefits
@@ -591,11 +586,9 @@ are now working on that patient.
 | Explicit name, resolves to 0 patients | Return `not_found` | Return `not_found` |
 | No name, context has patient | Use context patient | Use context patient |
 | No name, no context patient | Clarify: `missing_field` | Clarify: `missing_field` |
-| Pending draft, same patient | Allowed | Blocked by pending guard (pre-pipeline) |
-| Pending draft, different patient | Blocked by execute.resolve (`blocked`) | Blocked by pending guard (pre-pipeline) |
-| Pending action, same patient | Allowed | Blocked by pending guard (pre-pipeline) |
-| Pending action, different patient | Blocked by execute.resolve (`blocked`) | Blocked by pending guard (pre-pipeline) |
-| Any pending, unscoped (`list_patients`) | Always allowed (no patient target) | N/A |
+| Pending draft, same patient | Allowed | Blocked by draft guard (pre-pipeline) |
+| Pending draft, different patient | Blocked by execute.resolve (`blocked`) | Blocked by draft guard (pre-pipeline) |
+| Pending draft, unscoped (`list_patients`) | Always allowed (no patient target) | N/A |
 
 #### Implicit patient handling
 
@@ -622,8 +615,8 @@ message.
 
 `list_patients` never changes patient binding. It returns the doctor's full
 patient panel (first page). No patient name arg is needed or used. Because it
-has no patient target, it is always allowed during a pending draft or pending
-action — there is no cross-patient conflict to detect.
+has no patient target, it is always allowed during a pending draft — there is
+no cross-patient conflict to detect.
 
 ### 11. Task temporal semantics
 
@@ -683,73 +676,22 @@ Initial payload families:
 
 The assistant reply remains mandatory for all channels.
 
-### 15. Write confirmation flow for `schedule_task`
+### 15. `schedule_task` commits immediately
 
-`schedule_task` requires explicit confirmation before committing. This reuses
-the existing pending-draft pattern with a generalized pending action mechanism.
+`schedule_task` creates a `DoctorTask` row immediately — no pending state, no
+confirmation turn. The compose template shows what was created:
+"已为张三创建复诊预约，时间：3月18日中午12点". If the doctor made a mistake,
+they can cancel or reschedule as a follow-up action (deferred to a future ADR).
 
-#### Pending action state
+**Rationale**: appointments are low-stakes compared to medical records — they
+can be deleted, rescheduled, or cancelled. The extra confirmation turn adds
+friction without proportionate safety gain. `create_draft` is the only action
+that requires a pending state, because medical records are permanent clinical
+documents.
 
-`WorkflowState` gains one new field:
-
-```text
-WorkflowState
-  patient_id: optional int
-  patient_name: optional str
-  pending_draft_id: optional str      # existing
-  pending_action_id: optional str     # new
-```
-
-Only one pending state may be active at a time: either `pending_draft_id` or
-`pending_action_id`, never both. If a draft is pending, `schedule_task` is
-blocked by pending guard (pre-pipeline). If an action is pending, `create_draft`
-is blocked the same way.
-
-**Mutex enforcement**: the pending guard is the first line of defense (blocks
-writes when anything is pending), but it only catches text input. To prevent
-bugs or race conditions from violating the invariant, commit engine must also
-check: before setting `pending_draft_id` or `pending_action_id`, assert that
-the other is null. If both are non-null, the commit engine rejects the
-operation with `status: "error"`. For belt-and-suspenders safety, the storage
-layer should enforce a CHECK constraint that at most one of the two fields is
-non-null.
-
-#### Lifecycle
-
-1. Understand emits `action_type: "schedule_task"` with extracted args.
-2. Execute.resolve resolves patient and normalizes dates.
-3. Commit engine creates a `pending_action` row (new table or column on
-   existing `pending_drafts`) with the validated action payload and a TTL.
-4. `ctx.workflow.pending_action_id` is set.
-5. Compose renders a confirmation prompt from the pending payload:
-   "确认为张三创建随访任务，时间：3月20日下午2点？"
-6. Doctor replies "确认".
-7. Pending guard detects `pending_action_id` is set + confirm regex →
-   commits the action deterministically (creates the `DoctorTask` row) →
-   clears `pending_action_id` → template reply "已创建".
-8. Doctor replies "取消" → pending guard clears `pending_action_id` → template
-   reply "已取消".
-
-#### Pending guard extension
-
-The pending guard checks `pending_draft_id` first, then `pending_action_id`
-second. The confirm/abandon regex is shared — "确认" and "取消" work for both
-drafts and actions. Since only one can be pending at a time, there is no
-ambiguity.
-
-Read-only inputs still pass through during a pending action, same as during a
-pending draft.
-
-#### Storage
-
-Phase 1 can reuse the `pending_drafts` table with a `kind` discriminator
-(`"draft"` or `"action"`), or use a new `pending_actions` table. The ADR does
-not prescribe storage layout — only the contract:
-
-- one pending per doctor at a time
-- TTL-based expiry
-- the payload contains all validated args needed to commit without re-running
-  resolve
+This means `WorkflowState` retains only `pending_draft_id` — no
+`pending_action_id`, no mutex, no guard extension. The draft guard remains
+unchanged from ADR 0011.
 
 ### 16. LLM failure fallbacks
 
@@ -781,7 +723,7 @@ If the compose LLM call fails after execute succeeded (read data was fetched):
 | Per-turn model | LLM returns reply + action in one call | Understand → Execute → Compose (up to 2 LLM calls) |
 | Reply source | LLM composes before execution | Compose speaks from ExecuteResult only |
 | Read queries | Not supported in runtime | Understand → fetch → LLM compose |
-| Write confirmation | Draft pattern only | Pending confirmation for `schedule_task` and future write actions |
+| Write confirmation | Draft pattern only | Draft pending unchanged; `schedule_task` commits immediately |
 | Clarification | LLM writes freeform reply | Structured: deterministic template or bounded LLM |
 | Action validation | `VALID_ACTION_TYPES` frozenset | Same + unsupported fallback for unknown types |
 | Patient binding | LLM proposes name, commit engine resolves | Understand extracts raw name, execute.resolve binds |
@@ -834,5 +776,8 @@ If the compose LLM call fails after execute succeeded (read data was fetched):
   or summarization is added — that is when early clinical context could be
   lost. If added, prefer deterministic append (raw turn content) over
   LLM-authored extraction.
+- no pending confirmation for `schedule_task` — commits immediately. Add
+  `pending_action_id` and a generalized pending state machine when there is
+  evidence that doctors make scheduling mistakes they cannot self-correct.
 - no patient rename in phase 1
 - no multi-patient active context or park-and-resume thread model
