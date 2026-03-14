@@ -138,9 +138,14 @@ UnderstandResult
 - **`action_type == none`**: patch is applied unconditionally. Chitchat turns
   may carry clinically relevant context (e.g., "这个患者主诉头痛三天") that
   should persist even though no execution runs.
-- **Operational turns**: patch is applied only after successful execution
-  (resolve + read/commit both succeed). If execution short-circuits with a
-  clarification or error, the patch is discarded.
+- **Operational turn, understand clarification**: execution never starts.
+  Patch is discarded — the LLM's guess about context may be wrong if the
+  intent itself is ambiguous or unsupported.
+- **Operational turn, resolve clarification or execute error**: execution
+  started but failed. Patch is discarded.
+- **Operational turn, execute succeeds, compose fails** (section 16): the
+  state change is real. Patch IS applied — compose failure is presentational,
+  not a reason to roll back valid state.
 
 The runtime — not the LLM — derives the response mode from `action_type`:
 
@@ -494,8 +499,13 @@ args:
 #### schedule_task
 
 ```text
+TaskType (enum):
+  appointment
+  follow_up
+  general
+
 args:
-  task_type: str enum ("appointment" | "follow_up" | "general")
+  task_type: TaskType (required)
   patient_name: optional str
   title: optional str
   notes: optional str
@@ -503,6 +513,9 @@ args:
   remind_at: optional str (relative or absolute time expression)
 ```
 
+- `task_type` is required. If the LLM emits a value that cannot be parsed
+  into a valid `TaskType`, resolve rejects it with
+  `clarification.kind="missing_field"` and `missing_fields=["task_type"]`.
 - Requires a strong patient target: explicit name or current bound patient.
 - Relative dates are normalized deterministically by the runtime using current
   date and configured timezone — not by trusting model-generated ISO strings.
@@ -580,7 +593,9 @@ are now working on that patient.
 | No name, no context patient | Clarify: `missing_field` | Clarify: `missing_field` |
 | Pending draft, same patient | Allowed | Blocked by pending guard (pre-pipeline) |
 | Pending draft, different patient | Blocked by execute.resolve (`blocked`) | Blocked by pending guard (pre-pipeline) |
-| Pending draft, unscoped (`list_patients`) | Always allowed (no patient target) | N/A |
+| Pending action, same patient | Allowed | Blocked by pending guard (pre-pipeline) |
+| Pending action, different patient | Blocked by execute.resolve (`blocked`) | Blocked by pending guard (pre-pipeline) |
+| Any pending, unscoped (`list_patients`) | Always allowed (no patient target) | N/A |
 
 #### Implicit patient handling
 
@@ -683,6 +698,15 @@ Only one pending state may be active at a time: either `pending_draft_id` or
 `pending_action_id`, never both. If a draft is pending, `schedule_task` is
 blocked by pending guard (pre-pipeline). If an action is pending, `create_draft`
 is blocked the same way.
+
+**Mutex enforcement**: the pending guard is the first line of defense (blocks
+writes when anything is pending), but it only catches text input. To prevent
+bugs or race conditions from violating the invariant, commit engine must also
+check: before setting `pending_draft_id` or `pending_action_id`, assert that
+the other is null. If both are non-null, the commit engine rejects the
+operation with `status: "error"`. For belt-and-suspenders safety, the storage
+layer should enforce a CHECK constraint that at most one of the two fields is
+non-null.
 
 #### Lifecycle
 
