@@ -91,7 +91,7 @@ type:
 | --- | --- | --- | --- | --- |
 | Deterministic action (button click, 确认/取消) | skip | deterministic | template | 0 |
 | Read query ("查张三的病历") | LLM → structured | DB fetch | LLM summarize | 2 |
-| Write with extractable args ("帮张三约下周复诊") | LLM → structured | prepare pending | template confirm | 1 |
+| Write with extractable args ("帮张三约下周三下午两点复诊") | LLM → structured | prepare pending | template confirm | 1 |
 | Chitchat / help / greeting | LLM → chat_reply | skip | skip | 1 |
 | Clarification needed | LLM → structured | skip | template (or understand's suggested_question) | 1 |
 

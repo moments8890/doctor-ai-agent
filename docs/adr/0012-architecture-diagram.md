@@ -98,22 +98,22 @@ sequenceDiagram
     participant CE as Commit Engine
     participant Co as Compose (template)
 
-    D->>PG: "帮张三约下周三复诊"
+    D->>PG: "帮张三约下周三下午两点复诊"
     PG->>U: pass through (no pending)
-    U->>R: UnderstandResult{action_type: schedule_task, args: {patient_name: "张三", task_type: appointment, scheduled_for: "下周三"}}
+    U->>R: UnderstandResult{action_type: schedule_task, args: {patient_name: "张三", task_type: appointment, scheduled_for: "下周三下午两点"}}
     R->>R: DB lookup "张三" → found
-    R->>R: Normalize "下周三" → 2026-03-18
+    R->>R: Normalize "下周三下午两点" → 2026-03-18T14:00
     R->>R: Write action → switch context to 张三
-    R->>CE: ResolvedAction{patient_id: 42, scheduled_for: "2026-03-18T00:00", remind_at: "2026-03-17T23:00"}
+    R->>CE: ResolvedAction{patient_id: 42, scheduled_for: "2026-03-18T14:00", remind_at: "2026-03-18T13:00"}
     CE->>CE: Create pending_action row (TTL)
     CE->>CE: Set ctx.workflow.pending_action_id
     CE->>Co: CommitResult{status: pending_confirmation, data: {...}}
-    Co->>D: "确认为张三创建复诊预约，时间：3月18日？"
+    Co->>D: "确认为张三创建复诊预约，时间：3月18日下午2点？"
 
     D->>PG: "确认"
     PG->>PG: pending_action_id set + confirm regex
     PG->>PG: Create DoctorTask row, clear pending_action_id
-    PG->>D: "已为张三创建复诊预约，时间：3月18日"
+    PG->>D: "已为张三创建复诊预约，时间：3月18日下午2点"
 ```
 
 ## Data Flow: Clarification Path
