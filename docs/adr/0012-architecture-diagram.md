@@ -46,7 +46,10 @@ flowchart TD
     read_engine --> compose_llm["<b>COMPOSE (LLM)</b><br/>Summarize fetched data<br/><i>2 LLM calls total</i>"]
     commit_engine --> compose_template["<b>COMPOSE (template)</b><br/>Format confirmation or success<br/><i>1 LLM call total</i>"]
 
-    compose_llm --> turn_result["TurnResult<br/>(reply + optional view_payload)"]
+    det_handler --> turn_result["TurnResult<br/>(reply + optional view_payload)"]
+    commit_or_discard --> turn_result
+    blocked_reply --> turn_result
+    compose_llm --> turn_result
     compose_template --> turn_result
     clarify_compose --> turn_result
     direct_reply --> turn_result
