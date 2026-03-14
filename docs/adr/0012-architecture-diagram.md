@@ -7,7 +7,7 @@ Companion diagram for
 
 ```mermaid
 flowchart TD
-    input["user_input + DoctorCtx<br/>(already deduped by channel layer)"]
+    input["user_input + DoctorCtx + chat_archive<br/>(already deduped by channel layer)"]
 
     %% Pre-pipeline guards
     input --> det{"Deterministic action?<br/>(button click, 确认/取消)"}
@@ -122,11 +122,13 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant D as Doctor
+    participant PG as Pending Guard
     participant U as Understand (LLM)
     participant R as Resolve
     participant Co as Compose (template)
 
-    D->>U: "帮张约个复诊"
+    D->>PG: "帮张约个复诊"
+    PG->>U: pass through (no pending)
     U->>R: UnderstandResult{action_type: schedule_task, args: {patient_name: "张"}}
     R->>R: DB lookup "张" → prefix match: 张三, 张三丰
     R->>Co: Clarification{kind: ambiguous_patient, options: [{name: "张三", id: 1}, {name: "张三丰", id: 2}]}
