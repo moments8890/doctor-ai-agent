@@ -1,8 +1,10 @@
-"""Alembic 迁移环境配置：同步/离线双模式，兼容 SQLite 与 MySQL 异步驱动。"""
+"""Alembic migration environment."""
 from __future__ import annotations
 
 from logging.config import fileConfig
 import os
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
 from typing import Optional
 
 from alembic import context

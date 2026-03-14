@@ -1,0 +1,465 @@
+"""Records router — chat endpoint uses ADR 0011 runtime; utility endpoints unchanged."""
+from __future__ import annotations
+
+import os
+import re
+
+from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, File, Header
+from pydantic import BaseModel, Field, field_validator
+from typing import List, Literal, Optional
+
+from db.crud import get_record_versions
+from db.engine import AsyncSessionLocal
+from db.models.medical_record import MedicalRecord
+from services.ai.structuring import structure_medical_record
+from services.ai.transcription import transcribe_audio
+from services.ai.vision import extract_text_from_image
+from services.knowledge.pdf_extract import extract_text_from_pdf_smart
+from services.auth.rate_limit import enforce_doctor_rate_limit
+from services.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
+from services.runtime import ActionPayload, TurnEnvelope, process_turn
+from channels.web.deps import get_doctor_id
+from messages import M
+from utils.log import log
+
+# MIME-type constants shared with other endpoints
+from constants import SUPPORTED_AUDIO_TYPES, SUPPORTED_IMAGE_TYPES
+
+router = APIRouter(prefix="/api/records", tags=["records"])
+
+_MAX_UPLOAD_BYTES = 20 * 1024 * 1024  # 20 MB
+
+# ── Fast-path routing patterns (no LLM needed) ────────────────────────────
+_LANG = os.environ.get("RUNTIME_LANG", "zh")
+
+if _LANG == "en":
+    _GREETING_RE = re.compile(
+        r"^(hi|hello|hey|good\s+morning|good\s+afternoon|good\s+evening)\s*[.?!]*$",
+        re.IGNORECASE,
+    )
+    _HELP_RE = re.compile(
+        r"^(help|menu|commands?)\s*[.?!]*$",
+        re.IGNORECASE,
+    )
+else:
+    _GREETING_RE = re.compile(
+        r"^(你好|您好|hi|hello|嗨|hey|早上好|下午好|晚上好)\s*[。？！.?!]*$",
+        re.IGNORECASE,
+    )
+    _HELP_RE = re.compile(
+        r"^(帮助|help|功能|菜单)\s*[。？！.?!]*$",
+        re.IGNORECASE,
+    )
+
+
+# ── Pydantic models ───────────────────────────────────────────────────────────
+
+class HistoryMessage(BaseModel):
+    """Single turn in client-supplied history (accepted but not used by runtime)."""
+    role: Literal["user", "assistant"] = Field(..., description="Must be 'user' or 'assistant'")
+    content: str = Field(..., max_length=16000)
+
+
+class ChatInput(BaseModel):
+    """Input for the /chat endpoint."""
+    text: str = Field(..., max_length=8000)
+    history: List[HistoryMessage] = Field(default_factory=list)
+    doctor_id: str = ""
+
+    @field_validator("text")
+    @classmethod
+    def _validate_text(cls, value: str) -> str:
+        return value or ""
+
+    @field_validator("history")
+    @classmethod
+    def _validate_history(cls, value: List[HistoryMessage]) -> List[HistoryMessage]:
+        if len(value) > 100:
+            raise ValueError("history exceeds max length (100)")
+        return value
+
+
+class TextInput(BaseModel):
+    """Input for /from-text endpoint."""
+    text: str = Field(..., max_length=16000)
+
+
+class ChatResponse(BaseModel):
+    """Output for the /chat endpoint."""
+    reply: str
+    record: Optional[MedicalRecord] = None
+    pending_id: Optional[str] = None
+    pending_patient_name: Optional[str] = None
+    pending_expires_at: Optional[str] = None  # ISO-8601 UTC
+
+
+class ExtractedTextResponse(BaseModel):
+    """Output for /from-image, /from-audio."""
+    reply: str
+    source: str
+    extracted_text: str
+
+
+class TextOnlyResponse(BaseModel):
+    """Output for /transcribe, /ocr."""
+    text: str
+
+
+class FileExtractResponse(BaseModel):
+    """Output for /extract-file."""
+    text: Optional[str] = None
+    filename: str
+
+
+class RecordVersionResponse(BaseModel):
+    """Single version entry in record history."""
+    id: int
+    old_content: Optional[str] = None
+    old_tags: Optional[str] = None
+    old_record_type: Optional[str] = None
+    changed_at: Optional[str] = None
+
+
+class RecordHistoryResponse(BaseModel):
+    """Output for /{record_id}/history."""
+    record_id: int
+    versions: List[RecordVersionResponse]
+
+
+class ConfirmResponse(BaseModel):
+    """Output for /pending/{id}/confirm."""
+    ok: bool
+    record_id: Optional[int] = None
+    patient_name: Optional[str] = None
+
+
+class AbandonResponse(BaseModel):
+    """Output for /pending/{id}/abandon."""
+    ok: bool
+
+
+# ── Chat endpoint (ADR 0011 runtime) ────────────────────────────────────────
+
+@router.post("/chat", response_model=ChatResponse)
+async def chat(
+    body: ChatInput,
+    authorization: Optional[str] = Header(default=None),
+):
+    """Doctor chat — thread-centric conversation runtime (ADR 0011)."""
+    doctor_id = resolve_doctor_id_from_auth_or_fallback(
+        body.doctor_id, authorization,
+        fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
+        default_doctor_id="test_doctor",
+    )
+    text = (body.text or "").strip()
+    if not text:
+        raise HTTPException(status_code=422, detail="Text input cannot be empty.")
+
+    enforce_doctor_rate_limit(doctor_id, scope="records.chat")
+
+    # Fast paths: deterministic, low-risk (ADR 0011 §10)
+    if _GREETING_RE.match(text):
+        return ChatResponse(reply=M.greeting)
+    if _HELP_RE.match(text):
+        return ChatResponse(reply=M.help)
+
+    result = await process_turn(TurnEnvelope(
+        doctor_id=doctor_id,
+        text=text,
+        channel="web",
+    ))
+    return ChatResponse(
+        reply=result.reply,
+        pending_id=result.pending_id,
+        pending_patient_name=result.pending_patient_name,
+        pending_expires_at=result.pending_expires_at,
+    )
+
+
+# ── Utility endpoints (unchanged) ───────────────────────────────────────────
+
+@router.post("/from-text", response_model=MedicalRecord)
+async def create_record_from_text(
+    body: TextInput,
+    doctor_id: str = "",
+    authorization: Optional[str] = Header(default=None),
+):
+    """Structure raw text into a medical record."""
+    resolved = resolve_doctor_id_from_auth_or_fallback(
+        doctor_id, authorization,
+        fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
+        default_doctor_id="test_doctor",
+    )
+    enforce_doctor_rate_limit(resolved, scope="records.from_text")
+    if not body.text.strip():
+        raise HTTPException(status_code=422, detail="Text input cannot be empty.")
+    try:
+        return await structure_medical_record(body.text)
+    except ValueError as e:
+        log(f"[Records] from-text validation failed: {e}")
+        raise HTTPException(status_code=422, detail="Invalid medical record content")
+    except Exception as e:
+        log(f"[Records] from-text failed: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/from-image", response_model=ExtractedTextResponse)
+async def create_record_from_image(
+    image: UploadFile = File(...),
+    doctor_id: str = Form(default=""),
+    authorization: Optional[str] = Header(default=None),
+):
+    """OCR an image then import."""
+    resolved = resolve_doctor_id_from_auth_or_fallback(
+        doctor_id, authorization,
+        fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
+        default_doctor_id="test_doctor",
+    )
+    enforce_doctor_rate_limit(resolved, scope="records.from_image")
+    if image.content_type not in SUPPORTED_IMAGE_TYPES:
+        raise HTTPException(status_code=422, detail=f"Unsupported: {image.content_type}")
+    try:
+        image_bytes = await image.read()
+        if len(image_bytes) > _MAX_UPLOAD_BYTES:
+            raise HTTPException(status_code=413, detail="File too large (max 20 MB)")
+        text = await extract_text_from_image(image_bytes, image.content_type)
+    except HTTPException:
+        raise
+    except Exception as e:
+        log(f"[Records] from-image OCR failed: {e}")
+        raise HTTPException(status_code=500, detail="OCR failed")
+    if not text or not text.strip():
+        raise HTTPException(status_code=422, detail="OCR extracted no text")
+    reply = await _import_extracted_text(text, resolved, source="image")
+    return {"reply": reply, "source": "image", "extracted_text": text}
+
+
+@router.post("/from-audio", response_model=ExtractedTextResponse)
+async def create_record_from_audio(
+    audio: UploadFile = File(...),
+    doctor_id: str = Form(default=""),
+    authorization: Optional[str] = Header(default=None),
+):
+    """Transcribe audio then import."""
+    resolved = resolve_doctor_id_from_auth_or_fallback(
+        doctor_id, authorization,
+        fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
+        default_doctor_id="test_doctor",
+    )
+    enforce_doctor_rate_limit(resolved, scope="records.from_audio")
+    if audio.content_type not in SUPPORTED_AUDIO_TYPES:
+        raise HTTPException(status_code=422, detail=f"Unsupported: {audio.content_type}")
+    try:
+        audio_bytes = await audio.read()
+        if len(audio_bytes) > _MAX_UPLOAD_BYTES:
+            raise HTTPException(status_code=413, detail="File too large (max 20 MB)")
+        transcript = await transcribe_audio(audio_bytes, audio.filename or "audio.wav")
+    except HTTPException:
+        raise
+    except Exception as e:
+        log(f"[Records] from-audio transcription failed: {e}")
+        raise HTTPException(status_code=500, detail="Transcription failed")
+    if not transcript or not transcript.strip():
+        raise HTTPException(status_code=422, detail="Transcription produced no text")
+    reply = await _import_extracted_text(transcript, resolved, source="voice")
+    return {"reply": reply, "source": "voice", "extracted_text": transcript}
+
+
+async def _import_extracted_text(text: str, doctor_id: str, *, source: str) -> str:
+    """Dispatch extracted text to import_history."""
+    from services.ai.intent import IntentResult as _IR, Intent as _I
+    from channels.wechat.wechat_import import handle_import_history
+    intent_result = _IR(intent=_I.import_history, extra_data={"source": source})
+    try:
+        return await handle_import_history(text, doctor_id, intent_result)
+    except Exception as e:
+        log(f"[Records] import failed source={source} doctor={doctor_id}: {e}")
+        raise HTTPException(status_code=500, detail="Import failed")
+
+
+@router.post("/transcribe", response_model=TextOnlyResponse)
+async def transcribe_audio_only(
+    audio: UploadFile = File(...),
+    doctor_id: str = Form(default=""),
+    authorization: Optional[str] = Header(default=None),
+):
+    """Transcribe audio to text without creating a record."""
+    resolved = resolve_doctor_id_from_auth_or_fallback(
+        doctor_id, authorization,
+        fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
+        default_doctor_id="test_doctor",
+    )
+    enforce_doctor_rate_limit(resolved, scope="records.transcribe")
+    content_type = (audio.content_type or "").split(";")[0].strip()
+    if content_type not in SUPPORTED_AUDIO_TYPES and not content_type.startswith("audio/"):
+        raise HTTPException(status_code=422, detail=f"Unsupported: {content_type}")
+    try:
+        audio_bytes = await audio.read()
+        if len(audio_bytes) > _MAX_UPLOAD_BYTES:
+            raise HTTPException(status_code=413, detail="File too large (max 20 MB)")
+        return {"text": await transcribe_audio(audio_bytes, audio.filename or "audio.wav")}
+    except HTTPException:
+        raise
+    except Exception as e:
+        log(f"[Records] transcribe failed: {e}")
+        raise HTTPException(status_code=500, detail="Transcription failed")
+
+
+@router.post("/ocr", response_model=TextOnlyResponse)
+async def ocr_image_only(
+    image: UploadFile = File(...),
+    doctor_id: str = Form(default=""),
+    authorization: Optional[str] = Header(default=None),
+):
+    """Extract text from an image without creating a record."""
+    resolved = resolve_doctor_id_from_auth_or_fallback(
+        doctor_id, authorization,
+        fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
+        default_doctor_id="test_doctor",
+    )
+    enforce_doctor_rate_limit(resolved, scope="records.ocr")
+    content_type = (image.content_type or "").split(";")[0].strip()
+    if content_type not in SUPPORTED_IMAGE_TYPES:
+        raise HTTPException(status_code=422, detail=f"Unsupported: {content_type}")
+    try:
+        image_bytes = await image.read()
+        if len(image_bytes) > _MAX_UPLOAD_BYTES:
+            raise HTTPException(status_code=413, detail="File too large (max 20 MB)")
+        return {"text": await extract_text_from_image(image_bytes, content_type)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        log(f"[Records] ocr failed: {e}")
+        raise HTTPException(status_code=500, detail="OCR failed")
+
+
+@router.post("/extract-file", response_model=FileExtractResponse)
+async def extract_file_for_chat(
+    file: UploadFile = File(...),
+    doctor_id: str = Form(default=""),
+    authorization: Optional[str] = Header(default=None),
+):
+    """Extract text from a PDF or image for the chat input."""
+    resolved = resolve_doctor_id_from_auth_or_fallback(
+        doctor_id, authorization,
+        fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
+        default_doctor_id="test_doctor",
+    )
+    enforce_doctor_rate_limit(resolved, scope="records.extract_file")
+    content_type = (file.content_type or "").split(";")[0].strip()
+    filename = file.filename or ""
+    try:
+        raw = await file.read()
+        if len(raw) > _MAX_UPLOAD_BYTES:
+            raise HTTPException(status_code=413, detail="File too large (max 20 MB)")
+        if content_type == "application/pdf" or filename.lower().endswith(".pdf"):
+            text = await extract_text_from_pdf_smart(raw)
+        elif content_type in SUPPORTED_IMAGE_TYPES:
+            text = await extract_text_from_image(raw, content_type)
+        else:
+            raise HTTPException(status_code=422, detail="Unsupported format (PDF or image only)")
+        return {"text": text, "filename": filename}
+    except HTTPException:
+        raise
+    except Exception as e:
+        log(f"[Records] extract-file failed: {e}")
+        raise HTTPException(status_code=500, detail="File extraction failed")
+
+
+@router.get("/{record_id}/history", response_model=RecordHistoryResponse)
+async def record_history(
+    record_id: int,
+    doctor_id: str = "test_doctor",
+    authorization: Optional[str] = Header(default=None),
+):
+    """Return correction history (versions) for a record."""
+    resolved = resolve_doctor_id_from_auth_or_fallback(
+        doctor_id, authorization,
+        fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
+        default_doctor_id="test_doctor",
+    )
+    async with AsyncSessionLocal() as db:
+        from sqlalchemy import select as _select
+        from db.models import MedicalRecordDB as _MRD
+        rec = (await db.execute(
+            _select(_MRD).where(_MRD.id == record_id, _MRD.doctor_id == resolved)
+        )).scalar_one_or_none()
+        if rec is None:
+            raise HTTPException(status_code=404, detail="Record not found")
+        versions = await get_record_versions(db, record_id, resolved)
+    return {
+        "record_id": record_id,
+        "versions": [
+            {
+                "id": v.id,
+                "old_content": v.old_content,
+                "old_tags": v.old_tags,
+                "old_record_type": v.old_record_type,
+                "changed_at": v.changed_at.isoformat() if v.changed_at else None,
+            }
+            for v in versions
+        ],
+    }
+
+
+# ── Draft confirm / abandon ─────────────────────────────────────────────────
+
+@router.post("/pending/{pending_id}/confirm", response_model=ConfirmResponse)
+async def confirm_pending(
+    pending_id: str,
+    doctor_id: str = Depends(get_doctor_id),
+):
+    """Confirm a pending draft and save to medical_records.
+
+    Routes through ``process_turn`` so that context cleanup, audit archival,
+    side effects (CVD extraction, auto-tasks, working_note clear) all follow
+    the same code path as text-based "确认" from WeChat/Voice.
+    """
+    result = await process_turn(TurnEnvelope(
+        doctor_id=doctor_id,
+        channel="web",
+        modality="action",
+        action=ActionPayload(type="draft_confirm", target_id=str(pending_id)),
+        source_turn_key=f"btn_confirm_{pending_id}",
+    ))
+
+    if M.draft_expired in result.reply:
+        raise HTTPException(status_code=404, detail="Draft not found or expired")
+    if M.draft_save_failed in result.reply:
+        raise HTTPException(status_code=500, detail="Save failed")
+
+    return {
+        "ok": True,
+        "record_id": result.record_id,
+        "patient_name": _extract_patient_from_reply(result.reply),
+    }
+
+
+@router.post("/pending/{pending_id}/abandon", response_model=AbandonResponse)
+async def abandon_pending(
+    pending_id: str,
+    doctor_id: str = Depends(get_doctor_id),
+):
+    """Abandon a pending draft without saving.
+
+    Routes through ``process_turn`` for consistent context cleanup.
+    """
+    result = await process_turn(TurnEnvelope(
+        doctor_id=doctor_id,
+        channel="web",
+        modality="action",
+        action=ActionPayload(type="draft_abandon", target_id=str(pending_id)),
+        source_turn_key=f"btn_abandon_{pending_id}",
+    ))
+
+    if M.draft_expired in result.reply:
+        raise HTTPException(status_code=404, detail="Draft not found or expired")
+
+    return {"ok": True}
+
+
+def _extract_patient_from_reply(reply: str) -> str:
+    """Best-effort extract patient name from draft_confirmed message."""
+    import re
+    m = re.search(r"【(.+?)】", reply)
+    return m.group(1) if m else ""
