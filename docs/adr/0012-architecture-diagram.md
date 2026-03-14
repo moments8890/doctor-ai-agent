@@ -188,21 +188,33 @@ graph LR
 
 ## Pending State Machine
 
-```mermaid
-stateDiagram-v2
-    [*] --> Idle
-    Idle --> PendingDraft: create_draft / create confirmed
-    Idle --> PendingAction: schedule_task / action prepared
-    PendingDraft --> Idle: 确认 (confirm) → save record
-    PendingDraft --> Idle: 取消 (cancel) → discard
-    PendingDraft --> Idle: TTL expired → auto-discard
-    PendingAction --> Idle: 确认 (confirm) → create DoctorTask
-    PendingAction --> Idle: 取消 (cancel) → discard
-    PendingAction --> Idle: TTL expired → auto-discard
+At most one pending state per doctor (mutex enforced by commit engine + DB
+CHECK constraint).
 
-    note right of PendingDraft: pending_draft_id set
-    note right of PendingAction: pending_action_id set
-    note left of Idle: Both null (mutex enforced)
+```mermaid
+flowchart LR
+    idle(("IDLE<br/>both null"))
+
+    idle -->|create_draft| draft["PENDING DRAFT<br/>pending_draft_id set"]
+    idle -->|schedule_task| action["PENDING ACTION<br/>pending_action_id set"]
+
+    draft -->|"确认 (confirm)"| save["Save record"] --> idle
+    draft -->|"取消 (cancel)"| discard1["Discard"] --> idle
+    draft -->|"TTL expired"| expire1["Auto-discard"] --> idle
+
+    action -->|"确认 (confirm)"| create["Create DoctorTask"] --> idle
+    action -->|"取消 (cancel)"| discard2["Discard"] --> idle
+    action -->|"TTL expired"| expire2["Auto-discard"] --> idle
+
+    style idle fill:#333,color:#fff
+    style draft fill:#4a90d9,color:#fff
+    style action fill:#e74c3c,color:#fff
+    style save fill:#2ecc71,color:#fff
+    style create fill:#2ecc71,color:#fff
+    style discard1 fill:#95a5a6,color:#fff
+    style discard2 fill:#95a5a6,color:#fff
+    style expire1 fill:#95a5a6,color:#fff
+    style expire2 fill:#95a5a6,color:#fff
 ```
 
 ## Clinical Context for Drafting (no memory_patch)
