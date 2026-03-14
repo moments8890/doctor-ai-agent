@@ -7,14 +7,12 @@ Companion diagram for
 
 ```mermaid
 flowchart TD
-    input["user_input + DoctorCtx"]
+    input["user_input + DoctorCtx<br/>(already deduped by channel layer)"]
 
     %% Pre-pipeline guards
-    input --> dedup{"Dedup<br/>(message_id cache)"}
-    dedup -->|duplicate| cached_reply["Return cached TurnResult"]
-    dedup -->|new| typed{"Typed UI action?<br/>(button click)"}
-    typed -->|yes| det_handler["Deterministic handler → template reply"]
-    typed -->|no| pending{"Pending guard<br/>pending_draft_id or<br/>pending_action_id set?"}
+    input --> det{"Deterministic action?<br/>(button click, 确认/取消)"}
+    det -->|yes| det_handler["Deterministic handler → template reply"]
+    det -->|no| pending{"Pending guard<br/>pending_draft_id or<br/>pending_action_id set?"}
 
     pending -->|"confirm/abandon regex"| commit_or_discard["Commit or discard pending → template reply"]
     pending -->|"read-only regex"| understand

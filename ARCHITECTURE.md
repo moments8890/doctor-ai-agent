@@ -48,17 +48,16 @@ Key invariants:
 ┌──────────────────────────▼──────────────────────────────┐
 │                 RUNTIME (services/runtime/)              │
 │                                                         │
-│  1. Dedup (in-memory LRU, 5-min TTL)                   │
-│  2. Load DoctorCtx from DB                              │
-│  3. Pending guard (confirm/abandon/block/pass-through)  │
-│  4. UNDERSTAND — LLM → UnderstandResult (structured)    │
-│  5. EXECUTE                                             │
+│  1. Load DoctorCtx from DB                              │
+│  2. Pending guard (confirm/abandon/block/pass-through)  │
+│  3. UNDERSTAND — LLM → UnderstandResult (structured)    │
+│  4. EXECUTE                                             │
 │     ├── Resolve (patient lookup, binding, dates)        │
 │     ├── Read engine (SELECT only, no writes)            │
 │     └── Commit engine (durable writes, pending state)   │
-│  6. COMPOSE — template or LLM from execution results    │
-│  7. Apply memory patch (only on success)                │
-│  8. Persist context + archive turns                     │
+│  5. COMPOSE — template or LLM from execution results    │
+│  6. Apply memory patch (only on success)                │
+│  7. Persist context + archive turns                     │
 │                                                         │
 │  Public API:                                            │
 │    process_turn()  has_pending_draft()                   │
@@ -123,9 +122,9 @@ imports runtime internals.
 | `wechat_domain.py` | Formatting, XML parsing, menu event logic |
 | `wecom_kf_sync.py` | WeCom KF message sync |
 
-**WeChat message flow:**
+**WeChat message flow** (dedup by `MsgId` before entering pipeline):
 ```text
-POST /wechat → decrypt → parse XML
+POST /wechat → decrypt → parse XML → dedup (MsgId LRU cache)
   ├── KF event → background sync
   ├── non-doctor → patient_pipeline
   ├── voice → transcribe → process_turn() (background, via CS API)
@@ -151,7 +150,7 @@ implementation details — channels import only from the package root.
 ### Public API (`__init__.py`)
 
 ```python
-process_turn(doctor_id, text, *, message_id=None) -> TurnResult
+process_turn(doctor_id, text) -> TurnResult
 has_pending_draft(doctor_id) -> bool          # lightweight read-only check
 clear_pending_draft_id(doctor_id) -> None     # for REST confirm/abandon buttons
 TurnResult                                    # reply + optional pending draft info
@@ -160,13 +159,16 @@ TurnResult                                    # reply + optional pending draft i
 ### Pipeline (`turn.py`)
 
 ```text
-text → strip → dedup check → load DoctorCtx → pending guard
+text → strip → load DoctorCtx → pending guard
   → Understand (LLM) → Execute (resolve → read/commit engine) → Compose → memory patch → persist → reply
 ```
 
+Dedup is a channel-layer concern, not a runtime concern. Channels that use
+retrying transports (e.g., WeChat webhooks) filter duplicates before calling
+`process_turn()`. The runtime trusts that each call represents a unique turn.
+
 | Stage | Module | Purpose |
 |-------|--------|---------|
-| Dedup | `dedup.py` | In-memory LRU (500 entries, 5-min TTL); return cached result on duplicate `message_id` |
 | Context | `context.py` | Load/save `DoctorCtx` from `doctor_context` table; read/write `chat_archive` |
 | Pending guard | `draft_guard.py` | If `pending_draft_id` or `pending_action_id` set: confirm → commit, abandon → discard, read-looking → pass through, other → block |
 | Understand | `conversation.py` | LLM → `UnderstandResult` (structured intent, no prose for operational turns) |

@@ -89,8 +89,7 @@ type:
 
 | Input type | Understand | Execute | Compose | LLM calls |
 | --- | --- | --- | --- | --- |
-| Typed UI action (button click) | skip | deterministic | template | 0 |
-| Exact deterministic command (确认/取消) | skip or regex | deterministic | template | 0 |
+| Deterministic action (button click, 确认/取消) | skip | deterministic | template | 0 |
 | Read query ("查张三的病历") | LLM → structured | DB fetch | LLM summarize | 2 |
 | Write with extractable args ("帮张三约下周复诊") | LLM → structured | prepare pending | template confirm | 1 |
 | Chitchat / help / greeting | LLM → chat_reply | skip | skip | 1 |
@@ -412,11 +411,10 @@ The existing deterministic guards from ADR 0011 remain as pre-pipeline
 shortcuts. They run before the three-phase pipeline:
 
 ```text
-user_input
+user_input (already deduped by channel layer)
   |
-  dedup (existing)
-  |
-  typed UI action? → deterministic handler (existing) → template reply
+  deterministic action? (button click, 确认/取消 regex)
+    → deterministic handler → template reply
   |
   pending_guard (extended from draft_guard)
     pending_draft_id or pending_action_id set?
