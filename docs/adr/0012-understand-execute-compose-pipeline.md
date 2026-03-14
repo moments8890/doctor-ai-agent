@@ -89,16 +89,18 @@ type:
 
 | Input type | Understand | Execute | Compose | LLM calls |
 | --- | --- | --- | --- | --- |
-| Deterministic action (button click, 确认/取消) | skip | deterministic | template | 0 |
+| Typed UI action (button click) | skip | deterministic | template | 0 |
+| Pending confirm/cancel (确认/取消 regex) | skip | deterministic (pending guard) | template | 0 |
 | Read query ("查张三的病历") | LLM → structured | DB fetch | LLM summarize | 2 |
-| Write with extractable args ("帮张三约下周三复诊") | LLM → structured | prepare pending | template confirm | 1 |
+| Write: schedule_task ("帮张三约下周三复诊") | LLM → structured | prepare pending | template confirm | 1 |
+| Write: create_draft ("写个门诊记录") | LLM → structured | collect + structure | template confirm | 2 |
 | Chitchat / help / greeting | LLM → chat_reply | skip | skip | 1 |
 | Clarification needed | LLM → structured | skip | template (or understand's suggested_question) | 1 |
 
-The two-LLM-call path (reads) is justified: the understand call is small
-(structured output only), and compose needs real data to summarize. There is no
-way to do this correctly in one call without eager-loading all possible data
-into every turn's context.
+The two-LLM-call paths (reads and create_draft) are justified: reads need
+real data to summarize; create_draft needs an LLM structuring call to convert
+clinical text into a structured medical record. There is no way to do either
+correctly in one call.
 
 This table describes routing by **input shape**. Section 3 describes the same
 routing by **action_type** — the two must stay consistent.
@@ -402,10 +404,12 @@ shortcuts. They run before the three-phase pipeline:
 ```text
 user_input (already deduped by channel layer)
   |
-  deterministic action? (button click, 确认/取消 regex)
+  typed UI action? (button click with typed payload)
     → deterministic handler → template reply
   |
   pending_guard (extended from draft_guard)
+    pending_draft_id or pending_action_id set?
+      确认/取消 regex → deterministic commit or discard → template reply
     pending_draft_id or pending_action_id set?
       confirm/abandon regex → deterministic commit or discard → template reply
       read-only regex → pass through to pipeline (including cross-patient reads;
@@ -451,11 +455,18 @@ args:
 
 ```text
 args:
-  (none — clinical content is collected from recent turns in chat_archive,
+  (none — clinical content is collected by the commit engine,
    not from LLM-extracted args)
 ```
 
 Requires a bound patient in context. Execute.resolve validates this.
+
+Clinical content collection scope: all user-role turns in `chat_archive`
+for the current `doctor_id` since the last completed record for the bound
+patient (or session start if no prior record). This ensures the structuring
+LLM sees all relevant clinical input without noise from prior encounters.
+The commit engine passes this content to the structuring LLM (second LLM
+call) before creating the pending draft.
 
 #### query_records
 
@@ -544,6 +555,7 @@ output — only a text reply. This keeps it simple and fast.
 | `create_patient` | "已创建患者张三" / "张三已存在，已切换" |
 | `create_draft` | existing `M.draft_created` (preview + confirm prompt) |
 | `schedule_task` | "确认为张三创建随访任务，时间：3月20日下午2点？" |
+| `schedule_task` (noon default) | "确认为张三创建复诊预约，时间：3月18日中午12点？" |
 | `schedule_task` (confirmed) | "已为张三创建随访任务，时间：3月20日下午2点" |
 
 All template replies are deterministic and predictable. Only `query_records`

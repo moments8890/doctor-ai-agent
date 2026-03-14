@@ -208,9 +208,9 @@ stateDiagram-v2
 ```mermaid
 flowchart TD
     draft["create_draft triggered"]
-    draft --> archive["Scan chat_archive<br/>(full session history)"]
+    draft --> archive["Scan chat_archive<br/>(user turns since last completed<br/>record for bound patient)"]
     draft --> current["Current user input"]
-    archive --> collect["Collect clinical content<br/>(all user turns for bound patient)"]
+    archive --> collect["Collect clinical content"]
     current --> collect
     collect --> structure["Structure medical record<br/>(LLM structuring call)"]
     structure --> pending["Create pending draft<br/>(confirmation required)"]
