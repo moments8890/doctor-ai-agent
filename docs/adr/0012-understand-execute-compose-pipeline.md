@@ -91,7 +91,7 @@ type:
 | --- | --- | --- | --- | --- |
 | Deterministic action (button click, 确认/取消) | skip | deterministic | template | 0 |
 | Read query ("查张三的病历") | LLM → structured | DB fetch | LLM summarize | 2 |
-| Write with extractable args ("帮张三约下周三下午两点复诊") | LLM → structured | prepare pending | template confirm | 1 |
+| Write with extractable args ("帮张三约下周三复诊") | LLM → structured | prepare pending | template confirm | 1 |
 | Chitchat / help / greeting | LLM → chat_reply | skip | skip | 1 |
 | Clarification needed | LLM → structured | skip | template (or understand's suggested_question) | 1 |
 
@@ -517,8 +517,10 @@ args:
 - Requires a strong patient target: explicit name or current bound patient.
 - Relative dates are normalized deterministically by the runtime using current
   date and configured timezone — not by trusting model-generated ISO strings.
-- For `task_type="appointment"`: event time is required, reminder defaults
-  deterministically (e.g. one hour before) when not specified.
+- For `task_type="appointment"`: a date is required. If the user provides a
+  date without a specific time ("下周三"), the runtime defaults to 12:00
+  (noon) in the configured timezone. Reminder defaults deterministically
+  (one hour before) when not specified.
 - For non-appointment tasks: `remind_at` serves as the actionable
   deadline/reminder time.
 
@@ -642,8 +644,14 @@ phase normalizes them using:
 - configured timezone
 - validation rules per task type
 
-The runtime rejects or clarifies invalid temporal payloads rather than silently
-accepting hallucinated ISO strings.
+Default fill rules:
+
+- **Date without time** (e.g., "下周三") → default to 12:00 noon
+- **Reminder not specified** → default to one hour before `scheduled_for`
+
+The runtime rejects or clarifies invalid temporal payloads (e.g., past dates,
+unparseable expressions) rather than silently accepting hallucinated ISO
+strings.
 
 ### 13. Audit all operational actions
 
