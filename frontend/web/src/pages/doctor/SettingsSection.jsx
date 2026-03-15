@@ -6,8 +6,6 @@ import {
   Alert, Box, Button, CircularProgress, Dialog, Stack, TextField, Typography,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import LogoutIcon from "@mui/icons-material/Logout";
-import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
@@ -18,13 +16,13 @@ import { SPECIALTY_OPTIONS } from "./constants";
 function SettingsRow({ icon, label, sublabel, onClick, danger }) {
   return (
     <Box onClick={onClick} sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, cursor: onClick ? "pointer" : "default",
-      borderBottom: "1px solid #f2f2f2", "&:active": onClick ? { bgcolor: "#f9f9f9" } : {} }}>
-      <Box sx={{ width: 36, height: 36, borderRadius: "8px", bgcolor: danger ? "#fef2f2" : "#f0faf4",
+      borderBottom: "0.5px solid #f0f0f0", "&:active": onClick ? { bgcolor: "#f9f9f9" } : {} }}>
+      <Box sx={{ width: 36, height: 36, borderRadius: "4px", bgcolor: danger ? "#fef2f2" : "#f0faf4",
         display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, mr: 1.5 }}>
         {icon}
       </Box>
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontSize: 15, color: danger ? "#e74c3c" : "#222" }}>{label}</Typography>
+        <Typography sx={{ fontSize: 14, color: danger ? "#e74c3c" : "#111" }}>{label}</Typography>
         {sublabel && <Typography variant="caption" color="text.secondary">{sublabel}</Typography>}
       </Box>
       {onClick && !danger && <ArrowBackIcon sx={{ fontSize: 16, color: "#ccc", transform: "rotate(180deg)" }} />}
@@ -35,7 +33,7 @@ function SettingsRow({ icon, label, sublabel, onClick, danger }) {
 function NameDialog({ open, isMobile, nameInput, nameSaving, nameError, onChange, onSave, onClose }) {
   return (
     <Dialog open={open} onClose={onClose}
-      PaperProps={{ sx: isMobile ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "16px 16px 0 0", width: "100%" } : { borderRadius: 2, minWidth: 300 } }}
+      PaperProps={{ sx: isMobile ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "12px 12px 0 0", width: "100%" } : { borderRadius: 2, minWidth: 300 } }}
       sx={isMobile ? { "& .MuiDialog-container": { alignItems: "flex-end" } } : {}}>
       <Box sx={{ p: 2.5 }}>
         <Typography sx={{ fontWeight: 600, fontSize: 15, mb: 0.5, color: "#333" }}>设置昵称</Typography>
@@ -47,11 +45,11 @@ function NameDialog({ open, isMobile, nameInput, nameSaving, nameError, onChange
         {nameError && <Typography sx={{ fontSize: 12, color: "#e74c3c", mb: 1.5 }}>{nameError}</Typography>}
         <Box sx={{ display: "flex", gap: 1.5 }}>
           <Box onClick={onClose}
-            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: 1.5, bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 14, color: "#666", "&:active": { opacity: 0.7 } }}>
+            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: "4px", bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 14, color: "#666", "&:active": { opacity: 0.7 } }}>
             取消
           </Box>
           <Box onClick={!nameSaving ? onSave : undefined}
-            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: 1.5, bgcolor: "#07C160", cursor: nameSaving ? "default" : "pointer", fontSize: 14, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
+            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: "4px", bgcolor: "#07C160", cursor: nameSaving ? "default" : "pointer", fontSize: 14, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
             {nameSaving ? "保存中…" : "保存"}
           </Box>
         </Box>
@@ -63,14 +61,14 @@ function NameDialog({ open, isMobile, nameInput, nameSaving, nameError, onChange
 function SpecialtyDialog({ open, isMobile, specialtyInput, specialtySaving, specialtyError, onChange, onSave, onClose }) {
   return (
     <Dialog open={open} onClose={onClose}
-      PaperProps={{ sx: isMobile ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "16px 16px 0 0", width: "100%" } : { borderRadius: 2, minWidth: 320 } }}
+      PaperProps={{ sx: isMobile ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "12px 12px 0 0", width: "100%" } : { borderRadius: 2, minWidth: 320 } }}
       sx={isMobile ? { "& .MuiDialog-container": { alignItems: "flex-end" } } : {}}>
       <Box sx={{ p: 2.5 }}>
         <Typography sx={{ fontWeight: 600, fontSize: 15, mb: 2, color: "#333" }}>科室专业</Typography>
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.8, mb: 2 }}>
           {SPECIALTY_OPTIONS.map((s) => (
             <Box key={s} onClick={() => onChange(s)}
-              sx={{ px: 1.4, py: 0.4, borderRadius: "12px", cursor: "pointer", fontSize: 13,
+              sx={{ px: 1.4, py: 0.4, borderRadius: "4px", cursor: "pointer", fontSize: 13,
                 bgcolor: specialtyInput === s ? "#07C160" : "#f2f2f2",
                 color: specialtyInput === s ? "#fff" : "#555",
                 fontWeight: specialtyInput === s ? 600 : 400 }}>
@@ -84,11 +82,11 @@ function SpecialtyDialog({ open, isMobile, specialtyInput, specialtySaving, spec
         {specialtyError && <Typography sx={{ fontSize: 12, color: "#e74c3c", mb: 1.5 }}>{specialtyError}</Typography>}
         <Box sx={{ display: "flex", gap: 1.5 }}>
           <Box onClick={onClose}
-            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: 1.5, bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 14, color: "#666", "&:active": { opacity: 0.7 } }}>
+            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: "4px", bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 14, color: "#666", "&:active": { opacity: 0.7 } }}>
             取消
           </Box>
           <Box onClick={!specialtySaving ? onSave : undefined}
-            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: 1.5, bgcolor: "#07C160", cursor: specialtySaving ? "default" : "pointer", fontSize: 14, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
+            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: "4px", bgcolor: "#07C160", cursor: specialtySaving ? "default" : "pointer", fontSize: 14, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
             {specialtySaving ? "保存中…" : "保存"}
           </Box>
         </Box>
@@ -101,7 +99,7 @@ function TemplateStatusCard({ loading, status }) {
   return (
     <Box sx={{ bgcolor: "#fff", px: 2, py: 2, mb: 0.8 }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-        <Box sx={{ width: 44, height: 44, borderRadius: "10px", bgcolor: "#e8f5e9", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <Box sx={{ width: 44, height: 44, borderRadius: "4px", bgcolor: "#e8f5e9", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <UploadFileOutlinedIcon sx={{ color: "#07C160", fontSize: 22 }} />
         </Box>
         <Box sx={{ flex: 1 }}>
@@ -113,7 +111,7 @@ function TemplateStatusCard({ loading, status }) {
           </Typography>
         </Box>
         {status?.has_template && (
-          <Box sx={{ px: 1, py: 0.3, borderRadius: "10px", bgcolor: "#e8f5e9" }}>
+          <Box sx={{ px: 1, py: 0.3, borderRadius: "4px", bgcolor: "#e8f5e9" }}>
             <Typography sx={{ fontSize: 11, color: "#07C160", fontWeight: 600 }}>已自定义</Typography>
           </Box>
         )}
@@ -127,7 +125,7 @@ function TemplateActions({ status, uploading, deleting, fileRef, onDelete }) {
     <Box sx={{ bgcolor: "#fff" }}>
       <Box onClick={() => fileRef.current?.click()}
         sx={{ display: "flex", alignItems: "center", px: 2, py: 1.6,
-          borderBottom: status?.has_template ? "1px solid #f2f2f2" : "none",
+          borderBottom: status?.has_template ? "0.5px solid #f0f0f0" : "none",
           cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
         {uploading ? <CircularProgress size={18} sx={{ mr: 1.5, color: "#07C160" }} /> : <Box sx={{ width: 18, mr: 1.5 }} />}
         <Typography sx={{ flex: 1, fontSize: 15, color: uploading ? "#999" : "#07C160", fontWeight: 500 }}>
@@ -184,13 +182,13 @@ function TemplateSubpage({ doctorId, onBack }) {
   const { status, loading, uploading, deleting, msg, setMsg, fileRef, handleUpload, handleDelete } = useTemplateState(doctorId);
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
-      <Box sx={{ display: "flex", alignItems: "center", height: 48, px: 1, bgcolor: "#fff", borderBottom: "1px solid #e5e5e5", flexShrink: 0 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#ededed" }}>
+      <Box sx={{ display: "flex", alignItems: "center", height: 48, px: 1, bgcolor: "#f7f7f7", borderBottom: "0.5px solid #d9d9d9", flexShrink: 0 }}>
         <Box onClick={onBack} sx={{ display: "flex", alignItems: "center", gap: 0.3, cursor: "pointer", color: "#07C160", pr: 2, py: 1 }}>
           <ArrowBackIcon sx={{ fontSize: 20 }} />
           <Typography sx={{ fontSize: 15, color: "#07C160" }}>设置</Typography>
         </Box>
-        <Typography sx={{ flex: 1, textAlign: "center", fontWeight: 600, fontSize: 16, mr: 5 }}>报告模板</Typography>
+        <Typography sx={{ flex: 1, textAlign: "center", fontWeight: 500, fontSize: 17, mr: 5 }}>报告模板</Typography>
       </Box>
       <Box sx={{ flex: 1, overflowY: "auto" }}>
         <Box sx={{ px: 2, pt: 2, pb: 0.6 }}>
@@ -223,7 +221,7 @@ const NOTE_STYLE_OPTIONS = ["简洁", "详细", "SOAP", "叙述体"];
 function SimpleTextDialog({ open, isMobile, title, hint, value, saving, error, quickPicks, onChange, onSave, onClose }) {
   return (
     <Dialog open={open} onClose={onClose}
-      PaperProps={{ sx: isMobile ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "16px 16px 0 0", width: "100%" } : { borderRadius: 2, minWidth: 320 } }}
+      PaperProps={{ sx: isMobile ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "12px 12px 0 0", width: "100%" } : { borderRadius: 2, minWidth: 320 } }}
       sx={isMobile ? { "& .MuiDialog-container": { alignItems: "flex-end" } } : {}}>
       <Box sx={{ p: 2.5 }}>
         <Typography sx={{ fontWeight: 600, fontSize: 15, mb: 0.5, color: "#333" }}>{title}</Typography>
@@ -232,7 +230,7 @@ function SimpleTextDialog({ open, isMobile, title, hint, value, saving, error, q
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.8, mb: 2 }}>
             {quickPicks.map((s) => (
               <Box key={s} onClick={() => onChange(s)}
-                sx={{ px: 1.4, py: 0.4, borderRadius: "12px", cursor: "pointer", fontSize: 13,
+                sx={{ px: 1.4, py: 0.4, borderRadius: "4px", cursor: "pointer", fontSize: 13,
                   bgcolor: value === s ? "#07C160" : "#f2f2f2",
                   color: value === s ? "#fff" : "#555",
                   fontWeight: value === s ? 600 : 400 }}>
@@ -248,11 +246,11 @@ function SimpleTextDialog({ open, isMobile, title, hint, value, saving, error, q
         {error && <Typography sx={{ fontSize: 12, color: "#e74c3c", mb: 1.5 }}>{error}</Typography>}
         <Box sx={{ display: "flex", gap: 1.5 }}>
           <Box onClick={onClose}
-            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: 1.5, bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 14, color: "#666", "&:active": { opacity: 0.7 } }}>
+            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: "4px", bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 14, color: "#666", "&:active": { opacity: 0.7 } }}>
             取消
           </Box>
           <Box onClick={!saving ? onSave : undefined}
-            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: 1.5, bgcolor: "#07C160", cursor: saving ? "default" : "pointer", fontSize: 14, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
+            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: "4px", bgcolor: "#07C160", cursor: saving ? "default" : "pointer", fontSize: 14, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
             {saving ? "保存中…" : "保存"}
           </Box>
         </Box>
@@ -262,38 +260,39 @@ function SimpleTextDialog({ open, isMobile, title, hint, value, saving, error, q
 }
 
 function AccountBlock({ doctorId, doctorName, specialty, visitScenario, noteStyle, onOpenName, onOpenSpecialty, onOpenVisitScenario, onOpenNoteStyle }) {
+  const surname = (doctorName || "")[0] || "";
   return (
     <Box sx={{ bgcolor: "#fff" }}>
-      <Box sx={{ display: "flex", alignItems: "center", px: 2, py: 1.8, borderBottom: "1px solid #f2f2f2" }}>
-        <Box sx={{ width: 52, height: 52, borderRadius: "50%", bgcolor: "#07C160", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, mr: 1.5 }}>
-          <LocalHospitalOutlinedIcon sx={{ color: "#fff", fontSize: 26 }} />
+      <Box sx={{ display: "flex", alignItems: "center", px: 2, py: 1.8, borderBottom: "0.5px solid #f0f0f0" }}>
+        <Box sx={{ width: 56, height: 56, borderRadius: "4px", bgcolor: "#07C160", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, mr: 1.5 }}>
+          <Typography sx={{ color: "#fff", fontSize: 24, fontWeight: 600 }}>{surname}</Typography>
         </Box>
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography sx={{ fontWeight: 600, fontSize: 16 }}>{doctorName || doctorId}</Typography>
-          <Typography variant="caption" color="text.secondary">{doctorId}</Typography>
+          <Typography sx={{ fontWeight: 600, fontSize: 17 }}>{doctorName || doctorId}</Typography>
+          <Typography sx={{ fontSize: 13, color: "#999" }}>{doctorId}</Typography>
         </Box>
       </Box>
       <Box onClick={onOpenName}
-        sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, borderTop: "1px solid #f2f2f2", cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
-        <Typography sx={{ fontSize: 14, color: "#555", flex: 1 }}>昵称</Typography>
+        sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, borderTop: "0.5px solid #f0f0f0", cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
+        <Typography sx={{ fontSize: 14, color: "#111", flex: 1 }}>昵称</Typography>
         <Typography sx={{ fontSize: 14, color: "#999", mr: 0.8 }}>{doctorName || "未设置"}</Typography>
         <ArrowBackIcon sx={{ fontSize: 16, color: "#ccc", transform: "rotate(180deg)" }} />
       </Box>
       <Box onClick={onOpenSpecialty}
-        sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, borderTop: "1px solid #f2f2f2", cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
-        <Typography sx={{ fontSize: 14, color: "#555", flex: 1 }}>科室专业</Typography>
+        sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, borderTop: "0.5px solid #f0f0f0", cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
+        <Typography sx={{ fontSize: 14, color: "#111", flex: 1 }}>科室专业</Typography>
         <Typography sx={{ fontSize: 14, color: "#999", mr: 0.8 }}>{specialty || "未设置"}</Typography>
         <ArrowBackIcon sx={{ fontSize: 16, color: "#ccc", transform: "rotate(180deg)" }} />
       </Box>
       <Box onClick={onOpenVisitScenario}
-        sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, borderTop: "1px solid #f2f2f2", cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
-        <Typography sx={{ fontSize: 14, color: "#555", flex: 1 }}>常见诊疗场景</Typography>
+        sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, borderTop: "0.5px solid #f0f0f0", cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
+        <Typography sx={{ fontSize: 14, color: "#111", flex: 1 }}>常见诊疗场景</Typography>
         <Typography sx={{ fontSize: 14, color: "#999", mr: 0.8, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{visitScenario || "未设置"}</Typography>
         <ArrowBackIcon sx={{ fontSize: 16, color: "#ccc", transform: "rotate(180deg)" }} />
       </Box>
       <Box onClick={onOpenNoteStyle}
-        sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, borderTop: "1px solid #f2f2f2", cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
-        <Typography sx={{ fontSize: 14, color: "#555", flex: 1 }}>病历风格</Typography>
+        sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, borderTop: "0.5px solid #f0f0f0", cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
+        <Typography sx={{ fontSize: 14, color: "#111", flex: 1 }}>病历风格</Typography>
         <Typography sx={{ fontSize: 14, color: "#999", mr: 0.8 }}>{noteStyle || "未设置"}</Typography>
         <ArrowBackIcon sx={{ fontSize: 16, color: "#ccc", transform: "rotate(180deg)" }} />
       </Box>
@@ -378,10 +377,10 @@ export default function SettingsSection({ doctorId, onLogout }) {
   if (subpage === "template") return <TemplateSubpage doctorId={doctorId} onBack={() => setSubpage(null)} />;
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#ededed" }}>
       {isMobile && (
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: 48, bgcolor: "#fff", borderBottom: "1px solid #e5e5e5", flexShrink: 0 }}>
-          <Typography sx={{ fontWeight: 600, fontSize: 16 }}>设置</Typography>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: 48, bgcolor: "#f7f7f7", borderBottom: "0.5px solid #d9d9d9", flexShrink: 0 }}>
+          <Typography sx={{ fontWeight: 500, fontSize: 17 }}>设置</Typography>
         </Box>
       )}
       <Box sx={{ flex: 1, overflowY: "auto" }}>
@@ -396,10 +395,10 @@ export default function SettingsSection({ doctorId, onLogout }) {
           <SettingsRow icon={<UploadFileOutlinedIcon sx={{ color: "#07C160", fontSize: 20 }} />} label="报告模板" sublabel="自定义门诊病历报告格式" onClick={() => setSubpage("template")} />
         </Box>
         {isMobile && (
-          <>
-            <Box sx={{ px: 2, pt: 2, pb: 0.6 }}><Typography sx={{ fontSize: 12, color: "#999", fontWeight: 500 }}>账户操作</Typography></Box>
-            <Box sx={{ bgcolor: "#fff" }}><SettingsRow icon={<LogoutIcon sx={{ color: "#e74c3c", fontSize: 20 }} />} label="退出登录" onClick={onLogout} danger /></Box>
-          </>
+          <Box onClick={onLogout}
+            sx={{ bgcolor: "#fff", textAlign: "center", py: 1.5, mt: 2, cursor: "pointer", "&:active": { opacity: 0.7 } }}>
+            <Typography sx={{ color: "#FA5151", fontSize: 15, fontWeight: 500 }}>退出登录</Typography>
+          </Box>
         )}
         <Box sx={{ height: 32 }} />
       </Box>
