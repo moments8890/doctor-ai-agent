@@ -9,35 +9,42 @@ import PatientPage from "./pages/PatientPage";
 import { useDoctorStore } from "./store/doctorStore";
 import { setWebToken } from "./api";
 
+const DEV_MODE = import.meta.env.DEV; // true in `vite dev`, false in `vite build`
+const DEV_DOCTOR_ID = import.meta.env.VITE_DEV_DOCTOR_ID || "test_doctor";
+
 function RequireAuth({ children }) {
   const { accessToken } = useDoctorStore();
+  if (DEV_MODE) return children; // Skip auth gate in dev
   if (!accessToken) return <Navigate to="/login" replace />;
   return children;
 }
 
 export default function App() {
-  const { accessToken, setAuth } = useDoctorStore();
+  const { accessToken, doctorId, setAuth } = useDoctorStore();
+
+  // Dev mode: auto-set doctor identity so login is never required
+  useState(() => {
+    if (DEV_MODE && !doctorId) {
+      setAuth(DEV_DOCTOR_ID, DEV_DOCTOR_ID, "dev-token");
+    }
+  });
 
   // Absorb token handed off from WeChat Mini Program web-view via URL params.
-  // Runs synchronously in useState initializer so auth is set before RequireAuth
-  // evaluates on the first render.
   useState(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get("token");
-    const doctorId = params.get("doctor_id");
+    const did = params.get("doctor_id");
     const name = params.get("name");
-    if (token && doctorId) {
-      setAuth(doctorId, name || doctorId, token);
+    if (token && did) {
+      setAuth(did, name || did, token);
       setWebToken(token);
-      // Strip sensitive params from the URL without triggering a navigation
       const url = new URL(window.location.href);
       ["token", "doctor_id", "name"].forEach((k) => url.searchParams.delete(k));
       window.history.replaceState({}, "", url.toString());
     }
   });
 
-  // Restore token into api module on page reload (Zustand persist re-hydrates store
-  // but the module-level _webToken variable resets on each page load).
+  // Restore token into api module on page reload
   useEffect(() => {
     if (accessToken) setWebToken(accessToken);
   }, [accessToken]);
