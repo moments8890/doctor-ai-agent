@@ -16,10 +16,9 @@ import TransferWithinAStationOutlinedIcon from "@mui/icons-material/TransferWith
 import MonitorHeartOutlinedIcon from "@mui/icons-material/MonitorHeartOutlined";
 import EventAvailableOutlinedIcon from "@mui/icons-material/EventAvailableOutlined";
 import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
-import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import { getTasks, patchTask, postponeTask, createTask, getPatients } from "../../api";
-import { TASK_TYPE_LABEL, TASK_STATUS_OPTS } from "./constants";
+import { TASK_TYPE_LABEL } from "./constants";
 
 const TASK_TYPE_ICON_COLOR = {
   follow_up: "#07C160", medication: "#5b9bd5", lab_review: "#e8833a",
@@ -49,13 +48,13 @@ function taskDateGroup(task, today, tomorrow, weekEnd) {
   return "之后";
 }
 
-function TaskActions({ task, onComplete, onPostpone, onCancel }) {
+function TaskActions({ task, isOverdue, onComplete, onPostpone, onCancel }) {
   if (task.status !== "pending") return null;
   return (
     <Box sx={{ display: "flex", gap: 2, mt: 0.8, alignItems: "center" }}>
       <Box onClick={() => onComplete(task.id, "completed")}
-        sx={{ display: "flex", alignItems: "center", gap: 0.4, cursor: "pointer", "&:active": { opacity: 0.6 } }}>
-        <CheckCircleOutlinedIcon sx={{ fontSize: 14, color: "#07C160" }} />
+        sx={{ display: "flex", alignItems: "center", gap: 0.6, cursor: "pointer", "&:active": { opacity: 0.6 } }}>
+        <Box sx={{ width: 20, height: 20, borderRadius: "50%", border: isOverdue ? "2px solid #FA5151" : "2px solid #07C160", flexShrink: 0 }} />
         <Typography sx={{ fontSize: 12, color: "#07C160" }}>完成</Typography>
       </Box>
       <Box onClick={(e) => onPostpone(e, task.id)}
@@ -77,32 +76,32 @@ function TaskRow({ task, isOverdue, onComplete, onPostpone, onCancel }) {
   const TaskIcon = TASK_TYPE_ICON[task.task_type] || AssignmentOutlinedIcon;
   return (
     <Box sx={{ display: "flex", alignItems: "flex-start", px: 2, py: 1.4 }}>
-      <Box sx={{ width: 40, height: 40, borderRadius: "10px", bgcolor: iconColor,
+      <Box sx={{ width: 40, height: 40, borderRadius: "4px", bgcolor: iconColor,
         display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, mr: 1.5, mt: 0.3 }}>
         <TaskIcon sx={{ color: "#fff", fontSize: 22 }} />
       </Box>
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Box sx={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 1 }}>
-          <Typography variant="body2" sx={{ fontWeight: 600, color: isOverdue ? "#e74c3c" : "text.primary", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+          <Typography variant="body2" sx={{ fontSize: 15, fontWeight: 500, color: isOverdue ? "#FA5151" : "text.primary", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
             {task.title || TASK_TYPE_LABEL[task.task_type] || task.task_type}
           </Typography>
           {task.due_at && (
-            <Typography variant="caption" sx={{ color: isOverdue ? "#e74c3c" : "#bbb", flexShrink: 0, fontSize: 11 }}>
+            <Typography variant="caption" sx={{ color: isOverdue ? "#FA5151" : "#bbb", flexShrink: 0, fontSize: 11 }}>
               {task.due_at.slice(5, 10)}
             </Typography>
           )}
         </Box>
         {task.content && (
-          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <Typography variant="caption" sx={{ fontSize: 13, color: "#999", display: "block", mt: 0.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {task.content}
           </Typography>
         )}
         {task.patient_name && (
-          <Typography variant="caption" sx={{ color: "#999", display: "block", mt: 0.2 }}>
+          <Typography variant="caption" sx={{ color: "#999", fontSize: 13, display: "block", mt: 0.2 }}>
             {task.patient_name}
           </Typography>
         )}
-        <TaskActions task={task} onComplete={onComplete} onPostpone={onPostpone} onCancel={onCancel} />
+        <TaskActions task={task} isOverdue={isOverdue} onComplete={onComplete} onPostpone={onPostpone} onCancel={onCancel} />
       </Box>
     </Box>
   );
@@ -112,7 +111,7 @@ function PostponeDialog({ open, isMobile, postponeDate, onChange, onClose, onCon
   return (
     <Dialog open={open} onClose={onClose}
       PaperProps={{ sx: isMobile
-        ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "16px 16px 0 0", width: "100%" }
+        ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "12px 12px 0 0", width: "100%" }
         : { borderRadius: 2, minWidth: 240 }
       }}
       sx={isMobile ? { "& .MuiDialog-container": { alignItems: "flex-end" } } : {}}>
@@ -122,11 +121,11 @@ function PostponeDialog({ open, isMobile, postponeDate, onChange, onClose, onCon
           value={postponeDate} onChange={(e) => onChange(e.target.value)} sx={{ mb: 2 }} />
         <Box sx={{ display: "flex", gap: 1.5 }}>
           <Box onClick={onClose}
-            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: 1.5, bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 14, color: "#666", "&:active": { opacity: 0.7 } }}>
+            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: "4px", bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 14, color: "#666", "&:active": { opacity: 0.7 } }}>
             取消
           </Box>
           <Box onClick={postponeDate ? onConfirm : undefined}
-            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: 1.5, bgcolor: postponeDate ? "#07C160" : "#e0e0e0", cursor: postponeDate ? "pointer" : "default", fontSize: 14, color: "#fff", fontWeight: 600, "&:active": postponeDate ? { opacity: 0.7 } : {} }}>
+            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: "4px", bgcolor: postponeDate ? "#07C160" : "#e0e0e0", cursor: postponeDate ? "pointer" : "default", fontSize: 14, color: "#fff", fontWeight: 600, "&:active": postponeDate ? { opacity: 0.7 } : {} }}>
             确认
           </Box>
         </Box>
@@ -139,7 +138,7 @@ function CancelDialog({ open, isMobile, onClose, onConfirm }) {
   return (
     <Dialog open={open} onClose={onClose}
       PaperProps={{ sx: isMobile
-        ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "16px 16px 0 0", width: "100%" }
+        ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "12px 12px 0 0", width: "100%" }
         : { borderRadius: 2, minWidth: 240 }
       }}
       sx={isMobile ? { "& .MuiDialog-container": { alignItems: "flex-end" } } : {}}>
@@ -148,11 +147,11 @@ function CancelDialog({ open, isMobile, onClose, onConfirm }) {
         <Typography sx={{ fontSize: 13, color: "#999", mb: 2.5, textAlign: "center" }}>此任务将被标记为已取消</Typography>
         <Box sx={{ display: "flex", gap: 1.5 }}>
           <Box onClick={onClose}
-            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: 1.5, bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 14, color: "#666", "&:active": { opacity: 0.7 } }}>
+            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: "4px", bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 14, color: "#666", "&:active": { opacity: 0.7 } }}>
             保留
           </Box>
           <Box onClick={onConfirm}
-            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: 1.5, bgcolor: "#e74c3c", cursor: "pointer", fontSize: 14, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
+            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: "4px", bgcolor: "#FA5151", cursor: "pointer", fontSize: 14, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
             确认取消
           </Box>
         </Box>
@@ -253,24 +252,31 @@ function useTasksState(doctorId) {
   return { tasks, loading, error, setError, statusFilter, setStatusFilter, createOpen, setCreateOpen, createForm, setCreateForm, creating, createError, setCreateError, patientOptions, setPatientOptions, postponeOpen, setPostponeOpen, postponeTaskId, setPostponeTaskId, postponeDate, setPostponeDate, cancelConfirmId, setCancelConfirmId, load, handleStatus, handleCreate, handleConfirmPostpone };
 }
 
+const SEGMENT_OPTS = [
+  { value: "pending", label: "今天" },
+  { value: "snoozed", label: "待办" },
+  { value: "completed", label: "已完成" },
+];
+
 function TasksHeader({ statusFilter, loading, onFilterChange, onOpenCreate }) {
   return (
-    <Box sx={{ display: "flex", alignItems: "center", px: 2, height: 48, bgcolor: "#fff", borderBottom: "1px solid #e5e5e5", flexShrink: 0 }}>
-      <Box sx={{ display: "flex", gap: 0.6, flex: 1, overflowX: "auto", WebkitOverflowScrolling: "touch", "&::-webkit-scrollbar": { display: "none" } }}>
-        {TASK_STATUS_OPTS.map((o) => (
+    <Box sx={{ display: "flex", alignItems: "center", px: 2, height: 48, bgcolor: "#fff", borderBottom: "0.5px solid #d9d9d9", flexShrink: 0 }}>
+      <Box sx={{ display: "inline-flex", bgcolor: "#f0f0f0", borderRadius: "4px", p: "2px", flex: 1 }}>
+        {SEGMENT_OPTS.map((o) => (
           <Box key={o.value} onClick={() => onFilterChange(o.value)}
-            sx={{ px: 1.4, py: 0.4, borderRadius: "12px", cursor: "pointer", flexShrink: 0, fontSize: 13,
-              bgcolor: statusFilter === o.value ? "#07C160" : "transparent",
-              color: statusFilter === o.value ? "#fff" : "#555",
+            sx={{ px: 1.4, py: 0.4, borderRadius: "4px", cursor: "pointer", flexShrink: 0, fontSize: 13,
+              bgcolor: statusFilter === o.value ? "#fff" : "transparent",
+              color: statusFilter === o.value ? "#111" : "#999",
               fontWeight: statusFilter === o.value ? 600 : 400,
+              boxShadow: statusFilter === o.value ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
               "&:active": { opacity: 0.7 } }}>
             {o.label}
           </Box>
         ))}
       </Box>
-      {loading && <CircularProgress size={14} sx={{ mr: 1, color: "#07C160" }} />}
+      {loading && <CircularProgress size={14} sx={{ ml: 1, color: "#07C160" }} />}
       <Box onClick={onOpenCreate}
-        sx={{ width: 28, height: 28, borderRadius: "50%", bgcolor: "#07C160", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, "&:active": { opacity: 0.8 } }}>
+        sx={{ ml: 1, width: 28, height: 28, borderRadius: "4px", bgcolor: "#07C160", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, "&:active": { opacity: 0.8 } }}>
         <Typography sx={{ color: "#fff", fontSize: 20, lineHeight: 1, mt: "-2px" }}>+</Typography>
       </Box>
     </Box>
@@ -291,11 +297,11 @@ function TaskGroupList({ tasks, loading, error, taskGroups, sortedGroups, onErro
       {sortedGroups.map((group) => (
         <Box key={group}>
           <Box sx={{ px: 2, py: 0.6, pt: 1.2 }}>
-            <Typography sx={{ fontSize: 12, color: group === "已逾期" ? "#e74c3c" : "#999", fontWeight: 500 }}>{group}</Typography>
+            <Typography sx={{ fontSize: 12, color: group === "已逾期" ? "#FA5151" : "#999", fontWeight: 500 }}>{group}</Typography>
           </Box>
           <Box sx={{ bgcolor: "#fff" }}>
             {taskGroups[group].map((task, idx) => (
-              <Box key={task.id} sx={{ borderBottom: idx < taskGroups[group].length - 1 ? "1px solid #f2f2f2" : "none" }}>
+              <Box key={task.id} sx={{ borderBottom: idx < taskGroups[group].length - 1 ? "0.5px solid #f0f0f0" : "none" }}>
                 <TaskRow task={task} isOverdue={group === "已逾期"} onComplete={onComplete} onPostpone={onPostpone} onCancel={onCancel} />
               </Box>
             ))}
@@ -320,7 +326,7 @@ export default function TasksSection({ doctorId }) {
   const sortedGroups = GROUP_ORDER.filter((g) => taskGroups[g]);
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#ededed" }}>
       <TasksHeader statusFilter={statusFilter} loading={loading} onFilterChange={setStatusFilter}
         onOpenCreate={() => { setCreateOpen(true); setCreateError(""); getPatients(doctorId, {}, 200).then((d) => setPatientOptions(d.items || [])).catch(() => {}); }} />
       <TaskGroupList tasks={tasks} loading={loading} error={error} taskGroups={taskGroups} sortedGroups={sortedGroups}
