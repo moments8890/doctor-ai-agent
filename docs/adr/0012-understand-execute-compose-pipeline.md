@@ -834,9 +834,14 @@ can be populated again.
 - no task completion/cancellation/rescheduling in this ADR
 - no compound actions in phase 1 — each turn produces exactly one action.
   `create_patient_and_draft` is removed; the doctor creates the patient first,
-  then triggers the draft in a follow-up turn. Multi-action sequencing (e.g.,
-  understand emits an ordered action list) is the future path for compound
-  intents without combinatorial enum explosion.
+  then triggers the draft in a follow-up turn. **This is a known UX
+  regression** for the most common first-turn flow ("帮张三写个门诊记录"
+  where 张三 doesn't exist). The planned mitigation is a `follow_up_hint:
+  optional ActionType` field on `UnderstandResult` — understand emits
+  `create_patient` with `follow_up_hint: create_draft`, and the runtime
+  auto-chains the second action after the first succeeds. This generalizes
+  to `follow_up_actions: list[ActionType]` for arbitrary multi-action
+  sequencing without enum explosion. Designed in a separate ADR.
 - no `update_patient` in phase 1 — phone and ID number carry identity risk
   through chat/voice; gender and age alone have too little utility to justify
   the action type. Revisit with format validation and digit-level confirmation.
