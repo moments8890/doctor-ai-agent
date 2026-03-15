@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from typing import List
+from typing import List, Optional
 
 from db.engine import AsyncSessionLocal
 from db.models.doctor import ChatArchive, DoctorContext
@@ -128,7 +128,12 @@ async def get_recent_turns(doctor_id: str, limit: int = 20) -> List[dict]:
     return [{"role": r.role, "content": r.content} for r in reversed(rows)]
 
 
-async def archive_turns(doctor_id: str, user_text: str, assistant_reply: str) -> None:
+async def archive_turns(
+    doctor_id: str,
+    user_text: str,
+    assistant_reply: str,
+    patient_id: Optional[int] = None,
+) -> None:
     """Append user + assistant turns to chat_archive."""
     from db.crud import append_chat_archive
     turns = [
@@ -136,7 +141,7 @@ async def archive_turns(doctor_id: str, user_text: str, assistant_reply: str) ->
         {"role": "assistant", "content": assistant_reply},
     ]
     async with AsyncSessionLocal() as db:
-        await append_chat_archive(db, doctor_id, turns)
+        await append_chat_archive(db, doctor_id, turns, patient_id=patient_id)
         await db.commit()
 
 

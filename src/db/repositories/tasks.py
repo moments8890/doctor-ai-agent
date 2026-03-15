@@ -27,6 +27,8 @@ class TaskRepository:
         patient_id: Optional[int] = None,
         record_id: Optional[int] = None,
         due_at: Optional[datetime] = None,
+        scheduled_for: Optional[datetime] = None,
+        remind_at: Optional[datetime] = None,
     ) -> DoctorTask:
         task = DoctorTask(
             doctor_id=doctor_id,
@@ -36,6 +38,8 @@ class TaskRepository:
             patient_id=patient_id,
             record_id=record_id,
             due_at=due_at,
+            scheduled_for=scheduled_for,
+            remind_at=remind_at,
             status="pending",
         )
         self.session.add(task)

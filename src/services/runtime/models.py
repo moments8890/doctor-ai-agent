@@ -1,4 +1,4 @@
-"""Data models for the thread-centric conversation runtime (ADR 0011 §3, §8, §9)."""
+"""Data models for the conversation runtime (ADR 0011 envelope + ADR 0012 pipeline)."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -40,7 +40,7 @@ class WorkflowState:
 
 @dataclass
 class MemoryState:
-    """Provisional, LLM-facing."""
+    """Provisional, LLM-facing. Dead fields under ADR 0012 §17."""
     candidate_patient: Optional[Dict[str, Any]] = None
     working_note: Optional[str] = None
     summary: Optional[str] = None
@@ -55,31 +55,6 @@ class DoctorCtx:
 
 
 @dataclass
-class ActionRequest:
-    """Model-proposed action for the commit engine (ADR 0011 §8)."""
-    type: str  # none | clarify | select_patient | create_patient | create_draft | create_patient_and_draft
-    patient_name: Optional[str] = None
-    patient_gender: Optional[str] = None
-    patient_age: Optional[int] = None
-
-
-VALID_ACTION_TYPES = frozenset({
-    "none", "clarify", "select_patient", "create_patient",
-    "create_draft", "create_patient_and_draft",
-})
-
-MEMORY_FIELDS = frozenset({"candidate_patient", "working_note", "summary"})
-
-
-@dataclass
-class ModelOutput:
-    """Output from the conversation model (ADR 0011 §7)."""
-    reply: str
-    memory_patch: Optional[Dict[str, Any]] = None
-    action_request: Optional[ActionRequest] = None
-
-
-@dataclass
 class TurnResult:
     """Final result returned to the channel adapter."""
     reply: str
@@ -87,3 +62,4 @@ class TurnResult:
     pending_patient_name: Optional[str] = None
     pending_expires_at: Optional[str] = None
     record_id: Optional[int] = None  # set on draft confirm (for REST response)
+    view_payload: Optional[Dict[str, Any]] = None  # structured data for web rendering (ADR 0012 §14)

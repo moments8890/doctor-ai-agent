@@ -517,7 +517,7 @@ async def _handle_stateful_sync(msg) -> Response | None:
     Returns XML response for confirm/abandon; None otherwise (falls through
     to background processing).
     """
-    from services.runtime.draft_guard import CONFIRM_RE, ABANDON_RE
+    from services.runtime.turn import CONFIRM_RE, ABANDON_RE
 
     text = msg.content.strip()
     # Cheap regex check first — skip the DB hit for non-confirm/abandon input.

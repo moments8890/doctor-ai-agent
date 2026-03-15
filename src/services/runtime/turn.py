@@ -1,55 +1,80 @@
-"""Per-turn runtime orchestrator (ADR 0011 §5).
+"""Per-turn runtime orchestrator: Understand → Execute → Compose (ADR 0012).
 
-Pipeline: normalize → dedup → load context → draft guard → conversation model
-→ commit engine → apply memory patch → persist context → archive → reply.
+Pipeline: normalise → dedup → load context → deterministic handler
+→ understand → resolve → dispatch (read_engine | commit_engine) → compose
+→ persist context → archive → reply.
 """
 from __future__ import annotations
 
+import os
+import re
 from typing import Optional
 
-from services.runtime.commit_engine import execute_action
+from messages import M
 from services.runtime.context import (
     archive_turns,
     get_recent_turns,
     load_context,
     save_context,
 )
-from services.runtime.conversation import call_conversation_model
 from services.runtime.dedup import cache_result, get_cached_result, is_duplicate
-from services.runtime.draft_guard import check_draft_guard
-from messages import M
 from services.runtime.models import (
-    MEMORY_FIELDS,
     ActionPayload,
     DoctorCtx,
     TurnEnvelope,
     TurnResult,
 )
+from services.runtime.types import (
+    READ_ACTIONS,
+    RESPONSE_MODE_TABLE,
+    WRITE_ACTIONS,
+    ActionType,
+    Clarification,
+    ResolvedAction,
+    ResponseMode,
+    UnderstandError,
+)
 from utils.log import log
 
 
-def _apply_memory_patch(ctx: DoctorCtx, patch: Optional[dict]) -> None:
-    """Apply validated memory_patch to context.memory (ADR 0011 §9)."""
-    if not patch:
-        return
-    for key, value in patch.items():
-        if key not in MEMORY_FIELDS:
-            log(f"[turn] dropping invalid memory key: {key}")
-            continue
-        setattr(ctx.memory, key, value)
+# ── Confirm / abandon patterns (deterministic handler) ──────────────────────
+
+_LANG = os.environ.get("RUNTIME_LANG", "zh")
+
+if _LANG == "en":
+    CONFIRM_RE = re.compile(
+        r"^(ok|yes|save|confirm|sure|do it)\s*[.?!]*$",
+        re.IGNORECASE,
+    )
+    ABANDON_RE = re.compile(
+        r"^(no|cancel|abandon|discard|never\s*mind)\s*[.?!]*$",
+        re.IGNORECASE,
+    )
+    _GREETING_RE = re.compile(
+        r"^(hi|hello|hey|good\s+(morning|afternoon|evening))\s*[.!?]*$",
+        re.IGNORECASE,
+    )
+    _HELP_RE = re.compile(r"^(help|menu|commands?|\?)\s*[.!?]*$", re.IGNORECASE)
+else:
+    CONFIRM_RE = re.compile(
+        r"^(确认|确定|保存|是的?|对|好的?|ok|yes|save|confirm)\s*[。？！.?!]*$",
+        re.IGNORECASE,
+    )
+    ABANDON_RE = re.compile(
+        r"^(取消|放弃|不要|不保存|不了|算了|cancel|abandon|discard|no)\s*[。？！.?!]*$",
+        re.IGNORECASE,
+    )
+    _GREETING_RE = re.compile(
+        r"^(你好|您好|hi|hello|hey|嗨|早上好|下午好|晚上好)\s*[。！.!?]*$",
+        re.IGNORECASE,
+    )
+    _HELP_RE = re.compile(
+        r"^(帮助|help|功能|菜单|\?|怎么用|使用说明)\s*[。！.!?]*$",
+        re.IGNORECASE,
+    )
 
 
-async def _persist(doctor_id: str, ctx: DoctorCtx, text: Optional[str], reply: str) -> None:
-    """Best-effort save of context + archive.  Never raises."""
-    try:
-        await save_context(ctx)
-    except Exception as exc:
-        log(f"[turn] save_context FAILED doctor={doctor_id}: {exc}")
-    if text:
-        try:
-            await archive_turns(doctor_id, text, reply)
-        except Exception as exc:
-            log(f"[turn] archive_turns FAILED doctor={doctor_id}: {exc}")
+# ── Public API ──────────────────────────────────────────────────────────────
 
 
 async def process_turn(
@@ -58,17 +83,16 @@ async def process_turn(
     *,
     message_id: Optional[str] = None,
 ) -> TurnResult:
-    """Process one doctor turn through the ADR 0011 runtime pipeline.
+    """Process one doctor turn through the ADR 0012 UEC pipeline.
 
-    Accepts either a ``TurnEnvelope`` (new unified API) or the legacy
+    Accepts either a ``TurnEnvelope`` (unified API) or the legacy
     positional ``(doctor_id, text, *, message_id)`` signature for backward
-    compatibility.  The legacy form will be removed once all callers migrate.
+    compatibility.
     """
-    # ── Normalize to TurnEnvelope ──────────────────────────────────────
+    # ── Normalise to TurnEnvelope ─────────────────────────────────────
     if isinstance(envelope_or_doctor_id, TurnEnvelope):
         envelope = envelope_or_doctor_id
     else:
-        # Legacy call: process_turn(doctor_id, text, *, message_id=...)
         envelope = TurnEnvelope(
             doctor_id=envelope_or_doctor_id,
             text=text,
@@ -82,11 +106,11 @@ async def process_turn(
     msg_id = envelope.source_turn_key
     action = envelope.action
 
-    # ── Validate: need either text or action ───────────────────────────
+    # ── Validate ──────────────────────────────────────────────────────
     if not turn_text and action is None:
         return TurnResult(reply=M.empty_input)
 
-    # ── Dedup ──────────────────────────────────────────────────────────
+    # ── Dedup ─────────────────────────────────────────────────────────
     if msg_id and is_duplicate(msg_id):
         cached = get_cached_result(msg_id)
         if cached:
@@ -95,66 +119,201 @@ async def process_turn(
     try:
         ctx = await load_context(doctor_id)
 
-        # ── Deterministic guard: typed action takes priority ───────────
+        # ── Deterministic handler (ADR 0012 §7) ──────────────────────
+
+        # 1. Typed UI actions (button clicks)
         if action is not None:
-            guard_result = await _handle_action(ctx, action)
-            await _persist(doctor_id, ctx, None, guard_result.reply)
+            result = await _handle_action(ctx, action)
+            # Archive action for audit trail (ADR 0012 §13)
+            action_text = f"[{action.type}:{action.target_id}]"
+            await _persist(doctor_id, ctx, action_text, result.reply,
+                           patient_id=ctx.workflow.patient_id)
             if msg_id:
-                cache_result(msg_id, guard_result)
-            return guard_result
+                cache_result(msg_id, result)
+            return result
 
-        # ── Deterministic guard: text-based draft confirm/abandon ──────
-        guard_result = await check_draft_guard(ctx, turn_text)
-        if guard_result is not None:
-            await _persist(doctor_id, ctx, turn_text, guard_result.reply)
+        # 2. Pending draft confirm/cancel (regex)
+        if ctx.workflow.pending_draft_id:
+            det_result = await _handle_pending_text(ctx, turn_text)
+            if det_result is not None:
+                await _persist(doctor_id, ctx, turn_text, det_result.reply,
+                               patient_id=ctx.workflow.patient_id)
+                if msg_id:
+                    cache_result(msg_id, det_result)
+                return det_result
+
+        # 3. Greeting/help fast path (0 LLM calls)
+        if _GREETING_RE.match(turn_text):
+            result = TurnResult(reply=M.greeting)
+            await _persist(doctor_id, ctx, turn_text, result.reply)
             if msg_id:
-                cache_result(msg_id, guard_result)
-            return guard_result
+                cache_result(msg_id, result)
+            return result
+        if _HELP_RE.match(turn_text):
+            result = TurnResult(reply=M.help)
+            await _persist(doctor_id, ctx, turn_text, result.reply)
+            if msg_id:
+                cache_result(msg_id, result)
+            return result
 
-        # ── Conversation model (LLM) ──────────────────────────────────
-        recent_turns = await get_recent_turns(doctor_id)
-        model_output = await call_conversation_model(ctx, turn_text, recent_turns)
+        # ── UEC Pipeline ──────────────────────────────────────────────
+        result = await _run_pipeline(ctx, turn_text, doctor_id)
 
-        # Apply memory_patch BEFORE execute_action so working_note is available
-        # for clinical text collection during draft creation (ADR 0011 §9).
-        _apply_memory_patch(ctx, model_output.memory_patch)
-
-        result = await execute_action(ctx, model_output, recent_turns, user_input=turn_text)
-
-        await _persist(doctor_id, ctx, turn_text, result.reply)
-
+        await _persist(doctor_id, ctx, turn_text, result.reply,
+                       patient_id=ctx.workflow.patient_id)
         if msg_id:
             cache_result(msg_id, result)
 
-        log(f"[turn] done doctor={doctor_id} action={getattr(model_output.action_request, 'type', 'none')}")
         return result
+
     except Exception as exc:
-        log(f"[turn] UNHANDLED ERROR doctor={doctor_id}: {exc}")
+        log.error("[turn] UNHANDLED ERROR doctor=%s: %s", doctor_id, exc, exc_info=True)
         return TurnResult(reply=M.service_unavailable)
+
+
+# ── UEC Pipeline ────────────────────────────────────────────────────────────
+
+
+async def _run_pipeline(ctx: DoctorCtx, text: str, doctor_id: str) -> TurnResult:
+    """Understand → Resolve → Dispatch → Compose."""
+    from services.runtime.compose import (
+        compose_clarification,
+        compose_llm,
+        compose_template,
+    )
+    from services.runtime.understand import understand
+
+    recent_turns = await get_recent_turns(doctor_id)
+
+    # ── Understand ────────────────────────────────────────────────────
+    try:
+        ur = await understand(text, recent_turns, ctx)
+    except UnderstandError as e:
+        log.warning("[turn] understand failed doctor=%s: %s", doctor_id, e)
+        return TurnResult(reply=M.understand_error)
+
+    # Clarification from understand → skip execute
+    if ur.clarification:
+        reply = compose_clarification(ur.clarification)
+        return TurnResult(reply=reply)
+
+    # action_type == none → return chat_reply directly
+    if ur.action_type == ActionType.none:
+        return TurnResult(reply=ur.chat_reply or M.default_reply)
+
+    # ── Resolve ───────────────────────────────────────────────────────
+    from services.runtime.resolve import resolve
+
+    resolve_result = await resolve(ur, ctx)
+
+    # Clarification from resolve → skip engine
+    if isinstance(resolve_result, Clarification):
+        reply = compose_clarification(resolve_result)
+        return TurnResult(reply=reply)
+
+    resolved: ResolvedAction = resolve_result
+
+    # ── Dispatch to engine ────────────────────────────────────────────
+    response_mode = RESPONSE_MODE_TABLE.get(resolved.action_type, ResponseMode.template)
+
+    if resolved.action_type in READ_ACTIONS:
+        from services.runtime.read_engine import read
+        read_result = await read(resolved, doctor_id)
+
+        if response_mode == ResponseMode.llm_compose:
+            pending_patient = ctx.workflow.patient_name if ctx.workflow.pending_draft_id else None
+            reply = await compose_llm(
+                read_result,
+                text,
+                patient_name=resolved.patient_name,
+                pending_patient_name=pending_patient,
+            )
+        else:
+            reply = compose_template(read_result, resolved.action_type, resolved.patient_name)
+
+        # Build view_payload for structured channel rendering
+        view_payload = None
+        if read_result.data:
+            if resolved.action_type == ActionType.query_records:
+                view_payload = {"type": "records_list", "data": read_result.data}
+            elif resolved.action_type == ActionType.list_patients:
+                view_payload = {"type": "patients_list", "data": read_result.data}
+
+        return TurnResult(reply=reply, view_payload=view_payload)
+
+    elif resolved.action_type in WRITE_ACTIONS:
+        from services.runtime.commit_engine import commit
+        commit_result = await commit(resolved, ctx, recent_turns, text)
+
+        # Update context for writes that switch patients
+        if not resolved.scoped_only and resolved.patient_id:
+            ctx.workflow.patient_id = resolved.patient_id
+            ctx.workflow.patient_name = resolved.patient_name
+
+        reply = compose_template(commit_result, resolved.action_type, resolved.patient_name)
+
+        # Build TurnResult with pending info if applicable
+        tr = TurnResult(reply=reply)
+        if commit_result.pending_id:
+            tr.pending_id = commit_result.pending_id
+            tr.pending_patient_name = resolved.patient_name
+        if commit_result.data and isinstance(commit_result.data, dict):
+            if "task_id" in commit_result.data:
+                tr.view_payload = {"type": "task_created", "data": commit_result.data}
+
+        return tr
+
+    return TurnResult(reply=M.default_reply)
+
+
+# ── Deterministic handlers ──────────────────────────────────────────────────
 
 
 async def _handle_action(ctx: DoctorCtx, action: ActionPayload) -> TurnResult:
     """Deterministic handler for typed UI actions (no LLM call)."""
     if action.type == "draft_confirm":
-        return await _action_confirm_draft(ctx, action.target_id)
+        return await _confirm_draft(ctx, action.target_id)
     if action.type == "draft_abandon":
-        return await _action_abandon_draft(ctx, action.target_id)
-    log(f"[turn] unknown action type: {action.type}")
+        return await _abandon_draft(ctx, action.target_id)
+    log.warning("[turn] unknown action type: %s", action.type)
     return TurnResult(reply=M.service_unavailable)
 
 
-async def _action_confirm_draft(ctx: DoctorCtx, draft_id: str) -> TurnResult:
-    """Confirm a specific draft by ID (button click path)."""
+async def _handle_pending_text(ctx: DoctorCtx, text: str) -> Optional[TurnResult]:
+    """Handle confirm/cancel text while a pending draft exists.
+
+    Returns TurnResult if handled, None to pass through to pipeline.
+    Under ADR 0012 §7, all non-confirm/cancel input flows through the pipeline.
+    """
+    draft_id = ctx.workflow.pending_draft_id
+    if not draft_id:
+        return None
+
+    if CONFIRM_RE.match(text):
+        return await _confirm_draft(ctx, draft_id)
+
+    if ABANDON_RE.match(text):
+        return await _abandon_draft(ctx, draft_id)
+
+    # Everything else passes through to the pipeline.
+    # Resolve owns the blocking logic for writes during pending draft.
+    return None
+
+
+async def _confirm_draft(ctx: DoctorCtx, draft_id: str) -> TurnResult:
+    """Confirm pending draft → save to medical_records."""
     from db.crud.pending import get_pending_record
     from db.engine import AsyncSessionLocal
-    from services.domain.intent_handlers._confirm_pending import save_pending_record
 
     async with AsyncSessionLocal() as db:
         pending = await get_pending_record(db, draft_id, ctx.doctor_id)
 
+    # TTL expiry race (ADR 0012 §15)
     if pending is None or pending.status != "awaiting":
         ctx.workflow.pending_draft_id = None
-        return TurnResult(reply=M.draft_expired)
+        return TurnResult(reply=M.draft_ttl_expired)
+
+    from services.domain.intent_handlers._confirm_pending import save_pending_record
 
     result = await save_pending_record(ctx.doctor_id, pending)
     ctx.workflow.pending_draft_id = None
@@ -163,16 +322,15 @@ async def _action_confirm_draft(ctx: DoctorCtx, draft_id: str) -> TurnResult:
         return TurnResult(reply=M.draft_save_failed)
 
     patient_name, record_id = result
-    ctx.memory.working_note = None
-    log(f"[turn] action confirmed draft={draft_id} record={record_id} doctor={ctx.doctor_id}")
+    log.info("[turn] confirmed draft=%s record=%s doctor=%s", draft_id, record_id, ctx.doctor_id)
     return TurnResult(
         reply=M.draft_confirmed.format(patient=patient_name),
         record_id=record_id,
     )
 
 
-async def _action_abandon_draft(ctx: DoctorCtx, draft_id: str) -> TurnResult:
-    """Abandon a specific draft by ID (button click path)."""
+async def _abandon_draft(ctx: DoctorCtx, draft_id: str) -> TurnResult:
+    """Abandon pending draft."""
     from db.crud.pending import abandon_pending_record
     from db.engine import AsyncSessionLocal
 
@@ -181,5 +339,41 @@ async def _action_abandon_draft(ctx: DoctorCtx, draft_id: str) -> TurnResult:
 
     ctx.workflow.pending_draft_id = None
     patient = ctx.workflow.patient_name or ""
-    log(f"[turn] action abandoned draft={draft_id} doctor={ctx.doctor_id}")
+    log.info("[turn] abandoned draft=%s doctor=%s", draft_id, ctx.doctor_id)
     return TurnResult(reply=M.draft_abandoned.format(patient=patient))
+
+
+# ── Persistence ─────────────────────────────────────────────────────────────
+
+
+async def _persist(
+    doctor_id: str,
+    ctx: DoctorCtx,
+    text: Optional[str],
+    reply: str,
+    patient_id: Optional[int] = None,
+) -> None:
+    """Best-effort save of context + archive.  Never raises.
+
+    Archive failure is a patient-safety concern: lost turns mean
+    create_draft may produce incomplete medical records.  We log at
+    ERROR with full traceback so monitoring can alert.
+    """
+    try:
+        await save_context(ctx)
+    except Exception as exc:
+        log.error("[turn] save_context FAILED doctor=%s: %s", doctor_id, exc, exc_info=True)
+    if text:
+        try:
+            await archive_turns(doctor_id, text, reply, patient_id=patient_id)
+        except Exception as exc:
+            log.error(
+                "[turn] archive_turns FAILED doctor=%s — clinical content may be lost: %s",
+                doctor_id, exc, exc_info=True,
+            )
+            # One retry — archive is critical for draft quality
+            try:
+                await archive_turns(doctor_id, text, reply, patient_id=patient_id)
+                log.info("[turn] archive_turns retry succeeded doctor=%s", doctor_id)
+            except Exception:
+                log.error("[turn] archive_turns retry also FAILED doctor=%s", doctor_id)

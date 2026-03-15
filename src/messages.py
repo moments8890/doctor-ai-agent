@@ -41,8 +41,7 @@ class M:
     # -- turn orchestrator --------------------------------------------------
     empty_input = "请输入内容。"
 
-    # -- draft guard --------------------------------------------------------
-    draft_pending = "您有{patient}的待确认病历草稿。请回复「确认」保存，或「取消」放弃。"
+    # -- draft lifecycle ----------------------------------------------------
     draft_expired = "草稿已过期或不存在。"
     draft_save_failed = "保存失败，请重试。"
     draft_confirmed = "✅ {patient}的病历已保存。"
@@ -65,8 +64,8 @@ class M:
     default_reply = "好的，请继续。"
     service_unavailable = "服务暂时不可用，请稍后再试。"
 
-    # -- conversation model system prompt (loaded from prompts/conversation.md)
-    system_prompt = get_prompt_sync("conversation")
+    # -- understand system prompt (loaded from prompts/understand.md, ADR 0012)
+    system_prompt = get_prompt_sync("understand")
 
     # -- context block labels (LLM-facing) ----------------------------------
     ctx_patient = "当前患者"
@@ -74,3 +73,28 @@ class M:
     ctx_note = "临床记录"
     ctx_candidate = "候选患者"
     ctx_summary = "摘要"
+
+    # -- UEC pipeline: clarification templates (ADR 0012 §4) ----------------
+    clarify_missing_field = "请提供{field_label}。"
+    clarify_ambiguous_intent = "您想做什么？请说得更具体一些。"
+    clarify_ambiguous_patient = "找到多位匹配的患者，请确认：\n{options_text}"
+    clarify_not_found = "未找到匹配【{name}】的患者。请确认姓名或说「新建患者」。"
+    clarify_not_found_too_many = "匹配结果过多，请提供更完整的姓名。"
+    clarify_invalid_time = "时间无效：{reason}。请重新指定时间。"
+    clarify_blocked = "当前有待确认的病历草稿，请先回复「确认」或「取消」，再进行其他操作。"
+    clarify_unsupported = "抱歉，暂不支持此操作。"
+
+    # -- UEC pipeline: action success templates (ADR 0012 §9) ---------------
+    select_patient_ok = "已切换到【{name}】。"
+    create_patient_ok = "✅ 已创建患者【{name}】。您可以继续说「写个记录」来创建病历。"
+    schedule_task_ok = "已为【{patient}】创建{task_label}，时间：{datetime_display}。"
+    schedule_task_ok_noon = "已为【{patient}】创建{task_label}，时间：{datetime_display}（默认中午12点）。"
+
+    # -- UEC pipeline: error templates (ADR 0012 §16) -----------------------
+    understand_error = "抱歉，我没有理解您的意思，请再试一次。"
+    compose_error_fallback = "找到{count}条记录，请在网页端查看详情。"
+    execute_error = "操作失败，请稍后再试。"
+    draft_ttl_expired = "草稿已过期，请重新创建。"
+
+    # -- UEC pipeline: data display templates --------------------------------
+    truncation_notice = "共{total}条记录，显示最近{shown}条。"

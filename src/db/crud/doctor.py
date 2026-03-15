@@ -220,6 +220,7 @@ async def append_chat_archive(
     session: AsyncSession,
     doctor_id: str,
     turns: List[dict],
+    patient_id: Optional[int] = None,
 ) -> None:
     """Append turns to the chat archive (retained for 365 days by default).
 
@@ -236,7 +237,7 @@ async def append_chat_archive(
             continue
         if not content:
             continue
-        session.add(ChatArchive(doctor_id=doctor_id, role=role, content=content, created_at=now))
+        session.add(ChatArchive(doctor_id=doctor_id, patient_id=patient_id, role=role, content=content, created_at=now))
 
 
 async def get_doctor_mini_openid(session: AsyncSession, doctor_id: str) -> Optional[str]:

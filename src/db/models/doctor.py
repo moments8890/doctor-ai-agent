@@ -59,6 +59,7 @@ class ChatArchive(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False)
+    patient_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     role: Mapped[str] = mapped_column(String(16), nullable=False)  # user | assistant
     content: Mapped[str] = mapped_column(Text, nullable=False)
     intent_label: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)  # human review annotation

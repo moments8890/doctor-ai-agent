@@ -12,8 +12,7 @@ LLM prompt files — one `.md` file per prompt.  Edit directly to tune behavior.
 
 | File | Used by | Purpose |
 |------|---------|---------|
-| `conversation.md` | `services/runtime/conversation.py` | Conversation model system prompt (ZH) — action routing, JSON output format |
-| `conversation-en.md` | same (when `RUNTIME_LANG=en`) | English version of conversation prompt |
+| `understand.md` | `services/runtime/understand.py` | Understand phase system prompt (ZH) — intent classification, JSON output format (ADR 0012) |
 | `structuring.md` | `services/ai/structuring.py` | Transform doctor dictation into structured clinical notes (JSON) |
 | `structuring-consultation-suffix.md` | same | Suffix appended for consultation dialogue mode |
 | `structuring-followup-suffix.md` | same | Suffix appended for follow-up/revisit records |

@@ -1,0 +1,271 @@
+"""Resolve phase: patient lookup, binding, validation (ADR 0012 §5a, §10).
+
+Resolve takes the raw UnderstandResult and DoctorCtx and produces a fully
+bound ResolvedAction or a Clarification.  It is the only code that does
+patient DB lookup in the pipeline.
+"""
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
+from typing import Any, List, Optional, Union
+
+from services.runtime.types import (
+    READ_ACTIONS,
+    WRITE_ACTIONS,
+    ActionType,
+    Clarification,
+    ClarificationKind,
+    QueryRecordsArgs,
+    ResolvedAction,
+    ScheduleTaskArgs,
+    TaskType,
+    UnderstandResult,
+)
+from utils.log import log
+
+
+async def resolve(
+    result: UnderstandResult,
+    ctx: Any,  # DoctorCtx — avoid circular import
+) -> Union[ResolvedAction, Clarification]:
+    """Bind raw understand output to concrete patient/args or clarify."""
+    action_type = result.action_type
+
+    if action_type == ActionType.none:
+        return ResolvedAction(action_type=action_type, args=result.args)
+
+    # ── list_patients: unscoped, always allowed ─────────────────────────
+    if action_type == ActionType.list_patients:
+        return ResolvedAction(
+            action_type=action_type,
+            args=result.args,
+            scoped_only=True,
+        )
+
+    # ── Extract patient_name from args ──────────────────────────────────
+    patient_name: Optional[str] = None
+    if result.args and hasattr(result.args, "patient_name"):
+        patient_name = result.args.patient_name
+
+    # ── Pending draft rules (ADR 0012 §7) ───────────────────────────────
+    pending_draft = ctx.workflow.pending_draft_id is not None
+
+    if pending_draft and action_type in WRITE_ACTIONS:
+        # create_draft during pending: always blocked
+        if action_type == ActionType.create_draft:
+            return Clarification(
+                kind=ClarificationKind.blocked,
+                message_key="clarify_blocked",
+            )
+
+        # Context-switching writes: blocked
+        if action_type in (ActionType.create_patient, ActionType.select_patient):
+            # select_patient to different patient: blocked
+            # create_patient: always a context switch
+            if action_type == ActionType.create_patient:
+                return Clarification(
+                    kind=ClarificationKind.blocked,
+                    message_key="clarify_blocked",
+                )
+            # select_patient: blocked if targeting a different patient.
+            # If patient_name is None, context fallback will use the same
+            # patient (no switch), so it's safe to allow.
+            if patient_name:
+                current = ctx.workflow.patient_name
+                if current is None or patient_name != current:
+                    return Clarification(
+                        kind=ClarificationKind.blocked,
+                        message_key="clarify_blocked",
+                    )
+
+    # ── Patient resolution ──────────────────────────────────────────────
+    is_read = action_type in READ_ACTIONS
+    is_write = action_type in WRITE_ACTIONS
+
+    # create_patient doesn't need an existing patient
+    if action_type == ActionType.create_patient:
+        return ResolvedAction(
+            action_type=action_type,
+            patient_name=patient_name,
+            args=result.args,
+        )
+
+    # create_draft requires current bound patient
+    if action_type == ActionType.create_draft:
+        if ctx.workflow.patient_id is None:
+            return Clarification(
+                kind=ClarificationKind.missing_field,
+                missing_fields=["patient_name"],
+                message_key="need_patient_for_draft",
+            )
+        return ResolvedAction(
+            action_type=action_type,
+            patient_id=ctx.workflow.patient_id,
+            patient_name=ctx.workflow.patient_name,
+            args=result.args,
+        )
+
+    # For remaining actions, resolve patient
+    if patient_name:
+        match_result = await _match_patient(patient_name, ctx.doctor_id)
+        if isinstance(match_result, Clarification):
+            return match_result
+        patient_id, resolved_name = match_result
+    elif ctx.workflow.patient_id is not None:
+        # Context fallback
+        patient_id = ctx.workflow.patient_id
+        resolved_name = ctx.workflow.patient_name or ""
+    else:
+        return Clarification(
+            kind=ClarificationKind.missing_field,
+            missing_fields=["patient_name"],
+            message_key="clarify_missing_field",
+        )
+
+    # ── Action-specific validation ──────────────────────────────────────
+    if action_type == ActionType.schedule_task:
+        validation = _validate_schedule_task(result.args)
+        if validation is not None:
+            return validation
+
+    # ── Pending draft: same-patient schedule_task allowed ────────────────
+    if pending_draft and is_write and action_type == ActionType.schedule_task:
+        if patient_id != ctx.workflow.patient_id:
+            return Clarification(
+                kind=ClarificationKind.blocked,
+                message_key="clarify_blocked",
+            )
+
+    return ResolvedAction(
+        action_type=action_type,
+        patient_id=patient_id,
+        patient_name=resolved_name,
+        args=result.args,
+        scoped_only=is_read,
+    )
+
+
+# ── Patient matching (ADR 0012 §10) ────────────────────────────────────────
+
+
+async def _match_patient(
+    name: str,
+    doctor_id: str,
+) -> Union[tuple, Clarification]:
+    """Two-step lookup: exact match first, prefix fallback.
+
+    Returns (patient_id, patient_name) on success, Clarification on failure.
+    """
+    from db.engine import AsyncSessionLocal
+    from db.models import Patient
+    from sqlalchemy import select
+
+    async with AsyncSessionLocal() as db:
+        # Step 1: exact match
+        stmt = select(Patient).where(
+            Patient.doctor_id == doctor_id,
+            Patient.name == name,
+        ).limit(1)
+        result = await db.execute(stmt)
+        patient = result.scalar_one_or_none()
+        if patient is not None:
+            return (patient.id, patient.name)
+
+        # Step 2: prefix fallback (min 2 chars)
+        if len(name) < 2:
+            return Clarification(
+                kind=ClarificationKind.not_found,
+                message_key="clarify_not_found",
+                searched_name=name,
+            )
+
+        stmt = select(Patient).where(
+            Patient.doctor_id == doctor_id,
+            Patient.name.startswith(name),
+        ).limit(6)  # cap + 1 to detect overflow
+        result = await db.execute(stmt)
+        matches: List[Patient] = list(result.scalars().all())
+
+        if len(matches) == 0:
+            return Clarification(
+                kind=ClarificationKind.not_found,
+                message_key="clarify_not_found",
+                searched_name=name,
+            )
+        if len(matches) == 1:
+            return (matches[0].id, matches[0].name)
+        if len(matches) > 5:
+            return Clarification(
+                kind=ClarificationKind.not_found,
+                message_key="clarify_not_found_too_many",
+                searched_name=name,
+            )
+        # 2-5 matches: ambiguous
+        return Clarification(
+            kind=ClarificationKind.ambiguous_patient,
+            options=[{"name": p.name, "id": p.id} for p in matches],
+            message_key="clarify_ambiguous_patient",
+        )
+
+
+# ── Schedule task validation (ADR 0012 §12) ────────────────────────────────
+
+
+def _validate_schedule_task(args: Any) -> Optional[Clarification]:
+    """Validate schedule_task args. Returns Clarification on failure, None on success."""
+    if not isinstance(args, ScheduleTaskArgs):
+        return Clarification(
+            kind=ClarificationKind.missing_field,
+            missing_fields=["task_type"],
+        )
+
+    # Validate task_type
+    if args.task_type:
+        try:
+            TaskType(args.task_type)
+        except ValueError:
+            return Clarification(
+                kind=ClarificationKind.missing_field,
+                missing_fields=["task_type"],
+            )
+    else:
+        return Clarification(
+            kind=ClarificationKind.missing_field,
+            missing_fields=["task_type"],
+        )
+
+    # For appointments, scheduled_for is required (ADR 0012 §8)
+    if args.task_type == TaskType.appointment.value and not args.scheduled_for:
+        return Clarification(
+            kind=ClarificationKind.missing_field,
+            missing_fields=["scheduled_for"],
+        )
+
+    # Validate dates (resolve validates, does not normalise)
+    now = datetime.now(timezone.utc)
+    for field_name in ("scheduled_for", "remind_at"):
+        val = getattr(args, field_name, None)
+        if val is None:
+            continue
+        try:
+            dt = datetime.fromisoformat(val)
+            if dt.tzinfo is None:
+                # Assume Asia/Shanghai if naive
+                pass
+            if dt < now - timedelta(minutes=5):
+                return Clarification(
+                    kind=ClarificationKind.invalid_time,
+                    message_key="clarify_invalid_time",
+                )
+            if dt > now + timedelta(days=366):
+                return Clarification(
+                    kind=ClarificationKind.invalid_time,
+                    message_key="clarify_invalid_time",
+                )
+        except (ValueError, TypeError):
+            return Clarification(
+                kind=ClarificationKind.invalid_time,
+                message_key="clarify_invalid_time",
+            )
+
+    return None

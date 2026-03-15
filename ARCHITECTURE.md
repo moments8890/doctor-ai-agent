@@ -66,7 +66,7 @@ Key invariants:
 ┌──────────────────────────▼──────────────────────────────┐
 │               SERVICE LAYER                             │
 │  ai/        structuring, transcription, vision, LLM     │
-│  domain/    confirm_pending, chat_constants              │
+│  domain/    confirm_pending                              │
 │  patient/   risk scoring, search, timeline               │
 │  knowledge/ PDF/Word extraction, doctor knowledge        │
 │  notify/    task scheduling, notifications               │
@@ -170,7 +170,7 @@ retrying transports (e.g., WeChat webhooks) filter duplicates before calling
 |-------|--------|---------|
 | Context | `context.py` | Load/save `DoctorCtx` from `doctor_context` table; read/write `chat_archive` |
 | Deterministic handler | `turn.py` | Typed UI actions (button clicks) and 确认/取消 regex during pending draft → deterministic response, no LLM. All blocking logic is in execute.resolve. |
-| Understand | `conversation.py` | LLM → `UnderstandResult` (structured intent, no prose for operational turns) |
+| Understand | `understand.py` | LLM → `UnderstandResult` (structured intent, no prose for operational turns) |
 | Resolve | `resolve.py` | Patient DB lookup, binding, date normalization; shared by read and write paths |
 | Read engine | `read_engine.py` | SELECT only, no writes; returns `ReadResult` with data + truncation info |
 | Commit engine | `commit_engine.py` | Durable writes: select_patient, create_patient, create_draft, schedule_task; returns `CommitResult` |
@@ -230,7 +230,6 @@ TurnResult
 | File | Role |
 |------|------|
 | `intent_handlers/_confirm_pending.py` | Save confirmed draft to `medical_records`; trigger background CVD extraction |
-| `chat_constants.py` | Shared regex patterns, MIME types |
 
 ### Other Services
 

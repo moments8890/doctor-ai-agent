@@ -55,4 +55,4 @@ Current rollout snapshot:
 | ADR | Decision Status | Implementation Status |
 | --- | --- | --- |
 | [ADR 0011](0011-thread-centric-conversation-runtime-and-deterministic-commits.md) | Accepted | Complete |
-| [ADR 0012](0012-understand-execute-compose-pipeline.md) | Accepted | Not Started |
+| [ADR 0012](0012-understand-execute-compose-pipeline.md) | Accepted | Complete |

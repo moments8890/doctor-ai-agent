@@ -1,12 +1,9 @@
-"""Records router — chat endpoint uses ADR 0011 runtime; utility endpoints unchanged."""
+"""Records router — chat endpoint uses ADR 0012 UEC runtime; utility endpoints unchanged."""
 from __future__ import annotations
-
-import os
-import re
 
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, File, Header
 from pydantic import BaseModel, Field, field_validator
-from typing import List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from db.crud import get_record_versions
 from db.engine import AsyncSessionLocal
@@ -28,28 +25,6 @@ from constants import SUPPORTED_AUDIO_TYPES, SUPPORTED_IMAGE_TYPES
 router = APIRouter(prefix="/api/records", tags=["records"])
 
 _MAX_UPLOAD_BYTES = 20 * 1024 * 1024  # 20 MB
-
-# ── Fast-path routing patterns (no LLM needed) ────────────────────────────
-_LANG = os.environ.get("RUNTIME_LANG", "zh")
-
-if _LANG == "en":
-    _GREETING_RE = re.compile(
-        r"^(hi|hello|hey|good\s+morning|good\s+afternoon|good\s+evening)\s*[.?!]*$",
-        re.IGNORECASE,
-    )
-    _HELP_RE = re.compile(
-        r"^(help|menu|commands?)\s*[.?!]*$",
-        re.IGNORECASE,
-    )
-else:
-    _GREETING_RE = re.compile(
-        r"^(你好|您好|hi|hello|嗨|hey|早上好|下午好|晚上好)\s*[。？！.?!]*$",
-        re.IGNORECASE,
-    )
-    _HELP_RE = re.compile(
-        r"^(帮助|help|功能|菜单)\s*[。？！.?!]*$",
-        re.IGNORECASE,
-    )
 
 
 # ── Pydantic models ───────────────────────────────────────────────────────────
@@ -91,6 +66,7 @@ class ChatResponse(BaseModel):
     pending_id: Optional[str] = None
     pending_patient_name: Optional[str] = None
     pending_expires_at: Optional[str] = None  # ISO-8601 UTC
+    view_payload: Optional[Dict[str, Any]] = None  # structured data for web rendering (ADR 0012 §14)
 
 
 class ExtractedTextResponse(BaseModel):
@@ -145,7 +121,7 @@ async def chat(
     body: ChatInput,
     authorization: Optional[str] = Header(default=None),
 ):
-    """Doctor chat — thread-centric conversation runtime (ADR 0011)."""
+    """Doctor chat — UEC pipeline runtime (ADR 0012)."""
     doctor_id = resolve_doctor_id_from_auth_or_fallback(
         body.doctor_id, authorization,
         fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
@@ -157,12 +133,7 @@ async def chat(
 
     enforce_doctor_rate_limit(doctor_id, scope="records.chat")
 
-    # Fast paths: deterministic, low-risk (ADR 0011 §10)
-    if _GREETING_RE.match(text):
-        return ChatResponse(reply=M.greeting)
-    if _HELP_RE.match(text):
-        return ChatResponse(reply=M.help)
-
+    # Greeting/help fast paths moved to turn.py deterministic handler (ADR 0012 §7)
     result = await process_turn(TurnEnvelope(
         doctor_id=doctor_id,
         text=text,
@@ -173,6 +144,7 @@ async def chat(
         pending_id=result.pending_id,
         pending_patient_name=result.pending_patient_name,
         pending_expires_at=result.pending_expires_at,
+        view_payload=result.view_payload,
     )
 
 

@@ -1,4 +1,4 @@
-"""Thread-centric conversation runtime (ADR 0011).
+"""Understand → Execute → Compose runtime (ADR 0012).
 
 Public API
 ----------
