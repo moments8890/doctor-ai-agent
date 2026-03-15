@@ -83,8 +83,16 @@ Add template strings to `src/messages.py` for:
   `ambiguous_patient`, `not_found`, `invalid_time`, `blocked`, `unsupported`)
 - Action success templates (`select_patient`, `create_patient`,
   `schedule_task` with datetime echo-back, `schedule_task` with noon default)
-- Error templates (understand failure, compose failure fallback, execute error)
+- `create_patient` template must guide the follow-up: "已创建患者张三。
+  您可以继续说'写个记录'来创建病历。" (mitigates create_patient_and_draft
+  UX regression)
+- Error templates (understand failure, compose failure fallback, execute error,
+  TTL expiry "草稿已过期，请重新创建")
 - Truncation template ("共N条记录，显示最近M条")
+- Compose failure fallback for WeChat/voice: include brief data summary
+  (e.g., first record date/title), not just count — "找到5条记录" with no
+  content is not actionable on non-web channels where `view_payload` is
+  ignored
 
 ---
 
@@ -103,7 +111,19 @@ Create `src/prompts/understand.md`:
 - `clarification` vs `chat_reply` guidance
 - Per-action args examples
 
-### B2. Understand caller
+### B2. Fast-router integration (optimization)
+
+The existing `services/ai/fast_router/` can handle patterned inputs (e.g.,
+"查张三的病历" → `query_records` with `patient_name=张三`) without an LLM
+call, reducing 2-LLM-call reads to 1. Wire the fast router as a pre-LLM
+check in the understand caller: if the fast router matches with high
+confidence, skip the LLM call and return a synthetic `UnderstandResult`.
+If no match, fall through to the LLM.
+
+This is a performance optimization, not a correctness requirement. Can be
+deferred to after the pipeline is working end-to-end.
+
+### B3. Understand caller
 
 Create `src/services/runtime/understand.py`:
 
@@ -197,7 +217,11 @@ Add to `src/services/runtime/compose.py`:
 
 - `async def compose_llm(result: ReadResult, user_input: str) -> str`
 - Compose prompt: user input + fetched data + "summarize naturally"
-- Failure fallback: minimal template ("找到 N 条记录") + `view_payload`
+- For cross-patient reads during pending draft: include context reminder in
+  the reply (e.g., "【张三】的病历记录：... 当前待确认病历为【李四】") so the
+  doctor knows which patient they are still working on
+- Failure fallback: minimal template with brief data summary (not just count)
+  + `view_payload`
 
 ### D3. Clarification composer
 

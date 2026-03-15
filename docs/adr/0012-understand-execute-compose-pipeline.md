@@ -285,8 +285,9 @@ lookup in the pipeline. Shared by both read and write paths.
 
 Resolve responsibilities:
 
-- look up `args.patient_name` in the database (see section 10 for matching
-  strategy)
+- look up `args.patient_name` in the database, **always scoped by
+  `ctx.doctor_id`** (see section 10 for matching strategy). Cross-tenant
+  patient lookups must never occur.
 - fall back to `ctx.workflow.patient_id` when `patient_name` is null
 - detect patient switch (explicit name differs from bound patient)
 - enforce read/write binding asymmetry (see section 10)
@@ -301,6 +302,18 @@ Resolve outcomes:
 - **clarification** — binding failed, short-circuit to compose with a
   `Clarification` (same type as section 4; resolve sets `message_key` for
   template lookup)
+
+```text
+ResolvedAction
+  action_type: ActionType
+  patient_id: int
+    # fully resolved — never null for patient-scoped actions
+  patient_name: str
+  args: dict
+    # validated and normalized (dates resolved, fields checked)
+  scoped_only: bool
+    # true for reads — do not switch context
+```
 
 When resolve short-circuits, neither engine runs. Compose renders the
 clarification using a template.
@@ -435,17 +448,18 @@ draft confirmation/abandonment. Everything else — including input during a
 pending draft — flows through the full pipeline. Execute.resolve owns all
 blocking logic:
 
+- **Reads during pending draft**: always allowed, including cross-patient
+  reads. Reads don't mutate state and don't affect the pending draft.
+  Doctors routinely reference other patients' data while composing a note.
+  Resolve scopes the query to the target patient without switching context
+  (see section 10).
 - **Same-patient `schedule_task` during pending draft**: allowed — these are
-  independent operations (writes to `doctor_tasks`, not `pending_drafts`).
+  independent operations (writes to `doctor_tasks`, not `pending_records`).
 - **Context-switching write during pending draft** (`create_patient`,
   `select_patient` targeting a different patient, `create_draft`): resolve
   returns `clarification.kind="blocked"`.
-- **Cross-patient read during pending draft**: resolve returns
-  `clarification.kind="blocked"` (see section 10).
 - **Chitchat during pending draft**: understand classifies as `none`, returns
-  `chat_reply` directly. Not blocked — the doctor can continue conversing.
-- **Same-patient read during pending draft**: allowed, resolve scopes the
-  query normally.
+  `chat_reply` directly. Not blocked.
 
 This eliminates the read-only regex heuristic (which could never be complete)
 and the "other → blocked" default (which incorrectly blocked legitimate
@@ -613,9 +627,7 @@ are now working on that patient.
 | Explicit name, resolves to 0 patients | Return `not_found` | Return `not_found` |
 | No name, context has patient | Use context patient | Use context patient |
 | No name, no context patient | Clarify: `missing_field` | Clarify: `missing_field` |
-| Pending draft, same patient | Allowed | `schedule_task`: allowed (independent). `create_draft`: blocked (second pending). Others: blocked (context switch). |
-| Pending draft, different patient | Blocked by execute.resolve (`blocked`) | Blocked by execute.resolve (`blocked`) |
-| Pending draft, unscoped (`list_patients`) | Always allowed (no patient target) | N/A |
+| Pending draft, any patient | Allowed (reads don't affect draft) | `schedule_task` same patient: allowed. `create_draft`: blocked. Context-switching writes: blocked. |
 
 #### Implicit patient handling
 
@@ -736,7 +748,7 @@ output before it is committed. All other write actions (`schedule_task`,
       1. Collect clinical content from chat_archive
          (user turns since last completed record for bound patient)
       2. Call structuring LLM (2nd LLM call for this turn)
-      3. Create pending_drafts row with structured content + TTL
+      3. Create pending_records row with structured content + TTL
       4. Set ctx.workflow.pending_draft_id
   → Compose: template with structured preview + "确认保存？"
 ```
@@ -754,7 +766,7 @@ output before it is committed. All other write actions (`schedule_task`,
 
 "取消"
   → deterministic handler: pending_draft_id set + 取消 regex → match!
-      1. Delete pending_drafts row
+      1. Delete pending_records row
       2. Clear ctx.workflow.pending_draft_id
   → template reply "已取消"
   (pipeline never runs)
@@ -781,10 +793,20 @@ WorkflowState
 
 #### Storage
 
-The `pending_drafts` table holds the structured content with a TTL. On
-expiry, the row is deleted and `pending_draft_id` is cleared. The payload
-contains the fully structured record — confirmation commits it without
-re-running the structuring LLM.
+The `pending_records` table (existing ORM: `PendingRecord`) holds the
+structured content with a TTL. The payload contains the fully structured
+record — confirmation commits it without re-running the structuring LLM.
+
+#### TTL expiry race
+
+The `pending_records` row can expire (deleted by cleanup job) while
+`pending_draft_id` is still set on `WorkflowState`. If the deterministic
+handler detects `pending_draft_id` is set but the corresponding
+`pending_records` row is missing:
+
+- Clear `pending_draft_id` (stale reference)
+- Return template reply "草稿已过期，请重新创建"
+- Do not treat this as a confirm or an error
 
 ### 16. LLM failure fallbacks
 
