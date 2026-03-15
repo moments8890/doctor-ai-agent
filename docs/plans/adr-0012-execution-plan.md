@@ -114,14 +114,6 @@ Create `src/services/runtime/understand.py`:
 - Boundary rule: parse failure → return generic error
 - Precedence: if both `clarification` and `chat_reply` set, clarification wins
 
-### B3. Understand tests
-
-Mock LLM responses, verify:
-- Each action type parses correctly
-- `chat_reply` is null for operational turns
-- Parse failure returns error
-- Clarification precedence rule
-
 ---
 
 ## Stream C: Execute Phase (depends on A1 for types, A2/A3 for schema)
@@ -179,15 +171,6 @@ Refactor `src/services/runtime/commit_engine.py`:
   chat_archive scan instead, per A4)
 - Error handling: DB errors → `status: "error"` + `error_key`
 
-### C4. Execute tests
-
-Mock DB, verify:
-- Resolve: all 8 resolution table rows
-- Resolve: matching strategy (exact, prefix, caps)
-- Resolve: date normalization (relative, noon default, past rejection)
-- Read engine: normal, empty, truncated
-- Commit engine: each action type, error handling
-
 ---
 
 ## Stream D: Compose Phase (depends on A1 for types, A5 for templates)
@@ -219,15 +202,6 @@ Add to `src/services/runtime/compose.py`:
 - `ambiguous_intent` + `suggested_question` → use it
 - Else → template fallback
 - Composition rule from ADR §4
-
-### D4. Compose tests
-
-Mock results, verify:
-- Each template renders correctly
-- LLM compose fallback on failure
-- Clarification composition rule
-- Truncation display
-- Error template rendering
 
 ---
 
@@ -266,20 +240,6 @@ Refactor `src/services/runtime/turn.py`:
 - Remove `message_id` parameter from `process_turn()` signature
 - Update `TurnResult` to include `view_payload`
 
-### E4. Integration tests
-
-End-to-end turn tests:
-- Read query: understand → resolve → read_engine → compose_llm (2 LLM calls)
-- Write: understand → resolve → commit_engine → compose_template (1 LLM call)
-- Chitchat: understand → chat_reply (1 LLM call)
-- Clarification from understand: ambiguous_intent
-- Clarification from resolve: ambiguous_patient, not_found, blocked
-- Pending draft lifecycle: create → confirm, create → cancel
-- During pending: chitchat allowed, write blocked, same-patient schedule_task
-  allowed, cross-patient read blocked
-- Parse failure: error template
-- Compose failure: fallback template + view_payload
-
 ---
 
 ## Prerequisite Checklist
@@ -298,4 +258,3 @@ Before starting any stream:
 | Date normalization edge cases (Chinese relative dates) | Use existing `dateparser` or similar library; test with corpus |
 | create_patient_and_draft UX regression | Known; deferred to follow_up_hint ADR |
 | chat_archive scan performance (full history per patient) | Index on (doctor_id, created_at); limit scan to last N turns if needed |
-| Breaking changes to existing tests | Stream E2 will break tests that depend on old types; update in parallel |
