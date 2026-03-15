@@ -680,21 +680,73 @@ Initial payload families:
 
 The assistant reply remains mandatory for all channels.
 
-### 15. `schedule_task` commits immediately
+### 15. Pending draft lifecycle
 
-`schedule_task` creates a `DoctorTask` row immediately — no pending state, no
-confirmation turn. The compose template shows what was created:
-"已为张三创建复诊预约，时间：3月18日中午12点". If the doctor made a mistake,
-they can cancel or reschedule as a follow-up action (deferred to a future ADR).
+`create_draft` is the only action that uses pending state. Medical records are
+permanent clinical documents — the doctor must preview the LLM-structured
+output before it is committed. All other write actions (`schedule_task`,
+`select_patient`, `create_patient`) commit immediately.
 
-**Rationale**: appointments are low-stakes compared to medical records — they
-can be deleted, rescheduled, or cancelled. The extra confirmation turn adds
-friction without proportionate safety gain. `create_draft` is the only action
-that requires a pending state, because medical records are permanent clinical
-documents.
+#### Turn 1: create the pending draft
 
-This means `WorkflowState` retains only `pending_draft_id` — no
-`pending_action_id`, no mutex, no guard extension.
+```text
+"写个门诊记录"
+  → deterministic handler (no match, pass through)
+  → Understand → action_type: create_draft
+  → Resolve: validate bound patient exists
+  → Commit engine:
+      1. Collect clinical content from chat_archive
+         (user turns since last completed record for bound patient)
+      2. Call structuring LLM (2nd LLM call for this turn)
+      3. Create pending_drafts row with structured content + TTL
+      4. Set ctx.workflow.pending_draft_id
+  → Compose: template with structured preview + "确认保存？"
+```
+
+#### Turn 2: confirm or cancel
+
+```text
+"确认"
+  → deterministic handler: pending_draft_id set + 确认 regex → match!
+      1. Save pending draft content → medical_records table
+      2. Clear ctx.workflow.pending_draft_id
+      3. Trigger background tasks (CVD extraction, etc.)
+  → template reply "已保存"
+  (pipeline never runs)
+
+"取消"
+  → deterministic handler: pending_draft_id set + 取消 regex → match!
+      1. Delete pending_drafts row
+      2. Clear ctx.workflow.pending_draft_id
+  → template reply "已取消"
+  (pipeline never runs)
+```
+
+#### During pending: other input
+
+All non-confirm/cancel input during a pending draft flows through the full
+pipeline (see section 7). Execute.resolve blocks writes and cross-patient
+reads; chitchat and same-patient reads are allowed.
+
+#### State
+
+`WorkflowState` retains only `pending_draft_id` — no `pending_action_id`,
+no mutex. The pending draft is persistent state that bridges two independent
+pipeline runs.
+
+```text
+WorkflowState
+  patient_id: optional int
+  patient_name: optional str
+  pending_draft_id: optional str    # only pending state
+```
+
+#### Storage
+
+The `pending_drafts` table holds the structured content with a TTL. On
+expiry, the row is deleted and `pending_draft_id` is cleared. The payload
+contains the fully structured record — confirmation commits it without
+re-running the structuring LLM.
 
 ### 16. LLM failure fallbacks
 

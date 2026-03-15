@@ -167,25 +167,41 @@ graph LR
     style ce fill:#e74c3c,color:#fff
 ```
 
-## Pending State Machine
+## Data Flow: Pending Draft Lifecycle (create_draft)
 
-Only `create_draft` uses pending state. `schedule_task` commits immediately.
+The only two-turn flow in the system. Turn 1 creates the pending draft via
+the pipeline; turn 2 resolves it via the deterministic handler (no pipeline).
 
 ```mermaid
-flowchart LR
-    idle(("IDLE<br/>pending_draft_id null"))
+sequenceDiagram
+    participant D as Doctor
+    participant DH as Deterministic Handler
+    participant U as Understand (LLM)
+    participant R as Resolve
+    participant CE as Commit Engine
+    participant S as Structuring LLM
+    participant Co as Compose (template)
 
-    idle -->|create_draft| draft["PENDING DRAFT<br/>pending_draft_id set"]
+    Note over D,Co: Turn 1: create pending draft
 
-    draft -->|"确认 (confirm)"| save["Save record"] --> idle
-    draft -->|"取消 (cancel)"| discard["Discard"] --> idle
-    draft -->|"TTL expired"| expire["Auto-discard"] --> idle
+    D->>DH: "写个门诊记录"
+    DH->>U: no match, pass through
+    U->>R: UnderstandResult{action_type: create_draft}
+    R->>R: Validate bound patient (id=42)
+    R->>CE: ResolvedAction{patient_id: 42}
+    CE->>CE: Collect clinical content from chat_archive
+    CE->>S: Raw clinical text
+    S->>CE: Structured medical record
+    CE->>CE: Create pending_drafts row + set pending_draft_id
+    CE->>Co: CommitResult{status: pending_confirmation, data: {preview: ...}}
+    Co->>D: "主诉：头痛三天 | 心率：120次/分 | ... 确认保存？"
 
-    style idle fill:#333,color:#fff
-    style draft fill:#4a90d9,color:#fff
-    style save fill:#2ecc71,color:#fff
-    style discard fill:#95a5a6,color:#fff
-    style expire fill:#95a5a6,color:#fff
+    Note over D,Co: Turn 2: confirm or cancel
+
+    D->>DH: "确认"
+    DH->>DH: pending_draft_id set + 确认 regex → match!
+    DH->>DH: Save to medical_records, clear pending_draft_id
+    DH->>D: "已保存"
 ```
 
 ## Clinical Context for Drafting (no memory_patch)
