@@ -282,12 +282,15 @@ lookup in the pipeline. Shared by both read and write paths.
 
 Resolve responsibilities:
 
-- look up `args.patient_name` in the database (exact match, phase 1)
+- look up `args.patient_name` in the database (see section 10 for matching
+  strategy)
 - fall back to `ctx.workflow.patient_id` when `patient_name` is null
 - detect patient switch (explicit name differs from bound patient)
 - enforce read/write binding asymmetry (see section 10)
 - validate that required bindings exist for the action type
 - normalize relative dates using current date and configured timezone
+  (currently `schedule_task`-specific; may be extracted into per-action
+  validators as the action surface grows)
 
 Resolve outcomes:
 
@@ -337,7 +340,9 @@ When `truncated` is true, compose includes `total_count` in the reply (e.g.,
 Commit engine receives a fully resolved action and executes durable writes.
 It never fails on binding — that was already validated by resolve.
 
-- `schedule_task` → create `DoctorTask` row immediately (no confirmation)
+- `schedule_task` → create `DoctorTask` row immediately (no confirmation);
+  compose template MUST echo the normalized datetime so the doctor can catch
+  errors (e.g., "已为张三创建复诊预约，时间：3月18日中午12点")
 - `create_draft` → collect clinical content, structure, create pending draft
 - `select_patient` → update context binding
 - `create_patient` → create patient row, update context binding
@@ -609,11 +614,26 @@ a second patient with the same name). This means exact-match resolution always
 returns zero or one result — `ambiguous_patient` only arises from prefix
 matching (e.g., "张三" matching both "张三" and "张三丰").
 
-#### No fuzzy matching in phase 1
+#### Matching strategy
 
-Resolve uses exact match or prefix match only. Fuzzy/semantic patient search is
-deferred. If no match is found, resolve returns `not_found` with a template
-message.
+Resolve uses a two-step lookup with no fuzzy or semantic matching in phase 1:
+
+1. **Exact match first.** If the input matches a patient name exactly, return
+   that patient — even if prefix matches also exist (e.g., "张三" returns
+   patient "张三", ignoring "张三丰").
+2. **Prefix fallback on zero exact matches.** If no exact match, try prefix
+   matching with these constraints:
+   - Minimum prefix length: 2 characters. Single-character inputs (e.g., "张")
+     go exact-match-only and return `not_found` if no exact match. This
+     prevents single Chinese characters from matching many patients.
+   - Maximum results: 5. If prefix matching returns more than 5 patients,
+     return `not_found` with a "请提供更完整的姓名" template — too many
+     options is worse than asking for more specificity.
+   - If prefix matching returns 2-5 results, return `ambiguous_patient` with
+     options.
+   - If prefix matching returns exactly 1 result, use that patient.
+
+Fuzzy/semantic patient search is deferred.
 
 #### `list_patients` is unscoped
 
