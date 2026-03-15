@@ -1,5 +1,6 @@
 /**
  * 设置面板：医生账户信息编辑、科室专业设置、报告模板管理和退出登录。
+ * 分组菜单结构：个人信息、AI设置、文档管理、系统。
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -7,11 +8,23 @@ import {
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
+import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
+import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
+import MedicalServicesOutlinedIcon from "@mui/icons-material/MedicalServicesOutlined";
+import EventNoteOutlinedIcon from "@mui/icons-material/EventNoteOutlined";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
+import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
+import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
+import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
-import { getDoctorProfile, updateDoctorProfile, getTemplateStatus, uploadTemplate, deleteTemplate } from "../../api";
+import { getDoctorProfile, updateDoctorProfile, getTemplateStatus, uploadTemplate, deleteTemplate, getKnowledgeItems, addKnowledgeItem, deleteKnowledgeItem } from "../../api";
 import { useDoctorStore } from "../../store/doctorStore";
 import { SPECIALTY_OPTIONS } from "./constants";
+
+/* ────────── Shared row component ────────── */
 
 function SettingsRow({ icon, label, sublabel, onClick, danger }) {
   return (
@@ -29,6 +42,8 @@ function SettingsRow({ icon, label, sublabel, onClick, danger }) {
     </Box>
   );
 }
+
+/* ────────── Dialogs (unchanged) ────────── */
 
 function NameDialog({ open, isMobile, nameInput, nameSaving, nameError, onChange, onSave, onClose }) {
   return (
@@ -94,6 +109,51 @@ function SpecialtyDialog({ open, isMobile, specialtyInput, specialtySaving, spec
     </Dialog>
   );
 }
+
+const NOTE_STYLE_OPTIONS = ["简洁", "详细", "SOAP", "叙述体"];
+
+function SimpleTextDialog({ open, isMobile, title, hint, value, saving, error, quickPicks, onChange, onSave, onClose }) {
+  return (
+    <Dialog open={open} onClose={onClose}
+      PaperProps={{ sx: isMobile ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "12px 12px 0 0", width: "100%" } : { borderRadius: 2, minWidth: 320 } }}
+      sx={isMobile ? { "& .MuiDialog-container": { alignItems: "flex-end" } } : {}}>
+      <Box sx={{ p: 2.5 }}>
+        <Typography sx={{ fontWeight: 600, fontSize: 15, mb: 0.5, color: "#333" }}>{title}</Typography>
+        {hint && <Typography sx={{ fontSize: 12, color: "#999", mb: 2 }}>{hint}</Typography>}
+        {quickPicks && quickPicks.length > 0 && (
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.8, mb: 2 }}>
+            {quickPicks.map((s) => (
+              <Box key={s} onClick={() => onChange(s)}
+                sx={{ px: 1.4, py: 0.4, borderRadius: "4px", cursor: "pointer", fontSize: 13,
+                  bgcolor: value === s ? "#07C160" : "#f2f2f2",
+                  color: value === s ? "#fff" : "#555",
+                  fontWeight: value === s ? 600 : 400 }}>
+                {s}
+              </Box>
+            ))}
+          </Box>
+        )}
+        <TextField fullWidth size="small" placeholder={hint || ""}
+          value={value} onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") onSave(); }}
+          autoFocus sx={{ mb: error ? 0.5 : 2 }} />
+        {error && <Typography sx={{ fontSize: 12, color: "#FA5151", mb: 1.5 }}>{error}</Typography>}
+        <Box sx={{ display: "flex", gap: 1.5 }}>
+          <Box onClick={onClose}
+            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: "4px", bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 14, color: "#666", "&:active": { opacity: 0.7 } }}>
+            取消
+          </Box>
+          <Box onClick={!saving ? onSave : undefined}
+            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: "4px", bgcolor: "#07C160", cursor: saving ? "default" : "pointer", fontSize: 14, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
+            {saving ? "保存中…" : "保存"}
+          </Box>
+        </Box>
+      </Box>
+    </Dialog>
+  );
+}
+
+/* ────────── Template subpage components (unchanged) ────────── */
 
 function TemplateStatusCard({ loading, status }) {
   return (
@@ -216,89 +276,206 @@ function TemplateSubpage({ doctorId, onBack }) {
   );
 }
 
-const NOTE_STYLE_OPTIONS = ["简洁", "详细", "SOAP", "叙述体"];
+/* ────────── Knowledge subpage ────────── */
 
-function SimpleTextDialog({ open, isMobile, title, hint, value, saving, error, quickPicks, onChange, onSave, onClose }) {
+function KnowledgeSubpage({ doctorId, onBack }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [newContent, setNewContent] = useState("");
+  const [adding, setAdding] = useState(false);
+
+  useEffect(() => {
+    getKnowledgeItems(doctorId)
+      .then((d) => setItems(Array.isArray(d) ? d : (d.items || [])))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [doctorId]);
+
+  async function handleAdd() {
+    if (!newContent.trim()) return;
+    setAdding(true);
+    try {
+      const item = await addKnowledgeItem(doctorId, newContent.trim());
+      setItems((prev) => [item, ...prev]);
+      setNewContent("");
+    } catch {}
+    finally { setAdding(false); }
+  }
+
+  async function handleDelete(itemId) {
+    try {
+      await deleteKnowledgeItem(doctorId, itemId);
+      setItems((prev) => prev.filter((i) => i.id !== itemId));
+    } catch {}
+  }
+
   return (
-    <Dialog open={open} onClose={onClose}
-      PaperProps={{ sx: isMobile ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "12px 12px 0 0", width: "100%" } : { borderRadius: 2, minWidth: 320 } }}
-      sx={isMobile ? { "& .MuiDialog-container": { alignItems: "flex-end" } } : {}}>
-      <Box sx={{ p: 2.5 }}>
-        <Typography sx={{ fontWeight: 600, fontSize: 15, mb: 0.5, color: "#333" }}>{title}</Typography>
-        {hint && <Typography sx={{ fontSize: 12, color: "#999", mb: 2 }}>{hint}</Typography>}
-        {quickPicks && quickPicks.length > 0 && (
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.8, mb: 2 }}>
-            {quickPicks.map((s) => (
-              <Box key={s} onClick={() => onChange(s)}
-                sx={{ px: 1.4, py: 0.4, borderRadius: "4px", cursor: "pointer", fontSize: 13,
-                  bgcolor: value === s ? "#07C160" : "#f2f2f2",
-                  color: value === s ? "#fff" : "#555",
-                  fontWeight: value === s ? 600 : 400 }}>
-                {s}
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
+      <Box sx={{ display: "flex", alignItems: "center", height: 48, px: 1, bgcolor: "#fff", borderBottom: "1px solid #e5e5e5", flexShrink: 0 }}>
+        <Box onClick={onBack} sx={{ display: "flex", alignItems: "center", gap: 0.3, cursor: "pointer", color: "#07C160", pr: 2, py: 1 }}>
+          <ArrowBackIcon sx={{ fontSize: 20 }} />
+          <Typography sx={{ fontSize: 15, color: "#07C160" }}>设置</Typography>
+        </Box>
+        <Typography sx={{ flex: 1, textAlign: "center", fontWeight: 600, fontSize: 16, mr: 5 }}>知识库管理</Typography>
+      </Box>
+      <Box sx={{ p: 2, bgcolor: "#fff", mb: 0.8 }}>
+        <TextField fullWidth size="small" multiline minRows={2}
+          placeholder="输入医学知识条目（如：高血压患者优先使用ARB类降压药）"
+          value={newContent}
+          onChange={(e) => setNewContent(e.target.value)} />
+        <Box onClick={!adding ? handleAdd : undefined}
+          sx={{ mt: 1, py: 0.8, borderRadius: 1.5,
+            bgcolor: newContent.trim() ? "#07C160" : "#e0e0e0",
+            textAlign: "center", color: "#fff", fontSize: 14,
+            fontWeight: 600, cursor: newContent.trim() ? "pointer" : "default" }}>
+          {adding ? "添加中…" : "添加知识"}
+        </Box>
+      </Box>
+      <Box sx={{ flex: 1, overflowY: "auto" }}>
+        {loading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+            <CircularProgress size={24} sx={{ color: "#07C160" }} />
+          </Box>
+        ) : items.length === 0 ? (
+          <Box sx={{ py: 6, textAlign: "center" }}>
+            <Typography color="text.secondary">暂无知识条目</Typography>
+          </Box>
+        ) : (
+          items.map((item) => (
+            <Box key={item.id} sx={{ bgcolor: "#fff", px: 2, py: 1.5, mb: 0.5 }}>
+              <Typography sx={{ fontSize: 14, color: "#333", mb: 0.5 }}>{item.content}</Typography>
+              <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                <Typography variant="caption" color="text.secondary">
+                  {item.created_at?.slice(0, 10)}
+                </Typography>
+                <Typography onClick={() => handleDelete(item.id)}
+                  sx={{ fontSize: 12, color: "#e74c3c", cursor: "pointer" }}>
+                  删除
+                </Typography>
               </Box>
-            ))}
-          </Box>
+            </Box>
+          ))
         )}
-        <TextField fullWidth size="small" placeholder={hint || ""}
-          value={value} onChange={(e) => onChange(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") onSave(); }}
-          autoFocus sx={{ mb: error ? 0.5 : 2 }} />
-        {error && <Typography sx={{ fontSize: 12, color: "#FA5151", mb: 1.5 }}>{error}</Typography>}
-        <Box sx={{ display: "flex", gap: 1.5 }}>
-          <Box onClick={onClose}
-            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: "4px", bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 14, color: "#666", "&:active": { opacity: 0.7 } }}>
-            取消
-          </Box>
-          <Box onClick={!saving ? onSave : undefined}
-            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: "4px", bgcolor: "#07C160", cursor: saving ? "default" : "pointer", fontSize: 14, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
-            {saving ? "保存中…" : "保存"}
-          </Box>
-        </Box>
-      </Box>
-    </Dialog>
-  );
-}
-
-function AccountBlock({ doctorId, doctorName, specialty, visitScenario, noteStyle, onOpenName, onOpenSpecialty, onOpenVisitScenario, onOpenNoteStyle }) {
-  const surname = (doctorName || "")[0] || "";
-  return (
-    <Box sx={{ bgcolor: "#fff" }}>
-      <Box sx={{ display: "flex", alignItems: "center", px: 2, py: 1.8, borderBottom: "0.5px solid #f0f0f0" }}>
-        <Box sx={{ width: 56, height: 56, borderRadius: "4px", bgcolor: "#07C160", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, mr: 1.5 }}>
-          <Typography sx={{ color: "#fff", fontSize: 24, fontWeight: 600 }}>{surname}</Typography>
-        </Box>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography sx={{ fontWeight: 600, fontSize: 17 }}>{doctorName || doctorId}</Typography>
-          <Typography sx={{ fontSize: 13, color: "#999" }}>{doctorId}</Typography>
-        </Box>
-      </Box>
-      <Box onClick={onOpenName}
-        sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, borderTop: "0.5px solid #f0f0f0", cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
-        <Typography sx={{ fontSize: 14, color: "#111", flex: 1 }}>昵称</Typography>
-        <Typography sx={{ fontSize: 14, color: "#999", mr: 0.8 }}>{doctorName || "未设置"}</Typography>
-        <ArrowBackIcon sx={{ fontSize: 16, color: "#ccc", transform: "rotate(180deg)" }} />
-      </Box>
-      <Box onClick={onOpenSpecialty}
-        sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, borderTop: "0.5px solid #f0f0f0", cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
-        <Typography sx={{ fontSize: 14, color: "#111", flex: 1 }}>科室专业</Typography>
-        <Typography sx={{ fontSize: 14, color: "#999", mr: 0.8 }}>{specialty || "未设置"}</Typography>
-        <ArrowBackIcon sx={{ fontSize: 16, color: "#ccc", transform: "rotate(180deg)" }} />
-      </Box>
-      <Box onClick={onOpenVisitScenario}
-        sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, borderTop: "0.5px solid #f0f0f0", cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
-        <Typography sx={{ fontSize: 14, color: "#111", flex: 1 }}>常见诊疗场景</Typography>
-        <Typography sx={{ fontSize: 14, color: "#999", mr: 0.8, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{visitScenario || "未设置"}</Typography>
-        <ArrowBackIcon sx={{ fontSize: 16, color: "#ccc", transform: "rotate(180deg)" }} />
-      </Box>
-      <Box onClick={onOpenNoteStyle}
-        sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, borderTop: "0.5px solid #f0f0f0", cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
-        <Typography sx={{ fontSize: 14, color: "#111", flex: 1 }}>病历风格</Typography>
-        <Typography sx={{ fontSize: 14, color: "#999", mr: 0.8 }}>{noteStyle || "未设置"}</Typography>
-        <ArrowBackIcon sx={{ fontSize: 16, color: "#ccc", transform: "rotate(180deg)" }} />
       </Box>
     </Box>
   );
 }
+
+/* ────────── Stub subpage ────────── */
+
+function StubSubpage({ title, onBack }) {
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
+      <Box sx={{ display: "flex", alignItems: "center", height: 48, px: 1, bgcolor: "#fff", borderBottom: "1px solid #e5e5e5", flexShrink: 0 }}>
+        <Box onClick={onBack} sx={{ display: "flex", alignItems: "center", gap: 0.3, cursor: "pointer", color: "#07C160", pr: 2, py: 1 }}>
+          <ArrowBackIcon sx={{ fontSize: 20 }} />
+          <Typography sx={{ fontSize: 15, color: "#07C160" }}>设置</Typography>
+        </Box>
+        <Typography sx={{ flex: 1, textAlign: "center", fontWeight: 600, fontSize: 16, mr: 5 }}>{title}</Typography>
+      </Box>
+      <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Typography color="text.secondary">即将推出</Typography>
+      </Box>
+    </Box>
+  );
+}
+
+/* ────────── About subpage ────────── */
+
+function AboutSubpage({ onBack }) {
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
+      <Box sx={{ display: "flex", alignItems: "center", height: 48, px: 1, bgcolor: "#fff", borderBottom: "1px solid #e5e5e5", flexShrink: 0 }}>
+        <Box onClick={onBack} sx={{ display: "flex", alignItems: "center", gap: 0.3, cursor: "pointer", color: "#07C160", pr: 2, py: 1 }}>
+          <ArrowBackIcon sx={{ fontSize: 20 }} />
+          <Typography sx={{ fontSize: 15, color: "#07C160" }}>设置</Typography>
+        </Box>
+        <Typography sx={{ flex: 1, textAlign: "center", fontWeight: 600, fontSize: 16, mr: 5 }}>关于</Typography>
+      </Box>
+      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", pt: 6 }}>
+        <LocalHospitalOutlinedIcon sx={{ fontSize: 48, color: "#07C160", mb: 1.5 }} />
+        <Typography sx={{ fontWeight: 700, fontSize: 18, mb: 0.5 }}>AI 医生助手</Typography>
+        <Typography variant="caption" color="text.secondary">版本 1.0.0 (MVP)</Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+          &copy; 2024-2026 Doctor AI Agent
+        </Typography>
+      </Box>
+    </Box>
+  );
+}
+
+/* ────────── Profile card ────────── */
+
+function ProfileCard({ doctorId, doctorName, specialty }) {
+  return (
+    <Box sx={{ bgcolor: "#07C160", borderRadius: "0 0 16px 16px", px: 2.5, pt: 3, pb: 2.5, mb: 1.5 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <Box sx={{ width: 60, height: 60, borderRadius: "50%", bgcolor: "rgba(255,255,255,0.25)",
+          display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <LocalHospitalOutlinedIcon sx={{ color: "#fff", fontSize: 30 }} />
+        </Box>
+        <Box>
+          <Typography sx={{ fontWeight: 700, fontSize: 20, color: "#fff" }}>
+            {doctorName || "未设置"}
+          </Typography>
+          <Typography sx={{ fontSize: 13, color: "rgba(255,255,255,0.8)" }}>
+            {specialty || "未设置科室"} · {doctorId}
+          </Typography>
+        </Box>
+      </Box>
+    </Box>
+  );
+}
+
+/* ────────── Settings groups configuration ────────── */
+
+const SETTINGS_ICON_MAP = {
+  name: <PersonOutlineIcon sx={{ color: "#07C160", fontSize: 20 }} />,
+  specialty: <MedicalServicesOutlinedIcon sx={{ color: "#07C160", fontSize: 20 }} />,
+  visitScenario: <EventNoteOutlinedIcon sx={{ color: "#07C160", fontSize: 20 }} />,
+  noteStyle: <DescriptionOutlinedIcon sx={{ color: "#07C160", fontSize: 20 }} />,
+  aiSettings: <SmartToyOutlinedIcon sx={{ color: "#07C160", fontSize: 20 }} />,
+  knowledge: <MenuBookOutlinedIcon sx={{ color: "#07C160", fontSize: 20 }} />,
+  template: <UploadFileOutlinedIcon sx={{ color: "#07C160", fontSize: 20 }} />,
+  notifications: <NotificationsNoneOutlinedIcon sx={{ color: "#07C160", fontSize: 20 }} />,
+  general: <SettingsOutlinedIcon sx={{ color: "#07C160", fontSize: 20 }} />,
+  about: <InfoOutlinedIcon sx={{ color: "#07C160", fontSize: 20 }} />,
+};
+
+const SETTINGS_GROUPS = [
+  {
+    title: "个人信息",
+    items: [
+      { key: "name", label: "昵称", sublabel: (s) => s.doctorName || "未设置" },
+      { key: "specialty", label: "科室专业", sublabel: (s) => s.specialty || "未设置" },
+      { key: "visitScenario", label: "诊疗场景", sublabel: (s) => s.visitScenario || "未设置" },
+      { key: "noteStyle", label: "病历风格", sublabel: (s) => s.noteStyle || "未设置" },
+    ],
+  },
+  {
+    title: "AI 设置",
+    items: [
+      { key: "aiSettings", label: "AI助手设置", sublabel: () => "模型与行为配置" },
+      { key: "knowledge", label: "知识库管理", sublabel: () => "自定义医学知识" },
+    ],
+  },
+  {
+    title: "文档管理",
+    items: [
+      { key: "template", label: "报告模板", sublabel: () => "自定义门诊病历报告格式" },
+    ],
+  },
+  {
+    title: "系统",
+    items: [
+      { key: "notifications", label: "通知设置", sublabel: () => "任务提醒方式" },
+      { key: "general", label: "通用设置", sublabel: () => "语言、主题" },
+      { key: "about", label: "关于", sublabel: () => "版本信息" },
+    ],
+  },
+];
+
+/* ────────── Settings state hook (unchanged logic) ────────── */
 
 function useSettingsState({ doctorId, doctorName, accessToken, setAuth }) {
   const [nameDialogOpen, setNameDialogOpen] = useState(false);
@@ -361,6 +538,8 @@ function useSettingsState({ doctorId, doctorName, accessToken, setAuth }) {
   };
 }
 
+/* ────────── Main component ────────── */
+
 export default function SettingsSection({ doctorId, onLogout }) {
   const [subpage, setSubpage] = useState(null);
   const theme = useTheme();
@@ -374,7 +553,46 @@ export default function SettingsSection({ doctorId, onLogout }) {
     handleSaveName, handleSaveSpecialty, handleSaveVisitScenario, handleSaveNoteStyle,
   } = useSettingsState({ doctorId, doctorName, accessToken, setAuth });
 
-  if (subpage === "template") return <TemplateSubpage doctorId={doctorId} onBack={() => setSubpage(null)} />;
+  const goBack = () => setSubpage(null);
+
+  /* Subpage routing */
+  if (subpage === "template") return <TemplateSubpage doctorId={doctorId} onBack={goBack} />;
+  if (subpage === "knowledge") return <KnowledgeSubpage doctorId={doctorId} onBack={goBack} />;
+  if (subpage === "aiSettings") return <StubSubpage title="AI助手设置" onBack={goBack} />;
+  if (subpage === "notifications") return <StubSubpage title="通知设置" onBack={goBack} />;
+  if (subpage === "general") return <StubSubpage title="通用设置" onBack={goBack} />;
+  if (subpage === "about") return <AboutSubpage onBack={goBack} />;
+
+  /* Settings state for sublabel rendering */
+  const settingsState = { doctorName, specialty, visitScenario, noteStyle };
+
+  /* Navigation handler for menu items */
+  function handleSettingsNav(key) {
+    switch (key) {
+      case "name":
+        setNameInput(doctorName || ""); setNameError(""); setNameDialogOpen(true);
+        break;
+      case "specialty":
+        setSpecialtyInput(specialty || "神经外科"); setSpecialtyDialogOpen(true);
+        break;
+      case "visitScenario":
+        setVisitScenarioInput(visitScenario || ""); setVisitScenarioDialogOpen(true);
+        break;
+      case "noteStyle":
+        setNoteStyleInput(noteStyle || ""); setNoteStyleDialogOpen(true);
+        break;
+      case "template":
+      case "knowledge":
+      case "aiSettings":
+      case "notifications":
+      case "general":
+      case "about":
+        setSubpage(key);
+        break;
+      default:
+        break;
+    }
+  }
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#ededed" }}>
@@ -384,24 +602,42 @@ export default function SettingsSection({ doctorId, onLogout }) {
         </Box>
       )}
       <Box sx={{ flex: 1, overflowY: "auto" }}>
-        <Box sx={{ px: 2, pt: 2, pb: 0.6 }}><Typography sx={{ fontSize: 12, color: "#999", fontWeight: 500 }}>账户</Typography></Box>
-        <AccountBlock doctorId={doctorId} doctorName={doctorName} specialty={specialty} visitScenario={visitScenario} noteStyle={noteStyle}
-          onOpenName={() => { setNameInput(doctorName || ""); setNameError(""); setNameDialogOpen(true); }}
-          onOpenSpecialty={() => { setSpecialtyInput(specialty || "神经外科"); setSpecialtyDialogOpen(true); }}
-          onOpenVisitScenario={() => { setVisitScenarioInput(visitScenario || ""); setVisitScenarioDialogOpen(true); }}
-          onOpenNoteStyle={() => { setNoteStyleInput(noteStyle || ""); setNoteStyleDialogOpen(true); }} />
-        <Box sx={{ px: 2, pt: 2, pb: 0.6 }}><Typography sx={{ fontSize: 12, color: "#999", fontWeight: 500 }}>工具</Typography></Box>
-        <Box sx={{ bgcolor: "#fff" }}>
-          <SettingsRow icon={<UploadFileOutlinedIcon sx={{ color: "#07C160", fontSize: 20 }} />} label="报告模板" sublabel="自定义门诊病历报告格式" onClick={() => setSubpage("template")} />
-        </Box>
-        {isMobile && (
-          <Box onClick={onLogout}
-            sx={{ bgcolor: "#fff", textAlign: "center", py: 1.5, mt: 2, cursor: "pointer", "&:active": { opacity: 0.7 } }}>
-            <Typography sx={{ color: "#FA5151", fontSize: 15, fontWeight: 500 }}>退出登录</Typography>
+        {/* Profile card */}
+        <ProfileCard doctorId={doctorId} doctorName={doctorName} specialty={specialty} />
+
+        {/* Grouped menu sections */}
+        {SETTINGS_GROUPS.map((group) => (
+          <Box key={group.title}>
+            <Box sx={{ px: 2, pt: 2, pb: 0.6 }}>
+              <Typography sx={{ fontSize: 12, color: "#999", fontWeight: 500 }}>{group.title}</Typography>
+            </Box>
+            <Box sx={{ bgcolor: "#fff" }}>
+              {group.items.map((item) => (
+                <SettingsRow
+                  key={item.key}
+                  icon={SETTINGS_ICON_MAP[item.key]}
+                  label={item.label}
+                  sublabel={item.sublabel(settingsState)}
+                  onClick={() => handleSettingsNav(item.key)}
+                />
+              ))}
+            </Box>
           </Box>
-        )}
+        ))}
+
+        {/* Logout button (always visible) */}
+        <Box sx={{ px: 2, mt: 2, mb: 4 }}>
+          <Box onClick={onLogout}
+            sx={{ py: 1.3, borderRadius: 2, bgcolor: "#fff", textAlign: "center", color: "#e74c3c", fontSize: 16,
+              fontWeight: 600, cursor: "pointer", "&:active": { bgcolor: "#fef2f2" } }}>
+            退出登录
+          </Box>
+        </Box>
+
         <Box sx={{ height: 32 }} />
       </Box>
+
+      {/* Dialogs */}
       <NameDialog open={nameDialogOpen} isMobile={isMobile} nameInput={nameInput} nameSaving={nameSaving} nameError={nameError}
         onChange={setNameInput} onSave={handleSaveName} onClose={() => setNameDialogOpen(false)} />
       <SpecialtyDialog open={specialtyDialogOpen} isMobile={isMobile} specialtyInput={specialtyInput} specialtySaving={specialtySaving}
