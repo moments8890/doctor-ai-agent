@@ -46,7 +46,6 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<Navigate to="/doctor" replace />} />
-      <Route path="/manage" element={<Navigate to="/doctor" replace />} />
       <Route path="/doctor" element={<RequireAuth><DoctorPage /></RequireAuth>} />
       <Route path="/doctor/patients/:patientId" element={<RequireAuth><DoctorPage /></RequireAuth>} />
       <Route path="/doctor/:section" element={<RequireAuth><DoctorPage /></RequireAuth>} />

@@ -13,14 +13,15 @@ import MicOutlinedIcon from "@mui/icons-material/MicOutlined";
 import StopCircleOutlinedIcon from "@mui/icons-material/StopCircleOutlined";
 import AttachFileOutlinedIcon from "@mui/icons-material/AttachFileOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
-import { sendChat, transcribeAudio, ocrImage, confirmPendingRecordById, abandonPendingRecordById } from "../../api";
+import { sendChat, confirmPendingRecordById, abandonPendingRecordById } from "../../api";
 import RecordFields from "../../components/RecordFields";
 import { t } from "../../i18n";
 import { QUICK_COMMANDS } from "./constants";
+import ViewPayloadCard from "./ViewPayloadCard";
+import { useAudioRecorder, RecordingBanner } from "./VoiceRecorder";
+import { processFile } from "./FileUploader";
 
 function MsgAvatar({ isUser, size = 36 }) {
   return (
@@ -65,63 +66,6 @@ function PendingConfirmCard({ patientName, expiresAt, onConfirm, onAbandon }) {
       </Stack>
     </Box>
   );
-}
-
-function ViewPayloadCard({ payload }) {
-  if (!payload || !payload.data) return null;
-  const { type, data } = payload;
-
-  if (type === "records_list" && Array.isArray(data)) {
-    return (
-      <Box sx={{ mt: 1.5, p: 1.5, borderRadius: 1.5, bgcolor: "#f6f8fa", border: "1px solid #d0d7de" }}>
-        <Typography variant="subtitle2" sx={{ color: "#0969da", mb: 1, fontSize: 12 }}>
-          {data.length === 0 ? "暂无记录" : `${data.length} 条病历记录`}
-        </Typography>
-        {data.slice(0, 5).map((r, i) => (
-          <Box key={r.id || i} sx={{ py: 0.5, borderBottom: i < Math.min(data.length, 5) - 1 ? "1px solid #eee" : "none" }}>
-            <Typography variant="caption" sx={{ color: "#57606a", fontSize: 11 }}>
-              {r.created_at ? new Date(r.created_at).toLocaleDateString("zh-CN") : ""} {r.record_type || ""}
-            </Typography>
-            <Typography variant="body2" sx={{ fontSize: 13, lineHeight: 1.6, mt: 0.3 }}>
-              {(r.content || "").slice(0, 80)}{(r.content || "").length > 80 ? "..." : ""}
-            </Typography>
-          </Box>
-        ))}
-      </Box>
-    );
-  }
-
-  if (type === "patients_list" && Array.isArray(data)) {
-    return (
-      <Box sx={{ mt: 1.5, p: 1.5, borderRadius: 1.5, bgcolor: "#f6f8fa", border: "1px solid #d0d7de" }}>
-        <Typography variant="subtitle2" sx={{ color: "#0969da", mb: 1, fontSize: 12 }}>
-          {data.length === 0 ? "暂无患者" : `${data.length} 位患者`}
-        </Typography>
-        {data.map((p, i) => (
-          <Typography key={p.id || i} variant="body2" sx={{ fontSize: 13, py: 0.3 }}>
-            {p.name}{p.gender ? ` (${p.gender})` : ""}
-          </Typography>
-        ))}
-      </Box>
-    );
-  }
-
-  if (type === "task_created" && data) {
-    return (
-      <Box sx={{ mt: 1.5, p: 1.5, borderRadius: 1.5, bgcolor: "#f0fdf4", border: "1px solid #bbf7d0" }}>
-        <Typography variant="subtitle2" sx={{ color: "#16a34a", fontSize: 12 }}>
-          {data.task_label || "任务"} 已创建
-        </Typography>
-        {data.datetime_display && (
-          <Typography variant="body2" sx={{ fontSize: 13, mt: 0.3 }}>
-            时间：{data.datetime_display}
-          </Typography>
-        )}
-      </Box>
-    );
-  }
-
-  return null;
 }
 
 function MsgBubble({ msg, onConfirm, onAbandon }) {
@@ -189,41 +133,34 @@ function LoadingBubble({ isMobile }) {
   );
 }
 
-function QuickCommandsPanel({ isMobile, shown, onToggle, onSelect }) {
+function QuickCommandChips({ onInsert, onAutoSend }) {
   return (
-    <Box sx={{ px: isMobile ? 0.5 : 1.5, pt: 0.5, pb: isMobile ? 0.3 : 0.4, borderTop: "1px solid #e5e5e5", backgroundColor: "#f7f7f7" }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: shown ? 0.6 : 0 }}>
-        <Typography sx={{ color: "#888", fontSize: 11, fontWeight: 600 }}>常用命令</Typography>
-        <IconButton size="small" onClick={onToggle} sx={{ color: "text.disabled", p: 0.3 }}>
-          {shown ? <KeyboardArrowUpIcon sx={{ fontSize: 16 }} /> : <KeyboardArrowDownIcon sx={{ fontSize: 16 }} />}
-        </IconButton>
-      </Stack>
-      {shown && (
-        <Box sx={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(4, 1fr)" : "repeat(8, 1fr)", gap: isMobile ? 0.8 : 0.7, mb: 0.8 }}>
-          {QUICK_COMMANDS.map((cmd) => (
-            <Box key={cmd.label} component="button" onClick={() => onSelect(cmd.insert)}
-              sx={{ display: "inline-flex", flexDirection: isMobile ? "column" : "row", alignItems: "center", justifyContent: "center",
-                gap: isMobile ? 0.3 : 0.5, px: isMobile ? 0.3 : 1.2, py: 0.5,
-                borderRadius: isMobile ? "8px" : "14px",
-                border: isMobile ? "none" : "1px solid #e5e5e5",
-                backgroundColor: isMobile ? "transparent" : "#fff",
-                cursor: "pointer", fontSize: isMobile ? 10 : 11, color: "#555",
-                fontFamily: "inherit", lineHeight: 1.3, whiteSpace: "nowrap", width: "100%",
-                minHeight: isMobile ? 46 : 28, transition: "all 0.1s",
-                "&:hover": { backgroundColor: isMobile ? "rgba(0,0,0,0.04)" : "#f0f7ff" },
-                "&:active": { opacity: 0.7, transform: "scale(0.96)" } }}>
-              {isMobile ? (
-                <Box sx={{ width: 32, height: 32, borderRadius: "8px", bgcolor: "#f2f2f2", display: "flex", alignItems: "center", justifyContent: "center", mb: 0.2 }}>
-                  <span style={{ fontSize: 17 }}>{cmd.icon}</span>
-                </Box>
-              ) : (
-                <span style={{ fontSize: 12 }}>{cmd.icon}</span>
-              )}
-              {cmd.label}
-            </Box>
-          ))}
+    <Box sx={{
+      display: "flex", gap: 0.8, px: 1.5, py: 0.8,
+      overflowX: "auto", whiteSpace: "nowrap",
+      "&::-webkit-scrollbar": { display: "none" },
+    }}>
+      {QUICK_COMMANDS.map((cmd) => (
+        <Box
+          key={cmd.label}
+          onClick={() => {
+            if (cmd.insert.endsWith("：") || cmd.insert.endsWith("，")) {
+              onInsert(cmd.insert);
+            } else {
+              onAutoSend(cmd.insert);
+            }
+          }}
+          sx={{
+            px: 1.5, py: 0.5, borderRadius: "16px", cursor: "pointer",
+            fontSize: 13, flexShrink: 0, userSelect: "none",
+            bgcolor: "#f0f0f0", color: "#333",
+            "&:hover": { bgcolor: "#e0e0e0" },
+            "&:active": { bgcolor: "#d5d5d5" },
+          }}
+        >
+          {cmd.icon} {cmd.label}
         </Box>
-      )}
+      ))}
     </Box>
   );
 }
@@ -236,67 +173,6 @@ function FailedMessageBanner({ onRetry, onDismiss }) {
       <Button size="small" variant="text" sx={{ fontSize: 12, py: 0, minWidth: "auto", color: "text.secondary" }} onClick={onDismiss}>忽略</Button>
     </Box>
   );
-}
-
-function RecordingBanner({ recordingSeconds }) {
-  return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 2, py: 0.5, bgcolor: "#fff0f0" }}>
-      <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: "error.main", animation: "recBlink 1s ease-in-out infinite", "@keyframes recBlink": { "0%,100%": { opacity: 1 }, "50%": { opacity: 0.3 } } }} />
-      <Typography variant="caption" color="error" sx={{ fontWeight: 700 }}>
-        录音中 {Math.floor(recordingSeconds / 60)}:{String(recordingSeconds % 60).padStart(2, "0")}
-      </Typography>
-      <Typography variant="caption" color="text.secondary">· 点击停止</Typography>
-    </Box>
-  );
-}
-
-function useAudioRecorder(onTranscribed, onError) {
-  const [recording, setRecording] = useState(false);
-  const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const [processing, setProcessing] = useState(false);
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
-  const timerRef = useRef(null);
-
-  useEffect(() => () => clearInterval(timerRef.current), []);
-
-  async function start() {
-    onError(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
-      audioChunksRef.current = [];
-      mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
-      mr.onstop = async () => {
-        stream.getTracks().forEach((track) => track.stop());
-        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-        setProcessing(true);
-        try {
-          const { text } = await transcribeAudio(blob);
-          if (text) onTranscribed(text);
-        } catch {
-          onError("语音识别失败，请重试");
-        } finally {
-          setProcessing(false);
-        }
-      };
-      mr.start();
-      mediaRecorderRef.current = mr;
-      setRecording(true);
-      setRecordingSeconds(0);
-      timerRef.current = setInterval(() => setRecordingSeconds((s) => s + 1), 1000);
-    } catch {
-      onError("无法访问麦克风，请检查权限");
-    }
-  }
-
-  function stop() {
-    clearInterval(timerRef.current);
-    mediaRecorderRef.current?.stop();
-    setRecording(false);
-  }
-
-  return { recording, recordingSeconds, processing, start, stop };
 }
 
 function nowTs() {
@@ -514,27 +390,6 @@ function useChatEffects({ externalInput, onExternalInputConsumed, autoSendText, 
   }, [autoSendText]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
-async function processFile({ file, setMediaError, setMediaProcessing, setInput }) {
-  if (!file) return;
-  setMediaError(null);
-  setMediaProcessing(true);
-  try {
-    if (file.type.startsWith("audio/")) {
-      const { text } = await transcribeAudio(file, file.name);
-      if (text) setInput((prev) => (prev ? prev + " " + text : text));
-    } else if (file.type.startsWith("image/")) {
-      const { text } = await ocrImage(file);
-      if (text) setInput((prev) => (prev ? prev + "\n" + text : text));
-    } else {
-      setMediaError("不支持的文件类型，请上传音频或图片");
-    }
-  } catch {
-    setMediaError("文件处理失败，请重试");
-  } finally {
-    setMediaProcessing(false);
-  }
-}
-
 function usePendingHandlers({ setMessages, onPatientCreated }) {
   function clearMsg(pendingId) {
     setMessages((prev) => prev.map((m) => m.pending_id === pendingId ? { ...m, pending_id: null } : m));
@@ -562,9 +417,6 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [mediaError, setMediaError] = useState(null);
-  const [commandsShown, setCommandsShown] = useState(() => {
-    try { return localStorage.getItem("chat_commands_shown") !== "false"; } catch { return true; }
-  });
   const fileInputRef = useRef(null);
   const [mediaProcessing, setMediaProcessing] = useState(false);
 
@@ -575,9 +427,6 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
   );
   useChatEffects({ externalInput, onExternalInputConsumed, autoSendText, onAutoSendConsumed, setInput, sendText });
   const { handleConfirm: handlePendingConfirm, handleAbandon: handlePendingAbandon } = usePendingHandlers({ setMessages, onPatientCreated });
-  function toggleCommands() {
-    setCommandsShown((v) => { const next = !v; try { localStorage.setItem("chat_commands_shown", String(next)); } catch {} return next; });
-  }
 
   const isProcessing = recProcessing || mediaProcessing;
   const sharedBarProps = {
@@ -601,7 +450,7 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
         {loading && <LoadingBubble isMobile={isMobile} />}
         <div ref={bottomRef} />
       </Box>
-      <QuickCommandsPanel isMobile={isMobile} shown={commandsShown} onToggle={toggleCommands} onSelect={setInput} />
+      <QuickCommandChips onInsert={(text) => setInput(text)} onAutoSend={(text) => sendText(text)} />
       <input ref={fileInputRef} type="file" accept="audio/*,image/*" style={{ display: "none" }}
         onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; processFile({ file: f, setMediaError, setMediaProcessing, setInput }); }} />
       {isMobile ? <MobileInputBar {...sharedBarProps} /> : <DesktopInputBar {...sharedBarProps} />}
