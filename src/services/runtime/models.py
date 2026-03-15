@@ -63,3 +63,4 @@ class TurnResult:
     pending_expires_at: Optional[str] = None
     record_id: Optional[int] = None  # set on draft confirm (for REST response)
     view_payload: Optional[Dict[str, Any]] = None  # structured data for web rendering (ADR 0012 §14)
+    switch_notification: Optional[str] = None  # patient-switch system message

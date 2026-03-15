@@ -66,7 +66,7 @@ Key invariants:
 ┌──────────────────────────▼──────────────────────────────┐
 │               SERVICE LAYER                             │
 │  ai/        structuring, transcription, vision, LLM     │
-│  domain/    confirm_pending                              │
+│  domain/    confirm_pending                               │
 │  patient/   risk scoring, search, timeline               │
 │  knowledge/ PDF/Word extraction, doctor knowledge        │
 │  notify/    task scheduling, notifications               │
@@ -95,7 +95,7 @@ imports runtime internals.
 
 | File | Route | Role |
 |------|-------|------|
-| `chat.py` | `POST /api/records/chat` | Main chat; greeting/help fast paths, then `process_turn()` |
+| `chat.py` | `POST /api/records/chat` | Main chat endpoint; delegates to `process_turn()` |
 | `chat.py` | `POST /api/records/pending/{id}/confirm` | REST confirm draft (button click) |
 | `chat.py` | `POST /api/records/pending/{id}/abandon` | REST abandon draft (button click) |
 | `chat.py` | `POST /api/records/from-{text,image,audio}` | Media import (OCR/transcribe then import) |
@@ -186,10 +186,10 @@ DoctorCtx
   │     ├── patient_id: Optional[int]
   │     ├── patient_name: Optional[str]
   │     └── pending_draft_id: Optional[str]
-  └── memory: MemoryState            # provisional (LLM-facing)
-        ├── candidate_patient: Optional[dict]
-        ├── working_note: Optional[str]
-        └── summary: Optional[str]
+  └── memory: MemoryState            # dead fields under ADR 0012 §17
+        ├── candidate_patient: Optional[dict]  # unused — resolve handles binding
+        ├── working_note: Optional[str]        # unused — chat_archive scan replaces
+        └── summary: Optional[str]             # unused — retained for column compat
 
 ActionType (enum):  query_records | list_patients | schedule_task
                     | select_patient | create_patient | create_draft | none
@@ -315,11 +315,12 @@ DDL.
 
 ---
 
-## I18N (`src/i18n/messages.py`)
+## Messages (`src/messages.py`)
 
-600+ message strings (Chinese default, English with `RUNTIME_LANG=en`). Contains
-regex patterns (`confirm_re`, `abandon_re`, `greeting_re`, `help_re`) and the
-system prompt for the conversation model.
+Template strings for all pipeline responses (Chinese default, English with
+`RUNTIME_LANG=en`). Includes clarification templates (7 kinds), action success
+templates, error templates, and the understand prompt system message. Confirm/
+abandon regex patterns live in `turn.py`.
 
 ---
 
@@ -351,7 +352,7 @@ system prompt for the conversation model.
 | ADR | Title | Status |
 |-----|-------|--------|
 | 0011 | Thread-centric conversation runtime and deterministic commits | **Active** — foundation |
-| 0012 | Understand / Execute / Compose pipeline for operational actions | **Accepted** — not yet implemented |
+| 0012 | Understand / Execute / Compose pipeline for operational actions | **Active** — implemented |
 
 ---
 
@@ -364,9 +365,6 @@ system prompt for the conversation model.
 2. **WeChat fast paths** — task completion (`完成 N`), knowledge add, and notify
    control are handled in `_handle_intent()` before `process_turn()`. These
    could be folded into the runtime as custom action types.
-
-3. **Web fast paths** — greeting and help regex in `chat.py` short-circuit
-   before `process_turn()`. Consistent with WeChat but could be runtime-level.
 
 ---
 

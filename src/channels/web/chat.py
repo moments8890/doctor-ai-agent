@@ -67,6 +67,7 @@ class ChatResponse(BaseModel):
     pending_patient_name: Optional[str] = None
     pending_expires_at: Optional[str] = None  # ISO-8601 UTC
     view_payload: Optional[Dict[str, Any]] = None  # structured data for web rendering (ADR 0012 §14)
+    switch_notification: Optional[str] = None  # patient-switch system message
 
 
 class ExtractedTextResponse(BaseModel):
@@ -145,6 +146,7 @@ async def chat(
         pending_patient_name=result.pending_patient_name,
         pending_expires_at=result.pending_expires_at,
         view_payload=result.view_payload,
+        switch_notification=result.switch_notification,
     )
 
 

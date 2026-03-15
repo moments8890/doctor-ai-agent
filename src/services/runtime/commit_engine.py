@@ -258,7 +258,11 @@ async def _create_draft(
     log.info("[commit] draft created id=%s patient=%s doctor=%s", draft_id, patient_name, ctx.doctor_id)
     return CommitResult(
         status="pending_confirmation",
-        data={"preview": content_preview, "patient_name": patient_name},
+        data={
+            "preview": content_preview,
+            "patient_name": patient_name,
+            "expires_at": expires_at.isoformat(),
+        },
         pending_id=draft_id,
     )
 

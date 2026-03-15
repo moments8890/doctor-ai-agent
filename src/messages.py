@@ -94,7 +94,6 @@ class M:
     understand_error = "抱歉，我没有理解您的意思，请再试一次。"
     compose_error_fallback = "找到{count}条记录，请在网页端查看详情。"
     execute_error = "操作失败，请稍后再试。"
-    draft_ttl_expired = "草稿已过期，请重新创建。"
 
     # -- UEC pipeline: data display templates --------------------------------
     truncation_notice = "共{total}条记录，显示最近{shown}条。"

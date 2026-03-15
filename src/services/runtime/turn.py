@@ -243,20 +243,31 @@ async def _run_pipeline(ctx: DoctorCtx, text: str, doctor_id: str) -> TurnResult
 
     elif resolved.action_type in WRITE_ACTIONS:
         from services.runtime.commit_engine import commit
+
+        # Capture previous patient for switch notification
+        prev_patient_name = ctx.workflow.patient_name
+
         commit_result = await commit(resolved, ctx, recent_turns, text)
 
         # Update context for writes that switch patients
+        switch_notification = None
         if not resolved.scoped_only and resolved.patient_id:
+            if (prev_patient_name
+                    and resolved.patient_name
+                    and prev_patient_name != resolved.patient_name):
+                switch_notification = f"已从【{prev_patient_name}】切换到【{resolved.patient_name}】"
             ctx.workflow.patient_id = resolved.patient_id
             ctx.workflow.patient_name = resolved.patient_name
 
         reply = compose_template(commit_result, resolved.action_type, resolved.patient_name)
 
         # Build TurnResult with pending info if applicable
-        tr = TurnResult(reply=reply)
+        tr = TurnResult(reply=reply, switch_notification=switch_notification)
         if commit_result.pending_id:
             tr.pending_id = commit_result.pending_id
             tr.pending_patient_name = resolved.patient_name
+            if commit_result.data and isinstance(commit_result.data, dict):
+                tr.pending_expires_at = commit_result.data.get("expires_at")
         if commit_result.data and isinstance(commit_result.data, dict):
             if "task_id" in commit_result.data:
                 tr.view_payload = {"type": "task_created", "data": commit_result.data}
@@ -311,7 +322,7 @@ async def _confirm_draft(ctx: DoctorCtx, draft_id: str) -> TurnResult:
     # TTL expiry race (ADR 0012 §15)
     if pending is None or pending.status != "awaiting":
         ctx.workflow.pending_draft_id = None
-        return TurnResult(reply=M.draft_ttl_expired)
+        return TurnResult(reply=M.draft_expired)
 
     from services.domain.intent_handlers._confirm_pending import save_pending_record
 
