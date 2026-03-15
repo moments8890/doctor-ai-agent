@@ -41,8 +41,13 @@ export async function searchPatients(doctorId, q) {
   return request(`/api/manage/patients/search?${qs.toString()}`);
 }
 
-export async function exportPatientPdf(patientId, doctorId) {
+export async function exportPatientPdf(patientId, doctorId, sections) {
   const qs = new URLSearchParams({ doctor_id: doctorId });
+  if (sections) {
+    const { visitRange, ...flags } = sections;
+    Object.entries(flags).forEach(([k, v]) => { qs.set(k, v ? "1" : "0"); });
+    if (visitRange) qs.set("visitRange", visitRange);
+  }
   const headers = {};
   const token = getWebToken();
   if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -274,5 +279,26 @@ export async function updateDoctorProfile(doctorId, { name, specialty, visit_sce
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
+  });
+}
+
+export async function getKnowledgeItems(doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/knowledge?${qs.toString()}`);
+}
+
+export async function deleteKnowledgeItem(doctorId, itemId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/knowledge/${itemId}?${qs.toString()}`, {
+    method: "DELETE",
+  });
+}
+
+export async function addKnowledgeItem(doctorId, content) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/knowledge?${qs.toString()}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
   });
 }
