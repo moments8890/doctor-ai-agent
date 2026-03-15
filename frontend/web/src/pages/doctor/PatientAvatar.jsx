@@ -15,7 +15,7 @@ export function nameColor(name) {
 export default function PatientAvatar({ name, size = 42 }) {
   return (
     <Box sx={{
-      width: size, height: size, borderRadius: "50%", flexShrink: 0,
+      width: size, height: size, borderRadius: "4px", flexShrink: 0,
       bgcolor: nameColor(name),
       display: "flex", alignItems: "center", justifyContent: "center",
     }}>

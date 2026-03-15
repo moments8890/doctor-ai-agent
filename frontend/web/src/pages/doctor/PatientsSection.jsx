@@ -13,6 +13,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
+import AddIcon from "@mui/icons-material/Add";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import { getPatients, searchPatients, extractFileForChat } from "../../api";
 import PatientAvatar from "./PatientAvatar";
@@ -33,21 +34,20 @@ function isNLQuery(q) {
 
 function PatientRow({ patient, isSelected, isMobile, onClick }) {
   const age = patient.year_of_birth ? new Date().getFullYear() - patient.year_of_birth : null;
-  const avatarSize = isMobile ? 42 : 38;
-  const fontSize = isMobile ? "15px" : "14px";
   return (
     <Box onClick={onClick}
       sx={{
         display: "flex", alignItems: "center", gap: 1.5,
-        px: 2, py: 1.2, bgcolor: isSelected ? "#f0faf4" : "#fff",
+        px: 2, py: 1.5, bgcolor: isSelected ? "#f0faf4" : "#fff",
+        borderBottom: "0.5px solid #f0f0f0",
         cursor: "pointer", userSelect: "none", WebkitUserSelect: "none",
         "&:hover": isMobile ? undefined : { bgcolor: "#f5f5f5" },
         "&:active": { bgcolor: isMobile ? "#f5f5f5" : "#ebebeb" },
       }}>
-      <PatientAvatar name={patient.name} size={avatarSize} />
+      <PatientAvatar name={patient.name} size={44} />
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontWeight: 500, fontSize }}>{patient.name}</Typography>
-        <Typography variant="caption" color="text.secondary">
+        <Typography sx={{ fontWeight: 500, fontSize: 15 }}>{patient.name}</Typography>
+        <Typography sx={{ fontSize: 13, color: "#999999" }}>
           {[
             patient.gender ? ({ male: "男", female: "女" }[patient.gender] || patient.gender) : null,
             age ? `${age}岁` : null,
@@ -62,15 +62,15 @@ function PatientRow({ patient, isSelected, isMobile, onClick }) {
 
 function ImportCard({ importing, importError, onFileClick, onChatClick }) {
   return (
-    <Box sx={{ bgcolor: "#f7f7f7", borderBottom: "1px solid #e5e5e5" }}>
+    <Box sx={{ bgcolor: "#f7f7f7", borderBottom: "0.5px solid #f0f0f0" }}>
       <Box sx={{ px: 2, py: 0.5 }}>
         <Typography sx={{ fontSize: 11, color: "#aaa", fontWeight: 600, letterSpacing: 0.3 }}>导入患者</Typography>
       </Box>
       <Box onClick={onFileClick}
         sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1.2, bgcolor: "#fff",
-          borderBottom: "1px solid #f2f2f2", cursor: "pointer", userSelect: "none", WebkitUserSelect: "none",
+          borderBottom: "0.5px solid #f0f0f0", cursor: "pointer", userSelect: "none", WebkitUserSelect: "none",
           "&:hover": { bgcolor: "#f5f5f5" }, "&:active": { bgcolor: "#ebebeb" } }}>
-        <Box sx={{ width: 36, height: 36, borderRadius: "8px", bgcolor: "#e8f5e9", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <Box sx={{ width: 36, height: 36, borderRadius: "4px", bgcolor: "#e8f5e9", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           {importing ? <CircularProgress size={18} sx={{ color: "#07C160" }} /> : <UploadFileOutlinedIcon sx={{ fontSize: 20, color: "#07C160" }} />}
         </Box>
         <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -81,8 +81,8 @@ function ImportCard({ importing, importError, onFileClick, onChatClick }) {
       </Box>
       <Box onClick={onChatClick}
         sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1.2, bgcolor: "#fff",
-          cursor: "pointer", "&:hover": { bgcolor: "#f5f5f5" }, "&:active": { bgcolor: "#ebebeb" } }}>
-        <Box sx={{ width: 36, height: 36, borderRadius: "8px", bgcolor: "#e3f2fd", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          borderBottom: "0.5px solid #f0f0f0", cursor: "pointer", "&:hover": { bgcolor: "#f5f5f5" }, "&:active": { bgcolor: "#ebebeb" } }}>
+        <Box sx={{ width: 36, height: 36, borderRadius: "4px", bgcolor: "#e3f2fd", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <ChatOutlinedIcon sx={{ fontSize: 20, color: "#1976d2" }} />
         </Box>
         <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -104,7 +104,7 @@ function SearchBar({ patients, search, nlResults, nlLoading, onChange, onSubmit 
   const q = search.trim();
   const showNlBtn = q && isNLQuery(q) && nlResults === null;
   return (
-    <Box sx={{ px: 1.5, py: 1, borderBottom: "1px solid #e2e8f0", bgcolor: "#f7f7f7" }}>
+    <Box sx={{ px: 1.5, py: 1, borderBottom: "0.5px solid #f0f0f0", bgcolor: "#ededed" }}>
       <TextField
         size="small" fullWidth
         placeholder={`搜索患者${patients.length > 0 ? ` (共${patients.length}人)` : ""}，或用自然语言描述`}
@@ -125,7 +125,7 @@ function SearchBar({ patients, search, nlResults, nlLoading, onChange, onSubmit 
             </InputAdornment>
           ) : null,
         }}
-        sx={{ "& .MuiOutlinedInput-root": { borderRadius: "20px", bgcolor: "#fff" } }}
+        sx={{ "& .MuiOutlinedInput-root": { borderRadius: "4px", bgcolor: "#fff" } }}
       />
       {nlResults !== null && (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, pt: 0.5 }}>
@@ -161,8 +161,8 @@ function PatientGroupList({ filtered, search, selectedId, isMobile, navigate, on
   }
   return groupPatients(filtered).map(([letter, group]) => (
     <Box key={letter}>
-      <Box sx={{ px: 2, py: 0.5, bgcolor: "#f7f7f7", borderBottom: "1px solid #ebebeb" }}>
-        <Typography sx={{ fontSize: 12, color: "#888", fontWeight: 600 }}>{letter}</Typography>
+      <Box sx={{ px: 2, py: 0.5, bgcolor: "#f7f7f7", borderBottom: "0.5px solid #f0f0f0" }}>
+        <Typography sx={{ fontSize: 12, color: "#999999", fontWeight: 600 }}>{letter}</Typography>
       </Box>
       {group.map((p) => (
         <PatientRow
@@ -189,6 +189,27 @@ function PatientListPane({ patients, loading, error, search, nlResults, nlLoadin
             onFileClick={() => importFileRef.current?.click()} onChatClick={() => onNavigateToChat?.()} />
         )}
         <input ref={importFileRef} type="file" hidden accept=".pdf,image/jpeg,image/png,image/webp" onChange={onFileInputChange} />
+        {!loading && !search.trim() && (
+          <Box onClick={() => onNavigateToChat?.()}
+            sx={{
+              display: "flex", alignItems: "center", gap: 1.5,
+              px: 2, py: 1.5, bgcolor: "#fff", borderBottom: "0.5px solid #f0f0f0",
+              cursor: "pointer", userSelect: "none", WebkitUserSelect: "none",
+              "&:hover": { bgcolor: "#f5f5f5" }, "&:active": { bgcolor: "#ebebeb" },
+            }}>
+            <Box sx={{
+              width: 44, height: 44, borderRadius: "4px", flexShrink: 0,
+              border: "1px dashed #07C160",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <AddIcon sx={{ color: "#07C160", fontSize: 24 }} />
+            </Box>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography sx={{ fontSize: 15, fontWeight: 500, color: "#07C160" }}>新建患者</Typography>
+              <Typography sx={{ fontSize: 13, color: "#999999" }}>添加新的患者档案</Typography>
+            </Box>
+          </Box>
+        )}
         {!loading && (
           <PatientGroupList filtered={filtered} search={search} selectedId={selectedId}
             isMobile={isMobile} navigate={navigate}
