@@ -154,6 +154,9 @@ and use the same composition rule (section 4).
 When `action_type` is `none`, the runtime skips both execute and compose and
 returns `chat_reply` directly.
 
+**Precedence**: if both `clarification` and `chat_reply` are set,
+`clarification` wins and `chat_reply` is ignored.
+
 #### Understand prompt contract
 
 The understand prompt is the most implementation-critical artifact. The ADR
