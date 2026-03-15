@@ -9,15 +9,10 @@ Companion diagram for
 flowchart TD
     input["user_input + DoctorCtx + chat_archive<br/>(already deduped by channel layer)"]
 
-    %% Pre-pipeline guards
-    input --> det{"Deterministic action?<br/>(button click, 确认/取消)"}
-    det -->|yes| det_handler["Deterministic handler → template reply"]
-    det -->|no| pending{"Draft guard<br/>pending_draft_id set?"}
-
-    pending -->|"confirm/abandon regex"| commit_or_discard["Commit or discard pending → template reply"]
-    pending -->|"read-only regex"| understand
-    pending -->|"other input"| blocked_reply["Blocked template reply"]
-    pending -->|"no pending"| understand
+    %% Pre-pipeline deterministic handler
+    input --> det{"Deterministic?<br/>(button click, or<br/>确认/取消 during pending)"}
+    det -->|yes| det_handler["Deterministic handler<br/>→ template reply"]
+    det -->|no| understand
 
     %% Understand phase
     understand["<b>UNDERSTAND</b><br/>LLM → UnderstandResult<br/>(structured, no prose for operational turns)"]
@@ -47,8 +42,6 @@ flowchart TD
     commit_engine --> compose_template["<b>COMPOSE (template)</b><br/>Format confirmation or success<br/><i>1 LLM call total</i>"]
 
     det_handler --> turn_result["TurnResult<br/>(reply + optional view_payload)"]
-    commit_or_discard --> turn_result
-    blocked_reply --> turn_result
     compose_llm --> turn_result
     compose_template --> turn_result
     clarify_compose --> turn_result
@@ -70,14 +63,12 @@ flowchart TD
 ```mermaid
 sequenceDiagram
     participant D as Doctor
-    participant PG as Pending Guard
     participant U as Understand (LLM)
     participant R as Resolve
     participant RE as Read Engine
     participant C as Compose (LLM)
 
-    D->>PG: "查张三的病历"
-    PG->>U: pass through (read-looking)
+    D->>U: "查张三的病历"
     U->>R: UnderstandResult{action_type: query_records, args: {patient_name: "张三"}}
     R->>R: DB lookup "张三" → found (id=42)
     R->>R: Reads scope, no context switch
@@ -92,14 +83,12 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant D as Doctor
-    participant DG as Draft Guard
     participant U as Understand (LLM)
     participant R as Resolve
     participant CE as Commit Engine
     participant Co as Compose (template)
 
-    D->>DG: "帮张三约下周三复诊"
-    DG->>U: pass through (no pending draft)
+    D->>U: "帮张三约下周三复诊"
     U->>R: UnderstandResult{action_type: schedule_task, args: {patient_name: "张三", task_type: appointment, scheduled_for: "下周三"}}
     R->>R: DB lookup "张三" → found
     R->>R: Normalize "下周三" → 2026-03-18T12:00 (date-only → noon default)
@@ -116,13 +105,11 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant D as Doctor
-    participant PG as Pending Guard
     participant U as Understand (LLM)
     participant R as Resolve
     participant Co as Compose (template)
 
-    D->>PG: "帮张约个复诊"
-    PG->>U: pass through (no pending)
+    D->>U: "帮张约个复诊"
     U->>R: UnderstandResult{action_type: schedule_task, args: {patient_name: "张"}}
     R->>R: DB lookup "张" → prefix match: 张三, 张三丰
     R->>Co: Clarification{kind: ambiguous_patient, options: [{name: "张三", id: 1}, {name: "张三丰", id: 2}]}

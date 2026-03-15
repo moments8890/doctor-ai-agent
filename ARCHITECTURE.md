@@ -49,7 +49,7 @@ Key invariants:
 │                 RUNTIME (services/runtime/)              │
 │                                                         │
 │  1. Load DoctorCtx from DB                              │
-│  2. Draft guard (confirm/abandon/block/pass-through)    │
+│  2. Deterministic handler (button clicks, 确认/取消)     │
 │  3. UNDERSTAND — LLM → UnderstandResult (structured)    │
 │  4. EXECUTE                                             │
 │     ├── Resolve (patient lookup, binding, dates)        │
@@ -158,8 +158,8 @@ TurnResult                                    # reply + optional pending draft i
 ### Pipeline (`turn.py`)
 
 ```text
-text → strip → load DoctorCtx → draft guard
-  → Understand (LLM) → Execute (resolve → read/commit engine) → Compose → memory patch → persist → reply
+text → strip → load DoctorCtx → deterministic handler
+  → Understand (LLM) → Execute (resolve → read/commit engine) → Compose → persist → reply
 ```
 
 Dedup is a channel-layer concern, not a runtime concern. Channels that use
@@ -169,7 +169,7 @@ retrying transports (e.g., WeChat webhooks) filter duplicates before calling
 | Stage | Module | Purpose |
 |-------|--------|---------|
 | Context | `context.py` | Load/save `DoctorCtx` from `doctor_context` table; read/write `chat_archive` |
-| Draft guard | `draft_guard.py` | If `pending_draft_id` set: confirm → save record, abandon → discard, read-looking → pass through, other → block |
+| Deterministic handler | `turn.py` | Typed UI actions (button clicks) and 确认/取消 regex during pending draft → deterministic response, no LLM. All blocking logic is in execute.resolve. |
 | Understand | `conversation.py` | LLM → `UnderstandResult` (structured intent, no prose for operational turns) |
 | Resolve | `resolve.py` | Patient DB lookup, binding, date normalization; shared by read and write paths |
 | Read engine | `read_engine.py` | SELECT only, no writes; returns `ReadResult` with data + truncation info |

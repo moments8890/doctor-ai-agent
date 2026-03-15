@@ -89,8 +89,7 @@ type:
 
 | Input type | Understand | Execute | Compose | LLM calls |
 | --- | --- | --- | --- | --- |
-| Typed UI action (button click) | skip | deterministic | template | 0 |
-| Pending confirm/cancel (确认/取消 regex) | skip | deterministic (pending guard) | template | 0 |
+| Deterministic (button click, 确认/取消 during pending) | skip | deterministic handler | template | 0 |
 | Read query ("查张三的病历") | LLM → structured | DB fetch | LLM summarize | 2 |
 | Write: schedule_task ("帮张三约下周三复诊") | LLM → structured | immediate commit | template success | 1 |
 | Write: create_draft ("写个门诊记录") | LLM → structured | collect + structure | template confirm (pending) | 2 |
@@ -395,36 +394,41 @@ operational ones.
 `ActionType`, the runtime treats it as a parse failure and returns a generic
 error template. The LLM never silently invents new capabilities.
 
-### 7. Interaction with existing guards
+### 7. Pre-pipeline deterministic handler
 
-The existing deterministic guards from ADR 0011 remain as pre-pipeline
-shortcuts. They run before the three-phase pipeline:
+A single deterministic handler runs before the three-phase pipeline. It
+intercepts inputs that never need LLM classification:
 
 ```text
 user_input (already deduped by channel layer)
   |
-  typed UI action? (button click with typed payload)
-    → deterministic handler → template reply
-  |
-  draft_guard
-    pending_draft_id set?
-      确认/取消 regex → deterministic commit or discard → template reply
-      read-only regex → pass through to pipeline (including cross-patient reads;
-        execute.resolve handles cross-patient blocking, see section 10)
-      other → blocked template reply
-    no pending → pass through
+  deterministic handler
+    typed UI action? (button click) → execute directly → template reply
+    pending_draft_id set + 确认/取消 regex? → commit or discard → template reply
   |
   Understand → Execute → Compose
 ```
 
-Draft guard behavior with operational actions:
+There is no "draft guard" or "pending guard" as a separate architectural
+layer. The deterministic handler intercepts two cases: typed UI actions and
+draft confirmation/abandonment. Everything else — including input during a
+pending draft — flows through the full pipeline. Execute.resolve owns all
+blocking logic:
 
-- read-looking input (regex match) passes through to the pipeline
-- writes other than draft confirm/abandon are blocked pre-pipeline
-- **cross-patient read blocking is NOT the draft guard's job** — the draft
-  guard cannot determine the target patient from regex alone. Execute.resolve
-  handles this: if a read action targets a different patient than the pending
-  draft, resolve returns `clarification.kind="blocked"` (see section 10)
+- **Write during pending draft**: resolve returns
+  `clarification.kind="blocked"`.
+- **Cross-patient read during pending draft**: resolve returns
+  `clarification.kind="blocked"` (see section 10).
+- **Chitchat during pending draft**: understand classifies as `none`, returns
+  `chat_reply` directly. Not blocked — the doctor can continue conversing.
+- **Same-patient read during pending draft**: allowed, resolve scopes the
+  query normally.
+
+This eliminates the read-only regex heuristic (which could never be complete)
+and the "other → blocked" default (which incorrectly blocked legitimate
+chitchat and clinical observations during a pending draft). The trade-off is
+one LLM call for write-during-draft inputs before resolve blocks them — an
+uncommon path acceptable for MVP.
 
 ### 8. Typed action args
 
@@ -586,8 +590,8 @@ are now working on that patient.
 | Explicit name, resolves to 0 patients | Return `not_found` | Return `not_found` |
 | No name, context has patient | Use context patient | Use context patient |
 | No name, no context patient | Clarify: `missing_field` | Clarify: `missing_field` |
-| Pending draft, same patient | Allowed | Blocked by draft guard (pre-pipeline) |
-| Pending draft, different patient | Blocked by execute.resolve (`blocked`) | Blocked by draft guard (pre-pipeline) |
+| Pending draft, same patient | Allowed | Blocked by execute.resolve (`blocked`) |
+| Pending draft, different patient | Blocked by execute.resolve (`blocked`) | Blocked by execute.resolve (`blocked`) |
 | Pending draft, unscoped (`list_patients`) | Always allowed (no patient target) | N/A |
 
 #### Implicit patient handling
@@ -690,8 +694,7 @@ that requires a pending state, because medical records are permanent clinical
 documents.
 
 This means `WorkflowState` retains only `pending_draft_id` — no
-`pending_action_id`, no mutex, no guard extension. The draft guard remains
-unchanged from ADR 0011.
+`pending_action_id`, no mutex, no guard extension.
 
 ### 16. LLM failure fallbacks
 
