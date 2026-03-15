@@ -5,39 +5,51 @@
 Implement the Understand → Execute → Compose pipeline as specified in
 [ADR 0012](../adr/0012-understand-execute-compose-pipeline.md).
 
-## Parallel Work Streams
-
-Five streams, three of which can run in parallel from the start. Streams are
-lettered A–E. Dependencies are explicit.
+## Dependency Graph
 
 ```text
-Stream A: Data Layer ──────────────┐
-Stream B: Understand Phase ────────┤
-Stream C: Execute Phase ───────────┼──→ Stream E: Orchestrator Integration
-Stream D: Compose Phase ───────────┤
-                                   │
-                              all merge
+A1 (types + args) ─── gate ───┬──→ B (understand)
+                               ├──→ C (execute, also needs A2, A3)
+                               └──→ D (compose, also needs A5)
+
+A2, A3, A4, A5 can run in parallel with each other after A1.
+A4 must land before E1 (both edit turn.py).
+
+B, C, D ─── all complete ───→ E1 (orchestrator)
+E1 ──→ E3 (channel updates, fix imports)
+E3 ──→ E2 (remove legacy — only after imports are fixed)
 ```
 
-A, B, C, D can all start in parallel. E starts when A–D are complete.
+**A1 is the gate.** Everything else depends on the type definitions. After A1
+lands, streams A2-A5, B, C, D can fan out in parallel. Stream E is sequential:
+E1 → E3 → E2.
 
 ---
 
-## Stream A: Data Layer (no dependencies)
+## Stream A: Data Layer
 
-Schema changes and type definitions. No LLM, no runtime logic.
-
-### A1. Data types
+### A1. Data types (gate — everything depends on this)
 
 Create `src/services/runtime/types.py`:
 
 - `ActionType` enum (7 values: `query_records`, `list_patients`,
   `schedule_task`, `select_patient`, `create_patient`, `create_draft`, `none`)
 - `TaskType` enum (3 values: `appointment`, `follow_up`, `general`)
-- `UnderstandResult` dataclass (`action_type`, `args`, `chat_reply`,
-  `clarification`)
-- `Clarification` dataclass (`kind`, `missing_fields`, `options`,
-  `suggested_question`, `message_key`)
+- `ClarificationKind` — Literal or enum for the 7 kind strings (shared by
+  resolve and compose)
+- Per-action typed args dataclasses:
+  - `SelectPatientArgs(patient_name: str)`
+  - `CreatePatientArgs(patient_name: str, gender: Optional[str], age: Optional[int])`
+  - `CreateDraftArgs()` (empty — content collected from archive)
+  - `QueryRecordsArgs(patient_name: Optional[str], limit: Optional[int])`
+  - `ListPatientsArgs()` (empty)
+  - `ScheduleTaskArgs(task_type: TaskType, patient_name: Optional[str], title: Optional[str], notes: Optional[str], scheduled_for: Optional[str], remind_at: Optional[str])`
+- `UnderstandResult` dataclass (`action_type`, `args: <typed union>`,
+  `chat_reply`, `clarification`)
+- `Clarification` dataclass (`kind: ClarificationKind`, `missing_fields`,
+  `options`, `suggested_question`, `message_key`)
+- `ResolvedAction` dataclass (`action_type`, `patient_id`, `patient_name`,
+  `args`, `scoped_only`)
 - `ReadResult` dataclass (`status`, `data`, `total_count`, `truncated`,
   `message_key`, `error_key`)
 - `CommitResult` dataclass (`status`, `data`, `pending_id`, `message_key`,
@@ -52,8 +64,12 @@ turn archival when a patient is bound. Required for create_draft's
 patient-scoped clinical content collection (ADR §8).
 
 - Model: `src/db/models/doctor.py` (ChatArchive class)
-- Write: `src/services/runtime/context.py` (archive_turn)
+- Write: `src/services/runtime/context.py` (`archive_turns` function)
+- Downstream: `src/db/crud/doctor.py` (`append_chat_archive`)
 - No Alembic; `create_tables()` + manual `ALTER TABLE` for dev
+- **Backfill**: existing rows will have NULL patient_id. Add a one-time
+  backfill script that infers patient_id from surrounding context (or
+  accept that pre-migration archives use unscoped scan as fallback)
 
 ### A3. Schema: DoctorTask temporal fields
 
@@ -63,17 +79,28 @@ but not used by the new pipeline (ADR §11).
 
 - Model: `src/db/models/tasks.py`
 - CRUD: `src/db/crud/tasks.py` (update create/query functions)
+- Repository: `src/db/repositories/tasks.py` (`TaskRepository.create` also
+  needs the new fields)
 
-### A4. Dead-field MemoryState
+### A4. Dead-field MemoryState (must land before E1)
 
 Stop reading `working_note`, `candidate_patient`, `summary` from
 `MemoryState`. The `memory_json` column on `DoctorContext` is retained but
 not read by the pipeline (ADR §17).
 
 Affected modules:
-- `src/services/runtime/commit_engine.py` (`_collect_clinical_text`)
-- `src/services/runtime/conversation.py` (context block building)
-- `src/services/runtime/turn.py` (memory patch application — remove)
+- `src/services/runtime/commit_engine.py` — `_collect_clinical_text` reads
+  `ctx.memory.working_note`; switch to chat_archive scan
+- `src/services/runtime/conversation.py` — context block building reads
+  memory fields
+- `src/services/runtime/turn.py` — memory patch application logic; remove
+- `src/services/runtime/context.py` — `load_context` / `_serialize_memory`
+  still read/write these fields; stop reading
+- `src/services/runtime/draft_guard.py` — `_confirm_draft` clears
+  working_note
+- `src/services/runtime/commit_engine.py` — `_handle_patient_switch` reads
+  working_note to emit `M.unsaved_notes_cleared`; remove this warning (no
+  longer applicable without working_note)
 
 ### A5. Templates and messages
 
@@ -86,32 +113,33 @@ Add template strings to `src/messages.py` for:
 - `create_patient` template must guide the follow-up: "已创建患者张三。
   您可以继续说'写个记录'来创建病历。" (mitigates create_patient_and_draft
   UX regression)
-- Error templates (understand failure, compose failure fallback, execute error,
-  TTL expiry "草稿已过期，请重新创建")
+- Error templates (understand failure, compose failure fallback, execute
+  error, structuring LLM failure, TTL expiry "草稿已过期，请重新创建")
 - Truncation template ("共N条记录，显示最近M条")
 - Compose failure fallback for WeChat/voice: include brief data summary
   (e.g., first record date/title), not just count — "找到5条记录" with no
   content is not actionable on non-web channels where `view_payload` is
   ignored
+- Greeting/help templates (for deterministic handler fast path)
 
 ---
 
-## Stream B: Understand Phase (depends on A1 for types)
-
-The LLM call that classifies intent and extracts entities.
+## Stream B: Understand Phase (depends on A1)
 
 ### B1. Understand prompt
 
 Create `src/prompts/understand.md`:
 
-- JSON output matching `UnderstandResult` shape
+- JSON output matching `UnderstandResult` shape with typed args
 - `chat_reply` only for `action_type == none`
 - Raw names, no resolution
 - No hallucinated args
 - `clarification` vs `chat_reply` guidance
-- Per-action args examples
+- Per-action args examples using typed arg shapes from A1
+- Must NOT reference `clarify` or `create_patient_and_draft` action types
+  (removed in this ADR)
 
-### B2. Fast-router integration (optimization)
+### B2. Fast-router integration (optimization, deferrable)
 
 The existing `services/ai/fast_router/` can handle patterned inputs (e.g.,
 "查张三的病历" → `query_records` with `patient_name=张三`) without an LLM
@@ -130,15 +158,19 @@ Create `src/services/runtime/understand.py`:
 - `async def understand(text, recent_turns, ctx) -> UnderstandResult`
 - Build prompt with recent turns (last 10 from chat_archive)
 - Single LLM call (JSON mode)
-- Parse response into `UnderstandResult`
-- Boundary rule: parse failure → return generic error
-- Precedence: if both `clarification` and `chat_reply` set, clarification wins
+- Parse response into `UnderstandResult` with typed args
+- **Failure signaling**: on parse failure or LLM timeout, raise
+  `UnderstandError` (new exception type). The orchestrator (E1) catches
+  this and returns a generic error template. This avoids returning a
+  fake `UnderstandResult` that violates the no-prose invariant.
+- Precedence: if both `clarification` and `chat_reply` set, clarification
+  wins
 - **Runtime invariant enforcement** (do not trust the prompt):
   - Strip `chat_reply` to null when `action_type != none`
-  - Validate `args` against per-action schema (§8): reject unknown keys,
-    enforce required fields, clamp out-of-bounds values (e.g., limit max 10).
-    Invalid args → return `clarification.kind="missing_field"` for the
-    missing/invalid field, not a silent pass-through to resolve.
+  - Validate `args` against per-action typed dataclass (A1): reject unknown
+    keys, enforce required fields, clamp out-of-bounds values (e.g., limit
+    max 10). Invalid args → return `clarification.kind="missing_field"` for
+    the missing/invalid field.
 
 ---
 
@@ -152,14 +184,19 @@ Create `src/services/runtime/resolve.py`:
 - Patient matching strategy (ADR §10):
   - Exact match first
   - Prefix fallback (2-char minimum, 5-result cap)
+  - **All lookups scoped by `ctx.doctor_id`** — cross-tenant leak prevention
 - Context fallback when `patient_name` is null
 - Read/write binding asymmetry (reads scope, writes switch)
-- Pending draft blocking:
-  - Same-patient `schedule_task`: allowed
+- Pending draft rules:
+  - All reads (including cross-patient): allowed
+  - `list_patients` (unscoped): always allowed
+  - Same-patient `schedule_task`: allowed (independent operation)
   - `create_draft` during pending: blocked
   - Context-switching writes: blocked
-  - Cross-patient reads: blocked
 - Date normalization for `schedule_task`:
+  - **Library decision required** — choose between `dateparser`,
+    hand-rolled Chinese parser, or LLM-assisted. Must handle: "下周三",
+    "后天", "3月20日", "下午两点", "明天上午". Decision blocks C1.
   - Relative → absolute using current date + timezone
   - Date-only → noon default
   - Reminder default: 1 hour before `scheduled_for`
@@ -178,6 +215,7 @@ Create `src/services/runtime/read_engine.py`:
   max 50
 - Module-level constraint: no imports from `pending_*`, no write helpers
 - `"empty"` status when query returns zero rows
+- **Audit**: emit audit event for each read operation (ADR §13)
 
 ### C3. Commit engine refactor
 
@@ -187,8 +225,10 @@ Refactor `src/services/runtime/commit_engine.py`:
 - `schedule_task`: create `DoctorTask` row immediately using new
   `scheduled_for` / `remind_at` fields. Return `status: "ok"`.
 - `create_draft`: collect clinical content from `chat_archive` (patient-scoped
-  scan per A2), call structuring LLM, create pending draft. Return
-  `status: "pending_confirmation"`.
+  scan per A2; fallback to unscoped scan when `patient_id` is NULL for
+  pre-migration rows), call structuring LLM, create pending record. Return
+  `status: "pending_confirmation"`. On structuring LLM failure, return
+  `status: "error"` (no state mutation).
 - `select_patient`: update context binding. Return `status: "ok"`.
 - `create_patient`: create patient row (reject duplicates), update context.
   Return `status: "ok"`.
@@ -196,6 +236,7 @@ Refactor `src/services/runtime/commit_engine.py`:
 - Remove `_collect_clinical_text` dependency on `working_note` (use
   chat_archive scan instead, per A4)
 - Error handling: DB errors → `status: "error"` + `error_key`
+- **Audit**: emit audit event for each write operation (ADR §13)
 
 ---
 
@@ -235,24 +276,53 @@ Add to `src/services/runtime/compose.py`:
 
 ---
 
-## Stream E: Orchestrator Integration (depends on A, B, C, D)
+## Stream E: Orchestrator Integration (depends on B, C, D; A4 must land first)
+
+**E1 → E3 → E2** (sequential, not parallel)
 
 ### E1. Refactor process_turn
 
 Refactor `src/services/runtime/turn.py`:
 
-- Deterministic handler (typed UI actions + 確認/取消 during pending)
+- Deterministic handler:
+  - Typed UI actions (button clicks)
+  - `pending_draft_id` set + 确认/取消 regex → commit or discard
+    (migrate confirm/cancel DB logic from `draft_guard.py`:
+    `_confirm_draft`, `_abandon_draft`)
+  - **TTL expiry race**: if `pending_draft_id` set but `pending_records`
+    row missing → clear stale ID, return "草稿已过期" template
+  - Greeting/help regex fast path → template reply (0 LLM calls, preserves
+    existing ~0ms response time)
 - Pipeline: understand → resolve → dispatch (read_engine | commit_engine) →
   compose
+- Catch `UnderstandError` from B3 → return generic error template
 - Response mode routing from `RESPONSE_MODE_TABLE`
 - `action_type == none` → return `chat_reply` directly
 - Clarification from understand → skip execute, compose clarification
 - Clarification from resolve → skip engine, compose clarification
 - `view_payload` on TurnResult for reads
 - Archive turn to chat_archive (with patient_id per A2)
+- **Background tasks**: on draft confirm, trigger CVD extraction and other
+  background tasks (same as existing `_confirm_draft` behavior)
 
-### E2. Remove legacy single-pass path
+### E3. Channel updates (before E2 — fix imports first)
 
+- Web `chat.py`: remove greeting/help fast paths (moved to E1 deterministic
+  handler)
+- WeChat `router.py`: dedup uses synthetic `msg_id` (UUID), not WeChat XML
+  `MsgId`. Ensure dedup logic remains in the channel layer.
+- Remove `message_id` parameter from `process_turn()` signature
+- Update `TurnResult` to include `view_payload`
+- Fix any imports from `draft_guard.py` in WeChat router (e.g.,
+  `CONFIRM_RE`, `ABANDON_RE` — move to shared constants or messages)
+
+### E2. Remove legacy single-pass path (last step)
+
+- Delete `src/services/runtime/draft_guard.py` (confirm/cancel logic
+  migrated to E1 deterministic handler)
+- Delete or archive `src/prompts/conversation.md` (replaced by
+  `understand.md` from B1; still teaches removed action types `clarify`
+  and `create_patient_and_draft`)
 - Remove `conversation.py` `call_conversation_model()` (replaced by
   understand)
 - Remove `ModelOutput` type (replaced by `UnderstandResult`)
@@ -260,15 +330,6 @@ Refactor `src/services/runtime/turn.py`:
 - Remove `VALID_ACTION_TYPES` frozenset (replaced by `ActionType` enum)
 - Remove `_handle_action()` dispatch (replaced by resolve → engine dispatch)
 - Remove memory patch application logic
-
-### E3. Channel updates
-
-- Web `chat.py`: remove greeting/help fast paths (understand handles these
-  as `none`)
-- WeChat `router.py`: ensure dedup by `MsgId` before `process_turn()`
-  (channel-layer responsibility)
-- Remove `message_id` parameter from `process_turn()` signature
-- Update `TurnResult` to include `view_payload`
 
 ---
 
@@ -279,13 +340,17 @@ Before starting any stream:
 - [ ] Read ADR 0012 (all 17 sections + deferred)
 - [ ] Read ADR 0012 architecture diagram
 - [ ] Read current `src/services/runtime/` modules for existing patterns
+- [ ] Decide Chinese date parsing library for C1 (blocking)
 
 ## Risk Register
 
 | Risk | Mitigation |
 | --- | --- |
-| Understand prompt quality (action classification accuracy) | Test with real doctor inputs from chat_archive corpus; iterate prompt in B1 |
-| Date normalization edge cases (Chinese relative dates) | Use existing `dateparser` or similar library; test with corpus |
-| create_patient_and_draft UX regression | Known; deferred to follow_up_hint ADR |
-| chat_archive scan performance (full history per patient) | Index on (doctor_id, created_at); limit scan to last N turns if needed |
-| No coexistence/rollback mechanism — hard cutover for all doctors | MVP has single doctor; acceptable. For multi-doctor deployment, add an env flag (`PIPELINE_VERSION=v1|v2`) to `process_turn` that routes to old or new path. Implement in E1 if needed before launch. |
+| Understand prompt quality (action classification accuracy) | Iterate prompt in B1 with real doctor inputs from chat_archive corpus |
+| Chinese date parsing library not chosen | Blocking for C1. Evaluate `dateparser` (supports zh), `parsedatetime`, or hand-rolled regex. Decide before C1 starts. |
+| create_patient_and_draft UX regression | Known; deferred to follow_up_hint ADR. create_patient template guides follow-up (A5). |
+| chat_archive scan performance (full history per patient) | Index on (doctor_id, patient_id, created_at); limit scan to last N turns if needed |
+| ChatArchive.patient_id NULL for existing rows | First create_draft post-migration falls back to unscoped scan for NULL patient_id rows. One-time backfill script optional. |
+| No rollback mechanism — hard cutover | MVP has single doctor; acceptable. For multi-doctor: add `PIPELINE_VERSION=v1|v2` env flag in E1 to route between old and new paths. Keep old modules until v2 is validated. |
+| Greeting/help latency regression | Mitigated: greeting/help regex kept as fast path in E1 deterministic handler (0 LLM calls). Not removed in E3. |
+| conversation.md prompt teaches removed action types | Deleted in E2 after understand.md (B1) is in place. During E1 transition, understand.py uses understand.md, not conversation.md. |
