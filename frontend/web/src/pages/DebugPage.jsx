@@ -849,6 +849,7 @@ export default function DebugPage() {
     return () => onDebugAuthError(null);
   }, []);
 
+  if (DEV_MODE) return <DebugDashboard onLockout={() => {}} />;
   if (status === "verifying") return null;
   if (status === "locked") return <TokenGate onUnlock={handleUnlock} initialError={authError} />;
   return <DebugDashboard onLockout={handleLockout} />;
