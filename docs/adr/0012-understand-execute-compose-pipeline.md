@@ -170,8 +170,13 @@ does not prescribe prompt text, but the prompt must enforce these constraints:
 - **Raw names, no resolution**: `args.patient_name` should be the name the
   user said, not a guess at which patient they mean. Resolution is
   execute.resolve's job.
-- **No hallucinated args**: if the user didn't mention a time, don't invent
-  one. Emit null and let resolve request clarification.
+- **Date normalization**: the prompt receives `current_date` and `timezone`
+  as context. For `schedule_task`, the LLM outputs `scheduled_for` and
+  `remind_at` as ISO-8601 strings normalized against the injected date. If
+  the user didn't mention a time, default to noon. If no reminder specified,
+  default to one hour before (see section 12).
+- **No hallucinated args**: if the user didn't mention a date or other
+  required field, emit null and let resolve request clarification.
 - **`clarification` vs `chat_reply`**: if the model is genuinely unsure
   between two action types, it should emit `clarification.kind =
   "ambiguous_intent"` with a `suggested_question`, not write a clarifying
@@ -292,9 +297,8 @@ Resolve responsibilities:
 - detect patient switch (explicit name differs from bound patient)
 - enforce read/write binding asymmetry (see section 10)
 - validate that required bindings exist for the action type
-- normalize relative dates using current date and configured timezone
-  (currently `schedule_task`-specific; may be extracted into per-action
-  validators as the action surface grows)
+- validate date fields (ISO-8601, not in past, reasonable range) — the LLM
+  normalizes relative dates in the understand phase (see section 12)
 
 Resolve outcomes:
 
@@ -544,20 +548,20 @@ args:
   patient_name: optional str
   title: optional str
   notes: optional str
-  scheduled_for: optional str (relative or absolute time expression)
-  remind_at: optional str (relative or absolute time expression)
+  scheduled_for: optional str (ISO-8601, normalized by LLM from relative input)
+  remind_at: optional str (ISO-8601, normalized by LLM or defaulted)
 ```
 
 - `task_type` is required. If the LLM emits a value that cannot be parsed
   into a valid `TaskType`, resolve rejects it with
   `clarification.kind="missing_field"` and `missing_fields=["task_type"]`.
 - Requires a strong patient target: explicit name or current bound patient.
-- Relative dates are normalized deterministically by the runtime using current
-  date and configured timezone — not by trusting model-generated ISO strings.
+- The LLM normalizes relative dates ("下周三") to ISO-8601 using the
+  injected `current_date` and `timezone` (see section 12). Resolve validates
+  the resulting ISO string but does not normalize.
 - For `task_type="appointment"`: a date is required. If the user provides a
-  date without a specific time ("下周三"), the runtime defaults to 12:00
-  (noon) in the configured timezone. Reminder defaults deterministically
-  (one hour before) when not specified.
+  date without a specific time ("下周三"), the LLM defaults to 12:00 noon.
+  Reminder defaults to one hour before when not specified.
 - For non-appointment tasks: `remind_at` serves as the actionable
   deadline/reminder time.
 
@@ -682,23 +686,31 @@ no cross-patient conflict to detect.
 These names match the `schedule_task` args in section 8. The runtime must not
 store only one timestamp and guess which meaning it has.
 
-### 12. Date normalization must be deterministic
+### 12. Date normalization
 
-The model may propose relative-time expressions in `args`, but the execute
-phase normalizes them using:
+Date normalization is split between understand and resolve:
 
-- current absolute date
-- configured timezone
-- validation rules per task type
+**Understand normalizes.** The understand prompt receives the current date and
+configured timezone as context. The LLM outputs `scheduled_for` and
+`remind_at` as ISO-8601 strings, already normalized. This avoids a separate
+date-parsing library — the LLM handles Chinese relative expressions
+("下周三", "后天下午两点", "月底") natively.
 
-Default fill rules:
+Default fill rules (applied by the LLM):
 
 - **Date without time** (e.g., "下周三") → default to 12:00 noon
 - **Reminder not specified** → default to one hour before `scheduled_for`
 
-The runtime rejects or clarifies invalid temporal payloads (e.g., past dates,
-unparseable expressions) rather than silently accepting hallucinated ISO
-strings.
+**Resolve validates.** Resolve does not normalize — it only validates the
+ISO string produced by understand:
+
+- Parseable as ISO-8601
+- Not in the past
+- Within a reasonable range (e.g., not 10 years from now)
+- If validation fails → `clarification.kind="invalid_time"`
+
+This keeps the LLM call count at 1 for `schedule_task` and eliminates the
+need for a Chinese date-parsing library.
 
 ### 13. Audit all operational actions
 

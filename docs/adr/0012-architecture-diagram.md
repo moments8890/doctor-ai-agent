@@ -23,7 +23,7 @@ flowchart TD
     understand -->|"operational action"| resolve
 
     %% Execute phase - Resolve
-    resolve["<b>RESOLVE</b><br/>Patient DB lookup, binding,<br/>date normalization"]
+    resolve["<b>RESOLVE</b><br/>Patient DB lookup, binding,<br/>date validation"]
 
     resolve -->|"clarification<br/>(not_found, ambiguous,<br/>blocked, missing_field,<br/>invalid_time)"| clarify_compose
     resolve -->|"resolved"| dispatch{"Action<br/>classification"}
@@ -89,10 +89,10 @@ sequenceDiagram
     participant Co as Compose (template)
 
     D->>U: "帮张三约下周三复诊"
-    U->>R: UnderstandResult{action_type: schedule_task, args: {patient_name: "张三", task_type: appointment, scheduled_for: "下周三"}}
+    Note over U: Prompt has current_date=2026-03-14, timezone=Asia/Shanghai
+    U->>R: UnderstandResult{action_type: schedule_task, args: {patient_name: "张三", task_type: appointment, scheduled_for: "2026-03-18T12:00", remind_at: "2026-03-18T11:00"}}
     R->>R: DB lookup "张三" → found
-    R->>R: Normalize "下周三" → 2026-03-18T12:00 (date-only → noon default)
-    R->>R: Default remind_at → 2026-03-18T11:00 (1 hour before)
+    R->>R: Validate ISO dates (not past, reasonable range) ✓
     R->>R: Write action → switch context to 张三
     R->>CE: ResolvedAction{patient_id: 42, scheduled_for: "2026-03-18T12:00", remind_at: "2026-03-18T11:00"}
     CE->>CE: Create DoctorTask row immediately
@@ -192,7 +192,7 @@ sequenceDiagram
     CE->>CE: Collect clinical content from chat_archive
     CE->>S: Raw clinical text
     S->>CE: Structured medical record
-    CE->>CE: Create pending_drafts row + set pending_draft_id
+    CE->>CE: Create pending_records row + set pending_draft_id
     CE->>Co: CommitResult{status: pending_confirmation, data: {preview: ...}}
     Co->>D: "主诉：头痛三天 | 心率：120次/分 | ... 确认保存？"
 
@@ -202,6 +202,38 @@ sequenceDiagram
     DH->>DH: pending_draft_id set + 确认 regex → match!
     DH->>DH: Save to medical_records, clear pending_draft_id
     DH->>D: "已保存"
+```
+
+## Input During Pending Draft
+
+What happens when the doctor sends a message while a pending draft exists
+(i.e., `pending_draft_id` is set). See ADR 0012 sections 7 and 10.
+
+```mermaid
+flowchart TD
+    input["Input while pending_draft_id is set"]
+
+    input --> det{"确认 or 取消?"}
+    det -->|yes| det_handle["Deterministic handler<br/>commit or discard draft"]
+    det -->|no| understand["Understand (LLM)"]
+
+    understand --> classify{"action_type?"}
+
+    classify -->|"none (chitchat)"| allowed_chat["✅ Allowed<br/>Return chat_reply directly"]
+    classify -->|"read action<br/>(query_records, list_patients)"| allowed_read["✅ Allowed<br/>All reads permitted<br/>(including cross-patient)"]
+    classify -->|"write action"| write_check{"Which write?"}
+
+    write_check -->|"schedule_task<br/>same patient"| allowed_task["✅ Allowed<br/>Independent operation"]
+    write_check -->|"create_draft"| blocked_draft["🚫 Blocked<br/>Second pending not allowed"]
+    write_check -->|"context-switching write<br/>(create_patient, select_patient<br/>to different patient)"| blocked_switch["🚫 Blocked<br/>Cannot switch during draft"]
+
+    %% Styling
+    style det_handle fill:#333,color:#fff
+    style allowed_chat fill:#2ecc71,color:#fff
+    style allowed_read fill:#2ecc71,color:#fff
+    style allowed_task fill:#2ecc71,color:#fff
+    style blocked_draft fill:#e74c3c,color:#fff
+    style blocked_switch fill:#e74c3c,color:#fff
 ```
 
 ## Clinical Context for Drafting (no memory_patch)

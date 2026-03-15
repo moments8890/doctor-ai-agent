@@ -157,6 +157,8 @@ Create `src/services/runtime/understand.py`:
 
 - `async def understand(text, recent_turns, ctx) -> UnderstandResult`
 - Build prompt with recent turns (last 10 from chat_archive)
+- Inject `current_date` and `timezone` into prompt context (for date
+  normalization in schedule_task — see ADR §12)
 - Single LLM call (JSON mode)
 - Parse response into `UnderstandResult` with typed args
 - **Failure signaling**: on parse failure or LLM timeout, raise
@@ -193,15 +195,12 @@ Create `src/services/runtime/resolve.py`:
   - Same-patient `schedule_task`: allowed (independent operation)
   - `create_draft` during pending: blocked
   - Context-switching writes: blocked
-- Date normalization for `schedule_task`:
-  - **Library decision required** — choose between `dateparser`,
-    hand-rolled Chinese parser, or LLM-assisted. Must handle: "下周三",
-    "后天", "3月20日", "下午两点", "明天上午". Decision blocks C1.
-  - Relative → absolute using current date + timezone
-  - Date-only → noon default
-  - Reminder default: 1 hour before `scheduled_for`
-  - Past dates → `clarification.kind="invalid_time"`
-  - Unparseable → `clarification.kind="invalid_time"`
+- Date validation for `schedule_task` (normalization done by LLM in
+  understand phase — see ADR §12):
+  - Validate ISO-8601 format
+  - Not in the past
+  - Reasonable range (not >1 year out)
+  - Validation failure → `clarification.kind="invalid_time"`
 - TaskType validation: invalid → `clarification.kind="missing_field"`
 
 ### C2. Read engine
@@ -340,14 +339,13 @@ Before starting any stream:
 - [ ] Read ADR 0012 (all 17 sections + deferred)
 - [ ] Read ADR 0012 architecture diagram
 - [ ] Read current `src/services/runtime/` modules for existing patterns
-- [ ] Decide Chinese date parsing library for C1 (blocking)
 
 ## Risk Register
 
 | Risk | Mitigation |
 | --- | --- |
 | Understand prompt quality (action classification accuracy) | Iterate prompt in B1 with real doctor inputs from chat_archive corpus |
-| Chinese date parsing library not chosen | Blocking for C1. Evaluate `dateparser` (supports zh), `parsedatetime`, or hand-rolled regex. Decide before C1 starts. |
+| LLM date normalization accuracy | LLM normalizes Chinese relative dates in understand phase. Resolve validates the ISO output. If accuracy is poor, fall back to `dateparser` library. |
 | create_patient_and_draft UX regression | Known; deferred to follow_up_hint ADR. create_patient template guides follow-up (A5). |
 | chat_archive scan performance (full history per patient) | Index on (doctor_id, patient_id, created_at); limit scan to last N turns if needed |
 | ChatArchive.patient_id NULL for existing rows | First create_draft post-migration falls back to unscoped scan for NULL patient_id rows. One-time backfill script optional. |
