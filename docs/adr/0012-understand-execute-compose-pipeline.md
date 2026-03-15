@@ -771,6 +771,23 @@ If the compose LLM call fails after execute succeeded (read data was fetched):
 - Include `view_payload` so web clients can still render the structured data
   even if the natural-language summary failed.
 
+### 17. MemoryState migration
+
+ADR 0011 introduced `MemoryState` with three LLM-facing fields. This ADR
+drops `memory_patch`, which means these fields are no longer written to.
+Their fate:
+
+| Field | ADR 0011 purpose | ADR 0012 replacement | Migration |
+| --- | --- | --- | --- |
+| `working_note` | LLM-accumulated clinical context | `chat_archive` scan (see §8 create_draft) | Dead field. Commit engine's `_collect_clinical_text` must switch from `ctx.memory.working_note` to the chat_archive scan. |
+| `candidate_patient` | LLM-proposed patient before binding | Execute.resolve DB lookup (see §5a) | Dead field. Resolve handles all patient binding. |
+| `summary` | LLM-authored conversation summary | Not replaced (conversation history is sufficient for MVP) | Dead field. |
+
+`MemoryState` can be emptied in phase 1. The `memory_json` column on
+`DoctorContext` is retained for backward compatibility but is not read by the
+pipeline. If post-MVP `memory_patch` is re-added, these fields or new ones
+can be populated again.
+
 ## What changes from ADR 0011
 
 | Aspect | ADR 0011 (current) | ADR 0012-v2 (proposed) |
