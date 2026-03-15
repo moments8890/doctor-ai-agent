@@ -245,26 +245,25 @@ const COL_WIDTH = {
 
 const DEV_MODE = import.meta.env.DEV;
 
+// In dev mode, set token synchronously before any component renders
+if (DEV_MODE) setAdminToken("dev");
+
 export default function AdminPage() {
   const location = useLocation();
-  // "verifying" while checking stored token, "ok" once confirmed, "locked" if no/bad token
   const [status, setStatus] = useState(() => {
-    if (DEV_MODE) return "ok"; // Skip auth gate in dev
+    if (DEV_MODE) return "ok";
     return localStorage.getItem(ADMIN_TOKEN_KEY) ? "verifying" : "locked";
   });
 
   function handleLockout() {
+    if (DEV_MODE) return; // never lock out in dev
     localStorage.removeItem(ADMIN_TOKEN_KEY);
     setAdminToken("");
     setStatus("locked");
   }
 
   useEffect(() => {
-    if (DEV_MODE) {
-      // In dev, set a dummy token so admin API calls include the header
-      setAdminToken("dev");
-      return;
-    }
+    if (DEV_MODE) return;
     onAdminAuthError(handleLockout);
     const stored = localStorage.getItem(ADMIN_TOKEN_KEY) || "";
     if (stored) {

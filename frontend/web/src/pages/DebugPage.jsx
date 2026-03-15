@@ -799,6 +799,9 @@ function DebugDashboard({ onLockout }) {
 
 const DEV_MODE = import.meta.env.DEV;
 
+// In dev mode, set token synchronously before any component renders
+if (DEV_MODE) setDebugToken("dev");
+
 export default function DebugPage() {
   const [authError, setAuthError] = useState("");
   const [status, setStatus] = useState(() => {
@@ -821,6 +824,7 @@ export default function DebugPage() {
   }
 
   function handleLockout() {
+    if (DEV_MODE) return;
     localStorage.removeItem(DEBUG_TOKEN_KEY);
     setDebugToken("");
     setAuthError("");
@@ -828,10 +832,7 @@ export default function DebugPage() {
   }
 
   useEffect(() => {
-    if (DEV_MODE) {
-      setDebugToken("dev");
-      return;
-    }
+    if (DEV_MODE) return;
     onDebugAuthError(handleLockout);
     const stored = localStorage.getItem(DEBUG_TOKEN_KEY) || "";
     if (stored) {
