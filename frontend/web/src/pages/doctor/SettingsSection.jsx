@@ -22,7 +22,7 @@ function SettingsRow({ icon, label, sublabel, onClick, danger }) {
         {icon}
       </Box>
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontSize: 14, color: danger ? "#e74c3c" : "#111" }}>{label}</Typography>
+        <Typography sx={{ fontSize: 14, color: danger ? "#FA5151" : "#111" }}>{label}</Typography>
         {sublabel && <Typography variant="caption" color="text.secondary">{sublabel}</Typography>}
       </Box>
       {onClick && !danger && <ArrowBackIcon sx={{ fontSize: 16, color: "#ccc", transform: "rotate(180deg)" }} />}
@@ -42,7 +42,7 @@ function NameDialog({ open, isMobile, nameInput, nameSaving, nameError, onChange
           value={nameInput} onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") onSave(); }}
           autoFocus sx={{ mb: nameError ? 0.5 : 2 }} />
-        {nameError && <Typography sx={{ fontSize: 12, color: "#e74c3c", mb: 1.5 }}>{nameError}</Typography>}
+        {nameError && <Typography sx={{ fontSize: 12, color: "#FA5151", mb: 1.5 }}>{nameError}</Typography>}
         <Box sx={{ display: "flex", gap: 1.5 }}>
           <Box onClick={onClose}
             sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: "4px", bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 14, color: "#666", "&:active": { opacity: 0.7 } }}>
@@ -79,7 +79,7 @@ function SpecialtyDialog({ open, isMobile, specialtyInput, specialtySaving, spec
         <TextField fullWidth size="small" placeholder="或直接输入科室名称"
           value={specialtyInput} onChange={(e) => onChange(e.target.value)}
           sx={{ mb: specialtyError ? 0.5 : 2 }} />
-        {specialtyError && <Typography sx={{ fontSize: 12, color: "#e74c3c", mb: 1.5 }}>{specialtyError}</Typography>}
+        {specialtyError && <Typography sx={{ fontSize: 12, color: "#FA5151", mb: 1.5 }}>{specialtyError}</Typography>}
         <Box sx={{ display: "flex", gap: 1.5 }}>
           <Box onClick={onClose}
             sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: "4px", bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 14, color: "#666", "&:active": { opacity: 0.7 } }}>
@@ -136,8 +136,8 @@ function TemplateActions({ status, uploading, deleting, fileRef, onDelete }) {
       {status?.has_template && (
         <Box onClick={!deleting ? onDelete : undefined}
           sx={{ display: "flex", alignItems: "center", px: 2, py: 1.6, cursor: deleting ? "default" : "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
-          {deleting ? <CircularProgress size={18} sx={{ mr: 1.5, color: "#e74c3c" }} /> : <Box sx={{ width: 18, mr: 1.5 }} />}
-          <Typography sx={{ flex: 1, fontSize: 15, color: deleting ? "#999" : "#e74c3c" }}>
+          {deleting ? <CircularProgress size={18} sx={{ mr: 1.5, color: "#FA5151" }} /> : <Box sx={{ width: 18, mr: 1.5 }} />}
+          <Typography sx={{ flex: 1, fontSize: 15, color: deleting ? "#999" : "#FA5151" }}>
             {deleting ? "删除中…" : "删除模板，恢复默认"}
           </Typography>
         </Box>
@@ -243,7 +243,7 @@ function SimpleTextDialog({ open, isMobile, title, hint, value, saving, error, q
           value={value} onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") onSave(); }}
           autoFocus sx={{ mb: error ? 0.5 : 2 }} />
-        {error && <Typography sx={{ fontSize: 12, color: "#e74c3c", mb: 1.5 }}>{error}</Typography>}
+        {error && <Typography sx={{ fontSize: 12, color: "#FA5151", mb: 1.5 }}>{error}</Typography>}
         <Box sx={{ display: "flex", gap: 1.5 }}>
           <Box onClick={onClose}
             sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: "4px", bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 14, color: "#666", "&:active": { opacity: 0.7 } }}>

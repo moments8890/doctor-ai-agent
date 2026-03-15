@@ -93,7 +93,7 @@ function ImportCard({ importing, importError, onFileClick, onChatClick }) {
       </Box>
       {importError && (
         <Box sx={{ px: 2, py: 0.8, bgcolor: "#fff3f3" }}>
-          <Typography sx={{ fontSize: 12, color: "#e74c3c" }}>{importError}</Typography>
+          <Typography sx={{ fontSize: 12, color: "#FA5151" }}>{importError}</Typography>
         </Box>
       )}
     </Box>
@@ -302,7 +302,7 @@ export default function PatientsSection({ doctorId, onNavigateToChat, onInsertCh
 
   return (
     <Box sx={{ display: "flex", height: "100%", overflow: "hidden" }}>
-      <Box sx={{ width: 300, flexShrink: 0, borderRight: "1px solid #e2e8f0", display: "flex", flexDirection: "column", bgcolor: "#f7f7f7" }}>
+      <Box sx={{ width: 300, flexShrink: 0, borderRight: "1px solid #d9d9d9", display: "flex", flexDirection: "column", bgcolor: "#f7f7f7" }}>
         <PatientListPane {...listPaneProps} />
       </Box>
       <Box sx={{ flex: 1, overflow: "hidden" }}>

@@ -66,7 +66,7 @@ function TokenGate({ onUnlock, initialError = "" }) {
     onUnlock(token);
   }
   return (
-    <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f3f7f8" }}>
+    <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#ededed" }}>
       <Card sx={{ width: 360, borderRadius: 2 }}>
         <CardContent sx={{ p: 3 }}>
           <Typography variant="h6" sx={{ mb: 0.5, fontWeight: 700 }}>Debug 访问</Typography>
@@ -135,11 +135,11 @@ function LatencyTrendChart({ traces }) {
   return (
     <Box>
       <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.6 }}>{t("admin.obs.latencyTrendTitle")}</Typography>
-      <Box sx={{ border: "1px solid #d8e3e8", borderRadius: 1, background: "#fff", p: 0.6 }}>
+      <Box sx={{ border: "1px solid #f0f0f0", borderRadius: 1, background: "#fff", p: 0.6 }}>
         <svg viewBox={`0 0 ${width} ${height}`} width="100%" height="140" role="img" aria-label="latency-trend">
           <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="#c6d7de" strokeWidth="1" />
           <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="#c6d7de" strokeWidth="1" />
-          {polyline ? <polyline fill="none" stroke="#0f766e" strokeWidth="2" points={polyline} /> : null}
+          {polyline ? <polyline fill="none" stroke="#07C160" strokeWidth="2" points={polyline} /> : null}
         </svg>
       </Box>
     </Box>
@@ -152,7 +152,7 @@ function PerPathBarChart({ perPath }) {
   return (
     <Box>
       <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.6 }}>{t("admin.obs.perPathTitle")}</Typography>
-      <Box sx={{ border: "1px solid #d8e3e8", borderRadius: 1, background: "#fff", p: 1 }}>
+      <Box sx={{ border: "1px solid #f0f0f0", borderRadius: 1, background: "#fff", p: 1 }}>
         <Stack spacing={0.6}>
           {items.map((item) => (
             <Box key={`path-bar-${item.path}`}>
@@ -161,7 +161,7 @@ function PerPathBarChart({ perPath }) {
                 <Typography variant="caption">{formatMs(item.avg)}</Typography>
               </Stack>
               <Box sx={{ height: 8, borderRadius: 8, backgroundColor: "#e7f1f4", overflow: "hidden" }}>
-                <Box sx={{ width: `${(item.avg / max) * 100}%`, height: "100%", backgroundColor: "#0f766e" }} />
+                <Box sx={{ width: `${(item.avg / max) * 100}%`, height: "100%", backgroundColor: "#07C160" }} />
               </Box>
             </Box>
           ))}
@@ -178,7 +178,7 @@ function StatusBarChart({ statusCounts }) {
   return (
     <Box>
       <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.6 }}>{t("admin.obs.statusTitle")}</Typography>
-      <Box sx={{ border: "1px solid #d8e3e8", borderRadius: 1, background: "#fff", p: 1 }}>
+      <Box sx={{ border: "1px solid #f0f0f0", borderRadius: 1, background: "#fff", p: 1 }}>
         <Stack spacing={0.6}>
           {items.map(([code, count]) => (
             <Box key={`status-bar-${code}`}>
@@ -389,7 +389,7 @@ function ObservabilitySection({ refreshTick }) {
         />
         <Button variant="outlined" size="small" onClick={() => load()}>{t("admin.obs.filter")}</Button>
       </Stack>
-      <Box sx={{ border: "1px solid #d8e3e8", borderRadius: 1, backgroundColor: "#fff", p: 1, mb: 1 }}>
+      <Box sx={{ border: "1px solid #f0f0f0", borderRadius: 1, backgroundColor: "#fff", p: 1, mb: 1 }}>
         <Box sx={{ display: "grid", gap: 0.8, gridTemplateColumns: { xs: "repeat(2, minmax(0,1fr))", md: "repeat(6, minmax(0,1fr))" } }}>
           {[
             { label: t("admin.obs.count"), value: toCell(observability.summary.count) },
@@ -411,8 +411,8 @@ function ObservabilitySection({ refreshTick }) {
         <PerPathBarChart perPath={observability.summary.per_path || {}} />
         <StatusBarChart statusCounts={observability.summary.status_counts || {}} />
       </Box>
-      <Box sx={{ border: "1px solid #d8e3e8", borderRadius: 1, backgroundColor: "#fff" }}>
-        <Tabs value={obsTab} onChange={(_, v) => setObsTab(v)} variant="scrollable" scrollButtons="auto" sx={{ borderBottom: "1px solid #d8e3e8", minHeight: 36, "& .MuiTab-root": { fontSize: 12, minHeight: 36, py: 0.8 } }}>
+      <Box sx={{ border: "1px solid #f0f0f0", borderRadius: 1, backgroundColor: "#fff" }}>
+        <Tabs value={obsTab} onChange={(_, v) => setObsTab(v)} variant="scrollable" scrollButtons="auto" sx={{ borderBottom: "1px solid #f0f0f0", minHeight: 36, "& .MuiTab-root": { fontSize: 12, minHeight: 36, py: 0.8 } }}>
           <Tab label="Chat 性能" />
           <Tab label="近期请求" />
           <Tab label="慢 Span" />
@@ -438,7 +438,7 @@ function ObservabilitySection({ refreshTick }) {
                 ))}
               </Box>
               <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>{t("admin.obs.publicSlowSpansTitle")}</Typography>
-              <TableContainer sx={{ border: "1px solid #d8e3e8", borderRadius: 1, backgroundColor: "#fff", maxHeight: 220 }}>
+              <TableContainer sx={{ border: "1px solid #f0f0f0", borderRadius: 1, backgroundColor: "#fff", maxHeight: 220 }}>
                 <Table size="small" stickyHeader>
                   <TableHead><TableRow>{["layer", "name", "latency_ms", "trace_id"].map((key) => <TableCell key={`qh-${key}`} sx={{ backgroundColor: "#eef4f6", py: 0.45, fontSize: 11, fontWeight: 700 }}>{t(`admin.cols.${key}`)}</TableCell>)}</TableRow></TableHead>
                   <TableBody>
@@ -457,7 +457,7 @@ function ObservabilitySection({ refreshTick }) {
             </Box>
           )}
           {obsTab === 1 && (
-            <TableContainer sx={{ border: "1px solid #d8e3e8", borderRadius: 1, backgroundColor: "#fff", maxHeight: 400 }}>
+            <TableContainer sx={{ border: "1px solid #f0f0f0", borderRadius: 1, backgroundColor: "#fff", maxHeight: 400 }}>
               <Table size="small" stickyHeader>
                 <TableHead><TableRow>{["started_at", "trace_id", "method", "path", "status_code", "latency_ms"].map((key) => <TableCell key={`oh-${key}`} sx={{ backgroundColor: "#eef4f6", py: 0.55, fontSize: 11, fontWeight: 700 }}>{t(`admin.cols.${key}`)}</TableCell>)}</TableRow></TableHead>
                 <TableBody>
@@ -479,7 +479,7 @@ function ObservabilitySection({ refreshTick }) {
             </TableContainer>
           )}
           {obsTab === 2 && (
-            <TableContainer sx={{ border: "1px solid #d8e3e8", borderRadius: 1, backgroundColor: "#fff", maxHeight: 400 }}>
+            <TableContainer sx={{ border: "1px solid #f0f0f0", borderRadius: 1, backgroundColor: "#fff", maxHeight: 400 }}>
               <Table size="small" stickyHeader>
                 <TableHead><TableRow>{["layer", "name", "latency_ms", "status", "trace_id"].map((key) => <TableCell key={`sh-${key}`} sx={{ backgroundColor: "#eef4f6", py: 0.55, fontSize: 11, fontWeight: 700 }}>{t(`admin.cols.${key}`)}</TableCell>)}</TableRow></TableHead>
                 <TableBody>
@@ -500,7 +500,7 @@ function ObservabilitySection({ refreshTick }) {
             </TableContainer>
           )}
           {obsTab === 3 && (
-            <TableContainer sx={{ border: "1px solid #d8e3e8", borderRadius: 1, backgroundColor: "#fff", maxHeight: 400 }}>
+            <TableContainer sx={{ border: "1px solid #f0f0f0", borderRadius: 1, backgroundColor: "#fff", maxHeight: 400 }}>
               <Table size="small" stickyHeader>
                 <TableHead><TableRow>{["layer", "name", "latency_ms", "count"].map((key) => <TableCell key={`hh-${key}`} sx={{ backgroundColor: "#eef4f6", py: 0.45, fontSize: 11, fontWeight: 700 }}>{t(`admin.cols.${key}`)}</TableCell>)}</TableRow></TableHead>
                 <TableBody>
@@ -518,7 +518,7 @@ function ObservabilitySection({ refreshTick }) {
             </TableContainer>
           )}
           {obsTab === 4 && (
-            <TableContainer sx={{ border: "1px solid #d8e3e8", borderRadius: 1, backgroundColor: "#fff", maxHeight: 460 }}>
+            <TableContainer sx={{ border: "1px solid #f0f0f0", borderRadius: 1, backgroundColor: "#fff", maxHeight: 460 }}>
               <Table size="small" stickyHeader>
                 <TableHead><TableRow>{["started_at", "layer", "name", "latency_ms", "status", "parent_span_id"].map((key) => <TableCell key={`th-${key}`} sx={{ backgroundColor: "#eef4f6", py: 0.55, fontSize: 11, fontWeight: 700 }}>{t(`admin.cols.${key}`)}</TableCell>)}</TableRow></TableHead>
                 <TableBody>
@@ -662,7 +662,7 @@ function LogsSection({ refreshTick }) {
       {!!status.text && <Alert severity={status.type} sx={{ mb: 1 }}>{status.text}</Alert>}
       <Box
         sx={{
-          border: "1px solid #d8e3e8",
+          border: "1px solid #f0f0f0",
           borderRadius: 1,
           backgroundColor: "#0f172a",
           p: 1,
@@ -726,7 +726,7 @@ function DebugDashboard({ onLockout }) {
       sx={{
         minHeight: "100vh",
         background:
-          "radial-gradient(1200px 640px at 92% -8%, rgba(15,118,110,0.16), transparent 65%), radial-gradient(900px 520px at -12% 108%, rgba(47,79,111,0.15), transparent 62%), #f3f7f8",
+          "#ededed",
       }}
     >
       <Container maxWidth="xl" sx={{ py: 2.5 }}>

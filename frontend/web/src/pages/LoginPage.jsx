@@ -67,7 +67,7 @@ export default function LoginPage() {
         alignItems: "center",
         justifyContent: "center",
         background:
-          "radial-gradient(1200px 640px at 92% -8%, rgba(15,118,110,0.16), transparent 65%), radial-gradient(900px 520px at -12% 108%, rgba(47,79,111,0.15), transparent 62%), #f3f7f8",
+          "#ededed",
       }}
     >
       <Card sx={{ width: "100%", maxWidth: 400, borderRadius: 2 }}>

@@ -84,7 +84,7 @@ function PatientLabelRow({ patient, patientLabels, labelPickerOpen, labelAnchorR
     <Stack direction="row" spacing={0.5} flexWrap="wrap" alignItems="center" sx={{ mb: 1 }}>
       {patientLabels.map((l) => (
         <Chip key={l.id} label={l.name} size="small"
-          sx={{ backgroundColor: l.color || "#e2e8f0", fontSize: 11, height: 22, borderRadius: "4px" }}
+          sx={{ backgroundColor: l.color || "#d9d9d9", fontSize: 11, height: 22, borderRadius: "4px" }}
           onDelete={() => onRemoveLabel(l.id)} />
       ))}
       <Box sx={{ position: "relative" }}>
@@ -124,7 +124,7 @@ function PatientActionBar({ exportingPdf, exportingReport, onExportPdf, onExport
       </Box>
       <Box sx={{ flex: 1 }} />
       <Box onClick={onDeleteOpen}
-        sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: "pointer", color: "#e74c3c", fontSize: 13, "&:active": { opacity: 0.6 } }}>
+        sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: "pointer", color: "#FA5151", fontSize: 13, "&:active": { opacity: 0.6 } }}>
         <DeleteOutlineIcon sx={{ fontSize: 16 }} />
         删除患者
       </Box>
@@ -175,7 +175,7 @@ function PatientProfileBlock({ patient, age, patientLabels, labelPickerOpen, lab
           门诊报告
         </Box>
         <Box onClick={onDeleteOpen}
-          sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: "pointer", color: "#e74c3c", fontSize: 13, "&:active": { opacity: 0.6 } }}>
+          sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: "pointer", color: "#FA5151", fontSize: 13, "&:active": { opacity: 0.6 } }}>
           <DeleteOutlineIcon sx={{ fontSize: 16 }} />
           删除患者
         </Box>

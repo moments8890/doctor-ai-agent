@@ -66,7 +66,7 @@ export const NAV = [
 ];
 
 export const AVATAR_COLORS = [
-  "#07C160", "#5b9bd5", "#e8833a", "#9b59b6", "#e74c3c",
+  "#07C160", "#5b9bd5", "#e8833a", "#9b59b6", "#FA5151",
   "#16a085", "#d35400", "#8e44ad", "#2980b9", "#c0392b",
 ];
 
