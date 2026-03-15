@@ -341,12 +341,20 @@ When `truncated` is true, compose includes `total_count` in the reply (e.g.,
 #### 5c. Commit engine
 
 Commit engine receives a fully resolved action and executes durable writes.
-It never fails on binding — that was already validated by resolve.
+It never fails on binding — that was already validated by resolve. The commit
+engine is deterministic for all action types except `create_draft`, which
+requires a structuring LLM call to transform clinical text into a structured
+medical record. This is a documented exception — the structuring step cannot
+be moved to understand (it needs the resolved patient context) or compose
+(the structured output must be stored in the pending draft).
 
 - `schedule_task` → create `DoctorTask` row immediately (no confirmation);
   compose template MUST echo the normalized datetime so the doctor can catch
   errors (e.g., "已为张三创建复诊预约，时间：3月18日中午12点")
-- `create_draft` → collect clinical content, structure, create pending draft
+- `create_draft` → collect clinical content, call structuring LLM, create
+  pending draft. If the structuring LLM fails, no pending draft is created
+  (no state mutation), and the commit engine returns `status: "error"` (see
+  section 16).
 - `select_patient` → update context binding
 - `create_patient` → create patient row, update context binding
 
@@ -790,6 +798,15 @@ If the understand LLM call fails or returns unparseable output:
 - No execute or compose runs.
 - Return a generic error template reply (e.g., "抱歉，我没有理解您的意思，请再试一次").
 - The turn is still archived for audit/debugging.
+
+#### Structuring failure (create_draft only)
+
+If the structuring LLM call fails inside the commit engine:
+
+- No pending draft is created — no state mutation occurred.
+- `pending_draft_id` remains null.
+- Commit engine returns `CommitResult` with `status: "error"`.
+- Compose renders an error template (e.g., "病历生成失败，请稍后重试").
 
 #### Compose failure (llm_compose only)
 

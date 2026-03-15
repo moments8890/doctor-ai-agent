@@ -113,6 +113,12 @@ Create `src/services/runtime/understand.py`:
 - Parse response into `UnderstandResult`
 - Boundary rule: parse failure → return generic error
 - Precedence: if both `clarification` and `chat_reply` set, clarification wins
+- **Runtime invariant enforcement** (do not trust the prompt):
+  - Strip `chat_reply` to null when `action_type != none`
+  - Validate `args` against per-action schema (§8): reject unknown keys,
+    enforce required fields, clamp out-of-bounds values (e.g., limit max 10).
+    Invalid args → return `clarification.kind="missing_field"` for the
+    missing/invalid field, not a silent pass-through to resolve.
 
 ---
 
@@ -258,3 +264,4 @@ Before starting any stream:
 | Date normalization edge cases (Chinese relative dates) | Use existing `dateparser` or similar library; test with corpus |
 | create_patient_and_draft UX regression | Known; deferred to follow_up_hint ADR |
 | chat_archive scan performance (full history per patient) | Index on (doctor_id, created_at); limit scan to last N turns if needed |
+| No coexistence/rollback mechanism — hard cutover for all doctors | MVP has single doctor; acceptable. For multi-doctor deployment, add an env flag (`PIPELINE_VERSION=v1|v2`) to `process_turn` that routes to old or new path. Implement in E1 if needed before launch. |
