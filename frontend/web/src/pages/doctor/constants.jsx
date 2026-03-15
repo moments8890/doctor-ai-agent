@@ -101,6 +101,7 @@ export const QUICK_COMMANDS = [
   { label: "修正上条", icon: "✏️", insert: "刚才写错了，应该是" },
   { label: "导出PDF", icon: "📄", insert: "导出病历PDF：" },
   { label: "今日任务", icon: "📌", insert: "今日任务" },
+  { label: "今日摘要", icon: "📊", insert: "今日工作摘要" },
   { label: "功能帮助", icon: "💡", insert: "帮助" },
 ];
 

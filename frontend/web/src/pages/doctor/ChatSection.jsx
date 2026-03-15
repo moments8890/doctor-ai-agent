@@ -13,12 +13,19 @@ import AttachFileOutlinedIcon from "@mui/icons-material/AttachFileOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
-import { sendChat, confirmPendingRecordById, abandonPendingRecordById } from "../../api";
+import { sendChat, confirmPendingRecordById, abandonPendingRecordById, extractFileForChat } from "../../api";
 import RecordFields from "../../components/RecordFields";
 import { t } from "../../i18n";
 import { QUICK_COMMANDS } from "./constants";
 import ViewPayloadCard from "./ViewPayloadCard";
 import { processFile } from "./FileUploader";
+import ActionPanel from "./ActionPanel";
+import PatientPickerDialog from "./PatientPickerDialog";
+import ImportChoiceDialog from "./ImportChoiceDialog";
+import VoiceInput, { isVoiceSupported } from "./VoiceInput";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
+import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
+import KeyboardOutlinedIcon from "@mui/icons-material/KeyboardOutlined";
 
 function MsgAvatar({ isUser, size = 40 }) {
   return (
@@ -177,7 +184,7 @@ function nowTs() {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-function MobileInputBar({ input, loading, isProcessing, failedText, mediaError, fileInputRef, onInput, onSend, onFileClick, onRetry, onDismissError, onDismissFailed }) {
+function MobileInputBar({ input, loading, isProcessing, failedText, mediaError, fileInputRef, onInput, onSend, onFileClick, onRetry, onDismissError, onDismissFailed, voiceMode, voiceSupported, onToggleVoice, onVoiceResult, onVoiceCancel, onActionPanelOpen }) {
   return (
     <Box sx={{ borderTop: "1px solid #d9d9d9", backgroundColor: "#f5f5f5" }}>
       {failedText && <FailedMessageBanner onRetry={onRetry} onDismiss={onDismissFailed} />}
@@ -188,19 +195,30 @@ function MobileInputBar({ input, loading, isProcessing, failedText, mediaError, 
         </Typography>
       )}
       <Stack direction="row" alignItems="center" sx={{ px: 1, py: 0.8, gap: 0.5 }}>
-        <IconButton size="small" onClick={onFileClick} disabled={isProcessing} sx={{ color: "#666", p: 1.1 }}>
-          <AttachFileOutlinedIcon />
+        <IconButton size="small" onClick={onActionPanelOpen} disabled={isProcessing} sx={{ color: "#666", p: 1.1 }}>
+          <AddCircleOutlineIcon />
         </IconButton>
-        <TextField multiline minRows={1} maxRows={4} fullWidth size="small"
-          placeholder={t("chat.placeholder")} value={input}
-          onChange={(e) => onInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); } }}
-          disabled={isProcessing}
-          sx={{ "& .MuiOutlinedInput-root": { borderRadius: "4px", backgroundColor: "#fff", fontSize: "0.9rem", "& fieldset": { borderColor: "#e0e0e0" } } }} />
-        <IconButton onClick={onSend} disabled={loading || !input.trim()}
-          sx={{ bgcolor: "#07C160", color: "#fff", p: 1.2, borderRadius: "50%", "&:hover": { bgcolor: "#06ad56" }, flexShrink: 0, minWidth: 44, minHeight: 44 }}>
-          <SendOutlinedIcon fontSize="small" />
-        </IconButton>
+        {voiceSupported && (
+          <IconButton size="small" onClick={onToggleVoice} sx={{ color: voiceMode ? "#07C160" : "#666", p: 1.1 }}>
+            {voiceMode ? <KeyboardOutlinedIcon /> : <MicNoneOutlinedIcon />}
+          </IconButton>
+        )}
+        {voiceMode ? (
+          <VoiceInput onResult={onVoiceResult} onCancel={onVoiceCancel} />
+        ) : (
+          <TextField multiline minRows={1} maxRows={4} fullWidth size="small"
+            placeholder={t("chat.placeholder")} value={input}
+            onChange={(e) => onInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); } }}
+            disabled={isProcessing}
+            sx={{ "& .MuiOutlinedInput-root": { borderRadius: "4px", backgroundColor: "#fff", fontSize: "0.9rem", "& fieldset": { borderColor: "#e0e0e0" } } }} />
+        )}
+        {!voiceMode && (
+          <IconButton onClick={onSend} disabled={loading || !input.trim()}
+            sx={{ bgcolor: "#07C160", color: "#fff", p: 1.2, borderRadius: "50%", "&:hover": { bgcolor: "#06ad56" }, flexShrink: 0, minWidth: 44, minHeight: 44 }}>
+            <SendOutlinedIcon fontSize="small" />
+          </IconButton>
+        )}
       </Stack>
     </Box>
   );
@@ -393,6 +411,20 @@ function usePendingHandlers({ setMessages, onPatientCreated }) {
   return { handleConfirm, handleAbandon };
 }
 
+function useDailySummary({ doctorId, sendText, messagesLoaded }) {
+  const triggeredRef = useRef(false);
+  useEffect(() => {
+    if (!doctorId || !messagesLoaded || triggeredRef.current) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const key = `daily_summary_sent:${doctorId}`;
+    if (localStorage.getItem(key) === today) return;
+    triggeredRef.current = true;
+    localStorage.setItem(key, today);
+    const timer = setTimeout(() => sendText("今日工作摘要"), 1200);
+    return () => clearTimeout(timer);
+  }, [doctorId, messagesLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
 export default function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternalInputConsumed, onPatientCreated, autoSendText, onAutoSendConsumed }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -400,11 +432,42 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
   const [mediaError, setMediaError] = useState(null);
   const fileInputRef = useRef(null);
   const [mediaProcessing, setMediaProcessing] = useState(false);
+  const [actionPanelOpen, setActionPanelOpen] = useState(false);
+  const [patientPickerOpen, setPatientPickerOpen] = useState(false);
+  const [importChoice, setImportChoice] = useState(null);
+  const [voiceMode, setVoiceMode] = useState(false);
+  const voiceSupported = isVoiceSupported();
+  const cameraInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
+  const fileDocInputRef = useRef(null);
 
   const { input, setInput, loading, failedText, setFailedText, messages, setMessages, bottomRef, onClear, sendText } =
     useChatState({ doctorId, onMessageCountChange, onPatientCreated });
   useChatEffects({ externalInput, onExternalInputConsumed, autoSendText, onAutoSendConsumed, setInput, sendText });
   const { handleConfirm: handlePendingConfirm, handleAbandon: handlePendingAbandon } = usePendingHandlers({ setMessages, onPatientCreated });
+  useDailySummary({ doctorId, sendText, messagesLoaded: messages.length > 0 });
+
+  function handlePanelAction(action) {
+    setActionPanelOpen(false);
+    switch (action) {
+      case "camera": cameraInputRef.current?.click(); break;
+      case "gallery": galleryInputRef.current?.click(); break;
+      case "file": fileDocInputRef.current?.click(); break;
+      case "patient": setPatientPickerOpen(true); break;
+    }
+  }
+
+  async function handleDocFile(file) {
+    if (!file) return;
+    setMediaError(null);
+    setMediaProcessing(true);
+    try {
+      const { text } = await extractFileForChat(file);
+      if (text) setImportChoice({ text });
+      else setMediaError("未能从文件中提取文字");
+    } catch { setMediaError("文件处理失败，请重试"); }
+    finally { setMediaProcessing(false); }
+  }
 
   const isProcessing = mediaProcessing;
   const sharedBarProps = {
@@ -412,6 +475,11 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
     onInput: setInput, onSend: () => sendText(input.trim()), onFileClick: () => fileInputRef.current?.click(),
     onRetry: () => { setInput(failedText); setFailedText(null); },
     onDismissError: () => setMediaError(null), onDismissFailed: () => setFailedText(null),
+    voiceMode, voiceSupported,
+    onToggleVoice: () => setVoiceMode(!voiceMode),
+    onVoiceResult: (text) => { setVoiceMode(false); sendText(text); },
+    onVoiceCancel: () => {},
+    onActionPanelOpen: () => setActionPanelOpen(true),
   };
 
   return (
@@ -431,7 +499,20 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
       <QuickCommandChips onInsert={(text) => setInput(text)} onAutoSend={(text) => sendText(text)} />
       <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }}
         onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; processFile({ file: f, setMediaError, setMediaProcessing, setInput }); }} />
+      <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }}
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; processFile({ file: f, setMediaError, setMediaProcessing, setInput }); }} />
+      <input ref={galleryInputRef} type="file" accept="image/*" style={{ display: "none" }}
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; processFile({ file: f, setMediaError, setMediaProcessing, setInput }); }} />
+      <input ref={fileDocInputRef} type="file" accept=".pdf,.doc,.docx,application/pdf" style={{ display: "none" }}
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; handleDocFile(f); }} />
       {isMobile ? <MobileInputBar {...sharedBarProps} /> : <DesktopInputBar {...sharedBarProps} />}
+      <ActionPanel open={actionPanelOpen} onClose={() => setActionPanelOpen(false)} onAction={handlePanelAction} />
+      <PatientPickerDialog open={patientPickerOpen} onClose={() => setPatientPickerOpen(false)} doctorId={doctorId}
+        onSelect={(p) => { setPatientPickerOpen(false); sendText(`关于患者${p.name}`); }} />
+      <ImportChoiceDialog open={!!importChoice} text={importChoice?.text}
+        onInsert={(text) => { setInput((prev) => prev ? prev + "\n" + text : text); setImportChoice(null); }}
+        onImport={(text) => { sendText("导入这个患者的病历：\n" + text.slice(0, 4000)); setImportChoice(null); }}
+        onClose={() => setImportChoice(null)} />
       <ClearDialog open={clearConfirmOpen} onClear={onClear} onClose={() => setClearConfirmOpen(false)} />
     </Box>
   );
