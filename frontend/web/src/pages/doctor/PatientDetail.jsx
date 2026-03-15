@@ -36,8 +36,8 @@ function RecordFilterPills({ value, onChange }) {
       {RECORD_TYPE_FILTER_OPTS.map((opt) => (
         <Box key={opt.value} onClick={() => onChange(opt.value)}
           sx={{
-            px: 1.4, py: 0.35, borderRadius: "12px", cursor: "pointer", flexShrink: 0, fontSize: 12,
-            bgcolor: value === opt.value ? "#07C160" : "#f2f2f2",
+            px: 1.4, py: 0.35, borderRadius: "4px", cursor: "pointer", flexShrink: 0, fontSize: 12,
+            bgcolor: value === opt.value ? "#07C160" : "#f0f0f0",
             color: value === opt.value ? "#fff" : "#666",
             fontWeight: value === opt.value ? 600 : 400,
           }}>
@@ -54,7 +54,7 @@ function DeletePatientDialog({ open, patientName, deleting, isMobile, onConfirm,
       open={open}
       onClose={onClose}
       PaperProps={{ sx: isMobile
-        ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "16px 16px 0 0", width: "100%" }
+        ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "12px 12px 0 0", width: "100%" }
         : { borderRadius: 2, minWidth: 300 }
       }}
       sx={isMobile ? { "& .MuiDialog-container": { alignItems: "flex-end" } } : {}}
@@ -66,11 +66,11 @@ function DeletePatientDialog({ open, patientName, deleting, isMobile, onConfirm,
         </Typography>
         <Box sx={{ display: "flex", gap: 1.5 }}>
           <Box onClick={onClose}
-            sx={{ flex: 1, textAlign: "center", py: 1.3, borderRadius: 1.5, bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 15, color: "#666", "&:active": { opacity: 0.7 } }}>
+            sx={{ flex: 1, textAlign: "center", py: 1.3, borderRadius: "4px", bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 15, color: "#666", "&:active": { opacity: 0.7 } }}>
             取消
           </Box>
           <Box onClick={!deleting ? onConfirm : undefined}
-            sx={{ flex: 1, textAlign: "center", py: 1.3, borderRadius: 1.5, bgcolor: "#e74c3c", cursor: deleting ? "default" : "pointer", fontSize: 15, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
+            sx={{ flex: 1, textAlign: "center", py: 1.3, borderRadius: "4px", bgcolor: "#FA5151", cursor: deleting ? "default" : "pointer", fontSize: 15, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
             {deleting ? "删除中…" : "确认删除"}
           </Box>
         </Box>
@@ -84,12 +84,12 @@ function PatientLabelRow({ patient, patientLabels, labelPickerOpen, labelAnchorR
     <Stack direction="row" spacing={0.5} flexWrap="wrap" alignItems="center" sx={{ mb: 1 }}>
       {patientLabels.map((l) => (
         <Chip key={l.id} label={l.name} size="small"
-          sx={{ backgroundColor: l.color || "#e2e8f0", fontSize: 11, height: 22 }}
+          sx={{ backgroundColor: l.color || "#e2e8f0", fontSize: 11, height: 22, borderRadius: "4px" }}
           onDelete={() => onRemoveLabel(l.id)} />
       ))}
       <Box sx={{ position: "relative" }}>
         <Box ref={labelAnchorRef} onClick={onOpenLabelPicker}
-          sx={{ fontSize: 12, color: "#07C160", cursor: "pointer", px: 0.8, py: 0.3, borderRadius: 1, border: "1px dashed #b7ebd0" }}>
+          sx={{ fontSize: 12, color: "#07C160", cursor: "pointer", px: 0.8, py: 0.3, borderRadius: "4px", border: "1px dashed #b7ebd0" }}>
           + 标签
         </Box>
         {labelPickerOpen && (
@@ -111,7 +111,7 @@ function PatientLabelRow({ patient, patientLabels, labelPickerOpen, labelAnchorR
 
 function PatientActionBar({ exportingPdf, exportingReport, onExportPdf, onExportReport, onDeleteOpen }) {
   return (
-    <Stack direction="row" spacing={2} sx={{ pt: 0.5, borderTop: "1px solid #f2f2f2" }} alignItems="center">
+    <Stack direction="row" spacing={2} sx={{ pt: 0.5, borderTop: "0.5px solid #f0f0f0" }} alignItems="center">
       <Box onClick={!exportingPdf && !exportingReport ? onExportPdf : undefined}
         sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: exportingPdf ? "default" : "pointer", color: exportingPdf ? "#ccc" : "#07C160", fontSize: 13 }}>
         {exportingPdf ? <CircularProgress size={12} sx={{ color: "#ccc" }} /> : <FileDownloadOutlinedIcon sx={{ fontSize: 16 }} />}
@@ -132,7 +132,7 @@ function PatientActionBar({ exportingPdf, exportingReport, onExportPdf, onExport
   );
 }
 
-function PatientProfileBlock({ patient, age, patientLabels, labelPickerOpen, labelAnchorRef, allLabels, labelError, exportingPdf, exportingReport, onOpenLabelPicker, onRemoveLabel, onAssignLabel, onLabelsChange, onCloseLabelPicker, onExportPdf, onExportReport, onDeleteOpen }) {
+function PatientProfileBlock({ patient, age, patientLabels, labelPickerOpen, labelAnchorRef, allLabels, labelError, exportingPdf, exportingReport, onOpenLabelPicker, onRemoveLabel, onAssignLabel, onLabelsChange, onCloseLabelPicker, onExportPdf, onExportReport, onDeleteOpen, onNavigateToChat, onCreateTask }) {
   return (
     <Box sx={{ bgcolor: "#fff", px: 2.5, pt: 2.5, pb: 2, mb: 0.8 }}>
       <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 1.5 }}>
@@ -154,10 +154,32 @@ function PatientProfileBlock({ patient, age, patientLabels, labelPickerOpen, lab
         onOpenLabelPicker={onOpenLabelPicker} onRemoveLabel={onRemoveLabel}
         onAssignLabel={onAssignLabel} onLabelsChange={onLabelsChange} onCloseLabelPicker={onCloseLabelPicker}
       />
-      <PatientActionBar
-        exportingPdf={exportingPdf} exportingReport={exportingReport}
-        onExportPdf={onExportPdf} onExportReport={onExportReport} onDeleteOpen={onDeleteOpen}
-      />
+      <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
+        <Box onClick={onCreateTask}
+          sx={{ flex: 1, textAlign: "center", height: 36, lineHeight: "36px", borderRadius: "4px", fontSize: 14, cursor: "pointer", border: "1px solid #07C160", color: "#07C160", bgcolor: "#fff", "&:active": { opacity: 0.7 } }}>
+          新建任务
+        </Box>
+        <Box onClick={!exportingPdf ? onExportPdf : undefined}
+          sx={{ flex: 1, textAlign: "center", height: 36, lineHeight: "36px", borderRadius: "4px", fontSize: 14, cursor: exportingPdf ? "default" : "pointer", border: "1px solid #ddd", color: exportingPdf ? "#ccc" : "#333", bgcolor: "#fff", "&:active": { opacity: 0.7 } }}>
+          {exportingPdf ? "导出中…" : "导出PDF"}
+        </Box>
+      </Box>
+      <Box onClick={onNavigateToChat}
+        sx={{ textAlign: "center", height: 44, lineHeight: "44px", borderRadius: "4px", fontSize: 15, fontWeight: 500, cursor: "pointer", bgcolor: "#07C160", color: "#fff", "&:active": { opacity: 0.7 } }}>
+        AI对话咨询
+      </Box>
+      <Box sx={{ mt: 1.5, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <Box onClick={!exportingReport ? onExportReport : undefined}
+          sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: exportingReport ? "default" : "pointer", color: exportingReport ? "#ccc" : "#5b9bd5", fontSize: 13 }}>
+          {exportingReport ? <CircularProgress size={12} sx={{ color: "#ccc" }} /> : <FileDownloadOutlinedIcon sx={{ fontSize: 16 }} />}
+          门诊报告
+        </Box>
+        <Box onClick={onDeleteOpen}
+          sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: "pointer", color: "#e74c3c", fontSize: 13, "&:active": { opacity: 0.6 } }}>
+          <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+          删除患者
+        </Box>
+      </Box>
     </Box>
   );
 }
@@ -175,10 +197,12 @@ function RecordListSection({ loading, error, records, filteredRecords, recordTyp
       {filteredRecords.length === 0 && records.length > 0 ? (
         <Box sx={{ px: 2, pb: 2 }}><Typography variant="body2" color="text.secondary">该类型暂无病历。</Typography></Box>
       ) : (
-        filteredRecords.map((r) => (
-          <RecordCard key={r.id} record={r} doctorId={doctorId}
-            onUpdated={(updated) => setRecords((prev) => prev.map((x) => x.id === updated.id ? { ...x, ...updated } : x))}
-            onDeleted={(id) => setRecords((prev) => prev.filter((x) => x.id !== id))} />
+        filteredRecords.map((r, idx) => (
+          <Box key={r.id} sx={idx > 0 ? { borderTop: "0.5px solid #f0f0f0" } : {}}>
+            <RecordCard record={r} doctorId={doctorId}
+              onUpdated={(updated) => setRecords((prev) => prev.map((x) => x.id === updated.id ? { ...x, ...updated } : x))}
+              onDeleted={(id) => setRecords((prev) => prev.filter((x) => x.id !== id))} />
+          </Box>
         ))
       )}
     </Box>
@@ -215,14 +239,14 @@ function usePatientDetailState({ patient, doctorId, onDeleted }) {
   async function handleExportPdf() { setExportingPdf(true); setExportError(""); try { await exportPatientPdf(patient.id, doctorId); } catch (e) { setExportError(e.message || "导出失败"); } finally { setExportingPdf(false); } }
   async function handleExportReport() { setExportingReport(true); setExportError(""); try { await exportOutpatientReport(patient.id, doctorId); } catch (e) { setExportError(e.message || "生成失败，请确认已有病历记录"); } finally { setExportingReport(false); } }
 
-  return { records, setRecords, loading, error, exportingPdf, exportingReport, exportError, deleteConfirmOpen, setDeleteConfirmOpen, deleting, allLabels, labelPickerOpen, setLabelPickerOpen, labelError, patientLabels, setPatientLabels, labelAnchorRef, load, handleOpenLabelPicker, handleRemoveLabel, handleAssignLabel, handleDelete, handleExportPdf, handleExportReport };
+  return { records, setRecords, loading, error, exportingPdf, exportingReport, exportError, deleteConfirmOpen, setDeleteConfirmOpen, deleting, allLabels, labelPickerOpen, setLabelPickerOpen, labelError, patientLabels, setPatientLabels, labelAnchorRef, load, handleOpenLabelPicker, handleRemoveLabel, handleAssignLabel, handleDelete, handleExportPdf, handleExportReport, navigate };
 }
 
 export default function PatientDetail({ patient, doctorId, onDeleted }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [recordTypeFilter, setRecordTypeFilter] = useState("");
-  const { records, setRecords, loading, error, exportingPdf, exportingReport, exportError, deleteConfirmOpen, setDeleteConfirmOpen, deleting, allLabels, labelPickerOpen, setLabelPickerOpen, labelError, patientLabels, setPatientLabels, labelAnchorRef, load, handleOpenLabelPicker, handleRemoveLabel, handleAssignLabel, handleDelete, handleExportPdf, handleExportReport } = usePatientDetailState({ patient, doctorId, onDeleted });
+  const { records, setRecords, loading, error, exportingPdf, exportingReport, exportError, deleteConfirmOpen, setDeleteConfirmOpen, deleting, allLabels, labelPickerOpen, setLabelPickerOpen, labelError, patientLabels, setPatientLabels, labelAnchorRef, load, handleOpenLabelPicker, handleRemoveLabel, handleAssignLabel, handleDelete, handleExportPdf, handleExportReport, navigate } = usePatientDetailState({ patient, doctorId, onDeleted });
 
   if (!patient) return <EmptyPatientPlaceholder />;
 
@@ -230,9 +254,10 @@ export default function PatientDetail({ patient, doctorId, onDeleted }) {
   const filteredRecords = recordTypeFilter ? records.filter((r) => r.record_type === recordTypeFilter) : records;
 
   return (
-    <Box sx={{ overflowY: "auto", height: "100%", bgcolor: "#f7f7f7" }}>
+    <Box sx={{ overflowY: "auto", height: "100%", bgcolor: "#ededed" }}>
       <PatientProfileBlock patient={patient} age={age} patientLabels={patientLabels} labelPickerOpen={labelPickerOpen} labelAnchorRef={labelAnchorRef} allLabels={allLabels} labelError={labelError} exportingPdf={exportingPdf} exportingReport={exportingReport}
-        onOpenLabelPicker={handleOpenLabelPicker} onRemoveLabel={handleRemoveLabel} onAssignLabel={handleAssignLabel} onLabelsChange={setPatientLabels} onCloseLabelPicker={() => setLabelPickerOpen(false)} onExportPdf={handleExportPdf} onExportReport={handleExportReport} onDeleteOpen={() => setDeleteConfirmOpen(true)} />
+        onOpenLabelPicker={handleOpenLabelPicker} onRemoveLabel={handleRemoveLabel} onAssignLabel={handleAssignLabel} onLabelsChange={setPatientLabels} onCloseLabelPicker={() => setLabelPickerOpen(false)} onExportPdf={handleExportPdf} onExportReport={handleExportReport} onDeleteOpen={() => setDeleteConfirmOpen(true)}
+        onNavigateToChat={() => navigate("/doctor/chat")} onCreateTask={() => navigate("/doctor/tasks")} />
       {exportError && <Typography variant="caption" color="error.main" sx={{ display: "block", px: 2.5, mt: 0.5 }}>{exportError}</Typography>}
       <DeletePatientDialog open={deleteConfirmOpen} patientName={patient.name} deleting={deleting} isMobile={isMobile} onConfirm={handleDelete} onClose={() => setDeleteConfirmOpen(false)} />
       <RecordListSection loading={loading} error={error} records={records} filteredRecords={filteredRecords} recordTypeFilter={recordTypeFilter} setRecordTypeFilter={setRecordTypeFilter} setRecords={setRecords} doctorId={doctorId} load={load} />
