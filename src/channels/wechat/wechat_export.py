@@ -4,8 +4,6 @@ WeChat 病历导出处理层：病历PDF、门诊病历PDF的生成与发送逻�
 
 from __future__ import annotations
 
-import asyncio
-import json
 from typing import Any, Optional
 
 from db.engine import AsyncSessionLocal
@@ -63,21 +61,6 @@ async def _fetch_patient_and_records(
     return patient_id, patient_name, patient_obj, records
 
 
-def _format_cvd_summary_line(cvd_raw: Any) -> str:
-    """Get a one-line CVD summary string from raw dict or JSON."""
-    try:
-        from services.patient.prior_visit import _format_cvd_summary
-        if isinstance(cvd_raw, dict):
-            import json as _json
-            raw_str = _json.dumps(cvd_raw, ensure_ascii=False)
-        else:
-            raw_str = str(cvd_raw)
-        result = _format_cvd_summary(raw_str, None)
-        return result or ""
-    except Exception:
-        return ""
-
-
 async def _try_send_pdf(doctor_id: str, pdf_bytes: bytes, filename: str) -> None:
     """Upload PDF bytes as a WeCom temp media and send as file message."""
     from channels.wechat.wechat_notify import upload_temp_media, send_file_message
@@ -88,17 +71,12 @@ async def _try_send_pdf(doctor_id: str, pdf_bytes: bytes, filename: str) -> None
 def _build_export_text_fallback(
     patient_name: Optional[str],
     records: list,
-    cvd_ctx: Any,
 ) -> str:
     """Build text fallback for export when PDF sending fails."""
     lines = [
         "⚠️ 病历 PDF 发送失败，以下为文字摘要：",
         f"📄 【{patient_name}】病历摘要（共 {len(records)} 条）\n",
     ]
-    if cvd_ctx and cvd_ctx.raw_json:
-        summary = _format_cvd_summary_line(json.loads(cvd_ctx.raw_json))
-        if summary:
-            lines.append(summary)
     for r in records[:10]:
         date_str = r.created_at.strftime("%Y-%m-%d") if r.created_at else "?"
         snippet = _t(r.content or "—", 60)
@@ -118,15 +96,6 @@ async def handle_export_records(doctor_id: str, intent_result: Any) -> str:
         patient_id, patient_name, _patient, records = await _fetch_patient_and_records(
             session, doctor_id, intent_result
         )
-        cvd_ctx = None
-        scores_map = {}
-        if patient_id:
-            from db.crud.specialty import get_cvd_context_for_patient
-            from db.crud.scores import get_scores_for_records
-            cvd_ctx = await get_cvd_context_for_patient(session, doctor_id, patient_id)
-            rec_ids = [r.id for r in records if r.id is not None]
-            if rec_ids:
-                scores_map = await get_scores_for_records(session, rec_ids, doctor_id)
 
     if patient_id is None:
         return "❓ 请先告知患者姓名，例如：「导出张三的病历」"
@@ -136,12 +105,10 @@ async def handle_export_records(doctor_id: str, intent_result: Any) -> str:
     try:
         from services.export.pdf_export import generate_records_pdf
         pdf_bytes = generate_records_pdf(
-            records=list(reversed(records)),  # chronological for PDF
+            records=list(reversed(records)),
             patient_name=patient_name, patient=_patient,
-            cvd_context=cvd_ctx, scores_map=scores_map,
         )
         await _try_send_pdf(doctor_id, pdf_bytes, f"病历_{patient_id}.pdf")
-        # Audit after successful generation+send, not before.
         safe_create_task(
             audit(doctor_id, "EXPORT", resource_type="patient", resource_id=str(patient_id))
         )
@@ -149,7 +116,7 @@ async def handle_export_records(doctor_id: str, intent_result: Any) -> str:
     except Exception as exc:
         log(f"[WeChat] export PDF via WeCom file failed ({exc}), falling back to text")
 
-    return _build_export_text_fallback(patient_name, records, cvd_ctx)
+    return _build_export_text_fallback(patient_name, records)
 
 
 def _build_patient_info_line(patient_obj: Any) -> Optional[str]:
@@ -202,13 +169,6 @@ async def handle_export_outpatient_report(doctor_id: str, intent_result: Any) ->
         patient_id, patient_name, patient_obj, records = await _fetch_patient_and_records(
             session, doctor_id, intent_result
         )
-        scores_map = {}
-        if patient_id:
-            from db.crud.scores import get_scores_for_records
-            rec_ids = [r.id for r in records if r.id is not None]
-            if rec_ids:
-                scores_map = await get_scores_for_records(session, rec_ids, doctor_id)
-
     if patient_id is None:
         return "❓ 请先告知患者姓名，例如：「生成张三的标准门诊病历」"
     if not records:
@@ -217,7 +177,7 @@ async def handle_export_outpatient_report(doctor_id: str, intent_result: Any) ->
     from services.export.outpatient_report import ExtractionError, extract_outpatient_fields
     try:
         fields = await extract_outpatient_fields(
-            records, patient_obj, doctor_id=doctor_id, scores_map=scores_map,
+            records, patient_obj, doctor_id=doctor_id,
         )
     except ExtractionError as exc:
         log(f"[WeChat] outpatient report LLM extraction failed: {exc}")

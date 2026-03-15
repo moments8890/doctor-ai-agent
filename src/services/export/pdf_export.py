@@ -163,57 +163,8 @@ def _draw_patient_block(pdf, _set_font, patient, patient_name, doctor_name, reco
     pdf.set_draw_color(180, 180, 180)
 
 
-def _draw_cvd_block(pdf, _set_font, cvd_context) -> None:
-    """绘制脑血管专科病情区块（两列网格）。"""
-    _CVD_FIELD_LABELS = [
-        ("diagnosis_subtype", "诊断亚型"), ("hemorrhage_location", "出血部位"),
-        ("gcs_score", "GCS"), ("ich_score", "ICH评分"),
-        ("ich_volume_ml", "出血量(mL)"), ("hemorrhage_etiology", "出血病因"),
-        ("hunt_hess_grade", "Hunt-Hess级"), ("fisher_grade", "Fisher级"),
-        ("wfns_grade", "WFNS级"), ("modified_fisher_grade", "改良Fisher级"),
-        ("vasospasm_status", "血管痉挛"), ("hydrocephalus_status", "脑积水"),
-        ("spetzler_martin_grade", "Spetzler-Martin级"), ("aneurysm_location", "动脉瘤位置"),
-        ("aneurysm_size_mm", "动脉瘤(mm)"), ("aneurysm_neck_width_mm", "瘤颈(mm)"),
-        ("aneurysm_treatment", "动脉瘤处理"), ("phases_score", "PHASES评分"),
-        ("suzuki_stage", "铃木分期"), ("bypass_type", "搭桥方式"),
-        ("perfusion_status", "灌注状态"), ("surgery_type", "手术方式"),
-        ("surgery_status", "手术状态"), ("surgery_date", "手术日期"),
-        ("mrs_score", "mRS"), ("barthel_index", "Barthel指数"),
-    ]
-    import json as _json
-    _cvd_data = _json.loads(cvd_context.raw_json or "{}") if hasattr(cvd_context, "raw_json") else {}
-    cvd_pairs = [
-        (label, str(_cvd_data[field]))
-        for field, label in _CVD_FIELD_LABELS
-        if _cvd_data.get(field) is not None
-    ]
-    if not cvd_pairs:
-        return
-    pdf.ln(2)
-    _set_font(9, bold=True)
-    pdf.set_text_color(0, 100, 90)
-    pdf.cell(0, 6, "【脑血管专科病情】", new_x="LMARGIN", new_y="NEXT")
-    pdf.set_text_color(0, 0, 0)
-    _set_font(9)
-    col_w = (pdf.w - pdf.l_margin - pdf.r_margin) / 2
-    for j in range(0, len(cvd_pairs), 2):
-        pair_a = cvd_pairs[j]
-        pair_b = cvd_pairs[j + 1] if j + 1 < len(cvd_pairs) else None
-        pdf.set_x(pdf.l_margin + 3)
-        pdf.cell(col_w, 5, f"{pair_a[0]}: {pair_a[1]}", new_x="RIGHT", new_y="SAME")
-        if pair_b:
-            pdf.cell(col_w, 5, f"{pair_b[0]}: {pair_b[1]}", new_x="LMARGIN", new_y="NEXT")
-        else:
-            pdf.ln(5)
-    pdf.ln(2)
-    pdf.set_draw_color(180, 210, 200)
-    pdf.line(20, pdf.get_y(), pdf.w - 20, pdf.get_y())
-    pdf.set_draw_color(180, 180, 180)
-    pdf.ln(4)
-
-
-def _draw_record_entry(pdf, _set_font, i: int, rec, scores: list | None = None) -> None:
-    """绘制单条病历记录（标题行 + 内容 + 标签 + 量表评分 + 分隔线）。"""
+def _draw_record_entry(pdf, _set_font, i: int, rec) -> None:
+    """绘制单条病历记录（标题行 + 内容 + 标签 + 分隔线）。"""
     if pdf.get_y() > pdf.h - 55:
         pdf.add_page()
 
@@ -247,17 +198,6 @@ def _draw_record_entry(pdf, _set_font, i: int, rec, scores: list | None = None) 
         pdf.set_text_color(60, 80, 180)
         pdf.set_x(pdf.l_margin + 3)
         pdf.cell(0, 5, "标签：" + "  ·  ".join(tags), new_x="LMARGIN", new_y="NEXT")
-        pdf.set_text_color(0, 0, 0)
-
-    if scores:
-        _set_font(9)
-        pdf.set_text_color(0, 120, 80)
-        pdf.set_x(pdf.l_margin + 3)
-        score_parts = []
-        for s in scores:
-            val = f"{s.score_value:g}" if s.score_value is not None else (s.raw_text or "")
-            score_parts.append(f"{s.score_type}={val}" if val else s.score_type)
-        pdf.cell(0, 5, "量表：" + "  ·  ".join(score_parts), new_x="LMARGIN", new_y="NEXT")
         pdf.set_text_color(0, 0, 0)
 
     pdf.set_draw_color(210, 215, 225)
@@ -321,7 +261,6 @@ def generate_records_pdf(
     patient: object = None,
     clinic_name: Optional[str] = None,
     doctor_name: Optional[str] = None,
-    cvd_context: object = None,
     scores_map: Optional[dict] = None,
 ) -> bytes:
     """
@@ -333,8 +272,7 @@ def generate_records_pdf(
         patient: Patient ORM object for rich demographics block
         clinic_name: overrides CLINIC_NAME env var
         doctor_name: attending physician name
-        cvd_context: optional NeuroCVDContext ORM row for specialty block
-        scores_map: optional dict mapping record_id → list of SpecialtyScore rows
+        scores_map: ignored (kept for call-site compatibility)
     Returns raw PDF bytes. Raises RuntimeError if fpdf2 is not installed.
     """
     from fpdf import FPDF  # raises ImportError if not installed
@@ -346,19 +284,14 @@ def generate_records_pdf(
 
     _draw_patient_block(pdf, _set_font, patient, patient_name, doctor_name, records)
 
-    if cvd_context is not None:
-        _draw_cvd_block(pdf, _set_font, cvd_context)
-
     if not records:
         _set_font(10)
         pdf.set_text_color(120, 120, 120)
         pdf.cell(0, 10, "（暂无病历记录）", align="C", new_x="LMARGIN", new_y="NEXT")
         pdf.set_text_color(0, 0, 0)
     else:
-        _sm = scores_map or {}
         for i, rec in enumerate(records):
-            rec_scores = _sm.get(getattr(rec, "id", None), [])
-            _draw_record_entry(pdf, _set_font, i, rec, scores=rec_scores)
+            _draw_record_entry(pdf, _set_font, i, rec)
 
     return bytes(pdf.output())
 

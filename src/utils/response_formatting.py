@@ -37,17 +37,5 @@ def format_draft_preview(record: Any, patient_name: Optional[str] = None) -> str
     tags = _parse_tags(record)
     if tags:
         lines.append("🏷 " + "  ".join(tags))
-    scores = getattr(record, "specialty_scores", None) or []
-    if scores:
-        lines.append("")
-        lines.append("📊 量表评分（请核对原始记录）")
-        for s in scores:
-            score_type = s.get("score_type", "?")
-            score_value = s.get("score_value")
-            raw_text = s.get("raw_text", "")
-            if score_value is not None:
-                lines.append(f'  • {score_type}：{score_value}  ("{raw_text}")')
-            else:
-                lines.append(f'  • {score_type}  ("{raw_text}")')
     lines.extend(["", "「确认」保存 · 「撤销」放弃"])
     return "\n".join(lines)

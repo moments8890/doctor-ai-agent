@@ -9,14 +9,25 @@ import PatientPage from "./pages/PatientPage";
 import { useDoctorStore } from "./store/doctorStore";
 import { setWebToken } from "./api";
 
+const DEV_MODE = import.meta.env.DEV; // true in `vite dev`, false in `vite build`
+const DEV_DOCTOR_ID = import.meta.env.VITE_DEV_DOCTOR_ID || "test_doctor";
+
 function RequireAuth({ children }) {
   const { accessToken } = useDoctorStore();
+  if (DEV_MODE) return children; // Skip auth gate in dev
   if (!accessToken) return <Navigate to="/login" replace />;
   return children;
 }
 
 export default function App() {
-  const { accessToken, setAuth } = useDoctorStore();
+  const { accessToken, doctorId, setAuth } = useDoctorStore();
+
+  // Dev mode: auto-set doctor identity so login is never required
+  useState(() => {
+    if (DEV_MODE && !doctorId) {
+      setAuth(DEV_DOCTOR_ID, DEV_DOCTOR_ID, "dev-token");
+    }
+  });
 
   // Absorb token handed off from WeChat Mini Program web-view via URL params.
   // Runs synchronously in useState initializer so auth is set before RequireAuth

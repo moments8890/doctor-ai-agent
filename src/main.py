@@ -40,9 +40,7 @@ from channels.web.chat import router as records_router
 from channels.wechat.router import router as wechat_router
 from channels.web.auth import router as auth_router
 from channels.web.ui import router as ui_router
-from channels.web.neuro import router as neuro_router
 from channels.web.tasks import router as tasks_router
-from channels.voice import router as voice_router
 from channels.web.export import router as export_router
 from channels.web.patient_portal import router as patient_portal_router
 from db.init_db import create_tables, seed_prompts, backfill_doctors_registry
@@ -586,7 +584,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="专科医师AI智能体",
-    description="Phase 2 MVP — 患者管理 + 语音/文字录入 → 结构化病历生成",
+    description="Phase 2 MVP — 患者管理 + 文字录入 → 结构化病历生成",
     version="0.2.0",
     lifespan=lifespan,
 )
@@ -721,9 +719,7 @@ app.include_router(records_router)
 app.include_router(wechat_router)
 app.include_router(auth_router)
 app.include_router(ui_router)
-app.include_router(neuro_router)
 app.include_router(tasks_router)
-app.include_router(voice_router)
 app.include_router(export_router)
 app.include_router(patient_portal_router)
 

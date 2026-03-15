@@ -273,7 +273,7 @@ def make_tasks(doctor_id, patient_id, patient_name, category, risk, fu_state):
 async def _wipe_tables(session) -> None:
     """Delete all rows from data tables (preserves schema)."""
     for tbl in [
-        "audit_log", "doctor_conversation_turns", "doctor_session_states",
+        "audit_log", "doctor_conversation_turns",
         "pending_records", "pending_messages", "medical_record_exports",
         "medical_record_versions", "doctor_tasks", "medical_records",
         "patient_label_assignments", "patient_labels", "patients",

@@ -12,8 +12,8 @@ All operational scripts are centralized in this folder.
 
 ## E2E Data
 
-- `run_chatlog_e2e.py`: replays human-language cases from `e2e/fixtures/data/*.json`
-- v2 complex corpus: `e2e/fixtures/data/realworld_doctor_agent_chatlogs_e2e_v2.json` (100 doctor-agent cases)
+- `run_chatlog_e2e.py`: replays human-language cases from `tests/fixtures/data/*.json`
+- v2 complex corpus: `tests/fixtures/data/realworld_doctor_agent_chatlogs_e2e_v2.json` (100 doctor-agent cases)
 
 ## Document Import Testing
 

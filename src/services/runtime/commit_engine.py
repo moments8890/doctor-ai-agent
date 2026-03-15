@@ -224,6 +224,12 @@ async def _create_draft(
         log.error("[commit] structuring FAILED doctor=%s: %s", ctx.doctor_id, e, exc_info=True)
         return CommitResult(status="error", error_key="structuring_failed")
 
+    # Sentinel check — structuring LLM found no clinical content
+    from services.ai.structuring import _NO_CLINICAL_CONTENT
+    if (record.content or "").strip() == _NO_CLINICAL_CONTENT:
+        log.info("[commit] structuring returned sentinel, no clinical content doctor=%s", ctx.doctor_id)
+        return CommitResult(status="error", error_key="no_clinical_content")
+
     # Create pending record
     from db.crud.pending import create_pending_record
     from db.engine import AsyncSessionLocal

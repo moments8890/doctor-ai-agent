@@ -9,7 +9,6 @@ from db.crud import get_record_versions
 from db.engine import AsyncSessionLocal
 from db.models.medical_record import MedicalRecord
 from services.ai.structuring import structure_medical_record
-from services.ai.transcription import transcribe_audio
 from services.ai.vision import extract_text_from_image
 from services.knowledge.pdf_extract import extract_text_from_pdf_smart
 from services.auth.rate_limit import enforce_doctor_rate_limit
@@ -19,8 +18,7 @@ from channels.web.deps import get_doctor_id
 from messages import M
 from utils.log import log
 
-# MIME-type constants shared with other endpoints
-from constants import SUPPORTED_AUDIO_TYPES, SUPPORTED_IMAGE_TYPES
+from constants import SUPPORTED_IMAGE_TYPES
 
 router = APIRouter(prefix="/api/records", tags=["records"])
 
@@ -208,37 +206,6 @@ async def create_record_from_image(
     return {"reply": reply, "source": "image", "extracted_text": text}
 
 
-@router.post("/from-audio", response_model=ExtractedTextResponse)
-async def create_record_from_audio(
-    audio: UploadFile = File(...),
-    doctor_id: str = Form(default=""),
-    authorization: Optional[str] = Header(default=None),
-):
-    """Transcribe audio then import."""
-    resolved = resolve_doctor_id_from_auth_or_fallback(
-        doctor_id, authorization,
-        fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
-        default_doctor_id="test_doctor",
-    )
-    enforce_doctor_rate_limit(resolved, scope="records.from_audio")
-    if audio.content_type not in SUPPORTED_AUDIO_TYPES:
-        raise HTTPException(status_code=422, detail=f"Unsupported: {audio.content_type}")
-    try:
-        audio_bytes = await audio.read()
-        if len(audio_bytes) > _MAX_UPLOAD_BYTES:
-            raise HTTPException(status_code=413, detail="File too large (max 20 MB)")
-        transcript = await transcribe_audio(audio_bytes, audio.filename or "audio.wav")
-    except HTTPException:
-        raise
-    except Exception as e:
-        log(f"[Records] from-audio transcription failed: {e}")
-        raise HTTPException(status_code=500, detail="Transcription failed")
-    if not transcript or not transcript.strip():
-        raise HTTPException(status_code=422, detail="Transcription produced no text")
-    reply = await _import_extracted_text(transcript, resolved, source="voice")
-    return {"reply": reply, "source": "voice", "extracted_text": transcript}
-
-
 async def _import_extracted_text(text: str, doctor_id: str, *, source: str) -> str:
     """Dispatch extracted text to import_history."""
     from services.ai.intent import IntentResult as _IR, Intent as _I
@@ -249,34 +216,6 @@ async def _import_extracted_text(text: str, doctor_id: str, *, source: str) -> s
     except Exception as e:
         log(f"[Records] import failed source={source} doctor={doctor_id}: {e}")
         raise HTTPException(status_code=500, detail="Import failed")
-
-
-@router.post("/transcribe", response_model=TextOnlyResponse)
-async def transcribe_audio_only(
-    audio: UploadFile = File(...),
-    doctor_id: str = Form(default=""),
-    authorization: Optional[str] = Header(default=None),
-):
-    """Transcribe audio to text without creating a record."""
-    resolved = resolve_doctor_id_from_auth_or_fallback(
-        doctor_id, authorization,
-        fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
-        default_doctor_id="test_doctor",
-    )
-    enforce_doctor_rate_limit(resolved, scope="records.transcribe")
-    content_type = (audio.content_type or "").split(";")[0].strip()
-    if content_type not in SUPPORTED_AUDIO_TYPES and not content_type.startswith("audio/"):
-        raise HTTPException(status_code=422, detail=f"Unsupported: {content_type}")
-    try:
-        audio_bytes = await audio.read()
-        if len(audio_bytes) > _MAX_UPLOAD_BYTES:
-            raise HTTPException(status_code=413, detail="File too large (max 20 MB)")
-        return {"text": await transcribe_audio(audio_bytes, audio.filename or "audio.wav")}
-    except HTTPException:
-        raise
-    except Exception as e:
-        log(f"[Records] transcribe failed: {e}")
-        raise HTTPException(status_code=500, detail="Transcription failed")
 
 
 @router.post("/ocr", response_model=TextOnlyResponse)

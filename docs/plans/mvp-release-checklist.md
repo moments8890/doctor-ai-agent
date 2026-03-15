@@ -86,7 +86,7 @@ bash scripts/save_baseline.sh
 3. If a regression is **intentional** (deliberate behavior change):
    - Update the baseline: `bash scripts/save_baseline.sh`
    - Document why in the commit message (e.g. "baseline updated: changed draft confirmation wording").
-4. Benchmark comparison details are documented in [`e2e/README.md`](../../e2e/README.md).
+4. Benchmark comparison details are documented in [`tests/README.md`](../../tests/README.md).
 
 ## Quick reference
 

@@ -1,47 +1,14 @@
 """
-WeChat 后台任务与 WeCom KF 消息解析：CVD 提取、自动任务规则、知识自学习和消息类型工具函数。
+WeChat 后台任务与 WeCom KF 消息解析：自动任务规则、知识自学习和消息类型工具函数。
 """
 
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime
 from typing import Any, Dict, Optional
 
 from db.engine import AsyncSessionLocal
 from utils.log import log
-
-
-_CVD_KEYWORDS = frozenset({
-    "动脉瘤", "蛛网膜下腔", "脑出血", "颅内出血", "ICH", "SAH",
-    "Hunt", "Fisher", "AVM", "动静脉畸形", "Spetzler", "开颅",
-    "夹闭", "栓塞", "介入", "GCS", "格拉斯哥",
-})
-
-
-def detect_cvd_keywords(text: str) -> bool:
-    return any(kw in text for kw in _CVD_KEYWORDS)
-
-
-async def bg_extract_cvd_context(
-    doctor_id: str,
-    record_id: int,
-    patient_id: Optional[int],
-    content: str,
-) -> None:
-    """Background: run neuro CVD LLM extraction and save to neuro_cvd_context."""
-    try:
-        from services.ai.neuro_structuring import extract_neuro_case
-        from db.crud.specialty import save_cvd_context
-        _, __, cvd_ctx = await extract_neuro_case(content)
-        if cvd_ctx and cvd_ctx.has_data():
-            async with AsyncSessionLocal() as session:
-                await save_cvd_context(
-                    session, doctor_id, patient_id, record_id, cvd_ctx, source="chat"
-                )
-            log(f"[CVD] context saved for record={record_id}")
-    except Exception as exc:
-        log(f"[CVD] extraction failed (non-fatal) record={record_id}: {exc}")
 
 
 async def bg_auto_tasks(

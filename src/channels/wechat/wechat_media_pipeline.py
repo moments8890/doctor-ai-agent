@@ -1,11 +1,38 @@
 """
-WeChat 媒体消息处理管道：协调语音/图片下载、转录和意图处理的异步流水线。
+WeChat 媒体消息处理管道：协调图片/PDF/Word下载和意图处理的异步流水线。
 """
 
 from __future__ import annotations
 
 import asyncio
+import os
 from typing import Awaitable, Callable
+
+import httpx
+
+from utils.log import log as _log
+
+
+def _media_get_url() -> str:
+    if os.environ.get("WECHAT_KF_CORP_ID", "").strip():
+        return "https://qyapi.weixin.qq.com/cgi-bin/media/get"
+    return "https://api.weixin.qq.com/cgi-bin/media/get"
+
+
+async def download_media(media_id: str, access_token: str) -> bytes:
+    """Download any WeChat media file (image, PDF, Word, etc.) without audio conversion."""
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.get(
+            _media_get_url(),
+            params={"access_token": access_token, "media_id": media_id},
+        )
+        if resp.status_code != 200:
+            raise RuntimeError(f"WeChat media download failed: HTTP {resp.status_code}")
+        content_type = resp.headers.get("content-type", "")
+        if "application/json" in content_type:
+            raise RuntimeError(f"WeChat media error: {resp.json()}")
+        _log(f"[Media] downloaded {len(resp.content)} bytes, content-type={content_type!r}")
+        return resp.content
 
 
 SendMessageFn = Callable[[str, str], Awaitable[None]]

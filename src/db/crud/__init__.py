@@ -47,8 +47,6 @@ from db.crud.records import (
     get_records_for_patient,
     get_all_records_for_doctor,
     count_records_for_doctor,
-    save_neuro_case,
-    get_neuro_cases_for_doctor,
     save_record_version,
     get_record_versions,
     update_latest_record_for_patient,
@@ -83,15 +81,6 @@ from db.crud.pending import (
     increment_pending_message_attempt,
     list_stale_pending_messages,
     claim_pending_message,
-)
-from db.crud.scores import (
-    save_specialty_scores,
-    get_scores_for_record,
-    get_scores_for_records,
-)
-from db.crud.specialty import (
-    save_cvd_context,
-    get_cvd_context_for_patient,
 )
 from db.crud.runtime import (
     get_runtime_token,
@@ -157,8 +146,6 @@ __all__ = [
     "get_records_for_patient",
     "get_all_records_for_doctor",
     "count_records_for_doctor",
-    "save_neuro_case",
-    "get_neuro_cases_for_doctor",
     "save_record_version",
     "get_record_versions",
     "update_latest_record_for_patient",
@@ -191,13 +178,6 @@ __all__ = [
     "increment_pending_message_attempt",
     "list_stale_pending_messages",
     "claim_pending_message",
-    # scores
-    "save_specialty_scores",
-    "get_scores_for_record",
-    "get_scores_for_records",
-    # specialty context
-    "save_cvd_context",
-    "get_cvd_context_for_patient",
     # runtime
     "get_runtime_token",
     "upsert_runtime_token",

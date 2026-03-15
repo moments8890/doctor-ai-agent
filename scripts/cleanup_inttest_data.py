@@ -16,7 +16,7 @@ When to use
 - To verify no test debris exists
 
 The next pytest session also sweeps automatically via the session-level
-`presweep_inttest_rows` fixture in e2e/integration/conftest.py, so running
+`presweep_inttest_rows` fixture in tests/integration/conftest.py, so running
 this script manually is optional — it is provided for convenience.
 """
 
@@ -42,7 +42,7 @@ TABLES = [
     ("medical_records",           "doctor_id"),
     ("patients",                  "doctor_id"),
     ("doctor_contexts",           "doctor_id"),
-    ("doctor_session_states",     "doctor_id"),
+
     ("doctor_conversation_turns", "doctor_id"),
     ("chat_archive",              "doctor_id"),
 ]

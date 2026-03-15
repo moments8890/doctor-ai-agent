@@ -20,7 +20,6 @@ MsgToTextFn = Callable[[Dict[str, Any]], str]
 MsgProcessableFn = Callable[[Dict[str, Any]], bool]
 MsgTimeFn = Callable[[Dict[str, Any]], int]
 SendMessageFn = Callable[[str, str, str], Awaitable[None]]
-HandleVoiceFn = Callable[[str, str, str], Awaitable[None]]
 HandleImageFn = Callable[[str, str, str], Awaitable[None]]
 HandleFileFn = Callable[[str, str, str, str], Awaitable[None]]
 HandleIntentFn = Callable[[str, str, str], Awaitable[None]]
@@ -152,14 +151,12 @@ async def _handle_voice_msg(
     open_kfid: str,
     msg_id: str,
     send_customer_service_msg: SendMessageFn,
-    handle_voice_bg: HandleVoiceFn,
     handle_intent_bg: HandleIntentFn,
     log: LogFn,
 ) -> None:
-    """处理语音消息：优先使用 ASR 文字，否则下载媒体文件。"""
+    """处理语音消息：使用平台 ASR 文字，无 ASR 则告知不支持。"""
     voice = selected.get("voice") or {}
     recognition = str(voice.get("recognition") or "").strip()
-    media_id = str(voice.get("media_id") or "").strip()
     if recognition:
         await handle_intent_bg(recognition, external_userid, open_kfid)
         log(
@@ -167,17 +164,9 @@ async def _handle_voice_msg(
             f"msgid={msg_id or 'n/a'} text={recognition[:80]!r}"
         )
         return
-    if media_id:
-        await send_customer_service_msg(external_userid, "已收到语音，正在识别，请稍候。", open_kfid)
-        await handle_voice_bg(media_id, external_userid, open_kfid)
-        log(
-            f"[WeCom KF] queued voice(media) user={external_userid} kf={open_kfid} "
-            f"msgid={msg_id or 'n/a'} media_id={media_id}"
-        )
-        return
     await send_customer_service_msg(
         external_userid,
-        "已收到语音，但未拿到语音文件ID，暂时无法识别。请重试发送。",
+        "暂不支持语音消息，请发送文字或图片。",
         open_kfid,
     )
 
@@ -339,7 +328,6 @@ async def _dispatch_message(
     event_create_time: int,
     msg_time: MsgTimeFn,
     send_customer_service_msg: SendMessageFn,
-    handle_voice_bg: HandleVoiceFn,
     handle_image_bg: HandleImageFn,
     handle_file_bg: HandleFileFn,
     handle_intent_bg: HandleIntentFn,
@@ -352,7 +340,7 @@ async def _dispatch_message(
     if msgtype == "voice":
         await _handle_voice_msg(
             selected, external_userid, open_kfid, msg_id,
-            send_customer_service_msg, handle_voice_bg, handle_intent_bg, log,
+            send_customer_service_msg, handle_intent_bg, log,
         )
     elif msgtype == "image":
         await _handle_image_msg(
@@ -412,7 +400,6 @@ async def _select_and_dispatch(
     log: LogFn,
     seen_msg_ids: Union[Set[str], Deque[str]],
     send_customer_service_msg: SendMessageFn,
-    handle_voice_bg: HandleVoiceFn,
     handle_image_bg: HandleImageFn,
     handle_file_bg: HandleFileFn,
     handle_intent_bg: HandleIntentFn,
@@ -433,7 +420,7 @@ async def _select_and_dispatch(
     await _dispatch_message(
         selected, msg_id, external_userid, open_kfid,
         expected_msgid, event_create_time, msg_time,
-        send_customer_service_msg, handle_voice_bg, handle_image_bg,
+        send_customer_service_msg, handle_image_bg,
         handle_file_bg, handle_intent_bg, msg_to_text, log,
     )
 
@@ -456,11 +443,11 @@ async def handle_event(
     msg_is_processable: MsgProcessableFn,
     msg_time: MsgTimeFn,
     send_customer_service_msg: SendMessageFn,
-    handle_voice_bg: HandleVoiceFn,
     handle_image_bg: HandleImageFn,
     handle_file_bg: HandleFileFn,
     handle_intent_bg: HandleIntentFn,
     async_client_cls: Any = httpx.AsyncClient,
+    **_kwargs: Any,
 ) -> Dict[str, Any]:
     """Handle one WeCom KF callback event by syncing, selecting and dispatching one message."""
     cfg = get_config()
@@ -481,7 +468,7 @@ async def handle_event(
             return ret
         await _select_and_dispatch(
             candidates, expected_msgid, event_create_time, msg_time, log,
-            seen_msg_ids, send_customer_service_msg, handle_voice_bg,
+            seen_msg_ids, send_customer_service_msg,
             handle_image_bg, handle_file_bg, handle_intent_bg, msg_to_text,
         )
         return ret

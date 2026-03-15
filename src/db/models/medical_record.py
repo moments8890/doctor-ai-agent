@@ -24,9 +24,6 @@ class MedicalRecord(BaseModel):
     def _default_record_type(cls, v: object) -> str:
         return v if isinstance(v, str) and v.strip() else "visit"
 
-    specialty_scores: List[dict] = Field(default_factory=list)
-    """专科量表评分列表：[{"score_type": "NIHSS", "score_value": 8, "raw_text": "..."}]"""
-
     @field_validator("content")
     @classmethod
     def _strip_content(cls, value: str) -> str:

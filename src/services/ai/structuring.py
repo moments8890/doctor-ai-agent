@@ -200,14 +200,17 @@ async def _try_cloud_fallback(
         raise
 
 
+_NO_CLINICAL_CONTENT = "__NO_CLINICAL_CONTENT__"
+
+
 def _parse_llm_response(raw: str, text: str, provider_name: str) -> dict:
-    """Parse JSON from LLM response; fall back to raw text on error."""
+    """Parse JSON from LLM response; sentinel on parse error."""
     with trace_block("llm", "structuring.parse_response"):
         try:
             data = json.loads(raw)
         except (json.JSONDecodeError, TypeError) as _e:
-            log(f"[LLM:{provider_name}] JSON parse FAILED ({_e}); falling back to raw text")
-            data = {"content": text[:500], "tags": []}
+            log(f"[LLM:{provider_name}] JSON parse FAILED ({_e}); returning sentinel")
+            data = {"content": _NO_CLINICAL_CONTENT, "tags": []}
     return data
 
 
@@ -222,9 +225,8 @@ def _coerce_content(data: dict, text: str, provider_name: str) -> dict:
         elif content_val is not None:
             data["content"] = str(content_val)
     if not (data.get("content") or "").strip():
-        stripped = re.sub(r'^[\u4e00-\u9fff]{2,4}[，,]?(男|女)?[，,]?\d+岁[，,]?', '', text).strip()
-        data["content"] = stripped[:200] or text[:300]
-        log(f"[LLM:{provider_name}] content was empty, derived from input")
+        data["content"] = _NO_CLINICAL_CONTENT
+        log(f"[LLM:{provider_name}] content was empty, returning sentinel")
     return data
 
 
@@ -238,20 +240,11 @@ def _validate_and_coerce_fields(data: dict, text: str, provider_name: str) -> di
     if _missing:
         log(f"[Structuring] WARNING: LLM response missing fields {_missing}")
         if "content" not in data:
-            data["content"] = text[:300]
+            data["content"] = _NO_CLINICAL_CONTENT
         if "tags" not in data:
             data["tags"] = []
 
-    # Coerce specialty_scores: LLM returns dict, schema expects list
-    scores_val = data.get("specialty_scores")
-    if isinstance(scores_val, dict):
-        data["specialty_scores"] = [
-            {"score_type": k, "score_value": v}
-            for k, v in scores_val.items()
-            if v is not None
-        ]
-    elif not isinstance(scores_val, list):
-        data["specialty_scores"] = []
+    data.pop("specialty_scores", None)
 
     data = _coerce_content(data, text, provider_name)
 

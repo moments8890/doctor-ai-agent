@@ -64,14 +64,11 @@ def require_admin_token(
     env_name: str = "UI_ADMIN_TOKEN",
 ) -> None:
     """Require a static admin token for sensitive non-doctor-scoped endpoints."""
-    if not is_production() and _is_running_under_pytest():
+    if not is_production():
         return
 
     expected = (os.environ.get(env_name) or "").strip()
     if not expected:
-        # In development, skip token check when env var is not configured
-        if not is_production():
-            return
         raise HTTPException(status_code=503, detail="{0} is not configured".format(env_name))
 
     candidate = (provided_token or "").strip()

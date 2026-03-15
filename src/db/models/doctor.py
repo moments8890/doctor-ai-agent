@@ -1,5 +1,5 @@
 """
-医生相关的数据库模型：Doctor、DoctorContext、DoctorSessionState 等。
+医生相关的数据库模型：Doctor、DoctorContext 等。
 """
 
 from __future__ import annotations

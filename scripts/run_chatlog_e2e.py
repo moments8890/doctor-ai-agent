@@ -106,7 +106,7 @@ _CLEANUP_TABLES = [
     ("medical_records",       "doctor_id"),
     ("patients",              "doctor_id"),
     ("doctor_contexts",       "doctor_id"),
-    ("doctor_session_states", "doctor_id"),
+
     ("doctor_conversation_turns", "doctor_id"),
     ("doctors",               "doctor_id"),
 ]

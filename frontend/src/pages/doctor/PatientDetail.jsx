@@ -9,7 +9,6 @@ import {
 } from "@mui/material";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
-import { Paper } from "@mui/material";
 import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
@@ -20,7 +19,6 @@ import {
 import { RECORD_TYPE_FILTER_OPTS } from "./constants";
 import RecordCard from "./RecordCard";
 import PatientAvatar from "./PatientAvatar";
-import NeuroCVDContextCard from "./NeuroCVDContextCard";
 import LabelPicker from "./LabelPicker";
 
 function EmptyPatientPlaceholder() {
@@ -237,7 +235,6 @@ export default function PatientDetail({ patient, doctorId, onDeleted }) {
         onOpenLabelPicker={handleOpenLabelPicker} onRemoveLabel={handleRemoveLabel} onAssignLabel={handleAssignLabel} onLabelsChange={setPatientLabels} onCloseLabelPicker={() => setLabelPickerOpen(false)} onExportPdf={handleExportPdf} onExportReport={handleExportReport} onDeleteOpen={() => setDeleteConfirmOpen(true)} />
       {exportError && <Typography variant="caption" color="error.main" sx={{ display: "block", px: 2.5, mt: 0.5 }}>{exportError}</Typography>}
       <DeletePatientDialog open={deleteConfirmOpen} patientName={patient.name} deleting={deleting} isMobile={isMobile} onConfirm={handleDelete} onClose={() => setDeleteConfirmOpen(false)} />
-      <NeuroCVDContextCard patientId={patient.id} doctorId={doctorId} />
       <RecordListSection loading={loading} error={error} records={records} filteredRecords={filteredRecords} recordTypeFilter={recordTypeFilter} setRecordTypeFilter={setRecordTypeFilter} setRecords={setRecords} doctorId={doctorId} load={load} />
       <Box sx={{ height: 24 }} />
     </Box>

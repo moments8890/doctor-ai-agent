@@ -1,5 +1,5 @@
 /**
- * 聊天面板：医生与 AI 助手对话，支持语音录入、图片/音频上传和快捷命令。
+ * 聊天面板：医生与 AI 助手对话，支持图片上传和快捷命令。
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -9,15 +9,13 @@ import {
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
-import MicOutlinedIcon from "@mui/icons-material/MicOutlined";
-import StopCircleOutlinedIcon from "@mui/icons-material/StopCircleOutlined";
 import AttachFileOutlinedIcon from "@mui/icons-material/AttachFileOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
-import { sendChat, transcribeAudio, ocrImage, confirmPendingRecordById, abandonPendingRecordById, clearContext } from "../../api";
+import { sendChat, ocrImage, confirmPendingRecordById, abandonPendingRecordById, clearContext } from "../../api";
 import RecordFields from "../../components/RecordFields";
 import { t } from "../../i18n";
 import { QUICK_COMMANDS } from "./constants";
@@ -168,77 +166,15 @@ function FailedMessageBanner({ onRetry, onDismiss }) {
   );
 }
 
-function RecordingBanner({ recordingSeconds }) {
-  return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 2, py: 0.5, bgcolor: "#fff0f0" }}>
-      <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: "error.main", animation: "recBlink 1s ease-in-out infinite", "@keyframes recBlink": { "0%,100%": { opacity: 1 }, "50%": { opacity: 0.3 } } }} />
-      <Typography variant="caption" color="error" sx={{ fontWeight: 700 }}>
-        录音中 {Math.floor(recordingSeconds / 60)}:{String(recordingSeconds % 60).padStart(2, "0")}
-      </Typography>
-      <Typography variant="caption" color="text.secondary">· 点击停止</Typography>
-    </Box>
-  );
-}
-
-function useAudioRecorder(onTranscribed, onError) {
-  const [recording, setRecording] = useState(false);
-  const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const [processing, setProcessing] = useState(false);
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
-  const timerRef = useRef(null);
-
-  useEffect(() => () => clearInterval(timerRef.current), []);
-
-  async function start() {
-    onError(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
-      audioChunksRef.current = [];
-      mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
-      mr.onstop = async () => {
-        stream.getTracks().forEach((track) => track.stop());
-        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-        setProcessing(true);
-        try {
-          const { text } = await transcribeAudio(blob);
-          if (text) onTranscribed(text);
-        } catch {
-          onError("语音识别失败，请重试");
-        } finally {
-          setProcessing(false);
-        }
-      };
-      mr.start();
-      mediaRecorderRef.current = mr;
-      setRecording(true);
-      setRecordingSeconds(0);
-      timerRef.current = setInterval(() => setRecordingSeconds((s) => s + 1), 1000);
-    } catch {
-      onError("无法访问麦克风，请检查权限");
-    }
-  }
-
-  function stop() {
-    clearInterval(timerRef.current);
-    mediaRecorderRef.current?.stop();
-    setRecording(false);
-  }
-
-  return { recording, recordingSeconds, processing, start, stop };
-}
-
 function nowTs() {
   const d = new Date();
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-function MobileInputBar({ input, loading, isProcessing, recording, recordingSeconds, failedText, mediaError, fileInputRef, onInput, onSend, onFileClick, onRecordToggle, onRetry, onDismissError, onDismissFailed }) {
+function MobileInputBar({ input, loading, isProcessing, failedText, mediaError, fileInputRef, onInput, onSend, onFileClick, onRetry, onDismissError, onDismissFailed }) {
   return (
     <Box sx={{ borderTop: "1px solid #d9d9d9", backgroundColor: "#f5f5f5" }}>
       {failedText && <FailedMessageBanner onRetry={onRetry} onDismiss={onDismissFailed} />}
-      {recording && <RecordingBanner recordingSeconds={recordingSeconds} />}
       {mediaError && <Alert severity="error" onClose={onDismissError} sx={{ mx: 1, mt: 0.5, py: 0 }}>{mediaError}</Alert>}
       {isProcessing && (
         <Typography variant="caption" color="text.secondary" sx={{ display: "flex", alignItems: "center", gap: 0.5, px: 2, pt: 0.5 }}>
@@ -246,7 +182,7 @@ function MobileInputBar({ input, loading, isProcessing, recording, recordingSeco
         </Typography>
       )}
       <Stack direction="row" alignItems="center" sx={{ px: 1, py: 0.8, gap: 0.5 }}>
-        <IconButton size="small" onClick={onFileClick} disabled={isProcessing || recording} sx={{ color: "#666", p: 1.1 }}>
+        <IconButton size="small" onClick={onFileClick} disabled={isProcessing} sx={{ color: "#666", p: 1.1 }}>
           <AttachFileOutlinedIcon />
         </IconButton>
         <TextField multiline minRows={1} maxRows={4} fullWidth size="small"
@@ -255,23 +191,16 @@ function MobileInputBar({ input, loading, isProcessing, recording, recordingSeco
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); } }}
           disabled={isProcessing}
           sx={{ "& .MuiOutlinedInput-root": { borderRadius: "20px", backgroundColor: "#fff", fontSize: "0.9rem", "& fieldset": { borderColor: "#ddd" } } }} />
-        {input.trim() ? (
-          <IconButton onClick={onSend} disabled={loading}
-            sx={{ bgcolor: "#07C160", color: "#fff", p: 1.2, borderRadius: "50%", "&:hover": { bgcolor: "#06ad56" }, flexShrink: 0, minWidth: 44, minHeight: 44 }}>
-            <SendOutlinedIcon fontSize="small" />
-          </IconButton>
-        ) : (
-          <IconButton size="small" onClick={onRecordToggle} disabled={isProcessing}
-            sx={{ color: recording ? "error.main" : "#666", p: 1.1, minWidth: 44, minHeight: 44 }}>
-            {recording ? <StopCircleOutlinedIcon /> : <MicOutlinedIcon />}
-          </IconButton>
-        )}
+        <IconButton onClick={onSend} disabled={loading || !input.trim()}
+          sx={{ bgcolor: "#07C160", color: "#fff", p: 1.2, borderRadius: "50%", "&:hover": { bgcolor: "#06ad56" }, flexShrink: 0, minWidth: 44, minHeight: 44 }}>
+          <SendOutlinedIcon fontSize="small" />
+        </IconButton>
       </Stack>
     </Box>
   );
 }
 
-function DesktopInputBar({ input, loading, isProcessing, recording, failedText, mediaError, fileInputRef, onInput, onSend, onFileClick, onRecordToggle, onRetry, onDismissError, onDismissFailed }) {
+function DesktopInputBar({ input, loading, isProcessing, failedText, mediaError, fileInputRef, onInput, onSend, onFileClick, onRetry, onDismissError, onDismissFailed }) {
   return (
     <Box sx={{ px: 2, py: 1.2, borderTop: "1px solid #e5e5e5", backgroundColor: "#f7f7f7" }}>
       {failedText && <FailedMessageBanner onRetry={onRetry} onDismiss={onDismissFailed} />}
@@ -296,18 +225,10 @@ function DesktopInputBar({ input, loading, isProcessing, recording, failedText, 
           )}
         </Box>
         <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexShrink: 0 }}>
-          <Tooltip title="上传音频或图片">
+          <Tooltip title="上传图片">
             <span>
-              <IconButton size="small" onClick={onFileClick} disabled={isProcessing || recording} sx={{ color: "text.secondary" }}>
+              <IconButton size="small" onClick={onFileClick} disabled={isProcessing} sx={{ color: "text.secondary" }}>
                 <AttachFileOutlinedIcon fontSize="small" />
-              </IconButton>
-            </span>
-          </Tooltip>
-          <Tooltip title={recording ? "停止录音" : "语音输入"}>
-            <span>
-              <IconButton size="small" onClick={onRecordToggle} disabled={isProcessing}
-                sx={{ color: recording ? "error.main" : "text.secondary" }}>
-                {recording ? <StopCircleOutlinedIcon fontSize="small" /> : <MicOutlinedIcon fontSize="small" />}
               </IconButton>
             </span>
           </Tooltip>
@@ -445,14 +366,11 @@ async function processFile({ file, setMediaError, setMediaProcessing, setInput }
   setMediaError(null);
   setMediaProcessing(true);
   try {
-    if (file.type.startsWith("audio/")) {
-      const { text } = await transcribeAudio(file, file.name);
-      if (text) setInput((prev) => (prev ? prev + " " + text : text));
-    } else if (file.type.startsWith("image/")) {
+    if (file.type.startsWith("image/")) {
       const { text } = await ocrImage(file);
       if (text) setInput((prev) => (prev ? prev + "\n" + text : text));
     } else {
-      setMediaError("不支持的文件类型，请上传音频或图片");
+      setMediaError("不支持的文件类型，请上传图片");
     }
   } catch {
     setMediaError("文件处理失败，请重试");
@@ -496,20 +414,17 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
 
   const { input, setInput, loading, failedText, setFailedText, messages, setMessages, bottomRef, onClear, sendText } =
     useChatState({ doctorId, onMessageCountChange, onPatientCreated, onContextCleared });
-  const { recording, recordingSeconds, processing: recProcessing, start: startRec, stop: stopRec } = useAudioRecorder(
-    (text) => setInput((prev) => (prev ? prev + " " + text : text)), setMediaError,
-  );
   useChatEffects({ externalInput, onExternalInputConsumed, autoSendText, onAutoSendConsumed, setInput, sendText });
   const { handleConfirm: handlePendingConfirm, handleAbandon: handlePendingAbandon } = usePendingHandlers({ setMessages, onPatientCreated });
   function toggleCommands() {
     setCommandsShown((v) => { const next = !v; try { localStorage.setItem("chat_commands_shown", String(next)); } catch {} return next; });
   }
 
-  const isProcessing = recProcessing || mediaProcessing;
+  const isProcessing = mediaProcessing;
   const sharedBarProps = {
-    input, loading, isProcessing, recording, recordingSeconds, failedText, mediaError, fileInputRef,
+    input, loading, isProcessing, failedText, mediaError, fileInputRef,
     onInput: setInput, onSend: () => sendText(input.trim()), onFileClick: () => fileInputRef.current?.click(),
-    onRecordToggle: recording ? stopRec : startRec, onRetry: () => { setInput(failedText); setFailedText(null); },
+    onRetry: () => { setInput(failedText); setFailedText(null); },
     onDismissError: () => setMediaError(null), onDismissFailed: () => setFailedText(null),
   };
 
@@ -526,7 +441,7 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
         <div ref={bottomRef} />
       </Box>
       <QuickCommandsPanel isMobile={isMobile} shown={commandsShown} onToggle={toggleCommands} onSelect={setInput} />
-      <input ref={fileInputRef} type="file" accept="audio/*,image/*" style={{ display: "none" }}
+      <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }}
         onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; processFile({ file: f, setMediaError, setMediaProcessing, setInput }); }} />
       {isMobile ? <MobileInputBar {...sharedBarProps} /> : <DesktopInputBar {...sharedBarProps} />}
       <ClearDialog open={clearConfirmOpen} onClear={onClear} onClose={() => setClearConfirmOpen(false)} />

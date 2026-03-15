@@ -14,9 +14,7 @@ from db.models import (
     PatientLabel,
     MedicalRecordDB,
     DoctorTask,
-    NeuroCVDContext,
     PendingRecord,
-    SpecialtyScore,
 )
 from db.repositories import PatientRepository
 from utils.hashing import generate_access_code, hash_access_code
@@ -160,24 +158,10 @@ async def delete_patient_for_doctor(
             DoctorTask.patient_id == patient_id,
         )
     )
-    # neuro_case records (now stored in medical_records) are cascade-deleted
-    # when the patient row is deleted; no explicit delete needed here.
     await session.execute(
         delete(PendingRecord).where(
             PendingRecord.doctor_id == doctor_id,
             PendingRecord.patient_id == patient_id,
-        )
-    )
-    await session.execute(
-        delete(SpecialtyScore).where(
-            SpecialtyScore.doctor_id == doctor_id,
-            SpecialtyScore.patient_id == patient_id,
-        )
-    )
-    await session.execute(
-        delete(NeuroCVDContext).where(
-            NeuroCVDContext.doctor_id == doctor_id,
-            NeuroCVDContext.patient_id == patient_id,
         )
     )
     await session.delete(patient)

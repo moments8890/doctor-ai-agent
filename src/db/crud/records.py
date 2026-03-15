@@ -1,5 +1,5 @@
 """
-病历保存与查询、神经病例存储及自动随访任务创建的数据库操作。
+病历保存与查询及自动随访任务创建的数据库操作。
 """
 
 from __future__ import annotations
@@ -237,61 +237,6 @@ async def count_records_for_doctor(
             date_from=date_from,
             date_to=date_to,
         )
-
-
-async def save_neuro_case(
-    session: AsyncSession,
-    doctor_id: str,
-    case: "NeuroCase",  # type: ignore[name-defined]
-    extraction_log: "ExtractionLog",  # type: ignore[name-defined]
-    patient_id: Optional[int] = None,
-) -> MedicalRecordDB:
-    """Promote key scalar fields, serialise both objects, persist as a MedicalRecordDB row
-    with record_type='neuro_case'."""
-    pp = case.patient_profile if isinstance(case.patient_profile, dict) else {}
-    ne = case.neuro_exam if isinstance(case.neuro_exam, dict) else {}
-
-    nihss_raw = ne.get("nihss_total")
-    nihss: Optional[int] = None
-    if nihss_raw is not None:
-        try:
-            nihss = int(nihss_raw)
-        except (TypeError, ValueError):
-            nihss = None
-
-    doctor_id = await _ensure_doctor_exists(session, doctor_id)
-    row = MedicalRecordDB(
-        doctor_id=doctor_id,
-        patient_id=patient_id,
-        record_type="neuro_case",
-        encounter_type="unknown",
-        neuro_patient_name=pp.get("name"),
-        nihss=nihss,
-        neuro_raw_json=json.dumps(case.model_dump(), ensure_ascii=False),
-        neuro_extraction_log_json=json.dumps(extraction_log.model_dump(), ensure_ascii=False),
-    )
-    session.add(row)
-    await session.commit()
-    log(f"[silent-save] neuro_case saved doctor={doctor_id} patient_id={patient_id} nihss={nihss} name={pp.get('name')!r}")
-    return row
-
-
-async def get_neuro_cases_for_doctor(
-    session: AsyncSession,
-    doctor_id: str,
-    limit: int = 20,
-) -> List[MedicalRecordDB]:
-    """Return most-recent neuro cases for a doctor."""
-    result = await session.execute(
-        select(MedicalRecordDB)
-        .where(
-            MedicalRecordDB.doctor_id == doctor_id,
-            MedicalRecordDB.record_type == "neuro_case",
-        )
-        .order_by(MedicalRecordDB.created_at.desc())
-        .limit(limit)
-    )
-    return list(result.scalars().all())
 
 
 async def save_record_version(

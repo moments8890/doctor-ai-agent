@@ -252,7 +252,6 @@ def _format_import_preview(
     source_label = {
         "pdf": "PDF文件",
         "word": "Word文件",
-        "voice": "语音",
         "chat_export": "微信聊天记录",
     }.get(source, "文字")
     name_part = f"患者【{patient_name}】" if patient_name else "未关联患者"

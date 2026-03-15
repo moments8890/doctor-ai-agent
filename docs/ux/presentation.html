@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>医疗AI助手 — UX设计方案</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, 'PingFang SC', 'Helvetica Neue', 'Noto Sans SC', sans-serif; background: #1a1a1a; color: #fff; overflow: hidden; height: 100vh; }
+
+/* Slide container */
+.slides { position: relative; width: 100%; height: 100vh; }
+.slide { position: absolute; top: 0; left: 0; width: 100%; height: 100vh; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.4s ease; }
+.slide.active { opacity: 1; pointer-events: auto; }
+
+/* Slide layouts */
+.slide-content { max-width: 1100px; width: 100%; padding: 40px; display: flex; gap: 60px; align-items: center; }
+.slide-text { flex: 1; min-width: 300px; }
+.slide-phone { flex-shrink: 0; }
+
+/* Title slide */
+.title-slide .slide-content { flex-direction: column; text-align: center; gap: 20px; }
+.title-slide h1 { font-size: 48px; font-weight: 700; color: #fff; }
+.title-slide .subtitle { font-size: 20px; color: #999; margin-top: 8px; }
+.title-slide .meta { font-size: 14px; color: #666; margin-top: 40px; }
+.title-slide .tag { display: inline-block; background: #07C160; color: #fff; padding: 6px 16px; border-radius: 4px; font-size: 14px; margin: 4px; }
+
+/* Text styles */
+.slide-text h2 { font-size: 32px; font-weight: 600; margin-bottom: 12px; }
+.slide-text .label { font-size: 13px; color: #07C160; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; }
+.slide-text p { font-size: 16px; color: #aaa; line-height: 1.7; margin-bottom: 16px; }
+.slide-text ul { list-style: none; padding: 0; }
+.slide-text ul li { font-size: 15px; color: #bbb; line-height: 1.8; padding-left: 20px; position: relative; }
+.slide-text ul li:before { content: "·"; position: absolute; left: 4px; color: #07C160; font-weight: bold; }
+
+/* Phone mockup frame — iPhone 15 (393x852pt) */
+.phone-frame { width: 393px; border-radius: 55px; background: #000; padding: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); transform: scale(0.82); transform-origin: center center; }
+.phone-screen { border-radius: 47px; overflow: hidden; background: #ededed; height: 852px; position: relative; }
+/* Dynamic Island */
+.phone-screen::before { content: ''; position: absolute; top: 11px; left: 50%; transform: translateX(-50%); width: 126px; height: 37px; background: #000; border-radius: 20px; z-index: 10; }
+/* Home Indicator */
+.phone-screen::after { content: ''; position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 134px; height: 5px; background: #000; border-radius: 3px; z-index: 10; opacity: 0.2; }
+/* Status bar area — sits below Dynamic Island */
+.phone-status-bar { padding: 58px 16px 0 16px; display: flex; justify-content: space-between; font-size: 14px; color: #000; font-weight: 600; background: inherit; }
+.phone-status-bar .time { margin-left: 8px; }
+.phone-status-bar .icons { margin-right: 8px; display: flex; gap: 4px; align-items: center; }
+
+/* Navigation bar */
+.nav-controls { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; z-index: 100; background: rgba(40,40,40,0.9); padding: 10px 20px; border-radius: 30px; backdrop-filter: blur(10px); }
+.nav-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: #333; color: #fff; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+.nav-btn:hover { background: #07C160; }
+.nav-btn:disabled { opacity: 0.3; cursor: default; }
+.nav-btn:disabled:hover { background: #333; }
+.slide-counter { font-size: 14px; color: #888; min-width: 60px; text-align: center; }
+
+/* Dots */
+.dots { display: flex; gap: 6px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #444; cursor: pointer; transition: all 0.3s; }
+.dot.active { background: #07C160; width: 24px; border-radius: 4px; }
+
+/* Flow slide (multi-phone) */
+.flow-content { display: flex; gap: 30px; align-items: center; justify-content: center; }
+.flow-phone { transform: scale(0.7); }
+.flow-arrow { font-size: 28px; color: #07C160; flex-shrink: 0; }
+.flow-label { text-align: center; font-size: 12px; color: #999; margin-top: 8px; }
+
+/* Chat log scrollbar */
+.chat-log::-webkit-scrollbar { width: 4px; }
+.chat-log::-webkit-scrollbar-track { background: transparent; }
+.chat-log::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .slide-content { flex-direction: column; gap: 30px; padding: 20px; }
+  .slide-text { min-width: auto; text-align: center; }
+  .slide-text ul li { text-align: left; }
+  .phone-frame { width: 393px; transform: scale(0.65); }
+  .title-slide h1 { font-size: 32px; }
+}
+
+/* Keyboard hint */
+.keyboard-hint { position: fixed; top: 20px; right: 20px; font-size: 12px; color: #555; z-index: 100; }
+</style>
+</head>
+<body>
+
+<div class="keyboard-hint">← → 或点击箭头翻页</div>
+
+<div class="slides">
+
+<!-- Slide 0: Title -->
+<div class="slide title-slide active" data-index="0">
+  <div class="slide-content">
+    <div>
+      <h1>医疗AI助手</h1>
+      <div class="subtitle">面向全科医生的智能工作平台</div>
+    </div>
+    <div>
+      <span class="tag">微信风格</span>
+      <span class="tag">对话优先</span>
+      <span class="tag">手机App + 微信小程序</span>
+    </div>
+    <div class="meta">UX设计方案 · 2026年3月 · v1.0</div>
+  </div>
+</div>
+
+<!-- Slide 1: Architecture -->
+<div class="slide" data-index="1">
+  <div class="slide-content">
+    <div class="slide-text">
+      <div class="label">架构</div>
+      <h2>Chat-First 对话优先</h2>
+      <p>AI对话是应用的核心枢纽。患者管理、任务创建、报告查询——所有操作都可以通过自然对话完成。</p>
+      <ul>
+        <li>AI助手 — 默认首页，智能对话交互</li>
+        <li>患者 — 患者列表与详情管理</li>
+        <li>任务 — 预约与待办事项管理</li>
+        <li>我的 — 个人设置与文档管理</li>
+      </ul>
+    </div>
+    <div class="slide-phone">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <div style="background: #ededed; min-height: 852px; position: relative;">
+            <div style="padding: 58px 24px 0 24px; display: flex; justify-content: space-between; font-size: 15px; color: #000; font-weight: 600; background: inherit;"><span>9:41</span><span style="display:flex; gap:5px; align-items:center;"><svg width="18" height="12" viewBox="0 0 18 12"><path d="M1 9h2v3H1zM5 6h2v6H5zM9 3h2v9H9zM13 0h2v12h-2z" fill="#111"/></svg><svg width="16" height="12" viewBox="0 0 16 12"><rect x="0" y="0" width="14" height="12" rx="2" stroke="#111" stroke-width="1.5" fill="none"/><rect x="2" y="2" width="8" height="8" rx="1" fill="#111"/><rect x="14.5" y="3.5" width="1.5" height="5" rx="0.5" fill="#111"/></svg></span></div>
+            <div style="background: #ededed; padding: 10px 16px; text-align: center; font-size: 17px; font-weight: 500; color: #000;">AI助手</div>
+            <!-- Concept illustration -->
+            <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 80px 40px;">
+              <div style="width: 80px; height: 80px; border-radius: 4px; background: #07C160; display:flex; align-items:center; justify-content:center; color:white; font-size: 36px; margin-bottom: 24px;">AI</div>
+              <div style="font-size: 22px; font-weight: 600; color: #111; margin-bottom: 12px;">对话即操作</div>
+              <div style="font-size: 14px; color: #999; text-align: center; line-height: 1.8;">
+                "新建患者 陈梅 女 62岁"<br>
+                "查看今天的紧急报告"<br>
+                "下周二安排复诊"
+              </div>
+            </div>
+            <!-- Tab bar -->
+            <div style="background: #f7f7f7; border-top: 0.5px solid #d9d9d9; display: flex; padding: 4px 0 30px 0; position: absolute; bottom: 0; left: 0; right: 0;">
+              <div style="flex:1; text-align:center; padding-top: 4px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="margin:0 auto; display:block;"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" fill="#07C160"/></svg><div style="font-size: 10px; color: #07C160; margin-top: 2px;">AI助手</div></div>
+              <div style="flex:1; text-align:center; padding-top: 4px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="margin:0 auto; display:block;"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z" fill="#999"/></svg><div style="font-size: 10px; color: #999; margin-top: 2px;">患者</div></div>
+              <div style="flex:1; text-align:center; padding-top: 4px; position:relative;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="margin:0 auto; display:block;"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10H7v-2h10v2z" fill="#999"/></svg><div style="font-size: 10px; color: #999; margin-top: 2px;">任务</div><div style="position:absolute; top:0; right:22%; background:#FA5151; color:#fff; font-size:9px; border-radius:8px; padding:0 4px; min-width:14px; text-align:center; line-height:14px;">5</div></div>
+              <div style="flex:1; text-align:center; padding-top: 4px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="margin:0 auto; display:block;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="#999"/></svg><div style="font-size: 10px; color: #999; margin-top: 2px;">我的</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 2: AI Chat -->
+<div class="slide" data-index="2">
+  <div class="slide-content">
+    <div class="slide-text">
+      <div class="label">Screen 1</div>
+      <h2>AI助手</h2>
+      <p>默认首页。每日首次打开自动推送工作摘要，医生可用自然语言完成所有操作。</p>
+      <ul>
+        <li>AI主动推送今日摘要（待复诊、紧急报告、预约数）</li>
+        <li>自然语言查询患者信息和检验报告</li>
+        <li>对话式创建患者、任务</li>
+        <li>AI回复中嵌入可点击的患者卡片</li>
+        <li>语音输入（按住说话，微信风格）</li>
+        <li>⊕ 附件菜单：拍照、相册、文档、患者档案</li>
+      </ul>
+    </div>
+    <div class="slide-phone">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <div style="background: #ededed; min-height: 852px; position: relative;">
+            <div style="padding: 58px 24px 0 24px; display: flex; justify-content: space-between; font-size: 15px; color: #000; font-weight: 600; background: inherit;"><span>9:41</span><span style="display:flex; gap:5px; align-items:center;"><svg width="18" height="12" viewBox="0 0 18 12"><path d="M1 9h2v3H1zM5 6h2v6H5zM9 3h2v9H9zM13 0h2v12h-2z" fill="#111"/></svg><svg width="16" height="12" viewBox="0 0 16 12"><rect x="0" y="0" width="14" height="12" rx="2" stroke="#111" stroke-width="1.5" fill="none"/><rect x="2" y="2" width="8" height="8" rx="1" fill="#111"/><rect x="14.5" y="3.5" width="1.5" height="5" rx="0.5" fill="#111"/></svg></span></div>
+            <div style="background: #ededed; padding: 10px 16px; text-align: center; font-size: 17px; font-weight: 500; color: #000;">AI助手</div>
+            <div style="padding: 12px 16px; min-height: 380px;">
+              <div style="display: flex; gap: 8px; margin-bottom: 16px; align-items: flex-start;">
+                <div style="width: 40px; height: 40px; border-radius: 4px; background: #07C160; display:flex; align-items:center; justify-content:center; color:white; font-size: 18px; flex-shrink:0;">AI</div>
+                <div style="background: #fff; border-radius: 4px; padding: 10px 12px; max-width: 240px; font-size: 14px; color: #111; line-height: 1.5; position: relative;">
+                  <div style="position:absolute; left:-6px; top:12px; width:0; height:0; border-top:6px solid transparent; border-bottom:6px solid transparent; border-right:6px solid #fff;"></div>
+                  王医生早上好，今日工作摘要：
+                  <div style="margin-top: 8px; border-top: 0.5px solid #f0f0f0; padding-top: 8px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span style="color: #666; font-size: 12px;">待复诊</span><span style="color: #07C160; font-weight: 500; font-size: 12px;">3位患者</span></div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span style="color: #666; font-size: 12px;">待审报告</span><span style="color: #FA5151; font-weight: 500; font-size: 12px;">2项紧急</span></div>
+                    <div style="display: flex; justify-content: space-between;"><span style="color: #666; font-size: 12px;">今日预约</span><span style="color: #333; font-weight: 500; font-size: 12px;">7位患者</span></div>
+                  </div>
+                </div>
+              </div>
+              <div style="display: flex; gap: 8px; margin-bottom: 16px; align-items: flex-start; flex-direction: row-reverse;">
+                <div style="width: 40px; height: 40px; border-radius: 4px; background: #ccc; display:flex; align-items:center; justify-content:center; font-size: 16px; flex-shrink:0; color: #fff;">王</div>
+                <div style="background: #95EC69; border-radius: 4px; padding: 10px 12px; max-width: 240px; font-size: 14px; color: #111; line-height: 1.5; position: relative;">
+                  <div style="position:absolute; right:-6px; top:12px; width:0; height:0; border-top:6px solid transparent; border-bottom:6px solid transparent; border-left:6px solid #95EC69;"></div>
+                  查看紧急报告
+                </div>
+              </div>
+              <div style="display: flex; gap: 8px; align-items: flex-start;">
+                <div style="width: 40px; height: 40px; border-radius: 4px; background: #07C160; display:flex; align-items:center; justify-content:center; color:white; font-size: 18px; flex-shrink:0;">AI</div>
+                <div style="background: #fff; border-radius: 4px; padding: 10px 12px; max-width: 240px; font-size: 14px; color: #111; line-height: 1.5; position: relative;">
+                  <div style="position:absolute; left:-6px; top:12px; width:0; height:0; border-top:6px solid transparent; border-bottom:6px solid transparent; border-right:6px solid #fff;"></div>
+                  <div style="font-weight: 500; margin-bottom: 6px;">2项紧急检验报告：</div>
+                  <div style="background: #f7f7f7; border-radius: 4px; padding: 6px 8px; margin-bottom: 4px;">
+                    <div style="font-size: 13px; font-weight: 500;">陈梅，女，62岁</div>
+                    <div style="font-size: 11px; color: #999; margin-top: 2px;">血糖：15.2 mmol/L ↑</div>
+                    <div style="font-size: 11px; color: #FA5151; margin-top: 1px;">危急 — 需立即处理</div>
+                  </div>
+                  <div style="background: #f7f7f7; border-radius: 4px; padding: 6px 8px;">
+                    <div style="font-size: 13px; font-weight: 500;">李伟，男，45岁</div>
+                    <div style="font-size: 11px; color: #999; margin-top: 2px;">胆固醇：7.8 mmol/L ↑</div>
+                    <div style="font-size: 11px; color: #FF9500; margin-top: 1px;">偏高 — 建议安排复诊</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style="background: #f5f5f5; border-top: 0.5px solid #e0e0e0; padding: 8px; display: flex; align-items: center; gap: 8px; position: absolute; bottom: 74px; left: 0; right: 0;">
+              <svg width="26" height="26" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="12" r="4" stroke="#666" stroke-width="1.5" fill="none"/><path d="M9 12a5 5 0 0 0 10 0" stroke="#666" stroke-width="1.5" fill="none" stroke-linecap="round"/><line x1="14" y1="17" x2="14" y2="20" stroke="#666" stroke-width="1.5" stroke-linecap="round"/><line x1="11" y1="20" x2="17" y2="20" stroke="#666" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <div style="flex:1; background: #fff; border-radius: 4px; padding: 7px 10px; font-size: 13px; color: #bbb; border: 0.5px solid #e0e0e0;">输入消息...</div>
+              <svg width="26" height="26" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="12" stroke="#666" stroke-width="1.5" fill="none"/><line x1="14" y1="8" x2="14" y2="20" stroke="#666" stroke-width="1.5" stroke-linecap="round"/><line x1="8" y1="14" x2="20" y2="14" stroke="#666" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+            <div style="background: #f7f7f7; border-top: 0.5px solid #d9d9d9; display: flex; padding: 4px 0 30px 0; position: absolute; bottom: 0; left: 0; right: 0;">
+              <div style="flex:1; text-align:center; padding-top: 4px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="margin:0 auto; display:block;"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" fill="#07C160"/></svg><div style="font-size: 10px; color: #07C160; margin-top: 2px;">AI助手</div></div>
+              <div style="flex:1; text-align:center; padding-top: 4px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="margin:0 auto; display:block;"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z" fill="#999"/></svg><div style="font-size: 10px; color: #999; margin-top: 2px;">患者</div></div>
+              <div style="flex:1; text-align:center; padding-top: 4px; position:relative;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="margin:0 auto; display:block;"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10H7v-2h10v2z" fill="#999"/></svg><div style="font-size: 10px; color: #999; margin-top: 2px;">任务</div><div style="position:absolute; top:0; right:22%; background:#FA5151; color:#fff; font-size:9px; border-radius:8px; padding:0 4px; min-width:14px; text-align:center; line-height:14px;">5</div></div>
+              <div style="flex:1; text-align:center; padding-top: 4px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="margin:0 auto; display:block;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="#999"/></svg><div style="font-size: 10px; color: #999; margin-top: 2px;">我的</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 5: New Patient Flow -->
+<div class="slide" data-index="3">
+  <div class="slide-content">
+    <div class="slide-text">
+      <div class="label">工作流</div>
+      <h2>新建患者（对话驱动）</h2>
+      <p>保持Chat-First一致性，通过对话创建患者，AI自动提取信息。</p>
+      <ul>
+        <li>步骤1：医生在AI对话中输入患者信息（文字或语音）</li>
+        <li>步骤2：AI提取信息，生成预览卡片</li>
+        <li>"确认创建" → 直接保存（快速路径）</li>
+        <li>"编辑完善" → 打开预填表单，补充更多信息</li>
+        <li>患者列表"新建患者" → 也跳转AI对话</li>
+      </ul>
+    </div>
+    <div class="slide-phone">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <div style="background: #ededed; min-height: 852px; padding: 0;">
+            <div style="padding: 58px 24px 0 24px; display: flex; justify-content: space-between; font-size: 15px; color: #000; font-weight: 600; background: inherit;"><span>9:41</span><span style="display:flex; gap:5px; align-items:center;"><svg width="18" height="12" viewBox="0 0 18 12"><path d="M1 9h2v3H1zM5 6h2v6H5zM9 3h2v9H9zM13 0h2v12h-2z" fill="#111"/></svg><svg width="16" height="12" viewBox="0 0 16 12"><rect x="0" y="0" width="14" height="12" rx="2" stroke="#111" stroke-width="1.5" fill="none"/><rect x="2" y="2" width="8" height="8" rx="1" fill="#111"/><rect x="14.5" y="3.5" width="1.5" height="5" rx="0.5" fill="#111"/></svg></span></div>
+            <div style="background: #ededed; padding: 10px 16px; text-align: center; font-size: 17px; font-weight: 500; color: #000;">AI助手</div>
+            <div style="padding: 12px 16px; min-height: 852px;">
+              <div style="display: flex; gap: 8px; margin-bottom: 16px; align-items: flex-start; flex-direction: row-reverse;">
+                <div style="width: 40px; height: 40px; border-radius: 4px; background: #ccc; display:flex; align-items:center; justify-content:center; font-size: 16px; color: #fff;">王</div>
+                <div style="background: #95EC69; border-radius: 4px; padding: 10px 12px; max-width: 240px; font-size: 14px; color: #111; line-height: 1.5; position: relative;">
+                  <div style="position:absolute; right:-6px; top:12px; width:0; height:0; border-top:6px solid transparent; border-bottom:6px solid transparent; border-left:6px solid #95EC69;"></div>
+                  新建患者 陈梅 女 62岁 糖尿病 对青霉素过敏
+                </div>
+              </div>
+              <div style="display: flex; gap: 8px; align-items: flex-start;">
+                <div style="width: 40px; height: 40px; border-radius: 4px; background: #07C160; display:flex; align-items:center; justify-content:center; color:white; font-size: 18px; flex-shrink:0;">AI</div>
+                <div style="background: #fff; border-radius: 4px; padding: 10px 12px; max-width: 240px; font-size: 14px; color: #111; line-height: 1.5; position: relative;">
+                  <div style="position:absolute; left:-6px; top:12px; width:0; height:0; border-top:6px solid transparent; border-bottom:6px solid transparent; border-right:6px solid #fff;"></div>
+                  已为您提取以下信息，请确认：
+                  <div style="background: #f7f7f7; border-radius: 4px; padding: 8px; margin-top: 8px; margin-bottom: 8px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span style="color: #999; font-size: 12px;">姓名</span><span style="color: #111; font-size: 12px; font-weight: 500;">陈梅</span></div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span style="color: #999; font-size: 12px;">性别</span><span style="color: #111; font-size: 12px;">女</span></div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span style="color: #999; font-size: 12px;">年龄</span><span style="color: #111; font-size: 12px;">62岁</span></div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span style="color: #999; font-size: 12px;">诊断</span><span style="color: #111; font-size: 12px;">糖尿病</span></div>
+                    <div style="display: flex; justify-content: space-between;"><span style="color: #999; font-size: 12px;">过敏</span><span style="color: #FA5151; font-size: 12px;">青霉素</span></div>
+                  </div>
+                  <div style="display: flex; gap: 6px;">
+                    <div style="flex:1; background: #07C160; color: #fff; text-align: center; padding: 7px; border-radius: 4px; font-size: 12px;">确认创建</div>
+                    <div style="flex:1; background: #f0f0f0; color: #666; text-align: center; padding: 7px; border-radius: 4px; font-size: 12px;">编辑完善</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style="background: #f5f5f5; border-top: 0.5px solid #e0e0e0; padding: 8px; display: flex; align-items: center; gap: 8px; position: absolute; bottom: 74px; left: 0; right: 0;">
+              <svg width="26" height="26" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="12" r="4" stroke="#666" stroke-width="1.5" fill="none"/><path d="M9 12a5 5 0 0 0 10 0" stroke="#666" stroke-width="1.5" fill="none" stroke-linecap="round"/><line x1="14" y1="17" x2="14" y2="20" stroke="#666" stroke-width="1.5" stroke-linecap="round"/><line x1="11" y1="20" x2="17" y2="20" stroke="#666" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <div style="flex:1; background: #fff; border-radius: 4px; padding: 7px 10px; font-size: 13px; color: #bbb; border: 0.5px solid #e0e0e0;">输入消息...</div>
+              <svg width="26" height="26" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="12" stroke="#666" stroke-width="1.5" fill="none"/><line x1="14" y1="8" x2="14" y2="20" stroke="#666" stroke-width="1.5" stroke-linecap="round"/><line x1="8" y1="14" x2="20" y2="14" stroke="#666" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+            <div style="background: #f7f7f7; border-top: 0.5px solid #d9d9d9; display: flex; padding: 4px 0 30px 0; position: absolute; bottom: 0; left: 0; right: 0;">
+              <div style="flex:1; text-align:center; padding-top: 4px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="margin:0 auto; display:block;"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" fill="#07C160"/></svg><div style="font-size: 10px; color: #07C160; margin-top: 2px;">AI助手</div></div>
+              <div style="flex:1; text-align:center; padding-top: 4px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="margin:0 auto; display:block;"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z" fill="#999"/></svg><div style="font-size: 10px; color: #999; margin-top: 2px;">患者</div></div>
+              <div style="flex:1; text-align:center; padding-top: 4px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="margin:0 auto; display:block;"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10H7v-2h10v2z" fill="#999"/></svg><div style="font-size: 10px; color: #999; margin-top: 2px;">任务</div></div>
+              <div style="flex:1; text-align:center; padding-top: 4px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="margin:0 auto; display:block;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="#999"/></svg><div style="font-size: 10px; color: #999; margin-top: 2px;">我的</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 8: Chat Log Demo -->
+<div class="slide" data-index="4">
+  <div class="slide-content">
+    <div class="slide-text">
+      <div class="label">实际对话演示</div>
+      <h2>新建患者 — 完整对话</h2>
+      <p>医生与AI助手的真实交互过程，展示对话驱动的工作流。</p>
+      <ul>
+        <li>1. 自然语言输入 — 医生用日常口语描述患者信息</li>
+        <li>2. AI智能提取 — 从对话中提取结构化数据</li>
+        <li>3. 确认或补充 — 可直接创建或编辑完善</li>
+        <li>4. 创建成功 — AI提供快捷操作按钮</li>
+        <li>5. 连续操作 — 同一对话中继续安排复诊</li>
+      </ul>
+    </div>
+    <div class="slide-phone">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <div style="background: #ededed; min-height: 852px; position: relative;">
+            <div style="padding: 58px 24px 0 24px; display: flex; justify-content: space-between; font-size: 15px; color: #000; font-weight: 600; background: inherit;"><span>9:41</span><span style="display:flex; gap:5px; align-items:center;"><svg width="18" height="12" viewBox="0 0 18 12"><path d="M1 9h2v3H1zM5 6h2v6H5zM9 3h2v9H9zM13 0h2v12h-2z" fill="#111"/></svg><svg width="16" height="12" viewBox="0 0 16 12"><rect x="0" y="0" width="14" height="12" rx="2" stroke="#111" stroke-width="1.5" fill="none"/><rect x="2" y="2" width="8" height="8" rx="1" fill="#111"/><rect x="14.5" y="3.5" width="1.5" height="5" rx="0.5" fill="#111"/></svg></span></div>
+            <div style="background: #ededed; padding: 10px 16px; text-align: center; font-size: 17px; font-weight: 500; color: #000;">AI助手</div>
+            <!-- Chat content — scrollable area -->
+            <div style="padding: 12px 12px; padding-bottom: 120px; overflow-y: auto; height: 680px;" class="chat-log">
+              <div style="text-align: center; margin-bottom: 12px;"><span style="background: #ccc; color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 3px;">今天 09:15</span></div>
+              <!-- AI greeting -->
+              <div style="display: flex; gap: 6px; margin-bottom: 12px; align-items: flex-start;">
+                <div style="width: 36px; height: 36px; border-radius: 4px; background: #07C160; display:flex; align-items:center; justify-content:center; color:white; font-size: 14px; flex-shrink:0;">AI</div>
+                <div style="background: #fff; border-radius: 4px; padding: 8px 10px; max-width: 250px; font-size: 13px; color: #111; line-height: 1.5; position: relative;">
+                  <div style="position:absolute; left:-6px; top:10px; width:0; height:0; border-top:5px solid transparent; border-bottom:5px solid transparent; border-right:5px solid #fff;"></div>
+                  王医生早上好！今天有7位预约患者，2项紧急报告需要审核。
+                </div>
+              </div>
+              <!-- User -->
+              <div style="display: flex; gap: 6px; margin-bottom: 12px; align-items: flex-start; flex-direction: row-reverse;">
+                <div style="width: 36px; height: 36px; border-radius: 4px; background: #ccc; display:flex; align-items:center; justify-content:center; font-size: 13px; flex-shrink:0; color: #fff;">王</div>
+                <div style="background: #95EC69; border-radius: 4px; padding: 8px 10px; max-width: 250px; font-size: 13px; color: #111; line-height: 1.5; position: relative;">
+                  <div style="position:absolute; right:-6px; top:10px; width:0; height:0; border-top:5px solid transparent; border-bottom:5px solid transparent; border-left:5px solid #95EC69;"></div>
+                  帮我新建一个患者，刚来了个新病人
+                </div>
+              </div>
+              <!-- AI -->
+              <div style="display: flex; gap: 6px; margin-bottom: 12px; align-items: flex-start;">
+                <div style="width: 36px; height: 36px; border-radius: 4px; background: #07C160; display:flex; align-items:center; justify-content:center; color:white; font-size: 14px; flex-shrink:0;">AI</div>
+                <div style="background: #fff; border-radius: 4px; padding: 8px 10px; max-width: 250px; font-size: 13px; color: #111; line-height: 1.5; position: relative;">
+                  <div style="position:absolute; left:-6px; top:10px; width:0; height:0; border-top:5px solid transparent; border-bottom:5px solid transparent; border-right:5px solid #fff;"></div>
+                  好的，请告诉我患者的基本信息，比如姓名、性别、年龄、主要症状等。
+                </div>
+              </div>
+              <!-- User: natural info -->
+              <div style="display: flex; gap: 6px; margin-bottom: 12px; align-items: flex-start; flex-direction: row-reverse;">
+                <div style="width: 36px; height: 36px; border-radius: 4px; background: #ccc; display:flex; align-items:center; justify-content:center; font-size: 13px; flex-shrink:0; color: #fff;">王</div>
+                <div style="background: #95EC69; border-radius: 4px; padding: 8px 10px; max-width: 250px; font-size: 13px; color: #111; line-height: 1.5; position: relative;">
+                  <div style="position:absolute; right:-6px; top:10px; width:0; height:0; border-top:5px solid transparent; border-bottom:5px solid transparent; border-left:5px solid #95EC69;"></div>
+                  姓赵，赵丽华，女的，今年48岁，头晕血压偏高，之前查过是高血压，对磺胺类药物过敏
+                </div>
+              </div>
+              <!-- AI: extract card -->
+              <div style="display: flex; gap: 6px; margin-bottom: 12px; align-items: flex-start;">
+                <div style="width: 36px; height: 36px; border-radius: 4px; background: #07C160; display:flex; align-items:center; justify-content:center; color:white; font-size: 14px; flex-shrink:0;">AI</div>
+                <div style="background: #fff; border-radius: 4px; padding: 8px 10px; max-width: 250px; font-size: 13px; color: #111; line-height: 1.5; position: relative;">
+                  <div style="position:absolute; left:-6px; top:10px; width:0; height:0; border-top:5px solid transparent; border-bottom:5px solid transparent; border-right:5px solid #fff;"></div>
+                  已为您提取以下信息：
+                  <div style="background: #f7f7f7; border-radius: 4px; padding: 6px; margin-top: 6px; margin-bottom: 6px; font-size: 11px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 3px;"><span style="color: #999;">姓名</span><span style="color: #111; font-weight: 500;">赵丽华</span></div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 3px;"><span style="color: #999;">性别</span><span style="color: #111;">女</span></div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 3px;"><span style="color: #999;">年龄</span><span style="color: #111;">48岁</span></div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 3px;"><span style="color: #999;">诊断</span><span style="color: #111;">高血压</span></div>
+                    <div style="display: flex; justify-content: space-between;"><span style="color: #999;">过敏</span><span style="color: #FA5151; font-weight: 500;">磺胺类</span></div>
+                  </div>
+                  <div style="display: flex; gap: 4px;">
+                    <div style="flex:1; background: #07C160; color: #fff; text-align: center; padding: 6px; border-radius: 4px; font-size: 11px;">确认创建</div>
+                    <div style="flex:1; background: #f0f0f0; color: #666; text-align: center; padding: 6px; border-radius: 4px; font-size: 11px;">编辑完善</div>
+                  </div>
+                </div>
+              </div>
+              <!-- User: confirm -->
+              <div style="display: flex; gap: 6px; margin-bottom: 12px; align-items: flex-start; flex-direction: row-reverse;">
+                <div style="width: 36px; height: 36px; border-radius: 4px; background: #ccc; display:flex; align-items:center; justify-content:center; font-size: 13px; flex-shrink:0; color: #fff;">王</div>
+                <div style="background: #95EC69; border-radius: 4px; padding: 8px 10px; max-width: 250px; font-size: 13px; color: #111; line-height: 1.5; position: relative;">
+                  <div style="position:absolute; right:-6px; top:10px; width:0; height:0; border-top:5px solid transparent; border-bottom:5px solid transparent; border-left:5px solid #95EC69;"></div>
+                  手机号13812345678，直接创建吧
+                </div>
+              </div>
+              <!-- AI: success -->
+              <div style="display: flex; gap: 6px; margin-bottom: 12px; align-items: flex-start;">
+                <div style="width: 36px; height: 36px; border-radius: 4px; background: #07C160; display:flex; align-items:center; justify-content:center; color:white; font-size: 14px; flex-shrink:0;">AI</div>
+                <div style="background: #fff; border-radius: 4px; padding: 8px 10px; max-width: 250px; font-size: 13px; color: #111; line-height: 1.5; position: relative;">
+                  <div style="position:absolute; left:-6px; top:10px; width:0; height:0; border-top:5px solid transparent; border-bottom:5px solid transparent; border-right:5px solid #fff;"></div>
+                  <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 4px;">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" fill="#07C160"/><path d="M5 8l2 2 4-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span style="font-weight: 500; color: #07C160; font-size: 12px;">已成功创建患者赵丽华</span>
+                  </div>
+                  <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px;">
+                    <span style="background: #f7f7f7; border: 0.5px solid #e0e0e0; color: #07C160; font-size: 10px; padding: 3px 6px; border-radius: 3px;">查看档案</span>
+                    <span style="background: #f7f7f7; border: 0.5px solid #e0e0e0; color: #07C160; font-size: 10px; padding: 3px 6px; border-radius: 3px;">安排预约</span>
+                    <span style="background: #f7f7f7; border: 0.5px solid #e0e0e0; color: #07C160; font-size: 10px; padding: 3px 6px; border-radius: 3px;">开具处方</span>
+                  </div>
+                </div>
+              </div>
+              <!-- User: schedule -->
+              <div style="display: flex; gap: 6px; margin-bottom: 12px; align-items: flex-start; flex-direction: row-reverse;">
+                <div style="width: 36px; height: 36px; border-radius: 4px; background: #ccc; display:flex; align-items:center; justify-content:center; font-size: 13px; flex-shrink:0; color: #fff;">王</div>
+                <div style="background: #95EC69; border-radius: 4px; padding: 8px 10px; max-width: 250px; font-size: 13px; color: #111; line-height: 1.5; position: relative;">
+                  <div style="position:absolute; right:-6px; top:10px; width:0; height:0; border-top:5px solid transparent; border-bottom:5px solid transparent; border-left:5px solid #95EC69;"></div>
+                  帮她安排下周三上午复诊，查血常规和肾功能
+                </div>
+              </div>
+              <!-- AI: appointment created -->
+              <div style="display: flex; gap: 6px; margin-bottom: 8px; align-items: flex-start;">
+                <div style="width: 36px; height: 36px; border-radius: 4px; background: #07C160; display:flex; align-items:center; justify-content:center; color:white; font-size: 14px; flex-shrink:0;">AI</div>
+                <div style="background: #fff; border-radius: 4px; padding: 8px 10px; max-width: 250px; font-size: 13px; color: #111; line-height: 1.5; position: relative;">
+                  <div style="position:absolute; left:-6px; top:10px; width:0; height:0; border-top:5px solid transparent; border-bottom:5px solid transparent; border-right:5px solid #fff;"></div>
+                  <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 4px;">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" fill="#07C160"/><path d="M5 8l2 2 4-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span style="font-weight: 500; color: #07C160; font-size: 12px;">已创建预约</span>
+                  </div>
+                  <div style="background: #f7f7f7; border-radius: 4px; padding: 6px; margin-top: 4px; font-size: 11px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 2px;"><span style="color: #999;">患者</span><span style="color: #111;">赵丽华</span></div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 2px;"><span style="color: #999;">时间</span><span style="color: #111;">3月18日（周三）上午</span></div>
+                    <div style="display: flex; justify-content: space-between;"><span style="color: #999;">检查</span><span style="color: #111;">血常规、肾功能</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- Input bar -->
+            <div style="background: #f5f5f5; border-top: 0.5px solid #e0e0e0; padding: 8px; display: flex; align-items: center; gap: 8px; position: absolute; bottom: 74px; left: 0; right: 0;">
+              <svg width="26" height="26" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="12" r="4" stroke="#666" stroke-width="1.5" fill="none"/><path d="M9 12a5 5 0 0 0 10 0" stroke="#666" stroke-width="1.5" fill="none" stroke-linecap="round"/><line x1="14" y1="17" x2="14" y2="20" stroke="#666" stroke-width="1.5" stroke-linecap="round"/><line x1="11" y1="20" x2="17" y2="20" stroke="#666" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <div style="flex:1; background: #fff; border-radius: 4px; padding: 7px 10px; font-size: 13px; color: #bbb; border: 0.5px solid #e0e0e0;">输入消息...</div>
+              <svg width="26" height="26" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="12" stroke="#666" stroke-width="1.5" fill="none"/><line x1="14" y1="8" x2="14" y2="20" stroke="#666" stroke-width="1.5" stroke-linecap="round"/><line x1="8" y1="14" x2="20" y2="14" stroke="#666" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+            <!-- Tab bar -->
+            <div style="background: #f7f7f7; border-top: 0.5px solid #d9d9d9; display: flex; padding: 4px 0 30px 0; position: absolute; bottom: 0; left: 0; right: 0;">
+              <div style="flex:1; text-align:center; padding-top: 4px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="margin:0 auto; display:block;"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" fill="#07C160"/></svg><div style="font-size: 10px; color: #07C160; margin-top: 2px;">AI助手</div></div>
+              <div style="flex:1; text-align:center; padding-top: 4px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="margin:0 auto; display:block;"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z" fill="#999"/></svg><div style="font-size: 10px; color: #999; margin-top: 2px;">患者</div></div>
+              <div style="flex:1; text-align:center; padding-top: 4px; position:relative;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="margin:0 auto; display:block;"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10H7v-2h10v2z" fill="#999"/></svg><div style="font-size: 10px; color: #999; margin-top: 2px;">任务</div><div style="position:absolute; top:0; right:22%; background:#FA5151; color:#fff; font-size:9px; border-radius:8px; padding:0 4px; min-width:14px; text-align:center; line-height:14px;">5</div></div>
+              <div style="flex:1; text-align:center; padding-top: 4px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="margin:0 auto; display:block;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="#999"/></svg><div style="font-size: 10px; color: #999; margin-top: 2px;">我的</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 3: Patient List -->
+<div class="slide" data-index="5">
+  <div class="slide-content">
+    <div class="slide-text">
+      <div class="label">Screen 2</div>
+      <h2>患者列表</h2>
+      <p>简洁的患者管理视图，搜索栏 + 新建入口 + 按最近交互排序的患者列表。</p>
+      <ul>
+        <li>搜索栏：按姓名、病症、编号实时筛选</li>
+        <li>"新建患者"作为列表第一项（虚线绿色边框）</li>
+        <li>点击"新建患者" → 跳转AI对话，输入患者信息</li>
+        <li>姓氏头像（微信联系人风格）</li>
+        <li>红点 = 危急，橙点 = 需关注</li>
+        <li>点击患者行 → 进入患者详情</li>
+      </ul>
+    </div>
+    <div class="slide-phone">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <div style="background: #ededed; min-height: 852px;">
+            <div style="padding: 58px 24px 0 24px; display: flex; justify-content: space-between; font-size: 15px; color: #000; font-weight: 600; background: inherit;"><span>9:41</span><span style="display:flex; gap:5px; align-items:center;"><svg width="18" height="12" viewBox="0 0 18 12"><path d="M1 9h2v3H1zM5 6h2v6H5zM9 3h2v9H9zM13 0h2v12h-2z" fill="#111"/></svg><svg width="16" height="12" viewBox="0 0 16 12"><rect x="0" y="0" width="14" height="12" rx="2" stroke="#111" stroke-width="1.5" fill="none"/><rect x="2" y="2" width="8" height="8" rx="1" fill="#111"/><rect x="14.5" y="3.5" width="1.5" height="5" rx="0.5" fill="#111"/></svg></span></div>
+            <div style="background: #ededed; padding: 10px 16px; text-align: center; font-size: 17px; font-weight: 500; color: #000;">患者</div>
+            <div style="padding: 0 12px 8px 12px;"><div style="background: #fff; border-radius: 4px; padding: 8px 12px; display: flex; align-items: center; gap: 8px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#999" stroke-width="2" fill="none"/><line x1="16.5" y1="16.5" x2="21" y2="21" stroke="#999" stroke-width="2" stroke-linecap="round"/></svg><span style="font-size: 13px; color: #999;">搜索患者...</span></div></div>
+            <div style="background: #fff;">
+              <div style="padding: 12px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 0.5px solid #f0f0f0;">
+                <div style="width: 44px; height: 44px; border-radius: 4px; background: #fff; border: 1.5px dashed #07C160; display:flex; align-items:center; justify-content:center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><line x1="12" y1="6" x2="12" y2="18" stroke="#07C160" stroke-width="2" stroke-linecap="round"/><line x1="6" y1="12" x2="18" y2="12" stroke="#07C160" stroke-width="2" stroke-linecap="round"/></svg></div>
+                <div><div style="font-size: 15px; font-weight: 500; color: #07C160;">新建患者</div><div style="font-size: 12px; color: #999; margin-top: 2px;">添加新的患者档案</div></div>
+              </div>
+              <div style="padding: 6px 16px; background: #ededed; font-size: 11px; color: #999;">最近 · 6位患者</div>
+              <div style="padding: 11px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 0.5px solid #f0f0f0;">
+                <div style="width: 44px; height: 44px; border-radius: 4px; background: #f0f0f0; display:flex; align-items:center; justify-content:center; font-size: 15px; color: #666;">陈</div>
+                <div style="flex: 1; min-width: 0;"><div style="display: flex; justify-content: space-between;"><span style="font-size: 14px; font-weight: 500; color: #111;">陈梅</span><span style="font-size: 11px; color: #999;">今天 09:30</span></div><div style="font-size: 12px; color: #999; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">女, 62岁 · 2型糖尿病 · 血糖危急</div></div>
+                <div style="width: 8px; height: 8px; border-radius: 50%; background: #FA5151;"></div>
+              </div>
+              <div style="padding: 11px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 0.5px solid #f0f0f0;">
+                <div style="width: 44px; height: 44px; border-radius: 4px; background: #f0f0f0; display:flex; align-items:center; justify-content:center; font-size: 15px; color: #666;">李</div>
+                <div style="flex: 1; min-width: 0;"><div style="display: flex; justify-content: space-between;"><span style="font-size: 14px; font-weight: 500; color: #111;">李伟</span><span style="font-size: 11px; color: #999;">今天 10:15</span></div><div style="font-size: 12px; color: #999; margin-top: 2px;">男, 45岁 · 高脂血症 · 胆固醇偏高</div></div>
+                <div style="width: 8px; height: 8px; border-radius: 50%; background: #FF9500;"></div>
+              </div>
+              <div style="padding: 11px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 0.5px solid #f0f0f0;">
+                <div style="width: 44px; height: 44px; border-radius: 4px; background: #f0f0f0; display:flex; align-items:center; justify-content:center; font-size: 15px; color: #666;">张</div>
+                <div style="flex: 1; min-width: 0;"><div style="display: flex; justify-content: space-between;"><span style="font-size: 14px; font-weight: 500; color: #111;">张伟</span><span style="font-size: 11px; color: #999;">昨天</span></div><div style="font-size: 12px; color: #999; margin-top: 2px;">男, 38岁 · 高血压 · 已安排复诊</div></div>
+              </div>
+              <div style="padding: 11px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 0.5px solid #f0f0f0;">
+                <div style="width: 44px; height: 44px; border-radius: 4px; background: #f0f0f0; display:flex; align-items:center; justify-content:center; font-size: 15px; color: #666;">王</div>
+                <div style="flex: 1; min-width: 0;"><div style="display: flex; justify-content: space-between;"><span style="font-size: 14px; font-weight: 500; color: #111;">王芳</span><span style="font-size: 11px; color: #999;">3月13日</span></div><div style="font-size: 12px; color: #999; margin-top: 2px;">女, 55岁 · 胃炎 · 药物已续方</div></div>
+              </div>
+              <div style="padding: 11px 16px; display: flex; align-items: center; gap: 12px;">
+                <div style="width: 44px; height: 44px; border-radius: 4px; background: #f0f0f0; display:flex; align-items:center; justify-content:center; font-size: 15px; color: #666;">刘</div>
+                <div style="flex: 1; min-width: 0;"><div style="display: flex; justify-content: space-between;"><span style="font-size: 14px; font-weight: 500; color: #111;">刘静</span><span style="font-size: 11px; color: #999;">3月12日</span></div><div style="font-size: 12px; color: #999; margin-top: 2px;">女, 29岁 · 产检 · 孕24周</div></div>
+              </div>
+            </div>
+            <div style="background: #f7f7f7; border-top: 0.5px solid #d9d9d9; display: flex; padding: 4px 0 30px 0; position: absolute; bottom: 0; left: 0; right: 0;">
+              <div style="flex:1; text-align:center; padding-top: 4px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="margin:0 auto; display:block;"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" fill="#999"/></svg><div style="font-size: 10px; color: #999; margin-top: 2px;">AI助手</div></div>
+              <div style="flex:1; text-align:center; padding-top: 4px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="margin:0 auto; display:block;"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z" fill="#07C160"/></svg><div style="font-size: 10px; color: #07C160; margin-top: 2px;">患者</div></div>
+              <div style="flex:1; text-align:center; padding-top: 4px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="margin:0 auto; display:block;"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10H7v-2h10v2z" fill="#999"/></svg><div style="font-size: 10px; color: #999; margin-top: 2px;">任务</div></div>
+              <div style="flex:1; text-align:center; padding-top: 4px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="margin:0 auto; display:block;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="#999"/></svg><div style="font-size: 10px; color: #999; margin-top: 2px;">我的</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 4: Patient Detail -->
+<div class="slide" data-index="6">
+  <div class="slide-content">
+    <div class="slide-text">
+      <div class="label">Screen 3</div>
+      <h2>患者详情</h2>
+      <p>点击患者进入详情页，查看完整病历信息，推入式导航隐藏底部标签栏。</p>
+      <ul>
+        <li>基本信息卡：姓名、性别、年龄、手机号、状态标签</li>
+        <li>诊断标签：灰色背景，水平排列</li>
+        <li>菜单列表：就诊记录、处方、检验报告、过敏信息</li>
+        <li>最近就诊摘要</li>
+        <li>操作按钮：新建任务 + 导出PDF（同行）</li>
+        <li>AI对话咨询（独占大按钮，主操作）</li>
+      </ul>
+    </div>
+    <div class="slide-phone">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <div style="background: #ededed; min-height: 852px;">
+            <div style="padding: 58px 24px 0 24px; display: flex; justify-content: space-between; font-size: 15px; color: #000; font-weight: 600; background: inherit;"><span>9:41</span><span style="display:flex; gap:5px; align-items:center;"><svg width="18" height="12" viewBox="0 0 18 12"><path d="M1 9h2v3H1zM5 6h2v6H5zM9 3h2v9H9zM13 0h2v12h-2z" fill="#111"/></svg><svg width="16" height="12" viewBox="0 0 16 12"><rect x="0" y="0" width="14" height="12" rx="2" stroke="#111" stroke-width="1.5" fill="none"/><rect x="2" y="2" width="8" height="8" rx="1" fill="#111"/><rect x="14.5" y="3.5" width="1.5" height="5" rx="0.5" fill="#111"/></svg></span></div>
+            <div style="background: #ededed; padding: 10px 16px; display: flex; align-items: center;"><div style="display: flex; align-items: center; gap: 4px; color: #07C160; font-size: 14px;"><svg width="10" height="16" viewBox="0 0 12 20" fill="none"><path d="M10 2L2 10l8 8" stroke="#07C160" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>患者</div><div style="flex:1; text-align: center; font-size: 17px; font-weight: 500; color: #000; margin-right: 44px;">患者详情</div></div>
+            <div style="background: #fff; padding: 14px 16px; margin-bottom: 8px;">
+              <div style="display: flex; gap: 10px; align-items: center;">
+                <div style="width: 50px; height: 50px; border-radius: 4px; background: #f0f0f0; display:flex; align-items:center; justify-content:center; font-size: 22px; color: #666;">陈</div>
+                <div style="flex:1;"><div style="font-size: 17px; font-weight: 600; color: #111;">陈梅</div><div style="font-size: 13px; color: #999; margin-top: 3px;">女 · 62岁 · 1962年5月12日</div><div style="font-size: 12px; color: #999; margin-top: 1px;">手机：138****6789</div></div>
+                <div style="background: #FEE2E2; color: #FA5151; font-size: 11px; padding: 2px 6px; border-radius: 2px; align-self: flex-start;">危急</div>
+              </div>
+            </div>
+            <div style="background: #fff; padding: 12px 16px; margin-bottom: 8px;">
+              <div style="font-size: 13px; font-weight: 500; color: #111; margin-bottom: 8px;">诊断信息</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px;"><span style="background: #f0f0f0; color: #666; font-size: 12px; padding: 3px 8px; border-radius: 2px;">2型糖尿病</span><span style="background: #f0f0f0; color: #666; font-size: 12px; padding: 3px 8px; border-radius: 2px;">高血压</span><span style="background: #f0f0f0; color: #666; font-size: 12px; padding: 3px 8px; border-radius: 2px;">骨质疏松</span></div>
+            </div>
+            <div style="background: #fff; margin-bottom: 8px;">
+              <div style="padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 0.5px solid #f0f0f0;"><span style="font-size: 14px; color: #111;">就诊记录</span><span style="font-size: 12px; color: #999;">12次 ></span></div>
+              <div style="padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 0.5px solid #f0f0f0;"><span style="font-size: 14px; color: #111;">处方记录</span><span style="font-size: 12px; color: #999;">当前3种药 ></span></div>
+              <div style="padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 0.5px solid #f0f0f0;"><span style="font-size: 14px; color: #111;">检验报告</span><span style="font-size: 12px; color: #FA5151;">1项异常 ></span></div>
+              <div style="padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;"><span style="font-size: 14px; color: #111;">过敏信息</span><span style="font-size: 12px; color: #999;">青霉素 ></span></div>
+            </div>
+            <div style="background: #fff; padding: 12px 16px; margin-bottom: 8px;">
+              <div style="font-size: 13px; font-weight: 500; color: #111; margin-bottom: 6px;">最近就诊</div>
+              <div style="font-size: 11px; color: #999; margin-bottom: 4px;">2026年3月15日 · 门诊</div>
+              <div style="font-size: 13px; color: #333; line-height: 1.5;">主诉：头晕乏力一周。血糖15.2 mmol/L，调整二甲双胍剂量。</div>
+            </div>
+            <div style="padding: 0 16px 16px 16px;">
+              <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                <div style="flex:1; background: #fff; color: #111; text-align: center; padding: 10px; border-radius: 4px; font-size: 13px; border: 0.5px solid #e0e0e0;">新建任务</div>
+                <div style="flex:1; background: #fff; color: #111; text-align: center; padding: 10px; border-radius: 4px; font-size: 13px; border: 0.5px solid #e0e0e0;">导出PDF</div>
+              </div>
+              <div style="background: #07C160; color: #fff; text-align: center; padding: 12px; border-radius: 4px; font-size: 15px; font-weight: 500;">AI对话咨询</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 6: Tasks -->
+<div class="slide" data-index="7">
+  <div class="slide-content">
+    <div class="slide-text">
+      <div class="label">Screen 4</div>
+      <h2>任务管理</h2>
+      <p>预约和待办事项的统一管理，支持分段切换、快速操作和详情编辑。</p>
+      <ul>
+        <li>分段控制：今天 / 待办 / 已完成</li>
+        <li>预约：按时间排列，当前预约标记"进行中"</li>
+        <li>待办事项：勾选框（红色=紧急，灰色=普通）</li>
+        <li>左滑 → 快速"完成"或"取消"</li>
+        <li>点击任务 → 详情页（编辑/完成/取消）</li>
+        <li>已完成：删除线 + 时间戳</li>
+      </ul>
+    </div>
+    <div class="slide-phone">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <div style="background: #ededed; min-height: 852px;">
+            <div style="padding: 58px 24px 0 24px; display: flex; justify-content: space-between; font-size: 15px; color: #000; font-weight: 600; background: inherit;"><span>9:41</span><span style="display:flex; gap:5px; align-items:center;"><svg width="18" height="12" viewBox="0 0 18 12"><path d="M1 9h2v3H1zM5 6h2v6H5zM9 3h2v9H9zM13 0h2v12h-2z" fill="#111"/></svg><svg width="16" height="12" viewBox="0 0 16 12"><rect x="0" y="0" width="14" height="12" rx="2" stroke="#111" stroke-width="1.5" fill="none"/><rect x="2" y="2" width="8" height="8" rx="1" fill="#111"/><rect x="14.5" y="3.5" width="1.5" height="5" rx="0.5" fill="#111"/></svg></span></div>
+            <div style="background: #ededed; padding: 10px 16px; text-align: center; font-size: 17px; font-weight: 500; color: #000;">任务</div>
+            <div style="padding: 0 16px 8px 16px;">
+              <div style="display: flex; background: #d6d6d6; border-radius: 4px; padding: 2px;">
+                <div style="flex:1; text-align:center; padding: 5px 0; background: #fff; border-radius: 3px; font-size: 12px; font-weight: 500; color: #111;">今天</div>
+                <div style="flex:1; text-align:center; padding: 5px 0; font-size: 12px; color: #666;">待办</div>
+                <div style="flex:1; text-align:center; padding: 5px 0; font-size: 12px; color: #666;">已完成</div>
+              </div>
+            </div>
+            <div style="background: #fff;">
+              <div style="padding: 5px 16px; background: #ededed; font-size: 11px; color: #999;">预约 · 3项</div>
+              <div style="padding: 11px 16px; display: flex; gap: 10px; border-bottom: 0.5px solid #f0f0f0; align-items: flex-start;">
+                <div style="width: 40px; text-align: center;"><div style="font-size: 16px; font-weight: 600; color: #07C160;">09:30</div></div>
+                <div style="flex: 1;"><div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 14px; font-weight: 500; color: #111;">陈梅 — 复诊</span><span style="font-size: 11px; color: #fff; background: #07C160; padding: 1px 5px; border-radius: 2px;">进行中</span></div><div style="font-size: 12px; color: #999; margin-top: 3px;">血糖复查，调整用药方案</div></div>
+              </div>
+              <div style="padding: 11px 16px; display: flex; gap: 10px; border-bottom: 0.5px solid #f0f0f0; align-items: flex-start;">
+                <div style="width: 40px; text-align: center;"><div style="font-size: 16px; font-weight: 600; color: #333;">10:15</div></div>
+                <div style="flex: 1;"><div style="font-size: 14px; font-weight: 500; color: #111;">李伟 — 初诊</div><div style="font-size: 12px; color: #999; margin-top: 3px;">高脂血症评估</div></div>
+              </div>
+              <div style="padding: 11px 16px; display: flex; gap: 10px; border-bottom: 0.5px solid #f0f0f0; align-items: flex-start;">
+                <div style="width: 40px; text-align: center;"><div style="font-size: 16px; font-weight: 600; color: #333;">14:00</div></div>
+                <div style="flex: 1;"><div style="font-size: 14px; font-weight: 500; color: #111;">刘静 — 产检</div><div style="font-size: 12px; color: #999; margin-top: 3px;">孕24周常规检查</div></div>
+              </div>
+              <div style="padding: 5px 16px; background: #ededed; font-size: 11px; color: #999;">待办事项 · 2项</div>
+              <div style="padding: 11px 16px; display: flex; gap: 10px; border-bottom: 0.5px solid #f0f0f0; align-items: flex-start;">
+                <div style="width: 20px; height: 20px; border: 1.5px solid #FA5151; border-radius: 50%; flex-shrink: 0; margin-top: 1px;"></div>
+                <div style="flex: 1;"><div style="display: flex; justify-content: space-between;"><span style="font-size: 14px; font-weight: 500; color: #111;">审核检验报告</span><span style="font-size: 11px; color: #FA5151;">紧急</span></div><div style="font-size: 12px; color: #999; margin-top: 3px;">陈梅 — 血糖异常</div></div>
+              </div>
+              <div style="padding: 11px 16px; display: flex; gap: 10px; align-items: flex-start;">
+                <div style="width: 20px; height: 20px; border: 1.5px solid #ccc; border-radius: 50%; flex-shrink: 0; margin-top: 1px;"></div>
+                <div style="flex: 1;"><div style="font-size: 14px; font-weight: 500; color: #111;">开具转诊单</div><div style="font-size: 12px; color: #999; margin-top: 3px;">赵明 — 转呼吸科</div></div>
+              </div>
+            </div>
+            <div style="background: #f7f7f7; border-top: 0.5px solid #d9d9d9; display: flex; padding: 4px 0 30px 0; position: absolute; bottom: 0; left: 0; right: 0;">
+              <div style="flex:1; text-align:center; padding-top: 4px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="margin:0 auto; display:block;"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" fill="#999"/></svg><div style="font-size: 10px; color: #999; margin-top: 2px;">AI助手</div></div>
+              <div style="flex:1; text-align:center; padding-top: 4px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="margin:0 auto; display:block;"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z" fill="#999"/></svg><div style="font-size: 10px; color: #999; margin-top: 2px;">患者</div></div>
+              <div style="flex:1; text-align:center; padding-top: 4px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="margin:0 auto; display:block;"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10H7v-2h10v2z" fill="#07C160"/></svg><div style="font-size: 10px; color: #07C160; margin-top: 2px;">任务</div></div>
+              <div style="flex:1; text-align:center; padding-top: 4px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="margin:0 auto; display:block;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="#999"/></svg><div style="font-size: 10px; color: #999; margin-top: 2px;">我的</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 7: Me -->
+<div class="slide" data-index="8">
+  <div class="slide-content">
+    <div class="slide-text">
+      <div class="label">Screen 5</div>
+      <h2>我的</h2>
+      <p>个人设置中心，微信"我"页面风格的分组菜单列表。</p>
+      <ul>
+        <li>个人资料卡：头像、姓名、科室、工号</li>
+        <li>AI设置组：自定义AI助手行为、知识库管理</li>
+        <li>文档管理：上传临床指南、管理处方/病历模板</li>
+        <li>系统设置：通知、通用设置、关于</li>
+        <li>退出登录（红色文字）</li>
+      </ul>
+    </div>
+    <div class="slide-phone">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <div style="background: #ededed; min-height: 852px;">
+            <div style="padding: 58px 24px 0 24px; display: flex; justify-content: space-between; font-size: 15px; color: #000; font-weight: 600; background: inherit;"><span>9:41</span><span style="display:flex; gap:5px; align-items:center;"><svg width="18" height="12" viewBox="0 0 18 12"><path d="M1 9h2v3H1zM5 6h2v6H5zM9 3h2v9H9zM13 0h2v12h-2z" fill="#111"/></svg><svg width="16" height="12" viewBox="0 0 16 12"><rect x="0" y="0" width="14" height="12" rx="2" stroke="#111" stroke-width="1.5" fill="none"/><rect x="2" y="2" width="8" height="8" rx="1" fill="#111"/><rect x="14.5" y="3.5" width="1.5" height="5" rx="0.5" fill="#111"/></svg></span></div>
+            <div style="background: #ededed; padding: 10px 16px; text-align: center; font-size: 17px; font-weight: 500; color: #000;">我的</div>
+            <div style="background: #fff; padding: 18px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px;">
+              <div style="width: 56px; height: 56px; border-radius: 4px; background: #07C160; display:flex; align-items:center; justify-content:center; font-size: 22px; color: #fff;">王</div>
+              <div style="flex: 1;"><div style="font-size: 17px; font-weight: 600; color: #111;">王医生</div><div style="font-size: 13px; color: #999; margin-top: 3px;">全科 · 社区卫生服务中心</div><div style="font-size: 12px; color: #999; margin-top: 1px;">工号：D20180456</div></div>
+              <svg width="8" height="14" viewBox="0 0 8 14" fill="none"><path d="M1 1l6 6-6 6" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div style="background: #fff; margin-bottom: 8px;">
+              <div style="padding: 13px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 0.5px solid #f0f0f0;"><span style="font-size: 14px; color: #111;">AI助手设置</span><div style="display:flex; align-items:center; gap:4px;"><span style="font-size: 12px; color: #999;">自定义</span><svg width="8" height="14" viewBox="0 0 8 14" fill="none"><path d="M1 1l6 6-6 6" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+              <div style="padding: 13px 16px; display: flex; align-items: center; justify-content: space-between;"><span style="font-size: 14px; color: #111;">知识库管理</span><div style="display:flex; align-items:center; gap:4px;"><span style="font-size: 12px; color: #999;">3份文档</span><svg width="8" height="14" viewBox="0 0 8 14" fill="none"><path d="M1 1l6 6-6 6" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+            </div>
+            <div style="background: #fff; margin-bottom: 8px;">
+              <div style="padding: 13px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 0.5px solid #f0f0f0;"><span style="font-size: 14px; color: #111;">文档上传</span><div style="display:flex; align-items:center; gap:4px;"><span style="font-size: 12px; color: #999;">指南、模板</span><svg width="8" height="14" viewBox="0 0 8 14" fill="none"><path d="M1 1l6 6-6 6" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+              <div style="padding: 13px 16px; display: flex; align-items: center; justify-content: space-between;"><span style="font-size: 14px; color: #111;">模板管理</span><div style="display:flex; align-items:center; gap:4px;"><span style="font-size: 12px; color: #999;">处方、病历</span><svg width="8" height="14" viewBox="0 0 8 14" fill="none"><path d="M1 1l6 6-6 6" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+            </div>
+            <div style="background: #fff; margin-bottom: 8px;">
+              <div style="padding: 13px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 0.5px solid #f0f0f0;"><span style="font-size: 14px; color: #111;">通知设置</span><svg width="8" height="14" viewBox="0 0 8 14" fill="none"><path d="M1 1l6 6-6 6" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              <div style="padding: 13px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 0.5px solid #f0f0f0;"><span style="font-size: 14px; color: #111;">通用设置</span><svg width="8" height="14" viewBox="0 0 8 14" fill="none"><path d="M1 1l6 6-6 6" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              <div style="padding: 13px 16px; display: flex; align-items: center; justify-content: space-between;"><span style="font-size: 14px; color: #111;">关于</span><div style="display:flex; align-items:center; gap:4px;"><span style="font-size: 12px; color: #999;">v1.0.0</span><svg width="8" height="14" viewBox="0 0 8 14" fill="none"><path d="M1 1l6 6-6 6" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+            </div>
+            <div style="background: #fff;"><div style="padding: 13px 16px; text-align: center;"><span style="font-size: 14px; color: #FA5151;">退出登录</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 9: Summary -->
+<div class="slide title-slide" data-index="9">
+  <div class="slide-content">
+    <div>
+      <h1>谢谢</h1>
+      <div class="subtitle">期待您的反馈</div>
+    </div>
+    <div style="margin-top: 20px; text-align: left; max-width: 500px;">
+      <p style="font-size: 16px; color: #aaa; line-height: 2;">
+        <span style="color: #07C160; font-weight: 500;">5个主要页面</span> — AI助手、患者列表、患者详情、任务、我的<br>
+        <span style="color: #07C160; font-weight: 500;">对话优先</span> — 所有操作可通过自然语言完成<br>
+        <span style="color: #07C160; font-weight: 500;">微信风格</span> — 扁平设计，医生零学习成本<br>
+        <span style="color: #07C160; font-weight: 500;">双端支持</span> — 手机App、微信小程序
+      </p>
+    </div>
+    <div class="meta" style="margin-top: 30px;">医疗AI助手 · UX设计方案 v1.0 · 2026年3月</div>
+  </div>
+</div>
+
+</div>
+
+<!-- Navigation -->
+<div class="nav-controls">
+  <button class="nav-btn" id="prevBtn" onclick="navigate(-1)">&#8592;</button>
+  <div class="dots" id="dots"></div>
+  <div class="slide-counter" id="counter">1 / 10</div>
+  <button class="nav-btn" id="nextBtn" onclick="navigate(1)">&#8594;</button>
+</div>
+
+<script>
+let current = 0;
+const slides = document.querySelectorAll('.slide');
+const total = slides.length;
+const dots = document.getElementById('dots');
+const counter = document.getElementById('counter');
+
+// Create dots
+for (let i = 0; i < total; i++) {
+  const dot = document.createElement('div');
+  dot.className = 'dot' + (i === 0 ? ' active' : '');
+  dot.onclick = () => goTo(i);
+  dots.appendChild(dot);
+}
+
+function goTo(index) {
+  slides[current].classList.remove('active');
+  dots.children[current].classList.remove('active');
+  current = index;
+  slides[current].classList.add('active');
+  dots.children[current].classList.add('active');
+  counter.textContent = (current + 1) + ' / ' + total;
+  document.getElementById('prevBtn').disabled = current === 0;
+  document.getElementById('nextBtn').disabled = current === total - 1;
+}
+
+function navigate(dir) {
+  const next = current + dir;
+  if (next >= 0 && next < total) goTo(next);
+}
+
+// Keyboard navigation
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); navigate(1); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); navigate(-1); }
+});
+
+// Touch swipe
+let touchStartX = 0;
+document.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; });
+document.addEventListener('touchend', (e) => {
+  const diff = touchStartX - e.changedTouches[0].clientX;
+  if (Math.abs(diff) > 50) navigate(diff > 0 ? 1 : -1);
+});
+
+// Init
+goTo(0);
+</script>
+</body>
+</html>

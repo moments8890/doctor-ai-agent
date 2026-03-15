@@ -95,15 +95,12 @@ async def _build_extraction_prompt(
     records: list,
     doctor_id: Optional[str],
     patient: Any = None,
-    scores_map: Optional[dict] = None,
 ) -> str:
     """拼装门诊病历字段提取 prompt（含结构化元数据和自定义模板）。"""
     parts: list[str] = []
-    _sm = scores_map or {}
     for rec in records:
         lines: list[str] = []
         content = (getattr(rec, "content", None) or "").strip()
-        # Prepend structured metadata so the LLM can reference encounter_type, tags, scores
         enc = getattr(rec, "encounter_type", None)
         if enc:
             _enc_label = {"first_visit": "初诊", "follow_up": "复诊"}.get(enc, enc)
@@ -117,14 +114,6 @@ async def _build_extraction_prompt(
                     tags = []
             if isinstance(tags, list) and tags:
                 lines.append(f"[标签: {', '.join(tags)}]")
-        rec_id = getattr(rec, "id", None)
-        rec_scores = _sm.get(rec_id, []) if rec_id is not None else []
-        if rec_scores:
-            score_strs = []
-            for s in rec_scores:
-                val = f"{s.score_value:g}" if s.score_value is not None else (s.raw_text or "")
-                score_strs.append(f"{s.score_type}={val}" if val else s.score_type)
-            lines.append(f"[量表: {', '.join(score_strs)}]")
         if content:
             lines.append(content)
         if lines:
@@ -166,10 +155,9 @@ async def extract_outpatient_fields(
     records: list,
     patient: Any = None,
     doctor_id: Optional[str] = None,
-    scores_map: Optional[dict] = None,
 ) -> dict[str, str]:
     """调用 LLM 从病历记录中提取门诊标准字段；LLM 不可用时抛出 ExtractionError。"""
-    prompt = await _build_extraction_prompt(records, doctor_id, patient=patient, scores_map=scores_map)
+    prompt = await _build_extraction_prompt(records, doctor_id, patient=patient)
     client, model = _get_llm_client()
     fallback_model = os.environ.get("STRUCTURING_LLM_FALLBACK_MODEL", "")
 

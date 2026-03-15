@@ -200,7 +200,7 @@ Key files: `services/wechat/wechat_import.py`, `routers/neuro.py`, `services/ai/
 
 ## 21. Benchmark, Debug, and Evaluation Harness
 
-Key files: `scripts/benchmark_gate.sh`, `scripts/test.sh`, `scripts/run_chatlog_e2e.py`, `e2e/integration/conftest.py`, `e2e/integration/test_text_pipeline.py`, `e2e/integration/test_data_integrity_e2e.py`, `e2e/integration/test_realworld_doctor_agent_e2e.py`, `e2e/integration/test_neuro_cases_table_e2e.py`, `db/models/medical_record.py`, `db/models/records.py`
+Key files: `scripts/benchmark_gate.sh`, `scripts/test.sh`, `scripts/run_chatlog_e2e.py`, `tests/integration/conftest.py`, `tests/integration/test_text_pipeline.py`, `tests/integration/test_data_integrity_e2e.py`, `tests/integration/test_realworld_doctor_agent_e2e.py`, `tests/integration/test_neuro_cases_table_e2e.py`, `db/models/medical_record.py`, `db/models/records.py`
 
 - High: the benchmark gate can compare a stale `reports/candidate/hero.json`, and its "unit-test" step is now effectively a no-op.
 - High: a large part of the integration/E2E suite is still pinned to the removed 8-field record schema and a deleted `neuro_cases` table, so those tests no longer represent the shipped product.
@@ -210,7 +210,7 @@ Key files: `scripts/benchmark_gate.sh`, `scripts/test.sh`, `scripts/run_chatlog_
 
 ## 22. Fixture Generation and Rule-Mining Toolchain
 
-Key files: `scripts/mine_routing_rules.py`, `scripts/validate_routing_rules.py`, `scripts/expand_clinical_keywords.py`, `scripts/mine_local_datasets.py`, `scripts/train_tier3_classifier.py`, `services/ai/fast_router/_router.py`, `services/ai/fast_router/_tier3.py`, `services/ai/fast_router/_mined_rules.py`, `e2e/fixtures/scripts/patch_v2_assertions.py`
+Key files: `scripts/mine_routing_rules.py`, `scripts/validate_routing_rules.py`, `scripts/expand_clinical_keywords.py`, `scripts/mine_local_datasets.py`, `scripts/train_tier3_classifier.py`, `services/ai/fast_router/_router.py`, `services/ai/fast_router/_tier3.py`, `services/ai/fast_router/_mined_rules.py`, `tests/fixtures/scripts/patch_v2_assertions.py`
 
 - High: the keyword-expansion utilities still hardcode the deleted monolithic `services/ai/fast_router.py` path and do not target the live `_keywords.py` artifact.
 - High: `train_tier3_classifier.py` still trains and writes a model for a Tier-3 route that the codebase now explicitly marks as inactive in production.
@@ -220,7 +220,7 @@ Key files: `scripts/mine_routing_rules.py`, `scripts/validate_routing_rules.py`,
 
 ## 23. Seeding, Cleanup, and Local Data Utilities
 
-Key files: `scripts/seed_db.py`, `scripts/seed_mock_data.py`, `scripts/cleanup_inttest_data.py`, `e2e/integration/conftest.py`, `db/models/records.py`, `db/models/doctor.py`, `db/models/pending.py`, `db/models/tasks.py`, `routers/patient_portal.py`
+Key files: `scripts/seed_db.py`, `scripts/seed_mock_data.py`, `scripts/cleanup_inttest_data.py`, `tests/integration/conftest.py`, `db/models/records.py`, `db/models/doctor.py`, `db/models/pending.py`, `db/models/tasks.py`, `routers/patient_portal.py`
 
 - High: `seed_db.py` import logic and the bundled `seed_data.json` fixture are still on the removed record schema, so record import is broken on current databases.
 - High: `cleanup_inttest_data.py` and the mirrored integration-suite cleanup still target stale tables and miss current persisted conversation/archive state, so cancelled test runs can leak debris across sessions.

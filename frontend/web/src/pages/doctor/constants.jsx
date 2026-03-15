@@ -111,30 +111,3 @@ export const SPECIALTY_OPTIONS = [
   "重症医学科", "康复科", "中医科", "全科医学科",
 ];
 
-export const CVD_SUBTYPE_LABEL = {
-  ICH: "脑出血(ICH)", SAH: "蛛网膜下腔出血(SAH)", ischemic: "缺血性卒中",
-  AVM: "动静脉畸形(AVM)", aneurysm: "动脉瘤", moyamoya: "烟雾病", other: "其他",
-};
-
-export const CVD_SURGERY_STATUS_LABEL = {
-  planned: "已计划", done: "已完成", cancelled: "已取消", conservative: "保守治疗",
-};
-
-export const CVD_VASOSPASM_LABEL = {
-  none: "无", clinical: "临床血管痉挛", radiographic: "影像血管痉挛", severe: "重度",
-};
-
-export const CVD_HYDROCEPHALUS_LABEL = {
-  none: "无", acute: "急性脑积水", chronic: "慢性脑积水", shunt_dependent: "分流依赖",
-};
-
-export const CVD_BYPASS_LABEL = {
-  direct_sta_mca: "直接吻合(STA-MCA)", indirect_edas: "间接贴敷(EDAS)",
-  combined: "联合手术", other: "其他",
-};
-
-export const CVD_PERFUSION_LABEL = {
-  normal: "正常", mildly_reduced: "轻度减低", severely_reduced: "重度减低", improved: "改善",
-};
-
-export const MRS_COLOR = (s) => s <= 2 ? "#22c55e" : s <= 4 ? "#eab308" : "#ef4444";

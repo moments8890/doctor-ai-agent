@@ -1,7 +1,5 @@
 """
 病历（MedicalRecordDB）的数据库模型。
-
-注意：NeuroCaseDB（neuro_cases 表）已在 migration 0015 中删除，此文件中的类已移除。
 """
 
 from __future__ import annotations
@@ -26,14 +24,6 @@ class MedicalRecordDB(Base):
     encounter_type: Mapped[str] = mapped_column(String(32), nullable=False, default="unknown")  # first_visit|follow_up|unknown
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
-
-    # Neuro-case extra fields — populated when record_type == "neuro_case"
-    neuro_patient_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    # NOTE: nihss here is deprecated — specialty_scores is the authoritative source for NIHSS.
-    # This column is kept for backwards-compat reads only; new writes should go to specialty_scores.
-    nihss: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    neuro_raw_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    neuro_extraction_log_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     patient: Mapped[Optional["Patient"]] = relationship("Patient", back_populates="records")
 

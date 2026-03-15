@@ -44,7 +44,7 @@ Use for app-level behavior that does not require a running server or live model 
 Command:
 
 ```bash
-.venv/bin/python -m pytest e2e/core/ -v
+.venv/bin/python -m pytest tests/core/ -v
 ```
 
 ### 3. Integration tests
@@ -62,7 +62,7 @@ Commands:
 Direct pytest:
 
 ```bash
-.venv/bin/python -m pytest e2e/integration/ -v -m integration
+.venv/bin/python -m pytest tests/integration/ -v -m integration
 ```
 
 Requirements:
@@ -160,6 +160,6 @@ Integration tests write JUnit output to:
 ## Related Docs
 
 - [`tests/README.md`](doctor-ai-agent/tests/README.md)
-- [`e2e/README.md`](doctor-ai-agent/e2e/README.md)
-- [`e2e/integration/README.md`](doctor-ai-agent/e2e/integration/README.md)
+- [`tests/README.md`](doctor-ai-agent/tests/README.md)
+- [`tests/integration/README.md`](doctor-ai-agent/tests/integration/README.md)
 - [`AGENTS.md`](doctor-ai-agent/AGENTS.md)

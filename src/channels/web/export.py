@@ -163,15 +163,9 @@ async def export_patient_pdf(
     enforce_doctor_rate_limit(resolved_doctor_id, scope="export.patient_pdf")
     async with AsyncSessionLocal() as db:
         patient, records = await _fetch_patient_and_records(db, patient_id, resolved_doctor_id, limit)
-        from db.crud.specialty import get_cvd_context_for_patient
-        from db.crud.scores import get_scores_for_records
-        cvd_context = await get_cvd_context_for_patient(db, resolved_doctor_id, patient_id)
-        rec_ids = [r.id for r in records if r.id is not None]
-        scores_map = await get_scores_for_records(db, rec_ids, resolved_doctor_id) if rec_ids else {}
     try:
         pdf_bytes = generate_records_pdf(
             records=records, patient=patient, patient_name=patient.name,
-            cvd_context=cvd_context, scores_map=scores_map,
         )
     except Exception as exc:
         log(f"[Export] PDF generation failed for patient {patient_id}: {exc}")
@@ -226,17 +220,11 @@ async def export_record_pdf(
     enforce_doctor_rate_limit(resolved_doctor_id, scope="export.record_pdf")
     async with AsyncSessionLocal() as db:
         record, patient = await _fetch_record_and_patient(db, record_id, resolved_doctor_id)
-        cvd_context = None
-        if patient and patient.id:
-            from db.crud.specialty import get_cvd_context_for_patient
-            cvd_context = await get_cvd_context_for_patient(db, resolved_doctor_id, patient.id)
-        from db.crud.scores import get_scores_for_records
-        scores_map = await get_scores_for_records(db, [record_id], resolved_doctor_id)
     patient_name = patient.name if patient else None
     try:
         pdf_bytes = generate_records_pdf(
             records=[record], patient_name=patient_name,
-            patient=patient, cvd_context=cvd_context, scores_map=scores_map,
+            patient=patient,
         )
     except Exception as exc:
         log(f"[Export] PDF generation failed for record {record_id}: {exc}")
@@ -280,13 +268,12 @@ def _build_patient_info_line(patient) -> Optional[str]:
 
 async def _extract_outpatient_fields_safe(
     records, patient, resolved_doctor_id: str, patient_id: int,
-    scores_map: dict | None = None,
 ):
     """Call LLM field extraction; raises HTTPException 502 on ExtractionError."""
     from services.export.outpatient_report import ExtractionError, extract_outpatient_fields
     try:
         return await extract_outpatient_fields(
-            records, patient, doctor_id=resolved_doctor_id, scores_map=scores_map,
+            records, patient, doctor_id=resolved_doctor_id,
         )
     except ExtractionError as exc:
         log(f"[Export] outpatient field extraction unavailable for patient {patient_id}: {exc}")
@@ -312,13 +299,10 @@ async def export_outpatient_report(
     enforce_doctor_rate_limit(resolved_doctor_id, scope="export.outpatient_report")
     async with AsyncSessionLocal() as db:
         patient, records = await _fetch_patient_and_records(db, patient_id, resolved_doctor_id, limit)
-        from db.crud.scores import get_scores_for_records
-        rec_ids = [r.id for r in records if r.id is not None]
-        scores_map = await get_scores_for_records(db, rec_ids, resolved_doctor_id) if rec_ids else {}
     if not records:
         raise HTTPException(status_code=404, detail="No records found for this patient")
     fields = await _extract_outpatient_fields_safe(
-        records, patient, resolved_doctor_id, patient_id, scores_map=scores_map,
+        records, patient, resolved_doctor_id, patient_id,
     )
     patient_info = _build_patient_info_line(patient)
     try:

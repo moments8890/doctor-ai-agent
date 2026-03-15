@@ -246,7 +246,7 @@ Primary files:
 
 - `scripts/compare_baseline.py`
 - `scripts/save_baseline.sh`
-- `e2e/README.md`
+- `tests/README.md`
 - `docs/review/architecture-overview.md`
 - `docs/product/message-routing-pipeline.md`
 - `docs/plans/archived/mvp-hero-loop-progress.md`

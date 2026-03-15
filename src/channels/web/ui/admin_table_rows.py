@@ -4,8 +4,6 @@
 
 from __future__ import annotations
 
-import asyncio
-import json as _json
 from typing import Optional
 
 from fastapi import HTTPException
@@ -23,12 +21,10 @@ from db.models import (
     MedicalRecordDB,
     MedicalRecordExport,
     MedicalRecordVersion,
-    NeuroCVDContext,
     Patient,
     PatientLabel,
     PendingMessage,
     PendingRecord,
-    SpecialtyScore,
     SystemPrompt,
     SystemPromptVersion,
     patient_label_assignments,
@@ -137,31 +133,6 @@ async def _rows_doctor_tasks(
     ]
 
 
-async def _rows_neuro_cases(
-    db, doctor_id: Optional[str], needle: Optional[str], dt_from, dt_to_exclusive,
-    limit: int, offset: int,
-) -> list:
-    stmt = (
-        select(MedicalRecordDB)
-        .where(MedicalRecordDB.record_type == "neuro_case")
-        .order_by(MedicalRecordDB.created_at.desc())
-        .limit(limit).offset(offset)
-    )
-    stmt = _apply_created_at_filters(stmt, MedicalRecordDB, dt_from, dt_to_exclusive)
-    if doctor_id:
-        stmt = stmt.where(MedicalRecordDB.doctor_id == doctor_id)
-    else:
-        stmt = apply_exclude_test_doctors(stmt, MedicalRecordDB.doctor_id)
-    if needle:
-        stmt = stmt.where(MedicalRecordDB.neuro_patient_name.ilike(needle))
-    return [
-        {"id": n.id, "doctor_id": n.doctor_id, "patient_id": n.patient_id,
-         "patient_name": n.neuro_patient_name, "nihss": n.nihss,
-         "created_at": _fmt_ts(n.created_at)}
-        for n in (await db.execute(stmt)).scalars().all()
-    ]
-
-
 async def _rows_patient_labels(
     db, doctor_id: Optional[str], dt_from, dt_to_exclusive, limit: int, offset: int,
 ) -> list:
@@ -224,52 +195,6 @@ async def _rows_doctor_contexts(db, doctor_id: Optional[str], limit: int, offset
     return [
         {"doctor_id": c.doctor_id, "summary": c.summary, "updated_at": _fmt_ts(c.updated_at)}
         for c in (await db.execute(stmt)).scalars().all()
-    ]
-
-
-async def _rows_neuro_cvd_context(
-    db, doctor_id: Optional[str], needle: Optional[str], limit: int, offset: int,
-) -> list:
-    stmt = (
-        select(NeuroCVDContext, Patient.name.label("patient_name"))
-        .outerjoin(Patient, NeuroCVDContext.patient_id == Patient.id)
-        .order_by(NeuroCVDContext.created_at.desc()).limit(limit).offset(offset)
-    )
-    if doctor_id:
-        stmt = stmt.where(NeuroCVDContext.doctor_id == doctor_id)
-    else:
-        stmt = apply_exclude_test_doctors(stmt, NeuroCVDContext.doctor_id)
-    if needle:
-        stmt = stmt.where(Patient.name.ilike(needle))
-    return [
-        {
-            "id": r.id, "doctor_id": r.doctor_id, "patient_id": r.patient_id,
-            "patient_name": pname, "record_id": r.record_id,
-            "diagnosis_subtype": r.diagnosis_subtype,
-            "surgery_status": r.surgery_status,
-            "source": r.source,
-            "created_at": _fmt_ts(r.created_at),
-            "updated_at": _fmt_ts(r.updated_at),
-            **(_json.loads(r.raw_json) if r.raw_json else {}),
-        }
-        for r, pname in (await db.execute(stmt)).all()
-    ]
-
-
-async def _rows_specialty_scores(db, doctor_id: Optional[str], limit: int, offset: int) -> list:
-    stmt = select(SpecialtyScore).order_by(SpecialtyScore.id.desc()).limit(limit).offset(offset)
-    if doctor_id:
-        stmt = stmt.where(SpecialtyScore.doctor_id == doctor_id)
-    else:
-        stmt = apply_exclude_test_doctors(stmt, SpecialtyScore.doctor_id)
-    return [
-        {
-            "id": s.id, "record_id": s.record_id, "doctor_id": s.doctor_id,
-            "score_type": s.score_type, "score_value": s.score_value, "raw_text": s.raw_text,
-            "patient_id": getattr(s, "patient_id", None),
-            "extracted_at": _fmt_ts(getattr(s, "extracted_at", None)),
-        }
-        for s in (await db.execute(stmt)).scalars().all()
     ]
 
 
@@ -415,8 +340,6 @@ async def _fetch_table_rows(
         return await _rows_medical_records(db, doctor_id, needle, dt_from, dt_to_exclusive, limit, offset)
     if table_key == "doctor_tasks":
         return await _rows_doctor_tasks(db, doctor_id, needle, dt_from, dt_to_exclusive, limit, offset)
-    if table_key == "neuro_cases":
-        return await _rows_neuro_cases(db, doctor_id, needle, dt_from, dt_to_exclusive, limit, offset)
     if table_key == "patient_labels":
         return await _rows_patient_labels(db, doctor_id, dt_from, dt_to_exclusive, limit, offset)
     if table_key == "patient_label_assignments":
@@ -425,10 +348,6 @@ async def _fetch_table_rows(
         return await _rows_system_prompts(db, limit, offset)
     if table_key == "doctor_contexts":
         return await _rows_doctor_contexts(db, doctor_id, limit, offset)
-    if table_key == "neuro_cvd_context":
-        return await _rows_neuro_cvd_context(db, doctor_id, needle, limit, offset)
-    if table_key == "specialty_scores":
-        return await _rows_specialty_scores(db, doctor_id, limit, offset)
     if table_key == "medical_record_versions":
         return await _rows_record_versions(db, doctor_id, limit, offset)
     if table_key == "medical_record_exports":

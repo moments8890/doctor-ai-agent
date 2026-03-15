@@ -66,7 +66,7 @@ Key invariants:
 ┌──────────────────────────▼──────────────────────────────┐
 │               SERVICE LAYER                             │
 │  ai/        structuring, transcription, vision, LLM     │
-│  domain/    confirm_pending                               │
+│  domain/    confirm_pending                              │
 │  patient/   risk scoring, search, timeline               │
 │  knowledge/ PDF/Word extraction, doctor knowledge        │
 │  notify/    task scheduling, notifications               │

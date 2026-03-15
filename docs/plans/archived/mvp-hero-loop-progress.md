@@ -122,7 +122,7 @@ Status: **done** (tooling complete; hero-loop cases need live validation)
 - [x] Baseline vs candidate comparison automation (`scripts/compare_baseline.py`)
 - [x] Save baseline script (`scripts/save_baseline.sh`)
 - [x] Lock MVP benchmark dimensions (binding, draft lifecycle, compound, query, fatal errors)
-- [x] MVP accuracy benchmark dataset (`e2e/fixtures/data/mvp_accuracy_benchmark.json`)
+- [x] MVP accuracy benchmark dataset (`tests/fixtures/data/mvp_accuracy_benchmark.json`)
 
 ### Deferred to next cycle
 

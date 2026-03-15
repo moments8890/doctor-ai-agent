@@ -34,9 +34,6 @@ DEFAULT_RUNTIME_CONFIG: Dict[str, Any] = {
     "GEMINI_VISION_MODEL": "gemini-2.0-flash",
     "PATIENTS_DB_PATH": str(ROOT / "patients.db"),
     "DATABASE_URL": "",
-    "WHISPER_MODEL": "large-v3",
-    "WHISPER_DEVICE": "cpu",
-    "WHISPER_COMPUTE_TYPE": "int8",
     "AUTO_FOLLOWUP_TASKS_ENABLED": False,
     "LOG_LEVEL": "INFO",
     "LOG_FORMAT": "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -110,10 +107,6 @@ CONFIG_CATEGORIES: Dict[str, Dict[str, Any]] = {
         "description": "Database and storage path settings.",
         "keys": ["DATABASE_URL", "PATIENTS_DB_PATH"],
     },
-    "speech": {
-        "description": "ASR transcription model runtime settings.",
-        "keys": ["WHISPER_MODEL", "WHISPER_DEVICE", "WHISPER_COMPUTE_TYPE"],
-    },
     "automation": {
         "description": "Clinical automation and scheduler behavior.",
         "keys": [
@@ -184,7 +177,6 @@ CONFIG_CATEGORIES: Dict[str, Dict[str, Any]] = {
 CATEGORY_DESCRIPTIONS_ZH: Dict[str, str] = {
     "llm": "LLM 提供商路由与模型选择。",
     "storage": "数据库与存储路径配置。",
-    "speech": "语音转写模型运行配置。",
     "automation": "临床自动化与调度行为。",
     "wecom": "企业微信自建应用集成与通知配置。",
     "miniprogram": "微信小程序鉴权与端点默认配置。",
@@ -216,9 +208,6 @@ CONFIG_DESCRIPTIONS: Dict[str, str] = {
     "GEMINI_VISION_MODEL": "Gemini model for vision route.",
     "DATABASE_URL": "Shared DB URL (recommended in multi-instance).",
     "PATIENTS_DB_PATH": "SQLite DB path when DATABASE_URL is empty.",
-    "WHISPER_MODEL": "Faster-Whisper model size.",
-    "WHISPER_DEVICE": "ASR device (cpu/cuda).",
-    "WHISPER_COMPUTE_TYPE": "ASR compute type (int8/float16/etc.).",
     "AUTO_FOLLOWUP_TASKS_ENABLED": "Enable auto follow-up task generation.",
     "TASK_SCHEDULER_MODE": "Scheduler mode: interval or cron.",
     "TASK_SCHEDULER_INTERVAL_MINUTES": "Interval mode cadence in minutes.",
@@ -283,9 +272,6 @@ CONFIG_DESCRIPTIONS_ZH: Dict[str, str] = {
     "GEMINI_VISION_MODEL": "视觉路由使用的 Gemini 模型。",
     "DATABASE_URL": "共享数据库 URL（多实例推荐）。",
     "PATIENTS_DB_PATH": "DATABASE_URL 为空时使用的 SQLite 路径。",
-    "WHISPER_MODEL": "Faster-Whisper 模型规格。",
-    "WHISPER_DEVICE": "ASR 设备（cpu/cuda）。",
-    "WHISPER_COMPUTE_TYPE": "ASR 计算类型（int8/float16 等）。",
     "AUTO_FOLLOWUP_TASKS_ENABLED": "是否开启自动生成随访任务。",
     "TASK_SCHEDULER_MODE": "调度模式：interval 或 cron。",
     "TASK_SCHEDULER_INTERVAL_MINUTES": "interval 模式的分钟间隔。",
@@ -334,7 +320,6 @@ CONFIG_ALLOWED_VALUES: Dict[str, list[str]] = {
     "AGENT_ROUTING_PROMPT_MODE": ["full", "compact"],
     "AGENT_TOOL_SCHEMA_MODE": ["full", "compact"],
     "VISION_LLM": ["ollama", "gemini", "openai"],
-    "WHISPER_DEVICE": ["cpu", "cuda"],
     "TASK_SCHEDULER_MODE": ["interval", "cron"],
     "NOTIFICATION_PROVIDER": ["log", "wechat"],
     "LOG_LEVEL": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
@@ -677,7 +662,7 @@ async def save_runtime_config_dict(raw: Dict[str, Any]) -> Dict[str, str]:
 _LOWER_CASE_ENUM_KEYS = {
     "ROUTING_LLM", "STRUCTURING_LLM", "INTENT_PROVIDER", "VISION_LLM",
     "LLM_PROVIDER_STRICT_MODE", "AGENT_ROUTING_PROMPT_MODE", "AGENT_TOOL_SCHEMA_MODE",
-    "KNOWLEDGE_AUTO_LEARN_ENABLED", "WHISPER_DEVICE", "TASK_SCHEDULER_MODE",
+    "KNOWLEDGE_AUTO_LEARN_ENABLED", "TASK_SCHEDULER_MODE",
     "NOTIFICATION_PROVIDER",
 }
 

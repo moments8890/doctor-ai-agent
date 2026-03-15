@@ -37,7 +37,7 @@ problems. This plan fixes all of them in a single pass.
 | L2 | :656 | ADR 0009 missing from Key ADRs table |
 | L3 | :609-623 | Persistence model diagram lists 14 models; codebase has 27 |
 | L4 | :568-575 | Session model omits ephemeral fields: candidate_patient_name/gender/age, patient_not_found_name |
-| L5 | :112 | `tests/` listed — directory deleted; tests consolidated into `e2e/` |
+| L5 | :112 | `tests/` listed — directory deleted; tests consolidated into `tests/` |
 | L6 | :87-94 | `services/ai/` listing missing intent.py, llm_client.py, provider_registry.py, vision.py, etc. |
 
 ## Approach
@@ -55,7 +55,7 @@ what's wrong and add what's missing. Changes grouped by section:
 
 ### Step 2 — Directory structure (:56-116)
 
-- **L5**: Replace `tests/` with `e2e/` and update description.
+- **L5**: Replace `tests/` with `tests/` and update description.
 - **M3**: Remove `records_media.py` line (not mounted). Add comment that media endpoints live in `records.py`.
 - **L6**: Add missing `services/ai/` modules (intent.py, llm_client.py, llm_resilience.py, provider_registry.py, vision.py, multi_intent.py, neuro_structuring.py, router.py).
 

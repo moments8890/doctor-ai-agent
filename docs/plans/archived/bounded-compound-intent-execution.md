@@ -27,7 +27,7 @@ All 8 steps completed. 1121 tests passing (0 regressions), 32 new tests added.
 - `services/domain/chat_constants.py` — deleted `CLINICAL_CONTENT_HINTS` (fully replaced by residual-text approach)
 - `routers/records.py` — replaced `_contains_clinical_content()` keyword check with `has_residual_clinical_content()`; removed `CLINICAL_CONTENT_HINTS` import
 - `tests/test_intent_workflow_planner.py` — 8 new tests for unsupported combos and correction behavior
-- `e2e/fixtures/data/mvp_accuracy_benchmark.json` — 5 new cases (dermatology, orthopedics, correction, 2 unsupported-combo clarifications)
+- `tests/fixtures/data/mvp_accuracy_benchmark.json` — 5 new cases (dermatology, orthopedics, correction, 2 unsupported-combo clarifications)
 
 ### Deleted constants
 - `CLINICAL_CONTENT_HINTS` — removed from definition (`chat_constants.py`) and all 3 consumers (`entities.py`, `_create_patient.py`, `routers/records.py`); fully replaced by `has_residual_clinical_content()` which uses demographic-stripping + meaningful-residual check instead of a fixed keyword list

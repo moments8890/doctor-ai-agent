@@ -3,8 +3,8 @@
 DB 数据迁移工具 — 将 patients.db 导出/导入为可移植的 JSON 固件文件。
 
 用法：
-    python scripts/seed_db.py --export                  # 导出 patients.db → e2e/fixtures/seed_data.json
-    python scripts/seed_db.py --import                  # 导入 e2e/fixtures/seed_data.json → patients.db
+    python scripts/seed_db.py --export                  # 导出 patients.db → tests/fixtures/seed_data.json
+    python scripts/seed_db.py --import                  # 导入 tests/fixtures/seed_data.json → patients.db
     python scripts/seed_db.py --reset --import          # 清空后导入（干净的开发环境重置）
     python scripts/seed_db.py --reset --no-import       # 仅清空
     python scripts/seed_db.py --export --dry-run        # 预览，不写入
@@ -157,7 +157,7 @@ _RESET_TABLES = [
     "pending_records",
     "doctor_conversation_turns",
     "chat_archive",
-    "doctor_session_states",
+
     "medical_records",
     "patients",
 ]

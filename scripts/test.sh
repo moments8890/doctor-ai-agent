@@ -26,13 +26,13 @@ mkdir -p reports/junit reports/coverage reports/coverage/html reports/logs repor
 
 run_integration() {
   echo "[test] Running integration text pipeline tests..."
-  "$PYTHON" -m pytest e2e/integration/test_text_pipeline.py -v -m integration \
+  "$PYTHON" -m pytest tests/integration/test_text_pipeline.py -v -m integration \
     --junitxml=reports/junit/integration.xml
 }
 
 run_integration_full() {
   echo "[test] Running full integration test suite..."
-  "$PYTHON" -m pytest e2e/integration/ -v -m integration \
+  "$PYTHON" -m pytest tests/integration/ -v -m integration \
     --junitxml=reports/junit/integration.xml
 }
 

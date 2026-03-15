@@ -67,7 +67,7 @@ start_cloudflared_tunnel() {
   fi
 }
 
-# ── Unified subcommands (bootstrap/test/e2e/load-data/...) ───────────────
+# ── Unified subcommands (bootstrap/test/load-data/...) ───────────────────
 if [[ $# -gt 0 && "${1:-}" != -* ]]; then
   CMD="$1"
   shift || true
@@ -893,12 +893,13 @@ else
   [[ "$WANT_FRONTEND" -eq 1 ]] && echo "  FE log     : tail -f $LOG_FE"
   echo "======================================================"
   echo ""
-  cd "$APP_DIR"
+  cd "$APP_DIR/src"
   export ENVIRONMENT="${ENVIRONMENT:-development}"
+  export PYTHONPATH="$APP_DIR/src${PYTHONPATH:+:$PYTHONPATH}"
   if [[ "$NO_RELOAD" -eq 1 ]]; then
     info "Auto-reload disabled (--no-reload)"
-    .venv/bin/uvicorn main:app --port "$PORT"
+    "$APP_DIR/.venv/bin/uvicorn" main:app --port "$PORT"
   else
-    .venv/bin/uvicorn main:app --reload --port "$PORT"
+    "$APP_DIR/.venv/bin/uvicorn" main:app --reload --port "$PORT"
   fi
 fi

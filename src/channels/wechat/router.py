@@ -23,11 +23,9 @@ from wechatpy.enterprise.crypto import WeChatCrypto as EnterpriseWeChatCrypto
 from wechatpy.utils import check_signature
 from wechatpy.exceptions import InvalidSignatureException
 from wechatpy.replies import TextReply
-from services.ai.transcription import transcribe_audio
 from channels.wechat import wechat_domain as wd
 from channels.wechat import wechat_media_pipeline as wmp
 from channels.wechat import wecom_kf_sync as kfsync
-from channels.wechat.wechat_voice import download_and_convert, download_media, download_voice
 from channels.wechat.wechat_menu import create_menu
 from channels.wechat.wechat_notify import (
     _get_config, _get_access_token, _send_customer_service_msg, _split_message as _notify_split_message,
@@ -177,23 +175,6 @@ async def _kf_enqueue_intent(text: str, user_id: str, open_kfid: str) -> None:
         safe_create_task(_handle_patient_bg(text, user_id, open_kfid=open_kfid))
 
 
-async def _kf_enqueue_voice(media_id: str, user_id: str, open_kfid: str) -> None:
-    """Persist and enqueue a doctor voice message for transcription."""
-    if await _is_registered_doctor(user_id):
-        import uuid as _uuid
-        _voice_msg_id = _uuid.uuid4().hex
-        try:
-            async with AsyncSessionLocal() as _db:
-                from db.crud import create_pending_message as _create_pm
-                await _create_pm(_db, _voice_msg_id, user_id, f"[voice:{media_id}]")
-        except Exception as _e:
-            log(f"[KF] voice pending_message persist FAILED (non-fatal): {_e}")
-            _voice_msg_id = ""
-        safe_create_task(_handle_voice_bg(media_id, user_id, open_kfid=open_kfid, msg_id=_voice_msg_id))
-    else:
-        safe_create_task(_handle_patient_bg(_PATIENT_NON_TEXT_REPLY, user_id, open_kfid=open_kfid))
-
-
 async def _kf_enqueue_image(media_id: str, user_id: str, open_kfid: str) -> None:
     """Dispatch a doctor image message to vision handler or patient reply."""
     if await _is_registered_doctor(user_id):
@@ -229,7 +210,7 @@ def _kf_build_handlers() -> dict:
         msg_to_text=_wecom_kf_msg_to_text, msg_is_processable=_wecom_msg_is_processable,
         msg_time=_wecom_msg_time,
         send_customer_service_msg=lambda uid, content, open_kfid: _send_customer_service_msg(uid, content, open_kfid=open_kfid),
-        handle_voice_bg=_kf_enqueue_voice, handle_image_bg=_kf_enqueue_image,
+        handle_image_bg=_kf_enqueue_image,
         handle_file_bg=_kf_enqueue_file, handle_intent_bg=_kf_enqueue_intent,
         async_client_cls=httpx.AsyncClient,
     )
@@ -393,59 +374,6 @@ async def _handle_patient_bg(text: str, open_id: str, open_kfid: str = "") -> No
         log(f"[WeChat patient] FAILED open_id={open_id}: {e}")
 
 
-async def _transcribe_voice_msg(media_id: str, doctor_id: str, open_kfid: str) -> str | None:
-    """Download and transcribe a voice message; send error reply and return None on failure.
-
-    On failure an error message is sent directly to the doctor via CS API,
-    so the caller should NOT send another error reply.
-    """
-    cfg = _get_config()
-    try:
-        access_token = await _get_access_token(cfg["app_id"], cfg["app_secret"])
-        wav = await download_and_convert(media_id, access_token)
-        text = await transcribe_audio(wav, "voice.wav")
-        log(f"[Voice] transcribed for {doctor_id}: {text!r}")
-        return text
-    except Exception as e:
-        log(f"[Voice] transcription FAILED: {e}")
-        try:
-            await _send_customer_service_msg(doctor_id, "❌ 语音识别失败，请稍后重试。", open_kfid=open_kfid)
-        except Exception as se:
-            log(f"[Voice] transcription error reply send FAILED: {se}")
-        return None
-
-
-async def _handle_voice_bg(media_id: str, doctor_id: str, open_kfid: str = "", msg_id: str = ""):
-    """Download, convert, transcribe WeChat voice, then route through ADR 0011 runtime."""
-    _send_ok = False
-    try:
-        text = await _transcribe_voice_msg(media_id, doctor_id, open_kfid)
-        if text is None:
-            _send_ok = True
-            return
-        from services.runtime import TurnEnvelope, process_turn
-        result = await process_turn(TurnEnvelope(
-            doctor_id=doctor_id,
-            text=text,
-            channel="wechat",
-            modality="voice",
-            source_turn_key=msg_id or None,
-        ))
-        reply = f'🎙️ 「{text}」\n\n{result.reply}'
-        await _send_customer_service_msg(doctor_id, reply, open_kfid=open_kfid)
-        _send_ok = True
-    except Exception as e:
-        log(f"[Voice] _handle_voice_bg FAILED: {e}")
-    finally:
-        if msg_id and _send_ok:
-            try:
-                async with AsyncSessionLocal() as _mdb:
-                    from db.crud import mark_pending_message as _mark_pm
-                    await _mark_pm(_mdb, msg_id, "done")
-            except Exception as _e:
-                log(f"[Voice] mark pending_message done FAILED: {_e}")
-
-
 async def _decrypt_xml_body(xml_str: str, encrypt_type: str, msg_signature: str,
                             timestamp: str, nonce: str, cfg: dict) -> str | None:
     """Decrypt an AES-encrypted WeChat/WeCom XML body; return None on failure."""
@@ -495,10 +423,9 @@ async def _handle_non_doctor_msg(msg) -> Response:
 
 
 async def _handle_non_text_msg(msg) -> Response | None:
-    """Handle voice/image/video/location/link messages; return None if not applicable."""
+    """Handle image/video/location/link messages; return None if not applicable."""
     if msg.type == "voice":
-        safe_create_task(_handle_voice_bg(msg.media_id, msg.source, _extract_open_kfid(msg)))
-        return Response(content=TextReply(content="🎙️ 收到语音，正在识别，稍候回复您…", message=msg).render(), media_type="application/xml")
+        return Response(content=TextReply(content="暂不支持语音消息，请发送文字或图片。", message=msg).render(), media_type="application/xml")
     if msg.type == "image":
         safe_create_task(_handle_image_bg(msg.media_id, msg.source, _extract_open_kfid(msg)))
         return Response(content=TextReply(content="🖼️ 收到图片，正在识别文字…", message=msg).render(), media_type="application/xml")

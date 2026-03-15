@@ -41,7 +41,7 @@ Direct pushes to `main` are allowed.
 ### Steps for every change
 
 1. **Do not add or update unit tests by default** — unit coverage is temporarily frozen during the current MVP iteration unless the user explicitly requests test work
-2. **Integration tests** — `pytest e2e/integration/` — run when the LLM pipeline, prompts, or end-to-end workflow behavior changed
+2. **Integration tests** — `pytest tests/integration/` — run when the LLM pipeline, prompts, or end-to-end workflow behavior changed
 3. **Corpus/E2E replay** — `bash scripts/test.sh chatlog-full` or `./dev.sh e2e <half|full>` — use for human-language regression checks on meaningful workflow changes
 4. **Document changes in commit message** — include what changed and any migration/manual cleanup impact
 5. **Update `ARCHITECTURE.md`** — only if schema, env vars, API endpoints, or service structure changed

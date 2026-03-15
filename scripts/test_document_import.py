@@ -230,9 +230,6 @@ async def _stage_structure(chunks: list, max_chunks: int, no_structure: bool, re
             rtype = record.get("record_type")
             if rtype:
                 print(f"    record_type: {rtype}")
-            scores = record.get("specialty_scores", [])
-            if scores:
-                print(f"    specialty_scores: {len(scores)} item(s)")
         except Exception as e:
             print(f"FAILED — {e}")
             structured.append({"chunk": i+1, "error": str(e)})

@@ -797,11 +797,17 @@ function DebugDashboard({ onLockout }) {
   );
 }
 
+const DEV_MODE = import.meta.env.DEV;
+
+// In dev mode, set token synchronously before any component renders
+if (DEV_MODE) setDebugToken("dev");
+
 export default function DebugPage() {
   const [authError, setAuthError] = useState("");
-  const [status, setStatus] = useState(() =>
-    localStorage.getItem(DEBUG_TOKEN_KEY) ? "verifying" : "locked"
-  );
+  const [status, setStatus] = useState(() => {
+    if (DEV_MODE) return "ok";
+    return localStorage.getItem(DEBUG_TOKEN_KEY) ? "verifying" : "locked";
+  });
 
   function handleUnlock(token) {
     setAuthError("");
@@ -818,6 +824,7 @@ export default function DebugPage() {
   }
 
   function handleLockout() {
+    if (DEV_MODE) return;
     localStorage.removeItem(DEBUG_TOKEN_KEY);
     setDebugToken("");
     setAuthError("");
@@ -825,6 +832,7 @@ export default function DebugPage() {
   }
 
   useEffect(() => {
+    if (DEV_MODE) return;
     onDebugAuthError(handleLockout);
     const stored = localStorage.getItem(DEBUG_TOKEN_KEY) || "";
     if (stored) {
@@ -841,6 +849,7 @@ export default function DebugPage() {
     return () => onDebugAuthError(null);
   }, []);
 
+  if (DEV_MODE) return <DebugDashboard onLockout={() => {}} />;
   if (status === "verifying") return null;
   if (status === "locked") return <TokenGate onUnlock={handleUnlock} initialError={authError} />;
   return <DebugDashboard onLockout={handleLockout} />;

@@ -125,9 +125,6 @@ class AppConfig:
     wechat_encoding_aes_key: Optional[str]
 
     patients_db_path: Optional[str]
-    whisper_model: str
-    whisper_device: str
-    whisper_compute_type: str
     auto_followup_tasks_enabled: bool
 
     log_level: str
@@ -174,9 +171,6 @@ class AppConfig:
             wechat_mini_app_secret=values.get("WECHAT_MINI_APP_SECRET"),
             wechat_encoding_aes_key=_env_first(values, "WECHAT_KF_ENCODING_AES_KEY", "WECHAT_ENCODING_AES_KEY"),
             patients_db_path=values.get("PATIENTS_DB_PATH"),
-            whisper_model=values.get("WHISPER_MODEL", "large-v3"),
-            whisper_device=values.get("WHISPER_DEVICE", "cpu"),
-            whisper_compute_type=values.get("WHISPER_COMPUTE_TYPE", "int8"),
             auto_followup_tasks_enabled=_as_bool(values.get("AUTO_FOLLOWUP_TASKS_ENABLED"), default=False),
             log_level=values.get("LOG_LEVEL", "INFO").upper(),
             log_format=values.get("LOG_FORMAT", "%(asctime)s [%(levelname)s] %(name)s: %(message)s"),
@@ -215,9 +209,6 @@ class AppConfig:
             "wechat_app_id": self.wechat_app_id or "(empty)",
             "wechat_mini_app_id": self.wechat_mini_app_id or "(empty)",
             "patients_db_path": self.patients_db_path or "(default)",
-            "whisper_model": self.whisper_model,
-            "whisper_device": self.whisper_device,
-            "whisper_compute_type": self.whisper_compute_type,
             "auto_followup_tasks_enabled": str(self.auto_followup_tasks_enabled).lower(),
             "log_level": self.log_level,
             "log_to_file": str(self.log_to_file).lower(),

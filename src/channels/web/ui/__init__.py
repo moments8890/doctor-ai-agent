@@ -30,7 +30,6 @@ from db.crud import (
     get_pending_record,
     confirm_pending_record,
     abandon_pending_record,
-    get_cvd_context_for_patient,
     delete_patient_for_doctor,
 )
 from db.crud.records import delete_record
@@ -247,29 +246,6 @@ async def manage_patient_timeline(
     if data is None:
         raise HTTPException(status_code=404, detail="Patient not found")
     return {"doctor_id": doctor_id, **data}
-
-
-@router.get("/api/manage/patients/{patient_id}/cvd-context")
-async def manage_patient_cvd_context(
-    patient_id: int,
-    doctor_id: str = Query(default="web_doctor"),
-    authorization: str | None = Header(default=None),
-):
-    """Return the most recent neurosurgical CVD clinical context for a patient."""
-    doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
-    async with AsyncSessionLocal() as db:
-        row = await get_cvd_context_for_patient(db, doctor_id, patient_id)
-    if row is None:
-        raise HTTPException(status_code=404, detail="No CVD context found")
-    import json as _json
-    data = _json.loads(row.raw_json or "{}") if row.raw_json else {}
-    return {
-        "patient_id": patient_id,
-        "record_id": row.record_id,
-        "source": row.source,
-        "created_at": _fmt_ts(row.created_at),
-        **data,
-    }
 
 
 @router.get("/api/manage/records")

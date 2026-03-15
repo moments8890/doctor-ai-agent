@@ -17,12 +17,6 @@ export async function sendChat(payload) {
   });
 }
 
-export async function transcribeAudio(audioBlob, filename = "audio.webm") {
-  const form = new FormData();
-  form.append("audio", audioBlob, filename);
-  return request("/api/records/transcribe", { method: "POST", body: form });
-}
-
 export async function ocrImage(imageFile) {
   const form = new FormData();
   form.append("image", imageFile, imageFile.name);
@@ -156,11 +150,6 @@ export async function updatePrompt(key, content) {
 export async function getPatientTimeline({ doctorId, patientId, limit = 100 }) {
   const qs = new URLSearchParams({ doctor_id: doctorId, limit: String(limit) });
   return request(`/api/manage/patients/${patientId}/timeline?${qs.toString()}`);
-}
-
-export async function getCvdContext(patientId, doctorId) {
-  const qs = new URLSearchParams({ doctor_id: doctorId });
-  return request(`/api/manage/patients/${patientId}/cvd-context?${qs.toString()}`);
 }
 
 export async function getLabels(doctorId) {
