@@ -797,11 +797,14 @@ function DebugDashboard({ onLockout }) {
   );
 }
 
+const DEV_MODE = import.meta.env.DEV;
+
 export default function DebugPage() {
   const [authError, setAuthError] = useState("");
-  const [status, setStatus] = useState(() =>
-    localStorage.getItem(DEBUG_TOKEN_KEY) ? "verifying" : "locked"
-  );
+  const [status, setStatus] = useState(() => {
+    if (DEV_MODE) return "ok";
+    return localStorage.getItem(DEBUG_TOKEN_KEY) ? "verifying" : "locked";
+  });
 
   function handleUnlock(token) {
     setAuthError("");
@@ -825,6 +828,10 @@ export default function DebugPage() {
   }
 
   useEffect(() => {
+    if (DEV_MODE) {
+      setDebugToken("dev");
+      return;
+    }
     onDebugAuthError(handleLockout);
     const stored = localStorage.getItem(DEBUG_TOKEN_KEY) || "";
     if (stored) {

@@ -69,6 +69,9 @@ def require_admin_token(
 
     expected = (os.environ.get(env_name) or "").strip()
     if not expected:
+        # In development, skip token check when env var is not configured
+        if not is_production():
+            return
         raise HTTPException(status_code=503, detail="{0} is not configured".format(env_name))
 
     candidate = (provided_token or "").strip()
