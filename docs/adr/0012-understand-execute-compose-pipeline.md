@@ -424,8 +424,11 @@ draft confirmation/abandonment. Everything else — including input during a
 pending draft — flows through the full pipeline. Execute.resolve owns all
 blocking logic:
 
-- **Write during pending draft**: resolve returns
-  `clarification.kind="blocked"`.
+- **Same-patient `schedule_task` during pending draft**: allowed — these are
+  independent operations (writes to `doctor_tasks`, not `pending_drafts`).
+- **Context-switching write during pending draft** (`create_patient`,
+  `select_patient` targeting a different patient, `create_draft`): resolve
+  returns `clarification.kind="blocked"`.
 - **Cross-patient read during pending draft**: resolve returns
   `clarification.kind="blocked"` (see section 10).
 - **Chitchat during pending draft**: understand classifies as `none`, returns
@@ -599,7 +602,7 @@ are now working on that patient.
 | Explicit name, resolves to 0 patients | Return `not_found` | Return `not_found` |
 | No name, context has patient | Use context patient | Use context patient |
 | No name, no context patient | Clarify: `missing_field` | Clarify: `missing_field` |
-| Pending draft, same patient | Allowed | Blocked by execute.resolve (`blocked`) |
+| Pending draft, same patient | Allowed | `schedule_task`: allowed (independent). `create_draft`: blocked (second pending). Others: blocked (context switch). |
 | Pending draft, different patient | Blocked by execute.resolve (`blocked`) | Blocked by execute.resolve (`blocked`) |
 | Pending draft, unscoped (`list_patients`) | Always allowed (no patient target) | N/A |
 
