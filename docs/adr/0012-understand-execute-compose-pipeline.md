@@ -373,6 +373,10 @@ contains enough information for compose to render a confirmation prompt.
 For immediate actions (`schedule_task`, `select_patient`, `create_patient`),
 `status` is `"ok"` and compose renders a success template.
 
+When either engine returns `status: "error"`, compose renders an error
+template using `error_key`. No automatic retry — the error is logged for
+debugging and the doctor sees a generic failure message.
+
 ### 6. Phase-1 action types and boundary rule
 
 Supported action types in phase 1:
