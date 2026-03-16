@@ -60,9 +60,10 @@ async def resolve(
             args=action.args,
         )
 
-    # create_record requires current bound patient
+    # create_record requires a bound patient — auto-resolve from args if needed
     if action_type == ActionType.create_record:
-        if ctx.workflow.patient_id is None:
+        pid, pname = await _ensure_patient(action, ctx)
+        if pid is None:
             return Clarification(
                 kind=ClarificationKind.missing_field,
                 missing_fields=["patient_name"],
@@ -70,20 +71,21 @@ async def resolve(
             )
         return ResolvedAction(
             action_type=action_type,
-            patient_id=ctx.workflow.patient_id,
-            patient_name=ctx.workflow.patient_name,
+            patient_id=pid,
+            patient_name=pname,
             args=action.args,
         )
 
-    # update_record requires current bound patient and an existing record
+    # update_record requires a bound patient + existing record
     if action_type == ActionType.update_record:
-        if ctx.workflow.patient_id is None:
+        pid, pname = await _ensure_patient(action, ctx)
+        if pid is None:
             return Clarification(
                 kind=ClarificationKind.missing_field,
                 missing_fields=["patient_name"],
                 message_key="need_patient_for_draft",
             )
-        latest = await _fetch_latest_record(ctx.workflow.patient_id, ctx.doctor_id)
+        latest = await _fetch_latest_record(pid, ctx.doctor_id)
         if latest is None:
             return Clarification(
                 kind=ClarificationKind.missing_field,
@@ -92,8 +94,8 @@ async def resolve(
         record_id, _content = latest
         return ResolvedAction(
             action_type=action_type,
-            patient_id=ctx.workflow.patient_id,
-            patient_name=ctx.workflow.patient_name,
+            patient_id=pid,
+            patient_name=pname,
             args=action.args,
             record_id=record_id,
         )
@@ -128,6 +130,61 @@ async def resolve(
         args=action.args,
         scoped_only=is_read,
     )
+
+
+async def _ensure_patient(
+    action: ActionIntent,
+    ctx: Any,
+) -> tuple:
+    """Ensure a patient is bound for patient-scoped actions.
+
+    Resolution order:
+    1. Current context patient (already selected)
+    2. patient_name from action args → lookup or auto-create
+    3. (None, None) if no patient can be resolved
+
+    Returns (patient_id, patient_name) or (None, None).
+    """
+    # 1. Already have a context patient
+    if ctx.workflow.patient_id is not None:
+        return (ctx.workflow.patient_id, ctx.workflow.patient_name)
+
+    # 2. Extract patient_name from args
+    name: Optional[str] = None
+    if action.args and hasattr(action.args, "patient_name"):
+        name = action.args.patient_name
+
+    if not name:
+        return (None, None)
+
+    # 3. Try to find existing patient
+    match = await _match_patient(name, ctx.doctor_id)
+    if not isinstance(match, Clarification):
+        patient_id, resolved_name = match
+        # Bind to context so subsequent actions see the patient
+        ctx.workflow.patient_id = patient_id
+        ctx.workflow.patient_name = resolved_name
+        return (patient_id, resolved_name)
+
+    # 4. Not found → auto-create
+    if match.kind in (ClarificationKind.not_found,):
+        from db.crud import create_patient as db_create_patient
+        from db.engine import AsyncSessionLocal
+
+        try:
+            async with AsyncSessionLocal() as db:
+                patient, _ = await db_create_patient(db, ctx.doctor_id, name, None, None)
+                new_id, new_name = patient.id, patient.name
+            ctx.workflow.patient_id = new_id
+            ctx.workflow.patient_name = new_name
+            log(f"[resolve] auto-created patient '{new_name}' id={new_id} for {action.action_type.value}")
+            return (new_id, new_name)
+        except Exception as e:
+            log(f"[resolve] auto-create patient failed: {e}", level="error")
+            return (None, None)
+
+    # Ambiguous or other clarification — can't auto-resolve
+    return (None, None)
 
 
 # ── Latest record lookup ────────────────────────────────────────────────────

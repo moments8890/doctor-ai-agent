@@ -88,13 +88,14 @@ class CreatePatientArgs:
 
 @dataclass
 class CreateRecordArgs:
-    """Empty — clinical content collected from chat_archive by commit engine."""
-    pass
+    """Clinical content collected from chat_archive by commit engine."""
+    patient_name: Optional[str] = None  # resolve auto-creates patient if not found
 
 
 @dataclass
 class UpdateRecordArgs:
     instruction: str
+    patient_name: Optional[str] = None  # resolve auto-creates patient if not found
 
 
 @dataclass

@@ -64,13 +64,15 @@ args: {"patient_name": "张三", "gender": "男", "age": 45}
 
 ### create_record — 保存病历记录
 用户提供了临床内容，想为患者保存一份病历。
-args: {}
-- 无参数。临床内容由系统从对话历史和当前输入中收集。
+args: {"patient_name": "张三"}
+- patient_name: 可选。若消息中提到了患者姓名，填入此字段。系统会自动查找或创建该患者
+- 临床内容由系统从对话历史和当前输入中收集，不需要放入 args
 
 ### update_record — 修改最近病历
 用户想修改当前患者最近的一条病历记录。
-args: {"instruction": "把诊断改成高血压2级"}
+args: {"instruction": "把诊断改成高血压2级", "patient_name": "张三"}
 - instruction: 必填，医生的修改指令
+- patient_name: 可选。若消息中提到了患者姓名，填入此字段
 
 ## 多操作规则
 
