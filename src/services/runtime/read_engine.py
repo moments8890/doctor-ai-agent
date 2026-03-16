@@ -8,21 +8,25 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from services.runtime.types import ActionType, ReadResult, ResolvedAction
+from services.runtime.types import ReadResult, ResolvedAction
 from utils.log import log
 
 
 async def read(action: ResolvedAction, doctor_id: str) -> ReadResult:
     """Fetch data for a read action. Never creates durable writes."""
-    if action.action_type == ActionType.query_records:
-        return await _query_records(action, doctor_id)
-    elif action.action_type == ActionType.list_patients:
+    target = _get_target(action)
+    if target == "patients":
         return await _list_patients(doctor_id)
-    elif action.action_type == ActionType.list_tasks:
+    if target == "tasks":
         return await _list_tasks(action, doctor_id)
-    else:
-        log(f"read_engine called with non-read action: {action.action_type}", level="error")
-        return ReadResult(status="error", error_key="execute_error")
+    return await _query_records(action, doctor_id)
+
+
+def _get_target(action: ResolvedAction) -> str:
+    """Extract query target from args, default to 'records'."""
+    if action.args and hasattr(action.args, "target") and action.args.target:
+        return action.args.target
+    return "records"
 
 
 async def _query_records(action: ResolvedAction, doctor_id: str) -> ReadResult:
