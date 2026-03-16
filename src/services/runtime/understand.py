@@ -188,7 +188,7 @@ def _parse_args(action_type: ActionType, raw_args: Dict[str, Any]) -> Optional[A
     filtered = {k: v for k, v in raw_args.items() if k in valid_fields}
 
     # Clamp limit for query_records
-    if action_type == ActionType.query_records:
+    if action_type == ActionType.query:
         limit = filtered.get("limit")
         if limit is not None:
             try:

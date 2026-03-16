@@ -1,4 +1,4 @@
-"""Pipeline types for the Understand → Execute → Compose runtime (ADR 0012)."""
+"""Pipeline types for the Understand → Execute → Compose runtime (ADR 0012, 0013)."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -10,23 +10,12 @@ from typing import Any, Dict, List, Optional
 
 
 class ActionType(str, Enum):
-    """All recognised operational action types (ADR 0012 §3, §6)."""
-    query_records = "query_records"
-    list_patients = "list_patients"
-    list_tasks = "list_tasks"
-    schedule_task = "schedule_task"
-    select_patient = "select_patient"
-    create_patient = "create_patient"
-    create_record = "create_record"
-    update_record = "update_record"
+    """Simplified action types (ADR 0013 Stream A)."""
     none = "none"
-
-
-class TaskType(str, Enum):
-    """Schedule-task sub-classification (ADR 0012 §8)."""
-    appointment = "appointment"
-    follow_up = "follow_up"
-    general = "general"
+    query = "query"
+    record = "record"
+    update = "update"
+    task = "task"
 
 
 class ClarificationKind(str, Enum):
@@ -51,92 +40,56 @@ class ResponseMode(str, Enum):
 
 RESPONSE_MODE_TABLE: Dict[ActionType, ResponseMode] = {
     ActionType.none: ResponseMode.direct_reply,
-    ActionType.query_records: ResponseMode.llm_compose,
-    ActionType.list_patients: ResponseMode.llm_compose,
-    ActionType.list_tasks: ResponseMode.llm_compose,
-    ActionType.schedule_task: ResponseMode.template,
-    ActionType.select_patient: ResponseMode.template,
-    ActionType.create_patient: ResponseMode.template,
-    ActionType.create_record: ResponseMode.template,
-    ActionType.update_record: ResponseMode.template,
+    ActionType.query: ResponseMode.llm_compose,
+    ActionType.record: ResponseMode.template,
+    ActionType.update: ResponseMode.template,
+    ActionType.task: ResponseMode.template,
 }
 
-READ_ACTIONS = frozenset({ActionType.query_records, ActionType.list_patients, ActionType.list_tasks})
-WRITE_ACTIONS = frozenset({
-    ActionType.schedule_task,
-    ActionType.select_patient,
-    ActionType.create_patient,
-    ActionType.create_record,
-    ActionType.update_record,
-})
+READ_ACTIONS = frozenset({ActionType.query})
+WRITE_ACTIONS = frozenset({ActionType.record, ActionType.update, ActionType.task})
 
 
-# ── Per-action typed args (ADR 0012 §8) ────────────────────────────────────
+# ── Per-action typed args (ADR 0013 Stream A) ──────────────────────────────
 
 
 @dataclass
-class SelectPatientArgs:
-    patient_name: str
+class QueryArgs:
+    target: Optional[str] = None       # "records" | "patients" | "tasks"
+    patient_name: Optional[str] = None
+    limit: Optional[int] = None
+    status: Optional[str] = None       # for tasks: "pending" | "completed"
 
 
 @dataclass
-class CreatePatientArgs:
-    patient_name: str
+class RecordArgs:
+    patient_name: Optional[str] = None
     gender: Optional[str] = None
     age: Optional[int] = None
 
 
 @dataclass
-class CreateRecordArgs:
-    """Clinical content collected from chat_archive by commit engine."""
-    patient_name: Optional[str] = None  # resolve auto-creates patient if not found
-
-
-@dataclass
-class UpdateRecordArgs:
+class UpdateArgs:
     instruction: str
-    patient_name: Optional[str] = None  # resolve auto-creates patient if not found
-
-
-@dataclass
-class QueryRecordsArgs:
     patient_name: Optional[str] = None
-    limit: Optional[int] = None
 
 
 @dataclass
-class ListPatientsArgs:
-    """Empty in phase 1."""
-    pass
-
-
-@dataclass
-class ListTasksArgs:
-    """Optional status filter for task listing."""
-    status: Optional[str] = None  # "pending" | "completed" | None (all)
-
-
-@dataclass
-class ScheduleTaskArgs:
-    task_type: Optional[str] = None  # validated against TaskType in resolve
+class TaskArgs:
     patient_name: Optional[str] = None
     title: Optional[str] = None
     notes: Optional[str] = None
-    scheduled_for: Optional[str] = None  # ISO-8601
-    remind_at: Optional[str] = None      # ISO-8601
+    scheduled_for: Optional[str] = None
+    remind_at: Optional[str] = None
 
 
 # Map action_type → args dataclass for validation
 ARGS_TYPE_TABLE: Dict[ActionType, type] = {
-    ActionType.select_patient: SelectPatientArgs,
-    ActionType.create_patient: CreatePatientArgs,
-    ActionType.create_record: CreateRecordArgs,
-    ActionType.update_record: UpdateRecordArgs,
-    ActionType.query_records: QueryRecordsArgs,
-    ActionType.list_patients: ListPatientsArgs,
-    ActionType.list_tasks: ListTasksArgs,
-    ActionType.schedule_task: ScheduleTaskArgs,
     ActionType.none: type(None),
+    ActionType.query: QueryArgs,
+    ActionType.record: RecordArgs,
+    ActionType.update: UpdateArgs,
+    ActionType.task: TaskArgs,
 }
 
 
@@ -178,8 +131,7 @@ class ResolvedAction:
     patient_id: Optional[int] = None   # fully resolved for patient-scoped actions
     patient_name: Optional[str] = None
     args: Optional[Any] = None         # validated and normalised
-    scoped_only: bool = False          # True for reads — do not switch context
-    record_id: Optional[int] = None    # resolve-time: target record for update_record
+    record_id: Optional[int] = None    # resolve-time: target record for update
 
 
 @dataclass
