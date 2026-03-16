@@ -94,15 +94,14 @@ export const TASK_STATUS_OPTS = [
 ];
 
 export const QUICK_COMMANDS = [
-  { label: "新建患者", icon: "👤", insert: "新建患者：" },
-  { label: "查询患者", icon: "🔍", insert: "查询患者：" },
-  { label: "患者列表", icon: "📋", insert: "患者列表" },
-  { label: "补充记录", icon: "➕", insert: "补充记录：" },
-  { label: "修正上条", icon: "✏️", insert: "刚才写错了，应该是" },
-  { label: "导出PDF", icon: "📄", insert: "导出病历PDF：" },
-  { label: "今日任务", icon: "📌", insert: "今日任务" },
-  { label: "今日摘要", icon: "📊", insert: "今日工作摘要" },
-  { label: "功能帮助", icon: "💡", insert: "帮助" },
+  { label: "新建患者", iconKey: "personAdd", insert: "新建患者：" },
+  { label: "查询患者", iconKey: "search", insert: "查询患者：" },
+  { label: "患者列表", iconKey: "people", insert: "患者列表" },
+  { label: "补充记录", iconKey: "noteAdd", insert: "补充记录：" },
+  { label: "修正上条", iconKey: "edit", insert: "刚才写错了，应该是" },
+  { label: "导出PDF", iconKey: "download", insert: "导出病历PDF：" },
+  { label: "今日任务", iconKey: "assignment", insert: "今日任务" },
+  { label: "今日摘要", iconKey: "assessment", insert: "今日工作摘要" },
 ];
 
 export const SPECIALTY_OPTIONS = [

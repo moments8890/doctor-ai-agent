@@ -26,6 +26,25 @@ import VoiceInput, { isVoiceSupported } from "./VoiceInput";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
 import KeyboardOutlinedIcon from "@mui/icons-material/KeyboardOutlined";
+import PersonAddOutlinedIcon from "@mui/icons-material/PersonAddOutlined";
+import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
+import PeopleOutlinedIcon from "@mui/icons-material/PeopleOutlined";
+import NoteAddOutlinedIcon from "@mui/icons-material/NoteAddOutlined";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
+import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
+import AssessmentOutlinedIcon from "@mui/icons-material/AssessmentOutlined";
+
+const CMD_ICONS = {
+  personAdd: PersonAddOutlinedIcon,
+  search: SearchOutlinedIcon,
+  people: PeopleOutlinedIcon,
+  noteAdd: NoteAddOutlinedIcon,
+  edit: EditOutlinedIcon,
+  download: FileDownloadOutlinedIcon,
+  assignment: AssignmentOutlinedIcon,
+  assessment: AssessmentOutlinedIcon,
+};
 
 function MsgAvatar({ isUser, size = 40 }) {
   return (
@@ -132,37 +151,32 @@ function LoadingBubble({ isMobile }) {
 
 function QuickCommandsPanel({ isMobile, shown, onToggle, onSelect }) {
   return (
-    <Box sx={{ px: isMobile ? 0.5 : 1.5, pt: 0.5, pb: isMobile ? 0.3 : 0.4, borderTop: "1px solid #e5e5e5", backgroundColor: "#f7f7f7" }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: shown ? 0.6 : 0 }}>
-        <Typography sx={{ color: "#888", fontSize: 11, fontWeight: 600 }}>常用命令</Typography>
-        <IconButton size="small" onClick={onToggle} sx={{ color: "text.disabled", p: 0.3 }}>
+    <Box sx={{ px: isMobile ? 1 : 1.5, pt: 0.5, pb: isMobile ? 0.5 : 0.4, borderTop: "0.5px solid #f0f0f0", backgroundColor: "#f7f7f7" }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: shown ? 0.8 : 0 }}>
+        <Typography sx={{ color: "#999", fontSize: 11, fontWeight: 500 }}>常用指令</Typography>
+        <IconButton size="small" onClick={onToggle} sx={{ color: "#ccc", p: 0.3 }}>
           {shown ? <KeyboardArrowUpIcon sx={{ fontSize: 16 }} /> : <KeyboardArrowDownIcon sx={{ fontSize: 16 }} />}
         </IconButton>
       </Stack>
       {shown && (
-        <Box sx={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(4, 1fr)" : "repeat(8, 1fr)", gap: isMobile ? 0.8 : 0.7, mb: 0.8 }}>
-          {QUICK_COMMANDS.map((cmd) => (
-            <Box key={cmd.label} component="button" onClick={() => onSelect(cmd.insert)}
-              sx={{ display: "inline-flex", flexDirection: isMobile ? "column" : "row", alignItems: "center", justifyContent: "center",
-                gap: isMobile ? 0.3 : 0.5, px: isMobile ? 0.3 : 1.2, py: 0.5,
-                borderRadius: "4px",
-                border: isMobile ? "none" : "1px solid #e5e5e5",
-                backgroundColor: isMobile ? "transparent" : "#fff",
-                cursor: "pointer", fontSize: isMobile ? 10 : 11, color: "#555",
-                fontFamily: "inherit", lineHeight: 1.3, whiteSpace: "nowrap", width: "100%",
-                minHeight: isMobile ? 46 : 28, transition: "all 0.1s",
-                "&:hover": { backgroundColor: isMobile ? "rgba(0,0,0,0.04)" : "#f0f7ff" },
-                "&:active": { opacity: 0.7, transform: "scale(0.96)" } }}>
-              {isMobile ? (
-                <Box sx={{ width: 32, height: 32, borderRadius: "8px", bgcolor: "#f2f2f2", display: "flex", alignItems: "center", justifyContent: "center", mb: 0.2 }}>
-                  <span style={{ fontSize: 17 }}>{cmd.icon}</span>
+        <Box sx={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 1.2, mb: 1 }}>
+          {QUICK_COMMANDS.map((cmd) => {
+            const Icon = CMD_ICONS[cmd.iconKey];
+            return (
+              <Box key={cmd.label} component="button" onClick={() => onSelect(cmd.insert)}
+                sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                  gap: 0.5, py: 0.8, border: "none", backgroundColor: "transparent",
+                  cursor: "pointer", fontSize: 11, color: "#666", fontFamily: "inherit",
+                  lineHeight: 1.3, whiteSpace: "nowrap", width: "100%",
+                  "&:active": { opacity: 0.6 } }}>
+                <Box sx={{ width: 40, height: 40, borderRadius: "10px", bgcolor: "#f5f5f5",
+                  display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {Icon && <Icon sx={{ fontSize: 22, color: "#999" }} />}
                 </Box>
-              ) : (
-                <span style={{ fontSize: 12 }}>{cmd.icon}</span>
-              )}
-              {cmd.label}
-            </Box>
-          ))}
+                {cmd.label}
+              </Box>
+            );
+          })}
         </Box>
       )}
     </Box>
