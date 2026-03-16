@@ -158,7 +158,7 @@ async def process_turn(
         return result
 
     except Exception as exc:
-        log.error("[turn] UNHANDLED ERROR doctor=%s: %s", doctor_id, exc, exc_info=True)
+        log(f"[turn] UNHANDLED ERROR doctor={doctor_id}: {exc}", level="error")
         return TurnResult(reply=M.service_unavailable)
 
 
@@ -180,7 +180,7 @@ async def _run_pipeline(ctx: DoctorCtx, text: str, doctor_id: str) -> TurnResult
     try:
         ur = await understand(text, recent_turns, ctx)
     except UnderstandError as e:
-        log.warning("[turn] understand failed doctor=%s: %s", doctor_id, e)
+        log(f"[turn] understand failed doctor={doctor_id}: {e}", level="warning")
         return TurnResult(reply=M.understand_error)
 
     # Top-level clarification → skip execute
@@ -277,9 +277,9 @@ async def _handle_action(ctx: DoctorCtx, action: ActionPayload) -> TurnResult:
     pipeline no longer uses pending drafts so these are no-ops.
     """
     if action.type in ("draft_confirm", "draft_abandon"):
-        log.info("[turn] legacy action %s — no-op (draft flow removed)", action.type)
+        log(f"[turn] legacy action {action.type} — no-op (draft flow removed)")
         return TurnResult(reply=M.default_reply)
-    log.warning("[turn] unknown action type: %s", action.type)
+    log(f"[turn] unknown action type: {action.type}", level="warning")
     return TurnResult(reply=M.service_unavailable)
 
 
@@ -302,18 +302,18 @@ async def _persist(
     try:
         await save_context(ctx)
     except Exception as exc:
-        log.error("[turn] save_context FAILED doctor=%s: %s", doctor_id, exc, exc_info=True)
+        log(f"[turn] save_context FAILED doctor={doctor_id}: {exc}", level="error")
     if text:
         try:
             await archive_turns(doctor_id, text, reply, patient_id=patient_id)
         except Exception as exc:
-            log.error(
-                "[turn] archive_turns FAILED doctor=%s — clinical content may be lost: %s",
-                doctor_id, exc, exc_info=True,
+            log(
+                f"[turn] archive_turns FAILED doctor={doctor_id} — clinical content may be lost: {exc}",
+                level="error",
             )
             # One retry — archive is critical for draft quality
             try:
                 await archive_turns(doctor_id, text, reply, patient_id=patient_id)
-                log.info("[turn] archive_turns retry succeeded doctor=%s", doctor_id)
+                log(f"[turn] archive_turns retry succeeded doctor={doctor_id}")
             except Exception:
-                log.error("[turn] archive_turns retry also FAILED doctor=%s", doctor_id)
+                log(f"[turn] archive_turns retry also FAILED doctor={doctor_id}", level="error")
