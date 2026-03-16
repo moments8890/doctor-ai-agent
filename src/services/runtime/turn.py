@@ -228,12 +228,13 @@ async def _run_pipeline(ctx: DoctorCtx, text: str, doctor_id: str) -> TurnResult
                 reply = compose_template(read_result, resolved.action_type, resolved.patient_name)
 
             if read_result.data:
-                if resolved.action_type == ActionType.query_records:
-                    view_payload = {"type": "records_list", "data": read_result.data}
-                elif resolved.action_type == ActionType.list_patients:
-                    view_payload = {"type": "patients_list", "data": read_result.data}
-                elif resolved.action_type == ActionType.list_tasks:
-                    view_payload = {"type": "tasks_list", "data": read_result.data}
+                target = getattr(resolved.args, "target", "records") or "records"
+                type_map = {
+                    "records": "records_list",
+                    "patients": "patients_list",
+                    "tasks": "tasks_list",
+                }
+                view_payload = {"type": type_map.get(target, "records_list"), "data": read_result.data}
 
         elif resolved.action_type in WRITE_ACTIONS:
             from services.runtime.commit_engine import commit
@@ -249,7 +250,7 @@ async def _run_pipeline(ctx: DoctorCtx, text: str, doctor_id: str) -> TurnResult
             reply = M.default_reply
 
         # Track patient switches
-        if resolved.patient_id and not resolved.scoped_only:
+        if resolved.patient_id:
             if (prev_patient
                     and resolved.patient_name
                     and prev_patient != resolved.patient_name):
