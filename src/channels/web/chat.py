@@ -138,7 +138,6 @@ async def chat(
     ))
     return ChatResponse(
         reply=result.reply,
-        record=result.record,
         record_id=result.record_id,
         view_payload=result.view_payload,
         switch_notification=result.switch_notification,
