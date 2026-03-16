@@ -174,7 +174,7 @@ async def _persist_pending_record(
 
 def _fire_post_save_tasks(
     doctor_id: str, record: Any, record_id: int,
-    patient_name: str, pending: Any,
+    patient_name: str, patient_id: Optional[int],
 ) -> None:
     """将保存后的后台任务（审计、随访、自学习等）全部触发。"""
     safe_create_task(audit(doctor_id, "WRITE", resource_type="record", resource_id=str(record_id)))
@@ -191,12 +191,12 @@ def _fire_post_save_tasks(
                 _follow_up_hint = _content[:200]
         if _follow_up_hint:
             safe_create_task(_bg_create_follow_up(
-                doctor_id, record_id, patient_name, _follow_up_hint, pending.patient_id
+                doctor_id, record_id, patient_name, _follow_up_hint, patient_id
             ))
     content = record.content or ""
     if content:
         safe_create_task(_bg_auto_tasks(
-            doctor_id, record_id, patient_name, pending.patient_id, content
+            doctor_id, record_id, patient_name, patient_id, content
         ))
     learn_text = record.content or ""
     safe_create_task(_bg_auto_learn(doctor_id, learn_text, record))
@@ -225,5 +225,5 @@ async def save_pending_record(
         return None
     patient_name = pending.patient_name or "未关联患者"
     record_id = db_record.id
-    _fire_post_save_tasks(doctor_id, record, record_id, patient_name, pending)
+    _fire_post_save_tasks(doctor_id, record, record_id, patient_name, pending.patient_id)
     return patient_name, record_id
