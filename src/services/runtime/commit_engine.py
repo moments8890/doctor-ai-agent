@@ -5,9 +5,7 @@ Never fails on binding — that was already validated by resolve.
 """
 from __future__ import annotations
 
-import json
-import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy.exc import IntegrityError
@@ -20,6 +18,7 @@ from services.runtime.types import (
     ResolvedAction,
     ScheduleTaskArgs,
     TaskType,
+    UpdateRecordArgs,
 )
 from utils.log import log
 
@@ -46,8 +45,10 @@ async def commit(
         return await _create_patient(action, ctx)
     if at == ActionType.schedule_task:
         return await _schedule_task(action, ctx)
-    if at == ActionType.create_draft:
-        return await _create_draft(action, ctx, recent_turns or [], user_input)
+    if at == ActionType.create_record:
+        return await _create_record(action, ctx, recent_turns or [], user_input)
+    if at == ActionType.update_record:
+        return await _update_record(action, ctx)
 
     log.error("[commit] unknown action type: %s", at)
     return CommitResult(status="error", error_key="execute_error")
@@ -194,83 +195,126 @@ async def _schedule_task(action: ResolvedAction, ctx: Any) -> CommitResult:
 
 
 # ---------------------------------------------------------------------------
-# create_draft (requires structuring LLM — ADR 0012 §5c, §15)
+# create_record (direct save — ADR 0012 §5c)
 # ---------------------------------------------------------------------------
 
-async def _create_draft(
+async def _create_record(
     action: ResolvedAction,
     ctx: Any,
     recent_turns: List[dict],
     user_input: str,
 ) -> CommitResult:
-    """Collect clinical content, structure, create pending draft."""
+    """Collect clinical content, structure, and save record directly."""
     patient_name = action.patient_name or ctx.workflow.patient_name or ""
     patient_id = action.patient_id or ctx.workflow.patient_id
 
-    # Collect clinical text from chat_archive (ADR 0012 §8, §17 — no working_note)
     clinical_text = await _collect_clinical_text(ctx.doctor_id, patient_id, recent_turns, user_input)
     if not clinical_text.strip():
         return CommitResult(status="error", error_key="no_clinical_content")
 
-    # Structuring LLM call (2nd LLM call for create_draft turns)
-    from services.ai.structuring import structure_medical_record
-
+    from services.ai.structuring import structure_medical_record, _NO_CLINICAL_CONTENT
     try:
         record = await structure_medical_record(clinical_text, doctor_id=ctx.doctor_id)
-    except ValueError as e:
-        log.warning("[commit] structuring validation error doctor=%s: %s", ctx.doctor_id, e)
+    except ValueError:
         return CommitResult(status="error", error_key="no_clinical_content")
     except Exception as e:
-        log.error("[commit] structuring FAILED doctor=%s: %s", ctx.doctor_id, e, exc_info=True)
+        log.error("[commit] structuring FAILED: %s", e, exc_info=True)
         return CommitResult(status="error", error_key="structuring_failed")
 
-    # Sentinel check — structuring LLM found no clinical content
-    from services.ai.structuring import _NO_CLINICAL_CONTENT
     if (record.content or "").strip() == _NO_CLINICAL_CONTENT:
-        log.info("[commit] structuring returned sentinel, no clinical content doctor=%s", ctx.doctor_id)
         return CommitResult(status="error", error_key="no_clinical_content")
 
-    # Create pending record
-    from db.crud.pending import create_pending_record
+    from db.crud import save_record
     from db.engine import AsyncSessionLocal
-    from utils.runtime_config import get_pending_record_ttl_minutes
-
-    draft_ttl = get_pending_record_ttl_minutes()
-    draft_id = uuid.uuid4().hex
-    draft_data = record.model_dump()
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=draft_ttl)
-
     try:
         async with AsyncSessionLocal() as db:
-            await create_pending_record(
-                db,
-                record_id=draft_id,
-                doctor_id=ctx.doctor_id,
-                draft_json=json.dumps(draft_data, ensure_ascii=False),
-                patient_id=patient_id,
-                patient_name=patient_name,
-                ttl_minutes=draft_ttl,
-            )
+            db_record = await save_record(db, ctx.doctor_id, record, patient_id)
+            record_id = db_record.id
+            if patient_id is not None:
+                from services.patient.patient_categorization import recompute_patient_category
+                await recompute_patient_category(patient_id, db, commit=False)
+            await db.commit()
     except Exception as e:
-        log.error("[commit] draft create FAILED doctor=%s: %s", ctx.doctor_id, e, exc_info=True)
+        log.error("[commit] save_record FAILED: %s", e, exc_info=True)
         return CommitResult(status="error", error_key="structuring_failed")
 
-    ctx.workflow.pending_draft_id = draft_id
+    from services.domain.intent_handlers._confirm_pending import _fire_post_save_tasks
+    _fire_post_save_tasks(ctx.doctor_id, record, record_id, patient_name, patient_id)
 
     content_preview = (record.content or "")[:200]
     if len(record.content or "") > 200:
         content_preview += "..."
 
-    log.info("[commit] draft created id=%s patient=%s doctor=%s", draft_id, patient_name, ctx.doctor_id)
-    return CommitResult(
-        status="pending_confirmation",
-        data={
-            "preview": content_preview,
-            "patient_name": patient_name,
-            "expires_at": expires_at.isoformat(),
-        },
-        pending_id=draft_id,
-    )
+    log.info("[commit] record saved id=%s patient=%s doctor=%s", record_id, patient_name, ctx.doctor_id)
+    return CommitResult(status="ok", data={"preview": content_preview, "record_id": record_id, "patient_name": patient_name})
+
+
+# ---------------------------------------------------------------------------
+# update_record
+# ---------------------------------------------------------------------------
+
+async def _update_record(action: ResolvedAction, ctx: Any) -> CommitResult:
+    """Fetch existing record, snapshot, re-structure with amendment, patch."""
+    if not isinstance(action.args, UpdateRecordArgs):
+        return CommitResult(status="error", error_key="execute_error")
+    record_id = action.record_id
+    if record_id is None:
+        return CommitResult(status="error", error_key="no_record_to_update")
+    patient_name = action.patient_name or ctx.workflow.patient_name or ""
+    instruction = action.args.instruction
+
+    from db.crud.records import save_record_version
+    from db.engine import AsyncSessionLocal
+    from db.models import MedicalRecordDB
+    from db.repositories.records import RecordRepository
+    from services.ai.structuring import structure_medical_record
+    from sqlalchemy import select
+
+    # Fetch existing
+    async with AsyncSessionLocal() as db:
+        stmt = select(MedicalRecordDB).where(
+            MedicalRecordDB.id == record_id,
+            MedicalRecordDB.doctor_id == ctx.doctor_id,
+        ).limit(1)
+        result = await db.execute(stmt)
+        existing = result.scalar_one_or_none()
+    if existing is None:
+        return CommitResult(status="error", error_key="no_record_to_update")
+
+    existing_content = existing.content or ""
+
+    # Snapshot for audit
+    try:
+        async with AsyncSessionLocal() as db:
+            await save_record_version(db, existing, ctx.doctor_id)
+            await db.commit()
+    except Exception as e:
+        log.warning("[commit] save_record_version failed record=%s: %s", record_id, e)
+
+    # Re-structure with amendment
+    combined = f"{existing_content}\n\n---\n医生修改指令：{instruction}"
+    try:
+        record = await structure_medical_record(combined, doctor_id=ctx.doctor_id)
+    except Exception as e:
+        log.error("[commit] update structuring FAILED: %s", e, exc_info=True)
+        return CommitResult(status="error", error_key="structuring_failed")
+
+    # PATCH
+    try:
+        async with AsyncSessionLocal() as db:
+            repo = RecordRepository(db)
+            await repo.update(record_id=record_id, doctor_id=ctx.doctor_id, content=record.content, tags=record.tags)
+            await db.commit()
+    except Exception as e:
+        log.error("[commit] update_record FAILED: %s", e, exc_info=True)
+        return CommitResult(status="error", error_key="execute_error")
+
+    content_preview = (record.content or "")[:200]
+    if len(record.content or "") > 200:
+        content_preview += "..."
+
+    log.info("[commit] record updated id=%s patient=%s doctor=%s", record_id, patient_name, ctx.doctor_id)
+    return CommitResult(status="ok", data={"preview": content_preview, "record_id": record_id, "patient_name": patient_name})
 
 
 # ---------------------------------------------------------------------------
