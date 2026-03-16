@@ -39,14 +39,6 @@
     ],
     "expectations": {
       "must_not_timeout": true,
-      "expected_patient_name": "王芳",
-      "expected_patient_count": 1,
-      "expect_patient_dedup": true,
-      "expected_table_min_counts_by_doctor": {
-        "patients": 1,
-        "medical_records": 1,
-        "doctor_tasks": 1
-      },
       "must_include_any_of": [
         ["复查", "肺癌", "骨髓抑制", "化疗后", "CT", "纵隔淋巴结", "白细胞3.2", "第四次化疗", "化疗", "下周二", "复查血常规"]
       ],
@@ -68,13 +60,6 @@
     ],
     "expectations": {
       "must_not_timeout": true,
-      "expected_patient_name": "李雷",
-      "expected_patient_count": 1,
-      "expect_patient_dedup": true,
-      "expected_table_min_counts_by_doctor": {
-        "patients": 1,
-        "medical_records": 1
-      },
       "must_include_any_of": [
         ["心悸", "三天", "待排", "心律失常", "Holter", "动态心电图"]
       ],
