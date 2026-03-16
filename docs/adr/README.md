@@ -31,6 +31,8 @@ Use small, direct records with:
   ([中文](0011-architecture-and-workflows.zh-CN.md))
 - [ADR 0012: Understand / Execute / Compose Pipeline for Operational Actions](0012-understand-execute-compose-pipeline.md)
   — companion: [Architecture Diagram](0012-architecture-diagram.md)
+- [ADR 0013: Action Type Simplification](0013-action-type-simplification.md)
+  — companion: [Architecture Diagram](0013-architecture-diagram.md)
 
 ## Status Values
 
@@ -56,3 +58,4 @@ Current rollout snapshot:
 | --- | --- | --- |
 | [ADR 0011](0011-thread-centric-conversation-runtime-and-deterministic-commits.md) | Accepted | Complete |
 | [ADR 0012](0012-understand-execute-compose-pipeline.md) | Accepted | Complete |
+| [ADR 0013](0013-action-type-simplification.md) | Accepted | Not Started |

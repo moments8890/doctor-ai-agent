@@ -189,23 +189,24 @@ Change:
   from title)
 - Clarification: remove `task_type` from `field_labels` dict
 
-### `turn.py` — update references
+### `turn.py` — update references + remove `scoped_only`
 
-- `READ_ACTIONS` / `WRITE_ACTIONS` imports already point to `types.py` — no
-  change needed if types.py is updated correctly.
-- `view_payload` type mapping: replace `ActionType.query_records` →
-  `ActionType.query` etc. Use `target` to determine payload type:
-  - `target=records` → `{"type": "records_list", ...}`
-  - `target=patients` → `{"type": "patients_list", ...}`
-  - `target=tasks` → `{"type": "tasks_list", ...}`
+- `view_payload` type mapping: use `target` to determine payload type
+- **Remove `scoped_only` check** from context binding (lines 252-260).
+  Change `if resolved.patient_id and not resolved.scoped_only:` to
+  `if resolved.patient_id:`. All patient-scoped actions now bind context
+  unconditionally.
 
 ### `messages.py` — template cleanup
 
-- Remove `select_patient_ok`
-- Remove `create_patient_ok`
-- `record_created` covers both record + patient-only cases
+- Remove `select_patient_ok`, `create_patient_ok`, `schedule_task_ok`,
+  `schedule_task_ok_noon`
 - Add `patient_registered = "✅ 已建档【{name}】。"` for demographics-only path
-- Remove `task_type` references from `clarify_missing_field` label dict
+- Remove `task_type` from `clarify_missing_field` label dict
+
+### `types.py` — remove `scoped_only` from `ResolvedAction`
+
+Delete the `scoped_only: bool = False` field. No consumer remains.
 
 ---
 

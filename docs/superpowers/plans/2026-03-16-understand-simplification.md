@@ -104,6 +104,31 @@ RESPONSE_MODE_TABLE: Dict[ActionType, ResponseMode] = {
 }
 ```
 
+- [ ] **Step 6b: Remove `scoped_only` from `ResolvedAction`**
+
+Delete the `scoped_only` field from `ResolvedAction` (line 181):
+
+```python
+# BEFORE
+@dataclass
+class ResolvedAction:
+    action_type: ActionType
+    patient_id: Optional[int] = None
+    patient_name: Optional[str] = None
+    args: Optional[Any] = None
+    scoped_only: bool = False          # DELETE THIS LINE
+    record_id: Optional[int] = None
+
+# AFTER
+@dataclass
+class ResolvedAction:
+    action_type: ActionType
+    patient_id: Optional[int] = None
+    patient_name: Optional[str] = None
+    args: Optional[Any] = None
+    record_id: Optional[int] = None
+```
+
 - [ ] **Step 7: Remove ClarificationKind.invalid_time**
 
 Delete `invalid_time` from ClarificationKind enum (line 38). It was only used
@@ -289,10 +314,9 @@ async def resolve(
         target = _get_query_target(action)
         if target in ("patients", "tasks"):
             return ResolvedAction(
-                action_type=at, args=action.args, scoped_only=True,
-            )
+                action_type=at, args=action.args,             )
         # target=records: resolve patient
-        return await _resolve_patient_scoped(action, ctx, scoped_only=True)
+        return await _resolve_patient_scoped(action, ctx)
 
     # record: resolve patient (auto-create if not found)
     if at == ActionType.record:
@@ -331,7 +355,7 @@ async def resolve(
 
     # task: resolve patient
     if at == ActionType.task:
-        return await _resolve_patient_scoped(action, ctx, scoped_only=False)
+        return await _resolve_patient_scoped(action, ctx, )
 
     log(f"[resolve] unknown action type: {at}", level="error")
     return Clarification(kind=ClarificationKind.unsupported)
@@ -349,7 +373,6 @@ def _get_query_target(action: ActionIntent) -> str:
 async def _resolve_patient_scoped(
     action: ActionIntent,
     ctx: Any,
-    scoped_only: bool,
 ) -> Union[ResolvedAction, Clarification]:
     """Generic patient resolution for patient-scoped actions."""
     patient_name: Optional[str] = None
@@ -376,7 +399,6 @@ async def _resolve_patient_scoped(
         patient_id=pid,
         patient_name=pname,
         args=action.args,
-        scoped_only=scoped_only,
     )
 ```
 
@@ -430,31 +452,19 @@ error immediately, check for demographics:
 ```python
 clinical_text = await _collect_clinical_text(ctx.doctor_id, patient_id, recent_turns, user_input)
 if not clinical_text.strip():
-    # Demographics-only: patient already created/found by resolve._ensure_patient
+    # Demographics-only: patient already created by resolve._ensure_patient
     if not patient_name:
         return CommitResult(status="error", error_key="need_patient_name")
-    # Check if patient existed before this turn (count records)
-    existing = False
-    from db.engine import AsyncSessionLocal
-    from db.repositories.records import RecordRepository
-    async with AsyncSessionLocal() as db:
-        repo = RecordRepository(db)
-        prior = await repo.list_for_patient(
-            doctor_id=ctx.doctor_id, patient_id=patient_id, limit=1,
-        )
-        existing = len(prior) > 0
-    log(f"[commit] patient-only {'selected' if existing else 'registered'} "
-        f"patient={patient_name} doctor={ctx.doctor_id}")
+    log(f"[commit] patient-only registration patient={patient_name} doctor={ctx.doctor_id}")
     return CommitResult(
         status="ok",
-        data={"patient_only": True, "existing": existing, "name": patient_name},
+        data={"patient_only": True, "name": patient_name},
     )
 ```
 
-This way compose can distinguish "已切换到【张三】" (existing patient) from
-"已建档【王芳】" (newly created). The `existing` flag is True when the patient
-already has records — a simple heuristic that avoids threading state from
-resolve through to commit.
+Note: "切换到张三" (existing patient, no demographics) maps to `query` action
+which returns records + binds context. The demographics-only path here is only
+reached for explicit new patient creation ("新患者王芳，女30岁").
 
 - [ ] **Step 3: Pass gender/age to `_ensure_patient` for auto-create**
 
@@ -568,15 +578,11 @@ Delete:
 - `schedule_task_ok`
 - `schedule_task_ok_noon`
 
-- [ ] **Step 2: Add new templates**
+- [ ] **Step 2: Add new template**
 
 ```python
 patient_registered = "✅ 已建档【{name}】。"
-patient_selected = "已切换到【{name}】。"
 ```
-
-`patient_selected` replaces `select_patient_ok` for the "found existing patient"
-case in the demographics-only branch.
 
 - [ ] **Step 3: Commit**
 
@@ -603,8 +609,6 @@ def _compose_commit(result, action_type, patient_name):
 
     if action_type == ActionType.record:
         if data.get("patient_only"):
-            if data.get("existing"):
-                return M.patient_selected.format(name=name)
             return M.patient_registered.format(name=name)
         preview = data.get("preview", "")
         return M.record_created.format(patient=name, preview=preview)
@@ -650,7 +654,7 @@ git commit -m "refactor: simplify compose templates for 5 action types"
 
 ---
 
-### Task 7: Update `turn.py` view_payload mapping
+### Task 8: Update `turn.py` — view_payload + remove `scoped_only`
 
 **Files:**
 - Modify: `src/services/runtime/turn.py`
@@ -670,11 +674,25 @@ if read_result.data:
     view_payload = {"type": type_map.get(target, "records_list"), "data": read_result.data}
 ```
 
-- [ ] **Step 2: Commit**
+- [ ] **Step 2: Remove `scoped_only` from context binding**
+
+At lines 252-260, remove the `not resolved.scoped_only` condition:
+
+```python
+# BEFORE
+if resolved.patient_id and not resolved.scoped_only:
+
+# AFTER — unconditional
+if resolved.patient_id:
+```
+
+Keep the rest of the block (switch notifications, ctx assignment) unchanged.
+
+- [ ] **Step 3: Commit**
 
 ```bash
 git add src/services/runtime/turn.py
-git commit -m "refactor: target-based view_payload in turn orchestrator"
+git commit -m "refactor: target-based view_payload, remove scoped_only binding"
 ```
 
 ---
