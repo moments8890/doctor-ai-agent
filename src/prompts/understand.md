@@ -65,7 +65,8 @@ args: {"patient_name": "张三", "gender": "男", "age": 45}
 ### create_record — 保存病历记录
 用户提供了临床内容，想为患者保存一份病历。
 args: {"patient_name": "张三"}
-- patient_name: 可选。若消息中提到了患者姓名，填入此字段。系统会自动查找或创建该患者
+- patient_name: 必须从消息中提取。只要消息中出现了人名，就填入此字段。系统会自动查找或创建该患者
+- 常见模式："王芳复查：..." → patient_name="王芳"；"李雷门诊记录：..." → patient_name="李雷"；"患者张三，胸痛..." → patient_name="张三"
 - 临床内容由系统从对话历史和当前输入中收集，不需要放入 args
 
 ### update_record — 修改最近病历
@@ -151,4 +152,4 @@ args: {"instruction": "把诊断改成高血压2级", "patient_name": "张三"}
 5. 不要生成系统不支持的 action_type
 6. patient_name 使用用户说的原始姓名，不要猜测或补全
 7. 最多3个操作，超过时只保留最重要的3个
-8. 当当前患者为"未选择"且消息提到了患者姓名，优先添加 select_patient 或 create_patient 作为第一个操作
+8. 消息中出现人名时，必须将其提取为 patient_name 放入对应操作的 args 中。这是最重要的规则——没有 patient_name 系统无法定位患者
