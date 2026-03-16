@@ -86,20 +86,9 @@ class TaskArgs:
     remind_at: Optional[str] = None       # ISO-8601
 ```
 
-`task_type` removed from args. Inferred in commit engine:
-
-```python
-def _infer_task_type(title: str, notes: str, has_datetime: bool) -> str:
-    text = (title or "") + (notes or "")
-    if any(kw in text for kw in ("复诊", "复查", "随访")):
-        return "follow_up"
-    if has_datetime or any(kw in text for kw in ("预约", "门诊")):
-        return "appointment"
-    return "general"
-```
-
-`DoctorTask.task_type` column kept in schema (backward compat) but always
-written via inference, never from LLM output.
+`task_type` removed entirely. `DoctorTask.task_type` column kept in schema
+(backward compat) but always written as `"general"`. No inference, no labels —
+the task title carries the semantic meaning.
 
 ### `update` action
 
@@ -119,8 +108,8 @@ Unchanged semantics from current `UpdateRecordArgs`. Renamed for consistency.
 ### `types.py` — enum + args overhaul
 
 - `ActionType`: 9 values → 5 (`none`, `query`, `record`, `update`, `task`)
-- New `QueryTarget` enum
 - Replace 8 args dataclasses with 4: `QueryArgs`, `RecordArgs`, `UpdateArgs`, `TaskArgs`
+- No `QueryTarget` enum — `QueryArgs.target` is `Optional[str]` validated by code
 - `ARGS_TYPE_TABLE`: 9 entries → 5
 - `READ_ACTIONS = frozenset({ActionType.query})`
 - `WRITE_ACTIONS = frozenset({ActionType.record, ActionType.update, ActionType.task})`

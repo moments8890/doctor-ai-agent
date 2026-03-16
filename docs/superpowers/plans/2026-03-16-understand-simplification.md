@@ -35,19 +35,7 @@ class ActionType(str, Enum):
     task = "task"
 ```
 
-- [ ] **Step 2: Add QueryTarget enum**
-
-Add after ActionType:
-
-```python
-class QueryTarget(str, Enum):
-    """Sub-target for query actions."""
-    records = "records"
-    patients = "patients"
-    tasks = "tasks"
-```
-
-- [ ] **Step 3: Remove TaskType enum**
+- [ ] **Step 2: Remove TaskType enum**
 
 Delete the `TaskType` enum (lines 25-29). It's no longer needed — task_type
 is inferred by commit engine.
@@ -126,12 +114,48 @@ by `_validate_schedule_task` which is being removed.
 Remove old dataclass names from any `__all__` or re-exports. Ensure these old
 names are NOT exported: `SelectPatientArgs`, `CreatePatientArgs`,
 `CreateRecordArgs`, `UpdateRecordArgs`, `QueryRecordsArgs`, `ListPatientsArgs`,
-`ListTasksArgs`, `ScheduleTaskArgs`, `TaskType`.
+`ListTasksArgs`, `ScheduleTaskArgs`, `TaskType`, `QueryTarget`.
 
 - [ ] **Step 9: Commit**
 
 ```bash
 git add src/services/runtime/types.py
+git commit -m "refactor: simplify ActionType 9→5, remove TaskType, merge args dataclasses"
+```
+
+---
+
+### Task 1b: Update `understand.py` — fix stale ActionType reference
+
+**Files:**
+- Modify: `src/services/runtime/understand.py`
+
+- [ ] **Step 1: Fix limit clamping reference**
+
+At line 191, change:
+
+```python
+if action_type == ActionType.query_records:
+```
+
+to:
+
+```python
+if action_type == ActionType.query:
+```
+
+- [ ] **Step 2: Verify imports**
+
+The file imports from `types.py` (line 10-18). Ensure `ActionType` is still
+imported (it is — no change needed). Old names like `QueryRecordsArgs` are not
+referenced here, so no other updates required.
+
+- [ ] **Step 3: Commit with Task 1**
+
+Include in the same commit as Task 1:
+
+```bash
+git add src/services/runtime/types.py src/services/runtime/understand.py
 git commit -m "refactor: simplify ActionType 9→5, remove TaskType, merge args dataclasses"
 ```
 
@@ -186,11 +210,12 @@ args: {"target": "records|patients|tasks", "patient_name": "张三", "limit": 5,
 - status: tasks专用，"pending"（默认）或 "completed"
 - 触发词：查看/查询/病历 → records；患者列表/我的患者 → patients；待办/任务/随访提醒 → tasks
 
-### record — 保存病历 / 建立患者
-用户提供了临床内容或要建立新患者。
+### record — 保存病历 / 建立或选择患者
+用户提供了临床内容、要建立新患者、或要切换患者。
 args: {"patient_name": "张三", "gender": "男", "age": 45}
 - 有临床内容 → 保存病历（系统自动查找或创建患者）
 - 仅有姓名/性别/年龄 → 建立患者档案
+- "选择/切换到张三" → 系统自动处理（切换到已有患者）
 - patient_name: 必须从消息中提取人名
 
 ### update — 修改最近病历
@@ -318,9 +343,6 @@ async def resolve(
 def _get_query_target(action: ActionIntent) -> str:
     if action.args and hasattr(action.args, "target") and action.args.target:
         return action.args.target
-    # Default: if patient_name present, assume records; else patients
-    if action.args and hasattr(action.args, "patient_name") and action.args.patient_name:
-        return "records"
     return "records"
 
 
@@ -408,14 +430,31 @@ error immediately, check for demographics:
 ```python
 clinical_text = await _collect_clinical_text(ctx.doctor_id, patient_id, recent_turns, user_input)
 if not clinical_text.strip():
-    # Demographics-only: patient already created by resolve._ensure_patient
-    # Just confirm the patient binding
-    log(f"[commit] patient-only registration patient={patient_name} doctor={ctx.doctor_id}")
+    # Demographics-only: patient already created/found by resolve._ensure_patient
+    if not patient_name:
+        return CommitResult(status="error", error_key="need_patient_name")
+    # Check if patient existed before this turn (count records)
+    existing = False
+    from db.engine import AsyncSessionLocal
+    from db.repositories.records import RecordRepository
+    async with AsyncSessionLocal() as db:
+        repo = RecordRepository(db)
+        prior = await repo.list_for_patient(
+            doctor_id=ctx.doctor_id, patient_id=patient_id, limit=1,
+        )
+        existing = len(prior) > 0
+    log(f"[commit] patient-only {'selected' if existing else 'registered'} "
+        f"patient={patient_name} doctor={ctx.doctor_id}")
     return CommitResult(
         status="ok",
-        data={"patient_only": True, "name": patient_name},
+        data={"patient_only": True, "existing": existing, "name": patient_name},
     )
 ```
+
+This way compose can distinguish "已切换到【张三】" (existing patient) from
+"已建档【王芳】" (newly created). The `existing` flag is True when the patient
+already has records — a simple heuristic that avoids threading state from
+resolve through to commit.
 
 - [ ] **Step 3: Pass gender/age to `_ensure_patient` for auto-create**
 
@@ -437,28 +476,16 @@ patient, _ = await db_create_patient(db, ctx.doctor_id, name, gender, age)
 (This change is in `resolve.py` but listed here because it serves the
 demographics-only flow.)
 
-- [ ] **Step 4: Add `_infer_task_type` and update `_schedule_task`**
+- [ ] **Step 4: Simplify `_schedule_task` — hardcode task_type**
 
-Add helper:
-
-```python
-def _infer_task_type(title: str, notes: str, has_datetime: bool) -> str:
-    text = (title or "") + (notes or "")
-    if any(kw in text for kw in ("复诊", "复查", "随访")):
-        return "follow_up"
-    if has_datetime or any(kw in text for kw in ("预约", "门诊")):
-        return "appointment"
-    return "general"
-```
-
-In `_schedule_task`, replace `args.task_type` references:
+All tasks use `task_type="general"`. Replace all `args.task_type` references
+with the literal `"general"`:
 
 ```python
-task_type_str = _infer_task_type(
-    args.title or "", args.notes or "",
-    has_datetime=bool(args.scheduled_for),
-)
+task_type_str = "general"
 ```
+
+No `_infer_task_type` helper needed. The title carries the semantic meaning.
 
 - [ ] **Step 5: Delete `_select_patient` and `_create_patient` functions**
 
@@ -526,9 +553,41 @@ git commit -m "refactor: target-based dispatch in read engine"
 
 ---
 
-## Chunk 5: Compose, Turn, Messages
+## Chunk 5: Messages, Compose, Turn
 
-### Task 6: Simplify `compose.py`
+### Task 6: Update `messages.py` (MUST come before compose changes)
+
+**Files:**
+- Modify: `src/messages.py`
+
+- [ ] **Step 1: Remove obsolete templates**
+
+Delete:
+- `select_patient_ok`
+- `create_patient_ok`
+- `schedule_task_ok`
+- `schedule_task_ok_noon`
+
+- [ ] **Step 2: Add new templates**
+
+```python
+patient_registered = "✅ 已建档【{name}】。"
+patient_selected = "已切换到【{name}】。"
+```
+
+`patient_selected` replaces `select_patient_ok` for the "found existing patient"
+case in the demographics-only branch.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add src/messages.py
+git commit -m "refactor: update message templates for simplified action types"
+```
+
+---
+
+### Task 7: Simplify `compose.py`
 
 **Files:**
 - Modify: `src/services/runtime/compose.py`
@@ -544,6 +603,8 @@ def _compose_commit(result, action_type, patient_name):
 
     if action_type == ActionType.record:
         if data.get("patient_only"):
+            if data.get("existing"):
+                return M.patient_selected.format(name=name)
             return M.patient_registered.format(name=name)
         preview = data.get("preview", "")
         return M.record_created.format(patient=name, preview=preview)
@@ -554,17 +615,13 @@ def _compose_commit(result, action_type, patient_name):
 
     if action_type == ActionType.task:
         dt_display = data.get("datetime_display", "")
-        task_label = data.get("title") or "任务"
+        title = data.get("title") or "任务"
         if not dt_display:
-            return f"已为【{name}】创建{task_label}。"
+            return f"已为【{name}】创建任务：{title}"
         noon_default = data.get("noon_default", False)
         if noon_default:
-            return M.schedule_task_ok_noon.format(
-                patient=name, task_label=task_label, datetime_display=dt_display,
-            )
-        return M.schedule_task_ok.format(
-            patient=name, task_label=task_label, datetime_display=dt_display,
-        )
+            return f"已为【{name}】创建任务：{title}，时间：{dt_display}（默认中午12点）。"
+        return f"已为【{name}】创建任务：{title}，时间：{dt_display}。"
 
     return M.default_reply
 ```
@@ -622,35 +679,38 @@ git commit -m "refactor: target-based view_payload in turn orchestrator"
 
 ---
 
-### Task 8: Update `messages.py`
+## Chunk 6: Fixture Sweep
+
+### Task 9: Identify broken E2E fixtures
 
 **Files:**
-- Modify: `src/messages.py`
+- Read-only scan: `tests/fixtures/`
 
-- [ ] **Step 1: Remove obsolete templates**
+- [ ] **Step 1: Find fixtures referencing old action types**
 
-Delete:
-- `select_patient_ok`
-- `create_patient_ok`
-
-- [ ] **Step 2: Add `patient_registered` template**
-
-```python
-patient_registered = "✅ 已建档【{name}】。"
-```
-
-- [ ] **Step 3: Commit**
+Search for old action type values in fixture JSON files:
 
 ```bash
-git add src/messages.py
-git commit -m "refactor: update message templates for simplified action types"
+cd /Volumes/ORICO/Code/doctor-ai-agent
+grep -rn '"action_type":\s*"' tests/fixtures/ | grep -E '"(query_records|list_patients|list_tasks|select_patient|create_patient|create_record|update_record|schedule_task)"'
 ```
+
+- [ ] **Step 2: Report findings**
+
+List which fixtures contain old action types and present to the user for
+direction (per AGENTS.md E2E debug policy: investigate only, never auto-fix).
+
+- [ ] **Step 3: Commit (no changes — investigation only)**
+
+No commit needed. This is an audit step.
 
 ---
 
 ## Final: Verification
 
-### Task 9: Manual smoke test
+### Task 10: Manual smoke test
+
+**Note:** Task numbering: 1, 1b, 2, 3, 4, 5, 6, 7, 8, 9, 10.
 
 - [ ] **Step 1: Start the app and test all 5 action types**
 
