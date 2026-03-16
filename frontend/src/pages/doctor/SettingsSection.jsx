@@ -9,9 +9,14 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import LogoutIcon from "@mui/icons-material/Logout";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
+import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
+import SecurityOutlinedIcon from "@mui/icons-material/SecurityOutlined";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
-import { getDoctorProfile, updateDoctorProfile, getTemplateStatus, uploadTemplate, deleteTemplate } from "../../api";
+import { getDoctorProfile, updateDoctorProfile, getTemplateStatus, uploadTemplate, deleteTemplate, getKnowledgeItems, deleteKnowledgeItem, addKnowledgeItem } from "../../api";
 import { useDoctorStore } from "../../store/doctorStore";
 import { SPECIALTY_OPTIONS } from "./constants";
 
@@ -218,6 +223,115 @@ function TemplateSubpage({ doctorId, onBack }) {
   );
 }
 
+function KnowledgeSubpage({ doctorId, onBack }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [newContent, setNewContent] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [error, setError] = useState("");
+
+  const load = useCallback(() => {
+    setLoading(true);
+    getKnowledgeItems(doctorId)
+      .then((d) => setItems(Array.isArray(d) ? d : (d.items || [])))
+      .catch((e) => setError(e.message || "加载失败"))
+      .finally(() => setLoading(false));
+  }, [doctorId]);
+  useEffect(() => { load(); }, [load]);
+
+  async function handleAdd() {
+    const trimmed = newContent.trim();
+    if (!trimmed) return;
+    setAdding(true); setError("");
+    try { await addKnowledgeItem(doctorId, trimmed); setNewContent(""); load(); }
+    catch (e) { setError(e.message || "添加失败"); }
+    finally { setAdding(false); }
+  }
+  async function handleDelete(itemId) {
+    try { await deleteKnowledgeItem(doctorId, itemId); setItems((prev) => prev.filter((i) => i.id !== itemId)); }
+    catch (e) { setError(e.message || "删除失败"); }
+  }
+
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
+      <Box sx={{ display: "flex", alignItems: "center", height: 48, px: 1, bgcolor: "#fff", borderBottom: "1px solid #e5e5e5", flexShrink: 0 }}>
+        <Box onClick={onBack} sx={{ display: "flex", alignItems: "center", gap: 0.3, cursor: "pointer", color: "#07C160", pr: 2, py: 1 }}>
+          <ArrowBackIcon sx={{ fontSize: 20 }} />
+          <Typography sx={{ fontSize: 15, color: "#07C160" }}>设置</Typography>
+        </Box>
+        <Typography sx={{ flex: 1, textAlign: "center", fontWeight: 600, fontSize: 16, mr: 5 }}>知识库</Typography>
+      </Box>
+      <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
+        {error && <Alert severity="error" onClose={() => setError("")} sx={{ mb: 1.5 }}>{error}</Alert>}
+        <Box sx={{ mb: 2 }}>
+          <TextField fullWidth multiline minRows={2} maxRows={4} size="small" placeholder="输入知识条目内容…"
+            value={newContent} onChange={(e) => setNewContent(e.target.value)} sx={{ mb: 1 }} />
+          <Button variant="contained" size="small" onClick={handleAdd} disabled={adding || !newContent.trim()}
+            sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: "#06ad56" } }}>
+            {adding ? "添加中…" : "添加"}
+          </Button>
+        </Box>
+        {loading && <Box sx={{ textAlign: "center", py: 3 }}><CircularProgress size={20} /></Box>}
+        {!loading && items.length === 0 && (
+          <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", py: 3 }}>暂无知识条目</Typography>
+        )}
+        {items.map((item) => (
+          <Box key={item.id} sx={{ bgcolor: "#fff", p: 2, borderRadius: 1.5, mb: 1, display: "flex", alignItems: "flex-start", gap: 1 }}>
+            <Typography sx={{ flex: 1, fontSize: 13, color: "#333", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
+              {item.content}
+            </Typography>
+            <Box onClick={() => handleDelete(item.id)}
+              sx={{ fontSize: 12, color: "#FA5151", cursor: "pointer", flexShrink: 0, "&:active": { opacity: 0.6 } }}>
+              删除
+            </Box>
+          </Box>
+        ))}
+      </Box>
+    </Box>
+  );
+}
+
+function AboutSubpage({ onBack }) {
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
+      <Box sx={{ display: "flex", alignItems: "center", height: 48, px: 1, bgcolor: "#fff", borderBottom: "1px solid #e5e5e5", flexShrink: 0 }}>
+        <Box onClick={onBack} sx={{ display: "flex", alignItems: "center", gap: 0.3, cursor: "pointer", color: "#07C160", pr: 2, py: 1 }}>
+          <ArrowBackIcon sx={{ fontSize: 20 }} />
+          <Typography sx={{ fontSize: 15, color: "#07C160" }}>设置</Typography>
+        </Box>
+        <Typography sx={{ flex: 1, textAlign: "center", fontWeight: 600, fontSize: 16, mr: 5 }}>关于</Typography>
+      </Box>
+      <Box sx={{ flex: 1, overflowY: "auto", p: 3, textAlign: "center" }}>
+        <Box sx={{ width: 64, height: 64, borderRadius: "16px", bgcolor: "#07C160", display: "flex", alignItems: "center", justifyContent: "center", mx: "auto", mb: 2 }}>
+          <LocalHospitalOutlinedIcon sx={{ color: "#fff", fontSize: 32 }} />
+        </Box>
+        <Typography sx={{ fontWeight: 700, fontSize: 18, mb: 0.5 }}>AI 医疗助手</Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 3 }}>版本 1.0.0</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.8 }}>
+          智能医疗助手为医生提供 AI 辅助病历记录、患者管理和任务跟踪功能，帮助提升诊疗效率。
+        </Typography>
+      </Box>
+    </Box>
+  );
+}
+
+function StubSubpage({ title, onBack }) {
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
+      <Box sx={{ display: "flex", alignItems: "center", height: 48, px: 1, bgcolor: "#fff", borderBottom: "1px solid #e5e5e5", flexShrink: 0 }}>
+        <Box onClick={onBack} sx={{ display: "flex", alignItems: "center", gap: 0.3, cursor: "pointer", color: "#07C160", pr: 2, py: 1 }}>
+          <ArrowBackIcon sx={{ fontSize: 20 }} />
+          <Typography sx={{ fontSize: 15, color: "#07C160" }}>设置</Typography>
+        </Box>
+        <Typography sx={{ flex: 1, textAlign: "center", fontWeight: 600, fontSize: 16, mr: 5 }}>{title}</Typography>
+      </Box>
+      <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Typography color="text.secondary">即将推出</Typography>
+      </Box>
+    </Box>
+  );
+}
+
 function AccountBlock({ doctorId, doctorName, specialty, onOpenName, onOpenSpecialty }) {
   return (
     <Box sx={{ bgcolor: "#fff" }}>
@@ -283,6 +397,11 @@ export default function SettingsSection({ doctorId, onLogout }) {
   const { nameDialogOpen, setNameDialogOpen, nameInput, setNameInput, nameSaving, nameError, setNameError, specialty, specialtyDialogOpen, setSpecialtyDialogOpen, specialtyInput, setSpecialtyInput, specialtySaving, specialtyError, handleSaveName, handleSaveSpecialty } = useSettingsState({ doctorId, doctorName, accessToken, setAuth });
 
   if (subpage === "template") return <TemplateSubpage doctorId={doctorId} onBack={() => setSubpage(null)} />;
+  if (subpage === "knowledge") return <KnowledgeSubpage doctorId={doctorId} onBack={() => setSubpage(null)} />;
+  if (subpage === "about") return <AboutSubpage onBack={() => setSubpage(null)} />;
+  if (subpage === "notifications") return <StubSubpage title="消息通知" onBack={() => setSubpage(null)} />;
+  if (subpage === "privacy") return <StubSubpage title="隐私与安全" onBack={() => setSubpage(null)} />;
+  if (subpage === "help") return <StubSubpage title="帮助与反馈" onBack={() => setSubpage(null)} />;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#ededed" }}>
@@ -296,10 +415,21 @@ export default function SettingsSection({ doctorId, onLogout }) {
         <AccountBlock doctorId={doctorId} doctorName={doctorName} specialty={specialty}
           onOpenName={() => { setNameInput(doctorName || ""); setNameError(""); setNameDialogOpen(true); }}
           onOpenSpecialty={() => { setSpecialtyInput(specialty || "神经外科"); setSpecialtyError(""); setSpecialtyDialogOpen(true); }} />
+
         <Box sx={{ px: 2, pt: 2, pb: 0.6 }}><Typography sx={{ fontSize: 12, color: "#999", fontWeight: 500 }}>工具</Typography></Box>
         <Box sx={{ bgcolor: "#fff" }}>
           <SettingsRow icon={<UploadFileOutlinedIcon sx={{ color: "#07C160", fontSize: 20 }} />} label="报告模板" sublabel="自定义门诊病历报告格式" onClick={() => setSubpage("template")} />
+          <SettingsRow icon={<MenuBookOutlinedIcon sx={{ color: "#5b9bd5", fontSize: 20 }} />} label="知识库" sublabel="管理 AI 助手参考资料" onClick={() => setSubpage("knowledge")} />
         </Box>
+
+        <Box sx={{ px: 2, pt: 2, pb: 0.6 }}><Typography sx={{ fontSize: 12, color: "#999", fontWeight: 500 }}>通用</Typography></Box>
+        <Box sx={{ bgcolor: "#fff" }}>
+          <SettingsRow icon={<NotificationsNoneOutlinedIcon sx={{ color: "#e8833a", fontSize: 20 }} />} label="消息通知" sublabel="任务提醒和系统通知" onClick={() => setSubpage("notifications")} />
+          <SettingsRow icon={<SecurityOutlinedIcon sx={{ color: "#9b59b6", fontSize: 20 }} />} label="隐私与安全" sublabel="数据保护设置" onClick={() => setSubpage("privacy")} />
+          <SettingsRow icon={<HelpOutlineIcon sx={{ color: "#16a085", fontSize: 20 }} />} label="帮助与反馈" sublabel="使用指南和问题反馈" onClick={() => setSubpage("help")} />
+          <SettingsRow icon={<InfoOutlinedIcon sx={{ color: "#999", fontSize: 20 }} />} label="关于" sublabel="版本信息" onClick={() => setSubpage("about")} />
+        </Box>
+
         {isMobile && (
           <>
             <Box sx={{ px: 2, pt: 2, pb: 0.6 }}><Typography sx={{ fontSize: 12, color: "#999", fontWeight: 500 }}>账户操作</Typography></Box>

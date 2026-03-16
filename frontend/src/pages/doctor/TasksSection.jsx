@@ -1,7 +1,7 @@
 /**
  * 任务列表面板：按状态分组展示医疗任务，支持新建、完成、推迟和取消操作。
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert, Box, Button, CircularProgress, Dialog, DialogActions,
   DialogContent, DialogTitle, MenuItem, Stack, TextField, Typography,
@@ -103,6 +103,93 @@ function TaskRow({ task, isOverdue, onComplete, onPostpone, onCancel }) {
           </Typography>
         )}
         <TaskActions task={task} onComplete={onComplete} onPostpone={onPostpone} onCancel={onCancel} />
+      </Box>
+    </Box>
+  );
+}
+
+function SwipeableTaskRow({ children, onSwipeLeft, onSwipeRight }) {
+  const startX = useRef(null);
+  const startY = useRef(null);
+  const swiped = useRef(false);
+
+  function handleTouchStart(e) {
+    startX.current = e.touches[0].clientX;
+    startY.current = e.touches[0].clientY;
+    swiped.current = false;
+  }
+  function handleTouchEnd(e) {
+    if (startX.current === null || swiped.current) return;
+    const dx = e.changedTouches[0].clientX - startX.current;
+    const dy = e.changedTouches[0].clientY - startY.current;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      swiped.current = true;
+      if (dx < 0) onSwipeLeft?.();
+      else onSwipeRight?.();
+    }
+    startX.current = null;
+    startY.current = null;
+  }
+  return (
+    <Box onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+      {children}
+    </Box>
+  );
+}
+
+function TaskDetailView({ task, isMobile, onBack, onComplete, onPostpone, onCancel }) {
+  const iconColor = TASK_TYPE_ICON_COLOR[task.task_type] || "#999";
+  const TaskIcon = TASK_TYPE_ICON[task.task_type] || AssignmentOutlinedIcon;
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
+      <Box sx={{ display: "flex", alignItems: "center", height: 48, px: 1, bgcolor: "#fff", borderBottom: "1px solid #e5e5e5", flexShrink: 0 }}>
+        <Box onClick={onBack} sx={{ display: "flex", alignItems: "center", gap: 0.3, cursor: "pointer", color: "#07C160", pr: 2, py: 1 }}>
+          <Typography sx={{ fontSize: 15, color: "#07C160" }}>← 返回</Typography>
+        </Box>
+        <Typography sx={{ flex: 1, textAlign: "center", fontWeight: 600, fontSize: 16, mr: 5 }}>任务详情</Typography>
+      </Box>
+      <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
+        <Box sx={{ bgcolor: "#fff", borderRadius: 2, p: 2.5, mb: 1.5 }}>
+          <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
+            <Box sx={{ width: 44, height: 44, borderRadius: "10px", bgcolor: iconColor, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <TaskIcon sx={{ color: "#fff", fontSize: 24 }} />
+            </Box>
+            <Box>
+              <Typography sx={{ fontWeight: 600, fontSize: 17 }}>
+                {task.title || TASK_TYPE_LABEL[task.task_type] || task.task_type}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {TASK_TYPE_LABEL[task.task_type] || task.task_type}
+              </Typography>
+            </Box>
+          </Stack>
+          {task.content && (
+            <Typography sx={{ fontSize: 14, color: "#555", lineHeight: 1.8, mb: 1.5 }}>{task.content}</Typography>
+          )}
+          {task.patient_name && (
+            <Typography sx={{ fontSize: 13, color: "#999", mb: 0.5 }}>患者：{task.patient_name}</Typography>
+          )}
+          {task.due_at && (
+            <Typography sx={{ fontSize: 13, color: "#999", mb: 0.5 }}>到期日：{task.due_at.slice(0, 10)}</Typography>
+          )}
+          <Typography sx={{ fontSize: 13, color: "#999" }}>状态：{task.status === "pending" ? "待处理" : task.status === "completed" ? "已完成" : task.status === "cancelled" ? "已取消" : task.status}</Typography>
+        </Box>
+        {task.status === "pending" && (
+          <Stack spacing={1}>
+            <Box onClick={() => { onComplete(task.id, "completed"); onBack(); }}
+              sx={{ bgcolor: "#07C160", color: "#fff", textAlign: "center", py: 1.3, borderRadius: "4px", cursor: "pointer", fontWeight: 600, fontSize: 15, "&:active": { opacity: 0.7 } }}>
+              完成任务
+            </Box>
+            <Box onClick={() => onPostpone(null, task.id)}
+              sx={{ bgcolor: "#fff", color: "#666", textAlign: "center", py: 1.3, borderRadius: "4px", cursor: "pointer", fontSize: 15, "&:active": { opacity: 0.7 } }}>
+              推迟
+            </Box>
+            <Box onClick={() => onCancel(task.id)}
+              sx={{ bgcolor: "#fff", color: "#FA5151", textAlign: "center", py: 1.3, borderRadius: "4px", cursor: "pointer", fontSize: 15, "&:active": { opacity: 0.7 } }}>
+              取消任务
+            </Box>
+          </Stack>
+        )}
       </Box>
     </Box>
   );
@@ -310,7 +397,8 @@ function TaskGroupList({ tasks, loading, error, taskGroups, sortedGroups, onErro
 export default function TasksSection({ doctorId }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const { tasks, loading, error, setError, statusFilter, setStatusFilter, createOpen, setCreateOpen, createForm, setCreateForm, creating, createError, setCreateError, patientOptions, setPatientOptions, postponeOpen, setPostponeOpen, postponeTaskId, setPostponeTaskId, postponeDate, setPostponeDate, cancelConfirmId, setCancelConfirmId, handleStatus, handleCreate, handleConfirmPostpone } = useTasksState(doctorId);
+  const [detailTask, setDetailTask] = useState(null);
+  const { tasks, loading, error, setError, statusFilter, setStatusFilter, createOpen, setCreateOpen, createForm, setCreateForm, creating, createError, setCreateError, patientOptions, setPatientOptions, postponeOpen, setPostponeOpen, postponeTaskId, setPostponeTaskId, postponeDate, setPostponeDate, cancelConfirmId, setCancelConfirmId, load, handleStatus, handleCreate, handleConfirmPostpone } = useTasksState(doctorId);
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
@@ -319,14 +407,54 @@ export default function TasksSection({ doctorId }) {
   tasks.forEach((t) => { const g = taskDateGroup(t, today, tomorrow, weekEnd); (taskGroups[g] = taskGroups[g] || []).push(t); });
   const sortedGroups = GROUP_ORDER.filter((g) => taskGroups[g]);
 
+  const handleComplete = (id, status) => { handleStatus(id, status); };
+  const handlePostpone = (e, id) => { setPostponeOpen(true); setPostponeTaskId(id); setPostponeDate(""); };
+  const handleCancel = (id) => setCancelConfirmId(id);
+
+  if (detailTask) {
+    return (
+      <TaskDetailView task={detailTask} isMobile={isMobile}
+        onBack={() => { setDetailTask(null); load(); }}
+        onComplete={handleComplete}
+        onPostpone={handlePostpone}
+        onCancel={handleCancel} />
+    );
+  }
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#ededed" }}>
       <TasksHeader statusFilter={statusFilter} loading={loading} onFilterChange={setStatusFilter}
         onOpenCreate={() => { setCreateOpen(true); setCreateError(""); getPatients(doctorId, {}, 200).then((d) => setPatientOptions(d.items || [])).catch(() => {}); }} />
-      <TaskGroupList tasks={tasks} loading={loading} error={error} taskGroups={taskGroups} sortedGroups={sortedGroups}
-        onError={setError} onComplete={handleStatus}
-        onPostpone={(e, id) => { setPostponeOpen(true); setPostponeTaskId(id); setPostponeDate(""); }}
-        onCancel={(id) => setCancelConfirmId(id)} />
+      <Box sx={{ flex: 1, overflowY: "auto" }}>
+        {error && <Box sx={{ px: 2, pt: 1.5 }}><Alert severity="error" onClose={() => setError("")}>{error}</Alert></Box>}
+        {!loading && !error && tasks.length === 0 && (
+          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 8, gap: 1, px: 2 }}>
+            <AssignmentOutlinedIcon sx={{ fontSize: 48, color: "#ccc" }} />
+            <Typography variant="body2" color="text.disabled" sx={{ fontWeight: 500 }}>暂无任务</Typography>
+            <Typography variant="caption" color="text.disabled" sx={{ textAlign: "center", maxWidth: 200 }}>在聊天中说「今日任务」或点击 + 新建</Typography>
+          </Box>
+        )}
+        {sortedGroups.map((group) => (
+          <Box key={group}>
+            <Box sx={{ px: 2, py: 0.6, pt: 1.2 }}>
+              <Typography sx={{ fontSize: 12, color: group === "已逾期" ? "#FA5151" : "#999", fontWeight: 500 }}>{group}</Typography>
+            </Box>
+            <Box sx={{ bgcolor: "#fff" }}>
+              {taskGroups[group].map((task, idx) => (
+                <SwipeableTaskRow key={task.id}
+                  onSwipeLeft={() => { if (task.status === "pending") handleComplete(task.id, "completed"); }}
+                  onSwipeRight={() => { if (task.status === "pending") handleCancel(task.id); }}>
+                  <Box onClick={() => setDetailTask(task)}
+                    sx={{ borderBottom: idx < taskGroups[group].length - 1 ? "0.5px solid #f0f0f0" : "none", cursor: "pointer" }}>
+                    <TaskRow task={task} isOverdue={group === "已逾期"} onComplete={handleComplete} onPostpone={handlePostpone} onCancel={handleCancel} />
+                  </Box>
+                </SwipeableTaskRow>
+              ))}
+            </Box>
+          </Box>
+        ))}
+        <Box sx={{ height: 24 }} />
+      </Box>
       <PostponeDialog open={Boolean(postponeOpen)} isMobile={isMobile} postponeDate={postponeDate} onChange={setPostponeDate}
         onClose={() => { setPostponeOpen(false); setPostponeTaskId(null); setPostponeDate(""); }} onConfirm={handleConfirmPostpone} />
       <CancelDialog open={Boolean(cancelConfirmId)} isMobile={isMobile} onClose={() => setCancelConfirmId(null)}

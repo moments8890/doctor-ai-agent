@@ -20,6 +20,7 @@ import { RECORD_TYPE_FILTER_OPTS } from "./constants";
 import RecordCard from "./RecordCard";
 import PatientAvatar from "./PatientAvatar";
 import LabelPicker from "./LabelPicker";
+import ExportSelectorDialog from "./ExportSelectorDialog";
 
 function EmptyPatientPlaceholder() {
   return (
@@ -222,6 +223,7 @@ export default function PatientDetail({ patient, doctorId, onDeleted }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [recordTypeFilter, setRecordTypeFilter] = useState("");
+  const [exportOpen, setExportOpen] = useState(false);
   const { records, setRecords, loading, error, exportingPdf, exportingReport, exportError, deleteConfirmOpen, setDeleteConfirmOpen, deleting, allLabels, labelPickerOpen, setLabelPickerOpen, labelError, patientLabels, setPatientLabels, labelAnchorRef, load, handleOpenLabelPicker, handleRemoveLabel, handleAssignLabel, handleDelete, handleExportPdf, handleExportReport } = usePatientDetailState({ patient, doctorId, onDeleted });
 
   if (!patient) return <EmptyPatientPlaceholder />;
@@ -232,9 +234,11 @@ export default function PatientDetail({ patient, doctorId, onDeleted }) {
   return (
     <Box sx={{ overflowY: "auto", height: "100%", bgcolor: "#ededed" }}>
       <PatientProfileBlock patient={patient} age={age} patientLabels={patientLabels} labelPickerOpen={labelPickerOpen} labelAnchorRef={labelAnchorRef} allLabels={allLabels} labelError={labelError} exportingPdf={exportingPdf} exportingReport={exportingReport}
-        onOpenLabelPicker={handleOpenLabelPicker} onRemoveLabel={handleRemoveLabel} onAssignLabel={handleAssignLabel} onLabelsChange={setPatientLabels} onCloseLabelPicker={() => setLabelPickerOpen(false)} onExportPdf={handleExportPdf} onExportReport={handleExportReport} onDeleteOpen={() => setDeleteConfirmOpen(true)} />
+        onOpenLabelPicker={handleOpenLabelPicker} onRemoveLabel={handleRemoveLabel} onAssignLabel={handleAssignLabel} onLabelsChange={setPatientLabels} onCloseLabelPicker={() => setLabelPickerOpen(false)} onExportPdf={() => setExportOpen(true)} onExportReport={handleExportReport} onDeleteOpen={() => setDeleteConfirmOpen(true)} />
       {exportError && <Typography variant="caption" color="error.main" sx={{ display: "block", px: 2.5, mt: 0.5 }}>{exportError}</Typography>}
       <DeletePatientDialog open={deleteConfirmOpen} patientName={patient.name} deleting={deleting} isMobile={isMobile} onConfirm={handleDelete} onClose={() => setDeleteConfirmOpen(false)} />
+      <ExportSelectorDialog open={exportOpen} onClose={() => setExportOpen(false)} patientId={patient.id} patientName={patient.name}
+        onExport={(opts) => { setExportOpen(false); handleExportPdf(); }} />
       <RecordListSection loading={loading} error={error} records={records} filteredRecords={filteredRecords} recordTypeFilter={recordTypeFilter} setRecordTypeFilter={setRecordTypeFilter} setRecords={setRecords} doctorId={doctorId} load={load} />
       <Box sx={{ height: 24 }} />
     </Box>
