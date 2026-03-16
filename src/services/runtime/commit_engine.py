@@ -1,4 +1,4 @@
-"""Commit engine — durable writes for the UEC pipeline (ADR 0012 §5c).
+"""Commit engine — durable writes for the UEC pipeline (ADR 0012 §5c, ADR 0013).
 
 Receives a fully resolved action from resolve and executes the write.
 Never fails on binding — that was already validated by resolve.
@@ -6,126 +6,36 @@ Never fails on binding — that was already validated by resolve.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
-from sqlalchemy.exc import IntegrityError
-
-from messages import M
 from services.runtime.types import (
     ActionType,
     CommitResult,
-    CreatePatientArgs,
     ResolvedAction,
-    ScheduleTaskArgs,
-    TaskType,
-    UpdateRecordArgs,
+    TaskArgs,
+    UpdateArgs,
 )
 from utils.log import log
 
 
-TASK_TYPE_LABELS: Dict[str, str] = {
-    "appointment": "复诊预约",
-    "follow_up": "随访任务",
-    "general": "任务",
-}
-
-
 async def commit(
     action: ResolvedAction,
-    ctx: Any,  # DoctorCtx — avoid circular import
+    ctx: Any,
     recent_turns: Optional[List[dict]] = None,
     user_input: str = "",
 ) -> CommitResult:
     """Execute a durable write action. Returns CommitResult for compose."""
     at = action.action_type
 
-    if at == ActionType.select_patient:
-        return await _select_patient(action, ctx)
-    if at == ActionType.create_patient:
-        return await _create_patient(action, ctx)
-    if at == ActionType.schedule_task:
-        return await _schedule_task(action, ctx)
-    if at == ActionType.create_record:
+    if at == ActionType.record:
         return await _create_record(action, ctx, recent_turns or [], user_input)
-    if at == ActionType.update_record:
+    if at == ActionType.update:
         return await _update_record(action, ctx)
+    if at == ActionType.task:
+        return await _schedule_task(action, ctx)
 
     log(f"[commit] unknown action type: {at}", level="error")
     return CommitResult(status="error", error_key="execute_error")
-
-
-# ---------------------------------------------------------------------------
-# select_patient
-# ---------------------------------------------------------------------------
-
-async def _select_patient(action: ResolvedAction, ctx: Any) -> CommitResult:
-    """Bind context to the resolved patient."""
-    # Resolve already found the patient — just update context
-    _switch_context(ctx, action.patient_id, action.patient_name)
-    log(f"[commit] select_patient={action.patient_name} id={action.patient_id} doctor={ctx.doctor_id}")
-    return CommitResult(status="ok")
-
-
-# ---------------------------------------------------------------------------
-# create_patient
-# ---------------------------------------------------------------------------
-
-async def _create_patient(action: ResolvedAction, ctx: Any) -> CommitResult:
-    """Create a new patient and bind to context."""
-    args = action.args
-    name = args.patient_name if isinstance(args, CreatePatientArgs) else action.patient_name
-    if not name:
-        return CommitResult(status="error", error_key="need_patient_name")
-
-    gender = getattr(args, "gender", None)
-    age = getattr(args, "age", None)
-
-    from db.crud import create_patient as db_create_patient, find_patient_by_name
-    from db.engine import AsyncSessionLocal
-
-    # Check for existing patient first
-    async with AsyncSessionLocal() as db:
-        existing = await find_patient_by_name(db, ctx.doctor_id, name)
-        if existing:
-            _switch_context(ctx, existing.id, existing.name)
-            log(f"[commit] create_patient: already exists, selected {existing.name}")
-            return CommitResult(
-                status="ok",
-                data={"existing": True, "name": existing.name},
-                message_key="patient_exists_selected",
-            )
-
-    # Create new patient — capture scalars inside session to avoid DetachedInstanceError
-    async with AsyncSessionLocal() as db:
-        try:
-            patient, _access_code = await db_create_patient(
-                db, ctx.doctor_id, name, gender, age,
-            )
-            new_id, new_name = patient.id, patient.name
-        except IntegrityError:
-            log(f"[commit] create_patient duplicate: {name} doctor={ctx.doctor_id}", level="warning")
-            new_id, new_name = None, None
-        except Exception as e:
-            log(f"[commit] create_patient FAILED: {e}", level="error")
-            return CommitResult(status="error", error_key="create_patient_failed")
-
-    if new_id is None:
-        # IntegrityError path — look up the existing patient
-        async with AsyncSessionLocal() as db2:
-            dup = await find_patient_by_name(db2, ctx.doctor_id, name)
-            if dup is None:
-                return CommitResult(status="error", error_key="create_patient_failed")
-            new_id, new_name = dup.id, dup.name
-        _switch_context(ctx, new_id, new_name)
-        return CommitResult(
-            status="ok",
-            data={"existing": True, "name": new_name},
-            message_key="patient_exists_selected",
-        )
-
-    _switch_context(ctx, new_id, new_name)
-    log(f"[commit] create_patient={new_name} id={new_id} doctor={ctx.doctor_id}")
-    return CommitResult(status="ok", data={"name": new_name})
 
 
 # ---------------------------------------------------------------------------
@@ -135,15 +45,14 @@ async def _create_patient(action: ResolvedAction, ctx: Any) -> CommitResult:
 async def _schedule_task(action: ResolvedAction, ctx: Any) -> CommitResult:
     """Create a DoctorTask row immediately."""
     args = action.args
-    if not isinstance(args, ScheduleTaskArgs):
+    if not isinstance(args, TaskArgs):
         return CommitResult(status="error", error_key="execute_error")
 
     from db.engine import AsyncSessionLocal
     from db.repositories.tasks import TaskRepository
 
-    task_type_str = args.task_type or "general"
-    task_label = TASK_TYPE_LABELS.get(task_type_str, "任务")
-    title = args.title or task_label
+    task_type_str = "general"
+    title = args.title or "任务"
 
     # Parse dates
     scheduled_for_dt = _parse_iso(args.scheduled_for) if args.scheduled_for else None
@@ -184,7 +93,7 @@ async def _schedule_task(action: ResolvedAction, ctx: Any) -> CommitResult:
         status="ok",
         data={
             "task_id": task_id,
-            "task_label": task_label,
+            "task_label": "任务",
             "datetime_display": dt_display,
             "patient_name": action.patient_name,
             "noon_default": noon_default,
@@ -208,7 +117,15 @@ async def _create_record(
 
     clinical_text = await _collect_clinical_text(ctx.doctor_id, patient_id, recent_turns, user_input)
     if not clinical_text.strip():
-        return CommitResult(status="error", error_key="no_clinical_content")
+        # Demographics-only: patient already created by resolve._ensure_patient
+        if not patient_name:
+            # Defensive guard — resolve should catch this first
+            return CommitResult(status="error", error_key="need_patient_name")
+        log(f"[commit] patient-only registration patient={patient_name} doctor={ctx.doctor_id}")
+        return CommitResult(
+            status="ok",
+            data={"patient_only": True, "name": patient_name},
+        )
 
     from services.ai.structuring import structure_medical_record, _NO_CLINICAL_CONTENT
     try:
@@ -253,7 +170,7 @@ async def _create_record(
 
 async def _update_record(action: ResolvedAction, ctx: Any) -> CommitResult:
     """Fetch existing record, snapshot, re-structure with amendment, patch."""
-    if not isinstance(action.args, UpdateRecordArgs):
+    if not isinstance(action.args, UpdateArgs):
         return CommitResult(status="error", error_key="execute_error")
     record_id = action.record_id
     if record_id is None:
@@ -318,12 +235,6 @@ async def _update_record(action: ResolvedAction, ctx: Any) -> CommitResult:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-def _switch_context(ctx: Any, patient_id: Optional[int], patient_name: Optional[str]) -> None:
-    """Update workflow context to point at a new patient."""
-    ctx.workflow.patient_id = patient_id
-    ctx.workflow.patient_name = patient_name
-
 
 async def _collect_clinical_text(
     doctor_id: str,
