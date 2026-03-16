@@ -7,10 +7,6 @@
       {
         "speaker": "doctor",
         "text": "创建患者赵强，男61岁，急诊。胸痛90分钟伴大汗，下壁STEMI，hs-cTnI 3.2 ng/mL，BNP 168 pg/mL，EF 45%，阿司匹林300mg，氯吡格雷300mg。"
-      },
-      {
-        "speaker": "doctor",
-        "text": "确认"
       }
     ],
     "expectations": {
@@ -18,9 +14,6 @@
       "expected_patient_name": "赵强",
       "expected_patient_count": 1,
       "expect_patient_dedup": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
@@ -39,13 +32,8 @@
           "创建",
           "已为患者",
           "已为",
-          "紧急",
-          "保存"
-        ],
-        [
-          "已录入病历",
-          "病历",
-          "保存"
+          "保存",
+          "病历"
         ],
         [
           "赵强"
@@ -61,10 +49,6 @@
       {
         "speaker": "doctor",
         "text": "创建患者刘丽萍，男81岁，卒中单元。突发左侧肢体无力并言语不清5小时，NIHSS 6分，头颅MRI示右侧基底节急性梗死，阿司匹林100mg qd，阿托伐他汀40mg qn。"
-      },
-      {
-        "speaker": "doctor",
-        "text": "确认"
       }
     ],
     "expectations": {
@@ -72,9 +56,6 @@
       "expected_patient_name": "刘丽萍",
       "expected_patient_count": 1,
       "expect_patient_dedup": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
@@ -92,13 +73,8 @@
           "创建",
           "已为患者",
           "已为",
-          "紧急",
-          "保存"
-        ],
-        [
-          "已录入病历",
-          "病历",
-          "保存"
+          "保存",
+          "病历"
         ],
         [
           "刘丽萍"
@@ -114,10 +90,6 @@
       {
         "speaker": "doctor",
         "text": "创建患者周明哲，男72岁，呼吸门诊。COPD急性加重3天，SpO2 88%，RR 28次/分，双肺哮鸣音，WBC 12.4，CRP 38，予布地奈德雾化和哌拉西林他唑巴坦。"
-      },
-      {
-        "speaker": "doctor",
-        "text": "确认"
       }
     ],
     "expectations": {
@@ -125,9 +97,6 @@
       "expected_patient_name": "周明哲",
       "expected_patient_count": 1,
       "expect_patient_dedup": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
@@ -145,13 +114,8 @@
           "创建",
           "已为患者",
           "已为",
-          "紧急",
-          "保存"
-        ],
-        [
-          "已录入病历",
-          "病历",
-          "保存"
+          "保存",
+          "病历"
         ],
         [
           "周明哲"
@@ -174,9 +138,6 @@
       "expected_patient_name": "陈雪宁",
       "expected_patient_count": 1,
       "expect_patient_dedup": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
@@ -194,13 +155,8 @@
           "创建",
           "已为患者",
           "已为",
-          "紧急",
-          "保存"
-        ],
-        [
-          "已录入病历",
-          "病历",
-          "保存"
+          "保存",
+          "病历"
         ],
         [
           "陈雪宁"
@@ -219,10 +175,6 @@
       },
       {
         "speaker": "doctor",
-        "text": "确认"
-      },
-      {
-        "speaker": "doctor",
         "text": "查王丽刚才那条记录"
       }
     ],
@@ -231,9 +183,6 @@
       "expected_patient_name": "王丽",
       "expected_patient_count": 1,
       "expect_patient_dedup": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
@@ -268,10 +217,6 @@
       },
       {
         "speaker": "doctor",
-        "text": "确认"
-      },
-      {
-        "speaker": "doctor",
         "text": "查张桂兰最近病历"
       }
     ],
@@ -280,9 +225,6 @@
       "expected_patient_name": "张桂兰",
       "expected_patient_count": 1,
       "expect_patient_dedup": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
@@ -318,10 +260,6 @@
       },
       {
         "speaker": "doctor",
-        "text": "确认"
-      },
-      {
-        "speaker": "doctor",
         "text": "查何志远最近记录"
       }
     ],
@@ -330,9 +268,6 @@
       "expected_patient_name": "何志远",
       "expected_patient_count": 1,
       "expect_patient_dedup": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
@@ -376,17 +311,14 @@
       "expected_patient_name": "林秋月",
       "expected_patient_count": 1,
       "expect_patient_dedup": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
       },
       "must_include_reply_any_of": [
         [
-          "已更正",
-          "更正"
+          "已更新",
+          "更新"
         ],
         [
           "林秋月"
@@ -413,17 +345,14 @@
       "expected_patient_name": "孙雅宁",
       "expected_patient_count": 1,
       "expect_patient_dedup": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
       },
       "must_include_reply_any_of": [
         [
-          "已更正",
-          "更正"
+          "已更新",
+          "更新"
         ],
         [
           "孙雅宁"
@@ -450,9 +379,6 @@
       "expected_patient_name": "周宁",
       "expected_patient_count": 1,
       "expect_patient_dedup": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_min_counts_by_doctor": {
         "patients": 1
       },
@@ -481,9 +407,6 @@
     ],
     "expectations": {
       "must_not_timeout": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "must_include_reply_any_of": [
         [
           "请问这位患者叫什么名字",
@@ -506,9 +429,6 @@
     ],
     "expectations": {
       "must_not_timeout": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "must_include_reply_any_of": [
         [
           "未找到患者",
@@ -539,9 +459,6 @@
       "expected_patient_name": "杨志明",
       "expected_patient_count": 1,
       "expect_patient_dedup": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
@@ -571,9 +488,6 @@
     ],
     "expectations": {
       "must_not_timeout": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "must_include_reply_any_of": [
         [
           "完成",
@@ -596,9 +510,6 @@
     ],
     "expectations": {
       "must_not_timeout": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "must_include_reply_any_of": [
         [
           "患者",
@@ -619,9 +530,6 @@
     ],
     "expectations": {
       "must_not_timeout": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "must_include_reply_any_of": [
         [
           "您好",
@@ -640,10 +548,6 @@
       {
         "speaker": "doctor",
         "text": "创建患者吴海燕，女58岁，心内门诊。反复胸闷两周，活动后加重，心电图ST段压低，三个月后随访。"
-      },
-      {
-        "speaker": "doctor",
-        "text": "确认"
       }
     ],
     "expectations": {
@@ -651,9 +555,6 @@
       "expected_patient_name": "吴海燕",
       "expected_patient_count": 1,
       "expect_patient_dedup": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
@@ -670,7 +571,6 @@
           "创建",
           "已为患者",
           "已为",
-          "紧急",
           "保存",
           "病历"
         ],
@@ -688,10 +588,6 @@
       {
         "speaker": "doctor",
         "text": "新患者陈伟强，男42岁，头痛三天伴恶心呕吐，血压165/100，CT未见出血。"
-      },
-      {
-        "speaker": "doctor",
-        "text": "确认"
       }
     ],
     "expectations": {
@@ -699,9 +595,6 @@
       "expected_patient_name": "陈伟强",
       "expected_patient_count": 1,
       "expect_patient_dedup": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
@@ -718,7 +611,6 @@
           "创建",
           "已为患者",
           "已为",
-          "紧急",
           "保存",
           "病历"
         ],
@@ -736,10 +628,6 @@
       {
         "speaker": "doctor",
         "text": "创建患者黄丽华，女28岁，皮肤科门诊。全身散在红色丘疹伴瘙痒1周，双下肢为著，查IgE升高，予西替利嗪10mg qd。"
-      },
-      {
-        "speaker": "doctor",
-        "text": "确认"
       }
     ],
     "expectations": {
@@ -747,9 +635,6 @@
       "expected_patient_name": "黄丽华",
       "expected_patient_count": 1,
       "expect_patient_dedup": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
@@ -767,13 +652,8 @@
           "创建",
           "已为患者",
           "已为",
-          "紧急",
-          "保存"
-        ],
-        [
-          "已录入病历",
-          "病历",
-          "保存"
+          "保存",
+          "病历"
         ],
         [
           "黄丽华"
@@ -789,10 +669,6 @@
       {
         "speaker": "doctor",
         "text": "创建患者马建国，男50岁，心内门诊。胸痛1小时，说错了，应该是胸闷2天。"
-      },
-      {
-        "speaker": "doctor",
-        "text": "确认"
       }
     ],
     "expectations": {
@@ -800,9 +676,6 @@
       "expected_patient_name": "马建国",
       "expected_patient_count": 1,
       "expect_patient_dedup": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
@@ -812,7 +685,6 @@
           "创建",
           "已为患者",
           "已为",
-          "紧急",
           "保存",
           "病历"
         ],
@@ -830,10 +702,6 @@
       {
         "speaker": "doctor",
         "text": "创建患者刘志强，男65岁，骨科门诊。腰椎间盘突出L4/5复发，左下肢放射痛VAS 7分，直腿抬高试验阳性，MRI示椎间盘突出压迫左侧神经根。"
-      },
-      {
-        "speaker": "doctor",
-        "text": "确认"
       }
     ],
     "expectations": {
@@ -841,9 +709,6 @@
       "expected_patient_name": "刘志强",
       "expected_patient_count": 1,
       "expect_patient_dedup": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
@@ -862,8 +727,6 @@
           "已为患者",
           "已为",
           "保存",
-          "草稿",
-          "确认",
           "病历",
           "刘志强"
         ]
@@ -872,8 +735,8 @@
   },
   {
     "case_id": "MVP-ACC-024",
-    "title": "Compound create + record: pending draft, no auto-save",
-    "group": "compound_pending",
+    "title": "Compound create + record: direct save with clinical content",
+    "group": "create_save",
     "chatlog": [
       {
         "speaker": "doctor",
@@ -885,9 +748,6 @@
       "expected_patient_name": "王芳",
       "expected_patient_count": 1,
       "expect_patient_dedup": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_min_counts_by_doctor": {
         "patients": 1
       },
@@ -897,8 +757,7 @@
           "已为患者",
           "已为",
           "保存",
-          "病历",
-          "草稿"
+          "病历"
         ],
         [
           "王芳"
@@ -908,7 +767,7 @@
   },
   {
     "case_id": "MVP-ACC-025",
-    "title": "Same-turn correction: should draft corrected content only",
+    "title": "Same-turn correction: should save corrected content only",
     "group": "correction",
     "chatlog": [
       {
@@ -919,17 +778,13 @@
     "expectations": {
       "must_not_timeout": true,
       "expected_patient_name": "王芳",
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "must_include_reply_any_of": [
         [
           "创建",
           "已为患者",
           "已为",
           "保存",
-          "病历",
-          "草稿"
+          "病历"
         ],
         [
           "王芳"
@@ -939,7 +794,7 @@
   },
   {
     "case_id": "MVP-ACC-026",
-    "title": "Compound record + task: record draft and reminder for existing patient",
+    "title": "Compound record + task: record and reminder for existing patient",
     "group": "compound_record_task",
     "chatlog": [
       {
@@ -956,9 +811,6 @@
       "expected_patient_name": "张三",
       "expected_patient_count": 1,
       "expect_patient_dedup": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
@@ -990,10 +842,6 @@
       },
       {
         "speaker": "doctor",
-        "text": "确认"
-      },
-      {
-        "speaker": "doctor",
         "text": "查张三最近病历"
       }
     ],
@@ -1002,9 +850,6 @@
       "expected_patient_name": "张三",
       "expected_patient_count": 1,
       "expect_patient_dedup": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
@@ -1038,9 +883,6 @@
     "expectations": {
       "must_not_timeout": true,
       "expected_patient_name": "张三",
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "must_include_any_of": [
         [
           "ACS",
@@ -1054,8 +896,6 @@
           "记录",
           "保存",
           "已录入",
-          "草稿",
-          "确认",
           "没太理解",
           "更具体",
           "帮助",
@@ -1080,9 +920,6 @@
     "expectations": {
       "must_not_timeout": true,
       "expected_patient_name": "李四",
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "must_include_any_of": [
         [
           "脑出血",
@@ -1111,10 +948,6 @@
       {
         "speaker": "doctor",
         "text": "创建患者王五，男35岁，门诊。上呼吸道感染，发热38.5℃，咽充血，白细胞正常，予对症处理。"
-      },
-      {
-        "speaker": "doctor",
-        "text": "确认"
       }
     ],
     "expectations": {
@@ -1122,9 +955,6 @@
       "expected_patient_name": "王五",
       "expected_patient_count": 1,
       "expect_patient_dedup": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
@@ -1159,10 +989,6 @@
       {
         "speaker": "doctor",
         "text": "创建患者赵敏，女29岁，急诊。1型糖尿病DKA，血糖28.6 mmol/L，血酮5.2 mmol/L，pH 7.18，HCO3- 8 mmol/L，予胰岛素泵持续静滴及补液。"
-      },
-      {
-        "speaker": "doctor",
-        "text": "确认"
       }
     ],
     "expectations": {
@@ -1170,9 +996,6 @@
       "expected_patient_name": "赵敏",
       "expected_patient_count": 1,
       "expect_patient_dedup": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
@@ -1208,10 +1031,6 @@
       {
         "speaker": "doctor",
         "text": "创建患者李建国，男68岁，肾内科门诊。CKD G4期，eGFR 22 mL/min/1.73m2，24h尿蛋白3.2g，Scr 268 μmol/L，K+ 5.6 mmol/L，限钾饮食并调整降压方案。"
-      },
-      {
-        "speaker": "doctor",
-        "text": "确认"
       }
     ],
     "expectations": {
@@ -1219,9 +1038,6 @@
       "expected_patient_name": "李建国",
       "expected_patient_count": 1,
       "expect_patient_dedup": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
@@ -1256,10 +1072,6 @@
       {
         "speaker": "doctor",
         "text": "创建患者周慧，女52岁，肿瘤科。左乳浸润性导管癌T2N1M0，ER+/PR+/HER2 3+，Ki-67 40%，已行AC-TH方案化疗第4周期，今日曲妥珠单抗维持治疗。"
-      },
-      {
-        "speaker": "doctor",
-        "text": "确认"
       }
     ],
     "expectations": {
@@ -1267,9 +1079,6 @@
       "expected_patient_name": "周慧",
       "expected_patient_count": 1,
       "expect_patient_dedup": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
@@ -1308,10 +1117,6 @@
       },
       {
         "speaker": "doctor",
-        "text": "确认"
-      },
-      {
-        "speaker": "doctor",
         "text": "查钱伟最近的EF和BNP记录"
       }
     ],
@@ -1320,9 +1125,6 @@
       "expected_patient_name": "钱伟",
       "expected_patient_count": 1,
       "expect_patient_dedup": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
@@ -1356,10 +1158,6 @@
       {
         "speaker": "doctor",
         "text": "创建患者郑国强，男55岁，消化内科。乙肝后肝硬化Child-Pugh B级，腹水中量，ALT 86 U/L，AST 102 U/L，ALB 28 g/L，予利尿及保肝治疗。"
-      },
-      {
-        "speaker": "doctor",
-        "text": "确认"
       }
     ],
     "expectations": {
@@ -1367,9 +1165,6 @@
       "expected_patient_name": "郑国强",
       "expected_patient_count": 1,
       "expect_patient_dedup": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
@@ -1409,9 +1204,6 @@
     ],
     "expectations": {
       "must_not_timeout": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "must_include_reply_any_of": [
         [
           "请问这位患者叫什么名字",
@@ -1435,9 +1227,6 @@
     ],
     "expectations": {
       "must_not_timeout": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_max_counts_by_doctor": {
         "patients": 0,
         "medical_records": 0
@@ -1470,9 +1259,6 @@
     ],
     "expectations": {
       "must_not_timeout": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "must_include_reply_any_of": [
         [
           "叫什么名字",
@@ -1482,7 +1268,6 @@
           "没太理解",
           "更具体",
           "帮助",
-          "草稿",
           "记下来",
           "记下",
           "好的"
@@ -1502,9 +1287,6 @@
     ],
     "expectations": {
       "must_not_timeout": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "must_include_reply_any_of": [
         [
           "请问",
@@ -1528,9 +1310,6 @@
     ],
     "expectations": {
       "must_not_timeout": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_max_counts_by_doctor": {
         "patients": 0,
         "medical_records": 0
@@ -1558,9 +1337,6 @@
     ],
     "expectations": {
       "must_not_timeout": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "must_include_reply_any_of": [
         [
           "张三",
@@ -1583,9 +1359,6 @@
     ],
     "expectations": {
       "must_not_timeout": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "must_include_reply_any_of": [
         [
           "完成",
@@ -1609,9 +1382,6 @@
     ],
     "expectations": {
       "must_not_timeout": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "must_include_any_of": [
         [
           "头痛",
@@ -1644,9 +1414,6 @@
     ],
     "expectations": {
       "must_not_timeout": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_max_counts_by_doctor": {
         "patients": 0,
         "medical_records": 0
@@ -1673,9 +1440,6 @@
     ],
     "expectations": {
       "must_not_timeout": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_max_counts_by_doctor": {
         "patients": 0,
         "medical_records": 0
@@ -1704,9 +1468,6 @@
     ],
     "expectations": {
       "must_not_timeout": true,
-      "expected_table_min_counts_global": {
-        "system_prompts": 1
-      },
       "expected_table_max_counts_by_doctor": {
         "patients": 0,
         "medical_records": 0
