@@ -31,30 +31,44 @@ function isNLQuery(q) {
   return /[的得了这那哪]{1}|姓|阿姨|叔叔|奶奶|大爷|多岁|中年|老年|男性|女性|上周|本周|最近|昨天/.test(q);
 }
 
+function formatPatientTime(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+  const dt = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  if (dt.getTime() === today.getTime()) return `今天 ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  if (dt.getTime() === yesterday.getTime()) return "昨天";
+  return `${d.getMonth() + 1}月${d.getDate()}日`;
+}
+
 function PatientRow({ patient, isSelected, isMobile, onClick }) {
   const age = patient.year_of_birth ? new Date().getFullYear() - patient.year_of_birth : null;
+  const timeStr = formatPatientTime(patient.updated_at || patient.created_at);
   return (
     <Box onClick={onClick}
       sx={{
         display: "flex", alignItems: "center", gap: 1.5,
-        px: 2, py: 1.5, bgcolor: isSelected ? "#f0faf4" : "#fff",
+        px: 2, py: 1.5, bgcolor: "#fff",
         borderBottom: "0.5px solid #f0f0f0",
         cursor: "pointer", userSelect: "none", WebkitUserSelect: "none",
-        "&:hover": isMobile ? undefined : { bgcolor: "#f5f5f5" },
-        "&:active": { bgcolor: isMobile ? "#f5f5f5" : "#ebebeb" },
+        "&:active": { bgcolor: "#f5f5f5" },
       }}>
       <PatientAvatar name={patient.name} size={44} />
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontWeight: 500, fontSize: 15 }}>{patient.name}</Typography>
-        <Typography sx={{ fontSize: 13, color: "#999" }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Typography sx={{ fontWeight: 500, fontSize: 15 }}>{patient.name}</Typography>
+          <Typography sx={{ fontSize: 12, color: "#999", flexShrink: 0 }}>{timeStr}</Typography>
+        </Box>
+        <Typography sx={{ fontSize: 13, color: "#999", mt: 0.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {[
             patient.gender ? ({ male: "男", female: "女" }[patient.gender] || patient.gender) : null,
             age ? `${age}岁` : null,
-            `${patient.record_count}份病历`,
+            patient.primary_category || `${patient.record_count}份病历`,
           ].filter(Boolean).join(" · ")}
         </Typography>
       </Box>
-      {isSelected && <Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: "#07C160", flexShrink: 0 }} />}
     </Box>
   );
 }
@@ -136,7 +150,24 @@ function SearchBar({ patients, search, nlResults, nlLoading, onChange, onSubmit 
   );
 }
 
-function PatientGroupList({ filtered, search, selectedId, isMobile, navigate, onInsertChatText, onNavigateToChat }) {
+function NewPatientRow({ onNavigateToChat }) {
+  return (
+    <Box onClick={onNavigateToChat}
+      sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1.5, bgcolor: "#fff",
+        borderBottom: "0.5px solid #f0f0f0", cursor: "pointer", "&:active": { bgcolor: "#f5f5f5" } }}>
+      <Box sx={{ width: 44, height: 44, borderRadius: "4px", border: "1.5px dashed #07C160",
+        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <Typography sx={{ fontSize: 22, color: "#07C160", lineHeight: 1 }}>+</Typography>
+      </Box>
+      <Box>
+        <Typography sx={{ fontSize: 15, fontWeight: 500, color: "#07C160" }}>新建患者</Typography>
+        <Typography sx={{ fontSize: 12, color: "#999" }}>添加新的患者档案</Typography>
+      </Box>
+    </Box>
+  );
+}
+
+function PatientList({ filtered, search, selectedId, isMobile, navigate, onInsertChatText, onNavigateToChat }) {
   if (!filtered.length && search.trim()) {
     return (
       <Box sx={{ p: 2 }}>
@@ -153,27 +184,22 @@ function PatientGroupList({ filtered, search, selectedId, isMobile, navigate, on
       <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 4, gap: 1 }}>
         <Typography variant="body2" color="text.disabled">暂无患者档案</Typography>
         <Typography variant="caption" color="text.secondary" sx={{ textAlign: "center" }}>
-          通过上方方式导入，或在聊天中创建
+          点击"新建患者"或在聊天中创建
         </Typography>
       </Box>
     );
   }
-  return groupPatients(filtered).map(([letter, group]) => (
-    <Box key={letter}>
-      <Box sx={{ px: 2, py: 0.5, bgcolor: "#f7f7f7", borderBottom: "0.5px solid #f0f0f0" }}>
-        <Typography sx={{ fontSize: 12, color: "#999999", fontWeight: 600 }}>{letter}</Typography>
+  return (
+    <>
+      <Box sx={{ px: 2, py: 0.6, bgcolor: "#ededed" }}>
+        <Typography sx={{ fontSize: 12, color: "#999" }}>最近 · {filtered.length}位患者</Typography>
       </Box>
-      {group.map((p) => (
-        <PatientRow
-          key={p.id}
-          patient={p}
-          isSelected={p.id === selectedId}
-          isMobile={isMobile}
-          onClick={() => navigate(`/doctor/patients/${p.id}`)}
-        />
+      {filtered.map((p) => (
+        <PatientRow key={p.id} patient={p} isSelected={p.id === selectedId}
+          isMobile={isMobile} onClick={() => navigate(`/doctor/patients/${p.id}`)} />
       ))}
-    </Box>
-  ));
+    </>
+  );
 }
 
 function PatientListPane({ patients, loading, error, search, nlResults, nlLoading, filtered, selectedId, isMobile, importing, importError, importFileRef, navigate, onSearchChange, onSearchSubmit, onNavigateToChat, onInsertChatText, onLoad, onFileInputChange }) {
@@ -181,15 +207,12 @@ function PatientListPane({ patients, loading, error, search, nlResults, nlLoadin
     <>
       <SearchBar patients={patients} search={search} nlResults={nlResults} nlLoading={nlLoading} onChange={onSearchChange} onSubmit={onSearchSubmit} />
       {error && <Alert severity="error" action={<Button size="small" onClick={onLoad}>重试</Button>}>{error}</Alert>}
-      <Box sx={{ flex: 1, overflowY: "auto", bgcolor: "#fff" }}>
+      <Box sx={{ flex: 1, overflowY: "auto", bgcolor: "#ededed" }}>
         {loading && <Box sx={{ p: 2, textAlign: "center" }}><CircularProgress size={20} /></Box>}
-        {!loading && !search.trim() && (
-          <ImportCard importing={importing} importError={importError}
-            onFileClick={() => importFileRef.current?.click()} onChatClick={() => onNavigateToChat?.()} />
-        )}
+        {!loading && !search.trim() && <NewPatientRow onNavigateToChat={onNavigateToChat} />}
         <input ref={importFileRef} type="file" hidden accept=".pdf,image/jpeg,image/png,image/webp" onChange={onFileInputChange} />
         {!loading && (
-          <PatientGroupList filtered={filtered} search={search} selectedId={selectedId}
+          <PatientList filtered={filtered} search={search} selectedId={selectedId}
             isMobile={isMobile} navigate={navigate}
             onInsertChatText={onInsertChatText} onNavigateToChat={onNavigateToChat} />
         )}
