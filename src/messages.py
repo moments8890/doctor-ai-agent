@@ -85,10 +85,7 @@ class M:
     clarify_unsupported = "抱歉，暂不支持此操作。"
 
     # -- UEC pipeline: action success templates (ADR 0012 §9) ---------------
-    select_patient_ok = "已切换到【{name}】。"
-    create_patient_ok = "✅ 已创建患者【{name}】。您可以继续说「写个记录」来创建病历。"
-    schedule_task_ok = "已为【{patient}】创建{task_label}，时间：{datetime_display}。"
-    schedule_task_ok_noon = "已为【{patient}】创建{task_label}，时间：{datetime_display}（默认中午12点）。"
+    patient_registered = "✅ 已建档【{name}】。"
     record_updated = "✅ 已更新【{patient}】的病历：\n{preview}"
     no_record_to_update = "该患者暂无病历记录，无法修改。"
 

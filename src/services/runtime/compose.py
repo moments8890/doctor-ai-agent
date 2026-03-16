@@ -58,38 +58,25 @@ def _compose_commit(
     name = patient_name or ""
     data = result.data or {}
 
-    if action_type == ActionType.select_patient:
-        return M.select_patient_ok.format(name=name)
-
-    if action_type == ActionType.create_patient:
-        return M.create_patient_ok.format(name=name)
-
-    if action_type == ActionType.schedule_task:
-        task_label = data.get("task_label", "任务")
-        dt_display = data.get("datetime_display", "")
-        if not dt_display:
-            # No time specified — omit the time display entirely
-            return f"已为【{name}】创建{task_label}。"
-        noon_default = data.get("noon_default", False)
-        if noon_default:
-            return M.schedule_task_ok_noon.format(
-                patient=name,
-                task_label=task_label,
-                datetime_display=dt_display,
-            )
-        return M.schedule_task_ok.format(
-            patient=name,
-            task_label=task_label,
-            datetime_display=dt_display,
-        )
-
-    if action_type == ActionType.create_record:
+    if action_type == ActionType.record:
+        if data.get("patient_only"):
+            return M.patient_registered.format(name=name)
         preview = data.get("preview", "")
         return M.record_created.format(patient=name, preview=preview)
 
-    if action_type == ActionType.update_record:
+    if action_type == ActionType.update:
         preview = data.get("preview", "")
         return M.record_updated.format(patient=name, preview=preview)
+
+    if action_type == ActionType.task:
+        dt_display = data.get("datetime_display", "")
+        title = data.get("title") or "任务"
+        if not dt_display:
+            return f"已为【{name}】创建任务：{title}"
+        noon_default = data.get("noon_default", False)
+        if noon_default:
+            return f"已为【{name}】创建任务：{title}，时间：{dt_display}（默认中午12点）。"
+        return f"已为【{name}】创建任务：{title}，时间：{dt_display}。"
 
     return M.default_reply
 
@@ -201,7 +188,6 @@ def compose_clarification(c: Clarification) -> str:
         if c.missing_fields:
             field_labels = {
                 "patient_name": "患者姓名",
-                "task_type": "任务类型",
                 "scheduled_for": "预约时间",
             }
             label = field_labels.get(c.missing_fields[0], c.missing_fields[0])
