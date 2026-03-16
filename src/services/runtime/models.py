@@ -58,9 +58,6 @@ class DoctorCtx:
 class TurnResult:
     """Final result returned to the channel adapter."""
     reply: str
-    pending_id: Optional[str] = None
-    pending_patient_name: Optional[str] = None
-    pending_expires_at: Optional[str] = None
     record_id: Optional[int] = None  # set on draft confirm (for REST response)
     view_payload: Optional[Dict[str, Any]] = None  # structured data for web rendering (ADR 0012 §14)
     switch_notification: Optional[str] = None  # patient-switch system message
