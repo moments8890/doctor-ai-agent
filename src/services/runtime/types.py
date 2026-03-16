@@ -16,7 +16,8 @@ class ActionType(str, Enum):
     schedule_task = "schedule_task"
     select_patient = "select_patient"
     create_patient = "create_patient"
-    create_draft = "create_draft"
+    create_record = "create_record"
+    update_record = "update_record"
     none = "none"
 
 
@@ -54,7 +55,8 @@ RESPONSE_MODE_TABLE: Dict[ActionType, ResponseMode] = {
     ActionType.schedule_task: ResponseMode.template,
     ActionType.select_patient: ResponseMode.template,
     ActionType.create_patient: ResponseMode.template,
-    ActionType.create_draft: ResponseMode.template,
+    ActionType.create_record: ResponseMode.template,
+    ActionType.update_record: ResponseMode.template,
 }
 
 READ_ACTIONS = frozenset({ActionType.query_records, ActionType.list_patients})
@@ -62,7 +64,8 @@ WRITE_ACTIONS = frozenset({
     ActionType.schedule_task,
     ActionType.select_patient,
     ActionType.create_patient,
-    ActionType.create_draft,
+    ActionType.create_record,
+    ActionType.update_record,
 })
 
 
@@ -82,9 +85,14 @@ class CreatePatientArgs:
 
 
 @dataclass
-class CreateDraftArgs:
+class CreateRecordArgs:
     """Empty — clinical content collected from chat_archive by commit engine."""
     pass
+
+
+@dataclass
+class UpdateRecordArgs:
+    instruction: str
 
 
 @dataclass
@@ -113,7 +121,8 @@ class ScheduleTaskArgs:
 ARGS_TYPE_TABLE: Dict[ActionType, type] = {
     ActionType.select_patient: SelectPatientArgs,
     ActionType.create_patient: CreatePatientArgs,
-    ActionType.create_draft: CreateDraftArgs,
+    ActionType.create_record: CreateRecordArgs,
+    ActionType.update_record: UpdateRecordArgs,
     ActionType.query_records: QueryRecordsArgs,
     ActionType.list_patients: ListPatientsArgs,
     ActionType.schedule_task: ScheduleTaskArgs,
@@ -138,9 +147,14 @@ class Clarification:
 
 
 @dataclass
-class UnderstandResult:
+class ActionIntent:
     action_type: ActionType
-    args: Optional[Any] = None       # typed per action via ARGS_TYPE_TABLE
+    args: Optional[Any] = None  # typed per action via ARGS_TYPE_TABLE
+
+
+@dataclass
+class UnderstandResult:
+    actions: List[ActionIntent]
     chat_reply: Optional[str] = None  # only for action_type == none
     clarification: Optional[Clarification] = None
 
@@ -155,6 +169,7 @@ class ResolvedAction:
     patient_name: Optional[str] = None
     args: Optional[Any] = None         # validated and normalised
     scoped_only: bool = False          # True for reads — do not switch context
+    record_id: Optional[int] = None    # resolve-time: target record for update_record
 
 
 @dataclass
@@ -171,7 +186,6 @@ class ReadResult:
 class CommitResult:
     status: str  # "ok" | "pending_confirmation" | "error"
     data: Optional[Any] = None
-    pending_id: Optional[str] = None
     message_key: Optional[str] = None
     error_key: Optional[str] = None
 
