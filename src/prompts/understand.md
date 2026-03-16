@@ -71,18 +71,20 @@ args: {"instruction": "把诊断改成高血压2级"}
 当一条消息包含多个意图时，将它们分解为有序的 actions 数组（最多3个）。常见模式：
 
 1. 消息包含患者信息 + 临床内容，但当前未选择患者 → 先创建/选择患者，再保存病历
-2. 报告临床信息后提到预约 → 先保存病历，再创建任务
+2. 报告临床信息后提到预约/复查/随访 → 保存病历 + 创建任务
 3. 切换患者后查询 → 先选择患者，再查询病历
+4. 临床内容中提到"X月/周复查""随访""复诊" → 额外添加 schedule_task（task_type: follow_up）
 
 ### 示例
 
 医生输入："患者李淑芳，女，68岁，血压135/85，心电图正常，继续当前治疗，3个月复查"
 当前患者：未选择
-→ 需要先创建患者，再保存病历
+→ 需要先创建患者，再保存病历，再创建复查任务（"3个月复查"是随访提醒）
 
 {"actions": [
   {"action_type": "create_patient", "args": {"patient_name": "李淑芳", "gender": "女", "age": 68}},
-  {"action_type": "create_record", "args": {}}
+  {"action_type": "create_record", "args": {}},
+  {"action_type": "schedule_task", "args": {"task_type": "follow_up", "patient_name": "李淑芳", "title": "3个月复查"}}
 ], "chat_reply": null, "clarification": null}
 
 医生输入："查一下张三的血压记录"
