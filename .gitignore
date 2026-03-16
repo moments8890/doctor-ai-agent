@@ -31,11 +31,12 @@ logs/
 # IDE
 .idea/
 .vscode/
+.superpowers/
 
 # Frontend
 frontend/**/node_modules/
 frontend/.vite/
-frontend/dist/
+frontend/**/dist/
 frontend/android/
 frontend/ios/
 frontend/.env.android
