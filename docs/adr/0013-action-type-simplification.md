@@ -98,6 +98,12 @@ is simple: **if you mentioned a patient, you're working with that patient.**
 This matches doctor expectation: "查看张三的病历" followed by "把诊断改成X"
 naturally applies to 张三.
 
+Note: In ADR 0012, `scoped_only` was set for all READ_ACTIONS via
+`scoped_only=is_read`. In practice, `list_patients` and `list_tasks` never
+resolve a patient_id (they are unscoped), so the flag only affected
+`query_records`. The behavior change from removing `scoped_only` is therefore
+limited to one action type: patient-scoped record queries now bind context.
+
 ### 3. `query` action with `target` field
 
 ```python
@@ -118,9 +124,14 @@ Routing in resolve:
 Routing in read_engine:
 - `target=patients` → `_list_patients()`
 - `target=tasks` → `_list_tasks()`
-- default → `_query_records()`
+- default (including unrecognized values) → `_query_records()`
 
-### 4. `record` action absorbs `create_patient` and `select_patient`
+**Fallback rule:** Unknown or absent `target` always defaults to `"records"`.
+If the LLM sends an invalid value (e.g., `target="medications"`), the system
+treats it as a records query. This is a safe default — the doctor sees records
+for the current patient rather than an error.
+
+### 4. `record` action absorbs `create_patient`; `select_patient` absorbed by `query`
 
 ```python
 @dataclass
@@ -156,7 +167,9 @@ class TaskArgs:
     remind_at: Optional[str] = None
 ```
 
-`_validate_schedule_task` in resolve deleted entirely.
+`_validate_schedule_task` in resolve replaced with lightweight
+`_validate_task_dates()` — date-range and ISO validation only, no task_type
+check. `ClarificationKind.invalid_time` is retained for this purpose.
 
 ### 6. Updated pipeline flow
 
@@ -183,7 +196,8 @@ user_input + DoctorCtx
 
 - LLM classifies 5 types instead of 9 — fewer misclassification errors
 - Understand prompt shrinks ~45% (112 lines → ~60)
-- Resolve loses 3 branches and `_validate_schedule_task` (~60 lines)
+- Resolve loses 3 branches; `_validate_schedule_task` shrinks to
+  `_validate_task_dates` (date-only, ~15 lines vs ~60)
 - Commit engine loses 2 functions (`_select_patient`, `_create_patient`)
 - No `scoped_only` concept — simpler mental model for developers
 - Patient binding is uniform and predictable
@@ -207,11 +221,12 @@ user_input + DoctorCtx
 |---|---|
 | 9 action types | 5 action types |
 | `query_records`, `list_patients`, `list_tasks` | `query` with `target` field |
-| `select_patient`, `create_patient`, `create_record` | `record` (demographics-only fallback) |
+| `select_patient` | Absorbed by `query` (returns records + binds context) |
+| `create_patient`, `create_record` | `record` (demographics-only fallback for create_patient) |
 | `update_record` | `update` |
 | `schedule_task` with `task_type` | `task` (no task_type) |
 | `scoped_only=True` for reads | Removed — all actions bind context |
 | `TaskType` enum | Removed |
-| `_validate_schedule_task` in resolve | Removed |
+| `_validate_schedule_task` in resolve | Replaced by `_validate_task_dates` (date-only) |
 | `TASK_TYPE_LABELS` in commit engine | Removed |
 | Patient binding asymmetry (reads scope, writes switch) | Uniform: all bind |

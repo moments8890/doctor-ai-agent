@@ -511,6 +511,10 @@ clinical_text = await _collect_clinical_text(ctx.doctor_id, patient_id, recent_t
 if not clinical_text.strip():
     # Demographics-only: patient already created by resolve._ensure_patient
     if not patient_name:
+        # Defensive guard: resolve._ensure_patient should have caught this
+        # and returned a clarification before commit engine runs. This path
+        # is only reachable if resolve passes through with a bound patient
+        # whose name is empty string — unlikely but safe to guard.
         return CommitResult(status="error", error_key="need_patient_name")
     log(f"[commit] patient-only registration patient={patient_name} doctor={ctx.doctor_id}")
     return CommitResult(
