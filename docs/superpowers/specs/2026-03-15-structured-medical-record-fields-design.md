@@ -2,7 +2,7 @@
 
 ## Goal
 
-Persist the 13 regulatory-mandated outpatient record fields (per
+Persist 13 regulatory-mandated outpatient record fields (per
 《病历书写基本规范》卫医政发〔2010〕11号) alongside the existing free-text
 narrative at record-creation time, eliminating the need for on-demand LLM
 extraction during export and providing a stable, auditable, queryable
@@ -17,19 +17,23 @@ specific point in time. Outpatient records must contain:
 
 | # | Key | Chinese label |
 |---|-----|---------------|
-| 1 | `encounter_type` | 就诊类型 (初诊/复诊) |
-| 2 | `department` | 科别 |
-| 3 | `chief_complaint` | 主诉 |
-| 4 | `present_illness` | 现病史 |
-| 5 | `past_history` | 既往史 |
-| 6 | `allergy_history` | 过敏史 |
-| 7 | `personal_history` | 个人史 |
-| 8 | `family_history` | 家族史 |
-| 9 | `physical_exam` | 体格检查 |
-| 10 | `aux_exam` | 辅助检查 |
-| 11 | `diagnosis` | 初步诊断 (含 ICD 编码) |
-| 12 | `treatment` | 治疗方案 |
-| 13 | `followup` | 医嘱及随访 |
+| 1 | `chief_complaint` | 主诉 |
+| 2 | `present_illness` | 现病史 |
+| 3 | `past_history` | 既往史 |
+| 4 | `allergy_history` | 过敏史 |
+| 5 | `personal_history` | 个人史 |
+| 6 | `marital_history` | 婚育史 |
+| 7 | `family_history` | 家族史 |
+| 8 | `physical_exam` | 体格检查 |
+| 9 | `aux_exam` | 辅助检查 |
+| 10 | `diagnosis` | 初步诊断 (含 ICD 编码) |
+| 11 | `treatment` | 治疗方案 |
+| 12 | `followup` | 医嘱及随访 |
+| 13 | `department` | 科别 |
+
+`encounter_type` (就诊类型) is **not** included — it already exists as a
+column on `MedicalRecordDB` (`first_visit`/`follow_up`/`unknown`). Export
+derives the Chinese label ("初诊"/"复诊") from that column. No duplication.
 
 ### Current state
 
@@ -97,13 +101,13 @@ Stored as JSON string. Example:
 
 ```json
 {
-  "encounter_type": "初诊",
   "department": "神经内科",
   "chief_complaint": "头痛3天，伴恶心呕吐",
   "present_illness": "患者3天前无明显诱因出现头痛...",
   "past_history": "高血压病史5年，服用氨氯地平",
   "allergy_history": "青霉素过敏",
   "personal_history": "无烟酒嗜好",
+  "marital_history": "已婚，育有1子，配偶及子女体健",
   "family_history": "父亲有高血压病史",
   "physical_exam": "T 36.5°C, P 78次/分, R 18次/分, BP 140/90mmHg",
   "aux_exam": "头颅CT未见明显异常",
@@ -112,14 +116,6 @@ Stored as JSON string. Example:
   "followup": "1周后复诊，如头痛加重随时就诊"
 }
 ```
-
-**Note on dual `encounter_type`**: `MedicalRecordDB` already has a column-level
-`encounter_type` (values: `first_visit`/`follow_up`/`unknown`, set
-programmatically by counting prior records). The `structured_fields`
-`encounter_type` is the LLM-extracted Chinese label (`"初诊"`/`"复诊"`),
-reflecting what the doctor actually said. Both are kept because they serve
-different purposes: the column drives programmatic logic, the field appears on
-the regulatory form.
 
 #### `medical_record_versions` table
 
@@ -137,14 +133,37 @@ old_structured_fields: Mapped[Optional[str]] = mapped_column(
 Create a public constant in `services/export/outpatient_report.py`:
 
 ```python
+from typing import FrozenSet
+
 # Canonical set of 13 regulatory field keys — used by structuring coercion,
 # export, and any code that validates structured_fields dicts.
-OUTPATIENT_FIELD_KEYS: frozenset[str] = frozenset(k for k, _ in OUTPATIENT_FIELDS)
+OUTPATIENT_FIELD_KEYS: FrozenSet[str] = frozenset(k for k, _ in OUTPATIENT_FIELDS)
 ```
 
 This replaces the existing private `_FIELD_KEYS` list with a public frozenset.
 All consumers (structuring coercion, export, PATCH validation) import from this
 single source of truth.
+
+Also add `marital_history` to the existing `OUTPATIENT_FIELDS` list (and remove
+`encounter_type` since it is handled by the DB column):
+
+```python
+OUTPATIENT_FIELDS = [
+    ("department",         "科别"),
+    ("chief_complaint",    "主诉"),
+    ("present_illness",    "现病史"),
+    ("past_history",       "既往史"),
+    ("allergy_history",    "过敏史"),
+    ("personal_history",   "个人史"),
+    ("marital_history",    "婚育史"),
+    ("family_history",     "家族史"),
+    ("physical_exam",      "体格检查"),
+    ("aux_exam",           "辅助检查"),
+    ("diagnosis",          "初步诊断"),
+    ("treatment",          "治疗方案"),
+    ("followup",           "医嘱及随访"),
+]
+```
 
 ---
 
@@ -166,23 +185,28 @@ class MedicalRecord(BaseModel):
 
 #### LLM prompt change
 
-The structuring system prompt (stored in DB as `system_prompts.structuring`)
-gains an additional instruction block requesting the 13 fields in the same
+The structuring prompt instruction is a **code-managed markdown file**
+`prompts/structuring-structured-fields.md`, loaded in `_build_system_prompt()`
+and appended to the base prompt — same pattern as the existing
+`structuring-consultation-suffix` and `structuring-followup-suffix`. This is
+version-controlled, cannot be forgotten during rollout, and removes rollout
+fragility.
+
+The prompt instructs the LLM to include a `structured_fields` object in its
 JSON response:
 
 ```
+在返回的 JSON 中，额外包含 "structured_fields" 对象，按以下字段从对话内容中提取：
+
 {
-  "content": "...",
-  "tags": [...],
-  "record_type": "visit",
   "structured_fields": {
-    "encounter_type": "初诊 或 复诊",
     "department": "科别（如：神经内科）",
     "chief_complaint": "主诉",
     "present_illness": "现病史",
     "past_history": "既往史",
     "allergy_history": "过敏史",
     "personal_history": "个人史",
+    "marital_history": "婚育史",
     "family_history": "家族史",
     "physical_exam": "体格检查",
     "aux_exam": "辅助检查",
@@ -191,28 +215,29 @@ JSON response:
     "followup": "医嘱及随访"
   }
 }
+
+规则：
+- 根据临床内容填写各字段。无信息的字段填 ""（不得编造）。
+- 部分字段缺失是正常的。
 ```
 
 Rules for the LLM:
 - Populate each field from the clinical content. Use `""` for fields with no
   available information (do not fabricate).
-- `encounter_type` must be one of `"初诊"` or `"复诊"`.
+- Partial field sets are expected and valid.
 
 #### Token budget change (`_make_llm_caller`)
 
-Increase `max_tokens` from 1500 to 3000 in `_make_llm_caller()` at
-`structuring.py:132` to accommodate the additional fields:
+Increase `max_tokens` from 1500 to 2500 in `_make_llm_caller()` at
+`structuring.py:132`:
 
 ```python
-max_tokens=int(os.environ.get("STRUCTURING_MAX_TOKENS", "3000")),
+max_tokens=int(os.environ.get("STRUCTURING_MAX_TOKENS", "2500")),
 ```
 
-Making it env-configurable allows tuning without code changes.
-
-**Partial field sets are expected and valid.** The LLM may return fewer than 13
-fields if the clinical input doesn't contain information for all fields (e.g.,
-a dictation that only mentions chief complaint and diagnosis). Empty string
-values are acceptable.
+2500 is sufficient (13 short fields + narrative ≈ 1800-2200 tokens in practice)
+while avoiding doubling wall-clock time on local Ollama inference. The
+env-configurable escape hatch allows tuning without code changes.
 
 #### Coercion (`_validate_and_coerce_fields`)
 
@@ -229,6 +254,9 @@ elif isinstance(sf, dict):
         for k, v in sf.items()
         if k in OUTPATIENT_FIELD_KEYS
     }
+else:
+    # LLM did not return structured_fields — log for observability
+    log("[Structuring] WARNING: LLM did not return structured_fields — check prompt")
 ```
 
 ### 2. Record persistence
@@ -252,7 +280,7 @@ db_record = MedicalRecordDB(
 
 #### `RecordRepository.update()` (`db/repositories/records.py`)
 
-Current signature is fixed positional keyword-only:
+Current signature is fixed keyword-only:
 
 ```python
 async def update(self, *, record_id, doctor_id, content, tags) -> MedicalRecordDB:
@@ -282,7 +310,18 @@ async def update(
 
 ### 3. Record updates
 
-#### Chat-driven update (`_update_record`, commit_engine.py:254-315)
+#### Update semantics
+
+Two update paths exist with intentionally different semantics:
+
+- **Chat-driven re-structuring** → **full replace**. The LLM regenerates the
+  entire record (content + tags + structured_fields). The new `structured_fields`
+  dict overwrites the old one completely.
+- **Doctor/Admin PATCH** → **merge-patch**. The frontend sends individual field
+  changes (e.g., `{"diagnosis": "new value"}`). These are merged into the
+  existing dict; unmentioned fields are preserved.
+
+#### Chat-driven update (`_update_record`, `commit_engine.py:254-315`)
 
 No conceptual change. The re-structuring LLM call already regenerates the
 entire record. After the prompt change it naturally produces new
@@ -294,13 +333,14 @@ await repo.update(
     doctor_id=ctx.doctor_id,
     content=record.content,
     tags=record.tags,
-    structured_fields=record.structured_fields,  # NEW
+    structured_fields=record.structured_fields,  # NEW — full replace
 )
 ```
 
 #### Doctor PATCH `/api/manage/records/{record_id}` (`ui/__init__.py:458`)
 
-This endpoint uses direct `setattr()` patching (not `update_latest_record_for_patient`).
+This endpoint uses direct `setattr()` patching (not
+`update_latest_record_for_patient`).
 
 Changes required:
 
@@ -314,7 +354,15 @@ class RecordUpdate(BaseModel):
     structured_fields: Optional[Dict[str, str]] = None  # NEW
 ```
 
-2. Add merge-patch semantics for `structured_fields` in the PATCH handler:
+2. **Snapshot before mutation** (currently missing for doctor PATCH; the admin
+   PATCH already does this). Must come before any field changes:
+
+```python
+from db.crud.records import save_record_version
+await save_record_version(db, rec, resolved_doctor_id)
+```
+
+3. Add merge-patch semantics for `structured_fields`:
 
 ```python
 updates = body.model_dump(exclude_unset=True)
@@ -329,14 +377,8 @@ if "structured_fields" in updates and isinstance(updates["structured_fields"], d
     existing_sf = json.loads(rec.structured_fields or "{}")
     existing_sf.update(patch)
     updates["structured_fields"] = json.dumps(existing_sf, ensure_ascii=False)
-```
-
-3. **Add version snapshot before mutation** (currently missing for doctor PATCH;
-   the admin PATCH already does this):
-
-```python
-from db.crud.records import save_record_version
-await save_record_version(db, rec, resolved_doctor_id)
+for field, value in updates.items():
+    setattr(rec, field, value)
 ```
 
 4. Add `structured_fields` to the response serialization:
@@ -356,13 +398,13 @@ Extend `_ADMIN_RECORD_ALLOWED_FIELDS`:
 _ADMIN_RECORD_ALLOWED_FIELDS = {"content", "tags", "record_type", "structured_fields"}
 ```
 
-Add the same merge-patch logic for `structured_fields` as the doctor PATCH.
+Add the same merge-patch + key-filtering logic as the doctor PATCH.
 
 #### `update_latest_record_for_patient` (`crud/records.py:309`)
 
 **Note:** This function is currently dead code (defined but never called). For
 forward compatibility, extend `_RECORD_CLINICAL_FIELDS` to include
-`"structured_fields"` and add merge-patch logic, but this is low priority.
+`"structured_fields"`, but this is low priority.
 
 ### 4. Version history
 
@@ -408,9 +450,9 @@ async def extract_outpatient_fields(records, patient=None, doctor_id=None):
 **Multi-record merge algorithm** (`_merge_stored_fields`):
 
 ```python
-def _merge_stored_fields(records: list) -> dict[str, str]:
+def _merge_stored_fields(records: list) -> Dict[str, str]:
     """Merge structured_fields across records. Most recent record wins per field."""
-    merged: dict[str, str] = {}
+    merged: Dict[str, str] = {}
     # records are ordered DESC by created_at
     for rec in reversed(records):  # process oldest first so newest overwrites
         sf_raw = getattr(rec, "structured_fields", None)
@@ -451,48 +493,43 @@ field. Structured clinical detail stays doctor-side.
 
 ### 7. Auto-learn knowledge pipeline (BREAKING CHANGE FIX)
 
-**Naming collision**: `_bg_auto_learn()` in `_confirm_pending.py:105` passes
+**Problem**: `_bg_auto_learn()` in `_confirm_pending.py:105` passes
 `record.model_dump(exclude_none=True)` as the `structured_fields` kwarg to
 `maybe_auto_learn_knowledge()`. After `MedicalRecord` gains a
-`structured_fields` attribute, this dump produces:
+`structured_fields` attribute, this dump produces a nested dict that
+`_extract_auto_candidates()` cannot read correctly. Additionally, the existing
+key names (`treatment_plan`, `follow_up_plan`) in `doctor_knowledge.py:94-96`
+are already wrong today — they match nothing in the current flat dict and are
+effectively dead logic.
+
+**Fix at the call site** (cleaner than making the callee guess the shape):
+
+In `_confirm_pending.py:105` and `wechat_bg.py:54`, change:
 
 ```python
-{"content": "...", "tags": [...], "structured_fields": {"diagnosis": "...", ...}}
+# Before (passes full record dump as structured_fields — semantically wrong)
+structured_fields=record.model_dump(exclude_none=True),
+
+# After (passes actual structured fields dict)
+structured_fields=record.structured_fields,
 ```
 
-And `_extract_auto_candidates()` in `doctor_knowledge.py:83-100` does:
+Then update `_extract_auto_candidates()` in `doctor_knowledge.py:83-100` to
+use the correct key names:
 
 ```python
-fields = structured_fields or {}
-diagnosis = fields.get("diagnosis")        # would be None — nested!
-treatment = fields.get("treatment_plan")   # wrong key name
-follow_up = fields.get("follow_up_plan")   # wrong key name
-```
-
-**Fix**: Update `_extract_auto_candidates()` to read from the nested dict with
-correct key names:
-
-```python
-def _extract_auto_candidates(text: str, structured_fields: Optional[Dict[str, str]]) -> List[str]:
+def _extract_auto_candidates(
+    text: str,
+    structured_fields: Optional[Dict[str, str]],
+) -> List[str]:
     # ...existing hint-based candidate logic...
 
-    # Extract from structured_fields (either top-level or nested)
-    fields = structured_fields or {}
-    sf = fields.get("structured_fields", fields)  # handle both nested and flat
+    sf = structured_fields or {}
     diagnosis = _normalize_text(str(sf.get("diagnosis") or ""))
     treatment = _normalize_text(str(sf.get("treatment") or ""))
     follow_up = _normalize_text(str(sf.get("followup") or ""))
     # ... rest unchanged ...
 ```
-
-This handles both:
-- Legacy callers passing flat `{"content": ..., "tags": ...}` (no match, no
-  regression)
-- New callers passing nested `{"structured_fields": {"diagnosis": ...}}`
-
-Also check `channels/wechat/wechat_bg.py:54` for the same pattern — it uses
-`record.model_dump(exclude_none=True)` identically and needs no code change
-(the fix is in `_extract_auto_candidates`).
 
 ### 8. Frontend
 
@@ -565,23 +602,18 @@ Optional backfill (not in scope): a script could iterate legacy records and call
 
 ## Risks & open questions
 
-1. **Token budget**: Increasing `max_tokens` from 1500 to 3000 doubles output
-   cost per structuring call. Mitigation: the 13 fields are typically short
-   (most are 1-2 sentences); real-world output should be 2000-2500 tokens.
+1. **Token budget**: Increasing `max_tokens` from 1500 to 2500 adds ~67% to
+   maximum output cost per structuring call. Mitigation: real-world output is
+   typically 1800-2200 tokens; env-configurable via `STRUCTURING_MAX_TOKENS`.
 
 2. **LLM field quality**: The LLM may produce sparse or inaccurate structured
    fields, especially for dictation-style input that lacks explicit history
    sections. Mitigation: empty fields are acceptable per the regulation; the
    doctor can edit via the web UI.
 
-3. **Prompt backward compatibility**: The structuring prompt is stored in the
-   `system_prompts` DB table and loaded at runtime. Updating it is a data
-   change, not a code change. Must ensure the new prompt works with all
-   configured LLM providers (DeepSeek, Ollama/Qwen, Claude, OpenAI).
-
-4. **Consultation mode**: `structure_medical_record(consultation_mode=True)`
-   uses a different prompt suffix. The structured fields instruction must
-   work with both normal and consultation modes.
+3. **Consultation mode**: `structure_medical_record(consultation_mode=True)`
+   uses a different prompt suffix. The structured fields prompt file is appended
+   unconditionally and must work with both normal and consultation modes.
 
 ---
 
@@ -595,14 +627,16 @@ Optional backfill (not in scope): a script could iterate legacy records and call
 | `src/db/crud/records.py` | Extend `_RECORD_CLINICAL_FIELDS`, version snapshot |
 | `src/services/ai/structuring.py` | Coerce `structured_fields` in `_validate_and_coerce_fields`, increase `max_tokens` in `_make_llm_caller` |
 | `src/services/runtime/commit_engine.py` | Pass `structured_fields` through update path |
-| `src/services/export/outpatient_report.py` | Export `OUTPATIENT_FIELD_KEYS`, DB-first extraction with LLM fallback |
-| `src/services/knowledge/doctor_knowledge.py` | Fix `_extract_auto_candidates` key names + nested dict handling |
+| `src/services/export/outpatient_report.py` | Update `OUTPATIENT_FIELDS` (add `marital_history`, remove `encounter_type`), export `OUTPATIENT_FIELD_KEYS`, DB-first extraction with LLM fallback |
+| `src/services/knowledge/doctor_knowledge.py` | Fix `_extract_auto_candidates` key names (`treatment`, `followup`) |
+| `src/services/domain/intent_handlers/_confirm_pending.py` | Fix call site: pass `record.structured_fields` instead of `record.model_dump()` |
+| `src/channels/wechat/wechat_bg.py` | Same call-site fix as above |
 | `src/channels/web/chat.py` | `RecordVersionResponse` gains field |
 | `src/channels/web/ui/__init__.py` | `RecordUpdate` model, merge-patch in both PATCH handlers, `_ADMIN_RECORD_ALLOWED_FIELDS`, version snapshot for doctor PATCH |
 | `src/channels/web/ui/record_handlers.py` | `_serialize_record_with_patient()` |
 | `src/channels/web/ui/admin_table_rows.py` | `_rows_medical_records()` + `_rows_record_versions()` |
 | `src/services/runtime/read_engine.py` | `_query_records()` view_payload |
+| `prompts/structuring-structured-fields.md` | NEW: structured fields prompt instruction (code-managed, not DB) |
 | `frontend/src/components/RecordFields.jsx` | Display structured fields |
 | `frontend/src/pages/doctor/RecordCard.jsx` | Summary chips + expanded view |
 | `frontend/src/api.js` | PATCH payload |
-| DB system_prompts row | Update structuring prompt content |
