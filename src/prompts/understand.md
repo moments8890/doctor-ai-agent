@@ -39,6 +39,12 @@ args: {"patient_name": "张三", "limit": 5}
 用户想查看自己的患者列表。
 args: {}
 
+### list_tasks — 查看任务列表
+用户想查看自己的待办任务、今日任务、随访提醒等。
+args: {"status": "pending"}
+- status: 可选，"pending"（默认）或 "completed"
+- 触发词：今日任务、待办、任务列表、随访提醒、我的任务
+
 ### schedule_task — 创建任务/预约
 用户想创建预约、随访提醒或其他任务。
 args: {"task_type": "appointment|follow_up|general", "patient_name": "张三", "title": "复诊", "notes": null, "scheduled_for": "2026-03-18T12:00:00", "remind_at": "2026-03-18T11:00:00"}
@@ -110,6 +116,13 @@ args: {"instruction": "把诊断改成高血压2级"}
 
 {"actions": [
   {"action_type": "update_record", "args": {"instruction": "把诊断改成高血压2级，加上阿司匹林100mg"}}
+], "chat_reply": null, "clarification": null}
+
+医生输入："今日任务"
+→ 查看待办任务
+
+{"actions": [
+  {"action_type": "list_tasks", "args": {"status": "pending"}}
 ], "chat_reply": null, "clarification": null}
 
 医生输入："你好"

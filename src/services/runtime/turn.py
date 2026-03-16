@@ -232,6 +232,8 @@ async def _run_pipeline(ctx: DoctorCtx, text: str, doctor_id: str) -> TurnResult
                     view_payload = {"type": "records_list", "data": read_result.data}
                 elif resolved.action_type == ActionType.list_patients:
                     view_payload = {"type": "patients_list", "data": read_result.data}
+                elif resolved.action_type == ActionType.list_tasks:
+                    view_payload = {"type": "tasks_list", "data": read_result.data}
 
         elif resolved.action_type in WRITE_ACTIONS:
             from services.runtime.commit_engine import commit

@@ -18,6 +18,8 @@ async def read(action: ResolvedAction, doctor_id: str) -> ReadResult:
         return await _query_records(action, doctor_id)
     elif action.action_type == ActionType.list_patients:
         return await _list_patients(doctor_id)
+    elif action.action_type == ActionType.list_tasks:
+        return await _list_tasks(action, doctor_id)
     else:
         log(f"read_engine called with non-read action: {action.action_type}", level="error")
         return ReadResult(status="error", error_key="execute_error")
@@ -122,4 +124,55 @@ async def _list_patients(doctor_id: str) -> ReadResult:
             )
     except Exception as e:
         log(f"list_patients failed: {e}", level="error")
+        return ReadResult(status="error", error_key="execute_error")
+
+
+async def _list_tasks(action: ResolvedAction, doctor_id: str) -> ReadResult:
+    """Fetch doctor's pending tasks."""
+    from db.engine import AsyncSessionLocal
+    from db.repositories.tasks import TaskRepository
+
+    status_filter = None
+    if action.args and hasattr(action.args, "status") and action.args.status:
+        status_filter = action.args.status
+
+    try:
+        async with AsyncSessionLocal() as session:
+            repo = TaskRepository(session)
+            tasks = await repo.list_for_doctor(
+                doctor_id=doctor_id,
+                status=status_filter or "pending",
+                limit=20,
+            )
+
+            if not tasks:
+                return ReadResult(
+                    status="empty",
+                    data=[],
+                    total_count=0,
+                    truncated=False,
+                    message_key="no_tasks",
+                )
+
+            data = []
+            for t in tasks:
+                data.append({
+                    "id": t.id,
+                    "task_type": t.task_type,
+                    "title": t.title,
+                    "content": t.content,
+                    "status": t.status,
+                    "patient_id": t.patient_id,
+                    "due_at": t.due_at.isoformat() if t.due_at else None,
+                    "created_at": t.created_at.isoformat() if t.created_at else None,
+                })
+
+            return ReadResult(
+                status="ok",
+                data=data,
+                total_count=len(data),
+                truncated=False,
+            )
+    except Exception as e:
+        log(f"list_tasks failed: {e}", level="error")
         return ReadResult(status="error", error_key="execute_error")

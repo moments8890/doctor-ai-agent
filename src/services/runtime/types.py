@@ -13,6 +13,7 @@ class ActionType(str, Enum):
     """All recognised operational action types (ADR 0012 §3, §6)."""
     query_records = "query_records"
     list_patients = "list_patients"
+    list_tasks = "list_tasks"
     schedule_task = "schedule_task"
     select_patient = "select_patient"
     create_patient = "create_patient"
@@ -52,6 +53,7 @@ RESPONSE_MODE_TABLE: Dict[ActionType, ResponseMode] = {
     ActionType.none: ResponseMode.direct_reply,
     ActionType.query_records: ResponseMode.llm_compose,
     ActionType.list_patients: ResponseMode.llm_compose,
+    ActionType.list_tasks: ResponseMode.llm_compose,
     ActionType.schedule_task: ResponseMode.template,
     ActionType.select_patient: ResponseMode.template,
     ActionType.create_patient: ResponseMode.template,
@@ -59,7 +61,7 @@ RESPONSE_MODE_TABLE: Dict[ActionType, ResponseMode] = {
     ActionType.update_record: ResponseMode.template,
 }
 
-READ_ACTIONS = frozenset({ActionType.query_records, ActionType.list_patients})
+READ_ACTIONS = frozenset({ActionType.query_records, ActionType.list_patients, ActionType.list_tasks})
 WRITE_ACTIONS = frozenset({
     ActionType.schedule_task,
     ActionType.select_patient,
@@ -108,6 +110,12 @@ class ListPatientsArgs:
 
 
 @dataclass
+class ListTasksArgs:
+    """Optional status filter for task listing."""
+    status: Optional[str] = None  # "pending" | "completed" | None (all)
+
+
+@dataclass
 class ScheduleTaskArgs:
     task_type: Optional[str] = None  # validated against TaskType in resolve
     patient_name: Optional[str] = None
@@ -125,6 +133,7 @@ ARGS_TYPE_TABLE: Dict[ActionType, type] = {
     ActionType.update_record: UpdateRecordArgs,
     ActionType.query_records: QueryRecordsArgs,
     ActionType.list_patients: ListPatientsArgs,
+    ActionType.list_tasks: ListTasksArgs,
     ActionType.schedule_task: ScheduleTaskArgs,
     ActionType.none: type(None),
 }

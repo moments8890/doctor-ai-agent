@@ -35,8 +35,8 @@ async def resolve(
     if action_type == ActionType.none:
         return ResolvedAction(action_type=action_type, args=action.args)
 
-    # ── list_patients: unscoped, always allowed ─────────────────────────
-    if action_type == ActionType.list_patients:
+    # ── list_patients / list_tasks: unscoped, always allowed ────────────
+    if action_type in (ActionType.list_patients, ActionType.list_tasks):
         return ResolvedAction(
             action_type=action_type,
             args=action.args,
