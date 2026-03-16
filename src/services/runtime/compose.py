@@ -83,11 +83,13 @@ def _compose_commit(
             datetime_display=dt_display,
         )
 
-    if action_type == ActionType.create_draft:
-        if result.status == "pending_confirmation":
-            preview = data.get("preview", "")
-            return M.draft_created.format(patient=name, preview=preview)
-        return M.default_reply
+    if action_type == ActionType.create_record:
+        preview = data.get("preview", "")
+        return M.record_created.format(patient=name, preview=preview)
+
+    if action_type == ActionType.update_record:
+        preview = data.get("preview", "")
+        return M.record_updated.format(patient=name, preview=preview)
 
     return M.default_reply
 
@@ -113,7 +115,6 @@ async def compose_llm(
     result: ReadResult,
     user_input: str,
     patient_name: Optional[str] = None,
-    pending_patient_name: Optional[str] = None,
 ) -> str:
     """Summarise fetched data via LLM. Falls back to template on failure."""
     if result.status == "empty":
@@ -124,10 +125,6 @@ async def compose_llm(
 
     try:
         summary = await _call_compose_llm(result.data, user_input, patient_name)
-
-        # Cross-patient context reminder during pending draft
-        if pending_patient_name and patient_name and pending_patient_name != patient_name:
-            summary += f"\n\n（当前待确认病历为【{pending_patient_name}】）"
 
         # Truncation notice
         if result.truncated and result.total_count:
