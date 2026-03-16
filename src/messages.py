@@ -56,7 +56,7 @@ class M:
     need_patient_for_draft = "请先选择或创建患者，再生成病历草稿。"
     no_clinical_content = "没有找到需要记录的临床内容。请先描述患者情况。"
     structuring_failed = "病历生成失败，请稍后重试。"
-    draft_created = "📋 已为【{patient}】生成病历草稿：\n{preview}\n\n回复「确认」保存，「取消」放弃。"
+    record_created = "📋 已为【{patient}】保存病历：\n{preview}"
     patient_created_with_draft = "✅ 已为【{patient}】建档。\n{draft_reply}"
 
     # -- conversation model fallbacks ---------------------------------------
@@ -89,6 +89,8 @@ class M:
     create_patient_ok = "✅ 已创建患者【{name}】。您可以继续说「写个记录」来创建病历。"
     schedule_task_ok = "已为【{patient}】创建{task_label}，时间：{datetime_display}。"
     schedule_task_ok_noon = "已为【{patient}】创建{task_label}，时间：{datetime_display}（默认中午12点）。"
+    record_updated = "✅ 已更新【{patient}】的病历：\n{preview}"
+    no_record_to_update = "该患者暂无病历记录，无法修改。"
 
     # -- UEC pipeline: error templates (ADR 0012 §16) -----------------------
     understand_error = "抱歉，我没有理解您的意思，请再试一次。"
