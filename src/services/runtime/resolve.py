@@ -1,8 +1,8 @@
 """Resolve phase: patient lookup, binding, validation (ADR 0012 §5a, §10).
 
-Resolve takes the raw UnderstandResult and DoctorCtx and produces a fully
-bound ResolvedAction or a Clarification.  It is the only code that does
-patient DB lookup in the pipeline.
+Resolve takes an ActionIntent and DoctorCtx and produces a fully bound
+ResolvedAction or a Clarification.  It is the only code that does patient DB
+lookup in the pipeline.
 """
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from typing import Any, List, Optional, Union
 from services.runtime.types import (
     READ_ACTIONS,
     WRITE_ACTIONS,
+    ActionIntent,
     ActionType,
     Clarification,
     ClarificationKind,
@@ -19,64 +20,33 @@ from services.runtime.types import (
     ResolvedAction,
     ScheduleTaskArgs,
     TaskType,
-    UnderstandResult,
+    UpdateRecordArgs,
 )
 from utils.log import log
 
 
 async def resolve(
-    result: UnderstandResult,
+    action: ActionIntent,
     ctx: Any,  # DoctorCtx — avoid circular import
 ) -> Union[ResolvedAction, Clarification]:
     """Bind raw understand output to concrete patient/args or clarify."""
-    action_type = result.action_type
+    action_type = action.action_type
 
     if action_type == ActionType.none:
-        return ResolvedAction(action_type=action_type, args=result.args)
+        return ResolvedAction(action_type=action_type, args=action.args)
 
     # ── list_patients: unscoped, always allowed ─────────────────────────
     if action_type == ActionType.list_patients:
         return ResolvedAction(
             action_type=action_type,
-            args=result.args,
+            args=action.args,
             scoped_only=True,
         )
 
     # ── Extract patient_name from args ──────────────────────────────────
     patient_name: Optional[str] = None
-    if result.args and hasattr(result.args, "patient_name"):
-        patient_name = result.args.patient_name
-
-    # ── Pending draft rules (ADR 0012 §7) ───────────────────────────────
-    pending_draft = ctx.workflow.pending_draft_id is not None
-
-    if pending_draft and action_type in WRITE_ACTIONS:
-        # create_draft during pending: always blocked
-        if action_type == ActionType.create_draft:
-            return Clarification(
-                kind=ClarificationKind.blocked,
-                message_key="clarify_blocked",
-            )
-
-        # Context-switching writes: blocked
-        if action_type in (ActionType.create_patient, ActionType.select_patient):
-            # select_patient to different patient: blocked
-            # create_patient: always a context switch
-            if action_type == ActionType.create_patient:
-                return Clarification(
-                    kind=ClarificationKind.blocked,
-                    message_key="clarify_blocked",
-                )
-            # select_patient: blocked if targeting a different patient.
-            # If patient_name is None, context fallback will use the same
-            # patient (no switch), so it's safe to allow.
-            if patient_name:
-                current = ctx.workflow.patient_name
-                if current is None or patient_name != current:
-                    return Clarification(
-                        kind=ClarificationKind.blocked,
-                        message_key="clarify_blocked",
-                    )
+    if action.args and hasattr(action.args, "patient_name"):
+        patient_name = action.args.patient_name
 
     # ── Patient resolution ──────────────────────────────────────────────
     is_read = action_type in READ_ACTIONS
@@ -87,11 +57,11 @@ async def resolve(
         return ResolvedAction(
             action_type=action_type,
             patient_name=patient_name,
-            args=result.args,
+            args=action.args,
         )
 
-    # create_draft requires current bound patient
-    if action_type == ActionType.create_draft:
+    # create_record requires current bound patient
+    if action_type == ActionType.create_record:
         if ctx.workflow.patient_id is None:
             return Clarification(
                 kind=ClarificationKind.missing_field,
@@ -102,7 +72,30 @@ async def resolve(
             action_type=action_type,
             patient_id=ctx.workflow.patient_id,
             patient_name=ctx.workflow.patient_name,
-            args=result.args,
+            args=action.args,
+        )
+
+    # update_record requires current bound patient and an existing record
+    if action_type == ActionType.update_record:
+        if ctx.workflow.patient_id is None:
+            return Clarification(
+                kind=ClarificationKind.missing_field,
+                missing_fields=["patient_name"],
+                message_key="need_patient_for_draft",
+            )
+        latest = await _fetch_latest_record(ctx.workflow.patient_id, ctx.doctor_id)
+        if latest is None:
+            return Clarification(
+                kind=ClarificationKind.missing_field,
+                message_key="no_record_to_update",
+            )
+        record_id, _content = latest
+        return ResolvedAction(
+            action_type=action_type,
+            patient_id=ctx.workflow.patient_id,
+            patient_name=ctx.workflow.patient_name,
+            args=action.args,
+            record_id=record_id,
         )
 
     # For remaining actions, resolve patient
@@ -124,25 +117,46 @@ async def resolve(
 
     # ── Action-specific validation ──────────────────────────────────────
     if action_type == ActionType.schedule_task:
-        validation = _validate_schedule_task(result.args)
+        validation = _validate_schedule_task(action.args)
         if validation is not None:
             return validation
-
-    # ── Pending draft: same-patient schedule_task allowed ────────────────
-    if pending_draft and is_write and action_type == ActionType.schedule_task:
-        if patient_id != ctx.workflow.patient_id:
-            return Clarification(
-                kind=ClarificationKind.blocked,
-                message_key="clarify_blocked",
-            )
 
     return ResolvedAction(
         action_type=action_type,
         patient_id=patient_id,
         patient_name=resolved_name,
-        args=result.args,
+        args=action.args,
         scoped_only=is_read,
     )
+
+
+# ── Latest record lookup ────────────────────────────────────────────────────
+
+
+async def _fetch_latest_record(
+    patient_id: int,
+    doctor_id: str,
+) -> Optional[tuple]:
+    """Pure read — SELECT latest medical_record for patient. Returns (record_id, content) or None."""
+    from db.engine import AsyncSessionLocal
+    from db.models import MedicalRecordDB
+    from sqlalchemy import select
+
+    async with AsyncSessionLocal() as db:
+        stmt = (
+            select(MedicalRecordDB)
+            .where(
+                MedicalRecordDB.doctor_id == doctor_id,
+                MedicalRecordDB.patient_id == patient_id,
+            )
+            .order_by(MedicalRecordDB.created_at.desc())
+            .limit(1)
+        )
+        result = await db.execute(stmt)
+        record = result.scalar_one_or_none()
+        if record is None:
+            return None
+        return (record.id, record.content)
 
 
 # ── Patient matching (ADR 0012 §10) ────────────────────────────────────────
