@@ -15,7 +15,7 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
-import { sendChat, ocrImage, extractFileForChat, confirmPendingRecordById, abandonPendingRecordById, clearContext } from "../../api";
+import { sendChat, ocrImage, extractFileForChat, clearContext } from "../../api";
 import RecordFields from "../../components/RecordFields";
 import { t } from "../../i18n";
 import { QUICK_COMMANDS } from "./constants";
@@ -58,46 +58,31 @@ function MsgAvatar({ isUser, size = 40 }) {
   );
 }
 
-function PendingConfirmCard({ patientName, expiresAt, onConfirm, onAbandon }) {
-  const [busy, setBusy] = useState(false);
-  const expiry = expiresAt ? new Date(expiresAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : null;
-  async function handleConfirm() {
-    setBusy(true);
-    try { await onConfirm(); } finally { setBusy(false); }
-  }
-  async function handleAbandon() {
-    setBusy(true);
-    try { await onAbandon(); } finally { setBusy(false); }
-  }
+
+function TasksCard({ tasks }) {
+  if (!tasks || !tasks.length) return null;
+  const typeLabels = { appointment: "复诊", follow_up: "随访", general: "任务" };
   return (
-    <Box sx={{ mt: 1, p: 1.5, borderRadius: 2, border: "1px solid #e0e0e0", bgcolor: "#f9fff9" }}>
-      <Typography variant="caption" sx={{ color: "#555", display: "block", mb: 1 }}>
-        草稿已生成{patientName ? `（患者：${patientName}）` : ""}
-        {expiry ? `，${expiry} 前有效` : ""}
-      </Typography>
-      <Stack direction="row" spacing={1}>
-        <Button size="small" variant="contained" disabled={busy}
-          sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: "#06ad56" }, fontSize: 12 }}
-          onClick={handleConfirm}>
-          确认保存
-        </Button>
-        <Button size="small" variant="outlined" disabled={busy} color="inherit"
-          sx={{ fontSize: 12, color: "#888", borderColor: "#ccc" }}
-          onClick={handleAbandon}>
-          取消
-        </Button>
-      </Stack>
+    <Box sx={{ mt: 1, borderTop: "1px solid #e5e5e5", pt: 1 }}>
+      {tasks.map((t) => (
+        <Box key={t.id} sx={{ py: 0.5, borderBottom: "1px solid #f0f0f0", "&:last-child": { borderBottom: "none" } }}>
+          <Typography variant="body2" sx={{ fontWeight: 600, fontSize: 13 }}>
+            {typeLabels[t.task_type] || "任务"} · {t.title || "未命名"}
+          </Typography>
+          {t.due_at && <Typography variant="caption" color="text.secondary">{t.due_at.replace("T", " ").slice(0, 16)}</Typography>}
+        </Box>
+      ))}
     </Box>
   );
 }
 
-function MsgBubble({ msg, onConfirm, onAbandon }) {
+function MsgBubble({ msg }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isUser = msg.role === "user";
   const bubbleRadius = isUser ? "4px 4px 0 4px" : "4px 4px 4px 0";
   const bgColor = isUser ? "#95EC69" : "#fff";
-  const textColor = isUser ? "#111111" : (isMobile ? "#111111" : "#111111");
+  const textColor = "#111111";
 
   return (
     <Box sx={{ display: "flex", flexDirection: isUser ? "row-reverse" : "row", alignItems: "flex-end", gap: isMobile ? 1 : 1.2, px: isMobile ? 1.5 : 2 }}>
@@ -114,14 +99,7 @@ function MsgBubble({ msg, onConfirm, onAbandon }) {
             {msg.content}
           </Typography>
           {!isUser && msg.record ? <RecordFields record={msg.record} /> : null}
-          {!isUser && msg.pending_id && onConfirm && onAbandon ? (
-            <PendingConfirmCard
-              patientName={msg.pending_patient_name}
-              expiresAt={msg.pending_expires_at}
-              onConfirm={onConfirm}
-              onAbandon={onAbandon}
-            />
-          ) : null}
+          {!isUser && msg.view_payload?.type === "tasks_list" ? <TasksCard tasks={msg.view_payload.data} /> : null}
         </Box>
         <Typography sx={{ mt: isMobile ? 0.3 : 0.4, px: 0.5, color: isMobile ? "#888" : "#aaa", fontSize: 11 }}>
           {msg.ts}
@@ -293,9 +271,7 @@ async function performSend({ text, loading, doctorId, history, setMessages, setI
     const reply = data.reply || t("chat.received");
     setMessages((prev) => [...prev, {
       role: "assistant", content: reply, record: data.record || null, ts: nowTs(),
-      pending_id: data.pending_id || null,
-      pending_patient_name: data.pending_patient_name || null,
-      pending_expires_at: data.pending_expires_at || null,
+      view_payload: data.view_payload || null,
     }]);
     if (onPatientCreated && (reply.includes("已创建") || (reply.includes("已为") && reply.includes("创建")))) {
       onPatientCreated();
@@ -419,27 +395,6 @@ async function processFile({ file, setMediaError, setMediaProcessing, setInput }
   }
 }
 
-function usePendingHandlers({ setMessages, onPatientCreated }) {
-  function clearMsg(pendingId) {
-    setMessages((prev) => prev.map((m) => m.pending_id === pendingId ? { ...m, pending_id: null } : m));
-  }
-  async function handleConfirm(pendingId) {
-    try {
-      const result = await confirmPendingRecordById(pendingId);
-      clearMsg(pendingId);
-      setMessages((prev) => [...prev, { role: "assistant", content: `✅ 病历已保存（${result.patient_name || ""}）`, ts: nowTs() }]);
-      onPatientCreated?.();
-    } catch (err) {
-      setMessages((prev) => [...prev, { role: "assistant", content: `保存失败：${err.message}`, ts: nowTs() }]);
-    }
-  }
-  async function handleAbandon(pendingId) {
-    try { await abandonPendingRecordById(pendingId); } catch {}
-    clearMsg(pendingId);
-    setMessages((prev) => [...prev, { role: "assistant", content: "草稿已取消。", ts: nowTs() }]);
-  }
-  return { handleConfirm, handleAbandon };
-}
 
 function useDailySummary({ doctorId, sendText, ready }) {
   const done = useRef(false);
@@ -478,7 +433,7 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
     useChatState({ doctorId, onMessageCountChange, onPatientCreated, onContextCleared });
   useChatEffects({ externalInput, onExternalInputConsumed, autoSendText, onAutoSendConsumed, setInput, sendText });
   useDailySummary({ doctorId, sendText, ready: messages.length > 0 });
-  const { handleConfirm: handlePendingConfirm, handleAbandon: handlePendingAbandon } = usePendingHandlers({ setMessages, onPatientCreated });
+
 
   function handlePanelAction(action) {
     setActionPanelOpen(false);
@@ -514,9 +469,7 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
       <ChatTopbar isMobile={isMobile} doctorId={doctorId} onClearClick={() => setClearConfirmOpen(true)} />
       <Box sx={{ flex: 1, overflowY: "auto", py: 2, display: "flex", flexDirection: "column", gap: isMobile ? 1.8 : 1.4, bgcolor: "#ededed" }}>
         {messages.map((msg, idx) => (
-          <MsgBubble key={`${msg.role}-${idx}`} msg={msg}
-            onConfirm={msg.pending_id ? () => handlePendingConfirm(msg.pending_id) : undefined}
-            onAbandon={msg.pending_id ? () => handlePendingAbandon(msg.pending_id) : undefined} />
+          <MsgBubble key={`${msg.role}-${idx}`} msg={msg} />
         ))}
         {loading && <LoadingBubble isMobile={isMobile} />}
         <div ref={bottomRef} />
