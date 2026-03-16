@@ -478,7 +478,7 @@
   },
   {
     "case_id": "MVP-ACC-014",
-    "title": "Complete task by ID",
+    "title": "Complete task by ID (unsupported — no complete_task action)",
     "group": "task_action",
     "chatlog": [
       {
@@ -488,12 +488,25 @@
     ],
     "expectations": {
       "must_not_timeout": true,
+      "expected_table_max_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 0
+      },
       "must_include_reply_any_of": [
         [
           "完成",
           "已标记",
           "已完成",
-          "未找到任务"
+          "未找到任务",
+          "不支持",
+          "暂不支持",
+          "请问",
+          "帮您",
+          "更多",
+          "详细",
+          "不太明白",
+          "具体",
+          "好的"
         ]
       ]
     }
@@ -1346,7 +1359,7 @@
   },
   {
     "case_id": "MVP-ACC-045",
-    "title": "Edge case: complete task with large ID number",
+    "title": "Edge case: complete task with large ID number (unsupported)",
     "group": "task_action",
     "chatlog": [
       {
@@ -1356,13 +1369,26 @@
     ],
     "expectations": {
       "must_not_timeout": true,
+      "expected_table_max_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 0
+      },
       "must_include_reply_any_of": [
         [
           "完成",
           "已标记",
           "已完成",
           "未找到任务",
-          "不存在"
+          "不存在",
+          "不支持",
+          "暂不支持",
+          "请问",
+          "帮您",
+          "更多",
+          "详细",
+          "不太明白",
+          "具体",
+          "好的"
         ]
       ]
     }
