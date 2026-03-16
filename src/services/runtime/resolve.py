@@ -1,4 +1,4 @@
-"""Resolve phase: patient lookup, binding, validation (ADR 0012 §5a, §10).
+"""Resolve phase: patient lookup, binding, validation (ADR 0012 §5a, §10; ADR 0013).
 
 Resolve takes an ActionIntent and DoctorCtx and produces a fully bound
 ResolvedAction or a Clarification.  It is the only code that does patient DB
@@ -10,17 +10,11 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, List, Optional, Union
 
 from services.runtime.types import (
-    READ_ACTIONS,
-    WRITE_ACTIONS,
     ActionIntent,
     ActionType,
     Clarification,
     ClarificationKind,
-    QueryRecordsArgs,
     ResolvedAction,
-    ScheduleTaskArgs,
-    TaskType,
-    UpdateRecordArgs,
 )
 from utils.log import log
 
@@ -30,38 +24,21 @@ async def resolve(
     ctx: Any,  # DoctorCtx — avoid circular import
 ) -> Union[ResolvedAction, Clarification]:
     """Bind raw understand output to concrete patient/args or clarify."""
-    action_type = action.action_type
+    at = action.action_type
 
-    if action_type == ActionType.none:
-        return ResolvedAction(action_type=action_type, args=action.args)
+    if at == ActionType.none:
+        return ResolvedAction(action_type=at, args=action.args)
 
-    # ── list_patients / list_tasks: unscoped, always allowed ────────────
-    if action_type in (ActionType.list_patients, ActionType.list_tasks):
-        return ResolvedAction(
-            action_type=action_type,
-            args=action.args,
-            scoped_only=True,
-        )
+    # query: unscoped targets skip patient resolution
+    if at == ActionType.query:
+        target = _get_query_target(action)
+        if target in ("patients", "tasks"):
+            return ResolvedAction(action_type=at, args=action.args)
+        # target=records: resolve patient
+        return await _resolve_patient_scoped(action, ctx)
 
-    # ── Extract patient_name from args ──────────────────────────────────
-    patient_name: Optional[str] = None
-    if action.args and hasattr(action.args, "patient_name"):
-        patient_name = action.args.patient_name
-
-    # ── Patient resolution ──────────────────────────────────────────────
-    is_read = action_type in READ_ACTIONS
-    is_write = action_type in WRITE_ACTIONS
-
-    # create_patient doesn't need an existing patient
-    if action_type == ActionType.create_patient:
-        return ResolvedAction(
-            action_type=action_type,
-            patient_name=patient_name,
-            args=action.args,
-        )
-
-    # create_record requires a bound patient — auto-resolve from args if needed
-    if action_type == ActionType.create_record:
+    # record: resolve patient (auto-create if not found)
+    if at == ActionType.record:
         pid, pname = await _ensure_patient(action, ctx)
         if pid is None:
             return Clarification(
@@ -70,14 +47,12 @@ async def resolve(
                 message_key="need_patient_for_draft",
             )
         return ResolvedAction(
-            action_type=action_type,
-            patient_id=pid,
-            patient_name=pname,
+            action_type=at, patient_id=pid, patient_name=pname,
             args=action.args,
         )
 
-    # update_record requires a bound patient + existing record
-    if action_type == ActionType.update_record:
+    # update: resolve patient + fetch latest record
+    if at == ActionType.update:
         pid, pname = await _ensure_patient(action, ctx)
         if pid is None:
             return Clarification(
@@ -91,25 +66,53 @@ async def resolve(
                 kind=ClarificationKind.missing_field,
                 message_key="no_record_to_update",
             )
-        record_id, _content = latest
+        record_id, _ = latest
         return ResolvedAction(
-            action_type=action_type,
-            patient_id=pid,
-            patient_name=pname,
-            args=action.args,
-            record_id=record_id,
+            action_type=at, patient_id=pid, patient_name=pname,
+            args=action.args, record_id=record_id,
         )
 
-    # For remaining actions, resolve patient
+    # task: validate dates + resolve patient
+    if at == ActionType.task:
+        date_err = _validate_task_dates(action.args)
+        if date_err:
+            return date_err
+        return await _resolve_patient_scoped(action, ctx)
+
+    log(f"[resolve] unknown action type: {at}", level="error")
+    return Clarification(kind=ClarificationKind.unsupported)
+
+
+# ── Helper: query target extraction ─────────────────────────────────────────
+
+
+def _get_query_target(action: ActionIntent) -> str:
+    """Extract query target from args, default to 'records'."""
+    if action.args and hasattr(action.args, "target") and action.args.target:
+        return action.args.target
+    return "records"
+
+
+# ── Helper: generic patient-scoped resolution ────────────────────────────────
+
+
+async def _resolve_patient_scoped(
+    action: ActionIntent,
+    ctx: Any,
+) -> Union[ResolvedAction, Clarification]:
+    """Generic patient resolution for patient-scoped actions."""
+    patient_name: Optional[str] = None
+    if action.args and hasattr(action.args, "patient_name"):
+        patient_name = action.args.patient_name
+
     if patient_name:
-        match_result = await _match_patient(patient_name, ctx.doctor_id)
-        if isinstance(match_result, Clarification):
-            return match_result
-        patient_id, resolved_name = match_result
+        match = await _match_patient(patient_name, ctx.doctor_id)
+        if isinstance(match, Clarification):
+            return match
+        pid, pname = match
     elif ctx.workflow.patient_id is not None:
-        # Context fallback
-        patient_id = ctx.workflow.patient_id
-        resolved_name = ctx.workflow.patient_name or ""
+        pid = ctx.workflow.patient_id
+        pname = ctx.workflow.patient_name or ""
     else:
         return Clarification(
             kind=ClarificationKind.missing_field,
@@ -117,19 +120,45 @@ async def resolve(
             message_key="clarify_missing_field",
         )
 
-    # ── Action-specific validation ──────────────────────────────────────
-    if action_type == ActionType.schedule_task:
-        validation = _validate_schedule_task(action.args)
-        if validation is not None:
-            return validation
-
     return ResolvedAction(
-        action_type=action_type,
-        patient_id=patient_id,
-        patient_name=resolved_name,
+        action_type=action.action_type,
+        patient_id=pid,
+        patient_name=pname,
         args=action.args,
-        scoped_only=is_read,
     )
+
+
+# ── Helper: task date validation ─────────────────────────────────────────────
+
+
+def _validate_task_dates(args: Any) -> Optional[Clarification]:
+    """Validate scheduled_for / remind_at: not past, not >1 year, valid ISO."""
+    now = datetime.now(timezone.utc)
+    for field_name in ("scheduled_for", "remind_at"):
+        val = getattr(args, field_name, None)
+        if val is None:
+            continue
+        try:
+            dt = datetime.fromisoformat(val)
+            if dt < now - timedelta(minutes=5):
+                return Clarification(
+                    kind=ClarificationKind.invalid_time,
+                    message_key="clarify_invalid_time",
+                )
+            if dt > now + timedelta(days=366):
+                return Clarification(
+                    kind=ClarificationKind.invalid_time,
+                    message_key="clarify_invalid_time",
+                )
+        except (ValueError, TypeError):
+            return Clarification(
+                kind=ClarificationKind.invalid_time,
+                message_key="clarify_invalid_time",
+            )
+    return None
+
+
+# ── Patient ensure (auto-create for record/update) ──────────────────────────
 
 
 async def _ensure_patient(
@@ -179,7 +208,9 @@ async def _ensure_patient(
 
         try:
             async with AsyncSessionLocal() as db:
-                patient, _ = await db_create_patient(db, ctx.doctor_id, name, None, None)
+                gender = getattr(action.args, "gender", None)
+                age = getattr(action.args, "age", None)
+                patient, _ = await db_create_patient(db, ctx.doctor_id, name, gender, age)
                 new_id, new_name = patient.id, patient.name
             ctx.workflow.patient_id = new_id
             ctx.workflow.patient_name = new_name
@@ -283,66 +314,3 @@ async def _match_patient(
             options=[{"name": p.name, "id": p.id} for p in matches],
             message_key="clarify_ambiguous_patient",
         )
-
-
-# ── Schedule task validation (ADR 0012 §12) ────────────────────────────────
-
-
-def _validate_schedule_task(args: Any) -> Optional[Clarification]:
-    """Validate schedule_task args. Returns Clarification on failure, None on success."""
-    if not isinstance(args, ScheduleTaskArgs):
-        return Clarification(
-            kind=ClarificationKind.missing_field,
-            missing_fields=["task_type"],
-        )
-
-    # Validate task_type
-    if args.task_type:
-        try:
-            TaskType(args.task_type)
-        except ValueError:
-            return Clarification(
-                kind=ClarificationKind.missing_field,
-                missing_fields=["task_type"],
-            )
-    else:
-        return Clarification(
-            kind=ClarificationKind.missing_field,
-            missing_fields=["task_type"],
-        )
-
-    # For appointments, scheduled_for is required (ADR 0012 §8)
-    if args.task_type == TaskType.appointment.value and not args.scheduled_for:
-        return Clarification(
-            kind=ClarificationKind.missing_field,
-            missing_fields=["scheduled_for"],
-        )
-
-    # Validate dates (resolve validates, does not normalise)
-    now = datetime.now(timezone.utc)
-    for field_name in ("scheduled_for", "remind_at"):
-        val = getattr(args, field_name, None)
-        if val is None:
-            continue
-        try:
-            dt = datetime.fromisoformat(val)
-            if dt.tzinfo is None:
-                # Assume Asia/Shanghai if naive
-                pass
-            if dt < now - timedelta(minutes=5):
-                return Clarification(
-                    kind=ClarificationKind.invalid_time,
-                    message_key="clarify_invalid_time",
-                )
-            if dt > now + timedelta(days=366):
-                return Clarification(
-                    kind=ClarificationKind.invalid_time,
-                    message_key="clarify_invalid_time",
-                )
-        except (ValueError, TypeError):
-            return Clarification(
-                kind=ClarificationKind.invalid_time,
-                message_key="clarify_invalid_time",
-            )
-
-    return None
