@@ -30,7 +30,7 @@ async def get_prompt(key: str, fallback: str = "") -> str:
         _cache[key] = text
         return text
 
-    if fallback:
+    if fallback is not None:
         _cache[key] = fallback
         return fallback
 
@@ -48,7 +48,7 @@ def get_prompt_sync(key: str, fallback: str = "") -> str:
         _cache[key] = text
         return text
 
-    if fallback:
+    if fallback is not None:
         _cache[key] = fallback
         return fallback
 
