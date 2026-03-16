@@ -28,6 +28,7 @@ from services.runtime.types import (
     READ_ACTIONS,
     RESPONSE_MODE_TABLE,
     WRITE_ACTIONS,
+    ActionIntent,
     ActionType,
     Clarification,
     ResolvedAction,
@@ -132,17 +133,7 @@ async def process_turn(
                 cache_result(msg_id, result)
             return result
 
-        # 2. Pending draft confirm/cancel (regex)
-        if ctx.workflow.pending_draft_id:
-            det_result = await _handle_pending_text(ctx, turn_text)
-            if det_result is not None:
-                await _persist(doctor_id, ctx, turn_text, det_result.reply,
-                               patient_id=ctx.workflow.patient_id)
-                if msg_id:
-                    cache_result(msg_id, det_result)
-                return det_result
-
-        # 3. Greeting/help fast path (0 LLM calls)
+        # 2. Greeting/help fast path (0 LLM calls)
         if _GREETING_RE.match(turn_text):
             result = TurnResult(reply=M.greeting)
             await _persist(doctor_id, ctx, turn_text, result.reply)
@@ -175,7 +166,7 @@ async def process_turn(
 
 
 async def _run_pipeline(ctx: DoctorCtx, text: str, doctor_id: str) -> TurnResult:
-    """Understand → Resolve → Dispatch → Compose."""
+    """Understand → [Resolve → Dispatch → Compose]* (multi-action loop)."""
     from services.runtime.compose import (
         compose_clarification,
         compose_llm,
@@ -192,166 +183,104 @@ async def _run_pipeline(ctx: DoctorCtx, text: str, doctor_id: str) -> TurnResult
         log.warning("[turn] understand failed doctor=%s: %s", doctor_id, e)
         return TurnResult(reply=M.understand_error)
 
-    # Clarification from understand → skip execute
+    # Top-level clarification → skip execute
     if ur.clarification:
         reply = compose_clarification(ur.clarification)
         return TurnResult(reply=reply)
 
-    # action_type == none → return chat_reply directly
-    if ur.action_type == ActionType.none:
+    # Single none action → return chat_reply directly
+    if len(ur.actions) == 1 and ur.actions[0].action_type == ActionType.none:
         return TurnResult(reply=ur.chat_reply or M.default_reply)
 
-    # ── Resolve ───────────────────────────────────────────────────────
+    # ── Multi-action loop ─────────────────────────────────────────────
     from services.runtime.resolve import resolve
 
-    resolve_result = await resolve(ur, ctx)
+    replies: list = []
+    view_payload = None
+    switch_notifications: list = []
+    record_id = None
 
-    # Clarification from resolve → skip engine
-    if isinstance(resolve_result, Clarification):
-        reply = compose_clarification(resolve_result)
-        return TurnResult(reply=reply)
+    for action_intent in ur.actions:
+        # Resolve
+        resolve_result = await resolve(action_intent, ctx)
 
-    resolved: ResolvedAction = resolve_result
+        if isinstance(resolve_result, Clarification):
+            replies.append(compose_clarification(resolve_result))
+            break
 
-    # ── Dispatch to engine ────────────────────────────────────────────
-    response_mode = RESPONSE_MODE_TABLE.get(resolved.action_type, ResponseMode.template)
+        resolved: ResolvedAction = resolve_result
 
-    if resolved.action_type in READ_ACTIONS:
-        from services.runtime.read_engine import read
-        read_result = await read(resolved, doctor_id)
+        # Dispatch to engine
+        prev_patient = ctx.workflow.patient_name
+        response_mode = RESPONSE_MODE_TABLE.get(resolved.action_type, ResponseMode.template)
 
-        if response_mode == ResponseMode.llm_compose:
-            pending_patient = ctx.workflow.patient_name if ctx.workflow.pending_draft_id else None
-            reply = await compose_llm(
-                read_result,
-                text,
-                patient_name=resolved.patient_name,
-                pending_patient_name=pending_patient,
-            )
+        if resolved.action_type in READ_ACTIONS:
+            from services.runtime.read_engine import read
+            read_result = await read(resolved, doctor_id)
+
+            if response_mode == ResponseMode.llm_compose:
+                reply = await compose_llm(
+                    read_result,
+                    text,
+                    patient_name=resolved.patient_name,
+                )
+            else:
+                reply = compose_template(read_result, resolved.action_type, resolved.patient_name)
+
+            if read_result.data:
+                if resolved.action_type == ActionType.query_records:
+                    view_payload = {"type": "records_list", "data": read_result.data}
+                elif resolved.action_type == ActionType.list_patients:
+                    view_payload = {"type": "patients_list", "data": read_result.data}
+
+        elif resolved.action_type in WRITE_ACTIONS:
+            from services.runtime.commit_engine import commit
+            commit_result = await commit(resolved, ctx, recent_turns, text)
+            reply = compose_template(commit_result, resolved.action_type, resolved.patient_name)
+
+            if commit_result.data and isinstance(commit_result.data, dict):
+                if "record_id" in commit_result.data:
+                    record_id = commit_result.data["record_id"]
+                if "task_id" in commit_result.data:
+                    view_payload = {"type": "task_created", "data": commit_result.data}
         else:
-            reply = compose_template(read_result, resolved.action_type, resolved.patient_name)
+            reply = M.default_reply
 
-        # Build view_payload for structured channel rendering
-        view_payload = None
-        if read_result.data:
-            if resolved.action_type == ActionType.query_records:
-                view_payload = {"type": "records_list", "data": read_result.data}
-            elif resolved.action_type == ActionType.list_patients:
-                view_payload = {"type": "patients_list", "data": read_result.data}
-
-        return TurnResult(reply=reply, view_payload=view_payload)
-
-    elif resolved.action_type in WRITE_ACTIONS:
-        from services.runtime.commit_engine import commit
-
-        # Capture previous patient for switch notification
-        prev_patient_name = ctx.workflow.patient_name
-
-        commit_result = await commit(resolved, ctx, recent_turns, text)
-
-        # Update context for writes that switch patients
-        switch_notification = None
-        if not resolved.scoped_only and resolved.patient_id:
-            if (prev_patient_name
+        # Track patient switches
+        if resolved.patient_id and not resolved.scoped_only:
+            if (prev_patient
                     and resolved.patient_name
-                    and prev_patient_name != resolved.patient_name):
-                switch_notification = f"已从【{prev_patient_name}】切换到【{resolved.patient_name}】"
+                    and prev_patient != resolved.patient_name):
+                switch_notifications.append(
+                    f"已从【{prev_patient}】切换到【{resolved.patient_name}】"
+                )
             ctx.workflow.patient_id = resolved.patient_id
             ctx.workflow.patient_name = resolved.patient_name
 
-        reply = compose_template(commit_result, resolved.action_type, resolved.patient_name)
+        replies.append(reply)
 
-        # Build TurnResult with pending info if applicable
-        tr = TurnResult(reply=reply, switch_notification=switch_notification)
-        if commit_result.pending_id:
-            tr.pending_id = commit_result.pending_id
-            tr.pending_patient_name = resolved.patient_name
-            if commit_result.data and isinstance(commit_result.data, dict):
-                tr.pending_expires_at = commit_result.data.get("expires_at")
-        if commit_result.data and isinstance(commit_result.data, dict):
-            if "task_id" in commit_result.data:
-                tr.view_payload = {"type": "task_created", "data": commit_result.data}
-
-        return tr
-
-    return TurnResult(reply=M.default_reply)
+    return TurnResult(
+        reply="\n\n".join(replies),
+        view_payload=view_payload,
+        switch_notification="\n".join(switch_notifications) if switch_notifications else None,
+        record_id=record_id,
+    )
 
 
 # ── Deterministic handlers ──────────────────────────────────────────────────
 
 
 async def _handle_action(ctx: DoctorCtx, action: ActionPayload) -> TurnResult:
-    """Deterministic handler for typed UI actions (no LLM call)."""
-    if action.type == "draft_confirm":
-        return await _confirm_draft(ctx, action.target_id)
-    if action.type == "draft_abandon":
-        return await _abandon_draft(ctx, action.target_id)
+    """Deterministic handler for typed UI actions (no LLM call).
+
+    draft_confirm / draft_abandon retained for migration; the multi-action
+    pipeline no longer uses pending drafts so these are no-ops.
+    """
+    if action.type in ("draft_confirm", "draft_abandon"):
+        log.info("[turn] legacy action %s — no-op (draft flow removed)", action.type)
+        return TurnResult(reply=M.default_reply)
     log.warning("[turn] unknown action type: %s", action.type)
     return TurnResult(reply=M.service_unavailable)
-
-
-async def _handle_pending_text(ctx: DoctorCtx, text: str) -> Optional[TurnResult]:
-    """Handle confirm/cancel text while a pending draft exists.
-
-    Returns TurnResult if handled, None to pass through to pipeline.
-    Under ADR 0012 §7, all non-confirm/cancel input flows through the pipeline.
-    """
-    draft_id = ctx.workflow.pending_draft_id
-    if not draft_id:
-        return None
-
-    if CONFIRM_RE.match(text):
-        return await _confirm_draft(ctx, draft_id)
-
-    if ABANDON_RE.match(text):
-        return await _abandon_draft(ctx, draft_id)
-
-    # Everything else passes through to the pipeline.
-    # Resolve owns the blocking logic for writes during pending draft.
-    return None
-
-
-async def _confirm_draft(ctx: DoctorCtx, draft_id: str) -> TurnResult:
-    """Confirm pending draft → save to medical_records."""
-    from db.crud.pending import get_pending_record
-    from db.engine import AsyncSessionLocal
-
-    async with AsyncSessionLocal() as db:
-        pending = await get_pending_record(db, draft_id, ctx.doctor_id)
-
-    # TTL expiry race (ADR 0012 §15)
-    if pending is None or pending.status != "awaiting":
-        ctx.workflow.pending_draft_id = None
-        return TurnResult(reply=M.draft_expired)
-
-    from services.domain.intent_handlers._confirm_pending import save_pending_record
-
-    result = await save_pending_record(ctx.doctor_id, pending)
-    ctx.workflow.pending_draft_id = None
-
-    if result is None:
-        return TurnResult(reply=M.draft_save_failed)
-
-    patient_name, record_id = result
-    log.info("[turn] confirmed draft=%s record=%s doctor=%s", draft_id, record_id, ctx.doctor_id)
-    return TurnResult(
-        reply=M.draft_confirmed.format(patient=patient_name),
-        record_id=record_id,
-    )
-
-
-async def _abandon_draft(ctx: DoctorCtx, draft_id: str) -> TurnResult:
-    """Abandon pending draft."""
-    from db.crud.pending import abandon_pending_record
-    from db.engine import AsyncSessionLocal
-
-    async with AsyncSessionLocal() as db:
-        await abandon_pending_record(db, draft_id, ctx.doctor_id)
-
-    ctx.workflow.pending_draft_id = None
-    patient = ctx.workflow.patient_name or ""
-    log.info("[turn] abandoned draft=%s doctor=%s", draft_id, ctx.doctor_id)
-    return TurnResult(reply=M.draft_abandoned.format(patient=patient))
 
 
 # ── Persistence ─────────────────────────────────────────────────────────────
