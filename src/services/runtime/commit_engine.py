@@ -50,7 +50,7 @@ async def commit(
     if at == ActionType.update_record:
         return await _update_record(action, ctx)
 
-    log.error("[commit] unknown action type: %s", at)
+    log(f"[commit] unknown action type: {at}", level="error")
     return CommitResult(status="error", error_key="execute_error")
 
 
@@ -62,8 +62,7 @@ async def _select_patient(action: ResolvedAction, ctx: Any) -> CommitResult:
     """Bind context to the resolved patient."""
     # Resolve already found the patient — just update context
     _switch_context(ctx, action.patient_id, action.patient_name)
-    log.info("[commit] select_patient=%s id=%s doctor=%s",
-             action.patient_name, action.patient_id, ctx.doctor_id)
+    log(f"[commit] select_patient={action.patient_name} id={action.patient_id} doctor={ctx.doctor_id}")
     return CommitResult(status="ok")
 
 
@@ -89,7 +88,7 @@ async def _create_patient(action: ResolvedAction, ctx: Any) -> CommitResult:
         existing = await find_patient_by_name(db, ctx.doctor_id, name)
         if existing:
             _switch_context(ctx, existing.id, existing.name)
-            log.info("[commit] create_patient: already exists, selected %s", existing.name)
+            log(f"[commit] create_patient: already exists, selected {existing.name}")
             return CommitResult(
                 status="ok",
                 data={"existing": True, "name": existing.name},
@@ -104,10 +103,10 @@ async def _create_patient(action: ResolvedAction, ctx: Any) -> CommitResult:
             )
             new_id, new_name = patient.id, patient.name
         except IntegrityError:
-            log.warning("[commit] create_patient duplicate: %s doctor=%s", name, ctx.doctor_id)
+            log(f"[commit] create_patient duplicate: {name} doctor={ctx.doctor_id}", level="warning")
             new_id, new_name = None, None
         except Exception as e:
-            log.error("[commit] create_patient FAILED: %s", e, exc_info=True)
+            log(f"[commit] create_patient FAILED: {e}", level="error")
             return CommitResult(status="error", error_key="create_patient_failed")
 
     if new_id is None:
@@ -125,7 +124,7 @@ async def _create_patient(action: ResolvedAction, ctx: Any) -> CommitResult:
         )
 
     _switch_context(ctx, new_id, new_name)
-    log.info("[commit] create_patient=%s id=%s doctor=%s", new_name, new_id, ctx.doctor_id)
+    log(f"[commit] create_patient={new_name} id={new_id} doctor={ctx.doctor_id}")
     return CommitResult(status="ok", data={"name": new_name})
 
 
@@ -169,11 +168,10 @@ async def _schedule_task(action: ResolvedAction, ctx: Any) -> CommitResult:
             )
             task_id = task.id
     except Exception as e:
-        log.error("[commit] schedule_task FAILED: %s", e, exc_info=True)
+        log(f"[commit] schedule_task FAILED: {e}", level="error")
         return CommitResult(status="error", error_key="execute_error")
 
-    log.info("[commit] schedule_task=%s patient=%s doctor=%s",
-             task_id, action.patient_name, ctx.doctor_id)
+    log(f"[commit] schedule_task={task_id} patient={action.patient_name} doctor={ctx.doctor_id}")
 
     # Detect if noon was a default (hour=12, minute=0)
     noon_default = (
@@ -218,7 +216,7 @@ async def _create_record(
     except ValueError:
         return CommitResult(status="error", error_key="no_clinical_content")
     except Exception as e:
-        log.error("[commit] structuring FAILED: %s", e, exc_info=True)
+        log(f"[commit] structuring FAILED: {e}", level="error")
         return CommitResult(status="error", error_key="structuring_failed")
 
     if (record.content or "").strip() == _NO_CLINICAL_CONTENT:
@@ -235,7 +233,7 @@ async def _create_record(
                 await recompute_patient_category(patient_id, db, commit=False)
             await db.commit()
     except Exception as e:
-        log.error("[commit] save_record FAILED: %s", e, exc_info=True)
+        log(f"[commit] save_record FAILED: {e}", level="error")
         return CommitResult(status="error", error_key="structuring_failed")
 
     from services.domain.intent_handlers._confirm_pending import _fire_post_save_tasks
@@ -245,7 +243,7 @@ async def _create_record(
     if len(record.content or "") > 200:
         content_preview += "..."
 
-    log.info("[commit] record saved id=%s patient=%s doctor=%s", record_id, patient_name, ctx.doctor_id)
+    log(f"[commit] record saved id={record_id} patient={patient_name} doctor={ctx.doctor_id}")
     return CommitResult(status="ok", data={"preview": content_preview, "record_id": record_id, "patient_name": patient_name})
 
 
@@ -289,14 +287,14 @@ async def _update_record(action: ResolvedAction, ctx: Any) -> CommitResult:
             await save_record_version(db, existing, ctx.doctor_id)
             await db.commit()
     except Exception as e:
-        log.warning("[commit] save_record_version failed record=%s: %s", record_id, e)
+        log(f"[commit] save_record_version failed record={record_id}: {e}", level="warning")
 
     # Re-structure with amendment
     combined = f"{existing_content}\n\n---\n医生修改指令：{instruction}"
     try:
         record = await structure_medical_record(combined, doctor_id=ctx.doctor_id)
     except Exception as e:
-        log.error("[commit] update structuring FAILED: %s", e, exc_info=True)
+        log(f"[commit] update structuring FAILED: {e}", level="error")
         return CommitResult(status="error", error_key="structuring_failed")
 
     # PATCH
@@ -306,14 +304,14 @@ async def _update_record(action: ResolvedAction, ctx: Any) -> CommitResult:
             await repo.update(record_id=record_id, doctor_id=ctx.doctor_id, content=record.content, tags=record.tags)
             await db.commit()
     except Exception as e:
-        log.error("[commit] update_record FAILED: %s", e, exc_info=True)
+        log(f"[commit] update_record FAILED: {e}", level="error")
         return CommitResult(status="error", error_key="execute_error")
 
     content_preview = (record.content or "")[:200]
     if len(record.content or "") > 200:
         content_preview += "..."
 
-    log.info("[commit] record updated id=%s patient=%s doctor=%s", record_id, patient_name, ctx.doctor_id)
+    log(f"[commit] record updated id={record_id} patient={patient_name} doctor={ctx.doctor_id}")
     return CommitResult(status="ok", data={"preview": content_preview, "record_id": record_id, "patient_name": patient_name})
 
 
@@ -366,7 +364,7 @@ async def _collect_clinical_text(
                     if len(content) > 5:
                         parts.append(content)
         except Exception as e:
-            log.warning("[commit] patient-scoped archive scan failed, falling back: %s", e)
+            log(f"[commit] patient-scoped archive scan failed, falling back: {e}", level="warning")
             parts = []
 
     # Fallback: unscoped scan from recent_turns
@@ -385,7 +383,7 @@ def _parse_iso(s: str) -> Optional[datetime]:
     try:
         return datetime.fromisoformat(s)
     except (ValueError, TypeError) as e:
-        log.warning("[commit] _parse_iso failed for %r: %s", s, e)
+        log(f"[commit] _parse_iso failed for {s!r}: {e}", level="warning")
         return None
 
 

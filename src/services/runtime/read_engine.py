@@ -19,7 +19,7 @@ async def read(action: ResolvedAction, doctor_id: str) -> ReadResult:
     elif action.action_type == ActionType.list_patients:
         return await _list_patients(doctor_id)
     else:
-        log.error("read_engine called with non-read action: %s", action.action_type)
+        log(f"read_engine called with non-read action: {action.action_type}", level="error")
         return ReadResult(status="error", error_key="execute_error")
 
 
@@ -79,7 +79,7 @@ async def _query_records(action: ResolvedAction, doctor_id: str) -> ReadResult:
                 truncated=total_count > len(data),
             )
     except Exception as e:
-        log.error("query_records failed: %s", e)
+        log(f"query_records failed: {e}", level="error")
         return ReadResult(status="error", error_key="execute_error")
 
 
@@ -121,5 +121,5 @@ async def _list_patients(doctor_id: str) -> ReadResult:
                 truncated=False,  # pagination deferred
             )
     except Exception as e:
-        log.error("list_patients failed: %s", e)
+        log(f"list_patients failed: {e}", level="error")
         return ReadResult(status="error", error_key="execute_error")

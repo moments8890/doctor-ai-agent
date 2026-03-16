@@ -84,7 +84,7 @@ async def understand(
             max_tokens=1000,
         )
     except Exception as e:
-        log(f"[understand] LLM call failed ({type(e).__name__}): {e}", level="error", exc_info=True)
+        log(f"[understand] LLM call failed ({type(e).__name__}): {e}", level="error")
         raise UnderstandError(str(e)) from e
 
     raw = completion.choices[0].message.content or ""
@@ -128,11 +128,7 @@ def _parse_response(raw: Optional[str]) -> UnderstandResult:
 
     # Cap at _MAX_ACTIONS
     if len(actions) > _MAX_ACTIONS:
-        log.warning(
-            "[understand] response contained %d actions, capping at %d",
-            len(actions),
-            _MAX_ACTIONS,
-        )
+        log(f"[understand] response contained {len(actions)} actions, capping at {_MAX_ACTIONS}", level="warning")
         actions = actions[:_MAX_ACTIONS]
 
     # Parse chat_reply
@@ -158,7 +154,7 @@ def _parse_actions_list(raw_actions: list) -> List[ActionIntent]:
     actions: List[ActionIntent] = []
     for item in raw_actions:
         if not isinstance(item, dict):
-            log.warning("[understand] skipping non-dict action item: %r", item)
+            log(f"[understand] skipping non-dict action item: {item!r}", level="warning")
             continue
         action_type, args = _parse_single_action(item)
         actions.append(ActionIntent(action_type=action_type, args=args))
@@ -212,5 +208,5 @@ def _parse_args(action_type: ActionType, raw_args: Dict[str, Any]) -> Optional[A
     except TypeError as e:
         # Missing required field → surface as clarification, not crash
         missing = str(e)  # e.g. "__init__() missing 1 required ... 'patient_name'"
-        log.warning("[understand] args parse failed for %s: %s", action_type, missing)
+        log(f"[understand] args parse failed for {action_type}: {missing}", level="warning")
         return None  # caller handles None args via resolve's missing_field check

@@ -133,7 +133,7 @@ async def compose_llm(
 
         return summary
     except Exception as e:
-        log.error("compose LLM failed, falling back to template: %s", e)
+        log(f"compose LLM failed, falling back to template: {e}", level="error")
         return _compose_read_template(result)
 
 
