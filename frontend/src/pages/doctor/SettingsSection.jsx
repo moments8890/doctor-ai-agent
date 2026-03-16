@@ -11,9 +11,6 @@ import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
-import SecurityOutlinedIcon from "@mui/icons-material/SecurityOutlined";
-import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import { getDoctorProfile, updateDoctorProfile, getTemplateStatus, uploadTemplate, deleteTemplate, getKnowledgeItems, deleteKnowledgeItem, addKnowledgeItem } from "../../api";
@@ -399,9 +396,6 @@ export default function SettingsSection({ doctorId, onLogout }) {
   if (subpage === "template") return <TemplateSubpage doctorId={doctorId} onBack={() => setSubpage(null)} />;
   if (subpage === "knowledge") return <KnowledgeSubpage doctorId={doctorId} onBack={() => setSubpage(null)} />;
   if (subpage === "about") return <AboutSubpage onBack={() => setSubpage(null)} />;
-  if (subpage === "notifications") return <StubSubpage title="消息通知" onBack={() => setSubpage(null)} />;
-  if (subpage === "privacy") return <StubSubpage title="隐私与安全" onBack={() => setSubpage(null)} />;
-  if (subpage === "help") return <StubSubpage title="帮助与反馈" onBack={() => setSubpage(null)} />;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#ededed" }}>
@@ -424,9 +418,6 @@ export default function SettingsSection({ doctorId, onLogout }) {
 
         <Box sx={{ px: 2, pt: 2, pb: 0.6 }}><Typography sx={{ fontSize: 12, color: "#999", fontWeight: 500 }}>通用</Typography></Box>
         <Box sx={{ bgcolor: "#fff" }}>
-          <SettingsRow icon={<NotificationsNoneOutlinedIcon sx={{ color: "#e8833a", fontSize: 20 }} />} label="消息通知" sublabel="任务提醒和系统通知" onClick={() => setSubpage("notifications")} />
-          <SettingsRow icon={<SecurityOutlinedIcon sx={{ color: "#9b59b6", fontSize: 20 }} />} label="隐私与安全" sublabel="数据保护设置" onClick={() => setSubpage("privacy")} />
-          <SettingsRow icon={<HelpOutlineIcon sx={{ color: "#16a085", fontSize: 20 }} />} label="帮助与反馈" sublabel="使用指南和问题反馈" onClick={() => setSubpage("help")} />
           <SettingsRow icon={<InfoOutlinedIcon sx={{ color: "#999", fontSize: 20 }} />} label="关于" sublabel="版本信息" onClick={() => setSubpage("about")} />
         </Box>
 

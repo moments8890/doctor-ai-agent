@@ -189,17 +189,10 @@ function PatientList({ filtered, search, selectedId, isMobile, navigate, onInser
       </Box>
     );
   }
-  return (
-    <>
-      <Box sx={{ px: 2, py: 0.6, bgcolor: "#ededed" }}>
-        <Typography sx={{ fontSize: 12, color: "#999" }}>最近 · {filtered.length}位患者</Typography>
-      </Box>
-      {filtered.map((p) => (
-        <PatientRow key={p.id} patient={p} isSelected={p.id === selectedId}
-          isMobile={isMobile} onClick={() => navigate(`/doctor/patients/${p.id}`)} />
-      ))}
-    </>
-  );
+  return filtered.map((p) => (
+    <PatientRow key={p.id} patient={p} isSelected={p.id === selectedId}
+      isMobile={isMobile} onClick={() => navigate(`/doctor/patients/${p.id}`)} />
+  ));
 }
 
 function PatientListPane({ patients, loading, error, search, nlResults, nlLoading, filtered, selectedId, isMobile, importing, importError, importFileRef, navigate, onSearchChange, onSearchSubmit, onNavigateToChat, onInsertChatText, onLoad, onFileInputChange }) {
@@ -211,6 +204,11 @@ function PatientListPane({ patients, loading, error, search, nlResults, nlLoadin
         {loading && <Box sx={{ p: 2, textAlign: "center" }}><CircularProgress size={20} /></Box>}
         {!loading && !search.trim() && <NewPatientRow onNavigateToChat={onNavigateToChat} />}
         <input ref={importFileRef} type="file" hidden accept=".pdf,image/jpeg,image/png,image/webp" onChange={onFileInputChange} />
+        {!loading && (
+          <Box sx={{ px: 2, py: 0.8, bgcolor: "#f7f7f7", borderTop: "0.5px solid #f0f0f0", borderBottom: "0.5px solid #f0f0f0" }}>
+            <Typography sx={{ fontSize: 12, color: "#999", fontWeight: 500 }}>最近 · {filtered.length}位患者</Typography>
+          </Box>
+        )}
         {!loading && (
           <PatientList filtered={filtered} search={search} selectedId={selectedId}
             isMobile={isMobile} navigate={navigate}

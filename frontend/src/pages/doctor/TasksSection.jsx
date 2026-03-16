@@ -16,13 +16,10 @@ import TransferWithinAStationOutlinedIcon from "@mui/icons-material/TransferWith
 import MonitorHeartOutlinedIcon from "@mui/icons-material/MonitorHeartOutlined";
 import EventAvailableOutlinedIcon from "@mui/icons-material/EventAvailableOutlined";
 import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
-import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
-import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import { getTasks, patchTask, postponeTask, createTask, getPatients } from "../../api";
 import { TASK_TYPE_LABEL } from "./constants";
 
 const SEGMENTS = [
-  { value: "today", label: "今天" },
   { value: "todo", label: "待办" },
   { value: "done", label: "已完成" },
 ];
@@ -55,30 +52,8 @@ function taskDateGroup(task, today, tomorrow, weekEnd) {
   return "之后";
 }
 
-function TaskActions({ task, onComplete, onPostpone, onCancel }) {
-  if (task.status !== "pending") return null;
-  return (
-    <Box sx={{ display: "flex", gap: 2, mt: 0.8, alignItems: "center" }}>
-      <Box onClick={() => onComplete(task.id, "completed")}
-        sx={{ display: "flex", alignItems: "center", gap: 0.4, cursor: "pointer", "&:active": { opacity: 0.6 } }}>
-        <CheckCircleOutlinedIcon sx={{ fontSize: 14, color: "#07C160" }} />
-        <Typography sx={{ fontSize: 12, color: "#07C160" }}>完成</Typography>
-      </Box>
-      <Box onClick={(e) => onPostpone(e, task.id)}
-        sx={{ display: "flex", alignItems: "center", gap: 0.4, cursor: "pointer", "&:active": { opacity: 0.6 } }}>
-        <CalendarTodayOutlinedIcon sx={{ fontSize: 14, color: "#999" }} />
-        <Typography sx={{ fontSize: 12, color: "#999" }}>推迟</Typography>
-      </Box>
-      <Box onClick={() => onCancel(task.id)}
-        sx={{ display: "flex", alignItems: "center", gap: 0.4, cursor: "pointer", "&:active": { opacity: 0.6 } }}>
-        <CancelOutlinedIcon sx={{ fontSize: 14, color: "#ccc" }} />
-        <Typography sx={{ fontSize: 12, color: "#ccc" }}>取消</Typography>
-      </Box>
-    </Box>
-  );
-}
 
-function TaskRow({ task, isOverdue, onComplete, onPostpone, onCancel }) {
+function TaskRow({ task, isOverdue }) {
   const iconColor = TASK_TYPE_ICON_COLOR[task.task_type] || "#999";
   const TaskIcon = TASK_TYPE_ICON[task.task_type] || AssignmentOutlinedIcon;
   return (
@@ -108,7 +83,6 @@ function TaskRow({ task, isOverdue, onComplete, onPostpone, onCancel }) {
             {task.patient_name}
           </Typography>
         )}
-        <TaskActions task={task} onComplete={onComplete} onPostpone={onPostpone} onCancel={onCancel} />
       </Box>
     </Box>
   );
@@ -307,7 +281,7 @@ function useTasksState(doctorId) {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [segment, setSegment] = useState("today");
+  const [segment, setSegment] = useState("todo");
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState({ taskType: "follow_up", title: "", dueAt: tomorrowStr(), patientId: "", patientSearch: "", content: "" });
   const [creating, setCreating] = useState(false);
@@ -320,17 +294,11 @@ function useTasksState(doctorId) {
 
   const load = useCallback(() => {
     setLoading(true); setError("");
-    const status = segment === "done" ? null : "pending";
-    const fetchDone = segment === "done"
+    const fetch = segment === "done"
       ? Promise.all([getTasks(doctorId, "completed"), getTasks(doctorId, "cancelled")])
           .then(([c, x]) => [...(Array.isArray(c) ? c : c.items || []), ...(Array.isArray(x) ? x : x.items || [])].sort((a, b) => (b.updated_at || "").localeCompare(a.updated_at || "")))
-      : getTasks(doctorId, status).then((d) => {
-          const items = Array.isArray(d) ? d : (d.items || []);
-          const todayStr = new Date().toISOString().slice(0, 10);
-          if (segment === "today") return items.filter((t) => !t.due_at || t.due_at.slice(0, 10) <= todayStr);
-          return items.filter((t) => t.due_at && t.due_at.slice(0, 10) > todayStr);
-        });
-    fetchDone.then(setTasks).catch((e) => setError(e.message || "任务加载失败")).finally(() => setLoading(false));
+      : getTasks(doctorId, "pending").then((d) => Array.isArray(d) ? d : (d.items || []));
+    fetch.then(setTasks).catch((e) => setError(e.message || "任务加载失败")).finally(() => setLoading(false));
   }, [doctorId, segment]);
 
   useEffect(() => { load(); }, [load]);
@@ -462,7 +430,7 @@ export default function TasksSection({ doctorId }) {
                   onSwipeRight={() => { if (task.status === "pending") handleCancel(task.id); }}>
                   <Box onClick={() => setDetailTask(task)}
                     sx={{ borderBottom: idx < taskGroups[group].length - 1 ? "0.5px solid #f0f0f0" : "none", cursor: "pointer" }}>
-                    <TaskRow task={task} isOverdue={group === "已逾期"} onComplete={handleComplete} onPostpone={handlePostpone} onCancel={handleCancel} />
+                    <TaskRow task={task} isOverdue={group === "已逾期"} />
                   </Box>
                 </SwipeableTaskRow>
               ))}

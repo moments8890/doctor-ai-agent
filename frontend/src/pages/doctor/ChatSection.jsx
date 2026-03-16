@@ -155,7 +155,7 @@ function QuickCommandsPanel({ isMobile, shown, onToggle, onSelect }) {
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: shown ? 0.8 : 0 }}>
         <Typography sx={{ color: "#999", fontSize: 11, fontWeight: 500 }}>常用指令</Typography>
         <IconButton size="small" onClick={onToggle} sx={{ color: "#ccc", p: 0.3 }}>
-          {shown ? <KeyboardArrowUpIcon sx={{ fontSize: 16 }} /> : <KeyboardArrowDownIcon sx={{ fontSize: 16 }} />}
+          {shown ? <KeyboardArrowDownIcon sx={{ fontSize: 16 }} /> : <KeyboardArrowUpIcon sx={{ fontSize: 16 }} />}
         </IconButton>
       </Stack>
       {shown && (
