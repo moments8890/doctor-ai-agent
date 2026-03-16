@@ -61,9 +61,7 @@ class ChatResponse(BaseModel):
     """Output for the /chat endpoint."""
     reply: str
     record: Optional[MedicalRecord] = None
-    pending_id: Optional[str] = None
-    pending_patient_name: Optional[str] = None
-    pending_expires_at: Optional[str] = None  # ISO-8601 UTC
+    record_id: Optional[int] = None
     view_payload: Optional[Dict[str, Any]] = None  # structured data for web rendering (ADR 0012 §14)
     switch_notification: Optional[str] = None  # patient-switch system message
 
@@ -140,9 +138,8 @@ async def chat(
     ))
     return ChatResponse(
         reply=result.reply,
-        pending_id=result.pending_id,
-        pending_patient_name=result.pending_patient_name,
-        pending_expires_at=result.pending_expires_at,
+        record=result.record,
+        record_id=result.record_id,
         view_payload=result.view_payload,
         switch_notification=result.switch_notification,
     )
