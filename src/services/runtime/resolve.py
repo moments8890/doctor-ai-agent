@@ -157,6 +157,12 @@ async def _ensure_patient(
     if not name:
         return (None, None)
 
+    # 2b. Validate that the extracted name looks like a person name
+    from utils.chinese_names import looks_like_chinese_name
+    if not looks_like_chinese_name(name):
+        log(f"[resolve] rejected non-name patient_name='{name}' for {action.action_type.value}")
+        return (None, None)
+
     # 3. Try to find existing patient
     match = await _match_patient(name, ctx.doctor_id)
     if not isinstance(match, Clarification):
