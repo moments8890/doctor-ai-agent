@@ -19,7 +19,13 @@ import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined
 import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import { getTasks, patchTask, postponeTask, createTask, getPatients } from "../../api";
-import { TASK_TYPE_LABEL, TASK_STATUS_OPTS } from "./constants";
+import { TASK_TYPE_LABEL } from "./constants";
+
+const SEGMENTS = [
+  { value: "today", label: "今天" },
+  { value: "todo", label: "待办" },
+  { value: "done", label: "已完成" },
+];
 
 const TASK_TYPE_ICON_COLOR = {
   follow_up: "#07C160", medication: "#5b9bd5", lab_review: "#e8833a",
@@ -301,7 +307,7 @@ function useTasksState(doctorId) {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [statusFilter, setStatusFilter] = useState("pending");
+  const [segment, setSegment] = useState("today");
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState({ taskType: "follow_up", title: "", dueAt: tomorrowStr(), patientId: "", patientSearch: "", content: "" });
   const [creating, setCreating] = useState(false);
@@ -314,8 +320,18 @@ function useTasksState(doctorId) {
 
   const load = useCallback(() => {
     setLoading(true); setError("");
-    getTasks(doctorId, statusFilter || null).then((d) => setTasks(Array.isArray(d) ? d : (d.items || []))).catch((e) => setError(e.message || "任务加载失败")).finally(() => setLoading(false));
-  }, [doctorId, statusFilter]);
+    const status = segment === "done" ? null : "pending";
+    const fetchDone = segment === "done"
+      ? Promise.all([getTasks(doctorId, "completed"), getTasks(doctorId, "cancelled")])
+          .then(([c, x]) => [...(Array.isArray(c) ? c : c.items || []), ...(Array.isArray(x) ? x : x.items || [])].sort((a, b) => (b.updated_at || "").localeCompare(a.updated_at || "")))
+      : getTasks(doctorId, status).then((d) => {
+          const items = Array.isArray(d) ? d : (d.items || []);
+          const todayStr = new Date().toISOString().slice(0, 10);
+          if (segment === "today") return items.filter((t) => !t.due_at || t.due_at.slice(0, 10) <= todayStr);
+          return items.filter((t) => t.due_at && t.due_at.slice(0, 10) > todayStr);
+        });
+    fetchDone.then(setTasks).catch((e) => setError(e.message || "任务加载失败")).finally(() => setLoading(false));
+  }, [doctorId, segment]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -337,27 +353,27 @@ function useTasksState(doctorId) {
     catch (e) { setError(e.message || "推迟失败"); setPostponeOpen(false); }
   }
 
-  return { tasks, loading, error, setError, statusFilter, setStatusFilter, createOpen, setCreateOpen, createForm, setCreateForm, creating, createError, setCreateError, patientOptions, setPatientOptions, postponeOpen, setPostponeOpen, postponeTaskId, setPostponeTaskId, postponeDate, setPostponeDate, cancelConfirmId, setCancelConfirmId, load, handleStatus, handleCreate, handleConfirmPostpone };
+  return { tasks, loading, error, setError, segment, setSegment, createOpen, setCreateOpen, createForm, setCreateForm, creating, createError, setCreateError, patientOptions, setPatientOptions, postponeOpen, setPostponeOpen, postponeTaskId, setPostponeTaskId, postponeDate, setPostponeDate, cancelConfirmId, setCancelConfirmId, load, handleStatus, handleCreate, handleConfirmPostpone };
 }
 
-function TasksHeader({ statusFilter, loading, onFilterChange, onOpenCreate }) {
+function TasksHeader({ segment, loading, onSegmentChange, onOpenCreate }) {
   return (
-    <Box sx={{ display: "flex", alignItems: "center", px: 2, height: 48, bgcolor: "#fff", borderBottom: "1px solid #e5e5e5", flexShrink: 0 }}>
-      <Box sx={{ display: "flex", gap: 0.6, flex: 1, overflowX: "auto", WebkitOverflowScrolling: "touch", "&::-webkit-scrollbar": { display: "none" } }}>
-        {TASK_STATUS_OPTS.map((o) => (
-          <Box key={o.value} onClick={() => onFilterChange(o.value)}
-            sx={{ px: 1.4, py: 0.4, borderRadius: "4px", cursor: "pointer", flexShrink: 0, fontSize: 13,
-              bgcolor: statusFilter === o.value ? "#07C160" : "transparent",
-              color: statusFilter === o.value ? "#fff" : "#555",
-              fontWeight: statusFilter === o.value ? 600 : 400,
-              "&:active": { opacity: 0.7 } }}>
-            {o.label}
+    <Box sx={{ display: "flex", alignItems: "center", px: 2, py: 1, bgcolor: "#ededed", borderBottom: "0.5px solid #d9d9d9", flexShrink: 0, gap: 1 }}>
+      <Box sx={{ display: "flex", flex: 1, bgcolor: "#d6d6d6", borderRadius: "4px", p: "2px" }}>
+        {SEGMENTS.map((s) => (
+          <Box key={s.value} onClick={() => onSegmentChange(s.value)}
+            sx={{ flex: 1, textAlign: "center", py: 0.5, borderRadius: "3px", cursor: "pointer", fontSize: 13,
+              bgcolor: segment === s.value ? "#fff" : "transparent",
+              color: segment === s.value ? "#111" : "#666",
+              fontWeight: segment === s.value ? 600 : 400,
+              transition: "all 0.15s" }}>
+            {s.label}
           </Box>
         ))}
       </Box>
-      {loading && <CircularProgress size={14} sx={{ mr: 1, color: "#07C160" }} />}
+      {loading && <CircularProgress size={14} sx={{ color: "#07C160" }} />}
       <Box onClick={onOpenCreate}
-        sx={{ width: 28, height: 28, borderRadius: "50%", bgcolor: "#07C160", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, "&:active": { opacity: 0.8 } }}>
+        sx={{ width: 28, height: 28, borderRadius: "4px", bgcolor: "#07C160", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, "&:active": { opacity: 0.8 } }}>
         <Typography sx={{ color: "#fff", fontSize: 20, lineHeight: 1, mt: "-2px" }}>+</Typography>
       </Box>
     </Box>
@@ -398,7 +414,7 @@ export default function TasksSection({ doctorId }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [detailTask, setDetailTask] = useState(null);
-  const { tasks, loading, error, setError, statusFilter, setStatusFilter, createOpen, setCreateOpen, createForm, setCreateForm, creating, createError, setCreateError, patientOptions, setPatientOptions, postponeOpen, setPostponeOpen, postponeTaskId, setPostponeTaskId, postponeDate, setPostponeDate, cancelConfirmId, setCancelConfirmId, load, handleStatus, handleCreate, handleConfirmPostpone } = useTasksState(doctorId);
+  const { tasks, loading, error, setError, segment, setSegment, createOpen, setCreateOpen, createForm, setCreateForm, creating, createError, setCreateError, patientOptions, setPatientOptions, postponeOpen, setPostponeOpen, postponeTaskId, setPostponeTaskId, postponeDate, setPostponeDate, cancelConfirmId, setCancelConfirmId, load, handleStatus, handleCreate, handleConfirmPostpone } = useTasksState(doctorId);
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
@@ -423,7 +439,7 @@ export default function TasksSection({ doctorId }) {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#ededed" }}>
-      <TasksHeader statusFilter={statusFilter} loading={loading} onFilterChange={setStatusFilter}
+      <TasksHeader segment={segment} loading={loading} onSegmentChange={setSegment}
         onOpenCreate={() => { setCreateOpen(true); setCreateError(""); getPatients(doctorId, {}, 200).then((d) => setPatientOptions(d.items || [])).catch(() => {}); }} />
       <Box sx={{ flex: 1, overflowY: "auto" }}>
         {error && <Box sx={{ px: 2, pt: 1.5 }}><Alert severity="error" onClose={() => setError("")}>{error}</Alert></Box>}
