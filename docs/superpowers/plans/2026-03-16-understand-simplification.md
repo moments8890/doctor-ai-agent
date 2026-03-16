@@ -129,10 +129,10 @@ class ResolvedAction:
     record_id: Optional[int] = None
 ```
 
-- [ ] **Step 7: Remove ClarificationKind.invalid_time**
+- [ ] **Step 7: Keep ClarificationKind.invalid_time**
 
-Delete `invalid_time` from ClarificationKind enum (line 38). It was only used
-by `_validate_schedule_task` which is being removed.
+Do NOT remove `invalid_time` from ClarificationKind — it is still used by the
+lightweight `_validate_task_dates()` function (see Task 3 Step 6).
 
 - [ ] **Step 8: Clean up old exports**
 
@@ -240,7 +240,7 @@ args: {"target": "records|patients|tasks", "patient_name": "张三", "limit": 5,
 args: {"patient_name": "张三", "gender": "男", "age": 45}
 - 有临床内容 → 保存病历（系统自动查找或创建患者）
 - 仅有姓名/性别/年龄 → 建立患者档案
-- patient_name: 必须从消息中提取人名
+- patient_name: 消息中提到人名时填写。未提及时系统使用当前患者
 
 ### update — 修改最近病历
 args: {"instruction": "把诊断改成高血压2级", "patient_name": "张三"}
@@ -401,16 +401,74 @@ async def _resolve_patient_scoped(
     )
 ```
 
-- [ ] **Step 3: Delete `_validate_schedule_task`**
+- [ ] **Step 3: Replace `_validate_schedule_task` with `_validate_task_dates`**
 
-Remove the entire function (lines 285-342). No longer called.
+Delete the old function (which validated task_type + dates). Replace with a
+lightweight date-only validator:
 
-- [ ] **Step 4: Update imports**
+```python
+def _validate_task_dates(args: Any) -> Optional[Clarification]:
+    """Validate scheduled_for / remind_at: not past, not >1 year, valid ISO."""
+    now = datetime.now(timezone.utc)
+    for field_name in ("scheduled_for", "remind_at"):
+        val = getattr(args, field_name, None)
+        if val is None:
+            continue
+        try:
+            dt = datetime.fromisoformat(val)
+            if dt < now - timedelta(minutes=5):
+                return Clarification(
+                    kind=ClarificationKind.invalid_time,
+                    message_key="clarify_invalid_time",
+                )
+            if dt > now + timedelta(days=366):
+                return Clarification(
+                    kind=ClarificationKind.invalid_time,
+                    message_key="clarify_invalid_time",
+                )
+        except (ValueError, TypeError):
+            return Clarification(
+                kind=ClarificationKind.invalid_time,
+                message_key="clarify_invalid_time",
+            )
+    return None
+```
+
+Call it from the `task` branch in `resolve()`:
+
+```python
+    # task: resolve patient + validate dates
+    if at == ActionType.task:
+        date_err = _validate_task_dates(action.args)
+        if date_err:
+            return date_err
+        return await _resolve_patient_scoped(action, ctx)
+```
+
+- [ ] **Step 4: Pass gender/age through `_ensure_patient` auto-create**
+
+In `_ensure_patient`, the auto-create call (line 176) currently passes
+`None, None` for gender/age. Update to extract from action args:
+
+```python
+# BEFORE
+patient, _ = await db_create_patient(db, ctx.doctor_id, name, None, None)
+
+# AFTER
+gender = getattr(action.args, "gender", None)
+age = getattr(action.args, "age", None)
+patient, _ = await db_create_patient(db, ctx.doctor_id, name, gender, age)
+```
+
+This ensures demographics from `RecordArgs` are passed through when
+auto-creating a patient.
+
+- [ ] **Step 6: Update imports**
 
 Remove `TaskType` and `ScheduleTaskArgs` from imports. Add `QueryArgs` if
 needed for type hints.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add src/services/runtime/resolve.py
@@ -465,27 +523,7 @@ Note: "切换到张三" (existing patient, no demographics) maps to `query` acti
 which returns records + binds context. The demographics-only path here is only
 reached for explicit new patient creation ("新患者王芳，女30岁").
 
-- [ ] **Step 3: Pass gender/age to `_ensure_patient` for auto-create**
-
-In resolve.py `_ensure_patient`, the auto-create call (line 176) currently
-passes `None, None` for gender/age:
-
-```python
-patient, _ = await db_create_patient(db, ctx.doctor_id, name, None, None)
-```
-
-Update to extract from action args:
-
-```python
-gender = getattr(action.args, "gender", None)
-age = getattr(action.args, "age", None)
-patient, _ = await db_create_patient(db, ctx.doctor_id, name, gender, age)
-```
-
-(This change is in `resolve.py` but listed here because it serves the
-demographics-only flow.)
-
-- [ ] **Step 4: Simplify `_schedule_task` — hardcode task_type**
+- [ ] **Step 3: Simplify `_schedule_task` — hardcode task_type**
 
 All tasks use `task_type="general"`. Replace all `args.task_type` references
 with the literal `"general"`:
@@ -496,12 +534,12 @@ task_type_str = "general"
 
 No `_infer_task_type` helper needed. The title carries the semantic meaning.
 
-- [ ] **Step 5: Delete `_select_patient` and `_create_patient` functions**
+- [ ] **Step 4: Delete `_select_patient` and `_create_patient` functions**
 
 Remove both functions entirely. Their logic is now handled by `_ensure_patient`
 (resolve) and the demographics-only branch in `_create_record`.
 
-- [ ] **Step 6: Remove `TASK_TYPE_LABELS` dict**
+- [ ] **Step 5: Remove `TASK_TYPE_LABELS` dict**
 
 Delete the dict (lines 26-30). Task label is derived from title or defaults:
 
@@ -509,15 +547,15 @@ Delete the dict (lines 26-30). Task label is derived from title or defaults:
 task_label = args.title or "任务"
 ```
 
-- [ ] **Step 7: Update imports**
+- [ ] **Step 6: Update imports**
 
 Remove `CreatePatientArgs`, `ScheduleTaskArgs`, `TaskType`. Add `RecordArgs`,
 `UpdateArgs`, `TaskArgs`.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add src/services/runtime/commit_engine.py src/services/runtime/resolve.py
+git add src/services/runtime/commit_engine.py
 git commit -m "refactor: simplify commit engine, infer task_type, demographics-only path"
 ```
 
@@ -640,9 +678,10 @@ field_labels = {
 }
 ```
 
-- [ ] **Step 3: Remove `ClarificationKind.invalid_time` branch**
+- [ ] **Step 3: Keep `ClarificationKind.invalid_time` branch**
 
-Delete the `invalid_time` handler (lines 223-224). No longer generated.
+Do NOT remove the `invalid_time` handler (lines 223-224) — it is still
+used by `_validate_task_dates()` in resolve.
 
 - [ ] **Step 4: Commit**
 

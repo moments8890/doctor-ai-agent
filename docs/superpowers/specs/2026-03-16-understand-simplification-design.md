@@ -111,7 +111,7 @@ Unchanged semantics from current `UpdateRecordArgs`. Renamed for consistency.
 - `WRITE_ACTIONS = frozenset({ActionType.record, ActionType.update, ActionType.task})`
 - `RESPONSE_MODE_TABLE`: 9 entries → 5
 - Remove `TaskType` enum
-- Remove `ClarificationKind.invalid_time` (was only for schedule_task validation)
+- Keep `ClarificationKind.invalid_time` (still used for date validation in tasks)
 
 ### `prompts/understand.md` — rewrite
 
@@ -119,26 +119,27 @@ Shrink from 112 lines to ~60. Five action types, simpler examples. Key change:
 `record` covers both clinical content and demographics-only patient creation.
 `query` uses `target` field. `task` has no `task_type`.
 
-### `understand.py` — no change
+### `understand.py` — one line change
 
-The parser is generic — it reads `action_type` and `args` from JSON. The enum
-change is transparent as long as `ActionType(raw_action)` works.
+The parser is generic, but `_parse_args()` has a hardcoded
+`ActionType.query_records` reference for limit clamping (line 191). Change to
+`ActionType.query`.
 
 ### `resolve.py` — simplify branches
 
 Delete:
 - `select_patient` branch (lines 56-61)
 - `create_patient` branch (lines 56-61)
-- `_validate_schedule_task` function (lines 285-342)
+- `_validate_schedule_task` function — replaced with lightweight
+  `_validate_task_dates()` (date-only, no task_type check)
 
 Change:
 - `create_record` branch → `record` branch (same logic via `_ensure_patient`)
 - `update_record` branch → `update` branch (same logic)
 - `query` branch: if `target=patients` or `target=tasks`, skip patient
   resolution (unscoped). If `target=records` or default, resolve patient.
-- Generic patient resolution block (lines 103-131) handles `task` action
-  (unchanged — it already does patient lookup for `schedule_task`)
-- Remove `TaskType` validation entirely
+- `task` branch: call `_validate_task_dates()` then `_resolve_patient_scoped()`
+- `_ensure_patient` auto-create: pass `gender`/`age` from `RecordArgs`
 
 ### `commit_engine.py` — merge + infer
 
