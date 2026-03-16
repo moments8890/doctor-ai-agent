@@ -40,7 +40,7 @@ class ActionType(str, Enum):
 Delete the `TaskType` enum (lines 25-29). It's no longer needed — task_type
 is inferred by commit engine.
 
-- [ ] **Step 4: Replace args dataclasses**
+- [ ] **Step 3: Replace args dataclasses**
 
 Replace all 8 args dataclasses (lines 77-127) with 4:
 
@@ -75,7 +75,7 @@ class TaskArgs:
     remind_at: Optional[str] = None
 ```
 
-- [ ] **Step 5: Update ARGS_TYPE_TABLE**
+- [ ] **Step 4: Update ARGS_TYPE_TABLE**
 
 Replace (lines 130-140):
 
@@ -89,7 +89,7 @@ ARGS_TYPE_TABLE: Dict[ActionType, type] = {
 }
 ```
 
-- [ ] **Step 6: Update READ_ACTIONS / WRITE_ACTIONS / RESPONSE_MODE_TABLE**
+- [ ] **Step 5: Update READ_ACTIONS / WRITE_ACTIONS / RESPONSE_MODE_TABLE**
 
 ```python
 READ_ACTIONS = frozenset({ActionType.query})
@@ -104,7 +104,7 @@ RESPONSE_MODE_TABLE: Dict[ActionType, ResponseMode] = {
 }
 ```
 
-- [ ] **Step 6b: Remove `scoped_only` from `ResolvedAction`**
+- [ ] **Step 6: Remove `scoped_only` from `ResolvedAction`**
 
 Delete the `scoped_only` field from `ResolvedAction` (line 181):
 
@@ -233,14 +233,13 @@ args: {"target": "records|patients|tasks", "patient_name": "张三", "limit": 5,
 - patient_name: 查看特定患者病历时填写
 - limit: records专用，默认5，最大10
 - status: tasks专用，"pending"（默认）或 "completed"
-- 触发词：查看/查询/病历 → records；患者列表/我的患者 → patients；待办/任务/随访提醒 → tasks
+- 触发词：查看/查询/病历 → records；患者列表/我的患者 → patients；待办/任务/随访提醒 → tasks；选择/切换患者 → records（系统自动切换并返回病历）
 
-### record — 保存病历 / 建立或选择患者
-用户提供了临床内容、要建立新患者、或要切换患者。
+### record — 保存病历 / 建立患者
+用户提供了临床内容或要建立新患者。
 args: {"patient_name": "张三", "gender": "男", "age": 45}
 - 有临床内容 → 保存病历（系统自动查找或创建患者）
 - 仅有姓名/性别/年龄 → 建立患者档案
-- "选择/切换到张三" → 系统自动处理（切换到已有患者）
 - patient_name: 必须从消息中提取人名
 
 ### update — 修改最近病历
@@ -748,7 +747,7 @@ Test each:
 
 "李淑芳，血压135/85，3个月复查" → should produce `[record, task]`
 
-- [ ] **Step 3: Verify task_type inference**
+- [ ] **Step 3: Verify task_type is "general"**
 
 Check DB: `SELECT task_type FROM doctor_tasks ORDER BY id DESC LIMIT 5` — should
-show inferred values, not "general" everywhere.
+show "general" for all tasks (task_type is always hardcoded).

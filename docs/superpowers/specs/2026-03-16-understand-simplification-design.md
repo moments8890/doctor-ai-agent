@@ -3,8 +3,9 @@
 ## Goal
 
 Reduce the ActionType enum from 9 types to 5, eliminating redundant
-classifications that the LLM frequently confuses, and remove `task_type`
-from task args (inferred by commit engine instead).
+classifications that the LLM frequently confuses, remove `task_type`
+from task args (hardcoded to "general"), and remove `scoped_only`
+(all patient-scoped actions bind context uniformly).
 
 ## Motivation
 
@@ -30,16 +31,11 @@ from task args (inferred by commit engine instead).
 | `query` | `query_records`, `list_patients`, `list_tasks`, `select_patient` | All reads. `target` field disambiguates. |
 | `record` | `create_record`, `create_patient` | Clinical content → save record. Demographics only → create patient. |
 | `update` | `update_record` | Modify existing record — unchanged semantics. |
-| `task` | `schedule_task` | Create task — `task_type` inferred, not LLM-classified. |
+| `task` | `schedule_task` | Create task — `task_type` always "general". |
 
 ### `query` action
 
 ```python
-class QueryTarget(str, Enum):
-    records = "records"
-    patients = "patients"
-    tasks = "tasks"
-
 @dataclass
 class QueryArgs:
     target: Optional[str] = None      # "records" | "patients" | "tasks"; default "records"
@@ -156,8 +152,8 @@ Change:
 - `_create_record()`: add demographics-only fallback when clinical text is
   empty but patient_name present. Pass `gender`/`age` from `RecordArgs` to
   `create_patient`.
-- `_schedule_task()`: read `task_type` from `_infer_task_type()` instead of
-  `args.task_type`. Remove validation that rejects missing task_type.
+- `_schedule_task()`: hardcode `task_type = "general"`. Remove validation
+  that rejects missing task_type.
 
 ### `read_engine.py` — target dispatch
 
@@ -230,7 +226,7 @@ Delete the `scoped_only: bool = False` field. No consumer remains.
   code deploy.
 - Old action types in inflight LLM responses hit `UnderstandError` — same
   error path as any malformed output.
-- `DoctorTask.task_type` column: kept, written via inference. No schema change.
+- `DoctorTask.task_type` column: kept, always written as "general". No schema change.
 - E2E test fixtures referencing old action types need updating.
 
 ---
