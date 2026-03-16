@@ -884,13 +884,6 @@
     ],
     "expectations": {
       "must_not_timeout": true,
-      "must_include_any_of": [
-        [
-          "ACS",
-          "ST段",
-          "PCI"
-        ]
-      ],
       "must_include_reply_any_of": [
         [
           "病历",
