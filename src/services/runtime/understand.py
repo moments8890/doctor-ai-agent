@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 
 from services.runtime.types import (
     ARGS_TYPE_TABLE,
+    ActionIntent,
     ActionType,
     Clarification,
     ClarificationKind,
@@ -20,6 +21,7 @@ from utils.prompt_loader import get_prompt_sync
 
 
 _UNDERSTAND_PROMPT: Optional[str] = None
+_MAX_ACTIONS = 3
 
 
 def _get_prompt() -> str:
@@ -79,7 +81,7 @@ async def understand(
             messages=messages,
             temperature=0.1,
             response_format={"type": "json_object"},
-            max_tokens=500,
+            max_tokens=1000,
         )
     except Exception as e:
         log(f"[understand] LLM call failed ({type(e).__name__}): {e}", level="error", exc_info=True)
@@ -100,13 +102,6 @@ def _parse_response(raw: Optional[str]) -> UnderstandResult:
     except json.JSONDecodeError as e:
         raise UnderstandError(f"invalid JSON: {e}") from e
 
-    # Parse action_type
-    raw_action = data.get("action_type", "none")
-    try:
-        action_type = ActionType(raw_action)
-    except ValueError:
-        raise UnderstandError(f"unknown action_type: {raw_action}")
-
     # Parse clarification
     clarification: Optional[Clarification] = None
     raw_clar = data.get("clarification")
@@ -122,26 +117,65 @@ def _parse_response(raw: Optional[str]) -> UnderstandResult:
             suggested_question=raw_clar.get("suggested_question"),
         )
 
+    # Parse actions: new array format takes precedence over legacy flat format
+    raw_actions = data.get("actions")
+    if isinstance(raw_actions, list):
+        actions = _parse_actions_list(raw_actions)
+    else:
+        # Legacy flat format: wrap single action in list
+        action_type, args = _parse_single_action(data)
+        actions = [ActionIntent(action_type=action_type, args=args)]
+
+    # Cap at _MAX_ACTIONS
+    if len(actions) > _MAX_ACTIONS:
+        log.warning(
+            "[understand] response contained %d actions, capping at %d",
+            len(actions),
+            _MAX_ACTIONS,
+        )
+        actions = actions[:_MAX_ACTIONS]
+
     # Parse chat_reply
     chat_reply: Optional[str] = data.get("chat_reply")
 
-    # Invariant: strip chat_reply when action_type != none
-    if action_type != ActionType.none:
+    # Invariant: strip chat_reply when any action is non-none
+    if any(a.action_type != ActionType.none for a in actions):
         chat_reply = None
 
     # Precedence: clarification wins over chat_reply
     if clarification and chat_reply:
         chat_reply = None
 
-    # Parse and validate args
-    args = _parse_args(action_type, data.get("args") or {})
-
     return UnderstandResult(
-        action_type=action_type,
-        args=args,
+        actions=actions,
         chat_reply=chat_reply,
         clarification=clarification,
     )
+
+
+def _parse_actions_list(raw_actions: list) -> List[ActionIntent]:
+    """Parse a list of action dicts (new array format) into ActionIntent objects."""
+    actions: List[ActionIntent] = []
+    for item in raw_actions:
+        if not isinstance(item, dict):
+            log.warning("[understand] skipping non-dict action item: %r", item)
+            continue
+        action_type, args = _parse_single_action(item)
+        actions.append(ActionIntent(action_type=action_type, args=args))
+    if not actions:
+        actions = [ActionIntent(action_type=ActionType.none, args=None)]
+    return actions
+
+
+def _parse_single_action(data: dict) -> tuple:
+    """Parse action_type and args from a flat dict. Returns (ActionType, args)."""
+    raw_action = data.get("action_type", "none")
+    try:
+        action_type = ActionType(raw_action)
+    except ValueError:
+        raise UnderstandError(f"unknown action_type: {raw_action}")
+    args = _parse_args(action_type, data.get("args") or {})
+    return action_type, args
 
 
 def _parse_args(action_type: ActionType, raw_args: Dict[str, Any]) -> Optional[Any]:
