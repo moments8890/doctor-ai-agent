@@ -367,12 +367,8 @@ async def _collect_clinical_text(
             log(f"[commit] patient-scoped archive scan failed, falling back: {e}", level="warning")
             parts = []
 
-    # Fallback: unscoped scan from recent_turns
-    if not parts:
-        for turn in recent_turns:
-            if turn.get("role") == "user" and len(turn.get("content", "").strip()) > 5:
-                parts.append(turn["content"].strip())
-
+    # For new patients with no archive, use only the current user input —
+    # unscoped recent_turns may contain other patients' clinical data.
     if user_input.strip() and user_input.strip() not in parts:
         parts.append(user_input.strip())
     return "\n".join(parts)
