@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from sqlalchemy import select
@@ -47,6 +47,29 @@ class RecordRepository:
         self.session.add(db_record)
         await self.session.flush()
         return db_record
+
+    async def update(
+        self,
+        *,
+        record_id: int,
+        doctor_id: str,
+        content: str,
+        tags: List[str],
+    ) -> MedicalRecordDB:
+        result = await self.session.execute(
+            select(MedicalRecordDB).where(
+                MedicalRecordDB.id == record_id,
+                MedicalRecordDB.doctor_id == doctor_id,
+            )
+        )
+        record = result.scalar_one_or_none()
+        if not record:
+            raise ValueError(f"Record {record_id} not found for doctor {doctor_id}")
+        record.content = content
+        record.tags = json.dumps(tags, ensure_ascii=False) if tags else "[]"
+        record.updated_at = datetime.now(timezone.utc)
+        await self.session.flush()
+        return record
 
     async def list_for_patient(
         self,
