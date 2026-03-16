@@ -13,7 +13,7 @@ import RecordEditDialog from "./RecordEditDialog";
 
 const RECORD_DOT_COLORS = {
   visit: "#07C160", dictation: "#5b9bd5", import: "#e8833a",
-  lab: "#9b59b6", imaging: "#1890ff", surgery: "#e74c3c",
+  lab: "#9b59b6", imaging: "#1890ff", surgery: "#FA5151",
   referral: "#16a085", interview_summary: "#8e44ad",
 };
 
@@ -57,9 +57,9 @@ function RecordCardHeader({ current, expanded, dotColor }) {
 function DeleteConfirmRow({ deleting, onConfirm, onCancel }) {
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-      <Typography sx={{ fontSize: 12, color: "#e74c3c" }}>确认删除？</Typography>
+      <Typography sx={{ fontSize: 12, color: "#FA5151" }}>确认删除？</Typography>
       <Box onClick={!deleting ? onConfirm : undefined}
-        sx={{ fontSize: 12, color: "#fff", bgcolor: "#e74c3c", px: 1, py: 0.3, borderRadius: 1, cursor: deleting ? "default" : "pointer", "&:active": { opacity: 0.7 } }}>
+        sx={{ fontSize: 12, color: "#fff", bgcolor: "#FA5151", px: 1, py: 0.3, borderRadius: 1, cursor: deleting ? "default" : "pointer", "&:active": { opacity: 0.7 } }}>
         {deleting ? "删除中…" : "确认"}
       </Box>
       <Box onClick={onCancel} sx={{ fontSize: 12, color: "#666", cursor: "pointer", "&:active": { opacity: 0.7 } }}>
@@ -77,7 +77,7 @@ function RecordExpandedBody({ current, confirmingDelete, deleting, onConfirmDele
           <DeleteConfirmRow deleting={deleting} onConfirm={onConfirmDelete} onCancel={onCancelDelete} />
         ) : (
           <Box onClick={(e) => { e.stopPropagation(); onOpenDelete(); }}
-            sx={{ fontSize: 12, color: "#e74c3c", cursor: "pointer", display: "flex", alignItems: "center", gap: 0.4 }}>
+            sx={{ fontSize: 12, color: "#FA5151", cursor: "pointer", display: "flex", alignItems: "center", gap: 0.4 }}>
             <DeleteOutlineIcon sx={{ fontSize: 13 }} />删除
           </Box>
         )}

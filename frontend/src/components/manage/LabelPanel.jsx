@@ -25,7 +25,7 @@ export default function LabelPanel({
   onToggleLabel,
 }) {
   const [newLabelName, setNewLabelName] = useState("");
-  const [newLabelColor, setNewLabelColor] = useState("#0f766e");
+  const [newLabelColor, setNewLabelColor] = useState("#07C160");
 
   const displayed = tagFilter
     ? patients.filter((p) => (p.labels || []).some((l) => String(l.id) === String(tagFilter)))
@@ -71,7 +71,7 @@ export default function LabelPanel({
                 key={label.id}
                 label={label.name}
                 onDelete={() => onDeleteLabel(label.id)}
-                sx={{ backgroundColor: label.color || "#e2e8f0", color: "#0f172a", border: "1px solid rgba(15,23,42,0.14)" }}
+                sx={{ backgroundColor: label.color || "#d9d9d9", color: "#0f172a", border: "1px solid rgba(15,23,42,0.14)" }}
               />
             ))}
             {!labels.length ? (

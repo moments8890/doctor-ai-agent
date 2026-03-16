@@ -12,7 +12,7 @@ export default function RecordFields({ record }) {
         p: 1.5,
         borderRadius: 1.5,
         bgcolor: "#fff",
-        border: "1px solid #d8e1e3",
+        border: "1px solid #f0f0f0",
       }}
     >
       <Typography variant="subtitle2" sx={{ color: "primary.main", mb: 1 }}>

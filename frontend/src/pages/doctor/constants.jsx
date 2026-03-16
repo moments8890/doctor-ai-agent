@@ -66,7 +66,7 @@ export const NAV = [
 ];
 
 export const AVATAR_COLORS = [
-  "#07C160", "#5b9bd5", "#e8833a", "#9b59b6", "#e74c3c",
+  "#07C160", "#5b9bd5", "#e8833a", "#9b59b6", "#FA5151",
   "#16a085", "#d35400", "#8e44ad", "#2980b9", "#c0392b",
 ];
 
@@ -101,6 +101,7 @@ export const QUICK_COMMANDS = [
   { label: "修正上条", icon: "✏️", insert: "刚才写错了，应该是" },
   { label: "导出PDF", icon: "📄", insert: "导出病历PDF：" },
   { label: "今日任务", icon: "📌", insert: "今日任务" },
+  { label: "今日摘要", icon: "📊", insert: "今日工作摘要" },
   { label: "功能帮助", icon: "💡", insert: "帮助" },
 ];
 

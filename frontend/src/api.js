@@ -634,3 +634,19 @@ export async function sendPatientMessage(patientToken, text) {
     body: JSON.stringify({ text }),
   });
 }
+
+export async function getKnowledgeItems(doctorId) {
+  return request(`/api/manage/knowledge?doctor_id=${doctorId}`);
+}
+
+export async function deleteKnowledgeItem(doctorId, itemId) {
+  return request(`/api/manage/knowledge/${itemId}?doctor_id=${doctorId}`, { method: "DELETE" });
+}
+
+export async function addKnowledgeItem(doctorId, content) {
+  return request(`/api/manage/knowledge?doctor_id=${doctorId}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
+}

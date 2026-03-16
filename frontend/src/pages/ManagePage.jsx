@@ -233,7 +233,7 @@ export default function ManagePage() {
       sx={{
         minHeight: "100vh",
         background:
-          "radial-gradient(1150px 640px at 86% -12%, rgba(15,118,110,0.18), transparent 64%), radial-gradient(860px 520px at -6% 108%, rgba(47,79,111,0.14), transparent 62%), #f3f7f8",
+          "radial-gradient(1150px 640px at 86% -12%, rgba(7,193,96,0.18), transparent 64%), radial-gradient(860px 520px at -6% 108%, rgba(47,79,111,0.14), transparent 62%), #ededed",
       }}
     >
       <Container maxWidth="xl" sx={{ py: 2.5 }}>

@@ -144,7 +144,7 @@ export default function ChatPage() {
     <Box sx={{ display: "flex", height: "100vh", background: "#f8fafb" }}>
       {/* Sidebar */}
       <Box sx={{
-        width: 220, flexShrink: 0, borderRight: "1px solid #e2e8f0",
+        width: 220, flexShrink: 0, borderRight: "1px solid #d9d9d9",
         backgroundColor: "#fff", display: "flex", flexDirection: "column", py: 2, px: 1.5,
       }}>
         <Box sx={{ mb: 3, px: 0.5 }}>
@@ -196,7 +196,7 @@ export default function ChatPage() {
       {/* Main chat area */}
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {/* Topbar */}
-        <Box sx={{ px: 3, py: 1.5, borderBottom: "1px solid #e2e8f0", backgroundColor: "#fff", display: "flex", alignItems: "center" }}>
+        <Box sx={{ px: 3, py: 1.5, borderBottom: "1px solid #d9d9d9", backgroundColor: "#fff", display: "flex", alignItems: "center" }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "text.secondary", flex: 1 }}>
             {t("chat.workspaceTitle")}
           </Typography>
@@ -221,7 +221,7 @@ export default function ChatPage() {
         </Box>
 
         {/* Input bar */}
-        <Box sx={{ px: 2, py: 1.5, borderTop: "1px solid #e2e8f0", backgroundColor: "#fff" }}>
+        <Box sx={{ px: 2, py: 1.5, borderTop: "1px solid #d9d9d9", backgroundColor: "#fff" }}>
           <Stack direction="row" spacing={1} alignItems="flex-end">
             <TextField
               multiline

@@ -662,7 +662,7 @@ function AdminDashboard({ onLockout }) {
       sx={{
         minHeight: "100vh",
         background:
-          "radial-gradient(1200px 640px at 92% -8%, rgba(15,118,110,0.16), transparent 65%), radial-gradient(900px 520px at -12% 108%, rgba(47,79,111,0.15), transparent 62%), #f3f7f8",
+          "radial-gradient(1200px 640px at 92% -8%, rgba(7,193,96,0.16), transparent 65%), radial-gradient(900px 520px at -12% 108%, rgba(47,79,111,0.15), transparent 62%), #ededed",
       }}
     >
       <Container maxWidth="xl" sx={{ py: 2.5 }}>
@@ -862,7 +862,7 @@ function AdminDashboard({ onLockout }) {
               </Stack>
               </Box>
               {!SYSTEM_TABS.some((st) => st.key === activeTable) && activeTable !== "invite_codes" && (
-              <Box sx={{ border: "1px solid #d8e3e8", borderRadius: 1.5, backgroundColor: "#f8fbfc", p: 1.2, mb: 1.2 }}>
+              <Box sx={{ border: "1px solid #f0f0f0", borderRadius: 1.5, backgroundColor: "#f8fbfc", p: 1.2, mb: 1.2 }}>
                 <Stack
                   direction={{ xs: "column", md: "row" }}
                   spacing={1}
@@ -966,12 +966,12 @@ function AdminDashboard({ onLockout }) {
               )}
 
               {activeTable === "runtime_config" ? (
-                <Box sx={{ border: "1px solid #d8e3e8", borderRadius: 1.5, backgroundColor: "#f8fbfc", p: 1.2, mb: 1.2 }}>
+                <Box sx={{ border: "1px solid #f0f0f0", borderRadius: 1.5, backgroundColor: "#f8fbfc", p: 1.2, mb: 1.2 }}>
                   <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", md: "center" }} spacing={1} sx={{ mb: 1 }}>
                     <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{t("admin.config.title")}</Typography>
                     <Chip size="small" variant="outlined" label={`${t("admin.config.source")}：${runtimeConfigSource || "-"}`} />
                   </Stack>
-                  <Box sx={{ border: "1px solid #d8e3e8", borderRadius: 1.2, backgroundColor: "#fff", p: 1, mb: 1 }}>
+                  <Box sx={{ border: "1px solid #f0f0f0", borderRadius: 1.2, backgroundColor: "#fff", p: 1, mb: 1 }}>
                     <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }} justifyContent="space-between">
                       <Box sx={{ minWidth: 0 }}>
                         <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: "block" }}>
@@ -1025,7 +1025,7 @@ function AdminDashboard({ onLockout }) {
                   </Box>
                   <Stack spacing={1}>
                     {(runtimeCategories || []).map((cat) => (
-                      <Box key={`cfg-cat-${cat.key}`} sx={{ border: "1px solid #d8e3e8", borderRadius: 1.2, backgroundColor: "#fff", overflow: "hidden" }}>
+                      <Box key={`cfg-cat-${cat.key}`} sx={{ border: "1px solid #f0f0f0", borderRadius: 1.2, backgroundColor: "#fff", overflow: "hidden" }}>
                         <Box sx={{ px: 1.2, py: 0.9, borderBottom: "1px solid #e7eef1", backgroundColor: "#eff5f7" }}>
                           <Stack direction="row" justifyContent="space-between" alignItems="center">
                             <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{cat.key}</Typography>
@@ -1115,10 +1115,10 @@ function AdminDashboard({ onLockout }) {
                   </Typography>
                 </Box>
               ) : activeTable === "routing_keywords" ? (
-                <Box sx={{ border: "1px solid #d8e3e8", borderRadius: 1.5, backgroundColor: "#f8fbfc", p: 1.2, mb: 1.2 }}>
+                <Box sx={{ border: "1px solid #f0f0f0", borderRadius: 1.5, backgroundColor: "#f8fbfc", p: 1.2, mb: 1.2 }}>
                   <Stack spacing={1.2}>
                     {Object.entries(routingKeywords).filter(([sectionKey]) => sectionKey !== "tier3").map(([sectionKey, section]) => (
-                      <Box key={`kw-section-${sectionKey}`} sx={{ border: "1px solid #d8e3e8", borderRadius: 1.2, backgroundColor: "#fff", overflow: "hidden" }}>
+                      <Box key={`kw-section-${sectionKey}`} sx={{ border: "1px solid #f0f0f0", borderRadius: 1.2, backgroundColor: "#fff", overflow: "hidden" }}>
                         <Box sx={{ px: 1.2, py: 0.9, borderBottom: "1px solid #e7eef1", backgroundColor: "#eff5f7" }}>
                           <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{sectionKey}</Typography>
                           <Typography variant="caption" color="text.secondary">{section.description_zh || section.description || ""}</Typography>
@@ -1181,7 +1181,7 @@ function AdminDashboard({ onLockout }) {
                       </Box>
                     ))}
                     {routingKeywords.tier3 && (
-                      <Box sx={{ border: "1px solid #d8e3e8", borderRadius: 1.2, backgroundColor: "#fff", overflow: "hidden" }}>
+                      <Box sx={{ border: "1px solid #f0f0f0", borderRadius: 1.2, backgroundColor: "#fff", overflow: "hidden" }}>
                         <Box sx={{ px: 1.2, py: 0.9, borderBottom: "1px solid #e7eef1", backgroundColor: "#eff5f7" }}>
                           <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>tier3</Typography>
                           <Typography variant="caption" color="text.secondary">Tier-3 临床关键词</Typography>
@@ -1292,7 +1292,7 @@ function AdminDashboard({ onLockout }) {
                       生成邀请码
                     </Button>
                   </Stack>
-                  <TableContainer sx={{ border: "1px solid #d8e3e8", borderRadius: 1.5, backgroundColor: "#f8fbfc" }}>
+                  <TableContainer sx={{ border: "1px solid #f0f0f0", borderRadius: 1.5, backgroundColor: "#f8fbfc" }}>
                     <Table size="small">
                       <TableHead>
                         <TableRow>
@@ -1347,12 +1347,12 @@ function AdminDashboard({ onLockout }) {
                     const isDirty = (promptEdits[p.key] ?? p.content) !== p.content;
                     const isSaving = !!promptSaving[p.key];
                     return (
-                      <Box key={p.key} sx={{ border: "1px solid #d8e3e8", borderRadius: 1.5, overflow: "hidden" }}>
+                      <Box key={p.key} sx={{ border: "1px solid #f0f0f0", borderRadius: 1.5, overflow: "hidden" }}>
                         <Stack
                           direction="row"
                           alignItems="center"
                           justifyContent="space-between"
-                          sx={{ px: 1.5, py: 1, backgroundColor: "#eef4f6", borderBottom: "1px solid #d8e3e8" }}
+                          sx={{ px: 1.5, py: 1, backgroundColor: "#eef4f6", borderBottom: "1px solid #f0f0f0" }}
                         >
                           <Stack direction="row" spacing={1} alignItems="center">
                             <Chip
@@ -1402,7 +1402,7 @@ function AdminDashboard({ onLockout }) {
                 <>
                   <TableContainer
                     sx={{
-                      border: "1px solid #d8e3e8",
+                      border: "1px solid #f0f0f0",
                       borderRadius: 1.5,
                       backgroundColor: "#f8fbfc",
                       maxHeight: "74vh",

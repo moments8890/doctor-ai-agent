@@ -33,21 +33,20 @@ function isNLQuery(q) {
 
 function PatientRow({ patient, isSelected, isMobile, onClick }) {
   const age = patient.year_of_birth ? new Date().getFullYear() - patient.year_of_birth : null;
-  const avatarSize = isMobile ? 42 : 38;
-  const fontSize = isMobile ? "15px" : "14px";
   return (
     <Box onClick={onClick}
       sx={{
         display: "flex", alignItems: "center", gap: 1.5,
-        px: 2, py: 1.2, bgcolor: isSelected ? "#f0faf4" : "#fff",
+        px: 2, py: 1.5, bgcolor: isSelected ? "#f0faf4" : "#fff",
+        borderBottom: "0.5px solid #f0f0f0",
         cursor: "pointer", userSelect: "none", WebkitUserSelect: "none",
         "&:hover": isMobile ? undefined : { bgcolor: "#f5f5f5" },
         "&:active": { bgcolor: isMobile ? "#f5f5f5" : "#ebebeb" },
       }}>
-      <PatientAvatar name={patient.name} size={avatarSize} />
+      <PatientAvatar name={patient.name} size={44} />
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontWeight: 500, fontSize }}>{patient.name}</Typography>
-        <Typography variant="caption" color="text.secondary">
+        <Typography sx={{ fontWeight: 500, fontSize: 15 }}>{patient.name}</Typography>
+        <Typography sx={{ fontSize: 13, color: "#999" }}>
           {[
             patient.gender ? ({ male: "男", female: "女" }[patient.gender] || patient.gender) : null,
             age ? `${age}岁` : null,
@@ -93,7 +92,7 @@ function ImportCard({ importing, importError, onFileClick, onChatClick }) {
       </Box>
       {importError && (
         <Box sx={{ px: 2, py: 0.8, bgcolor: "#fff3f3" }}>
-          <Typography sx={{ fontSize: 12, color: "#e74c3c" }}>{importError}</Typography>
+          <Typography sx={{ fontSize: 12, color: "#FA5151" }}>{importError}</Typography>
         </Box>
       )}
     </Box>
@@ -104,7 +103,7 @@ function SearchBar({ patients, search, nlResults, nlLoading, onChange, onSubmit 
   const q = search.trim();
   const showNlBtn = q && isNLQuery(q) && nlResults === null;
   return (
-    <Box sx={{ px: 1.5, py: 1, borderBottom: "1px solid #e2e8f0", bgcolor: "#f7f7f7" }}>
+    <Box sx={{ px: 1.5, py: 1, borderBottom: "0.5px solid #f0f0f0", bgcolor: "#ededed" }}>
       <TextField
         size="small" fullWidth
         placeholder={`搜索患者${patients.length > 0 ? ` (共${patients.length}人)` : ""}，或用自然语言描述`}
@@ -125,7 +124,7 @@ function SearchBar({ patients, search, nlResults, nlLoading, onChange, onSubmit 
             </InputAdornment>
           ) : null,
         }}
-        sx={{ "& .MuiOutlinedInput-root": { borderRadius: "20px", bgcolor: "#fff" } }}
+        sx={{ "& .MuiOutlinedInput-root": { borderRadius: "4px", bgcolor: "#fff" } }}
       />
       {nlResults !== null && (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, pt: 0.5 }}>
@@ -161,8 +160,8 @@ function PatientGroupList({ filtered, search, selectedId, isMobile, navigate, on
   }
   return groupPatients(filtered).map(([letter, group]) => (
     <Box key={letter}>
-      <Box sx={{ px: 2, py: 0.5, bgcolor: "#f7f7f7", borderBottom: "1px solid #ebebeb" }}>
-        <Typography sx={{ fontSize: 12, color: "#888", fontWeight: 600 }}>{letter}</Typography>
+      <Box sx={{ px: 2, py: 0.5, bgcolor: "#f7f7f7", borderBottom: "0.5px solid #f0f0f0" }}>
+        <Typography sx={{ fontSize: 12, color: "#999999", fontWeight: 600 }}>{letter}</Typography>
       </Box>
       {group.map((p) => (
         <PatientRow
@@ -281,7 +280,7 @@ export default function PatientsSection({ doctorId, onNavigateToChat, onInsertCh
 
   return (
     <Box sx={{ display: "flex", height: "100%", overflow: "hidden" }}>
-      <Box sx={{ width: 300, flexShrink: 0, borderRight: "1px solid #e2e8f0", display: "flex", flexDirection: "column", bgcolor: "#f7f7f7" }}>
+      <Box sx={{ width: 300, flexShrink: 0, borderRight: "0.5px solid #d9d9d9", display: "flex", flexDirection: "column", bgcolor: "#f7f7f7" }}>
         <PatientListPane {...listPaneProps} />
       </Box>
       <Box sx={{ flex: 1, overflow: "hidden" }}>

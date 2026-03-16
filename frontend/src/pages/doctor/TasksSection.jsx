@@ -77,23 +77,23 @@ function TaskRow({ task, isOverdue, onComplete, onPostpone, onCancel }) {
   const TaskIcon = TASK_TYPE_ICON[task.task_type] || AssignmentOutlinedIcon;
   return (
     <Box sx={{ display: "flex", alignItems: "flex-start", px: 2, py: 1.4 }}>
-      <Box sx={{ width: 40, height: 40, borderRadius: "10px", bgcolor: iconColor,
+      <Box sx={{ width: 40, height: 40, borderRadius: "4px", bgcolor: iconColor,
         display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, mr: 1.5, mt: 0.3 }}>
         <TaskIcon sx={{ color: "#fff", fontSize: 22 }} />
       </Box>
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Box sx={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 1 }}>
-          <Typography variant="body2" sx={{ fontWeight: 600, color: isOverdue ? "#e74c3c" : "text.primary", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+          <Typography variant="body2" sx={{ fontWeight: 500, fontSize: 15, color: isOverdue ? "#FA5151" : "text.primary", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
             {task.title || TASK_TYPE_LABEL[task.task_type] || task.task_type}
           </Typography>
           {task.due_at && (
-            <Typography variant="caption" sx={{ color: isOverdue ? "#e74c3c" : "#bbb", flexShrink: 0, fontSize: 11 }}>
+            <Typography variant="caption" sx={{ color: isOverdue ? "#FA5151" : "#bbb", flexShrink: 0, fontSize: 11 }}>
               {task.due_at.slice(5, 10)}
             </Typography>
           )}
         </Box>
         {task.content && (
-          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <Typography sx={{ fontSize: 13, color: "#999", display: "block", mt: 0.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {task.content}
           </Typography>
         )}
@@ -112,7 +112,7 @@ function PostponeDialog({ open, isMobile, postponeDate, onChange, onClose, onCon
   return (
     <Dialog open={open} onClose={onClose}
       PaperProps={{ sx: isMobile
-        ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "16px 16px 0 0", width: "100%" }
+        ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "12px 12px 0 0", width: "100%" }
         : { borderRadius: 2, minWidth: 240 }
       }}
       sx={isMobile ? { "& .MuiDialog-container": { alignItems: "flex-end" } } : {}}>
@@ -122,11 +122,11 @@ function PostponeDialog({ open, isMobile, postponeDate, onChange, onClose, onCon
           value={postponeDate} onChange={(e) => onChange(e.target.value)} sx={{ mb: 2 }} />
         <Box sx={{ display: "flex", gap: 1.5 }}>
           <Box onClick={onClose}
-            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: 1.5, bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 14, color: "#666", "&:active": { opacity: 0.7 } }}>
+            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: "4px", bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 14, color: "#666", "&:active": { opacity: 0.7 } }}>
             取消
           </Box>
           <Box onClick={postponeDate ? onConfirm : undefined}
-            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: 1.5, bgcolor: postponeDate ? "#07C160" : "#e0e0e0", cursor: postponeDate ? "pointer" : "default", fontSize: 14, color: "#fff", fontWeight: 600, "&:active": postponeDate ? { opacity: 0.7 } : {} }}>
+            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: "4px", bgcolor: postponeDate ? "#07C160" : "#e0e0e0", cursor: postponeDate ? "pointer" : "default", fontSize: 14, color: "#fff", fontWeight: 600, "&:active": postponeDate ? { opacity: 0.7 } : {} }}>
             确认
           </Box>
         </Box>
@@ -139,7 +139,7 @@ function CancelDialog({ open, isMobile, onClose, onConfirm }) {
   return (
     <Dialog open={open} onClose={onClose}
       PaperProps={{ sx: isMobile
-        ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "16px 16px 0 0", width: "100%" }
+        ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "12px 12px 0 0", width: "100%" }
         : { borderRadius: 2, minWidth: 240 }
       }}
       sx={isMobile ? { "& .MuiDialog-container": { alignItems: "flex-end" } } : {}}>
@@ -148,11 +148,11 @@ function CancelDialog({ open, isMobile, onClose, onConfirm }) {
         <Typography sx={{ fontSize: 13, color: "#999", mb: 2.5, textAlign: "center" }}>此任务将被标记为已取消</Typography>
         <Box sx={{ display: "flex", gap: 1.5 }}>
           <Box onClick={onClose}
-            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: 1.5, bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 14, color: "#666", "&:active": { opacity: 0.7 } }}>
+            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: "4px", bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 14, color: "#666", "&:active": { opacity: 0.7 } }}>
             保留
           </Box>
           <Box onClick={onConfirm}
-            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: 1.5, bgcolor: "#e74c3c", cursor: "pointer", fontSize: 14, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
+            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: "4px", bgcolor: "#FA5151", cursor: "pointer", fontSize: 14, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
             确认取消
           </Box>
         </Box>
@@ -259,7 +259,7 @@ function TasksHeader({ statusFilter, loading, onFilterChange, onOpenCreate }) {
       <Box sx={{ display: "flex", gap: 0.6, flex: 1, overflowX: "auto", WebkitOverflowScrolling: "touch", "&::-webkit-scrollbar": { display: "none" } }}>
         {TASK_STATUS_OPTS.map((o) => (
           <Box key={o.value} onClick={() => onFilterChange(o.value)}
-            sx={{ px: 1.4, py: 0.4, borderRadius: "12px", cursor: "pointer", flexShrink: 0, fontSize: 13,
+            sx={{ px: 1.4, py: 0.4, borderRadius: "4px", cursor: "pointer", flexShrink: 0, fontSize: 13,
               bgcolor: statusFilter === o.value ? "#07C160" : "transparent",
               color: statusFilter === o.value ? "#fff" : "#555",
               fontWeight: statusFilter === o.value ? 600 : 400,
@@ -291,11 +291,11 @@ function TaskGroupList({ tasks, loading, error, taskGroups, sortedGroups, onErro
       {sortedGroups.map((group) => (
         <Box key={group}>
           <Box sx={{ px: 2, py: 0.6, pt: 1.2 }}>
-            <Typography sx={{ fontSize: 12, color: group === "已逾期" ? "#e74c3c" : "#999", fontWeight: 500 }}>{group}</Typography>
+            <Typography sx={{ fontSize: 12, color: group === "已逾期" ? "#FA5151" : "#999", fontWeight: 500 }}>{group}</Typography>
           </Box>
           <Box sx={{ bgcolor: "#fff" }}>
             {taskGroups[group].map((task, idx) => (
-              <Box key={task.id} sx={{ borderBottom: idx < taskGroups[group].length - 1 ? "1px solid #f2f2f2" : "none" }}>
+              <Box key={task.id} sx={{ borderBottom: idx < taskGroups[group].length - 1 ? "0.5px solid #f0f0f0" : "none" }}>
                 <TaskRow task={task} isOverdue={group === "已逾期"} onComplete={onComplete} onPostpone={onPostpone} onCancel={onCancel} />
               </Box>
             ))}
@@ -320,7 +320,7 @@ export default function TasksSection({ doctorId }) {
   const sortedGroups = GROUP_ORDER.filter((g) => taskGroups[g]);
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#ededed" }}>
       <TasksHeader statusFilter={statusFilter} loading={loading} onFilterChange={setStatusFilter}
         onOpenCreate={() => { setCreateOpen(true); setCreateError(""); getPatients(doctorId, {}, 200).then((d) => setPatientOptions(d.items || [])).catch(() => {}); }} />
       <TaskGroupList tasks={tasks} loading={loading} error={error} taskGroups={taskGroups} sortedGroups={sortedGroups}

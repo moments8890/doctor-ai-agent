@@ -71,7 +71,7 @@ function PendingRecordBanner({ isMobile, pendingRecord, onConfirm, onAbandon }) 
 
 function DesktopSidebar({ activeSection, doctorName, doctorId, navBadge, onNav, onLogout }) {
   return (
-    <Box sx={{ width: 220, flexShrink: 0, borderRight: "1px solid #e5e5e5", backgroundColor: "#f7f7f7", display: "flex", flexDirection: "column", py: 2, px: 0 }}>
+    <Box sx={{ width: 220, flexShrink: 0, borderRight: "0.5px solid #d9d9d9", backgroundColor: "#f7f7f7", display: "flex", flexDirection: "column", py: 2, px: 0 }}>
       <Box sx={{ mb: 2, px: 2 }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#07C160" }}>医生工作台</Typography>
         <Typography variant="caption" color="text.secondary">{doctorName || doctorId}</Typography>
@@ -81,19 +81,19 @@ function DesktopSidebar({ activeSection, doctorName, doctorId, navBadge, onNav, 
           <Box key={item.key} onClick={() => onNav(item.key)}
             sx={{ display: "flex", alignItems: "center", gap: 1.2, px: 2, py: 1.2, cursor: "pointer",
               bgcolor: activeSection === item.key ? "#07C160" : "transparent",
-              color: activeSection === item.key ? "#fff" : "#555",
-              "&:hover": { bgcolor: activeSection === item.key ? "#07C160" : "rgba(0,0,0,0.05)" },
+              color: activeSection === item.key ? "#fff" : "#999999",
+              "&:hover": { bgcolor: activeSection === item.key ? "#07C160" : "#f0f0f0" },
               "&:active": { opacity: 0.8 } }}>
-            <Box sx={{ "& svg": { fontSize: 20, color: activeSection === item.key ? "#fff" : "#555" } }}>
+            <Box sx={{ "& svg": { fontSize: 20, color: activeSection === item.key ? "#fff" : "#999999" } }}>
               {navBadge[item.key] > 0 ? <Badge badgeContent={navBadge[item.key]} color="error">{item.icon}</Badge> : item.icon}
             </Box>
             <Typography sx={{ fontSize: 14, fontWeight: activeSection === item.key ? 600 : 400, color: "inherit" }}>{item.label}</Typography>
           </Box>
         ))}
       </Box>
-      <Box onClick={onLogout} sx={{ display: "flex", alignItems: "center", gap: 1.2, px: 2, py: 1.2, cursor: "pointer", color: "#888", "&:hover": { bgcolor: "rgba(0,0,0,0.05)" }, "&:active": { opacity: 0.8 } }}>
-        <LogoutIcon fontSize="small" sx={{ color: "#888" }} />
-        <Typography sx={{ fontSize: 14, color: "#888" }}>退出登录</Typography>
+      <Box onClick={onLogout} sx={{ display: "flex", alignItems: "center", gap: 1.2, px: 2, py: 1.2, cursor: "pointer", color: "#999999", "&:hover": { bgcolor: "#f0f0f0" }, "&:active": { opacity: 0.8 } }}>
+        <LogoutIcon fontSize="small" sx={{ color: "#999999" }} />
+        <Typography sx={{ fontSize: 14, color: "#999999" }}>退出登录</Typography>
       </Box>
     </Box>
   );
@@ -101,15 +101,15 @@ function DesktopSidebar({ activeSection, doctorName, doctorId, navBadge, onNav, 
 
 function MobileBottomNav({ activeSection, pendingTaskCount, pendingRecord, onNav }) {
   return (
-    <Box sx={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 10, borderTop: "1px solid #e2e8f0" }}>
+    <Box sx={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 10, borderTop: "0.5px solid #d9d9d9", bgcolor: "#f7f7f7" }}>
       <BottomNavigationMui value={activeSection} onChange={(_, val) => onNav(val)}
-        sx={{ height: 64, "& .MuiBottomNavigationAction-root": { minWidth: 56, paddingTop: "8px", color: "#888" }, "& .Mui-selected": { color: "#07C160" }, "& .Mui-selected .MuiBottomNavigationAction-label": { color: "#07C160", fontWeight: 600 } }}>
+        sx={{ height: 64, bgcolor: "#f7f7f7", paddingBottom: "env(safe-area-inset-bottom)", "& .MuiBottomNavigationAction-root": { minWidth: 56, paddingTop: "8px", color: "#999999" }, "& .Mui-selected": { color: "#07C160" }, "& .Mui-selected .MuiBottomNavigationAction-label": { color: "#07C160", fontWeight: 600 } }}>
         {NAV.map((item) => (
           <BottomNavigationActionMui key={item.key} label={item.label} value={item.key} showLabel
             icon={item.key === "tasks" && pendingTaskCount > 0 ? <Badge badgeContent={pendingTaskCount} color="error">{item.icon}</Badge>
               : item.key === "chat" && pendingRecord ? <Badge variant="dot" color="warning">{item.icon}</Badge>
               : item.icon}
-            sx={{ minWidth: 0, "& .MuiBottomNavigationAction-label": { fontSize: 11 } }} />
+            sx={{ minWidth: 0, "& .MuiBottomNavigationAction-label": { fontSize: 10 } }} />
         ))}
       </BottomNavigationMui>
     </Box>

@@ -20,9 +20,9 @@ import RecordFields from "../../components/RecordFields";
 import { t } from "../../i18n";
 import { QUICK_COMMANDS } from "./constants";
 
-function MsgAvatar({ isUser, size = 36 }) {
+function MsgAvatar({ isUser, size = 40 }) {
   return (
-    <Box sx={{ width: size, height: size, borderRadius: "8px", flexShrink: 0, mb: 0.5,
+    <Box sx={{ width: size, height: size, borderRadius: "4px", flexShrink: 0, mb: 0.5,
       bgcolor: isUser ? "#5b9bd5" : "#07C160",
       display: "flex", alignItems: "center", justifyContent: "center" }}>
       {isUser
@@ -69,15 +69,21 @@ function MsgBubble({ msg, onConfirm, onAbandon }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isUser = msg.role === "user";
-  const bubbleRadius = isUser ? "14px 2px 14px 14px" : "2px 14px 14px 14px";
-  const bgColor = isUser ? "#07C160" : "#fff";
-  const textColor = isUser ? (isMobile ? "#fff" : "#fff") : (isMobile ? "#111" : "#191919");
+  const bubbleRadius = isUser ? "4px 4px 0 4px" : "4px 4px 4px 0";
+  const bgColor = isUser ? "#95EC69" : "#fff";
+  const textColor = isUser ? "#111111" : (isMobile ? "#111111" : "#111111");
 
   return (
     <Box sx={{ display: "flex", flexDirection: isUser ? "row-reverse" : "row", alignItems: "flex-end", gap: isMobile ? 1 : 1.2, px: isMobile ? 1.5 : 2 }}>
-      <MsgAvatar isUser={isUser} size={isMobile ? 36 : 38} />
+      <MsgAvatar isUser={isUser} size={40} />
       <Box sx={{ maxWidth: isMobile ? "72%" : "min(70%, 600px)", display: "flex", flexDirection: "column", alignItems: isUser ? "flex-end" : "flex-start" }}>
-        <Box sx={{ px: isMobile ? "12px" : "14px", py: isMobile ? "9px" : "10px", borderRadius: bubbleRadius, bgcolor: bgColor, boxShadow: isMobile ? "0 1px 2px rgba(0,0,0,0.1)" : "0 1px 3px rgba(0,0,0,0.08)" }}>
+        <Box sx={{ position: "relative", px: isMobile ? "12px" : "14px", py: isMobile ? "9px" : "10px", borderRadius: bubbleRadius, bgcolor: bgColor, boxShadow: "none",
+          "&::after": {
+            content: '""', position: "absolute", bottom: 0, width: 0, height: 0, border: "6px solid transparent",
+            ...(isUser
+              ? { right: "-10px", borderLeftColor: bgColor, borderBottomColor: bgColor }
+              : { left: "-10px", borderRightColor: bgColor, borderBottomColor: bgColor }),
+          } }}>
           <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", lineHeight: isMobile ? 1.8 : 1.7, color: textColor }}>
             {msg.content}
           </Typography>
@@ -105,10 +111,10 @@ function LoadingBubble({ isMobile }) {
   }
   return (
     <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1, px: 1.5 }}>
-      <Box sx={{ width: 36, height: 36, borderRadius: "8px", bgcolor: "#07C160", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+      <Box sx={{ width: 40, height: 40, borderRadius: "4px", bgcolor: "#07C160", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
         <SmartToyOutlinedIcon sx={{ color: "#fff", fontSize: 20 }} />
       </Box>
-      <Box sx={{ px: "12px", py: "10px", borderRadius: "2px 14px 14px 14px", bgcolor: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,0.1)", display: "flex", alignItems: "center", gap: 0.5 }}>
+      <Box sx={{ px: "12px", py: "10px", borderRadius: "4px 4px 4px 0", bgcolor: "#fff", boxShadow: "none", display: "flex", alignItems: "center", gap: 0.5 }}>
         {[0, 1, 2].map((i) => (
           <Box key={i} sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "#aaa", animation: "dotPulse 1.4s ease-in-out infinite", animationDelay: `${i * 0.2}s`, "@keyframes dotPulse": { "0%, 80%, 100%": { opacity: 0.3, transform: "scale(0.8)" }, "40%": { opacity: 1, transform: "scale(1)" } } }} />
         ))}
@@ -132,7 +138,7 @@ function QuickCommandsPanel({ isMobile, shown, onToggle, onSelect }) {
             <Box key={cmd.label} component="button" onClick={() => onSelect(cmd.insert)}
               sx={{ display: "inline-flex", flexDirection: isMobile ? "column" : "row", alignItems: "center", justifyContent: "center",
                 gap: isMobile ? 0.3 : 0.5, px: isMobile ? 0.3 : 1.2, py: 0.5,
-                borderRadius: isMobile ? "8px" : "14px",
+                borderRadius: "4px",
                 border: isMobile ? "none" : "1px solid #e5e5e5",
                 backgroundColor: isMobile ? "transparent" : "#fff",
                 cursor: "pointer", fontSize: isMobile ? 10 : 11, color: "#555",
@@ -190,7 +196,7 @@ function MobileInputBar({ input, loading, isProcessing, failedText, mediaError, 
           onChange={(e) => onInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); } }}
           disabled={isProcessing}
-          sx={{ "& .MuiOutlinedInput-root": { borderRadius: "20px", backgroundColor: "#fff", fontSize: "0.9rem", "& fieldset": { borderColor: "#ddd" } } }} />
+          sx={{ "& .MuiOutlinedInput-root": { borderRadius: "4px", backgroundColor: "#fff", fontSize: "0.9rem", "& fieldset": { borderColor: "#e0e0e0" } } }} />
         <IconButton onClick={onSend} disabled={loading || !input.trim()}
           sx={{ bgcolor: "#07C160", color: "#fff", p: 1.2, borderRadius: "50%", "&:hover": { bgcolor: "#06ad56" }, flexShrink: 0, minWidth: 44, minHeight: 44 }}>
           <SendOutlinedIcon fontSize="small" />
@@ -202,7 +208,7 @@ function MobileInputBar({ input, loading, isProcessing, failedText, mediaError, 
 
 function DesktopInputBar({ input, loading, isProcessing, failedText, mediaError, fileInputRef, onInput, onSend, onFileClick, onRetry, onDismissError, onDismissFailed }) {
   return (
-    <Box sx={{ px: 2, py: 1.2, borderTop: "1px solid #e5e5e5", backgroundColor: "#f7f7f7" }}>
+    <Box sx={{ px: 2, py: 1.2, borderTop: "0.5px solid #d9d9d9", backgroundColor: "#f5f5f5" }}>
       {failedText && <FailedMessageBanner onRetry={onRetry} onDismiss={onDismissFailed} />}
       {mediaError && <Alert severity="error" onClose={onDismissError} sx={{ mb: 1, py: 0 }}>{mediaError}</Alert>}
       <Stack direction="row" spacing={1} alignItems="flex-end">
@@ -316,9 +322,9 @@ function useChatState({ doctorId, onMessageCountChange, onPatientCreated, onCont
 
 function ChatTopbar({ isMobile, doctorId, onClearClick }) {
   return (
-    <Box sx={{ px: isMobile ? 2 : 3, height: 48, borderBottom: "1px solid #e5e5e5", backgroundColor: isMobile ? "#ededed" : "#fff", display: "flex", alignItems: "center" }}>
+    <Box sx={{ px: isMobile ? 2 : 3, height: 48, borderBottom: "0.5px solid #d9d9d9", backgroundColor: isMobile ? "#f7f7f7" : "#fff", display: "flex", alignItems: "center" }}>
       <Box sx={{ flex: 1, textAlign: isMobile ? "center" : "left" }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "#191919", fontSize: 15 }}>{t("chat.workspaceTitle")}</Typography>
+        <Typography variant="subtitle2" sx={{ fontWeight: 500, color: "#111111", fontSize: 17 }}>{t("chat.workspaceTitle")}</Typography>
         {isMobile && doctorId && (
           <Typography variant="caption" sx={{ color: "#999", fontSize: 10, display: "block", lineHeight: 1 }}>ID: {doctorId}</Typography>
         )}

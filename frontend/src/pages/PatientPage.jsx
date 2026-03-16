@@ -94,7 +94,7 @@ function LoginPanel({ doctorId, onLogin }) {
         justifyContent: "center",
         px: 2,
         background:
-          "radial-gradient(1200px 640px at 92% -8%, rgba(15,118,110,0.12), transparent 65%), #f3f7f8",
+          "radial-gradient(1200px 640px at 92% -8%, rgba(7,193,96,0.12), transparent 65%), #ededed",
       }}
     >
       <Card sx={{ width: "100%", maxWidth: 400, borderRadius: 2 }}>

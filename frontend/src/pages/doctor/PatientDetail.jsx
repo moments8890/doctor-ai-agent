@@ -36,8 +36,8 @@ function RecordFilterPills({ value, onChange }) {
       {RECORD_TYPE_FILTER_OPTS.map((opt) => (
         <Box key={opt.value} onClick={() => onChange(opt.value)}
           sx={{
-            px: 1.4, py: 0.35, borderRadius: "12px", cursor: "pointer", flexShrink: 0, fontSize: 12,
-            bgcolor: value === opt.value ? "#07C160" : "#f2f2f2",
+            px: 1.4, py: 0.35, borderRadius: "4px", cursor: "pointer", flexShrink: 0, fontSize: 12,
+            bgcolor: value === opt.value ? "#07C160" : "#f0f0f0",
             color: value === opt.value ? "#fff" : "#666",
             fontWeight: value === opt.value ? 600 : 400,
           }}>
@@ -54,7 +54,7 @@ function DeletePatientDialog({ open, patientName, deleting, isMobile, onConfirm,
       open={open}
       onClose={onClose}
       PaperProps={{ sx: isMobile
-        ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "16px 16px 0 0", width: "100%" }
+        ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "12px 12px 0 0", width: "100%" }
         : { borderRadius: 2, minWidth: 300 }
       }}
       sx={isMobile ? { "& .MuiDialog-container": { alignItems: "flex-end" } } : {}}
@@ -66,11 +66,11 @@ function DeletePatientDialog({ open, patientName, deleting, isMobile, onConfirm,
         </Typography>
         <Box sx={{ display: "flex", gap: 1.5 }}>
           <Box onClick={onClose}
-            sx={{ flex: 1, textAlign: "center", py: 1.3, borderRadius: 1.5, bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 15, color: "#666", "&:active": { opacity: 0.7 } }}>
+            sx={{ flex: 1, textAlign: "center", py: 1.3, borderRadius: "4px", bgcolor: "#f5f5f5", cursor: "pointer", fontSize: 15, color: "#666", "&:active": { opacity: 0.7 } }}>
             取消
           </Box>
           <Box onClick={!deleting ? onConfirm : undefined}
-            sx={{ flex: 1, textAlign: "center", py: 1.3, borderRadius: 1.5, bgcolor: "#e74c3c", cursor: deleting ? "default" : "pointer", fontSize: 15, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
+            sx={{ flex: 1, textAlign: "center", py: 1.3, borderRadius: "4px", bgcolor: "#FA5151", cursor: deleting ? "default" : "pointer", fontSize: 15, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
             {deleting ? "删除中…" : "确认删除"}
           </Box>
         </Box>
@@ -84,7 +84,7 @@ function PatientLabelRow({ patient, patientLabels, labelPickerOpen, labelAnchorR
     <Stack direction="row" spacing={0.5} flexWrap="wrap" alignItems="center" sx={{ mb: 1 }}>
       {patientLabels.map((l) => (
         <Chip key={l.id} label={l.name} size="small"
-          sx={{ backgroundColor: l.color || "#e2e8f0", fontSize: 11, height: 22 }}
+          sx={{ backgroundColor: l.color || "#f0f0f0", fontSize: 11, height: 22, borderRadius: "4px" }}
           onDelete={() => onRemoveLabel(l.id)} />
       ))}
       <Box sx={{ position: "relative" }}>
@@ -111,7 +111,7 @@ function PatientLabelRow({ patient, patientLabels, labelPickerOpen, labelAnchorR
 
 function PatientActionBar({ exportingPdf, exportingReport, onExportPdf, onExportReport, onDeleteOpen }) {
   return (
-    <Stack direction="row" spacing={2} sx={{ pt: 0.5, borderTop: "1px solid #f2f2f2" }} alignItems="center">
+    <Stack direction="row" spacing={2} sx={{ pt: 0.5, borderTop: "0.5px solid #f0f0f0" }} alignItems="center">
       <Box onClick={!exportingPdf && !exportingReport ? onExportPdf : undefined}
         sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: exportingPdf ? "default" : "pointer", color: exportingPdf ? "#ccc" : "#07C160", fontSize: 13 }}>
         {exportingPdf ? <CircularProgress size={12} sx={{ color: "#ccc" }} /> : <FileDownloadOutlinedIcon sx={{ fontSize: 16 }} />}
@@ -124,7 +124,7 @@ function PatientActionBar({ exportingPdf, exportingReport, onExportPdf, onExport
       </Box>
       <Box sx={{ flex: 1 }} />
       <Box onClick={onDeleteOpen}
-        sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: "pointer", color: "#e74c3c", fontSize: 13, "&:active": { opacity: 0.6 } }}>
+        sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: "pointer", color: "#FA5151", fontSize: 13, "&:active": { opacity: 0.6 } }}>
         <DeleteOutlineIcon sx={{ fontSize: 16 }} />
         删除患者
       </Box>
@@ -230,7 +230,7 @@ export default function PatientDetail({ patient, doctorId, onDeleted }) {
   const filteredRecords = recordTypeFilter ? records.filter((r) => r.record_type === recordTypeFilter) : records;
 
   return (
-    <Box sx={{ overflowY: "auto", height: "100%", bgcolor: "#f7f7f7" }}>
+    <Box sx={{ overflowY: "auto", height: "100%", bgcolor: "#ededed" }}>
       <PatientProfileBlock patient={patient} age={age} patientLabels={patientLabels} labelPickerOpen={labelPickerOpen} labelAnchorRef={labelAnchorRef} allLabels={allLabels} labelError={labelError} exportingPdf={exportingPdf} exportingReport={exportingReport}
         onOpenLabelPicker={handleOpenLabelPicker} onRemoveLabel={handleRemoveLabel} onAssignLabel={handleAssignLabel} onLabelsChange={setPatientLabels} onCloseLabelPicker={() => setLabelPickerOpen(false)} onExportPdf={handleExportPdf} onExportReport={handleExportReport} onDeleteOpen={() => setDeleteConfirmOpen(true)} />
       {exportError && <Typography variant="caption" color="error.main" sx={{ display: "block", px: 2.5, mt: 0.5 }}>{exportError}</Typography>}

@@ -108,7 +108,7 @@ function TaskCard({ task, onComplete, onCancel, onPostpone }) {
     <Card
       sx={{
         borderRadius: 1.5,
-        borderLeft: `4px solid ${overdue && isPending ? "#ef4444" : dueSoon && isPending ? "#f97316" : isPending ? "#0f766e" : "#cbd5e1"}`,
+        borderLeft: `4px solid ${overdue && isPending ? "#ef4444" : dueSoon && isPending ? "#f97316" : isPending ? "#07C160" : "#cbd5e1"}`,
         opacity: task.status === "cancelled" ? 0.6 : 1,
       }}
     >

@@ -71,7 +71,7 @@ function getTimelineSummary(event) {
 
 const detailTableSx = {
   mt: 0.6,
-  border: "1px solid #d8e3e8",
+  border: "1px solid #f0f0f0",
   borderRadius: 1.5,
   backgroundColor: "#f8fbfc",
 };
