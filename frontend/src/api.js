@@ -635,6 +635,75 @@ export async function sendPatientMessage(patientToken, text) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Patient interview API (ADR 0016)
+// ---------------------------------------------------------------------------
+
+export async function listDoctors() {
+  const res = await fetch(apiUrl("/api/patient/doctors"));
+  return res.json();
+}
+
+export async function patientRegister(doctorId, name, gender, yearOfBirth, phone) {
+  const res = await fetch(apiUrl("/api/patient/register"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ doctor_id: doctorId, name, gender, year_of_birth: yearOfBirth, phone }),
+  });
+  if (!res.ok) {
+    const err = new Error(await readError(res));
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+
+export async function patientLogin(phone, yearOfBirth, doctorId) {
+  const res = await fetch(apiUrl("/api/patient/login"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, year_of_birth: yearOfBirth, doctor_id: doctorId || undefined }),
+  });
+  if (!res.ok) {
+    const err = new Error(await readError(res));
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+
+export async function interviewStart(token) {
+  return patientRequest("/api/patient/interview/start", token, { method: "POST" });
+}
+
+export async function interviewTurn(token, sessionId, text) {
+  return patientRequest("/api/patient/interview/turn", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: sessionId, text }),
+  });
+}
+
+export async function interviewCurrent(token) {
+  return patientRequest("/api/patient/interview/current", token);
+}
+
+export async function interviewConfirm(token, sessionId) {
+  return patientRequest("/api/patient/interview/confirm", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: sessionId }),
+  });
+}
+
+export async function interviewCancel(token, sessionId) {
+  return patientRequest("/api/patient/interview/cancel", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: sessionId }),
+  });
+}
+
 export async function getKnowledgeItems(doctorId) {
   return request(`/api/manage/knowledge?doctor_id=${doctorId}`);
 }
