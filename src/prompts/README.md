@@ -18,3 +18,4 @@ LLM prompt files — one `.md` file per prompt.  Edit directly to tune behavior.
 | `vision-import.md` | `services/record_import/vision_import.py` | Extract outpatient fields + patient info from medical record images |
 | `patient-chat.md` | `channels/wechat/patient_pipeline.py` | Patient-facing chat assistant (non-doctor) |
 | `report-extract.md` | `services/export/outpatient_report.py` | Extract outpatient report fields (template: `{records_text}`) |
+| `patient-interview.md` | `services/patient_interview/turn.py` | AI-guided patient pre-consultation interview (ADR 0016) |
