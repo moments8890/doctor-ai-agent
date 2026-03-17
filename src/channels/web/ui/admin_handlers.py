@@ -101,7 +101,6 @@ def _serialize_record_item(record, pname: Optional[str]) -> dict:
         "id": record.id, "patient_id": record.patient_id, "doctor_id": record.doctor_id,
         "patient_name": pname, "record_type": record.record_type or "visit",
         "content": record.content, "tags": _parse_tags(record.tags),
-        "encounter_type": record.encounter_type or "unknown",
         "created_at": _fmt_ts(record.created_at), "updated_at": _fmt_ts(record.updated_at),
     }
 

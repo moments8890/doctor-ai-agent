@@ -1,0 +1,4558 @@
+[
+  {
+    "case_id": "LLM-GEN-CODEX-001",
+    "title": "LLM-generated (codex) batch 1: neurology",
+    "source": "codex",
+    "batch": 0,
+    "intent_sequence": [
+      "create_patient",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "王建国 右瘫95min 创建"
+      },
+      {
+        "speaker": "doctor",
+        "text": "58男 急诊神经科 突发失语+右侧肢体无力1.5h，NIHSS 13，BP 176/98，血糖7.2，头颅CT未见出血，阿替普酶0.9mg/kg总量63mg 先10%静推6.3mg 余56.7mg泵入，DNT 32min"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补一句，CTA示左侧M2闭塞，先记溶栓后桥接取栓评估"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "NIHSS",
+          "阿替普酶",
+          "DNT",
+          "左侧M2闭塞"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-002",
+    "title": "LLM-generated (codex) batch 1: neurology",
+    "source": "codex",
+    "batch": 0,
+    "intent_sequence": [
+      "query_records",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "查下赵女士上次溶栓记录"
+      },
+      {
+        "speaker": "doctor",
+        "text": "找到后面接一条：62F，卒中单元，今晨再发右手笨拙40min，既往3个月前左侧MCA梗死溶栓后mRS 1，这次NIHSS 4，DWI新发点状高信号，INR 1.02，暂不重复溶栓，双抗阿司匹林100mg qd+氯吡格雷75mg qd 21天"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "mRS",
+          "DWI",
+          "双抗",
+          "卒中单元"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-003",
+    "title": "LLM-generated (codex) batch 1: neurology",
+    "source": "codex",
+    "batch": 0,
+    "intent_sequence": [
+      "add_record",
+      "update_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先记录：BP 182/106, NIHSS 16, DWI阳性，左侧MCA区域"
+      },
+      {
+        "speaker": "doctor",
+        "text": "等下，刚才时间说错了，发病到院不是2h是2h40min，阿替普酶按72kg算总量64.8mg，DNT 45min，已开始静滴"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把上一条里NIHSS改成15，复测右下肢其实能抗重力，GCS 15"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "DWI",
+          "NIHSS",
+          "阿替普酶",
+          "GCS"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-004",
+    "title": "LLM-generated (codex) batch 1: neurology",
+    "source": "codex",
+    "batch": 0,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "患者刘小燕，男，68岁，因突发言语不清伴右侧肢体无力3小时入院，收入神经内科。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "入院记录补全：既往房颤未规律抗凝，NIHSS 11，ASPECTS 8分，CTA示左侧颈内动脉末端闭塞，先予阿替普酶0.9mg/kg总量58.5mg，DNT 38min，随后转导管室机械取栓，DPT 92min，TICI 2b。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "安排3天后复评神经功能和吞咽，若稳定再做出院后2周随访，目标mRS降到2以内。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "ASPECTS",
+          "机械取栓",
+          "DPT",
+          "TICI"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-005",
+    "title": "LLM-generated (codex) batch 1: neurology",
+    "source": "codex",
+    "batch": 0,
+    "intent_sequence": [
+      "add_record",
+      "create_patient",
+      "update_patient"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "急诊这边补一条，62F，大面积脑梗，NIHSS 18，取栓准备"
+      },
+      {
+        "speaker": "doctor",
+        "text": "建新患者：女62岁，发病4h10min到院，先外院阿替普酶半程后转入，本院CTA示基底动脉远端血栓，肌酐89，纤维蛋白原3.6"
+      },
+      {
+        "speaker": "doctor",
+        "text": "不对，体重不是60kg是57kg，把基础信息改下；病程里写明桥接治疗后行机械取栓，首过再通TICI 3"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "桥接治疗",
+          "基底动脉",
+          "TICI 3",
+          "NIHSS"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-006",
+    "title": "LLM-generated (codex) batch 1: neurology",
+    "source": "codex",
+    "batch": 0,
+    "intent_sequence": [
+      "add_record",
+      "export_records"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "就这样，左侧大脑中动脉闭塞，NIHSS 14，血压178，记上"
+      },
+      {
+        "speaker": "doctor",
+        "text": "口述完整点：急诊神经科男71岁，发病2h15min，阿替普酶按66kg给59.4mg，DNT 29min；CTP有半暗带，随后取栓一次通过，DPT 80min，术后NIHSS降到6"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把这次急救记录导出一份，带上术前术后评分和mRS出院估计3分"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "CTP",
+          "半暗带",
+          "DNT",
+          "mRS"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-007",
+    "title": "LLM-generated (codex) batch 1: neurology",
+    "source": "codex",
+    "batch": 0,
+    "intent_sequence": [
+      "list_tasks",
+      "complete_task",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先看待办里孙文博那个复查有没有做"
+      },
+      {
+        "speaker": "doctor",
+        "text": "如果没做就先标今天已电话随访完成"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再加记录：孙光明，男55岁，溶栓后第7天，NIHSS 8降至3，右上肢肌力4级，阿托伐他汀40mg qn继续，教育戒烟控压，2周后复诊"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "电话随访",
+          "NIHSS动态",
+          "阿托伐他汀",
+          "康复"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-008",
+    "title": "LLM-generated (codex) batch 1: neurology",
+    "source": "codex",
+    "batch": 0,
+    "intent_sequence": [
+      "list_patients",
+      "create_patient",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "把卒中单元新来的建一下"
+      },
+      {
+        "speaker": "doctor",
+        "text": "先看下列表里有没有同名重号"
+      },
+      {
+        "speaker": "doctor",
+        "text": "没有的话新建：张淑芳，女79岁，急诊经绿色通道入卒中单元，发病3h20min，NIHSS 9，BP 165/92，INR 0.96，阿替普酶54mg已用，DNT 34min；再补病程记录写24h后复查CT"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "绿色通道",
+          "卒中单元",
+          "INR",
+          "24h复查CT"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-009",
+    "title": "LLM-generated (codex) batch 1: neurology",
+    "source": "codex",
+    "batch": 0,
+    "intent_sequence": [
+      "query_records",
+      "update_patient",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "今天门诊追一下陈明辉"
+      },
+      {
+        "speaker": "doctor",
+        "text": "先查历史，去年右侧M1闭塞取栓后出院mRS 2，那次NIHSS 17降到5"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把患者信息更新成现住康复院区；再记门诊随访：女74岁，现mRS 1，MMSE 27，血压132/78，继续利伐沙班20mg qn，3个月后复诊"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 0
+      },
+      "must_include_any_of": [
+        [
+          "门诊随访",
+          "mRS",
+          "MMSE",
+          "利伐沙班"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-010",
+    "title": "LLM-generated (codex) batch 1: neurology",
+    "source": "codex",
+    "batch": 0,
+    "intent_sequence": [
+      "add_record",
+      "postpone_task",
+      "cancel_task"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "补个出院前记录"
+      },
+      {
+        "speaker": "doctor",
+        "text": "昨晚那个90岁男患，等下，年龄我说错了，89岁，急性左侧ICA闭塞，桥接取栓后NIHSS 20到9，吞咽还是差，出院小结写阿司匹林100mg qd+瑞舒伐他汀20mg qn"
+      },
+      {
+        "speaker": "doctor",
+        "text": "另外把明天门诊拆线随访任务往后延7天，家属说先去康复医院；原来那个重复创建的出院宣教任务取消"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "出院小结",
+          "ICA闭塞",
+          "NIHSS",
+          "任务调整"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-011",
+    "title": "LLM-generated (codex) batch 2: neurology",
+    "source": "codex",
+    "batch": 1,
+    "intent_sequence": [
+      "create_patient",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "王凤英 右基底节出血 90min 创建"
+      },
+      {
+        "speaker": "doctor",
+        "text": "68女 急诊入院 BP 212/118 GCS 12 血肿量约28ml 中线移位4mm 先记尼卡地平2mg/h静滴"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补一句 无抗凝史 INR 1.03"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "脑出血",
+          "GCS",
+          "血肿扩大",
+          "尼卡地平",
+          "急诊"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-012",
+    "title": "LLM-generated (codex) batch 2: neurology",
+    "source": "codex",
+    "batch": 1,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "update_patient"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先记急诊这个，54M 小脑出血，CTA未见AVM，GCS 10，血肿直径3.6cm，第四脑室受压"
+      },
+      {
+        "speaker": "doctor",
+        "text": "加上：呕吐3次，双瞳等大2.5mm，对光在，甘露醇125ml q8h先用"
+      },
+      {
+        "speaker": "doctor",
+        "text": "患者信息补完整，家属说发病前有高血压10年，平时氨氯地平5mg间断吃"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "小脑出血",
+          "GCS",
+          "甘露醇",
+          "第四脑室受压",
+          "神经外科"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-013",
+    "title": "LLM-generated (codex) batch 2: neurology",
+    "source": "codex",
+    "batch": 1,
+    "intent_sequence": [
+      "query_records",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "查下3床既往SAH记录"
+      },
+      {
+        "speaker": "doctor",
+        "text": "找到了就续一条：女，46岁，动脉瘤性蛛网膜下腔出血术后第5天，Hunt-Hess 3级，Fisher 4级，今晨头痛加重，TCD提示左侧MCA 165cm/s，考虑血管痉挛"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再约个48小时复查CTA和电解质，Na 131 mmol/L也记上"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "SAH",
+          "Hunt-Hess",
+          "Fisher",
+          "血管痉挛",
+          "CTA"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-014",
+    "title": "LLM-generated (codex) batch 2: neurology",
+    "source": "codex",
+    "batch": 1,
+    "intent_sequence": [
+      "list_tasks",
+      "complete_task",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "今天把待办过一下"
+      },
+      {
+        "speaker": "doctor",
+        "text": "先把7床\"复评拔EVD时机\"标完成，刚做完夹管试验6小时，ICP 12-16mmHg，GCS 13"
+      },
+      {
+        "speaker": "doctor",
+        "text": "然后补病程：脑室出血并梗阻性脑积水，CSF淡血性，24h引流量92ml，无新发瞳孔改变"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "脑室出血",
+          "EVD",
+          "ICP",
+          "GCS",
+          "神经重症"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-015",
+    "title": "LLM-generated (codex) batch 2: neurology",
+    "source": "codex",
+    "batch": 1,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "postpone_task"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "语音记一下，32岁产后女患者，lobar ICH，左额叶血肿约18ml，GCS 15，BP 168/96，就这样先建上"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再补，等下，刚才说错了，不是18ml，是22ml，CTA spot sign阳性，拉贝洛尔10mg iv push已给"
+      },
+      {
+        "speaker": "doctor",
+        "text": "三天后复查头颅CT的提醒先往后顺延到明晚，她现在还在手术排队"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "叶性脑出血",
+          "spot sign",
+          "拉贝洛尔",
+          "CT复查",
+          "急诊"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-016",
+    "title": "LLM-generated (codex) batch 2: neurology",
+    "source": "codex",
+    "batch": 1,
+    "intent_sequence": [
+      "add_record",
+      "update_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "补一条病程，神经ICU 61男，丘脑出血破入脑室，入科时GCS 8，现镇静减量后E3V2M5"
+      },
+      {
+        "speaker": "doctor",
+        "text": "不对，刚才说错了，M分应该是4，不是5；另外ICP峰值27mmHg，3%高渗盐水250ml已用，血钠目标145-150"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "丘脑出血",
+          "脑室积血",
+          "ICP",
+          "高渗盐水",
+          "神经重症"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-017",
+    "title": "LLM-generated (codex) batch 2: neurology",
+    "source": "codex",
+    "batch": 1,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "门诊复诊这个先建患者。患者张国庆，男，73岁，3周前蛛网膜下腔出血弹簧圈栓塞后出院，今日复诊。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "记录一下：目前mRS 2分，GCS 15分，偶有头胀，无再出血征象，尼莫地平60mg q4h已服满14天，血压136/82mmHg。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "安排2周后复查头CTA，并宣教若突发爆炸样头痛、呕吐或意识下降需立即急诊。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "蛛网膜下腔出血",
+          "mRS",
+          "CTA复查",
+          "尼莫地平",
+          "门诊"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-018",
+    "title": "LLM-generated (codex) batch 2: neurology",
+    "source": "codex",
+    "batch": 1,
+    "intent_sequence": [
+      "query_records",
+      "export_records"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "把昨晚那位ICH导出来"
+      },
+      {
+        "speaker": "doctor",
+        "text": "先查病历后导出：89岁男，脑叶出血保守治疗，入院Hb 112g/L，PLT 176×10^9/L，Cr 86umol/L，GCS 9，家属已签DNR，导出近72小时记录给神外会诊"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 0
+      },
+      "must_include_any_of": [
+        [
+          "ICH",
+          "GCS",
+          "DNR",
+          "会诊",
+          "神经外科"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-019",
+    "title": "LLM-generated (codex) batch 2: neurology",
+    "source": "codex",
+    "batch": 1,
+    "intent_sequence": [
+      "list_patients",
+      "update_patient",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先看看现在有哪些脑出血随访病人"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把李叔那个状态改一下，出院后第10天电话随访，从住院改成居家康复"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再记一条：58岁男，桥脑出血后遗右侧轻偏瘫，mRS 3分，血压晨起154/92，厄贝沙坦由150mg qd调到300mg qd，强调戒烟"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "桥脑出血",
+          "随访",
+          "mRS",
+          "降压调整",
+          "康复"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-020",
+    "title": "LLM-generated (codex) batch 2: neurology",
+    "source": "codex",
+    "batch": 1,
+    "intent_sequence": [
+      "add_record",
+      "update_record",
+      "cancel_task"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "更正一下早上那条，SAH那个不是Hunt-Hess 2，是3级，烦躁和嗜睡都算上"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再把记录改完整：Fisher 3级，GCS 14，CTA示前交通动脉瘤约5.2mm，拟明早夹闭；等下，动脉瘤不是5.2，是5.8mm"
+      },
+      {
+        "speaker": "doctor",
+        "text": "原来那个\"今日转普通病房\"任务取消，先继续NICU观察，收缩压控制120-140"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "SAH",
+          "Hunt-Hess",
+          "Fisher",
+          "动脉瘤",
+          "NICU"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-021",
+    "title": "LLM-generated (codex) batch 3: neurology",
+    "source": "codex",
+    "batch": 2,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "赵建国 男 67岁 急诊 右上肢麻木20min 创建"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补入院记录：高血压10年，今晨发作时言语含糊约15min，来院已缓解，NIHSS 0，ABCD2 5分，头颅DWI未见急性梗死，CTA示左侧颈内动脉轻中度狭窄，先阿司匹林100mg+氯吡格雷75mg启动双联21天，再转单药"
+      },
+      {
+        "speaker": "doctor",
+        "text": "约48h卒中门诊复评，复查颈动脉超声和血脂，LDL-C 3.4 mmol/L也记上"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "TIA",
+          "ABCD2",
+          "DWI",
+          "双联抗血小板",
+          "急诊"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-022",
+    "title": "LLM-generated (codex) batch 3: neurology",
+    "source": "codex",
+    "batch": 2,
+    "intent_sequence": [
+      "query_records",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先查王志刚上月那条"
+      },
+      {
+        "speaker": "doctor",
+        "text": "在原病程后补：72F，卒中门诊复诊，昨晚左眼一过性黑矇8min，无肢体无力，BP 166/94，ABCD2 4分，MRI-DWI阴性，MRA提示右侧PCA轻度狭窄，先不对，是右侧颈内动脉海绵窦段轻度狭窄；加氯吡格雷75mg qd 联合阿司匹林100mg qd 21天"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "短暂性黑矇",
+          "ABCD2",
+          "MRI-DWI",
+          "MRA",
+          "门诊"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-023",
+    "title": "LLM-generated (codex) batch 3: neurology",
+    "source": "codex",
+    "batch": 2,
+    "intent_sequence": [
+      "add_record",
+      "export_records"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "导出这例TIA资料"
+      },
+      {
+        "speaker": "doctor",
+        "text": "病程补一句：58岁女，急诊留观，突发构音不清伴左手笨拙30min，GCS 15，NIHSS 1，ABCD2 6分，CT平扫未出血，CTP无明确低灌注，今晚开始阿司匹林100mg qd+替格瑞洛90mg bid，已告知24h内卒中风险高"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "TIA",
+          "CTP",
+          "NIHSS",
+          "ABCD2",
+          "高危分层"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-024",
+    "title": "LLM-generated (codex) batch 3: neurology",
+    "source": "codex",
+    "batch": 2,
+    "intent_sequence": [
+      "list_patients",
+      "create_patient",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "名单里有没有新来的陈建军"
+      },
+      {
+        "speaker": "doctor",
+        "text": "没有就建，34岁男，神经内科门诊，开车时短暂失语约10min，无肢体无力"
+      },
+      {
+        "speaker": "doctor",
+        "text": "记录：吸烟15包年，BP 148/92，糖尿病无，ABCD2 3分，头颅MRI未见新灶，颈动脉超声正常，考虑低危TIA，先阿司匹林100mg qd，教育一周内若再发立刻急诊"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "神经内科门诊",
+          "ABCD2",
+          "MRI",
+          "患者教育",
+          "低危TIA"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-025",
+    "title": "LLM-generated (codex) batch 3: neurology",
+    "source": "codex",
+    "batch": 2,
+    "intent_sequence": [
+      "create_patient",
+      "update_patient",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "新创建：刘老师，女，81岁，住院"
+      },
+      {
+        "speaker": "doctor",
+        "text": "患者信息补全：房颤史3年，CHA2DS2-VASc 5分，今晨反复右侧无力2次，每次约12min，Cr 86 umol/L，HbA1c 7.2%"
+      },
+      {
+        "speaker": "doctor",
+        "text": "正式记入：入院评估 NIHSS 0，ABCD2 6分，头颅DWI阴性但左侧MCA M1轻度狭窄，先按高危TIA处理，阿司匹林100mg qd 联合氯吡格雷75mg qd 21天，阿托伐他汀40mg qn"
+      },
+      {
+        "speaker": "doctor",
+        "text": "3天后安排卒中门诊复审抗栓方案，若Holter再证实房颤再评估改口服抗凝"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "高危TIA",
+          "房颤",
+          "ABCD2",
+          "MCA狭窄",
+          "抗栓"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-026",
+    "title": "LLM-generated (codex) batch 3: neurology",
+    "source": "codex",
+    "batch": 2,
+    "intent_sequence": [
+      "list_tasks",
+      "complete_task",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "把待办翻一下"
+      },
+      {
+        "speaker": "doctor",
+        "text": "昨天那条“补TIA病程”先标完成"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补记录：62M，急诊转神内，左口角歪斜伴言语不清25min后恢复，BP 182/106，血糖 9.8 mmol/L，NIHSS 0，ABCD2 5分，CTA示左侧颈内动脉起始部约60%狭窄，双联已启，阿司匹林100mg+氯吡格雷75mg，血压先控到160/90以下"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "待办",
+          "CTA",
+          "颈动脉狭窄",
+          "ABCD2",
+          "急诊"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-027",
+    "title": "LLM-generated (codex) batch 3: neurology",
+    "source": "codex",
+    "batch": 2,
+    "intent_sequence": [
+      "query_records",
+      "update_record",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "调既往记录，孙永强 69岁那份TIA随访"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把上次“ABCD2 3分”改成4分，不对，应该是5分：年龄>60 1分，BP 172/98 1分，言语症状无力无 1分，持续40min 2分，糖尿病 0分"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再加今日病程：复查DWI仍阴性，颈部CTA见右侧颈总分叉粥样斑块，继续阿司匹林100mg qd+氯吡格雷75mg qd 至第21天后改单药"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "ABCD2更正",
+          "随访",
+          "DWI阴性",
+          "CTA",
+          "双联"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-028",
+    "title": "LLM-generated (codex) batch 3: neurology",
+    "source": "codex",
+    "batch": 2,
+    "intent_sequence": [
+      "list_tasks",
+      "postpone_task",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "今天随访待办先看一下"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把周三那位TIA患者的电话随访延到后天上午"
+      },
+      {
+        "speaker": "doctor",
+        "text": "顺手补门诊记录：46岁女，卒中门诊，短暂右手麻木5min伴头晕，无失语，BP 138/84，ABCD2 1分，MRI和MRA未见责任病灶，先不启双联，仅阿司匹林100mg qd，生活方式教育已讲"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再约2周后复诊，若再次发作就提前做长程心电监测"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "卒中门诊",
+          "低危TIA",
+          "MRA",
+          "随访",
+          "生活方式教育"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-029",
+    "title": "LLM-generated (codex) batch 3: neurology",
+    "source": "codex",
+    "batch": 2,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "export_records"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "记录个新病人，别漏"
+      },
+      {
+        "speaker": "doctor",
+        "text": "89岁男，急诊留观，晨起一过性左下肢无力约18min，既往冠心病PCI后，肌酐 101 umol/L，LDL-C 2.9 mmol/L"
+      },
+      {
+        "speaker": "doctor",
+        "text": "病程写上：NIHSS 0，ABCD2 4分，头CT未见出血，MRI因起搏器暂不能做，先按TIA高风险给阿司匹林100mg负荷后维持100mg qd，加氯吡格雷首日300mg后75mg qd"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把这份记录导出给卒中中心会诊"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "急诊留观",
+          "ABCD2",
+          "PCI",
+          "会诊导出",
+          "高风险TIA"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-030",
+    "title": "LLM-generated (codex) batch 3: neurology",
+    "source": "codex",
+    "batch": 2,
+    "intent_sequence": [
+      "list_patients",
+      "query_records",
+      "add_record",
+      "cancel_task"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先把门诊名单拉一下"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查李女士既往有没有脑梗记录"
+      },
+      {
+        "speaker": "doctor",
+        "text": "没有新的发作任务就把上周未到院复诊提醒取消，然后补今天门诊：55岁女，反复短暂失语2次，单次约7min，BP 158/96，ABCD2 4分，DWI阴性，颅内血管壁成像提示左侧MCA斑块，建议双联21天并强化瑞舒伐他汀20mg qn"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "门诊",
+          "血管壁成像",
+          "ABCD2",
+          "瑞舒伐他汀",
+          "TIA"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-031",
+    "title": "LLM-generated (codex) batch 4: neurology",
+    "source": "codex",
+    "batch": 3,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "王霞 失神半年 创建"
+      },
+      {
+        "speaker": "doctor",
+        "text": "29F，门诊，发作像失神，每周4-5次，EEG 3Hz棘慢波，MMSE 29"
+      },
+      {
+        "speaker": "doctor",
+        "text": "丙戊酸缓释片0.5g bid先记，4周后复诊查VPA谷浓度和ALT"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1,
+        "follow_ups": 1
+      },
+      "must_include_any_of": [
+        [
+          "失神发作",
+          "EEG",
+          "丙戊酸",
+          "ALT",
+          "VPA谷浓度"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-032",
+    "title": "LLM-generated (codex) batch 4: neurology",
+    "source": "codex",
+    "batch": 3,
+    "intent_sequence": [
+      "query_records",
+      "add_record",
+      "update_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先查赵德华去年癫痫记录"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再补一条：46M，脑外伤后局灶性发作，近1月夜间抽搐3次，卡马西平血药浓度3.2ug/mL偏低，Na 128 mmol/L"
+      },
+      {
+        "speaker": "doctor",
+        "text": "不对，卡马西平先减到0.1g bid，同时加左乙拉西坦0.5g bid，低钠风险写清"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "medical_records": 2
+      },
+      "must_include_any_of": [
+        [
+          "局灶性发作",
+          "卡马西平",
+          "左乙拉西坦",
+          "低钠血症",
+          "血药浓度"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-033",
+    "title": "LLM-generated (codex) batch 4: neurology",
+    "source": "codex",
+    "batch": 3,
+    "intent_sequence": [
+      "list_tasks",
+      "complete_task",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "这个先把待办调出来"
+      },
+      {
+        "speaker": "doctor",
+        "text": "看到了，李占国癫痫随访那项先标完成，再新记病程：68F，卒中后癫痫，近3月无GTCS，偶有右手抽动10-20秒，mRS 3"
+      },
+      {
+        "speaker": "doctor",
+        "text": "左乙拉西坦维持0.75g bid，宣教别自行停药，6周后电话随访"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "tasks": 1,
+        "medical_records": 1,
+        "follow_ups": 1
+      },
+      "must_include_any_of": [
+        [
+          "卒中后癫痫",
+          "GTCS",
+          "mRS",
+          "左乙拉西坦",
+          "病程记录"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-034",
+    "title": "LLM-generated (codex) batch 4: neurology",
+    "source": "codex",
+    "batch": 3,
+    "intent_sequence": [
+      "create_patient",
+      "update_patient",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "患者陈淑芳，男，72岁，急诊入观，因持续抽搐18分钟伴意识不清送来。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "先更新资料：体重64kg，GCS 7分，BP 186/96，血糖8.9 mmol/L，既往高血压和房颤。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再补记录：按癫痫持续状态处理，咪达唑仑10mg iv后仍有抽动，左乙拉西坦负荷2g ivgtt，头颅CT未见新出血。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "加一个明早脑电图随访。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1,
+        "follow_ups": 1
+      },
+      "must_include_any_of": [
+        [
+          "癫痫持续状态",
+          "GCS",
+          "咪达唑仑",
+          "左乙拉西坦负荷",
+          "急诊"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-035",
+    "title": "LLM-generated (codex) batch 4: neurology",
+    "source": "codex",
+    "batch": 3,
+    "intent_sequence": [
+      "list_patients",
+      "create_patient",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "等下先看门诊名单"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把今天癫痫专病门诊患者列一下"
+      },
+      {
+        "speaker": "doctor",
+        "text": "新增一位，35岁女，备孕，既往肌阵挛发作，最近晨起抖动每周2次，VPA 78ug/mL，但体重增了6kg"
+      },
+      {
+        "speaker": "doctor",
+        "text": "记录改药计划：丙戊酸从0.5g bid减到0.25g am+0.5g pm，先这样，不对，写成0.25g bid更稳，再约2周复诊"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1,
+        "follow_ups": 1
+      },
+      "must_include_any_of": [
+        [
+          "肌阵挛发作",
+          "备孕",
+          "丙戊酸",
+          "体重增加",
+          "门诊"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-036",
+    "title": "LLM-generated (codex) batch 4: neurology",
+    "source": "codex",
+    "batch": 3,
+    "intent_sequence": [
+      "add_record",
+      "update_patient",
+      "update_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "记一下啊，急诊那个男孩，17岁，发作后嗜睡，像GTCS，持续约2分钟，乳酸4.6 mmol/L，CK 312 U/L"
+      },
+      {
+        "speaker": "doctor",
+        "text": "既往半年发作3次，昨晚漏服左乙拉西坦"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把患者信息补全：学生，体重58kg，过敏史无"
+      },
+      {
+        "speaker": "doctor",
+        "text": "病程写上：左乙拉西坦调整到1g bid，今晚开始，避免熬夜"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "medical_records": 1,
+        "patients": 1
+      },
+      "must_include_any_of": [
+        [
+          "GTCS",
+          "左乙拉西坦",
+          "漏服",
+          "乳酸",
+          "CK"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-037",
+    "title": "LLM-generated (codex) batch 4: neurology",
+    "source": "codex",
+    "batch": 3,
+    "intent_sequence": [
+      "query_records",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "复发没有"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查下周美玲门诊历史"
+      },
+      {
+        "speaker": "doctor",
+        "text": "有了，再加：58F，颞叶癫痫，发作前闻焦糊味，随后凝视1分钟，月发2次，MRI示右海马硬化"
+      },
+      {
+        "speaker": "doctor",
+        "text": "卡马西平0.2g tid先维持，肝功AST 26、ALT 31正常，3个月后复诊"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "medical_records": 2,
+        "follow_ups": 1
+      },
+      "must_include_any_of": [
+        [
+          "颞叶癫痫",
+          "海马硬化",
+          "卡马西平",
+          "先兆",
+          "MRI"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-038",
+    "title": "LLM-generated (codex) batch 4: neurology",
+    "source": "codex",
+    "batch": 3,
+    "intent_sequence": [
+      "update_patient",
+      "add_record",
+      "postpone_task"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先把刘叔资料改下"
+      },
+      {
+        "speaker": "doctor",
+        "text": "61M，不是每月1次了，应该是近2周连发3次局灶到双侧强直阵挛，住院写明"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再补记录：丙戊酸血药浓度112ug/mL偏高，血氨68umol/L，嗜睡明显，停丙戊酸，换左乙拉西坦0.5g bid起"
+      },
+      {
+        "speaker": "doctor",
+        "text": "原来下周复诊任务先延期到出院后14天"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1,
+        "tasks": 1
+      },
+      "must_include_any_of": [
+        [
+          "局灶继发全面性发作",
+          "丙戊酸",
+          "高氨血症",
+          "左乙拉西坦",
+          "住院"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-039",
+    "title": "LLM-generated (codex) batch 4: neurology",
+    "source": "codex",
+    "batch": 3,
+    "intent_sequence": [
+      "list_tasks",
+      "cancel_task",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "麻烦先把癫痫宣教随访任务给我看"
+      },
+      {
+        "speaker": "doctor",
+        "text": "那个39岁女患者已经失联两月，取消原定电话随访"
+      },
+      {
+        "speaker": "doctor",
+        "text": "另补门诊记录：失神合并偶发GTCS，近半年GTCS 0次，失神从每日10次降到每周1次，乙琥胺之前胃不适停了，现丙戊酸缓释片0.5g bid耐受可"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "tasks": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "失神发作",
+          "GTCS",
+          "随访取消",
+          "丙戊酸",
+          "门诊"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-040",
+    "title": "LLM-generated (codex) batch 4: neurology",
+    "source": "codex",
+    "batch": 3,
+    "intent_sequence": [
+      "export_records",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "导出下今天病区癫痫相关记录"
+      },
+      {
+        "speaker": "doctor",
+        "text": "顺手补一例：84M，肺部感染后诱发癫痫持续状态，院内发作累计25分钟，地西泮10mg iv后缓解，复查Na 134 mmol/L，Cr 98 umol/L"
+      },
+      {
+        "speaker": "doctor",
+        "text": "出院小结也加上：左乙拉西坦0.5g bid维持，家属教育写明发作超过5分钟立即急诊，4周后神经内科复诊"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "exports": 1,
+        "medical_records": 1,
+        "follow_ups": 1
+      },
+      "must_include_any_of": [
+        [
+          "癫痫持续状态",
+          "地西泮",
+          "出院小结",
+          "左乙拉西坦",
+          "患者教育"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-041",
+    "title": "LLM-generated (codex) batch 5: neurology",
+    "source": "codex",
+    "batch": 4,
+    "intent_sequence": [
+      "create_patient",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "王爱莲 58岁 创建"
+      },
+      {
+        "speaker": "doctor",
+        "text": "近2月穿脱现象明显，左旋多巴/苄丝肼 250mg 早中晚各1片，睡前半片；UPDRS-III 32分，H&Y 2.5期，先记门诊随访"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补一句，夜间翻身困难更突出，不对，应该是凌晨4点左右最明显"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "帕金森病",
+          "左旋多巴",
+          "UPDRS-III",
+          "H&Y分期",
+          "穿脱现象"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-042",
+    "title": "LLM-generated (codex) batch 5: movement_disorders",
+    "source": "codex",
+    "batch": 4,
+    "intent_sequence": [
+      "query_records",
+      "add_record"
+    ],
+    "clinical_domain": "movement_disorders",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先查下刘建国上次记录"
+      },
+      {
+        "speaker": "doctor",
+        "text": "72M，PD 8年，今天off期延长到每天约5h，原用多巴丝肼 125mg qid + 普拉克索缓释片 0.375mg qn，现补病程：晨起冻结步态加重，UPDRS-III from 28到35"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再加一句，MMSE 27分，最近无幻觉"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "冻结步态",
+          "off期",
+          "多巴丝肼",
+          "普拉克索",
+          "MMSE"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-043",
+    "title": "LLM-generated (codex) batch 5: movement_disorders",
+    "source": "codex",
+    "batch": 4,
+    "intent_sequence": [
+      "list_tasks",
+      "complete_task",
+      "add_record"
+    ],
+    "clinical_domain": "movement_disorders",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "把今天待办调出来"
+      },
+      {
+        "speaker": "doctor",
+        "text": "赵女士 DBS术后3月复诊那个先标完成"
+      },
+      {
+        "speaker": "doctor",
+        "text": "顺手记上：双侧STN-DBS，电压左2.3V右2.6V，脉宽60us，频率130Hz；药减到左旋多巴当量 450mg/d，UPDRS-III 开机状态18分"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "DBS术后",
+          "STN-DBS",
+          "电压参数",
+          "UPDRS-III",
+          "左旋多巴当量"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-044",
+    "title": "LLM-generated (codex) batch 5: neurology_outpatient",
+    "source": "codex",
+    "batch": 4,
+    "intent_sequence": [
+      "create_patient",
+      "update_patient",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "neurology_outpatient",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "患者张美玲，男，67岁，因帕金森病病程6年、近半年异动症加重于今日门诊复诊，先补全联系方式和家属信息。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "现更新患者资料：体重64kg，联系电话改为家属女儿号码；既往有高血压10年，服缬沙坦80mg qd。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "病程记录：目前多巴丝肼 250mg 每日4次，恩他卡朋 200mg tid，下午3点后peak-dose dyskinesia明显，UPDRS-III 29分，H&Y 3期。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "4周后复诊，复查肝肾功能与姿势步态；等下，刚才药量写漏了，晚9点还有多巴丝肼半片。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "异动症",
+          "恩他卡朋",
+          "UPDRS-III",
+          "H&Y 3期",
+          "门诊随访"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-045",
+    "title": "LLM-generated (codex) batch 5: neurology_outpatient",
+    "source": "codex",
+    "batch": 4,
+    "intent_sequence": [
+      "list_patients",
+      "create_patient",
+      "add_record"
+    ],
+    "clinical_domain": "neurology_outpatient",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "门诊名单先过一下"
+      },
+      {
+        "speaker": "doctor",
+        "text": "新来的陈老师建一个，61岁女，原发性震颤和帕金森综合征待鉴别"
+      },
+      {
+        "speaker": "doctor",
+        "text": "记录首诊：右手静止性震颤2年，嗅觉下降，DAT提示左侧纹状体摄取减低；MDS-UPDRS III 24分，H&Y 2期，先试多巴丝肼 62.5mg bid"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "静止性震颤",
+          "DAT",
+          "MDS-UPDRS III",
+          "鉴别诊断",
+          "多巴丝肼"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-046",
+    "title": "LLM-generated (codex) batch 5: movement_disorders",
+    "source": "codex",
+    "batch": 4,
+    "intent_sequence": [
+      "query_records",
+      "update_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "movement_disorders",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "查一下周叔叔前面那条用药调整"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把上周记录改下：不是罗匹尼罗 0.25mg tid，是0.5mg tid，刚才说错了"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再写今天随访：夜间幻视已无，便秘仍在，每周排便2次；UPDRS-III 31分，H&Y 2.5期，血压126/74mmHg"
+      },
+      {
+        "speaker": "doctor",
+        "text": "下次2周后电话随访，看恶心和嗜睡情况"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 0
+      },
+      "must_include_any_of": [
+        [
+          "罗匹尼罗",
+          "幻视",
+          "便秘",
+          "UPDRS-III",
+          "电话随访"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-047",
+    "title": "LLM-generated (codex) batch 5: neurology",
+    "source": "codex",
+    "batch": 4,
+    "intent_sequence": [
+      "list_tasks",
+      "postpone_task",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "今天待办里孙凤英那个先看"
+      },
+      {
+        "speaker": "doctor",
+        "text": "她下周的复诊先顺延到周五，家里陪护这两天不方便"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补记病情：79岁，帕金森病痴呆，CDR 1分，MMSE 21分，近1周傍晚躁动；左旋多巴/卡比多巴 100/25mg 五次/日，喹硫平 12.5mg qn"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "帕金森病痴呆",
+          "CDR",
+          "MMSE",
+          "喹硫平",
+          "复诊顺延"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-048",
+    "title": "LLM-generated (codex) batch 5: movement_disorders",
+    "source": "codex",
+    "batch": 4,
+    "intent_sequence": [
+      "query_records",
+      "add_record",
+      "export_records"
+    ],
+    "clinical_domain": "movement_disorders",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "把何先生既往病程调出来"
+      },
+      {
+        "speaker": "doctor",
+        "text": "加一条今天复诊：68岁，开关期波动明显，on时间约6h，off时步态冻结；现用多巴丝肼 125mg 五次/日 + 沙芬酰胺 50mg qd，UPDRS-III on 19分/off 37分"
+      },
+      {
+        "speaker": "doctor",
+        "text": "然后把近6个月记录导出，我要发给做DBS评估的同事"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "开关期",
+          "步态冻结",
+          "沙芬酰胺",
+          "DBS评估",
+          "病程导出"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-049",
+    "title": "LLM-generated (codex) batch 5: movement_disorders",
+    "source": "codex",
+    "batch": 4,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "cancel_task"
+    ],
+    "clinical_domain": "movement_disorders",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "录个新病人，急一点"
+      },
+      {
+        "speaker": "doctor",
+        "text": "男，45岁，青年型帕金森病，PARK2家族史阳性，症状5年；先创建"
+      },
+      {
+        "speaker": "doctor",
+        "text": "病程写上：司来吉兰 5mg bid 后睡眠差，不对，应该是午后服药后心慌更明显；MDS-UPDRS III 22分，H&Y 1.5期"
+      },
+      {
+        "speaker": "doctor",
+        "text": "原来的3个月复查任务取消，改等基因结果回来再约"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "青年型帕金森病",
+          "PARK2",
+          "司来吉兰",
+          "MDS-UPDRS III",
+          "取消复查"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-050",
+    "title": "LLM-generated (codex) batch 5: neurology",
+    "source": "codex",
+    "batch": 4,
+    "intent_sequence": [
+      "list_patients",
+      "update_patient",
+      "add_record",
+      "complete_task"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先看看李桂芬是不是已经在库里"
+      },
+      {
+        "speaker": "doctor",
+        "text": "有了，把住址更新到闵行那边女儿家，跌倒风险也标高"
+      },
+      {
+        "speaker": "doctor",
+        "text": "今天记正式一点：患者女，83岁，帕金森病12年，近3个月吞咽减退、体重下降4kg，GCS 15分，H&Y 4期，鼻音重，卧立位血压由138/76降至108/64mmHg，考虑体位性低血压。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "下午吞咽评估那个待办做完后标完成，药物暂调为多巴丝肼 100mg qid，小剂量多餐，强化误吸宣教。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "晚期帕金森病",
+          "吞咽障碍",
+          "体位性低血压",
+          "H&Y 4期",
+          "跌倒风险"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-051",
+    "title": "LLM-generated (codex) batch 6: neurology",
+    "source": "codex",
+    "batch": 5,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "王海燕 76岁 记忆3年 创建"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补门诊资料：女，76岁，记忆门诊初诊，近3年反复忘关火忘吃药，MMSE 18/30，MoCA 14/30，CDR 1，Hachinski 2分，MRI示双侧海马萎缩MTA 3级，先记阿尔茨海默病可能大"
+      },
+      {
+        "speaker": "doctor",
+        "text": "加随访，6周后复诊，带照料者一起，现用多奈哌齐5mg qn，2周后若恶心不明显再到10mg qn"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "MMSE",
+          "MoCA",
+          "CDR",
+          "海马萎缩",
+          "阿尔茨海默病",
+          "多奈哌齐"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-052",
+    "title": "LLM-generated (codex) batch 6: neurology",
+    "source": "codex",
+    "batch": 5,
+    "intent_sequence": [
+      "query_records",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先查下赵叔以前门诊记录"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查到后补一条：68M，近1年记忆下降合并执行功能差，既往腔隙性脑梗、高血压10年，MMSE 23，MoCA 17，CDR 0.5，Hachinski 8分，更像血管性痴呆，不对，准确说血管性认知障碍待进一步分型"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "MMSE",
+          "MoCA",
+          "CDR",
+          "Hachinski",
+          "血管性认知障碍",
+          "腔隙性脑梗"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-053",
+    "title": "LLM-generated (codex) batch 6: neurology",
+    "source": "codex",
+    "batch": 5,
+    "intent_sequence": [
+      "list_patients",
+      "create_patient",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "今天新号里先看看有没有陈建国"
+      },
+      {
+        "speaker": "doctor",
+        "text": "没有这个人，建一个：男，81岁，老年科转记忆门诊，家属诉半年走失2次，夜间烦躁"
+      },
+      {
+        "speaker": "doctor",
+        "text": "记录：MMSE 12/30，MoCA做不全仅8分，CDR 2，ADL 42分，TSH 2.1 mIU/L，VitB12 388 pg/mL，梅毒HIV筛查阴性，考虑中重度AD，已和女儿沟通防走失牌和照护负担"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "MMSE",
+          "MoCA",
+          "CDR",
+          "ADL",
+          "阿尔茨海默病",
+          "照料者沟通"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-054",
+    "title": "LLM-generated (codex) batch 6: neurology",
+    "source": "codex",
+    "batch": 5,
+    "intent_sequence": [
+      "update_patient",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "把李老师资料改一下，联系方式换成女儿的，主照料者备注也更新"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再补病程记录：患者张明辉，男，72岁，受教育12年，近2年进行性近记忆下降并伴找词困难，MMSE 21分，MoCA 16分，CDR 1分，头MRI示海马萎缩及少量白质缺血灶，当前倾向AD合并脑小血管病，继续多奈哌齐5mg nightly，4周后评估是否加量"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "MMSE",
+          "MoCA",
+          "CDR",
+          "海马萎缩",
+          "脑小血管病",
+          "多奈哌齐"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-055",
+    "title": "LLM-generated (codex) batch 6: neurology",
+    "source": "codex",
+    "batch": 5,
+    "intent_sequence": [
+      "add_record",
+      "export_records"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "就这样记一条，急诊会诊来的，59岁女，近8个月健忘伴情绪淡漠，MoCA 19，MMSE 24，CDR 0.5，GDS 6分，HbA1c 8.4%，同型半胱氨酸18.6 umol/L，更偏早期血管性认知减退"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把这次门诊记录直接导出给家属打印，附上控糖控压和每周150分钟快走建议"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "MoCA",
+          "MMSE",
+          "CDR",
+          "GDS",
+          "血管性认知减退",
+          "HbA1c"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-056",
+    "title": "LLM-generated (codex) batch 6: neurology",
+    "source": "codex",
+    "batch": 5,
+    "intent_sequence": [
+      "query_records",
+      "update_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "把周秀英去年那几次量表先翻出来"
+      },
+      {
+        "speaker": "doctor",
+        "text": "找到了，更新3月这条：等下，刚才说错了，MMSE不是15，是16/30；MoCA 9/30，CDR从1上到2，近1月出现穿衣顺序错误和尿失禁，头颅MRI较前无新发梗死"
+      },
+      {
+        "speaker": "doctor",
+        "text": "安排2周后复评，照料者单独来一次，我想再详细谈吞咽、走失风险和夜间照护"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 0
+      },
+      "must_include_any_of": [
+        [
+          "MMSE",
+          "MoCA",
+          "CDR",
+          "尿失禁",
+          "照料者沟通",
+          "痴呆分期"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-057",
+    "title": "LLM-generated (codex) batch 6: neurology",
+    "source": "codex",
+    "batch": 5,
+    "intent_sequence": [
+      "list_tasks",
+      "complete_task",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先看我待办，谁那个认知复评还没关"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把孙秀英的电话随访任务标完成"
+      },
+      {
+        "speaker": "doctor",
+        "text": "顺手补记录：74F，阿尔茨海默病随访，服用美金刚5mg bid已2周，无明显头晕，NPI里夜间行为从8分降到4分，MMSE 17维持，嘱继续当前剂量，下周增至10mg bid"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "MMSE",
+          "NPI",
+          "阿尔茨海默病",
+          "美金刚",
+          "随访"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-058",
+    "title": "LLM-generated (codex) batch 6: neurology",
+    "source": "codex",
+    "batch": 5,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "postpone_task"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "新收一个年轻点的，43岁男，先创建"
+      },
+      {
+        "speaker": "doctor",
+        "text": "记上：本人诉1年记忆差、工作漏项，家属更担心注意力问题；MMSE 27/30，MoCA 22/30，CDR 0.5，PHQ-9 15分，甲功正常，叶酸7.8 ng/mL，先考虑抑郁相关认知损害，不急着扣痴呆帽子"
+      },
+      {
+        "speaker": "doctor",
+        "text": "原定明天做正式神经心理测评先往后挪一周，他夜班排不开"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "MMSE",
+          "MoCA",
+          "CDR",
+          "PHQ-9",
+          "抑郁相关认知损害",
+          "神经心理测评"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-059",
+    "title": "LLM-generated (codex) batch 6: neurology",
+    "source": "codex",
+    "batch": 5,
+    "intent_sequence": [
+      "query_records",
+      "create_patient",
+      "add_record",
+      "export_records"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "老系统里查一下有没有何奶奶住院时的认知评估"
+      },
+      {
+        "speaker": "doctor",
+        "text": "没有，重新建患者，女，84岁，住院来源老年科"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补完整点：反复卒中后记忆和定向力下降2年，Barthel 55，MMSE 14，MoCA 10，CDR 2，Hachinski 10分，DWI本次无急性灶，FLAIR多发缺血灶，倾向血管性痴呆"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把这次住院记录导出一份给康复科，备注照料者已接受防跌倒和吞咽训练宣教"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "MMSE",
+          "MoCA",
+          "CDR",
+          "Hachinski",
+          "血管性痴呆",
+          "Barthel"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-060",
+    "title": "LLM-generated (codex) batch 6: neurology",
+    "source": "codex",
+    "batch": 5,
+    "intent_sequence": [
+      "list_tasks",
+      "cancel_task",
+      "update_patient",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "待办里那个吴伯伯下周复诊提醒先看看"
+      },
+      {
+        "speaker": "doctor",
+        "text": "这次先取消原来的周三任务，家属说要改成周五下午"
+      },
+      {
+        "speaker": "doctor",
+        "text": "患者信息也改下，紧急联系人换成儿子，电话末四位8831"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再记病程：65M，记忆门诊复诊，MoCA from 18 to 20，MMSE 22不变，CDR仍1；不对，MoCA上次是17，这次20。PET提示双侧颞顶叶代谢减低，支持AD谱系，继续多奈哌齐10mg qn，交代家属监督服药和驾驶限制"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "MoCA",
+          "MMSE",
+          "CDR",
+          "PET",
+          "阿尔茨海默病谱系",
+          "驾驶限制"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-061",
+    "title": "LLM-generated (codex) batch 7: 卒中门诊",
+    "source": "codex",
+    "batch": 6,
+    "intent_sequence": [
+      "create_patient",
+      "add_record"
+    ],
+    "clinical_domain": "卒中门诊",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "赵建国 67男 昨晚TIA 创建"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补一条，ABCD2 5分，颈动脉超声左侧狭窄55%，先阿司匹林100mg qd＋阿托伐他汀40mg qn，血压目标<130/80"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "TIA",
+          "ABCD2",
+          "阿司匹林",
+          "阿托伐他汀",
+          "颈动脉狭窄"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-062",
+    "title": "LLM-generated (codex) batch 7: 神经内科",
+    "source": "codex",
+    "batch": 6,
+    "intent_sequence": [
+      "query_records",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "神经内科",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先查王国华既往卒中随访记录"
+      },
+      {
+        "speaker": "doctor",
+        "text": "今天门诊记上：72F，3个月前左侧腔隙性脑梗，mRS 1，LDL-C 2.3 mmol/L，改瑞舒伐他汀20mg qn，氯吡格雷75mg qd继续"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再约3个月后复诊，带颈动脉彩超和血脂；不对，血压家庭目标写清楚，晨起多次>145/88，要求控制到<130/80"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "腔隙性脑梗",
+          "mRS",
+          "LDL-C",
+          "氯吡格雷",
+          "血压管理"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-063",
+    "title": "LLM-generated (codex) batch 7: 卒中门诊",
+    "source": "codex",
+    "batch": 6,
+    "intent_sequence": [
+      "list_patients",
+      "add_record"
+    ],
+    "clinical_domain": "卒中门诊",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "把今天卒中门诊名单调出来"
+      },
+      {
+        "speaker": "doctor",
+        "text": "李占国，58男，右侧额叶小梗死后6周，NIHSS 1，双联抗血小板已满21天，现改阿司匹林100mg qd单药，阿托伐他汀80mg qn，LDL-C 1.6 mmol/L，继续戒烟"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "小梗死",
+          "NIHSS",
+          "双联抗血小板",
+          "阿托伐他汀",
+          "LDL-C"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-064",
+    "title": "LLM-generated (codex) batch 7: 神经内科",
+    "source": "codex",
+    "batch": 6,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "update_patient"
+    ],
+    "clinical_domain": "神经内科",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "新收一个，陈晓红，女，81岁，急诊后转住院，非致残性缺血性卒中。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "入院记录补全：发病18小时，NIHSS 3，DWI示左侧放射冠急性灶，CTA见右侧颈内动脉起始段狭窄70%。先给阿司匹林100mg qd+氯吡格雷75mg qd 21天，之后单药。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "患者信息里加上高危因素：糖尿病12年，HbA1c 7.8%，出院后二级预防血压目标改成<130/80，刚才差点写成140/90，不对。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "缺血性卒中",
+          "NIHSS",
+          "DWI",
+          "颈内动脉狭窄",
+          "糖尿病"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-065",
+    "title": "LLM-generated (codex) batch 7: 心脑血管内科",
+    "source": "codex",
+    "batch": 6,
+    "intent_sequence": [
+      "list_tasks",
+      "complete_task",
+      "add_record"
+    ],
+    "clinical_domain": "心脑血管内科",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先看我今天待办里那个颈动脉狭窄复查"
+      },
+      {
+        "speaker": "doctor",
+        "text": "复查结果已回，那个任务标完成"
+      },
+      {
+        "speaker": "doctor",
+        "text": "顺手记病程：64M，半年前右侧MCA梗死后，mRS 2，颈动脉CTA复查左侧狭窄从60%到62%，变化不大，阿司匹林100mg qd继续，他汀强化用瑞舒伐他汀20mg qn，近2周家庭血压达标率78%"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "颈动脉狭窄",
+          "MCA梗死",
+          "mRS",
+          "瑞舒伐他汀",
+          "血压达标率"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-066",
+    "title": "LLM-generated (codex) batch 7: 神经内科",
+    "source": "codex",
+    "batch": 6,
+    "intent_sequence": [
+      "query_records",
+      "update_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "神经内科",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "查下刘叔上次出院小结和用药"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把病程那条更新：不是阿托伐他汀20mg，是40mg qn；65岁男，脑桥梗死后1个月，BP 128/76，LDL-C 1.9 mmol/L，氯吡格雷75mg qd继续"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再排个4个月后随访，复查颈动脉超声、肝酶和血脂"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "脑桥梗死",
+          "出院小结",
+          "氯吡格雷",
+          "LDL-C",
+          "随访"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-067",
+    "title": "LLM-generated (codex) batch 7: 卒中门诊",
+    "source": "codex",
+    "batch": 6,
+    "intent_sequence": [
+      "list_patients",
+      "create_patient",
+      "add_record",
+      "export_records"
+    ],
+    "clinical_domain": "卒中门诊",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "门诊老名单先过一遍，再新建一个孙女士"
+      },
+      {
+        "speaker": "doctor",
+        "text": "创建信息：45女，产后半年出现短暂性黑矇2次，DSA未做，先按TIA二级预防管理，颈动脉超声右侧斑块伴狭窄40%"
+      },
+      {
+        "speaker": "doctor",
+        "text": "记录补上：阿司匹林100mg qd，瑞舒伐他汀10mg qn，LDL-C 3.4 mmol/L偏高，3天前最高血压156/96，先生活方式+氨氯地平5mg qd"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把这次门诊记录导出给卒中随访表"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "黑矇",
+          "TIA",
+          "颈动脉斑块",
+          "氨氯地平",
+          "导出记录"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-068",
+    "title": "LLM-generated (codex) batch 7: 心脑血管内科",
+    "source": "codex",
+    "batch": 6,
+    "intent_sequence": [
+      "list_tasks",
+      "postpone_task",
+      "add_record"
+    ],
+    "clinical_domain": "心脑血管内科",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "待办里那个下周复诊先看下"
+      },
+      {
+        "speaker": "doctor",
+        "text": "先延期两周，家属说老人感冒没来"
+      },
+      {
+        "speaker": "doctor",
+        "text": "备注病程：89F，去年基底节区脑梗后长期卧床，mRS 4，现阿司匹林肠溶片100mg qd，他汀还是匹伐他汀2mg qn，不对，写成瑞舒伐他汀5mg qn才对，最近居家血压多在138-150/80-92"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "基底节脑梗",
+          "mRS",
+          "瑞舒伐他汀",
+          "居家血压",
+          "延期"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-069",
+    "title": "LLM-generated (codex) batch 7: 神经内科",
+    "source": "codex",
+    "batch": 6,
+    "intent_sequence": [
+      "query_records",
+      "add_record",
+      "update_patient",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "神经内科",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "把周世杰既往所有卒中记录先翻出来"
+      },
+      {
+        "speaker": "doctor",
+        "text": "今天再补：61男，左侧颈动脉内膜剥脱术后8个月，无新发TIA，MMSE 28，颈动脉超声残余狭窄<30%，继续阿司匹林100mg qd"
+      },
+      {
+        "speaker": "doctor",
+        "text": "患者资料更新一下，吸烟从20支/天降到已戒3个月，LDL-C 1.4 mmol/L，阿托伐他汀80mg qn继续"
+      },
+      {
+        "speaker": "doctor",
+        "text": "安排半年后复诊，重点看血压日志，目标仍是<130/80"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "颈动脉内膜剥脱术",
+          "TIA",
+          "MMSE",
+          "阿托伐他汀",
+          "血压目标"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-070",
+    "title": "LLM-generated (codex) batch 7: 卒中门诊",
+    "source": "codex",
+    "batch": 6,
+    "intent_sequence": [
+      "list_patients",
+      "add_record",
+      "cancel_task"
+    ],
+    "clinical_domain": "卒中门诊",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "神内随访列表打开"
+      },
+      {
+        "speaker": "doctor",
+        "text": "记一条出院后电话随访：36男，卵圆孔未闭相关栓塞性脑梗3个月，mRS 0，原先双抗已停，现单用氯吡格雷75mg qd，他汀维持瑞舒伐他汀10mg qn，LDL-C 1.8 mmol/L"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把那个重复创建的下周门诊提醒取消，患者已确认本月28号来复查；等下，日期写3月28日"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "电话随访",
+          "栓塞性脑梗",
+          "mRS",
+          "氯吡格雷",
+          "取消提醒"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-071",
+    "title": "LLM-generated (codex) batch 8: neurology",
+    "source": "codex",
+    "batch": 7,
+    "intent_sequence": [
+      "create_patient",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先建个新档 王海峰 58男 急诊转神经ICU SAH术后第1天"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补入院记录：今晨躁动后转昏迷，GCS E2VTM4=6T，FOUR E2 M3 B4 R1，ICP 24mmHg，CPP 58mmHg，双瞳3.0/3.0mm，对光稍迟钝"
+      },
+      {
+        "speaker": "doctor",
+        "text": "甘露醇125ml q6h先用上，不对，写准确些：20%甘露醇125ml静滴 q6h，头高30度，镇静丙泊酚20mg/h"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "SAH",
+          "GCS",
+          "FOUR",
+          "ICP",
+          "甘露醇",
+          "神经ICU"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-072",
+    "title": "LLM-generated (codex) batch 8: neurology",
+    "source": "codex",
+    "batch": 7,
+    "intent_sequence": [
+      "add_record",
+      "update_record",
+      "postpone_task"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "63F 脑出血开颅后，NICU，先记病程"
+      },
+      {
+        "speaker": "doctor",
+        "text": "ICP 31mmHg，GCS 5T，FOUR 6，右瞳4.5mm较左侧3mm大，MAP 82，Na 149，考虑早期脑疝"
+      },
+      {
+        "speaker": "doctor",
+        "text": "等下，刚才瞳孔写反了，是左4.5右3.0；把记录改掉，脱水治疗后复测ICP任务顺延到20:00"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1,
+        "tasks": 1
+      },
+      "must_include_any_of": [
+        [
+          "脑出血",
+          "脑疝",
+          "ICP",
+          "GCS",
+          "FOUR",
+          "瞳孔"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-073",
+    "title": "LLM-generated (codex) batch 8: neurology",
+    "source": "codex",
+    "batch": 7,
+    "intent_sequence": [
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先记录：重症脑炎，32男，昏迷第4天，BP 146/88, GCS 7分, FOUR 10分, ICP 18mmHg"
+      },
+      {
+        "speaker": "doctor",
+        "text": "今天病程补上，咪达唑仑3mg/h维持，左乙拉西坦0.5g bid，乳酸1.8mmol/L，PaCO2 34mmHg"
+      },
+      {
+        "speaker": "doctor",
+        "text": "3天后安排随访脑电和神经评估，出NICU后继续看认知恢复"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1,
+        "follow_ups": 1
+      },
+      "must_include_any_of": [
+        [
+          "脑炎",
+          "GCS",
+          "FOUR",
+          "脑电",
+          "神经保护",
+          "咪达唑仑"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-074",
+    "title": "LLM-generated (codex) batch 8: neurology",
+    "source": "codex",
+    "batch": 7,
+    "intent_sequence": [
+      "query_records",
+      "list_tasks",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "患者李晓红，男，71岁，神经外科ICU，左额顶急性硬膜下血肿清除术后。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "请先查一下他既往住院记录和当前待办。"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查到后补记：术后6小时GCS E1VTM3=4T，FOUR 5分，ICP 27mmHg，血钠151mmol/L，予3%高渗盐水250ml静滴；若22:00复测ICP仍>25，再评估去骨瓣减压。"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1,
+        "tasks": 1
+      },
+      "must_include_any_of": [
+        [
+          "硬膜下血肿",
+          "术后",
+          "ICP",
+          "高渗盐水",
+          "GCS",
+          "神经外科ICU"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-075",
+    "title": "LLM-generated (codex) batch 8: neurology",
+    "source": "codex",
+    "batch": 7,
+    "intent_sequence": [
+      "list_tasks",
+      "complete_task",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "把今天神经ICU待办先拉一下"
+      },
+      {
+        "speaker": "doctor",
+        "text": "8床陈玉梅那个“复查头CT”先标完成"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再记一条：69F 大面积脑梗恶性水肿，GCS 8，FOUR 11，ICP监测22-25mmHg波动，去甲肾上腺素0.06ug/kg/min维持CPP>60"
+      },
+      {
+        "speaker": "doctor",
+        "text": "不对，GCS是E2V2M4一共8分，这个别漏"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1,
+        "tasks": 1
+      },
+      "must_include_any_of": [
+        [
+          "大面积脑梗",
+          "恶性水肿",
+          "GCS",
+          "FOUR",
+          "CPP",
+          "神经ICU"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-076",
+    "title": "LLM-generated (codex) batch 8: neurology",
+    "source": "codex",
+    "batch": 7,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "update_patient"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "赵军 45男 车祸后弥漫性轴索损伤 创建"
+      },
+      {
+        "speaker": "doctor",
+        "text": "加急诊重症记录：入科时GCS 4T，FOUR 4，ICP 29，体温38.6℃，渗透压312mOsm/kg，丙泊酚25mg/h+芬太尼50ug/h"
+      },
+      {
+        "speaker": "doctor",
+        "text": "患者信息再补下：家属电话留档，过敏史无，体重76kg，住院类型写神经外科ICU"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "弥漫性轴索损伤",
+          "GCS",
+          "FOUR",
+          "ICP",
+          "创伤性脑损伤",
+          "神经外科ICU"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-077",
+    "title": "LLM-generated (codex) batch 8: neurology",
+    "source": "codex",
+    "batch": 7,
+    "intent_sequence": [
+      "list_patients",
+      "add_record",
+      "export_records"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先把ICU里做过ICP监测的病人名单过一遍"
+      },
+      {
+        "speaker": "doctor",
+        "text": "找到周晓玲，54岁，HSV脑炎并脑水肿那个"
+      },
+      {
+        "speaker": "doctor",
+        "text": "给她加病程：今天FOUR 12，GCS 10，ICP 16-19mmHg，阿昔洛韦0.5g q8h继续，甘油果糖250ml bid；顺便导出这周记录给交班用"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1,
+        "exports": 1
+      },
+      "must_include_any_of": [
+        [
+          "HSV脑炎",
+          "脑水肿",
+          "ICP",
+          "阿昔洛韦",
+          "GCS",
+          "导出记录"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-078",
+    "title": "LLM-generated (codex) batch 8: neurology",
+    "source": "codex",
+    "batch": 7,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "cancel_task"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "就这样，87岁男，急诊重症转来，基底动脉闭塞再灌注后昏迷，先建患者"
+      },
+      {
+        "speaker": "doctor",
+        "text": "记神经监护：GCS 6，FOUR 7，双瞳2.5mm等大，ICP 20mmHg，但血压掉到96/54，乳酸2.9"
+      },
+      {
+        "speaker": "doctor",
+        "text": "明早09:00安排复评mRS和吞咽不合适，算了先取消，病人还没脱机"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补一句，神经保护按亚低温目标36.0℃，右美托咪定0.4ug/kg/h"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1,
+        "tasks": 1
+      },
+      "must_include_any_of": [
+        [
+          "基底动脉闭塞",
+          "再灌注",
+          "GCS",
+          "FOUR",
+          "亚低温",
+          "急诊重症"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-079",
+    "title": "LLM-generated (codex) batch 8: neurology",
+    "source": "codex",
+    "batch": 7,
+    "intent_sequence": [
+      "query_records",
+      "update_patient",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先查老记录，孙建军，36女，产后静脉窦血栓并颅高压，昨天有视乳头水肿那个"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再把患者资料补全：转入神经ICU第2天，哺乳已停，体重62kg，D-二聚体2.4mg/L FEU"
+      },
+      {
+        "speaker": "doctor",
+        "text": "加今日记录：GCS 13，FOUR 15，ICP 23mmHg，乙酰唑胺250mg tid，加依诺肝素4000IU q12h；不对，依诺肝素写皮下注射"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "静脉窦血栓",
+          "颅高压",
+          "GCS",
+          "FOUR",
+          "乙酰唑胺",
+          "依诺肝素"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-080",
+    "title": "LLM-generated (codex) batch 8: neurology",
+    "source": "codex",
+    "batch": 7,
+    "intent_sequence": [
+      "add_record",
+      "update_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "补个出院前总结，76岁女，高血压性脑出血保守治疗后从NICU转普通病房"
+      },
+      {
+        "speaker": "doctor",
+        "text": "住院经过写完整：入院时GCS 9，峰值ICP 28mmHg，FOUR最低8分，曾用23.4%高渗盐水30ml抢救一次，后稳定在ICP 12-15"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把这条记录细化成出院小结，并约2周后门诊复诊，重点看认知和步态"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1,
+        "follow_ups": 1
+      },
+      "must_include_any_of": [
+        [
+          "脑出血",
+          "出院小结",
+          "ICP",
+          "FOUR",
+          "高渗盐水",
+          "随访"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-081",
+    "title": "LLM-generated (codex) batch 9: neurology",
+    "source": "codex",
+    "batch": 8,
+    "intent_sequence": [
+      "create_patient",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "王建国 58男 2型糖尿病12年 双足麻木半年 先创建"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补一条 神经科门诊 痛觉减退到踝部 10g尼龙丝6/10 NIH-不是这个 分级记TCSS 11分"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再记 用甲钴胺0.5mg tid 依帕司他50mg tid"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "糖尿病周围神经病变",
+          "TCSS",
+          "甲钴胺",
+          "依帕司他",
+          "门诊"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-082",
+    "title": "LLM-generated (codex) batch 9: neurology",
+    "source": "codex",
+    "batch": 8,
+    "intent_sequence": [
+      "create_patient",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "62F 糖尿病周围神经病变，夜间烧灼痛3月，先建患者"
+      },
+      {
+        "speaker": "doctor",
+        "text": "加病程：HbA1c 8.9%，空腹血糖10.7mmol/L，踝反射减弱，MRC 5级，NRS疼痛7分，住院内分泌会诊后转神经内科"
+      },
+      {
+        "speaker": "doctor",
+        "text": "安排4周后复诊，复查足部感觉阈值和B12；普瑞巴林先75mg qn，不对，今晚开始75mg bid"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1,
+        "follow_ups": 1
+      },
+      "must_include_any_of": [
+        [
+          "糖尿病周围神经病变",
+          "HbA1c",
+          "NRS",
+          "普瑞巴林",
+          "随访"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-083",
+    "title": "LLM-generated (codex) batch 9: emg_lab",
+    "source": "codex",
+    "batch": 8,
+    "intent_sequence": [
+      "query_records",
+      "add_record"
+    ],
+    "clinical_domain": "emg_lab",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先查一下赵健康上月肌电图记录"
+      },
+      {
+        "speaker": "doctor",
+        "text": "查到后补：今天复诊主诉踩棉花感加重，NCS示双腓总神经CMAP下降，腓肠神经SNAP未引出，考虑糖尿病轴索性周围神经病变"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "NCS",
+          "CMAP",
+          "SNAP",
+          "糖尿病周围神经病变",
+          "肌电图室"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-084",
+    "title": "LLM-generated (codex) batch 9: neurology",
+    "source": "codex",
+    "batch": 8,
+    "intent_sequence": [
+      "update_patient",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "把19床联系电话先改一下，女儿号码13800041236"
+      },
+      {
+        "speaker": "doctor",
+        "text": "然后加记录：GBS急诊收住，男34岁，四肢无力4天，入院MRC上肢4级下肢3级，Hughes 3级，脑脊液蛋白1.12g/L，细胞3个/uL，蛋白细胞分离"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "格林-巴利综合征",
+          "Hughes评分",
+          "脑脊液",
+          "蛋白细胞分离",
+          "急诊"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-085",
+    "title": "LLM-generated (codex) batch 9: emg_lab",
+    "source": "codex",
+    "batch": 8,
+    "intent_sequence": [
+      "list_patients",
+      "create_patient",
+      "add_record"
+    ],
+    "clinical_domain": "emg_lab",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "把今天肌电图室预约名单调出来，我加个新患者"
+      },
+      {
+        "speaker": "doctor",
+        "text": "新建：陈建国，女，47岁，双眼睑下垂6月，下午加重，AChR-Ab 3.6nmol/L"
+      },
+      {
+        "speaker": "doctor",
+        "text": "记录一下 低频RNS递减18%，QMG 9分，考虑全身型重症肌无力，先门诊入组"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "重症肌无力",
+          "RNS",
+          "QMG",
+          "AChR-Ab",
+          "肌电图室"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-086",
+    "title": "LLM-generated (codex) batch 9: neuro_icu",
+    "source": "codex",
+    "batch": 8,
+    "intent_sequence": [
+      "list_tasks",
+      "complete_task",
+      "add_record"
+    ],
+    "clinical_domain": "neuro_icu",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先看下神经重症今天待办"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把24床那个血气复核任务标完成"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再补病程：MG危象患者，男71岁，昨夜插管，VC 12mL/kg，NIF -18cmH2O，ABG pCO2 58mmHg，已予IVIG 0.4g/kg/d，第2天；等下，刚才NIF记错了，是-16cmH2O"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1,
+        "tasks": 1
+      },
+      "must_include_any_of": [
+        [
+          "重症肌无力危象",
+          "IVIG",
+          "VC",
+          "NIF",
+          "血气"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-087",
+    "title": "LLM-generated (codex) batch 9: emg_lab",
+    "source": "codex",
+    "batch": 8,
+    "intent_sequence": [
+      "query_records",
+      "update_record",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "emg_lab",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先把刘晓明既往NCS翻出来"
+      },
+      {
+        "speaker": "doctor",
+        "text": "原记录里右正中神经远端潜伏期写3.8ms，不对，应该是4.8ms，给我改掉"
+      },
+      {
+        "speaker": "doctor",
+        "text": "顺手补今天结论：双侧腕管合并糖尿病周围神经病变，针极EMG未见失神经电位"
+      },
+      {
+        "speaker": "doctor",
+        "text": "三个月后复查NCS，提醒空腹血糖控制到7以下"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1,
+        "follow_ups": 1
+      },
+      "must_include_any_of": [
+        [
+          "NCS",
+          "远端潜伏期",
+          "腕管综合征",
+          "糖尿病周围神经病变",
+          "复查"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-088",
+    "title": "LLM-generated (codex) batch 9: neurology",
+    "source": "codex",
+    "batch": 8,
+    "intent_sequence": [
+      "list_tasks",
+      "postpone_task",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "查待办先，昨天那个GBS随访电话先别打"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把任务顺延到周五"
+      },
+      {
+        "speaker": "doctor",
+        "text": "并记一条：患者出院后第10天，仍需扶墙行走，MRC下肢4-级，Hughes由4级改善到3级，已完成丙球总量2g/kg"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1,
+        "tasks": 1
+      },
+      "must_include_any_of": [
+        [
+          "格林-巴利综合征",
+          "Hughes评分",
+          "IVIG",
+          "出院随访",
+          "任务管理"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-089",
+    "title": "LLM-generated (codex) batch 9: neurology",
+    "source": "codex",
+    "batch": 8,
+    "intent_sequence": [
+      "query_records",
+      "export_records"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "把周敏这次住院所有周围神经记录先查出来"
+      },
+      {
+        "speaker": "doctor",
+        "text": "导出给康复科，要从入院到今天的病程、肌电图和用药调整，备注DPN伴感觉性共济失调，维生素B12 168pg/mL"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 0
+      },
+      "must_include_any_of": [
+        [
+          "导出病历",
+          "糖尿病周围神经病变",
+          "感觉性共济失调",
+          "维生素B12",
+          "康复"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-090",
+    "title": "LLM-generated (codex) batch 9: neuro_icu",
+    "source": "codex",
+    "batch": 8,
+    "intent_sequence": [
+      "create_patient",
+      "update_patient",
+      "add_record",
+      "cancel_task"
+    ],
+    "clinical_domain": "neuro_icu",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "录个新的，急会诊那个先建患者，男55岁"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补充基础信息：神经重症监护，既往胸腺瘤术后3年，MuSK抗体阳性，体重68kg"
+      },
+      {
+        "speaker": "doctor",
+        "text": "加记录：吞咽困难伴抬头无力1天，QMG 19分，单次计数试验7，已予甲泼尼龙40mg qd和Pyridostigmine 60mg q6h；等下，吡啶斯的明先停，准备血浆置换"
+      },
+      {
+        "speaker": "doctor",
+        "text": "原来明早的普通复诊任务取消"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1,
+        "tasks": 1
+      },
+      "must_include_any_of": [
+        [
+          "重症肌无力危象",
+          "MuSK抗体",
+          "QMG",
+          "血浆置换",
+          "神经重症"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-091",
+    "title": "LLM-generated (codex) batch 10: neurology",
+    "source": "codex",
+    "batch": 9,
+    "intent_sequence": [
+      "create_patient",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "王建国 胶母术后7天 创建"
+      },
+      {
+        "speaker": "doctor",
+        "text": "男58岁，住院，左额叶胶质母细胞瘤术后，病理IDH-wt，MGMT甲基化阳性，KPS 70，GCS 15"
+      },
+      {
+        "speaker": "doctor",
+        "text": "加一条：术后MRI残余强化灶约1.8cm，左侧肢体肌力4级，左乙拉西坦0.5g bid预防癫痫"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "胶质母细胞瘤",
+          "术后MRI",
+          "KPS 70",
+          "左乙拉西坦"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-092",
+    "title": "LLM-generated (codex) batch 10: neurology",
+    "source": "codex",
+    "batch": 9,
+    "intent_sequence": [
+      "query_records",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先查一下赵亚男上次病程"
+      },
+      {
+        "speaker": "doctor",
+        "text": "62F 右额顶脑膜瘤术后3月复诊，KPS 90，MRI提示术腔周围轻度强化，考虑放疗后反应，暂不支持复发"
+      },
+      {
+        "speaker": "doctor",
+        "text": "补记：地塞米松昨日起减到2mg qd，2周后门诊复查增强MRI和MMSE"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1,
+        "follow_ups": 1
+      },
+      "must_include_any_of": [
+        [
+          "脑膜瘤",
+          "放疗反应",
+          "KPS 90",
+          "地塞米松"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-093",
+    "title": "LLM-generated (codex) batch 10: neurology",
+    "source": "codex",
+    "batch": 9,
+    "intent_sequence": [
+      "list_patients",
+      "create_patient",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "名单里没有陈晓蕾吧"
+      },
+      {
+        "speaker": "doctor",
+        "text": "新建，女34岁，门诊，左颞叶少突胶质细胞瘤术后第5周期TMZ前评估，1p/19q共缺失，IDH1突变"
+      },
+      {
+        "speaker": "doctor",
+        "text": "记录：体重52kg，替莫唑胺200mg/m2 d1-5，本周期总量约290mg qd，ANC 1.4×10^9/L，PLT 86×10^9/L，先写CTCAE 2级骨髓抑制"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "少突胶质细胞瘤",
+          "TMZ",
+          "ANC 1.4",
+          "PLT 86"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-094",
+    "title": "LLM-generated (codex) batch 10: neurology",
+    "source": "codex",
+    "batch": 9,
+    "intent_sequence": [
+      "list_tasks",
+      "complete_task",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "把今天待办调出来"
+      },
+      {
+        "speaker": "doctor",
+        "text": "那个“李先生术后拆线随访”先标完成"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再记病程：男71岁，左蝶骨嵴脑膜瘤术后14天，切口干燥无渗液，KPS 80，右眼轻度复视较前减轻，丙戊酸钠0.5g bid继续"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1,
+        "tasks": 1
+      },
+      "must_include_any_of": [
+        [
+          "蝶骨嵴脑膜瘤",
+          "术后拆线",
+          "KPS 80",
+          "丙戊酸钠"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-095",
+    "title": "LLM-generated (codex) batch 10: neurology",
+    "source": "codex",
+    "batch": 9,
+    "intent_sequence": [
+      "query_records",
+      "update_record",
+      "export_records"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "查下孙伟民去年放疗后的记录"
+      },
+      {
+        "speaker": "doctor",
+        "text": "等下，刚才说错了，不是去年，是2025年9月结束放疗"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把最近一条改一下：男49岁，间变性星形细胞瘤术后放疗后6月，RANO评估SD，不对，应该写轻度进展待定，新增右手抽动每周2次，拉考沙胺从100mg bid调到150mg bid"
+      },
+      {
+        "speaker": "doctor",
+        "text": "改完把近半年记录导出给MDT"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1,
+        "exports": 1
+      },
+      "must_include_any_of": [
+        [
+          "间变性星形细胞瘤",
+          "RANO",
+          "拉考沙胺",
+          "MDT"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-096",
+    "title": "LLM-generated (codex) batch 10: neurology",
+    "source": "codex",
+    "batch": 9,
+    "intent_sequence": [
+      "create_patient",
+      "update_patient",
+      "add_record",
+      "schedule_follow_up"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先给急诊转来的那个创建"
+      },
+      {
+        "speaker": "doctor",
+        "text": "男45岁，神经外科术后转神经肿瘤科，右额叶高级别胶质瘤切除后第3天，住院号补上，过敏史无"
+      },
+      {
+        "speaker": "doctor",
+        "text": "患者信息再补：身高176cm，体重68kg，KPS 60，术后短暂失语已改善"
+      },
+      {
+        "speaker": "doctor",
+        "text": "加病程并约复诊：GCS 15，术后腔少量积气，左乙拉西坦1g bid，地塞米松4mg q8h，计划出院后第14天复查伤口和病理分子结果"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1,
+        "follow_ups": 1
+      },
+      "must_include_any_of": [
+        [
+          "高级别胶质瘤",
+          "KPS 60",
+          "地塞米松4mg q8h",
+          "术后随访"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-097",
+    "title": "LLM-generated (codex) batch 10: neurology",
+    "source": "codex",
+    "batch": 9,
+    "intent_sequence": [
+      "list_tasks",
+      "postpone_task",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "待办先看"
+      },
+      {
+        "speaker": "doctor",
+        "text": "放疗后水肿复查那个先往后延3天，病人今天没来"
+      },
+      {
+        "speaker": "doctor",
+        "text": "顺手记一下：女67岁，左顶叶转移瘤术后联合放疗后，头痛VAS 3分，KPS 70，MRI周围水肿带较前缩小约20%，甘露醇已停，地塞米松减至1mg bid"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1,
+        "tasks": 1
+      },
+      "must_include_any_of": [
+        [
+          "放疗后水肿",
+          "KPS 70",
+          "地塞米松1mg bid",
+          "MRI"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-098",
+    "title": "LLM-generated (codex) batch 10: neurology",
+    "source": "codex",
+    "batch": 9,
+    "intent_sequence": [
+      "query_records",
+      "update_patient",
+      "add_record"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先翻刘老师历史病历再补今天的"
+      },
+      {
+        "speaker": "doctor",
+        "text": "她是女59岁，左额叶脑膜瘤术后2年门诊随访，最近记忆差一些，MMSE 26/30，CDR 0.5"
+      },
+      {
+        "speaker": "doctor",
+        "text": "患者资料更新成退休教师；再加记录：增强MRI未见明确复发，术区脑软化灶稳定，托吡酯25mg qn停了，不对，应该写上月已停，今天不用药调整"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
+      },
+      "must_include_any_of": [
+        [
+          "脑膜瘤术后",
+          "MMSE 26",
+          "CDR 0.5",
+          "无复发"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-099",
+    "title": "LLM-generated (codex) batch 10: neurology",
+    "source": "codex",
+    "batch": 9,
+    "intent_sequence": [
+      "list_patients",
+      "add_record",
+      "cancel_task"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "把门诊名单过一遍"
+      },
+      {
+        "speaker": "doctor",
+        "text": "张海峰那条化疗提醒取消，他这周期暂停TMZ"
+      },
+      {
+        "speaker": "doctor",
+        "text": "再录入：男63岁，胶质母细胞瘤同步放化疗后第4周，ALT 78U/L，AST 65U/L，PLT 112×10^9/L，恶心2级，KPS 70，给予保肝药双环醇25mg tid并暂停下一周期"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 0,
+        "medical_records": 1,
+        "tasks": 1
+      },
+      "must_include_any_of": [
+        [
+          "胶质母细胞瘤",
+          "TMZ暂停",
+          "ALT 78",
+          "PLT 112"
+        ]
+      ]
+    }
+  },
+  {
+    "case_id": "LLM-GEN-CODEX-100",
+    "title": "LLM-generated (codex) batch 10: neurology",
+    "source": "codex",
+    "batch": 9,
+    "intent_sequence": [
+      "query_records",
+      "create_patient",
+      "add_record",
+      "export_records"
+    ],
+    "clinical_domain": "neurology",
+    "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "先查有没有周倩的既往资料"
+      },
+      {
+        "speaker": "doctor",
+        "text": "没有的话就新建，女38岁，门诊，右颞叶低级别胶质瘤术后1年，偶有发作性闻味异常"
+      },
+      {
+        "speaker": "doctor",
+        "text": "记上：癫痫控制一般，过去1月发作3次，EEG右颞慢波，左乙拉西坦原来写成0.25g bid，不对，应该是0.5g bid，加用拉莫三嗪25mg qn起始，KPS 90"
+      },
+      {
+        "speaker": "doctor",
+        "text": "把今天门诊记录导出一份给放疗科会诊"
+      }
+    ],
+    "expectations": {
+      "must_not_timeout": true,
+      "expected_table_min_counts_global": {
+        "system_prompts": 1
+      },
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1,
+        "exports": 1
+      },
+      "must_include_any_of": [
+        [
+          "低级别胶质瘤",
+          "癫痫控制",
+          "EEG",
+          "KPS 90"
+        ]
+      ]
+    }
+  }
+]
