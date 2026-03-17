@@ -44,6 +44,7 @@ from channels.web.tasks import router as tasks_router
 from channels.web.export import router as export_router
 from channels.web.import_routes import router as import_router
 from channels.web.patient_portal import router as patient_portal_router
+from channels.web.patient_interview_routes import router as patient_interview_router
 from db.init_db import create_tables, seed_prompts, backfill_doctors_registry
 from db.engine import engine, AsyncSessionLocal
 from db.crud import get_due_tasks
@@ -676,6 +677,7 @@ app.include_router(tasks_router)
 app.include_router(export_router)
 app.include_router(import_router)
 app.include_router(patient_portal_router)
+app.include_router(patient_interview_router)
 
 
 @app.get("/")
