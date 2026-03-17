@@ -99,23 +99,10 @@ def _resolve_provider(provider_name: str) -> dict:
     return provider
 
 
-async def _build_system_prompt(
-    consultation_mode: bool,
-    encounter_type: str,
-) -> str:
-    """Assemble system prompt with optional consultation/followup suffixes."""
-    from utils.prompt_loader import get_prompt
+async def _build_system_prompt() -> str:
+    """Load structuring system prompt."""
     with trace_block("llm", "structuring.load_prompt"):
-        system_prompt = await _get_system_prompt()
-    if consultation_mode:
-        system_prompt = system_prompt + await get_prompt(
-            "structuring-consultation-suffix"
-        )
-    if encounter_type == "follow_up":
-        system_prompt = system_prompt + await get_prompt(
-            "structuring-followup-suffix"
-        )
-    return system_prompt
+        return await _get_system_prompt()
 
 
 def _make_llm_caller(client: AsyncOpenAI, provider_name: str, system_prompt: str, user_content: str):
@@ -263,8 +250,6 @@ def _validate_and_coerce_fields(data: dict, text: str, provider_name: str) -> di
 
 async def structure_medical_record(
     text: str,
-    consultation_mode: bool = False,
-    encounter_type: str = "unknown",
     prior_visit_summary: Optional[str] = None,
     doctor_id: Optional[str] = None,
 ) -> MedicalRecord:
@@ -274,7 +259,7 @@ async def structure_medical_record(
     log(f"[LLM:{provider_name}] calling API: {text[:80]}")
 
     client = _get_structuring_client(provider_name, provider)
-    system_prompt = await _build_system_prompt(consultation_mode, encounter_type)
+    system_prompt = await _build_system_prompt()
 
     user_content = text
     if prior_visit_summary:
