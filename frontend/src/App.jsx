@@ -25,7 +25,7 @@ export default function App() {
   // Dev mode: auto-set doctor identity so login is never required
   useState(() => {
     if (DEV_MODE && !doctorId) {
-      setAuth(DEV_DOCTOR_ID, DEV_DOCTOR_ID, "dev-token");
+      setAuth(DEV_DOCTOR_ID, DEV_DOCTOR_ID, "");
     }
   });
 

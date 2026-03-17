@@ -168,22 +168,21 @@ async def _ensure_patient(
     """Ensure a patient is bound for patient-scoped actions.
 
     Resolution order:
-    1. Current context patient (already selected)
-    2. patient_name from action args → lookup or auto-create
+    1. patient_name from action args → lookup or auto-create
+    2. Current context patient (fallback when no name given)
     3. (None, None) if no patient can be resolved
 
     Returns (patient_id, patient_name) or (None, None).
     """
-    # 1. Already have a context patient
-    if ctx.workflow.patient_id is not None:
-        return (ctx.workflow.patient_id, ctx.workflow.patient_name)
-
-    # 2. Extract patient_name from args
+    # 1. Extract patient_name from args — explicit name always wins
     name: Optional[str] = None
     if action.args and hasattr(action.args, "patient_name"):
         name = action.args.patient_name
 
     if not name:
+        # 2. Fallback to context patient
+        if ctx.workflow.patient_id is not None:
+            return (ctx.workflow.patient_id, ctx.workflow.patient_name)
         return (None, None)
 
     # 2b. Validate that the extracted name looks like a person name

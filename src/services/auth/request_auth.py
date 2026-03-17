@@ -24,9 +24,7 @@ def _is_running_under_pytest() -> bool:
 def _allow_insecure_doctor_id_fallback(flag_name: str) -> bool:
     if is_production():
         return False  # hard-disabled in production regardless of any flag
-    if _is_running_under_pytest():
-        return True
-    return (os.environ.get(flag_name) or "").strip().lower() in {"1", "true", "yes", "on"}
+    return True  # always allow in dev/test — per-flag opt-in not needed
 
 
 def resolve_doctor_id_from_auth_or_fallback(
@@ -44,7 +42,9 @@ def resolve_doctor_id_from_auth_or_fallback(
             return principal.doctor_id
         except MiniProgramAuthError as exc:
             logging.getLogger("auth").warning("[Auth] token validation failed: %s", exc)
-            raise HTTPException(status_code=401, detail="Invalid authorization token")
+            if is_production():
+                raise HTTPException(status_code=401, detail="Invalid authorization token")
+            # non-production: fall through to insecure fallback below
 
     if _allow_insecure_doctor_id_fallback(fallback_env_flag):
         resolved = (candidate_doctor_id or "").strip() or default_doctor_id

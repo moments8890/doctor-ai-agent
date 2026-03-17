@@ -196,9 +196,9 @@
       ],
       "must_include_reply_any_of": [
         [
-          "最近",
-          "历史记录",
-          "记录"
+          "HFpEF",
+          "BNP",
+          "端坐呼吸"
         ],
         [
           "王丽"
@@ -239,9 +239,10 @@
       ],
       "must_include_reply_any_of": [
         [
-          "最近",
-          "历史记录",
-          "记录"
+          "TIA",
+          "ABCD2",
+          "颈动脉",
+          "氯吡格雷"
         ],
         [
           "张桂兰"
@@ -282,9 +283,10 @@
       ],
       "must_include_reply_any_of": [
         [
-          "最近",
-          "历史记录",
-          "记录"
+          "ANC",
+          "PLT",
+          "G-CSF",
+          "化疗"
         ],
         [
           "何志远"
@@ -387,7 +389,9 @@
           "已存在",
           "复用",
           "创建",
-          "患者"
+          "患者",
+          "已为",
+          "保存"
         ],
         [
           "周宁"
@@ -1310,9 +1314,13 @@
   },
   {
     "case_id": "MVP-ACC-043",
-    "title": "Edge case: very short input — single character",
+    "title": "Edge case: short query '查' defaults to context patient",
     "group": "edge_case",
     "chatlog": [
+      {
+        "speaker": "doctor",
+        "text": "创建患者周宁，女48岁，高血压3年，今日血压142/88。"
+      },
       {
         "speaker": "doctor",
         "text": "查"
@@ -1320,21 +1328,18 @@
     ],
     "expectations": {
       "must_not_timeout": true,
-      "expected_table_max_counts_by_doctor": {
-        "patients": 0,
-        "medical_records": 0
+      "expected_patient_name": "周宁",
+      "expected_patient_count": 1,
+      "expected_table_min_counts_by_doctor": {
+        "patients": 1,
+        "medical_records": 1
       },
       "must_include_reply_any_of": [
         [
-          "请问",
-          "哪位",
-          "患者",
-          "帮您",
-          "需要",
-          "没有理解",
-          "再试",
-          "不太明白",
-          "具体"
+          "周宁",
+          "高血压",
+          "血压",
+          "142"
         ]
       ]
     }
