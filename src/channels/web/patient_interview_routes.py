@@ -3,9 +3,19 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, Body, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException
+from pydantic import BaseModel
 
 from channels.web.patient_portal import _authenticate_patient
+
+
+class InterviewTurnRequest(BaseModel):
+    session_id: str
+    text: str
+
+
+class InterviewSessionRequest(BaseModel):
+    session_id: str
 from services.patient_interview.completeness import count_filled
 from services.patient_interview.session import (
     create_session,
@@ -54,19 +64,18 @@ async def start_interview(
 
 @router.post("/turn")
 async def turn(
-    session_id: str = Body(...),
-    text: str = Body(...),
+    body: InterviewTurnRequest,
     x_patient_token: Optional[str] = Header(default=None),
 ):
     """Send a patient message and get AI reply."""
     await _authenticate_patient(x_patient_token)
 
-    if not text.strip():
+    if not body.text.strip():
         raise HTTPException(400, "消息不能为空")
-    if len(text) > 2000:
+    if len(body.text) > 2000:
         raise HTTPException(400, "消息过长")
 
-    response = await interview_turn(session_id, text.strip())
+    response = await interview_turn(body.session_id, body.text.strip())
 
     if response.status == "error":
         raise HTTPException(404, response.reply)
@@ -101,13 +110,13 @@ async def current_session(
 
 @router.post("/confirm")
 async def confirm(
-    session_id: str = Body(...),
+    body: InterviewSessionRequest,
     x_patient_token: Optional[str] = Header(default=None),
 ):
     """Patient confirms interview summary -> creates record + task."""
     patient = await _authenticate_patient(x_patient_token)
 
-    session = await load_session(session_id)
+    session = await load_session(body.session_id)
     if session is None:
         raise HTTPException(404, "问诊会话不存在")
     if session.patient_id != patient.id:
@@ -138,13 +147,13 @@ async def confirm(
 
 @router.post("/cancel")
 async def cancel(
-    session_id: str = Body(...),
+    body: InterviewSessionRequest,
     x_patient_token: Optional[str] = Header(default=None),
 ):
     """Abandon interview session."""
     patient = await _authenticate_patient(x_patient_token)
 
-    session = await load_session(session_id)
+    session = await load_session(body.session_id)
     if session is None:
         raise HTTPException(404, "问诊会话不存在")
     if session.patient_id != patient.id:
