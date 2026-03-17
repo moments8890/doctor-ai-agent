@@ -435,17 +435,24 @@ async def list_accepting_doctors():
     ]
 
 
+class PatientRegisterRequest(BaseModel):
+    doctor_id: str
+    name: str
+    gender: Optional[str] = None
+    year_of_birth: int
+    phone: str
+
+
 @router.post("/register")
-async def register_patient(
-    doctor_id: str = "",
-    name: str = "",
-    gender: Optional[str] = None,
-    year_of_birth: Optional[int] = None,
-    phone: str = "",
-):
+async def register_patient(body: PatientRegisterRequest):
     """Patient self-registration. Links to existing record if name matches."""
-    from fastapi import Body
     from db.models import Doctor
+
+    doctor_id = body.doctor_id
+    name = body.name
+    gender = body.gender
+    year_of_birth = body.year_of_birth
+    phone = body.phone
 
     if not doctor_id or not name or not phone or not year_of_birth:
         raise HTTPException(400, "请填写完整信息")
@@ -499,13 +506,19 @@ async def register_patient(
     return {"token": token, "patient_id": patient.id, "patient_name": patient.name}
 
 
+class PatientLoginRequest(BaseModel):
+    phone: str
+    year_of_birth: int
+    doctor_id: Optional[str] = None
+
+
 @router.post("/login")
-async def login_by_phone(
-    phone: str = "",
-    year_of_birth: Optional[int] = None,
-    doctor_id: Optional[str] = None,
-):
+async def login_by_phone(body: PatientLoginRequest):
     """Patient login with phone + year_of_birth."""
+    phone = body.phone
+    year_of_birth = body.year_of_birth
+    doctor_id = body.doctor_id
+
     if not phone or not year_of_birth:
         raise HTTPException(400, "请输入手机号和出生年份")
 
