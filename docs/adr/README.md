@@ -36,6 +36,7 @@ Use small, direct records with:
 - [ADR 0014: Medical Record Import/Export](0014-medical-record-import-export.md)
 - [ADR 0015: Clinical Text Collection Boundary](0015-clinical-text-collection-boundary.md)
 - [ADR 0016: Patient Pre-Consultation Interview Pipeline](0016-patient-pre-consultation-interview.md)
+  — companion: [Architecture Diagram](0016-architecture-diagram.md)
 
 ## Status Values
 
