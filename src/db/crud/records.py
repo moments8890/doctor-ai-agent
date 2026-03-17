@@ -135,21 +135,6 @@ async def _ensure_auto_follow_up_task(
     log(f"[silent-save] auto follow-up task created doctor={doctor_id} patient_id={patient_id} record_id={record_id} due={due_at.date()}")
 
 
-async def _detect_encounter_type(session: AsyncSession, doctor_id: str, patient_id: int | None) -> str:
-    """Return 'first_visit' if patient has no prior records, 'follow_up' if they do, 'unknown' if no patient."""
-    if patient_id is None:
-        return "unknown"
-    from sqlalchemy import func
-    result = await session.execute(
-        select(func.count()).where(
-            MedicalRecordDB.doctor_id == doctor_id,
-            MedicalRecordDB.patient_id == patient_id,
-        )
-    )
-    count = result.scalar() or 0
-    return "first_visit" if count == 0 else "follow_up"
-
-
 async def save_record(
     session: AsyncSession,
     doctor_id: str,
@@ -160,13 +145,11 @@ async def save_record(
 ) -> MedicalRecordDB:
     with _trace_block("db", "crud.save_record", {"doctor_id": doctor_id, "patient_id": patient_id}):
         doctor_id = await _ensure_doctor_exists(session, doctor_id)
-        encounter_type = await _detect_encounter_type(session, doctor_id, patient_id)
         repo = RecordRepository(session)
         db_record = await repo.create(
             doctor_id=doctor_id,
             record=record,
             patient_id=patient_id,
-            encounter_type=encounter_type,
         )
         if patient_id is not None:
             _has_follow_up = (

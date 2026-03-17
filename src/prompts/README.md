@@ -12,10 +12,8 @@ LLM prompt files — one `.md` file per prompt.  Edit directly to tune behavior.
 
 | File | Used by | Purpose |
 |------|---------|---------|
-| `understand.md` | `services/runtime/understand.py` | Understand phase system prompt (ZH) — intent classification, JSON output format (ADR 0012) |
+| `understand.md` | `services/runtime/understand.py` | Intent classification, JSON output format (ADR 0013) |
 | `structuring.md` | `services/ai/structuring.py` | Transform doctor dictation into structured clinical notes (JSON) |
-| `structuring-consultation-suffix.md` | same | Suffix appended for consultation dialogue mode |
-| `structuring-followup-suffix.md` | same | Suffix appended for follow-up/revisit records |
 | `vision-ocr.md` | `services/ai/vision.py` | Image-to-text OCR for medical documents |
 | `patient-chat.md` | `channels/wechat/patient_pipeline.py` | Patient-facing chat assistant (non-doctor) |
 | `report-extract.md` | `services/export/outpatient_report.py` | Extract outpatient report fields (template: `{records_text}`) |

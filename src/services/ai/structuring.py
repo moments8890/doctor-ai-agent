@@ -7,8 +7,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import re
-from typing import Optional, Tuple
+from typing import Optional
 
 from openai import AsyncOpenAI
 
@@ -43,11 +42,6 @@ def _get_structuring_client(provider_name: str, provider: dict) -> AsyncOpenAI:
         )
     return _STRUCTURING_CLIENT_CACHE[provider_name]
 
-_FOLLOWUP_KEYWORDS = frozenset({
-    "复诊", "随访", "复查", "上次", "那次", "上回", "继续上次",
-    "之前开的药", "药吃完", "回来复查", "按时随访",
-})
-
 async def _get_system_prompt() -> str:
     """Load structuring prompt from DB, appending optional extension if set."""
     from utils.prompt_loader import get_prompt
@@ -56,11 +50,6 @@ async def _get_system_prompt() -> str:
     if extension.strip():
         return base + "\n\n" + extension.strip()
     return base
-
-
-def detect_followup_from_text(text: str) -> bool:
-    """Return True if the text suggests a follow-up/return visit."""
-    return any(kw in text for kw in _FOLLOWUP_KEYWORDS)
 
 
 def _resolve_provider(provider_name: str) -> dict:
@@ -250,10 +239,9 @@ def _validate_and_coerce_fields(data: dict, text: str, provider_name: str) -> di
 
 async def structure_medical_record(
     text: str,
-    prior_visit_summary: Optional[str] = None,
     doctor_id: Optional[str] = None,
 ) -> MedicalRecord:
-    """将文本转换为结构化 MedicalRecord，支持问诊/复诊模式和多提供商 LLM。"""
+    """将文本转换为结构化 MedicalRecord。"""
     provider_name = os.environ.get("STRUCTURING_LLM", "deepseek")
     provider = _resolve_provider(provider_name)
     log(f"[LLM:{provider_name}] calling API: {text[:80]}")
@@ -261,13 +249,9 @@ async def structure_medical_record(
     client = _get_structuring_client(provider_name, provider)
     system_prompt = await _build_system_prompt()
 
-    user_content = text
-    if prior_visit_summary:
-        user_content = f"【上次就诊参考】\n{prior_visit_summary}\n\n【本次记录】\n{text}"
-
-    primary_call = _make_llm_caller(client, provider_name, system_prompt, user_content)
+    primary_call = _make_llm_caller(client, provider_name, system_prompt, text)
     completion = await _call_with_cloud_fallback(
-        primary_call, provider, provider_name, system_prompt, user_content, doctor_id
+        primary_call, provider, provider_name, system_prompt, text, doctor_id
     )
 
     raw = completion.choices[0].message.content or ""

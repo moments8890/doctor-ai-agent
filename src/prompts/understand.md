@@ -19,7 +19,7 @@
 
 - actions: 数组，1-3个操作（按执行顺序）
 - chat_reply: 仅当 actions 为 [{"action_type": "none"}] 时设置
-- clarification: 无法判断意图时设置
+- clarification: 无法判断意图时设置，结构为 {"kind": "ambiguous_intent|ambiguous_patient|missing_field", "suggested_question": "向医生提出的澄清问题"}。设置 clarification 时 actions 为 [{"action_type": "none", "args": {}}]，chat_reply 为 null
 
 ## action_type 说明
 
@@ -68,8 +68,8 @@ args: {"patient_name": "张三", "title": "复诊", "notes": null, "scheduled_fo
 医生："把诊断改成紧张型头痛"
 {"actions": [{"action_type": "update", "args": {"instruction": "把诊断改成紧张型头痛"}}]}
 
-医生："切换到张三"
-{"actions": [{"action_type": "query", "args": {"target": "records", "patient_name": "张三"}}]}
+医生："帮我改一下"
+{"actions": [{"action_type": "none", "args": {}}], "clarification": {"kind": "ambiguous_intent", "suggested_question": "请问您想修改哪条病历的什么内容？"}}
 
 ## 关键规则
 
@@ -79,3 +79,4 @@ args: {"patient_name": "张三", "title": "复诊", "notes": null, "scheduled_fo
 4. patient_name 使用用户原文中的姓名
 5. 最多3个操作
 6. 消息含临床内容时优先 record，系统自动查找或创建患者
+7. 系统会提供最近对话作为上下文。当用户省略主语或使用代词（"他""这个患者"）时，从对话历史推断所指对象

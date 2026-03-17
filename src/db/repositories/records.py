@@ -34,7 +34,6 @@ class RecordRepository:
         doctor_id: str,
         record: MedicalRecord,
         patient_id: Optional[int],
-        encounter_type: str = "unknown",
     ) -> MedicalRecordDB:
         db_record = MedicalRecordDB(
             doctor_id=doctor_id,
@@ -42,7 +41,6 @@ class RecordRepository:
             record_type=record.record_type,
             content=record.content,
             tags=json.dumps(record.tags, ensure_ascii=False) if record.tags else None,
-            encounter_type=encounter_type,
         )
         self.session.add(db_record)
         await self.session.flush()

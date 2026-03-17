@@ -89,12 +89,6 @@ def _fmt_datetime(dt: Optional[datetime]) -> str:
 # PDF generation
 # ---------------------------------------------------------------------------
 
-_ENCOUNTER_LABEL = {
-    "first_visit": "首诊",
-    "follow_up": "随访",
-    "unknown": "",
-}
-
 _RISK_LABEL = {
     "critical": "极高危",
     "high": "高危",
@@ -170,13 +164,9 @@ def _draw_record_entry(pdf, _set_font, i: int, rec) -> None:
 
     date_str = _fmt_datetime(getattr(rec, "created_at", None))
     rtype = _record_type_label(getattr(rec, "record_type", "visit") or "visit")
-    enc = getattr(rec, "encounter_type", "unknown") or "unknown"
-    enc_label = _ENCOUNTER_LABEL.get(enc, "")
     rec_id = getattr(rec, "id", None)
 
     header_parts = [f"{i + 1}.", date_str, f"[{rtype}]"]
-    if enc_label:
-        header_parts.append(f"[{enc_label}]")
     if rec_id is not None:
         header_parts.append(f"#R{rec_id}")
 
@@ -301,7 +291,7 @@ def generate_records_pdf(
 # ---------------------------------------------------------------------------
 
 def _draw_outpatient_header(
-    pdf, _sf, clinic: str, encounter_type: str,
+    pdf, _sf, clinic: str,
     patient_name: Optional[str], patient_info: Optional[str],
     department: str, doctor_name: Optional[str],
 ) -> None:
@@ -309,7 +299,7 @@ def _draw_outpatient_header(
     _sf(16, bold=True)
     pdf.cell(0, 10, clinic, align="C", new_x="LMARGIN", new_y="NEXT")
     _sf(13, bold=True)
-    pdf.cell(0, 8, f"门  诊  病  历（{encounter_type}）", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 8, "门  诊  病  历", align="C", new_x="LMARGIN", new_y="NEXT")
     _sf(9)
     pdf.set_text_color(100, 100, 100)
     pdf.cell(0, 5, "卫医政发〔2010〕11号  ·  国卫办医政发〔2024〕16号", align="C", new_x="LMARGIN", new_y="NEXT")
@@ -407,12 +397,11 @@ def generate_outpatient_report_pdf(
     """按卫生部 2010 门诊病历格式生成 PDF，返回原始字节。"""
     from services.export.outpatient_report import OUTPATIENT_FIELDS, _HEADER_ONLY_FIELDS
     clinic = clinic_name or os.environ.get("CLINIC_NAME", "医疗机构")
-    encounter_type = (fields.get("encounter_type") or "初诊").strip()
     department = (fields.get("department") or "").strip()
     pdf, _sf = _create_outpatient_pdf_doc()
     pdf.add_page()
     _draw_outpatient_header(
-        pdf, _sf, clinic, encounter_type,
+        pdf, _sf, clinic,
         patient_name, patient_info, department, doctor_name,
     )
     _draw_outpatient_fields(pdf, _sf, fields, OUTPATIENT_FIELDS, _HEADER_ONLY_FIELDS)

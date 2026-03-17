@@ -30,7 +30,6 @@ from utils.log import log
 # ---------------------------------------------------------------------------
 
 OUTPATIENT_FIELDS = [
-    ("encounter_type",     "就诊类型"),   # 初诊 / 复诊
     ("department",         "科别"),        # 卫医政发〔2010〕11号 required header field
     ("chief_complaint",    "主诉"),
     ("present_illness",    "现病史"),
@@ -46,7 +45,7 @@ OUTPATIENT_FIELDS = [
 ]
 
 # Fields rendered in the PDF header row rather than as full sections
-_HEADER_ONLY_FIELDS = {"encounter_type", "department"}
+_HEADER_ONLY_FIELDS = {"department"}
 
 _FIELD_KEYS = [k for k, _ in OUTPATIENT_FIELDS]
 
@@ -101,10 +100,6 @@ async def _build_extraction_prompt(
     for rec in records:
         lines: list[str] = []
         content = (getattr(rec, "content", None) or "").strip()
-        enc = getattr(rec, "encounter_type", None)
-        if enc:
-            _enc_label = {"first_visit": "初诊", "follow_up": "复诊"}.get(enc, enc)
-            lines.append(f"[就诊类型: {_enc_label}]")
         tags = getattr(rec, "tags", None)
         if tags:
             if isinstance(tags, str):
@@ -181,8 +176,6 @@ async def extract_outpatient_fields(
         raw = resp.choices[0].message.content or "{}"
         data = json.loads(raw)
         result = {k: str(data.get(k, "") or "") for k in _FIELD_KEYS}
-        if result.get("encounter_type") not in ("初诊", "复诊"):
-            result["encounter_type"] = "初诊"
         log(
             f"[OutpatientReport] extraction ok doctor={doctor_id} "
             f"non_empty={sum(1 for v in result.values() if v)}/{len(_FIELD_KEYS)}"
