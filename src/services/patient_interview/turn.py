@@ -206,7 +206,7 @@ async def interview_turn(session_id: str, patient_text: str) -> InterviewRespons
 
     if not missing:
         session.status = "reviewing"
-        reply = "我已经收集了您的基本信息。请点击「摘要」查看并确认提交。"
+        reply = "信息收集完成！请点击右上角的摘要按钮，查看并确认提交给医生。"
     else:
         reply = llm_response["reply"]
 
