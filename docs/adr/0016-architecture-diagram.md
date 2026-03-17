@@ -143,10 +143,7 @@ flowchart TD
     append --> turn_limit{"turn_count<br/>≥ MAX_TURNS?"}
     turn_limit -->|yes| force_review["Force transition<br/>to reviewing"]
 
-    turn_limit -->|no| emergency{"Emergency<br/>keywords?"}
-    emergency -->|yes| warn["⚠️ 建议拨打120<br/>(continue allowed)"]
-
-    emergency -->|no| llm_call["Call Interview LLM<br/>(full context +<br/>collected + missing)"]
+    turn_limit -->|no| llm_call["Call Interview LLM<br/>(full context +<br/>collected + missing)"]
 
     llm_call --> parse{"JSON parse<br/>OK?"}
     parse -->|no| fallback["抱歉，请再说一次"]
@@ -159,7 +156,6 @@ flowchart TD
     complete -->|"all filled"| review["Generate summary<br/>status: reviewing"]
 
     force_review --> response["InterviewResponse<br/>{reply, collected,<br/>progress, status}"]
-    warn --> response
     fallback --> response
     reply --> response
     review --> response

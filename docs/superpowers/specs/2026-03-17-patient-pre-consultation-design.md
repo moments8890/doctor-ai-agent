@@ -267,17 +267,6 @@ async def interview_turn(session_id: str, patient_text: str) -> InterviewRespons
             status=session.status,
         )
 
-    # Emergency keyword check — deterministic, before LLM call
-    emergency = check_emergency(patient_text)
-    if emergency:
-        session.conversation.append({"role": "assistant", "content": emergency})
-        save_session(session)
-        return InterviewResponse(
-            reply=emergency, collected=session.collected,
-            progress={"filled": count_filled(session.collected), "total": 7},
-            status=session.status,
-        )
-
     # Main LLM call with parse-failure fallback
     try:
         llm_response = await call_interview_llm(
@@ -347,7 +336,6 @@ Single prompt per turn with full context. Located at `src/prompts/patient-interv
 - 每次只问1-2个问题
 - 从回答中提取临床信息填入对应字段
 - 不做诊断，不给处方
-- 急重症状（胸痛、呼吸困难、意识丧失等）→ 建议立即拨打120
 - 患者说"没有"或"不知道" → 提取为"无"或"不详"（不要留空），继续下一项
 - 主诉收集完后，通过追问完善现病史
 
@@ -412,34 +400,6 @@ Transition to reviewing when `missing` is empty.
 Progress reports `total: 7` — the 7 patient-collectable fields (2 required + 4 ask +
 1 optional). `marital_reproductive` counts toward displayed progress but does not
 block the completeness gate.
-
-### Emergency Keyword Check
-
-Deterministic safety gate that runs before the LLM call. Zero latency, zero cost,
-guaranteed detection. The LLM prompt rule remains as a second layer.
-
-```python
-EMERGENCY_KEYWORDS = {
-    "胸痛", "胸闷", "心口痛",
-    "呼吸困难", "喘不上气", "憋气",
-    "意识丧失", "昏迷", "晕倒", "失去意识",
-    "大出血", "止不住血",
-    "抽搐", "惊厥",
-    "剧烈头痛",
-}
-
-def check_emergency(text: str) -> Optional[str]:
-    triggered = [kw for kw in EMERGENCY_KEYWORDS if kw in text]
-    if not triggered:
-        return None
-    return (
-        "⚠️ 您描述的症状可能需要紧急处理。\n"
-        "如果症状严重，请立即拨打 120 急救电话。\n\n"
-        "如果目前情况稳定，我们可以继续问诊。"
-    )
-```
-
-Doctor notification on emergency detection is deferred to a later phase.
 
 ---
 
@@ -550,6 +510,7 @@ POST   /api/patient/message
 
 ### Deferred
 
+- Emergency keyword detection + 120 guidance
 - Voice input (requires STT integration)
 - WeChat mini-program
 - Patient file/photo upload during interview

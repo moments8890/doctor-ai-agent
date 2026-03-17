@@ -121,12 +121,6 @@ Patient sends message
        │no                    │
        ▼                      │
 ┌──────────────┐              │
-│ Emergency    │─yes─▶ Return warning   │
-│ keywords?    │      (continue allowed)│
-└──────┬───────┘              │
-       │no                    │
-       ▼                      │
-┌──────────────┐              │
 │ Call         │              │
 │ interview    │              │
 │ LLM         │              │
@@ -189,12 +183,10 @@ Doctor reviews/edits via normal UEC pipeline (query, update).
 
 ### Safety
 
-- Emergency keyword check (deterministic, before LLM call):
-  胸痛, 呼吸困难, 意识丧失, 大出血, 抽搐, 剧烈头痛, etc.
-  Returns warning but allows continuation if patient confirms stable.
-- LLM prompt also instructs: emergency → suggest 120.
 - No diagnosis, no prescriptions in v1.
 - Rate limits on all interview endpoints.
+- Emergency keyword detection deferred (future: deterministic check
+  before LLM call + 120 guidance).
 
 ### Patient UI
 
