@@ -409,3 +409,139 @@ async def _notify_doctor_safe(doctor_id: str, message: str) -> None:
         logger.exception(
             "[PatientPortal] failed to notify doctor_id=%s", doctor_id,
         )
+
+
+# ---------------------------------------------------------------------------
+# Patient self-registration & login-by-phone (ADR 0016)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/doctors")
+async def list_accepting_doctors():
+    """List doctors accepting patients (for patient registration)."""
+    from db.models import Doctor
+
+    async with AsyncSessionLocal() as db:
+        stmt = select(Doctor).where(Doctor.accepting_patients == True)
+        rows = (await db.execute(stmt)).scalars().all()
+
+    return [
+        {
+            "doctor_id": d.doctor_id,
+            "name": d.name or d.doctor_id,
+            "department": d.department or "",
+        }
+        for d in rows
+    ]
+
+
+@router.post("/register")
+async def register_patient(
+    doctor_id: str = "",
+    name: str = "",
+    gender: Optional[str] = None,
+    year_of_birth: Optional[int] = None,
+    phone: str = "",
+):
+    """Patient self-registration. Links to existing record if name matches."""
+    from fastapi import Body
+    from db.models import Doctor
+
+    if not doctor_id or not name or not phone or not year_of_birth:
+        raise HTTPException(400, "请填写完整信息")
+
+    async with AsyncSessionLocal() as db:
+        # Validate doctor exists and is accepting
+        doctor = (await db.execute(
+            select(Doctor).where(Doctor.doctor_id == doctor_id)
+        )).scalar_one_or_none()
+        if doctor is None or not doctor.accepting_patients:
+            raise HTTPException(404, "未找到该医生")
+
+        # Check for existing patient record
+        patient = (await db.execute(
+            select(Patient).where(
+                Patient.doctor_id == doctor_id,
+                Patient.name == name,
+            )
+        )).scalar_one_or_none()
+
+        if patient:
+            # Validate non-null fields don't conflict
+            if patient.gender and gender and patient.gender != gender:
+                raise HTTPException(400, "信息与已有记录不符，请联系医生确认")
+            if patient.year_of_birth and patient.year_of_birth != year_of_birth:
+                raise HTTPException(400, "信息与已有记录不符，请联系医生确认")
+            if patient.phone and patient.phone != phone:
+                raise HTTPException(400, "信息与已有记录不符，请联系医生确认")
+            # Backfill nulls
+            if not patient.gender and gender:
+                patient.gender = gender
+            if not patient.year_of_birth:
+                patient.year_of_birth = year_of_birth
+            if not patient.phone:
+                patient.phone = phone
+            await db.commit()
+        else:
+            # Create new patient
+            patient = Patient(
+                doctor_id=doctor_id,
+                name=name,
+                gender=gender,
+                year_of_birth=year_of_birth,
+                phone=phone,
+            )
+            db.add(patient)
+            await db.commit()
+            await db.refresh(patient)
+
+    token = _issue_patient_token(patient.id, doctor_id, getattr(patient, "access_code_version", 0))
+    return {"token": token, "patient_id": patient.id, "patient_name": patient.name}
+
+
+@router.post("/login")
+async def login_by_phone(
+    phone: str = "",
+    year_of_birth: Optional[int] = None,
+    doctor_id: Optional[str] = None,
+):
+    """Patient login with phone + year_of_birth."""
+    if not phone or not year_of_birth:
+        raise HTTPException(400, "请输入手机号和出生年份")
+
+    async with AsyncSessionLocal() as db:
+        if doctor_id:
+            # Direct login to specific doctor
+            patient = (await db.execute(
+                select(Patient).where(
+                    Patient.doctor_id == doctor_id,
+                    Patient.phone == phone,
+                    Patient.year_of_birth == year_of_birth,
+                )
+            )).scalar_one_or_none()
+            if patient is None:
+                raise HTTPException(401, "手机号或出生年份不正确")
+            token = _issue_patient_token(patient.id, doctor_id, getattr(patient, "access_code_version", 0))
+            return {"token": token, "patient_id": patient.id, "patient_name": patient.name, "doctor_id": doctor_id}
+        else:
+            # Find all patient records for this phone+yob
+            patients = (await db.execute(
+                select(Patient).where(
+                    Patient.phone == phone,
+                    Patient.year_of_birth == year_of_birth,
+                )
+            )).scalars().all()
+            if not patients:
+                raise HTTPException(401, "手机号或出生年份不正确")
+            if len(patients) == 1:
+                p = patients[0]
+                token = _issue_patient_token(p.id, p.doctor_id, getattr(p, "access_code_version", 0))
+                return {"token": token, "patient_id": p.id, "patient_name": p.name, "doctor_id": p.doctor_id}
+            # Multiple doctors — return list for picker
+            return {
+                "needs_doctor_selection": True,
+                "doctors": [
+                    {"doctor_id": p.doctor_id, "patient_name": p.name}
+                    for p in patients
+                ],
+            }
