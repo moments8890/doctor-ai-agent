@@ -1,6 +1,6 @@
 # Architecture
 
-**Last updated:** 2026-03-14
+**Last updated:** 2026-03-16
 
 ## Overview
 
@@ -10,7 +10,8 @@ follow-up support.
 
 The architecture is centered on a **thread-centric conversation runtime**
 (ADR 0011) extended by a **three-phase Understand → Execute → Compose
-pipeline** (ADR 0012). Every channel calls `process_turn()`, which runs
+pipeline** (ADR 0012), simplified to **5 action types with uniform patient
+binding** (ADR 0013). Every channel calls `process_turn()`, which runs
 pre-pipeline guards, then the UEC pipeline for all turn types.
 
 Key invariants:
@@ -18,14 +19,15 @@ Key invariants:
 - **One entry point** — all channels call `process_turn(doctor_id, text)`.
   No channel reaches into runtime internals.
 - **Understand never authors operational replies** — for operational turns
-  (reads, writes, patient selection), the LLM emits structured intent only.
-  Compose generates the reply from execution results.
+  (reads, writes), the LLM emits structured intent only. Compose generates
+  the reply from execution results.
 - **Execute splits reads from writes** — `read_engine` (SELECT only, no state
-  mutation) and `commit_engine` (durable writes, pending state) are separate
-  modules with a hard import boundary.
-- **Draft-first** — record creation produces a pending draft requiring
-  explicit confirmation. `schedule_task` commits immediately (appointments
-  are low-stakes and cancellable).
+  mutation) and `commit_engine` (durable writes) are separate modules with a
+  hard import boundary.
+- **Direct save** — record creation saves directly (no pending draft). Task
+  creation commits immediately.
+- **Uniform patient binding** — every action that resolves a patient switches
+  context. No `scoped_only` asymmetry between reads and writes (ADR 0013 §2).
 - **Deterministic commits** — the LLM proposes an `UnderstandResult`; resolve
   validates bindings; the commit engine executes. LLMs never write directly.
 - **Services are RPC, channels choose transport** — the service layer exposes
@@ -49,18 +51,17 @@ Key invariants:
 │                 RUNTIME (services/runtime/)              │
 │                                                         │
 │  1. Load DoctorCtx from DB                              │
-│  2. Deterministic handler (button clicks, 确认/取消)     │
-│  3. UNDERSTAND — LLM → UnderstandResult (structured)    │
+│  2. Deterministic handler (greeting, help, 确认/取消)    │
+│  3. UNDERSTAND — LLM → 1 of 5 action types              │
 │  4. EXECUTE                                             │
 │     ├── Resolve (patient lookup, binding, dates)        │
-│     ├── Read engine (SELECT only, no writes)            │
-│     └── Commit engine (durable writes, pending state)   │
+│     ├── Read engine (SELECT only — target dispatch)     │
+│     └── Commit engine (record, update, task)            │
 │  5. COMPOSE — template or LLM from execution results    │
-│  6. Persist context + archive turns                     │
+│  6. Context bind + persist + archive turns              │
 │                                                         │
 │  Public API:                                            │
-│    process_turn()  has_pending_draft()                   │
-│    clear_pending_draft_id()  TurnResult                  │
+│    process_turn()  TurnResult                           │
 └──────────────────────────┬──────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────┐
@@ -86,6 +87,98 @@ Key invariants:
 
 ---
 
+## Pipeline Flow (ADR 0013)
+
+```mermaid
+flowchart TD
+    input["user_input + DoctorCtx + chat_archive"]
+
+    input --> det{"Deterministic?<br/>(greeting, help,<br/>确认/取消)"}
+    det -->|yes| det_handler["Deterministic handler<br/>→ template reply"]
+    det -->|no| understand
+
+    understand["<b>UNDERSTAND</b><br/>LLM → 1 of 5 action types<br/>(none, query, record, update, task)"]
+
+    understand -->|"none"| direct_reply["Return chat_reply directly"]
+    understand -->|"clarification"| clarify["Compose clarification"]
+    understand -->|"parse failure"| error["Error template"]
+    understand -->|"operational"| resolve
+
+    resolve["<b>RESOLVE</b><br/>Patient lookup, date validation"]
+
+    resolve -->|"clarification"| clarify
+    resolve -->|"resolved"| dispatch{"Read or Write?"}
+
+    dispatch -->|"query"| read_engine["<b>READ ENGINE</b><br/>target: records / patients / tasks"]
+    dispatch -->|"record / update / task"| commit_engine["<b>COMMIT ENGINE</b><br/>record, update, task"]
+
+    read_engine --> compose_llm["<b>COMPOSE (LLM)</b><br/>Summarize data"]
+    commit_engine --> compose_tpl["<b>COMPOSE (template)</b><br/>Success confirmation"]
+
+    compose_llm --> bind["Context bind<br/>(unconditional)"]
+    compose_tpl --> bind
+
+    det_handler --> result["TurnResult"]
+    bind --> result
+    clarify --> result
+    direct_reply --> result
+    error --> result
+
+    style understand fill:#4a90d9,color:#fff
+    style resolve fill:#7b68ee,color:#fff
+    style read_engine fill:#2ecc71,color:#fff
+    style commit_engine fill:#e74c3c,color:#fff
+    style compose_llm fill:#f39c12,color:#fff
+    style compose_tpl fill:#f39c12,color:#fff
+    style bind fill:#333,color:#fff
+    style result fill:#333,color:#fff
+```
+
+---
+
+## Action Types (ADR 0013)
+
+```mermaid
+graph LR
+    subgraph "ActionType (5)"
+        none["none"]
+        query["query<br/>(target: records /<br/>patients / tasks)"]
+        record["record<br/>(clinical / demographics)"]
+        update["update"]
+        task["task"]
+    end
+
+    subgraph Engine
+        re["read_engine"]
+        ce["commit_engine"]
+    end
+
+    none -.->|direct_reply| X[" "]
+    query -->|llm_compose| re
+    record -->|template| ce
+    update -->|template| ce
+    task -->|template| ce
+
+    style none fill:#95a5a6,color:#fff
+    style query fill:#2ecc71,color:#fff
+    style record fill:#e74c3c,color:#fff
+    style update fill:#e74c3c,color:#fff
+    style task fill:#e74c3c,color:#fff
+    style re fill:#2ecc71,color:#fff
+    style ce fill:#e74c3c,color:#fff
+    style X fill:none,stroke:none
+```
+
+| Type | Replaces (ADR 0012) | Key behavior |
+|---|---|---|
+| `none` | `none` | Chat/help. Only type that returns `chat_reply`. |
+| `query` | `query_records`, `list_patients`, `list_tasks`, `select_patient` | `target` field routes to records/patients/tasks. Unknown target defaults to records. |
+| `record` | `create_record`, `create_patient` | Clinical content → structure + save. Empty content + patient name → demographics-only registration. |
+| `update` | `update_record` | Re-structure with amendment instruction. |
+| `task` | `schedule_task` | `task_type` always "general". Title carries meaning. |
+
+---
+
 ## Channel Layer
 
 All channels normalize input and delegate to `process_turn()`. No channel
@@ -96,8 +189,6 @@ imports runtime internals.
 | File | Route | Role |
 |------|-------|------|
 | `chat.py` | `POST /api/records/chat` | Main chat endpoint; delegates to `process_turn()` |
-| `chat.py` | `POST /api/records/pending/{id}/confirm` | REST confirm draft (button click) |
-| `chat.py` | `POST /api/records/pending/{id}/abandon` | REST abandon draft (button click) |
 | `chat.py` | `POST /api/records/from-{text,image,audio}` | Media import (OCR/transcribe then import) |
 | `auth.py` | `/api/auth/*` | JWT login, invite codes |
 | `tasks.py` | `/api/tasks/*` | Task CRUD |
@@ -111,7 +202,7 @@ imports runtime internals.
 
 | File | Role |
 |------|------|
-| `router.py` | WeChat/WeCom webhook; text → `process_turn()`; voice → transcribe → `process_turn()`; draft confirm/abandon → `process_turn()` synchronously; image/PDF/Word → extraction pipelines |
+| `router.py` | WeChat/WeCom webhook; text → `process_turn()`; voice → transcribe → `process_turn()`; image/PDF/Word → extraction pipelines |
 | `flows.py` | Menu events, notify control, media background handlers |
 | `infra.py` | Signature verification, token refresh, KF cursor persistence |
 | `patient_pipeline.py` | Patient (non-doctor) message handling |
@@ -121,15 +212,23 @@ imports runtime internals.
 | `wechat_domain.py` | Formatting, XML parsing, menu event logic |
 | `wecom_kf_sync.py` | WeCom KF message sync |
 
-**WeChat message flow** (dedup by `MsgId` before entering pipeline):
-```text
-POST /wechat → decrypt → parse XML → dedup (MsgId LRU cache)
-  ├── KF event → background sync
-  ├── non-doctor → patient_pipeline
-  ├── voice → transcribe → process_turn() (background, via CS API)
-  ├── image/PDF/Word → extraction → process_turn() (background)
-  ├── text + draft pending + confirm/abandon → process_turn() (synchronous XML reply)
-  └── text (normal) → process_turn() (background, via CS API)
+```mermaid
+flowchart TD
+    wx["POST /wechat"] --> decrypt["Decrypt + parse XML"]
+    decrypt --> dedup{"Dedup<br/>(MsgId LRU)"}
+    dedup -->|dup| drop["Drop"]
+    dedup -->|new| route{"Message type?"}
+
+    route -->|KF event| kf["Background sync"]
+    route -->|non-doctor| patient["Patient pipeline"]
+    route -->|voice| transcribe["Transcribe → process_turn()"]
+    route -->|image/PDF| extract["Extract → process_turn()"]
+    route -->|text| process["process_turn()<br/>(background, CS API)"]
+
+    style wx fill:#4a90d9,color:#fff
+    style process fill:#2ecc71,color:#fff
+    style transcribe fill:#2ecc71,color:#fff
+    style extract fill:#2ecc71,color:#fff
 ```
 
 ### Voice (`src/channels/voice.py`)
@@ -150,62 +249,75 @@ implementation details — channels import only from the package root.
 
 ```python
 process_turn(doctor_id, text) -> TurnResult
-has_pending_draft(doctor_id) -> bool          # lightweight read-only check
-clear_pending_draft_id(doctor_id) -> None     # for REST confirm/abandon buttons
-TurnResult                                    # reply + optional pending draft info
+TurnResult                                    # reply + optional view_payload + record_id
 ```
 
 ### Pipeline (`turn.py`)
 
 ```text
 text → strip → load DoctorCtx → deterministic handler
-  → Understand (LLM) → Execute (resolve → read/commit engine) → Compose → persist → reply
+  → Understand (LLM) → multi-action loop [Resolve → Dispatch → Compose]
+  → context bind → persist → reply
 ```
-
-Dedup is a channel-layer concern, not a runtime concern. Channels that use
-retrying transports (e.g., WeChat webhooks) filter duplicates before calling
-`process_turn()`. The runtime trusts that each call represents a unique turn.
 
 | Stage | Module | Purpose |
 |-------|--------|---------|
 | Context | `context.py` | Load/save `DoctorCtx` from `doctor_context` table; read/write `chat_archive` |
-| Deterministic handler | `turn.py` | Typed UI actions (button clicks) and 确认/取消 regex during pending draft → deterministic response, no LLM. All blocking logic is in execute.resolve. |
-| Understand | `understand.py` | LLM → `UnderstandResult` (structured intent, no prose for operational turns) |
-| Resolve | `resolve.py` | Patient DB lookup, binding, date normalization; shared by read and write paths |
-| Read engine | `read_engine.py` | SELECT only, no writes; returns `ReadResult` with data + truncation info |
-| Commit engine | `commit_engine.py` | Durable writes: select_patient, create_patient, create_draft, schedule_task; returns `CommitResult` |
-| Compose | `compose.py` | Template or LLM reply from execution results; never from understand's output |
+| Deterministic handler | `turn.py` | Greeting/help regex fast path (0 LLM calls) |
+| Understand | `understand.py` | LLM → `UnderstandResult` (1-3 actions, structured intent) |
+| Resolve | `resolve.py` | Patient DB lookup, uniform binding, date validation |
+| Read engine | `read_engine.py` | Target-based dispatch: records / patients / tasks |
+| Commit engine | `commit_engine.py` | Durable writes: record (+ demographics-only), update, task |
+| Compose | `compose.py` | Template or LLM reply from execution results |
+| Context bind | `turn.py` | Unconditional: if `patient_id` resolved → switch context |
 | Persist | `turn.py` | Best-effort save context + archive turns (never raises) |
 
-### Data model
+### Data Model
 
 ```python
 DoctorCtx
   ├── doctor_id: str
-  ├── workflow: WorkflowState        # authoritative (code-owned)
+  ├── workflow: WorkflowState
   │     ├── patient_id: Optional[int]
-  │     ├── patient_name: Optional[str]
-  │     └── pending_draft_id: Optional[str]
-  └── memory: MemoryState            # dead fields under ADR 0012 §17
-        ├── candidate_patient: Optional[dict]  # unused — resolve handles binding
-        ├── working_note: Optional[str]        # unused — chat_archive scan replaces
-        └── summary: Optional[str]             # unused — retained for column compat
+  │     └── patient_name: Optional[str]
+  └── memory: MemoryState            # dead fields — retained for column compat
 
-ActionType (enum):  query_records | list_patients | schedule_task
-                    | select_patient | create_patient | create_draft | none
+ActionType (enum):  none | query | record | update | task
 
 UnderstandResult
-  ├── action_type: ActionType
-  ├── args: dict (typed per action_type)
-  ├── chat_reply: Optional[str]     # only when action_type == none
+  ├── actions: List[ActionIntent]    # 1-3 actions per turn
+  │     ├── action_type: ActionType
+  │     └── args: QueryArgs | RecordArgs | UpdateArgs | TaskArgs | None
+  ├── chat_reply: Optional[str]      # only when action_type == none
   └── clarification: Optional[Clarification]
 
 TurnResult
   ├── reply: str
-  ├── pending_id: Optional[str]
-  ├── pending_patient_name: Optional[str]
-  ├── pending_expires_at: Optional[str]  # ISO-8601 UTC
-  └── view_payload: Optional[dict]  # structured data for web rendering
+  ├── record_id: Optional[int]       # set when record created/updated
+  ├── view_payload: Optional[dict]   # structured data for web rendering
+  └── switch_notification: Optional[str]  # patient context switch notice
+```
+
+### Resolve: Patient Binding
+
+```mermaid
+flowchart TD
+    action["Action with patient_name?"]
+    action -->|query target=records| rps["_resolve_patient_scoped()"]
+    action -->|query target=patients/tasks| unscoped["Skip patient resolution"]
+    action -->|record / update| ep["_ensure_patient()<br/>(lookup or auto-create)"]
+    action -->|task| vtd["_validate_task_dates()"] --> rps
+
+    ep --> bound["ResolvedAction<br/>(patient_id bound)"]
+    rps --> bound
+
+    bound --> turn["turn.py: unconditional bind<br/>ctx.workflow.patient_id = resolved.patient_id"]
+
+    unscoped --> nobind["No patient_id → no bind"]
+
+    style ep fill:#e74c3c,color:#fff
+    style rps fill:#7b68ee,color:#fff
+    style turn fill:#333,color:#fff
 ```
 
 ---
@@ -222,14 +334,13 @@ TurnResult
 | `neuro_structuring.py` | Specialty CVD/neuro field extraction (background) |
 | `transcription.py` | Audio → text (Ollama/Groq/API, Chinese-optimized) |
 | `vision.py` | Image → text (OCR, table, handwriting) |
-| `intent.py` | Legacy intent enum (minimal, kept for backward compat) |
 | `egress_policy.py` | Compliance guard for outbound LLM calls |
 
 ### Domain (`src/services/domain/`)
 
 | File | Role |
 |------|------|
-| `intent_handlers/_confirm_pending.py` | Save confirmed draft to `medical_records`; trigger background CVD extraction |
+| `intent_handlers/_confirm_pending.py` | Post-save hooks: audit, follow-up tasks, auto-learn |
 
 ### Other Services
 
@@ -242,51 +353,32 @@ TurnResult
 | `export/` | PDF generation, outpatient reports |
 | `observability/` | Audit trail, routing metrics, trace context |
 
-### Legacy: `session.py`
-
-`services/session.py` maintains a parallel in-memory session model
-(`DoctorSession`) that predates the ADR 0011 runtime. It is still used by:
-
-- WeChat background intent processing (`hydrate_session_state`, `get_session_lock`)
-- Some WeChat-specific flows (blocked writes, pending creates)
-
-This is **architectural debt** scheduled for cleanup as part of the Shared
-Workflow Unification plan. New code should not use `session.py`.
-
 ---
 
 ## Data Layer (`src/db/`)
 
 ### Key Models
 
-```text
-Doctor
-  +-- Patient
-  |     +-- MedicalRecordDB (+MedicalRecordVersion, +MedicalRecordExport)
-  |     +-- PatientLabel
-  |     +-- DoctorTask
-  |     +-- PendingRecord
-  |     +-- PatientMessage
-  |     +-- SpecialtyScore, NeuroCVDContext
-  +-- DoctorContext          # ADR 0011 runtime state (workflow + memory JSON)
-  +-- ChatArchive            # conversation turn history
-  +-- DoctorSessionState     # legacy session persistence
-  +-- DoctorNotifyPreference
-  +-- DoctorKnowledgeItem
-  +-- AuditLog
+```mermaid
+erDiagram
+    Doctor ||--o{ Patient : owns
+    Doctor ||--o{ DoctorContext : "1 per doctor"
+    Doctor ||--o{ ChatArchive : "turn history"
+    Doctor ||--o{ DoctorKnowledgeItem : knowledge
 
-PendingMessage               # WeChat retry queue
-InviteCode                   # doctor registration
-SystemPrompt (+Version)      # versioned system prompts
-RuntimeConfig, RuntimeCursor, RuntimeToken, SchedulerLease
+    Patient ||--o{ MedicalRecordDB : records
+    Patient ||--o{ DoctorTask : tasks
+    Patient }o--o{ PatientLabel : labels
+
+    MedicalRecordDB ||--o{ MedicalRecordVersion : "correction history"
+    MedicalRecordDB ||--o{ MedicalRecordExport : "export audit"
 ```
 
 ### CRUD (`db/crud/`)
 
 Async functions taking `AsyncSession`. Key modules: `doctor.py` (patient search,
 turn archiving), `patient.py` (CRUD), `records.py` (save + versioning),
-`pending.py` (draft lifecycle), `tasks.py` (task CRUD), `retention.py`
-(compliance cleanup).
+`tasks.py` (task CRUD), `retention.py` (compliance cleanup).
 
 ### Repositories (`db/repositories/`)
 
@@ -308,7 +400,8 @@ DDL.
 |----------|---------|---------|
 | `DATABASE_URL` | DB connection | `sqlite+aiosqlite:///data/patients.db` |
 | `ENVIRONMENT` | `development`/`production` | (required in prod) |
-| `ROUTING_LLM` | LLM for routing + structuring | `qwen2.5:14b` (Ollama) |
+| `ROUTING_LLM` | LLM for understand + compose | `deepseek` |
+| `STRUCTURING_LLM` | LLM for record structuring | `deepseek` |
 | `OLLAMA_BASE_URL` | Ollama endpoint | `http://192.168.0.123:11434` (LAN) |
 | `WECHAT_TOKEN`, `WECHAT_APP_ID` | WeChat credentials | (required for WeChat) |
 | `DEEPSEEK_API_KEY` | DeepSeek provider | (optional) |
@@ -318,9 +411,8 @@ DDL.
 ## Messages (`src/messages.py`)
 
 Template strings for all pipeline responses (Chinese default, English with
-`RUNTIME_LANG=en`). Includes clarification templates (7 kinds), action success
-templates, error templates, and the understand prompt system message. Confirm/
-abandon regex patterns live in `turn.py`.
+`RUNTIME_LANG=en`). Includes clarification templates, action success templates,
+error templates. Confirm/abandon regex patterns live in `turn.py`.
 
 ---
 
@@ -341,7 +433,7 @@ abandon regex patterns live in `turn.py`.
 | Framework | FastAPI |
 | ORM | SQLAlchemy async |
 | Scheduler | APScheduler |
-| Frontend | React + Vite |
+| Frontend | React + Vite + MUI |
 | Auth | HS256 JWT |
 | LLM providers | Ollama, DeepSeek, OpenAI, Tencent LKEAP, Claude, Gemini, Groq |
 
@@ -351,8 +443,9 @@ abandon regex patterns live in `turn.py`.
 
 | ADR | Title | Status |
 |-----|-------|--------|
-| 0011 | Thread-centric conversation runtime and deterministic commits | **Active** — foundation |
-| 0012 | Understand / Execute / Compose pipeline for operational actions | **Active** — implemented |
+| 0011 | Thread-centric conversation runtime and deterministic commits | Active — foundation |
+| 0012 | Understand / Execute / Compose pipeline for operational actions | Active — pipeline architecture |
+| 0013 | Action type simplification (9→5, uniform binding, no task_type) | Active — current |
 
 ---
 
@@ -366,6 +459,12 @@ abandon regex patterns live in `turn.py`.
    control are handled in `_handle_intent()` before `process_turn()`. These
    could be folded into the runtime as custom action types.
 
+3. **`DoctorTask.task_type`** — column always written as "general" (ADR 0013).
+   Retained for backward compat; can be removed at first production migration.
+
+4. **`MemoryState` dead fields** — `working_note`, `candidate_patient`,
+   `summary` retained in DB column for compat but never read by pipeline.
+
 ---
 
 ## Further Reading
@@ -373,4 +472,6 @@ abandon regex patterns live in `turn.py`.
 - [ADR 0011 — Architecture and Workflows](docs/adr/0011-architecture-and-workflows.md)
 - [ADR 0012 — UEC Pipeline](docs/adr/0012-understand-execute-compose-pipeline.md)
   ([Architecture Diagram](docs/adr/0012-architecture-diagram.md))
+- [ADR 0013 — Action Type Simplification](docs/adr/0013-action-type-simplification.md)
+  ([Architecture Diagram](docs/adr/0013-architecture-diagram.md))
 - [ADR index](docs/adr/README.md)
