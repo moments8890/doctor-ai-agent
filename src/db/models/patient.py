@@ -50,6 +50,7 @@ class Patient(Base):
     __table_args__ = (
         Index("ix_patients_doctor_created", "doctor_id", "created_at"),
         Index("ix_patients_doctor_category", "doctor_id", "primary_category"),
+        Index("ix_patients_doctor_phone", "doctor_id", "phone"),
         UniqueConstraint("id", "doctor_id", name="uq_patients_id_doctor"),
         UniqueConstraint("doctor_id", "name", name="uq_patients_doctor_name"),
     )

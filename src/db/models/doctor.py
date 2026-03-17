@@ -94,6 +94,8 @@ class Doctor(Base):
     channel: Mapped[str] = mapped_column(String(32), nullable=False, default="app")
     wechat_user_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     mini_openid: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    accepting_patients: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True, default=False)
+    department: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
 

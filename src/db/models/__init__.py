@@ -13,6 +13,7 @@ from db.models.runtime import RuntimeToken, RuntimeConfig, SchedulerLease
 from db.models.audit import AuditLog
 from db.models.medical_record import MedicalRecord
 from db.models.patient_message import PatientMessage
+from db.models.interview_session import InterviewSessionDB
 
 __all__ = [
     "_utcnow",
@@ -27,4 +28,5 @@ __all__ = [
     "AuditLog",
     "MedicalRecord",
     "PatientMessage",
+    "InterviewSessionDB",
 ]
