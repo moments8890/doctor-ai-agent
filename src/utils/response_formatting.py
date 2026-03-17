@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, List, Optional
+from typing import Any, List
 
 
 def _parse_tags(record: Any) -> List[str]:
@@ -29,13 +29,3 @@ def format_record(record: Any) -> str:
     return "\n".join(lines)
 
 
-def format_draft_preview(record: Any, patient_name: Optional[str] = None) -> str:
-    """Return a draft preview with confirmation prompt."""
-    header = f"📋 病历草稿 - 【{patient_name}】" if patient_name else "📋 病历草稿"
-    lines = [header, ""]
-    lines.append(getattr(record, "content", None) or "—")
-    tags = _parse_tags(record)
-    if tags:
-        lines.append("🏷 " + "  ".join(tags))
-    lines.extend(["", "「确认」保存 · 「撤销」放弃"])
-    return "\n".join(lines)

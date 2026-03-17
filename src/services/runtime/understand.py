@@ -73,7 +73,8 @@ async def understand(
     )
 
     model_name = provider.get("model", "deepseek-chat")
-    log(f"[understand] calling {provider_name}/{model_name} len={len(text)}")
+    _tag = f"[understand:{provider_name}:{model_name}]"
+    log(f"{_tag} request: {text[:80]}")
 
     try:
         completion = await client.chat.completions.create(
@@ -84,11 +85,11 @@ async def understand(
             max_tokens=1000,
         )
     except Exception as e:
-        log(f"[understand] LLM call failed ({type(e).__name__}): {e}", level="error")
+        log(f"{_tag} LLM call failed ({type(e).__name__}): {e}", level="error")
         raise UnderstandError(str(e)) from e
 
     raw = completion.choices[0].message.content or ""
-    log(f"[understand] response: {raw[:200]}")
+    log(f"{_tag} response: {raw[:200]}")
     return _parse_response(raw)
 
 
@@ -169,7 +170,8 @@ def _parse_single_action(data: dict) -> tuple:
     try:
         action_type = ActionType(raw_action)
     except ValueError:
-        raise UnderstandError(f"unknown action_type: {raw_action}")
+        log(f"[understand] unknown action_type '{raw_action}', degrading to none", level="warning")
+        action_type = ActionType.none
     args = _parse_args(action_type, data.get("args") or {})
     return action_type, args
 

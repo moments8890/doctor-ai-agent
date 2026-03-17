@@ -736,7 +736,8 @@ async def clear_context_endpoint(
     authorization: str | None = Header(default=None),
 ):
     """Clear all working context for a doctor: current patient, pending draft,
-    blocked write, pending create, candidate patient, and conversation history.
+    blocked write, pending create, candidate patient, conversation history,
+    chat archive, and in-memory caches.
 
     Called when the user clears the chat in the UI so all state resets.
     """
@@ -751,6 +752,23 @@ async def clear_context_endpoint(
                 await abandon_pending_record(session, ctx.workflow.pending_draft_id, doctor_id=resolved_id)
         except Exception:
             pass
+
+    # Delete chat_archive rows for this doctor
+    try:
+        from db.models.doctor import ChatArchive
+        from sqlalchemy import delete
+        async with AsyncSessionLocal() as session:
+            await session.execute(
+                delete(ChatArchive).where(ChatArchive.doctor_id == resolved_id)
+            )
+            await session.commit()
+    except Exception:
+        pass
+
+    # Clear in-memory dedup cache (doctor-scoped entries can't be isolated; flush all)
+    from services.runtime.dedup import _cache as dedup_cache, _in_flight
+    dedup_cache.clear()
+    _in_flight.clear()
 
     # Reset context to empty state
     from services.runtime.models import WorkflowState, MemoryState

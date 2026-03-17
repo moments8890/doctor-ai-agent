@@ -141,6 +141,7 @@ async def save_record(
     record: MedicalRecord,
     patient_id: int | None,
     *,
+    needs_review: Optional[bool] = None,
     commit: bool = True,
 ) -> MedicalRecordDB:
     with _trace_block("db", "crud.save_record", {"doctor_id": doctor_id, "patient_id": patient_id}):
@@ -151,6 +152,8 @@ async def save_record(
             record=record,
             patient_id=patient_id,
         )
+        if needs_review is not None:
+            db_record.needs_review = needs_review
         if patient_id is not None:
             _has_follow_up = (
                 any("随访" in t or "复诊" in t for t in record.tags)
@@ -166,6 +169,8 @@ async def save_record(
                     follow_up_text=record.content,
                     commit=commit,
                 )
+        if commit:
+            await session.commit()
         return db_record
 
 

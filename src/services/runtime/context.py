@@ -72,7 +72,7 @@ async def save_context(ctx: DoctorCtx) -> None:
     memory_json = _serialize_memory(ctx)
 
     async with AsyncSessionLocal() as db:
-        dialect = db.bind.dialect.name if db.bind else "sqlite"
+        dialect = db.get_bind().dialect.name
 
         if dialect == "sqlite":
             stmt = (

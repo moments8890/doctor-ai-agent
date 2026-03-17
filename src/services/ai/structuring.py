@@ -105,7 +105,7 @@ def _make_llm_caller(client: AsyncOpenAI, provider_name: str, system_prompt: str
                     {"role": "user", "content": user_content},
                 ],
                 response_format={"type": "json_object"},
-                max_tokens=1500,
+                max_tokens=2500,
                 temperature=0,
             )
     return _call
@@ -153,7 +153,7 @@ async def _try_cloud_fallback(
     # PHI egress gate: block cloud fallback unless explicitly allowed.
     from services.ai.egress_policy import check_cloud_egress
     check_cloud_egress(_cloud_fallback, "structuring", original_error=original_err)
-    log(f"[LLM:ollama] all retries failed ({original_err}); trying cloud fallback={_cloud_fallback}")
+    log(f"[structuring:ollama] all retries failed ({original_err}); trying cloud fallback={_cloud_fallback}")
     _cloud_provider = _PROVIDERS.get(_cloud_fallback)
     if _cloud_provider is None:
         raise original_err
@@ -172,7 +172,7 @@ async def _try_cloud_fallback(
             timeout=_cloud_timeout,
         )
     except asyncio.TimeoutError:
-        log(f"[Structuring] cloud fallback timed out")
+        log(f"[structuring] cloud fallback timed out")
         raise
 
 
@@ -185,7 +185,7 @@ def _parse_llm_response(raw: str, text: str, provider_name: str) -> dict:
         try:
             data = json.loads(raw)
         except (json.JSONDecodeError, TypeError) as _e:
-            log(f"[LLM:{provider_name}] JSON parse FAILED ({_e}); returning sentinel")
+            log(f"[structuring:{provider_name}] JSON parse FAILED ({_e}); returning sentinel")
             data = {"content": _NO_CLINICAL_CONTENT, "tags": []}
     return data
 
@@ -202,8 +202,23 @@ def _coerce_content(data: dict, text: str, provider_name: str) -> dict:
             data["content"] = str(content_val)
     if not (data.get("content") or "").strip():
         data["content"] = _NO_CLINICAL_CONTENT
-        log(f"[LLM:{provider_name}] content was empty, returning sentinel")
+        log(f"[structuring:{provider_name}] content was empty, returning sentinel")
     return data
+
+
+def _validate_structured(structured: object) -> object:
+    """Validate and clean the structured dict; return None if invalid."""
+    if not isinstance(structured, dict):
+        return None
+    # Keep only recognized outpatient field keys
+    _VALID_KEYS = {
+        "visit_type", "chief_complaint", "present_illness", "past_history",
+        "allergy_history", "personal_history", "marital_reproductive",
+        "family_history", "physical_exam", "specialist_exam",
+        "auxiliary_exam", "diagnosis", "treatment_plan", "orders_followup",
+    }
+    cleaned = {k: str(v) for k, v in structured.items() if k in _VALID_KEYS and v}
+    return cleaned if cleaned else None
 
 
 def _validate_and_coerce_fields(data: dict, text: str, provider_name: str) -> dict:
@@ -214,7 +229,7 @@ def _validate_and_coerce_fields(data: dict, text: str, provider_name: str) -> di
     _required_fields = {"content", "tags"}
     _missing = _required_fields - set(data.keys() if isinstance(data, dict) else [])
     if _missing:
-        log(f"[Structuring] WARNING: LLM response missing fields {_missing}")
+        log(f"[structuring] WARNING: LLM response missing fields {_missing}")
         if "content" not in data:
             data["content"] = _NO_CLINICAL_CONTENT
         if "tags" not in data:
@@ -223,6 +238,9 @@ def _validate_and_coerce_fields(data: dict, text: str, provider_name: str) -> di
     data.pop("specialty_scores", None)
 
     data = _coerce_content(data, text, provider_name)
+
+    # Validate structured field
+    data["structured"] = _validate_structured(data.get("structured"))
 
     tags_val = data.get("tags")
     if not isinstance(tags_val, list):
@@ -244,7 +262,9 @@ async def structure_medical_record(
     """将文本转换为结构化 MedicalRecord。"""
     provider_name = os.environ.get("STRUCTURING_LLM", "deepseek")
     provider = _resolve_provider(provider_name)
-    log(f"[LLM:{provider_name}] calling API: {text[:80]}")
+    model_name = provider.get("model", "deepseek-chat")
+    _tag = f"[structuring:{provider_name}:{model_name}]"
+    log(f"{_tag} request: {text[:80]}")
 
     client = _get_structuring_client(provider_name, provider)
     system_prompt = await _build_system_prompt()
@@ -255,7 +275,7 @@ async def structure_medical_record(
     )
 
     raw = completion.choices[0].message.content or ""
-    log(f"[LLM:{provider_name}] response: {raw}")
+    log(f"{_tag} response: {raw}")
 
     data = _parse_llm_response(raw, text, provider_name)
     data = _validate_and_coerce_fields(data, text, provider_name)

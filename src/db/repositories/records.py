@@ -40,6 +40,7 @@ class RecordRepository:
             patient_id=patient_id,
             record_type=record.record_type,
             content=record.content,
+            structured=json.dumps(record.structured, ensure_ascii=False) if record.structured else None,
             tags=json.dumps(record.tags, ensure_ascii=False) if record.tags else None,
         )
         self.session.add(db_record)
@@ -53,6 +54,7 @@ class RecordRepository:
         doctor_id: str,
         content: str,
         tags: List[str],
+        structured: Optional[dict] = None,
     ) -> MedicalRecordDB:
         result = await self.session.execute(
             select(MedicalRecordDB).where(
@@ -64,6 +66,7 @@ class RecordRepository:
         if not record:
             raise ValueError(f"Record {record_id} not found for doctor {doctor_id}")
         record.content = content
+        record.structured = json.dumps(structured, ensure_ascii=False) if structured else None
         record.tags = json.dumps(tags, ensure_ascii=False) if tags else "[]"
         record.updated_at = datetime.now(timezone.utc)
         await self.session.flush()

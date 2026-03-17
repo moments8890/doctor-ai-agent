@@ -198,12 +198,16 @@ def _verify_patient_access_code(patient: "Patient", supplied_code: str) -> None:
     """
     if not patient.access_code:
         # Legacy patient — no access code configured yet.
+        # Reject login: name-only auth is too weak for medical data.
         logger.warning(
-            "[PatientPortal] DEPRECATION: name-only login for patient_id=%s "
-            "(no access_code set). Migrate this patient to access-code auth.",
+            "[PatientPortal] BLOCKED: name-only login for patient_id=%s "
+            "(no access_code set). Migrate this patient via POST /api/patient/access-code.",
             patient.id,
         )
-        return
+        raise HTTPException(
+            status_code=403,
+            detail="该患者尚未设置访问码，请联系您的医生获取访问码。",
+        )
     if not supplied_code or not verify_access_code(supplied_code, patient.access_code):
         raise HTTPException(status_code=401, detail=_AUTH_FAIL)
 

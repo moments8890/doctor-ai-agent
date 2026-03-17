@@ -131,11 +131,10 @@ async def upsert_doctor_context(
         ctx.updated_at = _utcnow()
     else:
         try:
-            session.add(DoctorContext(doctor_id=doctor_id, summary=summary))
-            await session.flush()
-        except Exception:
-            # Concurrent insert race — row appeared between our check and insert.
-            await session.rollback()
+            async with session.begin_nested():
+                session.add(DoctorContext(doctor_id=doctor_id, summary=summary))
+        except IntegrityError:
+            # Concurrent insert race — savepoint rolled back, outer session intact.
             ctx = await get_doctor_context(session, doctor_id)
             if ctx:
                 ctx.summary = summary

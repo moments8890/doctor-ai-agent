@@ -31,7 +31,7 @@ from utils.runtime_config import load_runtime_json
 ROOT = Path(__file__).resolve().parents[2]
 _RUNTIME_CONFIG = load_runtime_json()
 DB_PATH = Path(
-    os.environ.get("PATIENTS_DB_PATH", str(_RUNTIME_CONFIG.get("PATIENTS_DB_PATH") or (ROOT / "patients.db")))
+    os.environ.get("PATIENTS_DB_PATH", str(_RUNTIME_CONFIG.get("PATIENTS_DB_PATH") or (ROOT / "data" / "patients.db")))
 ).expanduser()
 SERVER = os.environ.get("INTEGRATION_SERVER_URL", "http://127.0.0.1:8001")
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", str(_RUNTIME_CONFIG.get("OLLAMA_BASE_URL") or "http://192.168.0.123:11434/v1"))
@@ -142,13 +142,23 @@ def presweep_inttest_rows(require_server):
 
 @pytest.fixture(autouse=True)
 def clean_integration_db():
-    """Best-effort cleanup for `inttest_*` rows after each test.
+    """Clear server caches before each test, purge DB rows after.
 
-    Runs after every test so the DB stays lean during a full run.
-    If a test is cancelled mid-flight the session-level presweep above
-    will catch the leftover rows on the next run.
+    Pre-test: reset in-memory caches (dedup, prompts, rate limiter) via
+    the server's /api/test/reset-caches endpoint so no state bleeds
+    between test cases.
+
+    Post-test: delete inttest_* rows from all relevant tables.
     """
+    # Pre-test: clear server-side caches
+    try:
+        httpx.post(f"{SERVER}/api/test/reset-caches", timeout=5)
+    except Exception:
+        pass  # server may not support this endpoint yet
+
     yield
+
+    # Post-test: purge DB rows
     if not DB_PATH.exists():
         return
     conn = sqlite3.connect(DB_PATH)

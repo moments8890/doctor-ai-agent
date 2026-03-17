@@ -1,20 +1,26 @@
 """
-病历 Pydantic 模型：chat-first 设计，以整理后的自由文本为核心，附带关键词标签。
+病历 Pydantic 模型：双输出设计。
+- content：可读临床笔记（字符串）
+- structured：结构化字段（14 字段 dict，给机器用）
+- tags：关键词标签
 """
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
 
 class MedicalRecord(BaseModel):
     content: str = Field(..., min_length=1, max_length=16000)
-    """LLM 整理后的临床笔记（自由文本）。保留所有临床信息，语言流畅简洁。"""
+    """LLM 整理后的临床笔记（可读文本）。"""
+
+    structured: Optional[Dict[str, str]] = Field(default=None)
+    """结构化字段（14 字段 dict）：visit_type, chief_complaint, ... orders_followup。"""
 
     tags: List[str] = Field(default_factory=list)
-    """关键词标签：诊断名称、药品、随访时间等，用于过滤和风险评估。"""
+    """关键词标签：诊断名称、药品、随访时间等。"""
 
     record_type: Optional[str] = Field(default="visit")
     """记录类型：visit | dictation | import | interview_summary"""

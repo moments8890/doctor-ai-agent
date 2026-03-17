@@ -81,9 +81,10 @@ async def backfill_doctors_registry() -> int:
                 wechat_user_id=doctor_id if is_wechat else None,
             ))
         seen_wechat: set = set()
-        updated_existing = any(
+        # List comprehension — must evaluate every row, not short-circuit.
+        updated_existing = any([
             _backfill_existing_row(row, seen_wechat) for row in existing_rows
-        )
+        ])
         if missing or updated_existing:
             await db.commit()
         return len(missing)

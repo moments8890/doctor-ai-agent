@@ -1,6 +1,7 @@
 """
 WeChat/WeCom 消息路由：接收微信事件、异步调度意图处理并管理待确认病历确认门。
 """
+from __future__ import annotations
 
 import asyncio
 import json
@@ -14,7 +15,7 @@ except ImportError:
 from collections import deque
 from datetime import datetime, timezone
 from typing import Any, Dict, List
-from unittest.mock import Mock
+import sys
 from fastapi import APIRouter, Header, Request, Response
 import httpx
 from wechatpy import parse_message
@@ -78,7 +79,7 @@ def _extract_open_kfid(msg) -> str:
 
 def _create_task_is_mocked() -> bool:
     """Test harnesses patch asyncio.create_task; avoid async DB cursor I/O in that mode."""
-    return isinstance(asyncio.create_task, Mock)
+    return "pytest" in sys.modules
 
 
 def _format_record(record) -> str:
@@ -444,7 +445,7 @@ async def _handle_stateful_sync(msg) -> Response | None:
     Returns XML response for confirm/abandon; None otherwise (falls through
     to background processing).
     """
-    from services.runtime.turn import CONFIRM_RE, ABANDON_RE
+    from services.runtime import CONFIRM_RE, ABANDON_RE
 
     text = msg.content.strip()
     # Cheap regex check first — skip the DB hit for non-confirm/abandon input.

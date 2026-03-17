@@ -7,6 +7,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from db.models import RuntimeToken, RuntimeConfig, SchedulerLease
 
@@ -95,16 +96,29 @@ async def try_acquire_scheduler_lease(
     )
     row = existing.scalar_one_or_none()
     if row is None:
-        session.add(
-            SchedulerLease(
-                lease_key=lease_key,
-                owner_id=owner_id,
-                lease_until=lease_until,
-                updated_at=now,
+        try:
+            session.add(
+                SchedulerLease(
+                    lease_key=lease_key,
+                    owner_id=owner_id,
+                    lease_until=lease_until,
+                    updated_at=now,
+                )
             )
-        )
-        await session.commit()
-        return True
+            await session.commit()
+            return True
+        except IntegrityError:
+            await session.rollback()
+            # Another worker inserted first — re-fetch and check
+            re = await session.execute(
+                select(SchedulerLease)
+                .where(SchedulerLease.lease_key == lease_key)
+                .limit(1)
+            )
+            row = re.scalar_one_or_none()
+            if row is None:
+                return False
+            # Fall through to can_take check below
 
     can_take = (
         row.owner_id == owner_id

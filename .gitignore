@@ -40,6 +40,7 @@ frontend/**/dist/
 frontend/android/
 frontend/ios/
 frontend/.env.android
+frontend/web/android/app/build/
 
 # local screts, runtime config
 config/local.secrets

@@ -288,7 +288,6 @@ def add_span(
     parent_span_id: Optional[str] = None,
 ) -> None:
     _ensure_loaded()
-    global _WRITE_COUNT
     # Redact PHI from span metadata before persisting/buffering.
     clean_meta = dict(meta or {})
     if "patient_name" in clean_meta:

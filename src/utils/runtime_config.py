@@ -12,13 +12,10 @@ DEFAULT_CONFIG_PATH = ROOT / "config" / "runtime.json"
 DEFAULT_RUNTIME_CONFIG: Dict[str, Any] = {
     "ROUTING_LLM": "ollama",
     "STRUCTURING_LLM": "ollama",
-    "INTENT_PROVIDER": "local",
     "LLM_PROVIDER_STRICT_MODE": True,
-    "AGENT_ROUTING_PROMPT_MODE": "full",
-    "AGENT_TOOL_SCHEMA_MODE": "compact",
     "VISION_LLM": "ollama",
     "OPENAI_BASE_URL": "https://api.openai.com/v1",
-    "OPENAI_MODEL": "gpt-5-codex",
+    "OPENAI_MODEL": "gpt-4o",
     "OPENAI_API_KEY": "",
     "TENCENT_LKEAP_BASE_URL": "https://api.lkeap.cloud.tencent.com/v1",
     "TENCENT_LKEAP_MODEL": "deepseek-v3-1",
@@ -67,7 +64,7 @@ DEFAULT_RUNTIME_CONFIG: Dict[str, Any] = {
     "WECHAT_MINI_APP_SECRET": "",
     "MINIPROGRAM_TOKEN_SECRET": "dev-miniprogram-secret",
     "MINIPROGRAM_TOKEN_TTL_SECONDS": 604800,
-    "MINIPROGRAM_API_BASE_URL": "https://nano-redhead-attitudes-attachment.trycloudflare.com",
+    "MINIPROGRAM_API_BASE_URL": "",
     "UI_ADMIN_TOKEN": "",
     "UI_DEBUG_TOKEN": "",
     "PATIENT_PORTAL_SECRET": "",
@@ -81,10 +78,7 @@ CONFIG_CATEGORIES: Dict[str, Dict[str, Any]] = {
         "keys": [
             "ROUTING_LLM",
             "STRUCTURING_LLM",
-            "INTENT_PROVIDER",
             "LLM_PROVIDER_STRICT_MODE",
-            "AGENT_ROUTING_PROMPT_MODE",
-            "AGENT_TOOL_SCHEMA_MODE",
             "VISION_LLM",
             "OPENAI_BASE_URL",
             "OPENAI_MODEL",
@@ -186,10 +180,7 @@ CATEGORY_DESCRIPTIONS_ZH: Dict[str, str] = {
 CONFIG_DESCRIPTIONS: Dict[str, str] = {
     "ROUTING_LLM": "Provider for intent/tool routing. Note: Ollama is LAN/local LLM (can be slower); DeepSeek is online LLM (billed).",
     "STRUCTURING_LLM": "Provider for medical record structuring. Note: Ollama is LAN/local LLM (can be slower); DeepSeek is online LLM (billed).",
-    "INTENT_PROVIDER": "Intent mode: local or model-driven.",
     "LLM_PROVIDER_STRICT_MODE": "When true, use selected provider only and never fallback to others.",
-    "AGENT_ROUTING_PROMPT_MODE": "Routing prompt verbosity mode: full or compact.",
-    "AGENT_TOOL_SCHEMA_MODE": "Tool schema verbosity mode: full or compact.",
     "VISION_LLM": "Provider for image understanding.",
     "OPENAI_BASE_URL": "OpenAI API base URL.",
     "OPENAI_MODEL": "OpenAI/Codex model name for routing/structuring.",
@@ -250,10 +241,7 @@ CONFIG_DESCRIPTIONS: Dict[str, str] = {
 CONFIG_DESCRIPTIONS_ZH: Dict[str, str] = {
     "ROUTING_LLM": "意图/工具路由使用的提供商。说明：Ollama 通常是局域网/本地 LLM（可能较慢）；DeepSeek 是在线 LLM（按量计费）。",
     "STRUCTURING_LLM": "病历结构化使用的提供商。说明：Ollama 通常是局域网/本地 LLM（可能较慢）；DeepSeek 是在线 LLM（按量计费）。",
-    "INTENT_PROVIDER": "意图模式：local 或 model-driven。",
     "LLM_PROVIDER_STRICT_MODE": "为 true 时仅使用所选提供商，不会自动回退到其它提供商。",
-    "AGENT_ROUTING_PROMPT_MODE": "路由提示词详细度：full 或 compact。",
-    "AGENT_TOOL_SCHEMA_MODE": "工具 schema 详细度：full 或 compact。",
     "VISION_LLM": "图像理解使用的提供商。",
     "OPENAI_BASE_URL": "OpenAI API 基地址。",
     "OPENAI_MODEL": "路由/结构化使用的 OpenAI/Codex 模型名。",
@@ -314,11 +302,8 @@ CONFIG_DESCRIPTIONS_ZH: Dict[str, str] = {
 CONFIG_ALLOWED_VALUES: Dict[str, list[str]] = {
     "ROUTING_LLM": ["ollama", "deepseek", "groq", "gemini", "openai", "tencent_lkeap"],
     "STRUCTURING_LLM": ["ollama", "deepseek", "groq", "gemini", "openai", "tencent_lkeap"],
-    "INTENT_PROVIDER": ["local", "model-driven"],
     "LLM_PROVIDER_STRICT_MODE": ["true", "false"],
     "KNOWLEDGE_AUTO_LEARN_ENABLED": ["true", "false"],
-    "AGENT_ROUTING_PROMPT_MODE": ["full", "compact"],
-    "AGENT_TOOL_SCHEMA_MODE": ["full", "compact"],
     "VISION_LLM": ["ollama", "gemini", "openai"],
     "TASK_SCHEDULER_MODE": ["interval", "cron"],
     "NOTIFICATION_PROVIDER": ["log", "wechat"],
@@ -660,8 +645,8 @@ async def save_runtime_config_dict(raw: Dict[str, Any]) -> Dict[str, str]:
 
 
 _LOWER_CASE_ENUM_KEYS = {
-    "ROUTING_LLM", "STRUCTURING_LLM", "INTENT_PROVIDER", "VISION_LLM",
-    "LLM_PROVIDER_STRICT_MODE", "AGENT_ROUTING_PROMPT_MODE", "AGENT_TOOL_SCHEMA_MODE",
+    "ROUTING_LLM", "STRUCTURING_LLM", "VISION_LLM",
+    "LLM_PROVIDER_STRICT_MODE",
     "KNOWLEDGE_AUTO_LEARN_ENABLED", "TASK_SCHEDULER_MODE",
     "NOTIFICATION_PROVIDER",
 }

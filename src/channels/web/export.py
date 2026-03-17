@@ -8,6 +8,7 @@ import hashlib
 import os
 import re
 from datetime import datetime, timezone
+from typing import Optional
 from urllib.parse import quote
 
 from fastapi import APIRouter, File, Header, HTTPException, Query, UploadFile
@@ -142,6 +143,25 @@ def _write_patient_export_audit_task(records, resolved_doctor_id: str, pdf_hash:
                     export_format="pdf",
                     exported_at=datetime.now(timezone.utc),
                     pdf_hash=pdf_hash,
+                ))
+            await db.commit()
+    safe_create_task(_write_export_audit())
+
+
+def _write_outpatient_export_audit_task(
+    records, resolved_doctor_id: str,
+    export_fmt: str = "pdf", pdf_hash: Optional[str] = None,
+) -> None:
+    """Schedule a background task to write MedicalRecordExport rows for outpatient report records."""
+    async def _write_export_audit():
+        async with AsyncSessionLocal() as db:
+            for rec in records:
+                db.add(MedicalRecordExport(
+                    record_id=rec.id,
+                    doctor_id=resolved_doctor_id,
+                    export_format=export_fmt,
+                    exported_at=datetime.now(timezone.utc),
+                    pdf_hash=pdf_hash or "",
                 ))
             await db.commit()
     safe_create_task(_write_export_audit())
@@ -283,15 +303,31 @@ async def _extract_outpatient_fields_safe(
         )
 
 
+def _source_annotation(records: list) -> Optional[str]:
+    """Build a '综合 … 至 … 共 N 条记录' annotation when multiple records are merged."""
+    if len(records) <= 1:
+        return None
+    dates = [r.created_at for r in records if getattr(r, "created_at", None)]
+    if not dates:
+        return None
+    return (
+        f"综合 {min(dates).strftime('%Y-%m-%d')} 至 "
+        f"{max(dates).strftime('%Y-%m-%d')} 共 {len(records)} 条记录"
+    )
+
+
 @router.get("/patient/{patient_id}/outpatient-report")
 async def export_outpatient_report(
     patient_id: int,
     doctor_id: str = Query(default="web_doctor"),
     authorization: str | None = Header(default=None),
     limit: int = Query(default=200, ge=1, le=500),
+    export_format: str = Query(default="pdf", alias="format", pattern="^(json|pdf)$"),
 ):
     """
-    Generate a 卫生部 2010 门诊病历 format PDF for a patient.
+    Generate a 卫生部 2010 门诊病历 format report for a patient.
+
+    Use ``?format=json`` to receive structured JSON instead of PDF.
     LLM extracts structured fields from all records; custom template (if any) is used.
     Filename uses patient_id only (no PHI).
     """
@@ -301,15 +337,35 @@ async def export_outpatient_report(
         patient, records = await _fetch_patient_and_records(db, patient_id, resolved_doctor_id, limit)
     if not records:
         raise HTTPException(status_code=404, detail="No records found for this patient")
+
+    # --- JSON export path --------------------------------------------------
+    if export_format == "json":
+        from services.export.outpatient_report import export_as_json
+        data = await export_as_json(records, patient, resolved_doctor_id)
+        annotation = _source_annotation(records)
+        if annotation:
+            data["source_annotation"] = annotation
+        safe_create_task(
+            audit(resolved_doctor_id, "EXPORT", resource_type="outpatient_report", resource_id=str(patient_id))
+        )
+        # Audit row with export_format="json"
+        _write_outpatient_export_audit_task(records, resolved_doctor_id, export_fmt="json")
+        return JSONResponse(data)
+
+    # --- PDF export path (default) -----------------------------------------
     fields = await _extract_outpatient_fields_safe(
         records, patient, resolved_doctor_id, patient_id,
     )
-    patient_info = _build_patient_info_line(patient)
+    patient_info_str = _build_patient_info_line(patient)
+    patient_info_data: dict = {"text": patient_info_str}
+    annotation = _source_annotation(records)
+    if annotation:
+        patient_info_data["source_annotation"] = annotation
     try:
         pdf_bytes = generate_outpatient_report_pdf(
             fields=fields,
             patient_name=patient.name,
-            patient_info=patient_info,
+            patient_info=patient_info_data,
         )
     except Exception as exc:
         log(f"[Export] outpatient report PDF render failed for patient {patient_id}: {exc}")
@@ -317,6 +373,8 @@ async def export_outpatient_report(
     safe_create_task(
         audit(resolved_doctor_id, "EXPORT", resource_type="outpatient_report", resource_id=str(patient_id))
     )
+    pdf_hash = _sha256_hex(pdf_bytes)
+    _write_outpatient_export_audit_task(records, resolved_doctor_id, export_fmt="pdf", pdf_hash=pdf_hash)
     filename = _safe_pdf_filename("门诊病历", patient_id)
     return Response(
         content=pdf_bytes,

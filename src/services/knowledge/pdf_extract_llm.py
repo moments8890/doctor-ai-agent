@@ -26,11 +26,10 @@ from __future__ import annotations
 import base64
 import os
 import subprocess
-import tempfile
-from pathlib import Path
 
 from openai import AsyncOpenAI
 
+from services.utils.pdf_utils import pdf_to_images
 from utils.log import log
 
 _SYSTEM_PROMPT = (
@@ -70,31 +69,6 @@ def _is_enabled() -> bool:
         return False
 
 
-def _pdf_to_images(pdf_bytes: bytes, max_pages: int, dpi: int) -> list[bytes]:
-    """Convert PDF pages to JPEG bytes using pdftoppm."""
-    with tempfile.TemporaryDirectory() as tmp:
-        pdf_path = Path(tmp) / "input.pdf"
-        img_prefix = Path(tmp) / "page"
-        pdf_path.write_bytes(pdf_bytes)
-
-        r = subprocess.run(
-            [
-                "pdftoppm",
-                "-r", str(dpi),
-                "-jpeg",
-                "-l", str(max_pages),
-                str(pdf_path),
-                str(img_prefix),
-            ],
-            capture_output=True,
-        )
-        if r.returncode != 0:
-            return []
-
-        images = sorted(Path(tmp).glob("page*.jpg"))
-        return [img.read_bytes() for img in images[:max_pages]]
-
-
 def _build_llm_client(provider_name: str) -> tuple["AsyncOpenAI", str]:
     """Construct the AsyncOpenAI client and model name for the given provider."""
     cfg = _PROVIDERS.get(provider_name, _PROVIDERS["ollama"])
@@ -129,7 +103,8 @@ async def _call_vision_llm(
 ) -> str:
     """Send page images to the vision LLM and return the extracted text."""
     content = _build_page_content(page_images)
-    log(f"[PDF-LLM:{provider_name}] model={model} pages={len(page_images)}")
+    _tag = f"[pdf-extract:{provider_name}:{model}]"
+    log(f"{_tag} request: pages={len(page_images)}")
     completion = await client.chat.completions.create(
         model=model,
         messages=[
@@ -140,7 +115,7 @@ async def _call_vision_llm(
         temperature=0,
     )
     text = (completion.choices[0].message.content or "").strip()
-    log(f"[PDF-LLM:{provider_name}] extracted {len(text)} chars: {text[:80]!r}")
+    log(f"{_tag} response: {len(text)} chars: {text[:80]!r}")
     return text
 
 
@@ -160,9 +135,9 @@ async def extract_text_from_pdf_llm(
 
     max_pages = int(os.environ.get("PDF_LLM_MAX_PAGES", "10"))
     dpi = int(os.environ.get("PDF_LLM_DPI", "120"))
-    page_images = _pdf_to_images(pdf_bytes, max_pages, dpi)
+    page_images = pdf_to_images(pdf_bytes, max_pages, dpi=dpi)
     if not page_images:
-        log("[PDF-LLM] pdftoppm produced no images — falling back")
+        log("[pdf-extract] pdftoppm produced no images — falling back")
         return None
 
     provider_name = os.environ.get("VISION_LLM", "ollama")

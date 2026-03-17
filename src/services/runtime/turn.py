@@ -17,7 +17,7 @@ from services.runtime.context import (
     load_context,
     save_context,
 )
-from services.runtime.dedup import cache_result, get_cached_result, is_duplicate
+from services.runtime.dedup import cache_result, try_acquire
 from services.runtime.models import (
     ActionPayload,
     DoctorCtx,
@@ -111,10 +111,10 @@ async def process_turn(
     if not turn_text and action is None:
         return TurnResult(reply=M.empty_input)
 
-    # ── Dedup ─────────────────────────────────────────────────────────
-    if msg_id and is_duplicate(msg_id):
-        cached = get_cached_result(msg_id)
-        if cached:
+    # ── Dedup (atomic check-and-mark via asyncio.Lock) ──────────────
+    if msg_id:
+        cached = await try_acquire(msg_id)
+        if cached is not None:
             return cached
 
     try:
@@ -196,7 +196,7 @@ async def _run_pipeline(ctx: DoctorCtx, text: str, doctor_id: str) -> TurnResult
     from services.runtime.resolve import resolve
 
     replies: list = []
-    view_payload = None
+    view_payload = None  # Last-wins: multi-action turns keep only the final payload
     switch_notifications: list = []
     record_id = None
 

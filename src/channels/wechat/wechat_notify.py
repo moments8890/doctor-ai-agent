@@ -9,6 +9,8 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import List
 
+import asyncio
+
 import httpx
 
 from db.crud import get_runtime_token, upsert_runtime_token
@@ -19,6 +21,9 @@ from utils.log import log
 _token_cache: dict = {"token": "", "expires_at": 0.0}
 # Separate cache for WeCom KF access tokens (different corpsecret → different token/permissions)
 _kf_token_cache: dict = {"token": "", "expires_at": 0.0}
+# Locks to serialise token refresh and prevent concurrent API calls
+_token_lock = asyncio.Lock()
+_kf_token_lock = asyncio.Lock()
 
 
 def _env_first(*names: str) -> str:
@@ -139,12 +144,18 @@ async def _get_access_token(app_id: str, app_secret: str) -> str:
         log(f"[WeChat token] using cached token (expires in {int(_token_cache['expires_at'] - now)}s)")
         return _token_cache["token"]
 
-    token_key = _token_key(app_id)
-    db_token = await _check_db_token_cache(app_id, now, token_key)
-    if db_token is not None:
-        return db_token
+    async with _token_lock:
+        # Re-check after acquiring lock — another coroutine may have refreshed.
+        now = time.time()
+        if _token_cache["token"] and now < _token_cache["expires_at"]:
+            return _token_cache["token"]
 
-    return await _fetch_fresh_token(app_id, app_secret, now, token_key)
+        token_key = _token_key(app_id)
+        db_token = await _check_db_token_cache(app_id, now, token_key)
+        if db_token is not None:
+            return db_token
+
+        return await _fetch_fresh_token(app_id, app_secret, now, token_key)
 
 
 async def _get_kf_access_token() -> str:
@@ -167,22 +178,28 @@ async def _get_kf_access_token() -> str:
         log(f"[WeChat KF token] using cached KF token (expires in {int(_kf_token_cache['expires_at'] - now)}s)")
         return _kf_token_cache["token"]
 
-    # Fetch fresh token with KF credentials
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(
-            "https://qyapi.weixin.qq.com/cgi-bin/gettoken",
-            params={"corpid": kf_corp_id, "corpsecret": kf_secret},
-        )
-        if hasattr(resp, "raise_for_status"):
-            resp.raise_for_status()
-        data = resp.json()
-    if not isinstance(data, dict) or "access_token" not in data:
-        raise RuntimeError(f"WeChat KF token fetch failed: {data}")
-    ttl_seconds = max(1, int(data.get("expires_in", 7200)) - 60)
-    _kf_token_cache["token"] = data["access_token"]
-    _kf_token_cache["expires_at"] = now + ttl_seconds
-    log(f"[WeChat KF token] fetched new KF token (expires in {ttl_seconds}s)")
-    return _kf_token_cache["token"]
+    async with _kf_token_lock:
+        # Re-check after acquiring lock — another coroutine may have refreshed.
+        now = time.time()
+        if _kf_token_cache["token"] and now < _kf_token_cache["expires_at"]:
+            return _kf_token_cache["token"]
+
+        # Fetch fresh token with KF credentials
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                "https://qyapi.weixin.qq.com/cgi-bin/gettoken",
+                params={"corpid": kf_corp_id, "corpsecret": kf_secret},
+            )
+            if hasattr(resp, "raise_for_status"):
+                resp.raise_for_status()
+            data = resp.json()
+        if not isinstance(data, dict) or "access_token" not in data:
+            raise RuntimeError(f"WeChat KF token fetch failed: {data}")
+        ttl_seconds = max(1, int(data.get("expires_in", 7200)) - 60)
+        _kf_token_cache["token"] = data["access_token"]
+        _kf_token_cache["expires_at"] = now + ttl_seconds
+        log(f"[WeChat KF token] fetched new KF token (expires in {ttl_seconds}s)")
+        return _kf_token_cache["token"]
 
 
 def _split_message(text: str, limit: int = 600) -> List[str]:

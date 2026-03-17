@@ -5,7 +5,7 @@ Never fails on binding — that was already validated by resolve.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, List, Optional
 
 from services.runtime.types import (
@@ -93,7 +93,7 @@ async def _schedule_task(action: ResolvedAction, ctx: Any) -> CommitResult:
         status="ok",
         data={
             "task_id": task_id,
-            "task_label": "任务",
+            "title": getattr(action.args, "title", None) or "任务",
             "datetime_display": dt_display,
             "patient_name": action.patient_name,
             "noon_default": noon_default,
@@ -185,44 +185,41 @@ async def _update_record(action: ResolvedAction, ctx: Any) -> CommitResult:
     from services.ai.structuring import structure_medical_record
     from sqlalchemy import select
 
-    # Fetch existing
     async with AsyncSessionLocal() as db:
+        # Fetch existing
         stmt = select(MedicalRecordDB).where(
             MedicalRecordDB.id == record_id,
             MedicalRecordDB.doctor_id == ctx.doctor_id,
         ).limit(1)
         result = await db.execute(stmt)
         existing = result.scalar_one_or_none()
-    if existing is None:
-        return CommitResult(status="error", error_key="no_record_to_update")
+        if existing is None:
+            return CommitResult(status="error", error_key="no_record_to_update")
 
-    existing_content = existing.content or ""
+        existing_content = existing.content or ""
 
-    # Snapshot for audit
-    try:
-        async with AsyncSessionLocal() as db:
+        # Snapshot for audit (same session — captures the version we're about to patch)
+        try:
             await save_record_version(db, existing, ctx.doctor_id)
-            await db.commit()
-    except Exception as e:
-        log(f"[commit] save_record_version failed record={record_id}: {e}", level="warning")
+        except Exception as e:
+            log(f"[commit] save_record_version failed record={record_id}: {e}", level="warning")
 
-    # Re-structure with amendment
-    combined = f"{existing_content}\n\n---\n医生修改指令：{instruction}"
-    try:
-        record = await structure_medical_record(combined, doctor_id=ctx.doctor_id)
-    except Exception as e:
-        log(f"[commit] update structuring FAILED: {e}", level="error")
-        return CommitResult(status="error", error_key="structuring_failed")
+        # Re-structure with amendment (LLM call; session stays open)
+        combined = f"{existing_content}\n\n---\n医生修改指令：{instruction}"
+        try:
+            record = await structure_medical_record(combined, doctor_id=ctx.doctor_id)
+        except Exception as e:
+            log(f"[commit] update structuring FAILED: {e}", level="error")
+            return CommitResult(status="error", error_key="structuring_failed")
 
-    # PATCH
-    try:
-        async with AsyncSessionLocal() as db:
+        # PATCH (same session — no concurrent write can slip in)
+        try:
             repo = RecordRepository(db)
-            await repo.update(record_id=record_id, doctor_id=ctx.doctor_id, content=record.content, tags=record.tags)
+            await repo.update(record_id=record_id, doctor_id=ctx.doctor_id, content=record.content, tags=record.tags, structured=record.structured)
             await db.commit()
-    except Exception as e:
-        log(f"[commit] update_record FAILED: {e}", level="error")
-        return CommitResult(status="error", error_key="execute_error")
+        except Exception as e:
+            log(f"[commit] update_record FAILED: {e}", level="error")
+            return CommitResult(status="error", error_key="execute_error")
 
     content_preview = (record.content or "")[:200]
     if len(record.content or "") > 200:
@@ -236,6 +233,9 @@ async def _update_record(action: ResolvedAction, ctx: Any) -> CommitResult:
 # Helpers
 # ---------------------------------------------------------------------------
 
+_COLLECT_WINDOW_MINUTES = 30
+
+
 async def _collect_clinical_text(
     doctor_id: str,
     patient_id: Optional[int],
@@ -244,27 +244,45 @@ async def _collect_clinical_text(
 ) -> str:
     """Collect clinical content from chat_archive user turns + current input.
 
-    ADR 0012 §8, §17: no working_note dependency. Content comes from
-    chat_archive (user turns since last completed record for the patient).
-    When patient_id is available, fetches patient-scoped turns from DB.
-    Falls back to unscoped recent_turns for pre-migration rows (patient_id=NULL).
+    ADR 0015: dual boundary — only include turns after the later of:
+      1) the patient's last saved record timestamp
+      2) now - 30 minutes
+    This prevents cross-record contamination and stale turn accumulation.
     """
     parts: list[str] = []
 
     if patient_id is not None:
-        # Patient-scoped scan from chat_archive (ADR 0012 §8, A2)
         from db.engine import AsyncSessionLocal
         from db.models.doctor import ChatArchive
-        from sqlalchemy import select
+        from db.models import MedicalRecordDB
+        from sqlalchemy import select, func
 
         try:
             async with AsyncSessionLocal() as db:
+                # Boundary 1: last saved record timestamp
+                last_record_ts = (await db.execute(
+                    select(func.max(MedicalRecordDB.created_at)).where(
+                        MedicalRecordDB.doctor_id == doctor_id,
+                        MedicalRecordDB.patient_id == patient_id,
+                    )
+                )).scalar()
+
+                # Boundary 2: recency window
+                recency_cutoff = datetime.utcnow() - timedelta(minutes=_COLLECT_WINDOW_MINUTES)
+
+                # Effective cutoff: the later of the two
+                if last_record_ts and last_record_ts > recency_cutoff:
+                    cutoff = last_record_ts
+                else:
+                    cutoff = recency_cutoff
+
                 stmt = (
                     select(ChatArchive)
                     .where(
                         ChatArchive.doctor_id == doctor_id,
                         ChatArchive.patient_id == patient_id,
                         ChatArchive.role == "user",
+                        ChatArchive.created_at > cutoff,
                     )
                     .order_by(ChatArchive.created_at.desc())
                     .limit(30)

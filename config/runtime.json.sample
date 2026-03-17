@@ -33,15 +33,6 @@
             "tencent_lkeap"
           ]
         },
-        "INTENT_PROVIDER": {
-          "value": "local",
-          "description": "Intent mode: local or model-driven.",
-          "description_zh": "意图模式：local 或 model-driven。",
-          "options": [
-            "local",
-            "model-driven"
-          ]
-        },
         "LLM_PROVIDER_STRICT_MODE": {
           "value": true,
           "description": "When true, use selected provider only and never fallback to others.",
@@ -49,24 +40,6 @@
           "options": [
             "true",
             "false"
-          ]
-        },
-        "AGENT_ROUTING_PROMPT_MODE": {
-          "value": "full",
-          "description": "Routing prompt verbosity mode: full or compact.",
-          "description_zh": "路由提示词详细度：full 或 compact。",
-          "options": [
-            "full",
-            "compact"
-          ]
-        },
-        "AGENT_TOOL_SCHEMA_MODE": {
-          "value": "compact",
-          "description": "Tool schema verbosity mode: full or compact.",
-          "description_zh": "工具 schema 详细度：full 或 compact。",
-          "options": [
-            "full",
-            "compact"
           ]
         },
         "VISION_LLM": {
@@ -85,9 +58,9 @@
           "description_zh": "OpenAI API 基地址。"
         },
         "OPENAI_MODEL": {
-          "value": "gpt-5-codex",
-          "description": "OpenAI/Codex model name for routing/structuring.",
-          "description_zh": "路由/结构化使用的 OpenAI/Codex 模型名。"
+          "value": "gpt-4o",
+          "description": "OpenAI model name for routing/structuring.",
+          "description_zh": "路由/结构化使用的 OpenAI 模型名。"
         },
         "OPENAI_API_KEY": {
           "value": "",
@@ -169,31 +142,6 @@
           "value": "/Users/jingwuxu/Documents/Code/doctor-ai-agent/patients.db",
           "description": "SQLite DB path when DATABASE_URL is empty.",
           "description_zh": "DATABASE_URL 为空时使用的 SQLite 路径。"
-        }
-      }
-    },
-    "speech": {
-      "description": "ASR transcription model runtime settings.",
-      "description_zh": "语音转写模型运行配置。",
-      "settings": {
-        "WHISPER_MODEL": {
-          "value": "large-v3",
-          "description": "Faster-Whisper model size.",
-          "description_zh": "Faster-Whisper 模型规格。"
-        },
-        "WHISPER_DEVICE": {
-          "value": "cpu",
-          "description": "ASR device (cpu/cuda).",
-          "description_zh": "ASR 设备（cpu/cuda）。",
-          "options": [
-            "cpu",
-            "cuda"
-          ]
-        },
-        "WHISPER_COMPUTE_TYPE": {
-          "value": "int8",
-          "description": "ASR compute type (int8/float16/etc.).",
-          "description_zh": "ASR 计算类型（int8/float16 等）。"
         }
       }
     },
@@ -331,7 +279,7 @@
           "description_zh": "小程序访问令牌有效期（秒）。"
         },
         "MINIPROGRAM_API_BASE_URL": {
-          "value": "https://nano-redhead-attitudes-attachment.trycloudflare.com",
+          "value": "",
           "description": "Public HTTPS API base URL used by mini client config.",
           "description_zh": "小程序客户端使用的公网 HTTPS API 基地址。"
         },

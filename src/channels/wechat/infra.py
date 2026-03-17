@@ -97,7 +97,7 @@ def get_kb_lock(doctor_id: str) -> asyncio.Lock:
 
 # ── WeCom KF sync cursor persistence ────────────────────────────────────────
 
-_WECHAT_KF_CURSOR_FILE = Path(__file__).resolve().parents[4] / "logs" / "wechat_kf_sync_state.json"  # → project root
+_WECHAT_KF_CURSOR_FILE = Path(__file__).resolve().parents[3] / "logs" / "wechat_kf_sync_state.json"  # → project root
 _WECHAT_KF_CURSOR_KEY = "wecom_kf_sync_cursor"
 
 

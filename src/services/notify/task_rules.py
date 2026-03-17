@@ -163,7 +163,8 @@ _CN_MAP = {
 
 
 def _cn_or_int(s: str) -> int:
-    return _CN_MAP.get(s) or int(s)
+    val = _CN_MAP.get(s)
+    return val if val is not None else int(s)
 
 
 _ANCHOR_WINDOW = 40  # chars before/after keyword to search for time phrases

@@ -34,27 +34,13 @@ async def db_session(session_factory):
 
 @pytest.fixture(autouse=True)
 def reset_doctor_sessions():
-    """Clear in-memory session state between tests."""
-    from services.session import reset_session_state_for_tests
-
-    reset_session_state_for_tests()
-    try:
-        import channels.web.chat as records_mod
-        records_mod._RATE_WINDOWS.clear()
-    except Exception:
-        pass
+    """Clear in-memory rate-limit state between tests."""
     try:
         from services.auth.rate_limit import clear_rate_limits_for_tests
         clear_rate_limits_for_tests()
     except Exception:
         pass
     yield
-    reset_session_state_for_tests()
-    try:
-        import channels.web.chat as records_mod
-        records_mod._RATE_WINDOWS.clear()
-    except Exception:
-        pass
     try:
         from services.auth.rate_limit import clear_rate_limits_for_tests
         clear_rate_limits_for_tests()

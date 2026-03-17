@@ -33,6 +33,8 @@ Use small, direct records with:
   — companion: [Architecture Diagram](0012-architecture-diagram.md)
 - [ADR 0013: Action Type Simplification](0013-action-type-simplification.md)
   — companion: [Architecture Diagram](0013-architecture-diagram.md)
+- [ADR 0014: Medical Record Import/Export](0014-medical-record-import-export.md)
+- [ADR 0015: Clinical Text Collection Boundary](0015-clinical-text-collection-boundary.md)
 
 ## Status Values
 
@@ -59,3 +61,5 @@ Current rollout snapshot:
 | [ADR 0011](0011-thread-centric-conversation-runtime-and-deterministic-commits.md) | Accepted | Complete |
 | [ADR 0012](0012-understand-execute-compose-pipeline.md) | Accepted | Complete |
 | [ADR 0013](0013-action-type-simplification.md) | Accepted | Complete |
+| [ADR 0014](0014-medical-record-import-export.md) | Proposed | Not Started |
+| [ADR 0015](0015-clinical-text-collection-boundary.md) | Accepted | Complete |

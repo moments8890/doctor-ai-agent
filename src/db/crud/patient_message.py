@@ -34,12 +34,19 @@ async def save_patient_message(
 async def list_patient_messages(
     session: AsyncSession,
     patient_id: int,
+    doctor_id: str,
     limit: int = 50,
 ) -> List[PatientMessage]:
-    """Return recent messages for a patient, newest first."""
+    """Return recent messages for a patient, newest first.
+
+    Enforces doctor_id ownership to prevent cross-doctor data access.
+    """
     result = await session.execute(
         select(PatientMessage)
-        .where(PatientMessage.patient_id == patient_id)
+        .where(
+            PatientMessage.patient_id == patient_id,
+            PatientMessage.doctor_id == doctor_id,
+        )
         .order_by(PatientMessage.created_at.desc())
         .limit(limit)
     )

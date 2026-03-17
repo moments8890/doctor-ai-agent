@@ -215,11 +215,16 @@ async def create_pending_message(
     return row
 
 
+_VALID_PENDING_MESSAGE_STATUSES = {"pending", "processing", "done", "dead"}
+
+
 async def mark_pending_message(
     session: AsyncSession,
     msg_id: str,
     status: str,
 ) -> None:
+    if status not in _VALID_PENDING_MESSAGE_STATUSES:
+        raise ValueError(f"Invalid PendingMessage status: {status!r}")
     await session.execute(
         sa_update(PendingMessage)
         .where(PendingMessage.id == msg_id)

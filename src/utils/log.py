@@ -149,7 +149,8 @@ def _attach_file_handlers(
     scheduler_logger: logging.Logger,
 ) -> None:
     """为根 / tasks / apscheduler logger 各添加滚动文件处理器。"""
-    log_dir = Path(os.environ.get("LOG_DIR", "logs"))
+    _root = Path(__file__).resolve().parents[2]  # src/utils/log.py → project root
+    log_dir = Path(os.environ.get("LOG_DIR", "")) or (_root / "logs")
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = os.environ.get("LOG_FILE", "app.log")
     max_bytes = int(os.environ.get("LOG_MAX_BYTES", "10485760"))

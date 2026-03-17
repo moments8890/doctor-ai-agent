@@ -1,25 +1,16 @@
 """
 WeChat 意图处理层：菜单事件、患者列表、历史导入等 WeChat 专属逻辑。
-
-Most intent handlers (create_patient, add_record, query_records, etc.) have
-been moved to the shared layer at ``services/domain/intent_handlers/``.
-name_lookup is still handled at the WeChat router level in
-``routers/wechat_flows.py:handle_name_lookup()``.
 """
 
 from __future__ import annotations
 
 import re
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from db.crud import get_all_patients
 from db.engine import AsyncSessionLocal
 from utils.response_formatting import format_record
-from utils.text_parsing import (
-    explicit_name_or_none,
-    looks_like_symptom_note,
-)
 from utils.log import log
 
 # Re-export from sub-modules for backward compatibility
@@ -35,9 +26,6 @@ from channels.wechat.wechat_import import (
     _mark_duplicates,
 )
 
-
-from utils.runtime_config import get_pending_record_ttl_minutes as _get_ttl
-_DRAFT_TTL_MINUTES = _get_ttl()
 
 _MENU_EVENT_REPLIES = {
     "DOCTOR_NEW_PATIENT": "🆕 请发送患者信息，例如：帮我建个新患者，张三，30岁男性。",

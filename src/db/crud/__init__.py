@@ -102,11 +102,6 @@ from db.crud.retention import (
 
 __all__ = [
     # doctor
-    "_utcnow",
-    "_WECHAT_ID_RE",
-    "_is_wechat_identifier",
-    "_infer_channel",
-    "_resolve_doctor_id",
     "_ensure_doctor_exists",
     "get_doctor_by_id",
     "get_doctor_wechat_user_id",
@@ -149,12 +144,6 @@ __all__ = [
     "save_record_version",
     "get_record_versions",
     "update_latest_record_for_patient",
-    "_env_flag_true",
-    "_CN_DIGITS",
-    "_parse_cn_or_int",
-    "_extract_follow_up_days",
-    "_patient_name",
-    "_ensure_auto_follow_up_task",
     # tasks
     "create_task",
     "list_tasks",
@@ -192,5 +181,4 @@ __all__ = [
     "archive_old_audit_logs",
     "prune_record_versions",
     "cleanup_chat_archive",
-    "redact_old_conversation_content",
 ]

@@ -37,7 +37,7 @@ _PROVIDERS = {
     "openai": {
         "base_url": os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1"),
         "api_key_env": "OPENAI_API_KEY",
-        "model": "gpt-5-codex",
+        "model": "gpt-4o",
     },
     "tencent_lkeap": {
         "base_url": os.environ.get("TENCENT_LKEAP_BASE_URL", "https://api.lkeap.cloud.tencent.com/v1"),

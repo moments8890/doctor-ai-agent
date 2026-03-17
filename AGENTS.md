@@ -66,6 +66,13 @@ git push gitee main
 - Commit message prefixes: `feat:`, `fix:`, `ci:`, `refactor:`, `docs:`
 
 
+## Codebase Review Policy
+
+When doing codebase reviews:
+- **Non-logical fixes** (security, cleanup, hardening, dead code) → apply in bulk without per-item confirmation
+- **Logical bugs** (wrong behavior) → discuss one by one with concrete examples, propose fix, wait for confirmation before applying
+- If user says "do not touch" a category, respect that strictly
+
 ## E2E Failure Debugging Policy
 
 When debugging failures in E2E / MVP benchmark tests:

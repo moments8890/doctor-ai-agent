@@ -126,7 +126,7 @@ async def _try_fallback(
     if _is_circuit_open(fallback_key):
         raise RuntimeError("circuit_open model={0} op={1}".format(fallback_model, op_name))
     if _looks_like_timeout_error(last_error):
-        log("[LLM] {0} timeout on model={1}; falling back to model={2}".format(
+        log("[llm-resilience] {0} timeout on model={1}; falling back to model={2}".format(
             op_name, primary_model, fallback_model,
         ))
     try:

@@ -42,6 +42,7 @@ from channels.web.auth import router as auth_router
 from channels.web.ui import router as ui_router
 from channels.web.tasks import router as tasks_router
 from channels.web.export import router as export_router
+from channels.web.import_routes import router as import_router
 from channels.web.patient_portal import router as patient_portal_router
 from db.init_db import create_tables, seed_prompts, backfill_doctors_registry
 from db.engine import engine, AsyncSessionLocal
@@ -233,31 +234,6 @@ def _conversation_turn_retention_days() -> int:
         return 1095
 
 
-def _session_cache_cleanup_interval_minutes() -> int:
-    raw = os.environ.get("SESSION_CACHE_CLEANUP_INTERVAL_MINUTES", "10")
-    try:
-        return max(1, int(raw))
-    except (TypeError, ValueError):
-        return 10
-
-
-def _session_cache_max_idle_seconds() -> int:
-    raw = os.environ.get("SESSION_CACHE_MAX_IDLE_SECONDS", "3600")
-    try:
-        return max(60, int(raw))
-    except (TypeError, ValueError):
-        return 3600
-
-
-async def _cleanup_old_conversation_turns() -> None:
-    """No-op — conversation turns table removed (ADR 0011). Chat archive has its own retention."""
-    pass
-
-
-async def _cleanup_inactive_session_cache() -> None:
-    """No-op — runtime context is DB-backed, no in-memory cache to prune."""
-    pass
-
 
 async def _expire_stale_pending_records() -> None:
     """Scheduler job: auto-save timed-out pending drafts instead of discarding them.
@@ -363,18 +339,6 @@ async def _record_version_retention() -> None:
         _log.warning("[RecordVersions] retention job FAILED: %s", _e)
 
 
-async def _redact_old_conversation_content() -> None:
-    """Daily job: replace content of conversation turns older than 30 days with '[redacted]'."""
-    _log = logging.getLogger("scheduler")
-    try:
-        from db.crud import redact_old_conversation_content
-        async with AsyncSessionLocal() as _session:
-            updated = await redact_old_conversation_content(_session)
-        if updated:
-            _log.info("[Conversation] content redaction complete | updated=%s", updated)
-    except Exception as _e:
-        _log.warning("[Conversation] content redaction job FAILED: %s", _e)
-
 
 async def _prune_turn_log() -> None:
     """Daily job: remove turn log entries older than TURN_LOG_TTL_DAYS."""
@@ -419,15 +383,7 @@ def _schedule_task_notifications(startup_log: logging.Logger) -> None:
 
 
 def _schedule_cleanup_jobs(startup_log: logging.Logger) -> None:
-    """注册对话清理、Session 缓存清理和草稿过期定时器。"""
-    cleanup_hours = max(1, int(os.environ.get("CONVERSATION_CLEANUP_INTERVAL_HOURS", "6")))
-    _scheduler.add_job(_cleanup_old_conversation_turns, "interval", hours=cleanup_hours)
-    startup_log.info("[Conversation] cleanup scheduler configured | every_hours=%s", cleanup_hours)
-
-    session_cleanup_minutes = _session_cache_cleanup_interval_minutes()
-    _scheduler.add_job(_cleanup_inactive_session_cache, "interval", minutes=session_cleanup_minutes)
-    startup_log.info("[Session] cache cleanup scheduler configured | every_minutes=%s", session_cleanup_minutes)
-
+    """注册草稿过期定时器。"""
     _scheduler.add_job(_expire_stale_pending_records, "interval", minutes=5)
     startup_log.info("[PendingRecords] expiry scheduler configured | every_minutes=5")
 
@@ -445,9 +401,6 @@ def _schedule_retention_jobs(startup_log: logging.Logger) -> None:
 
     _scheduler.add_job(_record_version_retention, "cron", day=1, hour=3, minute=30)
     startup_log.info("[RecordVersions] retention scheduler configured | monthly day=1 at 03:30")
-
-    _scheduler.add_job(_redact_old_conversation_content, "cron", hour=5, minute=0)
-    startup_log.info("[Conversation] content redaction scheduler configured | daily at 05:00")
 
     _scheduler.add_job(_prune_turn_log, "cron", hour=5, minute=30)
     startup_log.info("[TurnLog] prune scheduler configured | daily at 05:30")
@@ -514,9 +467,7 @@ async def _startup_background_workers() -> None:
 
 
 async def _startup_recovery(startup_log: logging.Logger) -> None:
-    """清理过期 session、记录待发任务数量并重新入队崩溃遗留消息。"""
-    await _cleanup_old_conversation_turns()
-    await _cleanup_inactive_session_cache()
+    """记录待发任务数量并重新入队崩溃遗留消息。"""
     try:
         async with AsyncSessionLocal() as _session:
             _pending = await get_due_tasks(_session, datetime.now(timezone.utc))
@@ -554,10 +505,7 @@ def _enforce_production_guards() -> None:
             "MINIPROGRAM_TOKEN_SECRET must be set to a strong random "
             "value in production (not the dev default). Refusing to start."
         )
-    if not os.environ.get("CORS_ALLOW_ORIGINS", "").strip():
-        raise RuntimeError(
-            "CORS_ALLOW_ORIGINS must be set in production. Refusing to start."
-        )
+    # CORS_ALLOW_ORIGINS is enforced at module level during CORS middleware setup.
 
 
 @asynccontextmanager
@@ -649,6 +597,7 @@ async def limit_request_body_middleware(request: Request, call_next):
     wrapper so oversize payloads are rejected before the full body is
     buffered in memory by the endpoint.
     """
+    _body_too_large = False
     content_length = request.headers.get("content-length")
     if content_length is not None:
         try:
@@ -661,16 +610,20 @@ async def limit_request_body_middleware(request: Request, call_next):
         _received = 0
 
         async def _counting_receive():
-            nonlocal _received
+            nonlocal _received, _body_too_large
             message = await request.receive()
             body = message.get("body", b"")
             _received += len(body)
             if _received > _MAX_REQUEST_BODY_BYTES:
-                raise HTTPException(status_code=413, detail="Request body too large")
+                _body_too_large = True
+                return {"type": "http.disconnect"}
             return message
 
         request._receive = _counting_receive  # type: ignore[attr-defined]
-    return await call_next(request)
+    response = await call_next(request)
+    if _body_too_large:
+        return JSONResponse(status_code=413, content={"detail": "Request body too large"})
+    return response
 
 
 @app.middleware("http")
@@ -721,12 +674,48 @@ app.include_router(auth_router)
 app.include_router(ui_router)
 app.include_router(tasks_router)
 app.include_router(export_router)
+app.include_router(import_router)
 app.include_router(patient_portal_router)
 
 
 @app.get("/")
 def root():
     return {"status": "ok", "docs": "/docs"}
+
+
+@app.post("/api/test/reset-caches")
+def reset_caches():
+    """Clear all in-memory caches. Test/dev only."""
+    import sys
+    _env = os.environ.get("ENVIRONMENT", "").strip().lower()
+    if _env not in ("development", "dev", "test") and "pytest" not in sys.modules:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404)
+
+    cleared = []
+
+    # Dedup cache
+    from services.runtime.dedup import _cache as dedup_cache, _in_flight
+    dedup_cache.clear()
+    _in_flight.clear()
+    cleared.append("dedup")
+
+    # Prompt loader cache
+    from utils.prompt_loader import invalidate as invalidate_prompts
+    invalidate_prompts()
+    cleared.append("prompt_loader")
+
+    # Understand prompt cache
+    import services.runtime.understand as _understand
+    _understand._UNDERSTAND_PROMPT = None
+    cleared.append("understand_prompt")
+
+    # Rate limiter
+    from services.auth.rate_limit import _RATE_WINDOWS
+    _RATE_WINDOWS.clear()
+    cleared.append("rate_limit")
+
+    return {"cleared": cleared}
 
 
 @app.get("/api/version")

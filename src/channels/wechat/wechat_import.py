@@ -400,27 +400,6 @@ async def _resolve_session_patient(
     return patient_name, patient_id, ocr_gender, ocr_age
 
 
-async def _preprocess_text_for_import(
-    text: str,
-    source: str,
-    intent_result: Any,
-) -> "tuple[Optional[str], str]":
-    """预处理导入文本，聊天记录需先检查发言人选择。返回 (early_reply, clean_text)。"""
-    if source == "chat_export" or (source == "text" and _looks_like_chat_export(text)):
-        early = await _handle_chat_export_import(text, doctor_id=None, intent_result=intent_result, source=source)
-        if early is not None:
-            return early, ""
-        sender_filter = intent_result.extra_data.get("sender_filter")
-        from channels.wechat.wechat_chat_export import list_senders
-        senders = list_senders(text)
-        clean_text = _preprocess_import_text(
-            text, source,
-            sender_filter=sender_filter or (senders[0] if senders else None),
-        )
-    else:
-        clean_text = _preprocess_import_text(text, source)
-    return None, clean_text
-
 
 def _build_import_reply(
     saved: int,

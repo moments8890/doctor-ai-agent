@@ -139,7 +139,7 @@ async def handle_patient_message(text: str, open_id: str) -> str:
         return "您好！如需就医请联系主治医生或前往医院就诊。如有紧急情况请拨打 120。"
 
     from utils.prompt_loader import get_prompt
-    patient_prompt = await get_prompt("patient.chat", _PATIENT_SYSTEM_PROMPT)
+    patient_prompt = await get_prompt("patient-chat", _PATIENT_SYSTEM_PROMPT)
     sess = _get_patient_session(open_id)
     sess.history = _trim_history(sess.history)
     messages = [{"role": "system", "content": patient_prompt}]
@@ -147,6 +147,9 @@ async def handle_patient_message(text: str, open_id: str) -> str:
     messages.append({"role": "user", "content": text})
 
     try:
+        _provider = os.environ.get("STRUCTURING_LLM", "ollama")
+        _tag = f"[patient-chat:{_provider}:{model}]"
+        log(f"{_tag} request: {text[:80]}")
         resp = await client.chat.completions.create(
             model=model,
             messages=messages,
@@ -155,6 +158,7 @@ async def handle_patient_message(text: str, open_id: str) -> str:
         )
         reply = (resp.choices[0].message.content or "").strip()
         reply = reply or "感谢您的留言，如有需要请前往医院就诊。"
+        log(f"{_tag} response: {reply[:200]}")
         # Persist turn in session history
         sess.history.append({"role": "user", "content": text})
         sess.history.append({"role": "assistant", "content": reply})

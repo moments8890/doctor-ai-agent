@@ -23,31 +23,19 @@ from typing import Any, Optional
 from openai import AsyncOpenAI
 
 from services.ai.llm_resilience import call_with_retry_and_fallback
+from services.medical_record_schema import OUTPATIENT_FIELD_META, FIELD_KEYS, OutpatientRecord, PatientInfo
 from utils.log import log
 
 # ---------------------------------------------------------------------------
-# Standard field definitions
+# Standard field definitions (imported from shared schema)
 # ---------------------------------------------------------------------------
 
-OUTPATIENT_FIELDS = [
-    ("department",         "科别"),        # 卫医政发〔2010〕11号 required header field
-    ("chief_complaint",    "主诉"),
-    ("present_illness",    "现病史"),
-    ("past_history",       "既往史"),
-    ("allergy_history",    "过敏史"),
-    ("personal_history",   "个人史"),
-    ("family_history",     "家族史"),
-    ("physical_exam",      "体格检查"),
-    ("aux_exam",           "辅助检查"),
-    ("diagnosis",          "初步诊断"),   # 国卫办医政发〔2024〕16号: ICD编码 required
-    ("treatment",          "治疗方案"),
-    ("followup",           "医嘱及随访"),
-]
+OUTPATIENT_FIELDS = OUTPATIENT_FIELD_META
 
 # Fields rendered in the PDF header row rather than as full sections
 _HEADER_ONLY_FIELDS = {"department"}
 
-_FIELD_KEYS = [k for k, _ in OUTPATIENT_FIELDS]
+_FIELD_KEYS = FIELD_KEYS
 
 # ---------------------------------------------------------------------------
 # LLM client singleton (reuse connection pool across requests)
@@ -57,14 +45,18 @@ _CLIENT_CACHE: dict[str, AsyncOpenAI] = {}
 
 
 def _get_llm_client() -> tuple[AsyncOpenAI, str]:
-    """Return (client, model_name). Cached singleton, bypassed in pytest."""
-    base_url = (
-        os.environ.get("STRUCTURING_LLM_BASE_URL")
-        or os.environ.get("OLLAMA_BASE_URL")
-        or "http://192.168.0.123:11434/v1"
-    )
-    api_key = os.environ.get("STRUCTURING_LLM_API_KEY") or os.environ.get("OLLAMA_API_KEY", "ollama")
-    model = os.environ.get("STRUCTURING_LLM_MODEL") or os.environ.get("OLLAMA_MODEL", "qwen2.5:14b")
+    """Return (client, model_name) using the shared _PROVIDERS registry."""
+    from services.ai.llm_client import _PROVIDERS
+
+    provider_name = os.environ.get("STRUCTURING_LLM", "ollama")
+    provider = _PROVIDERS.get(provider_name)
+    if provider is None:
+        provider_name = "ollama"
+        provider = _PROVIDERS["ollama"]
+
+    base_url = provider["base_url"]
+    api_key = os.environ.get(provider["api_key_env"], "nokeyneeded")
+    model = provider.get("model", "qwen2.5:14b")
 
     # Bypass singleton in test env so mock patches work
     if os.environ.get("PYTEST_CURRENT_TEST") or "pytest" in os.environ.get("_", ""):
@@ -114,6 +106,9 @@ async def _build_extraction_prompt(
         if lines:
             parts.append("\n".join(lines))
     records_text = "\n---\n".join(parts) if parts else ""
+    # Wrap record content in delimiters to isolate from prompt instructions
+    if records_text:
+        records_text = f"<record_content>\n{records_text}\n</record_content>"
 
     # Patient demographics hint
     patient_hint = ""
@@ -146,14 +141,63 @@ async def _build_extraction_prompt(
     return prompt
 
 
+def _merge_structured_fields(records: list) -> Optional[dict[str, str]]:
+    """Merge stored structured data from multiple records; return None if any record lacks it."""
+    # Cumulative fields: merge across all records
+    _CUMULATIVE = {"past_history", "allergy_history", "family_history", "marital_reproductive", "personal_history"}
+
+    parsed: list[dict] = []
+    for rec in records:
+        raw = getattr(rec, "structured", None)
+        if not raw:
+            return None  # at least one record has no structured data → fall back to LLM
+        if isinstance(raw, str):
+            try:
+                raw = json.loads(raw)
+            except (json.JSONDecodeError, TypeError):
+                return None
+        if not isinstance(raw, dict) or not raw:
+            return None
+        parsed.append(raw)
+
+    # Start with empty fields, apply in chronological order (oldest first)
+    result: dict[str, str] = {k: "" for k in _FIELD_KEYS}
+    cumulative: dict[str, list[str]] = {k: [] for k in _CUMULATIVE}
+
+    for struct in parsed:
+        for key in _FIELD_KEYS:
+            val = str(struct.get(key, "") or "").strip()
+            if not val:
+                continue
+            if key in _CUMULATIVE:
+                if val not in cumulative[key]:  # deduplicate
+                    cumulative[key].append(val)
+            else:
+                result[key] = val  # override: latest wins
+
+    for key in _CUMULATIVE:
+        if cumulative[key]:
+            result[key] = "；".join(cumulative[key])
+
+    return result
+
+
 async def extract_outpatient_fields(
     records: list,
     patient: Any = None,
     doctor_id: Optional[str] = None,
 ) -> dict[str, str]:
-    """调用 LLM 从病历记录中提取门诊标准字段；LLM 不可用时抛出 ExtractionError。"""
+    """提取门诊标准字段：优先使用已存储的 structured 数据，否则调用 LLM。"""
+    # Fast path: merge stored structured data if all records have it
+    merged = _merge_structured_fields(records)
+    if merged is not None:
+        log(f"[outpatient-report] using stored structured data ({len(records)} records)")
+        return merged
+
     prompt = await _build_extraction_prompt(records, doctor_id, patient=patient)
     client, model = _get_llm_client()
+    _provider = os.environ.get("STRUCTURING_LLM", "ollama")
+    _tag = f"[outpatient-report:{_provider}:{model}]"
     fallback_model = os.environ.get("STRUCTURING_LLM_FALLBACK_MODEL", "")
 
     async def _call(model_name: str):
@@ -166,6 +210,7 @@ async def extract_outpatient_fields(
         )
 
     try:
+        log(f"{_tag} request: len={len(prompt)}")
         resp = await call_with_retry_and_fallback(
             _call,
             primary_model=model,
@@ -174,16 +219,32 @@ async def extract_outpatient_fields(
             op_name="outpatient_report.extract_fields",
         )
         raw = resp.choices[0].message.content or "{}"
+        log(f"{_tag} response: {raw[:200]}")
         data = json.loads(raw)
         result = {k: str(data.get(k, "") or "") for k in _FIELD_KEYS}
-        log(
-            f"[OutpatientReport] extraction ok doctor={doctor_id} "
-            f"non_empty={sum(1 for v in result.values() if v)}/{len(_FIELD_KEYS)}"
-        )
         return result
     except Exception as exc:
-        log(f"[OutpatientReport] field extraction failed doctor={doctor_id}: {exc}")
+        log(f"{_tag} extraction failed doctor={doctor_id}: {exc}")
         raise ExtractionError(f"LLM field extraction failed: {exc}") from exc
+
+
+async def export_as_json(
+    records: list,
+    patient: Any = None,
+    doctor_id: Optional[str] = None,
+) -> dict:
+    """Extract fields and return as OutpatientRecord dict."""
+    fields = await extract_outpatient_fields(records, patient, doctor_id)
+    patient_info = PatientInfo()
+    if patient:
+        patient_info.name = getattr(patient, "name", None)
+        patient_info.gender = getattr(patient, "gender", None)
+        yob = getattr(patient, "year_of_birth", None)
+        if yob:
+            from datetime import date
+            patient_info.age = date.today().year - int(yob)
+    record = OutpatientRecord(patient=patient_info, **fields)
+    return record.model_dump()
 
 
 async def _get_custom_template(doctor_id: Optional[str]) -> str:

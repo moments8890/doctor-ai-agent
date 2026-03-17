@@ -140,6 +140,10 @@ def _validate_task_dates(args: Any) -> Optional[Clarification]:
             continue
         try:
             dt = datetime.fromisoformat(val)
+            # LLMs typically omit timezone — treat naive datetimes as UTC
+            # so comparison with aware `now` does not raise TypeError.
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
             if dt < now - timedelta(minutes=5):
                 return Clarification(
                     kind=ClarificationKind.invalid_time,

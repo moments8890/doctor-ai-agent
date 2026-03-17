@@ -84,7 +84,8 @@ async def extract_text_from_image(image_bytes: bytes, mime_type: str) -> str:
     if not is_local_provider(provider_name):
         check_cloud_egress(provider_name, "vision_ocr")
     client, model = _build_vision_client(provider_name)
-    log(f"[Vision:{provider_name}] model={model} image_size={len(image_bytes)} bytes")
+    _tag = f"[vision:{provider_name}:{model}]"
+    log(f"{_tag} request: image_size={len(image_bytes)} bytes")
 
     image_b64 = base64.b64encode(image_bytes).decode("utf-8")
     data_url = f"data:{mime_type};base64,{image_b64}"
@@ -110,7 +111,7 @@ async def extract_text_from_image(image_bytes: bytes, mime_type: str) -> str:
     )
 
     extracted = (completion.choices[0].message.content or "").strip()
-    log(f"[Vision:{provider_name}] extracted {len(extracted)} chars: {extracted[:80]!r}")
+    log(f"{_tag} response: {len(extracted)} chars: {extracted[:80]!r}")
     if not extracted:
         raise RuntimeError("Vision LLM returned empty text — check image quality or model availability.")
     return extracted

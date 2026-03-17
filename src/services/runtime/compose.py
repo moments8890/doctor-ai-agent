@@ -120,7 +120,7 @@ async def compose_llm(
 
         return summary
     except Exception as e:
-        log(f"compose LLM failed, falling back to template: {e}", level="error")
+        log(f"[compose] LLM failed, falling back to template: {e}", level="error")
         return _compose_read_template(result)
 
 
@@ -166,15 +166,21 @@ async def _call_compose_llm(
         max_retries=0,
         default_headers=extra_headers,
     )
+    model_name = provider.get("model", "deepseek-chat")
+    _tag = f"[compose:{provider_name}:{model_name}]"
+    log(f"{_tag} request: {user_input[:80]}")
     response = await client.chat.completions.create(
-        model=provider.get("model", "deepseek-chat"),
+        model=model_name,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
         temperature=0.3,
+        max_tokens=500,
     )
-    return response.choices[0].message.content or M.default_reply
+    reply = response.choices[0].message.content or M.default_reply
+    log(f"{_tag} response: {reply[:200]}")
+    return reply
 
 
 # ── Clarification composer (ADR 0012 §4 composition rule) ──────────────────
@@ -198,7 +204,9 @@ def compose_clarification(c: Clarification) -> str:
         if c.options:
             lines = [f"{i+1}. {opt.get('name', '?')}" for i, opt in enumerate(c.options)]
             return M.clarify_ambiguous_patient.format(options_text="\n".join(lines))
-        return M.clarify_ambiguous_intent
+        if c.suggested_question:
+            return c.suggested_question
+        return M.need_patient_name
 
     if c.kind == ClarificationKind.not_found:
         msg_key = c.message_key

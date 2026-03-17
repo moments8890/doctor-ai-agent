@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import ForeignKey, Index, Integer, String, DateTime, Text
+from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, DateTime, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from db.engine import Base
 from db.models.base import _utcnow
@@ -19,8 +19,10 @@ class MedicalRecordDB(Base):
     patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id", ondelete="CASCADE"), nullable=True)
     doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False, index=True)
     record_type: Mapped[str] = mapped_column(String(32), nullable=False, default="visit")
-    content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # nullable for legacy; write path enforces non-empty via MedicalRecord Pydantic model
+    structured: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON dict of 14 outpatient fields
     tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array of keyword strings
+    needs_review: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
 

@@ -16,6 +16,7 @@ import os
 from datetime import datetime, timezone
 from typing import List, Optional
 
+from services.medical_record_schema import OUTPATIENT_FIELD_META
 from utils.log import log
 
 
@@ -292,10 +293,23 @@ def generate_records_pdf(
 
 def _draw_outpatient_header(
     pdf, _sf, clinic: str,
-    patient_name: Optional[str], patient_info: Optional[str],
+    patient_name: Optional[str], patient_info,
     department: str, doctor_name: Optional[str],
 ) -> None:
-    """绘制门诊病历标题块和患者/医生信息行。"""
+    """绘制门诊病历标题块和患者/医生信息行。
+
+    ``patient_info`` may be a plain string (legacy) **or** a dict with keys
+    ``"text"`` (demographics string) and optional ``"source_annotation"``
+    (e.g. date range / record count when merging multiple records).
+    """
+    # Normalise patient_info to text + optional annotation
+    if isinstance(patient_info, dict):
+        info_text: Optional[str] = patient_info.get("text")
+        source_annotation: Optional[str] = patient_info.get("source_annotation")
+    else:
+        info_text = patient_info
+        source_annotation = None
+
     _sf(16, bold=True)
     pdf.cell(0, 10, clinic, align="C", new_x="LMARGIN", new_y="NEXT")
     _sf(13, bold=True)
@@ -316,14 +330,22 @@ def _draw_outpatient_header(
     row_parts: list[str] = []
     if patient_name:
         row_parts.append(f"姓名：{patient_name}")
-    if patient_info:
-        row_parts.append(patient_info)
+    if info_text:
+        row_parts.append(info_text)
     if department:
         row_parts.append(f"科别：{department}")
     if doctor_name:
         row_parts.append(f"接诊医师：{doctor_name}")
     row_parts.append(f"就诊日期：{datetime.now().strftime('%Y-%m-%d')}")
     pdf.cell(0, 7, "    ".join(row_parts), new_x="LMARGIN", new_y="NEXT")
+
+    # If records metadata is available, show source annotation
+    if source_annotation:
+        _sf(8)
+        pdf.set_text_color(120, 120, 120)
+        pdf.cell(0, 5, source_annotation, new_x="LMARGIN", new_y="NEXT")
+        pdf.set_text_color(0, 0, 0)
+
     pdf.ln(3)
     pdf.line(18, pdf.get_y(), pdf.w - 18, pdf.get_y())
     pdf.ln(4)
@@ -390,12 +412,17 @@ def _draw_outpatient_footer(pdf, _sf) -> None:
 def generate_outpatient_report_pdf(
     fields: dict,
     patient_name: Optional[str] = None,
-    patient_info: Optional[str] = None,
+    patient_info=None,
     clinic_name: Optional[str] = None,
     doctor_name: Optional[str] = None,
 ) -> bytes:
-    """按卫生部 2010 门诊病历格式生成 PDF，返回原始字节。"""
-    from services.export.outpatient_report import OUTPATIENT_FIELDS, _HEADER_ONLY_FIELDS
+    """按卫生部 2010 门诊病历格式生成 PDF（14 fields），返回原始字节。
+
+    ``patient_info`` accepts a plain string (legacy) **or** a dict with keys
+    ``"text"`` and optional ``"source_annotation"`` for merged-record context.
+    """
+    # Use shared 14-field schema as the single source of truth
+    _HEADER_ONLY_FIELDS = {"department"}
     clinic = clinic_name or os.environ.get("CLINIC_NAME", "医疗机构")
     department = (fields.get("department") or "").strip()
     pdf, _sf = _create_outpatient_pdf_doc()
@@ -404,6 +431,6 @@ def generate_outpatient_report_pdf(
         pdf, _sf, clinic,
         patient_name, patient_info, department, doctor_name,
     )
-    _draw_outpatient_fields(pdf, _sf, fields, OUTPATIENT_FIELDS, _HEADER_ONLY_FIELDS)
+    _draw_outpatient_fields(pdf, _sf, fields, OUTPATIENT_FIELD_META, _HEADER_ONLY_FIELDS)
     _draw_outpatient_footer(pdf, _sf)
     return bytes(pdf.output())

@@ -123,7 +123,7 @@ async def _parse_pending_draft(pending: Any, doctor_id: str) -> Optional[tuple]:
         return None
 
 
-_CLAIMED_IDS: set[str] = set()  # in-memory idempotency guard
+_CLAIMED_IDS: dict = {}  # in-memory idempotency guard (dict for insertion-ordered eviction)
 
 
 async def _persist_pending_record(
@@ -139,11 +139,11 @@ async def _persist_pending_record(
     if pending.id in _CLAIMED_IDS:
         log(f"[PendingRecord] idempotency: already claimed id={pending.id}")
         return None
-    _CLAIMED_IDS.add(pending.id)
+    _CLAIMED_IDS[pending.id] = None
     if len(_CLAIMED_IDS) > 5000:
         _half = len(_CLAIMED_IDS) // 2
-        for _ in range(_half):
-            _CLAIMED_IDS.pop()
+        for k in list(_CLAIMED_IDS)[:_half]:
+            del _CLAIMED_IDS[k]
 
     try:
         async with AsyncSessionLocal() as session:
@@ -168,7 +168,7 @@ async def _persist_pending_record(
         return db_record
     except Exception as e:
         log(f"[PendingRecord] save FAILED doctor={doctor_id} id={pending.id}: {e}")
-        _CLAIMED_IDS.discard(pending.id)
+        _CLAIMED_IDS.pop(pending.id, None)
         return None
 
 
