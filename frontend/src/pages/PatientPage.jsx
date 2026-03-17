@@ -395,7 +395,7 @@ function InterviewView({ token, initialSession, onBack, onLogout }) {
       setCollected(data.collected || {});
       setProgress(data.progress);
       setStatus(data.status);
-      if (data.status === "reviewing") setShowSummary(true);
+      if (data.status === "reviewing") setTimeout(() => setShowSummary(true), 800);
     } catch (err) {
       if (err.status === 401) { onLogout(); return; }
       setMessages(prev => [...prev, { role: "assistant", content: "系统繁忙，请稍后重试。" }]);
