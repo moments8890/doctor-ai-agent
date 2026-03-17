@@ -22,7 +22,7 @@ clinical history, and delivers a structured record to the doctor's task queue.
 | Interview approach | Hybrid: free-form + completeness check |
 | Pipeline | New interview pipeline (not UEC) |
 | LLM strategy | Single prompt per turn with full context |
-| After confirmation | MedicalRecord + DoctorTask (review_interview) |
+| After confirmation | MedicalRecord + DoctorTask (general) |
 | Patient-doctor model | Keep patient.doctor_id FK (one record per doctor) |
 | Clinical intelligence | None in v1; schema ready for Phase 2 |
 
@@ -37,7 +37,7 @@ Patient visits /patient
   → First time:
       1. Select doctor (search by name, filtered by accepting_patients=true)
       2. Registration form: name, gender, year_of_birth, phone
-      3. Submit → creates patient under selected doctor → auto-login → home
+      3. Submit → link or create patient (see Linking below) → auto-login → home
   → Returning:
       1. Login: phone + year_of_birth
       2. If linked to one doctor → home
@@ -56,6 +56,40 @@ name + department. Search filters by name prefix.
 - Returns JWT token (24h TTL) with patient_id + doctor_id
 - Rate limit: 5 failed attempts per phone per 10 minutes
 - Same phone can exist under different doctors (separate patient records)
+
+### Linking to Doctor-Created Records
+
+Registration matches by `(doctor_id, name)`. Name is assumed unique per doctor
+for MVP. If a record exists, non-null fields are validated — mismatch rejects
+with "信息与已有记录不符，请联系医生确认". Null fields are backfilled from
+registration input.
+
+```python
+patient = await db.execute(
+    select(Patient).where(
+        Patient.doctor_id == doctor_id,
+        Patient.name == name,
+    )
+).scalar_one_or_none()
+
+if patient:
+    # Conflict: non-null fields must not disagree
+    if patient.gender and patient.gender != gender:
+        raise HTTPException(400, "信息与已有记录不符，请联系医生确认")
+    if patient.year_of_birth and patient.year_of_birth != year_of_birth:
+        raise HTTPException(400, "信息与已有记录不符，请联系医生确认")
+    if patient.phone and patient.phone != phone:
+        raise HTTPException(400, "信息与已有记录不符，请联系医生确认")
+    # Backfill missing fields
+    patient.gender = patient.gender or gender
+    patient.year_of_birth = patient.year_of_birth or year_of_birth
+    patient.phone = patient.phone or phone
+    await db.flush()
+    return issue_jwt(patient)
+else:
+    # Create new patient
+    patient = Patient(doctor_id=doctor_id, name=name, ...)
+```
 
 ### Schema Changes
 
@@ -88,7 +122,7 @@ Mobile-first, single entry point for all patient capabilities.
 └────────────────────────────┘
 ```
 
-- "开始预问诊" creates a new interview session
+- "开始预问诊" resumes active session if one exists, otherwise creates new
 - "我的病历" reuses existing patient record view
 - "给医生留言" reuses existing patient messaging
 - "上传资料" extends existing import to patient context (deferred to v1.1)
@@ -101,7 +135,7 @@ WeChat-style single column, mobile-first.
 
 ```
 ┌────────────────────────────┐
-│  预问诊 — 张医生   [摘要 3/8]│
+│  ← 退出  预问诊 — 张医生 [摘要 3/7]│
 ├────────────────────────────┤
 │                            │
 │  ┌──────────────────┐      │
@@ -123,8 +157,12 @@ WeChat-style single column, mobile-first.
 └────────────────────────────┘
 ```
 
-**Top bar:** Doctor name + summary badge ("摘要 3/8"). Tap badge opens
-summary sheet as a bottom overlay.
+**Top bar:** "退出" button + doctor name + summary badge ("摘要 3/7"). Tap badge
+opens summary sheet as a bottom overlay.
+
+**Exit behavior:** "退出" shows a confirm dialog with two options:
+- "保存退出" → session stays `interviewing`, return to home (resumes next visit)
+- "放弃重来" → session → `abandoned`, return to home (next start creates fresh)
 
 **Summary sheet:**
 
@@ -186,13 +224,12 @@ CREATE TABLE interview_sessions (
     doctor_id       VARCHAR(64) NOT NULL REFERENCES doctors(doctor_id),
     patient_id      INTEGER NOT NULL REFERENCES patients(id),
     status          VARCHAR(16) NOT NULL DEFAULT 'interviewing',
-        -- interviewing | reviewing | confirmed | expired
+        -- interviewing | reviewing | confirmed | abandoned
     collected       TEXT,       -- JSON dict of extracted fields
     conversation    TEXT,       -- JSON array [{role, content, timestamp}, ...]
     turn_count      INTEGER DEFAULT 0,
     created_at      DATETIME NOT NULL,
-    updated_at      DATETIME NOT NULL,
-    expires_at      DATETIME NOT NULL   -- created_at + 2 hours
+    updated_at      DATETIME NOT NULL
 );
 
 CREATE INDEX ix_interview_patient ON interview_sessions(patient_id, status);
@@ -200,25 +237,63 @@ CREATE INDEX ix_interview_doctor ON interview_sessions(doctor_id, status);
 ```
 
 Status transitions: `interviewing → reviewing → confirmed`
-Expired sessions: background cleanup (same pattern as chat_archive cleanup).
+Patient can also: `interviewing → abandoned` (via exit button).
+No session expiry — abandoned sessions stay for record-keeping; cleanup
+can be added later if needed.
 
 ---
 
 ## 6. Turn Handler (Core Loop)
 
 ```python
+MAX_TURNS = 30
+
 async def interview_turn(session_id: str, patient_text: str) -> InterviewResponse:
     session = load_session(session_id)
-    # Validate: not expired, not already confirmed
+    # Validate: not abandoned, not already confirmed
     session.conversation.append({"role": "user", "content": patient_text})
     session.turn_count += 1
 
-    # Main LLM call
-    llm_response = await call_interview_llm(
-        conversation=session.conversation,
-        collected=session.collected,
-        patient_info=load_patient_info(session.patient_id),
-    )
+    # Force review if turn limit reached
+    if session.turn_count >= MAX_TURNS:
+        session.status = "reviewing"
+        summary = generate_review_summary(session.collected)
+        reply = "我已经收集了足够的信息，请查看摘要并确认。\n\n" + summary
+        session.conversation.append({"role": "assistant", "content": reply})
+        save_session(session)
+        return InterviewResponse(
+            reply=reply, collected=session.collected,
+            progress={"filled": count_filled(session.collected), "total": 7},
+            status=session.status,
+        )
+
+    # Emergency keyword check — deterministic, before LLM call
+    emergency = check_emergency(patient_text)
+    if emergency:
+        session.conversation.append({"role": "assistant", "content": emergency})
+        save_session(session)
+        return InterviewResponse(
+            reply=emergency, collected=session.collected,
+            progress={"filled": count_filled(session.collected), "total": 7},
+            status=session.status,
+        )
+
+    # Main LLM call with parse-failure fallback
+    try:
+        llm_response = await call_interview_llm(
+            conversation=session.conversation,
+            collected=session.collected,
+            patient_info=load_patient_info(session.patient_id),
+        )
+    except (JSONDecodeError, KeyError):
+        reply = "抱歉，我没有理解，请再说一次。"
+        session.conversation.append({"role": "assistant", "content": reply})
+        save_session(session)
+        return InterviewResponse(
+            reply=reply, collected=session.collected,
+            progress={"filled": count_filled(session.collected), "total": 7},
+            status=session.status,
+        )
 
     # Merge extracted fields
     merge_extracted(session.collected, llm_response.extracted)
@@ -239,7 +314,7 @@ async def interview_turn(session_id: str, patient_text: str) -> InterviewRespons
     return InterviewResponse(
         reply=reply,
         collected=session.collected,
-        progress={"filled": count_filled(session.collected), "total": 8},
+        progress={"filled": count_filled(session.collected), "total": 7},
         status=session.status,
     )
 ```
@@ -273,7 +348,7 @@ Single prompt per turn with full context. Located at `src/prompts/patient-interv
 - 从回答中提取临床信息填入对应字段
 - 不做诊断，不给处方
 - 急重症状（胸痛、呼吸困难、意识丧失等）→ 建议立即拨打120
-- 患者说"没有"或"不知道" → 记录阴性/未知，继续下一项
+- 患者说"没有"或"不知道" → 提取为"无"或"不详"（不要留空），继续下一项
 - 主诉收集完后，通过追问完善现病史
 
 ## 输出（严格JSON）
@@ -332,6 +407,40 @@ def check_completeness(collected: dict) -> list[str]:
 
 Transition to reviewing when `missing` is empty.
 
+### Progress Total
+
+Progress reports `total: 7` — the 7 patient-collectable fields (2 required + 4 ask +
+1 optional). `marital_reproductive` counts toward displayed progress but does not
+block the completeness gate.
+
+### Emergency Keyword Check
+
+Deterministic safety gate that runs before the LLM call. Zero latency, zero cost,
+guaranteed detection. The LLM prompt rule remains as a second layer.
+
+```python
+EMERGENCY_KEYWORDS = {
+    "胸痛", "胸闷", "心口痛",
+    "呼吸困难", "喘不上气", "憋气",
+    "意识丧失", "昏迷", "晕倒", "失去意识",
+    "大出血", "止不住血",
+    "抽搐", "惊厥",
+    "剧烈头痛",
+}
+
+def check_emergency(text: str) -> Optional[str]:
+    triggered = [kw for kw in EMERGENCY_KEYWORDS if kw in text]
+    if not triggered:
+        return None
+    return (
+        "⚠️ 您描述的症状可能需要紧急处理。\n"
+        "如果症状严重，请立即拨打 120 急救电话。\n\n"
+        "如果目前情况稳定，我们可以继续问诊。"
+    )
+```
+
+Doctor notification on emergency detection is deferred to a later phase.
+
 ---
 
 ## 9. Handoff to Doctor
@@ -346,10 +455,10 @@ When patient confirms:
    - `needs_review`: `true`
 
 2. **Create DoctorTask:**
-   - `task_type`: `"review_interview"`
+   - `task_type`: `"general"`
    - `title`: `"审阅预问诊：{patient_name}"`
    - `patient_id`: linked patient
-   - `record_id`: the new record
+   - `record_id`: the new record (title + record_type carry interview semantics)
    - `status`: `"pending"`
 
 3. **Notify doctor** via existing notification system (web badge + WeChat push)
@@ -371,7 +480,7 @@ src/
     patient_ui.py                  — patient web routes (login, home, interview pages)
   services/patient_interview/
     __init__.py
-    session.py                     — InterviewSession: load, save, expire
+    session.py                     — InterviewSession: load, save, abandon
     turn.py                        — interview_turn() core loop
     completeness.py                — check_completeness(), merge_extracted()
     summary.py                     — generate prose + structured from collected
@@ -387,8 +496,8 @@ src/
 src/
   channels/web/patient_portal.py   — add register-by-phone, login-by-phone, doctor search
   db/models/doctor.py              — add accepting_patients, department columns
-  frontend/src/pages/
-    PatientPage.jsx                — rewrite: login, home, doctor picker, interview chat
+frontend/src/pages/
+  PatientPage.jsx                — rewrite: login, home, doctor picker, interview chat
 ```
 
 ### Not Touched
@@ -412,6 +521,12 @@ POST   /api/patient/interview/start   — create session → session_id + greeti
 POST   /api/patient/interview/turn    — session_id + text → reply + collected + progress
 GET    /api/patient/interview/current — active session state (or null)
 POST   /api/patient/interview/confirm — finalize → creates record + task
+POST   /api/patient/interview/cancel  — abandon session (save-exit keeps interviewing status)
+
+# Rate limits (uses existing enforce_doctor_rate_limit helper)
+#   /interview/start    — 3 per hour per patient   (prevent session spam)
+#   /interview/turn     — 10 per minute per session (each call triggers LLM inference)
+#   /interview/confirm  — 2 per hour per patient   (prevent duplicate submissions)
 
 # Existing (unchanged)
 GET    /api/patient/me
