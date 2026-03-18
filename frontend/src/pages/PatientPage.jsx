@@ -32,6 +32,7 @@ import BottomNavigationAction from "@mui/material/BottomNavigationAction";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SendIcon from "@mui/icons-material/Send";
 import AddIcon from "@mui/icons-material/Add";
+import FileUploadOutlinedIcon from "@mui/icons-material/FileUploadOutlined";
 import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import LogoutIcon from "@mui/icons-material/Logout";
@@ -47,6 +48,7 @@ import {
   interviewConfirm,
   interviewCancel,
   interviewCurrent,
+  patientUpload,
 } from "../api";
 
 const STORAGE_KEY = "patient_portal_token";
@@ -240,6 +242,9 @@ function ChatTab({ token, doctorName, onLogout }) {
 function RecordsTab({ token, onLogout, onNewRecord }) {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [uploadMsg, setUploadMsg] = useState("");
+  const fileInputRef = useRef(null);
 
   const loadRecords = useCallback(() => {
     setLoading(true);
@@ -250,20 +255,53 @@ function RecordsTab({ token, onLogout, onNewRecord }) {
 
   useEffect(() => { loadRecords(); }, [loadRecords]);
 
+  async function handleUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setUploadMsg("");
+    try {
+      await patientUpload(token, file);
+      setUploadMsg("上传成功，已添加到病历");
+      loadRecords();
+    } catch (err) {
+      if (err.status === 401) { onLogout(); return; }
+      setUploadMsg(err.message || "上传失败");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
   return (
     <Box sx={{ flex: 1, overflowY: "auto", position: "relative" }}>
+      {/* Action buttons */}
+      <Stack direction="row" spacing={1} sx={{ px: 2, pt: 2, pb: 1 }}>
+        <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={onNewRecord}
+          sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: "#06a050" }, flex: 1 }}>
+          新建病历
+        </Button>
+        <Button variant="outlined" size="small" startIcon={uploading ? <CircularProgress size={14} /> : <FileUploadOutlinedIcon />}
+          disabled={uploading} onClick={() => fileInputRef.current?.click()}
+          sx={{ flex: 1, borderColor: "#07C160", color: "#07C160" }}>
+          上传资料
+        </Button>
+        <input ref={fileInputRef} type="file" accept="image/*,.pdf" hidden onChange={handleUpload} />
+      </Stack>
+
+      {uploadMsg && (
+        <Typography variant="caption" sx={{ px: 2, color: uploadMsg.includes("成功") ? "#07C160" : "error.main" }}>
+          {uploadMsg}
+        </Typography>
+      )}
+
+      {/* Records list */}
       {loading ? (
         <Box display="flex" justifyContent="center" py={6}><CircularProgress size={28} /></Box>
       ) : records.length === 0 ? (
-        <Box sx={{ textAlign: "center", py: 6 }}>
-          <Typography color="text.secondary" sx={{ mb: 2 }}>暂无病历记录</Typography>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={onNewRecord}
-            sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: "#06a050" } }}>
-            新建病历
-          </Button>
-        </Box>
+        <Typography color="text.secondary" textAlign="center" py={4}>暂无病历记录</Typography>
       ) : (
-        <Stack spacing={1.5} sx={{ py: 2, px: 2, pb: 10 }}>
+        <Stack spacing={1.5} sx={{ py: 1, px: 2, pb: 4 }}>
           {records.map(rec => (
             <Card key={rec.id} variant="outlined" sx={{ borderRadius: 2 }}>
               <CardContent sx={{ pb: "12px !important" }}>
@@ -280,15 +318,6 @@ function RecordsTab({ token, onLogout, onNewRecord }) {
             </Card>
           ))}
         </Stack>
-      )}
-
-      {/* FAB for new record (when records exist) */}
-      {!loading && records.length > 0 && (
-        <Fab size="medium" onClick={onNewRecord}
-          sx={{ position: "absolute", bottom: 16, right: 16, bgcolor: "#07C160", color: "#fff",
-            "&:hover": { bgcolor: "#06a050" } }}>
-          <AddIcon />
-        </Fab>
       )}
     </Box>
   );

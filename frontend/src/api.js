@@ -48,10 +48,14 @@ async function request(url, options = {}) {
     if (token && !headers["Authorization"]) {
       headers["Authorization"] = `Bearer ${token}`;
     }
+    if (typeof window !== "undefined" && window.__wxjs_environment === "miniprogram") {
+      headers["X-Client-Channel"] = "miniapp";
+    }
     const response = await fetch(apiUrl(url), { ...options, headers, signal: controller.signal });
     if (!response.ok) {
       const err = new Error(await readError(response));
       err.status = response.status;
+      if (response.status === 401) { _authExpiredHandler?.(); }
       throw err;
     }
     return response.json();
@@ -707,6 +711,22 @@ export async function interviewCancel(token, sessionId) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ session_id: sessionId }),
   });
+}
+
+export async function patientUpload(token, file) {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(apiUrl("/api/patient/upload"), {
+    method: "POST",
+    headers: { "X-Patient-Token": token },
+    body: form,
+  });
+  if (!res.ok) {
+    const err = new Error(await readError(res));
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
 }
 
 export async function getKnowledgeItems(doctorId) {

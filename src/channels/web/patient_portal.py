@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 import jwt
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, File, Header, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
@@ -558,3 +558,40 @@ async def login_by_phone(body: PatientLoginRequest):
                     for p in patients
                 ],
             }
+
+
+# ---------------------------------------------------------------------------
+# Patient file upload (F1.3 — photo/PDF import)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/upload")
+async def patient_upload(
+    file: UploadFile = File(...),
+    x_patient_token: Optional[str] = Header(default=None),
+):
+    """Patient uploads a medical record photo or PDF for Vision LLM extraction."""
+    patient = await _authenticate_patient(x_patient_token)
+    file_bytes = await file.read()
+
+    try:
+        from services.record_import.vision_import import import_medical_record
+
+        result = await import_medical_record(
+            file_bytes=file_bytes,
+            filename=file.filename or "upload",
+            content_type=file.content_type or "",
+            doctor_id=patient.doctor_id,
+            patient_id=patient.id,
+        )
+        return result
+    except ValueError as exc:
+        msg = str(exc)
+        if msg.startswith("413:"):
+            raise HTTPException(status_code=413, detail=msg[4:])
+        if msg.startswith("415:"):
+            raise HTTPException(status_code=415, detail=msg[4:])
+        raise HTTPException(status_code=422, detail=msg[4:] if ":" in msg else msg)
+    except RuntimeError as exc:
+        log(f"[PatientUpload] Vision LLM error: {exc}")
+        raise HTTPException(status_code=502, detail="文件识别失败，请稍后重试")
