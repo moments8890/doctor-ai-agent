@@ -4,6 +4,7 @@ Page({
   data: {
     url: "",
     loading: true,
+    loadError: false,
     // True while the notification-permission prompt is shown.
     // Skipped automatically when no subscribeTemplateId is configured.
     showPermissionPrompt: false,
@@ -57,6 +58,20 @@ Page({
 
   onWebViewLoad() {
     this.setData({ loading: false });
+  },
+
+  onError(e) {
+    console.error("WebView load failed:", e.detail);
+    this.setData({ loadError: true, loading: false });
+  },
+
+  onRetry() {
+    // Append cache-busting param to force WebView reload
+    const base = this.data.url.split("?")[0];
+    const qs = this.data.url.split("?")[1] || "";
+    const bust = "_t=" + Date.now();
+    const newUrl = base + "?" + (qs ? qs + "&" : "") + bust;
+    this.setData({ url: newUrl, loadError: false, loading: true });
   },
 
   // Receive postMessages from the web-view.

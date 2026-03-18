@@ -1,6 +1,4 @@
-<!-- Notification permission prompt — shown once before the WebView loads.
-     The "开始使用" button tap satisfies WeChat's TAP gesture requirement
-     for wx.requestSubscribeMessage. -->
+<!-- Notification permission prompt -->
 <view wx:if="{{showPermissionPrompt}}" class="permission-prompt">
   <view class="permission-card">
     <view class="permission-icon">🔔</view>
@@ -10,11 +8,24 @@
   </view>
 </view>
 
-<!-- Loading spinner shown while the WebView is fetching the dashboard. -->
-<view wx:if="{{loading && url}}" class="loading">
+<!-- Loading spinner -->
+<view wx:if="{{loading && url && !loadError}}" class="loading">
   <view class="loading-spinner" />
   <text class="loading-text">加载中…</text>
 </view>
 
-<!-- Main dashboard WebView. -->
-<web-view wx:if="{{url && !showPermissionPrompt}}" src="{{url}}" bindmessage="onMessage" bindload="onWebViewLoad" />
+<!-- Error view with retry -->
+<view wx:if="{{loadError}}" class="error-view">
+  <text class="error-icon">⚠️</text>
+  <text class="error-text">页面加载失败，请检查网络后重试</text>
+  <button class="retry-btn" bindtap="onRetry">重试</button>
+</view>
+
+<!-- Main dashboard WebView -->
+<web-view
+  wx:if="{{url && !showPermissionPrompt && !loadError}}"
+  src="{{url}}"
+  bindmessage="onMessage"
+  bindload="onWebViewLoad"
+  binderror="onError"
+/>

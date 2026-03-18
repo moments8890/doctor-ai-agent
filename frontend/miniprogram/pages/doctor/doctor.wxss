@@ -86,3 +86,41 @@
 .permission-btn::after {
   border: none;
 }
+
+/* Error view */
+.error-view {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  padding: 48rpx;
+}
+
+.error-icon {
+  font-size: 80rpx;
+  margin-bottom: 24rpx;
+}
+
+.error-text {
+  font-size: 30rpx;
+  color: #64748b;
+  text-align: center;
+  margin-bottom: 40rpx;
+}
+
+.retry-btn {
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 600;
+  border-radius: 16rpx;
+  padding: 24rpx 80rpx;
+  border: none;
+}
+
+.retry-btn::after {
+  border: none;
+}
