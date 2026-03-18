@@ -67,7 +67,9 @@
       {"speaker": "patient", "text": "胸闷气短一周了"},
       {"speaker": "patient", "text": "活动后加重，休息后缓解"},
       {"speaker": "patient", "text": "高血压十年，做过支架"},
-      {"speaker": "patient", "text": "没有过敏，吸烟20年，家里人有心脏病"}
+      {"speaker": "patient", "text": "没有药物过敏"},
+      {"speaker": "patient", "text": "家里有人得过心脏病"},
+      {"speaker": "patient", "text": "吸烟20年"}
     ],
     "patient_info": {
       "name": "测试胸闷",
@@ -91,10 +93,10 @@
     "chatlog": [
       {"speaker": "patient", "text": "头晕"},
       {"speaker": "patient", "text": "今天开始的，不严重"},
-      {"speaker": "patient", "text": "没有"},
-      {"speaker": "patient", "text": "没有"},
-      {"speaker": "patient", "text": "没有"},
-      {"speaker": "patient", "text": "没有"}
+      {"speaker": "patient", "text": "以前没有得过什么病"},
+      {"speaker": "patient", "text": "没有药物过敏"},
+      {"speaker": "patient", "text": "家人没有类似的病"},
+      {"speaker": "patient", "text": "不吸烟不喝酒"}
     ],
     "patient_info": {
       "name": "测试头晕",
