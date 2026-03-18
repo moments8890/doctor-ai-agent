@@ -106,13 +106,45 @@ def _verify_patient_token(token: str) -> dict:
     }
 
 
-async def _authenticate_patient(x_patient_token: Optional[str]) -> Patient:
-    """Validate X-Patient-Token header, load patient, and enforce acv check.
+async def _authenticate_patient(
+    x_patient_token: Optional[str] = None,
+    authorization: Optional[str] = None,
+) -> Patient:
+    """Validate patient token from either X-Patient-Token or Authorization: Bearer.
 
+    Supports both legacy patient portal tokens and unified auth tokens.
     Returns the Patient ORM instance on success; raises HTTPException otherwise.
     """
+    # Try unified Bearer token first
+    bearer = authorization
+    if bearer and bearer.startswith("Bearer "):
+        bearer = bearer[7:]
+    if bearer:
+        try:
+            from services.auth.unified import verify_token
+            payload = verify_token(bearer)
+            if payload.get("role") != "patient":
+                raise HTTPException(403, "Patient access required")
+            patient_id = payload.get("patient_id")
+            token_doctor_id = payload.get("doctor_id")
+
+            async with AsyncSessionLocal() as db:
+                stmt = select(Patient).where(Patient.id == patient_id)
+                if token_doctor_id:
+                    stmt = stmt.where(Patient.doctor_id == token_doctor_id)
+                patient = (await db.execute(stmt.limit(1))).scalar_one_or_none()
+
+            if patient is None:
+                raise HTTPException(404, "Patient not found")
+            return patient
+        except HTTPException:
+            raise
+        except Exception:
+            pass  # Fall through to legacy token
+
+    # Legacy X-Patient-Token
     if not x_patient_token:
-        raise HTTPException(status_code=401, detail="X-Patient-Token header required")
+        raise HTTPException(status_code=401, detail="Authentication required")
     claims = _verify_patient_token(x_patient_token)
     patient_id = claims["patient_id"]
     token_doctor_id = claims.get("doctor_id")
@@ -569,9 +601,10 @@ async def login_by_phone(body: PatientLoginRequest):
 async def patient_upload(
     file: UploadFile = File(...),
     x_patient_token: Optional[str] = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
     """Patient uploads a medical record photo or PDF for Vision LLM extraction."""
-    patient = await _authenticate_patient(x_patient_token)
+    patient = await _authenticate_patient(x_patient_token, authorization)
     file_bytes = await file.read()
 
     try:

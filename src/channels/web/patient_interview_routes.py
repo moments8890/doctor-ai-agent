@@ -46,9 +46,10 @@ async def _get_doctor_name(doctor_id: str) -> str:
 @router.post("/start")
 async def start_interview(
     x_patient_token: Optional[str] = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
     """Create or resume an interview session."""
-    patient = await _authenticate_patient(x_patient_token)
+    patient = await _authenticate_patient(x_patient_token, authorization)
     doctor_name = await _get_doctor_name(patient.doctor_id)
 
     # Check for existing active session
@@ -78,9 +79,10 @@ async def start_interview(
 async def turn(
     body: InterviewTurnRequest,
     x_patient_token: Optional[str] = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
     """Send a patient message and get AI reply."""
-    await _authenticate_patient(x_patient_token)
+    await _authenticate_patient(x_patient_token, authorization)
 
     if not body.text.strip():
         raise HTTPException(400, "消息不能为空")
@@ -103,9 +105,10 @@ async def turn(
 @router.get("/current")
 async def current_session(
     x_patient_token: Optional[str] = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
     """Get active interview session state, or null."""
-    patient = await _authenticate_patient(x_patient_token)
+    patient = await _authenticate_patient(x_patient_token, authorization)
     active = await get_active_session(patient.id, patient.doctor_id)
 
     if active is None:
@@ -124,9 +127,10 @@ async def current_session(
 async def confirm(
     body: InterviewSessionRequest,
     x_patient_token: Optional[str] = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
     """Patient confirms interview summary -> creates record + task."""
-    patient = await _authenticate_patient(x_patient_token)
+    patient = await _authenticate_patient(x_patient_token, authorization)
 
     session = await load_session(body.session_id)
     if session is None:
@@ -161,9 +165,10 @@ async def confirm(
 async def cancel(
     body: InterviewSessionRequest,
     x_patient_token: Optional[str] = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
     """Abandon interview session."""
-    patient = await _authenticate_patient(x_patient_token)
+    patient = await _authenticate_patient(x_patient_token, authorization)
 
     session = await load_session(body.session_id)
     if session is None:
