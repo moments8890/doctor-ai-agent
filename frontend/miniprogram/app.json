@@ -1,11 +1,10 @@
 {
   "pages": [
     "pages/login/login",
-    "pages/doctor/doctor",
-    "pages/chat/chat"
+    "pages/doctor/doctor"
   ],
   "window": {
-    "navigationBarTitleText": "Doctor AI",
+    "navigationStyle": "custom",
     "navigationBarBackgroundColor": "#ffffff",
     "navigationBarTextStyle": "black"
   },
