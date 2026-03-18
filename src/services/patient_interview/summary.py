@@ -104,4 +104,15 @@ async def confirm_interview(
         await db.commit()
 
     log(f"[interview] confirmed session={session_id} record={db_record.id} task={task.id}")
+
+    # Notify doctor (best-effort, don't block on failure)
+    try:
+        from services.notify.notification import send_doctor_notification
+        await send_doctor_notification(
+            doctor_id,
+            f"患者【{patient_name}】已完成预问诊，请查看待办任务。",
+        )
+    except Exception as e:
+        log(f"[interview] doctor notification failed: {e}", level="warning")
+
     return {"record_id": db_record.id, "task_id": task.id}

@@ -41,6 +41,7 @@ def _serialize_record_with_patient(record, patient_name: Optional[str]) -> dict:
         "record_type": record.record_type or "visit",
         "content": record.content,
         "tags": _parse_tags(record.tags),
+        "needs_review": bool(record.needs_review) if record.needs_review is not None else False,
         "created_at": _fmt_ts(record.created_at),
         "updated_at": _fmt_ts(record.updated_at),
     }
