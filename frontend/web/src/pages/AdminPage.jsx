@@ -198,6 +198,27 @@ function renderCellContent(value) {
 }
 
 
+// Static column definitions per table — ensures headers render even when empty
+const TABLE_COLUMNS = {
+  doctors: ["doctor_id", "name", "department", "accepting_patients", "created_at", "updated_at"],
+  patients: ["id", "doctor_id", "name", "gender", "year_of_birth", "phone", "primary_category", "created_at"],
+  medical_records: ["id", "patient_id", "doctor_id", "patient_name", "record_type", "content", "tags", "needs_review", "has_structured", "created_at"],
+  doctor_tasks: ["id", "doctor_id", "patient_id", "patient_name", "task_type", "title", "status", "due_at", "record_id", "updated_at", "created_at"],
+  patient_labels: ["id", "doctor_id", "name", "color", "created_at"],
+  patient_label_assignments: ["patient_id", "label_id", "patient_name", "label_name", "doctor_id"],
+  system_prompts: ["key", "content", "updated_at"],
+  doctor_contexts: ["doctor_id", "summary", "updated_at"],
+  medical_record_versions: ["id", "record_id", "doctor_id", "old_content", "old_tags", "old_record_type", "changed_at"],
+  medical_record_exports: ["id", "record_id", "doctor_id", "export_format", "pdf_hash", "exported_at"],
+  pending_records: ["id", "doctor_id", "patient_id", "patient_name", "status", "draft_json", "created_at", "expires_at"],
+  pending_messages: ["id", "doctor_id", "raw_content", "status", "attempt_count", "created_at"],
+  audit_log: ["id", "ts", "doctor_id", "action", "resource_type", "resource_id", "ok", "ip"],
+  doctor_knowledge_items: ["id", "doctor_id", "content", "created_at", "updated_at"],
+  system_prompt_versions: ["id", "prompt_key", "changed_by", "changed_at", "content"],
+  chat_archive: ["id", "doctor_id", "role", "content", "intent_label", "created_at"],
+  interview_sessions: ["id", "doctor_id", "patient_id", "status", "turn_count", "created_at", "updated_at"],
+};
+
 const COL_WIDTH = {
   id: 64,
   key: 140,
@@ -313,14 +334,17 @@ function AdminDashboard({ onLockout }) {
     setSnack({ open: true, message, severity });
   }
   const columns = useMemo(() => {
-    const allKeys = [];
-    for (const row of rows) {
-      for (const key of Object.keys(row || {})) {
-        if (!allKeys.includes(key)) allKeys.push(key);
+    if (rows.length) {
+      const allKeys = [];
+      for (const row of rows) {
+        for (const key of Object.keys(row || {})) {
+          if (!allKeys.includes(key)) allKeys.push(key);
+        }
       }
+      return allKeys;
     }
-    return allKeys;
-  }, [rows]);
+    return TABLE_COLUMNS[activeTable] || [];
+  }, [rows, activeTable]);
 
   const activeLabel = t(`admin.tables.${activeTable}`);
   const colCount = columns.length + 1;
