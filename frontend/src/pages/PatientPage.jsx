@@ -437,10 +437,10 @@ function InterviewView({ token, onBack, onLogout }) {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setShowSummary(false)}>关闭</Button>
-          {(status === "reviewing" || progress.filled >= progress.total) && (
+          {(status === "reviewing" || progress.filled >= 2) && (
             <Button variant="contained" onClick={handleConfirm} disabled={confirming}
               sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: "#06a050" } }}>
-              {confirming ? <CircularProgress size={16} /> : "确认提交"}
+              {confirming ? <CircularProgress size={16} /> : progress.filled >= progress.total ? "确认提交" : `提交 (${progress.filled}/${progress.total})`}
             </Button>
           )}
         </DialogActions>
