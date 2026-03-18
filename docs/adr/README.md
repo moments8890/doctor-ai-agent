@@ -65,4 +65,4 @@ Current rollout snapshot:
 | [ADR 0013](0013-action-type-simplification.md) | Accepted | Complete |
 | [ADR 0014](0014-medical-record-import-export.md) | Proposed | Not Started |
 | [ADR 0015](0015-clinical-text-collection-boundary.md) | Accepted | Complete |
-| [ADR 0016](0016-patient-pre-consultation-interview.md) | Proposed | Not Started |
+| [ADR 0016](0016-patient-pre-consultation-interview.md) | Accepted | Complete |

@@ -1,6 +1,6 @@
 # ADR 0016 — Patient Pre-Consultation Interview Pipeline
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-03-17
 **Spec:** `docs/superpowers/specs/2026-03-17-patient-pre-consultation-design.md`
 
