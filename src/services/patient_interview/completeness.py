@@ -30,12 +30,18 @@ def count_filled(collected: Dict[str, str]) -> int:
 
 
 def merge_extracted(collected: Dict[str, str], extracted: Dict[str, str]) -> None:
-    """Merge LLM-extracted fields into collected dict. Mutates collected in-place."""
+    """Merge LLM-extracted fields into collected dict. Mutates collected in-place.
+
+    Deduplicates: skips if the new value is already present in existing text.
+    """
     for field, value in extracted.items():
         if not value or field not in ALL_COLLECTABLE:
             continue
+        value = value.strip()
         if field in APPENDABLE:
             existing = collected.get(field, "")
+            if existing and value in existing:
+                continue  # already contains this info
             collected[field] = f"{existing}；{value}".strip("；") if existing else value
         else:
             collected[field] = value
