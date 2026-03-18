@@ -7,7 +7,8 @@ import DebugPage from "./pages/DebugPage";
 import LoginPage from "./pages/LoginPage";
 import PatientPage from "./pages/PatientPage";
 import { useDoctorStore } from "./store/doctorStore";
-import { setWebToken } from "./api";
+import { setWebToken, onAuthExpired } from "./api";
+import { isMiniApp } from "./utils/env";
 
 const DEV_MODE = import.meta.env.DEV; // true in `vite dev`, false in `vite build`
 const DEV_DOCTOR_ID = import.meta.env.VITE_DEV_DOCTOR_ID || "test_doctor";
@@ -48,6 +49,18 @@ export default function App() {
   useEffect(() => {
     if (accessToken) setWebToken(accessToken);
   }, [accessToken]);
+
+  // Handle 401 token expiry — Mini App shows message, web redirects to login
+  useEffect(() => {
+    onAuthExpired(() => {
+      if (isMiniApp()) {
+        alert("会话已过期，请关闭后重新打开小程序");
+      } else {
+        useDoctorStore.getState().clearAuth();
+        window.location.href = "/login";
+      }
+    });
+  }, []);
 
   return (
     <Routes>

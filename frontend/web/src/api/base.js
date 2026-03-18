@@ -53,10 +53,14 @@ export async function request(url, options = {}) {
     if (token && !headers["Authorization"]) {
       headers["Authorization"] = `Bearer ${token}`;
     }
+    if (typeof window !== "undefined" && window.__wxjs_environment === "miniprogram") {
+      headers["X-Client-Channel"] = "miniapp";
+    }
     const response = await fetch(apiUrl(url), { ...options, headers, signal: controller.signal });
     if (!response.ok) {
       const err = new Error(await readError(response));
       err.status = response.status;
+      if (response.status === 401) { _authExpiredHandler?.(); }
       throw err;
     }
     return response.json();
@@ -72,6 +76,9 @@ export async function request(url, options = {}) {
 
 let _adminToken = "";
 let _adminAuthErrorHandler = null;
+
+let _authExpiredHandler = null;
+export function onAuthExpired(handler) { _authExpiredHandler = handler; }
 
 export function setAdminToken(token) { _adminToken = token || ""; }
 export function onAdminAuthError(handler) { _adminAuthErrorHandler = handler; }
