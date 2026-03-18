@@ -13,7 +13,7 @@
 set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-FRONTEND_DIR="$APP_DIR/frontend"
+FRONTEND_DIR="$APP_DIR/frontend/web"
 SHARED_ENV="/Users/jingwuxu/Documents/code/shared-db/.env"
 PORT=8000
 FRONTEND_PORT=5173
@@ -124,7 +124,7 @@ EOF
           echo "npm not found. Run: ./dev.sh vm-bootstrap --with-frontend"
           exit 1
         fi
-        npm --prefix "$APP_DIR/frontend" install
+        npm --prefix "$APP_DIR/frontend/web" install
       fi
       exit 0
       ;;
@@ -398,7 +398,7 @@ PY
           exit 1
         fi
         (
-          cd "$APP_DIR/frontend"
+          cd "$APP_DIR/frontend/web"
           exec npm run dev -- --host "$FRONTEND_HOST" --port "$FRONTEND_PORT_VM"
         ) >>"$FRONTEND_LOG" 2>&1 &
         echo $! > "$FRONTEND_PID_FILE"
