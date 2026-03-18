@@ -94,6 +94,8 @@ class Doctor(Base):
     channel: Mapped[str] = mapped_column(String(32), nullable=False, default="app")
     wechat_user_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     mini_openid: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    year_of_birth: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     accepting_patients: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True, default=False)
     department: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
@@ -102,6 +104,7 @@ class Doctor(Base):
     __table_args__ = (
         Index("ux_doctors_channel_wechat_user_id", "channel", "wechat_user_id", unique=True),
         Index("ux_doctors_mini_openid", "mini_openid", unique=True),
+        Index("ix_doctors_phone", "phone"),
     )
 
     def __str__(self) -> str:
