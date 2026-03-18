@@ -361,7 +361,8 @@ function InterviewView({ token, initialSession, onBack, onLogout }) {
   const allFields = ["chief_complaint", "present_illness", "past_history", "allergy_history", "family_history", "personal_history", "marital_reproductive"];
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100vh", maxHeight: 812, maxWidth: 500, mx: "auto", bgcolor: "#ededed", borderLeft: "1px solid #ddd", borderRight: "1px solid #ddd" }}>
+    <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", bgcolor: "#f0f0f0" }}>
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", maxHeight: 932, width: "100%", maxWidth: 430, bgcolor: "#ededed", borderLeft: "1px solid #ddd", borderRight: "1px solid #ddd", borderRadius: { sm: "12px" }, overflow: "hidden" }}>
       {/* Top bar */}
       <Box sx={{ display: "flex", alignItems: "center", px: 1, py: 1, bgcolor: "#f5f5f5", borderBottom: "1px solid #ddd", flexShrink: 0 }}>
         <IconButton size="small" onClick={() => status === "confirmed" ? onBack() : setShowExitDialog(true)}>
@@ -444,6 +445,7 @@ function InterviewView({ token, initialSession, onBack, onLogout }) {
         </DialogActions>
       </Dialog>
     </Box>
+    </Box>
   );
 }
 
@@ -495,7 +497,8 @@ export default function PatientPage() {
   }
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100vh", maxHeight: 812, maxWidth: 500, mx: "auto", bgcolor: "#ededed", borderLeft: "1px solid #ddd", borderRight: "1px solid #ddd" }}>
+    <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", bgcolor: "#f0f0f0" }}>
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", maxHeight: 932, width: "100%", maxWidth: 430, bgcolor: "#ededed", borderLeft: "1px solid #ddd", borderRight: "1px solid #ddd", borderRadius: { sm: "12px" }, overflow: "hidden" }}>
       {/* Top bar */}
       <Box sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, bgcolor: "#f5f5f5", borderBottom: "1px solid #ddd", flexShrink: 0 }}>
         <MedicalServicesOutlinedIcon sx={{ color: "#07C160", mr: 1 }} />
@@ -522,6 +525,7 @@ export default function PatientPage() {
             sx={{ "&.Mui-selected": { color: "#07C160" } }} />
         ))}
       </BottomNavigation>
+    </Box>
     </Box>
   );
 }
