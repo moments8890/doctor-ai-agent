@@ -110,6 +110,83 @@ async function debugRequest(url, options = {}) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Unified auth API
+// ---------------------------------------------------------------------------
+
+export async function unifiedLogin(phone, yearOfBirth) {
+  const res = await fetch(apiUrl("/api/auth/unified/login"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, year_of_birth: yearOfBirth }),
+  });
+  if (!res.ok) {
+    const err = new Error(await readError(res));
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+
+export async function unifiedLoginWithRole(phone, yearOfBirth, role, doctorId, patientId) {
+  const res = await fetch(apiUrl("/api/auth/unified/login-role"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, year_of_birth: yearOfBirth, role, doctor_id: doctorId, patient_id: patientId }),
+  });
+  if (!res.ok) {
+    const err = new Error(await readError(res));
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+
+export async function unifiedRegisterDoctor(phone, name, yearOfBirth, inviteCode, specialty) {
+  const res = await fetch(apiUrl("/api/auth/unified/register/doctor"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, name, year_of_birth: yearOfBirth, invite_code: inviteCode, specialty }),
+  });
+  if (!res.ok) {
+    const err = new Error(await readError(res));
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+
+export async function unifiedRegisterPatient(phone, name, yearOfBirth, doctorId, gender) {
+  const res = await fetch(apiUrl("/api/auth/unified/register/patient"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, name, year_of_birth: yearOfBirth, doctor_id: doctorId, gender }),
+  });
+  if (!res.ok) {
+    const err = new Error(await readError(res));
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+
+export async function unifiedMe(token) {
+  const res = await fetch(apiUrl("/api/auth/unified/me"), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Token invalid");
+  return res.json();
+}
+
+export async function unifiedListDoctors() {
+  const res = await fetch(apiUrl("/api/auth/unified/doctors"));
+  return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// Legacy invite login (kept for backward compat)
+// ---------------------------------------------------------------------------
+
 export async function inviteLogin(code, specialty) {
   return request("/api/auth/invite/login", {
     method: "POST",
