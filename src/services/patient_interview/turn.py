@@ -75,10 +75,67 @@ async def _load_patient_info(patient_id: int) -> Dict[str, Any]:
     }
 
 
+async def _load_previous_history(patient_id: int, doctor_id: str) -> Optional[str]:
+    """Load structured fields from patient's latest record (if any) for context."""
+    from db.engine import AsyncSessionLocal
+    from db.models import MedicalRecordDB
+    from sqlalchemy import select
+
+    async with AsyncSessionLocal() as db:
+        row = (await db.execute(
+            select(MedicalRecordDB).where(
+                MedicalRecordDB.patient_id == patient_id,
+                MedicalRecordDB.doctor_id == doctor_id,
+            ).order_by(MedicalRecordDB.created_at.desc()).limit(1)
+        )).scalar_one_or_none()
+
+    if row is None:
+        return None
+
+    # Try structured first, fall back to content
+    structured = None
+    if row.structured:
+        try:
+            structured = json.loads(row.structured)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    if not structured and row.content:
+        # No structured data — include raw content as context (truncated)
+        date_str = row.created_at.strftime("%Y-%m-%d") if row.created_at else "未知"
+        content_preview = row.content[:500]
+        return f"上次就诊（{date_str}）：\n{content_preview}"
+
+    if not structured:
+        return None
+
+    # Build a readable summary of prior history fields
+    history_fields = {
+        "past_history": "既往史",
+        "allergy_history": "过敏史",
+        "family_history": "家族史",
+        "personal_history": "个人史",
+        "chief_complaint": "上次主诉",
+        "diagnosis": "上次诊断",
+    }
+    lines = []
+    for key, label in history_fields.items():
+        val = structured.get(key, "")
+        if val and val not in ("无", "不详", ""):
+            lines.append(f"- {label}：{val}")
+
+    if not lines:
+        return None
+
+    date_str = row.created_at.strftime("%Y-%m-%d") if row.created_at else "未知"
+    return f"上次就诊（{date_str}）：\n" + "\n".join(lines)
+
+
 async def _call_interview_llm(
     conversation: List[Dict[str, str]],
     collected: Dict[str, str],
     patient_info: Dict[str, Any],
+    previous_history: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Call LLM with interview prompt. Returns parsed {reply, extracted}."""
     missing = check_completeness(collected)
@@ -92,6 +149,7 @@ async def _call_interview_llm(
         .replace("{age}", str(patient_info["age"]))
         .replace("{collected_json}", json.dumps(collected, ensure_ascii=False, indent=2))
         .replace("{missing_fields}", "、".join(missing_labels) if missing_labels else "无（可进入确认）")
+        .replace("{previous_history}", previous_history or "无")
     )
 
     # Build messages: system + conversation history (capped at last 20 turns)
@@ -174,10 +232,12 @@ async def interview_turn(session_id: str, patient_text: str) -> InterviewRespons
     # Main LLM call
     try:
         patient_info = await _load_patient_info(session.patient_id)
+        previous_history = await _load_previous_history(session.patient_id, session.doctor_id)
         llm_response = await _call_interview_llm(
             conversation=session.conversation,
             collected=session.collected,
             patient_info=patient_info,
+            previous_history=previous_history,
         )
     except (json.JSONDecodeError, KeyError, TypeError) as e:
         log(f"[interview] LLM parse error: {e}", level="warning")
