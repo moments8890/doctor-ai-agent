@@ -38,10 +38,12 @@ function loginWithWechatCode(code, doctorName = "") {
   });
 }
 
-function loginWithInviteCode(code) {
+function loginWithInviteCode(code, jsCode) {
+  const data = { code };
+  if (jsCode) data.js_code = jsCode;
   return request("/api/auth/invite/login", {
     method: "POST",
-    data: { code },
+    data,
   });
 }
 

@@ -6,23 +6,41 @@ Page({
     inviteCode: "",
     loading: false,
     error: "",
+    _wxJsCode: "",
   },
 
   async onLoad() {
     const app = getApp();
     const token = app.globalData.accessToken;
-    if (!token) return;
 
-    // Try to skip login if stored token is still valid.
+    if (token) {
+      try {
+        const me = await authMe();
+        if (me && me.doctor_id) {
+          wx.redirectTo({ url: "/pages/doctor/doctor" });
+          return;
+        }
+      } catch {
+        this._clearAuth(app);
+      }
+    }
+
+    this.setData({ loading: true });
     try {
-      const me = await authMe();
-      if (me && me.doctor_id) {
-        wx.redirectTo({ url: "/pages/doctor/doctor" });
+      const loginRes = await new Promise((resolve, reject) =>
+        wx.login({ success: resolve, fail: reject })
+      );
+      if (loginRes.code) {
+        const auth = await loginWithWechatCode(loginRes.code, "");
+        if (auth.doctor_id && !auth.doctor_id.startsWith("wxmini_")) {
+          this._saveAuth(auth);
+          return;
+        }
       }
     } catch {
-      // Token expired/invalid — clear and stay on login page.
-      this._clearAuth(app);
+      // Silent login failed — show login form
     }
+    this.setData({ loading: false });
   },
 
   onModeSwitch(e) {
@@ -39,7 +57,7 @@ Page({
     if (this.data.loading) return;
     this.setData({ loading: true, error: "" });
     try {
-      const auth = await loginWithInviteCode(code);
+      const auth = await loginWithInviteCode(code, this.data._wxJsCode || "");
       this._saveAuth(auth);
     } catch (err) {
       const msg = (err && err.message) || "";
@@ -59,6 +77,18 @@ Page({
       );
       if (!loginRes.code) throw new Error("wx.login 未返回 code");
       const auth = await loginWithWechatCode(loginRes.code, "");
+
+      if (auth.doctor_id && auth.doctor_id.startsWith("wxmini_")) {
+        this.setData({
+          _wxJsCode: loginRes.code,
+          mode: "invite",
+          error: "",
+          loading: false,
+        });
+        wx.showToast({ title: "请输入邀请码完成注册", icon: "none", duration: 2500 });
+        return;
+      }
+
       this._saveAuth(auth);
     } catch (err) {
       const msg = (err && err.message) || "";

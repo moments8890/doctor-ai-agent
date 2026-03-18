@@ -1,4 +1,9 @@
-<view class="page">
+<view wx:if="{{loading && !error}}" class="loading-overlay">
+  <view class="loading-spinner" />
+  <text class="loading-hint">正在登录...</text>
+</view>
+
+<view class="page" wx:if="{{!loading || error}}">
   <view class="card">
     <view class="brand">
       <view class="brand-icon">🩺</view>
