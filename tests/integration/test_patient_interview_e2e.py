@@ -14,6 +14,7 @@ A doctor with accepting_patients=1 must exist (test creates one if missing).
 import json
 import sqlite3
 import uuid
+from datetime import datetime
 
 import httpx
 import pytest
@@ -35,10 +36,11 @@ def _ensure_test_doctor(doctor_id: str) -> None:
             "SELECT 1 FROM doctors WHERE doctor_id=?", (doctor_id,)
         ).fetchone()
         if not row:
+            now = datetime.utcnow().isoformat()
             conn.execute(
-                "INSERT INTO doctors (doctor_id, name, channel, accepting_patients, department) "
-                "VALUES (?, ?, 'app', 1, '测试科')",
-                (doctor_id, f"测试医生_{doctor_id[-4:]}"),
+                "INSERT INTO doctors (doctor_id, name, channel, accepting_patients, department, created_at, updated_at) "
+                "VALUES (?, ?, 'app', 1, '测试科', ?, ?)",
+                (doctor_id, f"测试医生_{doctor_id[-4:]}", now, now),
             )
         else:
             conn.execute(
@@ -174,9 +176,10 @@ class TestPatientRegistration:
 
         # Doctor creates patient first (simulate via direct DB insert)
         conn = sqlite3.connect(DB_PATH)
+        now = datetime.utcnow().isoformat()
         conn.execute(
-            "INSERT INTO patients (doctor_id, name, gender, year_of_birth) VALUES (?, ?, '男', 1975)",
-            (test_doctor, name),
+            "INSERT INTO patients (doctor_id, name, gender, year_of_birth, created_at) VALUES (?, ?, '男', 1975, ?)",
+            (test_doctor, name, now),
         )
         conn.commit()
         conn.close()
@@ -214,9 +217,10 @@ class TestPatientRegistration:
 
         # Create patient with YOB 1980
         conn = sqlite3.connect(DB_PATH)
+        now = datetime.utcnow().isoformat()
         conn.execute(
-            "INSERT INTO patients (doctor_id, name, year_of_birth) VALUES (?, ?, 1980)",
-            (test_doctor, name),
+            "INSERT INTO patients (doctor_id, name, year_of_birth, created_at) VALUES (?, ?, 1980, ?)",
+            (test_doctor, name, now),
         )
         conn.commit()
         conn.close()
