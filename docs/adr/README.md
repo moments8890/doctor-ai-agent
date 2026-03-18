@@ -37,6 +37,7 @@ Use small, direct records with:
 - [ADR 0015: Clinical Text Collection Boundary](0015-clinical-text-collection-boundary.md)
 - [ADR 0016: Patient Pre-Consultation Interview Pipeline](0016-patient-pre-consultation-interview.md)
   — companion: [Architecture Diagram](0016-architecture-diagram.md)
+- [ADR 0017: WeChat Mini App — Thin WebView Shell](0017-wechat-miniapp-webview-shell.md)
 
 ## Status Values
 
@@ -66,3 +67,4 @@ Current rollout snapshot:
 | [ADR 0014](0014-medical-record-import-export.md) | Proposed | Not Started |
 | [ADR 0015](0015-clinical-text-collection-boundary.md) | Accepted | Complete |
 | [ADR 0016](0016-patient-pre-consultation-interview.md) | Accepted | Complete |
+| [ADR 0017](0017-wechat-miniapp-webview-shell.md) | Proposed | Not Started |
