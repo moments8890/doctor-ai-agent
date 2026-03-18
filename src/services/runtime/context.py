@@ -66,17 +66,27 @@ def _serialize_memory(ctx: DoctorCtx) -> str:
 
 async def save_context(ctx: DoctorCtx) -> None:
     """Atomic upsert — INSERT ON CONFLICT UPDATE. No SELECT-then-INSERT race."""
-    from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-
     workflow_json = _serialize_workflow(ctx)
     memory_json = _serialize_memory(ctx)
 
     async with AsyncSessionLocal() as db:
         dialect = db.get_bind().dialect.name
 
-        if dialect == "sqlite":
+        if dialect == "mysql":
+            from sqlalchemy.dialects.mysql import insert as mysql_insert
+            stmt = mysql_insert(DoctorContext).values(
+                doctor_id=ctx.doctor_id,
+                workflow_json=workflow_json,
+                memory_json=memory_json,
+            )
+            stmt = stmt.on_duplicate_key_update(
+                workflow_json=stmt.inserted.workflow_json,
+                memory_json=stmt.inserted.memory_json,
+            )
+        elif dialect == "postgresql":
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
             stmt = (
-                sqlite_insert(DoctorContext)
+                pg_insert(DoctorContext)
                 .values(
                     doctor_id=ctx.doctor_id,
                     workflow_json=workflow_json,
@@ -91,10 +101,10 @@ async def save_context(ctx: DoctorCtx) -> None:
                 )
             )
         else:
-            # PostgreSQL / MySQL
-            from sqlalchemy.dialects.postgresql import insert as pg_insert
+            # SQLite
+            from sqlalchemy.dialects.sqlite import insert as sqlite_insert
             stmt = (
-                pg_insert(DoctorContext)
+                sqlite_insert(DoctorContext)
                 .values(
                     doctor_id=ctx.doctor_id,
                     workflow_json=workflow_json,
