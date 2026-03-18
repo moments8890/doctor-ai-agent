@@ -302,7 +302,9 @@
         "chat_archive": "对话存档",
         "audit_log": "操作审计日志",
         "doctor_knowledge_items": "医生知识库",
-        "system_prompt_versions": "提示词版本表"
+        "system_prompt_versions": "提示词版本表",
+        "interview_sessions": "预问诊会话表",
+        "patient_messages": "患者消息表"
       },
       "config": {
         "title": "可热更新配置",
@@ -381,7 +383,18 @@
         "categories": "分类",
         "category_tags": "分类标签",
         "raw_input": "原始输入",
-        "intent_label": "意图标签"
+        "intent_label": "意图标签",
+        "accepting_patients": "接诊中",
+        "department": "科室",
+        "phone": "电话",
+        "primary_category": "主要分类",
+        "needs_review": "待审阅",
+        "has_structured": "有结构化",
+        "turn_count": "对话轮数",
+        "collected": "已收集",
+        "conversation": "对话历史",
+        "session_id": "会话ID",
+        "direction": "方向"
       }
     },
     "features": {

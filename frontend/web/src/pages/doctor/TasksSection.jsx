@@ -1,6 +1,5 @@
 /**
  * 任务列表面板：按状态分组展示医疗任务，支持新建、完成、推迟和取消操作。
- * 支持滑动操作、分段控制（今天/待办/已完成）和任务详情页。
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -17,10 +16,13 @@ import TransferWithinAStationOutlinedIcon from "@mui/icons-material/TransferWith
 import MonitorHeartOutlinedIcon from "@mui/icons-material/MonitorHeartOutlined";
 import EventAvailableOutlinedIcon from "@mui/icons-material/EventAvailableOutlined";
 import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
-import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import { getTasks, patchTask, postponeTask, createTask, getPatients } from "../../api";
-import { TASK_TYPE_LABEL, TASK_STATUS_LABEL, TASK_SEGMENT_OPTS } from "./constants";
+import { getTasks, patchTask, postponeTask, createTask, getPatients, getTaskRecord } from "../../api";
+import { TASK_TYPE_LABEL } from "./constants";
+
+const SEGMENTS = [
+  { value: "todo", label: "待办" },
+  { value: "done", label: "已完成" },
+];
 
 const TASK_TYPE_ICON_COLOR = {
   follow_up: "#07C160", medication: "#5b9bd5", lab_review: "#e8833a",
@@ -40,10 +42,6 @@ function tomorrowStr() {
   return d.toISOString().slice(0, 10);
 }
 
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function taskDateGroup(task, today, tomorrow, weekEnd) {
   if (!task.due_at) return "无截止日期";
   const d = new Date(task.due_at); d.setHours(0, 0, 0, 0);
@@ -54,111 +52,19 @@ function taskDateGroup(task, today, tomorrow, weekEnd) {
   return "之后";
 }
 
-function SwipeableTaskRow({ children, onSwipeComplete, onSwipeCancel }) {
-  const startXRef = useRef(null);
-  const [offsetX, setOffsetX] = useState(0);
-  const [revealed, setRevealed] = useState(false);
-  const THRESHOLD = 70;
-  const ACTION_WIDTH = 140;
 
-  function handleTouchStart(e) {
-    startXRef.current = e.touches[0].clientX;
-  }
-  function handleTouchMove(e) {
-    if (startXRef.current === null) return;
-    const diff = startXRef.current - e.touches[0].clientX;
-    if (diff > 0) {
-      setOffsetX(Math.min(diff, ACTION_WIDTH));
-    } else {
-      setOffsetX(0);
-    }
-  }
-  function handleTouchEnd() {
-    if (offsetX >= THRESHOLD) {
-      setOffsetX(ACTION_WIDTH);
-      setRevealed(true);
-    } else {
-      setOffsetX(0);
-      setRevealed(false);
-    }
-    startXRef.current = null;
-  }
-  function handleReset() {
-    setOffsetX(0);
-    setRevealed(false);
-  }
-
-  return (
-    <Box sx={{ position: "relative", overflow: "hidden" }}>
-      <Box sx={{
-        position: "absolute", right: 0, top: 0, bottom: 0,
-        display: "flex", width: ACTION_WIDTH,
-      }}>
-        <Box onClick={() => { onSwipeComplete(); handleReset(); }}
-          sx={{ flex: 1, bgcolor: "#07C160", display: "flex",
-            alignItems: "center", justifyContent: "center",
-            color: "#fff", fontSize: 14, fontWeight: 600 }}>
-          完成
-        </Box>
-        <Box onClick={() => { onSwipeCancel(); handleReset(); }}
-          sx={{ flex: 1, bgcolor: "#b0b0b0", display: "flex",
-            alignItems: "center", justifyContent: "center",
-            color: "#fff", fontSize: 14, fontWeight: 600 }}>
-          取消
-        </Box>
-      </Box>
-      <Box
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onClick={revealed ? handleReset : undefined}
-        sx={{
-          transform: `translateX(-${offsetX}px)`,
-          transition: startXRef.current !== null ? "none" : "transform 0.2s ease",
-          bgcolor: "#fff", position: "relative", zIndex: 1,
-        }}
-      >
-        {children}
-      </Box>
-    </Box>
-  );
-}
-
-function TaskActions({ task, isOverdue, onComplete, onPostpone, onCancel }) {
-  if (task.status !== "pending") return null;
-  return (
-    <Box sx={{ display: "flex", gap: 2, mt: 0.8, alignItems: "center" }}>
-      <Box onClick={(e) => { e.stopPropagation(); onComplete(task.id, "completed"); }}
-        sx={{ display: "flex", alignItems: "center", gap: 0.6, cursor: "pointer", "&:active": { opacity: 0.6 } }}>
-        <Box sx={{ width: 20, height: 20, borderRadius: "50%", border: isOverdue ? "2px solid #FA5151" : "2px solid #07C160", flexShrink: 0 }} />
-        <Typography sx={{ fontSize: 12, color: "#07C160" }}>完成</Typography>
-      </Box>
-      <Box onClick={(e) => { e.stopPropagation(); onPostpone(e, task.id); }}
-        sx={{ display: "flex", alignItems: "center", gap: 0.4, cursor: "pointer", "&:active": { opacity: 0.6 } }}>
-        <CalendarTodayOutlinedIcon sx={{ fontSize: 14, color: "#999" }} />
-        <Typography sx={{ fontSize: 12, color: "#999" }}>推迟</Typography>
-      </Box>
-      <Box onClick={(e) => { e.stopPropagation(); onCancel(task.id); }}
-        sx={{ display: "flex", alignItems: "center", gap: 0.4, cursor: "pointer", "&:active": { opacity: 0.6 } }}>
-        <CancelOutlinedIcon sx={{ fontSize: 14, color: "#ccc" }} />
-        <Typography sx={{ fontSize: 12, color: "#ccc" }}>取消</Typography>
-      </Box>
-    </Box>
-  );
-}
-
-function TaskRow({ task, isOverdue, onComplete, onPostpone, onCancel, onClick }) {
+function TaskRow({ task, isOverdue }) {
   const iconColor = TASK_TYPE_ICON_COLOR[task.task_type] || "#999";
   const TaskIcon = TASK_TYPE_ICON[task.task_type] || AssignmentOutlinedIcon;
   return (
-    <Box onClick={onClick} sx={{ display: "flex", alignItems: "flex-start", px: 2, py: 1.4, cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
+    <Box sx={{ display: "flex", alignItems: "flex-start", px: 2, py: 1.4 }}>
       <Box sx={{ width: 40, height: 40, borderRadius: "4px", bgcolor: iconColor,
         display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, mr: 1.5, mt: 0.3 }}>
         <TaskIcon sx={{ color: "#fff", fontSize: 22 }} />
       </Box>
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Box sx={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 1 }}>
-          <Typography variant="body2" sx={{ fontSize: 15, fontWeight: 500, color: isOverdue ? "#FA5151" : "text.primary", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+          <Typography variant="body2" sx={{ fontWeight: 500, fontSize: 15, color: isOverdue ? "#FA5151" : "text.primary", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
             {task.title || TASK_TYPE_LABEL[task.task_type] || task.task_type}
           </Typography>
           {task.due_at && (
@@ -168,95 +74,164 @@ function TaskRow({ task, isOverdue, onComplete, onPostpone, onCancel, onClick })
           )}
         </Box>
         {task.content && (
-          <Typography variant="caption" sx={{ fontSize: 13, color: "#999", display: "block", mt: 0.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <Typography sx={{ fontSize: 13, color: "#999", display: "block", mt: 0.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {task.content}
           </Typography>
         )}
         {task.patient_name && (
-          <Typography variant="caption" sx={{ color: "#999", fontSize: 13, display: "block", mt: 0.2 }}>
+          <Typography variant="caption" sx={{ color: "#999", display: "block", mt: 0.2 }}>
             {task.patient_name}
           </Typography>
         )}
-        <TaskActions task={task} isOverdue={isOverdue} onComplete={onComplete} onPostpone={onPostpone} onCancel={onCancel} />
       </Box>
     </Box>
   );
 }
 
-function DetailField({ label, value }) {
+function SwipeableTaskRow({ children, onSwipeLeft, onSwipeRight }) {
+  const startX = useRef(null);
+  const startY = useRef(null);
+  const swiped = useRef(false);
+
+  function handleTouchStart(e) {
+    startX.current = e.touches[0].clientX;
+    startY.current = e.touches[0].clientY;
+    swiped.current = false;
+  }
+  function handleTouchEnd(e) {
+    if (startX.current === null || swiped.current) return;
+    const dx = e.changedTouches[0].clientX - startX.current;
+    const dy = e.changedTouches[0].clientY - startY.current;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      swiped.current = true;
+      if (dx < 0) onSwipeLeft?.();
+      else onSwipeRight?.();
+    }
+    startX.current = null;
+    startY.current = null;
+  }
   return (
-    <Box sx={{ display: "flex", py: 0.8, borderBottom: "1px solid #f8f8f8" }}>
-      <Typography sx={{ fontSize: 14, color: "#999", width: 80, flexShrink: 0 }}>{label}</Typography>
-      <Typography sx={{ fontSize: 14, color: "#333", flex: 1 }}>{value || "\u2014"}</Typography>
+    <Box onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+      {children}
     </Box>
   );
 }
 
-function TaskDetailView({ task, onBack, onComplete, onCancel }) {
+function TaskDetailView({ task, doctorId, isMobile, onBack, onComplete, onPostpone, onCancel }) {
   const iconColor = TASK_TYPE_ICON_COLOR[task.task_type] || "#999";
   const TaskIcon = TASK_TYPE_ICON[task.task_type] || AssignmentOutlinedIcon;
-  const statusLabel = TASK_STATUS_LABEL[task.status] || task.status;
-  const isActionable = task.status === "pending";
+  const [record, setRecord] = useState(null);
+  const [loadingRecord, setLoadingRecord] = useState(false);
+
+  useEffect(() => {
+    if (task.record_id && doctorId) {
+      setLoadingRecord(true);
+      getTaskRecord(task.record_id, doctorId)
+        .then(setRecord)
+        .catch(() => {})
+        .finally(() => setLoadingRecord(false));
+    }
+  }, [task.record_id, doctorId]);
+
+  const RECORD_TYPE_LABEL = {
+    visit: "门诊记录", dictation: "语音记录", import: "导入记录", interview_summary: "预问诊记录",
+  };
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
-      <Box sx={{ display: "flex", alignItems: "center", height: 48, px: 1,
-        bgcolor: "#fff", borderBottom: "1px solid #e5e5e5", flexShrink: 0 }}>
-        <Box onClick={onBack} sx={{ display: "flex", alignItems: "center",
-          gap: 0.3, cursor: "pointer", color: "#07C160", pr: 2, py: 1 }}>
-          <ArrowBackIcon sx={{ fontSize: 20 }} />
-          <Typography sx={{ fontSize: 15, color: "#07C160" }}>任务</Typography>
+      <Box sx={{ display: "flex", alignItems: "center", height: 48, px: 1, bgcolor: "#fff", borderBottom: "1px solid #e5e5e5", flexShrink: 0 }}>
+        <Box onClick={onBack} sx={{ display: "flex", alignItems: "center", gap: 0.3, cursor: "pointer", color: "#07C160", pr: 2, py: 1 }}>
+          <Typography sx={{ fontSize: 15, color: "#07C160" }}>← 返回</Typography>
         </Box>
-        <Typography sx={{ flex: 1, textAlign: "center", fontWeight: 600,
-          fontSize: 16, mr: 5 }}>任务详情</Typography>
+        <Typography sx={{ flex: 1, textAlign: "center", fontWeight: 600, fontSize: 16, mr: 5 }}>任务详情</Typography>
       </Box>
       <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
+        {/* Task header */}
         <Box sx={{ bgcolor: "#fff", borderRadius: 2, p: 2.5, mb: 1.5 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
-            <Box sx={{ width: 48, height: 48, borderRadius: "12px",
-              bgcolor: iconColor, display: "flex", alignItems: "center",
-              justifyContent: "center" }}>
-              <TaskIcon sx={{ color: "#fff", fontSize: 26 }} />
+          <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
+            <Box sx={{ width: 44, height: 44, borderRadius: "10px", bgcolor: iconColor, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <TaskIcon sx={{ color: "#fff", fontSize: 24 }} />
             </Box>
             <Box>
-              <Typography sx={{ fontWeight: 700, fontSize: 17 }}>
-                {task.title || TASK_TYPE_LABEL[task.task_type]}
+              <Typography sx={{ fontWeight: 600, fontSize: 17 }}>
+                {task.title || TASK_TYPE_LABEL[task.task_type] || task.task_type}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                {TASK_TYPE_LABEL[task.task_type]}
+                {TASK_TYPE_LABEL[task.task_type] || task.task_type}
               </Typography>
             </Box>
-          </Box>
-          {task.patient_name && <DetailField label="关联患者" value={task.patient_name} />}
-          <DetailField label="创建时间" value={task.created_at?.slice(0, 16).replace("T", " ")} />
-          {task.due_at && <DetailField label="截止时间" value={task.due_at.slice(0, 16).replace("T", " ")} />}
-          <DetailField label="状态" value={statusLabel} />
-          {task.content && <DetailField label="备注" value={task.content} />}
+          </Stack>
+          {task.content && (
+            <Typography sx={{ fontSize: 14, color: "#555", lineHeight: 1.8, mb: 1.5 }}>{task.content}</Typography>
+          )}
+          {task.patient_name && (
+            <Typography sx={{ fontSize: 13, color: "#999", mb: 0.5 }}>患者：{task.patient_name}</Typography>
+          )}
+          {task.due_at && (
+            <Typography sx={{ fontSize: 13, color: "#999", mb: 0.5 }}>到期日：{task.due_at.slice(0, 10)}</Typography>
+          )}
+          <Typography sx={{ fontSize: 13, color: "#999" }}>状态：{task.status === "pending" ? "待处理" : task.status === "completed" ? "已完成" : task.status === "cancelled" ? "已取消" : task.status}</Typography>
         </Box>
-      </Box>
-      {isActionable && (
-        <Box sx={{ p: 2, bgcolor: "#fff", borderTop: "1px solid #f2f2f2" }}>
-          <Box onClick={() => onComplete(task.id, "completed")}
-            sx={{ py: 1.3, borderRadius: 2, bgcolor: "#07C160", height: 44, display: "flex", alignItems: "center", justifyContent: "center",
-              color: "#fff", fontWeight: 600, fontSize: 16, mb: 1, cursor: "pointer",
-              "&:active": { opacity: 0.8 } }}>
-            标记完成
+
+        {/* Linked record content */}
+        {loadingRecord && (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
+            <CircularProgress size={24} />
           </Box>
-          <Box sx={{ display: "flex", gap: 1 }}>
-            <Box sx={{ flex: 1, py: 1.1, borderRadius: 2, border: "1px solid #e5e5e5",
-              textAlign: "center", color: "#333", fontSize: 14, cursor: "pointer",
-              "&:active": { bgcolor: "#f5f5f5" } }}>
-              编辑
+        )}
+        {record && (
+          <Box sx={{ bgcolor: "#fff", borderRadius: 2, p: 2.5, mb: 1.5 }}>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
+              <Typography sx={{ fontWeight: 600, fontSize: 15 }}>
+                {RECORD_TYPE_LABEL[record.record_type] || "病历记录"}
+              </Typography>
+              {record.needs_review && (
+                <Typography sx={{ fontSize: 12, color: "#fff", bgcolor: "#FA5151", px: 1, py: 0.3, borderRadius: 1 }}>
+                  待审阅
+                </Typography>
+              )}
+            </Stack>
+            {record.patient_name && (
+              <Typography sx={{ fontSize: 13, color: "#999", mb: 1 }}>患者：{record.patient_name}</Typography>
+            )}
+            <Typography sx={{ fontSize: 14, color: "#333", lineHeight: 1.8, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+              {record.content || "（内容为空）"}
+            </Typography>
+            {record.tags && record.tags.length > 0 && (
+              <Box sx={{ mt: 1.5, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                {record.tags.map((tag, i) => (
+                  <Typography key={i} sx={{ fontSize: 12, color: "#07C160", bgcolor: "#e8f5e9", px: 1, py: 0.2, borderRadius: 1 }}>
+                    {tag}
+                  </Typography>
+                ))}
+              </Box>
+            )}
+            {record.created_at && (
+              <Typography sx={{ fontSize: 12, color: "#bbb", mt: 1 }}>
+                创建于 {record.created_at.slice(0, 16).replace("T", " ")}
+              </Typography>
+            )}
+          </Box>
+        )}
+
+        {/* Actions */}
+        {task.status === "pending" && (
+          <Stack spacing={1}>
+            <Box onClick={() => { onComplete(task.id, "completed"); onBack(); }}
+              sx={{ bgcolor: "#07C160", color: "#fff", textAlign: "center", py: 1.3, borderRadius: "4px", cursor: "pointer", fontWeight: 600, fontSize: 15, "&:active": { opacity: 0.7 } }}>
+              完成任务
+            </Box>
+            <Box onClick={() => onPostpone(null, task.id)}
+              sx={{ bgcolor: "#fff", color: "#666", textAlign: "center", py: 1.3, borderRadius: "4px", cursor: "pointer", fontSize: 15, "&:active": { opacity: 0.7 } }}>
+              推迟
             </Box>
             <Box onClick={() => onCancel(task.id)}
-              sx={{ flex: 1, py: 1.1, borderRadius: 2, textAlign: "center",
-                color: "#e74c3c", fontSize: 14, cursor: "pointer",
-                "&:active": { bgcolor: "#fef2f2" } }}>
+              sx={{ bgcolor: "#fff", color: "#FA5151", textAlign: "center", py: 1.3, borderRadius: "4px", cursor: "pointer", fontSize: 15, "&:active": { opacity: 0.7 } }}>
               取消任务
             </Box>
-          </Box>
-        </Box>
-      )}
+          </Stack>
+        )}
+      </Box>
     </Box>
   );
 }
@@ -367,8 +342,7 @@ function useTasksState(doctorId) {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [segment, setSegment] = useState("today");
-  const [detailTask, setDetailTask] = useState(null);
+  const [segment, setSegment] = useState("todo");
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState({ taskType: "follow_up", title: "", dueAt: tomorrowStr(), patientId: "", patientSearch: "", content: "" });
   const [creating, setCreating] = useState(false);
@@ -381,42 +355,17 @@ function useTasksState(doctorId) {
 
   const load = useCallback(() => {
     setLoading(true); setError("");
-    if (segment === "done") {
-      Promise.all([
-        getTasks(doctorId, "completed"),
-        getTasks(doctorId, "cancelled"),
-      ]).then(([c, x]) => {
-        const completed = Array.isArray(c) ? c : (c.items || []);
-        const cancelled = Array.isArray(x) ? x : (x.items || []);
-        const merged = [...completed, ...cancelled].sort((a, b) =>
-          (b.updated_at || b.created_at || "").localeCompare(a.updated_at || a.created_at || "")
-        );
-        setTasks(merged);
-      }).catch((e) => setError(e.message || "任务加载失败")).finally(() => setLoading(false));
-    } else {
-      getTasks(doctorId, "pending").then((d) => {
-        const all = Array.isArray(d) ? d : (d.items || []);
-        const td = todayStr();
-        if (segment === "today") {
-          setTasks(all.filter((t) => {
-            if (!t.due_at) return false;
-            const dStr = t.due_at.slice(0, 10);
-            return dStr <= td;
-          }));
-        } else {
-          setTasks(all.filter((t) => {
-            if (!t.due_at) return true;
-            return t.due_at.slice(0, 10) > td;
-          }));
-        }
-      }).catch((e) => setError(e.message || "任务加载失败")).finally(() => setLoading(false));
-    }
+    const fetch = segment === "done"
+      ? Promise.all([getTasks(doctorId, "completed"), getTasks(doctorId, "cancelled")])
+          .then(([c, x]) => [...(Array.isArray(c) ? c : c.items || []), ...(Array.isArray(x) ? x : x.items || [])].sort((a, b) => (b.updated_at || "").localeCompare(a.updated_at || "")))
+      : getTasks(doctorId, "pending").then((d) => Array.isArray(d) ? d : (d.items || []));
+    fetch.then(setTasks).catch((e) => setError(e.message || "任务加载失败")).finally(() => setLoading(false));
   }, [doctorId, segment]);
 
   useEffect(() => { load(); }, [load]);
 
   async function handleStatus(taskId, status) {
-    try { await patchTask(taskId, doctorId, status); setDetailTask(null); load(); }
+    try { await patchTask(taskId, doctorId, status); load(); }
     catch (e) { setError(e.message || "任务状态更新失败"); }
   }
   async function handleCreate() {
@@ -433,37 +382,25 @@ function useTasksState(doctorId) {
     catch (e) { setError(e.message || "推迟失败"); setPostponeOpen(false); }
   }
 
-  return { tasks, loading, error, setError, segment, setSegment, detailTask, setDetailTask, createOpen, setCreateOpen, createForm, setCreateForm, creating, createError, setCreateError, patientOptions, setPatientOptions, postponeOpen, setPostponeOpen, postponeTaskId, setPostponeTaskId, postponeDate, setPostponeDate, cancelConfirmId, setCancelConfirmId, load, handleStatus, handleCreate, handleConfirmPostpone };
-}
-
-function SegmentControl({ value, options, onChange }) {
-  return (
-    <Box sx={{
-      display: "flex", bgcolor: "#f2f2f2", borderRadius: "8px",
-      p: "3px", flex: 1,
-    }}>
-      {options.map((opt) => (
-        <Box key={opt.value} onClick={() => onChange(opt.value)}
-          sx={{
-            flex: 1, textAlign: "center", py: 0.6,
-            borderRadius: "6px", fontSize: 13, fontWeight: 600,
-            cursor: "pointer", transition: "all 0.15s ease",
-            bgcolor: value === opt.value ? "#fff" : "transparent",
-            color: value === opt.value ? "#07C160" : "#999",
-            boxShadow: value === opt.value ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
-          }}>
-          {opt.label}
-        </Box>
-      ))}
-    </Box>
-  );
+  return { tasks, loading, error, setError, segment, setSegment, createOpen, setCreateOpen, createForm, setCreateForm, creating, createError, setCreateError, patientOptions, setPatientOptions, postponeOpen, setPostponeOpen, postponeTaskId, setPostponeTaskId, postponeDate, setPostponeDate, cancelConfirmId, setCancelConfirmId, load, handleStatus, handleCreate, handleConfirmPostpone };
 }
 
 function TasksHeader({ segment, loading, onSegmentChange, onOpenCreate }) {
   return (
-    <Box sx={{ display: "flex", alignItems: "center", px: 2, height: 48, bgcolor: "#fff", borderBottom: "0.5px solid #d9d9d9", flexShrink: 0, gap: 1 }}>
-      <SegmentControl value={segment} options={TASK_SEGMENT_OPTS} onChange={onSegmentChange} />
-      {loading && <CircularProgress size={14} sx={{ color: "#07C160", flexShrink: 0 }} />}
+    <Box sx={{ display: "flex", alignItems: "center", px: 2, py: 1, bgcolor: "#ededed", borderBottom: "0.5px solid #d9d9d9", flexShrink: 0, gap: 1 }}>
+      <Box sx={{ display: "flex", flex: 1, bgcolor: "#d6d6d6", borderRadius: "4px", p: "2px" }}>
+        {SEGMENTS.map((s) => (
+          <Box key={s.value} onClick={() => onSegmentChange(s.value)}
+            sx={{ flex: 1, textAlign: "center", py: 0.5, borderRadius: "3px", cursor: "pointer", fontSize: 13,
+              bgcolor: segment === s.value ? "#fff" : "transparent",
+              color: segment === s.value ? "#111" : "#666",
+              fontWeight: segment === s.value ? 600 : 400,
+              transition: "all 0.15s" }}>
+            {s.label}
+          </Box>
+        ))}
+      </Box>
+      {loading && <CircularProgress size={14} sx={{ color: "#07C160" }} />}
       <Box onClick={onOpenCreate}
         sx={{ width: 28, height: 28, borderRadius: "4px", bgcolor: "#07C160", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, "&:active": { opacity: 0.8 } }}>
         <Typography sx={{ color: "#fff", fontSize: 20, lineHeight: 1, mt: "-2px" }}>+</Typography>
@@ -472,148 +409,7 @@ function TasksHeader({ segment, loading, onSegmentChange, onOpenCreate }) {
   );
 }
 
-function AppointmentRow({ task, onClick }) {
-  const timeStr = task.due_at ? task.due_at.slice(11, 16) : "--:--";
-  return (
-    <Box onClick={onClick} sx={{ display: "flex", px: 2, py: 1.2, alignItems: "center", cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
-      <Typography sx={{ fontSize: 14, fontWeight: 600, color: "#07C160", width: 50, flexShrink: 0 }}>
-        {timeStr}
-      </Typography>
-      <Box sx={{ flex: 1, ml: 1 }}>
-        <Typography sx={{ fontSize: 14, fontWeight: 500 }}>
-          {task.title || task.patient_name || "预约"}
-        </Typography>
-        {task.content && (
-          <Typography variant="caption" color="text.secondary">
-            {task.content}
-          </Typography>
-        )}
-      </Box>
-    </Box>
-  );
-}
-
-function TodoRow({ task, onComplete, onClick }) {
-  return (
-    <Box onClick={onClick} sx={{ display: "flex", px: 2, py: 1.2, alignItems: "center", cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
-      <Box onClick={(e) => { e.stopPropagation(); onComplete(task.id, "completed"); }}
-        sx={{
-          width: 22, height: 22, borderRadius: "50%",
-          border: "2px solid #ddd", flexShrink: 0, cursor: "pointer",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          "&:active": { borderColor: "#07C160" },
-        }} />
-      <Box sx={{ flex: 1, ml: 1.5 }}>
-        <Typography sx={{ fontSize: 14 }}>
-          {task.title || TASK_TYPE_LABEL[task.task_type] || task.task_type}
-        </Typography>
-        {task.patient_name && (
-          <Typography variant="caption" color="text.secondary">
-            {task.patient_name}
-          </Typography>
-        )}
-      </Box>
-    </Box>
-  );
-}
-
-function TaskGroupList({ tasks, loading, error, segment, isMobile, taskGroups, sortedGroups, onError, onComplete, onPostpone, onCancel, onTaskClick }) {
-  if (segment === "today") {
-    const appointments = tasks.filter((t) => t.task_type === "appointment");
-    const todos = tasks.filter((t) => t.task_type !== "appointment");
-    return (
-      <Box sx={{ flex: 1, overflowY: "auto" }}>
-        {error && <Box sx={{ px: 2, pt: 1.5 }}><Alert severity="error" onClose={() => onError("")}>{error}</Alert></Box>}
-        {!loading && !error && tasks.length === 0 && (
-          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 8, gap: 1, px: 2 }}>
-            <AssignmentOutlinedIcon sx={{ fontSize: 48, color: "#ccc" }} />
-            <Typography variant="body2" color="text.disabled" sx={{ fontWeight: 500 }}>暂无任务</Typography>
-            <Typography variant="caption" color="text.disabled" sx={{ textAlign: "center", maxWidth: 200 }}>在聊天中说「今日任务」或点击 + 新建</Typography>
-          </Box>
-        )}
-        {appointments.length > 0 && (
-          <Box>
-            <Box sx={{ px: 2, py: 0.6, pt: 1.2 }}>
-              <Typography sx={{ fontSize: 12, color: "#999", fontWeight: 500 }}>预约</Typography>
-            </Box>
-            <Box sx={{ bgcolor: "#fff" }}>
-              {appointments.map((task, idx) => (
-                <Box key={task.id} sx={{ borderBottom: idx < appointments.length - 1 ? "0.5px solid #f0f0f0" : "none" }}>
-                  <AppointmentRow task={task} onClick={() => onTaskClick(task)} />
-                </Box>
-              ))}
-            </Box>
-          </Box>
-        )}
-        {todos.length > 0 && (
-          <Box>
-            <Box sx={{ px: 2, py: 0.6, pt: 1.2 }}>
-              <Typography sx={{ fontSize: 12, color: "#999", fontWeight: 500 }}>待办</Typography>
-            </Box>
-            <Box sx={{ bgcolor: "#fff" }}>
-              {todos.map((task, idx) => {
-                const row = (
-                  <Box key={task.id} sx={{ borderBottom: idx < todos.length - 1 ? "0.5px solid #f0f0f0" : "none" }}>
-                    <TodoRow task={task} onComplete={onComplete} onClick={() => onTaskClick(task)} />
-                  </Box>
-                );
-                if (isMobile && task.status === "pending") {
-                  return (
-                    <SwipeableTaskRow key={task.id}
-                      onSwipeComplete={() => onComplete(task.id, "completed")}
-                      onSwipeCancel={() => onCancel(task.id)}>
-                      {row}
-                    </SwipeableTaskRow>
-                  );
-                }
-                return row;
-              })}
-            </Box>
-          </Box>
-        )}
-        <Box sx={{ height: 24 }} />
-      </Box>
-    );
-  }
-
-  if (segment === "done") {
-    return (
-      <Box sx={{ flex: 1, overflowY: "auto" }}>
-        {error && <Box sx={{ px: 2, pt: 1.5 }}><Alert severity="error" onClose={() => onError("")}>{error}</Alert></Box>}
-        {!loading && !error && tasks.length === 0 && (
-          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 8, gap: 1, px: 2 }}>
-            <AssignmentOutlinedIcon sx={{ fontSize: 48, color: "#ccc" }} />
-            <Typography variant="body2" color="text.disabled" sx={{ fontWeight: 500 }}>暂无已完成任务</Typography>
-          </Box>
-        )}
-        <Box sx={{ bgcolor: "#fff", mt: 0.5 }}>
-          {tasks.map((task, idx) => (
-            <Box key={task.id} onClick={() => onTaskClick(task)}
-              sx={{ display: "flex", alignItems: "center", px: 2, py: 1.2,
-                borderBottom: idx < tasks.length - 1 ? "0.5px solid #f0f0f0" : "none",
-                cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography sx={{ fontSize: 14, color: "#999", textDecoration: "line-through",
-                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {task.title || TASK_TYPE_LABEL[task.task_type] || task.task_type}
-                </Typography>
-                {task.patient_name && (
-                  <Typography variant="caption" sx={{ color: "#ccc", fontSize: 12 }}>
-                    {task.patient_name}
-                  </Typography>
-                )}
-              </Box>
-              <Typography sx={{ fontSize: 11, color: "#ccc", flexShrink: 0, ml: 1 }}>
-                {task.status === "cancelled" ? "已取消" : "已完成"}
-              </Typography>
-            </Box>
-          ))}
-        </Box>
-        <Box sx={{ height: 24 }} />
-      </Box>
-    );
-  }
-
+function TaskGroupList({ tasks, loading, error, taskGroups, sortedGroups, onError, onComplete, onPostpone, onCancel }) {
   return (
     <Box sx={{ flex: 1, overflowY: "auto" }}>
       {error && <Box sx={{ px: 2, pt: 1.5 }}><Alert severity="error" onClose={() => onError("")}>{error}</Alert></Box>}
@@ -630,23 +426,11 @@ function TaskGroupList({ tasks, loading, error, segment, isMobile, taskGroups, s
             <Typography sx={{ fontSize: 12, color: group === "已逾期" ? "#FA5151" : "#999", fontWeight: 500 }}>{group}</Typography>
           </Box>
           <Box sx={{ bgcolor: "#fff" }}>
-            {taskGroups[group].map((task, idx) => {
-              const rowContent = (
-                <Box key={task.id} sx={{ borderBottom: idx < taskGroups[group].length - 1 ? "0.5px solid #f0f0f0" : "none" }}>
-                  <TaskRow task={task} isOverdue={group === "已逾期"} onComplete={onComplete} onPostpone={onPostpone} onCancel={onCancel} onClick={() => onTaskClick(task)} />
-                </Box>
-              );
-              if (isMobile && task.status === "pending") {
-                return (
-                  <SwipeableTaskRow key={task.id}
-                    onSwipeComplete={() => onComplete(task.id, "completed")}
-                    onSwipeCancel={() => onCancel(task.id)}>
-                    {rowContent}
-                  </SwipeableTaskRow>
-                );
-              }
-              return rowContent;
-            })}
+            {taskGroups[group].map((task, idx) => (
+              <Box key={task.id} sx={{ borderBottom: idx < taskGroups[group].length - 1 ? "0.5px solid #f0f0f0" : "none" }}>
+                <TaskRow task={task} isOverdue={group === "已逾期"} onComplete={onComplete} onPostpone={onPostpone} onCancel={onCancel} />
+              </Box>
+            ))}
           </Box>
         </Box>
       ))}
@@ -658,7 +442,8 @@ function TaskGroupList({ tasks, loading, error, segment, isMobile, taskGroups, s
 export default function TasksSection({ doctorId }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const { tasks, loading, error, setError, segment, setSegment, detailTask, setDetailTask, createOpen, setCreateOpen, createForm, setCreateForm, creating, createError, setCreateError, patientOptions, setPatientOptions, postponeOpen, setPostponeOpen, postponeTaskId, setPostponeTaskId, postponeDate, setPostponeDate, cancelConfirmId, setCancelConfirmId, handleStatus, handleCreate, handleConfirmPostpone } = useTasksState(doctorId);
+  const [detailTask, setDetailTask] = useState(null);
+  const { tasks, loading, error, setError, segment, setSegment, createOpen, setCreateOpen, createForm, setCreateForm, creating, createError, setCreateError, patientOptions, setPatientOptions, postponeOpen, setPostponeOpen, postponeTaskId, setPostponeTaskId, postponeDate, setPostponeDate, cancelConfirmId, setCancelConfirmId, load, handleStatus, handleCreate, handleConfirmPostpone } = useTasksState(doctorId);
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
@@ -667,16 +452,17 @@ export default function TasksSection({ doctorId }) {
   tasks.forEach((t) => { const g = taskDateGroup(t, today, tomorrow, weekEnd); (taskGroups[g] = taskGroups[g] || []).push(t); });
   const sortedGroups = GROUP_ORDER.filter((g) => taskGroups[g]);
 
+  const handleComplete = (id, status) => { handleStatus(id, status); };
+  const handlePostpone = (e, id) => { setPostponeOpen(true); setPostponeTaskId(id); setPostponeDate(""); };
+  const handleCancel = (id) => setCancelConfirmId(id);
+
   if (detailTask) {
     return (
-      <>
-        <TaskDetailView task={detailTask}
-          onBack={() => setDetailTask(null)}
-          onComplete={(id, status) => { handleStatus(id, status); }}
-          onCancel={(id) => setCancelConfirmId(id)} />
-        <CancelDialog open={Boolean(cancelConfirmId)} isMobile={isMobile} onClose={() => setCancelConfirmId(null)}
-          onConfirm={() => { handleStatus(cancelConfirmId, "cancelled"); setCancelConfirmId(null); }} />
-      </>
+      <TaskDetailView task={detailTask} doctorId={doctorId} isMobile={isMobile}
+        onBack={() => { setDetailTask(null); load(); }}
+        onComplete={handleComplete}
+        onPostpone={handlePostpone}
+        onCancel={handleCancel} />
     );
   }
 
@@ -684,12 +470,36 @@ export default function TasksSection({ doctorId }) {
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#ededed" }}>
       <TasksHeader segment={segment} loading={loading} onSegmentChange={setSegment}
         onOpenCreate={() => { setCreateOpen(true); setCreateError(""); getPatients(doctorId, {}, 200).then((d) => setPatientOptions(d.items || [])).catch(() => {}); }} />
-      <TaskGroupList tasks={tasks} loading={loading} error={error} segment={segment} isMobile={isMobile}
-        taskGroups={taskGroups} sortedGroups={sortedGroups}
-        onError={setError} onComplete={handleStatus}
-        onPostpone={(e, id) => { setPostponeOpen(true); setPostponeTaskId(id); setPostponeDate(""); }}
-        onCancel={(id) => setCancelConfirmId(id)}
-        onTaskClick={(task) => setDetailTask(task)} />
+      <Box sx={{ flex: 1, overflowY: "auto" }}>
+        {error && <Box sx={{ px: 2, pt: 1.5 }}><Alert severity="error" onClose={() => setError("")}>{error}</Alert></Box>}
+        {!loading && !error && tasks.length === 0 && (
+          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 8, gap: 1, px: 2 }}>
+            <AssignmentOutlinedIcon sx={{ fontSize: 48, color: "#ccc" }} />
+            <Typography variant="body2" color="text.disabled" sx={{ fontWeight: 500 }}>暂无任务</Typography>
+            <Typography variant="caption" color="text.disabled" sx={{ textAlign: "center", maxWidth: 200 }}>在聊天中说「今日任务」或点击 + 新建</Typography>
+          </Box>
+        )}
+        {sortedGroups.map((group) => (
+          <Box key={group}>
+            <Box sx={{ px: 2, py: 0.6, pt: 1.2 }}>
+              <Typography sx={{ fontSize: 12, color: group === "已逾期" ? "#FA5151" : "#999", fontWeight: 500 }}>{group}</Typography>
+            </Box>
+            <Box sx={{ bgcolor: "#fff" }}>
+              {taskGroups[group].map((task, idx) => (
+                <SwipeableTaskRow key={task.id}
+                  onSwipeLeft={() => { if (task.status === "pending") handleComplete(task.id, "completed"); }}
+                  onSwipeRight={() => { if (task.status === "pending") handleCancel(task.id); }}>
+                  <Box onClick={() => setDetailTask(task)}
+                    sx={{ borderBottom: idx < taskGroups[group].length - 1 ? "0.5px solid #f0f0f0" : "none", cursor: "pointer" }}>
+                    <TaskRow task={task} isOverdue={group === "已逾期"} />
+                  </Box>
+                </SwipeableTaskRow>
+              ))}
+            </Box>
+          </Box>
+        ))}
+        <Box sx={{ height: 24 }} />
+      </Box>
       <PostponeDialog open={Boolean(postponeOpen)} isMobile={isMobile} postponeDate={postponeDate} onChange={setPostponeDate}
         onClose={() => { setPostponeOpen(false); setPostponeTaskId(null); setPostponeDate(""); }} onConfirm={handleConfirmPostpone} />
       <CancelDialog open={Boolean(cancelConfirmId)} isMobile={isMobile} onClose={() => setCancelConfirmId(null)}

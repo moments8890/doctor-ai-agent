@@ -169,14 +169,7 @@ function renderCellContent(value) {
     return <span style={{ color: "#b0bec5" }}>—</span>;
   }
   if (typeof value === "boolean") {
-    return (
-      <Chip
-        label={value ? "是" : "否"}
-        size="small"
-        color={value ? "success" : "default"}
-        sx={{ height: 18, fontSize: 10, fontFamily: "inherit" }}
-      />
-    );
+    return value ? "是" : "否";
   }
   const str = typeof value === "object" ? JSON.stringify(value) : String(value);
   // Translate known enum values
@@ -197,27 +190,6 @@ function renderCellContent(value) {
   return str;
 }
 
-
-// Static column definitions per table — ensures headers render even when empty
-const TABLE_COLUMNS = {
-  doctors: ["doctor_id", "name", "department", "accepting_patients", "created_at", "updated_at"],
-  patients: ["id", "doctor_id", "name", "gender", "year_of_birth", "phone", "primary_category", "created_at"],
-  medical_records: ["id", "patient_id", "doctor_id", "patient_name", "record_type", "content", "tags", "needs_review", "has_structured", "created_at"],
-  doctor_tasks: ["id", "doctor_id", "patient_id", "patient_name", "task_type", "title", "status", "due_at", "record_id", "updated_at", "created_at"],
-  patient_labels: ["id", "doctor_id", "name", "color", "created_at"],
-  patient_label_assignments: ["patient_id", "label_id", "patient_name", "label_name", "doctor_id"],
-  system_prompts: ["key", "content", "updated_at"],
-  doctor_contexts: ["doctor_id", "summary", "updated_at"],
-  medical_record_versions: ["id", "record_id", "doctor_id", "old_content", "old_tags", "old_record_type", "changed_at"],
-  medical_record_exports: ["id", "record_id", "doctor_id", "export_format", "pdf_hash", "exported_at"],
-  pending_records: ["id", "doctor_id", "patient_id", "patient_name", "status", "draft_json", "created_at", "expires_at"],
-  pending_messages: ["id", "doctor_id", "raw_content", "status", "attempt_count", "created_at"],
-  audit_log: ["id", "ts", "doctor_id", "action", "resource_type", "resource_id", "ok", "ip"],
-  doctor_knowledge_items: ["id", "doctor_id", "content", "created_at", "updated_at"],
-  system_prompt_versions: ["id", "prompt_key", "changed_by", "changed_at", "content"],
-  chat_archive: ["id", "doctor_id", "role", "content", "intent_label", "created_at"],
-  interview_sessions: ["id", "doctor_id", "patient_id", "status", "turn_count", "created_at", "updated_at"],
-};
 
 const COL_WIDTH = {
   id: 64,
@@ -334,17 +306,14 @@ function AdminDashboard({ onLockout }) {
     setSnack({ open: true, message, severity });
   }
   const columns = useMemo(() => {
-    if (rows.length) {
-      const allKeys = [];
-      for (const row of rows) {
-        for (const key of Object.keys(row || {})) {
-          if (!allKeys.includes(key)) allKeys.push(key);
-        }
+    const allKeys = [];
+    for (const row of rows) {
+      for (const key of Object.keys(row || {})) {
+        if (!allKeys.includes(key)) allKeys.push(key);
       }
-      return allKeys;
     }
-    return TABLE_COLUMNS[activeTable] || [];
-  }, [rows, activeTable]);
+    return allKeys;
+  }, [rows]);
 
   const activeLabel = t(`admin.tables.${activeTable}`);
   const colCount = columns.length + 1;
@@ -686,7 +655,7 @@ function AdminDashboard({ onLockout }) {
       sx={{
         minHeight: "100vh",
         background:
-          "#ededed",
+          "radial-gradient(1200px 640px at 92% -8%, rgba(7,193,96,0.16), transparent 65%), radial-gradient(900px 520px at -12% 108%, rgba(47,79,111,0.15), transparent 62%), #ededed",
       }}
     >
       <Container maxWidth="xl" sx={{ py: 2.5 }}>

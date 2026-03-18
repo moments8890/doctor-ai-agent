@@ -11,14 +11,14 @@ import { useTheme } from "@mui/material/styles";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import AttachFileOutlinedIcon from "@mui/icons-material/AttachFileOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
-import { sendChat, confirmPendingRecordById, abandonPendingRecordById, extractFileForChat } from "../../api";
+import { sendChat, ocrImage, extractFileForChat, clearContext } from "../../api";
 import RecordFields from "../../components/RecordFields";
 import { t } from "../../i18n";
 import { QUICK_COMMANDS } from "./constants";
-import ViewPayloadCard from "./ViewPayloadCard";
-import { processFile } from "./FileUploader";
 import ActionPanel from "./ActionPanel";
 import PatientPickerDialog from "./PatientPickerDialog";
 import ImportChoiceDialog from "./ImportChoiceDialog";
@@ -26,6 +26,25 @@ import VoiceInput, { isVoiceSupported } from "./VoiceInput";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
 import KeyboardOutlinedIcon from "@mui/icons-material/KeyboardOutlined";
+import PersonAddOutlinedIcon from "@mui/icons-material/PersonAddOutlined";
+import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
+import PeopleOutlinedIcon from "@mui/icons-material/PeopleOutlined";
+import NoteAddOutlinedIcon from "@mui/icons-material/NoteAddOutlined";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
+import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
+import AssessmentOutlinedIcon from "@mui/icons-material/AssessmentOutlined";
+
+const CMD_ICONS = {
+  personAdd: PersonAddOutlinedIcon,
+  search: SearchOutlinedIcon,
+  people: PeopleOutlinedIcon,
+  noteAdd: NoteAddOutlinedIcon,
+  edit: EditOutlinedIcon,
+  download: FileDownloadOutlinedIcon,
+  assignment: AssignmentOutlinedIcon,
+  assessment: AssessmentOutlinedIcon,
+};
 
 function MsgAvatar({ isUser, size = 40 }) {
   return (
@@ -39,80 +58,51 @@ function MsgAvatar({ isUser, size = 40 }) {
   );
 }
 
-function PendingConfirmCard({ patientName, expiresAt, onConfirm, onAbandon }) {
-  const [busy, setBusy] = useState(false);
-  const expiry = expiresAt ? new Date(expiresAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : null;
-  async function handleConfirm() {
-    setBusy(true);
-    try { await onConfirm(); } finally { setBusy(false); }
-  }
-  async function handleAbandon() {
-    setBusy(true);
-    try { await onAbandon(); } finally { setBusy(false); }
-  }
+
+function TasksCard({ tasks }) {
+  if (!tasks || !tasks.length) return null;
+  const typeLabels = { appointment: "复诊", follow_up: "随访", general: "任务" };
   return (
-    <Box sx={{ mt: 1, p: 1.5, borderRadius: "4px", border: "1px solid #e0e0e0", bgcolor: "#f9fff9" }}>
-      <Typography variant="caption" sx={{ color: "#555", display: "block", mb: 1 }}>
-        草稿已生成{patientName ? `（患者：${patientName}）` : ""}
-        {expiry ? `，${expiry} 前有效` : ""}
-      </Typography>
-      <Stack direction="row" spacing={1}>
-        <Button size="small" variant="contained" disabled={busy}
-          sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: "#06ad56" }, fontSize: 12 }}
-          onClick={handleConfirm}>
-          确认保存
-        </Button>
-        <Button size="small" variant="outlined" disabled={busy} color="inherit"
-          sx={{ fontSize: 12, color: "#888", borderColor: "#ccc" }}
-          onClick={handleAbandon}>
-          取消
-        </Button>
-      </Stack>
+    <Box sx={{ mt: 1, borderTop: "1px solid #e5e5e5", pt: 1 }}>
+      {tasks.map((t) => (
+        <Box key={t.id} sx={{ py: 0.5, borderBottom: "1px solid #f0f0f0", "&:last-child": { borderBottom: "none" } }}>
+          <Typography variant="body2" sx={{ fontWeight: 600, fontSize: 13 }}>
+            {typeLabels[t.task_type] || "任务"} · {t.title || "未命名"}
+          </Typography>
+          {t.due_at && <Typography variant="caption" color="text.secondary">{t.due_at.replace("T", " ").slice(0, 16)}</Typography>}
+        </Box>
+      ))}
     </Box>
   );
 }
 
-function MsgBubble({ msg, onConfirm, onAbandon }) {
+function MsgBubble({ msg }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isUser = msg.role === "user";
   const bubbleRadius = isUser ? "4px 4px 0 4px" : "4px 4px 4px 0";
   const bgColor = isUser ? "#95EC69" : "#fff";
-  const textColor = isUser ? "#111111" : (isMobile ? "#111" : "#191919");
+  const textColor = "#111111";
 
   return (
     <Box sx={{ display: "flex", flexDirection: isUser ? "row-reverse" : "row", alignItems: "flex-end", gap: isMobile ? 1 : 1.2, px: isMobile ? 1.5 : 2 }}>
       <MsgAvatar isUser={isUser} size={40} />
       <Box sx={{ maxWidth: isMobile ? "72%" : "min(70%, 600px)", display: "flex", flexDirection: "column", alignItems: isUser ? "flex-end" : "flex-start" }}>
-        <Box sx={{ position: "relative", px: isMobile ? "12px" : "14px", py: isMobile ? "9px" : "10px", borderRadius: bubbleRadius, bgcolor: bgColor, boxShadow: "none", ...(isUser ? { "&::after": { content: '""', position: "absolute", top: 10, right: -6, width: 0, height: 0, borderTop: "6px solid transparent", borderBottom: "6px solid transparent", borderLeft: "6px solid #95EC69" } } : { "&::after": { content: '""', position: "absolute", top: 10, left: -6, width: 0, height: 0, borderTop: "6px solid transparent", borderBottom: "6px solid transparent", borderRight: "6px solid #ffffff" } }) }}>
+        <Box sx={{ position: "relative", px: isMobile ? "12px" : "14px", py: isMobile ? "9px" : "10px", borderRadius: bubbleRadius, bgcolor: bgColor, boxShadow: "none",
+          "&::after": {
+            content: '""', position: "absolute", bottom: 0, width: 0, height: 0, border: "6px solid transparent",
+            ...(isUser
+              ? { right: "-10px", borderLeftColor: bgColor, borderBottomColor: bgColor }
+              : { left: "-10px", borderRightColor: bgColor, borderBottomColor: bgColor }),
+          } }}>
           <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", lineHeight: isMobile ? 1.8 : 1.7, color: textColor }}>
             {msg.content}
           </Typography>
           {!isUser && msg.record ? <RecordFields record={msg.record} /> : null}
-          {!isUser && msg.view_payload ? <ViewPayloadCard payload={msg.view_payload} /> : null}
-          {!isUser && msg.pending_id && onConfirm && onAbandon ? (
-            <PendingConfirmCard
-              patientName={msg.pending_patient_name}
-              expiresAt={msg.pending_expires_at}
-              onConfirm={onConfirm}
-              onAbandon={onAbandon}
-            />
-          ) : null}
+          {!isUser && msg.view_payload?.type === "tasks_list" ? <TasksCard tasks={msg.view_payload.data} /> : null}
         </Box>
         <Typography sx={{ mt: isMobile ? 0.3 : 0.4, px: 0.5, color: isMobile ? "#888" : "#aaa", fontSize: 11 }}>
           {msg.ts}
-        </Typography>
-      </Box>
-    </Box>
-  );
-}
-
-function SystemMessage({ msg }) {
-  return (
-    <Box sx={{ display: "flex", justifyContent: "center", px: 2, py: 0.5 }}>
-      <Box sx={{ px: 2, py: 0.5, borderRadius: "4px", bgcolor: "#f0f0f0" }}>
-        <Typography variant="caption" sx={{ color: "#999999", fontSize: 12, fontWeight: 500 }}>
-          {msg.content}
         </Typography>
       </Box>
     </Box>
@@ -137,34 +127,36 @@ function LoadingBubble({ isMobile }) {
   );
 }
 
-function QuickCommandChips({ onInsert, onAutoSend }) {
+function QuickCommandsPanel({ isMobile, shown, onToggle, onSelect }) {
   return (
-    <Box sx={{
-      display: "flex", gap: 0.8, px: 1.5, py: 0.8,
-      overflowX: "auto", whiteSpace: "nowrap",
-      "&::-webkit-scrollbar": { display: "none" },
-    }}>
-      {QUICK_COMMANDS.map((cmd) => (
-        <Box
-          key={cmd.label}
-          onClick={() => {
-            if (cmd.insert.endsWith("：") || cmd.insert.endsWith("，")) {
-              onInsert(cmd.insert);
-            } else {
-              onAutoSend(cmd.insert);
-            }
-          }}
-          sx={{
-            px: 1.5, py: 0.5, borderRadius: "4px", cursor: "pointer",
-            fontSize: 13, flexShrink: 0, userSelect: "none",
-            bgcolor: "#f0f0f0", color: "#333",
-            "&:hover": { bgcolor: "#e0e0e0" },
-            "&:active": { bgcolor: "#d5d5d5" },
-          }}
-        >
-          {cmd.icon} {cmd.label}
+    <Box sx={{ px: isMobile ? 1 : 1.5, pt: 0.5, pb: isMobile ? 0.5 : 0.4, borderTop: "0.5px solid #f0f0f0", backgroundColor: "#f7f7f7" }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: shown ? 0.8 : 0 }}>
+        <Typography sx={{ color: "#999", fontSize: 11, fontWeight: 500 }}>常用指令</Typography>
+        <IconButton size="small" onClick={onToggle} sx={{ color: "#ccc", p: 0.3 }}>
+          {shown ? <KeyboardArrowDownIcon sx={{ fontSize: 16 }} /> : <KeyboardArrowUpIcon sx={{ fontSize: 16 }} />}
+        </IconButton>
+      </Stack>
+      {shown && (
+        <Box sx={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 1.2, mb: 1 }}>
+          {QUICK_COMMANDS.map((cmd) => {
+            const Icon = CMD_ICONS[cmd.iconKey];
+            return (
+              <Box key={cmd.label} component="button" onClick={() => onSelect(cmd.insert)}
+                sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                  gap: 0.5, py: 0.8, border: "none", backgroundColor: "transparent",
+                  cursor: "pointer", fontSize: 11, color: "#666", fontFamily: "inherit",
+                  lineHeight: 1.3, whiteSpace: "nowrap", width: "100%",
+                  "&:active": { opacity: 0.6 } }}>
+                <Box sx={{ width: 40, height: 40, borderRadius: "10px", bgcolor: "#f5f5f5",
+                  display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {Icon && <Icon sx={{ fontSize: 22, color: "#999" }} />}
+                </Box>
+                {cmd.label}
+              </Box>
+            );
+          })}
         </Box>
-      ))}
+      )}
     </Box>
   );
 }
@@ -184,7 +176,7 @@ function nowTs() {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-function MobileInputBar({ input, loading, isProcessing, failedText, mediaError, fileInputRef, onInput, onSend, onFileClick, onRetry, onDismissError, onDismissFailed, voiceMode, voiceSupported, onToggleVoice, onVoiceResult, onVoiceCancel, onActionPanelOpen }) {
+function MobileInputBar({ input, loading, isProcessing, failedText, mediaError, fileInputRef, onInput, onSend, onFileClick, onRetry, onDismissError, onDismissFailed, voiceMode, voiceSupported, onVoiceToggle, onVoiceResult, onVoiceCancel, onActionPanelOpen }) {
   return (
     <Box sx={{ borderTop: "1px solid #d9d9d9", backgroundColor: "#f5f5f5" }}>
       {failedText && <FailedMessageBanner onRetry={onRetry} onDismiss={onDismissFailed} />}
@@ -194,32 +186,34 @@ function MobileInputBar({ input, loading, isProcessing, failedText, mediaError, 
           <CircularProgress size={10} /> 处理中…
         </Typography>
       )}
-      <Stack direction="row" alignItems="center" sx={{ px: 1, py: 0.8, gap: 0.5 }}>
-        <IconButton size="small" onClick={onActionPanelOpen} disabled={isProcessing} sx={{ color: "#666", p: 1.1 }}>
-          <AddCircleOutlineIcon />
-        </IconButton>
-        {voiceSupported && (
-          <IconButton size="small" onClick={onToggleVoice} sx={{ color: voiceMode ? "#07C160" : "#666", p: 1.1 }}>
-            {voiceMode ? <KeyboardOutlinedIcon /> : <MicNoneOutlinedIcon />}
-          </IconButton>
-        )}
-        {voiceMode ? (
+      {voiceMode ? (
+        <Box sx={{ px: 1, py: 0.8 }}>
           <VoiceInput onResult={onVoiceResult} onCancel={onVoiceCancel} />
-        ) : (
+        </Box>
+      ) : (
+        <Stack direction="row" alignItems="center" sx={{ px: 1, py: 0.8, gap: 0.5 }}>
+          <IconButton size="small" onClick={onActionPanelOpen} disabled={isProcessing} sx={{ color: "#07C160", p: 1.1 }}>
+            <AddCircleOutlineIcon />
+          </IconButton>
           <TextField multiline minRows={1} maxRows={4} fullWidth size="small"
             placeholder={t("chat.placeholder")} value={input}
             onChange={(e) => onInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); } }}
             disabled={isProcessing}
             sx={{ "& .MuiOutlinedInput-root": { borderRadius: "4px", backgroundColor: "#fff", fontSize: "0.9rem", "& fieldset": { borderColor: "#e0e0e0" } } }} />
-        )}
-        {!voiceMode && (
-          <IconButton onClick={onSend} disabled={loading || !input.trim()}
-            sx={{ bgcolor: "#07C160", color: "#fff", p: 1.2, borderRadius: "50%", "&:hover": { bgcolor: "#06ad56" }, flexShrink: 0, minWidth: 44, minHeight: 44 }}>
-            <SendOutlinedIcon fontSize="small" />
-          </IconButton>
-        )}
-      </Stack>
+          {voiceSupported && !input.trim() ? (
+            <IconButton onClick={onVoiceToggle}
+              sx={{ color: "#666", p: 1.2, flexShrink: 0, minWidth: 44, minHeight: 44 }}>
+              <MicNoneOutlinedIcon fontSize="small" />
+            </IconButton>
+          ) : (
+            <IconButton onClick={onSend} disabled={loading || !input.trim()}
+              sx={{ bgcolor: "#07C160", color: "#fff", p: 1.2, borderRadius: "50%", "&:hover": { bgcolor: "#06ad56" }, flexShrink: 0, minWidth: 44, minHeight: 44 }}>
+              <SendOutlinedIcon fontSize="small" />
+            </IconButton>
+          )}
+        </Stack>
+      )}
     </Box>
   );
 }
@@ -275,21 +269,10 @@ async function performSend({ text, loading, doctorId, history, setMessages, setI
   try {
     const data = await sendChat({ text, doctor_id: doctorId, history });
     const reply = data.reply || t("chat.received");
-    setMessages((prev) => {
-      const next = [...prev];
-      // Show patient-switch notification as a distinct system message before the reply
-      if (data.switch_notification) {
-        next.push({ role: "system", content: data.switch_notification, ts: nowTs() });
-      }
-      next.push({
-        role: "assistant", content: reply, record: data.record || null, ts: nowTs(),
-        pending_id: data.pending_id || null,
-        pending_patient_name: data.pending_patient_name || null,
-        pending_expires_at: data.pending_expires_at || null,
-        view_payload: data.view_payload || null,
-      });
-      return next;
-    });
+    setMessages((prev) => [...prev, {
+      role: "assistant", content: reply, record: data.record || null, ts: nowTs(),
+      view_payload: data.view_payload || null,
+    }]);
     if (onPatientCreated && (reply.includes("已创建") || (reply.includes("已为") && reply.includes("创建")))) {
       onPatientCreated();
     }
@@ -303,7 +286,7 @@ async function performSend({ text, loading, doctorId, history, setMessages, setI
   }
 }
 
-function useChatState({ doctorId, onMessageCountChange, onPatientCreated }) {
+function useChatState({ doctorId, onMessageCountChange, onPatientCreated, onContextCleared }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [failedText, setFailedText] = useState(null);
@@ -329,10 +312,15 @@ function useChatState({ doctorId, onMessageCountChange, onPatientCreated }) {
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => { onMessageCountChange?.(messages.length); }, [messages.length, onMessageCountChange]);
 
-  function onClear() {
+  async function onClear() {
     const fresh = [{ role: "assistant", content: t("chat.welcome"), ts: nowTs() }];
     setMessages(fresh);
     localStorage.setItem(storageKey, JSON.stringify(fresh));
+    // Clear server-side context: pending draft, current patient, conversation history, etc.
+    if (doctorId) {
+      try { await clearContext(doctorId); } catch {}
+      onContextCleared?.();
+    }
   }
 
   function sendText(text) {
@@ -344,9 +332,9 @@ function useChatState({ doctorId, onMessageCountChange, onPatientCreated }) {
 
 function ChatTopbar({ isMobile, doctorId, onClearClick }) {
   return (
-    <Box sx={{ px: isMobile ? 2 : 3, height: 48, borderBottom: "1px solid #e5e5e5", backgroundColor: isMobile ? "#f7f7f7" : "#fff", display: "flex", alignItems: "center" }}>
+    <Box sx={{ px: isMobile ? 2 : 3, height: 48, borderBottom: "0.5px solid #d9d9d9", backgroundColor: isMobile ? "#f7f7f7" : "#fff", display: "flex", alignItems: "center" }}>
       <Box sx={{ flex: 1, textAlign: isMobile ? "center" : "left" }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 500, color: "#191919", fontSize: 17 }}>{t("chat.workspaceTitle")}</Typography>
+        <Typography variant="subtitle2" sx={{ fontWeight: 500, color: "#111111", fontSize: 17 }}>{t("chat.workspaceTitle")}</Typography>
         {isMobile && doctorId && (
           <Typography variant="caption" sx={{ color: "#999", fontSize: 10, display: "block", lineHeight: 1 }}>ID: {doctorId}</Typography>
         )}
@@ -365,7 +353,7 @@ function ClearDialog({ open, onClear, onClose }) {
     <Dialog open={open} onClose={onClose}>
       <DialogTitle>清空对话记录</DialogTitle>
       <DialogContent>
-        <Typography>确定清空所有对话记录？此操作无法撤销。</Typography>
+        <Typography>确定清空所有对话记录、草稿和当前工作上下文？此操作无法撤销。</Typography>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>取消</Button>
@@ -389,47 +377,47 @@ function useChatEffects({ externalInput, onExternalInputConsumed, autoSendText, 
   }, [autoSendText]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
-function usePendingHandlers({ setMessages, onPatientCreated }) {
-  function clearMsg(pendingId) {
-    setMessages((prev) => prev.map((m) => m.pending_id === pendingId ? { ...m, pending_id: null } : m));
-  }
-  async function handleConfirm(pendingId) {
-    try {
-      const result = await confirmPendingRecordById(pendingId);
-      clearMsg(pendingId);
-      setMessages((prev) => [...prev, { role: "assistant", content: `✅ 病历已保存（${result.patient_name || ""}）`, ts: nowTs() }]);
-      onPatientCreated?.();
-    } catch (err) {
-      setMessages((prev) => [...prev, { role: "assistant", content: `保存失败：${err.message}`, ts: nowTs() }]);
+async function processFile({ file, setMediaError, setMediaProcessing, setInput }) {
+  if (!file) return;
+  setMediaError(null);
+  setMediaProcessing(true);
+  try {
+    if (file.type.startsWith("image/")) {
+      const { text } = await ocrImage(file);
+      if (text) setInput((prev) => (prev ? prev + "\n" + text : text));
+    } else {
+      setMediaError("不支持的文件类型，请上传图片");
     }
+  } catch {
+    setMediaError("文件处理失败，请重试");
+  } finally {
+    setMediaProcessing(false);
   }
-  async function handleAbandon(pendingId) {
-    try { await abandonPendingRecordById(pendingId); } catch {}
-    clearMsg(pendingId);
-    setMessages((prev) => [...prev, { role: "assistant", content: "草稿已取消。", ts: nowTs() }]);
-  }
-  return { handleConfirm, handleAbandon };
 }
 
-function useDailySummary({ doctorId, sendText, messagesLoaded }) {
-  const triggeredRef = useRef(false);
+
+function useDailySummary({ doctorId, sendText, ready }) {
+  const done = useRef(false);
   useEffect(() => {
-    if (!doctorId || !messagesLoaded || triggeredRef.current) return;
+    if (!doctorId || !ready || done.current) return;
     const today = new Date().toISOString().slice(0, 10);
     const key = `daily_summary_sent:${doctorId}`;
     if (localStorage.getItem(key) === today) return;
-    triggeredRef.current = true;
+    done.current = true;
     localStorage.setItem(key, today);
-    const timer = setTimeout(() => sendText("今日工作摘要"), 1200);
-    return () => clearTimeout(timer);
-  }, [doctorId, messagesLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+    const t = setTimeout(() => sendText("今日工作摘要"), 1200);
+    return () => clearTimeout(t);
+  }, [doctorId, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
-export default function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternalInputConsumed, onPatientCreated, autoSendText, onAutoSendConsumed }) {
+export default function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternalInputConsumed, onPatientCreated, autoSendText, onAutoSendConsumed, onContextCleared }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [mediaError, setMediaError] = useState(null);
+  const [commandsShown, setCommandsShown] = useState(() => {
+    try { return localStorage.getItem("chat_commands_shown") !== "false"; } catch { return true; }
+  });
   const fileInputRef = useRef(null);
   const [mediaProcessing, setMediaProcessing] = useState(false);
   const [actionPanelOpen, setActionPanelOpen] = useState(false);
@@ -442,10 +430,10 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
   const fileDocInputRef = useRef(null);
 
   const { input, setInput, loading, failedText, setFailedText, messages, setMessages, bottomRef, onClear, sendText } =
-    useChatState({ doctorId, onMessageCountChange, onPatientCreated });
+    useChatState({ doctorId, onMessageCountChange, onPatientCreated, onContextCleared });
   useChatEffects({ externalInput, onExternalInputConsumed, autoSendText, onAutoSendConsumed, setInput, sendText });
-  const { handleConfirm: handlePendingConfirm, handleAbandon: handlePendingAbandon } = usePendingHandlers({ setMessages, onPatientCreated });
-  useDailySummary({ doctorId, sendText, messagesLoaded: messages.length > 0 });
+  useDailySummary({ doctorId, sendText, ready: messages.length > 0 });
+
 
   function handlePanelAction(action) {
     setActionPanelOpen(false);
@@ -456,17 +444,16 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
       case "patient": setPatientPickerOpen(true); break;
     }
   }
-
   async function handleDocFile(file) {
     if (!file) return;
-    setMediaError(null);
-    setMediaProcessing(true);
     try {
       const { text } = await extractFileForChat(file);
       if (text) setImportChoice({ text });
-      else setMediaError("未能从文件中提取文字");
-    } catch { setMediaError("文件处理失败，请重试"); }
-    finally { setMediaProcessing(false); }
+    } catch { /* ignore */ }
+  }
+
+  function toggleCommands() {
+    setCommandsShown((v) => { const next = !v; try { localStorage.setItem("chat_commands_shown", String(next)); } catch {} return next; });
   }
 
   const isProcessing = mediaProcessing;
@@ -475,11 +462,6 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
     onInput: setInput, onSend: () => sendText(input.trim()), onFileClick: () => fileInputRef.current?.click(),
     onRetry: () => { setInput(failedText); setFailedText(null); },
     onDismissError: () => setMediaError(null), onDismissFailed: () => setFailedText(null),
-    voiceMode, voiceSupported,
-    onToggleVoice: () => setVoiceMode(!voiceMode),
-    onVoiceResult: (text) => { setVoiceMode(false); sendText(text); },
-    onVoiceCancel: () => {},
-    onActionPanelOpen: () => setActionPanelOpen(true),
   };
 
   return (
@@ -487,33 +469,38 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
       <ChatTopbar isMobile={isMobile} doctorId={doctorId} onClearClick={() => setClearConfirmOpen(true)} />
       <Box sx={{ flex: 1, overflowY: "auto", py: 2, display: "flex", flexDirection: "column", gap: isMobile ? 1.8 : 1.4, bgcolor: "#ededed" }}>
         {messages.map((msg, idx) => (
-          msg.role === "system"
-            ? <SystemMessage key={`system-${idx}`} msg={msg} />
-            : <MsgBubble key={`${msg.role}-${idx}`} msg={msg}
-                onConfirm={msg.pending_id ? () => handlePendingConfirm(msg.pending_id) : undefined}
-                onAbandon={msg.pending_id ? () => handlePendingAbandon(msg.pending_id) : undefined} />
+          <MsgBubble key={`${msg.role}-${idx}`} msg={msg} />
         ))}
         {loading && <LoadingBubble isMobile={isMobile} />}
         <div ref={bottomRef} />
       </Box>
-      <QuickCommandChips onInsert={(text) => setInput(text)} onAutoSend={(text) => sendText(text)} />
+      <QuickCommandsPanel isMobile={isMobile} shown={commandsShown} onToggle={toggleCommands} onSelect={setInput} />
       <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }}
         onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; processFile({ file: f, setMediaError, setMediaProcessing, setInput }); }} />
       <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }}
         onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; processFile({ file: f, setMediaError, setMediaProcessing, setInput }); }} />
       <input ref={galleryInputRef} type="file" accept="image/*" style={{ display: "none" }}
         onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; processFile({ file: f, setMediaError, setMediaProcessing, setInput }); }} />
-      <input ref={fileDocInputRef} type="file" accept=".pdf,.doc,.docx,application/pdf" style={{ display: "none" }}
+      <input ref={fileDocInputRef} type="file" accept=".pdf,.docx,.doc,.txt,image/jpeg,image/png" style={{ display: "none" }}
         onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; handleDocFile(f); }} />
-      {isMobile ? <MobileInputBar {...sharedBarProps} /> : <DesktopInputBar {...sharedBarProps} />}
+      {isMobile ? (
+        <MobileInputBar {...sharedBarProps}
+          voiceMode={voiceMode} voiceSupported={voiceSupported}
+          onVoiceToggle={() => setVoiceMode(true)}
+          onVoiceResult={(text) => { setVoiceMode(false); if (text) { setInput((prev) => (prev ? prev + " " + text : text)); } }}
+          onVoiceCancel={() => setVoiceMode(false)}
+          onActionPanelOpen={() => setActionPanelOpen(true)} />
+      ) : (
+        <DesktopInputBar {...sharedBarProps} />
+      )}
+      <ClearDialog open={clearConfirmOpen} onClear={onClear} onClose={() => setClearConfirmOpen(false)} />
       <ActionPanel open={actionPanelOpen} onClose={() => setActionPanelOpen(false)} onAction={handlePanelAction} />
       <PatientPickerDialog open={patientPickerOpen} onClose={() => setPatientPickerOpen(false)} doctorId={doctorId}
-        onSelect={(p) => { setPatientPickerOpen(false); sendText(`关于患者${p.name}`); }} />
-      <ImportChoiceDialog open={!!importChoice} text={importChoice?.text}
-        onInsert={(text) => { setInput((prev) => prev ? prev + "\n" + text : text); setImportChoice(null); }}
-        onImport={(text) => { sendText("导入这个患者的病历：\n" + text.slice(0, 4000)); setImportChoice(null); }}
+        onSelect={(patient) => { setPatientPickerOpen(false); sendText(`查询患者：${patient.name}`); }} />
+      <ImportChoiceDialog open={Boolean(importChoice)} text={importChoice?.text || ""}
+        onInsert={() => { setInput((prev) => (prev ? prev + "\n" + importChoice.text : importChoice.text)); setImportChoice(null); }}
+        onImport={() => { sendText(importChoice.text); setImportChoice(null); }}
         onClose={() => setImportChoice(null)} />
-      <ClearDialog open={clearConfirmOpen} onClear={onClear} onClose={() => setClearConfirmOpen(false)} />
     </Box>
   );
 }

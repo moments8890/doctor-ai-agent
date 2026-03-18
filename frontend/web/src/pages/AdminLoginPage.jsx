@@ -46,10 +46,10 @@ export default function AdminLoginPage() {
         alignItems: "center",
         justifyContent: "center",
         background:
-          "#ededed",
+          "radial-gradient(900px 500px at 90% -5%, rgba(30,64,175,0.12), transparent 60%), #ededed",
       }}
     >
-      <Card sx={{ width: 380, borderRadius: 2, boxShadow: "none" }}>
+      <Card sx={{ width: 380, borderRadius: 2, boxShadow: "0 4px 24px rgba(0,0,0,0.08)" }}>
         <CardContent sx={{ p: 3.5 }}>
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
             <AdminPanelSettingsOutlinedIcon color="primary" />

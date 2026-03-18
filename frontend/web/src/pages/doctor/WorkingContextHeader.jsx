@@ -1,12 +1,22 @@
 /**
  * WorkingContextHeader — shows the doctor's current working context at a glance:
- * current patient name chip. Updates reactively via onContextUpdate from ChatSection.
+ * current patient, pending draft status, and next-step guidance.
+ *
+ * UX contract: "At any moment, the doctor can tell who the current patient is
+ * and whether a draft is pending."
  */
-import { Box, Chip } from "@mui/material";
+import { Box, Chip, Typography } from "@mui/material";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
+import EditNoteOutlinedIcon from "@mui/icons-material/EditNoteOutlined";
 
-export default function WorkingContextHeader({ currentPatient, isMobile }) {
-  if (!currentPatient) return null;
+export default function WorkingContextHeader({ context, isMobile }) {
+  if (!context) return null;
+
+  const { current_patient, pending_draft, next_step } = context;
+
+  // Nothing to show — no patient, no draft, generic next step
+  const hasContent = current_patient || pending_draft;
+  if (!hasContent && !next_step) return null;
 
   return (
     <Box
@@ -22,18 +32,58 @@ export default function WorkingContextHeader({ currentPatient, isMobile }) {
         minHeight: isMobile ? 36 : 40,
       }}
     >
-      <Chip
-        icon={<PersonOutlineIcon sx={{ fontSize: 16 }} />}
-        label={currentPatient}
-        size="small"
-        sx={{
-          bgcolor: "#e6f7e9",
-          color: "#07C160",
-          fontWeight: 600,
-          fontSize: 12,
-          "& .MuiChip-icon": { color: "#07C160" },
-        }}
-      />
+      {/* Current patient */}
+      {current_patient ? (
+        <Chip
+          icon={<PersonOutlineIcon sx={{ fontSize: 16 }} />}
+          label={current_patient.name}
+          size="small"
+          sx={{
+            bgcolor: "#e6f7e9",
+            color: "#07C160",
+            fontWeight: 600,
+            fontSize: 12,
+            "& .MuiChip-icon": { color: "#07C160" },
+          }}
+        />
+      ) : (
+        <Typography
+          variant="caption"
+          sx={{ color: "#aaa", fontSize: 12 }}
+        >
+          暂无当前患者
+        </Typography>
+      )}
+
+      {/* Pending draft indicator */}
+      {pending_draft && (
+        <Chip
+          icon={<EditNoteOutlinedIcon sx={{ fontSize: 16 }} />}
+          label={`草稿：${pending_draft.patient_name}`}
+          size="small"
+          sx={{
+            bgcolor: "#fff7e6",
+            color: "#d46b08",
+            fontWeight: 500,
+            fontSize: 12,
+            "& .MuiChip-icon": { color: "#d46b08" },
+          }}
+        />
+      )}
+
+      {/* Next step guidance */}
+      {next_step && !pending_draft && (
+        <Typography
+          variant="caption"
+          sx={{
+            color: "#888",
+            fontSize: 12,
+            ml: "auto",
+          }}
+        >
+          {next_step}
+        </Typography>
+      )}
     </Box>
   );
 }

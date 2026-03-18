@@ -726,7 +726,7 @@ function DebugDashboard({ onLockout }) {
       sx={{
         minHeight: "100vh",
         background:
-          "#ededed",
+          "radial-gradient(1200px 640px at 92% -8%, rgba(7,193,96,0.16), transparent 65%), radial-gradient(900px 520px at -12% 108%, rgba(47,79,111,0.15), transparent 62%), #ededed",
       }}
     >
       <Container maxWidth="xl" sx={{ py: 2.5 }}>

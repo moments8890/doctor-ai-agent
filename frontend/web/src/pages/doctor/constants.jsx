@@ -5,10 +5,6 @@ import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
 import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
-import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
-import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
-import ScienceOutlinedIcon from "@mui/icons-material/ScienceOutlined";
-import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
 
 export const TASK_TYPE_LABEL = {
   follow_up:   "随访",
@@ -23,16 +19,9 @@ export const TASK_TYPE_LABEL = {
 export const TASK_STATUS_LABEL = {
   pending: "待处理",
   done: "已完成",
-  completed: "已完成",
   cancelled: "已取消",
   snoozed: "已推迟",
 };
-
-export const TASK_SEGMENT_OPTS = [
-  { value: "today", label: "今天" },
-  { value: "todo", label: "待办" },
-  { value: "done", label: "已完成" },
-];
 
 export const ENCOUNTER_LABEL = {
   inpatient: "住院",
@@ -105,15 +94,14 @@ export const TASK_STATUS_OPTS = [
 ];
 
 export const QUICK_COMMANDS = [
-  { label: "新建患者", icon: "👤", insert: "新建患者：" },
-  { label: "查询患者", icon: "🔍", insert: "查询患者：" },
-  { label: "患者列表", icon: "📋", insert: "患者列表" },
-  { label: "补充记录", icon: "➕", insert: "补充记录：" },
-  { label: "修正上条", icon: "✏️", insert: "刚才写错了，应该是" },
-  { label: "导出PDF", icon: "📄", insert: "导出病历PDF：" },
-  { label: "今日任务", icon: "📌", insert: "今日任务" },
-  { label: "今日摘要", icon: "📊", insert: "今日工作摘要" },
-  { label: "功能帮助", icon: "💡", insert: "帮助" },
+  { label: "新建患者", iconKey: "personAdd", insert: "新建患者：" },
+  { label: "查询患者", iconKey: "search", insert: "查询患者：" },
+  { label: "患者列表", iconKey: "people", insert: "患者列表" },
+  { label: "补充记录", iconKey: "noteAdd", insert: "补充记录：" },
+  { label: "修正上条", iconKey: "edit", insert: "刚才写错了，应该是" },
+  { label: "导出PDF", iconKey: "download", insert: "导出病历PDF：" },
+  { label: "今日任务", iconKey: "assignment", insert: "今日任务" },
+  { label: "今日摘要", iconKey: "assessment", insert: "今日工作摘要" },
 ];
 
 export const SPECIALTY_OPTIONS = [
@@ -121,42 +109,5 @@ export const SPECIALTY_OPTIONS = [
   "骨科", "妇产科", "儿科", "眼科", "耳鼻喉科",
   "口腔科", "皮肤科", "精神科", "肿瘤科", "急诊科",
   "重症医学科", "康复科", "中医科", "全科医学科",
-];
-
-export const PATIENT_MENU_ITEMS = [
-  {
-    key: "visit",
-    label: "就诊记录",
-    icon: CalendarMonthOutlinedIcon,
-    iconColor: "#07C160",
-    iconBg: "#e8f5e9",
-    recordTypes: ["visit", "dictation", "interview_summary"],
-  },
-  {
-    key: "prescription",
-    label: "处方记录",
-    icon: DescriptionOutlinedIcon,
-    iconColor: "#e8833a",
-    iconBg: "#fff3e0",
-    recordTypes: ["visit"],
-    filterTag: "处方",
-  },
-  {
-    key: "lab",
-    label: "检验报告",
-    icon: ScienceOutlinedIcon,
-    iconColor: "#1890ff",
-    iconBg: "#e3f2fd",
-    recordTypes: ["lab"],
-  },
-  {
-    key: "allergy",
-    label: "过敏信息",
-    icon: WarningAmberOutlinedIcon,
-    iconColor: "#e74c3c",
-    iconBg: "#fef2f2",
-    recordTypes: [],
-    filterTag: "过敏",
-  },
 ];
 

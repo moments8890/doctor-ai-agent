@@ -21,8 +21,8 @@ Page({
       return;
     }
 
-    // Strip /api (or any path) from apiBase to get the web root.
-    const webBase = app.globalData.apiBase.replace(/\/api.*$/, "");
+    // Use apiBase as the web root (same origin serves both API and frontend).
+    const webBase = app.globalData.apiBase;
     const qs = [
       "token="     + encodeURIComponent(token),
       "doctor_id=" + encodeURIComponent(doctorId),

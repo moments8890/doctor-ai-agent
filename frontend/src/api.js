@@ -69,6 +69,9 @@ async function request(url, options = {}) {
   }
 }
 
+let _authExpiredHandler = null;
+export function onAuthExpired(handler) { _authExpiredHandler = handler; }
+
 let _adminToken = "";
 let _adminAuthErrorHandler = null;
 

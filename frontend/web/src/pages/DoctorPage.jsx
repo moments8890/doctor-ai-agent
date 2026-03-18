@@ -8,9 +8,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-  Badge, Box,
+  Alert, Badge, Box,
   Button, Dialog, DialogActions, DialogContent, DialogTitle,
-  Stack, TextField, Typography,
+  Snackbar, Stack, TextField, Typography,
 } from "@mui/material";
 import BottomNavigationMui from "@mui/material/BottomNavigation";
 import BottomNavigationActionMui from "@mui/material/BottomNavigationAction";
@@ -18,7 +18,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import {
-  getTasks,
+  getTasks, getPendingRecord, confirmPendingRecord, abandonPendingRecord,
   getDoctorProfile, updateDoctorProfile, getWorkingContext,
 } from "../api";
 import { useDoctorStore } from "../store/doctorStore";
@@ -30,6 +30,44 @@ import SettingsSection from "./doctor/SettingsSection";
 import WorkingContextHeader from "./doctor/WorkingContextHeader";
 import ErrorBoundary from "../components/ErrorBoundary";
 
+function PendingRecordBanner({ isMobile, pendingRecord, onConfirm, onAbandon }) {
+  if (!pendingRecord) return null;
+  const preview = pendingRecord.content_preview || "";
+  const expiry = pendingRecord.expires_at
+    ? (() => { const mins = Math.max(0, Math.round((new Date(pendingRecord.expires_at) - Date.now()) / 60000)); return { mins, urgent: mins <= 2 }; })()
+    : null;
+
+  if (isMobile) {
+    return (
+      <Box sx={{ px: 2, py: 1.2, backgroundColor: "#fff7e6", borderBottom: "1px solid #ffd666", display: "flex", alignItems: "center", gap: 1 }}>
+        <Typography sx={{ fontSize: 13, color: "#d46b08", flex: 1 }}>
+          待确认：{pendingRecord.patient_name || "未关联"} — {preview.slice(0, 20)}{preview.length > 20 ? "…" : ""}
+          {expiry && <span style={{ marginLeft: 4, fontWeight: 700, color: expiry.urgent ? "#cf1322" : "#d46b08" }}>({expiry.mins}分钟)</span>}
+        </Typography>
+        <Box onClick={onConfirm} sx={{ px: 1.5, py: 0.4, borderRadius: "12px", bgcolor: "#07C160", cursor: "pointer", "&:active": { opacity: 0.8 } }}>
+          <Typography sx={{ color: "#fff", fontSize: 12, fontWeight: 600 }}>确认</Typography>
+        </Box>
+        <Box onClick={onAbandon} sx={{ px: 1.5, py: 0.4, borderRadius: "12px", bgcolor: "#f2f2f2", cursor: "pointer", "&:active": { opacity: 0.8 } }}>
+          <Typography sx={{ color: "#555", fontSize: 12 }}>撤销</Typography>
+        </Box>
+      </Box>
+    );
+  }
+  return (
+    <Box sx={{ mx: 2, mt: 1, px: 2, py: 1, backgroundColor: "#fff7e6", border: "1px solid #ffd666", borderRadius: 1.5, display: "flex", alignItems: "center", gap: 1.5 }}>
+      <Typography sx={{ fontSize: 13, color: "#d46b08", flex: 1 }}>
+        <strong>待确认病历</strong>：{pendingRecord.patient_name || "未关联"} — {preview}
+        {expiry && <span style={{ marginLeft: 8, fontWeight: 700, color: expiry.urgent ? "#cf1322" : "#d46b08" }}>{expiry.mins <= 0 ? "即将过期" : `${expiry.mins}分钟后过期`}</span>}
+      </Typography>
+      <Box onClick={onConfirm} sx={{ px: 2, py: 0.6, borderRadius: "12px", bgcolor: "#07C160", cursor: "pointer", flexShrink: 0, "&:active": { opacity: 0.8 } }}>
+        <Typography sx={{ color: "#fff", fontSize: 13, fontWeight: 600 }}>确认保存</Typography>
+      </Box>
+      <Box onClick={onAbandon} sx={{ px: 2, py: 0.6, borderRadius: "12px", bgcolor: "#f2f2f2", cursor: "pointer", flexShrink: 0, "&:active": { opacity: 0.8 } }}>
+        <Typography sx={{ color: "#555", fontSize: 13 }}>撤销</Typography>
+      </Box>
+    </Box>
+  );
+}
 
 function DesktopSidebar({ activeSection, doctorName, doctorId, navBadge, onNav, onLogout }) {
   return (
@@ -61,7 +99,7 @@ function DesktopSidebar({ activeSection, doctorName, doctorId, navBadge, onNav, 
   );
 }
 
-function MobileBottomNav({ activeSection, pendingTaskCount, onNav }) {
+function MobileBottomNav({ activeSection, pendingTaskCount, pendingRecord, onNav }) {
   return (
     <Box sx={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 10, borderTop: "0.5px solid #d9d9d9", bgcolor: "#f7f7f7" }}>
       <BottomNavigationMui value={activeSection} onChange={(_, val) => onNav(val)}
@@ -69,6 +107,7 @@ function MobileBottomNav({ activeSection, pendingTaskCount, onNav }) {
         {NAV.map((item) => (
           <BottomNavigationActionMui key={item.key} label={item.label} value={item.key} showLabel
             icon={item.key === "tasks" && pendingTaskCount > 0 ? <Badge badgeContent={pendingTaskCount} color="error">{item.icon}</Badge>
+              : item.key === "chat" && pendingRecord ? <Badge variant="dot" color="warning">{item.icon}</Badge>
               : item.icon}
             sx={{ minWidth: 0, "& .MuiBottomNavigationAction-label": { fontSize: 10 } }} />
         ))}
@@ -95,7 +134,7 @@ function OnboardingDialog({ open, name, saving, onChange, onSubmit }) {
   );
 }
 
-function SectionContent({ activeSection, doctorId, navigate, chatInsertText, setChatInsertText, chatAutoSendText, setChatAutoSendText, chatAutoSendConsumedRef, patientRefreshKey, setPatientRefreshKey, handleLogout, onContextUpdate }) {
+function SectionContent({ activeSection, doctorId, navigate, chatInsertText, setChatInsertText, chatAutoSendText, setChatAutoSendText, chatAutoSendConsumedRef, patientRefreshKey, setPatientRefreshKey, handleLogout, onContextCleared }) {
   return (
     <Box sx={{ flex: 1, overflow: "hidden" }}>
       {activeSection === "chat" && (
@@ -105,7 +144,7 @@ function SectionContent({ activeSection, doctorId, navigate, chatInsertText, set
             onPatientCreated={() => setPatientRefreshKey((k) => k + 1)}
             autoSendText={chatAutoSendText !== chatAutoSendConsumedRef.current ? chatAutoSendText : ""}
             onAutoSendConsumed={() => { chatAutoSendConsumedRef.current = chatAutoSendText; setChatAutoSendText(""); }}
-            onContextUpdate={onContextUpdate} />
+            onContextCleared={onContextCleared} />
         </ErrorBoundary>
       )}
       {activeSection === "patients" && (
@@ -124,7 +163,10 @@ function SectionContent({ activeSection, doctorId, navigate, chatInsertText, set
 
 function useDoctorPageState({ doctorId, accessToken, setAuth }) {
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
-  const [currentPatient, setCurrentPatient] = useState(null);
+  const [pendingRecord, setPendingRecord] = useState(null);
+  const [workingContext, setWorkingContext] = useState(null);
+  const [confirmSnackbar, setConfirmSnackbar] = useState(false);
+  const [pendingError, setPendingError] = useState("");
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardName, setOnboardName] = useState("");
   const [onboardSaving, setOnboardSaving] = useState(false);
@@ -138,9 +180,18 @@ function useDoctorPageState({ doctorId, accessToken, setAuth }) {
     getTasks(doctorId, "pending").then((d) => setPendingTaskCount((Array.isArray(d) ? d : (d.items || [])).length)).catch(() => {});
   }, [doctorId]);
   useEffect(() => {
-    getWorkingContext(doctorId).then((ctx) => {
-      if (ctx?.current_patient?.name) setCurrentPatient(ctx.current_patient.name);
-    }).catch(() => {});
+    if (!doctorId) return;
+    const fetch = () => getPendingRecord(doctorId).then((d) => setPendingRecord(d || null)).catch(() => {});
+    fetch(); const id = setInterval(fetch, 30000); return () => clearInterval(id);
+  }, [doctorId]);
+
+  // Working context: poll every 15 seconds for header state
+  useEffect(() => {
+    if (!doctorId) return;
+    const fetch = () => getWorkingContext(doctorId).then((d) => setWorkingContext(d || null)).catch(() => {});
+    fetch();
+    const id = setInterval(fetch, 15000);
+    return () => clearInterval(id);
   }, [doctorId]);
 
   async function handleOnboardSubmit() {
@@ -149,8 +200,15 @@ function useDoctorPageState({ doctorId, accessToken, setAuth }) {
     try { await updateDoctorProfile(doctorId, { name: onboardName.trim() }); setAuth(doctorId, onboardName.trim(), accessToken); setShowOnboarding(false); }
     catch {} finally { setOnboardSaving(false); }
   }
+  async function handleConfirmPending() {
+    try { await confirmPendingRecord(doctorId); setPendingRecord(null); setConfirmSnackbar(true); } catch {}
+  }
+  async function handleAbandonPending() {
+    try { await abandonPendingRecord(doctorId); setPendingRecord(null); setPendingError(""); }
+    catch (e) { setPendingError(e.message || "操作失败，请重试"); }
+  }
 
-  return { pendingTaskCount, currentPatient, setCurrentPatient, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit };
+  return { pendingTaskCount, pendingRecord, setPendingRecord, workingContext, setWorkingContext, confirmSnackbar, setConfirmSnackbar, pendingError, setPendingError, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit, handleConfirmPending, handleAbandonPending };
 }
 
 export default function DoctorPage() {
@@ -164,11 +222,15 @@ export default function DoctorPage() {
   const chatAutoSendConsumedRef = useRef("");
   const [patientRefreshKey, setPatientRefreshKey] = useState(0);
 
-  const { pendingTaskCount, currentPatient, setCurrentPatient, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit } = useDoctorPageState({ doctorId, accessToken, setAuth });
+  const { pendingTaskCount, pendingRecord, setPendingRecord, workingContext, setWorkingContext, confirmSnackbar, setConfirmSnackbar, pendingError, setPendingError, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit, handleConfirmPending, handleAbandonPending } = useDoctorPageState({ doctorId, accessToken, setAuth });
 
   // Default to chat (composer-first). "home" section removed from primary nav.
   const activeSection = patientId ? "patients" : (section || "chat");
 
+  function handleContextCleared() {
+    setPendingRecord(null);
+    setWorkingContext(null);
+  }
   function handleNav(key) { navigate(key === "chat" ? "/doctor/chat" : `/doctor/${key}`); }
   function handleLogout() {
     clearAuth();
@@ -178,12 +240,17 @@ export default function DoctorPage() {
 
   return (
     <Box sx={{ display: "flex", height: "100vh", bgcolor: "#f7f7f7" }}>
-      {!isMobile && <DesktopSidebar activeSection={activeSection} doctorName={doctorName} doctorId={doctorId} navBadge={{ tasks: pendingTaskCount }} onNav={handleNav} onLogout={handleLogout} />}
-      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", pb: isMobile ? "64px" : 0 }}>
-        <WorkingContextHeader currentPatient={currentPatient} isMobile={isMobile} />
-        <SectionContent activeSection={activeSection} doctorId={doctorId} navigate={navigate} chatInsertText={chatInsertText} setChatInsertText={setChatInsertText} chatAutoSendText={chatAutoSendText} setChatAutoSendText={setChatAutoSendText} chatAutoSendConsumedRef={chatAutoSendConsumedRef} patientRefreshKey={patientRefreshKey} setPatientRefreshKey={setPatientRefreshKey} handleLogout={handleLogout} onContextUpdate={({ patientName }) => { if (patientName) setCurrentPatient(patientName); }} />
+      {!isMobile && <DesktopSidebar activeSection={activeSection} doctorName={doctorName} doctorId={doctorId} navBadge={{ tasks: pendingTaskCount, chat: pendingRecord ? 1 : 0 }} onNav={handleNav} onLogout={handleLogout} />}
+      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", pb: isMobile ? "56px" : 0 }}>
+        <WorkingContextHeader context={workingContext} isMobile={isMobile} />
+        {pendingError && <Alert severity="error" sx={{ mx: 2, mt: 1.5, borderRadius: 1.5 }} onClose={() => setPendingError("")}>{pendingError}</Alert>}
+        <PendingRecordBanner isMobile={isMobile} pendingRecord={pendingRecord} onConfirm={handleConfirmPending} onAbandon={handleAbandonPending} />
+        <SectionContent activeSection={activeSection} doctorId={doctorId} navigate={navigate} chatInsertText={chatInsertText} setChatInsertText={setChatInsertText} chatAutoSendText={chatAutoSendText} setChatAutoSendText={setChatAutoSendText} chatAutoSendConsumedRef={chatAutoSendConsumedRef} patientRefreshKey={patientRefreshKey} setPatientRefreshKey={setPatientRefreshKey} handleLogout={handleLogout} onContextCleared={handleContextCleared} />
       </Box>
-      {isMobile && <MobileBottomNav activeSection={activeSection} pendingTaskCount={pendingTaskCount} onNav={handleNav} />}
+      {isMobile && <MobileBottomNav activeSection={activeSection} pendingTaskCount={pendingTaskCount} pendingRecord={pendingRecord} onNav={handleNav} />}
+      <Snackbar open={confirmSnackbar} autoHideDuration={3000} onClose={() => setConfirmSnackbar(false)} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
+        <Alert onClose={() => setConfirmSnackbar(false)} severity="success" sx={{ width: "100%" }}>病历已保存</Alert>
+      </Snackbar>
       <OnboardingDialog open={showOnboarding} name={onboardName} saving={onboardSaving} onChange={setOnboardName} onSubmit={handleOnboardSubmit} />
     </Box>
   );

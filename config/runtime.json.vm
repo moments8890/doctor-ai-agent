@@ -351,12 +351,12 @@
       "description_zh": "微信小程序鉴权与端点默认配置。",
       "settings": {
         "WECHAT_MINI_APP_ID": {
-          "value": "",
+          "value": "wx9667f8091b342fb7",
           "description": "Mini Program appid used by code2session.",
           "description_zh": "code2session 使用的小程序 appid。"
         },
         "WECHAT_MINI_APP_SECRET": {
-          "value": "",
+          "value": "<WECHAT_MINI_APP_SECRET>",
           "description": "Mini Program appsecret used by code2session.",
           "description_zh": "code2session 使用的小程序密钥。"
         },

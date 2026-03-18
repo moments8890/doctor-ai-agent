@@ -19,17 +19,6 @@ export const appTheme = createTheme({
   shape: {
     borderRadius: 4,
   },
-  typography: {
-    fontFamily: "'Noto Sans SC', 'PingFang SC', 'Helvetica Neue', sans-serif",
-    h5: { fontWeight: 500, fontSize: "17px" },
-    h6: { fontWeight: 500, fontSize: "17px" },
-    subtitle1: { fontWeight: 500, fontSize: "15px" },
-    body1: { fontSize: "15px" },
-    body2: { fontSize: "14px" },
-    caption: { fontSize: "12px" },
-    button: { textTransform: "none", fontWeight: 500, fontSize: "14px" },
-  },
-  shadows: Array(25).fill("none"),
   wechat: {
     userBubble: "#95EC69",
     aiBubble: "#ffffff",
@@ -39,6 +28,17 @@ export const appTheme = createTheme({
     borderInput: "#e0e0e0",
     tabBarBorder: "#d9d9d9",
   },
+  typography: {
+    fontFamily: "'Noto Sans SC', 'IBM Plex Sans', 'Segoe UI', sans-serif",
+    h5: { fontWeight: 500, fontSize: "17px" },
+    h6: { fontWeight: 500, fontSize: "17px" },
+    subtitle1: { fontWeight: 500, fontSize: "15px" },
+    body1: { fontSize: "15px" },
+    body2: { fontSize: "14px" },
+    caption: { fontSize: "12px" },
+    button: { textTransform: "none", fontWeight: 500, fontSize: "14px" },
+  },
+  shadows: Array(25).fill("none"),
   components: {
     MuiAppBar: {
       styleOverrides: {
@@ -72,6 +72,9 @@ export const appTheme = createTheme({
         },
         contained: {
           boxShadow: "none",
+          "&:hover": {
+            boxShadow: "none",
+          },
         },
       },
     },
