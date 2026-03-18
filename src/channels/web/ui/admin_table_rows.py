@@ -18,6 +18,7 @@ from db.models import (
     DoctorContext,
     DoctorKnowledgeItem,
     DoctorTask,
+    InterviewSessionDB,
     MedicalRecordDB,
     MedicalRecordExport,
     MedicalRecordVersion,
@@ -56,6 +57,8 @@ async def _rows_doctors(db, doctor_id: Optional[str], limit: int, offset: int) -
         stmt = apply_exclude_test_doctors(stmt, Doctor.doctor_id)
     return [
         {"doctor_id": d.doctor_id, "name": d.name,
+         "department": d.department or "",
+         "accepting_patients": bool(d.accepting_patients) if d.accepting_patients is not None else False,
          "created_at": _fmt_ts(d.created_at), "updated_at": _fmt_ts(d.updated_at)}
         for d in (await db.execute(stmt)).scalars().all()
     ]
@@ -322,6 +325,18 @@ async def _rows_chat_archive(db, doctor_id: Optional[str], limit: int, offset: i
     ]
 
 
+async def _rows_interview_sessions(db, doctor_id: Optional[str], limit: int, offset: int) -> list:
+    stmt = select(InterviewSessionDB).order_by(InterviewSessionDB.created_at.desc()).limit(limit).offset(offset)
+    if doctor_id:
+        stmt = stmt.where(InterviewSessionDB.doctor_id == doctor_id)
+    return [
+        {"id": s.id[:8], "doctor_id": s.doctor_id, "patient_id": s.patient_id,
+         "status": s.status, "turn_count": s.turn_count,
+         "created_at": _fmt_ts(s.created_at), "updated_at": _fmt_ts(s.updated_at)}
+        for s in (await db.execute(stmt)).scalars().all()
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Main dispatcher
 # ---------------------------------------------------------------------------
@@ -364,6 +379,8 @@ async def _fetch_table_rows(
         return await _rows_prompt_versions(db, limit, offset)
     if table_key == "chat_archive":
         return await _rows_chat_archive(db, doctor_id, limit, offset)
+    if table_key == "interview_sessions":
+        return await _rows_interview_sessions(db, doctor_id, limit, offset)
     raise HTTPException(status_code=404, detail="Unknown table")
 
 
