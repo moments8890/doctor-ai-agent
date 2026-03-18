@@ -39,6 +39,7 @@ from starlette.responses import Response
 from channels.web.chat import router as records_router
 from channels.wechat.router import router as wechat_router
 from channels.web.auth import router as auth_router
+from channels.web.unified_auth_routes import router as unified_auth_router
 from channels.web.ui import router as ui_router
 from channels.web.tasks import router as tasks_router
 from channels.web.export import router as export_router
@@ -672,6 +673,7 @@ async def trace_requests_middleware(request: Request, call_next):
 app.include_router(records_router)
 app.include_router(wechat_router)
 app.include_router(auth_router)
+app.include_router(unified_auth_router)
 app.include_router(ui_router)
 app.include_router(tasks_router)
 app.include_router(export_router)
