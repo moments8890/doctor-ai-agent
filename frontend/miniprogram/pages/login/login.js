@@ -6,7 +6,6 @@ Page({
     inviteCode: "",
     loading: false,
     error: "",
-    _wxJsCode: "",
   },
 
   async onLoad() {
@@ -57,7 +56,17 @@ Page({
     if (this.data.loading) return;
     this.setData({ loading: true, error: "" });
     try {
-      const auth = await loginWithInviteCode(code, this.data._wxJsCode || "");
+      // Get a fresh wx.login code for openid linking (previous code was consumed by code2session)
+      let jsCode = "";
+      try {
+        const loginRes = await new Promise((resolve, reject) =>
+          wx.login({ success: resolve, fail: reject })
+        );
+        jsCode = loginRes.code || "";
+      } catch {
+        // wx.login failed — proceed without linking, openid can be linked on next login
+      }
+      const auth = await loginWithInviteCode(code, jsCode);
       this._saveAuth(auth);
     } catch (err) {
       const msg = (err && err.message) || "";
@@ -80,7 +89,6 @@ Page({
 
       if (auth.doctor_id && auth.doctor_id.startsWith("wxmini_")) {
         this.setData({
-          _wxJsCode: loginRes.code,
           mode: "invite",
           error: "",
           loading: false,
