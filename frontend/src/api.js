@@ -510,6 +510,11 @@ export async function createTask(doctorId, { taskType, title, dueAt, patientId, 
   });
 }
 
+export async function getTaskRecord(recordId, doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/tasks/record/${recordId}?${qs.toString()}`);
+}
+
 export async function getPendingRecord(doctorId) {
   const qs = new URLSearchParams({ doctor_id: doctorId });
   return request(`/api/manage/pending-record?${qs.toString()}`);

@@ -216,6 +216,54 @@ async def _postpone_task_for_doctor(task_id: int, doctor_id: str, body: TaskDueU
     return TaskOut.from_orm(task)
 
 
+@router.get("/record/{record_id}")
+async def get_task_record(
+    record_id: int,
+    doctor_id: str,
+    authorization: Optional[str] = Header(default=None),
+) -> dict:
+    """Fetch a medical record by ID (for task detail view)."""
+    from db.models import MedicalRecordDB, Patient
+    from sqlalchemy import select
+    from sqlalchemy.orm import joinedload
+
+    resolved_doctor_id = resolve_doctor_id_from_auth_or_fallback(
+        doctor_id, authorization,
+        fallback_env_flag="TASKS_ALLOW_BODY_DOCTOR_ID",
+        default_doctor_id="test_doctor",
+    )
+    async with AsyncSessionLocal() as session:
+        stmt = (
+            select(MedicalRecordDB)
+            .options(joinedload(MedicalRecordDB.patient))
+            .where(
+                MedicalRecordDB.id == record_id,
+                MedicalRecordDB.doctor_id == resolved_doctor_id,
+            )
+        )
+        record = (await session.execute(stmt)).scalar_one_or_none()
+    if record is None:
+        raise HTTPException(status_code=404, detail="Record not found")
+
+    import json
+    tags = []
+    if record.tags:
+        try:
+            tags = json.loads(record.tags)
+        except Exception:
+            pass
+
+    return {
+        "id": record.id,
+        "patient_name": record.patient.name if record.patient else None,
+        "record_type": record.record_type or "visit",
+        "content": record.content,
+        "tags": tags,
+        "needs_review": bool(record.needs_review) if record.needs_review is not None else False,
+        "created_at": record.created_at.isoformat() if record.created_at else None,
+    }
+
+
 @router.post("/dev/run-notifier")
 async def dev_run_notifier(
     doctor_id: str,

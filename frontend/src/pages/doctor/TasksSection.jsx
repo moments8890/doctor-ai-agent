@@ -16,7 +16,7 @@ import TransferWithinAStationOutlinedIcon from "@mui/icons-material/TransferWith
 import MonitorHeartOutlinedIcon from "@mui/icons-material/MonitorHeartOutlined";
 import EventAvailableOutlinedIcon from "@mui/icons-material/EventAvailableOutlined";
 import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
-import { getTasks, patchTask, postponeTask, createTask, getPatients } from "../../api";
+import { getTasks, patchTask, postponeTask, createTask, getPatients, getTaskRecord } from "../../api";
 import { TASK_TYPE_LABEL } from "./constants";
 
 const SEGMENTS = [
@@ -117,9 +117,26 @@ function SwipeableTaskRow({ children, onSwipeLeft, onSwipeRight }) {
   );
 }
 
-function TaskDetailView({ task, isMobile, onBack, onComplete, onPostpone, onCancel }) {
+function TaskDetailView({ task, doctorId, isMobile, onBack, onComplete, onPostpone, onCancel }) {
   const iconColor = TASK_TYPE_ICON_COLOR[task.task_type] || "#999";
   const TaskIcon = TASK_TYPE_ICON[task.task_type] || AssignmentOutlinedIcon;
+  const [record, setRecord] = useState(null);
+  const [loadingRecord, setLoadingRecord] = useState(false);
+
+  useEffect(() => {
+    if (task.record_id && doctorId) {
+      setLoadingRecord(true);
+      getTaskRecord(task.record_id, doctorId)
+        .then(setRecord)
+        .catch(() => {})
+        .finally(() => setLoadingRecord(false));
+    }
+  }, [task.record_id, doctorId]);
+
+  const RECORD_TYPE_LABEL = {
+    visit: "门诊记录", dictation: "语音记录", import: "导入记录", interview_summary: "预问诊记录",
+  };
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
       <Box sx={{ display: "flex", alignItems: "center", height: 48, px: 1, bgcolor: "#fff", borderBottom: "1px solid #e5e5e5", flexShrink: 0 }}>
@@ -129,6 +146,7 @@ function TaskDetailView({ task, isMobile, onBack, onComplete, onPostpone, onCanc
         <Typography sx={{ flex: 1, textAlign: "center", fontWeight: 600, fontSize: 16, mr: 5 }}>任务详情</Typography>
       </Box>
       <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
+        {/* Task header */}
         <Box sx={{ bgcolor: "#fff", borderRadius: 2, p: 2.5, mb: 1.5 }}>
           <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
             <Box sx={{ width: 44, height: 44, borderRadius: "10px", bgcolor: iconColor, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -154,6 +172,49 @@ function TaskDetailView({ task, isMobile, onBack, onComplete, onPostpone, onCanc
           )}
           <Typography sx={{ fontSize: 13, color: "#999" }}>状态：{task.status === "pending" ? "待处理" : task.status === "completed" ? "已完成" : task.status === "cancelled" ? "已取消" : task.status}</Typography>
         </Box>
+
+        {/* Linked record content */}
+        {loadingRecord && (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
+            <CircularProgress size={24} />
+          </Box>
+        )}
+        {record && (
+          <Box sx={{ bgcolor: "#fff", borderRadius: 2, p: 2.5, mb: 1.5 }}>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
+              <Typography sx={{ fontWeight: 600, fontSize: 15 }}>
+                {RECORD_TYPE_LABEL[record.record_type] || "病历记录"}
+              </Typography>
+              {record.needs_review && (
+                <Typography sx={{ fontSize: 12, color: "#fff", bgcolor: "#FA5151", px: 1, py: 0.3, borderRadius: 1 }}>
+                  待审阅
+                </Typography>
+              )}
+            </Stack>
+            {record.patient_name && (
+              <Typography sx={{ fontSize: 13, color: "#999", mb: 1 }}>患者：{record.patient_name}</Typography>
+            )}
+            <Typography sx={{ fontSize: 14, color: "#333", lineHeight: 1.8, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+              {record.content || "（内容为空）"}
+            </Typography>
+            {record.tags && record.tags.length > 0 && (
+              <Box sx={{ mt: 1.5, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                {record.tags.map((tag, i) => (
+                  <Typography key={i} sx={{ fontSize: 12, color: "#07C160", bgcolor: "#e8f5e9", px: 1, py: 0.2, borderRadius: 1 }}>
+                    {tag}
+                  </Typography>
+                ))}
+              </Box>
+            )}
+            {record.created_at && (
+              <Typography sx={{ fontSize: 12, color: "#bbb", mt: 1 }}>
+                创建于 {record.created_at.slice(0, 16).replace("T", " ")}
+              </Typography>
+            )}
+          </Box>
+        )}
+
+        {/* Actions */}
         {task.status === "pending" && (
           <Stack spacing={1}>
             <Box onClick={() => { onComplete(task.id, "completed"); onBack(); }}
@@ -397,7 +458,7 @@ export default function TasksSection({ doctorId }) {
 
   if (detailTask) {
     return (
-      <TaskDetailView task={detailTask} isMobile={isMobile}
+      <TaskDetailView task={detailTask} doctorId={doctorId} isMobile={isMobile}
         onBack={() => { setDetailTask(null); load(); }}
         onComplete={handleComplete}
         onPostpone={handlePostpone}

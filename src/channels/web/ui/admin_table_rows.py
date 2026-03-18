@@ -79,6 +79,8 @@ async def _rows_patients(
     return [
         {"id": p.id, "doctor_id": p.doctor_id, "name": p.name,
          "gender": p.gender, "year_of_birth": p.year_of_birth,
+         "phone": p.phone or "",
+         "primary_category": p.primary_category or "",
          "created_at": _fmt_ts(p.created_at)}
         for p in (await db.execute(stmt)).scalars().all()
     ]
@@ -105,6 +107,8 @@ async def _rows_medical_records(
         {"id": r.id, "patient_id": r.patient_id, "doctor_id": r.doctor_id,
          "patient_name": pname, "record_type": r.record_type or "visit",
          "content": r.content, "tags": _parse_tags(r.tags),
+         "needs_review": bool(r.needs_review) if r.needs_review is not None else False,
+         "has_structured": bool(r.structured),
          "created_at": _fmt_ts(r.created_at)}
         for r, pname in (await db.execute(stmt)).all()
     ]
