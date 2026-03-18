@@ -169,14 +169,7 @@ function renderCellContent(value) {
     return <span style={{ color: "#b0bec5" }}>—</span>;
   }
   if (typeof value === "boolean") {
-    return (
-      <Chip
-        label={value ? "是" : "否"}
-        size="small"
-        color={value ? "success" : "default"}
-        sx={{ height: 18, fontSize: 10, fontFamily: "inherit" }}
-      />
-    );
+    return value ? "是" : "否";
   }
   const str = typeof value === "object" ? JSON.stringify(value) : String(value);
   // Translate known enum values
