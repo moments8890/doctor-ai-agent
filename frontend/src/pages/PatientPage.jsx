@@ -52,6 +52,7 @@ import {
 const STORAGE_KEY = "patient_portal_token";
 const STORAGE_NAME_KEY = "patient_portal_name";
 const STORAGE_DOCTOR_KEY = "patient_portal_doctor_id";
+const STORAGE_DOCTOR_NAME_KEY = "patient_portal_doctor_name";
 
 const RECORD_TYPE_LABEL = {
   visit: "门诊记录", dictation: "语音记录", import: "导入记录", interview_summary: "预问诊",
@@ -94,8 +95,8 @@ function LoginView({ onLogin }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (mode === "register") listDoctors().then(setDoctors).catch(() => {});
-  }, [mode]);
+    listDoctors().then(setDoctors).catch(() => {});
+  }, []);
 
   async function handleLogin(e) {
     e.preventDefault();
@@ -104,7 +105,9 @@ function LoginView({ onLogin }) {
     try {
       const data = await patientLogin(phone.trim(), parseInt(yob), null);
       if (data.needs_doctor_selection) { setError("您在多位医生处有记录，请先注册选择医生。"); setMode("register"); return; }
-      onLogin(data.token, data.patient_name, data.doctor_id);
+      // Look up doctor name from list if available
+      const docName = doctors.find(d => d.doctor_id === data.doctor_id)?.name || "";
+      onLogin(data.token, data.patient_name, data.doctor_id, docName);
     } catch (err) { setError(err.message || "登录失败"); }
     finally { setLoading(false); }
   }
@@ -115,7 +118,8 @@ function LoginView({ onLogin }) {
     setLoading(true); setError("");
     try {
       const data = await patientRegister(doctorId, name.trim(), gender || null, parseInt(yob), phone.trim());
-      onLogin(data.token, data.patient_name, doctorId);
+      const docName = doctors.find(d => d.doctor_id === doctorId)?.name || "";
+      onLogin(data.token, data.patient_name, doctorId, docName);
     } catch (err) { setError(err.message || "注册失败"); }
     finally { setLoading(false); }
   }
@@ -170,9 +174,9 @@ function LoginView({ onLogin }) {
 // ChatTab — AI 健康助手通用对话
 // ===========================================================================
 
-function ChatTab({ token, onLogout }) {
+function ChatTab({ token, doctorName, onLogout }) {
   const [messages, setMessages] = useState([
-    { role: "assistant", content: "您好！我是您的AI健康助手。您可以向我咨询健康问题，或切换到「病历」tab新建病历。" },
+    { role: "assistant", content: `您好！我是${doctorName || "医生"}的AI助手。有什么健康问题可以问我，或者切换到「病历」新建病历。` },
   ]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -468,23 +472,28 @@ const NAV_TABS = [
 export default function PatientPage() {
   const [token, setToken] = useState(() => localStorage.getItem(STORAGE_KEY) || "");
   const [patientName, setPatientName] = useState(() => localStorage.getItem(STORAGE_NAME_KEY) || "");
+  const [doctorName, setDoctorName] = useState(() => localStorage.getItem(STORAGE_DOCTOR_NAME_KEY) || "");
   const [tab, setTab] = useState("chat");
   const [inInterview, setInInterview] = useState(false);
 
-  function handleLogin(newToken, name, doctorId) {
+  function handleLogin(newToken, name, doctorId, docName) {
     localStorage.setItem(STORAGE_KEY, newToken);
     localStorage.setItem(STORAGE_NAME_KEY, name);
     if (doctorId) localStorage.setItem(STORAGE_DOCTOR_KEY, doctorId);
+    if (docName) localStorage.setItem(STORAGE_DOCTOR_NAME_KEY, docName);
     setToken(newToken);
     setPatientName(name);
+    setDoctorName(docName || "");
   }
 
   function handleLogout() {
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(STORAGE_NAME_KEY);
     localStorage.removeItem(STORAGE_DOCTOR_KEY);
+    localStorage.removeItem(STORAGE_DOCTOR_NAME_KEY);
     setToken("");
     setPatientName("");
+    setDoctorName("");
   }
 
   if (!token) return <LoginView onLogin={handleLogin} />;
@@ -510,7 +519,7 @@ export default function PatientPage() {
       </Box>
 
       {/* Content */}
-      {tab === "chat" && <ChatTab token={token} onLogout={handleLogout} />}
+      {tab === "chat" && <ChatTab token={token} doctorName={doctorName} onLogout={handleLogout} />}
       {tab === "records" && (
         <RecordsTab token={token} onLogout={handleLogout} onNewRecord={() => setInInterview(true)} />
       )}
