@@ -172,7 +172,7 @@ function LoginView({ onLogin }) {
 
 function ChatTab({ token, onLogout }) {
   const [messages, setMessages] = useState([
-    { role: "assistant", content: "您好！我是您的 AI 健康助手。有什么可以帮您的吗？" },
+    { role: "assistant", content: "您好！我是您的AI健康助手。您可以向我咨询健康问题，或切换到「病历」tab新建病历。" },
   ]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);

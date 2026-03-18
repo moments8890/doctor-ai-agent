@@ -29,7 +29,18 @@ from utils.log import log
 
 router = APIRouter(prefix="/api/patient/interview", tags=["patient-interview"])
 
-_GREETING = "您好！我是您的预问诊助手。请问您有什么不舒服？"
+
+async def _get_doctor_name(doctor_id: str) -> str:
+    """Look up doctor display name."""
+    from db.engine import AsyncSessionLocal
+    from db.models import Doctor
+    from sqlalchemy import select
+
+    async with AsyncSessionLocal() as db:
+        doctor = (await db.execute(
+            select(Doctor).where(Doctor.doctor_id == doctor_id)
+        )).scalar_one_or_none()
+    return (doctor.name if doctor else None) or "医生"
 
 
 @router.post("/start")
@@ -38,13 +49,14 @@ async def start_interview(
 ):
     """Create or resume an interview session."""
     patient = await _authenticate_patient(x_patient_token)
+    doctor_name = await _get_doctor_name(patient.doctor_id)
 
     # Check for existing active session
     active = await get_active_session(patient.id, patient.doctor_id)
     if active:
         return {
             "session_id": active.id,
-            "reply": "欢迎回来！我们继续之前的问诊。",
+            "reply": f"欢迎回来！我们继续为{doctor_name}医生整理您的病情信息。",
             "collected": active.collected,
             "progress": {"filled": count_filled(active.collected), "total": 7},
             "status": active.status,
@@ -54,7 +66,7 @@ async def start_interview(
     session = await create_session(patient.doctor_id, patient.id)
     return {
         "session_id": session.id,
-        "reply": _GREETING,
+        "reply": f"您好！我是{doctor_name}医生的AI助手。请描述您的症状，我来帮您整理病历信息。",
         "collected": {},
         "progress": {"filled": 0, "total": 7},
         "status": "interviewing",
