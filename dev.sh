@@ -771,11 +771,10 @@ fi
 if curl -sf "$OLLAMA_TAGS_URL" &>/dev/null; then
   ok "Ollama endpoint reachable: $OLLAMA_TAGS_URL"
 else
-  fail "Ollama endpoint is not reachable: $OLLAMA_TAGS_URL"
-  exit 1
+  warn "Ollama endpoint not reachable: $OLLAMA_TAGS_URL (LLM features will be unavailable)"
 fi
 
-if curl -sf "$OLLAMA_TAGS_URL" | grep -q "${OLLAMA_MODEL%%:*}"; then
+if curl -sf "$OLLAMA_TAGS_URL" 2>/dev/null | grep -q "${OLLAMA_MODEL%%:*}"; then
   ok "Model '$OLLAMA_MODEL' available on configured endpoint"
 else
   if [[ "$OLLAMA_HOST" == "localhost" || "$OLLAMA_HOST" == "127.0.0.1" ]]; then
