@@ -4,8 +4,13 @@ from __future__ import annotations
 from typing import Any, Dict, Optional
 
 from langchain_core.tools import tool
+from pydantic import BaseModel, Field
 
 from agent.identity import get_current_identity
+
+
+class AdvanceInterviewInput(BaseModel):
+    answer: str = Field(description="患者本轮回答的原文，如'我头疼三天了'、'左边太阳穴'。")
 
 
 async def _get_patient(patient_id: int) -> Optional[Any]:
@@ -29,10 +34,10 @@ async def _get_or_create_session(patient_id: int, doctor_id: str) -> Any:
     return session
 
 
-@tool
+@tool(args_schema=AdvanceInterviewInput)
 async def advance_interview(answer: str) -> Dict[str, Any]:
-    """推进患者预问诊流程。提取临床信息，推进状态机，返回下一个问题。
-    当患者提供症状、病史等临床信息时调用此工具。"""
+    """推进预问诊流程。将患者回答传入，系统提取临床信息并返回下一个问题。
+    当患者提供症状、病史、用药等临床信息时调用。闲聊或与问诊无关的消息不要调用。"""
     from domain.patients.interview_turn import interview_turn
 
     patient_id = int(get_current_identity())
