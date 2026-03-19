@@ -63,8 +63,8 @@ async def handle_turn(text: str, role: str, identity: str) -> str:
     agent = await get_or_create_agent(identity, role)
     set_current_identity(identity)
 
-    # Fast path (0 LLM)
-    fast = await _try_fast_path(text, identity)
+    # Fast path (0 LLM) — doctor only; patients always go through agent
+    fast = await _try_fast_path(text, identity) if role == "doctor" else None
     if fast:
         agent._add_turn(text, fast)
         try:

@@ -174,16 +174,26 @@ async def _call_interview_llm(
     _tag = f"[interview:{provider_name}:{model_name}]"
     log(f"{_tag} turn request")
 
+    # Some providers (Groq Qwen) fail with response_format=json_object
+    # due to <think> tokens. Use it only for providers that support it cleanly.
+    extra_kwargs = {}
+    if provider_name in ("deepseek", "openai"):
+        extra_kwargs["response_format"] = {"type": "json_object"}
+
     completion = await client.chat.completions.create(
         model=model_name,
         messages=messages,
         temperature=0.3,
-        response_format={"type": "json_object"},
         max_tokens=500,
+        **extra_kwargs,
     )
 
     raw = completion.choices[0].message.content or ""
     log(f"{_tag} response: {raw[:200]}")
+
+    # Strip <think>...</think> tags if present (Qwen3 thinking mode)
+    import re as _re
+    raw = _re.sub(r"<think>.*?</think>", "", raw, flags=_re.DOTALL).strip()
 
     data = json.loads(raw)
     return {
