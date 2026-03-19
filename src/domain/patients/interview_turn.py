@@ -7,9 +7,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from openai import AsyncOpenAI
-
-from infra.llm.client import _PROVIDERS
 from domain.patients.completeness import (
     TOTAL_FIELDS,
     check_completeness,
@@ -157,41 +154,27 @@ async def _call_interview_llm(
     for turn in conversation[-20:]:
         messages.append({"role": turn.get("role", "user"), "content": turn.get("content", "")})
 
-    provider_name = os.environ.get("CONVERSATION_LLM") or os.environ.get("ROUTING_LLM", "deepseek")
-    provider = _PROVIDERS.get(provider_name)
-    if provider is None:
-        provider_name = "deepseek"
-        provider = _PROVIDERS["deepseek"]
+    # Use the same LangChain LLM as the agent — handles provider-specific
+    # quirks (Groq <think> tokens, DeepSeek reasoning_content) correctly.
+    from agent.setup import get_llm
+    from langchain_core.messages import HumanMessage, SystemMessage
 
-    client = AsyncOpenAI(
-        base_url=provider["base_url"],
-        api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
-        timeout=float(os.environ.get("INTERVIEW_LLM_TIMEOUT", "30")),
-        max_retries=0,
-    )
-
-    model_name = provider.get("model", "deepseek-chat")
-    _tag = f"[interview:{provider_name}:{model_name}]"
+    llm = get_llm()
+    _tag = f"[interview:{type(llm).__name__}]"
     log(f"{_tag} turn request")
 
-    # Some providers (Groq Qwen) fail with response_format=json_object
-    # due to <think> tokens. Use it only for providers that support it cleanly.
-    extra_kwargs = {}
-    if provider_name in ("deepseek", "openai"):
-        extra_kwargs["response_format"] = {"type": "json_object"}
+    lc_messages = []
+    for m in messages:
+        if m["role"] == "system":
+            lc_messages.append(SystemMessage(content=m["content"]))
+        else:
+            lc_messages.append(HumanMessage(content=m["content"]))
 
-    completion = await client.chat.completions.create(
-        model=model_name,
-        messages=messages,
-        temperature=0.3,
-        max_tokens=500,
-        **extra_kwargs,
-    )
-
-    raw = completion.choices[0].message.content or ""
+    response = await llm.ainvoke(lc_messages)
+    raw = response.content or ""
     log(f"{_tag} response: {raw[:200]}")
 
-    # Strip <think>...</think> tags if present (Qwen3 thinking mode)
+    # Strip <think>...</think> tags if any slip through
     import re as _re
     raw = _re.sub(r"<think>.*?</think>", "", raw, flags=_re.DOTALL).strip()
 
