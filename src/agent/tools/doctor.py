@@ -433,12 +433,11 @@ async def search_knowledge(
 # ── Patient search tools ─────────────────────────────────────────────
 
 
-@tool
+@tool(args_schema=SearchPatientsInput)
 async def search_patients(
     query: str,
 ) -> Dict[str, Any]:
-    """按条件搜索患者。支持姓名、性别、年龄等自然语言查询。
-    例如："60岁以上的女性患者"、"姓张的患者"。"""
+    """按条件搜索患者。支持姓名、性别、年龄等自然语言查询。"""
     doctor_id = get_current_identity()
     try:
         from domain.patients.nl_search import extract_criteria
@@ -476,11 +475,11 @@ async def search_patients(
 # ── Patient timeline tool ────────────────────────────────────────────
 
 
-@tool
+@tool(args_schema=GetPatientTimelineInput)
 async def get_patient_timeline(
     patient_name: str,
 ) -> Dict[str, Any]:
-    """获取患者的完整就诊时间线，包括病历、任务、随访等。"""
+    """获取患者的完整就诊时间线，按时间排列病历、任务、随访记录。"""
     doctor_id = get_current_identity()
     resolved = await resolve(patient_name, doctor_id)
     if "status" in resolved:
@@ -504,11 +503,11 @@ async def get_patient_timeline(
 # ── Task management tools ────────────────────────────────────────────
 
 
-@tool
+@tool(args_schema=CompleteTaskInput)
 async def complete_task(
     task_id: int,
 ) -> Dict[str, Any]:
-    """将任务标记为已完成。"""
+    """将指定任务标记为已完成。需要先通过 list_tasks 获取任务ID。"""
     doctor_id = get_current_identity()
     try:
         from db.crud.tasks import update_task_status
