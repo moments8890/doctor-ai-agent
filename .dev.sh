@@ -168,8 +168,19 @@ setup_env() {
     fi
 }
 
+# ── Find available port ────────────────────────────────────────
+find_available_port() {
+    local port="$1"
+    while lsof -iTCP:"$port" -sTCP:LISTEN &>/dev/null; do
+        warn "Port $port in use, trying $((port + 1))"
+        port=$((port + 1))
+    done
+    echo "$port"
+}
+
 # ── Backend ───────────────────────────────────────────────────
 start_backend() {
+    PORT=$(find_available_port "$PORT")
     echo ""
     echo "Starting backend on :$PORT ..."
     cd "$APP_DIR"
@@ -195,6 +206,7 @@ start_frontend() {
         echo "Installing frontend dependencies..."
         (cd "$FRONTEND_DIR" && npm install)
     fi
+    FE_PORT=$(find_available_port "$FE_PORT")
     echo "Starting frontend on :$FE_PORT ..."
     (cd "$FRONTEND_DIR" && npx vite --host 127.0.0.1 --port "$FE_PORT") &
     FE_PID=$!
