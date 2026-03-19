@@ -312,14 +312,15 @@ async def list_tasks(status: Optional[str] = None) -> Dict[str, Any]:
 # ── Write tools ──────────────────────────────────────────────────────
 
 
-@tool
+@tool(args_schema=CreateRecordInput)
 async def create_record(
     patient_name: str,
     gender: Optional[str] = None,
     age: Optional[int] = None,
 ) -> Dict[str, Any]:
-    """为患者创建病历。收集对话中的临床信息，结构化后生成病历预览。
-    医生确认后才会永久保存。如果患者不存在会自动创建。"""
+    """为患者创建病历。自动从对话历史提取临床信息并结构化。
+    只需传入患者姓名，临床内容无需作为参数传入（系统自动采集）。
+    返回病历预览，医生说"确认"后才永久保存。患者不存在会自动创建。"""
     doctor_id = get_current_identity()
     resolved = await resolve(patient_name, doctor_id, auto_create=True, gender=gender, age=age)
     if "status" in resolved:
@@ -331,13 +332,13 @@ async def create_record(
     return truncate_result(result)
 
 
-@tool
+@tool(args_schema=UpdateRecordInput)
 async def update_record(
     instruction: str,
     patient_name: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """按医生指示修改现有病历。返回修改预览，医生确认后才会保存。
-    如果患者不存在会自动创建。"""
+    """按医生指示修改患者最近一条病历。instruction 传入修改内容（如'血压改为130/85'）。
+    返回修改预览，医生说"确认"后才保存。"""
     doctor_id = get_current_identity()
     resolved = await resolve(patient_name, doctor_id, auto_create=True)
     if "status" in resolved:
@@ -349,7 +350,7 @@ async def update_record(
     return truncate_result(result)
 
 
-@tool
+@tool(args_schema=CreateTaskInput)
 async def create_task(
     patient_name: str,
     title: str,
@@ -358,7 +359,7 @@ async def create_task(
     scheduled_for: Optional[str] = None,
     remind_at: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """为患者创建任务或预约。scheduled_for 和 remind_at 为 ISO-8601 格式。"""
+    """为患者创建任务或预约。立即生效，无需确认。"""
     doctor_id = get_current_identity()
     resolved = await resolve(patient_name, doctor_id)
     if "status" in resolved:
@@ -373,11 +374,11 @@ async def create_task(
 # ── Export tools ──────────────────────────────────────────────────────
 
 
-@tool
+@tool(args_schema=ExportPdfInput)
 async def export_pdf(
     patient_name: str,
 ) -> Dict[str, Any]:
-    """导出患者病历为PDF文件。返回PDF文件路径。"""
+    """导出患者全部病历为PDF文件。返回文件路径和记录数量。"""
     doctor_id = get_current_identity()
     resolved = await resolve(patient_name, doctor_id)
     if "status" in resolved:
@@ -410,11 +411,11 @@ async def export_pdf(
 # ── Knowledge tools ──────────────────────────────────────────────────
 
 
-@tool
+@tool(args_schema=SearchKnowledgeInput)
 async def search_knowledge(
     query: str,
 ) -> Dict[str, Any]:
-    """搜索医生的个人知识库。用于查找临床指南、经验笔记等。"""
+    """搜索医生的个人知识库，查找临床指南、经验笔记、用药方案等。"""
     doctor_id = get_current_identity()
     try:
         from domain.knowledge.doctor_knowledge import load_knowledge_context_for_prompt
