@@ -12,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from db.models import (
     Doctor,
-    DoctorContext,
     DoctorKnowledgeItem,
     DoctorNotifyPreference,
     ChatArchive,
@@ -114,33 +113,6 @@ async def get_doctor_wechat_user_id(session: AsyncSession, doctor_id: str) -> Op
     return str(row.wechat_user_id).strip() or None
 
 
-async def get_doctor_context(session: AsyncSession, doctor_id: str) -> DoctorContext | None:
-    result = await session.execute(
-        select(DoctorContext).where(DoctorContext.doctor_id == doctor_id)
-    )
-    return result.scalar_one_or_none()
-
-
-async def upsert_doctor_context(
-    session: AsyncSession, doctor_id: str, summary: str, *, commit: bool = True,
-) -> None:
-    doctor_id = await _ensure_doctor_exists(session, doctor_id)
-    ctx = await get_doctor_context(session, doctor_id)
-    if ctx:
-        ctx.summary = summary
-        ctx.updated_at = _utcnow()
-    else:
-        try:
-            async with session.begin_nested():
-                session.add(DoctorContext(doctor_id=doctor_id, summary=summary))
-        except IntegrityError:
-            # Concurrent insert race — savepoint rolled back, outer session intact.
-            ctx = await get_doctor_context(session, doctor_id)
-            if ctx:
-                ctx.summary = summary
-                ctx.updated_at = _utcnow()
-    if commit:
-        await session.commit()
 
 
 async def add_doctor_knowledge_item(session: AsyncSession, doctor_id: str, content: str) -> DoctorKnowledgeItem:

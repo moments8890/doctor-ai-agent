@@ -83,7 +83,7 @@ def ollama_base_url_candidates(primary_url: str) -> List[str]:
 
     Always tries configured URL first, then localhost fallback.
     """
-    fallback = "http://192.168.0.123:11434/v1"
+    fallback = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1")
     out: List[str] = []
     for url in [primary_url.strip(), fallback]:
         if not url:
@@ -138,7 +138,7 @@ class AppConfig:
     @classmethod
     def _llm_fields(cls, values: Mapping[str, str]) -> dict:
         """LLM 路由、模型和 API Key 字段。"""
-        _ollama_default = "http://192.168.0.123:11434/v1"
+        _ollama_default = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1")
         return dict(
             routing_llm=values.get("ROUTING_LLM", "deepseek"),
             structuring_llm=values.get("STRUCTURING_LLM", "deepseek"),
@@ -147,8 +147,8 @@ class AppConfig:
             vision_llm=values.get("VISION_LLM", "ollama"),
             ollama_base_url=values.get("OLLAMA_BASE_URL", _ollama_default),
             ollama_vision_base_url=values.get("OLLAMA_VISION_BASE_URL", values.get("OLLAMA_BASE_URL", _ollama_default)),
-            ollama_model=values.get("OLLAMA_MODEL", "qwen2.5:14b"),
-            ollama_vision_model=values.get("OLLAMA_VISION_MODEL", "qwen2.5vl:7b"),
+            ollama_model=values.get("OLLAMA_MODEL", "qwen3.5:9b"),
+            ollama_vision_model=values.get("OLLAMA_VISION_MODEL", "qwen3-vl:8b"),
             ollama_api_key=values.get("OLLAMA_API_KEY", "ollama"),
             deepseek_api_key=values.get("DEEPSEEK_API_KEY"),
             groq_api_key=values.get("GROQ_API_KEY"),

@@ -8,12 +8,14 @@ from typing import Any, Dict, List, Literal, Optional
 from db.crud import get_record_versions
 from db.engine import AsyncSessionLocal
 from db.models.medical_record import MedicalRecord
-from services.ai.structuring import structure_medical_record
-from services.ai.vision import extract_text_from_image
-from services.knowledge.pdf_extract import extract_text_from_pdf_smart
-from services.auth.rate_limit import enforce_doctor_rate_limit
-from services.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
-from services.runtime import ActionPayload, TurnEnvelope, process_turn
+from domain.records.structuring import structure_medical_record
+from infra.llm.vision import extract_text_from_image
+from domain.knowledge.pdf_extract import extract_text_from_pdf_smart
+from infra.auth.rate_limit import enforce_doctor_rate_limit
+from infra.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
+from agent import handle_turn
+from domain.records.confirm_pending import save_pending_record
+from db.crud.pending import abandon_pending_record, get_pending_record
 from channels.web.deps import get_doctor_id
 from messages import M
 from utils.log import log
@@ -111,7 +113,7 @@ class AbandonResponse(BaseModel):
     ok: bool
 
 
-# ── Chat endpoint (ADR 0011 runtime) ────────────────────────────────────────
+# ── Chat endpoint ──────────────────────────────────────────────────────────
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat(
@@ -130,18 +132,8 @@ async def chat(
 
     enforce_doctor_rate_limit(doctor_id, scope="records.chat")
 
-    # Greeting/help fast paths moved to turn.py deterministic handler (ADR 0012 §7)
-    result = await process_turn(TurnEnvelope(
-        doctor_id=doctor_id,
-        text=text,
-        channel="web",
-    ))
-    return ChatResponse(
-        reply=result.reply,
-        record_id=result.record_id,
-        view_payload=result.view_payload,
-        switch_notification=result.switch_notification,
-    )
+    reply = await handle_turn(text, "doctor", doctor_id)
+    return ChatResponse(reply=reply)
 
 
 # ── Utility endpoints (unchanged) ───────────────────────────────────────────
@@ -204,9 +196,9 @@ async def create_record_from_image(
 
 async def _import_extracted_text(text: str, doctor_id: str, *, source: str) -> str:
     """Dispatch extracted text to import_history."""
-    from services.ai.intent import IntentResult as _IR, Intent as _I
+    from types import SimpleNamespace
     from channels.wechat.wechat_import import handle_import_history
-    intent_result = _IR(intent=_I.import_history, extra_data={"source": source})
+    intent_result = SimpleNamespace(patient_name=None, extra_data={"source": source})
     try:
         return await handle_import_history(text, doctor_id, intent_result)
     except Exception as e:
@@ -318,30 +310,25 @@ async def confirm_pending(
     pending_id: str,
     doctor_id: str = Depends(get_doctor_id),
 ):
-    """Confirm a pending draft and save to medical_records.
+    """Confirm a pending draft and save to medical_records."""
+    from db.models.pending import PendingRecord
+    from sqlalchemy import select
 
-    Routes through ``process_turn`` so that context cleanup, audit archival,
-    side effects (CVD extraction, auto-tasks, working_note clear) all follow
-    the same code path as text-based "确认" from WeChat/Voice.
-    """
-    result = await process_turn(TurnEnvelope(
-        doctor_id=doctor_id,
-        channel="web",
-        modality="action",
-        action=ActionPayload(type="draft_confirm", target_id=str(pending_id)),
-        source_turn_key=f"btn_confirm_{pending_id}",
-    ))
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(PendingRecord).where(PendingRecord.id == pending_id, PendingRecord.doctor_id == doctor_id)
+        )
+        pending = result.scalar_one_or_none()
 
-    if M.draft_expired in result.reply:
+    if not pending:
         raise HTTPException(status_code=404, detail="Draft not found or expired")
-    if M.draft_save_failed in result.reply:
+
+    saved = await save_pending_record(doctor_id, pending)
+    if not saved:
         raise HTTPException(status_code=500, detail="Save failed")
 
-    return {
-        "ok": True,
-        "record_id": result.record_id,
-        "patient_name": _extract_patient_from_reply(result.reply),
-    }
+    patient_name, record_id = saved
+    return {"ok": True, "record_id": record_id, "patient_name": patient_name}
 
 
 @router.post("/pending/{pending_id}/abandon", response_model=AbandonResponse)
@@ -349,26 +336,9 @@ async def abandon_pending(
     pending_id: str,
     doctor_id: str = Depends(get_doctor_id),
 ):
-    """Abandon a pending draft without saving.
-
-    Routes through ``process_turn`` for consistent context cleanup.
-    """
-    result = await process_turn(TurnEnvelope(
-        doctor_id=doctor_id,
-        channel="web",
-        modality="action",
-        action=ActionPayload(type="draft_abandon", target_id=str(pending_id)),
-        source_turn_key=f"btn_abandon_{pending_id}",
-    ))
-
-    if M.draft_expired in result.reply:
-        raise HTTPException(status_code=404, detail="Draft not found or expired")
-
+    """Abandon a pending draft without saving."""
+    async with AsyncSessionLocal() as session:
+        await abandon_pending_record(session, pending_id, doctor_id)
     return {"ok": True}
 
 
-def _extract_patient_from_reply(reply: str) -> str:
-    """Best-effort extract patient name from draft_confirmed message."""
-    import re
-    m = re.search(r"【(.+?)】", reply)
-    return m.group(1) if m else ""

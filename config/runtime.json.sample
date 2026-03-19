@@ -108,12 +108,12 @@
           "description_zh": "视觉模型地址（可与 OLLAMA_BASE_URL 相同）。"
         },
         "OLLAMA_MODEL": {
-          "value": "qwen2.5:14b",
+          "value": "qwen3.5:9b",
           "description": "Primary text model name.",
           "description_zh": "主文本模型名称。"
         },
         "OLLAMA_VISION_MODEL": {
-          "value": "qwen2.5vl:7b",
+          "value": "qwen3-vl:8b",
           "description": "Primary vision model name.",
           "description_zh": "主视觉模型名称。"
         },
@@ -340,6 +340,27 @@
           "value": 5,
           "description": "Number of rotated log backups to keep.",
           "description_zh": "日志备份保留数量。"
+        }
+      }
+    },
+    "observability": {
+      "description": "LLM observability and tracing.",
+      "description_zh": "LLM 可观测性与追踪。",
+      "settings": {
+        "LANGFUSE_PUBLIC_KEY": {
+          "value": "",
+          "description": "LangFuse public key. Leave empty to disable tracing.",
+          "description_zh": "LangFuse 公钥。为空则不启用追踪。"
+        },
+        "LANGFUSE_SECRET_KEY": {
+          "value": "",
+          "description": "LangFuse secret key.",
+          "description_zh": "LangFuse 密钥。"
+        },
+        "LANGFUSE_HOST": {
+          "value": "https://us.cloud.langfuse.com",
+          "description": "LangFuse host URL. Use https://us.cloud.langfuse.com for cloud, http://localhost:3000 for self-hosted.",
+          "description_zh": "LangFuse 服务地址。云端用 us.cloud.langfuse.com，自建用 localhost:3000。"
         }
       }
     }

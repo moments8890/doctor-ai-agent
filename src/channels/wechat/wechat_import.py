@@ -325,7 +325,7 @@ async def _structure_chunks(
     doctor_id: str,
 ) -> tuple:
     """Structure raw text chunks via LLM. Returns (structured_chunks, failed_chunks)."""
-    from services.ai.structuring import structure_medical_record
+    from domain.records.structuring import structure_medical_record
     structured_chunks: list = []
     failed_chunks: list = []
     for i, chunk_text in enumerate(chunks_raw[:10]):
@@ -366,7 +366,7 @@ async def _save_import_chunks(
                 await save_record(session, doctor_id, record, patient_id, commit=False)
                 saved += 1
                 if patient_id is not None:
-                    from services.patient.patient_categorization import recompute_patient_category
+                    from domain.patients.categorization import recompute_patient_category
                     await recompute_patient_category(patient_id, session, commit=False)
             except Exception as e:
                 log(f"[Import] save chunk FAILED doctor={doctor_id}: {e}")
@@ -384,12 +384,7 @@ async def _resolve_session_patient(
     text: str,
 ) -> tuple:
     """从当前会话或 OCR 补全患者名。返回 (patient_name, patient_id, ocr_gender, ocr_age)。"""
-    from services.runtime.context import load_context
-    ctx = await load_context(doctor_id)
     patient_id: Optional[int] = None
-    if not patient_name and ctx.workflow.patient_id:
-        patient_id = ctx.workflow.patient_id
-        patient_name = ctx.workflow.patient_name
     ocr_gender: Optional[str] = None
     ocr_age: Optional[int] = None
     if source == "image" and not patient_name:

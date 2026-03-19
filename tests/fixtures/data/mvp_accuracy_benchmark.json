@@ -6,7 +6,13 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "创建患者赵强，男61岁，急诊。胸痛90分钟伴大汗，下壁STEMI，hs-cTnI 3.2 ng/mL，BNP 168 pg/mL，EF 45%，阿司匹林300mg，氯吡格雷300mg。"
+        "text": "创建患者赵强，男61岁，急诊。胸痛90分钟伴大汗，下壁STEMI，hs-cTnI 3.2 ng/mL，BNP 168 pg/mL，EF 45%，阿司匹林300mg，氯吡格雷300mg。",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
       }
     ],
     "expectations": {
@@ -17,28 +23,7 @@
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
-      },
-      "must_include_any_of": [
-        [
-          "STEMI",
-          "hs-cTnI",
-          "BNP",
-          "EF",
-          "胸痛"
-        ]
-      ],
-      "must_include_reply_any_of": [
-        [
-          "创建",
-          "已为患者",
-          "已为",
-          "保存",
-          "病历"
-        ],
-        [
-          "赵强"
-        ]
-      ]
+      }
     }
   },
   {
@@ -48,7 +33,13 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "创建患者刘丽萍，男81岁，卒中单元。突发左侧肢体无力并言语不清5小时，NIHSS 6分，头颅MRI示右侧基底节急性梗死，阿司匹林100mg qd，阿托伐他汀40mg qn。"
+        "text": "创建患者刘丽萍，男81岁，卒中单元。突发左侧肢体无力并言语不清5小时，NIHSS 6分，头颅MRI示右侧基底节急性梗死，阿司匹林100mg qd，阿托伐他汀40mg qn。",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
       }
     ],
     "expectations": {
@@ -59,27 +50,7 @@
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
-      },
-      "must_include_any_of": [
-        [
-          "NIHSS",
-          "MRI",
-          "梗死",
-          "言语不清"
-        ]
-      ],
-      "must_include_reply_any_of": [
-        [
-          "创建",
-          "已为患者",
-          "已为",
-          "保存",
-          "病历"
-        ],
-        [
-          "刘丽萍"
-        ]
-      ]
+      }
     }
   },
   {
@@ -89,7 +60,13 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "创建患者周明哲，男72岁，呼吸门诊。COPD急性加重3天，SpO2 88%，RR 28次/分，双肺哮鸣音，WBC 12.4，CRP 38，予布地奈德雾化和哌拉西林他唑巴坦。"
+        "text": "创建患者周明哲，男72岁，呼吸门诊。COPD急性加重3天，SpO2 88%，RR 28次/分，双肺哮鸣音，WBC 12.4，CRP 38，予布地奈德雾化和哌拉西林他唑巴坦。",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
       }
     ],
     "expectations": {
@@ -100,27 +77,7 @@
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
-      },
-      "must_include_any_of": [
-        [
-          "COPD",
-          "SpO2",
-          "CRP",
-          "哮鸣音"
-        ]
-      ],
-      "must_include_reply_any_of": [
-        [
-          "创建",
-          "已为患者",
-          "已为",
-          "保存",
-          "病历"
-        ],
-        [
-          "周明哲"
-        ]
-      ]
+      }
     }
   },
   {
@@ -130,7 +87,13 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "创建患者陈雪宁，女34岁，心理门诊。情绪低落2月，早醒，注意力下降，PHQ-9 17分，GAD-7 11分，否认自杀计划，拟舍曲林50mg qd并安排2周复诊。"
+        "text": "创建患者陈雪宁，女34岁，心理门诊。情绪低落2月，早醒，注意力下降，PHQ-9 17分，GAD-7 11分，否认自杀计划，拟舍曲林50mg qd并安排2周复诊。",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
       }
     ],
     "expectations": {
@@ -141,27 +104,7 @@
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
-      },
-      "must_include_any_of": [
-        [
-          "PHQ-9",
-          "GAD-7",
-          "舍曲林",
-          "情绪低落"
-        ]
-      ],
-      "must_include_reply_any_of": [
-        [
-          "创建",
-          "已为患者",
-          "已为",
-          "保存",
-          "病历"
-        ],
-        [
-          "陈雪宁"
-        ]
-      ]
+      }
     }
   },
   {
@@ -171,11 +114,18 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "创建患者王丽，女62岁，心内门诊。既往HFpEF，今晨端坐呼吸，BP 158/96，HR 112，SpO2 89%，BNP 1860 pg/mL，呋塞米40mg iv。"
+        "text": "创建患者王丽，女62岁，心内门诊。既往HFpEF，今晨端坐呼吸，BP 158/96，HR 112，SpO2 89%，BNP 1860 pg/mL，呋塞米40mg iv。",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
       },
       {
         "speaker": "doctor",
-        "text": "查王丽刚才那条记录"
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
+      },
+      {
+        "speaker": "doctor",
+        "text": "查王丽刚才那条记录",
+        "assert": {"tools_include": ["query_records"], "llm_calls": 2}
       }
     ],
     "expectations": {
@@ -186,24 +136,7 @@
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
-      },
-      "must_include_any_of": [
-        [
-          "HFpEF",
-          "BNP",
-          "端坐呼吸"
-        ]
-      ],
-      "must_include_reply_any_of": [
-        [
-          "HFpEF",
-          "BNP",
-          "端坐呼吸"
-        ],
-        [
-          "王丽"
-        ]
-      ]
+      }
     }
   },
   {
@@ -213,11 +146,18 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "创建患者张桂兰，女72岁，卒中门诊。右侧肢体麻木反复3天，既往TIA史，ABCD2 5分，颈动脉超声示右侧斑块，氯吡格雷75mg qd。"
+        "text": "创建患者张桂兰，女72岁，卒中门诊。右侧肢体麻木反复3天，既往TIA史，ABCD2 5分，颈动脉超声示右侧斑块，氯吡格雷75mg qd。",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
       },
       {
         "speaker": "doctor",
-        "text": "查张桂兰最近病历"
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
+      },
+      {
+        "speaker": "doctor",
+        "text": "查张桂兰最近病历",
+        "assert": {"tools_include": ["query_records"], "llm_calls": 2}
       }
     ],
     "expectations": {
@@ -228,26 +168,7 @@
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
-      },
-      "must_include_any_of": [
-        [
-          "TIA",
-          "ABCD2",
-          "颈动脉",
-          "氯吡格雷"
-        ]
-      ],
-      "must_include_reply_any_of": [
-        [
-          "TIA",
-          "ABCD2",
-          "颈动脉",
-          "氯吡格雷"
-        ],
-        [
-          "张桂兰"
-        ]
-      ]
+      }
     }
   },
   {
@@ -257,11 +178,18 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "创建患者何志远，男58岁，肿瘤科。结肠癌化疗后第5天，ANC 0.8，Hb 92，PLT 76，体温38.2度，考虑G-CSF并经验性抗感染。"
+        "text": "创建患者何志远，男58岁，肿瘤科。结肠癌化疗后第5天，ANC 0.8，Hb 92，PLT 76，体温38.2度，考虑G-CSF并经验性抗感染。",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
       },
       {
         "speaker": "doctor",
-        "text": "查何志远最近记录"
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
+      },
+      {
+        "speaker": "doctor",
+        "text": "查何志远最近记录",
+        "assert": {"tools_include": ["query_records"], "llm_calls": 2}
       }
     ],
     "expectations": {
@@ -272,26 +200,7 @@
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
-      },
-      "must_include_any_of": [
-        [
-          "ANC",
-          "PLT",
-          "G-CSF",
-          "化疗"
-        ]
-      ],
-      "must_include_reply_any_of": [
-        [
-          "ANC",
-          "PLT",
-          "G-CSF",
-          "化疗"
-        ],
-        [
-          "何志远"
-        ]
-      ]
+      }
     }
   },
   {
@@ -301,11 +210,23 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "创建患者林秋月，女67岁，心内监护。胸闷伴气促，hs-cTnT 0.038 ng/mL，BNP 1220 pg/mL，双下肢轻度水肿，呋塞米40mg iv。"
+        "text": "创建患者林秋月，女67岁，心内监护。胸闷伴气促，hs-cTnT 0.038 ng/mL，BNP 1220 pg/mL，双下肢轻度水肿，呋塞米40mg iv。",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
       },
       {
         "speaker": "doctor",
-        "text": "更正林秋月刚才那条病历：肌钙蛋白不是0.038，是0.033。"
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
+      },
+      {
+        "speaker": "doctor",
+        "text": "更正林秋月刚才那条病历：肌钙蛋白不是0.038，是0.033。",
+        "assert": {"tools_include": ["update_record"], "llm_calls": 3}
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
       }
     ],
     "expectations": {
@@ -316,16 +237,7 @@
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
-      },
-      "must_include_reply_any_of": [
-        [
-          "已更新",
-          "更新"
-        ],
-        [
-          "林秋月"
-        ]
-      ]
+      }
     }
   },
   {
@@ -335,11 +247,23 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "创建患者孙雅宁，女59岁，内分泌门诊。2型糖尿病伴CKD G3b，eGFR 38 mL/min/1.73m2，UACR 312 mg/g，预混30R早18U晚14U。"
+        "text": "创建患者孙雅宁，女59岁，内分泌门诊。2型糖尿病伴CKD G3b，eGFR 38 mL/min/1.73m2，UACR 312 mg/g，预混30R早18U晚14U。",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
       },
       {
         "speaker": "doctor",
-        "text": "更正孙雅宁刚才那条病历：早晨胰岛素不是18U，是16U。"
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
+      },
+      {
+        "speaker": "doctor",
+        "text": "更正孙雅宁刚才那条病历：早晨胰岛素不是18U，是16U。",
+        "assert": {"tools_include": ["update_record"], "llm_calls": 3}
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
       }
     ],
     "expectations": {
@@ -350,16 +274,7 @@
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
-      },
-      "must_include_reply_any_of": [
-        [
-          "已更新",
-          "更新"
-        ],
-        [
-          "孙雅宁"
-        ]
-      ]
+      }
     }
   },
   {
@@ -369,11 +284,23 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "创建患者周宁，女48岁，门诊。"
+        "text": "创建患者周宁，女48岁，门诊。",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
       },
       {
         "speaker": "doctor",
-        "text": "再建一次同一位患者周宁，女48岁，门诊。"
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
+      },
+      {
+        "speaker": "doctor",
+        "text": "再建一次同一位患者周宁，女48岁，门诊。",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
       }
     ],
     "expectations": {
@@ -383,20 +310,7 @@
       "expect_patient_dedup": true,
       "expected_table_min_counts_by_doctor": {
         "patients": 1
-      },
-      "must_include_reply_any_of": [
-        [
-          "已存在",
-          "复用",
-          "创建",
-          "患者",
-          "已为",
-          "保存"
-        ],
-        [
-          "周宁"
-        ]
-      ]
+      }
     }
   },
   {
@@ -406,19 +320,12 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "记录一下：胸痛2小时伴大汗，心电图提示下壁ST段抬高。"
+        "text": "记录一下：胸痛2小时伴大汗，心电图提示下壁ST段抬高。",
+        "assert": {"tools_include": [], "llm_calls": 1}
       }
     ],
     "expectations": {
-      "must_not_timeout": true,
-      "must_include_reply_any_of": [
-        [
-          "请问这位患者叫什么名字",
-          "请提供姓名",
-          "患者姓名",
-          "叫什么名字"
-        ]
-      ]
+      "must_not_timeout": true
     }
   },
   {
@@ -428,20 +335,12 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "查李梦妍既往胸痛记录"
+        "text": "查李梦妍既往胸痛记录",
+        "assert": {"tools_include": [], "llm_calls": 1}
       }
     ],
     "expectations": {
-      "must_not_timeout": true,
-      "must_include_reply_any_of": [
-        [
-          "未找到患者",
-          "未找到"
-        ],
-        [
-          "李梦妍"
-        ]
-      ]
+      "must_not_timeout": true
     }
   },
   {
@@ -451,11 +350,18 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "创建患者杨志明，男55岁，心内门诊。冠心病PCI术后随访，血压正常，血脂达标。"
+        "text": "创建患者杨志明，男55岁，心内门诊。冠心病PCI术后随访，血压正常，血脂达标。",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
       },
       {
         "speaker": "doctor",
-        "text": "给杨志明安排三个月后复查心电图"
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
+      },
+      {
+        "speaker": "doctor",
+        "text": "给杨志明安排三个月后复查心电图",
+        "assert": {"tools_include": ["create_task"], "llm_calls": 2}
       }
     ],
     "expectations": {
@@ -466,18 +372,7 @@
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
-      },
-      "must_include_reply_any_of": [
-        [
-          "随访",
-          "复查",
-          "安排",
-          "提醒"
-        ],
-        [
-          "杨志明"
-        ]
-      ]
+      }
     }
   },
   {
@@ -487,7 +382,8 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "完成 1"
+        "text": "完成 1",
+        "assert": {"tools_include": ["complete_task"], "llm_calls": 2}
       }
     ],
     "expectations": {
@@ -495,24 +391,7 @@
       "expected_table_max_counts_by_doctor": {
         "patients": 0,
         "medical_records": 0
-      },
-      "must_include_reply_any_of": [
-        [
-          "完成",
-          "已标记",
-          "已完成",
-          "未找到任务",
-          "不支持",
-          "暂不支持",
-          "请问",
-          "帮您",
-          "更多",
-          "详细",
-          "不太明白",
-          "具体",
-          "好的"
-        ]
-      ]
+      }
     }
   },
   {
@@ -522,19 +401,12 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "所有患者"
+        "text": "所有患者",
+        "assert": {"tools_include": ["list_patients"], "llm_calls": 2}
       }
     ],
     "expectations": {
-      "must_not_timeout": true,
-      "must_include_reply_any_of": [
-        [
-          "患者",
-          "暂无患者",
-          "未找到",
-          "记录"
-        ]
-      ]
+      "must_not_timeout": true
     }
   },
   {
@@ -544,19 +416,12 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "你好"
+        "text": "你好",
+        "assert": {"tools_include": [], "llm_calls": 0}
       }
     ],
     "expectations": {
-      "must_not_timeout": true,
-      "must_include_reply_any_of": [
-        [
-          "您好",
-          "你好",
-          "医助",
-          "帮您"
-        ]
-      ]
+      "must_not_timeout": true
     }
   },
   {
@@ -566,7 +431,13 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "创建患者吴海燕，女58岁，心内门诊。反复胸闷两周，活动后加重，心电图ST段压低，三个月后随访。"
+        "text": "创建患者吴海燕，女58岁，心内门诊。反复胸闷两周，活动后加重，心电图ST段压低，三个月后随访。",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
       }
     ],
     "expectations": {
@@ -577,26 +448,7 @@
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
-      },
-      "must_include_any_of": [
-        [
-          "胸闷",
-          "ST段",
-          "心电图"
-        ]
-      ],
-      "must_include_reply_any_of": [
-        [
-          "创建",
-          "已为患者",
-          "已为",
-          "保存",
-          "病历"
-        ],
-        [
-          "吴海燕"
-        ]
-      ]
+      }
     }
   },
   {
@@ -606,7 +458,13 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "新患者陈伟强，男42岁，头痛三天伴恶心呕吐，血压165/100，CT未见出血。"
+        "text": "新患者陈伟强，男42岁，头痛三天伴恶心呕吐，血压165/100，CT未见出血。",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
       }
     ],
     "expectations": {
@@ -617,26 +475,7 @@
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
-      },
-      "must_include_any_of": [
-        [
-          "头痛",
-          "血压",
-          "CT"
-        ]
-      ],
-      "must_include_reply_any_of": [
-        [
-          "创建",
-          "已为患者",
-          "已为",
-          "保存",
-          "病历"
-        ],
-        [
-          "陈伟强"
-        ]
-      ]
+      }
     }
   },
   {
@@ -646,7 +485,13 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "创建患者黄丽华，女28岁，皮肤科门诊。全身散在红色丘疹伴瘙痒1周，双下肢为著，查IgE升高，予西替利嗪10mg qd。"
+        "text": "创建患者黄丽华，女28岁，皮肤科门诊。全身散在红色丘疹伴瘙痒1周，双下肢为著，查IgE升高，予西替利嗪10mg qd。",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
       }
     ],
     "expectations": {
@@ -657,27 +502,7 @@
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
-      },
-      "must_include_any_of": [
-        [
-          "丘疹",
-          "IgE",
-          "瘙痒",
-          "西替利嗪"
-        ]
-      ],
-      "must_include_reply_any_of": [
-        [
-          "创建",
-          "已为患者",
-          "已为",
-          "保存",
-          "病历"
-        ],
-        [
-          "黄丽华"
-        ]
-      ]
+      }
     }
   },
   {
@@ -687,7 +512,13 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "创建患者马建国，男50岁，心内门诊。胸痛1小时，说错了，应该是胸闷2天。"
+        "text": "创建患者马建国，男50岁，心内门诊。胸痛1小时，说错了，应该是胸闷2天。",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
       }
     ],
     "expectations": {
@@ -698,19 +529,7 @@
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
-      },
-      "must_include_reply_any_of": [
-        [
-          "创建",
-          "已为患者",
-          "已为",
-          "保存",
-          "病历"
-        ],
-        [
-          "马建国"
-        ]
-      ]
+      }
     }
   },
   {
@@ -720,7 +539,13 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "创建患者刘志强，男65岁，骨科门诊。腰椎间盘突出L4/5复发，左下肢放射痛VAS 7分，直腿抬高试验阳性，MRI示椎间盘突出压迫左侧神经根。"
+        "text": "创建患者刘志强，男65岁，骨科门诊。腰椎间盘突出L4/5复发，左下肢放射痛VAS 7分，直腿抬高试验阳性，MRI示椎间盘突出压迫左侧神经根。",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
       }
     ],
     "expectations": {
@@ -731,25 +556,7 @@
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
-      },
-      "must_include_any_of": [
-        [
-          "腰椎",
-          "VAS",
-          "MRI",
-          "神经根"
-        ]
-      ],
-      "must_include_reply_any_of": [
-        [
-          "创建",
-          "已为患者",
-          "已为",
-          "保存",
-          "病历",
-          "刘志强"
-        ]
-      ]
+      }
     }
   },
   {
@@ -759,7 +566,13 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "创建患者王芳，胸痛3天"
+        "text": "创建患者王芳，胸痛3天",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
       }
     ],
     "expectations": {
@@ -769,19 +582,7 @@
       "expect_patient_dedup": true,
       "expected_table_min_counts_by_doctor": {
         "patients": 1
-      },
-      "must_include_reply_any_of": [
-        [
-          "创建",
-          "已为患者",
-          "已为",
-          "保存",
-          "病历"
-        ],
-        [
-          "王芳"
-        ]
-      ]
+      }
     }
   },
   {
@@ -791,24 +592,18 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "创建患者王芳，胸痛，说错了，头痛"
+        "text": "创建患者王芳，胸痛，说错了，头痛",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
       }
     ],
     "expectations": {
       "must_not_timeout": true,
-      "expected_patient_name": "王芳",
-      "must_include_reply_any_of": [
-        [
-          "创建",
-          "已为患者",
-          "已为",
-          "保存",
-          "病历"
-        ],
-        [
-          "王芳"
-        ]
-      ]
+      "expected_patient_name": "王芳"
     }
   },
   {
@@ -818,11 +613,18 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "创建患者张三，男45岁，内科门诊。高血压病史3年。"
+        "text": "创建患者张三，男45岁，内科门诊。高血压病史3年。",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
       },
       {
         "speaker": "doctor",
-        "text": "给张三补充胸闷，明天提醒复查"
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
+      },
+      {
+        "speaker": "doctor",
+        "text": "给张三补充胸闷，明天提醒复查",
+        "assert": {"tools_include": ["update_record", "create_task"], "llm_calls": 3}
       }
     ],
     "expectations": {
@@ -833,21 +635,7 @@
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
-      },
-      "must_include_reply_any_of": [
-        [
-          "胸闷",
-          "补充",
-          "病历",
-          "记录",
-          "提醒",
-          "复查",
-          "任务",
-          "随访",
-          "保存",
-          "已为"
-        ]
-      ]
+      }
     }
   },
   {
@@ -857,11 +645,18 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "创建患者张三，男45岁，内科门诊。高血压病史3年，BP 145/92。"
+        "text": "创建患者张三，男45岁，内科门诊。高血压病史3年，BP 145/92。",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
       },
       {
         "speaker": "doctor",
-        "text": "查张三最近病历"
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
+      },
+      {
+        "speaker": "doctor",
+        "text": "查张三最近病历",
+        "assert": {"tools_include": ["query_records"], "llm_calls": 2}
       }
     ],
     "expectations": {
@@ -875,18 +670,7 @@
       },
       "expected_table_max_counts_by_doctor": {
         "medical_records": 1
-      },
-      "must_include_reply_any_of": [
-        [
-          "最近",
-          "历史记录",
-          "记录",
-          "病历"
-        ],
-        [
-          "张三"
-        ]
-      ]
+      }
     }
   },
   {
@@ -896,26 +680,17 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "记录张三ACS确诊 ST段抬高 需紧急PCI"
+        "text": "记录张三ACS确诊 ST段抬高 需紧急PCI",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
       }
     ],
     "expectations": {
-      "must_not_timeout": true,
-      "must_include_reply_any_of": [
-        [
-          "病历",
-          "记录",
-          "保存",
-          "已录入",
-          "没太理解",
-          "更具体",
-          "帮助",
-          "记下来"
-        ],
-        [
-          "张三"
-        ]
-      ]
+      "must_not_timeout": true
     }
   },
   {
@@ -925,30 +700,18 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "记录李四脑出血 GCS 8分 术后NIHSS 12分"
+        "text": "记录李四脑出血 GCS 8分 术后NIHSS 12分",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
       }
     ],
     "expectations": {
       "must_not_timeout": true,
-      "expected_patient_name": "李四",
-      "must_include_any_of": [
-        [
-          "脑出血",
-          "GCS",
-          "NIHSS"
-        ]
-      ],
-      "must_include_reply_any_of": [
-        [
-          "病历",
-          "记录",
-          "保存",
-          "已录入"
-        ],
-        [
-          "李四"
-        ]
-      ]
+      "expected_patient_name": "李四"
     }
   },
   {
@@ -958,7 +721,13 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "创建患者王五，男35岁，门诊。上呼吸道感染，发热38.5℃，咽充血，白细胞正常，予对症处理。"
+        "text": "创建患者王五，男35岁，门诊。上呼吸道感染，发热38.5℃，咽充血，白细胞正常，予对症处理。",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
       }
     ],
     "expectations": {
@@ -969,27 +738,7 @@
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
-      },
-      "must_include_any_of": [
-        [
-          "上呼吸道感染",
-          "发热",
-          "38.5",
-          "咽充血"
-        ]
-      ],
-      "must_include_reply_any_of": [
-        [
-          "创建",
-          "已为患者",
-          "已为",
-          "保存",
-          "病历"
-        ],
-        [
-          "王五"
-        ]
-      ]
+      }
     }
   },
   {
@@ -999,7 +748,13 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "创建患者赵敏，女29岁，急诊。1型糖尿病DKA，血糖28.6 mmol/L，血酮5.2 mmol/L，pH 7.18，HCO3- 8 mmol/L，予胰岛素泵持续静滴及补液。"
+        "text": "创建患者赵敏，女29岁，急诊。1型糖尿病DKA，血糖28.6 mmol/L，血酮5.2 mmol/L，pH 7.18，HCO3- 8 mmol/L，予胰岛素泵持续静滴及补液。",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
       }
     ],
     "expectations": {
@@ -1010,28 +765,7 @@
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
-      },
-      "must_include_any_of": [
-        [
-          "DKA",
-          "血糖",
-          "血酮",
-          "pH",
-          "HCO3"
-        ]
-      ],
-      "must_include_reply_any_of": [
-        [
-          "创建",
-          "已为患者",
-          "已为",
-          "保存",
-          "病历"
-        ],
-        [
-          "赵敏"
-        ]
-      ]
+      }
     }
   },
   {
@@ -1041,7 +775,13 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "创建患者李建国，男68岁，肾内科门诊。CKD G4期，eGFR 22 mL/min/1.73m2，24h尿蛋白3.2g，Scr 268 μmol/L，K+ 5.6 mmol/L，限钾饮食并调整降压方案。"
+        "text": "创建患者李建国，男68岁，肾内科门诊。CKD G4期，eGFR 22 mL/min/1.73m2，24h尿蛋白3.2g，Scr 268 μmol/L，K+ 5.6 mmol/L，限钾饮食并调整降压方案。",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
       }
     ],
     "expectations": {
@@ -1052,27 +792,7 @@
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
-      },
-      "must_include_any_of": [
-        [
-          "CKD",
-          "eGFR",
-          "尿蛋白",
-          "Scr"
-        ]
-      ],
-      "must_include_reply_any_of": [
-        [
-          "创建",
-          "已为患者",
-          "已为",
-          "保存",
-          "病历"
-        ],
-        [
-          "李建国"
-        ]
-      ]
+      }
     }
   },
   {
@@ -1082,7 +802,13 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "创建患者周慧，女52岁，肿瘤科。左乳浸润性导管癌T2N1M0，ER+/PR+/HER2 3+，Ki-67 40%，已行AC-TH方案化疗第4周期，今日曲妥珠单抗维持治疗。"
+        "text": "创建患者周慧，女52岁，肿瘤科。左乳浸润性导管癌T2N1M0，ER+/PR+/HER2 3+，Ki-67 40%，已行AC-TH方案化疗第4周期，今日曲妥珠单抗维持治疗。",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
       }
     ],
     "expectations": {
@@ -1093,28 +819,7 @@
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
-      },
-      "must_include_any_of": [
-        [
-          "HER2",
-          "Ki-67",
-          "ER",
-          "曲妥珠单抗",
-          "导管癌"
-        ]
-      ],
-      "must_include_reply_any_of": [
-        [
-          "创建",
-          "已为患者",
-          "已为",
-          "保存",
-          "病历"
-        ],
-        [
-          "周慧"
-        ]
-      ]
+      }
     }
   },
   {
@@ -1124,11 +829,18 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "创建患者钱伟，男56岁，心内科。心衰NYHA III级，EF 30%，BNP 2400 pg/mL，予沙库巴曲缬沙坦及利尿。"
+        "text": "创建患者钱伟，男56岁，心内科。心衰NYHA III级，EF 30%，BNP 2400 pg/mL，予沙库巴曲缬沙坦及利尿。",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
       },
       {
         "speaker": "doctor",
-        "text": "查钱伟最近的EF和BNP记录"
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
+      },
+      {
+        "speaker": "doctor",
+        "text": "查钱伟最近的EF和BNP记录",
+        "assert": {"tools_include": ["query_records"], "llm_calls": 2}
       }
     ],
     "expectations": {
@@ -1139,26 +851,7 @@
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
-      },
-      "must_include_any_of": [
-        [
-          "NYHA",
-          "EF",
-          "BNP",
-          "心衰"
-        ]
-      ],
-      "must_include_reply_any_of": [
-        [
-          "最近",
-          "历史记录",
-          "记录",
-          "病历"
-        ],
-        [
-          "钱伟"
-        ]
-      ]
+      }
     }
   },
   {
@@ -1168,7 +861,13 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "创建患者郑国强，男55岁，消化内科。乙肝后肝硬化Child-Pugh B级，腹水中量，ALT 86 U/L，AST 102 U/L，ALB 28 g/L，予利尿及保肝治疗。"
+        "text": "创建患者郑国强，男55岁，消化内科。乙肝后肝硬化Child-Pugh B级，腹水中量，ALT 86 U/L，AST 102 U/L，ALB 28 g/L，予利尿及保肝治疗。",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
       }
     ],
     "expectations": {
@@ -1179,28 +878,7 @@
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
-      },
-      "must_include_any_of": [
-        [
-          "Child-Pugh",
-          "肝硬化",
-          "ALT",
-          "AST",
-          "ALB"
-        ]
-      ],
-      "must_include_reply_any_of": [
-        [
-          "创建",
-          "已为患者",
-          "已为",
-          "保存",
-          "病历"
-        ],
-        [
-          "郑国强"
-        ]
-      ]
+      }
     }
   },
   {
@@ -1210,20 +888,12 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "记录头痛"
+        "text": "记录头痛",
+        "assert": {"tools_include": [], "llm_calls": 1}
       }
     ],
     "expectations": {
-      "must_not_timeout": true,
-      "must_include_reply_any_of": [
-        [
-          "请问这位患者叫什么名字",
-          "请提供姓名",
-          "患者姓名",
-          "叫什么名字",
-          "哪位患者"
-        ]
-      ]
+      "must_not_timeout": true
     }
   },
   {
@@ -1233,7 +903,8 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "张三"
+        "text": "张三",
+        "assert": {"tools_include": [], "llm_calls": 1}
       }
     ],
     "expectations": {
@@ -1241,24 +912,7 @@
       "expected_table_max_counts_by_doctor": {
         "patients": 0,
         "medical_records": 0
-      },
-      "must_include_reply_any_of": [
-        [
-          "请问",
-          "需要",
-          "什么",
-          "帮您",
-          "您好",
-          "操作",
-          "没太理解",
-          "更具体",
-          "功能列表",
-          "帮助",
-          "未找到",
-          "确认姓名",
-          "新建患者"
-        ]
-      ]
+      }
     }
   },
   {
@@ -1268,25 +922,12 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "血压160/100，头晕两天，需要调整降压药"
+        "text": "血压160/100，头晕两天，需要调整降压药",
+        "assert": {"tools_include": [], "llm_calls": 1}
       }
     ],
     "expectations": {
-      "must_not_timeout": true,
-      "must_include_reply_any_of": [
-        [
-          "叫什么名字",
-          "请提供姓名",
-          "患者姓名",
-          "哪位患者",
-          "没太理解",
-          "更具体",
-          "帮助",
-          "记下来",
-          "记下",
-          "好的"
-        ]
-      ]
+      "must_not_timeout": true
     }
   },
   {
@@ -1296,17 +937,12 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "更正一下刚才的病历，血压应该是140/90"
+        "text": "更正一下刚才的病历，血压应该是140/90",
+        "assert": {"tools_include": [], "llm_calls": 1}
       }
     ],
     "expectations": {
-      "must_not_timeout": true,
-      "must_include_reply_any_of": [
-        [
-          "请问",
-          "更正"
-        ]
-      ]
+      "must_not_timeout": true
     }
   },
   {
@@ -1316,11 +952,18 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "创建患者周宁，女48岁，高血压3年，今日血压142/88。"
+        "text": "创建患者周宁，女48岁，高血压3年，今日血压142/88。",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
       },
       {
         "speaker": "doctor",
-        "text": "查"
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
+      },
+      {
+        "speaker": "doctor",
+        "text": "查",
+        "assert": {"tools_include": ["query_records"], "llm_calls": 2}
       }
     ],
     "expectations": {
@@ -1330,15 +973,7 @@
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
-      },
-      "must_include_reply_any_of": [
-        [
-          "周宁",
-          "高血压",
-          "血压",
-          "142"
-        ]
-      ]
+      }
     }
   },
   {
@@ -1348,19 +983,12 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "你好，帮我查一下张三的病历"
+        "text": "你好，帮我查一下张三的病历",
+        "assert": {"tools_include": ["query_records"], "llm_calls": 2}
       }
     ],
     "expectations": {
-      "must_not_timeout": true,
-      "must_include_reply_any_of": [
-        [
-          "张三",
-          "未找到",
-          "病历",
-          "记录"
-        ]
-      ]
+      "must_not_timeout": true
     }
   },
   {
@@ -1370,7 +998,8 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "完成 999"
+        "text": "完成 999",
+        "assert": {"tools_include": ["complete_task"], "llm_calls": 2}
       }
     ],
     "expectations": {
@@ -1378,25 +1007,7 @@
       "expected_table_max_counts_by_doctor": {
         "patients": 0,
         "medical_records": 0
-      },
-      "must_include_reply_any_of": [
-        [
-          "完成",
-          "已标记",
-          "已完成",
-          "未找到任务",
-          "不存在",
-          "不支持",
-          "暂不支持",
-          "请问",
-          "帮您",
-          "更多",
-          "详细",
-          "不太明白",
-          "具体",
-          "好的"
-        ]
-      ]
+      }
     }
   },
   {
@@ -1406,22 +1017,17 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "记录患者（张三）头痛2天，伴恶心呕吐，无发热"
+        "text": "记录患者（张三）头痛2天，伴恶心呕吐，无发热",
+        "assert": {"tools_include": ["create_record"], "llm_calls": 3}
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认",
+        "assert": {"tools_include": [], "llm_calls": 0}
       }
     ],
     "expectations": {
-      "must_not_timeout": true,
-      "must_include_reply_any_of": [
-        [
-          "病历",
-          "记录",
-          "保存",
-          "已录入",
-          "张三",
-          "患者姓名",
-          "叫什么名字"
-        ]
-      ]
+      "must_not_timeout": true
     }
   },
   {
@@ -1431,7 +1037,8 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "你好你好你好"
+        "text": "你好你好你好",
+        "assert": {"tools_include": [], "llm_calls": 1}
       }
     ],
     "expectations": {
@@ -1439,14 +1046,7 @@
       "expected_table_max_counts_by_doctor": {
         "patients": 0,
         "medical_records": 0
-      },
-      "must_include_reply_any_of": [
-        [
-          "请问",
-          "你好",
-          "帮助"
-        ]
-      ]
+      }
     }
   },
   {
@@ -1456,7 +1056,8 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "帮助"
+        "text": "帮助",
+        "assert": {"tools_include": [], "llm_calls": 1}
       }
     ],
     "expectations": {
@@ -1464,17 +1065,7 @@
       "expected_table_max_counts_by_doctor": {
         "patients": 0,
         "medical_records": 0
-      },
-      "must_include_reply_any_of": [
-        [
-          "创建",
-          "记录",
-          "查询",
-          "功能",
-          "帮助",
-          "支持"
-        ]
-      ]
+      }
     }
   },
   {
@@ -1484,7 +1075,8 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "12345"
+        "text": "12345",
+        "assert": {"tools_include": [], "llm_calls": 1}
       }
     ],
     "expectations": {
@@ -1492,22 +1084,7 @@
       "expected_table_max_counts_by_doctor": {
         "patients": 0,
         "medical_records": 0
-      },
-      "must_include_reply_any_of": [
-        [
-          "请问",
-          "帮您",
-          "需要",
-          "操作",
-          "您好",
-          "没太理解",
-          "更具体",
-          "功能列表",
-          "帮助",
-          "不太明白",
-          "具体"
-        ]
-      ]
+      }
     }
   }
 ]

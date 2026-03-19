@@ -34,24 +34,23 @@ from db.crud import (
 )
 from db.crud.records import delete_record
 from db.crud.patient import search_patients_nl
-from services.patient.nl_search import extract_criteria
+from domain.patients.nl_search import extract_criteria
 from db.engine import AsyncSessionLocal
 from db.models import (
     Doctor,
-    DoctorContext,
     DoctorTask,
     MedicalRecordDB,
     Patient,
     PatientLabel,
     SystemPrompt,
 )
-from services.patient.patient_timeline import build_patient_timeline
-from services.auth.rate_limit import enforce_doctor_rate_limit
-from services.observability.audit import audit
+from domain.patients.timeline import build_patient_timeline
+from infra.auth.rate_limit import enforce_doctor_rate_limit
+from infra.observability.audit import audit
 from utils.log import safe_create_task
-from services.runtime.context import load_context, save_context, clear_pending_draft_id
+from agent.pending import get_pending_draft_id, clear_pending_draft_id
 from utils.errors import DomainError
-from services.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
+from infra.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
 from channels.web.ui.record_handlers import (
     manage_records_for_doctor as _manage_records_for_doctor_impl,
     manage_patients_for_doctor as _manage_patients_for_doctor_impl,
@@ -75,7 +74,7 @@ from channels.web.ui._utils import (
     _resolve_ui_doctor_id,
     _require_ui_admin_access,
 )
-from services.observability.observability import (
+from infra.observability.observability import (
     add_span,
     add_trace,
     clear_traces,
@@ -681,19 +680,13 @@ async def get_working_context(
     response so the UI can render the context header without multiple calls.
     """
     resolved_id = _resolve_ui_doctor_id(doctor_id, authorization)
-    ctx = await load_context(resolved_id)
 
-    # Current patient
+    # Current patient — no longer tracked in ctx; return None
     current_patient = None
-    if ctx.workflow.patient_id is not None:
-        current_patient = {
-            "id": ctx.workflow.patient_id,
-            "name": ctx.workflow.patient_name or "",
-        }
 
     # Pending draft
     pending_draft = None
-    pending_id = ctx.workflow.pending_draft_id
+    pending_id = await get_pending_draft_id(resolved_id)
     if pending_id:
         async with AsyncSessionLocal() as session:
             pending = await get_pending_record(session, pending_id, resolved_id)
@@ -742,16 +735,21 @@ async def clear_context_endpoint(
     Called when the user clears the chat in the UI so all state resets.
     """
     resolved_id = _resolve_ui_doctor_id(doctor_id, authorization)
-    from services.runtime.models import DoctorCtx
-    ctx = await load_context(resolved_id)
 
-    # Abandon pending draft if one exists
-    if ctx.workflow.pending_draft_id:
-        try:
-            async with AsyncSessionLocal() as session:
-                await abandon_pending_record(session, ctx.workflow.pending_draft_id, doctor_id=resolved_id)
-        except Exception:
-            pass
+    # Abandon any pending drafts
+    try:
+        from db.models.pending import PendingRecord
+        from sqlalchemy import select, update as sa_update
+        async with AsyncSessionLocal() as session:
+            await session.execute(
+                sa_update(PendingRecord).where(
+                    PendingRecord.doctor_id == resolved_id,
+                    PendingRecord.status == "awaiting",
+                ).values(status="abandoned")
+            )
+            await session.commit()
+    except Exception:
+        pass
 
     # Delete chat_archive rows for this doctor
     try:
@@ -765,16 +763,12 @@ async def clear_context_endpoint(
     except Exception:
         pass
 
-    # Clear in-memory dedup cache (doctor-scoped entries can't be isolated; flush all)
-    from services.runtime.dedup import _cache as dedup_cache, _in_flight
-    dedup_cache.clear()
-    _in_flight.clear()
-
-    # Reset context to empty state
-    from services.runtime.models import WorkflowState, MemoryState
-    ctx.workflow = WorkflowState()
-    ctx.memory = MemoryState()
-    await save_context(ctx)
+    # Clear in-memory agent session if it exists
+    try:
+        from agent.session import _agents
+        _agents.pop(resolved_id, None)
+    except Exception:
+        pass
 
     return {"ok": True}
 
@@ -790,8 +784,7 @@ async def get_pending_record_endpoint(
 ):
     """Return the current pending record draft for a doctor, or null if none."""
     resolved_id = _resolve_ui_doctor_id(doctor_id, authorization)
-    ctx = await load_context(resolved_id)
-    pending_id = ctx.workflow.pending_draft_id
+    pending_id = await get_pending_draft_id(resolved_id)
     if not pending_id:
         return None
     async with AsyncSessionLocal() as session:
@@ -827,10 +820,9 @@ async def confirm_pending_record_endpoint(
     authorization: str | None = Header(default=None),
 ):
     """Confirm the pending record draft → save to medical_records."""
-    from services.domain.intent_handlers import save_pending_record
+    from domain.records.confirm_pending import save_pending_record
     resolved_id = _resolve_ui_doctor_id(doctor_id, authorization)
-    ctx = await load_context(resolved_id)
-    pending_id = ctx.workflow.pending_draft_id
+    pending_id = await get_pending_draft_id(resolved_id)
     if not pending_id:
         raise HTTPException(status_code=404, detail="No pending record")
     async with AsyncSessionLocal() as session:
@@ -857,8 +849,7 @@ async def abandon_pending_record_endpoint(
 ):
     """Abandon the pending record draft."""
     resolved_id = _resolve_ui_doctor_id(doctor_id, authorization)
-    ctx = await load_context(resolved_id)
-    pending_id = ctx.workflow.pending_draft_id
+    pending_id = await get_pending_draft_id(resolved_id)
     if not pending_id:
         raise HTTPException(status_code=404, detail="No pending record")
     async with AsyncSessionLocal() as session:

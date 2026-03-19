@@ -1,5 +1,5 @@
 """
-医生相关的数据库模型：Doctor、DoctorContext 等。
+医生相关的数据库模型：Doctor、 等。
 """
 
 from __future__ import annotations
@@ -10,20 +10,6 @@ from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, DateTime, Te
 from sqlalchemy.orm import Mapped, mapped_column
 from db.engine import Base
 from db.models.base import _utcnow
-
-
-class DoctorContext(Base):
-    """One mutable row per doctor — workflow + memory state (ADR 0011)."""
-    __tablename__ = "doctor_contexts"
-    __table_args__ = (
-        Index("ix_doctor_contexts_updated_at", "updated_at"),
-    )
-
-    doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), primary_key=True)
-    summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # legacy compat
-    workflow_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    memory_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
 
 
 class DoctorKnowledgeItem(Base):

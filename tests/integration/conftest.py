@@ -70,6 +70,11 @@ def require_server():
 
 @pytest.fixture(scope="session", autouse=True)
 def require_ollama():
+    # When routing/structuring use a cloud LLM, Ollama is only needed for
+    # vision — skip this gate so text-only E2E tests can run without it.
+    routing = os.environ.get("ROUTING_LLM", _RUNTIME_CONFIG.get("ROUTING_LLM", "ollama"))
+    if routing != "ollama":
+        return  # cloud LLM — Ollama not required
     try:
         httpx.get(_ollama_tags_url(OLLAMA_BASE_URL), timeout=3).raise_for_status()
     except Exception:

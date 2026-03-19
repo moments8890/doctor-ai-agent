@@ -20,7 +20,7 @@ async def import_medical_record_endpoint(
     file_bytes = await file.read()
 
     try:
-        from services.record_import.vision_import import import_medical_record
+        from domain.records.vision_import import import_medical_record
 
         result = await import_medical_record(
             file_bytes=file_bytes,

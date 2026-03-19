@@ -24,10 +24,10 @@ from sqlalchemy import select
 from db.engine import AsyncSessionLocal
 from db.models import Patient, MedicalRecordDB
 from db.crud.patient_message import save_patient_message
-from services.auth.access_code_hash import hash_access_code, verify_access_code
-from services.auth.rate_limit import enforce_doctor_rate_limit
-from services.notify.notification import send_doctor_notification
-from services.observability.audit import audit
+from infra.auth.access_code_hash import hash_access_code, verify_access_code
+from infra.auth.rate_limit import enforce_doctor_rate_limit
+from domain.tasks.notifications import send_doctor_notification
+from infra.observability.audit import audit
 from utils.log import safe_create_task
 
 logger = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ _TOKEN_TTL = 86400  # 24 hours
 def _portal_secret() -> str:
     secret = os.environ.get("PATIENT_PORTAL_SECRET", "").strip()
     if not secret:
-        from services.auth import is_production
+        from infra.auth import is_production
         if is_production():
             raise RuntimeError(
                 "PATIENT_PORTAL_SECRET must be set in production."
@@ -121,7 +121,7 @@ async def _authenticate_patient(
         bearer = bearer[7:]
     if bearer:
         try:
-            from services.auth.unified import verify_token
+            from infra.auth.unified import verify_token
             payload = verify_token(bearer)
             if payload.get("role") != "patient":
                 raise HTTPException(403, "Patient access required")
@@ -410,7 +410,7 @@ async def reset_patient_access_code(
     Rotating the code also bumps ``access_code_version``, which
     invalidates all previously-issued patient portal JWTs.
     """
-    from services.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
+    from infra.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
 
     doctor_id = resolve_doctor_id_from_auth_or_fallback(
         (body.doctor_id or "").strip(),
@@ -608,7 +608,7 @@ async def patient_upload(
     file_bytes = await file.read()
 
     try:
-        from services.record_import.vision_import import import_medical_record
+        from domain.records.vision_import import import_medical_record
 
         result = await import_medical_record(
             file_bytes=file_bytes,

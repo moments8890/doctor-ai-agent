@@ -19,8 +19,8 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import selectinload
 from db.engine import AsyncSessionLocal
 from db.models import MedicalRecordDB, Patient
-from services.auth.rate_limit import enforce_doctor_rate_limit
-from services.observability.audit import audit
+from infra.auth.rate_limit import enforce_doctor_rate_limit
+from infra.observability.audit import audit
 from channels.web.ui._utils import (
     _fmt_ts,
     _parse_tags,
@@ -248,7 +248,7 @@ async def manage_patients_grouped_for_doctor(doctor_id: str) -> dict:
     enforce_doctor_rate_limit(doctor_id, scope="ui.manage_patients_grouped")
     async with AsyncSessionLocal() as db:
         # Refresh stale categories before reading
-        from services.patient.patient_categorization import recompute_all_categories
+        from domain.patients.categorization import recompute_all_categories
         await recompute_all_categories(db, doctor_id=doctor_id)
         patients, count_map = await _fetch_patients_with_record_counts(db, doctor_id)
     all_items = [_serialize_patient_item(p, count_map) for p in patients]

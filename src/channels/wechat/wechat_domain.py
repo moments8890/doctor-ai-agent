@@ -51,7 +51,7 @@ def extract_cdata(xml_str: str, tag: str) -> str:
 
 
 # save_pending_record is now in the shared handler layer
-from services.domain.intent_handlers._confirm_pending import save_pending_record  # noqa: F401
+from domain.records.confirm_pending import save_pending_record  # noqa: F401
 
 
 async def handle_all_patients(doctor_id: str) -> str:

@@ -19,8 +19,8 @@ async def bg_auto_tasks(
     content: str,
 ) -> None:
     """Background: detect task signals in record content and create tasks."""
-    from services.notify.task_rules import detect_auto_tasks, refine_due_days
-    from services.notify.tasks import create_task as _create_task
+    from domain.tasks.task_rules import detect_auto_tasks, refine_due_days
+    from domain.tasks.task_crud import create_task as _create_task
     from datetime import timedelta, timezone
 
     specs = detect_auto_tasks(content, patient_name)
@@ -46,7 +46,7 @@ async def bg_auto_tasks(
 
 async def bg_auto_learn(doctor_id: str, text: str, record: object) -> None:
     """Run knowledge auto-learning in the background (non-blocking)."""
-    from services.knowledge.doctor_knowledge import maybe_auto_learn_knowledge
+    from domain.knowledge.doctor_knowledge import maybe_auto_learn_knowledge
     try:
         async with AsyncSessionLocal() as session:
             await maybe_auto_learn_knowledge(

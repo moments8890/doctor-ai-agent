@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel
 
-from services.auth.unified import (
+from infra.auth.unified import (
     authenticate,
     login,
     login_with_role,

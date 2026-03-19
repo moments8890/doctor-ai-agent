@@ -19,7 +19,7 @@ The plan file must include:
 - **Temporary testing policy** — during the current MVP iteration, do not add, update, or run unit tests as part of normal development unless the user explicitly asks for tests or the task is itself a test-only fix
 - **DB schema changes** — add to `db/models/`; `create_tables()` handles creation automatically; document any manual cleanup/migration impact in the commit message and PR description
 - **No Alembic migrations** — do not create or run Alembic migrations until first production launch; for dev, use `create_tables()` or manual `ALTER TABLE` statements
-- **LLM provider defaults** — local model is `qwen2.5:14b` via Ollama; prefer this in examples and defaults
+- **LLM provider defaults** — local model is `qwen3.5:9b` via Ollama; prefer this in examples and defaults
 
 ## Configuration
 - `config/runtime.json` is the **sole local configuration file** — never create or suggest `.env` / `.env.local` for the main application

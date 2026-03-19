@@ -3,7 +3,7 @@
 Integration tests for the image → extracted text → structured record pipeline.
 
 Requires: running server + Ollama with vision model (auto-skipped otherwise).
-Vision model: set OLLAMA_VISION_MODEL=qwen2.5vl:7b in .env
+Vision model: set OLLAMA_VISION_MODEL=qwen3-vl:8b in .env
 """
 
 import pytest

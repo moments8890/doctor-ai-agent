@@ -83,7 +83,7 @@ def _trim_history(history: List[dict]) -> List[dict]:
 # LLM client
 # ---------------------------------------------------------------------------
 
-from services.patient import PATIENT_SYSTEM_PROMPT as _PATIENT_SYSTEM_PROMPT
+from domain.patients import PATIENT_SYSTEM_PROMPT as _PATIENT_SYSTEM_PROMPT
 
 _CLIENT_CACHE: dict[str, AsyncOpenAI] = {}
 
@@ -94,18 +94,18 @@ def _get_llm_client() -> tuple[AsyncOpenAI, str]:
     bypassed in tests."""
     if "PYTEST_CURRENT_TEST" in os.environ:
         raise RuntimeError("patient pipeline LLM not available in test context")
-    from services.ai.llm_client import _PROVIDERS
+    from infra.llm.client import _PROVIDERS
     provider_name = os.environ.get("STRUCTURING_LLM", "ollama")
     # PHI egress gate: patient chat carries clinical history.
-    from services.ai.egress_policy import is_local_provider, check_cloud_egress
+    from infra.llm.egress import is_local_provider, check_cloud_egress
     if not is_local_provider(provider_name):
         check_cloud_egress(provider_name, "patient_pipeline")
     provider = _PROVIDERS.get(provider_name) or _PROVIDERS.get("ollama", {})
-    base_url = os.environ.get("OLLAMA_BASE_URL") or provider.get("base_url") or "http://192.168.0.123:11434/v1"
+    base_url = os.environ.get("OLLAMA_BASE_URL") or provider.get("base_url") or os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1")
     model = (
         os.environ.get("PATIENT_LLM_MODEL")
         or os.environ.get("STRUCTURING_LLM_MODEL")
-        or provider.get("model", "qwen2.5:14b")
+        or provider.get("model", "qwen3.5:9b")
     )
     api_key = os.environ.get(provider.get("api_key_env", "OLLAMA_API_KEY"), "ollama")
     cache_key = f"{base_url}:{model}"

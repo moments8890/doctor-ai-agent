@@ -24,9 +24,16 @@ from utils.app_config import AppConfig, load_config_from_json, ollama_base_url_c
 # entrypoints or early imports can freeze the wrong provider configuration.
 # TODO: migrate to lazy provider resolution via provider_registry.resolve().
 _config_source_path, _config_values = load_config_from_json()
-for _key, _value in _config_values.items():
+# Env vars set externally (e.g., .dev.sh) take precedence over runtime.json.
+# Merge: start with runtime.json values, overlay with existing env vars.
+_merged_values = dict(_config_values)
+for _key in list(_config_values.keys()):
+    if _key in os.environ:
+        _merged_values[_key] = os.environ[_key]
+# Apply merged values to os.environ (so all modules see them)
+for _key, _value in _merged_values.items():
     os.environ[_key] = _value
-APP_CONFIG = AppConfig.from_env(env=_config_values, env_source=str(_config_source_path))
+APP_CONFIG = AppConfig.from_env(env=_merged_values, env_source=str(_config_source_path))
 init_logging()
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -49,9 +56,9 @@ from channels.web.patient_interview_routes import router as patient_interview_ro
 from db.init_db import create_tables, seed_prompts, backfill_doctors_registry
 from db.engine import engine, AsyncSessionLocal
 from db.crud import get_due_tasks
-from services.notify.tasks import check_and_send_due_tasks
+from domain.tasks.task_crud import check_and_send_due_tasks
 from utils.errors import DomainError
-from services.observability.observability import (
+from infra.observability.observability import (
     add_trace,
     reset_current_span_id,
     reset_current_trace_id,
@@ -63,7 +70,7 @@ from services.observability.observability import (
 # Layer wiring — main.py is the only file that connects channels/ ↔ services/.
 # ---------------------------------------------------------------------------
 from channels.wechat.wechat_notify import _send_customer_service_msg
-from services.notify.notification import register_sender
+from domain.tasks.notifications import register_sender
 register_sender(_send_customer_service_msg)
 
 
@@ -153,7 +160,7 @@ async def _warmup_lkeap(log: logging.Logger) -> None:
         return
     try:
         from openai import AsyncOpenAI
-        from services.ai.llm_client import _PROVIDERS
+        from infra.llm.client import _PROVIDERS
         lkeap_provider = _PROVIDERS.get("tencent_lkeap", {})
         if lkeap_provider:
             client = AsyncOpenAI(
@@ -176,10 +183,15 @@ async def _warmup(config: AppConfig):
     """依次执行各组件预热：jieba、Ollama、LKEAP。"""
     log = logging.getLogger("warmup")
     await _warmup_jieba(log)
+    # Ollama/LKEAP warmup runs in background — don't block app startup
     if config.routing_llm == "ollama" or config.structuring_llm == "ollama":
-        await _warmup_ollama(config, log)
+        import asyncio
+        asyncio.create_task(_warmup_ollama(config, log))
+        log.info("Ollama warmup started (background — app ready immediately)")
     if config.routing_llm == "tencent_lkeap" or config.structuring_llm == "tencent_lkeap":
-        await _warmup_lkeap(log)
+        import asyncio
+        asyncio.create_task(_warmup_lkeap(log))
+        log.info("LKEAP warmup started (background)")
 
 
 def _ollama_warmup_timeout_seconds() -> float:
@@ -246,9 +258,9 @@ async def _expire_stale_pending_records() -> None:
     _log = logging.getLogger("scheduler")
     try:
         from db.crud import get_stale_pending_records
-        from services.domain.intent_handlers import save_pending_record
-        from services.notify.tasks import create_general_task
-        from services.runtime.context import clear_pending_draft_id
+        from domain.records.confirm_pending import save_pending_record
+        from domain.tasks.task_crud import create_general_task
+        from agent.pending import clear_pending_draft_id
         async with AsyncSessionLocal() as _session:
             stale = await get_stale_pending_records(_session)
         if not stale:
@@ -346,7 +358,7 @@ async def _prune_turn_log() -> None:
     """Daily job: remove turn log entries older than TURN_LOG_TTL_DAYS."""
     _log = logging.getLogger("scheduler")
     try:
-        from services.observability.turn_log import prune_turn_log
+        from infra.observability.turn_log import prune_turn_log
         kept = prune_turn_log()
         _log.info("[TurnLog] prune complete | kept=%s lines", kept)
     except Exception as _e:
@@ -437,7 +449,7 @@ async def _run_alembic_migrations() -> None:
         await asyncio.get_event_loop().run_in_executor(None, _run_sync)
         log.info("[DB] Alembic migrations applied (or already at head)")
     except Exception as exc:
-        from services.auth import is_production as _is_prod_migration
+        from infra.auth import is_production as _is_prod_migration
         if _is_prod_migration():
             raise RuntimeError(
                 f"Alembic migration failed in production — refusing to start "
@@ -462,8 +474,8 @@ _bg_worker_tasks: list[asyncio.Task] = []
 
 async def _startup_background_workers() -> None:
     """启动可观测性写入器和审计 drain worker 异步任务。"""
-    from services.observability.observability import _disk_writer
-    from services.observability.audit import _audit_drain_worker
+    from infra.observability.observability import _disk_writer
+    from infra.observability.audit import _audit_drain_worker
     _bg_worker_tasks.append(asyncio.create_task(_disk_writer(), name="disk_writer"))
     _bg_worker_tasks.append(asyncio.create_task(_audit_drain_worker(), name="audit_drain"))
 
@@ -487,7 +499,7 @@ async def _startup_recovery(startup_log: logging.Logger) -> None:
 
 def _enforce_production_guards() -> None:
     """生产环境安全检查：确保关键密钥已设置。"""
-    from services.auth import is_production
+    from infra.auth import is_production
     if not is_production():
         return
     if not os.environ.get("WECHAT_ID_HMAC_KEY", "").strip():
@@ -544,7 +556,7 @@ _cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
 if not _cors_origins:
     # Default to permissive origins in development only; production must
     # configure CORS_ALLOW_ORIGINS explicitly.
-    from services.auth import is_production as _is_prod_cors
+    from infra.auth import is_production as _is_prod_cors
     if _is_prod_cors():
         raise RuntimeError(
             "CORS_ALLOW_ORIGINS must be set in production "
@@ -698,24 +710,21 @@ def reset_caches():
 
     cleared = []
 
-    # Dedup cache
-    from services.runtime.dedup import _cache as dedup_cache, _in_flight
-    dedup_cache.clear()
-    _in_flight.clear()
-    cleared.append("dedup")
+    # Agent session cache
+    try:
+        from agent.session import _agents
+        _agents.clear()
+        cleared.append("agent_sessions")
+    except ImportError:
+        pass
 
     # Prompt loader cache
     from utils.prompt_loader import invalidate as invalidate_prompts
     invalidate_prompts()
     cleared.append("prompt_loader")
 
-    # Understand prompt cache
-    import services.runtime.understand as _understand
-    _understand._UNDERSTAND_PROMPT = None
-    cleared.append("understand_prompt")
-
     # Rate limiter
-    from services.auth.rate_limit import _RATE_WINDOWS
+    from infra.auth.rate_limit import _RATE_WINDOWS
     _RATE_WINDOWS.clear()
     cleared.append("rate_limit")
 

@@ -15,7 +15,6 @@ from db.models import (
     AuditLog,
     ChatArchive,
     Doctor,
-    DoctorContext,
     DoctorKnowledgeItem,
     DoctorTask,
     InterviewSessionDB,
@@ -30,7 +29,7 @@ from db.models import (
     SystemPromptVersion,
     patient_label_assignments,
 )
-from services.observability.audit import audit
+from infra.observability.audit import audit
 from channels.web.ui._utils import (
     _fmt_ts,
     _parse_tags,
@@ -193,16 +192,6 @@ async def _rows_system_prompts(db, limit: int, offset: int) -> list:
     ]
 
 
-async def _rows_doctor_contexts(db, doctor_id: Optional[str], limit: int, offset: int) -> list:
-    stmt = select(DoctorContext).order_by(DoctorContext.updated_at.desc()).limit(limit).offset(offset)
-    if doctor_id:
-        stmt = stmt.where(DoctorContext.doctor_id == doctor_id)
-    else:
-        stmt = apply_exclude_test_doctors(stmt, DoctorContext.doctor_id)
-    return [
-        {"doctor_id": c.doctor_id, "summary": c.summary, "updated_at": _fmt_ts(c.updated_at)}
-        for c in (await db.execute(stmt)).scalars().all()
-    ]
 
 
 async def _rows_record_versions(db, doctor_id: Optional[str], limit: int, offset: int) -> list:
@@ -365,8 +354,6 @@ async def _fetch_table_rows(
         return await _rows_label_assignments(db, doctor_id, needle, limit, offset)
     if table_key == "system_prompts":
         return await _rows_system_prompts(db, limit, offset)
-    if table_key == "doctor_contexts":
-        return await _rows_doctor_contexts(db, doctor_id, limit, offset)
     if table_key == "medical_record_versions":
         return await _rows_record_versions(db, doctor_id, limit, offset)
     if table_key == "medical_record_exports":

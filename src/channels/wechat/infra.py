@@ -63,7 +63,7 @@ async def is_registered_doctor(open_id: str) -> bool:
     the DB at a different level are not broken by the new guard.
     """
     import sys as _sys
-    from services.auth import is_production
+    from infra.auth import is_production
     if not is_production() and "pytest" in _sys.modules:
         return True
     cached = _DOCTOR_CACHE.get(open_id)

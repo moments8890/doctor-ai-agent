@@ -13,7 +13,7 @@ from typing import Optional, Tuple
 
 from fastapi import HTTPException
 
-from services.auth.request_auth import require_admin_token, resolve_doctor_id_from_auth_or_fallback
+from infra.auth.request_auth import require_admin_token, resolve_doctor_id_from_auth_or_fallback
 
 
 def _extract_tunnel_url_from_log(content: str) -> str | None:

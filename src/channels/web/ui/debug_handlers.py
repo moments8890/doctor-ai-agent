@@ -11,7 +11,7 @@ import uuid
 
 from fastapi import APIRouter, Header, Query
 
-from services.observability.observability import (
+from infra.observability.observability import (
     add_span,
     add_trace,
     clear_traces,
@@ -138,7 +138,7 @@ async def debug_routing_metrics(
 ):
     """Fast-router vs LLM hit counts for the debug page."""
     _require_ui_debug_access(x_debug_token)
-    from services.observability.routing_metrics import get_metrics
+    from infra.observability.routing_metrics import get_metrics
     return get_metrics()
 
 
@@ -148,6 +148,6 @@ async def debug_routing_metrics_reset(
 ):
     """Reset routing counters to zero."""
     _require_ui_debug_access(x_debug_token)
-    from services.observability.routing_metrics import reset
+    from infra.observability.routing_metrics import reset
     reset()
     return {"ok": True}

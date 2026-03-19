@@ -15,6 +15,7 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
+import Markdown from "react-markdown";
 import { sendChat, ocrImage, extractFileForChat, clearContext } from "../../api";
 import RecordFields from "../../components/RecordFields";
 import { t } from "../../i18n";
@@ -76,13 +77,26 @@ function TasksCard({ tasks }) {
   );
 }
 
-function MsgBubble({ msg }) {
+/* Minimal markdown styles scoped to AI message bubbles */
+const mdStyles = {
+  "& p": { m: 0, lineHeight: 1.7 },
+  "& p + p": { mt: 0.8 },
+  "& strong": { fontWeight: 600 },
+  "& hr": { border: "none", borderTop: "1px solid #e5e5e5", my: 1 },
+  "& ul, & ol": { m: 0, pl: 2.5 },
+  "& li": { lineHeight: 1.7 },
+  "& h1,& h2,& h3,& h4": { fontSize: 14, fontWeight: 600, mt: 1, mb: 0.5 },
+  "& code": { fontSize: 12, bgcolor: "#f5f5f5", px: 0.5, borderRadius: 0.5 },
+};
+
+function MsgBubble({ msg, onQuickSend }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isUser = msg.role === "user";
   const bubbleRadius = isUser ? "4px 4px 0 4px" : "4px 4px 4px 0";
   const bgColor = isUser ? "#95EC69" : "#fff";
   const textColor = "#111111";
+  const hasPending = !isUser && /确认保存/.test(msg.content);
 
   return (
     <Box sx={{ display: "flex", flexDirection: isUser ? "row-reverse" : "row", alignItems: "flex-end", gap: isMobile ? 1 : 1.2, px: isMobile ? 1.5 : 2 }}>
@@ -95,11 +109,31 @@ function MsgBubble({ msg }) {
               ? { right: "-10px", borderLeftColor: bgColor, borderBottomColor: bgColor }
               : { left: "-10px", borderRightColor: bgColor, borderBottomColor: bgColor }),
           } }}>
-          <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", lineHeight: isMobile ? 1.8 : 1.7, color: textColor }}>
-            {msg.content}
-          </Typography>
+          {isUser ? (
+            <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", lineHeight: isMobile ? 1.8 : 1.7, color: textColor }}>
+              {msg.content}
+            </Typography>
+          ) : (
+            <Box sx={{ fontSize: 14, color: textColor, ...mdStyles }}>
+              <Markdown>{msg.content}</Markdown>
+            </Box>
+          )}
           {!isUser && msg.record ? <RecordFields record={msg.record} /> : null}
           {!isUser && msg.view_payload?.type === "tasks_list" ? <TasksCard tasks={msg.view_payload.data} /> : null}
+          {hasPending && onQuickSend && (
+            <Stack direction="row" spacing={1} sx={{ mt: 1.5, pt: 1, borderTop: "1px solid #e5e5e5" }}>
+              <Button size="small" variant="contained" disableElevation
+                sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: "#06a050" }, textTransform: "none", fontSize: 13, borderRadius: 1 }}
+                onClick={() => onQuickSend("确认")}>
+                确认保存
+              </Button>
+              <Button size="small" variant="outlined" disableElevation
+                sx={{ color: "#999", borderColor: "#d9d9d9", textTransform: "none", fontSize: 13, borderRadius: 1 }}
+                onClick={() => onQuickSend("取消")}>
+                取消
+              </Button>
+            </Stack>
+          )}
         </Box>
         <Typography sx={{ mt: isMobile ? 0.3 : 0.4, px: 0.5, color: isMobile ? "#888" : "#aaa", fontSize: 11 }}>
           {msg.ts}
@@ -469,7 +503,7 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
       <ChatTopbar isMobile={isMobile} doctorId={doctorId} onClearClick={() => setClearConfirmOpen(true)} />
       <Box sx={{ flex: 1, overflowY: "auto", py: 2, display: "flex", flexDirection: "column", gap: isMobile ? 1.8 : 1.4, bgcolor: "#ededed" }}>
         {messages.map((msg, idx) => (
-          <MsgBubble key={`${msg.role}-${idx}`} msg={msg} />
+          <MsgBubble key={`${msg.role}-${idx}`} msg={msg} onQuickSend={sendText} />
         ))}
         {loading && <LoadingBubble isMobile={isMobile} />}
         <div ref={bottomRef} />

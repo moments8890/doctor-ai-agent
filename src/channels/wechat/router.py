@@ -38,12 +38,12 @@ from channels.wechat.patient_pipeline import (
 )
 from db.engine import AsyncSessionLocal
 from db.crud import update_task_status
-from services.knowledge.doctor_knowledge import (
+from domain.knowledge.doctor_knowledge import (
     parse_add_to_knowledge_command,
     save_knowledge_item,
 )
-from services.notify.tasks import run_due_task_cycle
-from services.notify.notify_control import set_notify_mode
+from domain.tasks.task_crud import run_due_task_cycle
+from domain.tasks.scheduler import set_notify_mode
 from utils.log import log, bind_log_context, safe_create_task
 
 _COMPLETE_RE = re.compile(r'^\s*完成\s*(\d+)\s*$')
@@ -130,16 +130,9 @@ async def _handle_intent(
             return _plain_reply("⚠️ 知识内容为空，未保存。")
         return _plain_reply("✅ 已加入医生知识库（#{0}）：{1}".format(item.id, knowledge_payload))
 
-    # ADR 0011 runtime — replaces the old 5-layer intent workflow pipeline.
-    # process_turn handles: context load, draft guard, conversation model,
-    # commit engine, memory patch, context save, and chat archive.
-    from services.runtime import TurnEnvelope, process_turn
-    result = await process_turn(TurnEnvelope(
-        doctor_id=doctor_id,
-        text=text,
-        channel="wechat",
-    ))
-    return _plain_reply(result.reply)
+    from agent import handle_turn
+    reply = await handle_turn(text, "doctor", doctor_id)
+    return _plain_reply(reply)
 
 
 
@@ -445,31 +438,34 @@ async def _handle_stateful_sync(msg) -> Response | None:
     Returns XML response for confirm/abandon; None otherwise (falls through
     to background processing).
     """
-    from services.runtime import CONFIRM_RE, ABANDON_RE
+    from agent.handle_turn import _CONFIRM_RE, _ABANDON_RE
 
     text = msg.content.strip()
-    # Cheap regex check first — skip the DB hit for non-confirm/abandon input.
-    if not CONFIRM_RE.match(text) and not ABANDON_RE.match(text):
+    if not _CONFIRM_RE.match(text) and not _ABANDON_RE.match(text):
         return None
 
-    # Read-only context check: only call process_turn synchronously when a
-    # draft is actually pending.  Without this guard, a bare "好" would run
-    # the full LLM pipeline synchronously and risk exceeding WeChat's 5 s
-    # response deadline.
-    from services.runtime import TurnEnvelope, has_pending_draft, process_turn
+    # Check if there's a pending draft — avoid LLM call for bare "好"
+    from db.engine import AsyncSessionLocal as _ASL
+    from db.models.pending import PendingRecord
+    from sqlalchemy import select
+
     doctor_id = msg.source
-    if not await has_pending_draft(doctor_id):
-        return None
+    async with _ASL() as session:
+        result = await session.execute(
+            select(PendingRecord).where(
+                PendingRecord.doctor_id == doctor_id,
+                PendingRecord.status == "awaiting",
+            ).limit(1)
+        )
+        pending = result.scalar_one_or_none()
+        if not pending:
+            return None
 
-    # Route through the public runtime API — gets dedup, error handling,
-    # context persist, and chat archive instead of duplicating them here.
-    result = await process_turn(TurnEnvelope(
-        doctor_id=doctor_id,
-        text=text,
-        channel="wechat",
-    ))
+    # Route through handle_turn which handles confirm/abandon in fast path
+    from agent import handle_turn
+    reply = await handle_turn(text, "doctor", doctor_id)
     return Response(
-        content=TextReply(content=result.reply, message=msg).render(),
+        content=TextReply(content=reply, message=msg).render(),
         media_type="application/xml",
     )
 
@@ -601,7 +597,7 @@ async def recover_stale_pending_messages(older_than_seconds: int = 60) -> int:
 @router.post("/menu")
 async def setup_menu(x_admin_token: str | None = Header(default=None, alias="X-Admin-Token")):
     """Admin endpoint: create / update the WeChat custom menu."""
-    from services.auth.request_auth import require_admin_token
+    from infra.auth.request_auth import require_admin_token
     require_admin_token(x_admin_token)
     cfg = _get_config()
     access_token = await _get_access_token(cfg["app_id"], cfg["app_secret"])

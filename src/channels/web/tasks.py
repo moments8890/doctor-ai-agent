@@ -15,10 +15,10 @@ from pydantic import BaseModel
 from db.engine import AsyncSessionLocal
 from db.crud import list_tasks, update_task_status, create_task, get_task_by_id, update_task_due_at
 from db.crud.patient import get_patient_for_doctor
-from services.auth.rate_limit import enforce_doctor_rate_limit
-from services.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
-from services.notify.tasks import run_due_task_cycle
-from services.observability.audit import audit
+from infra.auth.rate_limit import enforce_doctor_rate_limit
+from infra.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
+from domain.tasks.task_crud import run_due_task_cycle
+from infra.observability.audit import audit
 from utils.log import safe_create_task
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])

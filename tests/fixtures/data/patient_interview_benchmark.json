@@ -4,11 +4,11 @@
     "title": "Simple headache — complete interview in 5 turns",
     "group": "full_flow",
     "chatlog": [
-      {"speaker": "patient", "text": "头疼"},
-      {"speaker": "patient", "text": "三天了，持续性的"},
-      {"speaker": "patient", "text": "没有疾病，没做过手术"},
-      {"speaker": "patient", "text": "没有过敏，不抽烟不喝酒"},
-      {"speaker": "patient", "text": "家人没有类似的"}
+      {"speaker": "patient", "text": "头疼", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}},
+      {"speaker": "patient", "text": "三天了，持续性的", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}},
+      {"speaker": "patient", "text": "没有疾病，没做过手术", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}},
+      {"speaker": "patient", "text": "没有过敏，不抽烟不喝酒", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}},
+      {"speaker": "patient", "text": "家人没有类似的", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}}
     ],
     "patient_info": {
       "name": "测试头痛",
@@ -33,12 +33,12 @@
     "title": "Abdominal pain with surgical history",
     "group": "full_flow",
     "chatlog": [
-      {"speaker": "patient", "text": "肚子疼"},
-      {"speaker": "patient", "text": "两天了，阵发性的"},
-      {"speaker": "patient", "text": "做过阑尾手术"},
-      {"speaker": "patient", "text": "青霉素过敏"},
-      {"speaker": "patient", "text": "父亲有糖尿病"},
-      {"speaker": "patient", "text": "吸烟，不喝酒"}
+      {"speaker": "patient", "text": "肚子疼", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}},
+      {"speaker": "patient", "text": "两天了，阵发性的", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}},
+      {"speaker": "patient", "text": "做过阑尾手术", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}},
+      {"speaker": "patient", "text": "青霉素过敏", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}},
+      {"speaker": "patient", "text": "父亲有糖尿病", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}},
+      {"speaker": "patient", "text": "吸烟，不喝酒", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}}
     ],
     "patient_info": {
       "name": "测试腹痛",
@@ -64,12 +64,12 @@
     "title": "Patient gives combined answers — multi-field extraction",
     "group": "multi_field",
     "chatlog": [
-      {"speaker": "patient", "text": "胸闷气短一周了"},
-      {"speaker": "patient", "text": "活动后加重，休息后缓解"},
-      {"speaker": "patient", "text": "高血压十年，做过支架"},
-      {"speaker": "patient", "text": "没有药物过敏"},
-      {"speaker": "patient", "text": "家里有人得过心脏病"},
-      {"speaker": "patient", "text": "吸烟20年"}
+      {"speaker": "patient", "text": "胸闷气短一周了", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}},
+      {"speaker": "patient", "text": "活动后加重，休息后缓解", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}},
+      {"speaker": "patient", "text": "高血压十年，做过支架", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}},
+      {"speaker": "patient", "text": "没有药物过敏", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}},
+      {"speaker": "patient", "text": "家里有人得过心脏病", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}},
+      {"speaker": "patient", "text": "吸烟20年", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}}
     ],
     "patient_info": {
       "name": "测试胸闷",
@@ -91,12 +91,12 @@
     "title": "Patient says '没有' to everything — negatives extracted",
     "group": "negatives",
     "chatlog": [
-      {"speaker": "patient", "text": "头晕"},
-      {"speaker": "patient", "text": "今天开始的，不严重"},
-      {"speaker": "patient", "text": "以前没有得过什么病"},
-      {"speaker": "patient", "text": "没有药物过敏"},
-      {"speaker": "patient", "text": "家人没有类似的病"},
-      {"speaker": "patient", "text": "不吸烟不喝酒"}
+      {"speaker": "patient", "text": "头晕", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}},
+      {"speaker": "patient", "text": "今天开始的，不严重", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}},
+      {"speaker": "patient", "text": "以前没有得过什么病", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}},
+      {"speaker": "patient", "text": "没有药物过敏", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}},
+      {"speaker": "patient", "text": "家人没有类似的病", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}},
+      {"speaker": "patient", "text": "不吸烟不喝酒", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}}
     ],
     "patient_info": {
       "name": "测试头晕",
@@ -119,13 +119,13 @@
     "title": "Resume interrupted interview",
     "group": "session_management",
     "chatlog_part1": [
-      {"speaker": "patient", "text": "腰疼"},
-      {"speaker": "patient", "text": "一周了"}
+      {"speaker": "patient", "text": "腰疼", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}},
+      {"speaker": "patient", "text": "一周了", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}}
     ],
     "chatlog_part2": [
-      {"speaker": "patient", "text": "没有其他疾病"},
-      {"speaker": "patient", "text": "没有过敏，不吸烟"},
-      {"speaker": "patient", "text": "没有家族病史"}
+      {"speaker": "patient", "text": "没有其他疾病", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}},
+      {"speaker": "patient", "text": "没有过敏，不吸烟", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}},
+      {"speaker": "patient", "text": "没有家族病史", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}}
     ],
     "patient_info": {
       "name": "测试中断",
@@ -146,7 +146,7 @@
     "title": "Cancel and restart gives fresh session",
     "group": "session_management",
     "chatlog": [
-      {"speaker": "patient", "text": "膝盖疼"}
+      {"speaker": "patient", "text": "膝盖疼", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}}
     ],
     "patient_info": {
       "name": "测试取消",
@@ -223,12 +223,12 @@
     "title": "Confirm creates record visible in patient records API",
     "group": "handoff",
     "chatlog": [
-      {"speaker": "patient", "text": "咳嗽一周了"},
-      {"speaker": "patient", "text": "有痰，黄色的"},
-      {"speaker": "patient", "text": "没有其他疾病"},
-      {"speaker": "patient", "text": "没有过敏"},
-      {"speaker": "patient", "text": "家人没有类似情况"},
-      {"speaker": "patient", "text": "不抽烟不喝酒"}
+      {"speaker": "patient", "text": "咳嗽一周了", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}},
+      {"speaker": "patient", "text": "有痰，黄色的", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}},
+      {"speaker": "patient", "text": "没有其他疾病", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}},
+      {"speaker": "patient", "text": "没有过敏", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}},
+      {"speaker": "patient", "text": "家人没有类似情况", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}},
+      {"speaker": "patient", "text": "不抽烟不喝酒", "assert": {"tools_include": ["advance_interview"], "llm_calls": 3}}
     ],
     "patient_info": {
       "name": "测试交接",

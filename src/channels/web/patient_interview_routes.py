@@ -16,15 +16,15 @@ class InterviewTurnRequest(BaseModel):
 
 class InterviewSessionRequest(BaseModel):
     session_id: str
-from services.patient_interview.completeness import count_filled
-from services.patient_interview.session import (
+from domain.patients.completeness import count_filled
+from domain.patients.interview_session import (
     create_session,
     get_active_session,
     load_session,
     save_session,
 )
-from services.patient_interview.summary import confirm_interview
-from services.patient_interview.turn import interview_turn
+from domain.patients.interview_summary import confirm_interview
+from domain.patients.interview_turn import interview_turn
 from utils.log import log
 
 router = APIRouter(prefix="/api/patient/interview", tags=["patient-interview"])

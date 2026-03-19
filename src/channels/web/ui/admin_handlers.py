@@ -18,7 +18,6 @@ from db.models import (
     AuditLog,
     ChatArchive,
     Doctor,
-    DoctorContext,
     DoctorKnowledgeItem,
     DoctorTask,
     InterviewSessionDB,
@@ -33,8 +32,8 @@ from db.models import (
     SystemPromptVersion,
     patient_label_assignments,
 )
-from services.observability.observability import add_span, add_trace
-from services.observability.audit import audit
+from infra.observability.observability import add_span, add_trace
+from infra.observability.audit import audit
 from channels.web.ui._utils import (
     _fmt_ts,
     _parse_tags,
@@ -263,7 +262,7 @@ _TABLES_ORDER = [
     "medical_record_exports", "doctor_tasks", "interview_sessions",
     "pending_records", "pending_messages", "audit_log",
     "doctor_knowledge_items", "patient_labels", "patient_label_assignments",
-    "system_prompts", "system_prompt_versions", "doctor_contexts",
+    "system_prompts", "system_prompt_versions",
     "chat_archive",
 ]
 
@@ -282,12 +281,6 @@ async def _count_all_tables(db, doctor_id: Optional[str], needle: Optional[str],
     counts["system_prompts"] = int(
         (await db.execute(select(func.count(SystemPrompt.key)))).scalar() or 0
     )
-    ctx_stmt = select(func.count(DoctorContext.doctor_id))
-    if doctor_id:
-        ctx_stmt = ctx_stmt.where(DoctorContext.doctor_id == doctor_id)
-    else:
-        ctx_stmt = apply_exclude_test_doctors(ctx_stmt, DoctorContext.doctor_id)
-    counts["doctor_contexts"] = int((await db.execute(ctx_stmt)).scalar() or 0)
     counts.update(await _count_generic_tables(db, doctor_id))
     counts["system_prompt_versions"] = int(
         (await db.execute(select(func.count(SystemPromptVersion.id)))).scalar() or 0

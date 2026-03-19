@@ -18,9 +18,9 @@ from sqlalchemy import select
 from db.engine import AsyncSessionLocal
 from db.models import MedicalRecordDB, MedicalRecordExport, Patient
 from channels.web.ui._utils import _resolve_ui_doctor_id
-from services.auth.rate_limit import enforce_doctor_rate_limit
-from services.export.pdf_export import generate_outpatient_report_pdf, generate_records_pdf
-from services.observability.audit import audit
+from infra.auth.rate_limit import enforce_doctor_rate_limit
+from domain.records.pdf_export import generate_outpatient_report_pdf, generate_records_pdf
+from infra.observability.audit import audit
 from utils.log import log, safe_create_task
 
 
@@ -290,7 +290,7 @@ async def _extract_outpatient_fields_safe(
     records, patient, resolved_doctor_id: str, patient_id: int,
 ):
     """Call LLM field extraction; raises HTTPException 502 on ExtractionError."""
-    from services.export.outpatient_report import ExtractionError, extract_outpatient_fields
+    from domain.records.outpatient_report import ExtractionError, extract_outpatient_fields
     try:
         return await extract_outpatient_fields(
             records, patient, doctor_id=resolved_doctor_id,
@@ -340,7 +340,7 @@ async def export_outpatient_report(
 
     # --- JSON export path --------------------------------------------------
     if export_format == "json":
-        from services.export.outpatient_report import export_as_json
+        from domain.records.outpatient_report import export_as_json
         data = await export_as_json(records, patient, resolved_doctor_id)
         annotation = _source_annotation(records)
         if annotation:
@@ -539,7 +539,7 @@ def _extract_docx_text(raw: bytes) -> str:
 async def _extract_image_text(raw: bytes, content_type: str) -> str:
     """OCR image using the shared vision LLM service (singleton client, with fallback)."""
     try:
-        from services.ai.vision import extract_text_from_image
+        from infra.llm.vision import extract_text_from_image
         text = await extract_text_from_image(raw, content_type)
         if not text.strip():
             raise HTTPException(status_code=422, detail="Vision model returned empty text for this image")

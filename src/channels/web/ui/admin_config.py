@@ -16,13 +16,12 @@ from sqlalchemy import select
 from db.engine import AsyncSessionLocal
 from db.models import (
     Doctor,
-    DoctorContext,
     DoctorTask,
     MedicalRecordDB,
     Patient,
     PatientLabel,
 )
-from services.observability.observability import (
+from infra.observability.observability import (
     clear_traces,
     get_latency_summary_scoped,
     get_recent_spans_scoped,
@@ -96,7 +95,7 @@ async def admin_routing_metrics(
 ):
     """Fast-router vs LLM hit counts since last process start."""
     _require_ui_admin_access(x_admin_token)
-    from services.observability.routing_metrics import get_metrics
+    from infra.observability.routing_metrics import get_metrics
     return get_metrics()
 
 
@@ -106,7 +105,7 @@ async def admin_routing_metrics_reset(
 ):
     """Reset routing counters to zero."""
     _require_ui_admin_access(x_admin_token)
-    from services.observability.routing_metrics import reset
+    from infra.observability.routing_metrics import reset
     reset()
     return {"ok": True}
 
@@ -218,7 +217,6 @@ async def admin_filter_options(
             Patient.doctor_id,
             MedicalRecordDB.doctor_id,
             DoctorTask.doctor_id,
-            DoctorContext.doctor_id,
             PatientLabel.doctor_id,
         ]
         for col in doctor_sources:

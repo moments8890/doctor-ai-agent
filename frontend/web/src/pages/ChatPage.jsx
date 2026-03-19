@@ -106,10 +106,14 @@ export default function ChatPage() {
     navigate("/login", { replace: true });
   }
 
-  function onClear() {
+  async function onClear() {
     const fresh = [{ role: "assistant", content: t("chat.welcome"), ts: nowTs() }];
     setMessages(fresh);
     localStorage.setItem(historyKey(doctorId), JSON.stringify(fresh));
+    // Clear backend agent session + chat archive
+    try {
+      await fetch(`/api/manage/clear-context?doctor_id=${encodeURIComponent(doctorId)}`, { method: "POST" });
+    } catch { /* ignore */ }
   }
 
   async function onSend() {

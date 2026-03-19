@@ -2,7 +2,7 @@
 from db.models.base import _utcnow
 from db.models.system import SystemPrompt, SystemPromptVersion
 from db.models.doctor import (
-    DoctorContext, DoctorKnowledgeItem,
+    DoctorKnowledgeItem,
     DoctorNotifyPreference, Doctor, InviteCode, ChatArchive,
 )
 from db.models.patient import Patient, PatientLabel, patient_label_assignments
@@ -18,7 +18,7 @@ from db.models.interview_session import InterviewSessionDB
 __all__ = [
     "_utcnow",
     "SystemPrompt", "SystemPromptVersion",
-    "DoctorContext", "DoctorKnowledgeItem",
+    "DoctorKnowledgeItem",
     "DoctorNotifyPreference", "Doctor", "InviteCode", "ChatArchive",
     "Patient", "PatientLabel", "patient_label_assignments",
     "MedicalRecordDB", "MedicalRecordVersion", "MedicalRecordExport",

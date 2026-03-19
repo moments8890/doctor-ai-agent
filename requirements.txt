@@ -33,3 +33,8 @@ PyJWT==2.11.0
 #   Env vars: VISION_LLM=ollama (default) | openai
 #             OLLAMA_VISION_MODEL=qwen2.5vl:7b (default)
 structlog>=21.5.0              # structured JSON logging
+# LangChain agent framework (ReAct agent migration)
+langchain>=0.3.0
+langchain-openai>=0.3.0
+langchain-core>=0.3.0
+langfuse>=3.0.0                # LLM observability (optional, set LANGFUSE_PUBLIC_KEY to enable)

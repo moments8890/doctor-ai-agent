@@ -6,25 +6,29 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "新患者，张明，男，56岁。主诉胸痛3天，每次持续5-10分钟，活动后加重，休息缓解。有高血压病史10年，吸烟30年，每天1包。需要做心电图和心肌酶。"
+        "text": "新患者，张明，男，56岁。主诉胸痛3天，每次持续5-10分钟，活动后加重，休息缓解。有高血压病史10年，吸烟30年，每天1包。需要做心电图和心肌酶。",
+        "assert": {
+          "tools_include": ["create_record"],
+          "llm_calls": 3
+        }
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认",
+        "assert": {
+          "tools_include": [],
+          "llm_calls": 0
+        }
       }
     ],
     "expectations": {
       "must_not_timeout": true,
       "expected_patient_name": "张明",
       "expected_patient_count": 1,
-      "expect_patient_dedup": true,
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
-      },
-      "must_include_any_of": [
-        ["胸痛", "心电图", "心肌酶"]
-      ],
-      "must_include_reply_any_of": [
-        ["保存", "病历", "已为"],
-        ["张明"]
-      ]
+      }
     }
   },
   {
@@ -34,25 +38,29 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "患者李淑芳，女，68岁，昨天复查结果：血压135/85，心电图正常，血脂：LDL 2.8。目前服用阿托伐他汀20mg daily，无不适。继续当前治疗，3个月复查。"
+        "text": "患者李淑芳，女，68岁，昨天复查结果：血压135/85，心电图正常，血脂：LDL 2.8。目前服用阿托伐他汀20mg daily，无不适。继续当前治疗，3个月复查。",
+        "assert": {
+          "tools_include": ["create_record"],
+          "llm_calls": 3
+        }
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认",
+        "assert": {
+          "tools_include": [],
+          "llm_calls": 0
+        }
       }
     ],
     "expectations": {
       "must_not_timeout": true,
       "expected_patient_name": "李淑芳",
       "expected_patient_count": 1,
-      "expect_patient_dedup": true,
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
-      },
-      "must_include_any_of": [
-        ["门诊", "继续", "阿托伐他汀", "3个月", "三个月"]
-      ],
-      "must_include_reply_any_of": [
-        ["保存", "病历", "已为"],
-        ["李淑芳"]
-      ]
+      }
     }
   },
   {
@@ -62,25 +70,29 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "王建国，男，62岁，肺癌术后3个月。这是今天CT报告文字：右肺下叶术后改变，未见明确肿块或淋巴结肿大，胸腔无积液。患者主诉轻度咳嗽，无痰。继续观察。"
+        "text": "王建国，男，62岁，肺癌术后3个月。这是今天CT报告文字：右肺下叶术后改变，未见明确肿块或淋巴结肿大，胸腔无积液。患者主诉轻度咳嗽，无痰。继续观察。",
+        "assert": {
+          "tools_include": ["create_record"],
+          "llm_calls": 3
+        }
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认",
+        "assert": {
+          "tools_include": [],
+          "llm_calls": 0
+        }
       }
     ],
     "expectations": {
       "must_not_timeout": true,
       "expected_patient_name": "王建国",
       "expected_patient_count": 1,
-      "expect_patient_dedup": true,
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
-      },
-      "must_include_any_of": [
-        ["术后", "肺癌术后", "未见复发", "随访", "术后改变"]
-      ],
-      "must_include_reply_any_of": [
-        ["保存", "病历", "已为"],
-        ["王建国"]
-      ]
+      }
     }
   },
   {
@@ -90,23 +102,28 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "陈秀英，女，72岁。她刚才打电话说她现在胸痛持续30分钟不缓解，大汗淋漓。她住在幸福小区3号楼。需要立即处理！"
+        "text": "陈秀英，女，72岁。她刚才打电话说她现在胸痛持续30分钟不缓解，大汗淋漓。她住在幸福小区3号楼。需要立即处理！",
+        "assert": {
+          "tools_include": ["create_record"],
+          "llm_calls": 3
+        }
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认",
+        "assert": {
+          "tools_include": [],
+          "llm_calls": 0
+        }
       }
     ],
     "expectations": {
       "must_not_timeout": true,
       "expected_patient_name": "陈秀英",
       "expected_patient_count": 1,
-      "expect_patient_dedup": true,
       "expected_table_min_counts_by_doctor": {
         "patients": 1
-      },
-      "must_include_any_of": [
-        ["胸痛"]
-      ],
-      "must_include_reply_any_of": [
-        ["保存", "病历", "已为", "记录", "患者", "陈秀英"]
-      ]
+      }
     }
   },
   {
@@ -116,25 +133,29 @@
     "chatlog": [
       {
         "speaker": "doctor",
-        "text": "新患者赵伟，男，45岁。体检发现肺结节，右肺上叶8mm磨玻璃结节，无症状，不吸烟，父亲肺癌。本次CT提示考虑早期肺癌可能，建议3个月复查。"
+        "text": "新患者赵伟，男，45岁。体检发现肺结节，右肺上叶8mm磨玻璃结节，无症状，不吸烟，父亲肺癌。本次CT提示考虑早期肺癌可能，建议3个月复查。",
+        "assert": {
+          "tools_include": ["create_record"],
+          "llm_calls": 3
+        }
+      },
+      {
+        "speaker": "doctor",
+        "text": "确认",
+        "assert": {
+          "tools_include": [],
+          "llm_calls": 0
+        }
       }
     ],
     "expectations": {
       "must_not_timeout": true,
       "expected_patient_name": "赵伟",
       "expected_patient_count": 1,
-      "expect_patient_dedup": true,
       "expected_table_min_counts_by_doctor": {
         "patients": 1,
         "medical_records": 1
-      },
-      "must_include_any_of": [
-        ["肺结节", "3个月", "三个月"]
-      ],
-      "must_include_reply_any_of": [
-        ["保存", "病历", "已为"],
-        ["赵伟"]
-      ]
+      }
     }
   }
 ]

@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from db.engine import AsyncSessionLocal
-from services.observability.audit import audit
+from infra.observability.audit import audit
 from utils.log import log, safe_create_task
 
 
@@ -28,8 +28,6 @@ async def _fetch_patient_and_records(
     from sqlalchemy import select
     from db.models import MedicalRecordDB
     from db.crud import find_patient_by_name
-    from services.runtime.context import load_context
-
     patient_id = None
     patient_name = None
     patient_obj = None
@@ -39,11 +37,6 @@ async def _fetch_patient_and_records(
         if patient_obj:
             patient_id = patient_obj.id
             patient_name = patient_obj.name
-
-    if patient_id is None:
-        ctx = await load_context(doctor_id)
-        patient_id = ctx.workflow.patient_id
-        patient_name = ctx.workflow.patient_name
 
     records = []
     if patient_id is not None:
@@ -103,7 +96,7 @@ async def handle_export_records(doctor_id: str, intent_result: Any) -> str:
         return f"📂 患者【{patient_name}】暂无历史记录，无法导出。"
 
     try:
-        from services.export.pdf_export import generate_records_pdf
+        from domain.records.pdf_export import generate_records_pdf
         pdf_bytes = generate_records_pdf(
             records=list(reversed(records)),
             patient_name=patient_name, patient=_patient,
@@ -139,7 +132,7 @@ async def _generate_and_send_outpatient_pdf(
     fields: dict,
 ) -> str:
     """Generate outpatient report PDF and send; return reply message."""
-    from services.export.pdf_export import generate_outpatient_report_pdf
+    from domain.records.pdf_export import generate_outpatient_report_pdf
     try:
         pdf_bytes = generate_outpatient_report_pdf(
             fields=fields,
@@ -174,7 +167,7 @@ async def handle_export_outpatient_report(doctor_id: str, intent_result: Any) ->
     if not records:
         return f"📂 患者【{patient_name}】暂无历史记录，无法生成门诊病历。"
 
-    from services.export.outpatient_report import ExtractionError, extract_outpatient_fields
+    from domain.records.outpatient_report import ExtractionError, extract_outpatient_fields
     try:
         fields = await extract_outpatient_fields(
             records, patient_obj, doctor_id=doctor_id,

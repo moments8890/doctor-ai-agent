@@ -82,23 +82,95 @@ Usage:
   ./dev.sh start [--background] [--no-frontend] [--menu]
   ./dev.sh stop
   ./dev.sh bootstrap [--with-frontend]    # project deps (venv/pip/npm)
-  ./dev.sh vm-bootstrap [--with-frontend] [--with-mysql]  # one-time VM provisioning
-  ./dev.sh vm-up [--runtime <path>] [--llm-provider <deepseek|tencent_lkeap|openai|ollama>] [--backend-host <host>] [--backend-port <port>] [--frontend-host <host>] [--frontend-port <port>] [--no-frontend] [--tunnel]  # start mysql+backend+frontend
+
+LLM Providers (Chinese-focused — Qwen/DeepSeek only):
+  ./dev.sh deepseek      # best Chinese quality — $0.28/M
+  ./dev.sh groq          # fast dev — Qwen3 32B, 0.7s, $0.29/M
+  ./dev.sh cerebras      # fastest — Qwen3 32B, free 1M tok/day
+  ./dev.sh sambanova     # free — Qwen2.5 72B, no credit card
+  ./dev.sh siliconflow   # China cloud — DeepSeek V3.2
+  ./dev.sh openrouter    # cheapest — Qwen3.5 9B, $0.05/M
+  ./dev.sh local         # offline — Qwen 2.5 7B via Ollama
+
+VM / Production:
+  ./dev.sh vm-bootstrap [--with-frontend] [--with-mysql]
+  ./dev.sh vm-up [--runtime <path>] [--llm-provider <provider>] [...]
   ./dev.sh vm-down [--remove-mysql]
   ./dev.sh run-backend [--host <host>] [--port <port>] [--reload]
+
+Testing:
   ./dev.sh test [unit|integration|integration-full|chatlog-half|chatlog-full|all]
   ./dev.sh e2e [half|full]
+
+Data:
   ./dev.sh data [preload|export-seed|import-seed|reset-from-seed] [args...]
-  ./dev.sh load-data [args for scripts/preload_patients.py]   # compatibility alias
+  ./dev.sh load-data [args for scripts/preload_patients.py]
   ./dev.sh chat [base_url] [doctor_id]
   ./dev.sh inspect-db [patients|records|...] — CLI inspector
   ./dev.sh inspect-db --ui [port]           — Datasette web UI (default port 8002)
 
 Compatibility:
-  ./dev.sh                # same as start (foreground)
+  ./dev.sh                # same as start with Ollama (foreground)
   ./dev.sh --background   # legacy flags still work
 EOF
       exit 0
+      ;;
+
+    # ── Cloud LLM provider shortcuts ─────────────────────────────
+    deepseek|groq|cerebras|sambanova|siliconflow|openrouter|local)
+      PROVIDER="$CMD"
+      # Map provider to env vars
+      case "$PROVIDER" in
+        deepseek)
+          export CONVERSATION_LLM=deepseek
+          export ROUTING_LLM=deepseek
+          export STRUCTURING_LLM=deepseek
+          [[ -z "${DEEPSEEK_API_KEY:-}" ]] && { echo "Set DEEPSEEK_API_KEY first"; exit 1; }
+          info "LLM: DeepSeek deepseek-chat (V3.2) — best Chinese quality"
+          ;;
+        groq)
+          export CONVERSATION_LLM=groq
+          export ROUTING_LLM=groq
+          export STRUCTURING_LLM=groq
+          [[ -z "${GROQ_API_KEY:-}" ]] && { echo "Set GROQ_API_KEY first (https://console.groq.com/keys)"; exit 1; }
+          info "LLM: Groq ${GROQ_MODEL:-qwen/qwen3-32b} — fast dev"
+          ;;
+        cerebras)
+          export CONVERSATION_LLM=cerebras
+          export ROUTING_LLM=cerebras
+          export STRUCTURING_LLM=cerebras
+          [[ -z "${CEREBRAS_API_KEY:-}" ]] && { echo "Set CEREBRAS_API_KEY first (https://cloud.cerebras.ai)"; exit 1; }
+          info "LLM: Cerebras ${CEREBRAS_MODEL:-qwen-3-32b} — fastest inference"
+          ;;
+        sambanova)
+          export CONVERSATION_LLM=sambanova
+          export ROUTING_LLM=sambanova
+          export STRUCTURING_LLM=sambanova
+          [[ -z "${SAMBANOVA_API_KEY:-}" ]] && { echo "Set SAMBANOVA_API_KEY first (https://cloud.sambanova.ai/apis)"; exit 1; }
+          info "LLM: SambaNova ${SAMBANOVA_MODEL:-Qwen2.5-72B-Instruct} — free tier"
+          ;;
+        siliconflow)
+          export CONVERSATION_LLM=siliconflow
+          export ROUTING_LLM=siliconflow
+          export STRUCTURING_LLM=siliconflow
+          [[ -z "${SILICONFLOW_API_KEY:-}" ]] && { echo "Set SILICONFLOW_API_KEY first (https://siliconflow.cn)"; exit 1; }
+          info "LLM: SiliconFlow ${SILICONFLOW_MODEL:-Qwen/Qwen2.5-72B-Instruct} — China cloud"
+          ;;
+        openrouter)
+          export CONVERSATION_LLM=openrouter
+          export ROUTING_LLM=openrouter
+          export STRUCTURING_LLM=openrouter
+          [[ -z "${OPENROUTER_API_KEY:-}" ]] && { echo "Set OPENROUTER_API_KEY first (https://openrouter.ai/settings/keys)"; exit 1; }
+          info "LLM: OpenRouter ${OPENROUTER_MODEL:-qwen/qwen3.5-9b} — cheapest"
+          ;;
+        local)
+          export CONVERSATION_LLM=ollama
+          export ROUTING_LLM=ollama
+          export STRUCTURING_LLM=ollama
+          info "LLM: Ollama ${OLLAMA_MODEL:-qwen2.5:7b} — local/offline"
+          ;;
+      esac
+      # Fall through to legacy startup flow (start command)
       ;;
     start)
       # Continue into legacy startup flow with any passed flags.
@@ -753,7 +825,7 @@ _read_runtime_key() {
 OLLAMA_BASE_URL="$(_read_runtime_key OLLAMA_BASE_URL)"
 OLLAMA_BASE_URL="${OLLAMA_BASE_URL:-$(read_env_var OLLAMA_BASE_URL "$SHARED_ENV" || read_env_var OLLAMA_BASE_URL "$APP_DIR/.env" || echo "http://localhost:11434/v1")}"
 OLLAMA_MODEL="$(_read_runtime_key OLLAMA_MODEL)"
-OLLAMA_MODEL="${OLLAMA_MODEL:-$(read_env_var OLLAMA_MODEL "$SHARED_ENV" || read_env_var OLLAMA_MODEL "$APP_DIR/.env" || echo "qwen2.5:14b")}"
+OLLAMA_MODEL="${OLLAMA_MODEL:-$(read_env_var OLLAMA_MODEL "$SHARED_ENV" || read_env_var OLLAMA_MODEL "$APP_DIR/.env" || echo "qwen3.5:9b")}"
 OLLAMA_TAGS_URL="${OLLAMA_BASE_URL%/v1}/api/tags"
 OLLAMA_HOST="$(echo "$OLLAMA_BASE_URL" | sed -E 's#^https?://([^/:]+).*#\1#')"
 

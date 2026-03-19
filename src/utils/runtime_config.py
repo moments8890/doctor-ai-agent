@@ -10,8 +10,8 @@ ROOT = Path(__file__).resolve().parents[2]  # src/utils/runtime_config.py → pr
 DEFAULT_CONFIG_PATH = ROOT / "config" / "runtime.json"
 
 DEFAULT_RUNTIME_CONFIG: Dict[str, Any] = {
-    "ROUTING_LLM": "ollama",
-    "STRUCTURING_LLM": "ollama",
+    "ROUTING_LLM": "groq",
+    "STRUCTURING_LLM": "groq",
     "LLM_PROVIDER_STRICT_MODE": True,
     "VISION_LLM": "ollama",
     "OPENAI_BASE_URL": "https://api.openai.com/v1",
@@ -22,11 +22,14 @@ DEFAULT_RUNTIME_CONFIG: Dict[str, Any] = {
     "TENCENT_LKEAP_API_KEY": "",
     "GROQ_API_KEY": "",
     "DEEPSEEK_API_KEY": "",
-    "GEMINI_API_KEY": "",
-    "OLLAMA_BASE_URL": "http://192.168.0.123:11434/v1",
-    "OLLAMA_VISION_BASE_URL": "http://192.168.0.123:11434/v1",
-    "OLLAMA_MODEL": "qwen2.5:14b",
-    "OLLAMA_VISION_MODEL": "qwen2.5vl:7b",
+    "CEREBRAS_API_KEY": "",
+    "SAMBANOVA_API_KEY": "",
+    "SILICONFLOW_API_KEY": "",
+    "OPENROUTER_API_KEY": "",
+    "OLLAMA_BASE_URL": os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
+    "OLLAMA_VISION_BASE_URL": os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
+    "OLLAMA_MODEL": "qwen3.5:9b",
+    "OLLAMA_VISION_MODEL": "qwen3-vl:8b",
     "OLLAMA_API_KEY": "ollama",
     "GEMINI_VISION_MODEL": "gemini-2.0-flash",
     "PATIENTS_DB_PATH": str(ROOT / "patients.db"),
@@ -88,7 +91,10 @@ CONFIG_CATEGORIES: Dict[str, Dict[str, Any]] = {
             "TENCENT_LKEAP_API_KEY",
             "GROQ_API_KEY",
             "DEEPSEEK_API_KEY",
-            "GEMINI_API_KEY",
+            "CEREBRAS_API_KEY",
+            "SAMBANOVA_API_KEY",
+            "SILICONFLOW_API_KEY",
+            "OPENROUTER_API_KEY",
             "OLLAMA_BASE_URL",
             "OLLAMA_VISION_BASE_URL",
             "OLLAMA_MODEL",
@@ -300,8 +306,8 @@ CONFIG_DESCRIPTIONS_ZH: Dict[str, str] = {
 }
 
 CONFIG_ALLOWED_VALUES: Dict[str, list[str]] = {
-    "ROUTING_LLM": ["ollama", "deepseek", "groq", "gemini", "openai", "tencent_lkeap"],
-    "STRUCTURING_LLM": ["ollama", "deepseek", "groq", "gemini", "openai", "tencent_lkeap"],
+    "ROUTING_LLM": ["deepseek", "groq", "cerebras", "sambanova", "siliconflow", "openrouter", "tencent_lkeap", "ollama"],
+    "STRUCTURING_LLM": ["deepseek", "groq", "cerebras", "sambanova", "siliconflow", "openrouter", "tencent_lkeap", "ollama"],
     "LLM_PROVIDER_STRICT_MODE": ["true", "false"],
     "KNOWLEDGE_AUTO_LEARN_ENABLED": ["true", "false"],
     "VISION_LLM": ["ollama", "gemini", "openai"],

@@ -29,13 +29,13 @@ def _utcnow() -> datetime:
 
 def _trace_block(layer: str, name: str, meta: dict | None = None):
     """Lazy-import trace_block to avoid db/ → services/ module-level dependency."""
-    from services.observability.observability import trace_block
+    from infra.observability.observability import trace_block
     return trace_block(layer, name, meta)
 
 
 def _audit(doctor_id: str, action: str, **kwargs):
     """Lazy-import audit to avoid db/ → services/ module-level dependency."""
-    from services.observability.audit import audit
+    from infra.observability.audit import audit
     return audit(doctor_id, action, **kwargs)
 
 
@@ -337,7 +337,7 @@ async def search_patients_nl(
     limit: int = 20,
 ) -> list[Patient]:
     """Search patients using structured criteria extracted from a natural language query."""
-    from services.patient.nl_search import PatientSearchCriteria  # local import avoids circular
+    from domain.patients.nl_search import PatientSearchCriteria  # local import avoids circular
 
     q = select(Patient).where(Patient.doctor_id == doctor_id)
 

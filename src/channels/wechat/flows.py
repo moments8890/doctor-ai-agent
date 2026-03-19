@@ -8,9 +8,9 @@ from channels.wechat.wechat_media_pipeline import download_media
 from channels.wechat.wechat_notify import _get_config, _get_access_token, _send_customer_service_msg
 from channels.wechat.infra import KB_CONTEXT_CACHE as _KB_CONTEXT_CACHE, KB_CONTEXT_TTL as _KB_CONTEXT_TTL, get_kb_lock as _get_kb_lock
 from db.engine import AsyncSessionLocal
-from services.ai.vision import extract_text_from_image
-from services.knowledge.pdf_extract import extract_text_from_pdf
-from services.notify.notify_control import (
+from infra.llm.vision import extract_text_from_image
+from domain.knowledge.pdf_extract import extract_text_from_pdf
+from domain.tasks.scheduler import (
     parse_notify_command, get_notify_pref, set_notify_mode, set_notify_interval,
     set_notify_cron, set_notify_immediate, format_notify_pref,
 )
@@ -109,7 +109,7 @@ async def handle_pdf_file_bg(media_id: str, filename: str, doctor_id: str, open_
 
 async def handle_word_file_bg(media_id: str, filename: str, doctor_id: str, open_kfid: str = ""):
     """Process an uploaded Word doc in background."""
-    from services.knowledge.word_extract import extract_text_from_docx
+    from domain.knowledge.word_extract import extract_text_from_docx
     from channels.wechat import router as _w
     await wmp.handle_word_file_bg(
         media_id, filename, doctor_id,

@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 from fastapi import Header
-from services.auth.rate_limit import enforce_doctor_rate_limit
-from services.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
+from infra.auth.rate_limit import enforce_doctor_rate_limit
+from infra.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
 
 
 async def get_doctor_id(

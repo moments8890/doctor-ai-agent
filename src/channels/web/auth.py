@@ -18,15 +18,15 @@ from sqlalchemy import select
 from db.crud import get_doctor_by_mini_openid, get_doctor_by_id, link_mini_openid
 from db.engine import AsyncSessionLocal
 from db.models import Doctor, InviteCode
-from services.auth.wechat_id_hash import hash_wechat_id
-from services.observability.audit import audit
-from services.auth.miniprogram_auth import (
+from infra.auth.wechat_id_hash import hash_wechat_id
+from infra.observability.audit import audit
+from infra.auth.miniprogram_auth import (
     MiniProgramAuthError,
     issue_miniprogram_token,
     parse_bearer_token,
     verify_miniprogram_token,
 )
-from services.auth.rate_limit import enforce_doctor_rate_limit
+from infra.auth.rate_limit import enforce_doctor_rate_limit
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -78,7 +78,7 @@ def _wechat_mini_secret() -> str:
 
 
 def _allow_mock_codes() -> bool:
-    from services.auth import is_production
+    from infra.auth import is_production
     if is_production():
         return False  # hard-disabled in production regardless of flag
     return (os.environ.get("WECHAT_MINI_ALLOW_MOCK_CODE") or "").strip().lower() in {

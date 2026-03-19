@@ -29,7 +29,7 @@ def _utcnow() -> datetime:
 
 def _trace_block(layer: str, name: str, meta: dict | None = None):
     """Lazy-import trace_block to avoid db/ → services/ module-level dependency."""
-    from services.observability.observability import trace_block
+    from infra.observability.observability import trace_block
     return trace_block(layer, name, meta)
 
 
