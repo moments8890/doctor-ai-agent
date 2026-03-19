@@ -41,11 +41,6 @@ def bind_log_context(
         _ctx_intent.set(intent)
 
 
-def clear_log_context() -> None:
-    _ctx_doctor_id.set("")
-    _ctx_trace_id.set("")
-    _ctx_intent.set("")
-
 
 # ---------------------------------------------------------------------------
 # structlog processors

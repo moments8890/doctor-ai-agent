@@ -44,13 +44,3 @@ class InvalidMedicalRecordError(DomainError):
             error_code="invalid_medical_record",
             context=context or {},
         )
-
-
-class ExternalDependencyError(DomainError):
-    def __init__(self, message: str = "External dependency error", context: Optional[Dict[str, str]] = None):
-        super().__init__(
-            message=message,
-            status_code=503,
-            error_code="external_dependency_error",
-            context=context or {},
-        )

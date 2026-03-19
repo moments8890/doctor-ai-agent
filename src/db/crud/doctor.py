@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import List, Optional
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,11 +16,8 @@ from db.models import (
     DoctorNotifyPreference,
     ChatArchive,
 )
+from db.crud._common import _utcnow
 from utils.hashing import hash_wechat_id
-
-
-def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 _WECHAT_ID_RE = re.compile(r"^(?:wm|wx|ww|wo)[A-Za-z0-9_-]{6,}$")

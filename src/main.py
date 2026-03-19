@@ -12,7 +12,7 @@ _SRC_DIR = os.path.dirname(os.path.abspath(__file__))
 if _SRC_DIR not in sys.path:
     sys.path.insert(0, _SRC_DIR)
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 from utils.log import init_logging, safe_create_task
 from utils.app_config import AppConfig, load_config_from_json, ollama_base_url_candidates
@@ -54,7 +54,7 @@ from channels.web.import_routes import router as import_router
 from channels.web.patient_portal import router as patient_portal_router
 from channels.web.patient_interview_routes import router as patient_interview_router
 from db.init_db import create_tables, seed_prompts, backfill_doctors_registry
-from db.engine import engine, AsyncSessionLocal
+from db.engine import AsyncSessionLocal
 from db.crud import get_due_tasks
 from domain.tasks.task_crud import check_and_send_due_tasks
 from utils.errors import DomainError
@@ -239,13 +239,6 @@ def _scheduler_interval_minutes() -> int:
 def _scheduler_cron_expr() -> str:
     return os.environ.get("TASK_SCHEDULER_CRON", "*/1 * * * *").strip() or "*/1 * * * *"
 
-
-def _conversation_turn_retention_days() -> int:
-    raw = os.environ.get("CONVERSATION_TURN_RETENTION_DAYS", "1095")
-    try:
-        return max(1, int(raw))
-    except (TypeError, ValueError):
-        return 1095
 
 
 

@@ -74,18 +74,6 @@ async def _bootstrap_history(identity: str) -> List:
         return []
 
 
-def clear_session(identity: str) -> bool:
-    """Clear agent session + history. Returns True if session existed."""
-    return _agents.pop(identity, None) is not None
-
-
-def clear_all_sessions() -> int:
-    """Clear all agent sessions. Returns count cleared."""
-    count = len(_agents)
-    _agents.clear()
-    return count
-
-
 async def get_or_create_agent(identity: str, role: str) -> SessionAgent:
     if identity not in _agents:
         agent = SessionAgent(identity, role)

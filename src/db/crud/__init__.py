@@ -1,6 +1,6 @@
 """db.crud 包初始化：聚合所有 CRUD 子模块的公开接口。"""
+from db.crud._common import _utcnow
 from db.crud.doctor import (
-    _utcnow,
     _WECHAT_ID_RE,
     _is_wechat_identifier,
     _infer_channel,
@@ -49,12 +49,11 @@ from db.crud.records import (
     get_record_versions,
     update_latest_record_for_patient,
     _env_flag_true,
-    _CN_DIGITS,
-    _parse_cn_or_int,
     _extract_follow_up_days,
     _patient_name,
     _ensure_auto_follow_up_task,
 )
+from utils.text_parsing import _CN_DIGITS, _parse_cn_or_int
 from db.crud.tasks import (
     create_task,
     list_tasks,

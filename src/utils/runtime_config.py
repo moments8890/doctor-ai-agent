@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 ROOT = Path(__file__).resolve().parents[2]  # src/utils/runtime_config.py → project root
 DEFAULT_CONFIG_PATH = ROOT / "config" / "runtime.json"
@@ -14,8 +14,6 @@ DEFAULT_RUNTIME_CONFIG: Dict[str, Any] = {
     "STRUCTURING_LLM": "groq",
     "LLM_PROVIDER_STRICT_MODE": True,
     "VISION_LLM": "ollama",
-    "OPENAI_BASE_URL": "https://api.openai.com/v1",
-    "OPENAI_MODEL": "gpt-4o",
     "OPENAI_API_KEY": "",
     "TENCENT_LKEAP_BASE_URL": "https://api.lkeap.cloud.tencent.com/v1",
     "TENCENT_LKEAP_MODEL": "deepseek-v3-1",
@@ -83,8 +81,6 @@ CONFIG_CATEGORIES: Dict[str, Dict[str, Any]] = {
             "STRUCTURING_LLM",
             "LLM_PROVIDER_STRICT_MODE",
             "VISION_LLM",
-            "OPENAI_BASE_URL",
-            "OPENAI_MODEL",
             "OPENAI_API_KEY",
             "TENCENT_LKEAP_BASE_URL",
             "TENCENT_LKEAP_MODEL",
@@ -188,8 +184,6 @@ CONFIG_DESCRIPTIONS: Dict[str, str] = {
     "STRUCTURING_LLM": "Provider for medical record structuring. Note: Ollama is LAN/local LLM (can be slower); DeepSeek is online LLM (billed).",
     "LLM_PROVIDER_STRICT_MODE": "When true, use selected provider only and never fallback to others.",
     "VISION_LLM": "Provider for image understanding.",
-    "OPENAI_BASE_URL": "OpenAI API base URL.",
-    "OPENAI_MODEL": "OpenAI/Codex model name for routing/structuring.",
     "OPENAI_API_KEY": "OpenAI API key.",
     "TENCENT_LKEAP_BASE_URL": "Tencent LKEAP OpenAI-compatible API base URL.",
     "TENCENT_LKEAP_MODEL": "Tencent LKEAP model name for routing/structuring.",
@@ -249,8 +243,6 @@ CONFIG_DESCRIPTIONS_ZH: Dict[str, str] = {
     "STRUCTURING_LLM": "病历结构化使用的提供商。说明：Ollama 通常是局域网/本地 LLM（可能较慢）；DeepSeek 是在线 LLM（按量计费）。",
     "LLM_PROVIDER_STRICT_MODE": "为 true 时仅使用所选提供商，不会自动回退到其它提供商。",
     "VISION_LLM": "图像理解使用的提供商。",
-    "OPENAI_BASE_URL": "OpenAI API 基地址。",
-    "OPENAI_MODEL": "路由/结构化使用的 OpenAI/Codex 模型名。",
     "OPENAI_API_KEY": "OpenAI API Key。",
     "TENCENT_LKEAP_BASE_URL": "腾讯云 LKEAP（OpenAI 兼容）API 基地址。",
     "TENCENT_LKEAP_MODEL": "路由/结构化使用的腾讯云 LKEAP 模型名。",
@@ -418,41 +410,6 @@ _DEFAULT_OLLAMA_URL = DEFAULT_RUNTIME_CONFIG["OLLAMA_BASE_URL"]
 _DEFAULT_OLLAMA_VISION_URL = DEFAULT_RUNTIME_CONFIG["OLLAMA_VISION_BASE_URL"]
 
 
-def get_ollama_base_url() -> str:
-    """Return the canonical Ollama base URL (env > runtime JSON > default).
-
-    All modules that need the Ollama endpoint should call this instead of
-    hardcoding a localhost fallback.
-    """
-    return (
-        os.environ.get("OLLAMA_BASE_URL", "").strip()
-        or _DEFAULT_OLLAMA_URL
-    )
-
-
-def get_ollama_vision_base_url() -> str:
-    """Return the canonical Ollama vision base URL."""
-    return (
-        os.environ.get("OLLAMA_VISION_BASE_URL", "").strip()
-        or os.environ.get("OLLAMA_BASE_URL", "").strip()
-        or _DEFAULT_OLLAMA_VISION_URL
-    )
-
-
-def get_pending_record_ttl_minutes() -> int:
-    """Return the canonical pending-record draft TTL in minutes.
-
-    Reads env first, then runtime JSON, then default (30).
-    """
-    raw = os.environ.get("PENDING_RECORD_TTL_MINUTES", "").strip()
-    if raw:
-        try:
-            return max(1, int(raw))
-        except (TypeError, ValueError):
-            pass
-    return int(DEFAULT_RUNTIME_CONFIG.get("PENDING_RECORD_TTL_MINUTES", 30))
-
-
 def save_runtime_json(config: Dict[str, Any], path: Optional[str] = None) -> Path:
     target = runtime_config_path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -476,18 +433,8 @@ def save_runtime_json(config: Dict[str, Any], path: Optional[str] = None) -> Pat
     return target
 
 
-def allowed_runtime_config_keys() -> list[str]:
-    return sorted(DEFAULT_RUNTIME_CONFIG.keys())
-
-
 def runtime_config_source_path(path: Optional[str] = None) -> Path:
     return runtime_config_path(path)
-
-
-# Legacy hot-reload hook API — kept as no-op stubs so callers don't break.
-# Config changes now take effect on restart only.
-def register_runtime_apply_hook(hook: object) -> None:
-    pass
 
 
 def _stringify(value: Any) -> str:

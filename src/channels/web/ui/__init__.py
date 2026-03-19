@@ -4,11 +4,8 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
-import os
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from datetime import datetime, timezone
 from typing import Annotated, List, Optional
 
 from fastapi import APIRouter, Header, HTTPException, Query
@@ -50,7 +47,6 @@ from infra.observability.audit import audit
 from utils.log import safe_create_task
 from agent.pending import get_pending_draft_id, clear_pending_draft_id
 from utils.errors import DomainError
-from infra.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
 from channels.web.ui.record_handlers import (
     manage_records_for_doctor as _manage_records_for_doctor_impl,
     manage_patients_for_doctor as _manage_patients_for_doctor_impl,

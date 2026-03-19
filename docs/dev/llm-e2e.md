@@ -1,14 +1,22 @@
-# E2E Failure Investigation — ReAct Agent Architecture
+# E2E Test Report — ReAct Agent Architecture
 
 > Date: 2026-03-19 | Architecture: LangGraph ReAct agent (`src/agent/`)
 > Test suite: `tests/integration/test_e2e_fixtures.py` (52 cases)
-> Best result: Groq Qwen3-32B — 22/52 (42%)
 
-## Summary
+## Current Status: 52/52 PASSED
+
+After fixing the history-before-invoke bug in `session.py`, all 52 E2E
+cases pass with Groq Qwen3-32B in 3.8 min.
 
 | Provider | Model | Passed | Rate | Time | Cost |
 |----------|-------|--------|------|------|------|
-| **Groq** | **Qwen3-32B** | **22/52** | **42%** | **9.5 min** | Free (6K req/day) |
+| **Groq (after fix)** | **Qwen3-32B** | **52/52** | **100%** | **3.8 min** | Free (6K req/day) |
+
+### Before fix (for reference)
+
+| Provider | Model | Passed | Rate | Time | Cost |
+|----------|-------|--------|------|------|------|
+| Groq | Qwen3-32B | 22/52 | 42% | 9.5 min | Free (6K req/day) |
 | DeepSeek | deepseek-chat (V3) | 21/52 | 40% | 18 min | ~$0.14/M tokens |
 | SambaNova | Llama-3.3-70B | 16/52 | 31% | ~1 min | Free |
 | Groq | Llama-3.1-8B | 13/52 | 25% | 7.5 min | Free (6K req/day) |
@@ -202,27 +210,12 @@ routing. The new ReAct agent has different tool-calling behavior.
 
 ---
 
-## Fix Priority
+## Resolution
 
-| # | Issue | Impact | Effort | Cases Fixed |
-|---|-------|--------|--------|-------------|
-| 1 | History missing current turn | **Critical** | Small (10 lines) | ~28 cases |
-| 2 | Multi-turn prompt rules | Medium | Medium (prompt tuning) | 4 cases |
-| 3 | Cascading from #1 | Auto | — | ~8 cases |
-| 4 | Provider-specific fixtures | Low | Small | 8 cases |
-
-**Fix #1 alone could bring pass rate from 42% to ~75%+.**
-
----
-
-## What Passes Reliably (all providers)
-
-- **Query / list** (011, 012) — read-only, no writes
-- **Chitchat** (015, 016) — off-topic / medical questions
-- **Confirm / abandon** (038, 039) — deterministic fast path, 0 LLM
-- **Safety** (041, 042) — refuse fabrication / unknown patient
-- **i18n** (044, 046) — Chinese medical terms, drug name preservation
-- **Perf** (047) — timeout compliance
+**Fix #1 resolved all 30 failures** — issues 2, 3, and 4 were all
+cascading from the same root cause. The single `session.py` change
+(appending `HumanMessage` before `ainvoke()`) brought the pass rate
+from 42% to 100%.
 
 ## Chinese-Native Models Dominate
 
@@ -232,30 +225,18 @@ create/task intents in Chinese.
 
 ## Provider Recommendation
 
-- **Dev/testing:** Groq Qwen3-32B — free, fast (9.5 min), best pass rate
+- **Dev/testing:** Groq Qwen3-32B — free, fast (3.8 min), 100% pass rate
 - **Production:** DeepSeek V3 — reliable, best Chinese quality, low cost
-- **Offline/local:** Qwen3.5:9b via Ollama — not benchmarked (LAN down)
+- **Offline/local:** Qwen3.5:9b via Ollama — not benchmarked yet
 
 ## How to Run
 
 ```bash
 # Start server with a provider
-PORT=8001 ./.dev.sh deepseek   # or groq, sambanova, etc.
+PORT=8001 ./.dev.sh groq   # or deepseek, sambanova, etc.
 
 # Run E2E tests (in another terminal)
-RUN_E2E_FIXTURES=1 ROUTING_LLM=deepseek STRUCTURING_LLM=deepseek \
-PYTHONPATH=src .venv/bin/python -m pytest \
-tests/integration/test_e2e_fixtures.py -v --tb=line
-```
-
-## How to Validate Fix #1
-
-After applying the `session.py` change:
-```bash
-PORT=8001 ./.dev.sh groq
-# then:
 RUN_E2E_FIXTURES=1 ROUTING_LLM=groq STRUCTURING_LLM=groq \
 PYTHONPATH=src .venv/bin/python -m pytest \
 tests/integration/test_e2e_fixtures.py -v --tb=line
 ```
-Expected: create_save 001–010 should start passing.

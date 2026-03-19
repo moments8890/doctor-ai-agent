@@ -3,7 +3,6 @@
 """
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import os
 import re
@@ -276,14 +275,8 @@ async def export_record_pdf(
 
 def _build_patient_info_line(patient) -> Optional[str]:
     """Build a concise '男  45岁' info line for the outpatient report header."""
-    from datetime import date
-    parts: list[str] = []
-    if getattr(patient, "gender", None):
-        parts.append(patient.gender)
-    if getattr(patient, "year_of_birth", None):
-        age = date.today().year - int(patient.year_of_birth)
-        parts.append(f"{age}岁")
-    return "  ".join(parts) if parts else None
+    from utils.response_formatting import build_patient_info_line
+    return build_patient_info_line(patient)
 
 
 async def _extract_outpatient_fields_safe(

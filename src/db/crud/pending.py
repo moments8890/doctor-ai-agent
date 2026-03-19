@@ -11,10 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.models import PendingRecord, PendingMessage
 
 
-def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
-
-
 # ---------------------------------------------------------------------------
 # PendingRecord helpers (AI Record Confirmation Gate)
 # ---------------------------------------------------------------------------

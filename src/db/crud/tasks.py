@@ -4,16 +4,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from db.models import DoctorTask
 from db.repositories import TaskRepository
+from db.crud._common import _utcnow
 from db.crud.doctor import _ensure_doctor_exists
-
-
-def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 async def create_task(

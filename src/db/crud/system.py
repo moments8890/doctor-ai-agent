@@ -4,15 +4,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from db.models import SystemPrompt, SystemPromptVersion
-
-
-def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+from db.crud._common import _utcnow
 
 
 async def get_system_prompt(session: AsyncSession, key: str) -> SystemPrompt | None:

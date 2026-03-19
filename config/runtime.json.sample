@@ -15,8 +15,10 @@
             "ollama",
             "deepseek",
             "groq",
-            "gemini",
-            "openai",
+            "cerebras",
+            "sambanova",
+            "siliconflow",
+            "openrouter",
             "tencent_lkeap"
           ]
         },
@@ -28,8 +30,10 @@
             "ollama",
             "deepseek",
             "groq",
-            "gemini",
-            "openai",
+            "cerebras",
+            "sambanova",
+            "siliconflow",
+            "openrouter",
             "tencent_lkeap"
           ]
         },
@@ -51,16 +55,6 @@
             "gemini",
             "openai"
           ]
-        },
-        "OPENAI_BASE_URL": {
-          "value": "https://api.openai.com/v1",
-          "description": "OpenAI API base URL.",
-          "description_zh": "OpenAI API 基地址。"
-        },
-        "OPENAI_MODEL": {
-          "value": "gpt-4o",
-          "description": "OpenAI model name for routing/structuring.",
-          "description_zh": "路由/结构化使用的 OpenAI 模型名。"
         },
         "OPENAI_API_KEY": {
           "value": "",

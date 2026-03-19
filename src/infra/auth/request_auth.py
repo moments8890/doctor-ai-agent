@@ -16,11 +16,6 @@ from infra.auth import is_production
 from infra.auth.miniprogram_auth import MiniProgramAuthError, parse_bearer_token, verify_miniprogram_token
 
 
-def _is_running_under_pytest() -> bool:
-    """True only when the process was launched by pytest (not spoofable via env)."""
-    return "pytest" in sys.modules
-
-
 def _allow_insecure_doctor_id_fallback(flag_name: str) -> bool:
     if is_production():
         return False  # hard-disabled in production regardless of any flag

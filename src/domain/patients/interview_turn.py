@@ -163,13 +163,11 @@ async def _call_interview_llm(
         provider_name = "deepseek"
         provider = _PROVIDERS["deepseek"]
 
-    extra_headers = {"anthropic-version": "2023-06-01"} if provider_name == "claude" else {}
     client = AsyncOpenAI(
         base_url=provider["base_url"],
         api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
         timeout=float(os.environ.get("INTERVIEW_LLM_TIMEOUT", "30")),
         max_retries=0,
-        default_headers=extra_headers,
     )
 
     model_name = provider.get("model", "deepseek-chat")

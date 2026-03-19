@@ -24,62 +24,6 @@ def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def log_turn(
-    text: str,
-    intent: str,
-    routing: str,
-    doctor_id: str,
-    latency_ms: float,
-    patient_name: Optional[str] = None,
-    provenance: Optional[dict] = None,
-) -> None:
-    """Write a single routing decision to the turn log JSONL file.
-
-    Args:
-        text: The raw user message text.
-        intent: Intent name string (e.g. "add_record").
-        routing: Either "fast" or "llm".
-        doctor_id: The doctor's identifier.
-        latency_ms: End-to-end routing latency in milliseconds.
-        patient_name: Optional patient name extracted from the message.
-        provenance: Optional DoctorTurnContext provenance dict for observability
-                    (current_patient_source, memory_used, knowledge_used).
-    """
-    if not _ENABLED or _is_test():
-        return
-
-    # Redact PHI: truncate text to first 20 chars (enough for routing analysis,
-    # not enough to reconstruct clinical content), and hash patient_name.
-    import hashlib
-    redacted_text = text[:20] + "…" if len(text) > 20 else text
-    payload: dict = {
-        "ts": _utc_now_iso(),
-        "doctor_id": doctor_id,
-        "text_prefix": redacted_text,
-        "text_len": len(text),
-        "intent": intent,
-        "routing": routing,
-        "latency_ms": round(latency_ms, 1),
-    }
-    if patient_name:
-        payload["patient_name_hash"] = hashlib.sha256(patient_name.encode()).hexdigest()[:12]
-    if provenance:
-        payload["provenance"] = provenance
-
-    # Try to use the async write queue from observability if available.
-    try:
-        from infra.observability.observability import _enqueue_jsonl
-        _enqueue_jsonl(_LOG_FILE, payload)
-    except Exception:
-        # Fallback: direct synchronous append.
-        try:
-            _LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-            with _LOG_FILE.open("a", encoding="utf-8") as f:
-                f.write(json.dumps(payload, ensure_ascii=False) + "\n")
-        except Exception:
-            pass
-
-
 def prune_turn_log() -> int:
     """Remove entries older than TURN_LOG_TTL_DAYS from the turn log.
 

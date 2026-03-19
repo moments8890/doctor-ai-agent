@@ -11,13 +11,13 @@
 """
 from __future__ import annotations
 
-import json
 import os
 from datetime import datetime, timezone
 from typing import List, Optional
 
 from domain.records.schema import OUTPATIENT_FIELD_META
 from utils.log import log
+from utils.response_formatting import parse_tags as _parse_tags
 
 
 # ---------------------------------------------------------------------------
@@ -47,18 +47,6 @@ def _resolve_font_path() -> Optional[str]:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-def _parse_tags(raw_tags) -> List[str]:
-    if isinstance(raw_tags, list):
-        return raw_tags
-    if isinstance(raw_tags, str):
-        try:
-            parsed = json.loads(raw_tags)
-            return parsed if isinstance(parsed, list) else []
-        except Exception:
-            return []
-    return []
-
 
 def _record_type_label(record_type: str) -> str:
     mapping = {

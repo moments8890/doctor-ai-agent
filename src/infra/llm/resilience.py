@@ -67,10 +67,6 @@ def _record_success(key: str) -> None:
         _CIRCUITS.pop(key, None)
 
 
-def _reset_circuits_for_tests() -> None:
-    _CIRCUITS.clear()
-
-
 def _looks_like_timeout_error(exc: Exception) -> bool:
     name = exc.__class__.__name__.lower()
     msg = str(exc).lower()

@@ -114,14 +114,8 @@ async def handle_export_records(doctor_id: str, intent_result: Any) -> str:
 
 def _build_patient_info_line(patient_obj: Any) -> Optional[str]:
     """Build patient info string (gender + age) from patient object."""
-    info_parts: list = []
-    if patient_obj and getattr(patient_obj, "gender", None):
-        info_parts.append(patient_obj.gender)
-    if patient_obj and getattr(patient_obj, "year_of_birth", None):
-        from datetime import date
-        age = date.today().year - int(patient_obj.year_of_birth)
-        info_parts.append(f"{age}岁")
-    return "  ".join(info_parts) if info_parts else None
+    from utils.response_formatting import build_patient_info_line
+    return build_patient_info_line(patient_obj)
 
 
 async def _generate_and_send_outpatient_pdf(

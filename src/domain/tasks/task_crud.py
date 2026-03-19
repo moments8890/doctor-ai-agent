@@ -27,12 +27,7 @@ from db.models import DoctorTask
 from domain.tasks.notifications import send_doctor_notification
 from domain.tasks.scheduler import should_auto_run_now
 from utils.log import task_log
-
-# Chinese digit → integer mapping
-_CN_DIGITS = {
-    "一": 1, "两": 2, "二": 2, "三": 3, "四": 4,
-    "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10,
-}
+from utils.text_parsing import _CN_DIGITS, _parse_cn_or_int
 
 _TASK_ICONS = {
     "follow_up": "🔔",
@@ -83,17 +78,6 @@ def _notify_retry_delay_seconds() -> float:
         return max(0.0, float(raw))
     except (TypeError, ValueError):
         return 1.0
-
-
-def _parse_cn_or_int(raw: str) -> Optional[int]:
-    """Parse a string that may be a Chinese digit word or an integer."""
-    n = _CN_DIGITS.get(raw)
-    if n is not None:
-        return n
-    try:
-        return int(raw)
-    except (ValueError, TypeError):
-        return None
 
 
 def extract_follow_up_days(follow_up_plan: str) -> int:

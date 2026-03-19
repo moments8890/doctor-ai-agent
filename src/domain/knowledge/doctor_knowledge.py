@@ -238,11 +238,6 @@ async def load_knowledge_context_for_prompt(session, doctor_id: str, query: str)
     return render_knowledge_context(query=query, items=items)
 
 
-def invalidate_knowledge_cache(doctor_id: str) -> None:
-    """Invalidate cached knowledge items when new items are added."""
-    _KNOWLEDGE_ITEMS_CACHE.pop(doctor_id, None)
-
-
 async def save_knowledge_item(
     session,
     doctor_id: str,

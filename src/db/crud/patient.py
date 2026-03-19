@@ -19,18 +19,9 @@ from db.models import (
 from db.repositories import PatientRepository
 from utils.hashing import generate_access_code, hash_access_code
 from utils.errors import InvalidMedicalRecordError, LabelNotFoundError, PatientNotFoundError
+from db.crud._common import _trace_block
 from db.crud.doctor import _ensure_doctor_exists
 from utils.log import log, safe_create_task
-
-
-def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
-
-
-def _trace_block(layer: str, name: str, meta: dict | None = None):
-    """Lazy-import trace_block to avoid db/ → services/ module-level dependency."""
-    from infra.observability.observability import trace_block
-    return trace_block(layer, name, meta)
 
 
 def _audit(doctor_id: str, action: str, **kwargs):

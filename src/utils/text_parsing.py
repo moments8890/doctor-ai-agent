@@ -4,6 +4,26 @@ import re
 from typing import Optional
 
 # ---------------------------------------------------------------------------
+# Chinese digit → integer mapping
+# ---------------------------------------------------------------------------
+
+_CN_DIGITS = {
+    "一": 1, "两": 2, "二": 2, "三": 3, "四": 4,
+    "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10,
+}
+
+
+def _parse_cn_or_int(raw: str) -> Optional[int]:
+    """Parse a string that may be a Chinese digit word or an integer."""
+    n = _CN_DIGITS.get(raw)
+    if n is not None:
+        return n
+    try:
+        return int(raw)
+    except (ValueError, TypeError):
+        return None
+
+# ---------------------------------------------------------------------------
 # Token / name validation helpers
 # ---------------------------------------------------------------------------
 
@@ -36,22 +56,3 @@ def name_token_or_none(text: str) -> str:
     return ""
 
 
-def explicit_name_or_none(text: str) -> str:
-    """Return a patient name if *text* matches an explicit name-statement pattern."""
-    for pat in _EXPLICIT_NAME_PATTERNS:
-        m = pat.match(text.strip())
-        if not m:
-            continue
-        name = m.group("name")
-        return name_token_or_none(name)
-    return ""
-
-
-def looks_like_symptom_note(text: str) -> bool:
-    """Return True when *text* is a short symptom description (≤30 chars)."""
-    s = text.strip()
-    if not s:
-        return False
-    if len(s) > 30:
-        return False
-    return any(k in s for k in _SYMPTOM_KEYWORDS)

@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 import asyncio
-import os
 from datetime import datetime, timezone
 from typing import Annotated, List, Optional
 
@@ -19,6 +18,7 @@ from infra.auth.rate_limit import enforce_doctor_rate_limit
 from infra.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
 from domain.tasks.task_crud import run_due_task_cycle
 from infra.observability.audit import audit
+from utils.app_config import env_flag_true as _env_flag_true
 from utils.log import safe_create_task
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
@@ -71,13 +71,6 @@ class TaskCreate(BaseModel):
     due_at: Optional[str] = None
     patient_id: Optional[int] = None
     content: Optional[str] = None
-
-
-def _env_flag_true(name: str, default: bool = False) -> bool:
-    raw = os.environ.get(name)
-    if raw is None:
-        return default
-    return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _parse_due_at(due_at_str: str) -> datetime:

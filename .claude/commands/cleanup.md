@@ -2,10 +2,56 @@ You are performing a codebase cleanup audit for the doctor-ai-agent project.
 
 ## Architecture Context
 
-The project migrated from a UEC (Understand-Execute-Compose) pipeline to a **LangChain ReAct agent**.
-Read the authoritative design spec FIRST:
-- `docs/superpowers/specs/2026-03-18-react-mcp-architecture-design.md` — current architecture
+The project has undergone multiple architecture iterations. Each left potential debris.
+Read ALL design specs in `docs/superpowers/specs/` BEFORE scanning — they define what's current vs legacy.
+
+### Design Specs (read in order, newest = most authoritative)
+
+| Spec | Date | What changed | What it superseded |
+|------|------|-------------|-------------------|
+| `2026-03-18-react-mcp-architecture-design.md` | 03-18 | **ReAct agent replaces UEC pipeline** | `services/runtime/*`, intent handlers, DoctorCtx, compose, understand |
+| `2026-03-17-patient-pre-consultation-design.md` | 03-17 | Patient interview pipeline (ADR 0016) | Old patient chat flow |
+| `2026-03-17-wechat-miniapp-design.md` | 03-17 | WeChat Mini App thin shell | Direct WeChat H5 approach |
+| `2026-03-16-medical-record-import-export-design.md` | 03-16 | Vision import + PDF export | Manual record entry only |
+| `2026-03-15-web-frontend-simplification-design.md` | 03-15 | Frontend cleanup — dead pages/routes deleted | Old multi-page layout with HomeSection, ChatPage |
+| `2026-03-15-structured-medical-record-fields-design.md` | 03-15 | Structured fields on records | Unstructured content-only records |
+
+Also read:
 - `src/agent/prompts/README.md` — current prompt architecture with mermaid diagrams
+- `docs/superpowers/specs/adr/` — ADR documents (0011-0017) for historical decisions
+
+### Cross-Spec Debris Patterns
+
+Each spec may have left its own legacy:
+
+**From 03-15 frontend simplification:**
+- Dead frontend pages: `HomeSection.jsx`, `ChatPage.jsx`, duplicate draft confirmation code
+- Old routes that should have been removed
+- Working-context polling code marked for removal
+
+**From 03-15 structured fields:**
+- `_FIELD_KEYS` private list replaced by `OUTPATIENT_FIELDS` frozenset
+- Dead `_build_structured_fields_from_record()` function (noted as dead code in spec)
+- Old "always LLM" flow replaced by DB-first approach
+
+**From 03-16 import/export:**
+- `personal_history` field definition changed (no longer includes marital/reproductive)
+- Any code still merging marital into personal_history
+
+**From 03-17 patient interview:**
+- Old patient chat flow (`patient-chat.md` prompt, `patient_pipeline.py` direct LLM call)
+- Replaced by `advance_interview` tool + `patient-interview.md` prompt
+
+**From 03-17 WeChat miniapp:**
+- `wxmini_` stub doctors that should be cleaned up
+- Any old H5 auth flow code
+
+**From 03-18 ReAct agent (biggest change):**
+- Entire `services/runtime/` pipeline (understand, compose, types, models, context, hooks)
+- Intent handlers directory
+- DoctorCtx/WorkflowState/MemoryState
+- ActionType enum and all related dataclasses
+- Removed LLM providers (openai, claude, gemini)
 
 ### Current Architecture (ReAct Agent)
 
@@ -125,16 +171,25 @@ Find similar patterns repeated across files:
 - Provider resolution with `_PROVIDERS.get()` — repeated pattern
 - `json.loads()` with try/except fallback — repeated pattern
 
-### 1H. Oversized Modules
+### 1H. Frontend Debris (from 03-15 spec)
+Check `frontend/web/src/` for:
+- Dead pages: `HomeSection.jsx`, `ChatPage.jsx`, or any page not wired in `App.jsx` routes
+- Duplicate draft confirmation UI (should only exist in ChatSection.jsx confirm buttons)
+- Working-context polling code marked for removal in spec
+- Dead routes in `App.jsx` that point to removed pages
+- Unused component imports
+
+### 1I. Oversized Modules
 Files over 300 lines — report line count, suggest split points
 
-### 1I. Stale Documentation
+### 1J. Stale Documentation
 Check these docs for references to deleted/superseded modules:
 - `ARCHITECTURE.md`
 - `CLAUDE.md`
 - `AGENTS.md`
 - `src/agent/prompts/README.md`
 - `docs/dev/llm-providers.md`
+- Cross-check each spec's "delete" section against actual codebase state
 
 ## Phase 2: Report
 

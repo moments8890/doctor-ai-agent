@@ -36,11 +36,6 @@ def _token_secret() -> str:
     return secret
 
 
-def assert_auth_config() -> None:
-    """Call at startup to fail fast if auth secrets are missing in production."""
-    _token_secret()
-
-
 def _token_ttl_seconds() -> int:
     raw = (os.environ.get("MINIPROGRAM_TOKEN_TTL_SECONDS") or "604800").strip()
     try:

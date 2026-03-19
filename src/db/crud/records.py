@@ -5,9 +5,8 @@
 from __future__ import annotations
 
 import json
-import os
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,39 +18,11 @@ from db.models import (
 )
 from db.repositories import RecordRepository
 from db.models.medical_record import MedicalRecord
+from db.crud._common import _utcnow, _trace_block
 from db.crud.doctor import _ensure_doctor_exists
+from utils.app_config import env_flag_true as _env_flag_true
 from utils.log import log
-
-
-def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
-
-
-def _trace_block(layer: str, name: str, meta: dict | None = None):
-    """Lazy-import trace_block to avoid db/ → services/ module-level dependency."""
-    from infra.observability.observability import trace_block
-    return trace_block(layer, name, meta)
-
-
-def _env_flag_true(name: str) -> bool:
-    value = os.environ.get(name, "")
-    return value.strip().lower() in {"1", "true", "yes", "on"}
-
-
-_CN_DIGITS = {
-    "一": 1, "两": 2, "二": 2, "三": 3, "四": 4,
-    "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10,
-}
-
-
-def _parse_cn_or_int(raw: str) -> Optional[int]:
-    n = _CN_DIGITS.get(raw)
-    if n is not None:
-        return n
-    try:
-        return int(raw)
-    except (ValueError, TypeError):
-        return None
+from utils.text_parsing import _CN_DIGITS, _parse_cn_or_int
 
 
 def _extract_follow_up_days(follow_up_plan: str) -> int:

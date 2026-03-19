@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import base64
 import json
-import logging
 import re
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
@@ -14,6 +13,7 @@ from typing import Optional, Tuple
 from fastapi import HTTPException
 
 from infra.auth.request_auth import require_admin_token, resolve_doctor_id_from_auth_or_fallback
+from utils.response_formatting import parse_tags as _parse_tags
 
 
 def _extract_tunnel_url_from_log(content: str) -> str | None:
@@ -35,28 +35,6 @@ def _fmt_ts(value: datetime | None) -> str | None:
     if not value:
         return None
     return value.strftime("%Y-%m-%d %H:%M:%S")
-
-
-def _parse_tags(raw: str | None) -> list:
-    if not raw:
-        return []
-    try:
-        return json.loads(raw)
-    except Exception as exc:
-        logging.getLogger("ui").warning("[UI] invalid category/risk tags json: %s", exc)
-        return []
-
-
-def _parse_bool(raw: str | None) -> bool | None:
-    if raw is None or not isinstance(raw, str):
-        return None
-    value = raw.strip().lower()
-    if value in {"1", "true", "yes", "on"}:
-        return True
-    if value in {"0", "false", "no", "off"}:
-        return False
-    return None
-
 
 
 def _normalize_query_str(value: str | None) -> str | None:
@@ -160,10 +138,6 @@ def decode_cursor(cursor: Optional[str]) -> Optional[Tuple[datetime, int]]:
 # Rows belonging to these doctors are hidden from production UI views by default
 # so test noise never appears alongside real clinical data.
 E2E_DOCTOR_PREFIXES: tuple[str, ...] = ("inttest_", "chatlog_e2e_")
-
-
-def _is_test_doctor_id(doctor_id: str) -> bool:
-    return any(doctor_id.startswith(p) for p in E2E_DOCTOR_PREFIXES)
 
 
 def apply_exclude_test_doctors(stmt, doctor_id_col):

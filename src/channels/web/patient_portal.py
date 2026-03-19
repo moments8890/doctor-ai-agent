@@ -9,11 +9,10 @@
 
 from __future__ import annotations
 
-import asyncio
 import os
 import time
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 
 import jwt

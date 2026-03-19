@@ -28,6 +28,18 @@ def _as_bool(raw: Optional[str], default: bool) -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def env_flag_true(name: str, default: bool = False) -> bool:
+    """Return True if the environment variable *name* is a truthy string.
+
+    This is the canonical env-flag reader.  Recognised truthy values:
+    ``1``, ``true``, ``yes``, ``on`` (case-insensitive).
+    """
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def _as_int(raw: Optional[str], default: int) -> int:
     if raw is None:
         return default

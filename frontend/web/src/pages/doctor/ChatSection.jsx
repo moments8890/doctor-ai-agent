@@ -26,7 +26,6 @@ import ImportChoiceDialog from "./ImportChoiceDialog";
 import VoiceInput, { isVoiceSupported } from "./VoiceInput";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
-import KeyboardOutlinedIcon from "@mui/icons-material/KeyboardOutlined";
 import PersonAddOutlinedIcon from "@mui/icons-material/PersonAddOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import PeopleOutlinedIcon from "@mui/icons-material/PeopleOutlined";
