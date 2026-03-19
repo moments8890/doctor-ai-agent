@@ -7,10 +7,65 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from langchain_core.tools import tool
+from pydantic import BaseModel, Field
 
 from agent.identity import get_current_identity
 from agent.tools.resolve import resolve
 from agent.tools.truncate import truncate_result
+
+
+# ── Tool input schemas ─────────────────────────────────────────────
+# Pydantic models with Field descriptions produce clear JSON schemas
+# that LLMs (especially DeepSeek) need to avoid inventing extra params.
+
+
+class QueryRecordsInput(BaseModel):
+    patient_name: Optional[str] = Field(None, description="患者姓名。留空则查询最近的病历。")
+    limit: int = Field(5, description="返回记录数上限，默认5条。")
+
+
+class ListTasksInput(BaseModel):
+    status: Optional[str] = Field(None, description="按状态筛选：pending（待处理）或 completed（已完成）。留空返回全部。")
+
+
+class CreateRecordInput(BaseModel):
+    patient_name: str = Field(description="患者全名，如'张三'。")
+    gender: Optional[str] = Field(None, description="性别：男 或 女。")
+    age: Optional[int] = Field(None, description="年龄（整数）。")
+
+
+class UpdateRecordInput(BaseModel):
+    instruction: str = Field(description="修改指示，如'血压改为130/85'、'补充用药阿司匹林100mg'。")
+    patient_name: Optional[str] = Field(None, description="患者姓名。留空则修改最近操作的患者病历。")
+
+
+class CreateTaskInput(BaseModel):
+    patient_name: str = Field(description="患者全名。")
+    title: str = Field(description="任务标题，如'复查血常规'、'随访电话'。")
+    task_type: str = Field("general", description="任务类型：general（常规）、followup（随访）、appointment（预约）。")
+    content: Optional[str] = Field(None, description="任务详情备注。")
+    scheduled_for: Optional[str] = Field(None, description="计划执行时间，ISO-8601格式，如'2026-04-01T09:00:00'。")
+    remind_at: Optional[str] = Field(None, description="提醒时间，ISO-8601格式。")
+
+
+class ExportPdfInput(BaseModel):
+    patient_name: str = Field(description="患者全名。")
+
+
+class SearchKnowledgeInput(BaseModel):
+    query: str = Field(description="搜索关键词，如'高血压用药指南'、'糖尿病饮食建议'。")
+
+
+class SearchPatientsInput(BaseModel):
+    query: str = Field(description="自然语言搜索条件，如'60岁以上的女性患者'、'姓张的患者'。")
+
+
+class GetPatientTimelineInput(BaseModel):
+    patient_name: str = Field(description="患者全名。")
+
+
+class CompleteTaskInput(BaseModel):
+    task_id: int = Field(description="任务ID（数字）。")
 
 
 # ── Serialization helpers ────────────────────────────────────────────
@@ -224,12 +279,12 @@ async def _commit_task(
 # ── Read tools ───────────────────────────────────────────────────────
 
 
-@tool
+@tool(args_schema=QueryRecordsInput)
 async def query_records(
     patient_name: Optional[str] = None,
     limit: int = 5,
 ) -> Dict[str, Any]:
-    """查询患者的既往病历记录。"""
+    """查询患者的既往病历记录。返回最近的病历列表，包含内容摘要和创建时间。"""
     doctor_id = get_current_identity()
     resolved = await resolve(patient_name, doctor_id)
     if "status" in resolved:
@@ -240,15 +295,15 @@ async def query_records(
 
 @tool
 async def list_patients() -> Dict[str, Any]:
-    """列出医生的患者名单。"""
+    """列出当前医生的全部患者。返回姓名、性别、出生年份等基本信息。无需参数。"""
     doctor_id = get_current_identity()
     patients = await _fetch_patients(doctor_id)
     return truncate_result({"status": "ok", "data": patients})
 
 
-@tool
+@tool(args_schema=ListTasksInput)
 async def list_tasks(status: Optional[str] = None) -> Dict[str, Any]:
-    """查询任务列表。可按状态筛选（pending/completed）。"""
+    """查询当前医生的任务列表。返回任务标题、状态、患者、计划时间等。"""
     doctor_id = get_current_identity()
     tasks = await _fetch_tasks(doctor_id, status)
     return truncate_result({"status": "ok", "data": tasks})

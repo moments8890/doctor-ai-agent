@@ -103,10 +103,10 @@ flowchart LR
 | `report-extract.md` | `services/export/outpatient_report.py` | `{records_text}` | Extract outpatient report fields from stored records |
 | `vision-import.md` | `services/record_import/vision_import.py` | _(image input)_ | Extract structured fields + patient info from medical record photos |
 | `vision-ocr.md` | `services/ai/vision.py` | _(image input)_ | Plain-text OCR for medical documents |
-| `patient-chat.md` | `channels/wechat/patient_pipeline.py` | _(conversation history)_ | Legacy — used by WeChat patient pipeline until migrated to agent |
 
-### Deprecated (delete after migration)
+### Deprecated (deleted)
 
 | File | Replaced by | Reason |
 |------|------------|--------|
 | ~~`understand.md`~~ | `agent-doctor.md` + LangChain agent | Agent LLM handles intent reasoning directly |
+| ~~`patient-chat.md`~~ | `agent-patient.md` + ReAct agent | WeChat patient pipeline migrated to `handle_turn("patient")` |

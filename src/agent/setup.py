@@ -9,6 +9,7 @@ from typing import Any, List
 
 from langchain_core.tools import BaseTool
 from langchain_core.callbacks import BaseCallbackHandler
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_openai import ChatOpenAI
 from langchain.agents import create_agent
 
@@ -135,11 +136,12 @@ def get_tools_for_role(role: str) -> List[BaseTool]:
     return PATIENT_TOOLS
 
 
-def get_llm() -> ChatOpenAI:
-    """Create LLM using our provider config.
+def get_llm() -> BaseChatModel:
+    """Create LLM using provider-specific LangChain client.
 
-    Uses _get_providers() for fresh env var reads (runtime.json may
-    have set OLLAMA_BASE_URL after .dev.sh env vars).
+    Uses dedicated LangChain packages (ChatDeepSeek, ChatGroq, ChatOllama)
+    for providers that have them — these handle tool-calling wire format
+    correctly. Falls back to ChatOpenAI for OpenAI-compatible providers.
     """
     from infra.llm.client import _get_providers
 
@@ -152,15 +154,53 @@ def get_llm() -> ChatOpenAI:
 
     model_name = provider.get("model", "deepseek-chat")
     base_url = provider["base_url"]
+    api_key = os.environ.get(provider.get("api_key_env", ""), "nokeyneeded")
+    callbacks = _get_callbacks()
+
     _log.info("[agent] LLM config | provider=%s model=%s base_url=%s", provider_name, model_name, base_url)
 
+    # Provider-specific clients handle tool-calling protocol correctly.
+    # ChatOpenAI works for OpenAI-compatible APIs but mishandles
+    # provider-specific extensions (reasoning_content, stop signals).
+
+    if provider_name == "deepseek":
+        from langchain_deepseek import ChatDeepSeek
+        return ChatDeepSeek(
+            model=model_name,
+            api_key=api_key,
+            temperature=0.1,
+            max_retries=0,
+            callbacks=callbacks,
+        )
+
+    if provider_name == "groq":
+        from langchain_groq import ChatGroq
+        return ChatGroq(
+            model=model_name,
+            api_key=api_key,
+            temperature=0.1,
+            max_retries=0,
+            callbacks=callbacks,
+        )
+
+    if provider_name == "ollama":
+        from langchain_ollama import ChatOllama
+        return ChatOllama(
+            model=model_name,
+            base_url=base_url.replace("/v1", ""),  # ChatOllama uses native API, not /v1
+            temperature=0.1,
+            callbacks=callbacks,
+        )
+
+    # All other providers (sambanova, cerebras, siliconflow, openrouter,
+    # tencent_lkeap) are OpenAI-compatible — ChatOpenAI works correctly.
     return ChatOpenAI(
         model=model_name,
         base_url=base_url,
-        api_key=os.environ.get(provider.get("api_key_env", ""), "nokeyneeded"),
+        api_key=api_key,
         temperature=0.1,
-        max_retries=0,  # fail fast on 429 — don't wait and retry
-        callbacks=_get_callbacks(),
+        max_retries=0,
+        callbacks=callbacks,
     )
 
 

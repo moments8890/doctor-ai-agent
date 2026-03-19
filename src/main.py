@@ -14,8 +14,8 @@ if _SRC_DIR not in sys.path:
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
-from utils.log import init_logging, safe_create_task
-from utils.app_config import AppConfig, load_config_from_json, ollama_base_url_candidates
+from utils.log import init_logging
+from utils.app_config import AppConfig, load_config_from_json
 
 # Must run before any module reads os.environ.
 # NOTE (architectural debt): several modules (llm_client, vision, etc.) snapshot
@@ -36,7 +36,6 @@ for _key, _value in _merged_values.items():
 APP_CONFIG = AppConfig.from_env(env=_merged_values, env_source=str(_config_source_path))
 init_logging()
 
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
@@ -53,10 +52,8 @@ from channels.web.export import router as export_router
 from channels.web.import_routes import router as import_router
 from channels.web.patient_portal import router as patient_portal_router
 from channels.web.patient_interview_routes import router as patient_interview_router
-from db.init_db import create_tables, seed_prompts, backfill_doctors_registry
 from db.engine import AsyncSessionLocal
 from db.crud import get_due_tasks
-from domain.tasks.task_crud import check_and_send_due_tasks
 from utils.errors import DomainError
 from infra.observability.observability import (
     add_trace,
@@ -66,8 +63,13 @@ from infra.observability.observability import (
     set_current_trace_id,
 )
 
+# Startup sub-modules
+from startup.warmup import run_warmup
+from startup.scheduler import create_scheduler, configure_scheduler
+from startup.db_init import init_database, enforce_production_guards
+
 # ---------------------------------------------------------------------------
-# Layer wiring — main.py is the only file that connects channels/ ↔ services/.
+# Layer wiring — main.py is the only file that connects channels/ <-> services/.
 # ---------------------------------------------------------------------------
 from channels.wechat.wechat_notify import _send_customer_service_msg
 from domain.tasks.notifications import register_sender
@@ -78,395 +80,13 @@ register_sender(_send_customer_service_msg)
 # App
 # ---------------------------------------------------------------------------
 
-async def _warmup_jieba(log: logging.Logger) -> None:
-    """预加载 jieba 分词词典（首次导入时构建前缀词典）。"""
-    import jieba
-    jieba.initialize()
-    log.info("jieba initialised")
-
-
-async def _ping_ollama_candidate(
-    candidate_url: str, model: str, api_key: str, timeout: float, max_attempts: int, log: logging.Logger
-) -> bool:
-    """尝试 ping 单个候选 URL；成功返回 True，连接失败返回 False，其他错误抛出。"""
-    from openai import AsyncOpenAI
-    client = AsyncOpenAI(base_url=candidate_url, api_key=api_key, timeout=timeout, max_retries=0)
-    for attempt in range(1, max_attempts + 1):
-        try:
-            await client.chat.completions.create(
-                model=model, messages=[{"role": "user", "content": "ping"}], max_tokens=1,
-            )
-            return True
-        except Exception as e:
-            if _is_connectivity_error(e):
-                log.warning(
-                    f"Ollama connectivity check failed | "
-                    f"base_url={candidate_url} model={model} attempt={attempt}/{max_attempts} error={e}"
-                )
-            else:
-                raise RuntimeError(
-                    f"Ollama startup warmup failed with non-connectivity error "
-                    f"(base_url={candidate_url}, model={model}): {e}"
-                ) from e
-            if attempt < max_attempts:
-                await asyncio.sleep(_ollama_warmup_backoff_seconds(attempt))
-    return False
-
-
-def _apply_ollama_url_override(config: AppConfig, chosen_url: str, log: logging.Logger) -> None:
-    """将选中的候选 URL 写入环境变量（当它与配置中的原始 URL 不同时）。"""
-    if chosen_url != config.ollama_base_url:
-        os.environ["OLLAMA_BASE_URL"] = chosen_url
-        if os.environ.get("OLLAMA_VISION_BASE_URL", "").strip() == config.ollama_base_url:
-            os.environ["OLLAMA_VISION_BASE_URL"] = chosen_url
-        log.warning(
-            f"Ollama startup fallback selected | original_base_url={config.ollama_base_url} "
-            f"effective_base_url={chosen_url} model={config.ollama_model}"
-        )
-    else:
-        log.info(
-            f"Ollama startup connectivity check passed | "
-            f"base_url={chosen_url} model={config.ollama_model}"
-        )
-
-
-async def _warmup_ollama(config: AppConfig, log: logging.Logger) -> None:
-    """Ping Ollama 以将模型预加载进显存，并选取可用的 base_url。"""
-    model = config.ollama_model
-    max_attempts = 3
-    warmup_timeout = _ollama_warmup_timeout_seconds()
-    candidates = ollama_base_url_candidates(config.ollama_base_url)
-    api_key = config.ollama_api_key or "ollama"
-    chosen_url = None
-
-    for candidate_url in candidates:
-        if await _ping_ollama_candidate(candidate_url, model, api_key, warmup_timeout, max_attempts, log):
-            chosen_url = candidate_url
-            break
-
-    if chosen_url:
-        _apply_ollama_url_override(config, chosen_url, log)
-    else:
-        log.error(
-            f"Ollama unavailable on startup | attempted_base_urls={candidates} "
-            f"model={model}. Continuing without warmup."
-        )
-
-
-async def _warmup_lkeap(log: logging.Logger) -> None:
-    """Pre-establish LKEAP TCP/TLS connection for faster first request."""
-    lkeap_key = os.environ.get("TENCENT_LKEAP_API_KEY", "").strip()
-    if not lkeap_key:
-        return
-    try:
-        from openai import AsyncOpenAI
-        from infra.llm.client import _PROVIDERS
-        lkeap_provider = _PROVIDERS.get("tencent_lkeap", {})
-        if lkeap_provider:
-            client = AsyncOpenAI(
-                base_url=lkeap_provider["base_url"],
-                api_key=lkeap_key,
-                timeout=10, max_retries=0,
-            )
-            model = os.environ.get("TENCENT_LKEAP_MODEL", lkeap_provider.get("model", "deepseek-v3-1"))
-            await client.chat.completions.create(
-                model=model,
-                messages=[{"role": "user", "content": "hi"}],
-                max_tokens=1,
-            )
-            log.info("[Warmup] LKEAP connection established")
-    except Exception as e:
-        log.warning("[Warmup] LKEAP warmup failed (non-fatal): %s", e)
-
-
-async def _warmup(config: AppConfig):
-    """依次执行各组件预热：jieba、Ollama、LKEAP。"""
-    log = logging.getLogger("warmup")
-    await _warmup_jieba(log)
-    # Ollama/LKEAP warmup runs in background — don't block app startup
-    if config.routing_llm == "ollama" or config.structuring_llm == "ollama":
-        import asyncio
-        asyncio.create_task(_warmup_ollama(config, log))
-        log.info("Ollama warmup started (background — app ready immediately)")
-    if config.routing_llm == "tencent_lkeap" or config.structuring_llm == "tencent_lkeap":
-        import asyncio
-        asyncio.create_task(_warmup_lkeap(log))
-        log.info("LKEAP warmup started (background)")
-
-
-def _ollama_warmup_timeout_seconds() -> float:
-    raw = os.environ.get("OLLAMA_WARMUP_TIMEOUT_SECONDS", "10").strip()
-    try:
-        value = float(raw)
-        return value if value > 0 else 10.0
-    except ValueError:
-        return 10.0
-
-
-def _ollama_warmup_backoff_seconds(attempt: int) -> float:
-    # attempt is 1-based; retries use 1s, 2s, 4s...
-    return float(2 ** max(0, int(attempt) - 1))
-
-
-def _is_connectivity_error(exc: Exception) -> bool:
-    """True when warmup failure indicates endpoint connectivity issues."""
-    try:
-        from openai import APIConnectionError, APITimeoutError
-        if isinstance(exc, (APIConnectionError, APITimeoutError)):
-            return True
-    except Exception:
-        pass
-    return isinstance(exc, (ConnectionError, TimeoutError, OSError))
-
-
-_scheduler = AsyncIOScheduler()
+_scheduler = create_scheduler()
 _startup_ready = False
-
-
-def _scheduler_mode() -> str:
-    mode = os.environ.get("TASK_SCHEDULER_MODE", "interval").strip().lower()
-    return mode if mode in {"interval", "cron"} else "interval"
-
-
-def _scheduler_interval_minutes() -> int:
-    raw = os.environ.get("TASK_SCHEDULER_INTERVAL_MINUTES", "1")
-    try:
-        return max(1, int(raw))
-    except (TypeError, ValueError):
-        return 1
-
-
-def _scheduler_cron_expr() -> str:
-    return os.environ.get("TASK_SCHEDULER_CRON", "*/1 * * * *").strip() or "*/1 * * * *"
-
-
-
-
-async def _expire_stale_pending_records() -> None:
-    """Scheduler job: auto-save timed-out pending drafts instead of discarding them.
-
-    For each stale draft: save to medical_records, then create a doctor_task
-    notification so the doctor can see what was auto-saved in the tasks tab.
-    """
-    _log = logging.getLogger("scheduler")
-    try:
-        from db.crud import get_stale_pending_records
-        from domain.records.confirm_pending import save_pending_record
-        from domain.tasks.task_crud import create_general_task
-        from agent.pending import clear_pending_draft_id
-        async with AsyncSessionLocal() as _session:
-            stale = await get_stale_pending_records(_session)
-        if not stale:
-            return
-        saved = 0
-        for pending in stale:
-            try:
-                _result = await save_pending_record(
-                    pending.doctor_id, pending, force_confirm=True,
-                )
-                await clear_pending_draft_id(pending.doctor_id)
-                patient_name = _result[0] if _result else None
-                if patient_name:
-                    safe_create_task(create_general_task(
-                        pending.doctor_id,
-                        title=f"病历已自动保存：【{patient_name}】",
-                        patient_id=pending.patient_id,
-                    ))
-                    saved += 1
-            except Exception as _e:
-                _log.warning("[PendingRecords] auto-save FAILED id=%s: %s", pending.id, _e)
-        if saved:
-            _log.info("[PendingRecords] auto-saved stale drafts | count=%s", saved)
-    except Exception as _e:
-        _log.warning("[PendingRecords] auto-save job FAILED: %s", _e)
-
-
-
-async def _purge_old_pending_data() -> None:
-    """Daily job: hard-delete expired/abandoned pending records and done messages older than 30 days."""
-    _log = logging.getLogger("scheduler")
-    try:
-        from db.crud import purge_old_pending_records, purge_old_pending_messages
-        async with AsyncSessionLocal() as _session:
-            deleted_records = await purge_old_pending_records(_session)
-            deleted_messages = await purge_old_pending_messages(_session)
-        _log.info(
-            "[Pending] purge complete | deleted_records=%s deleted_messages=%s",
-            deleted_records, deleted_messages,
-        )
-    except Exception as _e:
-        _log.warning("[Pending] purge job FAILED: %s", _e)
-
-
-async def _cleanup_chat_archive() -> None:
-    """Daily job: hard-delete ChatArchive rows older than 365 days."""
-    _log = logging.getLogger("scheduler")
-    try:
-        from db.crud import cleanup_chat_archive
-        async with AsyncSessionLocal() as _session:
-            deleted = await cleanup_chat_archive(_session)
-        _log.info("[ChatArchive] cleanup complete | deleted=%s", deleted)
-    except Exception as _e:
-        _log.warning("[ChatArchive] cleanup job FAILED: %s", _e)
-
-
-async def _audit_log_retention() -> None:
-    """Monthly job: delete audit log entries older than 7 years (2555 days).
-
-    WARNING: this directly deletes rows without archival/export.  In production,
-    configure external log shipping (e.g. to S3/object storage) before this job
-    runs, or the compliance trail will be permanently lost.
-    """
-    _log = logging.getLogger("scheduler")
-    try:
-        from db.crud import archive_old_audit_logs
-        async with AsyncSessionLocal() as _session:
-            deleted = await archive_old_audit_logs(_session)
-        if deleted:
-            _log.warning(
-                "[AuditLog] DELETED %s audit rows older than 7 years — "
-                "ensure external archival is configured for compliance",
-                deleted,
-            )
-        else:
-            _log.info("[AuditLog] retention check complete | no rows to purge")
-    except Exception as _e:
-        _log.warning("[AuditLog] retention job FAILED: %s", _e)
-
-
-async def _record_version_retention() -> None:
-    """Monthly job: delete medical record versions older than 30 years (10950 days)."""
-    _log = logging.getLogger("scheduler")
-    try:
-        from db.crud import prune_record_versions
-        async with AsyncSessionLocal() as _session:
-            deleted = await prune_record_versions(_session)
-        _log.info("[RecordVersions] retention purge complete | deleted=%s", deleted)
-    except Exception as _e:
-        _log.warning("[RecordVersions] retention job FAILED: %s", _e)
-
-
-
-async def _prune_turn_log() -> None:
-    """Daily job: remove turn log entries older than TURN_LOG_TTL_DAYS."""
-    _log = logging.getLogger("scheduler")
-    try:
-        from infra.observability.turn_log import prune_turn_log
-        kept = prune_turn_log()
-        _log.info("[TurnLog] prune complete | kept=%s lines", kept)
-    except Exception as _e:
-        _log.warning("[TurnLog] prune job FAILED: %s", _e)
-
-
-def _schedule_task_notifications(startup_log: logging.Logger) -> None:
-    """注册任务通知定时器（interval 或 cron 模式）。"""
-    mode = _scheduler_mode()
-    if mode == "cron":
-        cron_expr = _scheduler_cron_expr()
-        try:
-            minute, hour, day, month, day_of_week = cron_expr.split()
-            _scheduler.add_job(
-                check_and_send_due_tasks,
-                "cron",
-                minute=minute,
-                hour=hour,
-                day=day,
-                month=month,
-                day_of_week=day_of_week,
-            )
-            startup_log.info("[Tasks] scheduler configured | mode=cron expr=%s", cron_expr)
-        except Exception:
-            interval_minutes = _scheduler_interval_minutes()
-            _scheduler.add_job(check_and_send_due_tasks, "interval", minutes=interval_minutes)
-            startup_log.warning(
-                "[Tasks] invalid TASK_SCHEDULER_CRON=%r, fallback to interval=%s min",
-                cron_expr,
-                interval_minutes,
-            )
-    else:
-        interval_minutes = _scheduler_interval_minutes()
-        _scheduler.add_job(check_and_send_due_tasks, "interval", minutes=interval_minutes)
-        startup_log.info("[Tasks] scheduler configured | mode=interval minutes=%s", interval_minutes)
-
-
-def _schedule_cleanup_jobs(startup_log: logging.Logger) -> None:
-    """注册草稿过期定时器。"""
-    _scheduler.add_job(_expire_stale_pending_records, "interval", minutes=5)
-    startup_log.info("[PendingRecords] expiry scheduler configured | every_minutes=5")
-
-
-def _schedule_retention_jobs(startup_log: logging.Logger) -> None:
-    """注册数据保留/合规定时任务（每日/每月）。"""
-    _scheduler.add_job(_purge_old_pending_data, "cron", hour=4, minute=0)
-    startup_log.info("[Pending] purge scheduler configured | daily at 04:00")
-
-    _scheduler.add_job(_cleanup_chat_archive, "cron", hour=4, minute=30)
-    startup_log.info("[ChatArchive] cleanup scheduler configured | daily at 04:30")
-
-    _scheduler.add_job(_audit_log_retention, "cron", day=1, hour=3, minute=0)
-    startup_log.info("[AuditLog] retention scheduler configured | monthly day=1 at 03:00")
-
-    _scheduler.add_job(_record_version_retention, "cron", day=1, hour=3, minute=30)
-    startup_log.info("[RecordVersions] retention scheduler configured | monthly day=1 at 03:30")
-
-    _scheduler.add_job(_prune_turn_log, "cron", hour=5, minute=30)
-    startup_log.info("[TurnLog] prune scheduler configured | daily at 05:30")
-
-
-def _configure_task_scheduler(startup_log: logging.Logger) -> None:
-    """清除所有任务并重新注册全部定时器。"""
-    _scheduler.remove_all_jobs()
-    _schedule_task_notifications(startup_log)
-    _schedule_cleanup_jobs(startup_log)
-    _schedule_retention_jobs(startup_log)
-
-
-    # Config changes take effect on restart (hot-reload removed).
-
-
-async def _run_alembic_migrations() -> None:
-    """Run pending Alembic migrations synchronously in a thread pool."""
-    import asyncio
-    import logging
-    from alembic.config import Config
-    from alembic import command
-
-    log = logging.getLogger("startup")
-
-    def _run_sync() -> None:
-        cfg = Config("alembic.ini")
-        cfg.set_main_option("script_location", "alembic")
-        command.upgrade(cfg, "head")
-
-    try:
-        await asyncio.get_event_loop().run_in_executor(None, _run_sync)
-        log.info("[DB] Alembic migrations applied (or already at head)")
-    except Exception as exc:
-        from infra.auth import is_production as _is_prod_migration
-        if _is_prod_migration():
-            raise RuntimeError(
-                f"Alembic migration failed in production — refusing to start "
-                f"against a potentially inconsistent schema: {exc}"
-            ) from exc
-        log.warning("[DB] Alembic migration failed — continuing in dev mode: %s", exc)
-
-
-async def _startup_db_and_warmup(startup_log: logging.Logger) -> None:
-    """初始化数据库表、迁移、填充提示词并预热 LLM。"""
-    startup_log.info("[Config] loaded environment\n%s", APP_CONFIG.to_pretty_log())
-    await create_tables()
-    await _run_alembic_migrations()
-    _added_doctors = await backfill_doctors_registry()
-    startup_log.info("[DB] doctors backfill completed | inserted=%s", _added_doctors)
-    await seed_prompts()
-    await _warmup(APP_CONFIG)
-
-
 _bg_worker_tasks: list[asyncio.Task] = []
 
 
 async def _startup_background_workers() -> None:
-    """启动可观测性写入器和审计 drain worker 异步任务。"""
+    """Start observability writer and audit drain worker async tasks."""
     from infra.observability.observability import _disk_writer
     from infra.observability.audit import _audit_drain_worker
     _bg_worker_tasks.append(asyncio.create_task(_disk_writer(), name="disk_writer"))
@@ -474,7 +94,7 @@ async def _startup_background_workers() -> None:
 
 
 async def _startup_recovery(startup_log: logging.Logger) -> None:
-    """记录待发任务数量并重新入队崩溃遗留消息。"""
+    """Log pending task count and re-queue crash-orphaned messages."""
     try:
         async with AsyncSessionLocal() as _session:
             _pending = await get_due_tasks(_session, datetime.now(timezone.utc))
@@ -490,31 +110,6 @@ async def _startup_recovery(startup_log: logging.Logger) -> None:
         startup_log.warning("[Recovery] stale pending_message recovery FAILED: %s", _e)
 
 
-def _enforce_production_guards() -> None:
-    """生产环境安全检查：确保关键密钥已设置。"""
-    from infra.auth import is_production
-    if not is_production():
-        return
-    if not os.environ.get("WECHAT_ID_HMAC_KEY", "").strip():
-        raise RuntimeError(
-            "WECHAT_ID_HMAC_KEY must be set in production to ensure "
-            "WeChat identifiers are hashed at rest. Refusing to start."
-        )
-    if not os.environ.get("PATIENT_PORTAL_SECRET", "").strip():
-        raise RuntimeError(
-            "PATIENT_PORTAL_SECRET must be set in production to ensure "
-            "patient portal tokens are signed with a real secret. "
-            "Refusing to start."
-        )
-    if not os.environ.get("MINIPROGRAM_TOKEN_SECRET", "").strip() or \
-            os.environ.get("MINIPROGRAM_TOKEN_SECRET", "").strip() == "dev-miniprogram-secret":
-        raise RuntimeError(
-            "MINIPROGRAM_TOKEN_SECRET must be set to a strong random "
-            "value in production (not the dev default). Refusing to start."
-        )
-    # CORS_ALLOW_ORIGINS is enforced at module level during CORS middleware setup.
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _startup_ready
@@ -522,11 +117,13 @@ async def lifespan(app: FastAPI):
     # Production guards FIRST — before any DB/LLM/worker side effects.
     # A missing secret should abort immediately, not after tables are
     # created, prompts seeded, and workers started.
-    _enforce_production_guards()
-    await _startup_db_and_warmup(_startup_log)
+    enforce_production_guards()
+    _startup_log.info("[Config] loaded environment\n%s", APP_CONFIG.to_pretty_log())
+    await init_database(_startup_log)
+    await run_warmup(APP_CONFIG)
     await _startup_background_workers()
     await _startup_recovery(_startup_log)
-    _configure_task_scheduler(_startup_log)
+    configure_scheduler(_scheduler, _startup_log)
     _scheduler.start()
     _startup_ready = True
     yield

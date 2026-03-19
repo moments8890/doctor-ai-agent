@@ -1,0 +1,66 @@
+"""Database initialisation: table creation, migrations, seed data, production guards."""
+
+import asyncio
+import logging
+import os
+
+
+async def run_alembic_migrations() -> None:
+    """Run pending Alembic migrations synchronously in a thread pool."""
+    from alembic.config import Config
+    from alembic import command
+
+    log = logging.getLogger("startup")
+
+    def _run_sync() -> None:
+        cfg = Config("alembic.ini")
+        cfg.set_main_option("script_location", "alembic")
+        command.upgrade(cfg, "head")
+
+    try:
+        await asyncio.get_event_loop().run_in_executor(None, _run_sync)
+        log.info("[DB] Alembic migrations applied (or already at head)")
+    except Exception as exc:
+        from infra.auth import is_production as _is_prod_migration
+        if _is_prod_migration():
+            raise RuntimeError(
+                f"Alembic migration failed in production -- refusing to start "
+                f"against a potentially inconsistent schema: {exc}"
+            ) from exc
+        log.warning("[DB] Alembic migration failed -- continuing in dev mode: %s", exc)
+
+
+async def init_database(startup_log: logging.Logger) -> None:
+    """Create tables, run migrations, backfill doctors, and seed prompts."""
+    from db.init_db import create_tables, seed_prompts, backfill_doctors_registry
+
+    await create_tables()
+    await run_alembic_migrations()
+    _added_doctors = await backfill_doctors_registry()
+    startup_log.info("[DB] doctors backfill completed | inserted=%s", _added_doctors)
+    await seed_prompts()
+
+
+def enforce_production_guards() -> None:
+    """Production safety checks: ensure critical secrets are set."""
+    from infra.auth import is_production
+    if not is_production():
+        return
+    if not os.environ.get("WECHAT_ID_HMAC_KEY", "").strip():
+        raise RuntimeError(
+            "WECHAT_ID_HMAC_KEY must be set in production to ensure "
+            "WeChat identifiers are hashed at rest. Refusing to start."
+        )
+    if not os.environ.get("PATIENT_PORTAL_SECRET", "").strip():
+        raise RuntimeError(
+            "PATIENT_PORTAL_SECRET must be set in production to ensure "
+            "patient portal tokens are signed with a real secret. "
+            "Refusing to start."
+        )
+    if not os.environ.get("MINIPROGRAM_TOKEN_SECRET", "").strip() or \
+            os.environ.get("MINIPROGRAM_TOKEN_SECRET", "").strip() == "dev-miniprogram-secret":
+        raise RuntimeError(
+            "MINIPROGRAM_TOKEN_SECRET must be set to a strong random "
+            "value in production (not the dev default). Refusing to start."
+        )
+    # CORS_ALLOW_ORIGINS is enforced at module level during CORS middleware setup.

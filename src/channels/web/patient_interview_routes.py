@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel
 
-from channels.web.patient_portal import _authenticate_patient
+from channels.web.patient_portal_auth import _authenticate_patient
 
 
 class InterviewTurnRequest(BaseModel):
