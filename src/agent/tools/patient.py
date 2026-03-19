@@ -61,7 +61,7 @@ async def advance_interview(answer: str) -> Dict[str, Any]:
 
 @tool
 async def confirm_interview() -> Dict[str, Any]:
-    """确认预问诊结果并提交给医生。在患者确认问诊内容无误后调用。"""
+    """确认预问诊结果并提交给医生。仅在患者明确表示"没问题"、"确认"后调用。无需参数。"""
     from domain.patients.interview_session import get_active_session
     from domain.patients.interview_summary import confirm_interview
 
