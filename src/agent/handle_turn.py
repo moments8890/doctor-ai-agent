@@ -1,6 +1,7 @@
 """Entry point for the ReAct agent pipeline."""
 from __future__ import annotations
 
+import json
 import re
 from datetime import datetime
 from typing import Optional
@@ -13,6 +14,7 @@ from agent.actions import Action
 from db.models.tasks import TaskStatus
 from infra.auth import UserRole
 from agent.tools.doctor import _fetch_tasks, _fetch_patients, _fetch_recent_records
+from agent.tools.diagnosis import _build_case_context
 from utils.log import log
 
 # Fast-path patterns
@@ -134,6 +136,34 @@ async def _dispatch_action_hint(
     return None
 
 
+async def _get_active_chief_complaint(doctor_id: str) -> Optional[str]:
+    """Return the chief_complaint from the most recent medical record, or None."""
+    try:
+        from db.engine import AsyncSessionLocal
+        from db.models import MedicalRecordDB
+        from sqlalchemy import select
+
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                select(MedicalRecordDB.structured)
+                .where(
+                    MedicalRecordDB.doctor_id == doctor_id,
+                    MedicalRecordDB.structured.isnot(None),
+                )
+                .order_by(MedicalRecordDB.created_at.desc())
+                .limit(1)
+            )
+            row = result.scalar_one_or_none()
+
+        if not row:
+            return None
+        structured = json.loads(row) if isinstance(row, str) else row
+        return structured.get("chief_complaint") or None
+    except Exception as exc:
+        log(f"[handle_turn] chief_complaint lookup failed: {exc}", level="warning")
+        return None
+
+
 async def handle_turn(text: str, role: str, identity: str, *, action_hint=None) -> str:
     """One turn. Channels call this directly."""
     agent = await get_or_create_agent(identity, role)
@@ -165,8 +195,21 @@ async def handle_turn(text: str, role: str, identity: str, *, action_hint=None) 
             return reply
 
     # LangChain agent (1-4 LLM calls)
+    # Inject case context for doctor role (non-disruptive: only enriches the
+    # text sent to the agent; archiving still uses the original user text).
+    agent_text = text
+    if role == UserRole.doctor:
+        try:
+            chief_complaint = await _get_active_chief_complaint(identity)
+            if chief_complaint:
+                case_ctx = await _build_case_context(identity, chief_complaint)
+                if case_ctx:
+                    agent_text = f"{case_ctx}\n\n{text}"
+        except Exception as exc:
+            log(f"[handle_turn] case_context injection failed: {exc}", level="warning")
+
     try:
-        reply = await agent.handle(text)
+        reply = await agent.handle(agent_text)
     except Exception as exc:
         log(f"[handle_turn] agent error: {exc}", level="error")
         reply = M.service_unavailable
