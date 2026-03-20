@@ -3,46 +3,108 @@ name: CI
 on:
   pull_request:
   push:
-    branches:
-      - develop
-      - main
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  test-backend:
+  # ── Fast unit tests (mocked, no LLM/server needed) ───────────────
+  unit-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
 
-      - name: Install backend deps
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+      - name: Install deps
+        run: pip install -r requirements.txt
 
       - name: Run unit tests
         run: bash scripts/test.sh unit
 
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-report
+          path: reports/junit/unit.xml
+          retention-days: 14
+
+  # ── Integration tests (real LLM via Groq, running server) ────────
+  integration-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    needs: unit-tests
+    env:
+      ROUTING_LLM: groq
+      STRUCTURING_LLM: groq
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      ENVIRONMENT: test
+      PYTHONPATH: src
+      PATIENTS_DB_PATH: ${{ github.workspace }}/data/patients.db
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Create data dir
+        run: mkdir -p data
+
+      - name: Start server
+        run: |
+          cd src && python -m uvicorn main:app --host 0.0.0.0 --port 8001 &
+          echo "Waiting for server..."
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8001/healthz > /dev/null 2>&1; then
+              echo "Server ready after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:8001/healthz || { echo "Server failed to start"; exit 1; }
+
+      - name: Run integration tests
+        run: bash scripts/test.sh integration
+        env:
+          INTEGRATION_SERVER_URL: http://127.0.0.1:8001
+          CHAT_TIMEOUT: "120"
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-report
+          path: reports/junit/integration.xml
+          retention-days: 14
+
+  # ── Frontend build check ─────────────────────────────────────────
   build-frontend:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
+          cache: npm
+          cache-dependency-path: frontend/web/package-lock.json
 
-      - name: Install and build frontend
+      - name: Install and build
         run: |
-          cd frontend
+          cd frontend/web
           npm ci
           npm run build
-

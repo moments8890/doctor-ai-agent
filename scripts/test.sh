@@ -8,6 +8,7 @@ set -euo pipefail
 #   bash scripts/test.sh integration-full
 #   bash scripts/test.sh chatlog-half
 #   bash scripts/test.sh chatlog-full
+#   bash scripts/test.sh unit
 #   bash scripts/test.sh hero-loop
 #   bash scripts/test.sh benchmark-gate
 #   bash scripts/test.sh all
@@ -23,6 +24,12 @@ else
 fi
 
 mkdir -p reports/junit reports/coverage reports/coverage/html reports/logs reports/candidate
+
+run_unit() {
+  echo "[test] Running core unit tests (mocked, no server needed)..."
+  ROUTING_LLM=deepseek "$PYTHON" -m pytest tests/core/ -v \
+    --junitxml=reports/junit/unit.xml
+}
 
 run_integration() {
   echo "[test] Running integration text pipeline tests..."
@@ -54,6 +61,9 @@ run_hero_loop() {
 }
 
 case "$MODE" in
+  unit)
+    run_unit
+    ;;
   integration)
     run_integration
     ;;
@@ -78,7 +88,7 @@ case "$MODE" in
     ;;
   *)
     echo "Unknown mode: $MODE"
-    echo "Usage: bash scripts/test.sh [integration|integration-full|chatlog-half|chatlog-full|hero-loop|benchmark-gate|all]"
+    echo "Usage: bash scripts/test.sh [unit|integration|integration-full|chatlog-half|chatlog-full|hero-loop|benchmark-gate|all]"
     exit 2
     ;;
 esac
