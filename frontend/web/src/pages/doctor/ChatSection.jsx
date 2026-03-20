@@ -19,7 +19,7 @@ import Markdown from "react-markdown";
 import { sendChat, ocrImage, extractFileForChat, clearContext } from "../../api";
 import RecordFields from "../../components/RecordFields";
 import { t } from "../../i18n";
-import { QUICK_COMMANDS } from "./constants";
+import { QUICK_COMMANDS, Action } from "./constants";
 import ActionPanel from "./ActionPanel";
 import PatientPickerDialog from "./PatientPickerDialog";
 import ImportChoiceDialog from "./ImportChoiceDialog";
