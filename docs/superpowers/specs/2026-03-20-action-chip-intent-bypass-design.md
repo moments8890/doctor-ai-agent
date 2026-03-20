@@ -105,11 +105,47 @@ POST /api/records/chat
 
 No response schema changes needed.
 
-### Allowed `action_hint` values
+### `ActionHint` enum
 
-Backend validates against a set of known values. Unknown values are ignored
-(fall back to normal pipeline). This makes the contract forward-compatible —
-frontend can send `diagnosis` now; backend ignores it until Phase 2.
+`action_hint` is a formal enum, not free text. Both frontend and backend
+share the same values. Pydantic rejects unknown values with HTTP 422.
+
+**Backend** (`src/agent/action_hint.py`):
+
+```python
+from enum import Enum
+
+class ActionHint(str, Enum):
+    daily_summary = "daily_summary"
+    create_record = "create_record"
+    query_patient = "query_patient"
+    diagnosis     = "diagnosis"
+```
+
+**Frontend** (`constants.jsx`):
+
+```js
+export const ActionHint = {
+  DAILY_SUMMARY: "daily_summary",
+  CREATE_RECORD: "create_record",
+  QUERY_PATIENT: "query_patient",
+  DIAGNOSIS:     "diagnosis",
+};
+```
+
+**`ChatInput` model** uses the enum directly:
+
+```python
+class ChatInput(BaseModel):
+    text: str = Field(..., max_length=8000)
+    history: List[HistoryMessage] = Field(default_factory=list)
+    doctor_id: str = ""
+    action_hint: Optional[ActionHint] = None
+```
+
+Adding a new action in the future means adding one enum value in both
+`action_hint.py` and `constants.jsx`. Frontend `QUICK_COMMANDS` references
+`ActionHint` values via their `.key` field.
 
 ## Backend Architecture
 
@@ -185,11 +221,11 @@ All bypass paths must return a `str` (human-readable reply), since
 ### Implementation in `handle_turn.py`
 
 ```python
-VALID_HINTS = {"daily_summary", "create_record", "query_patient", "diagnosis"}
+from agent.action_hint import ActionHint
 
 async def handle_turn(
     text: str, role: str, identity: str,
-    action_hint: str | None = None,
+    action_hint: ActionHint | None = None,
 ) -> str:
     agent = await get_or_create_agent(identity, role)
     set_current_identity(identity)
@@ -202,7 +238,7 @@ async def handle_turn(
         return fast
 
     # 2. NEW: action hint fast paths
-    if action_hint and action_hint in VALID_HINTS:
+    if action_hint:
         try:
             reply = await _dispatch_action_hint(action_hint, text, identity, agent)
         except Exception as exc:
@@ -274,10 +310,10 @@ const [activeChip, setActiveChip] = useState(null);
 
 ```js
 export const QUICK_COMMANDS = [
-  { key: "daily_summary",  label: "今日摘要",  autoSend: true },
-  { key: "create_record",  label: "新增病历",  autoSend: false },
-  { key: "query_patient",  label: "查询患者",  autoSend: false },
-  { key: "diagnosis",      label: "诊断建议",  autoSend: false, disabled: true },
+  { key: ActionHint.DAILY_SUMMARY, label: "今日摘要",  autoSend: true },
+  { key: ActionHint.CREATE_RECORD, label: "新增病历",  autoSend: false },
+  { key: ActionHint.QUERY_PATIENT, label: "查询患者",  autoSend: false },
+  { key: ActionHint.DIAGNOSIS,     label: "诊断建议",  autoSend: false, disabled: true },
 ];
 ```
 
@@ -349,7 +385,7 @@ in the conversation trail.
 ### Frontend
 
 - `frontend/web/src/pages/doctor/constants.jsx` — replace `QUICK_COMMANDS`
-  array with new 4-item definition
+  array with new 4-item definition, add `ActionHint` enum object
 - `frontend/web/src/pages/doctor/ChatSection.jsx` — replace
   `QuickCommandsPanel` with `QuickCommandBar`, add `ChipInput` component,
   extend `performSend` with `actionHint`, update `useDailySummary` hook,
@@ -359,11 +395,11 @@ in the conversation trail.
 
 ### Backend
 
-- `src/channels/web/chat.py` — add `action_hint: Optional[str] = None` field
-  to `ChatInput` model, pass to `handle_turn`
+- `src/agent/action_hint.py` — **NEW file**: `ActionHint(str, Enum)` definition
+- `src/channels/web/chat.py` — add `action_hint: Optional[ActionHint] = None`
+  field to `ChatInput` model, pass to `handle_turn`
 - `src/agent/handle_turn.py` — add `action_hint` parameter to `handle_turn`,
-  add `_dispatch_action_hint()` function with per-action fast paths, add
-  `VALID_HINTS` set
+  add `_dispatch_action_hint()` function with per-action fast paths
 - `src/agent/tools/doctor.py` — add `_fetch_recent_records(doctor_id, limit)`
   helper that queries records across all patients (existing `_fetch_records`
   requires a `patient_id`). No changes to `@tool` functions.
