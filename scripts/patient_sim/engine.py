@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
-from scripts.patient_sim.patient_llm import PatientLLM
+from patient_sim.patient_llm import PatientLLM
 
 
 MAX_TURNS = 20

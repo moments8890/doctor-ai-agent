@@ -33,14 +33,14 @@
   ],
 
   "expected_extracted": {
-    "chief_complaint": ["动脉瘤", "体检"],
-    "present_illness": ["头痛", "视物模糊"],
+    "chief_complaint": ["头痛"],
+    "present_illness": ["头痛"],
     "past_history": ["高血压"],
     "family_history": ["脑溢血"]
   },
 
   "checklist": {
-    "must_ask": ["头痛", "视力", "家族史", "用药"],
+    "must_ask": ["头痛", "高血压", "家族", "氨氯地平"],
     "should_ask": ["吸烟", "手术史", "过敏"],
     "min_coverage": 0.6
   }

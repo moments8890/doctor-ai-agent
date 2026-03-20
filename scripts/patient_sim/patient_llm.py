@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import os
+import re
 from typing import Any, Dict, List, Optional
 
 from openai import OpenAI
+
+# Qwen3 models on Groq/Cerebras emit <think>...</think> reasoning traces
+_THINK_RE = re.compile(r"<think>.*?</think>\s*", re.DOTALL)
 
 
 # Provider configs — same pattern as src/infra/llm/client.py
@@ -72,7 +76,15 @@ def create_patient_llm(provider: str = "deepseek") -> "PatientLLM":
     cfg = _PROVIDERS.get(provider)
     if not cfg:
         raise ValueError(f"Unknown patient LLM provider: {provider}. Choose from: {list(_PROVIDERS)}")
+    # Check env var first, then runtime.json
     api_key = os.environ.get(cfg["api_key_env"], "")
+    if not api_key:
+        try:
+            from utils.runtime_config import load_runtime_json
+            runtime_cfg = load_runtime_json()
+            api_key = runtime_cfg.get(cfg["api_key_env"], "")
+        except Exception:
+            pass
     if not api_key:
         raise RuntimeError(f"Set {cfg['api_key_env']} to use {provider} as patient LLM")
     client = OpenAI(base_url=cfg["base_url"], api_key=api_key)
@@ -108,4 +120,7 @@ class PatientLLM:
             temperature=0.7,
             max_tokens=300,
         )
-        return resp.choices[0].message.content.strip()
+        text = resp.choices[0].message.content.strip()
+        # Strip Qwen3 <think> reasoning traces
+        text = _THINK_RE.sub("", text).strip()
+        return text

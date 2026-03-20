@@ -183,7 +183,7 @@ def validate(
     judge_model: str = "deepseek-chat",
 ) -> ValidationResult:
     """Run all 3 validation tiers."""
-    from scripts.patient_sim.engine import SimResult
+    from patient_sim.engine import SimResult
 
     vr = ValidationResult()
 
