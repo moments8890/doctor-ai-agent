@@ -144,6 +144,17 @@ async def _fetch_tasks(
         return [_serialize_task(t) for t in tasks]
 
 
+async def _fetch_recent_records(
+    doctor_id: str, limit: int = 10,
+) -> List[Dict[str, Any]]:
+    from db.crud.records import get_all_records_for_doctor
+    from db.engine import AsyncSessionLocal
+
+    async with AsyncSessionLocal() as session:
+        records = await get_all_records_for_doctor(session, doctor_id, limit=limit)
+        return [_serialize_record(r) for r in records]
+
+
 # ── Internal write helpers ───────────────────────────────────────────
 
 
