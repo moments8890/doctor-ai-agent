@@ -133,14 +133,18 @@ async def _dispatch_action_hint(
         return await agent.handle(text)
 
     if action == Action.diagnosis:
-        from agent.tools.diagnosis import diagnose
+        log(f"[dispatch] diagnosis action triggered for {identity}")
+        from agent.tools.diagnosis import diagnose as _diagnose_tool
         from agent.identity import set_current_identity
         set_current_identity(identity)
         try:
-            result = await diagnose.ainvoke({})
+            result = await _diagnose_tool.ainvoke({})
+            log(f"[dispatch] diagnosis result length: {len(result) if result else 0}")
             return result
         except Exception as e:
-            log(f"[dispatch] diagnosis failed: {e}", level="warning")
+            log(f"[dispatch] diagnosis failed: {e}", level="error")
+            import traceback
+            traceback.print_exc()
             return None
 
     # Unknown or future actions → fall through
