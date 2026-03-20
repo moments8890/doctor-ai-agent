@@ -41,7 +41,9 @@ langchain-groq>=1.0.0
 langchain-deepseek>=1.0.0
 langchain-ollama>=1.0.0
 langfuse>=3.0.0                # LLM observability (optional, set LANGFUSE_PUBLIC_KEY to enable)
-sentence-transformers>=2.2.0
+langchain-huggingface>=0.1.0    # HuggingFaceEmbeddings for local BGE-M3
+langchain-community>=0.3.0     # DashScopeEmbeddings (optional cloud alternative)
+sentence-transformers>=2.2.0   # underlying model runtime for langchain-huggingface
 numpy
 scipy
 pyyaml
