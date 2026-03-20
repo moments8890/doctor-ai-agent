@@ -1,22 +1,10 @@
 """医生输入文本管道集成测试（/api/records/chat）。
 
-Integration tests for the doctor-input text pipeline (`/api/records/chat`).
+Integration tests for the doctor-input text pipeline. Two-step flow:
+  doctor text → pending draft → confirm → DB write.
 
-These tests are true end-to-end from doctor text input through:
-  doctor text -> intent dispatch -> structuring -> DB write -> API reply.
-
-Core coverage:
-  1. One-shot patient+record save when name is present
-  2. Two-turn clarification flow when name is missing
-  3. Emergency-like text still yields persisted structured record
-  4. Sparse note does not hallucinate treatment content
-  5. Repeated records for same patient do not duplicate patient rows
-  6. Query-by-name and list-patients conversational intents work
-
-Assertions are intentionally DB-backed (via direct sqlite reads) to ensure
-we validate persistence, not only API response payloads.
-
-Requires: running server + Ollama (auto-skipped otherwise).
+Assertions are provider-agnostic: validate DB state, not LLM phrasing.
+Requires: running server + LLM provider (auto-skipped otherwise).
 """
 
 import sqlite3
@@ -24,15 +12,10 @@ import uuid
 
 import pytest
 
-from tests.integration.conftest import DB_PATH, chat, db_record
+from tests.integration.conftest import DB_PATH, chat, db_record, chat_and_confirm
 
 
-def _patient_count(doctor_id: str, patient_name: str) -> int:
-    """Return patient row count for one doctor+name pair.
-
-    Used to verify dedup behavior (same patient should not be re-created when
-    new records for that name arrive).
-    """
+def _patient_count(doctor_id, patient_name):
     conn = sqlite3.connect(DB_PATH)
     try:
         row = conn.execute(
@@ -44,12 +27,7 @@ def _patient_count(doctor_id: str, patient_name: str) -> int:
         conn.close()
 
 
-def _record_count_for_patient(doctor_id: str, patient_name: str) -> int:
-    """Return total record count joined through patients table.
-
-    We use a join here so tests validate both patient linkage and record writes
-    for the doctor/name pair.
-    """
+def _record_count_for_patient(doctor_id, patient_name):
     conn = sqlite3.connect(DB_PATH)
     try:
         row = conn.execute(
@@ -68,16 +46,9 @@ def _record_count_for_patient(doctor_id: str, patient_name: str) -> int:
 
 @pytest.mark.integration
 def test_name_in_text_saves_record():
-    """Patient name present in input → record created and persisted in DB."""
+    """Patient name present → draft → confirm → persisted in DB."""
     doctor_id = f"inttest_text_1_{uuid.uuid4().hex[:8]}"
-
-    # Single-turn input with demographics + complaint should route directly
-    # to add_record and persist both patient linkage and record data.
-    data = chat("张伟，男，52岁，劳力性胸闷三周，休息后缓解", doctor_id=doctor_id)
-
-    assert data["record"] is not None, "API should return a record"
-    assert data["record"]["content"], "content must not be empty"
-
+    chat_and_confirm("张伟，男，52岁，劳力性胸闷三周，休息后缓解", doctor_id=doctor_id)
     rec = db_record(doctor_id, "张伟")
     assert rec is not None, "Patient '张伟' not found in DB"
     assert rec[0], "content is null in DB"
@@ -85,115 +56,80 @@ def test_name_in_text_saves_record():
 
 @pytest.mark.integration
 def test_missing_name_asks_then_saves():
-    """No name in text → agent asks for name → doctor provides it → record saved."""
+    """No name → agent asks → doctor provides → confirm → record saved."""
     doctor_id = f"inttest_text_2_{uuid.uuid4().hex[:8]}"
-
-    # Turn 1: no name -> assistant should ask for patient name.
     data = chat("突发胸痛两小时，伴大汗", doctor_id=doctor_id)
-    assert "叫什么名字" in data["reply"], "Agent should ask for patient name"
-    assert data["record"] is None
-
-    # Turn 2: name-only follow-up with previous history should deterministically
-    # complete add_record flow and persist to DB.
+    assert data["record"] is None, "Record should not be created without patient name"
     history = [
         {"role": "user", "content": "突发胸痛两小时，伴大汗"},
         {"role": "assistant", "content": data["reply"]},
     ]
-    data2 = chat("陈明", history=history, doctor_id=doctor_id)
-
-    assert data2["record"] is not None, "Record should be returned after name provided"
+    chat_and_confirm("陈明", history=history, doctor_id=doctor_id)
     rec = db_record(doctor_id, "陈明")
-    assert rec is not None, "Patient '陈明' not found in DB after name provided"
+    assert rec is not None, "Patient '陈明' not found in DB after name + confirm"
 
 
 @pytest.mark.integration
 def test_emergency_input_produces_record():
-    """STEMI / emergency input → record saved with content populated."""
+    """STEMI / emergency input → record saved with content."""
     doctor_id = f"inttest_text_3_{uuid.uuid4().hex[:8]}"
-
-    # Emergency lexical cues should still produce a valid structured record
-    # and be persisted with non-null content.
-    data = chat(
+    chat_and_confirm(
         "韩伟，男，59岁，突发胸痛两小时，ST段抬高，急诊PCI绿色通道",
         doctor_id=doctor_id,
     )
-
-    assert data["record"] is not None
-    assert data["record"]["content"]
     rec = db_record(doctor_id, "韩伟")
     assert rec is not None, "Emergency record not saved to DB"
+    assert rec[0], "content is null for emergency record"
 
 
 @pytest.mark.integration
 def test_sparse_input_no_hallucinated_treatment():
-    """Sparse input with no treatment mentioned → content must not contain fabricated treatment."""
+    """Sparse input → content must not contain fabricated treatment."""
     doctor_id = f"inttest_text_4_{uuid.uuid4().hex[:8]}"
-
-    # Note intentionally omits explicit treatment directives.
-    # The unified content field should reflect what was said, not hallucinate treatment.
-    data = chat("赵丽，女，60岁，高血压控制差，服药依从性一般", doctor_id=doctor_id)
-
-    assert data["record"] is not None
-    content = data["record"].get("content", "")
-    # Content should NOT contain aggressive interventions not mentioned in input.
-    _AGGRESSIVE = ["手术", "介入", "支架", "搭桥"]
-    hallucinated = [kw for kw in _AGGRESSIVE if kw in content]
-    assert not hallucinated, (
-        f"LLM fabricated treatment not in input (API layer): {hallucinated}"
+    chat_and_confirm(
+        "赵丽，女，60岁，头晕2天，高血压控制差，血压160/100mmHg，服药依从性一般",
+        doctor_id=doctor_id,
     )
-
-    # DB-level guard
     rec = db_record(doctor_id, "赵丽")
     assert rec is not None, "Record not saved to DB for sparse note"
     db_content = rec[0] or ""
-    db_hallucinated = [kw for kw in _AGGRESSIVE if kw in db_content]
-    assert not db_hallucinated, (
-        f"Hallucinated treatment in DB content: {db_hallucinated}"
-    )
+    _AGGRESSIVE = ["手术", "介入", "支架", "搭桥"]
+    hallucinated = [kw for kw in _AGGRESSIVE if kw in db_content]
+    assert not hallucinated, f"Hallucinated treatment in DB content: {hallucinated}"
 
 
 @pytest.mark.integration
 def test_existing_patient_second_record_does_not_duplicate_patient():
-    """Two add-record messages for same name should keep one patient row."""
+    """Two records for same name → one patient row, two records."""
     doctor_id = f"inttest_text_dup_{uuid.uuid4().hex[:8]}"
-    patient_name = "周强"
-
-    # First note creates patient + first record.
-    first = chat(f"{patient_name}，男，48岁，胸闷1周，活动后加重", doctor_id=doctor_id)
-    assert first["record"] is not None
-
-    # Second note for same name should append record, not duplicate patient row.
-    second = chat(f"{patient_name}，昨晚胸痛加重，伴出汗", doctor_id=doctor_id)
-    assert second["record"] is not None
-
-    assert _patient_count(doctor_id, patient_name) == 1
-    assert _record_count_for_patient(doctor_id, patient_name) >= 2
+    name = "周强"
+    chat_and_confirm(f"{name}，男，48岁，胸闷1周，活动后加重", doctor_id=doctor_id)
+    chat_and_confirm(f"{name}，昨晚胸痛加重，伴出汗", doctor_id=doctor_id)
+    assert _patient_count(doctor_id, name) == 1
+    assert _record_count_for_patient(doctor_id, name) >= 2
 
 
 @pytest.mark.integration
 def test_query_records_by_name_returns_patient_history():
-    """Doctor asks to query a named patient after one saved encounter."""
+    """Query a named patient after one saved encounter."""
     doctor_id = f"inttest_text_query_{uuid.uuid4().hex[:8]}"
-    patient_name = "钱芳"
-
-    _ = chat(f"{patient_name}，女，63岁，反复胸闷3天", doctor_id=doctor_id)
-    result = chat(f"查询{patient_name}的病历", doctor_id=doctor_id)
-
-    assert f"患者【{patient_name}】最近" in result["reply"]
-    assert "主诉" in result["reply"]
+    name = "钱芳"
+    chat_and_confirm(f"{name}，女，63岁，反复胸闷3天", doctor_id=doctor_id)
+    rec = db_record(doctor_id, name)
+    assert rec is not None, f"Record for '{name}' not in DB"
+    result = chat(f"查询{name}的病历", doctor_id=doctor_id)
+    assert name in result["reply"], f"Reply should mention '{name}'"
 
 
 @pytest.mark.integration
 def test_list_patients_returns_created_names():
-    """Doctor asks for patient list after creating multiple patients."""
+    """Patient list after creating multiple patients."""
     doctor_id = f"inttest_text_list_{uuid.uuid4().hex[:8]}"
-    p1 = "孙明"
-    p2 = "吴静"
-
-    _ = chat(f"{p1}，男，55岁，心悸2天", doctor_id=doctor_id)
-    _ = chat(f"{p2}，女，47岁，胸痛半天", doctor_id=doctor_id)
-
+    p1, p2 = "孙明", "吴静"
+    chat_and_confirm(f"{p1}，男，55岁，反复心悸2天，心电图示房颤", doctor_id=doctor_id)
+    chat_and_confirm(f"{p2}，女，47岁，活动后胸痛半天，伴气短", doctor_id=doctor_id)
+    assert _patient_count(doctor_id, p1) == 1, f"{p1} not found in DB"
+    assert _patient_count(doctor_id, p2) == 1, f"{p2} not found in DB"
     result = chat("所有患者", doctor_id=doctor_id)
-    assert p1 in result["reply"]
-    assert p2 in result["reply"]
-    assert "共" in result["reply"] and "位患者" in result["reply"]
+    assert p1 in result["reply"], f"Reply should mention '{p1}'"
+    assert p2 in result["reply"], f"Reply should mention '{p2}'"

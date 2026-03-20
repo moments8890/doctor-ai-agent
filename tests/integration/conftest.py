@@ -241,3 +241,30 @@ def db_record(doctor_id, patient_name):
         return cur.fetchone()
     finally:
         conn.close()
+
+
+def has_pending_draft(doctor_id):
+    """Check if there's an awaiting pending record for this doctor."""
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        row = conn.execute(
+            "SELECT COUNT(1) FROM pending_records WHERE doctor_id=? AND status='awaiting'",
+            (doctor_id,),
+        ).fetchone()
+        return (row[0] if row else 0) > 0
+    finally:
+        conn.close()
+
+
+def chat_and_confirm(text, doctor_id, **kwargs):
+    """Send medical text, then confirm the pending draft if one was created.
+
+    Returns the first chat response. The confirm step ensures the record
+    is persisted to medical_records via the ADR 0012 two-step flow.
+    """
+    data = chat(text, doctor_id=doctor_id, **kwargs)
+    if data.get("record") is not None:
+        return data
+    if has_pending_draft(doctor_id):
+        chat("确认", doctor_id=doctor_id)
+    return data
