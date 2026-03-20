@@ -101,6 +101,36 @@ jobs:
           path: reports/junit/integration.xml
           retention-days: 14
 
+  # ── Publish test results as PR comment ─────────────────────────────
+  publish-results:
+    runs-on: ubuntu-latest
+    if: always() && github.event_name == 'pull_request'
+    needs: [unit-tests, integration-tests]
+    permissions:
+      checks: write
+      pull-requests: write
+    steps:
+      - name: Download unit test report
+        uses: actions/download-artifact@v4
+        with:
+          name: unit-test-report
+          path: reports/
+        continue-on-error: true
+
+      - name: Download integration test report
+        uses: actions/download-artifact@v4
+        with:
+          name: integration-test-report
+          path: reports/
+        continue-on-error: true
+
+      - name: Publish test results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: reports/**/*.xml
+          comment_title: "Test Results"
+          check_name: "Test Results"
+
   # ── Frontend build check ─────────────────────────────────────────
   build-frontend:
     runs-on: ubuntu-latest
