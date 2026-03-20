@@ -28,6 +28,8 @@ mkdir -p reports/junit reports/coverage reports/coverage/html reports/logs repor
 run_unit() {
   echo "[test] Running core unit tests (mocked, no server needed)..."
   ROUTING_LLM=deepseek "$PYTHON" -m pytest tests/core/ -v \
+    --ignore=tests/core/test_multi_gateway_e2e.py \
+    --ignore=tests/core/test_p3_d2_parity_e2e.py \
     --junitxml=reports/junit/unit.xml
 }
 
