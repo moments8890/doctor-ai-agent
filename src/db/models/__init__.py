@@ -15,6 +15,7 @@ from db.models.medical_record import MedicalRecord
 from db.models.patient_message import PatientMessage
 from db.models.interview_session import InterviewSessionDB, InterviewStatus
 from db.models.review_queue import ReviewQueue
+from db.models.case_history import CaseHistory
 
 __all__ = [
     "_utcnow",
@@ -31,4 +32,5 @@ __all__ = [
     "PatientMessage",
     "InterviewSessionDB", "InterviewStatus",
     "ReviewQueue",
+    "CaseHistory",
 ]
