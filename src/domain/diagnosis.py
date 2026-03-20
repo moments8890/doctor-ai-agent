@@ -225,6 +225,20 @@ def _format_matched_cases(cases: List[Dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
+def _row_to_result(row: Any) -> Dict[str, Any]:
+    """Convert a DiagnosisResult ORM row to a plain dict."""
+    import json as _json
+    return {
+        "status": row.status,
+        "differentials": _json.loads(row.ai_output).get("differentials", []) if row.ai_output else [],
+        "workup": _json.loads(row.ai_output).get("workup", []) if row.ai_output else [],
+        "treatment": _json.loads(row.ai_output).get("treatment", []) if row.ai_output else [],
+        "red_flags": _json.loads(row.red_flags) if row.red_flags else [],
+        "case_references": _json.loads(row.case_references) if row.case_references else [],
+        "error_message": row.error_message,
+    }
+
+
 def _format_structured_fields(structured: Dict[str, str]) -> str:
     """Format structured fields for the user message."""
     _FIELD_LABELS = {
@@ -516,8 +530,20 @@ async def run_diagnosis(
         # ------------------------------------------------------------------
         diagnosis_row = None
         if record_id is not None:
-            diagnosis_row = await create_pending_diagnosis(session, record_id, doctor_id)
-            await session.flush()  # get row.id without committing yet
+            # Check for existing row (re-run after failure or chat retry)
+            from db.crud.diagnosis import get_diagnosis_by_record
+            existing = await get_diagnosis_by_record(session, record_id, doctor_id)
+            if existing and existing.status in ("completed", "confirmed"):
+                log(f"{_tag} diagnosis already exists for record {record_id}, skipping")
+                return _row_to_result(existing)
+            if existing:
+                # Reuse existing failed/pending row
+                diagnosis_row = existing
+                diagnosis_row.status = "pending"
+                diagnosis_row.error_message = None
+            else:
+                diagnosis_row = await create_pending_diagnosis(session, record_id, doctor_id)
+            await session.flush()
 
         # ------------------------------------------------------------------
         # Step 2: Load clinical context
