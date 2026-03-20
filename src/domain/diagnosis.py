@@ -274,7 +274,7 @@ def _build_system_prompt(
 def _build_user_message(structured: Dict[str, str]) -> str:
     """Build the user message from structured fields."""
     fields_text = _format_structured_fields(structured)
-    return "请根据以下病历生成鉴别诊断建议：\n\n" + fields_text
+    return "请根据以下病历生成鉴别诊断建议，以json格式输出：\n\n" + fields_text
 
 
 # ---------------------------------------------------------------------------
