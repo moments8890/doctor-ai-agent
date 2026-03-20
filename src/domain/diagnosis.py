@@ -344,14 +344,14 @@ def _validate_differentials(raw: Any) -> List[Dict[str, str]]:
         if not isinstance(item, dict):
             log(f"[diagnosis] dropping malformed differential at index {i}: not a dict", level="warning")
             continue
-        condition = str(item.get("condition") or "").strip()
+        condition = str(item.get("condition") or item.get("诊断名称") or "").strip()
         if not condition:
             log(f"[diagnosis] dropping differential at index {i}: missing condition", level="warning")
             continue
         result.append({
             "condition":  condition,
-            "confidence": _coerce_confidence(item.get("confidence")),
-            "reasoning":  str(item.get("reasoning") or "").strip(),
+            "confidence": _coerce_confidence(item.get("confidence") or item.get("可能性")),
+            "reasoning":  str(item.get("reasoning") or item.get("推理依据") or "").strip(),
         })
     return result
 
@@ -365,14 +365,14 @@ def _validate_workup(raw: Any) -> List[Dict[str, str]]:
         if not isinstance(item, dict):
             log(f"[diagnosis] dropping malformed workup at index {i}: not a dict", level="warning")
             continue
-        test = str(item.get("test") or "").strip()
+        test = str(item.get("test") or item.get("检查名称") or "").strip()
         if not test:
             log(f"[diagnosis] dropping workup at index {i}: missing test", level="warning")
             continue
         result.append({
             "test":       test,
-            "rationale":  str(item.get("rationale") or "").strip(),
-            "urgency":    _coerce_urgency(item.get("urgency")),
+            "rationale":  str(item.get("rationale") or item.get("理由") or "").strip(),
+            "urgency":    _coerce_urgency(item.get("urgency") or item.get("紧急程度")),
         })
     return result
 
@@ -386,14 +386,14 @@ def _validate_treatment(raw: Any) -> List[Dict[str, str]]:
         if not isinstance(item, dict):
             log(f"[diagnosis] dropping malformed treatment at index {i}: not a dict", level="warning")
             continue
-        drug_class = str(item.get("drug_class") or "").strip()
-        description = str(item.get("description") or "").strip()
+        drug_class = str(item.get("drug_class") or item.get("药物类别") or "").strip()
+        description = str(item.get("description") or item.get("说明") or "").strip()
         if not drug_class and not description:
             log(f"[diagnosis] dropping treatment at index {i}: missing drug_class and description", level="warning")
             continue
         result.append({
             "drug_class":    drug_class,
-            "intervention":  _coerce_intervention(item.get("intervention")),
+            "intervention":  _coerce_intervention(item.get("intervention") or item.get("干预方式")),
             "description":   description,
         })
     return result
@@ -426,7 +426,7 @@ def _parse_and_validate(raw: str, provider_name: str) -> Optional[Dict[str, Any]
     workup = _validate_workup(data.get("workup"))
     treatment = _validate_treatment(data.get("treatment"))
 
-    red_flags_raw = data.get("red_flags")
+    red_flags_raw = data.get("red_flags") or data.get("red flags") or data.get("危险信号")
     if isinstance(red_flags_raw, list):
         red_flags = [str(s) for s in red_flags_raw if s][:_MAX_ARRAY_ITEMS]
     else:
