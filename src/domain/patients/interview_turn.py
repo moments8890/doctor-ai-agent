@@ -154,8 +154,9 @@ async def _call_interview_llm(
     for turn in conversation[-20:]:
         messages.append({"role": turn.get("role", "user"), "content": turn.get("content", "")})
 
-    # Use the same LangChain LLM as the agent — handles provider-specific
-    # quirks (Groq <think> tokens, DeepSeek reasoning_content) correctly.
+    # Use the same LangChain LLM as the agent.
+    # Inject /no_think into system prompt to disable Qwen3 thinking mode —
+    # the interview engine expects clean JSON, not <think> blocks.
     from agent.setup import get_llm
     from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -166,7 +167,7 @@ async def _call_interview_llm(
     lc_messages = []
     for m in messages:
         if m["role"] == "system":
-            lc_messages.append(SystemMessage(content=m["content"]))
+            lc_messages.append(SystemMessage(content="/no_think\n" + m["content"]))
         else:
             lc_messages.append(HumanMessage(content=m["content"]))
 
@@ -174,7 +175,7 @@ async def _call_interview_llm(
     raw = response.content or ""
     log(f"{_tag} response: {raw[:200]}")
 
-    # Strip <think>...</think> tags if any slip through
+    # Strip <think>...</think> tags if any still slip through
     import re as _re
     raw = _re.sub(r"<think>.*?</think>", "", raw, flags=_re.DOTALL).strip()
 

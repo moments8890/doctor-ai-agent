@@ -32,6 +32,7 @@ class CreateRecordInput(BaseModel):
     patient_name: str = Field(description="患者全名，如'张三'。")
     gender: Optional[str] = Field(None, description="性别：男 或 女。")
     age: Optional[int] = Field(None, description="年龄（整数）。")
+    clinical_text: Optional[str] = Field(None, description="临床信息摘要（主诉、症状、检查、用药等）。可留空，系统会自动从对话中提取。")
 
 
 class UpdateRecordInput(BaseModel):
@@ -149,32 +150,34 @@ async def _fetch_tasks(
 async def _create_pending_record(
     doctor_id: str, patient_id: int, patient_name: str,
     gender: Optional[str] = None, age: Optional[int] = None,
+    clinical_text: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Collect clinical text from conversation, structure, save as pending."""
+    """Structure clinical text and save as pending draft.
+
+    Uses clinical_text if provided (e.g. DeepSeek passes it directly).
+    Falls back to scanning conversation history for the patient name.
+    """
     from domain.records.structuring import structure_medical_record
     from db.crud.pending import create_pending_record
     from db.engine import AsyncSessionLocal
 
-    # Collect clinical text from agent's in-memory history.
-    # Filter: only include messages that mention the target patient name
-    # to avoid cross-patient data contamination.
-    # Import lazily to avoid circular: doctor.py -> session.py -> setup.py -> doctor.py
-    from agent import session as _session_mod
-    history = _session_mod.get_agent_history(doctor_id)
+    # Prefer LLM-provided clinical_text; fall back to history scan.
+    if not clinical_text or not clinical_text.strip():
+        from agent import session as _session_mod
+        history = _session_mod.get_agent_history(doctor_id)
 
-    # Take messages from the most recent mention of the patient name onward
-    relevant_messages: List[str] = []
-    collecting = False
-    for msg in history:
-        content = getattr(msg, "content", "") or ""
-        if patient_name in content:
-            collecting = True
-        if collecting and content.strip():
-            relevant_messages.append(content)
+        relevant_messages: List[str] = []
+        collecting = False
+        for msg in history:
+            content = getattr(msg, "content", "") or ""
+            if patient_name in content:
+                collecting = True
+            if collecting and content.strip():
+                relevant_messages.append(content)
 
-    clinical_text = "\n".join(relevant_messages)
+        clinical_text = "\n".join(relevant_messages)
 
-    if not clinical_text.strip():
+    if not clinical_text or not clinical_text.strip():
         return {"status": "error", "message": "没有找到临床信息，请先提供患者症状"}
 
     try:
@@ -317,9 +320,10 @@ async def create_record(
     patient_name: str,
     gender: Optional[str] = None,
     age: Optional[int] = None,
+    clinical_text: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """为患者创建病历。自动从对话历史提取临床信息并结构化。
-    只需传入患者姓名，临床内容无需作为参数传入（系统自动采集）。
+    """为患者创建病历。将临床信息结构化后生成病历预览。
+    可通过 clinical_text 传入临床摘要，也可留空由系统自动从对话中提取。
     返回病历预览，医生说"确认"后才永久保存。患者不存在会自动创建。"""
     doctor_id = get_current_identity()
     resolved = await resolve(patient_name, doctor_id, auto_create=True, gender=gender, age=age)
@@ -327,7 +331,7 @@ async def create_record(
         return resolved
     result = await _create_pending_record(
         resolved["doctor_id"], resolved["patient_id"],
-        resolved["patient_name"], gender, age,
+        resolved["patient_name"], gender, age, clinical_text,
     )
     return truncate_result(result)
 
