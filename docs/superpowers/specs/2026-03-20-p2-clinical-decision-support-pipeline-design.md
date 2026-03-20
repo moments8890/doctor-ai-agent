@@ -146,23 +146,36 @@ Single module, ~200 lines. Shared by scheduler and chat tool.
 
 ```python
 async def run_diagnosis(
-    record_id: int,
     doctor_id: str,
-) -> DiagnosisResult:
-    """Run the full diagnosis pipeline for a medical record.
+    record_id: Optional[int] = None,
+    clinical_text: Optional[str] = None,
+) -> DiagnosisOutput:
+    """Run the full diagnosis pipeline.
+
+    Accepts EITHER a record_id (loads structured fields from DB) OR
+    raw clinical_text (from chat history scan). At least one must be
+    provided.
 
     Steps:
-    1. Load structured record from medical_records
+    1. Load clinical context (from record OR raw text)
     2. Match similar cases via match_cases() (P1 RAG)
     3. Load diagnosis skill via get_diagnosis_skill() (P1 skill loader)
-    4. Load doctor knowledge context (existing)
-    5. Build prompt: record + matched cases + skill + knowledge
+    4. Load doctor knowledge via load_knowledge_context_for_prompt()
+    5. Build prompt: clinical context + matched cases + skill + knowledge
     6. Call LLM (Qwen3:32b) → structured JSON response
-    7. Parse into DiagnosisResult
-    8. Save to diagnosis_results table
+    7. Validate + parse into DiagnosisOutput
+    8. If record_id provided: save to diagnosis_results table
+       If clinical_text only: return without saving (conversational)
     9. Return result
     """
 ```
+
+**Two paths:**
+- **Scheduler path:** `run_diagnosis(doctor_id, record_id=N)` → loads
+  structured record, saves result to `diagnosis_results` table.
+- **Chat path:** `run_diagnosis(doctor_id, clinical_text="...")` → uses
+  raw text from conversation, returns result without saving (no record
+  to link to). The agent formats and presents conversationally.
 
 ### Prompt construction
 
@@ -333,16 +346,27 @@ A new agent tool that triggers the full diagnosis pipeline on demand:
 @tool
 async def diagnose() -> str:
     """为当前患者生成AI鉴别诊断建议。使用工作上下文中的当前患者。"""
-    # Uses the agent's working context (current patient_id)
-    # Finds the patient's latest medical record
-    # Runs the diagnosis pipeline via run_diagnosis(record_id, doctor_id)
-    # Formats and returns conversational response
+    doctor_id = get_current_identity()
+    # 1. Try: find current patient's latest medical record
+    #    → run_diagnosis(record_id=N, doctor_id=...)
+    #
+    # 2. Fallback: no record → scan chat history for clinical context
+    #    (same pattern as _create_pending_record in doctor.py)
+    #    from agent import session as _session_mod
+    #    history = _session_mod.get_agent_history(doctor_id)
+    #    → extract relevant messages mentioning symptoms
+    #    → run_diagnosis(clinical_text="...", doctor_id=...)
 ```
 
 The tool uses the **current patient from working context** (not a name
 parameter) — consistent with existing tools like `create_record` and
-`query_records` which operate on the active patient. This avoids the
-ambiguity of name-based patient lookup.
+`query_records` which operate on the active patient.
+
+**Dual input mode** — follows the `_create_pending_record()` pattern
+(lines 160-190 of `agent/tools/doctor.py`): prefer structured record
+if available, fall back to scanning `get_agent_history(doctor_id)` for
+relevant clinical text from the conversation. This means the doctor can
+get diagnosis suggestions whether or not a formal record exists.
 
 The doctor says "给这个患者诊断建议" or "分析一下头痛原因" → agent
 calls `diagnose()` → full pipeline runs → agent presents results
