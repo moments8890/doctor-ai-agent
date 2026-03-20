@@ -22,7 +22,7 @@ from langchain_community.document_loaders import TextLoader
 from sqlalchemy import select
 
 from db.engine import AsyncSessionLocal
-from db.models.case_history import CaseHistory
+from db.models.case_history import CaseHistory, CaseSource
 from domain.knowledge.embedding import embed, preload_embedding_model
 
 SEED_DOCTOR_ID = "__seed__"
@@ -133,7 +133,7 @@ async def seed():
                 confidence_status="confirmed",
                 embedding=embedding_json,
                 embedding_model="BAAI/bge-m3",
-                source="seed",
+                source=CaseSource.seed,
             )
             session.add(entry)
             inserted += 1

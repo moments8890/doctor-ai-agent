@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from enum import Enum
 from typing import Optional
 
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
@@ -9,6 +10,13 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from db.engine import Base
 from db.models.base import _utcnow
+
+
+class CaseSource(str, Enum):
+    seed = "seed"         # pre-loaded neurosurgery seed cases
+    review = "review"     # auto-created when doctor confirms a review
+    manual = "manual"     # doctor manually enters a case
+    import_ = "import"    # bulk import from external source (PDF, CSV, EHR)
 
 
 class CaseHistory(Base):
@@ -36,7 +44,7 @@ class CaseHistory(Base):
     )
     embedding: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     embedding_model: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    source: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # seed | review | import | manual
+    source: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # CaseSource enum value
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, onupdate=_utcnow)
 

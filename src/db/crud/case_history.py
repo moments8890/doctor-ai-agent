@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from db.models.case_history import CaseHistory
+from db.models.case_history import CaseHistory, CaseSource
 from db.models.base import _utcnow
 from domain.knowledge.embedding import embed, get_model_name
 from utils.log import log
@@ -40,7 +40,7 @@ async def create_case(
     patient_id: Optional[int],
     chief_complaint: str,
     present_illness: str = "",
-    source: Optional[str] = "review",
+    source: CaseSource = CaseSource.review,
 ) -> CaseHistory:
     """Create a preliminary case. Embedding computed from chief_complaint + present_illness."""
     embed_text = _build_embed_text(chief_complaint, present_illness)
