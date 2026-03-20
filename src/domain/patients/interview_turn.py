@@ -182,7 +182,7 @@ async def _call_interview_llm(
 
     data = json.loads(raw)
     return {
-        "suggested_reply": data.get("suggested_reply", "请继续描述您的情况。"),
+        "suggested_reply": data.get("reply") or data.get("suggested_reply", "请继续描述您的情况。"),
         "extracted": data.get("extracted", {}),
     }
 

@@ -134,6 +134,8 @@ async def turn(
         "collected": response.collected,
         "progress": response.progress,
         "status": response.status,
+        "missing_fields": response.missing or [],
+        "complete": len(response.missing or []) == 0,
     }
 
 
