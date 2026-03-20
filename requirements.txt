@@ -37,4 +37,7 @@ structlog>=21.5.0              # structured JSON logging
 langchain>=0.3.0
 langchain-openai>=0.3.0
 langchain-core>=0.3.0
+langchain-groq>=1.0.0
+langchain-deepseek>=1.0.0
+langchain-ollama>=1.0.0
 langfuse>=3.0.0                # LLM observability (optional, set LANGFUSE_PUBLIC_KEY to enable)
