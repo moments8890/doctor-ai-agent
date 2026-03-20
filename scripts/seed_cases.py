@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 # scripts/seed_cases.py
-"""Load seed neurosurgery cases from markdown into case_history table."""
+"""Load seed neurosurgery cases from markdown into case_history table.
+
+Uses LangChain TextLoader for file reading, custom field extraction for
+structured clinical data (主诉, 诊断, 治疗, etc.).
+"""
 from __future__ import annotations
 
 import asyncio
@@ -14,10 +18,12 @@ from typing import Dict, List
 # Add src to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
+from langchain_community.document_loaders import TextLoader
+from sqlalchemy import select
+
 from db.engine import AsyncSessionLocal
 from db.models.case_history import CaseHistory
 from domain.knowledge.embedding import embed, preload_embedding_model
-from sqlalchemy import select
 
 SEED_DOCTOR_ID = "__seed__"
 DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "seed_neurosurgery_cases.md"
@@ -33,9 +39,12 @@ FIELD_MAP = {
 
 
 def parse_cases(text: str) -> List[Dict[str, str]]:
-    """Parse markdown into list of case dicts."""
+    """Extract structured case fields from markdown text.
+
+    Each ## header is a case boundary. **field：** value pairs are extracted
+    and mapped to English column names via FIELD_MAP.
+    """
     cases = []
-    # Split by ## headers (case boundaries)
     sections = re.split(r"^## ", text, flags=re.MULTILINE)
     for section in sections[1:]:  # skip content before first ##
         lines = section.strip().split("\n")
@@ -46,7 +55,6 @@ def parse_cases(text: str) -> List[Dict[str, str]]:
             line = line.strip()
             if not line or line == "---":
                 continue
-            # Match **field：** value or **field:** value
             m = re.match(r"\*\*(.+?)[：:]\*\*\s*(.*)", line)
             if m:
                 zh_field = m.group(1).strip()
@@ -60,13 +68,18 @@ def parse_cases(text: str) -> List[Dict[str, str]]:
 
 
 async def seed():
+    # Load file via LangChain TextLoader
     if not DATA_FILE.exists():
         print(f"ERROR: {DATA_FILE} not found")
         sys.exit(1)
 
-    text = DATA_FILE.read_text(encoding="utf-8")
+    loader = TextLoader(str(DATA_FILE), encoding="utf-8")
+    docs = loader.load()
+    text = docs[0].page_content
+    print(f"Loaded {len(text)} chars via LangChain TextLoader from {DATA_FILE.name}")
+
     cases = parse_cases(text)
-    print(f"Parsed {len(cases)} cases from {DATA_FILE.name}")
+    print(f"Parsed {len(cases)} cases")
 
     # Preload embedding model
     preload_embedding_model()
@@ -120,6 +133,7 @@ async def seed():
                 confidence_status="confirmed",
                 embedding=embedding_json,
                 embedding_model="BAAI/bge-m3",
+                source="seed",
             )
             session.add(entry)
             inserted += 1
@@ -130,7 +144,6 @@ async def seed():
 
 
 if __name__ == "__main__":
-    # Load runtime config first
     os.environ.setdefault("EMBEDDING_PROVIDER", "local")
     from utils.runtime_config import load_runtime_json
     load_runtime_json()

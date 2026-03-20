@@ -40,6 +40,7 @@ async def create_case(
     patient_id: Optional[int],
     chief_complaint: str,
     present_illness: str = "",
+    source: Optional[str] = "review",
 ) -> CaseHistory:
     """Create a preliminary case. Embedding computed from chief_complaint + present_illness."""
     embed_text = _build_embed_text(chief_complaint, present_illness)
@@ -60,6 +61,7 @@ async def create_case(
         confidence_status="preliminary",
         embedding=embedding_json,
         embedding_model=get_model_name() if vec else None,
+        source=source,
         created_at=_utcnow(),
     )
     session.add(entry)
