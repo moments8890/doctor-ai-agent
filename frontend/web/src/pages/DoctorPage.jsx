@@ -18,7 +18,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import {
-  getTasks, getPendingRecord,
+  getTasks, getPendingRecord, getReviewQueue,
   getDoctorProfile, updateDoctorProfile, getWorkingContext,
 } from "../api";
 import { useDoctorStore } from "../store/doctorStore";
@@ -124,6 +124,7 @@ function SectionContent({ activeSection, doctorId, navigate, chatInsertText, set
 
 function useDoctorPageState({ doctorId, accessToken, setAuth }) {
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
+  const [pendingReviewCount, setPendingReviewCount] = useState(0);
   const [pendingRecord, setPendingRecord] = useState(null);
   const [workingContext, setWorkingContext] = useState(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -137,6 +138,12 @@ function useDoctorPageState({ doctorId, accessToken, setAuth }) {
   useEffect(() => {
     if (!doctorId) return;
     getTasks(doctorId, "pending").then((d) => setPendingTaskCount((Array.isArray(d) ? d : (d.items || [])).length)).catch(() => {});
+  }, [doctorId]);
+  useEffect(() => {
+    if (!doctorId) return;
+    getReviewQueue(doctorId, "pending_review", 200)
+      .then((d) => setPendingReviewCount((d.items || []).length))
+      .catch(() => {});
   }, [doctorId]);
   useEffect(() => {
     if (!doctorId) return;
@@ -159,7 +166,7 @@ function useDoctorPageState({ doctorId, accessToken, setAuth }) {
     try { await updateDoctorProfile(doctorId, { name: onboardName.trim() }); setAuth(doctorId, onboardName.trim(), accessToken); setShowOnboarding(false); }
     catch {} finally { setOnboardSaving(false); }
   }
-  return { pendingTaskCount, pendingRecord, setPendingRecord, workingContext, setWorkingContext, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit };
+  return { pendingTaskCount, pendingReviewCount, pendingRecord, setPendingRecord, workingContext, setWorkingContext, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit };
 }
 
 export default function DoctorPage() {
@@ -173,7 +180,7 @@ export default function DoctorPage() {
   const chatAutoSendConsumedRef = useRef("");
   const [patientRefreshKey, setPatientRefreshKey] = useState(0);
 
-  const { pendingTaskCount, pendingRecord, setPendingRecord, workingContext, setWorkingContext, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit } = useDoctorPageState({ doctorId, accessToken, setAuth });
+  const { pendingTaskCount, pendingReviewCount, pendingRecord, setPendingRecord, workingContext, setWorkingContext, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit } = useDoctorPageState({ doctorId, accessToken, setAuth });
 
   // Default to chat (composer-first). "home" section removed from primary nav.
   const activeSection = patientId ? "patients" : (section || "chat");
@@ -191,12 +198,12 @@ export default function DoctorPage() {
 
   return (
     <Box sx={{ display: "flex", height: "100vh", bgcolor: "#f7f7f7" }}>
-      {!isMobile && <DesktopSidebar activeSection={activeSection} doctorName={doctorName} doctorId={doctorId} navBadge={{ tasks: pendingTaskCount, chat: pendingRecord ? 1 : 0 }} onNav={handleNav} onLogout={handleLogout} />}
+      {!isMobile && <DesktopSidebar activeSection={activeSection} doctorName={doctorName} doctorId={doctorId} navBadge={{ tasks: pendingTaskCount + pendingReviewCount, chat: pendingRecord ? 1 : 0 }} onNav={handleNav} onLogout={handleLogout} />}
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", pb: isMobile ? "56px" : 0 }}>
         <WorkingContextHeader context={workingContext} isMobile={isMobile} />
         <SectionContent activeSection={activeSection} doctorId={doctorId} navigate={navigate} chatInsertText={chatInsertText} setChatInsertText={setChatInsertText} chatAutoSendText={chatAutoSendText} setChatAutoSendText={setChatAutoSendText} chatAutoSendConsumedRef={chatAutoSendConsumedRef} patientRefreshKey={patientRefreshKey} setPatientRefreshKey={setPatientRefreshKey} handleLogout={handleLogout} onContextCleared={handleContextCleared} />
       </Box>
-      {isMobile && <MobileBottomNav activeSection={activeSection} pendingTaskCount={pendingTaskCount} pendingRecord={pendingRecord} onNav={handleNav} />}
+      {isMobile && <MobileBottomNav activeSection={activeSection} pendingTaskCount={pendingTaskCount + pendingReviewCount} pendingRecord={pendingRecord} onNav={handleNav} />}
       <OnboardingDialog open={showOnboarding} name={onboardName} saving={onboardSaving} onChange={setOnboardName} onSubmit={handleOnboardSubmit} />
     </Box>
   );
