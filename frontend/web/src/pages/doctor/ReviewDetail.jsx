@@ -6,9 +6,10 @@ import { useCallback, useEffect, useState } from "react";
 import {
   Alert, Box, CircularProgress, Collapse, Stack, TextField, Typography,
 } from "@mui/material";
-import { getReviewDetail, confirmReview, updateReviewField } from "../../api";
+import { getReviewDetail, confirmReview, updateReviewField, getDiagnosis, decideDiagnosisItem, confirmDiagnosis } from "../../api";
 import PatientAvatar from "./PatientAvatar";
 import { STRUCTURED_FIELD_LABELS } from "./constants";
+import DiagnosisSection from "./DiagnosisSection";
 
 const FIELD_ORDER = [
   "department", "chief_complaint", "present_illness", "past_history",
@@ -109,6 +110,8 @@ export default function ReviewDetail({ queueId, doctorId, onBack, onConfirmed })
   const [editingField, setEditingField] = useState(null);
   const [confirming, setConfirming] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [diagnosis, setDiagnosis] = useState(null);
+  const [diagnosisLoading, setDiagnosisLoading] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true); setError("");
@@ -120,10 +123,33 @@ export default function ReviewDetail({ queueId, doctorId, onBack, onConfirmed })
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    if (!detail?.record?.id || !doctorId) return;
+    setDiagnosisLoading(true);
+    getDiagnosis(detail.record.id, doctorId)
+      .then(setDiagnosis)
+      .catch(() => {}) // 404 = no diagnosis yet, that's fine
+      .finally(() => setDiagnosisLoading(false));
+  }, [detail?.record?.id, doctorId]);
+
+  async function handleDecide(type, index, decision) {
+    if (!diagnosis) return;
+    try {
+      await decideDiagnosisItem(diagnosis.id, doctorId, type, index, decision);
+      // Refresh diagnosis data
+      const updated = await getDiagnosis(detail.record.id, doctorId);
+      setDiagnosis(updated);
+    } catch (e) { setError(e.message || "操作失败"); }
+  }
+
   async function handleConfirm() {
     setConfirming(true);
     try {
       await confirmReview(queueId, doctorId);
+      // Also confirm diagnosis if it exists and is completed
+      if (diagnosis && diagnosis.status === "completed") {
+        try { await confirmDiagnosis(diagnosis.id, doctorId); } catch {}
+      }
       onConfirmed?.();
       onBack();
     } catch (e) { setError(e.message || "确认失败"); }
@@ -202,6 +228,17 @@ export default function ReviewDetail({ queueId, doctorId, onBack, onConfirmed })
             />
           ))}
         </Box>
+
+        {/* Diagnosis section */}
+        {diagnosisLoading && (
+          <Box sx={{ bgcolor: "#fff", borderRadius: 2, p: 2.5, mb: 1, textAlign: "center" }}>
+            <CircularProgress size={20} sx={{ color: "#07C160" }} />
+            <Typography sx={{ fontSize: 13, color: "#999", mt: 1 }}>诊断分析中...</Typography>
+          </Box>
+        )}
+        {diagnosis && diagnosis.status !== "failed" && diagnosis.ai_output && (
+          <DiagnosisSection diagnosis={diagnosis} onDecide={handleDecide} />
+        )}
 
         {/* Interview conversation */}
         <ConversationHistory conversation={detail?.conversation} />

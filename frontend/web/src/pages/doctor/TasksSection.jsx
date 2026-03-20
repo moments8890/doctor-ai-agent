@@ -340,6 +340,19 @@ function CreateTaskDialog({ open, isMobile, createForm, creating, createError, p
 }
 
 function ReviewQueueItem({ item, reviewed }) {
+  // Determine label and color from diagnosis_status
+  const diagStatus = item.diagnosis_status;
+  let chipLabel = reviewed ? "已审核" : "待审核";
+  let chipColor = reviewed ? "#07C160" : "#ff9500";
+
+  if (!reviewed && diagStatus === "pending") {
+    chipLabel = "诊断中";
+    chipColor = "#1890ff";
+  } else if (!reviewed && diagStatus === "completed") {
+    chipLabel = "诊断完成";
+    chipColor = "#07C160";
+  }
+
   return (
     <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, px: 2, py: 1.4 }}>
       <PatientAvatar name={item.patient_name} size={40} />
@@ -350,8 +363,8 @@ function ReviewQueueItem({ item, reviewed }) {
             {item.patient_name || "未知患者"} · 问诊记录
           </Typography>
           <Typography sx={{ fontSize: 11, flexShrink: 0, color: "#fff",
-            bgcolor: reviewed ? "#07C160" : "#ff9500", px: 0.8, py: 0.1, borderRadius: "3px" }}>
-            {reviewed ? "已审核" : "待审核"}
+            bgcolor: chipColor, px: 0.8, py: 0.1, borderRadius: "3px" }}>
+            {chipLabel}
           </Typography>
         </Box>
         {item.chief_complaint && (
