@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime
 from typing import Optional
 
 from messages import M
 from agent.identity import set_current_identity
 from agent.session import get_or_create_agent
 from agent.archive import archive_turns
+from agent.actions import Action
+from agent.tools.doctor import _fetch_tasks, _fetch_patients, _fetch_recent_records
 from utils.log import log
 
 # Fast-path patterns
@@ -58,6 +61,77 @@ async def _try_fast_path(text: str, identity: str) -> Optional[str]:
     return None
 
 
+_QUERY_LABEL = re.compile(r"^查询患者[：:]?\s*$")
+
+
+def _format_patient_list(patients: list) -> str:
+    if not patients:
+        return "暂无患者记录。"
+    lines = [f"共{len(patients)}位患者："]
+    for i, p in enumerate(patients, 1):
+        parts = [p["name"]]
+        if p.get("gender"):
+            parts.append(p["gender"])
+        if p.get("year_of_birth"):
+            age = datetime.now().year - p["year_of_birth"]
+            parts.append(f"{age}岁")
+        lines.append(f"{i}. {'，'.join(parts)}")
+    return "\n".join(lines)
+
+
+def _format_daily_summary(tasks: list, records: list) -> str:
+    lines = ["**今日工作摘要**", ""]
+    if tasks:
+        pending = [t for t in tasks if t.get("status") == "pending"]
+        done = [t for t in tasks if t.get("status") == "completed"]
+        lines.append(f"**待处理任务** ({len(pending)})")
+        for t in pending:
+            lines.append(f"- {t.get('title', '未命名')}")
+        if done:
+            lines.append(f"\n**已完成** ({len(done)})")
+            for t in done:
+                lines.append(f"- ~~{t.get('title', '未命名')}~~")
+    else:
+        lines.append("今日暂无任务。")
+    lines.append("")
+    if records:
+        lines.append(f"**最近病历** ({len(records)}条)")
+        for r in records:
+            date = (r.get("created_at") or "")[:10]
+            content_preview = (r.get("content") or "")[:40]
+            lines.append(f"- {date} {content_preview}")
+    else:
+        lines.append("暂无近期病历。")
+    return "\n".join(lines)
+
+
+async def _dispatch_action_hint(
+    action: Action, text: str, identity: str, agent,
+) -> Optional[str]:
+    """Fast path for known intents. Returns reply str or None to fall through."""
+
+    if action == Action.query_patient:
+        patients = await _fetch_patients(identity)
+        search = text.strip()
+        if _QUERY_LABEL.match(search) or not search:
+            return _format_patient_list(patients)
+        filtered = [p for p in patients if search in p.get("name", "")]
+        return _format_patient_list(filtered)
+
+    if action == Action.daily_summary:
+        tasks = await _fetch_tasks(identity)
+        records = await _fetch_recent_records(identity, limit=10)
+        return _format_daily_summary(tasks, records)
+
+    if action == Action.create_record:
+        if agent is None:
+            return None
+        return await agent.handle(text)
+
+    # Unknown or future actions (e.g. diagnosis) → fall through
+    return None
+
+
 async def handle_turn(text: str, role: str, identity: str, *, action_hint=None) -> str:
     """One turn. Channels call this directly."""
     agent = await get_or_create_agent(identity, role)
@@ -72,6 +146,21 @@ async def handle_turn(text: str, role: str, identity: str, *, action_hint=None) 
         except Exception as exc:
             log(f"[handle_turn] archive failed: {exc}", level="error")
         return fast
+
+    # Action hint fast paths
+    if action_hint:
+        try:
+            reply = await _dispatch_action_hint(action_hint, text, identity, agent)
+        except Exception as exc:
+            log(f"[handle_turn] action_hint={action_hint} error: {exc}", level="error")
+            reply = None
+        if reply:
+            agent._add_turn(text, reply)
+            try:
+                await archive_turns(identity, text, reply)
+            except Exception as exc:
+                log(f"[handle_turn] archive failed: {exc}", level="error")
+            return reply
 
     # LangChain agent (1-4 LLM calls)
     try:
