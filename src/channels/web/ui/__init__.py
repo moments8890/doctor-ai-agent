@@ -18,6 +18,7 @@ from channels.web.ui.record_edit_handlers import router as _record_edit_router
 from channels.web.ui.label_handlers import router as _label_router
 from channels.web.ui.doctor_profile_handlers import router as _doctor_profile_router
 from channels.web.ui.review_handlers import router as _review_router
+from channels.web.ui.case_history_handlers import router as _case_history_router
 
 router = APIRouter(tags=["ui"])
 
@@ -33,3 +34,4 @@ router.include_router(_record_edit_router)
 router.include_router(_label_router)
 router.include_router(_doctor_profile_router)
 router.include_router(_review_router)
+router.include_router(_case_history_router)
