@@ -2,11 +2,17 @@
 
 import logging
 import os
+import socket
+from datetime import datetime, timezone
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from sqlalchemy import select
 
 from db.engine import AsyncSessionLocal
+from db.models.review_queue import ReviewQueue
+from db.models.diagnosis_result import DiagnosisResult
 from domain.tasks.task_crud import check_and_send_due_tasks
+from domain.diagnosis import run_diagnosis
 from utils.log import safe_create_task
 
 
@@ -149,6 +155,71 @@ async def _prune_turn_log() -> None:
         _log.warning("[TurnLog] prune job FAILED: %s", _e)
 
 
+_DIAGNOSIS_LEASE_KEY = "diagnosis_runner"
+
+
+async def _run_pending_diagnoses() -> None:
+    """Scheduler job: auto-run AI diagnosis for review_queue entries that have no diagnosis_results row yet.
+
+    Acquires a scheduler lease to prevent duplicate runs in multi-instance
+    deployments.  Processes up to 5 records per cycle.  One failure per
+    record does not block the others.
+    """
+    _log = logging.getLogger("scheduler")
+    owner_id = socket.gethostname()
+    now = datetime.now(timezone.utc)
+    try:
+        from db.crud import try_acquire_scheduler_lease
+        async with AsyncSessionLocal() as _session:
+            acquired = await try_acquire_scheduler_lease(
+                session=_session,
+                lease_key=_DIAGNOSIS_LEASE_KEY,
+                owner_id=owner_id,
+                now=now,
+                lease_ttl_seconds=55,  # slightly under 1 minute to overlap cleanly
+            )
+        if not acquired:
+            _log.debug("[Diagnosis] scheduler tick skipped — lease not acquired owner=%s", owner_id)
+            return
+    except Exception as _e:
+        _log.warning("[Diagnosis] lease acquire failed, running anyway: %s", _e)
+
+    try:
+        async with AsyncSessionLocal() as _session:
+            stmt = (
+                select(ReviewQueue)
+                .outerjoin(
+                    DiagnosisResult,
+                    DiagnosisResult.record_id == ReviewQueue.record_id,
+                )
+                .where(ReviewQueue.status == "pending_review")
+                .where(DiagnosisResult.id.is_(None))
+                .limit(5)
+            )
+            result = await _session.execute(stmt)
+            pending = result.scalars().all()
+    except Exception as _e:
+        _log.warning("[Diagnosis] query FAILED: %s", _e)
+        return
+
+    if not pending:
+        return
+
+    _log.info("[Diagnosis] running diagnosis for %s record(s)", len(pending))
+    for rq in pending:
+        try:
+            await run_diagnosis(doctor_id=rq.doctor_id, record_id=rq.record_id)
+            _log.info(
+                "[Diagnosis] completed | record_id=%s doctor_id=%s",
+                rq.record_id, rq.doctor_id,
+            )
+        except Exception as _e:
+            _log.warning(
+                "[Diagnosis] FAILED | record_id=%s doctor_id=%s error=%s",
+                rq.record_id, rq.doctor_id, _e,
+            )
+
+
 # ---------------------------------------------------------------------------
 # Scheduler registration helpers
 # ---------------------------------------------------------------------------
@@ -190,6 +261,12 @@ def _schedule_cleanup_jobs(scheduler: AsyncIOScheduler, startup_log: logging.Log
     startup_log.info("[PendingRecords] expiry scheduler configured | every_minutes=5")
 
 
+def _schedule_diagnosis_jobs(scheduler: AsyncIOScheduler, startup_log: logging.Logger) -> None:
+    """Register diagnosis auto-run job."""
+    scheduler.add_job(_run_pending_diagnoses, "interval", minutes=1)
+    startup_log.info("[Diagnosis] scheduler configured | every_minutes=1")
+
+
 def _schedule_retention_jobs(scheduler: AsyncIOScheduler, startup_log: logging.Logger) -> None:
     """Register data retention / compliance scheduled jobs (daily/monthly)."""
     scheduler.add_job(_purge_old_pending_data, "cron", hour=4, minute=0)
@@ -222,4 +299,5 @@ def configure_scheduler(scheduler: AsyncIOScheduler, startup_log: logging.Logger
     scheduler.remove_all_jobs()
     _schedule_task_notifications(scheduler, startup_log)
     _schedule_cleanup_jobs(scheduler, startup_log)
+    _schedule_diagnosis_jobs(scheduler, startup_log)
     _schedule_retention_jobs(scheduler, startup_log)
