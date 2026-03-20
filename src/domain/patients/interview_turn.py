@@ -38,6 +38,7 @@ class InterviewResponse:
     collected: Dict[str, str]
     progress: Dict[str, int]
     status: str
+    missing: List[str] = None  # missing field names, empty = all collected
 
 
 def _get_prompt() -> str:
@@ -210,15 +211,16 @@ async def interview_turn(session_id: str, patient_text: str) -> InterviewRespons
     })
     session.turn_count += 1
 
-    # Force review if turn limit reached
+    # Safety cap — still process but flag it
     if session.turn_count >= MAX_TURNS:
-        session.status = "reviewing"
-        reply = "我已经收集了足够的信息，请查看摘要并确认提交。"
+        missing = check_completeness(session.collected)
+        reply = "我们已经聊了很久了，让我整理一下已有的信息。"
         session.conversation.append({"role": "assistant", "content": reply})
         await save_session(session)
         return InterviewResponse(
             reply=reply, collected=session.collected,
             progress=_make_progress(session.collected), status=session.status,
+            missing=missing,
         )
 
     # Main LLM call
@@ -253,14 +255,9 @@ async def interview_turn(session_id: str, patient_text: str) -> InterviewRespons
     # Merge extracted fields
     merge_extracted(session.collected, llm_response["extracted"])
 
-    # Completeness check
+    # Report what's missing — agent decides when to close
     missing = check_completeness(session.collected)
-
-    if not missing:
-        session.status = "reviewing"
-        reply = "信息收集完成！请点击右上角的摘要按钮，查看并确认提交给医生。"
-    else:
-        reply = llm_response["suggested_reply"]
+    reply = llm_response["suggested_reply"]
 
     session.conversation.append({"role": "assistant", "content": reply})
     await save_session(session)
@@ -268,4 +265,5 @@ async def interview_turn(session_id: str, patient_text: str) -> InterviewRespons
     return InterviewResponse(
         reply=reply, collected=session.collected,
         progress=_make_progress(session.collected), status=session.status,
+        missing=missing,
     )

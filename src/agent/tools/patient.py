@@ -50,12 +50,13 @@ async def advance_interview(answer: str) -> Dict[str, Any]:
         return {"status": "error", "message": "无法创建问诊会话"}
 
     result = await interview_turn(session.id, answer)
+    missing = result.missing or []
     return {
         "reply": result.reply,
         "collected": result.collected,
         "progress": result.progress,
-        "status": result.status,
-        "complete": result.status == "reviewing",
+        "missing_fields": missing,
+        "all_required_filled": len(missing) == 0,
     }
 
 
@@ -71,7 +72,7 @@ async def confirm_interview() -> Dict[str, Any]:
         return {"status": "error", "message": "未找到患者信息"}
 
     session = await get_active_session(patient_id, patient.doctor_id)
-    if session is None or session.status != "reviewing":
+    if session is None or session.status not in ("interviewing", "reviewing"):
         return {"status": "error", "message": "没有待确认的问诊记录"}
 
     result = await confirm_interview(

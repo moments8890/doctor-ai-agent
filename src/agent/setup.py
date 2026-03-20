@@ -170,6 +170,7 @@ def get_llm() -> BaseChatModel:
             api_key=api_key,
             temperature=0.1,
             max_retries=0,
+            strict=True,  # beta endpoint — enforces strict JSON schema compliance
             callbacks=callbacks,
         )
 
