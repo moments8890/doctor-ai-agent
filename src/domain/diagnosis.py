@@ -292,9 +292,14 @@ def _build_system_prompt(
     cases_text: str,
     knowledge_text: str,
 ) -> str:
-    """Assemble the system prompt from skill + cases + knowledge."""
-    parts = ["你是一位神经外科AI诊断助手。"]
+    """Assemble the system prompt from base prompt + skill + cases + knowledge."""
+    from utils.prompt_loader import get_prompt_sync
 
+    # Load the base diagnosis prompt (JSON schema + rules)
+    base_prompt = get_prompt_sync("diagnosis")
+    parts = [base_prompt] if base_prompt else ["你是一位神经外科AI诊断助手。"]
+
+    # Append specialty-specific skill (must-not-miss patterns, etc.)
     if skill_content and skill_content.strip():
         parts.append(skill_content.strip())
 
@@ -310,7 +315,7 @@ def _build_system_prompt(
 def _build_user_message(structured: Dict[str, str]) -> str:
     """Build the user message from structured fields."""
     fields_text = _format_structured_fields(structured)
-    return "请根据以下病历生成鉴别诊断建议，以json格式输出：\n\n" + fields_text
+    return "请根据以下病历生成鉴别诊断建议（严格按系统提示中的json格式输出）：\n\n" + fields_text
 
 
 # ---------------------------------------------------------------------------
