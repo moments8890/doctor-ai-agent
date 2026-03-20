@@ -28,7 +28,7 @@ by adding diagnosis results that display alongside the structured record.
 |----------|--------|-----------|
 | Diagnosis trigger | APScheduler job (polls every 1 min) | Decoupled from confirm flow, no blocking |
 | Chat integration | Both: always-on case context (top 2) + explicit `diagnose()` tool | Doctor gets help whether using review UI or chat |
-| `diagnosis_results` schema | Per-item status (ai/confirmed/rejected) in 3 JSON columns | Half the columns of separate AI+doctor fields, same data |
+| `diagnosis_results` schema | Immutable AI payload + row-level doctor decision + per-item confirm/reject | Simple storage, no mutable JSON patching |
 | Review status expansion | No schema change — UI infers from diagnosis_results presence | Zero migration on shipped P3 code |
 | Case context injection | System prompt (alongside doctor knowledge) | Same pattern as existing knowledge injection |
 | Diagnosis module | Single `src/domain/diagnosis.py` (~200 lines) | Split when it grows past 300 lines |
@@ -42,10 +42,9 @@ CREATE TABLE diagnosis_results (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     record_id       INTEGER NOT NULL,
     doctor_id       VARCHAR NOT NULL,
-    differentials   TEXT,               -- JSON array of DiagnosisItem
-    workup          TEXT,               -- JSON array of WorkupItem
-    treatment       TEXT,               -- JSON array of TreatmentItem
-    red_flags       TEXT,               -- JSON array of strings
+    ai_output       TEXT,               -- immutable JSON: full LLM response (DiagnosisOutput)
+    doctor_decisions TEXT,              -- JSON: per-item confirm/reject decisions
+    red_flags       TEXT,               -- JSON array of strings (denormalized for quick access)
     case_references TEXT,               -- JSON array of matched case summaries
     status          VARCHAR NOT NULL DEFAULT 'pending',
     error_message   TEXT,               -- if pipeline failed
@@ -61,6 +60,19 @@ CREATE INDEX ix_diagnosis_results_doctor_status
     ON diagnosis_results (doctor_id, status);
 ```
 
+**Schema rationale:** Two separate JSON columns instead of three mutable ones.
+`ai_output` is **immutable** — never modified after the LLM writes it. This
+preserves the original AI suggestion for audit and growth loop comparison.
+`doctor_decisions` stores the doctor's per-item confirm/reject actions as a
+patch: `{"differentials": {"0": "confirmed", "2": "rejected"}, "workup": {"0": "confirmed"}}`.
+The merged view is computed at read time by overlaying decisions on ai_output.
+
+**No rerun for MVP.** One diagnosis per record, period. The scheduler only
+picks records with no `diagnosis_results` row. If the doctor edits the record
+after diagnosis, the existing diagnosis stays. Rerun/invalidation is a future
+feature (requires versioning the AI output and preserving doctor decisions
+across reruns).
+
 ### Status lifecycle
 
 ```python
@@ -71,40 +83,60 @@ class DiagnosisStatus(str, Enum):
     failed    = "failed"       # pipeline error (LLM timeout, etc.)
 ```
 
-### Per-item structure (stored in JSON columns)
+### AI output structure (stored in `ai_output` JSON, immutable)
 
 ```python
+@dataclass
+class DiagnosisOutput:
+    differentials: List[DiagnosisItem]
+    workup: List[WorkupItem]
+    treatment: List[TreatmentItem]
+    red_flags: List[str]
+
 @dataclass
 class DiagnosisItem:
     condition: str          # e.g. "脑膜瘤"
     confidence: str         # "低" | "中" | "高"
     reasoning: str          # one-line reasoning
-    status: str             # "ai" | "confirmed" | "modified" | "rejected"
 
 @dataclass
 class WorkupItem:
     test: str               # e.g. "头颅MRI增强扫描"
     rationale: str          # why this test
     urgency: str            # "常规" | "紧急" | "急诊"
-    status: str             # "ai" | "confirmed" | "modified" | "rejected"
 
 @dataclass
 class TreatmentItem:
     drug_class: str         # e.g. "糖皮质激素" (class only, no dose)
     intervention: str       # "手术" | "药物" | "观察" | "转诊"
     description: str        # brief treatment plan
-    status: str             # "ai" | "confirmed" | "modified" | "rejected"
 ```
 
-All items start with `status="ai"`. Doctor actions change them to
-`confirmed`, `modified`, or `rejected`. The `modified` status means the
-doctor edited the content (original AI value is lost — acceptable for MVP).
+No `status` field on items — they are immutable AI output. Doctor decisions
+are stored separately in `doctor_decisions`.
+
+### Doctor decisions structure (stored in `doctor_decisions` JSON)
+
+```python
+class ItemDecision(str, Enum):
+    confirmed = "confirmed"
+    rejected  = "rejected"
+
+# Example:
+{
+    "differentials": {"0": "confirmed", "2": "rejected"},
+    "workup": {"0": "confirmed"},
+    "treatment": {}
+}
+```
+
+Keyed by item type → index → decision. Items not in the dict are unreviewed.
+The frontend computes the merged view: AI item + decision overlay.
 
 ### Unique constraint
 
-`UNIQUE (record_id)` — one diagnosis per record. If the pipeline is re-run
-(e.g., after the doctor edits the record), the existing row is updated
-in-place rather than creating a new one.
+`UNIQUE (record_id)` — one diagnosis per record. No rerun for MVP (see
+schema rationale above).
 
 ## Diagnosis Pipeline
 
@@ -187,13 +219,23 @@ Note: `disclaimer` is not stored in the DB — it is static text rendered
 by the frontend on every diagnosis display.
 ```
 
-### Graceful degradation
+### Graceful degradation + error handling
 
-- LLM timeout → save `diagnosis_results` with `status=failed`,
-  `error_message="LLM timeout"`. Doctor sees record without diagnosis.
-- Invalid JSON response → `status=failed`, `error_message="Invalid LLM response"`.
-- No matched cases → pipeline still runs (cases are context, not required).
-- Embedding model not loaded → case matching returns empty, pipeline continues.
+- **LLM timeout** → `status=failed`, `error_message="LLM timeout"`.
+- **Invalid JSON** → attempt partial parse. If differentials array is
+  salvageable, save with `status=completed` and log warning. If completely
+  unparseable, `status=failed`.
+- **Schema validation** — validate each item against expected fields.
+  Drop malformed items (log warning), keep valid ones. An empty
+  differentials array after validation → `status=failed`.
+- **Empty/null output** → `status=failed`, `error_message="Empty LLM response"`.
+- **Unsupported confidence values** — coerce unknown values to "中" (medium).
+- **Oversized arrays** — cap at 10 differentials, 10 workup, 10 treatment.
+  Truncate silently.
+- **No matched cases** → pipeline still runs (cases are context, not required).
+- **Embedding model not loaded** → case matching returns empty, pipeline continues.
+- **All failures are non-blocking** — doctor always sees the record regardless
+  of diagnosis pipeline status.
 
 ## APScheduler Integration
 
@@ -226,37 +268,62 @@ async def run_pending_diagnoses():
 Registered in `src/startup/scheduler.py` alongside existing jobs.
 Batch limit of 5 per cycle prevents overloading the LLM.
 
+**Lease-based coordination:** Uses the existing `SchedulerLease` pattern
+(from `src/db/crud/runtime.py`) to prevent duplicate runs in multi-instance
+deployments. The job acquires a lease before processing; if another instance
+holds the lease, it skips the cycle.
+
+**Throughput note:** At 5 records per minute with ~10s LLM latency each,
+sustained throughput is ~5 diagnoses/minute. For a private practice seeing
+a few patients per day, this is more than sufficient. The "best effort"
+target is diagnosis available within 1-2 minutes of interview completion
+under normal load.
+
 ## Chat Integration
 
 ### 1. Always-on case context (system prompt injection)
 
-When a patient is in working context, auto-inject top 2 matched cases
-into the agent's system prompt. Injected alongside existing doctor
-knowledge context.
+When a patient is in working context, auto-inject top 2 matched cases.
+
+**Implementation approach:** The current `handle_turn()` in
+`src/agent/handle_turn.py` already has access to the doctor's working
+context (current patient). Case context injection happens in `handle_turn`
+before calling `SessionAgent.handle()`, by building a context string that
+is prepended to the user message or added as a system message in the
+messages list.
 
 ```python
-# In the agent prompt builder, after doctor knowledge section:
-if patient_context and patient_context.chief_complaint:
-    matched = await match_cases(session, doctor_id,
-        patient_context.chief_complaint, limit=2, threshold=0.5)
-    if matched:
-        case_lines = []
-        for m in matched:
-            case_lines.append(
-                f"- {m['chief_complaint'][:30]} → {m['final_diagnosis']} "
-                f"(相似度 {m['similarity']:.0%})"
-            )
-        prompt += f"\n\n【类似病例参考】\n" + "\n".join(case_lines)
+# In handle_turn(), when a patient is in working context:
+case_context = await _build_case_context(doctor_id, patient_chief_complaint)
+# Prepend to the messages sent to the agent
 ```
 
-This is lightweight — 2 cases, ~100 tokens, no extra LLM call. The
-agent naturally references them when discussing the patient.
+**Performance: cached per patient, not per turn.** `match_cases()` does
+embedding + cosine similarity which is too expensive to run every turn.
+Cache the result per `(doctor_id, patient_id)` with a 5-minute TTL.
+Only re-compute when the patient changes or cache expires.
 
-**Implementation note:** The current architecture builds the system prompt
-at agent creation time (`setup.py:_build_system_prompt()`), not per-turn.
-Case context must be injected at invoke time by prepending a system message
-to the messages list passed to `agent.ainvoke()`, not by modifying the
-static system prompt.
+```python
+_case_context_cache: Dict[str, Tuple[str, float]] = {}  # key → (context, timestamp)
+
+async def _build_case_context(doctor_id: str, chief_complaint: str) -> str:
+    cache_key = f"{doctor_id}:{chief_complaint[:50]}"
+    now = time.time()
+    if cache_key in _case_context_cache:
+        cached, ts = _case_context_cache[cache_key]
+        if now - ts < 300:  # 5-min TTL
+            return cached
+    # Expensive: embed + cosine (only runs on cache miss)
+    async with AsyncSessionLocal() as session:
+        matched = await match_cases(session, doctor_id, chief_complaint, limit=2)
+    if not matched:
+        return ""
+    lines = [f"- {m['chief_complaint'][:30]} → {m['final_diagnosis']} ({m['similarity']:.0%})"
+             for m in matched]
+    context = "【类似病例参考】\n" + "\n".join(lines)
+    _case_context_cache[cache_key] = (context, now)
+    return context
+```
 
 ### 2. Explicit `diagnose()` tool
 
@@ -264,12 +331,18 @@ A new agent tool that triggers the full diagnosis pipeline on demand:
 
 ```python
 @tool
-async def diagnose(patient_name: str) -> str:
-    """为患者生成AI鉴别诊断建议。"""
-    # Find the patient's latest record
-    # Run the diagnosis pipeline
-    # Format and return conversational response
+async def diagnose() -> str:
+    """为当前患者生成AI鉴别诊断建议。使用工作上下文中的当前患者。"""
+    # Uses the agent's working context (current patient_id)
+    # Finds the patient's latest medical record
+    # Runs the diagnosis pipeline via run_diagnosis(record_id, doctor_id)
+    # Formats and returns conversational response
 ```
+
+The tool uses the **current patient from working context** (not a name
+parameter) — consistent with existing tools like `create_record` and
+`query_records` which operate on the active patient. This avoids the
+ambiguity of name-based patient lookup.
 
 The doctor says "给这个患者诊断建议" or "分析一下头痛原因" → agent
 calls `diagnose()` → full pipeline runs → agent presents results
@@ -277,6 +350,10 @@ conversationally.
 
 The tool reuses the same `run_diagnosis()` function as the scheduler.
 Results are saved to `diagnosis_results` (same table, same data).
+
+**Tool registration:** Add to the extended tool set (not core), gated
+behind the existing `Action.diagnosis` chip action (already defined
+in `actions.py`). This avoids inflating the default tool count.
 
 ## Frontend Changes
 
@@ -335,26 +412,34 @@ diagnosis_results.status=failed  → "待审核" (orange, fallback)
 review_queue.status=reviewed     → "已审核" (grey chip)
 ```
 
-No schema change to `review_queue`. The frontend checks both tables.
+No schema change to `review_queue`. The backend `list_reviews()` CRUD
+function must be updated to LEFT JOIN `diagnosis_results` and return a
+`diagnosis_status` field per item. The frontend renders based on this
+joined field — no separate API call needed.
 
 ### Doctor actions on diagnosis items
 
 Each differential/workup/treatment item has ✓ (confirm) and ✗ (reject)
-buttons. Tapping ✓ sets `status="confirmed"`. Tapping ✗ sets
-`status="rejected"`. When the doctor taps "确认审核", all remaining
-`status="ai"` items are auto-confirmed (the doctor implicitly agrees
-with what they didn't reject).
+buttons. Tapping ✓ adds `"confirmed"` to `doctor_decisions` for that
+item. Tapping ✗ adds `"rejected"`. The `ai_output` JSON is never modified.
+
+When the doctor taps "确认审核", all items without an explicit decision
+are implicitly accepted (the doctor had the chance to reject and chose
+not to). The `diagnosis_results.status` moves to `confirmed`.
 
 API endpoint:
 
 ```
-PATCH /api/manage/diagnosis/{diagnosis_id}/items
-Body: { "type": "differentials", "index": 0, "status": "confirmed" }
+PATCH /api/manage/diagnosis/{diagnosis_id}/decide
+Body: { "type": "differentials", "index": 0, "decision": "confirmed" }
 ```
 
-**Concurrency note:** This endpoint deserializes the JSON array, mutates by
-index, and re-serializes. Concurrent updates to different items on the same
-row could race. Acceptable for MVP (single doctor reviews at a time).
+This endpoint reads the current `doctor_decisions` JSON, adds/updates
+the decision for the specified item, and writes back. The `ai_output`
+column is never touched.
+
+**Concurrency:** Single doctor reviews at a time — no concurrent mutation
+concern for MVP.
 
 ## Files to Create/Modify
 
@@ -377,6 +462,7 @@ row could race. Acceptable for MVP (single doctor reviews at a time).
 | `src/startup/scheduler.py` | Add `run_pending_diagnoses` job (1 min interval) |
 | `src/agent/setup.py` | Register `diagnose()` tool |
 | `src/agent/handle_turn.py` (or prompt builder) | Inject case context into system prompt |
+| `src/db/crud/review.py` | Join diagnosis_results in list_reviews(), return diagnosis_status per item |
 | `src/channels/web/ui/__init__.py` | Include diagnosis router |
 | `frontend/web/src/pages/doctor/ReviewDetail.jsx` | Add DiagnosisSection when results exist |
 | `frontend/web/src/pages/doctor/TasksSection.jsx` | Infer display status from diagnosis_results |
@@ -385,7 +471,9 @@ row could race. Acceptable for MVP (single doctor reviews at a time).
 
 ## Safety Guardrails
 
-- **Never auto-confirm** — doctor MUST explicitly confirm every diagnosis
+- **No background auto-confirm** — AI never auto-confirms its own suggestions.
+  The doctor's "确认审核" tap is an explicit human action that approves the
+  overall review, implicitly accepting items they chose not to reject.
 - **Drug classes only** — no specific doses (no allergy/medication data yet)
 - **Confidence labels** — 低/中/高 (not numeric percentages)
 - **Disclaimer always shown** — "AI建议仅供参考，最终诊断由医生决定"
@@ -395,27 +483,35 @@ row could race. Acceptable for MVP (single doctor reviews at a time).
 
 ## Dependencies
 
-- No new Python packages (uses existing LangChain + Ollama/Qwen3:32b)
+- No new Python packages
 - Reuses P1 infrastructure: `match_cases()`, `get_diagnosis_skill()`,
-  `render_knowledge_context()`, `embed()`
-- LLM call follows existing `structuring.py` pattern (AsyncOpenAI client,
-  JSON response format, retry + fallback)
+  `load_knowledge_context_for_prompt()`, `embed()`
+- **LLM call pattern:** Diagnosis is a **separate pipeline** (like
+  `structuring.py`), NOT part of the ReAct agent. Uses `AsyncOpenAI`
+  client directly with `response_format={"type": "json_object"}`,
+  `temperature=0`, retry via `call_with_retry_and_fallback()`, and
+  cloud fallback if configured. This is the same pattern as
+  `structure_medical_record()` in `src/domain/records/structuring.py`.
+  The provider is configurable via a new `DIAGNOSIS_LLM` env var
+  (defaults to `STRUCTURING_LLM`).
 
 ## Deferred Items
 
-1. **Desktop split-view** — record left, diagnosis right. Mobile stacked for now.
-2. **Diagnosis editing** — doctor can modify AI text (not just confirm/reject). Add when needed.
-3. **Growth loop feedback** — confirmed diagnoses updating case_history confidence. P6 scope.
-4. **Multi-model consensus** — run diagnosis on multiple LLMs and compare. Research phase.
-5. **ICD-10 coding** — map diagnoses to standard codes. Needs ontology work.
+1. **Diagnosis rerun/invalidation** — re-running diagnosis after record edits. Needs
+   versioning of AI output and preservation of doctor decisions across reruns.
+2. **Desktop split-view** — record left, diagnosis right. Mobile stacked for now.
+3. **Diagnosis editing** — doctor can modify AI text (not just confirm/reject). Add when needed.
+4. **Growth loop feedback** — confirmed diagnoses updating case_history confidence. P6 scope.
+5. **Multi-model consensus** — run diagnosis on multiple LLMs and compare. Research phase.
+6. **ICD-10 coding** — map diagnoses to standard codes. Needs ontology work.
 
 ## Success Criteria
 
-- [ ] Diagnosis auto-runs within 1 minute of interview completion
+- [ ] Diagnosis auto-runs within 1-2 minutes of interview completion (best effort)
 - [ ] `run_diagnosis()` returns structured differentials, workup, treatment, red flags
 - [ ] Diagnosis results display in ReviewDetail below structured fields
 - [ ] Doctor can confirm/reject individual items with one tap
-- [ ] "确认审核" auto-confirms remaining AI items
+- [ ] "确认审核" implicitly accepts items the doctor didn't reject
 - [ ] Chat: doctor sees top 2 matched cases in context automatically
 - [ ] Chat: doctor can explicitly trigger diagnosis via "诊断建议" command
 - [ ] LLM failure → doctor sees record without diagnosis (graceful degradation)
