@@ -486,7 +486,8 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
 
   function handleChipSend() {
     const text = input.trim();
-    if (activeChip && !activeChip.autoSend && !text) return;
+    const cmd = QUICK_COMMANDS.find(c => c.key === activeChip?.key);
+    if (activeChip && !cmd?.autoSend && !text && !cmd?.allowEmpty) return;
     sendText(text || activeChip?.label || "", activeChip?.key || null, activeChip?.label || null);
     setInput("");
     setActiveChip(null);

@@ -109,7 +109,7 @@ export const Action = {
 export const QUICK_COMMANDS = [
   { key: Action.DAILY_SUMMARY, label: "今日摘要",  autoSend: true },
   { key: Action.CREATE_RECORD, label: "新增病历",  autoSend: false },
-  { key: Action.QUERY_PATIENT, label: "查询患者",  autoSend: false },
+  { key: Action.QUERY_PATIENT, label: "查询患者",  autoSend: false, allowEmpty: true },
   { key: Action.DIAGNOSIS,     label: "诊断建议",  autoSend: false, disabled: true },
 ];
 
