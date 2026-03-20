@@ -93,15 +93,24 @@ export const TASK_STATUS_OPTS = [
   { value: "cancelled", label: "已取消" },
 ];
 
+export const Action = {
+  DAILY_SUMMARY:    "daily_summary",
+  CREATE_RECORD:    "create_record",
+  QUERY_PATIENT:    "query_patient",
+  QUERY_RECORDS:    "query_records",
+  UPDATE_RECORD:    "update_record",
+  CREATE_TASK:      "create_task",
+  EXPORT_PDF:       "export_pdf",
+  SEARCH_KNOWLEDGE: "search_knowledge",
+  DIAGNOSIS:        "diagnosis",
+  GENERAL:          "general",
+};
+
 export const QUICK_COMMANDS = [
-  { label: "新建患者", iconKey: "personAdd", insert: "新建患者：" },
-  { label: "查询患者", iconKey: "search", insert: "查询患者：" },
-  { label: "患者列表", iconKey: "people", insert: "患者列表" },
-  { label: "补充记录", iconKey: "noteAdd", insert: "补充记录：" },
-  { label: "修正上条", iconKey: "edit", insert: "刚才写错了，应该是" },
-  { label: "导出PDF", iconKey: "download", insert: "导出病历PDF：" },
-  { label: "今日任务", iconKey: "assignment", insert: "今日任务" },
-  { label: "今日摘要", iconKey: "assessment", insert: "今日工作摘要" },
+  { key: Action.DAILY_SUMMARY, label: "今日摘要",  autoSend: true },
+  { key: Action.CREATE_RECORD, label: "新增病历",  autoSend: false },
+  { key: Action.QUERY_PATIENT, label: "查询患者",  autoSend: false, allowEmpty: true },
+  { key: Action.DIAGNOSIS,     label: "诊断建议",  autoSend: false, disabled: true },
 ];
 
 export const SPECIALTY_OPTIONS = [
