@@ -97,7 +97,7 @@ async def save_session(session: InterviewSession) -> None:
 
 
 async def get_active_session(patient_id: int, doctor_id: str) -> Optional[InterviewSession]:
-    """Find an active (interviewing) session for this patient+doctor."""
+    """Find an active (interviewing or reviewing) session for this patient+doctor."""
     from db.engine import AsyncSessionLocal
     from db.models.interview_session import InterviewSessionDB
     from sqlalchemy import select
@@ -107,7 +107,7 @@ async def get_active_session(patient_id: int, doctor_id: str) -> Optional[Interv
             select(InterviewSessionDB).where(
                 InterviewSessionDB.patient_id == patient_id,
                 InterviewSessionDB.doctor_id == doctor_id,
-                InterviewSessionDB.status == "interviewing",
+                InterviewSessionDB.status.in_(["interviewing", "reviewing"]),
             ).order_by(InterviewSessionDB.created_at.desc()).limit(1)
         )).scalar_one_or_none()
 
