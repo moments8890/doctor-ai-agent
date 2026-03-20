@@ -132,7 +132,18 @@ async def _dispatch_action_hint(
             return None
         return await agent.handle(text)
 
-    # Unknown or future actions (e.g. diagnosis) → fall through
+    if action == Action.diagnosis:
+        from agent.tools.diagnosis import diagnose
+        from agent.identity import set_current_identity
+        set_current_identity(identity)
+        try:
+            result = await diagnose.ainvoke({})
+            return result
+        except Exception as e:
+            log(f"[dispatch] diagnosis failed: {e}", level="warning")
+            return None
+
+    # Unknown or future actions → fall through
     return None
 
 
