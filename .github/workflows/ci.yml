@@ -84,7 +84,7 @@ jobs:
           }
 
       - name: Run integration tests
-        run: bash scripts/test.sh integration
+        run: bash scripts/test.sh integration-full
         env:
           INTEGRATION_SERVER_URL: http://127.0.0.1:8001
           CHAT_TIMEOUT: "120"
