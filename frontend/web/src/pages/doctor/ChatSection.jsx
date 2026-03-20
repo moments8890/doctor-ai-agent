@@ -418,6 +418,8 @@ async function processFile({ file, setMediaError, setMediaProcessing, setInput }
 
 function useDailySummary({ doctorId, sendText, ready }) {
   const done = useRef(false);
+  const sendRef = useRef(sendText);
+  sendRef.current = sendText;
   useEffect(() => {
     if (!doctorId || !ready || done.current) return;
     const today = new Date().toISOString().slice(0, 10);
@@ -425,7 +427,7 @@ function useDailySummary({ doctorId, sendText, ready }) {
     if (localStorage.getItem(key) === today) return;
     done.current = true;
     localStorage.setItem(key, today);
-    const t = setTimeout(() => sendText("今日摘要", "daily_summary", "今日摘要"), 1200);
+    const t = setTimeout(() => sendRef.current("今日摘要", "daily_summary", "今日摘要"), 1200);
     return () => clearTimeout(t);
   }, [doctorId, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 }
