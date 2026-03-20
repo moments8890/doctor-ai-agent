@@ -256,9 +256,9 @@ See [`src/agent/prompts/README.md`](src/agent/prompts/README.md) for the full
 prompt index, mermaid architecture diagrams, and template variable reference.
 
 Key prompt files:
-- `agent-doctor.md` — doctor agent system prompt (clinical collection rules,
+- `doctor-agent.md` — doctor agent system prompt (clinical collection rules,
   tool usage, examples)
-- `agent-patient.md` — patient agent system prompt (interview orchestration)
+- `patient-agent.md` — patient agent system prompt (interview orchestration)
 - `structuring.md` — conversation-to-structured-record (used inside
   `create_record` / `update_record` tools)
 - `patient-interview.md` — clinical field extraction for interview tool

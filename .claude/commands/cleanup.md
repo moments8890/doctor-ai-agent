@@ -66,7 +66,7 @@ Channel (Web / WeChat)
 
 **Active modules (DO NOT flag):**
 - `src/agent/` — handle_turn, session, setup, tools/, identity, archive
-- `src/agent/prompts/` — agent-doctor.md, agent-patient.md, structuring.md, patient-interview.md, vision-*.md, report-extract.md
+- `src/agent/prompts/` — doctor-agent.md, patient-agent.md, structuring.md, patient-interview.md, vision-*.md, report-extract.md
 - `src/agent/tools/doctor.py` — query_records, list_patients, list_tasks, create_record, update_record, create_task, export_pdf, search_knowledge, search_patients, get_patient_timeline, complete_task
 - `src/agent/tools/patient.py` — advance_interview
 - `src/agent/tools/resolve.py` — name→ID resolution
@@ -96,8 +96,8 @@ These modules belonged to the UEC pipeline (ADR 0012/0013) and are replaced:
 | `services/runtime/dedup.py` | Moved to channel layer | Delete from runtime |
 | `services/domain/intent_handlers/` | Agent decides which tool | Delete entire directory |
 | `services/hooks.py` | 6 UEC hook stages no longer exist | Delete entirely |
-| `prompts/understand.md` | Replaced by `prompts/agent-doctor.md` | Delete |
-| `prompts/patient-chat.md` | Replaced by `prompts/agent-patient.md` | Delete |
+| `prompts/understand.md` | Replaced by `prompts/doctor-agent.md` | Delete |
+| `prompts/patient-chat.md` | Replaced by `prompts/patient-agent.md` | Delete |
 
 ### Superseded Concepts (flag code referencing these)
 

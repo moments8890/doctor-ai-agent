@@ -6,7 +6,7 @@ LLM prompt files — one `.md` file per prompt. Edit directly to tune behavior.
 
 - `utils/prompt_loader.py` reads files by key: `get_prompt("structuring")` → `prompts/structuring.md`
 - Files are cached in memory on first read; call `invalidate()` to reload
-- Agent prompts (`agent-doctor.md`, `agent-patient.md`) are loaded by `build_prompt(role)` and injected into the LangChain `ChatPromptTemplate`
+- Agent prompts (`doctor-agent.md`, `patient-agent.md`) are loaded by `build_prompt(role)` and injected into the LangChain `ChatPromptTemplate`
 - Tool-internal prompts (`structuring.md`, `patient-interview.md`) are loaded inside `@tool` functions for specialized LLM calls
 
 ## Architecture
@@ -30,7 +30,7 @@ flowchart TD
     FP -- yes --> FR
 
     subgraph Doctor Agent
-        DA["AgentExecutor<br/>agent-doctor.md"]
+        DA["AgentExecutor<br/>doctor-agent.md"]
         DA --> QR[query_records]
         DA --> LP[list_patients]
         DA --> LT[list_tasks]
@@ -40,7 +40,7 @@ flowchart TD
     end
 
     subgraph Patient Agent
-        PA["AgentExecutor<br/>agent-patient.md"]
+        PA["AgentExecutor<br/>patient-agent.md"]
         PA --> AI[advance_interview]
     end
 
@@ -86,8 +86,8 @@ flowchart LR
 
 | File | Role | Template vars | Description |
 |------|------|---------------|-------------|
-| `agent-doctor.md` | Doctor | `{current_date}`, `{timezone}`, `{tools_section}` | Doctor agent system prompt — clinical collection, tool usage rules, examples |
-| `agent-patient.md` | Patient | `{current_date}`, `{timezone}` | Patient agent system prompt — interview orchestration, off-topic handling, scope boundaries |
+| `doctor-agent.md` | Doctor | `{current_date}`, `{timezone}`, `{tools_section}` | Doctor agent system prompt — clinical collection, tool usage rules, examples |
+| `patient-agent.md` | Patient | `{current_date}`, `{timezone}` | Patient agent system prompt — interview orchestration, off-topic handling, scope boundaries |
 
 ### Tool-Internal Prompts
 
@@ -108,5 +108,5 @@ flowchart LR
 
 | File | Replaced by | Reason |
 |------|------------|--------|
-| ~~`understand.md`~~ | `agent-doctor.md` + LangChain agent | Agent LLM handles intent reasoning directly |
-| ~~`patient-chat.md`~~ | `agent-patient.md` + ReAct agent | WeChat patient pipeline migrated to `handle_turn("patient")` |
+| ~~`understand.md`~~ | `doctor-agent.md` + LangChain agent | Agent LLM handles intent reasoning directly |
+| ~~`patient-chat.md`~~ | `patient-agent.md` + ReAct agent | WeChat patient pipeline migrated to `handle_turn("patient")` |

@@ -78,9 +78,9 @@ def _detect_prompt_tag(text: str) -> str:
     """Identify which prompt is being used from the first ~120 chars."""
     t = text.lower()
     if "医生" in t and ("AI" in text or "临床助手" in t or "ai" in t):
-        return "agent-doctor"
+        return "doctor-agent"
     if "患者" in t and ("预问诊" in t or "助手" in t):
-        return "agent-patient"
+        return "patient-agent"
     if "结构化" in t or "意图识别" in t or "structur" in t:
         return "structuring"
     if "问诊" in t and "流程" in t:
@@ -218,7 +218,7 @@ def _build_tools_section(role: str) -> str:
 
 def _build_system_prompt(role: str) -> str:
     """Load and render the system prompt for a given role."""
-    prompt_name = "agent-doctor" if role == "doctor" else "agent-patient"
+    prompt_name = "doctor-agent" if role == "doctor" else "patient-agent"
     system_text = get_prompt_sync(prompt_name)
     system_text = system_text.replace("{current_date}", datetime.now().strftime("%Y-%m-%d"))
     system_text = system_text.replace("{timezone}", os.environ.get("TZ", "Asia/Shanghai"))
