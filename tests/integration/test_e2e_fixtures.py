@@ -38,8 +38,6 @@ FIXTURES_DIR = ROOT / "tests" / "fixtures" / "data"
 
 FIXTURE_FILES = [
     "mvp_accuracy_benchmark.json",
-    "deepseek_conversations_v1.json",
-    "gemini_wechat_scenarios_v1.json",
 ]
 
 

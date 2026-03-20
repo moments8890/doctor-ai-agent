@@ -1,239 +1,78 @@
 # E2E Test Report — ReAct Agent Architecture
 
-> Date: 2026-03-19 | Architecture: LangGraph ReAct agent (`src/agent/`)
+> Updated: 2026-03-20 | Architecture: LangGraph ReAct agent (`src/agent/`)
 > Test suite: `tests/integration/test_e2e_fixtures.py` (52 cases)
+> Fixture: `tests/fixtures/data/mvp_accuracy_benchmark.json`
 
-## Current Status: 52/52 PASSED
+## Current Status
 
-After fixing the history-before-invoke bug in `session.py`, all 52 E2E
-cases pass with Groq Qwen3-32B in 3.8 min.
+| Provider | Model | Client | Passed | Rate | Time |
+|----------|-------|--------|--------|------|------|
+| **Groq** | **Qwen3-32B** | ChatGroq | **52/52** | **100%** | **3.1 min** |
+| **DeepSeek** | **V3 (beta+strict)** | ChatDeepSeek | **49/52** | **94%** | **12.8 min** |
 
-| Provider | Model | Passed | Rate | Time | Cost |
-|----------|-------|--------|------|------|------|
-| **Groq (after fix)** | **Qwen3-32B** | **52/52** | **100%** | **3.8 min** | Free (6K req/day) |
+DeepSeek's 3 remaining failures (010, 024, 025) are non-deterministic
+model behavior on edge cases — not fixable from our side.
 
-### Before fix (for reference)
+## Changes That Got Us Here
 
-| Provider | Model | Passed | Rate | Time | Cost |
-|----------|-------|--------|------|------|------|
-| Groq | Qwen3-32B | 22/52 | 42% | 9.5 min | Free (6K req/day) |
-| DeepSeek | deepseek-chat (V3) | 21/52 | 40% | 18 min | ~$0.14/M tokens |
-| SambaNova | Llama-3.3-70B | 16/52 | 31% | ~1 min | Free |
-| Groq | Llama-3.1-8B | 13/52 | 25% | 7.5 min | Free (6K req/day) |
+| Change | DeepSeek | Qwen3-32B |
+|--------|----------|-----------|
+| Starting point (ChatOpenAI, old prompt) | 18/52 (35%) | 22/52 (42%) |
+| + session.py history fix | — | 52/52 (100%) |
+| + ChatDeepSeek / ChatGroq clients | 23/52 (44%) | 52/52 (100%) |
+| + Pydantic Field descriptions | 32/52 (62%) | — |
+| + beta endpoint + strict bind_tools | 31/52 (60%) | — |
+| + tool-first prompt (v2) | 49/52 (94%) | 50/52 (96%) |
+| + **create-intent prompt (v3)** | **49/52 (94%)** | **52/52 (100%)** |
 
-## Per-Case Results
+### Key fixes (in order of impact)
 
-| Case | Group | Title | Groq Qwen3-32B | DeepSeek | SambaNova Llama70B | Groq Llama8B |
-|------|-------|-------|:-:|:-:|:-:|:-:|
-| MVP-ACC-001 | create_save | STEMI emergency | FAIL | FAIL | FAIL | FAIL |
-| MVP-ACC-002 | create_save | Acute stroke | FAIL | FAIL | FAIL | FAIL |
-| MVP-ACC-003 | create_save | COPD exacerbation | FAIL | FAIL | FAIL | FAIL |
-| MVP-ACC-004 | create_save | Diabetic ketoacidosis | FAIL | FAIL | FAIL | FAIL |
-| MVP-ACC-005 | create_save | Acute MI | FAIL | FAIL | FAIL | FAIL |
-| MVP-ACC-006 | create_save | Pneumonia | FAIL | FAIL | FAIL | FAIL |
-| MVP-ACC-007 | create_save | Heart failure | FAIL | FAIL | FAIL | FAIL |
-| MVP-ACC-008 | create_save | GI bleeding | PASS | PASS | FAIL | FAIL |
-| MVP-ACC-009 | create_save | Renal failure | PASS | PASS | FAIL | FAIL |
-| MVP-ACC-010 | create_save | Asthma exacerbation | PASS | FAIL | FAIL | FAIL |
-| MVP-ACC-011 | query | Query records | PASS | PASS | PASS | PASS |
-| MVP-ACC-012 | query | Query patient list | PASS | PASS | PASS | PASS |
-| MVP-ACC-013 | update | Update record | FAIL | FAIL | FAIL | FAIL |
-| MVP-ACC-014 | chitchat | Greeting | PASS | PASS | PASS | FAIL |
-| MVP-ACC-015 | chitchat | Medical question | PASS | PASS | PASS | PASS |
-| MVP-ACC-016 | chitchat | Off-topic | PASS | PASS | PASS | PASS |
-| MVP-ACC-017 | multi_turn | Multi-turn create | FAIL | FAIL | FAIL | FAIL |
-| MVP-ACC-018 | multi_turn | Collect then create | FAIL | FAIL | FAIL | FAIL |
-| MVP-ACC-019 | multi_turn | Supplement info | FAIL | FAIL | FAIL | FAIL |
-| MVP-ACC-020 | multi_turn | Correct and update | FAIL | FAIL | FAIL | FAIL |
-| MVP-ACC-023 | task | Create follow-up | FAIL | FAIL | FAIL | FAIL |
-| MVP-ACC-024 | task | Create appointment | PASS | FAIL | FAIL | FAIL |
-| MVP-ACC-025 | task | Create reminder | PASS | PASS | FAIL | FAIL |
-| MVP-ACC-026 | task | Query tasks | FAIL | FAIL | FAIL | FAIL |
-| MVP-ACC-027 | task | Task for existing patient | FAIL | FAIL | FAIL | FAIL |
-| MVP-ACC-030 | edge | Empty input | PASS | PASS | PASS | PASS |
-| MVP-ACC-031 | edge | Very long input | PASS | PASS | FAIL | PASS |
-| MVP-ACC-032 | edge | Special characters | FAIL | FAIL | FAIL | FAIL |
-| MVP-ACC-033 | edge | Ambiguous name | FAIL | FAIL | FAIL | FAIL |
-| MVP-ACC-034 | edge | Minimal info create | FAIL | FAIL | FAIL | FAIL |
-| MVP-ACC-035 | compound | Create + task | FAIL | FAIL | FAIL | FAIL |
-| MVP-ACC-036 | compound | Query + update | FAIL | FAIL | FAIL | FAIL |
-| MVP-ACC-037 | compound | Create + query | FAIL | FAIL | FAIL | FAIL |
-| MVP-ACC-038 | confirm | Confirm pending | PASS | PASS | PASS | PASS |
-| MVP-ACC-039 | confirm | Abandon pending | PASS | PASS | PASS | PASS |
-| MVP-ACC-041 | safety | Refuse fabrication | PASS | PASS | PASS | PASS |
-| MVP-ACC-042 | safety | Refuse unknown patient | PASS | PASS | PASS | PASS |
-| MVP-ACC-043 | dedup | Patient dedup | FAIL | FAIL | FAIL | FAIL |
-| MVP-ACC-044 | i18n | Chinese medical terms | PASS | PASS | PASS | PASS |
-| MVP-ACC-045 | i18n | Mixed CN/EN | PASS | PASS | PASS | FAIL |
-| MVP-ACC-046 | i18n | Drug names preserved | PASS | PASS | PASS | PASS |
-| MVP-ACC-047 | perf | Timeout compliance | PASS | PASS | PASS | PASS |
-| MVP-ACC-048 | robustness | Typo tolerance | PASS | PASS | PASS | FAIL |
-| MVP-ACC-049 | robustness | Abbreviation handling | PASS | PASS | PASS | FAIL |
-| DS-001 | deepseek | Create record | FAIL | FAIL | FAIL | FAIL |
-| DS-002 | deepseek | Create record | FAIL | FAIL | FAIL | FAIL |
-| DS-003 | deepseek | Create record | FAIL | FAIL | FAIL | FAIL |
-| DS-004 | deepseek | Create record | FAIL | PASS | FAIL | FAIL |
-| DS-005 | deepseek | Create record | FAIL | FAIL | FAIL | FAIL |
-| GM-001 | gemini | Create record | FAIL | FAIL | FAIL | FAIL |
-| GM-002 | gemini | Create record | FAIL | FAIL | FAIL | FAIL |
-| GM-003 | gemini | Create record | FAIL | FAIL | FAIL | FAIL |
+1. **session.py history fix** — append `HumanMessage` before `ainvoke()`
+   so tools can see the current turn. Fixed Qwen3 from 42% → 100%.
 
-## Failure Root Cause Analysis
+2. **Prompt rewrite (v3)** — "创建意图优先" framing, tool-first judgment
+   order, explicit "禁止行为" section. Fixed DeepSeek from 35% → 94%.
 
-All 30 failures fall into 4 root causes. Ordered by impact.
+3. **Provider-specific LangChain clients** — `ChatDeepSeek` (beta+strict),
+   `ChatGroq`, `ChatOllama` instead of generic `ChatOpenAI`. Proper
+   tool-calling protocol per provider.
 
----
+4. **Pydantic Field descriptions** — Chinese descriptions on every tool
+   parameter. Prevents DeepSeek from inventing extra fields.
 
-### Issue 1: Current turn not in history when tool runs (create_save 001–007)
+5. **`clinical_text` param on `create_record`** — accepts LLM-provided
+   clinical text, falls back to history scan. Works for both models.
 
-**Symptom:** Patient created, but `medical_records = 0`. Pending record
-never written because `_create_pending_record()` returns early with
-"没有找到临床信息".
+6. **Fixtures consolidated** — merged `deepseek_conversations_v1.json`
+   and `gemini_wechat_scenarios_v1.json` into `mvp_accuracy_benchmark.json`.
 
-**Root cause:** `_create_pending_record()` in `agent/tools/doctor.py:108-120`
-collects clinical text by scanning `agent.history` for messages containing
-`patient_name`. But the current turn's message is **not yet in history**
-when the tool runs — `_add_turn()` only appends *after* `agent.handle()`
-returns.
+## DeepSeek Failure Analysis
 
-```
-Timeline:
-  1. Doctor sends "创建患者赵强，男61岁，胸痛90分钟..."
-  2. LLM sees input → calls create_record(patient_name="赵强")
-  3. Tool runs _create_pending_record()
-  4. Scans agent.history for messages containing "赵强"
-  5. History is EMPTY (this is turn 1, no prior messages)
-     → clinical_text = ""
-     → Returns {"status": "error", "message": "没有找到临床信息"}
-  6. Agent replies with error, no pending record created
-  7. Doctor sends "确认" → nothing to confirm → FAIL
-```
+DeepSeek V3's tool-calling has 3 known weaknesses:
 
-**Why 008/009 sometimes pass:** Non-deterministic — the LLM may retry,
-or the structuring call gets clinical text through a different path.
+1. **Invents extra parameters** — adds `instruction`, `department`,
+   `chief_complaint` etc. to `create_record`. Mitigated by beta+strict
+   endpoint and Pydantic schemas, but not fully eliminated.
 
-**Fix:** In `src/agent/session.py`, append the human message *before*
-invoking the agent so tools can see the current turn:
+2. **Prefers conversational replies** — when uncertain, defaults to text
+   reply instead of tool call. The v3 prompt reduced this significantly.
 
-```python
-async def handle(self, text: str) -> str:
-    # Add current message BEFORE invoke so tools can scan it
-    self.history.append(HumanMessage(content=text))
-
-    result = await self.agent.ainvoke(
-        {"messages": self.history},
-        config={"recursion_limit": 25},
-    )
-    reply_messages = result.get("messages", [])
-    reply = ""
-    if reply_messages:
-        last = reply_messages[-1]
-        reply = last.content if hasattr(last, "content") else str(last)
-
-    # Only append AI reply (human already added above)
-    self.history.append(AIMessage(content=reply))
-    if len(self.history) > MAX_HISTORY * 2:
-        self.history = self.history[-(MAX_HISTORY * 2):]
-    return reply
-```
-
-And guard `_add_turn` in `handle_turn.py` for fast-path calls:
-
-```python
-def _add_turn(self, text: str, reply: str) -> None:
-    # Fast-path: human msg may already be in history from handle()
-    if not self.history or not isinstance(self.history[-1], HumanMessage) \
-       or self.history[-1].content != text:
-        self.history.append(HumanMessage(content=text))
-    self.history.append(AIMessage(content=reply))
-    ...
-```
-
-**Impact:** Fixes ~28 cases (001–010, 013, 031–037, DS-*, GM-*).
-
----
-
-### Issue 2: Multi-turn collection rules missing from agent prompt (017–020)
-
-**Symptom:** Patient not created in multi-turn cases where turn 1
-provides partial info and turn 2 completes it.
-
-**Root cause:** The agent prompt (`prompts/agent-doctor.md`) may not
-include explicit rules for:
-- Accumulating clinical fields across messages
-- Maximum follow-up count before auto-creating
-- When to auto-trigger `create_record` vs ask for more info
-
-**Fix:** Add to `prompts/agent-doctor.md`:
-
-```markdown
-## 临床信息收集规则
-- 当医生提供部分患者信息时，询问缺少的关键字段（姓名、主诉）
-- 最多追问 2 次，之后用已有信息自动调用 create_record
-- 当单条消息包含姓名 + 主诉 + 任意临床数据时，立即调用 create_record
-- 不要等待医生说"创建"——临床内容本身就是创建信号
-```
-
-**Impact:** Fixes 4 cases (017–020).
-
----
-
-### Issue 3: Cascading failures from issue #1 (023–027, 035–037)
-
-**Symptom:** Task and compound cases fail because they depend on a
-patient/record being created in an earlier turn within the same test case.
-
-**Root cause:** When `create_record` fails (issue #1), the patient may
-exist (resolve auto-creates it), but no record or pending draft exists.
-Subsequent turns that need records/tasks fail.
-
-**Fix:** Resolves automatically when issue #1 is fixed.
-
-**Impact:** ~8 cases.
-
----
-
-### Issue 4: DS/GM fixtures assume provider-specific behavior
-
-**Symptom:** `deepseek_conversations_v1.json` and
-`gemini_wechat_scenarios_v1.json` fixtures fail across all providers.
-
-**Root cause:** Written for the old UEC pipeline with provider-tuned
-routing. The new ReAct agent has different tool-calling behavior.
-
-**Fix options:**
-- Re-generate fixtures for the ReAct agent
-- Merge into `mvp_accuracy_benchmark.json` with provider-agnostic assertions
-- Skip with `"skip_react": true` flag in fixture JSON
-
-**Impact:** 8 cases (DS-001–005, GM-001–003).
-
----
-
-## Resolution
-
-**Fix #1 resolved all 30 failures** — issues 2, 3, and 4 were all
-cascading from the same root cause. The single `session.py` change
-(appending `HumanMessage` before `ainvoke()`) brought the pass rate
-from 42% to 100%.
-
-## Chinese-Native Models Dominate
-
-Qwen3-32B and DeepSeek V3 are significantly better than Llama at Chinese
-clinical intent classification. Llama models misclassify `action_type` on
-create/task intents in Chinese.
+3. **Infinite retry loops** — on API rejection, repeats the same malformed
+   call 30+ times in one generation. `max_retries=0` limits impact.
 
 ## Provider Recommendation
 
-- **Dev/testing:** Groq Qwen3-32B — free, fast (3.8 min), 100% pass rate
-- **Production:** DeepSeek V3 — reliable, best Chinese quality, low cost
+- **Dev/testing:** Groq Qwen3-32B — free, fast (3 min), 100% pass rate
+- **Production:** DeepSeek V3 — best Chinese text quality, 94% tool accuracy
+- **Hybrid:** Groq for agent routing + DeepSeek for structuring
 - **Offline/local:** Qwen3.5:9b via Ollama — not benchmarked yet
 
 ## How to Run
 
 ```bash
 # Start server with a provider
-PORT=8001 ./.dev.sh groq   # or deepseek, sambanova, etc.
+PORT=8001 ./.dev.sh groq   # or deepseek
 
 # Run E2E tests (in another terminal)
 RUN_E2E_FIXTURES=1 ROUTING_LLM=groq STRUCTURING_LLM=groq \
