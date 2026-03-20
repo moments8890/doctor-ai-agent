@@ -98,7 +98,7 @@ async def _fetch_wechat_openid(js_code: str) -> str:
     appid = _wechat_mini_app_id()
     secret = _wechat_mini_secret()
     if not appid or not secret:
-        raise HTTPException(status_code=500, detail="WECHAT_MINI_APP_ID/WECHAT_MINI_APP_SECRET not configured")
+        raise HTTPException(status_code=503, detail="WeChat authentication service unavailable")
 
     params = {
         "appid": appid,

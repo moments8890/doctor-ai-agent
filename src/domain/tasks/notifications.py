@@ -68,7 +68,7 @@ async def _mini_access_token() -> str:
     appid = _mini_app_id()
     secret = _mini_app_secret()
     if not appid or not secret:
-        raise RuntimeError("WECHAT_MINI_APP_ID/WECHAT_MINI_APP_SECRET not configured")
+        raise RuntimeError("WeChat mini-program credentials not configured")
 
     params = {
         "grant_type": "client_credential",

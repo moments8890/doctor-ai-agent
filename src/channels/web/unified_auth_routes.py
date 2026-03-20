@@ -108,7 +108,10 @@ async def list_doctors_for_registration():
 
     async with AsyncSessionLocal() as db:
         rows = (await db.execute(
-            select(Doctor).where(Doctor.accepting_patients == True)
+            select(Doctor).where(
+                Doctor.accepting_patients == True,
+                ~Doctor.doctor_id.like("inttest_%"),
+            )
         )).scalars().all()
 
     return [

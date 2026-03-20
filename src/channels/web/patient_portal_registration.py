@@ -91,7 +91,10 @@ async def list_accepting_doctors():
     from db.models import Doctor
 
     async with AsyncSessionLocal() as db:
-        stmt = select(Doctor).where(Doctor.accepting_patients == True)
+        stmt = select(Doctor).where(
+            Doctor.accepting_patients == True,
+            ~Doctor.doctor_id.like("inttest_%"),
+        )
         rows = (await db.execute(stmt)).scalars().all()
 
     return [
