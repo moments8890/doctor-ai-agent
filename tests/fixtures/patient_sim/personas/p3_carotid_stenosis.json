@@ -1,0 +1,51 @@
+{
+  "id": "P3",
+  "name": "张建国",
+  "gender": "男",
+  "age": 72,
+  "year_of_birth": 1954,
+  "phone": "13800000003",
+
+  "condition": "颈动脉狭窄，既往TIA已控制",
+  "background": "2个月前出现两次短暂性脑缺血发作（右侧肢体麻木无力，持续约10分钟自行缓解），心内科检查发现左侧颈内动脉狭窄约70%，转诊至神经外科评估。目前服用氯吡格雷抗血小板治疗，2个月来未再发作TIA，状态稳定。长期吸烟史（40年），1个月前戒烟。",
+  "medications": [
+    {"name": "氯吡格雷", "dose": "75mg", "frequency": "每日一次", "duration": "2个月"},
+    {"name": "瑞舒伐他汀", "dose": "10mg", "frequency": "每晚一次", "duration": "2个月"},
+    {"name": "苯磺酸氨氯地平", "dose": "5mg", "frequency": "每日一次", "duration": "10年"}
+  ],
+  "surgical_history": "无",
+  "comorbidities": ["高血压", "高脂血症"],
+
+  "style": "cooperative",
+  "personality": "退休干部，说话有条理。会按时间顺序叙述病情，配合度高。偶尔问一下手术风险。",
+
+  "allowed_facts": [
+    {"category": "chief_complaint", "fact": "心内科转诊过来，说颈动脉狭窄需要评估", "volunteer": true},
+    {"category": "present_illness", "fact": "2个月前有过两次右边手脚发麻没力气，每次大概10分钟就好了", "volunteer": true},
+    {"category": "present_illness", "fact": "吃了氯吡格雷之后2个月没有再发作过", "volunteer": false},
+    {"category": "present_illness", "fact": "现在没有头痛头晕，没有视物模糊", "volunteer": false},
+    {"category": "present_illness", "fact": "心内科做了颈动脉超声，说左边狭窄比较严重", "volunteer": false},
+    {"category": "past_history", "fact": "高血压10年，一直吃氨氯地平，血压控制还可以", "volunteer": false},
+    {"category": "past_history", "fact": "高脂血症，2个月前开始吃瑞舒伐他汀", "volunteer": false},
+    {"category": "past_history", "fact": "无糖尿病，无心脏手术史", "volunteer": false},
+    {"category": "allergy_history", "fact": "无药物过敏", "volunteer": false},
+    {"category": "family_history", "fact": "父亲有脑梗塞病史，80岁去世", "volunteer": false},
+    {"category": "family_history", "fact": "母亲无特殊疾病", "volunteer": false},
+    {"category": "personal_history", "fact": "吸烟40年，每天约1包，1个月前戒烟", "volunteer": false},
+    {"category": "personal_history", "fact": "偶尔饮白酒，每次1-2两", "volunteer": false},
+    {"category": "marital_reproductive", "fact": "已婚，育有1子1女", "volunteer": false}
+  ],
+
+  "expected_extracted": {
+    "chief_complaint": ["颈动脉狭窄", "转诊"],
+    "present_illness": ["TIA", "麻木", "无力"],
+    "past_history": ["高血压", "高脂血症"],
+    "personal_history": ["吸烟"]
+  },
+
+  "checklist": {
+    "must_ask": ["发作症状", "发作次数", "用药", "吸烟"],
+    "should_ask": ["饮酒", "家族史", "过敏", "手术史"],
+    "min_coverage": 0.6
+  }
+}

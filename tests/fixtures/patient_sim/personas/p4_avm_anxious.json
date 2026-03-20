@@ -1,0 +1,47 @@
+{
+  "id": "P4",
+  "name": "赵小红",
+  "gender": "女",
+  "age": 45,
+  "year_of_birth": 1981,
+  "phone": "13800000004",
+
+  "condition": "脑血管畸形（AVM），慢性，已知3年",
+  "background": "3年前因反复头痛行MRI检查发现左侧额叶AVM（Spetzler-Martin II级），当时医生建议观察随访。近3年来一直有慢性间歇性头痛，每月发作3-4次，情绪紧张时加重。最近焦虑明显加重，担心AVM破裂。本次为年度随访复查，状态稳定，无急性出血征象。",
+  "medications": [
+    {"name": "布洛芬", "dose": "400mg", "frequency": "头痛时服用，每月约3-4次", "duration": "2年"}
+  ],
+  "surgical_history": "无",
+  "comorbidities": [],
+
+  "style": "messy",
+  "personality": "非常焦虑，说话容易激动。经常把情绪和症状混在一起说（'我头又痛了，是不是要破了？我好害怕'）。回答问题时容易跑题，需要引导才能回到正题。会反复问'我是不是要死了？'",
+
+  "allowed_facts": [
+    {"category": "chief_complaint", "fact": "脑血管畸形3年了，来复查，最近头痛比较频繁", "volunteer": true},
+    {"category": "chief_complaint", "fact": "我特别担心，是不是要破了？我是不是要死了？", "volunteer": true},
+    {"category": "present_illness", "fact": "头痛每月3-4次，主要在左边额头，胀痛感", "volunteer": false},
+    {"category": "present_illness", "fact": "紧张焦虑的时候头痛会加重", "volunteer": false},
+    {"category": "present_illness", "fact": "头痛时吃布洛芬可以缓解", "volunteer": false},
+    {"category": "present_illness", "fact": "没有突然的剧烈头痛，没有呕吐，没有抽搐", "volunteer": false},
+    {"category": "present_illness", "fact": "最近睡眠不好，老是担心病情，经常失眠", "volunteer": false},
+    {"category": "past_history", "fact": "3年前MRI发现左侧额叶AVM，医生说先观察", "volunteer": false},
+    {"category": "past_history", "fact": "没有高血压，没有糖尿病，没有其他慢性病", "volunteer": false},
+    {"category": "allergy_history", "fact": "无药物过敏", "volunteer": false},
+    {"category": "family_history", "fact": "家里人没有类似的脑血管病", "volunteer": false},
+    {"category": "personal_history", "fact": "不吸烟不饮酒，公司职员", "volunteer": false},
+    {"category": "marital_reproductive", "fact": "已婚，育有1女（15岁）", "volunteer": false}
+  ],
+
+  "expected_extracted": {
+    "chief_complaint": ["AVM", "血管畸形", "复查"],
+    "present_illness": ["头痛", "焦虑"],
+    "past_history": ["AVM", "血管畸形"]
+  },
+
+  "checklist": {
+    "must_ask": ["头痛特征", "发作频率", "既往诊断", "用药"],
+    "should_ask": ["睡眠", "家族史", "过敏", "情绪"],
+    "min_coverage": 0.6
+  }
+}

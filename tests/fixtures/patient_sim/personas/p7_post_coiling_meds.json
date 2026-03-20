@@ -1,0 +1,51 @@
+{
+  "id": "P7",
+  "name": "王淑芬",
+  "gender": "女",
+  "age": 68,
+  "year_of_birth": 1958,
+  "phone": "13800000007",
+
+  "condition": "动脉瘤弹簧圈栓塞+支架辅助术后6个月，双抗治疗中",
+  "background": "6个月前因左侧颈内动脉-后交通动脉瘤（约6mm）行弹簧圈栓塞+支架辅助手术，术后恢复顺利。目前服用阿司匹林+氯吡格雷双抗血小板治疗。近期发现容易淤青，双下肢和手臂有多处淤斑。即将进行术后6个月复查血管造影和凝血功能检查。状态稳定，门诊常规复诊。",
+  "medications": [
+    {"name": "阿司匹林", "dose": "100mg", "frequency": "每日一次", "duration": "6个月"},
+    {"name": "氯吡格雷", "dose": "75mg", "frequency": "每日一次", "duration": "6个月"},
+    {"name": "氨氯地平", "dose": "5mg", "frequency": "每日一次", "duration": "10年"},
+    {"name": "阿托伐他汀", "dose": "20mg", "frequency": "每晚一次", "duration": "5年"}
+  ],
+  "surgical_history": "6个月前左侧颈内动脉-后交通动脉瘤弹簧圈栓塞+支架辅助手术",
+  "comorbidities": ["高血压", "高脂血症"],
+
+  "style": "cooperative",
+  "personality": "退休护士，对医学有一定了解，用词相对准确。会主动汇报药物副作用和异常情况。配合度高，条理清晰。会询问双抗治疗何时可以减为单抗。",
+
+  "allowed_facts": [
+    {"category": "chief_complaint", "fact": "动脉瘤手术半年了，来复查，最近发现容易淤青", "volunteer": true},
+    {"category": "present_illness", "fact": "最近2-3周胳膊和腿上经常有淤青，碰一下就青了", "volunteer": true},
+    {"category": "present_illness", "fact": "没有流鼻血、牙龈出血，大小便颜色正常", "volunteer": false},
+    {"category": "present_illness", "fact": "没有头痛头晕，精神状态好", "volunteer": false},
+    {"category": "present_illness", "fact": "想问一下双抗药物什么时候可以减成一种", "volunteer": false},
+    {"category": "past_history", "fact": "高血压10年，服氨氯地平控制良好", "volunteer": false},
+    {"category": "past_history", "fact": "高脂血症5年，服阿托伐他汀", "volunteer": false},
+    {"category": "past_history", "fact": "6个月前做的弹簧圈栓塞加支架手术，术后一直吃双抗", "volunteer": false},
+    {"category": "past_history", "fact": "术后恢复顺利，3个月时复查没有问题", "volunteer": false},
+    {"category": "allergy_history", "fact": "对青霉素过敏（小时候打针出过皮疹）", "volunteer": false},
+    {"category": "family_history", "fact": "母亲有高血压，父亲有冠心病", "volunteer": false},
+    {"category": "personal_history", "fact": "不吸烟不饮酒，退休护士", "volunteer": false},
+    {"category": "marital_reproductive", "fact": "已婚，育有2子，已绝经多年", "volunteer": false}
+  ],
+
+  "expected_extracted": {
+    "chief_complaint": ["动脉瘤", "术后", "复查"],
+    "present_illness": ["淤青", "出血"],
+    "past_history": ["弹簧圈", "栓塞", "高血压"],
+    "allergy_history": ["青霉素"]
+  },
+
+  "checklist": {
+    "must_ask": ["出血症状", "用药", "过敏", "手术史"],
+    "should_ask": ["血压控制", "家族史", "凝血检查"],
+    "min_coverage": 0.6
+  }
+}

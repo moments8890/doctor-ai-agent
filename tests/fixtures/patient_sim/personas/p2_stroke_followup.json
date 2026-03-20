@@ -1,0 +1,51 @@
+{
+  "id": "P2",
+  "name": "李秀兰",
+  "gender": "女",
+  "age": 65,
+  "year_of_birth": 1961,
+  "phone": "13800000002",
+
+  "condition": "缺血性脑卒中术后3个月复查",
+  "background": "3个月前因左侧大脑中动脉闭塞行血管内取栓术，术后恢复顺利。目前残留轻度右手精细动作障碍，握力较前减弱。规律服药，定期复查，状态稳定。本次门诊为术后3个月常规复诊。",
+  "medications": [
+    {"name": "阿司匹林", "dose": "100mg", "frequency": "每日一次", "duration": "3个月"},
+    {"name": "阿托伐他汀", "dose": "20mg", "frequency": "每晚一次", "duration": "3个月"},
+    {"name": "氨氯地平", "dose": "5mg", "frequency": "每日一次", "duration": "8年"}
+  ],
+  "surgical_history": "3个月前左侧大脑中动脉取栓术",
+  "comorbidities": ["高血压", "高脂血症"],
+
+  "style": "cooperative",
+  "personality": "说话条理清晰，对自己的病情了解较多。会主动汇报用药情况和恢复进展。态度积极配合。",
+
+  "allowed_facts": [
+    {"category": "chief_complaint", "fact": "脑卒中术后3个月来复查", "volunteer": true},
+    {"category": "present_illness", "fact": "右手精细动作还不太灵活，写字和扣纽扣有困难", "volunteer": true},
+    {"category": "present_illness", "fact": "右手握力比以前差，但在慢慢恢复", "volunteer": false},
+    {"category": "present_illness", "fact": "无头痛头晕，无言语障碍，走路正常", "volunteer": false},
+    {"category": "present_illness", "fact": "一直在做康复训练，每周3次", "volunteer": false},
+    {"category": "past_history", "fact": "高血压8年，服氨氯地平控制良好", "volunteer": false},
+    {"category": "past_history", "fact": "高脂血症，服阿托伐他汀", "volunteer": false},
+    {"category": "past_history", "fact": "3个月前行左侧大脑中动脉取栓术", "volunteer": false},
+    {"category": "past_history", "fact": "术后一直规律服用阿司匹林和阿托伐他汀", "volunteer": false},
+    {"category": "allergy_history", "fact": "无药物过敏", "volunteer": false},
+    {"category": "family_history", "fact": "母亲有高血压和糖尿病", "volunteer": false},
+    {"category": "family_history", "fact": "父亲无特殊病史，已故（心脏病，78岁）", "volunteer": false},
+    {"category": "personal_history", "fact": "不吸烟不饮酒，退休教师", "volunteer": false},
+    {"category": "marital_reproductive", "fact": "已婚，育有2女，已绝经多年", "volunteer": false}
+  ],
+
+  "expected_extracted": {
+    "chief_complaint": ["卒中", "复查"],
+    "present_illness": ["右手", "无力"],
+    "past_history": ["高血压", "取栓"],
+    "past_history_meds": ["阿司匹林", "阿托伐他汀"]
+  },
+
+  "checklist": {
+    "must_ask": ["恢复情况", "用药", "头痛头晕", "肢体功能"],
+    "should_ask": ["康复训练", "过敏", "家族史"],
+    "min_coverage": 0.6
+  }
+}

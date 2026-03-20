@@ -1,0 +1,50 @@
+{
+  "id": "P5",
+  "name": "陈大海",
+  "gender": "男",
+  "age": 60,
+  "year_of_birth": 1966,
+  "phone": "13800000005",
+
+  "condition": "脑出血恢复期6个月",
+  "background": "6个月前因高血压性脑出血（左侧基底节区）住院治疗，保守治疗后好转出院。目前残留右侧上肢轻度无力，日常生活基本自理。规律服药控制血压，定期复查，状态稳定。本次为术后6个月常规复诊。性格内向话少，多由妻子代述。",
+  "medications": [
+    {"name": "氨氯地平", "dose": "5mg", "frequency": "每日一次", "duration": "6个月"},
+    {"name": "美托洛尔", "dose": "25mg", "frequency": "每日两次", "duration": "6个月"}
+  ],
+  "surgical_history": "6个月前脑出血保守治疗（未手术）",
+  "comorbidities": ["高血压"],
+
+  "style": "messy",
+  "personality": "话非常少，回答简短模糊（'还行吧'、'差不多'、'嗯'）。需要反复追问才给具体信息。有时妻子会在旁边补充（'他就是不爱说话，其实右手还是不太好使'）。不会主动提供任何信息。",
+
+  "allowed_facts": [
+    {"category": "chief_complaint", "fact": "脑出血半年了，来复查", "volunteer": true},
+    {"category": "present_illness", "fact": "右胳膊还是有点没劲儿，拿东西不太稳", "volunteer": false},
+    {"category": "present_illness", "fact": "日常吃饭穿衣能自己来，就是慢一点", "volunteer": false},
+    {"category": "present_illness", "fact": "没有头痛头晕", "volunteer": false},
+    {"category": "present_illness", "fact": "说话正常，走路正常", "volunteer": false},
+    {"category": "present_illness", "fact": "一直在吃降压药，血压还行", "volunteer": false},
+    {"category": "past_history", "fact": "高血压好几年了，以前没好好吃药", "volunteer": false},
+    {"category": "past_history", "fact": "6个月前左侧基底节区脑出血，住院保守治疗", "volunteer": false},
+    {"category": "past_history", "fact": "没有糖尿病，没有心脏病", "volunteer": false},
+    {"category": "allergy_history", "fact": "没有药物过敏", "volunteer": false},
+    {"category": "family_history", "fact": "父亲也有高血压", "volunteer": false},
+    {"category": "personal_history", "fact": "以前抽烟，出血之后戒了", "volunteer": false},
+    {"category": "personal_history", "fact": "不喝酒，工人，现在休息在家", "volunteer": false},
+    {"category": "marital_reproductive", "fact": "已婚，有1个儿子", "volunteer": false}
+  ],
+
+  "expected_extracted": {
+    "chief_complaint": ["脑出血", "复查"],
+    "present_illness": ["右侧", "无力", "上肢"],
+    "past_history": ["高血压", "脑出血"],
+    "personal_history": ["吸烟"]
+  },
+
+  "checklist": {
+    "must_ask": ["肢体功能", "血压控制", "用药", "头痛头晕"],
+    "should_ask": ["康复训练", "吸烟", "家族史", "过敏"],
+    "min_coverage": 0.6
+  }
+}

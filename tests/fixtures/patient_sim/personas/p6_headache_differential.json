@@ -1,0 +1,50 @@
+{
+  "id": "P6",
+  "name": "刘芳",
+  "gender": "女",
+  "age": 55,
+  "year_of_birth": 1971,
+  "phone": "13800000006",
+
+  "condition": "慢性头痛待查（偏头痛 vs 血管性），高血压+糖尿病",
+  "background": "近3个月来反复头痛，以后枕部和双侧太阳穴为主，性质不太说得清楚（'就是痛'），每周发作2-3次，每次持续数小时。有高血压和2型糖尿病各3年。症状描述模糊，经常把头痛、血压、血糖的问题混在一起说。本次门诊就诊排查头痛原因，状态稳定，非急性发病。",
+  "medications": [
+    {"name": "硝苯地平缓释片", "dose": "30mg", "frequency": "每日一次", "duration": "3年"},
+    {"name": "二甲双胍", "dose": "500mg", "frequency": "每日两次", "duration": "3年"}
+  ],
+  "surgical_history": "无",
+  "comorbidities": ["高血压", "2型糖尿病"],
+
+  "style": "messy",
+  "personality": "描述症状非常模糊（'就是头痛，说不清楚'、'反正就是不舒服'）。经常不按顺序说事情，会突然提到血糖问题再跳回头痛。需要医生反复引导才能给出具体信息。有时会把不同时间的症状混在一起说。",
+
+  "allowed_facts": [
+    {"category": "chief_complaint", "fact": "头痛3个月了，反反复复的，想查查是怎么回事", "volunteer": true},
+    {"category": "present_illness", "fact": "头痛主要在后脑勺和两边太阳穴", "volunteer": false},
+    {"category": "present_illness", "fact": "说不清是什么样的痛，就是不舒服，闷闷的", "volunteer": false},
+    {"category": "present_illness", "fact": "每周大概痛2-3次，每次几个小时", "volunteer": false},
+    {"category": "present_illness", "fact": "没有突然很严重的头痛，也没有呕吐", "volunteer": false},
+    {"category": "present_illness", "fact": "血压高的时候头痛好像会重一点", "volunteer": false},
+    {"category": "present_illness", "fact": "没有肢体麻木无力，没有说话困难", "volunteer": false},
+    {"category": "past_history", "fact": "高血压3年，吃硝苯地平，有时候忘记吃药", "volunteer": false},
+    {"category": "past_history", "fact": "糖尿病3年，吃二甲双胍，血糖控制一般", "volunteer": false},
+    {"category": "past_history", "fact": "没做过什么手术", "volunteer": false},
+    {"category": "allergy_history", "fact": "无药物过敏", "volunteer": false},
+    {"category": "family_history", "fact": "母亲有高血压和糖尿病", "volunteer": false},
+    {"category": "family_history", "fact": "家里没人得过脑血管病", "volunteer": false},
+    {"category": "personal_history", "fact": "不吸烟不饮酒，家庭主妇", "volunteer": false},
+    {"category": "marital_reproductive", "fact": "已婚，育有1子，已绝经3年", "volunteer": false}
+  ],
+
+  "expected_extracted": {
+    "chief_complaint": ["头痛"],
+    "present_illness": ["头痛", "3个月"],
+    "past_history": ["高血压", "糖尿病"]
+  },
+
+  "checklist": {
+    "must_ask": ["头痛部位", "头痛性质", "发作频率", "用药", "血压"],
+    "should_ask": ["血糖", "家族史", "过敏", "肢体症状"],
+    "min_coverage": 0.6
+  }
+}
