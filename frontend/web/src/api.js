@@ -848,3 +848,23 @@ export async function updateReviewField(queueId, doctorId, field, value) {
     body: JSON.stringify({ field, value }),
   });
 }
+
+// ── Diagnosis ─────────────────────────────────────────────────────────────────
+
+export async function getDiagnosis(recordId, doctorId) {
+  return request(`/api/manage/diagnosis/${recordId}?doctor_id=${doctorId}`);
+}
+
+export async function decideDiagnosisItem(diagnosisId, doctorId, type, index, decision) {
+  return request(`/api/manage/diagnosis/${diagnosisId}/decide?doctor_id=${doctorId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type, index, decision }),
+  });
+}
+
+export async function confirmDiagnosis(diagnosisId, doctorId) {
+  return request(`/api/manage/diagnosis/${diagnosisId}/confirm?doctor_id=${doctorId}`, {
+    method: "POST",
+  });
+}

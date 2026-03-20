@@ -98,6 +98,20 @@ export const REVIEW_STATUS_LABEL = {
   reviewed: "已审核",
 };
 
+export const DIAGNOSIS_STATUS_LABEL = {
+  pending: "诊断中",
+  completed: "诊断完成",
+  confirmed: "已确认",
+  failed: "诊断失败",
+};
+
+export const DIAGNOSIS_STATUS_COLOR = {
+  pending: "#1890ff",
+  completed: "#07C160",
+  confirmed: "#999",
+  failed: "#FA5151",
+};
+
 export const STRUCTURED_FIELD_LABELS = {
   department: "科别",
   chief_complaint: "主诉",
