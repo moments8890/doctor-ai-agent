@@ -93,6 +93,28 @@ export const TASK_STATUS_OPTS = [
   { value: "cancelled", label: "已取消" },
 ];
 
+export const REVIEW_STATUS_LABEL = {
+  pending_review: "待审核",
+  reviewed: "已审核",
+};
+
+export const STRUCTURED_FIELD_LABELS = {
+  department: "科别",
+  chief_complaint: "主诉",
+  present_illness: "现病史",
+  past_history: "既往史",
+  allergy_history: "过敏史",
+  personal_history: "个人史",
+  marital_reproductive: "婚育史",
+  family_history: "家族史",
+  physical_exam: "体格检查",
+  specialist_exam: "专科检查",
+  auxiliary_exam: "辅助检查",
+  diagnosis: "初步诊断",
+  treatment_plan: "治疗方案",
+  orders_followup: "医嘱及随访",
+};
+
 export const Action = {
   DAILY_SUMMARY:    "daily_summary",
   CREATE_RECORD:    "create_record",
