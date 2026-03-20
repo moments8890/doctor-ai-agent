@@ -15,6 +15,7 @@ from langchain.agents import create_agent
 
 from agent.tools.doctor import DOCTOR_TOOLS
 from agent.tools.patient import PATIENT_TOOLS
+from agent.tools.diagnosis import diagnose
 from infra.auth import UserRole
 from utils.prompt_loader import get_prompt_sync
 
@@ -133,7 +134,11 @@ if os.environ.get("LOG_LEVEL", "").upper() == "DEBUG":
 
 def get_tools_for_role(role: str) -> List[BaseTool]:
     if role == UserRole.doctor:
-        return DOCTOR_TOOLS
+        # Include diagnose() alongside the core doctor tools.
+        # diagnose() is gated here rather than in DOCTOR_TOOLS to keep
+        # the base list small and avoid token overhead on providers that
+        # don't need the diagnosis capability.
+        return [*DOCTOR_TOOLS, diagnose]
     return PATIENT_TOOLS
 
 
