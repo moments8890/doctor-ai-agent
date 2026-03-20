@@ -47,6 +47,7 @@ CREATE TABLE diagnosis_results (
     red_flags       TEXT,               -- JSON array of strings (denormalized for quick access)
     case_references TEXT,               -- JSON array of matched case summaries
     status          VARCHAR NOT NULL DEFAULT 'pending',
+    agreement_score REAL,               -- % of AI items doctor confirmed (computed on confirm)
     error_message   TEXT,               -- if pipeline failed
     created_at      DATETIME NOT NULL,
     completed_at    DATETIME,
@@ -395,6 +396,14 @@ history when diagnosis results exist:
 ├─────────────────────────────┤
 │  ⭐ AI 诊断建议              │  ← NEW section
 │                              │
+│  📋 您的类似病例:            │  ← prominent, FIRST
+│  ┌─ 70% 头痛+呕吐→脑膜瘤   │
+│  │  治疗:手术切除 转归:良好  │
+│  └──────────────────────────│
+│                              │
+│  ⚠️ 危险信号:               │  ← red flags SECOND
+│  视乳头水肿提示颅内压增高    │
+│                              │
 │  鉴别诊断:                   │
 │  ┌─ 1. 脑膜瘤 (高)     ✓ ✗ │
 │  │  进行性头痛+视乳头水肿   │
@@ -406,12 +415,6 @@ history when diagnosis results exist:
 │  检查建议:                   │
 │  ┌─ MRI增强 (紧急)    ✓ ✗  │
 │  └──────────────────────────│
-│                              │
-│  ⚠️ 危险信号:               │
-│  视乳头水肿提示颅内压增高    │
-│                              │
-│  类似病例:                   │
-│  头痛+呕吐 → 脑膜瘤 (70%)   │
 │                              │
 │  免责: AI建议仅供参考        │
 ├─────────────────────────────┤
@@ -519,6 +522,84 @@ concern for MVP.
   The provider is configurable via a new `DIAGNOSIS_LLM` env var
   (defaults to `STRUCTURING_LLM`).
 
+## Competitive Differentiators (vs ABC诊所管家)
+
+Three concrete improvements informed by the ABC competitive analysis:
+
+### 1. AI-Doctor Agreement Tracking
+
+ABC claims "98% accuracy for common diseases" but has no way to measure it —
+their AI output and doctor decisions are mixed together. Our immutable
+`ai_output` + separate `doctor_decisions` schema enables agreement tracking.
+
+Add to `diagnosis_results`:
+```sql
+    agreement_score  REAL,              -- computed on confirm: % of AI items doctor confirmed
+```
+
+When the doctor taps "确认审核", compute:
+```python
+total_items = len(differentials) + len(workup) + len(treatment)
+confirmed = count of items with decision="confirmed" or no decision (implicit accept)
+rejected = count of items with decision="rejected"
+agreement_score = confirmed / total_items
+```
+
+**Future display** (not in P2 MVP, but schema supports it):
+"AI和您的诊断一致率: 85% (过去30例)" — shown in doctor profile or dashboard.
+This is a growth loop ABC can't replicate.
+
+### 2. Structured Symptom Extraction for Chat-Mode Diagnosis
+
+ABC's AI gets clean input because the doctor types structured symptoms.
+Our chat-mode diagnosis gets messy conversational text. Add an intermediate
+extraction step in the chat path:
+
+```
+Chat text → structure_medical_record() → structured fields → run_diagnosis()
+```
+
+Reuse the existing `structure_medical_record()` function from
+`src/domain/records/structuring.py` to extract structured fields from
+the raw chat history before passing to the diagnosis pipeline. This
+ensures the diagnosis prompt receives clean input regardless of source.
+
+```python
+# In run_diagnosis(), when clinical_text is provided (chat path):
+if clinical_text and not record_id:
+    from domain.records.structuring import structure_medical_record
+    structured = await structure_medical_record(clinical_text, doctor_id)
+    # Now use structured.chief_complaint, structured.present_illness, etc.
+```
+
+### 3. Prominent "Your Similar Case" Section in UI
+
+ABC shows generic textbook recommendations. We show the doctor's OWN past
+cases. Make this prominent in the DiagnosisSection — not a footnote:
+
+```
+┌──────────────────────────────────────┐
+│  📋 您的类似病例                      │  ← prominent section, before differentials
+│                                       │
+│  ┌─ 相似度 70%                       │
+│  │  头痛+恶心呕吐 → 矢状窦旁脑膜瘤   │
+│  │  治疗: 手术切除  转归: 术后恢复良好  │
+│  └───────────────────────────────────│
+│  ┌─ 相似度 63%                       │
+│  │  头痛+反应迟钝 → 慢性硬膜下血肿    │
+│  │  治疗: 钻孔引流  转归: 症状缓解     │
+│  └───────────────────────────────────│
+│                                       │
+│  AI 鉴别诊断:                         │  ← then differentials
+│  ...                                  │
+└──────────────────────────────────────┘
+```
+
+The message: "This is YOUR experience, not a textbook." The doctor sees
+their own diagnostic patterns first, then AI suggestions informed by those
+patterns. This builds trust and is impossible for generic-knowledge-graph
+products like ABC to replicate.
+
 ## Deferred Items
 
 1. **Diagnosis rerun/invalidation** — re-running diagnosis after record edits. Needs
@@ -541,3 +622,6 @@ concern for MVP.
 - [ ] LLM failure → doctor sees record without diagnosis (graceful degradation)
 - [ ] Every doctor action logged to audit trail
 - [ ] Red flags displayed prominently with warning styling
+- [ ] "Your similar cases" section displayed prominently before differentials
+- [ ] Agreement score computed on confirm and stored in diagnosis_results
+- [ ] Chat-mode diagnosis extracts structured symptoms before running pipeline
