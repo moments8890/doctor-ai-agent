@@ -121,6 +121,13 @@ async def lifespan(app: FastAPI):
     _startup_log.info("[Config] loaded environment\n%s", APP_CONFIG.to_pretty_log())
     await init_database(_startup_log)
     await run_warmup(APP_CONFIG)
+    # Preload embedding model for case history matching
+    try:
+        if os.environ.get("EMBEDDING_PRELOAD", "true").lower() in ("true", "1", "yes"):
+            from domain.knowledge.embedding import preload_embedding_model
+            preload_embedding_model()
+    except Exception as e:
+        _startup_log.warning(f"Embedding preload failed (non-blocking): {e}")
     await _startup_background_workers()
     await _startup_recovery(_startup_log)
     configure_scheduler(_scheduler, _startup_log)

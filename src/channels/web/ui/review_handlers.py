@@ -6,7 +6,9 @@ from typing import Optional
 from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel
 
+from sqlalchemy import select
 from db.engine import AsyncSessionLocal
+from db.models import MedicalRecordDB
 from db.crud.review import (
     list_reviews,
     get_review_detail,
@@ -17,7 +19,7 @@ from domain.records.schema import FIELD_KEYS
 from infra.observability.audit import audit
 from infra.auth.rate_limit import enforce_doctor_rate_limit
 from channels.web.ui._utils import _resolve_ui_doctor_id
-from utils.log import safe_create_task
+from utils.log import safe_create_task, log
 
 router = APIRouter(tags=["ui"], include_in_schema=False)
 
@@ -70,6 +72,27 @@ async def confirm_review_endpoint(
             raise HTTPException(status_code=404, detail="Review not found or already confirmed")
         await db.commit()
     safe_create_task(audit(resolved, "review.confirmed", "review", str(rq.record_id)))
+    # Best-effort: create case_history entry
+    try:
+        import json as _json
+        from db.crud.case_history import create_case as _create_case
+        async with AsyncSessionLocal() as db2:
+            _rec = (await db2.execute(
+                select(MedicalRecordDB).where(MedicalRecordDB.id == rq.record_id)
+            )).scalar_one_or_none()
+            if _rec and _rec.structured:
+                _s = _json.loads(_rec.structured)
+                _cc = _s.get("chief_complaint", "")
+                if _cc:
+                    await _create_case(
+                        db2, doctor_id=resolved, record_id=rq.record_id,
+                        patient_id=rq.patient_id,
+                        chief_complaint=_cc,
+                        present_illness=_s.get("present_illness", ""),
+                    )
+                    await db2.commit()
+    except Exception as _e:
+        log(f"[review] case_history creation failed (non-blocking): {_e}", level="warning")
     return {"id": rq.id, "status": rq.status, "reviewed_at": rq.reviewed_at.isoformat() if rq.reviewed_at else None}
 
 
