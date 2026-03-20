@@ -168,9 +168,9 @@ def get_llm() -> BaseChatModel:
         return ChatDeepSeek(
             model=model_name,
             api_key=api_key,
+            api_base="https://api.deepseek.com/beta",  # beta endpoint for strict tool-calling
             temperature=0.1,
             max_retries=0,
-            strict=True,  # beta endpoint — enforces strict JSON schema compliance
             callbacks=callbacks,
         )
 
@@ -226,16 +226,34 @@ def _build_system_prompt(role: str) -> str:
     return system_text
 
 
+def _is_deepseek() -> bool:
+    provider = os.environ.get("CONVERSATION_LLM") or os.environ.get("ROUTING_LLM", "groq")
+    return provider == "deepseek"
+
+
 def get_agent(role: str) -> Any:
     """Create a LangGraph ReAct agent for the given role.
 
     Uses ``langgraph.prebuilt.create_react_agent`` which internally uses
     the LLM's native JSON tool calls (not text-based ReAct parsing).
     Returns a compiled LangGraph that is invoked with ``.ainvoke()``.
+
+    For DeepSeek: uses beta endpoint + strict=True on bind_tools so the
+    model adheres to tool JSON schemas without inventing extra fields.
     """
     llm = get_llm()
     tools = get_tools_for_role(role)
     system_prompt = _build_system_prompt(role)
+
+    if _is_deepseek():
+        # Pre-bind tools with strict=True so DeepSeek uses strict schema
+        # validation. create_agent will use this pre-bound model.
+        llm = llm.bind_tools(tools, strict=True)
+        return create_agent(
+            model=llm,
+            tools=tools,
+            system_prompt=system_prompt,
+        )
 
     return create_agent(
         model=llm,
