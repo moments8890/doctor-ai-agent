@@ -16,11 +16,14 @@ import TransferWithinAStationOutlinedIcon from "@mui/icons-material/TransferWith
 import MonitorHeartOutlinedIcon from "@mui/icons-material/MonitorHeartOutlined";
 import EventAvailableOutlinedIcon from "@mui/icons-material/EventAvailableOutlined";
 import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
-import { getTasks, patchTask, postponeTask, createTask, getPatients, getTaskRecord } from "../../api";
+import { getTasks, patchTask, postponeTask, createTask, getPatients, getTaskRecord, getReviewQueue } from "../../api";
 import { TASK_TYPE_LABEL } from "./constants";
+import PatientAvatar from "./PatientAvatar";
+import ReviewDetail from "./ReviewDetail";
 
 const SEGMENTS = [
   { value: "todo", label: "待办" },
+  { value: "review", label: "待审核" },
   { value: "done", label: "已完成" },
 ];
 
@@ -336,6 +339,32 @@ function CreateTaskDialog({ open, isMobile, createForm, creating, createError, p
   );
 }
 
+function ReviewQueueItem({ item, reviewed }) {
+  return (
+    <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, px: 2, py: 1.4 }}>
+      <PatientAvatar name={item.patient_name} size={40} />
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Box sx={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 1 }}>
+          <Typography sx={{ fontWeight: 500, fontSize: 15, color: "text.primary",
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+            {item.patient_name || "未知患者"} · 问诊记录
+          </Typography>
+          <Typography sx={{ fontSize: 11, flexShrink: 0, color: "#fff",
+            bgcolor: reviewed ? "#07C160" : "#ff9500", px: 0.8, py: 0.1, borderRadius: "3px" }}>
+            {reviewed ? "已审核" : "待审核"}
+          </Typography>
+        </Box>
+        {item.chief_complaint && (
+          <Typography sx={{ fontSize: 13, color: "#999", mt: 0.2,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {item.chief_complaint}
+          </Typography>
+        )}
+      </Box>
+    </Box>
+  );
+}
+
 const GROUP_ORDER = ["已逾期", "今天", "明天", "本周", "之后", "无截止日期"];
 
 function useTasksState(doctorId) {
@@ -352,17 +381,33 @@ function useTasksState(doctorId) {
   const [postponeTaskId, setPostponeTaskId] = useState(null);
   const [postponeDate, setPostponeDate] = useState("");
   const [cancelConfirmId, setCancelConfirmId] = useState(null);
+  const [reviews, setReviews] = useState([]);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewedItems, setReviewedItems] = useState([]);
 
   const load = useCallback(() => {
     setLoading(true); setError("");
     const fetch = segment === "done"
-      ? Promise.all([getTasks(doctorId, "completed"), getTasks(doctorId, "cancelled")])
-          .then(([c, x]) => [...(Array.isArray(c) ? c : c.items || []), ...(Array.isArray(x) ? x : x.items || [])].sort((a, b) => (b.updated_at || "").localeCompare(a.updated_at || "")))
+      ? Promise.all([getTasks(doctorId, "completed"), getTasks(doctorId, "cancelled"), getReviewQueue(doctorId, "reviewed")])
+          .then(([c, x, r]) => {
+            setReviewedItems(r.items || []);
+            return [...(Array.isArray(c) ? c : c.items || []), ...(Array.isArray(x) ? x : x.items || [])]
+              .sort((a, b) => (b.updated_at || "").localeCompare(a.updated_at || ""));
+          })
       : getTasks(doctorId, "pending").then((d) => Array.isArray(d) ? d : (d.items || []));
     fetch.then(setTasks).catch((e) => setError(e.message || "任务加载失败")).finally(() => setLoading(false));
   }, [doctorId, segment]);
 
+  const loadReviews = useCallback(() => {
+    setReviewLoading(true);
+    getReviewQueue(doctorId, "pending_review")
+      .then((d) => setReviews(d.items || []))
+      .catch(() => {})
+      .finally(() => setReviewLoading(false));
+  }, [doctorId]);
+
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadReviews(); }, [loadReviews, segment]);
 
   async function handleStatus(taskId, status) {
     try { await patchTask(taskId, doctorId, status); load(); }
@@ -382,7 +427,7 @@ function useTasksState(doctorId) {
     catch (e) { setError(e.message || "推迟失败"); setPostponeOpen(false); }
   }
 
-  return { tasks, loading, error, setError, segment, setSegment, createOpen, setCreateOpen, createForm, setCreateForm, creating, createError, setCreateError, patientOptions, setPatientOptions, postponeOpen, setPostponeOpen, postponeTaskId, setPostponeTaskId, postponeDate, setPostponeDate, cancelConfirmId, setCancelConfirmId, load, handleStatus, handleCreate, handleConfirmPostpone };
+  return { tasks, loading, error, setError, segment, setSegment, createOpen, setCreateOpen, createForm, setCreateForm, creating, createError, setCreateError, patientOptions, setPatientOptions, postponeOpen, setPostponeOpen, postponeTaskId, setPostponeTaskId, postponeDate, setPostponeDate, cancelConfirmId, setCancelConfirmId, load, handleStatus, handleCreate, handleConfirmPostpone, reviews, reviewLoading, loadReviews, reviewedItems };
 }
 
 function TasksHeader({ segment, loading, onSegmentChange, onOpenCreate }) {
@@ -443,7 +488,8 @@ export default function TasksSection({ doctorId }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [detailTask, setDetailTask] = useState(null);
-  const { tasks, loading, error, setError, segment, setSegment, createOpen, setCreateOpen, createForm, setCreateForm, creating, createError, setCreateError, patientOptions, setPatientOptions, postponeOpen, setPostponeOpen, postponeTaskId, setPostponeTaskId, postponeDate, setPostponeDate, cancelConfirmId, setCancelConfirmId, load, handleStatus, handleCreate, handleConfirmPostpone } = useTasksState(doctorId);
+  const [detailReview, setDetailReview] = useState(null);
+  const { tasks, loading, error, setError, segment, setSegment, createOpen, setCreateOpen, createForm, setCreateForm, creating, createError, setCreateError, patientOptions, setPatientOptions, postponeOpen, setPostponeOpen, postponeTaskId, setPostponeTaskId, postponeDate, setPostponeDate, cancelConfirmId, setCancelConfirmId, load, handleStatus, handleCreate, handleConfirmPostpone, reviews, reviewLoading, loadReviews, reviewedItems } = useTasksState(doctorId);
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
@@ -456,6 +502,17 @@ export default function TasksSection({ doctorId }) {
   const handlePostpone = (e, id) => { setPostponeOpen(true); setPostponeTaskId(id); setPostponeDate(""); };
   const handleCancel = (id) => setCancelConfirmId(id);
 
+  if (detailReview) {
+    return (
+      <ReviewDetail
+        queueId={detailReview.id}
+        doctorId={doctorId}
+        onBack={() => { setDetailReview(null); loadReviews(); }}
+        onConfirmed={() => loadReviews()}
+      />
+    );
+  }
+
   if (detailTask) {
     return (
       <TaskDetailView task={detailTask} doctorId={doctorId} isMobile={isMobile}
@@ -466,20 +523,80 @@ export default function TasksSection({ doctorId }) {
     );
   }
 
+  const todoItems = segment === "todo"
+    ? [
+        ...reviews.map((r) => ({ ...r, _type: "review", _sortTime: r.created_at })),
+        ...tasks.map((t) => ({ ...t, _type: "task", _sortTime: t.due_at || t.created_at })),
+      ].sort((a, b) => (b._sortTime || "").localeCompare(a._sortTime || ""))
+    : [];
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#ededed" }}>
       <TasksHeader segment={segment} loading={loading} onSegmentChange={setSegment}
         onOpenCreate={() => { setCreateOpen(true); setCreateError(""); getPatients(doctorId, {}, 200).then((d) => setPatientOptions(d.items || [])).catch(() => {}); }} />
       <Box sx={{ flex: 1, overflowY: "auto" }}>
         {error && <Box sx={{ px: 2, pt: 1.5 }}><Alert severity="error" onClose={() => setError("")}>{error}</Alert></Box>}
-        {!loading && !error && tasks.length === 0 && (
+
+        {/* todo segment */}
+        {segment === "todo" && todoItems.length === 0 && !loading && !reviewLoading && (
           <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 8, gap: 1, px: 2 }}>
             <AssignmentOutlinedIcon sx={{ fontSize: 48, color: "#ccc" }} />
-            <Typography variant="body2" color="text.disabled" sx={{ fontWeight: 500 }}>暂无任务</Typography>
-            <Typography variant="caption" color="text.disabled" sx={{ textAlign: "center", maxWidth: 200 }}>在聊天中说「今日任务」或点击 + 新建</Typography>
+            <Typography variant="body2" color="text.disabled" sx={{ fontWeight: 500 }}>暂无待办</Typography>
           </Box>
         )}
-        {sortedGroups.map((group) => (
+        {segment === "todo" && (
+          <Box sx={{ bgcolor: "#fff" }}>
+            {todoItems.map((item) =>
+              item._type === "review" ? (
+                <Box key={`review-${item.id}`} onClick={() => setDetailReview(item)}
+                  sx={{ borderBottom: "0.5px solid #f0f0f0", cursor: "pointer" }}>
+                  <ReviewQueueItem item={item} />
+                </Box>
+              ) : (
+                <SwipeableTaskRow key={`task-${item.id}`}
+                  onSwipeLeft={() => { if (item.status === "pending") handleComplete(item.id, "completed"); }}
+                  onSwipeRight={() => { if (item.status === "pending") handleCancel(item.id); }}>
+                  <Box onClick={() => setDetailTask(item)}
+                    sx={{ borderBottom: "0.5px solid #f0f0f0", cursor: "pointer" }}>
+                    <TaskRow task={item} isOverdue={false} />
+                  </Box>
+                </SwipeableTaskRow>
+              )
+            )}
+          </Box>
+        )}
+
+        {/* review segment */}
+        {segment === "review" && !reviewLoading && reviews.length === 0 && (
+          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 8, gap: 1, px: 2 }}>
+            <AssignmentOutlinedIcon sx={{ fontSize: 48, color: "#ccc" }} />
+            <Typography variant="body2" color="text.disabled" sx={{ fontWeight: 500 }}>暂无待审核记录</Typography>
+          </Box>
+        )}
+        {segment === "review" && reviews.map((item) => (
+          <Box key={`review-${item.id}`} onClick={() => setDetailReview(item)}
+            sx={{ borderBottom: "0.5px solid #f0f0f0", cursor: "pointer", bgcolor: "#fff" }}>
+            <ReviewQueueItem item={item} />
+          </Box>
+        ))}
+
+        {/* done segment */}
+        {segment === "done" && reviewedItems.length > 0 && (
+          <>
+            <Box sx={{ px: 2, py: 0.6, pt: 1.2 }}>
+              <Typography sx={{ fontSize: 12, color: "#999", fontWeight: 500 }}>已审核记录</Typography>
+            </Box>
+            <Box sx={{ bgcolor: "#fff" }}>
+              {reviewedItems.map((item) => (
+                <Box key={`reviewed-${item.id}`} onClick={() => setDetailReview(item)}
+                  sx={{ borderBottom: "0.5px solid #f0f0f0", cursor: "pointer" }}>
+                  <ReviewQueueItem item={item} reviewed />
+                </Box>
+              ))}
+            </Box>
+          </>
+        )}
+        {segment === "done" && sortedGroups.map((group) => (
           <Box key={group}>
             <Box sx={{ px: 2, py: 0.6, pt: 1.2 }}>
               <Typography sx={{ fontSize: 12, color: group === "已逾期" ? "#FA5151" : "#999", fontWeight: 500 }}>{group}</Typography>
@@ -498,6 +615,7 @@ export default function TasksSection({ doctorId }) {
             </Box>
           </Box>
         ))}
+
         <Box sx={{ height: 24 }} />
       </Box>
       <PostponeDialog open={Boolean(postponeOpen)} isMobile={isMobile} postponeDate={postponeDate} onChange={setPostponeDate}
