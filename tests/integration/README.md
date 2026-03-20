@@ -6,7 +6,7 @@ These tests hit running HTTP endpoints and assert DB side effects.
 
 1. App server running:
 ```bash
-./dev.sh start
+./cli.py start
 ```
 
 2. Ollama running and reachable via `OLLAMA_BASE_URL`.
@@ -18,12 +18,12 @@ These tests hit running HTTP endpoints and assert DB side effects.
 
 Fast integration subset:
 ```bash
-./dev.sh test integration
+bash scripts/test.sh integration
 ```
 
 Full integration suite:
 ```bash
-./dev.sh test integration-full
+bash scripts/test.sh integration-full
 ```
 
 Direct pytest:

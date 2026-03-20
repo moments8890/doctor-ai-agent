@@ -14,7 +14,7 @@
 2. 环境与代码基线
 - [ ] 创建发布分支：`release-cn-week1`
 - [ ] 锁定依赖版本（`requirements.txt`、前端 lockfile）
-- [ ] 执行一次完整测试：`./dev.sh test all`
+- [ ] 执行一次完整测试：`bash scripts/test.sh all`
 - [ ] 导出现有 SQLite 备份副本
 
 3. 角色分工

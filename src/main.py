@@ -24,7 +24,7 @@ from utils.app_config import AppConfig, load_config_from_json
 # entrypoints or early imports can freeze the wrong provider configuration.
 # TODO: migrate to lazy provider resolution via provider_registry.resolve().
 _config_source_path, _config_values = load_config_from_json()
-# Env vars set externally (e.g., .dev.sh) take precedence over runtime.json.
+# Env vars set externally (e.g., cli.py) take precedence over runtime.json.
 # Merge: start with runtime.json values, overlay with existing env vars.
 _merged_values = dict(_config_values)
 for _key in list(_config_values.keys()):

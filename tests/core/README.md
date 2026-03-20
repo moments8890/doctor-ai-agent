@@ -9,7 +9,7 @@ Files:
 Run:
 
 ```bash
-./dev.sh test unit
+bash scripts/test.sh unit
 .venv/bin/python -m pytest tests/core/ -v
 ```
 

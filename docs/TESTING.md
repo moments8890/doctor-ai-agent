@@ -25,7 +25,7 @@ Use only when:
 Commands:
 
 ```bash
-./dev.sh test unit
+bash scripts/test.sh unit
 # or
 .venv/bin/python -m pytest tests/ -v
 ```
@@ -55,8 +55,8 @@ or DB side effects through running HTTP endpoints.
 Commands:
 
 ```bash
-./dev.sh test integration
-./dev.sh test integration-full
+bash scripts/test.sh integration
+bash scripts/test.sh integration-full
 ```
 
 Direct pytest:
@@ -78,12 +78,8 @@ Use for human-language regression checks across realistic multi-turn cases.
 Commands:
 
 ```bash
-./dev.sh e2e half
-./dev.sh e2e full
-
-# or
-./dev.sh test chatlog-half
-./dev.sh test chatlog-full
+bash scripts/test.sh chatlog-half
+bash scripts/test.sh chatlog-full
 ```
 
 Use this when routing, prompt wording, clarification behavior, or multi-turn continuity changes materially.
@@ -93,11 +89,11 @@ Use this when routing, prompt wording, clarification behavior, or multi-turn con
 The default validation path for code changes is now:
 
 ```bash
-./dev.sh test integration
-./dev.sh e2e half
+bash scripts/test.sh integration
+bash scripts/test.sh chatlog-half
 ```
 
-Escalate to `./dev.sh test integration-full` or `./dev.sh e2e full` when the
+Escalate to `bash scripts/test.sh integration-full` or `bash scripts/test.sh chatlog-full` when the
 change materially affects LLM routing, structuring, or multi-turn workflow
 behavior.
 
@@ -116,7 +112,7 @@ Run:
 
 Run:
 
-- `./dev.sh test integration-full`
+- `bash scripts/test.sh integration-full`
 - chatlog replay for meaningful routing changes
 
 ### Structuring change

@@ -9,7 +9,7 @@ AI coding agents.
 - [`/AGENTS.md`](../AGENTS.md)
   Repo execution rules, config expectations, testing gates, and push policy.
 - [`/README.md`](../README.md)
-  Daily development entrypoints such as `./dev.sh start`, `./dev.sh test`, and `./dev.sh e2e`.
+  Daily development entrypoints such as `./cli.py start`, `./cli.py stop`, and `./cli.py bootstrap`.
 - [`docs/TESTING.md`](TESTING.md)
   Current validation workflow, including the temporary no-new-unit-tests policy for the MVP phase.
 - [`docs/review/architecture-overview.md`](review/architecture-overview.md)
