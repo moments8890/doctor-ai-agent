@@ -106,6 +106,16 @@ CONFIG_CATEGORIES: Dict[str, Dict[str, Any]] = {
             "LOG_BACKUP_COUNT",
         ],
     },
+    "embedding": {
+        "description": "Embedding model for case history RAG matching.",
+        "keys": [
+            "EMBEDDING_PROVIDER",
+            "EMBEDDING_MODEL",
+            "EMBEDDING_PRELOAD",
+            "DASHSCOPE_API_KEY",
+            "SKILLS_CACHE_TTL",
+        ],
+    },
 }
 
 # ---------------------------------------------------------------------------
@@ -119,6 +129,7 @@ CATEGORY_DESCRIPTIONS_ZH: Dict[str, str] = {
     "wecom": "企业微信自建应用集成与通知配置。",
     "miniprogram": "微信小程序鉴权与端点默认配置。",
     "logging": "应用日志与滚动策略。",
+    "embedding": "病历 RAG 匹配的嵌入模型。",
 }
 
 # ---------------------------------------------------------------------------
@@ -182,6 +193,11 @@ CONFIG_DESCRIPTIONS: Dict[str, str] = {
     "LOG_FILE": "Primary app log filename.",
     "LOG_MAX_BYTES": "Max bytes per log file before rotation.",
     "LOG_BACKUP_COUNT": "Number of rotated log backups to keep.",
+    "EMBEDDING_PROVIDER": "Embedding provider: 'local' (BGE-M3 via sentence-transformers) or 'dashscope' (Alibaba Cloud).",
+    "EMBEDDING_MODEL": "Model name for local embedding provider (default: BAAI/bge-m3).",
+    "EMBEDDING_PRELOAD": "Preload embedding model at app startup (default: true).",
+    "DASHSCOPE_API_KEY": "API key for Dashscope embedding provider (only if EMBEDDING_PROVIDER=dashscope).",
+    "SKILLS_CACHE_TTL": "Skill file cache TTL in seconds (default: 300 = 5 minutes).",
 }
 
 # ---------------------------------------------------------------------------
@@ -245,6 +261,11 @@ CONFIG_DESCRIPTIONS_ZH: Dict[str, str] = {
     "LOG_FILE": "主日志文件名。",
     "LOG_MAX_BYTES": "单文件最大字节数，超过后滚动。",
     "LOG_BACKUP_COUNT": "日志备份保留数量。",
+    "EMBEDDING_PROVIDER": "嵌入模型提供商：'local'（本地 BGE-M3）或 'dashscope'（阿里云）。",
+    "EMBEDDING_MODEL": "本地嵌入模型名称（默认：BAAI/bge-m3）。",
+    "EMBEDDING_PRELOAD": "启动时预加载嵌入模型（默认：true）。",
+    "DASHSCOPE_API_KEY": "Dashscope 嵌入提供商 API 密钥。",
+    "SKILLS_CACHE_TTL": "技能文件缓存 TTL（秒，默认 300 = 5 分钟）。",
 }
 
 # ---------------------------------------------------------------------------

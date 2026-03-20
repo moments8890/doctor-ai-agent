@@ -41,3 +41,7 @@ langchain-groq>=1.0.0
 langchain-deepseek>=1.0.0
 langchain-ollama>=1.0.0
 langfuse>=3.0.0                # LLM observability (optional, set LANGFUSE_PUBLIC_KEY to enable)
+sentence-transformers>=2.2.0
+numpy
+scipy
+pyyaml
