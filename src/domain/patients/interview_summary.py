@@ -1,4 +1,4 @@
-"""Generate MedicalRecord + DoctorTask from completed interview (ADR 0016)."""
+"""Generate MedicalRecord + ReviewQueue entry from completed interview (ADR 0016)."""
 from __future__ import annotations
 
 import re
@@ -79,40 +79,38 @@ async def confirm_interview(
     patient_name: str,
     collected: Dict[str, str],
 ) -> Dict[str, int]:
-    """Finalize interview: save record + create task. Returns {record_id, task_id}."""
+    """Finalize interview: save record + create review queue entry. Returns {record_id, review_id}."""
     from db.crud.records import save_record
+    from db.crud.review import create_review
     from db.engine import AsyncSessionLocal
-    from db.repositories.tasks import TaskRepository
 
     record = build_medical_record(collected)
 
     async with AsyncSessionLocal() as db:
         db_record = await save_record(
             db, doctor_id, record, patient_id,
-            needs_review=True, commit=False,
+            commit=False,
         )
 
-        repo = TaskRepository(db)
-        task = await repo.create(
-            doctor_id=doctor_id,
-            task_type="general",
-            title=f"审阅预问诊：{patient_name}",
-            patient_id=patient_id,
+        review = await create_review(
+            db,
             record_id=db_record.id,
+            doctor_id=doctor_id,
+            patient_id=patient_id,
         )
 
         await db.commit()
 
-    log(f"[interview] confirmed session={session_id} record={db_record.id} task={task.id}")
+    log(f"[interview] confirmed session={session_id} record={db_record.id} review={review.id}")
 
     # Notify doctor (best-effort, don't block on failure)
     try:
         from domain.tasks.notifications import send_doctor_notification
         await send_doctor_notification(
             doctor_id,
-            f"患者【{patient_name}】已完成预问诊，请查看待办任务。",
+            f"患者【{patient_name}】已完成预问诊，请查看待审核记录。",
         )
     except Exception as e:
         log(f"[interview] doctor notification failed: {e}", level="warning")
 
-    return {"record_id": db_record.id, "task_id": task.id}
+    return {"record_id": db_record.id, "review_id": review.id}
