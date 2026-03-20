@@ -194,7 +194,7 @@ async def confirm(
     return {
         "status": InterviewStatus.confirmed,
         "record_id": result["record_id"],
-        "task_id": result["task_id"],
+        "review_id": result["review_id"],
         "message": "您的预问诊信息已提交给医生，请等待医生审阅。",
     }
 
