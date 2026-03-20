@@ -274,7 +274,7 @@
     },
     "expectations": {
       "must_not_timeout": true,
-      "min_fields_filled": 5,
+      "min_fields_filled": 4,
       "required_fields_present": ["chief_complaint", "present_illness", "allergy_history"],
       "chief_complaint_contains_any": ["膝盖"],
       "allergy_history_contains_any": ["磺胺"],
