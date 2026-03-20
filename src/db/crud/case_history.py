@@ -5,8 +5,6 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, List, Optional
 
-import numpy as np
-from scipy.spatial.distance import cosine
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -123,7 +121,7 @@ async def match_cases(
     Includes seed cases (__seed__ doctor_id) alongside doctor's own."""
     # Embed query
     try:
-        query_vec = np.array(embed(query_text))
+        query_vec = embed(query_text)
     except Exception as e:
         log(f"[case_history] query embedding failed: {e}", level="warning")
         return []
@@ -144,8 +142,8 @@ async def match_cases(
     matches = []
     for case in cases:
         try:
-            case_vec = np.array(json.loads(case.embedding))
-            similarity = 1.0 - cosine(query_vec, case_vec)
+            case_vec = json.loads(case.embedding)
+            similarity = sum(a * b for a, b in zip(query_vec, case_vec))
             if similarity >= threshold:
                 matches.append({
                     "id": case.id,
