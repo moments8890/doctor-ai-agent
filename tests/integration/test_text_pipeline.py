@@ -13,10 +13,11 @@ Core coverage:
   5. Repeated records for same patient do not duplicate patient rows
   6. Query-by-name and list-patients conversational intents work
 
-Assertions are intentionally DB-backed (via direct sqlite reads) to ensure
-we validate persistence, not only API response payloads.
+Assertions are provider-agnostic: validate DB state, API response structure,
+and data existence — never exact LLM phrasing.  This ensures tests pass
+regardless of which LLM backend (Groq, DeepSeek, Ollama) is configured.
 
-Requires: running server + Ollama (auto-skipped otherwise).
+Requires: running server + LLM provider (auto-skipped otherwise).
 """
 
 import sqlite3
@@ -88,10 +89,9 @@ def test_missing_name_asks_then_saves():
     """No name in text → agent asks for name → doctor provides it → record saved."""
     doctor_id = f"inttest_text_2_{uuid.uuid4().hex[:8]}"
 
-    # Turn 1: no name -> assistant should ask for patient name.
+    # Turn 1: no name -> agent should NOT create a record (needs patient name first).
     data = chat("突发胸痛两小时，伴大汗", doctor_id=doctor_id)
-    assert "叫什么名字" in data["reply"], "Agent should ask for patient name"
-    assert data["record"] is None
+    assert data["record"] is None, "Record should not be created without patient name"
 
     # Turn 2: name-only follow-up with previous history should deterministically
     # complete add_record flow and persist to DB.
@@ -176,11 +176,12 @@ def test_query_records_by_name_returns_patient_history():
     doctor_id = f"inttest_text_query_{uuid.uuid4().hex[:8]}"
     patient_name = "钱芳"
 
-    _ = chat(f"{patient_name}，女，63岁，反复胸闷3天", doctor_id=doctor_id)
-    result = chat(f"查询{patient_name}的病历", doctor_id=doctor_id)
+    first = chat(f"{patient_name}，女，63岁，反复胸闷3天", doctor_id=doctor_id)
+    assert first["record"] is not None, "Initial record should be saved"
 
-    assert f"患者【{patient_name}】最近" in result["reply"]
-    assert "主诉" in result["reply"]
+    # Query should return a reply mentioning the patient (exact format varies by LLM)
+    result = chat(f"查询{patient_name}的病历", doctor_id=doctor_id)
+    assert patient_name in result["reply"], f"Reply should mention '{patient_name}'"
 
 
 @pytest.mark.integration
@@ -190,10 +191,16 @@ def test_list_patients_returns_created_names():
     p1 = "孙明"
     p2 = "吴静"
 
-    _ = chat(f"{p1}，男，55岁，心悸2天", doctor_id=doctor_id)
-    _ = chat(f"{p2}，女，47岁，胸痛半天", doctor_id=doctor_id)
+    r1 = chat(f"{p1}，男，55岁，心悸2天", doctor_id=doctor_id)
+    r2 = chat(f"{p2}，女，47岁，胸痛半天", doctor_id=doctor_id)
+    assert r1["record"] is not None, f"Record for {p1} should be saved"
+    assert r2["record"] is not None, f"Record for {p2} should be saved"
 
+    # Verify both patients exist in DB (provider-agnostic)
+    assert _patient_count(doctor_id, p1) == 1, f"{p1} not found in DB"
+    assert _patient_count(doctor_id, p2) == 1, f"{p2} not found in DB"
+
+    # List query should mention both names (exact phrasing varies by LLM)
     result = chat("所有患者", doctor_id=doctor_id)
-    assert p1 in result["reply"]
-    assert p2 in result["reply"]
-    assert "共" in result["reply"] and "位患者" in result["reply"]
+    assert p1 in result["reply"], f"Reply should mention '{p1}'"
+    assert p2 in result["reply"], f"Reply should mention '{p2}'"
