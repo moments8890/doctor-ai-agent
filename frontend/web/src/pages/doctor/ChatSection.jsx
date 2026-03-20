@@ -4,47 +4,26 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert, Box, Button, CircularProgress, Dialog, DialogActions,
-  DialogContent, DialogTitle, IconButton, Stack, TextField, Tooltip, Typography,
+  DialogContent, DialogTitle, IconButton, Stack, Tooltip, Typography,
 } from "@mui/material";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import AttachFileOutlinedIcon from "@mui/icons-material/AttachFileOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
 import Markdown from "react-markdown";
 import { sendChat, ocrImage, extractFileForChat, clearContext } from "../../api";
 import RecordFields from "../../components/RecordFields";
 import { t } from "../../i18n";
-import { QUICK_COMMANDS, Action } from "./constants";
+import { QUICK_COMMANDS } from "./constants";
 import ActionPanel from "./ActionPanel";
 import PatientPickerDialog from "./PatientPickerDialog";
 import ImportChoiceDialog from "./ImportChoiceDialog";
 import VoiceInput, { isVoiceSupported } from "./VoiceInput";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
-import PersonAddOutlinedIcon from "@mui/icons-material/PersonAddOutlined";
-import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
-import PeopleOutlinedIcon from "@mui/icons-material/PeopleOutlined";
-import NoteAddOutlinedIcon from "@mui/icons-material/NoteAddOutlined";
-import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
-import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
-import AssessmentOutlinedIcon from "@mui/icons-material/AssessmentOutlined";
-
-const CMD_ICONS = {
-  personAdd: PersonAddOutlinedIcon,
-  search: SearchOutlinedIcon,
-  people: PeopleOutlinedIcon,
-  noteAdd: NoteAddOutlinedIcon,
-  edit: EditOutlinedIcon,
-  download: FileDownloadOutlinedIcon,
-  assignment: AssignmentOutlinedIcon,
-  assessment: AssessmentOutlinedIcon,
-};
 
 function MsgAvatar({ isUser, size = 40 }) {
   return (
@@ -110,6 +89,12 @@ function MsgBubble({ msg, onQuickSend }) {
           } }}>
           {isUser ? (
             <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", lineHeight: isMobile ? 1.8 : 1.7, color: textColor }}>
+              {msg.actionLabel && (
+                <Box component="span" sx={{ display: "inline-flex", alignItems: "center", backgroundColor: "rgba(0,0,0,0.06)",
+                  px: 0.8, py: 0.1, borderRadius: "2px", fontSize: 12, color: "#555", mr: 0.8, verticalAlign: "middle" }}>
+                  {msg.actionLabel}
+                </Box>
+              )}
               {msg.content}
             </Typography>
           ) : (
@@ -160,36 +145,32 @@ function LoadingBubble({ isMobile }) {
   );
 }
 
-function QuickCommandsPanel({ isMobile, shown, onToggle, onSelect }) {
+function QuickCommandBar({ activeChip, onSelect }) {
   return (
-    <Box sx={{ px: isMobile ? 1 : 1.5, pt: 0.5, pb: isMobile ? 0.5 : 0.4, borderTop: "0.5px solid #f0f0f0", backgroundColor: "#f7f7f7" }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: shown ? 0.8 : 0 }}>
-        <Typography sx={{ color: "#999", fontSize: 11, fontWeight: 500 }}>常用指令</Typography>
-        <IconButton size="small" onClick={onToggle} sx={{ color: "#ccc", p: 0.3 }}>
-          {shown ? <KeyboardArrowDownIcon sx={{ fontSize: 16 }} /> : <KeyboardArrowUpIcon sx={{ fontSize: 16 }} />}
-        </IconButton>
-      </Stack>
-      {shown && (
-        <Box sx={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 1.2, mb: 1 }}>
-          {QUICK_COMMANDS.map((cmd) => {
-            const Icon = CMD_ICONS[cmd.iconKey];
-            return (
-              <Box key={cmd.label} component="button" onClick={() => onSelect(cmd.insert)}
-                sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                  gap: 0.5, py: 0.8, border: "none", backgroundColor: "transparent",
-                  cursor: "pointer", fontSize: 11, color: "#666", fontFamily: "inherit",
-                  lineHeight: 1.3, whiteSpace: "nowrap", width: "100%",
-                  "&:active": { opacity: 0.6 } }}>
-                <Box sx={{ width: 40, height: 40, borderRadius: "10px", bgcolor: "#f5f5f5",
-                  display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  {Icon && <Icon sx={{ fontSize: 22, color: "#999" }} />}
-                </Box>
-                {cmd.label}
-              </Box>
-            );
-          })}
-        </Box>
-      )}
+    <Box sx={{ px: 1.5, pt: 1, pb: 0.8, borderTop: "0.5px solid #e0e0e0", backgroundColor: "#f7f7f7", display: "flex", gap: 1, flexWrap: "wrap" }}>
+      {QUICK_COMMANDS.map((cmd) => {
+        const isActive = activeChip?.key === cmd.key;
+        const isDisabled = cmd.disabled;
+        return (
+          <Box key={cmd.key} component="button"
+            onClick={() => !isDisabled && onSelect(cmd)}
+            disabled={isDisabled}
+            title={isDisabled ? "即将上线" : undefined}
+            sx={{
+              display: "inline-flex", alignItems: "center", px: 1.5, py: 0.6,
+              border: "none", borderRadius: "4px", cursor: isDisabled ? "default" : "pointer",
+              fontSize: 13, fontFamily: "inherit", whiteSpace: "nowrap",
+              backgroundColor: isActive ? "#07C160" : "#fff",
+              color: isActive ? "#fff" : "#333",
+              opacity: isDisabled ? 0.4 : 1,
+              boxShadow: isActive ? "none" : "0 1px 2px rgba(0,0,0,0.08)",
+              transition: "background-color 0.15s, color 0.15s",
+              "&:active": isDisabled ? {} : { opacity: 0.7 },
+            }}>
+            {cmd.label}
+          </Box>
+        );
+      })}
     </Box>
   );
 }
@@ -209,7 +190,26 @@ function nowTs() {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-function MobileInputBar({ input, loading, isProcessing, failedText, mediaError, fileInputRef, onInput, onSend, onFileClick, onRetry, onDismissError, onDismissFailed, voiceMode, voiceSupported, onVoiceToggle, onVoiceResult, onVoiceCancel, onActionPanelOpen }) {
+function ChipInput({ activeChip, onRemoveChip, input, onInput, onSend, loading, isProcessing,
+  failedText, onRetry, onDismissFailed, mediaError, onDismissError, fileInputRef,
+  isMobile, voiceMode, voiceSupported, onVoiceToggle, onVoiceResult, onVoiceCancel, onActionPanelOpen }) {
+  const inputRef = useRef(null);
+
+  function handleKeyDown(e) {
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      onSend();
+    }
+    if (e.key === "Backspace" && activeChip && !input) {
+      e.preventDefault();
+      onRemoveChip();
+    }
+  }
+
+  useEffect(() => {
+    if (activeChip) inputRef.current?.focus();
+  }, [activeChip]);
+
   return (
     <Box sx={{ borderTop: "1px solid #d9d9d9", backgroundColor: "#f5f5f5" }}>
       {failedText && <FailedMessageBanner onRetry={onRetry} onDismiss={onDismissFailed} />}
@@ -225,23 +225,50 @@ function MobileInputBar({ input, loading, isProcessing, failedText, mediaError, 
         </Box>
       ) : (
         <Stack direction="row" alignItems="center" sx={{ px: 1, py: 0.8, gap: 0.5 }}>
-          <IconButton size="small" onClick={onActionPanelOpen} disabled={isProcessing} sx={{ color: "#07C160", p: 1.1 }}>
-            <AddCircleOutlineIcon />
-          </IconButton>
-          <TextField multiline minRows={1} maxRows={4} fullWidth size="small"
-            placeholder={t("chat.placeholder")} value={input}
-            onChange={(e) => onInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); } }}
-            disabled={isProcessing}
-            sx={{ "& .MuiOutlinedInput-root": { borderRadius: "4px", backgroundColor: "#fff", fontSize: "0.9rem", "& fieldset": { borderColor: "#e0e0e0" } } }} />
-          {voiceSupported && !input.trim() ? (
+          {isMobile && (
+            <IconButton size="small" onClick={onActionPanelOpen} disabled={isProcessing} sx={{ color: "#07C160", p: 1.1 }}>
+              <AddCircleOutlineIcon />
+            </IconButton>
+          )}
+          <Box sx={{ flex: 1, display: "flex", alignItems: "center", gap: 0.8, flexWrap: "nowrap",
+            backgroundColor: "#fff", borderRadius: "4px", px: 1.2, py: 0.8, minHeight: 36 }}>
+            {activeChip && (
+              <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.3, backgroundColor: "#f0f0f0",
+                color: "#333", px: 1, py: 0.25, borderRadius: "3px", fontSize: 12, whiteSpace: "nowrap",
+                border: "1px solid #ddd", flexShrink: 0 }}>
+                {activeChip.label}
+                <Box component="span" onClick={onRemoveChip}
+                  sx={{ color: "#999", ml: 0.3, cursor: "pointer", fontSize: 10, lineHeight: 1, "&:hover": { color: "#666" } }}>
+                  ✕
+                </Box>
+              </Box>
+            )}
+            <Box component="input" ref={inputRef} value={input}
+              onChange={(e) => onInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={isProcessing}
+              placeholder={activeChip ? "输入内容..." : "输入消息..."}
+              sx={{ flex: 1, border: "none", outline: "none", fontSize: 14, fontFamily: "inherit",
+                backgroundColor: "transparent", minWidth: 0, p: 0 }}
+            />
+          </Box>
+          {!isMobile && (
+            <Tooltip title="上传图片">
+              <span>
+                <IconButton size="small" onClick={() => fileInputRef.current?.click()} disabled={isProcessing} sx={{ color: "text.secondary" }}>
+                  <AttachFileOutlinedIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+          )}
+          {isMobile && voiceSupported && !input.trim() && !activeChip ? (
             <IconButton onClick={onVoiceToggle}
               sx={{ color: "#666", p: 1.2, flexShrink: 0, minWidth: 44, minHeight: 44 }}>
               <MicNoneOutlinedIcon fontSize="small" />
             </IconButton>
           ) : (
-            <IconButton onClick={onSend} disabled={loading || !input.trim()}
-              sx={{ bgcolor: "#07C160", color: "#fff", p: 1.2, borderRadius: "50%", "&:hover": { bgcolor: "#06ad56" }, flexShrink: 0, minWidth: 44, minHeight: 44 }}>
+            <IconButton onClick={onSend} disabled={loading || (!input.trim() && !activeChip)}
+              sx={{ bgcolor: "#07C160", color: "#fff", p: 1.2, borderRadius: "50%", "&:hover": { bgcolor: "#06ad56" }, flexShrink: 0, minWidth: 44, minHeight: 44, "&.Mui-disabled": { bgcolor: "#ccc", color: "#fff" } }}>
               <SendOutlinedIcon fontSize="small" />
             </IconButton>
           )}
@@ -251,56 +278,16 @@ function MobileInputBar({ input, loading, isProcessing, failedText, mediaError, 
   );
 }
 
-function DesktopInputBar({ input, loading, isProcessing, failedText, mediaError, fileInputRef, onInput, onSend, onFileClick, onRetry, onDismissError, onDismissFailed }) {
-  return (
-    <Box sx={{ px: 2, py: 1.2, borderTop: "0.5px solid #d9d9d9", backgroundColor: "#f5f5f5" }}>
-      {failedText && <FailedMessageBanner onRetry={onRetry} onDismiss={onDismissFailed} />}
-      {mediaError && <Alert severity="error" onClose={onDismissError} sx={{ mb: 1, py: 0 }}>{mediaError}</Alert>}
-      <Stack direction="row" spacing={1} alignItems="flex-end">
-        <Box sx={{ flex: 1 }}>
-          <TextField multiline minRows={2} maxRows={6} fullWidth size="small"
-            placeholder={t("chat.placeholder")} value={input}
-            onChange={(e) => onInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); } }}
-            disabled={isProcessing}
-            sx={{ "& .MuiOutlinedInput-root": { borderRadius: 1.5 } }} />
-          {input.length > 0 && (
-            <Typography variant="caption" color="text.secondary" sx={{ display: "block", textAlign: "right", mt: 0.3 }}>
-              {input.length} 字
-            </Typography>
-          )}
-          {isProcessing && (
-            <Typography variant="caption" color="text.secondary" sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.3 }}>
-              <CircularProgress size={10} /> 处理中…
-            </Typography>
-          )}
-        </Box>
-        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexShrink: 0 }}>
-          <Tooltip title="上传图片">
-            <span>
-              <IconButton size="small" onClick={onFileClick} disabled={isProcessing} sx={{ color: "text.secondary" }}>
-                <AttachFileOutlinedIcon fontSize="small" />
-              </IconButton>
-            </span>
-          </Tooltip>
-          <Button variant="contained" onClick={onSend} disabled={loading || !input.trim()}
-            sx={{ borderRadius: 1.5, minWidth: 48, height: 48 }}>
-            <SendOutlinedIcon fontSize="small" />
-          </Button>
-        </Stack>
-      </Stack>
-    </Box>
-  );
-}
-
-async function performSend({ text, loading, doctorId, history, setMessages, setInput, setLoading, setFailedText, onPatientCreated }) {
+async function performSend({ text, loading, doctorId, history, setMessages, setInput, setLoading, setFailedText, onPatientCreated, actionHint, actionLabel }) {
   if (!text || loading) return;
   setFailedText(null);
-  setMessages((prev) => [...prev, { role: "user", content: text, ts: nowTs() }]);
+  setMessages((prev) => [...prev, { role: "user", content: text, ts: nowTs(), actionLabel: actionLabel || null }]);
   setInput("");
   setLoading(true);
   try {
-    const data = await sendChat({ text, doctor_id: doctorId, history });
+    const payload = { text, doctor_id: doctorId, history };
+    if (actionHint) payload.action_hint = actionHint;
+    const data = await sendChat(payload);
     const reply = data.reply || t("chat.received");
     setMessages((prev) => [...prev, {
       role: "assistant", content: reply, record: data.record || null, ts: nowTs(),
@@ -356,8 +343,8 @@ function useChatState({ doctorId, onMessageCountChange, onPatientCreated, onCont
     }
   }
 
-  function sendText(text) {
-    return performSend({ text, loading, doctorId, history, setMessages, setInput, setLoading, setFailedText, onPatientCreated });
+  function sendText(text, actionHint = null, actionLabel = null) {
+    return performSend({ text, loading, doctorId, history, setMessages, setInput, setLoading, setFailedText, onPatientCreated, actionHint, actionLabel });
   }
 
   return { input, setInput, loading, failedText, setFailedText, messages, setMessages, bottomRef, onClear, sendText };
@@ -438,7 +425,7 @@ function useDailySummary({ doctorId, sendText, ready }) {
     if (localStorage.getItem(key) === today) return;
     done.current = true;
     localStorage.setItem(key, today);
-    const t = setTimeout(() => sendText("今日工作摘要"), 1200);
+    const t = setTimeout(() => sendText("今日摘要", "daily_summary", "今日摘要"), 1200);
     return () => clearTimeout(t);
   }, [doctorId, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 }
@@ -448,9 +435,7 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [mediaError, setMediaError] = useState(null);
-  const [commandsShown, setCommandsShown] = useState(() => {
-    try { return localStorage.getItem("chat_commands_shown") !== "false"; } catch { return true; }
-  });
+  const [activeChip, setActiveChip] = useState(null);
   const fileInputRef = useRef(null);
   const [mediaProcessing, setMediaProcessing] = useState(false);
   const [actionPanelOpen, setActionPanelOpen] = useState(false);
@@ -485,17 +470,29 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
     } catch { /* ignore */ }
   }
 
-  function toggleCommands() {
-    setCommandsShown((v) => { const next = !v; try { localStorage.setItem("chat_commands_shown", String(next)); } catch {} return next; });
+  function handleCommandSelect(cmd) {
+    if (cmd.autoSend) {
+      setInput("");
+      setActiveChip(null);
+      sendText(cmd.label, cmd.key, cmd.label);
+      return;
+    }
+    if (activeChip?.key === cmd.key) {
+      setActiveChip(null);
+      return;
+    }
+    setActiveChip({ key: cmd.key, label: cmd.label });
+  }
+
+  function handleChipSend() {
+    const text = input.trim();
+    if (activeChip && !activeChip.autoSend && !text) return;
+    sendText(text || activeChip?.label || "", activeChip?.key || null, activeChip?.label || null);
+    setInput("");
+    setActiveChip(null);
   }
 
   const isProcessing = mediaProcessing;
-  const sharedBarProps = {
-    input, loading, isProcessing, failedText, mediaError, fileInputRef,
-    onInput: setInput, onSend: () => sendText(input.trim()), onFileClick: () => fileInputRef.current?.click(),
-    onRetry: () => { setInput(failedText); setFailedText(null); },
-    onDismissError: () => setMediaError(null), onDismissFailed: () => setFailedText(null),
-  };
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -507,7 +504,7 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
         {loading && <LoadingBubble isMobile={isMobile} />}
         <div ref={bottomRef} />
       </Box>
-      <QuickCommandsPanel isMobile={isMobile} shown={commandsShown} onToggle={toggleCommands} onSelect={setInput} />
+      <QuickCommandBar activeChip={activeChip} onSelect={handleCommandSelect} />
       <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }}
         onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; processFile({ file: f, setMediaError, setMediaProcessing, setInput }); }} />
       <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }}
@@ -516,16 +513,28 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
         onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; processFile({ file: f, setMediaError, setMediaProcessing, setInput }); }} />
       <input ref={fileDocInputRef} type="file" accept=".pdf,.docx,.doc,.txt,image/jpeg,image/png" style={{ display: "none" }}
         onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; handleDocFile(f); }} />
-      {isMobile ? (
-        <MobileInputBar {...sharedBarProps}
-          voiceMode={voiceMode} voiceSupported={voiceSupported}
-          onVoiceToggle={() => setVoiceMode(true)}
-          onVoiceResult={(text) => { setVoiceMode(false); if (text) { setInput((prev) => (prev ? prev + " " + text : text)); } }}
-          onVoiceCancel={() => setVoiceMode(false)}
-          onActionPanelOpen={() => setActionPanelOpen(true)} />
-      ) : (
-        <DesktopInputBar {...sharedBarProps} />
-      )}
+      <ChipInput
+        activeChip={activeChip}
+        onRemoveChip={() => setActiveChip(null)}
+        input={input}
+        onInput={setInput}
+        onSend={handleChipSend}
+        loading={loading}
+        isProcessing={isProcessing}
+        failedText={failedText}
+        onRetry={() => { setInput(failedText); setFailedText(null); }}
+        onDismissFailed={() => setFailedText(null)}
+        mediaError={mediaError}
+        onDismissError={() => setMediaError(null)}
+        fileInputRef={fileInputRef}
+        isMobile={isMobile}
+        voiceMode={voiceMode}
+        voiceSupported={voiceSupported}
+        onVoiceToggle={() => setVoiceMode(true)}
+        onVoiceResult={(text) => { setVoiceMode(false); if (text) { setInput((prev) => (prev ? prev + " " + text : text)); } }}
+        onVoiceCancel={() => setVoiceMode(false)}
+        onActionPanelOpen={() => setActionPanelOpen(true)}
+      />
       <ClearDialog open={clearConfirmOpen} onClear={onClear} onClose={() => setClearConfirmOpen(false)} />
       <ActionPanel open={actionPanelOpen} onClose={() => setActionPanelOpen(false)} onAction={handlePanelAction} />
       <PatientPickerDialog open={patientPickerOpen} onClose={() => setPatientPickerOpen(false)} doctorId={doctorId}
