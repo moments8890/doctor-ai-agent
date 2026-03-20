@@ -824,3 +824,27 @@ export async function addKnowledgeItem(doctorId, content) {
     body: JSON.stringify({ content }),
   });
 }
+
+// ── Review Queue ──────────────────────────────────────────────────────────────
+
+export async function getReviewQueue(doctorId, status = "pending_review", limit = 50) {
+  return request(`/api/manage/review-queue?doctor_id=${doctorId}&status=${status}&limit=${limit}`);
+}
+
+export async function getReviewDetail(queueId, doctorId) {
+  return request(`/api/manage/review-queue/${queueId}?doctor_id=${doctorId}`);
+}
+
+export async function confirmReview(queueId, doctorId) {
+  return request(`/api/manage/review-queue/${queueId}/confirm?doctor_id=${doctorId}`, {
+    method: "POST",
+  });
+}
+
+export async function updateReviewField(queueId, doctorId, field, value) {
+  return request(`/api/manage/review-queue/${queueId}/record?doctor_id=${doctorId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ field, value }),
+  });
+}
