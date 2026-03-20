@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from db.models import DoctorTask
+from db.models.tasks import TaskStatus
 from db.repositories import TaskRepository
 from db.crud._common import _utcnow
 from db.crud.doctor import _ensure_doctor_exists
@@ -103,8 +104,8 @@ async def mark_task_notified(
     from sqlalchemy import select as _select, update as _update
     result = await session.execute(
         _update(DoctorTask)
-        .where(DoctorTask.id == task_id, DoctorTask.status == "pending")
-        .values(status="notified", updated_at=_utcnow())
+        .where(DoctorTask.id == task_id, DoctorTask.status == TaskStatus.pending)
+        .values(status=TaskStatus.notified, updated_at=_utcnow())
     )
     await session.commit()
     return (result.rowcount or 0) > 0
@@ -118,7 +119,7 @@ async def revert_task_to_pending(
     from sqlalchemy import update as _update
     await session.execute(
         _update(DoctorTask)
-        .where(DoctorTask.id == task_id, DoctorTask.status == "notified")
-        .values(status="pending", updated_at=_utcnow())
+        .where(DoctorTask.id == task_id, DoctorTask.status == TaskStatus.notified)
+        .values(status=TaskStatus.pending, updated_at=_utcnow())
     )
     await session.commit()

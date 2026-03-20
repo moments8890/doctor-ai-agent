@@ -11,6 +11,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.models import DoctorTask
+from db.models.tasks import TaskStatus
 
 
 class TaskRepository:
@@ -40,7 +41,7 @@ class TaskRepository:
             due_at=due_at,
             scheduled_for=scheduled_for,
             remind_at=remind_at,
-            status="pending",
+            status=TaskStatus.pending,
         )
         self.session.add(task)
         await self.session.commit()
@@ -87,7 +88,7 @@ class TaskRepository:
     async def list_due_unnotified(self, *, now: datetime) -> List[DoctorTask]:
         result = await self.session.execute(
             select(DoctorTask).where(
-                DoctorTask.status == "pending",
+                DoctorTask.status == TaskStatus.pending,
                 or_(
                     DoctorTask.due_at <= now,
                     (DoctorTask.due_at.is_(None) & (DoctorTask.task_type == "emergency")),
@@ -125,7 +126,7 @@ class TaskRepository:
         from sqlalchemy import update as _update
         await self.session.execute(
             _update(DoctorTask)
-            .where(DoctorTask.id == task_id, DoctorTask.status == "pending")
-            .values(status="notified", updated_at=notified_at)
+            .where(DoctorTask.id == task_id, DoctorTask.status == TaskStatus.pending)
+            .values(status=TaskStatus.notified, updated_at=notified_at)
         )
         await self.session.commit()

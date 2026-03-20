@@ -2,6 +2,13 @@
 from __future__ import annotations
 
 import os
+from enum import Enum
+
+
+class UserRole(str, Enum):
+    """Application-level user roles (JWT 'role' claim)."""
+    doctor = "doctor"
+    patient = "patient"
 
 
 def is_production() -> bool:
@@ -19,6 +26,7 @@ from infra.auth.request_auth import require_admin_token, resolve_doctor_id_from_
 from infra.auth.wechat_id_hash import hash_wechat_id  # noqa: E402
 
 __all__ = [
+    "UserRole",
     "enforce_doctor_rate_limit",
     "hash_access_code",
     "hash_wechat_id",

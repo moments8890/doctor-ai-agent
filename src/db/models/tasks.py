@@ -5,11 +5,27 @@
 from __future__ import annotations
 
 from datetime import datetime
+from enum import Enum
 from typing import Optional
 from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, String, DateTime, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 from db.engine import Base
 from db.models.base import _utcnow
+
+
+class TaskStatus(str, Enum):
+    """DoctorTask lifecycle status — mirrors ck_doctor_tasks_status CHECK."""
+    pending = "pending"
+    notified = "notified"
+    completed = "completed"
+    cancelled = "cancelled"
+
+
+class TaskType(str, Enum):
+    """Frequently compared task types. Other types (lab_review, referral, etc.)
+    are valid per DB CHECK but only written by task_rules, never compared."""
+    follow_up = "follow_up"
+    general = "general"
 
 
 class DoctorTask(Base):
@@ -22,7 +38,7 @@ class DoctorTask(Base):
     task_type: Mapped[str] = mapped_column(String(32), nullable=False)  # follow_up | emergency | appointment | general | lab_review | referral | imaging | medication
     title: Mapped[str] = mapped_column(String(256), nullable=False)
     content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")  # pending | notified | completed | cancelled
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default=TaskStatus.pending)  # pending | notified | completed | cancelled
     due_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     scheduled_for: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     remind_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)

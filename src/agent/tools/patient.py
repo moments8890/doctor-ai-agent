@@ -7,6 +7,7 @@ from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 
 from agent.identity import get_current_identity
+from db.models.interview_session import InterviewStatus
 
 
 class AdvanceInterviewInput(BaseModel):
@@ -72,7 +73,7 @@ async def confirm_interview() -> Dict[str, Any]:
         return {"status": "error", "message": "未找到患者信息"}
 
     session = await get_active_session(patient_id, patient.doctor_id)
-    if session is None or session.status not in ("interviewing", "reviewing"):
+    if session is None or session.status not in (InterviewStatus.interviewing, InterviewStatus.reviewing):
         return {"status": "error", "message": "没有待确认的问诊记录"}
 
     result = await confirm_interview(

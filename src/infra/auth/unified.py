@@ -12,6 +12,7 @@ from typing import Optional
 import jwt
 from fastapi import Header, HTTPException
 
+from infra.auth import UserRole
 from utils.log import log
 
 _TOKEN_TTL = int(os.environ.get("UNIFIED_TOKEN_TTL", "604800"))  # 7 days default
@@ -46,7 +47,7 @@ def issue_token(
         "exp": now + _TOKEN_TTL,
     }
     # Set sub based on role
-    if role == "doctor":
+    if role == UserRole.doctor:
         payload["sub"] = doctor_id
     else:
         payload["sub"] = str(patient_id)
@@ -88,7 +89,7 @@ async def require_doctor(
 ) -> dict:
     """Authenticate and require doctor role."""
     payload = await authenticate(authorization)
-    if payload.get("role") != "doctor":
+    if payload.get("role") != UserRole.doctor:
         raise HTTPException(403, "Doctor access required")
     return payload
 
@@ -98,7 +99,7 @@ async def require_patient(
 ) -> dict:
     """Authenticate and require patient role."""
     payload = await authenticate(authorization)
-    if payload.get("role") != "patient":
+    if payload.get("role") != UserRole.patient:
         raise HTTPException(403, "Patient access required")
     return payload
 
@@ -128,7 +129,7 @@ async def login(phone: str, year_of_birth: int) -> dict:
 
         if doctor:
             results.append({
-                "role": "doctor",
+                "role": UserRole.doctor,
                 "doctor_id": doctor.doctor_id,
                 "patient_id": None,
                 "name": doctor.name or doctor.doctor_id,
@@ -144,7 +145,7 @@ async def login(phone: str, year_of_birth: int) -> dict:
 
         for p in patients:
             results.append({
-                "role": "patient",
+                "role": UserRole.patient,
                 "doctor_id": p.doctor_id,
                 "patient_id": p.id,
                 "name": p.name,
@@ -172,7 +173,7 @@ async def login_with_role(phone: str, year_of_birth: int, role: str, doctor_id: 
     from sqlalchemy import select
 
     async with AsyncSessionLocal() as db:
-        if role == "doctor":
+        if role == UserRole.doctor:
             doctor = (await db.execute(
                 select(Doctor).where(
                     Doctor.phone == phone,
@@ -181,10 +182,10 @@ async def login_with_role(phone: str, year_of_birth: int, role: str, doctor_id: 
             )).scalar_one_or_none()
             if not doctor:
                 raise HTTPException(401, "登录失败")
-            token = issue_token("doctor", doctor.doctor_id, None, doctor.name)
-            return {"token": token, "role": "doctor", "doctor_id": doctor.doctor_id, "name": doctor.name}
+            token = issue_token(UserRole.doctor, doctor.doctor_id, None, doctor.name)
+            return {"token": token, "role": UserRole.doctor, "doctor_id": doctor.doctor_id, "name": doctor.name}
 
-        elif role == "patient":
+        elif role == UserRole.patient:
             stmt = select(Patient).where(
                 Patient.phone == phone,
                 Patient.year_of_birth == year_of_birth,
@@ -196,8 +197,8 @@ async def login_with_role(phone: str, year_of_birth: int, role: str, doctor_id: 
             patient = (await db.execute(stmt)).scalars().first()
             if not patient:
                 raise HTTPException(401, "登录失败")
-            token = issue_token("patient", patient.doctor_id, patient.id, patient.name)
-            return {"token": token, "role": "patient", "doctor_id": patient.doctor_id, "patient_id": patient.id, "name": patient.name}
+            token = issue_token(UserRole.patient, patient.doctor_id, patient.id, patient.name)
+            return {"token": token, "role": UserRole.patient, "doctor_id": patient.doctor_id, "patient_id": patient.id, "name": patient.name}
 
     raise HTTPException(400, "Invalid role")
 
@@ -251,8 +252,8 @@ async def register_doctor(phone: str, name: str, year_of_birth: int, invite_code
         await db.commit()
 
     log(f"[auth] doctor registered id={doctor_id} name={name} phone={phone}")
-    token = issue_token("doctor", doctor_id, None, name)
-    return {"token": token, "role": "doctor", "doctor_id": doctor_id, "name": name}
+    token = issue_token(UserRole.doctor, doctor_id, None, name)
+    return {"token": token, "role": UserRole.doctor, "doctor_id": doctor_id, "name": name}
 
 
 async def register_patient(phone: str, name: str, year_of_birth: int, doctor_id: str, gender: Optional[str] = None) -> dict:
@@ -303,5 +304,5 @@ async def register_patient(phone: str, name: str, year_of_birth: int, doctor_id:
             await db.refresh(patient)
 
     log(f"[auth] patient registered id={patient.id} name={name} doctor={doctor_id}")
-    token = issue_token("patient", doctor_id, patient.id, name)
-    return {"token": token, "role": "patient", "doctor_id": doctor_id, "patient_id": patient.id, "name": name}
+    token = issue_token(UserRole.patient, doctor_id, patient.id, name)
+    return {"token": token, "role": UserRole.patient, "doctor_id": doctor_id, "patient_id": patient.id, "name": name}

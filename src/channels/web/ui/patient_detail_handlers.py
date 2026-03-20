@@ -13,6 +13,8 @@ from typing import Annotated, Optional
 from fastapi import APIRouter, Header, HTTPException, Query
 from sqlalchemy import func, select
 
+from db.models.pending import PendingRecordStatus
+
 from db.crud import (
     get_all_patients,
     get_records_for_patient,
@@ -285,7 +287,7 @@ async def get_working_context(
         _exp = pending.expires_at if pending else None
         if _exp and _exp.tzinfo is None:
             _exp = _exp.replace(tzinfo=timezone.utc)
-        if pending and pending.status == "awaiting" and (not _exp or _exp >= now):
+        if pending and pending.status == PendingRecordStatus.awaiting and (not _exp or _exp >= now):
             try:
                 draft = json.loads(pending.draft_json)
                 preview = draft.get("content", "")[:60]
@@ -335,8 +337,8 @@ async def clear_context_endpoint(
             await session.execute(
                 sa_update(PendingRecord).where(
                     PendingRecord.doctor_id == resolved_id,
-                    PendingRecord.status == "awaiting",
-                ).values(status="abandoned")
+                    PendingRecord.status == PendingRecordStatus.awaiting,
+                ).values(status=PendingRecordStatus.abandoned)
             )
             await session.commit()
     except Exception:
@@ -378,7 +380,7 @@ async def get_pending_record_endpoint(
         return None
     async with AsyncSessionLocal() as session:
         pending = await get_pending_record(session, pending_id, resolved_id)
-    if pending is None or pending.status != "awaiting":
+    if pending is None or pending.status != PendingRecordStatus.awaiting:
         await clear_pending_draft_id(resolved_id)
         return None
     now = datetime.now(timezone.utc)
@@ -416,7 +418,7 @@ async def confirm_pending_record_endpoint(
         raise HTTPException(status_code=404, detail="No pending record")
     async with AsyncSessionLocal() as session:
         pending = await get_pending_record(session, pending_id, resolved_id)
-    if pending is None or pending.status != "awaiting":
+    if pending is None or pending.status != PendingRecordStatus.awaiting:
         await clear_pending_draft_id(resolved_id)
         raise HTTPException(status_code=404, detail="Pending record not found or already processed")
     from datetime import datetime, timezone as _tz

@@ -5,11 +5,20 @@
 from __future__ import annotations
 
 from datetime import datetime
+from enum import Enum
 from typing import Optional
 from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, String, DateTime, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from db.engine import Base
 from db.models.base import _utcnow
+
+
+class PendingRecordStatus(str, Enum):
+    """PendingRecord lifecycle — mirrors ck_pending_records_status CHECK."""
+    awaiting = "awaiting"
+    confirmed = "confirmed"
+    abandoned = "abandoned"
+    expired = "expired"
 
 
 class PendingRecord(Base):
@@ -21,7 +30,7 @@ class PendingRecord(Base):
     patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id", ondelete="SET NULL"), nullable=True)
     patient_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     draft_json: Mapped[str] = mapped_column(Text, nullable=False)
-    status: Mapped[str] = mapped_column(String(32), nullable=False, default="awaiting")
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default=PendingRecordStatus.awaiting)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
@@ -33,6 +42,14 @@ class PendingRecord(Base):
     )
 
 
+class PendingMessageStatus(str, Enum):
+    """PendingMessage lifecycle — mirrors ck_pending_messages_status CHECK."""
+    pending = "pending"
+    processing = "processing"
+    done = "done"
+    dead = "dead"
+
+
 class PendingMessage(Base):
     """Durable inbox for WeChat messages awaiting LLM processing."""
     __tablename__ = "pending_messages"
@@ -40,7 +57,7 @@ class PendingMessage(Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False)
     raw_content: Mapped[str] = mapped_column(Text, nullable=False)
-    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default=PendingMessageStatus.pending)
     attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
 

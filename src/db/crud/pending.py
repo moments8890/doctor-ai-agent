@@ -9,6 +9,7 @@ from typing import Optional
 from sqlalchemy import delete, select, update as sa_update
 from sqlalchemy.ext.asyncio import AsyncSession
 from db.models import PendingRecord, PendingMessage
+from db.models.pending import PendingRecordStatus, PendingMessageStatus
 
 
 # ---------------------------------------------------------------------------
@@ -31,7 +32,7 @@ async def create_pending_record(
         patient_id=patient_id,
         patient_name=patient_name,
         draft_json=draft_json,
-        status="awaiting",
+        status=PendingRecordStatus.awaiting,
         created_at=now,
         expires_at=now + timedelta(minutes=ttl_minutes),
     )
@@ -70,9 +71,9 @@ async def confirm_pending_record(
         sa_update(PendingRecord).where(
             PendingRecord.id == record_id,
             PendingRecord.doctor_id == doctor_id,
-            PendingRecord.status == "awaiting",
+            PendingRecord.status == PendingRecordStatus.awaiting,
             PendingRecord.expires_at > now,
-        ).values(status="confirmed")
+        ).values(status=PendingRecordStatus.confirmed)
     )
     if commit:
         await session.commit()
@@ -98,8 +99,8 @@ async def force_confirm_pending_record(
         sa_update(PendingRecord).where(
             PendingRecord.id == record_id,
             PendingRecord.doctor_id == doctor_id,
-            PendingRecord.status == "awaiting",
-        ).values(status="confirmed")
+            PendingRecord.status == PendingRecordStatus.awaiting,
+        ).values(status=PendingRecordStatus.confirmed)
     )
     if commit:
         await session.commit()
@@ -115,7 +116,7 @@ async def abandon_pending_record(
         sa_update(PendingRecord).where(
             PendingRecord.id == record_id,
             PendingRecord.doctor_id == doctor_id,
-        ).values(status="abandoned")
+        ).values(status=PendingRecordStatus.abandoned)
     )
     await session.commit()
 
@@ -133,7 +134,7 @@ async def update_pending_draft(
         sa_update(PendingRecord).where(
             PendingRecord.id == record_id,
             PendingRecord.doctor_id == doctor_id,
-            PendingRecord.status == "awaiting",
+            PendingRecord.status == PendingRecordStatus.awaiting,
         ).values(draft_json=new_draft_json, expires_at=new_expires)
     )
     await session.commit()
@@ -144,7 +145,7 @@ async def get_stale_pending_records(session: AsyncSession) -> list:
     now = datetime.now(timezone.utc)
     result = await session.execute(
         select(PendingRecord).where(
-            PendingRecord.status == "awaiting",
+            PendingRecord.status == PendingRecordStatus.awaiting,
             PendingRecord.expires_at < now,
         )
     )
@@ -156,8 +157,8 @@ async def expire_stale_pending_records(session: AsyncSession) -> int:
     now = datetime.now(timezone.utc)
     result = await session.execute(
         sa_update(PendingRecord)
-        .where(PendingRecord.status == "awaiting", PendingRecord.expires_at < now)
-        .values(status="expired")
+        .where(PendingRecord.status == PendingRecordStatus.awaiting, PendingRecord.expires_at < now)
+        .values(status=PendingRecordStatus.expired)
     )
     await session.commit()
     return result.rowcount if result.rowcount else 0
@@ -168,7 +169,7 @@ async def purge_old_pending_records(session: AsyncSession, days: int = 30) -> in
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     result = await session.execute(
         delete(PendingRecord).where(
-            PendingRecord.status.in_(["expired", "abandoned", "confirmed"]),
+            PendingRecord.status.in_([PendingRecordStatus.expired, PendingRecordStatus.abandoned, PendingRecordStatus.confirmed]),
             PendingRecord.expires_at < cutoff,
         )
     )
@@ -181,7 +182,7 @@ async def purge_old_pending_messages(session: AsyncSession, days: int = 30) -> i
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     result = await session.execute(
         delete(PendingMessage).where(
-            PendingMessage.status.in_(["done", "dead"]),
+            PendingMessage.status.in_([PendingMessageStatus.done, PendingMessageStatus.dead]),
             PendingMessage.created_at < cutoff,
         )
     )
@@ -203,7 +204,7 @@ async def create_pending_message(
         id=msg_id,
         doctor_id=doctor_id,
         raw_content=raw_content,
-        status="pending",
+        status=PendingMessageStatus.pending,
         created_at=datetime.now(timezone.utc),
     )
     session.add(row)
@@ -211,15 +212,12 @@ async def create_pending_message(
     return row
 
 
-_VALID_PENDING_MESSAGE_STATUSES = {"pending", "processing", "done", "dead"}
-
-
 async def mark_pending_message(
     session: AsyncSession,
     msg_id: str,
-    status: str,
+    status: PendingMessageStatus,
 ) -> None:
-    if status not in _VALID_PENDING_MESSAGE_STATUSES:
+    if not isinstance(status, PendingMessageStatus):
         raise ValueError(f"Invalid PendingMessage status: {status!r}")
     await session.execute(
         sa_update(PendingMessage)
@@ -255,13 +253,13 @@ async def list_stale_pending_messages(
     # Reset stuck processing rows so claim_pending_message can re-acquire them.
     await session.execute(
         sa_update(PendingMessage)
-        .where(PendingMessage.status == "processing", PendingMessage.created_at < cutoff)
-        .values(status="pending")
+        .where(PendingMessage.status == PendingMessageStatus.processing, PendingMessage.created_at < cutoff)
+        .values(status=PendingMessageStatus.pending)
     )
     await session.commit()
     result = await session.execute(
         select(PendingMessage)
-        .where(PendingMessage.status == "pending", PendingMessage.created_at < cutoff)
+        .where(PendingMessage.status == PendingMessageStatus.pending, PendingMessage.created_at < cutoff)
         .order_by(PendingMessage.created_at)
         .limit(500)
     )
@@ -285,8 +283,8 @@ async def claim_pending_message(
     """
     result = await session.execute(
         sa_update(PendingMessage)
-        .where(PendingMessage.id == msg_id, PendingMessage.status == "pending")
-        .values(status="processing", attempt_count=PendingMessage.attempt_count + 1)
+        .where(PendingMessage.id == msg_id, PendingMessage.status == PendingMessageStatus.pending)
+        .values(status=PendingMessageStatus.processing, attempt_count=PendingMessage.attempt_count + 1)
     )
     await session.commit()
     return result.rowcount > 0

@@ -10,6 +10,8 @@ from agent.identity import set_current_identity
 from agent.session import get_or_create_agent
 from agent.archive import archive_turns
 from agent.actions import Action
+from db.models.tasks import TaskStatus
+from infra.auth import UserRole
 from agent.tools.doctor import _fetch_tasks, _fetch_patients, _fetch_recent_records
 from utils.log import log
 
@@ -35,7 +37,7 @@ async def _try_fast_path(text: str, identity: str) -> Optional[str]:
 
     # Pending record confirm/abandon — query DB directly
     from db.engine import AsyncSessionLocal
-    from db.models.pending import PendingRecord
+    from db.models.pending import PendingRecord, PendingRecordStatus
     from db.crud.pending import abandon_pending_record
     from domain.records.confirm_pending import save_pending_record
     from sqlalchemy import select
@@ -44,7 +46,7 @@ async def _try_fast_path(text: str, identity: str) -> Optional[str]:
         result = await session.execute(
             select(PendingRecord).where(
                 PendingRecord.doctor_id == identity,
-                PendingRecord.status == "awaiting",
+                PendingRecord.status == PendingRecordStatus.awaiting,
             ).order_by(PendingRecord.created_at.desc()).limit(1)
         )
         pending = result.scalar_one_or_none()
@@ -82,8 +84,8 @@ def _format_patient_list(patients: list) -> str:
 def _format_daily_summary(tasks: list, records: list) -> str:
     lines = ["**今日工作摘要**", ""]
     if tasks:
-        pending = [t for t in tasks if t.get("status") == "pending"]
-        done = [t for t in tasks if t.get("status") == "completed"]
+        pending = [t for t in tasks if t.get("status") == TaskStatus.pending]
+        done = [t for t in tasks if t.get("status") == TaskStatus.completed]
         lines.append(f"**待处理任务** ({len(pending)})")
         for t in pending:
             lines.append(f"- {t.get('title', '未命名')}")
@@ -138,7 +140,7 @@ async def handle_turn(text: str, role: str, identity: str, *, action_hint=None) 
     set_current_identity(identity)
 
     # Fast path (0 LLM) — doctor only; patients always go through agent
-    fast = await _try_fast_path(text, identity) if role == "doctor" else None
+    fast = await _try_fast_path(text, identity) if role == UserRole.doctor else None
     if fast:
         agent._add_turn(text, fast)
         try:

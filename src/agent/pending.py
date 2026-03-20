@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import Optional
 
 from db.engine import AsyncSessionLocal
-from db.models.pending import PendingRecord
+from db.models.pending import PendingRecord, PendingRecordStatus
 from sqlalchemy import select
 
 
@@ -18,7 +18,7 @@ async def get_pending_draft_id(doctor_id: str) -> Optional[str]:
             select(PendingRecord.id)
             .where(
                 PendingRecord.doctor_id == doctor_id,
-                PendingRecord.status == "awaiting",
+                PendingRecord.status == PendingRecordStatus.awaiting,
             )
             .order_by(PendingRecord.created_at.desc())
             .limit(1)

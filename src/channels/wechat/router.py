@@ -224,7 +224,8 @@ async def _handle_intent_bg(text: str, doctor_id: str, open_kfid: str = "", msg_
             try:
                 async with AsyncSessionLocal() as _mdb:
                     from db.crud import mark_pending_message as _mark_pm
-                    await _mark_pm(_mdb, msg_id, "done")
+                    from db.models.pending import PendingMessageStatus as _PMS
+                    await _mark_pm(_mdb, msg_id, _PMS.done)
             except Exception as _e:
                 log(f"[WeChat bg] mark pending_message done FAILED: {_e}")
 
@@ -302,7 +303,7 @@ async def _handle_stateful_sync(msg) -> Response | None:
 
     # Check if there's a pending draft — avoid LLM call for bare "好"
     from db.engine import AsyncSessionLocal as _ASL
-    from db.models.pending import PendingRecord
+    from db.models.pending import PendingRecord, PendingRecordStatus
     from sqlalchemy import select
 
     doctor_id = msg.source
@@ -310,7 +311,7 @@ async def _handle_stateful_sync(msg) -> Response | None:
         result = await session.execute(
             select(PendingRecord).where(
                 PendingRecord.doctor_id == doctor_id,
-                PendingRecord.status == "awaiting",
+                PendingRecord.status == PendingRecordStatus.awaiting,
             ).limit(1)
         )
         pending = result.scalar_one_or_none()
@@ -418,6 +419,7 @@ async def recover_stale_pending_messages(older_than_seconds: int = 60) -> int:
             mark_pending_message as _mark_pm2,
             claim_pending_message as _claim_pm,
         )
+        from db.models.pending import PendingMessageStatus as _PMS2
         async with AsyncSessionLocal() as _db:
             msgs = await _list_pm(_db, older_than_seconds=older_than_seconds)
         requeued = 0
@@ -426,13 +428,13 @@ async def recover_stale_pending_messages(older_than_seconds: int = 60) -> int:
             # Skip test/synthetic doctor IDs — real WeChat OpenIDs are 28+ chars
             if len(doctor_id) < 20:
                 async with AsyncSessionLocal() as _db:
-                    await _mark_pm2(_db, msg.id, "dead")
+                    await _mark_pm2(_db, msg.id, _PMS2.dead)
                 log(f"[Recovery] skipping non-production doctor_id={doctor_id} msg={msg.id}")
                 continue
             attempt_count = getattr(msg, "attempt_count", 0)
             if attempt_count >= _PENDING_MESSAGE_MAX_ATTEMPTS:
                 async with AsyncSessionLocal() as _db:
-                    await _mark_pm2(_db, msg.id, "dead")
+                    await _mark_pm2(_db, msg.id, _PMS2.dead)
                 log(f"[Recovery] dead-lettering message {msg.id} after {attempt_count} attempts")
                 continue
             # Atomically claim: pending → processing (prevents duplicate replay)

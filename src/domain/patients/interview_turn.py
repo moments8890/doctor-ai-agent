@@ -13,6 +13,7 @@ from domain.patients.completeness import (
     count_filled,
     merge_extracted,
 )
+from db.models.interview_session import InterviewStatus
 from domain.patients.interview_session import InterviewSession, load_session, save_session
 from utils.log import log
 from utils.prompt_loader import get_prompt_sync
@@ -199,7 +200,7 @@ async def interview_turn(session_id: str, patient_text: str) -> InterviewRespons
             reply="问诊会话不存在。", collected={},
             progress={"filled": 0, "total": TOTAL_FIELDS}, status="error",
         )
-    if session.status not in ("interviewing",):
+    if session.status not in (InterviewStatus.interviewing,):
         return InterviewResponse(
             reply="该问诊已结束。", collected=session.collected,
             progress=_make_progress(session.collected), status=session.status,

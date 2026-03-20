@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from db.models.interview_session import InterviewStatus
 from utils.log import log
 
 
@@ -15,7 +16,7 @@ class InterviewSession:
     id: str
     doctor_id: str
     patient_id: int
-    status: str = "interviewing"  # interviewing | reviewing | confirmed | abandoned
+    status: str = InterviewStatus.interviewing
     collected: Dict[str, str] = field(default_factory=dict)
     conversation: List[Dict[str, Any]] = field(default_factory=list)
     turn_count: int = 0
@@ -34,7 +35,7 @@ async def create_session(doctor_id: str, patient_id: int) -> InterviewSession:
             id=session_id,
             doctor_id=doctor_id,
             patient_id=patient_id,
-            status="interviewing",
+            status=InterviewStatus.interviewing,
             collected="{}",
             conversation="[]",
             turn_count=0,
@@ -107,7 +108,7 @@ async def get_active_session(patient_id: int, doctor_id: str) -> Optional[Interv
             select(InterviewSessionDB).where(
                 InterviewSessionDB.patient_id == patient_id,
                 InterviewSessionDB.doctor_id == doctor_id,
-                InterviewSessionDB.status.in_(["interviewing", "reviewing"]),
+                InterviewSessionDB.status.in_([InterviewStatus.interviewing, InterviewStatus.reviewing]),
             ).order_by(InterviewSessionDB.created_at.desc()).limit(1)
         )).scalar_one_or_none()
 

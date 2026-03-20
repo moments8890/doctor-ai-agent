@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from enum import Enum
 from typing import Optional
 
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text
@@ -11,13 +12,21 @@ from db.engine import Base
 from db.models.base import _utcnow
 
 
+class InterviewStatus(str, Enum):
+    """Patient interview session lifecycle."""
+    interviewing = "interviewing"
+    reviewing = "reviewing"
+    confirmed = "confirmed"
+    abandoned = "abandoned"
+
+
 class InterviewSessionDB(Base):
     __tablename__ = "interview_sessions"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False)
     patient_id: Mapped[int] = mapped_column(Integer, ForeignKey("patients.id", ondelete="CASCADE"), nullable=False)
-    status: Mapped[str] = mapped_column(String(16), nullable=False, default="interviewing")
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default=InterviewStatus.interviewing)
     collected: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON dict
     conversation: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array
     turn_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

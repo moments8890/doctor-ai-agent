@@ -16,6 +16,7 @@ class InterviewTurnRequest(BaseModel):
 
 class InterviewSessionRequest(BaseModel):
     session_id: str
+from db.models.interview_session import InterviewStatus
 from domain.patients.completeness import count_filled
 from domain.patients.interview_session import (
     create_session,
@@ -105,7 +106,7 @@ async def start_interview(
         "reply": f"您好！我是{doctor_name}医生的AI助手。请描述您的症状，我来帮您整理病历信息。",
         "collected": {},
         "progress": {"filled": 0, "total": 7},
-        "status": "interviewing",
+        "status": InterviewStatus.interviewing,
         "resumed": False,
     }
 
@@ -174,7 +175,7 @@ async def confirm(
         raise HTTPException(404, "问诊会话不存在")
     if session.patient_id != patient.id:
         raise HTTPException(403, "无权操作")
-    if session.status not in ("reviewing", "interviewing"):
+    if session.status not in (InterviewStatus.reviewing, InterviewStatus.interviewing):
         raise HTTPException(400, "该问诊已结束")
 
     # Perform handoff
@@ -187,11 +188,11 @@ async def confirm(
     )
 
     # Mark session confirmed
-    session.status = "confirmed"
+    session.status = InterviewStatus.confirmed
     await save_session(session)
 
     return {
-        "status": "confirmed",
+        "status": InterviewStatus.confirmed,
         "record_id": result["record_id"],
         "task_id": result["task_id"],
         "message": "您的预问诊信息已提交给医生，请等待医生审阅。",
@@ -212,10 +213,10 @@ async def cancel(
         raise HTTPException(404, "问诊会话不存在")
     if session.patient_id != patient.id:
         raise HTTPException(403, "无权操作")
-    if session.status not in ("interviewing", "reviewing"):
+    if session.status not in (InterviewStatus.interviewing, InterviewStatus.reviewing):
         raise HTTPException(400, "该问诊已结束")
 
-    session.status = "abandoned"
+    session.status = InterviewStatus.abandoned
     await save_session(session)
 
-    return {"status": "abandoned"}
+    return {"status": InterviewStatus.abandoned}

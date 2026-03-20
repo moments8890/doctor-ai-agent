@@ -109,8 +109,9 @@ async def _authenticate_patient(
     if bearer:
         try:
             from infra.auth.unified import verify_token
+            from infra.auth import UserRole
             payload = verify_token(bearer)
-            if payload.get("role") != "patient":
+            if payload.get("role") != UserRole.patient:
                 raise HTTPException(403, "Patient access required")
             patient_id = payload.get("patient_id")
             token_doctor_id = payload.get("doctor_id")

@@ -17,6 +17,7 @@ from db.crud import (
 )
 from db.crud.pending import force_confirm_pending_record
 from db.engine import AsyncSessionLocal
+from db.models.tasks import TaskStatus, TaskType
 from domain.tasks.task_crud import create_follow_up_task
 from infra.observability.audit import audit
 from utils.log import log, safe_create_task
@@ -37,8 +38,8 @@ async def _bg_create_follow_up(
                 select(DoctorTask).where(
                     DoctorTask.doctor_id == doctor_id,
                     DoctorTask.record_id == record_id,
-                    DoctorTask.task_type == "follow_up",
-                    DoctorTask.status == "pending",
+                    DoctorTask.task_type == TaskType.follow_up,
+                    DoctorTask.status == TaskStatus.pending,
                 )
             )
             if existing.scalar_one_or_none() is not None:
@@ -71,7 +72,7 @@ async def _bg_auto_tasks(
                         DoctorTask.doctor_id == doctor_id,
                         DoctorTask.record_id == record_id,
                         DoctorTask.task_type == spec.task_type,
-                        DoctorTask.status == "pending",
+                        DoctorTask.status == TaskStatus.pending,
                     )
                 )
                 if existing.scalar_one_or_none() is not None:

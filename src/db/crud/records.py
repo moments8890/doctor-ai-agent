@@ -18,6 +18,7 @@ from db.models import (
 )
 from db.repositories import RecordRepository
 from db.models.medical_record import MedicalRecord
+from db.models.tasks import TaskStatus, TaskType
 from db.crud._common import _utcnow, _trace_block
 from db.crud.doctor import _ensure_doctor_exists
 from utils.app_config import env_flag_true as _env_flag_true
@@ -77,8 +78,8 @@ async def _ensure_auto_follow_up_task(
         select(DoctorTask).where(
             DoctorTask.doctor_id == doctor_id,
             DoctorTask.record_id == record_id,
-            DoctorTask.task_type == "follow_up",
-            DoctorTask.status == "pending",
+            DoctorTask.task_type == TaskType.follow_up,
+            DoctorTask.status == TaskStatus.pending,
         )
     )
     if existing.scalar_one_or_none() is not None:
@@ -92,10 +93,10 @@ async def _ensure_auto_follow_up_task(
             doctor_id=doctor_id,
             patient_id=patient_id,
             record_id=record_id,
-            task_type="follow_up",
+            task_type=TaskType.follow_up,
             title=f"随访提醒：{patient_name}",
             content=follow_up_text[:200],
-            status="pending",
+            status=TaskStatus.pending,
             due_at=due_at,
         )
     )

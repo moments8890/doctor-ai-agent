@@ -15,6 +15,7 @@ from langchain.agents import create_agent
 
 from agent.tools.doctor import DOCTOR_TOOLS
 from agent.tools.patient import PATIENT_TOOLS
+from infra.auth import UserRole
 from utils.prompt_loader import get_prompt_sync
 
 _log = logging.getLogger("agent")
@@ -131,7 +132,7 @@ if os.environ.get("LOG_LEVEL", "").upper() == "DEBUG":
 
 
 def get_tools_for_role(role: str) -> List[BaseTool]:
-    if role == "doctor":
+    if role == UserRole.doctor:
         return DOCTOR_TOOLS
     return PATIENT_TOOLS
 
@@ -218,7 +219,7 @@ def _build_tools_section(role: str) -> str:
 
 def _build_system_prompt(role: str) -> str:
     """Load and render the system prompt for a given role."""
-    prompt_name = "doctor-agent" if role == "doctor" else "patient-agent"
+    prompt_name = "doctor-agent" if role == UserRole.doctor else "patient-agent"
     system_text = get_prompt_sync(prompt_name)
     system_text = system_text.replace("{current_date}", datetime.now().strftime("%Y-%m-%d"))
     system_text = system_text.replace("{timezone}", os.environ.get("TZ", "Asia/Shanghai"))

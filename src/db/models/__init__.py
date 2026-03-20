@@ -13,7 +13,7 @@ from db.models.runtime import RuntimeToken, RuntimeConfig, SchedulerLease
 from db.models.audit import AuditLog
 from db.models.medical_record import MedicalRecord
 from db.models.patient_message import PatientMessage
-from db.models.interview_session import InterviewSessionDB
+from db.models.interview_session import InterviewSessionDB, InterviewStatus
 from db.models.review_queue import ReviewQueue
 
 __all__ = [
@@ -29,6 +29,6 @@ __all__ = [
     "AuditLog",
     "MedicalRecord",
     "PatientMessage",
-    "InterviewSessionDB",
+    "InterviewSessionDB", "InterviewStatus",
     "ReviewQueue",
 ]
