@@ -167,7 +167,7 @@ async def _call_interview_llm(
     lc_messages = []
     for m in messages:
         if m["role"] == "system":
-            lc_messages.append(SystemMessage(content="/no_think\n" + m["content"]))
+            lc_messages.append(SystemMessage(content=m["content"]))
         else:
             lc_messages.append(HumanMessage(content=m["content"]))
 
