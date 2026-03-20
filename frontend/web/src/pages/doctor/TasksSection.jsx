@@ -507,8 +507,8 @@ export default function TasksSection({ doctorId }) {
       <ReviewDetail
         queueId={detailReview.id}
         doctorId={doctorId}
-        onBack={() => { setDetailReview(null); loadReviews(); }}
-        onConfirmed={() => loadReviews()}
+        onBack={() => { setDetailReview(null); loadReviews(); load(); }}
+        onConfirmed={() => { loadReviews(); load(); }}
       />
     );
   }
@@ -523,13 +523,6 @@ export default function TasksSection({ doctorId }) {
     );
   }
 
-  const todoItems = segment === "todo"
-    ? [
-        ...reviews.map((r) => ({ ...r, _type: "review", _sortTime: r.created_at })),
-        ...tasks.map((t) => ({ ...t, _type: "task", _sortTime: t.due_at || t.created_at })),
-      ].sort((a, b) => (b._sortTime || "").localeCompare(a._sortTime || ""))
-    : [];
-
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#ededed" }}>
       <TasksHeader segment={segment} loading={loading} onSegmentChange={setSegment}
@@ -537,34 +530,43 @@ export default function TasksSection({ doctorId }) {
       <Box sx={{ flex: 1, overflowY: "auto" }}>
         {error && <Box sx={{ px: 2, pt: 1.5 }}><Alert severity="error" onClose={() => setError("")}>{error}</Alert></Box>}
 
-        {/* todo segment */}
-        {segment === "todo" && todoItems.length === 0 && !loading && !reviewLoading && (
+        {/* todo segment: reviews at top, then date-grouped tasks */}
+        {segment === "todo" && !loading && !reviewLoading && tasks.length === 0 && reviews.length === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 8, gap: 1, px: 2 }}>
             <AssignmentOutlinedIcon sx={{ fontSize: 48, color: "#ccc" }} />
             <Typography variant="body2" color="text.disabled" sx={{ fontWeight: 500 }}>暂无待办</Typography>
+            <Typography variant="caption" color="text.disabled" sx={{ textAlign: "center", maxWidth: 200 }}>在聊天中说「今日任务」或点击 + 新建</Typography>
           </Box>
         )}
-        {segment === "todo" && (
+        {segment === "todo" && reviews.length > 0 && (
           <Box sx={{ bgcolor: "#fff" }}>
-            {todoItems.map((item) =>
-              item._type === "review" ? (
-                <Box key={`review-${item.id}`} onClick={() => setDetailReview(item)}
-                  sx={{ borderBottom: "0.5px solid #f0f0f0", cursor: "pointer" }}>
-                  <ReviewQueueItem item={item} />
-                </Box>
-              ) : (
-                <SwipeableTaskRow key={`task-${item.id}`}
-                  onSwipeLeft={() => { if (item.status === "pending") handleComplete(item.id, "completed"); }}
-                  onSwipeRight={() => { if (item.status === "pending") handleCancel(item.id); }}>
-                  <Box onClick={() => setDetailTask(item)}
-                    sx={{ borderBottom: "0.5px solid #f0f0f0", cursor: "pointer" }}>
-                    <TaskRow task={item} isOverdue={false} />
+            {reviews.map((item) => (
+              <Box key={`review-${item.id}`} onClick={() => setDetailReview(item)}
+                sx={{ borderBottom: "0.5px solid #f0f0f0", cursor: "pointer" }}>
+                <ReviewQueueItem item={item} />
+              </Box>
+            ))}
+          </Box>
+        )}
+        {segment === "todo" && sortedGroups.map((group) => (
+          <Box key={group}>
+            <Box sx={{ px: 2, py: 0.6, pt: 1.2 }}>
+              <Typography sx={{ fontSize: 12, color: group === "已逾期" ? "#FA5151" : "#999", fontWeight: 500 }}>{group}</Typography>
+            </Box>
+            <Box sx={{ bgcolor: "#fff" }}>
+              {taskGroups[group].map((task, idx) => (
+                <SwipeableTaskRow key={task.id}
+                  onSwipeLeft={() => { if (task.status === "pending") handleComplete(task.id, "completed"); }}
+                  onSwipeRight={() => { if (task.status === "pending") handleCancel(task.id); }}>
+                  <Box onClick={() => setDetailTask(task)}
+                    sx={{ borderBottom: idx < taskGroups[group].length - 1 ? "0.5px solid #f0f0f0" : "none", cursor: "pointer" }}>
+                    <TaskRow task={task} isOverdue={group === "已逾期"} />
                   </Box>
                 </SwipeableTaskRow>
-              )
-            )}
+              ))}
+            </Box>
           </Box>
-        )}
+        ))}
 
         {/* review segment */}
         {segment === "review" && !reviewLoading && reviews.length === 0 && (
