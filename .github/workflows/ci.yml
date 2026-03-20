@@ -63,12 +63,12 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Create data dir
-        run: mkdir -p data
+        run: mkdir -p data reports/logs
 
       - name: Start server
         run: |
           cd src && python -m uvicorn main:app --host 0.0.0.0 --port 8001 \
-            > ../reports/logs/server-stdout.log 2>&1 &
+            > "$GITHUB_WORKSPACE/reports/logs/server.log" 2>&1 &
           echo "Waiting for server..."
           for i in $(seq 1 30); do
             if curl -sf http://127.0.0.1:8001/healthz > /dev/null 2>&1; then
@@ -79,7 +79,7 @@ jobs:
           done
           curl -sf http://127.0.0.1:8001/healthz || {
             echo "Server failed to start. Logs:"
-            cat reports/logs/server-stdout.log
+            cat "$GITHUB_WORKSPACE/reports/logs/server.log"
             exit 1
           }
 
@@ -91,7 +91,7 @@ jobs:
 
       - name: Show server logs on failure
         if: failure()
-        run: cat reports/logs/server-stdout.log 2>/dev/null || echo "No server logs"
+        run: cat "$GITHUB_WORKSPACE/reports/logs/server.log" 2>/dev/null || echo "No server logs"
 
       - name: Upload test report
         if: always()
