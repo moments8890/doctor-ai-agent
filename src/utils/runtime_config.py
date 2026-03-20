@@ -84,6 +84,7 @@ DEFAULT_RUNTIME_CONFIG: Dict[str, Any] = {
     "EMBEDDING_PRELOAD": True,
     "DASHSCOPE_API_KEY": "",
     "SKILLS_CACHE_TTL": 300,
+    "DIAGNOSIS_LLM": "",
 }
 
 

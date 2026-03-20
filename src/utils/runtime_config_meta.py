@@ -17,6 +17,7 @@ CONFIG_CATEGORIES: Dict[str, Dict[str, Any]] = {
         "keys": [
             "ROUTING_LLM",
             "STRUCTURING_LLM",
+            "DIAGNOSIS_LLM",
             "LLM_PROVIDER_STRICT_MODE",
             "VISION_LLM",
             "OPENAI_API_KEY",
@@ -139,6 +140,7 @@ CATEGORY_DESCRIPTIONS_ZH: Dict[str, str] = {
 CONFIG_DESCRIPTIONS: Dict[str, str] = {
     "ROUTING_LLM": "Provider for intent/tool routing. Note: Ollama is LAN/local LLM (can be slower); DeepSeek is online LLM (billed).",
     "STRUCTURING_LLM": "Provider for medical record structuring. Note: Ollama is LAN/local LLM (can be slower); DeepSeek is online LLM (billed).",
+    "DIAGNOSIS_LLM": "LLM provider for diagnosis pipeline. Falls back to STRUCTURING_LLM if empty.",
     "LLM_PROVIDER_STRICT_MODE": "When true, use selected provider only and never fallback to others.",
     "VISION_LLM": "Provider for image understanding.",
     "OPENAI_API_KEY": "OpenAI API key.",
@@ -207,6 +209,7 @@ CONFIG_DESCRIPTIONS: Dict[str, str] = {
 CONFIG_DESCRIPTIONS_ZH: Dict[str, str] = {
     "ROUTING_LLM": "意图/工具路由使用的提供商。说明：Ollama 通常是局域网/本地 LLM（可能较慢）；DeepSeek 是在线 LLM（按量计费）。",
     "STRUCTURING_LLM": "病历结构化使用的提供商。说明：Ollama 通常是局域网/本地 LLM（可能较慢）；DeepSeek 是在线 LLM（按量计费）。",
+    "DIAGNOSIS_LLM": "诊断管道使用的LLM提供商。为空时使用STRUCTURING_LLM。",
     "LLM_PROVIDER_STRICT_MODE": "为 true 时仅使用所选提供商，不会自动回退到其它提供商。",
     "VISION_LLM": "图像理解使用的提供商。",
     "OPENAI_API_KEY": "OpenAI API Key。",
