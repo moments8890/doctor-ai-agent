@@ -126,7 +126,7 @@ async def chat(
     doctor_id = resolve_doctor_id_from_auth_or_fallback(
         body.doctor_id, authorization,
         fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
-        default_doctor_id="test_doctor",
+        default_doctor_id="dev_local",
     )
     text = (body.text or "").strip()
     if not text:
@@ -150,7 +150,7 @@ async def create_record_from_text(
     resolved = resolve_doctor_id_from_auth_or_fallback(
         doctor_id, authorization,
         fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
-        default_doctor_id="test_doctor",
+        default_doctor_id="dev_local",
     )
     enforce_doctor_rate_limit(resolved, scope="records.from_text")
     if not body.text.strip():
@@ -175,7 +175,7 @@ async def create_record_from_image(
     resolved = resolve_doctor_id_from_auth_or_fallback(
         doctor_id, authorization,
         fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
-        default_doctor_id="test_doctor",
+        default_doctor_id="dev_local",
     )
     enforce_doctor_rate_limit(resolved, scope="records.from_image")
     if image.content_type not in SUPPORTED_IMAGE_TYPES:
@@ -218,7 +218,7 @@ async def ocr_image_only(
     resolved = resolve_doctor_id_from_auth_or_fallback(
         doctor_id, authorization,
         fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
-        default_doctor_id="test_doctor",
+        default_doctor_id="dev_local",
     )
     enforce_doctor_rate_limit(resolved, scope="records.ocr")
     content_type = (image.content_type or "").split(";")[0].strip()
@@ -246,7 +246,7 @@ async def extract_file_for_chat(
     resolved = resolve_doctor_id_from_auth_or_fallback(
         doctor_id, authorization,
         fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
-        default_doctor_id="test_doctor",
+        default_doctor_id="dev_local",
     )
     enforce_doctor_rate_limit(resolved, scope="records.extract_file")
     content_type = (file.content_type or "").split(";")[0].strip()
@@ -279,7 +279,7 @@ async def record_history(
     resolved = resolve_doctor_id_from_auth_or_fallback(
         doctor_id, authorization,
         fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
-        default_doctor_id="test_doctor",
+        default_doctor_id="dev_local",
     )
     async with AsyncSessionLocal() as db:
         from sqlalchemy import select as _select

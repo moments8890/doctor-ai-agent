@@ -100,6 +100,27 @@ def _contains_any(text: str, keywords: List[str]) -> bool:
 
 ALL_CASES = _load_all_cases()
 
+_CLEANUP_TABLES = [
+    "medical_record_exports", "medical_record_versions", "medical_records",
+    "pending_records", "doctor_tasks", "chat_archive",
+    "doctor_conversation_turns", "doctor_contexts", "doctor_session_states",
+    "patients", "doctors",
+]
+
+
+def _cleanup_doctor(doctor_id: str) -> None:
+    """Delete all data for a test doctor_id after a test run."""
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        for table in _CLEANUP_TABLES:
+            try:
+                conn.execute(f"DELETE FROM {table} WHERE doctor_id = ?", (doctor_id,))
+            except sqlite3.OperationalError:
+                pass  # table may not exist or no doctor_id column
+        conn.commit()
+    finally:
+        conn.close()
+
 
 @pytest.mark.integration
 @pytest.mark.parametrize("case", ALL_CASES, ids=lambda c: c["case_id"])
@@ -173,3 +194,6 @@ def test_e2e_fixture(case: Dict[str, Any]):
             f"[{case['case_id']}] reply missing keywords from {keyword_group}. "
             f"Reply: {joined_reply[:300]}"
         )
+
+    # ── Cleanup test data ──────────────────────────────────────────────
+    _cleanup_doctor(doctor_id)
