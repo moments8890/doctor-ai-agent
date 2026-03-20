@@ -61,7 +61,7 @@ STEMI, NSTEMI, PCI, CABG, BNP, NT-proBNP, EF, LVEF...
 |------|------|------|
 | `name` | 是 | 技能唯一名称（如 `cardiology-structuring`） |
 | `description` | 是 | 一句话描述，用于日志和管理界面 |
-| `type` | 是 | `structuring` / `routing` / `clinical_signals` |
+| `type` | 是 | `structuring` / `routing` / `clinical_signals` / `diagnosis` |
 | `specialty` | 否 | 科室英文名（默认取目录名） |
 
 ## 如何新增科室
@@ -147,15 +147,16 @@ EOF
 | 急诊科 | `emergency` |
 | ICU / 重症医学科 | `icu` |
 
-如需添加新映射，编辑 `services/knowledge/skill_loader.py` 中的 `_SPECIALTY_ALIASES`。
+如需添加新映射，编辑 `domain/knowledge/skill_loader.py` 中的 `_SPECIALTY_ALIASES`。
 
 ## API 参考
 
 ```python
-from services.knowledge.skill_loader import (
+from domain.knowledge.skill_loader import (
     load_skills,           # 加载科室全部技能
     get_structuring_skill, # 获取结构化规则文本
     get_clinical_signals,  # 获取临床信号规则
+    get_diagnosis_skill,   # 获取诊断技能
     get_routing_hints,     # 获取路由提示
     list_specialties,      # 列出所有已有科室
     invalidate_cache,      # 清除缓存（编辑技能后调用）
