@@ -58,7 +58,7 @@ async def _try_fast_path(text: str, identity: str) -> Optional[str]:
     return None
 
 
-async def handle_turn(text: str, role: str, identity: str) -> str:
+async def handle_turn(text: str, role: str, identity: str, *, action_hint=None) -> str:
     """One turn. Channels call this directly."""
     agent = await get_or_create_agent(identity, role)
     set_current_identity(identity)

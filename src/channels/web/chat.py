@@ -14,6 +14,7 @@ from domain.knowledge.pdf_extract import extract_text_from_pdf_smart
 from infra.auth.rate_limit import enforce_doctor_rate_limit
 from infra.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
 from agent import handle_turn
+from agent.actions import Action
 from domain.records.confirm_pending import save_pending_record
 from db.crud.pending import abandon_pending_record, get_pending_record
 from channels.web.deps import get_doctor_id
@@ -40,6 +41,7 @@ class ChatInput(BaseModel):
     text: str = Field(..., max_length=8000)
     history: List[HistoryMessage] = Field(default_factory=list)
     doctor_id: str = ""
+    action_hint: Optional[Action] = None
 
     @field_validator("text")
     @classmethod
@@ -132,7 +134,7 @@ async def chat(
 
     enforce_doctor_rate_limit(doctor_id, scope="records.chat")
 
-    reply = await handle_turn(text, "doctor", doctor_id)
+    reply = await handle_turn(text, "doctor", doctor_id, action_hint=body.action_hint)
     return ChatResponse(reply=reply)
 
 
