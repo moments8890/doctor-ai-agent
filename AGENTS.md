@@ -16,7 +16,7 @@ The plan file must include:
 - **No auto-commit** — never commit unless explicitly asked
 - **Preserve medical abbreviations** — do not translate or expand STEMI, BNP, PCI, EGFR, ANC, HER2, EF, NYHA, ICD, etc.
 - **Tests mock all I/O** — unit tests in `tests/` must not make real LLM, DB, or network calls; use `AsyncMock` / `patch`
-- **Temporary testing policy** — during the current MVP iteration, do not add, update, or run unit tests as part of normal development unless the user explicitly asks for tests or the task is itself a test-only fix
+- **Testing policy** — integration tests are required for safety-critical modules (diagnosis pipeline, clinical decision support). For other modules, do not add unit tests unless the user explicitly asks. Prefer integration/E2E replay tests over unit tests for prompt-related changes.
 - **DB schema changes** — add to `db/models/`; `create_tables()` handles creation automatically; document any manual cleanup/migration impact in the commit message and PR description
 - **No Alembic migrations** — do not create or run Alembic migrations until first production launch; for dev, use `create_tables()` or manual `ALTER TABLE` statements
 - **LLM provider defaults** — local model is `qwen3.5:9b` via Ollama; prefer this in examples and defaults
@@ -40,7 +40,7 @@ Direct pushes to `main` are allowed.
 
 ### Steps for every change
 
-1. **Do not add or update unit tests by default** — unit coverage is temporarily frozen during the current MVP iteration unless the user explicitly requests test work
+1. **Testing** — integration tests are required for safety-critical modules (diagnosis pipeline). For other modules, do not add unit tests unless explicitly requested
 2. **Integration tests** — `pytest tests/integration/` — run when the LLM pipeline, prompts, or end-to-end workflow behavior changed
 3. **Corpus/E2E replay** — `bash scripts/test.sh chatlog-full` or `./dev.sh e2e <half|full>` — use for human-language regression checks on meaningful workflow changes
 4. **Document changes in commit message** — include what changed and any migration/manual cleanup impact

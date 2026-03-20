@@ -53,3 +53,4 @@ logs/turn_log.jsonl
 # local training data
 train
 .env.local
+.gstack/
