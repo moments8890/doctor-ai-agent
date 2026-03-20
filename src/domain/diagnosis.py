@@ -31,6 +31,28 @@ from infra.llm.resilience import call_with_retry_and_fallback
 from infra.observability.observability import trace_block
 from utils.log import log
 
+# Dedicated LLM I/O logger — writes to logs/diagnosis_llm.jsonl
+import logging as _logging
+import json as _json_mod
+from pathlib import Path as _Path
+
+_LLM_LOG_DIR = _Path(__file__).resolve().parents[2] / "logs"
+_LLM_LOG_DIR.mkdir(exist_ok=True)
+_llm_logger = _logging.getLogger("diagnosis.llm_io")
+_llm_logger.setLevel(_logging.DEBUG)
+if not _llm_logger.handlers:
+    _fh = _logging.FileHandler(str(_LLM_LOG_DIR / "diagnosis_llm.jsonl"), encoding="utf-8")
+    _fh.setFormatter(_logging.Formatter("%(message)s"))
+    _llm_logger.addHandler(_fh)
+    _llm_logger.propagate = False
+
+
+def _log_llm_io(tag: str, **kwargs: object) -> None:
+    """Write one JSONL line to diagnosis_llm.jsonl."""
+    from datetime import datetime, timezone
+    entry = {"ts": datetime.now(timezone.utc).isoformat(), "tag": tag, **kwargs}
+    _llm_logger.debug(_json_mod.dumps(entry, ensure_ascii=False, default=str))
+
 # ---------------------------------------------------------------------------
 # Module-level singleton cache: one HTTP connection pool per provider.
 # ---------------------------------------------------------------------------
@@ -599,6 +621,12 @@ async def run_diagnosis(
         user_message = _build_user_message(structured)
 
         log(f"{_tag} user_message_preview: {user_message[:120]}")
+        _log_llm_io("input",
+                     doctor_id=doctor_id, record_id=record_id,
+                     provider=provider_name, model=model_name,
+                     system_prompt=system_prompt,
+                     user_message=user_message,
+                     matched_cases_count=len(matched_cases))
 
         # ------------------------------------------------------------------
         # Step 7: Call LLM
@@ -614,6 +642,7 @@ async def run_diagnosis(
         except Exception as exc:
             log(f"{_tag} LLM call failed: {exc}", level="error")
             llm_error = str(exc)
+            _log_llm_io("error", doctor_id=doctor_id, record_id=record_id, error=str(exc))
 
         if llm_error or completion is None:
             err_msg = llm_error or "Empty LLM response"
@@ -624,6 +653,9 @@ async def run_diagnosis(
 
         raw = (completion.choices[0].message.content or "").strip()
         log(f"{_tag} raw response ({len(raw)} chars): {raw[:200]}")
+        _log_llm_io("output",
+                     doctor_id=doctor_id, record_id=record_id,
+                     raw_length=len(raw), raw=raw)
 
         if not raw:
             err_msg = "Empty LLM response"
