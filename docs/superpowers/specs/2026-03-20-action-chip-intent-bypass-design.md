@@ -105,47 +105,77 @@ POST /api/records/chat
 
 No response schema changes needed.
 
-### `ActionHint` enum
+### `Action` enum
 
-`action_hint` is a formal enum, not free text. Both frontend and backend
-share the same values. Pydantic rejects unknown values with HTTP 422.
+The system has a single `Action` enum representing all possible doctor
+intents. Action chips expose a **subset** of these actions as UI shortcuts.
+The ReAct agent, when running without a chip, performs the same intent
+classification via LLM — the chip just short-circuits that step.
 
-**Backend** (`src/agent/action_hint.py`):
+**Backend** (`src/agent/actions.py`):
 
 ```python
 from enum import Enum
 
-class ActionHint(str, Enum):
-    daily_summary = "daily_summary"
-    create_record = "create_record"
-    query_patient = "query_patient"
-    diagnosis     = "diagnosis"
+class Action(str, Enum):
+    """All doctor-facing intents. Chips expose a subset."""
+    daily_summary    = "daily_summary"
+    create_record    = "create_record"
+    query_patient    = "query_patient"
+    query_records    = "query_records"
+    update_record    = "update_record"
+    create_task      = "create_task"
+    export_pdf       = "export_pdf"
+    search_knowledge = "search_knowledge"
+    diagnosis        = "diagnosis"
+    general          = "general"           # free-text, no specific action
+
+# Actions exposed as chips in the frontend
+CHIP_ACTIONS: set[Action] = {
+    Action.daily_summary,
+    Action.create_record,
+    Action.query_patient,
+    Action.diagnosis,
+}
 ```
 
 **Frontend** (`constants.jsx`):
 
 ```js
-export const ActionHint = {
-  DAILY_SUMMARY: "daily_summary",
-  CREATE_RECORD: "create_record",
-  QUERY_PATIENT: "query_patient",
-  DIAGNOSIS:     "diagnosis",
+export const Action = {
+  DAILY_SUMMARY:    "daily_summary",
+  CREATE_RECORD:    "create_record",
+  QUERY_PATIENT:    "query_patient",
+  QUERY_RECORDS:    "query_records",
+  UPDATE_RECORD:    "update_record",
+  CREATE_TASK:      "create_task",
+  EXPORT_PDF:       "export_pdf",
+  SEARCH_KNOWLEDGE: "search_knowledge",
+  DIAGNOSIS:        "diagnosis",
+  GENERAL:          "general",
 };
 ```
 
-**`ChatInput` model** uses the enum directly:
+**`ChatInput` model** uses `Action` directly:
 
 ```python
 class ChatInput(BaseModel):
     text: str = Field(..., max_length=8000)
     history: List[HistoryMessage] = Field(default_factory=list)
     doctor_id: str = ""
-    action_hint: Optional[ActionHint] = None
+    action_hint: Optional[Action] = None
 ```
 
-Adding a new action in the future means adding one enum value in both
-`action_hint.py` and `constants.jsx`. Frontend `QUICK_COMMANDS` references
-`ActionHint` values via their `.key` field.
+Pydantic rejects unknown values with HTTP 422. The `action_hint` field
+accepts any `Action` value — not just chip actions — so other callers
+(WeChat, API integrations) can send hints too. Adding a new action means
+adding one enum value in `actions.py` and `constants.jsx`. Adding a new
+chip means also adding to `CHIP_ACTIONS` and `QUICK_COMMANDS`.
+
+**Why `Action` not `Tool`?** Actions and tools don't map 1:1.
+`daily_summary` is multi-tool, `diagnosis` has no tool yet, `general` uses
+no tool at all. `Action` represents what the doctor wants to do; tools are
+how the system fulfills it.
 
 ## Backend Architecture
 
@@ -221,11 +251,11 @@ All bypass paths must return a `str` (human-readable reply), since
 ### Implementation in `handle_turn.py`
 
 ```python
-from agent.action_hint import ActionHint
+from agent.actions import Action
 
 async def handle_turn(
     text: str, role: str, identity: str,
-    action_hint: ActionHint | None = None,
+    action_hint: Action | None = None,
 ) -> str:
     agent = await get_or_create_agent(identity, role)
     set_current_identity(identity)
@@ -310,10 +340,10 @@ const [activeChip, setActiveChip] = useState(null);
 
 ```js
 export const QUICK_COMMANDS = [
-  { key: ActionHint.DAILY_SUMMARY, label: "今日摘要",  autoSend: true },
-  { key: ActionHint.CREATE_RECORD, label: "新增病历",  autoSend: false },
-  { key: ActionHint.QUERY_PATIENT, label: "查询患者",  autoSend: false },
-  { key: ActionHint.DIAGNOSIS,     label: "诊断建议",  autoSend: false, disabled: true },
+  { key: Action.DAILY_SUMMARY, label: "今日摘要",  autoSend: true },
+  { key: Action.CREATE_RECORD, label: "新增病历",  autoSend: false },
+  { key: Action.QUERY_PATIENT, label: "查询患者",  autoSend: false },
+  { key: Action.DIAGNOSIS,     label: "诊断建议",  autoSend: false, disabled: true },
 ];
 ```
 
@@ -355,7 +385,7 @@ plain text on first daily load. Update to send with `action_hint`:
 sendText("今日工作摘要")
 
 // After:
-sendText("今日摘要", "daily_summary")
+sendText("今日摘要", Action.DAILY_SUMMARY)
 ```
 
 This gives the auto-summary the same bypass benefit as the manual chip click.
@@ -372,7 +402,7 @@ in the conversation trail.
 |-----------------------------------------------|-------------------------------------------------------|
 | Parameterized chip + empty text + send         | Show toast "请输入内容", don't send                    |
 | Plain text (no chip) + send                    | Normal flow, `action_hint` omitted                    |
-| Backend receives unknown `action_hint`         | Ignore, fall back to normal ReAct agent               |
+| Backend receives unknown `action_hint`         | Pydantic rejects with HTTP 422 (enum validation)      |
 | 诊断建议 clicked (disabled)                     | No-op, tooltip "即将上线"                              |
 | Network error during chip send                 | Same error handling as normal send                    |
 | 查询患者 + empty text                           | Frontend sends text="查询患者", backend lists all      |
@@ -385,7 +415,7 @@ in the conversation trail.
 ### Frontend
 
 - `frontend/web/src/pages/doctor/constants.jsx` — replace `QUICK_COMMANDS`
-  array with new 4-item definition, add `ActionHint` enum object
+  array with new 4-item definition, add `Action` enum object
 - `frontend/web/src/pages/doctor/ChatSection.jsx` — replace
   `QuickCommandsPanel` with `QuickCommandBar`, add `ChipInput` component,
   extend `performSend` with `actionHint`, update `useDailySummary` hook,
@@ -395,8 +425,8 @@ in the conversation trail.
 
 ### Backend
 
-- `src/agent/action_hint.py` — **NEW file**: `ActionHint(str, Enum)` definition
-- `src/channels/web/chat.py` — add `action_hint: Optional[ActionHint] = None`
+- `src/agent/actions.py` — **NEW file**: `Action(str, Enum)` + `CHIP_ACTIONS` set
+- `src/channels/web/chat.py` — add `action_hint: Optional[Action] = None`
   field to `ChatInput` model, pass to `handle_turn`
 - `src/agent/handle_turn.py` — add `action_hint` parameter to `handle_turn`,
   add `_dispatch_action_hint()` function with per-action fast paths
