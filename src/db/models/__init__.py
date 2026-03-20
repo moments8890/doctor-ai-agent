@@ -7,13 +7,14 @@ from db.models.doctor import (
 )
 from db.models.patient import Patient, PatientLabel, patient_label_assignments
 from db.models.records import MedicalRecordDB, MedicalRecordVersion, MedicalRecordExport
-from db.models.tasks import DoctorTask
-from db.models.pending import PendingRecord, PendingMessage
+from db.models.tasks import DoctorTask, TaskStatus, TaskType
+from db.models.pending import PendingRecord, PendingMessage, PendingRecordStatus, PendingMessageStatus
 from db.models.runtime import RuntimeToken, RuntimeConfig, SchedulerLease
 from db.models.audit import AuditLog
 from db.models.medical_record import MedicalRecord
 from db.models.patient_message import PatientMessage
 from db.models.interview_session import InterviewSessionDB
+from db.models.review_queue import ReviewQueue
 
 __all__ = [
     "_utcnow",
@@ -22,11 +23,12 @@ __all__ = [
     "DoctorNotifyPreference", "Doctor", "InviteCode", "ChatArchive",
     "Patient", "PatientLabel", "patient_label_assignments",
     "MedicalRecordDB", "MedicalRecordVersion", "MedicalRecordExport",
-    "DoctorTask",
-    "PendingRecord", "PendingMessage",
+    "DoctorTask", "TaskStatus", "TaskType",
+    "PendingRecord", "PendingMessage", "PendingRecordStatus", "PendingMessageStatus",
     "RuntimeToken", "RuntimeConfig", "SchedulerLease",
     "AuditLog",
     "MedicalRecord",
     "PatientMessage",
     "InterviewSessionDB",
+    "ReviewQueue",
 ]

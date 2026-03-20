@@ -12,6 +12,7 @@ from db.engine import Base
 from db.models.base import _utcnow
 
 
+
 class MedicalRecordDB(Base):
     __tablename__ = "medical_records"
 
@@ -52,6 +53,7 @@ class MedicalRecordVersion(Base):
     old_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     old_tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array
     old_record_type: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    old_structured: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON dict
     changed_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
 
     __table_args__ = (
