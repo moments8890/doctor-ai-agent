@@ -78,32 +78,73 @@ interviewing → draft_created → confirmed (via PendingRecord confirm)
                              → abandoned (via PendingRecord cancel or interview cancel)
 ```
 
+### Entry Point Consolidation
+
+**所有创建患者/病历的路径都归入 doctor interview session。不再有自由文本创建。**
+
+```
+Before (multiple paths, unreliable):
+  "新增病历" chip   → ReAct agent → create_record tool → free-text extraction
+  Free text          → ReAct agent → create_record tool → free-text extraction
+  Patient tab        → manual form
+
+After (one path, guaranteed structured):
+  "新增病历" chip   ─┐
+  Free text intent  ─┼→ Doctor Interview Session → structured collection → pending draft
+  Patient tab "添加" ─┘
+```
+
+**具体变更：**
+1. **"新增病历" Action Chip** → 直接进入 interview mode（前端状态切换）
+2. **Free text 创建意图** → ReAct agent 检测到创建意图后，不再调用 `create_record` tool，
+   而是返回"已为您开启病历采集模式"并启动 interview session。
+   **第一条消息的内容自动作为 interview 的第一轮输入**，医生不需要重复。
+3. **Patient tab "添加患者"** → 同样进入 interview mode
+4. **`create_record` tool 从 agent 工具列表中移除** — 不再有自由文本创建路径
+
+### Multi-Modal Input During Interview
+
+Interview session 支持多种输入方式，所有提取的内容都进入同一个 completeness engine：
+
+```
+Doctor interview session accepts:
+├── 文字/语音 → LLM 提取字段
+├── 图片（病历照片/检查报告）→ OCR → 提取文本 → LLM 提取字段
+├── PDF/文档 → 提取文本 → LLM 提取字段
+└── 混合（先发照片，再补充文字）→ 合并提取
+```
+
+实现方式：interview turn endpoint 增加可选的 `file` 参数。如果有文件，先走现有的
+OCR/PDF 提取 pipeline（`vision_import.py` / `pdf_extract.py`），提取文本后与 `text`
+合并，作为一条 interview turn 输入。
+
 ### Flow
 
 ```
-1. Doctor clicks "新增病历" chip
-   Frontend: sets activeInterview state (no backend call yet)
+1. Doctor clicks "新增病历" chip (or free text triggers creation intent)
+   Frontend: enters interview mode (sets activeInterview state)
+   If triggered by free text: auto-feed the text as first message
 
-2. Doctor types: "张三，男45岁，头痛三天伴恶心呕吐，既往高血压10年服药"
+2. Doctor types/dictates: "张三，男45岁，头痛三天伴恶心呕吐，既往高血压10年服药"
+   (or uploads a photo of a referral letter, or sends a PDF report)
    Frontend: POST /api/records/interview/turn
      { text: "...", session_id: null, patient_name: "张三",
        patient_gender: "男", patient_age: 45 }
+     (or multipart with file attachment)
 
 3. Backend:
-   a) resolve("张三", auto_create=True, gender="男", age=45)
+   a) If file attached: OCR/PDF extract → merge text
+   b) resolve("张三", auto_create=True, gender="男", age=45)
       → find or create patient → patient_id
-      NOTE: if multiple patients named "张三" exist, resolve()
-      returns the first match (existing limitation, same as create_record tool).
-      Doctor can disambiguate by providing more context.
-   b) create_session(doctor_id, patient_id, mode="doctor")
-   c) interview_turn(session_id, text) → LLM extracts fields
-   d) Return DoctorInterviewResponse
+   c) create_session(doctor_id, patient_id, mode="doctor")
+   d) interview_turn(session_id, merged_text) → LLM extracts fields
+   e) Return DoctorInterviewResponse
 
-4. Doctor types: "个人史无特殊，未婚未育，家族史无特殊"
+4. Doctor adds more info (text, voice, or another document)
    Frontend: POST /api/records/interview/turn
      { text: "...", session_id: "abc123" }
 
-5. Backend returns: status="ready_for_confirm", all fields filled
+5. Backend returns: status="ready_for_confirm", required fields filled
 
 6. Doctor clicks "确认生成"
    Frontend: POST /api/records/interview/confirm { session_id: "abc123" }
@@ -226,30 +267,40 @@ is a Phase 2 feature.
 - `src/domain/patients/interview_session.py` — add `mode` to create/load/save/get_active
 - `src/domain/patients/interview_turn.py` — pass `mode` through call chain,
   use `get_prompt_sync(prompt_name)` directly (prompt_loader already caches)
+- `src/agent/tools/doctor.py` — **remove `create_record` from `DOCTOR_TOOLS` list**.
+  Agent can no longer create records via free-text. If agent detects creation intent,
+  it returns a message directing the doctor to use interview mode.
+- `src/agent/handle_turn.py` — update `_dispatch_action_hint` for `Action.create_record`:
+  return a redirect message instead of calling `agent.handle()`
 - `src/channels/web/patient_interview_routes.py` — add `patient_id` ownership check
   to existing `/turn` endpoint (pre-existing bug fix)
 - `src/agent/prompts/doctor-interview.md` — new prompt file
+- `src/agent/prompts/doctor-agent.md` — update system prompt: when user wants to
+  create a record/patient, respond with "请使用「新增病历」功能来采集患者信息" instead
+  of calling create_record tool
 
 ### Frontend — modify
 
 - `frontend/web/src/pages/doctor/ChatSection.jsx`:
   - `activeInterview` state (localStorage-persisted)
   - "新增病历" chip → set activeInterview (no backend call)
-  - During interview: send to `/api/records/interview/turn`
+  - Free text creation intent detected by agent → frontend enters interview mode,
+    auto-feeds the original message as first interview turn
+  - During interview: send to `/api/records/interview/turn` (supports file upload)
   - Show progress indicator ("已采集 5/7")
   - On `status: ready_for_confirm` → show "确认生成" button
   - On confirm → `/api/records/interview/confirm` → show pending draft preview
   - On cancel → `/api/records/interview/cancel` → clear interview state
+  - Patient tab "添加患者" → same interview mode entry
 - `frontend/web/src/api.js` — add `interviewTurn()`, `interviewConfirm()`,
-  `interviewCancel()` functions
+  `interviewCancel()` functions (interviewTurn supports multipart for file upload)
 
 ### NOT changed
 
 - `completeness.py` — same fields, same required/optional logic
 - Patient interview endpoints — unchanged (except ownership fix)
-- `/api/records/chat` — unchanged
-- `handle_turn.py` — unchanged
-- Action chip dispatch — unchanged (frontend handles routing)
+- `/api/records/chat` — unchanged (but agent no longer creates records via this path)
+- Existing OCR/PDF extraction pipeline — reused as-is for document upload in interview
 
 ## No Collision with Existing Flows
 
@@ -287,6 +338,11 @@ is a Phase 2 feature.
 | First message has no patient name | Return error: "请提供患者姓名" |
 | Optional fields skipped | Doctor can confirm with 6/7 (REQUIRED + ASK_AT_LEAST), 婚育史 is optional |
 | Doctor types "确认" in text | Not intercepted — must click confirm button |
+| Doctor types "新患者张三..." in free chat | Agent detects intent → returns redirect message → frontend enters interview mode, auto-feeds text |
+| Doctor uploads photo during interview | OCR extract → merge with text → LLM extracts fields |
+| Doctor uploads PDF during interview | PDF extract → merge with text → LLM extracts fields |
+| Patient tab "添加患者" click | Enters same interview mode |
+| Doctor tries to use old create_record via chat | Agent responds: "请使用「新增病历」功能来采集患者信息" |
 
 ## Success Criteria
 
