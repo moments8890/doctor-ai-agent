@@ -581,8 +581,9 @@ def cmd_start(args: argparse.Namespace) -> None:
         if provider:
             _runtime_set(cfg, "ROUTING_LLM", provider)
             _runtime_set(cfg, "STRUCTURING_LLM", provider)
+            _runtime_set(cfg, "CONVERSATION_LLM", provider)
             _save_runtime(cfg)
-            info(f"Patched runtime.json: ROUTING_LLM={provider}, STRUCTURING_LLM={provider}")
+            info(f"Patched runtime.json: ROUTING/STRUCTURING/CONVERSATION_LLM={provider}")
 
         # MySQL health check
         print()

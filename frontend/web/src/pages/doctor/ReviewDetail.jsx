@@ -86,11 +86,10 @@ function buildSuggestions(diagnosis) {
 
 function FieldCard({ fieldKey, value, editing, suggestions, onStartEdit, onSave, onCancel, onApplySuggestion }) {
   const [draft, setDraft] = useState(value || "");
-  // applied = [{ origIdx, detail (editable copy) }]
+  // applied = [{ origIdx, detail, edited }]
   const [applied, setApplied] = useState([]);
-  const [expandedChip, setExpandedChip] = useState(null);
-  const [editingTag, setEditingTag] = useState(null); // origIdx of tag being edited
-  const [tagDraft, setTagDraft] = useState("");
+  const [editingIdx, setEditingIdx] = useState(null);
+  const [editDraft, setEditDraft] = useState("");
   const [chipsOpen, setChipsOpen] = useState(false);
   const label = STRUCTURED_FIELD_LABELS[fieldKey] || fieldKey;
 
@@ -98,60 +97,58 @@ function FieldCard({ fieldKey, value, editing, suggestions, onStartEdit, onSave,
 
   const hasSuggestions = suggestions && suggestions.length > 0;
   const appliedIndices = applied.map((a) => a.origIdx);
-  // Pool: unapplied, backfill to MAX_CHIPS
   const pool = hasSuggestions
     ? suggestions.map((s, i) => ({ ...s, _i: i })).filter((s) => !appliedIndices.includes(s._i)).slice(0, MAX_CHIPS)
     : [];
 
-  function syncValue(newApplied) {
-    const allDetails = newApplied.map((a) => a.detail);
-    onApplySuggestion(fieldKey, allDetails.join("；") || "");
-  }
-
-  function handleApply(origIndex) {
+  // Click chip → immediately add to input box
+  function handleSelect(origIndex) {
     const s = suggestions[origIndex];
-    const newApplied = [...applied, { origIdx: origIndex, detail: s.detail }];
-    setApplied(newApplied);
-    syncValue(newApplied);
-    setExpandedChip(null);
-    setTagDraft("");
+    setApplied((prev) => [...prev, { origIdx: origIndex, detail: s.detail, edited: false }]);
+    if (!chipsOpen) setChipsOpen(true);
   }
 
-  function handleRemoveTag(origIndex) {
-    const newApplied = applied.filter((a) => a.origIdx !== origIndex);
-    setApplied(newApplied);
-    syncValue(newApplied);
-    if (editingTag === origIndex) setEditingTag(null);
+  // × to deselect (only if not edited)
+  function handleDeselect(origIndex) {
+    setApplied((prev) => prev.filter((a) => a.origIdx !== origIndex));
+    if (editingIdx === origIndex) setEditingIdx(null);
   }
 
-  function handleSaveTagEdit(origIndex) {
-    const newApplied = applied.map((a) => a.origIdx === origIndex ? { ...a, detail: tagDraft } : a);
-    setApplied(newApplied);
-    syncValue(newApplied);
-    setEditingTag(null);
+  // Click line in input → expand to editable
+  function handleExpandLine(origIndex) {
+    const a = applied.find((x) => x.origIdx === origIndex);
+    if (editingIdx === origIndex) { setEditingIdx(null); return; }
+    setEditingIdx(origIndex);
+    setEditDraft(a?.detail || "");
+  }
+
+  // Save inline edit → if empty, remove the row; otherwise mark as edited
+  function handleSaveEdit() {
+    if (!editDraft.trim()) {
+      setApplied((prev) => prev.filter((a) => a.origIdx !== editingIdx));
+    } else {
+      setApplied((prev) => prev.map((a) =>
+        a.origIdx === editingIdx ? { ...a, detail: editDraft, edited: true } : a
+      ));
+    }
+    setEditingIdx(null);
+  }
+
+  // Save all → combine details and persist
+  function handleSaveAll() {
+    const allDetails = applied.map((a) => a.detail);
+    onApplySuggestion(fieldKey, allDetails.join("\n") || "");
+    setChipsOpen(false);
   }
 
   // ── Editing mode (free text) ──
   if (editing) {
-    const editPool = hasSuggestions ? suggestions.filter((s) => !draft.includes(s.detail)).slice(0, MAX_CHIPS) : [];
     return (
       <Box sx={{ py: 0.5, borderBottom: "0.5px solid #f0f0f0" }}>
         <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "#999", mb: 0.3 }}>{label}</Typography>
         <TextField fullWidth multiline size="small" value={draft}
           onChange={(e) => setDraft(e.target.value)}
           sx={{ "& .MuiOutlinedInput-root": { fontSize: TYPE.body.fontSize } }} />
-        {editPool.length > 0 && (
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.5 }}>
-            {editPool.map((s, i) => (
-              <Box key={i} onClick={() => setDraft((prev) => prev ? `${prev}；${s.detail}` : s.detail)}
-                sx={{ px: 1, py: 0.3, borderRadius: "4px", fontSize: TYPE.caption.fontSize,
-                  border: "1px solid #E5E5E5", bgcolor: "#fff", color: "#666",
-                  cursor: "pointer", "&:active": { opacity: 0.7 } }}>
-                {s.brief}
-              </Box>
-            ))}
-          </Box>
-        )}
         <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
           <BarButton onClick={() => onSave(fieldKey, draft)}>保存</BarButton>
           <BarButton onClick={onCancel} color="#999">取消</BarButton>
@@ -180,92 +177,74 @@ function FieldCard({ fieldKey, value, editing, suggestions, onStartEdit, onSave,
       {/* Label row */}
       <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.5 }}>
         <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "#999", flexShrink: 0 }}>{label}：</Typography>
+        {applied.length === 0 && value && (
+          <Typography onClick={() => onStartEdit(fieldKey)}
+            sx={{ fontSize: TYPE.body.fontSize, color: "#1A1A1A", flex: 1, lineHeight: 1.6, cursor: "pointer" }}>{value}</Typography>
+        )}
         {applied.length === 0 && !value && (
           <Typography onClick={() => setChipsOpen(!chipsOpen)}
             sx={{ fontSize: TYPE.caption.fontSize, color: "#F59E0B", fontWeight: 600, cursor: "pointer" }}>
             AI建议 ({suggestions.length}) {chipsOpen ? "▾" : "▸"}
           </Typography>
         )}
-        {applied.length === 0 && value && (
-          <Typography onClick={() => onStartEdit(fieldKey)}
-            sx={{ fontSize: TYPE.body.fontSize, color: "#1A1A1A", flex: 1, lineHeight: 1.6, cursor: "pointer" }}>{value}</Typography>
-        )}
       </Box>
 
-      {/* Applied tags — tap to edit, × to remove */}
+      {/* Input box — each applied suggestion as one line of detail text */}
       {applied.length > 0 && (
-        <Box sx={{ mt: 0.3, p: 0.5, bgcolor: "#fafafa", borderRadius: "4px", border: "1px solid #f0f0f0" }}>
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-            {applied.map((a) => (
-              <Box key={a.origIdx}
-                onClick={() => {
-                  if (editingTag === a.origIdx) { setEditingTag(null); }
-                  else { setEditingTag(a.origIdx); setTagDraft(a.detail); }
-                }}
-                sx={{ display: "inline-flex", alignItems: "center", gap: 0.3,
-                  px: 0.8, py: 0.3, borderRadius: "4px", fontSize: TYPE.caption.fontSize,
-                  bgcolor: editingTag === a.origIdx ? COLOR.success : COLOR.successLight,
-                  color: editingTag === a.origIdx ? "#fff" : COLOR.success,
-                  cursor: "pointer", "&:active": { opacity: 0.7 } }}>
-                {suggestions[a.origIdx].brief}
-                <Box component="span" onClick={(e) => { e.stopPropagation(); handleRemoveTag(a.origIdx); }}
-                  sx={{ fontSize: 11, lineHeight: 1, ml: 0.3, opacity: 0.7 }}>×</Box>
-              </Box>
-            ))}
-          </Box>
-          {/* Inline edit for selected tag */}
-          {editingTag != null && (
-            <Box sx={{ mt: 0.5 }}>
-              <TextField fullWidth multiline size="small" value={tagDraft}
-                onChange={(e) => setTagDraft(e.target.value)}
-                sx={{ "& .MuiOutlinedInput-root": { fontSize: TYPE.body.fontSize } }} />
-              <Stack direction="row" spacing={1} sx={{ mt: 0.3 }}>
-                <BarButton onClick={() => handleSaveTagEdit(editingTag)}>保存</BarButton>
-                <BarButton onClick={() => setEditingTag(null)} color="#999">取消</BarButton>
-              </Stack>
-            </Box>
-          )}
-        </Box>
-      )}
-
-      {/* Chip pool — backfills to MAX_CHIPS */}
-      {(chipsOpen || applied.length > 0) && pool.length > 0 && (
-        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.3 }}>
-          {pool.map((s) => {
-            const isExp = expandedChip === s._i;
+        <Box sx={{ mt: 0.3, bgcolor: "#fafafa", borderRadius: "4px", border: "1px solid #f0f0f0", overflow: "hidden" }}>
+          {applied.map((a) => {
+            const isEditing = editingIdx === a.origIdx;
             return (
-              <Box key={s._i} onClick={() => setExpandedChip(isExp ? null : s._i)}
-                sx={{ px: 1, py: 0.3, borderRadius: "4px", fontSize: TYPE.caption.fontSize,
-                  border: isExp ? `1px solid ${COLOR.success}` : "1px solid #E5E5E5",
-                  bgcolor: isExp ? COLOR.successLight : "#fff",
-                  color: isExp ? COLOR.success : "#666",
-                  cursor: "pointer", "&:active": { opacity: 0.7 } }}>
-                {s.brief}
+              <Box key={a.origIdx} sx={{ borderBottom: "0.5px solid #f0f0f0", "&:last-child": { borderBottom: "none" } }}>
+                {/* Line: detail text + deselect × */}
+                <Box sx={{ display: "flex", alignItems: "flex-start", px: 1, py: 0.5, cursor: "pointer",
+                  bgcolor: isEditing ? "#fff" : "transparent" }}
+                  onClick={() => handleExpandLine(a.origIdx)}>
+                  <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#333", flex: 1, lineHeight: 1.6 }}>
+                    {a.detail}
+                  </Typography>
+                  {!a.edited && (
+                    <Box component="span" onClick={(e) => { e.stopPropagation(); handleDeselect(a.origIdx); }}
+                      sx={{ fontSize: TYPE.caption.fontSize, color: "#999", ml: 1, flexShrink: 0, cursor: "pointer",
+                        "&:active": { opacity: 0.5 } }}>×</Box>
+                  )}
+                  {a.edited && (
+                    <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.success, ml: 1, flexShrink: 0 }}>已编辑</Typography>
+                  )}
+                </Box>
+                {/* Expanded edit */}
+                {isEditing && (
+                  <Box sx={{ px: 1, pb: 0.5 }}>
+                    <TextField fullWidth multiline size="small" value={editDraft}
+                      onChange={(e) => setEditDraft(e.target.value)}
+                      sx={{ "& .MuiOutlinedInput-root": { fontSize: TYPE.body.fontSize } }} />
+                    <Stack direction="row" spacing={1} sx={{ mt: 0.3 }}>
+                      <BarButton onClick={handleSaveEdit}>确认修改</BarButton>
+                      <BarButton onClick={() => setEditingIdx(null)} color="#999">取消</BarButton>
+                    </Stack>
+                  </Box>
+                )}
               </Box>
             );
           })}
+          {/* Save all button */}
+          <Box sx={{ px: 1, py: 0.5, borderTop: "0.5px solid #e5e5e5" }}>
+            <BarButton onClick={handleSaveAll}>保存</BarButton>
+          </Box>
         </Box>
       )}
 
-      {/* Expanded detail — editable before adopting */}
-      {expandedChip != null && suggestions[expandedChip] && (
-        <Box sx={{ mt: 0.5, p: 1, bgcolor: "#f9f9f9", borderRadius: "4px", borderLeft: `3px solid ${COLOR.success}` }}>
-          <TextField fullWidth multiline size="small"
-            value={expandedChip != null ? (tagDraft || suggestions[expandedChip].detail) : ""}
-            onChange={(e) => setTagDraft(e.target.value)}
-            onFocus={() => { if (!tagDraft) setTagDraft(suggestions[expandedChip].detail); }}
-            sx={{ "& .MuiOutlinedInput-root": { fontSize: TYPE.body.fontSize }, bgcolor: "#fff" }} />
-          <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
-            <BarButton onClick={() => {
-              const detail = tagDraft || suggestions[expandedChip].detail;
-              const newApplied = [...applied, { origIdx: expandedChip, detail }];
-              setApplied(newApplied);
-              syncValue(newApplied);
-              setExpandedChip(null);
-              setTagDraft("");
-            }}>采纳</BarButton>
-            <BarButton onClick={() => { setExpandedChip(null); setTagDraft(""); }} color="#999">关闭</BarButton>
-          </Stack>
+      {/* Chip pool — brief labels, click to select */}
+      {(chipsOpen || applied.length > 0) && pool.length > 0 && (
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.3 }}>
+          {pool.map((s) => (
+            <Box key={s._i} onClick={() => handleSelect(s._i)}
+              sx={{ px: 1, py: 0.3, borderRadius: "4px", fontSize: TYPE.caption.fontSize,
+                border: "1px solid #E5E5E5", bgcolor: "#fff", color: "#666",
+                cursor: "pointer", "&:active": { opacity: 0.7 } }}>
+              {s.brief}
+            </Box>
+          ))}
         </Box>
       )}
     </Box>

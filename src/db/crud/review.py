@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.models import MedicalRecordDB, MedicalRecordVersion, Patient
-from db.models.interview_session import InterviewSessionDB
+from db.models.interview_session import InterviewSessionDB, InterviewStatus
 from db.models.review_queue import ReviewQueue
 from db.models.diagnosis_result import DiagnosisResult
 from db.models.base import _utcnow
@@ -113,7 +113,10 @@ async def get_review_detail(
             .where(
                 InterviewSessionDB.patient_id == rq.patient_id,
                 InterviewSessionDB.doctor_id == doctor_id,
-                InterviewSessionDB.status == "completed",
+                InterviewSessionDB.status.in_([
+                    InterviewStatus.confirmed,
+                    InterviewStatus.draft_created,
+                ]),
             )
             .order_by(InterviewSessionDB.updated_at.desc())
             .limit(1)
