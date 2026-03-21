@@ -9,6 +9,8 @@ import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
 import { doctorInterviewTurn, doctorInterviewConfirm, doctorInterviewCancel } from "../../api";
 import SubpageHeader from "./SubpageHeader";
+import SuggestionChips from "../../components/SuggestionChips";
+import { TYPE, ICON } from "../../theme";
 
 function nowTs() {
   const d = new Date();
@@ -21,11 +23,11 @@ function MsgBubble({ msg }) {
     <Box sx={{ display: "flex", flexDirection: isUser ? "row-reverse" : "row", alignItems: "flex-end", gap: 1, px: 1.5 }}>
       <Box sx={{ width: 32, height: 32, borderRadius: "4px", bgcolor: isUser ? "#5b9bd5" : "#07C160",
         display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-        {isUser ? <LocalHospitalOutlinedIcon sx={{ color: "#fff", fontSize: 18 }} />
-                : <SmartToyOutlinedIcon sx={{ color: "#fff", fontSize: 18 }} />}
+        {isUser ? <LocalHospitalOutlinedIcon sx={{ color: "#fff", fontSize: ICON.md }} />
+                : <SmartToyOutlinedIcon sx={{ color: "#fff", fontSize: ICON.md }} />}
       </Box>
       <Box sx={{ maxWidth: "75%", px: 1.5, py: 1, borderRadius: isUser ? "4px 4px 0 4px" : "4px 4px 4px 0",
-        bgcolor: isUser ? "#95EC69" : "#fff", fontSize: 14, whiteSpace: "pre-wrap", lineHeight: 1.7 }}>
+        bgcolor: isUser ? "#95EC69" : "#fff", fontSize: TYPE.body.fontSize, whiteSpace: "pre-wrap", lineHeight: 1.7 }}>
         {msg.content}
       </Box>
     </Box>
@@ -47,18 +49,30 @@ export default function InterviewView({ doctorId, sessionId: resumeSessionId, on
     patientId: null,
   });
   const [error, setError] = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
+  const [selectedSuggestions, setSelectedSuggestions] = useState([]);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => { inputRef.current?.focus(); }, []);
 
+  function handleToggleSuggestion(text) {
+    setSelectedSuggestions(prev =>
+      prev.includes(text) ? prev.filter(s => s !== text) : [...prev, text]
+    );
+  }
+
   async function handleSend() {
-    const text = input.trim();
+    const parts = [...selectedSuggestions];
+    if (input.trim()) parts.push(input.trim());
+    const text = parts.join("，");
     if (!text || loading) return;
 
     setMessages(prev => [...prev, { role: "user", content: text, ts: nowTs() }]);
     setInput("");
+    setSuggestions([]);
+    setSelectedSuggestions([]);
     setLoading(true);
     setError(null);
 
@@ -68,9 +82,16 @@ export default function InterviewView({ doctorId, sessionId: resumeSessionId, on
       formData.append("doctor_id", doctorId);
 
       if (!session.sessionId) {
-        // First turn — extract patient name from text
-        const name = text.split(/[，,\s]/)[0].replace(/[新患者创建建立]/g, "").trim();
+        // First turn — extract patient name, gender, age from text
+        const parts = text.split(/[，,\s]+/);
+        const name = parts[0].replace(/[新患者创建建立]/g, "").trim();
         formData.append("patient_name", name || text.substring(0, 10));
+        // Extract gender (男/女) and age (数字+岁) from remaining parts
+        for (const p of parts.slice(1)) {
+          if (/^[男女]$/.test(p)) formData.append("patient_gender", p);
+          const ageMatch = p.match(/^(\d{1,3})岁?$/);
+          if (ageMatch) formData.append("patient_age", ageMatch[1]);
+        }
       } else {
         formData.append("session_id", session.sessionId);
       }
@@ -85,6 +106,8 @@ export default function InterviewView({ doctorId, sessionId: resumeSessionId, on
       });
 
       setMessages(prev => [...prev, { role: "assistant", content: data.reply, ts: nowTs() }]);
+      setSuggestions(data.suggestions || []);
+      setSelectedSuggestions([]);
     } catch (err) {
       setError(err.message);
       setMessages(prev => [...prev, { role: "assistant", content: `出错：${err.message}`, ts: nowTs() }]);
@@ -155,7 +178,7 @@ export default function InterviewView({ doctorId, sessionId: resumeSessionId, on
             必填已完成，可以生成初步病历了
           </Typography>
           <Button size="small" variant="contained" disableElevation
-            sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: "#06ad56" }, fontSize: 12 }}
+            sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: "#06ad56" }, fontSize: TYPE.caption.fontSize }}
             onClick={handleConfirm} disabled={loading}>
             确认生成
           </Button>
@@ -171,21 +194,48 @@ export default function InterviewView({ doctorId, sessionId: resumeSessionId, on
         </Box>
       )}
 
+      {/* Suggestion chips — floating above input */}
+      {session.status !== "draft_created" && !loading && suggestions.length > 0 && (
+        <SuggestionChips
+          items={suggestions}
+          selected={selectedSuggestions}
+          onToggle={handleToggleSuggestion}
+          onDismiss={() => setSuggestions([])}
+          disabled={loading}
+        />
+      )}
+
       {/* Input bar */}
       {session.status !== "draft_created" && (
-        <Box sx={{ borderTop: "1px solid #d9d9d9", bgcolor: "#f5f5f5", px: 1, py: 0.8,
-          display: "flex", alignItems: "center", gap: 0.5 }}>
-          <Box sx={{ flex: 1, bgcolor: "#fff", borderRadius: "4px", px: 1.2, py: 0.8 }}>
+        <Box sx={{ borderTop: suggestions.length > 0 ? "none" : "1px solid #d9d9d9", bgcolor: "#f5f5f5", px: 1, py: 0.8,
+          display: "flex", alignItems: "flex-end", gap: 0.5 }}>
+          <Box sx={{ flex: 1, bgcolor: "#fff", borderRadius: "4px", px: 1, py: 0.5,
+            display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5, minHeight: 36 }}>
+            {selectedSuggestions.map((s, i) => (
+              <Box key={i} sx={{
+                display: "inline-flex", alignItems: "center", gap: 0.3,
+                px: 1, py: 0.2, borderRadius: "12px", fontSize: TYPE.secondary.fontSize,
+                bgcolor: "#e8f5e9", color: "#07C160", fontWeight: 500,
+                flexShrink: 0,
+              }}>
+                {s}
+                <Box component="span"
+                  onClick={() => setSelectedSuggestions(prev => prev.filter(x => x !== s))}
+                  sx={{ cursor: "pointer", fontSize: TYPE.body.fontSize, lineHeight: 1, ml: 0.2, "&:active": { opacity: 0.5 } }}>
+                  ×
+                </Box>
+              </Box>
+            ))}
             <Box component="input" ref={inputRef} value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               disabled={loading}
-              placeholder="输入患者信息..."
-              sx={{ width: "100%", border: "none", outline: "none", fontSize: 14, fontFamily: "inherit",
-                bgcolor: "transparent", p: 0 }}
+              placeholder={selectedSuggestions.length > 0 ? "" : "输入患者信息..."}
+              sx={{ flex: 1, minWidth: 60, border: "none", outline: "none", fontSize: TYPE.body.fontSize, fontFamily: "inherit",
+                bgcolor: "transparent", p: 0.3 }}
             />
           </Box>
-          <IconButton onClick={handleSend} disabled={loading || !input.trim()}
+          <IconButton onClick={() => handleSend()} disabled={loading || (!input.trim() && selectedSuggestions.length === 0)}
             sx={{ bgcolor: "#07C160", color: "#fff", p: 1, borderRadius: "50%",
               "&:hover": { bgcolor: "#06ad56" }, "&.Mui-disabled": { bgcolor: "#ccc", color: "#fff" } }}>
             <SendOutlinedIcon fontSize="small" />

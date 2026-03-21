@@ -1,5 +1,6 @@
 import { Box, Chip, Stack, Typography } from "@mui/material";
 import { t } from "../i18n";
+import { TYPE } from "../theme";
 
 export default function RecordFields({ record }) {
   if (!record) return null;
@@ -24,7 +25,7 @@ export default function RecordFields({ record }) {
       {tags.length > 0 && (
         <Stack direction="row" spacing={0.6} flexWrap="wrap" sx={{ mt: 1.2 }}>
           {tags.map((tag, i) => (
-            <Chip key={i} label={tag} size="small" variant="outlined" sx={{ fontSize: 11 }} />
+            <Chip key={i} label={tag} size="small" variant="outlined" sx={{ fontSize: TYPE.micro.fontSize }} />
           ))}
         </Stack>
       )}

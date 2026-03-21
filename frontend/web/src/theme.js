@@ -1,19 +1,67 @@
 import { createTheme } from "@mui/material/styles";
 
+// ── Typography scale (7 levels) ─────────────────────────────────────
+// Change here → affects all pages. Do not use hardcoded fontSize in components.
+const TYPE = {
+  title:     { fontSize: 16, fontWeight: 600 },  // top bar title, page title
+  action:    { fontSize: 15, fontWeight: 400 },  // top bar actions (BarButton)
+  heading:   { fontSize: 14, fontWeight: 600 },  // section titles, card headers, form labels
+  body:      { fontSize: 14, fontWeight: 400 },  // primary content, field values
+  secondary: { fontSize: 13, fontWeight: 400 },  // list subtitles, descriptions
+  caption:   { fontSize: 12, fontWeight: 400 },  // metadata, timestamps
+  micro:     { fontSize: 11, fontWeight: 500 },  // badges, tags, source labels
+};
+
+// ── Icon scale (8 levels) ────────────────────────────────────────────
+// Change here → affects all icon sizes globally.
+const ICON = {
+  xs:      13,  // inline tiny (sort arrows, inline delete/edit)
+  sm:      16,  // inline icons (chevrons, close, action bar)
+  md:      18,  // list item icons, avatar inner, expand/collapse
+  lg:      20,  // nav icons, settings row icons, primary actions
+  xl:      22,  // quick action cards, avatar initials
+  xxl:     24,  // detail header icons
+  hero:    28,  // SubpageHeader back chevron, action panel
+  display: 48,  // empty state, about page, login splash
+};
+
+// ── Color tokens ────────────────────────────────────────────────────
+const COLOR = {
+  primary:      "#1B6EF3",
+  primaryLight: "#E8F0FE",
+  success:      "#52C772",
+  successLight: "#EDF5F0",
+  danger:       "#D65745",
+  dangerLight:  "#FDF0EE",
+  warning:      "#F59E0B",
+  warningLight: "#FFF7E6",
+  text1:        "#1A1A1A",
+  text2:        "#333333",
+  text3:        "#666666",
+  text4:        "#999999",
+  border:       "#E5E5E5",
+  borderLight:  "#f0f0f0",
+  surface:      "#f7f7f7",
+  surfaceAlt:   "#ededed",
+  white:        "#ffffff",
+};
+
+export { TYPE, ICON, COLOR };
+
 export const appTheme = createTheme({
   palette: {
     mode: "light",
-    primary: { main: "#07C160" },
-    secondary: { main: "#999999" },
-    error: { main: "#FA5151" },
-    warning: { main: "#FF9500" },
+    primary: { main: COLOR.success },
+    secondary: { main: COLOR.text4 },
+    error: { main: COLOR.danger },
+    warning: { main: COLOR.warning },
     background: {
-      default: "#ededed",
-      paper: "#ffffff",
+      default: COLOR.surfaceAlt,
+      paper: COLOR.white,
     },
     text: {
-      primary: "#111111",
-      secondary: "#999999",
+      primary: COLOR.text1,
+      secondary: COLOR.text4,
     },
   },
   shape: {
@@ -21,69 +69,49 @@ export const appTheme = createTheme({
   },
   wechat: {
     userBubble: "#95EC69",
-    aiBubble: "#ffffff",
+    aiBubble: COLOR.white,
     inputBarBg: "#f5f5f5",
-    tabBarBg: "#f7f7f7",
-    listDivider: "#f0f0f0",
+    tabBarBg: COLOR.surface,
+    listDivider: COLOR.borderLight,
     borderInput: "#e0e0e0",
     tabBarBorder: "#d9d9d9",
   },
   typography: {
     fontFamily: "'Noto Sans SC', 'IBM Plex Sans', 'Segoe UI', sans-serif",
-    h5: { fontWeight: 500, fontSize: "17px" },
-    h6: { fontWeight: 500, fontSize: "17px" },
-    subtitle1: { fontWeight: 500, fontSize: "15px" },
-    body1: { fontSize: "15px" },
-    body2: { fontSize: "14px" },
-    caption: { fontSize: "12px" },
-    button: { textTransform: "none", fontWeight: 500, fontSize: "14px" },
+    // MUI variant mapping to our type scale
+    h5:       { fontWeight: TYPE.title.fontWeight,   fontSize: TYPE.title.fontSize },
+    h6:       { fontWeight: TYPE.title.fontWeight,   fontSize: TYPE.title.fontSize },
+    subtitle1:{ fontWeight: 500,                     fontSize: TYPE.action.fontSize },
+    body1:    { fontWeight: TYPE.body.fontWeight,     fontSize: TYPE.body.fontSize },
+    body2:    { fontWeight: TYPE.body.fontWeight,     fontSize: TYPE.body.fontSize },
+    caption:  { fontWeight: TYPE.caption.fontWeight,  fontSize: TYPE.caption.fontSize },
+    button:   { textTransform: "none", fontWeight: 500, fontSize: TYPE.body.fontSize },
   },
   shadows: Array(25).fill("none"),
   components: {
     MuiAppBar: {
       styleOverrides: {
         root: {
-          backgroundColor: "#ededed",
-          borderBottom: "0.5px solid #d9d9d9",
+          backgroundColor: COLOR.surfaceAlt,
+          borderBottom: `0.5px solid #d9d9d9`,
         },
       },
     },
     MuiPaper: {
-      defaultProps: {
-        elevation: 0,
-      },
-      styleOverrides: {
-        root: {
-          boxShadow: "none",
-        },
-      },
+      defaultProps: { elevation: 0 },
+      styleOverrides: { root: { boxShadow: "none" } },
     },
     MuiCard: {
-      styleOverrides: {
-        root: {
-          borderRadius: 4,
-        },
-      },
+      styleOverrides: { root: { borderRadius: 4 } },
     },
     MuiButton: {
       styleOverrides: {
-        root: {
-          borderRadius: 4,
-        },
-        contained: {
-          boxShadow: "none",
-          "&:hover": {
-            boxShadow: "none",
-          },
-        },
+        root: { borderRadius: 4 },
+        contained: { boxShadow: "none", "&:hover": { boxShadow: "none" } },
       },
     },
     MuiDialog: {
-      styleOverrides: {
-        paper: {
-          borderRadius: 12,
-        },
-      },
+      styleOverrides: { paper: { borderRadius: 12 } },
     },
   },
 });

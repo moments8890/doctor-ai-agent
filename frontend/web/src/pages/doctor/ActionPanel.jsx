@@ -3,6 +3,7 @@ import CameraAltOutlinedIcon from "@mui/icons-material/CameraAltOutlined";
 import PhotoLibraryOutlinedIcon from "@mui/icons-material/PhotoLibraryOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import PersonSearchOutlinedIcon from "@mui/icons-material/PersonSearchOutlined";
+import { TYPE, ICON } from "../../theme";
 
 const actions = [
   { key: "camera", label: "拍照", Icon: CameraAltOutlinedIcon, color: "#07C160" },
@@ -59,9 +60,9 @@ export default function ActionPanel({ open, onClose, onAction }) {
                     justifyContent: "center",
                   }}
                 >
-                  <Icon sx={{ color: "#fff", fontSize: 28 }} />
+                  <Icon sx={{ color: "#fff", fontSize: ICON.hero }} />
                 </Box>
-                <Typography sx={{ mt: 0.5, fontSize: 12, color: "#666" }}>{label}</Typography>
+                <Typography sx={{ mt: 0.5, fontSize: TYPE.caption.fontSize, color: "#666" }}>{label}</Typography>
               </Box>
             ))}
           </Box>

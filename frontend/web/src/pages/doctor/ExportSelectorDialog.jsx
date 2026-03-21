@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Box, Dialog, Typography } from "@mui/material";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
+import { TYPE, ICON } from "../../theme";
 
 const SECTIONS = [
   { key: "basicInfo",    label: "基本信息",   defaultChecked: true,  disabled: true },
@@ -100,11 +101,11 @@ export default function ExportSelectorDialog({ open, onClose, patientId, patient
 
         {/* Title */}
         <Box sx={{ px: 2.5, pt: isMobile ? 1 : 2.5, pb: 1.5 }}>
-          <Typography sx={{ fontWeight: 600, fontSize: 16, textAlign: "center" }}>
+          <Typography sx={{ fontWeight: 600, fontSize: TYPE.title.fontSize, textAlign: "center" }}>
             导出PDF — 选择内容
           </Typography>
           {patientName && (
-            <Typography sx={{ fontSize: 12, color: "#999", textAlign: "center", mt: 0.3 }}>
+            <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#999", textAlign: "center", mt: 0.3 }}>
               患者：{patientName}
             </Typography>
           )}
@@ -127,11 +128,11 @@ export default function ExportSelectorDialog({ open, onClose, patientId, patient
                 }}
               >
                 <CheckCircle checked={sections[sec.key]} disabled={sec.disabled} />
-                <Typography sx={{ fontSize: 15, color: "#333", flex: 1 }}>
+                <Typography sx={{ fontSize: TYPE.action.fontSize, color: "#333", flex: 1 }}>
                   {sec.label}
                 </Typography>
                 {sec.disabled && (
-                  <Typography sx={{ fontSize: 11, color: "#bbb" }}>必选</Typography>
+                  <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#bbb" }}>必选</Typography>
                 )}
               </Box>
 
@@ -147,7 +148,7 @@ export default function ExportSelectorDialog({ open, onClose, patientId, patient
                         py: 0.35,
                         borderRadius: "4px",
                         cursor: "pointer",
-                        fontSize: 12,
+                        fontSize: TYPE.caption.fontSize,
                         bgcolor: visitRange === opt.value ? "#07C160" : "#f0f0f0",
                         color: visitRange === opt.value ? "#fff" : "#666",
                         fontWeight: visitRange === opt.value ? 600 : 400,
@@ -172,7 +173,7 @@ export default function ExportSelectorDialog({ open, onClose, patientId, patient
               height: 44,
               lineHeight: "44px",
               borderRadius: "4px",
-              fontSize: 15,
+              fontSize: TYPE.action.fontSize,
               fontWeight: 600,
               cursor: "pointer",
               bgcolor: "#07C160",

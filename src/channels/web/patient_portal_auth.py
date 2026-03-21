@@ -94,64 +94,40 @@ def _verify_patient_token(token: str) -> dict:
 
 
 async def _authenticate_patient(
-    x_patient_token: Optional[str] = None,
     authorization: Optional[str] = None,
 ) -> Patient:
-    """Validate patient token from either X-Patient-Token or Authorization: Bearer.
+    """Validate patient via Authorization: Bearer token (unified auth).
 
-    Supports both legacy patient portal tokens and unified auth tokens.
     Returns the Patient ORM instance on success; raises HTTPException otherwise.
     """
-    # Try unified Bearer token first
     bearer = authorization
     if bearer and bearer.startswith("Bearer "):
         bearer = bearer[7:]
-    if bearer:
-        try:
-            from infra.auth.unified import verify_token
-            from infra.auth import UserRole
-            payload = verify_token(bearer)
-            if payload.get("role") != UserRole.patient:
-                raise HTTPException(403, "Patient access required")
-            patient_id = payload.get("patient_id")
-            token_doctor_id = payload.get("doctor_id")
-
-            async with AsyncSessionLocal() as db:
-                stmt = select(Patient).where(Patient.id == patient_id)
-                if token_doctor_id:
-                    stmt = stmt.where(Patient.doctor_id == token_doctor_id)
-                patient = (await db.execute(stmt.limit(1))).scalar_one_or_none()
-
-            if patient is None:
-                raise HTTPException(404, "Patient not found")
-            return patient
-        except HTTPException:
-            raise
-        except Exception:
-            pass  # Fall through to legacy token
-
-    # Legacy X-Patient-Token
-    if not x_patient_token:
+    if not bearer:
         raise HTTPException(status_code=401, detail="Authentication required")
-    claims = _verify_patient_token(x_patient_token)
-    patient_id = claims["patient_id"]
-    token_doctor_id = claims.get("doctor_id")
-    token_acv = claims["acv"]
+
+    from infra.auth.unified import verify_token
+    from infra.auth import UserRole
+
+    try:
+        payload = verify_token(bearer)
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    if payload.get("role") != UserRole.patient:
+        raise HTTPException(403, "Patient access required")
+
+    patient_id = payload.get("patient_id")
+    token_doctor_id = payload.get("doctor_id")
 
     async with AsyncSessionLocal() as db:
         stmt = select(Patient).where(Patient.id == patient_id)
         if token_doctor_id:
             stmt = stmt.where(Patient.doctor_id == token_doctor_id)
-        result = await db.execute(stmt.limit(1))
-        patient = result.scalar_one_or_none()
+        patient = (await db.execute(stmt.limit(1))).scalar_one_or_none()
 
     if patient is None:
-        raise HTTPException(status_code=404, detail="Patient not found")
-
-    # Reject tokens issued before the most recent access-code rotation.
-    if token_acv != getattr(patient, "access_code_version", 0):
-        raise HTTPException(status_code=401, detail="Token revoked \u2014 please log in again")
-
+        raise HTTPException(404, "Patient not found")
     return patient
 
 

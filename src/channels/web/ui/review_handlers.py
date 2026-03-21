@@ -72,6 +72,27 @@ async def confirm_review_endpoint(
             raise HTTPException(status_code=404, detail="Review not found or already confirmed")
         await db.commit()
     safe_create_task(audit(resolved, "review.confirmed", "review", str(rq.record_id)))
+    # Best-effort: create follow-up tasks from diagnosis
+    try:
+        from db.crud.diagnosis import get_diagnosis_by_record
+        from db.crud.tasks import create_task
+        import json as _json2
+        async with AsyncSessionLocal() as db_tasks:
+            diag = await get_diagnosis_by_record(db_tasks, rq.record_id, resolved)
+            if diag and diag.ai_output:
+                ai = _json2.loads(diag.ai_output) if isinstance(diag.ai_output, str) else diag.ai_output
+                # Create follow-up tasks from workup items
+                for w in (ai.get("workup") or []):
+                    test_name = w.get("test", "")
+                    if test_name:
+                        await create_task(
+                            db_tasks, doctor_id=resolved, patient_id=rq.patient_id,
+                            task_type="checkup", title=test_name,
+                            content=w.get("rationale", ""),
+                        )
+                await db_tasks.commit()
+    except Exception as _te:
+        log(f"[review] task creation from diagnosis failed (non-blocking): {_te}", level="warning")
     # Best-effort: create case_history entry
     try:
         import json as _json

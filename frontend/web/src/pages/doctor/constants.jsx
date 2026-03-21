@@ -2,18 +2,16 @@
  * 医生工作台常量：任务类型、病历类型、导航项等静态配置。
  */
 import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
+import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 
 export const TASK_TYPE_LABEL = {
   follow_up:   "随访",
-  medication:  "用药管理",
-  lab_review:  "检验复查",
-  referral:    "转诊",
-  imaging:     "影像检查",
-  appointment: "预约就诊",
-  general:     "通用任务",
+  medication:  "用药",
+  checkup:     "检查",
+  general:     "通用",
 };
 
 export const TASK_STATUS_LABEL = {
@@ -59,7 +57,15 @@ export const RECORD_TYPE_LABEL = {
 };
 
 export const NAV = [
+  { key: "home", label: "首页", icon: <HomeOutlinedIcon fontSize="medium" /> },
+  { key: "patients", label: "患者", icon: <PeopleOutlineIcon fontSize="medium" /> },
+  { key: "tasks", label: "任务", icon: <AssignmentOutlinedIcon fontSize="medium" /> },
+  { key: "settings", label: "设置", icon: <SettingsOutlinedIcon fontSize="medium" /> },
+];
+
+export const DESKTOP_NAV = [
   { key: "chat", label: "AI 助手", icon: <ChatOutlinedIcon fontSize="medium" /> },
+  { key: "home", label: "首页", icon: <HomeOutlinedIcon fontSize="medium" /> },
   { key: "patients", label: "患者", icon: <PeopleOutlineIcon fontSize="medium" /> },
   { key: "tasks", label: "任务", icon: <AssignmentOutlinedIcon fontSize="medium" /> },
   { key: "settings", label: "设置", icon: <SettingsOutlinedIcon fontSize="medium" /> },
@@ -154,5 +160,19 @@ export const SPECIALTY_OPTIONS = [
   "骨科", "妇产科", "儿科", "眼科", "耳鼻喉科",
   "口腔科", "皮肤科", "精神科", "肿瘤科", "急诊科",
   "重症医学科", "康复科", "中医科", "全科医学科",
+];
+
+export const RECORD_TAB_GROUPS = [
+  { key: "", label: "全部", types: null },
+  { key: "medical", label: "病历", types: ["visit", "dictation", "import", "surgery", "referral"] },
+  { key: "lab_imaging", label: "检验/影像", types: ["lab", "imaging"] },
+  { key: "interview", label: "问诊", types: ["interview_summary"] },
+];
+
+export const TASK_FILTER_CHIPS = [
+  { key: "all", label: "全部" },
+  { key: "review", label: "待审核" },
+  { key: "task", label: "待办" },
+  { key: "done", label: "已完成" },
 ];
 

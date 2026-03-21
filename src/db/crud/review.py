@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.models import MedicalRecordDB, MedicalRecordVersion, Patient
 from db.models.interview_session import InterviewSessionDB
 from db.models.review_queue import ReviewQueue
+from db.models.diagnosis_result import DiagnosisResult
 from db.models.base import _utcnow
 from domain.records.schema import FIELD_KEYS
 
@@ -41,9 +42,16 @@ async def list_reviews(
 ) -> List[Dict[str, Any]]:
     """List review queue entries with patient name and chief complaint."""
     q = (
-        select(ReviewQueue, Patient.name, MedicalRecordDB.structured, MedicalRecordDB.created_at)
+        select(
+            ReviewQueue,
+            Patient.name,
+            MedicalRecordDB.structured,
+            MedicalRecordDB.created_at,
+            DiagnosisResult.status,
+        )
         .outerjoin(Patient, ReviewQueue.patient_id == Patient.id)
         .join(MedicalRecordDB, ReviewQueue.record_id == MedicalRecordDB.id)
+        .outerjoin(DiagnosisResult, ReviewQueue.record_id == DiagnosisResult.record_id)
         .where(ReviewQueue.doctor_id == doctor_id, ReviewQueue.status == status)
     )
     if status == "reviewed":
@@ -53,7 +61,7 @@ async def list_reviews(
     result = await session.execute(q)
     rows = result.all()
     items = []
-    for rq, patient_name, structured_json, record_created_at in rows:
+    for rq, patient_name, structured_json, record_created_at, diagnosis_status in rows:
         structured = json.loads(structured_json) if structured_json else {}
         chief = structured.get("chief_complaint", "")
         items.append({
@@ -65,6 +73,7 @@ async def list_reviews(
             "status": rq.status,
             "created_at": rq.created_at.isoformat() if rq.created_at else None,
             "reviewed_at": rq.reviewed_at.isoformat() if rq.reviewed_at else None,
+            "diagnosis_status": diagnosis_status or None,
         })
     return items
 
@@ -144,7 +153,7 @@ async def confirm_review(
     queue_id: int,
     doctor_id: str,
 ) -> Optional[ReviewQueue]:
-    """Mark a review as confirmed."""
+    """Mark a review as confirmed and clear needs_review on the record."""
     rq = (await session.execute(
         select(ReviewQueue).where(
             ReviewQueue.id == queue_id,
@@ -156,6 +165,15 @@ async def confirm_review(
         return None
     rq.status = "reviewed"
     rq.reviewed_at = _utcnow()
+
+    # Clear needs_review on the underlying record
+    record = (await session.execute(
+        select(MedicalRecordDB).where(MedicalRecordDB.id == rq.record_id)
+    )).scalar_one_or_none()
+    if record and getattr(record, "needs_review", None):
+        record.needs_review = False
+        record.updated_at = _utcnow()
+
     return rq
 
 

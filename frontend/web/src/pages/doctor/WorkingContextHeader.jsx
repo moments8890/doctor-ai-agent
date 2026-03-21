@@ -8,15 +8,15 @@
 import { Box, Chip, Typography } from "@mui/material";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import EditNoteOutlinedIcon from "@mui/icons-material/EditNoteOutlined";
+import { TYPE, ICON } from "../../theme";
 
 export default function WorkingContextHeader({ context, isMobile }) {
   if (!context) return null;
 
   const { current_patient, pending_draft, next_step } = context;
 
-  // Nothing to show — no patient, no draft, generic next step
-  const hasContent = current_patient || pending_draft;
-  if (!hasContent && !next_step) return null;
+  // Only show when there's actual content (patient selected or draft pending)
+  if (!current_patient && !pending_draft) return null;
 
   return (
     <Box
@@ -33,39 +33,32 @@ export default function WorkingContextHeader({ context, isMobile }) {
       }}
     >
       {/* Current patient */}
-      {current_patient ? (
+      {current_patient && (
         <Chip
-          icon={<PersonOutlineIcon sx={{ fontSize: 16 }} />}
+          icon={<PersonOutlineIcon sx={{ fontSize: ICON.sm }} />}
           label={current_patient.name}
           size="small"
           sx={{
             bgcolor: "#e6f7e9",
             color: "#07C160",
             fontWeight: 600,
-            fontSize: 12,
+            fontSize: TYPE.caption.fontSize,
             "& .MuiChip-icon": { color: "#07C160" },
           }}
         />
-      ) : (
-        <Typography
-          variant="caption"
-          sx={{ color: "#aaa", fontSize: 12 }}
-        >
-          暂无当前患者
-        </Typography>
       )}
 
       {/* Pending draft indicator */}
       {pending_draft && (
         <Chip
-          icon={<EditNoteOutlinedIcon sx={{ fontSize: 16 }} />}
+          icon={<EditNoteOutlinedIcon sx={{ fontSize: ICON.sm }} />}
           label={`草稿：${pending_draft.patient_name}`}
           size="small"
           sx={{
             bgcolor: "#fff7e6",
             color: "#d46b08",
             fontWeight: 500,
-            fontSize: 12,
+            fontSize: TYPE.caption.fontSize,
             "& .MuiChip-icon": { color: "#d46b08" },
           }}
         />
@@ -77,7 +70,7 @@ export default function WorkingContextHeader({ context, isMobile }) {
           variant="caption"
           sx={{
             color: "#888",
-            fontSize: 12,
+            fontSize: TYPE.caption.fontSize,
             ml: "auto",
           }}
         >

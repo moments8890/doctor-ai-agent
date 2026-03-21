@@ -69,6 +69,7 @@ import {
   updateAdminPrompt,
 } from "../api";
 import { t } from "../i18n";
+import { TYPE, ICON } from "../theme";
 
 const ADMIN_TOKEN_KEY = "adminToken";
 
@@ -663,7 +664,7 @@ function AdminDashboard({ onLockout }) {
               <CardContent>
                 <Stack direction="row" alignItems="center" justifyContent="space-between">
                   <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{t("admin.pageTitle")}</Typography>
-                  <Button size="small" color="inherit" onClick={onLockout} sx={{ fontSize: 12, color: "text.secondary" }}>退出</Button>
+                  <Button size="small" color="inherit" onClick={onLockout} sx={{ fontSize: TYPE.caption.fontSize, color: "text.secondary" }}>退出</Button>
                 </Stack>
                 <Typography variant="caption" color="text.secondary" sx={{ mt: 0.2, display: "block" }}>
                   {t("admin.pageSubtitle")}
@@ -750,7 +751,7 @@ function AdminDashboard({ onLockout }) {
                       key={`stat-${item.key}`}
                       label={`${t(`admin.tables.${item.key}`)} · ${tableCounts[item.key] ?? "…"}`}
                       size="small"
-                      sx={{ backgroundColor: item.color, fontWeight: 600, fontSize: 12, height: 26 }}
+                      sx={{ backgroundColor: item.color, fontWeight: 600, fontSize: TYPE.caption.fontSize, height: 26 }}
                     />
                   ))}
                 </Box>
@@ -836,7 +837,7 @@ function AdminDashboard({ onLockout }) {
                         variant="outlined"
                         onClick={loadMoreRows}
                         disabled={rowsLoadingMore}
-                        sx={{ fontSize: 11, cursor: "pointer" }}
+                        sx={{ fontSize: TYPE.micro.fontSize, cursor: "pointer" }}
                       />
                     )}
                     <Button variant="outlined" size="small" startIcon={<DownloadOutlinedIcon fontSize="small" />} onClick={exportCsv} disabled={!rows.length}>
@@ -1048,7 +1049,7 @@ function AdminDashboard({ onLockout }) {
                                 <Typography
                                   sx={{
                                     fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace",
-                                    fontSize: 12,
+                                    fontSize: TYPE.caption.fontSize,
                                     fontWeight: 600,
                                     overflowWrap: "anywhere",
                                     wordBreak: "break-word",
@@ -1288,7 +1289,7 @@ function AdminDashboard({ onLockout }) {
                       <TableHead>
                         <TableRow>
                           {["邀请码", "医生账号", "姓名", "状态", "创建时间", "操作"].map((h) => (
-                            <TableCell key={h} sx={{ fontWeight: 700, fontSize: 12, backgroundColor: "#eef4f6", color: "text.secondary" }}>{h}</TableCell>
+                            <TableCell key={h} sx={{ fontWeight: 700, fontSize: TYPE.caption.fontSize, backgroundColor: "#eef4f6", color: "text.secondary" }}>{h}</TableCell>
                           ))}
                         </TableRow>
                       </TableHead>
@@ -1349,9 +1350,9 @@ function AdminDashboard({ onLockout }) {
                             <Chip
                               label={p.key}
                               size="small"
-                              sx={{ fontFamily: "ui-monospace, monospace", fontWeight: 700, fontSize: 12 }}
+                              sx={{ fontFamily: "ui-monospace, monospace", fontWeight: 700, fontSize: TYPE.caption.fontSize }}
                             />
-                            {isDirty && <Chip label="未保存" size="small" color="warning" sx={{ height: 18, fontSize: 10 }} />}
+                            {isDirty && <Chip label="未保存" size="small" color="warning" sx={{ height: 18, fontSize: TYPE.micro.fontSize }} />}
                           </Stack>
                           <Stack direction="row" spacing={1} alignItems="center">
                             <Typography variant="caption" color="text.secondary">
@@ -1379,7 +1380,7 @@ function AdminDashboard({ onLockout }) {
                             "& .MuiOutlinedInput-notchedOutline": { border: "none" },
                             "& textarea": {
                               fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-                              fontSize: 13,
+                              fontSize: TYPE.secondary.fontSize,
                               lineHeight: 1.6,
                               backgroundColor: "#fff",
                             },
@@ -1415,7 +1416,7 @@ function AdminDashboard({ onLockout }) {
                                 backgroundColor: "#eef4f6",
                                 px: 1,
                                 py: 0.75,
-                                fontSize: 12,
+                                fontSize: TYPE.caption.fontSize,
                                 cursor: "pointer",
                                 userSelect: "none",
                                 "&:hover": { backgroundColor: "#e2edf0" },
@@ -1425,10 +1426,10 @@ function AdminDashboard({ onLockout }) {
                                 <span>{t(`admin.cols.${key}`)}</span>
                                 {sortCol === key ? (
                                   sortDir === "asc"
-                                    ? <ArrowUpwardIcon sx={{ fontSize: 13, color: "primary.main" }} />
-                                    : <ArrowDownwardIcon sx={{ fontSize: 13, color: "primary.main" }} />
+                                    ? <ArrowUpwardIcon sx={{ fontSize: ICON.xs, color: "primary.main" }} />
+                                    : <ArrowDownwardIcon sx={{ fontSize: ICON.xs, color: "primary.main" }} />
                                 ) : (
-                                  <UnfoldMoreIcon sx={{ fontSize: 13, color: "#ccc" }} />
+                                  <UnfoldMoreIcon sx={{ fontSize: ICON.xs, color: "#ccc" }} />
                                 )}
                               </Stack>
                             </TableCell>
@@ -1458,7 +1459,7 @@ function AdminDashboard({ onLockout }) {
                                   py: 0.45,
                                   px: 1,
                                   fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace",
-                                  fontSize: 12,
+                                  fontSize: TYPE.caption.fontSize,
                                   lineHeight: 1.35,
                                   overflow: "hidden",
                                   textOverflow: "ellipsis",
@@ -1473,10 +1474,10 @@ function AdminDashboard({ onLockout }) {
                               onClick={(e) => e.stopPropagation()}
                             >
                               <IconButton size="small" onClick={() => copyRow(row)} title={t("admin.copyRow")}>
-                                <ContentCopyOutlinedIcon sx={{ fontSize: 15 }} />
+                                <ContentCopyOutlinedIcon sx={{ fontSize: ICON.sm }} />
                               </IconButton>
                               <IconButton size="small" onClick={() => { setSelectedRow(row); setRowEditMode(false); }} title="查看详情">
-                                <VisibilityOutlinedIcon sx={{ fontSize: 15 }} />
+                                <VisibilityOutlinedIcon sx={{ fontSize: ICON.sm }} />
                               </IconButton>
                             </TableCell>
                           </TableRow>
@@ -1485,7 +1486,7 @@ function AdminDashboard({ onLockout }) {
                           <TableRow>
                             <TableCell colSpan={colCount} sx={{ py: 4 }}>
                               <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, color: "text.secondary" }}>
-                                <InboxOutlinedIcon sx={{ fontSize: 40, opacity: 0.4 }} />
+                                <InboxOutlinedIcon sx={{ fontSize: ICON.display, opacity: 0.4 }} />
                                 <Typography variant="body2" color="text.secondary">
                                   {loading ? t("common.loading") : t("admin.empty")}
                                 </Typography>
@@ -1563,7 +1564,7 @@ function AdminDashboard({ onLockout }) {
                               </Typography>
                               <Typography
                                 variant="body2"
-                                sx={{ fontFamily: "ui-monospace, monospace", fontSize: 12, whiteSpace: "pre-wrap", wordBreak: "break-all", flex: 1 }}
+                                sx={{ fontFamily: "ui-monospace, monospace", fontSize: TYPE.caption.fontSize, whiteSpace: "pre-wrap", wordBreak: "break-all", flex: 1 }}
                               >
                                 {toCell(value)}
                               </Typography>

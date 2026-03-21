@@ -45,6 +45,7 @@ import {
   onDebugAuthError,
 } from "../api";
 import { t } from "../i18n";
+import { TYPE } from "../theme";
 
 const DEBUG_TOKEN_KEY = "debugToken";
 
@@ -412,7 +413,7 @@ function ObservabilitySection({ refreshTick }) {
         <StatusBarChart statusCounts={observability.summary.status_counts || {}} />
       </Box>
       <Box sx={{ border: "1px solid #f0f0f0", borderRadius: 1, backgroundColor: "#fff" }}>
-        <Tabs value={obsTab} onChange={(_, v) => setObsTab(v)} variant="scrollable" scrollButtons="auto" sx={{ borderBottom: "1px solid #f0f0f0", minHeight: 36, "& .MuiTab-root": { fontSize: 12, minHeight: 36, py: 0.8 } }}>
+        <Tabs value={obsTab} onChange={(_, v) => setObsTab(v)} variant="scrollable" scrollButtons="auto" sx={{ borderBottom: "1px solid #f0f0f0", minHeight: 36, "& .MuiTab-root": { fontSize: TYPE.caption.fontSize, minHeight: 36, py: 0.8 } }}>
           <Tab label="Chat 性能" />
           <Tab label="近期请求" />
           <Tab label="慢 Span" />
@@ -440,14 +441,14 @@ function ObservabilitySection({ refreshTick }) {
               <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>{t("admin.obs.publicSlowSpansTitle")}</Typography>
               <TableContainer sx={{ border: "1px solid #f0f0f0", borderRadius: 1, backgroundColor: "#fff", maxHeight: 220 }}>
                 <Table size="small" stickyHeader>
-                  <TableHead><TableRow>{["layer", "name", "latency_ms", "trace_id"].map((key) => <TableCell key={`qh-${key}`} sx={{ backgroundColor: "#eef4f6", py: 0.45, fontSize: 11, fontWeight: 700 }}>{t(`admin.cols.${key}`)}</TableCell>)}</TableRow></TableHead>
+                  <TableHead><TableRow>{["layer", "name", "latency_ms", "trace_id"].map((key) => <TableCell key={`qh-${key}`} sx={{ backgroundColor: "#eef4f6", py: 0.45, fontSize: TYPE.micro.fontSize, fontWeight: 700 }}>{t(`admin.cols.${key}`)}</TableCell>)}</TableRow></TableHead>
                   <TableBody>
                     {chatSlowSpans.map((row, idx) => (
                       <TableRow key={`qr-${row.span_id || idx}`} hover>
-                        <TableCell sx={{ py: 0.35, fontSize: 11 }}>{toCell(row.layer)}</TableCell>
-                        <TableCell sx={{ py: 0.35, fontSize: 11 }}>{toCell(row.name)}</TableCell>
-                        <TableCell sx={{ py: 0.35, fontSize: 11 }}>{formatMs(row.latency_ms)}</TableCell>
-                        <TableCell sx={{ py: 0.35, fontSize: 11, fontFamily: "ui-monospace,monospace", maxWidth: 130, wordBreak: "break-all" }}>{toCell(row.trace_id)}</TableCell>
+                        <TableCell sx={{ py: 0.35, fontSize: TYPE.micro.fontSize }}>{toCell(row.layer)}</TableCell>
+                        <TableCell sx={{ py: 0.35, fontSize: TYPE.micro.fontSize }}>{toCell(row.name)}</TableCell>
+                        <TableCell sx={{ py: 0.35, fontSize: TYPE.micro.fontSize }}>{formatMs(row.latency_ms)}</TableCell>
+                        <TableCell sx={{ py: 0.35, fontSize: TYPE.micro.fontSize, fontFamily: "ui-monospace,monospace", maxWidth: 130, wordBreak: "break-all" }}>{toCell(row.trace_id)}</TableCell>
                       </TableRow>
                     ))}
                     {!chatSlowSpans.length ? <TableRow><TableCell colSpan={4} sx={{ py: 0.9 }}><Typography color="text.secondary" variant="body2">{t("admin.obs.publicHint")}</Typography></TableCell></TableRow> : null}
@@ -459,18 +460,18 @@ function ObservabilitySection({ refreshTick }) {
           {obsTab === 1 && (
             <TableContainer sx={{ border: "1px solid #f0f0f0", borderRadius: 1, backgroundColor: "#fff", maxHeight: 400 }}>
               <Table size="small" stickyHeader>
-                <TableHead><TableRow>{["started_at", "trace_id", "method", "path", "status_code", "latency_ms"].map((key) => <TableCell key={`oh-${key}`} sx={{ backgroundColor: "#eef4f6", py: 0.55, fontSize: 11, fontWeight: 700 }}>{t(`admin.cols.${key}`)}</TableCell>)}</TableRow></TableHead>
+                <TableHead><TableRow>{["started_at", "trace_id", "method", "path", "status_code", "latency_ms"].map((key) => <TableCell key={`oh-${key}`} sx={{ backgroundColor: "#eef4f6", py: 0.55, fontSize: TYPE.micro.fontSize, fontWeight: 700 }}>{t(`admin.cols.${key}`)}</TableCell>)}</TableRow></TableHead>
                 <TableBody>
                   {(observability.recent_traces || []).map((row, idx) => (
                     <TableRow key={`or-${row.trace_id || idx}`} hover>
-                      <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.started_at)}</TableCell>
-                      <TableCell sx={{ py: 0.4, fontSize: 11, fontFamily: "ui-monospace,monospace" }}>
+                      <TableCell sx={{ py: 0.4, fontSize: TYPE.micro.fontSize }}>{toCell(row.started_at)}</TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: TYPE.micro.fontSize, fontFamily: "ui-monospace,monospace" }}>
                         <Button size="small" variant="text" sx={{ textTransform: "none", p: 0, minWidth: 0 }} onClick={() => { inspectTrace(row.trace_id); setObsTab(4); }}>{toCell(row.trace_id)}</Button>
                       </TableCell>
-                      <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.method)}</TableCell>
-                      <TableCell sx={{ py: 0.4, fontSize: 11, maxWidth: 260, wordBreak: "break-all" }}>{toCell(row.path)}</TableCell>
-                      <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.status_code)}</TableCell>
-                      <TableCell sx={{ py: 0.4, fontSize: 11 }}>{formatMs(row.latency_ms)}</TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: TYPE.micro.fontSize }}>{toCell(row.method)}</TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: TYPE.micro.fontSize, maxWidth: 260, wordBreak: "break-all" }}>{toCell(row.path)}</TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: TYPE.micro.fontSize }}>{toCell(row.status_code)}</TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: TYPE.micro.fontSize }}>{formatMs(row.latency_ms)}</TableCell>
                     </TableRow>
                   ))}
                   {!(observability.recent_traces || []).length ? <TableRow><TableCell colSpan={6} sx={{ py: 0.9 }}><Typography color="text.secondary" variant="body2">{t("admin.obs.empty")}</Typography></TableCell></TableRow> : null}
@@ -481,15 +482,15 @@ function ObservabilitySection({ refreshTick }) {
           {obsTab === 2 && (
             <TableContainer sx={{ border: "1px solid #f0f0f0", borderRadius: 1, backgroundColor: "#fff", maxHeight: 400 }}>
               <Table size="small" stickyHeader>
-                <TableHead><TableRow>{["layer", "name", "latency_ms", "status", "trace_id"].map((key) => <TableCell key={`sh-${key}`} sx={{ backgroundColor: "#eef4f6", py: 0.55, fontSize: 11, fontWeight: 700 }}>{t(`admin.cols.${key}`)}</TableCell>)}</TableRow></TableHead>
+                <TableHead><TableRow>{["layer", "name", "latency_ms", "status", "trace_id"].map((key) => <TableCell key={`sh-${key}`} sx={{ backgroundColor: "#eef4f6", py: 0.55, fontSize: TYPE.micro.fontSize, fontWeight: 700 }}>{t(`admin.cols.${key}`)}</TableCell>)}</TableRow></TableHead>
                 <TableBody>
                   {(observability.slow_spans || []).map((row, idx) => (
                     <TableRow key={`sr-${row.span_id || idx}`} hover>
-                      <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.layer)}</TableCell>
-                      <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.name)}</TableCell>
-                      <TableCell sx={{ py: 0.4, fontSize: 11 }}>{formatMs(row.latency_ms)}</TableCell>
-                      <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.status)}</TableCell>
-                      <TableCell sx={{ py: 0.4, fontSize: 11, fontFamily: "ui-monospace,monospace", maxWidth: 140, wordBreak: "break-all" }}>
+                      <TableCell sx={{ py: 0.4, fontSize: TYPE.micro.fontSize }}>{toCell(row.layer)}</TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: TYPE.micro.fontSize }}>{toCell(row.name)}</TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: TYPE.micro.fontSize }}>{formatMs(row.latency_ms)}</TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: TYPE.micro.fontSize }}>{toCell(row.status)}</TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: TYPE.micro.fontSize, fontFamily: "ui-monospace,monospace", maxWidth: 140, wordBreak: "break-all" }}>
                         <Button size="small" variant="text" sx={{ textTransform: "none", p: 0, minWidth: 0 }} onClick={() => { inspectTrace(row.trace_id); setObsTab(4); }}>{toCell(row.trace_id)}</Button>
                       </TableCell>
                     </TableRow>
@@ -502,14 +503,14 @@ function ObservabilitySection({ refreshTick }) {
           {obsTab === 3 && (
             <TableContainer sx={{ border: "1px solid #f0f0f0", borderRadius: 1, backgroundColor: "#fff", maxHeight: 400 }}>
               <Table size="small" stickyHeader>
-                <TableHead><TableRow>{["layer", "name", "latency_ms", "count"].map((key) => <TableCell key={`hh-${key}`} sx={{ backgroundColor: "#eef4f6", py: 0.45, fontSize: 11, fontWeight: 700 }}>{t(`admin.cols.${key}`)}</TableCell>)}</TableRow></TableHead>
+                <TableHead><TableRow>{["layer", "name", "latency_ms", "count"].map((key) => <TableCell key={`hh-${key}`} sx={{ backgroundColor: "#eef4f6", py: 0.45, fontSize: TYPE.micro.fontSize, fontWeight: 700 }}>{t(`admin.cols.${key}`)}</TableCell>)}</TableRow></TableHead>
                 <TableBody>
                   {traceHotspots.map((row, idx) => (
                     <TableRow key={`hr-${idx}`} hover>
-                      <TableCell sx={{ py: 0.35, fontSize: 11 }}>{toCell(row.layer)}</TableCell>
-                      <TableCell sx={{ py: 0.35, fontSize: 11 }}>{toCell(row.name)}</TableCell>
-                      <TableCell sx={{ py: 0.35, fontSize: 11 }}>{formatMs(row.total)}</TableCell>
-                      <TableCell sx={{ py: 0.35, fontSize: 11 }}>{toCell(row.count)}</TableCell>
+                      <TableCell sx={{ py: 0.35, fontSize: TYPE.micro.fontSize }}>{toCell(row.layer)}</TableCell>
+                      <TableCell sx={{ py: 0.35, fontSize: TYPE.micro.fontSize }}>{toCell(row.name)}</TableCell>
+                      <TableCell sx={{ py: 0.35, fontSize: TYPE.micro.fontSize }}>{formatMs(row.total)}</TableCell>
+                      <TableCell sx={{ py: 0.35, fontSize: TYPE.micro.fontSize }}>{toCell(row.count)}</TableCell>
                     </TableRow>
                   ))}
                   {!traceHotspots.length ? <TableRow><TableCell colSpan={4} sx={{ py: 0.9 }}><Typography color="text.secondary" variant="body2">{t("admin.obs.empty")}</Typography></TableCell></TableRow> : null}
@@ -520,16 +521,16 @@ function ObservabilitySection({ refreshTick }) {
           {obsTab === 4 && (
             <TableContainer sx={{ border: "1px solid #f0f0f0", borderRadius: 1, backgroundColor: "#fff", maxHeight: 460 }}>
               <Table size="small" stickyHeader>
-                <TableHead><TableRow>{["started_at", "layer", "name", "latency_ms", "status", "parent_span_id"].map((key) => <TableCell key={`th-${key}`} sx={{ backgroundColor: "#eef4f6", py: 0.55, fontSize: 11, fontWeight: 700 }}>{t(`admin.cols.${key}`)}</TableCell>)}</TableRow></TableHead>
+                <TableHead><TableRow>{["started_at", "layer", "name", "latency_ms", "status", "parent_span_id"].map((key) => <TableCell key={`th-${key}`} sx={{ backgroundColor: "#eef4f6", py: 0.55, fontSize: TYPE.micro.fontSize, fontWeight: 700 }}>{t(`admin.cols.${key}`)}</TableCell>)}</TableRow></TableHead>
                 <TableBody>
                   {(observability.trace_timeline || []).map((row, idx) => (
                     <TableRow key={`tr-${row.span_id || idx}`} hover>
-                      <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.started_at)}</TableCell>
-                      <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.layer)}</TableCell>
-                      <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.name)}</TableCell>
-                      <TableCell sx={{ py: 0.4, fontSize: 11 }}>{formatMs(row.latency_ms)}</TableCell>
-                      <TableCell sx={{ py: 0.4, fontSize: 11 }}>{toCell(row.status)}</TableCell>
-                      <TableCell sx={{ py: 0.4, fontSize: 11, fontFamily: "ui-monospace,monospace", maxWidth: 120, wordBreak: "break-all" }}>{toCell(row.parent_span_id)}</TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: TYPE.micro.fontSize }}>{toCell(row.started_at)}</TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: TYPE.micro.fontSize }}>{toCell(row.layer)}</TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: TYPE.micro.fontSize }}>{toCell(row.name)}</TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: TYPE.micro.fontSize }}>{formatMs(row.latency_ms)}</TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: TYPE.micro.fontSize }}>{toCell(row.status)}</TableCell>
+                      <TableCell sx={{ py: 0.4, fontSize: TYPE.micro.fontSize, fontFamily: "ui-monospace,monospace", maxWidth: 120, wordBreak: "break-all" }}>{toCell(row.parent_span_id)}</TableCell>
                     </TableRow>
                   ))}
                   {!(observability.trace_timeline || []).length ? <TableRow><TableCell colSpan={6} sx={{ py: 0.9 }}><Typography color="text.secondary" variant="body2">{t("admin.obs.timelineHint")}</Typography></TableCell></TableRow> : null}
@@ -670,7 +671,7 @@ function LogsSection({ refreshTick }) {
           minHeight: 300,
           overflowY: "auto",
           fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace",
-          fontSize: 11,
+          fontSize: TYPE.micro.fontSize,
         }}
       >
         {displayLines.length === 0 ? (
@@ -740,7 +741,7 @@ function DebugDashboard({ onLockout }) {
                     <BugReportOutlinedIcon fontSize="small" color="action" />
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Debug 控制台</Typography>
                   </Stack>
-                  <Button size="small" color="inherit" onClick={onLockout} sx={{ fontSize: 12, color: "text.secondary" }}>退出</Button>
+                  <Button size="small" color="inherit" onClick={onLockout} sx={{ fontSize: TYPE.caption.fontSize, color: "text.secondary" }}>退出</Button>
                 </Stack>
                 <Typography variant="caption" color="text.secondary" sx={{ mt: 0.2, display: "block" }}>
                   指标 · 可观测性 · 日志

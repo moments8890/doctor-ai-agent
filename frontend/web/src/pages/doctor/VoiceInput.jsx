@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Box, Typography } from "@mui/material";
 import MicIcon from "@mui/icons-material/Mic";
+import { TYPE, ICON } from "../../theme";
 
 const SpeechRecognition = typeof window !== "undefined"
   ? (window.SpeechRecognition || window.webkitSpeechRecognition)
@@ -94,8 +95,8 @@ export default function VoiceInput({ onResult, onCancel }) {
           ))}
         </Box>
       )}
-      <MicIcon sx={{ fontSize: 18, mr: 0.5, color: recording ? "#fff" : "#999" }} />
-      <Typography variant="body2" sx={{ fontSize: 14, color: recording ? "#fff" : "#999", fontWeight: recording ? 600 : 400 }}>
+      <MicIcon sx={{ fontSize: ICON.md, mr: 0.5, color: recording ? "#fff" : "#999" }} />
+      <Typography variant="body2" sx={{ fontSize: TYPE.heading.fontSize, color: recording ? "#fff" : "#999", fontWeight: recording ? 600 : 400 }}>
         {recording ? (cancelled ? "松开取消" : `松开发送 ${fmt(seconds)}`) : "按住说话"}
       </Typography>
     </Box>

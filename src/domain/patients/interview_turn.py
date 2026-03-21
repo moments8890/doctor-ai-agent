@@ -38,6 +38,7 @@ class InterviewResponse:
     progress: Dict[str, int]
     status: str
     missing: List[str] = None  # missing field names, empty = all collected
+    suggestions: List[str] = None  # quick-reply options for the patient
 
 
 def _get_prompt(mode: str = "patient") -> str:
@@ -179,9 +180,14 @@ async def _call_interview_llm(
     raw = _re.sub(r"<think>.*?</think>", "", raw, flags=_re.DOTALL).strip()
 
     data = json.loads(raw)
+    suggestions = data.get("suggestions", [])
+    if not isinstance(suggestions, list):
+        suggestions = []
+    suggestions = [str(s) for s in suggestions if s][:4]
     return {
         "suggested_reply": data.get("reply") or data.get("suggested_reply", "请继续描述您的情况。"),
         "extracted": data.get("extracted", {}),
+        "suggestions": suggestions,
     }
 
 
@@ -265,4 +271,5 @@ async def interview_turn(session_id: str, patient_text: str) -> InterviewRespons
         reply=reply, collected=session.collected,
         progress=_make_progress(session.collected), status=session.status,
         missing=missing,
+        suggestions=llm_response.get("suggestions", []),
     )

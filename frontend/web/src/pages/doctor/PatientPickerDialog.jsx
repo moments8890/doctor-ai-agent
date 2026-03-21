@@ -5,6 +5,7 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import { searchPatients } from "../../api";
+import { TYPE, ICON } from "../../theme";
 
 export default function PatientPickerDialog({ open, onClose, doctorId, onSelect }) {
   const theme = useTheme();
@@ -55,7 +56,7 @@ export default function PatientPickerDialog({ open, onClose, doctorId, onSelect 
       PaperProps={{ sx: { borderRadius: fullScreen ? 0 : "4px", display: "flex", flexDirection: "column", maxHeight: "80vh" } }}
     >
       <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pb: 1 }}>
-        <Typography sx={{ fontWeight: 600, fontSize: 16 }}>选择患者</Typography>
+        <Typography sx={{ fontWeight: 600, fontSize: TYPE.title.fontSize }}>选择患者</Typography>
         <IconButton size="small" onClick={onClose}><CloseIcon fontSize="small" /></IconButton>
       </DialogTitle>
 
@@ -98,14 +99,14 @@ export default function PatientPickerDialog({ open, onClose, doctorId, onSelect 
                 <ListItemText
                   primary={p.name}
                   secondary={[p.gender, p.age != null && `${p.age}岁`].filter(Boolean).join(" / ") || undefined}
-                  primaryTypographyProps={{ fontSize: 14, fontWeight: 500 }}
-                  secondaryTypographyProps={{ fontSize: 12, color: "#999" }}
+                  primaryTypographyProps={{ fontSize: TYPE.body.fontSize, fontWeight: 500 }}
+                  secondaryTypographyProps={{ fontSize: TYPE.caption.fontSize, color: "#999" }}
                 />
               </ListItemButton>
             ))}
           </List>
         ) : (
-          <Typography sx={{ textAlign: "center", py: 6, color: "#999", fontSize: 14 }}>
+          <Typography sx={{ textAlign: "center", py: 6, color: "#999", fontSize: TYPE.body.fontSize }}>
             输入姓名搜索患者
           </Typography>
         )}

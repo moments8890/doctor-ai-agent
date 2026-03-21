@@ -26,6 +26,7 @@ class DoctorInterviewResponse(BaseModel):
     status: str = "interviewing"
     patient_id: Optional[int] = None
     pending_id: Optional[str] = None
+    suggestions: List[str] = []
 
 
 class InterviewConfirmResponse(BaseModel):
@@ -138,6 +139,7 @@ async def _first_turn(doctor_id, text, patient_name, patient_gender, patient_age
         reply=response.reply,
         collected=response.collected,
         patient_id=patient_id,
+        suggestions=response.suggestions or [],
         **progress_info,
     )
 
@@ -153,6 +155,7 @@ async def _continue_turn(session, text):
         reply=response.reply,
         collected=response.collected,
         patient_id=session.patient_id,
+        suggestions=response.suggestions or [],
         **progress_info,
     )
 

@@ -24,6 +24,9 @@ import ImportChoiceDialog from "./ImportChoiceDialog";
 import VoiceInput, { isVoiceSupported } from "./VoiceInput";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
+import BarButton from "../../components/BarButton";
+import SubpageHeader from "./SubpageHeader";
+import { TYPE, ICON } from "../../theme";
 
 function MsgAvatar({ isUser, size = 40 }) {
   return (
@@ -45,7 +48,7 @@ function TasksCard({ tasks }) {
     <Box sx={{ mt: 1, borderTop: "1px solid #e5e5e5", pt: 1 }}>
       {tasks.map((t) => (
         <Box key={t.id} sx={{ py: 0.5, borderBottom: "1px solid #f0f0f0", "&:last-child": { borderBottom: "none" } }}>
-          <Typography variant="body2" sx={{ fontWeight: 600, fontSize: 13 }}>
+          <Typography variant="body2" sx={{ fontWeight: 600, fontSize: TYPE.secondary.fontSize }}>
             {typeLabels[t.task_type] || "任务"} · {t.title || "未命名"}
           </Typography>
           {t.due_at && <Typography variant="caption" color="text.secondary">{t.due_at.replace("T", " ").slice(0, 16)}</Typography>}
@@ -63,8 +66,8 @@ const mdStyles = {
   "& hr": { border: "none", borderTop: "1px solid #e5e5e5", my: 1 },
   "& ul, & ol": { m: 0, pl: 2.5 },
   "& li": { lineHeight: 1.7 },
-  "& h1,& h2,& h3,& h4": { fontSize: 14, fontWeight: 600, mt: 1, mb: 0.5 },
-  "& code": { fontSize: 12, bgcolor: "#f5f5f5", px: 0.5, borderRadius: 0.5 },
+  "& h1,& h2,& h3,& h4": { fontSize: TYPE.heading.fontSize, fontWeight: 600, mt: 1, mb: 0.5 },
+  "& code": { fontSize: TYPE.caption.fontSize, bgcolor: "#f5f5f5", px: 0.5, borderRadius: 0.5 },
 };
 
 function MsgBubble({ msg, onQuickSend }) {
@@ -91,14 +94,14 @@ function MsgBubble({ msg, onQuickSend }) {
             <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", lineHeight: isMobile ? 1.8 : 1.7, color: textColor }}>
               {msg.actionLabel && (
                 <Box component="span" sx={{ display: "inline-flex", alignItems: "center", backgroundColor: "rgba(0,0,0,0.06)",
-                  px: 0.8, py: 0.1, borderRadius: "2px", fontSize: 12, color: "#555", mr: 0.8, verticalAlign: "middle" }}>
+                  px: 0.8, py: 0.1, borderRadius: "2px", fontSize: TYPE.caption.fontSize, color: "#555", mr: 0.8, verticalAlign: "middle" }}>
                   {msg.actionLabel}
                 </Box>
               )}
               {msg.actionLabel && msg.content === msg.actionLabel ? null : msg.content}
             </Typography>
           ) : (
-            <Box sx={{ fontSize: 14, color: textColor, ...mdStyles }}>
+            <Box sx={{ fontSize: TYPE.body.fontSize, color: textColor, ...mdStyles }}>
               <Markdown>{msg.content}</Markdown>
             </Box>
           )}
@@ -107,19 +110,19 @@ function MsgBubble({ msg, onQuickSend }) {
           {hasPending && onQuickSend && (
             <Stack direction="row" spacing={1} sx={{ mt: 1.5, pt: 1, borderTop: "1px solid #e5e5e5" }}>
               <Button size="small" variant="contained" disableElevation
-                sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: "#06a050" }, textTransform: "none", fontSize: 13, borderRadius: 1 }}
+                sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: "#06a050" }, textTransform: "none", fontSize: TYPE.secondary.fontSize, borderRadius: 1 }}
                 onClick={() => onQuickSend("确认")}>
                 确认保存
               </Button>
               <Button size="small" variant="outlined" disableElevation
-                sx={{ color: "#999", borderColor: "#d9d9d9", textTransform: "none", fontSize: 13, borderRadius: 1 }}
+                sx={{ color: "#999", borderColor: "#d9d9d9", textTransform: "none", fontSize: TYPE.secondary.fontSize, borderRadius: 1 }}
                 onClick={() => onQuickSend("取消")}>
                 取消
               </Button>
             </Stack>
           )}
         </Box>
-        <Typography sx={{ mt: isMobile ? 0.3 : 0.4, px: 0.5, color: isMobile ? "#888" : "#aaa", fontSize: 11 }}>
+        <Typography sx={{ mt: isMobile ? 0.3 : 0.4, px: 0.5, color: isMobile ? "#888" : "#aaa", fontSize: TYPE.micro.fontSize }}>
           {msg.ts}
         </Typography>
       </Box>
@@ -134,7 +137,7 @@ function LoadingBubble({ isMobile }) {
   return (
     <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1, px: 1.5 }}>
       <Box sx={{ width: 40, height: 40, borderRadius: "4px", bgcolor: "#07C160", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-        <SmartToyOutlinedIcon sx={{ color: "#fff", fontSize: 20 }} />
+        <SmartToyOutlinedIcon sx={{ color: "#fff", fontSize: ICON.lg }} />
       </Box>
       <Box sx={{ px: "12px", py: "10px", borderRadius: "4px 4px 4px 0", bgcolor: "#fff", boxShadow: "none", display: "flex", alignItems: "center", gap: 0.5 }}>
         {[0, 1, 2].map((i) => (
@@ -159,7 +162,7 @@ function QuickCommandBar({ activeChip, onSelect }) {
             sx={{
               display: "inline-flex", alignItems: "center", px: 1.5, py: 0.6,
               border: "none", borderRadius: "4px", cursor: isDisabled ? "default" : "pointer",
-              fontSize: 13, fontFamily: "inherit", whiteSpace: "nowrap",
+              fontSize: TYPE.secondary.fontSize, fontFamily: "inherit", whiteSpace: "nowrap",
               backgroundColor: isActive ? "#07C160" : "#fff",
               color: isActive ? "#fff" : "#333",
               opacity: isDisabled ? 0.4 : 1,
@@ -179,8 +182,8 @@ function FailedMessageBanner({ onRetry, onDismiss }) {
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 2, py: 0.5, bgcolor: "#fff0f0", borderTop: "1px solid #fecaca" }}>
       <Typography variant="caption" color="error" sx={{ flex: 1 }}>上条消息发送失败</Typography>
-      <Button size="small" variant="text" color="error" sx={{ fontSize: 12, py: 0, minWidth: "auto" }} onClick={onRetry}>重试</Button>
-      <Button size="small" variant="text" sx={{ fontSize: 12, py: 0, minWidth: "auto", color: "text.secondary" }} onClick={onDismiss}>忽略</Button>
+      <Button size="small" variant="text" color="error" sx={{ fontSize: TYPE.caption.fontSize, py: 0, minWidth: "auto" }} onClick={onRetry}>重试</Button>
+      <Button size="small" variant="text" sx={{ fontSize: TYPE.caption.fontSize, py: 0, minWidth: "auto", color: "text.secondary" }} onClick={onDismiss}>忽略</Button>
     </Box>
   );
 }
@@ -234,11 +237,11 @@ function ChipInput({ activeChip, onRemoveChip, input, onInput, onSend, loading, 
             backgroundColor: "#fff", borderRadius: "4px", px: 1.2, py: 0.8, minHeight: 36 }}>
             {activeChip && (
               <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.3, backgroundColor: "#f0f0f0",
-                color: "#333", px: 1, py: 0.25, borderRadius: "3px", fontSize: 12, whiteSpace: "nowrap",
+                color: "#333", px: 1, py: 0.25, borderRadius: "3px", fontSize: TYPE.caption.fontSize, whiteSpace: "nowrap",
                 border: "1px solid #ddd", flexShrink: 0 }}>
                 {activeChip.label}
                 <Box component="span" onClick={onRemoveChip}
-                  sx={{ color: "#999", ml: 0.3, cursor: "pointer", fontSize: 10, lineHeight: 1, "&:hover": { color: "#666" } }}>
+                  sx={{ color: "#999", ml: 0.3, cursor: "pointer", fontSize: TYPE.micro.fontSize, lineHeight: 1, "&:hover": { color: "#666" } }}>
                   ✕
                 </Box>
               </Box>
@@ -248,7 +251,7 @@ function ChipInput({ activeChip, onRemoveChip, input, onInput, onSend, loading, 
               onKeyDown={handleKeyDown}
               disabled={isProcessing}
               placeholder={activeChip ? "输入内容..." : "输入消息..."}
-              sx={{ flex: 1, border: "none", outline: "none", fontSize: 14, fontFamily: "inherit",
+              sx={{ flex: 1, border: "none", outline: "none", fontSize: TYPE.body.fontSize, fontFamily: "inherit",
                 backgroundColor: "transparent", minWidth: 0, p: 0 }}
             />
           </Box>
@@ -350,21 +353,13 @@ function useChatState({ doctorId, onMessageCountChange, onPatientCreated, onCont
   return { input, setInput, loading, setLoading, failedText, setFailedText, messages, setMessages, bottomRef, onClear, sendText };
 }
 
-function ChatTopbar({ isMobile, doctorId, onClearClick }) {
+function ChatTopbar({ onClearClick, onBack }) {
   return (
-    <Box sx={{ px: isMobile ? 2 : 3, height: 48, borderBottom: "0.5px solid #d9d9d9", backgroundColor: isMobile ? "#f7f7f7" : "#fff", display: "flex", alignItems: "center" }}>
-      <Box sx={{ flex: 1, textAlign: isMobile ? "center" : "left" }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 500, color: "#111111", fontSize: 17 }}>{t("chat.workspaceTitle")}</Typography>
-        {isMobile && doctorId && (
-          <Typography variant="caption" sx={{ color: "#999", fontSize: 10, display: "block", lineHeight: 1 }}>ID: {doctorId}</Typography>
-        )}
-      </Box>
-      <Tooltip title="清空对话">
-        <IconButton size="small" onClick={onClearClick} sx={{ color: "text.secondary" }}>
-          <DeleteOutlineIcon fontSize="small" />
-        </IconButton>
-      </Tooltip>
-    </Box>
+    <SubpageHeader
+      title={t("chat.workspaceTitle")}
+      onBack={onBack}
+      right={<BarButton onClick={onClearClick} color="#999">清空</BarButton>}
+    />
   );
 }
 
@@ -432,7 +427,7 @@ function useDailySummary({ doctorId, sendText, ready }) {
   }, [doctorId, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
-export default function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternalInputConsumed, onPatientCreated, autoSendText, onAutoSendConsumed, onContextCleared, onStartPatientInterview }) {
+export default function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternalInputConsumed, onPatientCreated, autoSendText, onAutoSendConsumed, onContextCleared, onStartPatientInterview, onBack, hideHeader }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
@@ -504,7 +499,7 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <ChatTopbar isMobile={isMobile} doctorId={doctorId} onClearClick={() => setClearConfirmOpen(true)} />
+      {!hideHeader && <ChatTopbar onClearClick={() => setClearConfirmOpen(true)} onBack={onBack} />}
       <Box sx={{ flex: 1, overflowY: "auto", py: 2, display: "flex", flexDirection: "column", gap: isMobile ? 1.8 : 1.4, bgcolor: "#ededed" }}>
         {messages.map((msg, idx) => (
           <MsgBubble key={`${msg.role}-${idx}`} msg={msg} onQuickSend={sendText} />

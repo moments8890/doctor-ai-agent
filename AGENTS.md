@@ -10,6 +10,14 @@ The plan file must include:
 - **Steps** — numbered, concrete implementation steps
 - **Risks / open questions** — anything that could go wrong or needs clarification
 
+## UI Design
+
+Always read `DESIGN.md` before making any visual or UI decisions.
+For shared component usage and layout patterns, reference
+`frontend/web/UI-DESIGN.md` — it defines which components
+to use for buttons, list rows, page layout, knowledge base UI, and
+patient page patterns. Do not deviate without explicit user approval.
+
 ## Code Style
 
 - **Python 3.9 compatibility** — always use `from __future__ import annotations` at the top of new files; use `Optional[X]` not `X | None`, `Tuple[...]` not `tuple[...]`

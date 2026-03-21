@@ -238,12 +238,18 @@ async def load_knowledge_context_for_prompt(session, doctor_id: str, query: str)
     return render_knowledge_context(query=query, items=items)
 
 
+def invalidate_knowledge_cache(doctor_id: str) -> None:
+    """Clear cached knowledge items for a doctor (call after add/delete)."""
+    _KNOWLEDGE_ITEMS_CACHE.pop(doctor_id, None)
+
+
 async def save_knowledge_item(
     session,
     doctor_id: str,
     text: str,
     source: str = "doctor",
     confidence: float = 1.0,
+    category: str = "custom",
 ) -> Optional[DoctorKnowledgeItem]:
     cleaned = _normalize_text(text)
     if not cleaned:

@@ -204,6 +204,18 @@ async def update_case(
     return case
 
 
+async def get_case_by_id(
+    session: AsyncSession, doctor_id: str, case_id: int,
+) -> Optional[CaseHistory]:
+    result = await session.execute(
+        select(CaseHistory).where(
+            CaseHistory.id == case_id,
+            CaseHistory.doctor_id == doctor_id,
+        )
+    )
+    return result.scalar_one_or_none()
+
+
 async def list_cases(
     session: AsyncSession,
     doctor_id: str,

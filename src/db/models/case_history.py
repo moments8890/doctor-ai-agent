@@ -47,6 +47,7 @@ class CaseHistory(Base):
     source: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # CaseSource enum value
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, onupdate=_utcnow)
+    reference_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=0)
 
     __table_args__ = (
         UniqueConstraint("doctor_id", "record_id", name="uq_case_doctor_record"),

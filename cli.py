@@ -539,12 +539,16 @@ def cmd_start(args: argparse.Namespace) -> None:
     ok(f"uvicorn binary: {VENV_UVICORN}")
 
     # --- Provider validation ---
+    cfg = _load_runtime()
     if provider and provider != "ollama":
         env_key = PROVIDER_KEY_MAP.get(provider)
-        if env_key and not os.environ.get(env_key):
-            fail(f"{env_key} not set. Export it before running.")
-            sys.exit(1)
-        ok(f"Provider: {provider} ({env_key} set)")
+        if env_key:
+            # Check env var first, then runtime.json
+            key_val = os.environ.get(env_key) or _runtime_get(cfg, env_key)
+            if not key_val:
+                fail(f"{env_key} not set. Add it to config/runtime.json or export it.")
+                sys.exit(1)
+        ok(f"Provider: {provider}")
     elif provider == "ollama" or not provider:
         provider = provider or "ollama"
 
@@ -564,7 +568,6 @@ def cmd_start(args: argparse.Namespace) -> None:
     # --- Runtime config ---
     print()
     print("[2/4] Checking configuration...")
-    cfg = _load_runtime()
 
     if is_prod:
         if not RUNTIME_JSON.exists():

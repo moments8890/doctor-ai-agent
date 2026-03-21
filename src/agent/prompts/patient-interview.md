@@ -191,11 +191,19 @@ present_illness 规则：
 {
   "reply": "回应 + 下一个问题",
   "extracted": {"字段": "值"},
+  "suggestions": ["常见回答1", "常见回答2", "常见回答3"],
   "stage": "phase1 或 phase2 或 complete",
   "complete": false
 }
 
 - reply：直接展示给患者的回复内容
 - extracted：本轮提取的字段（无新信息时为 {}）
+- suggestions：2-4个患者最可能的回答选项，方便患者点击。要求：
+  - 简短（3-10个字）
+  - 用患者的口语（不用医学术语）
+  - 涵盖最常见的几种情况
+  - 示例：问"头痛多久了？" → ["今天开始", "两三天了", "一周以上", "反反复复的"]
+  - 示例：问"有没有药物过敏？" → ["没有", "有，青霉素过敏", "不太清楚"]
+  - complete=true时不需要suggestions
 - stage：当前阶段
 - complete：所有信息收集完毕时为 true

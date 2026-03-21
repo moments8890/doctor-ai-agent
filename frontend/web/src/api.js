@@ -712,7 +712,7 @@ export async function updateDoctorProfile(doctorId, { name, specialty }) {
 async function patientRequest(url, patientToken, options = {}) {
   const headers = {
     ...(options.headers || {}),
-    "X-Patient-Token": patientToken || "",
+    "Authorization": `Bearer ${patientToken || ""}`,
   };
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -856,12 +856,20 @@ export async function deleteKnowledgeItem(doctorId, itemId) {
   return request(`/api/manage/knowledge/${itemId}?doctor_id=${doctorId}`, { method: "DELETE" });
 }
 
-export async function addKnowledgeItem(doctorId, content) {
+export async function addKnowledgeItem(doctorId, content, category = "custom") {
   return request(`/api/manage/knowledge?doctor_id=${doctorId}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ content, category }),
   });
+}
+
+export async function getCaseLibrary(doctorId) {
+  return request(`/api/manage/case-history?doctor_id=${doctorId}&status=confirmed`);
+}
+
+export async function getCaseDetail(caseId, doctorId) {
+  return request(`/api/manage/case-history/${caseId}?doctor_id=${doctorId}`);
 }
 
 // ── Review Queue ──────────────────────────────────────────────────────────────
@@ -886,6 +894,13 @@ export async function updateReviewField(queueId, doctorId, field, value) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ field, value }),
   });
+}
+
+// ── Briefing ──────────────────────────────────────────────────────────────────
+
+export async function getBriefing(doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/doctor/briefing?${qs.toString()}`);
 }
 
 // ── Diagnosis ─────────────────────────────────────────────────────────────────

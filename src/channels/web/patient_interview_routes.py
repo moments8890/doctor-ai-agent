@@ -41,7 +41,6 @@ class PatientChatRequest(BaseModel):
 @router.post("/chat")
 async def patient_chat(
     body: PatientChatRequest,
-    x_patient_token: Optional[str] = Header(default=None),
     authorization: Optional[str] = Header(default=None),
 ):
     """Patient chat — routes through ReAct agent with interview + chat tools.
@@ -52,7 +51,7 @@ async def patient_chat(
     """
     from agent import handle_turn
 
-    patient = await _authenticate_patient(x_patient_token, authorization)
+    patient = await _authenticate_patient(authorization)
     text = (body.text or "").strip()
     if not text:
         raise HTTPException(400, "消息不能为空")
@@ -81,11 +80,10 @@ async def _get_doctor_name(doctor_id: str) -> str:
 
 @router.post("/start")
 async def start_interview(
-    x_patient_token: Optional[str] = Header(default=None),
     authorization: Optional[str] = Header(default=None),
 ):
     """Create or resume an interview session."""
-    patient = await _authenticate_patient(x_patient_token, authorization)
+    patient = await _authenticate_patient(authorization)
     doctor_name = await _get_doctor_name(patient.doctor_id)
 
     # Check for existing active session
@@ -114,11 +112,10 @@ async def start_interview(
 @router.post("/turn")
 async def turn(
     body: InterviewTurnRequest,
-    x_patient_token: Optional[str] = Header(default=None),
     authorization: Optional[str] = Header(default=None),
 ):
     """Send a patient message and get AI reply."""
-    patient = await _authenticate_patient(x_patient_token, authorization)
+    patient = await _authenticate_patient(authorization)
 
     if not body.text.strip():
         raise HTTPException(400, "消息不能为空")
@@ -144,16 +141,16 @@ async def turn(
         "status": response.status,
         "missing_fields": response.missing or [],
         "complete": len(response.missing or []) == 0,
+        "suggestions": response.suggestions or [],
     }
 
 
 @router.get("/current")
 async def current_session(
-    x_patient_token: Optional[str] = Header(default=None),
     authorization: Optional[str] = Header(default=None),
 ):
     """Get active interview session state, or null."""
-    patient = await _authenticate_patient(x_patient_token, authorization)
+    patient = await _authenticate_patient(authorization)
     active = await get_active_session(patient.id, patient.doctor_id)
 
     if active is None:
@@ -171,11 +168,10 @@ async def current_session(
 @router.post("/confirm")
 async def confirm(
     body: InterviewSessionRequest,
-    x_patient_token: Optional[str] = Header(default=None),
     authorization: Optional[str] = Header(default=None),
 ):
     """Patient confirms interview summary -> creates record + task."""
-    patient = await _authenticate_patient(x_patient_token, authorization)
+    patient = await _authenticate_patient(authorization)
 
     session = await load_session(body.session_id)
     if session is None:
@@ -209,11 +205,10 @@ async def confirm(
 @router.post("/cancel")
 async def cancel(
     body: InterviewSessionRequest,
-    x_patient_token: Optional[str] = Header(default=None),
     authorization: Optional[str] = Header(default=None),
 ):
     """Abandon interview session."""
-    patient = await _authenticate_patient(x_patient_token, authorization)
+    patient = await _authenticate_patient(authorization)
 
     session = await load_session(body.session_id)
     if session is None:

@@ -22,13 +22,15 @@ import {
   getDoctorProfile, updateDoctorProfile, getWorkingContext,
 } from "../api";
 import { useDoctorStore } from "../store/doctorStore";
-import { NAV } from "./doctor/constants";
+import { NAV, DESKTOP_NAV } from "./doctor/constants";
+import BriefingSection from "./doctor/BriefingSection";
 import ChatSection from "./doctor/ChatSection";
 import PatientsSection from "./doctor/PatientsSection";
 import TasksSection from "./doctor/TasksSection";
 import SettingsSection from "./doctor/SettingsSection";
 import WorkingContextHeader from "./doctor/WorkingContextHeader";
 import ErrorBoundary from "../components/ErrorBoundary";
+import { TYPE, ICON } from "../theme";
 
 function DesktopSidebar({ activeSection, doctorName, doctorId, navBadge, onNav, onLogout }) {
   return (
@@ -38,39 +40,41 @@ function DesktopSidebar({ activeSection, doctorName, doctorId, navBadge, onNav, 
         <Typography variant="caption" color="text.secondary">{doctorName || doctorId}</Typography>
       </Box>
       <Box sx={{ flex: 1 }}>
-        {NAV.map((item) => (
+        {DESKTOP_NAV.map((item) => (
           <Box key={item.key} onClick={() => onNav(item.key)}
             sx={{ display: "flex", alignItems: "center", gap: 1.2, px: 2, py: 1.2, cursor: "pointer",
               bgcolor: activeSection === item.key ? "#07C160" : "transparent",
               color: activeSection === item.key ? "#fff" : "#999999",
               "&:hover": { bgcolor: activeSection === item.key ? "#07C160" : "#f0f0f0" },
               "&:active": { opacity: 0.8 } }}>
-            <Box sx={{ "& svg": { fontSize: 20, color: activeSection === item.key ? "#fff" : "#999999" } }}>
+            <Box sx={{ "& svg": { fontSize: ICON.lg, color: activeSection === item.key ? "#fff" : "#999999" } }}>
               {navBadge[item.key] > 0 ? <Badge badgeContent={navBadge[item.key]} color="error">{item.icon}</Badge> : item.icon}
             </Box>
-            <Typography sx={{ fontSize: 14, fontWeight: activeSection === item.key ? 600 : 400, color: "inherit" }}>{item.label}</Typography>
+            <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: activeSection === item.key ? 600 : 400, color: "inherit" }}>{item.label}</Typography>
           </Box>
         ))}
       </Box>
       <Box onClick={onLogout} sx={{ display: "flex", alignItems: "center", gap: 1.2, px: 2, py: 1.2, cursor: "pointer", color: "#999999", "&:hover": { bgcolor: "#f0f0f0" }, "&:active": { opacity: 0.8 } }}>
         <LogoutIcon fontSize="small" sx={{ color: "#999999" }} />
-        <Typography sx={{ fontSize: 14, color: "#999999" }}>退出登录</Typography>
+        <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#999999" }}>退出登录</Typography>
       </Box>
     </Box>
   );
 }
 
 function MobileBottomNav({ activeSection, pendingTaskCount, pendingRecord, onNav }) {
+  // Chat is a subpage of home on mobile — highlight 首页 when in chat
+  const navValue = activeSection === "chat" ? "home" : activeSection;
   return (
     <Box sx={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 10, borderTop: "0.5px solid #d9d9d9", bgcolor: "#f7f7f7" }}>
-      <BottomNavigationMui value={activeSection} onChange={(_, val) => onNav(val)}
+      <BottomNavigationMui value={navValue} onChange={(_, val) => onNav(val)}
         sx={{ height: 64, bgcolor: "#f7f7f7", paddingBottom: "env(safe-area-inset-bottom)", "& .MuiBottomNavigationAction-root": { minWidth: 56, paddingTop: "8px", color: "#999999" }, "& .Mui-selected": { color: "#07C160" }, "& .Mui-selected .MuiBottomNavigationAction-label": { color: "#07C160", fontWeight: 600 } }}>
         {NAV.map((item) => (
           <BottomNavigationActionMui key={item.key} label={item.label} value={item.key} showLabel
             icon={item.key === "tasks" && pendingTaskCount > 0 ? <Badge badgeContent={pendingTaskCount} color="error">{item.icon}</Badge>
-              : item.key === "chat" && pendingRecord ? <Badge variant="dot" color="warning">{item.icon}</Badge>
+              : item.key === "home" && pendingRecord ? <Badge variant="dot" color="warning">{item.icon}</Badge>
               : item.icon}
-            sx={{ minWidth: 0, "& .MuiBottomNavigationAction-label": { fontSize: 10 } }} />
+            sx={{ minWidth: 0, "& .MuiBottomNavigationAction-label": { fontSize: TYPE.micro.fontSize } }} />
         ))}
       </BottomNavigationMui>
     </Box>
@@ -95,9 +99,14 @@ function OnboardingDialog({ open, name, saving, onChange, onSubmit }) {
   );
 }
 
-function SectionContent({ activeSection, doctorId, navigate, chatInsertText, setChatInsertText, chatAutoSendText, setChatAutoSendText, chatAutoSendConsumedRef, patientRefreshKey, setPatientRefreshKey, handleLogout, onContextCleared, triggerInterview, setTriggerInterview }) {
+function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpage, urlSubId, chatInsertText, setChatInsertText, chatAutoSendText, setChatAutoSendText, chatAutoSendConsumedRef, patientRefreshKey, setPatientRefreshKey, handleLogout, onContextCleared, triggerInterview, setTriggerInterview }) {
   return (
     <Box sx={{ flex: 1, overflow: "hidden" }}>
+      {activeSection === "home" && (
+        <ErrorBoundary label="首页">
+          <BriefingSection doctorId={doctorId} onNavigateToChat={() => navigate("/doctor/chat")} />
+        </ErrorBoundary>
+      )}
       {activeSection === "chat" && (
         <ErrorBoundary label="聊天">
           <ChatSection doctorId={doctorId} onMessageCountChange={() => {}}
@@ -106,7 +115,8 @@ function SectionContent({ activeSection, doctorId, navigate, chatInsertText, set
             autoSendText={chatAutoSendText !== chatAutoSendConsumedRef.current ? chatAutoSendText : ""}
             onAutoSendConsumed={() => { chatAutoSendConsumedRef.current = chatAutoSendText; setChatAutoSendText(""); }}
             onContextCleared={onContextCleared}
-            onStartPatientInterview={() => { setTriggerInterview(true); navigate("/doctor/patients"); }} />
+            onStartPatientInterview={() => { setTriggerInterview(true); navigate("/doctor/patients"); }}
+            onBack={isMobile ? () => navigate("/doctor") : undefined} />
         </ErrorBoundary>
       )}
       {activeSection === "patients" && (
@@ -119,8 +129,8 @@ function SectionContent({ activeSection, doctorId, navigate, chatInsertText, set
             onTriggerInterviewConsumed={() => setTriggerInterview(false)} />
         </ErrorBoundary>
       )}
-      {activeSection === "tasks" && <ErrorBoundary label="任务"><TasksSection doctorId={doctorId} /></ErrorBoundary>}
-      {activeSection === "settings" && <ErrorBoundary label="设置"><SettingsSection doctorId={doctorId} onLogout={handleLogout} /></ErrorBoundary>}
+      {activeSection === "tasks" && <ErrorBoundary label="任务"><TasksSection doctorId={doctorId} urlSubpage={urlSubpage} urlSubId={urlSubId} /></ErrorBoundary>}
+      {activeSection === "settings" && <ErrorBoundary label="设置"><SettingsSection doctorId={doctorId} onLogout={handleLogout} urlSubpage={urlSubpage} urlSubId={urlSubId} /></ErrorBoundary>}
     </Box>
   );
 }
@@ -173,7 +183,7 @@ function useDoctorPageState({ doctorId, accessToken, setAuth }) {
 }
 
 export default function DoctorPage() {
-  const { section, patientId } = useParams();
+  const { section, patientId, subpage: urlSubpage, subId: urlSubId } = useParams();
   const navigate = useNavigate();
   const { doctorId, doctorName, accessToken, clearAuth, setAuth } = useDoctorStore();
   const theme = useTheme();
@@ -186,14 +196,13 @@ export default function DoctorPage() {
 
   const { pendingTaskCount, pendingReviewCount, pendingRecord, setPendingRecord, workingContext, setWorkingContext, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit } = useDoctorPageState({ doctorId, accessToken, setAuth });
 
-  // Default to chat (composer-first). "home" section removed from primary nav.
-  const activeSection = patientId ? "patients" : (section || "chat");
+  const activeSection = patientId ? "patients" : (section || "home");
 
   function handleContextCleared() {
     setPendingRecord(null);
     setWorkingContext(null);
   }
-  function handleNav(key) { navigate(key === "chat" ? "/doctor/chat" : `/doctor/${key}`); }
+  function handleNav(key) { navigate(key === "home" ? "/doctor" : `/doctor/${key}`); }
   function handleLogout() {
     clearAuth();
     if (window.__wxjs_environment === "miniprogram") wx.miniProgram?.postMessage?.({ data: { action: "logout" } }); // eslint-disable-line no-undef
@@ -202,10 +211,10 @@ export default function DoctorPage() {
 
   return (
     <Box sx={{ display: "flex", height: "100vh", bgcolor: "#f7f7f7" }}>
-      {!isMobile && <DesktopSidebar activeSection={activeSection} doctorName={doctorName} doctorId={doctorId} navBadge={{ tasks: pendingTaskCount + pendingReviewCount, chat: pendingRecord ? 1 : 0 }} onNav={handleNav} onLogout={handleLogout} />}
+      {!isMobile && <DesktopSidebar activeSection={activeSection} doctorName={doctorName} doctorId={doctorId} navBadge={{ tasks: pendingTaskCount + pendingReviewCount, home: pendingRecord ? 1 : 0 }} onNav={handleNav} onLogout={handleLogout} />}
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", pb: isMobile ? "56px" : 0 }}>
         <WorkingContextHeader context={workingContext} isMobile={isMobile} />
-        <SectionContent activeSection={activeSection} doctorId={doctorId} navigate={navigate} chatInsertText={chatInsertText} setChatInsertText={setChatInsertText} chatAutoSendText={chatAutoSendText} setChatAutoSendText={setChatAutoSendText} chatAutoSendConsumedRef={chatAutoSendConsumedRef} patientRefreshKey={patientRefreshKey} setPatientRefreshKey={setPatientRefreshKey} handleLogout={handleLogout} onContextCleared={handleContextCleared} triggerInterview={triggerInterview} setTriggerInterview={setTriggerInterview} />
+        <SectionContent activeSection={activeSection} doctorId={doctorId} isMobile={isMobile} navigate={navigate} urlSubpage={urlSubpage} urlSubId={urlSubId} chatInsertText={chatInsertText} setChatInsertText={setChatInsertText} chatAutoSendText={chatAutoSendText} setChatAutoSendText={setChatAutoSendText} chatAutoSendConsumedRef={chatAutoSendConsumedRef} patientRefreshKey={patientRefreshKey} setPatientRefreshKey={setPatientRefreshKey} handleLogout={handleLogout} onContextCleared={handleContextCleared} triggerInterview={triggerInterview} setTriggerInterview={setTriggerInterview} />
       </Box>
       {isMobile && <MobileBottomNav activeSection={activeSection} pendingTaskCount={pendingTaskCount + pendingReviewCount} pendingRecord={pendingRecord} onNav={handleNav} />}
       <OnboardingDialog open={showOnboarding} name={onboardName} saving={onboardSaving} onChange={setOnboardName} onSubmit={handleOnboardSubmit} />

@@ -8,6 +8,8 @@
 """
 from __future__ import annotations
 
+import json
+
 import logging
 from datetime import datetime
 from typing import Optional
@@ -66,6 +68,8 @@ class PatientRecordOut(BaseModel):
     id: int
     record_type: str
     content: Optional[str]
+    structured: Optional[dict] = None
+    needs_review: Optional[bool] = None
     created_at: datetime
 
 
@@ -129,20 +133,20 @@ async def create_patient_session(body: PatientSessionRequest):
 
 
 @router.get("/me", response_model=PatientMeResponse)
-async def get_patient_me(x_patient_token: Optional[str] = Header(default=None)):
+async def get_patient_me(authorization: Optional[str] = Header(default=None)):
     """Return basic identity info for the current patient token."""
-    patient = await _authenticate_patient(x_patient_token)
+    patient = await _authenticate_patient(authorization)
     return PatientMeResponse(patient_id=patient.id, patient_name=patient.name)
 
 
 @router.get("/records", response_model=list[PatientRecordOut])
-async def get_patient_records(x_patient_token: Optional[str] = Header(default=None)):
+async def get_patient_records(authorization: Optional[str] = Header(default=None)):
     """
     Return the patient's own medical records.
     Only exposes: id, record_type, content, created_at.
     Doctor notes, tags, and internal fields are NOT returned.
     """
-    patient = await _authenticate_patient(x_patient_token)
+    patient = await _authenticate_patient(authorization)
 
     async with AsyncSessionLocal() as db:
         result = await db.execute(
@@ -162,6 +166,8 @@ async def get_patient_records(x_patient_token: Optional[str] = Header(default=No
             id=r.id,
             record_type=r.record_type,
             content=r.content,
+            structured=json.loads(r.structured) if r.structured else None,
+            needs_review=r.needs_review,
             created_at=r.created_at,
         )
         for r in records
@@ -171,13 +177,13 @@ async def get_patient_records(x_patient_token: Optional[str] = Header(default=No
 @router.post("/message", response_model=PatientMessageResponse)
 async def send_patient_message(
     body: PatientMessageRequest,
-    x_patient_token: Optional[str] = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
     """
     Receive a message from the patient, persist it, and notify the doctor.
     Rate-limited to 10 messages per minute per patient to prevent spam.
     """
-    patient = await _authenticate_patient(x_patient_token)
+    patient = await _authenticate_patient(authorization)
     text = (body.text or "").strip()
     if not text:
         raise HTTPException(status_code=422, detail="消息内容不能为空")
@@ -238,11 +244,10 @@ async def _notify_doctor_safe(doctor_id: str, message: str) -> None:
 @router.post("/upload")
 async def patient_upload(
     file: UploadFile = File(...),
-    x_patient_token: Optional[str] = Header(default=None),
     authorization: Optional[str] = Header(default=None),
 ):
     """Patient uploads a medical record photo or PDF for Vision LLM extraction."""
-    patient = await _authenticate_patient(x_patient_token, authorization)
+    patient = await _authenticate_patient(authorization)
     file_bytes = await file.read()
 
     try:

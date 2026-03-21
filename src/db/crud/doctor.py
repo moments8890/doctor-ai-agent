@@ -142,6 +142,21 @@ async def list_doctor_knowledge_items(
     return list(rows)
 
 
+async def delete_knowledge_item(
+    session: AsyncSession, doctor_id: str, item_id: int,
+) -> bool:
+    """Delete a knowledge item. Returns True if deleted, False if not found."""
+    from sqlalchemy import delete as sa_delete
+    result = await session.execute(
+        sa_delete(DoctorKnowledgeItem).where(
+            DoctorKnowledgeItem.id == item_id,
+            DoctorKnowledgeItem.doctor_id == doctor_id,
+        )
+    )
+    await session.commit()
+    return result.rowcount > 0
+
+
 async def get_doctor_notify_preference(
     session: AsyncSession, doctor_id: str
 ) -> Optional[DoctorNotifyPreference]:

@@ -1,34 +1,24 @@
 /**
- * 统一登录页 — 医生和患者共用
+ * 登录页 — 医生和患者两个标签页
  *
- * 登录：手机号 + 出生年份 → 自动检测角色 → 路由到对应 UI
- * 注册：医生（需要邀请码）/ 患者（选择医生）
+ * 测试版：使用昵称 + 口令（不收集手机号等个人信息）
+ * 登录：昵称 + 口令（两个角色相同）
+ * 注册：医生需要邀请码，患者需要选择医生
  */
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  CircularProgress,
-  MenuItem,
-  Stack,
-  Tab,
-  Tabs,
-  TextField,
-  Typography,
+  Box, Button, Card, CardContent, CircularProgress,
+  MenuItem, Stack, Tab, Tabs, TextField, Typography,
 } from "@mui/material";
 import MedicalServicesOutlinedIcon from "@mui/icons-material/MedicalServicesOutlined";
 import {
-  unifiedLogin,
-  unifiedLoginWithRole,
-  unifiedRegisterDoctor,
-  unifiedRegisterPatient,
-  unifiedListDoctors,
-  setWebToken,
+  unifiedLogin, unifiedLoginWithRole,
+  unifiedRegisterDoctor, unifiedRegisterPatient,
+  unifiedListDoctors, setWebToken,
 } from "../api";
 import { useDoctorStore } from "../store/doctorStore";
+import { TYPE, ICON } from "../theme";
 
 const STORAGE_KEY = "unified_auth_token";
 const STORAGE_ROLE_KEY = "unified_auth_role";
@@ -47,21 +37,19 @@ function saveSession(data) {
 export default function LoginPage() {
   const navigate = useNavigate();
   const { setAuth } = useDoctorStore();
+  const [tab, setTab] = useState(0); // 0=doctor, 1=patient
   const [mode, setMode] = useState("login"); // login | register
-  const [registerTab, setRegisterTab] = useState(0); // 0=patient, 1=doctor
 
-  // Login fields
-  const [phone, setPhone] = useState("");
-  const [yob, setYob] = useState("");
+  // Login fields (nickname + passcode)
+  const [nickname, setNickname] = useState("");
+  const [passcode, setPasscode] = useState("");
 
   // Register common
-  const [regPhone, setRegPhone] = useState("");
-  const [regName, setRegName] = useState("");
-  const [regYob, setRegYob] = useState("");
+  const [regNickname, setRegNickname] = useState("");
+  const [regPasscode, setRegPasscode] = useState("");
 
   // Register doctor
   const [inviteCode, setInviteCode] = useState("");
-  const [specialty, setSpecialty] = useState("");
 
   // Register patient
   const [doctorId, setDoctorId] = useState("");
@@ -85,7 +73,6 @@ export default function LoginPage() {
       setAuth(data.doctor_id, data.name, data.token);
       navigate("/doctor", { replace: true });
     } else {
-      // Store patient token for PatientPage
       localStorage.setItem("patient_portal_token", data.token);
       localStorage.setItem("patient_portal_name", data.name || "");
       localStorage.setItem("patient_portal_doctor_id", data.doctor_id || "");
@@ -95,10 +82,10 @@ export default function LoginPage() {
 
   async function handleLogin(e) {
     e.preventDefault();
-    if (!phone.trim() || !yob.trim()) { setError("请输入手机号和出生年份"); return; }
+    if (!nickname.trim() || !passcode.trim()) { setError("请输入昵称和口令"); return; }
     setLoading(true); setError(""); setRoleChoices(null);
     try {
-      const data = await unifiedLogin(phone.trim(), parseInt(yob));
+      const data = await unifiedLogin(nickname.trim(), parseInt(passcode));
       if (data.needs_role_selection) {
         setRoleChoices(data.roles);
       } else {
@@ -113,7 +100,7 @@ export default function LoginPage() {
     setLoading(true); setError("");
     try {
       const data = await unifiedLoginWithRole(
-        phone.trim(), parseInt(yob), role.role,
+        nickname.trim(), parseInt(passcode), role.role,
         role.doctor_id, role.patient_id,
       );
       handleLoginSuccess(data);
@@ -124,14 +111,14 @@ export default function LoginPage() {
 
   async function handleRegisterDoctor(e) {
     e.preventDefault();
-    if (!regPhone.trim() || !regName.trim() || !regYob.trim() || !inviteCode.trim()) {
+    if (!regNickname.trim() || !regPasscode.trim() || !inviteCode.trim()) {
       setError("请填写完整信息"); return;
     }
     setLoading(true); setError("");
     try {
       const data = await unifiedRegisterDoctor(
-        regPhone.trim(), regName.trim(), parseInt(regYob),
-        inviteCode.trim(), specialty.trim() || undefined,
+        regNickname.trim(), regNickname.trim(), parseInt(regPasscode),
+        inviteCode.trim(), "神经外科",
       );
       handleLoginSuccess(data);
     } catch (err) {
@@ -141,13 +128,13 @@ export default function LoginPage() {
 
   async function handleRegisterPatient(e) {
     e.preventDefault();
-    if (!regPhone.trim() || !regName.trim() || !regYob.trim() || !doctorId) {
+    if (!regNickname.trim() || !regPasscode.trim() || !doctorId) {
       setError("请填写完整信息"); return;
     }
     setLoading(true); setError("");
     try {
       const data = await unifiedRegisterPatient(
-        regPhone.trim(), regName.trim(), parseInt(regYob),
+        regNickname.trim(), regNickname.trim(), parseInt(regPasscode),
         doctorId, gender || undefined,
       );
       handleLoginSuccess(data);
@@ -156,35 +143,46 @@ export default function LoginPage() {
     } finally { setLoading(false); }
   }
 
+  const isDoctor = tab === 0;
+
   return (
     <Box sx={{
       minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", px: 2,
-      background: "radial-gradient(1200px 640px at 92% -8%, rgba(7,193,96,0.16), transparent 65%), #ededed",
+      bgcolor: "#fafafa",
     }}>
-      <Card sx={{ width: "100%", maxWidth: 420, borderRadius: 2 }}>
-        <CardContent sx={{ p: 4 }}>
-          <Stack spacing={3} alignItems="center">
-            <MedicalServicesOutlinedIcon sx={{ fontSize: 48, color: "#07C160" }} />
-            <Typography variant="h6" fontWeight={700}>
-              {mode === "login" ? "登录" : "注册"}
-            </Typography>
+      <Card sx={{ width: "100%", maxWidth: 400, borderRadius: "6px", boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}>
+        <CardContent sx={{ p: 3.5 }}>
+          <Stack spacing={2.5} alignItems="center">
+            <MedicalServicesOutlinedIcon sx={{ fontSize: ICON.display, color: "#07C160" }} />
+            <Typography sx={{ fontWeight: 700, fontSize: TYPE.title.fontSize }}>AI 医疗助手</Typography>
+
+            {/* Role tabs */}
+            <Tabs value={tab} onChange={(_, v) => { setTab(v); setMode("login"); setError(""); setRoleChoices(null); }}
+              sx={{ width: "100%", "& .MuiTab-root": { flex: 1, fontSize: TYPE.body.fontSize }, "& .Mui-selected": { color: "#07C160" }, "& .MuiTabs-indicator": { bgcolor: "#07C160" } }}>
+              <Tab label="医生" />
+              <Tab label="患者" />
+            </Tabs>
 
             {/* ==================== LOGIN ==================== */}
             {mode === "login" && !roleChoices && (
               <Box component="form" onSubmit={handleLogin} sx={{ width: "100%" }}>
                 <Stack spacing={2}>
-                  <TextField label="手机号" value={phone} onChange={e => setPhone(e.target.value)}
+                  <TextField label="昵称" value={nickname} onChange={e => setNickname(e.target.value)}
                     fullWidth size="small" autoFocus />
-                  <TextField label="出生年份" value={yob} onChange={e => setYob(e.target.value)}
-                    placeholder="例如 1985" fullWidth size="small" />
+                  <TextField label="口令" value={passcode} onChange={e => setPasscode(e.target.value)}
+                    placeholder="数字口令" fullWidth size="small" type="password" />
                   {error && <Typography variant="body2" color="error">{error}</Typography>}
                   <Button type="submit" variant="contained" fullWidth disabled={loading}
-                    sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: "#06a050" } }}>
+                    sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: "#06a050" }, textTransform: "none", py: 1.2 }}>
                     {loading ? <CircularProgress size={16} /> : "登录"}
                   </Button>
-                  <Button size="small" onClick={() => { setMode("register"); setError(""); }}>
-                    没有账号？注册
-                  </Button>
+                  <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ fontSize: TYPE.secondary.fontSize }}>
+                    没有账号？
+                    <Box component="span" onClick={() => { setMode("register"); setError(""); }}
+                      sx={{ color: "#07C160", cursor: "pointer", ml: 0.5 }}>
+                      {isDoctor ? "医生注册" : "患者注册"}
+                    </Box>
+                  </Typography>
                 </Stack>
               </Box>
             )}
@@ -197,94 +195,84 @@ export default function LoginPage() {
                 </Typography>
                 {roleChoices.map((r, i) => (
                   <Button key={i} variant="outlined" fullWidth onClick={() => handleRoleSelect(r)}
-                    sx={{ justifyContent: "flex-start", textTransform: "none", py: 1.5 }}>
+                    sx={{ justifyContent: "flex-start", textTransform: "none", py: 1.5, borderColor: "#e5e5e5" }}>
                     <Stack>
-                      <Typography fontWeight={600}>
+                      <Typography fontWeight={600} sx={{ fontSize: TYPE.heading.fontSize }}>
                         {r.role === "doctor" ? "医生" : "患者"} — {r.name}
                       </Typography>
-                      {r.role === "patient" && (
-                        <Typography variant="caption" color="text.secondary">
-                          {r.doctor_id}
-                        </Typography>
-                      )}
                     </Stack>
                   </Button>
                 ))}
-                <Button size="small" onClick={() => setRoleChoices(null)}>返回</Button>
+                <Button size="small" onClick={() => setRoleChoices(null)} sx={{ color: "#999" }}>返回</Button>
               </Stack>
             )}
 
-            {/* ==================== REGISTER ==================== */}
-            {mode === "register" && (
-              <Box sx={{ width: "100%" }}>
-                <Tabs value={registerTab} onChange={(_, v) => { setRegisterTab(v); setError(""); }}
-                  centered sx={{ mb: 2 }}>
-                  <Tab label="患者注册" />
-                  <Tab label="医生注册" />
-                </Tabs>
-
-                {/* Patient register */}
-                {registerTab === 0 && (
-                  <Box component="form" onSubmit={handleRegisterPatient}>
-                    <Stack spacing={2}>
-                      <TextField select label="选择医生" value={doctorId}
-                        onChange={e => setDoctorId(e.target.value)} fullWidth size="small">
-                        {doctors.map(d => (
-                          <MenuItem key={d.doctor_id} value={d.doctor_id}>
-                            {d.name}{d.department ? ` · ${d.department}` : ""}
-                          </MenuItem>
-                        ))}
-                      </TextField>
-                      <TextField label="您的姓名" value={regName}
-                        onChange={e => setRegName(e.target.value)} fullWidth size="small" />
-                      <TextField select label="性别" value={gender}
-                        onChange={e => setGender(e.target.value)} fullWidth size="small">
-                        <MenuItem value="">不填</MenuItem>
-                        <MenuItem value="男">男</MenuItem>
-                        <MenuItem value="女">女</MenuItem>
-                      </TextField>
-                      <TextField label="出生年份" value={regYob}
-                        onChange={e => setRegYob(e.target.value)} placeholder="例如 1985" fullWidth size="small" />
-                      <TextField label="手机号" value={regPhone}
-                        onChange={e => setRegPhone(e.target.value)} fullWidth size="small" />
-                      {error && <Typography variant="body2" color="error">{error}</Typography>}
-                      <Button type="submit" variant="contained" fullWidth disabled={loading}
-                        sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: "#06a050" } }}>
-                        {loading ? <CircularProgress size={16} /> : "注册"}
-                      </Button>
-                    </Stack>
-                  </Box>
-                )}
-
-                {/* Doctor register */}
-                {registerTab === 1 && (
-                  <Box component="form" onSubmit={handleRegisterDoctor}>
-                    <Stack spacing={2}>
-                      <TextField label="邀请码" value={inviteCode}
-                        onChange={e => setInviteCode(e.target.value)} fullWidth size="small"
-                        helperText="请向管理员获取邀请码" />
-                      <TextField label="您的姓名" value={regName}
-                        onChange={e => setRegName(e.target.value)} fullWidth size="small" />
-                      <TextField label="科室/专科" value={specialty}
-                        onChange={e => setSpecialty(e.target.value)} placeholder="例如 神经外科" fullWidth size="small" />
-                      <TextField label="出生年份" value={regYob}
-                        onChange={e => setRegYob(e.target.value)} placeholder="例如 1985" fullWidth size="small" />
-                      <TextField label="手机号" value={regPhone}
-                        onChange={e => setRegPhone(e.target.value)} fullWidth size="small" />
-                      {error && <Typography variant="body2" color="error">{error}</Typography>}
-                      <Button type="submit" variant="contained" fullWidth disabled={loading}
-                        sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: "#06a050" } }}>
-                        {loading ? <CircularProgress size={16} /> : "注册"}
-                      </Button>
-                    </Stack>
-                  </Box>
-                )}
-
-                <Box textAlign="center" mt={2}>
-                  <Button size="small" onClick={() => { setMode("login"); setError(""); }}>
-                    已有账号？返回登录
+            {/* ==================== DOCTOR REGISTER ==================== */}
+            {mode === "register" && isDoctor && (
+              <Box component="form" onSubmit={handleRegisterDoctor} sx={{ width: "100%" }}>
+                <Stack spacing={2}>
+                  <TextField label="邀请码" value={inviteCode}
+                    onChange={e => setInviteCode(e.target.value)} fullWidth size="small"
+                    helperText="请向管理员获取" />
+                  <TextField label="昵称" value={regNickname}
+                    onChange={e => setRegNickname(e.target.value)} fullWidth size="small"
+                    helperText="用于登录和显示" />
+                  <TextField label="口令" value={regPasscode}
+                    onChange={e => setRegPasscode(e.target.value)} fullWidth size="small"
+                    type="password" placeholder="设置数字口令" />
+                  {error && <Typography variant="body2" color="error">{error}</Typography>}
+                  <Button type="submit" variant="contained" fullWidth disabled={loading}
+                    sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: "#06a050" }, textTransform: "none", py: 1.2 }}>
+                    {loading ? <CircularProgress size={16} /> : "注册"}
                   </Button>
-                </Box>
+                  <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ fontSize: TYPE.secondary.fontSize }}>
+                    已有账号？
+                    <Box component="span" onClick={() => { setMode("login"); setError(""); }}
+                      sx={{ color: "#07C160", cursor: "pointer", ml: 0.5 }}>
+                      返回登录
+                    </Box>
+                  </Typography>
+                </Stack>
+              </Box>
+            )}
+
+            {/* ==================== PATIENT REGISTER ==================== */}
+            {mode === "register" && !isDoctor && (
+              <Box component="form" onSubmit={handleRegisterPatient} sx={{ width: "100%" }}>
+                <Stack spacing={2}>
+                  <TextField select label="选择医生" value={doctorId}
+                    onChange={e => setDoctorId(e.target.value)} fullWidth size="small">
+                    {doctors.map(d => (
+                      <MenuItem key={d.doctor_id} value={d.doctor_id}>
+                        {d.name}{d.department ? ` · ${d.department}` : ""}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                  <TextField label="昵称" value={regNickname}
+                    onChange={e => setRegNickname(e.target.value)} fullWidth size="small"
+                    helperText="用于登录和显示" />
+                  <TextField select label="性别" value={gender}
+                    onChange={e => setGender(e.target.value)} fullWidth size="small">
+                    <MenuItem value="">不填</MenuItem>
+                    <MenuItem value="男">男</MenuItem>
+                    <MenuItem value="女">女</MenuItem>
+                  </TextField>
+                  <TextField label="口令" value={regPasscode}
+                    onChange={e => setRegPasscode(e.target.value)} fullWidth size="small"
+                    type="password" placeholder="设置数字口令" />
+                  {error && <Typography variant="body2" color="error">{error}</Typography>}
+                  <Button type="submit" variant="contained" fullWidth disabled={loading}
+                    sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: "#06a050" }, textTransform: "none", py: 1.2 }}>
+                    {loading ? <CircularProgress size={16} /> : "注册"}
+                  </Button>
+                  <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ fontSize: TYPE.secondary.fontSize }}>
+                    已有账号？
+                    <Box component="span" onClick={() => { setMode("login"); setError(""); }}
+                      sx={{ color: "#07C160", cursor: "pointer", ml: 0.5 }}>
+                      返回登录
+                    </Box>
+                  </Typography>
+                </Stack>
               </Box>
             )}
           </Stack>

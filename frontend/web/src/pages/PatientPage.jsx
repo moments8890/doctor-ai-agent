@@ -9,6 +9,7 @@
  */
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   Box,
   Button,
@@ -35,7 +36,16 @@ import AddIcon from "@mui/icons-material/Add";
 import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import LogoutIcon from "@mui/icons-material/Logout";
+import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
+import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
+import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import SuggestionChips from "../components/SuggestionChips";
+import ListCard from "../components/ListCard";
+import NewItemCard from "../components/NewItemCard";
+import RecordAvatar from "../components/RecordAvatar";
 import MedicalServicesOutlinedIcon from "@mui/icons-material/MedicalServicesOutlined";
+import SubpageHeader from "./doctor/SubpageHeader";
+import { TYPE, ICON } from "../theme";
 import {
   patientLogin,
   patientRegister,
@@ -59,10 +69,19 @@ const RECORD_TYPE_LABEL = {
 };
 
 const FIELD_LABELS = {
-  chief_complaint: "主诉", present_illness: "现病史", past_history: "既往史",
+  department: "科别", chief_complaint: "主诉", present_illness: "现病史", past_history: "既往史",
   allergy_history: "过敏史", family_history: "家族史", personal_history: "个人史",
-  marital_reproductive: "婚育史",
+  marital_reproductive: "婚育史", physical_exam: "体格检查", specialist_exam: "专科检查",
+  auxiliary_exam: "辅助检查", diagnosis: "初步诊断", treatment_plan: "治疗方案",
+  orders_followup: "医嘱及随访",
 };
+
+const FIELD_ORDER = [
+  "department", "chief_complaint", "present_illness", "past_history",
+  "allergy_history", "personal_history", "marital_reproductive", "family_history",
+  "physical_exam", "specialist_exam", "auxiliary_exam", "diagnosis",
+  "treatment_plan", "orders_followup",
+];
 
 const PHONE_FRAME = {
   display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", bgcolor: "#f0f0f0",
@@ -129,7 +148,7 @@ function LoginView({ onLogin }) {
       <Card sx={{ width: "100%", maxWidth: 400, borderRadius: 2 }}>
         <CardContent sx={{ p: 4 }}>
           <Stack spacing={3} alignItems="center">
-            <MedicalServicesOutlinedIcon sx={{ fontSize: 48, color: "#07C160" }} />
+            <MedicalServicesOutlinedIcon sx={{ fontSize: ICON.display, color: "#07C160" }} />
             <Typography variant="h6" fontWeight={700}>{mode === "login" ? "患者登录" : "患者注册"}</Typography>
             {mode === "login" ? (
               <Box component="form" onSubmit={handleLogin} sx={{ width: "100%" }}>
@@ -174,15 +193,62 @@ function LoginView({ onLogin }) {
 // ChatTab — AI 健康助手通用对话
 // ===========================================================================
 
-function ChatTab({ token, doctorName, onLogout }) {
-  const [messages, setMessages] = useState([
-    { role: "assistant", content: `您好！我是${doctorName || "医生"}的AI助手。有什么健康问题可以问我，或者切换到「病历」新建病历。` },
-  ]);
+function QuickActions({ onNewInterview, onViewRecords }) {
+  const actions = [
+    { label: "新问诊", subtitle: "AI帮您整理病情", icon: <AddIcon sx={{ fontSize: ICON.xl, color: "#07C160" }} />, onClick: onNewInterview },
+    { label: "我的病历", subtitle: "查看历史记录", icon: <DescriptionOutlinedIcon sx={{ fontSize: ICON.xl, color: "#1B6EF3" }} />, onClick: onViewRecords },
+  ];
+  return (
+    <Box sx={{ display: "flex", gap: 1, px: 2, py: 1.5 }}>
+      {actions.map(a => (
+        <Box key={a.label} onClick={a.onClick}
+          sx={{
+            flex: 1, bgcolor: "#fff", borderRadius: "8px", p: 1.5,
+            display: "flex", alignItems: "center", gap: 1.2,
+            cursor: "pointer", userSelect: "none",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+            "&:active": { bgcolor: "#f9f9f9" },
+          }}>
+          <Box sx={{ width: 36, height: 36, borderRadius: "8px",
+            bgcolor: a.label === "新问诊" ? "#e8f5e9" : "#E8F0FE",
+            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            {a.icon}
+          </Box>
+          <Box>
+            <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: "#1A1A1A" }}>{a.label}</Typography>
+            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#999" }}>{a.subtitle}</Typography>
+          </Box>
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
+const PATIENT_CHAT_STORAGE_KEY = "patient_chat_messages";
+
+function ChatTab({ token, doctorName, onLogout, onNewInterview, onViewRecords }) {
+  const welcomeMsg = { role: "assistant", content: `您好！我是${doctorName || "医生"}的AI助手。有什么健康问题可以问我。` };
+
+  const [messages, setMessages] = useState(() => {
+    try {
+      const saved = localStorage.getItem(PATIENT_CHAT_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [welcomeMsg];
+  });
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const chatEndRef = useRef(null);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  // Persist messages to localStorage
+  useEffect(() => {
+    try { localStorage.setItem(PATIENT_CHAT_STORAGE_KEY, JSON.stringify(messages)); } catch {}
+  }, [messages]);
 
   async function handleSend(e) {
     e.preventDefault();
@@ -195,15 +261,18 @@ function ChatTab({ token, doctorName, onLogout }) {
       const data = await sendPatientMessage(token, text);
       setMessages(prev => [...prev, { role: "assistant", content: data.reply || "收到您的消息。" }]);
     } catch (err) {
-      if (err.status === 401) { onLogout(); return; }
+      if (err.status === 401) { console.warn("auth expired"); return; }
       setMessages(prev => [...prev, { role: "assistant", content: "系统繁忙，请稍后重试。" }]);
     } finally { setSending(false); }
   }
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+      {/* Quick actions */}
+      <QuickActions onNewInterview={onNewInterview} onViewRecords={onViewRecords} />
+
       {/* Chat area */}
-      <Box sx={{ flex: 1, overflowY: "auto", px: 2, py: 2 }}>
+      <Box sx={{ flex: 1, overflowY: "auto", px: 2, py: 1 }}>
         {messages.map((msg, i) => (
           <Box key={i} sx={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", mb: 1.5 }}>
             <Box sx={{
@@ -237,58 +306,124 @@ function ChatTab({ token, doctorName, onLogout }) {
 // RecordsTab — 病历列表 + 新建病历
 // ===========================================================================
 
-function RecordsTab({ token, onLogout, onNewRecord }) {
+
+function RecordDetailView({ record, onBack }) {
+  const structured = record.structured || {};
+  const typeLabel = RECORD_TYPE_LABEL[record.record_type] || record.record_type;
+
+  return (
+    <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      <SubpageHeader title={typeLabel} onBack={onBack} />
+      <Box sx={{ flex: 1, overflowY: "auto", bgcolor: "#fff", px: 1.5, py: 1 }}>
+        {/* Structured fields */}
+        {FIELD_ORDER.map((key) => {
+          const val = structured[key];
+          if (!val) return null;
+          return (
+            <Box key={key} sx={{ py: 0.5, borderBottom: "0.5px solid #f0f0f0", display: "flex", alignItems: "baseline", gap: 0.5 }}>
+              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "#999", flexShrink: 0 }}>{FIELD_LABELS[key] || key}：</Typography>
+              <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#1A1A1A", lineHeight: 1.6, flex: 1 }}>{val}</Typography>
+            </Box>
+          );
+        })}
+        {/* Raw content fallback if no structured */}
+        {!Object.values(structured).some(Boolean) && record.content && (
+          <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#333", lineHeight: 1.8, whiteSpace: "pre-wrap", py: 1 }}>
+            {record.content}
+          </Typography>
+        )}
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#bbb", mt: 2, textAlign: "center" }}>
+          {formatDate(record.created_at)}
+        </Typography>
+      </Box>
+    </Box>
+  );
+}
+
+function RecordsTab({ token, onLogout, onNewRecord, urlSubpage }) {
+  const navigate = useNavigate();
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const loadRecords = useCallback(() => {
     setLoading(true);
     getPatientRecords(token).then(data => setRecords(Array.isArray(data) ? data : []))
-      .catch(err => { if (err.status === 401) onLogout(); })
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, [token, onLogout]);
 
   useEffect(() => { loadRecords(); }, [loadRecords]);
 
+  // URL-driven record detail: /patient/records/:recordId
+  if (urlSubpage && urlSubpage !== "interview") {
+    const record = records.find(r => String(r.id) === urlSubpage);
+    if (record) {
+      return <RecordDetailView record={record} onBack={() => navigate("/patient/records")} />;
+    }
+    // Record not found yet (still loading) — show spinner
+    if (loading) return <Box display="flex" justifyContent="center" py={6}><CircularProgress size={20} /></Box>;
+  }
+
+  if (loading) {
+    return <Box display="flex" justifyContent="center" py={6}><CircularProgress size={20} /></Box>;
+  }
+
   return (
     <Box sx={{ flex: 1, overflowY: "auto", position: "relative" }}>
-      {loading ? (
-        <Box display="flex" justifyContent="center" py={6}><CircularProgress size={28} /></Box>
-      ) : records.length === 0 ? (
-        <Box sx={{ textAlign: "center", py: 6 }}>
-          <Typography color="text.secondary" sx={{ mb: 2 }}>暂无病历记录</Typography>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={onNewRecord}
-            sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: "#06a050" } }}>
-            新建病历
-          </Button>
+      {/* New record row */}
+      <NewItemCard title="新建病历" subtitle="开始AI预问诊" onClick={onNewRecord} />
+
+      {/* Section label */}
+      {records.length > 0 && (
+        <Box sx={{ px: 2, py: 1 }}>
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#999" }}>
+            最近 · {records.length}份病历
+          </Typography>
         </Box>
-      ) : (
-        <Stack spacing={1.5} sx={{ py: 2, px: 2, pb: 10 }}>
-          {records.map(rec => (
-            <Card key={rec.id} variant="outlined" sx={{ borderRadius: 2 }}>
-              <CardContent sx={{ pb: "12px !important" }}>
-                <Stack direction="row" justifyContent="space-between" mb={0.5}>
-                  <Typography variant="caption" color="text.secondary">
-                    {RECORD_TYPE_LABEL[rec.record_type] || rec.record_type}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">{formatDate(rec.created_at)}</Typography>
-                </Stack>
-                <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                  {rec.content || "（内容为空）"}
-                </Typography>
-              </CardContent>
-            </Card>
-          ))}
-        </Stack>
       )}
 
-      {/* FAB for new record (when records exist) */}
-      {!loading && records.length > 0 && (
-        <Fab size="medium" onClick={onNewRecord}
-          sx={{ position: "absolute", bottom: 16, right: 16, bgcolor: "#07C160", color: "#fff",
-            "&:hover": { bgcolor: "#06a050" } }}>
-          <AddIcon />
-        </Fab>
+      {/* Record list */}
+      {records.length === 0 ? (
+        <Box sx={{ textAlign: "center", py: 6 }}>
+          <Typography color="text.secondary">暂无病历记录</Typography>
+          <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5, display: "block" }}>
+            点击上方「新建病历」开始预问诊
+          </Typography>
+        </Box>
+      ) : (
+        <Box sx={{ bgcolor: "#fff" }}>
+          {records.map(rec => {
+            const typeLabel = RECORD_TYPE_LABEL[rec.record_type] || rec.record_type;
+            const chief = rec.structured?.chief_complaint;
+            const preview = chief || (rec.content || "").replace(/\n/g, " ").slice(0, 40) || "（内容为空）";
+            const isPending = rec.needs_review === true;
+            const isReviewed = rec.needs_review === false;
+            return (
+              <ListCard
+                key={rec.id}
+                avatar={<RecordAvatar type={rec.record_type} />}
+                title={typeLabel}
+                subtitle={preview}
+                right={
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
+                    {isPending && (
+                      <Typography sx={{ fontSize: TYPE.micro.fontSize, px: 0.6, py: 0.1, borderRadius: "4px", bgcolor: "#FFF7E6", color: "#d46b08" }}>
+                        待审核
+                      </Typography>
+                    )}
+                    {isReviewed && (
+                      <Typography sx={{ fontSize: TYPE.micro.fontSize, px: 0.6, py: 0.1, borderRadius: "4px", bgcolor: "#e8f5e9", color: "#07C160" }}>
+                        已审核
+                      </Typography>
+                    )}
+                    <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#999" }}>{formatDate(rec.created_at)}</Typography>
+                  </Box>
+                }
+                onClick={() => navigate(`/patient/records/${rec.id}`)}
+              />
+            );
+          })}
+        </Box>
       )}
     </Box>
   );
@@ -309,6 +444,8 @@ function InterviewView({ token, onBack, onLogout }) {
   const [showSummary, setShowSummary] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [showExitDialog, setShowExitDialog] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [selectedSuggestions, setSelectedSuggestions] = useState([]);
   const chatEndRef = useRef(null);
 
   useEffect(() => {
@@ -321,7 +458,7 @@ function InterviewView({ token, onBack, onLogout }) {
         setStatus(data.status);
         setMessages([{ role: "assistant", content: data.reply }]);
       } catch (err) {
-        if (err.status === 401) onLogout();
+        if (err.status === 401) console.warn("auth expired");
         setMessages([{ role: "assistant", content: "无法启动问诊，请稍后重试。" }]);
       }
     })();
@@ -329,11 +466,21 @@ function InterviewView({ token, onBack, onLogout }) {
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
+  function handleToggleSuggestion(text) {
+    setSelectedSuggestions(prev =>
+      prev.includes(text) ? prev.filter(s => s !== text) : [...prev, text]
+    );
+  }
+
   async function handleSend(e) {
-    e.preventDefault();
-    const text = input.trim();
+    if (e && e.preventDefault) e.preventDefault();
+    const parts = [...selectedSuggestions];
+    if (input.trim()) parts.push(input.trim());
+    const text = parts.join("，");
     if (!text || sending || status !== "interviewing") return;
     setInput("");
+    setSuggestions([]);
+    setSelectedSuggestions([]);
     setMessages(prev => [...prev, { role: "user", content: text }]);
     setSending(true);
     try {
@@ -342,9 +489,11 @@ function InterviewView({ token, onBack, onLogout }) {
       setCollected(data.collected || {});
       setProgress(data.progress);
       setStatus(data.status);
+      setSuggestions(data.suggestions || []);
+      setSelectedSuggestions([]);
       if (data.status === "reviewing") setTimeout(() => setShowSummary(true), 800);
     } catch (err) {
-      if (err.status === 401) { onLogout(); return; }
+      if (err.status === 401) { console.warn("auth expired"); return; }
       setMessages(prev => [...prev, { role: "assistant", content: "系统繁忙，请稍后重试。" }]);
     } finally { setSending(false); }
   }
@@ -357,7 +506,7 @@ function InterviewView({ token, onBack, onLogout }) {
       setShowSummary(false);
       setMessages(prev => [...prev, { role: "assistant", content: data.message }]);
     } catch (err) {
-      if (err.status === 401) { onLogout(); return; }
+      if (err.status === 401) { console.warn("auth expired"); return; }
       alert("提交失败，请稍后重试。");
     } finally { setConfirming(false); }
   }
@@ -373,16 +522,13 @@ function InterviewView({ token, onBack, onLogout }) {
   return (
     <Box sx={PHONE_FRAME}>
     <Box sx={PHONE_INNER}>
-      {/* Top bar */}
-      <Box sx={{ display: "flex", alignItems: "center", px: 1, py: 1, bgcolor: "#f5f5f5", borderBottom: "1px solid #ddd", flexShrink: 0 }}>
-        <IconButton size="small" onClick={() => status === "confirmed" ? onBack() : setShowExitDialog(true)}>
-          <ArrowBackIcon />
-        </IconButton>
-        <Typography variant="subtitle1" fontWeight={600} sx={{ flex: 1, textAlign: "center" }}>新建病历</Typography>
-        <Chip label={`${progress.filled}/${progress.total}`} size="small"
-          color={status === "reviewing" ? "success" : "default"}
-          onClick={() => setShowSummary(true)} sx={{ cursor: "pointer" }} />
-      </Box>
+      <SubpageHeader title="新建病历" onBack={() => status === "confirmed" ? onBack() : setShowExitDialog(true)}
+        right={
+          <Chip label={`${progress.filled}/${progress.total}`} size="small"
+            color={status === "reviewing" ? "success" : "default"}
+            onClick={() => setShowSummary(true)} sx={{ cursor: "pointer" }} />
+        }
+      />
 
       {/* Chat */}
       <Box sx={{ flex: 1, overflowY: "auto", px: 2, py: 2 }}>
@@ -404,13 +550,51 @@ function InterviewView({ token, onBack, onLogout }) {
         <div ref={chatEndRef} />
       </Box>
 
-      {/* Input */}
+      {/* Suggestion chips — floating above input */}
+      {status === "interviewing" && !sending && suggestions.length > 0 && (
+        <SuggestionChips
+          items={suggestions}
+          selected={selectedSuggestions}
+          onToggle={handleToggleSuggestion}
+          onDismiss={() => setSuggestions([])}
+          disabled={sending}
+        />
+      )}
+
+      {/* Input with selected chips */}
       {status === "interviewing" && (
         <Box component="form" onSubmit={handleSend}
-          sx={{ display: "flex", gap: 1, px: 2, py: 1.5, bgcolor: "#f5f5f5", borderTop: "1px solid #ddd", flexShrink: 0 }}>
-          <TextField value={input} onChange={e => setInput(e.target.value)} placeholder="请输入…"
-            fullWidth size="small" sx={{ bgcolor: "#fff", borderRadius: 1 }} autoFocus />
-          <IconButton type="submit" disabled={!input.trim() || sending} sx={{ color: "#07C160" }}><SendIcon /></IconButton>
+          sx={{ display: "flex", alignItems: "flex-end", gap: 1, px: 2, py: 1, bgcolor: "#f5f5f5",
+            borderTop: suggestions.length > 0 ? "none" : "1px solid #ddd", flexShrink: 0 }}>
+          <Box sx={{ flex: 1, bgcolor: "#fff", borderRadius: "6px", border: "1px solid #e0e0e0",
+            px: 1, py: 0.5, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5, minHeight: 36 }}>
+            {selectedSuggestions.map((s, i) => (
+              <Box key={i} sx={{
+                display: "inline-flex", alignItems: "center", gap: 0.3,
+                px: 1, py: 0.2, borderRadius: "12px", fontSize: TYPE.secondary.fontSize,
+                bgcolor: "#e8f5e9", color: "#07C160", fontWeight: 500,
+                flexShrink: 0,
+              }}>
+                {s}
+                <Box component="span"
+                  onClick={(e) => { e.stopPropagation(); setSelectedSuggestions(prev => prev.filter(x => x !== s)); }}
+                  sx={{ cursor: "pointer", fontSize: TYPE.body.fontSize, lineHeight: 1, ml: 0.2, "&:active": { opacity: 0.5 } }}>
+                  ×
+                </Box>
+              </Box>
+            ))}
+            <Box component="input" value={input}
+              onChange={e => setInput(e.target.value)}
+              placeholder={selectedSuggestions.length > 0 ? "" : "请输入…"}
+              autoFocus
+              sx={{ flex: 1, minWidth: 60, border: "none", outline: "none",
+                fontSize: TYPE.body.fontSize, fontFamily: "inherit", bgcolor: "transparent", p: 0.3 }}
+            />
+          </Box>
+          <IconButton type="submit" disabled={(!input.trim() && selectedSuggestions.length === 0) || sending}
+            sx={{ color: "#07C160", flexShrink: 0 }}>
+            <SendIcon />
+          </IconButton>
         </Box>
       )}
       {status === "confirmed" && (
@@ -465,16 +649,25 @@ function InterviewView({ token, onBack, onLogout }) {
 // ===========================================================================
 
 const NAV_TABS = [
-  { key: "chat", label: "对话", icon: <ChatOutlinedIcon /> },
-  { key: "records", label: "病历", icon: <DescriptionOutlinedIcon /> },
+  { key: "chat", label: "主页", icon: <ChatOutlinedIcon />, title: "AI 健康助手" },
+  { key: "records", label: "病历", icon: <DescriptionOutlinedIcon />, title: "病历" },
+  { key: "tasks", label: "任务", icon: <AssignmentOutlinedIcon />, title: "任务" },
+  { key: "profile", label: "设置", icon: <SettingsOutlinedIcon />, title: "设置" },
 ];
 
 export default function PatientPage() {
+  const { tab: urlTab, subpage: urlSubpage } = useParams();
+  const navigate = useNavigate();
   const [token, setToken] = useState(() => localStorage.getItem(STORAGE_KEY) || "");
   const [patientName, setPatientName] = useState(() => localStorage.getItem(STORAGE_NAME_KEY) || "");
   const [doctorName, setDoctorName] = useState(() => localStorage.getItem(STORAGE_DOCTOR_NAME_KEY) || "");
-  const [tab, setTab] = useState("chat");
-  const [inInterview, setInInterview] = useState(false);
+
+  // URL-driven tab and subpage
+  const tab = urlTab || "chat";
+  const inInterview = urlSubpage === "interview";
+  function setTab(t) { navigate(`/patient/${t}`); }
+  function startInterview() { navigate("/patient/records/interview"); }
+  function exitInterview() { navigate("/patient/records"); }
 
   function handleLogin(newToken, name, doctorId, docName) {
     localStorage.setItem(STORAGE_KEY, newToken);
@@ -491,18 +684,22 @@ export default function PatientPage() {
     localStorage.removeItem(STORAGE_NAME_KEY);
     localStorage.removeItem(STORAGE_DOCTOR_KEY);
     localStorage.removeItem(STORAGE_DOCTOR_NAME_KEY);
+    localStorage.removeItem(PATIENT_CHAT_STORAGE_KEY);
     setToken("");
     setPatientName("");
     setDoctorName("");
   }
 
-  if (!token) return <LoginView onLogin={handleLogin} />;
+  if (!token) {
+    window.location.href = "/login";
+    return null;
+  }
 
   // Full-screen interview (hides everything)
   if (inInterview) {
     return (
       <InterviewView token={token}
-        onBack={() => { setInInterview(false); setTab("records"); }}
+        onBack={exitInterview}
         onLogout={handleLogout} />
     );
   }
@@ -510,18 +707,42 @@ export default function PatientPage() {
   return (
     <Box sx={PHONE_FRAME}>
     <Box sx={PHONE_INNER}>
-      {/* Top bar */}
-      <Box sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, bgcolor: "#f5f5f5", borderBottom: "1px solid #ddd", flexShrink: 0 }}>
-        <MedicalServicesOutlinedIcon sx={{ color: "#07C160", mr: 1 }} />
-        <Typography fontWeight={700} sx={{ flex: 1 }}>AI 健康助手</Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>{patientName}</Typography>
-        <IconButton size="small" onClick={handleLogout}><LogoutIcon fontSize="small" /></IconButton>
-      </Box>
+      {/* Hide page header when a subpage has its own header */}
+      {!urlSubpage && <SubpageHeader title={NAV_TABS.find(t => t.key === tab)?.title || "AI 健康助手"} />}
 
       {/* Content */}
-      {tab === "chat" && <ChatTab token={token} doctorName={doctorName} onLogout={handleLogout} />}
+      {tab === "chat" && <ChatTab token={token} doctorName={doctorName} onLogout={handleLogout}
+        onNewInterview={() => { startInterview(); }}
+        onViewRecords={() => setTab("records")} />}
       {tab === "records" && (
-        <RecordsTab token={token} onLogout={handleLogout} onNewRecord={() => setInInterview(true)} />
+        <RecordsTab token={token} onLogout={handleLogout} onNewRecord={() => startInterview()} urlSubpage={urlSubpage} />
+      )}
+      {tab === "tasks" && (
+        <Box sx={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+          <Typography sx={{ fontSize: ICON.display, color: "#ccc", mb: 1 }}>📋</Typography>
+          <Typography color="text.disabled" sx={{ fontWeight: 500 }}>暂无任务</Typography>
+          <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5 }}>
+            医生安排的复查、用药提醒将显示在这里
+          </Typography>
+        </Box>
+      )}
+      {tab === "profile" && (
+        <Box sx={{ flex: 1, overflowY: "auto", bgcolor: "#ededed" }}>
+          <Box sx={{ bgcolor: "#fff", px: 2, py: 2, mb: 1, display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Box sx={{ width: 44, height: 44, borderRadius: "50%", bgcolor: "#07C160",
+              display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Typography sx={{ color: "#fff", fontSize: ICON.md, fontWeight: 600 }}>{(patientName || "?")[0]}</Typography>
+            </Box>
+            <Box>
+              <Typography sx={{ fontWeight: 600, fontSize: TYPE.title.fontSize }}>{patientName || "患者"}</Typography>
+              {doctorName && <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#999" }}>主治医生：{doctorName}</Typography>}
+            </Box>
+          </Box>
+          <Box onClick={handleLogout}
+            sx={{ bgcolor: "#fff", py: 1.5, textAlign: "center", cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
+            <Typography sx={{ fontSize: TYPE.action.fontSize, color: "#FA5151" }}>退出登录</Typography>
+          </Box>
+        </Box>
       )}
 
       {/* Bottom nav */}
