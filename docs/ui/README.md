@@ -54,7 +54,7 @@ for route in \
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<style>html,body{margin:0;padding:0}body{max-width:375px;margin:0 auto;border:1px solid #ddd;min-height:812px;overflow-x:hidden}</style>
+<style>html,body{margin:0;padding:0}body{width:375px;height:812px;border:1px solid #ddd;min-height:812px;overflow-x:hidden}</style>
 </head>
 ${raw}
 </html>
