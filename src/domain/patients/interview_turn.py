@@ -20,8 +20,6 @@ from utils.prompt_loader import get_prompt_sync
 
 MAX_TURNS = 30
 
-_INTERVIEW_PROMPT: Optional[str] = None
-
 FIELD_LABELS = {
     "chief_complaint": "主诉",
     "present_illness": "现病史",
@@ -42,11 +40,9 @@ class InterviewResponse:
     missing: List[str] = None  # missing field names, empty = all collected
 
 
-def _get_prompt() -> str:
-    global _INTERVIEW_PROMPT
-    if _INTERVIEW_PROMPT is None:
-        _INTERVIEW_PROMPT = get_prompt_sync("patient-interview")
-    return _INTERVIEW_PROMPT
+def _get_prompt(mode: str = "patient") -> str:
+    prompt_name = "doctor-interview" if mode == "doctor" else "patient-interview"
+    return get_prompt_sync(prompt_name)
 
 
 async def _load_patient_info(patient_id: int) -> Dict[str, Any]:
@@ -135,12 +131,13 @@ async def _call_interview_llm(
     collected: Dict[str, str],
     patient_info: Dict[str, Any],
     previous_history: Optional[str] = None,
+    mode: str = "patient",
 ) -> Dict[str, Any]:
     """Call LLM with interview prompt. Returns parsed {reply, extracted}."""
     missing = check_completeness(collected)
     missing_labels = [FIELD_LABELS.get(f, f) for f in missing]
 
-    prompt_template = _get_prompt()
+    prompt_template = _get_prompt(mode)
     system_prompt = (
         prompt_template
         .replace("{name}", patient_info["name"])
@@ -233,6 +230,7 @@ async def interview_turn(session_id: str, patient_text: str) -> InterviewRespons
             collected=session.collected,
             patient_info=patient_info,
             previous_history=previous_history,
+            mode=session.mode,
         )
     except (json.JSONDecodeError, KeyError, TypeError) as e:
         log(f"[interview] LLM parse error: {e}", level="warning")
