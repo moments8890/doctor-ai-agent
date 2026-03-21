@@ -1,5 +1,7 @@
 # WeChat Mini App — Thin WebView Shell Design
 
+> **Status: ✅ DONE** — spec implemented and shipped.
+
 **Date:** 2026-03-17
 **Status:** Draft
 **Goal:** Wrap the existing React web app inside a WeChat Mini App using the `<web-view>` component, enabling distribution and access through WeChat with minimal code changes.

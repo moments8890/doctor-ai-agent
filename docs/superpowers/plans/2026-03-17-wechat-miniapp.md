@@ -1,5 +1,7 @@
 # WeChat Mini App (Thin WebView Shell) Implementation Plan
 
+> **Status: ⚠️ PARTIAL** — core implementation done, refinements remain.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Adapt the existing Mini App (`frontend/miniprogram/`) and React web app (`frontend/web/`) so the Mini App acts as a thin WebView shell with silent `wx.login()` auth, invite code fallback via `wxmini_` prefix detection, and proper error/expiry handling.

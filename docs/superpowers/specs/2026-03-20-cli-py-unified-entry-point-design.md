@@ -1,5 +1,7 @@
 # cli.py — Unified Entry Point
 
+> **Status: ✅ DONE** — spec implemented and shipped.
+
 **Date:** 2026-03-20
 **Status:** Draft
 **Replaces:** `dev.sh` (980 lines bash)

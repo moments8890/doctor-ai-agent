@@ -1,5 +1,7 @@
 # Structured Medical Record Fields — Implementation Plan
 
+> **Status: ⚠️ PARTIAL** — core implementation done, refinements remain.
+
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Persist 13 regulatory outpatient record fields alongside the free-text narrative at write time, eliminating on-demand LLM extraction during export.

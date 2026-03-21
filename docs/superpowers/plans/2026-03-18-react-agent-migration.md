@@ -1,5 +1,7 @@
 # ReAct Agent Migration Implementation Plan
 
+> **Status: ✅ DONE** — implementation complete, merged to main.
+
 > **Status: COMPLETE** — All 12 tasks done. Completed 2026-03-19.
 
 **Goal:** Replace the UEC pipeline with a LangChain-powered ReAct agent, eliminating ctx, simplifying resolve, and unifying doctor/patient under one agent.

@@ -1,5 +1,7 @@
 # Action Chip & Intent Bypass Design
 
+> **Status: ✅ DONE** — spec implemented and shipped.
+
 > Date: 2026-03-20
 
 ## Problem

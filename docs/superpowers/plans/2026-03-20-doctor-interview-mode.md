@@ -1,5 +1,7 @@
 # Doctor Interview Mode Implementation Plan
 
+> **Status: ✅ DONE** — implementation complete, merged to main.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add a doctor interview mode that provides structured record collection (listener/verifier pattern) through the same completeness engine as patient interviews, with multi-modal input support and all creation paths consolidated.

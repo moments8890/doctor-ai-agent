@@ -1,5 +1,7 @@
 # UI Restructure Implementation Plan
 
+> **Status: ✅ DONE** — implementation complete, merged to main.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Restructure 3 views (patient detail, tasks, briefing) and demote chat from top-level nav to subpage.

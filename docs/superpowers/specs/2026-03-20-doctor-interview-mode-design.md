@@ -1,5 +1,7 @@
 # Doctor Interview Mode — Unified Record Collection (v3)
 
+> **Status: ✅ DONE** — spec implemented and shipped.
+
 > Date: 2026-03-20 | v3: fixes 6 issues from Codex v2 code audit
 
 ## Problem

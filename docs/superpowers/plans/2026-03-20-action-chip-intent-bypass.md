@@ -1,5 +1,7 @@
 # Action Chip & Intent Bypass Implementation Plan
 
+> **Status: ✅ DONE** — implementation complete, merged to main.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace text-insertion quick commands with action chips that bypass LLM intent classification, reducing latency and cost for known-intent actions.

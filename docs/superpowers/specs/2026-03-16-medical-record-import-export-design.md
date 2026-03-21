@@ -1,5 +1,7 @@
 # Medical Record Import/Export Design
 
+> **Status: ✅ DONE** — spec implemented and shipped.
+
 ## Goal
 
 Add medical record export (JSON + PDF) and import (image/PDF/scanned copy) following the Chinese 《病历书写基本规范》(卫医政发〔2010〕11号) outpatient record standard, with 14 structured fields.

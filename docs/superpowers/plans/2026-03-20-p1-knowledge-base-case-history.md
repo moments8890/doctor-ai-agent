@@ -1,5 +1,7 @@
 # P1: Knowledge Base + Case History — Implementation Plan
 
+> **Status: ✅ DONE** — implementation complete, merged to main.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add a case history knowledge base with embedding-based case matching and a skill loader for specialty-specific clinical knowledge, so P2's diagnosis pipeline can reference similar past cases and domain rules.

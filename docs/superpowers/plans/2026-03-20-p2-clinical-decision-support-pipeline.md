@@ -1,5 +1,7 @@
 # P2: Clinical Decision Support Pipeline — Implementation Plan
 
+> **Status: ✅ DONE** — implementation complete, merged to main.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add an AI diagnosis pipeline that auto-generates differential diagnoses, workup, and treatment suggestions. Results display in the doctor's review workflow. Case history matching integrated into chat.

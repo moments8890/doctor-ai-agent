@@ -1,5 +1,7 @@
 # Web Frontend Simplification
 
+> **Status: ✅ DONE** — spec implemented and shipped.
+
 ## Context
 
 The web frontend has duplicated surfaces (ChatPage + ChatSection, ManagePage +

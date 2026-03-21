@@ -1,5 +1,7 @@
 # Web Frontend Simplification — Implementation Plan
 
+> **Status: ✅ DONE** — implementation complete, merged to main.
+
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development
 > (if subagents available) or superpowers:executing-plans to implement this plan.
 > Steps use checkbox (`- [ ]`) syntax for tracking.

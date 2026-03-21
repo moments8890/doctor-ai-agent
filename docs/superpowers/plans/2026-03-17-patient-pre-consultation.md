@@ -1,5 +1,7 @@
 # Patient Pre-Consultation Interview — Implementation Plan
 
+> **Status: ✅ DONE** — implementation complete, merged to main.
+
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Patients complete an AI-guided pre-consultation interview via web, producing a structured medical record delivered to the doctor's task queue.

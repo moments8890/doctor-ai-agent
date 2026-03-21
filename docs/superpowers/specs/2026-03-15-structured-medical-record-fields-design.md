@@ -1,5 +1,7 @@
 # Structured Medical Record Fields
 
+> **Status: ✅ DONE** — spec implemented and shipped.
+
 ## Goal
 
 Persist 13 regulatory-mandated outpatient record fields (per

@@ -1,5 +1,7 @@
 # ReAct Agent Architecture Design (LangChain)
 
+> **Status: ✅ DONE** — spec implemented and shipped.
+
 > Date: 2026-03-18 | Status: Draft
 
 ## Summary
