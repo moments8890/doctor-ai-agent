@@ -32,4 +32,4 @@ All operational scripts are centralized in this folder.
 - `recompute_patient_categories.py`: recompute patient category fields
 - `start_db_ui.sh`: start Datasette web UI (default port 8002)
 
-Primary developer entrypoint remains `../dev.sh`.
+Primary developer entrypoint remains `../cli.py`.

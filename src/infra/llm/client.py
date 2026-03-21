@@ -12,7 +12,7 @@ import os
 
 def _get_providers() -> dict:
     """Build provider registry. Reads env vars at call time so that
-    runtime.json overrides and .dev.sh env vars both take effect.
+    runtime.json overrides and cli.py env vars both take effect.
 
     Chinese-only: every provider defaults to a Qwen or DeepSeek model.
     """

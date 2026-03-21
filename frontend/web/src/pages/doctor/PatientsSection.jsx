@@ -17,6 +17,8 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import { getPatients, searchPatients, extractFileForChat } from "../../api";
 import PatientAvatar from "./PatientAvatar";
 import PatientDetail from "./PatientDetail";
+import SubpageHeader from "./SubpageHeader";
+import InterviewView from "./InterviewView";
 
 function groupPatients(list) {
   const groups = {};
@@ -150,9 +152,9 @@ function SearchBar({ patients, search, nlResults, nlLoading, onChange, onSubmit 
   );
 }
 
-function NewPatientRow({ onNavigateToChat }) {
+function NewPatientRow({ onStartInterview }) {
   return (
-    <Box onClick={onNavigateToChat}
+    <Box onClick={onStartInterview}
       sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1.5, bgcolor: "#fff",
         borderBottom: "0.5px solid #f0f0f0", cursor: "pointer", "&:active": { bgcolor: "#f5f5f5" } }}>
       <Box sx={{ width: 44, height: 44, borderRadius: "4px", border: "1.5px dashed #07C160",
@@ -167,7 +169,7 @@ function NewPatientRow({ onNavigateToChat }) {
   );
 }
 
-function PatientList({ filtered, search, selectedId, isMobile, navigate, onInsertChatText, onNavigateToChat }) {
+function PatientList({ filtered, search, selectedId, isMobile, navigate, onStartInterview }) {
   if (!filtered.length && search.trim()) {
     return (
       <Box sx={{ p: 2 }}>
@@ -175,7 +177,7 @@ function PatientList({ filtered, search, selectedId, isMobile, navigate, onInser
           未找到患者「{search.trim()}」
         </Typography>
         <Chip label={`创建 ${search.trim()}`} size="small" clickable color="primary" variant="outlined"
-          onClick={() => { onInsertChatText?.(`创建${search.trim()}`); onNavigateToChat?.(); }} />
+          onClick={() => onStartInterview?.()} />
       </Box>
     );
   }
@@ -195,14 +197,14 @@ function PatientList({ filtered, search, selectedId, isMobile, navigate, onInser
   ));
 }
 
-function PatientListPane({ patients, loading, error, search, nlResults, nlLoading, filtered, selectedId, isMobile, importing, importError, importFileRef, navigate, onSearchChange, onSearchSubmit, onNavigateToChat, onInsertChatText, onLoad, onFileInputChange }) {
+function PatientListPane({ patients, loading, error, search, nlResults, nlLoading, filtered, selectedId, isMobile, importing, importError, importFileRef, navigate, onSearchChange, onSearchSubmit, onStartInterview, onLoad, onFileInputChange }) {
   return (
     <>
       <SearchBar patients={patients} search={search} nlResults={nlResults} nlLoading={nlLoading} onChange={onSearchChange} onSubmit={onSearchSubmit} />
       {error && <Alert severity="error" action={<Button size="small" onClick={onLoad}>重试</Button>}>{error}</Alert>}
       <Box sx={{ flex: 1, overflowY: "auto", bgcolor: "#ededed" }}>
         {loading && <Box sx={{ p: 2, textAlign: "center" }}><CircularProgress size={20} /></Box>}
-        {!loading && !search.trim() && <NewPatientRow onNavigateToChat={onNavigateToChat} />}
+        {!loading && !search.trim() && <NewPatientRow onStartInterview={onStartInterview} />}
         <input ref={importFileRef} type="file" hidden accept=".pdf,image/jpeg,image/png,image/webp" onChange={onFileInputChange} />
         {!loading && (
           <Box sx={{ px: 2, py: 0.8, bgcolor: "#f7f7f7", borderTop: "0.5px solid #f0f0f0", borderBottom: "0.5px solid #f0f0f0" }}>
@@ -212,7 +214,7 @@ function PatientListPane({ patients, loading, error, search, nlResults, nlLoadin
         {!loading && (
           <PatientList filtered={filtered} search={search} selectedId={selectedId}
             isMobile={isMobile} navigate={navigate}
-            onInsertChatText={onInsertChatText} onNavigateToChat={onNavigateToChat} />
+            onStartInterview={onStartInterview} />
         )}
       </Box>
     </>
@@ -271,19 +273,13 @@ function usePatientsState({ doctorId, onPatientSelected, onAutoSendToChat, selec
 function MobilePatientDetailView({ selectedPatient, doctorId, navigate }) {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
-      <Box sx={{ display: "flex", alignItems: "center", height: 48, px: 1, bgcolor: "#fff", borderBottom: "1px solid #e5e5e5", flexShrink: 0 }}>
-        <Box onClick={() => navigate("/doctor/patients")} sx={{ display: "flex", alignItems: "center", gap: 0.3, cursor: "pointer", color: "#07C160", pr: 2, py: 1 }}>
-          <ArrowBackIcon sx={{ fontSize: 20 }} />
-          <Typography sx={{ fontSize: 15, color: "#07C160" }}>患者</Typography>
-        </Box>
-        <Typography sx={{ flex: 1, textAlign: "center", fontWeight: 600, fontSize: 16, mr: 5 }} noWrap>{selectedPatient?.name || ""}</Typography>
-      </Box>
+      <SubpageHeader title={selectedPatient?.name || ""} onBack={() => navigate("/doctor/patients")} />
       <Box sx={{ flex: 1, overflow: "hidden" }}><PatientDetail patient={selectedPatient} doctorId={doctorId} /></Box>
     </Box>
   );
 }
 
-export default function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onAutoSendToChat, onPatientSelected, refreshKey = 0 }) {
+export default function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onAutoSendToChat, onPatientSelected, refreshKey = 0, triggerInterview, onTriggerInterviewConsumed }) {
   const { patientId } = useParams();
   const navigate = useNavigate();
   const theme = useTheme();
@@ -291,7 +287,31 @@ export default function PatientsSection({ doctorId, onNavigateToChat, onInsertCh
   const selectedId = patientId ? Number(patientId) : null;
   const { patients, setPatients, loading, error, search, nlResults, nlLoading, importing, importError, importFileRef, filtered, selectedPatient, load, handleSearchChange, handleSearchSubmit, handleImportFile } = usePatientsState({ doctorId, onPatientSelected, onAutoSendToChat, selectedId, refreshKey });
 
-  const listPaneProps = { patients, loading, error, search, nlResults, nlLoading, filtered, selectedId, isMobile, importing, importError, importFileRef, navigate, onSearchChange: handleSearchChange, onSearchSubmit: handleSearchSubmit, onNavigateToChat, onInsertChatText, onLoad: load, onFileInputChange: handleImportFile };
+  const [interviewActive, setInterviewActive] = useState(false);
+
+  // When triggerInterview is set from chat section, activate interview mode
+  useEffect(() => {
+    if (triggerInterview) {
+      setInterviewActive(true);
+      onTriggerInterviewConsumed?.();
+    }
+  }, [triggerInterview]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handleStartInterview() {
+    setInterviewActive(true);
+  }
+
+  const listPaneProps = { patients, loading, error, search, nlResults, nlLoading, filtered, selectedId, isMobile, importing, importError, importFileRef, navigate, onSearchChange: handleSearchChange, onSearchSubmit: handleSearchSubmit, onStartInterview: handleStartInterview, onLoad: load, onFileInputChange: handleImportFile };
+
+  if (isMobile && interviewActive) {
+    return (
+      <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
+        <InterviewView doctorId={doctorId}
+          onComplete={() => { setInterviewActive(false); load(); }}
+          onCancel={() => setInterviewActive(false)} />
+      </Box>
+    );
+  }
 
   if (isMobile && selectedId) return <MobilePatientDetailView selectedPatient={selectedPatient} doctorId={doctorId} navigate={navigate} />;
 
@@ -305,8 +325,14 @@ export default function PatientsSection({ doctorId, onNavigateToChat, onInsertCh
         <PatientListPane {...listPaneProps} />
       </Box>
       <Box sx={{ flex: 1, overflow: "hidden" }}>
-        <PatientDetail patient={selectedPatient} doctorId={doctorId}
-          onDeleted={(id) => { setPatients((prev) => prev.filter((p) => p.id !== id)); navigate("/doctor/patients"); }} />
+        {interviewActive ? (
+          <InterviewView doctorId={doctorId}
+            onComplete={() => { setInterviewActive(false); load(); }}
+            onCancel={() => setInterviewActive(false)} />
+        ) : (
+          <PatientDetail patient={selectedPatient} doctorId={doctorId}
+            onDeleted={(id) => { setPatients((prev) => prev.filter((p) => p.id !== id)); navigate("/doctor/patients"); }} />
+        )}
       </Box>
     </Box>
   );

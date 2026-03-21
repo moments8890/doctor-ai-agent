@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from db.engine import AsyncSessionLocal
 from db.models.interview_session import InterviewStatus
 from utils.log import log
 
@@ -16,15 +17,15 @@ class InterviewSession:
     id: str
     doctor_id: str
     patient_id: int
+    mode: str = "patient"
     status: str = InterviewStatus.interviewing
     collected: Dict[str, str] = field(default_factory=dict)
     conversation: List[Dict[str, Any]] = field(default_factory=list)
     turn_count: int = 0
 
 
-async def create_session(doctor_id: str, patient_id: int) -> InterviewSession:
+async def create_session(doctor_id: str, patient_id: int, mode: str = "patient") -> InterviewSession:
     """Create a new interview session in the DB."""
-    from db.engine import AsyncSessionLocal
     from db.models.interview_session import InterviewSessionDB
 
     session_id = str(uuid.uuid4())
@@ -36,6 +37,7 @@ async def create_session(doctor_id: str, patient_id: int) -> InterviewSession:
             doctor_id=doctor_id,
             patient_id=patient_id,
             status=InterviewStatus.interviewing,
+            mode=mode,
             collected="{}",
             conversation="[]",
             turn_count=0,
@@ -45,13 +47,12 @@ async def create_session(doctor_id: str, patient_id: int) -> InterviewSession:
         db.add(db_row)
         await db.commit()
 
-    log(f"[interview] session created id={session_id} patient={patient_id} doctor={doctor_id}")
-    return InterviewSession(id=session_id, doctor_id=doctor_id, patient_id=patient_id)
+    log(f"[interview] session created id={session_id} patient={patient_id} doctor={doctor_id} mode={mode}")
+    return InterviewSession(id=session_id, doctor_id=doctor_id, patient_id=patient_id, mode=mode)
 
 
 async def load_session(session_id: str) -> Optional[InterviewSession]:
     """Load an interview session from DB. Returns None if not found."""
-    from db.engine import AsyncSessionLocal
     from db.models.interview_session import InterviewSessionDB
     from sqlalchemy import select
 
@@ -67,6 +68,7 @@ async def load_session(session_id: str) -> Optional[InterviewSession]:
             id=row.id,
             doctor_id=row.doctor_id,
             patient_id=row.patient_id,
+            mode=row.mode,
             status=row.status,
             collected=json.loads(row.collected or "{}"),
             conversation=json.loads(row.conversation or "[]"),
@@ -76,7 +78,6 @@ async def load_session(session_id: str) -> Optional[InterviewSession]:
 
 async def save_session(session: InterviewSession) -> None:
     """Persist interview session state to DB."""
-    from db.engine import AsyncSessionLocal
     from db.models.interview_session import InterviewSessionDB
     from sqlalchemy import select
 
@@ -90,6 +91,7 @@ async def save_session(session: InterviewSession) -> None:
             return
 
         row.status = session.status
+        row.mode = session.mode
         row.collected = json.dumps(session.collected, ensure_ascii=False)
         row.conversation = json.dumps(session.conversation, ensure_ascii=False)
         row.turn_count = session.turn_count
@@ -99,7 +101,6 @@ async def save_session(session: InterviewSession) -> None:
 
 async def get_active_session(patient_id: int, doctor_id: str) -> Optional[InterviewSession]:
     """Find an active (interviewing or reviewing) session for this patient+doctor."""
-    from db.engine import AsyncSessionLocal
     from db.models.interview_session import InterviewSessionDB
     from sqlalchemy import select
 
@@ -119,6 +120,7 @@ async def get_active_session(patient_id: int, doctor_id: str) -> Optional[Interv
             id=row.id,
             doctor_id=row.doctor_id,
             patient_id=row.patient_id,
+            mode=row.mode,
             status=row.status,
             collected=json.loads(row.collected or "{}"),
             conversation=json.loads(row.conversation or "[]"),

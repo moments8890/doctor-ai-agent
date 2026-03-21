@@ -10,9 +10,9 @@ Layout:
 - `wechat/`: WeChat/WeCom entrypoint E2E-style tests (mock + optional live checks).
 
 Execution:
-- Quick replay: `./dev.sh e2e half`
-- Full replay: `./dev.sh e2e full`
-- Integration suite: `./dev.sh test integration` or `./dev.sh test integration-full`
+- Quick replay: `bash scripts/test.sh chatlog-half`
+- Full replay: `bash scripts/test.sh chatlog-full`
+- Integration suite: `bash scripts/test.sh integration` or `bash scripts/test.sh integration-full`
 
 ## Draft-First Benchmark Rule
 
@@ -27,18 +27,18 @@ Execution:
 
 1. Bootstrap runtime dependencies:
 ```bash
-./dev.sh bootstrap --with-frontend
+./cli.py bootstrap
 ```
 
 2. Start local services:
 ```bash
-./dev.sh start
+./cli.py start
 ```
 
 3. Verify E2E entrypoints:
 ```bash
-./dev.sh e2e half
-./dev.sh test integration
+bash scripts/test.sh chatlog-half
+bash scripts/test.sh integration
 ```
 
 ## Environment variables used by E2E

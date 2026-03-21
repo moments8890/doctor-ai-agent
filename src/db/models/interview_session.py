@@ -18,6 +18,7 @@ class InterviewStatus(str, Enum):
     reviewing = "reviewing"
     confirmed = "confirmed"
     abandoned = "abandoned"
+    draft_created = "draft_created"
 
 
 class InterviewSessionDB(Base):
@@ -27,6 +28,7 @@ class InterviewSessionDB(Base):
     doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False)
     patient_id: Mapped[int] = mapped_column(Integer, ForeignKey("patients.id", ondelete="CASCADE"), nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default=InterviewStatus.interviewing)
+    mode: Mapped[str] = mapped_column(String(16), nullable=False, default="patient")
     collected: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON dict
     conversation: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array
     turn_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

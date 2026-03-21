@@ -6,13 +6,13 @@ Pricing verified March 2026.
 ## Quick Start
 
 ```bash
-./.dev.sh deepseek     # best Chinese quality — production
-./.dev.sh groq         # fast dev — Qwen3 32B, 0.7s
-./.dev.sh cerebras     # fastest — Qwen3 32B, free 1M tokens/day
-./.dev.sh sambanova    # free — Qwen2.5 72B, no credit card
-./.dev.sh siliconflow  # China cloud — DeepSeek V3.2
-./.dev.sh openrouter   # multi-model — Qwen/DeepSeek
-./.dev.sh local        # offline — Qwen 2.5 7B via Ollama
+./cli.py start --provider deepseek     # best Chinese quality — production
+./cli.py start --provider groq         # fast dev — Qwen3 32B, 0.7s
+./cli.py start --provider cerebras     # fastest — Qwen3 32B, free 1M tokens/day
+./cli.py start --provider sambanova    # free — Qwen2.5 72B, no credit card
+./cli.py start --provider siliconflow  # China cloud — DeepSeek V3.2
+./cli.py start --provider openrouter   # multi-model — Qwen/DeepSeek
+./cli.py start --provider ollama        # offline — Qwen 2.5 7B via Ollama
 ```
 
 ## Provider Comparison
@@ -151,19 +151,19 @@ Each ReAct agent turn = 1-3 LLM calls, ~4K-15K tokens total.
 
 ```bash
 # Groq with DeepSeek distill
-GROQ_MODEL=deepseek-r1-distill-qwen-32b ./.dev.sh groq
+GROQ_MODEL=deepseek-r1-distill-qwen-32b ./cli.py start --provider groq
 
 # OpenRouter with DeepSeek V3.2
-OPENROUTER_MODEL=deepseek/deepseek-v3.2 ./.dev.sh openrouter
+OPENROUTER_MODEL=deepseek/deepseek-v3.2 ./cli.py start --provider openrouter
 
 # SambaNova with reasoning model
-SAMBANOVA_MODEL=QwQ-32B ./.dev.sh sambanova
+SAMBANOVA_MODEL=QwQ-32B ./cli.py start --provider sambanova
 
 # SiliconFlow with DeepSeek
-SILICONFLOW_MODEL=deepseek-ai/DeepSeek-V3.2 ./.dev.sh siliconflow
+SILICONFLOW_MODEL=deepseek-ai/DeepSeek-V3.2 ./cli.py start --provider siliconflow
 
 # Ollama with larger Qwen
-OLLAMA_MODEL=qwen2.5:14b ./.dev.sh local
+OLLAMA_MODEL=qwen2.5:14b ./cli.py start --provider ollama
 ```
 
 ## Setup Instructions
@@ -175,7 +175,7 @@ OLLAMA_MODEL=qwen2.5:14b ./.dev.sh local
 3. $5 minimum top-up = ~1,700 agent turns
 
 ```bash
-./.dev.sh deepseek
+./cli.py start --provider deepseek
 ```
 
 ### Groq (Fast Dev)
@@ -185,7 +185,7 @@ OLLAMA_MODEL=qwen2.5:14b ./.dev.sh local
 3. Add $10 credit → [Billing](https://console.groq.com/settings/billing) (removes rate limits)
 
 ```bash
-./.dev.sh groq
+./cli.py start --provider groq
 ```
 
 ### Cerebras (Fastest)
@@ -195,7 +195,7 @@ OLLAMA_MODEL=qwen2.5:14b ./.dev.sh local
 3. Free: 1M tokens/day, no credit card
 
 ```bash
-./.dev.sh cerebras
+./cli.py start --provider cerebras
 ```
 
 ### SambaNova (Free)
@@ -205,7 +205,7 @@ OLLAMA_MODEL=qwen2.5:14b ./.dev.sh local
 3. Free forever, no credit card
 
 ```bash
-./.dev.sh sambanova
+./cli.py start --provider sambanova
 ```
 
 ### SiliconFlow (China Cloud)
@@ -215,7 +215,7 @@ OLLAMA_MODEL=qwen2.5:14b ./.dev.sh local
 3. 500K free welcome tokens
 
 ```bash
-./.dev.sh siliconflow
+./cli.py start --provider siliconflow
 ```
 
 ### OpenRouter (Multi-Model)
@@ -225,16 +225,16 @@ OLLAMA_MODEL=qwen2.5:14b ./.dev.sh local
 3. Pay-as-you-go
 
 ```bash
-./.dev.sh openrouter
+./cli.py start --provider openrouter
 ```
 
 ### Ollama (Offline)
 
 1. Install: [ollama.com/download](https://ollama.com/download)
-2. `.dev.sh local` auto-pulls `qwen2.5:7b` if needed
+2. `./cli.py start --provider ollama` auto-pulls `qwen2.5:7b` if needed
 
 ```bash
-./.dev.sh local
+./cli.py start --provider ollama
 ```
 
 ## Troubleshooting

@@ -10,6 +10,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
+import SubpageHeader from "./SubpageHeader";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
@@ -187,13 +188,7 @@ function TemplateSubpage({ doctorId, onBack }) {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
-      <Box sx={{ display: "flex", alignItems: "center", height: 48, px: 1, bgcolor: "#fff", borderBottom: "1px solid #e5e5e5", flexShrink: 0 }}>
-        <Box onClick={onBack} sx={{ display: "flex", alignItems: "center", gap: 0.3, cursor: "pointer", color: "#07C160", pr: 2, py: 1 }}>
-          <ArrowBackIcon sx={{ fontSize: 20 }} />
-          <Typography sx={{ fontSize: 15, color: "#07C160" }}>设置</Typography>
-        </Box>
-        <Typography sx={{ flex: 1, textAlign: "center", fontWeight: 600, fontSize: 16, mr: 5 }}>报告模板</Typography>
-      </Box>
+      <SubpageHeader title="报告模板" onBack={onBack} />
       <Box sx={{ flex: 1, overflowY: "auto" }}>
         <Box sx={{ px: 2, pt: 2, pb: 0.6 }}>
           <Typography sx={{ fontSize: 12, color: "#999", fontWeight: 500 }}>当前模板</Typography>
@@ -251,13 +246,7 @@ function KnowledgeSubpage({ doctorId, onBack }) {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
-      <Box sx={{ display: "flex", alignItems: "center", height: 48, px: 1, bgcolor: "#fff", borderBottom: "1px solid #e5e5e5", flexShrink: 0 }}>
-        <Box onClick={onBack} sx={{ display: "flex", alignItems: "center", gap: 0.3, cursor: "pointer", color: "#07C160", pr: 2, py: 1 }}>
-          <ArrowBackIcon sx={{ fontSize: 20 }} />
-          <Typography sx={{ fontSize: 15, color: "#07C160" }}>设置</Typography>
-        </Box>
-        <Typography sx={{ flex: 1, textAlign: "center", fontWeight: 600, fontSize: 16, mr: 5 }}>知识库</Typography>
-      </Box>
+      <SubpageHeader title="知识库" onBack={onBack} />
       <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
         {error && <Alert severity="error" onClose={() => setError("")} sx={{ mb: 1.5 }}>{error}</Alert>}
         <Box sx={{ mb: 2 }}>
@@ -291,13 +280,7 @@ function KnowledgeSubpage({ doctorId, onBack }) {
 function AboutSubpage({ onBack }) {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
-      <Box sx={{ display: "flex", alignItems: "center", height: 48, px: 1, bgcolor: "#fff", borderBottom: "1px solid #e5e5e5", flexShrink: 0 }}>
-        <Box onClick={onBack} sx={{ display: "flex", alignItems: "center", gap: 0.3, cursor: "pointer", color: "#07C160", pr: 2, py: 1 }}>
-          <ArrowBackIcon sx={{ fontSize: 20 }} />
-          <Typography sx={{ fontSize: 15, color: "#07C160" }}>设置</Typography>
-        </Box>
-        <Typography sx={{ flex: 1, textAlign: "center", fontWeight: 600, fontSize: 16, mr: 5 }}>关于</Typography>
-      </Box>
+      <SubpageHeader title="关于" onBack={onBack} />
       <Box sx={{ flex: 1, overflowY: "auto", p: 3, textAlign: "center" }}>
         <Box sx={{ width: 64, height: 64, borderRadius: "16px", bgcolor: "#07C160", display: "flex", alignItems: "center", justifyContent: "center", mx: "auto", mb: 2 }}>
           <LocalHospitalOutlinedIcon sx={{ color: "#fff", fontSize: 32 }} />
@@ -315,13 +298,7 @@ function AboutSubpage({ onBack }) {
 function StubSubpage({ title, onBack }) {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
-      <Box sx={{ display: "flex", alignItems: "center", height: 48, px: 1, bgcolor: "#fff", borderBottom: "1px solid #e5e5e5", flexShrink: 0 }}>
-        <Box onClick={onBack} sx={{ display: "flex", alignItems: "center", gap: 0.3, cursor: "pointer", color: "#07C160", pr: 2, py: 1 }}>
-          <ArrowBackIcon sx={{ fontSize: 20 }} />
-          <Typography sx={{ fontSize: 15, color: "#07C160" }}>设置</Typography>
-        </Box>
-        <Typography sx={{ flex: 1, textAlign: "center", fontWeight: 600, fontSize: 16, mr: 5 }}>{title}</Typography>
-      </Box>
+      <SubpageHeader title={title} onBack={onBack} />
       <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <Typography color="text.secondary">即将推出</Typography>
       </Box>

@@ -9,6 +9,8 @@ import {
 import { getReviewDetail, confirmReview, updateReviewField } from "../../api";
 import PatientAvatar from "./PatientAvatar";
 import { STRUCTURED_FIELD_LABELS } from "./constants";
+import DiagnosisSection from "./DiagnosisSection";
+import SubpageHeader from "./SubpageHeader";
 
 const FIELD_ORDER = [
   "department", "chief_complaint", "present_illness", "past_history",
@@ -158,17 +160,7 @@ export default function ReviewDetail({ queueId, doctorId, onBack, onConfirmed })
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
-      {/* Top bar */}
-      <Box sx={{ display: "flex", alignItems: "center", height: 48, px: 1, bgcolor: "#fff",
-        borderBottom: "1px solid #e5e5e5", flexShrink: 0 }}>
-        <Box onClick={onBack} sx={{ display: "flex", alignItems: "center", gap: 0.3,
-          cursor: "pointer", color: "#07C160", pr: 2, py: 1 }}>
-          <Typography sx={{ fontSize: 15, color: "#07C160" }}>← 返回</Typography>
-        </Box>
-        <Typography sx={{ flex: 1, textAlign: "center", fontWeight: 600, fontSize: 16, mr: 5 }}>
-          审核详情
-        </Typography>
-      </Box>
+      <SubpageHeader title="审核详情" onBack={onBack} />
 
       {/* Content */}
       <Box sx={{ flex: 1, overflowY: "auto", p: 1 }}>

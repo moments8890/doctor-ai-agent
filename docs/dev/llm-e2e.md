@@ -72,7 +72,7 @@ DeepSeek V3's tool-calling has 3 known weaknesses:
 
 ```bash
 # Start server with a provider
-PORT=8001 ./.dev.sh groq   # or deepseek
+./cli.py start --port 8001 --provider groq --no-frontend   # or --provider deepseek
 
 # Run E2E tests (in another terminal)
 RUN_E2E_FIXTURES=1 ROUTING_LLM=groq STRUCTURING_LLM=groq \

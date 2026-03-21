@@ -19,7 +19,7 @@ This folder contains WeChat/WeCom entrypoint E2E-style tests:
 ## Requirements
 
 1. Bootstrap dependencies:
-   - `./dev.sh bootstrap --with-frontend`
+   - `./cli.py bootstrap`
 2. For local simulation tests:
    - no live WeChat credentials required
    - no running server required

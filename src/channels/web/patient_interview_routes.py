@@ -118,12 +118,19 @@ async def turn(
     authorization: Optional[str] = Header(default=None),
 ):
     """Send a patient message and get AI reply."""
-    await _authenticate_patient(x_patient_token, authorization)
+    patient = await _authenticate_patient(x_patient_token, authorization)
 
     if not body.text.strip():
         raise HTTPException(400, "消息不能为空")
     if len(body.text) > 2000:
         raise HTTPException(400, "消息过长")
+
+    # Verify session ownership before processing
+    session = await load_session(body.session_id)
+    if session is None:
+        raise HTTPException(404, "问诊会话不存在")
+    if session.patient_id != patient.id:
+        raise HTTPException(403, "无权操作")
 
     response = await interview_turn(body.session_id, body.text.strip())
 

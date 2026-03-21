@@ -17,7 +17,7 @@ import Markdown from "react-markdown";
 import { sendChat, ocrImage, extractFileForChat, clearContext } from "../../api";
 import RecordFields from "../../components/RecordFields";
 import { t } from "../../i18n";
-import { QUICK_COMMANDS } from "./constants";
+import { QUICK_COMMANDS, Action } from "./constants";
 import ActionPanel from "./ActionPanel";
 import PatientPickerDialog from "./PatientPickerDialog";
 import ImportChoiceDialog from "./ImportChoiceDialog";
@@ -95,7 +95,7 @@ function MsgBubble({ msg, onQuickSend }) {
                   {msg.actionLabel}
                 </Box>
               )}
-              {msg.content}
+              {msg.actionLabel && msg.content === msg.actionLabel ? null : msg.content}
             </Typography>
           ) : (
             <Box sx={{ fontSize: 14, color: textColor, ...mdStyles }}>
@@ -347,7 +347,7 @@ function useChatState({ doctorId, onMessageCountChange, onPatientCreated, onCont
     return performSend({ text, loading, doctorId, history, setMessages, setInput, setLoading, setFailedText, onPatientCreated, actionHint, actionLabel });
   }
 
-  return { input, setInput, loading, failedText, setFailedText, messages, setMessages, bottomRef, onClear, sendText };
+  return { input, setInput, loading, setLoading, failedText, setFailedText, messages, setMessages, bottomRef, onClear, sendText };
 }
 
 function ChatTopbar({ isMobile, doctorId, onClearClick }) {
@@ -432,7 +432,7 @@ function useDailySummary({ doctorId, sendText, ready }) {
   }, [doctorId, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
-export default function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternalInputConsumed, onPatientCreated, autoSendText, onAutoSendConsumed, onContextCleared }) {
+export default function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternalInputConsumed, onPatientCreated, autoSendText, onAutoSendConsumed, onContextCleared, onStartPatientInterview }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
@@ -449,7 +449,7 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
   const galleryInputRef = useRef(null);
   const fileDocInputRef = useRef(null);
 
-  const { input, setInput, loading, failedText, setFailedText, messages, setMessages, bottomRef, onClear, sendText } =
+  const { input, setInput, loading, setLoading, failedText, setFailedText, messages, setMessages, bottomRef, onClear, sendText } =
     useChatState({ doctorId, onMessageCountChange, onPatientCreated, onContextCleared });
   useChatEffects({ externalInput, onExternalInputConsumed, autoSendText, onAutoSendConsumed, setInput, sendText });
   useDailySummary({ doctorId, sendText, ready: messages.length > 0 });
@@ -473,6 +473,11 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
   }
 
   function handleCommandSelect(cmd) {
+    if (cmd.key === Action.CREATE_RECORD) {
+      // Navigate to patients tab to start interview
+      onStartPatientInterview?.();
+      return;
+    }
     if (cmd.autoSend) {
       setInput("");
       setActiveChip(null);

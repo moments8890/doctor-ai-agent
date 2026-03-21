@@ -31,6 +31,28 @@ from infra.llm.resilience import call_with_retry_and_fallback
 from infra.observability.observability import trace_block
 from utils.log import log
 
+# Dedicated LLM I/O logger — writes to logs/diagnosis_llm.jsonl
+import logging as _logging
+import json as _json_mod
+from pathlib import Path as _Path
+
+_LLM_LOG_DIR = _Path(__file__).resolve().parents[2] / "logs"
+_LLM_LOG_DIR.mkdir(exist_ok=True)
+_llm_logger = _logging.getLogger("diagnosis.llm_io")
+_llm_logger.setLevel(_logging.DEBUG)
+if not _llm_logger.handlers:
+    _fh = _logging.FileHandler(str(_LLM_LOG_DIR / "diagnosis_llm.jsonl"), encoding="utf-8")
+    _fh.setFormatter(_logging.Formatter("%(message)s"))
+    _llm_logger.addHandler(_fh)
+    _llm_logger.propagate = False
+
+
+def _log_llm_io(tag: str, **kwargs: object) -> None:
+    """Write one JSONL line to diagnosis_llm.jsonl."""
+    from datetime import datetime, timezone
+    entry = {"ts": datetime.now(timezone.utc).isoformat(), "tag": tag, **kwargs}
+    _llm_logger.debug(_json_mod.dumps(entry, ensure_ascii=False, default=str))
+
 # ---------------------------------------------------------------------------
 # Module-level singleton cache: one HTTP connection pool per provider.
 # ---------------------------------------------------------------------------
@@ -225,6 +247,20 @@ def _format_matched_cases(cases: List[Dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
+def _row_to_result(row: Any) -> Dict[str, Any]:
+    """Convert a DiagnosisResult ORM row to a plain dict."""
+    import json as _json
+    return {
+        "status": row.status,
+        "differentials": _json.loads(row.ai_output).get("differentials", []) if row.ai_output else [],
+        "workup": _json.loads(row.ai_output).get("workup", []) if row.ai_output else [],
+        "treatment": _json.loads(row.ai_output).get("treatment", []) if row.ai_output else [],
+        "red_flags": _json.loads(row.red_flags) if row.red_flags else [],
+        "case_references": _json.loads(row.case_references) if row.case_references else [],
+        "error_message": row.error_message,
+    }
+
+
 def _format_structured_fields(structured: Dict[str, str]) -> str:
     """Format structured fields for the user message."""
     _FIELD_LABELS = {
@@ -256,9 +292,14 @@ def _build_system_prompt(
     cases_text: str,
     knowledge_text: str,
 ) -> str:
-    """Assemble the system prompt from skill + cases + knowledge."""
-    parts = ["你是一位神经外科AI诊断助手。"]
+    """Assemble the system prompt from base prompt + skill + cases + knowledge."""
+    from utils.prompt_loader import get_prompt_sync
 
+    # Load the base diagnosis prompt (JSON schema + rules)
+    base_prompt = get_prompt_sync("diagnosis")
+    parts = [base_prompt] if base_prompt else ["你是一位神经外科AI诊断助手。"]
+
+    # Append specialty-specific skill (must-not-miss patterns, etc.)
     if skill_content and skill_content.strip():
         parts.append(skill_content.strip())
 
@@ -274,7 +315,7 @@ def _build_system_prompt(
 def _build_user_message(structured: Dict[str, str]) -> str:
     """Build the user message from structured fields."""
     fields_text = _format_structured_fields(structured)
-    return "请根据以下病历生成鉴别诊断建议：\n\n" + fields_text
+    return "请根据以下病历生成鉴别诊断建议（严格按系统提示中的json格式输出）：\n\n" + fields_text
 
 
 # ---------------------------------------------------------------------------
@@ -308,14 +349,14 @@ def _validate_differentials(raw: Any) -> List[Dict[str, str]]:
         if not isinstance(item, dict):
             log(f"[diagnosis] dropping malformed differential at index {i}: not a dict", level="warning")
             continue
-        condition = str(item.get("condition") or "").strip()
+        condition = str(item.get("condition") or item.get("诊断名称") or "").strip()
         if not condition:
             log(f"[diagnosis] dropping differential at index {i}: missing condition", level="warning")
             continue
         result.append({
             "condition":  condition,
-            "confidence": _coerce_confidence(item.get("confidence")),
-            "reasoning":  str(item.get("reasoning") or "").strip(),
+            "confidence": _coerce_confidence(item.get("confidence") or item.get("可能性")),
+            "reasoning":  str(item.get("reasoning") or item.get("推理依据") or "").strip(),
         })
     return result
 
@@ -329,14 +370,14 @@ def _validate_workup(raw: Any) -> List[Dict[str, str]]:
         if not isinstance(item, dict):
             log(f"[diagnosis] dropping malformed workup at index {i}: not a dict", level="warning")
             continue
-        test = str(item.get("test") or "").strip()
+        test = str(item.get("test") or item.get("检查名称") or "").strip()
         if not test:
             log(f"[diagnosis] dropping workup at index {i}: missing test", level="warning")
             continue
         result.append({
             "test":       test,
-            "rationale":  str(item.get("rationale") or "").strip(),
-            "urgency":    _coerce_urgency(item.get("urgency")),
+            "rationale":  str(item.get("rationale") or item.get("理由") or "").strip(),
+            "urgency":    _coerce_urgency(item.get("urgency") or item.get("紧急程度")),
         })
     return result
 
@@ -350,14 +391,14 @@ def _validate_treatment(raw: Any) -> List[Dict[str, str]]:
         if not isinstance(item, dict):
             log(f"[diagnosis] dropping malformed treatment at index {i}: not a dict", level="warning")
             continue
-        drug_class = str(item.get("drug_class") or "").strip()
-        description = str(item.get("description") or "").strip()
+        drug_class = str(item.get("drug_class") or item.get("药物类别") or "").strip()
+        description = str(item.get("description") or item.get("说明") or "").strip()
         if not drug_class and not description:
             log(f"[diagnosis] dropping treatment at index {i}: missing drug_class and description", level="warning")
             continue
         result.append({
             "drug_class":    drug_class,
-            "intervention":  _coerce_intervention(item.get("intervention")),
+            "intervention":  _coerce_intervention(item.get("intervention") or item.get("干预方式")),
             "description":   description,
         })
     return result
@@ -390,7 +431,7 @@ def _parse_and_validate(raw: str, provider_name: str) -> Optional[Dict[str, Any]
     workup = _validate_workup(data.get("workup"))
     treatment = _validate_treatment(data.get("treatment"))
 
-    red_flags_raw = data.get("red_flags")
+    red_flags_raw = data.get("red_flags") or data.get("red flags") or data.get("危险信号")
     if isinstance(red_flags_raw, list):
         red_flags = [str(s) for s in red_flags_raw if s][:_MAX_ARRAY_ITEMS]
     else:
@@ -516,8 +557,20 @@ async def run_diagnosis(
         # ------------------------------------------------------------------
         diagnosis_row = None
         if record_id is not None:
-            diagnosis_row = await create_pending_diagnosis(session, record_id, doctor_id)
-            await session.flush()  # get row.id without committing yet
+            # Check for existing row (re-run after failure or chat retry)
+            from db.crud.diagnosis import get_diagnosis_by_record
+            existing = await get_diagnosis_by_record(session, record_id, doctor_id)
+            if existing and existing.status in ("completed", "confirmed"):
+                log(f"{_tag} diagnosis already exists for record {record_id}, skipping")
+                return _row_to_result(existing)
+            if existing:
+                # Reuse existing failed/pending row
+                diagnosis_row = existing
+                diagnosis_row.status = "pending"
+                diagnosis_row.error_message = None
+            else:
+                diagnosis_row = await create_pending_diagnosis(session, record_id, doctor_id)
+            await session.flush()
 
         # ------------------------------------------------------------------
         # Step 2: Load clinical context
@@ -573,6 +626,12 @@ async def run_diagnosis(
         user_message = _build_user_message(structured)
 
         log(f"{_tag} user_message_preview: {user_message[:120]}")
+        _log_llm_io("input",
+                     doctor_id=doctor_id, record_id=record_id,
+                     provider=provider_name, model=model_name,
+                     system_prompt=system_prompt,
+                     user_message=user_message,
+                     matched_cases_count=len(matched_cases))
 
         # ------------------------------------------------------------------
         # Step 7: Call LLM
@@ -588,6 +647,7 @@ async def run_diagnosis(
         except Exception as exc:
             log(f"{_tag} LLM call failed: {exc}", level="error")
             llm_error = str(exc)
+            _log_llm_io("error", doctor_id=doctor_id, record_id=record_id, error=str(exc))
 
         if llm_error or completion is None:
             err_msg = llm_error or "Empty LLM response"
@@ -598,6 +658,9 @@ async def run_diagnosis(
 
         raw = (completion.choices[0].message.content or "").strip()
         log(f"{_tag} raw response ({len(raw)} chars): {raw[:200]}")
+        _log_llm_io("output",
+                     doctor_id=doctor_id, record_id=record_id,
+                     raw_length=len(raw), raw=raw)
 
         if not raw:
             err_msg = "Empty LLM response"

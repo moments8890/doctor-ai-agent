@@ -24,7 +24,7 @@ from utils.app_config import AppConfig, load_config_from_json
 # entrypoints or early imports can freeze the wrong provider configuration.
 # TODO: migrate to lazy provider resolution via provider_registry.resolve().
 _config_source_path, _config_values = load_config_from_json()
-# Env vars set externally (e.g., .dev.sh) take precedence over runtime.json.
+# Env vars set externally (e.g., cli.py) take precedence over runtime.json.
 # Merge: start with runtime.json values, overlay with existing env vars.
 _merged_values = dict(_config_values)
 for _key in list(_config_values.keys()):
@@ -52,6 +52,7 @@ from channels.web.export import router as export_router
 from channels.web.import_routes import router as import_router
 from channels.web.patient_portal import router as patient_portal_router
 from channels.web.patient_interview_routes import router as patient_interview_router
+from channels.web.doctor_interview import router as doctor_interview_router
 from db.engine import AsyncSessionLocal
 from db.crud import get_due_tasks
 from utils.errors import DomainError
@@ -289,6 +290,7 @@ app.include_router(export_router)
 app.include_router(import_router)
 app.include_router(patient_portal_router)
 app.include_router(patient_interview_router)
+app.include_router(doctor_interview_router)
 
 
 @app.get("/")

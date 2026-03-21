@@ -128,11 +128,24 @@ async def _dispatch_action_hint(
         return _format_daily_summary(tasks, records)
 
     if action == Action.create_record:
-        if agent is None:
-            return None
-        return await agent.handle(text)
+        return "请使用「新增病历」功能来采集患者信息，AI将帮您结构化记录。"
 
-    # Unknown or future actions (e.g. diagnosis) → fall through
+    if action == Action.diagnosis:
+        log(f"[dispatch] diagnosis action triggered for {identity}")
+        from agent.tools.diagnosis import diagnose as _diagnose_tool
+        from agent.identity import set_current_identity
+        set_current_identity(identity)
+        try:
+            result = await _diagnose_tool.ainvoke({})
+            log(f"[dispatch] diagnosis result length: {len(result) if result else 0}")
+            return result
+        except Exception as e:
+            log(f"[dispatch] diagnosis failed: {e}", level="error")
+            import traceback
+            traceback.print_exc()
+            return None
+
+    # Unknown or future actions → fall through
     return None
 
 
