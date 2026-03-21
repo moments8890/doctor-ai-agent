@@ -544,5 +544,5 @@ async def complete_task(
 # paid providers or higher rate limits.
 DOCTOR_TOOLS = [
     query_records, list_patients, list_tasks,
-    create_record, update_record, create_task,
+    update_record, create_task,
 ]

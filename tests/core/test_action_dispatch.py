@@ -52,16 +52,12 @@ async def test_daily_summary_calls_helpers():
 
 
 @pytest.mark.asyncio
-async def test_create_record_falls_through_to_agent():
-    """create_record → routes through agent.handle()."""
-    mock_agent = MagicMock()
-    mock_agent.handle = AsyncMock(return_value="已为张三创建病历草稿")
-
+async def test_create_record_returns_redirect_message():
+    """create_record → returns redirect message to use interview mode."""
     from agent.handle_turn import _dispatch_action_hint
-    reply = await _dispatch_action_hint(Action.create_record, "张三，男，45岁", "dr_test", agent=mock_agent)
-
-    mock_agent.handle.assert_called_once()
-    assert "张三" in reply
+    reply = await _dispatch_action_hint(Action.create_record, "张三，男，45岁", "dr_test", agent=None)
+    assert reply is not None
+    assert "新增病历" in reply
 
 
 @pytest.mark.asyncio
