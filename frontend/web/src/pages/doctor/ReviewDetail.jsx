@@ -8,11 +8,10 @@ import {
 } from "@mui/material";
 import { getReviewDetail, confirmReview, updateReviewField, getDiagnosis } from "../../api";
 import BarButton from "../../components/BarButton";
-import SuggestionChips from "../../components/SuggestionChips";
 import PatientAvatar from "./PatientAvatar";
 import { STRUCTURED_FIELD_LABELS } from "./constants";
 import SubpageHeader from "./SubpageHeader";
-import { TYPE } from "../../theme";
+import { TYPE, COLOR } from "../../theme";
 
 const FIELD_ORDER = [
   "department", "chief_complaint", "present_illness", "past_history",
@@ -28,45 +27,55 @@ const MAX_CHIPS = 3;
  * Build suggestion map from diagnosis AI output.
  * Returns { diagnosis: string[], treatment_plan: string[] }
  */
+/**
+ * Build structured suggestions from diagnosis AI output.
+ * Each suggestion = { brief: "chip label", detail: "patient-readable explanation" }
+ */
 function buildSuggestions(diagnosis) {
   if (!diagnosis?.ai_output) return {};
   const out = diagnosis.ai_output;
   const suggestions = {};
 
-  // 初步诊断 ← top differentials
+  // 初步诊断 ← differentials
   if (out.differentials?.length) {
     suggestions.diagnosis = out.differentials
       .filter((d) => d.condition)
-      .map((d) => d.confidence ? `${d.condition}（${d.confidence}）` : d.condition);
+      .map((d) => ({
+        brief: d.confidence ? `${d.condition}（${d.confidence}）` : d.condition,
+        detail: d.reasoning || d.condition,
+      }));
   }
 
-  // 治疗方案 ← treatment descriptions
+  // 治疗方案 ← treatment
   if (out.treatment?.length) {
     suggestions.treatment_plan = out.treatment
       .filter((t) => t.drug_class || t.description)
-      .map((t) => {
-        const parts = [t.intervention, t.drug_class, t.description].filter(Boolean);
-        return parts.join(" · ");
-      });
+      .map((t) => ({
+        brief: [t.intervention, t.drug_class].filter(Boolean).join(" · ") || t.description,
+        detail: t.description || [t.intervention, t.drug_class].filter(Boolean).join("，"),
+      }));
   }
 
-  // 检查建议 → auxiliary_exam
+  // 辅助检查 ← workup
   if (out.workup?.length) {
     suggestions.auxiliary_exam = out.workup
       .filter((w) => w.test)
-      .map((w) => w.urgency ? `${w.test}（${w.urgency}）` : w.test);
+      .map((w) => ({
+        brief: w.urgency ? `${w.test}（${w.urgency}）` : w.test,
+        detail: w.rationale || w.test,
+      }));
   }
 
-  // 医嘱及随访 ← combine urgent workup + treatment follow-up
+  // 医嘱及随访
   const followups = [];
   if (out.workup?.length) {
     out.workup.filter((w) => w.test && w.urgency !== "常规").forEach((w) => {
-      followups.push(`${w.urgency}完成${w.test}`);
+      followups.push({ brief: `${w.urgency}：${w.test}`, detail: `${w.urgency}安排${w.test}${w.rationale ? "，" + w.rationale : ""}` });
     });
   }
   if (out.treatment?.length) {
     out.treatment.filter((t) => t.description).forEach((t) => {
-      followups.push(t.description);
+      followups.push({ brief: t.drug_class || t.intervention || "医嘱", detail: t.description });
     });
   }
   if (followups.length) suggestions.orders_followup = followups;
@@ -76,19 +85,17 @@ function buildSuggestions(diagnosis) {
 
 function FieldCard({ fieldKey, value, editing, suggestions, onStartEdit, onSave, onCancel, onApplySuggestion }) {
   const [draft, setDraft] = useState(value || "");
+  const [expandedChip, setExpandedChip] = useState(null); // index of expanded suggestion
   const label = STRUCTURED_FIELD_LABELS[fieldKey] || fieldKey;
 
   useEffect(() => { setDraft(value || ""); }, [value]);
 
   const hasSuggestions = suggestions && suggestions.length > 0;
-  const unselected = hasSuggestions ? suggestions.filter((s) => !draft.includes(s)) : [];
+  // suggestions are now { brief, detail } objects
+  const unselected = hasSuggestions ? suggestions.filter((s) => !value?.includes(s.detail)) : [];
   const visibleUnselected = unselected.slice(0, MAX_CHIPS);
 
-  function handleChipAdd(text) {
-    setDraft((prev) => prev ? `${prev}；${text}` : text);
-  }
-
-  // Editing mode — same for all fields
+  // Editing mode — free text + AI chips
   if (editing) {
     return (
       <Box sx={{ py: 0.5, borderBottom: "0.5px solid #f0f0f0" }}>
@@ -98,29 +105,72 @@ function FieldCard({ fieldKey, value, editing, suggestions, onStartEdit, onSave,
           onChange={(e) => setDraft(e.target.value)}
           sx={{ "& .MuiOutlinedInput-root": { fontSize: TYPE.body.fontSize } }}
         />
-        {/* AI suggestion chips below the text field */}
         {visibleUnselected.length > 0 && (
-          <SuggestionChips items={visibleUnselected} selected={[]} onToggle={handleChipAdd} />
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.5 }}>
+            {visibleUnselected.map((s, i) => (
+              <Box key={i} onClick={() => setDraft((prev) => prev ? `${prev}；${s.detail}` : s.detail)}
+                sx={{ px: 1, py: 0.3, borderRadius: "4px", fontSize: TYPE.caption.fontSize,
+                  border: "1px solid #E5E5E5", bgcolor: "#fff", color: "#666",
+                  cursor: "pointer", "&:active": { opacity: 0.7 } }}>
+                {s.brief}
+              </Box>
+            ))}
+          </Box>
         )}
         <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
-          <BarButton onClick={() => onSave(fieldKey, draft)} color="#07C160">保存</BarButton>
+          <BarButton onClick={() => onSave(fieldKey, draft)}>保存</BarButton>
           <BarButton onClick={onCancel} color="#999">取消</BarButton>
         </Stack>
       </Box>
     );
   }
 
-  // Read-only mode
+  // Read-only mode — with expandable AI suggestions
   return (
-    <Box onClick={() => onStartEdit(fieldKey)}
-      sx={{ py: 0.5, borderBottom: "0.5px solid #f0f0f0", cursor: "pointer", display: "flex", alignItems: "baseline", gap: 0.5 }}>
-      <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "#999", flexShrink: 0 }}>{label}：</Typography>
-      {value ? (
-        <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#1A1A1A", flex: 1, lineHeight: 1.6 }}>{value}</Typography>
-      ) : hasSuggestions ? (
-        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#F59E0B", fontWeight: 600 }}>AI建议 ▸</Typography>
-      ) : (
-        <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#ccc", flex: 1 }}>—</Typography>
+    <Box sx={{ py: 0.5, borderBottom: "0.5px solid #f0f0f0" }}>
+      {/* Label + value */}
+      <Box onClick={() => onStartEdit(fieldKey)}
+        sx={{ display: "flex", alignItems: "baseline", gap: 0.5, cursor: "pointer" }}>
+        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "#999", flexShrink: 0 }}>{label}：</Typography>
+        {value ? (
+          <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#1A1A1A", flex: 1, lineHeight: 1.6 }}>{value}</Typography>
+        ) : hasSuggestions ? (
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#F59E0B", fontWeight: 600 }}>AI建议</Typography>
+        ) : (
+          <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#ccc", flex: 1 }}>—</Typography>
+        )}
+      </Box>
+
+      {/* AI suggestion chips — brief labels */}
+      {hasSuggestions && visibleUnselected.length > 0 && (
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.3 }}>
+          {visibleUnselected.map((s, i) => (
+            <Box key={i} onClick={() => setExpandedChip(expandedChip === i ? null : i)}
+              sx={{ px: 1, py: 0.3, borderRadius: "4px", fontSize: TYPE.caption.fontSize,
+                border: expandedChip === i ? `1px solid ${COLOR.success}` : "1px solid #E5E5E5",
+                bgcolor: expandedChip === i ? COLOR.successLight : "#fff",
+                color: expandedChip === i ? COLOR.success : "#666",
+                cursor: "pointer", "&:active": { opacity: 0.7 } }}>
+              {s.brief}
+            </Box>
+          ))}
+        </Box>
+      )}
+
+      {/* Expanded detail + apply/cancel */}
+      {expandedChip != null && visibleUnselected[expandedChip] && (
+        <Box sx={{ mt: 0.5, p: 1, bgcolor: "#f9f9f9", borderRadius: "4px" }}>
+          <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#333", lineHeight: 1.6 }}>
+            {visibleUnselected[expandedChip].detail}
+          </Typography>
+          <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
+            <BarButton onClick={() => {
+              onApplySuggestion(fieldKey, value ? `${value}；${visibleUnselected[expandedChip].detail}` : visibleUnselected[expandedChip].detail);
+              setExpandedChip(null);
+            }}>采纳</BarButton>
+            <BarButton onClick={() => setExpandedChip(null)} color="#999">关闭</BarButton>
+          </Stack>
+        </Box>
       )}
     </Box>
   );
