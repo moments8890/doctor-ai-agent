@@ -15,6 +15,22 @@ Prerequisites:
 - Frontend running: `cd frontend/web && npm run dev`
 - gstack browse installed: `~/.claude/skills/gstack/browse/dist/browse`
 
+### Step 0: Seed mock data
+
+```bash
+PYTHONPATH=src ENVIRONMENT=development python scripts/seed_ui_data.py
+```
+
+This creates test accounts + enough data to populate every page:
+- 3 patients with structured records and tags
+- Review queue items with completed AI diagnoses
+- Tasks (pending + completed)
+- Knowledge items across all 5 categories
+- Confirmed case history with reference counts
+- Interview session with conversation history
+
+Safe to run multiple times — skips existing data.
+
 ### Steps
 
 ```bash
