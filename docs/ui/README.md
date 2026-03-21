@@ -110,6 +110,16 @@ git commit -m "docs: UI checkpoint ${DATE}"
 - `/doctor/settings/knowledge` — 知识库
 - `/doctor/settings/about` — 关于
 
+**Note:** For review detail (`/doctor/tasks/review/:id`), capture 3 screenshots:
+1. Top — structured fields + AI suggestion chips
+2. Middle (scroll to ~800px) — case references + red flags + differentials
+3. Bottom (scroll to end) — workup + treatment with ✓/✗ buttons + disclaimer
+
+To scroll inside the content container:
+```javascript
+$B js "document.querySelectorAll('div').forEach(d => { if (getComputedStyle(d).overflowY === 'auto' && d.scrollHeight > d.clientHeight) d.scrollTo(0, 800); })"
+```
+
 **Patient (mobile 375x812 only):**
 - `/patient/chat` — 主页
 - `/patient/records` — 病历列表
