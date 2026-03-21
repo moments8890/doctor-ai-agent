@@ -14,10 +14,10 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
 import Markdown from "react-markdown";
-import { sendChat, ocrImage, extractFileForChat, clearContext } from "../../api";
+import { sendChat, ocrImage, extractFileForChat, clearContext, doctorInterviewTurn, doctorInterviewConfirm, doctorInterviewCancel } from "../../api";
 import RecordFields from "../../components/RecordFields";
 import { t } from "../../i18n";
-import { QUICK_COMMANDS } from "./constants";
+import { QUICK_COMMANDS, Action } from "./constants";
 import ActionPanel from "./ActionPanel";
 import PatientPickerDialog from "./PatientPickerDialog";
 import ImportChoiceDialog from "./ImportChoiceDialog";
@@ -95,7 +95,7 @@ function MsgBubble({ msg, onQuickSend }) {
                   {msg.actionLabel}
                 </Box>
               )}
-              {msg.content}
+              {msg.actionLabel && msg.content === msg.actionLabel ? null : msg.content}
             </Typography>
           ) : (
             <Box sx={{ fontSize: 14, color: textColor, ...mdStyles }}>
@@ -347,7 +347,7 @@ function useChatState({ doctorId, onMessageCountChange, onPatientCreated, onCont
     return performSend({ text, loading, doctorId, history, setMessages, setInput, setLoading, setFailedText, onPatientCreated, actionHint, actionLabel });
   }
 
-  return { input, setInput, loading, failedText, setFailedText, messages, setMessages, bottomRef, onClear, sendText };
+  return { input, setInput, loading, setLoading, failedText, setFailedText, messages, setMessages, bottomRef, onClear, sendText };
 }
 
 function ChatTopbar({ isMobile, doctorId, onClearClick }) {
@@ -438,6 +438,19 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [mediaError, setMediaError] = useState(null);
   const [activeChip, setActiveChip] = useState(null);
+  const [activeInterview, setActiveInterview] = useState(() => {
+    const saved = localStorage.getItem(`active_interview:${doctorId}`);
+    try { return saved ? JSON.parse(saved) : null; } catch { return null; }
+  });
+
+  useEffect(() => {
+    if (activeInterview) {
+      localStorage.setItem(`active_interview:${doctorId}`, JSON.stringify(activeInterview));
+    } else {
+      localStorage.removeItem(`active_interview:${doctorId}`);
+    }
+  }, [activeInterview, doctorId]);
+
   const fileInputRef = useRef(null);
   const [mediaProcessing, setMediaProcessing] = useState(false);
   const [actionPanelOpen, setActionPanelOpen] = useState(false);
@@ -449,7 +462,7 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
   const galleryInputRef = useRef(null);
   const fileDocInputRef = useRef(null);
 
-  const { input, setInput, loading, failedText, setFailedText, messages, setMessages, bottomRef, onClear, sendText } =
+  const { input, setInput, loading, setLoading, failedText, setFailedText, messages, setMessages, bottomRef, onClear, sendText } =
     useChatState({ doctorId, onMessageCountChange, onPatientCreated, onContextCleared });
   useChatEffects({ externalInput, onExternalInputConsumed, autoSendText, onAutoSendConsumed, setInput, sendText });
   useDailySummary({ doctorId, sendText, ready: messages.length > 0 });
@@ -473,6 +486,23 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
   }
 
   function handleCommandSelect(cmd) {
+    if (cmd.key === Action.CREATE_RECORD) {
+      // Enter interview mode
+      if (activeInterview) {
+        // Abandon current interview silently
+        if (activeInterview.sessionId) {
+          doctorInterviewCancel(activeInterview.sessionId, doctorId).catch(() => {});
+        }
+      }
+      setActiveInterview({ sessionId: null, progress: { filled: 0, total: 7 }, status: "interviewing" });
+      setActiveChip(null);
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: "病历采集模式已开启。请输入患者信息（姓名、性别、年龄、症状等），我会帮您结构化记录。",
+        ts: nowTs(),
+      }]);
+      return;
+    }
     if (cmd.autoSend) {
       setInput("");
       setActiveChip(null);
@@ -495,6 +525,89 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
     setActiveChip(null);
   }
 
+  async function handleInterviewSend() {
+    const text = input.trim();
+    if (!text || loading) return;
+
+    setMessages(prev => [...prev, { role: "user", content: text, ts: nowTs() }]);
+    setInput("");
+    setLoading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("text", text);
+      formData.append("doctor_id", doctorId);
+
+      if (!activeInterview.sessionId) {
+        // First turn — extract patient name from text
+        const name = text.split(/[，,\s]/)[0].replace(/[新患者创建]/g, "").trim();
+        formData.append("patient_name", name || text.substring(0, 10));
+      } else {
+        formData.append("session_id", activeInterview.sessionId);
+      }
+
+      const data = await doctorInterviewTurn(formData);
+
+      setActiveInterview({
+        sessionId: data.session_id,
+        progress: data.progress,
+        status: data.status,
+        patientId: data.patient_id,
+      });
+
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: data.reply,
+        ts: nowTs(),
+        interviewProgress: data.progress,
+      }]);
+    } catch (error) {
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: `采集出错：${error.message}`,
+        ts: nowTs(),
+      }]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleInterviewConfirm() {
+    if (!activeInterview?.sessionId) return;
+    setLoading(true);
+    try {
+      const data = await doctorInterviewConfirm(activeInterview.sessionId, doctorId);
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: data.preview
+          ? `病历草稿已生成：\n\n${data.preview}\n\n请确认保存或取消。`
+          : "病历草稿已生成，请确认保存。",
+        ts: nowTs(),
+      }]);
+      setActiveInterview(null);
+    } catch (error) {
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: `生成失败：${error.message}`,
+        ts: nowTs(),
+      }]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleInterviewCancel() {
+    if (activeInterview?.sessionId) {
+      try { await doctorInterviewCancel(activeInterview.sessionId, doctorId); } catch { /* ignore */ }
+    }
+    setActiveInterview(null);
+    setMessages(prev => [...prev, {
+      role: "assistant",
+      content: "病历采集已取消。",
+      ts: nowTs(),
+    }]);
+  }
+
   const isProcessing = mediaProcessing;
 
   return (
@@ -507,7 +620,30 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
         {loading && <LoadingBubble isMobile={isMobile} />}
         <div ref={bottomRef} />
       </Box>
-      <QuickCommandBar activeChip={activeChip} onSelect={handleCommandSelect} />
+      {activeInterview && (
+        <Box sx={{ px: 1.5, py: 0.8, borderTop: "1px solid #e0e0e0", bgcolor: "#f0f9f0",
+          display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <Typography variant="caption" sx={{ color: "#2e7d32", fontWeight: 500 }}>
+            病历采集中 {activeInterview.progress?.filled || 0}/{activeInterview.progress?.total || 7}
+          </Typography>
+          <Box sx={{ display: "flex", gap: 1 }}>
+            {activeInterview.status === "ready_for_confirm" && (
+              <Button size="small" variant="contained" disableElevation
+                sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: "#06ad56" }, fontSize: 12, py: 0.3 }}
+                onClick={handleInterviewConfirm}>
+                确认生成
+              </Button>
+            )}
+            <Button size="small" variant="text" color="error" sx={{ fontSize: 12, py: 0.3 }}
+              onClick={handleInterviewCancel}>
+              取消
+            </Button>
+          </Box>
+        </Box>
+      )}
+      {!activeInterview && (
+        <QuickCommandBar activeChip={activeChip} onSelect={handleCommandSelect} />
+      )}
       <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }}
         onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; processFile({ file: f, setMediaError, setMediaProcessing, setInput }); }} />
       <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }}
@@ -521,7 +657,7 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
         onRemoveChip={() => setActiveChip(null)}
         input={input}
         onInput={setInput}
-        onSend={handleChipSend}
+        onSend={activeInterview ? handleInterviewSend : handleChipSend}
         loading={loading}
         isProcessing={isProcessing}
         failedText={failedText}

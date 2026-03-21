@@ -8,7 +8,13 @@ function apiUrl(path) {
 
 async function readError(response) {
   const text = await response.text();
-  return text || `HTTP ${response.status}`;
+  if (!text) return `HTTP ${response.status}`;
+  try {
+    const json = JSON.parse(text);
+    return json.detail || json.message || text;
+  } catch {
+    return text;
+  }
 }
 
 let _webToken = "";
@@ -221,6 +227,39 @@ export async function sendChat(payload) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
     _timeout: 120000,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Doctor-side interview API (ADR 0016 — doctor mode)
+// ---------------------------------------------------------------------------
+
+export async function doctorInterviewTurn(formData) {
+  return request("/api/records/interview/turn", {
+    method: "POST",
+    body: formData,
+    _timeout: 120000,
+  });
+}
+
+export async function doctorInterviewConfirm(sessionId, doctorId) {
+  const formData = new FormData();
+  formData.append("session_id", sessionId);
+  if (doctorId) formData.append("doctor_id", doctorId);
+  return request("/api/records/interview/confirm", {
+    method: "POST",
+    body: formData,
+    _timeout: 120000,
+  });
+}
+
+export async function doctorInterviewCancel(sessionId, doctorId) {
+  const formData = new FormData();
+  formData.append("session_id", sessionId);
+  if (doctorId) formData.append("doctor_id", doctorId);
+  return request("/api/records/interview/cancel", {
+    method: "POST",
+    body: formData,
   });
 }
 
