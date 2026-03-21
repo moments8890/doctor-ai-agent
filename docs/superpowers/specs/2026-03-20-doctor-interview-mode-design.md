@@ -140,19 +140,19 @@ if session.patient_id != authenticated_patient_id:
 
 `completeness.py` defines `marital_reproductive` as OPTIONAL. The spec aligns:
 
-- `ready_for_confirm` triggers when all REQUIRED + ASK_AT_LEAST fields are filled
-  (5/7 minimum: chief_complaint, present_illness + past_history, allergy_history,
-  family_history, personal_history)
-- OPTIONAL fields (marital_reproductive) can be empty
-- Progress display distinguishes: "已采集 5/7（必填已完成）。可选：婚育史（未填）"
-- Doctor can still fill optional fields before confirming, or skip them
+Confirm threshold follows `completeness.py` exactly:
 
-The prompt says "X/7" for total progress but indicates which remaining fields
-are required vs. optional:
+- **REQUIRED (2):** chief_complaint, present_illness — must be filled
+- **ASK_AT_LEAST (4):** past_history, allergy_history, family_history, personal_history — must be filled
+- **OPTIONAL (1):** marital_reproductive — can be empty
 
+`ready_for_confirm` triggers when `check_completeness()` returns empty list
+= all 6 REQUIRED + ASK_AT_LEAST fields filled. OPTIONAL (婚育史) can be skipped.
+
+Progress display:
 ```
-收到。已采集 5/7：✓主诉 ✓现病史 ✓既往史 ✓过敏史 ✓家族史。
-必填已完成，可确认生成病历。可选未填：个人史、婚育史。
+收到。已采集 6/7：✓主诉 ✓现病史 ✓既往史 ✓过敏史 ✓家族史 ✓个人史。
+必填已完成，可确认生成病历。可选未填：婚育史。
 ```
 
 ## Doctor-Mode Prompt: Listener, Not Interviewer
@@ -181,9 +181,9 @@ are required vs. optional:
 2. 回复格式固定：
    - 第一行："收到。" 或 "已更新。"
    - 第二行：已采集 X/7：✓字段1 ✓字段2 ...
-   - 第三行（如有缺失必填）：还缺（必填）：字段A、字段B
-   - 第四行（如有可选未填）：可选未填：字段C
-   - 必填全部完成时：必填已完成，可确认生成病历。
+   - 第三行（如有必填未完成）：还缺（必填）：字段A、字段B
+   - 第四行（如有可选未填）：可选未填：婚育史
+   - 6个必填字段全部完成时：必填已完成，可确认生成病历。
 3. 不要问问题，不要追问细节，不要解释
 4. 医生说"无"或"不详"→ 记录为该字段的值，计为已采集
 5. 如果医生在补充已有字段的信息，追加而不是覆盖
@@ -191,7 +191,7 @@ are required vs. optional:
 
 ## 输出格式（JSON）
 {
-  "reply": "收到。已采集 4/7：✓主诉 ✓现病史 ✓既往史 ✓过敏史。还缺（必填）：家族史、个人史。可选未填：婚育史。",
+  "reply": "收到。已采集 4/7：✓主诉 ✓现病史 ✓既往史 ✓过敏史。还缺（必填）：家族史、个人史。",
   "extracted": { ... }
 }
 ```
@@ -284,13 +284,13 @@ is a Phase 2 feature.
 | Doctor clicks "取消" | `POST /api/records/interview/cancel` → session abandoned |
 | LLM fails to parse response | Return error, session preserved, doctor retries |
 | First message has no patient name | Return error: "请提供患者姓名" |
-| Optional fields skipped | Doctor can confirm with 5/7 (required complete) |
+| Optional fields skipped | Doctor can confirm with 6/7 (REQUIRED + ASK_AT_LEAST), 婚育史 is optional |
 | Doctor types "确认" in text | Not intercepted — must click confirm button |
 
 ## Success Criteria
 
 - Doctor creates a structured record in <3 minutes via interview mode
-- Required fields (5/7) guaranteed present before confirm
+- Required fields (6/7) guaranteed present before confirm (婚育史 optional)
 - Doctor can dump everything in one message and AI extracts correctly
 - Confirm produces same pending draft as existing `create_record` tool
 - Existing patient interview and chat flows unaffected
