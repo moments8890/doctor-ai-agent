@@ -1,0 +1,154 @@
+<h2>Traditional Portal vs AI Agent-Centric</h2>
+<p class="subtitle">How should the patient interact with post-visit features?</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">Traditional Portal (tabs + screens)</div>
+    <div class="mockup-body" style="padding:0;">
+      <!-- Traditional: separate screens for everything -->
+      <div style="padding:12px;">
+        <div style="font-size:11px; color:#999; margin-bottom:8px;">Patient navigates between pages:</div>
+
+        <div style="background:#f5f5f5; border-radius:6px; padding:8px; margin-bottom:6px; font-size:12px;">
+          <div style="font-weight:600;">📋 Diagnosis Page</div>
+          <div style="color:#666; font-size:11px;">Static view of confirmed diagnosis</div>
+        </div>
+        <div style="background:#f5f5f5; border-radius:6px; padding:8px; margin-bottom:6px; font-size:12px;">
+          <div style="font-weight:600;">💊 Treatment Plan Page</div>
+          <div style="color:#666; font-size:11px;">Checklist of medications, follow-ups</div>
+        </div>
+        <div style="background:#f5f5f5; border-radius:6px; padding:8px; margin-bottom:6px; font-size:12px;">
+          <div style="font-weight:600;">📤 Upload Page</div>
+          <div style="color:#666; font-size:11px;">Upload lab results, imaging</div>
+        </div>
+        <div style="background:#f5f5f5; border-radius:6px; padding:8px; margin-bottom:6px; font-size:12px;">
+          <div style="font-weight:600;">💬 Messages Page</div>
+          <div style="color:#666; font-size:11px;">Inbox with doctor replies</div>
+        </div>
+
+        <div style="margin-top:10px; font-size:11px; color:#999; text-align:center;">
+          Patient must know WHERE to go for each action
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">AI Agent-Centric (conversation IS the portal)</div>
+    <div class="mockup-body" style="padding:0;">
+      <div style="padding:12px;">
+        <div style="font-size:11px; color:#999; margin-bottom:8px;">AI agent surfaces everything contextually:</div>
+
+        <!-- AI proactive message -->
+        <div style="background:#fff; border:1px solid #e0e0e0; border-radius:12px 12px 12px 4px; padding:8px; margin-bottom:6px; font-size:12px;">
+          <div style="color:#333;">张医生已确认您的诊断结果：</div>
+          <div style="background:#f0faf0; border-radius:6px; padding:6px; margin:4px 0; border-left:3px solid #07C160;">
+            <div style="font-weight:600; font-size:12px;">颈椎病 (Cervical radiculopathy)</div>
+            <div style="font-size:11px; color:#666;">建议：颈椎MRI检查、物理治疗</div>
+          </div>
+          <div style="color:#333; margin-top:4px;">您有一项待完成检查 👇</div>
+          <div style="display:flex; gap:4px; margin-top:4px;">
+            <div style="background:#07C160; color:#fff; font-size:11px; padding:4px 10px; border-radius:4px; text-align:center;">查看完整方案</div>
+            <div style="background:#f5f5f5; font-size:11px; padding:4px 10px; border-radius:4px; text-align:center;">上传检查结果</div>
+          </div>
+        </div>
+
+        <!-- Patient message -->
+        <div style="display:flex; justify-content:flex-end; margin-bottom:6px;">
+          <div style="background:#95EC69; border-radius:12px 12px 4px 12px; padding:8px; font-size:12px; max-width:70%;">
+            吃了药之后头晕加重了
+          </div>
+        </div>
+
+        <!-- AI triage response -->
+        <div style="background:#fff; border:1px solid #e0e0e0; border-radius:12px 12px 12px 4px; padding:8px; margin-bottom:6px; font-size:12px;">
+          <div style="color:#333;">理解了。头晕加重可能与药物相关。</div>
+          <div style="background:#fff3e0; border-radius:6px; padding:6px; margin:4px 0; border-left:3px solid #FF9500;">
+            <div style="font-size:11px; color:#FF9500; font-weight:600;">⚠️ 已通知张医生</div>
+            <div style="font-size:11px; color:#666;">症状已记录，医生将尽快回复</div>
+          </div>
+          <div style="color:#333; margin-top:4px; font-size:11px;">同时请注意：如出现严重眩晕或视觉模糊，请立即就医。</div>
+        </div>
+
+        <div style="margin-top:10px; font-size:11px; color:#999; text-align:center;">
+          Patient just talks — AI handles routing, display, triage
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:24px;">
+  <h3>AI Agent-Centric Model: How it works</h3>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+    <div style="background:#f8f8f8; border-radius:8px; padding:12px;">
+      <div style="font-weight:600; color:#07C160; margin-bottom:4px;">🤖 Proactive</div>
+      <div style="font-size:13px; color:#666;">AI pushes info when it matters: "Doctor confirmed your diagnosis", "Time for your follow-up", "Please upload MRI results"</div>
+    </div>
+    <div style="background:#f8f8f8; border-radius:8px; padding:12px;">
+      <div style="font-weight:600; color:#07C160; margin-bottom:4px;">🎯 Contextual</div>
+      <div style="font-size:13px; color:#666;">Structured cards (diagnosis, treatment, tasks) appear INSIDE the conversation, not in separate pages</div>
+    </div>
+    <div style="background:#f8f8f8; border-radius:8px; padding:12px;">
+      <div style="font-weight:600; color:#07C160; margin-bottom:4px;">🔀 Triage</div>
+      <div style="font-size:13px; color:#666;">AI answers routine questions itself. Escalates to doctor when clinical judgment needed. Patient doesn't decide routing.</div>
+    </div>
+    <div style="background:#f8f8f8; border-radius:8px; padding:12px;">
+      <div style="font-weight:600; color:#07C160; margin-bottom:4px;">📎 Inline Actions</div>
+      <div style="font-size:13px; color:#666;">Upload, report symptoms, view plans — all triggered via buttons in AI messages. No navigation needed.</div>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top:24px;">What about non-chat features?</h3>
+<p class="subtitle">Even agent-centric portals need some structured views. Pick your balance:</p>
+
+<div class="options">
+  <div class="option" data-choice="pure-agent" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Pure Agent — conversation only</h3>
+      <p>Single screen: the AI chat. Everything happens in conversation. "Show my records" → agent renders card. "What's my treatment plan?" → agent shows checklist inline.</p>
+      <p style="font-size:12px; color:#666; margin-top:4px;">
+        <strong>Like:</strong> ChatGPT model — one conversation, rich cards<br>
+        <strong>Risk:</strong> Hard to find past info buried in chat history. No persistent treatment checklist to glance at.
+      </p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="agent-plus-reference" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Agent + Reference drawer</h3>
+      <p>Primary: AI conversation. Secondary: swipe-up drawer or tab with persistent views (treatment checklist, visit history). Agent can deep-link into the drawer.</p>
+      <p style="font-size:12px; color:#666; margin-top:4px;">
+        <strong>Like:</strong> WeChat mini-program pattern — chat front + structured back<br>
+        <strong>Best of both:</strong> Agent handles actions + triage. Drawer for "let me check my treatment plan again" without asking the AI.
+      </p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="agent-plus-tabs" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Agent + Minimal tabs</h3>
+      <p>Two tabs: AI (primary) | My Health (visit history + treatment plan + records). AI tab is the default landing. My Health is the passive reference.</p>
+      <p style="font-size:12px; color:#666; margin-top:4px;">
+        <strong>Like:</strong> Current structure evolved — Chat tab becomes smart agent, Records tab becomes visit-centric health view<br>
+        <strong>Pragmatic:</strong> Least change from existing code. Clear separation.
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px; background:#f8f8f8; border-radius:8px; padding:16px;">
+  <h3 style="margin-top:0;">My Recommendation: B (Agent + Reference Drawer)</h3>
+  <p style="font-size:14px; color:#333; margin:8px 0 0 0;">
+    <strong>Why:</strong> Pure agent (A) loses persistent reference — patients will want to re-check their treatment plan without re-asking.
+    Tabs (C) splits the experience and makes the agent feel like "just another chat."
+    The drawer model (B) makes the AI the undisputed front door while giving patients a persistent
+    place for structured data they need to reference repeatedly. It also matches WeChat's
+    interaction patterns (chat-first, swipe for more). The agent proactively pushes info;
+    the drawer is where it lives permanently.
+  </p>
+</div>

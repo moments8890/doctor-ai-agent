@@ -13,7 +13,8 @@
       "mcp__plugin_playwright_playwright__browser_navigate",
       "mcp__plugin_playwright_playwright__browser_install",
       "Skill(qa)",
-      "Skill(browse)"
+      "Skill(browse)",
+      "Skill(codex)"
     ]
   }
 }

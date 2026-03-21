@@ -132,15 +132,16 @@ async def confirm_diagnosis(
     decisions: Dict[str, Any] = (
         json.loads(diagnosis.doctor_decisions) if diagnosis.doctor_decisions else {}
     )
-    total = (
-        len(ai.get("differentials", []))
-        + len(ai.get("workup", []))
-        + len(ai.get("treatment", []))
+    # Adoption rate: confirmed / (confirmed + rejected)
+    # Only counts items the doctor explicitly acted on — ignores unreviewed
+    confirmed_count = sum(
+        1 for cat in decisions.values() for d in cat.values() if d == "confirmed"
     )
-    rejected = sum(
+    rejected_count = sum(
         1 for cat in decisions.values() for d in cat.values() if d == "rejected"
     )
-    agreement_score = (total - rejected) / total if total > 0 else 1.0
+    reviewed_total = confirmed_count + rejected_count
+    agreement_score = confirmed_count / reviewed_total if reviewed_total > 0 else 1.0
 
     diagnosis.status = DiagnosisStatus.confirmed
     diagnosis.agreement_score = agreement_score

@@ -1,0 +1,162 @@
+<h2>Patient Portal Navigation: Competitor Patterns</h2>
+<p class="subtitle">Research from 好大夫, 微医, MyChart, and Chinese AI pre-consultation platforms</p>
+
+<div class="section">
+  <h3>Competitor Insights</h3>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;">
+    <div style="background:#f8f8f8; border-radius:8px; padding:12px;">
+      <div style="font-weight:600; margin-bottom:4px;">好大夫在线</div>
+      <div style="font-size:13px; color:#666;">Before/during/after consultation model. Post-visit: prescription viewing, medication diary, medical history timeline, disease diary for tracking changes</div>
+    </div>
+    <div style="background:#f8f8f8; border-radius:8px; padding:12px;">
+      <div style="font-weight:600; margin-bottom:4px;">微医 WeDoctor</div>
+      <div style="font-size:13px; color:#666;">Feature-centric tabs: appointments, consultations, prescriptions, medical records. Many entry points, marketplace model</div>
+    </div>
+    <div style="background:#f8f8f8; border-radius:8px; padding:12px;">
+      <div style="font-weight:600; margin-bottom:4px;">MyChart (Epic)</div>
+      <div style="font-size:13px; color:#666;">Comprehensive but cluttered — 67% of users said "too many options". Top priorities: Visits, Health Summary, Test Results</div>
+    </div>
+    <div style="background:#f8f8f8; border-radius:8px; padding:12px;">
+      <div style="font-weight:600; margin-bottom:4px;">Chinese AI Platforms</div>
+      <div style="font-size:13px; color:#666;">WeChat mini-programs: dedicated doctor binding, auto-archived records, chronic disease follow-up with health risk prediction</div>
+    </div>
+  </div>
+</div>
+
+<h3>Three Navigation Approaches</h3>
+<p class="subtitle">Click to select which feels right for our doctor-owned, WeChat-native product</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Feature-Centric (微医 style)</h3>
+      <p>Tabs: Chat | Records | Diagnosis | Treatment | Messages</p>
+      <div style="margin-top:8px;">
+        <div class="mockup" style="margin:0;">
+          <div class="mockup-body" style="padding:8px;">
+            <div style="display:flex; justify-content:space-around; font-size:12px; border-top:1px solid #e0e0e0; padding-top:8px;">
+              <div style="text-align:center; color:#07C160;">
+                <div style="font-size:18px;">💬</div><div>Chat</div>
+              </div>
+              <div style="text-align:center; color:#999;">
+                <div style="font-size:18px;">📋</div><div>Records</div>
+              </div>
+              <div style="text-align:center; color:#999;">
+                <div style="font-size:18px;">🔬</div><div>Diagnosis</div>
+              </div>
+              <div style="text-align:center; color:#999;">
+                <div style="font-size:18px;">💊</div><div>Treatment</div>
+              </div>
+              <div style="text-align:center; color:#999;">
+                <div style="font-size:18px;">✉️</div><div>Messages</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="pros-cons" style="margin-top:8px;">
+        <div class="pros"><h4>Pros</h4><ul><li>Direct access to any feature</li><li>Familiar tab pattern</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>MyChart's "too many tabs" problem</li><li>No context — which visit?</li><li>Empty tabs for new patients</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Visit Lifecycle (好大夫 evolved)</h3>
+      <p>Tabs: Home (latest visit + actions) | History | Messages</p>
+      <div style="margin-top:8px;">
+        <div class="mockup" style="margin:0;">
+          <div class="mockup-body" style="padding:8px;">
+            <!-- Home tab content preview -->
+            <div style="background:#f0faf0; border-radius:6px; padding:8px; margin-bottom:6px; border-left:3px solid #07C160;">
+              <div style="font-size:11px; color:#999;">Latest Visit · Mar 20</div>
+              <div style="font-size:13px; font-weight:500;">Diagnosis: Cervical radiculopathy</div>
+              <div style="font-size:12px; color:#666; margin-top:2px;">2 tasks pending</div>
+            </div>
+            <div style="display:flex; gap:6px; margin-bottom:8px;">
+              <div style="flex:1; background:#fff; border:1px solid #e0e0e0; border-radius:6px; padding:6px; text-align:center; font-size:11px;">
+                <div style="font-size:16px;">📋</div>View Plan
+              </div>
+              <div style="flex:1; background:#fff; border:1px solid #e0e0e0; border-radius:6px; padding:6px; text-align:center; font-size:11px;">
+                <div style="font-size:16px;">📤</div>Upload Results
+              </div>
+              <div style="flex:1; background:#fff; border:1px solid #e0e0e0; border-radius:6px; padding:6px; text-align:center; font-size:11px;">
+                <div style="font-size:16px;">⚠️</div>Report Symptom
+              </div>
+            </div>
+            <div style="display:flex; justify-content:space-around; font-size:12px; border-top:1px solid #e0e0e0; padding-top:8px;">
+              <div style="text-align:center; color:#07C160;">
+                <div style="font-size:18px;">🏠</div><div>Home</div>
+              </div>
+              <div style="text-align:center; color:#999;">
+                <div style="font-size:18px;">📚</div><div>History</div>
+              </div>
+              <div style="text-align:center; color:#999;">
+                <div style="font-size:18px;">💬</div><div>Messages</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="pros-cons" style="margin-top:8px;">
+        <div class="pros"><h4>Pros</h4><ul><li>Organized around what patient needs NOW</li><li>Only 3 tabs — simple like WeChat</li><li>Latest visit always front and center</li><li>Action-oriented (not data-browsing)</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Home tab does a lot of lifting</li><li>New patients see empty home</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Hybrid: Two tabs + contextual actions</h3>
+      <p>Keep current Chat | Records, but Records becomes visit-centric with inline diagnosis + treatment + actions</p>
+      <div style="margin-top:8px;">
+        <div class="mockup" style="margin:0;">
+          <div class="mockup-body" style="padding:8px;">
+            <!-- Records tab showing visit cards -->
+            <div style="background:#fff; border:1px solid #e0e0e0; border-radius:6px; padding:8px; margin-bottom:6px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size:13px; font-weight:500;">Visit · Mar 20</div>
+                  <div style="font-size:12px; color:#666;">Headache, neck pain</div>
+                </div>
+                <div style="background:#e8f5e9; color:#07C160; font-size:11px; padding:2px 8px; border-radius:10px;">Confirmed</div>
+              </div>
+              <div style="display:flex; gap:4px; margin-top:6px;">
+                <div style="font-size:11px; background:#f5f5f5; padding:2px 6px; border-radius:4px;">Diagnosis</div>
+                <div style="font-size:11px; background:#f5f5f5; padding:2px 6px; border-radius:4px;">Treatment Plan</div>
+                <div style="font-size:11px; background:#fff3e0; padding:2px 6px; border-radius:4px; color:#FF9500;">2 pending tasks</div>
+              </div>
+            </div>
+            <div style="display:flex; justify-content:space-around; font-size:12px; border-top:1px solid #e0e0e0; padding-top:8px;">
+              <div style="text-align:center; color:#999;">
+                <div style="font-size:18px;">💬</div><div>Chat</div>
+              </div>
+              <div style="text-align:center; color:#07C160;">
+                <div style="font-size:18px;">📋</div><div>Records</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="pros-cons" style="margin-top:8px;">
+        <div class="pros"><h4>Pros</h4><ul><li>Minimal change from current structure</li><li>Tap into visit → see everything</li><li>Chat becomes bidirectional messaging</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>No dedicated "what do I need to do now?" surface</li><li>New actions (upload, report) buried in visit detail</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px; background:#f8f8f8; border-radius:8px; padding:16px;">
+  <h3 style="margin-top:0;">My Recommendation: B (Visit Lifecycle)</h3>
+  <p style="font-size:14px; color:#333; margin:8px 0 0 0;">
+    <strong>Why:</strong> Our product is doctor-owned and visit-oriented (not a marketplace like 好大夫/微医).
+    The patient's core question after a visit is "what do I need to do?" — not "where are my records?"
+    Three tabs matches WeChat's simplicity. MyChart proved that feature-centric navigation overwhelms patients.
+    The Home tab surfaces the latest visit with actionable next steps, which is exactly the post-visit value we're building.
+    For new patients (pre-first-visit), the Home tab naturally becomes the interview entry point.
+  </p>
+</div>

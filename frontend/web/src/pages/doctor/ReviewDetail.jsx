@@ -6,9 +6,10 @@ import { useCallback, useEffect, useState } from "react";
 import {
   Alert, Box, CircularProgress, Collapse, Stack, TextField, Typography,
 } from "@mui/material";
-import { getReviewDetail, confirmReview, updateReviewField, getDiagnosis } from "../../api";
+import { getReviewDetail, confirmReview, updateReviewField, getDiagnosis, decideDiagnosisItem, confirmDiagnosis } from "../../api";
 import BarButton from "../../components/BarButton";
 import PatientAvatar from "./PatientAvatar";
+import DiagnosisSection from "./DiagnosisSection";
 import { STRUCTURED_FIELD_LABELS } from "./constants";
 import SubpageHeader from "./SubpageHeader";
 import { TYPE, COLOR } from "../../theme";
@@ -85,49 +86,63 @@ function buildSuggestions(diagnosis) {
 
 function FieldCard({ fieldKey, value, editing, suggestions, onStartEdit, onSave, onCancel, onApplySuggestion }) {
   const [draft, setDraft] = useState(value || "");
-  const [applied, setApplied] = useState([]); // indices of applied suggestions
+  // applied = [{ origIdx, detail (editable copy) }]
+  const [applied, setApplied] = useState([]);
   const [expandedChip, setExpandedChip] = useState(null);
+  const [editingTag, setEditingTag] = useState(null); // origIdx of tag being edited
+  const [tagDraft, setTagDraft] = useState("");
+  const [chipsOpen, setChipsOpen] = useState(false);
   const label = STRUCTURED_FIELD_LABELS[fieldKey] || fieldKey;
 
-  useEffect(() => { setDraft(value || ""); setApplied([]); }, [value]);
+  useEffect(() => { setDraft(value || ""); }, [value]);
 
   const hasSuggestions = suggestions && suggestions.length > 0;
-  // Pool = suggestions not yet applied (by index)
-  const pool = hasSuggestions ? suggestions.filter((_, i) => !applied.includes(i)) : [];
-  const visiblePool = pool.slice(0, MAX_CHIPS);
-  // Map visible pool back to original index
-  const visibleIndices = hasSuggestions ? suggestions.map((_, i) => i).filter((i) => !applied.includes(i)).slice(0, MAX_CHIPS) : [];
+  const appliedIndices = applied.map((a) => a.origIdx);
+  // Pool: unapplied, backfill to MAX_CHIPS
+  const pool = hasSuggestions
+    ? suggestions.map((s, i) => ({ ...s, _i: i })).filter((s) => !appliedIndices.includes(s._i)).slice(0, MAX_CHIPS)
+    : [];
+
+  function syncValue(newApplied) {
+    const allDetails = newApplied.map((a) => a.detail);
+    onApplySuggestion(fieldKey, allDetails.join("；") || "");
+  }
 
   function handleApply(origIndex) {
     const s = suggestions[origIndex];
-    setApplied((prev) => [...prev, origIndex]);
-    onApplySuggestion(fieldKey, value ? `${value}；${s.detail}` : s.detail);
+    const newApplied = [...applied, { origIdx: origIndex, detail: s.detail }];
+    setApplied(newApplied);
+    syncValue(newApplied);
     setExpandedChip(null);
+    setTagDraft("");
   }
 
-  function handleUnapply(origIndex) {
-    const s = suggestions[origIndex];
-    setApplied((prev) => prev.filter((i) => i !== origIndex));
-    // Remove this suggestion's detail from value
-    const parts = (value || "").split("；").filter((p) => p.trim() !== s.detail.trim());
-    onApplySuggestion(fieldKey, parts.join("；") || null);
-    setExpandedChip(null);
+  function handleRemoveTag(origIndex) {
+    const newApplied = applied.filter((a) => a.origIdx !== origIndex);
+    setApplied(newApplied);
+    syncValue(newApplied);
+    if (editingTag === origIndex) setEditingTag(null);
   }
 
-  // Editing mode — free text + AI chips
+  function handleSaveTagEdit(origIndex) {
+    const newApplied = applied.map((a) => a.origIdx === origIndex ? { ...a, detail: tagDraft } : a);
+    setApplied(newApplied);
+    syncValue(newApplied);
+    setEditingTag(null);
+  }
+
+  // ── Editing mode (free text) ──
   if (editing) {
-    const editPool = hasSuggestions ? suggestions.filter((s) => !draft.includes(s.detail)) : [];
+    const editPool = hasSuggestions ? suggestions.filter((s) => !draft.includes(s.detail)).slice(0, MAX_CHIPS) : [];
     return (
       <Box sx={{ py: 0.5, borderBottom: "0.5px solid #f0f0f0" }}>
         <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "#999", mb: 0.3 }}>{label}</Typography>
-        <TextField
-          fullWidth multiline size="small" value={draft}
+        <TextField fullWidth multiline size="small" value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          sx={{ "& .MuiOutlinedInput-root": { fontSize: TYPE.body.fontSize } }}
-        />
+          sx={{ "& .MuiOutlinedInput-root": { fontSize: TYPE.body.fontSize } }} />
         {editPool.length > 0 && (
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.5 }}>
-            {editPool.slice(0, MAX_CHIPS).map((s, i) => (
+            {editPool.map((s, i) => (
               <Box key={i} onClick={() => setDraft((prev) => prev ? `${prev}；${s.detail}` : s.detail)}
                 sx={{ px: 1, py: 0.3, borderRadius: "4px", fontSize: TYPE.caption.fontSize,
                   border: "1px solid #E5E5E5", bgcolor: "#fff", color: "#666",
@@ -145,48 +160,85 @@ function FieldCard({ fieldKey, value, editing, suggestions, onStartEdit, onSave,
     );
   }
 
-  // Read-only mode
+  // ── No suggestions ──
+  if (!hasSuggestions) {
+    return (
+      <Box onClick={() => onStartEdit(fieldKey)}
+        sx={{ py: 0.5, borderBottom: "0.5px solid #f0f0f0", cursor: "pointer",
+          display: "flex", alignItems: "baseline", gap: 0.5 }}>
+        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "#999", flexShrink: 0 }}>{label}：</Typography>
+        <Typography sx={{ fontSize: TYPE.body.fontSize, color: value ? "#1A1A1A" : "#ccc", flex: 1, lineHeight: 1.6 }}>
+          {value || "—"}
+        </Typography>
+      </Box>
+    );
+  }
+
+  // ── Has suggestions ──
   return (
     <Box sx={{ py: 0.5, borderBottom: "0.5px solid #f0f0f0" }}>
-      {/* Label + value */}
-      <Box onClick={() => onStartEdit(fieldKey)}
-        sx={{ display: "flex", alignItems: "baseline", gap: 0.5, cursor: "pointer" }}>
+      {/* Label row */}
+      <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.5 }}>
         <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "#999", flexShrink: 0 }}>{label}：</Typography>
-        {value ? (
-          <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#1A1A1A", flex: 1, lineHeight: 1.6 }}>{value}</Typography>
-        ) : hasSuggestions ? (
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#F59E0B", fontWeight: 600 }}>AI建议</Typography>
-        ) : (
-          <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#ccc", flex: 1 }}>—</Typography>
+        {applied.length === 0 && !value && (
+          <Typography onClick={() => setChipsOpen(!chipsOpen)}
+            sx={{ fontSize: TYPE.caption.fontSize, color: "#F59E0B", fontWeight: 600, cursor: "pointer" }}>
+            AI建议 ({suggestions.length}) {chipsOpen ? "▾" : "▸"}
+          </Typography>
+        )}
+        {applied.length === 0 && value && (
+          <Typography onClick={() => onStartEdit(fieldKey)}
+            sx={{ fontSize: TYPE.body.fontSize, color: "#1A1A1A", flex: 1, lineHeight: 1.6, cursor: "pointer" }}>{value}</Typography>
         )}
       </Box>
 
-      {/* Applied chips — click to unapply */}
+      {/* Applied tags — tap to edit, × to remove */}
       {applied.length > 0 && (
-        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.3 }}>
-          {applied.map((origIdx) => (
-            <Box key={origIdx} onClick={() => handleUnapply(origIdx)}
-              sx={{ px: 1, py: 0.3, borderRadius: "4px", fontSize: TYPE.caption.fontSize,
-                border: `1px solid ${COLOR.success}`, bgcolor: COLOR.successLight, color: COLOR.success,
-                cursor: "pointer", "&:active": { opacity: 0.7 } }}>
-              {suggestions[origIdx].brief} ×
+        <Box sx={{ mt: 0.3, p: 0.5, bgcolor: "#fafafa", borderRadius: "4px", border: "1px solid #f0f0f0" }}>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+            {applied.map((a) => (
+              <Box key={a.origIdx}
+                onClick={() => {
+                  if (editingTag === a.origIdx) { setEditingTag(null); }
+                  else { setEditingTag(a.origIdx); setTagDraft(a.detail); }
+                }}
+                sx={{ display: "inline-flex", alignItems: "center", gap: 0.3,
+                  px: 0.8, py: 0.3, borderRadius: "4px", fontSize: TYPE.caption.fontSize,
+                  bgcolor: editingTag === a.origIdx ? COLOR.success : COLOR.successLight,
+                  color: editingTag === a.origIdx ? "#fff" : COLOR.success,
+                  cursor: "pointer", "&:active": { opacity: 0.7 } }}>
+                {suggestions[a.origIdx].brief}
+                <Box component="span" onClick={(e) => { e.stopPropagation(); handleRemoveTag(a.origIdx); }}
+                  sx={{ fontSize: 11, lineHeight: 1, ml: 0.3, opacity: 0.7 }}>×</Box>
+              </Box>
+            ))}
+          </Box>
+          {/* Inline edit for selected tag */}
+          {editingTag != null && (
+            <Box sx={{ mt: 0.5 }}>
+              <TextField fullWidth multiline size="small" value={tagDraft}
+                onChange={(e) => setTagDraft(e.target.value)}
+                sx={{ "& .MuiOutlinedInput-root": { fontSize: TYPE.body.fontSize } }} />
+              <Stack direction="row" spacing={1} sx={{ mt: 0.3 }}>
+                <BarButton onClick={() => handleSaveTagEdit(editingTag)}>保存</BarButton>
+                <BarButton onClick={() => setEditingTag(null)} color="#999">取消</BarButton>
+              </Stack>
             </Box>
-          ))}
+          )}
         </Box>
       )}
 
-      {/* Unapplied chips — click to expand */}
-      {visiblePool.length > 0 && (
+      {/* Chip pool — backfills to MAX_CHIPS */}
+      {(chipsOpen || applied.length > 0) && pool.length > 0 && (
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.3 }}>
-          {visiblePool.map((s, vi) => {
-            const origIdx = visibleIndices[vi];
-            const isExpanded = expandedChip === origIdx;
+          {pool.map((s) => {
+            const isExp = expandedChip === s._i;
             return (
-              <Box key={origIdx} onClick={() => setExpandedChip(isExpanded ? null : origIdx)}
+              <Box key={s._i} onClick={() => setExpandedChip(isExp ? null : s._i)}
                 sx={{ px: 1, py: 0.3, borderRadius: "4px", fontSize: TYPE.caption.fontSize,
-                  border: isExpanded ? `1px solid ${COLOR.success}` : "1px solid #E5E5E5",
-                  bgcolor: isExpanded ? COLOR.successLight : "#fff",
-                  color: isExpanded ? COLOR.success : "#666",
+                  border: isExp ? `1px solid ${COLOR.success}` : "1px solid #E5E5E5",
+                  bgcolor: isExp ? COLOR.successLight : "#fff",
+                  color: isExp ? COLOR.success : "#666",
                   cursor: "pointer", "&:active": { opacity: 0.7 } }}>
                 {s.brief}
               </Box>
@@ -195,15 +247,24 @@ function FieldCard({ fieldKey, value, editing, suggestions, onStartEdit, onSave,
         </Box>
       )}
 
-      {/* Expanded detail */}
+      {/* Expanded detail — editable before adopting */}
       {expandedChip != null && suggestions[expandedChip] && (
-        <Box sx={{ mt: 0.5, p: 1, bgcolor: "#f9f9f9", borderRadius: "4px" }}>
-          <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#333", lineHeight: 1.6 }}>
-            {suggestions[expandedChip].detail}
-          </Typography>
+        <Box sx={{ mt: 0.5, p: 1, bgcolor: "#f9f9f9", borderRadius: "4px", borderLeft: `3px solid ${COLOR.success}` }}>
+          <TextField fullWidth multiline size="small"
+            value={expandedChip != null ? (tagDraft || suggestions[expandedChip].detail) : ""}
+            onChange={(e) => setTagDraft(e.target.value)}
+            onFocus={() => { if (!tagDraft) setTagDraft(suggestions[expandedChip].detail); }}
+            sx={{ "& .MuiOutlinedInput-root": { fontSize: TYPE.body.fontSize }, bgcolor: "#fff" }} />
           <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
-            <BarButton onClick={() => handleApply(expandedChip)}>采纳</BarButton>
-            <BarButton onClick={() => setExpandedChip(null)} color="#999">关闭</BarButton>
+            <BarButton onClick={() => {
+              const detail = tagDraft || suggestions[expandedChip].detail;
+              const newApplied = [...applied, { origIdx: expandedChip, detail }];
+              setApplied(newApplied);
+              syncValue(newApplied);
+              setExpandedChip(null);
+              setTagDraft("");
+            }}>采纳</BarButton>
+            <BarButton onClick={() => { setExpandedChip(null); setTagDraft(""); }} color="#999">关闭</BarButton>
           </Stack>
         </Box>
       )}
@@ -279,9 +340,23 @@ export default function ReviewDetail({ queueId, doctorId, onBack, onConfirmed, i
       .finally(() => setDiagnosisLoading(false));
   }, [detail?.record?.id, doctorId]);
 
+  async function handleDiagnosisDecide(type, index, decision) {
+    if (!diagnosis?.id) return;
+    try {
+      await decideDiagnosisItem(diagnosis.id, doctorId, type, index, decision);
+      // Reload diagnosis to get updated doctor_decisions
+      const updated = await getDiagnosis(detail.record.id, doctorId);
+      setDiagnosis(updated);
+    } catch (e) { setError(e.message || "操作失败"); }
+  }
+
   async function handleConfirm() {
     setConfirming(true);
     try {
+      // Confirm diagnosis first (if exists) to compute agreement_score
+      if (diagnosis?.id && diagnosis?.status !== "confirmed") {
+        try { await confirmDiagnosis(diagnosis.id, doctorId); } catch {}
+      }
       await confirmReview(queueId, doctorId);
       onConfirmed?.();
       onBack();
@@ -303,13 +378,15 @@ export default function ReviewDetail({ queueId, doctorId, onBack, onConfirmed, i
   }
 
   // Apply suggestion chip → save to backend immediately
-  async function handleApplySuggestion(field, value) {
+  async function handleApplySuggestion(field, newValue) {
+    // Optimistic update — show immediately
+    setDetail((prev) => {
+      const structured = { ...(prev?.record?.structured || {}), [field]: newValue };
+      return { ...prev, record: { ...prev.record, structured } };
+    });
+    // Persist to backend
     try {
-      const result = await updateReviewField(queueId, doctorId, field, value);
-      setDetail((prev) => ({
-        ...prev,
-        record: { ...prev.record, structured: result.structured },
-      }));
+      await updateReviewField(queueId, doctorId, field, newValue || "");
     } catch (e) { setError(e.message || "保存失败"); }
   }
 
@@ -378,11 +455,19 @@ export default function ReviewDetail({ queueId, doctorId, onBack, onConfirmed, i
           ))}
         </Box>
 
-        {/* Diagnosis loading indicator */}
+        {/* AI Diagnosis — confirm/reject each item */}
         {diagnosisLoading && (
           <Box sx={{ textAlign: "center", py: 1 }}>
             <CircularProgress size={16} sx={{ color: "#07C160" }} />
             <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#999", mt: 0.3 }}>AI诊断分析中...</Typography>
+          </Box>
+        )}
+        {diagnosis && diagnosis.ai_output && !diagnosisLoading && (
+          <Box sx={{ mb: 1 }}>
+            <DiagnosisSection
+              diagnosis={diagnosis}
+              onDecide={handleDiagnosisDecide}
+            />
           </Box>
         )}
 
