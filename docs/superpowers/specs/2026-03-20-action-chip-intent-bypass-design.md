@@ -1,4 +1,4 @@
-# Action Chip & Intent Bypass Design
+# Action Chip & Intent Bypass Design ✅ DONE
 
 > **Status: ✅ DONE** — spec implemented and shipped.
 

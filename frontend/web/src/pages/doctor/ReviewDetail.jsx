@@ -85,18 +85,38 @@ function buildSuggestions(diagnosis) {
 
 function FieldCard({ fieldKey, value, editing, suggestions, onStartEdit, onSave, onCancel, onApplySuggestion }) {
   const [draft, setDraft] = useState(value || "");
-  const [expandedChip, setExpandedChip] = useState(null); // index of expanded suggestion
+  const [applied, setApplied] = useState([]); // indices of applied suggestions
+  const [expandedChip, setExpandedChip] = useState(null);
   const label = STRUCTURED_FIELD_LABELS[fieldKey] || fieldKey;
 
-  useEffect(() => { setDraft(value || ""); }, [value]);
+  useEffect(() => { setDraft(value || ""); setApplied([]); }, [value]);
 
   const hasSuggestions = suggestions && suggestions.length > 0;
-  // suggestions are now { brief, detail } objects
-  const unselected = hasSuggestions ? suggestions.filter((s) => !value?.includes(s.detail)) : [];
-  const visibleUnselected = unselected.slice(0, MAX_CHIPS);
+  // Pool = suggestions not yet applied (by index)
+  const pool = hasSuggestions ? suggestions.filter((_, i) => !applied.includes(i)) : [];
+  const visiblePool = pool.slice(0, MAX_CHIPS);
+  // Map visible pool back to original index
+  const visibleIndices = hasSuggestions ? suggestions.map((_, i) => i).filter((i) => !applied.includes(i)).slice(0, MAX_CHIPS) : [];
+
+  function handleApply(origIndex) {
+    const s = suggestions[origIndex];
+    setApplied((prev) => [...prev, origIndex]);
+    onApplySuggestion(fieldKey, value ? `${value}；${s.detail}` : s.detail);
+    setExpandedChip(null);
+  }
+
+  function handleUnapply(origIndex) {
+    const s = suggestions[origIndex];
+    setApplied((prev) => prev.filter((i) => i !== origIndex));
+    // Remove this suggestion's detail from value
+    const parts = (value || "").split("；").filter((p) => p.trim() !== s.detail.trim());
+    onApplySuggestion(fieldKey, parts.join("；") || null);
+    setExpandedChip(null);
+  }
 
   // Editing mode — free text + AI chips
   if (editing) {
+    const editPool = hasSuggestions ? suggestions.filter((s) => !draft.includes(s.detail)) : [];
     return (
       <Box sx={{ py: 0.5, borderBottom: "0.5px solid #f0f0f0" }}>
         <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "#999", mb: 0.3 }}>{label}</Typography>
@@ -105,9 +125,9 @@ function FieldCard({ fieldKey, value, editing, suggestions, onStartEdit, onSave,
           onChange={(e) => setDraft(e.target.value)}
           sx={{ "& .MuiOutlinedInput-root": { fontSize: TYPE.body.fontSize } }}
         />
-        {visibleUnselected.length > 0 && (
+        {editPool.length > 0 && (
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.5 }}>
-            {visibleUnselected.map((s, i) => (
+            {editPool.slice(0, MAX_CHIPS).map((s, i) => (
               <Box key={i} onClick={() => setDraft((prev) => prev ? `${prev}；${s.detail}` : s.detail)}
                 sx={{ px: 1, py: 0.3, borderRadius: "4px", fontSize: TYPE.caption.fontSize,
                   border: "1px solid #E5E5E5", bgcolor: "#fff", color: "#666",
@@ -125,7 +145,7 @@ function FieldCard({ fieldKey, value, editing, suggestions, onStartEdit, onSave,
     );
   }
 
-  // Read-only mode — with expandable AI suggestions
+  // Read-only mode
   return (
     <Box sx={{ py: 0.5, borderBottom: "0.5px solid #f0f0f0" }}>
       {/* Label + value */}
@@ -141,33 +161,48 @@ function FieldCard({ fieldKey, value, editing, suggestions, onStartEdit, onSave,
         )}
       </Box>
 
-      {/* AI suggestion chips — brief labels */}
-      {hasSuggestions && visibleUnselected.length > 0 && (
+      {/* Applied chips — click to unapply */}
+      {applied.length > 0 && (
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.3 }}>
-          {visibleUnselected.map((s, i) => (
-            <Box key={i} onClick={() => setExpandedChip(expandedChip === i ? null : i)}
+          {applied.map((origIdx) => (
+            <Box key={origIdx} onClick={() => handleUnapply(origIdx)}
               sx={{ px: 1, py: 0.3, borderRadius: "4px", fontSize: TYPE.caption.fontSize,
-                border: expandedChip === i ? `1px solid ${COLOR.success}` : "1px solid #E5E5E5",
-                bgcolor: expandedChip === i ? COLOR.successLight : "#fff",
-                color: expandedChip === i ? COLOR.success : "#666",
+                border: `1px solid ${COLOR.success}`, bgcolor: COLOR.successLight, color: COLOR.success,
                 cursor: "pointer", "&:active": { opacity: 0.7 } }}>
-              {s.brief}
+              {suggestions[origIdx].brief} ×
             </Box>
           ))}
         </Box>
       )}
 
-      {/* Expanded detail + apply/cancel */}
-      {expandedChip != null && visibleUnselected[expandedChip] && (
+      {/* Unapplied chips — click to expand */}
+      {visiblePool.length > 0 && (
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.3 }}>
+          {visiblePool.map((s, vi) => {
+            const origIdx = visibleIndices[vi];
+            const isExpanded = expandedChip === origIdx;
+            return (
+              <Box key={origIdx} onClick={() => setExpandedChip(isExpanded ? null : origIdx)}
+                sx={{ px: 1, py: 0.3, borderRadius: "4px", fontSize: TYPE.caption.fontSize,
+                  border: isExpanded ? `1px solid ${COLOR.success}` : "1px solid #E5E5E5",
+                  bgcolor: isExpanded ? COLOR.successLight : "#fff",
+                  color: isExpanded ? COLOR.success : "#666",
+                  cursor: "pointer", "&:active": { opacity: 0.7 } }}>
+                {s.brief}
+              </Box>
+            );
+          })}
+        </Box>
+      )}
+
+      {/* Expanded detail */}
+      {expandedChip != null && suggestions[expandedChip] && (
         <Box sx={{ mt: 0.5, p: 1, bgcolor: "#f9f9f9", borderRadius: "4px" }}>
           <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#333", lineHeight: 1.6 }}>
-            {visibleUnselected[expandedChip].detail}
+            {suggestions[expandedChip].detail}
           </Typography>
           <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
-            <BarButton onClick={() => {
-              onApplySuggestion(fieldKey, value ? `${value}；${visibleUnselected[expandedChip].detail}` : visibleUnselected[expandedChip].detail);
-              setExpandedChip(null);
-            }}>采纳</BarButton>
+            <BarButton onClick={() => handleApply(expandedChip)}>采纳</BarButton>
             <BarButton onClick={() => setExpandedChip(null)} color="#999">关闭</BarButton>
           </Stack>
         </Box>

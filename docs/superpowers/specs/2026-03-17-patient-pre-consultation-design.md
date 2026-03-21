@@ -1,4 +1,4 @@
-# Patient Pre-Consultation Interview — Design Spec
+# Patient Pre-Consultation Interview — Design Spec ✅ DONE
 
 > Date: 2026-03-17
 > Status: Draft

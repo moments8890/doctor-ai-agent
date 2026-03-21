@@ -1,4 +1,4 @@
-# WeChat Mini App — Thin WebView Shell Design
+# WeChat Mini App — Thin WebView Shell Design ✅ DONE
 
 > **Status: ✅ DONE** — spec implemented and shipped.
 

@@ -12,7 +12,8 @@
       "Grep",
       "mcp__plugin_playwright_playwright__browser_navigate",
       "mcp__plugin_playwright_playwright__browser_install",
-      "Skill(qa)"
+      "Skill(qa)",
+      "Skill(browse)"
     ]
   }
 }

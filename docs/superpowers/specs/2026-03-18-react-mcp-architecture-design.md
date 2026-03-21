@@ -1,4 +1,4 @@
-# ReAct Agent Architecture Design (LangChain)
+# ReAct Agent Architecture Design (LangChain) ✅ DONE
 
 > **Status: ✅ DONE** — spec implemented and shipped.
 

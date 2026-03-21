@@ -1,4 +1,4 @@
-# Structured Medical Record Fields
+# Structured Medical Record Fields ✅ DONE
 
 > **Status: ✅ DONE** — spec implemented and shipped.
 

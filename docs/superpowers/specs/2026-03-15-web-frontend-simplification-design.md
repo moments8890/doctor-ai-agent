@@ -1,4 +1,4 @@
-# Web Frontend Simplification
+# Web Frontend Simplification ✅ DONE
 
 > **Status: ✅ DONE** — spec implemented and shipped.
 

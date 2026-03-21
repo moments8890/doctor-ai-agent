@@ -1,4 +1,4 @@
-# cli.py — Unified Entry Point
+# cli.py — Unified Entry Point ✅ DONE
 
 > **Status: ✅ DONE** — spec implemented and shipped.
 

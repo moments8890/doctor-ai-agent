@@ -1,4 +1,4 @@
-# Doctor Interview Mode — Unified Record Collection (v3)
+# Doctor Interview Mode — Unified Record Collection (v3) ✅ DONE
 
 > **Status: ✅ DONE** — spec implemented and shipped.
 
