@@ -2,41 +2,47 @@
 
 Captured after: P1.5 doctor training surfaces, UI restructure, design system (TYPE/ICON tokens), URL-based routing.
 
+Each file is a full HTML snapshot of the rendered page. Open in a browser to view.
+
 ## Doctor (Mobile 375x812)
 
-| Page | Screenshot |
-|---|---|
-| 首页 (Home/Briefing) | ![](doctor-home-mobile.png) |
-| 患者 (Patients) | ![](doctor-patients-mobile.png) |
-| 任务 (Tasks) | ![](doctor-tasks-mobile.png) |
-| 设置 (Settings) | ![](doctor-settings-mobile.png) |
-| 知识库 (Knowledge Base) | ![](doctor-knowledge-mobile.png) |
+| Page | Route | File |
+|---|---|---|
+| 首页 (Briefing) | `/doctor` | [doctor-home.html](doctor-home.html) |
+| AI 助手 (Chat) | `/doctor/chat` | [doctor-chat.html](doctor-chat.html) |
+| 患者列表 | `/doctor/patients` | [doctor-patients.html](doctor-patients.html) |
+| 患者详情 | `/doctor/patients/12` | [doctor-patient-detail.html](doctor-patient-detail.html) |
+| 任务 | `/doctor/tasks` | [doctor-tasks.html](doctor-tasks.html) |
+| 设置 | `/doctor/settings` | [doctor-settings.html](doctor-settings.html) |
+| 报告模板 | `/doctor/settings/template` | [doctor-settings-template.html](doctor-settings-template.html) |
+| 知识库 | `/doctor/settings/knowledge` | [doctor-settings-knowledge.html](doctor-settings-knowledge.html) |
+| 关于 | `/doctor/settings/about` | [doctor-settings-about.html](doctor-settings-about.html) |
 
 ## Doctor (Desktop 1280x720)
 
-| Page | Screenshot |
-|---|---|
-| 首页 (Home/Briefing) | ![](doctor-home-desktop.png) |
-| 患者 (Patients) | ![](doctor-patients-desktop.png) |
-| 任务 (Tasks) | ![](doctor-tasks-desktop.png) |
-| 设置 (Settings) | ![](doctor-settings-desktop.png) |
-| 知识库 (Knowledge Base) | ![](doctor-knowledge-desktop.png) |
+| Page | Route | File |
+|---|---|---|
+| 首页 | `/doctor` | [doctor-home-desktop.html](doctor-home-desktop.html) |
+| 患者 | `/doctor/patients` | [doctor-patients-desktop.html](doctor-patients-desktop.html) |
+| 任务 | `/doctor/tasks` | [doctor-tasks-desktop.html](doctor-tasks-desktop.html) |
+| 设置 | `/doctor/settings` | [doctor-settings-desktop.html](doctor-settings-desktop.html) |
+| 知识库 | `/doctor/settings/knowledge` | [doctor-knowledge-desktop.html](doctor-knowledge-desktop.html) |
 
 ## Patient (Mobile 375x812)
 
-| Page | Screenshot |
-|---|---|
-| 主页 (Home + Quick Actions) | ![](patient-home-mobile.png) |
-| 病历 (Records) | ![](patient-records-mobile.png) |
-| 任务 (Tasks) | ![](patient-tasks-mobile.png) |
-| 设置 (Settings/Profile) | ![](patient-settings-mobile.png) |
+| Page | Route | File |
+|---|---|---|
+| 主页 (Chat + Quick Actions) | `/patient/chat` | [patient-home.html](patient-home.html) |
+| 病历 | `/patient/records` | [patient-records.html](patient-records.html) |
+| 任务 | `/patient/tasks` | [patient-tasks.html](patient-tasks.html) |
+| 设置 | `/patient/profile` | [patient-settings.html](patient-settings.html) |
 
 ## Login
 
-| View | Screenshot |
-|---|---|
-| Mobile | ![](login-mobile.png) |
-| Desktop | ![](login-desktop.png) |
+| View | Route | File |
+|---|---|---|
+| Mobile | `/login` | [login.html](login.html) |
+| Desktop | `/login` | [login-desktop.html](login-desktop.html) |
 
 ## What's in this build
 
@@ -48,3 +54,4 @@ Captured after: P1.5 doctor training surfaces, UI restructure, design system (TY
 - ListCard pattern across all list views
 - PageSkeleton layout (desktop 3-column, mobile fullscreen)
 - SubpageHeader for drill-down navigation
+- DiagnosisSection with per-item confirm/reject in review flow
