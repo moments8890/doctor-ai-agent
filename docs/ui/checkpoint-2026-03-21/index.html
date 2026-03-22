@@ -163,14 +163,27 @@ function injectClickHandlers(pageKey) {
   try {
     const doc = iframe.contentDocument || iframe.contentWindow.document;
 
-    // Hide the iframe's own bottom nav (we use the overlay nav)
+    // Hide the iframe's own bottom nav + its wrapper (we use the overlay nav)
     const style = doc.createElement('style');
     style.textContent = `
-      .MuiBottomNavigation-root, [class*="BottomNavigation"],
-      [style*="position: fixed"][style*="bottom: 0"] { display: none !important; }
-      body { padding-bottom: 0 !important; }
+      .MuiBottomNavigation-root,
+      [class*="BottomNavigation"],
+      [class*="MuiBottomNavigation"] { display: none !important; }
     `;
     doc.head.appendChild(style);
+    // Also hide any fixed-bottom wrapper divs
+    doc.querySelectorAll('div').forEach(el => {
+      const cs = el.computedStyleMap ? null : getComputedStyle(el);
+      const st = el.style;
+      if ((st.position === 'fixed' || (cs && cs.position === 'fixed')) &&
+          (st.bottom === '0' || st.bottom === '0px' || (cs && cs.bottom === '0px'))) {
+        el.style.display = 'none';
+      }
+    });
+    // Remove padding-bottom on main content containers
+    doc.querySelectorAll('[style*="padding-bottom"]').forEach(el => {
+      el.style.paddingBottom = '0';
+    });
 
     const clickMap = getClickMap(pageKey);
 
