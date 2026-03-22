@@ -391,7 +391,7 @@ function ChatTab({ token, doctorName, onLogout, onNewInterview, onViewRecords })
         sx={{ display: "flex", gap: 1, px: 2, py: 1.5, bgcolor: "#f5f5f5", borderTop: "1px solid #ddd", flexShrink: 0 }}>
         <TextField value={input} onChange={e => setInput(e.target.value)} placeholder="请输入…"
           fullWidth size="small" sx={{ bgcolor: "#fff", borderRadius: 1 }} autoFocus />
-        <IconButton type="submit" disabled={!input.trim() || sending} sx={{ color: "#07C160" }}><SendIcon /></IconButton>
+        <IconButton type="submit" disabled={!input.trim() || sending} sx={{ color: "#07C160" }} aria-label="发送"><SendIcon /></IconButton>
       </Box>
     </Box>
   );
@@ -467,7 +467,7 @@ function RecordDetailView({ record, token, onBack }) {
                 fallbackColor={COLOR.text4}
               />
             </Box>
-            {diagStatus === "confirmed" && detail?.structured?.diagnosis && (
+            {(diagStatus === "confirmed" || diagStatus === "completed") && detail?.structured?.diagnosis && (
               <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text2, mt: 0.5 }}>
                 {detail.structured.diagnosis}
               </Typography>
