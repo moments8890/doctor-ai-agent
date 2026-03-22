@@ -85,7 +85,7 @@ export default function BriefingSection({ doctorId, onNavigateToChat }) {
                 </Typography>
               </Box>
               {card.items.slice(0, 3).map((item, j) => (
-                <Box key={j} onClick={() => navigate("/doctor/tasks")}
+                <Box key={j} onClick={() => navigate(`/doctor/tasks/review/${item.queue_id}`)}
                   sx={{ display: "flex", alignItems: "center", px: 1.5, py: 1,
                     borderTop: "0.5px solid #f0f0f0", cursor: "pointer",
                     "&:active": { bgcolor: "#f9f9f9" } }}>
