@@ -7,7 +7,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 from typing import Optional
-from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, String, DateTime, Text, UniqueConstraint, text
+from sqlalchemy import CheckConstraint, Column, ForeignKey, Index, Integer, String, DateTime, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 from db.engine import Base
 from db.models.base import _utcnow
@@ -45,6 +45,11 @@ class DoctorTask(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=True)
 
+    # --- P5 (ADR 0020): patient-facing task support ---
+    target: Mapped[str] = mapped_column(String(16), nullable=False, server_default="doctor")
+    source_type: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    source_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
     __table_args__ = (
         CheckConstraint("status IN ('pending','notified','completed','cancelled')", name="ck_doctor_tasks_status"),
         CheckConstraint(
@@ -52,9 +57,15 @@ class DoctorTask(Base):
             "'lab_review','referral','imaging','medication')",
             name="ck_doctor_tasks_task_type",
         ),
+        CheckConstraint("target IN ('doctor','patient')", name="ck_doctor_tasks_target"),
+        CheckConstraint(
+            "source_type IS NULL OR source_type IN ('manual','rule','diagnosis_auto')",
+            name="ck_doctor_tasks_source_type",
+        ),
         Index("ix_tasks_doctor_status_due", "doctor_id", "status", "due_at"),
         Index("ix_tasks_status_due", "status", "due_at"),  # scheduler: list_due_unnotified queries across all doctors
         Index("ix_tasks_status_task_type_due", "status", "task_type", "due_at"),
+        Index("ix_tasks_target_patient_status", "target", "patient_id", "status"),
         # Prevent duplicate pending auto-tasks for the same record+type.
         # record_id is nullable, so this only constrains record-linked tasks.
         Index(
