@@ -445,13 +445,24 @@ function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
   );
 }
 
-function KnowledgeSubpage({ doctorId, onBack, isMobile }) {
+function KnowledgeSubpage({ doctorId, onBack, isMobile, urlSubId }) {
+  const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [expandedCat, setExpandedCat] = useState(null);
-  const [subpage, setSubpage] = useState(null);
+  // URL-driven subpage: "add" or knowledgeItem detail
+  const [detailItem, setDetailItem] = useState(null);
+  const subpage = urlSubId === "add" ? "add" : (urlSubId && urlSubId !== "add" ? "detail" : null);
+
+  // Sync URL detail ID → detailItem from loaded items
+  useEffect(() => {
+    if (urlSubId && urlSubId !== "add" && items.length > 0 && !detailItem) {
+      const found = items.find(i => String(i.id) === urlSubId);
+      if (found) setDetailItem(found);
+    }
+  }, [urlSubId, items, detailItem]);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -485,7 +496,7 @@ function KnowledgeSubpage({ doctorId, onBack, isMobile }) {
       await deleteKnowledgeItem(doctorId, itemId);
       setItems((prev) => prev.filter((i) => i.id !== itemId));
       // If deleting from detail view, go back to list
-      if (subpage?.knowledgeItem?.id === itemId) setSubpage(null);
+      if (detailItem?.id === itemId) { setDetailItem(null); navigate("/doctor/settings/knowledge"); }
     } catch (e) {
       setError(e.message || "删除失败");
     }
@@ -510,16 +521,16 @@ function KnowledgeSubpage({ doctorId, onBack, isMobile }) {
     );
   }
 
-  // Subpage routing
+  // Subpage routing (URL-driven)
   if (subpage === "add") {
-    return <AddKnowledgeSubpage doctorId={doctorId} onBack={() => { setSubpage(null); load(); }} isMobile={isMobile} />;
+    return <AddKnowledgeSubpage doctorId={doctorId} onBack={() => { navigate("/doctor/settings/knowledge"); load(); }} isMobile={isMobile} />;
   }
-  if (subpage && subpage.knowledgeItem) {
-    const ki = subpage.knowledgeItem;
+  if (subpage === "detail" && detailItem) {
+    const ki = detailItem;
     const catLabel = KNOWLEDGE_CATEGORIES.find((c) => c.key === ki.category)?.label || "自定义";
     return (
       <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
-        <SubpageHeader title="知识详情" onBack={isMobile ? () => setSubpage(null) : undefined}
+        <SubpageHeader title="知识详情" onBack={isMobile ? () => navigate("/doctor/settings/knowledge") : undefined}
           right={<BarButton onClick={() => setDeleteConfirm(ki.id)} color="#FA5151">删除</BarButton>}
         />
         <Box sx={{ flex: 1, overflowY: "auto" }}>
@@ -556,7 +567,7 @@ function KnowledgeSubpage({ doctorId, onBack, isMobile }) {
         title="知识库"
         onBack={isMobile ? onBack : undefined}
         right={
-          <BarButton onClick={() => setSubpage("add")}>添加</BarButton>
+          <BarButton onClick={() => navigate("/doctor/settings/knowledge/add")}>添加</BarButton>
         }
       />
       <Box sx={{ flex: 1, overflowY: "auto" }}>
@@ -613,7 +624,7 @@ function KnowledgeSubpage({ doctorId, onBack, isMobile }) {
                         key={item.id}
                         role="button"
                         tabIndex={0}
-                        onClick={() => setSubpage({ knowledgeItem: item })}
+                        onClick={() => { setDetailItem(item); navigate(`/doctor/settings/knowledge/${item.id}`); }}
                         sx={{
                           display: "flex", alignItems: "center", px: 2, py: 1.2, pl: 3,
                           borderTop: "0.5px solid #f0f0f0",
@@ -829,7 +840,7 @@ export default function SettingsSection({ doctorId, onLogout, urlSubpage, urlSub
   const mobileSubpage = isMobile && subpage === "template" ? (
     <TemplateSubpage doctorId={doctorId} onBack={goBack} isMobile />
   ) : isMobile && subpage === "knowledge" ? (
-    <KnowledgeSubpage doctorId={doctorId} onBack={goBack} isMobile />
+    <KnowledgeSubpage doctorId={doctorId} onBack={goBack} isMobile urlSubId={urlSubId} />
   ) : isMobile && subpage === "about" ? (
     <AboutSubpage onBack={goBack} isMobile />
   ) : null;
