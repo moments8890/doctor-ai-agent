@@ -121,35 +121,52 @@ async def post_chat(
 
     doctor_id = patient.doctor_id
 
-    async with AsyncSessionLocal() as db:
-        # Step 1: Load patient context for LLM prompts.
-        patient_context = await load_patient_context(patient.id, doctor_id, db)
+    try:
+        async with AsyncSessionLocal() as db:
+            # Step 1: Load patient context for LLM prompts.
+            patient_context = await load_patient_context(patient.id, doctor_id, db)
 
-        # Step 2: Classify the message.
-        triage_result = await classify(text, patient_context)
-        category = triage_result.category
+            # Step 2: Classify the message.
+            triage_result = await classify(text, patient_context)
+            category = triage_result.category
 
-        # Step 3: Route to the appropriate handler.
-        if category == TriageCategory.informational:
-            reply = await handle_informational(
-                text, patient_context, db, patient.id, doctor_id,
+            # Step 3: Route to the appropriate handler.
+            if category == TriageCategory.informational:
+                reply = await handle_informational(
+                    text, patient_context, db, patient.id, doctor_id,
+                )
+            elif category == TriageCategory.urgent:
+                reply = await handle_urgent(
+                    text, patient_context, db, patient.id, doctor_id,
+                )
+            else:
+                # symptom_report, side_effect, general_question → escalation
+                reply = await handle_escalation(
+                    text, patient_context, category.value, db, patient.id, doctor_id,
+                )
+
+        ai_handled = category in _AI_HANDLED_CATEGORIES
+
+        logger.info(
+            "[PatientChat] triage complete | patient_id=%s category=%s ai_handled=%s confidence=%.2f",
+            patient.id, category.value, ai_handled, triage_result.confidence,
+        )
+
+    except Exception:
+        # Graceful degradation: if triage LLM fails, fall back to simple
+        # message persistence (same as old /api/patient/message behavior).
+        logger.exception("[PatientChat] triage failed, falling back to simple message | patient_id=%s", patient.id)
+        from db.crud.patient_message import save_patient_message
+        async with AsyncSessionLocal() as db:
+            await save_patient_message(
+                db, patient_id=patient.id, doctor_id=doctor_id,
+                content=text, direction="inbound", source="patient",
             )
-        elif category == TriageCategory.urgent:
-            reply = await handle_urgent(
-                text, patient_context, db, patient.id, doctor_id,
-            )
-        else:
-            # symptom_report, side_effect, general_question → escalation
-            reply = await handle_escalation(
-                text, patient_context, category.value, db, patient.id, doctor_id,
-            )
+            await db.commit()
+        reply = "收到您的消息，医生将尽快回复您。"
+        category = TriageCategory.general_question
+        ai_handled = False
 
-    ai_handled = category in _AI_HANDLED_CATEGORIES
-
-    logger.info(
-        "[PatientChat] triage complete | patient_id=%s category=%s ai_handled=%s confidence=%.2f",
-        patient.id, category.value, ai_handled, triage_result.confidence,
-    )
     safe_create_task(audit(
         doctor_id, "WRITE",
         resource_type="patient_chat", resource_id=str(patient.id),
@@ -162,9 +179,10 @@ async def post_chat(
     )
 
 
-@chat_router.get("/chat/messages", response_model=list[ChatMessageOut])
+@chat_router.get("/chat/messages")
 async def get_chat_messages(
     since: Optional[int] = Query(default=None, description="Last message ID for polling"),
+    x_patient_token: Optional[str] = Header(default=None),
     authorization: Optional[str] = Header(default=None),
 ):
     """Poll for chat messages (patient/ai/doctor).
@@ -172,7 +190,7 @@ async def get_chat_messages(
     If *since* is provided, only messages with ``id > since`` are returned
     (long-polling pattern).  Otherwise returns the full conversation.
     """
-    patient = await _authenticate_patient(authorization)
+    patient = await _authenticate_patient(authorization or (f"Bearer {x_patient_token}" if x_patient_token else None))
 
     async with AsyncSessionLocal() as db:
         stmt = (
