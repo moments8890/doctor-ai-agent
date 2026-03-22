@@ -26,24 +26,7 @@
     box-shadow: 0 8px 32px rgba(0,0,0,0.15);
     position: relative;
   }
-  .phone iframe { width: 100%; height: calc(100% - 56px); border: none; display: block; }
-
-  .bottom-nav {
-    position: absolute; bottom: 0; left: 0; right: 0;
-    height: 56px; background: #f7f7f7;
-    border-top: 0.5px solid #d9d9d9;
-    display: flex; z-index: 10;
-  }
-  .nav-item {
-    flex: 1; display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    cursor: pointer; gap: 2px; padding-top: 6px;
-    color: #999; font-size: 10px;
-    user-select: none;
-  }
-  .nav-item:active { opacity: 0.6; }
-  .nav-item.active { color: #07C160; }
-  .nav-item svg { width: 22px; height: 22px; fill: currentColor; }
+  .phone iframe { width: 100%; height: 100%; border: none; display: block; }
 
   .breadcrumb { font-size: 12px; color: #999; margin-top: 8px; font-family: monospace; }
 
@@ -79,8 +62,6 @@
 <div class="phone" id="phone">
   <iframe id="screen" src="doctor-home_raw.html"></iframe>
   <div class="back-btn" id="back-btn" onclick="goBack()"></div>
-  <div class="row-links" id="row-links"></div>
-  <div class="bottom-nav" id="bottom-nav"></div>
 </div>
 
 <div class="breadcrumb" id="breadcrumb">/doctor</div>
@@ -146,8 +127,6 @@ function navigate(pageKey) {
   const backBtn = document.getElementById('back-btn');
   backBtn.className = page.parent ? 'back-btn visible' : 'back-btn';
 
-  renderNav();
-
   // Delay link injection to wait for iframe load
   const iframe = document.getElementById('screen');
   iframe.onload = () => injectClickHandlers(pageKey);
@@ -163,26 +142,33 @@ function injectClickHandlers(pageKey) {
   try {
     const doc = iframe.contentDocument || iframe.contentWindow.document;
 
-    // Hide the iframe's own bottom nav + its wrapper (we use the overlay nav)
-    const style = doc.createElement('style');
-    style.textContent = `
-      .MuiBottomNavigation-root,
-      [class*="BottomNavigation"],
-      [class*="MuiBottomNavigation"] { display: none !important; }
-    `;
-    doc.head.appendChild(style);
-    // Also hide any fixed-bottom wrapper divs
-    doc.querySelectorAll('div').forEach(el => {
-      const cs = el.computedStyleMap ? null : getComputedStyle(el);
-      const st = el.style;
-      if ((st.position === 'fixed' || (cs && cs.position === 'fixed')) &&
-          (st.bottom === '0' || st.bottom === '0px' || (cs && cs.bottom === '0px'))) {
-        el.style.display = 'none';
+    // Intercept clicks on the iframe's own bottom nav buttons
+    doc.querySelectorAll('button').forEach(btn => {
+      const label = btn.querySelector('.MuiBottomNavigationAction-label');
+      if (!label) return;
+      const text = label.textContent.trim();
+      const navTarget = getNavTarget(text);
+      if (navTarget) {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          window.parent.postMessage({ action: 'navigate', target: navTarget }, '*');
+        });
       }
     });
-    // Remove padding-bottom on main content containers
-    doc.querySelectorAll('[style*="padding-bottom"]').forEach(el => {
-      el.style.paddingBottom = '0';
+
+    // Intercept back button clicks (top-left chevron)
+    doc.querySelectorAll('svg').forEach(svg => {
+      if (svg.dataset?.testid?.includes('ChevronLeft') || svg.closest('[class*="SubpageHeader"]')) {
+        const clickable = svg.closest('div[style*="cursor"]') || svg.closest('div');
+        if (clickable) {
+          clickable.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.parent.postMessage({ action: 'back' }, '*');
+          });
+        }
+      }
     });
 
     const clickMap = getClickMap(pageKey);
@@ -231,10 +217,23 @@ function getClickMap(pageKey) {
   return {};
 }
 
+function getNavTarget(label) {
+  if (currentRole === 'doctor') {
+    const map = { '首页': 'home', '患者': 'patients', '任务': 'tasks', '设置': 'settings' };
+    return map[label] || null;
+  } else {
+    const map = { '主页': 'home', '病历': 'records', '任务': 'tasks', '设置': 'settings' };
+    return map[label] || null;
+  }
+}
+
 // Listen for navigation messages from iframe
 window.addEventListener('message', (e) => {
   if (e.data?.action === 'navigate' && e.data.target) {
     navigate(e.data.target);
+  }
+  if (e.data?.action === 'back') {
+    goBack();
   }
 });
 
