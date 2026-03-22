@@ -55,11 +55,15 @@ const DOCTOR_PAGES = {
   chat:               { file: 'doctor-chat_raw.html', route: '/doctor/chat', parent: 'home' },
   patients:           { file: 'doctor-patients_raw.html', route: '/doctor/patients' },
   'patient-detail':   { file: 'doctor-patient-detail_raw.html', route: '/doctor/patients/:id', parent: 'patients' },
+  'patient-new':      { file: 'doctor-patient-new_raw.html', route: '/doctor/patients/new', parent: 'patients' },
   tasks:              { file: 'doctor-tasks_raw.html', route: '/doctor/tasks' },
+  'task-detail':      { file: 'doctor-task-detail_raw.html', route: '/doctor/tasks/task/:id', parent: 'tasks' },
+  'task-new':         { file: 'doctor-task-new_raw.html', route: '/doctor/tasks/new', parent: 'tasks' },
   'review-diagnosis': { file: 'doctor-review-diagnosis_raw.html', route: '/doctor/tasks/review/:id', parent: 'tasks' },
   settings:           { file: 'doctor-settings_raw.html', route: '/doctor/settings' },
   template:           { file: 'doctor-settings-template_raw.html', route: '/doctor/settings/template', parent: 'settings' },
   knowledge:          { file: 'doctor-settings-knowledge_raw.html', route: '/doctor/settings/knowledge', parent: 'settings' },
+  'knowledge-add':    { file: 'doctor-knowledge-add_raw.html', route: '/doctor/settings/knowledge/add', parent: 'knowledge' },
   about:              { file: 'doctor-settings-about_raw.html', route: '/doctor/settings/about', parent: 'settings' },
 };
 
@@ -81,19 +85,26 @@ const DOCTOR_CLICK_RULES = [
   // Home page
   { text: '问 AI', target: 'chat' },
   { text: '审核', target: 'review-diagnosis' },
-  // Patient list → detail
+  // Patient list
+  { text: '新建患者', target: 'patient-new', page: 'patients' },
+  { text: '添加新的患者档案', target: 'patient-new', page: 'patients' },
   { text: '张三', target: 'patient-detail', page: 'patients' },
   { text: '李四', target: 'patient-detail', page: 'patients' },
   { text: '王五', target: 'patient-detail', page: 'patients' },
   { text: 'test_patient', target: 'patient-detail', page: 'patients' },
-  { text: '新建患者', target: 'patient-detail', page: 'patients' },
-  // Task list → review
+  // Task list
+  { text: '新建任务', target: 'task-new', page: 'tasks' },
   { text: '问诊记录', target: 'review-diagnosis', page: 'tasks' },
   { text: '待审核', target: 'review-diagnosis', page: 'tasks' },
+  { text: '随访', target: 'task-detail', page: 'tasks' },
+  { text: 'MRI', target: 'task-detail', page: 'tasks' },
+  { text: '血糖', target: 'task-detail', page: 'tasks' },
   // Settings → subpages
   { text: '报告模板', target: 'template', page: 'settings' },
   { text: '知识库', target: 'knowledge', page: 'settings' },
   { text: '关于', target: 'about', page: 'settings' },
+  // Knowledge → add
+  { text: '添加', target: 'knowledge-add', page: 'knowledge' },
 ];
 
 const PATIENT_CLICK_RULES = [
