@@ -204,6 +204,7 @@ async def send_patient_message(
             doctor_id=doctor_id,
             content=text,
             direction="inbound",
+            source="patient",
         )
 
     logger.info(

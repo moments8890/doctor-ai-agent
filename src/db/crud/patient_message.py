@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from typing import List
+from typing import List, Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,13 +18,21 @@ async def save_patient_message(
     doctor_id: str,
     content: str,
     direction: str = "inbound",
+    source: Optional[str] = None,
 ) -> PatientMessage:
-    """Persist a patient portal message and return the created row."""
+    """Persist a patient portal message and return the created row.
+
+    If *source* is not explicitly supplied, it is inferred from *direction*:
+    ``inbound`` → ``patient``, ``outbound`` → ``ai``.
+    """
+    if source is None:
+        source = "patient" if direction == "inbound" else "ai"
     msg = PatientMessage(
         patient_id=patient_id,
         doctor_id=doctor_id,
         content=content,
         direction=direction,
+        source=source,
     )
     session.add(msg)
     await session.commit()
