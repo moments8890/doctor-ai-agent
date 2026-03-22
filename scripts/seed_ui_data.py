@@ -24,7 +24,11 @@ from datetime import timedelta
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 os.environ.setdefault("ENVIRONMENT", "development")
 
+# Default doctor_id — override with --doctor-id=xxx
 DOCTOR_ID = "test_doctor"
+for arg in sys.argv:
+    if arg.startswith("--doctor-id="):
+        DOCTOR_ID = arg.split("=", 1)[1]
 RESET = "--reset" in sys.argv
 
 
