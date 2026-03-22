@@ -15,12 +15,13 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import {
   getRecords, getLabels, assignLabelToPatient, removeLabelFromPatient,
   exportPatientPdf, exportOutpatientReport, deletePatient,
+  getPatientChat, replyToPatient,
 } from "../../api";
 import { RECORD_TAB_GROUPS } from "./constants";
 import RecordCard from "./RecordCard";
 import LabelPicker from "./LabelPicker";
 import ExportSelectorDialog from "./ExportSelectorDialog";
-import { TYPE, ICON } from "../../theme";
+import { TYPE, ICON, COLOR } from "../../theme";
 
 /* ── helpers ── */
 
@@ -362,6 +363,138 @@ function usePatientDetailState({ patient, doctorId, onDeleted }) {
   return { records, setRecords, loading, error, exportingPdf, exportingReport, exportError, deleteConfirmOpen, setDeleteConfirmOpen, deleting, allLabels, labelPickerOpen, setLabelPickerOpen, labelError, patientLabels, setPatientLabels, labelAnchorRef, load, handleOpenLabelPicker, handleRemoveLabel, handleAssignLabel, handleDelete, handleExportPdf, handleExportReport };
 }
 
+/* ── PatientChatSection ── */
+
+function PatientChatSection({ patientId, doctorId }) {
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+  const [replyText, setReplyText] = useState("");
+  const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    if (!patientId) return;
+    setLoading(true);
+    getPatientChat(patientId)
+      .then(data => setMessages(data.messages || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [patientId]);
+
+  async function handleReply() {
+    const text = replyText.trim();
+    if (!text || sending) return;
+    setSending(true);
+    try {
+      await replyToPatient(patientId, text);
+      setReplyText("");
+      // Refresh messages
+      const data = await getPatientChat(patientId);
+      setMessages(data.messages || []);
+    } catch {}
+    finally { setSending(false); }
+  }
+
+  // Show only escalated/unhandled messages in triage summary
+  const escalated = messages.filter(m => m.source === "patient" || (m.ai_handled === false));
+  const hasMessages = messages.length > 0;
+
+  return (
+    <Box sx={{ bgcolor: "#fff", mb: 0.8 }}>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 2, pt: 1.5, pb: 0.5 }}>
+        <Typography sx={{ fontWeight: 600, fontSize: TYPE.heading.fontSize, color: COLOR.text2 }}>
+          患者消息 {hasMessages && <Box component="span" sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, fontWeight: 400 }}>({messages.length})</Box>}
+        </Typography>
+        {loading && <CircularProgress size={14} sx={{ color: COLOR.success }} />}
+      </Box>
+
+      {!loading && !hasMessages && (
+        <Box sx={{ px: 2, pb: 1.5 }}>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>暂无患者消息</Typography>
+        </Box>
+      )}
+
+      {!loading && hasMessages && (
+        <>
+          {/* Triage summary — escalated messages only */}
+          {!expanded && escalated.length > 0 && (
+            <Box sx={{ px: 2, pb: 1 }}>
+              {escalated.slice(-3).map(m => (
+                <Box key={m.id} sx={{ py: 0.5, borderBottom: "0.5px solid #f5f5f5", display: "flex", gap: 0.8, alignItems: "baseline" }}>
+                  <Box sx={{
+                    width: 6, height: 6, borderRadius: "50%", flexShrink: 0, mt: 0.8,
+                    bgcolor: m.triage_category === "urgent" ? COLOR.danger : (m.source === "patient" ? COLOR.primary : COLOR.success),
+                  }} />
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.5 }} noWrap>
+                      {m.content}
+                    </Typography>
+                    <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
+                      {m.created_at ? new Date(m.created_at).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : ""}
+                    </Typography>
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          )}
+
+          {/* Expand toggle */}
+          <Box onClick={() => setExpanded(v => !v)}
+            sx={{ px: 2, py: 0.8, cursor: "pointer", borderTop: "0.5px solid #f0f0f0" }}>
+            <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.success, textAlign: "center" }}>
+              {expanded ? "收起对话 ▴" : `查看完整对话 (${messages.length}) ▾`}
+            </Typography>
+          </Box>
+
+          {/* Full thread */}
+          {expanded && (
+            <Box sx={{ px: 2, pb: 1, maxHeight: 300, overflowY: "auto" }}>
+              {messages.map(m => (
+                <Box key={m.id} sx={{ py: 0.5, display: "flex", gap: 0.8, alignItems: "flex-start" }}>
+                  <Typography sx={{
+                    fontSize: TYPE.micro.fontSize, fontWeight: 500, flexShrink: 0, mt: 0.3,
+                    color: m.source === "patient" ? COLOR.primary : (m.source === "doctor" ? COLOR.success : COLOR.text4),
+                  }}>
+                    {m.source === "patient" ? "患者" : (m.source === "doctor" ? "医生" : "AI")}
+                  </Typography>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                      {m.content}
+                    </Typography>
+                    <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>
+                      {m.created_at ? new Date(m.created_at).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : ""}
+                    </Typography>
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          )}
+
+          {/* Reply input */}
+          {expanded && (
+            <Box sx={{ display: "flex", gap: 1, px: 2, py: 1, borderTop: "0.5px solid #f0f0f0" }}>
+              <Box component="input" value={replyText} onChange={e => setReplyText(e.target.value)}
+                placeholder="回复患者…"
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleReply(); } }}
+                style={{
+                  flex: 1, border: "1px solid #e0e0e0", borderRadius: 6,
+                  padding: "6px 10px", fontSize: 13, fontFamily: "inherit",
+                  outline: "none",
+                }}
+              />
+              <Button size="small" disabled={!replyText.trim() || sending}
+                onClick={handleReply}
+                sx={{ color: COLOR.success, minWidth: "auto", fontSize: TYPE.secondary.fontSize }}>
+                {sending ? <CircularProgress size={14} /> : "发送"}
+              </Button>
+            </Box>
+          )}
+        </>
+      )}
+    </Box>
+  );
+}
+
 /* ── main component ── */
 
 export default function PatientDetail({ patient, doctorId, onDeleted, onStartInterview, triggerExport, onTriggerExportConsumed }) {
@@ -402,6 +535,7 @@ export default function PatientDetail({ patient, doctorId, onDeleted, onStartInt
       <ExportSelectorDialog open={exportOpen} onClose={() => setExportOpen(false)} patientId={patient.id} patientName={patient.name}
         onExport={(opts) => { setExportOpen(false); handleExportPdf(); }} />
       <RecordListSection loading={loading} error={error} records={records} filteredRecords={filteredRecords} activeTab={activeTab} setActiveTab={setActiveTab} setRecords={setRecords} doctorId={doctorId} load={load} />
+      <PatientChatSection patientId={patient.id} doctorId={doctorId} />
       <Box sx={{ height: 24 }} />
     </Box>
   );

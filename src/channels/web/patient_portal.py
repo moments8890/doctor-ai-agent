@@ -36,11 +36,15 @@ from channels.web.patient_portal_auth import (
     _verify_patient_access_code,
 )
 from channels.web.patient_portal_registration import registration_router
+from channels.web.patient_portal_chat import chat_router
+from channels.web.patient_portal_tasks import tasks_router
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/patient", tags=["patient-portal"])
 router.include_router(registration_router)
+router.include_router(chat_router)
+router.include_router(tasks_router)
 
 
 # ---------------------------------------------------------------------------
@@ -261,6 +265,43 @@ async def patient_upload(
             doctor_id=patient.doctor_id,
             patient_id=patient.id,
         )
+
+        # ADR 0020: match upload against pending patient tasks
+        try:
+            from sqlalchemy import select as _sel
+            from db.models.tasks import DoctorTask
+            from domain.patient_lifecycle.upload_matcher import match_upload
+
+            async with AsyncSessionLocal() as _db:
+                _stmt = (
+                    _sel(DoctorTask)
+                    .where(
+                        DoctorTask.target == "patient",
+                        DoctorTask.patient_id == patient.id,
+                        DoctorTask.status == "pending",
+                    )
+                    .order_by(DoctorTask.created_at.desc())
+                    .limit(50)
+                )
+                _rows = (await _db.execute(_stmt)).scalars().all()
+
+            if _rows:
+                pending_tasks = [
+                    {"id": t.id, "task_type": t.task_type, "title": t.title, "content": t.content or ""}
+                    for t in _rows
+                ]
+                extracted = (result or {}).get("content", "") or ""
+                if extracted:
+                    match_result = await match_upload(extracted, pending_tasks)
+                    result["upload_match"] = {
+                        "matched_task_id": match_result.matched_task_id,
+                        "confidence": match_result.confidence,
+                        "confirmation_text": match_result.confirmation_text,
+                        "pending_tasks": match_result.pending_tasks,
+                    }
+        except Exception:
+            logger.exception("[PatientUpload] upload matching failed (non-fatal)")
+
         return result
     except ValueError as exc:
         msg = str(exc)

@@ -86,5 +86,43 @@ async def confirm_diagnosis_endpoint(
         if diag is None:
             raise HTTPException(status_code=404, detail="Diagnosis not found or already confirmed")
         await db.commit()
+
+        # ADR 0020: auto-generate patient tasks from confirmed diagnosis
+        try:
+            from domain.patient_lifecycle.task_generation import generate_patient_tasks
+            await generate_patient_tasks(diag, db)
+            await db.commit()
+        except Exception:
+            import logging as _logging
+            _logging.getLogger(__name__).exception(
+                "[diagnosis.confirm] task generation failed (non-fatal)"
+            )
+
+        # ADR 0020: notify patient of confirmed diagnosis
+        try:
+            from db.crud.patient_message import save_patient_message
+            from db.models.records import MedicalRecordDB
+            from sqlalchemy import select as _sel
+
+            record = (await db.execute(
+                _sel(MedicalRecordDB).where(MedicalRecordDB.id == diag.record_id)
+            )).scalar_one_or_none()
+            if record and record.patient_id:
+                await save_patient_message(
+                    db,
+                    patient_id=record.patient_id,
+                    doctor_id=resolved,
+                    content=f"{resolved}医生已确认您的诊断结果",
+                    direction="outbound",
+                    source="ai",
+                    triage_category="diagnosis_confirmation",
+                    ai_handled=True,
+                )
+        except Exception:
+            import logging as _logging
+            _logging.getLogger(__name__).exception(
+                "[diagnosis.confirm] patient notification failed (non-fatal)"
+            )
+
     safe_create_task(audit(resolved, "diagnosis.confirmed", "diagnosis", str(diagnosis_id)))
     return {"id": diag.id, "status": diag.status, "agreement_score": diag.agreement_score}

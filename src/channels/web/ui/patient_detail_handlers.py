@@ -449,6 +449,71 @@ async def abandon_pending_record_endpoint(
     return {"ok": True}
 
 
+# ── Patient chat (doctor side) ─────────────────────────────────────────────────
+
+@router.get("/api/manage/patients/{patient_id}/chat", include_in_schema=True)
+async def get_patient_chat(
+    patient_id: int,
+    doctor_id: str = Query(default="web_doctor"),
+    authorization: str | None = Header(default=None),
+):
+    """Return the full conversation thread for a patient (doctor view)."""
+    resolved = _resolve_ui_doctor_id(doctor_id, authorization)
+    enforce_doctor_rate_limit(resolved, scope="ui.patient_chat")
+    from db.crud.patient_message import list_patient_messages
+    async with AsyncSessionLocal() as db:
+        messages = await list_patient_messages(db, patient_id, resolved, limit=200)
+    safe_create_task(audit(resolved, "READ", "patient_chat", str(patient_id)))
+    return {
+        "messages": [
+            {
+                "id": m.id,
+                "content": m.content,
+                "direction": m.direction,
+                "source": m.source or ("patient" if m.direction == "inbound" else "ai"),
+                "sender_id": m.sender_id,
+                "triage_category": m.triage_category,
+                "ai_handled": m.ai_handled,
+                "created_at": m.created_at.isoformat() if m.created_at else None,
+            }
+            for m in reversed(messages)  # newest-first → oldest-first for display
+        ],
+    }
+
+
+@router.post("/api/manage/patients/{patient_id}/reply", include_in_schema=True)
+async def reply_to_patient(
+    patient_id: int,
+    doctor_id: str = Query(default="web_doctor"),
+    authorization: str | None = Header(default=None),
+    body: dict = {},
+):
+    """Doctor sends a direct reply to a patient."""
+    from db.crud.patient_message import save_patient_message
+
+    resolved = _resolve_ui_doctor_id(doctor_id, authorization)
+    enforce_doctor_rate_limit(resolved, scope="ui.patient_reply")
+    text = (body.get("text") or "").strip()
+    if not text:
+        raise HTTPException(status_code=422, detail="Reply text is required")
+
+    async with AsyncSessionLocal() as db:
+        msg = await save_patient_message(
+            db,
+            patient_id=patient_id,
+            doctor_id=resolved,
+            content=text,
+            direction="outbound",
+            source="doctor",
+            sender_id=resolved,
+        )
+    safe_create_task(audit(resolved, "WRITE", "patient_reply", str(patient_id)))
+    return {
+        "ok": True,
+        "message_id": msg.id,
+    }
+
+
 # ── Admin DB-view delegation ──────────────────────────────────────────────────
 
 @router.get("/api/admin/db-view")

@@ -51,6 +51,11 @@ import {
   patientRegister,
   listDoctors,
   getPatientRecords,
+  getPatientRecordDetail,
+  getPatientTasks,
+  completePatientTask,
+  getPatientChatMessages,
+  sendPatientChat,
   sendPatientMessage,
   interviewStart,
   interviewTurn,
@@ -58,6 +63,11 @@ import {
   interviewCancel,
   interviewCurrent,
 } from "../api";
+import DoctorBubble from "../components/DoctorBubble";
+import TaskChecklist from "../components/TaskChecklist";
+import SectionLabel from "../components/SectionLabel";
+import StatusBadge from "../components/StatusBadge";
+import { COLOR } from "../theme";
 
 const STORAGE_KEY = "patient_portal_token";
 const STORAGE_NAME_KEY = "patient_portal_name";
@@ -227,43 +237,137 @@ function QuickActions({ onNewInterview, onViewRecords }) {
 const PATIENT_CHAT_STORAGE_KEY = "patient_chat_messages";
 
 function ChatTab({ token, doctorName, onLogout, onNewInterview, onViewRecords }) {
-  const welcomeMsg = { role: "assistant", content: `您好！我是${doctorName || "医生"}的AI助手。有什么健康问题可以问我。` };
+  const welcomeMsg = { source: "ai", content: `您好！我是${doctorName || "医生"}的AI助手。有什么健康问题可以问我。` };
 
-  const [messages, setMessages] = useState(() => {
-    try {
-      const saved = localStorage.getItem(PATIENT_CHAT_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {}
-    return [welcomeMsg];
-  });
+  const [messages, setMessages] = useState([welcomeMsg]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [lastMsgId, setLastMsgId] = useState(null);
   const chatEndRef = useRef(null);
+  const pollingRef = useRef(null);
+  const visibleRef = useRef(true);
+
+  // Initial load + polling for new messages
+  useEffect(() => {
+    let cancelled = false;
+
+    async function poll() {
+      try {
+        const data = await getPatientChatMessages(token, lastMsgId);
+        if (cancelled) return;
+        if (Array.isArray(data) && data.length > 0) {
+          setMessages(prev => {
+            // Merge: append only new messages by id
+            const existingIds = new Set(prev.filter(m => m.id).map(m => m.id));
+            const newMsgs = data.filter(m => !existingIds.has(m.id));
+            return newMsgs.length > 0 ? [...prev, ...newMsgs] : prev;
+          });
+          const maxId = Math.max(...data.map(m => m.id));
+          setLastMsgId(maxId);
+        }
+      } catch (err) {
+        if (err.status === 401) console.warn("auth expired");
+      }
+    }
+
+    poll();
+
+    function startPolling() {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+      const interval = visibleRef.current ? 10000 : 60000;
+      pollingRef.current = setInterval(poll, interval);
+    }
+
+    function handleVisibility() {
+      visibleRef.current = !document.hidden;
+      startPolling();
+    }
+
+    startPolling();
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      cancelled = true;
+      if (pollingRef.current) clearInterval(pollingRef.current);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
-
-  // Persist messages to localStorage
-  useEffect(() => {
-    try { localStorage.setItem(PATIENT_CHAT_STORAGE_KEY, JSON.stringify(messages)); } catch {}
-  }, [messages]);
 
   async function handleSend(e) {
     e.preventDefault();
     const text = input.trim();
     if (!text || sending) return;
     setInput("");
-    setMessages(prev => [...prev, { role: "user", content: text }]);
+    setMessages(prev => [...prev, { source: "patient", content: text, _local: true }]);
     setSending(true);
     try {
-      const data = await sendPatientMessage(token, text);
-      setMessages(prev => [...prev, { role: "assistant", content: data.reply || "收到您的消息。" }]);
+      const data = await sendPatientChat(token, text);
+      setMessages(prev => [...prev, { source: "ai", content: data.reply || "收到您的消息。", triage_category: data.triage_category }]);
     } catch (err) {
       if (err.status === 401) { console.warn("auth expired"); return; }
-      setMessages(prev => [...prev, { role: "assistant", content: "系统繁忙，请稍后重试。" }]);
+      setMessages(prev => [...prev, { source: "ai", content: "系统繁忙，请稍后重试。" }]);
     } finally { setSending(false); }
+  }
+
+  function renderMessage(msg, i) {
+    const src = msg.source || (msg.role === "user" ? "patient" : "ai");
+
+    // Doctor reply bubble
+    if (src === "doctor") {
+      return (
+        <Box key={msg.id || i} sx={{ mb: 1.5 }}>
+          <DoctorBubble
+            doctorName={doctorName || "医生"}
+            content={msg.content}
+            timestamp={msg.created_at ? new Date(msg.created_at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : null}
+          />
+        </Box>
+      );
+    }
+
+    // Patient message (right aligned)
+    if (src === "patient") {
+      return (
+        <Box key={msg.id || i} sx={{ display: "flex", justifyContent: "flex-end", mb: 1.5 }}>
+          <Box sx={{
+            maxWidth: "80%", px: 2, py: 1.5, borderRadius: 2,
+            bgcolor: "#95ec69", color: "#333", fontSize: "0.9rem", lineHeight: 1.6,
+            whiteSpace: "pre-wrap", wordBreak: "break-word",
+          }}>{msg.content}</Box>
+        </Box>
+      );
+    }
+
+    // AI message (left aligned) — with triage enrichment
+    return (
+      <Box key={msg.id || i} sx={{ display: "flex", justifyContent: "flex-start", mb: 1.5 }}>
+        <Box sx={{ maxWidth: "80%" }}>
+          {msg.triage_category === "diagnosis_confirmation" && (
+            <Box sx={{ mb: 0.5, px: 1.5, py: 0.8, borderRadius: "8px", bgcolor: "#e8f5e9", border: "0.5px solid #c8e6c9" }}>
+              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.success, fontWeight: 500 }}>
+                {msg.content}
+              </Typography>
+            </Box>
+          )}
+          {msg.triage_category !== "diagnosis_confirmation" && (
+            <Box sx={{
+              px: 2, py: 1.5, borderRadius: 2, bgcolor: "#fff",
+              color: "#333", fontSize: "0.9rem", lineHeight: 1.6,
+              whiteSpace: "pre-wrap", wordBreak: "break-word",
+            }}>{msg.content}</Box>
+          )}
+          {msg.triage_category === "urgent" && (
+            <Box sx={{ mt: 0.5, px: 1.5, py: 0.5, borderRadius: "6px", bgcolor: COLOR.dangerLight, border: `0.5px solid ${COLOR.danger}` }}>
+              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.danger, fontWeight: 500 }}>
+                紧急情况，请立即就近就医
+              </Typography>
+            </Box>
+          )}
+        </Box>
+      </Box>
+    );
   }
 
   return (
@@ -273,16 +377,7 @@ function ChatTab({ token, doctorName, onLogout, onNewInterview, onViewRecords })
 
       {/* Chat area */}
       <Box sx={{ flex: 1, overflowY: "auto", px: 2, py: 1 }}>
-        {messages.map((msg, i) => (
-          <Box key={i} sx={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", mb: 1.5 }}>
-            <Box sx={{
-              maxWidth: "80%", px: 2, py: 1.5, borderRadius: 2,
-              bgcolor: msg.role === "user" ? "#95ec69" : "#fff",
-              color: "#333", fontSize: "0.9rem", lineHeight: 1.6,
-              whiteSpace: "pre-wrap", wordBreak: "break-word",
-            }}>{msg.content}</Box>
-          </Box>
-        ))}
+        {messages.map(renderMessage)}
         {sending && (
           <Box sx={{ display: "flex", justifyContent: "flex-start", mb: 1.5 }}>
             <Box sx={{ px: 2, py: 1.5, borderRadius: 2, bgcolor: "#fff" }}><CircularProgress size={16} /></Box>
@@ -307,9 +402,34 @@ function ChatTab({ token, doctorName, onLogout, onNewInterview, onViewRecords })
 // ===========================================================================
 
 
-function RecordDetailView({ record, onBack }) {
+function RecordDetailView({ record, token, onBack }) {
   const structured = record.structured || {};
   const typeLabel = RECORD_TYPE_LABEL[record.record_type] || record.record_type;
+  const [detail, setDetail] = useState(null);
+  const [loadingDetail, setLoadingDetail] = useState(true);
+
+  useEffect(() => {
+    if (!record.id || !token) { setLoadingDetail(false); return; }
+    setLoadingDetail(true);
+    getPatientRecordDetail(token, record.id)
+      .then(data => setDetail(data))
+      .catch(() => {})
+      .finally(() => setLoadingDetail(false));
+  }, [record.id, token]);
+
+  const diagStatus = detail?.diagnosis_status;
+  const treatmentPlan = detail?.treatment_plan;
+
+  const DIAG_STATUS_LABELS = {
+    confirmed: "已确认",
+    pending: "分析中",
+    completed: "已完成",
+  };
+  const DIAG_STATUS_COLORS = {
+    confirmed: COLOR.success,
+    completed: COLOR.primary,
+    pending: COLOR.warning,
+  };
 
   return (
     <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
@@ -332,6 +452,58 @@ function RecordDetailView({ record, onBack }) {
             {record.content}
           </Typography>
         )}
+
+        {/* Diagnosis status card */}
+        {loadingDetail && (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}><CircularProgress size={16} /></Box>
+        )}
+        {!loadingDetail && diagStatus && (
+          <Box sx={{ mt: 1.5, p: 1.5, borderRadius: "8px", bgcolor: "#f9f9f9", border: "0.5px solid #e5e5e5" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mb: 0.5 }}>
+              <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1 }}>诊断</Typography>
+              <StatusBadge
+                label={DIAG_STATUS_LABELS[diagStatus] || diagStatus}
+                colorMap={DIAG_STATUS_COLORS}
+                fallbackColor={COLOR.text4}
+              />
+            </Box>
+            {diagStatus === "confirmed" && detail?.structured?.diagnosis && (
+              <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text2, mt: 0.5 }}>
+                {detail.structured.diagnosis}
+              </Typography>
+            )}
+          </Box>
+        )}
+
+        {/* Treatment plan card */}
+        {!loadingDetail && treatmentPlan && (
+          <Box sx={{ mt: 1, p: 1.5, borderRadius: "8px", bgcolor: "#f0faf3", border: "0.5px solid #c8e6c9" }}>
+            <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1, mb: 0.5 }}>治疗方案</Typography>
+            {treatmentPlan.medications && treatmentPlan.medications.length > 0 && (
+              <Box sx={{ mb: 0.5 }}>
+                <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, fontWeight: 500 }}>用药：</Typography>
+                {treatmentPlan.medications.map((med, i) => (
+                  <Typography key={i} sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text2, pl: 1 }}>
+                    {med.name || med.drug_class || med}{med.dosage ? ` - ${med.dosage}` : ""}
+                  </Typography>
+                ))}
+              </Box>
+            )}
+            {treatmentPlan.follow_up && (
+              <Box>
+                <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, fontWeight: 500 }}>随访：</Typography>
+                <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text2, pl: 1 }}>{treatmentPlan.follow_up}</Typography>
+              </Box>
+            )}
+            {treatmentPlan.lifestyle && (
+              <Box sx={{ mt: 0.3 }}>
+                <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, fontWeight: 500 }}>生活方式建议：</Typography>
+                <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text2, pl: 1 }}>{treatmentPlan.lifestyle}</Typography>
+              </Box>
+            )}
+          </Box>
+        )}
+
         <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#bbb", mt: 2, textAlign: "center" }}>
           {formatDate(record.created_at)}
         </Typography>
@@ -358,7 +530,7 @@ function RecordsTab({ token, onLogout, onNewRecord, urlSubpage }) {
   if (urlSubpage && urlSubpage !== "interview") {
     const record = records.find(r => String(r.id) === urlSubpage);
     if (record) {
-      return <RecordDetailView record={record} onBack={() => navigate("/patient/records")} />;
+      return <RecordDetailView record={record} token={token} onBack={() => navigate("/patient/records")} />;
     }
     // Record not found yet (still loading) — show spinner
     if (loading) return <Box display="flex" justifyContent="center" py={6}><CircularProgress size={20} /></Box>;
@@ -424,6 +596,68 @@ function RecordsTab({ token, onLogout, onNewRecord, urlSubpage }) {
             );
           })}
         </Box>
+      )}
+    </Box>
+  );
+}
+
+// ===========================================================================
+// TasksTab — 患者任务（ADR 0020）
+// ===========================================================================
+
+function TasksTab({ token }) {
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadTasks = useCallback(() => {
+    setLoading(true);
+    getPatientTasks(token)
+      .then(data => setTasks(Array.isArray(data) ? data : []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [token]);
+
+  useEffect(() => { loadTasks(); }, [loadTasks]);
+
+  async function handleComplete(taskId) {
+    try {
+      await completePatientTask(token, taskId);
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: "completed" } : t));
+    } catch {}
+  }
+
+  if (loading) {
+    return <Box display="flex" justifyContent="center" py={6}><CircularProgress size={20} /></Box>;
+  }
+
+  if (tasks.length === 0) {
+    return (
+      <Box sx={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+        <Typography sx={{ fontSize: ICON.display, color: "#ccc", mb: 1 }}>📋</Typography>
+        <Typography color="text.disabled" sx={{ fontWeight: 500 }}>暂无任务</Typography>
+        <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5 }}>
+          医生安排的复查、用药提醒将显示在这里
+        </Typography>
+      </Box>
+    );
+  }
+
+  const pending = tasks.filter(t => t.status === "pending" || t.status === "notified");
+  const completed = tasks.filter(t => t.status === "completed");
+
+  return (
+    <Box sx={{ flex: 1, overflowY: "auto" }}>
+      {pending.length > 0 && (
+        <>
+          <SectionLabel>待完成 · {pending.length}</SectionLabel>
+          <TaskChecklist tasks={pending} onComplete={handleComplete} />
+        </>
+      )}
+      {completed.length > 0 && (
+        <>
+          <SectionLabel sx={{ mt: 1 }}>已完成 · {completed.length}</SectionLabel>
+          <TaskChecklist tasks={completed} />
+        </>
       )}
     </Box>
   );
@@ -717,15 +951,7 @@ export default function PatientPage() {
       {tab === "records" && (
         <RecordsTab token={token} onLogout={handleLogout} onNewRecord={() => startInterview()} urlSubpage={urlSubpage} />
       )}
-      {tab === "tasks" && (
-        <Box sx={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-          <Typography sx={{ fontSize: ICON.display, color: "#ccc", mb: 1 }}>📋</Typography>
-          <Typography color="text.disabled" sx={{ fontWeight: 500 }}>暂无任务</Typography>
-          <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5 }}>
-            医生安排的复查、用药提醒将显示在这里
-          </Typography>
-        </Box>
-      )}
+      {tab === "tasks" && <TasksTab token={token} />}
       {tab === "profile" && (
         <Box sx={{ flex: 1, overflowY: "auto", bgcolor: "#ededed" }}>
           <Box sx={{ bgcolor: "#fff", px: 2, py: 2, mb: 1, display: "flex", alignItems: "center", gap: 1.5 }}>

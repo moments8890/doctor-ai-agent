@@ -19,6 +19,10 @@ async def save_patient_message(
     content: str,
     direction: str = "inbound",
     source: Optional[str] = None,
+    sender_id: Optional[str] = None,
+    triage_category: Optional[str] = None,
+    structured_data: Optional[str] = None,
+    ai_handled: Optional[bool] = None,
 ) -> PatientMessage:
     """Persist a patient portal message and return the created row.
 
@@ -33,6 +37,10 @@ async def save_patient_message(
         content=content,
         direction=direction,
         source=source,
+        sender_id=sender_id,
+        triage_category=triage_category,
+        structured_data=structured_data,
+        ai_handled=ai_handled,
     )
     session.add(msg)
     await session.commit()

@@ -922,3 +922,45 @@ export async function confirmDiagnosis(diagnosisId, doctorId) {
     method: "POST",
   });
 }
+
+// ---------------------------------------------------------------------------
+// Patient portal — post-visit (ADR 0020)
+// ---------------------------------------------------------------------------
+
+export async function getPatientRecordDetail(token, recordId) {
+  return patientRequest(`/api/patient/records/${recordId}`, token);
+}
+
+export async function getPatientTasks(token) {
+  return patientRequest("/api/patient/tasks", token);
+}
+
+export async function completePatientTask(token, taskId) {
+  return patientRequest(`/api/patient/tasks/${taskId}/complete`, token, { method: "POST" });
+}
+
+export async function getPatientChatMessages(token, sinceId) {
+  const qs = sinceId != null ? `?since=${sinceId}` : "";
+  return patientRequest(`/api/patient/chat/messages${qs}`, token);
+}
+
+export async function sendPatientChat(token, text) {
+  return patientRequest("/api/patient/chat", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+}
+
+// Doctor-side patient chat/reply
+export async function getPatientChat(patientId) {
+  return request(`/api/manage/patients/${patientId}/chat`);
+}
+
+export async function replyToPatient(patientId, text) {
+  return request(`/api/manage/patients/${patientId}/reply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+}
