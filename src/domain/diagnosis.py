@@ -357,6 +357,7 @@ def _validate_differentials(raw: Any) -> List[Dict[str, str]]:
             "condition":  condition,
             "confidence": _coerce_confidence(item.get("confidence") or item.get("可能性")),
             "reasoning":  str(item.get("reasoning") or item.get("推理依据") or "").strip(),
+            "patient_note": str(item.get("patient_note") or "").strip(),
         })
     return result
 
@@ -378,6 +379,7 @@ def _validate_workup(raw: Any) -> List[Dict[str, str]]:
             "test":       test,
             "rationale":  str(item.get("rationale") or item.get("理由") or "").strip(),
             "urgency":    _coerce_urgency(item.get("urgency") or item.get("紧急程度")),
+            "patient_note": str(item.get("patient_note") or "").strip(),
         })
     return result
 
@@ -400,6 +402,7 @@ def _validate_treatment(raw: Any) -> List[Dict[str, str]]:
             "drug_class":    drug_class,
             "intervention":  _coerce_intervention(item.get("intervention") or item.get("干预方式")),
             "description":   description,
+            "patient_note": str(item.get("patient_note") or "").strip(),
         })
     return result
 

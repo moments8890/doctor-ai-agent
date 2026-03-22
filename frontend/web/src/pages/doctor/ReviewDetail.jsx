@@ -6,10 +6,9 @@ import { useCallback, useEffect, useState } from "react";
 import {
   Alert, Box, CircularProgress, Collapse, Stack, TextField, Typography,
 } from "@mui/material";
-import { getReviewDetail, confirmReview, updateReviewField, getDiagnosis, decideDiagnosisItem, confirmDiagnosis } from "../../api";
+import { getReviewDetail, confirmReview, updateReviewField, getDiagnosis, confirmDiagnosis } from "../../api";
 import BarButton from "../../components/BarButton";
 import PatientAvatar from "./PatientAvatar";
-import DiagnosisSection from "./DiagnosisSection";
 import { STRUCTURED_FIELD_LABELS } from "./constants";
 import SubpageHeader from "./SubpageHeader";
 import { TYPE, COLOR } from "../../theme";
@@ -38,45 +37,57 @@ function buildSuggestions(diagnosis) {
   const suggestions = {};
 
   // 初步诊断 ← differentials
+  // brief: concise medical term (doctor picks from this)
+  // detail: patient_note with full explanation (goes into the record)
   if (out.differentials?.length) {
     suggestions.diagnosis = out.differentials
       .filter((d) => d.condition)
       .map((d) => ({
         brief: d.confidence ? `${d.condition}（${d.confidence}）` : d.condition,
-        detail: d.reasoning || d.condition,
+        detail: d.patient_note || `${d.condition}：${d.reasoning || "需进一步检查确认"}`,
       }));
   }
 
   // 治疗方案 ← treatment
+  // brief: drug class abbreviation (doctor picks)
+  // detail: patient_note with full treatment instructions
   if (out.treatment?.length) {
     suggestions.treatment_plan = out.treatment
       .filter((t) => t.drug_class || t.description)
       .map((t) => ({
-        brief: [t.intervention, t.drug_class].filter(Boolean).join(" · ") || t.description,
-        detail: t.description || [t.intervention, t.drug_class].filter(Boolean).join("，"),
+        brief: [t.intervention, t.drug_class].filter(Boolean).join("·") || t.description?.slice(0, 10),
+        detail: t.patient_note || `${[t.intervention, t.drug_class].filter(Boolean).join("，")}：${t.description || ""}`,
       }));
   }
 
   // 辅助检查 ← workup
+  // brief: test abbreviation + urgency (doctor picks)
+  // detail: patient_note with full exam instructions
   if (out.workup?.length) {
     suggestions.auxiliary_exam = out.workup
       .filter((w) => w.test)
       .map((w) => ({
-        brief: w.urgency ? `${w.test}（${w.urgency}）` : w.test,
-        detail: w.rationale || w.test,
+        brief: w.urgency && w.urgency !== "常规" ? `${w.test}（${w.urgency}）` : w.test,
+        detail: w.patient_note || `${w.test}：${w.rationale || ""}`,
       }));
   }
 
-  // 医嘱及随访
+  // 医嘱及随访 — combine urgent workup + treatment
   const followups = [];
   if (out.workup?.length) {
     out.workup.filter((w) => w.test && w.urgency !== "常规").forEach((w) => {
-      followups.push({ brief: `${w.urgency}：${w.test}`, detail: `${w.urgency}安排${w.test}${w.rationale ? "，" + w.rationale : ""}` });
+      followups.push({
+        brief: `${w.urgency}·${w.test}`,
+        detail: w.patient_note || `${w.urgency}安排${w.test}，${w.rationale || ""}`,
+      });
     });
   }
   if (out.treatment?.length) {
     out.treatment.filter((t) => t.description).forEach((t) => {
-      followups.push({ brief: t.drug_class || t.intervention || "医嘱", detail: t.description });
+      followups.push({
+        brief: t.drug_class || t.intervention || "医嘱",
+        detail: t.patient_note || `${t.drug_class || t.intervention || ""}：${t.description}`,
+      });
     });
   }
   if (followups.length) suggestions.orders_followup = followups;
@@ -90,7 +101,6 @@ function FieldCard({ fieldKey, value, editing, suggestions, onStartEdit, onSave,
   const [applied, setApplied] = useState([]);
   const [editingIdx, setEditingIdx] = useState(null);
   const [editDraft, setEditDraft] = useState("");
-  const [chipsOpen, setChipsOpen] = useState(false);
   const label = STRUCTURED_FIELD_LABELS[fieldKey] || fieldKey;
 
   useEffect(() => { setDraft(value || ""); }, [value]);
@@ -122,14 +132,18 @@ function FieldCard({ fieldKey, value, editing, suggestions, onStartEdit, onSave,
     setEditDraft(a?.detail || "");
   }
 
-  // Save inline edit → if empty, remove the row; otherwise mark as edited
+  // Save inline edit → if empty, remove; if changed, mark edited; if unchanged, keep as-is
   function handleSaveEdit() {
     if (!editDraft.trim()) {
       setApplied((prev) => prev.filter((a) => a.origIdx !== editingIdx));
     } else {
-      setApplied((prev) => prev.map((a) =>
-        a.origIdx === editingIdx ? { ...a, detail: editDraft, edited: true } : a
-      ));
+      const orig = applied.find((a) => a.origIdx === editingIdx);
+      const changed = orig && editDraft !== orig.detail;
+      if (changed) {
+        setApplied((prev) => prev.map((a) =>
+          a.origIdx === editingIdx ? { ...a, detail: editDraft, edited: true } : a
+        ));
+      }
     }
     setEditingIdx(null);
   }
@@ -182,9 +196,8 @@ function FieldCard({ fieldKey, value, editing, suggestions, onStartEdit, onSave,
             sx={{ fontSize: TYPE.body.fontSize, color: "#1A1A1A", flex: 1, lineHeight: 1.6, cursor: "pointer" }}>{value}</Typography>
         )}
         {applied.length === 0 && !value && (
-          <Typography onClick={() => setChipsOpen(!chipsOpen)}
-            sx={{ fontSize: TYPE.caption.fontSize, color: "#F59E0B", fontWeight: 600, cursor: "pointer" }}>
-            AI建议 ({suggestions.length}) {chipsOpen ? "▾" : "▸"}
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#F59E0B", fontWeight: 600 }}>
+            AI建议
           </Typography>
         )}
       </Box>
@@ -195,33 +208,29 @@ function FieldCard({ fieldKey, value, editing, suggestions, onStartEdit, onSave,
           {applied.map((a) => {
             const isEditing = editingIdx === a.origIdx;
             return (
-              <Box key={a.origIdx} sx={{ borderBottom: "0.5px solid #f0f0f0", "&:last-child": { borderBottom: "none" } }}>
-                {/* Line: detail text + deselect × */}
-                <Box sx={{ display: "flex", alignItems: "flex-start", px: 1, py: 0.5, cursor: "pointer",
-                  bgcolor: isEditing ? "#fff" : "transparent" }}
-                  onClick={() => handleExpandLine(a.origIdx)}>
-                  <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#333", flex: 1, lineHeight: 1.6 }}>
+              <Box key={a.origIdx} sx={{ display: "flex", alignItems: "flex-start",
+                borderBottom: "0.5px solid #f0f0f0", "&:last-child": { borderBottom: "none" },
+                px: 1, py: 0.5 }}>
+                {isEditing ? (
+                  <Box component="textarea" autoFocus value={editDraft}
+                    onChange={(e) => setEditDraft(e.target.value)}
+                    onBlur={handleSaveEdit}
+                    rows={Math.max(2, Math.ceil(editDraft.length / 30))}
+                    sx={{ flex: 1, border: "none", outline: "none", fontSize: TYPE.body.fontSize,
+                      color: "#333", bgcolor: "transparent", p: 0, fontFamily: "inherit",
+                      lineHeight: 1.6, minWidth: 0, resize: "none", overflow: "hidden" }} />
+                ) : (
+                  <Typography onClick={() => handleExpandLine(a.origIdx)}
+                    sx={{ fontSize: TYPE.body.fontSize, color: "#333", flex: 1, lineHeight: 1.6, cursor: "text" }}>
                     {a.detail}
                   </Typography>
-                  {!a.edited && (
-                    <Box component="span" onClick={(e) => { e.stopPropagation(); handleDeselect(a.origIdx); }}
-                      sx={{ fontSize: TYPE.caption.fontSize, color: "#999", ml: 1, flexShrink: 0, cursor: "pointer",
-                        "&:active": { opacity: 0.5 } }}>×</Box>
-                  )}
-                  {a.edited && (
-                    <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.success, ml: 1, flexShrink: 0 }}>已编辑</Typography>
-                  )}
-                </Box>
-                {/* Expanded edit */}
-                {isEditing && (
-                  <Box sx={{ px: 1, pb: 0.5 }}>
-                    <TextField fullWidth multiline size="small" value={editDraft}
-                      onChange={(e) => setEditDraft(e.target.value)}
-                      sx={{ "& .MuiOutlinedInput-root": { fontSize: TYPE.body.fontSize } }} />
-                    <Stack direction="row" spacing={1} sx={{ mt: 0.3 }}>
-                      <BarButton onClick={handleSaveEdit}>确认修改</BarButton>
-                      <BarButton onClick={() => setEditingIdx(null)} color="#999">取消</BarButton>
-                    </Stack>
+                )}
+                {!isEditing && (
+                  <Box onClick={() => handleDeselect(a.origIdx)}
+                    sx={{ display: "flex", alignItems: "center", gap: 0.3, ml: 1, flexShrink: 0, cursor: "pointer",
+                      "&:active": { opacity: 0.5 } }}>
+                    <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.success }}>AI</Typography>
+                    <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#ccc" }}>×</Typography>
                   </Box>
                 )}
               </Box>
@@ -235,7 +244,7 @@ function FieldCard({ fieldKey, value, editing, suggestions, onStartEdit, onSave,
       )}
 
       {/* Chip pool — brief labels, click to select */}
-      {(chipsOpen || applied.length > 0) && pool.length > 0 && (
+      {pool.length > 0 && (
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.3 }}>
           {pool.map((s) => (
             <Box key={s._i} onClick={() => handleSelect(s._i)}
@@ -318,16 +327,6 @@ export default function ReviewDetail({ queueId, doctorId, onBack, onConfirmed, i
       .catch(() => {})
       .finally(() => setDiagnosisLoading(false));
   }, [detail?.record?.id, doctorId]);
-
-  async function handleDiagnosisDecide(type, index, decision) {
-    if (!diagnosis?.id) return;
-    try {
-      await decideDiagnosisItem(diagnosis.id, doctorId, type, index, decision);
-      // Reload diagnosis to get updated doctor_decisions
-      const updated = await getDiagnosis(detail.record.id, doctorId);
-      setDiagnosis(updated);
-    } catch (e) { setError(e.message || "操作失败"); }
-  }
 
   async function handleConfirm() {
     setConfirming(true);
@@ -434,19 +433,11 @@ export default function ReviewDetail({ queueId, doctorId, onBack, onConfirmed, i
           ))}
         </Box>
 
-        {/* AI Diagnosis — confirm/reject each item */}
+        {/* Diagnosis loading indicator */}
         {diagnosisLoading && (
           <Box sx={{ textAlign: "center", py: 1 }}>
             <CircularProgress size={16} sx={{ color: "#07C160" }} />
             <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#999", mt: 0.3 }}>AI诊断分析中...</Typography>
-          </Box>
-        )}
-        {diagnosis && diagnosis.ai_output && !diagnosisLoading && (
-          <Box sx={{ mb: 1 }}>
-            <DiagnosisSection
-              diagnosis={diagnosis}
-              onDecide={handleDiagnosisDecide}
-            />
           </Box>
         )}
 

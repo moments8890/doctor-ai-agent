@@ -279,8 +279,8 @@ their attention, not every patient message.
 - `last_id` stored in localStorage for resume across sessions
 - Unread count badge on 主页 tab icon when new messages arrive on other tabs
 
-**Path to real-time (v2):** SSE endpoint for push delivery. Polling is adequate
-for v1 since patient interactions are not time-critical (minutes, not seconds).
+**WebSocket/SSE is deferred** — not in scope for v1. Polling is adequate
+since patient interactions are minutes-scale, not seconds-scale.
 
 ## Frontend
 
@@ -441,6 +441,7 @@ POST   /api/manage/patients/:id/reply  # doctor direct reply to patient
 
 ## Out of Scope
 
+- Real-time push (WebSocket/SSE) — deferred, polling is sufficient for v1
 - Patient-side push notifications (WeChat template messages) — future
 - Treatment plan editing by doctor before publishing — future (auto-derive only)
 - Active triage (AI provides basic guidance) — v2

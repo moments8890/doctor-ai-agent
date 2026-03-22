@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Doctor AI Agent — UI Checkpoint 2026-03-21</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'PingFang SC', sans-serif; background: #1a1a2e; color: #e0e0e0; min-height: 100vh; }
+
+  header { padding: 24px 32px; border-bottom: 1px solid #333; }
+  header h1 { font-size: 20px; font-weight: 600; color: #fff; }
+  header p { font-size: 13px; color: #888; margin-top: 4px; }
+
+  .nav-tabs { display: flex; gap: 0; border-bottom: 1px solid #333; padding: 0 32px; background: #16213e; }
+  .nav-tab { padding: 12px 20px; font-size: 14px; color: #888; cursor: pointer; border-bottom: 2px solid transparent; }
+  .nav-tab.active { color: #07C160; border-bottom-color: #07C160; }
+
+  .section { display: none; padding: 24px 32px; }
+  .section.active { display: block; }
+  .section h2 { font-size: 16px; color: #ccc; margin-bottom: 16px; }
+
+  .grid { display: flex; flex-wrap: wrap; gap: 24px; }
+
+  .phone-card {
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .phone-card:hover { transform: scale(1.02); }
+
+  .phone-frame {
+    width: 187px; height: 406px;
+    border: 1px solid #444; border-radius: 16px;
+    overflow: hidden; background: #fff;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  }
+  .phone-frame iframe {
+    width: 375px; height: 812px;
+    border: none;
+    transform: scale(0.5);
+    transform-origin: top left;
+    pointer-events: none;
+  }
+
+  .phone-label {
+    text-align: center; margin-top: 8px;
+    font-size: 12px; color: #999;
+  }
+  .phone-route {
+    text-align: center;
+    font-size: 10px; color: #555; font-family: monospace;
+  }
+
+  /* Fullscreen viewer */
+  .viewer { display: none; position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.9); }
+  .viewer.active { display: flex; align-items: center; justify-content: center; flex-direction: column; }
+  .viewer-close {
+    position: absolute; top: 16px; right: 24px;
+    font-size: 24px; color: #fff; cursor: pointer; z-index: 101;
+  }
+  .viewer-phone {
+    width: 375px; height: 812px;
+    border: 2px solid #555; border-radius: 24px;
+    overflow: hidden; background: #fff;
+    box-shadow: 0 8px 48px rgba(0,0,0,0.5);
+  }
+  .viewer-phone iframe { width: 100%; height: 100%; border: none; }
+  .viewer-label { color: #999; font-size: 13px; margin-top: 12px; }
+
+  .viewer-nav {
+    display: flex; gap: 8px; margin-top: 16px;
+  }
+  .viewer-nav button {
+    padding: 6px 16px; border-radius: 4px; border: 1px solid #555;
+    background: #2a2a4a; color: #ccc; cursor: pointer; font-size: 12px;
+  }
+  .viewer-nav button:hover { background: #3a3a6a; }
+  .viewer-nav button.active-nav { background: #07C160; color: #fff; border-color: #07C160; }
+
+  /* Desktop card */
+  .desktop-card { cursor: pointer; transition: transform 0.2s; }
+  .desktop-card:hover { transform: scale(1.02); }
+  .desktop-frame {
+    width: 480px; height: 270px;
+    border: 1px solid #444; border-radius: 8px;
+    overflow: hidden; background: #fff;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  }
+  .desktop-frame iframe {
+    width: 1280px; height: 720px;
+    border: none;
+    transform: scale(0.375);
+    transform-origin: top left;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Doctor AI Agent — UI Checkpoint</h1>
+  <p>2026-03-21 · P1.5 + Design System + URL Routing · Click any screen to view full size</p>
+</header>
+
+<div class="nav-tabs">
+  <div class="nav-tab active" onclick="showSection('doctor-mobile')">Doctor Mobile</div>
+  <div class="nav-tab" onclick="showSection('doctor-desktop')">Doctor Desktop</div>
+  <div class="nav-tab" onclick="showSection('patient')">Patient</div>
+  <div class="nav-tab" onclick="showSection('login')">Login</div>
+</div>
+
+<!-- Doctor Mobile -->
+<div class="section active" id="section-doctor-mobile">
+  <h2>Doctor — Mobile (375×812)</h2>
+  <div class="grid" id="grid-doctor-mobile"></div>
+</div>
+
+<!-- Doctor Desktop -->
+<div class="section" id="section-doctor-desktop">
+  <h2>Doctor — Desktop (1280×720)</h2>
+  <div class="grid" id="grid-doctor-desktop"></div>
+</div>
+
+<!-- Patient -->
+<div class="section" id="section-patient">
+  <h2>Patient — Mobile (375×812)</h2>
+  <div class="grid" id="grid-patient"></div>
+</div>
+
+<!-- Login -->
+<div class="section" id="section-login">
+  <h2>Login</h2>
+  <div class="grid" id="grid-login"></div>
+</div>
+
+<!-- Fullscreen Viewer -->
+<div class="viewer" id="viewer">
+  <div class="viewer-close" onclick="closeViewer()">×</div>
+  <div class="viewer-phone">
+    <iframe id="viewer-iframe" src=""></iframe>
+  </div>
+  <div class="viewer-label" id="viewer-label"></div>
+  <div class="viewer-nav" id="viewer-nav"></div>
+</div>
+
+<script>
+const PAGES = {
+  'doctor-mobile': [
+    { name: '首页', route: '/doctor', file: 'doctor-home_raw.html' },
+    { name: 'AI 助手', route: '/doctor/chat', file: 'doctor-chat_raw.html' },
+    { name: '患者列表', route: '/doctor/patients', file: 'doctor-patients_raw.html' },
+    { name: '患者详情', route: '/doctor/patients/:id', file: 'doctor-patient-detail_raw.html' },
+    { name: '任务', route: '/doctor/tasks', file: 'doctor-tasks_raw.html' },
+    { name: '审核+AI诊断', route: '/doctor/tasks/review/:id', file: 'doctor-review-diagnosis_raw.html' },
+    { name: '设置', route: '/doctor/settings', file: 'doctor-settings_raw.html' },
+    { name: '报告模板', route: '/doctor/settings/template', file: 'doctor-settings-template_raw.html' },
+    { name: '知识库', route: '/doctor/settings/knowledge', file: 'doctor-settings-knowledge_raw.html' },
+    { name: '关于', route: '/doctor/settings/about', file: 'doctor-settings-about_raw.html' },
+  ],
+  'doctor-desktop': [
+    { name: '首页', route: '/doctor', file: 'doctor-home-desktop.html', desktop: true },
+    { name: '患者', route: '/doctor/patients', file: 'doctor-patients-desktop.html', desktop: true },
+    { name: '任务', route: '/doctor/tasks', file: 'doctor-tasks-desktop.html', desktop: true },
+    { name: '设置', route: '/doctor/settings', file: 'doctor-settings-desktop.html', desktop: true },
+    { name: '知识库', route: '/doctor/settings/knowledge', file: 'doctor-knowledge-desktop.html', desktop: true },
+  ],
+  'patient': [
+    { name: '主页', route: '/patient/chat', file: 'patient-home_raw.html' },
+    { name: '病历', route: '/patient/records', file: 'patient-records_raw.html' },
+    { name: '任务', route: '/patient/tasks', file: 'patient-tasks_raw.html' },
+    { name: '设置', route: '/patient/profile', file: 'patient-settings_raw.html' },
+  ],
+  'login': [
+    { name: 'Mobile', route: '/login', file: 'login_raw.html' },
+    { name: 'Desktop', route: '/login', file: 'login-desktop.html', desktop: true },
+  ],
+};
+
+// Navigation mappings: from each page, where do nav buttons go?
+const NAV_MAP = {
+  'doctor-mobile': {
+    '首页': 'doctor-home_raw.html',
+    '患者': 'doctor-patients_raw.html',
+    '任务': 'doctor-tasks_raw.html',
+    '设置': 'doctor-settings_raw.html',
+  },
+  'patient': {
+    '主页': 'patient-home_raw.html',
+    '病历': 'patient-records_raw.html',
+    '任务': 'patient-tasks_raw.html',
+    '设置': 'patient-settings_raw.html',
+  },
+};
+
+let currentSection = 'doctor-mobile';
+let currentPageIdx = 0;
+
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('section-' + id).classList.add('active');
+  document.querySelectorAll('.nav-tab')[Object.keys(PAGES).indexOf(id)].classList.add('active');
+  currentSection = id;
+}
+
+function openViewer(section, idx) {
+  const page = PAGES[section][idx];
+  currentSection = section;
+  currentPageIdx = idx;
+
+  document.getElementById('viewer-iframe').src = page.file;
+  document.getElementById('viewer-label').textContent = page.name + ' — ' + page.route;
+  document.getElementById('viewer').classList.add('active');
+
+  // Build nav buttons
+  const navDiv = document.getElementById('viewer-nav');
+  navDiv.innerHTML = '';
+  PAGES[section].forEach((p, i) => {
+    const btn = document.createElement('button');
+    btn.textContent = p.name;
+    if (i === idx) btn.className = 'active-nav';
+    btn.onclick = () => openViewer(section, i);
+    navDiv.appendChild(btn);
+  });
+}
+
+function closeViewer() {
+  document.getElementById('viewer').classList.remove('active');
+  document.getElementById('viewer-iframe').src = '';
+}
+
+document.addEventListener('keydown', (e) => {
+  if (!document.getElementById('viewer').classList.contains('active')) return;
+  if (e.key === 'Escape') closeViewer();
+  if (e.key === 'ArrowRight') {
+    const next = (currentPageIdx + 1) % PAGES[currentSection].length;
+    openViewer(currentSection, next);
+  }
+  if (e.key === 'ArrowLeft') {
+    const prev = (currentPageIdx - 1 + PAGES[currentSection].length) % PAGES[currentSection].length;
+    openViewer(currentSection, prev);
+  }
+});
+
+// Render grids
+Object.entries(PAGES).forEach(([section, pages]) => {
+  const grid = document.getElementById('grid-' + section);
+  if (!grid) return;
+
+  pages.forEach((page, idx) => {
+    if (page.desktop) {
+      const card = document.createElement('div');
+      card.className = 'desktop-card';
+      card.onclick = () => window.open(page.file, '_blank');
+      card.innerHTML = `
+        <div class="desktop-frame"><iframe src="${page.file}" loading="lazy"></iframe></div>
+        <div class="phone-label">${page.name}</div>
+        <div class="phone-route">${page.route}</div>
+      `;
+      grid.appendChild(card);
+    } else {
+      const card = document.createElement('div');
+      card.className = 'phone-card';
+      card.onclick = () => openViewer(section, idx);
+      card.innerHTML = `
+        <div class="phone-frame"><iframe src="${page.file}" loading="lazy"></iframe></div>
+        <div class="phone-label">${page.name}</div>
+        <div class="phone-route">${page.route}</div>
+      `;
+      grid.appendChild(card);
+    }
+  });
+});
+</script>
+</body>
+</html>
