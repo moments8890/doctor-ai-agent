@@ -163,8 +163,15 @@ function injectClickHandlers(pageKey) {
   try {
     const doc = iframe.contentDocument || iframe.contentWindow.document;
 
-    // Make all elements with cursor:pointer clickable
-    // Find clickable rows and attach navigation
+    // Hide the iframe's own bottom nav (we use the overlay nav)
+    const style = doc.createElement('style');
+    style.textContent = `
+      .MuiBottomNavigation-root, [class*="BottomNavigation"],
+      [style*="position: fixed"][style*="bottom: 0"] { display: none !important; }
+      body { padding-bottom: 0 !important; }
+    `;
+    doc.head.appendChild(style);
+
     const clickMap = getClickMap(pageKey);
 
     // Inject click listeners by text content matching
