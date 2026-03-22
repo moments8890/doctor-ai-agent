@@ -421,14 +421,16 @@ function RecordDetailView({ record, token, onBack }) {
   const treatmentPlan = detail?.treatment_plan;
 
   const DIAG_STATUS_LABELS = {
+    pending: "诊断中",
+    completed: "待审核",
     confirmed: "已确认",
-    pending: "分析中",
-    completed: "已完成",
+    failed: "诊断失败",
   };
   const DIAG_STATUS_COLORS = {
-    confirmed: COLOR.success,
-    completed: COLOR.primary,
     pending: COLOR.warning,
+    completed: COLOR.primary,
+    confirmed: COLOR.success,
+    failed: COLOR.danger,
   };
 
   return (
@@ -568,8 +570,10 @@ function RecordsTab({ token, onLogout, onNewRecord, urlSubpage }) {
             const typeLabel = RECORD_TYPE_LABEL[rec.record_type] || rec.record_type;
             const chief = rec.structured?.chief_complaint;
             const preview = chief || (rec.content || "").replace(/\n/g, " ").slice(0, 40) || "（内容为空）";
-            const isPending = rec.needs_review === true;
-            const isReviewed = rec.needs_review === false;
+            const _DL = { pending: "诊断中", completed: "待审核", confirmed: "已确认", failed: "诊断失败" };
+            const _DC = { "诊断中": COLOR.warning, "待审核": COLOR.primary, "已确认": COLOR.success, "诊断失败": COLOR.danger };
+            const ds = rec.diagnosis_status;
+            const dsLabel = ds ? _DL[ds] : null;
             return (
               <ListCard
                 key={rec.id}
@@ -578,17 +582,10 @@ function RecordsTab({ token, onLogout, onNewRecord, urlSubpage }) {
                 subtitle={preview}
                 right={
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
-                    {isPending && (
-                      <Typography sx={{ fontSize: TYPE.micro.fontSize, px: 0.6, py: 0.1, borderRadius: "4px", bgcolor: "#FFF7E6", color: "#d46b08" }}>
-                        待审核
-                      </Typography>
+                    {dsLabel && (
+                      <StatusBadge label={dsLabel} colorMap={_DC} fallbackColor={COLOR.text4} />
                     )}
-                    {isReviewed && (
-                      <Typography sx={{ fontSize: TYPE.micro.fontSize, px: 0.6, py: 0.1, borderRadius: "4px", bgcolor: "#e8f5e9", color: "#07C160" }}>
-                        已审核
-                      </Typography>
-                    )}
-                    <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#999" }}>{formatDate(rec.created_at)}</Typography>
+                    <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{formatDate(rec.created_at)}</Typography>
                   </Box>
                 }
                 onClick={() => navigate(`/patient/records/${rec.id}`)}
