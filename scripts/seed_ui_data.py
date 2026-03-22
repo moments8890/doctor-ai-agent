@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Seed mock data for UI screenshot capture.
 
-Creates enough data to populate every page with realistic content.
-Safe to run multiple times — checks for existing data before inserting.
+Creates realistic neurosurgery data to populate every page.
+Use --reset to clear existing test_doctor data first.
 
 Usage:
     PYTHONPATH=src ENVIRONMENT=development python scripts/seed_ui_data.py
+    PYTHONPATH=src ENVIRONMENT=development python scripts/seed_ui_data.py --reset
 
-Test accounts created:
+Test accounts:
     Doctor: test_doctor / 1234
     Patient: test_patient / 1234
 """
@@ -17,14 +18,17 @@ import asyncio
 import json
 import os
 import sys
+import uuid
+from datetime import timedelta
 
-# Ensure src is on path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 os.environ.setdefault("ENVIRONMENT", "development")
 
+DOCTOR_ID = "test_doctor"
+RESET = "--reset" in sys.argv
+
 
 async def main():
-    # Import after path setup
     from db.engine import AsyncSessionLocal
     from db.init_db import create_tables
     from db.models import Patient, MedicalRecordDB, DoctorTask
@@ -34,329 +38,334 @@ async def main():
     from db.models.case_history import CaseHistory
     from db.models.interview_session import InterviewSessionDB, InterviewStatus
     from db.models.base import _utcnow
-    from sqlalchemy import select, func
-    from datetime import timedelta
+    from sqlalchemy import select, delete, func
 
     await create_tables()
-
-    DOCTOR_ID = "test_doctor"
     now = _utcnow()
 
     async with AsyncSessionLocal() as db:
-        # ── 1. Doctor ───────────────────────────────────────────
-        doctor = (await db.execute(
-            select(Doctor).where(Doctor.doctor_id == DOCTOR_ID)
-        )).scalar_one_or_none()
+
+        # ── Reset ───────────────────────────────────────────────
+        if RESET:
+            print("Resetting test_doctor data...")
+            for model in [InterviewSessionDB, DiagnosisResult, ReviewQueue, DoctorTask,
+                          MedicalRecordDB, CaseHistory, DoctorKnowledgeItem]:
+                await db.execute(delete(model).where(model.doctor_id == DOCTOR_ID))
+            await db.execute(delete(Patient).where(Patient.doctor_id == DOCTOR_ID))
+            await db.commit()
+            print("  Cleared all test_doctor data.\n")
+
+        # ── Doctor ──────────────────────────────────────────────
+        doctor = (await db.execute(select(Doctor).where(Doctor.doctor_id == DOCTOR_ID))).scalar_one_or_none()
         if not doctor:
-            doctor = Doctor(
-                doctor_id=DOCTOR_ID, name="test_doctor",
-                specialty="neurosurgery", channel="app",
-            )
+            doctor = Doctor(doctor_id=DOCTOR_ID, name="张医生", specialty="neurosurgery", channel="app")
             db.add(doctor)
             await db.flush()
-            print("  Created doctor: test_doctor")
+            print("  Created doctor: 张医生 (test_doctor)")
         else:
-            print("  Doctor exists: test_doctor")
+            print(f"  Doctor exists: {doctor.name}")
 
-        # ── 2. Patients ─────────────────────────────────────────
+        # ── Patients (5) ────────────────────────────────────────
         patients_data = [
-            {"name": "张三", "gender": "male", "year_of_birth": 1968},
-            {"name": "李四", "gender": "female", "year_of_birth": 1975},
-            {"name": "王五", "gender": "male", "year_of_birth": 1982},
+            {"name": "王建国", "gender": "male", "year_of_birth": 1968},
+            {"name": "李秀英", "gender": "female", "year_of_birth": 1975},
+            {"name": "赵志强", "gender": "male", "year_of_birth": 1960},
+            {"name": "陈美玲", "gender": "female", "year_of_birth": 1982},
+            {"name": "刘大伟", "gender": "male", "year_of_birth": 1955},
         ]
-        patient_ids = []
+        patients = {}
         for pd in patients_data:
             existing = (await db.execute(
-                select(Patient).where(
-                    Patient.doctor_id == DOCTOR_ID,
-                    Patient.name == pd["name"],
-                )
+                select(Patient).where(Patient.doctor_id == DOCTOR_ID, Patient.name == pd["name"])
             )).scalar_one_or_none()
             if existing:
-                patient_ids.append(existing.id)
+                patients[pd["name"]] = existing.id
                 print(f"  Patient exists: {pd['name']} (id={existing.id})")
             else:
-                p = Patient(
-                    doctor_id=DOCTOR_ID, name=pd["name"],
-                    gender=pd["gender"], year_of_birth=pd["year_of_birth"],
-                )
+                p = Patient(doctor_id=DOCTOR_ID, **pd)
                 db.add(p)
                 await db.flush()
-                patient_ids.append(p.id)
+                patients[pd["name"]] = p.id
                 print(f"  Created patient: {pd['name']} (id={p.id})")
 
-        # ── 3. Medical Records ──────────────────────────────────
+        # ── Medical Records ─────────────────────────────────────
         records_data = [
             {
-                "patient_idx": 0, "record_type": "interview_summary",
-                "content": "患者张三，男，56岁，主诉头痛3天，伴恶心呕吐。",
+                "patient": "王建国", "record_type": "interview_summary",
+                "content": "患者王建国，男，56岁，主诉头痛2周，伴恶心呕吐，加重3天。",
                 "structured": {
-                    "department": "神经外科",
-                    "chief_complaint": "头痛3天，伴恶心呕吐",
-                    "present_illness": "3天前无明显诱因出现持续性头痛，以额部为主，伴恶心、非喷射性呕吐。头痛程度逐渐加重，休息后无明显缓解。",
-                    "past_history": "高血压10年，服用氨氯地平5mg qd",
-                    "allergy_history": "青霉素过敏",
-                    "family_history": "母亲有高血压病史",
-                    "personal_history": "吸烟20年，每日10支",
+                    "department": "神经外科", "chief_complaint": "头痛2周，加重3天",
+                    "present_illness": "2周前无明显诱因出现持续性头痛，以额部为主，伴恶心、非喷射性呕吐。3天前头痛明显加重，出现视物模糊。",
+                    "past_history": "高血压10年，服用氨氯地平5mg qd。糖尿病3年，二甲双胍控制。",
+                    "allergy_history": "青霉素过敏", "family_history": "母亲高血压",
+                    "personal_history": "吸烟20年，每日10支。饮酒偶尔。",
                 },
-                "tags": ["头痛", "恶心", "高血压"],
+                "tags": ["头痛", "恶心", "视物模糊", "高血压"],
+                "hours_ago": 2,
             },
             {
-                "patient_idx": 0, "record_type": "interview_summary",
-                "content": "张三复诊，头痛好转，血压控制尚可。",
+                "patient": "李秀英", "record_type": "interview_summary",
+                "content": "患者李秀英，女，49岁，右上肢无力2天，伴言语不清。",
                 "structured": {
-                    "chief_complaint": "复诊，头痛好转",
-                    "present_illness": "经治疗后头痛明显好转，偶有轻微头晕，恶心消失。血压140/90mmHg。",
-                    "past_history": "高血压10年",
+                    "department": "神经外科", "chief_complaint": "右上肢无力2天，伴言语不清",
+                    "present_illness": "2天前晨起发现右手持物不稳，右上肢抬举费力，同时出现言语含糊。无头痛、无意识障碍。",
+                    "past_history": "糖尿病5年，服用二甲双胍。房颤2年，华法林抗凝。",
+                    "allergy_history": "无", "family_history": "父亲脑梗死病史",
                 },
-                "tags": ["复诊", "头痛好转"],
+                "tags": ["肢体无力", "言语不清", "糖尿病", "房颤"],
+                "hours_ago": 5,
             },
             {
-                "patient_idx": 1, "record_type": "interview_summary",
-                "content": "患者李四，女，49岁，右上肢无力2天。",
-                "structured": {
-                    "department": "神经外科",
-                    "chief_complaint": "右上肢无力2天",
-                    "present_illness": "2天前晨起发现右手持物不稳，右上肢抬举费力。无头痛、言语障碍、视物异常。",
-                    "past_history": "糖尿病5年，服用二甲双胍",
-                    "allergy_history": "无",
-                    "family_history": "父亲脑梗死病史",
-                },
-                "tags": ["肢体无力", "糖尿病"],
-            },
-            {
-                "patient_idx": 2, "record_type": "interview_summary",
-                "content": "患者王五，男，42岁，腰痛伴左下肢放射痛1周。",
+                "patient": "赵志强", "record_type": "interview_summary",
+                "content": "患者赵志强，男，64岁，腰痛伴左下肢放射痛1周，加重2天。",
                 "structured": {
                     "chief_complaint": "腰痛伴左下肢放射痛1周",
-                    "present_illness": "1周前搬重物后出现腰痛，逐渐向左下肢放射，咳嗽时加重。无大小便障碍。",
-                    "past_history": "无特殊",
-                    "allergy_history": "无",
+                    "present_illness": "1周前搬重物后出现腰痛，逐渐向左下肢后外侧放射，咳嗽时加重。2天前出现左足背感觉减退。无大小便障碍。",
+                    "past_history": "腰椎间盘突出症10年", "allergy_history": "无",
                 },
-                "tags": ["腰痛", "放射痛"],
+                "tags": ["腰痛", "放射痛", "感觉减退"],
+                "hours_ago": 24,
+            },
+            {
+                "patient": "陈美玲", "record_type": "interview_summary",
+                "content": "患者陈美玲，女，42岁，反复癫痫发作3月，近1周频率增加。",
+                "structured": {
+                    "department": "神经外科", "chief_complaint": "反复癫痫发作3月，加重1周",
+                    "present_illness": "3月前首次出现全面性强直-阵挛发作，每月约2次。近1周发作频率增至隔日1次，伴发作后头痛。外院MRI提示左颞叶占位。",
+                    "past_history": "既往体健", "allergy_history": "磺胺类药物过敏",
+                    "family_history": "无特殊",
+                },
+                "tags": ["癫痫", "颞叶占位", "发作频率增加"],
+                "hours_ago": 48,
+            },
+            {
+                "patient": "刘大伟", "record_type": "interview_summary",
+                "content": "患者刘大伟，男，69岁，动脉瘤夹闭术后2周复查。",
+                "structured": {
+                    "chief_complaint": "动脉瘤夹闭术后2周复查",
+                    "present_illness": "2周前因右侧大脑中动脉动脉瘤行开颅夹闭术，术后恢复良好。目前无头痛、无肢体活动障碍。切口愈合良好。",
+                    "past_history": "高血压15年，冠心病5年", "allergy_history": "无",
+                },
+                "tags": ["术后复查", "动脉瘤", "恢复良好"],
+                "hours_ago": 72,
+            },
+            {
+                "patient": "王建国", "record_type": "interview_summary",
+                "content": "王建国复诊，头痛好转，MRI结果回报。",
+                "structured": {
+                    "chief_complaint": "复诊，头痛好转",
+                    "present_illness": "经治疗后头痛明显好转，恶心消失。MRI示右额叶占位性病变，考虑脑膜瘤可能。",
+                },
+                "tags": ["复诊", "头痛好转", "MRI", "脑膜瘤"],
+                "hours_ago": 1,
             },
         ]
 
-        record_ids = []
+        record_ids = {}
         for rd in records_data:
-            pid = patient_ids[rd["patient_idx"]]
-            # Check if similar record exists
-            count = (await db.execute(
-                select(func.count()).select_from(MedicalRecordDB).where(
-                    MedicalRecordDB.doctor_id == DOCTOR_ID,
-                    MedicalRecordDB.patient_id == pid,
-                    MedicalRecordDB.record_type == rd["record_type"],
-                )
-            )).scalar()
-            if count >= 2:
-                # Already have enough records
-                rid = (await db.execute(
-                    select(MedicalRecordDB.id).where(
-                        MedicalRecordDB.doctor_id == DOCTOR_ID,
-                        MedicalRecordDB.patient_id == pid,
-                    ).order_by(MedicalRecordDB.created_at.desc()).limit(1)
-                )).scalar()
-                record_ids.append(rid)
-                print(f"  Records exist for patient {pid}")
-                continue
-
+            pid = patients[rd["patient"]]
             rec = MedicalRecordDB(
-                doctor_id=DOCTOR_ID, patient_id=pid,
-                record_type=rd["record_type"],
+                doctor_id=DOCTOR_ID, patient_id=pid, record_type=rd["record_type"],
                 content=rd["content"],
                 structured=json.dumps(rd["structured"], ensure_ascii=False),
-                tags=json.dumps(rd["tags"], ensure_ascii=False) if rd.get("tags") else None,
-                created_at=now - timedelta(hours=len(record_ids)),
+                tags=json.dumps(rd.get("tags", []), ensure_ascii=False),
+                created_at=now - timedelta(hours=rd["hours_ago"]),
             )
             db.add(rec)
             await db.flush()
-            record_ids.append(rec.id)
-            print(f"  Created record id={rec.id} for patient {pid}")
+            key = f"{rd['patient']}_{rd['hours_ago']}"
+            record_ids[key] = rec.id
+            print(f"  Record id={rec.id}: {rd['patient']} — {rd['structured'].get('chief_complaint', '')[:30]}")
 
-        # ── 4. Review Queue ─────────────────────────────────────
-        for i, rid in enumerate(record_ids[:3]):
-            existing = (await db.execute(
-                select(ReviewQueue).where(ReviewQueue.record_id == rid)
-            )).scalar_one_or_none()
-            if existing:
-                print(f"  Review exists for record {rid}")
+        # ── Review Queue (2 pending, 2 reviewed) ────────────────
+        reviews = [
+            {"patient": "王建国", "record_key": "王建国_2", "status": "pending_review"},
+            {"patient": "李秀英", "record_key": "李秀英_5", "status": "pending_review"},
+            {"patient": "赵志强", "record_key": "赵志强_24", "status": "reviewed"},
+            {"patient": "陈美玲", "record_key": "陈美玲_48", "status": "reviewed"},
+        ]
+        review_ids = {}
+        for rv in reviews:
+            rid = record_ids.get(rv["record_key"])
+            if not rid:
                 continue
-            status = "pending_review" if i == 0 else "reviewed"
             rq = ReviewQueue(
                 record_id=rid, doctor_id=DOCTOR_ID,
-                patient_id=patient_ids[i % len(patient_ids)],
-                status=status, created_at=now - timedelta(hours=i),
+                patient_id=patients[rv["patient"]], status=rv["status"],
+                created_at=now - timedelta(hours=1),
             )
             db.add(rq)
             await db.flush()
-            print(f"  Created review id={rq.id} status={status}")
+            review_ids[rv["patient"]] = rq.id
+            print(f"  Review id={rq.id}: {rv['patient']} [{rv['status']}]")
 
-        # ── 5. Diagnosis Results ────────────────────────────────
-        for i, rid in enumerate(record_ids[:2]):
-            existing = (await db.execute(
-                select(DiagnosisResult).where(DiagnosisResult.record_id == rid)
-            )).scalar_one_or_none()
-            if existing:
-                print(f"  Diagnosis exists for record {rid}")
+        # ── Diagnosis Results (for pending reviews) ─────────────
+        for patient_name in ["王建国", "李秀英"]:
+            rkey = f"{patient_name}_{'2' if patient_name == '王建国' else '5'}"
+            rid = record_ids.get(rkey)
+            if not rid:
                 continue
 
-            ai_output = {
-                "differentials": [
-                    {"condition": "脑膜瘤", "confidence": "高", "reasoning": "持续性头痛+恶心+高血压→颅内占位可能"},
-                    {"condition": "高血压性头痛", "confidence": "中", "reasoning": "长期高血压病史，血压控制不佳"},
-                    {"condition": "蛛网膜下腔出血", "confidence": "低", "reasoning": "非雷击样头痛，可能性较低"},
-                ],
-                "workup": [
-                    {"test": "头颅MRI增强", "rationale": "排除颅内占位", "urgency": "紧急"},
-                    {"test": "血常规+CRP", "rationale": "排除感染", "urgency": "常规"},
-                    {"test": "血压24小时动态监测", "rationale": "评估血压控制", "urgency": "常规"},
-                ],
-                "treatment": [
-                    {"drug_class": "降压药调整", "intervention": "药物", "description": "氨氯地平加量或联合用药"},
-                    {"drug_class": "止痛对症", "intervention": "药物", "description": "对乙酰氨基酚或布洛芬"},
-                ],
-            }
+            if patient_name == "王建国":
+                ai_output = {
+                    "differentials": [
+                        {"condition": "脑膜瘤", "confidence": "高", "reasoning": "持续性头痛+恶心呕吐+视物模糊→颅内占位高度可疑，MRI已示右额叶占位"},
+                        {"condition": "高血压性头痛", "confidence": "中", "reasoning": "长期高血压病史，需排除高血压急症"},
+                        {"condition": "颅内动脉瘤", "confidence": "低", "reasoning": "非雷击样头痛，但需MRA排除"},
+                    ],
+                    "workup": [
+                        {"test": "头颅MRI增强+MRA", "rationale": "明确占位性质及血管关系", "urgency": "紧急"},
+                        {"test": "血常规+凝血功能", "rationale": "术前评估", "urgency": "常规"},
+                        {"test": "心电图+胸片", "rationale": "术前常规检查", "urgency": "常规"},
+                    ],
+                    "treatment": [
+                        {"drug_class": "脱水降颅压", "intervention": "药物", "description": "甘露醇125ml q8h，降低颅内压"},
+                        {"drug_class": "手术切除", "intervention": "手术", "description": "择期开颅脑膜瘤切除术"},
+                    ],
+                }
+                red_flags = ["持续性头痛伴视物模糊需排除颅内占位", "高血压合并颅内病变需密切监测血压"]
+            else:
+                ai_output = {
+                    "differentials": [
+                        {"condition": "脑梗死", "confidence": "高", "reasoning": "急性起病肢体无力+言语不清+房颤病史→心源性脑栓塞可能性大"},
+                        {"condition": "脑出血", "confidence": "中", "reasoning": "华法林抗凝中，需CT排除出血"},
+                        {"condition": "短暂性脑缺血发作", "confidence": "低", "reasoning": "症状持续>24h，TIA可能性低"},
+                    ],
+                    "workup": [
+                        {"test": "头颅CT平扫", "rationale": "急诊排除出血", "urgency": "急诊"},
+                        {"test": "INR+凝血功能", "rationale": "评估华法林抗凝状态", "urgency": "急诊"},
+                        {"test": "头颅MRI+DWI", "rationale": "明确梗死范围", "urgency": "紧急"},
+                    ],
+                    "treatment": [
+                        {"drug_class": "抗血小板", "intervention": "药物", "description": "阿司匹林+氯吡格雷双抗（排除出血后）"},
+                        {"drug_class": "神经保护", "intervention": "药物", "description": "依达拉奉清除自由基"},
+                    ],
+                }
+                red_flags = ["急性肢体无力+言语不清→卒中急症，立即CT排除出血", "华法林抗凝中发病，INR需紧急检测"]
+
             dx = DiagnosisResult(
                 record_id=rid, doctor_id=DOCTOR_ID,
                 ai_output=json.dumps(ai_output, ensure_ascii=False),
-                red_flags=json.dumps(["持续性头痛伴恶心呕吐需排除颅内占位"], ensure_ascii=False),
+                red_flags=json.dumps(red_flags, ensure_ascii=False),
                 case_references=json.dumps([
                     {"chief_complaint": "头痛+恶心", "final_diagnosis": "脑膜瘤", "similarity": 0.87},
                 ], ensure_ascii=False),
-                status="completed",
-                completed_at=now,
+                status="completed", completed_at=now,
             )
             db.add(dx)
             await db.flush()
-            print(f"  Created diagnosis id={dx.id} for record {rid}")
+            print(f"  Diagnosis id={dx.id}: {patient_name}")
 
-        # ── 6. Tasks ────────────────────────────────────────────
-        tasks_data = [
-            {"title": "张三 MRI复查", "task_type": "follow_up", "status": "pending",
-             "content": "头痛好转后1月复查MRI", "patient_idx": 0},
-            {"title": "李四 血糖监测", "task_type": "lab_review", "status": "pending",
-             "content": "空腹血糖+糖化血红蛋白", "patient_idx": 1},
-            {"title": "王五 随访电话", "task_type": "follow_up", "status": "completed",
-             "content": "术后2周随访", "patient_idx": 2},
+        # ── Tasks (5) ──────────────────────────────────────────
+        tasks = [
+            {"title": "王建国 MRI增强复查", "type": "follow_up", "status": "pending", "patient": "王建国",
+             "content": "头痛好转后1月复查MRI增强，评估脑膜瘤变化", "due_hours": 48},
+            {"title": "李秀英 INR监测", "type": "lab_review", "status": "pending", "patient": "李秀英",
+             "content": "华法林调整后3天复查INR，目标2.0-3.0", "due_hours": 24},
+            {"title": "赵志强 腰椎MRI", "type": "imaging", "status": "pending", "patient": "赵志强",
+             "content": "腰椎MRI评估椎间盘突出程度，决定是否手术", "due_hours": 72},
+            {"title": "刘大伟 术后随访电话", "type": "follow_up", "status": "completed", "patient": "刘大伟",
+             "content": "动脉瘤夹闭术后2周电话随访，了解恢复情况"},
+            {"title": "陈美玲 抗癫痫药物调整", "type": "medication", "status": "pending", "patient": "陈美玲",
+             "content": "左乙拉西坦加量至1000mg bid，观察发作控制情况", "due_hours": 168},
         ]
-        for td in tasks_data:
-            existing = (await db.execute(
-                select(func.count()).select_from(DoctorTask).where(
-                    DoctorTask.doctor_id == DOCTOR_ID,
-                    DoctorTask.title == td["title"],
-                )
-            )).scalar()
-            if existing:
-                print(f"  Task exists: {td['title']}")
-                continue
+        for td in tasks:
+            pid = patients.get(td["patient"])
             task = DoctorTask(
-                doctor_id=DOCTOR_ID,
-                patient_id=patient_ids[td["patient_idx"]],
-                title=td["title"],
-                task_type=td["task_type"],
-                content=td["content"],
-                status=td["status"],
-                created_at=now - timedelta(hours=2),
+                doctor_id=DOCTOR_ID, patient_id=pid,
+                title=td["title"], task_type=td["type"],
+                content=td["content"], status=td["status"],
+                due_at=(now + timedelta(hours=td.get("due_hours", 0))) if td.get("due_hours") else None,
+                created_at=now - timedelta(hours=3),
             )
             db.add(task)
-            print(f"  Created task: {td['title']}")
+            print(f"  Task: {td['title']} [{td['status']}]")
 
-        # ── 7. Knowledge Items ──────────────────────────────────
-        knowledge_data = [
-            {"text": "头痛问诊要点：先问发作方式（突发/渐进），突发性头痛需追问雷击样特征", "category": "interview_guide", "source": "doctor"},
-            {"text": "头痛+恶心+视乳头水肿三联征→颅内高压，需紧急CT排除占位", "category": "diagnosis_rule", "source": "doctor"},
-            {"text": "雷击样头痛→立即排除SAH，先CT后腰穿", "category": "red_flag", "source": "doctor"},
-            {"text": "脑膜瘤术后：地塞米松10mg→逐渐减量，抗癫痫预防1周", "category": "treatment_protocol", "source": "doctor"},
-            {"text": "老年患者优先保守治疗，除非有明确手术指征", "category": "custom", "source": "doctor"},
-            {"text": "肢体无力急性起病→优先考虑卒中，立即CT排除出血", "category": "diagnosis_rule", "source": "agent_auto"},
+        # ── Knowledge Items (6 across categories) ───────────────
+        knowledge = [
+            {"text": "头痛问诊要点：先问发作方式（突发/渐进），突发→追问雷击样特征。持续性头痛+恶心+视乳头水肿→颅高压三联征。",
+             "category": "interview_guide", "source": "doctor"},
+            {"text": "急性肢体无力问诊：首先区分急性（<24h）还是慢性。急性起病→卒中筛查：发病时间、言语障碍、面部不对称、房颤/高血压史。",
+             "category": "interview_guide", "source": "doctor"},
+            {"text": "头痛+恶心+视乳头水肿三联征→颅内高压，需紧急CT/MRI排除占位。老年患者同时排除慢性硬膜下血肿。",
+             "category": "diagnosis_rule", "source": "doctor"},
+            {"text": "雷击样头痛（数秒内达峰值）→无论其他症状如何，必须立即排除SAH。先CT后腰穿，时间窗至关重要。",
+             "category": "red_flag", "source": "doctor"},
+            {"text": "进行性双下肢无力+鞍区感觉减退+大小便功能障碍→马尾综合征，24小时内手术减压。",
+             "category": "red_flag", "source": "agent_auto"},
+            {"text": "脑膜瘤术后标准方案：地塞米松10mg术中→术后4mg q6h×3天→逐渐减量。抗癫痫预防用药至少1周。",
+             "category": "treatment_protocol", "source": "doctor"},
         ]
-        for kd in knowledge_data:
-            existing = (await db.execute(
-                select(func.count()).select_from(DoctorKnowledgeItem).where(
-                    DoctorKnowledgeItem.doctor_id == DOCTOR_ID,
-                    DoctorKnowledgeItem.content.contains(kd["text"][:30]),
-                )
-            )).scalar()
-            if existing:
-                print(f"  Knowledge exists: {kd['text'][:30]}...")
-                continue
-            payload = json.dumps({"v": 1, "text": kd["text"], "source": kd["source"], "confidence": 1.0 if kd["source"] == "doctor" else 0.6}, ensure_ascii=False)
+        for kd in knowledge:
+            payload = json.dumps({"v": 1, "text": kd["text"], "source": kd["source"],
+                                  "confidence": 1.0 if kd["source"] == "doctor" else 0.6}, ensure_ascii=False)
             item = DoctorKnowledgeItem(
                 doctor_id=DOCTOR_ID, content=payload,
-                category=kd.get("category", "custom"),
+                category=kd["category"], reference_count=3 if kd["source"] == "doctor" else 1,
             )
             db.add(item)
-            print(f"  Created knowledge: {kd['text'][:40]}...")
+            print(f"  Knowledge [{kd['category']}]: {kd['text'][:40]}...")
 
-        # ── 8. Case History ─────────────────────────────────────
-        cases_data = [
+        # ── Case History (3 confirmed) ──────────────────────────
+        cases = [
             {"chief_complaint": "头痛伴恶心2周", "final_diagnosis": "右额叶脑膜瘤（WHO I级）",
-             "treatment": "开颅肿瘤切除术", "outcome": "好转", "confidence_status": "confirmed"},
-            {"chief_complaint": "突发剧烈头痛", "final_diagnosis": "蛛网膜下腔出血",
-             "treatment": "动脉瘤夹闭术", "outcome": "好转", "confidence_status": "confirmed"},
+             "present_illness": "持续性头痛，伴恶心呕吐，视乳头水肿",
+             "treatment": "开颅肿瘤切除术（Simpson I级全切）", "outcome": "好转",
+             "notes": "教学要点：头痛+视乳头水肿+呕吐三联征需高度怀疑颅内占位"},
+            {"chief_complaint": "突发剧烈头痛30分钟", "final_diagnosis": "前交通动脉瘤破裂伴蛛网膜下腔出血",
+             "present_illness": "雷击样头痛，颈项强直，Hunt-Hess II级",
+             "treatment": "开颅动脉瘤夹闭术", "outcome": "好转",
+             "notes": "雷击样头痛是SAH最重要的早期信号"},
+            {"chief_complaint": "腰痛伴双下肢无力3天", "final_diagnosis": "L4-5椎间盘突出伴马尾综合征",
+             "present_illness": "急性腰痛，双下肢无力进行性加重，鞍区感觉减退",
+             "treatment": "急诊腰椎后路减压+椎间盘摘除术", "outcome": "好转",
+             "notes": "马尾综合征是神经外科急症，24小时内手术预后好"},
         ]
-        for cd in cases_data:
-            existing = (await db.execute(
-                select(func.count()).select_from(CaseHistory).where(
-                    CaseHistory.doctor_id == DOCTOR_ID,
-                    CaseHistory.chief_complaint == cd["chief_complaint"],
-                )
-            )).scalar()
-            if existing:
-                print(f"  Case exists: {cd['chief_complaint']}")
-                continue
+        for cd in cases:
             case = CaseHistory(
                 doctor_id=DOCTOR_ID,
-                chief_complaint=cd["chief_complaint"],
-                final_diagnosis=cd["final_diagnosis"],
-                treatment=cd["treatment"],
-                outcome=cd["outcome"],
-                confidence_status=cd["confidence_status"],
-                reference_count=5,
-                source="review",
+                chief_complaint=cd["chief_complaint"], final_diagnosis=cd["final_diagnosis"],
+                present_illness=cd.get("present_illness"),
+                treatment=cd["treatment"], outcome=cd["outcome"], notes=cd.get("notes"),
+                confidence_status="confirmed", reference_count=8, source="review",
             )
             db.add(case)
-            print(f"  Created case: {cd['chief_complaint']}")
+            print(f"  Case: {cd['chief_complaint'][:30]} → {cd['final_diagnosis'][:20]}")
 
-        # ── 9. Interview Session (for conversation in review) ───
-        existing_session = (await db.execute(
-            select(func.count()).select_from(InterviewSessionDB).where(
-                InterviewSessionDB.doctor_id == DOCTOR_ID,
-            )
-        )).scalar()
-        if not existing_session and record_ids:
-            conversation = [
-                {"role": "assistant", "content": "您好！请描述您的症状。"},
-                {"role": "user", "content": "我头痛3天了"},
-                {"role": "assistant", "content": "头痛是什么时候开始的？是突然发生的还是逐渐加重的？"},
-                {"role": "user", "content": "3天前开始的，逐渐加重"},
-                {"role": "assistant", "content": "有没有伴随其他不适？比如恶心、呕吐、视物模糊？"},
-                {"role": "user", "content": "有恶心，吐了两次"},
-                {"role": "assistant", "content": "了解。您以前有过类似的头痛吗？有没有高血压、糖尿病等慢性病？"},
-                {"role": "user", "content": "有高血压10年了，一直在吃药"},
-            ]
-            import uuid
-            sess = InterviewSessionDB(
-                id=str(uuid.uuid4()),
-                doctor_id=DOCTOR_ID,
-                patient_id=patient_ids[0],
-                status=InterviewStatus.confirmed,
-                mode="patient",
-                collected=json.dumps({
-                    "chief_complaint": "头痛3天",
-                    "present_illness": "3天前开始持续性头痛，逐渐加重，伴恶心呕吐2次",
-                    "past_history": "高血压10年，服药中",
-                }, ensure_ascii=False),
-                conversation=json.dumps(conversation, ensure_ascii=False),
-                turn_count=4,
-                created_at=now - timedelta(hours=1),
-                updated_at=now,
-            )
-            db.add(sess)
-            print("  Created interview session with conversation")
+        # ── Interview Session (with conversation) ───────────────
+        conversation = [
+            {"role": "assistant", "content": "您好！请描述您的症状，我来帮您整理病情。"},
+            {"role": "user", "content": "我头痛两个星期了，最近几天越来越严重"},
+            {"role": "assistant", "content": "头痛两周加重，了解了。头痛是持续性的还是间歇性的？主要痛在哪个部位？"},
+            {"role": "user", "content": "一直都痛，主要是前额这边，有时候整个头都痛"},
+            {"role": "assistant", "content": "持续性前额头痛。有没有伴随其他不适？比如恶心、呕吐、看东西模糊？"},
+            {"role": "user", "content": "有恶心，吐了几次，最近看东西有点模糊"},
+            {"role": "assistant", "content": "头痛伴恶心呕吐和视物模糊，这些症状需要重视。您以前有过类似头痛吗？有没有高血压、糖尿病等慢性病？"},
+            {"role": "user", "content": "以前没这么痛过。有高血压十几年了，一直吃降压药。糖尿病三年"},
+            {"role": "assistant", "content": "了解，高血压10年+糖尿病3年。您对什么药物过敏吗？"},
+            {"role": "user", "content": "青霉素过敏"},
+            {"role": "assistant", "content": "好的。家里人有没有类似的疾病？"},
+            {"role": "user", "content": "我妈也有高血压"},
+            {"role": "assistant", "content": "您的情况我都记下来了。主要是持续性头痛两周加重，伴恶心呕吐和视物模糊，有高血压和糖尿病病史。请确认后提交给医生。"},
+        ]
+        sess = InterviewSessionDB(
+            id=str(uuid.uuid4()), doctor_id=DOCTOR_ID,
+            patient_id=patients["王建国"], status=InterviewStatus.confirmed, mode="patient",
+            collected=json.dumps({
+                "chief_complaint": "头痛2周，加重3天",
+                "present_illness": "持续性前额头痛，逐渐加重，伴恶心呕吐数次，近日视物模糊",
+                "past_history": "高血压10年，服用氨氯地平；糖尿病3年",
+                "allergy_history": "青霉素过敏",
+                "family_history": "母亲高血压",
+            }, ensure_ascii=False),
+            conversation=json.dumps(conversation, ensure_ascii=False),
+            turn_count=7, created_at=now - timedelta(hours=2), updated_at=now,
+        )
+        db.add(sess)
+        print("  Interview session: 王建国 (13 messages)")
 
         await db.commit()
-        print("\n✅ Seed data complete. All UI pages should now have content.")
+        print(f"\n✅ Seed complete: 5 patients, 6 records, 4 reviews, 2 diagnoses, 5 tasks, 6 knowledge, 3 cases, 1 interview")
 
 
 if __name__ == "__main__":
