@@ -18,7 +18,6 @@
     background: #fff; color: #666; cursor: pointer; font-size: 13px;
   }
   .role-btn.active { background: #07C160; color: #fff; border-color: #07C160; }
-
   .phone {
     width: 375px; height: 812px;
     border: 2px solid #333; border-radius: 24px;
@@ -27,29 +26,13 @@
     position: relative;
   }
   .phone iframe { width: 100%; height: 100%; border: none; display: block; }
-
   .breadcrumb { font-size: 12px; color: #999; margin-top: 8px; font-family: monospace; }
-
-  /* Back button — floats over iframe top-left */
   .back-btn {
-    position: absolute; top: 0; left: 0;
-    width: 60px; height: 48px;
-    z-index: 5; cursor: pointer;
-    display: none;
+    position: absolute; top: 0; left: 0; width: 60px; height: 48px;
+    z-index: 5; cursor: pointer; display: none;
   }
   .back-btn:hover { background: rgba(0,0,0,0.03); }
   .back-btn.visible { display: block; }
-
-  /* Clickable row overlays */
-  .row-links {
-    position: absolute; left: 0; right: 0;
-    z-index: 5;
-  }
-  .row-link {
-    display: block; width: 100%; cursor: pointer;
-    background: transparent;
-  }
-  .row-link:hover { background: rgba(7,193,96,0.06); }
 </style>
 </head>
 <body>
@@ -59,7 +42,7 @@
   <div class="role-btn" onclick="switchRole('patient')">Patient</div>
 </div>
 
-<div class="phone" id="phone">
+<div class="phone">
   <iframe id="screen" src="doctor-home_raw.html"></iframe>
   <div class="back-btn" id="back-btn" onclick="goBack()"></div>
 </div>
@@ -67,69 +50,76 @@
 <div class="breadcrumb" id="breadcrumb">/doctor</div>
 
 <script>
-const DOCTOR_NAV = [
-  { key: 'home', label: '首页', icon: 'home' },
-  { key: 'patients', label: '患者', icon: 'people' },
-  { key: 'tasks', label: '任务', icon: 'task' },
-  { key: 'settings', label: '设置', icon: 'settings' },
-];
-const PATIENT_NAV = [
-  { key: 'home', label: '主页', icon: 'home' },
-  { key: 'records', label: '病历', icon: 'doc' },
-  { key: 'tasks', label: '任务', icon: 'task' },
-  { key: 'settings', label: '设置', icon: 'settings' },
-];
-
-// Page definitions with parent for back navigation
 const DOCTOR_PAGES = {
-  home:               { file: 'doctor-home_raw.html', route: '/doctor', nav: 'home' },
-  chat:               { file: 'doctor-chat_raw.html', route: '/doctor/chat', nav: 'home', parent: 'home' },
-  patients:           { file: 'doctor-patients_raw.html', route: '/doctor/patients', nav: 'patients' },
-  'patient-detail':   { file: 'doctor-patient-detail_raw.html', route: '/doctor/patients/:id', nav: 'patients', parent: 'patients' },
-  tasks:              { file: 'doctor-tasks_raw.html', route: '/doctor/tasks', nav: 'tasks' },
-  'review-diagnosis': { file: 'doctor-review-diagnosis_raw.html', route: '/doctor/tasks/review/:id', nav: 'tasks', parent: 'tasks' },
-  settings:           { file: 'doctor-settings_raw.html', route: '/doctor/settings', nav: 'settings' },
-  template:           { file: 'doctor-settings-template_raw.html', route: '/doctor/settings/template', nav: 'settings', parent: 'settings' },
-  knowledge:          { file: 'doctor-settings-knowledge_raw.html', route: '/doctor/settings/knowledge', nav: 'settings', parent: 'settings' },
-  about:              { file: 'doctor-settings-about_raw.html', route: '/doctor/settings/about', nav: 'settings', parent: 'settings' },
-};
-const PATIENT_PAGES = {
-  home:     { file: 'patient-home_raw.html', route: '/patient/chat', nav: 'home' },
-  records:  { file: 'patient-records_raw.html', route: '/patient/records', nav: 'records' },
-  tasks:    { file: 'patient-tasks_raw.html', route: '/patient/tasks', nav: 'tasks' },
-  settings: { file: 'patient-settings_raw.html', route: '/patient/profile', nav: 'settings' },
+  home:               { file: 'doctor-home_raw.html', route: '/doctor' },
+  chat:               { file: 'doctor-chat_raw.html', route: '/doctor/chat', parent: 'home' },
+  patients:           { file: 'doctor-patients_raw.html', route: '/doctor/patients' },
+  'patient-detail':   { file: 'doctor-patient-detail_raw.html', route: '/doctor/patients/:id', parent: 'patients' },
+  tasks:              { file: 'doctor-tasks_raw.html', route: '/doctor/tasks' },
+  'review-diagnosis': { file: 'doctor-review-diagnosis_raw.html', route: '/doctor/tasks/review/:id', parent: 'tasks' },
+  settings:           { file: 'doctor-settings_raw.html', route: '/doctor/settings' },
+  template:           { file: 'doctor-settings-template_raw.html', route: '/doctor/settings/template', parent: 'settings' },
+  knowledge:          { file: 'doctor-settings-knowledge_raw.html', route: '/doctor/settings/knowledge', parent: 'settings' },
+  about:              { file: 'doctor-settings-about_raw.html', route: '/doctor/settings/about', parent: 'settings' },
 };
 
-const ICONS = {
-  home: `<svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>`,
-  people: `<svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>`,
-  task: `<svg viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>`,
-  settings: `<svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 00-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>`,
-  doc: `<svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>`,
+const PATIENT_PAGES = {
+  home:     { file: 'patient-home_raw.html', route: '/patient/chat' },
+  records:  { file: 'patient-records_raw.html', route: '/patient/records' },
+  tasks:    { file: 'patient-tasks_raw.html', route: '/patient/tasks' },
+  settings: { file: 'patient-settings_raw.html', route: '/patient/profile' },
 };
+
+// Text → navigation target. Checked against innerText of clicked elements.
+// More specific patterns first. Works for both exact and partial matches.
+const DOCTOR_CLICK_RULES = [
+  // Bottom nav
+  { text: '首页', target: 'home', context: 'nav' },
+  { text: '患者', target: 'patients', context: 'nav' },
+  { text: '任务', target: 'tasks', context: 'nav' },
+  { text: '设置', target: 'settings', context: 'nav' },
+  // Home page
+  { text: '问 AI', target: 'chat' },
+  { text: '审核', target: 'review-diagnosis' },
+  // Patient list → detail
+  { text: '张三', target: 'patient-detail', page: 'patients' },
+  { text: '李四', target: 'patient-detail', page: 'patients' },
+  { text: '王五', target: 'patient-detail', page: 'patients' },
+  { text: 'test_patient', target: 'patient-detail', page: 'patients' },
+  { text: '新建患者', target: 'patient-detail', page: 'patients' },
+  // Task list → review
+  { text: '问诊记录', target: 'review-diagnosis', page: 'tasks' },
+  { text: '待审核', target: 'review-diagnosis', page: 'tasks' },
+  // Settings → subpages
+  { text: '报告模板', target: 'template', page: 'settings' },
+  { text: '知识库', target: 'knowledge', page: 'settings' },
+  { text: '关于', target: 'about', page: 'settings' },
+];
+
+const PATIENT_CLICK_RULES = [
+  // Bottom nav
+  { text: '主页', target: 'home', context: 'nav' },
+  { text: '病历', target: 'records', context: 'nav' },
+  { text: '任务', target: 'tasks', context: 'nav' },
+  { text: '设置', target: 'settings', context: 'nav' },
+];
 
 let currentRole = 'doctor';
 let currentPage = 'home';
 
 function getPages() { return currentRole === 'doctor' ? DOCTOR_PAGES : PATIENT_PAGES; }
-function getNav() { return currentRole === 'doctor' ? DOCTOR_NAV : PATIENT_NAV; }
+function getRules() { return currentRole === 'doctor' ? DOCTOR_CLICK_RULES : PATIENT_CLICK_RULES; }
 
 function navigate(pageKey) {
   const pages = getPages();
   if (!pages[pageKey]) return;
   currentPage = pageKey;
-
   const page = pages[pageKey];
   document.getElementById('screen').src = page.file;
   document.getElementById('breadcrumb').textContent = page.route;
+  document.getElementById('back-btn').className = page.parent ? 'back-btn visible' : 'back-btn';
 
-  // Back button
-  const backBtn = document.getElementById('back-btn');
-  backBtn.className = page.parent ? 'back-btn visible' : 'back-btn';
-
-  // Delay link injection to wait for iframe load
-  const iframe = document.getElementById('screen');
-  iframe.onload = () => injectClickHandlers(pageKey);
+  document.getElementById('screen').onload = () => injectClickHandlers();
 }
 
 function goBack() {
@@ -137,120 +127,59 @@ function goBack() {
   if (page?.parent) navigate(page.parent);
 }
 
-function injectClickHandlers(pageKey) {
+function injectClickHandlers() {
   const iframe = document.getElementById('screen');
-  try {
-    const doc = iframe.contentDocument || iframe.contentWindow.document;
+  let doc;
+  try { doc = iframe.contentDocument || iframe.contentWindow.document; } catch { return; }
 
-    // Intercept clicks on the iframe's own bottom nav buttons
-    doc.querySelectorAll('button').forEach(btn => {
-      const label = btn.querySelector('.MuiBottomNavigationAction-label');
-      if (!label) return;
-      const text = label.textContent.trim();
-      const navTarget = getNavTarget(text);
-      if (navTarget) {
-        btn.addEventListener('click', (e) => {
+  const rules = getRules();
+
+  // Capture all clicks in the iframe
+  doc.addEventListener('click', (e) => {
+    // Walk up from click target to find a matching rule
+    let el = e.target;
+    for (let i = 0; i < 10 && el && el !== doc.body; i++) {
+      const text = (el.innerText || el.textContent || '').trim();
+
+      for (const rule of rules) {
+        // Skip page-specific rules if not on that page
+        if (rule.page && rule.page !== currentPage) continue;
+
+        // For nav buttons, check if this is inside a bottom nav
+        if (rule.context === 'nav') {
+          const isNav = el.closest('.MuiBottomNavigation-root') ||
+                        el.closest('[class*="BottomNavigation"]') ||
+                        el.closest('button[class*="BottomNavigationAction"]');
+          if (!isNav) continue;
+        }
+
+        if (text.includes(rule.text)) {
           e.preventDefault();
           e.stopPropagation();
-          window.parent.postMessage({ action: 'navigate', target: navTarget }, '*');
-        });
-      }
-    });
-
-    // Intercept back button clicks (top-left chevron)
-    doc.querySelectorAll('svg').forEach(svg => {
-      if (svg.dataset?.testid?.includes('ChevronLeft') || svg.closest('[class*="SubpageHeader"]')) {
-        const clickable = svg.closest('div[style*="cursor"]') || svg.closest('div');
-        if (clickable) {
-          clickable.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            window.parent.postMessage({ action: 'back' }, '*');
-          });
+          navigate(rule.target);
+          return;
         }
       }
-    });
-
-    const clickMap = getClickMap(pageKey);
-
-    // Inject click listeners by text content matching
-    doc.querySelectorAll('div, p, span, button, a').forEach(el => {
-      const text = (el.textContent || '').trim();
-      for (const [pattern, target] of Object.entries(clickMap)) {
-        if (text.includes(pattern) && el.offsetHeight > 10 && el.offsetHeight < 80) {
-          el.style.cursor = 'pointer';
-          el.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            window.parent.postMessage({ action: 'navigate', target }, '*');
-          }, { once: true });
-          break;
-        }
-      }
-    });
-  } catch (e) {
-    // Cross-origin iframe — can't inject
-  }
-}
-
-function getClickMap(pageKey) {
-  if (currentRole === 'doctor') {
-    switch (pageKey) {
-      case 'patients': return {
-        '新建患者': 'patient-detail',
-        '张三': 'patient-detail', '李四': 'patient-detail', '王五': 'patient-detail',
-        'test_patient': 'patient-detail',
-      };
-      case 'tasks': return {
-        '问诊记录': 'review-diagnosis', '待审核': 'review-diagnosis',
-        '随访': 'tasks', '随访电话': 'tasks',
-      };
-      case 'settings': return {
-        '报告模板': 'template', '知识库': 'knowledge', '关于': 'about',
-      };
-      case 'home': return {
-        '问 AI': 'chat',
-      };
-      default: return {};
+      el = el.parentElement;
     }
-  }
-  return {};
-}
+  }, true);
 
-function getNavTarget(label) {
-  if (currentRole === 'doctor') {
-    const map = { '首页': 'home', '患者': 'patients', '任务': 'tasks', '设置': 'settings' };
-    return map[label] || null;
-  } else {
-    const map = { '主页': 'home', '病历': 'records', '任务': 'tasks', '设置': 'settings' };
-    return map[label] || null;
-  }
-}
-
-// Listen for navigation messages from iframe
-window.addEventListener('message', (e) => {
-  if (e.data?.action === 'navigate' && e.data.target) {
-    navigate(e.data.target);
-  }
-  if (e.data?.action === 'back') {
-    goBack();
-  }
-});
-
-function renderNav() {
-  const nav = getNav();
-  const page = getPages()[currentPage];
-  const activeNav = page?.nav || 'home';
-  const container = document.getElementById('bottom-nav');
-  container.innerHTML = '';
-
-  nav.forEach(item => {
-    const div = document.createElement('div');
-    div.className = 'nav-item' + (item.key === activeNav ? ' active' : '');
-    div.innerHTML = ICONS[item.icon] + `<span>${item.label}</span>`;
-    div.onclick = () => navigate(item.key);
-    container.appendChild(div);
-  });
+  // Also handle back button (ChevronLeft SVG click)
+  doc.addEventListener('click', (e) => {
+    let el = e.target;
+    for (let i = 0; i < 5 && el; i++) {
+      if (el.tagName === 'svg' || el.querySelector?.('svg[data-testid*="Chevron"]')) {
+        const page = getPages()[currentPage];
+        if (page?.parent) {
+          e.preventDefault();
+          e.stopPropagation();
+          goBack();
+          return;
+        }
+      }
+      el = el.parentElement;
+    }
+  }, true);
 }
 
 function switchRole(role) {
