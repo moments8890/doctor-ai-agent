@@ -12,18 +12,13 @@
     display: flex; flex-direction: column; align-items: center;
     min-height: 100vh; padding: 16px 0;
   }
-
-  /* Role switcher */
-  .role-bar {
-    display: flex; gap: 8px; margin-bottom: 12px;
-  }
+  .role-bar { display: flex; gap: 8px; margin-bottom: 12px; }
   .role-btn {
     padding: 6px 20px; border-radius: 20px; border: 1px solid #ddd;
     background: #fff; color: #666; cursor: pointer; font-size: 13px;
   }
   .role-btn.active { background: #07C160; color: #fff; border-color: #07C160; }
 
-  /* Phone frame */
   .phone {
     width: 375px; height: 812px;
     border: 2px solid #333; border-radius: 24px;
@@ -31,11 +26,8 @@
     box-shadow: 0 8px 32px rgba(0,0,0,0.15);
     position: relative;
   }
-  .phone iframe {
-    width: 100%; height: 100%; border: none;
-  }
+  .phone iframe { width: 100%; height: calc(100% - 56px); border: none; display: block; }
 
-  /* Bottom nav overlay */
   .bottom-nav {
     position: absolute; bottom: 0; left: 0; right: 0;
     height: 56px; background: #f7f7f7;
@@ -47,60 +39,59 @@
     align-items: center; justify-content: center;
     cursor: pointer; gap: 2px; padding-top: 6px;
     color: #999; font-size: 10px;
-    user-select: none; -webkit-user-select: none;
+    user-select: none;
   }
   .nav-item:active { opacity: 0.6; }
   .nav-item.active { color: #07C160; }
   .nav-item svg { width: 22px; height: 22px; fill: currentColor; }
 
-  /* Breadcrumb */
-  .breadcrumb {
-    font-size: 12px; color: #999; margin-top: 8px;
-    font-family: monospace;
-  }
+  .breadcrumb { font-size: 12px; color: #999; margin-top: 8px; font-family: monospace; }
 
-  /* Subpage links overlay */
-  .link-overlay {
-    position: absolute; top: 0; left: 0; right: 0; bottom: 56px;
-    z-index: 5; pointer-events: none;
+  /* Back button — floats over iframe top-left */
+  .back-btn {
+    position: absolute; top: 0; left: 0;
+    width: 60px; height: 48px;
+    z-index: 5; cursor: pointer;
+    display: none;
   }
-  .link-area {
-    position: absolute; pointer-events: auto; cursor: pointer;
-    /* border: 1px dashed rgba(7,193,96,0.3); */
+  .back-btn:hover { background: rgba(0,0,0,0.03); }
+  .back-btn.visible { display: block; }
+
+  /* Clickable row overlays */
+  .row-links {
+    position: absolute; left: 0; right: 0;
+    z-index: 5;
   }
-  .link-area:hover { background: rgba(7,193,96,0.08); }
+  .row-link {
+    display: block; width: 100%; cursor: pointer;
+    background: transparent;
+  }
+  .row-link:hover { background: rgba(7,193,96,0.06); }
 </style>
 </head>
 <body>
 
-<!-- Role switcher -->
 <div class="role-bar">
   <div class="role-btn active" onclick="switchRole('doctor')">Doctor</div>
   <div class="role-btn" onclick="switchRole('patient')">Patient</div>
 </div>
 
-<!-- Phone frame -->
 <div class="phone" id="phone">
   <iframe id="screen" src="doctor-home_raw.html"></iframe>
-
-  <!-- Clickable link areas for subpage navigation -->
-  <div class="link-overlay" id="links"></div>
-
-  <!-- Bottom nav -->
+  <div class="back-btn" id="back-btn" onclick="goBack()"></div>
+  <div class="row-links" id="row-links"></div>
   <div class="bottom-nav" id="bottom-nav"></div>
 </div>
 
 <div class="breadcrumb" id="breadcrumb">/doctor</div>
 
 <script>
-// ── Page registry ──────────────────────────────────────────
 const DOCTOR_NAV = [
   { key: 'home', label: '首页', icon: 'home' },
   { key: 'patients', label: '患者', icon: 'people' },
   { key: 'tasks', label: '任务', icon: 'task' },
   { key: 'settings', label: '设置', icon: 'settings' },
 ];
-
 const PATIENT_NAV = [
   { key: 'home', label: '主页', icon: 'home' },
   { key: 'records', label: '病历', icon: 'doc' },
@@ -108,141 +99,149 @@ const PATIENT_NAV = [
   { key: 'settings', label: '设置', icon: 'settings' },
 ];
 
+// Page definitions with parent for back navigation
 const DOCTOR_PAGES = {
-  'home':               { file: 'doctor-home_raw.html', route: '/doctor', links: [] },
-  'chat':               { file: 'doctor-chat_raw.html', route: '/doctor/chat', links: [], parent: 'home' },
-  'patients':           { file: 'doctor-patients_raw.html', route: '/doctor/patients', links: [
-    { top: 130, left: 0, width: 375, height: 60, target: 'patient-detail', label: '患者详情' },
-  ]},
-  'patient-detail':     { file: 'doctor-patient-detail_raw.html', route: '/doctor/patients/:id', parent: 'patients', links: [] },
-  'tasks':              { file: 'doctor-tasks_raw.html', route: '/doctor/tasks', links: [
-    { top: 130, left: 0, width: 375, height: 60, target: 'review-diagnosis', label: '审核详情' },
-  ]},
-  'review-diagnosis':   { file: 'doctor-review-diagnosis_raw.html', route: '/doctor/tasks/review/:id', parent: 'tasks', links: [] },
-  'settings':           { file: 'doctor-settings_raw.html', route: '/doctor/settings', links: [
-    { top: 265, left: 0, width: 375, height: 55, target: 'template', label: '报告模板' },
-    { top: 320, left: 0, width: 375, height: 55, target: 'knowledge', label: '知识库' },
-    { top: 400, left: 0, width: 375, height: 55, target: 'about', label: '关于' },
-  ]},
-  'template':           { file: 'doctor-settings-template_raw.html', route: '/doctor/settings/template', parent: 'settings', links: [] },
-  'knowledge':          { file: 'doctor-settings-knowledge_raw.html', route: '/doctor/settings/knowledge', parent: 'settings', links: [] },
-  'about':              { file: 'doctor-settings-about_raw.html', route: '/doctor/settings/about', parent: 'settings', links: [] },
+  home:               { file: 'doctor-home_raw.html', route: '/doctor', nav: 'home' },
+  chat:               { file: 'doctor-chat_raw.html', route: '/doctor/chat', nav: 'home', parent: 'home' },
+  patients:           { file: 'doctor-patients_raw.html', route: '/doctor/patients', nav: 'patients' },
+  'patient-detail':   { file: 'doctor-patient-detail_raw.html', route: '/doctor/patients/:id', nav: 'patients', parent: 'patients' },
+  tasks:              { file: 'doctor-tasks_raw.html', route: '/doctor/tasks', nav: 'tasks' },
+  'review-diagnosis': { file: 'doctor-review-diagnosis_raw.html', route: '/doctor/tasks/review/:id', nav: 'tasks', parent: 'tasks' },
+  settings:           { file: 'doctor-settings_raw.html', route: '/doctor/settings', nav: 'settings' },
+  template:           { file: 'doctor-settings-template_raw.html', route: '/doctor/settings/template', nav: 'settings', parent: 'settings' },
+  knowledge:          { file: 'doctor-settings-knowledge_raw.html', route: '/doctor/settings/knowledge', nav: 'settings', parent: 'settings' },
+  about:              { file: 'doctor-settings-about_raw.html', route: '/doctor/settings/about', nav: 'settings', parent: 'settings' },
 };
-
 const PATIENT_PAGES = {
-  'home':     { file: 'patient-home_raw.html', route: '/patient/chat', links: [] },
-  'records':  { file: 'patient-records_raw.html', route: '/patient/records', links: [] },
-  'tasks':    { file: 'patient-tasks_raw.html', route: '/patient/tasks', links: [] },
-  'settings': { file: 'patient-settings_raw.html', route: '/patient/profile', links: [] },
+  home:     { file: 'patient-home_raw.html', route: '/patient/chat', nav: 'home' },
+  records:  { file: 'patient-records_raw.html', route: '/patient/records', nav: 'records' },
+  tasks:    { file: 'patient-tasks_raw.html', route: '/patient/tasks', nav: 'tasks' },
+  settings: { file: 'patient-settings_raw.html', route: '/patient/profile', nav: 'settings' },
 };
 
 const ICONS = {
   home: `<svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>`,
   people: `<svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>`,
   task: `<svg viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>`,
-  settings: `<svg viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>`,
-  doc: `<svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zM13 9V3.5L18.5 9H13z"/></svg>`,
+  settings: `<svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 00-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>`,
+  doc: `<svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>`,
 };
 
 let currentRole = 'doctor';
 let currentPage = 'home';
-let history = [];
 
 function getPages() { return currentRole === 'doctor' ? DOCTOR_PAGES : PATIENT_PAGES; }
 function getNav() { return currentRole === 'doctor' ? DOCTOR_NAV : PATIENT_NAV; }
 
 function navigate(pageKey) {
   const pages = getPages();
-  const page = pages[pageKey];
-  if (!page) return;
-
-  // Track history for back
-  if (currentPage !== pageKey) {
-    history.push(currentPage);
-  }
+  if (!pages[pageKey]) return;
   currentPage = pageKey;
 
-  // Load iframe
+  const page = pages[pageKey];
   document.getElementById('screen').src = page.file;
   document.getElementById('breadcrumb').textContent = page.route;
 
-  // Update bottom nav active state
+  // Back button
+  const backBtn = document.getElementById('back-btn');
+  backBtn.className = page.parent ? 'back-btn visible' : 'back-btn';
+
   renderNav();
 
-  // Update link overlay
-  renderLinks(page);
+  // Delay link injection to wait for iframe load
+  const iframe = document.getElementById('screen');
+  iframe.onload = () => injectClickHandlers(pageKey);
 }
 
 function goBack() {
-  const pages = getPages();
-  const page = pages[currentPage];
-  if (page?.parent) {
-    navigate(page.parent);
-  } else if (history.length > 0) {
-    navigate(history.pop());
+  const page = getPages()[currentPage];
+  if (page?.parent) navigate(page.parent);
+}
+
+function injectClickHandlers(pageKey) {
+  const iframe = document.getElementById('screen');
+  try {
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+
+    // Make all elements with cursor:pointer clickable
+    // Find clickable rows and attach navigation
+    const clickMap = getClickMap(pageKey);
+
+    // Inject click listeners by text content matching
+    doc.querySelectorAll('div, p, span, button, a').forEach(el => {
+      const text = (el.textContent || '').trim();
+      for (const [pattern, target] of Object.entries(clickMap)) {
+        if (text.includes(pattern) && el.offsetHeight > 10 && el.offsetHeight < 80) {
+          el.style.cursor = 'pointer';
+          el.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.parent.postMessage({ action: 'navigate', target }, '*');
+          }, { once: true });
+          break;
+        }
+      }
+    });
+  } catch (e) {
+    // Cross-origin iframe — can't inject
   }
 }
 
+function getClickMap(pageKey) {
+  if (currentRole === 'doctor') {
+    switch (pageKey) {
+      case 'patients': return {
+        '新建患者': 'patient-detail',
+        '张三': 'patient-detail', '李四': 'patient-detail', '王五': 'patient-detail',
+        'test_patient': 'patient-detail',
+      };
+      case 'tasks': return {
+        '问诊记录': 'review-diagnosis', '待审核': 'review-diagnosis',
+        '随访': 'tasks', '随访电话': 'tasks',
+      };
+      case 'settings': return {
+        '报告模板': 'template', '知识库': 'knowledge', '关于': 'about',
+      };
+      case 'home': return {
+        '问 AI': 'chat',
+      };
+      default: return {};
+    }
+  }
+  return {};
+}
+
+// Listen for navigation messages from iframe
+window.addEventListener('message', (e) => {
+  if (e.data?.action === 'navigate' && e.data.target) {
+    navigate(e.data.target);
+  }
+});
+
 function renderNav() {
   const nav = getNav();
+  const page = getPages()[currentPage];
+  const activeNav = page?.nav || 'home';
   const container = document.getElementById('bottom-nav');
   container.innerHTML = '';
 
-  // Map page keys to nav keys
-  const pages = getPages();
-  const currentNavKey = pages[currentPage]?.parent
-    ? (pages[pages[currentPage].parent]?.parent ? nav[0].key : pages[currentPage].parent)
-    : currentPage;
-
   nav.forEach(item => {
     const div = document.createElement('div');
-    div.className = 'nav-item' + (item.key === currentNavKey || currentPage === item.key ? ' active' : '');
+    div.className = 'nav-item' + (item.key === activeNav ? ' active' : '');
     div.innerHTML = ICONS[item.icon] + `<span>${item.label}</span>`;
     div.onclick = () => navigate(item.key);
     container.appendChild(div);
   });
 }
 
-function renderLinks(page) {
-  const container = document.getElementById('links');
-  container.innerHTML = '';
-
-  // Back button area (top-left, if has parent)
-  if (page.parent) {
-    const back = document.createElement('div');
-    back.className = 'link-area';
-    Object.assign(back.style, { top: '0', left: '0', width: '80px', height: '48px' });
-    back.onclick = goBack;
-    back.title = '← 返回';
-    container.appendChild(back);
-  }
-
-  // Custom link areas
-  (page.links || []).forEach(link => {
-    const area = document.createElement('div');
-    area.className = 'link-area';
-    Object.assign(area.style, {
-      top: link.top + 'px', left: link.left + 'px',
-      width: link.width + 'px', height: link.height + 'px',
-    });
-    area.onclick = () => navigate(link.target);
-    area.title = link.label;
-    container.appendChild(area);
-  });
-}
-
 function switchRole(role) {
   currentRole = role;
   currentPage = 'home';
-  history = [];
-
   document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector(`.role-btn[onclick*="${role}"]`).classList.add('active');
-
+  event.target.classList.add('active');
   navigate('home');
 }
 
-// Init
 navigate('home');
 </script>
 </body>
