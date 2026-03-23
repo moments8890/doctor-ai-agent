@@ -452,13 +452,13 @@ function KnowledgeSubpage({ doctorId, onBack, isMobile, urlSubId }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [expandedCat, setExpandedCat] = useState(null);
-  // URL-driven subpage: "add" or knowledgeItem detail
+  // URL-driven subpage: "new" or knowledgeItem detail
   const [detailItem, setDetailItem] = useState(null);
-  const subpage = urlSubId === "add" ? "add" : (urlSubId && urlSubId !== "add" ? "detail" : null);
+  const subpage = (urlSubId === "new" || urlSubId === "add") ? "new" : (urlSubId ? "detail" : null);
 
   // Sync URL detail ID → detailItem from loaded items
   useEffect(() => {
-    if (urlSubId && urlSubId !== "add" && items.length > 0 && !detailItem) {
+    if (urlSubId && urlSubId !== "new" && urlSubId !== "add" && items.length > 0 && !detailItem) {
       const found = items.find(i => String(i.id) === urlSubId);
       if (found) setDetailItem(found);
     }
@@ -522,7 +522,7 @@ function KnowledgeSubpage({ doctorId, onBack, isMobile, urlSubId }) {
   }
 
   // Subpage routing (URL-driven)
-  if (subpage === "add") {
+  if (subpage === "new") {
     return <AddKnowledgeSubpage doctorId={doctorId} onBack={() => { navigate("/doctor/settings/knowledge"); load(); }} isMobile={isMobile} />;
   }
   if (subpage === "detail" && detailItem) {
@@ -567,7 +567,7 @@ function KnowledgeSubpage({ doctorId, onBack, isMobile, urlSubId }) {
         title="知识库"
         onBack={isMobile ? onBack : undefined}
         right={
-          <BarButton onClick={() => navigate("/doctor/settings/knowledge/add")}>添加</BarButton>
+          <BarButton onClick={() => navigate("/doctor/settings/knowledge/new")}>添加</BarButton>
         }
       />
       <Box sx={{ flex: 1, overflowY: "auto" }}>

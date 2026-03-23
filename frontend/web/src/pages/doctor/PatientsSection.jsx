@@ -267,7 +267,12 @@ export default function PatientsSection({ doctorId, onNavigateToChat, onInsertCh
   const selectedId = patientId ? Number(patientId) : null;
   const { patients, setPatients, loading, error, search, nlResults, nlLoading, importing, importError, importFileRef, filtered, selectedPatient, load, handleSearchChange, handleSearchSubmit, handleImportFile } = usePatientsState({ doctorId, onPatientSelected, onAutoSendToChat, selectedId, refreshKey });
 
-  const [interviewActive, setInterviewActive] = useState(false);
+  const [interviewActive, setInterviewActive] = useState(patientId === "new");
+
+  // URL-driven: /doctor/patients/new opens interview
+  useEffect(() => {
+    if (patientId === "new") setInterviewActive(true);
+  }, [patientId]);
 
   // When triggerInterview is set from chat section, activate interview mode
   useEffect(() => {
@@ -281,6 +286,7 @@ export default function PatientsSection({ doctorId, onNavigateToChat, onInsertCh
 
   function handleStartInterview() {
     setInterviewActive(true);
+    navigate("/doctor/patients/new");
   }
 
   const listPaneProps = { patients, loading, error, search, nlResults, nlLoading, filtered, selectedId, isMobile, importing, importError, importFileRef, navigate, onSearchChange: handleSearchChange, onSearchSubmit: handleSearchSubmit, onStartInterview: handleStartInterview, onLoad: load, onFileInputChange: handleImportFile };

@@ -349,6 +349,10 @@ export default function TasksSection({ doctorId, urlSubpage, urlSubId }) {
       const id = Number(urlSubId);
       const found = [...pendingTasks, ...doneTasks].find(t => t.id === id);
       if (found) { setDetailTask(found); setDetailReview(null); }
+    } else if (urlSubpage === "new") {
+      setCreateOpen(true);
+      setDetailTask(null);
+      setDetailReview(null);
     } else if (!urlSubpage) {
       setDetailTask(null);
       setDetailReview(null);
@@ -356,7 +360,7 @@ export default function TasksSection({ doctorId, urlSubpage, urlSubId }) {
   }, [urlSubpage, urlSubId, pendingTasks, doneTasks]);
 
   // Create dialog
-  const [createOpen, setCreateOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(urlSubpage === "new");
   const [createForm, setCreateForm] = useState({ taskType: "follow_up", title: "", dueAt: tomorrowStr(), patientId: "", patientSearch: "", content: "" });
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
@@ -436,6 +440,7 @@ export default function TasksSection({ doctorId, urlSubpage, urlSubId }) {
   function openCreateDialog() {
     setCreateOpen(true);
     setCreateError("");
+    navigate("/doctor/tasks/new");
     getPatients(doctorId, {}, 200).then((d) => setPatientOptions(d.items || [])).catch(() => {});
   }
 

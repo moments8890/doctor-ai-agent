@@ -74,6 +74,17 @@ git push gitee main
 - Commit message prefixes: `feat:`, `fix:`, `ci:`, `refactor:`, `docs:`
 
 
+## Browser Testing
+
+For browser-based QA and interaction testing, use gstack browse:
+```bash
+B=~/.claude/skills/gstack/browse/dist/browse
+$B goto http://localhost:5173
+$B snapshot -i          # interactive elements
+$B screenshot /tmp/x.png
+$B console --errors
+```
+
 ## Codebase Review Policy
 
 When doing codebase reviews:

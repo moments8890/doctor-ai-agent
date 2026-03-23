@@ -1,207 +1,192 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Doctor AI Agent — UI Prototype</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: -apple-system, 'PingFang SC', sans-serif;
-    background: #f0f0f0;
-    display: flex; flex-direction: column; align-items: center;
-    min-height: 100vh; padding: 16px 0;
-  }
-  .role-bar { display: flex; gap: 8px; margin-bottom: 12px; }
-  .role-btn {
-    padding: 6px 20px; border-radius: 20px; border: 1px solid #ddd;
-    background: #fff; color: #666; cursor: pointer; font-size: 13px;
-  }
-  .role-btn.active { background: #07C160; color: #fff; border-color: #07C160; }
-  .phone {
-    width: 375px; height: 812px;
-    border: 2px solid #333; border-radius: 24px;
-    overflow: hidden; background: #fff;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
-    position: relative;
-  }
-  .phone iframe { width: 100%; height: 100%; border: none; display: block; }
-  .breadcrumb { font-size: 12px; color: #999; margin-top: 8px; font-family: monospace; }
-  .back-btn {
-    position: absolute; top: 0; left: 0; width: 60px; height: 48px;
-    z-index: 5; cursor: pointer; display: none;
-  }
-  .back-btn:hover { background: rgba(0,0,0,0.03); }
-  .back-btn.visible { display: block; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f0f0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+h1 { font-size: 18px; color: #333; padding: 16px 0 4px; }
+.role-switch { display: flex; gap: 6px; margin: 8px 0 12px; }
+.role-switch button { padding: 5px 18px; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; font-size: 13px; }
+.role-switch button.active { background: #07C160; color: #fff; border-color: #07C160; }
+.phone-frame { width: 375px; height: 812px; border: 8px solid #222; border-radius: 36px; overflow: hidden; background: #fff; box-shadow: 0 8px 30px rgba(0,0,0,0.15); position: relative; }
+.phone-frame iframe { width: 100%; height: 100%; border: none; }
+.caption { font-size: 12px; color: #999; padding: 6px 0 20px; }
 </style>
 </head>
 <body>
+<h1>Doctor AI Agent — UI Prototype</h1>
 
-<div class="role-bar">
-  <div class="role-btn active" onclick="switchRole('doctor')">Doctor</div>
-  <div class="role-btn" onclick="switchRole('patient')">Patient</div>
+<div class="role-switch">
+  <button class="active" onclick="switchRole('doctor')">医生端</button>
+  <button onclick="switchRole('patient')">患者端</button>
 </div>
 
-<div class="phone">
-  <iframe id="screen" src="doctor-home_raw.html"></iframe>
-  <div class="back-btn" id="back-btn" onclick="goBack()"></div>
+<div class="phone-frame">
+  <iframe id="viewer" src="doctor-home_raw.html"></iframe>
 </div>
-
-<div class="breadcrumb" id="breadcrumb">/doctor</div>
+<div class="caption" id="caption">首页</div>
 
 <script>
-const DOCTOR_PAGES = {
-  home:               { file: 'doctor-home_raw.html', route: '/doctor' },
-  chat:               { file: 'doctor-chat_raw.html', route: '/doctor/chat', parent: 'home' },
-  patients:           { file: 'doctor-patients_raw.html', route: '/doctor/patients' },
-  'patient-detail':   { file: 'doctor-patient-detail_raw.html', route: '/doctor/patients/:id', parent: 'patients' },
-  'patient-new':      { file: 'doctor-patient-new_raw.html', route: '/doctor/patients/new', parent: 'patients' },
-  tasks:              { file: 'doctor-tasks_raw.html', route: '/doctor/tasks' },
-  'task-detail':      { file: 'doctor-task-detail_raw.html', route: '/doctor/tasks/task/:id', parent: 'tasks' },
-  'task-new':         { file: 'doctor-task-new_raw.html', route: '/doctor/tasks/new', parent: 'tasks' },
-  'review-diagnosis': { file: 'doctor-review-diagnosis_raw.html', route: '/doctor/tasks/review/:id', parent: 'tasks' },
-  settings:           { file: 'doctor-settings_raw.html', route: '/doctor/settings' },
-  template:           { file: 'doctor-settings-template_raw.html', route: '/doctor/settings/template', parent: 'settings' },
-  knowledge:          { file: 'doctor-settings-knowledge_raw.html', route: '/doctor/settings/knowledge', parent: 'settings' },
-  'knowledge-add':    { file: 'doctor-knowledge-add_raw.html', route: '/doctor/settings/knowledge/add', parent: 'knowledge' },
-  about:              { file: 'doctor-settings-about_raw.html', route: '/doctor/settings/about', parent: 'settings' },
+const DOCTOR_NAV = {
+  "首页": "doctor-home_raw.html",
+  "患者": "doctor-patients_raw.html",
+  "任务": "doctor-tasks_raw.html",
+  "设置": "doctor-settings_raw.html",
+};
+const PATIENT_NAV = {
+  "主页": "patient-home_raw.html",
+  "病历": "patient-records_raw.html",
+  "任务": "patient-tasks_raw.html",
+  "设置": "patient-settings_raw.html",
 };
 
-const PATIENT_PAGES = {
-  home:     { file: 'patient-home_raw.html', route: '/patient/chat' },
-  records:  { file: 'patient-records_raw.html', route: '/patient/records' },
-  tasks:    { file: 'patient-tasks_raw.html', route: '/patient/tasks' },
-  settings: { file: 'patient-settings_raw.html', route: '/patient/profile' },
+/* Patient name → detail file */
+const PATIENT_DETAIL = {
+  "王建国": "doctor-patient-19_raw.html",
+  "李秀英": "doctor-patient-20_raw.html",
+  "赵志强": "doctor-patient-21_raw.html",
+  "陈美玲": "doctor-patient-22_raw.html",
+  "刘大伟": "doctor-patient-23_raw.html",
 };
 
-// Text → navigation target. Checked against innerText of clicked elements.
-// More specific patterns first. Works for both exact and partial matches.
-const DOCTOR_CLICK_RULES = [
-  // Bottom nav
-  { text: '首页', target: 'home', context: 'nav' },
-  { text: '患者', target: 'patients', context: 'nav' },
-  { text: '任务', target: 'tasks', context: 'nav' },
-  { text: '设置', target: 'settings', context: 'nav' },
-  // Home page
-  { text: '问 AI', target: 'chat' },
-  { text: '审核', target: 'review-diagnosis' },
-  // Patient list
-  { text: '新建患者', target: 'patient-new', page: 'patients' },
-  { text: '添加新的患者档案', target: 'patient-new', page: 'patients' },
-  { text: '张三', target: 'patient-detail', page: 'patients' },
-  { text: '李四', target: 'patient-detail', page: 'patients' },
-  { text: '王五', target: 'patient-detail', page: 'patients' },
-  { text: 'test_patient', target: 'patient-detail', page: 'patients' },
-  // Task list
-  { text: '新建任务', target: 'task-new', page: 'tasks' },
-  { text: '问诊记录', target: 'review-diagnosis', page: 'tasks' },
-  { text: '待审核', target: 'review-diagnosis', page: 'tasks' },
-  { text: '随访', target: 'task-detail', page: 'tasks' },
-  { text: 'MRI', target: 'task-detail', page: 'tasks' },
-  { text: '血糖', target: 'task-detail', page: 'tasks' },
-  // Settings → subpages
-  { text: '报告模板', target: 'template', page: 'settings' },
-  { text: '知识库', target: 'knowledge', page: 'settings' },
-  { text: '关于', target: 'about', page: 'settings' },
-  // Knowledge → add
-  { text: '添加', target: 'knowledge-add', page: 'knowledge' },
+const DOCTOR_DRILL = [
+  /* new item pages */
+  { match: ["新建患者","添加新的患者"], page: "doctor-patients-new_raw.html" },
+  { match: ["新建任务","添加随访"], page: "doctor-tasks-new_raw.html" },
+  /* tasks → review/task detail (first match wins) */
+  { match: ["王建国 问诊记录","王建国问诊"], page: "doctor-review-15_raw.html" },
+  { match: ["李秀英 问诊记录","李秀英问诊"], page: "doctor-review-16_raw.html" },
+  { match: ["问诊记录","待审核","AI诊断"], page: "doctor-review-15_raw.html" },
+  { match: ["MRI增强复查"], page: "doctor-task-754_raw.html" },
+  { match: ["INR监测"], page: "doctor-task-755_raw.html" },
+  { match: ["腰椎MRI"], page: "doctor-task-756_raw.html" },
+  { match: ["术后随访"], page: "doctor-task-757_raw.html" },
+  { match: ["抗癫痫"], page: "doctor-task-758_raw.html" },
+  /* settings sub-pages */
+  { match: ["门诊病历报告模板","报告模板","标准格式"], page: "doctor-settings-template_raw.html" },
+  { match: ["知识库","问诊指导","诊断规则","危险信号","治疗方案"], page: "doctor-knowledge-expanded_raw.html" },
+  { match: ["新增知识","添加知识"], page: "doctor-knowledge-new_raw.html" },
+  { match: ["关于","版本","系统信息"], page: "doctor-settings-about_raw.html" },
 ];
 
-const PATIENT_CLICK_RULES = [
-  // Bottom nav
-  { text: '主页', target: 'home', context: 'nav' },
-  { text: '病历', target: 'records', context: 'nav' },
-  { text: '任务', target: 'tasks', context: 'nav' },
-  { text: '设置', target: 'settings', context: 'nav' },
+const PATIENT_DRILL = [
+  { match: ["预问诊","开始问诊","新问诊"], page: "patient-interview_raw.html" },
+  { match: ["问诊总结","门诊","病历详情","头痛","肢体无力","腰痛"], page: "patient-record-detail_raw.html" },
 ];
 
-let currentRole = 'doctor';
-let currentPage = 'home';
+const BACK_MAP = {
+  "doctor-patient-19_raw.html":         "doctor-patients_raw.html",
+  "doctor-patient-20_raw.html":         "doctor-patients_raw.html",
+  "doctor-patient-21_raw.html":         "doctor-patients_raw.html",
+  "doctor-patient-22_raw.html":         "doctor-patients_raw.html",
+  "doctor-patient-23_raw.html":         "doctor-patients_raw.html",
+  "doctor-patients-new_raw.html":       "doctor-patients_raw.html",
+  "doctor-task-754_raw.html":           "doctor-tasks_raw.html",
+  "doctor-task-755_raw.html":           "doctor-tasks_raw.html",
+  "doctor-task-756_raw.html":           "doctor-tasks_raw.html",
+  "doctor-task-757_raw.html":           "doctor-tasks_raw.html",
+  "doctor-task-758_raw.html":           "doctor-tasks_raw.html",
+  "doctor-tasks-new_raw.html":          "doctor-tasks_raw.html",
+  "doctor-review-15_raw.html":          "doctor-tasks_raw.html",
+  "doctor-review-16_raw.html":          "doctor-tasks_raw.html",
+  "doctor-review-17_raw.html":          "doctor-tasks_raw.html",
+  "doctor-review-18_raw.html":          "doctor-tasks_raw.html",
+  "doctor-settings-template_raw.html":  "doctor-settings_raw.html",
+  "doctor-settings-knowledge_raw.html": "doctor-settings_raw.html",
+  "doctor-knowledge-expanded_raw.html": "doctor-settings_raw.html",
+  "doctor-knowledge-new_raw.html":      "doctor-knowledge-expanded_raw.html",
+  "doctor-knowledge-detail_raw.html":   "doctor-knowledge-expanded_raw.html",
+  "doctor-settings-about_raw.html":     "doctor-settings_raw.html",
+  "patient-record-detail_raw.html":     "patient-records_raw.html",
+  "patient-interview_raw.html":         "patient-home_raw.html",
+};
 
-function getPages() { return currentRole === 'doctor' ? DOCTOR_PAGES : PATIENT_PAGES; }
-function getRules() { return currentRole === 'doctor' ? DOCTOR_CLICK_RULES : PATIENT_CLICK_RULES; }
+let role = "doctor";
+let currentFile = "doctor-home_raw.html";
 
-function navigate(pageKey) {
-  const pages = getPages();
-  if (!pages[pageKey]) return;
-  currentPage = pageKey;
-  const page = pages[pageKey];
-  document.getElementById('screen').src = page.file;
-  document.getElementById('breadcrumb').textContent = page.route;
-  document.getElementById('back-btn').className = page.parent ? 'back-btn visible' : 'back-btn';
-
-  document.getElementById('screen').onload = () => injectClickHandlers();
+function switchRole(r) {
+  role = r;
+  document.querySelectorAll(".role-switch button").forEach(b => b.classList.remove("active"));
+  event.target.classList.add("active");
+  navigate(r === "doctor" ? "doctor-home_raw.html" : "patient-home_raw.html");
 }
 
-function goBack() {
-  const page = getPages()[currentPage];
-  if (page?.parent) navigate(page.parent);
+function navigate(file) {
+  currentFile = file;
+  document.getElementById("viewer").src = file;
+  const nav = role === "doctor" ? DOCTOR_NAV : PATIENT_NAV;
+  const label = Object.entries(nav).find(([,f]) => f === file)?.[0]
+    || file.replace(/_raw\.html$/, "").replace(/-/g, " ");
+  document.getElementById("caption").textContent = label;
 }
 
-function injectClickHandlers() {
-  const iframe = document.getElementById('screen');
-  let doc;
-  try { doc = iframe.contentDocument || iframe.contentWindow.document; } catch { return; }
+function fixIframe() {
+  try {
+    const doc = document.getElementById("viewer").contentDocument;
+    if (!doc) return;
+    doc.querySelectorAll("*").forEach(el => {
+      if (getComputedStyle(el).position === "fixed") {
+        el.style.position = "absolute";
+        el.style.width = "375px";
+        el.style.left = "0";
+        el.style.right = "auto";
+      }
+    });
+    doc.addEventListener("click", function(e) {
+      e.preventDefault();
+      e.stopPropagation();
 
-  const rules = getRules();
+      /* Collect text at multiple levels for matching */
+      const texts = [];
+      let el = e.target;
+      for (let i = 0; i < 8 && el && el !== doc.body; i++) {
+        const t = (el.textContent || "").trim();
+        if (t) texts.push(t);
+        el = el.parentElement;
+      }
 
-  // Capture all clicks in the iframe
-  doc.addEventListener('click', (e) => {
-    // Walk up from click target to find a matching rule
-    let el = e.target;
-    for (let i = 0; i < 10 && el && el !== doc.body; i++) {
-      const text = (el.innerText || el.textContent || '').trim();
+      /* Find the shortest meaningful text (most specific click target) */
+      const shortText = texts.find(t => t.length >= 1 && t.length < 30) || "";
+      const medText = texts.find(t => t.length >= 2 && t.length < 100) || "";
 
-      for (const rule of rules) {
-        // Skip page-specific rules if not on that page
-        if (rule.page && rule.page !== currentPage) continue;
+      /* 1. Bottom nav — match short text exactly */
+      const nav = role === "doctor" ? DOCTOR_NAV : PATIENT_NAV;
+      for (const [label, file] of Object.entries(nav)) {
+        if (shortText.includes(label)) { navigate(file); return; }
+      }
 
-        // For nav buttons, check if this is inside a bottom nav
-        if (rule.context === 'nav') {
-          const isNav = el.closest('.MuiBottomNavigation-root') ||
-                        el.closest('[class*="BottomNavigation"]') ||
-                        el.closest('button[class*="BottomNavigationAction"]');
-          if (!isNav) continue;
-        }
-
-        if (text.includes(rule.text)) {
-          e.preventDefault();
-          e.stopPropagation();
-          navigate(rule.target);
-          return;
+      /* 2. Back button (SVG arrow) */
+      const svgEl = e.target.closest ? e.target.closest("svg") : null;
+      if (svgEl) {
+        const pt = (svgEl.parentElement?.textContent || "").trim();
+        if (pt.length < 20) {
+          const back = BACK_MAP[currentFile];
+          if (back) { navigate(back); return; }
         }
       }
-      el = el.parentElement;
-    }
-  }, true);
 
-  // Also handle back button (ChevronLeft SVG click)
-  doc.addEventListener('click', (e) => {
-    let el = e.target;
-    for (let i = 0; i < 5 && el; i++) {
-      if (el.tagName === 'svg' || el.querySelector?.('svg[data-testid*="Chevron"]')) {
-        const page = getPages()[currentPage];
-        if (page?.parent) {
-          e.preventDefault();
-          e.stopPropagation();
-          goBack();
-          return;
+      /* 3. Patient name → detail */
+      if (role === "doctor") {
+        for (const [name, file] of Object.entries(PATIENT_DETAIL)) {
+          if (medText.includes(name)) { navigate(file); return; }
         }
       }
-      el = el.parentElement;
-    }
-  }, true);
+
+      /* 4. Drill-down rules — use medium text */
+      const drills = role === "doctor" ? DOCTOR_DRILL : PATIENT_DRILL;
+      for (const rule of drills) {
+        if (rule.match.some(m => medText.includes(m))) {
+          navigate(rule.page); return;
+        }
+      }
+    }, true);
+  } catch (err) {}
 }
 
-function switchRole(role) {
-  currentRole = role;
-  currentPage = 'home';
-  document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
-  navigate('home');
-}
-
-navigate('home');
+document.getElementById("viewer").addEventListener("load", fixIframe);
+navigate("doctor-home_raw.html");
 </script>
 </body>
 </html>
