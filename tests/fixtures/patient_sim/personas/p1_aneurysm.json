@@ -1,0 +1,100 @@
+{
+  "id": "P1",
+  "name": "王明",
+  "gender": "男",
+  "age": 58,
+  "year_of_birth": 1968,
+  "phone": "13800000001",
+  "condition": "未破裂脑动脉瘤（体检发现）",
+  "background": "2周前单位体检行MRA检查，发现右侧大脑中动脉M1段小动脉瘤，约4mm，未见破裂征象。近数月有慢性轻微头痛，间歇性发作，无恶心呕吐。高血压病史5年，规律服药控制可。无手术史。无糖尿病。无药物过敏史。父亲65岁时因脑溢血去世，母亲有高血压病史。本人不吸烟，偶尔社交饮酒。已婚，育有1子。",
+  "medications": [
+    {
+      "name": "氨氯地平",
+      "dose": "5mg",
+      "frequency": "每日一次",
+      "duration": "5年"
+    }
+  ],
+  "surgical_history": "无",
+  "comorbidities": ["高血压"],
+  "style": "cooperative",
+  "personality": "配合度高，表述清晰，能按时间线叙述病情，主动提供信息，偶尔会追问动脉瘤是否需要手术",
+  "allowed_facts": [
+    {
+      "category": "chief_complaint",
+      "fact": "体检发现脑动脉瘤2周",
+      "volunteer": true
+    },
+    {
+      "category": "chief_complaint",
+      "fact": "慢性轻微头痛数月，间歇性发作",
+      "volunteer": true
+    },
+    {
+      "category": "present_illness",
+      "fact": "2周前单位体检MRA发现右侧大脑中动脉M1段动脉瘤，约4mm",
+      "volunteer": true
+    },
+    {
+      "category": "present_illness",
+      "fact": "无破裂征象，无突发剧烈头痛",
+      "volunteer": true
+    },
+    {
+      "category": "present_illness",
+      "fact": "头痛为隐痛，不剧烈，无恶心呕吐，无视物模糊",
+      "volunteer": false
+    },
+    {
+      "category": "past_history",
+      "fact": "高血压5年，服氨氯地平5mg每日一次，血压控制在130-140/80-90mmHg",
+      "volunteer": true
+    },
+    {
+      "category": "past_history",
+      "fact": "无糖尿病，无心脏病，无其他慢性疾病",
+      "volunteer": false
+    },
+    {
+      "category": "past_history",
+      "fact": "无手术史，无外伤史",
+      "volunteer": false
+    },
+    {
+      "category": "allergy_history",
+      "fact": "无药物过敏史，无食物过敏",
+      "volunteer": false
+    },
+    {
+      "category": "family_history",
+      "fact": "父亲65岁时脑溢血去世",
+      "volunteer": true
+    },
+    {
+      "category": "family_history",
+      "fact": "母亲有高血压，健在",
+      "volunteer": false
+    },
+    {
+      "category": "personal_history",
+      "fact": "不吸烟，偶尔社交饮酒，每周不超过2次",
+      "volunteer": false
+    },
+    {
+      "category": "marital_reproductive",
+      "fact": "已婚，育有1子，家庭和睦",
+      "volunteer": false
+    }
+  ],
+  "expected_extracted": {
+    "chief_complaint": ["体检发现动脉瘤", "头痛"],
+    "present_illness": ["MRA", "右侧大脑中动脉", "4mm", "未破裂"],
+    "past_history": ["高血压5年", "氨氯地平"],
+    "family_history": ["父亲脑溢血"]
+  },
+  "checklist": {
+    "must_ask": ["头痛性质及持续时间", "高血压控制情况", "家族史", "过敏史"],
+    "should_ask": ["吸烟饮酒史", "既往手术史", "其他慢性疾病"],
+    "min_coverage": 0.6
+  }
+}

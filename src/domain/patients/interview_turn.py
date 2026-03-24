@@ -61,11 +61,6 @@ class InterviewResponse:
     suggestions: List[str] = None  # quick-reply options for the patient
 
 
-def _get_prompt(mode: str = "patient") -> str:
-    prompt_name = "doctor-interview" if mode == "doctor" else "patient-interview"
-    return get_prompt_sync(prompt_name)
-
-
 async def _load_patient_info(patient_id: int) -> Dict[str, Any]:
     """Load patient demographics for prompt context."""
     from db.engine import AsyncSessionLocal
@@ -148,25 +143,49 @@ async def _call_interview_llm(
 ) -> Dict[str, Any]:
     """Call LLM with interview prompt. Returns parsed {reply, extracted}."""
     from agent.llm import structured_call
+    from agent.prompt_composer import compose_for_intent
+    from agent.types import IntentType
 
     missing = check_completeness(collected, mode=mode)
     missing_labels = [FIELD_LABELS.get(f, f) for f in missing]
 
-    prompt_template = _get_prompt(mode)
-    system_prompt = (
-        prompt_template
-        .replace("{name}", patient_info["name"])
-        .replace("{gender}", patient_info["gender"])
-        .replace("{age}", str(patient_info["age"]))
-        .replace("{collected_json}", json.dumps(collected, ensure_ascii=False, indent=2))
-        .replace("{missing_fields}", "、".join(missing_labels) if missing_labels else "无（可进入确认）")
-        .replace("{previous_history}", previous_history or "无")
-    )
+    # Build dynamic patient context (Layer 5)
+    context_lines = [
+        f"患者信息：姓名：{patient_info['name']} | 性别：{patient_info['gender']} | 年龄：{patient_info['age']}",
+        f"当前已采集：{json.dumps(collected, ensure_ascii=False)}",
+        f"还缺的字段：{'、'.join(missing_labels) if missing_labels else '无（可进入确认）'}",
+    ]
+    if previous_history:
+        context_lines.append(f"既往就诊记录：{previous_history}")
+    patient_context = "\n".join(context_lines)
 
-    # Build messages: system + conversation history (capped at last 20 turns)
-    messages: List[Dict[str, str]] = [{"role": "system", "content": system_prompt}]
-    for turn in conversation[-20:]:
-        messages.append({"role": turn.get("role", "user"), "content": turn.get("content", "")})
+    # Build conversation history as message dicts
+    history = [
+        {"role": turn.get("role", "user"), "content": turn.get("content", "")}
+        for turn in conversation[-20:]
+    ]
+
+    # Use composer for layered prompt assembly
+    if mode == "patient":
+        from agent.prompt_composer import compose_for_patient_interview
+        messages = compose_for_patient_interview(
+            patient_context=patient_context,
+            doctor_message="",  # user message comes from history
+            history=history,
+        )
+    else:
+        # Doctor mode
+        messages = compose_for_intent(
+            IntentType.create_record,
+            doctor_id="",
+            patient_context=patient_context,
+            doctor_message="",  # user message comes from history
+            history=history,
+        )
+
+    # Remove the empty user message the composer appended — history already has it
+    if messages and messages[-1]["role"] == "user" and "<doctor_request>" in messages[-1]["content"]:
+        messages.pop()
 
     env_var = "CONVERSATION_LLM" if os.environ.get("CONVERSATION_LLM") else "ROUTING_LLM"
 

@@ -1,0 +1,112 @@
+{
+  "id": "P6",
+  "name": "刘芳",
+  "gender": "女",
+  "age": 55,
+  "year_of_birth": 1971,
+  "phone": "13800000006",
+  "condition": "慢性头痛待查（偏头痛 vs 血管性头痛）",
+  "background": "慢性头痛3年，近半年加重。头痛以右侧为主，搏动性，有时伴恶心，持续数小时至1天。高血压6年，2型糖尿病3年。曾在神经内科就诊，服用止痛药效果不佳，转诊至神经外科排除血管性病因。叙述混乱，经常时间线颠倒，描述含糊（'有时候疼有时候不疼'），信息提供不连贯。无手术史。对布洛芬有胃肠道不适反应。无脑血管疾病家族史，母亲有偏头痛。已婚育1子1女。",
+  "medications": [
+    {
+      "name": "硝苯地平缓释片",
+      "dose": "30mg",
+      "frequency": "每日一次",
+      "duration": "6年"
+    },
+    {
+      "name": "二甲双胍",
+      "dose": "500mg",
+      "frequency": "每日两次",
+      "duration": "3年"
+    },
+    {
+      "name": "对乙酰氨基酚",
+      "dose": "500mg",
+      "frequency": "头痛时服用",
+      "duration": "按需"
+    }
+  ],
+  "surgical_history": "无",
+  "comorbidities": ["高血压", "2型糖尿病"],
+  "style": "messy",
+  "personality": "叙述含糊、跳跃，经常把不同时间的症状混在一起说。回答问题时容易跑题（比如突然提到家里的事）。描述疼痛时用模糊词汇（'就是不舒服''说不清楚'）。需要医生耐心引导并明确追问。",
+  "allowed_facts": [
+    {
+      "category": "chief_complaint",
+      "fact": "慢性头痛3年，近半年加重",
+      "volunteer": true
+    },
+    {
+      "category": "present_illness",
+      "fact": "头痛以右侧为主，搏动性，有时伴恶心",
+      "volunteer": true
+    },
+    {
+      "category": "present_illness",
+      "fact": "头痛发作时持续数小时至1天，每周约2-3次",
+      "volunteer": false
+    },
+    {
+      "category": "present_illness",
+      "fact": "止痛药效果不佳，对乙酰氨基酚只能稍缓解",
+      "volunteer": true
+    },
+    {
+      "category": "present_illness",
+      "fact": "神经内科转诊来排除血管性病因，既往头颅CT未见明显异常",
+      "volunteer": false
+    },
+    {
+      "category": "present_illness",
+      "fact": "头痛与劳累、情绪紧张有关，天气变化时也会加重",
+      "volunteer": false
+    },
+    {
+      "category": "present_illness",
+      "fact": "无肢体无力、言语障碍、视物模糊等神经症状",
+      "volunteer": false
+    },
+    {
+      "category": "past_history",
+      "fact": "高血压6年，服硝苯地平缓释片，血压约140-150/90mmHg",
+      "volunteer": false
+    },
+    {
+      "category": "past_history",
+      "fact": "2型糖尿病3年，服二甲双胍，空腹血糖约7-8mmol/L",
+      "volunteer": false
+    },
+    {
+      "category": "allergy_history",
+      "fact": "服布洛芬后胃不舒服，有胃肠道反应",
+      "volunteer": false
+    },
+    {
+      "category": "family_history",
+      "fact": "母亲有偏头痛史，无脑血管疾病家族史",
+      "volunteer": false
+    },
+    {
+      "category": "personal_history",
+      "fact": "不吸烟不饮酒，睡眠质量差，经常失眠",
+      "volunteer": false
+    },
+    {
+      "category": "marital_reproductive",
+      "fact": "已婚，育有1子1女",
+      "volunteer": false
+    }
+  ],
+  "expected_extracted": {
+    "chief_complaint": ["慢性头痛3年", "加重"],
+    "present_illness": ["右侧搏动性头痛", "恶心", "止痛药效果差", "神经内科转诊"],
+    "past_history": ["高血压", "糖尿病"],
+    "family_history": ["母亲偏头痛"]
+  },
+  "checklist": {
+    "must_ask": ["头痛性质部位持续时间", "伴随症状", "既往检查结果", "当前用药"],
+    "should_ask": ["头痛诱因", "高血压糖尿病控制", "过敏史", "神经系统症状排查"],
+    "min_coverage": 0.6
+  }
+}

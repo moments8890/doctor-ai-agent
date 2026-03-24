@@ -1,5 +1,5 @@
 /**
- * 医生工作台主页：composer-first workbench with one visible working context.
+ * 鲸鱼随行主页：composer-first workbench with one visible working context.
  *
  * Default route is the AI chat composer. The working-context header shows
  * current patient, pending draft, and next-step guidance at a glance.
@@ -18,7 +18,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import {
-  getTasks, getPendingRecord, getReviewQueue,
+  getTasks, getReviewQueue,
   getDoctorProfile, updateDoctorProfile, getWorkingContext,
 } from "../api";
 import { useDoctorStore } from "../store/doctorStore";
@@ -36,16 +36,18 @@ function DesktopSidebar({ activeSection, doctorName, doctorId, navBadge, onNav, 
   return (
     <Box sx={{ width: 220, flexShrink: 0, borderRight: "0.5px solid #d9d9d9", backgroundColor: "#f7f7f7", display: "flex", flexDirection: "column", py: 2, px: 0 }}>
       <Box sx={{ mb: 2, px: 2 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#07C160" }}>医生工作台</Typography>
+        <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#07C160" }}>鲸鱼随行</Typography>
         <Typography variant="caption" color="text.secondary">{doctorName || doctorId}</Typography>
       </Box>
-      <Box sx={{ flex: 1 }}>
+      <Box component="nav" aria-label="主导航" sx={{ flex: 1 }}>
         {DESKTOP_NAV.map((item) => (
-          <Box key={item.key} onClick={() => onNav(item.key)}
-            sx={{ display: "flex", alignItems: "center", gap: 1.2, px: 2, py: 1.2, cursor: "pointer",
+          <Box key={item.key} component="button" type="button" onClick={() => onNav(item.key)}
+            aria-current={activeSection === item.key ? "page" : undefined}
+            sx={{ display: "flex", alignItems: "center", gap: 1.2, px: 2, py: 1.2, cursor: "pointer", width: "100%", border: "none", textAlign: "left",
               bgcolor: activeSection === item.key ? "#07C160" : "transparent",
               color: activeSection === item.key ? "#fff" : "#999999",
               "&:hover": { bgcolor: activeSection === item.key ? "#07C160" : "#f0f0f0" },
+              "&:focus-visible": { outline: "2px solid #07C160", outlineOffset: -2 },
               "&:active": { opacity: 0.8 } }}>
             <Box sx={{ "& svg": { fontSize: ICON.lg, color: activeSection === item.key ? "#fff" : "#999999" } }}>
               {navBadge[item.key] > 0 ? <Badge badgeContent={navBadge[item.key]} color="error">{item.icon}</Badge> : item.icon}
@@ -54,7 +56,7 @@ function DesktopSidebar({ activeSection, doctorName, doctorId, navBadge, onNav, 
           </Box>
         ))}
       </Box>
-      <Box onClick={onLogout} sx={{ display: "flex", alignItems: "center", gap: 1.2, px: 2, py: 1.2, cursor: "pointer", color: "#999999", "&:hover": { bgcolor: "#f0f0f0" }, "&:active": { opacity: 0.8 } }}>
+      <Box component="button" type="button" onClick={onLogout} sx={{ display: "flex", alignItems: "center", gap: 1.2, px: 2, py: 1.2, cursor: "pointer", width: "100%", border: "none", textAlign: "left", bgcolor: "transparent", color: "#999999", "&:hover": { bgcolor: "#f0f0f0" }, "&:focus-visible": { outline: "2px solid #07C160", outlineOffset: -2 }, "&:active": { opacity: 0.8 } }}>
         <LogoutIcon fontSize="small" sx={{ color: "#999999" }} />
         <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#999999" }}>退出登录</Typography>
       </Box>
@@ -62,7 +64,7 @@ function DesktopSidebar({ activeSection, doctorName, doctorId, navBadge, onNav, 
   );
 }
 
-function MobileBottomNav({ activeSection, pendingTaskCount, pendingRecord, onNav }) {
+function MobileBottomNav({ activeSection, pendingTaskCount, onNav }) {
   // Chat is a subpage of home on mobile — highlight 首页 when in chat
   const navValue = activeSection === "chat" ? "home" : activeSection;
   return (
@@ -72,7 +74,6 @@ function MobileBottomNav({ activeSection, pendingTaskCount, pendingRecord, onNav
         {NAV.map((item) => (
           <BottomNavigationActionMui key={item.key} label={item.label} value={item.key} showLabel
             icon={item.key === "tasks" && pendingTaskCount > 0 ? <Badge badgeContent={pendingTaskCount} color="error">{item.icon}</Badge>
-              : item.key === "home" && pendingRecord ? <Badge variant="dot" color="warning">{item.icon}</Badge>
               : item.icon}
             sx={{ minWidth: 0, "& .MuiBottomNavigationAction-label": { fontSize: TYPE.micro.fontSize } }} />
         ))}
@@ -140,7 +141,6 @@ function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpag
 function useDoctorPageState({ doctorId, accessToken, setAuth }) {
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
   const [pendingReviewCount, setPendingReviewCount] = useState(0);
-  const [pendingRecord, setPendingRecord] = useState(null);
   const [workingContext, setWorkingContext] = useState(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardName, setOnboardName] = useState("");
@@ -160,12 +160,6 @@ function useDoctorPageState({ doctorId, accessToken, setAuth }) {
       .then((d) => setPendingReviewCount((d.items || []).length))
       .catch(() => {});
   }, [doctorId]);
-  useEffect(() => {
-    if (!doctorId) return;
-    const fetch = () => getPendingRecord(doctorId).then((d) => setPendingRecord(d || null)).catch(() => {});
-    fetch(); const id = setInterval(fetch, 30000); return () => clearInterval(id);
-  }, [doctorId]);
-
   // Working context: poll every 15 seconds for header state
   useEffect(() => {
     if (!doctorId) return;
@@ -181,7 +175,7 @@ function useDoctorPageState({ doctorId, accessToken, setAuth }) {
     try { await updateDoctorProfile(doctorId, { name: onboardName.trim() }); setAuth(doctorId, onboardName.trim(), accessToken); setShowOnboarding(false); }
     catch {} finally { setOnboardSaving(false); }
   }
-  return { pendingTaskCount, pendingReviewCount, pendingRecord, setPendingRecord, workingContext, setWorkingContext, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit };
+  return { pendingTaskCount, pendingReviewCount, workingContext, setWorkingContext, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit };
 }
 
 export default function DoctorPage() {
@@ -197,12 +191,11 @@ export default function DoctorPage() {
   const [triggerInterview, setTriggerInterview] = useState(false);
   const [chatInterviewSessionId, setChatInterviewSessionId] = useState(null);
 
-  const { pendingTaskCount, pendingReviewCount, pendingRecord, setPendingRecord, workingContext, setWorkingContext, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit } = useDoctorPageState({ doctorId, accessToken, setAuth });
+  const { pendingTaskCount, pendingReviewCount, workingContext, setWorkingContext, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit } = useDoctorPageState({ doctorId, accessToken, setAuth });
 
   const activeSection = patientId ? "patients" : (section || "home");
 
   function handleContextCleared() {
-    setPendingRecord(null);
     setWorkingContext(null);
   }
   function handleNav(key) { navigate(key === "home" ? "/doctor" : `/doctor/${key}`); }
@@ -214,12 +207,12 @@ export default function DoctorPage() {
 
   return (
     <Box sx={{ display: "flex", height: "100vh", bgcolor: "#f7f7f7" }}>
-      {!isMobile && <DesktopSidebar activeSection={activeSection} doctorName={doctorName} doctorId={doctorId} navBadge={{ tasks: pendingTaskCount + pendingReviewCount, home: pendingRecord ? 1 : 0 }} onNav={handleNav} onLogout={handleLogout} />}
+      {!isMobile && <DesktopSidebar activeSection={activeSection} doctorName={doctorName} doctorId={doctorId} navBadge={{ tasks: pendingTaskCount + pendingReviewCount }} onNav={handleNav} onLogout={handleLogout} />}
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", pb: isMobile ? "56px" : 0 }}>
         <WorkingContextHeader context={workingContext} isMobile={isMobile} />
         <SectionContent activeSection={activeSection} doctorId={doctorId} isMobile={isMobile} navigate={navigate} urlSubpage={urlSubpage} urlSubId={urlSubId} chatInsertText={chatInsertText} setChatInsertText={setChatInsertText} chatAutoSendText={chatAutoSendText} setChatAutoSendText={setChatAutoSendText} chatAutoSendConsumedRef={chatAutoSendConsumedRef} patientRefreshKey={patientRefreshKey} setPatientRefreshKey={setPatientRefreshKey} handleLogout={handleLogout} onContextCleared={handleContextCleared} triggerInterview={triggerInterview} setTriggerInterview={setTriggerInterview} chatInterviewSessionId={chatInterviewSessionId} setChatInterviewSessionId={setChatInterviewSessionId} />
       </Box>
-      {isMobile && <MobileBottomNav activeSection={activeSection} pendingTaskCount={pendingTaskCount + pendingReviewCount} pendingRecord={pendingRecord} onNav={handleNav} />}
+      {isMobile && <MobileBottomNav activeSection={activeSection} pendingTaskCount={pendingTaskCount + pendingReviewCount} onNav={handleNav} />}
       <OnboardingDialog open={showOnboarding} name={onboardName} saving={onboardSaving} onChange={setOnboardName} onSubmit={handleOnboardSubmit} />
     </Box>
   );

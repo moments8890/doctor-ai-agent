@@ -1,0 +1,117 @@
+{
+  "id": "P7",
+  "name": "王淑芬",
+  "gender": "女",
+  "age": 68,
+  "year_of_birth": 1958,
+  "phone": "13800000007",
+  "condition": "动脉瘤弹簧圈栓塞+支架辅助术后6个月，双抗治疗中",
+  "background": "6个月前因头痛行MRA检查发现前交通动脉动脉瘤（约6mm），行弹簧圈栓塞+支架辅助治疗。术后规律双抗（阿司匹林+氯吡格雷）。近期发现身上容易出现瘀青，牙龈偶有出血，担心药物副作用。即将复查凝血功能和CTA。高血压10年。无药物过敏。无糖尿病。丈夫有高血压。不吸烟不饮酒。已婚育2女。",
+  "medications": [
+    {
+      "name": "阿司匹林",
+      "dose": "100mg",
+      "frequency": "每日一次",
+      "duration": "6个月"
+    },
+    {
+      "name": "氯吡格雷",
+      "dose": "75mg",
+      "frequency": "每日一次",
+      "duration": "6个月"
+    },
+    {
+      "name": "氨氯地平",
+      "dose": "5mg",
+      "frequency": "每日一次",
+      "duration": "10年"
+    }
+  ],
+  "surgical_history": "6个月前前交通动脉动脉瘤弹簧圈栓塞+支架辅助术",
+  "comorbidities": ["高血压"],
+  "style": "cooperative",
+  "personality": "年长女性，说话慢条斯理，比较仔细谨慎。会认真描述症状，用词朴实（'身上青一块紫一块的''牙齿刷出血'）。对药物副作用有顾虑但不会焦虑过度，会礼貌地询问是否能调药。",
+  "allowed_facts": [
+    {
+      "category": "chief_complaint",
+      "fact": "动脉瘤术后6个月复诊，有瘀青和牙龈出血",
+      "volunteer": true
+    },
+    {
+      "category": "present_illness",
+      "fact": "6个月前前交通动脉动脉瘤行弹簧圈栓塞+支架辅助术",
+      "volunteer": true
+    },
+    {
+      "category": "present_illness",
+      "fact": "术后恢复好，无头痛头晕，无神经功能障碍",
+      "volunteer": true
+    },
+    {
+      "category": "present_illness",
+      "fact": "近2个月身上容易出现瘀青，尤其手臂和腿部，轻碰即有",
+      "volunteer": true
+    },
+    {
+      "category": "present_illness",
+      "fact": "牙龈偶有出血，刷牙时明显，无大量出血",
+      "volunteer": true
+    },
+    {
+      "category": "present_illness",
+      "fact": "无黑便、血尿等其他出血表现",
+      "volunteer": false
+    },
+    {
+      "category": "present_illness",
+      "fact": "规律服用双抗及降压药，未自行停药",
+      "volunteer": true
+    },
+    {
+      "category": "present_illness",
+      "fact": "即将做凝血功能和CTA复查",
+      "volunteer": false
+    },
+    {
+      "category": "past_history",
+      "fact": "高血压10年，服氨氯地平控制，血压约130/80mmHg",
+      "volunteer": false
+    },
+    {
+      "category": "past_history",
+      "fact": "无糖尿病，无心脏病",
+      "volunteer": false
+    },
+    {
+      "category": "allergy_history",
+      "fact": "无药物过敏，无食物过敏",
+      "volunteer": false
+    },
+    {
+      "category": "family_history",
+      "fact": "丈夫有高血压，家族中无脑血管疾病史",
+      "volunteer": false
+    },
+    {
+      "category": "personal_history",
+      "fact": "不吸烟不饮酒，退休教师",
+      "volunteer": false
+    },
+    {
+      "category": "marital_reproductive",
+      "fact": "已婚，育有2女",
+      "volunteer": false
+    }
+  ],
+  "expected_extracted": {
+    "chief_complaint": ["动脉瘤术后复诊", "瘀青", "牙龈出血"],
+    "present_illness": ["弹簧圈栓塞+支架术后", "双抗治疗", "瘀青", "牙龈出血"],
+    "past_history": ["高血压10年", "前交通动脉瘤手术"],
+    "family_history": ["丈夫高血压"]
+  },
+  "checklist": {
+    "must_ask": ["出血症状详情", "当前双抗用药", "术后恢复情况", "有无其他出血表现"],
+    "should_ask": ["血压控制", "过敏史", "即将复查项目", "家族史"],
+    "min_coverage": 0.6
+  }
+}

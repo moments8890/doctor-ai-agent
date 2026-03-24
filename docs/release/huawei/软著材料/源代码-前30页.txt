@@ -1,0 +1,1500 @@
+const _API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+function apiUrl(path) {
+  return `${_API_BASE}${path}`;
+}
+async function readError(response) {
+  const text = await response.text();
+  if (!text) return `HTTP ${response.status}`;
+  try {
+    const json = JSON.parse(text);
+    const detail = typeof json.detail === "string" ? json.detail
+      : Array.isArray(json.detail) ? json.detail.map((d) => d.msg || JSON.stringify(d)).join("; ")
+      : json.detail ? JSON.stringify(json.detail) : null;
+    return detail || (typeof json.message === "string" ? json.message : null) || text;
+  } catch {
+    return text;
+  }
+}
+let _webToken = "";
+export function setWebToken(token) {
+  _webToken = token || "";
+}
+function _getToken() {
+  if (_webToken) return _webToken;
+  try {
+    const raw = localStorage.getItem("doctor-session");
+    if (raw) {
+      const token = JSON.parse(raw)?.state?.accessToken;
+      if (token) {
+        _webToken = token; // warm the cache for subsequent calls
+        return token;
+      }
+    }
+  } catch {
+  }
+  return "";
+}
+async function request(url, options = {}) {
+  const controller = new AbortController();
+  const timeoutMs = options._timeout ?? 15000;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const headers = { ...(options.headers || {}) };
+    const token = _getToken();
+    if (token && !headers["Authorization"]) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    if (typeof window !== "undefined" && window.__wxjs_environment === "miniprogram") {
+      headers["X-Client-Channel"] = "miniapp";
+    }
+    const response = await fetch(apiUrl(url), { ...options, headers, signal: controller.signal });
+    if (!response.ok) {
+      const err = new Error(await readError(response));
+      err.status = response.status;
+      if (response.status === 401) { _authExpiredHandler?.(); }
+      throw err;
+    }
+    return response.json();
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error("Request timed out");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+let _authExpiredHandler = null;
+export function onAuthExpired(handler) { _authExpiredHandler = handler; }
+let _adminToken = "";
+let _adminAuthErrorHandler = null;
+export function setAdminToken(token) { _adminToken = token || ""; }
+export function onAdminAuthError(handler) { _adminAuthErrorHandler = handler; }
+async function adminRequest(url, options = {}) {
+  const headers = { ...(options.headers || {}) };
+  if (_adminToken) headers["X-Admin-Token"] = _adminToken;
+  try {
+    return await request(url, { ...options, headers });
+  } catch (err) {
+    if (err.status === 403 || err.status === 503) {
+      _adminAuthErrorHandler?.();
+    }
+    throw err;
+  }
+}
+let _debugToken = "";
+let _debugAuthErrorHandler = null;
+export function setDebugToken(token) { _debugToken = token || ""; }
+export function onDebugAuthError(handler) { _debugAuthErrorHandler = handler; }
+async function debugRequest(url, options = {}) {
+  const headers = { ...(options.headers || {}) };
+  if (_debugToken) headers["X-Debug-Token"] = _debugToken;
+  try {
+    return await request(url, { ...options, headers });
+  } catch (err) {
+    if (err.status === 403 || err.status === 503) {
+      _debugAuthErrorHandler?.();
+    }
+    throw err;
+  }
+}
+export async function unifiedLogin(phone, yearOfBirth) {
+  const res = await fetch(apiUrl("/api/auth/unified/login"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, year_of_birth: yearOfBirth }),
+  });
+  if (!res.ok) {
+    const err = new Error(await readError(res));
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+export async function unifiedLoginWithRole(phone, yearOfBirth, role, doctorId, patientId) {
+  const res = await fetch(apiUrl("/api/auth/unified/login-role"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, year_of_birth: yearOfBirth, role, doctor_id: doctorId, patient_id: patientId }),
+  });
+  if (!res.ok) {
+    const err = new Error(await readError(res));
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+export async function unifiedRegisterDoctor(phone, name, yearOfBirth, inviteCode, specialty) {
+  const res = await fetch(apiUrl("/api/auth/unified/register/doctor"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, name, year_of_birth: yearOfBirth, invite_code: inviteCode, specialty }),
+  });
+  if (!res.ok) {
+    const err = new Error(await readError(res));
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+export async function unifiedRegisterPatient(phone, name, yearOfBirth, doctorId, gender) {
+  const res = await fetch(apiUrl("/api/auth/unified/register/patient"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, name, year_of_birth: yearOfBirth, doctor_id: doctorId, gender }),
+  });
+  if (!res.ok) {
+    const err = new Error(await readError(res));
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+export async function unifiedMe(token) {
+  const res = await fetch(apiUrl("/api/auth/unified/me"), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Token invalid");
+  return res.json();
+}
+export async function unifiedListDoctors() {
+  const res = await fetch(apiUrl("/api/auth/unified/doctors"));
+  return res.json();
+}
+export async function inviteLogin(code, specialty) {
+  return request("/api/auth/invite/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code, specialty: specialty || undefined }),
+  });
+}
+export async function getAdminInviteCodes() {
+  return adminRequest("/api/admin/invite-codes");
+}
+export async function createAdminInviteCode(doctorName, customCode) {
+  return adminRequest("/api/admin/invite-codes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      doctor_name: doctorName || undefined,
+      code: customCode || undefined,
+    }),
+  });
+}
+export async function revokeAdminInviteCode(code) {
+  return adminRequest(`/api/admin/invite-codes/${encodeURIComponent(code)}`, { method: "DELETE" });
+}
+export async function sendChat(payload) {
+  return request("/api/records/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    _timeout: 120000,
+  });
+}
+export async function doctorInterviewGetSession(sessionId, doctorId) {
+  const params = new URLSearchParams({ doctor_id: doctorId || "" });
+  return request(`/api/records/interview/session/${sessionId}?${params}`);
+}
+export async function doctorInterviewTurn(formData) {
+  return request("/api/records/interview/turn", {
+    method: "POST",
+    body: formData,
+    _timeout: 120000,
+  });
+}
+export async function doctorInterviewConfirm(sessionId, doctorId) {
+  const formData = new FormData();
+  formData.append("session_id", sessionId);
+  if (doctorId) formData.append("doctor_id", doctorId);
+  return request("/api/records/interview/confirm", {
+    method: "POST",
+    body: formData,
+    _timeout: 120000,
+  });
+}
+export async function doctorInterviewCancel(sessionId, doctorId) {
+  const formData = new FormData();
+  formData.append("session_id", sessionId);
+  if (doctorId) formData.append("doctor_id", doctorId);
+  return request("/api/records/interview/cancel", {
+    method: "POST",
+    body: formData,
+  });
+}
+export async function transcribeAudio(blob, filename) {
+  const form = new FormData();
+  form.append("audio", blob, filename || "recording.webm");
+  return request("/api/records/transcribe", { method: "POST", body: form, _timeout: 30000 });
+}
+export async function ocrImage(imageFile) {
+  const form = new FormData();
+  form.append("image", imageFile, imageFile.name);
+  return request("/api/records/ocr", { method: "POST", body: form });
+}
+export async function extractFileForChat(file) {
+  const form = new FormData();
+  form.append("file", file, file.name);
+  return request("/api/records/extract-file", { method: "POST", body: form, _timeout: 120000 });
+}
+export async function getPatients(doctorId, filters = {}, limit = 50, offset = 0) {
+  const qs = new URLSearchParams({ doctor_id: doctorId, limit: String(limit), offset: String(offset) });
+  if (filters.risk) qs.set("risk", filters.risk);
+  if (filters.category) qs.set("category", filters.category);
+  return request(`/api/manage/patients?${qs.toString()}`);
+}
+export async function searchPatients(doctorId, q) {
+  const qs = new URLSearchParams({ doctor_id: doctorId, q });
+  return request(`/api/manage/patients/search?${qs.toString()}`);
+}
+export async function exportPatientPdf(patientId, doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  const headers = {};
+  if (_webToken) headers["Authorization"] = `Bearer ${_webToken}`;
+  const response = await fetch(apiUrl(`/api/export/patient/${patientId}/pdf?${qs.toString()}`), { headers });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `HTTP ${response.status}`);
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `病历_patient_${patientId}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+export async function exportOutpatientReport(patientId, doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  const headers = {};
+  if (_webToken) headers["Authorization"] = `Bearer ${_webToken}`;
+  const response = await fetch(apiUrl(`/api/export/patient/${patientId}/outpatient-report?${qs.toString()}`), { headers });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `HTTP ${response.status}`);
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `门诊病历_patient_${patientId}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+export async function getTemplateStatus(doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/export/template/status?${qs.toString()}`);
+}
+export async function uploadTemplate(doctorId, file) {
+  const headers = {};
+  if (_webToken) headers["Authorization"] = `Bearer ${_webToken}`;
+  const form = new FormData();
+  form.append("file", file);
+  form.append("doctor_id", doctorId);
+  const response = await fetch(apiUrl("/api/export/template/upload"), { method: "POST", headers, body: form });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `HTTP ${response.status}`);
+  }
+  return response.json();
+}
+export async function deleteTemplate(doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  const headers = {};
+  if (_webToken) headers["Authorization"] = `Bearer ${_webToken}`;
+  const response = await fetch(apiUrl(`/api/export/template?${qs.toString()}`), { method: "DELETE", headers });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `HTTP ${response.status}`);
+  }
+  return response.json();
+}
+export async function getRecords({ doctorId, patientId, patientName, dateFrom, dateTo, limit = 50, offset = 0 }) {
+  const qs = new URLSearchParams({ doctor_id: doctorId, limit: String(limit), offset: String(offset) });
+  if (patientId) qs.set("patient_id", patientId);
+  if (patientName) qs.set("patient_name", patientName);
+  if (dateFrom) qs.set("date_from", dateFrom);
+  if (dateTo) qs.set("date_to", dateTo);
+  return request(`/api/manage/records?${qs.toString()}`);
+}
+export async function updateRecord(doctorId, recordId, fields) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/records/${recordId}?${qs.toString()}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(fields),
+  });
+}
+export async function deleteRecord(doctorId, recordId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/records/${recordId}?${qs.toString()}`, { method: "DELETE" });
+}
+export async function getPrompts() {
+  return request("/api/manage/prompts");
+}
+export async function updatePrompt(key, content) {
+  return request(`/api/manage/prompts/${encodeURIComponent(key)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
+}
+export async function getPatientTimeline({ doctorId, patientId, limit = 100 }) {
+  const qs = new URLSearchParams({ doctor_id: doctorId, limit: String(limit) });
+  return request(`/api/manage/patients/${patientId}/timeline?${qs.toString()}`);
+}
+export async function getLabels(doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/labels?${qs.toString()}`);
+}
+export async function createLabel({ doctorId, name, color }) {
+  return request("/api/manage/labels", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ doctor_id: doctorId, name, color }),
+  });
+}
+export async function deleteLabelById({ doctorId, labelId }) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/labels/${labelId}?${qs.toString()}`, {
+    method: "DELETE",
+  });
+}
+export async function assignLabelToPatient({ doctorId, patientId, labelId }) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/patients/${patientId}/labels/${labelId}?${qs.toString()}`, {
+    method: "POST",
+  });
+}
+export async function removeLabelFromPatient({ doctorId, patientId, labelId }) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/patients/${patientId}/labels/${labelId}?${qs.toString()}`, {
+    method: "DELETE",
+  });
+}
+export async function deletePatient(patientId, doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/patients/${patientId}?${qs.toString()}`, { method: "DELETE" });
+}
+export async function getAdminDbView({ doctorId, patientName, dateFrom, dateTo, limit = 100 }) {
+  const qs = new URLSearchParams();
+  if (doctorId) qs.set("doctor_id", doctorId);
+  if (patientName) qs.set("patient_name", patientName);
+  if (dateFrom) qs.set("date_from", dateFrom);
+  if (dateTo) qs.set("date_to", dateTo);
+  qs.set("limit", String(limit));
+  return adminRequest(`/api/admin/db-view?${qs.toString()}`);
+}
+export async function getAdminTables({ doctorId, patientName, dateFrom, dateTo }) {
+  const qs = new URLSearchParams();
+  if (doctorId) qs.set("doctor_id", doctorId);
+  if (patientName) qs.set("patient_name", patientName);
+  if (dateFrom) qs.set("date_from", dateFrom);
+  if (dateTo) qs.set("date_to", dateTo);
+  return adminRequest(`/api/admin/tables?${qs.toString()}`);
+}
+export async function getAdminTableRows({ tableKey, doctorId, patientName, dateFrom, dateTo, limit = 200, offset = 0 }) {
+  const qs = new URLSearchParams();
+  if (doctorId) qs.set("doctor_id", doctorId);
+  if (patientName) qs.set("patient_name", patientName);
+  if (dateFrom) qs.set("date_from", dateFrom);
+  if (dateTo) qs.set("date_to", dateTo);
+  qs.set("limit", String(limit));
+  if (offset > 0) qs.set("offset", String(offset));
+  return adminRequest(`/api/admin/tables/${encodeURIComponent(tableKey)}?${qs.toString()}`);
+}
+export async function getAdminFilterOptions({ doctorId } = {}) {
+  const qs = new URLSearchParams();
+  if (doctorId) qs.set("doctor_id", doctorId);
+  return adminRequest(`/api/admin/filter-options?${qs.toString()}`);
+}
+export async function getAdminObservability({
+  traceLimit = 80,
+  summaryLimit = 500,
+  spanLimit = 200,
+  slowSpanLimit = 30,
+  scope = "public",
+  traceId = "",
+} = {}) {
+  const qs = new URLSearchParams({
+    trace_limit: String(traceLimit),
+    summary_limit: String(summaryLimit),
+    span_limit: String(spanLimit),
+    slow_span_limit: String(slowSpanLimit),
+    scope,
+  });
+  if (traceId) qs.set("trace_id", traceId);
+  return adminRequest(`/api/admin/observability?${qs.toString()}`);
+}
+export async function clearAdminObservabilityTraces() {
+  return adminRequest("/api/admin/observability/traces", { method: "DELETE" });
+}
+export async function seedAdminObservabilitySamples(count = 3) {
+  const qs = new URLSearchParams({ count: String(count) });
+  return adminRequest(`/api/admin/observability/sample?${qs.toString()}`, { method: "POST" });
+}
+export async function getAdminRuntimeConfig() {
+  return adminRequest("/api/admin/config");
+}
+export async function updateAdminRuntimeConfig(config) {
+  return adminRequest("/api/admin/config", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ config }),
+  });
+}
+export async function verifyAdminRuntimeConfig(config) {
+  return adminRequest("/api/admin/config/verify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ config }),
+  });
+}
+export async function applyAdminRuntimeConfig() {
+  return adminRequest("/api/admin/config/apply", { method: "POST" });
+}
+export async function getAdminTunnelUrl() {
+  return adminRequest("/api/admin/dev/tunnel-url");
+}
+export async function getAdminRoutingKeywords(token) {
+  return adminRequest("/api/admin/fast-router/keywords");
+}
+export async function putAdminRoutingKeywords(token, body) {
+  return adminRequest("/api/admin/fast-router/keywords", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+export async function reloadAdminRoutingKeywords(token) {
+  return adminRequest("/api/admin/fast-router/keywords/reload", { method: "POST" });
+}
+export async function getAdminRoutingMetrics() {
+  return adminRequest("/api/admin/routing-metrics");
+}
+export async function resetAdminRoutingMetrics() {
+  return adminRequest("/api/admin/routing-metrics/reset", { method: "POST" });
+}
+export async function getDebugLogs({ level = "WARNING", limit = 200, source = "app" } = {}) {
+  const qs = new URLSearchParams({ level, limit: String(limit), source });
+  return debugRequest(`/api/debug/logs?${qs.toString()}`);
+}
+export async function getDebugObservability({
+  traceLimit = 80,
+  summaryLimit = 500,
+  spanLimit = 300,
+  slowSpanLimit = 30,
+  scope = "public",
+  traceId = "",
+} = {}) {
+  const qs = new URLSearchParams({
+    trace_limit: String(traceLimit),
+    summary_limit: String(summaryLimit),
+    span_limit: String(spanLimit),
+    slow_span_limit: String(slowSpanLimit),
+    scope,
+  });
+  if (traceId) qs.set("trace_id", traceId);
+  return debugRequest(`/api/debug/observability?${qs.toString()}`);
+}
+export async function clearDebugObservabilityTraces() {
+  return debugRequest("/api/debug/observability/traces", { method: "DELETE" });
+}
+export async function seedDebugObservabilitySamples(count = 3) {
+  const qs = new URLSearchParams({ count: String(count) });
+  return debugRequest(`/api/debug/observability/sample?${qs.toString()}`, { method: "POST" });
+}
+export async function getDebugRoutingMetrics() {
+  return debugRequest("/api/debug/routing-metrics");
+}
+export async function resetDebugRoutingMetrics() {
+  return debugRequest("/api/debug/routing-metrics/reset", { method: "POST" });
+}
+export async function getTasks(doctorId, status = null) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  if (status) qs.set("status", status);
+  return request(`/api/tasks?${qs.toString()}`);
+}
+export async function patchTask(taskId, doctorId, status) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/tasks/${taskId}?${qs.toString()}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+}
+export async function postponeTask(taskId, doctorId, dueAt) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/tasks/${taskId}/due?${qs.toString()}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ due_at: dueAt }),
+  });
+}
+export async function createTask(doctorId, { taskType, title, dueAt, patientId, content }) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/tasks?${qs.toString()}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      task_type: taskType,
+      title,
+      due_at: dueAt || undefined,
+      patient_id: patientId || undefined,
+      content: content || undefined,
+    }),
+  });
+}
+export async function getTaskRecord(recordId, doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/tasks/record/${recordId}?${qs.toString()}`);
+}
+export async function confirmPendingRecordById(pendingId) {
+  return request(`/api/records/pending/${encodeURIComponent(pendingId)}/confirm`, { method: "POST" });
+}
+export async function abandonPendingRecordById(pendingId) {
+  return request(`/api/records/pending/${encodeURIComponent(pendingId)}/abandon`, { method: "POST" });
+}
+export async function getWorkingContext(doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/working-context?${qs.toString()}`);
+}
+export async function clearContext(doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/clear-context?${qs.toString()}`, { method: "POST" });
+}
+export async function updateAdminRecord(recordId, fields) {
+  return adminRequest(`/api/admin/records/${recordId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(fields),
+  });
+}
+export async function getAdminPrompts() {
+  return adminRequest("/api/admin/prompts");
+}
+export async function updateAdminPrompt(key, content) {
+  return adminRequest(`/api/admin/prompts/${encodeURIComponent(key)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
+}
+export async function getDoctorProfile(doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/profile?${qs.toString()}`);
+}
+export async function updateDoctorProfile(doctorId, { name, specialty }) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/profile?${qs.toString()}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, specialty: specialty || null }),
+  });
+}
+async function patientRequest(url, patientToken, options = {}) {
+  const headers = {
+    ...(options.headers || {}),
+    "Authorization": `Bearer ${patientToken || ""}`,
+  };
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(apiUrl(url), { ...options, headers, signal: controller.signal });
+    if (!response.ok) {
+      const err = new Error(await readError(response));
+      err.status = response.status;
+      throw err;
+    }
+    return response.json();
+  } catch (err) {
+    if (err.name === "AbortError") throw new Error("Request timed out");
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+export async function patientSession(doctorId, patientName) {
+  return fetch(apiUrl("/api/patient/session"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ doctor_id: doctorId, patient_name: patientName }),
+  }).then(async (res) => {
+    if (!res.ok) {
+      const err = new Error(await readError(res));
+      err.status = res.status;
+      throw err;
+    }
+    return res.json();
+  });
+}
+export async function getPatientMe(patientToken) {
+  return patientRequest("/api/patient/me", patientToken);
+}
+export async function getPatientRecords(patientToken) {
+  return patientRequest("/api/patient/records", patientToken);
+}
+export async function sendPatientMessage(patientToken, text) {
+  return patientRequest("/api/patient/message", patientToken, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+}
+export async function listDoctors() {
+  const res = await fetch(apiUrl("/api/patient/doctors"));
+  return res.json();
+}
+export async function patientRegister(doctorId, name, gender, yearOfBirth, phone) {
+  const res = await fetch(apiUrl("/api/patient/register"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ doctor_id: doctorId, name, gender, year_of_birth: yearOfBirth, phone }),
+  });
+  if (!res.ok) {
+    const err = new Error(await readError(res));
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+export async function patientLogin(phone, yearOfBirth, doctorId) {
+  const res = await fetch(apiUrl("/api/patient/login"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, year_of_birth: yearOfBirth, doctor_id: doctorId || undefined }),
+  });
+  if (!res.ok) {
+    const err = new Error(await readError(res));
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+export async function interviewStart(token) {
+  return patientRequest("/api/patient/interview/start", token, { method: "POST" });
+}
+export async function interviewTurn(token, sessionId, text) {
+  return patientRequest("/api/patient/interview/turn", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: sessionId, text }),
+  });
+}
+export async function interviewCurrent(token) {
+  return patientRequest("/api/patient/interview/current", token);
+}
+export async function interviewConfirm(token, sessionId) {
+  return patientRequest("/api/patient/interview/confirm", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: sessionId }),
+  });
+}
+export async function interviewCancel(token, sessionId) {
+  return patientRequest("/api/patient/interview/cancel", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: sessionId }),
+  });
+}
+export async function patientUpload(token, file) {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(apiUrl("/api/patient/upload"), {
+    method: "POST",
+    headers: { "X-Patient-Token": token },
+    body: form,
+  });
+  if (!res.ok) {
+    const err = new Error(await readError(res));
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+export async function getKnowledgeItems(doctorId) {
+  return request(`/api/manage/knowledge?doctor_id=${doctorId}`);
+}
+export async function deleteKnowledgeItem(doctorId, itemId) {
+  return request(`/api/manage/knowledge/${itemId}?doctor_id=${doctorId}`, { method: "DELETE" });
+}
+export async function addKnowledgeItem(doctorId, content, category = "custom") {
+  return request(`/api/manage/knowledge?doctor_id=${doctorId}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content, category }),
+  });
+}
+export async function getCaseLibrary(doctorId) {
+  return request(`/api/manage/case-history?doctor_id=${doctorId}&status=confirmed`);
+}
+export async function getCaseDetail(caseId, doctorId) {
+  return request(`/api/manage/case-history/${caseId}?doctor_id=${doctorId}`);
+}
+export async function getReviewQueue(doctorId, status = "pending_review", limit = 50) {
+  return request(`/api/manage/review-queue?doctor_id=${doctorId}&status=${status}&limit=${limit}`);
+}
+export async function getReviewDetail(queueId, doctorId) {
+  return request(`/api/manage/review-queue/${queueId}?doctor_id=${doctorId}`);
+}
+export async function confirmReview(queueId, doctorId) {
+  return request(`/api/manage/review-queue/${queueId}/confirm?doctor_id=${doctorId}`, {
+    method: "POST",
+  });
+}
+export async function updateReviewField(queueId, doctorId, field, value) {
+  return request(`/api/manage/review-queue/${queueId}/record?doctor_id=${doctorId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ field, value }),
+  });
+}
+export async function getBriefing(doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/doctor/briefing?${qs.toString()}`);
+}
+export async function getDiagnosis(recordId, doctorId) {
+  return request(`/api/manage/diagnosis/${recordId}?doctor_id=${doctorId}`);
+}
+export async function decideDiagnosisItem(diagnosisId, doctorId, type, index, decision) {
+  return request(`/api/manage/diagnosis/${diagnosisId}/decide?doctor_id=${doctorId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type, index, decision }),
+  });
+}
+export async function confirmDiagnosis(diagnosisId, doctorId) {
+  return request(`/api/manage/diagnosis/${diagnosisId}/confirm?doctor_id=${doctorId}`, {
+    method: "POST",
+  });
+}
+export async function getPatientRecordDetail(token, recordId) {
+  return patientRequest(`/api/patient/records/${recordId}`, token);
+}
+export async function getPatientTasks(token) {
+  return patientRequest("/api/patient/tasks", token);
+}
+export async function completePatientTask(token, taskId) {
+  return patientRequest(`/api/patient/tasks/${taskId}/complete`, token, { method: "POST" });
+}
+export async function getPatientChatMessages(token, sinceId) {
+  const qs = sinceId != null ? `?since=${sinceId}` : "";
+  return patientRequest(`/api/patient/chat/messages${qs}`, token);
+}
+export async function sendPatientChat(token, text) {
+  return patientRequest("/api/patient/chat", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+}
+export async function getPatientChat(patientId) {
+  return request(`/api/manage/patients/${patientId}/chat`);
+}
+export async function replyToPatient(patientId, text) {
+  return request(`/api/manage/patients/${patientId}/reply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+}
+import { useEffect, useState } from "react";
+import { Navigate, Route, Routes } from "react-router-dom";
+import DoctorPage from "./pages/DoctorPage";
+import AdminPage from "./pages/AdminPage";
+import AdminLoginPage from "./pages/AdminLoginPage";
+import DebugPage from "./pages/DebugPage";
+import LoginPage from "./pages/LoginPage";
+import PatientPage from "./pages/PatientPage";
+import PrivacyPage from "./pages/PrivacyPage";
+import { useDoctorStore } from "./store/doctorStore";
+import { setWebToken, onAuthExpired } from "./api";
+import { isMiniApp } from "./utils/env";
+const DEV_MODE = import.meta.env.DEV; // true in `vite dev`, false in `vite build`
+const DEV_DOCTOR_ID = import.meta.env.VITE_DEV_DOCTOR_ID || "test_doctor";
+function RequireAuth({ children }) {
+  const { accessToken } = useDoctorStore();
+  if (DEV_MODE) return children; // Skip auth gate in dev
+  if (!accessToken) return <Navigate to="/login" replace />;
+  return children;
+}
+export default function App() {
+  const { accessToken, doctorId, setAuth } = useDoctorStore();
+  useState(() => {
+    if (DEV_MODE && !doctorId) {
+      setAuth(DEV_DOCTOR_ID, DEV_DOCTOR_ID, "dev-token");
+    }
+  });
+  useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
+    const did = params.get("doctor_id");
+    const name = params.get("name");
+    if (token && did) {
+      setAuth(did, name || did, token);
+      setWebToken(token);
+      const url = new URL(window.location.href);
+      ["token", "doctor_id", "name"].forEach((k) => url.searchParams.delete(k));
+      window.history.replaceState({}, "", url.toString());
+    }
+  });
+  useEffect(() => {
+    if (accessToken) setWebToken(accessToken);
+  }, [accessToken]);
+  useEffect(() => {
+    onAuthExpired(() => {
+      if (isMiniApp()) {
+        alert("会话已过期，请关闭后重新打开小程序");
+      } else {
+        useDoctorStore.getState().clearAuth();
+        window.location.href = "/login";
+      }
+    });
+  }, []);
+  return (
+    <Routes>
+      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/" element={<Navigate to="/doctor" replace />} />
+      <Route path="/doctor" element={<RequireAuth><DoctorPage /></RequireAuth>} />
+      <Route path="/doctor/patients/:patientId" element={<RequireAuth><DoctorPage /></RequireAuth>} />
+      <Route path="/doctor/:section" element={<RequireAuth><DoctorPage /></RequireAuth>} />
+      <Route path="/doctor/:section/:subpage" element={<RequireAuth><DoctorPage /></RequireAuth>} />
+      <Route path="/doctor/:section/:subpage/:subId" element={<RequireAuth><DoctorPage /></RequireAuth>} />
+      <Route path="/admin/login" element={<AdminLoginPage />} />
+      <Route path="/admin" element={<AdminPage />} />
+      <Route path="/admin/:section" element={<AdminPage />} />
+      <Route path="/debug" element={<DebugPage />} />
+      <Route path="/debug/:section" element={<DebugPage />} />
+      <Route path="/patient" element={<PatientPage />} />
+      <Route path="/patient/:tab" element={<PatientPage />} />
+      <Route path="/patient/:tab/:subpage" element={<PatientPage />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+import { Box } from "@mui/material";
+import AppButton from "./AppButton";
+export default function ActionButtonPair({
+  onCancel, onConfirm,
+  cancelLabel = "取消", confirmLabel = "保存",
+  loading = false, loadingLabel = "保存中…",
+  danger = false,
+}) {
+  return (
+    <Box sx={{ display: "flex", gap: 1.5 }}>
+      <AppButton variant="secondary" onClick={onCancel} fullWidth>
+        {cancelLabel}
+      </AppButton>
+      <AppButton variant={danger ? "danger" : "primary"} onClick={onConfirm}
+        loading={loading} loadingLabel={loadingLabel} fullWidth>
+        {confirmLabel}
+      </AppButton>
+    </Box>
+  );
+}
+import { Box, CircularProgress } from "@mui/material";
+import { TYPE, COLOR } from "../theme";
+const VARIANT_STYLES = {
+  primary:   { bgcolor: COLOR.success, color: "#fff", fontWeight: 600 },
+  secondary: { bgcolor: "#f5f5f5", color: "#666", fontWeight: 400 },
+  danger:    { bgcolor: COLOR.danger, color: "#fff", fontWeight: 600 },
+  ghost:     { bgcolor: "transparent", color: COLOR.success, fontWeight: 500, border: `1px solid ${COLOR.success}` },
+};
+const SIZE_STYLES = {
+  lg: { py: 1.3, px: 2.5, fontSize: TYPE.action.fontSize, borderRadius: "4px" },
+  md: { py: 1,   px: 2,   fontSize: TYPE.body.fontSize, borderRadius: "4px" },
+  sm: { py: 0.6, px: 1.5, fontSize: TYPE.secondary.fontSize, borderRadius: "4px" },
+};
+export default function AppButton({
+  children, variant = "primary", size = "md",
+  onClick, loading = false, loadingLabel, disabled = false,
+  fullWidth = false, sx,
+}) {
+  const vStyles = VARIANT_STYLES[variant] || VARIANT_STYLES.primary;
+  const sStyles = SIZE_STYLES[size] || SIZE_STYLES.md;
+  const isDisabled = disabled || loading;
+  const label = loading ? (loadingLabel || children) : children;
+  return (
+    <Box
+      onClick={!isDisabled ? onClick : undefined}
+      sx={{
+        display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 0.8,
+        textAlign: "center", cursor: isDisabled ? "default" : "pointer",
+        opacity: isDisabled ? 0.5 : 1,
+        userSelect: "none", WebkitUserSelect: "none",
+        "&:active": isDisabled ? {} : { opacity: 0.7 },
+        ...(fullWidth && { display: "flex", width: "100%" }),
+        ...vStyles, ...sStyles, ...sx,
+      }}
+    >
+      {loading && <CircularProgress size={14} sx={{ color: "inherit" }} />}
+      {label}
+    </Box>
+  );
+}
+import { Box, Typography } from "@mui/material";
+import { TYPE, COLOR } from "../theme";
+export default function AskAIBar({ onClick }) {
+  return (
+    <Box
+      onClick={onClick}
+      sx={{
+        mx: 1.5, mb: 1.5, px: 1.5, py: 1,
+        bgcolor: "#fff", borderRadius: "4px",
+        display: "flex", alignItems: "center", gap: 1,
+        border: "0.5px solid #d9d9d9",
+        cursor: "pointer",
+        boxShadow: "0 -2px 8px rgba(0,0,0,0.04)",
+        "&:active": { bgcolor: "#f9f9f9" },
+      }}
+    >
+      <Box sx={{
+        width: 28, height: 28, borderRadius: "4px", bgcolor: COLOR.success,
+        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+      }}>
+        <Typography sx={{ color: "#fff", fontSize: TYPE.micro.fontSize, fontWeight: "bold" }}>AI</Typography>
+      </Box>
+      <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#bbb" }}>问 AI 任何问题...</Typography>
+    </Box>
+  );
+}
+import { Box, CircularProgress } from "@mui/material";
+import { TYPE, COLOR } from "../theme";
+export default function BarButton({ children, onClick, disabled = false, loading = false, color = COLOR.success, sx }) {
+  const isDisabled = disabled || loading;
+  return (
+    <Box
+      onClick={!isDisabled ? onClick : undefined}
+      sx={{
+        fontSize: TYPE.action.fontSize, fontWeight: TYPE.action.fontWeight, color,
+        cursor: isDisabled ? "default" : "pointer",
+        opacity: isDisabled ? 0.4 : 1,
+        px: 1, py: 0.5,
+        userSelect: "none", WebkitUserSelect: "none",
+        "&:active": isDisabled ? {} : { opacity: 0.5 },
+        ...sx,
+      }}
+    >
+      {loading ? <CircularProgress size={14} sx={{ color: "inherit" }} /> : children}
+    </Box>
+  );
+}
+import { useCallback, useRef } from "react";
+import { Box, Typography } from "@mui/material";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+export default function BottomSheet({ open, onClose, title, right, children }) {
+  const startY = useRef(null);
+  const sheetRef = useRef(null);
+  const handleTouchStart = useCallback((e) => {
+    startY.current = e.touches[0].clientY;
+  }, []);
+  const handleTouchEnd = useCallback((e) => {
+    if (startY.current === null) return;
+    const dy = e.changedTouches[0].clientY - startY.current;
+    startY.current = null;
+    if (dy > 80) onClose();
+  }, [onClose]);
+  if (!open) return null;
+  return (
+    <Box sx={{ position: "fixed", top: 0, left: 0, right: 0,
+      bottom: "calc(64px + env(safe-area-inset-bottom))",
+      zIndex: 1200, display: "flex", flexDirection: "column" }}>
+      {/* Backdrop */}
+      <Box onClick={onClose} sx={{ height: "15%", flexShrink: 0, bgcolor: "rgba(0,0,0,0.3)" }} />
+      {/* Sheet */}
+      <Box ref={sheetRef}
+        onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}
+        sx={{
+          flex: 1, bgcolor: "#fff", borderRadius: "12px 12px 0 0",
+          display: "flex", flexDirection: "column",
+          boxShadow: "0 -4px 20px rgba(0,0,0,0.12)",
+          overflow: "hidden",
+        }}>
+        {/* Header — only if title provided */}
+        {title && (
+          <Box sx={{ position: "relative", display: "flex", alignItems: "center", height: 48, px: 1,
+            borderBottom: "1px solid #e5e5e5", flexShrink: 0, bgcolor: "#fff" }}>
+            <Box onClick={onClose}
+              sx={{ display: "flex", alignItems: "center", cursor: "pointer", px: 0.5, py: 1,
+                color: "#333", "&:active": { opacity: 0.5 } }}>
+              <KeyboardArrowDownIcon sx={{ fontSize: 28 }} />
+            </Box>
+            <Typography sx={{ flex: 1, textAlign: "center", fontWeight: 600, fontSize: 16 }}>
+              {title}
+            </Typography>
+            {right ? <Box sx={{ position: "absolute", right: 8 }}>{right}</Box> : <Box sx={{ minWidth: 36 }} />}
+          </Box>
+        )}
+        {/* Content */}
+        <Box sx={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          {children}
+        </Box>
+      </Box>
+    </Box>
+  );
+}
+import { Box, Typography } from "@mui/material";
+import { TYPE, COLOR } from "../theme";
+export default function DetailCard({ title, fields, note, noteLabel = "备注", children }) {
+  return (
+    <Box sx={{ bgcolor: "#fff", px: 2, py: 1.5, mb: 1 }}>
+      {/* Title */}
+      {title && (
+        <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: "#1A1A1A", mb: 1 }}>
+          {title}
+        </Typography>
+      )}
+      {/* Key-value grid */}
+      {fields && fields.length > 0 && (
+        <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px", mb: note ? 1 : 0 }}>
+          {fields.map((f, i) => (
+            <Box key={i} sx={{ display: "flex", alignItems: "baseline", gap: 0.5 }}>
+              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, flexShrink: 0 }}>
+                {f.label}
+              </Typography>
+              <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1, fontWeight: f.bold ? 600 : 400 }}>
+                {f.value || "—"}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+      )}
+      {/* Note / long text */}
+      {note && (
+        <Box sx={{ pt: 0.5, borderTop: "0.5px solid #f0f0f0" }}>
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 0.3 }}>{noteLabel}</Typography>
+          <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+            {note}
+          </Typography>
+        </Box>
+      )}
+      {/* Actions */}
+      {children && <Box sx={{ mt: 1.5 }}>{children}</Box>}
+    </Box>
+  );
+}
+import React from "react";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import { TYPE, COLOR } from "../theme";
+export default function DoctorBubble({ doctorName, content, timestamp }) {
+  return (
+    <Box sx={{ display: "flex", justifyContent: "flex-start" }}>
+      <Box sx={{ maxWidth: "85%", display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+        {/* Doctor name label */}
+        <Typography
+          sx={{
+            fontSize: 12,
+            fontWeight: 500,
+            color: COLOR.success,
+            mb: "2px",
+          }}
+        >
+          {doctorName}
+        </Typography>
+        {/* Message bubble */}
+        <Box
+          sx={{
+            bgcolor: "#fff",
+            border: `0.5px solid ${COLOR.success}`,
+            borderRadius: "8px",
+            ...TYPE.body,
+            lineHeight: 1.6,
+            color: COLOR.text1,
+            px: "14px",
+            py: "10px",
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+          }}
+        >
+          {content}
+        </Box>
+        {/* Timestamp */}
+        {timestamp && (
+          <Typography
+            sx={{
+              fontSize: 12,
+              color: COLOR.text4,
+              mt: "2px",
+            }}
+          >
+            {timestamp}
+          </Typography>
+        )}
+      </Box>
+    </Box>
+  );
+}
+import { Box, Typography } from "@mui/material";
+import { ICON } from "../theme";
+export default function EmptyState({ icon, title, subtitle }) {
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 8, gap: 1, px: 2 }}>
+      {icon && <Box sx={{ "& svg": { fontSize: ICON.display, color: "#ccc" } }}>{icon}</Box>}
+      <Typography variant="body2" color="text.disabled" sx={{ fontWeight: 500 }}>
+        {title}
+      </Typography>
+      {subtitle && (
+        <Typography variant="caption" color="text.disabled" sx={{ textAlign: "center", maxWidth: 200 }}>
+          {subtitle}
+        </Typography>
+      )}
+    </Box>
+  );
+}
+import { Component } from "react";
+import { Box, Typography, Button } from "@mui/material";
+export default class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, info) {
+    console.error("[ErrorBoundary]", error, info.componentStack);
+  }
+  render() {
+    if (this.state.hasError) {
+      const label = this.props.label || "此模块";
+      return (
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "100%",
+            gap: 2,
+            p: 3,
+            color: "#888",
+          }}
+        >
+          <Typography variant="body2">{label}加载失败，请刷新页面重试。</Typography>
+          <Button size="small" variant="outlined" onClick={() => this.setState({ hasError: false, error: null })}>
+            重试
+          </Button>
+        </Box>
+      );
+    }
+    return this.props.children;
+  }
+}
+import { Box, Typography } from "@mui/material";
+import { TYPE } from "../theme";
+export default function ListCard({ avatar, title, subtitle, right, onClick, sx }) {
+  return (
+    <Box
+      onClick={onClick}
+      sx={{
+        display: "flex", alignItems: "center", gap: 1.5,
+        px: 1.5, py: 1, bgcolor: "#fff",
+        borderBottom: "0.5px solid #f0f0f0",
+        cursor: onClick ? "pointer" : "default",
+        userSelect: "none", WebkitUserSelect: "none",
+        "&:active": onClick ? { bgcolor: "#f5f5f5" } : {},
+        ...sx,
+      }}
+    >
+      {avatar}
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Typography sx={{ fontWeight: 500, fontSize: TYPE.action.fontSize, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+            {title}
+          </Typography>
+          {right && <Box sx={{ flexShrink: 0, ml: 1 }}>{right}</Box>}
+        </Box>
+        {subtitle && (
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "#999", mt: 0.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {subtitle}
+          </Typography>
+        )}
+      </Box>
+    </Box>
+  );
+}
+import { Box, Typography } from "@mui/material";
+import { COLOR } from "../theme";
+import ListCard from "./ListCard";
+export default function NewItemCard({ title, subtitle, onClick }) {
+  return (
+    <ListCard
+      avatar={
+        <Box sx={{ width: 36, height: 36, borderRadius: "4px", border: `1.5px dashed ${COLOR.success}`,
+          display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Typography sx={{ fontSize: 20, color: COLOR.success, lineHeight: 1 }}>+</Typography>
+        </Box>
+      }
+      title={title}
+      subtitle={subtitle}
+      onClick={onClick}
+      sx={{ "& .MuiTypography-root:first-of-type": { color: COLOR.success } }}
+    />
+  );
+}
+import { useCallback, useRef, useState } from "react";
+import { Box, Typography } from "@mui/material";
+import SubpageHeader from "../pages/doctor/SubpageHeader";
+function DragHandle({ onDrag }) {
+  const dragging = useRef(false);
+  const onMouseDown = useCallback((e) => {
+    e.preventDefault();
+    dragging.current = true;
+    const move = (ev) => { if (dragging.current) onDrag(ev.clientX); };
+    const up = () => { dragging.current = false; window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); };
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+  }, [onDrag]);
+  return (
+    <Box
+      onMouseDown={onMouseDown}
+      sx={{
+        width: 5, flexShrink: 0, cursor: "col-resize",
+        bgcolor: "transparent", "&:hover": { bgcolor: "#d9d9d9" },
+        transition: "background-color 0.15s",
+      }}
+    />
+  );
+}
+export default function PageSkeleton({ title, headerRight, listPane, detailPane, mobileView, isMobile }) {
+  const containerRef = useRef(null);
+  const [listWidth, setListWidth] = useState(() => {
+    const saved = localStorage.getItem("pageskeleton_list_width");
+    return saved ? Number(saved) : 300;
+  });
+  const handleDrag = useCallback((clientX) => {
+    const container = containerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const w = Math.max(200, Math.min(clientX - rect.left, 500));
+    setListWidth(w);
+    localStorage.setItem("pageskeleton_list_width", String(w));
+  }, []);
+  if (isMobile && mobileView) return mobileView;
+  if (isMobile) {
+    return (
+      <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
+        <SubpageHeader title={title} right={headerRight} />
+        <Box sx={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          {listPane}
+        </Box>
+      </Box>
+    );
+  }
+  return (
+    <Box ref={containerRef} sx={{ display: "flex", height: "100%", overflow: "hidden" }}>
+      <Box sx={{ width: listWidth, flexShrink: 0, display: "flex", flexDirection: "column", bgcolor: "#f7f7f7" }}>
+        {listPane}
+      </Box>
+      <DragHandle onDrag={handleDrag} />
+      <Box sx={{ flex: 1, overflow: "hidden", display: "flex" }}>
+        <Box sx={{ width: "100%", height: "100%", overflow: "hidden" }}>
+          {detailPane || (
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
+              <Typography color="text.disabled">请选择一项查看详情</Typography>
+            </Box>
+          )}
+        </Box>
+      </Box>
+    </Box>
+  );
+}
+import { Box } from "@mui/material";
+import { COLOR } from "../theme";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
+import FileUploadOutlinedIcon from "@mui/icons-material/FileUploadOutlined";
+import BiotechOutlinedIcon from "@mui/icons-material/BiotechOutlined";
+import MonitorHeartOutlinedIcon from "@mui/icons-material/MonitorHeartOutlined";
+import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
+import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
+const CONFIG = {
+  visit:              { color: COLOR.success, Icon: DescriptionOutlinedIcon },
+  dictation:          { color: "#5b9bd5", Icon: MicNoneOutlinedIcon },
+  import:             { color: "#e8833a", Icon: FileUploadOutlinedIcon },
+  lab:                { color: "#9b59b6", Icon: BiotechOutlinedIcon },
+  imaging:            { color: "#1890ff", Icon: MonitorHeartOutlinedIcon },
+  surgery:            { color: COLOR.danger, Icon: LocalHospitalOutlinedIcon },
+  interview_summary:  { color: "#8e44ad", Icon: ChatOutlinedIcon },
+};
+const FALLBACK = { color: "#999", Icon: DescriptionOutlinedIcon };
+export default function RecordAvatar({ type, size = 36 }) {
+  const { color, Icon } = CONFIG[type] || FALLBACK;
+  return (
+    <Box sx={{
+      width: size, height: size, borderRadius: "4px",
+      bgcolor: color + "1a",
+      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+    }}>
+      <Icon sx={{ fontSize: size * 0.5, color }} />
+    </Box>
+  );
+}
+import { Box, Chip, Stack, Typography } from "@mui/material";
+import { t } from "../i18n";
+import { TYPE } from "../theme";
+export default function RecordFields({ record }) {
+  if (!record) return null;
+  const tags = Array.isArray(record.tags) ? record.tags : [];
+  return (
+    <Box
+      sx={{
+        mt: 1.5,
+        p: 1.5,
+        borderRadius: 1.5,
+        bgcolor: "#fff",
+        border: "1px solid #f0f0f0",
+      }}
+    >
+      <Typography variant="subtitle2" sx={{ color: "primary.main", mb: 1 }}>
+        {t("recordFields.title")}
+      </Typography>
+      <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", lineHeight: 1.7 }}>
+        {record.content || "—"}
+      </Typography>
+      {tags.length > 0 && (
+        <Stack direction="row" spacing={0.6} flexWrap="wrap" sx={{ mt: 1.2 }}>
+          {tags.map((tag, i) => (
+            <Chip key={i} label={tag} size="small" variant="outlined" sx={{ fontSize: TYPE.micro.fontSize }} />
+          ))}
+        </Stack>
+      )}
+    </Box>
+  );
+}
+import { Box, Typography } from "@mui/material";
+import { TYPE } from "../theme";
+export default function SectionLabel({ children, sx }) {
+  return (
+    <Box sx={{ px: 1.5, pt: 1, pb: 1, ...sx }}>
+      <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#666", fontWeight: 600, letterSpacing: 0.5 }}>
+        {children}
+      </Typography>
+    </Box>
+  );
+}
+import { Box } from "@mui/material";
+import { TYPE } from "../theme";
+export default function StatusBadge({ label, colorMap, fallbackColor = "#999", sx }) {
+  const color = colorMap?.[label] ?? fallbackColor;
+  return (
+    <Box
+      component="span"
+      sx={{
+        display: "inline-block",
+        px: 0.8,
+        py: 0.1,
+        borderRadius: "4px",
+        border: `1px solid ${color}`,
+        color,
+        fontSize: TYPE.micro.fontSize,
+        fontWeight: 600,
+        lineHeight: 1.6,
+        ml: 0.8,
+        flexShrink: 0,
+        ...sx,
+      }}
+    >
+      {label}
+    </Box>
+  );
+}
+import { Box } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import { COLOR } from "../theme";
+import { TYPE, ICON } from "../theme";
+export default function SuggestionChips({ items, selected = [], onToggle, onDismiss, disabled = false }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <Box sx={{
+      display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5,
+      px: 1.5, py: 0.8,
+      borderTop: "1px solid #e0e0e0",
+      bgcolor: "#f7f7f7",
+      flexShrink: 0,
+    }}>
+      {items.map((text, i) => {
+        const isSelected = selected.includes(text);
+        return (
+          <Box
+            key={i}
+            component="button"
+            onClick={() => !disabled && onToggle(text)}
+            disabled={disabled}
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              px: 1.2,
+              py: 0.5,
+              border: "1px solid",
+              borderColor: isSelected ? COLOR.success : "#E5E5E5",
+              borderRadius: "16px",
+              cursor: disabled ? "default" : "pointer",
+              fontSize: TYPE.secondary.fontSize,
+              fontFamily: "inherit",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+              backgroundColor: isSelected ? "#e8f5e9" : "#fff",
+              color: isSelected ? COLOR.success : (disabled ? "#999" : "#333"),
+              fontWeight: isSelected ? 500 : 400,
+              opacity: disabled ? 0.5 : 1,
+              boxShadow: isSelected ? "none" : "0 1px 2px rgba(0,0,0,0.06)",
+              transition: "all 0.15s",
+              "&:active": disabled ? {} : { opacity: 0.7 },
+            }}
+          >
+            {text}
+          </Box>
+        );
+      })}
+      {onDismiss && (
+        <Box
+          onClick={onDismiss}
+          sx={{
+            display: "flex", alignItems: "center", justifyContent: "center",
+            width: 24, height: 24, borderRadius: "50%",
+            cursor: "pointer", flexShrink: 0, ml: 0.5,
+            color: "#999",
+            "&:active": { opacity: 0.5 },
+          }}
+        >
+          <CloseIcon sx={{ fontSize: ICON.sm }} />
+        </Box>
+      )}
+    </Box>
+  );
+}
+import { Box, Typography } from "@mui/material";
+import { TYPE, COLOR } from "../theme";
+import StatusBadge from "./StatusBadge";
+import AppButton from "./AppButton";
+function formatDate(iso) {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleDateString("zh-CN", {
+      year: "numeric", month: "2-digit", day: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
+}
+function isOverdue(dueAt) {
+  if (!dueAt) return false;
+  try {
+    return new Date(dueAt) < new Date();
+  } catch {
+    return false;
+  }
+}
+function isWorkupTask(taskType) {
+  return taskType && (taskType.includes("lab_review") || taskType.includes("imaging"));
+}
+function CheckCircle({ completed }) {
+  if (completed) {
+    return (
+      <Box
+        sx={{
+          width: 20, height: 20, borderRadius: "50%",

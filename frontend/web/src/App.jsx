@@ -6,6 +6,7 @@ import AdminLoginPage from "./pages/AdminLoginPage";
 import DebugPage from "./pages/DebugPage";
 import LoginPage from "./pages/LoginPage";
 import PatientPage from "./pages/PatientPage";
+import PrivacyPage from "./pages/PrivacyPage";
 import { useDoctorStore } from "./store/doctorStore";
 import { setWebToken, onAuthExpired } from "./api";
 import { isMiniApp } from "./utils/env";
@@ -64,6 +65,7 @@ export default function App() {
 
   return (
     <Routes>
+      <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<Navigate to="/doctor" replace />} />
       <Route path="/doctor" element={<RequireAuth><DoctorPage /></RequireAuth>} />

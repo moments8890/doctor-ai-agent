@@ -1,340 +1,331 @@
 # Architecture Overview
-**Last updated:** 2026-03-12
+
+**Last updated:** 2026-03-23
 
 ---
 
 ## System Overview
 
-A FastAPI backend + React SPA serving doctors through three channels:
-**Web dashboard** (primary MVP surface), **WeChat/WeCom** (primary mobile
-interface), and **voice** (audio transcription + shared workflow). A WeChat
-Mini Program uses dedicated `/api/mini/*` endpoints and wraps the web chat
-path with its own auth and history loading.
-
-All three doctor-facing channels share the 5-layer intent workflow pipeline
-and shared domain handlers (`services/domain/intent_handlers/`), but
-channel-level plumbing is not yet fully unified — Web and WeChat still have
-separate router entry points (`routers/records.py`, `routers/wechat.py`)
-that invoke the workflow through channel-specific paths. The `Message`
-abstraction (`services/domain/message.py`) exists but is not yet the
-universal entry point for all channels.
+A FastAPI backend + React SPA medical AI agent for doctors. Three channels:
+**Web dashboard** (primary), **WeChat/WeCom** (mobile), and **Patient portal**
+(pre-consultation). Uses a **Plan-and-Act** agent pipeline with a 6-layer
+prompt composer and Pydantic/Instructor structured output.
 
 ---
 
-## Channels & Entry Points
+## High-Level Architecture
 
 ```
-Web Dashboard ──► POST /api/records/chat    routers/records.py
-                  (React SPA)               → shared 5-layer workflow
-
-WeChat/WeCom ──► POST /wechat               routers/wechat.py
-                                             ↓ async background task
-                                             → shared 5-layer workflow
-
-Voice ────────► POST /api/voice/chat        routers/voice.py
-                (audio upload → transcribe   → shared 5-layer workflow
-                 → draft-first workflow)
-
-Mini Program ──► POST /api/mini/chat        routers/miniprogram.py
-                 POST /api/mini/voice/chat
-
-Patient Portal ──► POST /api/patient        routers/patient_portal.py
-```
-
----
-
-## Context Assembly Pipeline
-
-Before routing, each turn assembles a `DoctorTurnContext` that separates authoritative from advisory context:
-
-```
-assemble_turn_context(doctor_id)     services/ai/turn_context.py
-  │
-  ├─ [under session lock]
-  │    WorkflowState (AUTHORITATIVE)
-  │      current_patient_id/name      — controls patient binding
-  │      pending_record_id            — controls confirmation flow
-  │      interview / pending_cvd_scale — active workflow state
-  │
-  └─ [outside session lock]
-       AdvisoryContext
-         recent_history               — rolling 10-turn window
-         context_message              — compressed long-term summary (fresh sessions only)
-         knowledge_snippet            — doctor KB snippet
-       Provenance
-         current_patient_source       — "session" | "none"
-         memory_used / knowledge_used — observability flags
-```
-
-**Authority rules (from Codex review):**
-- `WorkflowState` fields are authoritative — never subject to TTL eviction, never overridden by advisory context
-- `AdvisoryContext` fields are advisory — LLM background hints only, must not influence patient binding or write-path decisions
-
----
-
-## Intent Workflow Pipeline (5-Layer)
-
-Every doctor message (Web, WeChat, and voice) flows through a shared 5-layer
-intent workflow defined in `services/intent_workflow/`:
-
-```
-message
-  │
-  ▼
-services.intent_workflow.run()
-  │
-  ├─ 1. CLASSIFY   classifier.py
-  │    fast_route() — deterministic Tiers 0-2 (no LLM)
-  │      Tier 0: import markers ([PDF:], [Word:], [Image:], help)
-  │      Tier 1: exact keyword sets (list patients, list tasks)
-  │      Tier 2: regex + extraction (create/delete/query/schedule/export/...)
-  │    agent_dispatch() — LLM fallback when fast_route returns None
-  │      ROUTING_LLM provider registry (Ollama / DeepSeek / OpenAI / ...)
-  │      Fallback chain: primary → cloud → regex heuristic
-  │
-  ├─ 2. EXTRACT    entities.py
-  │    Resolve patient/gender/age with provenance tracking.
-  │    Sources: followup → fast_route → llm → text_leading_name →
-  │             history → session → candidate → not_found
-  │    Clinical content detection and reminder signal extraction.
-  │
-  ├─ 3. BIND       binder.py
-  │    Read-only patient binding (no DB writes).
-  │    Status: bound | has_name | no_name | not_applicable
-  │    Weak sources (candidate, not_found) flagged needs_review=True.
-  │
-  ├─ 4. PLAN       planner.py
-  │    Annotate compound actions:
-  │      create_patient + clinical content → create + add_record
-  │      create_patient + reminder text → create + create_task
-  │      auto-create + add_record (single-patient shortcut)
-  │
-  └─ 5. GATE       gate.py
-       Safety check before execution.
-       Blocks: write intents without patient, not_found without location context.
-       Allows: read-only intents, weak attribution with pending-draft confirmation.
-  │
-  ▼
-WorkflowResult → IntentResult (backward-compatible) → handler dispatch
-```
-
-**Intents:** `add_record`, `query_records`, `update_record`, `create_patient`, `delete_patient`, `list_patients`, `list_tasks`, `complete_task`, `schedule_appointment`, `schedule_follow_up`, `export_records`, `import_history`, `help`, `unknown`
-
-### Hook Stages
-
-The workflow emits events at each layer boundary via `services/hooks.py`.
-External modules register callbacks without modifying core workflow code.
-
-| Stage | Fires after | Payload includes |
-|---|---|---|
-| `POST_CLASSIFY` | Layer 1 | decision, raw_intent, latency_ms |
-| `POST_EXTRACT` | Layer 2 | decision, entities, latency_ms |
-| `POST_BIND` | Layer 3 | decision, entities, binding, latency_ms |
-| `POST_PLAN` | Layer 4 | decision, entities, binding, plan, latency_ms |
-| `POST_GATE` | Layer 5 | decision, entities, binding, plan, gate, latency_ms |
-| `PRE_REPLY` | Before response | (available for response-time hooks) |
-
-Built-in hooks (`services/hooks_builtin.py`):
-- `_log_classification` (POST_CLASSIFY, priority 50) -- logs intent routing decisions
-- `_log_gate` (POST_GATE, priority 50) -- logs gate blocks for debugging
-
-Hooks are non-blocking: exceptions are logged but never propagate to the caller.
-
----
-
-## Session & State
-
-```
-services/session.py
-  _sessions: dict[doctor_id → DoctorSession]   (in-memory)
-  hydrate_session_state()    DB → memory, 5-min TTL
-  per-doctor asyncio.Lock    acquired before any state read/write
-  push_turn() / flush_turns() batch-write conversation history to DB
-
-DoctorSession fields:
-  current_patient_id/name    active patient context        ← AUTHORITATIVE
-  pending_record_id          awaiting doctor confirmation  ← AUTHORITATIVE
-  pending_create_name        mid-flow patient creation     ← AUTHORITATIVE
-  pending_cvd_scale          CVD scale interview in progress ← AUTHORITATIVE
-  interview                  structured interview flow     ← AUTHORITATIVE
-  conversation_history       rolling 10-turn window        ← advisory (history)
-  specialty / doctor_name    injected into LLM prompt      ← advisory (profile)
-```
-
-**Context compression** (`services/ai/memory.py`):
-```
-maybe_compress()   — must be called inside session lock
-  triggers: MAX_TURNS (20 msgs) | MEMORY_TOKEN_BUDGET (1200 tokens, CJK-aware) | 30-min idle
-  on success: upsert DoctorContext → clear DB turns → clear in-memory history
-  on ValueError (bad LLM JSON): preserve history, do not truncate
-  on transient error: preserve history, hard-cap only if severely over limit
-
-Compression schema (structured JSON):
-  current_patient      {name, gender, age}
-  active_diagnoses     [{name, status: acute|chronic|resolved}]
-  current_medications  [{name, dose}]
-  key_lab_values       [{name, value, date, abnormal: bool, trend: improving|stable|worsening}]
-  recent_action        string
-  pending              string
-  condition_trend      improving|stable|worsening
+┌─────────────────────────────────────────────────────────────┐
+│                      CHANNELS                                │
+│                                                              │
+│  Web Dashboard ──► POST /api/records/chat                    │
+│  (React SPA)       channels/web/chat.py                      │
+│                                                              │
+│  WeChat/WeCom ──► POST /wechat                               │
+│                    channels/wechat/router.py                  │
+│                                                              │
+│  Patient Portal ─► POST /api/patient/interview/*             │
+│                    channels/web/patient_interview_routes.py   │
+│                  ► POST /api/patient/chat (triage pipeline)  │
+│                    channels/web/patient_portal.py             │
+│                                                              │
+│  Doctor Interview ► POST /api/records/interview/*            │
+│  (UI-triggered)    channels/web/doctor_interview.py          │
+└───────────────────────────┬─────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  AGENT PIPELINE                              │
+│                  (Plan-and-Act)                               │
+│                                                              │
+│  handle_turn(text, role, identity) → HandlerResult           │
+│       │                                                      │
+│       ├─ 1. Route: routing LLM → RoutingResult               │
+│       │     (6 intents: create_record, query_record,         │
+│       │      create_task, query_task, query_patient, general)│
+│       │                                                      │
+│       ├─ 2. Dispatch: intent → registered handler            │
+│       │     dispatcher.py + handlers/*.py                    │
+│       │                                                      │
+│       └─ 3. Handler: loads context → calls intent LLM        │
+│             → returns HandlerResult(reply, data)             │
+└───────────────────────────┬─────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  6-LAYER PROMPT COMPOSER                      │
+│                  prompt_composer.py + prompt_config.py        │
+│                                                              │
+│  System message (Layers 1-3):                                │
+│  ┌──────────────────────────────────────────┐                │
+│  │ 1. system/base.md — identity, safety     │                │
+│  │ 2. common/{specialty}.md — area knowledge│                │
+│  │ 3. intent/{intent}.md — rules + examples │                │
+│  └──────────────────────────────────────────┘                │
+│                                                              │
+│  User message (Layers 4-6, XML-tagged):                      │
+│  ┌──────────────────────────────────────────┐                │
+│  │ 4. <doctor_knowledge> KB items from DB   │                │
+│  │ 5. <patient_context> records, history    │                │
+│  │ 6. <doctor_request> actual message       │                │
+│  └──────────────────────────────────────────┘                │
+│                                                              │
+│  Config: INTENT_LAYERS maps IntentType → LayerConfig         │
+│  (which layers, which KB categories, patient context y/n)    │
+└───────────────────────────┬─────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  LLM LAYER                                   │
+│                  agent/llm.py                                │
+│                                                              │
+│  structured_call() → Pydantic model (instructor JSON mode)   │
+│    Response models: RoutingResult, InterviewLLMResponse,     │
+│    DiagnosisLLMResponse, StructuringLLMResponse              │
+│                                                              │
+│  llm_call() → raw text (for compose/summary)                 │
+│                                                              │
+│  Provider: env-driven (default: Groq qwen/qwen3-32b)         │
+│    Supports: Groq, DeepSeek, Ollama, OpenAI-compatible       │
+│  Retry: instructor retries (structured), circuit breaker (text)│
+│  Tracing: trace_block → JSONL observability                  │
+└───────────────────────────┬─────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  DOMAIN LAYER                                │
+│                                                              │
+│  domain/patients/                                            │
+│    interview_session.py — create/load/save sessions          │
+│    interview_turn.py — multi-turn SOAP field collection      │
+│    interview_summary.py — confirm → save to medical_records  │
+│    nl_search.py — natural language patient search            │
+│    completeness.py — SOAP field completeness check           │
+│                                                              │
+│  domain/records/                                             │
+│    structuring.py — text → structured SOAP record            │
+│    vision_import.py — image/PDF → structured record          │
+│    pdf_export.py — records → PDF                             │
+│                                                              │
+│  domain/diagnosis.py — differential diagnosis pipeline       │
+│                                                              │
+│  domain/tasks/                                               │
+│    task_crud.py — create, notify, schedule tasks             │
+│    scheduler.py — APScheduler for due-task notifications     │
+│                                                              │
+│  domain/knowledge/                                           │
+│    doctor_knowledge.py — KB CRUD + context loading           │
+│    embedding.py — BGE-M3 local embeddings                    │
+└───────────────────────────┬─────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  DATABASE (14 tables)                         │
+│                  SQLite (dev) / MySQL (prod)                  │
+│                                                              │
+│  Core Data (9):                                              │
+│    doctors            — identity (8 columns)                 │
+│    doctor_wechat      — WeChat channel binding               │
+│    patients           — identity (7 columns)                 │
+│    patient_auth       — portal access code (hashed)          │
+│    medical_records    — SOAP columns + status + versioning   │
+│    doctor_tasks       — general | review (target: doctor|patient) │
+│    doctor_knowledge   — categorized KB items                 │
+│    doctor_chat_log    — doctor ↔ AI conversation (session_id)│
+│    patient_chat_log   — patient ↔ AI conversation            │
+│                                                              │
+│  Workflow (1):                                               │
+│    interview_sessions — multi-turn SOAP field collection     │
+│                                                              │
+│  System (4):                                                 │
+│    audit_log          — compliance audit trail               │
+│    invite_codes       — doctor signup gating                 │
+│    runtime_tokens     — WeChat access token cache            │
+│    scheduler_leases   — distributed scheduler lock           │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Record Flow (Pending-Draft Model)
+## Key Data Flows
+
+### Doctor Creates a Record (chat)
 
 ```
-add_record intent
+Doctor types: "创建患者张三，男45岁，头痛三天"
   │
-  ├─ emergency? ──► save_record() immediately
+  ├─ 1. POST /api/records/chat
+  ├─ 2. handle_turn → routing LLM → intent=create_record
+  ├─ 3. create_record handler → resolve patient (auto-create)
+  ├─ 4. Start interview session → first turn with clinical text
+  ├─ 5. Return {reply, view_payload: {session_id}}
+  ├─ 6. Frontend detects session_id → navigate to interview UI
+  ├─ 7. Doctor continues in interview UI (POST /api/records/interview/turn)
+  └─ 8. Doctor confirms → SOAP fields saved to medical_records
+         Status: pending_review (if diagnosis/treatment missing)
+         or completed (if all fields filled)
+```
+
+### Doctor Queries Records (chat)
+
+```
+Doctor types: "查张三的病历"
   │
-  └─ normal ──► create_pending_record() [DB, TTL 30min]
-                set_pending_record_id()
-                doctor receives preview
-                │
-                ├─ confirm ──► save_pending_record() → MedicalRecordDB
-                │              CVD scale follow-up if applicable
-                │
-                ├─ cancel  ──► abandon_pending_record()
-                │
-                └─ timeout ──► scheduler marks expired every 5 min
+  ├─ 1. routing LLM → intent=query_record, patient=张三
+  ├─ 2. query_record handler → resolve patient → fetch records
+  ├─ 3. compose_for_intent → 6-layer prompt assembly
+  ├─ 4. compose LLM → natural language summary
+  └─ 5. Return summary to doctor
 ```
 
-Web confirm/abandon: `POST /api/records/pending/{id}/confirm|abandon`
-WeChat confirm/abandon: text reply "确认" / "撤销"
-
----
-
-## Data Model (Key Entities)
+### Review Record (UI-triggered, not chat)
 
 ```
-Doctor
-  └─► Patient (doctor_id FK)
-        └─► MedicalRecordDB
-              └─► MedicalRecordVersion   (audit history)
-              └─► SpecialtyScore         (scale scores, doctor-scoped)
-              └─► NeuroCVDContext        (CVD/neuro structured fields)
-        └─► PatientLabel (M2M)
-        └─► DoctorTask
-        └─► PendingRecord               (draft, TTL-expired)
-  └─► DoctorContext                     (LLM-compressed memory)
-  └─► DoctorConversationTurn            (rolling 10-turn window)
-  └─► DoctorKnowledgeItem               (doctor's custom knowledge base)
-  └─► DoctorSessionState                (hydration source for session)
-  └─► AuditLog                          (7-year retention)
+Doctor clicks pending_review record in UI
+  │
+  ├─ 1. Frontend calls review API directly (no routing LLM)
+  ├─ 2. compose_for_review → load knowledge (诊断规则+危险信号+治疗方案)
+  ├─ 3. Load patient context (records, similar cases)
+  ├─ 4. Diagnosis LLM → {differentials, workup, treatment, suggested_tasks}
+  ├─ 5. Doctor reviews: accept/reject/edit suggestions
+  └─ 6. Record → completed, suggested tasks auto-created
 ```
 
 ---
 
-## Services Layer
-
-| Package | Responsibility |
-|---|---|
-| `services/intent_workflow/` | 5-layer intent pipeline: classify, extract, bind, plan, gate. Shared by all channels. |
-| `services/ai/` | fast_router, agent dispatch, structuring LLM, vision OCR, transcription, memory compression |
-| `services/ai/turn_context.py` | `DoctorTurnContext` assembly -- two-tier authoritative/advisory model, narrow lock scope, provenance tracking |
-| `services/hooks.py` | Lightweight hook mechanism for workflow pipeline (register/emit at POST_CLASSIFY through POST_GATE) |
-| `services/hooks_builtin.py` | Built-in observability hooks (classification logging, gate-block logging) |
-| `services/session.py` | In-memory session, lock registry, hydration (`hydrate_session_state` called before workbench context reads) |
-| `services/domain/intent_handlers/` | Shared handlers: `_add_record`, `_create_patient`, `_query_records`, `_simple_intents`, `_confirm_pending` |
-| `services/domain/adapters/` | Channel adapter protocol + implementations (`WebAdapter`, `WeChatAdapter`). See Adapter Status below. |
-| `services/domain/message.py` | `Message` dataclass (channel-agnostic inbound) + `ChannelAdapter` Protocol |
-| `services/domain/` | `record_ops.py`, `patient_ops.py` -- cross-cutting business logic |
-| `services/knowledge/` | Doctor KB, PDF/Word/image import, OCR, `knowledge_cache.py` (per-doctor TTL cache) |
-| `services/wechat/` | WeChat domain logic, media pipeline, KF sync, notifications, patient pipeline |
-| `services/auth/` | JWT (miniprogram), PBKDF2 (patient access codes), rate limiting, `request_auth.py` (doctor-scope resolution) |
-| `services/patient/` | NL search, risk scoring, CVD scale interview, prior visit detection |
-| `services/export/` | PDF export, outpatient report |
-| `services/notify/` | Task scheduling, APScheduler jobs, notify preferences |
-| `services/observability/` | Audit log, routing metrics, turn log, per-layer latency spans |
-
-### Knowledge-Context Cache
-
-`services/knowledge/knowledge_cache.py` provides a shared, per-doctor TTL cache
-for knowledge-base context used during intent routing:
-
-- `load_cached_knowledge_context(doctor_id, text)` -- returns cached or freshly
-  loaded knowledge snippet (5-minute TTL, per-doctor asyncio lock).
-- `invalidate_knowledge_cache(doctor_id)` -- clears cache for one doctor.
-- Both Web and WeChat call this before entering the workflow pipeline.
-
-### Adapter Status
-
-The `ChannelAdapter` protocol (`services/domain/message.py`) defines five
-methods: `parse_inbound`, `format_reply`, `send_reply`, `send_notification`,
-`get_history`.
-
-| Method | WebAdapter | WeChatAdapter | Status |
-|---|---|---|---|
-| `parse_inbound` | Wired (records.py) | Wired (wechat.py) | Production |
-| `format_reply` | Wired (records.py) | Wired (wechat_flows.py) | Production |
-| `send_reply` | Stub (sync HTTP cycle) | Stub (delegates to `_send_customer_service_msg` directly) | Deferred |
-| `send_notification` | Stub (client polling) | Stub (delegates to `_send_customer_service_msg`) | Deferred |
-| `get_history` | No-op (history in request body) | Reads from session | Production |
-
-**What is wired:** `parse_inbound` normalizes platform payloads into `Message`,
-and `format_reply` converts `HandlerResult` to channel wire format. Both are
-called in production router code.
-
-**What is deferred:** `send_reply` and `send_notification` are documented stubs.
-Web has no async push channel yet (replies are in the HTTP response). WeChat
-send-path calls go through `services/wechat/wechat_notify.py` directly, not
-through the adapter. Full adapter integration for the send path is deferred
-until the next cycle.
-
----
-
-## Frontend (React SPA)
+## Directory Structure
 
 ```
-App.jsx
-  └─► DoctorPage.jsx          main shell + nav
-        └─► ChatSection         /doctor/chat   — AI chat, pending-draft confirm
-        └─► PatientsSection     /doctor/patients — patient list, records
-        └─► TasksSection        /doctor/tasks
-        └─► SettingsSection     /doctor/settings
-        └─► HomeSection         /doctor/home
-      Each section wrapped in ErrorBoundary
-
-Auth: Zustand store (persist) → HS256 JWT → set into api.js module
-Mini Program: passes token via URL param → stripped immediately after extraction
-Patient portal: separate PatientPage.jsx, PBKDF2 access code auth
+src/
+├── agent/                      # Plan-and-Act agent pipeline
+│   ├── handle_turn.py          # Main entry: route → dispatch → respond
+│   ├── router.py               # Routing LLM → RoutingResult
+│   ├── dispatcher.py           # Intent → handler registry
+│   ├── types.py                # IntentType, RoutingResult, HandlerResult
+│   ├── llm.py                  # structured_call + llm_call (shared LLM helper)
+│   ├── prompt_config.py        # LayerConfig + INTENT_LAYERS matrix
+│   ├── prompt_composer.py      # 6-layer message assembly with XML tags
+│   ├── session.py              # In-memory chat history (plain dicts)
+│   ├── identity.py             # ContextVar for current doctor_id
+│   ├── actions.py              # IntentType re-export (backward compat)
+│   ├── handlers/               # One handler per intent
+│   │   ├── create_record.py    # → interview flow
+│   │   ├── query_record.py     # → fetch + compose summary
+│   │   ├── create_task.py      # → DB insert
+│   │   ├── query_task.py       # → fetch + compose summary
+│   │   ├── query_patient.py    # → local NL search
+│   │   └── general.py          # → fallback greeting
+│   ├── tools/                  # Business logic (plain async functions)
+│   │   ├── doctor.py           # Record/task/patient operations
+│   │   ├── patient.py          # Patient interview tools
+│   │   └── resolve.py          # Patient name → ID resolution
+│   └── prompts/                # LLM prompt fragments
+│       ├── system/base.md      # Layer 1: identity, safety
+│       ├── common/neurology.md # Layer 2: specialty knowledge
+│       └── intent/*.md         # Layer 3: 11 intent prompts
+│
+├── channels/                   # HTTP entry points
+│   ├── web/
+│   │   ├── chat.py             # POST /api/records/chat
+│   │   ├── doctor_interview.py # Interview turn/confirm/cancel/session
+│   │   ├── patient_interview_routes.py
+│   │   ├── patient_portal.py   # Patient auth + records
+│   │   ├── tasks.py            # Task CRUD API
+│   │   ├── import_routes.py    # Image/PDF import
+│   │   └── ui/                 # Admin management handlers
+│   └── wechat/
+│       ├── router.py           # WeChat webhook
+│       └── ...                 # WeChat-specific handlers
+│
+├── domain/                     # Business logic
+│   ├── patients/               # Interview, search, timeline
+│   ├── records/                # Structuring, import, export
+│   ├── tasks/                  # CRUD, scheduling, notifications
+│   ├── knowledge/              # Doctor KB, embeddings
+│   ├── diagnosis.py            # Differential diagnosis pipeline
+│   └── patient_lifecycle/      # Triage, treatment plans
+│
+├── db/                         # Database layer
+│   ├── models/                 # SQLAlchemy ORM (14 tables)
+│   ├── crud/                   # CRUD operations
+│   ├── repositories/           # Repository pattern
+│   └── engine.py               # Async SQLAlchemy engine
+│
+├── infra/                      # Infrastructure
+│   ├── llm/                    # Provider registry, resilience, vision
+│   ├── auth/                   # JWT, rate limiting, access codes
+│   └── observability/          # Tracing, metrics, audit
+│
+└── main.py                     # FastAPI app + middleware + startup
 ```
 
 ---
 
-## Infrastructure
+## Technology Stack
 
-```
-FastAPI (async) + SQLAlchemy async + SQLite (dev) / MySQL/Postgres (prod)
-APScheduler — task delivery plus cleanup/retention jobs:
-  check_and_send_due_tasks       interval (configurable)
-  _expire_stale_pending_records  every 5 min
-  _cleanup_old_conversation_turns  interval hours (configurable)
-  _cleanup_inactive_session_cache  interval
-  _purge_old_pending_data        daily 04:00
-  _cleanup_chat_archive          daily 04:30
-  _audit_log_retention           monthly
-  _record_version_retention      monthly
-  _redact_old_conversation_content daily 05:00
-
-LLM providers — Ollama / DeepSeek / OpenAI / Tencent LKEAP / Claude / Gemini / Groq
-config/runtime.json — live config reload without restart
-```
+| Component | Technology |
+|-----------|-----------|
+| Backend | FastAPI + uvicorn |
+| Frontend | React + MUI (Vite) |
+| Database | SQLite (dev) / MySQL (prod), SQLAlchemy async |
+| LLM Provider | Env-driven: Groq, DeepSeek, Ollama, OpenAI-compatible |
+| Structured Output | Instructor (JSON mode) + Pydantic v2 |
+| Embeddings | BGE-M3 via langchain-huggingface |
+| Agent Pattern | Plan-and-Act (routing → dispatch → handler) |
+| Prompt Assembly | 6-layer composer with XML context tags |
+| Observability | JSONL traces + spans, trace_block context manager |
+| Task Scheduling | APScheduler with distributed lease |
+| WeChat | Custom webhook + KF customer service |
 
 ---
 
-## API Routers
+## Key Design Decisions
 
-| Router | Prefix | Purpose |
-|---|---|---|
-| `records.py` | `/api/records` | Chat, CRUD records, pending-draft confirm/abandon |
-| `wechat.py` | `/wechat` | WeChat/WeCom webhook handler |
-| `auth.py` | `/api/auth` | Doctor login, invite codes |
-| `miniprogram.py` | `/api/mini` | Mini Program chat, voice, and doctor workflow endpoints |
-| `patient_portal.py` | `/api/patient` | Patient self-service portal |
-| `tasks.py` | `/api/tasks` | Task management |
-| `voice.py` | `/api/voice` | Voice transcription + shared 5-layer workflow (draft-first safety model) |
-| `export.py` | `/api/export` | PDF / report export |
-| `neuro.py` | `/api/neuro` | Neurology/CVD specialist endpoints |
-| `ui/` | `/ui` | Admin + debug UI endpoints |
+1. **Plan-and-Act over ReAct** — routing LLM classifies intent (1 call), handler
+   executes with focused prompt (1 call). 2 LLM calls vs 3-5 with ReAct.
+   Predictable, debuggable, works with free-tier Chinese LLMs.
+
+2. **Instructor JSON mode** — Groq/Qwen3 doesn't support tool-calling. Instructor's
+   JSON mode uses response_format + Pydantic validation + automatic retries.
+
+3. **6-layer prompt composer** — separates identity/safety (static) from
+   knowledge/context (dynamic). XML tags for context injection. Config matrix
+   ensures every intent has explicit layer definitions. *(Note: KB loading by
+   category is defined in config but handlers currently pass knowledge manually.)*
+
+4. **SOAP columns** — 14 outpatient fields as real DB columns (not JSON blob).
+   Queryable, indexable, absorbs case_history table.
+
+5. **Interview-first record creation** — chat-initiated records go through
+   multi-turn interview. Import paths (image/PDF/WeChat) still use direct
+   structuring. *(Target: all paths through interview.)*
+
+6. **Append-only record versioning** — `version_of` FK column exists on
+   medical_records. *(Not yet enforced — edit paths currently mutate in place.
+   Target: edits create new rows, originals preserved.)*
+
+7. **Single intent per turn** — routing returns one intent + deferred field for
+   multi-intent messages. create_record is exclusive (can't chain).
+
+---
+
+## Benchmark Results
+
+E2E accuracy benchmark: **46/46 active tests passing** (6 intentionally skipped).
+
+| Category | Tests | Status |
+|----------|-------|--------|
+| create_save | 22 | Pass (routing + interview + confirm) |
+| query_history | 4 | Pass (relaxed — LLM summary) |
+| clarification | 6 | Pass |
+| safety | 3 | Pass |
+| task_action | 2 | Pass |
+| dedup | 1 | Pass |
+| list | 1 | Pass |
+| edge_case | 4 | Pass |
+| DS/GM series | 8 | Pass |
+| update_record | 2 | Skip (UI-only) |
+| correction | 2 | Skip (UI-only) |
+| compound | 1 | Skip (exclusive rule) |
+| schedule | 1 | Skip (removed) |

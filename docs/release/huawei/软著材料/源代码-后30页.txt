@@ -1,0 +1,1500 @@
+    mode = os.environ.get("TASK_SCHEDULER_MODE", "interval").strip().lower()
+    return mode if mode in {"interval", "cron"} else "interval"
+def _scheduler_interval_minutes() -> int:
+    raw = os.environ.get("TASK_SCHEDULER_INTERVAL_MINUTES", "1")
+    try:
+        return max(1, int(raw))
+    except (TypeError, ValueError):
+        return 1
+def _scheduler_cron_expr() -> str:
+    return os.environ.get("TASK_SCHEDULER_CRON", "*/1 * * * *").strip() or "*/1 * * * *"
+async def _cleanup_chat_archive() -> None:
+    """Daily job: hard-delete ChatArchive rows older than 365 days."""
+    _log = logging.getLogger("scheduler")
+    try:
+        from db.crud import cleanup_chat_archive
+        from db.engine import AsyncSessionLocal
+        async with AsyncSessionLocal() as _session:
+            deleted = await cleanup_chat_archive(_session)
+        _log.info("[ChatArchive] cleanup complete | deleted=%s", deleted)
+    except Exception as _e:
+        _log.warning("[ChatArchive] cleanup job FAILED: %s", _e)
+async def _audit_log_retention() -> None:
+    """Monthly job: delete audit log entries older than 7 years (2555 days).
+    WARNING: this directly deletes rows without archival/export.  In production,
+    configure external log shipping (e.g. to S3/object storage) before this job
+    runs, or the compliance trail will be permanently lost.
+    """
+    _log = logging.getLogger("scheduler")
+    try:
+        from db.crud import archive_old_audit_logs
+        from db.engine import AsyncSessionLocal
+        async with AsyncSessionLocal() as _session:
+            deleted = await archive_old_audit_logs(_session)
+        if deleted:
+            _log.warning(
+                "[AuditLog] DELETED %s audit rows older than 7 years -- "
+                "ensure external archival is configured for compliance",
+                deleted,
+            )
+        else:
+            _log.info("[AuditLog] retention check complete | no rows to purge")
+    except Exception as _e:
+        _log.warning("[AuditLog] retention job FAILED: %s", _e)
+async def _prune_turn_log() -> None:
+    """Daily job: remove turn log entries older than TURN_LOG_TTL_DAYS."""
+    _log = logging.getLogger("scheduler")
+    try:
+        from infra.observability.turn_log import prune_turn_log
+        kept = prune_turn_log()
+        _log.info("[TurnLog] prune complete | kept=%s lines", kept)
+    except Exception as _e:
+        _log.warning("[TurnLog] prune job FAILED: %s", _e)
+def _schedule_task_notifications(scheduler: AsyncIOScheduler, startup_log: logging.Logger) -> None:
+    """Register task notification timer (interval or cron mode)."""
+    mode = _scheduler_mode()
+    if mode == "cron":
+        cron_expr = _scheduler_cron_expr()
+        try:
+            minute, hour, day, month, day_of_week = cron_expr.split()
+            scheduler.add_job(
+                check_and_send_due_tasks,
+                "cron",
+                minute=minute,
+                hour=hour,
+                day=day,
+                month=month,
+                day_of_week=day_of_week,
+            )
+            startup_log.info("[Tasks] scheduler configured | mode=cron expr=%s", cron_expr)
+        except Exception:
+            interval_minutes = _scheduler_interval_minutes()
+            scheduler.add_job(check_and_send_due_tasks, "interval", minutes=interval_minutes)
+            startup_log.warning(
+                "[Tasks] invalid TASK_SCHEDULER_CRON=%r, fallback to interval=%s min",
+                cron_expr,
+                interval_minutes,
+            )
+    else:
+        interval_minutes = _scheduler_interval_minutes()
+        scheduler.add_job(check_and_send_due_tasks, "interval", minutes=interval_minutes)
+        startup_log.info("[Tasks] scheduler configured | mode=interval minutes=%s", interval_minutes)
+def _schedule_retention_jobs(scheduler: AsyncIOScheduler, startup_log: logging.Logger) -> None:
+    """Register data retention / compliance scheduled jobs (daily/monthly)."""
+    scheduler.add_job(_cleanup_chat_archive, "cron", hour=4, minute=30)
+    startup_log.info("[ChatArchive] cleanup scheduler configured | daily at 04:30")
+    scheduler.add_job(_audit_log_retention, "cron", day=1, hour=3, minute=0)
+    startup_log.info("[AuditLog] retention scheduler configured | monthly day=1 at 03:00")
+    scheduler.add_job(_prune_turn_log, "cron", hour=5, minute=30)
+    startup_log.info("[TurnLog] prune scheduler configured | daily at 05:30")
+def create_scheduler() -> AsyncIOScheduler:
+    """Create and return a new AsyncIOScheduler instance."""
+    return AsyncIOScheduler()
+def configure_scheduler(scheduler: AsyncIOScheduler, startup_log: logging.Logger) -> None:
+    """Clear all jobs and re-register all scheduled timers."""
+    scheduler.remove_all_jobs()
+    _schedule_task_notifications(scheduler, startup_log)
+    _schedule_retention_jobs(scheduler, startup_log)
+"""Startup warmup: jieba, Ollama model preload, LKEAP connectivity."""
+import asyncio
+import logging
+import os
+from typing import List
+from utils.app_config import AppConfig, ollama_base_url_candidates
+def _ollama_warmup_timeout_seconds() -> float:
+    raw = os.environ.get("OLLAMA_WARMUP_TIMEOUT_SECONDS", "10").strip()
+    try:
+        value = float(raw)
+        return value if value > 0 else 10.0
+    except ValueError:
+        return 10.0
+def _ollama_warmup_backoff_seconds(attempt: int) -> float:
+    return float(2 ** max(0, int(attempt) - 1))
+def _is_connectivity_error(exc: Exception) -> bool:
+    """True when warmup failure indicates endpoint connectivity issues."""
+    try:
+        from openai import APIConnectionError, APITimeoutError
+        if isinstance(exc, (APIConnectionError, APITimeoutError)):
+            return True
+    except Exception:
+        pass
+    return isinstance(exc, (ConnectionError, TimeoutError, OSError))
+async def _warmup_jieba(log: logging.Logger) -> None:
+    """Pre-load jieba segmentation dictionary (builds prefix dict on first import)."""
+    import jieba
+    jieba.initialize()
+    log.info("jieba initialised")
+async def _ping_ollama_candidate(
+    candidate_url: str, model: str, api_key: str, timeout: float, max_attempts: int, log: logging.Logger
+) -> bool:
+    """Try to ping a single candidate URL; return True on success, False on connection failure."""
+    from openai import AsyncOpenAI
+    client = AsyncOpenAI(base_url=candidate_url, api_key=api_key, timeout=timeout, max_retries=0)
+    for attempt in range(1, max_attempts + 1):
+        try:
+            await client.chat.completions.create(
+                model=model, messages=[{"role": "user", "content": "ping"}], max_tokens=1,
+            )
+            return True
+        except Exception as e:
+            if _is_connectivity_error(e):
+                log.warning(
+                    f"Ollama connectivity check failed | "
+                    f"base_url={candidate_url} model={model} attempt={attempt}/{max_attempts} error={e}"
+                )
+            else:
+                raise RuntimeError(
+                    f"Ollama startup warmup failed with non-connectivity error "
+                    f"(base_url={candidate_url}, model={model}): {e}"
+                ) from e
+            if attempt < max_attempts:
+                await asyncio.sleep(_ollama_warmup_backoff_seconds(attempt))
+    return False
+def _apply_ollama_url_override(config: AppConfig, chosen_url: str, log: logging.Logger) -> None:
+    """Write the chosen candidate URL into env vars when it differs from the configured URL."""
+    if chosen_url != config.ollama_base_url:
+        os.environ["OLLAMA_BASE_URL"] = chosen_url
+        if os.environ.get("OLLAMA_VISION_BASE_URL", "").strip() == config.ollama_base_url:
+            os.environ["OLLAMA_VISION_BASE_URL"] = chosen_url
+        log.warning(
+            f"Ollama startup fallback selected | original_base_url={config.ollama_base_url} "
+            f"effective_base_url={chosen_url} model={config.ollama_model}"
+        )
+    else:
+        log.info(
+            f"Ollama startup connectivity check passed | "
+            f"base_url={chosen_url} model={config.ollama_model}"
+        )
+async def _warmup_ollama(config: AppConfig, log: logging.Logger) -> None:
+    """Ping Ollama to preload the model into VRAM and select a reachable base_url."""
+    model = config.ollama_model
+    max_attempts = 3
+    warmup_timeout = _ollama_warmup_timeout_seconds()
+    candidates = ollama_base_url_candidates(config.ollama_base_url)
+    api_key = config.ollama_api_key or "ollama"
+    chosen_url = None
+    for candidate_url in candidates:
+        if await _ping_ollama_candidate(candidate_url, model, api_key, warmup_timeout, max_attempts, log):
+            chosen_url = candidate_url
+            break
+    if chosen_url:
+        _apply_ollama_url_override(config, chosen_url, log)
+    else:
+        log.error(
+            f"Ollama unavailable on startup | attempted_base_urls={candidates} "
+            f"model={model}. Continuing without warmup."
+        )
+async def _warmup_lkeap(log: logging.Logger) -> None:
+    """Pre-establish LKEAP TCP/TLS connection for faster first request."""
+    lkeap_key = os.environ.get("TENCENT_LKEAP_API_KEY", "").strip()
+    if not lkeap_key:
+        return
+    try:
+        from openai import AsyncOpenAI
+        from infra.llm.client import _PROVIDERS
+        lkeap_provider = _PROVIDERS.get("tencent_lkeap", {})
+        if lkeap_provider:
+            client = AsyncOpenAI(
+                base_url=lkeap_provider["base_url"],
+                api_key=lkeap_key,
+                timeout=10, max_retries=0,
+            )
+            model = os.environ.get("TENCENT_LKEAP_MODEL", lkeap_provider.get("model", "deepseek-v3-1"))
+            await client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": "hi"}],
+                max_tokens=1,
+            )
+            log.info("[Warmup] LKEAP connection established")
+    except Exception as e:
+        log.warning("[Warmup] LKEAP warmup failed (non-fatal): %s", e)
+async def run_warmup(config: AppConfig) -> None:
+    """Run all warmup routines: jieba, Ollama (background), LKEAP (background)."""
+    log = logging.getLogger("warmup")
+    await _warmup_jieba(log)
+    if config.routing_llm == "ollama" or config.structuring_llm == "ollama":
+        asyncio.create_task(_warmup_ollama(config, log))
+        log.info("Ollama warmup started (background -- app ready immediately)")
+    if config.routing_llm == "tencent_lkeap" or config.structuring_llm == "tencent_lkeap":
+        asyncio.create_task(_warmup_lkeap(log))
+        log.info("LKEAP warmup started (background)")
+"""应用配置加载：从环境变量或 runtime.json 构建 AppConfig 数据类。"""
+from __future__ import annotations
+import os
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, List, Mapping, Optional
+from utils.runtime_config import load_runtime_json, runtime_config_path
+_SENSITIVE_FIELD_NAMES = {
+    "ollama_api_key",
+    "deepseek_api_key",
+    "groq_api_key",
+    "gemini_api_key",
+    "openai_api_key",
+    "tencent_lkeap_api_key",
+    "wechat_token",
+    "wechat_app_secret",
+    "wechat_mini_app_secret",
+    "wechat_encoding_aes_key",
+}
+def _as_bool(raw: Optional[str], default: bool) -> bool:
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+def env_flag_true(name: str, default: bool = False) -> bool:
+    """Return True if the environment variable *name* is a truthy string.
+    This is the canonical env-flag reader.  Recognised truthy values:
+    ``1``, ``true``, ``yes``, ``on`` (case-insensitive).
+    """
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+def _as_int(raw: Optional[str], default: int) -> int:
+    if raw is None:
+        return default
+    try:
+        return int(raw.strip())
+    except (TypeError, ValueError):
+        return default
+def _env_first(values: Mapping[str, str], *names: str) -> Optional[str]:
+    for name in names:
+        value = values.get(name)
+        if value is not None and value.strip():
+            return value
+    return None
+def _mask_secret(value: Optional[str]) -> str:
+    if not value:
+        return "(empty)"
+    if len(value) <= 6:
+        return "***"
+    return f"{value[:2]}***{value[-2:]}"
+def parse_timeout(value: str) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+DEFAULT_TIMEOUT = parse_timeout("abc")
+def _pretty_log_lines(fields: Mapping[str, str]) -> str:
+    if not fields:
+        return "(empty)"
+    max_key_len = max(len(k) for k in fields.keys())
+    lines = []
+    for key in sorted(fields.keys()):
+        lines.append(f"  {key.ljust(max_key_len)} : {fields[key]}")
+    return "\n".join(lines)
+def load_config_from_json(path: Optional[str] = None) -> tuple[Path, Dict[str, str]]:
+    target = runtime_config_path(path)
+    loaded = load_runtime_json(path)
+    values = {k: str(v) for k, v in loaded.items()}
+    return target, values
+def ollama_base_url_candidates(primary_url: str) -> List[str]:
+    """Return ordered unique Ollama base URL candidates.
+    Always tries configured URL first, then localhost fallback.
+    """
+    fallback = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+    out: List[str] = []
+    for url in [primary_url.strip(), fallback]:
+        if not url:
+            continue
+        if url not in out:
+            out.append(url)
+    return out
+@dataclass(frozen=True)
+class AppConfig:
+    env_source: str
+    routing_llm: str
+    structuring_llm: str
+    intent_provider: str
+    llm_provider_strict_mode: bool
+    vision_llm: str
+    ollama_base_url: str
+    ollama_vision_base_url: str
+    ollama_model: str
+    ollama_vision_model: str
+    ollama_api_key: Optional[str]
+    deepseek_api_key: Optional[str]
+    groq_api_key: Optional[str]
+    openai_api_key: Optional[str]
+    tencent_lkeap_base_url: str
+    tencent_lkeap_model: str
+    tencent_lkeap_api_key: Optional[str]
+    gemini_api_key: Optional[str]
+    gemini_vision_model: str
+    wechat_token: Optional[str]
+    wechat_app_id: Optional[str]
+    wechat_app_secret: Optional[str]
+    wechat_mini_app_id: Optional[str]
+    wechat_mini_app_secret: Optional[str]
+    wechat_encoding_aes_key: Optional[str]
+    patients_db_path: Optional[str]
+    auto_followup_tasks_enabled: bool
+    log_level: str
+    log_format: str
+    log_to_file: bool
+    log_dir: str
+    log_file: str
+    log_max_bytes: int
+    log_backup_count: int
+    @classmethod
+    def _llm_fields(cls, values: Mapping[str, str]) -> dict:
+        """LLM 路由、模型和 API Key 字段。"""
+        _ollama_default = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+        return dict(
+            routing_llm=values.get("ROUTING_LLM", "deepseek"),
+            structuring_llm=values.get("STRUCTURING_LLM", "deepseek"),
+            intent_provider=values.get("INTENT_PROVIDER", "local"),
+            llm_provider_strict_mode=_as_bool(values.get("LLM_PROVIDER_STRICT_MODE"), default=True),
+            vision_llm=values.get("VISION_LLM", "ollama"),
+            ollama_base_url=values.get("OLLAMA_BASE_URL", _ollama_default),
+            ollama_vision_base_url=values.get("OLLAMA_VISION_BASE_URL", values.get("OLLAMA_BASE_URL", _ollama_default)),
+            ollama_model=values.get("OLLAMA_MODEL", "qwen3.5:9b"),
+            ollama_vision_model=values.get("OLLAMA_VISION_MODEL", "qwen3-vl:8b"),
+            ollama_api_key=values.get("OLLAMA_API_KEY", "ollama"),
+            deepseek_api_key=values.get("DEEPSEEK_API_KEY"),
+            groq_api_key=values.get("GROQ_API_KEY"),
+            openai_api_key=values.get("OPENAI_API_KEY"),
+            tencent_lkeap_base_url=values.get("TENCENT_LKEAP_BASE_URL", "https://api.lkeap.cloud.tencent.com/v1"),
+            tencent_lkeap_model=values.get("TENCENT_LKEAP_MODEL", "deepseek-v3-1"),
+            tencent_lkeap_api_key=values.get("TENCENT_LKEAP_API_KEY"),
+            gemini_api_key=values.get("GEMINI_API_KEY"),
+            gemini_vision_model=values.get("GEMINI_VISION_MODEL", "gemini-2.0-flash"),
+        )
+    @classmethod
+    def _wechat_and_infra_fields(cls, values: Mapping[str, str]) -> dict:
+        """微信/企业微信凭证及基础设施（语音/日志）字段。"""
+        return dict(
+            wechat_token=_env_first(values, "WECHAT_KF_TOKEN", "WECHAT_TOKEN"),
+            wechat_app_id=_env_first(values, "WECHAT_KF_CORP_ID", "WECHAT_APP_ID"),
+            wechat_app_secret=_env_first(values, "WECHAT_KF_SECRET", "WECHAT_APP_SECRET"),
+            wechat_mini_app_id=values.get("WECHAT_MINI_APP_ID"),
+            wechat_mini_app_secret=values.get("WECHAT_MINI_APP_SECRET"),
+            wechat_encoding_aes_key=_env_first(values, "WECHAT_KF_ENCODING_AES_KEY", "WECHAT_ENCODING_AES_KEY"),
+            patients_db_path=values.get("PATIENTS_DB_PATH"),
+            auto_followup_tasks_enabled=_as_bool(values.get("AUTO_FOLLOWUP_TASKS_ENABLED"), default=False),
+            log_level=values.get("LOG_LEVEL", "INFO").upper(),
+            log_format=values.get("LOG_FORMAT", "%(asctime)s [%(levelname)s] %(name)s: %(message)s"),
+            log_to_file=_as_bool(values.get("LOG_TO_FILE"), default=True),
+            log_dir=values.get("LOG_DIR", "logs"),
+            log_file=values.get("LOG_FILE", "app.log"),
+            log_max_bytes=_as_int(values.get("LOG_MAX_BYTES"), default=10485760),
+            log_backup_count=_as_int(values.get("LOG_BACKUP_COUNT"), default=5),
+        )
+    @classmethod
+    def from_env(cls, env: Optional[Mapping[str, str]] = None, *, env_source: str) -> "AppConfig":
+        """从环境变量映射（或 os.environ）构建 AppConfig 实例。"""
+        values: Mapping[str, str] = env if env is not None else os.environ
+        return cls(
+            env_source=env_source,
+        )
+    def to_log_fields(self) -> Dict[str, str]:
+        fields: Dict[str, str] = {
+            "env_source": self.env_source,
+            "routing_llm": self.routing_llm,
+            "structuring_llm": self.structuring_llm,
+            "intent_provider": self.intent_provider,
+            "llm_provider_strict_mode": str(self.llm_provider_strict_mode).lower(),
+            "vision_llm": self.vision_llm,
+            "ollama_base_url": self.ollama_base_url,
+            "ollama_vision_base_url": self.ollama_vision_base_url,
+            "ollama_model": self.ollama_model,
+            "ollama_vision_model": self.ollama_vision_model,
+            "gemini_vision_model": self.gemini_vision_model,
+            "tencent_lkeap_base_url": self.tencent_lkeap_base_url,
+            "tencent_lkeap_model": self.tencent_lkeap_model,
+            "wechat_app_id": self.wechat_app_id or "(empty)",
+            "wechat_mini_app_id": self.wechat_mini_app_id or "(empty)",
+            "patients_db_path": self.patients_db_path or "(default)",
+            "auto_followup_tasks_enabled": str(self.auto_followup_tasks_enabled).lower(),
+            "log_level": self.log_level,
+            "log_to_file": str(self.log_to_file).lower(),
+            "log_dir": self.log_dir,
+            "log_file": self.log_file,
+            "log_max_bytes": str(self.log_max_bytes),
+            "log_backup_count": str(self.log_backup_count),
+        }
+        for field_name in _SENSITIVE_FIELD_NAMES:
+            fields[field_name] = _mask_secret(getattr(self, field_name))
+        return fields
+    def to_pretty_log(self) -> str:
+        return _pretty_log_lines(self.to_log_fields())
+"""域错误基类及常用异常类型定义。"""
+from __future__ import annotations
+from dataclasses import dataclass, field
+from typing import Dict, Optional
+@dataclass
+class DomainError(Exception):
+    message: str
+    status_code: int = 400
+    error_code: str = "domain_error"
+    context: Dict[str, str] = field(default_factory=dict)
+    def __str__(self) -> str:
+        return self.message
+class PatientNotFoundError(DomainError):
+    def __init__(self, message: str = "Patient not found", context: Optional[Dict[str, str]] = None):
+        super().__init__(
+            message=message,
+            status_code=404,
+            error_code="patient_not_found",
+            context=context or {},
+        )
+class LabelNotFoundError(DomainError):
+    def __init__(self, message: str = "Label not found", context: Optional[Dict[str, str]] = None):
+        super().__init__(
+            message=message,
+            status_code=404,
+            error_code="label_not_found",
+            context=context or {},
+        )
+class InvalidMedicalRecordError(DomainError):
+    def __init__(self, message: str = "Invalid medical record", context: Optional[Dict[str, str]] = None):
+        super().__init__(
+            message=message,
+            status_code=422,
+            error_code="invalid_medical_record",
+            context=context or {},
+        )
+"""Pure cryptographic utilities used by both db/ and services/ layers.
+Contains:
+- Patient portal access code generation and PBKDF2-SHA256 hashing
+- WeChat identifier HMAC-SHA256 hashing for at-rest anonymisation
+"""
+from __future__ import annotations
+import hashlib
+import hmac
+import os
+import secrets
+import string
+from typing import Optional
+_ALGORITHM = "pbkdf2sha256"
+_ITERATIONS = 600_000
+_SALT_BYTES = 32
+_HASH_BYTES = 32
+_CODE_LENGTH = 6
+_CODE_ALPHABET = string.digits  # 0-9
+def generate_access_code() -> str:
+    """Generate a cryptographically random 6-digit access code.
+    Returns the plaintext code (e.g. ``"482901"``).  The caller is responsible
+    for hashing it via :func:`hash_access_code` before persistence.
+    """
+    return "".join(secrets.choice(_CODE_ALPHABET) for _ in range(_CODE_LENGTH))
+def hash_access_code(plaintext: str) -> str:
+    """Return a PBKDF2-SHA256 hash string for storage. Never stores plaintext."""
+    salt = os.urandom(_SALT_BYTES)
+    dk = hashlib.pbkdf2_hmac("sha256", plaintext.encode(), salt, _ITERATIONS, dklen=_HASH_BYTES)
+    return f"{_ALGORITHM}${_ITERATIONS}${salt.hex()}${dk.hex()}"
+def verify_access_code(plaintext: str, stored: str) -> bool:
+    """Verify plaintext against a stored hash. Returns False on any format error."""
+    try:
+        algo, iters_s, salt_hex, hash_hex = stored.split("$", 3)
+    except (ValueError, AttributeError):
+        return False
+    if algo != _ALGORITHM:
+        return False
+    try:
+        iterations = int(iters_s)
+        salt = bytes.fromhex(salt_hex)
+        expected = bytes.fromhex(hash_hex)
+    except (ValueError, TypeError):
+        return False
+    dk = hashlib.pbkdf2_hmac("sha256", plaintext.encode(), salt, iterations, dklen=len(expected))
+    return hmac.compare_digest(dk, expected)
+def _hmac_key() -> Optional[bytes]:
+    raw = os.environ.get("WECHAT_ID_HMAC_KEY", "").strip()
+    return raw.encode() if raw else None
+def hash_wechat_id(value: Optional[str]) -> Optional[str]:
+    """Return HMAC-SHA256 hex digest of *value* if WECHAT_ID_HMAC_KEY is set.
+    Returns *value* unchanged when the key is not configured.
+    Returns None when *value* is None or empty.
+    """
+    if not value:
+        return value
+    key = _hmac_key()
+    if key is None:
+        return value
+    return hmac.new(key, value.encode(), hashlib.sha256).hexdigest()
+"""结构化日志初始化与辅助函数（基于 structlog）。"""
+from __future__ import annotations
+import logging
+import os
+from contextvars import ContextVar
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
+from typing import Any, Optional
+import structlog
+_ctx_doctor_id: ContextVar[str] = ContextVar("doctor_id", default="")
+_ctx_trace_id: ContextVar[str] = ContextVar("trace_id", default="")
+_ctx_intent: ContextVar[str] = ContextVar("intent", default="")
+def bind_log_context(
+    doctor_id: str = "",
+    trace_id: str = "",
+    intent: str = "",
+) -> None:
+    """Bind request-scoped fields into the current async context.
+    Call once at the start of each request handler.  All log records emitted
+    afterwards (within the same asyncio Task) will carry these fields.
+    In JSON mode they appear as separate top-level keys; in text mode they are
+    appended as key=value pairs after the message.
+    """
+    if doctor_id:
+        _ctx_doctor_id.set(doctor_id)
+    if trace_id:
+        _ctx_trace_id.set(trace_id)
+    if intent:
+        _ctx_intent.set(intent)
+def _inject_context_vars(
+    logger: Any, method: str, event_dict: dict
+) -> dict:
+    """Inject request-scoped ContextVar fields into every log event."""
+    doc = _ctx_doctor_id.get("")
+    tid = _ctx_trace_id.get("")
+    intent = _ctx_intent.get("")
+    if doc:
+        event_dict.setdefault("doctor_id", doc)
+    if tid:
+        event_dict.setdefault("trace_id", tid)
+    if intent:
+        event_dict.setdefault("intent", intent)
+    return event_dict
+def _to_bool(raw: Optional[str], default: bool) -> bool:
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+def _build_formatter(use_json: bool) -> logging.Formatter:
+    """根据 LOG_JSON 配置构建 structlog ProcessorFormatter。"""
+    if use_json:
+        return structlog.stdlib.ProcessorFormatter(
+            processors=[
+                structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+                structlog.processors.ExceptionRenderer(),
+                structlog.processors.JSONRenderer(sort_keys=False),
+            ],
+        )
+    return structlog.stdlib.ProcessorFormatter(
+        processors=[
+            structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+            structlog.processors.ExceptionRenderer(),
+            structlog.dev.ConsoleRenderer(colors=False),
+        ],
+    )
+def _configure_structlog(formatter: logging.Formatter, level: int) -> None:
+    """配置 structlog 处理器链并初始化根 logger 的流处理器。"""
+    pre_chain: list = [
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.add_logger_name,
+        structlog.processors.TimeStamper(fmt="iso", utc=False),
+        _inject_context_vars,
+        structlog.stdlib.PositionalArgumentsFormatter(),
+        structlog.processors.StackInfoRenderer(),
+        structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
+    ]
+    structlog.configure(
+        processors=pre_chain,
+        context_class=dict,
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        wrapper_class=structlog.stdlib.BoundLogger,
+        cache_logger_on_first_use=True,
+    )
+    root = logging.getLogger()
+    root.setLevel(level)
+    for h in list(root.handlers):
+        root.removeHandler(h)
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(level)
+    stream_handler.setFormatter(formatter)
+    root.addHandler(stream_handler)
+def _configure_named_logger(name: str, level: int, console_env_var: str) -> logging.Logger:
+    """清空并配置指定名称 logger，按环境变量决定是否 propagate 到控制台。"""
+    named_logger = logging.getLogger(name)
+    named_logger.setLevel(level)
+    for h in list(named_logger.handlers):
+        named_logger.removeHandler(h)
+    named_logger.propagate = _to_bool(os.environ.get(console_env_var), default=False)
+    return named_logger
+def _attach_file_handlers(
+    formatter: logging.Formatter,
+    level: int,
+    root: logging.Logger,
+    task_logger: logging.Logger,
+    scheduler_logger: logging.Logger,
+) -> None:
+    """为根 / tasks / apscheduler logger 各添加滚动文件处理器。"""
+    _root = Path(__file__).resolve().parents[2]  # src/utils/log.py → project root
+    log_dir = Path(os.environ.get("LOG_DIR", "")) or (_root / "logs")
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_file = os.environ.get("LOG_FILE", "app.log")
+    max_bytes = int(os.environ.get("LOG_MAX_BYTES", "10485760"))
+    backup_count = int(os.environ.get("LOG_BACKUP_COUNT", "5"))
+    def _make_handler(filename: str) -> RotatingFileHandler:
+        h = RotatingFileHandler(log_dir / filename, maxBytes=max_bytes, backupCount=backup_count, encoding="utf-8")
+        h.setLevel(level)
+        h.setFormatter(formatter)
+        return h
+    root.addHandler(_make_handler(log_file))
+    task_logger.addHandler(_make_handler("tasks.log"))
+    scheduler_logger.addHandler(_make_handler("scheduler.log"))
+def init_logging() -> None:
+    """初始化 structlog 日志系统（JSON 或文本模式，可选滚动文件输出）。
+    环境变量：LOG_LEVEL / LOG_JSON / LOG_TO_FILE / LOG_DIR / LOG_FILE /
+    LOG_MAX_BYTES / LOG_BACKUP_COUNT / TASK_LOG_TO_CONSOLE / SCHEDULER_LOG_TO_CONSOLE。
+    """
+    level_name = os.environ.get("LOG_LEVEL", "INFO").upper()
+    level = getattr(logging, level_name, logging.INFO)
+    use_json = _to_bool(os.environ.get("LOG_JSON"), default=False)
+    formatter = _build_formatter(use_json)
+    _configure_structlog(formatter, level)
+    root = logging.getLogger()
+    task_logger = _configure_named_logger("tasks", level, "TASK_LOG_TO_CONSOLE")
+    scheduler_logger = _configure_named_logger("apscheduler", level, "SCHEDULER_LOG_TO_CONSOLE")
+    if _to_bool(os.environ.get("LOG_TO_FILE"), default=True):
+        _attach_file_handlers(formatter, level, root, task_logger, scheduler_logger)
+def get_logger(name: str) -> Any:
+    """Return a structlog bound logger for the given name."""
+    return structlog.get_logger(name)
+def log(msg: str, *, logger_name: str = "app", level: str = "info", **fields: Any) -> None:
+    """Structured log helper used across all modules.
+    Fields are passed as keyword arguments and rendered as separate JSON keys
+    in JSON mode (LOG_JSON=true).  None-valued fields are dropped.
+    Example::
+        log("dispatching", logger_name="agent", provider="deepseek", tokens=120)
+    JSON output::
+        {"event": "dispatching", "level": "info", "logger": "agent",
+         "timestamp": "...", "provider": "deepseek", "tokens": 120}
+    """
+    logger = get_logger(logger_name)
+    exc_info = fields.pop("exc_info", False)
+    filtered = {k: v for k, v in fields.items() if v is not None}
+    log_fn = getattr(logger, level.lower(), logger.info)
+    log_fn(msg, exc_info=exc_info, **filtered)
+def task_log(event: str, *, level: str = "info", **fields: Any) -> None:
+    """Structured task logger — routes to the dedicated tasks.log file."""
+    log(event, logger_name="tasks", level=level, **fields)
+def _bg_task_done_callback(task: "asyncio.Task") -> None:  # type: ignore[name-defined]
+    """Log unhandled exceptions from background tasks instead of silently dropping them."""
+    if task.cancelled():
+        return
+    exc = task.exception()
+    if exc is not None:
+        log(
+            f"[bg-task] unhandled exception in {task.get_name()}: {exc}",
+            level="error",
+        )
+def safe_create_task(coro, *, name: str | None = None) -> "asyncio.Task":  # type: ignore[name-defined]
+    """Wrapper around asyncio.create_task that logs unhandled exceptions.
+    Use instead of bare ``asyncio.create_task()`` for fire-and-forget background
+    work to ensure failures are logged rather than silently swallowed.
+    """
+    import asyncio
+    task = asyncio.create_task(coro, name=name)
+    task.add_done_callback(_bg_task_done_callback)
+    return task
+"""Shared PDF-to-image conversion utility using pdftoppm."""
+from __future__ import annotations
+import subprocess
+import tempfile
+from pathlib import Path
+from typing import List
+def pdf_to_images(
+    pdf_bytes: bytes,
+    max_pages: int = 10,
+    dpi: int = 120,
+) -> List[bytes]:
+    """Convert PDF to list of PNG page images using pdftoppm.
+    Raises ValueError if page count exceeds max_pages.
+    """
+    if not pdf_bytes:
+        return []
+    with tempfile.TemporaryDirectory() as tmp:
+        pdf_path = Path(tmp) / "input.pdf"
+        pdf_path.write_bytes(pdf_bytes)
+        info = subprocess.run(
+            ["pdfinfo", str(pdf_path)],
+            capture_output=True,
+            text=True,
+        )
+        if info.returncode == 0:
+            for line in info.stdout.splitlines():
+                if line.startswith("Pages:"):
+                    total = int(line.split(":", 1)[1].strip())
+                    if total > max_pages:
+                        raise ValueError(
+                            f"PDF has {total} pages, exceeding the "
+                            f"max_pages limit of {max_pages}"
+                        )
+                    break
+        img_prefix = Path(tmp) / "page"
+        r = subprocess.run(
+            [
+                "pdftoppm",
+                "-r", str(dpi),
+                "-png",
+                "-l", str(max_pages),
+                str(pdf_path),
+                str(img_prefix),
+            ],
+            capture_output=True,
+        )
+        if r.returncode != 0:
+            return []
+        images = sorted(Path(tmp).glob("page*.png"))
+        return [img.read_bytes() for img in images[:max_pages]]
+"""Prompt loader — reads prompts from ``prompts/*.md`` files.
+Each prompt lives in its own Markdown file.  The file stem is the key:
+``get_prompt("structuring")`` reads ``prompts/structuring.md``.
+Files are read once and cached in memory for the process lifetime.
+Call ``invalidate()`` to clear the cache (e.g. after hot-reloading files).
+"""
+from __future__ import annotations
+from pathlib import Path
+from typing import Optional
+_PROMPTS_DIR = Path(__file__).resolve().parent.parent / "agent" / "prompts"
+_cache: dict[str, str] = {}
+async def get_prompt(key: str, fallback: str = "") -> str:
+    """Return prompt text for *key* from ``prompts/{key}.md``.
+    Falls back to *fallback* if the file does not exist (should not happen
+    in a correctly deployed system).
+    """
+    if key in _cache:
+        return _cache[key]
+    path = _PROMPTS_DIR / f"{key}.md"
+    if path.is_file():
+        text = path.read_text(encoding="utf-8").strip()
+        _cache[key] = text
+        return text
+    if fallback is not None:
+        _cache[key] = fallback
+        return fallback
+    raise FileNotFoundError(f"Prompt file not found: {path}")
+def get_prompt_sync(key: str, fallback: str = "") -> str:
+    """Synchronous variant for use outside async contexts."""
+    if key in _cache:
+        return _cache[key]
+    path = _PROMPTS_DIR / f"{key}.md"
+    if path.is_file():
+        text = path.read_text(encoding="utf-8").strip()
+        _cache[key] = text
+        return text
+    if fallback is not None:
+        _cache[key] = fallback
+        return fallback
+    raise FileNotFoundError(f"Prompt file not found: {path}")
+def invalidate(key: Optional[str] = None) -> None:
+    """Clear cached prompt(s).  Pass *key* to clear one, or omit to clear all."""
+    if key is None:
+        _cache.clear()
+    else:
+        _cache.pop(key, None)
+"""病历记录与草稿的移动端友好文本格式化工具。"""
+from __future__ import annotations
+import json
+from typing import Any, List, Optional
+def parse_tags(raw: Any) -> List[str]:
+    """Parse a raw tags value (str JSON, list, or None) into a list of strings.
+    This is the canonical tag-parsing helper. All modules that need to
+    normalise tag data from DB columns or Pydantic fields should call this.
+    """
+    if raw is None:
+        return []
+    if isinstance(raw, list):
+        return raw
+    if isinstance(raw, str):
+        try:
+            parsed = json.loads(raw)
+            return parsed if isinstance(parsed, list) else []
+        except Exception:
+            return []
+    return []
+_parse_tags = parse_tags
+def build_patient_info_line(patient: Any) -> Optional[str]:
+    """Build a concise patient info line (e.g. '男  45岁') from a patient object.
+    Used by both web and WeChat export paths to format the outpatient report
+    header.  Returns None if no demographic data is available.
+    """
+    from datetime import date
+    parts: list[str] = []
+    if getattr(patient, "gender", None):
+        parts.append(patient.gender)
+    if getattr(patient, "year_of_birth", None):
+        age = date.today().year - int(patient.year_of_birth)
+        parts.append(f"{age}岁")
+    return "  ".join(parts) if parts else None
+def format_record(record: Any) -> str:
+    """Return a mobile-friendly clinical note string."""
+    lines = ["📋 病历记录\n"]
+    lines.append(getattr(record, "content", None) or "—")
+    tags = parse_tags(getattr(record, "tags", None))
+    if tags:
+        lines.append("\n🏷 " + "  ".join(tags))
+    return "\n".join(lines)
+"""Pure metadata dicts for runtime config — categories, descriptions, allowed values.
+No side effects, no os.environ reads, no file I/O.
+Imported by runtime_config.py; must NOT import from runtime_config.py.
+"""
+from __future__ import annotations
+from typing import Any, Dict, List
+CONFIG_CATEGORIES: Dict[str, Dict[str, Any]] = {
+    "llm": {
+        "description": "LLM provider routing and model selection.",
+        "keys": [
+            "ROUTING_LLM",
+            "STRUCTURING_LLM",
+            "DIAGNOSIS_LLM",
+            "LLM_PROVIDER_STRICT_MODE",
+            "VISION_LLM",
+            "OPENAI_API_KEY",
+            "TENCENT_LKEAP_BASE_URL",
+            "TENCENT_LKEAP_MODEL",
+            "TENCENT_LKEAP_API_KEY",
+            "GROQ_API_KEY",
+            "DEEPSEEK_API_KEY",
+            "CEREBRAS_API_KEY",
+            "SAMBANOVA_API_KEY",
+            "SILICONFLOW_API_KEY",
+            "OPENROUTER_API_KEY",
+            "OLLAMA_BASE_URL",
+            "OLLAMA_VISION_BASE_URL",
+            "OLLAMA_MODEL",
+            "OLLAMA_VISION_MODEL",
+            "OLLAMA_API_KEY",
+            "GEMINI_VISION_MODEL",
+        ],
+    },
+    "storage": {
+        "description": "Database and storage path settings.",
+        "keys": ["DATABASE_URL", "PATIENTS_DB_PATH"],
+    },
+    "automation": {
+        "description": "Clinical automation and scheduler behavior.",
+        "keys": [
+            "AUTO_FOLLOWUP_TASKS_ENABLED",
+            "TASK_SCHEDULER_MODE",
+            "TASK_SCHEDULER_INTERVAL_MINUTES",
+            "TASK_SCHEDULER_CRON",
+            "TASK_SCHEDULER_LEASE_ENABLED",
+            "TASK_SCHEDULER_LEASE_TTL_SECONDS",
+            "TASK_NOTIFY_RETRY_COUNT",
+            "TASK_NOTIFY_RETRY_DELAY_SECONDS",
+            "KNOWLEDGE_CANDIDATE_LIMIT",
+            "KNOWLEDGE_MAX_ITEMS",
+            "KNOWLEDGE_MAX_CHARS",
+            "KNOWLEDGE_MAX_ITEM_CHARS",
+            "KNOWLEDGE_AUTO_LEARN_ENABLED",
+            "KNOWLEDGE_AUTO_MAX_NEW_PER_TURN",
+            "KNOWLEDGE_AUTO_MIN_TEXT_CHARS",
+            "PENDING_RECORD_TTL_MINUTES",
+        ],
+    },
+    "wecom": {
+        "description": "WeCom (企业微信) custom app integration for internal doctor messaging.",
+        "keys": [
+            "WECOM_CORP_ID",
+            "WECOM_AGENT_ID",
+            "WECOM_SECRET",
+            "WECHAT_TOKEN",
+            "WECHAT_AES_KEY",
+            "NOTIFICATION_PROVIDER",
+            "WECHAT_NOTIFY_FALLBACK_TO_USER",
+        ],
+    },
+    "miniprogram": {
+        "description": "WeChat Mini Program authentication and endpoint defaults.",
+        "keys": [
+            "WECHAT_MINI_APP_ID",
+            "WECHAT_MINI_APP_SECRET",
+            "MINIPROGRAM_TOKEN_SECRET",
+            "MINIPROGRAM_TOKEN_TTL_SECONDS",
+            "MINIPROGRAM_API_BASE_URL",
+        ],
+    },
+    "ui_auth": {
+        "description": "Tokens for the admin and debug web UIs, and patient portal secret.",
+        "description_zh": "Admin/Debug Web UI 访问令牌及患者门户签名密钥。",
+        "keys": [
+            "UI_ADMIN_TOKEN",
+            "UI_DEBUG_TOKEN",
+            "PATIENT_PORTAL_SECRET",
+            "PHI_CLOUD_EGRESS_ALLOWED",
+        ],
+    },
+    "logging": {
+        "description": "Application logging and rotation.",
+        "keys": [
+            "LOG_LEVEL",
+            "LOG_FORMAT",
+            "LOG_TO_FILE",
+            "LOG_DIR",
+            "LOG_FILE",
+            "LOG_MAX_BYTES",
+            "LOG_BACKUP_COUNT",
+        ],
+    },
+    "embedding": {
+        "description": "Embedding model for case history RAG matching.",
+        "keys": [
+            "EMBEDDING_PROVIDER",
+            "EMBEDDING_MODEL",
+            "EMBEDDING_PRELOAD",
+            "DASHSCOPE_API_KEY",
+            "SKILLS_CACHE_TTL",
+        ],
+    },
+}
+CATEGORY_DESCRIPTIONS_ZH: Dict[str, str] = {
+    "llm": "LLM 提供商路由与模型选择。",
+    "storage": "数据库与存储路径配置。",
+    "automation": "临床自动化与调度行为。",
+    "wecom": "企业微信自建应用集成与通知配置。",
+    "miniprogram": "微信小程序鉴权与端点默认配置。",
+    "logging": "应用日志与滚动策略。",
+    "embedding": "病历 RAG 匹配的嵌入模型。",
+}
+CONFIG_DESCRIPTIONS: Dict[str, str] = {
+    "ROUTING_LLM": "Provider for intent/tool routing. Note: Ollama is LAN/local LLM (can be slower); DeepSeek is online LLM (billed).",
+    "STRUCTURING_LLM": "Provider for medical record structuring. Note: Ollama is LAN/local LLM (can be slower); DeepSeek is online LLM (billed).",
+    "DIAGNOSIS_LLM": "LLM provider for diagnosis pipeline. Falls back to STRUCTURING_LLM if empty.",
+    "LLM_PROVIDER_STRICT_MODE": "When true, use selected provider only and never fallback to others.",
+    "VISION_LLM": "Provider for image understanding.",
+    "OPENAI_API_KEY": "OpenAI API key.",
+    "TENCENT_LKEAP_BASE_URL": "Tencent LKEAP OpenAI-compatible API base URL.",
+    "TENCENT_LKEAP_MODEL": "Tencent LKEAP model name for routing/structuring.",
+    "TENCENT_LKEAP_API_KEY": "Tencent LKEAP API key.",
+    "GROQ_API_KEY": "Groq API key.",
+    "DEEPSEEK_API_KEY": "DeepSeek API key.",
+    "GEMINI_API_KEY": "Gemini API key.",
+    "OLLAMA_BASE_URL": "OpenAI-compatible Ollama endpoint (typically LAN/local deployment).",
+    "OLLAMA_VISION_BASE_URL": "Vision endpoint (can match OLLAMA_BASE_URL).",
+    "OLLAMA_MODEL": "Primary text model name.",
+    "OLLAMA_VISION_MODEL": "Primary vision model name.",
+    "OLLAMA_API_KEY": "API key for Ollama-compatible client.",
+    "GEMINI_VISION_MODEL": "Gemini model for vision route.",
+    "DATABASE_URL": "Shared DB URL (recommended in multi-instance).",
+    "PATIENTS_DB_PATH": "SQLite DB path when DATABASE_URL is empty.",
+    "AUTO_FOLLOWUP_TASKS_ENABLED": "Enable auto follow-up task generation.",
+    "TASK_SCHEDULER_MODE": "Scheduler mode: interval or cron.",
+    "TASK_SCHEDULER_INTERVAL_MINUTES": "Interval mode cadence in minutes.",
+    "TASK_SCHEDULER_CRON": "Cron expression used in cron mode.",
+    "TASK_SCHEDULER_LEASE_ENABLED": "Enable distributed lease to avoid duplicate runs.",
+    "TASK_SCHEDULER_LEASE_TTL_SECONDS": "Lease TTL for failover recovery.",
+    "TASK_NOTIFY_RETRY_COUNT": "Retry attempts for notification sends.",
+    "TASK_NOTIFY_RETRY_DELAY_SECONDS": "Delay between retries.",
+    "KNOWLEDGE_CANDIDATE_LIMIT": "How many knowledge items to scan per doctor before ranking.",
+    "KNOWLEDGE_MAX_ITEMS": "Maximum number of knowledge snippets injected into routing prompt.",
+    "KNOWLEDGE_MAX_CHARS": "Total character budget for injected knowledge prompt section.",
+    "KNOWLEDGE_MAX_ITEM_CHARS": "Per-knowledge-item character cap before prompt injection.",
+    "KNOWLEDGE_AUTO_LEARN_ENABLED": "Enable automatic knowledge capture from successful clinical turns.",
+    "KNOWLEDGE_AUTO_MAX_NEW_PER_TURN": "Maximum auto-learned snippets inserted per chat turn.",
+    "KNOWLEDGE_AUTO_MIN_TEXT_CHARS": "Minimum user-text length to consider for auto-learning.",
+    "WECOM_CORP_ID": "WeCom CorpID (starts with ww), from 我的企业 → 企业信息.",
+    "WECOM_AGENT_ID": "WeCom app AgentID, from 应用管理 → your app.",
+    "WECOM_SECRET": "WeCom app Secret, from 应用管理 → your app.",
+    "WECHAT_TOKEN": "Callback verification Token (set freely in WeCom app callback config).",
+    "WECHAT_AES_KEY": "Callback EncodingAESKey (43 chars, generated in WeCom app callback config).",
+    "NOTIFICATION_PROVIDER": "Notification backend (log or wechat).",
+    "WECHAT_NOTIFY_FALLBACK_TO_USER": "Fallback external_userid for failed direct recipient.",
+    "WECHAT_MINI_APP_ID": "Mini Program appid used by code2session.",
+    "WECHAT_MINI_APP_SECRET": "Mini Program appsecret used by code2session.",
+    "MINIPROGRAM_TOKEN_SECRET": "Signing key for mini access tokens.",
+    "MINIPROGRAM_TOKEN_TTL_SECONDS": "Mini access token expiration in seconds.",
+    "MINIPROGRAM_API_BASE_URL": "Public HTTPS API base URL used by mini client config.",
+    "UI_ADMIN_TOKEN": "Bearer token required for admin UI endpoints (X-Admin-Token header).",
+    "UI_DEBUG_TOKEN": "Bearer token required for debug UI endpoints (X-Debug-Token header). Grants access to /debug page — metrics, observability, logs.",
+    "PATIENT_PORTAL_SECRET": "JWT signing secret for the patient portal. MUST be set in production; defaults to a dev value otherwise.",
+    "LOG_LEVEL": "Root logging level.",
+    "LOG_FORMAT": "Python logging formatter string.",
+    "LOG_TO_FILE": "Enable rotating file logging.",
+    "LOG_DIR": "Directory for log files.",
+    "LOG_FILE": "Primary app log filename.",
+    "LOG_MAX_BYTES": "Max bytes per log file before rotation.",
+    "LOG_BACKUP_COUNT": "Number of rotated log backups to keep.",
+    "EMBEDDING_PROVIDER": "Embedding provider: 'local' (BGE-M3 via sentence-transformers) or 'dashscope' (Alibaba Cloud).",
+    "EMBEDDING_MODEL": "Model name for local embedding provider (default: BAAI/bge-m3).",
+    "EMBEDDING_PRELOAD": "Preload embedding model at app startup (default: true).",
+    "DASHSCOPE_API_KEY": "API key for Dashscope embedding provider (only if EMBEDDING_PROVIDER=dashscope).",
+    "SKILLS_CACHE_TTL": "Skill file cache TTL in seconds (default: 300 = 5 minutes).",
+}
+CONFIG_DESCRIPTIONS_ZH: Dict[str, str] = {
+    "ROUTING_LLM": "意图/工具路由使用的提供商。说明：Ollama 通常是局域网/本地 LLM（可能较慢）；DeepSeek 是在线 LLM（按量计费）。",
+    "STRUCTURING_LLM": "病历结构化使用的提供商。说明：Ollama 通常是局域网/本地 LLM（可能较慢）；DeepSeek 是在线 LLM（按量计费）。",
+    "DIAGNOSIS_LLM": "诊断管道使用的LLM提供商。为空时使用STRUCTURING_LLM。",
+    "LLM_PROVIDER_STRICT_MODE": "为 true 时仅使用所选提供商，不会自动回退到其它提供商。",
+    "VISION_LLM": "图像理解使用的提供商。",
+    "OPENAI_API_KEY": "OpenAI API Key。",
+    "TENCENT_LKEAP_BASE_URL": "腾讯云 LKEAP（OpenAI 兼容）API 基地址。",
+    "TENCENT_LKEAP_MODEL": "路由/结构化使用的腾讯云 LKEAP 模型名。",
+    "TENCENT_LKEAP_API_KEY": "腾讯云 LKEAP API Key。",
+    "GROQ_API_KEY": "Groq API Key。",
+    "DEEPSEEK_API_KEY": "DeepSeek API Key。",
+    "GEMINI_API_KEY": "Gemini API Key。",
+    "OLLAMA_BASE_URL": "兼容 OpenAI 协议的 Ollama 地址（通常为局域网/本地部署）。",
+    "OLLAMA_VISION_BASE_URL": "视觉模型地址（可与 OLLAMA_BASE_URL 相同）。",
+    "OLLAMA_MODEL": "主文本模型名称。",
+    "OLLAMA_VISION_MODEL": "主视觉模型名称。",
+    "OLLAMA_API_KEY": "Ollama 客户端 API Key。",
+    "GEMINI_VISION_MODEL": "视觉路由使用的 Gemini 模型。",
+    "DATABASE_URL": "共享数据库 URL（多实例推荐）。",
+    "PATIENTS_DB_PATH": "DATABASE_URL 为空时使用的 SQLite 路径。",
+    "AUTO_FOLLOWUP_TASKS_ENABLED": "是否开启自动生成随访任务。",
+    "TASK_SCHEDULER_MODE": "调度模式：interval 或 cron。",
+    "TASK_SCHEDULER_INTERVAL_MINUTES": "interval 模式的分钟间隔。",
+    "TASK_SCHEDULER_CRON": "cron 模式表达式。",
+    "TASK_SCHEDULER_LEASE_ENABLED": "是否启用分布式租约防重复执行。",
+    "TASK_SCHEDULER_LEASE_TTL_SECONDS": "租约 TTL（故障恢复用）。",
+    "TASK_NOTIFY_RETRY_COUNT": "通知失败重试次数。",
+    "TASK_NOTIFY_RETRY_DELAY_SECONDS": "重试间隔秒数。",
+    "KNOWLEDGE_CANDIDATE_LIMIT": "每次检索医生知识库时参与排序的候选条数。",
+    "KNOWLEDGE_MAX_ITEMS": "注入路由 prompt 的知识片段最大条数。",
+    "KNOWLEDGE_MAX_CHARS": "注入知识片段的总字符预算上限。",
+    "KNOWLEDGE_MAX_ITEM_CHARS": "单条知识片段注入前的字符截断上限。",
+    "KNOWLEDGE_AUTO_LEARN_ENABLED": "是否开启从临床对话自动沉淀知识。",
+    "KNOWLEDGE_AUTO_MAX_NEW_PER_TURN": "每轮对话最多自动新增的知识条数。",
+    "KNOWLEDGE_AUTO_MIN_TEXT_CHARS": "触发自动沉淀时，医生输入的最小长度阈值。",
+    "WECOM_CORP_ID": "企业微信企业ID（ww开头），在「我的企业 → 企业信息」中查看。",
+    "WECOM_AGENT_ID": "自建应用的AgentID，在「应用管理」中查看。",
+    "WECOM_SECRET": "自建应用的Secret，在「应用管理」中查看。",
+    "WECHAT_TOKEN": "回调验证Token，在应用回调配置中自行设置。",
+    "WECHAT_AES_KEY": "回调加密密钥（43位），在应用回调配置中随机生成。",
+    "NOTIFICATION_PROVIDER": "通知后端（log 或 wechat）。",
+    "WECHAT_NOTIFY_FALLBACK_TO_USER": "主接收人失败时的兜底 external_userid。",
+    "WECHAT_MINI_APP_ID": "code2session 使用的小程序 appid。",
+    "WECHAT_MINI_APP_SECRET": "code2session 使用的小程序密钥。",
+    "MINIPROGRAM_TOKEN_SECRET": "小程序访问令牌签名密钥。",
+    "MINIPROGRAM_TOKEN_TTL_SECONDS": "小程序访问令牌有效期（秒）。",
+    "MINIPROGRAM_API_BASE_URL": "小程序客户端使用的公网 HTTPS API 基地址。",
+    "UI_ADMIN_TOKEN": "Admin UI 端点所需的令牌（X-Admin-Token 请求头）。",
+    "UI_DEBUG_TOKEN": "Debug UI 端点所需的令牌（X-Debug-Token 请求头），用于访问 /debug 页面（指标、可观测性、日志）。",
+    "PATIENT_PORTAL_SECRET": "患者门户 JWT 签名密钥，生产环境必须设置，否则使用开发默认值。",
+    "LOG_LEVEL": "根日志级别。",
+    "LOG_FORMAT": "Python 日志格式字符串。",
+    "LOG_TO_FILE": "是否启用文件滚动日志。",
+    "LOG_DIR": "日志目录。",
+    "LOG_FILE": "主日志文件名。",
+    "LOG_MAX_BYTES": "单文件最大字节数，超过后滚动。",
+    "LOG_BACKUP_COUNT": "日志备份保留数量。",
+    "EMBEDDING_PROVIDER": "嵌入模型提供商：'local'（本地 BGE-M3）或 'dashscope'（阿里云）。",
+    "EMBEDDING_MODEL": "本地嵌入模型名称（默认：BAAI/bge-m3）。",
+    "EMBEDDING_PRELOAD": "启动时预加载嵌入模型（默认：true）。",
+    "DASHSCOPE_API_KEY": "Dashscope 嵌入提供商 API 密钥。",
+    "SKILLS_CACHE_TTL": "技能文件缓存 TTL（秒，默认 300 = 5 分钟）。",
+}
+CONFIG_ALLOWED_VALUES: Dict[str, List[str]] = {
+    "ROUTING_LLM": ["deepseek", "groq", "cerebras", "sambanova", "siliconflow", "openrouter", "tencent_lkeap", "ollama"],
+    "STRUCTURING_LLM": ["deepseek", "groq", "cerebras", "sambanova", "siliconflow", "openrouter", "tencent_lkeap", "ollama"],
+    "LLM_PROVIDER_STRICT_MODE": ["true", "false"],
+    "KNOWLEDGE_AUTO_LEARN_ENABLED": ["true", "false"],
+    "VISION_LLM": ["ollama", "gemini", "openai"],
+    "TASK_SCHEDULER_MODE": ["interval", "cron"],
+    "NOTIFICATION_PROVIDER": ["log", "wechat"],
+    "LOG_LEVEL": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+}
+"""Runtime config: load config/runtime.json at startup, push to os.environ. No hot-reload."""
+from __future__ import annotations
+import json
+import os
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+from utils.runtime_config_meta import (
+    CATEGORY_DESCRIPTIONS_ZH,
+    CONFIG_ALLOWED_VALUES,
+    CONFIG_CATEGORIES,
+    CONFIG_DESCRIPTIONS,
+    CONFIG_DESCRIPTIONS_ZH,
+)
+ROOT = Path(__file__).resolve().parents[2]  # src/utils/runtime_config.py → project root
+DEFAULT_CONFIG_PATH = ROOT / "config" / "runtime.json"
+DEFAULT_RUNTIME_CONFIG: Dict[str, Any] = {
+    "ROUTING_LLM": "groq",
+    "STRUCTURING_LLM": "groq",
+    "LLM_PROVIDER_STRICT_MODE": True,
+    "VISION_LLM": "ollama",
+    "OPENAI_API_KEY": "",
+    "TENCENT_LKEAP_BASE_URL": "https://api.lkeap.cloud.tencent.com/v1",
+    "TENCENT_LKEAP_MODEL": "deepseek-v3-1",
+    "TENCENT_LKEAP_API_KEY": "",
+    "GROQ_API_KEY": "",
+    "DEEPSEEK_API_KEY": "",
+    "CEREBRAS_API_KEY": "",
+    "SAMBANOVA_API_KEY": "",
+    "SILICONFLOW_API_KEY": "",
+    "OPENROUTER_API_KEY": "",
+    "OLLAMA_BASE_URL": os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
+    "OLLAMA_VISION_BASE_URL": os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
+    "OLLAMA_MODEL": "qwen3.5:9b",
+    "OLLAMA_VISION_MODEL": "qwen3-vl:8b",
+    "OLLAMA_API_KEY": "ollama",
+    "GEMINI_VISION_MODEL": "gemini-2.0-flash",
+    "PATIENTS_DB_PATH": str(ROOT / "patients.db"),
+    "DATABASE_URL": "",
+    "AUTO_FOLLOWUP_TASKS_ENABLED": False,
+    "LOG_LEVEL": "INFO",
+    "LOG_FORMAT": "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    "LOG_TO_FILE": True,
+    "LOG_DIR": "logs",
+    "LOG_FILE": "app.log",
+    "LOG_MAX_BYTES": 10485760,
+    "LOG_BACKUP_COUNT": 5,
+    "TASK_SCHEDULER_MODE": "interval",
+    "TASK_SCHEDULER_INTERVAL_MINUTES": 1,
+    "TASK_SCHEDULER_CRON": "*/1 * * * *",
+    "TASK_SCHEDULER_LEASE_ENABLED": True,
+    "TASK_SCHEDULER_LEASE_TTL_SECONDS": 90,
+    "TASK_NOTIFY_RETRY_COUNT": 3,
+    "TASK_NOTIFY_RETRY_DELAY_SECONDS": 1,
+    "KNOWLEDGE_CANDIDATE_LIMIT": 30,
+    "KNOWLEDGE_MAX_ITEMS": 3,
+    "KNOWLEDGE_MAX_CHARS": 1200,
+    "KNOWLEDGE_MAX_ITEM_CHARS": 320,
+    "KNOWLEDGE_AUTO_LEARN_ENABLED": True,
+    "KNOWLEDGE_AUTO_MAX_NEW_PER_TURN": 1,
+    "KNOWLEDGE_AUTO_MIN_TEXT_CHARS": 8,
+    "WECOM_CORP_ID": "",
+    "WECOM_AGENT_ID": "",
+    "WECOM_SECRET": "",
+    "WECHAT_TOKEN": "",
+    "WECHAT_AES_KEY": "",
+    "NOTIFICATION_PROVIDER": "log",
+    "WECHAT_NOTIFY_FALLBACK_TO_USER": "",
+    "WECHAT_MINI_APP_ID": "",
+    "WECHAT_MINI_APP_SECRET": "",
+    "MINIPROGRAM_TOKEN_SECRET": "dev-miniprogram-secret",
+    "MINIPROGRAM_TOKEN_TTL_SECONDS": 604800,
+    "MINIPROGRAM_API_BASE_URL": "",
+    "UI_ADMIN_TOKEN": "",
+    "UI_DEBUG_TOKEN": "",
+    "PATIENT_PORTAL_SECRET": "",
+    "PENDING_RECORD_TTL_MINUTES": 30,
+    "PHI_CLOUD_EGRESS_ALLOWED": False,
+    "EMBEDDING_PROVIDER": "local",
+    "EMBEDDING_MODEL": "BAAI/bge-m3",
+    "EMBEDDING_PRELOAD": True,
+    "DASHSCOPE_API_KEY": "",
+    "SKILLS_CACHE_TTL": 300,
+    "DIAGNOSIS_LLM": "",
+}
+def runtime_config_path(path: Optional[str] = None) -> Path:
+    if path:
+        return Path(path).expanduser()
+    return DEFAULT_CONFIG_PATH
+def _build_structured(values: Dict[str, Any]) -> Dict[str, Any]:
+    categories: Dict[str, Any] = {}
+    assigned = set()
+    for category_key, meta in CONFIG_CATEGORIES.items():
+        settings: Dict[str, Any] = {}
+        for key in meta["keys"]:
+            item = {
+                "value": values.get(key, DEFAULT_RUNTIME_CONFIG.get(key)),
+                "description": CONFIG_DESCRIPTIONS.get(key, ""),
+                "description_zh": CONFIG_DESCRIPTIONS_ZH.get(key, ""),
+            }
+            if key in CONFIG_ALLOWED_VALUES:
+                item["options"] = CONFIG_ALLOWED_VALUES[key]
+            settings[key] = item
+            assigned.add(key)
+        categories[category_key] = {
+            "description": meta["description"],
+            "description_zh": CATEGORY_DESCRIPTIONS_ZH.get(category_key, ""),
+            "settings": settings,
+        }
+    extra_keys = sorted(k for k in values.keys() if k not in assigned)
+    if extra_keys:
+        categories["runtime_overrides"] = {
+            "description": "Keys not part of the default catalog.",
+            "settings": {
+                key: {
+                    "value": values[key],
+                    "description": CONFIG_DESCRIPTIONS.get(key, ""),
+                    "description_zh": CONFIG_DESCRIPTIONS_ZH.get(key, ""),
+                }
+                for key in extra_keys
+            },
+        }
+    return {
+        "format": "doctor-ai-agent.runtime-config.v2",
+        "description": "Runtime configuration catalog with grouped settings and inline descriptions.",
+        "description_zh": "运行时配置目录，按分类组织并包含每项配置说明。",
+        "categories": categories,
+    }
+def _flatten(payload: Dict[str, Any]) -> Dict[str, Any]:
+    if "categories" not in payload:
+        return {k: v for k, v in payload.items() if not isinstance(v, (dict, list))}
+    out: Dict[str, Any] = {}
+    categories = payload.get("categories")
+    if not isinstance(categories, dict):
+        return out
+    for category in categories.values():
+        if not isinstance(category, dict):
+            continue
+        settings = category.get("settings")
+        if not isinstance(settings, dict):
+            continue
+        for key, item in settings.items():
+            if isinstance(item, dict) and "value" in item:
+                out[key] = item.get("value")
+            elif not isinstance(item, (dict, list)):
+                out[key] = item
+    return out
+def load_runtime_json(path: Optional[str] = None) -> Dict[str, Any]:
+    target = runtime_config_path(path)
+    if not target.exists():
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps(_build_structured(DEFAULT_RUNTIME_CONFIG), ensure_ascii=False, indent=2), encoding="utf-8")
+        return dict(DEFAULT_RUNTIME_CONFIG)
+    try:
+        payload = json.loads(target.read_text(encoding="utf-8"))
+    except Exception:
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    flat = _flatten(payload)
+    merged = dict(DEFAULT_RUNTIME_CONFIG)
+    merged.update(flat)
+    return merged
+_DEFAULT_OLLAMA_URL = DEFAULT_RUNTIME_CONFIG["OLLAMA_BASE_URL"]
+_DEFAULT_OLLAMA_VISION_URL = DEFAULT_RUNTIME_CONFIG["OLLAMA_VISION_BASE_URL"]
+def save_runtime_json(config: Dict[str, Any], path: Optional[str] = None) -> Path:
+    target = runtime_config_path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    existing = {}
+    if target.exists():
+        try:
+            parsed = json.loads(target.read_text(encoding="utf-8"))
+            if isinstance(parsed, dict):
+                existing = parsed
+        except Exception:
+            existing = {}
+    base_values = dict(DEFAULT_RUNTIME_CONFIG)
+    base_values.update(_flatten(existing))
+    base_values.update(config)
+    structured = _build_structured(base_values)
+    target.write_text(
+        json.dumps(structured, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    return target
+def runtime_config_source_path(path: Optional[str] = None) -> Path:
+    return runtime_config_path(path)
+def _stringify(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
+def _sanitize_scheduler_fields(sanitized: Dict[str, str]) -> None:
+    """校验并规范化调度器相关字段（原地修改 sanitized）。"""
+    mode = sanitized["TASK_SCHEDULER_MODE"].lower()
+    sanitized["TASK_SCHEDULER_MODE"] = mode if mode in {"interval", "cron"} else "interval"
+    try:
+        interval_minutes = max(1, int(sanitized["TASK_SCHEDULER_INTERVAL_MINUTES"]))
+    except (TypeError, ValueError):
+        interval_minutes = int(DEFAULT_RUNTIME_CONFIG["TASK_SCHEDULER_INTERVAL_MINUTES"])
+    sanitized["TASK_SCHEDULER_INTERVAL_MINUTES"] = str(interval_minutes)
+    cron_expr = sanitized["TASK_SCHEDULER_CRON"] or str(DEFAULT_RUNTIME_CONFIG["TASK_SCHEDULER_CRON"])
+    if len(cron_expr.split()) != 5:
+        cron_expr = str(DEFAULT_RUNTIME_CONFIG["TASK_SCHEDULER_CRON"])
+    sanitized["TASK_SCHEDULER_CRON"] = cron_expr
+    try:
+        lease_ttl = max(10, int(sanitized["TASK_SCHEDULER_LEASE_TTL_SECONDS"]))
+    except (TypeError, ValueError):
+        lease_ttl = int(DEFAULT_RUNTIME_CONFIG["TASK_SCHEDULER_LEASE_TTL_SECONDS"])
+    sanitized["TASK_SCHEDULER_LEASE_TTL_SECONDS"] = str(lease_ttl)
+    try:
+        retry_count = max(1, int(sanitized["TASK_NOTIFY_RETRY_COUNT"]))
+    except (TypeError, ValueError):
+        retry_count = int(DEFAULT_RUNTIME_CONFIG["TASK_NOTIFY_RETRY_COUNT"])
+    sanitized["TASK_NOTIFY_RETRY_COUNT"] = str(retry_count)
+    try:
+        retry_delay = max(0.0, float(sanitized["TASK_NOTIFY_RETRY_DELAY_SECONDS"]))
+    except (TypeError, ValueError):
+        retry_delay = float(DEFAULT_RUNTIME_CONFIG["TASK_NOTIFY_RETRY_DELAY_SECONDS"])
+    sanitized["TASK_NOTIFY_RETRY_DELAY_SECONDS"] = str(retry_delay)
+def _sanitize_knowledge_fields(sanitized: Dict[str, str]) -> None:
+    """校验并规范化知识库相关整型字段（原地修改 sanitized）。"""
+    for key, minimum in (
+        ("KNOWLEDGE_CANDIDATE_LIMIT", 1),
+        ("KNOWLEDGE_MAX_ITEMS", 1),
+        ("KNOWLEDGE_MAX_CHARS", 200),
+        ("KNOWLEDGE_MAX_ITEM_CHARS", 80),
+        ("KNOWLEDGE_AUTO_MAX_NEW_PER_TURN", 1),
+        ("KNOWLEDGE_AUTO_MIN_TEXT_CHARS", 4),
+    ):
+        try:
+            parsed = max(minimum, int(sanitized[key]))
+        except (TypeError, ValueError):
+            parsed = int(DEFAULT_RUNTIME_CONFIG[key])
+        sanitized[key] = str(parsed)
+def _sanitize_bool_and_enum_fields(sanitized: Dict[str, str]) -> None:
+    """规范化布尔值与枚举字段（原地修改 sanitized）。"""
+    _TRUE_VALS = {"1", "true", "yes", "on"}
+    for key in ("TASK_SCHEDULER_LEASE_ENABLED", "LLM_PROVIDER_STRICT_MODE", "KNOWLEDGE_AUTO_LEARN_ENABLED"):
+        sanitized[key] = "true" if sanitized[key].lower() in _TRUE_VALS else "false"
+    provider = sanitized["NOTIFICATION_PROVIDER"].lower()
+    sanitized["NOTIFICATION_PROVIDER"] = provider if provider in {"log", "wechat"} else "log"
+    log_level = sanitized["LOG_LEVEL"].upper()
+    sanitized["LOG_LEVEL"] = log_level if log_level in CONFIG_ALLOWED_VALUES["LOG_LEVEL"] else "INFO"
+def _sanitize_config(raw: Dict[str, Any]) -> Dict[str, str]:
+    """将原始配置字典规范化为合法的 str→str 字典，确保所有字段均有效。"""
+    sanitized: Dict[str, str] = {}
+    merged = dict(DEFAULT_RUNTIME_CONFIG)
+    merged.update(raw)
+    for key, default in DEFAULT_RUNTIME_CONFIG.items():
+        raw_value = merged.get(key, default)
+        value = _stringify(raw_value)
+        if not value and key in {"TASK_SCHEDULER_MODE", "TASK_SCHEDULER_INTERVAL_MINUTES", "TASK_SCHEDULER_CRON"}:
+            value = _stringify(default)
+        sanitized[key] = value
+    _sanitize_scheduler_fields(sanitized)
+    _sanitize_knowledge_fields(sanitized)
+    _sanitize_bool_and_enum_fields(sanitized)
+    return sanitized
+def _input_type_for_key(key: str) -> str:
+    default = DEFAULT_RUNTIME_CONFIG.get(key)
+    if isinstance(default, bool):
+        return "boolean"
+    if isinstance(default, (int, float)):
+        return "number"
+    return "string"
+def runtime_config_categories(config: Dict[str, str]) -> List[Dict[str, Any]]:
+    used = set()
+    output: List[Dict[str, Any]] = []
+    for category_key, meta in CONFIG_CATEGORIES.items():
+        keys = list(meta.get("keys") or [])
+        items = []
+        for key in keys:
+            item = {
+                "key": key,
+                "value": config.get(key, ""),
+                "description": CONFIG_DESCRIPTIONS.get(key, ""),
+                "description_zh": CONFIG_DESCRIPTIONS_ZH.get(key, ""),
+                "input_type": _input_type_for_key(key),
+            }
+            if key in CONFIG_ALLOWED_VALUES:
+                item["options"] = CONFIG_ALLOWED_VALUES[key]
+            items.append(item)
+            used.add(key)
+        output.append(
+            {
+                "key": category_key,
+                "description": str(meta.get("description") or ""),
+                "description_zh": CATEGORY_DESCRIPTIONS_ZH.get(category_key, ""),
+                "items": items,
+            }
+        )
+    extra_keys = sorted(k for k in config.keys() if k not in used)
+    if extra_keys:
+        output.append(
+            {
+                "key": "runtime_overrides",
+                "description": "Keys outside default catalog.",
+                "items": [
+                    {
+                        "key": key,
+                        "value": config[key],
+                        "description": CONFIG_DESCRIPTIONS.get(key, ""),
+                        "description_zh": CONFIG_DESCRIPTIONS_ZH.get(key, ""),
+                        "input_type": _input_type_for_key(key),
+                    }
+                    for key in extra_keys
+                ],
+            }
+        )
+    return output
+async def load_runtime_config_dict() -> Dict[str, str]:
+    return _sanitize_config(load_runtime_json())
+async def save_runtime_config_dict(raw: Dict[str, Any]) -> Dict[str, str]:
+    sanitized = _sanitize_config(raw)
+    save_runtime_json(sanitized)
+    return sanitized
+_LOWER_CASE_ENUM_KEYS = {
+    "ROUTING_LLM", "STRUCTURING_LLM", "VISION_LLM",
+    "LLM_PROVIDER_STRICT_MODE",
+    "KNOWLEDGE_AUTO_LEARN_ENABLED", "TASK_SCHEDULER_MODE",
+    "NOTIFICATION_PROVIDER",
+}
+def _validate_enum_fields(raw: Dict[str, Any], errors: List[str]) -> None:
+    """将允许值列表中的字段与提交值比对，将违规项追加到 errors。"""
+    for key, allowed in CONFIG_ALLOWED_VALUES.items():
+        if key not in raw:
+            continue
+        value = str(raw.get(key, ""))
+        if key in _LOWER_CASE_ENUM_KEYS:
+            value = value.lower()
+        elif key == "LOG_LEVEL":
+            value = value.upper()
+        if value not in allowed:
+            errors.append("{0}: unsupported value '{1}', allowed={2}".format(key, raw.get(key), ",".join(allowed)))
+def _validate_scheduler_fields(raw: Dict[str, Any], errors: List[str], warnings: List[str]) -> None:
+    """校验调度器字段的语义合法性，将问题追加到 errors / warnings。"""
+    mode = str(raw.get("TASK_SCHEDULER_MODE", DEFAULT_RUNTIME_CONFIG["TASK_SCHEDULER_MODE"])).lower()
+    cron_expr = str(raw.get("TASK_SCHEDULER_CRON", DEFAULT_RUNTIME_CONFIG["TASK_SCHEDULER_CRON"]))
+    if mode == "cron" and len(cron_expr.split()) != 5:
+        errors.append("TASK_SCHEDULER_CRON: must contain 5 cron fields when TASK_SCHEDULER_MODE=cron")
+    try:
+        lease_ttl = int(raw.get("TASK_SCHEDULER_LEASE_TTL_SECONDS", DEFAULT_RUNTIME_CONFIG["TASK_SCHEDULER_LEASE_TTL_SECONDS"]))
+        if lease_ttl < 10:
+            warnings.append("TASK_SCHEDULER_LEASE_TTL_SECONDS < 10; will be clamped to 10")
+    except (TypeError, ValueError):
+        errors.append("TASK_SCHEDULER_LEASE_TTL_SECONDS: must be an integer")
+    for key in (
+        "KNOWLEDGE_CANDIDATE_LIMIT", "KNOWLEDGE_MAX_ITEMS", "KNOWLEDGE_MAX_CHARS",
+        "KNOWLEDGE_MAX_ITEM_CHARS", "KNOWLEDGE_AUTO_MAX_NEW_PER_TURN", "KNOWLEDGE_AUTO_MIN_TEXT_CHARS",
+    ):
+        if key not in raw:
+            continue
+        try:
+            int(raw.get(key))
+        except (TypeError, ValueError):
+            errors.append("{0}: must be an integer".format(key))
+def validate_runtime_config(raw: Dict[str, Any]) -> Dict[str, Any]:
+    """校验原始配置字典，返回含 ok / errors / warnings / sanitized 的结果字典。"""
+    errors: List[str] = []
+    warnings: List[str] = []
+    if not isinstance(raw, dict):
+        return {"ok": False, "errors": ["config must be a JSON object"], "warnings": warnings, "sanitized": {}}
+    _validate_enum_fields(raw, errors)
+    _validate_scheduler_fields(raw, errors, warnings)
+    sanitized = _sanitize_config(raw)
+    return {"ok": not errors, "errors": errors, "warnings": warnings, "sanitized": sanitized}
+async def apply_runtime_config(config: Dict[str, str]) -> None:
+    """Save config to os.environ. Takes full effect on next restart."""
+    for key, value in config.items():
+        os.environ[key] = value
+from __future__ import annotations
+import re
+from typing import Optional
+_CN_DIGITS = {
+    "一": 1, "两": 2, "二": 2, "三": 3, "四": 4,
+    "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10,
+}
+def _parse_cn_or_int(raw: str) -> Optional[int]:
+    """Parse a string that may be a Chinese digit word or an integer."""
+    n = _CN_DIGITS.get(raw)
+    if n is not None:
+        return n
+    try:
+        return int(raw)
+    except (ValueError, TypeError):
+        return None
+_NAME_TOKEN_RE = re.compile(r"^[\u4e00-\u9fff]{2,4}$")
+_NON_NAME_TOKENS = {"你好", "您好", "谢谢", "好的", "收到", "在吗", "哈喽", "嗯", "嗯嗯"}
+_NON_NAME_SUBSTRINGS = {
+    "发烧", "咳嗽", "头痛", "胸闷", "疼", "痛", "不适", "心悸", "气短",
+    "一天", "两天", "三天", "一周", "两周", "三周", "一月", "两月",
+    "记录", "病历", "查询", "随访", "复查", "预约",
+}
+_SYMPTOM_KEYWORDS = (
+    "头疼", "头痛", "偏头痛", "发烧", "咳嗽", "胸闷", "胸痛",
+    "腹痛", "恶心", "呕吐", "腹泻", "乏力", "眩晕", "心悸",
+    "不舒服", "不适", "难受", "疼",
+)
+_EXPLICIT_NAME_PATTERNS = [
+    re.compile(r"^\s*我是(?P<name>[\u4e00-\u9fff]{2,4})\s*$"),
+    re.compile(r"^\s*我叫(?P<name>[\u4e00-\u9fff]{2,4})\s*$"),
+    re.compile(r"^\s*患者(?:是|叫)?(?P<name>[\u4e00-\u9fff]{2,4})\s*$"),
+]
+def name_token_or_none(text: str) -> str:
+    """Return *text* if it looks like a bare patient name, else empty string."""
+    candidate = text.strip()
+    if _NAME_TOKEN_RE.match(candidate) and candidate not in _NON_NAME_TOKENS:
+        if any(x in candidate for x in _NON_NAME_SUBSTRINGS):
+            return ""
+        return candidate
+    return ""

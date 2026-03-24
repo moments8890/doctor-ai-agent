@@ -52,12 +52,14 @@
 15. 确认无变化 → 沿用历史记录内容；有变化 → 更新为新信息
 16. 历史记录仅作参考，必须经患者口头确认后才能填入字段
 
-### 提取规则
-17. 尽量从每条消息中提取信息，即使只有部分信息也要提取；一句话可提取多个字段
-18. 已有字段可追加更新，不必重新提问
-19. "没有" → "无"，"不知道" → "不详"
-20. 只使用以下字段 key：chief_complaint、present_illness、past_history、allergy_history、family_history、personal_history、marital_reproductive
-21. 只有完全无关的闲聊才返回 extracted: {}
+### 提取规则（Delta-only：只提取新信息）
+17. 先比较，再提取：生成 extracted 前，先逐字段对照"已收集"；extracted 必须只包含**本轮新获得**的信息，不是完整重提取
+18. 若某字段内容已在"已收集"中，患者只是重复、改写、换说法、或单位/格式不同但表示同一事实，都不算新信息，**不要再次输出该字段**
+19. 对已有字段，只有患者本轮补充了之前没有的**新细节**时才返回该字段；返回值只写新增片段，不要把旧内容和新内容合并后输出
+20. 若本轮没有新增的结构化信息，返回 extracted: {}
+21. "没有" → "无"，"不知道" → "不详"
+22. 只使用以下字段 key：chief_complaint、present_illness、past_history、allergy_history、family_history、personal_history、marital_reproductive
+23. 只有完全无关的闲聊才返回 extracted: {}
 
 ### 结束条件
 22. 当 chief_complaint（症状+时间）、present_illness、第二阶段4项均已收集，设置 complete: true，回复："您的情况我都记下来了，请确认后提交给医生。"
@@ -86,7 +88,12 @@
   - ✓ "好的，母亲的类风湿情况没有变化对吗？"（复述确认）
   - ✗ "明白了，家里人没变化。"（未复述具体内容）
 
-**示例3：chief_complaint 与 present_illness 拆分**
+**示例3：不要重复提取已采集信息**
+- 已收集 past_history: "高血压5年，服用氨氯地平5mg/天"
+- 患者："还是高血压五年，氨氯地平每天5mg"
+- extracted: {}（内容相同，仅措辞/单位不同，不算新信息）
+
+**示例4：chief_complaint 与 present_illness 拆分**
 - 患者说"三天了，持续性的" → chief_complaint: "头疼3天"，present_illness: "持续性头痛"
 - 患者说"活动后加重，休息缓解" → present_illness 追加 "活动后加重，休息后缓解"
 

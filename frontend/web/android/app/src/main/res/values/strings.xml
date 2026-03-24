@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">医生助手</string>
-    <string name="title_activity_main">医生助手</string>
+    <string name="app_name">鲸鱼随行</string>
+    <string name="title_activity_main">鲸鱼随行</string>
     <string name="package_name">com.doctorai.app</string>
     <string name="custom_url_scheme">com.doctorai.app</string>
 </resources>

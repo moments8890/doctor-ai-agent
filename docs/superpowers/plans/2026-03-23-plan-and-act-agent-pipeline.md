@@ -1,6 +1,6 @@
 # Plan and Act Agent Pipeline — Implementation Plan
 
-> **Status: COMPLETE** — All 10 tasks implemented, 26 tests passing (2026-03-23)
+> **Status: COMPLETE** — All phases implemented. E2E benchmark: 46/46 passing (2026-03-23)
 
 **Goal:** Replace the LangChain ReAct agent with a Plan-and-Act routing pipeline (routing LLM → deterministic dispatch → intent-specific handlers).
 
@@ -1429,6 +1429,32 @@ git commit -m "test: add Plan-and-Act E2E integration tests"
 
 **Total: 10 tasks, ~15 new files, 23 tests, ~10 commits**
 
-Follow-up plans (separate):
-- **DB Schema Migration** — SOAP columns, table splits, killed tables
-- **Cleanup** — Remove LangChain, delete old ReAct code, update requirements.txt
+---
+
+## Post-Plan Phases (all COMPLETE)
+
+### Phase 2: DB Schema Migration — COMPLETE
+- SOAP columns, doctor_wechat, patient_auth, doctor/patient_chat_log tables
+- TaskType simplified, 13 killed tables deleted
+
+### Phase 3: Cleanup — COMPLETE
+- LangChain removed, old ReAct code deleted, import breakages fixed
+
+### Phase 4: Instructor Structured Output — COMPLETE
+- `instructor.Mode.JSON` for Groq/Qwen3 compatibility
+- Pydantic response models for routing, interview, diagnosis, structuring
+
+### Phase 5: 6-Layer Prompt Composer — COMPLETE
+- `prompt_config.py` (LayerConfig matrix with assert)
+- `prompt_composer.py` (XML-tagged context injection)
+- Prompt files: `system/base.md`, `common/neurology.md`, `intent/*.md`
+
+### Phase 6: Frontend + Interview Confirm — COMPLETE
+- `handle_turn` returns HandlerResult, `view_payload.session_id` handoff
+- Interview confirm saves SOAP directly to medical_records
+
+### Phase 7: Prompt Rewrite — COMPLETE
+- Few-shot examples for interview (4), diagnosis (2)
+- Dead code removed, output format sections stripped
+
+**E2E benchmark: 46/46 active tests passing (up from 22/52 pre-migration)**

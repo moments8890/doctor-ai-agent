@@ -1,0 +1,113 @@
+{
+  "id": "P3",
+  "name": "张建国",
+  "gender": "男",
+  "age": 72,
+  "year_of_birth": 1954,
+  "phone": "13800000003",
+  "condition": "颈动脉狭窄，既往短暂性脑缺血发作(TIA)已控制",
+  "background": "心内科转诊患者。2个月前出现两次短暂性脑缺血发作(TIA)，表现为一过性右侧肢体无力及言语含糊，每次持续约10-15分钟后完全缓解。颈动脉超声示左侧颈内动脉起始段狭窄约70%。现服用双抗治疗，TIA未再发。高血压及2型糖尿病病史多年。1年前因冠心病行心脏支架植入术。无药物过敏。有兄弟脑梗病史。吸烟30年已戒5年。已婚育1女。",
+  "medications": [
+    {
+      "name": "阿司匹林",
+      "dose": "100mg",
+      "frequency": "每日一次",
+      "duration": "2个月"
+    },
+    {
+      "name": "氯吡格雷",
+      "dose": "75mg",
+      "frequency": "每日一次",
+      "duration": "2个月"
+    },
+    {
+      "name": "二甲双胍",
+      "dose": "500mg",
+      "frequency": "每日两次",
+      "duration": "6年"
+    },
+    {
+      "name": "缬沙坦",
+      "dose": "80mg",
+      "frequency": "每日一次",
+      "duration": "10年"
+    }
+  ],
+  "surgical_history": "1年前冠状动脉支架植入术（左前降支）",
+  "comorbidities": ["高血压", "2型糖尿病", "冠心病"],
+  "style": "cooperative",
+  "personality": "配合度高，有一定医学常识（因心脏病多次就医），表述较为准确，会主动提及心内科转诊原因",
+  "allowed_facts": [
+    {
+      "category": "chief_complaint",
+      "fact": "心内科转诊，发现颈动脉狭窄",
+      "volunteer": true
+    },
+    {
+      "category": "present_illness",
+      "fact": "2个月前出现两次TIA，右侧肢体一过性无力伴言语含糊，每次约10-15分钟缓解",
+      "volunteer": true
+    },
+    {
+      "category": "present_illness",
+      "fact": "颈动脉超声示左侧颈内动脉起始段狭窄约70%",
+      "volunteer": true
+    },
+    {
+      "category": "present_illness",
+      "fact": "服用双抗后TIA未再发作",
+      "volunteer": true
+    },
+    {
+      "category": "present_illness",
+      "fact": "目前无头晕头痛，无肢体麻木无力",
+      "volunteer": false
+    },
+    {
+      "category": "past_history",
+      "fact": "高血压10年，服缬沙坦控制，血压约140/85mmHg",
+      "volunteer": false
+    },
+    {
+      "category": "past_history",
+      "fact": "2型糖尿病6年，服二甲双胍，空腹血糖约7-8mmol/L",
+      "volunteer": false
+    },
+    {
+      "category": "past_history",
+      "fact": "1年前冠心病行左前降支支架植入术",
+      "volunteer": true
+    },
+    {
+      "category": "allergy_history",
+      "fact": "无药物过敏史",
+      "volunteer": false
+    },
+    {
+      "category": "family_history",
+      "fact": "有一个兄弟55岁时脑梗，目前偏瘫",
+      "volunteer": false
+    },
+    {
+      "category": "personal_history",
+      "fact": "吸烟30年（每日约1包），已戒烟5年；偶尔少量饮酒",
+      "volunteer": false
+    },
+    {
+      "category": "marital_reproductive",
+      "fact": "已婚，育有1女",
+      "volunteer": false
+    }
+  ],
+  "expected_extracted": {
+    "chief_complaint": ["颈动脉狭窄", "TIA"],
+    "present_illness": ["一过性右侧肢体无力", "言语含糊", "颈动脉狭窄70%", "双抗治疗"],
+    "past_history": ["高血压", "糖尿病", "冠心病支架"],
+    "family_history": ["兄弟脑梗"]
+  },
+  "checklist": {
+    "must_ask": ["TIA发作详情", "颈动脉检查结果", "当前用药", "心脏病史"],
+    "should_ask": ["糖尿病控制情况", "吸烟史", "家族脑血管病史"],
+    "min_coverage": 0.6
+  }
+}

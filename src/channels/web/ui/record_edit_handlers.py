@@ -53,15 +53,49 @@ async def update_record(
         )).scalar_one_or_none()
         if rec is None:
             raise HTTPException(status_code=404, detail="Record not found")
+        # Append-only versioning: create new row with version_of pointing to original
         updates = body.model_dump(exclude_unset=True)
         if "tags" in updates and isinstance(updates["tags"], list):
             import json as _json
             updates["tags"] = _json.dumps(updates["tags"], ensure_ascii=False)
+
+        # Copy all fields from original, apply updates
+        new_rec = MedicalRecordDB(
+            doctor_id=rec.doctor_id,
+            patient_id=rec.patient_id,
+            version_of=rec.id,
+            record_type=rec.record_type,
+            status=rec.status,
+            content=rec.content,
+            tags=rec.tags,
+            department=rec.department,
+            chief_complaint=rec.chief_complaint,
+            present_illness=rec.present_illness,
+            past_history=rec.past_history,
+            allergy_history=rec.allergy_history,
+            personal_history=rec.personal_history,
+            marital_reproductive=rec.marital_reproductive,
+            family_history=rec.family_history,
+            physical_exam=rec.physical_exam,
+            specialist_exam=rec.specialist_exam,
+            auxiliary_exam=rec.auxiliary_exam,
+            diagnosis=rec.diagnosis,
+            ai_diagnosis=rec.ai_diagnosis,
+            doctor_decisions=rec.doctor_decisions,
+            treatment_plan=rec.treatment_plan,
+            orders_followup=rec.orders_followup,
+            suggested_tasks=rec.suggested_tasks,
+            final_diagnosis=rec.final_diagnosis,
+            treatment_outcome=rec.treatment_outcome,
+            key_symptoms=rec.key_symptoms,
+        )
+        # Apply the updates to the new record
         for field, value in updates.items():
-            setattr(rec, field, value)
-        rec.updated_at = datetime.now(timezone.utc)
+            setattr(new_rec, field, value)
+        db.add(new_rec)
         await db.commit()
-        await db.refresh(rec)
+        await db.refresh(new_rec)
+        rec = new_rec
     return {
         "id": rec.id,
         "patient_id": rec.patient_id,
@@ -69,6 +103,7 @@ async def update_record(
         "record_type": rec.record_type or "visit",
         "content": rec.content,
         "tags": _parse_tags(rec.tags),
+        "version_of": rec.version_of,
         "created_at": _fmt_ts(rec.created_at),
         "updated_at": _fmt_ts(rec.updated_at),
     }

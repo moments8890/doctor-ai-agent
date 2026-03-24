@@ -626,65 +626,79 @@ This avoids loading heavy context (records, knowledge) for every message.
 
 ## 6. Prompt Architecture
 
-Replaces the previous "skill" concept. A skill is just **area-specific common
-knowledge** — a plain text prompt layer, not code.
+### 6-Layer Prompt Composer
 
-### Prompt stack (top to bottom)
+All LLM calls use a shared prompt composer (`agent/prompt_composer.py`) that
+assembles messages from separate layers. Layers 1-3 are concatenated into
+one system message. Layers 4-6 go into the final user message with XML tags.
 
 ```
 ┌─────────────────────────────────┐
-│ 1. System prompt                │  Universal: identity, safety, output format
+│ 1. system/base.md               │  Identity, safety, precedence rules
 ├─────────────────────────────────┤
-│ 2. Common prompt (per area)     │  Area knowledge (replaces "skill")
+│ 2. common/{specialty}.md        │  Specialty knowledge (e.g. neurology)
 ├─────────────────────────────────┤
-│ 3. Intent/tool prompt           │  Action-specific: interview, review, query, etc.
+│ 3. intent/{intent}.md           │  Action-specific rules + few-shot examples
 ├─────────────────────────────────┤
-│ 4. Doctor knowledge             │  Per-intent slice from KB (heavy weight)
+│ 4. <doctor_knowledge> XML       │  Per-intent KB slice from DB
 ├─────────────────────────────────┤
-│ 5. Patient context              │  Records, case history (lighter weight)
+│ 5. <patient_context> XML        │  Records, case history from DB
 ├─────────────────────────────────┤
-│ 6. User prompt                  │  Actual doctor/patient message
+│ 6. <doctor_request> XML         │  Actual doctor/patient message
 └─────────────────────────────────┘
+Layers 1-3 → system message | Layers 4-6 → user message
 ```
 
-**Layer details:**
-
-1. **System** — shared across all doctors and all intents. Identity, safety
-   rules, output format constraints. Source: `prompts/system.md` on disk.
-2. **Common** — per-specialty knowledge developed from doctor feedback and
-   clinical best practices. Applies to all LLM calls within that specialty.
-   Source: `prompts/common.{specialty}.md` on disk (e.g. `common.neurology.md`).
-3. **Intent** — specific to the current action. Source: `prompts/{intent}.md`
-   on disk. Files: `routing.md` (renamed from understand prompt),
-   `interview.md`, `diagnosis.md`, `query.md`, `create-task.md`, etc.
-4. **Doctor knowledge** — filtered by intent category from the doctor's KB.
-   Carries heavier weight than patient context — doctor expertise wins over
-   historical data. See category-to-intent mapping in Section 4.2.
-5. **Patient context** — injected from DB at call time. Patient records,
-   case history, similar symptom cases by keyword match.
-6. **User** — the actual message from the doctor or patient.
-
-### Layer usage by intent
-
-Not every LLM call uses all 6 layers:
-
-```
-Intent             | System | Common | Intent | Dr Knowledge                 | Patient Ctx | User
--------------------|--------|--------|--------|------------------------------|-------------|-----
-routing            |   ✓    |        |   ✓    | 自定义                        |             |  ✓
-interview          |   ✓    |   ✓    |   ✓    | 问诊指导 + 危险信号 + 自定义    |      ✓      |  ✓
-review/diagnosis   |   ✓    |   ✓    |   ✓    | 诊断规则+危险信号+治疗+自定义   |      ✓      |  ✓
-query summary      |   ✓    |        |   ✓    | 自定义                        |      ✓      |  ✓
-create task        |   ✓    |        |   ✓    | 自定义                        |             |  ✓
+**Message assembly:**
+```python
+messages = [
+    {"role": "system", "content": base + common + intent},
+    *conversation_history,
+    {"role": "user", "content": "<doctor_knowledge>...</> <patient_context>...</> <doctor_request>...</>"},
+]
 ```
 
-**Key design decisions:**
-- `routing` is lightweight — no knowledge or context, just intent classification.
-- `interview` includes doctor knowledge (问诊指导 + 危险信号) so the LLM asks
-  the right questions based on the doctor's expertise and red flag rules.
-- `review/diagnosis` gets the heaviest context — all relevant knowledge
-  categories plus patient history.
-- `query summary` and `create task` are thin — just intent prompt + data.
+**File layout:**
+```
+prompts/
+  system/base.md              ← Layer 1: identity, safety, precedence
+  common/neurology.md         ← Layer 2: specialty knowledge
+  intent/routing.md           ← Layer 3: routing rules + 9 examples
+  intent/interview.md         ← Layer 3: doctor interview + 4 examples
+  intent/patient-interview.md ← Layer 3: patient pre-consultation + 3 examples
+  intent/diagnosis.md         ← Layer 3: differential diagnosis + 2 examples
+  intent/structuring.md       ← Layer 3: text → SOAP + 3 examples
+  intent/query.md             ← Layer 3: query summary rules
+  intent/create-task.md       ← Layer 3: task creation rules
+  intent/general.md           ← Layer 3: fallback/chitchat
+```
+
+**Config:** `agent/prompt_config.py` defines `INTENT_LAYERS` — a dict mapping
+each `IntentType` to a `LayerConfig` (which layers to include, which KB
+categories to load). An assert at import time ensures every IntentType has
+a config entry — adding a new intent without a LayerConfig crashes at startup.
+
+**Structured output:** All LLM calls that return structured data use
+`instructor` (JSON mode) + Pydantic response models via `agent/llm.py:structured_call()`.
+Instructor handles schema enforcement, validation, and retries. Prompts do
+NOT contain JSON format specifications — Pydantic models are the single
+source of truth for output structure.
+
+### Layer usage by intent (from `prompt_config.py`)
+
+```
+Intent             | System | Common | Intent           | Dr Knowledge                  | Patient Ctx
+-------------------|--------|--------|------------------|-------------------------------|------------
+routing            |   ✓    |        | routing          | custom                        |
+create_record      |   ✓    |   ✓    | interview        | interview_guide+red_flag+custom|      ✓
+query_record       |   ✓    |        | query            | custom                        |      ✓
+query_task         |   ✓    |        | query            | custom                        |
+create_task        |   ✓    |        | create-task      | custom                        |
+query_patient      |   ✓    |        | query            | custom                        |      ✓
+general            |   ✓    |        | general          | custom                        |
+patient_interview  |   ✓    |   ✓    | patient-interview| interview_guide+red_flag+custom|      ✓
+review/diagnosis   |   ✓    |   ✓    | diagnosis        | diagnosis_rule+red_flag+treatment+custom| ✓
+```
 
 ---
 
@@ -692,9 +706,12 @@ create task        |   ✓    |        |   ✓    | 自定义                   
 
 ### 7.1 Framework Decision
 
-No framework. Raw `AsyncOpenAI` + Pydantic structured output. The existing
-`infra/llm/client.py` (client pooling, retry, fallback, provider routing)
-stays and serves as the LLM call layer. LangChain is removed entirely.
+- **Instructor** (`instructor` package) for structured LLM output via Pydantic
+  models. Uses `instructor.Mode.JSON` for Groq/Qwen3 compatibility.
+- **Raw `AsyncOpenAI`** for free-text LLM calls (compose/summary).
+- **No LangChain** — removed entirely (kept `langchain-huggingface` for embeddings).
+- Shared LLM helper: `agent/llm.py` with `structured_call()` and `llm_call()`.
+- 6-layer prompt composer: `agent/prompt_composer.py` + `agent/prompt_config.py`.
 
 ### 7.2 Files to Delete
 
@@ -813,14 +830,62 @@ Delivered:
 - LangChain packages removed from requirements.txt (kept langchain-huggingface)
 - Auto-followup task creation removed (replaced by diagnosis LLM output)
 
-#### Remaining (deferred)
+#### Phase 4: Instructor + Structured Output — COMPLETE (2026-03-23)
 
-- Delete old DB model files for killed tables (models exist but tables
-  won't be created for new installs — low risk)
-- Update `ARCHITECTURE.md` to reflect Plan-and-Act
-- Fix `tests/core/test_p3_d2_parity_e2e.py` (references old TaskType.follow_up)
-- Remove old columns from doctors/patients tables (wechat_user_id, etc.
-  still on doctors; access_code still on patients — parallel with new tables)
+Delivered:
+- `instructor` package for Pydantic-based structured LLM output
+- `instructor.Mode.JSON` for Groq/Qwen3 compatibility (tool-calling unsupported)
+- Response models: `RoutingResult`, `InterviewLLMResponse`, `DiagnosisLLMResponse`,
+  `StructuringLLMResponse`
+- `agent/llm.py:structured_call()` — shared helper with tracing + logging
+- All interview, diagnosis, structuring LLM calls migrated
+
+#### Phase 5: 6-Layer Prompt Composer — COMPLETE (2026-03-23)
+
+Delivered:
+- `agent/prompt_config.py` — `LayerConfig` dataclass + `INTENT_LAYERS` matrix
+  with import-time assert for completeness
+- `agent/prompt_composer.py` — `compose_messages()` with XML tags
+  (`<doctor_knowledge>`, `<patient_context>`, `<doctor_request>`)
+- Prompt files restructured: `system/base.md`, `common/neurology.md`,
+  `intent/*.md` (11 intent fragments)
+- All handlers wired to composer: router, query_record, query_task,
+  interview (doctor + patient), diagnosis
+- Dead code removed: `_build_system_prompt()`, `_get_prompt()`, skill loader
+
+#### Phase 6: Frontend + Interview Confirm — COMPLETE (2026-03-23)
+
+Delivered:
+- `handle_turn` returns `HandlerResult` (reply + data) instead of string
+- Chat endpoint passes `view_payload` with `session_id` to frontend
+- Frontend detects `session_id` → navigates to interview UI
+- Interview UI loads existing session via `GET /session/{id}` (conversation history)
+- Interview confirm saves SOAP fields directly to `medical_records`
+  (no structuring LLM, no pending_records)
+- Tasks page: graceful handling of deleted review-queue endpoint
+
+#### Phase 7: Prompt Rewrite — COMPLETE (2026-03-23)
+
+Delivered:
+- Doctor-interview: 4 few-shot examples (multi-field extraction + SOAP checklist)
+- Diagnosis: full case example (differentials + workup + treatment)
+- Routing: output format section removed (instructor handles schema)
+- Dead code: `_build_system_prompt`, `_get_prompt`, `get_diagnosis_skill` removed
+- Prompt inventory updated (`tmp-prompt-inventory.md`)
+
+#### Deferred (previously planned, now DONE)
+
+- ~~Delete old DB model files for killed tables~~ — DONE (Phase 3)
+- ~~Update ARCHITECTURE.md~~ — DONE (Phase 3)
+- ~~Fix old tests referencing TaskType.follow_up~~ — DONE (Phase 3)
+- ~~Remove old columns from doctors/patients~~ — DONE (Phase 3)
+
+#### Remaining (low priority)
+
+- Vision-import: migrate to `structured_call` (uses manual JSON parse)
+- Old root prompt files: kept for admin UI backward compatibility
+- Triage inline prompts: 3 prompts in `triage.py` not yet migrated
+- Upload matcher: inline prompt not yet migrated
 
 ---
 

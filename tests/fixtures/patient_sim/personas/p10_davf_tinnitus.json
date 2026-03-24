@@ -1,0 +1,101 @@
+{
+  "id": "P10",
+  "name": "何静",
+  "gender": "女",
+  "age": 48,
+  "year_of_birth": 1978,
+  "phone": "13800000010",
+  "condition": "搏动性耳鸣待查（疑似硬脑膜动静脉瘘）",
+  "background": "8个月来右耳有与心跳一致的嗡嗡声，耳鼻喉科排除常见耳部问题后转诊。近期 CTA/MRV 提示右侧横窦区疑似硬脑膜动静脉瘘。她容易把耳鸣、睡眠和焦虑混在一起说，需要医生把部位、节律和影像结果拉清楚。",
+  "medications": [
+    {
+      "name": "氨氯地平",
+      "dose": "5mg",
+      "frequency": "每日一次",
+      "duration": "4年"
+    },
+    {
+      "name": "倍他司汀",
+      "dose": "12mg",
+      "frequency": "每日三次",
+      "duration": "1个月"
+    }
+  ],
+  "surgical_history": "无",
+  "comorbidities": ["高血压"],
+  "style": "messy",
+  "personality": "会先反复抱怨“耳朵里咚咚响，晚上更烦”，容易夹带睡眠和情绪抱怨。只有被追问时，才会明确是右侧、和心跳同步、活动后更明显，以及做过哪些检查。",
+  "allowed_facts": [
+    {
+      "category": "chief_complaint",
+      "fact": "右耳里面老是跟着心跳咚咚响，已经8个月了",
+      "volunteer": true
+    },
+    {
+      "category": "present_illness",
+      "fact": "声音主要在右侧，夜深安静时更明显，活动后也会更明显",
+      "volunteer": true
+    },
+    {
+      "category": "present_illness",
+      "fact": "不是普通持续嗡鸣，更像一下一下跟脉搏同步",
+      "volunteer": false
+    },
+    {
+      "category": "present_illness",
+      "fact": "无明显听力下降，无旋转性眩晕，无面瘫，无肢体无力",
+      "volunteer": false
+    },
+    {
+      "category": "present_illness",
+      "fact": "耳鼻喉科检查没发现中耳炎或鼓膜问题",
+      "volunteer": false
+    },
+    {
+      "category": "present_illness",
+      "fact": "上周 CTA/MRV 提示右侧横窦区疑似硬脑膜动静脉瘘，建议进一步做 DSA",
+      "volunteer": true
+    },
+    {
+      "category": "past_history",
+      "fact": "高血压4年，服氨氯地平，血压约130到140/80到85mmHg",
+      "volunteer": false
+    },
+    {
+      "category": "past_history",
+      "fact": "无颅脑手术史，无头部外伤史",
+      "volunteer": false
+    },
+    {
+      "category": "allergy_history",
+      "fact": "做增强 CT 后曾全身发痒并起皮疹，但没有憋气",
+      "volunteer": false
+    },
+    {
+      "category": "family_history",
+      "fact": "父亲有高血压，家族中无脑血管畸形病史",
+      "volunteer": false
+    },
+    {
+      "category": "personal_history",
+      "fact": "不吸烟，偶尔喝红酒，最近睡眠差",
+      "volunteer": false
+    },
+    {
+      "category": "marital_reproductive",
+      "fact": "已婚，育有1子",
+      "volunteer": false
+    }
+  ],
+  "expected_extracted": {
+    "chief_complaint": ["右侧搏动性耳鸣", "8个月"],
+    "present_illness": ["与心跳同步", "右侧横窦区", "CTA/MRV", "硬脑膜动静脉瘘"],
+    "past_history": ["高血压4年", "氨氯地平"],
+    "allergy_history": ["增强 CT 后皮疹"]
+  },
+  "checklist": {
+    "must_ask": ["心跳同步", "右侧", "CTA/MRV", "皮疹"],
+    "should_ask": ["听力下降", "眩晕", "高血压", "睡眠"],
+    "min_coverage": 0.6
+  }
+}

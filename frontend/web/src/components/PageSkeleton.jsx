@@ -70,8 +70,8 @@ export default function PageSkeleton({ title, headerRight, listPane, detailPane,
         {listPane}
       </Box>
       <DragHandle onDrag={handleDrag} />
-      <Box sx={{ flex: 1, overflow: "hidden", display: "flex", justifyContent: "center" }}>
-        <Box sx={{ width: "100%", maxWidth: 960, height: "100%", overflow: "hidden" }}>
+      <Box sx={{ flex: 1, overflow: "hidden", display: "flex" }}>
+        <Box sx={{ width: "100%", height: "100%", overflow: "hidden" }}>
           {detailPane || (
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
               <Typography color="text.disabled">请选择一项查看详情</Typography>

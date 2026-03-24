@@ -17,14 +17,14 @@
 ## Quick Start
 
 ```bash
-# Run all 7 personas, Groq as patient LLM, no quality scoring
+# Run all 10 personas, Groq as patient LLM, no quality scoring
 PYTHONPATH=src python scripts/run_patient_sim.py --patients all --patient-llm groq --no-quality-score
 ```
 
 Output:
 ```
 Patient LLM: groq | Server: http://127.0.0.1:8001
-Personas: ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7']
+Personas: ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P9', 'P10']
 DB: /path/to/data/patients.db
 
 Running P1 王明... PASS (7 turns)
@@ -32,8 +32,8 @@ Running P2 李秀兰... PASS (8 turns)
 ...
 
 ==================================================
-Results: 5/7 passed
-Report:  reports/patient_sim/sim-2026-03-20T210000.md
+Results: 7/10 passed
+Report:  reports/patient_sim/sim-2026-03-20T210000.html
 JSON:    reports/patient_sim/sim-2026-03-20T210000.json
 ```
 
@@ -42,7 +42,7 @@ JSON:    reports/patient_sim/sim-2026-03-20T210000.json
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--patients` | `all` | Comma-separated persona IDs (`P1,P4,P7`) or `all` |
-| `--patient-llm` | `deepseek` | LLM provider for patient simulation: `deepseek`, `groq`, `claude` |
+| `--patient-llm` | `groq` | LLM provider for patient simulation: `deepseek`, `groq`, `claude` |
 | `--server` | `http://127.0.0.1:8001` | Server URL |
 | `--no-quality-score` | off | Skip Tier 3 LLM quality scoring (faster) |
 
@@ -73,6 +73,9 @@ PYTHONPATH=src python scripts/run_patient_sim.py --patients all --patient-llm gr
 | P5 | 陈大海，男，60岁 | 脑出血恢复期6个月 | Messy — minimal |
 | P6 | 刘芳，女，55岁 | 慢性头痛待查 | Messy — vague |
 | P7 | 王淑芬，女，68岁 | 动脉瘤弹簧圈术后，双抗 | Cooperative |
+| P8 | 周国强，男，62岁 | Pipeline 术后双抗漏服 | Guarded — adherence risk |
+| P9 | 孙丽，女，59岁 | 反复单眼发黑 / 颈动脉狭窄 | Cooperative — symptom specificity |
+| P10 | 何静，女，48岁 | 搏动性耳鸣 / 疑似硬脑膜动静脉瘘 | Messy — atypical vascular symptom |
 
 Persona files: `tests/fixtures/patient_sim/personas/*.json`
 

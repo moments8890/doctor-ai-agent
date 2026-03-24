@@ -22,7 +22,6 @@ from sqlalchemy import select
 from db.engine import AsyncSessionLocal
 from db.models.records import MedicalRecordDB
 from domain.knowledge.doctor_knowledge import load_knowledge_context_for_prompt
-from domain.knowledge.skill_loader import get_diagnosis_skill
 from infra.llm.client import _PROVIDERS
 from infra.observability.observability import trace_block
 from utils.log import log
@@ -139,17 +138,12 @@ def _resolve_provider(provider_name: str) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 async def _structured_call_for_diagnosis(
-    system_prompt: str,
-    user_content: str,
+    messages: List[Dict[str, str]],
     env_var: str = "DIAGNOSIS_LLM",
 ) -> DiagnosisLLMResponse:
     """Call the LLM via shared structured_call helper."""
     from agent.llm import structured_call
 
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_content},
-    ]
     return await structured_call(
         response_model=DiagnosisLLMResponse,
         messages=messages,
@@ -163,8 +157,7 @@ async def _structured_call_for_diagnosis(
 async def _try_cloud_fallback(
     original_err: Exception,
     provider_name: str,
-    system_prompt: str,
-    user_content: str,
+    composed_messages: List[Dict[str, str]],
 ) -> DiagnosisLLMResponse:
     """Attempt cloud fallback when primary (usually ollama) fails entirely."""
     _cloud_fallback = (
@@ -186,7 +179,7 @@ async def _try_cloud_fallback(
         try:
             return await asyncio.wait_for(
                 _structured_call_for_diagnosis(
-                    system_prompt, user_content,
+                    composed_messages,
                     env_var="_DIAGNOSIS_CLOUD_FALLBACK",
                 ),
                 timeout=_cloud_timeout,
@@ -263,31 +256,6 @@ def _format_structured_fields(structured: Dict[str, str]) -> str:
         if value:
             lines.append(f"{label}: {value}")
     return "\n".join(lines) if lines else "(无结构化字段)"
-
-
-def _build_system_prompt(
-    skill_content: Optional[str],
-    cases_text: str,
-    knowledge_text: str,
-) -> str:
-    """Assemble the system prompt from base prompt + skill + cases + knowledge."""
-    from utils.prompt_loader import get_prompt_sync
-
-    # Load the base diagnosis prompt (JSON schema + rules)
-    base_prompt = get_prompt_sync("diagnosis")
-    parts = [base_prompt] if base_prompt else ["你是一位神经外科AI诊断助手。"]
-
-    # Append specialty-specific skill (must-not-miss patterns, etc.)
-    if skill_content and skill_content.strip():
-        parts.append(skill_content.strip())
-
-    if cases_text:
-        parts.append(cases_text)
-
-    if knowledge_text:
-        parts.append(knowledge_text)
-
-    return "\n\n".join(parts)
 
 
 def _build_user_message(structured: Dict[str, str]) -> str:
@@ -474,12 +442,7 @@ async def run_diagnosis(
         matched_cases: List[Dict[str, Any]] = []
 
         # ------------------------------------------------------------------
-        # Step 3: Load diagnosis skill
-        # ------------------------------------------------------------------
-        skill_content = get_diagnosis_skill("neurology")
-
-        # ------------------------------------------------------------------
-        # Step 4: Load doctor knowledge (non-blocking — empty on failure)
+        # Step 3: Load doctor knowledge (non-blocking — empty on failure)
         # ------------------------------------------------------------------
         knowledge_text = ""
         try:
@@ -490,11 +453,28 @@ async def run_diagnosis(
             log(f"{_tag} knowledge load failed (non-fatal): {exc}", level="warning")
 
         # ------------------------------------------------------------------
-        # Step 5: Build prompt
+        # Step 5: Build prompt via 6-layer composer
         # ------------------------------------------------------------------
+        from agent.prompt_composer import compose_for_review
+
         cases_text = _format_matched_cases(matched_cases)
-        system_prompt = _build_system_prompt(skill_content, cases_text, knowledge_text)
+        # Combine cases + knowledge into the appropriate layers
+        doctor_kb = knowledge_text or ""
+        patient_ctx_parts = []
+        if cases_text:
+            patient_ctx_parts.append(cases_text)
+        patient_ctx = "\n\n".join(patient_ctx_parts)
+
         user_message = _build_user_message(structured)
+
+        composed = compose_for_review(
+            doctor_id=doctor_id,
+            doctor_knowledge=doctor_kb,
+            patient_context=patient_ctx,
+            doctor_message=user_message,
+        )
+        # Extract system_prompt for logging (first message)
+        system_prompt = composed[0]["content"] if composed else ""
 
         log(f"{_tag} user_message_preview: {user_message[:120]}")
         _log_llm_io("input",
@@ -517,12 +497,12 @@ async def run_diagnosis(
 
         try:
             llm_result = await _structured_call_for_diagnosis(
-                system_prompt, user_message, env_var="DIAGNOSIS_LLM",
+                composed, env_var="DIAGNOSIS_LLM",
             )
         except Exception as primary_err:
             try:
                 llm_result = await _try_cloud_fallback(
-                    primary_err, provider_name, system_prompt, user_message,
+                    primary_err, provider_name, composed,
                 )
             except Exception as exc:
                 log(f"{_tag} LLM call failed: {exc}", level="error")
@@ -547,10 +527,48 @@ async def run_diagnosis(
             return {"error": "Invalid LLM response: no valid differentials", "status": "failed"}
 
         # ------------------------------------------------------------------
-        # Step 8: Return result (no DB persistence — DiagnosisResult table removed)
-        # TODO: persist diagnosis results to MedicalRecordDB.ai_diagnosis column
+        # Step 8: Persist diagnosis to medical_records.ai_diagnosis
         # ------------------------------------------------------------------
         red_flags = result.get("red_flags", [])
+
+        try:
+            async with AsyncSessionLocal() as db:
+                rec = (await db.execute(
+                    select(MedicalRecordDB).where(MedicalRecordDB.id == record_id).limit(1)
+                )).scalar_one_or_none()
+                if rec:
+                    rec.ai_diagnosis = json.dumps(result, ensure_ascii=False)
+                    await db.commit()
+                    log(f"{_tag} diagnosis persisted to record {record_id}")
+        except Exception as persist_err:
+            log(f"{_tag} diagnosis persist failed (non-fatal): {persist_err}", level="warning")
+
+        # ------------------------------------------------------------------
+        # Step 9: Auto-create tasks from diagnosis treatment items
+        # ------------------------------------------------------------------
+        if record_id and llm_result and llm_result.treatment:
+            try:
+                from db.crud.tasks import create_task as db_create_task
+
+                async with AsyncSessionLocal() as db:
+                    # Get patient_id from the record
+                    rec = (await db.execute(
+                        select(MedicalRecordDB).where(MedicalRecordDB.id == record_id).limit(1)
+                    )).scalar_one_or_none()
+                    _patient_id = rec.patient_id if rec else None
+
+                    for t in llm_result.treatment[:5]:
+                        if t.intervention in ("手术", "转诊"):
+                            await db_create_task(
+                                db, doctor_id=doctor_id, task_type="general",
+                                title=f"{t.intervention}：{t.description[:50]}",
+                                content=t.description,
+                                patient_id=_patient_id,
+                                record_id=record_id,
+                            )
+                    log(f"{_tag} auto-created tasks from diagnosis treatment")
+            except Exception as task_err:
+                log(f"{_tag} auto-task creation failed (non-fatal): {task_err}", level="warning")
 
         return {
             "differentials":   result["differentials"],

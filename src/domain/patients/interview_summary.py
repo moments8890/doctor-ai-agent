@@ -85,8 +85,9 @@ async def confirm_interview(
     patient_name: str,
     collected: Dict[str, str],
 ) -> Dict[str, int]:
-    """Finalize interview: save record + create review queue entry. Returns {record_id, review_id}."""
+    """Finalize interview: save record + create review task. Returns {record_id, review_id}."""
     from db.crud.records import save_record
+    from db.crud.tasks import create_task
     from db.engine import AsyncSessionLocal
 
     record = build_medical_record(collected)
@@ -98,7 +99,18 @@ async def confirm_interview(
             commit=True,
         )
 
-    log(f"[interview] confirmed session={session_id} record={db_record.id}")
+        # Create review task for the doctor
+        task = await create_task(
+            db, doctor_id,
+            task_type="review",
+            title=f"审阅患者【{patient_name}】预问诊记录",
+            content=f"患者已完成预问诊，请审阅病历记录。",
+            patient_id=patient_id,
+            record_id=db_record.id,
+        )
+        await db.commit()
+
+    log(f"[interview] confirmed session={session_id} record={db_record.id} task={task.id}")
 
     # Notify doctor (best-effort, don't block on failure)
     try:
@@ -110,4 +122,4 @@ async def confirm_interview(
     except Exception as e:
         log(f"[interview] doctor notification failed: {e}", level="warning")
 
-    return {"record_id": db_record.id}
+    return {"record_id": db_record.id, "review_id": task.id}

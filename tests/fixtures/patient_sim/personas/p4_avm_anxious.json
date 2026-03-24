@@ -1,0 +1,100 @@
+{
+  "id": "P4",
+  "name": "赵小红",
+  "gender": "女",
+  "age": 45,
+  "year_of_birth": 1981,
+  "phone": "13800000004",
+  "condition": "脑血管畸形(AVM)，慢性管理",
+  "background": "3年前因癫痫发作行头颅MRI发现右颞叶动静脉畸形(AVM)，约2cm，Spetzler-Martin II级。此后一直在随访观察，服用左乙拉西坦预防癫痫。长期有慢性头痛，焦虑明显，经常担心AVM破裂。无其他慢性疾病。无药物过敏。无脑血管疾病家族史。不吸烟不饮酒。已婚育1女。",
+  "medications": [
+    {
+      "name": "左乙拉西坦",
+      "dose": "500mg",
+      "frequency": "每日两次",
+      "duration": "3年"
+    }
+  ],
+  "surgical_history": "无",
+  "comorbidities": [],
+  "style": "messy",
+  "personality": "焦虑型患者，叙述混乱，经常将躯体不适与情绪混在一起描述。会夸大症状，反复追问AVM是否会破裂、是否需要手术。回答问题时容易跑题到自己的担忧上。需要医生耐心引导才能获取有效信息。",
+  "allowed_facts": [
+    {
+      "category": "chief_complaint",
+      "fact": "脑血管畸形复诊，近期头痛加重、焦虑",
+      "volunteer": true
+    },
+    {
+      "category": "present_illness",
+      "fact": "3年前癫痫发作发现右颞叶AVM，约2cm",
+      "volunteer": true
+    },
+    {
+      "category": "present_illness",
+      "fact": "服用左乙拉西坦后未再发癫痫",
+      "volunteer": false
+    },
+    {
+      "category": "present_illness",
+      "fact": "慢性头痛3年，近1个月觉得加重，为两侧太阳穴胀痛",
+      "volunteer": true
+    },
+    {
+      "category": "present_illness",
+      "fact": "头痛发作时伴紧张焦虑，有时觉得心慌、手抖，但无恶心呕吐，无视物模糊",
+      "volunteer": true
+    },
+    {
+      "category": "present_illness",
+      "fact": "睡眠差，入睡困难，经常担心AVM会突然破裂",
+      "volunteer": true
+    },
+    {
+      "category": "present_illness",
+      "fact": "上次MRI复查（6个月前）显示AVM大小无明显变化",
+      "volunteer": false
+    },
+    {
+      "category": "past_history",
+      "fact": "3年前一次全身强直阵挛性癫痫发作，之后确诊AVM",
+      "volunteer": false
+    },
+    {
+      "category": "past_history",
+      "fact": "无高血压、糖尿病、心脏病等慢性疾病",
+      "volunteer": false
+    },
+    {
+      "category": "allergy_history",
+      "fact": "无药物过敏，无食物过敏",
+      "volunteer": false
+    },
+    {
+      "category": "family_history",
+      "fact": "父母健在，无脑血管疾病家族史",
+      "volunteer": false
+    },
+    {
+      "category": "personal_history",
+      "fact": "不吸烟不饮酒，职业为小学教师，工作压力较大",
+      "volunteer": false
+    },
+    {
+      "category": "marital_reproductive",
+      "fact": "已婚，育有1女（12岁）",
+      "volunteer": false
+    }
+  ],
+  "expected_extracted": {
+    "chief_complaint": ["AVM复诊", "头痛加重"],
+    "present_illness": ["右颞叶AVM", "2cm", "头痛", "焦虑", "癫痫控制"],
+    "past_history": ["癫痫", "左乙拉西坦"],
+    "family_history": ["无脑血管疾病家族史"]
+  },
+  "checklist": {
+    "must_ask": ["头痛性质变化", "癫痫控制情况", "当前用药", "最近影像复查"],
+    "should_ask": ["睡眠及情绪状态", "过敏史", "家族史"],
+    "min_coverage": 0.6
+  }
+}

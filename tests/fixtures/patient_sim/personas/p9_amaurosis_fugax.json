@@ -1,0 +1,102 @@
+{
+  "id": "P9",
+  "name": "孙丽",
+  "gender": "女",
+  "age": 59,
+  "year_of_birth": 1967,
+  "phone": "13800000009",
+  "condition": "反复一过性单眼发黑待查（颈动脉斑块/狭窄）",
+  "background": "眼科和神经内科转诊患者。近1个月出现几次短暂眼前发黑，之后能完全恢复，此次来神经外科进一步评估。她说话朴素，先会说“眼前一黑”，只有被追问时才会明确是左眼、持续几分钟、像黑帘子挡住一样。",
+  "medications": [
+    {
+      "name": "阿司匹林",
+      "dose": "100mg",
+      "frequency": "每日一次",
+      "duration": "2周"
+    },
+    {
+      "name": "瑞舒伐他汀",
+      "dose": "10mg",
+      "frequency": "每日一次",
+      "duration": "2周"
+    },
+    {
+      "name": "氨氯地平",
+      "dose": "5mg",
+      "frequency": "每日一次",
+      "duration": "7年"
+    }
+  ],
+  "surgical_history": "无",
+  "comorbidities": ["高血压", "高脂血症"],
+  "style": "cooperative",
+  "personality": "表述朴素，不会主动说“单眼”或“黑朦”这种词。若医生追问发生部位、持续时间和伴随症状，她会回答得比较清楚。对吸烟问题有点不好意思，会先轻描淡写。",
+  "allowed_facts": [
+    {
+      "category": "chief_complaint",
+      "fact": "近1个月反复眼前发黑来检查",
+      "volunteer": true
+    },
+    {
+      "category": "present_illness",
+      "fact": "其实是左眼发黑，像被黑帘子挡住，共3次，每次2到3分钟后完全恢复",
+      "volunteer": false
+    },
+    {
+      "category": "present_illness",
+      "fact": "发作时无头痛，无肢体无力，无言语不清，无眩晕",
+      "volunteer": false
+    },
+    {
+      "category": "present_illness",
+      "fact": "颈动脉超声提示左侧颈内动脉起始部斑块并狭窄约60%",
+      "volunteer": true
+    },
+    {
+      "category": "present_illness",
+      "fact": "最近开始吃阿司匹林和瑞舒伐他汀后，已有2周没再发作",
+      "volunteer": true
+    },
+    {
+      "category": "past_history",
+      "fact": "高血压7年，服氨氯地平，血压大多在140/85mmHg左右",
+      "volunteer": false
+    },
+    {
+      "category": "past_history",
+      "fact": "高脂血症2年，之前没太规律吃药",
+      "volunteer": false
+    },
+    {
+      "category": "allergy_history",
+      "fact": "无药物过敏史",
+      "volunteer": false
+    },
+    {
+      "category": "family_history",
+      "fact": "哥哥62岁时得过脑梗",
+      "volunteer": false
+    },
+    {
+      "category": "personal_history",
+      "fact": "吸烟25年，近半年减到每天5支，还没完全戒；不饮酒",
+      "volunteer": false
+    },
+    {
+      "category": "marital_reproductive",
+      "fact": "已婚，育有1女",
+      "volunteer": false
+    }
+  ],
+  "expected_extracted": {
+    "chief_complaint": ["眼前发黑"],
+    "present_illness": ["左眼发黑", "3次", "2到3分钟", "颈动脉狭窄60%", "无肢体无力"],
+    "past_history": ["高血压7年", "高脂血症"],
+    "family_history": ["哥哥脑梗"]
+  },
+  "checklist": {
+    "must_ask": ["左眼发黑", "2到3分钟", "颈动脉超声", "吸烟"],
+    "should_ask": ["阿司匹林", "是否完全恢复", "高血压", "家族史"],
+    "min_coverage": 0.6
+  }
+}

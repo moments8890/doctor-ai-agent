@@ -216,6 +216,33 @@ def render_knowledge_context(query: str, items: Sequence[DoctorKnowledgeItem]) -
     return "【医生知识库（仅作背景约束）】\n" + "\n".join(lines)
 
 
+async def load_knowledge_by_categories(
+    doctor_id: str,
+    categories: List[str],
+    query: str = "",
+) -> str:
+    """Load knowledge items filtered by category for the 6-layer prompt composer.
+
+    Used by handlers to inject Layer 4 (doctor knowledge) into prompts.
+    Categories come from LayerConfig.knowledge_categories.
+    """
+    from db.engine import AsyncSessionLocal
+
+    if not categories or not doctor_id:
+        return ""
+
+    limits = knowledge_limits()
+    async with AsyncSessionLocal() as session:
+        items = await list_doctor_knowledge_items(
+            session, doctor_id,
+            limit=limits["candidate_limit"],
+            categories=[c.value if hasattr(c, "value") else c for c in categories],
+        )
+    if not items:
+        return ""
+    return render_knowledge_context(query=query, items=items)
+
+
 async def load_knowledge_context_for_prompt(session, doctor_id: str, query: str) -> str:
     """Load knowledge items (cached by doctor_id) and render per-query.
 

@@ -88,11 +88,16 @@ async def list_doctor_knowledge_items(
     session: AsyncSession,
     doctor_id: str,
     limit: int = 30,
+    categories: Optional[List[str]] = None,
 ) -> List[DoctorKnowledgeItem]:
     stmt = (
         select(DoctorKnowledgeItem)
         .where(DoctorKnowledgeItem.doctor_id == doctor_id)
-        .order_by(DoctorKnowledgeItem.updated_at.desc(), DoctorKnowledgeItem.id.desc())
+    )
+    if categories:
+        stmt = stmt.where(DoctorKnowledgeItem.category.in_(categories))
+    stmt = (
+        stmt.order_by(DoctorKnowledgeItem.updated_at.desc(), DoctorKnowledgeItem.id.desc())
         .limit(max(1, int(limit)))
     )
     rows = (await session.execute(stmt)).scalars().all()

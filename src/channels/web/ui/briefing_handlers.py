@@ -68,9 +68,10 @@ async def get_briefing(
             overdue_days = (today_start - task.due_at).days
             context_parts = [f"\u900e\u671f{overdue_days}\u5929"] if overdue_days > 0 else ["\u900e\u671f"]
             context_parts.append("\u5efa\u8bae\u5c3d\u5feb\u5904\u7406")
+            display_name = patient_name or "\u672a\u77e5\u60a3\u8005"
             cards.append({
                 "type": "urgent",
-                "title": f"{patient_name or '\u672a\u77e5\u60a3\u8005'} {task.title}",
+                "title": f"{display_name} {task.title}",
                 "context": " \u00b7 ".join(context_parts),
                 "task_id": task.id,
                 "patient_id": task.patient_id,

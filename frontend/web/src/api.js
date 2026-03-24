@@ -11,7 +11,10 @@ async function readError(response) {
   if (!text) return `HTTP ${response.status}`;
   try {
     const json = JSON.parse(text);
-    return json.detail || json.message || text;
+    const detail = typeof json.detail === "string" ? json.detail
+      : Array.isArray(json.detail) ? json.detail.map((d) => d.msg || JSON.stringify(d)).join("; ")
+      : json.detail ? JSON.stringify(json.detail) : null;
+    return detail || (typeof json.message === "string" ? json.message : null) || text;
   } catch {
     return text;
   }
@@ -643,20 +646,6 @@ export async function getTaskRecord(recordId, doctorId) {
   return request(`/api/tasks/record/${recordId}?${qs.toString()}`);
 }
 
-export async function getPendingRecord(doctorId) {
-  const qs = new URLSearchParams({ doctor_id: doctorId });
-  return request(`/api/manage/pending-record?${qs.toString()}`);
-}
-
-export async function confirmPendingRecord(doctorId) {
-  const qs = new URLSearchParams({ doctor_id: doctorId });
-  return request(`/api/manage/pending-record/confirm?${qs.toString()}`, { method: "POST" });
-}
-
-export async function abandonPendingRecord(doctorId) {
-  const qs = new URLSearchParams({ doctor_id: doctorId });
-  return request(`/api/manage/pending-record/abandon?${qs.toString()}`, { method: "POST" });
-}
 
 export async function confirmPendingRecordById(pendingId) {
   return request(`/api/records/pending/${encodeURIComponent(pendingId)}/confirm`, { method: "POST" });
