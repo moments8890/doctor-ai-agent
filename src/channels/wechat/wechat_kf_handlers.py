@@ -64,13 +64,7 @@ async def _kf_enqueue_intent(text: str, user_id: str, open_kfid: str) -> None:
     if await _is_registered_doctor(user_id):
         import uuid as _uuid
         msg_id = _uuid.uuid4().hex
-        try:
-            async with AsyncSessionLocal() as _db:
-                from db.crud import create_pending_message as _create_pm
-                await _create_pm(_db, msg_id, user_id, text)
-        except Exception as _e:
-            log(f"[KF] pending_message persist FAILED (non-fatal): {_e}")
-            msg_id = ""
+        # PendingMessage table removed — enqueue directly.
         safe_create_task(_handle_intent_bg(text, user_id, open_kfid=open_kfid, msg_id=msg_id))
     else:
         safe_create_task(_handle_patient_bg(text, user_id, open_kfid=open_kfid))

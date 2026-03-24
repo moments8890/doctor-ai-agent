@@ -1,5 +1,5 @@
 """
-患者创建、查询、删除及标签管理的数据库操作。
+患者创建、查询、删除的数据库操作。
 """
 
 from __future__ import annotations
@@ -11,14 +11,12 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from db.models import (
     Patient,
-    PatientLabel,
     MedicalRecordDB,
     DoctorTask,
-    PendingRecord,
 )
 from db.repositories import PatientRepository
-from utils.hashing import generate_access_code, hash_access_code
-from utils.errors import InvalidMedicalRecordError, LabelNotFoundError, PatientNotFoundError
+from utils.hashing import generate_access_code, hash_access_code  # noqa: F401 — re-exported for callers
+from utils.errors import InvalidMedicalRecordError, PatientNotFoundError
 from db.crud._common import _trace_block
 from db.crud.doctor import _ensure_doctor_exists
 from utils.log import log, safe_create_task
@@ -89,10 +87,19 @@ async def set_patient_access_code(
         raise PatientNotFoundError(
             context={"doctor_id": doctor_id, "patient_id": str(patient_id)}
         )
+    from db.models.patient_auth import PatientAuth
     plaintext_code = generate_access_code()
-    patient.access_code = hash_access_code(plaintext_code)
-    # Bump version to invalidate any outstanding portal JWTs.
-    patient.access_code_version = getattr(patient, "access_code_version", 0) + 1
+    hashed_code = hash_access_code(plaintext_code)
+    auth_row = (
+        await session.execute(
+            select(PatientAuth).where(PatientAuth.patient_id == patient.id).limit(1)
+        )
+    ).scalar_one_or_none()
+    if auth_row is None:
+        session.add(PatientAuth(patient_id=patient.id, access_code=hashed_code, access_code_version=1))
+    else:
+        auth_row.access_code = hashed_code
+        auth_row.access_code_version = (auth_row.access_code_version or 0) + 1
     await session.commit()
     log(f"[set_patient_access_code] new access code set for patient id={patient_id} doctor={doctor_id}")
     return plaintext_code
@@ -125,16 +132,12 @@ async def delete_patient_for_doctor(
 ) -> Optional[Patient]:
     patient_result = await session.execute(
         select(Patient)
-        .options(selectinload(Patient.labels))
         .where(Patient.id == patient_id, Patient.doctor_id == doctor_id)
         .limit(1)
     )
     patient = patient_result.scalar_one_or_none()
     if patient is None:
         return None
-
-    patient.labels.clear()
-    await session.flush()
 
     # manual cascade for SQLite compatibility — DB-level cascade handles MySQL/Postgres
     await session.execute(
@@ -147,12 +150,6 @@ async def delete_patient_for_doctor(
         delete(DoctorTask).where(
             DoctorTask.doctor_id == doctor_id,
             DoctorTask.patient_id == patient_id,
-        )
-    )
-    await session.execute(
-        delete(PendingRecord).where(
-            PendingRecord.doctor_id == doctor_id,
-            PendingRecord.patient_id == patient_id,
         )
     )
     await session.delete(patient)
@@ -168,157 +165,6 @@ async def get_all_patients(
     with _trace_block("db", "crud.get_all_patients", {"doctor_id": doctor_id}):
         repo = PatientRepository(session)
         return await repo.list_for_doctor(doctor_id, limit=limit)
-
-
-async def create_label(
-    session: AsyncSession,
-    doctor_id: str,
-    name: str,
-    color: Optional[str] = None,
-) -> PatientLabel:
-    doctor_id = await _ensure_doctor_exists(session, doctor_id)
-    label = PatientLabel(doctor_id=doctor_id, name=name, color=color)
-    session.add(label)
-    await session.commit()
-    safe_create_task(_audit(doctor_id, "WRITE", resource_type="patient_label", resource_id=str(label.id)))
-    return label
-
-
-async def get_labels_for_doctor(
-    session: AsyncSession,
-    doctor_id: str,
-) -> List[PatientLabel]:
-    result = await session.execute(
-        select(PatientLabel)
-        .where(PatientLabel.doctor_id == doctor_id)
-        .order_by(PatientLabel.created_at)
-        .limit(500)
-    )
-    return list(result.scalars().all())
-
-
-async def update_label(
-    session: AsyncSession,
-    label_id: int,
-    doctor_id: str,
-    *,
-    name: Optional[str] = None,
-    color: Optional[str] = None,
-) -> Optional[PatientLabel]:
-    result = await session.execute(
-        select(PatientLabel).where(
-            PatientLabel.id == label_id,
-            PatientLabel.doctor_id == doctor_id,
-        )
-    )
-    label = result.scalar_one_or_none()
-    if label is None:
-        return None
-    if name is not None:
-        label.name = name
-    if color is not None:
-        label.color = color
-    await session.commit()
-    safe_create_task(_audit(doctor_id, "WRITE", resource_type="patient_label", resource_id=str(label_id)))
-    return label
-
-
-async def delete_label(
-    session: AsyncSession,
-    label_id: int,
-    doctor_id: str,
-) -> bool:
-    result = await session.execute(
-        select(PatientLabel)
-        .options(selectinload(PatientLabel.patients))
-        .where(
-            PatientLabel.id == label_id,
-            PatientLabel.doctor_id == doctor_id,
-        )
-    )
-    label = result.scalar_one_or_none()
-    if label is None:
-        return False
-    # Clear via ORM — updates in-memory Patient.labels back-populates and
-    # removes patient_label_assignments rows without needing raw SQL.
-    label.patients.clear()
-    await session.flush()
-    await session.delete(label)
-    await session.commit()
-    safe_create_task(_audit(doctor_id, "DELETE", resource_type="patient_label", resource_id=str(label_id)))
-    return True
-
-
-async def assign_label(
-    session: AsyncSession,
-    patient_id: int,
-    label_id: int,
-    doctor_id: str,
-) -> None:
-    patient_result = await session.execute(
-        select(Patient)
-        .options(selectinload(Patient.labels))
-        .where(Patient.id == patient_id, Patient.doctor_id == doctor_id)
-    )
-    patient = patient_result.scalar_one_or_none()
-    if patient is None:
-        raise PatientNotFoundError(
-            context={"doctor_id": doctor_id, "patient_id": str(patient_id)}
-        )
-
-    label_result = await session.execute(
-        select(PatientLabel).where(
-            PatientLabel.id == label_id,
-            PatientLabel.doctor_id == doctor_id,
-        )
-    )
-    label = label_result.scalar_one_or_none()
-    if label is None:
-        raise LabelNotFoundError(
-            context={"doctor_id": doctor_id, "label_id": str(label_id)}
-        )
-
-    if label not in patient.labels:
-        patient.labels.append(label)
-        await session.commit()
-        safe_create_task(_audit(doctor_id, "WRITE", resource_type="patient_label", resource_id=f"{patient_id}:{label_id}"))
-
-
-async def remove_label(
-    session: AsyncSession,
-    patient_id: int,
-    label_id: int,
-    doctor_id: str,
-) -> None:
-    patient_result = await session.execute(
-        select(Patient)
-        .options(selectinload(Patient.labels))
-        .where(Patient.id == patient_id, Patient.doctor_id == doctor_id)
-    )
-    patient = patient_result.scalar_one_or_none()
-    if patient is None:
-        raise PatientNotFoundError(
-            context={"doctor_id": doctor_id, "patient_id": str(patient_id)}
-        )
-    patient.labels = [lbl for lbl in patient.labels if lbl.id != label_id]
-    await session.commit()
-    safe_create_task(_audit(doctor_id, "DELETE", resource_type="patient_label", resource_id=f"{patient_id}:{label_id}"))
-
-
-async def get_patient_labels(
-    session: AsyncSession,
-    patient_id: int,
-    doctor_id: str,
-) -> List[PatientLabel]:
-    patient_result = await session.execute(
-        select(Patient)
-        .options(selectinload(Patient.labels))
-        .where(Patient.id == patient_id, Patient.doctor_id == doctor_id)
-    )
-    patient = patient_result.scalar_one_or_none()
-    if patient is None:
-        return []
-    return list(patient.labels)
 
 
 async def search_patients_nl(
@@ -371,7 +217,7 @@ async def search_patients_nl(
         rec_q = rec_q.distinct()
         q = q.where(Patient.id.in_(rec_q))
 
-    q = q.options(selectinload(Patient.labels)).order_by(Patient.created_at.desc()).limit(limit)
+    q = q.order_by(Patient.created_at.desc()).limit(limit)
     result = await session.execute(q)
     return list(result.scalars().all())
 

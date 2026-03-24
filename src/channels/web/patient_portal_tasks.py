@@ -9,7 +9,6 @@ Provides:
 """
 from __future__ import annotations
 
-import json
 import logging
 from datetime import datetime
 from typing import Any, Dict, Optional
@@ -21,9 +20,7 @@ from sqlalchemy import select
 from channels.web.patient_portal_auth import _authenticate_patient
 from db.engine import AsyncSessionLocal
 from db.models import MedicalRecordDB
-from db.models.diagnosis_result import DiagnosisResult
 from db.models.tasks import DoctorTask
-from domain.patient_lifecycle.treatment_plan import derive_treatment_plan
 from domain.tasks.notifications import send_doctor_notification
 from infra.observability.audit import audit
 from utils.log import safe_create_task
@@ -250,18 +247,9 @@ async def get_patient_record_detail(
         if record is None:
             raise HTTPException(status_code=404, detail="Record not found")
 
-        # Check diagnosis status for this record
-        diag = (await db.execute(
-            select(DiagnosisResult)
-            .where(DiagnosisResult.record_id == record_id)
-        )).scalar_one_or_none()
-
-        diagnosis_status: Optional[str] = diag.status if diag else None
-
-        # Derive treatment plan if a confirmed diagnosis exists
+        # DiagnosisResult table removed — diagnosis data now lives in MedicalRecordDB columns
+        diagnosis_status: Optional[str] = None
         treatment_plan: Optional[Dict[str, Any]] = None
-        if diagnosis_status == "confirmed":
-            treatment_plan = await derive_treatment_plan(patient.id, db)
 
     safe_create_task(audit(
         "patient", "READ",
@@ -271,7 +259,7 @@ async def get_patient_record_detail(
         id=record.id,
         record_type=record.record_type,
         content=record.content,
-        structured=json.loads(record.structured) if record.structured else None,
+        structured=record.soap_dict() if record.has_soap_data() else None,
         needs_review=record.needs_review,
         created_at=record.created_at,
         diagnosis_status=diagnosis_status,

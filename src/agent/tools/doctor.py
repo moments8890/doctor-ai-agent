@@ -1,4 +1,4 @@
-"""Doctor-role tools for the LangChain ReAct agent."""
+"""Doctor-role business logic — called by Plan-and-Act handlers."""
 from __future__ import annotations
 
 import json
@@ -6,67 +6,9 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from langchain_core.tools import tool
-from pydantic import BaseModel, Field
-
 from agent.identity import get_current_identity
 from agent.tools.resolve import resolve
 from agent.tools.truncate import truncate_result
-
-
-# ── Tool input schemas ─────────────────────────────────────────────
-# Pydantic models with Field descriptions produce clear JSON schemas
-# that LLMs (especially DeepSeek) need to avoid inventing extra params.
-
-
-class QueryRecordsInput(BaseModel):
-    patient_name: Optional[str] = Field(None, description="患者姓名。留空则查询最近的病历。")
-    limit: int = Field(5, description="返回记录数上限，默认5条。")
-
-
-class ListTasksInput(BaseModel):
-    status: Optional[str] = Field(None, description="按状态筛选：pending（待处理）或 completed（已完成）。留空返回全部。")
-
-
-class CreateRecordInput(BaseModel):
-    patient_name: str = Field(description="患者全名，如'张三'。")
-    gender: Optional[str] = Field(None, description="性别：男 或 女。")
-    age: Optional[int] = Field(None, description="年龄（整数）。")
-    clinical_text: Optional[str] = Field(None, description="临床信息摘要（主诉、症状、检查、用药等）。可留空，系统会自动从对话中提取。")
-
-
-class UpdateRecordInput(BaseModel):
-    instruction: str = Field(description="修改指示，如'血压改为130/85'、'补充用药阿司匹林100mg'。")
-    patient_name: Optional[str] = Field(None, description="患者姓名。留空则修改最近操作的患者病历。")
-
-
-class CreateTaskInput(BaseModel):
-    patient_name: str = Field(description="患者全名。")
-    title: str = Field(description="任务标题，如'复查血常规'、'随访电话'。")
-    task_type: str = Field("general", description="任务类型：general（常规）、followup（随访）、appointment（预约）。")
-    content: Optional[str] = Field(None, description="任务详情备注。")
-    scheduled_for: Optional[str] = Field(None, description="计划执行时间，ISO-8601格式，如'2026-04-01T09:00:00'。")
-    remind_at: Optional[str] = Field(None, description="提醒时间，ISO-8601格式。")
-
-
-class ExportPdfInput(BaseModel):
-    patient_name: str = Field(description="患者全名。")
-
-
-class SearchKnowledgeInput(BaseModel):
-    query: str = Field(description="搜索关键词，如'高血压用药指南'、'糖尿病饮食建议'。")
-
-
-class SearchPatientsInput(BaseModel):
-    query: str = Field(description="自然语言搜索条件，如'60岁以上的女性患者'、'姓张的患者'。")
-
-
-class GetPatientTimelineInput(BaseModel):
-    patient_name: str = Field(description="患者全名。")
-
-
-class CompleteTaskInput(BaseModel):
-    task_id: int = Field(description="任务ID（数字）。")
 
 
 # ── Serialization helpers ────────────────────────────────────────────
@@ -105,8 +47,7 @@ def _serialize_task(t: Any) -> Dict[str, Any]:
         "content": getattr(t, "content", None),
         "status": getattr(t, "status", None),
         "patient_id": getattr(t, "patient_id", None),
-        "scheduled_for": t.scheduled_for.isoformat() if getattr(t, "scheduled_for", None) else None,
-        "remind_at": t.remind_at.isoformat() if getattr(t, "remind_at", None) else None,
+        "due_at": t.due_at.isoformat() if getattr(t, "due_at", None) else None,
     }
 
 
@@ -163,30 +104,13 @@ async def _create_pending_record(
     gender: Optional[str] = None, age: Optional[int] = None,
     clinical_text: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Structure clinical text and save as pending draft.
+    """Structure clinical text and save directly to medical_records.
 
-    Uses clinical_text if provided (e.g. DeepSeek passes it directly).
-    Falls back to scanning conversation history for the patient name.
+    PendingRecord table removed — saves immediately instead of creating a draft.
     """
     from domain.records.structuring import structure_medical_record
-    from db.crud.pending import create_pending_record
+    from db.crud.records import save_record
     from db.engine import AsyncSessionLocal
-
-    # Prefer LLM-provided clinical_text; fall back to history scan.
-    if not clinical_text or not clinical_text.strip():
-        from agent import session as _session_mod
-        history = _session_mod.get_agent_history(doctor_id)
-
-        relevant_messages: List[str] = []
-        collecting = False
-        for msg in history:
-            content = getattr(msg, "content", "") or ""
-            if patient_name in content:
-                collecting = True
-            if collecting and content.strip():
-                relevant_messages.append(content)
-
-        clinical_text = "\n".join(relevant_messages)
 
     if not clinical_text or not clinical_text.strip():
         return {"status": "error", "message": "没有找到临床信息，请先提供患者症状"}
@@ -196,22 +120,12 @@ async def _create_pending_record(
     except Exception as e:
         return {"status": "error", "message": f"病历结构化失败：{e}"}
 
-    draft_json = medical_record.model_dump_json()
-    record_id = str(uuid.uuid4())
-
     async with AsyncSessionLocal() as session:
-        await create_pending_record(
-            session,
-            record_id=record_id,
-            doctor_id=doctor_id,
-            draft_json=draft_json,
-            patient_id=patient_id,
-            patient_name=patient_name,
-        )
+        db_record = await save_record(session, doctor_id, medical_record, patient_id)
         return {
-            "status": "pending_confirmation",
+            "status": "saved",
             "preview": medical_record.content,
-            "pending_id": record_id,
+            "record_id": db_record.id,
         }
 
 
@@ -219,10 +133,9 @@ async def _update_pending_record(
     doctor_id: str, patient_id: int, patient_name: str,
     instruction: str,
 ) -> Dict[str, Any]:
-    """Apply update instruction to latest record, save as pending."""
+    """Apply update instruction to latest record, save directly."""
     from domain.records.structuring import structure_medical_record
-    from db.crud.records import get_records_for_patient
-    from db.crud.pending import create_pending_record
+    from db.crud.records import get_records_for_patient, save_record
     from db.engine import AsyncSessionLocal
 
     async with AsyncSessionLocal() as session:
@@ -237,22 +150,12 @@ async def _update_pending_record(
     except Exception as e:
         return {"status": "error", "message": f"病历结构化失败：{e}"}
 
-    draft_json = medical_record.model_dump_json()
-    record_id = str(uuid.uuid4())
-
     async with AsyncSessionLocal() as session:
-        await create_pending_record(
-            session,
-            record_id=record_id,
-            doctor_id=doctor_id,
-            draft_json=draft_json,
-            patient_id=patient_id,
-            patient_name=patient_name,
-        )
+        db_record = await save_record(session, doctor_id, medical_record, patient_id)
         return {
-            "status": "pending_confirmation",
+            "status": "saved",
             "preview": medical_record.content,
-            "pending_id": record_id,
+            "record_id": db_record.id,
         }
 
 
@@ -261,20 +164,15 @@ async def _commit_task(
     title: str,
     task_type: str = "general",
     content: Optional[str] = None,
-    scheduled_for: Optional[str] = None,
-    remind_at: Optional[str] = None,
+    due_at: Optional[str] = None,
 ) -> Dict[str, Any]:
     from db.crud.tasks import create_task as db_create_task
     from db.engine import AsyncSessionLocal
 
     try:
-        sched = datetime.fromisoformat(scheduled_for) if scheduled_for else None
+        due = datetime.fromisoformat(due_at) if due_at else None
     except ValueError:
-        return {"status": "error", "message": f"日期格式无效：{scheduled_for}"}
-    try:
-        remind = datetime.fromisoformat(remind_at) if remind_at else None
-    except ValueError:
-        return {"status": "error", "message": f"提醒时间格式无效：{remind_at}"}
+        return {"status": "error", "message": f"日期格式无效：{due_at}"}
 
     async with AsyncSessionLocal() as session:
         task = await db_create_task(
@@ -284,16 +182,14 @@ async def _commit_task(
             title=title,
             content=content,
             patient_id=patient_id,
-            scheduled_for=sched,
-            remind_at=remind,
+            due_at=due,
         )
         return {"status": "ok", "task_id": task.id, "title": title}
 
 
-# ── Read tools ───────────────────────────────────────────────────────
+# ── Read functions ───────────────────────────────────────────────────
 
 
-@tool(args_schema=QueryRecordsInput)
 async def query_records(
     patient_name: Optional[str] = None,
     limit: int = 5,
@@ -307,7 +203,6 @@ async def query_records(
     return truncate_result({"status": "ok", "data": records})
 
 
-@tool
 async def list_patients() -> Dict[str, Any]:
     """列出当前医生的全部患者。返回姓名、性别、出生年份等基本信息。无需参数。"""
     doctor_id = get_current_identity()
@@ -315,7 +210,6 @@ async def list_patients() -> Dict[str, Any]:
     return truncate_result({"status": "ok", "data": patients})
 
 
-@tool(args_schema=ListTasksInput)
 async def list_tasks(status: Optional[str] = None) -> Dict[str, Any]:
     """查询当前医生的任务列表。返回任务标题、状态、患者、计划时间等。"""
     doctor_id = get_current_identity()
@@ -323,10 +217,9 @@ async def list_tasks(status: Optional[str] = None) -> Dict[str, Any]:
     return truncate_result({"status": "ok", "data": tasks})
 
 
-# ── Write tools ──────────────────────────────────────────────────────
+# ── Write functions ──────────────────────────────────────────────────
 
 
-@tool(args_schema=CreateRecordInput)
 async def create_record(
     patient_name: str,
     gender: Optional[str] = None,
@@ -347,7 +240,6 @@ async def create_record(
     return truncate_result(result)
 
 
-@tool(args_schema=UpdateRecordInput)
 async def update_record(
     instruction: str,
     patient_name: Optional[str] = None,
@@ -365,14 +257,12 @@ async def update_record(
     return truncate_result(result)
 
 
-@tool(args_schema=CreateTaskInput)
 async def create_task(
     patient_name: str,
     title: str,
     task_type: str = "general",
     content: Optional[str] = None,
-    scheduled_for: Optional[str] = None,
-    remind_at: Optional[str] = None,
+    due_at: Optional[str] = None,
 ) -> Dict[str, Any]:
     """为患者创建任务或预约。立即生效，无需确认。"""
     doctor_id = get_current_identity()
@@ -382,14 +272,13 @@ async def create_task(
     return await _commit_task(
         resolved["doctor_id"], resolved["patient_id"],
         title=title, task_type=task_type, content=content,
-        scheduled_for=scheduled_for, remind_at=remind_at,
+        due_at=due_at,
     )
 
 
-# ── Export tools ──────────────────────────────────────────────────────
+# ── Export functions ──────────────────────────────────────────────────
 
 
-@tool(args_schema=ExportPdfInput)
 async def export_pdf(
     patient_name: str,
 ) -> Dict[str, Any]:
@@ -423,10 +312,9 @@ async def export_pdf(
         return {"status": "error", "message": f"PDF导出失败：{e}"}
 
 
-# ── Knowledge tools ──────────────────────────────────────────────────
+# ── Knowledge functions ──────────────────────────────────────────────
 
 
-@tool(args_schema=SearchKnowledgeInput)
 async def search_knowledge(
     query: str,
 ) -> Dict[str, Any]:
@@ -445,10 +333,9 @@ async def search_knowledge(
         return {"status": "error", "message": f"知识库检索失败：{e}"}
 
 
-# ── Patient search tools ─────────────────────────────────────────────
+# ── Patient search functions ─────────────────────────────────────────
 
 
-@tool(args_schema=SearchPatientsInput)
 async def search_patients(
     query: str,
 ) -> Dict[str, Any]:
@@ -487,10 +374,9 @@ async def search_patients(
         return {"status": "error", "message": f"患者搜索失败：{e}"}
 
 
-# ── Patient timeline tool ────────────────────────────────────────────
+# ── Patient timeline function ────────────────────────────────────────
 
 
-@tool(args_schema=GetPatientTimelineInput)
 async def get_patient_timeline(
     patient_name: str,
 ) -> Dict[str, Any]:
@@ -515,10 +401,9 @@ async def get_patient_timeline(
         return {"status": "error", "message": f"时间线获取失败：{e}"}
 
 
-# ── Task management tools ────────────────────────────────────────────
+# ── Task management functions ────────────────────────────────────────
 
 
-@tool(args_schema=CompleteTaskInput)
 async def complete_task(
     task_id: int,
 ) -> Dict[str, Any]:
@@ -535,14 +420,5 @@ async def complete_task(
         return {"status": "error", "message": f"更新任务失败：{e}"}
 
 
-# ── All doctor tools ────────────────────────────────────────────────
-
-# Core tools only — keeps token count low for free-tier LLM providers.
-# Extended tools (export_pdf, search_knowledge, search_patients,
-# get_patient_timeline, complete_task) are defined above but excluded
-# from the default set to avoid rate limits. Add them back when using
-# paid providers or higher rate limits.
-DOCTOR_TOOLS = [
-    query_records, list_patients, list_tasks,
-    update_record, create_task,
-]
+# ── Plain async functions — called directly by Plan-and-Act handlers ──
+# (Previously a LangChain tool list; routing LLM now handles param extraction.)

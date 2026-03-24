@@ -1,17 +1,10 @@
-"""Patient-role tools for the LangChain ReAct agent."""
+"""Patient-role business logic — called by Plan-and-Act handlers."""
 from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-from langchain_core.tools import tool
-from pydantic import BaseModel, Field
-
 from agent.identity import get_current_identity
 from db.models.interview_session import InterviewStatus
-
-
-class AdvanceInterviewInput(BaseModel):
-    answer: str = Field(description="患者本轮回答的原文，如'我头疼三天了'、'左边太阳穴'。")
 
 
 async def _get_patient(patient_id: int) -> Optional[Any]:
@@ -35,7 +28,6 @@ async def _get_or_create_session(patient_id: int, doctor_id: str) -> Any:
     return session
 
 
-@tool(args_schema=AdvanceInterviewInput)
 async def advance_interview(answer: str) -> Dict[str, Any]:
     """推进预问诊流程。将患者回答传入，系统提取临床信息并返回下一个问题。
     当患者提供症状、病史、用药等临床信息时调用。闲聊或与问诊无关的消息不要调用。"""
@@ -61,7 +53,6 @@ async def advance_interview(answer: str) -> Dict[str, Any]:
     }
 
 
-@tool
 async def confirm_interview() -> Dict[str, Any]:
     """确认预问诊结果并提交给医生。仅在患者明确表示"没问题"、"确认"后调用。无需参数。"""
     from domain.patients.interview_session import get_active_session
@@ -87,4 +78,5 @@ async def confirm_interview() -> Dict[str, Any]:
     }
 
 
-PATIENT_TOOLS = [advance_interview, confirm_interview]
+# ── Plain async functions — called directly by Plan-and-Act handlers ──
+# (Previously a LangChain tool list; routing LLM now handles param extraction.)

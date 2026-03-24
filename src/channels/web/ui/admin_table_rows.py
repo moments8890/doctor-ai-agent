@@ -19,15 +19,7 @@ from db.models import (
     DoctorTask,
     InterviewSessionDB,
     MedicalRecordDB,
-    MedicalRecordExport,
-    MedicalRecordVersion,
     Patient,
-    PatientLabel,
-    PendingMessage,
-    PendingRecord,
-    SystemPrompt,
-    SystemPromptVersion,
-    patient_label_assignments,
 )
 from infra.observability.audit import audit
 from channels.web.ui._utils import (
@@ -40,7 +32,6 @@ from channels.web.ui._utils import (
 
 _SENSITIVE_TABLES = {
     "chat_archive", "medical_records",
-    "pending_records", "pending_messages",
 }
 
 
@@ -57,7 +48,6 @@ async def _rows_doctors(db, doctor_id: Optional[str], limit: int, offset: int) -
     return [
         {"doctor_id": d.doctor_id, "name": d.name,
          "department": d.department or "",
-         "accepting_patients": bool(d.accepting_patients) if d.accepting_patients is not None else False,
          "created_at": _fmt_ts(d.created_at), "updated_at": _fmt_ts(d.updated_at)}
         for d in (await db.execute(stmt)).scalars().all()
     ]
@@ -79,7 +69,6 @@ async def _rows_patients(
         {"id": p.id, "doctor_id": p.doctor_id, "name": p.name,
          "gender": p.gender, "year_of_birth": p.year_of_birth,
          "phone": p.phone or "",
-         "primary_category": p.primary_category or "",
          "created_at": _fmt_ts(p.created_at)}
         for p in (await db.execute(stmt)).scalars().all()
     ]
@@ -107,7 +96,7 @@ async def _rows_medical_records(
          "patient_name": pname, "record_type": r.record_type or "visit",
          "content": r.content, "tags": _parse_tags(r.tags),
          "needs_review": bool(r.needs_review) if r.needs_review is not None else False,
-         "has_structured": bool(r.structured),
+         "has_structured": r.has_soap_data(),
          "created_at": _fmt_ts(r.created_at)}
         for r, pname in (await db.execute(stmt)).all()
     ]
@@ -136,128 +125,6 @@ async def _rows_doctor_tasks(
          "status": t.status, "due_at": _fmt_ts(t.due_at), "record_id": t.record_id,
          "updated_at": _fmt_ts(t.updated_at), "created_at": _fmt_ts(t.created_at)}
         for t, pname in (await db.execute(stmt)).all()
-    ]
-
-
-async def _rows_patient_labels(
-    db, doctor_id: Optional[str], dt_from, dt_to_exclusive, limit: int, offset: int,
-) -> list:
-    stmt = select(PatientLabel).order_by(PatientLabel.created_at.desc()).limit(limit).offset(offset)
-    stmt = _apply_created_at_filters(stmt, PatientLabel, dt_from, dt_to_exclusive)
-    if doctor_id:
-        stmt = stmt.where(PatientLabel.doctor_id == doctor_id)
-    else:
-        stmt = apply_exclude_test_doctors(stmt, PatientLabel.doctor_id)
-    return [
-        {"id": lbl.id, "doctor_id": lbl.doctor_id, "name": lbl.name,
-         "color": lbl.color, "created_at": _fmt_ts(lbl.created_at)}
-        for lbl in (await db.execute(stmt)).scalars().all()
-    ]
-
-
-async def _rows_label_assignments(
-    db, doctor_id: Optional[str], needle: Optional[str], limit: int, offset: int,
-) -> list:
-    stmt = (
-        select(
-            patient_label_assignments.c.patient_id,
-            patient_label_assignments.c.label_id,
-            Patient.name.label("patient_name"),
-            PatientLabel.name.label("label_name"),
-            PatientLabel.doctor_id.label("doctor_id"),
-        )
-        .select_from(patient_label_assignments)
-        .join(Patient, patient_label_assignments.c.patient_id == Patient.id)
-        .join(PatientLabel, patient_label_assignments.c.label_id == PatientLabel.id)
-        .limit(limit).offset(offset)
-    )
-    if doctor_id:
-        stmt = stmt.where(PatientLabel.doctor_id == doctor_id)
-    else:
-        stmt = apply_exclude_test_doctors(stmt, PatientLabel.doctor_id)
-    if needle:
-        stmt = stmt.where(Patient.name.ilike(needle))
-    return [
-        {"patient_id": pid, "label_id": lid, "patient_name": pname,
-         "label_name": lname, "doctor_id": did}
-        for pid, lid, pname, lname, did in (await db.execute(stmt)).all()
-    ]
-
-
-async def _rows_system_prompts(db, limit: int, offset: int) -> list:
-    stmt = select(SystemPrompt).order_by(SystemPrompt.updated_at.desc()).limit(limit).offset(offset)
-    return [
-        {"key": p.key, "content": p.content, "updated_at": _fmt_ts(p.updated_at)}
-        for p in (await db.execute(stmt)).scalars().all()
-    ]
-
-
-
-
-async def _rows_record_versions(db, doctor_id: Optional[str], limit: int, offset: int) -> list:
-    stmt = select(MedicalRecordVersion).order_by(MedicalRecordVersion.changed_at.desc()).limit(limit).offset(offset)
-    if doctor_id:
-        stmt = stmt.where(MedicalRecordVersion.doctor_id == doctor_id)
-    else:
-        stmt = apply_exclude_test_doctors(stmt, MedicalRecordVersion.doctor_id)
-    return [
-        {
-            "id": v.id, "record_id": v.record_id, "doctor_id": v.doctor_id,
-            "old_content": v.old_content, "old_tags": _parse_tags(v.old_tags),
-            "old_record_type": v.old_record_type, "changed_at": _fmt_ts(v.changed_at),
-        }
-        for v in (await db.execute(stmt)).scalars().all()
-    ]
-
-
-async def _rows_record_exports(db, doctor_id: Optional[str], limit: int, offset: int) -> list:
-    stmt = select(MedicalRecordExport).order_by(MedicalRecordExport.exported_at.desc()).limit(limit).offset(offset)
-    if doctor_id:
-        stmt = stmt.where(MedicalRecordExport.doctor_id == doctor_id)
-    else:
-        stmt = apply_exclude_test_doctors(stmt, MedicalRecordExport.doctor_id)
-    return [
-        {
-            "id": e.id, "record_id": e.record_id, "doctor_id": e.doctor_id,
-            "export_format": e.export_format, "pdf_hash": e.pdf_hash,
-            "exported_at": _fmt_ts(e.exported_at),
-        }
-        for e in (await db.execute(stmt)).scalars().all()
-    ]
-
-
-async def _rows_pending_records(
-    db, doctor_id: Optional[str], needle: Optional[str], limit: int, offset: int,
-) -> list:
-    stmt = select(PendingRecord).order_by(PendingRecord.created_at.desc()).limit(limit).offset(offset)
-    if doctor_id:
-        stmt = stmt.where(PendingRecord.doctor_id == doctor_id)
-    else:
-        stmt = apply_exclude_test_doctors(stmt, PendingRecord.doctor_id)
-    if needle:
-        stmt = stmt.where(PendingRecord.patient_name.ilike(needle))
-    return [
-        {
-            "id": p.id, "doctor_id": p.doctor_id, "patient_id": p.patient_id,
-            "patient_name": p.patient_name, "status": p.status,
-            "draft_json": p.draft_json, "created_at": _fmt_ts(p.created_at),
-            "expires_at": _fmt_ts(p.expires_at),
-        }
-        for p in (await db.execute(stmt)).scalars().all()
-    ]
-
-
-async def _rows_pending_messages(db, doctor_id: Optional[str], limit: int, offset: int) -> list:
-    stmt = select(PendingMessage).order_by(PendingMessage.created_at.desc()).limit(limit).offset(offset)
-    if doctor_id:
-        stmt = stmt.where(PendingMessage.doctor_id == doctor_id)
-    else:
-        stmt = apply_exclude_test_doctors(stmt, PendingMessage.doctor_id)
-    return [
-        {"id": p.id, "doctor_id": p.doctor_id, "raw_content": p.raw_content,
-         "status": p.status, "attempt_count": p.attempt_count,
-         "created_at": _fmt_ts(p.created_at)}
-        for p in (await db.execute(stmt)).scalars().all()
     ]
 
 
@@ -290,18 +157,6 @@ async def _rows_knowledge_items(db, doctor_id: Optional[str], limit: int, offset
     ]
 
 
-async def _rows_prompt_versions(db, limit: int, offset: int) -> list:
-    stmt = select(SystemPromptVersion).order_by(SystemPromptVersion.changed_at.desc()).limit(limit).offset(offset)
-    return [
-        {
-            "id": v.id, "prompt_key": v.prompt_key, "changed_by": v.changed_by,
-            "changed_at": _fmt_ts(v.changed_at),
-            "content": (v.content[:200] + "…") if v.content and len(v.content) > 200 else v.content,
-        }
-        for v in (await db.execute(stmt)).scalars().all()
-    ]
-
-
 async def _rows_chat_archive(db, doctor_id: Optional[str], limit: int, offset: int) -> list:
     stmt = select(ChatArchive).order_by(ChatArchive.created_at.desc()).limit(limit).offset(offset)
     if doctor_id:
@@ -311,7 +166,7 @@ async def _rows_chat_archive(db, doctor_id: Optional[str], limit: int, offset: i
     return [
         {
             "id": a.id, "doctor_id": a.doctor_id, "role": a.role,
-            "content": (a.content[:200] + "…") if a.content and len(a.content) > 200 else a.content,
+            "content": (a.content[:200] + "\u2026") if a.content and len(a.content) > 200 else a.content,
             "intent_label": a.intent_label, "created_at": _fmt_ts(a.created_at),
         }
         for a in (await db.execute(stmt)).scalars().all()
@@ -348,26 +203,10 @@ async def _fetch_table_rows(
         return await _rows_medical_records(db, doctor_id, needle, dt_from, dt_to_exclusive, limit, offset)
     if table_key == "doctor_tasks":
         return await _rows_doctor_tasks(db, doctor_id, needle, dt_from, dt_to_exclusive, limit, offset)
-    if table_key == "patient_labels":
-        return await _rows_patient_labels(db, doctor_id, dt_from, dt_to_exclusive, limit, offset)
-    if table_key == "patient_label_assignments":
-        return await _rows_label_assignments(db, doctor_id, needle, limit, offset)
-    if table_key == "system_prompts":
-        return await _rows_system_prompts(db, limit, offset)
-    if table_key == "medical_record_versions":
-        return await _rows_record_versions(db, doctor_id, limit, offset)
-    if table_key == "medical_record_exports":
-        return await _rows_record_exports(db, doctor_id, limit, offset)
-    if table_key == "pending_records":
-        return await _rows_pending_records(db, doctor_id, needle, limit, offset)
-    if table_key == "pending_messages":
-        return await _rows_pending_messages(db, doctor_id, limit, offset)
     if table_key == "audit_log":
         return await _rows_audit_log(db, doctor_id, limit, offset)
     if table_key == "doctor_knowledge_items":
         return await _rows_knowledge_items(db, doctor_id, limit, offset)
-    if table_key == "system_prompt_versions":
-        return await _rows_prompt_versions(db, limit, offset)
     if table_key == "chat_archive":
         return await _rows_chat_archive(db, doctor_id, limit, offset)
     if table_key == "interview_sessions":

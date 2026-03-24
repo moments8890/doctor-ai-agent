@@ -3,8 +3,7 @@
 
 功能：
 1. extract_outpatient_fields(records, patient, doctor_id) → dict[str, str]
-   用 LLM 从病历记录中提取标准字段；
-   若医生上传了自定义模板，将模板内容作为附加上下文传入 LLM。
+   从存储的 SOAP 结构化数据中合并标准字段。
 
 2. generate_outpatient_report_pdf(fields, patient_name, patient_info, clinic_name, doctor_name) → bytes
    按表单样式渲染 PDF（标题行 + 患者信息行 + 各字段分节）。
@@ -16,15 +15,14 @@
 """
 from __future__ import annotations
 
-import json
-import os
 from typing import Any, Optional
 
-from openai import AsyncOpenAI
-
-from infra.llm.resilience import call_with_retry_and_fallback
 from domain.records.schema import OUTPATIENT_FIELD_META, FIELD_KEYS, OutpatientRecord, PatientInfo
 from utils.log import log
+
+
+class ExtractionError(RuntimeError):
+    """Raised when no SOAP data could be extracted from records."""
 
 # ---------------------------------------------------------------------------
 # Standard field definitions (imported from shared schema)
@@ -38,107 +36,8 @@ _HEADER_ONLY_FIELDS = {"department"}
 _FIELD_KEYS = FIELD_KEYS
 
 # ---------------------------------------------------------------------------
-# LLM client singleton (reuse connection pool across requests)
-# ---------------------------------------------------------------------------
-
-_CLIENT_CACHE: dict[str, AsyncOpenAI] = {}
-
-
-def _get_llm_client() -> tuple[AsyncOpenAI, str]:
-    """Return (client, model_name) using the shared _PROVIDERS registry."""
-    from infra.llm.client import _PROVIDERS
-
-    provider_name = os.environ.get("STRUCTURING_LLM", "ollama")
-    provider = _PROVIDERS.get(provider_name)
-    if provider is None:
-        provider_name = "ollama"
-        provider = _PROVIDERS["ollama"]
-
-    base_url = provider["base_url"]
-    api_key = os.environ.get(provider["api_key_env"], "nokeyneeded")
-    model = provider.get("model", "qwen3.5:9b")
-
-    # Bypass singleton in test env so mock patches work
-    if os.environ.get("PYTEST_CURRENT_TEST") or "pytest" in os.environ.get("_", ""):
-        return (
-            AsyncOpenAI(base_url=base_url, api_key=api_key, timeout=60, max_retries=0),
-            model,
-        )
-
-    cache_key = f"{base_url}:{model}"
-    if cache_key not in _CLIENT_CACHE:
-        _CLIENT_CACHE[cache_key] = AsyncOpenAI(
-            base_url=base_url, api_key=api_key, timeout=60, max_retries=0
-        )
-    return _CLIENT_CACHE[cache_key], model
-
-
-# ---------------------------------------------------------------------------
 # Field extraction
 # ---------------------------------------------------------------------------
-
-
-class ExtractionError(RuntimeError):
-    """Raised when LLM is unavailable and no fields could be extracted."""
-
-
-async def _build_extraction_prompt(
-    records: list,
-    doctor_id: Optional[str],
-    patient: Any = None,
-) -> str:
-    """拼装门诊病历字段提取 prompt（含结构化元数据和自定义模板）。"""
-    parts: list[str] = []
-    for rec in records:
-        lines: list[str] = []
-        content = (getattr(rec, "content", None) or "").strip()
-        tags = getattr(rec, "tags", None)
-        if tags:
-            if isinstance(tags, str):
-                try:
-                    tags = json.loads(tags)
-                except Exception:
-                    tags = []
-            if isinstance(tags, list) and tags:
-                lines.append(f"[标签: {', '.join(tags)}]")
-        if content:
-            lines.append(content)
-        if lines:
-            parts.append("\n".join(lines))
-    records_text = "\n---\n".join(parts) if parts else ""
-    # Wrap record content in delimiters to isolate from prompt instructions
-    if records_text:
-        records_text = f"<record_content>\n{records_text}\n</record_content>"
-
-    # Patient demographics hint
-    patient_hint = ""
-    if patient:
-        hint_parts: list[str] = []
-        name = getattr(patient, "name", None)
-        if name:
-            hint_parts.append(f"姓名: {name}")
-        gender = getattr(patient, "gender", None)
-        if gender:
-            hint_parts.append(f"性别: {gender}")
-        yob = getattr(patient, "year_of_birth", None)
-        if yob:
-            from datetime import date
-            age = date.today().year - int(yob)
-            hint_parts.append(f"年龄: {age}岁")
-        if hint_parts:
-            patient_hint = f"\n\n【患者信息】\n{', '.join(hint_parts)}"
-
-    from utils.prompt_loader import get_prompt
-    extract_prompt_template = await get_prompt("report-extract")
-    prompt = extract_prompt_template.format(records_text=records_text)
-
-    if patient_hint:
-        prompt += patient_hint
-
-    template_text = await _get_custom_template(doctor_id)
-    if template_text:
-        prompt += f"\n\n【自定义模板参考格式（仅作参考，字段定义以上文为准）】\n{template_text[:500]}"
-    return prompt
 
 
 def _merge_structured_fields(records: list) -> Optional[dict[str, str]]:
@@ -148,17 +47,9 @@ def _merge_structured_fields(records: list) -> Optional[dict[str, str]]:
 
     parsed: list[dict] = []
     for rec in records:
-        raw = getattr(rec, "structured", None)
-        if not raw:
+        if not rec.has_soap_data():
             return None  # at least one record has no structured data → fall back to LLM
-        if isinstance(raw, str):
-            try:
-                raw = json.loads(raw)
-            except (json.JSONDecodeError, TypeError):
-                return None
-        if not isinstance(raw, dict) or not raw:
-            return None
-        parsed.append(raw)
+        parsed.append(rec.soap_dict())
 
     # Start with empty fields, apply in chronological order (oldest first)
     result: dict[str, str] = {k: "" for k in _FIELD_KEYS}
@@ -187,45 +78,12 @@ async def extract_outpatient_fields(
     patient: Any = None,
     doctor_id: Optional[str] = None,
 ) -> dict[str, str]:
-    """提取门诊标准字段：优先使用已存储的 structured 数据，否则调用 LLM。"""
-    # Fast path: merge stored structured data if all records have it
+    """提取门诊标准字段：从已存储的 SOAP 结构化数据中合并。"""
     merged = _merge_structured_fields(records)
     if merged is not None:
         log(f"[outpatient-report] using stored structured data ({len(records)} records)")
         return merged
-
-    prompt = await _build_extraction_prompt(records, doctor_id, patient=patient)
-    client, model = _get_llm_client()
-    _provider = os.environ.get("STRUCTURING_LLM", "ollama")
-    _tag = f"[outpatient-report:{_provider}:{model}]"
-    fallback_model = os.environ.get("STRUCTURING_LLM_FALLBACK_MODEL", "")
-
-    async def _call(model_name: str):
-        return await client.chat.completions.create(
-            model=model_name,
-            messages=[{"role": "user", "content": prompt}],
-            response_format={"type": "json_object"},
-            temperature=0.1,
-            max_tokens=2000,
-        )
-
-    try:
-        log(f"{_tag} request: len={len(prompt)}")
-        resp = await call_with_retry_and_fallback(
-            _call,
-            primary_model=model,
-            fallback_model=fallback_model or None,
-            max_attempts=2,
-            op_name="outpatient_report.extract_fields",
-        )
-        raw = resp.choices[0].message.content or "{}"
-        log(f"{_tag} response: {raw[:200]}")
-        data = json.loads(raw)
-        result = {k: str(data.get(k, "") or "") for k in _FIELD_KEYS}
-        return result
-    except Exception as exc:
-        log(f"{_tag} extraction failed doctor={doctor_id}: {exc}")
-        raise ExtractionError(f"LLM field extraction failed: {exc}") from exc
+    raise ExtractionError("No SOAP data found in records")
 
 
 async def export_as_json(
@@ -247,20 +105,3 @@ async def export_as_json(
     return record.model_dump()
 
 
-async def _get_custom_template(doctor_id: Optional[str]) -> str:
-    """
-    Load custom template stored in system_prompts with key report.template.{doctor_id}.
-    Returns empty string if not found or on error.
-    """
-    if not doctor_id:
-        return ""
-    try:
-        from db.engine import AsyncSessionLocal
-        from db.crud import get_system_prompt
-        async with AsyncSessionLocal() as db:
-            row = await get_system_prompt(db, f"report.template.{doctor_id}")
-            if row and row.content:
-                return row.content
-    except Exception as exc:
-        log(f"[OutpatientReport] template load failed: {exc}")
-    return ""

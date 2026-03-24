@@ -107,9 +107,9 @@ async def list_doctors_for_registration():
     from sqlalchemy import select
 
     async with AsyncSessionLocal() as db:
+        # accepting_patients column removed — all doctors are considered accepting
         rows = (await db.execute(
             select(Doctor).where(
-                Doctor.accepting_patients == True,
                 ~Doctor.doctor_id.like("inttest_%"),
             )
         )).scalars().all()

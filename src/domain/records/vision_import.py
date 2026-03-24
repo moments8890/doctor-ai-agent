@@ -3,20 +3,16 @@
 
 Supports JPG, PNG, and PDF uploads. PDF pages are converted to images via
 pdftoppm, then all images are sent to the configured vision LLM in a single
-multi-image request. The LLM returns structured JSON matching the 14-field
-OutpatientRecord schema.
+multi-image request. The LLM returns a validated OutpatientRecord via
+structured_call.
 
-Provider selection reuses the same env vars as ``services.ai.vision``:
-    VISION_LLM          Provider: ollama | gemini | openai  (default: ollama)
-    OLLAMA_VISION_MODEL / OLLAMA_BASE_URL / OLLAMA_API_KEY
-    GEMINI_API_KEY / GEMINI_VISION_MODEL
-    OPENAI_API_KEY
+Provider selection uses the VISION_LLM env var (must point to a
+vision-capable model, e.g. gemini or a local ollama vision model).
 """
 
 from __future__ import annotations
 
 import base64
-import json
 import os
 from typing import Any, Dict, List, Optional
 
@@ -24,7 +20,6 @@ from domain.records.schema import (
     FIELD_KEYS,
     OUTPATIENT_FIELD_META,
     OutpatientRecord,
-    PatientInfo,
 )
 from utils.log import log
 
@@ -87,90 +82,28 @@ def _build_vision_messages(images: List[bytes], prompt_text: str) -> list:
 
 
 # ---------------------------------------------------------------------------
-# JSON response parsing
-# ---------------------------------------------------------------------------
-
-def _parse_json_response(text: str) -> dict:
-    """Parse JSON from LLM response, with bracket-matching fallback.
-
-    Raises ValueError with ``422:`` prefix if parsing fails.
-    """
-    text = text.strip()
-    # Strip markdown code fences if present
-    if text.startswith("```"):
-        lines = text.splitlines()
-        # Remove first and last fence lines
-        if lines and lines[0].startswith("```"):
-            lines = lines[1:]
-        if lines and lines[-1].strip() == "```":
-            lines = lines[:-1]
-        text = "\n".join(lines).strip()
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        pass
-    # Bracket-matching fallback
-    start = text.find("{")
-    end = text.rfind("}")
-    if start != -1 and end != -1 and end > start:
-        try:
-            return json.loads(text[start : end + 1])
-        except json.JSONDecodeError:
-            pass
-    raise ValueError("422:无法解析 Vision LLM 返回的 JSON")
-
-
-# ---------------------------------------------------------------------------
-# Vision LLM client (reuses vision.py provider config)
-# ---------------------------------------------------------------------------
-
-def _get_vision_client():
-    """Return ``(AsyncOpenAI_client, model_name)`` for the vision LLM.
-
-    Reuses the same provider-selection logic as ``services.ai.vision``.
-    """
-    from openai import AsyncOpenAI
-
-    provider_name = os.environ.get("VISION_LLM", "ollama")
-
-    # Reuse provider config from vision.py
-    from infra.llm.vision import _PROVIDERS
-
-    cfg = _PROVIDERS.get(provider_name, _PROVIDERS["ollama"])
-    model = cfg["model_default"]
-    if cfg["model_env"]:
-        model = os.environ.get(cfg["model_env"], model)
-    api_key = os.environ.get(cfg["api_key_env"], "nokeyneeded")
-    client_kwargs: Dict[str, Any] = {
-        "api_key": api_key,
-        "timeout": float(os.environ.get("VISION_LLM_TIMEOUT", "120")),
-        "max_retries": 0,
-    }
-    if cfg["base_url"]:
-        client_kwargs["base_url"] = cfg["base_url"]
-
-    is_test = os.environ.get("PYTEST_CURRENT_TEST") or "pytest" in os.environ.get("_", "")
-    client = AsyncOpenAI(**client_kwargs)
-    return client, model, provider_name
-
-
-# ---------------------------------------------------------------------------
 # Core extraction
 # ---------------------------------------------------------------------------
 
 async def extract_from_images(images: List[bytes]) -> OutpatientRecord:
-    """Send images to Vision LLM, return validated OutpatientRecord.
+    """Send images to Vision LLM via structured_call, return validated OutpatientRecord.
 
+    Uses VISION_LLM env var (must point to a vision-capable model).
     Raises ValueError (422 prefix) or propagates LLM errors.
     """
-    client, model, provider_name = _get_vision_client()
+    from agent.llm import structured_call
 
     # PHI egress gate: image bytes contain clinical data.
     from infra.llm.egress import is_local_provider, check_cloud_egress
+    from infra.llm.client import _get_providers
 
+    provider_name = os.environ.get("VISION_LLM", "groq")
     if not is_local_provider(provider_name):
         check_cloud_egress(provider_name, "vision_import")
 
+    providers = _get_providers()
+    provider = providers.get(provider_name, providers.get("groq", {}))
+    model = provider.get("model", "unknown")
     _tag = f"[vision-import:{provider_name}:{model}]"
     log(f"{_tag} request: images={len(images)}")
 
@@ -179,65 +112,14 @@ async def extract_from_images(images: List[bytes]) -> OutpatientRecord:
     prompt_text = await get_prompt("vision-import")
     messages = _build_vision_messages(images, prompt_text)
 
-    from infra.llm.resilience import call_with_retry_and_fallback
-
-    fallback_model: Optional[str] = None
-    if provider_name == "ollama":
-        fb = os.environ.get("OLLAMA_VISION_FALLBACK_MODEL", "")
-        if fb:
-            fallback_model = fb
-
-    async def _call(model_name: str):
-        kwargs: Dict[str, Any] = {
-            "model": model_name,
-            "messages": messages,
-            "temperature": 0.1,
-            "max_tokens": 3000,
-        }
-        # Try json_object response format; fall back if model doesn't support it.
-        try:
-            return await client.chat.completions.create(
-                **kwargs, response_format={"type": "json_object"}
-            )
-        except Exception:
-            return await client.chat.completions.create(**kwargs)
-
-    resp = await call_with_retry_and_fallback(
-        _call,
-        primary_model=model,
-        fallback_model=fallback_model,
-        max_attempts=2,
+    record = await structured_call(
+        response_model=OutpatientRecord,
+        messages=messages,  # type: ignore[arg-type]  # vision messages use list content
         op_name="vision_import.extract",
+        env_var="VISION_LLM",
+        temperature=0.1,
+        max_tokens=3000,
     )
-
-    raw = (resp.choices[0].message.content or "").strip()
-    log(f"{_tag} response: {raw[:200]}")
-    if not raw:
-        raise ValueError("422:Vision LLM 返回空内容")
-    data = _parse_json_response(raw)
-
-    # Build PatientInfo from extracted data
-    patient_data = data.pop("patient", {}) or {}
-    age_raw = patient_data.get("age")
-    age: Optional[int] = None
-    if age_raw is not None:
-        try:
-            age = int(age_raw)
-        except (ValueError, TypeError):
-            pass
-    patient_info = PatientInfo(
-        name=patient_data.get("name") or None,
-        gender=patient_data.get("gender") or None,
-        age=age,
-    )
-
-    # Build OutpatientRecord — only keep recognised field keys
-    fields: Dict[str, Optional[str]] = {}
-    for k in FIELD_KEYS:
-        v = data.get(k)
-        fields[k] = str(v) if v else None
-
-    record = OutpatientRecord(patient=patient_info, **fields)
 
     non_empty = sum(1 for k in FIELD_KEYS if getattr(record, k))
     log(f"[VisionImport] extraction ok non_empty={non_empty}/{len(FIELD_KEYS)}")

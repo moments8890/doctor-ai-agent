@@ -3,7 +3,7 @@ AI diagnosis pipeline — generates differential diagnoses, workup, and treatmen
 suggestions from a structured medical record.
 
 Shared by APScheduler (auto-run) and the diagnose() chat tool (on-demand).
-Follows the exact LLM call pattern used in domain.records.structuring.
+Uses structured_call (instructor) for reliable structured output from LLMs.
 """
 
 from __future__ import annotations
@@ -13,21 +13,17 @@ import json
 import os
 from typing import Any, Dict, List, Optional
 
-from openai import AsyncOpenAI
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 
-from db.crud.case_history import match_cases
-from db.crud.diagnosis import (
-    create_pending_diagnosis,
-    save_completed_diagnosis,
-    save_failed_diagnosis,
-)
+# TODO: case_history and diagnosis CRUD removed (killed tables).
+# Diagnosis pipeline now returns results without persisting to diagnosis_results.
+# Case matching is disabled until migrated to medical_records-based approach.
 from db.engine import AsyncSessionLocal
 from db.models.records import MedicalRecordDB
 from domain.knowledge.doctor_knowledge import load_knowledge_context_for_prompt
 from domain.knowledge.skill_loader import get_diagnosis_skill
 from infra.llm.client import _PROVIDERS
-from infra.llm.resilience import call_with_retry_and_fallback
 from infra.observability.observability import trace_block
 from utils.log import log
 
@@ -36,7 +32,7 @@ import logging as _logging
 import json as _json_mod
 from pathlib import Path as _Path
 
-_LLM_LOG_DIR = _Path(__file__).resolve().parents[2] / "logs"
+_LLM_LOG_DIR = _Path(__file__).resolve().parents[1] / "logs"
 _LLM_LOG_DIR.mkdir(exist_ok=True)
 _llm_logger = _logging.getLogger("diagnosis.llm_io")
 _llm_logger.setLevel(_logging.DEBUG)
@@ -53,10 +49,39 @@ def _log_llm_io(tag: str, **kwargs: object) -> None:
     entry = {"ts": datetime.now(timezone.utc).isoformat(), "tag": tag, **kwargs}
     _llm_logger.debug(_json_mod.dumps(entry, ensure_ascii=False, default=str))
 
+
 # ---------------------------------------------------------------------------
-# Module-level singleton cache: one HTTP connection pool per provider.
+# Pydantic response models for structured LLM output
 # ---------------------------------------------------------------------------
-_DIAGNOSIS_CLIENT_CACHE: Dict[str, AsyncOpenAI] = {}
+
+class DiagnosisDifferential(BaseModel):
+    condition: str = Field(description="Diagnosis name")
+    confidence: str = Field(default="中", description="Confidence level: 低/中/高")
+    reasoning: str = Field(default="", description="Clinical reasoning")
+    patient_note: str = Field(default="", description="Patient-facing note")
+
+
+class DiagnosisWorkup(BaseModel):
+    test: str = Field(description="Test/examination name")
+    rationale: str = Field(default="", description="Rationale for the test")
+    urgency: str = Field(default="常规", description="Urgency: 常规/紧急/急诊")
+    patient_note: str = Field(default="", description="Patient-facing note")
+
+
+class DiagnosisTreatment(BaseModel):
+    drug_class: str = Field(default="", description="Drug class")
+    intervention: str = Field(default="观察", description="Intervention type: 手术/药物/观察/转诊")
+    description: str = Field(default="", description="Description")
+    patient_note: str = Field(default="", description="Patient-facing note")
+
+
+class DiagnosisLLMResponse(BaseModel):
+    """Structured response from the diagnosis LLM."""
+    differentials: List[DiagnosisDifferential] = Field(default_factory=list)
+    workup: List[DiagnosisWorkup] = Field(default_factory=list)
+    treatment: List[DiagnosisTreatment] = Field(default_factory=list)
+    red_flags: List[str] = Field(default_factory=list)
+
 
 # Valid confidence values; anything else is coerced to "中".
 _VALID_CONFIDENCE = {"低", "中", "高"}
@@ -109,81 +134,30 @@ def _resolve_provider(provider_name: str) -> Dict[str, Any]:
     return provider
 
 
-def _get_diagnosis_client(provider_name: str, provider: Dict[str, Any]) -> AsyncOpenAI:
-    """Return (or create) a singleton AsyncOpenAI client for the given provider."""
-    # Skip singleton cache in test environments so mock patches can intercept.
-    if os.environ.get("PYTEST_CURRENT_TEST") or "pytest" in os.environ.get("_", ""):
-        return AsyncOpenAI(
-            base_url=provider["base_url"],
-            api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
-            timeout=float(os.environ.get("DIAGNOSIS_LLM_TIMEOUT", "60")),
-            max_retries=0,
-        )
-    if provider_name not in _DIAGNOSIS_CLIENT_CACHE:
-        _DIAGNOSIS_CLIENT_CACHE[provider_name] = AsyncOpenAI(
-            base_url=provider["base_url"],
-            api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
-            timeout=float(os.environ.get("DIAGNOSIS_LLM_TIMEOUT", "60")),
-            max_retries=0,
-        )
-    return _DIAGNOSIS_CLIENT_CACHE[provider_name]
-
-
 # ---------------------------------------------------------------------------
-# LLM caller — mirrors structuring._make_llm_caller() exactly.
+# Structured LLM call via shared helper
 # ---------------------------------------------------------------------------
 
-def _make_llm_caller(
-    client: AsyncOpenAI,
-    provider_name: str,
+async def _structured_call_for_diagnosis(
     system_prompt: str,
     user_content: str,
-):
-    """Return an async callable suitable for call_with_retry_and_fallback."""
-    async def _call(model_name: str):
-        with trace_block("llm", "diagnosis.chat_completion", {"provider": provider_name, "model": model_name}):
-            return await client.chat.completions.create(
-                model=model_name,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_content},
-                ],
-                response_format={"type": "json_object"},
-                max_tokens=3000,
-                temperature=0,
-            )
-    return _call
+    env_var: str = "DIAGNOSIS_LLM",
+) -> DiagnosisLLMResponse:
+    """Call the LLM via shared structured_call helper."""
+    from agent.llm import structured_call
 
-
-# ---------------------------------------------------------------------------
-# Cloud fallback — mirrors structuring._call_with_cloud_fallback() exactly.
-# ---------------------------------------------------------------------------
-
-async def _call_with_cloud_fallback(
-    primary_call,
-    provider: Dict[str, Any],
-    provider_name: str,
-    system_prompt: str,
-    user_content: str,
-    doctor_id: Optional[str],
-) -> object:
-    """Call LLM with retry; on failure attempt cloud fallback if configured."""
-    fallback_model = None
-    if provider_name == "ollama":
-        fallback_model = os.environ.get("OLLAMA_FALLBACK_MODEL", "qwen3.5:9b")
-    try:
-        return await call_with_retry_and_fallback(
-            primary_call,
-            primary_model=provider["model"],
-            fallback_model=fallback_model,
-            max_attempts=int(os.environ.get("DIAGNOSIS_LLM_ATTEMPTS", "3")),
-            op_name="diagnosis.chat_completion",
-            circuit_key_suffix=doctor_id or "",
-        )
-    except Exception as _primary_err:
-        return await _try_cloud_fallback(
-            _primary_err, provider_name, system_prompt, user_content
-        )
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_content},
+    ]
+    return await structured_call(
+        response_model=DiagnosisLLMResponse,
+        messages=messages,
+        op_name="diagnosis",
+        env_var=env_var,
+        temperature=0,
+        max_tokens=3000,
+    )
 
 
 async def _try_cloud_fallback(
@@ -191,7 +165,7 @@ async def _try_cloud_fallback(
     provider_name: str,
     system_prompt: str,
     user_content: str,
-) -> object:
+) -> DiagnosisLLMResponse:
     """Attempt cloud fallback when primary (usually ollama) fails entirely."""
     _cloud_fallback = (
         os.environ.get("OLLAMA_CLOUD_FALLBACK", "").strip() if provider_name == "ollama" else ""
@@ -204,20 +178,24 @@ async def _try_cloud_fallback(
     _cloud_provider = _PROVIDERS.get(_cloud_fallback)
     if _cloud_provider is None:
         raise original_err
-    _cloud_provider = dict(_cloud_provider)
-    _cloud_client = _get_diagnosis_client(_cloud_fallback, _cloud_provider)
-    _cloud_call = _make_llm_caller(_cloud_client, _cloud_fallback, system_prompt, user_content)
+
     _cloud_timeout = float(os.environ.get("DIAGNOSIS_CLOUD_FALLBACK_TIMEOUT", "5.0"))
     try:
-        return await asyncio.wait_for(
-            call_with_retry_and_fallback(
-                _cloud_call,
-                primary_model=_cloud_provider["model"],
-                max_attempts=2,
-                op_name="diagnosis.chat_completion.cloud_fallback",
-            ),
-            timeout=_cloud_timeout,
-        )
+        old_val = os.environ.get("_DIAGNOSIS_CLOUD_FALLBACK", "")
+        os.environ["_DIAGNOSIS_CLOUD_FALLBACK"] = _cloud_fallback
+        try:
+            return await asyncio.wait_for(
+                _structured_call_for_diagnosis(
+                    system_prompt, user_content,
+                    env_var="_DIAGNOSIS_CLOUD_FALLBACK",
+                ),
+                timeout=_cloud_timeout,
+            )
+        finally:
+            if old_val:
+                os.environ["_DIAGNOSIS_CLOUD_FALLBACK"] = old_val
+            else:
+                os.environ.pop("_DIAGNOSIS_CLOUD_FALLBACK", None)
     except asyncio.TimeoutError:
         log("[diagnosis] cloud fallback timed out")
         raise
@@ -319,7 +297,7 @@ def _build_user_message(structured: Dict[str, str]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Response parsing + validation
+# Response validation / coercion (post-processing after structured_call)
 # ---------------------------------------------------------------------------
 
 def _coerce_confidence(value: Any) -> str:
@@ -340,130 +318,65 @@ def _coerce_intervention(value: Any) -> str:
     return "观察"
 
 
-def _validate_differentials(raw: Any) -> List[Dict[str, str]]:
-    """Validate and coerce differential diagnoses array."""
-    if not isinstance(raw, list):
-        return []
-    result = []
-    for i, item in enumerate(raw[:_MAX_ARRAY_ITEMS]):
-        if not isinstance(item, dict):
-            log(f"[diagnosis] dropping malformed differential at index {i}: not a dict", level="warning")
-            continue
-        condition = str(item.get("condition") or item.get("诊断名称") or "").strip()
-        if not condition:
-            log(f"[diagnosis] dropping differential at index {i}: missing condition", level="warning")
-            continue
-        result.append({
-            "condition":  condition,
-            "confidence": _coerce_confidence(item.get("confidence") or item.get("可能性")),
-            "reasoning":  str(item.get("reasoning") or item.get("推理依据") or "").strip(),
-            "patient_note": str(item.get("patient_note") or "").strip(),
-        })
-    return result
+def _validate_and_coerce_result(result: DiagnosisLLMResponse) -> Optional[Dict[str, Any]]:
+    """Validate and coerce the structured LLM response.
 
-
-def _validate_workup(raw: Any) -> List[Dict[str, str]]:
-    """Validate and coerce workup items array."""
-    if not isinstance(raw, list):
-        return []
-    result = []
-    for i, item in enumerate(raw[:_MAX_ARRAY_ITEMS]):
-        if not isinstance(item, dict):
-            log(f"[diagnosis] dropping malformed workup at index {i}: not a dict", level="warning")
-            continue
-        test = str(item.get("test") or item.get("检查名称") or "").strip()
-        if not test:
-            log(f"[diagnosis] dropping workup at index {i}: missing test", level="warning")
-            continue
-        result.append({
-            "test":       test,
-            "rationale":  str(item.get("rationale") or item.get("理由") or "").strip(),
-            "urgency":    _coerce_urgency(item.get("urgency") or item.get("紧急程度")),
-            "patient_note": str(item.get("patient_note") or "").strip(),
-        })
-    return result
-
-
-def _validate_treatment(raw: Any) -> List[Dict[str, str]]:
-    """Validate and coerce treatment items array."""
-    if not isinstance(raw, list):
-        return []
-    result = []
-    for i, item in enumerate(raw[:_MAX_ARRAY_ITEMS]):
-        if not isinstance(item, dict):
-            log(f"[diagnosis] dropping malformed treatment at index {i}: not a dict", level="warning")
-            continue
-        drug_class = str(item.get("drug_class") or item.get("药物类别") or "").strip()
-        description = str(item.get("description") or item.get("说明") or "").strip()
-        if not drug_class and not description:
-            log(f"[diagnosis] dropping treatment at index {i}: missing drug_class and description", level="warning")
-            continue
-        result.append({
-            "drug_class":    drug_class,
-            "intervention":  _coerce_intervention(item.get("intervention") or item.get("干预方式")),
-            "description":   description,
-            "patient_note": str(item.get("patient_note") or "").strip(),
-        })
-    return result
-
-
-def _parse_and_validate(raw: str, provider_name: str) -> Optional[Dict[str, Any]]:
-    """Parse JSON response and validate fields.
-
-    Returns validated dict or None if completely unparseable or empty differentials.
+    Returns validated dict or None if empty differentials.
     """
-    with trace_block("llm", "diagnosis.parse_response"):
-        try:
-            data = json.loads(raw)
-        except (json.JSONDecodeError, TypeError) as exc:
-            log(f"[diagnosis:{provider_name}] JSON parse failed ({exc}); attempting partial extraction", level="warning")
-            # Attempt partial extraction by scanning for array-like substrings
-            data = _attempt_partial_parse(raw)
-            if data is None:
-                return None
+    with trace_block("llm", "diagnosis.validate_response"):
+        # Validate differentials
+        differentials = []
+        for item in result.differentials[:_MAX_ARRAY_ITEMS]:
+            condition = item.condition.strip()
+            if not condition:
+                continue
+            differentials.append({
+                "condition":    condition,
+                "confidence":   _coerce_confidence(item.confidence),
+                "reasoning":    item.reasoning.strip(),
+                "patient_note": item.patient_note.strip(),
+            })
 
-    if not isinstance(data, dict):
-        log(f"[diagnosis:{provider_name}] LLM response is not a dict: {type(data)}", level="warning")
-        return None
+        if not differentials:
+            log("[diagnosis] no valid differentials after validation", level="warning")
+            return None
 
-    differentials = _validate_differentials(data.get("differentials"))
-    if not differentials:
-        log(f"[diagnosis:{provider_name}] no valid differentials after validation", level="warning")
-        return None
+        # Validate workup
+        workup = []
+        for item in result.workup[:_MAX_ARRAY_ITEMS]:
+            test = item.test.strip()
+            if not test:
+                continue
+            workup.append({
+                "test":         test,
+                "rationale":    item.rationale.strip(),
+                "urgency":      _coerce_urgency(item.urgency),
+                "patient_note": item.patient_note.strip(),
+            })
 
-    workup = _validate_workup(data.get("workup"))
-    treatment = _validate_treatment(data.get("treatment"))
+        # Validate treatment
+        treatment = []
+        for item in result.treatment[:_MAX_ARRAY_ITEMS]:
+            drug_class = item.drug_class.strip()
+            description = item.description.strip()
+            if not drug_class and not description:
+                continue
+            treatment.append({
+                "drug_class":    drug_class,
+                "intervention":  _coerce_intervention(item.intervention),
+                "description":   description,
+                "patient_note":  item.patient_note.strip(),
+            })
 
-    red_flags_raw = data.get("red_flags") or data.get("red flags") or data.get("危险信号")
-    if isinstance(red_flags_raw, list):
-        red_flags = [str(s) for s in red_flags_raw if s][:_MAX_ARRAY_ITEMS]
-    else:
-        red_flags = []
+        # Validate red flags
+        red_flags = [str(s) for s in result.red_flags if s][:_MAX_ARRAY_ITEMS]
 
-    return {
-        "differentials": differentials,
-        "workup":        workup,
-        "treatment":     treatment,
-        "red_flags":     red_flags,
-    }
-
-
-def _attempt_partial_parse(raw: str) -> Optional[Dict[str, Any]]:
-    """Try to extract a partial dict from a malformed JSON string."""
-    # Try stripping common LLM text wrappers before/after the JSON block.
-    for start_marker in ("{", "["):
-        idx = raw.find(start_marker)
-        if idx >= 0:
-            candidate = raw[idx:]
-            # Try to find the matching close
-            end_marker = "}" if start_marker == "{" else "]"
-            last = candidate.rfind(end_marker)
-            if last >= 0:
-                try:
-                    return json.loads(candidate[: last + 1])
-                except (json.JSONDecodeError, TypeError):
-                    continue
-    return None
+        return {
+            "differentials": differentials,
+            "workup":        workup,
+            "treatment":     treatment,
+            "red_flags":     red_flags,
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -486,18 +399,10 @@ async def _load_clinical_context_from_record(
     if row is None:
         log(f"[diagnosis] record_id={record_id} not found for doctor={doctor_id}", level="warning")
         return None
-    if not row.structured:
-        log(f"[diagnosis] record_id={record_id} has no structured JSON", level="warning")
+    if not row.has_soap_data():
+        log(f"[diagnosis] record_id={record_id} has no SOAP data", level="warning")
         return None
-    try:
-        structured = json.loads(row.structured)
-        if not isinstance(structured, dict):
-            log(f"[diagnosis] record_id={record_id} structured is not a dict", level="warning")
-            return None
-        return structured
-    except (json.JSONDecodeError, TypeError) as exc:
-        log(f"[diagnosis] record_id={record_id} structured JSON invalid: {exc}", level="warning")
-        return None
+    return row.soap_dict()
 
 
 async def _load_clinical_context_from_text(
@@ -538,17 +443,7 @@ async def run_diagnosis(
         or "deepseek"
     )
     provider_name = raw_provider
-    try:
-        provider = _resolve_provider(provider_name)
-    except RuntimeError as exc:
-        log(f"[diagnosis] provider resolution failed: {exc}", level="error")
-        if record_id is not None:
-            async with AsyncSessionLocal() as session:
-                row = await create_pending_diagnosis(session, record_id, doctor_id)
-                await session.flush()
-                await save_failed_diagnosis(session, row.id, f"Provider error: {exc}")
-                await session.commit()
-        raise
+    provider = _resolve_provider(provider_name)
 
     model_name = provider.get("model", "deepseek-chat")
     _tag = f"[diagnosis:{provider_name}:{model_name}]"
@@ -556,62 +451,35 @@ async def run_diagnosis(
 
     async with AsyncSessionLocal() as session:
         # ------------------------------------------------------------------
-        # Step 1: Create pending row (if record-based path)
-        # ------------------------------------------------------------------
-        diagnosis_row = None
-        if record_id is not None:
-            # Check for existing row (re-run after failure or chat retry)
-            from db.crud.diagnosis import get_diagnosis_by_record
-            existing = await get_diagnosis_by_record(session, record_id, doctor_id)
-            if existing and existing.status in ("completed", "confirmed"):
-                log(f"{_tag} diagnosis already exists for record {record_id}, skipping")
-                return _row_to_result(existing)
-            if existing:
-                # Reuse existing failed/pending row
-                diagnosis_row = existing
-                diagnosis_row.status = "pending"
-                diagnosis_row.error_message = None
-            else:
-                diagnosis_row = await create_pending_diagnosis(session, record_id, doctor_id)
-            await session.flush()
-
-        # ------------------------------------------------------------------
-        # Step 2: Load clinical context
+        # Step 1: Load clinical context
         # ------------------------------------------------------------------
         structured: Optional[Dict[str, str]] = None
         try:
             if record_id is not None:
                 structured = await _load_clinical_context_from_record(session, record_id, doctor_id)
                 if structured is None:
-                    # Record has no structured JSON — fall back to empty dict
                     structured = {}
             else:
                 structured = await _load_clinical_context_from_text(clinical_text, doctor_id)  # type: ignore[arg-type]
         except Exception as exc:
             log(f"{_tag} clinical context load failed: {exc}", level="error")
-            if diagnosis_row is not None:
-                await save_failed_diagnosis(session, diagnosis_row.id, f"Context load error: {exc}")
-                await session.commit()
             raise
 
         chief_complaint = (structured.get("chief_complaint") or clinical_text or "")[:200]
 
         # ------------------------------------------------------------------
-        # Step 3: Match similar cases (non-blocking — empty on failure)
+        # Step 2: Case matching disabled (CaseHistory table removed)
+        # TODO: migrate case matching to medical_records-based approach
         # ------------------------------------------------------------------
         matched_cases: List[Dict[str, Any]] = []
-        try:
-            matched_cases = await match_cases(session, doctor_id, chief_complaint, limit=5)
-        except Exception as exc:
-            log(f"{_tag} case matching failed (non-fatal): {exc}", level="warning")
 
         # ------------------------------------------------------------------
-        # Step 4: Load diagnosis skill
+        # Step 3: Load diagnosis skill
         # ------------------------------------------------------------------
         skill_content = get_diagnosis_skill("neurology")
 
         # ------------------------------------------------------------------
-        # Step 5: Load doctor knowledge (non-blocking — empty on failure)
+        # Step 4: Load doctor knowledge (non-blocking — empty on failure)
         # ------------------------------------------------------------------
         knowledge_text = ""
         try:
@@ -622,7 +490,7 @@ async def run_diagnosis(
             log(f"{_tag} knowledge load failed (non-fatal): {exc}", level="warning")
 
         # ------------------------------------------------------------------
-        # Step 6: Build prompt
+        # Step 5: Build prompt
         # ------------------------------------------------------------------
         cases_text = _format_matched_cases(matched_cases)
         system_prompt = _build_system_prompt(skill_content, cases_text, knowledge_text)
@@ -637,92 +505,58 @@ async def run_diagnosis(
                      matched_cases_count=len(matched_cases))
 
         # ------------------------------------------------------------------
-        # Step 7: Call LLM
+        # Step 6: Call LLM via structured_call (instructor)
         # ------------------------------------------------------------------
-        completion = None
+        llm_result: Optional[DiagnosisLLMResponse] = None
         llm_error: Optional[str] = None
-        try:
-            client = _get_diagnosis_client(provider_name, provider)
-            primary_call = _make_llm_caller(client, provider_name, system_prompt, user_message)
-            completion = await _call_with_cloud_fallback(
-                primary_call, provider, provider_name, system_prompt, user_message, doctor_id
-            )
-        except Exception as exc:
-            log(f"{_tag} LLM call failed: {exc}", level="error")
-            llm_error = str(exc)
-            _log_llm_io("error", doctor_id=doctor_id, record_id=record_id, error=str(exc))
 
-        if llm_error or completion is None:
+        # Set DIAGNOSIS_LLM env var for structured_call provider resolution.
+        # The env var may already be set; if not, use the resolved provider_name.
+        if not os.environ.get("DIAGNOSIS_LLM"):
+            os.environ["DIAGNOSIS_LLM"] = provider_name
+
+        try:
+            llm_result = await _structured_call_for_diagnosis(
+                system_prompt, user_message, env_var="DIAGNOSIS_LLM",
+            )
+        except Exception as primary_err:
+            try:
+                llm_result = await _try_cloud_fallback(
+                    primary_err, provider_name, system_prompt, user_message,
+                )
+            except Exception as exc:
+                log(f"{_tag} LLM call failed: {exc}", level="error")
+                llm_error = str(exc)
+                _log_llm_io("error", doctor_id=doctor_id, record_id=record_id, error=str(exc))
+
+        if llm_error or llm_result is None:
             err_msg = llm_error or "Empty LLM response"
-            if diagnosis_row is not None:
-                await save_failed_diagnosis(session, diagnosis_row.id, err_msg)
-                await session.commit()
             return {"error": err_msg, "status": "failed"}
 
-        raw = (completion.choices[0].message.content or "").strip()
-        log(f"{_tag} raw response ({len(raw)} chars): {raw[:200]}")
+        log(f"{_tag} structured response: {llm_result.model_dump()}")
         _log_llm_io("output",
                      doctor_id=doctor_id, record_id=record_id,
-                     raw_length=len(raw), raw=raw)
-
-        if not raw:
-            err_msg = "Empty LLM response"
-            if diagnosis_row is not None:
-                await save_failed_diagnosis(session, diagnosis_row.id, err_msg)
-                await session.commit()
-            return {"error": err_msg, "status": "failed"}
+                     result=llm_result.model_dump())
 
         # ------------------------------------------------------------------
-        # Step 8: Parse + validate
+        # Step 7: Validate + coerce
         # ------------------------------------------------------------------
-        result = _parse_and_validate(raw, provider_name)
+        result = _validate_and_coerce_result(llm_result)
 
         if result is None:
-            err_msg = "Invalid LLM response: no valid differentials"
-            if diagnosis_row is not None:
-                await save_failed_diagnosis(session, diagnosis_row.id, err_msg)
-                await session.commit()
-            return {"error": err_msg, "status": "failed"}
+            return {"error": "Invalid LLM response: no valid differentials", "status": "failed"}
 
         # ------------------------------------------------------------------
-        # Step 9: Save to DB (record path only)
+        # Step 8: Return result (no DB persistence — DiagnosisResult table removed)
+        # TODO: persist diagnosis results to MedicalRecordDB.ai_diagnosis column
         # ------------------------------------------------------------------
         red_flags = result.get("red_flags", [])
-        # Build case_references summary for DB storage
-        case_refs = [
-            {
-                "id":               c.get("id"),
-                "chief_complaint":  (c.get("chief_complaint") or "")[:80],
-                "final_diagnosis":  c.get("final_diagnosis"),
-                "treatment":        c.get("treatment"),
-                "outcome":          c.get("outcome"),
-                "similarity":       c.get("similarity"),
-            }
-            for c in matched_cases
-        ]
-
-        if diagnosis_row is not None:
-            # ai_output stores differentials/workup/treatment (immutable)
-            ai_output_dict = {
-                "differentials": result["differentials"],
-                "workup":        result["workup"],
-                "treatment":     result["treatment"],
-            }
-            await save_completed_diagnosis(
-                session,
-                diagnosis_id=diagnosis_row.id,
-                ai_output_json=json.dumps(ai_output_dict, ensure_ascii=False),
-                red_flags=json.dumps(red_flags, ensure_ascii=False) if red_flags else None,
-                case_references=json.dumps(case_refs, ensure_ascii=False) if case_refs else None,
-            )
-            await session.commit()
-            log(f"{_tag} saved completed diagnosis id={diagnosis_row.id}")
 
         return {
             "differentials":   result["differentials"],
             "workup":          result["workup"],
             "treatment":       result["treatment"],
             "red_flags":       red_flags,
-            "case_references": case_refs,
+            "case_references": [],
             "status":          "completed",
         }

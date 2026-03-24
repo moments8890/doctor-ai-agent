@@ -8,8 +8,6 @@
 """
 from __future__ import annotations
 
-import json
-
 import logging
 from datetime import datetime
 from typing import Optional
@@ -121,13 +119,21 @@ async def create_patient_session(body: PatientSessionRequest):
         verify_access_code(supplied_code or "000000", _DUMMY_HASH)
         raise HTTPException(status_code=401, detail=_AUTH_FAIL)
 
-    _verify_patient_access_code(patient, supplied_code)
+    # Fetch access code auth from PatientAuth table
+    from db.models.patient_auth import PatientAuth
+    async with AsyncSessionLocal() as _db:
+        auth_row = (
+            await _db.execute(
+                select(PatientAuth).where(PatientAuth.patient_id == patient.id).limit(1)
+            )
+        ).scalar_one_or_none()
+    _verify_patient_access_code(auth_row, supplied_code)
 
-    acv = getattr(patient, "access_code_version", 0)
+    acv = auth_row.access_code_version if auth_row is not None else 0
     token = _issue_patient_token(patient.id, doctor_id, access_code_version=acv)
     logger.info(
         "[PatientPortal] session issued | doctor_id=%s patient_id=%s code_required=%s",
-        doctor_id, patient.id, bool(patient.access_code),
+        doctor_id, patient.id, bool(auth_row and auth_row.access_code),
     )
     safe_create_task(audit(
         doctor_id, "LOGIN",
@@ -170,7 +176,7 @@ async def get_patient_records(authorization: Optional[str] = Header(default=None
             id=r.id,
             record_type=r.record_type,
             content=r.content,
-            structured=json.loads(r.structured) if r.structured else None,
+            structured=r.soap_dict() if r.has_soap_data() else None,
             needs_review=r.needs_review,
             created_at=r.created_at,
         )

@@ -1,4 +1,4 @@
-"""Generate MedicalRecord + ReviewQueue entry from completed interview (ADR 0016)."""
+"""Generate MedicalRecord from completed interview (ADR 0016)."""
 from __future__ import annotations
 
 import re
@@ -16,6 +16,12 @@ FIELD_LABELS = {
     "personal_history": "个人史",
     "marital_reproductive": "婚育史",
     "family_history": "家族史",
+    "physical_exam": "体格检查",
+    "specialist_exam": "专科检查",
+    "auxiliary_exam": "辅助检查",
+    "diagnosis": "诊断",
+    "treatment_plan": "治疗方案",
+    "orders_followup": "医嘱及随访",
 }
 
 
@@ -81,7 +87,6 @@ async def confirm_interview(
 ) -> Dict[str, int]:
     """Finalize interview: save record + create review queue entry. Returns {record_id, review_id}."""
     from db.crud.records import save_record
-    from db.crud.review import create_review
     from db.engine import AsyncSessionLocal
 
     record = build_medical_record(collected)
@@ -89,19 +94,11 @@ async def confirm_interview(
     async with AsyncSessionLocal() as db:
         db_record = await save_record(
             db, doctor_id, record, patient_id,
-            commit=False,
+            needs_review=True,
+            commit=True,
         )
 
-        review = await create_review(
-            db,
-            record_id=db_record.id,
-            doctor_id=doctor_id,
-            patient_id=patient_id,
-        )
-
-        await db.commit()
-
-    log(f"[interview] confirmed session={session_id} record={db_record.id} review={review.id}")
+    log(f"[interview] confirmed session={session_id} record={db_record.id}")
 
     # Notify doctor (best-effort, don't block on failure)
     try:
@@ -113,4 +110,4 @@ async def confirm_interview(
     except Exception as e:
         log(f"[interview] doctor notification failed: {e}", level="warning")
 
-    return {"record_id": db_record.id, "review_id": review.id}
+    return {"record_id": db_record.id}

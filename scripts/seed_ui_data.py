@@ -36,9 +36,6 @@ async def main():
     from db.init_db import create_tables
     from db.models import Patient, MedicalRecordDB, DoctorTask
     from db.models.doctor import Doctor, DoctorKnowledgeItem
-    from db.models.review_queue import ReviewQueue
-    from db.models.diagnosis_result import DiagnosisResult
-    from db.models.case_history import CaseHistory
     from db.models.interview_session import InterviewSessionDB, InterviewStatus
     from db.models.base import _utcnow
     from sqlalchemy import select, delete, func
@@ -51,8 +48,8 @@ async def main():
         # ── Reset ───────────────────────────────────────────────
         if RESET:
             print("Resetting test_doctor data...")
-            for model in [InterviewSessionDB, DiagnosisResult, ReviewQueue, DoctorTask,
-                          MedicalRecordDB, CaseHistory, DoctorKnowledgeItem]:
+            for model in [InterviewSessionDB, DoctorTask,
+                          MedicalRecordDB, DoctorKnowledgeItem]:
                 await db.execute(delete(model).where(model.doctor_id == DOCTOR_ID))
             await db.execute(delete(Patient).where(Patient.doctor_id == DOCTOR_ID))
             await db.commit()
@@ -180,140 +177,17 @@ async def main():
             record_ids[key] = rec.id
             print(f"  Record id={rec.id}: {rd['patient']} — {rd['structured'].get('chief_complaint', '')[:30]}")
 
-        # ── Review Queue (2 pending, 2 reviewed) ────────────────
-        reviews = [
-            {"patient": "周海涛", "record_key": "周海涛_2", "status": "pending_review"},
-            {"patient": "吴晓燕", "record_key": "吴晓燕_5", "status": "pending_review"},
-            {"patient": "孙国庆", "record_key": "孙国庆_24", "status": "reviewed"},
-            {"patient": "何丽萍", "record_key": "何丽萍_48", "status": "reviewed"},
-        ]
-        review_ids = {}
-        for rv in reviews:
-            rid = record_ids.get(rv["record_key"])
-            if not rid:
-                continue
-            rq = ReviewQueue(
-                record_id=rid, doctor_id=DOCTOR_ID,
-                patient_id=patients[rv["patient"]], status=rv["status"],
-                created_at=now - timedelta(hours=1),
-            )
-            db.add(rq)
-            await db.flush()
-            review_ids[rv["patient"]] = rq.id
-            print(f"  Review id={rq.id}: {rv['patient']} [{rv['status']}]")
-
-        # ── Diagnosis Results (for pending reviews) ─────────────
-        for patient_name in ["周海涛", "吴晓燕"]:
-            rkey = f"{patient_name}_{'2' if patient_name == '周海涛' else '5'}"
-            rid = record_ids.get(rkey)
-            if not rid:
-                continue
-
-            if patient_name == "周海涛":
-                ai_output = {
-                    "differentials": [
-                        {"condition": "脑膜瘤", "confidence": "高", "reasoning": "持续性头痛+恶心呕吐+视物模糊→颅内占位高度可疑，MRI已示右额叶占位"},
-                        {"condition": "高血压性头痛", "confidence": "中", "reasoning": "长期高血压病史，需排除高血压急症"},
-                        {"condition": "颅内动脉瘤", "confidence": "低", "reasoning": "非雷击样头痛，但需MRA排除"},
-                    ],
-                    "workup": [
-                        {"test": "头颅MRI增强+MRA", "rationale": "明确占位性质及血管关系", "urgency": "紧急"},
-                        {"test": "血常规+凝血功能", "rationale": "术前评估", "urgency": "常规"},
-                        {"test": "心电图+胸片", "rationale": "术前常规检查", "urgency": "常规"},
-                    ],
-                    "treatment": [
-                        {"drug_class": "脱水降颅压", "intervention": "药物", "description": "甘露醇125ml q8h，降低颅内压"},
-                        {"drug_class": "手术切除", "intervention": "手术", "description": "择期开颅脑膜瘤切除术"},
-                    ],
-                }
-                red_flags = ["持续性头痛伴视物模糊需排除颅内占位", "高血压合并颅内病变需密切监测血压"]
-            else:
-                ai_output = {
-                    "differentials": [
-                        {"condition": "脑梗死", "confidence": "高", "reasoning": "急性起病肢体无力+言语不清+房颤病史→心源性脑栓塞可能性大"},
-                        {"condition": "脑出血", "confidence": "中", "reasoning": "华法林抗凝中，需CT排除出血"},
-                        {"condition": "短暂性脑缺血发作", "confidence": "低", "reasoning": "症状持续>24h，TIA可能性低"},
-                    ],
-                    "workup": [
-                        {"test": "头颅CT平扫", "rationale": "急诊排除出血", "urgency": "急诊"},
-                        {"test": "INR+凝血功能", "rationale": "评估华法林抗凝状态", "urgency": "急诊"},
-                        {"test": "头颅MRI+DWI", "rationale": "明确梗死范围", "urgency": "紧急"},
-                    ],
-                    "treatment": [
-                        {"drug_class": "抗血小板", "intervention": "药物", "description": "阿司匹林+氯吡格雷双抗（排除出血后）"},
-                        {"drug_class": "神经保护", "intervention": "药物", "description": "依达拉奉清除自由基"},
-                    ],
-                }
-                red_flags = ["急性肢体无力+言语不清→卒中急症，立即CT排除出血", "华法林抗凝中发病，INR需紧急检测"]
-
-            dx = DiagnosisResult(
-                record_id=rid, doctor_id=DOCTOR_ID,
-                ai_output=json.dumps(ai_output, ensure_ascii=False),
-                red_flags=json.dumps(red_flags, ensure_ascii=False),
-                case_references=json.dumps([
-                    {"chief_complaint": "头痛+恶心", "final_diagnosis": "脑膜瘤", "similarity": 0.87},
-                ], ensure_ascii=False),
-                status="completed", completed_at=now,
-            )
-            db.add(dx)
-            await db.flush()
-            print(f"  Diagnosis id={dx.id}: {patient_name}")
-
-        # ── Confirmed diagnosis for 周海涛 follow-up record ───
-        followup_rid = record_ids.get("周海涛_1")
-        if followup_rid:
-            confirmed_ai = {
-                "differentials": [
-                    {"condition": "右额叶脑膜瘤（WHO I级）", "confidence": "高", "reasoning": "MRI增强示右额叶脑外占位，均匀强化，宽基底附着硬脑膜，脑膜尾征阳性"},
-                    {"condition": "转移瘤", "confidence": "低", "reasoning": "单发病灶，无原发肿瘤病史，影像学特征不符"},
-                ],
-                "workup": [
-                    {"test": "术前MRA", "rationale": "评估肿瘤供血动脉及与大脑中动脉关系", "urgency": "紧急"},
-                    {"test": "视野检查", "rationale": "评估视路受压程度", "urgency": "常规"},
-                    {"test": "术前凝血+肝肾功能", "rationale": "术前常规评估", "urgency": "常规"},
-                ],
-                "treatment": [
-                    {"drug_class": "择期手术", "intervention": "手术", "description": "开颅脑膜瘤切除术，目标Simpson I级全切"},
-                    {"drug_class": "围术期脱水", "intervention": "药物", "description": "术前3天甘露醇125ml q8h降低颅内压"},
-                    {"drug_class": "术后抗癫痫", "intervention": "药物", "description": "左乙拉西坦500mg bid预防性抗癫痫"},
-                ],
-                "followups": [
-                    {"instruction": "术后1月复查MRI增强评估切除程度"},
-                    {"instruction": "术后3月、6月、12月门诊随访"},
-                ],
-            }
-            confirmed_decisions = {
-                "differentials": {"0": "confirmed", "1": "rejected"},
-                "workup": {"0": "confirmed", "1": "confirmed", "2": "confirmed"},
-                "treatment": {"0": "confirmed", "1": "confirmed", "2": "confirmed"},
-            }
-            dx_confirmed = DiagnosisResult(
-                record_id=followup_rid, doctor_id=DOCTOR_ID,
-                ai_output=json.dumps(confirmed_ai, ensure_ascii=False),
-                red_flags=json.dumps(["颅内占位需尽早手术，延迟可能导致视力不可逆损伤"], ensure_ascii=False),
-                case_references=json.dumps([
-                    {"chief_complaint": "头痛伴恶心2周", "final_diagnosis": "右额叶脑膜瘤（WHO I级）", "similarity": 0.95,
-                     "treatment": "开颅肿瘤切除术（Simpson I级全切）", "outcome": "好转"},
-                ], ensure_ascii=False),
-                doctor_decisions=json.dumps(confirmed_decisions, ensure_ascii=False),
-                status="confirmed", completed_at=now - timedelta(hours=1),
-                confirmed_at=now, agreement_score=0.875,
-            )
-            db.add(dx_confirmed)
-            await db.flush()
-            print(f"  Confirmed diagnosis id={dx_confirmed.id}: 周海涛 (follow-up, agreement=87.5%)")
-
         # ── Tasks (5) ──────────────────────────────────────────
         tasks = [
-            {"title": "周海涛 MRI增强复查", "type": "follow_up", "status": "pending", "patient": "周海涛",
+            {"title": "周海涛 MRI增强复查", "type": "review", "status": "pending", "patient": "周海涛",
              "content": "头痛好转后1月复查MRI增强，评估脑膜瘤变化", "due_hours": 48},
-            {"title": "吴晓燕 INR监测", "type": "lab_review", "status": "pending", "patient": "吴晓燕",
+            {"title": "吴晓燕 INR监测", "type": "review", "status": "pending", "patient": "吴晓燕",
              "content": "华法林调整后3天复查INR，目标2.0-3.0", "due_hours": 24},
-            {"title": "孙国庆 腰椎MRI", "type": "imaging", "status": "pending", "patient": "孙国庆",
+            {"title": "孙国庆 腰椎MRI", "type": "review", "status": "pending", "patient": "孙国庆",
              "content": "腰椎MRI评估椎间盘突出程度，决定是否手术", "due_hours": 72},
-            {"title": "马文斌 术后随访电话", "type": "follow_up", "status": "completed", "patient": "马文斌",
+            {"title": "马文斌 术后随访电话", "type": "general", "status": "completed", "patient": "马文斌",
              "content": "动脉瘤夹闭术后2周电话随访，了解恢复情况"},
-            {"title": "何丽萍 抗癫痫药物调整", "type": "medication", "status": "pending", "patient": "何丽萍",
+            {"title": "何丽萍 抗癫痫药物调整", "type": "review", "status": "pending", "patient": "何丽萍",
              "content": "左乙拉西坦加量至1000mg bid，观察发作控制情况", "due_hours": 168},
         ]
         for td in tasks:
@@ -330,11 +204,11 @@ async def main():
 
         # ── Patient-facing tasks (target='patient') ───────────
         patient_tasks = [
-            {"title": "MRI增强检查", "type": "imaging", "status": "pending", "patient": "周海涛",
+            {"title": "MRI增强检查", "type": "review", "status": "pending", "patient": "周海涛",
              "content": "请于3日内到放射科完成头颅MRI增强扫描，空腹，携带既往片子", "due_hours": 72},
-            {"title": "复查血常规+凝血", "type": "lab_review", "status": "pending", "patient": "周海涛",
+            {"title": "复查血常规+凝血", "type": "review", "status": "pending", "patient": "周海涛",
              "content": "术前检查，空腹抽血，结果当日出", "due_hours": 24},
-            {"title": "按时服药提醒", "type": "medication", "status": "completed", "patient": "周海涛",
+            {"title": "按时服药提醒", "type": "general", "status": "completed", "patient": "周海涛",
              "content": "氨氯地平5mg 每日一次，二甲双胍500mg 每日两次"},
         ]
         for ptd in patient_tasks:
@@ -374,32 +248,6 @@ async def main():
             db.add(item)
             print(f"  Knowledge [{kd['category']}]: {kd['text'][:40]}...")
 
-        # ── Case History (3 confirmed) ──────────────────────────
-        cases = [
-            {"chief_complaint": "头痛伴恶心2周", "final_diagnosis": "右额叶脑膜瘤（WHO I级）",
-             "present_illness": "持续性头痛，伴恶心呕吐，视乳头水肿",
-             "treatment": "开颅肿瘤切除术（Simpson I级全切）", "outcome": "好转",
-             "notes": "教学要点：头痛+视乳头水肿+呕吐三联征需高度怀疑颅内占位"},
-            {"chief_complaint": "突发剧烈头痛30分钟", "final_diagnosis": "前交通动脉瘤破裂伴蛛网膜下腔出血",
-             "present_illness": "雷击样头痛，颈项强直，Hunt-Hess II级",
-             "treatment": "开颅动脉瘤夹闭术", "outcome": "好转",
-             "notes": "雷击样头痛是SAH最重要的早期信号"},
-            {"chief_complaint": "腰痛伴双下肢无力3天", "final_diagnosis": "L4-5椎间盘突出伴马尾综合征",
-             "present_illness": "急性腰痛，双下肢无力进行性加重，鞍区感觉减退",
-             "treatment": "急诊腰椎后路减压+椎间盘摘除术", "outcome": "好转",
-             "notes": "马尾综合征是神经外科急症，24小时内手术预后好"},
-        ]
-        for cd in cases:
-            case = CaseHistory(
-                doctor_id=DOCTOR_ID,
-                chief_complaint=cd["chief_complaint"], final_diagnosis=cd["final_diagnosis"],
-                present_illness=cd.get("present_illness"),
-                treatment=cd["treatment"], outcome=cd["outcome"], notes=cd.get("notes"),
-                confidence_status="confirmed", reference_count=8, source="review",
-            )
-            db.add(case)
-            print(f"  Case: {cd['chief_complaint'][:30]} → {cd['final_diagnosis'][:20]}")
-
         # ── Interview Session (with conversation) ───────────────
         conversation = [
             {"role": "assistant", "content": "您好！请描述您的症状，我来帮您整理病情。"},
@@ -433,7 +281,7 @@ async def main():
         print("  Interview session: 周海涛 (13 messages)")
 
         await db.commit()
-        print(f"\n✅ Seed complete: 5 patients, 6 records, 4 reviews, 2 diagnoses, 5+3 tasks, 6 knowledge, 3 cases, 1 interview")
+        print(f"\n✅ Seed complete: 5 patients, 6 records, 5+3 tasks, 6 knowledge, 1 interview")
 
 
 if __name__ == "__main__":

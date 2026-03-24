@@ -99,7 +99,7 @@ function OnboardingDialog({ open, name, saving, onChange, onSubmit }) {
   );
 }
 
-function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpage, urlSubId, chatInsertText, setChatInsertText, chatAutoSendText, setChatAutoSendText, chatAutoSendConsumedRef, patientRefreshKey, setPatientRefreshKey, handleLogout, onContextCleared, triggerInterview, setTriggerInterview }) {
+function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpage, urlSubId, chatInsertText, setChatInsertText, chatAutoSendText, setChatAutoSendText, chatAutoSendConsumedRef, patientRefreshKey, setPatientRefreshKey, handleLogout, onContextCleared, triggerInterview, setTriggerInterview, chatInterviewSessionId, setChatInterviewSessionId }) {
   return (
     <Box sx={{ flex: 1, overflow: "hidden" }}>
       {activeSection === "home" && (
@@ -115,7 +115,7 @@ function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpag
             autoSendText={chatAutoSendText !== chatAutoSendConsumedRef.current ? chatAutoSendText : ""}
             onAutoSendConsumed={() => { chatAutoSendConsumedRef.current = chatAutoSendText; setChatAutoSendText(""); }}
             onContextCleared={onContextCleared}
-            onStartPatientInterview={() => { setTriggerInterview(true); navigate("/doctor/patients"); }}
+            onStartPatientInterview={(sessionId) => { setChatInterviewSessionId(sessionId || null); setTriggerInterview(true); navigate("/doctor/patients"); }}
             onBack={isMobile ? () => navigate("/doctor") : undefined} />
         </ErrorBoundary>
       )}
@@ -126,7 +126,9 @@ function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpag
             onAutoSendToChat={(text) => { chatAutoSendConsumedRef.current = ""; setChatAutoSendText(text); navigate("/doctor/chat"); }}
             refreshKey={patientRefreshKey}
             triggerInterview={triggerInterview}
-            onTriggerInterviewConsumed={() => setTriggerInterview(false)} />
+            onTriggerInterviewConsumed={() => setTriggerInterview(false)}
+            chatInterviewSessionId={chatInterviewSessionId}
+            onChatInterviewSessionConsumed={() => setChatInterviewSessionId(null)} />
         </ErrorBoundary>
       )}
       {activeSection === "tasks" && <ErrorBoundary label="任务"><TasksSection doctorId={doctorId} urlSubpage={urlSubpage} urlSubId={urlSubId} /></ErrorBoundary>}
@@ -193,6 +195,7 @@ export default function DoctorPage() {
   const chatAutoSendConsumedRef = useRef("");
   const [patientRefreshKey, setPatientRefreshKey] = useState(0);
   const [triggerInterview, setTriggerInterview] = useState(false);
+  const [chatInterviewSessionId, setChatInterviewSessionId] = useState(null);
 
   const { pendingTaskCount, pendingReviewCount, pendingRecord, setPendingRecord, workingContext, setWorkingContext, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit } = useDoctorPageState({ doctorId, accessToken, setAuth });
 
@@ -214,7 +217,7 @@ export default function DoctorPage() {
       {!isMobile && <DesktopSidebar activeSection={activeSection} doctorName={doctorName} doctorId={doctorId} navBadge={{ tasks: pendingTaskCount + pendingReviewCount, home: pendingRecord ? 1 : 0 }} onNav={handleNav} onLogout={handleLogout} />}
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", pb: isMobile ? "56px" : 0 }}>
         <WorkingContextHeader context={workingContext} isMobile={isMobile} />
-        <SectionContent activeSection={activeSection} doctorId={doctorId} isMobile={isMobile} navigate={navigate} urlSubpage={urlSubpage} urlSubId={urlSubId} chatInsertText={chatInsertText} setChatInsertText={setChatInsertText} chatAutoSendText={chatAutoSendText} setChatAutoSendText={setChatAutoSendText} chatAutoSendConsumedRef={chatAutoSendConsumedRef} patientRefreshKey={patientRefreshKey} setPatientRefreshKey={setPatientRefreshKey} handleLogout={handleLogout} onContextCleared={handleContextCleared} triggerInterview={triggerInterview} setTriggerInterview={setTriggerInterview} />
+        <SectionContent activeSection={activeSection} doctorId={doctorId} isMobile={isMobile} navigate={navigate} urlSubpage={urlSubpage} urlSubId={urlSubId} chatInsertText={chatInsertText} setChatInsertText={setChatInsertText} chatAutoSendText={chatAutoSendText} setChatAutoSendText={setChatAutoSendText} chatAutoSendConsumedRef={chatAutoSendConsumedRef} patientRefreshKey={patientRefreshKey} setPatientRefreshKey={setPatientRefreshKey} handleLogout={handleLogout} onContextCleared={handleContextCleared} triggerInterview={triggerInterview} setTriggerInterview={setTriggerInterview} chatInterviewSessionId={chatInterviewSessionId} setChatInterviewSessionId={setChatInterviewSessionId} />
       </Box>
       {isMobile && <MobileBottomNav activeSection={activeSection} pendingTaskCount={pendingTaskCount + pendingReviewCount} pendingRecord={pendingRecord} onNav={handleNav} />}
       <OnboardingDialog open={showOnboarding} name={onboardName} saving={onboardSaving} onChange={setOnboardName} onSubmit={handleOnboardSubmit} />

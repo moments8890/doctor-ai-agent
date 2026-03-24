@@ -1,15 +1,18 @@
 # Architecture
 
-**Last updated:** 2026-03-19
+**Last updated:** 2026-03-23
 
 ## Overview
 
-Doctor AI Agent is a medical AI assistant built on a **ReAct agent pattern**
-using LangChain/LangGraph. It serves both doctors (patient management, medical
-record dictation, task scheduling) and patients (pre-consultation interview).
-The system uses Chinese-focused LLM providers (DeepSeek, Qwen via Groq/Cerebras/
-SambaNova/SiliconFlow) with an OpenAI-compatible API interface, a FastAPI
-backend, and a React + MUI web frontend.
+Doctor AI Agent is a medical AI assistant built on a **Plan-and-Act** pattern.
+It serves both doctors (patient management, medical record dictation, task
+scheduling) and patients (pre-consultation interview). A lightweight routing
+LLM classifies each message into one of 6 intents and extracts entities;
+deterministic dispatcher code then routes to a dedicated intent handler. Each
+handler has focused prompts and scoped context, rather than one LLM with
+access to all tools simultaneously. The system uses Chinese-focused LLM
+providers (DeepSeek, Qwen via Groq/Cerebras/SambaNova/SiliconFlow) called
+via raw `AsyncOpenAI`, a FastAPI backend, and a React + MUI web frontend.
 
 ---
 
@@ -29,28 +32,37 @@ prompt flows. The high-level flow:
    handle_turn(text, role, identity)
             |
    +--------v---------+
-   | Fast path?        |----yes----> greeting / confirm / abandon (0 LLM)
+   | Fast path?        |----yes----> greeting / help (0 LLM)
    | (regex match)     |
    +---------+---------+
              | no
-   +---------v---------------------+
-   | SessionAgent                  |
-   |   in-memory history           |
-   |   LangGraph ReAct agent       |
-   |   role-based tools + prompt   |
-   +------+-----------+-----------+
-          |           |
-   +------v---+ +----v--------+
-   | Doctor    | | Patient     |
-   | tools     | | tools       |
-   +------+---+ +----+--------+
-          |           |
-   +------v-----------v----------+
-   |         DB Layer             |
-   |  SQLAlchemy async            |
-   |  SQLite (dev) / MySQL (prod) |
-   +------------------------------+
+   +---------v-----------------------+
+   |  Routing LLM (router.py)        |
+   |  → {intent, patient_name,       |
+   |     params, deferred}           |
+   +---------+-----------------------+
+             |
+   +---------v-----------------------+
+   |  Dispatcher (dispatcher.py)     |
+   |  intent → handler module        |
+   +---------+-----------------------+
+             |
+   +---------v------------------------------------------+
+   |  Intent Handler (handlers/<intent>.py)             |
+   |  loads context + doctor knowledge                  |
+   |  calls intent-specific LLM (structuring /          |
+   |  compose / interview / diagnosis)                  |
+   |  returns HandlerResult                             |
+   +--------------------+-------------------------------+
+                        |
+   +--------------------v----------+
+   |         DB Layer               |
+   |  SQLAlchemy async              |
+   |  SQLite (dev) / MySQL (prod)   |
+   +--------------------------------+
 ```
+
+Two LLM calls per turn (routing + handler), predictable, per-intent prompts.
 
 ---
 
@@ -58,21 +70,30 @@ prompt flows. The high-level flow:
 
 ```text
 src/
-├── agent/                  # ReAct agent core
-│   ├── handle_turn.py      # Entry point: fast paths + agent dispatch
-│   ├── session.py          # SessionAgent with in-memory history
-│   ├── setup.py            # LangGraph agent construction, LLM config, tracing
+├── agent/                  # Plan-and-Act agent core
+│   ├── handle_turn.py      # Entry point: fast paths + routing + dispatch
+│   ├── router.py           # Routing LLM: message → RoutingResult
+│   ├── dispatcher.py       # Intent → handler dispatch
+│   ├── types.py            # IntentType enum, RoutingResult, HandlerResult,
+│   │                       #   TurnContext (Pydantic models)
+│   ├── actions.py          # Action helpers
+│   ├── session.py          # Session history (in-memory, bootstrapped from DB)
 │   ├── identity.py         # ContextVar for current doctor/patient identity
 │   ├── archive.py          # Conversation archive (DB persistence)
-│   ├── pending.py          # Pending record helpers
-│   ├── tools/
-│   │   ├── doctor.py       # Doctor tools: query_records, list_patients, list_tasks,
-│   │   │                   #   create_record, update_record, create_task, export_pdf,
-│   │   │                   #   search_knowledge, search_patients, get_patient_timeline,
-│   │   │                   #   complete_task
-│   │   ├── patient.py      # Patient tools: advance_interview
-│   │   ├── resolve.py      # Name-to-ID patient resolution
-│   │   └── truncate.py     # Tool result size management
+│   ├── handlers/           # One module per intent
+│   │   ├── query_record.py
+│   │   ├── create_record.py
+│   │   ├── query_task.py
+│   │   ├── create_task.py
+│   │   ├── query_patient.py
+│   │   └── general.py
+│   ├── tools/              # Domain tools called by handlers
+│   │   ├── doctor.py       # query_records, list_patients, list_tasks,
+│   │   │                   #   create_record, create_task, get_patient_timeline,
+│   │   │                   #   search_patients
+│   │   ├── patient.py      # advance_interview
+│   │   ├── diagnosis.py    # run_diagnosis_pipeline
+│   │   └── resolve.py      # Name-to-ID patient resolution
 │   └── prompts/            # Prompt .md files (see prompts/README.md)
 │
 ├── domain/                 # Business logic (framework-independent)
@@ -81,7 +102,7 @@ src/
 │   ├── patients/           # interview_turn, interview_session, categorization,
 │   │                       #   completeness, nl_search, timeline, interview_summary
 │   ├── knowledge/          # doctor_knowledge, pdf_extract, word_extract, skills/
-│   └── tasks/              # task_crud, task_rules, notifications, scheduler
+│   └── tasks/              # task_crud, notifications, scheduler
 │
 ├── channels/               # Transport adapters
 │   ├── web/                # FastAPI routes
@@ -150,66 +171,86 @@ point for conversation processing.
 
 ### Fast Paths (0 LLM calls)
 
-Deterministic regex matching handles without invoking the LLM:
+Deterministic regex matching handles without invoking any LLM:
 - **Greeting** — `你好`, `hello`, etc.
-- **Confirm pending** — `确认`, `yes`, etc. — commits the pending draft record
-- **Abandon pending** — `取消`, `cancel`, etc. — discards the pending draft
+- **Help** — `帮助`, `/help`, etc.
 
-### SessionAgent
+### Routing LLM
 
-Each doctor/patient gets a persistent `SessionAgent` instance that holds
-conversation history in memory (capped at 100 turns). On server restart,
-history is bootstrapped from the DB archive.
+`router.py` sends the doctor's message to the routing LLM (configured via
+`ROUTING_LLM`, default `groq`). The routing LLM returns a `RoutingResult`:
 
-### LangGraph ReAct Agent
+```json
+{
+  "intent": "query_record",
+  "patient_name": "张三",
+  "params": {},
+  "deferred": "建个随访任务"
+}
+```
 
-`setup.py` constructs a LangGraph `create_react_agent` (native JSON tool
-calls, not text-based ReAct parsing) with:
-- **LLM** — `ChatOpenAI` pointed at the configured provider
-- **Tools** — filtered by role (doctor or patient)
-- **System prompt** — loaded from `prompts/agent-{role}.md` with template
-  variable substitution (`{current_date}`, `{timezone}`, `{tools_section}`)
-- **Observability** — `AgentTracer` callback logs every LLM call and tool
-  invocation; optional LangFuse integration
+**6 routing intents:**
 
-### Tool List by Role
+| Intent | `patient_name` | Key params |
+|--------|---------------|------------|
+| `query_record` | optional | `limit` (default 5) |
+| `create_record` | required | `gender`, `age`, `clinical_text` (all optional) |
+| `query_task` | — | `status` (optional: pending\|completed) |
+| `create_task` | optional | `title` (required), `content`, `due_at` |
+| `query_patient` | — | `query` (NL search string, required) |
+| `general` | — | (none — fallback/chitchat) |
 
-**Doctor tools** (default set — 6 core tools):
+**Single intent per turn**: if the message contains multiple intents (e.g.
+"查张三病历然后建个随访任务"), routing extracts the first and stores the rest
+in `deferred`. The compose LLM acknowledges deferred intents in its reply.
 
-| Tool | Type | Description |
-|------|------|-------------|
-| `query_records` | Read | Fetch patient medical records |
-| `list_patients` | Read | List doctor's patient panel |
-| `list_tasks` | Read | List scheduled tasks |
-| `create_record` | Write | Structure clinical text into record (pending preview) |
-| `update_record` | Write | Modify existing record (pending preview) |
-| `create_task` | Write | Schedule task or appointment (immediate commit) |
+**`create_record` is exclusive**: if any intent is `create_record`, it must
+be the only intent in that turn. Record creation enters interview mode which
+is incompatible with other actions in the same turn.
 
-Extended tools (defined but excluded from default set to reduce token count):
-`export_pdf`, `search_knowledge`, `search_patients`, `get_patient_timeline`,
-`complete_task`.
+### Dispatcher
 
-**Patient tools** (1 tool):
+`dispatcher.py` maps the `IntentType` enum value to the corresponding handler
+module in `handlers/` and calls `handle(ctx: TurnContext) → HandlerResult`.
 
-| Tool | Description |
-|------|-------------|
-| `advance_interview` | Progress pre-consultation interview state machine |
+### Intent Handlers
+
+Each handler in `handlers/` is responsible for one intent:
+- Loads doctor context (history, knowledge, patient records as needed)
+- Calls the appropriate domain LLM (structuring LLM, compose LLM, interview
+  LLM, or diagnosis LLM via `domain/`)
+- Returns a `HandlerResult(reply, data)`
+
+**`create_record` handler** enters the multi-turn interview flow. The doctor
+is guided through SOAP fields; fields extracted by the routing LLM are
+pre-filled. Confirm/abandon happens within the interview API, not via regex
+fast paths.
+
+**`query_record` / `query_task` / `query_patient` handlers** fetch DB data
+and pass it to a compose LLM for natural-language summarization.
+
+**`create_task` handler** persists the task directly — no confirmation gate
+(tasks are lightweight).
+
+**`general` handler** responds directly via compose LLM with no DB reads.
 
 ### Identity and Resolution
 
 - **Identity injection** — `ContextVar` set once in `handle_turn`; all tools
   read it via `get_current_identity()`
-- **Name-based LLM interface** — the LLM passes `patient_name` in tool calls
+- **Name-based LLM interface** — the LLM passes `patient_name` (human-readable)
 - **ID-based DB internally** — `resolve.py` translates names to
   `(doctor_id, patient_id)` for CRUD operations
-- **Auto-create** — write tools can auto-create patients if they don't exist
+- **Auto-create** — write handlers can auto-create patients via
+  `resolve(auto_create=True)` if the patient does not exist
 
 ---
 
 ## LLM Providers
 
 Chinese-focused provider registry in `src/infra/llm/client.py`. All providers
-expose an OpenAI-compatible API and default to Qwen or DeepSeek models:
+expose an OpenAI-compatible API and are called via raw `AsyncOpenAI`. Default
+to Qwen or DeepSeek models:
 
 | Provider | Default Model | Type |
 |----------|--------------|------|
@@ -222,9 +263,17 @@ expose an OpenAI-compatible API and default to Qwen or DeepSeek models:
 | `tencent_lkeap` | `deepseek-v3-1` | China cloud |
 | `ollama` | `qwen2.5:7b` | Local / self-hosted |
 
-Provider selection: `CONVERSATION_LLM` env var (falls back to `ROUTING_LLM`,
-default `groq`). See [`docs/dev/llm-providers.md`](docs/dev/llm-providers.md)
-for full details.
+**LLM role → env var mapping:**
+
+| Role | Env var | Falls back to |
+|------|---------|---------------|
+| Routing (intent classification) | `ROUTING_LLM` | `groq` |
+| Structuring (record fields + interview) | `STRUCTURING_LLM` | `groq` |
+| Diagnosis / review pipeline | `DIAGNOSIS_LLM` | `STRUCTURING_LLM` |
+| Vision (image/PDF OCR) | `VISION_LLM` | (required if used) |
+
+See [`docs/dev/llm-providers.md`](docs/dev/llm-providers.md) for full
+details on provider setup and model selection.
 
 ---
 
@@ -234,19 +283,58 @@ for full details.
 SQLAlchemy with `aiosqlite` (dev) or async MySQL driver (prod). No Alembic
 migrations until first production launch; `init_db.py` handles DDL.
 
-### Key Tables
+### 14 Tables
 
-| Model | Table | Purpose |
-|-------|-------|---------|
-| `Doctor` | `doctors` | Doctor profiles, PK: `doctor_id` (str) |
-| `Patient` | `patients` | Patient demographics, FK: `doctor_id`, unique `(doctor_id, name)` |
-| `MedicalRecordDB` | `medical_records` | Structured medical records |
-| `PendingRecord` | `pending_records` | Draft previews awaiting confirmation |
-| `DoctorTask` | `tasks` | Tasks, appointments, follow-ups |
-| `InterviewSession` | `interview_sessions` | Patient pre-consultation state |
-| `ChatArchive` | `chat_archive` | Conversation turn persistence |
-| `DoctorKnowledgeItem` | `doctor_knowledge` | Personal knowledge base entries |
-| `AuditLog` | `audit_log` | Audit trail |
+Consolidated from a previous 25-table schema. Tables killed: `pending_records`,
+`diagnosis_results`, `case_history`, `review_queue`, `medical_record_versions`,
+`medical_record_exports`, `patient_labels`, `system_prompts` (and related
+assignment/version tables).
+
+**Core data (9 tables):**
+
+| Table | Purpose |
+|-------|---------|
+| `doctors` | Doctor profiles, identity only |
+| `doctor_wechat` | WeChat channel binding (optional, per-doctor) |
+| `patients` | Patient demographics, FK: `doctor_id` |
+| `patient_auth` | Patient portal access codes (optional) |
+| `medical_records` | SOAP-structured records — also serves as version history, diagnosis results, and pending/review queue |
+| `doctor_tasks` | Tasks (type: general\|review), covers both doctor and patient targets |
+| `doctor_knowledge_items` | Personal KB, categorized (interview_guide\|diagnosis_rule\|red_flag\|treatment_protocol\|custom) |
+| `doctor_chat_log` | Doctor ↔ AI conversation history (LLM context + UI reload) |
+| `patient_chat_log` | Patient ↔ AI conversation history (LLM context + UI reload) |
+
+**Workflow state (1 table):**
+
+| Table | Purpose |
+|-------|---------|
+| `interview_sessions` | Multi-turn interview state: collected fields, conversation, status |
+
+**System/infra (4 tables):**
+
+| Table | Purpose |
+|-------|---------|
+| `audit_log` | Compliance audit trail |
+| `invite_codes` | Doctor signup gating |
+| `runtime_tokens` | WeChat access token cache |
+| `scheduler_leases` | Distributed lock for task notification scheduler |
+
+### Key Schema Decisions
+
+- **SOAP columns on `medical_records`** — `chief_complaint`, `present_illness`,
+  `past_history`, `physical_exam`, `diagnosis`, `treatment_plan`, etc. are
+  real queryable columns, not a single JSON blob. Replaces `structured_data`
+  JSON column from prior schema.
+- **Append-only versioning** — record edits create a new row with `version_of`
+  pointing to the original. `medical_record_versions` table eliminated.
+- **Diagnosis folded in** — `ai_diagnosis`, `doctor_decisions`, `suggested_tasks`
+  columns on `medical_records` replace the separate `diagnosis_results` table.
+- **Pending records eliminated** — record creation is a multi-turn interview
+  (`interview_sessions`), not a one-shot draft with confirm/abandon regex.
+  The review queue is `medical_records WHERE status='pending_review'`.
+- **Case history absorbed** — `final_diagnosis`, `treatment_outcome`,
+  `key_symptoms` columns on `medical_records` replace the `case_history` table.
+  "Similar symptom cases" = `SELECT ... WHERE chief_complaint LIKE '%X%'`.
 
 ---
 
@@ -256,39 +344,46 @@ See [`src/agent/prompts/README.md`](src/agent/prompts/README.md) for the full
 prompt index, mermaid architecture diagrams, and template variable reference.
 
 Key prompt files:
-- `doctor-agent.md` — doctor agent system prompt (clinical collection rules,
-  tool usage, examples)
-- `patient-agent.md` — patient agent system prompt (interview orchestration)
-- `structuring.md` — conversation-to-structured-record (used inside
-  `create_record` / `update_record` tools)
-- `patient-interview.md` — clinical field extraction for interview tool
+
+| File | Used by |
+|------|---------|
+| `routing.md` | Routing LLM — intent classification |
+| `doctor-interview.md` | Interview LLM — guided SOAP field collection |
+| `structuring.md` | Structuring LLM — clinical text → structured record |
+| `diagnosis.md` | Diagnosis LLM — review pipeline, AI suggestions |
+| `compose.md` | Compose LLM — query result summarization |
+| `patient-interview.md` | Patient interview orchestration |
 
 ---
 
 ## Key Design Decisions
 
-1. **No DoctorCtx** — eliminated persistent context (`WorkflowState`,
-   `MemoryState`). All state derived from conversation history or queried
-   from DB per tool call.
+1. **Plan-and-Act, not ReAct** — routing LLM classifies intent once (Plan);
+   deterministic code dispatches to the right handler (Act). No tool-calling
+   loop, no LLM choosing between tools at runtime.
 
-2. **Name-based tool params** — LLM passes `patient_name` (human-readable).
-   `resolve.py` translates to `(doctor_id, patient_id)` internally. The LLM
-   never sees database IDs.
+2. **Per-intent prompts** — each handler uses a focused prompt for its domain
+   (interview, diagnosis, compose). Previously one agent prompt covered all
+   cases with a tool list. Focused prompts are easier to tune and debug.
 
-3. **Pending draft for writes** — `create_record` and `update_record` produce
-   a preview in `pending_records`. Doctor must confirm (fast-path regex) before
-   permanent save. `create_task` commits immediately.
+3. **Single intent per turn** — routing returns one primary intent. Deferred
+   intents are acknowledged in the reply and handled next turn.
 
-4. **Interview as tool** — patient pre-consultation is a LangChain tool
-   (`advance_interview`), not a separate pipeline. The patient agent decides
-   when to invoke it vs. reply to off-topic messages directly.
+4. **Interview-first record creation** — record creation always goes through
+   multi-turn interview (`create_record` handler + `interview_sessions` table).
+   No one-shot structuring from raw text, no confirm/abandon regex fast paths.
 
-5. **Agent-per-session** — each identity gets a persistent `SessionAgent`
-   with in-memory history. Zero DB reads for history during normal operation;
-   archive writes for durability only.
+5. **Name-based LLM interface** — LLM passes `patient_name` (human-readable).
+   `resolve.py` translates to `(doctor_id, patient_id)` for DB operations. The
+   LLM never sees database IDs.
 
-6. **Same agent, different config** — doctor and patient share the same
-   pipeline. Role determines prompt + tool set.
+6. **SOAP columns, not JSON blob** — medical record fields are real DB columns.
+   Queryable by SQL, indexable, renderable directly into PDF without extraction.
+
+7. **Review = completeness gate** — after interview confirm, if `diagnosis`,
+   `treatment_plan`, or `orders_followup` are missing, the record status becomes
+   `pending_review` and a review task is auto-created. Doctor opens the task
+   → review/diagnosis pipeline runs → doctor accepts/rejects AI suggestions.
 
 ---
 
@@ -301,13 +396,14 @@ Key prompt files:
 |----------|---------|---------|
 | `DATABASE_URL` | DB connection string | `sqlite+aiosqlite:///data/patients.db` |
 | `ENVIRONMENT` | `development` / `production` | (required in prod) |
-| `CONVERSATION_LLM` | LLM provider for agent | falls back to `ROUTING_LLM` |
-| `ROUTING_LLM` | Fallback LLM provider | `groq` |
+| `ROUTING_LLM` | LLM provider for intent routing | `groq` |
+| `STRUCTURING_LLM` | LLM provider for record structuring + interview | `groq` |
+| `DIAGNOSIS_LLM` | LLM provider for diagnosis pipeline | falls back to `STRUCTURING_LLM` |
+| `VISION_LLM` | LLM provider for image/PDF OCR | (required if used) |
 | `OLLAMA_BASE_URL` | Ollama endpoint | `http://localhost:11434/v1` |
 | `DEEPSEEK_API_KEY` | DeepSeek API key | (optional) |
 | `GROQ_API_KEY` | Groq API key | (optional) |
 | `WECHAT_TOKEN` | WeChat credentials | (required for WeChat) |
-| `LANGFUSE_PUBLIC_KEY` | LangFuse tracing | (optional) |
 
 ---
 
@@ -317,7 +413,7 @@ Key prompt files:
   patient_portal, patient_interview, import, unified_auth)
 - Middleware: request size limit, trace ID propagation, CORS
 - Health endpoints: `/healthz`, `/readyz`
-- Lifespan: create tables, seed prompts, hydrate LLMs, start scheduler
+- Lifespan: create tables, seed data, hydrate LLMs, start scheduler
 - APScheduler: task notifications, conversation cleanup, session pruning
 
 ---
@@ -327,33 +423,33 @@ Key prompt files:
 | Component | Technology |
 |-----------|------------|
 | Framework | FastAPI |
-| Agent | LangChain / LangGraph |
+| Agent pattern | Plan-and-Act (routing LLM + dispatcher + handlers) |
 | ORM | SQLAlchemy async |
 | Scheduler | APScheduler |
 | Frontend | React + Vite + MUI |
 | Auth | HS256 JWT |
-| LLM | OpenAI-compatible (DeepSeek, Qwen, Ollama) |
+| LLM | OpenAI-compatible (DeepSeek, Qwen, Ollama) via `AsyncOpenAI` |
 
 ---
 
 ## Design Specs
 
-Design documents in `docs/superpowers/specs/`:
+Design documents in `docs/`:
 
 | Spec | Description |
 |------|-------------|
-| `2026-03-18-react-mcp-architecture-design.md` | ReAct agent architecture (authoritative) |
-| `2026-03-17-patient-pre-consultation-design.md` | Patient interview pipeline |
-| `2026-03-17-wechat-miniapp-design.md` | WeChat mini-program design |
-| `2026-03-16-medical-record-import-export-design.md` | Record import/export |
-| `2026-03-15-structured-medical-record-fields-design.md` | Structured record schema |
-| `2026-03-15-web-frontend-simplification-design.md` | Frontend simplification |
+| `docs/product/domain-operations-design.md` | Plan-and-Act domain operations design (authoritative) |
+| `docs/superpowers/specs/2026-03-17-patient-pre-consultation-design.md` | Patient interview pipeline |
+| `docs/superpowers/specs/2026-03-17-wechat-miniapp-design.md` | WeChat mini-program design |
+| `docs/superpowers/specs/2026-03-16-medical-record-import-export-design.md` | Record import/export |
+| `docs/superpowers/specs/2026-03-15-structured-medical-record-fields-design.md` | Structured record schema |
+| `docs/superpowers/specs/2026-03-15-web-frontend-simplification-design.md` | Frontend simplification |
 
 ---
 
 ## Further Reading
 
-- [ReAct Architecture Spec](docs/superpowers/specs/2026-03-18-react-mcp-architecture-design.md) — authoritative design document
+- [Domain Operations Design](docs/product/domain-operations-design.md) — authoritative Plan-and-Act design document
 - [Prompt Architecture](src/agent/prompts/README.md) — prompt index, mermaid diagrams, template vars
 - [LLM Providers Guide](docs/dev/llm-providers.md) — provider setup and model selection
 - [Product Requirements](docs/product/requirements-and-gaps.md) — 4-phase roadmap

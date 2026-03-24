@@ -281,7 +281,7 @@ function ChipInput({ activeChip, onRemoveChip, input, onInput, onSend, loading, 
   );
 }
 
-async function performSend({ text, loading, doctorId, history, setMessages, setInput, setLoading, setFailedText, onPatientCreated, actionHint, actionLabel }) {
+async function performSend({ text, loading, doctorId, history, setMessages, setInput, setLoading, setFailedText, onPatientCreated, onStartPatientInterview, actionHint, actionLabel }) {
   if (!text || loading) return;
   setFailedText(null);
   setMessages((prev) => [...prev, { role: "user", content: text, ts: nowTs(), actionLabel: actionLabel || null }]);
@@ -299,6 +299,10 @@ async function performSend({ text, loading, doctorId, history, setMessages, setI
     if (onPatientCreated && (reply.includes("已创建") || (reply.includes("已为") && reply.includes("创建")))) {
       onPatientCreated();
     }
+    // If routing LLM started an interview session, switch to interview UI
+    if (data.view_payload?.session_id && onStartPatientInterview) {
+      onStartPatientInterview(data.view_payload.session_id);
+    }
   } catch (error) {
     const isNet = error.message === "Failed to fetch" || error.message === "NetworkError" || error.name === "TypeError";
     const msg = isNet ? "网络连接失败，请检查网络后重试。" : t("chat.requestFailed", { message: error.message });
@@ -309,7 +313,7 @@ async function performSend({ text, loading, doctorId, history, setMessages, setI
   }
 }
 
-function useChatState({ doctorId, onMessageCountChange, onPatientCreated, onContextCleared }) {
+function useChatState({ doctorId, onMessageCountChange, onPatientCreated, onStartPatientInterview, onContextCleared }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [failedText, setFailedText] = useState(null);
@@ -347,7 +351,7 @@ function useChatState({ doctorId, onMessageCountChange, onPatientCreated, onCont
   }
 
   function sendText(text, actionHint = null, actionLabel = null) {
-    return performSend({ text, loading, doctorId, history, setMessages, setInput, setLoading, setFailedText, onPatientCreated, actionHint, actionLabel });
+    return performSend({ text, loading, doctorId, history, setMessages, setInput, setLoading, setFailedText, onPatientCreated, onStartPatientInterview, actionHint, actionLabel });
   }
 
   return { input, setInput, loading, setLoading, failedText, setFailedText, messages, setMessages, bottomRef, onClear, sendText };
@@ -445,7 +449,7 @@ export default function ChatSection({ doctorId, onMessageCountChange, externalIn
   const fileDocInputRef = useRef(null);
 
   const { input, setInput, loading, setLoading, failedText, setFailedText, messages, setMessages, bottomRef, onClear, sendText } =
-    useChatState({ doctorId, onMessageCountChange, onPatientCreated, onContextCleared });
+    useChatState({ doctorId, onMessageCountChange, onPatientCreated, onStartPatientInterview, onContextCleared });
   useChatEffects({ externalInput, onExternalInputConsumed, autoSendText, onAutoSendConsumed, setInput, sendText });
   useDailySummary({ doctorId, sendText, ready: messages.length > 0 });
 

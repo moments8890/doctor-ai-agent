@@ -40,9 +40,13 @@ class RecordRepository:
             patient_id=patient_id,
             record_type=record.record_type,
             content=record.content,
-            structured=json.dumps(record.structured, ensure_ascii=False) if record.structured else None,
             tags=json.dumps(record.tags, ensure_ascii=False) if record.tags else None,
         )
+        # Spread structured dict into SOAP columns
+        if record.structured:
+            for key, val in record.structured.items():
+                if hasattr(db_record, key) and val:
+                    setattr(db_record, key, str(val))
         self.session.add(db_record)
         await self.session.flush()
         return db_record
@@ -66,8 +70,12 @@ class RecordRepository:
         if not record:
             raise ValueError(f"Record {record_id} not found for doctor {doctor_id}")
         record.content = content
-        record.structured = json.dumps(structured, ensure_ascii=False) if structured else None
         record.tags = json.dumps(tags, ensure_ascii=False) if tags else "[]"
+        # Spread structured dict into SOAP columns
+        if structured:
+            for key, val in structured.items():
+                if hasattr(record, key) and val:
+                    setattr(record, key, str(val))
         record.updated_at = datetime.now(timezone.utc)
         await self.session.flush()
         return record

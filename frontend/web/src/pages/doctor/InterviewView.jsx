@@ -7,7 +7,7 @@ import { Alert, Box, Button, CircularProgress, IconButton, Stack, Typography } f
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
-import { doctorInterviewTurn, doctorInterviewConfirm, doctorInterviewCancel } from "../../api";
+import { doctorInterviewTurn, doctorInterviewConfirm, doctorInterviewCancel, doctorInterviewGetSession } from "../../api";
 import SubpageHeader from "./SubpageHeader";
 import SuggestionChips from "../../components/SuggestionChips";
 import { TYPE, ICON } from "../../theme";
@@ -56,6 +56,35 @@ export default function InterviewView({ doctorId, sessionId: resumeSessionId, on
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => { inputRef.current?.focus(); }, []);
+
+  // Resume existing session from chat — load collected data and show progress
+  useEffect(() => {
+    if (!resumeSessionId) return;
+    (async () => {
+      try {
+        const data = await doctorInterviewGetSession(resumeSessionId, doctorId);
+        setSession({
+          sessionId: data.session_id,
+          progress: data.progress,
+          status: data.status,
+          patientId: data.patient_id,
+        });
+        // Show full conversation history from the session
+        if (data.conversation && data.conversation.length > 0) {
+          setMessages(data.conversation.map(turn => ({
+            role: turn.role,
+            content: turn.content,
+            ts: turn.timestamp ? new Date(turn.timestamp).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : nowTs(),
+          })));
+        } else if (data.reply) {
+          setMessages([{ role: "assistant", content: data.reply, ts: nowTs() }]);
+        }
+        setSuggestions(data.suggestions || []);
+      } catch (err) {
+        setError(`会话加载失败：${err.message}`);
+      }
+    })();
+  }, [resumeSessionId, doctorId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleToggleSuggestion(text) {
     setSelectedSuggestions(prev =>

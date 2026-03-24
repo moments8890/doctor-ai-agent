@@ -111,10 +111,8 @@ async def upload_report_template(
     # The outpatient-report prompt already truncates to 500 chars at read time;
     # this ensures the DB itself doesn't hold more than needed.
     truncated = text[:500]
-    key = f"report.template.{resolved_doctor_id}"
-    from db.crud import upsert_system_prompt
-    async with AsyncSessionLocal() as db:
-        await upsert_system_prompt(db, key, truncated, changed_by=f"doctor:{resolved_doctor_id}")
+    # SystemPrompt table removed — template upload is a no-op for now.
+    # TODO: migrate template storage to runtime config or file-based approach.
 
     safe_filename = os.path.basename(file.filename or "unknown")
     log(f"[Export] template uploaded doctor={resolved_doctor_id} file={safe_filename!r} chars={len(text)}")
@@ -131,12 +129,7 @@ async def get_template_status(
 ):
     """Return whether a custom template exists for this doctor."""
     resolved_doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
-    key = f"report.template.{resolved_doctor_id}"
-    from db.crud import get_system_prompt
-    async with AsyncSessionLocal() as db:
-        row = await get_system_prompt(db, key)
-    if row and row.content:
-        return {"has_template": True, "chars": len(row.content)}
+    # SystemPrompt table removed — no template storage.
     return {"has_template": False, "chars": 0}
 
 
@@ -147,10 +140,7 @@ async def delete_report_template(
 ):
     """Delete the custom template for this doctor (revert to default format)."""
     resolved_doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
-    key = f"report.template.{resolved_doctor_id}"
-    from db.crud import upsert_system_prompt
-    async with AsyncSessionLocal() as db:
-        await upsert_system_prompt(db, key, "", changed_by=f"doctor:{resolved_doctor_id}")
+    # SystemPrompt table removed — no template to delete.
     safe_create_task(
         audit(resolved_doctor_id, "DELETE", resource_type="report_template", resource_id=resolved_doctor_id)
     )

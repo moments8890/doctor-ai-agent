@@ -1,6 +1,6 @@
 """
-数据保留策略：定期清理过期的审计日志、病历版本历史等。
-Retention policy CRUD: periodic deletion of old audit logs, record versions, and
+数据保留策略：定期清理过期的审计日志等。
+Retention policy CRUD: periodic deletion of old audit logs and
 chat archive entries so the DB does not grow unboundedly.
 """
 
@@ -8,10 +8,10 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from sqlalchemy import delete, update
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from db.models import AuditLog, ChatArchive, MedicalRecordVersion
+from db.models import AuditLog, ChatArchive
 from db.crud._common import _utcnow
 
 
@@ -35,26 +35,6 @@ async def archive_old_audit_logs(session: AsyncSession, days: int = 2555) -> int
 
 
 # ---------------------------------------------------------------------------
-# MedicalRecordVersion retention
-# ---------------------------------------------------------------------------
-
-async def prune_record_versions(session: AsyncSession, max_age_days: int = 10950) -> int:
-    """Delete medical record version entries older than *max_age_days* days (default 30 years).
-
-    Chinese MoH regulation (医疗机构病历管理规定 2013): inpatient records must be
-    retained for 30 years after discharge. Record version history should match.
-
-    Returns the number of rows deleted.
-    """
-    cutoff = _utcnow() - timedelta(days=max_age_days)
-    result = await session.execute(
-        delete(MedicalRecordVersion).where(MedicalRecordVersion.changed_at < cutoff)
-    )
-    await session.commit()
-    return result.rowcount if result.rowcount else 0
-
-
-# ---------------------------------------------------------------------------
 # ChatArchive TTL retention
 # ---------------------------------------------------------------------------
 
@@ -71,5 +51,3 @@ async def cleanup_chat_archive(session: AsyncSession, days: int = 365) -> int:
     )
     await session.commit()
     return result.rowcount if result.rowcount else 0
-
-

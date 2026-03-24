@@ -2,18 +2,10 @@
 
 import logging
 import os
-import socket
-from datetime import datetime, timezone
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from sqlalchemy import select
 
-from db.engine import AsyncSessionLocal
-from db.models.review_queue import ReviewQueue
-from db.models.diagnosis_result import DiagnosisResult
 from domain.tasks.task_crud import check_and_send_due_tasks
-from domain.diagnosis import run_diagnosis
-from utils.log import safe_create_task
 
 
 # ---------------------------------------------------------------------------
@@ -41,66 +33,12 @@ def _scheduler_cron_expr() -> str:
 # Scheduled job functions
 # ---------------------------------------------------------------------------
 
-async def _expire_stale_pending_records() -> None:
-    """Scheduler job: auto-save timed-out pending drafts instead of discarding them.
-
-    For each stale draft: save to medical_records, then create a doctor_task
-    notification so the doctor can see what was auto-saved in the tasks tab.
-    """
-    _log = logging.getLogger("scheduler")
-    try:
-        from db.crud import get_stale_pending_records
-        from domain.records.confirm_pending import save_pending_record
-        from domain.tasks.task_crud import create_general_task
-        from agent.pending import clear_pending_draft_id
-        async with AsyncSessionLocal() as _session:
-            stale = await get_stale_pending_records(_session)
-        if not stale:
-            return
-        saved = 0
-        for pending in stale:
-            try:
-                _result = await save_pending_record(
-                    pending.doctor_id, pending, force_confirm=True,
-                )
-                await clear_pending_draft_id(pending.doctor_id)
-                patient_name = _result[0] if _result else None
-                if patient_name:
-                    safe_create_task(create_general_task(
-                        pending.doctor_id,
-                        title=f"病历已自动保存：【{patient_name}】",
-                        patient_id=pending.patient_id,
-                    ))
-                    saved += 1
-            except Exception as _e:
-                _log.warning("[PendingRecords] auto-save FAILED id=%s: %s", pending.id, _e)
-        if saved:
-            _log.info("[PendingRecords] auto-saved stale drafts | count=%s", saved)
-    except Exception as _e:
-        _log.warning("[PendingRecords] auto-save job FAILED: %s", _e)
-
-
-async def _purge_old_pending_data() -> None:
-    """Daily job: hard-delete expired/abandoned pending records and done messages older than 30 days."""
-    _log = logging.getLogger("scheduler")
-    try:
-        from db.crud import purge_old_pending_records, purge_old_pending_messages
-        async with AsyncSessionLocal() as _session:
-            deleted_records = await purge_old_pending_records(_session)
-            deleted_messages = await purge_old_pending_messages(_session)
-        _log.info(
-            "[Pending] purge complete | deleted_records=%s deleted_messages=%s",
-            deleted_records, deleted_messages,
-        )
-    except Exception as _e:
-        _log.warning("[Pending] purge job FAILED: %s", _e)
-
-
 async def _cleanup_chat_archive() -> None:
     """Daily job: hard-delete ChatArchive rows older than 365 days."""
     _log = logging.getLogger("scheduler")
     try:
         from db.crud import cleanup_chat_archive
+        from db.engine import AsyncSessionLocal
         async with AsyncSessionLocal() as _session:
             deleted = await cleanup_chat_archive(_session)
         _log.info("[ChatArchive] cleanup complete | deleted=%s", deleted)
@@ -118,6 +56,7 @@ async def _audit_log_retention() -> None:
     _log = logging.getLogger("scheduler")
     try:
         from db.crud import archive_old_audit_logs
+        from db.engine import AsyncSessionLocal
         async with AsyncSessionLocal() as _session:
             deleted = await archive_old_audit_logs(_session)
         if deleted:
@@ -132,18 +71,6 @@ async def _audit_log_retention() -> None:
         _log.warning("[AuditLog] retention job FAILED: %s", _e)
 
 
-async def _record_version_retention() -> None:
-    """Monthly job: delete medical record versions older than 30 years (10950 days)."""
-    _log = logging.getLogger("scheduler")
-    try:
-        from db.crud import prune_record_versions
-        async with AsyncSessionLocal() as _session:
-            deleted = await prune_record_versions(_session)
-        _log.info("[RecordVersions] retention purge complete | deleted=%s", deleted)
-    except Exception as _e:
-        _log.warning("[RecordVersions] retention job FAILED: %s", _e)
-
-
 async def _prune_turn_log() -> None:
     """Daily job: remove turn log entries older than TURN_LOG_TTL_DAYS."""
     _log = logging.getLogger("scheduler")
@@ -153,71 +80,6 @@ async def _prune_turn_log() -> None:
         _log.info("[TurnLog] prune complete | kept=%s lines", kept)
     except Exception as _e:
         _log.warning("[TurnLog] prune job FAILED: %s", _e)
-
-
-_DIAGNOSIS_LEASE_KEY = "diagnosis_runner"
-
-
-async def _run_pending_diagnoses() -> None:
-    """Scheduler job: auto-run AI diagnosis for review_queue entries that have no diagnosis_results row yet.
-
-    Acquires a scheduler lease to prevent duplicate runs in multi-instance
-    deployments.  Processes up to 5 records per cycle.  One failure per
-    record does not block the others.
-    """
-    _log = logging.getLogger("scheduler")
-    owner_id = socket.gethostname()
-    now = datetime.now(timezone.utc)
-    try:
-        from db.crud import try_acquire_scheduler_lease
-        async with AsyncSessionLocal() as _session:
-            acquired = await try_acquire_scheduler_lease(
-                session=_session,
-                lease_key=_DIAGNOSIS_LEASE_KEY,
-                owner_id=owner_id,
-                now=now,
-                lease_ttl_seconds=55,  # slightly under 1 minute to overlap cleanly
-            )
-        if not acquired:
-            _log.debug("[Diagnosis] scheduler tick skipped — lease not acquired owner=%s", owner_id)
-            return
-    except Exception as _e:
-        _log.warning("[Diagnosis] lease acquire failed, running anyway: %s", _e)
-
-    try:
-        async with AsyncSessionLocal() as _session:
-            stmt = (
-                select(ReviewQueue)
-                .outerjoin(
-                    DiagnosisResult,
-                    DiagnosisResult.record_id == ReviewQueue.record_id,
-                )
-                .where(ReviewQueue.status == "pending_review")
-                .where(DiagnosisResult.id.is_(None))
-                .limit(5)
-            )
-            result = await _session.execute(stmt)
-            pending = result.scalars().all()
-    except Exception as _e:
-        _log.warning("[Diagnosis] query FAILED: %s", _e)
-        return
-
-    if not pending:
-        return
-
-    _log.info("[Diagnosis] running diagnosis for %s record(s)", len(pending))
-    for rq in pending:
-        try:
-            await run_diagnosis(doctor_id=rq.doctor_id, record_id=rq.record_id)
-            _log.info(
-                "[Diagnosis] completed | record_id=%s doctor_id=%s",
-                rq.record_id, rq.doctor_id,
-            )
-        except Exception as _e:
-            _log.warning(
-                "[Diagnosis] FAILED | record_id=%s doctor_id=%s error=%s",
-                rq.record_id, rq.doctor_id, _e,
-            )
 
 
 # ---------------------------------------------------------------------------
@@ -255,31 +117,13 @@ def _schedule_task_notifications(scheduler: AsyncIOScheduler, startup_log: loggi
         startup_log.info("[Tasks] scheduler configured | mode=interval minutes=%s", interval_minutes)
 
 
-def _schedule_cleanup_jobs(scheduler: AsyncIOScheduler, startup_log: logging.Logger) -> None:
-    """Register draft expiry timer."""
-    scheduler.add_job(_expire_stale_pending_records, "interval", minutes=5)
-    startup_log.info("[PendingRecords] expiry scheduler configured | every_minutes=5")
-
-
-def _schedule_diagnosis_jobs(scheduler: AsyncIOScheduler, startup_log: logging.Logger) -> None:
-    """Register diagnosis auto-run job."""
-    scheduler.add_job(_run_pending_diagnoses, "interval", minutes=1)
-    startup_log.info("[Diagnosis] scheduler configured | every_minutes=1")
-
-
 def _schedule_retention_jobs(scheduler: AsyncIOScheduler, startup_log: logging.Logger) -> None:
     """Register data retention / compliance scheduled jobs (daily/monthly)."""
-    scheduler.add_job(_purge_old_pending_data, "cron", hour=4, minute=0)
-    startup_log.info("[Pending] purge scheduler configured | daily at 04:00")
-
     scheduler.add_job(_cleanup_chat_archive, "cron", hour=4, minute=30)
     startup_log.info("[ChatArchive] cleanup scheduler configured | daily at 04:30")
 
     scheduler.add_job(_audit_log_retention, "cron", day=1, hour=3, minute=0)
     startup_log.info("[AuditLog] retention scheduler configured | monthly day=1 at 03:00")
-
-    scheduler.add_job(_record_version_retention, "cron", day=1, hour=3, minute=30)
-    startup_log.info("[RecordVersions] retention scheduler configured | monthly day=1 at 03:30")
 
     scheduler.add_job(_prune_turn_log, "cron", hour=5, minute=30)
     startup_log.info("[TurnLog] prune scheduler configured | daily at 05:30")
@@ -298,6 +142,4 @@ def configure_scheduler(scheduler: AsyncIOScheduler, startup_log: logging.Logger
     """Clear all jobs and re-register all scheduled timers."""
     scheduler.remove_all_jobs()
     _schedule_task_notifications(scheduler, startup_log)
-    _schedule_cleanup_jobs(scheduler, startup_log)
-    _schedule_diagnosis_jobs(scheduler, startup_log)
     _schedule_retention_jobs(scheduler, startup_log)

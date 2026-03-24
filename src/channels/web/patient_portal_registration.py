@@ -17,6 +17,7 @@ from sqlalchemy import select
 
 from db.engine import AsyncSessionLocal
 from db.models import Patient
+from db.models.patient_auth import PatientAuth
 from infra.auth.access_code_hash import verify_access_code
 from infra.auth.rate_limit import enforce_doctor_rate_limit
 
@@ -27,6 +28,16 @@ from channels.web.patient_portal_auth import (
 logger = logging.getLogger(__name__)
 
 registration_router = APIRouter(tags=["patient-portal"])
+
+
+async def _get_access_code_version(db, patient_id: int) -> int:
+    """Fetch access_code_version from PatientAuth for JWT generation."""
+    auth_row = (
+        await db.execute(
+            select(PatientAuth).where(PatientAuth.patient_id == patient_id).limit(1)
+        )
+    ).scalar_one_or_none()
+    return auth_row.access_code_version if auth_row is not None else 0
 
 
 # ---------------------------------------------------------------------------
@@ -91,8 +102,8 @@ async def list_accepting_doctors():
     from db.models import Doctor
 
     async with AsyncSessionLocal() as db:
+        # accepting_patients column removed — all doctors are considered accepting
         stmt = select(Doctor).where(
-            Doctor.accepting_patients == True,
             ~Doctor.doctor_id.like("inttest_%"),
         )
         rows = (await db.execute(stmt)).scalars().all()
@@ -134,7 +145,7 @@ async def register_patient(body: PatientRegisterRequest):
         doctor = (await db.execute(
             select(Doctor).where(Doctor.doctor_id == doctor_id)
         )).scalar_one_or_none()
-        if doctor is None or not doctor.accepting_patients:
+        if doctor is None:
             raise HTTPException(404, "\u672a\u627e\u5230\u8be5\u533b\u751f")
 
         # Check for existing patient record
@@ -174,7 +185,8 @@ async def register_patient(body: PatientRegisterRequest):
             await db.commit()
             await db.refresh(patient)
 
-    token = _issue_patient_token(patient.id, doctor_id, getattr(patient, "access_code_version", 0))
+        acv = await _get_access_code_version(db, patient.id)
+    token = _issue_patient_token(patient.id, doctor_id, acv)
     return {"token": token, "patient_id": patient.id, "patient_name": patient.name}
 
 
@@ -206,7 +218,8 @@ async def login_by_phone(body: PatientLoginRequest):
             )).scalar_one_or_none()
             if patient is None:
                 raise HTTPException(401, "\u624b\u673a\u53f7\u6216\u51fa\u751f\u5e74\u4efd\u4e0d\u6b63\u786e")
-            token = _issue_patient_token(patient.id, doctor_id, getattr(patient, "access_code_version", 0))
+            acv = await _get_access_code_version(db, patient.id)
+            token = _issue_patient_token(patient.id, doctor_id, acv)
             return {"token": token, "patient_id": patient.id, "patient_name": patient.name, "doctor_id": doctor_id}
         else:
             # Find all patient records for this phone+yob
@@ -220,7 +233,8 @@ async def login_by_phone(body: PatientLoginRequest):
                 raise HTTPException(401, "\u624b\u673a\u53f7\u6216\u51fa\u751f\u5e74\u4efd\u4e0d\u6b63\u786e")
             if len(patients) == 1:
                 p = patients[0]
-                token = _issue_patient_token(p.id, p.doctor_id, getattr(p, "access_code_version", 0))
+                acv = await _get_access_code_version(db, p.id)
+                token = _issue_patient_token(p.id, p.doctor_id, acv)
                 return {"token": token, "patient_id": p.id, "patient_name": p.name, "doctor_id": p.doctor_id}
             # Multiple doctors -- return list for picker
             return {

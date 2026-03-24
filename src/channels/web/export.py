@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse, Response
 from sqlalchemy import select
 
 from db.engine import AsyncSessionLocal
-from db.models import MedicalRecordDB, MedicalRecordExport, Patient
+from db.models import MedicalRecordDB, Patient
 from channels.web.ui._utils import _resolve_ui_doctor_id
 from channels.web.export_template import router as template_router
 from infra.auth.rate_limit import enforce_doctor_rate_limit
@@ -86,38 +86,16 @@ async def _fetch_patient_and_records(
 
 
 def _write_patient_export_audit_task(records, resolved_doctor_id: str, pdf_hash: str) -> None:
-    """Schedule a background task to write MedicalRecordExport rows for all records."""
-    async def _write_export_audit():
-        async with AsyncSessionLocal() as db:
-            for rec in records:
-                db.add(MedicalRecordExport(
-                    record_id=rec.id,
-                    doctor_id=resolved_doctor_id,
-                    export_format="pdf",
-                    exported_at=datetime.now(timezone.utc),
-                    pdf_hash=pdf_hash,
-                ))
-            await db.commit()
-    safe_create_task(_write_export_audit())
+    """No-op — MedicalRecordExport table removed."""
+    pass
 
 
 def _write_outpatient_export_audit_task(
     records, resolved_doctor_id: str,
     export_fmt: str = "pdf", pdf_hash: Optional[str] = None,
 ) -> None:
-    """Schedule a background task to write MedicalRecordExport rows for outpatient report records."""
-    async def _write_export_audit():
-        async with AsyncSessionLocal() as db:
-            for rec in records:
-                db.add(MedicalRecordExport(
-                    record_id=rec.id,
-                    doctor_id=resolved_doctor_id,
-                    export_format=export_fmt,
-                    exported_at=datetime.now(timezone.utc),
-                    pdf_hash=pdf_hash or "",
-                ))
-            await db.commit()
-    safe_create_task(_write_export_audit())
+    """No-op — MedicalRecordExport table removed."""
+    pass
 
 
 @router.get("/patient/{patient_id}/pdf")
@@ -203,18 +181,6 @@ async def export_record_pdf(
         log(f"[Export] PDF generation failed for record {record_id}: {exc}")
         raise HTTPException(status_code=500, detail="PDF generation failed")
     safe_create_task(audit(resolved_doctor_id, "EXPORT", resource_type="record", resource_id=str(record_id)))
-    pdf_hash = _sha256_hex(pdf_bytes)
-    async def _write_record_export_audit():
-        async with AsyncSessionLocal() as db:
-            db.add(MedicalRecordExport(
-                record_id=record_id,
-                doctor_id=resolved_doctor_id,
-                export_format="pdf",
-                exported_at=datetime.now(timezone.utc),
-                pdf_hash=pdf_hash,
-            ))
-            await db.commit()
-    safe_create_task(_write_record_export_audit())
     filename = _safe_pdf_filename("病历_record", record_id)
     return Response(
         content=pdf_bytes,

@@ -1,6 +1,6 @@
 """
-Patient detail routes: listing, search, timeline, delete, label assignment,
-working context, clear context, pending record confirmation, record listing,
+Patient detail routes: listing, search, timeline, delete,
+working context, clear context, record listing,
 and admin DB-view delegation.
 """
 
@@ -13,18 +13,11 @@ from typing import Annotated, Optional
 from fastapi import APIRouter, Header, HTTPException, Query
 from sqlalchemy import func, select
 
-from db.models.pending import PendingRecordStatus
-
 from db.crud import (
     get_all_patients,
     get_records_for_patient,
     get_all_records_for_doctor,
-    get_pending_record,
-    confirm_pending_record,
-    abandon_pending_record,
     delete_patient_for_doctor,
-    assign_label,
-    remove_label,
 )
 from db.crud.patient import search_patients_nl
 from domain.patients.nl_search import extract_criteria
@@ -34,7 +27,6 @@ from domain.patients.timeline import build_patient_timeline
 from infra.auth.rate_limit import enforce_doctor_rate_limit
 from infra.observability.audit import audit
 from utils.log import safe_create_task
-from agent.pending import get_pending_draft_id, clear_pending_draft_id
 from utils.errors import DomainError
 from channels.web.ui.record_handlers import (
     manage_records_for_doctor as _manage_records_for_doctor_impl,
@@ -120,9 +112,9 @@ async def search_patients_endpoint(
             "year_of_birth": p.year_of_birth,
             "created_at": _fmt_ts(p.created_at),
             "record_count": int(count_map.get(p.id, 0)),
-            "primary_category": p.primary_category,
-            "category_tags": _parse_tags(p.category_tags),
-            "labels": [{"id": lbl.id, "name": lbl.name, "color": lbl.color} for lbl in (p.labels or [])],
+            "primary_category": None,  # TODO: removed from Patient model
+            "category_tags": [],  # TODO: removed from Patient model
+            "labels": [],
         }
         for p in patients
     ]
@@ -224,42 +216,6 @@ async def delete_patient_endpoint(
 
 # ── Assign / remove labels on patients ────────────────────────────────────────
 
-@router.post("/api/manage/patients/{patient_id}/labels/{label_id}", include_in_schema=True)
-async def assign_label_endpoint(
-    patient_id: int,
-    label_id: int,
-    doctor_id: str = Query(default="web_doctor"),
-    authorization: str | None = Header(default=None),
-):
-    doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
-    enforce_doctor_rate_limit(doctor_id, scope="ui.labels.assign")
-    async with AsyncSessionLocal() as db:
-        try:
-            await assign_label(db, patient_id, label_id, doctor_id)
-        except DomainError as exc:
-            raise HTTPException(status_code=exc.status_code, detail=exc.message)
-    safe_create_task(audit(doctor_id, "WRITE", "label", f"{patient_id}:{label_id}"))
-    return {"ok": True}
-
-
-@router.delete("/api/manage/patients/{patient_id}/labels/{label_id}", include_in_schema=True)
-async def remove_label_endpoint(
-    patient_id: int,
-    label_id: int,
-    doctor_id: str = Query(default="web_doctor"),
-    authorization: str | None = Header(default=None),
-):
-    doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
-    enforce_doctor_rate_limit(doctor_id, scope="ui.labels.remove")
-    async with AsyncSessionLocal() as db:
-        try:
-            await remove_label(db, patient_id, label_id, doctor_id)
-        except DomainError as exc:
-            raise HTTPException(status_code=exc.status_code, detail=exc.message)
-    safe_create_task(audit(doctor_id, "DELETE", "label", f"{patient_id}:{label_id}"))
-    return {"ok": True}
-
-
 # ── Working context / clear context ───────────────────────────────────────────
 
 @router.get("/api/manage/working-context", include_in_schema=True)
@@ -267,52 +223,13 @@ async def get_working_context(
     doctor_id: str = Query(...),
     authorization: str | None = Header(default=None),
 ):
-    """Return the current working context for the doctor workbench header.
-
-    Combines current patient, pending draft, and next-step state into one
-    response so the UI can render the context header without multiple calls.
-    """
+    """Return the current working context for the doctor workbench header."""
     resolved_id = _resolve_ui_doctor_id(doctor_id, authorization)
 
-    # Current patient — no longer tracked in ctx; return None
-    current_patient = None
-
-    # Pending draft
-    pending_draft = None
-    pending_id = await get_pending_draft_id(resolved_id)
-    if pending_id:
-        async with AsyncSessionLocal() as session:
-            pending = await get_pending_record(session, pending_id, resolved_id)
-        now = datetime.now(timezone.utc)
-        _exp = pending.expires_at if pending else None
-        if _exp and _exp.tzinfo is None:
-            _exp = _exp.replace(tzinfo=timezone.utc)
-        if pending and pending.status == PendingRecordStatus.awaiting and (not _exp or _exp >= now):
-            try:
-                draft = json.loads(pending.draft_json)
-                preview = draft.get("content", "")[:60]
-            except Exception:
-                preview = ""
-            pending_draft = {
-                "id": pending.id,
-                "patient_name": pending.patient_name or "",
-                "preview": preview,
-                "expires_at": pending.expires_at.isoformat() if pending.expires_at else None,
-            }
-        else:
-            await clear_pending_draft_id(resolved_id)
-
-    # Next step
-    next_step = None
-    if pending_draft:
-        next_step = "confirm or abandon pending draft"
-    elif current_patient is None:
-        next_step = "describe a patient or dictate a record"
-
     return {
-        "current_patient": current_patient,
-        "pending_draft": pending_draft,
-        "next_step": next_step,
+        "current_patient": None,
+        "pending_draft": None,
+        "next_step": "describe a patient or dictate a record",
     }
 
 
@@ -321,28 +238,12 @@ async def clear_context_endpoint(
     doctor_id: str = Query(...),
     authorization: str | None = Header(default=None),
 ):
-    """Clear all working context for a doctor: current patient, pending draft,
-    blocked write, pending create, candidate patient, conversation history,
+    """Clear all working context for a doctor: conversation history,
     chat archive, and in-memory caches.
 
     Called when the user clears the chat in the UI so all state resets.
     """
     resolved_id = _resolve_ui_doctor_id(doctor_id, authorization)
-
-    # Abandon any pending drafts
-    try:
-        from db.models.pending import PendingRecord
-        from sqlalchemy import select, update as sa_update
-        async with AsyncSessionLocal() as session:
-            await session.execute(
-                sa_update(PendingRecord).where(
-                    PendingRecord.doctor_id == resolved_id,
-                    PendingRecord.status == PendingRecordStatus.awaiting,
-                ).values(status=PendingRecordStatus.abandoned)
-            )
-            await session.commit()
-    except Exception:
-        pass
 
     # Delete chat_archive rows for this doctor
     try:
@@ -358,94 +259,11 @@ async def clear_context_endpoint(
 
     # Clear in-memory agent session if it exists
     try:
-        from agent.session import _agents
-        _agents.pop(resolved_id, None)
+        from agent.session import _sessions
+        _sessions.pop(resolved_id, None)
     except Exception:
         pass
 
-    return {"ok": True}
-
-
-# ── Pending record confirmation ───────────────────────────────────────────────
-
-@router.get("/api/manage/pending-record", include_in_schema=True)
-async def get_pending_record_endpoint(
-    doctor_id: str = Query(...),
-    authorization: str | None = Header(default=None),
-):
-    """Return the current pending record draft for a doctor, or null if none."""
-    resolved_id = _resolve_ui_doctor_id(doctor_id, authorization)
-    pending_id = await get_pending_draft_id(resolved_id)
-    if not pending_id:
-        return None
-    async with AsyncSessionLocal() as session:
-        pending = await get_pending_record(session, pending_id, resolved_id)
-    if pending is None or pending.status != PendingRecordStatus.awaiting:
-        await clear_pending_draft_id(resolved_id)
-        return None
-    now = datetime.now(timezone.utc)
-    _exp = pending.expires_at
-    if _exp and _exp.tzinfo is None:
-        _exp = _exp.replace(tzinfo=timezone.utc)
-    if _exp and _exp < now:
-        await clear_pending_draft_id(resolved_id)
-        return None
-    try:
-        draft = json.loads(pending.draft_json)
-        raw_content = draft.get("content", "")
-        content_preview = raw_content[:100] + ("\u2026" if len(raw_content) > 100 else "")
-    except Exception:
-        content_preview = ""
-    return {
-        "id": pending.id,
-        "patient_name": pending.patient_name or "\u672a\u5173\u8054",
-        "content_preview": content_preview,
-        "created_at": pending.created_at.isoformat() if pending.created_at else None,
-        "expires_at": pending.expires_at.isoformat() if pending.expires_at else None,
-    }
-
-
-@router.post("/api/manage/pending-record/confirm", include_in_schema=True)
-async def confirm_pending_record_endpoint(
-    doctor_id: str = Query(...),
-    authorization: str | None = Header(default=None),
-):
-    """Confirm the pending record draft -> save to medical_records."""
-    from domain.records.confirm_pending import save_pending_record
-    resolved_id = _resolve_ui_doctor_id(doctor_id, authorization)
-    pending_id = await get_pending_draft_id(resolved_id)
-    if not pending_id:
-        raise HTTPException(status_code=404, detail="No pending record")
-    async with AsyncSessionLocal() as session:
-        pending = await get_pending_record(session, pending_id, resolved_id)
-    if pending is None or pending.status != PendingRecordStatus.awaiting:
-        await clear_pending_draft_id(resolved_id)
-        raise HTTPException(status_code=404, detail="Pending record not found or already processed")
-    from datetime import datetime, timezone as _tz
-    if pending.expires_at:
-        _exp = pending.expires_at if pending.expires_at.tzinfo else pending.expires_at.replace(tzinfo=_tz.utc)
-        if _exp <= datetime.now(_tz.utc):
-            await clear_pending_draft_id(resolved_id)
-            raise HTTPException(status_code=410, detail="Pending record has expired")
-    result = await save_pending_record(resolved_id, pending)
-    await clear_pending_draft_id(resolved_id)
-    patient_name = result[0] if result else None
-    return {"ok": True, "patient_name": patient_name or ""}
-
-
-@router.post("/api/manage/pending-record/abandon", include_in_schema=True)
-async def abandon_pending_record_endpoint(
-    doctor_id: str = Query(...),
-    authorization: str | None = Header(default=None),
-):
-    """Abandon the pending record draft."""
-    resolved_id = _resolve_ui_doctor_id(doctor_id, authorization)
-    pending_id = await get_pending_draft_id(resolved_id)
-    if not pending_id:
-        raise HTTPException(status_code=404, detail="No pending record")
-    async with AsyncSessionLocal() as session:
-        await abandon_pending_record(session, pending_id, doctor_id=resolved_id)
-    await clear_pending_draft_id(resolved_id)
     return {"ok": True}
 
 

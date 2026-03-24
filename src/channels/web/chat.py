@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, File, H
 from pydantic import BaseModel, Field, field_validator
 from typing import Any, Dict, List, Literal, Optional
 
-from db.crud import get_record_versions
 from db.engine import AsyncSessionLocal
 from db.models.medical_record import MedicalRecord
 from domain.records.structuring import structure_medical_record
@@ -15,8 +14,6 @@ from infra.auth.rate_limit import enforce_doctor_rate_limit
 from infra.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
 from agent import handle_turn
 from agent.actions import Action
-from domain.records.confirm_pending import save_pending_record
-from db.crud.pending import abandon_pending_record, get_pending_record
 from channels.web.deps import get_doctor_id
 from messages import M
 from utils.log import log
@@ -88,31 +85,7 @@ class FileExtractResponse(BaseModel):
     filename: str
 
 
-class RecordVersionResponse(BaseModel):
-    """Single version entry in record history."""
-    id: int
-    old_content: Optional[str] = None
-    old_tags: Optional[str] = None
-    old_record_type: Optional[str] = None
-    changed_at: Optional[str] = None
 
-
-class RecordHistoryResponse(BaseModel):
-    """Output for /{record_id}/history."""
-    record_id: int
-    versions: List[RecordVersionResponse]
-
-
-class ConfirmResponse(BaseModel):
-    """Output for /pending/{id}/confirm."""
-    ok: bool
-    record_id: Optional[int] = None
-    patient_name: Optional[str] = None
-
-
-class AbandonResponse(BaseModel):
-    """Output for /pending/{id}/abandon."""
-    ok: bool
 
 
 # ── Chat endpoint ──────────────────────────────────────────────────────────
@@ -134,8 +107,8 @@ async def chat(
 
     enforce_doctor_rate_limit(doctor_id, scope="records.chat")
 
-    reply = await handle_turn(text, "doctor", doctor_id, action_hint=body.action_hint)
-    return ChatResponse(reply=reply)
+    result = await handle_turn(text, "doctor", doctor_id, action_hint=body.action_hint)
+    return ChatResponse(reply=result.reply, view_payload=result.data)
 
 
 # ── Utility endpoints (unchanged) ───────────────────────────────────────────
@@ -269,78 +242,5 @@ async def extract_file_for_chat(
         raise HTTPException(status_code=500, detail="File extraction failed")
 
 
-@router.get("/{record_id}/history", response_model=RecordHistoryResponse)
-async def record_history(
-    record_id: int,
-    doctor_id: str = "test_doctor",
-    authorization: Optional[str] = Header(default=None),
-):
-    """Return correction history (versions) for a record."""
-    resolved = resolve_doctor_id_from_auth_or_fallback(
-        doctor_id, authorization,
-        fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
-        default_doctor_id="dev_local",
-    )
-    async with AsyncSessionLocal() as db:
-        from sqlalchemy import select as _select
-        from db.models import MedicalRecordDB as _MRD
-        rec = (await db.execute(
-            _select(_MRD).where(_MRD.id == record_id, _MRD.doctor_id == resolved)
-        )).scalar_one_or_none()
-        if rec is None:
-            raise HTTPException(status_code=404, detail="Record not found")
-        versions = await get_record_versions(db, record_id, resolved)
-    return {
-        "record_id": record_id,
-        "versions": [
-            {
-                "id": v.id,
-                "old_content": v.old_content,
-                "old_tags": v.old_tags,
-                "old_record_type": v.old_record_type,
-                "changed_at": v.changed_at.isoformat() if v.changed_at else None,
-            }
-            for v in versions
-        ],
-    }
-
-
-# ── Draft confirm / abandon ─────────────────────────────────────────────────
-
-@router.post("/pending/{pending_id}/confirm", response_model=ConfirmResponse)
-async def confirm_pending(
-    pending_id: str,
-    doctor_id: str = Depends(get_doctor_id),
-):
-    """Confirm a pending draft and save to medical_records."""
-    from db.models.pending import PendingRecord
-    from sqlalchemy import select
-
-    async with AsyncSessionLocal() as session:
-        result = await session.execute(
-            select(PendingRecord).where(PendingRecord.id == pending_id, PendingRecord.doctor_id == doctor_id)
-        )
-        pending = result.scalar_one_or_none()
-
-    if not pending:
-        raise HTTPException(status_code=404, detail="Draft not found or expired")
-
-    saved = await save_pending_record(doctor_id, pending)
-    if not saved:
-        raise HTTPException(status_code=500, detail="Save failed")
-
-    patient_name, record_id = saved
-    return {"ok": True, "record_id": record_id, "patient_name": patient_name}
-
-
-@router.post("/pending/{pending_id}/abandon", response_model=AbandonResponse)
-async def abandon_pending(
-    pending_id: str,
-    doctor_id: str = Depends(get_doctor_id),
-):
-    """Abandon a pending draft without saving."""
-    async with AsyncSessionLocal() as session:
-        await abandon_pending_record(session, pending_id, doctor_id)
-    return {"ok": True}
 
 

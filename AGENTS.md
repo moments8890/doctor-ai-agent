@@ -21,10 +21,11 @@ patient page patterns. Do not deviate without explicit user approval.
 ## Code Style
 
 - **Python 3.9 compatibility** — always use `from __future__ import annotations` at the top of new files; use `Optional[X]` not `X | None`, `Tuple[...]` not `tuple[...]`
-- **No auto-commit** — never commit unless explicitly asked
+- **No auto-commit** — NEVER run `git commit` or `git add` unless the user explicitly says "commit". This is critical. Make code changes only — the user will commit when ready.
 - **Preserve medical abbreviations** — do not translate or expand STEMI, BNP, PCI, EGFR, ANC, HER2, EF, NYHA, ICD, etc.
 - **Tests mock all I/O** — unit tests in `tests/` must not make real LLM, DB, or network calls; use `AsyncMock` / `patch`
 - **Testing policy** — integration tests are required for safety-critical modules (diagnosis pipeline, clinical decision support). For other modules, do not add unit tests unless the user explicitly asks. Prefer integration/E2E replay tests over unit tests for prompt-related changes.
+- **Enums over strings** — use `(str, Enum)` for any DB column or Pydantic field with a fixed set of values (status, role, task_type, category, etc.). Never use raw strings with inline comments listing allowed values. This applies to all models in `db/models/` and `agent/types.py`.
 - **DB schema changes** — add to `db/models/`; `create_tables()` handles creation automatically; document any manual cleanup/migration impact in the commit message and PR description
 - **No Alembic migrations** — do not create or run Alembic migrations until first production launch; for dev, use `create_tables()` or manual `ALTER TABLE` statements
 - **LLM provider defaults** — local model is `qwen3.5:9b` via Ollama; prefer this in examples and defaults

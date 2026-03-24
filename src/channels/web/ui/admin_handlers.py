@@ -22,15 +22,7 @@ from db.models import (
     DoctorTask,
     InterviewSessionDB,
     MedicalRecordDB,
-    MedicalRecordExport,
-    MedicalRecordVersion,
     Patient,
-    PatientLabel,
-    PendingMessage,
-    PendingRecord,
-    SystemPrompt,
-    SystemPromptVersion,
-    patient_label_assignments,
 )
 from infra.observability.observability import add_span, add_trace
 from infra.observability.audit import audit
@@ -195,54 +187,10 @@ async def _count_tasks(db, doctor_id: Optional[str], needle: Optional[str], dt_f
     return int((await db.execute(stmt)).scalar() or 0)
 
 
-async def _count_labels_and_assignments(
-    db, doctor_id: Optional[str], needle: Optional[str], dt_from, dt_to_exclusive
-) -> tuple[int, int]:
-    """Return (patient_labels count, patient_label_assignments count)."""
-    labels_stmt = select(func.count(PatientLabel.id))
-    labels_stmt = _apply_created_at_filters(labels_stmt, PatientLabel, dt_from, dt_to_exclusive)
-    if doctor_id:
-        labels_stmt = labels_stmt.where(PatientLabel.doctor_id == doctor_id)
-    else:
-        labels_stmt = apply_exclude_test_doctors(labels_stmt, PatientLabel.doctor_id)
-    labels_count = int((await db.execute(labels_stmt)).scalar() or 0)
-
-    assignments_stmt = (
-        select(func.count())
-        .select_from(patient_label_assignments)
-        .join(PatientLabel, patient_label_assignments.c.label_id == PatientLabel.id)
-        .join(Patient, patient_label_assignments.c.patient_id == Patient.id)
-    )
-    if doctor_id:
-        assignments_stmt = assignments_stmt.where(PatientLabel.doctor_id == doctor_id)
-    else:
-        assignments_stmt = apply_exclude_test_doctors(assignments_stmt, PatientLabel.doctor_id)
-    if needle:
-        assignments_stmt = assignments_stmt.where(Patient.name.ilike(needle))
-    assignments_count = int((await db.execute(assignments_stmt)).scalar() or 0)
-
-    return labels_count, assignments_count
-
-
-async def _count_pending_records(db, doctor_id: Optional[str], needle: Optional[str]) -> int:
-    """Count pending_records with optional patient_name filter (matches drill-down)."""
-    stmt = select(func.count()).select_from(PendingRecord)
-    if doctor_id:
-        stmt = stmt.where(PendingRecord.doctor_id == doctor_id)
-    else:
-        stmt = apply_exclude_test_doctors(stmt, PendingRecord.doctor_id)
-    if needle:
-        stmt = stmt.where(PendingRecord.patient_name.ilike(needle))
-    return int((await db.execute(stmt)).scalar() or 0)
-
-
 async def _count_generic_tables(db, doctor_id: Optional[str]) -> dict:
     """Count rows for generic tables that only filter by doctor_id."""
     counts: dict = {}
     for model, key, col in [
-        (MedicalRecordVersion, "medical_record_versions", MedicalRecordVersion.doctor_id),
-        (MedicalRecordExport, "medical_record_exports", MedicalRecordExport.doctor_id),
-        (PendingMessage, "pending_messages", PendingMessage.doctor_id),
         (AuditLog, "audit_log", AuditLog.doctor_id),
         (DoctorKnowledgeItem, "doctor_knowledge_items", DoctorKnowledgeItem.doctor_id),
         (ChatArchive, "chat_archive", ChatArchive.doctor_id),
@@ -258,11 +206,10 @@ async def _count_generic_tables(db, doctor_id: Optional[str]) -> dict:
 
 
 _TABLES_ORDER = [
-    "doctors", "patients", "medical_records", "medical_record_versions",
-    "medical_record_exports", "doctor_tasks", "interview_sessions",
-    "pending_records", "pending_messages", "audit_log",
-    "doctor_knowledge_items", "patient_labels", "patient_label_assignments",
-    "system_prompts", "system_prompt_versions",
+    "doctors", "patients", "medical_records",
+    "doctor_tasks", "interview_sessions",
+    "audit_log",
+    "doctor_knowledge_items",
     "chat_archive",
 ]
 
@@ -274,17 +221,7 @@ async def _count_all_tables(db, doctor_id: Optional[str], needle: Optional[str],
     counts["patients"] = await _count_patients(db, doctor_id, needle, dt_from, dt_to_exclusive)
     counts["medical_records"] = await _count_records(db, doctor_id, needle, dt_from, dt_to_exclusive)
     counts["doctor_tasks"] = await _count_tasks(db, doctor_id, needle, dt_from, dt_to_exclusive)
-    counts["patient_labels"], counts["patient_label_assignments"] = (
-        await _count_labels_and_assignments(db, doctor_id, needle, dt_from, dt_to_exclusive)
-    )
-    counts["pending_records"] = await _count_pending_records(db, doctor_id, needle)
-    counts["system_prompts"] = int(
-        (await db.execute(select(func.count(SystemPrompt.key)))).scalar() or 0
-    )
     counts.update(await _count_generic_tables(db, doctor_id))
-    counts["system_prompt_versions"] = int(
-        (await db.execute(select(func.count(SystemPromptVersion.id)))).scalar() or 0
-    )
     return counts
 
 

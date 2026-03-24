@@ -27,6 +27,7 @@ class DoctorInterviewResponse(BaseModel):
     patient_id: Optional[int] = None
     pending_id: Optional[str] = None
     suggestions: List[str] = []
+    conversation: List[Dict[str, Any]] = []
 
 
 class InterviewConfirmResponse(BaseModel):
@@ -87,6 +88,35 @@ async def _extract_file_text(file: UploadFile) -> str:
         from domain.knowledge.pdf_extract import extract_text_from_pdf_smart
         return extract_text_from_pdf_smart(raw)
     return ""
+
+
+# ── GET /session/{session_id} ────────────────────────────────────
+
+@router.get("/session/{session_id}", response_model=DoctorInterviewResponse)
+async def get_session_state(
+    session_id: str,
+    doctor_id: str = "",
+    authorization: Optional[str] = Header(default=None),
+):
+    """Get current session state — used when resuming from chat."""
+    resolved_doctor = await _resolve_doctor_id(doctor_id, authorization)
+    session = await _verify_session(session_id, resolved_doctor)
+
+    progress_info = _compute_progress(session.collected)
+    last_reply = ""
+    for turn in reversed(session.conversation or []):
+        if turn.get("role") == "assistant":
+            last_reply = turn.get("content", "")
+            break
+
+    return DoctorInterviewResponse(
+        session_id=session.id,
+        reply=last_reply or "病历采集中，请继续输入。",
+        collected=session.collected,
+        patient_id=session.patient_id,
+        conversation=session.conversation or [],
+        **progress_info,
+    )
 
 
 # ── POST /turn ───────────────────────────────────────────────────
@@ -168,6 +198,12 @@ async def interview_confirm_endpoint(
     doctor_id: str = Form(default=""),
     authorization: Optional[str] = Header(default=None),
 ):
+    """Confirm interview and save collected SOAP fields directly to medical_records.
+
+    No re-structuring LLM call — the interview already collected structured fields.
+    Checks completeness: if diagnosis + treatment + followup are filled, saves as
+    'completed'. Otherwise saves as 'pending_review'.
+    """
     resolved_doctor = await _resolve_doctor_id(doctor_id, authorization)
     session = await _verify_session(session_id, resolved_doctor)
 
@@ -175,35 +211,63 @@ async def interview_confirm_endpoint(
         raise HTTPException(400, f"Session status is '{session.status}', cannot confirm")
 
     from domain.patients.interview_session import save_session
-    from agent.tools.doctor import _create_pending_record
     from db.models.interview_session import InterviewStatus
 
-    clinical_text = _build_clinical_text(session.collected)
-    if not clinical_text.strip():
+    collected = session.collected or {}
+    if not any(collected.values()):
         raise HTTPException(400, "No collected data to confirm")
 
-    # Look up patient name for pending record
+    # Save directly to medical_records with SOAP columns
     from db.engine import AsyncSessionLocal
-    from db.models import Patient
-    from sqlalchemy import select
+    from db.models.records import MedicalRecordDB, RecordStatus
+    from db.crud.doctor import _ensure_doctor_exists
+
+    # Build content summary from collected fields
+    clinical_text = _build_clinical_text(collected)
+
+    # Determine status based on completeness
+    has_diagnosis = bool(collected.get("diagnosis", "").strip())
+    has_treatment = bool(collected.get("treatment_plan", "").strip())
+    has_followup = bool(collected.get("orders_followup", "").strip())
+    status = RecordStatus.completed if (has_diagnosis and has_treatment and has_followup) else RecordStatus.pending_review
+
     async with AsyncSessionLocal() as db:
-        patient = (await db.execute(
-            select(Patient).where(Patient.id == session.patient_id)
-        )).scalar_one_or_none()
-    patient_name = patient.name if patient else ""
+        await _ensure_doctor_exists(db, resolved_doctor)
+        record = MedicalRecordDB(
+            doctor_id=resolved_doctor,
+            patient_id=session.patient_id,
+            record_type="interview_summary",
+            status=status.value,
+            content=clinical_text,
+            # SOAP fields from collected
+            chief_complaint=collected.get("chief_complaint"),
+            present_illness=collected.get("present_illness"),
+            past_history=collected.get("past_history"),
+            allergy_history=collected.get("allergy_history"),
+            personal_history=collected.get("personal_history"),
+            marital_reproductive=collected.get("marital_reproductive"),
+            family_history=collected.get("family_history"),
+            physical_exam=collected.get("physical_exam"),
+            specialist_exam=collected.get("specialist_exam"),
+            auxiliary_exam=collected.get("auxiliary_exam"),
+            diagnosis=collected.get("diagnosis"),
+            treatment_plan=collected.get("treatment_plan"),
+            orders_followup=collected.get("orders_followup"),
+        )
+        db.add(record)
+        await db.commit()
+        record_id = record.id
 
-    result = await _create_pending_record(
-        resolved_doctor, session.patient_id, patient_name,
-        clinical_text=clinical_text,
-    )
+    log(f"[interview-confirm] record saved id={record_id} doctor={resolved_doctor} patient={session.patient_id} status={status.value}")
 
-    session.status = InterviewStatus.draft_created
+    # Update session status
+    session.status = InterviewStatus.confirmed
     await save_session(session)
 
     return InterviewConfirmResponse(
-        status=result.get("status", "pending_confirmation"),
-        preview=result.get("preview"),
-        pending_id=result.get("pending_id"),
+        status=status.value,
+        preview=clinical_text[:200] if clinical_text else None,
+        pending_id=str(record_id),
     )
 
 

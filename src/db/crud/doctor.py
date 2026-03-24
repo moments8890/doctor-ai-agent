@@ -4,7 +4,6 @@
 
 from __future__ import annotations
 
-import re
 from datetime import datetime
 from typing import List, Optional
 from sqlalchemy import delete, select
@@ -13,36 +12,9 @@ from sqlalchemy.exc import IntegrityError
 from db.models import (
     Doctor,
     DoctorKnowledgeItem,
-    DoctorNotifyPreference,
     ChatArchive,
 )
 from db.crud._common import _utcnow
-from utils.hashing import hash_wechat_id
-
-
-_WECHAT_ID_RE = re.compile(r"^(?:wm|wx|ww|wo)[A-Za-z0-9_-]{6,}$")
-
-
-def _is_wechat_identifier(raw: str) -> bool:
-    value = (raw or "").strip()
-    return bool(_WECHAT_ID_RE.match(value))
-
-
-def _infer_channel(doctor_id: str) -> str:
-    return "wechat" if _is_wechat_identifier(doctor_id) else "app"
-
-
-async def _lookup_doctor_by_wechat_id(
-    session: AsyncSession, stored_wechat_id: str
-) -> Optional[Doctor]:
-    """按哈希后的微信 ID 查询医生记录。"""
-    return (
-        await session.execute(
-            select(Doctor)
-            .where(Doctor.channel == "wechat", Doctor.wechat_user_id == stored_wechat_id)
-            .limit(1)
-        )
-    ).scalar_one_or_none()
 
 
 async def _resolve_doctor_id(session: AsyncSession, doctor_id: str, name: Optional[str] = None) -> str:
@@ -52,9 +24,6 @@ async def _resolve_doctor_id(session: AsyncSession, doctor_id: str, name: Option
         return doctor_id
 
     now = _utcnow()
-    channel = _infer_channel(incoming)
-    wechat_user_id = incoming if channel == "wechat" else None
-    stored_wechat_id = hash_wechat_id(wechat_user_id)
 
     existing_by_id = (
         await session.execute(select(Doctor).where(Doctor.doctor_id == incoming).limit(1))
@@ -63,32 +32,15 @@ async def _resolve_doctor_id(session: AsyncSession, doctor_id: str, name: Option
         existing_by_id.updated_at = now
         if name and not existing_by_id.name:
             existing_by_id.name = name
-        if existing_by_id.channel != channel and existing_by_id.channel == "app":
-            existing_by_id.channel = channel
-        if stored_wechat_id and not existing_by_id.wechat_user_id:
-            existing_by_id.wechat_user_id = stored_wechat_id
         return existing_by_id.doctor_id
-
-    if stored_wechat_id:
-        existing_by_wechat = await _lookup_doctor_by_wechat_id(session, stored_wechat_id)
-        if existing_by_wechat is not None:
-            existing_by_wechat.updated_at = now
-            if name and not existing_by_wechat.name:
-                existing_by_wechat.name = name
-            return existing_by_wechat.doctor_id
 
     try:
         async with session.begin_nested():
             session.add(Doctor(
-                doctor_id=incoming, name=name, channel=channel,
-                wechat_user_id=stored_wechat_id, created_at=now, updated_at=now,
+                doctor_id=incoming, name=name, created_at=now, updated_at=now,
             ))
         return incoming
     except IntegrityError:
-        if stored_wechat_id:
-            row = await _lookup_doctor_by_wechat_id(session, stored_wechat_id)
-            if row is not None:
-                return row.doctor_id
         raise
 
 
@@ -104,11 +56,16 @@ async def get_doctor_by_id(session: AsyncSession, doctor_id: str) -> Optional[Do
 
 
 async def get_doctor_wechat_user_id(session: AsyncSession, doctor_id: str) -> Optional[str]:
-    row = await get_doctor_by_id(session, doctor_id)
+    # TODO: migrate callers to query DoctorWechat table directly
+    from db.models.doctor_wechat import DoctorWechat
+    row = (
+        await session.execute(
+            select(DoctorWechat).where(DoctorWechat.doctor_id == doctor_id).limit(1)
+        )
+    ).scalar_one_or_none()
     if row is None or not row.wechat_user_id:
         return None
     return str(row.wechat_user_id).strip() or None
-
 
 
 
@@ -157,48 +114,6 @@ async def delete_knowledge_item(
     return result.rowcount > 0
 
 
-async def get_doctor_notify_preference(
-    session: AsyncSession, doctor_id: str
-) -> Optional[DoctorNotifyPreference]:
-    result = await session.execute(
-        select(DoctorNotifyPreference).where(DoctorNotifyPreference.doctor_id == doctor_id)
-    )
-    return result.scalar_one_or_none()
-
-
-async def upsert_doctor_notify_preference(
-    session: AsyncSession,
-    doctor_id: str,
-    *,
-    notify_mode: Optional[str] = None,
-    schedule_type: Optional[str] = None,
-    interval_minutes: Optional[int] = None,
-    cron_expr: Optional[str] = None,
-    last_auto_run_at: Optional[datetime] = None,
-) -> DoctorNotifyPreference:
-    doctor_id = await _ensure_doctor_exists(session, doctor_id)
-    row = await get_doctor_notify_preference(session, doctor_id)
-    if row is None:
-        row = DoctorNotifyPreference(doctor_id=doctor_id)
-        session.add(row)
-
-    if notify_mode is not None:
-        row.notify_mode = notify_mode
-    if schedule_type is not None:
-        row.schedule_type = schedule_type
-    if interval_minutes is not None:
-        row.interval_minutes = interval_minutes
-    if cron_expr is not None or schedule_type == "cron":
-        row.cron_expr = cron_expr
-    if last_auto_run_at is not None:
-        row.last_auto_run_at = last_auto_run_at
-    row.updated_at = _utcnow()
-
-    await session.commit()
-    await session.refresh(row)
-    return row
-
-
 async def append_chat_archive(
     session: AsyncSession,
     doctor_id: str,
@@ -224,30 +139,54 @@ async def append_chat_archive(
 
 
 async def get_doctor_mini_openid(session: AsyncSession, doctor_id: str) -> Optional[str]:
-    row = await get_doctor_by_id(session, doctor_id)
+    # TODO: migrate callers to query DoctorWechat table directly
+    from db.models.doctor_wechat import DoctorWechat
+    row = (
+        await session.execute(
+            select(DoctorWechat).where(DoctorWechat.doctor_id == doctor_id).limit(1)
+        )
+    ).scalar_one_or_none()
     if row is None or not row.mini_openid:
         return None
     return str(row.mini_openid).strip() or None
 
 
 async def get_doctor_by_mini_openid(session: AsyncSession, openid: str) -> Optional[Doctor]:
+    # TODO: migrate callers to use DoctorWechat table directly
+    from db.models.doctor_wechat import DoctorWechat
+    from utils.hashing import hash_wechat_id
     stored = hash_wechat_id(openid)
-    result = await session.execute(
-        select(Doctor).where(Doctor.mini_openid == stored).limit(1)
-    )
-    return result.scalar_one_or_none()
+    wechat_row = (
+        await session.execute(
+            select(DoctorWechat).where(DoctorWechat.mini_openid == stored).limit(1)
+        )
+    ).scalar_one_or_none()
+    if wechat_row is None:
+        return None
+    return await get_doctor_by_id(session, wechat_row.doctor_id)
 
 
 async def link_mini_openid(session: AsyncSession, doctor_id: str, openid: str) -> None:
-    """Store a mini app openid on an existing doctor record (idempotent)."""
+    """Store a mini app openid on the DoctorWechat record (idempotent)."""
+    # TODO: migrate callers to use DoctorWechat table directly
+    from db.models.doctor_wechat import DoctorWechat
+    from utils.hashing import hash_wechat_id
     stored = hash_wechat_id(openid)
-    row = await get_doctor_by_id(session, doctor_id)
-    if row is None:
+    doctor = await get_doctor_by_id(session, doctor_id)
+    if doctor is None:
         raise ValueError(f"Doctor {doctor_id!r} not found")
-    if row.mini_openid and row.mini_openid != stored:
-        raise ValueError(
-            f"Doctor {doctor_id!r} already linked to a different mini openid"
+    wechat_row = (
+        await session.execute(
+            select(DoctorWechat).where(DoctorWechat.doctor_id == doctor_id).limit(1)
         )
-    row.mini_openid = stored
-    row.updated_at = _utcnow()
+    ).scalar_one_or_none()
+    if wechat_row is None:
+        session.add(DoctorWechat(doctor_id=doctor_id, mini_openid=stored))
+    else:
+        if wechat_row.mini_openid and wechat_row.mini_openid != stored:
+            raise ValueError(
+                f"Doctor {doctor_id!r} already linked to a different mini openid"
+            )
+        wechat_row.mini_openid = stored
+    doctor.updated_at = _utcnow()
     await session.commit()

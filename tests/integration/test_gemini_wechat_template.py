@@ -5,8 +5,6 @@ Gemini template integration tests for WeChat-like scenarios.
 Run:
   export RUN_GEMINI_TEMPLATE=1
   # provider is configurable (e.g. ollama/gemini/deepseek)
-  # optional for follow-up task assertions:
-  export AUTO_FOLLOWUP_TASKS_ENABLED=true
   pytest tests/integration/test_gemini_wechat_template.py -v
 """
 
@@ -16,7 +14,6 @@ import json
 import os
 import sqlite3
 import uuid
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -54,24 +51,6 @@ def _patient_row(doctor_id: str, patient_name: str) -> Optional[sqlite3.Row]:
             ORDER BY id DESC LIMIT 1
             """,
             (doctor_id, patient_name),
-        ).fetchone()
-        return row
-    finally:
-        conn.close()
-
-
-def _follow_up_task(doctor_id: str, patient_id: int) -> Optional[sqlite3.Row]:
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    try:
-        row = conn.execute(
-            """
-            SELECT id, due_at, task_type, status
-            FROM doctor_tasks
-            WHERE doctor_id=? AND patient_id=? AND task_type='follow_up'
-            ORDER BY id DESC LIMIT 1
-            """,
-            (doctor_id, patient_id),
         ).fetchone()
         return row
     finally:
@@ -139,14 +118,3 @@ def test_gemini_wechat_scenario_template(case: Dict):
         assert patient["primary_risk_level"] in {"low", "medium", "high", "critical"}
     else:
         assert patient["primary_risk_level"] in expected.get("risk_level_in", [])
-
-    if expected.get("expect_follow_up_task"):
-        if os.environ.get("AUTO_FOLLOWUP_TASKS_ENABLED", "").lower() not in {"1", "true", "yes", "on"}:
-            pytest.skip("AUTO_FOLLOWUP_TASKS_ENABLED is off; skip follow_up task assertion.")
-        task = _follow_up_task(doctor_id, int(patient["id"]))
-        assert task is not None, "expected follow_up task not found"
-        assert task["task_type"] == "follow_up"
-        assert task["status"] == "pending"
-        target = int(expected.get("follow_up_task_due_days", 7))
-        days = (datetime.fromisoformat(task["due_at"]) - datetime.now(timezone.utc)).days
-        assert abs(days - target) <= 2

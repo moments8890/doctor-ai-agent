@@ -110,9 +110,7 @@ async def admin_update_record(
         if "tags" in updates and isinstance(updates["tags"], list):
             import json as _json
             updates["tags"] = _json.dumps(updates["tags"], ensure_ascii=False)
-        # Snapshot before mutation so admin edits appear in correction history.
-        from db.crud.records import save_record_version
-        await save_record_version(db, rec, rec.doctor_id)
+        # MedicalRecordVersion table removed — no version snapshot.
         for field, value in updates.items():
             setattr(rec, field, value)
         rec.updated_at = datetime.now(timezone.utc)

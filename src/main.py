@@ -311,8 +311,8 @@ def reset_caches():
 
     # Agent session cache
     try:
-        from agent.session import _agents
-        _agents.clear()
+        from agent.session import _sessions
+        _sessions.clear()
         cleared.append("agent_sessions")
     except ImportError:
         pass

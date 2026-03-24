@@ -382,7 +382,7 @@ export default function TasksSection({ doctorId, urlSubpage, urlSubId }) {
           ...(Array.isArray(c) ? c : c.items || []),
           ...(Array.isArray(x) ? x : x.items || []),
         ].sort((a, b) => (b.updated_at || "").localeCompare(a.updated_at || ""))),
-      getReviewQueue(doctorId, "pending_review").then((d) => d.items || []),
+      getReviewQueue(doctorId, "pending_review").then((d) => d.items || []).catch(() => []),
       getReviewQueue(doctorId, "reviewed").then((d) => d.items || []).catch(() => []),
     ])
       .then(([pending, done, rev, reviewedItems]) => {
@@ -391,7 +391,7 @@ export default function TasksSection({ doctorId, urlSubpage, urlSubId }) {
         setReviews(rev);
         setReviewedItems(reviewedItems);
       })
-      .catch((e) => setError(e.message || "任务加载失败"))
+      .catch((e) => setError(typeof e === "string" ? e : (e?.message || e?.detail || "任务加载失败")))
       .finally(() => setLoading(false));
   }, [doctorId]);
 

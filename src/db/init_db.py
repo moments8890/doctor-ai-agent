@@ -3,9 +3,8 @@
 """
 
 import db.models  # noqa: F401 — ensure models are registered before create_all
-import re
 from db.engine import Base, engine, AsyncSessionLocal
-from db.models import Doctor, Patient, MedicalRecordDB, DoctorTask, PatientLabel
+from db.models import Doctor, Patient, MedicalRecordDB, DoctorTask
 from sqlalchemy import select
 
 
@@ -24,13 +23,10 @@ async def seed_prompts() -> None:
     pass
 
 
-_WECHAT_RE = re.compile(r"^(?:wm|wx|ww|wo)[A-Za-z0-9_-]{6,}$")
-
 _DOCTOR_SOURCES = [
     Patient.doctor_id,
     MedicalRecordDB.doctor_id,
     DoctorTask.doctor_id,
-    PatientLabel.doctor_id,
 ]
 
 
@@ -45,26 +41,6 @@ async def _collect_all_doctor_ids(db) -> set:
     return doctor_ids
 
 
-def _backfill_existing_row(row, seen_wechat: set) -> bool:
-    """Apply channel/wechat_user_id backfill to an existing Doctor row. Returns True if changed."""
-    if not isinstance(row.doctor_id, str):
-        return False
-    doctor_id = row.doctor_id.strip()
-    if not doctor_id:
-        return False
-    is_wechat = bool(_WECHAT_RE.match(doctor_id))
-    changed = False
-    if not getattr(row, "channel", None):
-        row.channel = "wechat" if is_wechat else "app"
-        changed = True
-    if is_wechat and not getattr(row, "wechat_user_id", None) and doctor_id not in seen_wechat:
-        row.wechat_user_id = doctor_id
-        changed = True
-    if getattr(row, "wechat_user_id", None):
-        seen_wechat.add(str(row.wechat_user_id))
-    return changed
-
-
 async def backfill_doctors_registry() -> int:
     """Populate doctors table from historical tables (idempotent)."""
     async with AsyncSessionLocal() as db:
@@ -73,17 +49,7 @@ async def backfill_doctors_registry() -> int:
         existing = {row.doctor_id for row in existing_rows}
         missing = sorted(doctor_ids - existing)
         for doctor_id in missing:
-            is_wechat = bool(_WECHAT_RE.match(doctor_id))
-            db.add(Doctor(
-                doctor_id=doctor_id,
-                channel="wechat" if is_wechat else "app",
-                wechat_user_id=doctor_id if is_wechat else None,
-            ))
-        seen_wechat: set = set()
-        # List comprehension — must evaluate every row, not short-circuit.
-        updated_existing = any([
-            _backfill_existing_row(row, seen_wechat) for row in existing_rows
-        ])
-        if missing or updated_existing:
+            db.add(Doctor(doctor_id=doctor_id))
+        if missing:
             await db.commit()
         return len(missing)

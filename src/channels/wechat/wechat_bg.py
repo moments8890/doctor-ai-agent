@@ -1,47 +1,13 @@
 """
-WeChat 后台任务与 WeCom KF 消息解析：自动任务规则、知识自学习和消息类型工具函数。
+WeChat 后台任务与 WeCom KF 消息解析：知识自学习和消息类型工具函数。
 """
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any, Dict, Optional
 
 from db.engine import AsyncSessionLocal
 from utils.log import log
-
-
-async def bg_auto_tasks(
-    doctor_id: str,
-    record_id: int,
-    patient_name: str,
-    patient_id: Optional[int],
-    content: str,
-) -> None:
-    """Background: detect task signals in record content and create tasks."""
-    from domain.tasks.task_rules import detect_auto_tasks, refine_due_days
-    from domain.tasks.task_crud import create_task as _create_task
-    from datetime import timedelta, timezone
-
-    specs = detect_auto_tasks(content, patient_name)
-    for spec in specs:
-        try:
-            due_days = refine_due_days(content, spec.due_days)
-            due_at = datetime.now(timezone.utc) + timedelta(days=due_days)
-            async with AsyncSessionLocal() as session:
-                await _create_task(
-                    session,
-                    doctor_id=doctor_id,
-                    task_type=spec.task_type,
-                    title=spec.title,
-                    content=spec.content,
-                    patient_id=patient_id,
-                    record_id=record_id,
-                    due_at=due_at,
-                )
-            log(f"[TaskRules] auto-created {spec.task_type} task for {patient_name} in {due_days}d")
-        except Exception as exc:
-            log(f"[TaskRules] failed to create {spec.task_type} task: {exc}")
 
 
 async def bg_auto_learn(doctor_id: str, text: str, record: object) -> None:

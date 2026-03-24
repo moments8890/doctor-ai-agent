@@ -259,7 +259,7 @@ function MobilePatientDetailView({ selectedPatient, doctorId, navigate, onStartI
   );
 }
 
-export default function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onAutoSendToChat, onPatientSelected, refreshKey = 0, triggerInterview, onTriggerInterviewConsumed }) {
+export default function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onAutoSendToChat, onPatientSelected, refreshKey = 0, triggerInterview, onTriggerInterviewConsumed, chatInterviewSessionId, onChatInterviewSessionConsumed }) {
   const { patientId } = useParams();
   const navigate = useNavigate();
   const theme = useTheme();
@@ -295,8 +295,9 @@ export default function PatientsSection({ doctorId, onNavigateToChat, onInsertCh
   const mobileSubpage = isMobile && interviewActive ? (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
       <InterviewView doctorId={doctorId}
-        onComplete={() => { setInterviewActive(false); load(); }}
-        onCancel={() => setInterviewActive(false)} />
+        sessionId={chatInterviewSessionId}
+        onComplete={() => { setInterviewActive(false); onChatInterviewSessionConsumed?.(); load(); }}
+        onCancel={() => { setInterviewActive(false); onChatInterviewSessionConsumed?.(); }} />
     </Box>
   ) : isMobile && selectedId ? (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
@@ -314,8 +315,9 @@ export default function PatientsSection({ doctorId, onNavigateToChat, onInsertCh
 
   const detailContent = interviewActive ? (
     <InterviewView doctorId={doctorId}
-      onComplete={() => { setInterviewActive(false); load(); }}
-      onCancel={() => setInterviewActive(false)} />
+      sessionId={chatInterviewSessionId}
+      onComplete={() => { setInterviewActive(false); onChatInterviewSessionConsumed?.(); load(); }}
+      onCancel={() => { setInterviewActive(false); onChatInterviewSessionConsumed?.(); }} />
   ) : (
     <PatientDetail patient={selectedPatient} doctorId={doctorId}
       onDeleted={(id) => { setPatients((prev) => prev.filter((p) => p.id !== id)); navigate("/doctor/patients"); }}

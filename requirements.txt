@@ -1,6 +1,7 @@
 fastapi==0.135.1
 uvicorn[standard]==0.41.0
 openai==2.24.0
+instructor>=1.14.0
 python-multipart==0.0.22
 python-dotenv==1.2.2
 wechatpy==1.8.18
@@ -33,15 +34,7 @@ PyJWT==2.11.0
 #   Env vars: VISION_LLM=ollama (default) | openai
 #             OLLAMA_VISION_MODEL=qwen2.5vl:7b (default)
 structlog>=21.5.0              # structured JSON logging
-# LangChain agent framework (ReAct agent migration)
-langchain>=0.3.0
-langchain-openai>=0.3.0
-langchain-core>=0.3.0
-langchain-groq>=1.0.0
-langchain-deepseek>=1.0.0
-langchain-ollama>=1.0.0
 langfuse>=3.0.0                # LLM observability (optional, set LANGFUSE_PUBLIC_KEY to enable)
 langchain-huggingface>=0.1.0    # HuggingFaceEmbeddings for local BGE-M3
-langchain-community>=0.3.0     # DashScopeEmbeddings (optional cloud alternative)
 sentence-transformers>=2.2.0   # underlying model runtime for langchain-huggingface
 pyyaml

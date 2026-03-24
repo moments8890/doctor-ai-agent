@@ -1,15 +1,14 @@
 """
-任务创建、随访通知发送和调度器租约管理。
+任务创建、通知发送和调度器租约管理。
 """
 
 from __future__ import annotations
 
-import re
 import os
 import asyncio
 import socket
 import inspect
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Optional, Dict, List
 
 from db.engine import AsyncSessionLocal
@@ -18,8 +17,6 @@ from db.crud import (
     get_due_tasks,
     mark_task_notified,
     revert_task_to_pending,
-    get_doctor_notify_preference,
-    upsert_doctor_notify_preference,
     try_acquire_scheduler_lease,
     release_scheduler_lease,
 )
@@ -27,12 +24,10 @@ from db.models import DoctorTask
 from domain.tasks.notifications import send_doctor_notification
 from domain.tasks.scheduler import should_auto_run_now
 from utils.log import task_log
-from utils.text_parsing import _CN_DIGITS, _parse_cn_or_int
 
 _TASK_ICONS = {
-    "follow_up": "🔔",
-    "emergency": "🚨",
-    "appointment": "📅",
+    "general": "📌",
+    "review": "📋",
 }
 
 _LEASE_KEY = "task_notifier"
@@ -80,115 +75,6 @@ def _notify_retry_delay_seconds() -> float:
         return 1.0
 
 
-def extract_follow_up_days(follow_up_plan: str) -> int:
-    """Extract the number of days until follow-up from a free-text plan.
-
-    Supports: N天, N周, N个月, Chinese digit words (两/三/…), 下周, 明天.
-    Returns 7 (days) as the default fallback.
-    """
-    if not follow_up_plan:
-        return 7
-
-    # 明天
-    if "明天" in follow_up_plan:
-        return 1
-
-    # 下周 / 下星期
-    if "下周" in follow_up_plan or "下星期" in follow_up_plan:
-        return 7
-
-    # N周
-    m = re.search(r'([一两二三四五六七八九十\d]+)周', follow_up_plan)
-    if m:
-        n = _parse_cn_or_int(m.group(1))
-        if n is not None:
-            return n * 7
-
-    # N个月
-    m = re.search(r'([一两二三四五六七八九十\d]+)个月', follow_up_plan)
-    if m:
-        n = _parse_cn_or_int(m.group(1))
-        if n is not None:
-            return n * 30
-
-    # N天
-    m = re.search(r'([一两二三四五六七八九十\d]+)天', follow_up_plan)
-    if m:
-        n = _parse_cn_or_int(m.group(1))
-        if n is not None:
-            return n
-
-    return 7
-
-
-async def create_follow_up_task(
-    doctor_id: str,
-    record_id: Optional[int],
-    patient_name: str,
-    follow_up_plan: str,
-    patient_id: Optional[int] = None,
-) -> DoctorTask:
-    days = extract_follow_up_days(follow_up_plan)
-    due_at = datetime.now(timezone.utc) + timedelta(days=days)
-    title = f"随访提醒：{patient_name}"
-    content = follow_up_plan
-
-    async with AsyncSessionLocal() as session:
-        task = await create_task(
-            session,
-            doctor_id=doctor_id,
-            task_type="follow_up",
-            title=title,
-            content=content,
-            patient_id=patient_id,
-            record_id=record_id,
-            due_at=due_at,
-        )
-    await _emit_task_log(
-        "task_created",
-        task_type="follow_up",
-        task_id=task.id,
-        doctor_id=doctor_id,
-        patient_id=patient_id,
-        record_id=record_id,
-        due_at=due_at.isoformat(),
-    )
-    return task
-
-
-async def create_emergency_task(
-    doctor_id: str,
-    record_id: int,
-    patient_name: str,
-    diagnosis: Optional[str] = None,
-    patient_id: Optional[int] = None,
-) -> DoctorTask:
-    title = f"紧急记录：{patient_name}"
-    content = diagnosis
-
-    async with AsyncSessionLocal() as session:
-        task = await create_task(
-            session,
-            doctor_id=doctor_id,
-            task_type="emergency",
-            title=title,
-            content=content,
-            patient_id=patient_id,
-            record_id=record_id,
-            due_at=None,
-        )
-    await _emit_task_log(
-        "task_created",
-        task_type="emergency",
-        task_id=task.id,
-        doctor_id=doctor_id,
-        patient_id=patient_id,
-        record_id=record_id,
-    )
-    await send_task_notification(doctor_id, task)
-    return task
-
-
 async def create_general_task(
     doctor_id: str,
     title: str,
@@ -207,39 +93,6 @@ async def create_general_task(
             record_id=None,
             due_at=None,
         )
-    return task
-
-
-async def create_appointment_task(
-    doctor_id: str,
-    patient_name: str,
-    appointment_dt: datetime,
-    notes: Optional[str] = None,
-    patient_id: Optional[int] = None,
-) -> DoctorTask:
-    due_at = appointment_dt - timedelta(hours=1)
-    title = f"预约提醒：{patient_name}"
-    content = notes
-
-    async with AsyncSessionLocal() as session:
-        task = await create_task(
-            session,
-            doctor_id=doctor_id,
-            task_type="appointment",
-            title=title,
-            content=content,
-            patient_id=patient_id,
-            record_id=None,
-            due_at=due_at,
-        )
-    await _emit_task_log(
-        "task_created",
-        task_type="appointment",
-        task_id=task.id,
-        doctor_id=doctor_id,
-        patient_id=patient_id,
-        due_at=due_at.isoformat(),
-    )
     return task
 
 
@@ -349,17 +202,8 @@ async def _fetch_and_filter_tasks(
     for task in tasks:
         tasks_by_doctor.setdefault(task.doctor_id, []).append(task)
 
-    allowed_doctors: set = set()
-    for did in tasks_by_doctor.keys():
-        try:
-            async with AsyncSessionLocal() as session:
-                pref = await get_doctor_notify_preference(session, did)
-                if should_auto_run_now(pref, now, include_manual=include_manual, force=force):
-                    allowed_doctors.add(did)
-                    await upsert_doctor_notify_preference(session, did, last_auto_run_at=now)
-        except Exception as e:
-            await _emit_task_log("scheduler_pref_check_failed", doctor_id=did, error=str(e))
-            allowed_doctors.add(did)
+    # DoctorNotifyPreference table removed — all doctors are always allowed.
+    allowed_doctors = set(tasks_by_doctor.keys())
 
     filtered_tasks = [t for t in tasks if t.doctor_id in allowed_doctors]
     return tasks, filtered_tasks

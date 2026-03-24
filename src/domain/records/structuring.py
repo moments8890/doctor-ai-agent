@@ -7,9 +7,9 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-from typing import Optional
+from typing import Dict, List, Optional
 
-from openai import AsyncOpenAI
+from pydantic import BaseModel, Field
 
 from db.models.medical_record import MedicalRecord
 from infra.llm.client import _PROVIDERS  # shared provider registry
@@ -17,36 +17,21 @@ from infra.llm.resilience import call_with_retry_and_fallback
 from infra.observability.observability import trace_block
 from utils.log import log
 
-# Module-level singleton cache: one HTTP connection pool per provider.
-_STRUCTURING_CLIENT_CACHE: dict[str, AsyncOpenAI] = {}
 
+class StructuringLLMResponse(BaseModel):
+    """Response model for the structuring LLM call.
 
-def _get_structuring_client(provider_name: str, provider: dict) -> AsyncOpenAI:
-    # Skip singleton cache in test environments so mock patches can intercept.
-    if os.environ.get("PYTEST_CURRENT_TEST") or "pytest" in os.environ.get("_", ""):
-        return AsyncOpenAI(
-            base_url=provider["base_url"],
-            api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
-            timeout=float(os.environ.get("STRUCTURING_LLM_TIMEOUT", "30")),
-            max_retries=0,
-        )
-    if provider_name not in _STRUCTURING_CLIENT_CACHE:
-        _STRUCTURING_CLIENT_CACHE[provider_name] = AsyncOpenAI(
-            base_url=provider["base_url"],
-            api_key=os.environ.get(provider["api_key_env"], "nokeyneeded"),
-            timeout=float(os.environ.get("STRUCTURING_LLM_TIMEOUT", "30")),
-            max_retries=0,
-        )
-    return _STRUCTURING_CLIENT_CACHE[provider_name]
+    Mirrors MedicalRecord but with relaxed validation so that
+    structured_call can parse the LLM output; post-processing
+    coerces fields to the stricter MedicalRecord schema.
+    """
 
-async def _get_system_prompt() -> str:
-    """Load structuring prompt from DB, appending optional extension if set."""
-    from utils.prompt_loader import get_prompt
-    base = await get_prompt("structuring")
-    extension = await get_prompt("structuring.extension", "")
-    if extension.strip():
-        return base + "\n\n" + extension.strip()
-    return base
+    content: str = Field(default="", description="LLM-organised clinical note")
+    structured: Optional[Dict[str, str]] = Field(
+        default=None, description="SOAP fields dict"
+    )
+    tags: List[str] = Field(default_factory=list, description="Keyword tags")
+    record_type: str = Field(default="visit", description="Record type")
 
 
 def _resolve_provider(provider_name: str) -> dict:
@@ -80,54 +65,42 @@ def _resolve_provider(provider_name: str) -> dict:
     return provider
 
 
+async def _get_system_prompt() -> str:
+    """Load structuring prompt from DB, appending optional extension if set."""
+    from utils.prompt_loader import get_prompt
+    base = await get_prompt("structuring")
+    extension = await get_prompt("structuring.extension", "")
+    if extension.strip():
+        return base + "\n\n" + extension.strip()
+    return base
+
+
 async def _build_system_prompt() -> str:
     """Load structuring system prompt."""
     with trace_block("llm", "structuring.load_prompt"):
         return await _get_system_prompt()
 
 
-def _make_llm_caller(client: AsyncOpenAI, provider_name: str, system_prompt: str, user_content: str):
-    """Return an async callable suitable for call_with_retry_and_fallback."""
-    async def _call(model_name: str):
-        with trace_block("llm", "structuring.chat_completion", {"provider": provider_name, "model": model_name}):
-            return await client.chat.completions.create(
-                model=model_name,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_content},
-                ],
-                response_format={"type": "json_object"},
-                max_tokens=2500,
-                temperature=0,
-            )
-    return _call
-
-
-async def _call_with_cloud_fallback(
-    primary_call,
-    provider: dict,
-    provider_name: str,
+async def _structured_call_for_structuring(
     system_prompt: str,
     user_content: str,
-    doctor_id: Optional[str],
-) -> object:
-    """Call LLM with retry; on failure attempt cloud fallback if configured."""
-    fallback_model = None
-    if provider_name == "ollama":
-        fallback_model = os.environ.get("OLLAMA_FALLBACK_MODEL", "qwen3.5:9b")
-    try:
-        return await call_with_retry_and_fallback(
-            primary_call,
-            primary_model=provider["model"],
-            fallback_model=fallback_model,
-            max_attempts=int(os.environ.get("STRUCTURING_LLM_ATTEMPTS", "3")),
-            op_name="structuring.chat_completion",
-            circuit_key_suffix=doctor_id or "",
-        )
-    except Exception as _ollama_err:
-        return await _try_cloud_fallback(
-            _ollama_err, provider_name, system_prompt, user_content
-        )
+    env_var: str = "STRUCTURING_LLM",
+) -> StructuringLLMResponse:
+    """Call the LLM via shared structured_call helper."""
+    from agent.llm import structured_call
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_content},
+    ]
+    return await structured_call(
+        response_model=StructuringLLMResponse,
+        messages=messages,
+        op_name="structuring",
+        env_var=env_var,
+        temperature=0,
+        max_tokens=2500,
+    )
 
 
 async def _try_cloud_fallback(
@@ -135,7 +108,7 @@ async def _try_cloud_fallback(
     provider_name: str,
     system_prompt: str,
     user_content: str,
-) -> object:
+) -> StructuringLLMResponse:
     """Attempt cloud fallback when primary (usually ollama) fails entirely."""
     _cloud_fallback = (
         os.environ.get("OLLAMA_CLOUD_FALLBACK", "").strip() if provider_name == "ollama" else ""
@@ -149,37 +122,33 @@ async def _try_cloud_fallback(
     _cloud_provider = _PROVIDERS.get(_cloud_fallback)
     if _cloud_provider is None:
         raise original_err
-    _cloud_provider = dict(_cloud_provider)
-    _cloud_client = _get_structuring_client(_cloud_fallback, _cloud_provider)
-    _cloud_call = _make_llm_caller(_cloud_client, _cloud_fallback, system_prompt, user_content)
+
+    # Set the cloud provider as a temporary env override for structured_call
     _cloud_timeout = float(os.environ.get("STRUCTURING_CLOUD_FALLBACK_TIMEOUT", "3.0"))
     try:
-        return await asyncio.wait_for(
-            call_with_retry_and_fallback(
-                _cloud_call,
-                primary_model=_cloud_provider["model"],
-                max_attempts=2,
-                op_name="structuring.chat_completion.cloud_fallback",
-            ),
-            timeout=_cloud_timeout,
-        )
+        # Use the cloud provider name directly as the env var value won't work;
+        # set a temporary env var for the call.
+        old_val = os.environ.get("_STRUCTURING_CLOUD_FALLBACK", "")
+        os.environ["_STRUCTURING_CLOUD_FALLBACK"] = _cloud_fallback
+        try:
+            return await asyncio.wait_for(
+                _structured_call_for_structuring(
+                    system_prompt, user_content,
+                    env_var="_STRUCTURING_CLOUD_FALLBACK",
+                ),
+                timeout=_cloud_timeout,
+            )
+        finally:
+            if old_val:
+                os.environ["_STRUCTURING_CLOUD_FALLBACK"] = old_val
+            else:
+                os.environ.pop("_STRUCTURING_CLOUD_FALLBACK", None)
     except asyncio.TimeoutError:
-        log(f"[structuring] cloud fallback timed out")
+        log("[structuring] cloud fallback timed out")
         raise
 
 
 _NO_CLINICAL_CONTENT = "__NO_CLINICAL_CONTENT__"
-
-
-def _parse_llm_response(raw: str, text: str, provider_name: str) -> dict:
-    """Parse JSON from LLM response; sentinel on parse error."""
-    with trace_block("llm", "structuring.parse_response"):
-        try:
-            data = json.loads(raw)
-        except (json.JSONDecodeError, TypeError) as _e:
-            log(f"[structuring:{provider_name}] JSON parse FAILED ({_e}); returning sentinel")
-            data = {"content": _NO_CLINICAL_CONTENT}
-    return data
 
 
 def _coerce_content(data: dict, text: str, provider_name: str) -> dict:
@@ -255,18 +224,28 @@ async def structure_medical_record(
     _tag = f"[structuring:{provider_name}:{model_name}]"
     log(f"{_tag} request: {text[:80]}")
 
-    client = _get_structuring_client(provider_name, provider)
+    # Ensure STRUCTURING_LLM is set for structured_call provider resolution
+    # (original default is "deepseek", but structured_call defaults to "groq")
+    if not os.environ.get("STRUCTURING_LLM"):
+        os.environ["STRUCTURING_LLM"] = provider_name
+
     system_prompt = await _build_system_prompt()
 
-    primary_call = _make_llm_caller(client, provider_name, system_prompt, text)
-    completion = await _call_with_cloud_fallback(
-        primary_call, provider, provider_name, system_prompt, text, doctor_id
-    )
+    # Use structured_call (instructor) for reliable structured output.
+    # Falls back to cloud provider if primary (ollama) fails.
+    try:
+        result = await _structured_call_for_structuring(
+            system_prompt, text, env_var="STRUCTURING_LLM",
+        )
+    except Exception as primary_err:
+        result = await _try_cloud_fallback(
+            primary_err, provider_name, system_prompt, text,
+        )
 
-    raw = completion.choices[0].message.content or ""
-    log(f"{_tag} response: {raw}")
+    # Convert instructor result to dict for existing validation/coercion pipeline
+    data = result.model_dump()
+    log(f"{_tag} response: {data}")
 
-    data = _parse_llm_response(raw, text, provider_name)
     data = _validate_and_coerce_fields(data, text, provider_name)
 
     return MedicalRecord.model_validate(data)

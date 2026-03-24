@@ -2,17 +2,15 @@
 
 如何运行：
   1) export RUN_DEEPSEEK_TEMPLATE=1
-  2) 可选：export AUTO_FOLLOWUP_TASKS_ENABLED=true
-  3) 配置 provider 环境变量
-  4) pytest tests/integration/test_deepseek_conversations_template.py -v
+  2) 配置 provider 环境变量
+  3) pytest tests/integration/test_deepseek_conversations_template.py -v
 
 DeepSeek conversation template tests (data-driven).
 
 How to run:
   1) export RUN_DEEPSEEK_TEMPLATE=1
-  2) optional: export AUTO_FOLLOWUP_TASKS_ENABLED=true
-  3) configure your provider via env (e.g. ollama/deepseek/gemini)
-  4) pytest tests/integration/test_deepseek_conversations_template.py -v
+  2) configure your provider via env (e.g. ollama/deepseek/gemini)
+  3) pytest tests/integration/test_deepseek_conversations_template.py -v
 
 Notes:
   - This is a template-style integration test for realistic conversations.
@@ -25,7 +23,6 @@ import json
 import os
 import sqlite3
 import uuid
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -68,23 +65,6 @@ def _latest_patient_row(doctor_id: str, patient_name: str) -> Optional[sqlite3.R
     finally:
         conn.close()
 
-
-def _latest_follow_up_task(doctor_id: str, patient_id: int) -> Optional[sqlite3.Row]:
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    try:
-        row = conn.execute(
-            """
-            SELECT id, due_at, task_type, status
-            FROM doctor_tasks
-            WHERE doctor_id=? AND patient_id=? AND task_type='follow_up'
-            ORDER BY id DESC LIMIT 1
-            """,
-            (doctor_id, patient_id),
-        ).fetchone()
-        return row
-    finally:
-        conn.close()
 
 
 def _contains_all(text: Optional[str], keywords: List[str]) -> bool:
@@ -146,21 +126,6 @@ def _assert_record_fields(record: Dict, expected: Dict) -> None:
     )
 
 
-def _assert_followup_task(doctor_id: str, patient_id: int, expected: Dict) -> None:
-    """若期望随访任务，验证任务存在且 due_at 在允许偏差范围内。"""
-    if not expected.get("expect_follow_up_task"):
-        return
-    if os.environ.get("AUTO_FOLLOWUP_TASKS_ENABLED", "").lower() not in {"1", "true", "yes", "on"}:
-        pytest.skip("AUTO_FOLLOWUP_TASKS_ENABLED is off; skip follow_up task assertion.")
-    task = _latest_follow_up_task(doctor_id, patient_id)
-    assert task is not None, "expected follow_up task not found"
-    assert task["task_type"] == "follow_up"
-    assert task["status"] == "pending"
-    due_at = datetime.fromisoformat(task["due_at"])
-    days = (due_at - datetime.now(timezone.utc)).days
-    target = int(expected.get("follow_up_task_due_days", 7))
-    assert abs(days - target) <= 2, "due_at days mismatch: got=%s expected~%s" % (days, target)
-
 
 @pytest.mark.integration
 @pytest.mark.parametrize("case", _load_cases(), ids=lambda c: c["case_id"])
@@ -170,7 +135,6 @@ def test_deepseek_conversation_case_template(case: Dict):
     Verifies:
     - API returns structured record
     - Patient row exists and has expected risk bucket
-    - Optional follow-up task is created when enabled and expected
     """
     doctor_id = "inttest_deepseek_%s_%s" % (case["case_id"].lower(), uuid.uuid4().hex[:6])
     expected = case["expected"]
@@ -186,5 +150,3 @@ def test_deepseek_conversation_case_template(case: Dict):
     assert patient["primary_risk_level"] in expected.get("risk_level_in", []), (
         "unexpected risk level: %r" % (patient["primary_risk_level"],)
     )
-
-    _assert_followup_task(doctor_id, int(patient["id"]), expected)

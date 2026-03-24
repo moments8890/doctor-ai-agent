@@ -144,6 +144,7 @@ async def _try_link_via_invite(
     now: datetime,
 ) -> Optional[str]:
     """Attempt to link openid to an existing doctor via invite code. Returns doctor_id or None."""
+    # TODO: wechat binding now lives in DoctorWechat table — migrate this function to upsert there
     invite = (
         await session.execute(
             select(InviteCode).where(InviteCode.code == invite_code).limit(1)
@@ -158,7 +159,17 @@ async def _try_link_via_invite(
     ).scalar_one_or_none()
     if target is None:
         return None
-    target.mini_openid = hash_wechat_id(openid)
+    # TODO: write mini_openid to DoctorWechat table instead of Doctor row
+    from db.models.doctor_wechat import DoctorWechat
+    wechat_row = (
+        await session.execute(
+            select(DoctorWechat).where(DoctorWechat.doctor_id == target.doctor_id).limit(1)
+        )
+    ).scalar_one_or_none()
+    if wechat_row is None:
+        session.add(DoctorWechat(doctor_id=target.doctor_id, mini_openid=hash_wechat_id(openid)))
+    else:
+        wechat_row.mini_openid = hash_wechat_id(openid)
     target.updated_at = now
     if doctor_name and not target.name:
         target.name = doctor_name
@@ -174,30 +185,32 @@ async def _upsert_mini_doctor_new(
     now: datetime,
 ) -> str:
     """Create or touch the fallback wxmini_ doctor row. Returns doctor_id."""
+    # TODO: channel/wechat binding now live in DoctorWechat table — migrate fully
+    from db.models.doctor_wechat import DoctorWechat
     doctor_id = f"wxmini_{openid}"
     existing_by_id = (
         await session.execute(select(Doctor).where(Doctor.doctor_id == doctor_id).limit(1))
     ).scalar_one_or_none()
+    hashed = hash_wechat_id(openid)
     if existing_by_id is None:
-        session.add(
-            Doctor(
-                doctor_id=doctor_id,
-                name=doctor_name,
-                channel="wechat_mini",
-                wechat_user_id=hash_wechat_id(openid),
-                mini_openid=hash_wechat_id(openid),
-                created_at=now,
-                updated_at=now,
-            )
-        )
+        session.add(Doctor(doctor_id=doctor_id, name=doctor_name, created_at=now, updated_at=now))
+        await session.flush()
+        session.add(DoctorWechat(doctor_id=doctor_id, wechat_user_id=hashed, mini_openid=hashed))
     else:
         existing_by_id.updated_at = now
-        existing_by_id.channel = "wechat_mini"
-        existing_by_id.wechat_user_id = hash_wechat_id(openid)
-        if not existing_by_id.mini_openid:
-            existing_by_id.mini_openid = hash_wechat_id(openid)
         if doctor_name and not existing_by_id.name:
             existing_by_id.name = doctor_name
+        wechat_row = (
+            await session.execute(
+                select(DoctorWechat).where(DoctorWechat.doctor_id == doctor_id).limit(1)
+            )
+        ).scalar_one_or_none()
+        if wechat_row is None:
+            session.add(DoctorWechat(doctor_id=doctor_id, wechat_user_id=hashed, mini_openid=hashed))
+        else:
+            wechat_row.wechat_user_id = hashed
+            if not wechat_row.mini_openid:
+                wechat_row.mini_openid = hashed
     await session.commit()
     return doctor_id
 
@@ -224,22 +237,26 @@ async def _upsert_mini_doctor(
             if linked_id is not None:
                 return linked_id
 
-        # 3. Legacy fallback: find by old wechat_mini channel + wechat_user_id.
-        existing_by_wechat = (
+        # 3. Legacy fallback: find by wechat_user_id in DoctorWechat table.
+        # TODO: channel field removed from Doctor — lookup via DoctorWechat.wechat_user_id
+        from db.models.doctor_wechat import DoctorWechat
+        wechat_row = (
             await session.execute(
-                select(Doctor)
-                .where(Doctor.channel == "wechat_mini", Doctor.wechat_user_id == hash_wechat_id(openid))
+                select(DoctorWechat)
+                .where(DoctorWechat.wechat_user_id == hash_wechat_id(openid))
                 .limit(1)
             )
         ).scalar_one_or_none()
-        if existing_by_wechat is not None:
-            if not existing_by_wechat.mini_openid:
-                existing_by_wechat.mini_openid = hash_wechat_id(openid)
-            existing_by_wechat.updated_at = now
-            if doctor_name and not existing_by_wechat.name:
-                existing_by_wechat.name = doctor_name
-            await session.commit()
-            return existing_by_wechat.doctor_id
+        if wechat_row is not None:
+            existing_by_wechat = await get_doctor_by_id(session, wechat_row.doctor_id)
+            if existing_by_wechat is not None:
+                if not wechat_row.mini_openid:
+                    wechat_row.mini_openid = hash_wechat_id(openid)
+                existing_by_wechat.updated_at = now
+                if doctor_name and not existing_by_wechat.name:
+                    existing_by_wechat.name = doctor_name
+                await session.commit()
+                return existing_by_wechat.doctor_id
 
         # 4. No existing record — create a standalone mini app doctor.
         return await _upsert_mini_doctor_new(session, openid, doctor_name, now)
@@ -279,7 +296,6 @@ async def _upsert_web_doctor(doctor_id: str, name: Optional[str], specialty: Opt
                     doctor_id=doctor_id,
                     name=name,
                     specialty=specialty or None,
-                    channel="app",
                     created_at=now,
                     updated_at=now,
                 )
@@ -406,10 +422,16 @@ async def unlink_mini_openid(authorization: Optional[str] = Header(default=None)
         row = await get_doctor_by_id(session, principal.doctor_id)
         if row is None:
             raise HTTPException(status_code=404, detail="Doctor not found")
-        row.mini_openid = None
-        # Also clear wechat_user_id so the legacy fallback lookup
-        # (channel + wechat_user_id) cannot re-find and re-link this row.
-        row.wechat_user_id = None
+        # Clear wechat binding from DoctorWechat table
+        from db.models.doctor_wechat import DoctorWechat
+        wechat_row = (
+            await session.execute(
+                select(DoctorWechat).where(DoctorWechat.doctor_id == principal.doctor_id).limit(1)
+            )
+        ).scalar_one_or_none()
+        if wechat_row is not None:
+            wechat_row.mini_openid = None
+            wechat_row.wechat_user_id = None
         row.updated_at = datetime.now(timezone.utc)
         await session.commit()
 

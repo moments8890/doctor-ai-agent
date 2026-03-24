@@ -239,8 +239,6 @@ async def register_doctor(phone: str, name: str, year_of_birth: int, invite_code
             phone=phone,
             year_of_birth=year_of_birth,
             specialty=specialty,
-            channel="app",
-            accepting_patients=True,
         )
         db.add(doctor)
 
@@ -267,7 +265,7 @@ async def register_patient(phone: str, name: str, year_of_birth: int, doctor_id:
         doctor = (await db.execute(
             select(Doctor).where(Doctor.doctor_id == doctor_id)
         )).scalar_one_or_none()
-        if doctor is None or not doctor.accepting_patients:
+        if doctor is None:
             raise HTTPException(404, "未找到该医生")
 
         # Check for existing patient (link or conflict)

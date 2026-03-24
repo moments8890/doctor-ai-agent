@@ -7,11 +7,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from pydantic import BaseModel, Field
+
 from domain.patients.completeness import (
-    TOTAL_FIELDS,
     check_completeness,
     count_filled,
     merge_extracted,
+    total_fields,
 )
 from db.models.interview_session import InterviewStatus
 from domain.patients.interview_session import InterviewSession, load_session, save_session
@@ -19,6 +21,18 @@ from utils.log import log
 from utils.prompt_loader import get_prompt_sync
 
 MAX_TURNS = 30
+
+
+class InterviewLLMResponse(BaseModel):
+    """Structured response from the interview LLM."""
+
+    reply: str = Field(default="请继续描述您的情况。", description="Assistant reply")
+    extracted: Dict[str, str] = Field(
+        default_factory=dict, description="Extracted SOAP fields"
+    )
+    suggestions: List[str] = Field(
+        default_factory=list, description="Suggested follow-up questions"
+    )
 
 FIELD_LABELS = {
     "chief_complaint": "主诉",
@@ -28,6 +42,12 @@ FIELD_LABELS = {
     "family_history": "家族史",
     "personal_history": "个人史",
     "marital_reproductive": "婚育史",
+    "physical_exam": "体格检查",
+    "specialist_exam": "专科检查",
+    "auxiliary_exam": "辅助检查",
+    "diagnosis": "诊断",
+    "treatment_plan": "治疗方案",
+    "orders_followup": "医嘱及随访",
 }
 
 
@@ -88,21 +108,13 @@ async def _load_previous_history(patient_id: int, doctor_id: str) -> Optional[st
     if row is None:
         return None
 
-    # Try structured first, fall back to content
-    structured = None
-    if row.structured:
-        try:
-            structured = json.loads(row.structured)
-        except (json.JSONDecodeError, TypeError):
-            pass
-
-    if not structured and row.content:
-        # No structured data — include raw content as context (truncated)
-        date_str = row.created_at.strftime("%Y-%m-%d") if row.created_at else "未知"
-        content_preview = row.content[:500]
-        return f"上次就诊（{date_str}）：\n{content_preview}"
-
-    if not structured:
+    # Try SOAP columns first, fall back to content
+    if not row.has_soap_data():
+        if row.content:
+            # No structured data — include raw content as context (truncated)
+            date_str = row.created_at.strftime("%Y-%m-%d") if row.created_at else "未知"
+            content_preview = row.content[:500]
+            return f"上次就诊（{date_str}）：\n{content_preview}"
         return None
 
     # Build a readable summary of prior history fields
@@ -116,8 +128,8 @@ async def _load_previous_history(patient_id: int, doctor_id: str) -> Optional[st
     }
     lines = []
     for key, label in history_fields.items():
-        val = structured.get(key, "")
-        if val and val not in ("无", "不详", ""):
+        val = getattr(row, key, None) or ""
+        if val and val not in ("无", "不详"):
             lines.append(f"- {label}：{val}")
 
     if not lines:
@@ -135,7 +147,9 @@ async def _call_interview_llm(
     mode: str = "patient",
 ) -> Dict[str, Any]:
     """Call LLM with interview prompt. Returns parsed {reply, extracted}."""
-    missing = check_completeness(collected)
+    from agent.llm import structured_call
+
+    missing = check_completeness(collected, mode=mode)
     missing_labels = [FIELD_LABELS.get(f, f) for f in missing]
 
     prompt_template = _get_prompt(mode)
@@ -154,45 +168,27 @@ async def _call_interview_llm(
     for turn in conversation[-20:]:
         messages.append({"role": turn.get("role", "user"), "content": turn.get("content", "")})
 
-    # Use the same LangChain LLM as the agent.
-    # Inject /no_think into system prompt to disable Qwen3 thinking mode —
-    # the interview engine expects clean JSON, not <think> blocks.
-    from agent.setup import get_llm
-    from langchain_core.messages import HumanMessage, SystemMessage
+    env_var = "CONVERSATION_LLM" if os.environ.get("CONVERSATION_LLM") else "ROUTING_LLM"
 
-    llm = get_llm()
-    _tag = f"[interview:{type(llm).__name__}]"
-    log(f"{_tag} turn request")
+    result = await structured_call(
+        response_model=InterviewLLMResponse,
+        messages=messages,
+        op_name=f"interview.{mode}",
+        env_var=env_var,
+        temperature=0.1,
+        max_tokens=512,
+    )
 
-    lc_messages = []
-    for m in messages:
-        if m["role"] == "system":
-            lc_messages.append(SystemMessage(content=m["content"]))
-        else:
-            lc_messages.append(HumanMessage(content=m["content"]))
-
-    response = await llm.ainvoke(lc_messages)
-    raw = response.content or ""
-    log(f"{_tag} response: {raw[:200]}")
-
-    # Strip <think>...</think> tags if any still slip through
-    import re as _re
-    raw = _re.sub(r"<think>.*?</think>", "", raw, flags=_re.DOTALL).strip()
-
-    data = json.loads(raw)
-    suggestions = data.get("suggestions", [])
-    if not isinstance(suggestions, list):
-        suggestions = []
-    suggestions = [str(s) for s in suggestions if s][:4]
+    suggestions = [str(s) for s in result.suggestions if s][:4]
     return {
-        "suggested_reply": data.get("reply") or data.get("suggested_reply", "请继续描述您的情况。"),
-        "extracted": data.get("extracted", {}),
+        "suggested_reply": result.reply,
+        "extracted": result.extracted,
         "suggestions": suggestions,
     }
 
 
-def _make_progress(collected: Dict[str, str]) -> Dict[str, int]:
-    return {"filled": count_filled(collected), "total": TOTAL_FIELDS}
+def _make_progress(collected: Dict[str, str], mode: str = "patient") -> Dict[str, int]:
+    return {"filled": count_filled(collected, mode=mode), "total": total_fields(mode)}
 
 
 async def interview_turn(session_id: str, patient_text: str) -> InterviewResponse:
@@ -201,12 +197,13 @@ async def interview_turn(session_id: str, patient_text: str) -> InterviewRespons
     if session is None:
         return InterviewResponse(
             reply="问诊会话不存在。", collected={},
-            progress={"filled": 0, "total": TOTAL_FIELDS}, status="error",
+            progress={"filled": 0, "total": total_fields()}, status="error",
         )
+    mode = getattr(session, "mode", "patient")
     if session.status not in (InterviewStatus.interviewing,):
         return InterviewResponse(
             reply="该问诊已结束。", collected=session.collected,
-            progress=_make_progress(session.collected), status=session.status,
+            progress=_make_progress(session.collected, mode), status=session.status,
         )
 
     session.conversation.append({
@@ -217,13 +214,13 @@ async def interview_turn(session_id: str, patient_text: str) -> InterviewRespons
 
     # Safety cap — still process but flag it
     if session.turn_count >= MAX_TURNS:
-        missing = check_completeness(session.collected)
+        missing = check_completeness(session.collected, mode=mode)
         reply = "我们已经聊了很久了，让我整理一下已有的信息。"
         session.conversation.append({"role": "assistant", "content": reply})
         await save_session(session)
         return InterviewResponse(
             reply=reply, collected=session.collected,
-            progress=_make_progress(session.collected), status=session.status,
+            progress=_make_progress(session.collected, mode), status=session.status,
             missing=missing,
         )
 
@@ -238,14 +235,14 @@ async def interview_turn(session_id: str, patient_text: str) -> InterviewRespons
             previous_history=previous_history,
             mode=session.mode,
         )
-    except (json.JSONDecodeError, KeyError, TypeError) as e:
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
         log(f"[interview] LLM parse error: {e}", level="warning")
         reply = "抱歉，我没有理解，请再说一次。"
         session.conversation.append({"role": "assistant", "content": reply})
         await save_session(session)
         return InterviewResponse(
             reply=reply, collected=session.collected,
-            progress=_make_progress(session.collected), status=session.status,
+            progress=_make_progress(session.collected, mode), status=session.status,
         )
     except Exception as e:
         log(f"[interview] LLM call failed: {e}", level="error")
@@ -254,14 +251,14 @@ async def interview_turn(session_id: str, patient_text: str) -> InterviewRespons
         await save_session(session)
         return InterviewResponse(
             reply=reply, collected=session.collected,
-            progress=_make_progress(session.collected), status=session.status,
+            progress=_make_progress(session.collected, mode), status=session.status,
         )
 
     # Merge extracted fields
     merge_extracted(session.collected, llm_response["extracted"])
 
     # Report what's missing — agent decides when to close
-    missing = check_completeness(session.collected)
+    missing = check_completeness(session.collected, mode=mode)
     reply = llm_response["suggested_reply"]
 
     session.conversation.append({"role": "assistant", "content": reply})
@@ -269,7 +266,7 @@ async def interview_turn(session_id: str, patient_text: str) -> InterviewRespons
 
     return InterviewResponse(
         reply=reply, collected=session.collected,
-        progress=_make_progress(session.collected), status=session.status,
+        progress=_make_progress(session.collected, mode), status=session.status,
         missing=missing,
         suggestions=llm_response.get("suggestions", []),
     )

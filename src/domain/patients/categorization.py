@@ -188,12 +188,13 @@ async def recompute_patient_category(
 
     result = categorize_patient(patient, records)
 
-    patient.primary_category = result.primary_category
-    patient.category_tags = json.dumps(result.category_tags, ensure_ascii=False)
+    # TODO: primary_category and category_tags columns removed from Patient model;
+    # persist categorization results to a separate table if still needed.
+    _ = result  # computed but not persisted
     if commit:
-        await session.commit()
+        pass  # nothing to commit
     else:
-        await session.flush()
+        pass  # nothing to flush
 
 
 async def recompute_all_categories(
@@ -234,12 +235,9 @@ async def recompute_all_categories(
 
                 cat_result = categorize_patient(patient, records)
 
-                old_cat = patient.primary_category
-                patient.primary_category = cat_result.primary_category
-                patient.category_tags = json.dumps(cat_result.category_tags, ensure_ascii=False)
-
-                if old_cat != cat_result.primary_category:
-                    changed += 1
+                # TODO: primary_category and category_tags removed from Patient;
+                # persist to a separate table if categorization is still needed.
+                _ = cat_result  # computed but not persisted
             except Exception:  # noqa: BLE001
                 errors += 1
 

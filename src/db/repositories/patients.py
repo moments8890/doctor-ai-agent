@@ -38,11 +38,17 @@ class PatientRepository:
             name=name,
             gender=gender,
             year_of_birth=_year_of_birth(age),
-            primary_category="new",
-            category_tags="[]",
-            access_code=access_code_hash,
         )
         self.session.add(patient)
+        await self.session.flush()  # get patient.id before creating PatientAuth
+        if access_code_hash is not None:
+            from db.models.patient_auth import PatientAuth
+            from sqlalchemy import select as _select
+            existing = (await self.session.execute(
+                _select(PatientAuth).where(PatientAuth.patient_id == patient.id)
+            )).scalar_one_or_none()
+            if existing is None:
+                self.session.add(PatientAuth(patient_id=patient.id, access_code=access_code_hash))
         await self.session.commit()
         return patient
 
@@ -61,7 +67,7 @@ class PatientRepository:
     async def find_by_exact_name(self, doctor_id: str, name: str, limit: int = 100) -> List[Patient]:
         result = await self.session.execute(
             select(Patient)
-            .options(selectinload(Patient.labels))
+            
             .where(Patient.doctor_id == doctor_id, Patient.name == name)
             .order_by(Patient.created_at.desc(), Patient.id.desc())
             .limit(limit)
@@ -73,7 +79,7 @@ class PatientRepository:
             select(Patient)
             .where(Patient.doctor_id == doctor_id)
             .order_by(Patient.created_at.desc())
-            .options(selectinload(Patient.labels))
+            
             .limit(limit)
             .offset(offset)
         )

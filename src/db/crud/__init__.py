@@ -1,9 +1,6 @@
 """db.crud 包初始化：聚合所有 CRUD 子模块的公开接口。"""
 from db.crud._common import _utcnow
 from db.crud.doctor import (
-    _WECHAT_ID_RE,
-    _is_wechat_identifier,
-    _infer_channel,
     _resolve_doctor_id,
     _ensure_doctor_exists,
     get_doctor_by_id,
@@ -13,15 +10,7 @@ from db.crud.doctor import (
     link_mini_openid,
     add_doctor_knowledge_item,
     list_doctor_knowledge_items,
-    get_doctor_notify_preference,
-    upsert_doctor_notify_preference,
     append_chat_archive,
-)
-from db.crud.system import (
-    get_system_prompt,
-    upsert_system_prompt,
-    list_system_prompt_versions,
-    rollback_system_prompt,
 )
 from db.crud.patient import (
     get_patient_for_doctor,
@@ -31,13 +20,6 @@ from db.crud.patient import (
     find_patients_by_exact_name,
     delete_patient_for_doctor,
     get_all_patients,
-    create_label,
-    get_labels_for_doctor,
-    update_label,
-    delete_label,
-    assign_label,
-    remove_label,
-    get_patient_labels,
     update_patient_demographics,
 )
 from db.crud.records import (
@@ -45,15 +27,8 @@ from db.crud.records import (
     get_records_for_patient,
     get_all_records_for_doctor,
     count_records_for_doctor,
-    save_record_version,
-    get_record_versions,
     update_latest_record_for_patient,
-    _env_flag_true,
-    _extract_follow_up_days,
-    _patient_name,
-    _ensure_auto_follow_up_task,
 )
-from utils.text_parsing import _CN_DIGITS, _parse_cn_or_int
 from db.crud.tasks import (
     create_task,
     list_tasks,
@@ -64,26 +39,9 @@ from db.crud.tasks import (
     mark_task_notified,
     revert_task_to_pending,
 )
-from db.crud.pending import (
-    create_pending_record,
-    get_pending_record,
-    get_stale_pending_records,
-    confirm_pending_record,
-    abandon_pending_record,
-    expire_stale_pending_records,
-    purge_old_pending_records,
-    purge_old_pending_messages,
-    create_pending_message,
-    mark_pending_message,
-    increment_pending_message_attempt,
-    list_stale_pending_messages,
-    claim_pending_message,
-)
 from db.crud.runtime import (
     get_runtime_token,
     upsert_runtime_token,
-    get_runtime_config,
-    upsert_runtime_config,
     try_acquire_scheduler_lease,
     release_scheduler_lease,
 )
@@ -93,7 +51,6 @@ from db.crud.patient_message import (
 )
 from db.crud.retention import (
     archive_old_audit_logs,
-    prune_record_versions,
     cleanup_chat_archive,
 )
 
@@ -107,14 +64,7 @@ __all__ = [
     "link_mini_openid",
     "add_doctor_knowledge_item",
     "list_doctor_knowledge_items",
-    "get_doctor_notify_preference",
-    "upsert_doctor_notify_preference",
     "append_chat_archive",
-    # system
-    "get_system_prompt",
-    "upsert_system_prompt",
-    "list_system_prompt_versions",
-    "rollback_system_prompt",
     # patient
     "get_patient_for_doctor",
     "create_patient",
@@ -123,21 +73,12 @@ __all__ = [
     "find_patients_by_exact_name",
     "delete_patient_for_doctor",
     "get_all_patients",
-    "create_label",
-    "get_labels_for_doctor",
-    "update_label",
-    "delete_label",
-    "assign_label",
-    "remove_label",
-    "get_patient_labels",
     "update_patient_demographics",
     # records
     "save_record",
     "get_records_for_patient",
     "get_all_records_for_doctor",
     "count_records_for_doctor",
-    "save_record_version",
-    "get_record_versions",
     "update_latest_record_for_patient",
     # tasks
     "create_task",
@@ -148,25 +89,9 @@ __all__ = [
     "get_due_tasks",
     "mark_task_notified",
     "revert_task_to_pending",
-    # pending
-    "create_pending_record",
-    "get_pending_record",
-    "get_stale_pending_records",
-    "confirm_pending_record",
-    "abandon_pending_record",
-    "expire_stale_pending_records",
-    "purge_old_pending_records",
-    "purge_old_pending_messages",
-    "create_pending_message",
-    "mark_pending_message",
-    "increment_pending_message_attempt",
-    "list_stale_pending_messages",
-    "claim_pending_message",
     # runtime
     "get_runtime_token",
     "upsert_runtime_token",
-    "get_runtime_config",
-    "upsert_runtime_config",
     "try_acquire_scheduler_lease",
     "release_scheduler_lease",
     # patient_message
@@ -174,6 +99,5 @@ __all__ = [
     "list_patient_messages",
     # retention
     "archive_old_audit_logs",
-    "prune_record_versions",
     "cleanup_chat_archive",
 ]

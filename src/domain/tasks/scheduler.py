@@ -1,5 +1,9 @@
 """
 通知偏好管理：解析医生的免打扰时段设置，控制通知发送时机。
+
+DoctorNotifyPreference table has been removed. Notification scheduling
+now always uses "auto / immediate" defaults. The parse/format helpers
+remain for command compatibility but no longer persist to DB.
 """
 
 from __future__ import annotations
@@ -8,12 +12,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple, Dict, Any
 
-from db.crud import (
-    get_doctor_notify_preference,
-    upsert_doctor_notify_preference,
-)
 from db.engine import AsyncSessionLocal
-from db.models import DoctorNotifyPreference
 
 
 _MODE_RE = re.compile(r"^\s*通知模式[：:\s]*(自动|手动)\s*$")
@@ -69,118 +68,46 @@ def parse_simple_cron_minutes(cron_expr: str) -> Optional[int]:
 
 
 def should_auto_run_now(
-    pref: Optional[DoctorNotifyPreference],
-    now: datetime,
+    pref: Optional[Any] = None,
+    now: Optional[datetime] = None,
     *,
     include_manual: bool = False,
     force: bool = False,
 ) -> bool:
-    if force:
-        return True
-
-    if pref is None:
-        return True
-
-    if pref.notify_mode == "manual" and not include_manual:
-        return False
-
-    schedule_type = pref.schedule_type or "immediate"
-    last = pref.last_auto_run_at
-
-    if schedule_type == "immediate":
-        return True
-
-    if schedule_type == "interval":
-        minutes = max(1, int(pref.interval_minutes or 1))
-        if last is None:
-            return True
-        return (now - last) >= timedelta(minutes=minutes)
-
-    if schedule_type == "cron":
-        every_minutes = parse_simple_cron_minutes(pref.cron_expr or "")
-        if every_minutes is None:
-            return True
-        if last is None:
-            return True
-        return (now - last) >= timedelta(minutes=every_minutes)
-
+    """Always returns True — DoctorNotifyPreference table removed."""
     return True
 
 
-def format_notify_pref(pref: Optional[DoctorNotifyPreference]) -> str:
-    if pref is None:
-        return (
-            "⚙️ 通知设置\n"
-            "模式：自动\n"
-            "计划：实时\n"
-            "最近调度：未执行"
-        )
-
-    mode_text = "自动" if pref.notify_mode == "auto" else "手动"
-    schedule_type = pref.schedule_type or "immediate"
-    if schedule_type == "interval":
-        plan_text = "每{0}分钟检查".format(max(1, int(pref.interval_minutes or 1)))
-    elif schedule_type == "cron":
-        plan_text = "定时 {0}".format(pref.cron_expr or "(空)")
-    else:
-        plan_text = "实时"
-
-    last = pref.last_auto_run_at
-    if last is None:
-        last_text = "未执行"
-    else:
-        dt = last.astimezone(timezone.utc)
-        last_text = dt.strftime("%m-%d %H:%M")
-
+def format_notify_pref(pref: Optional[Any] = None) -> str:
+    """Return default notification settings display."""
     return (
-        "⚙️ 通知设置\n"
-        "模式：{0}\n"
-        "计划：{1}\n"
-        "最近调度：{2}"
-    ).format(mode_text, plan_text, last_text)
+        "\u2699\ufe0f 通知设置\n"
+        "模式：自动\n"
+        "计划：实时\n"
+        "最近调度：未执行"
+    )
 
 
-async def get_notify_pref(doctor_id: str) -> Optional[DoctorNotifyPreference]:
-    async with AsyncSessionLocal() as session:
-        return await get_doctor_notify_preference(session, doctor_id)
+async def get_notify_pref(doctor_id: str) -> None:
+    """No-op — DoctorNotifyPreference table removed."""
+    return None
 
 
-async def set_notify_mode(doctor_id: str, notify_mode: str) -> DoctorNotifyPreference:
-    async with AsyncSessionLocal() as session:
-        return await upsert_doctor_notify_preference(session, doctor_id, notify_mode=notify_mode)
+async def set_notify_mode(doctor_id: str, notify_mode: str) -> None:
+    """No-op — DoctorNotifyPreference table removed."""
+    return None
 
 
-async def set_notify_interval(doctor_id: str, interval_minutes: int) -> DoctorNotifyPreference:
-    minutes = max(1, int(interval_minutes))
-    async with AsyncSessionLocal() as session:
-        return await upsert_doctor_notify_preference(
-            session,
-            doctor_id,
-            schedule_type="interval",
-            interval_minutes=minutes,
-            cron_expr=None,
-        )
+async def set_notify_interval(doctor_id: str, interval_minutes: int) -> None:
+    """No-op — DoctorNotifyPreference table removed."""
+    return None
 
 
-async def set_notify_cron(doctor_id: str, cron_expr: str) -> DoctorNotifyPreference:
-    expr = (cron_expr or "").strip()
-    if parse_simple_cron_minutes(expr) is None:
-        raise ValueError("仅支持 cron 格式 */N * * * *（分钟粒度）")
-    async with AsyncSessionLocal() as session:
-        return await upsert_doctor_notify_preference(
-            session,
-            doctor_id,
-            schedule_type="cron",
-            cron_expr=expr,
-        )
+async def set_notify_cron(doctor_id: str, cron_expr: str) -> None:
+    """No-op — DoctorNotifyPreference table removed."""
+    return None
 
 
-async def set_notify_immediate(doctor_id: str) -> DoctorNotifyPreference:
-    async with AsyncSessionLocal() as session:
-        return await upsert_doctor_notify_preference(
-            session,
-            doctor_id,
-            schedule_type="immediate",
-            interval_minutes=1,
-            cron_expr=None,
-        )
+async def set_notify_immediate(doctor_id: str) -> None:
+    """No-op — DoctorNotifyPreference table removed."""
+    return None

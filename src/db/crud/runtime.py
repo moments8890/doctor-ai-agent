@@ -9,7 +9,7 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.models import RuntimeToken, RuntimeConfig, SchedulerLease
+from db.models import RuntimeToken, SchedulerLease
 from db.crud._common import _utcnow
 
 
@@ -40,36 +40,6 @@ async def upsert_runtime_token(
     row.expires_at = expires_at
     row.updated_at = _utcnow()
     await session.commit()
-
-
-async def get_runtime_config(
-    session: AsyncSession,
-    config_key: str,
-) -> Optional[RuntimeConfig]:
-    result = await session.execute(
-        select(RuntimeConfig).where(RuntimeConfig.config_key == config_key).limit(1)
-    )
-    return result.scalar_one_or_none()
-
-
-async def upsert_runtime_config(
-    session: AsyncSession,
-    config_key: str,
-    content_json: str,
-) -> RuntimeConfig:
-    result = await session.execute(
-        select(RuntimeConfig).where(RuntimeConfig.config_key == config_key).limit(1)
-    )
-    row = result.scalar_one_or_none()
-    if row is None:
-        row = RuntimeConfig(config_key=config_key, content_json=content_json)
-        session.add(row)
-    else:
-        row.content_json = content_json
-        row.updated_at = _utcnow()
-    await session.commit()
-    await session.refresh(row)
-    return row
 
 
 async def try_acquire_scheduler_lease(

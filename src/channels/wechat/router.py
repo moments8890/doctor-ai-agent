@@ -104,8 +104,8 @@ async def _handle_intent(
         return _plain_reply("✅ 已加入医生知识库（#{0}）：{1}".format(item.id, knowledge_payload))
 
     from agent import handle_turn
-    reply = await handle_turn(text, "doctor", doctor_id)
-    return _plain_reply(reply)
+    result = await handle_turn(text, "doctor", doctor_id)
+    return _plain_reply(result.reply)
 
 
 @router.get("")
@@ -217,17 +217,7 @@ async def _handle_intent_bg(text: str, doctor_id: str, open_kfid: str = "", msg_
             _send_ok = True
         except Exception as e:
             log(f"[WeChat bg] send FAILED: {e}")
-        # Mark done only when the intent was actually processed AND delivery
-        # succeeded.  On lock/overall timeout the reply is sent (so the user
-        # sees feedback) but the message stays pending for recovery to re-queue.
-        if msg_id and _send_ok and _processed:
-            try:
-                async with AsyncSessionLocal() as _mdb:
-                    from db.crud import mark_pending_message as _mark_pm
-                    from db.models.pending import PendingMessageStatus as _PMS
-                    await _mark_pm(_mdb, msg_id, _PMS.done)
-            except Exception as _e:
-                log(f"[WeChat bg] mark pending_message done FAILED: {_e}")
+        # Pending message tracking removed (killed PendingMessage table).
 
 
 async def _handle_patient_bg(text: str, open_id: str, open_kfid: str = "") -> None:
@@ -238,8 +228,8 @@ async def _handle_patient_bg(text: str, open_id: str, open_kfid: str = "") -> No
             await _send_customer_service_msg(open_id, _EMERGENCY_REPLY, open_kfid=open_kfid)
             return
         from agent.handle_turn import handle_turn
-        reply = await handle_turn(text, "patient", open_id)
-        await _send_customer_service_msg(open_id, reply, open_kfid=open_kfid)
+        result = await handle_turn(text, "patient", open_id)
+        await _send_customer_service_msg(open_id, result.reply, open_kfid=open_kfid)
     except Exception as e:
         log(f"[WeChat patient] FAILED open_id={open_id}: {e}")
 
@@ -290,54 +280,20 @@ async def _handle_non_text_msg(msg) -> Response | None:
 
 
 async def _handle_stateful_sync(msg) -> Response | None:
-    """Handle draft confirm/abandon synchronously via ADR 0011 runtime.
+    """Handle stateful messages synchronously.
 
-    Returns XML response for confirm/abandon; None otherwise (falls through
-    to background processing).
+    In the Plan-and-Act architecture, confirm/abandon routing is handled by
+    the routing LLM — no regex fast path needed. This function now always
+    returns None so all messages fall through to background processing.
     """
-    from agent.handle_turn import _CONFIRM_RE, _ABANDON_RE
-
-    text = msg.content.strip()
-    if not _CONFIRM_RE.match(text) and not _ABANDON_RE.match(text):
-        return None
-
-    # Check if there's a pending draft — avoid LLM call for bare "好"
-    from db.engine import AsyncSessionLocal as _ASL
-    from db.models.pending import PendingRecord, PendingRecordStatus
-    from sqlalchemy import select
-
-    doctor_id = msg.source
-    async with _ASL() as session:
-        result = await session.execute(
-            select(PendingRecord).where(
-                PendingRecord.doctor_id == doctor_id,
-                PendingRecord.status == PendingRecordStatus.awaiting,
-            ).limit(1)
-        )
-        pending = result.scalar_one_or_none()
-        if not pending:
-            return None
-
-    # Route through handle_turn which handles confirm/abandon in fast path
-    from agent import handle_turn
-    reply = await handle_turn(text, "doctor", doctor_id)
-    return Response(
-        content=TextReply(content=reply, message=msg).render(),
-        media_type="application/xml",
-    )
+    return None
 
 
 async def _persist_and_enqueue_intent(msg) -> Response:
     """Persist message to DB and enqueue background intent processing."""
     import uuid as _uuid
     msg_id = _uuid.uuid4().hex
-    try:
-        async with AsyncSessionLocal() as _db:
-            from db.crud import create_pending_message as _create_pm
-            await _create_pm(_db, msg_id, msg.source, msg.content)
-    except Exception as _e:
-        log(f"[WeChat msg] pending_message persist FAILED (non-fatal): {_e}")
-        msg_id = ""
+    # PendingMessage table removed — enqueue directly without persisting.
     safe_create_task(_handle_intent_bg(msg.content, msg.source, _extract_open_kfid(msg), msg_id=msg_id))
     log(f"[WeChat msg] → background task created for {msg.source} msg_id={msg_id}")
     return Response(content=TextReply(content="⏳ 正在处理，稍候回复您…", message=msg).render(), media_type="application/xml")
@@ -408,48 +364,9 @@ async def handle_message(request: Request):
     return await _persist_and_enqueue_intent(msg)
 
 
-_PENDING_MESSAGE_MAX_ATTEMPTS = 3
-
-
 async def recover_stale_pending_messages(older_than_seconds: int = 60) -> int:
-    """Re-queue pending messages left unprocessed after a crash. Call on startup."""
-    try:
-        from db.crud import (
-            list_stale_pending_messages as _list_pm,
-            mark_pending_message as _mark_pm2,
-            claim_pending_message as _claim_pm,
-        )
-        from db.models.pending import PendingMessageStatus as _PMS2
-        async with AsyncSessionLocal() as _db:
-            msgs = await _list_pm(_db, older_than_seconds=older_than_seconds)
-        requeued = 0
-        for msg in msgs:
-            doctor_id = msg.doctor_id or ""
-            # Skip test/synthetic doctor IDs — real WeChat OpenIDs are 28+ chars
-            if len(doctor_id) < 20:
-                async with AsyncSessionLocal() as _db:
-                    await _mark_pm2(_db, msg.id, _PMS2.dead)
-                log(f"[Recovery] skipping non-production doctor_id={doctor_id} msg={msg.id}")
-                continue
-            attempt_count = getattr(msg, "attempt_count", 0)
-            if attempt_count >= _PENDING_MESSAGE_MAX_ATTEMPTS:
-                async with AsyncSessionLocal() as _db:
-                    await _mark_pm2(_db, msg.id, _PMS2.dead)
-                log(f"[Recovery] dead-lettering message {msg.id} after {attempt_count} attempts")
-                continue
-            # Atomically claim: pending → processing (prevents duplicate replay)
-            async with AsyncSessionLocal() as _db:
-                claimed = await _claim_pm(_db, msg.id)
-            if not claimed:
-                log(f"[Recovery] message {msg.id} already claimed, skipping")
-                continue
-            safe_create_task(_handle_intent_bg(msg.raw_content, msg.doctor_id, msg_id=msg.id))
-            log(f"[Recovery] re-queued stale pending_message id={msg.id} doctor={msg.doctor_id}")
-            requeued += 1
-        return requeued
-    except Exception as e:
-        log(f"[Recovery] stale pending_message recovery FAILED: {e}")
-        return 0
+    """No-op — PendingMessage table removed. Kept for API compatibility."""
+    return 0
 
 
 @router.post("/menu")

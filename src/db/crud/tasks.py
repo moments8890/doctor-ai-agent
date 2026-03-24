@@ -23,8 +23,6 @@ async def create_task(
     patient_id: Optional[int] = None,
     record_id: Optional[int] = None,
     due_at: Optional[datetime] = None,
-    scheduled_for: Optional[datetime] = None,
-    remind_at: Optional[datetime] = None,
 ) -> DoctorTask:
     doctor_id = await _ensure_doctor_exists(session, doctor_id)
     return await TaskRepository(session).create(
@@ -35,8 +33,6 @@ async def create_task(
         patient_id=patient_id,
         record_id=record_id,
         due_at=due_at,
-        scheduled_for=scheduled_for,
-        remind_at=remind_at,
     )
 
 

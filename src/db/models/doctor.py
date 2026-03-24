@@ -7,7 +7,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 from typing import Optional
-from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, DateTime, Text, UniqueConstraint
+from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, DateTime, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from db.engine import Base
 from db.models.base import _utcnow
@@ -31,19 +31,6 @@ class DoctorKnowledgeItem(Base):
     category: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, default="custom")
     reference_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
-
-
-class DoctorNotifyPreference(Base):
-    """Per-doctor notification mode and cadence controls."""
-    __tablename__ = "doctor_notify_preferences"
-
-    doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), primary_key=True)
-    notify_mode: Mapped[str] = mapped_column(String(16), nullable=False, default="auto")  # auto | manual
-    schedule_type: Mapped[str] = mapped_column(String(16), nullable=False, default="immediate")  # immediate | interval | cron
-    interval_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    cron_expr: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    last_auto_run_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
 
 
@@ -88,19 +75,13 @@ class Doctor(Base):
     doctor_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     specialty: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    channel: Mapped[str] = mapped_column(String(32), nullable=False, default="app")
-    wechat_user_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    mini_openid: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    department: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     year_of_birth: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    accepting_patients: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True, default=False)
-    department: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
 
     __table_args__ = (
-        Index("ux_doctors_channel_wechat_user_id", "channel", "wechat_user_id", unique=True),
-        Index("ux_doctors_mini_openid", "mini_openid", unique=True),
         Index("ix_doctors_phone", "phone"),
     )
 

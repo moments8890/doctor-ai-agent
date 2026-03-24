@@ -1,38 +1,36 @@
 """ORM model registry."""
 from db.models.base import _utcnow
-from db.models.system import SystemPrompt, SystemPromptVersion
 from db.models.doctor import (
     DoctorKnowledgeItem,
-    DoctorNotifyPreference, Doctor, InviteCode, ChatArchive,
+    Doctor, InviteCode, ChatArchive,
 )
-from db.models.patient import Patient, PatientLabel, patient_label_assignments
-from db.models.records import MedicalRecordDB, MedicalRecordVersion, MedicalRecordExport
+from db.models.doctor_wechat import DoctorWechat
+from db.models.patient import Patient
+from db.models.patient_auth import PatientAuth
+from db.models.records import MedicalRecordDB, RecordStatus
 from db.models.tasks import DoctorTask, TaskStatus, TaskType
-from db.models.pending import PendingRecord, PendingMessage, PendingRecordStatus, PendingMessageStatus
-from db.models.runtime import RuntimeToken, RuntimeConfig, SchedulerLease
+from db.models.runtime import RuntimeToken, SchedulerLease
 from db.models.audit import AuditLog
 from db.models.medical_record import MedicalRecord
 from db.models.patient_message import PatientMessage
 from db.models.interview_session import InterviewSessionDB, InterviewStatus
-from db.models.review_queue import ReviewQueue
-from db.models.case_history import CaseHistory
-from db.models.diagnosis_result import DiagnosisResult, DiagnosisStatus
+from db.models.doctor_chat_log import DoctorChatLog, ChatRole
+from db.models.patient_chat_log import PatientChatLog, PatientChatRole, MessageDirection, MessageSource
 
 __all__ = [
     "_utcnow",
-    "SystemPrompt", "SystemPromptVersion",
     "DoctorKnowledgeItem",
-    "DoctorNotifyPreference", "Doctor", "InviteCode", "ChatArchive",
-    "Patient", "PatientLabel", "patient_label_assignments",
-    "MedicalRecordDB", "MedicalRecordVersion", "MedicalRecordExport",
+    "Doctor", "InviteCode", "ChatArchive",
+    "DoctorWechat",
+    "Patient",
+    "PatientAuth",
+    "MedicalRecordDB", "RecordStatus",
     "DoctorTask", "TaskStatus", "TaskType",
-    "PendingRecord", "PendingMessage", "PendingRecordStatus", "PendingMessageStatus",
-    "RuntimeToken", "RuntimeConfig", "SchedulerLease",
+    "RuntimeToken", "SchedulerLease",
     "AuditLog",
     "MedicalRecord",
     "PatientMessage",
     "InterviewSessionDB", "InterviewStatus",
-    "ReviewQueue",
-    "CaseHistory",
-    "DiagnosisResult", "DiagnosisStatus",
+    "DoctorChatLog", "ChatRole",
+    "PatientChatLog", "PatientChatRole", "MessageDirection", "MessageSource",
 ]

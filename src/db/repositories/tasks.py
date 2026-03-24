@@ -7,7 +7,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.models import DoctorTask
@@ -28,8 +28,6 @@ class TaskRepository:
         patient_id: Optional[int] = None,
         record_id: Optional[int] = None,
         due_at: Optional[datetime] = None,
-        scheduled_for: Optional[datetime] = None,
-        remind_at: Optional[datetime] = None,
     ) -> DoctorTask:
         task = DoctorTask(
             doctor_id=doctor_id,
@@ -39,8 +37,6 @@ class TaskRepository:
             patient_id=patient_id,
             record_id=record_id,
             due_at=due_at,
-            scheduled_for=scheduled_for,
-            remind_at=remind_at,
             status=TaskStatus.pending,
         )
         self.session.add(task)
@@ -89,10 +85,7 @@ class TaskRepository:
         result = await self.session.execute(
             select(DoctorTask).where(
                 DoctorTask.status == TaskStatus.pending,
-                or_(
-                    DoctorTask.due_at <= now,
-                    (DoctorTask.due_at.is_(None) & (DoctorTask.task_type == "emergency")),
-                ),
+                DoctorTask.due_at <= now,
             )
         )
         return list(result.scalars().all())

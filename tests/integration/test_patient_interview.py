@@ -51,19 +51,15 @@ ALL_CASES = _load_cases()
 
 
 def _setup_doctor(doctor_id: str) -> None:
-    """Ensure a doctor row with accepting_patients=1 exists."""
+    """Ensure a doctor row exists."""
     from datetime import datetime
     now = datetime.now().isoformat()
     conn = sqlite3.connect(DB_PATH)
     try:
         conn.execute(
-            "INSERT OR IGNORE INTO doctors (doctor_id, channel, created_at, updated_at, accepting_patients) "
-            "VALUES (?, 'web', ?, ?, 1)",
+            "INSERT OR IGNORE INTO doctors (doctor_id, created_at, updated_at) "
+            "VALUES (?, ?, ?)",
             (doctor_id, now, now),
-        )
-        conn.execute(
-            "UPDATE doctors SET accepting_patients = 1 WHERE doctor_id = ?",
-            (doctor_id,),
         )
         conn.commit()
     finally:

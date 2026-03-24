@@ -19,7 +19,6 @@ from db.models import (
     DoctorTask,
     MedicalRecordDB,
     Patient,
-    PatientLabel,
 )
 from infra.observability.observability import (
     clear_traces,
@@ -217,7 +216,6 @@ async def admin_filter_options(
             Patient.doctor_id,
             MedicalRecordDB.doctor_id,
             DoctorTask.doctor_id,
-            PatientLabel.doctor_id,
         ]
         for col in doctor_sources:
             stmt = select(col).where(col.is_not(None))

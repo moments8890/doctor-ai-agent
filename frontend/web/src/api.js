@@ -234,6 +234,11 @@ export async function sendChat(payload) {
 // Doctor-side interview API (ADR 0016 — doctor mode)
 // ---------------------------------------------------------------------------
 
+export async function doctorInterviewGetSession(sessionId, doctorId) {
+  const params = new URLSearchParams({ doctor_id: doctorId || "" });
+  return request(`/api/records/interview/session/${sessionId}?${params}`);
+}
+
 export async function doctorInterviewTurn(formData) {
   return request("/api/records/interview/turn", {
     method: "POST",

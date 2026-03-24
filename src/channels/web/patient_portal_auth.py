@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 import time
 import logging
-from typing import Optional
+from typing import Any, Optional
 
 import jwt
 from fastapi import HTTPException
@@ -142,24 +142,22 @@ async def _lookup_patient_by_name(doctor_id: str, patient_name: str) -> "Patient
         return result.scalar_one_or_none()
 
 
-def _verify_patient_access_code(patient: "Patient", supplied_code: str) -> None:
-    """Validate the access code, with backward-compat for legacy patients.
+def _verify_patient_access_code(auth_row: "Optional[Any]", supplied_code: str) -> None:
+    """Validate the access code against the PatientAuth row.
 
-    - Patient **has** an access_code hash -> supplied code must match.
-    - Patient has **no** access_code (legacy / NULL) -> allow name-only login
-      but emit a deprecation warning so operators can migrate.
+    - PatientAuth row **exists** with an access_code hash -> supplied code must match.
+    - No PatientAuth row (legacy patient, no access code) -> reject with 403.
     """
-    if not patient.access_code:
+    if auth_row is None or not getattr(auth_row, "access_code", None):
         # Legacy patient -- no access code configured yet.
         # Reject login: name-only auth is too weak for medical data.
         logger.warning(
-            "[PatientPortal] BLOCKED: name-only login for patient_id=%s "
+            "[PatientPortal] BLOCKED: name-only login "
             "(no access_code set). Migrate this patient via POST /api/patient/access-code.",
-            patient.id,
         )
         raise HTTPException(
             status_code=403,
             detail="\u8be5\u60a3\u8005\u5c1a\u672a\u8bbe\u7f6e\u8bbf\u95ee\u7801\uff0c\u8bf7\u8054\u7cfb\u60a8\u7684\u533b\u751f\u83b7\u53d6\u8bbf\u95ee\u7801\u3002",
         )
-    if not supplied_code or not verify_access_code(supplied_code, patient.access_code):
+    if not supplied_code or not verify_access_code(supplied_code, auth_row.access_code):
         raise HTTPException(status_code=401, detail=_AUTH_FAIL)

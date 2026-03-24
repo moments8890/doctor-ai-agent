@@ -23,7 +23,7 @@ from utils.log import safe_create_task
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
-_VALID_TASK_TYPES = {"follow_up", "medication", "lab_review", "referral", "imaging", "appointment", "general"}
+_VALID_TASK_TYPES = {"general", "review"}
 
 
 class TaskOut(BaseModel):

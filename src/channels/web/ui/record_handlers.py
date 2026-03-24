@@ -96,13 +96,15 @@ CATEGORY_ORDER = ["high_risk", "active_followup", "stable", "new", "uncategorize
 
 def _serialize_patient_item(p, count_map: dict) -> dict:
     """Turn a Patient ORM row into a JSON-serializable dict for patient list endpoints."""
+    # TODO: primary_category and category_tags removed from Patient model;
+    # return None/"[]" as defaults until a separate categorization table is added.
     return {
         "id": p.id, "name": p.name, "gender": p.gender,
         "year_of_birth": p.year_of_birth, "created_at": _fmt_ts(p.created_at),
         "record_count": int(count_map.get(p.id, 0)),
-        "primary_category": p.primary_category,
-        "category_tags": _parse_tags(p.category_tags),
-        "labels": [{"id": lbl.id, "name": lbl.name, "color": lbl.color} for lbl in (p.labels or [])],
+        "primary_category": None,
+        "category_tags": [],
+        "labels": [],
     }
 
 
@@ -140,11 +142,11 @@ async def _fetch_patients_cursor_page(
     stmt = (
         select(Patient)
         .where(Patient.doctor_id == doctor_id)
-        .options(selectinload(Patient.labels))
+        
         .order_by(Patient.created_at.desc(), Patient.id.desc())
     )
     if category is not None:
-        stmt = stmt.where(Patient.primary_category == category)
+        pass  # TODO: primary_category removed from Patient; category filter is no-op
     if cursor_pair is not None:
         cursor_ts, cursor_id = cursor_pair
         # Keyset condition: row comes after (cursor_ts, cursor_id) in
@@ -232,7 +234,7 @@ async def manage_patients_for_doctor(
 
     # Filter by category first, then paginate the filtered list
     if category is not None:
-        patients = [p for p in patients if (p.primary_category or "uncategorized") == category]
+        pass  # TODO: primary_category removed from Patient; category filter is no-op
     items = [_serialize_patient_item(p, count_map) for p in patients]
     total = len(items)
     return {"doctor_id": doctor_id, "items": items[offset:offset + limit], "total": total, "limit": limit, "offset": offset}
@@ -254,7 +256,7 @@ async def manage_patients_grouped_for_doctor(doctor_id: str) -> dict:
     all_items = [_serialize_patient_item(p, count_map) for p in patients]
     bucket: dict = {cat: [] for cat in CATEGORY_ORDER}
     for item in all_items:
-        cat = item["primary_category"] or "uncategorized"
+        cat = item["primary_category"] or "uncategorized"  # always "uncategorized" now
         if cat not in bucket:
             cat = "uncategorized"
         bucket[cat].append(item)
