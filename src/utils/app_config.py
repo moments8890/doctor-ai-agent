@@ -187,7 +187,7 @@ class AppConfig:
             log_level=values.get("LOG_LEVEL", "INFO").upper(),
             log_format=values.get("LOG_FORMAT", "%(asctime)s [%(levelname)s] %(name)s: %(message)s"),
             log_to_file=_as_bool(values.get("LOG_TO_FILE"), default=True),
-            log_dir=values.get("LOG_DIR", "logs"),
+            log_dir=values.get("LOG_DIR", str(Path(__file__).resolve().parents[2] / "logs")),
             log_file=values.get("LOG_FILE", "app.log"),
             log_max_bytes=_as_int(values.get("LOG_MAX_BYTES"), default=10485760),
             log_backup_count=_as_int(values.get("LOG_BACKUP_COUNT"), default=5),

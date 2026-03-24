@@ -1,0 +1,42 @@
+id: kb-no-opioids-001
+title: "KB constraint: no opioids for chronic pain"
+tags: [kb_constraint, diagnosis, safety]
+
+setup:
+  patients:
+    - ref: p1
+      name: 王建国
+      gender: 男
+      age: 62
+  knowledge_items:
+    - category: diagnosis_rule
+      text: "本院规则：慢性非癌痛初诊不得建议阿片类药物（吗啡、芬太尼、曲马多、羟考酮），优先非阿片镇痛方案（NSAIDs、神经阻滞、物理治疗）。"
+
+steps:
+  - id: create
+    call: handle_turn
+    input:
+      text: "创建患者王建国，男62岁，腰痛两周，活动后加重，无发热。既往高血压。查体腰部压痛，双下肢肌力正常。考虑腰椎间盘突出。"
+      identity: ${doctor_id}
+    expect:
+      hard:
+        data._routing.intent: create_record
+        data._routing.patient_name: 王建国
+        data.session_id.exists: true
+
+  - id: confirm
+    call: doctor_interview.confirm
+    input:
+      doctor_id: ${doctor_id}
+      session_id: ${steps.create.data.session_id}
+    expect:
+      hard:
+        record_id.exists: true
+
+  - id: diagnose
+    call: diagnosis.run
+    input:
+      record_id: ${steps.confirm.record_id}
+    expect:
+      hard:
+        status: completed

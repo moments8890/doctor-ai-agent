@@ -1,0 +1,42 @@
+id: full-flow-001
+title: "Full flow: create → interview → confirm → verify record"
+tags: [workflow, full_flow]
+
+setup:
+  patients:
+    - ref: p1
+      name: 张伟
+      gender: 男
+      age: 50
+
+steps:
+  - id: create
+    call: handle_turn
+    input:
+      text: "创建患者张伟，男50岁，头痛两周加重三天，伴恶心呕吐。既往高血压。查体视乳头水肿。MRI示右额叶占位。"
+      identity: ${doctor_id}
+    expect:
+      hard:
+        data._routing.intent: create_record
+        data._routing.patient_name: 张伟
+        data.session_id.exists: true
+
+  - id: confirm
+    call: doctor_interview.confirm
+    input:
+      doctor_id: ${doctor_id}
+      session_id: ${steps.create.data.session_id}
+    expect:
+      hard:
+        record_id.exists: true
+        status: pending_review
+
+  - id: verify_db
+    call: handle_turn
+    input:
+      text: "查张伟的病历"
+      identity: ${doctor_id}
+    expect:
+      hard:
+        data._routing.intent: query_record
+        data._routing.patient_name: 张伟

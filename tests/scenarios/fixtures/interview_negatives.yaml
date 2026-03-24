@@ -1,0 +1,33 @@
+id: interview-negatives-001
+title: "Interview: negative values count as collected"
+tags: [interview, extraction]
+
+setup:
+  patients:
+    - ref: p1
+      name: 李强
+      gender: 男
+      age: 40
+
+steps:
+  - id: create
+    call: handle_turn
+    input:
+      text: "创建患者李强，男40岁，头痛三天"
+      identity: ${doctor_id}
+    expect:
+      hard:
+        data._routing.intent: create_record
+
+  - id: negatives
+    call: doctor_interview.turn
+    input:
+      doctor_id: ${doctor_id}
+      session_id: ${steps.create.data.session_id}
+      text: "无特殊既往史，无药物过敏，无家族遗传病史，不吸烟不饮酒"
+    expect:
+      hard:
+        collected.past_history.contains_any: ["无"]
+        collected.allergy_history.contains_any: ["无"]
+        collected.family_history.contains_any: ["无"]
+        collected.personal_history.contains_any: ["不吸烟", "不饮酒"]

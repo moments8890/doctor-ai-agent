@@ -44,7 +44,7 @@ DEFAULT_RUNTIME_CONFIG: Dict[str, Any] = {
     "LOG_LEVEL": "INFO",
     "LOG_FORMAT": "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     "LOG_TO_FILE": True,
-    "LOG_DIR": "logs",
+    "LOG_DIR": str(ROOT / "logs"),
     "LOG_FILE": "app.log",
     "LOG_MAX_BYTES": 10485760,
     "LOG_BACKUP_COUNT": 5,

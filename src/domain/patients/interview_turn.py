@@ -183,6 +183,19 @@ async def _call_interview_llm(
             history=history,
         )
 
+    # Inject collected state directly into the system prompt.
+    # The prompt composer strips template placeholders, so we append the context block.
+    if messages and messages[0]["role"] == "system":
+        context_block = (
+            f"\n\n## 当前问诊状态\n"
+            f"患者信息：{patient_info.get('name', '')}，{patient_info.get('gender', '')}，{patient_info.get('age', '')}岁\n"
+            f"已收集：{json.dumps(collected, ensure_ascii=False)}\n"
+            f"待收集：{'、'.join(missing_labels) if missing_labels else '无（可进入确认）'}"
+        )
+        if previous_history:
+            context_block += f"\n既往就诊记录：{previous_history}"
+        messages[0]["content"] += context_block
+
     # Remove the empty user message the composer appended — history already has it
     if messages and messages[-1]["role"] == "user" and "<doctor_request>" in messages[-1]["content"]:
         messages.pop()

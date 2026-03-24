@@ -48,6 +48,15 @@ async def handle_turn(
         # Dispatch
         result: HandlerResult = await dispatch(ctx)
 
+    # Inject routing trace into result data for test assertions
+    if result.data is None:
+        result.data = {}
+    result.data["_routing"] = {
+        "intent": routing.intent.value,
+        "patient_name": routing.patient_name,
+        "deferred": routing.deferred,
+    }
+
     # Persist turn
     append_to_history(identity, text, result.reply)
 

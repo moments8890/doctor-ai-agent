@@ -21,7 +21,6 @@ from sqlalchemy import select
 # Case matching is disabled until migrated to medical_records-based approach.
 from db.engine import AsyncSessionLocal
 from db.models.records import MedicalRecordDB
-from domain.knowledge.doctor_knowledge import load_knowledge_context_for_prompt
 from infra.llm.client import _PROVIDERS
 from infra.observability.observability import trace_block
 from utils.log import log
@@ -31,7 +30,7 @@ import logging as _logging
 import json as _json_mod
 from pathlib import Path as _Path
 
-_LLM_LOG_DIR = _Path(__file__).resolve().parents[1] / "logs"
+_LLM_LOG_DIR = _Path(__file__).resolve().parents[2] / "logs"
 _LLM_LOG_DIR.mkdir(exist_ok=True)
 _llm_logger = _logging.getLogger("diagnosis.llm_io")
 _llm_logger.setLevel(_logging.DEBUG)
@@ -445,9 +444,12 @@ async def run_diagnosis(
         # Step 3: Load doctor knowledge (non-blocking — empty on failure)
         # ------------------------------------------------------------------
         knowledge_text = ""
+        from domain.knowledge.doctor_knowledge import load_knowledge_by_categories
+        from agent.prompt_config import REVIEW_LAYERS
+
         try:
-            knowledge_text = await load_knowledge_context_for_prompt(
-                session, doctor_id, chief_complaint
+            knowledge_text = await load_knowledge_by_categories(
+                doctor_id, REVIEW_LAYERS.knowledge_categories, query=chief_complaint,
             )
         except Exception as exc:
             log(f"{_tag} knowledge load failed (non-fatal): {exc}", level="warning")
@@ -458,7 +460,6 @@ async def run_diagnosis(
         from agent.prompt_composer import compose_for_review
 
         cases_text = _format_matched_cases(matched_cases)
-        # Combine cases + knowledge into the appropriate layers
         doctor_kb = knowledge_text or ""
         patient_ctx_parts = []
         if cases_text:
