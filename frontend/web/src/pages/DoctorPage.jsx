@@ -18,7 +18,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import {
-  getTasks, getReviewQueue,
+  getTasks,
   getDoctorProfile, updateDoctorProfile, getWorkingContext,
 } from "../api";
 import { useDoctorStore } from "../store/doctorStore";
@@ -140,7 +140,6 @@ function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpag
 
 function useDoctorPageState({ doctorId, accessToken, setAuth }) {
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
-  const [pendingReviewCount, setPendingReviewCount] = useState(0);
   const [workingContext, setWorkingContext] = useState(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardName, setOnboardName] = useState("");
@@ -153,12 +152,6 @@ function useDoctorPageState({ doctorId, accessToken, setAuth }) {
   useEffect(() => {
     if (!doctorId) return;
     getTasks(doctorId, "pending").then((d) => setPendingTaskCount((Array.isArray(d) ? d : (d.items || [])).length)).catch(() => {});
-  }, [doctorId]);
-  useEffect(() => {
-    if (!doctorId) return;
-    getReviewQueue(doctorId, "pending_review", 200)
-      .then((d) => setPendingReviewCount((d.items || []).length))
-      .catch(() => {});
   }, [doctorId]);
   // Working context: poll every 15 seconds for header state
   useEffect(() => {
@@ -175,7 +168,7 @@ function useDoctorPageState({ doctorId, accessToken, setAuth }) {
     try { await updateDoctorProfile(doctorId, { name: onboardName.trim() }); setAuth(doctorId, onboardName.trim(), accessToken); setShowOnboarding(false); }
     catch {} finally { setOnboardSaving(false); }
   }
-  return { pendingTaskCount, pendingReviewCount, workingContext, setWorkingContext, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit };
+  return { pendingTaskCount, workingContext, setWorkingContext, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit };
 }
 
 export default function DoctorPage() {
@@ -191,7 +184,7 @@ export default function DoctorPage() {
   const [triggerInterview, setTriggerInterview] = useState(false);
   const [chatInterviewSessionId, setChatInterviewSessionId] = useState(null);
 
-  const { pendingTaskCount, pendingReviewCount, workingContext, setWorkingContext, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit } = useDoctorPageState({ doctorId, accessToken, setAuth });
+  const { pendingTaskCount, workingContext, setWorkingContext, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit } = useDoctorPageState({ doctorId, accessToken, setAuth });
 
   const activeSection = patientId ? "patients" : (section || "home");
 
@@ -207,12 +200,12 @@ export default function DoctorPage() {
 
   return (
     <Box sx={{ display: "flex", height: "100vh", bgcolor: "#f7f7f7" }}>
-      {!isMobile && <DesktopSidebar activeSection={activeSection} doctorName={doctorName} doctorId={doctorId} navBadge={{ tasks: pendingTaskCount + pendingReviewCount }} onNav={handleNav} onLogout={handleLogout} />}
+      {!isMobile && <DesktopSidebar activeSection={activeSection} doctorName={doctorName} doctorId={doctorId} navBadge={{ tasks: pendingTaskCount }} onNav={handleNav} onLogout={handleLogout} />}
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", pb: isMobile ? "56px" : 0 }}>
         <WorkingContextHeader context={workingContext} isMobile={isMobile} />
         <SectionContent activeSection={activeSection} doctorId={doctorId} isMobile={isMobile} navigate={navigate} urlSubpage={urlSubpage} urlSubId={urlSubId} chatInsertText={chatInsertText} setChatInsertText={setChatInsertText} chatAutoSendText={chatAutoSendText} setChatAutoSendText={setChatAutoSendText} chatAutoSendConsumedRef={chatAutoSendConsumedRef} patientRefreshKey={patientRefreshKey} setPatientRefreshKey={setPatientRefreshKey} handleLogout={handleLogout} onContextCleared={handleContextCleared} triggerInterview={triggerInterview} setTriggerInterview={setTriggerInterview} chatInterviewSessionId={chatInterviewSessionId} setChatInterviewSessionId={setChatInterviewSessionId} />
       </Box>
-      {isMobile && <MobileBottomNav activeSection={activeSection} pendingTaskCount={pendingTaskCount + pendingReviewCount} onNav={handleNav} />}
+      {isMobile && <MobileBottomNav activeSection={activeSection} pendingTaskCount={pendingTaskCount} onNav={handleNav} />}
       <OnboardingDialog open={showOnboarding} name={onboardName} saving={onboardSaving} onChange={setOnboardName} onSubmit={handleOnboardSubmit} />
     </Box>
   );

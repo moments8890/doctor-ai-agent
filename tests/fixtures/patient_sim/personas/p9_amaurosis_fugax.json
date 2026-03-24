@@ -28,7 +28,10 @@
     }
   ],
   "surgical_history": "无",
-  "comorbidities": ["高血压", "高脂血症"],
+  "comorbidities": [
+    "高血压",
+    "高脂血症"
+  ],
   "style": "cooperative",
   "personality": "表述朴素，不会主动说“单眼”或“黑朦”这种词。若医生追问发生部位、持续时间和伴随症状，她会回答得比较清楚。对吸烟问题有点不好意思，会先轻描淡写。",
   "allowed_facts": [
@@ -88,15 +91,229 @@
       "volunteer": false
     }
   ],
-  "expected_extracted": {
-    "chief_complaint": ["眼前发黑"],
-    "present_illness": ["左眼发黑", "3次", "2到3分钟", "颈动脉狭窄60%", "无肢体无力"],
-    "past_history": ["高血压7年", "高脂血症"],
-    "family_history": ["哥哥脑梗"]
+  "fact_catalog": [
+    {
+      "id": "cc_main",
+      "field": "chief_complaint",
+      "slot": "main_complaint",
+      "text": "反复眼前发黑",
+      "importance": "critical"
+    },
+    {
+      "id": "cc_duration",
+      "field": "chief_complaint",
+      "slot": "duration",
+      "text": "1个月",
+      "importance": "critical"
+    },
+    {
+      "id": "pi_laterality",
+      "field": "present_illness",
+      "slot": "症状特点",
+      "text": "左眼发黑，像被黑帘子挡住",
+      "importance": "critical"
+    },
+    {
+      "id": "pi_frequency",
+      "field": "present_illness",
+      "slot": "症状特点",
+      "text": "共3次，每次2到3分钟后完全恢复",
+      "importance": "critical"
+    },
+    {
+      "id": "pi_neg_symptom",
+      "field": "present_illness",
+      "slot": "伴随症状",
+      "text": "发作时无头痛，无肢体无力，无言语不清，无眩晕",
+      "importance": "important"
+    },
+    {
+      "id": "pi_imaging",
+      "field": "present_illness",
+      "slot": "发病情况",
+      "text": "颈动脉超声提示左侧颈内动脉起始部斑块并狭窄约60%",
+      "importance": "critical"
+    },
+    {
+      "id": "pi_treatment",
+      "field": "present_illness",
+      "slot": "诊疗经过",
+      "text": "开始吃阿司匹林和瑞舒伐他汀后，2周未再发作",
+      "importance": "important"
+    },
+    {
+      "id": "ph_htn",
+      "field": "past_history",
+      "slot": "疾病史",
+      "text": "高血压7年，服氨氯地平，血压大多在140/85mmHg",
+      "importance": "critical"
+    },
+    {
+      "id": "ph_lipid",
+      "field": "past_history",
+      "slot": "疾病史",
+      "text": "高脂血症2年，之前没太规律吃药",
+      "importance": "important"
+    },
+    {
+      "id": "ph_no_surgery",
+      "field": "past_history",
+      "slot": "手术外伤史",
+      "text": "无手术史",
+      "importance": "optional"
+    },
+    {
+      "id": "al_none",
+      "field": "allergy_history",
+      "slot": null,
+      "text": "无药物过敏史",
+      "importance": "critical"
+    },
+    {
+      "id": "fh_brother",
+      "field": "family_history",
+      "slot": null,
+      "text": "哥哥62岁时得过脑梗",
+      "importance": "important"
+    },
+    {
+      "id": "sh_smoking",
+      "field": "personal_history",
+      "slot": "烟酒史",
+      "text": "吸烟25年，近半年减到每天5支，还没完全戒；不饮酒",
+      "importance": "critical"
+    },
+    {
+      "id": "sh_marital",
+      "field": "personal_history",
+      "slot": "婚育史",
+      "text": "已婚，育有1女",
+      "importance": "optional"
+    }
+  ],
+  "record_expectation": {
+    "chief_complaint": {
+      "max_chars": 20,
+      "require_duration": true,
+      "acceptable_variants": [
+        "反复眼前发黑1个月",
+        "一过性单眼黑朦1月",
+        "左眼反复发黑1月"
+      ],
+      "required_fact_ids": [
+        "cc_main",
+        "cc_duration"
+      ]
+    },
+    "present_illness": {
+      "subsections": {
+        "发病情况": {
+          "status": "required",
+          "fact_ids": [
+            "pi_imaging"
+          ]
+        },
+        "症状特点": {
+          "status": "required",
+          "fact_ids": [
+            "pi_laterality",
+            "pi_frequency"
+          ]
+        },
+        "伴随症状": {
+          "status": "required_if_asked",
+          "fact_ids": [
+            "pi_neg_symptom"
+          ]
+        },
+        "诊疗经过": {
+          "status": "required",
+          "fact_ids": [
+            "pi_treatment"
+          ]
+        },
+        "一般情况": {
+          "status": "not_applicable",
+          "fact_ids": []
+        }
+      }
+    },
+    "past_history": {
+      "subsections": {
+        "疾病史": {
+          "status": "required",
+          "fact_ids": [
+            "ph_htn",
+            "ph_lipid"
+          ]
+        },
+        "手术外伤史": {
+          "status": "optional",
+          "fact_ids": [
+            "ph_no_surgery"
+          ]
+        },
+        "输血史": {
+          "status": "not_applicable",
+          "fact_ids": []
+        }
+      }
+    },
+    "allergy_history": {
+      "required_fact_ids": [
+        "al_none"
+      ]
+    },
+    "family_history": {
+      "required_fact_ids": [
+        "fh_brother"
+      ]
+    },
+    "personal_history": {
+      "subsections": {
+        "烟酒史": {
+          "status": "required",
+          "fact_ids": [
+            "sh_smoking"
+          ]
+        },
+        "婚育史": {
+          "status": "optional",
+          "fact_ids": [
+            "sh_marital"
+          ]
+        }
+      }
+    }
+  },
+  "coverage_expectation": {
+    "must_elicit": [
+      "左眼发黑详情",
+      "发作持续时间",
+      "颈动脉超声结果",
+      "吸烟史"
+    ],
+    "should_elicit": [
+      "当前用药",
+      "是否完全恢复",
+      "高血压控制",
+      "家族史"
+    ],
+    "min_coverage": 0.7
   },
   "checklist": {
-    "must_ask": ["左眼发黑", "2到3分钟", "颈动脉超声", "吸烟"],
-    "should_ask": ["阿司匹林", "是否完全恢复", "高血压", "家族史"],
+    "must_ask": [
+      "左眼发黑",
+      "2到3分钟",
+      "颈动脉超声",
+      "吸烟"
+    ],
+    "should_ask": [
+      "阿司匹林",
+      "是否完全恢复",
+      "高血压",
+      "家族史"
+    ],
     "min_coverage": 0.6
   }
 }

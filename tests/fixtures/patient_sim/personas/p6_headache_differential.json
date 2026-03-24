@@ -28,7 +28,10 @@
     }
   ],
   "surgical_history": "无",
-  "comorbidities": ["高血压", "2型糖尿病"],
+  "comorbidities": [
+    "高血压",
+    "2型糖尿病"
+  ],
   "style": "messy",
   "personality": "叙述含糊、跳跃，经常把不同时间的症状混在一起说。回答问题时容易跑题（比如突然提到家里的事）。描述疼痛时用模糊词汇（'就是不舒服''说不清楚'）。需要医生耐心引导并明确追问。",
   "allowed_facts": [
@@ -98,15 +101,265 @@
       "volunteer": false
     }
   ],
-  "expected_extracted": {
-    "chief_complaint": ["慢性头痛3年", "加重"],
-    "present_illness": ["右侧搏动性头痛", "恶心", "止痛药效果差", "神经内科转诊"],
-    "past_history": ["高血压", "糖尿病"],
-    "family_history": ["母亲偏头痛"]
+  "fact_catalog": [
+    {
+      "id": "cc_main",
+      "field": "chief_complaint",
+      "slot": "main_complaint",
+      "text": "慢性头痛",
+      "importance": "critical"
+    },
+    {
+      "id": "cc_duration",
+      "field": "chief_complaint",
+      "slot": "duration",
+      "text": "3年，近半年加重",
+      "importance": "critical"
+    },
+    {
+      "id": "pi_character",
+      "field": "present_illness",
+      "slot": "症状特点",
+      "text": "头痛以右侧为主，搏动性",
+      "importance": "critical"
+    },
+    {
+      "id": "pi_nausea",
+      "field": "present_illness",
+      "slot": "伴随症状",
+      "text": "有时伴恶心",
+      "importance": "important"
+    },
+    {
+      "id": "pi_frequency",
+      "field": "present_illness",
+      "slot": "症状特点",
+      "text": "发作持续数小时至1天，每周约2-3次",
+      "importance": "critical"
+    },
+    {
+      "id": "pi_med_effect",
+      "field": "present_illness",
+      "slot": "诊疗经过",
+      "text": "止痛药效果不佳，对乙酰氨基酚只能稍缓解",
+      "importance": "important"
+    },
+    {
+      "id": "pi_referral",
+      "field": "present_illness",
+      "slot": "诊疗经过",
+      "text": "神经内科转诊排除血管性病因，既往头颅CT未见明显异常",
+      "importance": "important"
+    },
+    {
+      "id": "pi_trigger",
+      "field": "present_illness",
+      "slot": "症状特点",
+      "text": "头痛与劳累、情绪紧张有关，天气变化时也会加重",
+      "importance": "important"
+    },
+    {
+      "id": "pi_neg_neuro",
+      "field": "present_illness",
+      "slot": "伴随症状",
+      "text": "无肢体无力、言语障碍、视物模糊等神经症状",
+      "importance": "important"
+    },
+    {
+      "id": "ph_htn",
+      "field": "past_history",
+      "slot": "疾病史",
+      "text": "高血压6年，服硝苯地平缓释片，血压约140-150/90mmHg",
+      "importance": "critical"
+    },
+    {
+      "id": "ph_dm",
+      "field": "past_history",
+      "slot": "疾病史",
+      "text": "2型糖尿病3年，服二甲双胍，空腹血糖约7-8mmol/L",
+      "importance": "critical"
+    },
+    {
+      "id": "ph_no_surgery",
+      "field": "past_history",
+      "slot": "手术外伤史",
+      "text": "无手术史",
+      "importance": "optional"
+    },
+    {
+      "id": "al_ibuprofen",
+      "field": "allergy_history",
+      "slot": null,
+      "text": "服布洛芬后胃肠道不适反应",
+      "importance": "critical"
+    },
+    {
+      "id": "fh_migraine",
+      "field": "family_history",
+      "slot": null,
+      "text": "母亲有偏头痛史",
+      "importance": "important"
+    },
+    {
+      "id": "fh_neg_cvd",
+      "field": "family_history",
+      "slot": null,
+      "text": "无脑血管疾病家族史",
+      "importance": "optional"
+    },
+    {
+      "id": "sh_sleep",
+      "field": "personal_history",
+      "slot": "生活习惯",
+      "text": "睡眠质量差，经常失眠",
+      "importance": "important"
+    },
+    {
+      "id": "sh_smoking",
+      "field": "personal_history",
+      "slot": "烟酒史",
+      "text": "不吸烟不饮酒",
+      "importance": "optional"
+    },
+    {
+      "id": "sh_marital",
+      "field": "personal_history",
+      "slot": "婚育史",
+      "text": "已婚，育有1子1女",
+      "importance": "optional"
+    }
+  ],
+  "record_expectation": {
+    "chief_complaint": {
+      "max_chars": 20,
+      "require_duration": true,
+      "acceptable_variants": [
+        "慢性头痛3年加重半年",
+        "反复头痛3年余",
+        "头痛3年，加重半年"
+      ],
+      "required_fact_ids": [
+        "cc_main",
+        "cc_duration"
+      ]
+    },
+    "present_illness": {
+      "subsections": {
+        "发病情况": {
+          "status": "required",
+          "fact_ids": [
+            "cc_duration"
+          ]
+        },
+        "症状特点": {
+          "status": "required",
+          "fact_ids": [
+            "pi_character",
+            "pi_frequency"
+          ]
+        },
+        "伴随症状": {
+          "status": "required_if_asked",
+          "fact_ids": [
+            "pi_nausea",
+            "pi_neg_neuro"
+          ]
+        },
+        "诊疗经过": {
+          "status": "required",
+          "fact_ids": [
+            "pi_med_effect",
+            "pi_referral"
+          ]
+        },
+        "一般情况": {
+          "status": "not_applicable",
+          "fact_ids": []
+        }
+      }
+    },
+    "past_history": {
+      "subsections": {
+        "疾病史": {
+          "status": "required",
+          "fact_ids": [
+            "ph_htn",
+            "ph_dm"
+          ]
+        },
+        "手术外伤史": {
+          "status": "optional",
+          "fact_ids": [
+            "ph_no_surgery"
+          ]
+        },
+        "输血史": {
+          "status": "not_applicable",
+          "fact_ids": []
+        }
+      }
+    },
+    "allergy_history": {
+      "required_fact_ids": [
+        "al_ibuprofen"
+      ]
+    },
+    "family_history": {
+      "required_fact_ids": [
+        "fh_migraine"
+      ]
+    },
+    "personal_history": {
+      "subsections": {
+        "烟酒史": {
+          "status": "optional",
+          "fact_ids": [
+            "sh_smoking"
+          ]
+        },
+        "生活习惯": {
+          "status": "required_if_available",
+          "fact_ids": [
+            "sh_sleep"
+          ]
+        },
+        "婚育史": {
+          "status": "optional",
+          "fact_ids": [
+            "sh_marital"
+          ]
+        }
+      }
+    }
+  },
+  "coverage_expectation": {
+    "must_elicit": [
+      "头痛性质部位持续时间",
+      "伴随症状",
+      "既往检查结果",
+      "当前用药"
+    ],
+    "should_elicit": [
+      "头痛诱因",
+      "高血压糖尿病控制",
+      "过敏史",
+      "神经系统症状排查"
+    ],
+    "min_coverage": 0.7
   },
   "checklist": {
-    "must_ask": ["头痛性质部位持续时间", "伴随症状", "既往检查结果", "当前用药"],
-    "should_ask": ["头痛诱因", "高血压糖尿病控制", "过敏史", "神经系统症状排查"],
+    "must_ask": [
+      "头痛性质部位持续时间",
+      "伴随症状",
+      "既往检查结果",
+      "当前用药"
+    ],
+    "should_ask": [
+      "头痛诱因",
+      "高血压糖尿病控制",
+      "过敏史",
+      "神经系统症状排查"
+    ],
     "min_coverage": 0.6
   }
 }

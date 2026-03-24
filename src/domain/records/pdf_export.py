@@ -109,10 +109,8 @@ def _draw_patient_block(pdf, _set_font, patient, patient_name, doctor_name, reco
     p_gender = getattr(patient, "gender", None) if patient else None
     p_yob = getattr(patient, "year_of_birth", None) if patient else None
     p_age = _age_from_year(p_yob)
-    # primary_risk_level is not mapped on the Patient ORM model; always None.
-    # Kept as a placeholder for future risk-scoring integration.
     p_risk = None
-    p_category = getattr(patient, "primary_category", None) if patient else None
+    p_category = None
 
     pdf.set_fill_color(240, 245, 255)
     pdf.set_draw_color(180, 200, 240)

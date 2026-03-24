@@ -29,10 +29,11 @@ from channels.web.patient_portal_auth import (
     _DUMMY_HASH,
     _AUTH_FAIL,
     _authenticate_patient,
-    _issue_patient_token,
     _lookup_patient_by_name,
     _verify_patient_access_code,
 )
+from infra.auth import UserRole
+from infra.auth.unified import issue_token as _issue_unified_token
 from channels.web.patient_portal_registration import registration_router
 from channels.web.patient_portal_chat import chat_router
 from channels.web.patient_portal_tasks import tasks_router
@@ -71,7 +72,7 @@ class PatientRecordOut(BaseModel):
     record_type: str
     content: Optional[str]
     structured: Optional[dict] = None
-    needs_review: Optional[bool] = None
+    status: Optional[str] = None
     created_at: datetime
 
 
@@ -129,8 +130,7 @@ async def create_patient_session(body: PatientSessionRequest):
         ).scalar_one_or_none()
     _verify_patient_access_code(auth_row, supplied_code)
 
-    acv = auth_row.access_code_version if auth_row is not None else 0
-    token = _issue_patient_token(patient.id, doctor_id, access_code_version=acv)
+    token = _issue_unified_token(UserRole.patient, doctor_id, patient.id, patient.name)
     logger.info(
         "[PatientPortal] session issued | doctor_id=%s patient_id=%s code_required=%s",
         doctor_id, patient.id, bool(auth_row and auth_row.access_code),
@@ -177,7 +177,7 @@ async def get_patient_records(authorization: Optional[str] = Header(default=None
             record_type=r.record_type,
             content=r.content,
             structured=r.soap_dict() if r.has_soap_data() else None,
-            needs_review=r.needs_review,
+            status=r.status,
             created_at=r.created_at,
         )
         for r in records

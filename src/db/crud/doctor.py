@@ -12,7 +12,6 @@ from sqlalchemy.exc import IntegrityError
 from db.models import (
     Doctor,
     DoctorKnowledgeItem,
-    ChatArchive,
 )
 from db.crud._common import _utcnow
 
@@ -69,12 +68,15 @@ async def get_doctor_wechat_user_id(session: AsyncSession, doctor_id: str) -> Op
 
 
 
-async def add_doctor_knowledge_item(session: AsyncSession, doctor_id: str, content: str) -> DoctorKnowledgeItem:
+async def add_doctor_knowledge_item(
+    session: AsyncSession, doctor_id: str, content: str, category: str = "custom",
+) -> DoctorKnowledgeItem:
     doctor_id = await _ensure_doctor_exists(session, doctor_id)
     now = _utcnow()
     row = DoctorKnowledgeItem(
         doctor_id=doctor_id,
         content=content.strip(),
+        category=category,
         created_at=now,
         updated_at=now,
     )
@@ -117,30 +119,6 @@ async def delete_knowledge_item(
     )
     await session.commit()
     return result.rowcount > 0
-
-
-async def append_chat_archive(
-    session: AsyncSession,
-    doctor_id: str,
-    turns: List[dict],
-    patient_id: Optional[int] = None,
-) -> None:
-    """Append turns to the chat archive (retained for 365 days by default).
-
-    Does NOT commit — the caller is responsible for committing the session
-    so that conversation turns and archive can be written atomically.
-    """
-    if not turns:
-        return
-    now = _utcnow()
-    for turn in turns:
-        role = str(turn.get("role") or "").strip().lower()
-        content = str(turn.get("content") or "").strip()
-        if role not in {"user", "assistant"}:
-            continue
-        if not content:
-            continue
-        session.add(ChatArchive(doctor_id=doctor_id, patient_id=patient_id, role=role, content=content, created_at=now))
 
 
 async def get_doctor_mini_openid(session: AsyncSession, doctor_id: str) -> Optional[str]:

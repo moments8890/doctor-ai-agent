@@ -29,8 +29,8 @@ async def handle_turn(
     """
     set_current_identity(identity)
 
-    # Load recent history for routing context
-    history = get_session_history(identity)
+    # Load recent history for routing context (DB-backed with in-memory cache)
+    history = await get_session_history(identity)
 
     with trace_block("agent", "handle_turn", {"identity": identity, "role": role}):
         # Route — use action_hint to bypass LLM router when provided
@@ -61,7 +61,7 @@ async def handle_turn(
         "deferred": routing.deferred,
     }
 
-    # Persist turn
-    append_to_history(identity, text, result.reply)
+    # Persist turn (sync write to doctor_chat_log + in-memory cache)
+    await append_to_history(identity, text, result.reply)
 
     return result

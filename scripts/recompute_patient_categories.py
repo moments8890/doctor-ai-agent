@@ -24,7 +24,7 @@ from sqlalchemy import select
 
 from db.engine import AsyncSessionLocal
 from db.models import Patient, MedicalRecordDB
-from services.patient.patient_categorization import categorize_patient
+from domain.patients.categorization import categorize_patient
 
 
 async def _process_patient(session, patient, dry_run: bool) -> bool:

@@ -113,11 +113,12 @@ async def _run(args: argparse.Namespace) -> None:
             )
             sim_result["tier1"] = t1
 
-            # Validate Tier 2: Extraction (3 LLM judges against DB)
+            # Validate Tier 2: 3-axis scorecard (elicitation + extraction + NHC)
             t2 = await validate_tier2(
                 persona=persona,
                 db_path=str(db_path),
                 record_id=sim_result["record_id"],
+                conversation=sim_result["conversation"],
             )
             sim_result["tier2"] = t2
 

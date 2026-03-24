@@ -23,7 +23,7 @@ async def save_record(
     record: MedicalRecord,
     patient_id: int | None,
     *,
-    needs_review: Optional[bool] = None,
+    status: Optional[str] = None,
     commit: bool = True,
 ) -> MedicalRecordDB:
     with _trace_block("db", "crud.save_record", {"doctor_id": doctor_id, "patient_id": patient_id}):
@@ -34,8 +34,8 @@ async def save_record(
             record=record,
             patient_id=patient_id,
         )
-        if needs_review is not None:
-            db_record.needs_review = needs_review
+        if status is not None:
+            db_record.status = status
         if commit:
             await session.commit()
         return db_record

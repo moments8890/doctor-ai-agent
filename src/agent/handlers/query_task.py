@@ -38,18 +38,12 @@ async def _fetch_tasks(doctor_id: str, status: Optional[str] = None) -> List[Dic
 
 
 async def _compose_task_summary(ctx: TurnContext, tasks: list) -> str:
-    from domain.knowledge.doctor_knowledge import load_knowledge_by_categories
-    from agent.prompt_config import INTENT_LAYERS
-
     tasks_text = json.dumps(tasks, ensure_ascii=False, indent=2)
-    config = INTENT_LAYERS[IntentType.query_task]
-    doctor_kb = await load_knowledge_by_categories(
-        ctx.doctor_id, config.knowledge_categories, query=ctx.text,
-    )
-    messages = compose_for_intent(
+
+    # KB auto-loaded by composer based on LayerConfig.knowledge_categories
+    messages = await compose_for_intent(
         IntentType.query_task,
         doctor_id=ctx.doctor_id,
-        doctor_knowledge=doctor_kb,
         patient_context=tasks_text,
         doctor_message=ctx.text,
     )

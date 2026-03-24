@@ -100,7 +100,7 @@ def _purge_inttest_rows(conn: sqlite3.Connection) -> None:
         "doctor_contexts",
 
         "doctor_conversation_turns",
-        "chat_archive",
+        "doctor_chat_log",
     ]
     tables_optional = ["doctor_tasks", "pending_records", "pending_messages", "interview_sessions", "review_queue"]
 

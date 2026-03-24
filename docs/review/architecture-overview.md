@@ -57,22 +57,36 @@ prompt composer and Pydantic/Instructor structured output.
 │                  6-LAYER PROMPT COMPOSER                      │
 │                  prompt_composer.py + prompt_config.py        │
 │                                                              │
-│  System message (Layers 1-3):                                │
+│  Two patterns based on conversation_mode:                    │
+│                                                              │
+│  Pattern 1 — Single-turn (query, diagnosis, routing):        │
 │  ┌──────────────────────────────────────────┐                │
-│  │ 1. system/base.md — identity, safety     │                │
-│  │ 2. common/{specialty}.md — area knowledge│                │
-│  │ 3. intent/{intent}.md — rules + examples │                │
+│  │ system: Layers 1-3 (instructions only)   │                │
+│  │   1. system/base.md — identity, safety   │                │
+│  │   2. common/{specialty}.md — area knowledge│               │
+│  │   3. intent/{intent}.md — rules + examples│               │
+│  ├──────────────────────────────────────────┤                │
+│  │ user: Layers 4-6 (XML-tagged data)       │                │
+│  │   4. <doctor_knowledge> KB from DB       │                │
+│  │   5. <patient_context> records, history  │                │
+│  │   6. <doctor_request> actual message     │                │
 │  └──────────────────────────────────────────┘                │
 │                                                              │
-│  User message (Layers 4-6, XML-tagged):                      │
+│  Pattern 2 — Conversation (interview):                       │
 │  ┌──────────────────────────────────────────┐                │
-│  │ 4. <doctor_knowledge> KB items from DB   │                │
-│  │ 5. <patient_context> records, history    │                │
-│  │ 6. <doctor_request> actual message       │                │
+│  │ system: Layers 1-5 (instructions + data) │                │
+│  │   1-3. same as Pattern 1                 │                │
+│  │   4. doctor KB items (as system context) │                │
+│  │   5. patient state (collected, missing)  │                │
+│  ├──────────────────────────────────────────┤                │
+│  │ conversation history (user/assistant)    │                │
+│  ├──────────────────────────────────────────┤                │
+│  │ user: Layer 6 only (latest input)        │                │
 │  └──────────────────────────────────────────┘                │
 │                                                              │
 │  Config: INTENT_LAYERS maps IntentType → LayerConfig         │
-│  (which layers, which KB categories, patient context y/n)    │
+│  (layers, KB categories, patient context, conversation_mode) │
+│  KB auto-loaded from DB by composer (async)                  │
 └───────────────────────────┬─────────────────────────────────┘
                             │
                             ▼

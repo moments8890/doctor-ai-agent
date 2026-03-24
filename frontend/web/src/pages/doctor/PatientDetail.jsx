@@ -13,7 +13,7 @@ import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import {
-  getRecords, getLabels, assignLabelToPatient, removeLabelFromPatient,
+  getRecords,
   exportPatientPdf, exportOutpatientReport, deletePatient,
   getPatientChat, replyToPatient,
 } from "../../api";
@@ -353,9 +353,10 @@ function usePatientDetailState({ patient, doctorId, onDeleted }) {
   useEffect(() => { load(); }, [load]);
   useEffect(() => { setPatientLabels(patient?.labels || []); }, [patient?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function handleOpenLabelPicker() { setLabelPickerOpen(true); setLabelError(""); getLabels(doctorId).then((d) => setAllLabels(Array.isArray(d) ? d : (d.items || []))).catch(() => {}); }
-  async function handleRemoveLabel(labelId) { setLabelError(""); try { await removeLabelFromPatient({ doctorId, patientId: patient.id, labelId }); setPatientLabels((prev) => prev.filter((l) => l.id !== labelId)); } catch (e) { setLabelError(e.message || "移除标签失败"); } }
-  async function handleAssignLabel(label) { setLabelError(""); if (patientLabels.some((l) => l.id === label.id)) { setLabelPickerOpen(false); return; } try { await assignLabelToPatient({ doctorId, patientId: patient.id, labelId: label.id }); setPatientLabels((prev) => [...prev, { id: label.id, name: label.name, color: label.color }]); setLabelPickerOpen(false); } catch (e) { setLabelError(e.message || "分配标签失败"); } }
+  // Label feature removed — backend endpoints deleted
+  function handleOpenLabelPicker() {}
+  async function handleRemoveLabel() {}
+  async function handleAssignLabel() {}
   async function handleDelete() { setDeleting(true); try { await deletePatient(patient.id, doctorId); setDeleteConfirmOpen(false); if (onDeleted) { onDeleted(patient.id); return; } navigate("/doctor/patients"); } catch (e) { setError(e.message || "删除失败"); setDeleteConfirmOpen(false); } finally { setDeleting(false); } }
   async function handleExportPdf() { setExportingPdf(true); setExportError(""); try { await exportPatientPdf(patient.id, doctorId); } catch (e) { setExportError(e.message || "导出失败"); } finally { setExportingPdf(false); } }
   async function handleExportReport() { setExportingReport(true); setExportError(""); try { await exportOutpatientReport(patient.id, doctorId); } catch (e) { setExportError(e.message || "生成失败，请确认已有病历记录"); } finally { setExportingReport(false); } }

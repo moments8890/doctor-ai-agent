@@ -402,7 +402,7 @@ def parse_cases(text: str, source: str, batch_idx: int, start_id: int) -> list[d
             "chatlog": [{"speaker": "doctor", "text": t["text"]} for t in chatlog if t.get("text")],
             "expectations": {
                 "must_not_timeout": True,
-                "expected_table_min_counts_global": {"system_prompts": 1},
+                "expected_table_min_counts_global": {},
                 "expected_table_min_counts_by_doctor": db_counts,
                 "must_include_any_of": [keywords] if keywords else [],
             },

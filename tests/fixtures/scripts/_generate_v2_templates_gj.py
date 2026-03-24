@@ -134,7 +134,7 @@ def tmpl_arrhythmia(name: str, idx: int, rng: random.Random) -> dict:
         "chatlog": [{"speaker": "doctor", "text": t} for t in turns],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["心律失常", "房颤", "Holter", "抗凝", "心电图", "早搏", "心悸"]],
         },
     }
@@ -244,7 +244,7 @@ def tmpl_sepsis(name: str, idx: int, rng: random.Random) -> dict:
         "chatlog": [{"speaker": "doctor", "text": t} for t in turns],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["脓毒症", "感染", "PCT", "乳酸", "抗生素", "升压", "ICU", "集束化"]],
         },
     }
@@ -336,7 +336,7 @@ def tmpl_renal(name: str, idx: int, rng: random.Random) -> dict:
         "chatlog": [{"speaker": "doctor", "text": t} for t in turns],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["肾功能", "肌酐", "透析", "CKD", "eGFR", "电解质", "肾脏"]],
         },
     }
@@ -458,7 +458,7 @@ def tmpl_mental(name: str, idx: int, rng: random.Random) -> dict:
         "chatlog": [{"speaker": "doctor", "text": t} for t in turns],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["抑郁", "焦虑", "PHQ", "情绪", "心理", "GAD", "HAMD", "精神", "量表"]],
         },
     }

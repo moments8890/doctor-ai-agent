@@ -36,13 +36,13 @@ async def db_session(session_factory):
 def reset_doctor_sessions():
     """Clear in-memory rate-limit state between tests."""
     try:
-        from services.auth.rate_limit import clear_rate_limits_for_tests
+        from infra.auth.rate_limit import clear_rate_limits_for_tests
         clear_rate_limits_for_tests()
     except Exception:
         pass
     yield
     try:
-        from services.auth.rate_limit import clear_rate_limits_for_tests
+        from infra.auth.rate_limit import clear_rate_limits_for_tests
         clear_rate_limits_for_tests()
     except Exception:
         pass

@@ -172,7 +172,7 @@ async def create_record_from_image(
 async def _import_extracted_text(text: str, doctor_id: str, *, source: str) -> str:
     """Dispatch extracted text to import_history."""
     from types import SimpleNamespace
-    from channels.wechat.wechat_import import handle_import_history
+    from domain.records.import_history import handle_import_history
     intent_result = SimpleNamespace(patient_name=None, extra_data={"source": source})
     try:
         return await handle_import_history(text, doctor_id, intent_result)

@@ -16,7 +16,9 @@
     }
   ],
   "surgical_history": "无",
-  "comorbidities": ["高血压"],
+  "comorbidities": [
+    "高血压"
+  ],
   "style": "cooperative",
   "personality": "配合度高，表述清晰，能按时间线叙述病情，主动提供信息，偶尔会追问动脉瘤是否需要手术",
   "allowed_facts": [
@@ -86,15 +88,239 @@
       "volunteer": false
     }
   ],
-  "expected_extracted": {
-    "chief_complaint": ["体检发现动脉瘤", "头痛"],
-    "present_illness": ["MRA", "右侧大脑中动脉", "4mm", "未破裂"],
-    "past_history": ["高血压5年", "氨氯地平"],
-    "family_history": ["父亲脑溢血"]
+  "fact_catalog": [
+    {
+      "id": "cc_main",
+      "field": "chief_complaint",
+      "slot": "main_complaint",
+      "text": "体检发现脑动脉瘤",
+      "importance": "critical"
+    },
+    {
+      "id": "cc_duration",
+      "field": "chief_complaint",
+      "slot": "duration",
+      "text": "2周",
+      "importance": "critical"
+    },
+    {
+      "id": "cc_headache",
+      "field": "chief_complaint",
+      "slot": "accompanying",
+      "text": "慢性轻微头痛数月，间歇性",
+      "importance": "important"
+    },
+    {
+      "id": "pi_onset",
+      "field": "present_illness",
+      "slot": "发病情况",
+      "text": "2周前单位体检MRA发现右侧大脑中动脉M1段动脉瘤，约4mm",
+      "importance": "critical"
+    },
+    {
+      "id": "pi_no_rupture",
+      "field": "present_illness",
+      "slot": "发病情况",
+      "text": "未见破裂征象，无突发剧烈头痛",
+      "importance": "critical"
+    },
+    {
+      "id": "pi_headache_char",
+      "field": "present_illness",
+      "slot": "症状特点",
+      "text": "头痛为隐痛，不剧烈，间歇性发作",
+      "importance": "important"
+    },
+    {
+      "id": "pi_neg_symptom",
+      "field": "present_illness",
+      "slot": "伴随症状",
+      "text": "无恶心呕吐，无视物模糊",
+      "importance": "important"
+    },
+    {
+      "id": "pi_treatment",
+      "field": "present_illness",
+      "slot": "诊疗经过",
+      "text": "体检MRA发现，尚未治疗",
+      "importance": "important"
+    },
+    {
+      "id": "ph_htn",
+      "field": "past_history",
+      "slot": "疾病史",
+      "text": "高血压5年，服氨氯地平5mg每日一次，血压控制在130-140/80-90mmHg",
+      "importance": "critical"
+    },
+    {
+      "id": "ph_neg_dm",
+      "field": "past_history",
+      "slot": "疾病史",
+      "text": "无糖尿病，无心脏病",
+      "importance": "optional"
+    },
+    {
+      "id": "ph_no_surgery",
+      "field": "past_history",
+      "slot": "手术外伤史",
+      "text": "无手术史，无外伤史",
+      "importance": "important"
+    },
+    {
+      "id": "al_none",
+      "field": "allergy_history",
+      "slot": null,
+      "text": "无药物过敏史，无食物过敏",
+      "importance": "critical"
+    },
+    {
+      "id": "fh_father",
+      "field": "family_history",
+      "slot": null,
+      "text": "父亲65岁时脑溢血去世",
+      "importance": "important"
+    },
+    {
+      "id": "fh_mother",
+      "field": "family_history",
+      "slot": null,
+      "text": "母亲有高血压，健在",
+      "importance": "optional"
+    },
+    {
+      "id": "sh_smoking",
+      "field": "personal_history",
+      "slot": "烟酒史",
+      "text": "不吸烟，偶尔社交饮酒",
+      "importance": "important"
+    },
+    {
+      "id": "sh_marital",
+      "field": "personal_history",
+      "slot": "婚育史",
+      "text": "已婚，育有1子",
+      "importance": "optional"
+    }
+  ],
+  "record_expectation": {
+    "chief_complaint": {
+      "max_chars": 20,
+      "require_duration": true,
+      "acceptable_variants": [
+        "体检发现脑动脉瘤2周",
+        "脑动脉瘤2周"
+      ],
+      "required_fact_ids": [
+        "cc_main",
+        "cc_duration"
+      ]
+    },
+    "present_illness": {
+      "subsections": {
+        "发病情况": {
+          "status": "required_if_asked",
+          "fact_ids": [
+            "pi_onset",
+            "pi_no_rupture"
+          ]
+        },
+        "症状特点": {
+          "status": "required",
+          "fact_ids": [
+            "pi_headache_char"
+          ]
+        },
+        "伴随症状": {
+          "status": "required_if_asked",
+          "fact_ids": [
+            "pi_neg_symptom"
+          ]
+        },
+        "诊疗经过": {
+          "status": "required",
+          "fact_ids": [
+            "pi_treatment"
+          ]
+        },
+        "一般情况": {
+          "status": "not_applicable",
+          "fact_ids": []
+        }
+      }
+    },
+    "past_history": {
+      "subsections": {
+        "疾病史": {
+          "status": "required",
+          "fact_ids": [
+            "ph_htn"
+          ]
+        },
+        "手术外伤史": {
+          "status": "required_if_asked",
+          "fact_ids": [
+            "ph_no_surgery"
+          ]
+        },
+        "输血史": {
+          "status": "not_applicable",
+          "fact_ids": []
+        }
+      }
+    },
+    "allergy_history": {
+      "required_fact_ids": [
+        "al_none"
+      ]
+    },
+    "family_history": {
+      "required_fact_ids": [
+        "fh_father"
+      ]
+    },
+    "personal_history": {
+      "subsections": {
+        "烟酒史": {
+          "status": "required",
+          "fact_ids": [
+            "sh_smoking"
+          ]
+        },
+        "婚育史": {
+          "status": "optional",
+          "fact_ids": [
+            "sh_marital"
+          ]
+        }
+      }
+    }
+  },
+  "coverage_expectation": {
+    "must_elicit": [
+      "头痛性质",
+      "用药情况",
+      "家族史",
+      "过敏史"
+    ],
+    "should_elicit": [
+      "吸烟饮酒",
+      "手术史",
+      "MRA检查结果"
+    ],
+    "min_coverage": 0.7
   },
   "checklist": {
-    "must_ask": ["头痛性质及持续时间", "高血压控制情况", "家族史", "过敏史"],
-    "should_ask": ["吸烟饮酒史", "既往手术史", "其他慢性疾病"],
+    "must_ask": [
+      "头痛性质及持续时间",
+      "高血压控制情况",
+      "家族史",
+      "过敏史"
+    ],
+    "should_ask": [
+      "吸烟饮酒史",
+      "既往手术史",
+      "其他慢性疾病"
+    ],
     "min_coverage": 0.6
   }
 }

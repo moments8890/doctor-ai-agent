@@ -112,9 +112,6 @@ async def search_patients_endpoint(
             "year_of_birth": p.year_of_birth,
             "created_at": _fmt_ts(p.created_at),
             "record_count": int(count_map.get(p.id, 0)),
-            "primary_category": None,  # TODO: removed from Patient model
-            "category_tags": [],  # TODO: removed from Patient model
-            "labels": [],
         }
         for p in patients
     ]
@@ -245,22 +242,12 @@ async def clear_context_endpoint(
     """
     resolved_id = _resolve_ui_doctor_id(doctor_id, authorization)
 
-    # Delete chat_archive rows for this doctor
+    # Clear conversation context (not history — DB rows are permanent logs).
+    # Resets the in-memory cache and generates a new session_id so the LLM
+    # starts fresh without loading old messages back from DB.
     try:
-        from db.models.doctor import ChatArchive
-        from sqlalchemy import delete
-        async with AsyncSessionLocal() as session:
-            await session.execute(
-                delete(ChatArchive).where(ChatArchive.doctor_id == resolved_id)
-            )
-            await session.commit()
-    except Exception:
-        pass
-
-    # Clear in-memory agent session if it exists
-    try:
-        from agent.session import _sessions
-        _sessions.pop(resolved_id, None)
+        from agent.session import clear_session
+        clear_session(resolved_id)
     except Exception:
         pass
 

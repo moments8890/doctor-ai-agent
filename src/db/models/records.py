@@ -7,7 +7,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 from typing import Optional
-from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, DateTime, Text
+from sqlalchemy import ForeignKey, Index, Integer, String, DateTime, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship  # noqa: F401 (relationship used by Patient back_populates)
 from db.engine import Base
 from db.models.base import _utcnow
@@ -28,7 +28,6 @@ class MedicalRecordDB(Base):
     record_type: Mapped[str] = mapped_column(String(32), nullable=False, default="visit")
     content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # nullable for legacy; write path enforces non-empty via MedicalRecord Pydantic model
     tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array of keyword strings
-    needs_review: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
 

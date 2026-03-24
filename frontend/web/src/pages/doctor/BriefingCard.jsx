@@ -3,7 +3,6 @@ import { TYPE } from "../../theme";
 
 const CARD_STYLES = {
   urgent: { bg: "#FEF0EE", dot: "#E8533F" },
-  pending_review: { bg: "#FFF7E6", dot: "#F59E0B" },
   ai_discovery: { bg: "#E8F0FE", dot: "#1B6EF3" },
   pattern: { bg: "#E8F5E9", dot: "#07C160" },
 };
@@ -136,10 +135,6 @@ function ExpandedReviewCard({ card, style, onAction }) {
 
 export default function BriefingCard({ card, onAction }) {
   const style = CARD_STYLES[card.type] || CARD_STYLES.ai_discovery;
-
-  if (card.type === "pending_review" && card.items) {
-    return <ExpandedReviewCard card={card} style={style} onAction={onAction} />;
-  }
 
   return <CompactCard card={card} style={style} onAction={onAction} />;
 }

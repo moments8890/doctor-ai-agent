@@ -397,8 +397,8 @@ async def run_diagnosis(
     clinical_text (from chat history). At least one must be provided.
 
     Returns a dict with keys: differentials, workup, treatment, red_flags.
-    If record_id is provided, also saves the result to diagnosis_results table.
-    If clinical_text only, returns without saving (conversational path).
+    Results are returned to the caller but not persisted to DB (diagnosis_results
+    table was removed; results are stored on medical_records columns instead).
     """
     if record_id is None and not clinical_text:
         raise ValueError("run_diagnosis: either record_id or clinical_text must be provided")
@@ -443,24 +443,11 @@ async def run_diagnosis(
         # ------------------------------------------------------------------
         # Step 3: Load doctor knowledge (non-blocking — empty on failure)
         # ------------------------------------------------------------------
-        knowledge_text = ""
-        from domain.knowledge.doctor_knowledge import load_knowledge_by_categories
-        from agent.prompt_config import REVIEW_LAYERS
-
-        try:
-            knowledge_text = await load_knowledge_by_categories(
-                doctor_id, REVIEW_LAYERS.knowledge_categories, query=chief_complaint,
-            )
-        except Exception as exc:
-            log(f"{_tag} knowledge load failed (non-fatal): {exc}", level="warning")
-
-        # ------------------------------------------------------------------
-        # Step 5: Build prompt via 6-layer composer
+        # Step 4: Build prompt via 6-layer composer (KB auto-loaded)
         # ------------------------------------------------------------------
         from agent.prompt_composer import compose_for_review
 
         cases_text = _format_matched_cases(matched_cases)
-        doctor_kb = knowledge_text or ""
         patient_ctx_parts = []
         if cases_text:
             patient_ctx_parts.append(cases_text)
@@ -468,9 +455,9 @@ async def run_diagnosis(
 
         user_message = _build_user_message(structured)
 
-        composed = compose_for_review(
+        # KB auto-loaded by composer based on REVIEW_LAYERS.knowledge_categories
+        composed = await compose_for_review(
             doctor_id=doctor_id,
-            doctor_knowledge=doctor_kb,
             patient_context=patient_ctx,
             doctor_message=user_message,
         )

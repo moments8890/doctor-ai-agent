@@ -2,7 +2,7 @@
 from db.models.base import _utcnow
 from db.models.doctor import (
     DoctorKnowledgeItem,
-    Doctor, InviteCode, ChatArchive,
+    Doctor, InviteCode,
 )
 from db.models.doctor_wechat import DoctorWechat
 from db.models.patient import Patient
@@ -15,12 +15,11 @@ from db.models.medical_record import MedicalRecord
 from db.models.patient_message import PatientMessage
 from db.models.interview_session import InterviewSessionDB, InterviewStatus
 from db.models.doctor_chat_log import DoctorChatLog, ChatRole
-from db.models.patient_chat_log import PatientChatLog, PatientChatRole, MessageDirection, MessageSource
 
 __all__ = [
     "_utcnow",
     "DoctorKnowledgeItem",
-    "Doctor", "InviteCode", "ChatArchive",
+    "Doctor", "InviteCode",
     "DoctorWechat",
     "Patient",
     "PatientAuth",
@@ -32,5 +31,4 @@ __all__ = [
     "PatientMessage",
     "InterviewSessionDB", "InterviewStatus",
     "DoctorChatLog", "ChatRole",
-    "PatientChatLog", "PatientChatRole", "MessageDirection", "MessageSource",
 ]

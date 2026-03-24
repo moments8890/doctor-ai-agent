@@ -21,9 +21,8 @@ from db.models.patient_auth import PatientAuth
 from infra.auth.access_code_hash import verify_access_code
 from infra.auth.rate_limit import enforce_doctor_rate_limit
 
-from channels.web.patient_portal_auth import (
-    _issue_patient_token,
-)
+from infra.auth import UserRole
+from infra.auth.unified import issue_token as _issue_unified_token
 
 logger = logging.getLogger(__name__)
 
@@ -185,8 +184,7 @@ async def register_patient(body: PatientRegisterRequest):
             await db.commit()
             await db.refresh(patient)
 
-        acv = await _get_access_code_version(db, patient.id)
-    token = _issue_patient_token(patient.id, doctor_id, acv)
+    token = _issue_unified_token(UserRole.patient, doctor_id, patient.id, patient.name)
     return {"token": token, "patient_id": patient.id, "patient_name": patient.name}
 
 
@@ -218,8 +216,7 @@ async def login_by_phone(body: PatientLoginRequest):
             )).scalar_one_or_none()
             if patient is None:
                 raise HTTPException(401, "\u624b\u673a\u53f7\u6216\u51fa\u751f\u5e74\u4efd\u4e0d\u6b63\u786e")
-            acv = await _get_access_code_version(db, patient.id)
-            token = _issue_patient_token(patient.id, doctor_id, acv)
+            token = _issue_unified_token(UserRole.patient, doctor_id, patient.id, patient.name)
             return {"token": token, "patient_id": patient.id, "patient_name": patient.name, "doctor_id": doctor_id}
         else:
             # Find all patient records for this phone+yob
@@ -233,8 +230,7 @@ async def login_by_phone(body: PatientLoginRequest):
                 raise HTTPException(401, "\u624b\u673a\u53f7\u6216\u51fa\u751f\u5e74\u4efd\u4e0d\u6b63\u786e")
             if len(patients) == 1:
                 p = patients[0]
-                acv = await _get_access_code_version(db, p.id)
-                token = _issue_patient_token(p.id, p.doctor_id, acv)
+                token = _issue_unified_token(UserRole.patient, p.doctor_id, p.id, p.name)
                 return {"token": token, "patient_id": p.id, "patient_name": p.name, "doctor_id": p.doctor_id}
             # Multiple doctors -- return list for picker
             return {

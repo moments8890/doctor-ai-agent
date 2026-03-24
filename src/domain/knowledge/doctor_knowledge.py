@@ -240,7 +240,20 @@ async def load_knowledge_by_categories(
         )
     if not items:
         return ""
-    return render_knowledge_context(query=query, items=items)
+
+    # Category-filtered items are pre-selected — include ALL of them
+    # without relevance scoring (unlike the generic loader which scores by query).
+    texts = []
+    for item in items:
+        text, _source, _conf = _decode_knowledge_payload(item.content)
+        if text:
+            texts.append(_truncate_text(text.strip(), limits["max_item_chars"]))
+
+    if not texts:
+        return ""
+
+    lines = [f"{i}. {t}" for i, t in enumerate(texts, 1)]
+    return "【医生知识库】\n" + "\n".join(lines)
 
 
 async def load_knowledge_context_for_prompt(session, doctor_id: str, query: str) -> str:
@@ -296,7 +309,7 @@ async def save_knowledge_item(
             return row
 
     payload = _encode_knowledge_payload(cleaned, source=source, confidence=confidence)
-    return await add_doctor_knowledge_item(session, doctor_id, payload)
+    return await add_doctor_knowledge_item(session, doctor_id, payload, category=category)
 
 
 async def maybe_auto_learn_knowledge(

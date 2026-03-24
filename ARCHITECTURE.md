@@ -1,6 +1,6 @@
 # Architecture
 
-**Last updated:** 2026-03-23
+**Last updated:** 2026-03-24
 
 ## Overview
 
@@ -77,9 +77,9 @@ src/
 │   ├── types.py            # IntentType enum, RoutingResult, HandlerResult,
 │   │                       #   TurnContext (Pydantic models)
 │   ├── actions.py          # Action helpers
-│   ├── session.py          # Session history (in-memory, bootstrapped from DB)
+│   ├── session.py          # Session history (DB-backed with in-memory cache,
+│   │                       #   writes to doctor_chat_log, restores on restart)
 │   ├── identity.py         # ContextVar for current doctor/patient identity
-│   ├── archive.py          # Conversation archive (DB persistence)
 │   ├── handlers/           # One module per intent
 │   │   ├── query_record.py
 │   │   ├── create_record.py
@@ -98,7 +98,8 @@ src/
 │
 ├── domain/                 # Business logic (framework-independent)
 │   ├── records/            # structuring, confirm_pending, pdf_export,
-│   │                       #   vision_import, outpatient_report, schema
+│   │                       #   vision_import, outpatient_report, schema,
+│   │                       #   import_history (bulk record import pipeline)
 │   ├── patients/           # interview_turn, interview_session, categorization,
 │   │                       #   completeness, nl_search, timeline, interview_summary
 │   ├── knowledge/          # doctor_knowledge, pdf_extract, word_extract, skills/
@@ -107,24 +108,25 @@ src/
 ├── channels/               # Transport adapters
 │   ├── web/                # FastAPI routes
 │   │   ├── chat.py         # POST /api/records/chat — main chat endpoint
-│   │   ├── auth.py         # JWT login, invite codes
+│   │   ├── auth.py         # JWT login (unified auth for all roles)
 │   │   ├── export.py       # PDF/report export
 │   │   ├── patient_portal.py  # Patient self-service
 │   │   ├── patient_interview_routes.py
 │   │   ├── import_routes.py
 │   │   ├── tasks.py        # Task CRUD routes
-│   │   ├── unified_auth_routes.py
-│   │   └── ui/             # Admin dashboard
+│   │   ├── unified_auth_routes.py  # Phone+YOB login
+│   │   └── ui/             # Doctor workbench (patient detail, records,
+│   │                       #   knowledge, briefing, profile, admin)
 │   └── wechat/             # WeChat/WeCom webhook
 │       ├── router.py       # Message routing, dedup, background dispatch
 │       ├── wechat_notify.py  # Customer service API delivery
-│       ├── wechat_import.py  # Image/PDF/document extraction
+│       ├── wechat_import.py  # Re-exports from domain/records/import_history
 │       └── ...             # flows, infra, media, export, menu, wecom_kf
 │
 ├── infra/                  # Infrastructure concerns
 │   ├── llm/                # client.py (provider registry), vision.py,
 │   │                       #   resilience.py (retry/fallback), egress.py
-│   ├── auth/               # JWT, rate limiting, miniprogram, unified auth
+│   ├── auth/               # Unified JWT auth, rate limiting
 │   └── observability/      # audit, turn_log, routing_metrics, observability
 │
 ├── db/                     # Data layer
@@ -287,10 +289,10 @@ migrations until first production launch; `init_db.py` handles DDL.
 
 Consolidated from a previous 25-table schema. Tables killed: `pending_records`,
 `diagnosis_results`, `case_history`, `review_queue`, `medical_record_versions`,
-`medical_record_exports`, `patient_labels`, `system_prompts` (and related
-assignment/version tables).
+`medical_record_exports`, `patient_labels`, `system_prompts`, `chat_archive`,
+`patient_chat_log` (and related assignment/version tables).
 
-**Core data (9 tables):**
+**Core data (8 tables):**
 
 | Table | Purpose |
 |-------|---------|
@@ -298,11 +300,16 @@ assignment/version tables).
 | `doctor_wechat` | WeChat channel binding (optional, per-doctor) |
 | `patients` | Patient demographics, FK: `doctor_id` |
 | `patient_auth` | Patient portal access codes (optional) |
-| `medical_records` | SOAP-structured records — also serves as version history, diagnosis results, and pending/review queue |
+| `medical_records` | SOAP-structured records — also serves as version history, diagnosis results, and pending/review queue (`status` enum: `interview_active`, `pending_review`, `completed`) |
 | `doctor_tasks` | Tasks (type: general\|review), covers both doctor and patient targets |
 | `doctor_knowledge_items` | Personal KB, categorized (interview_guide\|diagnosis_rule\|red_flag\|treatment_protocol\|custom) |
-| `doctor_chat_log` | Doctor ↔ AI conversation history (LLM context + UI reload) |
-| `patient_chat_log` | Patient ↔ AI conversation history (LLM context + UI reload) |
+| `doctor_chat_log` | Doctor ↔ AI conversation history (session-grouped, DB-backed with in-memory cache) |
+
+**Patient messaging (1 table):**
+
+| Table | Purpose |
+|-------|---------|
+| `patient_messages` | Patient ↔ doctor/AI messaging with triage metadata (direction, source, triage_category) |
 
 **Workflow state (1 table):**
 
@@ -381,9 +388,9 @@ Key prompt files:
    Queryable by SQL, indexable, renderable directly into PDF without extraction.
 
 7. **Review = completeness gate** — after interview confirm, if `diagnosis`,
-   `treatment_plan`, or `orders_followup` are missing, the record status becomes
-   `pending_review` and a review task is auto-created. Doctor opens the task
-   → review/diagnosis pipeline runs → doctor accepts/rejects AI suggestions.
+   `treatment_plan`, or `orders_followup` are missing, the record `status` becomes
+   `pending_review` and a review task is auto-created. Review/diagnosis UI is
+   not yet implemented; `status` field is the single source of truth for review state.
 
 ---
 
@@ -409,8 +416,8 @@ Key prompt files:
 
 ## Application Entry (`src/main.py`)
 
-- Registers route modules (chat, wechat, auth, ui, tasks, export,
-  patient_portal, patient_interview, import, unified_auth)
+- Registers route modules (chat, wechat, auth, unified_auth, ui, tasks,
+  export, patient_portal, patient_interview, import)
 - Middleware: request size limit, trace ID propagation, CORS
 - Health endpoints: `/healthz`, `/readyz`
 - Lifespan: create tables, seed data, hydrate LLMs, start scheduler
@@ -427,7 +434,7 @@ Key prompt files:
 | ORM | SQLAlchemy async |
 | Scheduler | APScheduler |
 | Frontend | React + Vite + MUI |
-| Auth | HS256 JWT |
+| Auth | Unified HS256 JWT (`UNIFIED_AUTH_SECRET`) — single token system for all roles and channels |
 | LLM | OpenAI-compatible (DeepSeek, Qwen, Ollama) via `AsyncOpenAI` |
 
 ---

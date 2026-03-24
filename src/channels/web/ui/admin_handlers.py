@@ -16,8 +16,8 @@ from sqlalchemy import func, select
 from db.engine import AsyncSessionLocal
 from db.models import (
     AuditLog,
-    ChatArchive,
     Doctor,
+    DoctorChatLog,
     DoctorKnowledgeItem,
     DoctorTask,
     InterviewSessionDB,
@@ -193,7 +193,7 @@ async def _count_generic_tables(db, doctor_id: Optional[str]) -> dict:
     for model, key, col in [
         (AuditLog, "audit_log", AuditLog.doctor_id),
         (DoctorKnowledgeItem, "doctor_knowledge_items", DoctorKnowledgeItem.doctor_id),
-        (ChatArchive, "chat_archive", ChatArchive.doctor_id),
+        (DoctorChatLog, "doctor_chat_log", DoctorChatLog.doctor_id),
         (InterviewSessionDB, "interview_sessions", InterviewSessionDB.doctor_id),
     ]:
         s = select(func.count()).select_from(model)
@@ -210,7 +210,7 @@ _TABLES_ORDER = [
     "doctor_tasks", "interview_sessions",
     "audit_log",
     "doctor_knowledge_items",
-    "chat_archive",
+    "doctor_chat_log",
 ]
 
 

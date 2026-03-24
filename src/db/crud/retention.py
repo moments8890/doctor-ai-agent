@@ -11,7 +11,8 @@ from datetime import timedelta
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from db.models import AuditLog, ChatArchive
+from db.models import AuditLog
+from db.models.doctor_chat_log import DoctorChatLog
 from db.crud._common import _utcnow
 
 
@@ -35,19 +36,19 @@ async def archive_old_audit_logs(session: AsyncSession, days: int = 2555) -> int
 
 
 # ---------------------------------------------------------------------------
-# ChatArchive TTL retention
+# DoctorChatLog TTL retention
 # ---------------------------------------------------------------------------
 
-async def cleanup_chat_archive(session: AsyncSession, days: int = 365) -> int:
-    """Hard-delete ChatArchive rows older than *days* days (default 1 year).
+async def cleanup_chat_log(session: AsyncSession, days: int = 365) -> int:
+    """Hard-delete DoctorChatLog rows older than *days* days (default 1 year).
 
-    Chat archives contain clinical context used for model evaluation. 365 days
+    Chat logs contain clinical context used for model evaluation. 365 days
     balances storage cost against the need to reconstruct care timelines.
     Returns the number of rows deleted.
     """
     cutoff = _utcnow() - timedelta(days=days)
     result = await session.execute(
-        delete(ChatArchive).where(ChatArchive.created_at < cutoff)
+        delete(DoctorChatLog).where(DoctorChatLog.created_at < cutoff)
     )
     await session.commit()
     return result.rowcount if result.rowcount else 0

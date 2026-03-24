@@ -50,7 +50,7 @@ class PatientRecordDetailOut(BaseModel):
     record_type: str
     content: Optional[str] = None
     structured: Optional[dict] = None
-    needs_review: Optional[bool] = None
+    status: Optional[str] = None
     created_at: datetime
     diagnosis_status: Optional[str] = None
     treatment_plan: Optional[Dict[str, Any]] = None
@@ -260,7 +260,7 @@ async def get_patient_record_detail(
         record_type=record.record_type,
         content=record.content,
         structured=record.soap_dict() if record.has_soap_data() else None,
-        needs_review=record.needs_review,
+        status=record.status,
         created_at=record.created_at,
         diagnosis_status=diagnosis_status,
         treatment_plan=treatment_plan,

@@ -33,17 +33,17 @@ def _scheduler_cron_expr() -> str:
 # Scheduled job functions
 # ---------------------------------------------------------------------------
 
-async def _cleanup_chat_archive() -> None:
-    """Daily job: hard-delete ChatArchive rows older than 365 days."""
+async def _cleanup_chat_log() -> None:
+    """Daily job: hard-delete DoctorChatLog rows older than 365 days."""
     _log = logging.getLogger("scheduler")
     try:
-        from db.crud import cleanup_chat_archive
+        from db.crud import cleanup_chat_log
         from db.engine import AsyncSessionLocal
         async with AsyncSessionLocal() as _session:
-            deleted = await cleanup_chat_archive(_session)
-        _log.info("[ChatArchive] cleanup complete | deleted=%s", deleted)
+            deleted = await cleanup_chat_log(_session)
+        _log.info("[DoctorChatLog] cleanup complete | deleted=%s", deleted)
     except Exception as _e:
-        _log.warning("[ChatArchive] cleanup job FAILED: %s", _e)
+        _log.warning("[DoctorChatLog] cleanup job FAILED: %s", _e)
 
 
 async def _audit_log_retention() -> None:
@@ -119,8 +119,8 @@ def _schedule_task_notifications(scheduler: AsyncIOScheduler, startup_log: loggi
 
 def _schedule_retention_jobs(scheduler: AsyncIOScheduler, startup_log: logging.Logger) -> None:
     """Register data retention / compliance scheduled jobs (daily/monthly)."""
-    scheduler.add_job(_cleanup_chat_archive, "cron", hour=4, minute=30)
-    startup_log.info("[ChatArchive] cleanup scheduler configured | daily at 04:30")
+    scheduler.add_job(_cleanup_chat_log, "cron", hour=4, minute=30)
+    startup_log.info("[DoctorChatLog] cleanup scheduler configured | daily at 04:30")
 
     scheduler.add_job(_audit_log_retention, "cron", day=1, hour=3, minute=0)
     startup_log.info("[AuditLog] retention scheduler configured | monthly day=1 at 03:00")

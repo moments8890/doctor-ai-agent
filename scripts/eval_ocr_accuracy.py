@@ -90,7 +90,7 @@ def _build_annotation_index(annotations: list[dict], cmdd_dir: Path) -> dict[str
 
 async def eval_single(image_path: Path, ground_truth: str) -> dict:
     """Run OCR on one image and compute metrics."""
-    from services.ai.vision import extract_text_from_image
+    from infra.llm.vision import extract_text_from_image
 
     data = image_path.read_bytes()
     t0 = time.perf_counter()

@@ -40,7 +40,7 @@ def _load_all_scenarios() -> List[Dict[str, Any]]:
 ALL_SCENARIOS = _load_all_scenarios()
 
 
-def _check_hard_expectations(step_result: Dict, expects: Dict[str, Any], world: ScenarioWorld, step_id: str) -> None:
+async def _check_hard_expectations(step_result: Dict, expects: Dict[str, Any], world: ScenarioWorld, step_id: str) -> None:
     """Check hard assertions on a step result."""
     for key, expected in expects.items():
         # Parse assertion: "field.subfield.op" or "field.subfield"
@@ -57,7 +57,7 @@ def _check_hard_expectations(step_result: Dict, expects: Dict[str, Any], world: 
             db_parts = field_path.split(".")
             # db.medical_records.count, db.doctor_tasks.min_count, etc.
             table = db_parts[1]
-            count = asyncio.get_event_loop().run_until_complete(world.db_count(table))
+            count = await world.db_count(table)
             if op == "min_count":
                 assert_min_count(count, int(expected), f"{step_id}.{key}")
             else:
@@ -95,7 +95,7 @@ async def test_scenario(scenario: Dict[str, Any]):
             # Check hard expectations
             hard = step.get("expect", {}).get("hard", {})
             if hard:
-                _check_hard_expectations(result, hard, world, step_id)
+                await _check_hard_expectations(result, hard, world, step_id)
 
     finally:
         await world.teardown()

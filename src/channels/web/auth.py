@@ -20,12 +20,6 @@ from db.engine import AsyncSessionLocal
 from db.models import Doctor, InviteCode
 from infra.auth.wechat_id_hash import hash_wechat_id
 from infra.observability.audit import audit
-from infra.auth.miniprogram_auth import (
-    MiniProgramAuthError,
-    issue_miniprogram_token,
-    parse_bearer_token,
-    verify_miniprogram_token,
-)
 from infra.auth.rate_limit import enforce_doctor_rate_limit
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -271,12 +265,13 @@ async def wechat_mini_login(body: MiniProgramLoginInput) -> MiniProgramLoginResp
     openid = await _fetch_wechat_openid(code)
     doctor_id = await _upsert_mini_doctor(openid, body.doctor_name, body.invite_code)
     enforce_doctor_rate_limit(doctor_id, scope="auth.login")
-    token_data = issue_miniprogram_token(doctor_id, channel="wechat_mini", wechat_openid=openid)
+    from infra.auth.unified import issue_token
+    access_token = issue_token(role="doctor", doctor_id=doctor_id)
 
     return MiniProgramLoginResponse(
-        access_token=str(token_data["access_token"]),
-        token_type=str(token_data["token_type"]),
-        expires_in=int(token_data["expires_in"]),
+        access_token=access_token,
+        token_type="Bearer",
+        expires_in=604800,
         doctor_id=doctor_id,
         channel="wechat_mini",
         wechat_openid=openid,
@@ -385,21 +380,19 @@ async def invite_login(body: InviteLoginInput) -> WebLoginResponse:
     if body.js_code:
         mini_openid = await _link_mini_openid_from_jscode(body.js_code, doctor_id)
 
-    token_data = issue_miniprogram_token(
-        doctor_id,
-        channel="wechat_mini" if mini_openid else "app",
-        wechat_openid=mini_openid,
-    )
+    from infra.auth.unified import issue_token
+    access_token = issue_token(role="doctor", doctor_id=doctor_id)
+    channel = "wechat_mini" if mini_openid else "app"
 
     from utils.log import safe_create_task
     safe_create_task(audit(doctor_id, "LOGIN", resource_type="invite_code", resource_id=code))
 
     return WebLoginResponse(
-        access_token=str(token_data["access_token"]),
-        token_type=str(token_data["token_type"]),
-        expires_in=int(token_data["expires_in"]),
+        access_token=access_token,
+        token_type="Bearer",
+        expires_in=604800,
         doctor_id=doctor_id,
-        channel="wechat_mini" if mini_openid else "app",
+        channel=channel,
     )
 
 
@@ -411,22 +404,29 @@ async def unlink_mini_openid(authorization: Optional[str] = Header(default=None)
     After unlinking, future mini app logins will create a fresh wxmini_ doctor unless
     re-linked via invite code.
     """
+    from infra.auth.unified import extract_token, verify_token
     try:
-        token = parse_bearer_token(authorization)
-        principal = verify_miniprogram_token(token)
-    except MiniProgramAuthError as exc:
+        token = extract_token(authorization)
+        payload = verify_token(token)
+    except HTTPException:
+        raise
+    except Exception as exc:
         logging.getLogger("auth").warning("[Auth] /mini-link token validation failed: %s", exc)
         raise HTTPException(status_code=401, detail="Invalid authorization token")
 
+    doctor_id = payload.get("doctor_id") or payload.get("sub") or ""
+    if not doctor_id:
+        raise HTTPException(status_code=401, detail="Token missing doctor_id")
+
     async with AsyncSessionLocal() as session:
-        row = await get_doctor_by_id(session, principal.doctor_id)
+        row = await get_doctor_by_id(session, str(doctor_id))
         if row is None:
             raise HTTPException(status_code=404, detail="Doctor not found")
         # Clear wechat binding from DoctorWechat table
         from db.models.doctor_wechat import DoctorWechat
         wechat_row = (
             await session.execute(
-                select(DoctorWechat).where(DoctorWechat.doctor_id == principal.doctor_id).limit(1)
+                select(DoctorWechat).where(DoctorWechat.doctor_id == str(doctor_id)).limit(1)
             )
         ).scalar_one_or_none()
         if wechat_row is not None:
@@ -438,25 +438,32 @@ async def unlink_mini_openid(authorization: Optional[str] = Header(default=None)
 
 @router.get("/me", response_model=MeResponse)
 async def auth_me(authorization: Optional[str] = Header(default=None)) -> MeResponse:
+    from infra.auth.unified import extract_token, verify_token
     try:
-        token = parse_bearer_token(authorization)
-        principal = verify_miniprogram_token(token)
-    except MiniProgramAuthError as exc:
+        token = extract_token(authorization)
+        payload = verify_token(token)
+    except HTTPException:
+        raise
+    except Exception as exc:
         logging.getLogger("auth").warning("[Auth] /me token validation failed: %s", exc)
         raise HTTPException(status_code=401, detail="Invalid authorization token")
+
+    doctor_id = payload.get("doctor_id") or payload.get("sub") or ""
+    if not doctor_id:
+        raise HTTPException(status_code=401, detail="Token missing doctor_id")
 
     # Fetch display name from DB
     doctor_name: Optional[str] = None
     async with AsyncSessionLocal() as session:
         row = (
-            await session.execute(select(Doctor).where(Doctor.doctor_id == principal.doctor_id).limit(1))
+            await session.execute(select(Doctor).where(Doctor.doctor_id == str(doctor_id)).limit(1))
         ).scalar_one_or_none()
         if row:
             doctor_name = row.name
 
     return MeResponse(
-        doctor_id=principal.doctor_id,
-        channel=principal.channel,
+        doctor_id=str(doctor_id),
+        channel="web",
         name=doctor_name,
-        wechat_openid=principal.wechat_openid,
+        wechat_openid=None,
     )

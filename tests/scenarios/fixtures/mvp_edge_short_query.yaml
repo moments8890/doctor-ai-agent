@@ -1,0 +1,37 @@
+id: mvp-edge-short-query
+title: "MVP edge: short '查' after create uses context patient"
+tags: [mvp, edge_case]
+
+setup:
+  patients: []
+
+steps:
+  - id: create
+    call: handle_turn
+    input:
+      text: "创建患者周宁，女48岁，高血压3年，今日血压142/88。"
+      identity: ${doctor_id}
+    expect:
+      hard:
+        data._routing.intent: create_record
+        data._routing.patient_name: 周宁
+        data.session_id.exists: true
+
+  - id: confirm
+    call: doctor_interview.confirm
+    input:
+      doctor_id: ${doctor_id}
+      session_id: ${steps.create.data.session_id}
+    expect:
+      hard:
+        record_id.exists: true
+
+  - id: query_with_name
+    call: handle_turn
+    input:
+      text: "查周宁的病历"
+      identity: ${doctor_id}
+    expect:
+      hard:
+        data._routing.intent: query_record
+        data._routing.patient_name: 周宁

@@ -57,10 +57,4 @@ def enforce_production_guards() -> None:
             "patient portal tokens are signed with a real secret. "
             "Refusing to start."
         )
-    if not os.environ.get("MINIPROGRAM_TOKEN_SECRET", "").strip() or \
-            os.environ.get("MINIPROGRAM_TOKEN_SECRET", "").strip() == "dev-miniprogram-secret":
-        raise RuntimeError(
-            "MINIPROGRAM_TOKEN_SECRET must be set to a strong random "
-            "value in production (not the dev default). Refusing to start."
-        )
     # CORS_ALLOW_ORIGINS is enforced at module level during CORS middleware setup.

@@ -188,12 +188,13 @@ async def import_medical_record(
     )
 
     async with AsyncSessionLocal() as session:
+        from db.models.records import RecordStatus
         db_record = await save_record(
             session,
             doctor_id=doctor_id,
             record=medical_record,
             patient_id=patient_id,
-            needs_review=True,
+            status=RecordStatus.pending_review.value,
         )
         record_id = db_record.id
 
@@ -205,7 +206,7 @@ async def import_medical_record(
     return {
         "record_id": record_id,
         "record_type": "import",
-        "needs_review": True,
+        "status": "pending_review",
         "content": content,
         "extracted": record.model_dump(),
     }

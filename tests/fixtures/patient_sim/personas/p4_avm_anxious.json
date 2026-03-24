@@ -86,15 +86,250 @@
       "volunteer": false
     }
   ],
-  "expected_extracted": {
-    "chief_complaint": ["AVM复诊", "头痛加重"],
-    "present_illness": ["右颞叶AVM", "2cm", "头痛", "焦虑", "癫痫控制"],
-    "past_history": ["癫痫", "左乙拉西坦"],
-    "family_history": ["无脑血管疾病家族史"]
+  "fact_catalog": [
+    {
+      "id": "cc_main",
+      "field": "chief_complaint",
+      "slot": "main_complaint",
+      "text": "脑血管畸形(AVM)复诊",
+      "importance": "critical"
+    },
+    {
+      "id": "cc_headache",
+      "field": "chief_complaint",
+      "slot": "main_complaint",
+      "text": "近期头痛加重",
+      "importance": "critical"
+    },
+    {
+      "id": "cc_duration",
+      "field": "chief_complaint",
+      "slot": "duration",
+      "text": "AVM确诊3年，头痛加重1个月",
+      "importance": "critical"
+    },
+    {
+      "id": "pi_onset",
+      "field": "present_illness",
+      "slot": "发病情况",
+      "text": "3年前癫痫发作发现右颞叶AVM，约2cm，Spetzler-Martin II级",
+      "importance": "critical"
+    },
+    {
+      "id": "pi_epilepsy_ctrl",
+      "field": "present_illness",
+      "slot": "诊疗经过",
+      "text": "服用左乙拉西坦500mg bid后未再发癫痫",
+      "importance": "critical"
+    },
+    {
+      "id": "pi_headache",
+      "field": "present_illness",
+      "slot": "症状特点",
+      "text": "慢性头痛3年，近1个月加重，两侧太阳穴胀痛",
+      "importance": "critical"
+    },
+    {
+      "id": "pi_accompany",
+      "field": "present_illness",
+      "slot": "伴随症状",
+      "text": "头痛时伴紧张焦虑、心慌、手抖，无恶心呕吐，无视物模糊",
+      "importance": "important"
+    },
+    {
+      "id": "pi_sleep",
+      "field": "present_illness",
+      "slot": "一般情况",
+      "text": "睡眠差，入睡困难",
+      "importance": "important"
+    },
+    {
+      "id": "pi_mri",
+      "field": "present_illness",
+      "slot": "诊疗经过",
+      "text": "6个月前MRI复查显示AVM大小无明显变化",
+      "importance": "important"
+    },
+    {
+      "id": "ph_epilepsy",
+      "field": "past_history",
+      "slot": "疾病史",
+      "text": "3年前全身强直阵挛性癫痫发作，之后确诊AVM",
+      "importance": "critical"
+    },
+    {
+      "id": "ph_neg_chronic",
+      "field": "past_history",
+      "slot": "疾病史",
+      "text": "无高血压、糖尿病、心脏病",
+      "importance": "optional"
+    },
+    {
+      "id": "ph_no_surgery",
+      "field": "past_history",
+      "slot": "手术外伤史",
+      "text": "无手术史",
+      "importance": "important"
+    },
+    {
+      "id": "al_none",
+      "field": "allergy_history",
+      "slot": null,
+      "text": "无药物过敏，无食物过敏",
+      "importance": "critical"
+    },
+    {
+      "id": "fh_neg",
+      "field": "family_history",
+      "slot": null,
+      "text": "父母健在，无脑血管疾病家族史",
+      "importance": "important"
+    },
+    {
+      "id": "sh_smoking",
+      "field": "personal_history",
+      "slot": "烟酒史",
+      "text": "不吸烟不饮酒",
+      "importance": "optional"
+    },
+    {
+      "id": "sh_occupation",
+      "field": "personal_history",
+      "slot": "职业",
+      "text": "小学教师，工作压力较大",
+      "importance": "optional"
+    },
+    {
+      "id": "sh_marital",
+      "field": "personal_history",
+      "slot": "婚育史",
+      "text": "已婚，育有1女（12岁）",
+      "importance": "optional"
+    }
+  ],
+  "record_expectation": {
+    "chief_complaint": {
+      "max_chars": 20,
+      "require_duration": true,
+      "acceptable_variants": [
+        "脑血管畸形复诊，头痛加重1月",
+        "AVM随访，头痛加重1月",
+        "头痛加重1个月"
+      ],
+      "required_fact_ids": [
+        "cc_main",
+        "cc_headache",
+        "cc_duration"
+      ]
+    },
+    "present_illness": {
+      "subsections": {
+        "发病情况": {
+          "status": "required",
+          "fact_ids": [
+            "pi_onset"
+          ]
+        },
+        "症状特点": {
+          "status": "required",
+          "fact_ids": [
+            "pi_headache"
+          ]
+        },
+        "伴随症状": {
+          "status": "required",
+          "fact_ids": [
+            "pi_accompany"
+          ]
+        },
+        "诊疗经过": {
+          "status": "required",
+          "fact_ids": [
+            "pi_epilepsy_ctrl",
+            "pi_mri"
+          ]
+        },
+        "一般情况": {
+          "status": "required_if_available",
+          "fact_ids": [
+            "pi_sleep"
+          ]
+        }
+      }
+    },
+    "past_history": {
+      "subsections": {
+        "疾病史": {
+          "status": "required",
+          "fact_ids": [
+            "ph_epilepsy"
+          ]
+        },
+        "手术外伤史": {
+          "status": "required_if_asked",
+          "fact_ids": [
+            "ph_no_surgery"
+          ]
+        },
+        "输血史": {
+          "status": "not_applicable",
+          "fact_ids": []
+        }
+      }
+    },
+    "allergy_history": {
+      "required_fact_ids": [
+        "al_none"
+      ]
+    },
+    "family_history": {
+      "required_fact_ids": [
+        "fh_neg"
+      ]
+    },
+    "personal_history": {
+      "subsections": {
+        "烟酒史": {
+          "status": "optional",
+          "fact_ids": [
+            "sh_smoking"
+          ]
+        },
+        "婚育史": {
+          "status": "optional",
+          "fact_ids": [
+            "sh_marital"
+          ]
+        }
+      }
+    }
+  },
+  "coverage_expectation": {
+    "must_elicit": [
+      "头痛性质变化",
+      "癫痫控制情况",
+      "当前用药",
+      "最近影像复查"
+    ],
+    "should_elicit": [
+      "睡眠及情绪状态",
+      "过敏史",
+      "家族史"
+    ],
+    "min_coverage": 0.7
   },
   "checklist": {
-    "must_ask": ["头痛性质变化", "癫痫控制情况", "当前用药", "最近影像复查"],
-    "should_ask": ["睡眠及情绪状态", "过敏史", "家族史"],
+    "must_ask": [
+      "头痛性质变化",
+      "癫痫控制情况",
+      "当前用药",
+      "最近影像复查"
+    ],
+    "should_ask": [
+      "睡眠及情绪状态",
+      "过敏史",
+      "家族史"
+    ],
     "min_coverage": 0.6
   }
 }

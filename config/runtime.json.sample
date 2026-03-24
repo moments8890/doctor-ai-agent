@@ -262,16 +262,6 @@
           "description": "Mini Program appsecret used by code2session.",
           "description_zh": "code2session 使用的小程序密钥。"
         },
-        "MINIPROGRAM_TOKEN_SECRET": {
-          "value": "dev-miniprogram-secret",
-          "description": "Signing key for mini access tokens.",
-          "description_zh": "小程序访问令牌签名密钥。"
-        },
-        "MINIPROGRAM_TOKEN_TTL_SECONDS": {
-          "value": 604800,
-          "description": "Mini access token expiration in seconds.",
-          "description_zh": "小程序访问令牌有效期（秒）。"
-        },
         "MINIPROGRAM_API_BASE_URL": {
           "value": "",
           "description": "Public HTTPS API base URL used by mini client config.",

@@ -18,7 +18,7 @@ async def route(
     history: List[Dict[str, str]],
 ) -> RoutingResult:
     """Classify a doctor message into an intent with extracted entities."""
-    messages = compose_for_routing(
+    messages = await compose_for_routing(
         doctor_message=text,
         history=history[-5:],
     )

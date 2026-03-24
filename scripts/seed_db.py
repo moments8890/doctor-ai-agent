@@ -166,7 +166,7 @@ _RESET_TABLES = [
 def reset_tables(db_path: Path, dry_run: bool = False) -> None:
     """DELETE all rows from patient/record/workflow tables and reset auto-increment.
 
-    system_prompts, doctor_contexts, and doctors are intentionally left untouched.
+    doctors and invite_codes are intentionally left untouched.
     """
     conn = _connect(db_path)
     try:

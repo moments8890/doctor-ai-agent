@@ -629,9 +629,10 @@ This avoids loading heavy context (records, knowledge) for every message.
 ### 6-Layer Prompt Composer
 
 All LLM calls use a shared prompt composer (`agent/prompt_composer.py`) that
-assembles messages from separate layers. Layers 1-3 are concatenated into
-one system message. Layers 4-6 go into the final user message with XML tags.
+assembles messages from 6 layers. The composer supports two patterns based
+on `LayerConfig.conversation_mode`:
 
+**6 Layers:**
 ```
 ┌─────────────────────────────────┐
 │ 1. system/base.md               │  Identity, safety, precedence rules
@@ -640,23 +641,40 @@ one system message. Layers 4-6 go into the final user message with XML tags.
 ├─────────────────────────────────┤
 │ 3. intent/{intent}.md           │  Action-specific rules + few-shot examples
 ├─────────────────────────────────┤
-│ 4. <doctor_knowledge> XML       │  Per-intent KB slice from DB
+│ 4. Doctor knowledge             │  Per-intent KB slice from DB (auto-loaded)
 ├─────────────────────────────────┤
-│ 5. <patient_context> XML        │  Records, case history from DB
+│ 5. Patient context              │  Records, case history, collected state
 ├─────────────────────────────────┤
-│ 6. <doctor_request> XML         │  Actual doctor/patient message
+│ 6. User message                 │  Actual doctor/patient message
 └─────────────────────────────────┘
-Layers 1-3 → system message | Layers 4-6 → user message
 ```
 
-**Message assembly:**
+**Pattern 1 — Single-turn** (routing, query, diagnosis):
 ```python
+# Layers 1-3 → system, Layers 4-6 → user with XML tags
 messages = [
     {"role": "system", "content": base + common + intent},
-    *conversation_history,
     {"role": "user", "content": "<doctor_knowledge>...</> <patient_context>...</> <doctor_request>...</>"},
 ]
 ```
+
+**Pattern 2 — Conversation** (doctor interview, patient interview):
+```python
+# Layers 1-5 → system (instructions + KB + context state)
+# Conversation history as user/assistant turns
+# Layer 6 → final user message (plain text, no XML)
+messages = [
+    {"role": "system", "content": base + common + intent + KB + patient_state},
+    {"role": "user", "content": "创建患者张三，头痛三天"},
+    {"role": "assistant", "content": "收到，已记录。S: ✓ 主诉..."},
+    {"role": "user", "content": "无过敏，无家族病"},  # latest input
+]
+```
+
+Pattern 2 puts KB + context in system because conversation history occupies
+the user/assistant turns. KB rules in system = treated as behavioral
+constraints across all turns. Works with all LLM providers (OpenAI, Groq,
+Anthropic, Ollama).
 
 **File layout:**
 ```
@@ -675,8 +693,9 @@ prompts/
 
 **Config:** `agent/prompt_config.py` defines `INTENT_LAYERS` — a dict mapping
 each `IntentType` to a `LayerConfig` (which layers to include, which KB
-categories to load). An assert at import time ensures every IntentType has
-a config entry — adding a new intent without a LayerConfig crashes at startup.
+categories to load, and `conversation_mode` for pattern selection). An
+assert at import time ensures every IntentType has a config entry — adding
+a new intent without a LayerConfig crashes at startup.
 
 **Structured output:** All LLM calls that return structured data use
 `instructor` (JSON mode) + Pydantic response models via `agent/llm.py:structured_call()`.
@@ -687,17 +706,20 @@ source of truth for output structure.
 ### Layer usage by intent (from `prompt_config.py`)
 
 ```
-Intent             | System | Common | Intent           | Dr Knowledge                  | Patient Ctx
--------------------|--------|--------|------------------|-------------------------------|------------
-routing            |   ✓    |        | routing          | custom                        |
-create_record      |   ✓    |   ✓    | interview        | interview_guide+red_flag+custom|      ✓
-query_record       |   ✓    |        | query            | custom                        |      ✓
-query_task         |   ✓    |        | query            | custom                        |
-create_task        |   ✓    |        | create-task      | custom                        |
-query_patient      |   ✓    |        | query            | custom                        |      ✓
-general            |   ✓    |        | general          | custom                        |
-patient_interview  |   ✓    |   ✓    | patient-interview| interview_guide+red_flag+custom|      ✓
-review/diagnosis   |   ✓    |   ✓    | diagnosis        | diagnosis_rule+red_flag+treatment+custom| ✓
+Intent             | Pattern | Common | Intent           | Dr Knowledge                  | Patient Ctx
+-------------------|---------|--------|------------------|-------------------------------|------------
+routing            | single  |        | routing          | custom                        |
+create_record      | convo   |   ✓    | interview        | interview_guide+red_flag+custom|      ✓
+query_record       | single  |        | query            | custom                        |      ✓
+query_task         | single  |        | query            | custom                        |
+create_task        | single  |        | create-task      | custom                        |
+query_patient      | single  |        | query            | custom                        |      ✓
+general            | single  |        | general          | custom                        |
+patient_interview  | convo   |   ✓    | patient-interview| interview_guide+red_flag+custom|      ✓
+review/diagnosis   | single  |   ✓    | diagnosis        | diagnosis_rule+red_flag+treatment+custom| ✓
+
+Pattern: single = Layers 1-3 system, 4-6 user (XML tags)
+         convo  = Layers 1-5 system, conversation history, Layer 6 user (plain)
 ```
 
 ---

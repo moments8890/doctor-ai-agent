@@ -10,7 +10,6 @@ from db.crud.doctor import (
     link_mini_openid,
     add_doctor_knowledge_item,
     list_doctor_knowledge_items,
-    append_chat_archive,
 )
 from db.crud.patient import (
     get_patient_for_doctor,
@@ -51,7 +50,7 @@ from db.crud.patient_message import (
 )
 from db.crud.retention import (
     archive_old_audit_logs,
-    cleanup_chat_archive,
+    cleanup_chat_log,
 )
 
 __all__ = [
@@ -64,7 +63,6 @@ __all__ = [
     "link_mini_openid",
     "add_doctor_knowledge_item",
     "list_doctor_knowledge_items",
-    "append_chat_archive",
     # patient
     "get_patient_for_doctor",
     "create_patient",
@@ -99,5 +97,5 @@ __all__ = [
     "list_patient_messages",
     # retention
     "archive_old_audit_logs",
-    "cleanup_chat_archive",
+    "cleanup_chat_log",
 ]

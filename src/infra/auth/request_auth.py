@@ -1,5 +1,7 @@
 """
-小程序请求身份验证，失败关闭模式，可选降级标志。
+请求身份验证，失败关闭模式，可选降级标志。
+
+Uses the unified JWT system for all doctor token verification.
 """
 
 from __future__ import annotations
@@ -7,13 +9,12 @@ from __future__ import annotations
 import hmac
 import logging
 import os
-import sys
 from typing import Optional
 
 from fastapi import HTTPException
 
 from infra.auth import is_production
-from infra.auth.miniprogram_auth import MiniProgramAuthError, parse_bearer_token, verify_miniprogram_token
+from infra.auth.unified import extract_token, verify_token
 
 
 def _allow_insecure_doctor_id_fallback(flag_name: str) -> bool:
@@ -32,15 +33,17 @@ def resolve_doctor_id_from_auth_or_fallback(
     header = authorization if isinstance(authorization, str) else None
     if header and header.strip():
         try:
-            token = parse_bearer_token(header)
-            principal = verify_miniprogram_token(token)
-            return principal.doctor_id
-        except MiniProgramAuthError as exc:
+            token = extract_token(header)
+            payload = verify_token(token)
+            doctor_id = payload.get("doctor_id") or payload.get("sub") or ""
+            if not doctor_id:
+                raise HTTPException(status_code=401, detail="Token missing doctor_id")
+            return str(doctor_id)
+        except HTTPException:
             if is_production():
-                logging.getLogger("auth").warning("[Auth] token validation failed: %s", exc)
-                raise HTTPException(status_code=401, detail="Invalid authorization token")
+                raise
             # non-production: expected — fall through to insecure fallback below
-            logging.getLogger("auth").debug("[Auth] token validation failed (dev): %s", exc)
+            logging.getLogger("auth").debug("[Auth] token validation failed (dev)")
 
     if _allow_insecure_doctor_id_fallback(fallback_env_flag):
         resolved = (candidate_doctor_id or "").strip() or default_doctor_id

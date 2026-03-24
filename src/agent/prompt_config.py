@@ -15,12 +15,18 @@ from db.models.doctor import KnowledgeCategory
 
 @dataclass(frozen=True)
 class LayerConfig:
-    """Which prompt layers an intent uses."""
+    """Which prompt layers an intent uses.
+
+    conversation_mode:
+      False (default) = Pattern 1 (single-turn): L1-3 system, L4-6 user with XML tags
+      True = Pattern 2 (conversation): L1-5 system, history, L6 user plain text
+    """
     system: bool = True
     common: bool = False
     intent: str = "general"
     knowledge_categories: List[KnowledgeCategory] = field(default_factory=list)
     patient_context: bool = False
+    conversation_mode: bool = False
 
 
 # ── Intent → LayerConfig mapping ──────────────────────────────────
@@ -50,6 +56,7 @@ INTENT_LAYERS: dict[IntentType, LayerConfig] = {
             KnowledgeCategory.custom,
         ],
         patient_context=True,
+        conversation_mode=True,
     ),
     IntentType.query_task: LayerConfig(
         intent="query",
@@ -107,4 +114,5 @@ PATIENT_INTERVIEW_LAYERS = LayerConfig(
         KnowledgeCategory.custom,
     ],
     patient_context=True,
+    conversation_mode=True,
 )

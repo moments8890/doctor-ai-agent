@@ -88,10 +88,29 @@ def _log_llm_call(op_name: str, model: str, messages: list, output: Any = None) 
             else:
                 entry["output"] = output
 
-        # 1. Per-call pretty file (for detailed debugging)
+        # 1. Per-call human-readable file (for debugging)
         _LLM_LOG_DIR.mkdir(parents=True, exist_ok=True)
-        per_call = _LLM_LOG_DIR / f"{op_name}_{ts}.json"
-        per_call.write_text(_json.dumps(entry, ensure_ascii=False, indent=2), encoding="utf-8")
+        per_call = _LLM_LOG_DIR / f"{op_name}_{ts}.txt"
+        lines = [
+            f"# {op_name} — {now.isoformat()}Z",
+            f"Model: {model}",
+            "",
+        ]
+        for msg in messages:
+            role = msg.get("role", "?")
+            content = msg.get("content", "")
+            lines.append(f"## [{role}]")
+            lines.append(content)
+            lines.append("")
+        if output is not None:
+            lines.append("## [output]")
+            if isinstance(output, BaseModel):
+                lines.append(_json.dumps(output.model_dump(), ensure_ascii=False, indent=2))
+            elif isinstance(output, str):
+                lines.append(output)
+            else:
+                lines.append(_json.dumps(output, ensure_ascii=False, indent=2))
+        per_call.write_text("\n".join(lines), encoding="utf-8")
 
         # 2. Append to rotated JSONL file
         _LLM_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
