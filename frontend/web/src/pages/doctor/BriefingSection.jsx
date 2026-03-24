@@ -74,6 +74,24 @@ export default function BriefingSection({ doctorId, onNavigateToChat }) {
           })}
         </Box>
 
+        {/* Onboarding hint — shown when all stats are zero */}
+        {STAT_CARDS.every((c) => !(stats[c.key])) && (
+          <Box sx={{ bgcolor: "#fff", borderRadius: "6px", p: 2, mb: 1.5 }}>
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, fontWeight: 600, color: "#333", mb: 1 }}>
+              欢迎使用鲸鱼随行！
+            </Typography>
+            {[
+              "发送消息给 AI 助手创建第一条病历",
+              "在患者页面添加患者",
+              "在任务页面创建任务",
+            ].map((hint, i) => (
+              <Typography key={i} sx={{ fontSize: TYPE.caption.fontSize, color: "#666", lineHeight: 1.8 }}>
+                {i + 1}. {hint}
+              </Typography>
+            ))}
+          </Box>
+        )}
+
         {/* Pending review items */}
         {data?.cards?.map((card, i) => {
           if (card.type !== "pending_review" || !card.items) return null;

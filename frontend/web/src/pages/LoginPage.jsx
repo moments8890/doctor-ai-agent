@@ -118,7 +118,7 @@ export default function LoginPage() {
     try {
       const data = await unifiedRegisterDoctor(
         regNickname.trim(), regNickname.trim(), parseInt(regPasscode),
-        inviteCode.trim(), "神经外科",
+        inviteCode.trim(),
       );
       handleLoginSuccess(data);
     } catch (err) {

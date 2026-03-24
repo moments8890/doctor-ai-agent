@@ -64,6 +64,10 @@ INTENT_LAYERS: dict[IntentType, LayerConfig] = {
         knowledge_categories=[KnowledgeCategory.custom],
         patient_context=True,
     ),
+    IntentType.daily_summary: LayerConfig(
+        intent="general",
+        knowledge_categories=[KnowledgeCategory.custom],
+    ),
     IntentType.general: LayerConfig(
         intent="general",
         knowledge_categories=[KnowledgeCategory.custom],

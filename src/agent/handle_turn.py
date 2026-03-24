@@ -6,7 +6,7 @@ from typing import Optional
 from agent.identity import set_current_identity
 from agent.router import route
 from agent.dispatcher import dispatch
-from agent.types import TurnContext, HandlerResult
+from agent.types import IntentType, RoutingResult, TurnContext, HandlerResult
 from agent.session import get_session_history, append_to_history
 from infra.observability.observability import trace_block
 from utils.log import log
@@ -33,8 +33,12 @@ async def handle_turn(
     history = get_session_history(identity)
 
     with trace_block("agent", "handle_turn", {"identity": identity, "role": role}):
-        # Route
-        routing = await route(text, identity, history)
+        # Route — use action_hint to bypass LLM router when provided
+        if action_hint and action_hint in IntentType.__members__:
+            routing = RoutingResult(intent=IntentType(action_hint))
+            log(f"[turn] action_hint override: intent={routing.intent.value}")
+        else:
+            routing = await route(text, identity, history)
         log(f"[turn] identity={identity} role={role} intent={routing.intent.value}")
 
         # Build context
