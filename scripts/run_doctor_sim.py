@@ -196,7 +196,7 @@ def main() -> None:
         help="Comma-separated persona IDs (D1,D2,D3) or 'all'",
     )
     parser.add_argument(
-        "--server", default="http://127.0.0.1:8000",
+        "--server", default="http://127.0.0.1:8001",
         help="Server URL (default: http://127.0.0.1:8000)",
     )
     args = parser.parse_args()

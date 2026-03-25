@@ -136,10 +136,69 @@ This runs the same pipeline but asserts pass/fail per persona as pytest test cas
 **"Register failed: 404"**
 → The test doctor doesn't exist. The pipeline creates one automatically, but the DB must be writable. Check `data/patients.db` exists and is not locked.
 
+---
+
+# Doctor Simulation Testing
+
+## Quick Start
+
+```bash
+# Start test server on 8001 (NOT 8000 — that's dev)
+cd src && python -m uvicorn main:app --port 8001
+
+# Run all 8 doctor personas
+PYTHONPATH=scripts python scripts/run_doctor_sim.py --personas all
+```
+
+## Doctor Personas
+
+| ID | Style | What it tests |
+|----|-------|---------------|
+| D1 | 详细主治医师 | Full sentences, baseline extraction |
+| D2 | 简洁外科急诊 | Abbreviations (STEMI, PCI, EF) |
+| D3 | OCR粘贴 | Noisy OCR text tolerance |
+| D4 | 多轮口述 | Multi-turn merge + dedup |
+| D5 | 中英混合 | Bilingual labs/drugs (波立维, LDL-C) |
+| D6 | 否定为主 | Negative symptom clusters (无发热咳嗽咳痰) |
+| D7 | 复制粘贴冲突 | Copy-paste duplicates + contradictions |
+| D8 | 模板填空 | Template format (【主诉】...【现病史】...) |
+
+Persona files: `tests/fixtures/doctor_sim/personas/*.json`
+
+## Key Difference from Patient Sim
+
+- Doctor turns are **scripted** (no LLM generation) — tests extraction accuracy, not conversation
+- All 13 SOAP fields in scope (not just 7 subjective)
+- 3-dimension evaluation: extraction recall, field routing, record quality
+- Drug brand→generic mapping tested (波立维→氯吡格雷)
+
+## Reports
+
+```
+reports/doctor_sim/
+├── docsim-{timestamp}.html    # HTML report
+└── docsim-{timestamp}.json    # Machine-readable
+```
+
+---
+
+## Important: Test Server Port
+
+**Always use port 8001 for simulation testing.** Never run sims against 8000 (dev server).
+
+```bash
+# Test server (for simulations)
+cd src && uvicorn main:app --port 8001
+
+# Dev server (for development — do NOT run sims here)
+cd src && uvicorn main:app --port 8000
+```
+
 ## API Keys by Provider
 
 | Provider | Env Var / runtime.json key | Where to get it |
 |----------|---------------------------|-----------------|
 | Groq | `GROQ_API_KEY` | https://console.groq.com/keys |
 | DeepSeek | `DEEPSEEK_API_KEY` | https://platform.deepseek.com |
+| OpenRouter | `OPENROUTER_API_KEY` | https://openrouter.ai/keys |
 | Claude | `ANTHROPIC_API_KEY` | https://console.anthropic.com |
