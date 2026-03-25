@@ -3,7 +3,7 @@
 
 功能：
 1. extract_outpatient_fields(records, patient, doctor_id) → dict[str, str]
-   从存储的 SOAP 结构化数据中合并标准字段。
+   从存储的 结构化数据中合并标准字段。
 
 2. generate_outpatient_report_pdf(fields, patient_name, patient_info, clinic_name, doctor_name) → bytes
    按表单样式渲染 PDF（标题行 + 患者信息行 + 各字段分节）。
@@ -22,7 +22,7 @@ from utils.log import log
 
 
 class ExtractionError(RuntimeError):
-    """Raised when no SOAP data could be extracted from records."""
+    """Raised when no structured data could be extracted from records."""
 
 # ---------------------------------------------------------------------------
 # Standard field definitions (imported from shared schema)
@@ -47,9 +47,9 @@ def _merge_structured_fields(records: list) -> Optional[dict[str, str]]:
 
     parsed: list[dict] = []
     for rec in records:
-        if not rec.has_soap_data():
+        if not rec.has_structured_data():
             return None  # at least one record has no structured data → fall back to LLM
-        parsed.append(rec.soap_dict())
+        parsed.append(rec.structured_dict())
 
     # Start with empty fields, apply in chronological order (oldest first)
     result: dict[str, str] = {k: "" for k in _FIELD_KEYS}
@@ -78,12 +78,12 @@ async def extract_outpatient_fields(
     patient: Any = None,
     doctor_id: Optional[str] = None,
 ) -> dict[str, str]:
-    """提取门诊标准字段：从已存储的 SOAP 结构化数据中合并。"""
+    """提取门诊标准字段：从已存储的 结构化数据中合并。"""
     merged = _merge_structured_fields(records)
     if merged is not None:
         log(f"[outpatient-report] using stored structured data ({len(records)} records)")
         return merged
-    raise ExtractionError("No SOAP data found in records")
+    raise ExtractionError("No structured data found in records")
 
 
 async def export_as_json(

@@ -1,0 +1,83 @@
+# Test cases for query.md
+# Prompt: query results → natural Chinese summary for doctor
+# Output: plain text summary (NOT JSON)
+
+- description: "query: normal summary — 2 records, reverse chronological"
+  options:
+    prompts: [query]
+  vars:
+    query_results: |
+      [
+        {"date": "2026-03-20", "chief_complaint": "胸痛3天", "diagnosis": "不稳定型心绞痛", "treatment_plan": "硝酸甘油、阿司匹林"},
+        {"date": "2026-02-15", "chief_complaint": "头晕1周", "diagnosis": "高血压2级", "treatment_plan": "氨氯地平5mg qd"}
+      ]
+  assert:
+    - type: contains
+      value: "心绞痛"
+    - type: contains
+      value: "高血压"
+    - type: javascript
+      value: |
+        // Should be natural Chinese, not JSON or table format
+        return !output.trim().startsWith('{') && !output.trim().startsWith('[') && !output.includes('|---|');
+    - type: javascript
+      value: |
+        // Should not exceed 500 chars
+        return output.length <= 500;
+
+- description: "query: empty results — polite 暂无 message"
+  options:
+    prompts: [query]
+  vars:
+    query_results: "[]"
+  assert:
+    - type: javascript
+      value: |
+        // Should contain "暂无" or similar polite no-data message
+        return output.includes('暂无') || output.includes('没有') || output.includes('未找到') || output.includes('暂时没有');
+    - type: javascript
+      value: |
+        // Should NOT contain any clinical data
+        return !output.includes('诊断') || output.includes('暂无');
+
+- description: "query: no medical advice — abnormal values, factual only"
+  options:
+    prompts: [query]
+  vars:
+    query_results: |
+      [
+        {"date": "2026-03-22", "chief_complaint": "体检发现血糖升高", "auxiliary_exam": "空腹血糖 12.5mmol/L，HbA1c 9.2%", "diagnosis": "2型糖尿病", "treatment_plan": "二甲双胍500mg tid"}
+      ]
+  assert:
+    - type: contains
+      value: "糖尿病"
+    - type: javascript
+      value: |
+        // Should NOT provide unsolicited medical advice or treatment suggestions
+        const lower = output;
+        return !lower.includes('建议') || lower.includes('二甲双胍');
+    - type: javascript
+      value: |
+        // Should mention the existing diagnosis factually
+        return output.includes('血糖') || output.includes('糖尿病');
+
+- description: "query: no JSON or tables — natural language only"
+  options:
+    prompts: [query]
+  vars:
+    query_results: |
+      [
+        {"date": "2026-03-18", "chief_complaint": "咳嗽2周", "diagnosis": "社区获得性肺炎", "treatment_plan": "左氧氟沙星0.5g qd", "orders_followup": "1周后复查胸片"}
+      ]
+  assert:
+    - type: javascript
+      value: |
+        // Must be natural language, not JSON
+        const trimmed = output.trim();
+        return !trimmed.startsWith('{') && !trimmed.startsWith('[');
+    - type: javascript
+      value: |
+        // Must not contain markdown tables
+        return !output.includes('|---|');
+    - type: contains
+      value: "肺炎"

@@ -42,7 +42,7 @@ class RecordRepository:
             content=record.content,
             tags=json.dumps(record.tags, ensure_ascii=False) if record.tags else None,
         )
-        # Spread structured dict into SOAP columns
+        # Spread structured dict into clinical columns
         if record.structured:
             for key, val in record.structured.items():
                 if hasattr(db_record, key) and val:
@@ -71,7 +71,7 @@ class RecordRepository:
             raise ValueError(f"Record {record_id} not found for doctor {doctor_id}")
         record.content = content
         record.tags = json.dumps(tags, ensure_ascii=False) if tags else "[]"
-        # Spread structured dict into SOAP columns
+        # Spread structured dict into clinical columns
         if structured:
             for key, val in structured.items():
                 if hasattr(record, key) and val:

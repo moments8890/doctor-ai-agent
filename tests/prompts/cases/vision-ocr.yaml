@@ -1,0 +1,70 @@
+# Test cases for vision-ocr.md
+# Prompt: image text → plain text OCR output (NOT JSON)
+# Uses {{text_input}} as mock for image content
+
+- description: "vision-ocr: drug/unit preservation — exact names and dosages"
+  options:
+    prompts: [vision-ocr]
+  vars:
+    text_input: |
+      处方：
+      1. 阿司匹林100mg qd
+      2. 氨氯地平5mg qd
+      3. 阿托伐他汀20mg qn
+      4. 二甲双胍0.5g tid
+  assert:
+    - type: contains
+      value: "阿司匹林100mg"
+    - type: contains
+      value: "氨氯地平5mg"
+    - type: contains
+      value: "阿托伐他汀20mg"
+    - type: contains
+      value: "二甲双胍0.5g"
+    - type: contains
+      value: "qd"
+    - type: contains
+      value: "tid"
+
+- description: "vision-ocr: preserve text as-is including markers"
+  options:
+    prompts: [vision-ocr]
+  vars:
+    text_input: |
+      主诉：头痛2周
+      现病史：患者2周前出现[?]头痛，以额部为主
+      既往史：高血压[?]年
+  assert:
+    - type: contains
+      value: "头痛2周"
+    - type: contains
+      value: "[?]"
+    - type: javascript
+      value: |
+        // Should preserve [?] markers and not interpret them
+        return output.includes('[?]') && output.includes('额部');
+
+- description: "vision-ocr: no inference — plain text only, no interpretation"
+  options:
+    prompts: [vision-ocr]
+  vars:
+    text_input: |
+      体格检查：
+      BP 180/110，HR 98次/分
+      双肺呼吸音粗，未闻及干湿啰音
+      心率98次/分，律齐，各瓣膜区未闻及杂音
+      腹软，无压痛
+  assert:
+    - type: contains
+      value: "180/110"
+    - type: contains
+      value: "98次/分"
+    - type: javascript
+      value: |
+        // Should NOT add interpretation like "高血压" or "心动过速"
+        return !output.includes('高血压') && !output.includes('心动过速') && !output.includes('异常');
+    - type: javascript
+      value: |
+        // Should NOT output JSON
+        const trimmed = output.trim();
+        return !trimmed.startsWith('{') && !trimmed.startsWith('[');

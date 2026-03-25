@@ -96,7 +96,7 @@ async def _rows_medical_records(
          "patient_name": pname, "record_type": r.record_type or "visit",
          "content": r.content, "tags": _parse_tags(r.tags),
          "status": r.status or "completed",
-         "has_structured": r.has_soap_data(),
+         "has_structured": r.has_structured_data(),
          "created_at": _fmt_ts(r.created_at)}
         for r, pname in (await db.execute(stmt)).all()
     ]

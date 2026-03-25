@@ -1,26 +1,24 @@
 """
-门诊病历图片导入管线：文件校验 → PDF/图片转换 → Vision LLM 提取 → 结构化记录 → 持久化。
+门诊病历图片导入管线：文件校验 → PDF/图片转换 → Vision OCR → 文本提取 → 结构化记录 → 持久化。
+
+Pipeline: Photo → vision-ocr.md (VISION_LLM) → plain text → doctor-extract.md (ROUTING_LLM) → 14 fields
 
 Supports JPG, PNG, and PDF uploads. PDF pages are converted to images via
-pdftoppm, then all images are sent to the configured vision LLM in a single
-multi-image request. The LLM returns a validated OutpatientRecord via
-structured_call.
-
-Provider selection uses the VISION_LLM env var (must point to a
-vision-capable model, e.g. gemini or a local ollama vision model).
+pdftoppm. Each image is OCR'd via Vision LLM, then the combined text is
+extracted into structured fields via doctor-extract.md.
 """
 
 from __future__ import annotations
 
-import base64
 import os
 from typing import Any, Dict, List, Optional
 
-from domain.records.schema import (
-    FIELD_KEYS,
-    OUTPATIENT_FIELD_META,
-    OutpatientRecord,
+from domain.patients.interview_summary import (
+    DoctorExtractResult,
+    generate_content,
+    extract_tags,
 )
+from domain.records.schema import FIELD_KEYS
 from utils.log import log
 
 # ---------------------------------------------------------------------------
@@ -59,154 +57,136 @@ def _file_to_images(file_bytes: bytes, mime: str) -> List[bytes]:
     """Convert upload to a list of PNG image byte buffers."""
     if mime == "application/pdf":
         from utils.pdf_utils import pdf_to_images
-
         return pdf_to_images(file_bytes, max_pages=_MAX_PAGES)
     return [file_bytes]
 
 
-# ---------------------------------------------------------------------------
-# Vision LLM message construction
-# ---------------------------------------------------------------------------
-
-def _build_vision_messages(images: List[bytes], prompt_text: str) -> list:
-    """Build OpenAI-format multi-image messages for the Vision LLM."""
-    content: List[Dict[str, Any]] = []
-    for img in images:
-        b64 = base64.b64encode(img).decode("utf-8")
-        content.append({
-            "type": "image_url",
-            "image_url": {"url": f"data:image/png;base64,{b64}"},
-        })
-    content.append({"type": "text", "text": prompt_text})
-    return [{"role": "user", "content": content}]
+def _detect_mime(image_bytes: bytes) -> str:
+    """Detect MIME type from magic bytes, default to image/png."""
+    for magic, mime in _MAGIC.items():
+        if image_bytes[: len(magic)] == magic:
+            return mime
+    return "image/png"
 
 
 # ---------------------------------------------------------------------------
-# Core extraction
+# Step 1: Vision OCR — images → plain text
 # ---------------------------------------------------------------------------
 
-async def extract_from_images(images: List[bytes]) -> OutpatientRecord:
-    """Send images to Vision LLM via structured_call, return validated OutpatientRecord.
+async def _ocr_images(images: List[bytes]) -> str:
+    """OCR each image via vision-ocr.md, return combined text."""
+    from infra.llm.vision import extract_text_from_image
 
-    Uses VISION_LLM env var (must point to a vision-capable model).
-    Raises ValueError (422 prefix) or propagates LLM errors.
-    """
+    texts = []
+    for i, img in enumerate(images):
+        mime = _detect_mime(img)
+        try:
+            text = await extract_text_from_image(img, mime)
+            if text.strip():
+                texts.append(text.strip())
+                log(f"[vision-import] OCR page {i+1}: {len(text)} chars")
+        except Exception as exc:
+            log(f"[vision-import] OCR page {i+1} failed: {exc}", level="warning")
+
+    return "\n\n".join(texts)
+
+
+# ---------------------------------------------------------------------------
+# Step 2: Text → structured fields via doctor-extract.md
+# ---------------------------------------------------------------------------
+
+async def _extract_fields(text: str) -> Dict[str, str]:
+    """Extract 14 clinical fields from OCR text using doctor-extract.md."""
     from agent.llm import structured_call
+    from utils.prompt_loader import get_prompt_sync
 
-    # PHI egress gate: image bytes contain clinical data.
-    from infra.llm.egress import is_local_provider, check_cloud_egress
-    from infra.llm.client import _get_providers
-
-    provider_name = os.environ.get("VISION_LLM", "groq")
-    if not is_local_provider(provider_name):
-        check_cloud_egress(provider_name, "vision_import")
-
-    providers = _get_providers()
-    provider = providers.get(provider_name, providers.get("groq", {}))
-    model = provider.get("model", "unknown")
-    _tag = f"[vision-import:{provider_name}:{model}]"
-    log(f"{_tag} request: images={len(images)}")
-
-    from utils.prompt_loader import get_prompt
-
-    prompt_text = await get_prompt("vision-import")
-    messages = _build_vision_messages(images, prompt_text)
-
-    record = await structured_call(
-        response_model=OutpatientRecord,
-        messages=messages,  # type: ignore[arg-type]  # vision messages use list content
-        op_name="vision_import.extract",
-        env_var="VISION_LLM",
-        temperature=0.1,
-        max_tokens=3000,
+    template = get_prompt_sync("intent/doctor-extract")
+    prompt = template.format(
+        name="未知",
+        gender="未知",
+        age="未知",
+        transcript=text,
     )
 
-    non_empty = sum(1 for k in FIELD_KEYS if getattr(record, k))
-    log(f"[VisionImport] extraction ok non_empty={non_empty}/{len(FIELD_KEYS)}")
-    return record
+    result = await structured_call(
+        response_model=DoctorExtractResult,
+        messages=[{"role": "user", "content": prompt}],
+        op_name="vision_import.extract",
+        env_var="ROUTING_LLM",
+        temperature=0.1,
+        max_tokens=2500,
+    )
 
-
-# ---------------------------------------------------------------------------
-# Record → prose conversion
-# ---------------------------------------------------------------------------
-
-def record_to_prose(record: OutpatientRecord) -> str:
-    """Convert OutpatientRecord to label-value prose for storage in DB content field."""
-    lines: List[str] = []
-    for key, label in OUTPATIENT_FIELD_META:
-        value = getattr(record, key, None)
-        if value:
-            lines.append(f"\u3010{label}\u3011{value}")
-    return "\n".join(lines)
+    # Filter to non-empty fields
+    return {
+        k: v.strip()
+        for k, v in result.model_dump().items()
+        if isinstance(v, str) and v.strip()
+    }
 
 
 # ---------------------------------------------------------------------------
 # Full import pipeline
 # ---------------------------------------------------------------------------
 
-async def import_medical_record(
+async def extract_from_images(images: List[bytes]) -> Dict[str, str]:
+    """Pipeline: images → OCR → doctor-extract → 14-field dict.
+
+    Returns dict of field_name → value (empty fields filtered out).
+    Raises ValueError (422 prefix) or propagates LLM errors.
+    """
+    # Step 1: OCR
+    ocr_text = await _ocr_images(images)
+    if not ocr_text.strip():
+        raise ValueError("422:图片中未能提取到有效文字")
+
+    log(f"[vision-import] OCR total: {len(ocr_text)} chars")
+
+    # Step 2: Extract fields
+    fields = await _extract_fields(ocr_text)
+    non_empty = len(fields)
+    log(f"[vision-import] extracted {non_empty}/{len(FIELD_KEYS)} fields")
+    return fields
+
+
+async def import_to_interview(
     file_bytes: bytes,
     filename: str,
     content_type: str,
     doctor_id: str,
     patient_id: Optional[int] = None,
 ) -> dict:
-    """Full import pipeline: file -> images -> Vision LLM -> save record.
+    """Import pipeline: file → images → OCR → extract → create interview session.
 
-    Returns dict with created record info and extracted OutpatientRecord.
+    Returns dict with session_id and pre-populated fields for doctor review.
     Raises ValueError (413/415/422 prefix) or RuntimeError on LLM failure.
     """
     mime = validate_upload(file_bytes, content_type)
     images = _file_to_images(file_bytes, mime)
 
     try:
-        record = await extract_from_images(images)
+        fields = await extract_from_images(images)
     except ValueError:
         raise
     except Exception as exc:
-        log(f"[VisionImport] extraction failed: {exc}")
+        log(f"[vision-import] extraction failed: {exc}")
         raise RuntimeError(f"502:Vision LLM 不可用: {exc}") from exc
 
-    content = record_to_prose(record)
-    if not content.strip():
-        content = f"[导入文件: {filename}] 未能提取到有效内容"
+    # Create interview session pre-populated with extracted fields
+    from domain.patients.interview_session import create_session
 
-    # Build tags from diagnosis if available
-    tags: List[str] = []
-    if record.diagnosis:
-        tags.append("导入")
-
-    # Persist via the existing save_record() path
-    from db.engine import AsyncSessionLocal
-    from db.crud.records import save_record
-    from db.models.medical_record import MedicalRecord
-
-    medical_record = MedicalRecord(
-        content=content,
-        tags=tags or ["导入"],
-        record_type="import",
+    session = await create_session(
+        doctor_id=doctor_id,
+        patient_id=patient_id,
+        mode="doctor",
+        initial_fields=fields,
     )
 
-    async with AsyncSessionLocal() as session:
-        from db.models.records import RecordStatus
-        db_record = await save_record(
-            session,
-            doctor_id=doctor_id,
-            record=medical_record,
-            patient_id=patient_id,
-            status=RecordStatus.pending_review.value,
-        )
-        record_id = db_record.id
-
-    log(
-        f"[VisionImport] record saved id={record_id} "
-        f"doctor={doctor_id} patient={patient_id}"
-    )
+    log(f"[vision-import] session={session.id} pre-populated={len(fields)} fields from {filename}")
 
     return {
-        "record_id": record_id,
-        "record_type": "import",
-        "status": "pending_review",
-        "content": content,
-        "extracted": record.model_dump(),
+        "session_id": session.id,
+        "mode": "doctor",
+        "source": "image_import",
+        "pre_populated": fields,
     }

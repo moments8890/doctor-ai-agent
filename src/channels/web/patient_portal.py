@@ -176,7 +176,7 @@ async def get_patient_records(authorization: Optional[str] = Header(default=None
             id=r.id,
             record_type=r.record_type,
             content=r.content,
-            structured=r.soap_dict() if r.has_soap_data() else None,
+            structured=r.structured_dict() if r.has_structured_data() else None,
             status=r.status,
             created_at=r.created_at,
         )
@@ -262,9 +262,9 @@ async def patient_upload(
     file_bytes = await file.read()
 
     try:
-        from domain.records.vision_import import import_medical_record
+        from domain.records.vision_import import import_to_interview
 
-        result = await import_medical_record(
+        result = await import_to_interview(
             file_bytes=file_bytes,
             filename=file.filename or "upload",
             content_type=file.content_type or "",

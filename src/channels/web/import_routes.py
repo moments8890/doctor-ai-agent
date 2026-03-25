@@ -16,13 +16,13 @@ async def import_medical_record_endpoint(
     patient_id: Optional[int] = Form(None),
     doctor_id: str = Form("web_doctor"),
 ):
-    """Import a medical record from image/PDF/scan via Vision LLM extraction."""
+    """Import image/PDF → OCR → extract fields → create interview session for doctor review."""
     file_bytes = await file.read()
 
     try:
-        from domain.records.vision_import import import_medical_record
+        from domain.records.vision_import import import_to_interview
 
-        result = await import_medical_record(
+        result = await import_to_interview(
             file_bytes=file_bytes,
             filename=file.filename or "upload",
             content_type=file.content_type or "",

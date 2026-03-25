@@ -50,8 +50,8 @@ prompt flows. The high-level flow:
    +---------v------------------------------------------+
    |  Intent Handler (handlers/<intent>.py)             |
    |  loads context + doctor knowledge                  |
-   |  calls intent-specific LLM (structuring /          |
-   |  compose / interview / diagnosis)                  |
+   |  calls intent-specific LLM (interview /          |
+   |  diagnosis / query / general)                  |
    |  returns HandlerResult                             |
    +--------------------+-------------------------------+
                         |
@@ -204,7 +204,7 @@ Deterministic regex matching handles without invoking any LLM:
 
 **Single intent per turn**: if the message contains multiple intents (e.g.
 "查张三病历然后建个随访任务"), routing extracts the first and stores the rest
-in `deferred`. The compose LLM acknowledges deferred intents in its reply.
+in `deferred`. The query LLM acknowledges deferred intents in its reply.
 
 **`create_record` is exclusive**: if any intent is `create_record`, it must
 be the only intent in that turn. Record creation enters interview mode which
@@ -219,22 +219,22 @@ module in `handlers/` and calls `handle(ctx: TurnContext) → HandlerResult`.
 
 Each handler in `handlers/` is responsible for one intent:
 - Loads doctor context (history, knowledge, patient records as needed)
-- Calls the appropriate domain LLM (structuring LLM, compose LLM, interview
+- Calls the appropriate domain LLM (interview
   LLM, or diagnosis LLM via `domain/`)
 - Returns a `HandlerResult(reply, data)`
 
 **`create_record` handler** enters the multi-turn interview flow. The doctor
-is guided through SOAP fields; fields extracted by the routing LLM are
+is guided through clinical record fields; fields extracted by the routing LLM are
 pre-filled. Confirm/abandon happens within the interview API, not via regex
 fast paths.
 
 **`query_record` / `query_task` / `query_patient` handlers** fetch DB data
-and pass it to a compose LLM for natural-language summarization.
+and pass it to a query prompt for natural-language summarization.
 
 **`create_task` handler** persists the task directly — no confirmation gate
 (tasks are lightweight).
 
-**`general` handler** responds directly via compose LLM with no DB reads.
+**`general` handler** responds directly via general prompt with no DB reads.
 
 ### Identity and Resolution
 
@@ -300,7 +300,7 @@ Consolidated from a previous 25-table schema. Tables killed: `pending_records`,
 | `doctor_wechat` | WeChat channel binding (optional, per-doctor) |
 | `patients` | Patient demographics, FK: `doctor_id` |
 | `patient_auth` | Patient portal access codes (optional) |
-| `medical_records` | SOAP-structured records — also serves as version history, diagnosis results, and pending/review queue (`status` enum: `interview_active`, `pending_review`, `completed`) |
+| `medical_records` | Structured clinical records — also serves as version history, diagnosis results, and pending/review queue (`status` enum: `interview_active`, `pending_review`, `completed`) |
 | `doctor_tasks` | Tasks (type: general\|review), covers both doctor and patient targets |
 | `doctor_knowledge_items` | Personal KB, categorized (interview_guide\|diagnosis_rule\|red_flag\|treatment_protocol\|custom) |
 | `doctor_chat_log` | Doctor ↔ AI conversation history (session-grouped, DB-backed with in-memory cache) |
@@ -328,7 +328,7 @@ Consolidated from a previous 25-table schema. Tables killed: `pending_records`,
 
 ### Key Schema Decisions
 
-- **SOAP columns on `medical_records`** — `chief_complaint`, `present_illness`,
+- **结构化字段列 on `medical_records`** — `chief_complaint`, `present_illness`,
   `past_history`, `physical_exam`, `diagnosis`, `treatment_plan`, etc. are
   real queryable columns, not a single JSON blob. Replaces `structured_data`
   JSON column from prior schema.
@@ -355,10 +355,10 @@ Key prompt files:
 | File | Used by |
 |------|---------|
 | `routing.md` | Routing LLM — intent classification |
-| `doctor-interview.md` | Interview LLM — guided SOAP field collection |
-| `structuring.md` | Structuring LLM — clinical text → structured record |
+| `doctor-interview.md` | Interview LLM — guided clinical field collection |
+| `doctor-extract.md` | Field extraction — clinical text → 14 structured fields |
 | `diagnosis.md` | Diagnosis LLM — review pipeline, AI suggestions |
-| `compose.md` | Compose LLM — query result summarization |
+| `query.md` | Query summary — results → natural language |
 | `patient-interview.md` | Patient interview orchestration |
 
 ---
@@ -370,7 +370,7 @@ Key prompt files:
    loop, no LLM choosing between tools at runtime.
 
 2. **Per-intent prompts** — each handler uses a focused prompt for its domain
-   (interview, diagnosis, compose). Previously one agent prompt covered all
+   (interview, diagnosis, query, general). Previously one agent prompt covered all
    cases with a tool list. Focused prompts are easier to tune and debug.
 
 3. **Single intent per turn** — routing returns one primary intent. Deferred
@@ -378,13 +378,13 @@ Key prompt files:
 
 4. **Interview-first record creation** — record creation always goes through
    multi-turn interview (`create_record` handler + `interview_sessions` table).
-   No one-shot structuring from raw text, no confirm/abandon regex fast paths.
+   No confirm/abandon regex fast paths.
 
 5. **Name-based LLM interface** — LLM passes `patient_name` (human-readable).
    `resolve.py` translates to `(doctor_id, patient_id)` for DB operations. The
    LLM never sees database IDs.
 
-6. **SOAP columns, not JSON blob** — medical record fields are real DB columns.
+6. **Clinical columns, not JSON blob** — medical record fields are real DB columns.
    Queryable by SQL, indexable, renderable directly into PDF without extraction.
 
 7. **Review = completeness gate** — after interview confirm, if `diagnosis`,
@@ -404,7 +404,7 @@ Key prompt files:
 | `DATABASE_URL` | DB connection string | `sqlite+aiosqlite:///data/patients.db` |
 | `ENVIRONMENT` | `development` / `production` | (required in prod) |
 | `ROUTING_LLM` | LLM provider for intent routing | `groq` |
-| `STRUCTURING_LLM` | LLM provider for record structuring + interview | `groq` |
+| `STRUCTURING_LLM` | LLM provider for voice/paste extraction | `groq` |
 | `DIAGNOSIS_LLM` | LLM provider for diagnosis pipeline | falls back to `STRUCTURING_LLM` |
 | `VISION_LLM` | LLM provider for image/PDF OCR | (required if used) |
 | `OLLAMA_BASE_URL` | Ollama endpoint | `http://localhost:11434/v1` |

@@ -200,8 +200,8 @@ git commit -m "refactor: rewrite vision-import prompt with LangGPT structure"
 
 - [ ] **Step 1: Rewrite doctor-interview.md**
 
-Add persona + Profile + Background (explains this is the doctor intake mode for SOAP field collection).
-Keep the existing SOAP field tiers (必填/推荐/可选) and rules.
+Add persona + Profile + Background (explains this is the doctor intake mode for clinical field collection).
+Keep the existing clinical field tiers (必填/推荐/可选) and rules.
 Remove `## 输出格式` JSON section (Instructor + `InterviewLLMResponse` handles this).
 Add 2 few-shot examples from `tests/fixtures/data/patient_interview_benchmark.json`:
 - Example 1: Doctor provides chief complaint + basic info → extracted fields
@@ -259,14 +259,14 @@ git commit -m "refactor: rewrite patient-interview prompt with LangGPT structure
 
 - [ ] **Step 1: Rewrite structuring.md**
 
-Add persona + Profile + Background (explains this converts raw clinical text to structured SOAP record).
+Add persona + Profile + Background (explains this converts raw clinical text to structured clinical record).
 Keep the no-fabrication constraints (严禁虚构).
 Keep information filtering rules.
 Remove `## 输出格式` JSON section (Instructor + `StructuringLLMResponse` handles this).
 Remove `## 字段定义` section (Pydantic model defines this).
 Add 3 few-shot examples from `scripts/seed_ui_data.py`:
-- Example 1: Simple outpatient note → SOAP fields
-- Example 2: Voice transcription with noise → cleaned SOAP fields
+- Example 1: Simple outpatient note → structured fields
+- Example 2: Voice transcription with noise → cleaned structured fields
 - Example 3: No clinical content → empty response
 Target: ~3K chars.
 
@@ -327,7 +327,7 @@ rm src/agent/prompts/report-extract.md
 
 - [ ] **Step 2: Remove LLM fallback in outpatient_report.py**
 
-In `extract_outpatient_fields()`, the LLM fallback path (after `_merge_structured_fields` returns None) is now unreachable since the write path always populates SOAP columns. Remove:
+In `extract_outpatient_fields()`, the LLM fallback path (after `_merge_structured_fields` returns None) is now unreachable since the write path always populates clinical columns. Remove:
 - The `_build_extraction_prompt()` function
 - The `_get_llm_client()` function and `_CLIENT_CACHE`
 - The LLM call block in `extract_outpatient_fields()`
@@ -347,7 +347,7 @@ Same command. Expected: 47 passed.
 
 ```bash
 git add -A src/agent/prompts/report-extract.md src/domain/records/outpatient_report.py
-git commit -m "chore: delete report-extract prompt and LLM fallback (SOAP columns are authoritative)"
+git commit -m "chore: delete report-extract prompt and LLM fallback (clinical columns are authoritative)"
 ```
 
 ---

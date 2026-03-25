@@ -1434,7 +1434,7 @@ git commit -m "test: add Plan-and-Act E2E integration tests"
 ## Post-Plan Phases (all COMPLETE)
 
 ### Phase 2: DB Schema Migration — COMPLETE
-- SOAP columns, doctor_wechat, patient_auth, doctor/patient_chat_log tables
+- Clinical columns, doctor_wechat, patient_auth, doctor/patient_chat_log tables
 - TaskType simplified, 13 killed tables deleted
 
 ### Phase 3: Cleanup — COMPLETE
@@ -1451,7 +1451,7 @@ git commit -m "test: add Plan-and-Act E2E integration tests"
 
 ### Phase 6: Frontend + Interview Confirm — COMPLETE
 - `handle_turn` returns HandlerResult, `view_payload.session_id` handoff
-- Interview confirm saves SOAP directly to medical_records
+- Interview confirm saves structured data directly to medical_records
 
 ### Phase 7: Prompt Rewrite — COMPLETE
 - Few-shot examples for interview (4), diagnosis (2)

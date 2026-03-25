@@ -112,13 +112,13 @@ prompt composer and Pydantic/Instructor structured output.
 │                                                              │
 │  domain/patients/                                            │
 │    interview_session.py — create/load/save sessions          │
-│    interview_turn.py — multi-turn SOAP field collection      │
+│    interview_turn.py — multi-turn clinical field collection   │
 │    interview_summary.py — confirm → save to medical_records  │
 │    nl_search.py — natural language patient search            │
-│    completeness.py — SOAP field completeness check           │
+│    completeness.py — clinical field completeness check        │
 │                                                              │
 │  domain/records/                                             │
-│    structuring.py — text → structured SOAP record            │
+│    structuring.py — text → structured clinical record         │
 │    vision_import.py — image/PDF → structured record          │
 │    pdf_export.py — records → PDF                             │
 │                                                              │
@@ -143,14 +143,14 @@ prompt composer and Pydantic/Instructor structured output.
 │    doctor_wechat      — WeChat channel binding               │
 │    patients           — identity (7 columns)                 │
 │    patient_auth       — portal access code (hashed)          │
-│    medical_records    — SOAP columns + status + versioning   │
+│    medical_records    — clinical columns + status + versioning│
 │    doctor_tasks       — general | review (target: doctor|patient) │
 │    doctor_knowledge   — categorized KB items                 │
 │    doctor_chat_log    — doctor ↔ AI conversation (session_id)│
 │    patient_chat_log   — patient ↔ AI conversation            │
 │                                                              │
 │  Workflow (1):                                               │
-│    interview_sessions — multi-turn SOAP field collection     │
+│    interview_sessions — multi-turn clinical field collection  │
 │                                                              │
 │  System (4):                                                 │
 │    audit_log          — compliance audit trail               │
@@ -176,7 +176,7 @@ Doctor types: "创建患者张三，男45岁，头痛三天"
   ├─ 5. Return {reply, view_payload: {session_id}}
   ├─ 6. Frontend detects session_id → navigate to interview UI
   ├─ 7. Doctor continues in interview UI (POST /api/records/interview/turn)
-  └─ 8. Doctor confirms → SOAP fields saved to medical_records
+  └─ 8. Doctor confirms → clinical fields saved to medical_records
          Status: pending_review (if diagnosis/treatment missing)
          or completed (if all fields filled)
 ```
@@ -308,7 +308,7 @@ src/
    ensures every intent has explicit layer definitions. *(Note: KB loading by
    category is defined in config but handlers currently pass knowledge manually.)*
 
-4. **SOAP columns** — 14 outpatient fields as real DB columns (not JSON blob).
+4. **Clinical columns** — 14 outpatient fields as real DB columns (not JSON blob).
    Queryable, indexable, absorbs case_history table.
 
 5. **Interview-first record creation** — chat-initiated records go through

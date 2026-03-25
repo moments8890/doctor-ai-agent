@@ -259,7 +259,7 @@ async def get_patient_record_detail(
         id=record.id,
         record_type=record.record_type,
         content=record.content,
-        structured=record.soap_dict() if record.has_soap_data() else None,
+        structured=record.structured_dict() if record.has_structured_data() else None,
         status=record.status,
         created_at=record.created_at,
         diagnosis_status=diagnosis_status,

@@ -366,10 +366,10 @@ async def _load_clinical_context_from_record(
     if row is None:
         log(f"[diagnosis] record_id={record_id} not found for doctor={doctor_id}", level="warning")
         return None
-    if not row.has_soap_data():
-        log(f"[diagnosis] record_id={record_id} has no SOAP data", level="warning")
+    if not row.has_structured_data():
+        log(f"[diagnosis] record_id={record_id} has no structured data", level="warning")
         return None
-    return row.soap_dict()
+    return row.structured_dict()
 
 
 async def _load_clinical_context_from_text(

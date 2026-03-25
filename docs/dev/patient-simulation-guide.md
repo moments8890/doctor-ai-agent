@@ -168,7 +168,7 @@ Persona files: `tests/fixtures/doctor_sim/personas/*.json`
 ## Key Difference from Patient Sim
 
 - Doctor turns are **scripted** (no LLM generation) — tests extraction accuracy, not conversation
-- All 13 SOAP fields in scope (not just 7 subjective)
+- All 13 clinical fields in scope (not just 7 subjective)
 - 3-dimension evaluation: extraction recall, field routing, record quality
 - Drug brand→generic mapping tested (波立维→氯吡格雷)
 

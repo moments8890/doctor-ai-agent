@@ -81,3 +81,7 @@
 
 输入："你好"
 输出：{"intent": "general", "patient_name": null, "params": {}, "deferred": null}
+
+---
+
+医生的消息：{{message}}

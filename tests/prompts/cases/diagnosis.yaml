@@ -1,0 +1,126 @@
+# Test cases for diagnosis.md
+# Prompt: clinical data → differential diagnosis JSON
+# Fields: differentials, workup, treatment, red_flags
+
+- description: "diagnosis: red flags urgent — hypotension + chest pain triggers emergency"
+  options:
+    prompts: [diagnosis]
+  vars:
+    clinical_data: |
+      chief_complaint: "胸痛伴呼吸困难2小时"
+      present_illness: "2小时前突发胸骨后压榨性疼痛，伴呼吸困难、大汗淋漓"
+      physical_exam: "BP 70/40，HR 120次/分，呼吸急促"
+      auxiliary_exam: "心电图：V1-V4 ST段抬高"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        // red_flags must be non-empty for this critical case
+        return obj.red_flags && obj.red_flags.length > 0;
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        const workup = obj.workup || [];
+        // workup must contain 紧急 or 急诊 urgency
+        return workup.some(w => w.urgency === '急诊' || w.urgency === '紧急');
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        const diffs = obj.differentials || [];
+        // Should include STEMI or acute MI as high confidence
+        return diffs.some(d => d.confidence === '高');
+
+- description: "diagnosis: drug class only — no specific drug names in treatment"
+  options:
+    prompts: [diagnosis]
+  vars:
+    clinical_data: |
+      chief_complaint: "咳嗽咳痰5天，发热3天"
+      present_illness: "5天前出现咳嗽咳黄痰，3天前出现发热，体温最高38.8度"
+      physical_exam: "T 38.5，双肺可闻及湿啰音"
+      auxiliary_exam: "胸片：右下肺斑片状阴影。血常规：WBC 12.5×10⁹/L，N 85%"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        const tx = obj.treatment || [];
+        // drug_class should use class names, not specific drug names
+        const drugItems = tx.filter(t => t.intervention === '药物');
+        if (drugItems.length === 0) return true;
+        // Should not contain specific drug names like 阿莫西林, 头孢, 左氧氟沙星
+        return drugItems.every(d => {
+          const desc = d.description || '';
+          return !desc.includes('阿莫西林') && !desc.includes('头孢曲松') && !desc.includes('左氧氟沙星');
+        });
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        const tx = obj.treatment || [];
+        const drugItems = tx.filter(t => t.intervention === '药物');
+        // drug_class should be a category like 抗菌药物/抗生素
+        if (drugItems.length === 0) return true;
+        return drugItems.every(d => d.drug_class && d.drug_class.length > 0);
+
+- description: "diagnosis: dual audience — both doctor_brief and patient_note present"
+  options:
+    prompts: [diagnosis]
+  vars:
+    clinical_data: |
+      chief_complaint: "头痛2周，加重3天"
+      present_illness: "持续性前额头痛，伴恶心呕吐，近日视物模糊"
+      past_history: "高血压10年"
+      auxiliary_exam: "MRI示右额叶占位，均匀强化，宽基底附着硬脑膜"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        const diffs = obj.differentials || [];
+        // Every differential should have both doctor_brief and patient_note
+        return diffs.length > 0 && diffs.every(d =>
+          (d.doctor_brief && d.doctor_brief.length > 0) &&
+          (d.patient_note && d.patient_note.length > 0)
+        );
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        const diffs = obj.differentials || [];
+        // patient_note should use layperson language (no medical abbreviations)
+        return diffs.every(d => {
+          const pn = d.patient_note || '';
+          return !pn.includes('MRA') && !pn.includes('CT增强');
+        });
+
+- description: "diagnosis: insufficient data — low confidence, no fabrication"
+  options:
+    prompts: [diagnosis]
+  vars:
+    clinical_data: |
+      chief_complaint: "头痛"
+      present_illness: ""
+      past_history: ""
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        const diffs = obj.differentials || [];
+        // With minimal info, no differential should be "高" confidence
+        return diffs.every(d => d.confidence !== '高');
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        // red_flags should be empty — not enough info to fabricate
+        return Array.isArray(obj.red_flags) && obj.red_flags.length === 0;
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        // treatment should be empty for insufficient data
+        return Array.isArray(obj.treatment) && obj.treatment.length === 0;
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        // All 4 top-level keys must exist
+        return 'differentials' in obj && 'workup' in obj && 'treatment' in obj && 'red_flags' in obj;

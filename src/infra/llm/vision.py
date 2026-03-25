@@ -91,7 +91,7 @@ async def extract_text_from_image(image_bytes: bytes, mime_type: str) -> str:
     data_url = f"data:{mime_type};base64,{image_b64}"
 
     from utils.prompt_loader import get_prompt
-    vision_prompt = await get_prompt("vision-ocr")
+    vision_prompt = await get_prompt("intent/vision-ocr")
     messages = _build_vision_messages(data_url, vision_prompt)
 
     async def _call(model_name: str):

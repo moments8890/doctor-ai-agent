@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Literal, Optional
 
 from db.engine import AsyncSessionLocal
 from db.models.medical_record import MedicalRecord
-from domain.records.structuring import structure_medical_record
+from domain.records.structuring import text_to_interview
 from infra.llm.vision import extract_text_from_image
 from domain.knowledge.pdf_extract import extract_text_from_pdf_smart
 from infra.auth.rate_limit import enforce_doctor_rate_limit
@@ -113,13 +113,14 @@ async def chat(
 
 # ── Utility endpoints (unchanged) ───────────────────────────────────────────
 
-@router.post("/from-text", response_model=MedicalRecord)
+@router.post("/from-text")
 async def create_record_from_text(
     body: TextInput,
     doctor_id: str = "",
+    patient_id: Optional[int] = None,
     authorization: Optional[str] = Header(default=None),
 ):
-    """Structure raw text into a medical record."""
+    """Extract fields from text → create interview session for doctor review."""
     resolved = resolve_doctor_id_from_auth_or_fallback(
         doctor_id, authorization,
         fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
@@ -129,7 +130,8 @@ async def create_record_from_text(
     if not body.text.strip():
         raise HTTPException(status_code=422, detail="Text input cannot be empty.")
     try:
-        return await structure_medical_record(body.text)
+        from domain.records.structuring import text_to_interview
+        return await text_to_interview(body.text, doctor_id=resolved, patient_id=patient_id)
     except ValueError as e:
         log(f"[Records] from-text validation failed: {e}")
         raise HTTPException(status_code=422, detail="Invalid medical record content")

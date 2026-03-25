@@ -4,109 +4,225 @@ LLM prompt files — one `.md` file per prompt. Edit directly to tune behavior.
 
 ## How it works
 
-- `utils/prompt_loader.py` reads files by key: `get_prompt("structuring")` → `prompts/structuring.md`
+- `utils/prompt_loader.py` reads files by key: `get_prompt("intent/doctor-extract")` → `prompts/intent/doctor-extract.md`
 - Files are cached in memory on first read; call `invalidate()` to reload
-- Agent prompts (`doctor-agent.md`, `patient-agent.md`) are loaded by `build_prompt(role)` and injected into the LangChain `ChatPromptTemplate`
-- Tool-internal prompts (`structuring.md`, `patient-interview.md`) are loaded inside `@tool` functions for specialized LLM calls
+- `prompt_composer.py` assembles the 6-layer prompt stack (common → domain → intent → knowledge → context → user)
+- `{current_date}` is auto-injected by the composer at runtime
 
-## Architecture
+## Directory Structure
 
-### Agent Pipeline
-
-```mermaid
-flowchart TD
-    subgraph Channels
-        WEB[Web Channel]
-        WX[WeChat Channel]
-    end
-
-    HT["handle_turn(text, role, identity)"]
-    FP{"Fast path?<br/>greeting / confirm"}
-    FR["Fast reply<br/>0 LLM calls"]
-
-    WEB --> HT
-    WX --> HT
-    HT --> FP
-    FP -- yes --> FR
-
-    subgraph Doctor Agent
-        DA["AgentExecutor<br/>doctor-agent.md"]
-        DA --> QR[query_records]
-        DA --> LP[list_patients]
-        DA --> LT[list_tasks]
-        DA --> CR[create_record]
-        DA --> UR[update_record]
-        DA --> CT[create_task]
-    end
-
-    subgraph Patient Agent
-        PA["AgentExecutor<br/>patient-agent.md"]
-        PA --> AI[advance_interview]
-    end
-
-    FP -- "role=doctor" --> DA
-    FP -- "role=patient" --> PA
-
-    DA -- reply --> HT
-    PA -- reply --> HT
+```
+prompts/
+├── common/                  ← Layer 1: universal (every LLM call)
+│   └── base.md                 identity, safety rules, {current_date}
+├── domain/                  ← Layer 2: specialty (when LayerConfig.domain=True)
+│   └── neurology.md            conditions, red flags, key tests
+├── intent/                  ← Layer 3: action-specific rules + examples
+│   ├── routing.md              intent classification (6 intents)
+│   ├── interview.md            doctor dictation → field extraction
+│   ├── patient-interview.md    patient pre-consultation interview
+│   ├── query.md                query results → Chinese summary
+│   ├── general.md              greetings, off-topic handling
+│   ├── diagnosis.md            differential diagnosis generation
+│   ├── doctor-extract.md       extract 14 fields (dictation, voice, paste, photo OCR)
+│   ├── patient-extract.md      extract 7 fields from patient transcript
+│   └── vision-ocr.md           clinical image → plain text (OCR)
+└── README.md
 ```
 
-### Internal LLM Calls (inside tools)
+Hierarchy: **common** (universal) → **domain** (specialty) → **intent** (action)
+
+## 6-Layer Prompt Stack
+
+```mermaid
+block-beta
+  columns 1
+  block:SYS["System Message"]:1
+    columns 1
+    L1["1 · common/base.md — identity · safety · date"]
+    L2["2 · domain/*.md — specialty knowledge"]
+    L3["3 · intent/*.md — action rules · examples · schema"]
+  end
+  block:USR["User Message"]:1
+    columns 1
+    L4["4 · Doctor Knowledge — auto-loaded from DB"]
+    L5["5 · Patient Context — records · demographics"]
+    L6["6 · User Input — doctor or patient message"]
+  end
+  LLM["LLM · Qwen3 / DeepSeek"]
+
+  style L1 fill:#e8f5e9,color:#1b5e20
+  style L2 fill:#c8e6c9,color:#1b5e20
+  style L3 fill:#a5d6a7,color:#1b5e20
+  style L4 fill:#e3f2fd,color:#0d47a1
+  style L5 fill:#bbdefb,color:#0d47a1
+  style L6 fill:#90caf9,color:#0d47a1
+  style LLM fill:#fff3e0,color:#e65100
+```
+
+> **Pattern A** (single-turn): Layers 1-3 → system msg, Layers 4-6 → user msg with XML tags
+> **Pattern B** (conversation): Layers 1-5 → system msg, history turns, Layer 6 → user msg
+> **Pattern C** (direct): Only Layer 3 prompt, no composer
+
+## Workflow Diagrams
+
+### Doctor Pipeline
 
 ```mermaid
 flowchart LR
-    subgraph "create_record / update_record"
-        SH["Session History<br/>via ContextVar"] --> SL["Structuring LLM<br/>structuring.md"]
-        SL --> SP["Structured Preview"]
-    end
+  IN["Web / WeChat"] --> R{"routing.md"}
+  R -->|create_record| INT["interview.md"]
+  R -->|query_*| QRY["query.md"]
+  R -->|general| GEN["general.md"]
+  R -->|create_task| CTK["params only"]
 
-    subgraph advance_interview
-        DB[("interview_sessions DB")] --> IL["Interview LLM<br/>patient-interview.md"]
-        IL --> ER["extracted fields +<br/>suggested_reply"]
-    end
+  style R fill:#fff3e0,color:#e65100
+  style INT fill:#e8f5e9,color:#1b5e20
+  style QRY fill:#e3f2fd,color:#0d47a1
+  style GEN fill:#e3f2fd,color:#0d47a1
+  style CTK fill:#f5f5f5,color:#616161
 ```
-
-### Standalone Prompts (not in agent pipeline)
 
 ```mermaid
 flowchart LR
-    IMG["Medical Image"] --> OCR["Vision LLM<br/>vision-ocr.md"]
-    OCR --> TXT["Plain Text"]
+  IMG["Photo"] -->|OCR| OCR["vision-ocr.md"]
+  OCR --> EXT2["doctor-extract.md"]
+  DIC["Voice / Paste"] --> EXT2
+  EXT2 -->|pre-populate| INT
+  TXT["Doctor types"] --> INT["interview.md<br/>review + fill gaps"]
+  INT -->|confirm| EXT["doctor-extract.md"]
+  EXT --> REC["MedicalRecord"]
+  REC --> DX["diagnosis.md"]
 
-    IMG2["Record Photo"] --> VI["Vision LLM<br/>vision-import.md"]
-    VI --> SF["Structured Fields<br/>+ Patient Info"]
-
-    REC["Stored Records"] --> RE["Report LLM<br/>report-extract.md"]
-    RE --> RPT["Outpatient Report<br/>Fields"]
+  style OCR fill:#e1bee7
+  style EXT2 fill:#bbdefb
+  style INT fill:#e8f5e9,color:#1b5e20
+  style EXT fill:#a5d6a7
+  style DX fill:#fff3e0,color:#e65100
+  style REC fill:#f5f5f5,stroke:#9e9e9e
 ```
 
-## Prompt Index
+### Patient Pipeline
 
-### Agent System Prompts
+```mermaid
+flowchart LR
+  PAT["Patient Portal"] --> PI["patient-interview.md"]
+  PI -->|loop| PAT
+  PI -->|done| EXT["patient-extract.md"]
+  EXT --> REC["MedicalRecord"] --> TASK["Review task"]
 
-| File | Role | Template vars | Description |
-|------|------|---------------|-------------|
-| `doctor-agent.md` | Doctor | `{current_date}`, `{timezone}`, `{tools_section}` | Doctor agent system prompt — clinical collection, tool usage rules, examples |
-| `patient-agent.md` | Patient | `{current_date}`, `{timezone}` | Patient agent system prompt — interview orchestration, off-topic handling, scope boundaries |
+  style PI fill:#e8f5e9,color:#1b5e20
+  style EXT fill:#a5d6a7
+  style REC fill:#f5f5f5,stroke:#9e9e9e
+  style TASK fill:#fff3e0,color:#e65100
+```
 
-### Tool-Internal Prompts
+### Composition Patterns
 
-| File | Called by | Template vars | Description |
-|------|----------|---------------|-------------|
-| `structuring.md` | `create_record`, `update_record` | _(receives session history)_ | Conversation → structured medical record (content + structured JSON) |
-| `patient-interview.md` | `advance_interview` | `{name}`, `{gender}`, `{age}`, `{previous_history}`, `{collected_json}`, `{missing_fields}` | Clinical field extraction + next-question suggestion for patient pre-consultation |
+| Pattern | System msg | User msg | Used by |
+|---------|-----------|----------|---------|
+| **A** single-turn | base + intent | KB + context + msg | routing, query, general, diagnosis |
+| **B** conversation | base + domain + intent + KB + ctx | history turns | interview, patient-interview |
+| **C** direct | prompt only (or none) | template.format(vars) | doctor-extract, patient-extract, vision-ocr |
 
-### Standalone Prompts
+## Assembly Patterns
 
-| File | Used by | Template vars | Description |
-|------|---------|---------------|-------------|
-| `report-extract.md` | `services/export/outpatient_report.py` | `{records_text}` | Extract outpatient report fields from stored records |
-| `vision-import.md` | `services/record_import/vision_import.py` | _(image input)_ | Extract structured fields + patient info from medical record photos |
-| `vision-ocr.md` | `services/ai/vision.py` | _(image input)_ | Plain-text OCR for medical documents |
+Three patterns are used to build LLM input from prompts:
 
-### Deprecated (deleted)
+### Pattern A: Composer Single-Turn
 
-| File | Replaced by | Reason |
-|------|------------|--------|
-| ~~`understand.md`~~ | `doctor-agent.md` + LangChain agent | Agent LLM handles intent reasoning directly |
-| ~~`patient-chat.md`~~ | `patient-agent.md` + ReAct agent | WeChat patient pipeline migrated to `handle_turn("patient")` |
+```
+system = common/base.md + [domain/{specialty}.md] + intent/{intent}.md
+user   = <doctor_knowledge>KB</> + <patient_context>ctx</> + <doctor_request>msg</>
+```
+
+Used by: routing, query, general, diagnosis
+
+### Pattern B: Composer Conversation
+
+```
+system  = common/base.md + domain/{specialty}.md + intent/{intent}.md + KB + patient_context
+history = user/assistant turns (full multi-turn conversation)
+user    = (latest turn or empty)
+```
+
+Used by: interview, patient-interview
+
+### Pattern C: Direct (no composer)
+
+```
+[system = prompt.md]              ← some have system msg, some don't
+user    = template.format(vars)   ← or image + text for vision
+```
+
+Used by: doctor-extract, patient-extract, vision-ocr
+
+## Prompt Workflow Map
+
+| # | Prompt | Trigger | Pattern | LLM Input | Model | Output |
+|---|--------|---------|---------|-----------|-------|--------|
+| 1 | common/base.md | Every call | Layer 1 | Always first in system msg | All | N/A (foundation) |
+| 2 | domain/neurology.md | create_record, review, patient-interview | Layer 2 | Appended after base.md | All | N/A (knowledge ref) |
+| 3 | routing.md | Every doctor message | A | `sys: base+routing` → `user: msg` + 5 history turns | ROUTING_LLM | `RoutingResult` |
+| 4 | interview.md | Doctor dictation session | B | `sys: base+domain+interview+KB+ctx` → full history | CONVERSATION_LLM | `InterviewLLMResponse` |
+| 5 | patient-interview.md | Patient pre-consult | B | `sys: base+domain+patient-interview+KB+ctx` → full history | CONVERSATION_LLM | `InterviewLLMResponse` |
+| 6 | query.md | "查病历" / "我的任务" / "所有患者" | A | `sys: base+query` → `user: KB + records_json + msg` | ROUTING_LLM | Plain text |
+| 7 | general.md | Greetings / off-topic | A | `sys: base+general` → `user: msg` | ROUTING_LLM | Plain text |
+| 8 | diagnosis.md | "Review & AI" button | A | `sys: base+domain+diagnosis+KB` → `user: record_fields` | ROUTING_LLM | `DiagnosisResponse` |
+| 9 | vision-ocr.md | Photo upload (OCR step) | C | `sys: vision-ocr.md` → `user: [image] + request` | VISION_LLM | Plain text |
+| 10 | doctor-extract.md | Interview confirm, voice/paste, photo OCR | C | `user: prompt.format(name,gender,age,transcript)` | ROUTING_LLM | `DoctorExtractResult` |
+| 11 | patient-extract.md | Patient interview confirm | C | `user: prompt.format(name,gender,age,transcript)` | ROUTING_LLM | `PatientExtractResult` |
+
+### LLM Providers
+
+| Env Var | Default | Used By |
+|---------|---------|---------|
+| `ROUTING_LLM` | groq (qwen3-32b) | routing, query, general, diagnosis, extract |
+| `CONVERSATION_LLM` | falls back to ROUTING_LLM | interview, patient-interview |
+| `STRUCTURING_LLM` | groq (qwen3-32b) | voice/paste extraction (uses doctor-extract.md) |
+| `VISION_LLM` | ollama (qwen3-vl:8b) | vision-ocr |
+
+### Response Models
+
+All structured outputs use `instructor` (`structured_call` + Pydantic model). Plain text outputs use `llm_call`.
+
+| Model | Method | Fields | Used By |
+|-------|--------|--------|---------|
+| `RoutingResult` | instructor | intent, patient_name, params, deferred | routing |
+| `InterviewLLMResponse` | instructor | reply, extracted (ExtractedClinicalFields), suggestions | interview, patient-interview |
+| `DoctorExtractResult` | instructor | 14 clinical fields (all Optional[str]) | doctor-extract |
+| `PatientExtractResult` | instructor | 7 history fields (all Optional[str]) | patient-extract |
+| `DiagnosisResponse` | instructor | differentials, workup, treatment, red_flags | diagnosis |
+| _(plain text)_ | llm_call | raw string | query, general, vision-ocr |
+
+## Field Standard
+
+All extraction prompts follow **《病历书写基本规范》(卫医政发〔2010〕11号)** outpatient record structure:
+
+| Group | Fields |
+|-------|--------|
+| 病史 (7) | chief_complaint, present_illness, past_history, allergy_history, family_history, personal_history, marital_reproductive |
+| 检查 (3) | physical_exam, specialist_exam, auxiliary_exam |
+| 诊断 (1) | diagnosis |
+| 处置 (2) | treatment_plan, orders_followup |
+| 科别 (1) | department |
+
+**14 fields total.** Patient-mode extraction uses only the 7 病史 fields.
+
+## Notes
+
+- **Pattern C prompts skip base.md** — doctor-extract, patient-extract, and vision-ocr don't receive safety rules from common/base.md. They rely on inline constraints in the prompt itself.
+- **query.md serves 3 intents** — query_record, query_task, query_patient all use the same prompt via LayerConfig.
+- **{current_date} injection** — `prompt_composer.py:_inject_date()` replaces `{current_date}` in all composer-assembled prompts. Pattern C prompts must include it in their own template if needed.
+
+## Regression Tests
+
+```bash
+cd tests/prompts && ./run.sh          # run all 43 tests
+./run.sh doctor-extract routing       # run specific prompts
+npx promptfoo view                    # open results UI
+```
+
+Config: `tests/prompts/promptfooconfig.yaml`
+Test cases: `tests/prompts/cases/{prompt}.yaml`
+Wrappers: `tests/prompts/wrappers/{prompt}.md`

@@ -1,37 +1,27 @@
 """
-将医生口述或文字转换为结构化病历 JSON，支持多轮提示和系统提示覆盖。
+将医生口述或文字转换为结构化病历，使用 doctor-extract.md 提取字段，
+再由 generate_content() 生成可读文本。
 """
 
 from __future__ import annotations
 
 import asyncio
-import json
 import os
-from typing import Dict, List, Optional
-
-from pydantic import BaseModel, Field
+from typing import Optional
 
 from db.models.medical_record import MedicalRecord
-from infra.llm.client import _PROVIDERS  # shared provider registry
+from domain.patients.interview_summary import (
+    DoctorExtractResult,
+    generate_content,
+    extract_tags,
+)
+from infra.llm.client import _PROVIDERS
 from infra.llm.resilience import call_with_retry_and_fallback
 from infra.observability.observability import trace_block
 from utils.log import log
 
 
-class StructuringLLMResponse(BaseModel):
-    """Response model for the structuring LLM call.
-
-    Mirrors MedicalRecord but with relaxed validation so that
-    structured_call can parse the LLM output; post-processing
-    coerces fields to the stricter MedicalRecord schema.
-    """
-
-    content: str = Field(default="", description="LLM-organised clinical note")
-    structured: Optional[Dict[str, str]] = Field(
-        default=None, description="SOAP fields dict"
-    )
-    tags: List[str] = Field(default_factory=list, description="Keyword tags")
-    record_type: str = Field(default="visit", description="Record type")
+_NO_CLINICAL_CONTENT = "__NO_CLINICAL_CONTENT__"
 
 
 def _resolve_provider(provider_name: str) -> dict:
@@ -65,37 +55,30 @@ def _resolve_provider(provider_name: str) -> dict:
     return provider
 
 
-async def _get_system_prompt() -> str:
-    """Load structuring prompt from DB, appending optional extension if set."""
-    from utils.prompt_loader import get_prompt
-    base = await get_prompt("structuring")
-    extension = await get_prompt("structuring.extension", "")
-    if extension.strip():
-        return base + "\n\n" + extension.strip()
-    return base
+def _load_extract_prompt() -> str:
+    """Load doctor-extract prompt template."""
+    from utils.prompt_loader import get_prompt_sync
+    return get_prompt_sync("intent/doctor-extract")
 
 
-async def _build_system_prompt() -> str:
-    """Load structuring system prompt."""
-    with trace_block("llm", "structuring.load_prompt"):
-        return await _get_system_prompt()
-
-
-async def _structured_call_for_structuring(
-    system_prompt: str,
-    user_content: str,
+async def _extract_fields(
+    text: str,
     env_var: str = "STRUCTURING_LLM",
-) -> StructuringLLMResponse:
-    """Call the LLM via shared structured_call helper."""
+) -> DoctorExtractResult:
+    """Extract 14 clinical fields from raw text using doctor-extract.md."""
     from agent.llm import structured_call
 
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_content},
-    ]
+    template = _load_extract_prompt()
+    prompt = template.format(
+        name="未知",
+        gender="未知",
+        age="未知",
+        transcript=text,
+    )
+
     return await structured_call(
-        response_model=StructuringLLMResponse,
-        messages=messages,
+        response_model=DoctorExtractResult,
+        messages=[{"role": "user", "content": prompt}],
         op_name="structuring",
         env_var=env_var,
         temperature=0,
@@ -106,16 +89,14 @@ async def _structured_call_for_structuring(
 async def _try_cloud_fallback(
     original_err: Exception,
     provider_name: str,
-    system_prompt: str,
-    user_content: str,
-) -> StructuringLLMResponse:
+    text: str,
+) -> DoctorExtractResult:
     """Attempt cloud fallback when primary (usually ollama) fails entirely."""
     _cloud_fallback = (
         os.environ.get("OLLAMA_CLOUD_FALLBACK", "").strip() if provider_name == "ollama" else ""
     )
     if not _cloud_fallback:
         raise original_err
-    # PHI egress gate: block cloud fallback unless explicitly allowed.
     from infra.llm.egress import check_cloud_egress
     check_cloud_egress(_cloud_fallback, "structuring", original_error=original_err)
     log(f"[structuring:ollama] all retries failed ({original_err}); trying cloud fallback={_cloud_fallback}")
@@ -123,129 +104,93 @@ async def _try_cloud_fallback(
     if _cloud_provider is None:
         raise original_err
 
-    # Set the cloud provider as a temporary env override for structured_call
     _cloud_timeout = float(os.environ.get("STRUCTURING_CLOUD_FALLBACK_TIMEOUT", "3.0"))
+    old_val = os.environ.get("_STRUCTURING_CLOUD_FALLBACK", "")
+    os.environ["_STRUCTURING_CLOUD_FALLBACK"] = _cloud_fallback
     try:
-        # Use the cloud provider name directly as the env var value won't work;
-        # set a temporary env var for the call.
-        old_val = os.environ.get("_STRUCTURING_CLOUD_FALLBACK", "")
-        os.environ["_STRUCTURING_CLOUD_FALLBACK"] = _cloud_fallback
-        try:
-            return await asyncio.wait_for(
-                _structured_call_for_structuring(
-                    system_prompt, user_content,
-                    env_var="_STRUCTURING_CLOUD_FALLBACK",
-                ),
-                timeout=_cloud_timeout,
-            )
-        finally:
-            if old_val:
-                os.environ["_STRUCTURING_CLOUD_FALLBACK"] = old_val
-            else:
-                os.environ.pop("_STRUCTURING_CLOUD_FALLBACK", None)
-    except asyncio.TimeoutError:
-        log("[structuring] cloud fallback timed out")
-        raise
+        return await asyncio.wait_for(
+            _extract_fields(text, env_var="_STRUCTURING_CLOUD_FALLBACK"),
+            timeout=_cloud_timeout,
+        )
+    finally:
+        if old_val:
+            os.environ["_STRUCTURING_CLOUD_FALLBACK"] = old_val
+        else:
+            os.environ.pop("_STRUCTURING_CLOUD_FALLBACK", None)
 
 
-_NO_CLINICAL_CONTENT = "__NO_CLINICAL_CONTENT__"
-
-
-def _coerce_content(data: dict, text: str, provider_name: str) -> dict:
-    """将 content 字段强制转换为字符串，空值时从原始文本派生。"""
-    content_val = data.get("content")
-    if content_val is None or not isinstance(content_val, str):
-        if isinstance(content_val, list):
-            data["content"] = "；".join(str(x) for x in content_val if x)
-        elif isinstance(content_val, dict):
-            data["content"] = "；".join(f"{k}：{v}" for k, v in content_val.items())
-        elif content_val is not None:
-            data["content"] = str(content_val)
-    if not (data.get("content") or "").strip():
-        data["content"] = _NO_CLINICAL_CONTENT
-        log(f"[structuring:{provider_name}] content was empty, returning sentinel")
-    return data
-
-
-def _validate_structured(structured: object) -> object:
-    """Validate and clean the structured dict; return None if invalid."""
-    if not isinstance(structured, dict):
-        return None
-    # Keep only recognized outpatient field keys
-    _VALID_KEYS = {
-        "visit_type", "chief_complaint", "present_illness", "past_history",
-        "allergy_history", "personal_history", "marital_reproductive",
-        "family_history", "physical_exam", "specialist_exam",
-        "auxiliary_exam", "diagnosis", "treatment_plan", "orders_followup",
-    }
-    cleaned = {k: str(v) for k, v in structured.items() if k in _VALID_KEYS and v}
-    return cleaned if cleaned else None
-
-
-def _validate_and_coerce_fields(data: dict, text: str, provider_name: str) -> dict:
-    """Validate required fields and coerce types to match MedicalRecord schema."""
-    if isinstance(data, list):
-        data = data[0] if data else {}
-
-    if not isinstance(data, dict) or "content" not in data:
-        log("[structuring] WARNING: LLM response missing 'content' field")
-        if not isinstance(data, dict):
-            data = {}
-        data.setdefault("content", _NO_CLINICAL_CONTENT)
-
-    data.pop("specialty_scores", None)
-
-    data = _coerce_content(data, text, provider_name)
-
-    # Validate structured field
-    data["structured"] = _validate_structured(data.get("structured"))
-
-    tags_val = data.get("tags")
-    if not isinstance(tags_val, list):
-        data["tags"] = []
-    else:
-        data["tags"] = [str(t) for t in tags_val if t]
-
-    rt = data.get("record_type")
-    if not isinstance(rt, str) or not rt.strip():
-        data["record_type"] = "visit"
-
-    return data
-
-
-async def structure_medical_record(
-    text: str,
-    doctor_id: Optional[str] = None,
-) -> MedicalRecord:
-    """将文本转换为结构化 MedicalRecord。"""
+async def extract_fields_from_text(text: str) -> dict:
+    """Extract 14 clinical fields from raw text. Returns dict of field→value."""
     provider_name = os.environ.get("STRUCTURING_LLM", "deepseek")
     provider = _resolve_provider(provider_name)
     model_name = provider.get("model", "deepseek-chat")
     _tag = f"[structuring:{provider_name}:{model_name}]"
     log(f"{_tag} request: {text[:80]}")
 
-    # Ensure STRUCTURING_LLM is set for structured_call provider resolution
-    # (original default is "deepseek", but structured_call defaults to "groq")
     if not os.environ.get("STRUCTURING_LLM"):
         os.environ["STRUCTURING_LLM"] = provider_name
 
-    system_prompt = await _build_system_prompt()
-
-    # Use structured_call (instructor) for reliable structured output.
-    # Falls back to cloud provider if primary (ollama) fails.
     try:
-        result = await _structured_call_for_structuring(
-            system_prompt, text, env_var="STRUCTURING_LLM",
-        )
+        result = await _extract_fields(text, env_var="STRUCTURING_LLM")
     except Exception as primary_err:
-        result = await _try_cloud_fallback(
-            primary_err, provider_name, system_prompt, text,
-        )
+        result = await _try_cloud_fallback(primary_err, provider_name, text)
 
-    # Convert instructor result to dict for existing validation/coercion pipeline
-    data = result.model_dump()
-    log(f"{_tag} response: {data}")
+    collected = {
+        k: v.strip()
+        for k, v in result.model_dump().items()
+        if isinstance(v, str) and v.strip()
+    }
 
-    data = _validate_and_coerce_fields(data, text, provider_name)
+    log(f"{_tag} extracted {len(collected)} fields: {list(collected.keys())}")
+    return collected
 
-    return MedicalRecord.model_validate(data)
+
+async def text_to_interview(
+    text: str,
+    doctor_id: str,
+    patient_id: Optional[int] = None,
+) -> dict:
+    """Extract fields from text → create interview session for doctor review.
+
+    Returns dict with session_id and pre-populated fields.
+    """
+    fields = await extract_fields_from_text(text)
+
+    from domain.patients.interview_session import create_session
+
+    session = await create_session(
+        doctor_id=doctor_id,
+        patient_id=patient_id,
+        mode="doctor",
+        initial_fields=fields,
+    )
+
+    log(f"[structuring] session={session.id} pre-populated={len(fields)} fields")
+
+    return {
+        "session_id": session.id,
+        "mode": "doctor",
+        "source": "text_import",
+        "pre_populated": fields,
+    }
+
+
+async def structure_medical_record(
+    text: str,
+    doctor_id: Optional[str] = None,
+) -> MedicalRecord:
+    """将文本转换为结构化 MedicalRecord (legacy — direct save without review)."""
+    collected = await extract_fields_from_text(text)
+
+    content = generate_content(collected)
+    if not content:
+        content = _NO_CLINICAL_CONTENT
+
+    tags = extract_tags(collected)
+
+    return MedicalRecord(
+        content=content,
+        structured=collected if collected else None,
+        tags=tags,
+        record_type="visit",
+    )

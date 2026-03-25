@@ -17,12 +17,14 @@ from db.models.doctor import KnowledgeCategory
 class LayerConfig:
     """Which prompt layers an intent uses.
 
+    Layers: common/base.md → domain/{specialty}.md → intent/{intent}.md
+
     conversation_mode:
       False (default) = Pattern 1 (single-turn): L1-3 system, L4-6 user with XML tags
       True = Pattern 2 (conversation): L1-5 system, history, L6 user plain text
     """
     system: bool = True
-    common: bool = False
+    domain: bool = False
     intent: str = "general"
     knowledge_categories: List[KnowledgeCategory] = field(default_factory=list)
     patient_context: bool = False
@@ -32,7 +34,7 @@ class LayerConfig:
 # ── Intent → LayerConfig mapping ──────────────────────────────────
 # This IS the matrix from the design doc. Keep in sync.
 #
-# Intent             | System | Common | Intent      | Dr Knowledge                  | Patient Ctx
+# Intent             | Common | Domain | Intent      | Dr Knowledge                  | Patient Ctx
 # -------------------|--------|--------|-------------|-------------------------------|------------
 # query_record       |   ✓    |        | query       | custom                        |      ✓
 # create_record      |   ✓    |   ✓    | interview   | interview_guide+red_flag+custom|      ✓
@@ -48,7 +50,7 @@ INTENT_LAYERS: dict[IntentType, LayerConfig] = {
         patient_context=True,
     ),
     IntentType.create_record: LayerConfig(
-        common=True,
+        domain=True,
         intent="interview",
         knowledge_categories=[
             KnowledgeCategory.interview_guide,
@@ -94,7 +96,7 @@ ROUTING_LAYERS = LayerConfig(
 )
 
 REVIEW_LAYERS = LayerConfig(
-    common=True,
+    domain=True,
     intent="diagnosis",
     knowledge_categories=[
         KnowledgeCategory.diagnosis_rule,
@@ -106,7 +108,7 @@ REVIEW_LAYERS = LayerConfig(
 )
 
 PATIENT_INTERVIEW_LAYERS = LayerConfig(
-    common=True,
+    domain=True,
     intent="patient-interview",
     knowledge_categories=[
         KnowledgeCategory.interview_guide,

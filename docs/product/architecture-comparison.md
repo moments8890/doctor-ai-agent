@@ -479,7 +479,7 @@ user-invocable: true
 **接入的权威数据源**：PubMed, ClinVar, gnomAD, COSMIC, ChEMBL, DrugBank, UniProt, KEGG
 **临床指南引用**：NICE, WHO, ADA, AHA/ACC, NCCN, CPIC
 
-**注意**：这些技能是**科研导向**（生物信息学、基因组学、药物发现），而非**临床工作流导向**（SOAP 病历管理、患者采集、任务调度）。
+**注意**：这些技能是**科研导向**（生物信息学、基因组学、药物发现），而非**临床工作流导向**（结构化病历管理、患者采集、任务调度）。
 
 ### 9.6 存储与配置
 

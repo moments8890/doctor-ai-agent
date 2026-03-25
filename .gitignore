@@ -54,3 +54,4 @@ logs/turn_log.jsonl
 train
 .env.local
 .gstack/
+tests/prompts/.env

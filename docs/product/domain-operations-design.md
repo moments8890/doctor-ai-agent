@@ -243,7 +243,7 @@ fields are incomplete after interview, the record enters "pending_review".
 - PDF per record (`/api/export/record/{id}/pdf`)
 - Outpatient report JSON (`/api/export/patient/{id}/outpatient-report`)
 
-Export renders directly from SOAP columns — no separate extraction step
+Export renders directly from clinical columns — no separate extraction step
 needed. The `medical_record_exports` audit table is killed; export events
 are logged to `audit_log` (action=EXPORT, resource_type=record).
 
@@ -423,24 +423,24 @@ medical_records
   status — (str, Enum: interview_active|pending_review|completed),
   tags (JSON),
   department,
-  — SOAP: Subjective
+  — 病史
   chief_complaint, present_illness, past_history,
   allergy_history, personal_history, marital_reproductive,
   family_history,
-  — SOAP: Objective
+  — 检查
   physical_exam, specialist_exam, auxiliary_exam,
-  — SOAP: Assessment
+  — 诊断
   diagnosis, ai_diagnosis (JSON), doctor_decisions (JSON),
-  — SOAP: Plan
+  — 处置
   treatment_plan, orders_followup, suggested_tasks (JSON),
   — Outcome (absorbs case_history fields)
   final_diagnosis, treatment_outcome, key_symptoms,
   — Meta
-  content (denormalized text summary, computed from SOAP fields),
+  content (denormalized text summary, computed from 病历字段),
   created_at, updated_at
 
   Design decisions:
-  — SOAP columns replace structured JSON — queryable, indexable
+  — Clinical columns replace structured JSON — queryable, indexable
   — Append-only versioning: edits create new row with version_of
     pointing to the original. Current record = version_of IS NULL
     or latest in the version chain. Kills medical_record_versions.
@@ -507,7 +507,7 @@ interview_sessions
   collected (JSON), conversation (JSON),
   turn_count, created_at, updated_at
   — Justification: interview is a stateful multi-turn flow tracking
-    which of 14 SOAP fields are collected. Reconstructing from chat log
+    which of 14 病历字段 are collected. Reconstructing from chat log
     every turn would be wasteful and error-prone.
 ```
 
@@ -541,7 +541,7 @@ scheduler_leases
 | `medical_record_exports` | Just a PDF generation log. Track in audit_log if needed. |
 | `patient_labels` + assignments | Nice-to-have. patients.category_tags JSON is sufficient for MVP. |
 | `diagnosis_results` | Folded into medical_records (ai_diagnosis, doctor_decisions, suggested_tasks columns). |
-| `case_history` | Absorbed into medical_records SOAP columns (final_diagnosis, treatment_outcome, key_symptoms). "Similar cases" = query medical_records by chief_complaint/key_symptoms — real columns, indexable. |
+| `case_history` | Absorbed into medical_records clinical columns (final_diagnosis, treatment_outcome, key_symptoms). "Similar cases" = query medical_records by chief_complaint/key_symptoms — real columns, indexable. |
 | `review_queue` | Redundant. medical_records WHERE status='pending_review' IS the queue. |
 | `pending_records` | Redundant. Interview sessions replace the pending draft flow. Record creation goes through `interview_sessions` table (multi-turn), not one-shot pending drafts with confirm/abandon. The confirm/abandon regex fast paths in `handle_turn.py` are removed — interview has its own confirm/abandon via the interview API. |
 | `pending_messages` | WeChat retry queue. Move to application-level retry, not core data. |
@@ -685,7 +685,7 @@ prompts/
   intent/interview.md         ← Layer 3: doctor interview + 4 examples
   intent/patient-interview.md ← Layer 3: patient pre-consultation + 3 examples
   intent/diagnosis.md         ← Layer 3: differential diagnosis + 2 examples
-  intent/structuring.md       ← Layer 3: text → SOAP + 3 examples
+  intent/structuring.md       ← Layer 3: text → structured record + 3 examples
   intent/query.md             ← Layer 3: query summary rules
   intent/create-task.md       ← Layer 3: task creation rules
   intent/general.md           ← Layer 3: fallback/chitchat
@@ -833,7 +833,7 @@ Known breakages to fix in Phase 3:
 
 Delivered:
 - `doctor_wechat` and `patient_auth` tables created
-- 20 SOAP columns added to `medical_records` (department, 7 subjective,
+- 20 clinical columns added to `medical_records` (department, 7 subjective,
   3 objective, 3 assessment, 3 plan, 3 outcome fields)
 - `version_of` FK for append-only versioning
 - `RecordStatus` enum (interview_active, pending_review, completed)
@@ -882,14 +882,14 @@ Delivered:
 - Chat endpoint passes `view_payload` with `session_id` to frontend
 - Frontend detects `session_id` → navigates to interview UI
 - Interview UI loads existing session via `GET /session/{id}` (conversation history)
-- Interview confirm saves SOAP fields directly to `medical_records`
+- Interview confirm saves 病历字段 directly to `medical_records`
   (no structuring LLM, no pending_records)
 - Tasks page: graceful handling of deleted review-queue endpoint
 
 #### Phase 7: Prompt Rewrite — COMPLETE (2026-03-23)
 
 Delivered:
-- Doctor-interview: 4 few-shot examples (multi-field extraction + SOAP checklist)
+- Doctor-interview: 4 few-shot examples (multi-field extraction + 病历清单)
 - Diagnosis: full case example (differentials + workup + treatment)
 - Routing: output format section removed (instructor handles schema)
 - Dead code: `_build_system_prompt`, `_get_prompt`, `get_diagnosis_skill` removed

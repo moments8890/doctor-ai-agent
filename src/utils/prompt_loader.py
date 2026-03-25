@@ -1,7 +1,7 @@
 """Prompt loader — reads prompts from ``prompts/*.md`` files.
 
 Each prompt lives in its own Markdown file.  The file stem is the key:
-``get_prompt("structuring")`` reads ``prompts/structuring.md``.
+``get_prompt("intent/doctor-extract")`` reads ``prompts/intent/doctor-extract.md``.
 
 Files are read once and cached in memory for the process lifetime.
 Call ``invalidate()`` to clear the cache (e.g. after hot-reloading files).

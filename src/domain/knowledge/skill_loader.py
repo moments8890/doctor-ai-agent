@@ -16,7 +16,6 @@ SKILLS_DIR = Path(__file__).parent / "skills"
 
 
 class SkillType(str, Enum):
-    structuring = "structuring"
     routing = "routing"
     clinical_signals = "clinical_signals"
     diagnosis = "diagnosis"
@@ -99,7 +98,7 @@ def load_skills(specialty: str) -> Dict[SkillType, str]:
                 continue
             stype, body = _parse_skill_file(f)
             if stype and body:
-                if stype == SkillType.structuring and stype in skills:
+                if stype in skills:
                     # Merge: default + specialty
                     skills[stype] = skills[stype] + "\n\n" + body
                 else:
@@ -114,10 +113,6 @@ def get_skill(specialty: str, skill_type: SkillType) -> Optional[str]:
     skills = load_skills(specialty)
     return skills.get(skill_type)
 
-
-def get_structuring_skill(specialty: str) -> str:
-    """Merged _default/structuring.md + {specialty}/structuring.md."""
-    return get_skill(specialty, SkillType.structuring) or ""
 
 
 def get_clinical_signals(specialty: str) -> Optional[str]:

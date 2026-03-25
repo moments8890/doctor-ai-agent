@@ -1,0 +1,138 @@
+# Test cases for doctor-extract.md
+# Prompt: doctor dictation multi-turn conversation → 14-field structured JSON
+# Fields: department, chief_complaint, present_illness, past_history,
+#   allergy_history, family_history, personal_history, marital_reproductive,
+#   physical_exam, specialist_exam, auxiliary_exam, diagnosis,
+#   treatment_plan, orders_followup
+
+- description: "doctor-extract: standard multi-turn neuro case"
+  options:
+    prompts: [doctor-extract]
+  vars:
+    name: "张三"
+    gender: "男"
+    age: "55"
+    transcript: |
+      医生：张三，男55岁，头痛两周加重三天。
+      AI助手：好的，记录了主诉信息。
+      医生：伴恶心呕吐，无发热。高血压十年，吃氨氯地平。青霉素过敏。
+      AI助手：收到，补充了现病史和既往史。
+      医生：查体BP 150/90，神清，颈软，四肢肌力正常。
+      医生：头颅MRI提示右侧颞叶占位。初步诊断右颞叶占位性病变。
+      医生：先收住院，完善术前检查，择期手术。1个月后复查MRI。
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.chief_complaint && obj.chief_complaint.includes('头');
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.diagnosis && obj.diagnosis.includes('占位');
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.allergy_history && obj.allergy_history.includes('青霉素');
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.past_history && obj.past_history.includes('高血压');
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.auxiliary_exam && obj.auxiliary_exam.includes('MRI');
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.treatment_plan && obj.treatment_plan.length > 0;
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.orders_followup && obj.orders_followup.includes('复查');
+
+- description: "doctor-extract: dedup — repeated lab values appear once"
+  options:
+    prompts: [doctor-extract]
+  vars:
+    name: "李四"
+    gender: "男"
+    age: "48"
+    transcript: |
+      医生：李四，胸痛两小时。
+      AI助手：收到主诉。
+      医生：hs-cTnI 3.2，心电图ST段抬高。
+      AI助手：记录了辅助检查。
+      医生：诊断急性下壁STEMI。hs-cTnI是3.2，ECG也做了，ST段抬高。
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        // hs-cTnI should appear exactly once after dedup
+        const obj = JSON.parse(output);
+        const exam = obj.auxiliary_exam || '';
+        const matches = exam.match(/hs-cTnI/gi) || [];
+        return matches.length === 1;
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.diagnosis && obj.diagnosis.includes('STEMI');
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.chief_complaint && obj.chief_complaint.includes('胸痛');
+
+- description: "doctor-extract: correction — use corrected BP value"
+  options:
+    prompts: [doctor-extract]
+  vars:
+    name: "赵六"
+    gender: "男"
+    age: "62"
+    transcript: |
+      医生：赵六，血压180/100。
+      AI助手：记录了体检结果。
+      医生：等一下，刚才看错了，血压是150/90。无药物过敏。
+      医生：考虑高血压2级，门诊随访。
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        // BP should be corrected to 150/90, NOT contain 180/100
+        const obj = JSON.parse(output);
+        const pe = obj.physical_exam || '';
+        return pe.includes('150/90') && !pe.includes('180/100');
+    - type: javascript
+      value: |
+        // Diagnosis must preserve "考虑" qualifier
+        const obj = JSON.parse(output);
+        return obj.diagnosis && obj.diagnosis.includes('考虑');
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.allergy_history === '无';
+
+- description: "doctor-extract: empty greeting — all fields empty"
+  options:
+    prompts: [doctor-extract]
+  vars:
+    name: "测试"
+    gender: "男"
+    age: "30"
+    transcript: |
+      医生：你好
+      AI助手：您好，请问有什么需要记录的？
+      医生：没什么，随便看看。
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        // All clinical fields should be empty when input is just greetings
+        const obj = JSON.parse(output);
+        const fields = [
+          'department', 'chief_complaint', 'present_illness', 'past_history',
+          'allergy_history', 'family_history', 'personal_history',
+          'marital_reproductive', 'physical_exam', 'specialist_exam',
+          'auxiliary_exam', 'diagnosis', 'treatment_plan', 'orders_followup'
+        ];
+        return fields.every(f => obj[f] === '' || obj[f] === undefined);

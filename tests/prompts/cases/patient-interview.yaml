@@ -1,0 +1,81 @@
+# Test cases for patient-interview.md
+# Prompt: patient pre-consultation interview mode
+# Output: JSON with extracted (fields), reply (Chinese), complete (boolean)
+
+- description: "patient-interview: chest pain — normal interview, no escalation"
+  options:
+    prompts: [patient-interview]
+  vars:
+    collected: "{}"
+    patient_input: "我胸口很痛，喘不上气"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        const e = obj.extracted || {};
+        // Should extract chief_complaint with chest pain info
+        return e.chief_complaint && (e.chief_complaint.includes('胸') || e.chief_complaint.includes('痛'));
+    - type: javascript
+      value: |
+        // Reply should ask follow-up questions (normal interview flow)
+        const obj = JSON.parse(output);
+        return obj.reply && obj.reply.length > 10 && obj.reply.includes('?') || obj.reply.includes('？');
+
+- description: "patient-interview: phase 1 — chief_complaint extraction + follow-up question"
+  options:
+    prompts: [patient-interview]
+  vars:
+    collected: "{}"
+    patient_input: "我头疼快两周了"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        const e = obj.extracted || {};
+        return e.chief_complaint && e.chief_complaint.includes('头');
+    - type: javascript
+      value: |
+        // reply should ask a follow-up about symptoms
+        const obj = JSON.parse(output);
+        return obj.reply && obj.reply.length > 10;
+    - type: javascript
+      value: |
+        // Should NOT be complete yet — only chief_complaint collected
+        const obj = JSON.parse(output);
+        return obj.complete !== true;
+
+- description: "patient-interview: phase 2 negatives — 没有/没有过敏 maps to 无"
+  options:
+    prompts: [patient-interview]
+  vars:
+    collected: '{"chief_complaint": "头疼近2周", "present_illness": "头痛近2周，持续性，以额部为主"}'
+    patient_input: "没什么大病，没有过敏"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        const e = obj.extracted || {};
+        return e.past_history === '无' || (e.past_history && e.past_history.includes('无'));
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        const e = obj.extracted || {};
+        return e.allergy_history === '无' || (e.allergy_history && e.allergy_history.includes('无'));
+
+- description: "patient-interview: complete flag — all fields collected"
+  options:
+    prompts: [patient-interview]
+  vars:
+    collected: '{"chief_complaint": "头疼近2周", "present_illness": "持续性额部头痛，伴恶心呕吐", "past_history": "高血压5年", "allergy_history": "无", "family_history": "父亲高血压", "personal_history": "不吸烟不饮酒"}'
+    patient_input: "没结婚"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        const e = obj.extracted || {};
+        // Should extract marital status
+        return e.marital_reproductive && e.marital_reproductive.length > 0;

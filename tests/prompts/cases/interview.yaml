@@ -1,0 +1,97 @@
+# Test cases for interview.md
+# Prompt: doctor-driven field extraction in interview mode
+# Output: JSON with extracted (new fields) and reply (Chinese confirmation)
+
+- description: "interview: multi-field extraction — department, chief_complaint, history, physical_exam"
+  options:
+    prompts: [interview]
+  vars:
+    collected: "{}"
+    doctor_input: "患者李四，女56岁，心内科。反复胸痛1周，既往糖尿病10年，口服二甲双胍。查体BP 135/85"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        const e = obj.extracted || {};
+        return e.chief_complaint && e.chief_complaint.includes('胸痛');
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        const e = obj.extracted || {};
+        return e.past_history && e.past_history.includes('糖尿病');
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        const e = obj.extracted || {};
+        return e.physical_exam && e.physical_exam.includes('135/85');
+    - type: javascript
+      value: |
+        // reply should be natural Chinese
+        const obj = JSON.parse(output);
+        return obj.reply && obj.reply.length > 5;
+
+- description: "interview: contradiction correction — allergy updated to latest"
+  options:
+    prompts: [interview]
+  vars:
+    collected: '{"allergy_history": "无"}'
+    doctor_input: "不对，青霉素过敏"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        const e = obj.extracted || {};
+        return e.allergy_history && e.allergy_history.includes('青霉素');
+    - type: javascript
+      value: |
+        // Should NOT still say "无"
+        const obj = JSON.parse(output);
+        const e = obj.extracted || {};
+        return !e.allergy_history || !e.allergy_history.includes('无');
+
+- description: "interview: empty greeting — no fields extracted"
+  options:
+    prompts: [interview]
+  vars:
+    collected: "{}"
+    doctor_input: "你好"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        const e = obj.extracted || {};
+        // No clinical fields should be extracted from a greeting
+        const keys = Object.keys(e);
+        return keys.length === 0;
+    - type: javascript
+      value: |
+        // reply should still exist and be polite
+        const obj = JSON.parse(output);
+        return obj.reply && obj.reply.length > 0;
+
+- description: "interview: negative values — 无 in appropriate fields"
+  options:
+    prompts: [interview]
+  vars:
+    collected: "{}"
+    doctor_input: "无过敏史，无家族遗传病，不吸烟不饮酒"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        const e = obj.extracted || {};
+        return e.allergy_history === '无' || (e.allergy_history && e.allergy_history.includes('无'));
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        const e = obj.extracted || {};
+        return e.family_history && e.family_history.includes('无');
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        const e = obj.extracted || {};
+        return e.personal_history && (e.personal_history.includes('不吸烟') || e.personal_history.includes('不饮酒'));

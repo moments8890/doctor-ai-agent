@@ -21,7 +21,7 @@
 
 ## Critical (blocks production quality)
 
-### 1. Content duplication in SOAP fields — FIXED THIS SESSION
+### 1. Content duplication in clinical fields — FIXED THIS SESSION
 
 **Evidence:**
 - [10-persona report](../../reports/patient_sim/sim-20260324T055635Z.html) → P2, P6, P8, P9, P10 anomaly sections show "内容重复" flagged by 3 LLM judges
@@ -49,7 +49,7 @@
 - P9 孙丽: "患者提到有几次是坐着没动的时候突然发黑" (medium)
 - P10 何静: "患者提到精神紧张和睡眠质量差，但未出现在结构化字段中" (high)
 
-**Root cause:** The prompt's 7 SOAP field definitions don't cover: sleep quality, rehabilitation, coping strategies, medication side effects, functional status, psychological state. These are clinically relevant but fall through the cracks.
+**Root cause:** The prompt's 7 clinical field definitions don't cover: sleep quality, rehabilitation, coping strategies, medication side effects, functional status, psychological state. These are clinically relevant but fall through the cracks.
 
 **Recommended fix:**
 - Add to prompt extraction rules: "如果患者提到以下内容但不属于其他字段，追加到 present_illness：睡眠质量、康复训练、用药副作用、情绪心理、日常活动功能"

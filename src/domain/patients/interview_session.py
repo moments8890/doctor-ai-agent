@@ -24,12 +24,36 @@ class InterviewSession:
     turn_count: int = 0
 
 
-async def create_session(doctor_id: str, patient_id: Optional[int], mode: str = "patient") -> InterviewSession:
-    """Create a new interview session in the DB."""
+async def create_session(
+    doctor_id: str,
+    patient_id: Optional[int],
+    mode: str = "patient",
+    initial_fields: Optional[Dict[str, str]] = None,
+) -> InterviewSession:
+    """Create a new interview session in the DB.
+
+    Args:
+        initial_fields: Pre-extracted fields (from OCR, voice/paste, etc.)
+            to pre-populate the session. Doctor reviews and fills gaps
+            via the interview flow.
+    """
     from db.models.interview_session import InterviewSessionDB
 
     session_id = str(uuid.uuid4())
     now = datetime.utcnow()
+
+    collected = initial_fields or {}
+    conversation: List[Dict[str, Any]] = []
+
+    # If pre-populated, add a system message so the interview LLM knows
+    if initial_fields:
+        fields_summary = "、".join(
+            f"{k}" for k, v in initial_fields.items() if v
+        )
+        conversation.append({
+            "role": "system",
+            "content": f"以下字段已从导入数据中预提取，请医生确认或修改：{fields_summary}",
+        })
 
     async with AsyncSessionLocal() as db:
         db_row = InterviewSessionDB(
@@ -38,8 +62,8 @@ async def create_session(doctor_id: str, patient_id: Optional[int], mode: str = 
             patient_id=patient_id,
             status=InterviewStatus.interviewing,
             mode=mode,
-            collected="{}",
-            conversation="[]",
+            collected=json.dumps(collected, ensure_ascii=False),
+            conversation=json.dumps(conversation, ensure_ascii=False),
             turn_count=0,
             created_at=now,
             updated_at=now,
@@ -47,8 +71,16 @@ async def create_session(doctor_id: str, patient_id: Optional[int], mode: str = 
         db.add(db_row)
         await db.commit()
 
-    log(f"[interview] session created id={session_id} patient={patient_id} doctor={doctor_id} mode={mode}")
-    return InterviewSession(id=session_id, doctor_id=doctor_id, patient_id=patient_id, mode=mode)
+    pre = f" pre-populated={len(collected)} fields" if collected else ""
+    log(f"[interview] session created id={session_id} patient={patient_id} doctor={doctor_id} mode={mode}{pre}")
+    return InterviewSession(
+        id=session_id,
+        doctor_id=doctor_id,
+        patient_id=patient_id,
+        mode=mode,
+        collected=collected,
+        conversation=conversation,
+    )
 
 
 async def load_session(session_id: str) -> Optional[InterviewSession]:

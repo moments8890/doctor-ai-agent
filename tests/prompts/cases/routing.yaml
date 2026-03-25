@@ -1,0 +1,101 @@
+# Test cases for routing.md
+# Prompt: doctor message → intent classification JSON
+# Fields: intent, patient_name, params, deferred
+
+- description: "routing: clinical info + name → create_record"
+  options:
+    prompts: [routing]
+  vars:
+    message: "创建患者赵强，男61岁，急诊。胸痛90分钟伴大汗，下壁STEMI"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.intent === 'create_record';
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.patient_name === '赵强';
+    - type: javascript
+      value: |
+        // Gender and age should be extracted into params
+        const obj = JSON.parse(output);
+        const p = obj.params || {};
+        return p.gender === '男' && p.age === 61;
+
+- description: "routing: implicit create_record — followup + clinical"
+  options:
+    prompts: [routing]
+  vars:
+    message: "王芳复查：肺癌术后CT显示纵隔淋巴结缩小"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.intent === 'create_record';
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.patient_name === '王芳';
+
+- description: "routing: task creation → create_task with title"
+  options:
+    prompts: [routing]
+  vars:
+    message: "给张三安排下周一复查血常规"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.intent === 'create_task';
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.patient_name === '张三';
+    - type: javascript
+      value: |
+        // params.title should contain the task subject
+        const obj = JSON.parse(output);
+        const p = obj.params || {};
+        return p.title && (p.title.includes('复查') || p.title.includes('血常规'));
+    - type: javascript
+      value: |
+        // due_at should capture the time reference
+        const obj = JSON.parse(output);
+        const p = obj.params || {};
+        return p.due_at && p.due_at.includes('周一');
+
+- description: "routing: query → query_record"
+  options:
+    prompts: [routing]
+  vars:
+    message: "查张三的病历"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.intent === 'query_record';
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.patient_name === '张三';
+
+- description: "routing: greeting → general"
+  options:
+    prompts: [routing]
+  vars:
+    message: "你好"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.intent === 'general';
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.patient_name === null || obj.patient_name === undefined;

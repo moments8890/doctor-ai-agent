@@ -1,0 +1,23 @@
+# promptfoo shared config — Doctor AI Agent
+# Used by run.sh which calls promptfoo once per prompt.
+# This file only defines provider + defaults.
+
+description: "Doctor AI Agent — Medical Prompt Evaluation Suite"
+
+providers:
+  - id: openai:chat:qwen/qwen3-32b
+    label: qwen3-32b-groq
+    config:
+      apiBaseUrl: https://api.groq.com/openai/v1
+      temperature: 0
+
+defaultTest:
+  options:
+    timeout: 30000
+    transform: |
+      let text = output;
+      text = text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+      text = text.replace(/^```(?:json)?\s*/m, '').replace(/\s*```\s*$/m, '').trim();
+      return text;
+
+outputPath: tests/prompts/output/results.json

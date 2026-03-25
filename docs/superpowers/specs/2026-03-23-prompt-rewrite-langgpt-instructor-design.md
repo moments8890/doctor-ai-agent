@@ -141,7 +141,7 @@ Keep only: `输出JSON。` (one line, as a reminder)
 |-------------|----------|---------|
 | `tests/fixtures/data/patient_interview_benchmark.json` | 80+ multi-turn interview cases | interview prompts |
 | `tests/fixtures/data/seed_data.json` | 5 patients, 10+ clinical records | structuring, diagnosis |
-| `scripts/seed_ui_data.py` | Realistic SOAP records | structuring, diagnosis |
+| `scripts/seed_ui_data.py` | Realistic structured records | structuring, diagnosis |
 | New (hand-written) | Intent examples | routing, compose |
 
 ### Examples Per Prompt
@@ -149,17 +149,17 @@ Keep only: `输出JSON。` (one line, as a reminder)
 | Prompt | Current | Target | Source | Example Type |
 |--------|---------|--------|--------|-------------|
 | routing | 6 | 6 (keep) | Existing | intent classification |
-| doctor-interview | 0 | 2 | benchmark.json | doctor input → extracted SOAP fields |
+| doctor-interview | 0 | 2 | benchmark.json | doctor input → extracted clinical fields |
 | patient-interview | 3 | 3 (keep) | Existing | patient message → reply + extracted |
-| structuring | 0 | 3 | seed_data.py | clinical text → content + SOAP dict |
-| diagnosis | 0 | 2 | seed_data.py | SOAP fields → differentials + workup |
+| structuring | 0 | 3 | seed_data.py | clinical text → content + structured dict |
+| diagnosis | 0 | 2 | seed_data.py | clinical fields → differentials + workup |
 | compose | 0 | 1 | New | query results → natural Chinese reply |
 | vision-ocr | 0 | 0 | — | Keep compact, no examples needed |
 | vision-import | 0 | 1 | seed_data.py | image description → structured JSON |
 
 ## 8. Prompts to Delete
 
-- **`report-extract.md`** — Dead after SOAP column migration. The LLM fallback in
+- **`report-extract.md`** — Dead after clinical column migration. The LLM fallback in
   `outpatient_report.py:extract_outpatient_fields()` is unreachable for new records.
   Delete prompt file + LLM fallback code path.
 

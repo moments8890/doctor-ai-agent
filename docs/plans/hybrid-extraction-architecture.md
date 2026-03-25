@@ -24,7 +24,7 @@ Patient message → LLM extracts lightweight draft → session.collected (draft)
 
 ### Confirm-Time (FINAL) — the only saved truth
 ```
-Full transcript → batch LLM extraction → complete SOAP fields → save to DB
+Full transcript → batch LLM extraction → complete clinical fields → save to DB
                 → One pass, no merge logic, no duplication
                 → Replaces draft entirely
 ```
@@ -33,7 +33,7 @@ Full transcript → batch LLM extraction → complete SOAP fields → save to DB
 
 **Patient mode** — Extract + normalize:
 - LLM reads full transcript
-- Outputs clean medical prose for each SOAP field
+- Outputs clean medical prose for each clinical field
 - Can normalize, reorganize, deduplicate
 - Chief complaint: visit-reason-first, ≤20 chars
 
@@ -47,9 +47,9 @@ Full transcript → batch LLM extraction → complete SOAP fields → save to DB
 
 ### Phase 1: Batch extractor
 - New function `batch_extract_from_transcript(conversation, mode, patient_info)` in `interview_summary.py`
-- Patient prompt: full SOAP extraction from transcript
+- Patient prompt: full structured extraction from transcript
 - Doctor prompt: deduplicate + reorganize with original wording preserved
-- Returns complete dict of all SOAP fields
+- Returns complete dict of all clinical fields
 
 ### Phase 2: Wire into confirm
 - `confirm_interview()` calls `batch_extract_from_transcript()` instead of using `session.collected`

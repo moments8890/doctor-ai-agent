@@ -1,7 +1,7 @@
 """
 病历 Pydantic 模型（LLM → Repository 传输层）。
 - content：可读临床笔记（字符串）
-- structured：SOAP 字段 dict，Repository 写入时展开为独立列
+- structured：结构化字段 dict，Repository 写入时展开为独立列
 - tags：关键词标签
 """
 
@@ -17,7 +17,7 @@ class MedicalRecord(BaseModel):
     """LLM 整理后的临床笔记（可读文本）。"""
 
     structured: Optional[Dict[str, str]] = Field(default=None)
-    """SOAP 字段 dict — RecordRepository.create() 展开写入 DB 独立列。"""
+    """结构化字段 dict — RecordRepository.create() 展开写入 DB 独立列。"""
 
     tags: List[str] = Field(default_factory=list)
     """关键词标签：诊断名称、药品、随访时间等。"""

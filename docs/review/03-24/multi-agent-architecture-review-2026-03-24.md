@@ -283,7 +283,7 @@ All 3 agreed:
 
 All 3 agreed the core schema is sound:
 
-- `medical_records` is already well-structured with explicit SOAP columns (not just
+- `medical_records` is already well-structured with explicit clinical columns (not just
   JSON blob) — `records.py:22`
 - `interview_sessions` storing `collected` and `conversation` as JSON text is fine
   for ephemeral workflow state — `interview_session.py:24`
@@ -373,7 +373,7 @@ Despite the critical findings, all 3 agents independently praised these aspects:
    architectural choice than an unconstrained super-agent with a bag of tools
 2. **Safety-first design intent** — escalation bias, PHI egress gating, production
    startup guards, timing-attack mitigation in patient portal
-3. **Real clinical workflow thinking** — patient interview, structured SOAP records,
+3. **Real clinical workflow thinking** — patient interview, structured clinical records,
    doctor knowledge grounding, specialty-aware prompting
 4. **Genuine observability investment** — audit queue, turn logging, routing metrics
 5. **Self-critical culture** — dated review docs show awareness of problems;

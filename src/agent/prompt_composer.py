@@ -1,12 +1,12 @@
 """Prompt composer — assembles the 6-layer prompt stack into messages.
 
 Layers:
-  1. System prompt     (system/base.md)        — identity, safety
-  2. Common prompt     (common/{specialty}.md)  — specialty knowledge
-  3. Intent prompt     (intent/{intent}.md)     — action-specific rules
+  1. Common prompt     (common/base.md)         — identity, safety, date
+  2. Domain prompt     (domain/{specialty}.md)   — specialty knowledge
+  3. Intent prompt     (intent/{intent}.md)      — action-specific rules
   4. Doctor knowledge  (DB, filtered by category) — auto-loaded from KB
-  5. Patient context   (DB, records/history)    — caller provides
-  6. User prompt       (actual message)         — doctor's input
+  5. Patient context   (DB, records/history)     — caller provides
+  6. User prompt       (actual message)          — doctor's input
 
 Layers 1-3 → single system message
 Layer 4 → auto-loaded by composer from DB using config.knowledge_categories
@@ -15,12 +15,20 @@ Conversation history sits between system and user.
 """
 from __future__ import annotations
 
+from datetime import date
 from typing import Dict, List, Optional
 
 from agent.prompt_config import LayerConfig, INTENT_LAYERS, ROUTING_LAYERS, REVIEW_LAYERS, PATIENT_INTERVIEW_LAYERS
 from agent.types import IntentType
 from utils.log import log
 from utils.prompt_loader import get_prompt_sync
+
+
+def _inject_date(text: str) -> str:
+    """Replace {current_date} placeholder with today's date (YYYY-MM-DD)."""
+    if "{current_date}" in text:
+        return text.replace("{current_date}", date.today().isoformat())
+    return text
 
 
 async def _load_doctor_knowledge(doctor_id: str, config: LayerConfig, query: str = "") -> str:
@@ -69,17 +77,17 @@ async def compose_messages(
     # ── Layers 1-3: System message ─────────────────────────────────
     parts = []
 
-    # Layer 1: System base (always included)
+    # Layer 1: Common base (always included)
     if config.system:
-        base = get_prompt_sync("system/base", fallback="")
+        base = get_prompt_sync("common/base", fallback="")
         if base:
             parts.append(base)
 
-    # Layer 2: Common specialty knowledge
-    if config.common:
-        common = get_prompt_sync(f"common/{specialty}", fallback="")
-        if common:
-            parts.append(common)
+    # Layer 2: Domain specialty knowledge
+    if config.domain:
+        domain = get_prompt_sync(f"domain/{specialty}", fallback="")
+        if domain:
+            parts.append(domain)
 
     # Layer 3: Intent-specific prompt
     intent_prompt = get_prompt_sync(f"intent/{config.intent}", fallback="")
@@ -90,7 +98,7 @@ async def compose_messages(
     if extra_system:
         parts.append(extra_system)
 
-    system_msg = "\n\n".join(filter(None, parts))
+    system_msg = _inject_date("\n\n".join(filter(None, parts)))
 
     # ── Layer 4: Doctor knowledge (auto-loaded from DB) ────────────
     doctor_knowledge = await _load_doctor_knowledge(
