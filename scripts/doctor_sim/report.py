@@ -154,10 +154,10 @@ def _overall_result(result: dict) -> str:
 
 
 # ---------------------------------------------------------------------------
-# SOAP display helpers
+# 病历字段 display helpers
 # ---------------------------------------------------------------------------
 
-_SOAP_LABELS = {
+_FIELD_LABELS = {
     "chief_complaint": "主诉", "present_illness": "现病史", "past_history": "既往史",
     "allergy_history": "过敏史", "family_history": "家族史", "personal_history": "个人史",
     "marital_reproductive": "婚育史", "physical_exam": "体格检查", "specialist_exam": "专科检查",
@@ -165,17 +165,17 @@ _SOAP_LABELS = {
     "orders_followup": "医嘱及随访",
 }
 
-_SOAP_FIELDS = list(_SOAP_LABELS.keys())
+_RECORD_FIELDS = list(_FIELD_LABELS.keys())
 
 
 def _build_medical_record_block(record: Dict[str, str]) -> str:
-    """Render SOAP fields from DB as HTML."""
+    """Render clinical record fields from DB as HTML."""
     if not record:
         return "<p><em>未找到病历记录</em></p>"
     parts = ['<div class="record-fields">']
-    for field in _SOAP_FIELDS:
+    for field in _RECORD_FIELDS:
         value = record.get(field, "")
-        label = _SOAP_LABELS.get(field, field)
+        label = _FIELD_LABELS.get(field, field)
         if value and value.strip():
             parts.append(
                 f'<div class="record-field">'
@@ -520,7 +520,7 @@ def _build_html(
             p.append(f'<p style="color:#666;font-size:0.85rem;margin-bottom:12px">{_esc(description)}</p>')
 
         # Medical Record from snapshot
-        record = r.get("soap_snapshot", {})
+        record = r.get("structured_snapshot", {})
         if record:
             p.append(f"<details><summary>病历记录</summary>")
             p.append(_build_medical_record_block(record))
@@ -530,9 +530,38 @@ def _build_html(
         val = r.get("validation", {})
         combined = val.get("combined_score", -1)
         score_label = f" -- {combined}/100" if combined >= 0 else ""
-        p.append(f'<details open><summary>评估记分卡{_esc(score_label)}</summary>')
+        open_attr = " open" if combined < 95 else ""
+        p.append(f'<details{open_attr}><summary>评估记分卡{_esc(score_label)}</summary>')
         p.append(_build_scorecard(r))
         p.append("</details>")
+
+        # NHC Quality Review (5 judges)
+        nhc_q = r.get("nhc_quality", {})
+        if nhc_q.get("score", -1) >= 0:
+            valid_n = nhc_q.get("valid_count", "?")
+            total_n = nhc_q.get("judge_count", "?")
+            def _fmt(key):
+                vals = nhc_q.get(key, [])
+                return ", ".join(str(s) for s in vals) if vals else "—"
+            p.append(f'<details><summary>NHC病历质量评审 — {nhc_q["score"]}/10 中位数（{valid_n}/{total_n} 位评审）</summary>')
+            p.append('<div style="padding:12px 16px">')
+            p.append(
+                f'<table><tr><th>维度</th><th>中位数</th><th>全部评分</th></tr>'
+                f'<tr><td>综合</td><td><strong>{nhc_q["score"]}/10</strong></td><td>{_esc(_fmt("all_scores"))}</td></tr>'
+                f'<tr><td>完整性</td><td>{nhc_q.get("completeness", "?")}/10</td><td>{_esc(_fmt("all_completeness"))}</td></tr>'
+                f'<tr><td>准确性</td><td>{nhc_q.get("accuracy", "?")}/10</td><td>{_esc(_fmt("all_accuracy"))}</td></tr>'
+                f'<tr><td>格式规范</td><td>{nhc_q.get("formatting", "?")}/10</td><td>{_esc(_fmt("all_formatting"))}</td></tr>'
+                f'<tr><td>临床实用性</td><td>{nhc_q.get("clinical_value", "?")}/10</td><td>{_esc(_fmt("all_clinical_value"))}</td></tr>'
+                f'</table>'
+            )
+            explanations = nhc_q.get("all_explanations", [])
+            if explanations:
+                p.append('<div style="font-size:0.82rem;color:#666;margin-top:4px">')
+                for i, exp in enumerate(explanations):
+                    if exp and "judge error" not in exp:
+                        p.append(f"<div>评审 {i+1}：<em>{_esc(exp[:120])}</em></div>")
+                p.append("</div>")
+            p.append("</div></details>")
 
         # Doctor input (scripted turn_plan)
         p.append(f'<details><summary>医生输入（{r.get("turns", "?")} 轮）</summary>')

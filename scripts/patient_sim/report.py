@@ -467,7 +467,7 @@ def _build_conversation_block(result: dict) -> str:
     return '<div class="conversation">' + "".join(turns) + "</div>"
 
 
-_SOAP_LABELS = {
+_FIELD_LABELS = {
     "chief_complaint": "主诉", "present_illness": "现病史", "past_history": "既往史",
     "allergy_history": "过敏史", "family_history": "家族史", "personal_history": "个人史",
     "marital_reproductive": "婚育史", "physical_exam": "体格检查", "specialist_exam": "专科检查",
@@ -475,34 +475,34 @@ _SOAP_LABELS = {
     "orders_followup": "医嘱及随访",
 }
 
-_SOAP_FIELDS = list(_SOAP_LABELS.keys())
+_RECORD_FIELDS = list(_FIELD_LABELS.keys())
 
 
 def _load_medical_record(record_id: int, db_path: str) -> Dict[str, str]:
-    """Load SOAP fields from DB for display in report."""
+    """Load clinical record fields from DB for display in report."""
     if not record_id or not db_path:
         return {}
     try:
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
-        cols = ", ".join(_SOAP_FIELDS)
+        cols = ", ".join(_RECORD_FIELDS)
         row = conn.execute(f"SELECT {cols} FROM medical_records WHERE id = ?", (record_id,)).fetchone()
         conn.close()
         if row is None:
             return {}
-        return {f: (row[f] or "") for f in _SOAP_FIELDS}
+        return {f: (row[f] or "") for f in _RECORD_FIELDS}
     except Exception:
         return {}
 
 
 def _build_medical_record_block(record: Dict[str, str]) -> str:
-    """Render SOAP fields from DB as HTML."""
+    """Render clinical record fields from DB as HTML."""
     if not record:
         return "<p><em>未找到病历记录</em></p>"
     parts = ['<div class="record-fields">']
-    for field in _SOAP_FIELDS:
+    for field in _RECORD_FIELDS:
         value = record.get(field, "")
-        label = _SOAP_LABELS.get(field, field)
+        label = _FIELD_LABELS.get(field, field)
         if value and value.strip():
             parts.append(
                 f'<div class="record-field">'
@@ -590,7 +590,7 @@ def _build_html(results: List[dict], patient_llm: str, server_url: str, db_path:
 
         # Medical Record — use snapshot from JSON (survives cleanup), fall back to DB
         record_id = r.get("record_id")
-        record = r.get("soap_snapshot", {})
+        record = r.get("structured_snapshot", {})
         if not record and record_id and db_path:
             record = _load_medical_record(record_id, db_path)
         if record:
@@ -602,7 +602,8 @@ def _build_html(results: List[dict], patient_llm: str, server_url: str, db_path:
         t2 = r.get("tier2", {})
         combined = t2.get("combined_score", -1)
         score_label = f" — {combined}/100" if combined >= 0 else ""
-        p.append(f'<details open><summary>评估记分卡{_esc(score_label)}</summary>')
+        open_attr = " open" if combined < 95 else ""
+        p.append(f'<details{open_attr}><summary>评估记分卡{_esc(score_label)}</summary>')
         p.append(_build_scorecard(r))
         p.append("</details>")
 

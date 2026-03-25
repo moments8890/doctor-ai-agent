@@ -1,6 +1,6 @@
 """Three-dimension validation for doctor simulation runs.
 
-Dim 1: 事实提取召回率 (40%) — fact_catalog vs DB SOAP, 3 LLM judges majority vote
+Dim 1: 事实提取召回率 (40%) — fact_catalog vs DB clinical record fields, 3 LLM judges majority vote
 Dim 2: 字段归类准确率 (30%) — matched facts in correct field?
 Dim 3: 记录质量 (30%) — no hallucinations, abbreviations preserved, no duplication
 
@@ -27,8 +27,8 @@ from patient_sim.validator import (
     _pick_judges,
     _llm_call,
     _parse_json_response,
-    _load_soap_from_db,
-    SOAP_FIELDS,
+    _load_record_from_db,
+    RECORD_FIELDS,
     resolve_db_path,
     analyze_results,
 )
@@ -42,8 +42,8 @@ _DIM1_EXTRACTION_JUDGE_PROMPT = """\
 /no_think
 你是一位医学信息提取评审专家。请逐条判断以下期望事实是否出现在系统提取的结构化字段中。
 
-## 系统实际提取的全部SOAP字段
-{soap_dump}
+## 系统实际提取的全部病历字段
+{structured_dump}
 
 ## 需要核对的事实列表
 {facts_block}
@@ -72,7 +72,7 @@ _DIM3_HALLUCINATION_JUDGE_PROMPT = """\
 {doctor_input}
 
 ## 数据库中存储的结构化字段
-{soap_dump}
+{structured_dump}
 
 ## 规则
 - 逐字段检查：对于每个非空字段，确认其内容在医生输入中有对应的来源
@@ -95,7 +95,7 @@ _DIM3_QUALITY_JUDGE_PROMPT = """\
 {doctor_input}
 
 ## 数据库中存储的结构化字段
-{soap_dump}
+{structured_dump}
 
 ## 检查项
 
@@ -170,16 +170,16 @@ async def _llm_call_with_tokens(
 
 
 async def _dim1_judge_single(
-    soap: Dict[str, str],
+    record: Dict[str, str],
     facts: List[dict],
     provider: dict,
     max_tokens: int = 1024,
 ) -> Dict[str, dict]:
-    """One LLM judge checks fact_catalog against SOAP fields."""
-    soap_lines = []
-    for field, value in soap.items():
-        soap_lines.append(f"- {field}: {value or '（空）'}")
-    soap_dump = "\n".join(soap_lines)
+    """One LLM judge checks fact_catalog against clinical record fields."""
+    record_lines = []
+    for field, value in record.items():
+        record_lines.append(f"- {field}: {value or '（空）'}")
+    structured_dump = "\n".join(record_lines)
 
     facts_block_lines = []
     for f in facts:
@@ -190,7 +190,7 @@ async def _dim1_judge_single(
     facts_block = "\n".join(facts_block_lines)
 
     prompt = _DIM1_EXTRACTION_JUDGE_PROMPT.format(
-        soap_dump=soap_dump,
+        structured_dump=structured_dump,
         facts_block=facts_block,
     )
 
@@ -221,10 +221,10 @@ _CHUNK_SIZE = 8  # max facts per judge call to keep responses manageable
 
 
 async def _dim1_extraction_recall(
-    soap: Dict[str, str],
+    record: Dict[str, str],
     fact_catalog: List[dict],
 ) -> dict:
-    """Fact catalog recall vs DB SOAP fields.
+    """Fact catalog recall vs DB clinical record fields.
 
     Splits fact_catalog into chunks of ``_CHUNK_SIZE`` and sends each chunk
     to 3 LLM judges independently.  Results are merged across chunks before
@@ -247,7 +247,7 @@ async def _dim1_extraction_recall(
     tasks = []
     for chunk in chunks:
         for provider in providers:
-            tasks.append(_dim1_judge_single(soap, chunk, provider))
+            tasks.append(_dim1_judge_single(record, chunk, provider))
     raw_results = await asyncio.gather(*tasks)
 
     # Reassemble into per-provider merged dicts: all_results[provider_idx]
@@ -358,7 +358,7 @@ def _build_doctor_input_text(persona: dict) -> str:
 
 
 async def _dim3_record_quality(
-    soap: Dict[str, str],
+    record: Dict[str, str],
     persona: dict,
 ) -> dict:
     """Record quality: hallucination check + abbreviation preservation + duplication.
@@ -367,22 +367,22 @@ async def _dim3_record_quality(
     """
     doctor_input = _build_doctor_input_text(persona)
 
-    soap_lines = []
-    for field, value in soap.items():
+    record_lines = []
+    for field, value in record.items():
         if value and value.strip():
-            soap_lines.append(f"- {field}: {value}")
-    soap_dump = "\n".join(soap_lines) if soap_lines else "（所有字段为空）"
+            record_lines.append(f"- {field}: {value}")
+    structured_dump = "\n".join(record_lines) if record_lines else "（所有字段为空）"
 
     # --- Hallucination check (1 LLM judge) ---
     hallucination_prompt = _DIM3_HALLUCINATION_JUDGE_PROMPT.format(
         doctor_input=doctor_input,
-        soap_dump=soap_dump,
+        structured_dump=structured_dump,
     )
 
     # --- Quality check (1 LLM judge) ---
     quality_prompt = _DIM3_QUALITY_JUDGE_PROMPT.format(
         doctor_input=doctor_input,
-        soap_dump=soap_dump,
+        structured_dump=structured_dump,
     )
 
     # Run both concurrently
@@ -443,7 +443,7 @@ async def validate_doctor_extraction(
 ) -> dict:
     """Evaluate a doctor interview extraction across 3 dimensions.
 
-    Dim 1: 事实提取召回率 (40%) — fact_catalog vs DB SOAP, 3 LLM judges
+    Dim 1: 事实提取召回率 (40%) — fact_catalog vs DB clinical record fields, 3 LLM judges
     Dim 2: 字段归类准确率 (30%) — matched facts in correct field
     Dim 3: 记录质量 (30%) — no hallucinations, abbreviations preserved, no duplication
 
@@ -457,12 +457,12 @@ async def validate_doctor_extraction(
         }
     }
     """
-    soap = _load_soap_from_db(record_id, db_path)
+    record = _load_record_from_db(record_id, db_path)
     fact_catalog = persona.get("fact_catalog", [])
 
     # --- Dim 1 (LLM) and Dim 3 (LLM) can run concurrently ---
-    dim1_task = _dim1_extraction_recall(soap, fact_catalog)
-    dim3_task = _dim3_record_quality(soap, persona)
+    dim1_task = _dim1_extraction_recall(record, fact_catalog)
+    dim3_task = _dim3_record_quality(record, persona)
     dim1, dim3 = await asyncio.gather(dim1_task, dim3_task)
 
     # --- Dim 2 is derived from dim1 (no LLM needed) ---
@@ -489,4 +489,126 @@ async def validate_doctor_extraction(
             "dim2_field_accuracy": dim2,
             "dim3_record_quality": dim3,
         },
+    }
+
+
+# ---------------------------------------------------------------------------
+# NHC Quality Review — 5 LLM judges review medical record + doctor input
+# ---------------------------------------------------------------------------
+
+_NHC_QUALITY_PROMPT = """\
+请直接回答，不要输出思考过程。
+
+你是一位资深病历质量评审专家。请根据卫医政发〔2010〕11号《病历书写基本规范》，审阅以下病历记录和医生输入对话。
+
+## 病历记录（系统生成）
+{soap_text}
+
+## 医生原始输入
+{doctor_input}
+
+## 评分维度（每项0-10分）
+1. completeness — 病历信息完整性：主诉、现病史、既往史、查体、辅检、诊断、治疗方案是否覆盖？
+2. accuracy — 提取准确性：系统生成的病历是否忠实反映医生输入的信息？有无遗漏或添加？
+3. formatting — 格式规范性：主诉是否简洁（≤20字）？各字段归类是否正确？缩写/数值是否保留？
+4. clinical_value — 临床实用性：该病历能否支持临床决策？关键信息（诊断、用药、过敏）是否突出？
+
+请只返回JSON：
+{{"completeness": N, "accuracy": N, "formatting": N, "clinical_value": N, "score": N, "explanation": "一句话评价"}}
+score = 四项平均分（四舍五入取整）
+"""
+
+
+async def _single_nhc_quality_judge(provider: dict, soap_text: str, doctor_input: str) -> dict:
+    """One NHC quality judge."""
+    prompt = _NHC_QUALITY_PROMPT.format(soap_text=soap_text, doctor_input=doctor_input)
+    default = {"score": -1, "completeness": -1, "accuracy": -1, "formatting": -1, "clinical_value": -1, "explanation": ""}
+    try:
+        raw = await _llm_call_with_tokens(provider, prompt, max_tokens=256)
+        parsed = _parse_json_response(raw)
+        return {
+            "score": int(parsed.get("score", -1)),
+            "completeness": int(parsed.get("completeness", -1)),
+            "accuracy": int(parsed.get("accuracy", -1)),
+            "formatting": int(parsed.get("formatting", -1)),
+            "clinical_value": int(parsed.get("clinical_value", -1)),
+            "explanation": str(parsed.get("explanation", "")),
+        }
+    except Exception as e:
+        default["explanation"] = f"judge error: {e}"
+        return default
+
+
+async def validate_nhc_quality(
+    soap_snapshot: dict,
+    turn_responses: list,
+    persona: dict,
+) -> dict:
+    """5 LLM judges review medical record + doctor input against NHC standards.
+
+    Returns {
+        score: int (0-10 median),
+        completeness, accuracy, formatting, clinical_value: int (0-10 median),
+        all_scores: list[int],
+        all_explanations: list[str],
+        judge_count: int,
+        valid_count: int,
+    }
+    """
+    from statistics import median
+
+    # Build SOAP text
+    _LABELS = {
+        "chief_complaint": "主诉", "present_illness": "现病史", "past_history": "既往史",
+        "allergy_history": "过敏史", "family_history": "家族史", "personal_history": "个人史",
+        "physical_exam": "体格检查", "specialist_exam": "专科检查", "auxiliary_exam": "辅助检查",
+        "diagnosis": "诊断", "treatment_plan": "治疗方案", "orders_followup": "医嘱及随访",
+    }
+    soap_lines = []
+    for field, label in _LABELS.items():
+        value = soap_snapshot.get(field, "")
+        if value:
+            soap_lines.append(f"{label}：{value}")
+    soap_text = "\n".join(soap_lines) if soap_lines else "（空）"
+
+    # Build doctor input text
+    turn_plan = persona.get("turn_plan", [])
+    if turn_plan:
+        doctor_input = "\n---\n".join(t.get("text", "") for t in turn_plan)
+    elif turn_responses:
+        doctor_input = "\n---\n".join(t.get("input_text", "") for t in turn_responses)
+    else:
+        doctor_input = "（无输入）"
+
+    providers = _pick_judges(5)
+    results = await asyncio.gather(*[
+        _single_nhc_quality_judge(p, soap_text, doctor_input) for p in providers
+    ])
+
+    valid = [r for r in results if r["score"] >= 0]
+    if not valid:
+        return {
+            "score": -1, "completeness": -1, "accuracy": -1, "formatting": -1, "clinical_value": -1,
+            "explanation": "all judges failed",
+            "judge_count": len(results), "valid_count": 0,
+            "all_scores": [r["score"] for r in results],
+            "all_completeness": [], "all_accuracy": [], "all_formatting": [], "all_clinical_value": [],
+            "all_explanations": [r["explanation"] for r in results],
+        }
+
+    return {
+        "score": int(median(r["score"] for r in valid)),
+        "completeness": int(median(r["completeness"] for r in valid)),
+        "accuracy": int(median(r["accuracy"] for r in valid)),
+        "formatting": int(median(r["formatting"] for r in valid)),
+        "clinical_value": int(median(r["clinical_value"] for r in valid)),
+        "explanation": valid[0]["explanation"],
+        "judge_count": len(results),
+        "valid_count": len(valid),
+        "all_scores": [r["score"] for r in results],
+        "all_completeness": [r["completeness"] for r in results],
+        "all_accuracy": [r["accuracy"] for r in results],
+        "all_formatting": [r["formatting"] for r in results],
+        "all_clinical_value": [r["clinical_value"] for r in results],
+        "all_explanations": [r["explanation"] for r in results],
     }

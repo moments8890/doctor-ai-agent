@@ -27,7 +27,7 @@ if _CONFIG_PATH.exists():
                 os.environ[k] = val
 
 from doctor_sim.engine import run_persona, cleanup_sim_data  # noqa: E402
-from doctor_sim.validator import validate_doctor_extraction, resolve_db_path  # noqa: E402
+from doctor_sim.validator import validate_doctor_extraction, validate_nhc_quality, resolve_db_path  # noqa: E402
 from doctor_sim.report import generate_reports  # noqa: E402
 
 # Import analyze_results from patient_sim (reused)
@@ -117,6 +117,14 @@ async def _run(args: argparse.Namespace) -> None:
                 )
                 sim_result["validation"] = validation
                 sim_result["pass"] = validation["pass"]
+
+                # NHC quality review (5 LLM judges)
+                nhc_quality = await validate_nhc_quality(
+                    soap_snapshot=sim_result.get("soap_snapshot", {}),
+                    turn_responses=sim_result.get("turn_responses", []),
+                    persona=persona,
+                )
+                sim_result["nhc_quality"] = nhc_quality
             else:
                 sim_result["validation"] = {
                     "pass": False,
@@ -138,7 +146,7 @@ async def _run(args: argparse.Namespace) -> None:
                 "turns": 0,
                 "session_id": None,
                 "record_id": None,
-                "soap_snapshot": {},
+                "structured_snapshot": {},
                 "confirm_data": {},
                 "turn_responses": [],
                 "validation": {
