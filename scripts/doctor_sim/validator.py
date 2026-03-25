@@ -614,3 +614,94 @@ async def validate_nhc_quality(
         "all_clinical_value": [r["clinical_value"] for r in results],
         "all_explanations": [r["explanation"] for r in results],
     }
+
+
+# ---------------------------------------------------------------------------
+# AI Report Analysis — doctor-specific (uses validation + nhc_quality data)
+# ---------------------------------------------------------------------------
+
+_DOCTOR_ANALYST_PROMPT = """\
+请直接回答，不要输出思考过程。
+
+你是一位医疗AI系统的高级质量分析师。请分析以下**医生病历录入模拟测试**的完整结果。
+
+## 测试概览
+- 通过: {passed}/{total}
+- 模式: 医生录入（脚本+交互式）
+
+## 各角色结果
+{persona_summaries}
+
+## 请提供以下分析
+
+### 1. 关键发现（3-5条）
+列出最重要的提取或质量问题，引用具体角色ID和数据。每条包含：具体表现、影响范围、根本原因推测。
+
+### 2. 优势（2-3条）
+系统做得好的方面，引用具体数据。
+
+### 3. 改进建议（3-5条）
+具体、可操作的改进建议，按优先级排序。
+
+### 4. 一句话总结
+
+请用中文回答，保持简洁专业。"""
+
+
+async def analyze_doctor_results(results: list) -> list:
+    """Run 2 AI analysts on the full doctor simulation results."""
+    passed = sum(1 for r in results if r.get("pass"))
+    total = len(results)
+
+    summaries = []
+    for r in results:
+        p = r.get("persona", {})
+        v = r.get("validation", {})
+        dims = v.get("dimensions", {})
+        d1 = dims.get("dim1_extraction_recall", {})
+        nhc = r.get("nhc_quality", {})
+        soap = r.get("soap_snapshot", {})
+
+        cc = soap.get("chief_complaint", "")
+        pi_len = len(soap.get("present_illness", ""))
+        ph = soap.get("past_history", "")[:50]
+
+        nhc_score = nhc.get("score", "?")
+        nhc_exps = nhc.get("all_explanations", [])
+        nhc_issues = [e for e in nhc_exps if e and "未发现" not in e and "judge error" not in e]
+
+        icon = "✓" if r.get("pass") else "✗"
+        summary = (
+            f"{icon} {p.get('id')} {p.get('name')} ({p.get('style', '')})\n"
+            f"  提取={v.get('combined_score', '?')}/100 "
+            f"(召回={d1.get('score', '?')} 匹配={d1.get('matched', '?')}/{d1.get('total', '?')})\n"
+            f"  NHC质量={nhc_score}/10\n"
+            f"  主诉: {cc[:30]}\n"
+            f"  现病史: {pi_len}字 | 既往史: {ph}"
+        )
+        if nhc_issues:
+            summary += f"\n  NHC问题: {'; '.join(nhc_issues[:2])}"
+        summaries.append(summary)
+
+    prompt = _DOCTOR_ANALYST_PROMPT.format(
+        passed=passed,
+        total=total,
+        persona_summaries="\n\n".join(summaries),
+    )
+
+    all_judges = _pick_judges(5)
+    seen = set()
+    analysts = []
+    for j in all_judges:
+        if j["model"] not in seen and len(analysts) < 2:
+            analysts.append(j)
+            seen.add(j["model"])
+
+    async def _run(provider):
+        try:
+            raw = await _llm_call_with_tokens(provider, prompt, max_tokens=1024)
+            return {"model": provider["label"], "analysis": raw}
+        except Exception as e:
+            return {"model": provider["label"], "analysis": f"分析失败: {e}"}
+
+    return list(await asyncio.gather(*[_run(a) for a in analysts]))

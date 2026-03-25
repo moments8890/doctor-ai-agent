@@ -27,11 +27,9 @@ if _CONFIG_PATH.exists():
                 os.environ[k] = val
 
 from doctor_sim.engine import run_persona, cleanup_sim_data  # noqa: E402
-from doctor_sim.validator import validate_doctor_extraction, validate_nhc_quality, resolve_db_path  # noqa: E402
+from doctor_sim.validator import validate_doctor_extraction, validate_nhc_quality, analyze_doctor_results, resolve_db_path  # noqa: E402
 from doctor_sim.report import generate_reports  # noqa: E402
 
-# Import analyze_results from patient_sim (reused)
-from patient_sim.validator import analyze_results  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Persona loading
@@ -165,7 +163,7 @@ async def _run(args: argparse.Namespace) -> None:
     # ------------------------------------------------------------------
     print("\nRunning AI analysis...", end=" ", flush=True)
     try:
-        ai_analyses = await analyze_results(results, "scripted")
+        ai_analyses = await analyze_doctor_results(results)
         print(f"done ({len(ai_analyses)} analysts)")
     except Exception as e:
         print(f"failed: {e}")
