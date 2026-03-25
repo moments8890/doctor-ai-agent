@@ -175,6 +175,25 @@ tests/fixtures/
       d8_template_fill.json
 ```
 
+## Planned: Additional Multi-Turn Personas
+
+| ID | Style | Turns | What it tests |
+|----|-------|-------|---------------|
+| D10 | 复诊+历史预填 | 2 sessions | First visit creates history → second visit tests if system pre-populates from prior record |
+| D11 | 分段补充 | 4-5 | Doctor enters CC first, adds fields piece by piece based on agent's missing-field guidance |
+| D12 | 口述+修正 | 3 | Doctor dictates then corrects ("上面血压写错了，应该是150/95") |
+| D13 | 急诊快录 | 3 | Rapid abbreviation-heavy entries ("STEMI LAD PCI" → "HTN DM" → "ASA 替格") |
+| D14 | 查房记录 | 2 | Ward round style with references to prior notes ("同前" "较前好转") |
+
+### D10 detail: Returning patient with prior history
+The system should:
+1. Sim creates patient + first visit record (scripted)
+2. Sim starts second visit for same patient
+3. System loads `_load_previous_history()` and surfaces it via prompt
+4. Doctor confirms "同前" or updates — system should use prior data, not re-collect
+
+This tests the LLM's ability to leverage `{previous_history}` in the prompt.
+
 ## No Server Changes Needed
 
 The doctor interview endpoints already exist and work.
