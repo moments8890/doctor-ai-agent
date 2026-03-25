@@ -99,7 +99,7 @@ async def generate_doctor_input(
     clinical_case:
         Full clinical case description (the ground truth the doctor knows).
     collected:
-        Dict of currently collected SOAP fields from the agent's last response.
+        Dict of currently collected clinical record fields from the agent's last response.
     missing:
         List of missing field names from the agent's last response.
     suggestions:

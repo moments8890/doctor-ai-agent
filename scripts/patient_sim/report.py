@@ -397,7 +397,7 @@ def _build_conversation_block(result: dict) -> str:
     return '<div class="conversation">' + "".join(turns) + "</div>"
 
 
-_SOAP_LABELS = {
+_FIELD_LABELS = {
     "chief_complaint": "主诉", "present_illness": "现病史", "past_history": "既往史",
     "allergy_history": "过敏史", "family_history": "家族史", "personal_history": "个人史",
     "marital_reproductive": "婚育史", "physical_exam": "体格检查", "specialist_exam": "专科检查",
@@ -405,34 +405,34 @@ _SOAP_LABELS = {
     "orders_followup": "医嘱及随访",
 }
 
-_SOAP_FIELDS = list(_SOAP_LABELS.keys())
+_FIELD_KEYS = list(_FIELD_LABELS.keys())
 
 
 def _load_medical_record(record_id: int, db_path: str) -> Dict[str, str]:
-    """Load SOAP fields from DB for display in report."""
+    """Load clinical record fields from DB for display in report."""
     if not record_id or not db_path:
         return {}
     try:
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
-        cols = ", ".join(_SOAP_FIELDS)
+        cols = ", ".join(_FIELD_KEYS)
         row = conn.execute(f"SELECT {cols} FROM medical_records WHERE id = ?", (record_id,)).fetchone()
         conn.close()
         if row is None:
             return {}
-        return {f: (row[f] or "") for f in _SOAP_FIELDS}
+        return {f: (row[f] or "") for f in _FIELD_KEYS}
     except Exception:
         return {}
 
 
 def _build_medical_record_block(record: Dict[str, str]) -> str:
-    """Render SOAP fields from DB as HTML."""
+    """Render clinical record fields from DB as HTML."""
     if not record:
         return "<p><em>未找到病历记录</em></p>"
     parts = ['<div class="record-fields">']
-    for field in _SOAP_FIELDS:
+    for field in _FIELD_KEYS:
         value = record.get(field, "")
-        label = _SOAP_LABELS.get(field, field)
+        label = _FIELD_LABELS.get(field, field)
         if value and value.strip():
             parts.append(
                 f'<div class="record-field">'

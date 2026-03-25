@@ -50,15 +50,18 @@ def resolve_db_path() -> str:
 
 
 # ---------------------------------------------------------------------------
-# SOAP field keys
+# Clinical record field keys (per NHC 卫医政发〔2010〕11号)
 # ---------------------------------------------------------------------------
 
-SOAP_FIELDS: List[str] = [
+CLINICAL_FIELDS: List[str] = [
     "department", "chief_complaint", "present_illness", "past_history",
     "allergy_history", "personal_history", "marital_reproductive",
     "family_history", "physical_exam", "specialist_exam", "auxiliary_exam",
     "diagnosis", "treatment_plan", "orders_followup",
 ]
+
+# Backward-compat alias (deprecated — use CLINICAL_FIELDS)
+SOAP_FIELDS = CLINICAL_FIELDS
 
 
 # ---------------------------------------------------------------------------
@@ -177,13 +180,13 @@ def validate_tier1(
             ok = content_ok and type_ok
             checks["record_created"] = {"pass": ok, "detail": "OK" if ok else "content empty or wrong type"}
 
-        # 2. SOAP chief_complaint populated
+        # 2. Clinical record chief_complaint populated
         if row is not None:
             cc = conn.execute("SELECT chief_complaint FROM medical_records WHERE id = ?", (record_id,)).fetchone()
             cc_ok = bool(cc and cc["chief_complaint"] and cc["chief_complaint"].strip())
-            checks["soap_fields"] = {"pass": cc_ok, "detail": "OK" if cc_ok else "chief_complaint empty"}
+            checks["clinical_fields"] = {"pass": cc_ok, "detail": "OK" if cc_ok else "chief_complaint empty"}
         else:
-            checks["soap_fields"] = {"pass": False, "detail": "skipped"}
+            checks["clinical_fields"] = {"pass": False, "detail": "skipped"}
 
         # 3. Session confirmed
         sess = conn.execute("SELECT status FROM interview_sessions WHERE id = ?", (session_id,)).fetchone()
@@ -227,17 +230,21 @@ def validate_tier1(
 # Tier 2 — 3-axis hybrid scorecard: elicitation, extraction, NHC compliance
 # ---------------------------------------------------------------------------
 
-def _load_soap_from_db(record_id: int, db_path: str) -> Dict[str, str]:
+def _load_record_from_db(record_id: int, db_path: str) -> Dict[str, str]:
+    """Load clinical record fields from DB."""
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     try:
-        cols = ", ".join(SOAP_FIELDS)
+        cols = ", ".join(CLINICAL_FIELDS)
         row = conn.execute(f"SELECT {cols} FROM medical_records WHERE id = ?", (record_id,)).fetchone()
         if row is None:
             return {}
-        return {f: (row[f] or "") for f in SOAP_FIELDS}
+        return {f: (row[f] or "") for f in CLINICAL_FIELDS}
     finally:
         conn.close()
+
+# Backward-compat alias (deprecated — use _load_record_from_db)
+_load_soap_from_db = _load_record_from_db
 
 
 # --------------- Axis 1: Elicitation Completeness prompts ----------------
@@ -270,8 +277,8 @@ _FACT_MATCH_JUDGE_PROMPT = """\
 /no_think
 你是一位医学信息提取评审专家。请逐条判断以下期望事实是否出现在系统提取的结构化字段中。
 
-## 系统实际提取的全部SOAP字段
-{soap_dump}
+## 系统实际提取的全部结构化病历字段
+{record_dump}
 
 ## 需要核对的事实列表
 {facts_block}
@@ -281,7 +288,7 @@ _FACT_MATCH_JUDGE_PROMPT = """\
 - 例如"体检发现动脉瘤"和"MRA检查发现脑动脉瘤"是语义等价的
 - "高血压5年"和"高血压病史5年，服用氨氯地平"也是等价的
 - 如果事实出现在任何字段中（即使不是期望字段），也算匹配，但请标注实际所在字段
-- 只有当某条事实在所有字段中都完全没有体现时，才判为未匹配
+- 只有当某条事实在所有病历字段中都完全没有体现时，才判为未匹配
 
 对每条事实，返回:
 - "match": true/false
@@ -377,15 +384,15 @@ async def _axis1_elicitation(
 # --------------- Axis 2 implementation -----------------------------------
 
 async def _judge_facts_single(
-    soap: Dict[str, str],
+    record: Dict[str, str],
     facts: List[dict],
     provider: dict,
 ) -> Dict[str, dict]:
-    """One LLM judge checks all facts against SOAP fields."""
-    soap_lines = []
-    for field, value in soap.items():
-        soap_lines.append(f"- {field}: {value or '（空）'}")
-    soap_dump = "\n".join(soap_lines)
+    """One LLM judge checks all facts against clinical record fields."""
+    record_lines = []
+    for field, value in record.items():
+        record_lines.append(f"- {field}: {value or '（空）'}")
+    record_dump = "\n".join(record_lines)
 
     facts_block_lines = []
     for f in facts:
@@ -396,7 +403,7 @@ async def _judge_facts_single(
     facts_block = "\n".join(facts_block_lines)
 
     prompt = _FACT_MATCH_JUDGE_PROMPT.format(
-        soap_dump=soap_dump,
+        record_dump=record_dump,
         facts_block=facts_block,
     )
     label = provider.get("label", provider.get("model", "?"))
@@ -423,7 +430,7 @@ async def _judge_facts_single(
 
 
 async def _axis2_extraction(
-    soap: Dict[str, str],
+    record: Dict[str, str],
     fact_catalog: List[dict],
 ) -> dict:
     """Axis 2: Extraction Fidelity — did the system capture what the patient said?"""
@@ -438,7 +445,7 @@ async def _axis2_extraction(
     # 3 LLM judges, majority vote
     providers = _pick_judges(3)
     all_results = await asyncio.gather(*[
-        _judge_facts_single(soap, relevant_facts, p)
+        _judge_facts_single(record, relevant_facts, p)
         for p in providers
     ])
 
@@ -492,7 +499,7 @@ async def _axis2_extraction(
 # --------------- Axis 3 implementation -----------------------------------
 
 async def _axis3_nhc_compliance(
-    soap: Dict[str, str],
+    record: Dict[str, str],
     record_expectation: dict,
 ) -> dict:
     """Axis 3: NHC Record Quality — is the final record properly structured?"""
@@ -500,7 +507,7 @@ async def _axis3_nhc_compliance(
 
     # --- chief_complaint checks (deterministic) ---
     cc_expect = record_expectation.get("chief_complaint", {})
-    cc_text = soap.get("chief_complaint", "")
+    cc_text = record.get("chief_complaint", "")
     cc_max_chars = cc_expect.get("max_chars", 30)
     cc_require_duration = cc_expect.get("require_duration", True)
     cc_acceptable_variants = cc_expect.get("acceptable_variants", [])
@@ -555,8 +562,8 @@ async def _axis3_nhc_compliance(
     pi_subsections = _get_checkable_subsections(pi_expect)
     ph_subsections = _get_checkable_subsections(ph_expect)
 
-    pi_text = soap.get("present_illness", "")
-    ph_text = soap.get("past_history", "")
+    pi_text = record.get("present_illness", "")
+    ph_text = record.get("past_history", "")
 
     if pi_subsections or ph_subsections:
         provider = _pick_judges(1)[0]
@@ -631,7 +638,7 @@ async def validate_tier2(
         'combined_score': int (0-100),
     }
     """
-    soap = _load_soap_from_db(record_id, db_path)
+    record = _load_record_from_db(record_id, db_path)
 
     # Read persona expectation sections (new schema)
     coverage_expectation = persona.get("coverage_expectation", {})
@@ -668,8 +675,8 @@ async def validate_tier2(
 
     # Run all 3 axes concurrently
     axis1_task = _axis1_elicitation(conversation, coverage_expectation)
-    axis2_task = _axis2_extraction(soap, fact_catalog)
-    axis3_task = _axis3_nhc_compliance(soap, record_expectation)
+    axis2_task = _axis2_extraction(record, fact_catalog)
+    axis3_task = _axis3_nhc_compliance(record, record_expectation)
 
     elicitation, extraction, nhc_compliance = await asyncio.gather(
         axis1_task, axis2_task, axis3_task,
@@ -684,7 +691,7 @@ async def validate_tier2(
     ))
 
     # --- Hard-fail conditions ---
-    cc_text = soap.get("chief_complaint", "")
+    cc_text = record.get("chief_complaint", "")
     hard_fail_cc_length = len(cc_text) > 30
     hard_fail_critical_missing = extraction.get("any_critical_missing", False)
     min_coverage_pct = int(coverage_expectation.get("min_coverage", 0.5) * 100)
@@ -826,9 +833,9 @@ _ANOMALY_REVIEW_PROMPT = """\
 ## 患者信息
 姓名：{name}，{condition}
 
-## 数据库中存储的完整结构化字段（SOAP）
+## 数据库中存储的完整结构化病历字段
 以下是数据库中实际存储的所有字段及其值。审查时必须逐字段核对，不要凭印象判断。
-{soap_dump}
+{record_dump}
 
 ## 对话记录
 {transcript}
@@ -837,11 +844,11 @@ _ANOMALY_REVIEW_PROMPT = """\
 
 ### 关于"提取遗漏"的判定标准
 在判定"提取遗漏"之前，你必须：
-1. 逐一检查上面列出的每个SOAP字段的值
+1. 逐一检查上面列出的每个病历字段的值
 2. 如果患者提到的信息出现在**任何**字段中（哪怕不是你预期的字段），则**不是**遗漏
 3. 信息可能被改写、概括或用医学术语替代——只要语义等价就算已提取
 4. 例如：患者说"做康复训练"，如果present_illness中有"康复训练"或"康复治疗"或类似表述，则不是遗漏
-5. 只有当某条重要临床信息在所有字段中都完全没有体现时，才判定为提取遗漏
+5. 只有当某条重要临床信息在所有病历字段中都完全没有体现时，才判定为提取遗漏
 
 ### 关于"提取错误"的判定标准
 在判定"提取错误"（幻觉）之前，你必须：
@@ -853,7 +860,7 @@ _ANOMALY_REVIEW_PROMPT = """\
 ### 检查类型
 1. **内容重复**：同一字段中是否有重复或近义重复的内容（如同一事实用不同措辞出现两次）
 2. **系统错误**：对话中是否出现系统错误消息（如"系统繁忙"、"请稍后再试"）
-3. **提取遗漏**：（按上述严格标准判定）患者明确提到但所有SOAP字段中均无体现的重要临床信息
+3. **提取遗漏**：（按上述严格标准判定）患者明确提到但所有病历字段中均无体现的重要临床信息
 4. **提取错误**：（按上述严格标准判定）结构化字段中出现患者从未提到的信息
 5. **字段错位**：信息被存储到了错误的字段中（如家族史写进了个人史）
 6. **对话质量**：AI是否重复提问、忽略患者回答、或在收集完信息后仍继续提问
@@ -872,12 +879,12 @@ async def validate_tier4(
     record_id: int,
 ) -> dict:
     """Anomaly review — 3 LLM judges inspect DB + conversation for issues."""
-    soap = _load_soap_from_db(record_id, db_path)
-    soap_lines = []
-    for field, value in soap.items():
+    record = _load_record_from_db(record_id, db_path)
+    record_lines = []
+    for field, value in record.items():
         if value and value.strip():
-            soap_lines.append(f"- {field}: {value}")
-    soap_dump = "\n".join(soap_lines) if soap_lines else "（所有字段为空）"
+            record_lines.append(f"- {field}: {value}")
+    record_dump = "\n".join(record_lines) if record_lines else "（所有字段为空）"
 
     transcript_lines = []
     for turn in conversation:
@@ -889,7 +896,7 @@ async def validate_tier4(
     prompt = _ANOMALY_REVIEW_PROMPT.format(
         name=persona.get("name", "?"),
         condition=persona.get("condition", "?"),
-        soap_dump=soap_dump,
+        record_dump=record_dump,
         transcript=transcript,
     )
 

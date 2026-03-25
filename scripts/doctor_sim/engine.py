@@ -37,30 +37,24 @@ def _ensure_doctor(db_path: str, doctor_id: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# SOAP snapshot helper
+# 病历字段 snapshot helper
 # ---------------------------------------------------------------------------
 
-_SOAP_FIELDS = [
-    "chief_complaint", "present_illness", "past_history",
-    "allergy_history", "family_history", "personal_history",
-    "marital_reproductive", "physical_exam", "specialist_exam",
-    "auxiliary_exam", "diagnosis", "treatment_plan", "orders_followup",
-]
+from patient_sim.validator import CLINICAL_FIELDS as _RECORD_FIELDS
 
 
-def _snapshot_soap(db_path: str, record_id: int) -> dict:
-    """Read SOAP fields from medical_records."""
+def _snapshot_record(db_path: str, record_id: int) -> dict:
+    """Read clinical record fields from medical_records."""
     try:
-        conn = sqlite3.connect(db_path)
-        conn.row_factory = sqlite3.Row
-        cols = ", ".join(_SOAP_FIELDS)
-        row = conn.execute(
-            f"SELECT {cols} FROM medical_records WHERE id = ?",
-            (record_id,),
-        ).fetchone()
-        conn.close()
-        if row:
-            return {f: (row[f] or "") for f in _SOAP_FIELDS}
+        with sqlite3.connect(db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cols = ", ".join(_RECORD_FIELDS)
+            row = conn.execute(
+                f"SELECT {cols} FROM medical_records WHERE id = ?",
+                (record_id,),
+            ).fetchone()
+            if row:
+                return {f: (row[f] or "") for f in _RECORD_FIELDS}
     except Exception:
         pass
     return {}
@@ -253,7 +247,7 @@ async def run_persona(
     -------
     dict
         Results with keys: ``persona_id``, ``turns``, ``session_id``,
-        ``record_id``, ``soap_snapshot``, ``confirm_data``, ``turn_responses``.
+        ``record_id``, ``structured_snapshot``, ``confirm_data``, ``turn_responses``.
     """
 
     persona_id: str = persona["id"]
@@ -305,13 +299,13 @@ async def run_persona(
         confirm_data = confirm_resp.json()
 
     # ------------------------------------------------------------------
-    # 4. Snapshot SOAP fields from DB
+    # 4. Snapshot clinical record fields from DB
     # ------------------------------------------------------------------
     record_id_str = confirm_data.get("pending_id")
     record_id = int(record_id_str) if record_id_str else None
-    soap_snapshot = {}
+    structured_snapshot = {}
     if record_id:
-        soap_snapshot = _snapshot_soap(db_path, record_id)
+        structured_snapshot = _snapshot_record(db_path, record_id)
 
     # ------------------------------------------------------------------
     # 5. Build results
@@ -323,7 +317,7 @@ async def run_persona(
         "turns": len(turn_responses),
         "session_id": session_id,
         "record_id": record_id,
-        "soap_snapshot": soap_snapshot,
+        "structured_snapshot": structured_snapshot,
         "confirm_data": confirm_data,
         "turn_responses": turn_responses,
     }

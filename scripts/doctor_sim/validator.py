@@ -27,8 +27,8 @@ from patient_sim.validator import (
     _pick_judges,
     _llm_call,
     _parse_json_response,
-    _load_soap_from_db as _load_record_from_db,
-    SOAP_FIELDS as RECORD_FIELDS,
+    _load_record_from_db,
+    CLINICAL_FIELDS as RECORD_FIELDS,
     resolve_db_path,
 )
 
@@ -501,7 +501,7 @@ _NHC_QUALITY_PROMPT = """\
 你是一位严格的病历质量审查员。请审查系统从医生输入中提取的病历。
 
 ## 病历记录（系统从医生输入中提取生成）
-{soap_text}
+{record_text}
 
 ## 医生原始输入（对话记录）
 {doctor_input}
@@ -538,9 +538,9 @@ score = 四项平均分（四舍五入取整）
 """
 
 
-async def _single_nhc_quality_judge(provider: dict, soap_text: str, doctor_input: str) -> dict:
+async def _single_nhc_quality_judge(provider: dict, record_text: str, doctor_input: str) -> dict:
     """One NHC quality judge."""
-    prompt = _NHC_QUALITY_PROMPT.format(soap_text=soap_text, doctor_input=doctor_input)
+    prompt = _NHC_QUALITY_PROMPT.format(record_text=record_text, doctor_input=doctor_input)
     default = {"score": -1, "completeness": -1, "accuracy": -1, "formatting": -1, "clinical_value": -1, "explanation": ""}
     try:
         raw = await _llm_call_with_tokens(provider, prompt, max_tokens=256)
@@ -559,7 +559,7 @@ async def _single_nhc_quality_judge(provider: dict, soap_text: str, doctor_input
 
 
 async def validate_nhc_quality(
-    soap_snapshot: dict,
+    record_snapshot: dict,
     turn_responses: list,
     persona: dict,
 ) -> dict:
@@ -576,19 +576,19 @@ async def validate_nhc_quality(
     """
     from statistics import median
 
-    # Build SOAP text
+    # Build clinical record text
     _LABELS = {
         "chief_complaint": "主诉", "present_illness": "现病史", "past_history": "既往史",
         "allergy_history": "过敏史", "family_history": "家族史", "personal_history": "个人史",
         "physical_exam": "体格检查", "specialist_exam": "专科检查", "auxiliary_exam": "辅助检查",
         "diagnosis": "诊断", "treatment_plan": "治疗方案", "orders_followup": "医嘱及随访",
     }
-    soap_lines = []
+    record_lines = []
     for field, label in _LABELS.items():
-        value = soap_snapshot.get(field, "")
+        value = record_snapshot.get(field, "")
         if value:
-            soap_lines.append(f"{label}：{value}")
-    soap_text = "\n".join(soap_lines) if soap_lines else "（空）"
+            record_lines.append(f"{label}：{value}")
+    record_text = "\n".join(record_lines) if record_lines else "（空）"
 
     # Build doctor input text
     turn_plan = persona.get("turn_plan", [])
@@ -601,7 +601,7 @@ async def validate_nhc_quality(
 
     providers = _pick_judges(5)
     results = await asyncio.gather(*[
-        _single_nhc_quality_judge(p, soap_text, doctor_input) for p in providers
+        _single_nhc_quality_judge(p, record_text, doctor_input) for p in providers
     ])
 
     valid = [r for r in results if r["score"] >= 0]
@@ -677,11 +677,11 @@ async def analyze_doctor_results(results: list) -> list:
         dims = v.get("dimensions", {})
         d1 = dims.get("dim1_extraction_recall", {})
         nhc = r.get("nhc_quality", {})
-        soap = r.get("soap_snapshot", {})
+        record = r.get("structured_snapshot", r.get("record_snapshot", {}))
 
-        cc = soap.get("chief_complaint", "")
-        pi_len = len(soap.get("present_illness", ""))
-        ph = soap.get("past_history", "")[:50]
+        cc = record.get("chief_complaint", "")
+        pi_len = len(record.get("present_illness", ""))
+        ph = record.get("past_history", "")[:50]
 
         nhc_score = nhc.get("score", "?")
         nhc_exps = nhc.get("all_explanations", [])
