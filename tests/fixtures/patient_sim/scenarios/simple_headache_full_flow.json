@@ -1,0 +1,80 @@
+{
+  "case_id": "PI-001",
+  "title": "Simple headache — complete interview in 5 turns",
+  "group": "full_flow",
+  "chatlog": [
+    {
+      "speaker": "patient",
+      "text": "头疼",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "patient",
+      "text": "三天了，持续性的",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "patient",
+      "text": "没有疾病，没做过手术",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "patient",
+      "text": "没有过敏，不抽烟不喝酒",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "patient",
+      "text": "家人没有类似的",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    }
+  ],
+  "patient_info": {
+    "name": "测试头痛",
+    "gender": "男",
+    "year_of_birth": 1990,
+    "phone": "13800000001"
+  },
+  "expectations": {
+    "must_not_timeout": true,
+    "min_fields_filled": 5,
+    "required_fields_present": [
+      "chief_complaint",
+      "present_illness"
+    ],
+    "chief_complaint_contains_any": [
+      "头疼",
+      "头痛"
+    ],
+    "final_status": "reviewing",
+    "confirm_creates_record": true,
+    "record_type": "interview_summary",
+    "record_needs_review": true,
+    "task_created": true
+  }
+}

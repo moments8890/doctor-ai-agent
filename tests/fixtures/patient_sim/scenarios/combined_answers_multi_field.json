@@ -1,0 +1,87 @@
+{
+  "case_id": "PI-003",
+  "title": "Patient gives combined answers — multi-field extraction",
+  "group": "multi_field",
+  "chatlog": [
+    {
+      "speaker": "patient",
+      "text": "胸闷气短一周了",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "patient",
+      "text": "活动后加重，休息后缓解",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "patient",
+      "text": "高血压十年，做过支架",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "patient",
+      "text": "没有药物过敏",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "patient",
+      "text": "家里有人得过心脏病",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "patient",
+      "text": "吸烟20年",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    }
+  ],
+  "patient_info": {
+    "name": "测试胸闷",
+    "gender": "男",
+    "year_of_birth": 1965,
+    "phone": "13800000003"
+  },
+  "expectations": {
+    "must_not_timeout": true,
+    "min_fields_filled": 5,
+    "required_fields_present": [
+      "chief_complaint",
+      "present_illness"
+    ],
+    "chief_complaint_contains_any": [
+      "胸闷",
+      "气短"
+    ],
+    "final_status": "reviewing",
+    "confirm_creates_record": true
+  }
+}

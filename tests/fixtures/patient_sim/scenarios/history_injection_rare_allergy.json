@@ -1,0 +1,68 @@
+{
+  "case_id": "PI-011",
+  "title": "History injection — confirms rare allergy and past conditions by name",
+  "group": "history_injection",
+  "prior_record": {
+    "content": "主诉：腰痛1周。既往糖尿病5年，服用二甲双胍。磺胺类药物过敏。母亲有类风湿。",
+    "structured": {
+      "chief_complaint": "腰痛1周",
+      "past_history": "糖尿病5年，服用二甲双胍",
+      "allergy_history": "磺胺类药物过敏",
+      "family_history": "母亲有类风湿",
+      "personal_history": "不吸烟，不饮酒"
+    }
+  },
+  "chatlog": [
+    {
+      "speaker": "patient",
+      "text": "膝盖疼"
+    },
+    {
+      "speaker": "patient",
+      "text": "一周了，走路时候加重"
+    },
+    {
+      "speaker": "patient",
+      "text": "糖尿病还在吃药"
+    },
+    {
+      "speaker": "patient",
+      "text": "过敏的药还是一样"
+    },
+    {
+      "speaker": "patient",
+      "text": "家里人没什么变化"
+    },
+    {
+      "speaker": "patient",
+      "text": "还是不抽烟不喝酒"
+    }
+  ],
+  "patient_info": {
+    "name": "测试历史注入",
+    "gender": "女",
+    "year_of_birth": 1984,
+    "phone": "13800000011"
+  },
+  "expectations": {
+    "must_not_timeout": true,
+    "min_fields_filled": 4,
+    "required_fields_present": [
+      "chief_complaint",
+      "present_illness",
+      "allergy_history"
+    ],
+    "chief_complaint_contains_any": [
+      "膝盖"
+    ],
+    "allergy_history_contains_any": [
+      "磺胺"
+    ],
+    "replies_must_mention": [
+      "磺胺",
+      "糖尿病",
+      "类风湿"
+    ],
+    "history_leveraged": true
+  }
+}

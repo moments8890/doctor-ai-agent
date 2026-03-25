@@ -1,0 +1,21 @@
+{
+  "case_id": "PI-007",
+  "title": "Registration links to doctor-created patient",
+  "group": "registration",
+  "pre_create_patient": {
+    "name": "已有王芳",
+    "gender": "女",
+    "year_of_birth": 1988
+  },
+  "register_input": {
+    "name": "已有王芳",
+    "gender": "女",
+    "year_of_birth": 1988,
+    "phone": "13800000007"
+  },
+  "expectations": {
+    "links_to_existing": true,
+    "backfills_phone": true,
+    "no_duplicate_patient": true
+  }
+}

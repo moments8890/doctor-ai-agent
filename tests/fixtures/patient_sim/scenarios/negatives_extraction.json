@@ -1,0 +1,90 @@
+{
+  "case_id": "PI-004",
+  "title": "Patient says '没有' to everything — negatives extracted",
+  "group": "negatives",
+  "chatlog": [
+    {
+      "speaker": "patient",
+      "text": "头晕",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "patient",
+      "text": "今天开始的，不严重",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "patient",
+      "text": "以前没有得过什么病",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "patient",
+      "text": "没有药物过敏",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "patient",
+      "text": "家人没有类似的病",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "patient",
+      "text": "不吸烟不喝酒",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    }
+  ],
+  "patient_info": {
+    "name": "测试头晕",
+    "gender": "女",
+    "year_of_birth": 2000,
+    "phone": "13800000004"
+  },
+  "expectations": {
+    "must_not_timeout": true,
+    "min_fields_filled": 5,
+    "required_fields_present": [
+      "chief_complaint"
+    ],
+    "chief_complaint_contains_any": [
+      "头晕"
+    ],
+    "final_status": "reviewing",
+    "confirm_creates_record": true,
+    "negative_fields_accepted": [
+      "past_history",
+      "allergy_history",
+      "family_history"
+    ]
+  }
+}

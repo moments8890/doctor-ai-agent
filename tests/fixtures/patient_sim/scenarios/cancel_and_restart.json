@@ -1,0 +1,27 @@
+{
+  "case_id": "PI-006",
+  "title": "Cancel and restart gives fresh session",
+  "group": "session_management",
+  "chatlog": [
+    {
+      "speaker": "patient",
+      "text": "膝盖疼",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    }
+  ],
+  "patient_info": {
+    "name": "测试取消",
+    "gender": "女",
+    "year_of_birth": 1995,
+    "phone": "13800000006"
+  },
+  "expectations": {
+    "must_not_timeout": true,
+    "cancel_then_start_gives_new_session": true
+  }
+}

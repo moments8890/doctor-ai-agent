@@ -1,0 +1,20 @@
+{
+  "case_id": "PI-008",
+  "title": "Registration rejects mismatched YOB",
+  "group": "registration",
+  "pre_create_patient": {
+    "name": "冲突李明",
+    "gender": "男",
+    "year_of_birth": 1975
+  },
+  "register_input": {
+    "name": "冲突李明",
+    "gender": "男",
+    "year_of_birth": 1990,
+    "phone": "13800000008"
+  },
+  "expectations": {
+    "register_rejected": true,
+    "reject_reason_contains": "不符"
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "case_id": "PI-002",
+  "title": "Abdominal pain with surgical history",
+  "group": "full_flow",
+  "chatlog": [
+    {
+      "speaker": "patient",
+      "text": "肚子疼",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "patient",
+      "text": "两天了，阵发性的",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "patient",
+      "text": "做过阑尾手术",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "patient",
+      "text": "青霉素过敏",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "patient",
+      "text": "父亲有糖尿病",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "patient",
+      "text": "吸烟，不喝酒",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    }
+  ],
+  "patient_info": {
+    "name": "测试腹痛",
+    "gender": "女",
+    "year_of_birth": 1985,
+    "phone": "13800000002"
+  },
+  "expectations": {
+    "must_not_timeout": true,
+    "min_fields_filled": 6,
+    "required_fields_present": [
+      "chief_complaint",
+      "present_illness",
+      "past_history",
+      "allergy_history"
+    ],
+    "chief_complaint_contains_any": [
+      "肚子疼",
+      "腹痛"
+    ],
+    "past_history_contains_any": [
+      "阑尾",
+      "手术"
+    ],
+    "allergy_history_contains_any": [
+      "青霉素"
+    ],
+    "final_status": "reviewing",
+    "confirm_creates_record": true,
+    "record_type": "interview_summary",
+    "task_created": true
+  }
+}

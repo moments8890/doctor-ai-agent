@@ -1,0 +1,72 @@
+{
+  "case_id": "PI-005",
+  "title": "Resume interrupted interview",
+  "group": "session_management",
+  "chatlog_part1": [
+    {
+      "speaker": "patient",
+      "text": "腰疼",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "patient",
+      "text": "一周了",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    }
+  ],
+  "chatlog_part2": [
+    {
+      "speaker": "patient",
+      "text": "没有其他疾病",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "patient",
+      "text": "没有过敏，不吸烟",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "patient",
+      "text": "没有家族病史",
+      "assert": {
+        "tools_include": [
+          "advance_interview"
+        ],
+        "llm_calls": 3
+      }
+    }
+  ],
+  "patient_info": {
+    "name": "测试中断",
+    "gender": "男",
+    "year_of_birth": 1978,
+    "phone": "13800000005"
+  },
+  "expectations": {
+    "must_not_timeout": true,
+    "resume_returns_same_session": true,
+    "resume_preserves_collected": true,
+    "final_status": "reviewing",
+    "confirm_creates_record": true
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "case_id": "PI-009",
+  "title": "Wrong YOB login rejected",
+  "group": "auth",
+  "patient_info": {
+    "name": "登录测试",
+    "gender": "男",
+    "year_of_birth": 1992,
+    "phone": "13800000009"
+  },
+  "login_with": {
+    "phone": "13800000009",
+    "year_of_birth": 1999
+  },
+  "expectations": {
+    "login_rejected": true
+  }
+}
