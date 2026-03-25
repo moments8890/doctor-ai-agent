@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 import uuid
 
 from fastapi import APIRouter, Header, Query

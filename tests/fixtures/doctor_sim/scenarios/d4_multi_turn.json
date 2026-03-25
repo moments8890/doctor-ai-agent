@@ -1,24 +1,325 @@
 {
+  "schema_version": 2,
   "id": "D4",
-  "name": "多轮口述",
-  "style": "multi_turn",
-  "description": "3轮逐步口述：第1轮主诉+现病史，第2轮补充既往史+检验结果，第3轮补充诊断+治疗方案。测试多轮信息合并能力",
-  "specialty": "neurosurgery",
-  "patient_info": {"name": "王建军", "gender": "男", "age": 52},
-  "turn_plan": [
-    {
-      "turn": 1,
-      "text": "新患者 王建军 男 52岁 神经外科\n主诉：发现脑动静脉畸形1月，头痛加重1周。\n现病史：患者1月前因反复头痛于外院就诊，行头颅MRI发现左侧额顶叶脑动静脉畸形，Spetzler-Martin III级。当时头痛呈间歇性胀痛，程度中等，尚可忍受，无恶心呕吐，无癫痫发作。1周前头痛加重，呈持续性，伴有视物模糊，偶有恶心，无呕吐，无肢体无力，无言语障碍。来我院门诊就诊后收入院。发病以来精神食欲一般，睡眠欠佳，大小便正常。"
-    },
-    {
-      "turn": 2,
-      "text": "补充既往史和检查结果：\n既往史：高血压3年，口服安博维150mg qd，血压控制在130-135/80-85mmHg左右。否认糖尿病、冠心病、脑梗死。无手术外伤史。\n过敏史：磺胺类药物过敏（药疹）。\n个人史：吸烟15年 10支/天，已戒烟2年。否认饮酒。\n婚育史：已婚，育1女。\n家族史：否认家族遗传病史，父母健在。\n体格检查：T 36.8℃ P 72次/分 R 16次/分 BP 132/82mmHg。神志清楚，精神一般。心肺腹无异常。\n专科：双瞳等大等圆3mm，对光反射灵敏。四肢肌力V级，肌张力正常。左侧偏头区可闻及血管杂音。Babinski征(-)。NIHSS 0分 mRS 1分。\n辅检：外院MRI(2026-02-22)：左额顶叶AVM，供血动脉来自左MCA及ACA分支，引流至上矢状窦。我院CTA(2026-03-20)：证实左额顶AVM，nidus约3.5cm×3cm，供血动脉2支，深静脉引流。Labs：WBC 6.8 HGB 152 PLT 226 Cr 0.9 ALT 18 AST 20 PT 12.0 INR 1.02 HbA1c 5.6% LDL-C 2.4 Hcy 18μmol/L（偏高）D-dimer 0.3mg/L"
-    },
-    {
-      "turn": 3,
-      "text": "诊断和治疗方案：\n诊断：1.左侧额顶叶脑动静脉畸形（Spetzler-Martin III级） 2.高血压病2级（中危）\n治疗方案：拟行DSA造影进一步明确AVM血管构筑，评估是否可行血管内栓塞+手术切除的联合治疗。术前准备：控制血压目标<130/80mmHg，继续安博维150mg qd。术前抗癫痫预防：左乙拉西坦500mg bid口服。完善术前心电图、胸片、凝血功能检查。针对Hcy偏高，加用叶酸0.8mg qd + 维生素B6 10mg qd。\n医嘱及随访：住院期间卧床休息为主，避免剧烈活动。低盐低脂饮食。DSA术后24h制动穿刺侧肢体。根据DSA结果制定下一步手术计划，预计住院10-14天。出院后门诊随访，1个月、3个月复查MRA。"
-    }
+  "scenario_type": "doctor_extraction",
+  "title": "多轮口述 — 三轮信息合并",
+  "tags": [
+    "regression",
+    "multi-turn",
+    "neurosurgery"
   ],
+  "patient": {
+    "name": "王建军",
+    "gender": "男",
+    "age": 52
+  },
+  "input": {
+    "mode": "doctor_interview",
+    "turns": [
+      {
+        "actor": "doctor",
+        "text": "新患者 王建军 男 52岁 神经外科\n主诉：发现脑动静脉畸形1月，头痛加重1周。\n现病史：患者1月前因反复头痛于外院就诊，行头颅MRI发现左侧额顶叶脑动静脉畸形，Spetzler-Martin III级。当时头痛呈间歇性胀痛，程度中等，尚可忍受，无恶心呕吐，无癫痫发作。1周前头痛加重，呈持续性，伴有视物模糊，偶有恶心，无呕吐，无肢体无力，无言语障碍。来我院门诊就诊后收入院。发病以来精神食欲一般，睡眠欠佳，大小便正常。"
+      },
+      {
+        "actor": "doctor",
+        "text": "补充既往史和检查结果：\n既往史：高血压3年，口服安博维150mg qd，血压控制在130-135/80-85mmHg左右。否认糖尿病、冠心病、脑梗死。无手术外伤史。\n过敏史：磺胺类药物过敏（药疹）。\n个人史：吸烟15年 10支/天，已戒烟2年。否认饮酒。\n婚育史：已婚，育1女。\n家族史：否认家族遗传病史，父母健在。\n体格检查：T 36.8℃ P 72次/分 R 16次/分 BP 132/82mmHg。神志清楚，精神一般。心肺腹无异常。\n专科：双瞳等大等圆3mm，对光反射灵敏。四肢肌力V级，肌张力正常。左侧偏头区可闻及血管杂音。Babinski征(-)。NIHSS 0分 mRS 1分。\n辅检：外院MRI(2026-02-22)：左额顶叶AVM，供血动脉来自左MCA及ACA分支，引流至上矢状窦。我院CTA(2026-03-20)：证实左额顶AVM，nidus约3.5cm×3cm，供血动脉2支，深静脉引流。Labs：WBC 6.8 HGB 152 PLT 226 Cr 0.9 ALT 18 AST 20 PT 12.0 INR 1.02 HbA1c 5.6% LDL-C 2.4 Hcy 18μmol/L（偏高）D-dimer 0.3mg/L"
+      },
+      {
+        "actor": "doctor",
+        "text": "诊断和治疗方案：\n诊断：1.左侧额顶叶脑动静脉畸形（Spetzler-Martin III级） 2.高血压病2级（中危）\n治疗方案：拟行DSA造影进一步明确AVM血管构筑，评估是否可行血管内栓塞+手术切除的联合治疗。术前准备：控制血压目标<130/80mmHg，继续安博维150mg qd。术前抗癫痫预防：左乙拉西坦500mg bid口服。完善术前心电图、胸片、凝血功能检查。针对Hcy偏高，加用叶酸0.8mg qd + 维生素B6 10mg qd。\n医嘱及随访：住院期间卧床休息为主，避免剧烈活动。低盐低脂饮食。DSA术后24h制动穿刺侧肢体。根据DSA结果制定下一步手术计划，预计住院10-14天。出院后门诊随访，1个月、3个月复查MRA。"
+      }
+    ]
+  },
+  "execution": {
+    "entrypoint": "records.interview.turn",
+    "auto_confirm": true,
+    "timeout_seconds": 60
+  },
+  "expectations": {
+    "assertions": [
+      {
+        "target": "record.exists",
+        "matcher": "eq",
+        "expected": true
+      },
+      {
+        "target": "db.patients.count",
+        "matcher": "eq",
+        "expected": 1
+      },
+      {
+        "target": "db.medical_records.count",
+        "matcher": "min",
+        "expected": 1
+      }
+    ],
+    "extraction": {
+      "facts": [
+        {
+          "text": "发现脑动静脉畸形1月",
+          "allowed_fields": [
+            "chief_complaint"
+          ],
+          "aliases": [
+            "发现脑AVM1月",
+            "发现脑动静脉畸形1m"
+          ]
+        },
+        {
+          "text": "头痛加重1周",
+          "allowed_fields": [
+            "chief_complaint"
+          ],
+          "aliases": [
+            "头痛加重1w"
+          ]
+        },
+        {
+          "text": "Spetzler-Martin III级",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "左侧额顶叶AVM",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": [
+            "左侧额顶叶动静脉畸形"
+          ]
+        },
+        {
+          "text": "1周前头痛加重 持续性",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": [
+            "1w前头痛加重 持续性"
+          ]
+        },
+        {
+          "text": "伴视物模糊",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "无癫痫发作",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": [
+            "否认癫痫发作"
+          ]
+        },
+        {
+          "text": "无肢体无力",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": [
+            "否认肢体无力"
+          ]
+        },
+        {
+          "text": "高血压3年 安博维150mg qd",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "高血压3年 厄贝沙坦150mg qd",
+            "HTN3年 安博维150mg qd",
+            "高血压3y 安博维150mg qd"
+          ]
+        },
+        {
+          "text": "否认糖尿病",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "否认DM",
+            "无糖尿病"
+          ]
+        },
+        {
+          "text": "磺胺类药物过敏 药疹",
+          "allowed_fields": [
+            "allergy_history"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "吸烟15年 已戒烟2年",
+          "allowed_fields": [
+            "personal_history"
+          ],
+          "aliases": [
+            "吸烟15y 已戒烟2y"
+          ]
+        },
+        {
+          "text": "已婚 育1女",
+          "allowed_fields": [
+            "marital_reproductive"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "否认家族遗传病 父母健在",
+          "allowed_fields": [
+            "family_history"
+          ],
+          "aliases": [
+            "无家族遗传病 父母健在"
+          ]
+        },
+        {
+          "text": "BP 132/82mmHg",
+          "allowed_fields": [
+            "physical_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "左侧偏头区血管杂音",
+          "allowed_fields": [
+            "specialist_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "NIHSS 0分",
+          "allowed_fields": [
+            "specialist_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "mRS 1分",
+          "allowed_fields": [
+            "specialist_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "左额顶叶AVM 供血MCA ACA分支",
+          "allowed_fields": [
+            "auxiliary_exam"
+          ],
+          "aliases": [
+            "左额顶叶动静脉畸形 供血MCA ACA分支"
+          ]
+        },
+        {
+          "text": "nidus 3.5cm×3cm 供血动脉2支 深静脉引流",
+          "allowed_fields": [
+            "auxiliary_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "Hcy 18μmol/L 偏高",
+          "allowed_fields": [
+            "auxiliary_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "HbA1c 5.6%",
+          "allowed_fields": [
+            "auxiliary_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "D-dimer 0.3mg/L",
+          "allowed_fields": [
+            "auxiliary_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "左侧额顶叶脑动静脉畸形 Spetzler-Martin III",
+          "allowed_fields": [
+            "diagnosis"
+          ],
+          "aliases": [
+            "左侧额顶叶脑AVM Spetzler-Martin III"
+          ]
+        },
+        {
+          "text": "高血压病2级",
+          "allowed_fields": [
+            "diagnosis"
+          ],
+          "aliases": [
+            "HTN病2级"
+          ]
+        },
+        {
+          "text": "拟行DSA造影",
+          "allowed_fields": [
+            "treatment_plan"
+          ],
+          "aliases": [
+            "拟行数字减影血管造影造影"
+          ]
+        },
+        {
+          "text": "评估栓塞+手术切除联合治疗",
+          "allowed_fields": [
+            "treatment_plan"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "左乙拉西坦500mg bid",
+          "allowed_fields": [
+            "treatment_plan"
+          ],
+          "aliases": [
+            "开浦兰500mg bid"
+          ]
+        },
+        {
+          "text": "叶酸0.8mg qd + 维生素B6 10mg qd",
+          "allowed_fields": [
+            "treatment_plan"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "出院后1个月 3个月复查MRA",
+          "allowed_fields": [
+            "orders_followup"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "第2轮补充既往史正确合并",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "第3轮补充诊断正确合并",
+          "allowed_fields": [
+            "diagnosis"
+          ],
+          "aliases": []
+        }
+      ],
+      "forbidden": [],
+      "thresholds": {
+        "recall": 0.8
+      }
+    }
+  },
   "gold_soap": {
     "department": "神经外科",
     "chief_complaint": "发现脑动静脉畸形1月，头痛加重1周",
@@ -34,39 +335,5 @@
     "diagnosis": "1.左侧额顶叶脑动静脉畸形（Spetzler-Martin III级） 2.高血压病2级（中危）",
     "treatment_plan": "拟行DSA造影明确AVM血管构筑，评估血管内栓塞+手术切除联合治疗。控制血压目标<130/80mmHg，继续安博维150mg qd。术前抗癫痫预防：左乙拉西坦500mg bid口服。完善术前心电图、胸片、凝血功能。针对Hcy偏高，加用叶酸0.8mg qd + 维生素B6 10mg qd。",
     "orders_followup": "住院期间卧床休息为主，避免剧烈活动。低盐低脂饮食。DSA术后24h制动穿刺侧肢体。预计住院10-14天。出院后门诊随访，1个月、3个月复查MRA。"
-  },
-  "fact_catalog": [
-    {"id": "d4_cc_avm", "field": "chief_complaint", "text": "发现脑动静脉畸形1月", "importance": "critical"},
-    {"id": "d4_cc_headache", "field": "chief_complaint", "text": "头痛加重1周", "importance": "critical"},
-    {"id": "d4_pi_sm_grade", "field": "present_illness", "text": "Spetzler-Martin III级", "importance": "critical"},
-    {"id": "d4_pi_location", "field": "present_illness", "text": "左侧额顶叶AVM", "importance": "critical"},
-    {"id": "d4_pi_headache_worse", "field": "present_illness", "text": "1周前头痛加重 持续性", "importance": "critical"},
-    {"id": "d4_pi_blurred_vision", "field": "present_illness", "text": "伴视物模糊", "importance": "important"},
-    {"id": "d4_pi_neg_seizure", "field": "present_illness", "text": "无癫痫发作", "importance": "important"},
-    {"id": "d4_pi_neg_weakness", "field": "present_illness", "text": "无肢体无力", "importance": "important"},
-    {"id": "d4_ph_htn", "field": "past_history", "text": "高血压3年 安博维150mg qd", "importance": "critical"},
-    {"id": "d4_ph_neg_dm", "field": "past_history", "text": "否认糖尿病", "importance": "important"},
-    {"id": "d4_al_sulfa", "field": "allergy_history", "text": "磺胺类药物过敏 药疹", "importance": "critical"},
-    {"id": "d4_sh_smoking_quit", "field": "personal_history", "text": "吸烟15年 已戒烟2年", "importance": "important"},
-    {"id": "d4_mr_married", "field": "marital_reproductive", "text": "已婚 育1女", "importance": "important"},
-    {"id": "d4_fh_neg", "field": "family_history", "text": "否认家族遗传病 父母健在", "importance": "important"},
-    {"id": "d4_pe_bp", "field": "physical_exam", "text": "BP 132/82mmHg", "importance": "critical"},
-    {"id": "d4_se_bruit", "field": "specialist_exam", "text": "左侧偏头区血管杂音", "importance": "critical"},
-    {"id": "d4_se_nihss", "field": "specialist_exam", "text": "NIHSS 0分", "importance": "critical"},
-    {"id": "d4_se_mrs", "field": "specialist_exam", "text": "mRS 1分", "importance": "critical"},
-    {"id": "d4_ax_mri_avm", "field": "auxiliary_exam", "text": "左额顶叶AVM 供血MCA ACA分支", "importance": "critical"},
-    {"id": "d4_ax_cta_nidus", "field": "auxiliary_exam", "text": "nidus 3.5cm×3cm 供血动脉2支 深静脉引流", "importance": "critical"},
-    {"id": "d4_ax_hcy", "field": "auxiliary_exam", "text": "Hcy 18μmol/L 偏高", "importance": "important"},
-    {"id": "d4_ax_hba1c", "field": "auxiliary_exam", "text": "HbA1c 5.6%", "importance": "important"},
-    {"id": "d4_ax_ddimer", "field": "auxiliary_exam", "text": "D-dimer 0.3mg/L", "importance": "important"},
-    {"id": "d4_dx_avm", "field": "diagnosis", "text": "左侧额顶叶脑动静脉畸形 Spetzler-Martin III", "importance": "critical"},
-    {"id": "d4_dx_htn", "field": "diagnosis", "text": "高血压病2级", "importance": "critical"},
-    {"id": "d4_tp_dsa", "field": "treatment_plan", "text": "拟行DSA造影", "importance": "critical"},
-    {"id": "d4_tp_embolization_surgery", "field": "treatment_plan", "text": "评估栓塞+手术切除联合治疗", "importance": "critical"},
-    {"id": "d4_tp_levetiracetam", "field": "treatment_plan", "text": "左乙拉西坦500mg bid", "importance": "important"},
-    {"id": "d4_tp_folate", "field": "treatment_plan", "text": "叶酸0.8mg qd + 维生素B6 10mg qd", "importance": "important"},
-    {"id": "d4_of_followup_mra", "field": "orders_followup", "text": "出院后1个月 3个月复查MRA", "importance": "important"},
-    {"id": "d4_merge_turn2_ph", "field": "past_history", "text": "第2轮补充既往史正确合并", "importance": "critical"},
-    {"id": "d4_merge_turn3_dx", "field": "diagnosis", "text": "第3轮补充诊断正确合并", "importance": "critical"}
-  ]
+  }
 }

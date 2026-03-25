@@ -1,35 +1,53 @@
 {
-  "case_id": "MVP-ACC-002",
+  "schema_version": 2,
+  "id": "acute_stroke_admission",
+  "scenario_type": "doctor_chat",
   "title": "Compound create-save: acute stroke admission",
-  "group": "create_save",
-  "chatlog": [
-    {
-      "speaker": "doctor",
-      "text": "创建患者刘丽萍，男81岁，卒中单元。突发左侧肢体无力并言语不清5小时，NIHSS 6分，头颅MRI示右侧基底节急性梗死，阿司匹林100mg qd，阿托伐他汀40mg qn。",
-      "assert": {
-        "tools_include": [
-          "create_record"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "doctor",
-      "text": "确认",
-      "assert": {
-        "tools_include": [],
-        "llm_calls": 0
-      }
-    }
+  "tags": [
+    "regression",
+    "create_save"
   ],
+  "patient": {
+    "name": "刘丽萍",
+    "gender": "男",
+    "age": 81
+  },
+  "input": {
+    "mode": "doctor_chat",
+    "turns": [
+      {
+        "actor": "doctor",
+        "text": "创建患者刘丽萍，男81岁，卒中单元。突发左侧肢体无力并言语不清5小时，NIHSS 6分，头颅MRI示右侧基底节急性梗死，阿司匹林100mg qd，阿托伐他汀40mg qn。"
+      }
+    ]
+  },
+  "execution": {
+    "entrypoint": "records.chat",
+    "auto_confirm": false,
+    "timeout_seconds": 60
+  },
   "expectations": {
-    "must_not_timeout": true,
-    "expected_patient_name": "刘丽萍",
-    "expected_patient_count": 1,
-    "expect_patient_dedup": true,
-    "expected_table_min_counts_by_doctor": {
-      "patients": 1,
-      "medical_records": 1
-    }
+    "assertions": [
+      {
+        "target": "db.patients.name",
+        "matcher": "eq",
+        "expected": "刘丽萍"
+      },
+      {
+        "target": "db.patients.count",
+        "matcher": "eq",
+        "expected": 1
+      },
+      {
+        "target": "db.patients.count",
+        "matcher": "min",
+        "expected": 1
+      },
+      {
+        "target": "db.interview_sessions.count",
+        "matcher": "min",
+        "expected": 1
+      }
+    ]
   }
 }

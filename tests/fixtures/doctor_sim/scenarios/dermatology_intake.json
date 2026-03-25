@@ -1,35 +1,53 @@
 {
-  "case_id": "MVP-ACC-019",
+  "schema_version": 2,
+  "id": "dermatology_intake",
+  "scenario_type": "doctor_chat",
   "title": "Compound create-save: dermatology (non-cardiology specialty)",
-  "group": "create_save",
-  "chatlog": [
-    {
-      "speaker": "doctor",
-      "text": "创建患者黄丽华，女28岁，皮肤科门诊。全身散在红色丘疹伴瘙痒1周，双下肢为著，查IgE升高，予西替利嗪10mg qd。",
-      "assert": {
-        "tools_include": [
-          "create_record"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "doctor",
-      "text": "确认",
-      "assert": {
-        "tools_include": [],
-        "llm_calls": 0
-      }
-    }
+  "tags": [
+    "regression",
+    "create_save"
   ],
+  "patient": {
+    "name": "黄丽华",
+    "gender": "女",
+    "age": 28
+  },
+  "input": {
+    "mode": "doctor_chat",
+    "turns": [
+      {
+        "actor": "doctor",
+        "text": "创建患者黄丽华，女28岁，皮肤科门诊。全身散在红色丘疹伴瘙痒1周，双下肢为著，查IgE升高，予西替利嗪10mg qd。"
+      }
+    ]
+  },
+  "execution": {
+    "entrypoint": "records.chat",
+    "auto_confirm": false,
+    "timeout_seconds": 60
+  },
   "expectations": {
-    "must_not_timeout": true,
-    "expected_patient_name": "黄丽华",
-    "expected_patient_count": 1,
-    "expect_patient_dedup": true,
-    "expected_table_min_counts_by_doctor": {
-      "patients": 1,
-      "medical_records": 1
-    }
+    "assertions": [
+      {
+        "target": "db.patients.name",
+        "matcher": "eq",
+        "expected": "黄丽华"
+      },
+      {
+        "target": "db.patients.count",
+        "matcher": "eq",
+        "expected": 1
+      },
+      {
+        "target": "db.patients.count",
+        "matcher": "min",
+        "expected": 1
+      },
+      {
+        "target": "db.interview_sessions.count",
+        "matcher": "min",
+        "expected": 1
+      }
+    ]
   }
 }

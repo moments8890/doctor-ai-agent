@@ -1,16 +1,413 @@
 {
+  "schema_version": 2,
   "id": "D8",
-  "name": "模板填空",
-  "style": "template_fill",
-  "description": "半结构化模板格式输入，使用【】标签标记各字段，测试系统从标签化段落中准确提取信息的能力",
-  "specialty": "neurosurgery",
-  "patient_info": {"name": "周丽萍", "gender": "女", "age": 47},
-  "turn_plan": [
-    {
-      "turn": 1,
-      "text": "【科室】神经外科\n【姓名】周丽萍 【性别】女 【年龄】47岁\n【主诉】头痛3天伴恶心呕吐1天\n【现病史】患者3天前无明显诱因出现头痛，呈全头持续性胀痛，程度中等偏重，尚能忍受，伴有颈部僵硬感。1天前头痛加重，疼痛难忍，伴恶心呕吐2次，呕吐物为胃内容物，非喷射性。伴畏光，无发热，无肢体抽搐，无肢体无力麻木，无言语不清，无意识障碍。急诊就诊行头颅CT示蛛网膜下腔出血，CTA示左侧大脑中动脉M1-M2分叉处动脉瘤，约8mm×6mm，形态不规则，可见子囊。收入我科。\n【既往史】偏头痛病史10年，发作时口服布洛芬缓释胶囊，每年发作4-5次。高血压5年，口服氨氯地平5mg qd，血压控制130-140/80-85mmHg。否认糖尿病、冠心病、脑梗死。否认肝炎结核传染病史。无手术外伤史。\n【过敏史】无\n【个人史】否认吸烟。偶尔饮红酒。教师。\n【婚育史】已婚，育1子1女。月经规律，LMP 2026-03-10。\n【家族史】母亲有颅内动脉瘤病史（已手术治疗），姐姐有高血压。否认其他遗传病。\n【体格检查】T 37.2℃ P 88次/分 R 20次/分 BP 165/98mmHg。急性面容，痛苦表情。神志清楚，烦躁不安。GCS E4V5M6=15分。心率88次/分，律齐。双肺呼吸音清。腹软，无压痛。\n【专科检查】Hunt-Hess II级。双瞳等大等圆3mm，对光反射灵敏。眼底检查未见明显视乳头水肿。颈强直(+)，颏胸距3横指。Kernig征(+)，Brudzinski征(+)。四肢肌力V级，肌张力正常。双侧Babinski征(-)。NIHSS 1分（头痛）。mRS 2分。\n【辅助检查】头颅CT(2026-03-24急诊)：鞍上池、外侧裂池、环池蛛网膜下腔出血，Fischer 2级。未见脑室扩大。CTA：左侧MCA M1-M2分叉处动脉瘤8mm×6mm，不规则，可见子囊2mm，瘤颈4mm。载瘤动脉无痉挛。血常规：WBC 11.5×10⁹/L HGB 125g/L PLT 188×10⁹/L。凝血：PT 11.5s INR 0.98 APTT 26.8s FIB 3.5g/L。肝肾功能：ALT 20 AST 16 Cr 0.6 BUN 12。电解质：K 4.0 Na 139 Cl 102。血糖6.8mmol/L。心肌标志物：hs-cTnI 0.008 CK-MB 12。ECG：窦性心动过速，ST-T无特殊。\n【诊断】1.左侧大脑中动脉动脉瘤破裂 蛛网膜下腔出血（Hunt-Hess II级 Fischer 2级） 2.高血压病2级（高危） 3.偏头痛\n【治疗方案】急诊手术指征明确，拟行开颅翼点入路左侧MCA动脉瘤夹闭术。术前准备：绝对卧床，头抬高15-30°，镇痛镇静（丙泊酚+芬太尼）。控制血压：乌拉地尔持续泵入，目标SBP 120-140mmHg。尼莫地平60mg/d iv泵入预防血管痉挛。甘露醇125ml q8h降颅压。止吐：昂丹司琼8mg iv prn。抗癫痫预防：左乙拉西坦500mg iv q12h。禁食，补液，留置导尿。\n【医嘱及随访】急诊手术，术后转ICU。术后24h复查CT。术后3天开始逐步恢复饮食。7-14天为血管痉挛高风险期，密切监测神经功能。每日TCD监测血流速度。术后14天拆线。出院后1个月、3个月、6个月门诊随访。建议一级亲属（子女）行MRA筛查颅内动脉瘤。"
-    }
+  "scenario_type": "doctor_extraction",
+  "title": "模板填空 — 标签化段落提取",
+  "tags": [
+    "regression",
+    "template",
+    "neurosurgery"
   ],
+  "patient": {
+    "name": "周丽萍",
+    "gender": "女",
+    "age": 47
+  },
+  "input": {
+    "mode": "doctor_interview",
+    "turns": [
+      {
+        "actor": "doctor",
+        "text": "【科室】神经外科\n【姓名】周丽萍 【性别】女 【年龄】47岁\n【主诉】头痛3天伴恶心呕吐1天\n【现病史】患者3天前无明显诱因出现头痛，呈全头持续性胀痛，程度中等偏重，尚能忍受，伴有颈部僵硬感。1天前头痛加重，疼痛难忍，伴恶心呕吐2次，呕吐物为胃内容物，非喷射性。伴畏光，无发热，无肢体抽搐，无肢体无力麻木，无言语不清，无意识障碍。急诊就诊行头颅CT示蛛网膜下腔出血，CTA示左侧大脑中动脉M1-M2分叉处动脉瘤，约8mm×6mm，形态不规则，可见子囊。收入我科。\n【既往史】偏头痛病史10年，发作时口服布洛芬缓释胶囊，每年发作4-5次。高血压5年，口服氨氯地平5mg qd，血压控制130-140/80-85mmHg。否认糖尿病、冠心病、脑梗死。否认肝炎结核传染病史。无手术外伤史。\n【过敏史】无\n【个人史】否认吸烟。偶尔饮红酒。教师。\n【婚育史】已婚，育1子1女。月经规律，LMP 2026-03-10。\n【家族史】母亲有颅内动脉瘤病史（已手术治疗），姐姐有高血压。否认其他遗传病。\n【体格检查】T 37.2℃ P 88次/分 R 20次/分 BP 165/98mmHg。急性面容，痛苦表情。神志清楚，烦躁不安。GCS E4V5M6=15分。心率88次/分，律齐。双肺呼吸音清。腹软，无压痛。\n【专科检查】Hunt-Hess II级。双瞳等大等圆3mm，对光反射灵敏。眼底检查未见明显视乳头水肿。颈强直(+)，颏胸距3横指。Kernig征(+)，Brudzinski征(+)。四肢肌力V级，肌张力正常。双侧Babinski征(-)。NIHSS 1分（头痛）。mRS 2分。\n【辅助检查】头颅CT(2026-03-24急诊)：鞍上池、外侧裂池、环池蛛网膜下腔出血，Fischer 2级。未见脑室扩大。CTA：左侧MCA M1-M2分叉处动脉瘤8mm×6mm，不规则，可见子囊2mm，瘤颈4mm。载瘤动脉无痉挛。血常规：WBC 11.5×10⁹/L HGB 125g/L PLT 188×10⁹/L。凝血：PT 11.5s INR 0.98 APTT 26.8s FIB 3.5g/L。肝肾功能：ALT 20 AST 16 Cr 0.6 BUN 12。电解质：K 4.0 Na 139 Cl 102。血糖6.8mmol/L。心肌标志物：hs-cTnI 0.008 CK-MB 12。ECG：窦性心动过速，ST-T无特殊。\n【诊断】1.左侧大脑中动脉动脉瘤破裂 蛛网膜下腔出血（Hunt-Hess II级 Fischer 2级） 2.高血压病2级（高危） 3.偏头痛\n【治疗方案】急诊手术指征明确，拟行开颅翼点入路左侧MCA动脉瘤夹闭术。术前准备：绝对卧床，头抬高15-30°，镇痛镇静（丙泊酚+芬太尼）。控制血压：乌拉地尔持续泵入，目标SBP 120-140mmHg。尼莫地平60mg/d iv泵入预防血管痉挛。甘露醇125ml q8h降颅压。止吐：昂丹司琼8mg iv prn。抗癫痫预防：左乙拉西坦500mg iv q12h。禁食，补液，留置导尿。\n【医嘱及随访】急诊手术，术后转ICU。术后24h复查CT。术后3天开始逐步恢复饮食。7-14天为血管痉挛高风险期，密切监测神经功能。每日TCD监测血流速度。术后14天拆线。出院后1个月、3个月、6个月门诊随访。建议一级亲属（子女）行MRA筛查颅内动脉瘤。"
+      }
+    ]
+  },
+  "execution": {
+    "entrypoint": "records.interview.turn",
+    "auto_confirm": true,
+    "timeout_seconds": 60
+  },
+  "expectations": {
+    "assertions": [
+      {
+        "target": "record.exists",
+        "matcher": "eq",
+        "expected": true
+      },
+      {
+        "target": "db.patients.count",
+        "matcher": "eq",
+        "expected": 1
+      },
+      {
+        "target": "db.medical_records.count",
+        "matcher": "min",
+        "expected": 1
+      }
+    ],
+    "extraction": {
+      "facts": [
+        {
+          "text": "头痛3天伴恶心呕吐1天",
+          "allowed_fields": [
+            "chief_complaint"
+          ],
+          "aliases": [
+            "头痛3d伴恶心呕吐1d"
+          ]
+        },
+        {
+          "text": "3天前无明显诱因全头持续性胀痛",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": [
+            "3d前无明显诱因全头持续性胀痛"
+          ]
+        },
+        {
+          "text": "恶心呕吐2次 非喷射性",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "伴畏光",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "头颅CT蛛网膜下腔出血",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": [
+            "头颅CTSAH"
+          ]
+        },
+        {
+          "text": "左侧MCA M1-M2分叉动脉瘤 8mm×6mm",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "不规则 可见子囊",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "无肢体抽搐",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": [
+            "否认肢体抽搐"
+          ]
+        },
+        {
+          "text": "无肢体无力麻木",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": [
+            "否认肢体无力麻木"
+          ]
+        },
+        {
+          "text": "偏头痛10年 布洛芬",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "偏头痛10年 芬必得",
+            "偏头痛10年 ibuprofen",
+            "偏头痛10y 布洛芬"
+          ]
+        },
+        {
+          "text": "高血压5年 氨氯地平5mg qd",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "高血压5年 络活喜5mg qd",
+            "HTN5年 氨氯地平5mg qd",
+            "高血压5y 氨氯地平5mg qd"
+          ]
+        },
+        {
+          "text": "否认糖尿病",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "否认DM",
+            "无糖尿病"
+          ]
+        },
+        {
+          "text": "无过敏",
+          "allowed_fields": [
+            "allergy_history"
+          ],
+          "aliases": [
+            "否认过敏"
+          ]
+        },
+        {
+          "text": "否认吸烟",
+          "allowed_fields": [
+            "personal_history"
+          ],
+          "aliases": [
+            "无吸烟"
+          ]
+        },
+        {
+          "text": "LMP 2026-03-10",
+          "allowed_fields": [
+            "marital_reproductive"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "育1子1女",
+          "allowed_fields": [
+            "marital_reproductive"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "母亲颅内动脉瘤已手术",
+          "allowed_fields": [
+            "family_history"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "BP 165/98mmHg",
+          "allowed_fields": [
+            "physical_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "GCS 15分",
+          "allowed_fields": [
+            "physical_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "烦躁不安",
+          "allowed_fields": [
+            "physical_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "Hunt-Hess II级",
+          "allowed_fields": [
+            "specialist_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "颈强直(+) 颏胸距3横指",
+          "allowed_fields": [
+            "specialist_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "Kernig征(+)",
+          "allowed_fields": [
+            "specialist_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "Brudzinski征(+)",
+          "allowed_fields": [
+            "specialist_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "NIHSS 1分",
+          "allowed_fields": [
+            "specialist_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "mRS 2分",
+          "allowed_fields": [
+            "specialist_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "Fischer 2级",
+          "allowed_fields": [
+            "auxiliary_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "动脉瘤8mm×6mm 子囊2mm 瘤颈4mm",
+          "allowed_fields": [
+            "auxiliary_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "WBC 11.5×10⁹/L",
+          "allowed_fields": [
+            "auxiliary_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "INR 0.98",
+          "allowed_fields": [
+            "auxiliary_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "hs-cTnI 0.008",
+          "allowed_fields": [
+            "auxiliary_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "左侧MCA动脉瘤破裂 SAH Hunt-Hess II Fischer 2",
+          "allowed_fields": [
+            "diagnosis"
+          ],
+          "aliases": [
+            "左侧MCA动脉瘤破裂 蛛网膜下腔出血 Hunt-Hess II Fischer 2"
+          ]
+        },
+        {
+          "text": "高血压病2级",
+          "allowed_fields": [
+            "diagnosis"
+          ],
+          "aliases": [
+            "HTN病2级"
+          ]
+        },
+        {
+          "text": "偏头痛",
+          "allowed_fields": [
+            "diagnosis"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "急诊开颅翼点入路MCA动脉瘤夹闭术",
+          "allowed_fields": [
+            "treatment_plan"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "乌拉地尔泵入 目标SBP 120-140",
+          "allowed_fields": [
+            "treatment_plan"
+          ],
+          "aliases": [
+            "亚宁定泵入 目标SBP 120-140"
+          ]
+        },
+        {
+          "text": "尼莫地平60mg/d iv",
+          "allowed_fields": [
+            "treatment_plan"
+          ],
+          "aliases": [
+            "尼膜同60mg/d iv"
+          ]
+        },
+        {
+          "text": "甘露醇125ml q8h",
+          "allowed_fields": [
+            "treatment_plan"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "左乙拉西坦500mg iv q12h",
+          "allowed_fields": [
+            "treatment_plan"
+          ],
+          "aliases": [
+            "开浦兰500mg iv q12h"
+          ]
+        },
+        {
+          "text": "术后转ICU",
+          "allowed_fields": [
+            "orders_followup"
+          ],
+          "aliases": [
+            "术后转重症监护室"
+          ]
+        },
+        {
+          "text": "7-14天血管痉挛高风险期 密切监测",
+          "allowed_fields": [
+            "orders_followup"
+          ],
+          "aliases": [
+            "7-14d血管痉挛高风险期 密切监测"
+          ]
+        },
+        {
+          "text": "每日TCD监测",
+          "allowed_fields": [
+            "orders_followup"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "建议一级亲属MRA筛查",
+          "allowed_fields": [
+            "orders_followup"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "从【主诉】标签正确提取",
+          "allowed_fields": [
+            "chief_complaint"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "【既往史】标签映射到past_history字段",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": []
+        }
+      ],
+      "forbidden": [],
+      "thresholds": {
+        "recall": 0.8
+      }
+    }
+  },
   "gold_soap": {
     "department": "神经外科",
     "chief_complaint": "头痛3天伴恶心呕吐1天",
@@ -26,52 +423,5 @@
     "diagnosis": "1.左侧大脑中动脉动脉瘤破裂 蛛网膜下腔出血（Hunt-Hess II级 Fischer 2级） 2.高血压病2级（高危） 3.偏头痛",
     "treatment_plan": "急诊开颅翼点入路左侧MCA动脉瘤夹闭术。绝对卧床，头抬高15-30°。镇痛镇静：丙泊酚+芬太尼。控制血压：乌拉地尔持续泵入，目标SBP 120-140mmHg。尼莫地平60mg/d iv预防血管痉挛。甘露醇125ml q8h降颅压。止吐：昂丹司琼8mg iv prn。抗癫痫：左乙拉西坦500mg iv q12h。禁食，补液，留置导尿。",
     "orders_followup": "术后转ICU。术后24h复查CT。术后3天恢复饮食。7-14天血管痉挛高风险期，密切监测神经功能。每日TCD监测。14天拆线。出院后1个月、3个月、6个月门诊随访。建议一级亲属行MRA筛查。"
-  },
-  "fact_catalog": [
-    {"id": "d8_cc_headache", "field": "chief_complaint", "text": "头痛3天伴恶心呕吐1天", "importance": "critical"},
-    {"id": "d8_pi_onset", "field": "present_illness", "text": "3天前无明显诱因全头持续性胀痛", "importance": "critical"},
-    {"id": "d8_pi_vomiting", "field": "present_illness", "text": "恶心呕吐2次 非喷射性", "importance": "critical"},
-    {"id": "d8_pi_photophobia", "field": "present_illness", "text": "伴畏光", "importance": "important"},
-    {"id": "d8_pi_ct_sah", "field": "present_illness", "text": "头颅CT蛛网膜下腔出血", "importance": "critical"},
-    {"id": "d8_pi_cta_aneurysm", "field": "present_illness", "text": "左侧MCA M1-M2分叉动脉瘤 8mm×6mm", "importance": "critical"},
-    {"id": "d8_pi_daughter_bleb", "field": "present_illness", "text": "不规则 可见子囊", "importance": "critical"},
-    {"id": "d8_pi_neg_seizure", "field": "present_illness", "text": "无肢体抽搐", "importance": "important"},
-    {"id": "d8_pi_neg_weakness", "field": "present_illness", "text": "无肢体无力麻木", "importance": "important"},
-    {"id": "d8_ph_migraine", "field": "past_history", "text": "偏头痛10年 布洛芬", "importance": "important"},
-    {"id": "d8_ph_htn", "field": "past_history", "text": "高血压5年 氨氯地平5mg qd", "importance": "critical"},
-    {"id": "d8_ph_neg_dm", "field": "past_history", "text": "否认糖尿病", "importance": "important"},
-    {"id": "d8_al_none", "field": "allergy_history", "text": "无过敏", "importance": "critical"},
-    {"id": "d8_sh_no_smoking", "field": "personal_history", "text": "否认吸烟", "importance": "important"},
-    {"id": "d8_mr_lmp", "field": "marital_reproductive", "text": "LMP 2026-03-10", "importance": "critical"},
-    {"id": "d8_mr_children", "field": "marital_reproductive", "text": "育1子1女", "importance": "important"},
-    {"id": "d8_fh_aneurysm", "field": "family_history", "text": "母亲颅内动脉瘤已手术", "importance": "critical"},
-    {"id": "d8_pe_bp", "field": "physical_exam", "text": "BP 165/98mmHg", "importance": "critical"},
-    {"id": "d8_pe_gcs", "field": "physical_exam", "text": "GCS 15分", "importance": "critical"},
-    {"id": "d8_pe_agitated", "field": "physical_exam", "text": "烦躁不安", "importance": "important"},
-    {"id": "d8_se_hh_grade", "field": "specialist_exam", "text": "Hunt-Hess II级", "importance": "critical"},
-    {"id": "d8_se_neck_stiffness", "field": "specialist_exam", "text": "颈强直(+) 颏胸距3横指", "importance": "critical"},
-    {"id": "d8_se_kernig", "field": "specialist_exam", "text": "Kernig征(+)", "importance": "critical"},
-    {"id": "d8_se_brudzinski", "field": "specialist_exam", "text": "Brudzinski征(+)", "importance": "critical"},
-    {"id": "d8_se_nihss", "field": "specialist_exam", "text": "NIHSS 1分", "importance": "critical"},
-    {"id": "d8_se_mrs", "field": "specialist_exam", "text": "mRS 2分", "importance": "critical"},
-    {"id": "d8_ax_fischer", "field": "auxiliary_exam", "text": "Fischer 2级", "importance": "critical"},
-    {"id": "d8_ax_aneurysm_detail", "field": "auxiliary_exam", "text": "动脉瘤8mm×6mm 子囊2mm 瘤颈4mm", "importance": "critical"},
-    {"id": "d8_ax_wbc", "field": "auxiliary_exam", "text": "WBC 11.5×10⁹/L", "importance": "important"},
-    {"id": "d8_ax_inr", "field": "auxiliary_exam", "text": "INR 0.98", "importance": "important"},
-    {"id": "d8_ax_troponin", "field": "auxiliary_exam", "text": "hs-cTnI 0.008", "importance": "important"},
-    {"id": "d8_dx_sah", "field": "diagnosis", "text": "左侧MCA动脉瘤破裂 SAH Hunt-Hess II Fischer 2", "importance": "critical"},
-    {"id": "d8_dx_htn", "field": "diagnosis", "text": "高血压病2级", "importance": "critical"},
-    {"id": "d8_dx_migraine", "field": "diagnosis", "text": "偏头痛", "importance": "important"},
-    {"id": "d8_tp_clipping", "field": "treatment_plan", "text": "急诊开颅翼点入路MCA动脉瘤夹闭术", "importance": "critical"},
-    {"id": "d8_tp_bp_target", "field": "treatment_plan", "text": "乌拉地尔泵入 目标SBP 120-140", "importance": "critical"},
-    {"id": "d8_tp_nimodipine", "field": "treatment_plan", "text": "尼莫地平60mg/d iv", "importance": "critical"},
-    {"id": "d8_tp_mannitol", "field": "treatment_plan", "text": "甘露醇125ml q8h", "importance": "important"},
-    {"id": "d8_tp_levetiracetam", "field": "treatment_plan", "text": "左乙拉西坦500mg iv q12h", "importance": "important"},
-    {"id": "d8_of_icu", "field": "orders_followup", "text": "术后转ICU", "importance": "critical"},
-    {"id": "d8_of_vasospasm", "field": "orders_followup", "text": "7-14天血管痉挛高风险期 密切监测", "importance": "critical"},
-    {"id": "d8_of_tcd", "field": "orders_followup", "text": "每日TCD监测", "importance": "important"},
-    {"id": "d8_of_family_screening", "field": "orders_followup", "text": "建议一级亲属MRA筛查", "importance": "important"},
-    {"id": "d8_template_label_extraction", "field": "chief_complaint", "text": "从【主诉】标签正确提取", "importance": "important"},
-    {"id": "d8_template_section_match", "field": "past_history", "text": "【既往史】标签映射到past_history字段", "importance": "important"}
-  ]
+  }
 }

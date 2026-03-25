@@ -1,45 +1,57 @@
 {
-  "case_id": "MVP-ACC-036",
+  "schema_version": 2,
+  "id": "cardiology_specialty_query",
+  "scenario_type": "doctor_chat",
   "title": "Specialty: cardiology query with specialty terms",
-  "group": "query_history",
-  "chatlog": [
-    {
-      "speaker": "doctor",
-      "text": "创建患者钱伟，男56岁，心内科。心衰NYHA III级，EF 30%，BNP 2400 pg/mL，予沙库巴曲缬沙坦及利尿。",
-      "assert": {
-        "tools_include": [
-          "create_record"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "doctor",
-      "text": "确认",
-      "assert": {
-        "tools_include": [],
-        "llm_calls": 0
-      }
-    },
-    {
-      "speaker": "doctor",
-      "text": "查钱伟最近的EF和BNP记录",
-      "assert": {
-        "tools_include": [
-          "query_records"
-        ],
-        "llm_calls": 2
-      }
-    }
+  "tags": [
+    "regression",
+    "query_history"
   ],
+  "patient": {
+    "name": "钱伟",
+    "gender": "男",
+    "age": 56
+  },
+  "input": {
+    "mode": "doctor_chat",
+    "turns": [
+      {
+        "actor": "doctor",
+        "text": "创建患者钱伟，男56岁，心内科。心衰NYHA III级，EF 30%，BNP 2400 pg/mL，予沙库巴曲缬沙坦及利尿。"
+      },
+      {
+        "actor": "doctor",
+        "text": "查钱伟最近的EF和BNP记录"
+      }
+    ]
+  },
+  "execution": {
+    "entrypoint": "records.chat",
+    "auto_confirm": false,
+    "timeout_seconds": 60
+  },
   "expectations": {
-    "must_not_timeout": true,
-    "expected_patient_name": "钱伟",
-    "expected_patient_count": 1,
-    "expect_patient_dedup": true,
-    "expected_table_min_counts_by_doctor": {
-      "patients": 1,
-      "medical_records": 1
-    }
+    "assertions": [
+      {
+        "target": "db.patients.name",
+        "matcher": "eq",
+        "expected": "钱伟"
+      },
+      {
+        "target": "db.patients.count",
+        "matcher": "eq",
+        "expected": 1
+      },
+      {
+        "target": "db.patients.count",
+        "matcher": "min",
+        "expected": 1
+      },
+      {
+        "target": "db.interview_sessions.count",
+        "matcher": "min",
+        "expected": 1
+      }
+    ]
   }
 }

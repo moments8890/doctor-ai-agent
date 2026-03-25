@@ -10,8 +10,7 @@ extracted into structured fields via doctor-extract.md.
 
 from __future__ import annotations
 
-import os
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from domain.patients.interview_summary import (
     DoctorExtractResult,

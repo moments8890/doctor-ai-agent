@@ -20,7 +20,7 @@
       value: |
         // Reply should ask follow-up questions (normal interview flow)
         const obj = JSON.parse(output);
-        return obj.reply && obj.reply.length > 10 && obj.reply.includes('?') || obj.reply.includes('？');
+        return obj.reply && obj.reply.length > 10 && (obj.reply.includes('?') || obj.reply.includes('？'));
 
 - description: "patient-interview: phase 1 — chief_complaint extraction + follow-up question"
   options:

@@ -1,80 +1,98 @@
 {
-  "case_id": "PI-001",
+  "schema_version": 2,
+  "id": "simple_headache_full_flow",
+  "scenario_type": "patient_interview",
   "title": "Simple headache — complete interview in 5 turns",
-  "group": "full_flow",
-  "chatlog": [
-    {
-      "speaker": "patient",
-      "text": "头疼",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "patient",
-      "text": "三天了，持续性的",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "patient",
-      "text": "没有疾病，没做过手术",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "patient",
-      "text": "没有过敏，不抽烟不喝酒",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "patient",
-      "text": "家人没有类似的",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    }
+  "tags": [
+    "regression",
+    "full_flow"
   ],
-  "patient_info": {
+  "patient": {
     "name": "测试头痛",
     "gender": "男",
-    "year_of_birth": 1990,
+    "age": 36,
     "phone": "13800000001"
   },
+  "input": {
+    "mode": "patient_interview",
+    "turns": [
+      {
+        "actor": "patient",
+        "text": "头疼"
+      },
+      {
+        "actor": "patient",
+        "text": "三天了，持续性的"
+      },
+      {
+        "actor": "patient",
+        "text": "没有疾病，没做过手术"
+      },
+      {
+        "actor": "patient",
+        "text": "没有过敏，不抽烟不喝酒"
+      },
+      {
+        "actor": "patient",
+        "text": "家人没有类似的"
+      }
+    ]
+  },
+  "execution": {
+    "entrypoint": "patient.interview.chat",
+    "auto_confirm": false,
+    "timeout_seconds": 60
+  },
   "expectations": {
-    "must_not_timeout": true,
-    "min_fields_filled": 5,
-    "required_fields_present": [
-      "chief_complaint",
-      "present_illness"
-    ],
-    "chief_complaint_contains_any": [
-      "头疼",
-      "头痛"
-    ],
-    "final_status": "reviewing",
-    "confirm_creates_record": true,
-    "record_type": "interview_summary",
-    "record_needs_review": true,
-    "task_created": true
+    "assertions": [
+      {
+        "target": "interview.fields_filled",
+        "matcher": "min",
+        "expected": 5
+      },
+      {
+        "target": "interview.field.chief_complaint",
+        "matcher": "present",
+        "expected": true
+      },
+      {
+        "target": "interview.field.present_illness",
+        "matcher": "present",
+        "expected": true
+      },
+      {
+        "target": "interview.field.chief_complaint",
+        "matcher": "contains_any",
+        "expected": [
+          "头疼",
+          "头痛"
+        ]
+      },
+      {
+        "target": "interview.status",
+        "matcher": "eq",
+        "expected": "reviewing"
+      },
+      {
+        "target": "interview.confirm_creates_record",
+        "matcher": "eq",
+        "expected": true
+      },
+      {
+        "target": "record.type",
+        "matcher": "eq",
+        "expected": "interview_summary"
+      },
+      {
+        "target": "record.needs_review",
+        "matcher": "eq",
+        "expected": true
+      },
+      {
+        "target": "task.created",
+        "matcher": "eq",
+        "expected": true
+      }
+    ]
   }
 }

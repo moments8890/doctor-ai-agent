@@ -78,7 +78,7 @@ async def _handle_intent(
     text: str, doctor_id: str, history: list = None, *,
     turn_context=None, knowledge_context: str = "",
 ) -> "_WeChatReply":
-    """Route doctor text through the ADR 0011 runtime."""
+    """Route doctor text through the Plan-and-Act agent."""
     # Fast-path: "完成 N" bypasses LLM
     m = _COMPLETE_RE.match(text.strip())
     if m:
@@ -159,11 +159,7 @@ def verify(
 
 
 async def _route_session_state_bg(text: str, doctor_id: str) -> "_WeChatReply":
-    """Route doctor text through ADR 0011 runtime.
-
-    process_turn handles everything: context load, draft guard, conversation
-    model, commit engine, memory patch, context save, and chat archive.
-    """
+    """Route doctor text through Plan-and-Act agent."""
     try:
         reply_parts = await _handle_intent(text, doctor_id)
     except TimeoutError:

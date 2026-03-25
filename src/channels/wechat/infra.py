@@ -9,12 +9,10 @@ import json
 import threading
 import time
 from collections import OrderedDict
-from datetime import datetime, timezone
 from pathlib import Path
 
-from db.engine import AsyncSessionLocal, engine as DB_ENGINE
+from db.engine import AsyncSessionLocal
 from db.crud import get_doctor_by_id
-from sqlalchemy import text as sql_text
 from utils.log import log
 
 

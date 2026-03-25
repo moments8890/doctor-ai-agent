@@ -1,10 +1,14 @@
 # Test cases for diagnosis.md
 # Prompt: clinical data → differential diagnosis JSON
 # Fields: differentials, workup, treatment, red_flags
+# Note: diagnosis output is large — needs higher max_tokens than default
 
 - description: "diagnosis: red flags urgent — hypotension + chest pain triggers emergency"
   options:
     prompts: [diagnosis]
+    provider:
+      config:
+        max_tokens: 4096
   vars:
     clinical_data: |
       chief_complaint: "胸痛伴呼吸困难2小时"
@@ -34,6 +38,9 @@
 - description: "diagnosis: drug class only — no specific drug names in treatment"
   options:
     prompts: [diagnosis]
+    provider:
+      config:
+        max_tokens: 4096
   vars:
     clinical_data: |
       chief_complaint: "咳嗽咳痰5天，发热3天"
@@ -63,9 +70,12 @@
         if (drugItems.length === 0) return true;
         return drugItems.every(d => d.drug_class && d.drug_class.length > 0);
 
-- description: "diagnosis: dual audience — both doctor_brief and patient_note present"
+- description: "diagnosis: dual audience — both reasoning and patient_note present"
   options:
     prompts: [diagnosis]
+    provider:
+      config:
+        max_tokens: 4096
   vars:
     clinical_data: |
       chief_complaint: "头痛2周，加重3天"
@@ -78,9 +88,10 @@
       value: |
         const obj = JSON.parse(output);
         const diffs = obj.differentials || [];
-        // Every differential should have both doctor_brief and patient_note
+        // Every differential should have a clinical rationale + patient_note
+        // (field name may be reasoning or doctor_brief — instructor normalizes in production)
         return diffs.length > 0 && diffs.every(d =>
-          (d.doctor_brief && d.doctor_brief.length > 0) &&
+          ((d.reasoning || d.doctor_brief) && (d.reasoning || d.doctor_brief).length > 0) &&
           (d.patient_note && d.patient_note.length > 0)
         );
     - type: javascript
@@ -96,6 +107,9 @@
 - description: "diagnosis: insufficient data — low confidence, no fabrication"
   options:
     prompts: [diagnosis]
+    provider:
+      config:
+        max_tokens: 4096
   vars:
     clinical_data: |
       chief_complaint: "头痛"

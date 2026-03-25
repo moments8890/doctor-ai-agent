@@ -1,16 +1,350 @@
 {
+  "schema_version": 2,
   "id": "D3",
-  "name": "OCR粘贴",
-  "style": "ocr_paste",
-  "description": "医生粘贴外院转诊信OCR识别结果，包含断行、随机空格、乱码字符、格式噪声，系统需从噪声输入中提取有效信息",
-  "specialty": "neurosurgery",
-  "patient_info": {"name": "李秀英", "gender": "女", "age": 63},
-  "turn_plan": [
-    {
-      "turn": 1,
-      "text": "转 诊 信\n\n患者李秀英 ，女 ， 63岁 。\n\n主 诉 ：反复头晕伴右侧 肢体\n麻木2月余 ，加 重3天 。\n\n现病 史：患者2月前无明显诱因 出现间歇性头\n晕，伴右侧肢 体麻 木感，以右手为著，偶有\n持物不稳，无头 痛，无恶心  呕吐，无言语不\n清,无意识障 碍。曾于当地诊所就诊 ，考虑\u201c颈\n椎病\u201d，予以 颈椎牵引 理疗 ，症状无明显\n缓解。 3天前上述症状加 重，出现右手精 细动\n作困难 ，右 下肢行走时稍有拖曳感 。于当地\n县医院行头颅CT未见明 显出血 ，CTA检查发现\n:左侧颈内动 脉C6段重 度狭窄(约 85%) ,伴\n有溃疡斑块 形成。遂转 诊至贵院进一步诊冶 。\n\n既往 史 ：高血压 15年 ，目前 口服 氨氯地 平\n5mg qd +代 文80mg qd ，血压控 制在\n140一150/85一9OmmHg 。2型搪 尿病8年 ，口\n服格华 止0 .5 bid+ 阿 卡波糖50mg tid ，\n空腹血搪 7一8mmo1/L,餐后 2h血搪\n1O一12mmol/L 。冠心病 3年 ，未行PCI ,口\n服拜阿 司匹林1OOmg qd+倍 他乐克47.5mg\nqd+立普 妥2Omg qn 。否认脑 梗死脑出血 史 。\n2O2O年行腰椎间盘 突出症微创手术 。\n\n过敏 史 ：青 霉素过 敏（皮疹 ）。\n\n个人 史 ：否认 烟酒 。退 休教师 。\n\n家族 史 ：母亲有脑 梗死病 史 ，父亲已故 （\n具体不 详）。\n\n查 体 ：BP 148/92mmHg HR 78次/分 。神 清 ，\n言语流 利 。右 侧鼻唇沟稍 浅 。右上肢肌力\nIV+级 ，右下 肢肌力V一级 ，左侧 肢体肌力V\n级 。右侧 巴氏征 可疑阳性 。左侧颈 部可闻\n及血管 杂音 。\n\nNIHSS 3分(右上肢轻瘫1分+右下肢0.5+感觉1分+忽略0.5)\nmRS 2分\n\n辅助 检查 ：\n头颅CT(2O26一O3一2O) ：未见明 显出血，左侧\n半卵圆 中心 数个腔隙性缺 血灶 。\nCTA : 左侧ICA C6段 重度狭窄 约85% ，伴溃\n疡斑 块 。右侧ICA轻 度狭窄约3O% 。\nLabs: HbA1c 7 .8% LDL一C 3.5mmo1/L hs一\ncTnI O.O1 Cr 1.O HGB 118 PLT 165\n\n初步 诊断 ：1. 左侧颈内 动脉重度 狭窄 2.\n短暂性脑 缺血发 作(TIA) 3. 高血 压病3级\n（很高 危） 4.2型搪尿 病 5.冠 心病\n\n建议 ：完善 DSA检 查 ，评估是否行CEA或 CAS\n治疗 。继续 双抗血小 板+强化 他汀 。 血糖血\n压强 化管理 。"
-    }
+  "scenario_type": "doctor_extraction",
+  "title": "OCR粘贴 — 外院转诊信噪声提取",
+  "tags": [
+    "regression",
+    "ocr",
+    "neurosurgery"
   ],
+  "patient": {
+    "name": "李秀英",
+    "gender": "女",
+    "age": 63
+  },
+  "input": {
+    "mode": "doctor_interview",
+    "turns": [
+      {
+        "actor": "doctor",
+        "text": "转 诊 信\n\n患者李秀英 ，女 ， 63岁 。\n\n主 诉 ：反复头晕伴右侧 肢体\n麻木2月余 ，加 重3天 。\n\n现病 史：患者2月前无明显诱因 出现间歇性头\n晕，伴右侧肢 体麻 木感，以右手为著，偶有\n持物不稳，无头 痛，无恶心  呕吐，无言语不\n清,无意识障 碍。曾于当地诊所就诊 ，考虑“颈\n椎病”，予以 颈椎牵引 理疗 ，症状无明显\n缓解。 3天前上述症状加 重，出现右手精 细动\n作困难 ，右 下肢行走时稍有拖曳感 。于当地\n县医院行头颅CT未见明 显出血 ，CTA检查发现\n:左侧颈内动 脉C6段重 度狭窄(约 85%) ,伴\n有溃疡斑块 形成。遂转 诊至贵院进一步诊冶 。\n\n既往 史 ：高血压 15年 ，目前 口服 氨氯地 平\n5mg qd +代 文80mg qd ，血压控 制在\n140一150/85一9OmmHg 。2型搪 尿病8年 ，口\n服格华 止0 .5 bid+ 阿 卡波糖50mg tid ，\n空腹血搪 7一8mmo1/L,餐后 2h血搪\n1O一12mmol/L 。冠心病 3年 ，未行PCI ,口\n服拜阿 司匹林1OOmg qd+倍 他乐克47.5mg\nqd+立普 妥2Omg qn 。否认脑 梗死脑出血 史 。\n2O2O年行腰椎间盘 突出症微创手术 。\n\n过敏 史 ：青 霉素过 敏（皮疹 ）。\n\n个人 史 ：否认 烟酒 。退 休教师 。\n\n家族 史 ：母亲有脑 梗死病 史 ，父亲已故 （\n具体不 详）。\n\n查 体 ：BP 148/92mmHg HR 78次/分 。神 清 ，\n言语流 利 。右 侧鼻唇沟稍 浅 。右上肢肌力\nIV+级 ，右下 肢肌力V一级 ，左侧 肢体肌力V\n级 。右侧 巴氏征 可疑阳性 。左侧颈 部可闻\n及血管 杂音 。\n\nNIHSS 3分(右上肢轻瘫1分+右下肢0.5+感觉1分+忽略0.5)\nmRS 2分\n\n辅助 检查 ：\n头颅CT(2O26一O3一2O) ：未见明 显出血，左侧\n半卵圆 中心 数个腔隙性缺 血灶 。\nCTA : 左侧ICA C6段 重度狭窄 约85% ，伴溃\n疡斑 块 。右侧ICA轻 度狭窄约3O% 。\nLabs: HbA1c 7 .8% LDL一C 3.5mmo1/L hs一\ncTnI O.O1 Cr 1.O HGB 118 PLT 165\n\n初步 诊断 ：1. 左侧颈内 动脉重度 狭窄 2.\n短暂性脑 缺血发 作(TIA) 3. 高血 压病3级\n（很高 危） 4.2型搪尿 病 5.冠 心病\n\n建议 ：完善 DSA检 查 ，评估是否行CEA或 CAS\n治疗 。继续 双抗血小 板+强化 他汀 。 血糖血\n压强 化管理 。"
+      }
+    ]
+  },
+  "execution": {
+    "entrypoint": "records.interview.turn",
+    "auto_confirm": true,
+    "timeout_seconds": 60
+  },
+  "expectations": {
+    "assertions": [
+      {
+        "target": "record.exists",
+        "matcher": "eq",
+        "expected": true
+      },
+      {
+        "target": "db.patients.count",
+        "matcher": "eq",
+        "expected": 1
+      },
+      {
+        "target": "db.medical_records.count",
+        "matcher": "min",
+        "expected": 1
+      }
+    ],
+    "extraction": {
+      "facts": [
+        {
+          "text": "反复头晕伴右侧肢体麻木2月余 加重3天",
+          "allowed_fields": [
+            "chief_complaint"
+          ],
+          "aliases": [
+            "反复头晕伴右侧肢体麻木2m余 加重3天",
+            "反复头晕伴右侧肢体麻木2月余 加重3d"
+          ]
+        },
+        {
+          "text": "左侧颈内动脉C6段重度狭窄 85%",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "伴溃疡斑块形成",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "右手精细动作困难",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "右下肢行走拖曳",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "曾考虑颈椎病 牵引理疗无效",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "高血压15年",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "HTN15年",
+            "高血压15y"
+          ]
+        },
+        {
+          "text": "氨氯地平5mg qd",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "络活喜5mg qd"
+          ]
+        },
+        {
+          "text": "代文80mg qd",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "缬沙坦80mg qd"
+          ]
+        },
+        {
+          "text": "2型糖尿病8年",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "2型DM8年",
+            "2型糖尿病8y"
+          ]
+        },
+        {
+          "text": "格华止0.5 bid",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "二甲双胍0.5 bid"
+          ]
+        },
+        {
+          "text": "阿卡波糖50mg tid",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "拜唐苹50mg tid"
+          ]
+        },
+        {
+          "text": "冠心病3年",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "CHD3年",
+            "冠心病3y"
+          ]
+        },
+        {
+          "text": "拜阿司匹林100mg qd",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "阿司匹林100mg qd"
+          ]
+        },
+        {
+          "text": "倍他乐克47.5mg qd",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "美托洛尔47.5mg qd"
+          ]
+        },
+        {
+          "text": "立普妥20mg qn",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "阿托伐他汀20mg qn"
+          ]
+        },
+        {
+          "text": "2020年腰椎间盘突出症微创手术",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "2020y腰椎间盘突出症微创手术"
+          ]
+        },
+        {
+          "text": "青霉素过敏 皮疹",
+          "allowed_fields": [
+            "allergy_history"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "否认烟酒",
+          "allowed_fields": [
+            "personal_history"
+          ],
+          "aliases": [
+            "无烟酒"
+          ]
+        },
+        {
+          "text": "母亲脑梗死",
+          "allowed_fields": [
+            "family_history"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "BP 148/92mmHg",
+          "allowed_fields": [
+            "physical_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "右上肢肌力IV+级",
+          "allowed_fields": [
+            "physical_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "左侧颈部血管杂音",
+          "allowed_fields": [
+            "physical_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "右侧巴氏征可疑阳性",
+          "allowed_fields": [
+            "physical_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "NIHSS 3分",
+          "allowed_fields": [
+            "specialist_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "mRS 2分",
+          "allowed_fields": [
+            "specialist_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "左侧半卵圆中心腔隙性缺血灶",
+          "allowed_fields": [
+            "auxiliary_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "左侧ICA C6段狭窄85%",
+          "allowed_fields": [
+            "auxiliary_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "HbA1c 7.8%",
+          "allowed_fields": [
+            "auxiliary_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "LDL-C 3.5mmol/L",
+          "allowed_fields": [
+            "auxiliary_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "左侧颈内动脉重度狭窄",
+          "allowed_fields": [
+            "diagnosis"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "TIA",
+          "allowed_fields": [
+            "diagnosis"
+          ],
+          "aliases": [
+            "短暂性脑缺血发作"
+          ]
+        },
+        {
+          "text": "完善DSA检查",
+          "allowed_fields": [
+            "treatment_plan"
+          ],
+          "aliases": [
+            "完善数字减影血管造影检查"
+          ]
+        },
+        {
+          "text": "评估CEA或CAS",
+          "allowed_fields": [
+            "treatment_plan"
+          ],
+          "aliases": [
+            "评估CEA或颈动脉支架置入术",
+            "评估颈动脉内膜切除术或CAS"
+          ]
+        },
+        {
+          "text": "2026-03-20 CT日期正确提取",
+          "allowed_fields": [
+            "auxiliary_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "OCR识别 搪尿病→糖尿病",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "OCR识别 搪尿病→DM"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "thresholds": {
+        "recall": 0.8
+      }
+    }
+  },
   "gold_soap": {
     "department": "神经外科",
     "chief_complaint": "反复头晕伴右侧肢体麻木2月余，加重3天",
@@ -26,43 +360,5 @@
     "diagnosis": "1.左侧颈内动脉重度狭窄 2.短暂性脑缺血发作(TIA) 3.高血压病3级（很高危） 4.2型糖尿病 5.冠心病",
     "treatment_plan": "完善DSA检查，评估是否行CEA或CAS治疗。继续双抗血小板+强化他汀。血糖血压强化管理。",
     "orders_followup": ""
-  },
-  "fact_catalog": [
-    {"id": "d3_cc_dizziness", "field": "chief_complaint", "text": "反复头晕伴右侧肢体麻木2月余 加重3天", "importance": "critical"},
-    {"id": "d3_pi_ica_stenosis", "field": "present_illness", "text": "左侧颈内动脉C6段重度狭窄 85%", "importance": "critical"},
-    {"id": "d3_pi_ulcer_plaque", "field": "present_illness", "text": "伴溃疡斑块形成", "importance": "critical"},
-    {"id": "d3_pi_fine_motor", "field": "present_illness", "text": "右手精细动作困难", "importance": "important"},
-    {"id": "d3_pi_dragging", "field": "present_illness", "text": "右下肢行走拖曳", "importance": "important"},
-    {"id": "d3_pi_misdiag", "field": "present_illness", "text": "曾考虑颈椎病 牵引理疗无效", "importance": "important"},
-    {"id": "d3_ph_htn", "field": "past_history", "text": "高血压15年", "importance": "critical"},
-    {"id": "d3_ph_amlodipine", "field": "past_history", "text": "氨氯地平5mg qd", "importance": "important"},
-    {"id": "d3_ph_valsartan", "field": "past_history", "text": "代文80mg qd", "importance": "important"},
-    {"id": "d3_ph_dm", "field": "past_history", "text": "2型糖尿病8年", "importance": "critical"},
-    {"id": "d3_ph_metformin", "field": "past_history", "text": "格华止0.5 bid", "importance": "important"},
-    {"id": "d3_ph_acarbose", "field": "past_history", "text": "阿卡波糖50mg tid", "importance": "important"},
-    {"id": "d3_ph_chd", "field": "past_history", "text": "冠心病3年", "importance": "critical"},
-    {"id": "d3_ph_asa", "field": "past_history", "text": "拜阿司匹林100mg qd", "importance": "important"},
-    {"id": "d3_ph_metoprolol", "field": "past_history", "text": "倍他乐克47.5mg qd", "importance": "important"},
-    {"id": "d3_ph_atorvastatin", "field": "past_history", "text": "立普妥20mg qn", "importance": "important"},
-    {"id": "d3_ph_lumbar_surgery", "field": "past_history", "text": "2020年腰椎间盘突出症微创手术", "importance": "important"},
-    {"id": "d3_al_penicillin", "field": "allergy_history", "text": "青霉素过敏 皮疹", "importance": "critical"},
-    {"id": "d3_sh_neg_smoking", "field": "personal_history", "text": "否认烟酒", "importance": "important"},
-    {"id": "d3_fh_mother_stroke", "field": "family_history", "text": "母亲脑梗死", "importance": "important"},
-    {"id": "d3_pe_bp", "field": "physical_exam", "text": "BP 148/92mmHg", "importance": "critical"},
-    {"id": "d3_pe_r_weakness", "field": "physical_exam", "text": "右上肢肌力IV+级", "importance": "critical"},
-    {"id": "d3_pe_bruit", "field": "physical_exam", "text": "左侧颈部血管杂音", "importance": "critical"},
-    {"id": "d3_pe_babinski", "field": "physical_exam", "text": "右侧巴氏征可疑阳性", "importance": "important"},
-    {"id": "d3_se_nihss", "field": "specialist_exam", "text": "NIHSS 3分", "importance": "critical"},
-    {"id": "d3_se_mrs", "field": "specialist_exam", "text": "mRS 2分", "importance": "critical"},
-    {"id": "d3_ax_ct_lacunar", "field": "auxiliary_exam", "text": "左侧半卵圆中心腔隙性缺血灶", "importance": "important"},
-    {"id": "d3_ax_cta_stenosis", "field": "auxiliary_exam", "text": "左侧ICA C6段狭窄85%", "importance": "critical"},
-    {"id": "d3_ax_hba1c", "field": "auxiliary_exam", "text": "HbA1c 7.8%", "importance": "critical"},
-    {"id": "d3_ax_ldl", "field": "auxiliary_exam", "text": "LDL-C 3.5mmol/L", "importance": "important"},
-    {"id": "d3_dx_stenosis", "field": "diagnosis", "text": "左侧颈内动脉重度狭窄", "importance": "critical"},
-    {"id": "d3_dx_tia", "field": "diagnosis", "text": "TIA", "importance": "critical"},
-    {"id": "d3_tp_dsa", "field": "treatment_plan", "text": "完善DSA检查", "importance": "critical"},
-    {"id": "d3_tp_cea_cas", "field": "treatment_plan", "text": "评估CEA或CAS", "importance": "critical"},
-    {"id": "d3_ocr_garbled_date", "field": "auxiliary_exam", "text": "2026-03-20 CT日期正确提取", "importance": "important"},
-    {"id": "d3_ocr_typo_dm", "field": "past_history", "text": "OCR识别 搪尿病→糖尿病", "importance": "important"}
-  ]
+  }
 }

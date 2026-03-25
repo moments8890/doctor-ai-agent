@@ -1,98 +1,122 @@
 {
-  "case_id": "PI-002",
+  "schema_version": 2,
+  "id": "abdominal_pain_surgical_history",
+  "scenario_type": "patient_interview",
   "title": "Abdominal pain with surgical history",
-  "group": "full_flow",
-  "chatlog": [
-    {
-      "speaker": "patient",
-      "text": "肚子疼",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "patient",
-      "text": "两天了，阵发性的",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "patient",
-      "text": "做过阑尾手术",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "patient",
-      "text": "青霉素过敏",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "patient",
-      "text": "父亲有糖尿病",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "patient",
-      "text": "吸烟，不喝酒",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    }
+  "tags": [
+    "regression",
+    "full_flow"
   ],
-  "patient_info": {
+  "patient": {
     "name": "测试腹痛",
     "gender": "女",
-    "year_of_birth": 1985,
+    "age": 41,
     "phone": "13800000002"
   },
+  "input": {
+    "mode": "patient_interview",
+    "turns": [
+      {
+        "actor": "patient",
+        "text": "肚子疼"
+      },
+      {
+        "actor": "patient",
+        "text": "两天了，阵发性的"
+      },
+      {
+        "actor": "patient",
+        "text": "做过阑尾手术"
+      },
+      {
+        "actor": "patient",
+        "text": "青霉素过敏"
+      },
+      {
+        "actor": "patient",
+        "text": "父亲有糖尿病"
+      },
+      {
+        "actor": "patient",
+        "text": "吸烟，不喝酒"
+      }
+    ]
+  },
+  "execution": {
+    "entrypoint": "patient.interview.chat",
+    "auto_confirm": false,
+    "timeout_seconds": 60
+  },
   "expectations": {
-    "must_not_timeout": true,
-    "min_fields_filled": 6,
-    "required_fields_present": [
-      "chief_complaint",
-      "present_illness",
-      "past_history",
-      "allergy_history"
-    ],
-    "chief_complaint_contains_any": [
-      "肚子疼",
-      "腹痛"
-    ],
-    "past_history_contains_any": [
-      "阑尾",
-      "手术"
-    ],
-    "allergy_history_contains_any": [
-      "青霉素"
-    ],
-    "final_status": "reviewing",
-    "confirm_creates_record": true,
-    "record_type": "interview_summary",
-    "task_created": true
+    "assertions": [
+      {
+        "target": "interview.fields_filled",
+        "matcher": "min",
+        "expected": 6
+      },
+      {
+        "target": "interview.field.chief_complaint",
+        "matcher": "present",
+        "expected": true
+      },
+      {
+        "target": "interview.field.present_illness",
+        "matcher": "present",
+        "expected": true
+      },
+      {
+        "target": "interview.field.past_history",
+        "matcher": "present",
+        "expected": true
+      },
+      {
+        "target": "interview.field.allergy_history",
+        "matcher": "present",
+        "expected": true
+      },
+      {
+        "target": "interview.field.chief_complaint",
+        "matcher": "contains_any",
+        "expected": [
+          "肚子疼",
+          "腹痛"
+        ]
+      },
+      {
+        "target": "interview.field.past_history",
+        "matcher": "contains_any",
+        "expected": [
+          "阑尾",
+          "手术"
+        ]
+      },
+      {
+        "target": "interview.field.allergy_history",
+        "matcher": "contains_any",
+        "expected": [
+          "青霉素"
+        ]
+      },
+      {
+        "target": "interview.status",
+        "matcher": "eq",
+        "expected": "reviewing"
+      },
+      {
+        "target": "interview.confirm_creates_record",
+        "matcher": "eq",
+        "expected": true
+      },
+      {
+        "target": "record.type",
+        "matcher": "eq",
+        "expected": "interview_summary"
+      },
+      {
+        "target": "task.created",
+        "matcher": "eq",
+        "expected": true
+      }
+    ]
   }
 }

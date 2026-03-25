@@ -1,83 +1,77 @@
 {
-  "case_id": "PI-010",
+  "schema_version": 2,
+  "id": "confirm_creates_record",
+  "scenario_type": "patient_interview",
   "title": "Confirm creates record visible in patient records API",
-  "group": "handoff",
-  "chatlog": [
-    {
-      "speaker": "patient",
-      "text": "咳嗽一周了",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "patient",
-      "text": "有痰，黄色的",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "patient",
-      "text": "没有其他疾病",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "patient",
-      "text": "没有过敏",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "patient",
-      "text": "家人没有类似情况",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "patient",
-      "text": "不抽烟不喝酒",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    }
+  "tags": [
+    "regression",
+    "handoff"
   ],
-  "patient_info": {
+  "patient": {
     "name": "测试交接",
     "gender": "男",
-    "year_of_birth": 1980,
+    "age": 46,
     "phone": "13800000010"
   },
+  "input": {
+    "mode": "patient_interview",
+    "turns": [
+      {
+        "actor": "patient",
+        "text": "咳嗽一周了"
+      },
+      {
+        "actor": "patient",
+        "text": "有痰，黄色的"
+      },
+      {
+        "actor": "patient",
+        "text": "没有其他疾病"
+      },
+      {
+        "actor": "patient",
+        "text": "没有过敏"
+      },
+      {
+        "actor": "patient",
+        "text": "家人没有类似情况"
+      },
+      {
+        "actor": "patient",
+        "text": "不抽烟不喝酒"
+      }
+    ]
+  },
+  "execution": {
+    "entrypoint": "patient.interview.chat",
+    "auto_confirm": false,
+    "timeout_seconds": 60
+  },
   "expectations": {
-    "must_not_timeout": true,
-    "confirm_creates_record": true,
-    "record_visible_in_patient_api": true,
-    "task_title_contains": "预问诊",
-    "record_content_contains_any": [
-      "咳嗽",
-      "痰"
+    "assertions": [
+      {
+        "target": "interview.confirm_creates_record",
+        "matcher": "eq",
+        "expected": true
+      },
+      {
+        "target": "task.title",
+        "matcher": "contains",
+        "expected": "预问诊"
+      },
+      {
+        "target": "record.content",
+        "matcher": "contains_any",
+        "expected": [
+          "咳嗽",
+          "痰"
+        ]
+      },
+      {
+        "target": "record.visible_in_api",
+        "matcher": "eq",
+        "expected": true
+      }
     ]
   }
 }

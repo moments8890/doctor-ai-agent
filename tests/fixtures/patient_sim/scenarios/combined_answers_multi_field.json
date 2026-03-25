@@ -1,87 +1,87 @@
 {
-  "case_id": "PI-003",
+  "schema_version": 2,
+  "id": "combined_answers_multi_field",
+  "scenario_type": "patient_interview",
   "title": "Patient gives combined answers — multi-field extraction",
-  "group": "multi_field",
-  "chatlog": [
-    {
-      "speaker": "patient",
-      "text": "胸闷气短一周了",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "patient",
-      "text": "活动后加重，休息后缓解",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "patient",
-      "text": "高血压十年，做过支架",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "patient",
-      "text": "没有药物过敏",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "patient",
-      "text": "家里有人得过心脏病",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "patient",
-      "text": "吸烟20年",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    }
+  "tags": [
+    "regression",
+    "multi_field"
   ],
-  "patient_info": {
+  "patient": {
     "name": "测试胸闷",
     "gender": "男",
-    "year_of_birth": 1965,
+    "age": 61,
     "phone": "13800000003"
   },
+  "input": {
+    "mode": "patient_interview",
+    "turns": [
+      {
+        "actor": "patient",
+        "text": "胸闷气短一周了"
+      },
+      {
+        "actor": "patient",
+        "text": "活动后加重，休息后缓解"
+      },
+      {
+        "actor": "patient",
+        "text": "高血压十年，做过支架"
+      },
+      {
+        "actor": "patient",
+        "text": "没有药物过敏"
+      },
+      {
+        "actor": "patient",
+        "text": "家里有人得过心脏病"
+      },
+      {
+        "actor": "patient",
+        "text": "吸烟20年"
+      }
+    ]
+  },
+  "execution": {
+    "entrypoint": "patient.interview.chat",
+    "auto_confirm": false,
+    "timeout_seconds": 60
+  },
   "expectations": {
-    "must_not_timeout": true,
-    "min_fields_filled": 5,
-    "required_fields_present": [
-      "chief_complaint",
-      "present_illness"
-    ],
-    "chief_complaint_contains_any": [
-      "胸闷",
-      "气短"
-    ],
-    "final_status": "reviewing",
-    "confirm_creates_record": true
+    "assertions": [
+      {
+        "target": "interview.fields_filled",
+        "matcher": "min",
+        "expected": 5
+      },
+      {
+        "target": "interview.field.chief_complaint",
+        "matcher": "present",
+        "expected": true
+      },
+      {
+        "target": "interview.field.present_illness",
+        "matcher": "present",
+        "expected": true
+      },
+      {
+        "target": "interview.field.chief_complaint",
+        "matcher": "contains_any",
+        "expected": [
+          "胸闷",
+          "气短"
+        ]
+      },
+      {
+        "target": "interview.status",
+        "matcher": "eq",
+        "expected": "reviewing"
+      },
+      {
+        "target": "interview.confirm_creates_record",
+        "matcher": "eq",
+        "expected": true
+      }
+    ]
   }
 }

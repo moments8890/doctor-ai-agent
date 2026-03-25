@@ -3,6 +3,7 @@
 **Status:** Planned (Codex-reviewed)
 **Date:** 2026-03-25
 **Depends on:** Doctor sim pipeline (done), patient sim pipeline (done)
+**Coverage analysis:** [scenario-coverage-analysis.md](scenario-coverage-analysis.md) — full gap analysis across all pipelines
 
 ## Goal
 

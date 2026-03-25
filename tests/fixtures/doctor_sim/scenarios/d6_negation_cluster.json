@@ -1,16 +1,428 @@
 {
+  "schema_version": 2,
   "id": "D6",
-  "name": "否定为主随访",
-  "style": "negation_heavy",
-  "description": "随访复诊病例，以否定陈述为主，包含大量阴性症状集群。测试系统将连续否定拆分为独立否认项的能力",
-  "specialty": "neurosurgery",
-  "patient_info": {"name": "刘淑芬", "gender": "女", "age": 59},
-  "turn_plan": [
-    {
-      "turn": 1,
-      "text": "刘淑芬 女 59岁 神经外科门诊随访\n主诉：颅内动脉瘤介入栓塞术后3月复查。\n现病史：患者3月前因左侧后交通动脉瘤破裂致蛛网膜下腔出血，于我科行血管内介入弹簧圈栓塞术，术后恢复良好，术后2周出院。出院后遵医嘱规律服药，定期门诊随访。目前否认头晕头痛恶心呕吐肢体麻木无力，无视物模糊复视，无言语不清吞咽困难，无记忆力减退注意力不集中，无癫痫发作。否认胸闷气短心悸，无腹痛腹泻腹胀，无尿频尿急尿痛。睡眠可，食欲正常，二便如常。精神状态较出院时明显好转。\n既往史：高血压8年，目前口服氨氯地平5mg qd+安博维150mg qd，血压控制在125-135/75-85mmHg。否认糖尿病。否认冠心病。否认脑梗死。否认肝炎结核等传染病史。3月前上述动脉瘤栓塞术，无其他手术外伤史。\n过敏史：无药物食物过敏史。\n个人史：否认吸烟饮酒。否认粉尘毒物接触史。退休工人。\n婚育史：已婚，育有2子，均体健。绝经6年。\n家族史：无特殊。否认家族遗传性疾病及肿瘤病史。\n体格检查：BP 128/78mmHg HR 72次/分 律齐。一般情况好，精神可。心肺腹查体无异常。穿刺点（右股动脉）愈合良好，无血肿搏动。\n专科：神志清楚，对答切题。双瞳等大等圆，直径3mm，对光反射灵敏。眼球各方向运动正常，无眼震。面部感觉对称，咀嚼有力。额纹对称，鼻唇沟等深，示齿口角无偏斜。软腭上抬有力，悬雍垂居中，咽反射存在。转颈耸肩有力。伸舌居中。四肢肌力V级，肌张力正常。双侧腱反射对称正常。双侧Babinski征(-)，Hoffmann征(-)。指鼻试验稳准，跟膝胫试验正常。Romberg征(-)。脑膜刺激征(-)。NIHSS 0分 mRS 0分。\n辅助检查：复查头颅MRA(2026-03-22)：左侧后交通动脉瘤栓塞术后改变，未见明显复发或残留瘤颈充盈。Willis环其余血管通畅。复查血常规：WBC 5.8 HGB 132 PLT 208。凝血：INR 1.05 PT 12.0s。肝肾功能正常范围（ALT 22 AST 18 Cr 0.7 BUN 14）。LDL-C 2.1mmol/L。\n诊断：左侧后交通动脉瘤栓塞术后，恢复期。高血压病，控制可。\n治疗方案：继续目前药物方案不变。氨氯地平5mg qd + 安博维150mg qd控制血压。拜阿司匹林100mg qd继续服用。下次随访6个月后，届时复查DSA评估栓塞稳定性。如有头痛加重、恶心呕吐、肢体无力等情况随时就诊。"
-    }
+  "scenario_type": "doctor_extraction",
+  "title": "否定为主随访 — 阴性症状集群拆分",
+  "tags": [
+    "regression",
+    "negation",
+    "neurosurgery"
   ],
+  "patient": {
+    "name": "刘淑芬",
+    "gender": "女",
+    "age": 59
+  },
+  "input": {
+    "mode": "doctor_interview",
+    "turns": [
+      {
+        "actor": "doctor",
+        "text": "刘淑芬 女 59岁 神经外科门诊随访\n主诉：颅内动脉瘤介入栓塞术后3月复查。\n现病史：患者3月前因左侧后交通动脉瘤破裂致蛛网膜下腔出血，于我科行血管内介入弹簧圈栓塞术，术后恢复良好，术后2周出院。出院后遵医嘱规律服药，定期门诊随访。目前否认头晕头痛恶心呕吐肢体麻木无力，无视物模糊复视，无言语不清吞咽困难，无记忆力减退注意力不集中，无癫痫发作。否认胸闷气短心悸，无腹痛腹泻腹胀，无尿频尿急尿痛。睡眠可，食欲正常，二便如常。精神状态较出院时明显好转。\n既往史：高血压8年，目前口服氨氯地平5mg qd+安博维150mg qd，血压控制在125-135/75-85mmHg。否认糖尿病。否认冠心病。否认脑梗死。否认肝炎结核等传染病史。3月前上述动脉瘤栓塞术，无其他手术外伤史。\n过敏史：无药物食物过敏史。\n个人史：否认吸烟饮酒。否认粉尘毒物接触史。退休工人。\n婚育史：已婚，育有2子，均体健。绝经6年。\n家族史：无特殊。否认家族遗传性疾病及肿瘤病史。\n体格检查：BP 128/78mmHg HR 72次/分 律齐。一般情况好，精神可。心肺腹查体无异常。穿刺点（右股动脉）愈合良好，无血肿搏动。\n专科：神志清楚，对答切题。双瞳等大等圆，直径3mm，对光反射灵敏。眼球各方向运动正常，无眼震。面部感觉对称，咀嚼有力。额纹对称，鼻唇沟等深，示齿口角无偏斜。软腭上抬有力，悬雍垂居中，咽反射存在。转颈耸肩有力。伸舌居中。四肢肌力V级，肌张力正常。双侧腱反射对称正常。双侧Babinski征(-)，Hoffmann征(-)。指鼻试验稳准，跟膝胫试验正常。Romberg征(-)。脑膜刺激征(-)。NIHSS 0分 mRS 0分。\n辅助检查：复查头颅MRA(2026-03-22)：左侧后交通动脉瘤栓塞术后改变，未见明显复发或残留瘤颈充盈。Willis环其余血管通畅。复查血常规：WBC 5.8 HGB 132 PLT 208。凝血：INR 1.05 PT 12.0s。肝肾功能正常范围（ALT 22 AST 18 Cr 0.7 BUN 14）。LDL-C 2.1mmol/L。\n诊断：左侧后交通动脉瘤栓塞术后，恢复期。高血压病，控制可。\n治疗方案：继续目前药物方案不变。氨氯地平5mg qd + 安博维150mg qd控制血压。拜阿司匹林100mg qd继续服用。下次随访6个月后，届时复查DSA评估栓塞稳定性。如有头痛加重、恶心呕吐、肢体无力等情况随时就诊。"
+      }
+    ]
+  },
+  "execution": {
+    "entrypoint": "records.interview.turn",
+    "auto_confirm": true,
+    "timeout_seconds": 60
+  },
+  "expectations": {
+    "assertions": [
+      {
+        "target": "record.exists",
+        "matcher": "eq",
+        "expected": true
+      },
+      {
+        "target": "db.patients.count",
+        "matcher": "eq",
+        "expected": 1
+      },
+      {
+        "target": "db.medical_records.count",
+        "matcher": "min",
+        "expected": 1
+      }
+    ],
+    "extraction": {
+      "facts": [
+        {
+          "text": "动脉瘤栓塞术后3月复查",
+          "allowed_fields": [
+            "chief_complaint"
+          ],
+          "aliases": [
+            "动脉瘤栓塞术后3m复查"
+          ]
+        },
+        {
+          "text": "3月前左侧后交通动脉瘤破裂SAH",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": [
+            "3月前左侧后交通动脉瘤破裂蛛网膜下腔出血",
+            "3m前左侧后交通动脉瘤破裂SAH"
+          ]
+        },
+        {
+          "text": "血管内介入弹簧圈栓塞术",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "术后恢复良好",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "否认头痛",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": [
+            "无头痛"
+          ]
+        },
+        {
+          "text": "否认头晕",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": [
+            "无头晕"
+          ]
+        },
+        {
+          "text": "否认恶心",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": [
+            "无恶心"
+          ]
+        },
+        {
+          "text": "否认呕吐",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": [
+            "无呕吐"
+          ]
+        },
+        {
+          "text": "否认肢体麻木",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": [
+            "无肢体麻木"
+          ]
+        },
+        {
+          "text": "否认肢体无力",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": [
+            "无肢体无力"
+          ]
+        },
+        {
+          "text": "无视物模糊",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": [
+            "否认视物模糊"
+          ]
+        },
+        {
+          "text": "无复视",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": [
+            "否认复视"
+          ]
+        },
+        {
+          "text": "无言语不清",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": [
+            "否认言语不清"
+          ]
+        },
+        {
+          "text": "无吞咽困难",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": [
+            "否认吞咽困难"
+          ]
+        },
+        {
+          "text": "无记忆力减退",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": [
+            "否认记忆力减退"
+          ]
+        },
+        {
+          "text": "无癫痫发作",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": [
+            "否认癫痫发作"
+          ]
+        },
+        {
+          "text": "否认胸闷",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": [
+            "无胸闷"
+          ]
+        },
+        {
+          "text": "否认气短",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": [
+            "无气短"
+          ]
+        },
+        {
+          "text": "否认心悸",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": [
+            "无心悸"
+          ]
+        },
+        {
+          "text": "高血压8年 氨氯地平+安博维",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "高血压8年 络活喜+安博维",
+            "高血压8年 氨氯地平+厄贝沙坦",
+            "HTN8年 氨氯地平+安博维",
+            "高血压8y 氨氯地平+安博维"
+          ]
+        },
+        {
+          "text": "否认糖尿病",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "否认DM",
+            "无糖尿病"
+          ]
+        },
+        {
+          "text": "否认冠心病",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "否认CHD",
+            "无冠心病"
+          ]
+        },
+        {
+          "text": "否认脑梗死",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "无脑梗死"
+          ]
+        },
+        {
+          "text": "否认肝炎结核等传染病史",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "无肝炎结核等传染病史",
+            "否认肝炎结核等传染"
+          ]
+        },
+        {
+          "text": "无药物食物过敏",
+          "allowed_fields": [
+            "allergy_history"
+          ],
+          "aliases": [
+            "否认药物食物过敏"
+          ]
+        },
+        {
+          "text": "否认吸烟",
+          "allowed_fields": [
+            "personal_history"
+          ],
+          "aliases": [
+            "无吸烟"
+          ]
+        },
+        {
+          "text": "否认饮酒",
+          "allowed_fields": [
+            "personal_history"
+          ],
+          "aliases": [
+            "无饮酒"
+          ]
+        },
+        {
+          "text": "绝经6年",
+          "allowed_fields": [
+            "marital_reproductive"
+          ],
+          "aliases": [
+            "绝经6y"
+          ]
+        },
+        {
+          "text": "无特殊 否认遗传病肿瘤",
+          "allowed_fields": [
+            "family_history"
+          ],
+          "aliases": [
+            "无遗传病肿瘤",
+            "否认特殊 否认遗传病肿瘤"
+          ]
+        },
+        {
+          "text": "NIHSS 0分",
+          "allowed_fields": [
+            "specialist_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "mRS 0分",
+          "allowed_fields": [
+            "specialist_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "Babinski征(-)",
+          "allowed_fields": [
+            "specialist_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "Hoffmann征(-)",
+          "allowed_fields": [
+            "specialist_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "Romberg征(-)",
+          "allowed_fields": [
+            "specialist_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "脑膜刺激征(-)",
+          "allowed_fields": [
+            "specialist_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "MRA未见复发或残留瘤颈充盈",
+          "allowed_fields": [
+            "auxiliary_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "LDL-C 2.1mmol/L",
+          "allowed_fields": [
+            "auxiliary_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "左侧后交通动脉瘤栓塞术后 恢复期",
+          "allowed_fields": [
+            "diagnosis"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "继续目前药物方案不变",
+          "allowed_fields": [
+            "treatment_plan"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "6个月后复查DSA",
+          "allowed_fields": [
+            "orders_followup"
+          ],
+          "aliases": [
+            "6个月后复查数字减影血管造影"
+          ]
+        },
+        {
+          "text": "否认头晕头痛恶心呕吐 拆分为4项独立否认",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": [
+            "无头晕头痛恶心呕吐 拆分为4项独立否认"
+          ]
+        },
+        {
+          "text": "肢体麻木无力 拆分为麻木+无力两项",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "否认胸闷气短心悸 拆分为3项独立否认",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": [
+            "无胸闷气短心悸 拆分为3项独立否认"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "thresholds": {
+        "recall": 0.8
+      }
+    }
+  },
   "gold_soap": {
     "department": "神经外科",
     "chief_complaint": "颅内动脉瘤介入栓塞术后3月复查",
@@ -26,50 +438,5 @@
     "diagnosis": "1.左侧后交通动脉瘤栓塞术后 恢复期 2.高血压病 控制可",
     "treatment_plan": "继续目前药物方案。氨氯地平5mg qd + 安博维150mg qd控制血压。拜阿司匹林100mg qd继续。",
     "orders_followup": "下次随访6个月后复查DSA评估栓塞稳定性。如有头痛加重、恶心呕吐、肢体无力等随时就诊。"
-  },
-  "fact_catalog": [
-    {"id": "d6_cc_postop_3m", "field": "chief_complaint", "text": "动脉瘤栓塞术后3月复查", "importance": "critical"},
-    {"id": "d6_pi_sah_history", "field": "present_illness", "text": "3月前左侧后交通动脉瘤破裂SAH", "importance": "critical"},
-    {"id": "d6_pi_coiling", "field": "present_illness", "text": "血管内介入弹簧圈栓塞术", "importance": "critical"},
-    {"id": "d6_pi_recovery_good", "field": "present_illness", "text": "术后恢复良好", "importance": "important"},
-    {"id": "d6_neg_headache", "field": "present_illness", "text": "否认头痛", "importance": "critical"},
-    {"id": "d6_neg_dizziness", "field": "present_illness", "text": "否认头晕", "importance": "critical"},
-    {"id": "d6_neg_nausea", "field": "present_illness", "text": "否认恶心", "importance": "important"},
-    {"id": "d6_neg_vomiting", "field": "present_illness", "text": "否认呕吐", "importance": "important"},
-    {"id": "d6_neg_numbness", "field": "present_illness", "text": "否认肢体麻木", "importance": "critical"},
-    {"id": "d6_neg_weakness", "field": "present_illness", "text": "否认肢体无力", "importance": "critical"},
-    {"id": "d6_neg_blurred_vision", "field": "present_illness", "text": "无视物模糊", "importance": "important"},
-    {"id": "d6_neg_diplopia", "field": "present_illness", "text": "无复视", "importance": "important"},
-    {"id": "d6_neg_dysarthria", "field": "present_illness", "text": "无言语不清", "importance": "important"},
-    {"id": "d6_neg_dysphagia", "field": "present_illness", "text": "无吞咽困难", "importance": "important"},
-    {"id": "d6_neg_memory", "field": "present_illness", "text": "无记忆力减退", "importance": "important"},
-    {"id": "d6_neg_seizure", "field": "present_illness", "text": "无癫痫发作", "importance": "critical"},
-    {"id": "d6_neg_chest_tightness", "field": "present_illness", "text": "否认胸闷", "importance": "important"},
-    {"id": "d6_neg_dyspnea", "field": "present_illness", "text": "否认气短", "importance": "important"},
-    {"id": "d6_neg_palpitation", "field": "present_illness", "text": "否认心悸", "importance": "important"},
-    {"id": "d6_ph_htn", "field": "past_history", "text": "高血压8年 氨氯地平+安博维", "importance": "critical"},
-    {"id": "d6_ph_neg_dm", "field": "past_history", "text": "否认糖尿病", "importance": "important"},
-    {"id": "d6_ph_neg_chd", "field": "past_history", "text": "否认冠心病", "importance": "important"},
-    {"id": "d6_ph_neg_stroke", "field": "past_history", "text": "否认脑梗死", "importance": "important"},
-    {"id": "d6_ph_neg_infectious", "field": "past_history", "text": "否认肝炎结核等传染病史", "importance": "important"},
-    {"id": "d6_al_none", "field": "allergy_history", "text": "无药物食物过敏", "importance": "critical"},
-    {"id": "d6_sh_neg_smoking", "field": "personal_history", "text": "否认吸烟", "importance": "important"},
-    {"id": "d6_sh_neg_drinking", "field": "personal_history", "text": "否认饮酒", "importance": "important"},
-    {"id": "d6_mr_menopause", "field": "marital_reproductive", "text": "绝经6年", "importance": "important"},
-    {"id": "d6_fh_neg", "field": "family_history", "text": "无特殊 否认遗传病肿瘤", "importance": "important"},
-    {"id": "d6_se_nihss_0", "field": "specialist_exam", "text": "NIHSS 0分", "importance": "critical"},
-    {"id": "d6_se_mrs_0", "field": "specialist_exam", "text": "mRS 0分", "importance": "critical"},
-    {"id": "d6_se_babinski_neg", "field": "specialist_exam", "text": "Babinski征(-)", "importance": "important"},
-    {"id": "d6_se_hoffmann_neg", "field": "specialist_exam", "text": "Hoffmann征(-)", "importance": "important"},
-    {"id": "d6_se_romberg_neg", "field": "specialist_exam", "text": "Romberg征(-)", "importance": "important"},
-    {"id": "d6_se_meningeal_neg", "field": "specialist_exam", "text": "脑膜刺激征(-)", "importance": "important"},
-    {"id": "d6_ax_mra_no_recurrence", "field": "auxiliary_exam", "text": "MRA未见复发或残留瘤颈充盈", "importance": "critical"},
-    {"id": "d6_ax_ldl", "field": "auxiliary_exam", "text": "LDL-C 2.1mmol/L", "importance": "important"},
-    {"id": "d6_dx_postop", "field": "diagnosis", "text": "左侧后交通动脉瘤栓塞术后 恢复期", "importance": "critical"},
-    {"id": "d6_tp_continue_meds", "field": "treatment_plan", "text": "继续目前药物方案不变", "importance": "critical"},
-    {"id": "d6_of_followup_6m", "field": "orders_followup", "text": "6个月后复查DSA", "importance": "critical"},
-    {"id": "d6_cluster_headache_group", "field": "present_illness", "text": "否认头晕头痛恶心呕吐 拆分为4项独立否认", "importance": "critical"},
-    {"id": "d6_cluster_limb_group", "field": "present_illness", "text": "肢体麻木无力 拆分为麻木+无力两项", "importance": "critical"},
-    {"id": "d6_cluster_chest_group", "field": "present_illness", "text": "否认胸闷气短心悸 拆分为3项独立否认", "importance": "critical"}
-  ]
+  }
 }

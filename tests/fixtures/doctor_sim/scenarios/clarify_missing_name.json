@@ -1,18 +1,25 @@
 {
-  "case_id": "MVP-ACC-011",
+  "schema_version": 2,
+  "id": "clarify_missing_name",
+  "scenario_type": "doctor_chat",
   "title": "Clarification: missing patient name on record intake",
-  "group": "clarification",
-  "chatlog": [
-    {
-      "speaker": "doctor",
-      "text": "记录一下：胸痛2小时伴大汗，心电图提示下壁ST段抬高。",
-      "assert": {
-        "tools_include": [],
-        "llm_calls": 1
-      }
-    }
+  "tags": [
+    "regression",
+    "clarification"
   ],
-  "expectations": {
-    "must_not_timeout": true
-  }
+  "input": {
+    "mode": "doctor_chat",
+    "turns": [
+      {
+        "actor": "doctor",
+        "text": "记录一下：胸痛2小时伴大汗，心电图提示下壁ST段抬高。"
+      }
+    ]
+  },
+  "execution": {
+    "entrypoint": "records.chat",
+    "auto_confirm": false,
+    "timeout_seconds": 60
+  },
+  "expectations": {}
 }

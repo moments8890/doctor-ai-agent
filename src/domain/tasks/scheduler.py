@@ -9,10 +9,8 @@ remain for command compatibility but no longer persist to DB.
 from __future__ import annotations
 
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from typing import Optional, Tuple, Dict, Any
-
-from db.engine import AsyncSessionLocal
 
 
 _MODE_RE = re.compile(r"^\s*通知模式[：:\s]*(自动|手动)\s*$")

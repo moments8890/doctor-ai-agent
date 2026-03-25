@@ -9,7 +9,7 @@ cards are no longer generated from those tables.
 from __future__ import annotations
 
 import json as _json
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Header, Query

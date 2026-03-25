@@ -11,12 +11,6 @@ _lock = Lock()
 _counters: Dict[str, int] = {}
 
 
-def record(label: str) -> None:
-    """Increment counter for a routing label."""
-    with _lock:
-        _counters[label] = _counters.get(label, 0) + 1
-
-
 def get_metrics() -> Dict:
     """Return a snapshot of routing counters and derived rates."""
     with _lock:

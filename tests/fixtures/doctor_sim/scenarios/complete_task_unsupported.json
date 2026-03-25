@@ -1,24 +1,38 @@
 {
-  "case_id": "MVP-ACC-014",
+  "schema_version": 2,
+  "id": "complete_task_unsupported",
+  "scenario_type": "doctor_chat",
   "title": "Complete task by ID (unsupported — no complete_task action)",
-  "group": "task_action",
-  "chatlog": [
-    {
-      "speaker": "doctor",
-      "text": "完成 1",
-      "assert": {
-        "tools_include": [
-          "complete_task"
-        ],
-        "llm_calls": 2
-      }
-    }
+  "tags": [
+    "regression",
+    "task_action"
   ],
+  "input": {
+    "mode": "doctor_chat",
+    "turns": [
+      {
+        "actor": "doctor",
+        "text": "完成 1"
+      }
+    ]
+  },
+  "execution": {
+    "entrypoint": "records.chat",
+    "auto_confirm": false,
+    "timeout_seconds": 60
+  },
   "expectations": {
-    "must_not_timeout": true,
-    "expected_table_max_counts_by_doctor": {
-      "patients": 0,
-      "medical_records": 0
-    }
+    "assertions": [
+      {
+        "target": "db.patients.count",
+        "matcher": "max",
+        "expected": 0
+      },
+      {
+        "target": "db.medical_records.count",
+        "matcher": "max",
+        "expected": 0
+      }
+    ]
   }
 }

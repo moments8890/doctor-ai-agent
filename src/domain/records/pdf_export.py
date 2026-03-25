@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Optional
 
 from domain.records.schema import OUTPATIENT_FIELD_META
 from utils.log import log

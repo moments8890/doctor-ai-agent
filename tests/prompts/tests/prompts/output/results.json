@@ -1,0 +1,128 @@
+{
+  "evalId": "eval-bp4-2026-03-25T19:04:48",
+  "results": {
+    "version": 3,
+    "timestamp": "2026-03-25T19:04:48.019Z",
+    "prompts": [
+      {
+        "raw": "# 临床文档OCR\n\n将图片中的临床文字原样提取为纯文本。\n\n## Rules\n1. 保留所有数字、单位、药物名称，原样输出\n2. 保持原文档的阅读顺序（从上到下，从左到右）\n3. 表格内容用制表符或空格对齐，保持行列关系\n4. 化验单保持\"项目 — 结果 — 单位 — 参考值\"的对应关系\n5. 处方保持\"药名 — 剂量 — 用法\"的对应关系\n\n## 质量控制\n- 手写内容尽力识别，无法辨认处标注[?]\n- 单个字段中[?]超过3处 → 整行标注\"[识别不清]\"\n- 印章、水印、背景文字忽略，不提取\n\n## Constraints\n- 不添加解释、推断或诊断\n- 不输出JSON，只输出纯文本\n- 不翻译（中文保持中文，英文缩写保持原样）\n- 不修改数值（即使看起来异常）\n\n---\n\n以下是需要提取文字的临床文档内容：\n{{text_input}}\n",
+        "label": "wrappers/vision-ocr.md: # 临床文档OCR\n\n将图片中的临床文字原样提取为纯文本。\n\n## Rules\n1. 保留所有数字、...",
+        "id": "35d01896a9e2dc7ef211e50d8d663fae785832d45ab08b1c4ac49f2337d90131",
+        "provider": "qwen3-32b-groq",
+        "metrics": {
+          "score": 3,
+          "testPassCount": 3,
+          "testFailCount": 0,
+          "testErrorCount": 0,
+          "assertPassCount": 13,
+          "assertFailCount": 0,
+          "totalLatencyMs": 6100,
+          "tokenUsage": {
+            "prompt": 903,
+            "completion": 1894,
+            "cached": 0,
+            "total": 2797,
+            "numRequests": 3,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0
+            },
+            "assertions": {
+              "total": 0,
+              "prompt": 0,
+              "completion": 0,
+              "cached": 0,
+              "numRequests": 0,
+              "completionDetails": {
+                "reasoning": 0,
+                "acceptedPrediction": 0,
+                "rejectedPrediction": 0
+              }
+            }
+          },
+          "namedScores": {},
+          "namedScoresCount": {},
+          "cost": 0
+        }
+      }
+    ],
+    "results": [],
+    "stats": {
+      "successes": 3,
+      "failures": 0,
+      "errors": 0,
+      "tokenUsage": {
+        "prompt": 903,
+        "completion": 1894,
+        "cached": 0,
+        "total": 2797,
+        "numRequests": 3,
+        "completionDetails": {
+          "reasoning": 0,
+          "acceptedPrediction": 0,
+          "rejectedPrediction": 0
+        },
+        "assertions": {
+          "total": 0,
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "numRequests": 0,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0
+          }
+        }
+      },
+      "durationMs": 2648,
+      "evaluationDurationMs": 2648
+    }
+  },
+  "config": {
+    "tags": {},
+    "description": "Doctor AI Agent — Medical Prompt Evaluation Suite",
+    "prompts": [
+      "wrappers/vision-ocr.md"
+    ],
+    "providers": [
+      {
+        "id": "openai:chat:qwen/qwen3-32b",
+        "label": "qwen3-32b-groq",
+        "config": {
+          "apiBaseUrl": "https://api.groq.com/openai/v1",
+          "temperature": 0,
+          "max_tokens": 4096
+        }
+      }
+    ],
+    "tests": "cases/vision-ocr.yaml",
+    "scenarios": [],
+    "env": {},
+    "defaultTest": {
+      "options": {
+        "timeout": 30000,
+        "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n"
+      },
+      "vars": {},
+      "assert": [],
+      "metadata": {}
+    },
+    "outputPath": [
+      "tests/prompts/output/results.json"
+    ],
+    "extensions": [],
+    "metadata": {},
+    "evaluateOptions": {}
+  },
+  "shareableUrl": null,
+  "metadata": {
+    "promptfooVersion": "0.121.3",
+    "nodeVersion": "v23.11.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "exportedAt": "2026-03-25T19:04:50.680Z",
+    "evaluationCreatedAt": "2026-03-25T19:04:48.019Z"
+  }
+}

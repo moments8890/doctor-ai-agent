@@ -4,7 +4,7 @@ WeChat 后台任务与 WeCom KF 消息解析：知识自学习和消息类型工
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from db.engine import AsyncSessionLocal
 from utils.log import log

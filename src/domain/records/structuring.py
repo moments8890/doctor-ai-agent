@@ -16,8 +16,6 @@ from domain.patients.interview_summary import (
     extract_tags,
 )
 from infra.llm.client import _PROVIDERS
-from infra.llm.resilience import call_with_retry_and_fallback
-from infra.observability.observability import trace_block
 from utils.log import log
 
 
@@ -76,9 +74,17 @@ async def _extract_fields(
         transcript=text,
     )
 
+    from utils.prompt_loader import get_prompt_sync
+    base_prompt = get_prompt_sync("common/base", fallback="")
+
+    messages = []
+    if base_prompt:
+        messages.append({"role": "system", "content": base_prompt})
+    messages.append({"role": "user", "content": prompt})
+
     return await structured_call(
         response_model=DoctorExtractResult,
-        messages=[{"role": "user", "content": prompt}],
+        messages=messages,
         op_name="structuring",
         env_var=env_var,
         temperature=0,

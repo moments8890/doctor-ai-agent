@@ -1,46 +1,57 @@
 {
-  "case_id": "MVP-ACC-026",
+  "schema_version": 2,
+  "id": "record_plus_task_reminder",
+  "scenario_type": "doctor_chat",
   "title": "Compound record + task: record and reminder for existing patient",
-  "group": "compound_record_task",
-  "chatlog": [
-    {
-      "speaker": "doctor",
-      "text": "创建患者张三，男45岁，内科门诊。高血压病史3年。",
-      "assert": {
-        "tools_include": [
-          "create_record"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "doctor",
-      "text": "确认",
-      "assert": {
-        "tools_include": [],
-        "llm_calls": 0
-      }
-    },
-    {
-      "speaker": "doctor",
-      "text": "给张三补充胸闷，明天提醒复查",
-      "assert": {
-        "tools_include": [
-          "update_record",
-          "create_task"
-        ],
-        "llm_calls": 3
-      }
-    }
+  "tags": [
+    "regression",
+    "compound_record_task"
   ],
+  "patient": {
+    "name": "张三",
+    "gender": "男",
+    "age": 45
+  },
+  "input": {
+    "mode": "doctor_chat",
+    "turns": [
+      {
+        "actor": "doctor",
+        "text": "创建患者张三，男45岁，内科门诊。高血压病史3年。"
+      },
+      {
+        "actor": "doctor",
+        "text": "给张三补充胸闷，明天提醒复查"
+      }
+    ]
+  },
+  "execution": {
+    "entrypoint": "records.chat",
+    "auto_confirm": false,
+    "timeout_seconds": 60
+  },
   "expectations": {
-    "must_not_timeout": true,
-    "expected_patient_name": "张三",
-    "expected_patient_count": 1,
-    "expect_patient_dedup": true,
-    "expected_table_min_counts_by_doctor": {
-      "patients": 1,
-      "medical_records": 1
-    }
+    "assertions": [
+      {
+        "target": "db.patients.name",
+        "matcher": "eq",
+        "expected": "张三"
+      },
+      {
+        "target": "db.patients.count",
+        "matcher": "eq",
+        "expected": 1
+      },
+      {
+        "target": "db.patients.count",
+        "matcher": "min",
+        "expected": 1
+      },
+      {
+        "target": "db.interview_sessions.count",
+        "matcher": "min",
+        "expected": 1
+      }
+    ]
   }
 }

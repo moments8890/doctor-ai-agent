@@ -1,34 +1,51 @@
 {
-  "case_id": "GM-002",
+  "schema_version": 2,
+  "id": "gm_oncology_ct_chemo",
+  "scenario_type": "doctor_chat",
   "title": "Oncology CT + chemo follow-up",
-  "group": "create_save",
-  "chatlog": [
-    {
-      "speaker": "doctor",
-      "text": "王芳复查：肺癌术后第三次化疗后，CT显示纵隔淋巴结较前缩小。轻度骨髓抑制，白细胞3.2。下周二安排第四次化疗，化疗前复查血常规。",
-      "assert": {
-        "tools_include": [
-          "create_record"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "doctor",
-      "text": "确认",
-      "assert": {
-        "tools_include": [],
-        "llm_calls": 0
-      }
-    }
+  "tags": [
+    "regression",
+    "create_save"
   ],
+  "patient": {
+    "name": "王芳"
+  },
+  "input": {
+    "mode": "doctor_chat",
+    "turns": [
+      {
+        "actor": "doctor",
+        "text": "王芳复查：肺癌术后第三次化疗后，CT显示纵隔淋巴结较前缩小。轻度骨髓抑制，白细胞3.2。下周二安排第四次化疗，化疗前复查血常规。"
+      }
+    ]
+  },
+  "execution": {
+    "entrypoint": "records.chat",
+    "auto_confirm": false,
+    "timeout_seconds": 60
+  },
   "expectations": {
-    "must_not_timeout": true,
-    "expected_patient_name": "王芳",
-    "expected_patient_count": 1,
-    "expected_table_min_counts_by_doctor": {
-      "patients": 1,
-      "medical_records": 1
-    }
+    "assertions": [
+      {
+        "target": "db.patients.name",
+        "matcher": "eq",
+        "expected": "王芳"
+      },
+      {
+        "target": "db.patients.count",
+        "matcher": "eq",
+        "expected": 1
+      },
+      {
+        "target": "db.patients.count",
+        "matcher": "min",
+        "expected": 1
+      },
+      {
+        "target": "db.interview_sessions.count",
+        "matcher": "min",
+        "expected": 1
+      }
+    ]
   }
 }

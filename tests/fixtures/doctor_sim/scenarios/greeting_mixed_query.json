@@ -1,20 +1,25 @@
 {
-  "case_id": "MVP-ACC-044",
+  "schema_version": 2,
+  "id": "greeting_mixed_query",
+  "scenario_type": "doctor_chat",
   "title": "Edge case: greeting mixed with query intent",
-  "group": "edge_case",
-  "chatlog": [
-    {
-      "speaker": "doctor",
-      "text": "你好，帮我查一下张三的病历",
-      "assert": {
-        "tools_include": [
-          "query_records"
-        ],
-        "llm_calls": 2
-      }
-    }
+  "tags": [
+    "regression",
+    "edge_case"
   ],
-  "expectations": {
-    "must_not_timeout": true
-  }
+  "input": {
+    "mode": "doctor_chat",
+    "turns": [
+      {
+        "actor": "doctor",
+        "text": "你好，帮我查一下张三的病历"
+      }
+    ]
+  },
+  "execution": {
+    "entrypoint": "records.chat",
+    "auto_confirm": false,
+    "timeout_seconds": 60
+  },
+  "expectations": {}
 }

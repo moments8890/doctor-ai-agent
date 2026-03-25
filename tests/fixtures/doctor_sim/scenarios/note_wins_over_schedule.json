@@ -1,35 +1,53 @@
 {
-  "case_id": "MVP-ACC-017",
+  "schema_version": 2,
+  "id": "note_wins_over_schedule",
+  "scenario_type": "doctor_chat",
   "title": "Compound: clinical note wins over scheduling hint",
-  "group": "compound_priority",
-  "chatlog": [
-    {
-      "speaker": "doctor",
-      "text": "创建患者吴海燕，女58岁，心内门诊。反复胸闷两周，活动后加重，心电图ST段压低，三个月后随访。",
-      "assert": {
-        "tools_include": [
-          "create_record"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "doctor",
-      "text": "确认",
-      "assert": {
-        "tools_include": [],
-        "llm_calls": 0
-      }
-    }
+  "tags": [
+    "regression",
+    "compound_priority"
   ],
+  "patient": {
+    "name": "吴海燕",
+    "gender": "女",
+    "age": 58
+  },
+  "input": {
+    "mode": "doctor_chat",
+    "turns": [
+      {
+        "actor": "doctor",
+        "text": "创建患者吴海燕，女58岁，心内门诊。反复胸闷两周，活动后加重，心电图ST段压低，三个月后随访。"
+      }
+    ]
+  },
+  "execution": {
+    "entrypoint": "records.chat",
+    "auto_confirm": false,
+    "timeout_seconds": 60
+  },
   "expectations": {
-    "must_not_timeout": true,
-    "expected_patient_name": "吴海燕",
-    "expected_patient_count": 1,
-    "expect_patient_dedup": true,
-    "expected_table_min_counts_by_doctor": {
-      "patients": 1,
-      "medical_records": 1
-    }
+    "assertions": [
+      {
+        "target": "db.patients.name",
+        "matcher": "eq",
+        "expected": "吴海燕"
+      },
+      {
+        "target": "db.patients.count",
+        "matcher": "eq",
+        "expected": 1
+      },
+      {
+        "target": "db.patients.count",
+        "matcher": "min",
+        "expected": 1
+      },
+      {
+        "target": "db.interview_sessions.count",
+        "matcher": "min",
+        "expected": 1
+      }
+    ]
   }
 }

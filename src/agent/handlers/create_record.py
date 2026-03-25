@@ -6,7 +6,6 @@ from agent.tools.resolve import resolve
 from agent.types import IntentType, HandlerResult, TurnContext
 from domain.patients.interview_session import create_session
 from domain.patients.interview_turn import interview_turn
-from utils.log import log
 
 
 @register(IntentType.create_record)

@@ -7,7 +7,6 @@ from __future__ import annotations
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel

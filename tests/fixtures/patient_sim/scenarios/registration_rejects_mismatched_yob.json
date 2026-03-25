@@ -1,7 +1,12 @@
 {
-  "case_id": "PI-008",
+  "schema_version": 2,
+  "id": "registration_rejects_mismatched_yob",
+  "scenario_type": "patient_interview",
   "title": "Registration rejects mismatched YOB",
-  "group": "registration",
+  "tags": [
+    "regression",
+    "registration"
+  ],
   "pre_create_patient": {
     "name": "冲突李明",
     "gender": "男",
@@ -13,8 +18,26 @@
     "year_of_birth": 1990,
     "phone": "13800000008"
   },
+  "input": {
+    "mode": "patient_interview"
+  },
+  "execution": {
+    "entrypoint": "patient.interview.chat",
+    "auto_confirm": false,
+    "timeout_seconds": 60
+  },
   "expectations": {
-    "register_rejected": true,
-    "reject_reason_contains": "不符"
+    "assertions": [
+      {
+        "target": "registration.rejected",
+        "matcher": "eq",
+        "expected": true
+      },
+      {
+        "target": "registration.reject_reason",
+        "matcher": "contains",
+        "expected": "不符"
+      }
+    ]
   }
 }

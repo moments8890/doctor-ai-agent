@@ -1,10 +1,10 @@
 /**
  * 患者详情面板：可折叠个人信息、带计数的病历标签页、置顶操作栏。
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Alert, Box, Button, Chip, CircularProgress, Dialog,
+  Alert, Box, Button, CircularProgress, Dialog,
   Stack, Typography,
 } from "@mui/material";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -19,7 +19,6 @@ import {
 } from "../../api";
 import { RECORD_TAB_GROUPS } from "./constants";
 import RecordCard from "./RecordCard";
-import LabelPicker from "./LabelPicker";
 import ExportSelectorDialog from "./ExportSelectorDialog";
 import { TYPE, ICON, COLOR } from "../../theme";
 
@@ -92,36 +91,6 @@ function DeletePatientDialog({ open, patientName, deleting, isMobile, onConfirm,
   );
 }
 
-function PatientLabelRow({ patient, patientLabels, labelPickerOpen, labelAnchorRef, allLabels, labelError, onOpenLabelPicker, onRemoveLabel, onAssignLabel, onLabelsChange, onCloseLabelPicker }) {
-  return (
-    <Stack direction="row" spacing={0.5} flexWrap="wrap" alignItems="center" sx={{ mb: 1 }}>
-      {patientLabels.map((l) => (
-        <Chip key={l.id} label={l.name} size="small"
-          sx={{ backgroundColor: l.color || "#f0f0f0", fontSize: TYPE.micro.fontSize, height: 22, borderRadius: "4px" }}
-          onDelete={() => onRemoveLabel(l.id)} />
-      ))}
-      <Box sx={{ position: "relative" }}>
-        <Box ref={labelAnchorRef} onClick={onOpenLabelPicker}
-          sx={{ fontSize: TYPE.caption.fontSize, color: "#07C160", cursor: "pointer", px: 0.8, py: 0.3, borderRadius: 1, border: "1px dashed #b7ebd0" }}>
-          + 标签
-        </Box>
-        {labelPickerOpen && (
-          <LabelPicker
-            doctorId={patient.doctor_id}
-            patientId={patient.id}
-            allLabels={allLabels}
-            patientLabels={patientLabels}
-            labelError={labelError}
-            onAssign={onAssignLabel}
-            onClose={onCloseLabelPicker}
-            onLabelsChange={onLabelsChange}
-          />
-        )}
-      </Box>
-    </Stack>
-  );
-}
-
 function PatientActionBar({ exportingPdf, exportingReport, onExportPdf, onExportReport, onDeleteOpen }) {
   return (
     <Stack direction="row" spacing={2} sx={{ pt: 0.5, borderTop: "0.5px solid #f0f0f0" }} alignItems="center">
@@ -147,7 +116,7 @@ function PatientActionBar({ exportingPdf, exportingReport, onExportPdf, onExport
 
 /* ── CollapsibleProfile ── */
 
-function CollapsibleProfile({ patient, age, records, expanded, onToggle, patientLabels, labelPickerOpen, labelAnchorRef, allLabels, labelError, exportingPdf, exportingReport, onOpenLabelPicker, onRemoveLabel, onAssignLabel, onLabelsChange, onCloseLabelPicker, onExportPdf, onExportReport, onDeleteOpen }) {
+function CollapsibleProfile({ patient, age, records, expanded, onToggle, exportingPdf, exportingReport, onExportPdf, onExportReport, onDeleteOpen }) {
   const genderStr = patient.gender ? { male: "男", female: "女" }[patient.gender] || patient.gender : null;
   const stats = computeRecordStats(records);
 
@@ -170,12 +139,6 @@ function CollapsibleProfile({ patient, age, records, expanded, onToggle, patient
           </Box>
           <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#07C160", flexShrink: 0, ml: 1 }}>展开 ▾</Typography>
         </Box>
-        <PatientLabelRow
-          patient={patient} patientLabels={patientLabels} labelPickerOpen={labelPickerOpen}
-          labelAnchorRef={labelAnchorRef} allLabels={allLabels} labelError={labelError}
-          onOpenLabelPicker={onOpenLabelPicker} onRemoveLabel={onRemoveLabel}
-          onAssignLabel={onAssignLabel} onLabelsChange={onLabelsChange} onCloseLabelPicker={onCloseLabelPicker}
-        />
       </Box>
     );
   }
@@ -218,14 +181,6 @@ function CollapsibleProfile({ patient, age, records, expanded, onToggle, patient
         <Box>身份证 <Box component="span" sx={{ color: "#333" }}>{maskIdNumber(patient.id_number)}</Box></Box>
         <Box>建档 <Box component="span" sx={{ color: "#333" }}>{createdStr}</Box></Box>
       </Box>
-
-      {/* Labels */}
-      <PatientLabelRow
-        patient={patient} patientLabels={patientLabels} labelPickerOpen={labelPickerOpen}
-        labelAnchorRef={labelAnchorRef} allLabels={allLabels} labelError={labelError}
-        onOpenLabelPicker={onOpenLabelPicker} onRemoveLabel={onRemoveLabel}
-        onAssignLabel={onAssignLabel} onLabelsChange={onLabelsChange} onCloseLabelPicker={onCloseLabelPicker}
-      />
 
       {/* Action bar */}
       <PatientActionBar
@@ -340,28 +295,17 @@ function usePatientDetailState({ patient, doctorId, onDeleted }) {
   const [exportError, setExportError] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [allLabels, setAllLabels] = useState([]);
-  const [labelPickerOpen, setLabelPickerOpen] = useState(false);
-  const [labelError, setLabelError] = useState("");
-  const [patientLabels, setPatientLabels] = useState(patient?.labels || []);
-  const labelAnchorRef = useRef(null);
 
   const load = useCallback(() => {
     if (!patient) return; setLoading(true); setError("");
     getRecords({ doctorId, patientId: patient.id, limit: 100 }).then((d) => setRecords(d.items || [])).catch((e) => setError(e.message || "加载失败")).finally(() => setLoading(false));
   }, [patient?.id, doctorId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { setPatientLabels(patient?.labels || []); }, [patient?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Label feature removed — backend endpoints deleted
-  function handleOpenLabelPicker() {}
-  async function handleRemoveLabel() {}
-  async function handleAssignLabel() {}
   async function handleDelete() { setDeleting(true); try { await deletePatient(patient.id, doctorId); setDeleteConfirmOpen(false); if (onDeleted) { onDeleted(patient.id); return; } navigate("/doctor/patients"); } catch (e) { setError(e.message || "删除失败"); setDeleteConfirmOpen(false); } finally { setDeleting(false); } }
   async function handleExportPdf() { setExportingPdf(true); setExportError(""); try { await exportPatientPdf(patient.id, doctorId); } catch (e) { setExportError(e.message || "导出失败"); } finally { setExportingPdf(false); } }
   async function handleExportReport() { setExportingReport(true); setExportError(""); try { await exportOutpatientReport(patient.id, doctorId); } catch (e) { setExportError(e.message || "生成失败，请确认已有病历记录"); } finally { setExportingReport(false); } }
 
-  return { records, setRecords, loading, error, exportingPdf, exportingReport, exportError, deleteConfirmOpen, setDeleteConfirmOpen, deleting, allLabels, labelPickerOpen, setLabelPickerOpen, labelError, patientLabels, setPatientLabels, labelAnchorRef, load, handleOpenLabelPicker, handleRemoveLabel, handleAssignLabel, handleDelete, handleExportPdf, handleExportReport };
+  return { records, setRecords, loading, error, exportingPdf, exportingReport, exportError, deleteConfirmOpen, setDeleteConfirmOpen, deleting, load, handleDelete, handleExportPdf, handleExportReport };
 }
 
 /* ── PatientChatSection ── */
@@ -424,7 +368,7 @@ function PatientChatSection({ patientId, doctorId }) {
                 <Box key={m.id} sx={{ py: 0.5, borderBottom: "0.5px solid #f5f5f5", display: "flex", gap: 0.8, alignItems: "baseline" }}>
                   <Box sx={{
                     width: 6, height: 6, borderRadius: "50%", flexShrink: 0, mt: 0.8,
-                    bgcolor: m.triage_category === "urgent" ? COLOR.danger : (m.source === "patient" ? COLOR.primary : COLOR.success),
+                    bgcolor: m.triage_category === "urgent" ? COLOR.danger : (m.source === "patient" ? COLOR.accent : COLOR.success),
                   }} />
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.5 }} noWrap>
@@ -454,7 +398,7 @@ function PatientChatSection({ patientId, doctorId }) {
                 <Box key={m.id} sx={{ py: 0.5, display: "flex", gap: 0.8, alignItems: "flex-start" }}>
                   <Typography sx={{
                     fontSize: TYPE.micro.fontSize, fontWeight: 500, flexShrink: 0, mt: 0.3,
-                    color: m.source === "patient" ? COLOR.primary : (m.source === "doctor" ? COLOR.success : COLOR.text4),
+                    color: m.source === "patient" ? COLOR.accent : (m.source === "doctor" ? COLOR.success : COLOR.text4),
                   }}>
                     {m.source === "patient" ? "患者" : (m.source === "doctor" ? "医生" : "AI")}
                   </Typography>
@@ -510,7 +454,7 @@ export default function PatientDetail({ patient, doctorId, onDeleted, onStartInt
     if (triggerExport) { setExportOpen(true); onTriggerExportConsumed?.(); }
   }, [triggerExport]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const { records, setRecords, loading, error, exportingPdf, exportingReport, exportError, deleteConfirmOpen, setDeleteConfirmOpen, deleting, allLabels, labelPickerOpen, setLabelPickerOpen, labelError, patientLabels, setPatientLabels, labelAnchorRef, load, handleOpenLabelPicker, handleRemoveLabel, handleAssignLabel, handleDelete, handleExportPdf, handleExportReport } = usePatientDetailState({ patient, doctorId, onDeleted });
+  const { records, setRecords, loading, error, exportingPdf, exportingReport, exportError, deleteConfirmOpen, setDeleteConfirmOpen, deleting, load, handleDelete, handleExportPdf, handleExportReport } = usePatientDetailState({ patient, doctorId, onDeleted });
 
   if (!patient) return <EmptyPatientPlaceholder />;
 
@@ -524,11 +468,8 @@ export default function PatientDetail({ patient, doctorId, onDeleted, onStartInt
     <Box sx={{ overflowY: "auto", height: "100%", bgcolor: "#ededed" }}>
       <CollapsibleProfile
         patient={patient} age={age} records={records} expanded={expanded} onToggle={() => setExpanded((v) => !v)}
-        patientLabels={patientLabels} labelPickerOpen={labelPickerOpen} labelAnchorRef={labelAnchorRef}
-        allLabels={allLabels} labelError={labelError} exportingPdf={exportingPdf} exportingReport={exportingReport}
-        onOpenLabelPicker={handleOpenLabelPicker} onRemoveLabel={handleRemoveLabel}
-        onAssignLabel={handleAssignLabel} onLabelsChange={setPatientLabels}
-        onCloseLabelPicker={() => setLabelPickerOpen(false)} onExportPdf={() => setExportOpen(true)}
+        exportingPdf={exportingPdf} exportingReport={exportingReport}
+        onExportPdf={() => setExportOpen(true)}
         onExportReport={handleExportReport} onDeleteOpen={() => setDeleteConfirmOpen(true)}
       />
       {exportError && <Typography variant="caption" color="error.main" sx={{ display: "block", px: 2.5, mt: 0.5 }}>{exportError}</Typography>}

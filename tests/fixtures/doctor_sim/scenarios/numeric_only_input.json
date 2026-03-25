@@ -1,22 +1,38 @@
 {
-  "case_id": "MVP-ACC-049",
+  "schema_version": 2,
+  "id": "numeric_only_input",
+  "scenario_type": "doctor_chat",
   "title": "Edge case: numeric-only input should not crash",
-  "group": "edge_case",
-  "chatlog": [
-    {
-      "speaker": "doctor",
-      "text": "12345",
-      "assert": {
-        "tools_include": [],
-        "llm_calls": 1
-      }
-    }
+  "tags": [
+    "regression",
+    "edge_case"
   ],
+  "input": {
+    "mode": "doctor_chat",
+    "turns": [
+      {
+        "actor": "doctor",
+        "text": "12345"
+      }
+    ]
+  },
+  "execution": {
+    "entrypoint": "records.chat",
+    "auto_confirm": false,
+    "timeout_seconds": 60
+  },
   "expectations": {
-    "must_not_timeout": true,
-    "expected_table_max_counts_by_doctor": {
-      "patients": 0,
-      "medical_records": 0
-    }
+    "assertions": [
+      {
+        "target": "db.patients.count",
+        "matcher": "max",
+        "expected": 0
+      },
+      {
+        "target": "db.medical_records.count",
+        "matcher": "max",
+        "expected": 0
+      }
+    ]
   }
 }

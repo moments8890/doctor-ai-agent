@@ -12,6 +12,7 @@ import httpx
 
 from channels.wechat import wechat_domain as wd
 from channels.wechat import wecom_kf_sync as kfsync
+
 from channels.wechat.wechat_notify import (
     _get_config, _get_access_token, _send_customer_service_msg,
 )
@@ -59,7 +60,6 @@ def _extract_cdata(xml_str: str, tag: str) -> str:
 async def _kf_enqueue_intent(text: str, user_id: str, open_kfid: str) -> None:
     """Persist and enqueue a doctor text message through the intent pipeline."""
     from channels.wechat.router import _handle_intent_bg, _handle_patient_bg
-    from db.engine import AsyncSessionLocal
 
     if await _is_registered_doctor(user_id):
         import uuid as _uuid

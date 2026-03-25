@@ -60,8 +60,11 @@ def _build_vision_client(provider_name: str) -> tuple[AsyncOpenAI, str]:
 
 def _build_vision_messages(data_url: str, vision_prompt: str) -> list:
     """构建图像提取请求的消息列表。"""
+    from utils.prompt_loader import get_prompt_sync
+    base_prompt = get_prompt_sync("common/base", fallback="")
+    system_content = f"{base_prompt}\n\n{vision_prompt}" if base_prompt else vision_prompt
     return [
-        {"role": "system", "content": vision_prompt},
+        {"role": "system", "content": system_content},
         {
             "role": "user",
             "content": [

@@ -1,90 +1,90 @@
 {
-  "case_id": "PI-004",
+  "schema_version": 2,
+  "id": "negatives_extraction",
+  "scenario_type": "patient_interview",
   "title": "Patient says '没有' to everything — negatives extracted",
-  "group": "negatives",
-  "chatlog": [
-    {
-      "speaker": "patient",
-      "text": "头晕",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "patient",
-      "text": "今天开始的，不严重",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "patient",
-      "text": "以前没有得过什么病",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "patient",
-      "text": "没有药物过敏",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "patient",
-      "text": "家人没有类似的病",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "patient",
-      "text": "不吸烟不喝酒",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    }
+  "tags": [
+    "regression",
+    "negatives"
   ],
-  "patient_info": {
+  "patient": {
     "name": "测试头晕",
     "gender": "女",
-    "year_of_birth": 2000,
+    "age": 26,
     "phone": "13800000004"
   },
+  "input": {
+    "mode": "patient_interview",
+    "turns": [
+      {
+        "actor": "patient",
+        "text": "头晕"
+      },
+      {
+        "actor": "patient",
+        "text": "今天开始的，不严重"
+      },
+      {
+        "actor": "patient",
+        "text": "以前没有得过什么病"
+      },
+      {
+        "actor": "patient",
+        "text": "没有药物过敏"
+      },
+      {
+        "actor": "patient",
+        "text": "家人没有类似的病"
+      },
+      {
+        "actor": "patient",
+        "text": "不吸烟不喝酒"
+      }
+    ]
+  },
+  "execution": {
+    "entrypoint": "patient.interview.chat",
+    "auto_confirm": false,
+    "timeout_seconds": 60
+  },
   "expectations": {
-    "must_not_timeout": true,
-    "min_fields_filled": 5,
-    "required_fields_present": [
-      "chief_complaint"
-    ],
-    "chief_complaint_contains_any": [
-      "头晕"
-    ],
-    "final_status": "reviewing",
-    "confirm_creates_record": true,
-    "negative_fields_accepted": [
-      "past_history",
-      "allergy_history",
-      "family_history"
+    "assertions": [
+      {
+        "target": "interview.fields_filled",
+        "matcher": "min",
+        "expected": 5
+      },
+      {
+        "target": "interview.field.chief_complaint",
+        "matcher": "present",
+        "expected": true
+      },
+      {
+        "target": "interview.field.chief_complaint",
+        "matcher": "contains_any",
+        "expected": [
+          "头晕"
+        ]
+      },
+      {
+        "target": "interview.status",
+        "matcher": "eq",
+        "expected": "reviewing"
+      },
+      {
+        "target": "interview.confirm_creates_record",
+        "matcher": "eq",
+        "expected": true
+      },
+      {
+        "target": "interview.negative_fields",
+        "matcher": "includes_all",
+        "expected": [
+          "past_history",
+          "allergy_history",
+          "family_history"
+        ]
+      }
     ]
   }
 }

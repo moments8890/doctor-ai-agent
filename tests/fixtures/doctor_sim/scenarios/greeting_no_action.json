@@ -1,18 +1,25 @@
 {
-  "case_id": "MVP-ACC-016",
+  "schema_version": 2,
+  "id": "greeting_no_action",
+  "scenario_type": "doctor_chat",
   "title": "Greeting should not trigger any clinical action",
-  "group": "safety",
-  "chatlog": [
-    {
-      "speaker": "doctor",
-      "text": "你好",
-      "assert": {
-        "tools_include": [],
-        "llm_calls": 0
-      }
-    }
+  "tags": [
+    "regression",
+    "safety"
   ],
-  "expectations": {
-    "must_not_timeout": true
-  }
+  "input": {
+    "mode": "doctor_chat",
+    "turns": [
+      {
+        "actor": "doctor",
+        "text": "你好"
+      }
+    ]
+  },
+  "execution": {
+    "entrypoint": "records.chat",
+    "auto_confirm": false,
+    "timeout_seconds": 60
+  },
+  "expectations": {}
 }

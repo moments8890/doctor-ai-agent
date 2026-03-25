@@ -4,7 +4,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime, timezone
 from typing import Annotated, List, Optional
 
@@ -12,7 +11,7 @@ from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel
 
 from db.engine import AsyncSessionLocal
-from db.crud import list_tasks, update_task_status, create_task, get_task_by_id, update_task_due_at
+from db.crud import list_tasks, update_task_status, create_task, update_task_due_at
 from db.crud.patient import get_patient_for_doctor
 from infra.auth.rate_limit import enforce_doctor_rate_limit
 from infra.auth.request_auth import resolve_doctor_id_from_auth_or_fallback

@@ -1,6 +1,6 @@
 # Regression Test Infrastructure — Design
 
-**Status:** Approved (brainstorm-reviewed)
+**Status:** Completed (2026-03-25) — Phases 1-3 implemented
 **Date:** 2026-03-25
 **Related:**
 - [Unified Scenario Runner Design](../../plans/unified-scenario-runner-design.md) — format spec, matchers, normalization

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Run promptfoo eval for all prompts — one prompt per eval to avoid cross-product.
-# Usage: ./run.sh                        — run all 11 prompts
+# Usage: ./run.sh                        — run all 9 prompts
 #        ./run.sh doctor-extract routing — run specific prompts only
 # Key is loaded from config/runtime.json automatically.
 
@@ -32,9 +32,9 @@ TOTAL_F=0
 for name in "${PROMPTS[@]}"; do
   echo "━━━ $name ━━━"
   result=$(npx promptfoo eval \
+    -c "promptfooconfig.yaml" \
     -p "wrappers/${name}.md" \
     -t "cases/${name}.yaml" \
-    -r "openai:chat:qwen/qwen3-32b" \
     --no-table --no-write 2>&1) || true
 
   echo "$result" | grep -E "passed|failed|errors|Duration|Tokens"

@@ -27,10 +27,12 @@ const ICON = {
 
 // ── Color tokens ────────────────────────────────────────────────────
 const COLOR = {
-  primary:      "#1B6EF3",
-  primaryLight: "#E8F0FE",
-  success:      "#52C772",
-  successLight: "#EDF5F0",
+  primary:      "#07C160",
+  primaryLight: "#E7F7EE",
+  accent:       "#576B95",
+  accentLight:  "#EEF1F6",
+  success:      "#07C160",
+  successLight: "#E7F7EE",
   danger:       "#D65745",
   dangerLight:  "#FDF0EE",
   warning:      "#F59E0B",
@@ -51,7 +53,7 @@ export { TYPE, ICON, COLOR };
 export const appTheme = createTheme({
   palette: {
     mode: "light",
-    primary: { main: COLOR.success },
+    primary: { main: COLOR.primary },
     secondary: { main: COLOR.text4 },
     error: { main: COLOR.danger },
     warning: { main: COLOR.warning },

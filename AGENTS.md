@@ -137,4 +137,8 @@ When debugging failures in E2E / MVP benchmark tests:
 4. Primary languages: Python (backend/AI), JavaScript (frontend), Markdown (docs/prompts). Use Chinese (中文) for user-facing strings and medical terminology. JSON keys should be English.
 5. Before using sed for file modifications, prefer the Edit tool. sed has corrupted files multiple times in this project. If sed is necessary, always verify file integrity afterward.
 6. After deleting or moving any module/class/function, immediately grep for all imports and references to that symbol and update them. Run tests before committing deletion changes.
+7. **Implementation plan completion** — after finishing an implementation plan:
+   - Report progress to the user (what was done, any deviations from the plan)
+   - Update the corresponding spec in `docs/specs/` to mark status as "Completed" with the completion date
+   - Move the plan from `docs/plans/` to `docs/plans/archived/`
 

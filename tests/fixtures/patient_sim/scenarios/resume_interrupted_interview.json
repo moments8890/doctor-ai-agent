@@ -1,72 +1,94 @@
 {
-  "case_id": "PI-005",
+  "schema_version": 2,
+  "id": "resume_interrupted_interview",
+  "scenario_type": "patient_interview",
   "title": "Resume interrupted interview",
-  "group": "session_management",
-  "chatlog_part1": [
-    {
-      "speaker": "patient",
-      "text": "腰疼",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "patient",
-      "text": "一周了",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    }
+  "tags": [
+    "regression",
+    "session_management"
   ],
-  "chatlog_part2": [
-    {
-      "speaker": "patient",
-      "text": "没有其他疾病",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "patient",
-      "text": "没有过敏，不吸烟",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "patient",
-      "text": "没有家族病史",
-      "assert": {
-        "tools_include": [
-          "advance_interview"
-        ],
-        "llm_calls": 3
-      }
-    }
-  ],
-  "patient_info": {
+  "patient": {
     "name": "测试中断",
     "gender": "男",
-    "year_of_birth": 1978,
+    "age": 48,
     "phone": "13800000005"
   },
+  "input": {
+    "mode": "patient_interview",
+    "turns": [
+      {
+        "actor": "patient",
+        "text": "腰疼"
+      },
+      {
+        "actor": "patient",
+        "text": "一周了"
+      },
+      {
+        "actor": "patient",
+        "text": "没有其他疾病"
+      },
+      {
+        "actor": "patient",
+        "text": "没有过敏，不吸烟"
+      },
+      {
+        "actor": "patient",
+        "text": "没有家族病史"
+      }
+    ],
+    "turns_part1": [
+      {
+        "actor": "patient",
+        "text": "腰疼"
+      },
+      {
+        "actor": "patient",
+        "text": "一周了"
+      }
+    ],
+    "turns_part2": [
+      {
+        "actor": "patient",
+        "text": "没有其他疾病"
+      },
+      {
+        "actor": "patient",
+        "text": "没有过敏，不吸烟"
+      },
+      {
+        "actor": "patient",
+        "text": "没有家族病史"
+      }
+    ]
+  },
+  "execution": {
+    "entrypoint": "patient.interview.chat",
+    "auto_confirm": false,
+    "timeout_seconds": 60
+  },
   "expectations": {
-    "must_not_timeout": true,
-    "resume_returns_same_session": true,
-    "resume_preserves_collected": true,
-    "final_status": "reviewing",
-    "confirm_creates_record": true
+    "assertions": [
+      {
+        "target": "interview.status",
+        "matcher": "eq",
+        "expected": "reviewing"
+      },
+      {
+        "target": "interview.confirm_creates_record",
+        "matcher": "eq",
+        "expected": true
+      },
+      {
+        "target": "session.resume_same",
+        "matcher": "eq",
+        "expected": true
+      },
+      {
+        "target": "session.preserves_collected",
+        "matcher": "eq",
+        "expected": true
+      }
+    ]
   }
 }

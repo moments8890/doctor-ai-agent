@@ -4,12 +4,10 @@
 
 from __future__ import annotations
 
-import asyncio
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import HTTPException, Query
 from utils.log import safe_create_task
 from sqlalchemy import func, select
 

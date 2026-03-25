@@ -1,18 +1,37 @@
 {
-  "case_id": "PI-009",
+  "schema_version": 2,
+  "id": "wrong_yob_login_rejected",
+  "scenario_type": "patient_interview",
   "title": "Wrong YOB login rejected",
-  "group": "auth",
-  "patient_info": {
+  "tags": [
+    "regression",
+    "auth"
+  ],
+  "patient": {
     "name": "登录测试",
     "gender": "男",
-    "year_of_birth": 1992,
+    "age": 34,
     "phone": "13800000009"
   },
   "login_with": {
     "phone": "13800000009",
     "year_of_birth": 1999
   },
+  "input": {
+    "mode": "patient_interview"
+  },
+  "execution": {
+    "entrypoint": "patient.interview.chat",
+    "auto_confirm": false,
+    "timeout_seconds": 60
+  },
   "expectations": {
-    "login_rejected": true
+    "assertions": [
+      {
+        "target": "auth.login_rejected",
+        "matcher": "eq",
+        "expected": true
+      }
+    ]
   }
 }

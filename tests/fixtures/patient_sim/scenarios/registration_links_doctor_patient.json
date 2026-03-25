@@ -1,7 +1,12 @@
 {
-  "case_id": "PI-007",
+  "schema_version": 2,
+  "id": "registration_links_doctor_patient",
+  "scenario_type": "patient_interview",
   "title": "Registration links to doctor-created patient",
-  "group": "registration",
+  "tags": [
+    "regression",
+    "registration"
+  ],
   "pre_create_patient": {
     "name": "已有王芳",
     "gender": "女",
@@ -13,9 +18,31 @@
     "year_of_birth": 1988,
     "phone": "13800000007"
   },
+  "input": {
+    "mode": "patient_interview"
+  },
+  "execution": {
+    "entrypoint": "patient.interview.chat",
+    "auto_confirm": false,
+    "timeout_seconds": 60
+  },
   "expectations": {
-    "links_to_existing": true,
-    "backfills_phone": true,
-    "no_duplicate_patient": true
+    "assertions": [
+      {
+        "target": "registration.links_existing",
+        "matcher": "eq",
+        "expected": true
+      },
+      {
+        "target": "registration.backfills_phone",
+        "matcher": "eq",
+        "expected": true
+      },
+      {
+        "target": "registration.no_duplicate",
+        "matcher": "eq",
+        "expected": true
+      }
+    ]
   }
 }

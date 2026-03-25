@@ -16,9 +16,8 @@ from domain.patients.completeness import (
     total_fields,
 )
 from db.models.interview_session import InterviewStatus
-from domain.patients.interview_session import InterviewSession, load_session, save_session
+from domain.patients.interview_session import load_session, save_session
 from utils.log import log
-from utils.prompt_loader import get_prompt_sync
 
 MAX_TURNS = 30
 

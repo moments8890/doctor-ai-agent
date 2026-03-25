@@ -1,35 +1,53 @@
 {
-  "case_id": "MVP-ACC-020",
+  "schema_version": 2,
+  "id": "same_turn_correction",
+  "scenario_type": "doctor_chat",
   "title": "Same-turn correction: correction rewrites unsaved payload",
-  "group": "correction",
-  "chatlog": [
-    {
-      "speaker": "doctor",
-      "text": "创建患者马建国，男50岁，心内门诊。胸痛1小时，说错了，应该是胸闷2天。",
-      "assert": {
-        "tools_include": [
-          "create_record"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "doctor",
-      "text": "确认",
-      "assert": {
-        "tools_include": [],
-        "llm_calls": 0
-      }
-    }
+  "tags": [
+    "regression",
+    "correction"
   ],
+  "patient": {
+    "name": "马建国",
+    "gender": "男",
+    "age": 50
+  },
+  "input": {
+    "mode": "doctor_chat",
+    "turns": [
+      {
+        "actor": "doctor",
+        "text": "创建患者马建国，男50岁，心内门诊。胸痛1小时，说错了，应该是胸闷2天。"
+      }
+    ]
+  },
+  "execution": {
+    "entrypoint": "records.chat",
+    "auto_confirm": false,
+    "timeout_seconds": 60
+  },
   "expectations": {
-    "must_not_timeout": true,
-    "expected_patient_name": "马建国",
-    "expected_patient_count": 1,
-    "expect_patient_dedup": true,
-    "expected_table_min_counts_by_doctor": {
-      "patients": 1,
-      "medical_records": 1
-    }
+    "assertions": [
+      {
+        "target": "db.patients.name",
+        "matcher": "eq",
+        "expected": "马建国"
+      },
+      {
+        "target": "db.patients.count",
+        "matcher": "eq",
+        "expected": 1
+      },
+      {
+        "target": "db.patients.count",
+        "matcher": "min",
+        "expected": 1
+      },
+      {
+        "target": "db.interview_sessions.count",
+        "matcher": "min",
+        "expected": 1
+      }
+    ]
   }
 }

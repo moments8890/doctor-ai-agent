@@ -1,18 +1,25 @@
 {
-  "case_id": "MVP-ACC-042",
+  "schema_version": 2,
+  "id": "correct_without_prior",
+  "scenario_type": "doctor_chat",
   "title": "Clarification: correction without prior context",
-  "group": "clarification",
-  "chatlog": [
-    {
-      "speaker": "doctor",
-      "text": "更正一下刚才的病历，血压应该是140/90",
-      "assert": {
-        "tools_include": [],
-        "llm_calls": 1
-      }
-    }
+  "tags": [
+    "regression",
+    "clarification"
   ],
-  "expectations": {
-    "must_not_timeout": true
-  }
+  "input": {
+    "mode": "doctor_chat",
+    "turns": [
+      {
+        "actor": "doctor",
+        "text": "更正一下刚才的病历，血压应该是140/90"
+      }
+    ]
+  },
+  "execution": {
+    "entrypoint": "records.chat",
+    "auto_confirm": false,
+    "timeout_seconds": 60
+  },
+  "expectations": {}
 }

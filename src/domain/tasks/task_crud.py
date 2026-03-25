@@ -22,7 +22,6 @@ from db.crud import (
 )
 from db.models import DoctorTask
 from domain.tasks.notifications import send_doctor_notification
-from domain.tasks.scheduler import should_auto_run_now
 from utils.log import task_log
 
 _TASK_ICONS = {

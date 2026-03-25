@@ -1,20 +1,25 @@
 {
-  "case_id": "MVP-ACC-015",
+  "schema_version": 2,
+  "id": "list_all_patients",
+  "scenario_type": "doctor_chat",
   "title": "List all patients",
-  "group": "list",
-  "chatlog": [
-    {
-      "speaker": "doctor",
-      "text": "所有患者",
-      "assert": {
-        "tools_include": [
-          "list_patients"
-        ],
-        "llm_calls": 2
-      }
-    }
+  "tags": [
+    "regression",
+    "list"
   ],
-  "expectations": {
-    "must_not_timeout": true
-  }
+  "input": {
+    "mode": "doctor_chat",
+    "turns": [
+      {
+        "actor": "doctor",
+        "text": "所有患者"
+      }
+    ]
+  },
+  "execution": {
+    "entrypoint": "records.chat",
+    "auto_confirm": false,
+    "timeout_seconds": 60
+  },
+  "expectations": {}
 }

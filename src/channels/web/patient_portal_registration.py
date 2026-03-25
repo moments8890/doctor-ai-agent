@@ -18,7 +18,6 @@ from sqlalchemy import select
 from db.engine import AsyncSessionLocal
 from db.models import Patient
 from db.models.patient_auth import PatientAuth
-from infra.auth.access_code_hash import verify_access_code
 from infra.auth.rate_limit import enforce_doctor_rate_limit
 
 from infra.auth import UserRole

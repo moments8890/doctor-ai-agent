@@ -167,10 +167,19 @@ async def batch_extract_from_transcript(
 
     response_model = DoctorExtractResult if mode == "doctor" else PatientExtractResult
 
+    # Load base safety prompt (Pattern C prompts get base.md as system msg)
+    from utils.prompt_loader import get_prompt_sync
+    base_prompt = get_prompt_sync("common/base", fallback="")
+
     try:
+        messages = []
+        if base_prompt:
+            messages.append({"role": "system", "content": base_prompt})
+        messages.append({"role": "user", "content": prompt})
+
         extracted = await structured_call(
             response_model=response_model,
-            messages=[{"role": "user", "content": prompt}],
+            messages=messages,
             op_name="interview.batch_extract",
             temperature=0.1,
             max_tokens=1024,

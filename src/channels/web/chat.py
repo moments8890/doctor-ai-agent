@@ -1,11 +1,10 @@
-"""Records router — chat endpoint uses ADR 0012 UEC runtime; utility endpoints unchanged."""
+"""Records router — chat endpoint uses Plan-and-Act agent; utility endpoints unchanged."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, File, Header
+from fastapi import APIRouter, Form, HTTPException, UploadFile, File, Header
 from pydantic import BaseModel, Field, field_validator
 from typing import Any, Dict, List, Literal, Optional
 
-from db.engine import AsyncSessionLocal
 from db.models.medical_record import MedicalRecord
 from domain.records.structuring import text_to_interview
 from infra.llm.vision import extract_text_from_image
@@ -14,8 +13,6 @@ from infra.auth.rate_limit import enforce_doctor_rate_limit
 from infra.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
 from agent import handle_turn
 from agent.actions import Action
-from channels.web.deps import get_doctor_id
-from messages import M
 from utils.log import log
 
 from constants import SUPPORTED_IMAGE_TYPES
@@ -95,7 +92,7 @@ async def chat(
     body: ChatInput,
     authorization: Optional[str] = Header(default=None),
 ):
-    """Doctor chat — UEC pipeline runtime (ADR 0012)."""
+    """Doctor chat — Plan-and-Act agent."""
     doctor_id = resolve_doctor_id_from_auth_or_fallback(
         body.doctor_id, authorization,
         fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",

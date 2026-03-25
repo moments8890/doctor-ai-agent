@@ -8,7 +8,6 @@ import json
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Optional
 
 
 _ENABLED = os.environ.get("TURN_LOG_ENABLED", "1").strip().lower() not in {"0", "false", "no", "off"}

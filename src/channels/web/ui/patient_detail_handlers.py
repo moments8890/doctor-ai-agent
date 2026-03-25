@@ -6,8 +6,6 @@ and admin DB-view delegation.
 
 from __future__ import annotations
 
-import json
-from datetime import datetime, timezone
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Header, HTTPException, Query
@@ -27,7 +25,6 @@ from domain.patients.timeline import build_patient_timeline
 from infra.auth.rate_limit import enforce_doctor_rate_limit
 from infra.observability.audit import audit
 from utils.log import safe_create_task
-from utils.errors import DomainError
 from channels.web.ui.record_handlers import (
     manage_records_for_doctor as _manage_records_for_doctor_impl,
     manage_patients_for_doctor as _manage_patients_for_doctor_impl,

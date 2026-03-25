@@ -26,7 +26,6 @@ from domain.patients.interview_session import (
 )
 from domain.patients.interview_summary import confirm_interview
 from domain.patients.interview_turn import interview_turn
-from utils.log import log
 
 router = APIRouter(prefix="/api/patient/interview", tags=["patient-interview"])
 

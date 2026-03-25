@@ -221,7 +221,7 @@ export default function InterviewView({ doctorId, sessionId: resumeSessionId, on
           {session.progress.pct || 0}%
         </Typography>} />
 
-      {/* Progress bar + confirm */}
+      {/* Progress bar + missing fields + confirm */}
       <Box sx={{ px: 1.5, py: 0.5, bgcolor: "#fff", borderBottom: "1px solid #e0e0e0" }}>
         <LinearProgress variant="determinate"
           value={session.progress.pct || 0}
@@ -245,6 +245,37 @@ export default function InterviewView({ doctorId, sessionId: resumeSessionId, on
             </Button>
           )}
         </Box>
+        {/* Missing field hints */}
+        {session.status !== "draft_created" && (() => {
+          const fields = session.progress?.fields || {};
+          const empty = Object.entries(fields)
+            .filter(([, f]) => f.status === "empty")
+            .map(([, f]) => f.label);
+          if (empty.length === 0) return null;
+          return (
+            <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5, mt: 0.4 }}>
+              <Typography variant="caption" sx={{ color: "#999", mr: 0.3, flexShrink: 0 }}>待补充：</Typography>
+              {empty.map((text, i) => (
+                <Box key={i} sx={{
+                  display: { xs: i >= 3 ? "none" : "inline-flex", md: i >= 5 ? "none" : "inline-flex" },
+                  px: 0.8, py: 0.15, borderRadius: "10px",
+                  fontSize: "11px", bgcolor: "#fff3e0", color: "#e65100", border: "1px solid #ffe0b2" }}>
+                  {text}
+                </Box>
+              ))}
+              {empty.length > 3 && (
+                <Typography variant="caption" sx={{ color: "#999", display: { xs: "inline", md: "none" }, fontSize: "11px" }}>
+                  +{empty.length - 3}
+                </Typography>
+              )}
+              {empty.length > 5 && (
+                <Typography variant="caption" sx={{ color: "#999", display: { xs: "none", md: "inline" }, fontSize: "11px" }}>
+                  +{empty.length - 5}
+                </Typography>
+              )}
+            </Box>
+          );
+        })()}
       </Box>
 
       {/* Carry-forward card — prior record fields for one-tap confirmation */}
@@ -280,40 +311,7 @@ export default function InterviewView({ doctorId, sessionId: resumeSessionId, on
         </Box>
       )}
 
-      {/* Missing field hints — derived from progress.fields, capped by viewport */}
-      {session.status !== "draft_created" && !loading && (() => {
-        const fields = session.progress?.fields || {};
-        const empty = Object.entries(fields)
-          .filter(([, f]) => f.status === "empty")
-          .map(([, f]) => f.label);
-        if (empty.length === 0) return null;
-        return (
-          <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5,
-            px: 1.5, py: 0.6, borderTop: "1px solid #e0e0e0", bgcolor: "#f7f7f7" }}>
-            <Typography variant="caption" sx={{ color: "#999", mr: 0.5, flexShrink: 0 }}>待补充：</Typography>
-            {empty.map((text, i) => (
-              <Box key={i} sx={{
-                display: { xs: i >= 3 ? "none" : "inline-flex", md: i >= 5 ? "none" : "inline-flex" },
-                px: 1, py: 0.3, borderRadius: "12px",
-                fontSize: "12px", bgcolor: "#fff3e0", color: "#e65100", border: "1px solid #ffe0b2" }}>
-                {text}
-              </Box>
-            ))}
-            {empty.length > 3 && (
-              <Typography variant="caption" sx={{ color: "#999", display: { xs: "inline", md: "none" } }}>
-                +{empty.length - 3}
-              </Typography>
-            )}
-            {empty.length > 5 && (
-              <Typography variant="caption" sx={{ color: "#999", display: { xs: "none", md: "inline" } }}>
-                +{empty.length - 5}
-              </Typography>
-            )}
-          </Box>
-        );
-      })()}
-
-      {/* LLM suggestions — clickable chips (carry-forward from prior records, etc.) */}
+      {/* LLM suggestions — clickable quick-reply chips */}
       {session.status !== "draft_created" && !loading && suggestions.length > 0 && (
         <SuggestionChips
           items={suggestions}

@@ -1,16 +1,420 @@
 {
+  "schema_version": 2,
   "id": "D5",
-  "name": "中英混合",
-  "style": "bilingual",
-  "description": "脑血管病例，大量英文实验室数值、药物名称（品牌名与通用名混用）、影像学术语，中英文高度混合",
-  "specialty": "neurosurgery",
-  "patient_info": {"name": "赵明华", "gender": "男", "age": 65},
-  "turn_plan": [
-    {
-      "turn": 1,
-      "text": "赵明华 男 65y 神经外科\n主诉：反复TIA发作2月\n\nCTA: R-ICA stenosis 70% LAD pattern, irregular plaque with ulceration. L-ICA mild stenosis 30%. MRA: R-MCA M1 mild stenosis. 颈动脉超声：右侧ICA起始部mixed plaque 3.2mm×12mm, PSV 285cm/s EDV 92cm/s.\n\nDWI: R hemisphere small acute infarct in watershed area. FLAIR: bilateral periventricular white matter hyperintensity Fazekas grade 2.\n\n既往: HTN 20y on 拜新同30mg qd + 代文80mg qd, BP 150-160/90-95. DM 12y on 格华止1000mg bid + 诺和锐30R 早16u晚12u, FBG 7-9 PPG 10-14. Dyslipidemia on 立普妥20mg qn 但compliance差 often自行停药.\nAF 2y on 华法林2.5mg qd INR波动大 1.5-3.2 考虑换达比加群.\nCHD hx, PCI 3y ago LAD stent DES, 波立维75mg qd已停1年改为拜阿司匹林100mg qd.\n2019 appendectomy.\n\nAllergy: 头孢过敏 (anaphylaxis hx)\nSmoking 40y 1PPD quit 3y ago. Social EtOH.\nFamily: father CVA age 60, mother DM.\n\n查体: BP 158/94 HR 82 irregular. Carotid bruit R side. 神清 oriented. R nasolabial fold shallow. Muscle strength: RUE IV/V RLE IV+/V LUE V/V LLE V/V. DTR symmetric. Babinski R (+) L (-). NIHSS 4 (facial palsy 1 + R arm drift 1 + sensory 1 + dysarthria 1). mRS 2.\n\nLabs: HbA1c 8.2% LDL-C 3.8mmol/L target<1.8 HDL 0.9 TG 2.8 TC 6.2\nhs-cTnI 0.02 BNP 256pg/mL Cr 1.2 eGFR 58 ALT 52 AST 48\nWBC 8.5 HGB 128 PLT 195 INR 2.1 PT 18.5s Hcy 22μmol/L D-dimer 0.8\nUA 485μmol/L FT3 3.2 FT4 1.1 TSH 2.8\n\nDx: 1. R-ICA severe stenosis with TIA 2. Cerebral watershed infarction 3. AF (CHADS₂-VASc 6) 4. HTN grade 3 very high risk 5. T2DM 6. Dyslipidemia 7. CHD post-PCI\n\nPlan: DSA评估. 拟行CAS (R-ICA stenting). 术前换抗凝: 华法林→达比加群110mg bid, bridge with 依诺肝素4000u ih bid. 双抗: 拜阿司匹林100mg qd + 波立维75mg qd (restart). Statin升级: 立普妥20mg→可定20mg qn target LDL<1.8. BP target<140/90: 加用倍他乐克47.5mg qd控制HR+BP. DM: 胰岛素继续, 格华止继续, add 达格列净10mg qd for renal protection. Hcy: 叶酸0.8mg qd. UA: 非布司他40mg qd."
-    }
+  "scenario_type": "doctor_extraction",
+  "title": "中英混合 — 双语脑血管病例",
+  "tags": [
+    "regression",
+    "bilingual",
+    "neurosurgery"
   ],
+  "patient": {
+    "name": "赵明华",
+    "gender": "男",
+    "age": 65
+  },
+  "input": {
+    "mode": "doctor_interview",
+    "turns": [
+      {
+        "actor": "doctor",
+        "text": "赵明华 男 65y 神经外科\n主诉：反复TIA发作2月\n\nCTA: R-ICA stenosis 70% LAD pattern, irregular plaque with ulceration. L-ICA mild stenosis 30%. MRA: R-MCA M1 mild stenosis. 颈动脉超声：右侧ICA起始部mixed plaque 3.2mm×12mm, PSV 285cm/s EDV 92cm/s.\n\nDWI: R hemisphere small acute infarct in watershed area. FLAIR: bilateral periventricular white matter hyperintensity Fazekas grade 2.\n\n既往: HTN 20y on 拜新同30mg qd + 代文80mg qd, BP 150-160/90-95. DM 12y on 格华止1000mg bid + 诺和锐30R 早16u晚12u, FBG 7-9 PPG 10-14. Dyslipidemia on 立普妥20mg qn 但compliance差 often自行停药.\nAF 2y on 华法林2.5mg qd INR波动大 1.5-3.2 考虑换达比加群.\nCHD hx, PCI 3y ago LAD stent DES, 波立维75mg qd已停1年改为拜阿司匹林100mg qd.\n2019 appendectomy.\n\nAllergy: 头孢过敏 (anaphylaxis hx)\nSmoking 40y 1PPD quit 3y ago. Social EtOH.\nFamily: father CVA age 60, mother DM.\n\n查体: BP 158/94 HR 82 irregular. Carotid bruit R side. 神清 oriented. R nasolabial fold shallow. Muscle strength: RUE IV/V RLE IV+/V LUE V/V LLE V/V. DTR symmetric. Babinski R (+) L (-). NIHSS 4 (facial palsy 1 + R arm drift 1 + sensory 1 + dysarthria 1). mRS 2.\n\nLabs: HbA1c 8.2% LDL-C 3.8mmol/L target<1.8 HDL 0.9 TG 2.8 TC 6.2\nhs-cTnI 0.02 BNP 256pg/mL Cr 1.2 eGFR 58 ALT 52 AST 48\nWBC 8.5 HGB 128 PLT 195 INR 2.1 PT 18.5s Hcy 22μmol/L D-dimer 0.8\nUA 485μmol/L FT3 3.2 FT4 1.1 TSH 2.8\n\nDx: 1. R-ICA severe stenosis with TIA 2. Cerebral watershed infarction 3. AF (CHADS₂-VASc 6) 4. HTN grade 3 very high risk 5. T2DM 6. Dyslipidemia 7. CHD post-PCI\n\nPlan: DSA评估. 拟行CAS (R-ICA stenting). 术前换抗凝: 华法林→达比加群110mg bid, bridge with 依诺肝素4000u ih bid. 双抗: 拜阿司匹林100mg qd + 波立维75mg qd (restart). Statin升级: 立普妥20mg→可定20mg qn target LDL<1.8. BP target<140/90: 加用倍他乐克47.5mg qd控制HR+BP. DM: 胰岛素继续, 格华止继续, add 达格列净10mg qd for renal protection. Hcy: 叶酸0.8mg qd. UA: 非布司他40mg qd."
+      }
+    ]
+  },
+  "execution": {
+    "entrypoint": "records.interview.turn",
+    "auto_confirm": true,
+    "timeout_seconds": 60
+  },
+  "expectations": {
+    "assertions": [
+      {
+        "target": "record.exists",
+        "matcher": "eq",
+        "expected": true
+      },
+      {
+        "target": "db.patients.count",
+        "matcher": "eq",
+        "expected": 1
+      },
+      {
+        "target": "db.medical_records.count",
+        "matcher": "min",
+        "expected": 1
+      }
+    ],
+    "extraction": {
+      "facts": [
+        {
+          "text": "反复TIA发作2月",
+          "allowed_fields": [
+            "chief_complaint"
+          ],
+          "aliases": [
+            "反复短暂性脑缺血发作发作2月",
+            "反复TIA发作2m"
+          ]
+        },
+        {
+          "text": "R-ICA stenosis 70%",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "irregular plaque with ulceration",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "DWI R hemisphere watershed acute infarct",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "PSV 285cm/s",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "Fazekas grade 2",
+          "allowed_fields": [
+            "present_illness"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "HTN 20年 拜新同+代文",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "HTN 20年 硝苯地平+代文",
+            "HTN 20年 硝苯地平控释片+代文",
+            "HTN 20年 拜新同+缬沙坦",
+            "高血压 20年 拜新同+代文",
+            "HTN 20y 拜新同+代文"
+          ]
+        },
+        {
+          "text": "DM 12年 格华止+诺和锐30R",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "DM 12年 二甲双胍+诺和锐30R",
+            "DM 12年 格华止+门冬胰岛素30R",
+            "糖尿病 12年 格华止+诺和锐30R",
+            "DM 12y 格华止+诺和锐30R"
+          ]
+        },
+        {
+          "text": "AF 2年 华法林 INR波动",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "AF 2年 warfarin INR波动",
+            "房颤 2年 华法林 INR波动",
+            "心房颤动 2年 华法林 INR波动",
+            "AF 2y 华法林 INR波动"
+          ]
+        },
+        {
+          "text": "CHD PCI 3年前 LAD DES",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "冠心病 PCI 3年前 LAD DES",
+            "CHD 经皮冠状动脉介入治疗 3年前 LAD DES",
+            "CHD PCI 3y前 LAD DES"
+          ]
+        },
+        {
+          "text": "波立维已停1年 改拜阿司匹林",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "波立维已停1年 改阿司匹林",
+            "氯吡格雷已停1年 改拜阿司匹林",
+            "波立维已停1y 改拜阿司匹林"
+          ]
+        },
+        {
+          "text": "立普妥 compliance差 自行停药",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "阿托伐他汀 compliance差 自行停药"
+          ]
+        },
+        {
+          "text": "头孢过敏 anaphylaxis",
+          "allowed_fields": [
+            "allergy_history"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "吸烟40年 1PPD 戒3年",
+          "allowed_fields": [
+            "personal_history"
+          ],
+          "aliases": [
+            "吸烟40y 1PPD 戒3y"
+          ]
+        },
+        {
+          "text": "父亲60岁CVA",
+          "allowed_fields": [
+            "family_history"
+          ],
+          "aliases": [
+            "父亲60岁脑血管意外",
+            "父亲60岁中风"
+          ]
+        },
+        {
+          "text": "BP 158/94",
+          "allowed_fields": [
+            "physical_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "HR 82 irregular",
+          "allowed_fields": [
+            "physical_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "Carotid bruit右侧",
+          "allowed_fields": [
+            "physical_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "Babinski R (+)",
+          "allowed_fields": [
+            "physical_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "NIHSS 4",
+          "allowed_fields": [
+            "specialist_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "mRS 2",
+          "allowed_fields": [
+            "specialist_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "HbA1c 8.2%",
+          "allowed_fields": [
+            "auxiliary_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "LDL-C 3.8 目标<1.8",
+          "allowed_fields": [
+            "auxiliary_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "BNP 256pg/mL",
+          "allowed_fields": [
+            "auxiliary_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "eGFR 58",
+          "allowed_fields": [
+            "auxiliary_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "Hcy 22μmol/L",
+          "allowed_fields": [
+            "auxiliary_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "UA 485μmol/L",
+          "allowed_fields": [
+            "auxiliary_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "INR 2.1",
+          "allowed_fields": [
+            "auxiliary_exam"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "R-ICA severe stenosis with TIA",
+          "allowed_fields": [
+            "diagnosis"
+          ],
+          "aliases": [
+            "R-ICA severe stenosis with 短暂性脑缺血发作"
+          ]
+        },
+        {
+          "text": "脑分水岭梗死",
+          "allowed_fields": [
+            "diagnosis"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "AF CHADS₂-VASc 6",
+          "allowed_fields": [
+            "diagnosis"
+          ],
+          "aliases": [
+            "房颤 CHADS₂-VASc 6",
+            "心房颤动 CHADS₂-VASc 6"
+          ]
+        },
+        {
+          "text": "拟行CAS R-ICA stenting",
+          "allowed_fields": [
+            "treatment_plan"
+          ],
+          "aliases": [
+            "拟行颈动脉支架置入术 R-ICA stenting"
+          ]
+        },
+        {
+          "text": "华法林→达比加群110mg bid",
+          "allowed_fields": [
+            "treatment_plan"
+          ],
+          "aliases": [
+            "华法林→泰毕全110mg bid",
+            "warfarin→达比加群110mg bid"
+          ]
+        },
+        {
+          "text": "拜阿司匹林100mg + 波立维75mg",
+          "allowed_fields": [
+            "treatment_plan"
+          ],
+          "aliases": [
+            "阿司匹林100mg + 波立维75mg",
+            "拜阿司匹林100mg + 氯吡格雷75mg"
+          ]
+        },
+        {
+          "text": "立普妥→可定20mg 目标LDL<1.8",
+          "allowed_fields": [
+            "treatment_plan"
+          ],
+          "aliases": [
+            "阿托伐他汀→可定20mg 目标LDL<1.8",
+            "立普妥→瑞舒伐他汀20mg 目标LDL<1.8"
+          ]
+        },
+        {
+          "text": "倍他乐克47.5mg qd",
+          "allowed_fields": [
+            "treatment_plan"
+          ],
+          "aliases": [
+            "美托洛尔47.5mg qd"
+          ]
+        },
+        {
+          "text": "达格列净10mg qd renal protection",
+          "allowed_fields": [
+            "treatment_plan"
+          ],
+          "aliases": [
+            "安达唐10mg qd renal protection",
+            "forxiga10mg qd renal protection"
+          ]
+        },
+        {
+          "text": "叶酸0.8mg qd",
+          "allowed_fields": [
+            "treatment_plan"
+          ],
+          "aliases": []
+        },
+        {
+          "text": "非布司他40mg qd",
+          "allowed_fields": [
+            "treatment_plan"
+          ],
+          "aliases": [
+            "febuxostat40mg qd"
+          ]
+        },
+        {
+          "text": "拜新同=硝苯地平控释片 品牌识别",
+          "allowed_fields": [
+            "past_history"
+          ],
+          "aliases": [
+            "拜新同=拜新同控释片 品牌识别",
+            "硝苯地平=硝苯地平控释片 品牌识别",
+            "硝苯地平控释片=硝苯地平控释片 品牌识别"
+          ]
+        },
+        {
+          "text": "波立维=氯吡格雷 品牌识别",
+          "allowed_fields": [
+            "treatment_plan"
+          ],
+          "aliases": [
+            "波立维=波立维 品牌识别",
+            "氯吡格雷=氯吡格雷 品牌识别"
+          ]
+        },
+        {
+          "text": "可定=瑞舒伐他汀 品牌识别",
+          "allowed_fields": [
+            "treatment_plan"
+          ],
+          "aliases": [
+            "可定=可定 品牌识别",
+            "瑞舒伐他汀=瑞舒伐他汀 品牌识别"
+          ]
+        }
+      ],
+      "forbidden": [],
+      "thresholds": {
+        "recall": 0.8
+      }
+    }
+  },
   "gold_soap": {
     "department": "神经外科",
     "chief_complaint": "反复TIA发作2月",
@@ -26,49 +430,5 @@
     "diagnosis": "1.右侧颈内动脉重度狭窄伴TIA 2.脑分水岭梗死 3.心房颤动(CHADS₂-VASc 6分) 4.高血压病3级（很高危） 5.2型糖尿病 6.血脂异常 7.冠心病PCI术后",
     "treatment_plan": "DSA评估，拟行CAS（右侧ICA支架置入）。抗凝方案调整：华法林→达比加群110mg bid，过渡期依诺肝素4000u ih bid。双抗血小板：拜阿司匹林100mg qd + 波立维75mg qd（恢复）。他汀升级：立普妥20mg→可定20mg qn，目标LDL<1.8mmol/L。降压加用倍他乐克47.5mg qd控制心率+血压，目标BP<140/90。糖尿病：胰岛素+格华止继续，加用达格列净10mg qd肾脏保护。Hcy：叶酸0.8mg qd。高尿酸：非布司他40mg qd。",
     "orders_followup": ""
-  },
-  "fact_catalog": [
-    {"id": "d5_cc_tia", "field": "chief_complaint", "text": "反复TIA发作2月", "importance": "critical"},
-    {"id": "d5_pi_rica_70", "field": "present_illness", "text": "R-ICA stenosis 70%", "importance": "critical"},
-    {"id": "d5_pi_ulcer_plaque", "field": "present_illness", "text": "irregular plaque with ulceration", "importance": "critical"},
-    {"id": "d5_pi_watershed_infarct", "field": "present_illness", "text": "DWI R hemisphere watershed acute infarct", "importance": "critical"},
-    {"id": "d5_pi_psv", "field": "present_illness", "text": "PSV 285cm/s", "importance": "important"},
-    {"id": "d5_pi_fazekas", "field": "present_illness", "text": "Fazekas grade 2", "importance": "important"},
-    {"id": "d5_ph_htn_20y", "field": "past_history", "text": "HTN 20年 拜新同+代文", "importance": "critical"},
-    {"id": "d5_ph_dm_12y", "field": "past_history", "text": "DM 12年 格华止+诺和锐30R", "importance": "critical"},
-    {"id": "d5_ph_af", "field": "past_history", "text": "AF 2年 华法林 INR波动", "importance": "critical"},
-    {"id": "d5_ph_chd_pci", "field": "past_history", "text": "CHD PCI 3年前 LAD DES", "importance": "critical"},
-    {"id": "d5_ph_clopidogrel_stopped", "field": "past_history", "text": "波立维已停1年 改拜阿司匹林", "importance": "important"},
-    {"id": "d5_ph_statin_compliance", "field": "past_history", "text": "立普妥 compliance差 自行停药", "importance": "important"},
-    {"id": "d5_al_cephalosporin", "field": "allergy_history", "text": "头孢过敏 anaphylaxis", "importance": "critical"},
-    {"id": "d5_sh_smoking", "field": "personal_history", "text": "吸烟40年 1PPD 戒3年", "importance": "important"},
-    {"id": "d5_fh_father_cva", "field": "family_history", "text": "父亲60岁CVA", "importance": "important"},
-    {"id": "d5_pe_bp", "field": "physical_exam", "text": "BP 158/94", "importance": "critical"},
-    {"id": "d5_pe_irregular_hr", "field": "physical_exam", "text": "HR 82 irregular", "importance": "important"},
-    {"id": "d5_pe_bruit", "field": "physical_exam", "text": "Carotid bruit右侧", "importance": "critical"},
-    {"id": "d5_pe_babinski_r", "field": "physical_exam", "text": "Babinski R (+)", "importance": "important"},
-    {"id": "d5_se_nihss_4", "field": "specialist_exam", "text": "NIHSS 4", "importance": "critical"},
-    {"id": "d5_se_mrs_2", "field": "specialist_exam", "text": "mRS 2", "importance": "critical"},
-    {"id": "d5_ax_hba1c", "field": "auxiliary_exam", "text": "HbA1c 8.2%", "importance": "critical"},
-    {"id": "d5_ax_ldl", "field": "auxiliary_exam", "text": "LDL-C 3.8 目标<1.8", "importance": "critical"},
-    {"id": "d5_ax_bnp", "field": "auxiliary_exam", "text": "BNP 256pg/mL", "importance": "important"},
-    {"id": "d5_ax_egfr", "field": "auxiliary_exam", "text": "eGFR 58", "importance": "important"},
-    {"id": "d5_ax_hcy", "field": "auxiliary_exam", "text": "Hcy 22μmol/L", "importance": "important"},
-    {"id": "d5_ax_ua", "field": "auxiliary_exam", "text": "UA 485μmol/L", "importance": "important"},
-    {"id": "d5_ax_inr", "field": "auxiliary_exam", "text": "INR 2.1", "importance": "important"},
-    {"id": "d5_dx_ica_stenosis", "field": "diagnosis", "text": "R-ICA severe stenosis with TIA", "importance": "critical"},
-    {"id": "d5_dx_watershed", "field": "diagnosis", "text": "脑分水岭梗死", "importance": "critical"},
-    {"id": "d5_dx_af_chads", "field": "diagnosis", "text": "AF CHADS₂-VASc 6", "importance": "critical"},
-    {"id": "d5_tp_cas", "field": "treatment_plan", "text": "拟行CAS R-ICA stenting", "importance": "critical"},
-    {"id": "d5_tp_anticoag_switch", "field": "treatment_plan", "text": "华法林→达比加群110mg bid", "importance": "critical"},
-    {"id": "d5_tp_dual_antiplatelet", "field": "treatment_plan", "text": "拜阿司匹林100mg + 波立维75mg", "importance": "critical"},
-    {"id": "d5_tp_statin_upgrade", "field": "treatment_plan", "text": "立普妥→可定20mg 目标LDL<1.8", "importance": "critical"},
-    {"id": "d5_tp_metoprolol", "field": "treatment_plan", "text": "倍他乐克47.5mg qd", "importance": "important"},
-    {"id": "d5_tp_dapagliflozin", "field": "treatment_plan", "text": "达格列净10mg qd renal protection", "importance": "important"},
-    {"id": "d5_tp_folate", "field": "treatment_plan", "text": "叶酸0.8mg qd", "importance": "important"},
-    {"id": "d5_tp_febuxostat", "field": "treatment_plan", "text": "非布司他40mg qd", "importance": "important"},
-    {"id": "d5_brand_baxintong", "field": "past_history", "text": "拜新同=硝苯地平控释片 品牌识别", "importance": "important"},
-    {"id": "d5_brand_plavix", "field": "treatment_plan", "text": "波立维=氯吡格雷 品牌识别", "importance": "important"},
-    {"id": "d5_brand_crestor", "field": "treatment_plan", "text": "可定=瑞舒伐他汀 品牌识别", "importance": "important"}
-  ]
+  }
 }

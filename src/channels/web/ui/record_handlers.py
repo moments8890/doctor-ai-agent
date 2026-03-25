@@ -4,7 +4,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime
 from typing import Optional, Tuple
 
@@ -16,7 +15,6 @@ from db.crud import (
     get_all_patients,
 )
 from sqlalchemy import and_, func, or_, select
-from sqlalchemy.orm import selectinload
 from db.engine import AsyncSessionLocal
 from db.models import MedicalRecordDB, Patient
 from infra.auth.rate_limit import enforce_doctor_rate_limit

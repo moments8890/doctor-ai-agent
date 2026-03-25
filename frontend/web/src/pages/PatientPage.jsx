@@ -429,7 +429,7 @@ function RecordDetailView({ record, token, onBack }) {
   };
   const DIAG_STATUS_COLORS = {
     pending: COLOR.warning,
-    completed: COLOR.primary,
+    completed: COLOR.accent,
     confirmed: COLOR.success,
     failed: COLOR.danger,
   };
@@ -572,7 +572,7 @@ function RecordsTab({ token, onLogout, onNewRecord, urlSubpage }) {
             const chief = rec.structured?.chief_complaint;
             const preview = chief || (rec.content || "").replace(/\n/g, " ").slice(0, 40) || "（内容为空）";
             const _DL = { pending: "诊断中", completed: "待审核", confirmed: "已确认", failed: "诊断失败" };
-            const _DC = { "诊断中": COLOR.warning, "待审核": COLOR.primary, "已确认": COLOR.success, "诊断失败": COLOR.danger };
+            const _DC = { "诊断中": COLOR.warning, "待审核": COLOR.accent, "已确认": COLOR.success, "诊断失败": COLOR.danger };
             const ds = rec.diagnosis_status;
             const dsLabel = ds ? _DL[ds] : null;
             return (

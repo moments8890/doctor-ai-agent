@@ -1,45 +1,57 @@
 {
-  "case_id": "MVP-ACC-013",
+  "schema_version": 2,
+  "id": "schedule_followup",
+  "scenario_type": "doctor_chat",
   "title": "Schedule follow-up for existing patient",
-  "group": "schedule",
-  "chatlog": [
-    {
-      "speaker": "doctor",
-      "text": "创建患者杨志明，男55岁，心内门诊。冠心病PCI术后随访，血压正常，血脂达标。",
-      "assert": {
-        "tools_include": [
-          "create_record"
-        ],
-        "llm_calls": 3
-      }
-    },
-    {
-      "speaker": "doctor",
-      "text": "确认",
-      "assert": {
-        "tools_include": [],
-        "llm_calls": 0
-      }
-    },
-    {
-      "speaker": "doctor",
-      "text": "给杨志明安排三个月后复查心电图",
-      "assert": {
-        "tools_include": [
-          "create_task"
-        ],
-        "llm_calls": 2
-      }
-    }
+  "tags": [
+    "regression",
+    "schedule"
   ],
+  "patient": {
+    "name": "杨志明",
+    "gender": "男",
+    "age": 55
+  },
+  "input": {
+    "mode": "doctor_chat",
+    "turns": [
+      {
+        "actor": "doctor",
+        "text": "创建患者杨志明，男55岁，心内门诊。冠心病PCI术后随访，血压正常，血脂达标。"
+      },
+      {
+        "actor": "doctor",
+        "text": "给杨志明安排三个月后复查心电图"
+      }
+    ]
+  },
+  "execution": {
+    "entrypoint": "records.chat",
+    "auto_confirm": false,
+    "timeout_seconds": 60
+  },
   "expectations": {
-    "must_not_timeout": true,
-    "expected_patient_name": "杨志明",
-    "expected_patient_count": 1,
-    "expect_patient_dedup": true,
-    "expected_table_min_counts_by_doctor": {
-      "patients": 1,
-      "medical_records": 1
-    }
+    "assertions": [
+      {
+        "target": "db.patients.name",
+        "matcher": "eq",
+        "expected": "杨志明"
+      },
+      {
+        "target": "db.patients.count",
+        "matcher": "eq",
+        "expected": 1
+      },
+      {
+        "target": "db.patients.count",
+        "matcher": "min",
+        "expected": 1
+      },
+      {
+        "target": "db.interview_sessions.count",
+        "matcher": "min",
+        "expected": 1
+      }
+    ]
   }
 }

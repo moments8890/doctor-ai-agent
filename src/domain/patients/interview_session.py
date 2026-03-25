@@ -45,6 +45,20 @@ async def create_session(
     collected = initial_fields or {}
     conversation: List[Dict[str, Any]] = []
 
+    # Auto-fill department from doctor profile if not already set
+    if "department" not in collected or not collected.get("department"):
+        try:
+            from db.models.doctor import Doctor
+            from sqlalchemy import select
+            async with AsyncSessionLocal() as db:
+                doctor = (await db.execute(
+                    select(Doctor).where(Doctor.id == doctor_id)
+                )).scalar_one_or_none()
+                if doctor and doctor.department:
+                    collected["department"] = doctor.department
+        except Exception:
+            pass  # Non-critical — doctor can fill it manually
+
     # If pre-populated, add a system message so the interview LLM knows
     if initial_fields:
         fields_summary = "、".join(

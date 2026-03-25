@@ -7,7 +7,6 @@ from channels.wechat import wechat_media_pipeline as wmp
 from channels.wechat.wechat_media_pipeline import download_media
 from channels.wechat.wechat_notify import _get_config, _get_access_token, _send_customer_service_msg
 from channels.wechat.infra import KB_CONTEXT_CACHE as _KB_CONTEXT_CACHE, KB_CONTEXT_TTL as _KB_CONTEXT_TTL, get_kb_lock as _get_kb_lock
-from db.engine import AsyncSessionLocal
 from infra.llm.vision import extract_text_from_image
 from domain.knowledge.pdf_extract import extract_text_from_pdf
 from domain.tasks.scheduler import (

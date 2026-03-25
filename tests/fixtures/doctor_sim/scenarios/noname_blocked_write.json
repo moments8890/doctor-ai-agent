@@ -1,18 +1,25 @@
 {
-  "case_id": "MVP-ACC-041",
+  "schema_version": 2,
+  "id": "noname_blocked_write",
+  "scenario_type": "doctor_chat",
   "title": "No-name clinical input: blocked-write draft or clarification",
-  "group": "clarification",
-  "chatlog": [
-    {
-      "speaker": "doctor",
-      "text": "血压160/100，头晕两天，需要调整降压药",
-      "assert": {
-        "tools_include": [],
-        "llm_calls": 1
-      }
-    }
+  "tags": [
+    "regression",
+    "clarification"
   ],
-  "expectations": {
-    "must_not_timeout": true
-  }
+  "input": {
+    "mode": "doctor_chat",
+    "turns": [
+      {
+        "actor": "doctor",
+        "text": "血压160/100，头晕两天，需要调整降压药"
+      }
+    ]
+  },
+  "execution": {
+    "entrypoint": "records.chat",
+    "auto_confirm": false,
+    "timeout_seconds": 60
+  },
+  "expectations": {}
 }

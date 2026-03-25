@@ -2,7 +2,7 @@
 # Prompt: general conversation — greetings, guidance, non-clinical requests
 # Output: plain text Chinese reply (NOT JSON)
 
-- description: "general: greeting — polite intro with AI role"
+- description: "general: greeting — short, not robotic"
   options:
     prompts: [general]
   vars:
@@ -10,12 +10,12 @@
   assert:
     - type: javascript
       value: |
-        // Should mention being an AI assistant
-        return output.includes('助手') || output.includes('AI') || output.includes('智能');
+        // Should NOT repeat "我是AI助手" or list all features
+        return !output.includes('我是') || output.length < 40;
     - type: javascript
       value: |
-        // Should mention available features
-        return output.includes('病历') || output.includes('查询') || output.includes('任务');
+        // Should be short (1-2 sentences)
+        return output.length < 80;
     - type: not-contains
       value: '"intent"'
 
@@ -31,20 +31,37 @@
         return !output.match(/\d+mg/) && !output.match(/\d+片/);
     - type: javascript
       value: |
-        // Should redirect to doctor/professional
-        return output.includes('医生') || output.includes('药师') || output.includes('咨询');
+        // Should redirect to doctor's own judgment or offer to check records
+        return output.includes('医') || output.includes('病历') || output.includes('查');
     - type: not-contains
       value: '"intent"'
 
-- description: "general: feature guidance — direct to record creation"
+- description: "general: ambiguous request — ask clarifying question"
   options:
     prompts: [general]
   vars:
-    message: "我想录入病人信息"
+    message: "帮我查个东西"
   assert:
     - type: javascript
       value: |
-        // Should mention record/病历 related guidance
-        return output.includes('病历') || output.includes('录入') || output.includes('创建') || output.includes('记录');
-    - type: not-contains
-      value: '"intent"'
+        // Should ask a clarifying question (contains ？)
+        return output.includes('？') || output.includes('?');
+    - type: javascript
+      value: |
+        // Should be short
+        return output.length < 60;
+
+- description: "general: off-topic — acknowledge then redirect"
+  options:
+    prompts: [general]
+  vars:
+    message: "今天天气怎么样"
+  assert:
+    - type: javascript
+      value: |
+        // Should not fabricate weather info
+        return !output.includes('晴') && !output.includes('度') && !output.includes('雨');
+    - type: javascript
+      value: |
+        // Should redirect to medical functions
+        return output.includes('患者') || output.includes('病历') || output.includes('帮');
