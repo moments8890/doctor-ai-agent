@@ -1,0 +1,62 @@
+{
+  "id": "D2",
+  "name": "简洁外科急诊",
+  "style": "telegraphic",
+  "description": "急诊神经外科医生，SAH病例，用语极简，大量中英文混合缩写，无完整句式，信息高度压缩",
+  "specialty": "neurosurgery",
+  "patient_info": {"name": "张伟", "gender": "男", "age": 48},
+  "turn_plan": [
+    {
+      "turn": 1,
+      "text": "张伟 男 48 神外急诊 突发剧烈头痛伴呕吐意识障碍2h\nHunt-Hess III Fischer 3 前交通动脉瘤破裂 SAH CTA示ACoA动脉瘤 5mm×4mm 瘤颈2.5mm\n急诊开颅翼点入路动脉瘤夹闭术 术中见动脉瘤朝前上方 成功夹闭 载瘤动脉通畅\n术后ICU BP<140 尼莫地平iv 60mg/d泵入防血管痉挛\nGCS术前E2V2M5=9 术后E3V4M6=13\nNIHSS 8→术后4\n双瞳不等大 L:R=4:3mm 对光反射L迟钝R灵敏 → 术后双瞳等大3mm 对光反射灵敏\n颈强直(+) Kernig(+) Brudzinski(+)\n既往HTN 5y 不规律服药 拜新同30mg qd自行停药半年 否认DM CHD\n吸烟20y 1包/d 饮酒偶尔\n无过敏 无手术史 家族史不详\n入院Labs: WBC 14.2 HGB 135 PLT 198 Cr 0.8 ALT 22 PT 11.8 INR 1.0 K 3.8 Na 141 Glu 8.5\n头CT: 鞍上池、纵裂池、环池弥漫性SAH 脑室无扩大\n术后用药: 尼莫地平60mg/d iv 甘露醇125ml q8h 丙戊酸钠0.4 iv q12h预防癫痫 奥美拉唑40mg iv qd 依诺肝素4000u ih qd预防DVT\n术后3d复查CT排除再出血 7d DSA评估夹闭效果 14d拆线 mRS评估"
+    }
+  ],
+  "gold_soap": {
+    "department": "神经外科",
+    "chief_complaint": "突发剧烈头痛伴呕吐意识障碍2h",
+    "present_illness": "Hunt-Hess III级，Fischer 3级。前交通动脉瘤破裂致蛛网膜下腔出血（SAH）。CTA示前交通动脉（ACoA）动脉瘤5mm×4mm，瘤颈2.5mm。GCS术前E2V2M5=9分。双瞳不等大，L:R=4:3mm，对光反射左侧迟钝右侧灵敏。颈强直(+)，Kernig征(+)，Brudzinski征(+)。",
+    "past_history": "高血压病5年，不规律服药，拜新同30mg qd自行停药半年。否认糖尿病、冠心病。无手术史。",
+    "allergy_history": "无过敏",
+    "personal_history": "吸烟20年 1包/天。饮酒偶尔。",
+    "marital_reproductive": "",
+    "family_history": "家族史不详",
+    "physical_exam": "GCS E2V2M5=9分。双瞳不等大 L:R=4:3mm 对光反射左迟钝右灵敏。颈强直(+) Kernig(+) Brudzinski(+)。",
+    "specialist_exam": "Hunt-Hess III级。NIHSS 8分。双瞳不等大，对光反射左迟钝。颈强直、Kernig征、Brudzinski征阳性。术后GCS E3V4M6=13分，NIHSS 4分，双瞳等大3mm，对光反射灵敏。",
+    "auxiliary_exam": "头CT：鞍上池、纵裂池、环池弥漫性SAH，脑室无扩大。CTA：ACoA动脉瘤5mm×4mm，瘤颈2.5mm。入院血常规：WBC 14.2×10⁹/L，HGB 135g/L，PLT 198×10⁹/L。Cr 0.8mg/dL，ALT 22U/L，PT 11.8s，INR 1.0。K 3.8mmol/L，Na 141mmol/L，Glu 8.5mmol/L。",
+    "diagnosis": "1.前交通动脉瘤破裂 蛛网膜下腔出血(Hunt-Hess III Fischer 3) 2.高血压病",
+    "treatment_plan": "急诊开颅翼点入路动脉瘤夹闭术。术后ICU，血压控制<140mmHg。尼莫地平60mg/d iv泵入防血管痉挛。甘露醇125ml q8h。丙戊酸钠0.4 iv q12h预防癫痫。奥美拉唑40mg iv qd。依诺肝素4000u ih qd预防DVT。",
+    "orders_followup": "术后3天复查CT排除再出血。7天DSA评估夹闭效果。14天拆线。mRS评估。"
+  },
+  "fact_catalog": [
+    {"id": "d2_cc_headache", "field": "chief_complaint", "text": "突发剧烈头痛伴呕吐意识障碍2h", "importance": "critical"},
+    {"id": "d2_pi_hh_grade", "field": "present_illness", "text": "Hunt-Hess III", "importance": "critical"},
+    {"id": "d2_pi_fischer", "field": "present_illness", "text": "Fischer 3", "importance": "critical"},
+    {"id": "d2_pi_acoa_rupture", "field": "present_illness", "text": "前交通动脉瘤破裂 SAH", "importance": "critical"},
+    {"id": "d2_pi_cta_size", "field": "present_illness", "text": "ACoA动脉瘤 5mm×4mm 瘤颈2.5mm", "importance": "critical"},
+    {"id": "d2_pi_gcs_pre", "field": "present_illness", "text": "GCS E2V2M5=9", "importance": "critical"},
+    {"id": "d2_pi_pupils_unequal", "field": "present_illness", "text": "双瞳不等大 L:R=4:3mm", "importance": "critical"},
+    {"id": "d2_pi_meningeal", "field": "present_illness", "text": "颈强直 Kernig Brudzinski阳性", "importance": "critical"},
+    {"id": "d2_ph_htn", "field": "past_history", "text": "HTN 5y 不规律服药", "importance": "critical"},
+    {"id": "d2_ph_nifedipine_stopped", "field": "past_history", "text": "拜新同30mg qd自行停药半年", "importance": "important"},
+    {"id": "d2_ph_neg_dm_chd", "field": "past_history", "text": "否认DM CHD", "importance": "important"},
+    {"id": "d2_al_none", "field": "allergy_history", "text": "无过敏", "importance": "critical"},
+    {"id": "d2_sh_smoking", "field": "personal_history", "text": "吸烟20年 1包/天", "importance": "critical"},
+    {"id": "d2_ax_ct_sah", "field": "auxiliary_exam", "text": "头CT 弥漫性SAH", "importance": "critical"},
+    {"id": "d2_ax_wbc", "field": "auxiliary_exam", "text": "WBC 14.2", "importance": "important"},
+    {"id": "d2_ax_glu", "field": "auxiliary_exam", "text": "Glu 8.5", "importance": "important"},
+    {"id": "d2_se_nihss_pre", "field": "specialist_exam", "text": "NIHSS 8", "importance": "critical"},
+    {"id": "d2_se_nihss_post", "field": "specialist_exam", "text": "术后NIHSS 4", "importance": "critical"},
+    {"id": "d2_se_gcs_post", "field": "specialist_exam", "text": "术后GCS E3V4M6=13", "importance": "critical"},
+    {"id": "d2_se_pupils_post", "field": "specialist_exam", "text": "术后双瞳等大3mm", "importance": "important"},
+    {"id": "d2_dx_sah", "field": "diagnosis", "text": "前交通动脉瘤破裂 SAH Hunt-Hess III", "importance": "critical"},
+    {"id": "d2_tp_clipping", "field": "treatment_plan", "text": "急诊开颅翼点入路动脉瘤夹闭术", "importance": "critical"},
+    {"id": "d2_tp_nimodipine", "field": "treatment_plan", "text": "尼莫地平60mg/d iv", "importance": "critical"},
+    {"id": "d2_tp_bp_target", "field": "treatment_plan", "text": "BP<140", "importance": "critical"},
+    {"id": "d2_tp_mannitol", "field": "treatment_plan", "text": "甘露醇125ml q8h", "importance": "important"},
+    {"id": "d2_tp_vpa", "field": "treatment_plan", "text": "丙戊酸钠0.4 iv q12h预防癫痫", "importance": "important"},
+    {"id": "d2_tp_enoxaparin", "field": "treatment_plan", "text": "依诺肝素4000u ih qd预防DVT", "importance": "important"},
+    {"id": "d2_of_ct_3d", "field": "orders_followup", "text": "术后3天复查CT", "importance": "important"},
+    {"id": "d2_of_dsa_7d", "field": "orders_followup", "text": "7天DSA评估夹闭效果", "importance": "important"},
+    {"id": "d2_of_mrs", "field": "orders_followup", "text": "mRS评估", "importance": "important"}
+  ]
+}
