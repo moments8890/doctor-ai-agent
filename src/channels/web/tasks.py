@@ -23,7 +23,7 @@ from utils.log import safe_create_task
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
-_VALID_TASK_TYPES = {"general", "review"}
+_VALID_TASK_TYPES = {"general", "review", "follow_up", "medication", "checkup"}
 
 
 class TaskOut(BaseModel):
@@ -252,7 +252,7 @@ async def get_task_record(
         "record_type": record.record_type or "visit",
         "content": record.content,
         "tags": tags,
-        "needs_review": bool(record.needs_review) if record.needs_review is not None else False,
+        "status": record.status or "completed",
         "created_at": record.created_at.isoformat() if record.created_at else None,
     }
 

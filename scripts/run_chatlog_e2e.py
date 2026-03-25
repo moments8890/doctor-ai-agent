@@ -91,9 +91,6 @@ _TABLE_ALIASES: dict[str, str] = {
     "follow_ups": "doctor_tasks",
 }
 _TABLES_GLOBAL_ONLY = {
-    "system_prompts",
-    "patient_labels",
-    "patient_label_assignments",
     "runtime_configs",
     "runtime_tokens",
     "runtime_cursors",

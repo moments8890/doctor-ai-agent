@@ -1,0 +1,56 @@
+name: Android Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: cd frontend/web && npm ci
+
+      - name: Build web app
+        run: cd frontend/web && npm run build:android
+        env:
+          VITE_API_BASE_URL: https://api.doctoragentai.cn
+
+      - name: Sync Capacitor
+        run: cd frontend/web && npx cap sync android
+
+      - name: Build release APK
+        run: cd frontend/web/android && ./gradlew assembleRelease
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Rename APK with version
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          cp frontend/web/android/app/build/outputs/apk/release/app-release.apk "鲸鱼随行-${VERSION}.apk"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: 鲸鱼随行-*.apk
+          generate_release_notes: true

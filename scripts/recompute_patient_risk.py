@@ -22,7 +22,7 @@ from sqlalchemy import select
 
 from db.engine import AsyncSessionLocal
 from db.models import MedicalRecordDB, Patient
-from services.patient.patient_risk import compute_patient_risk
+from domain.patients.categorization import compute_patient_risk
 
 
 async def _process_patient_risk(session, patient, dry_run: bool) -> bool:

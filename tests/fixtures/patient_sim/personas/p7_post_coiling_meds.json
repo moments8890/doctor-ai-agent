@@ -28,7 +28,9 @@
     }
   ],
   "surgical_history": "6个月前前交通动脉动脉瘤弹簧圈栓塞+支架辅助术",
-  "comorbidities": ["高血压"],
+  "comorbidities": [
+    "高血压"
+  ],
   "style": "cooperative",
   "personality": "年长女性，说话慢条斯理，比较仔细谨慎。会认真描述症状，用词朴实（'身上青一块紫一块的''牙齿刷出血'）。对药物副作用有顾虑但不会焦虑过度，会礼貌地询问是否能调药。",
   "allowed_facts": [
@@ -103,15 +105,249 @@
       "volunteer": false
     }
   ],
-  "expected_extracted": {
-    "chief_complaint": ["动脉瘤术后复诊", "瘀青", "牙龈出血"],
-    "present_illness": ["弹簧圈栓塞+支架术后", "双抗治疗", "瘀青", "牙龈出血"],
-    "past_history": ["高血压10年", "前交通动脉瘤手术"],
-    "family_history": ["丈夫高血压"]
+  "fact_catalog": [
+    {
+      "id": "cc_main",
+      "field": "chief_complaint",
+      "slot": "main_complaint",
+      "text": "动脉瘤术后复诊",
+      "importance": "critical"
+    },
+    {
+      "id": "cc_bleeding",
+      "field": "chief_complaint",
+      "slot": "main_complaint",
+      "text": "瘀青和牙龈出血",
+      "importance": "critical"
+    },
+    {
+      "id": "cc_duration",
+      "field": "chief_complaint",
+      "slot": "duration",
+      "text": "术后6个月，出血症状2个月",
+      "importance": "critical"
+    },
+    {
+      "id": "pi_surgery",
+      "field": "present_illness",
+      "slot": "发病情况",
+      "text": "6个月前前交通动脉动脉瘤行弹簧圈栓塞+支架辅助术",
+      "importance": "critical"
+    },
+    {
+      "id": "pi_recovery",
+      "field": "present_illness",
+      "slot": "诊疗经过",
+      "text": "术后恢复好，无头痛头晕，无神经功能障碍",
+      "importance": "important"
+    },
+    {
+      "id": "pi_bruise",
+      "field": "present_illness",
+      "slot": "症状特点",
+      "text": "近2个月身上容易出现瘀青，尤其手臂和腿部，轻碰即有",
+      "importance": "critical"
+    },
+    {
+      "id": "pi_gum",
+      "field": "present_illness",
+      "slot": "症状特点",
+      "text": "牙龈偶有出血，刷牙时明显，无大量出血",
+      "importance": "critical"
+    },
+    {
+      "id": "pi_neg_bleeding",
+      "field": "present_illness",
+      "slot": "伴随症状",
+      "text": "无黑便、血尿等其他出血表现",
+      "importance": "important"
+    },
+    {
+      "id": "pi_meds",
+      "field": "present_illness",
+      "slot": "诊疗经过",
+      "text": "规律服用阿司匹林+氯吡格雷+氨氯地平，未自行停药",
+      "importance": "critical"
+    },
+    {
+      "id": "pi_followup",
+      "field": "present_illness",
+      "slot": "诊疗经过",
+      "text": "即将做凝血功能和CTA复查",
+      "importance": "optional"
+    },
+    {
+      "id": "ph_htn",
+      "field": "past_history",
+      "slot": "疾病史",
+      "text": "高血压10年，服氨氯地平控制，血压约130/80mmHg",
+      "importance": "critical"
+    },
+    {
+      "id": "ph_neg_chronic",
+      "field": "past_history",
+      "slot": "疾病史",
+      "text": "无糖尿病，无心脏病",
+      "importance": "optional"
+    },
+    {
+      "id": "ph_aneurysm_surgery",
+      "field": "past_history",
+      "slot": "手术外伤史",
+      "text": "6个月前前交通动脉动脉瘤弹簧圈栓塞+支架辅助术",
+      "importance": "critical"
+    },
+    {
+      "id": "al_none",
+      "field": "allergy_history",
+      "slot": null,
+      "text": "无药物过敏，无食物过敏",
+      "importance": "critical"
+    },
+    {
+      "id": "fh_husband_htn",
+      "field": "family_history",
+      "slot": null,
+      "text": "丈夫有高血压，家族中无脑血管疾病史",
+      "importance": "optional"
+    },
+    {
+      "id": "sh_smoking",
+      "field": "personal_history",
+      "slot": "烟酒史",
+      "text": "不吸烟不饮酒",
+      "importance": "optional"
+    },
+    {
+      "id": "sh_marital",
+      "field": "personal_history",
+      "slot": "婚育史",
+      "text": "已婚，育有2女",
+      "importance": "optional"
+    }
+  ],
+  "record_expectation": {
+    "chief_complaint": {
+      "max_chars": 20,
+      "require_duration": true,
+      "acceptable_variants": [
+        "动脉瘤术后6月，瘀青出血2月",
+        "动脉瘤栓塞术后6个月复诊",
+        "术后瘀青牙龈出血2个月"
+      ],
+      "required_fact_ids": [
+        "cc_main",
+        "cc_bleeding",
+        "cc_duration"
+      ]
+    },
+    "present_illness": {
+      "subsections": {
+        "发病情况": {
+          "status": "required",
+          "fact_ids": [
+            "pi_surgery"
+          ]
+        },
+        "症状特点": {
+          "status": "required",
+          "fact_ids": [
+            "pi_bruise",
+            "pi_gum"
+          ]
+        },
+        "伴随症状": {
+          "status": "required_if_asked",
+          "fact_ids": [
+            "pi_neg_bleeding"
+          ]
+        },
+        "诊疗经过": {
+          "status": "required",
+          "fact_ids": [
+            "pi_meds",
+            "pi_recovery"
+          ]
+        },
+        "一般情况": {
+          "status": "not_applicable",
+          "fact_ids": []
+        }
+      }
+    },
+    "past_history": {
+      "subsections": {
+        "疾病史": {
+          "status": "required",
+          "fact_ids": [
+            "ph_htn"
+          ]
+        },
+        "手术外伤史": {
+          "status": "required",
+          "fact_ids": [
+            "ph_aneurysm_surgery"
+          ]
+        },
+        "输血史": {
+          "status": "not_applicable",
+          "fact_ids": []
+        }
+      }
+    },
+    "allergy_history": {
+      "required_fact_ids": [
+        "al_none"
+      ]
+    },
+    "family_history": {
+      "required_fact_ids": []
+    },
+    "personal_history": {
+      "subsections": {
+        "烟酒史": {
+          "status": "optional",
+          "fact_ids": [
+            "sh_smoking"
+          ]
+        },
+        "婚育史": {
+          "status": "optional",
+          "fact_ids": [
+            "sh_marital"
+          ]
+        }
+      }
+    }
+  },
+  "coverage_expectation": {
+    "must_elicit": [
+      "出血症状详情",
+      "当前双抗用药",
+      "术后恢复情况",
+      "有无其他出血表现"
+    ],
+    "should_elicit": [
+      "血压控制",
+      "过敏史",
+      "即将复查项目",
+      "家族史"
+    ],
+    "min_coverage": 0.7
   },
   "checklist": {
-    "must_ask": ["出血症状详情", "当前双抗用药", "术后恢复情况", "有无其他出血表现"],
-    "should_ask": ["血压控制", "过敏史", "即将复查项目", "家族史"],
+    "must_ask": [
+      "出血症状详情",
+      "当前双抗用药",
+      "术后恢复情况",
+      "有无其他出血表现"
+    ],
+    "should_ask": [
+      "血压控制",
+      "过敏史",
+      "即将复查项目",
+      "家族史"
+    ],
     "min_coverage": 0.6
   }
 }

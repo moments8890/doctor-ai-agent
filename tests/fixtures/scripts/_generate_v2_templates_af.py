@@ -121,7 +121,7 @@ def tmpl_stroke(name: str, idx: int, rng: random.Random) -> dict:
         "chatlog": [{"speaker": "doctor", "text": t} for t in turns],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["NIHSS", "溶栓", "卒中", "肢体", "偏瘫", "脑梗", "rt-PA"]],
         },
     }
@@ -217,7 +217,7 @@ def tmpl_discharge(name: str, idx: int, rng: random.Random) -> dict:
         "chatlog": [{"speaker": "doctor", "text": t} for t in turns],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["出院", "随访", "带药", "复查", "医嘱", "门诊", "出院诊断"]],
         },
     }
@@ -315,7 +315,7 @@ def tmpl_chronic(name: str, idx: int, rng: random.Random) -> dict:
         "chatlog": [{"speaker": "doctor", "text": t} for t in turns],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["血糖", "HbA1c", "血压", "糖尿病", "胰岛素", "降压", "DM"]],
         },
     }
@@ -421,7 +421,7 @@ def tmpl_postop(name: str, idx: int, rng: random.Random) -> dict:
         "chatlog": [{"speaker": "doctor", "text": t} for t in turns],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["术后", "切口", "引流", "康复", "疼痛", "NRS", "手术"]],
         },
     }
@@ -537,7 +537,7 @@ def tmpl_oncology(name: str, idx: int, rng: random.Random) -> dict:
         "chatlog": [{"speaker": "doctor", "text": t} for t in turns],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["化疗", "血象", "白细胞", "骨髓抑制", "疗程", "WBC", "肿瘤"]],
         },
     }
@@ -641,7 +641,7 @@ def tmpl_respiratory(name: str, idx: int, rng: random.Random) -> dict:
         "chatlog": [{"speaker": "doctor", "text": t} for t in turns],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["咳嗽", "肺炎", "SpO", "抗生素", "胸片", "气促", "COPD", "氧疗"]],
         },
     }

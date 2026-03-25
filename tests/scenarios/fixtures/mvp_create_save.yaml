@@ -1,0 +1,38 @@
+id: mvp-create-save
+title: "MVP: create record → confirm → verify DB"
+tags: [mvp, create_save]
+
+setup:
+  patients: []
+
+steps:
+  - id: create
+    call: handle_turn
+    input:
+      text: "创建患者赵强，男61岁，急诊。胸痛90分钟伴大汗，下壁STEMI，hs-cTnI 3.2 ng/mL，BNP 168 pg/mL，EF 45%，阿司匹林300mg，氯吡格雷300mg。"
+      identity: ${doctor_id}
+    expect:
+      hard:
+        data._routing.intent: create_record
+        data._routing.patient_name: 赵强
+        data.session_id.exists: true
+
+  - id: confirm
+    call: doctor_interview.confirm
+    input:
+      doctor_id: ${doctor_id}
+      session_id: ${steps.create.data.session_id}
+    expect:
+      hard:
+        record_id.exists: true
+
+  - id: verify_patient
+    call: handle_turn
+    input:
+      text: "所有患者"
+      identity: ${doctor_id}
+    expect:
+      hard:
+        data._routing.intent: query_patient
+        db.patients.min_count: 1
+        db.medical_records.min_count: 1

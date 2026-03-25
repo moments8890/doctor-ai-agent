@@ -18,7 +18,7 @@ os.environ.setdefault("ENVIRONMENT", "development")
 from db.engine import AsyncSessionLocal
 from db.init_db import create_tables
 from db.models import Doctor, InviteCode, Patient, MedicalRecordDB, DoctorTask
-from services.auth.access_code_hash import generate_access_code, hash_access_code
+from infra.auth.access_code_hash import generate_access_code, hash_access_code
 from sqlalchemy import text
 
 def utcnow():
@@ -273,12 +273,10 @@ def make_tasks(doctor_id, patient_id, patient_name, category, risk, fu_state):
 async def _wipe_tables(session) -> None:
     """Delete all rows from data tables (preserves schema)."""
     for tbl in [
-        "audit_log", "doctor_conversation_turns",
-        "pending_records", "pending_messages", "medical_record_exports",
-        "medical_record_versions", "doctor_tasks", "medical_records",
-        "patient_label_assignments", "patient_labels", "patients",
-        "invite_codes", "doctor_knowledge_items", "doctor_notify_preferences",
-        "doctor_contexts", "doctors",
+        "audit_log", "doctor_chat_log", "patient_messages",
+        "doctor_tasks", "medical_records", "interview_sessions",
+        "patients", "invite_codes", "doctor_knowledge_items",
+        "doctors",
     ]:
         await session.execute(text(f"DELETE FROM {tbl}"))
     await session.commit()

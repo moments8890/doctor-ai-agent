@@ -11,6 +11,34 @@ from agent.tools.resolve import resolve
 from agent.llm import llm_call
 from utils.log import log
 
+# SOAP fields to include in query results (from domain.records.schema)
+_SOAP_FIELDS = (
+    "department", "chief_complaint", "present_illness", "past_history",
+    "allergy_history", "personal_history", "marital_reproductive",
+    "family_history", "physical_exam", "specialist_exam", "auxiliary_exam",
+    "diagnosis", "treatment_plan", "orders_followup",
+    "final_diagnosis", "treatment_outcome", "key_symptoms", "status",
+)
+
+
+def _record_to_dict(r: Any, patient_name: Optional[str] = None) -> Dict[str, Any]:
+    """Convert a MedicalRecordDB row to a dict with SOAP fields."""
+    d: Dict[str, Any] = {
+        "id": r.id,
+        "created_at": r.created_at.isoformat() if r.created_at else None,
+    }
+    if patient_name:
+        d["patient_name"] = patient_name
+    # Include legacy content as fallback
+    if r.content:
+        d["content"] = r.content
+    # Include non-None SOAP fields
+    for field in _SOAP_FIELDS:
+        val = getattr(r, field, None)
+        if val is not None:
+            d[field] = val
+    return d
+
 
 @register(IntentType.query_record)
 async def handle_query_record(ctx: TurnContext) -> HandlerResult:
@@ -21,7 +49,7 @@ async def handle_query_record(ctx: TurnContext) -> HandlerResult:
         resolved = await resolve(patient_name, ctx.doctor_id)
         if "status" in resolved:
             return HandlerResult(reply=resolved["message"])
-        records = await _fetch_records(ctx.doctor_id, resolved["patient_id"], limit)
+        records = await _fetch_records(ctx.doctor_id, resolved["patient_id"], limit, patient_name=patient_name)
     else:
         records = await _fetch_recent_records(ctx.doctor_id, limit)
 
@@ -29,13 +57,13 @@ async def handle_query_record(ctx: TurnContext) -> HandlerResult:
     return HandlerResult(reply=summary, data={"records": records})
 
 
-async def _fetch_records(doctor_id: str, patient_id: int, limit: int = 5) -> List[Dict[str, Any]]:
+async def _fetch_records(doctor_id: str, patient_id: int, limit: int = 5, *, patient_name: Optional[str] = None) -> List[Dict[str, Any]]:
     from db.crud.records import get_records_for_patient
     from db.engine import AsyncSessionLocal
 
     async with AsyncSessionLocal() as session:
         records = await get_records_for_patient(session, doctor_id, patient_id, limit=limit)
-        return [{"id": r.id, "content": r.content or "", "created_at": r.created_at.isoformat() if r.created_at else None} for r in records]
+        return [_record_to_dict(r, patient_name=patient_name) for r in records]
 
 
 async def _fetch_recent_records(doctor_id: str, limit: int = 10) -> List[Dict[str, Any]]:
@@ -44,25 +72,24 @@ async def _fetch_recent_records(doctor_id: str, limit: int = 10) -> List[Dict[st
 
     async with AsyncSessionLocal() as session:
         records = await get_all_records_for_doctor(session, doctor_id, limit=limit)
-        return [{"id": r.id, "content": r.content or "", "created_at": r.created_at.isoformat() if r.created_at else None} for r in records]
+        return [_record_to_dict(r) for r in records]
 
 
 async def _compose_summary(ctx: TurnContext, records: list, patient_name: Optional[str] = None) -> str:
     if not records:
         return f"{'没有找到' + patient_name + '的' if patient_name else '暂无'}病历记录。"
 
-    from domain.knowledge.doctor_knowledge import load_knowledge_by_categories
-    from agent.prompt_config import INTENT_LAYERS
+    # Prepend patient context so the LLM knows whose records these are
+    if patient_name:
+        header = f"以下是{patient_name}的病历记录：\n"
+    else:
+        header = "以下是最近的病历记录：\n"
+    records_text = header + json.dumps(records, ensure_ascii=False, indent=2)
 
-    records_text = json.dumps(records, ensure_ascii=False, indent=2)
-    config = INTENT_LAYERS[IntentType.query_record]
-    doctor_kb = await load_knowledge_by_categories(
-        ctx.doctor_id, config.knowledge_categories, query=ctx.text,
-    )
-    messages = compose_for_intent(
+    # KB auto-loaded by composer based on LayerConfig.knowledge_categories
+    messages = await compose_for_intent(
         IntentType.query_record,
         doctor_id=ctx.doctor_id,
-        doctor_knowledge=doctor_kb,
         patient_context=records_text,
         doctor_message=ctx.text,
     )

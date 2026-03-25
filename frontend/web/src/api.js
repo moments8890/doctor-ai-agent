@@ -391,56 +391,11 @@ export async function deleteRecord(doctorId, recordId) {
   return request(`/api/manage/records/${recordId}?${qs.toString()}`, { method: "DELETE" });
 }
 
-export async function getPrompts() {
-  return request("/api/manage/prompts");
-}
-
-export async function updatePrompt(key, content) {
-  return request(`/api/manage/prompts/${encodeURIComponent(key)}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ content }),
-  });
-}
-
 export async function getPatientTimeline({ doctorId, patientId, limit = 100 }) {
   const qs = new URLSearchParams({ doctor_id: doctorId, limit: String(limit) });
   return request(`/api/manage/patients/${patientId}/timeline?${qs.toString()}`);
 }
 
-export async function getLabels(doctorId) {
-  const qs = new URLSearchParams({ doctor_id: doctorId });
-  return request(`/api/manage/labels?${qs.toString()}`);
-}
-
-export async function createLabel({ doctorId, name, color }) {
-  return request("/api/manage/labels", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ doctor_id: doctorId, name, color }),
-  });
-}
-
-export async function deleteLabelById({ doctorId, labelId }) {
-  const qs = new URLSearchParams({ doctor_id: doctorId });
-  return request(`/api/manage/labels/${labelId}?${qs.toString()}`, {
-    method: "DELETE",
-  });
-}
-
-export async function assignLabelToPatient({ doctorId, patientId, labelId }) {
-  const qs = new URLSearchParams({ doctor_id: doctorId });
-  return request(`/api/manage/patients/${patientId}/labels/${labelId}?${qs.toString()}`, {
-    method: "POST",
-  });
-}
-
-export async function removeLabelFromPatient({ doctorId, patientId, labelId }) {
-  const qs = new URLSearchParams({ doctor_id: doctorId });
-  return request(`/api/manage/patients/${patientId}/labels/${labelId}?${qs.toString()}`, {
-    method: "DELETE",
-  });
-}
 
 export async function deletePatient(patientId, doctorId) {
   const qs = new URLSearchParams({ doctor_id: doctorId });
@@ -858,63 +813,11 @@ export async function addKnowledgeItem(doctorId, content, category = "custom") {
   });
 }
 
-export async function getCaseLibrary(doctorId) {
-  return request(`/api/manage/case-history?doctor_id=${doctorId}&status=confirmed`);
-}
-
-export async function getCaseDetail(caseId, doctorId) {
-  return request(`/api/manage/case-history/${caseId}?doctor_id=${doctorId}`);
-}
-
-// ── Review Queue ──────────────────────────────────────────────────────────────
-
-export async function getReviewQueue(doctorId, status = "pending_review", limit = 50) {
-  return request(`/api/manage/review-queue?doctor_id=${doctorId}&status=${status}&limit=${limit}`);
-}
-
-export async function getReviewDetail(queueId, doctorId) {
-  return request(`/api/manage/review-queue/${queueId}?doctor_id=${doctorId}`);
-}
-
-export async function confirmReview(queueId, doctorId) {
-  return request(`/api/manage/review-queue/${queueId}/confirm?doctor_id=${doctorId}`, {
-    method: "POST",
-  });
-}
-
-export async function updateReviewField(queueId, doctorId, field, value) {
-  return request(`/api/manage/review-queue/${queueId}/record?doctor_id=${doctorId}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ field, value }),
-  });
-}
-
 // ── Briefing ──────────────────────────────────────────────────────────────────
 
 export async function getBriefing(doctorId) {
   const qs = new URLSearchParams({ doctor_id: doctorId });
   return request(`/api/doctor/briefing?${qs.toString()}`);
-}
-
-// ── Diagnosis ─────────────────────────────────────────────────────────────────
-
-export async function getDiagnosis(recordId, doctorId) {
-  return request(`/api/manage/diagnosis/${recordId}?doctor_id=${doctorId}`);
-}
-
-export async function decideDiagnosisItem(diagnosisId, doctorId, type, index, decision) {
-  return request(`/api/manage/diagnosis/${diagnosisId}/decide?doctor_id=${doctorId}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ type, index, decision }),
-  });
-}
-
-export async function confirmDiagnosis(diagnosisId, doctorId) {
-  return request(`/api/manage/diagnosis/${diagnosisId}/confirm?doctor_id=${doctorId}`, {
-    method: "POST",
-  });
 }
 
 // ---------------------------------------------------------------------------

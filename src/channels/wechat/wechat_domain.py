@@ -18,7 +18,7 @@ from channels.wechat.wechat_export import (
     handle_export_records,
     handle_export_outpatient_report,
 )
-from channels.wechat.wechat_import import (
+from domain.records.import_history import (
     handle_import_history,
     _chunk_history_text,
     _preprocess_import_text,

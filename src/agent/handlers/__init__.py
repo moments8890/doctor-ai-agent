@@ -7,5 +7,6 @@ from agent.handlers import (
     create_task,
     query_task,
     query_patient,
+    daily_summary,
     general,
 )

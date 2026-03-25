@@ -1,8 +1,14 @@
-"""Generate MedicalRecord from completed interview (ADR 0016)."""
+"""Generate MedicalRecord from completed interview (ADR 0016).
+
+Batch-extracts all SOAP fields from the complete conversation transcript
+in one LLM pass. No incremental merge needed.
+"""
 from __future__ import annotations
 
+import json
 import re
-from typing import Dict, List
+from datetime import datetime
+from typing import Dict, List, Optional
 
 from db.models.medical_record import MedicalRecord
 from domain.patients.completeness import ALL_COLLECTABLE
@@ -78,24 +84,133 @@ def build_medical_record(collected: Dict[str, str]) -> MedicalRecord:
     )
 
 
+def _load_extract_prompt(mode: str) -> str:
+    """Load batch extraction prompt from markdown file."""
+    from utils.prompt_loader import get_prompt_sync
+    prompt_key = "intent/patient-extract" if mode == "patient" else "intent/doctor-extract"
+    return get_prompt_sync(prompt_key)
+
+
+async def batch_extract_from_transcript(
+    conversation: list,
+    patient_info: dict,
+    mode: str = "patient",
+) -> Dict[str, str]:
+    """Extract all SOAP fields from the complete conversation in one LLM pass.
+
+    Args:
+        conversation: Full conversation history (list of dicts with role/content).
+        patient_info: Dict with keys name, gender, age.
+        mode: "patient" for pre-consultation interviews, "doctor" for doctor dictation.
+
+    Returns:
+        Dict of field_name -> extracted value (empty fields filtered out).
+    """
+    from agent.llm import llm_call
+
+    # Build transcript
+    transcript_lines = []
+    for turn in conversation:
+        if mode == "patient":
+            role = "AI助手" if turn.get("role") in ("assistant", "system") else "患者"
+        else:
+            role = "AI助手" if turn.get("role") in ("assistant", "system") else "医生"
+        text = turn.get("content", turn.get("text", ""))
+        transcript_lines.append(f"{role}：{text}")
+    transcript = "\n".join(transcript_lines)
+
+    name = patient_info.get("name", "未知")
+    gender = patient_info.get("gender", "未知")
+    age = patient_info.get("age", "未知")
+
+    template = _load_extract_prompt(mode)
+    prompt = template.format(
+        name=name,
+        gender=gender,
+        age=age,
+        transcript=transcript,
+    )
+
+    try:
+        raw = await llm_call(
+            messages=[{"role": "user", "content": prompt}],
+            op_name="interview.batch_extract",
+            temperature=0.1,
+            max_tokens=1024,
+            json_mode=True,
+        )
+
+        cleaned = raw.strip()
+        if cleaned.startswith("```"):
+            lines = cleaned.split("\n")
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            cleaned = "\n".join(lines)
+
+        extracted = json.loads(cleaned)
+        if not isinstance(extracted, dict):
+            log("[batch_extract] LLM returned non-dict, falling back to empty", level="warning")
+            return {}
+
+        # Filter out empty fields
+        result = {
+            k: v.strip()
+            for k, v in extracted.items()
+            if isinstance(v, str) and v.strip()
+        }
+
+        log(f"[batch_extract] extracted {len(result)} fields: {list(result.keys())}")
+        return result
+
+    except Exception as exc:
+        log(f"[batch_extract] failed: {exc}", level="warning")
+        return {}
+
+
 async def confirm_interview(
     session_id: str,
     doctor_id: str,
     patient_id: int,
     patient_name: str,
     collected: Dict[str, str],
+    conversation: Optional[list] = None,
 ) -> Dict[str, int]:
-    """Finalize interview: save record + create review task. Returns {record_id, review_id}."""
+    """Finalize interview: batch-extract from transcript → save record → create review task. Returns {record_id, review_id}."""
+    from db.crud.patient import get_patient_for_doctor
     from db.crud.records import save_record
     from db.crud.tasks import create_task
     from db.engine import AsyncSessionLocal
 
+    # Batch-extract all fields from the full transcript in one pass
+    if conversation:
+        # Load patient info for the extraction prompt
+        async with AsyncSessionLocal() as db:
+            patient = await get_patient_for_doctor(db, doctor_id, patient_id)
+
+        if patient:
+            now = datetime.now()
+            age = now.year - patient.year_of_birth if patient.year_of_birth else "未知"
+            patient_info = {
+                "name": patient.name,
+                "gender": patient.gender or "未知",
+                "age": age,
+            }
+        else:
+            patient_info = {"name": patient_name, "gender": "未知", "age": "未知"}
+
+        collected = await batch_extract_from_transcript(
+            conversation, patient_info, mode="patient",
+        )
+
     record = build_medical_record(collected)
 
     async with AsyncSessionLocal() as db:
+        from db.models.records import RecordStatus
         db_record = await save_record(
             db, doctor_id, record, patient_id,
-            needs_review=True,
+            status=RecordStatus.pending_review.value,
             commit=True,
         )
 

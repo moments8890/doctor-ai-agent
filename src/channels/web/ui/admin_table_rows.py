@@ -13,8 +13,8 @@ from sqlalchemy import select
 from db.engine import AsyncSessionLocal
 from db.models import (
     AuditLog,
-    ChatArchive,
     Doctor,
+    DoctorChatLog,
     DoctorKnowledgeItem,
     DoctorTask,
     InterviewSessionDB,
@@ -31,7 +31,7 @@ from channels.web.ui._utils import (
 )
 
 _SENSITIVE_TABLES = {
-    "chat_archive", "medical_records",
+    "doctor_chat_log", "medical_records",
 }
 
 
@@ -95,7 +95,7 @@ async def _rows_medical_records(
         {"id": r.id, "patient_id": r.patient_id, "doctor_id": r.doctor_id,
          "patient_name": pname, "record_type": r.record_type or "visit",
          "content": r.content, "tags": _parse_tags(r.tags),
-         "needs_review": bool(r.needs_review) if r.needs_review is not None else False,
+         "status": r.status or "completed",
          "has_structured": r.has_soap_data(),
          "created_at": _fmt_ts(r.created_at)}
         for r, pname in (await db.execute(stmt)).all()
@@ -157,17 +157,18 @@ async def _rows_knowledge_items(db, doctor_id: Optional[str], limit: int, offset
     ]
 
 
-async def _rows_chat_archive(db, doctor_id: Optional[str], limit: int, offset: int) -> list:
-    stmt = select(ChatArchive).order_by(ChatArchive.created_at.desc()).limit(limit).offset(offset)
+async def _rows_doctor_chat_log(db, doctor_id: Optional[str], limit: int, offset: int) -> list:
+    stmt = select(DoctorChatLog).order_by(DoctorChatLog.created_at.desc()).limit(limit).offset(offset)
     if doctor_id:
-        stmt = stmt.where(ChatArchive.doctor_id == doctor_id)
+        stmt = stmt.where(DoctorChatLog.doctor_id == doctor_id)
     else:
-        stmt = apply_exclude_test_doctors(stmt, ChatArchive.doctor_id)
+        stmt = apply_exclude_test_doctors(stmt, DoctorChatLog.doctor_id)
     return [
         {
-            "id": a.id, "doctor_id": a.doctor_id, "role": a.role,
+            "id": a.id, "doctor_id": a.doctor_id, "session_id": a.session_id,
+            "role": a.role,
             "content": (a.content[:200] + "\u2026") if a.content and len(a.content) > 200 else a.content,
-            "intent_label": a.intent_label, "created_at": _fmt_ts(a.created_at),
+            "created_at": _fmt_ts(a.created_at),
         }
         for a in (await db.execute(stmt)).scalars().all()
     ]
@@ -207,8 +208,8 @@ async def _fetch_table_rows(
         return await _rows_audit_log(db, doctor_id, limit, offset)
     if table_key == "doctor_knowledge_items":
         return await _rows_knowledge_items(db, doctor_id, limit, offset)
-    if table_key == "chat_archive":
-        return await _rows_chat_archive(db, doctor_id, limit, offset)
+    if table_key == "doctor_chat_log":
+        return await _rows_doctor_chat_log(db, doctor_id, limit, offset)
     if table_key == "interview_sessions":
         return await _rows_interview_sessions(db, doctor_id, limit, offset)
     raise HTTPException(status_code=404, detail="Unknown table")

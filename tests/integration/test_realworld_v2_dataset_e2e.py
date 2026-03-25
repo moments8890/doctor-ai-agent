@@ -76,16 +76,12 @@ def _assert_db_table_counts(doctor_id: str) -> None:
                 (doctor_id,),
             ).fetchone()
             counts[table] = int(row[0] if row else 0)
-        prompts = conn.execute("SELECT COUNT(1) FROM system_prompts").fetchone()
-        counts["system_prompts"] = int(prompts[0] if prompts else 0)
     finally:
         conn.close()
 
     assert counts["patients"] >= 1
     assert counts["medical_records"] >= 1
     assert counts["doctor_tasks"] >= 1
-    assert counts["doctor_contexts"] >= 1
-    assert counts["system_prompts"] >= 1
 
 
 def test_realworld_v2_table_coverage_e2e():

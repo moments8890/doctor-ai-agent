@@ -41,7 +41,7 @@ def _serialize_record_with_patient(record, patient_name: Optional[str]) -> dict:
         "record_type": record.record_type or "visit",
         "content": record.content,
         "tags": _parse_tags(record.tags),
-        "needs_review": bool(record.needs_review) if record.needs_review is not None else False,
+        "status": record.status or "completed",
         "created_at": _fmt_ts(record.created_at),
         "updated_at": _fmt_ts(record.updated_at),
     }
@@ -91,20 +91,14 @@ async def _fetch_filtered_records(
     return items, total
 
 
-CATEGORY_ORDER = ["high_risk", "active_followup", "stable", "new", "uncategorized"]
 
 
 def _serialize_patient_item(p, count_map: dict) -> dict:
     """Turn a Patient ORM row into a JSON-serializable dict for patient list endpoints."""
-    # TODO: primary_category and category_tags removed from Patient model;
-    # return None/"[]" as defaults until a separate categorization table is added.
     return {
         "id": p.id, "name": p.name, "gender": p.gender,
         "year_of_birth": p.year_of_birth, "created_at": _fmt_ts(p.created_at),
         "record_count": int(count_map.get(p.id, 0)),
-        "primary_category": None,
-        "category_tags": [],
-        "labels": [],
     }
 
 
@@ -145,8 +139,6 @@ async def _fetch_patients_cursor_page(
         
         .order_by(Patient.created_at.desc(), Patient.id.desc())
     )
-    if category is not None:
-        pass  # TODO: primary_category removed from Patient; category filter is no-op
     if cursor_pair is not None:
         cursor_ts, cursor_id = cursor_pair
         # Keyset condition: row comes after (cursor_ts, cursor_id) in
@@ -232,36 +224,18 @@ async def manage_patients_for_doctor(
             # Legacy offset mode (offset > 0 without cursor)
             patients, count_map = await _fetch_patients_with_record_counts(db, doctor_id)
 
-    # Filter by category first, then paginate the filtered list
-    if category is not None:
-        pass  # TODO: primary_category removed from Patient; category filter is no-op
     items = [_serialize_patient_item(p, count_map) for p in patients]
     total = len(items)
     return {"doctor_id": doctor_id, "items": items[offset:offset + limit], "total": total, "limit": limit, "offset": offset}
 
 
 async def manage_patients_grouped_for_doctor(doctor_id: str) -> dict:
-    """患者分类列表：按分类分组返回全部患者。
-
-    Refreshes time-based categories inline before serialising so that
-    stale categories (e.g. 'active_followup' that has drifted past its
-    window) are corrected on read, not only on record-save.
-    """
+    """患者列表（分类功能已移除，返回全部患者在单一分组中）。"""
     enforce_doctor_rate_limit(doctor_id, scope="ui.manage_patients_grouped")
     async with AsyncSessionLocal() as db:
-        # Refresh stale categories before reading
-        from domain.patients.categorization import recompute_all_categories
-        await recompute_all_categories(db, doctor_id=doctor_id)
         patients, count_map = await _fetch_patients_with_record_counts(db, doctor_id)
-    all_items = [_serialize_patient_item(p, count_map) for p in patients]
-    bucket: dict = {cat: [] for cat in CATEGORY_ORDER}
-    for item in all_items:
-        cat = item["primary_category"] or "uncategorized"  # always "uncategorized" now
-        if cat not in bucket:
-            cat = "uncategorized"
-        bucket[cat].append(item)
-    groups = [{"group": cat, "count": len(bucket[cat]), "items": bucket[cat]} for cat in CATEGORY_ORDER]
-    return {"doctor_id": doctor_id, "groups": groups}
+    items = [_serialize_patient_item(p, count_map) for p in patients]
+    return {"doctor_id": doctor_id, "groups": [{"group": "all", "count": len(items), "items": items}]}
 
 
 async def manage_records_for_doctor(

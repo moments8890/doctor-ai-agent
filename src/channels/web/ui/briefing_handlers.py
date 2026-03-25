@@ -114,11 +114,9 @@ async def get_briefing(
     return {
         "cards": cards,
         "stats": {
-            "pending_review": 0,
             "today_patients": today_patients,
             "today_tasks": today_tasks,
             "completed_today": completed_today,
-            "red_flags": 0,
         },
         "completed_today": completed_today,
     }

@@ -1,0 +1,40 @@
+id: kb-red-flags-001
+title: "KB constraint: red flags force specific workup"
+tags: [kb_constraint, diagnosis]
+
+setup:
+  patients:
+    - ref: p1
+      name: 陈明
+      gender: 男
+      age: 45
+  knowledge_items:
+    - category: red_flag
+      text: "头痛患者必须排除蛛网膜下腔出血（SAH）：突发雷击样头痛、颈强直、意识障碍时，必须安排头颅CT + 腰穿。"
+
+steps:
+  - id: create
+    call: handle_turn
+    input:
+      text: "创建患者陈明，男45岁，急诊。突发剧烈头痛1小时，雷击样，伴恶心呕吐。查体颈强直阳性。"
+      identity: ${doctor_id}
+    expect:
+      hard:
+        data._routing.intent: create_record
+
+  - id: confirm
+    call: doctor_interview.confirm
+    input:
+      doctor_id: ${doctor_id}
+      session_id: ${steps.create.data.session_id}
+    expect:
+      hard:
+        record_id.exists: true
+
+  - id: diagnose
+    call: diagnosis.run
+    input:
+      record_id: ${steps.confirm.record_id}
+    expect:
+      hard:
+        status: completed

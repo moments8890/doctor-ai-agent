@@ -53,7 +53,7 @@ _LOCK = Lock()
 _TRACE_ID_CTX: ContextVar[Optional[str]] = ContextVar("trace_id", default=None)
 _SPAN_ID_CTX: ContextVar[Optional[str]] = ContextVar("span_id", default=None)
 _INTERNAL_PATH_PREFIXES = ("/api/admin", "/api/manage")
-_PERSIST_DIR = Path(os.environ.get("OBSERVABILITY_DIR", "logs"))
+_PERSIST_DIR = Path(os.environ.get("OBSERVABILITY_DIR", str(Path(__file__).resolve().parents[3] / "logs")))
 _PERSIST_TRACES_FILE = _PERSIST_DIR / "observability_traces.jsonl"
 _PERSIST_SPANS_FILE = _PERSIST_DIR / "observability_spans.jsonl"
 _TTL_DAYS = int(os.environ.get("OBSERVABILITY_TTL_DAYS", "7"))

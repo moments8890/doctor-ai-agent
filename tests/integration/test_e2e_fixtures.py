@@ -185,7 +185,7 @@ ALL_CASES = _load_all_cases()
 
 _CLEANUP_TABLES = [
     "patient_auth", "interview_sessions", "medical_records",
-    "doctor_tasks", "chat_archive",
+    "doctor_tasks", "doctor_chat_log",
     "doctor_conversation_turns", "doctor_contexts", "doctor_session_states",
     "patients", "doctors",
 ]

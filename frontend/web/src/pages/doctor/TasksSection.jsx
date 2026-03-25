@@ -13,7 +13,7 @@ import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import EventRepeatOutlinedIcon from "@mui/icons-material/EventRepeatOutlined";
 import MedicationOutlinedIcon from "@mui/icons-material/MedicationOutlined";
 import BiotechOutlinedIcon from "@mui/icons-material/BiotechOutlined";
-import { getTasks, patchTask, postponeTask, createTask, getPatients, getTaskRecord, getReviewQueue } from "../../api";
+import { getTasks, patchTask, postponeTask, createTask, getPatients, getTaskRecord } from "../../api";
 import { TASK_TYPE_LABEL, TASK_FILTER_CHIPS } from "./constants";
 import AskAIBar from "../../components/AskAIBar";
 import AppButton from "../../components/AppButton";
@@ -334,8 +334,6 @@ export default function TasksSection({ doctorId, urlSubpage, urlSubId }) {
   // Data
   const [pendingTasks, setPendingTasks] = useState([]);
   const [doneTasks, setDoneTasks] = useState([]);
-  const [reviews, setReviews] = useState([]);
-  const [reviewedItems, setReviewedItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -382,14 +380,10 @@ export default function TasksSection({ doctorId, urlSubpage, urlSubId }) {
           ...(Array.isArray(c) ? c : c.items || []),
           ...(Array.isArray(x) ? x : x.items || []),
         ].sort((a, b) => (b.updated_at || "").localeCompare(a.updated_at || ""))),
-      getReviewQueue(doctorId, "pending_review").then((d) => d.items || []).catch(() => []),
-      getReviewQueue(doctorId, "reviewed").then((d) => d.items || []).catch(() => []),
     ])
-      .then(([pending, done, rev, reviewedItems]) => {
+      .then(([pending, done]) => {
         setPendingTasks(pending);
         setDoneTasks(done);
-        setReviews(rev);
-        setReviewedItems(reviewedItems);
       })
       .catch((e) => setError(typeof e === "string" ? e : (e?.message || e?.detail || "任务加载失败")))
       .finally(() => setLoading(false));
@@ -399,21 +393,17 @@ export default function TasksSection({ doctorId, urlSubpage, urlSubId }) {
 
   // Normalize items with _type tag
   const taggedPending = pendingTasks.map((t) => ({ ...t, _type: "task" }));
-  const taggedReviews = reviews.map((r) => ({ ...r, _type: "review" }));
   const taggedDone = doneTasks.map((t) => ({ ...t, _type: "task" }));
-  const taggedReviewed = reviewedItems.map((r) => ({ ...r, _type: "review" }));
 
   // Filter by active chip
   let filtered = [];
-  if (filter === "all") filtered = [...taggedReviews, ...taggedPending];
-  else if (filter === "review") filtered = taggedReviews;
+  if (filter === "all") filtered = taggedPending;
   else if (filter === "task") filtered = taggedPending;
-  else if (filter === "done") filtered = [...taggedDone, ...taggedReviewed];
+  else if (filter === "done") filtered = taggedDone;
 
   const dateGroups = groupByDate(filtered);
 
-  // Pending count = pending tasks + pending reviews
-  const pendingCount = pendingTasks.length + reviews.length;
+  const pendingCount = pendingTasks.length;
 
   // Actions
   async function handleStatus(taskId, status) {
@@ -472,10 +462,9 @@ export default function TasksSection({ doctorId, urlSubpage, urlSubId }) {
     <>
       <TaskFilterChips active={filter} onChange={setFilter}
         counts={{
-          all: taggedReviews.length + taggedPending.length,
-          review: taggedReviews.length,
+          all: taggedPending.length,
           task: taggedPending.length,
-          done: taggedDone.length + taggedReviewed.length,
+          done: taggedDone.length,
         }} />
       <Box sx={{ flex: 1, overflowY: "auto" }}>
         <NewItemCard title="新建任务" subtitle="添加随访、检查、用药等任务" onClick={openCreateDialog} />

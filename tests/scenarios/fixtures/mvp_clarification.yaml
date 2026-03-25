@@ -1,0 +1,19 @@
+id: mvp-clarification
+title: "MVP: missing patient name triggers clarification, not create"
+tags: [mvp, clarification, safety]
+
+setup:
+  patients: []
+
+steps:
+  - id: no_name
+    call: route
+    input:
+      text: "记录一下：胸痛2小时伴大汗，心电图提示下壁ST段抬高。"
+      doctor_id: ${doctor_id}
+      history: []
+    expect:
+      hard:
+        # Without a patient name, should NOT route to create_record
+        # Could be general or create_record with null patient_name
+        patient_name: null

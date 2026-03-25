@@ -22,9 +22,12 @@ class TaskStatus(str, Enum):
 
 
 class TaskType(str, Enum):
-    """Task classification: general to-dos vs. chart/lab review items."""
+    """Task classification: general to-dos, reviews, follow-ups, medication, checkups."""
     general = "general"
     review = "review"
+    follow_up = "follow_up"
+    medication = "medication"
+    checkup = "checkup"
 
 
 class DoctorTask(Base):
@@ -34,7 +37,7 @@ class DoctorTask(Base):
     doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False)
     patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id", ondelete="SET NULL"), nullable=True)
     record_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("medical_records.id", ondelete="SET NULL"), nullable=True)
-    task_type: Mapped[str] = mapped_column(String(32), nullable=False)  # general | review
+    task_type: Mapped[str] = mapped_column(String(32), nullable=False)  # general | review | follow_up | medication | checkup
     title: Mapped[str] = mapped_column(String(256), nullable=False)
     content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default=TaskStatus.pending)  # pending | notified | completed | cancelled
@@ -50,7 +53,7 @@ class DoctorTask(Base):
     __table_args__ = (
         CheckConstraint("status IN ('pending','notified','completed','cancelled')", name="ck_doctor_tasks_status"),
         CheckConstraint(
-            "task_type IN ('general','review')",
+            "task_type IN ('general','review','follow_up','medication','checkup')",
             name="ck_doctor_tasks_task_type",
         ),
         CheckConstraint("target IN ('doctor','patient')", name="ck_doctor_tasks_target"),

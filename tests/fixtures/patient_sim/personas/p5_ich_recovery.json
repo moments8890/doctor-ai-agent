@@ -22,7 +22,9 @@
     }
   ],
   "surgical_history": "无（脑出血为保守治疗）",
-  "comorbidities": ["高血压"],
+  "comorbidities": [
+    "高血压"
+  ],
   "style": "messy",
   "personality": "沉默寡言，回答极简（'还行吧''差不多''嗯'），需要医生反复追问才给出具体信息。不主动提供细节。对自己病情关注度不高，有些消极。",
   "allowed_facts": [
@@ -92,15 +94,245 @@
       "volunteer": false
     }
   ],
-  "expected_extracted": {
-    "chief_complaint": ["脑出血后复诊"],
-    "present_illness": ["右侧偏瘫", "肌力3-4级", "康复训练", "血压控制不佳"],
-    "past_history": ["高血压15年", "脑出血保守治疗"],
-    "family_history": ["父亲脑梗"]
+  "fact_catalog": [
+    {
+      "id": "cc_main",
+      "field": "chief_complaint",
+      "slot": "main_complaint",
+      "text": "脑出血后复诊",
+      "importance": "critical"
+    },
+    {
+      "id": "cc_duration",
+      "field": "chief_complaint",
+      "slot": "duration",
+      "text": "6个月",
+      "importance": "critical"
+    },
+    {
+      "id": "pi_onset",
+      "field": "present_illness",
+      "slot": "发病情况",
+      "text": "6个月前高血压性脑出血，左侧基底节区，出血量约15ml，保守治疗",
+      "importance": "critical"
+    },
+    {
+      "id": "pi_hemiplegia",
+      "field": "present_illness",
+      "slot": "症状特点",
+      "text": "右侧肢体偏瘫，肌力约3-4级，需拐杖行走",
+      "importance": "critical"
+    },
+    {
+      "id": "pi_speech",
+      "field": "present_illness",
+      "slot": "症状特点",
+      "text": "言语稍迟钝，但能交流",
+      "importance": "important"
+    },
+    {
+      "id": "pi_rehab",
+      "field": "present_illness",
+      "slot": "诊疗经过",
+      "text": "在做康复训练，每周2-3次，恢复缓慢",
+      "importance": "important"
+    },
+    {
+      "id": "pi_headache",
+      "field": "present_illness",
+      "slot": "伴随症状",
+      "text": "头痛偶有，不严重",
+      "importance": "optional"
+    },
+    {
+      "id": "pi_bp_current",
+      "field": "present_illness",
+      "slot": "一般情况",
+      "text": "血压最近测量约145/90mmHg，控制一般",
+      "importance": "critical"
+    },
+    {
+      "id": "ph_htn",
+      "field": "past_history",
+      "slot": "疾病史",
+      "text": "高血压15年，既往血压控制不佳，最高达180/110mmHg",
+      "importance": "critical"
+    },
+    {
+      "id": "ph_ich",
+      "field": "past_history",
+      "slot": "疾病史",
+      "text": "6个月前左侧基底节区脑出血约15ml，保守治疗",
+      "importance": "critical"
+    },
+    {
+      "id": "ph_neg_chronic",
+      "field": "past_history",
+      "slot": "疾病史",
+      "text": "无糖尿病，无心脏病",
+      "importance": "optional"
+    },
+    {
+      "id": "ph_no_surgery",
+      "field": "past_history",
+      "slot": "手术外伤史",
+      "text": "无手术史（脑出血为保守治疗）",
+      "importance": "important"
+    },
+    {
+      "id": "al_none",
+      "field": "allergy_history",
+      "slot": null,
+      "text": "无药物过敏",
+      "importance": "critical"
+    },
+    {
+      "id": "fh_father",
+      "field": "family_history",
+      "slot": null,
+      "text": "父亲有高血压，60多岁脑梗去世",
+      "importance": "important"
+    },
+    {
+      "id": "sh_alcohol",
+      "field": "personal_history",
+      "slot": "烟酒史",
+      "text": "不吸烟；既往饮酒较多（白酒半斤/天），脑出血后已戒酒",
+      "importance": "important"
+    },
+    {
+      "id": "sh_marital",
+      "field": "personal_history",
+      "slot": "婚育史",
+      "text": "已婚，育有2子",
+      "importance": "optional"
+    }
+  ],
+  "record_expectation": {
+    "chief_complaint": {
+      "max_chars": 20,
+      "require_duration": true,
+      "acceptable_variants": [
+        "脑出血后6个月复诊",
+        "脑出血恢复期6月",
+        "高血压脑出血后6个月"
+      ],
+      "required_fact_ids": [
+        "cc_main",
+        "cc_duration"
+      ]
+    },
+    "present_illness": {
+      "subsections": {
+        "发病情况": {
+          "status": "required",
+          "fact_ids": [
+            "pi_onset"
+          ]
+        },
+        "症状特点": {
+          "status": "required",
+          "fact_ids": [
+            "pi_hemiplegia",
+            "pi_speech"
+          ]
+        },
+        "伴随症状": {
+          "status": "required_if_available",
+          "fact_ids": [
+            "pi_headache"
+          ]
+        },
+        "诊疗经过": {
+          "status": "required",
+          "fact_ids": [
+            "pi_rehab"
+          ]
+        },
+        "一般情况": {
+          "status": "required",
+          "fact_ids": [
+            "pi_bp_current"
+          ]
+        }
+      }
+    },
+    "past_history": {
+      "subsections": {
+        "疾病史": {
+          "status": "required",
+          "fact_ids": [
+            "ph_htn",
+            "ph_ich"
+          ]
+        },
+        "手术外伤史": {
+          "status": "required_if_asked",
+          "fact_ids": [
+            "ph_no_surgery"
+          ]
+        },
+        "输血史": {
+          "status": "not_applicable",
+          "fact_ids": []
+        }
+      }
+    },
+    "allergy_history": {
+      "required_fact_ids": [
+        "al_none"
+      ]
+    },
+    "family_history": {
+      "required_fact_ids": [
+        "fh_father"
+      ]
+    },
+    "personal_history": {
+      "subsections": {
+        "烟酒史": {
+          "status": "required",
+          "fact_ids": [
+            "sh_alcohol"
+          ]
+        },
+        "婚育史": {
+          "status": "optional",
+          "fact_ids": [
+            "sh_marital"
+          ]
+        }
+      }
+    }
+  },
+  "coverage_expectation": {
+    "must_elicit": [
+      "肢体功能恢复情况",
+      "血压控制",
+      "当前用药",
+      "康复训练情况"
+    ],
+    "should_elicit": [
+      "有无再出血征象",
+      "饮酒史",
+      "家族史",
+      "情绪状态"
+    ],
+    "min_coverage": 0.7
   },
   "checklist": {
-    "must_ask": ["肢体功能恢复情况", "血压控制", "当前用药", "康复训练情况"],
-    "should_ask": ["有无再出血征象", "饮酒史", "家族史", "情绪状态"],
+    "must_ask": [
+      "肢体功能恢复情况",
+      "血压控制",
+      "当前用药",
+      "康复训练情况"
+    ],
+    "should_ask": [
+      "有无再出血征象",
+      "饮酒史",
+      "家族史",
+      "情绪状态"
+    ],
     "min_coverage": 0.6
   }
 }

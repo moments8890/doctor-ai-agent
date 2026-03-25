@@ -122,7 +122,7 @@ Each case in the output array:
   ],
   "expectations": {
     "must_not_timeout": true,
-    "expected_table_min_counts_global": {"system_prompts": 1},
+    "expected_table_min_counts_global": {},
     "expected_table_min_counts_by_doctor": {"patients": 1, "medical_records": 1},
     "must_include_any_of": [["BNP", "胸痛", "STEMI"]]
   }

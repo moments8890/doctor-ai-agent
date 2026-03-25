@@ -24,6 +24,103 @@ from utils.log import log
 
 T = TypeVar("T", bound=BaseModel)
 
+# ---------------------------------------------------------------------------
+# LLM debug logger — writes pretty-formatted input/output per call
+# ---------------------------------------------------------------------------
+
+import json as _json
+from datetime import datetime as _dt
+from pathlib import Path as _Path
+
+_REPO_ROOT = _Path(__file__).resolve().parents[2]
+_LLM_LOG_DIR = _REPO_ROOT / "logs" / "llm_debug"
+_LLM_LOG_FILE = _REPO_ROOT / "logs" / "llm_calls.jsonl"
+_LLM_LOG_MAX_BYTES = 10 * 1024 * 1024  # 10 MB per file
+_LLM_LOG_BACKUP_COUNT = 5
+
+
+def _rotate_if_needed(path: _Path) -> None:
+    """Rotate log file by size or date. Keeps up to _LLM_LOG_BACKUP_COUNT backups."""
+    if not path.exists():
+        return
+    # Check date — rotate if file is from a different day
+    from datetime import date as _date
+    file_date = _dt.utcfromtimestamp(path.stat().st_mtime).date()
+    needs_rotate = path.stat().st_size >= _LLM_LOG_MAX_BYTES or file_date < _date.today()
+    if not needs_rotate:
+        return
+    # Shift existing backups: .4 → .5, .3 → .4, etc.
+    for i in range(_LLM_LOG_BACKUP_COUNT, 0, -1):
+        src = path.with_suffix(f".jsonl.{i}") if i < _LLM_LOG_BACKUP_COUNT else None
+        dst = path.with_suffix(f".jsonl.{i}")
+        src = path.with_suffix(f".jsonl.{i - 1}") if i > 1 else path
+        if src.exists():
+            dst = path.with_suffix(f".jsonl.{i}")
+            src.rename(dst)
+    # Delete oldest if over limit
+    oldest = path.with_suffix(f".jsonl.{_LLM_LOG_BACKUP_COUNT + 1}")
+    if oldest.exists():
+        oldest.unlink()
+
+
+def _log_llm_call(op_name: str, model: str, messages: list, output: Any = None) -> None:
+    """Log LLM call to both a per-call JSON file and an append-only JSONL file.
+
+    - Per-call file: logs/llm_debug/{op}_{timestamp}.json (pretty-formatted, for debugging)
+    - Append file: logs/llm_calls.jsonl (one JSON line per call, auto-rotated by size/date)
+    """
+    try:
+        now = _dt.utcnow()
+        ts = now.strftime("%H%M%S_%f")
+
+        # Build entry
+        entry: Dict[str, Any] = {
+            "timestamp": now.isoformat() + "Z",
+            "op": op_name,
+            "model": model,
+            "input": {"messages": messages},
+        }
+        if output is not None:
+            if isinstance(output, BaseModel):
+                entry["output"] = output.model_dump()
+            elif isinstance(output, str):
+                entry["output"] = {"text": output}
+            else:
+                entry["output"] = output
+
+        # 1. Per-call human-readable file (for debugging)
+        _LLM_LOG_DIR.mkdir(parents=True, exist_ok=True)
+        per_call = _LLM_LOG_DIR / f"{op_name}_{ts}.txt"
+        lines = [
+            f"# {op_name} — {now.isoformat()}Z",
+            f"Model: {model}",
+            "",
+        ]
+        for msg in messages:
+            role = msg.get("role", "?")
+            content = msg.get("content", "")
+            lines.append(f"## [{role}]")
+            lines.append(content)
+            lines.append("")
+        if output is not None:
+            lines.append("## [output]")
+            if isinstance(output, BaseModel):
+                lines.append(_json.dumps(output.model_dump(), ensure_ascii=False, indent=2))
+            elif isinstance(output, str):
+                lines.append(output)
+            else:
+                lines.append(_json.dumps(output, ensure_ascii=False, indent=2))
+        per_call.write_text("\n".join(lines), encoding="utf-8")
+
+        # 2. Append to rotated JSONL file
+        _LLM_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _rotate_if_needed(_LLM_LOG_FILE)
+        with open(_LLM_LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(_json.dumps(entry, ensure_ascii=False) + "\n")
+
+    except Exception:
+        pass  # never break the LLM call path
+
 _client_cache: dict[str, AsyncOpenAI] = {}
 _instructor_cache: dict[str, Any] = {}
 _THINK_RE = re.compile(r"<think>.*?</think>\s*", re.DOTALL)
@@ -108,9 +205,7 @@ async def structured_call(
     """
     model = _get_model(env_var)
 
-    # Log full LLM input
-    import json as _json
-    log(f"[{op_name}] input: model={model} messages={_json.dumps(messages, ensure_ascii=False)[:2000]}")
+    log(f"[{op_name}] input: model={model} msgs={len(messages)}")
 
     async def _call(model_name: str) -> T:
         instructor_client = _get_instructor_client(env_var)
@@ -126,8 +221,8 @@ async def structured_call(
     with trace_block("llm", op_name, {"model": model, "response_model": response_model.__name__}):
         result = await _call(model)
 
-    # Log output
     log(f"[{op_name}] output: {result.model_dump_json()[:200]}")
+    _log_llm_call(op_name, model, messages, result)
     return result
 
 
@@ -174,4 +269,5 @@ async def llm_call(
             backoff_seconds=(0.5,),
             op_name=op_name,
         )
+    _log_llm_call(op_name, model, messages, result)
     return result

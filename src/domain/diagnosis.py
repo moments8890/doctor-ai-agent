@@ -21,7 +21,6 @@ from sqlalchemy import select
 # Case matching is disabled until migrated to medical_records-based approach.
 from db.engine import AsyncSessionLocal
 from db.models.records import MedicalRecordDB
-from domain.knowledge.doctor_knowledge import load_knowledge_context_for_prompt
 from infra.llm.client import _PROVIDERS
 from infra.observability.observability import trace_block
 from utils.log import log
@@ -31,7 +30,7 @@ import logging as _logging
 import json as _json_mod
 from pathlib import Path as _Path
 
-_LLM_LOG_DIR = _Path(__file__).resolve().parents[1] / "logs"
+_LLM_LOG_DIR = _Path(__file__).resolve().parents[2] / "logs"
 _LLM_LOG_DIR.mkdir(exist_ok=True)
 _llm_logger = _logging.getLogger("diagnosis.llm_io")
 _llm_logger.setLevel(_logging.DEBUG)
@@ -398,8 +397,8 @@ async def run_diagnosis(
     clinical_text (from chat history). At least one must be provided.
 
     Returns a dict with keys: differentials, workup, treatment, red_flags.
-    If record_id is provided, also saves the result to diagnosis_results table.
-    If clinical_text only, returns without saving (conversational path).
+    Results are returned to the caller but not persisted to DB (diagnosis_results
+    table was removed; results are stored on medical_records columns instead).
     """
     if record_id is None and not clinical_text:
         raise ValueError("run_diagnosis: either record_id or clinical_text must be provided")
@@ -444,22 +443,11 @@ async def run_diagnosis(
         # ------------------------------------------------------------------
         # Step 3: Load doctor knowledge (non-blocking — empty on failure)
         # ------------------------------------------------------------------
-        knowledge_text = ""
-        try:
-            knowledge_text = await load_knowledge_context_for_prompt(
-                session, doctor_id, chief_complaint
-            )
-        except Exception as exc:
-            log(f"{_tag} knowledge load failed (non-fatal): {exc}", level="warning")
-
-        # ------------------------------------------------------------------
-        # Step 5: Build prompt via 6-layer composer
+        # Step 4: Build prompt via 6-layer composer (KB auto-loaded)
         # ------------------------------------------------------------------
         from agent.prompt_composer import compose_for_review
 
         cases_text = _format_matched_cases(matched_cases)
-        # Combine cases + knowledge into the appropriate layers
-        doctor_kb = knowledge_text or ""
         patient_ctx_parts = []
         if cases_text:
             patient_ctx_parts.append(cases_text)
@@ -467,9 +455,9 @@ async def run_diagnosis(
 
         user_message = _build_user_message(structured)
 
-        composed = compose_for_review(
+        # KB auto-loaded by composer based on REVIEW_LAYERS.knowledge_categories
+        composed = await compose_for_review(
             doctor_id=doctor_id,
-            doctor_knowledge=doctor_kb,
             patient_context=patient_ctx,
             doctor_message=user_message,
         )

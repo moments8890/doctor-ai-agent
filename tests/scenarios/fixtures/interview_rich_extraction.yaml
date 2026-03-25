@@ -1,0 +1,35 @@
+id: interview-rich-001
+title: "Interview: rich single-message extraction (5+ fields)"
+tags: [interview, extraction]
+
+setup:
+  patients:
+    - ref: p1
+      name: 赵敏
+      gender: 女
+      age: 55
+
+steps:
+  - id: create
+    call: handle_turn
+    input:
+      text: "创建患者赵敏，女55岁，心内科。胸闷气短一周，活动后加重。既往高血压10年，服用氨氯地平。无药物过敏。查体BP 160/95，双肺底湿罗音。BNP 850 pg/mL。考虑心衰。予呋塞米、卡托普利。"
+      identity: ${doctor_id}
+    expect:
+      hard:
+        data._routing.intent: create_record
+        data._routing.patient_name: 赵敏
+
+  - id: check_fields
+    call: doctor_interview.turn
+    input:
+      doctor_id: ${doctor_id}
+      session_id: ${steps.create.data.session_id}
+      text: "补充：无家族心脏病史，不吸烟"
+    expect:
+      hard:
+        collected.chief_complaint.contains_any: ["胸闷", "气短"]
+        collected.past_history.contains_any: ["高血压"]
+        collected.allergy_history.contains_any: ["无"]
+        collected.family_history.contains_any: ["无"]
+        collected.personal_history.contains_any: ["不吸烟"]

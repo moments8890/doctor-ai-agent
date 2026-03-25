@@ -155,6 +155,12 @@ async def run_persona(
             progress = turn_data.get("progress", progress)
             status = turn_data.get("status", status)
             complete = turn_data.get("complete", False)
+            suggestions = turn_data.get("suggestions", [])
+
+            # Append suggestions to system reply so the simulated patient
+            # can see the follow-up prompts (like a real patient seeing chips)
+            if suggestions:
+                system_reply += "\n（快捷回复：" + "、".join(suggestions) + "）"
 
             conversation.append({"role": "system", "text": system_reply})
 
@@ -170,7 +176,32 @@ async def run_persona(
         confirm_data = confirm_resp.json()
 
     # ------------------------------------------------------------------
-    # 7. Build results
+    # 7. Snapshot SOAP fields from DB (before cleanup deletes them)
+    # ------------------------------------------------------------------
+    record_id = confirm_data.get("record_id")
+    soap_snapshot = {}
+    if record_id:
+        try:
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            _soap_fields = [
+                "chief_complaint", "present_illness", "past_history",
+                "allergy_history", "family_history", "personal_history",
+                "marital_reproductive", "physical_exam", "specialist_exam",
+                "auxiliary_exam", "diagnosis", "treatment_plan", "orders_followup",
+            ]
+            row = conn.execute(
+                f"SELECT {', '.join(_soap_fields)} FROM medical_records WHERE id = ?",
+                (record_id,),
+            ).fetchone()
+            if row:
+                soap_snapshot = {f: (row[f] or "") for f in _soap_fields}
+            conn.close()
+        except Exception:
+            pass
+
+    # ------------------------------------------------------------------
+    # 8. Build results
     # ------------------------------------------------------------------
     return {
         "persona_id": persona_id,
@@ -178,8 +209,9 @@ async def run_persona(
         "doctor_id": doctor_id,
         "turns": turn_count,
         "session_id": session_id,
-        "record_id": confirm_data.get("record_id"),
+        "record_id": record_id,
         "review_id": confirm_data.get("review_id"),
+        "soap_snapshot": soap_snapshot,
         "conversation": conversation,
         "collected": collected,
         "structured": confirm_data,

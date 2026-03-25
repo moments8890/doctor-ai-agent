@@ -181,13 +181,14 @@ async def confirm(
     if session.status not in (InterviewStatus.reviewing, InterviewStatus.interviewing):
         raise HTTPException(400, "该问诊已结束")
 
-    # Perform handoff
+    # Perform handoff (includes reconciliation sweep over full transcript)
     result = await confirm_interview(
         session_id=session.id,
         doctor_id=session.doctor_id,
         patient_id=session.patient_id,
         patient_name=patient.name,
         collected=session.collected,
+        conversation=session.conversation,
     )
 
     # Mark session confirmed

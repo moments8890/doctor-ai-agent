@@ -94,13 +94,15 @@ def _verify_patient_token(token: str) -> dict:
 
 
 async def _authenticate_patient(
+    x_patient_token: Optional[str] = None,
     authorization: Optional[str] = None,
 ) -> Patient:
-    """Validate patient via Authorization: Bearer token (unified auth).
+    """Validate patient via X-Patient-Token or Authorization: Bearer token (unified auth).
 
+    Tries X-Patient-Token first, falls back to Authorization header.
     Returns the Patient ORM instance on success; raises HTTPException otherwise.
     """
-    bearer = authorization
+    bearer = x_patient_token or authorization
     if bearer and bearer.startswith("Bearer "):
         bearer = bearer[7:]
     if not bearer:

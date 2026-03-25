@@ -28,7 +28,9 @@
     }
   ],
   "surgical_history": "4个月前左侧颈内动脉眼段动脉瘤 Pipeline 支架置入术",
-  "comorbidities": ["高血压"],
+  "comorbidities": [
+    "高血压"
+  ],
   "style": "guarded",
   "personality": "说话比较谨慎，起初想显得自己很配合，会先说“都按时吃，问题不大”。如果医生具体问到药名、漏服次数或为什么漏服，才会承认最近两周因怕出血漏服过氯吡格雷。",
   "allowed_facts": [
@@ -93,15 +95,231 @@
       "volunteer": false
     }
   ],
-  "expected_extracted": {
-    "chief_complaint": ["支架术后复诊", "瘀青", "牙龈出血"],
-    "present_illness": ["Pipeline 支架", "漏服氯吡格雷", "阿司匹林", "无肢体无力"],
-    "past_history": ["高血压6年", "厄贝沙坦"],
-    "family_history": ["姐姐高血压"]
+  "fact_catalog": [
+    {
+      "id": "cc_main",
+      "field": "chief_complaint",
+      "slot": "main_complaint",
+      "text": "动脉瘤Pipeline支架术后复诊",
+      "importance": "critical"
+    },
+    {
+      "id": "cc_bleeding",
+      "field": "chief_complaint",
+      "slot": "main_complaint",
+      "text": "担心瘀青和刷牙出血",
+      "importance": "critical"
+    },
+    {
+      "id": "cc_duration",
+      "field": "chief_complaint",
+      "slot": "duration",
+      "text": "术后4个月",
+      "importance": "critical"
+    },
+    {
+      "id": "pi_surgery",
+      "field": "present_illness",
+      "slot": "发病情况",
+      "text": "4个月前左侧颈内动脉眼段未破裂动脉瘤行Pipeline支架置入术",
+      "importance": "critical"
+    },
+    {
+      "id": "pi_recovery",
+      "field": "present_illness",
+      "slot": "症状特点",
+      "text": "术后恢复平稳，无头痛加重，无视物模糊，无肢体无力或言语不清",
+      "importance": "important"
+    },
+    {
+      "id": "pi_bruise_gum",
+      "field": "present_illness",
+      "slot": "症状特点",
+      "text": "近1个月手臂和小腿容易瘀青，刷牙时牙龈出血，无黑便无血尿",
+      "importance": "critical"
+    },
+    {
+      "id": "pi_nonadherence",
+      "field": "present_illness",
+      "slot": "诊疗经过",
+      "text": "最近2周因担心出血，漏服氯吡格雷3到4次，阿司匹林照常吃",
+      "importance": "critical"
+    },
+    {
+      "id": "pi_cta",
+      "field": "present_illness",
+      "slot": "诊疗经过",
+      "text": "下周预约CTA复查",
+      "importance": "optional"
+    },
+    {
+      "id": "ph_htn",
+      "field": "past_history",
+      "slot": "疾病史",
+      "text": "高血压6年，服厄贝沙坦，血压多在135-145/80-90mmHg",
+      "importance": "critical"
+    },
+    {
+      "id": "ph_neg_chronic",
+      "field": "past_history",
+      "slot": "疾病史",
+      "text": "无糖尿病，无胃溃疡，无既往出血性疾病",
+      "importance": "optional"
+    },
+    {
+      "id": "ph_pipeline",
+      "field": "past_history",
+      "slot": "手术外伤史",
+      "text": "4个月前左侧颈内动脉眼段动脉瘤Pipeline支架置入术",
+      "importance": "critical"
+    },
+    {
+      "id": "al_none",
+      "field": "allergy_history",
+      "slot": null,
+      "text": "无药物过敏史",
+      "importance": "critical"
+    },
+    {
+      "id": "fh_sister",
+      "field": "family_history",
+      "slot": null,
+      "text": "姐姐有高血压，家族中无脑动脉瘤病史",
+      "importance": "optional"
+    },
+    {
+      "id": "sh_smoking",
+      "field": "personal_history",
+      "slot": "烟酒史",
+      "text": "既往吸烟20年，已戒烟8年，不饮酒",
+      "importance": "important"
+    },
+    {
+      "id": "sh_marital",
+      "field": "personal_history",
+      "slot": "婚育史",
+      "text": "已婚，育有1子",
+      "importance": "optional"
+    }
+  ],
+  "record_expectation": {
+    "chief_complaint": {
+      "max_chars": 20,
+      "require_duration": true,
+      "acceptable_variants": [
+        "动脉瘤支架术后4月复诊",
+        "Pipeline术后4个月，瘀青出血",
+        "支架术后4月，瘀青牙龈出血"
+      ],
+      "required_fact_ids": [
+        "cc_main",
+        "cc_duration"
+      ]
+    },
+    "present_illness": {
+      "subsections": {
+        "发病情况": {
+          "status": "required",
+          "fact_ids": [
+            "pi_surgery"
+          ]
+        },
+        "症状特点": {
+          "status": "required",
+          "fact_ids": [
+            "pi_bruise_gum",
+            "pi_recovery"
+          ]
+        },
+        "伴随症状": {
+          "status": "required_if_available",
+          "fact_ids": []
+        },
+        "诊疗经过": {
+          "status": "required",
+          "fact_ids": [
+            "pi_nonadherence"
+          ]
+        },
+        "一般情况": {
+          "status": "not_applicable",
+          "fact_ids": []
+        }
+      }
+    },
+    "past_history": {
+      "subsections": {
+        "疾病史": {
+          "status": "required",
+          "fact_ids": [
+            "ph_htn"
+          ]
+        },
+        "手术外伤史": {
+          "status": "required",
+          "fact_ids": [
+            "ph_pipeline"
+          ]
+        },
+        "输血史": {
+          "status": "not_applicable",
+          "fact_ids": []
+        }
+      }
+    },
+    "allergy_history": {
+      "required_fact_ids": [
+        "al_none"
+      ]
+    },
+    "family_history": {
+      "required_fact_ids": []
+    },
+    "personal_history": {
+      "subsections": {
+        "烟酒史": {
+          "status": "required",
+          "fact_ids": [
+            "sh_smoking"
+          ]
+        },
+        "婚育史": {
+          "status": "optional",
+          "fact_ids": [
+            "sh_marital"
+          ]
+        }
+      }
+    }
+  },
+  "coverage_expectation": {
+    "must_elicit": [
+      "氯吡格雷依从性",
+      "漏服情况",
+      "瘀青出血详情",
+      "术后恢复"
+    ],
+    "should_elicit": [
+      "CTA复查计划",
+      "血压控制",
+      "吸烟史",
+      "过敏史"
+    ],
+    "min_coverage": 0.7
   },
   "checklist": {
-    "must_ask": ["氯吡格雷", "漏服", "瘀青", "牙龈出血"],
-    "should_ask": ["CTA", "血压", "吸烟", "过敏"],
+    "must_ask": [
+      "氯吡格雷",
+      "漏服",
+      "瘀青",
+      "牙龈出血"
+    ],
+    "should_ask": [
+      "CTA",
+      "血压",
+      "吸烟",
+      "过敏"
+    ],
     "min_coverage": 0.6
   }
 }

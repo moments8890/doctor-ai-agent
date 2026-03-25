@@ -190,7 +190,7 @@ async def get_chat_messages(
     If *since* is provided, only messages with ``id > since`` are returned
     (long-polling pattern).  Otherwise returns the full conversation.
     """
-    patient = await _authenticate_patient(authorization or (f"Bearer {x_patient_token}" if x_patient_token else None))
+    patient = await _authenticate_patient(x_patient_token, authorization)
 
     async with AsyncSessionLocal() as db:
         stmt = (

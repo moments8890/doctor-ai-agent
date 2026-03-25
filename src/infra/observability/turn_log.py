@@ -12,7 +12,7 @@ from typing import Optional
 
 
 _ENABLED = os.environ.get("TURN_LOG_ENABLED", "1").strip().lower() not in {"0", "false", "no", "off"}
-_LOG_FILE = Path(os.environ.get("TURN_LOG_FILE", "logs/turn_log.jsonl"))
+_LOG_FILE = Path(os.environ.get("TURN_LOG_FILE", str(Path(__file__).resolve().parents[3] / "logs" / "turn_log.jsonl")))
 _TTL_DAYS = int(os.environ.get("TURN_LOG_TTL_DAYS", "30"))
 
 

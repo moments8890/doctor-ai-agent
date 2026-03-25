@@ -31,8 +31,6 @@ TABLES = [
     "doctor_knowledge_items",
     "interview_sessions",
     "patient_messages",
-    "patient_label_assignments",
-    "specialty_scores",
     "patients",
     "doctors",
 ]

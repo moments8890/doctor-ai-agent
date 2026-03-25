@@ -16,7 +16,6 @@ from sqlalchemy import select
 from db.engine import AsyncSessionLocal
 from db.models import MedicalRecordDB, Patient
 from channels.web.ui._utils import _resolve_ui_doctor_id
-from channels.web.export_template import router as template_router
 from infra.auth.rate_limit import enforce_doctor_rate_limit
 from domain.records.pdf_export import generate_outpatient_report_pdf, generate_records_pdf
 from infra.observability.audit import audit
@@ -27,7 +26,6 @@ def _sha256_hex(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 router = APIRouter(prefix="/api/export", tags=["export"])
-router.include_router(template_router)
 
 # ---------------------------------------------------------------------------
 # Filename helpers (no PHI in filenames)

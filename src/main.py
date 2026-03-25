@@ -311,8 +311,9 @@ def reset_caches():
 
     # Agent session cache
     try:
-        from agent.session import _sessions
-        _sessions.clear()
+        from agent.session import _cache, _session_ids
+        _cache.clear()
+        _session_ids.clear()
         cleared.append("agent_sessions")
     except ImportError:
         pass
@@ -333,6 +334,22 @@ def reset_caches():
 @app.get("/api/version")
 def api_version():
     return {"version": 1, "app_version": "0.2.0"}
+
+
+# APK download — serves the latest release APK
+_DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "static", "download")
+
+@app.get("/download/{filename}")
+def download_file(filename: str):
+    if not filename.endswith(".apk"):
+        return JSONResponse(status_code=404, content={"detail": "not found"})
+    path = os.path.join(_DOWNLOAD_DIR, filename)
+    if not os.path.realpath(path).startswith(os.path.realpath(_DOWNLOAD_DIR) + os.sep):
+        return JSONResponse(status_code=404, content={"detail": "not found"})
+    if os.path.isfile(path):
+        return FileResponse(path, media_type="application/vnd.android.package-archive",
+                            filename=filename)
+    return JSONResponse(status_code=404, content={"detail": "not found"})
 
 
 # WeChat domain verification — serves any file placed in static/wechat/

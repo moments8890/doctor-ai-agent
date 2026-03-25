@@ -88,7 +88,7 @@ def _register_patient(
 def _start_interview(token: str) -> Dict[str, Any]:
     resp = httpx.post(
         f"{SERVER}/api/patient/interview/start",
-        headers={"x-patient-token": token},
+        headers={"Authorization": f"Bearer {token}"},
         timeout=TIMEOUT,
     )
     resp.raise_for_status()
@@ -99,7 +99,7 @@ def _send_turn(token: str, session_id: str, text: str) -> Dict[str, Any]:
     resp = httpx.post(
         f"{SERVER}/api/patient/interview/turn",
         json={"session_id": session_id, "text": text},
-        headers={"x-patient-token": token},
+        headers={"Authorization": f"Bearer {token}"},
         timeout=TIMEOUT,
     )
     resp.raise_for_status()
@@ -110,7 +110,7 @@ def _confirm(token: str, session_id: str) -> Dict[str, Any]:
     resp = httpx.post(
         f"{SERVER}/api/patient/interview/confirm",
         json={"session_id": session_id},
-        headers={"x-patient-token": token},
+        headers={"Authorization": f"Bearer {token}"},
         timeout=TIMEOUT,
     )
     resp.raise_for_status()
@@ -121,7 +121,7 @@ def _cancel(token: str, session_id: str) -> Dict[str, Any]:
     resp = httpx.post(
         f"{SERVER}/api/patient/interview/cancel",
         json={"session_id": session_id},
-        headers={"x-patient-token": token},
+        headers={"Authorization": f"Bearer {token}"},
         timeout=TIMEOUT,
     )
     resp.raise_for_status()
@@ -174,7 +174,7 @@ def _cleanup(doctor_id: str) -> None:
     try:
         for table in [
             "interview_sessions", "medical_records", "doctor_tasks",
-            "patients", "doctor_contexts", "chat_archive",
+            "patients", "doctor_contexts", "doctor_chat_log",
             "doctor_conversation_turns",
         ]:
             try:

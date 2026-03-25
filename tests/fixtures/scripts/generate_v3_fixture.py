@@ -69,7 +69,7 @@ def _generate_cases() -> list:
                 "chatlog": chatlog,
                 "expectations": {
                     "must_not_timeout": True,
-                    "expected_table_min_counts_global": {"system_prompts": 1},
+                    "expected_table_min_counts_global": {},
                     "expected_table_min_counts_by_doctor": db_assertions,
                     "must_include_any_of": [sc["keywords"]],
                 },

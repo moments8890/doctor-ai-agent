@@ -42,7 +42,7 @@ CORRECTION_CASES = [
         ],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["女", "张晴", "头痛"]],
             "correction_type": "gender",
             "corrected_value": "女",
@@ -60,7 +60,7 @@ CORRECTION_CASES = [
         ],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["54", "陈旭", "胸闷"]],
             "correction_type": "age",
             "corrected_value": "54",
@@ -78,7 +78,7 @@ CORRECTION_CASES = [
         ],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["胸痛", "李波", "更正"]],
             "correction_type": "chief_complaint",
             "corrected_value": "胸痛",
@@ -96,7 +96,7 @@ CORRECTION_CASES = [
         ],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["170", "170/105", "吴强", "更正"]],
             "correction_type": "vital_signs",
             "corrected_value": "170/105",
@@ -114,7 +114,7 @@ CORRECTION_CASES = [
         ],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["头痛", "恶心", "发热", "38", "畏光"]],
             "correction_type": "addendum",
         },
@@ -130,7 +130,7 @@ CORRECTION_CASES = [
         ],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["氯吡格雷", "75mg", "更正"]],
             "correction_type": "medication",
             "corrected_value": "氯吡格雷75mg",
@@ -148,7 +148,7 @@ CORRECTION_CASES = [
         ],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["2100", "BNP", "赵敏"]],
             "correction_type": "lab_value",
             "corrected_value": "2100",
@@ -166,7 +166,7 @@ CORRECTION_CASES = [
         ],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["2周", "刘洋", "咳嗽"]],
             "correction_type": "duration",
             "corrected_value": "2周",
@@ -184,7 +184,7 @@ CORRECTION_CASES = [
         ],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["家族", "冠心病", "胸痛", "STEMI"]],
             "correction_type": "addendum_family_history",
         },
@@ -200,7 +200,7 @@ CORRECTION_CASES = [
         ],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["16U", "16", "胰岛素", "孟晨"]],
             "correction_type": "dosage",
             "corrected_value": "16U",
@@ -218,7 +218,7 @@ CORRECTION_CASES = [
         ],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["STEMI", "PCI", "肌钙蛋白", "明确"]],
             "correction_type": "diagnosis_update",
         },
@@ -234,7 +234,7 @@ CORRECTION_CASES = [
         ],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["过敏", "青霉素", "唐慧"]],
             "correction_type": "addendum_allergy",
         },
@@ -250,7 +250,7 @@ CORRECTION_CASES = [
         ],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["王明", "心悸", "更正"]],
             "correction_type": "name_spelling",
             "corrected_value": "王明",
@@ -268,7 +268,7 @@ CORRECTION_CASES = [
         ],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["气短", "林宇", "SpO"]],
             "correction_type": "inline_self_correction",
         },
@@ -285,7 +285,7 @@ CORRECTION_CASES = [
         ],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["女", "43", "黄梅", "头痛"]],
             "correction_type": "multiple_corrections",
         },
@@ -301,7 +301,7 @@ CORRECTION_CASES = [
         ],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["NIHSS", "10", "卫东", "卒中"]],
             "correction_type": "test_result",
             "corrected_value": "NIHSS 10",
@@ -319,7 +319,7 @@ CORRECTION_CASES = [
         ],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["CABG", "更正", "方刚"]],
             "correction_type": "procedure",
             "corrected_value": "CABG",
@@ -337,7 +337,7 @@ CORRECTION_CASES = [
         ],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["8.1", "HbA1c", "蒋慧"]],
             "correction_type": "partial_update",
             "corrected_value": "8.1%",
@@ -356,7 +356,7 @@ CORRECTION_CASES = [
         ],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["416", "CKD", "G5", "eGFR", "谭峰"]],
             "correction_type": "clarification_with_specifics",
         },
@@ -372,7 +372,7 @@ CORRECTION_CASES = [
         ],
         "expectations": {
             "must_not_timeout": True,
-            "expected_table_min_counts_global": {"system_prompts": 1},
+            "expected_table_min_counts_global": {},
             "must_include_any_of": [["室上性", "SVT", "叶雪", "心动过速"]],
             "correction_type": "not_X_but_Y",
             "corrected_value": "室上性心动过速",

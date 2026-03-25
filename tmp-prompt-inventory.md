@@ -53,18 +53,22 @@ Assembly: src/agent/prompt_composer.py
 
 ### Layer Usage Matrix (from prompt_config.py)
 
+Two assembly patterns:
+- **single**: Layers 1-3 → system, Layers 4-6 → user message with XML tags
+- **convo**: Layers 1-5 → system (KB + context in system), conversation history, Layer 6 → plain user
+
 ```
-Intent             | System | Common | Intent          | Dr Knowledge                  | Patient Ctx
--------------------|--------|--------|-----------------|-------------------------------|------------
-routing            |   ✓    |        | routing         | custom                        |
-create_record      |   ✓    |   ✓    | interview       | interview_guide+red_flag+custom|      ✓
-query_record       |   ✓    |        | query           | custom                        |      ✓
-query_task         |   ✓    |        | query           | custom                        |
-create_task        |   ✓    |        | create-task     | custom                        |
-query_patient      |   ✓    |        | query           | custom                        |      ✓
-general            |   ✓    |        | general         | custom                        |
-patient_interview  |   ✓    |   ✓    | patient-interview| interview_guide+red_flag+custom|     ✓
-review/diagnosis   |   ✓    |   ✓    | diagnosis       | diagnosis_rule+red_flag+treatment+custom| ✓
+Intent             | Pattern | Common | Intent           | Dr Knowledge                  | Patient Ctx
+-------------------|---------|--------|------------------|-------------------------------|------------
+routing            | single  |        | routing          | custom                        |
+create_record      | convo   |   ✓    | interview        | interview_guide+red_flag+custom|      ✓
+query_record       | single  |        | query            | custom                        |      ✓
+query_task         | single  |        | query            | custom                        |
+create_task        | single  |        | create-task      | custom                        |
+query_patient      | single  |        | query            | custom                        |      ✓
+general            | single  |        | general          | custom                        |
+patient_interview  | convo   |   ✓    | patient-interview| interview_guide+red_flag+custom|      ✓
+review/diagnosis   | single  |   ✓    | diagnosis        | diagnosis_rule+red_flag+treatment+custom| ✓
 ```
 
 ### Inline Prompts — Deferred

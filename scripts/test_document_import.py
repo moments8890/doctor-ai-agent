@@ -88,8 +88,8 @@ async def _extract_text(path: Path, doc_type: str) -> tuple[str, float]:
     t0 = time.perf_counter()
 
     if doc_type == "pdf":
-        from services.knowledge.pdf_extract_llm import extract_text_from_pdf_llm
-        from services.knowledge.pdf_extract import extract_text_from_pdf
+        from domain.knowledge.pdf_extract_llm import extract_text_from_pdf_llm
+        from domain.knowledge.pdf_extract import extract_text_from_pdf
         text = await extract_text_from_pdf_llm(data)
         if text is None:
             print("  ℹ️  LLM PDF extractor returned None — falling back to local pdftotext")
@@ -97,14 +97,14 @@ async def _extract_text(path: Path, doc_type: str) -> tuple[str, float]:
             text = await loop.run_in_executor(None, extract_text_from_pdf, data)
 
     elif doc_type == "word":
-        from services.knowledge.word_extract import extract_text_from_docx
+        from domain.knowledge.word_extract import extract_text_from_docx
         text = extract_text_from_docx(data)
 
     elif doc_type == "text" or doc_type == "chat":
         text = data.decode("utf-8", errors="replace")
 
     elif doc_type == "image":
-        from services.ai.vision import extract_text_from_image
+        from infra.llm.vision import extract_text_from_image
         mime = _mime_type(path)
         text = await extract_text_from_image(data, mime)
 
@@ -116,7 +116,7 @@ async def _extract_text(path: Path, doc_type: str) -> tuple[str, float]:
 
 
 async def _structure(text: str) -> tuple[dict, float]:
-    from services.ai.structuring import structure_medical_record
+    from domain.records.structuring import structure_medical_record
     t0 = time.perf_counter()
     record = await structure_medical_record(text)
     elapsed = time.perf_counter() - t0

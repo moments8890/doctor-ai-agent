@@ -29,7 +29,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.crud.patient_message import list_patient_messages, save_patient_message
 from db.models.patient import Patient
-from domain.patient_lifecycle.treatment_plan import derive_treatment_plan
 from domain.tasks.notifications import send_doctor_notification
 from infra.llm.client import _get_providers
 from infra.llm.resilience import call_with_retry_and_fallback
@@ -591,22 +590,17 @@ async def load_patient_context(
     """Build a patient context dict for injection into triage LLM prompts.
 
     Loads:
-    - Latest treatment plan (from ``derive_treatment_plan``)
+    - Latest treatment plan (not yet implemented)
     - Pending patient tasks
     - Recent 10 messages
-    - Diagnosis summary (from the treatment plan's diagnosis field)
     """
     from db.models.tasks import DoctorTask, TaskStatus
     from sqlalchemy import select
 
-    # 1. Treatment plan (includes diagnosis, workup, treatment, agreement score)
+    # Treatment plan: not yet implemented (derive_treatment_plan removed).
     treatment_plan: Optional[Dict[str, Any]] = None
-    try:
-        treatment_plan = await derive_treatment_plan(patient_id, db_session)
-    except Exception as exc:
-        log(f"[triage] treatment plan load failed for patient {patient_id}: {exc}", level="warning")
 
-    # 2. Pending patient tasks
+    # 1. Pending patient tasks
     pending_tasks: List[Dict[str, Any]] = []
     try:
         result = await db_session.execute(

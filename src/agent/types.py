@@ -8,12 +8,13 @@ from pydantic import BaseModel, Field
 
 
 class IntentType(str, Enum):
-    """6 routing intents — routing LLM classifies into one of these."""
+    """7 routing intents — routing LLM classifies into one of these."""
     query_record = "query_record"
     create_record = "create_record"
     query_task = "query_task"
     create_task = "create_task"
     query_patient = "query_patient"
+    daily_summary = "daily_summary"
     general = "general"
 
 

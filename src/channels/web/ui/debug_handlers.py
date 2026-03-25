@@ -25,10 +25,11 @@ from channels.web.ui._utils import _require_ui_debug_access
 
 router = APIRouter(tags=["ui"], include_in_schema=False)
 
+_LOG_ROOT = str(Path(__file__).resolve().parents[4] / "logs")
 _LOG_SOURCES: dict[str, str] = {
-    "app": "logs/app.log",
-    "tasks": "logs/tasks.log",
-    "scheduler": "logs/scheduler.log",
+    "app": f"{_LOG_ROOT}/app.log",
+    "tasks": f"{_LOG_ROOT}/tasks.log",
+    "scheduler": f"{_LOG_ROOT}/scheduler.log",
 }
 
 _LOG_LEVEL_TAGS: dict[str, list[str]] = {
@@ -49,7 +50,7 @@ async def debug_logs(
 ):
     """Return recent log lines filtered by level (hierarchical: WARNING includes ERROR, CRITICAL)."""
     _require_ui_debug_access(x_debug_token)
-    log_path = Path(_LOG_SOURCES.get(source, "logs/app.log"))
+    log_path = Path(_LOG_SOURCES.get(source, f"{_LOG_ROOT}/app.log"))
     if not log_path.exists():
         return {"lines": [], "source": source, "total": 0}
     level_tags = _LOG_LEVEL_TAGS.get(level.upper())  # None means ALL
