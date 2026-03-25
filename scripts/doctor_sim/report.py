@@ -471,13 +471,12 @@ def _build_html(
         p.append(f'<li><a href="#{anchor}">{result_icon} {_esc(pid)} {_esc(name)}</a></li>')
     p.append('</ul></nav>')
 
-    # Summary table — 3 dimension columns
+    # Summary table
     p.append(
         "<table><tr>"
         "<th>角色</th><th>轮次</th><th>数据库</th>"
-        '<th class="summary-dim-header">提取召回</th>'
-        '<th class="summary-dim-header">字段归类</th>'
-        '<th class="summary-dim-header">质量</th>'
+        '<th class="summary-dim-header">提取</th>'
+        '<th class="summary-dim-header">NHC质量</th>'
         "<th>结果</th></tr>"
     )
     for r in results:
@@ -489,16 +488,19 @@ def _build_html(
         turns = r.get("turns", "?")
         has_record = "PASS" if r.get("record_id") else "FAIL"
         db_badge = _badge(has_record)
-        scores = _dim_scores(r)
+        val = r.get("validation", {})
+        extraction_score = val.get("combined_score", -1)
+        nhc_q = r.get("nhc_quality", {})
+        nhc_score = nhc_q.get("score", -1)
+        nhc_display = f"{nhc_score}/10" if nhc_score >= 0 else "N/A"
         overall = _badge(_overall_result(r))
 
         p.append(
             f'<tr><td><a href="#{anchor}" style="text-decoration:none;color:inherit">'
             f'<strong>{pid} {name}</strong><br><small>{style}</small></a></td>'
             f'<td>{turns}</td><td>{db_badge}</td>'
-            f'<td class="summary-dim">{_dim_score_badge(scores["extraction_recall"])}</td>'
-            f'<td class="summary-dim">{_dim_score_badge(scores["field_accuracy"])}</td>'
-            f'<td class="summary-dim">{_dim_score_badge(scores["record_quality"])}</td>'
+            f'<td class="summary-dim">{_dim_score_badge(extraction_score)}</td>'
+            f'<td class="summary-dim">{_esc(nhc_display)}</td>'
             f'<td>{overall}</td></tr>'
         )
     p.append("</table>")
@@ -525,15 +527,6 @@ def _build_html(
             p.append(f"<details><summary>病历记录</summary>")
             p.append(_build_medical_record_block(record))
             p.append("</details>")
-
-        # Scorecard (3-dimension evaluation)
-        val = r.get("validation", {})
-        combined = val.get("combined_score", -1)
-        score_label = f" -- {combined}/100" if combined >= 0 else ""
-        open_attr = " open" if combined < 95 else ""
-        p.append(f'<details{open_attr}><summary>评估记分卡{_esc(score_label)}</summary>')
-        p.append(_build_scorecard(r))
-        p.append("</details>")
 
         # NHC Quality Review (5 judges)
         nhc_q = r.get("nhc_quality", {})
