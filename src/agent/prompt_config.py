@@ -37,7 +37,7 @@ class LayerConfig:
 # query_record       |   ✓    |        | query       | custom                        |      ✓
 # create_record      |   ✓    |   ✓    | interview   | interview_guide+red_flag+custom|      ✓
 # query_task         |   ✓    |        | query       | custom                        |
-# create_task        |   ✓    |        | create-task | custom                        |
+# create_task        |   ✓    |        | general     | custom                        |
 # query_patient      |   ✓    |        | query       | custom                        |      ✓
 # general            |   ✓    |        | general     | custom                        |
 
@@ -63,7 +63,7 @@ INTENT_LAYERS: dict[IntentType, LayerConfig] = {
         knowledge_categories=[KnowledgeCategory.custom],
     ),
     IntentType.create_task: LayerConfig(
-        intent="create-task",
+        intent="general",
         knowledge_categories=[KnowledgeCategory.custom],
     ),
     IntentType.query_patient: LayerConfig(

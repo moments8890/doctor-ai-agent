@@ -23,6 +23,7 @@ import {
   DialogTitle,
   Fab,
   IconButton,
+  LinearProgress,
   MenuItem,
   Stack,
   TextField,
@@ -755,11 +756,22 @@ function InterviewView({ token, onBack, onLogout }) {
     <Box sx={PHONE_INNER}>
       <SubpageHeader title="新建病历" onBack={() => status === "confirmed" ? onBack() : setShowExitDialog(true)}
         right={
-          <Chip label={`${progress.filled}/${progress.total}`} size="small"
+          <Chip label={`${progress.total ? Math.round((progress.filled / progress.total) * 100) : 0}%`} size="small"
             color={status === "reviewing" ? "success" : "default"}
             onClick={() => setShowSummary(true)} sx={{ cursor: "pointer" }} />
         }
       />
+
+      {/* Progress bar */}
+      <Box sx={{ px: 2, py: 0.5, bgcolor: "#fff", borderBottom: "1px solid #f0f0f0" }}>
+        <LinearProgress variant="determinate"
+          value={progress.total ? (progress.filled / progress.total) * 100 : 0}
+          sx={{ height: 6, borderRadius: 3, bgcolor: "#e0e0e0",
+            "& .MuiLinearProgress-bar": { bgcolor: "#07C160", borderRadius: 3 } }} />
+        <Typography variant="caption" sx={{ color: "#999", mt: 0.3, display: "block" }}>
+          {progress.total ? Math.round((progress.filled / progress.total) * 100) : 0}%
+        </Typography>
+      </Box>
 
       {/* Chat */}
       <Box sx={{ flex: 1, overflowY: "auto", px: 2, py: 2 }}>

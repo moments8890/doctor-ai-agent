@@ -11,8 +11,8 @@ from agent.tools.resolve import resolve
 from agent.llm import llm_call
 from utils.log import log
 
-# SOAP fields to include in query results (from domain.records.schema)
-_SOAP_FIELDS = (
+# clinical record fields to include in query results (from domain.records.schema)
+_RECORD_FIELDS = (
     "department", "chief_complaint", "present_illness", "past_history",
     "allergy_history", "personal_history", "marital_reproductive",
     "family_history", "physical_exam", "specialist_exam", "auxiliary_exam",
@@ -22,7 +22,7 @@ _SOAP_FIELDS = (
 
 
 def _record_to_dict(r: Any, patient_name: Optional[str] = None) -> Dict[str, Any]:
-    """Convert a MedicalRecordDB row to a dict with SOAP fields."""
+    """Convert a MedicalRecordDB row to a dict with clinical record fields."""
     d: Dict[str, Any] = {
         "id": r.id,
         "created_at": r.created_at.isoformat() if r.created_at else None,
@@ -32,8 +32,8 @@ def _record_to_dict(r: Any, patient_name: Optional[str] = None) -> Dict[str, Any
     # Include legacy content as fallback
     if r.content:
         d["content"] = r.content
-    # Include non-None SOAP fields
-    for field in _SOAP_FIELDS:
+    # Include non-None clinical record fields
+    for field in _RECORD_FIELDS:
         val = getattr(r, field, None)
         if val is not None:
             d[field] = val

@@ -261,6 +261,14 @@ export async function doctorInterviewConfirm(sessionId, doctorId) {
   });
 }
 
+export async function confirmCarryForward(sessionId, doctorId, field, action = "confirm") {
+  return request("/api/records/interview/carry-forward-confirm", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: sessionId, doctor_id: doctorId, field, action }),
+  });
+}
+
 export async function doctorInterviewCancel(sessionId, doctorId) {
   const formData = new FormData();
   formData.append("session_id", sessionId);

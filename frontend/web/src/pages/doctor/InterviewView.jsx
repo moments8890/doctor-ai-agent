@@ -3,13 +3,14 @@
  * 显示在患者列表右侧（替代患者详情面板）。
  */
 import { useEffect, useRef, useState } from "react";
-import { Alert, Box, Button, CircularProgress, IconButton, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, IconButton, LinearProgress, Stack, Typography } from "@mui/material";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
-import { doctorInterviewTurn, doctorInterviewConfirm, doctorInterviewCancel, doctorInterviewGetSession } from "../../api";
+import { doctorInterviewTurn, doctorInterviewConfirm, doctorInterviewCancel, doctorInterviewGetSession, confirmCarryForward } from "../../api";
 import SubpageHeader from "./SubpageHeader";
 import SuggestionChips from "../../components/SuggestionChips";
+import CarryForwardCard from "./CarryForwardCard";
 import { TYPE, ICON } from "../../theme";
 
 function nowTs() {
@@ -51,6 +52,7 @@ export default function InterviewView({ doctorId, sessionId: resumeSessionId, on
   const [error, setError] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
   const [selectedSuggestions, setSelectedSuggestions] = useState([]);
+  const [carryForward, setCarryForward] = useState([]);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -92,6 +94,44 @@ export default function InterviewView({ doctorId, sessionId: resumeSessionId, on
     );
   }
 
+  async function handleCarryForwardConfirm(field) {
+    if (!session.sessionId) return;
+    try {
+      const data = await confirmCarryForward(session.sessionId, doctorId, field, "confirm");
+      setCarryForward(prev => prev.filter(item => item.field !== field));
+      setSession(prev => ({
+        ...prev,
+        progress: data.progress,
+        status: data.status,
+      }));
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  function handleCarryForwardDismiss(field) {
+    setCarryForward(prev => prev.filter(item => item.field !== field));
+  }
+
+  async function handleCarryForwardConfirmAll() {
+    if (!session.sessionId) return;
+    const remaining = [...carryForward];
+    for (const item of remaining) {
+      try {
+        const data = await confirmCarryForward(session.sessionId, doctorId, item.field, "confirm");
+        setCarryForward(prev => prev.filter(i => i.field !== item.field));
+        setSession(prev => ({
+          ...prev,
+          progress: data.progress,
+          status: data.status,
+        }));
+      } catch (err) {
+        setError(err.message);
+        break;
+      }
+    }
+  }
+
   async function handleSend() {
     const parts = [...selectedSuggestions];
     if (input.trim()) parts.push(input.trim());
@@ -110,18 +150,7 @@ export default function InterviewView({ doctorId, sessionId: resumeSessionId, on
       formData.append("text", text);
       formData.append("doctor_id", doctorId);
 
-      if (!session.sessionId) {
-        // First turn — extract patient name, gender, age from text
-        const parts = text.split(/[，,\s]+/);
-        const name = parts[0].replace(/[新患者创建建立]/g, "").trim();
-        formData.append("patient_name", name || text.substring(0, 10));
-        // Extract gender (男/女) and age (数字+岁) from remaining parts
-        for (const p of parts.slice(1)) {
-          if (/^[男女]$/.test(p)) formData.append("patient_gender", p);
-          const ageMatch = p.match(/^(\d{1,3})岁?$/);
-          if (ageMatch) formData.append("patient_age", ageMatch[1]);
-        }
-      } else {
+      if (session.sessionId) {
         formData.append("session_id", session.sessionId);
       }
 
@@ -133,6 +162,11 @@ export default function InterviewView({ doctorId, sessionId: resumeSessionId, on
         status: data.status,
         patientId: data.patient_id,
       });
+
+      // Carry-forward items are only returned on the first turn
+      if (data.carry_forward && data.carry_forward.length > 0) {
+        setCarryForward(data.carry_forward);
+      }
 
       setMessages(prev => [...prev, { role: "assistant", content: data.reply, ts: nowTs() }]);
       setSuggestions(data.suggestions || []);
@@ -184,8 +218,45 @@ export default function InterviewView({ doctorId, sessionId: resumeSessionId, on
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <SubpageHeader title="新建病历" onBack={handleCancel}
         right={<Typography variant="caption" sx={{ color: "#07C160", fontWeight: 500 }}>
-          {session.progress.filled}/{session.progress.total}
+          {session.progress.pct || 0}%
         </Typography>} />
+
+      {/* Progress bar + confirm */}
+      <Box sx={{ px: 1.5, py: 0.5, bgcolor: "#fff", borderBottom: "1px solid #e0e0e0" }}>
+        <LinearProgress variant="determinate"
+          value={session.progress.pct || 0}
+          sx={{ height: 6, borderRadius: 3, bgcolor: "#e0e0e0",
+            "& .MuiLinearProgress-bar": { bgcolor: "#07C160", borderRadius: 3 } }} />
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 0.3 }}>
+          <Typography variant="caption" sx={{ color: session.status === "ready_for_confirm" ? "#2e7d32" : "#999" }}>
+            {session.status === "ready_for_confirm" ? "信息已完整，可以生成病历了" :
+             session.sessionId ? `${session.progress.pct || 0}%` : ""}
+          </Typography>
+          {session.sessionId && session.status !== "draft_created" && (
+            <Button size="small"
+              variant={session.status === "ready_for_confirm" ? "contained" : "text"}
+              disableElevation
+              sx={session.status === "ready_for_confirm"
+                ? { bgcolor: "#07C160", "&:hover": { bgcolor: "#06ad56" }, fontSize: TYPE.caption.fontSize, py: 0, minHeight: 24 }
+                : { color: "#999", fontSize: TYPE.caption.fontSize, py: 0, minHeight: 24 }
+              }
+              onClick={handleConfirm} disabled={loading}>
+              确认生成
+            </Button>
+          )}
+        </Box>
+      </Box>
+
+      {/* Carry-forward card — prior record fields for one-tap confirmation */}
+      {carryForward.length > 0 && session.status !== "draft_created" && (
+        <CarryForwardCard
+          items={carryForward}
+          onConfirm={handleCarryForwardConfirm}
+          onDismiss={handleCarryForwardDismiss}
+          onConfirmAll={handleCarryForwardConfirmAll}
+          disabled={loading}
+        />
+      )}
 
       {/* Messages */}
       <Box sx={{ flex: 1, overflowY: "auto", py: 2, display: "flex", flexDirection: "column", gap: 1.4, bgcolor: "#ededed" }}>
@@ -199,20 +270,6 @@ export default function InterviewView({ doctorId, sessionId: resumeSessionId, on
         <div ref={bottomRef} />
       </Box>
 
-      {/* Progress + confirm bar */}
-      {session.status === "ready_for_confirm" && (
-        <Box sx={{ px: 1.5, py: 1, borderTop: "1px solid #e0e0e0", bgcolor: "#f0f9f0",
-          display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <Typography variant="caption" sx={{ color: "#2e7d32", fontWeight: 500 }}>
-            必填已完成，可以生成初步病历了
-          </Typography>
-          <Button size="small" variant="contained" disableElevation
-            sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: "#06ad56" }, fontSize: TYPE.caption.fontSize }}
-            onClick={handleConfirm} disabled={loading}>
-            确认生成
-          </Button>
-        </Box>
-      )}
 
       {session.status === "draft_created" && (
         <Box sx={{ px: 1.5, py: 1, borderTop: "1px solid #e0e0e0", bgcolor: "#f0f9f0",
@@ -223,7 +280,40 @@ export default function InterviewView({ doctorId, sessionId: resumeSessionId, on
         </Box>
       )}
 
-      {/* Suggestion chips — floating above input */}
+      {/* Missing field hints — derived from progress.fields, capped by viewport */}
+      {session.status !== "draft_created" && !loading && (() => {
+        const fields = session.progress?.fields || {};
+        const empty = Object.entries(fields)
+          .filter(([, f]) => f.status === "empty")
+          .map(([, f]) => f.label);
+        if (empty.length === 0) return null;
+        return (
+          <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5,
+            px: 1.5, py: 0.6, borderTop: "1px solid #e0e0e0", bgcolor: "#f7f7f7" }}>
+            <Typography variant="caption" sx={{ color: "#999", mr: 0.5, flexShrink: 0 }}>待补充：</Typography>
+            {empty.map((text, i) => (
+              <Box key={i} sx={{
+                display: { xs: i >= 3 ? "none" : "inline-flex", md: i >= 5 ? "none" : "inline-flex" },
+                px: 1, py: 0.3, borderRadius: "12px",
+                fontSize: "12px", bgcolor: "#fff3e0", color: "#e65100", border: "1px solid #ffe0b2" }}>
+                {text}
+              </Box>
+            ))}
+            {empty.length > 3 && (
+              <Typography variant="caption" sx={{ color: "#999", display: { xs: "inline", md: "none" } }}>
+                +{empty.length - 3}
+              </Typography>
+            )}
+            {empty.length > 5 && (
+              <Typography variant="caption" sx={{ color: "#999", display: { xs: "none", md: "inline" } }}>
+                +{empty.length - 5}
+              </Typography>
+            )}
+          </Box>
+        );
+      })()}
+
+      {/* LLM suggestions — clickable chips (carry-forward from prior records, etc.) */}
       {session.status !== "draft_created" && !loading && suggestions.length > 0 && (
         <SuggestionChips
           items={suggestions}
@@ -236,7 +326,7 @@ export default function InterviewView({ doctorId, sessionId: resumeSessionId, on
 
       {/* Input bar */}
       {session.status !== "draft_created" && (
-        <Box sx={{ borderTop: suggestions.length > 0 ? "none" : "1px solid #d9d9d9", bgcolor: "#f5f5f5", px: 1, py: 0.8,
+        <Box sx={{ borderTop: "1px solid #d9d9d9", bgcolor: "#f5f5f5", px: 1, py: 0.8,
           display: "flex", alignItems: "flex-end", gap: 0.5 }}>
           <Box sx={{ flex: 1, bgcolor: "#fff", borderRadius: "4px", px: 1, py: 0.5,
             display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5, minHeight: 36 }}>

@@ -2,13 +2,14 @@
  * 病历卡片组件：可展开查看详情，支持编辑和删除操作。
  */
 import { useState } from "react";
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, useMediaQuery } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import { deleteRecord } from "../../api";
-import { RECORD_TYPE_LABEL } from "./constants";
+import { RECORD_TYPE_LABEL, STRUCTURED_FIELD_LABELS } from "./constants";
 import RecordEditDialog from "./RecordEditDialog";
 import { TYPE, ICON } from "../../theme";
 
@@ -18,8 +19,39 @@ const RECORD_DOT_COLORS = {
   referral: "#16a085", interview_summary: "#8e44ad",
 };
 
+const SOAP_FIELD_ORDER = [
+  "department", "chief_complaint", "present_illness", "past_history",
+  "allergy_history", "family_history", "personal_history", "marital_reproductive",
+  "physical_exam", "specialist_exam", "auxiliary_exam",
+  "diagnosis", "treatment_plan", "orders_followup",
+];
+
+function StructuredFields({ structured }) {
+  const filled = SOAP_FIELD_ORDER.filter(k => structured[k]);
+  if (filled.length === 0) return null;
+  return (
+    <Box sx={{ mt: 0.8, bgcolor: "#fafafa", borderRadius: 1, border: "1px solid #f0f0f0", overflow: "hidden" }}>
+      {filled.map((key, i) => (
+        <Box key={key} sx={{ display: "flex", gap: 1, px: 1.2, py: 0.7,
+          borderTop: i > 0 ? "1px solid #f0f0f0" : "none" }}>
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#888", fontWeight: 500, flexShrink: 0, minWidth: 56 }}>
+            {STRUCTURED_FIELD_LABELS[key]}
+          </Typography>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "#333", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+            {structured[key]}
+          </Typography>
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
 function RecordCardHeader({ current, expanded, dotColor }) {
   const date = current.created_at ? current.created_at.slice(0, 10) : "—";
+  const structured = current.structured || {};
+  const hasStructured = Object.keys(structured).length > 0;
+  // Collapsed preview: show chief_complaint or first line of content
+  const preview = structured.chief_complaint || current.content || "（无记录内容）";
   return (
     <Box sx={{ display: "flex", alignItems: "flex-start", px: 2, py: 1.3, cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
       <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: dotColor, flexShrink: 0, mt: 0.7, mr: 1.4 }} />
@@ -39,14 +71,21 @@ function RecordCardHeader({ current, expanded, dotColor }) {
           </Box>
           <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#bbb", flexShrink: 0, fontFamily: "monospace" }}>{date}</Typography>
         </Box>
-        <Typography sx={{
-          fontSize: TYPE.secondary.fontSize, color: current.content ? "text.primary" : "#bbb",
-          overflow: "hidden", display: "-webkit-box",
-          WebkitLineClamp: expanded ? "unset" : 2,
-          WebkitBoxOrient: "vertical", whiteSpace: "pre-wrap",
-        }}>
-          {current.content || "（无记录内容）"}
-        </Typography>
+        {!expanded ? (
+          <Typography sx={{
+            fontSize: TYPE.secondary.fontSize, color: preview !== "（无记录内容）" ? "text.primary" : "#bbb",
+            overflow: "hidden", display: "-webkit-box",
+            WebkitLineClamp: 2, WebkitBoxOrient: "vertical", whiteSpace: "pre-wrap",
+          }}>
+            {preview}
+          </Typography>
+        ) : hasStructured ? (
+          <StructuredFields structured={structured} />
+        ) : (
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "text.primary", whiteSpace: "pre-wrap" }}>
+            {current.content || "（无记录内容）"}
+          </Typography>
+        )}
       </Box>
       <Box sx={{ ml: 1, flexShrink: 0, display: "flex", alignItems: "center", mt: 0.2 }}>
         {expanded ? <ExpandLessIcon sx={{ fontSize: ICON.md, color: "#bbb" }} /> : <ExpandMoreIcon sx={{ fontSize: ICON.md, color: "#bbb" }} />}
@@ -71,6 +110,8 @@ function DeleteConfirmRow({ deleting, onConfirm, onCancel }) {
 }
 
 function RecordExpandedBody({ current, confirmingDelete, deleting, onConfirmDelete, onCancelDelete, onOpenDelete, onOpenEdit }) {
+  const structured = current.structured || {};
+  const hasStructured = Object.keys(structured).length > 0;
   return (
     <Box sx={{ px: 2, pb: 1.5, pt: 0 }}>
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
@@ -87,15 +128,14 @@ function RecordExpandedBody({ current, confirmingDelete, deleting, onConfirmDele
           <EditOutlinedIcon sx={{ fontSize: ICON.xs }} />编辑
         </Box>
       </Box>
-      <Box sx={{ bgcolor: "#f9f9f9", borderRadius: 1.5, p: 1.5 }}>
-        <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", fontSize: TYPE.secondary.fontSize, color: "#333" }}>{current.content || "（无记录内容）"}</Typography>
-      </Box>
     </Box>
   );
 }
 
 export default function RecordCard({ record, doctorId, onUpdated, onDeleted }) {
-  const [expanded, setExpanded] = useState(false);
+  const theme = useTheme();
+  const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
+  const [expanded, setExpanded] = useState(isDesktop);
   const [editing, setEditing] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);

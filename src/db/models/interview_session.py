@@ -26,7 +26,7 @@ class InterviewSessionDB(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False)
-    patient_id: Mapped[int] = mapped_column(Integer, ForeignKey("patients.id", ondelete="CASCADE"), nullable=False)
+    patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id", ondelete="CASCADE"), nullable=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default=InterviewStatus.interviewing)
     mode: Mapped[str] = mapped_column(String(16), nullable=False, default="patient")
     collected: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON dict

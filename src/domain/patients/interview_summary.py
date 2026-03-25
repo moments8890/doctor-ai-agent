@@ -1,18 +1,52 @@
 """Generate MedicalRecord from completed interview (ADR 0016).
 
-Batch-extracts all SOAP fields from the complete conversation transcript
+Batch-extracts all clinical record fields from the complete conversation transcript
 in one LLM pass. No incremental merge needed.
 """
 from __future__ import annotations
 
-import json
 import re
 from datetime import datetime
 from typing import Dict, List, Optional
 
+from pydantic import BaseModel
+
 from db.models.medical_record import MedicalRecord
 from domain.patients.completeness import ALL_COLLECTABLE
 from utils.log import log
+
+
+# ---------------------------------------------------------------------------
+# Pydantic response models for structured LLM extraction
+# ---------------------------------------------------------------------------
+
+class DoctorExtractResult(BaseModel):
+    """14-field extraction result for doctor dictation mode."""
+    department: Optional[str] = None
+    chief_complaint: Optional[str] = None
+    present_illness: Optional[str] = None
+    past_history: Optional[str] = None
+    allergy_history: Optional[str] = None
+    personal_history: Optional[str] = None
+    marital_reproductive: Optional[str] = None
+    family_history: Optional[str] = None
+    physical_exam: Optional[str] = None
+    specialist_exam: Optional[str] = None
+    auxiliary_exam: Optional[str] = None
+    diagnosis: Optional[str] = None
+    treatment_plan: Optional[str] = None
+    orders_followup: Optional[str] = None
+
+
+class PatientExtractResult(BaseModel):
+    """7-field extraction result for patient pre-consultation mode."""
+    chief_complaint: Optional[str] = None
+    present_illness: Optional[str] = None
+    past_history: Optional[str] = None
+    allergy_history: Optional[str] = None
+    personal_history: Optional[str] = None
+    marital_reproductive: Optional[str] = None
+    family_history: Optional[str] = None
 
 FIELD_LABELS = {
     "chief_complaint": "主诉",
@@ -96,7 +130,7 @@ async def batch_extract_from_transcript(
     patient_info: dict,
     mode: str = "patient",
 ) -> Dict[str, str]:
-    """Extract all SOAP fields from the complete conversation in one LLM pass.
+    """Extract all clinical record fields from the complete conversation in one LLM pass.
 
     Args:
         conversation: Full conversation history (list of dicts with role/content).
@@ -106,7 +140,7 @@ async def batch_extract_from_transcript(
     Returns:
         Dict of field_name -> extracted value (empty fields filtered out).
     """
-    from agent.llm import llm_call
+    from agent.llm import structured_call
 
     # Build transcript
     transcript_lines = []
@@ -131,33 +165,21 @@ async def batch_extract_from_transcript(
         transcript=transcript,
     )
 
+    response_model = DoctorExtractResult if mode == "doctor" else PatientExtractResult
+
     try:
-        raw = await llm_call(
+        extracted = await structured_call(
+            response_model=response_model,
             messages=[{"role": "user", "content": prompt}],
             op_name="interview.batch_extract",
             temperature=0.1,
             max_tokens=1024,
-            json_mode=True,
         )
 
-        cleaned = raw.strip()
-        if cleaned.startswith("```"):
-            lines = cleaned.split("\n")
-            if lines[0].startswith("```"):
-                lines = lines[1:]
-            if lines and lines[-1].strip() == "```":
-                lines = lines[:-1]
-            cleaned = "\n".join(lines)
-
-        extracted = json.loads(cleaned)
-        if not isinstance(extracted, dict):
-            log("[batch_extract] LLM returned non-dict, falling back to empty", level="warning")
-            return {}
-
-        # Filter out empty fields
+        # Convert to dict, filtering out None and empty fields
         result = {
             k: v.strip()
-            for k, v in extracted.items()
+            for k, v in extracted.model_dump().items()
             if isinstance(v, str) and v.strip()
         }
 

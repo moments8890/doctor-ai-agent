@@ -3,7 +3,7 @@
 **Tester**: Claude (automated via gstack browse)
 **Persona**: Dr. Chen (陈医生), new doctor registration via invite code
 **Target**: `http://localhost:5173` (Vite dev + uvicorn backend, deepseek provider)
-**Commit**: `96798a2` (Plan-and-Act architecture, SOAP schema)
+**Commit**: `96798a2` (Plan-and-Act architecture, clinical record schema)
 
 ---
 
@@ -16,9 +16,9 @@
 | P2 (minor) | 3 | Default specialty, no onboarding, patient list stale during interview |
 | **Total** | **7** | |
 
-**Overall**: Core flows (registration, patient creation via interview, record SOAP
+**Overall**: Core flows (registration, patient creation via interview, structured record
 collection, settings) work well. The Plan-and-Act interview flow is impressive — AI
-correctly parses multi-turn input into structured SOAP fields. Main issues are in task
+correctly parses multi-turn input into structured clinical fields. Main issues are in task
 creation and chat routing, both likely caused by the recent architecture migration.
 
 ---
@@ -111,8 +111,8 @@ creation and chat routing, both likely caused by the recent architecture migrati
 
 1. **Registration flow**: Clean, fast, invite-code gated. Redirects to dashboard
    immediately.
-2. **SOAP interview collection**: The AI-driven interview flow is excellent — correctly
-   parses multi-turn natural language into structured SOAP fields (chief complaint,
+2. **Structured interview collection**: The AI-driven interview flow is excellent — correctly
+   parses multi-turn natural language into structured clinical fields (chief complaint,
    present illness, past history, allergy, family history, personal history, physical
    exam, diagnosis, treatment plan). Progress counter (7/13) and suggestion chips guide
    the doctor.
@@ -144,7 +144,7 @@ creation and chat routing, both likely caused by the recent architecture migrati
 | BUG-1 (P0) | **FIXED** | Expanded `TaskType` enum + CHECK + `_VALID_TASK_TYPES` to include follow_up, medication, checkup |
 | BUG-2 (P1) | **FIXED** | Added `daily_summary` intent type + dedicated handler + `action_hint` bypass in router |
 | BUG-3 (P1) | **CLOSED** | Not reproducible — transient startup timing issue |
-| BUG-4 (P1) | **FIXED** | `query_record` handler now returns SOAP fields + patient name context to LLM |
+| BUG-4 (P1) | **FIXED** | `query_record` handler now returns 病历字段 + patient name context to LLM |
 | BUG-5 (P2) | **FIXED** | Removed hardcoded "神经外科" default in `LoginPage.jsx` registration call |
 | BUG-6 (P2) | **FIXED** | Added onboarding welcome card in `BriefingSection.jsx` when all stats are 0 |
 | BUG-7 (P2) | **CLOSED** | Expected behavior — patient not persisted until interview confirm |

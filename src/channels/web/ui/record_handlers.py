@@ -31,9 +31,17 @@ from channels.web.ui._utils import (
 )
 
 
+_RECORD_KEYS = (
+    "department", "chief_complaint", "present_illness", "past_history",
+    "allergy_history", "personal_history", "marital_reproductive", "family_history",
+    "physical_exam", "specialist_exam", "auxiliary_exam",
+    "diagnosis", "treatment_plan", "orders_followup",
+)
+
+
 def _serialize_record_with_patient(record, patient_name: Optional[str]) -> dict:
     """Turn a MedicalRecordDB row into a JSON-serializable dict."""
-    return {
+    d = {
         "id": record.id,
         "patient_id": record.patient_id,
         "doctor_id": record.doctor_id,
@@ -45,6 +53,15 @@ def _serialize_record_with_patient(record, patient_name: Optional[str]) -> dict:
         "created_at": _fmt_ts(record.created_at),
         "updated_at": _fmt_ts(record.updated_at),
     }
+    # Include non-empty clinical record fields for structured display
+    structured = {}
+    for key in _RECORD_KEYS:
+        val = getattr(record, key, None)
+        if val:
+            structured[key] = val
+    if structured:
+        d["structured"] = structured
+    return d
 
 
 async def _fetch_records_for_patient(

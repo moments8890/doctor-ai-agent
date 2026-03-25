@@ -95,15 +95,15 @@ asyncio.run(create_invite())
 
 ## 4. Medical Records
 
-**Goal**: Create records via chat and direct entry, verify SOAP fields render.
+**Goal**: Create records via chat and direct entry, verify 病历字段 render.
 
 | # | Action | Expected | Severity |
 |---|--------|----------|----------|
 | 4.1 | Navigate to chat, send: "给王小明创建一条病历，主诉头痛两周伴恶心" | AI creates a draft record, working context shows pending | P0 |
 | 4.2 | Check working context header | Shows pending draft for 王小明 | P1 |
 | 4.3 | Navigate to tasks → review queue | Draft appears as pending review item | P0 |
-| 4.4 | Click review item | ReviewDetail page opens with SOAP fields pre-filled | P0 |
-| 4.5 | Verify SOAP fields: chief_complaint, present_illness, etc. | Fields populated from AI structuring | P1 |
+| 4.4 | Click review item | ReviewDetail page opens with 病历字段 pre-filled | P0 |
+| 4.5 | Verify 病历字段: chief_complaint, present_illness, etc. | Fields populated from AI structuring | P1 |
 | 4.6 | Edit a field (e.g., add to diagnosis) | Edit mode works, saves on blur | P1 |
 | 4.7 | Click "确认" to confirm the record | Record saved, appears under patient records | P0 |
 | 4.8 | Navigate to 王小明 → records tab | Record visible with correct type and date | P0 |

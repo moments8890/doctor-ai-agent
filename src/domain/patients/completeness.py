@@ -7,11 +7,11 @@ from typing import Dict, List
 
 REQUIRED = ("chief_complaint", "present_illness")
 
-# Subjective history fields — asked of both doctor and patient
+# 病史 fields — asked of both doctor and patient
 SUBJECTIVE_RECOMMENDED = ("past_history", "allergy_history", "family_history", "personal_history")
 SUBJECTIVE_OPTIONAL = ("marital_reproductive",)
 
-# Objective / Assessment / Plan — doctor only
+# 检查 / 诊断 / 处置 — doctor only
 OBJECTIVE = ("physical_exam", "specialist_exam", "auxiliary_exam")
 ASSESSMENT = ("diagnosis",)
 PLAN = ("treatment_plan", "orders_followup")
@@ -24,7 +24,7 @@ DOCTOR_OPTIONAL = SUBJECTIVE_OPTIONAL + ("specialist_exam", "auxiliary_exam", "o
 PATIENT_ALL = REQUIRED + SUBJECTIVE_RECOMMENDED + SUBJECTIVE_OPTIONAL
 PATIENT_TOTAL = len(PATIENT_ALL)  # 7
 
-# Doctor-mode: all 14 SOAP fields
+# Doctor-mode: all 14 clinical record fields
 DOCTOR_ALL = REQUIRED + SUBJECTIVE_RECOMMENDED + SUBJECTIVE_OPTIONAL + OBJECTIVE + ASSESSMENT + PLAN
 DOCTOR_TOTAL = len(DOCTOR_ALL)  # 14
 

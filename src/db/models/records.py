@@ -40,7 +40,7 @@ class MedicalRecordDB(Base):
     # --- Department ---
     department: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    # --- SOAP: Subjective (7 fields) ---
+    # --- 病史 (7 fields) ---
     chief_complaint: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     present_illness: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     past_history: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -49,17 +49,17 @@ class MedicalRecordDB(Base):
     marital_reproductive: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     family_history: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    # --- SOAP: Objective (3 fields) ---
+    # --- 检查 (3 fields) ---
     physical_exam: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     specialist_exam: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     auxiliary_exam: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    # --- SOAP: Assessment (3 fields) ---
+    # --- 诊断 (3 fields) ---
     diagnosis: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     ai_diagnosis: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON
     doctor_decisions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON
 
-    # --- SOAP: Plan (3 fields) ---
+    # --- 处置 (3 fields) ---
     treatment_plan: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     orders_followup: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     suggested_tasks: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON
@@ -73,13 +73,13 @@ class MedicalRecordDB(Base):
 
     # --- Helpers ---
 
-    def soap_dict(self) -> dict[str, str]:
-        """Return SOAP fields as a dict (same keys as schema.FIELD_KEYS)."""
+    def structured_dict(self) -> dict[str, str]:
+        """Return clinical record fields as a dict (same keys as schema.FIELD_KEYS)."""
         from domain.records.schema import FIELD_KEYS
         return {k: getattr(self, k, None) or "" for k in FIELD_KEYS}
 
-    def has_soap_data(self) -> bool:
-        """True if at least one SOAP column is populated."""
+    def has_structured_data(self) -> bool:
+        """True if at least one clinical record column is populated."""
         from domain.records.schema import FIELD_KEYS
         return any(getattr(self, k, None) for k in FIELD_KEYS)
 

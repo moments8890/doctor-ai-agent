@@ -16,7 +16,7 @@ from utils.log import log
 class InterviewSession:
     id: str
     doctor_id: str
-    patient_id: int
+    patient_id: Optional[int]
     mode: str = "patient"
     status: str = InterviewStatus.interviewing
     collected: Dict[str, str] = field(default_factory=dict)
@@ -24,7 +24,7 @@ class InterviewSession:
     turn_count: int = 0
 
 
-async def create_session(doctor_id: str, patient_id: int, mode: str = "patient") -> InterviewSession:
+async def create_session(doctor_id: str, patient_id: Optional[int], mode: str = "patient") -> InterviewSession:
     """Create a new interview session in the DB."""
     from db.models.interview_session import InterviewSessionDB
 
@@ -92,6 +92,7 @@ async def save_session(session: InterviewSession) -> None:
 
         row.status = session.status
         row.mode = session.mode
+        row.patient_id = session.patient_id
         row.collected = json.dumps(session.collected, ensure_ascii=False)
         row.conversation = json.dumps(session.conversation, ensure_ascii=False)
         row.turn_count = session.turn_count
