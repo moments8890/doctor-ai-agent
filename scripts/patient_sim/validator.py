@@ -1,12 +1,8 @@
 """Four-tier validation for patient simulation runs.
 
 Tier 1: DB integrity checks (hard gate)
-Tier 2: 5-dimension interview scorecard (validate_interview)
-        Dim 1: Simulator Fidelity — did the simulator volunteer the right facts?
-        Dim 2: Interview Policy — did the conversation cover must-elicit topics?
-        Dim 3: Disclosure — were critical/important facts mentioned in the conversation?
-        Dim 4: Extraction Accuracy — were disclosed facts captured in DB clinical record fields?
-        Dim 5: Record Quality — chief complaint format + hallucination check
+Tier 2: 3-axis hybrid scorecard — elicitation completeness, extraction
+        fidelity (3 LLM judges), NHC record quality (hard gate)
 Tier 3: LLM quality score — 5 judges across providers, median (soft)
 Tier 4: Anomaly review — LLM inspects DB fields + conversation for issues (soft)
 
@@ -54,10 +50,10 @@ def resolve_db_path() -> str:
 
 
 # ---------------------------------------------------------------------------
-# 病历字段 (clinical record field keys)
+# SOAP field keys
 # ---------------------------------------------------------------------------
 
-RECORD_FIELDS: List[str] = [
+SOAP_FIELDS: List[str] = [
     "department", "chief_complaint", "present_illness", "past_history",
     "allergy_history", "personal_history", "marital_reproductive",
     "family_history", "physical_exam", "specialist_exam", "auxiliary_exam",
@@ -69,84 +65,52 @@ RECORD_FIELDS: List[str] = [
 # LLM calling helpers (shared by Tier 2 and Tier 3)
 # ---------------------------------------------------------------------------
 
-# 5 diverse Chinese LLM judges across 2 providers (OpenRouter + Groq).
-# 4 Chinese-native models + 1 international for cross-model diversity.
-_JUDGE_POOL = [
-    # OpenRouter models (all OpenAI-compatible)
-    {
-        "base_url": "https://openrouter.ai/api/v1",
-        "model": "deepseek/deepseek-chat-v3-0324",
-        "label": "DeepSeek-V3",
-        "api_key_env": "OPENROUTER_API_KEY",
-    },
-    {
-        "base_url": "https://openrouter.ai/api/v1",
-        "model": "meta-llama/llama-3.3-70b-instruct",
-        "label": "Llama-3.3-70B",
-        "api_key_env": "OPENROUTER_API_KEY",
-    },
-    {
-        "base_url": "https://openrouter.ai/api/v1",
-        "model": "qwen/qwen-2.5-7b-instruct",
-        "label": "Qwen-2.5-7B",
-        "api_key_env": "OPENROUTER_API_KEY",
-    },
-    {
-        "base_url": "https://openrouter.ai/api/v1",
-        "model": "mistralai/mistral-small-3.2-24b-instruct",
-        "label": "Mistral-Small-24B",
-        "api_key_env": "OPENROUTER_API_KEY",
-    },
-    # Groq model (different provider for diversity)
-    {
-        "base_url": "https://api.groq.com/openai/v1",
-        "model": "llama-3.1-8b-instant",
-        "label": "Llama-3.1-8B",
-        "api_key_env": "GROQ_API_KEY",
-    },
+# All judges use Groq. GPT-OSS models failed semantic matching tasks,
+# so we use Llama-3.1-8B (which works reliably) for all judges.
+# Cost: $0.05/M input — cheapest available on Groq.
+_JUDGE_MODELS = [
+    {"model": "llama-3.1-8b-instant", "label": "Llama-3.1-8B"},
+    {"model": "llama-3.1-8b-instant", "label": "Llama-3.1-8B"},
+    {"model": "llama-3.1-8b-instant", "label": "Llama-3.1-8B"},
 ]
+
+_GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+_GROQ_KEY_ENV = "GROQ_API_KEY"
 
 
 def _pick_judges(n: int) -> List[dict]:
-    """Pick *n* judge configs, round-robin across the diverse model pool."""
-    available = [j for j in _JUDGE_POOL if os.environ.get(j["api_key_env"])]
-    if not available:
-        raise RuntimeError("No API keys set for judges (need OPENROUTER_API_KEY or GROQ_API_KEY)")
-    return [available[i % len(available)] for i in range(n)]
+    """Pick *n* judge configs, round-robin across models."""
+    api_key = os.environ.get(_GROQ_KEY_ENV, "")
+    if not api_key:
+        raise RuntimeError(f"{_GROQ_KEY_ENV} not set — needed for judges")
+    return [
+        {
+            "base_url": _GROQ_BASE_URL,
+            "model": _JUDGE_MODELS[i % len(_JUDGE_MODELS)]["model"],
+            "label": _JUDGE_MODELS[i % len(_JUDGE_MODELS)]["label"],
+            "api_key_env": _GROQ_KEY_ENV,
+        }
+        for i in range(n)
+    ]
 
 
 async def _llm_call(provider: dict, prompt: str, temperature: float = 0.2) -> str:
-    """Single LLM chat completion call with retry. Returns raw content string."""
+    """Single LLM chat completion call. Returns raw content string."""
     api_key = os.environ.get(provider["api_key_env"], "")
-    data = None
-    for attempt in range(3):
-        try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                resp = await client.post(
-                    f"{provider['base_url']}/chat/completions",
-                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                    json={
-                        "model": provider["model"],
-                        "messages": [{"role": "user", "content": f"请直接回答，不要输出思考过程。\n\n{prompt}"}],
-                        "temperature": temperature,
-                        "max_tokens": 512,
-                    },
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                break
-        except Exception as e:
-            if attempt < 2:
-                await asyncio.sleep(1.0 * (attempt + 1))
-            else:
-                raise
-    if data is None:
-        raise RuntimeError("LLM call failed after 3 attempts")
-    msg = data["choices"][0]["message"]
-    raw = msg.get("content") or ""
-    # Some models put output in reasoning field when content is null
-    if not raw and msg.get("reasoning"):
-        raw = msg["reasoning"]
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        resp = await client.post(
+            f"{provider['base_url']}/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "model": provider["model"],
+                "messages": [{"role": "user", "content": f"/no_think\n{prompt}"}],
+                "temperature": temperature,
+                "max_tokens": 512,
+            },
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    raw = data["choices"][0]["message"]["content"]
     # Strip think tags and code fences
     raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
     if raw.startswith("```"):
@@ -213,13 +177,13 @@ def validate_tier1(
             ok = content_ok and type_ok
             checks["record_created"] = {"pass": ok, "detail": "OK" if ok else "content empty or wrong type"}
 
-        # 2. chief_complaint populated
+        # 2. SOAP chief_complaint populated
         if row is not None:
             cc = conn.execute("SELECT chief_complaint FROM medical_records WHERE id = ?", (record_id,)).fetchone()
             cc_ok = bool(cc and cc["chief_complaint"] and cc["chief_complaint"].strip())
-            checks["record_fields"] = {"pass": cc_ok, "detail": "OK" if cc_ok else "chief_complaint empty"}
+            checks["soap_fields"] = {"pass": cc_ok, "detail": "OK" if cc_ok else "chief_complaint empty"}
         else:
-            checks["record_fields"] = {"pass": False, "detail": "skipped"}
+            checks["soap_fields"] = {"pass": False, "detail": "skipped"}
 
         # 3. Session confirmed
         sess = conn.execute("SELECT status FROM interview_sessions WHERE id = ?", (session_id,)).fetchone()
@@ -263,24 +227,22 @@ def validate_tier1(
 # Tier 2 — 3-axis hybrid scorecard: elicitation, extraction, NHC compliance
 # ---------------------------------------------------------------------------
 
-def _load_record_from_db(record_id: int, db_path: str) -> Dict[str, str]:
+def _load_soap_from_db(record_id: int, db_path: str) -> Dict[str, str]:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     try:
-        cols = ", ".join(RECORD_FIELDS)
+        cols = ", ".join(SOAP_FIELDS)
         row = conn.execute(f"SELECT {cols} FROM medical_records WHERE id = ?", (record_id,)).fetchone()
         if row is None:
             return {}
-        return {f: (row[f] or "") for f in RECORD_FIELDS}
+        return {f: (row[f] or "") for f in SOAP_FIELDS}
     finally:
         conn.close()
 
 
-# ---------------------------------------------------------------------------
-# Dim 2: Interview Policy — LLM prompt (reuses elicitation judge pattern)
-# ---------------------------------------------------------------------------
+# --------------- Axis 1: Elicitation Completeness prompts ----------------
 
-_DIM2_POLICY_JUDGE_PROMPT = """\
+_ELICITATION_JUDGE_PROMPT = """\
 /no_think
 你是预问诊对话质量评审员。请判断以下对话中是否**覆盖**了指定话题。
 
@@ -302,41 +264,14 @@ _DIM2_POLICY_JUDGE_PROMPT = """\
 请只返回JSON: {{"results": {{"话题1": true, "话题2": false, ...}}}}
 """
 
-# ---------------------------------------------------------------------------
-# Dim 3: Disclosure — LLM prompt (which facts appeared in conversation?)
-# ---------------------------------------------------------------------------
+# --------------- Axis 2: Extraction Fidelity prompts ---------------------
 
-_DIM3_DISCLOSURE_JUDGE_PROMPT = """\
-/no_think
-你是预问诊对话内容评审员。请判断以下事实是否在对话中被**提及**过。
-
-## 完整对话记录
-{conversation}
-
-## 需要检查的事实列表
-{facts_block}
-
-## 规则
-- "提及"的标准：该事实的核心信息在对话中出现过，无论是AI助手提到还是患者提到
-- 不要求原文一模一样，只要语义等价即可判为已提及
-- 例如"高血压5年"和"血压高了好几年"是语义等价的
-- 例如"对青霉素过敏"和"吃青霉素会过敏"是语义等价的
-- 只有当对话中完全没有涉及某条事实时，才判为false
-
-对每条事实，返回true（已提及）或false（未提及）。
-请只返回JSON: {{"results": {{"fact_id_1": true, "fact_id_2": false, ...}}}}
-"""
-
-# ---------------------------------------------------------------------------
-# Dim 4: Extraction Accuracy — LLM prompt (reuses fact-match judge pattern)
-# ---------------------------------------------------------------------------
-
-_DIM4_EXTRACTION_JUDGE_PROMPT = """\
+_FACT_MATCH_JUDGE_PROMPT = """\
 /no_think
 你是一位医学信息提取评审专家。请逐条判断以下期望事实是否出现在系统提取的结构化字段中。
 
-## 系统实际提取的全部病历字段
-{structured_dump}
+## 系统实际提取的全部SOAP字段
+{soap_dump}
 
 ## 需要核对的事实列表
 {facts_block}
@@ -355,208 +290,113 @@ _DIM4_EXTRACTION_JUDGE_PROMPT = """\
 请只返回JSON: {{"results": {{"fact_id_1": {{"match": true, "found_in": "present_illness"}}, "fact_id_2": {{"match": false, "found_in": null}}, ...}}}}
 """
 
-# ---------------------------------------------------------------------------
-# Dim 5: Record Quality — LLM hallucination check prompt
-# ---------------------------------------------------------------------------
+# --------------- Axis 3: NHC Record Quality prompts ----------------------
 
-_DIM5_HALLUCINATION_JUDGE_PROMPT = """\
+_NHC_COMPLIANCE_JUDGE_PROMPT = """\
 /no_think
-你是预问诊系统的幻觉检测专家。请检查数据库中存储的结构化字段是否包含**对话中从未提到过**的信息。
+你是一位病历质量审查专家。请审查以下结构化病历字段是否符合中国住院病历书写规范。
 
-## 完整对话记录
-{conversation}
+## 现病史字段内容
+{present_illness}
 
-## 数据库中存储的结构化字段
-{structured_dump}
+## 既往史字段内容
+{past_history}
+
+## 需要检查的现病史子项
+{pi_subsections}
+
+## 需要检查的既往史子项
+{ph_subsections}
 
 ## 规则
-- 逐字段检查：对于每个非空字段，确认其内容在对话中有对应的来源
-- "幻觉"的定义：结构化字段中出现了患者从未提到、AI助手也从未确认的信息
-- 合理的医学规范化表述不算幻觉（如将口语"血压高"规范为"高血压"）
-- 合理的否认推断不算幻觉（如患者未提过敏史，记录"否认药物及食物过敏史"）
-- 只有明显无中生有、或与对话内容矛盾的信息才算幻觉
+- 对每个子项，判断该内容是否在对应字段中有所体现（语义层面，不要求原文）
+- "体现"的标准：有明确描述或否认（如"无糖尿病"也算覆盖了"既往疾病"子项）
 
-如发现幻觉，请列出每个幻觉的字段名和具体内容。
-请只返回JSON: {{"hallucinations": [{{"field": "字段名", "detail": "具体幻觉内容描述"}}]}}
-如果没有幻觉，返回：{{"hallucinations": []}}
+请只返回JSON:
+{{"present_illness": {{"子项1": true, "子项2": false, ...}}, "past_history": {{"子项1": true, ...}}}}
 """
 
 
-# ---------------------------------------------------------------------------
-# Shared conversation text builder
-# ---------------------------------------------------------------------------
+# --------------- Axis 1 implementation -----------------------------------
 
-def _build_conversation_text(conversation: list) -> str:
-    """Build full conversation text from turn list, labelling both parties."""
+async def _evaluate_elicitation(
+    conversation: list,
+    must_elicit: List[str],
+    provider: dict,
+) -> Dict[str, bool]:
+    """Single LLM judge checks which must_elicit topics were covered in the conversation."""
+    # Build full conversation text (both AI and patient)
     conv_lines = []
     for turn in conversation:
         role = turn.get("role", "")
         label = "AI助手" if role in ("system", "assistant") else "患者"
         text = turn.get("content", turn.get("text", ""))
         conv_lines.append(f"{label}：{text}")
-    return "\n".join(conv_lines) if conv_lines else "（无对话记录）"
+    conv_text = "\n".join(conv_lines) if conv_lines else "（无对话记录）"
 
-
-def _build_patient_text(conversation: list) -> str:
-    """Build text from PATIENT messages only (role=user or patient)."""
-    lines = []
-    for turn in conversation:
-        role = turn.get("role", "")
-        if role in ("user", "patient"):
-            text = turn.get("content", turn.get("text", ""))
-            lines.append(text)
-    return "\n".join(lines)
-
-
-# ---------------------------------------------------------------------------
-# Dim 1: Simulator Fidelity (deterministic — no LLM)
-# ---------------------------------------------------------------------------
-
-def _dim1_simulator_fidelity(persona: dict, conversation: list) -> dict:
-    """Check which volunteer=true facts from allowed_facts were actually
-    disclosed by the patient simulator.  Uses simple keyword matching."""
-    allowed_facts = persona.get("allowed_facts", [])
-    volunteer_facts = [f for f in allowed_facts if f.get("volunteer") is True]
-
-    if not volunteer_facts:
-        return {"score": 100, "facts": {}}
-
-    patient_text = _build_patient_text(conversation).lower()
-
-    facts_out: Dict[str, Dict[str, bool]] = {}
-    found = 0
-    for fact_entry in volunteer_facts:
-        fact_text = fact_entry.get("fact", "")
-        # Extract key phrases: split on common delimiters, keep tokens >= 2 chars
-        keywords = re.split(r"[，,；;。、\s]+", fact_text)
-        keywords = [k.strip() for k in keywords if len(k.strip()) >= 2]
-        # A fact is considered disclosed if ALL its keywords appear in patient text
-        disclosed = all(kw.lower() in patient_text for kw in keywords) if keywords else False
-        facts_out[fact_text] = {"disclosed": disclosed}
-        if disclosed:
-            found += 1
-
-    score = int(round(found / len(volunteer_facts) * 100)) if volunteer_facts else 100
-    return {"score": score, "facts": facts_out}
-
-
-# ---------------------------------------------------------------------------
-# Dim 2: Interview Policy (1 LLM judge)
-# ---------------------------------------------------------------------------
-
-async def _dim2_interview_policy(
-    persona: dict,
-    conversation: list,
-) -> dict:
-    """Check which must_elicit topics were covered in the conversation."""
-    coverage_expectation = persona.get("coverage_expectation", {})
-    must_elicit: List[str] = coverage_expectation.get("must_elicit", [])
-    if not must_elicit:
-        return {"score": 100, "topics": {}}
-
-    conv_text = _build_conversation_text(conversation)
     topics_block = "\n".join(f"- {t}" for t in must_elicit)
-    prompt = _DIM2_POLICY_JUDGE_PROMPT.format(
+    prompt = _ELICITATION_JUDGE_PROMPT.format(
         conversation=conv_text,
         topics_block=topics_block,
     )
-
-    provider = _pick_judges(1)[0]
     try:
         raw = await _llm_call(provider, prompt)
         parsed = _parse_json_response(raw)
         results = parsed.get("results", {})
+        # Normalise: map back to the original topic strings
         topic_map: Dict[str, bool] = {}
         for topic in must_elicit:
             topic_map[topic] = bool(results.get(topic, False))
+        return topic_map
     except Exception:
-        topic_map = {t: False for t in must_elicit}
-
-    covered = sum(1 for v in topic_map.values() if v)
-    score = int(round(covered / len(must_elicit) * 100)) if must_elicit else 100
-    return {"score": score, "topics": topic_map}
+        return {t: False for t in must_elicit}
 
 
-# ---------------------------------------------------------------------------
-# Dim 3: Disclosure (1 LLM judge)
-# ---------------------------------------------------------------------------
-
-async def _dim3_disclosure(
-    persona: dict,
+async def _axis1_elicitation(
     conversation: list,
+    coverage_expectation: dict,
 ) -> dict:
-    """Check which critical/important facts from fact_catalog were mentioned
-    anywhere in the conversation."""
-    fact_catalog = persona.get("fact_catalog", [])
-    relevant_facts = [
-        f for f in fact_catalog
-        if f.get("importance", "normal") in ("critical", "important")
-    ]
-    if not relevant_facts:
-        return {"score": 100, "facts": {}}
+    """Axis 1: Elicitation Completeness — did the interview ask about the right topics?"""
+    must_elicit: List[str] = coverage_expectation.get("must_elicit", [])
+    if not must_elicit:
+        return {"score": 1.0, "topics": {}}
 
-    conv_text = _build_conversation_text(conversation)
-
-    # Build facts block for prompt
-    facts_lines = []
-    for f in relevant_facts:
-        fid = f.get("id", f.get("fact", "?"))
-        facts_lines.append(f"- {fid}: {f.get('text', f.get('fact', ''))}")
-    facts_block = "\n".join(facts_lines)
-
-    prompt = _DIM3_DISCLOSURE_JUDGE_PROMPT.format(
-        conversation=conv_text,
-        facts_block=facts_block,
-    )
-
+    # Single LLM call to check all topics
     provider = _pick_judges(1)[0]
-    try:
-        raw = await _llm_call(provider, prompt)
-        parsed = _parse_json_response(raw)
-        results = parsed.get("results", {})
-    except Exception:
-        results = {}
+    topic_results = await _evaluate_elicitation(conversation, must_elicit, provider)
 
-    facts_out: Dict[str, dict] = {}
-    disclosed_count = 0
-    for f in relevant_facts:
-        fid = f.get("id", f.get("fact", "?"))
-        importance = f.get("importance", "normal")
-        disclosed = bool(results.get(fid, False))
-        facts_out[fid] = {"disclosed": disclosed, "importance": importance}
-        if disclosed:
-            disclosed_count += 1
+    covered = sum(1 for v in topic_results.values() if v)
+    score = (covered / len(must_elicit) * 100) if must_elicit else 100
 
-    score = int(round(disclosed_count / len(relevant_facts) * 100)) if relevant_facts else 100
-    return {"score": score, "facts": facts_out}
+    return {
+        "score": int(round(score)),
+        "topics": topic_results,
+    }
 
 
-# ---------------------------------------------------------------------------
-# Dim 4: Extraction Accuracy (3 LLM judges, majority vote)
-# ---------------------------------------------------------------------------
+# --------------- Axis 2 implementation -----------------------------------
 
-async def _dim4_judge_single(
-    record: Dict[str, str],
+async def _judge_facts_single(
+    soap: Dict[str, str],
     facts: List[dict],
     provider: dict,
 ) -> Dict[str, dict]:
-    """One LLM judge checks disclosed facts against clinical record fields."""
-    record_lines = []
-    for field, value in record.items():
-        record_lines.append(f"- {field}: {value or '（空）'}")
-    structured_dump = "\n".join(record_lines)
+    """One LLM judge checks all facts against SOAP fields."""
+    soap_lines = []
+    for field, value in soap.items():
+        soap_lines.append(f"- {field}: {value or '（空）'}")
+    soap_dump = "\n".join(soap_lines)
 
     facts_block_lines = []
     for f in facts:
         fid = f.get("id", f.get("fact", "?"))
         facts_block_lines.append(
-            f"- {fid} (期望字段: {f.get('field', f.get('expected_field', '未指定'))}): "
-            f"{f.get('text', f.get('fact', ''))}"
+            f"- {fid} (期望字段: {f.get('field', f.get('expected_field', '未指定'))}): {f.get('text', f.get('fact', ''))}"
         )
     facts_block = "\n".join(facts_block_lines)
 
-    prompt = _DIM4_EXTRACTION_JUDGE_PROMPT.format(
-        structured_dump=structured_dump,
+    prompt = _FACT_MATCH_JUDGE_PROMPT.format(
+        soap_dump=soap_dump,
         facts_block=facts_block,
     )
     label = provider.get("label", provider.get("model", "?"))
@@ -582,199 +422,194 @@ async def _dim4_judge_single(
         return out
 
 
-async def _dim4_extraction_accuracy(
-    record: Dict[str, str],
-    dim3_result: dict,
+async def _axis2_extraction(
+    soap: Dict[str, str],
     fact_catalog: List[dict],
 ) -> dict:
-    """Of the facts that dim3 said were disclosed, how many are captured in
-    clinical record fields? Uses 3 LLM judges with majority vote."""
-    # Only evaluate facts where dim3 said disclosed=true
-    disclosed_ids = {
-        fid for fid, info in dim3_result.get("facts", {}).items()
-        if info.get("disclosed")
-    }
-    if not disclosed_ids:
-        return {"score": 100, "facts": {}}
-
-    # Build the subset of fact_catalog that was disclosed
-    disclosed_facts = [
+    """Axis 2: Extraction Fidelity — did the system capture what the patient said?"""
+    # Filter to critical + important facts only
+    relevant_facts = [
         f for f in fact_catalog
-        if f.get("id", f.get("fact", "?")) in disclosed_ids
+        if f.get("importance", "normal") in ("critical", "important")
     ]
-    if not disclosed_facts:
-        return {"score": 100, "facts": {}}
+    if not relevant_facts:
+        return {"score": 1.0, "facts": {}}
 
     # 3 LLM judges, majority vote
     providers = _pick_judges(3)
     all_results = await asyncio.gather(*[
-        _dim4_judge_single(record, disclosed_facts, p) for p in providers
+        _judge_facts_single(soap, relevant_facts, p)
+        for p in providers
     ])
 
+    # Majority vote per fact
     facts_out: Dict[str, dict] = {}
-    captured_count = 0
+    any_critical_missing = False
 
-    for f in disclosed_facts:
+    for f in relevant_facts:
         fid = f.get("id", f.get("fact", "?"))
+        expected_field = f.get("field", f.get("expected_field", ""))
         importance = f.get("importance", "normal")
 
         votes = [r.get(fid, {}).get("match", False) for r in all_results]
-        captured = sum(votes) >= 2  # majority
+        match = sum(votes) >= 2  # majority
 
-        found_in_votes = [
-            r.get(fid, {}).get("found_in")
-            for r in all_results if r.get(fid, {}).get("match")
-        ]
+        # Determine found_in from majority of judges that said match
+        found_in_votes = [r.get(fid, {}).get("found_in") for r in all_results if r.get(fid, {}).get("match")]
         found_in = found_in_votes[0] if found_in_votes else None
 
+        # Classify: correct field, wrong field, or missed
+        if match and found_in == expected_field:
+            location = "correct_field"
+        elif match and found_in and found_in != expected_field:
+            location = "wrong_field"
+        elif match:
+            location = "found"  # matched but no specific field info
+        else:
+            location = "missed"
+            if importance == "critical":
+                any_critical_missing = True
+
         facts_out[fid] = {
-            "disclosed": True,
-            "captured": captured,
+            "expected_field": expected_field,
             "found_in": found_in,
+            "match": match,
+            "votes": votes,
+            "location": location,
             "importance": importance,
         }
-        if captured:
-            captured_count += 1
 
-    score = int(round(captured_count / len(disclosed_facts) * 100)) if disclosed_facts else 100
-    return {"score": score, "facts": facts_out}
+    matched_count = sum(1 for v in facts_out.values() if v["match"])
+    score = (matched_count / len(relevant_facts) * 100) if relevant_facts else 100
+
+    return {
+        "score": int(round(score)),
+        "facts": facts_out,
+        "any_critical_missing": any_critical_missing,
+    }
 
 
-# ---------------------------------------------------------------------------
-# Dim 5: Record Quality (deterministic CC + 1 LLM hallucination check)
-# ---------------------------------------------------------------------------
+# --------------- Axis 3 implementation -----------------------------------
 
-async def _dim5_record_quality(
-    record: Dict[str, str],
-    conversation: list,
+async def _axis3_nhc_compliance(
+    soap: Dict[str, str],
+    record_expectation: dict,
 ) -> dict:
-    """Chief complaint format checks (deterministic) + hallucination detection
-    (1 LLM judge)."""
-    cc_text = record.get("chief_complaint", "")
+    """Axis 3: NHC Record Quality — is the final record properly structured?"""
+    result: Dict[str, Any] = {"score": 0.0}
 
-    # --- Chief complaint checks (deterministic) ---
-    cc_length = len(cc_text)
-    cc_max_chars = 20
+    # --- chief_complaint checks (deterministic) ---
+    cc_expect = record_expectation.get("chief_complaint", {})
+    cc_text = soap.get("chief_complaint", "")
+    cc_max_chars = cc_expect.get("max_chars", 30)
+    cc_require_duration = cc_expect.get("require_duration", True)
+    cc_acceptable_variants = cc_expect.get("acceptable_variants", [])
 
+    cc_checks: Dict[str, Any] = {}
+    cc_checks["length_ok"] = len(cc_text) <= cc_max_chars if cc_text else False
+    cc_checks["actual_length"] = len(cc_text)
+    cc_checks["max_chars"] = cc_max_chars
+
+    # Duration check: look for common Chinese duration patterns
     duration_pattern = re.compile(
         r"(\d+\s*(天|日|周|月|年|小时|分钟|个月|余年|余月|余天))"
         r"|(\d+[天日周月年])"
         r"|(半[天月年])"
     )
     has_duration = bool(duration_pattern.search(cc_text)) if cc_text else False
+    cc_checks["has_duration"] = has_duration
+    cc_checks["duration_required"] = cc_require_duration
+    cc_checks["duration_ok"] = has_duration or not cc_require_duration
 
-    cc_pass = (cc_length <= cc_max_chars) and has_duration if cc_text else False
+    # Variant match: check if CC matches any acceptable variant
+    if cc_acceptable_variants and cc_text:
+        variant_matched = any(v in cc_text or cc_text in v for v in cc_acceptable_variants)
+        cc_checks["variant_matched"] = variant_matched
+    else:
+        cc_checks["variant_matched"] = True  # no variants specified = pass
 
-    # --- Hallucination check (1 LLM judge) ---
-    conv_text = _build_conversation_text(conversation)
-    record_lines = []
-    for field, value in record.items():
-        if value and value.strip():
-            record_lines.append(f"- {field}: {value}")
-    structured_dump = "\n".join(record_lines) if record_lines else "（所有字段为空）"
+    # CC score: all checks must pass
+    cc_pass_count = sum([
+        cc_checks["length_ok"],
+        cc_checks["duration_ok"],
+        cc_checks["variant_matched"],
+    ])
+    cc_score = cc_pass_count / 3.0
+    cc_checks["score"] = round(cc_score, 3)
+    result["chief_complaint"] = cc_checks
 
-    prompt = _DIM5_HALLUCINATION_JUDGE_PROMPT.format(
-        conversation=conv_text,
-        structured_dump=structured_dump,
-    )
+    # --- present_illness + past_history checks (LLM judge) ---
+    # Filter subsections by status: only check required and required_if_available.
+    # Skip not_applicable and required_if_asked (negative findings like "无手术史").
+    _CHECKABLE = {"required", "required_if_available"}
 
-    provider = _pick_judges(1)[0]
-    hallucinations: List[dict] = []
-    try:
-        raw = await _llm_call(provider, prompt)
-        parsed = _parse_json_response(raw)
-        hallucinations = parsed.get("hallucinations", [])
-    except Exception:
-        pass
+    def _get_checkable_subsections(field_expect: dict) -> List[str]:
+        subs = field_expect.get("subsections", {})
+        if isinstance(subs, list):
+            return subs  # backward compat: flat list
+        return [name for name, cfg in subs.items()
+                if isinstance(cfg, dict) and cfg.get("status", "") in _CHECKABLE]
 
-    # Score: CC checks worth 50, hallucination-free worth 50
-    cc_score_part = 50 if cc_pass else (25 if (cc_length <= cc_max_chars or has_duration) else 0)
-    hallucination_score_part = 50 if not hallucinations else 0
-    score = cc_score_part + hallucination_score_part
+    pi_expect = record_expectation.get("present_illness", {})
+    ph_expect = record_expectation.get("past_history", {})
+    pi_subsections = _get_checkable_subsections(pi_expect)
+    ph_subsections = _get_checkable_subsections(ph_expect)
 
-    return {
-        "score": score,
-        "chief_complaint": {
-            "length": cc_length,
-            "max_chars": cc_max_chars,
-            "has_duration": has_duration,
-            "pass": cc_pass,
-        },
-        "hallucinations": hallucinations,
+    pi_text = soap.get("present_illness", "")
+    ph_text = soap.get("past_history", "")
+
+    if pi_subsections or ph_subsections:
+        provider = _pick_judges(1)[0]
+        prompt = _NHC_COMPLIANCE_JUDGE_PROMPT.format(
+            present_illness=pi_text or "（空）",
+            past_history=ph_text or "（空）",
+            pi_subsections="\n".join(f"- {s}" for s in pi_subsections) if pi_subsections else "（无需检查）",
+            ph_subsections="\n".join(f"- {s}" for s in ph_subsections) if ph_subsections else "（无需检查）",
+        )
+        try:
+            raw = await _llm_call(provider, prompt)
+            parsed = _parse_json_response(raw)
+        except Exception:
+            parsed = {}
+
+        # Present illness subsection results
+        pi_results = parsed.get("present_illness", {})
+        pi_covered: Dict[str, bool] = {}
+        for s in pi_subsections:
+            pi_covered[s] = bool(pi_results.get(s, False))
+        pi_score = (sum(pi_covered.values()) / len(pi_subsections)) if pi_subsections else 1.0
+
+        # Past history subsection results
+        ph_results = parsed.get("past_history", {})
+        ph_covered: Dict[str, bool] = {}
+        for s in ph_subsections:
+            ph_covered[s] = bool(ph_results.get(s, False))
+        ph_score = (sum(ph_covered.values()) / len(ph_subsections)) if ph_subsections else 1.0
+    else:
+        pi_covered = {}
+        pi_score = 1.0
+        ph_covered = {}
+        ph_score = 1.0
+
+    result["present_illness"] = {
+        "subsections": pi_covered,
+        "score": round(pi_score, 3),
+    }
+    result["past_history"] = {
+        "subsections": ph_covered,
+        "score": round(ph_score, 3),
     }
 
+    # --- NHC score (0-100 scale) ---
+    # Only chief_complaint format is scored per Article 13 (outpatient).
+    # Present illness / past history subsection coverage is informational
+    # (the 5-subsection breakdown is Article 18, inpatient only).
+    result["score"] = int(round(cc_score * 100))
 
-# ---------------------------------------------------------------------------
-# validate_interview — 5-dimension evaluation orchestrator
-# ---------------------------------------------------------------------------
-
-async def validate_interview(
-    persona: dict,
-    db_path: str,
-    record_id: int,
-    conversation: list,
-) -> dict:
-    """Evaluate an interview across 5 dimensions.
-
-    Dim 1: 模拟器忠实度 (Simulator Fidelity) — deterministic keyword match
-    Dim 2: 问诊策略 (Interview Policy) — 1 LLM judge
-    Dim 3: 信息披露 (Disclosure) — 1 LLM judge
-    Dim 4: 提取准确度 (Extraction Accuracy) — 3 LLM judges, majority vote
-    Dim 5: 记录质量 (Record Quality) — deterministic CC + 1 LLM hallucination
-
-    Returns {
-        'pass': bool,
-        'combined_score': int (0-100),
-        'dimensions': {
-            'dim1_simulator_fidelity': {...},
-            'dim2_interview_policy': {...},
-            'dim3_disclosure': {...},
-            'dim4_extraction_accuracy': {...},
-            'dim5_record_quality': {...},
-        }
-    }
-    """
-    record = _load_record_from_db(record_id, db_path)
-
-    # --- Dim 2 & 3 can run concurrently (independent LLM calls) ---
-    dim2_task = _dim2_interview_policy(persona, conversation)
-    dim3_task = _dim3_disclosure(persona, conversation)
-    dim2, dim3 = await asyncio.gather(dim2_task, dim3_task)
-
-    # --- Dim 4 depends on dim3 result ---
-    fact_catalog = persona.get("fact_catalog", [])
-    dim4 = await _dim4_extraction_accuracy(record, dim3, fact_catalog)
-
-    # --- Dim 5 runs independently ---
-    dim5 = await _dim5_record_quality(record, conversation)
-
-    # --- Combined score: weighted average (4 dimensions) ---
-    # 问诊策略 20% + 信息披露 25% + 提取准确度 35% + 记录质量 20%
-    combined_score = int(round(
-        dim2["score"] * 0.20
-        + dim3["score"] * 0.25
-        + dim4["score"] * 0.35
-        + dim5["score"] * 0.20
-    ))
-
-    # --- Pass criteria ---
-    no_hallucinations = len(dim5.get("hallucinations", [])) == 0
-    dim4_sufficient = dim4["score"] >= 60
-    passed = no_hallucinations and dim4_sufficient
-
-    return {
-        "pass": passed,
-        "combined_score": combined_score,
-        "dimensions": {
-            "dim2_interview_policy": dim2,
-            "dim3_disclosure": dim3,
-            "dim4_extraction_accuracy": dim4,
-            "dim5_record_quality": dim5,
-        },
-    }
+    return result
 
 
-# --------------- Tier 2 backward-compatible wrapper -----------------------
+# --------------- Tier 2 orchestrator -------------------------------------
 
 async def validate_tier2(
     persona: dict,
@@ -782,110 +617,99 @@ async def validate_tier2(
     record_id: int,
     conversation: list,
 ) -> dict:
-    """Backward-compatible wrapper: delegates to validate_interview and
-    reshapes the result to include the dimensions key plus top-level
-    combined_score and pass."""
-    result = await validate_interview(persona, db_path, record_id, conversation)
-    return result
+    """3-axis hybrid scorecard validation.
 
+    Axis 1: Elicitation Completeness — did the AI ask about the right topics?
+    Axis 2: Extraction Fidelity — did the system capture what the patient said?
+    Axis 3: NHC Record Quality — is the final record properly structured?
 
-# ---------------------------------------------------------------------------
-# AI Report Analysis — 2 analysts review full results and provide suggestions
-# ---------------------------------------------------------------------------
-
-_ANALYST_PROMPT = """\
-请直接回答，不要输出思考过程。
-
-你是一位医疗AI系统的高级质量分析师。请分析以下患者预问诊模拟测试的完整结果，并提供结构化的分析报告。
-
-## 测试概览
-- 通过: {passed}/{total}
-- 患者模型: {patient_llm}
-
-## 各角色结果摘要
-{persona_summaries}
-
-## 请提供以下分析
-
-### 1. 关键发现（3-5条）
-列出最重要的系统问题，按严重程度排序。每条包含：具体表现、影响范围、根本原因推测。
-
-### 2. 优势（2-3条）
-系统做得好的方面。
-
-### 3. 改进建议（3-5条）
-具体、可操作的改进建议，按优先级排序。每条说明：改什么、为什么、预期效果。
-
-### 4. 一句话总结
-用一句话概括这次测试的核心结论。
-
-请用中文回答，保持简洁专业。直接输出分析内容，不要输出JSON。
-"""
-
-
-async def analyze_results(results: list, patient_llm: str) -> list:
-    """Run 2 AI analysts (different models) on the full simulation results.
-
-    Returns a list of {"model": str, "analysis": str} dicts.
+    Returns {
+        'pass': bool,
+        'elicitation': {'score': float, 'topics': {topic: bool}},
+        'extraction': {'score': float, 'facts': {id: {...}}},
+        'nhc_compliance': {'score': float, 'chief_complaint': {...}, ...},
+        'combined_score': int (0-100),
+    }
     """
-    passed = sum(1 for r in results if r.get("pass"))
-    total = len(results)
+    soap = _load_soap_from_db(record_id, db_path)
 
-    # Build persona summaries
-    summaries = []
-    for r in results:
-        p = r.get("persona", {})
-        t2 = r.get("tier2", {})
-        dims = t2.get("dimensions", {})
-        t3 = r.get("tier3", {})
-        collected = r.get("collected", {})
+    # Read persona expectation sections (new schema)
+    coverage_expectation = persona.get("coverage_expectation", {})
+    fact_catalog = persona.get("fact_catalog", [])
+    record_expectation = persona.get("record_expectation", {})
 
-        icon = "✓" if r.get("pass") else "✗"
-        d2 = dims.get("dim2_interview_policy", {}).get("score", "?")
-        d3 = dims.get("dim3_disclosure", {}).get("score", "?")
-        d4 = dims.get("dim4_extraction_accuracy", {}).get("score", "?")
-        d5 = dims.get("dim5_record_quality", {}).get("score", "?")
+    # --- Backward compatibility: derive from old schema if new keys absent ---
+    if not coverage_expectation and persona.get("checklist"):
+        checklist = persona["checklist"]
+        coverage_expectation = {
+            "must_elicit": checklist.get("must_ask", []),
+            "min_coverage": checklist.get("min_coverage", 0.6),
+        }
 
-        cc = collected.get("chief_complaint", "")
-        pi_len = len(collected.get("present_illness", ""))
+    if not fact_catalog and persona.get("expected_extracted"):
+        # Convert old {field: [keywords]} to fact_catalog list
+        idx = 0
+        for field, keywords in persona["expected_extracted"].items():
+            for kw in keywords:
+                fact_catalog.append({
+                    "id": f"legacy_{idx}",
+                    "fact": kw,
+                    "expected_field": field,
+                    "importance": "important",
+                })
+                idx += 1
 
-        summary = (
-            f"{icon} {p.get('id')} {p.get('name')} ({p.get('condition', '')})\n"
-            f"  轮次={r.get('turns')} 综合={t2.get('combined_score', '?')} "
-            f"问诊={d2} 披露={d3} 提取={d4} 质量={d5} "
-            f"质量评分={t3.get('score', '?')}/10\n"
-            f"  主诉: {cc[:40]}\n"
-            f"  现病史: {pi_len}字"
-        )
-        summaries.append(summary)
+    if not record_expectation:
+        record_expectation = {
+            "chief_complaint": {"max_chars": 30, "require_duration": True},
+            "present_illness": {"subsections": []},
+            "past_history": {"subsections": []},
+        }
 
-    prompt = _ANALYST_PROMPT.format(
-        passed=passed,
-        total=total,
-        patient_llm=patient_llm,
-        persona_summaries="\n\n".join(summaries),
+    # Run all 3 axes concurrently
+    axis1_task = _axis1_elicitation(conversation, coverage_expectation)
+    axis2_task = _axis2_extraction(soap, fact_catalog)
+    axis3_task = _axis3_nhc_compliance(soap, record_expectation)
+
+    elicitation, extraction, nhc_compliance = await asyncio.gather(
+        axis1_task, axis2_task, axis3_task,
     )
 
-    # Pick 2 different models for independent analysis
-    all_judges = _pick_judges(5)
-    # Use first 2 distinct models
-    seen_models = set()
-    analysts = []
-    for j in all_judges:
-        if j["model"] not in seen_models and len(analysts) < 2:
-            analysts.append(j)
-            seen_models.add(j["model"])
+    # --- Combined score (0-100) ---
+    # Weights: elicitation 30%, extraction 40%, NHC compliance 30%
+    combined_score = int(round(
+        elicitation["score"] * 0.3
+        + extraction["score"] * 0.4
+        + nhc_compliance["score"] * 0.3
+    ))
 
-    # Run both analysts concurrently
-    async def _run_analyst(provider: dict) -> dict:
-        try:
-            raw = await _llm_call(provider, prompt, temperature=0.3)
-            return {"model": provider["label"], "analysis": raw}
-        except Exception as e:
-            return {"model": provider["label"], "analysis": f"分析失败: {e}"}
+    # --- Hard-fail conditions ---
+    cc_text = soap.get("chief_complaint", "")
+    hard_fail_cc_length = len(cc_text) > 30
+    hard_fail_critical_missing = extraction.get("any_critical_missing", False)
+    min_coverage_pct = int(coverage_expectation.get("min_coverage", 0.5) * 100)
+    hard_fail_elicitation = elicitation["score"] < 50  # scores are now 0-100
 
-    results_out = await asyncio.gather(*[_run_analyst(a) for a in analysts])
-    return list(results_out)
+    has_hard_fail = hard_fail_cc_length or hard_fail_critical_missing or hard_fail_elicitation
+
+    # --- Pass criteria ---
+    # All critical facts captured AND elicitation >= min_coverage AND no hard fails
+    all_critical_captured = not hard_fail_critical_missing
+    elicitation_sufficient = elicitation["score"] >= min_coverage_pct
+    passed = all_critical_captured and elicitation_sufficient and not has_hard_fail
+
+    return {
+        "pass": passed,
+        "elicitation": elicitation,
+        "extraction": extraction,
+        "nhc_compliance": nhc_compliance,
+        "combined_score": combined_score,
+        "hard_fails": {
+            "cc_over_30_chars": hard_fail_cc_length,
+            "critical_fact_missing": hard_fail_critical_missing,
+            "elicitation_below_50pct": hard_fail_elicitation,
+        },
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -1002,9 +826,9 @@ _ANOMALY_REVIEW_PROMPT = """\
 ## 患者信息
 姓名：{name}，{condition}
 
-## 数据库中存储的完整结构化字段（病历字段）
+## 数据库中存储的完整结构化字段（SOAP）
 以下是数据库中实际存储的所有字段及其值。审查时必须逐字段核对，不要凭印象判断。
-{structured_dump}
+{soap_dump}
 
 ## 对话记录
 {transcript}
@@ -1013,7 +837,7 @@ _ANOMALY_REVIEW_PROMPT = """\
 
 ### 关于"提取遗漏"的判定标准
 在判定"提取遗漏"之前，你必须：
-1. 逐一检查上面列出的每个病历字段的值
+1. 逐一检查上面列出的每个SOAP字段的值
 2. 如果患者提到的信息出现在**任何**字段中（哪怕不是你预期的字段），则**不是**遗漏
 3. 信息可能被改写、概括或用医学术语替代——只要语义等价就算已提取
 4. 例如：患者说"做康复训练"，如果present_illness中有"康复训练"或"康复治疗"或类似表述，则不是遗漏
@@ -1029,7 +853,7 @@ _ANOMALY_REVIEW_PROMPT = """\
 ### 检查类型
 1. **内容重复**：同一字段中是否有重复或近义重复的内容（如同一事实用不同措辞出现两次）
 2. **系统错误**：对话中是否出现系统错误消息（如"系统繁忙"、"请稍后再试"）
-3. **提取遗漏**：（按上述严格标准判定）患者明确提到但所有病历字段中均无体现的重要临床信息
+3. **提取遗漏**：（按上述严格标准判定）患者明确提到但所有SOAP字段中均无体现的重要临床信息
 4. **提取错误**：（按上述严格标准判定）结构化字段中出现患者从未提到的信息
 5. **字段错位**：信息被存储到了错误的字段中（如家族史写进了个人史）
 6. **对话质量**：AI是否重复提问、忽略患者回答、或在收集完信息后仍继续提问
@@ -1048,12 +872,12 @@ async def validate_tier4(
     record_id: int,
 ) -> dict:
     """Anomaly review — 3 LLM judges inspect DB + conversation for issues."""
-    record = _load_record_from_db(record_id, db_path)
-    record_lines = []
-    for field, value in record.items():
+    soap = _load_soap_from_db(record_id, db_path)
+    soap_lines = []
+    for field, value in soap.items():
         if value and value.strip():
-            record_lines.append(f"- {field}: {value}")
-    structured_dump = "\n".join(record_lines) if record_lines else "（所有字段为空）"
+            soap_lines.append(f"- {field}: {value}")
+    soap_dump = "\n".join(soap_lines) if soap_lines else "（所有字段为空）"
 
     transcript_lines = []
     for turn in conversation:
@@ -1065,7 +889,7 @@ async def validate_tier4(
     prompt = _ANOMALY_REVIEW_PROMPT.format(
         name=persona.get("name", "?"),
         condition=persona.get("condition", "?"),
-        structured_dump=structured_dump,
+        soap_dump=soap_dump,
         transcript=transcript,
     )
 

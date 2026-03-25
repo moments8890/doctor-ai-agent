@@ -41,24 +41,6 @@ def _tier1_summary(result: dict) -> str:
     return "PASS" if t1.get("pass") else "FAIL"
 
 
-def _tier2_dim_scores(result: dict) -> Dict[str, int]:
-    """Return per-dimension scores from tier2, -1 if unavailable."""
-    t2 = result.get("tier2", {})
-    dims = t2.get("dimensions", {})
-    # Support both prefixed (dim1_xxx) and unprefixed (xxx) key formats
-    _MAP = {
-        "interview_policy": "dim2_interview_policy",
-        "disclosure": "dim3_disclosure",
-        "extraction": "dim4_extraction_accuracy",
-        "record_quality": "dim5_record_quality",
-    }
-    out: Dict[str, int] = {}
-    for short, prefixed in _MAP.items():
-        d = dims.get(prefixed, dims.get(short, {}))
-        out[short] = d.get("score", -1)
-    return out
-
-
 def _tier2_summary(result: dict) -> int:
     """Return combined_score from tier2 (0-100), or -1 if unavailable."""
     t2 = result.get("tier2", {})
@@ -79,29 +61,13 @@ def _overall_result(result: dict) -> str:
     return "PASS" if (t1 and t2) else "FAIL"
 
 
-def _dim_score_badge(score: int) -> str:
-    """Return a compact coloured badge for a dimension score (0-100).
-
-    Thresholds: green >= 80, yellow >= 60, red < 60.
-    """
-    if score < 0:
-        return '<span class="badge na">—</span>'
-    if score >= 80:
-        cls = "score-green"
-    elif score >= 60:
-        cls = "score-yellow"
-    else:
-        cls = "score-red"
-    return f'<span class="badge {cls}">{score}</span>'
-
-
 def _score_badge(score: int) -> str:
     """Return a coloured badge for a 0-100 combined score."""
     if score < 0:
         return '<span class="badge na">N/A</span>'
-    if score >= 80:
+    if score >= 70:
         cls = "score-green"
-    elif score >= 60:
+    elif score >= 50:
         cls = "score-yellow"
     else:
         cls = "score-red"
@@ -162,283 +128,247 @@ nav.toc ul { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: 
 .badge.score-green  { background: #d4edda; color: #155724; }
 .badge.score-yellow { background: #fff3cd; color: #856404; }
 .badge.score-red    { background: #f8d7da; color: #721c24; }
-.scorecard { padding: 12px 16px; }
-.dim-section { margin-bottom: 16px; border: 1px solid #e0e0e0; border-radius: 6px; overflow: hidden; }
-.dim-header { background: #fafafa; font-weight: 600; font-size: 0.88rem; padding: 8px 12px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
-.dim-header:hover { background: #f0f0f0; }
-.dim-body { padding: 10px 12px; font-size: 0.84rem; }
+.scorecard { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 12px 16px; }
+@media (max-width: 760px) { .scorecard { grid-template-columns: 1fr; } }
+.panel { border: 1px solid #e0e0e0; border-radius: 6px; overflow: hidden; }
+.panel-header { background: #fafafa; font-weight: 600; font-size: 0.88rem; padding: 8px 12px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; }
+.panel-body { padding: 10px 12px; font-size: 0.84rem; }
+.panel-full { grid-column: 1 / -1; }
 .topic-grid { display: flex; flex-wrap: wrap; gap: 4px 12px; }
 .topic-item { white-space: nowrap; }
 .topic-item.covered { color: #155724; }
 .topic-item.missed  { color: #dc3545; font-weight: 600; }
-.fact-list { list-style: none; padding: 0; margin: 0; font-size: 0.84rem; }
-.fact-list li { padding: 2px 0; }
-.fact-list li.ok { color: #155724; }
-.fact-list li.miss { color: #dc3545; font-weight: 600; }
 .fact-critical-miss { background: #f8d7da; }
 .fact-important-miss { background: #fff3cd; }
+.fact-wrong-field { background: #ffeeba; }
 .nhc-section { margin-bottom: 8px; }
 .nhc-section-title { font-weight: 600; margin-bottom: 2px; }
 .nhc-checks { display: flex; flex-wrap: wrap; gap: 2px 14px; }
 .nhc-check.ok   { color: #155724; }
 .nhc-check.fail { color: #dc3545; font-weight: 600; }
 .nhc-check.hint { color: #0d6efd; font-style: italic; }
-.combined-score-bar { text-align: right; padding: 8px 12px; font-size: 0.9rem; border-top: 1px solid #e0e0e0; margin-top: 8px; }
-.summary-dim { text-align: center !important; padding: 6px 8px !important; }
-.summary-dim-header { text-align: center !important; font-size: 0.78rem !important; padding: 6px 8px !important; }
-.importance-badge { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 0.74rem; font-weight: 600; }
-.importance-critical { background: #f8d7da; color: #721c24; }
-.importance-important { background: #fff3cd; color: #856404; }
-.importance-normal { background: #e2e3e5; color: #383d41; }
-.hallucination-list { color: #dc3545; font-weight: 600; }
 """
 
 
-# ---------------------------------------------------------------------------
-# 5-dimension scorecard panels
-# ---------------------------------------------------------------------------
-
-def _build_dim_simulator_fidelity(dim: dict) -> str:
-    """Dimension 1: 模拟器忠实度 — did patient volunteer the right facts?"""
-    facts = dim.get("facts", {})
-    score = dim.get("score", -1)
-    if not facts and score < 0:
+def _build_elicitation_panel(elicitation: dict) -> str:
+    """Panel A: Elicitation — did the interview ask about each must-elicit topic?"""
+    topics = elicitation.get("topics", {})
+    if not topics:
         return ""
+    covered = sum(1 for v in topics.values() if v)
+    total = len(topics)
+    score_str = f"{covered}/{total} 个话题已覆盖"
 
-    items: list[str] = []
-    for fact_id, info in facts.items():
-        disclosed = info.get("disclosed", False)
-        cls = "ok" if disclosed else "miss"
-        icon = "✓" if disclosed else "✗"
-        items.append(f'<li class="{cls}">{icon} {_esc(fact_id)}</li>')
-
-    score_html = _dim_score_badge(score)
-    return (
-        '<details class="dim-section" open>'
-        f'<summary class="dim-header"><span>1. 模拟器忠实度</span>{score_html}</summary>'
-        f'<div class="dim-body"><ul class="fact-list">{"".join(items)}</ul></div>'
-        '</details>'
-    )
-
-
-def _build_dim_interview_policy(dim: dict) -> str:
-    """Dimension 2: 问诊策略 — did the AI ask about each must-elicit topic?"""
-    topics = dim.get("topics", {})
-    score = dim.get("score", -1)
-    if not topics and score < 0:
-        return ""
-
-    items: list[str] = []
+    items = []
     for topic, ok in topics.items():
         cls = "covered" if ok else "missed"
         icon = "✓" if ok else "✗"
         items.append(f'<span class="topic-item {cls}">{icon} {_esc(topic)}</span>')
 
-    score_html = _dim_score_badge(score)
     return (
-        '<details class="dim-section" open>'
-        f'<summary class="dim-header"><span>2. 问诊策略</span>{score_html}</summary>'
-        f'<div class="dim-body"><div class="topic-grid">{"".join(items)}</div></div>'
-        '</details>'
+        '<div class="panel">'
+        '<div class="panel-header"><span>A. 问诊覆盖度 — AI是否询问了关键话题？</span>'
+        f'<span class="badge {"score-green" if covered == total else "score-yellow" if covered >= total * 0.6 else "score-red"}">{_esc(score_str)}</span></div>'
+        f'<div class="panel-body"><div class="topic-grid">{"".join(items)}</div></div>'
+        '</div>'
     )
 
 
-def _build_dim_disclosure(dim: dict) -> str:
-    """Dimension 3: 信息披露 — were critical/important facts mentioned in conversation?"""
-    facts = dim.get("facts", {})
-    score = dim.get("score", -1)
-    if not facts and score < 0:
+def _build_extraction_panel(extraction: dict) -> str:
+    """Panel B: Extraction Fidelity — did the system capture each fact?"""
+    facts = extraction.get("facts", {})
+    if not facts:
         return ""
 
-    # Filter to critical + important only
-    filtered = {
-        fid: info for fid, info in facts.items()
-        if info.get("importance", "normal") in ("critical", "important")
-    }
-    if not filtered:
-        # Fall back to showing all if no importance info
-        filtered = facts
+    # Count critical/important stats
+    critical_total = 0
+    critical_match = 0
+    for _fid, info in facts.items():
+        imp = info.get("importance", "normal")
+        if imp == "critical":
+            critical_total += 1
+            if info.get("match"):
+                critical_match += 1
 
-    rows: list[str] = []
-    for fid, info in filtered.items():
+    total = len(facts)
+    matched = sum(1 for v in facts.values() if v.get("match"))
+    score_str = f"{matched}/{total} 条事实已提取"
+    if critical_total:
+        score_str += f"（{critical_match}/{critical_total} 关键）"
+
+    rows = []
+    for fid, info in facts.items():
         importance = info.get("importance", "normal")
-        disclosed = info.get("disclosed", False)
-        icon = "✓" if disclosed else "✗"
-
-        imp_cls = f"importance-{importance}"
-        imp_label = {"critical": "关键", "important": "重要", "normal": "一般"}.get(importance, importance)
-
-        row_cls = ""
-        if not disclosed and importance == "critical":
-            row_cls = "fact-critical-miss"
-        elif not disclosed and importance == "important":
-            row_cls = "fact-important-miss"
-
-        rows.append(
-            f'<tr class="{row_cls}">'
-            f'<td>{_esc(fid)}</td>'
-            f'<td><span class="importance-badge {imp_cls}">{_esc(imp_label)}</span></td>'
-            f'<td><span class="badge {"pass" if disclosed else "fail"}">{icon}</span></td>'
-            f'</tr>'
-        )
-
-    score_html = _dim_score_badge(score)
-    return (
-        '<details class="dim-section" open>'
-        f'<summary class="dim-header"><span>3. 信息披露</span>{score_html}</summary>'
-        '<div class="dim-body">'
-        '<table><tr><th>事实ID</th><th>重要性</th><th>对话中提到</th></tr>'
-        + "".join(rows)
-        + '</table></div>'
-        '</details>'
-    )
-
-
-def _build_dim_extraction(dim: dict) -> str:
-    """Dimension 4: 提取准确度 — did the system capture disclosed facts?"""
-    facts = dim.get("facts", {})
-    score = dim.get("score", -1)
-    if not facts and score < 0:
-        return ""
-
-    # Only show facts where disclosed=true
-    disclosed_facts = {
-        fid: info for fid, info in facts.items()
-        if info.get("disclosed", False)
-    }
-
-    rows: list[str] = []
-    for fid, info in disclosed_facts.items():
-        importance = info.get("importance", "normal")
-        disclosed = info.get("disclosed", False)
-        captured = info.get("captured", False)
+        expected_field = info.get("expected_field", "")
         found_in = info.get("found_in", "")
+        match = info.get("match", False)
 
-        imp_cls = f"importance-{importance}"
-        imp_label = {"critical": "关键", "important": "重要", "normal": "一般"}.get(importance, importance)
-
-        disclosed_icon = "✓" if disclosed else "✗"
-        captured_icon = "✓" if captured else "✗"
-
-        # Red highlight for disclosed but not captured
-        row_cls = ""
-        if disclosed and not captured:
-            if importance == "critical":
-                row_cls = "fact-critical-miss"
+        icon = "✓" if match else "✗"
+        if match:
+            if found_in and expected_field and found_in != expected_field:
+                row_cls = "fact-wrong-field"
             else:
-                row_cls = "fact-important-miss"
+                row_cls = ""
+        elif importance == "critical":
+            row_cls = "fact-critical-miss"
+        elif importance == "important":
+            row_cls = "fact-important-miss"
+        else:
+            row_cls = ""
+
+        imp_badge = ""
+        if importance == "critical":
+            imp_badge = '<span class="badge fail">关键</span>'
+        elif importance == "important":
+            imp_badge = '<span class="badge na">重要</span>'
+        else:
+            imp_badge = '<span class="badge pass">一般</span>'
 
         rows.append(
             f'<tr class="{row_cls}">'
-            f'<td>{_esc(fid)}</td>'
-            f'<td><span class="importance-badge {imp_cls}">{_esc(imp_label)}</span></td>'
-            f'<td><span class="badge {"pass" if disclosed else "fail"}">{disclosed_icon}</span></td>'
-            f'<td><span class="badge {"pass" if captured else "fail"}">{captured_icon}</span></td>'
-            f'<td>{_esc(found_in) if found_in else "—"}</td>'
-            f'</tr>'
+            f"<td>{_esc(fid)}</td>"
+            f"<td>{imp_badge}</td>"
+            f"<td>{_esc(expected_field)}</td>"
+            f"<td>{_esc(found_in) if found_in else '—'}</td>"
+            f'<td><span class="badge {"pass" if match else "fail"}">{icon}</span></td>'
+            f"</tr>"
         )
 
-    score_html = _dim_score_badge(score)
     return (
-        '<details class="dim-section" open>'
-        f'<summary class="dim-header"><span>4. 提取准确度</span>{score_html}</summary>'
-        '<div class="dim-body">'
-        '<table><tr><th>事实ID</th><th>重要性</th><th>已披露</th><th>已提取</th><th>所在字段</th></tr>'
-        + "".join(rows)
-        + '</table></div>'
-        '</details>'
+        '<div class="panel panel-full">'
+        '<div class="panel-header"><span>B. 提取准确度 — 系统是否正确提取？</span>'
+        f'<span class="badge {"score-green" if matched == total else "score-yellow" if matched >= total * 0.6 else "score-red"}">{_esc(score_str)}</span></div>'
+        '<div class="panel-body">'
+        '<table><tr><th>事实</th><th>重要性</th><th>预期字段</th><th>实际字段</th><th>匹配</th></tr>'
+        + "".join(rows) + '</table>'
+        '</div></div>'
     )
 
 
-def _build_dim_record_quality(dim: dict) -> str:
-    """Dimension 5: 记录质量 — CC checks and hallucinations."""
-    score = dim.get("score", -1)
-    cc = dim.get("chief_complaint", {})
-    hallucinations = dim.get("hallucinations", [])
-    if score < 0 and not cc and not hallucinations:
+def _build_nhc_panel(nhc: dict) -> str:
+    """Panel C: NHC Record Quality — compliance with formatting standards."""
+    score = nhc.get("score", -1)
+    if score < 0:
         return ""
 
-    parts: list[str] = []
+    sections: list[str] = []
 
-    # Chief complaint checks
+    # chief_complaint
+    cc = nhc.get("chief_complaint", {})
     if cc:
-        length = cc.get("length", 0)
+        checks = []
+        length = cc.get("actual_length", cc.get("length", 0))
         max_chars = cc.get("max_chars", 20)
         has_dur = cc.get("has_duration", False)
-        cc_pass = cc.get("pass", False)
-        length_ok = length <= max_chars
-
-        checks: list[str] = []
-        checks.append(f'<span class="nhc-check {"ok" if length_ok else "fail"}">字数 {length}/{max_chars} {"✓" if length_ok else "✗"}</span>')
-        checks.append(f'<span class="nhc-check {"ok" if has_dur else "fail"}">包含病程 {"✓" if has_dur else "✗"}</span>')
-        parts.append(
+        cc_pass = cc.get("length_ok", False) and cc.get("duration_ok", True)
+        checks.append(f'<span class="nhc-check {"ok" if length <= max_chars else "fail"}">字数 {length}/{max_chars}</span>')
+        checks.append(f'<span class="nhc-check {"ok" if has_dur else "fail"}">{"✓" if has_dur else "✗"} 包含病程</span>')
+        checks.append(f'<span class="nhc-check {"ok" if cc_pass else "fail"}">{"✓ 通过" if cc_pass else "✗ 未通过"}</span>')
+        sections.append(
             '<div class="nhc-section">'
-            '<div class="nhc-section-title">主诉检查</div>'
+            '<div class="nhc-section-title">主诉</div>'
             f'<div class="nhc-checks">{"".join(checks)}</div>'
             '</div>'
         )
 
-    # Hallucinations
-    if hallucinations:
-        items = "".join(f"<li>{_esc(h)}</li>" for h in hallucinations)
-        parts.append(
+    # present_illness — info hints, not compliance failures
+    pi = nhc.get("present_illness", {})
+    pi_subs = pi.get("subsections", {})
+    if pi_subs:
+        checks = []
+        for sub, ok in pi_subs.items():
+            if ok:
+                checks.append(f'<span class="nhc-check ok">✓ {_esc(sub)}</span>')
+            else:
+                checks.append(f'<span class="nhc-check hint">ⓘ {_esc(sub)} — 待医生补充</span>')
+        sections.append(
             '<div class="nhc-section">'
-            '<div class="nhc-section-title">幻觉</div>'
-            f'<ul class="hallucination-list">{items}</ul>'
-            '</div>'
-        )
-    else:
-        parts.append(
-            '<div class="nhc-section">'
-            '<span class="nhc-check ok">幻觉检查：✓ 未发现</span>'
+            '<div class="nhc-section-title">现病史 — 已收集信息覆盖度</div>'
+            f'<div class="nhc-checks">{"".join(checks)}</div>'
             '</div>'
         )
 
-    score_html = _dim_score_badge(score)
+    # past_history — info hints, not compliance failures
+    ph = nhc.get("past_history", {})
+    ph_subs = ph.get("subsections", {})
+    if ph_subs:
+        checks = []
+        for sub, ok in ph_subs.items():
+            if ok:
+                checks.append(f'<span class="nhc-check ok">✓ {_esc(sub)}</span>')
+            else:
+                checks.append(f'<span class="nhc-check hint">ⓘ {_esc(sub)} — 待医生补充</span>')
+        sections.append(
+            '<div class="nhc-section">'
+            '<div class="nhc-section-title">既往史 — 已收集信息覆盖度</div>'
+            f'<div class="nhc-checks">{"".join(checks)}</div>'
+            '</div>'
+        )
+
+    # Render any other top-level NHC sections generically
+    _known_keys = {"score", "chief_complaint", "present_illness", "past_history"}
+    for key, val in nhc.items():
+        if key in _known_keys:
+            continue
+        if isinstance(val, dict) and "subsections" in val:
+            subs = val["subsections"]
+            checks = []
+            for sub, ok in subs.items():
+                cls = "ok" if ok else "fail"
+                icon = "✓" if ok else "✗"
+                checks.append(f'<span class="nhc-check {cls}">{icon} {_esc(sub)}</span>')
+            sections.append(
+                '<div class="nhc-section">'
+                f'<div class="nhc-section-title">{_esc(key)}</div>'
+                f'<div class="nhc-checks">{"".join(checks)}</div>'
+                '</div>'
+            )
+
+    score_cls = "score-green" if score >= 70 else ("score-yellow" if score >= 50 else "score-red")
     return (
-        '<details class="dim-section" open>'
-        f'<summary class="dim-header"><span>5. 记录质量</span>{score_html}</summary>'
-        f'<div class="dim-body">{"".join(parts)}</div>'
-        '</details>'
+        '<div class="panel">'
+        f'<div class="panel-header"><span>C. 病历规范性（门诊，卫医政发〔2010〕11号 第13条）</span>'
+        f'<span class="badge {score_cls}">规范符合度: {score}/100</span></div>'
+        f'<div class="panel-body">{"".join(sections)}</div>'
+        '</div>'
     )
 
 
 def _build_scorecard(result: dict) -> str:
-    """Build the 5-dimension scorecard for a persona's tier2 results."""
+    """Build the 3-panel scorecard for a persona's tier2 results."""
     t2 = result.get("tier2", {})
     if not t2:
         return "<p><em>无评估数据</em></p>"
 
     combined = t2.get("combined_score", -1)
-    dims = t2.get("dimensions", {})
+    elicitation = t2.get("elicitation", {})
+    extraction = t2.get("extraction", {})
+    nhc = t2.get("nhc_compliance", {})
 
-    if not dims:
+    # If no new-format data at all, show a fallback message
+    if not elicitation and not extraction.get("facts") and not nhc:
         return "<p><em>无评估数据</em></p>"
 
     parts: list[str] = ['<div class="scorecard">']
 
-    dim2 = _build_dim_interview_policy(dims.get("dim2_interview_policy", dims.get("interview_policy", {})))
-    if dim2:
-        parts.append(dim2)
+    panel_a = _build_elicitation_panel(elicitation)
+    if panel_a:
+        parts.append(panel_a)
 
-    dim3 = _build_dim_disclosure(dims.get("dim3_disclosure", dims.get("disclosure", {})))
-    if dim3:
-        parts.append(dim3)
+    panel_c = _build_nhc_panel(nhc)
+    if panel_c:
+        parts.append(panel_c)
 
-    dim4 = _build_dim_extraction(dims.get("dim4_extraction_accuracy", dims.get("extraction", {})))
-    if dim4:
-        parts.append(dim4)
-
-    dim5 = _build_dim_record_quality(dims.get("dim5_record_quality", dims.get("record_quality", {})))
-    if dim5:
-        parts.append(dim5)
+    panel_b = _build_extraction_panel(extraction)
+    if panel_b:
+        parts.append(panel_b)
 
     parts.append('</div>')  # .scorecard
 
     if combined >= 0:
-        score_cls = "score-green" if combined >= 80 else ("score-yellow" if combined >= 60 else "score-red")
+        score_cls = "score-green" if combined >= 70 else ("score-yellow" if combined >= 50 else "score-red")
         parts.append(
-            f'<div class="combined-score-bar">'
+            f'<div style="text-align:right;padding:4px 16px 12px;font-size:0.9rem;">'
             f'综合评分: <span class="badge {score_cls}" style="font-size:0.9rem">{combined}/100</span>'
             f'</div>'
         )
@@ -467,7 +397,7 @@ def _build_conversation_block(result: dict) -> str:
     return '<div class="conversation">' + "".join(turns) + "</div>"
 
 
-_FIELD_LABELS = {
+_SOAP_LABELS = {
     "chief_complaint": "主诉", "present_illness": "现病史", "past_history": "既往史",
     "allergy_history": "过敏史", "family_history": "家族史", "personal_history": "个人史",
     "marital_reproductive": "婚育史", "physical_exam": "体格检查", "specialist_exam": "专科检查",
@@ -475,34 +405,34 @@ _FIELD_LABELS = {
     "orders_followup": "医嘱及随访",
 }
 
-_RECORD_FIELDS = list(_FIELD_LABELS.keys())
+_SOAP_FIELDS = list(_SOAP_LABELS.keys())
 
 
 def _load_medical_record(record_id: int, db_path: str) -> Dict[str, str]:
-    """Load clinical record fields from DB for display in report."""
+    """Load SOAP fields from DB for display in report."""
     if not record_id or not db_path:
         return {}
     try:
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
-        cols = ", ".join(_RECORD_FIELDS)
+        cols = ", ".join(_SOAP_FIELDS)
         row = conn.execute(f"SELECT {cols} FROM medical_records WHERE id = ?", (record_id,)).fetchone()
         conn.close()
         if row is None:
             return {}
-        return {f: (row[f] or "") for f in _RECORD_FIELDS}
+        return {f: (row[f] or "") for f in _SOAP_FIELDS}
     except Exception:
         return {}
 
 
 def _build_medical_record_block(record: Dict[str, str]) -> str:
-    """Render clinical record fields from DB as HTML."""
+    """Render SOAP fields from DB as HTML."""
     if not record:
         return "<p><em>未找到病历记录</em></p>"
     parts = ['<div class="record-fields">']
-    for field in _RECORD_FIELDS:
+    for field in _SOAP_FIELDS:
         value = record.get(field, "")
-        label = _FIELD_LABELS.get(field, field)
+        label = _SOAP_LABELS.get(field, field)
         if value and value.strip():
             parts.append(
                 f'<div class="record-field">'
@@ -519,7 +449,7 @@ def _build_medical_record_block(record: Dict[str, str]) -> str:
     return "\n".join(parts)
 
 
-def _build_html(results: List[dict], patient_llm: str, server_url: str, db_path: str = "", ai_analyses: Optional[List[dict]] = None) -> str:
+def _build_html(results: List[dict], patient_llm: str, server_url: str, db_path: str = "") -> str:
     date = _human_date()
     p: list[str] = []
 
@@ -542,16 +472,9 @@ def _build_html(results: List[dict], patient_llm: str, server_url: str, db_path:
         p.append(f'<li><a href="#{anchor}">{result_icon} {_esc(pid)} {_esc(name)}</a></li>')
     p.append('</ul></nav>')
 
-    # Summary table — 5 dimension mini-columns
-    p.append(
-        "<table><tr>"
-        "<th>角色</th><th>轮次</th><th>数据库</th>"
-        '<th class="summary-dim-header">问诊</th>'
-        '<th class="summary-dim-header">披露</th>'
-        '<th class="summary-dim-header">提取</th>'
-        '<th class="summary-dim-header">质量</th>'
-        "<th>结果</th></tr>"
-    )
+    # Summary table
+    p.append("<table><tr><th>角色</th><th>轮次</th><th>数据库</th>"
+             "<th>评分</th><th>质量</th><th>异常</th><th>结果</th></tr>")
     for r in results:
         persona = r.get("persona", {})
         pid = _esc(persona.get("id", "?"))
@@ -560,18 +483,23 @@ def _build_html(results: List[dict], patient_llm: str, server_url: str, db_path:
         anchor = f"persona-{persona.get('id', '?')}"
         turns = r.get("turns", "?")
         db = _badge(_tier1_summary(r))
-        dim_scores = _tier2_dim_scores(r)
+        score = _tier2_summary(r)
+        score_html = _score_badge(score)
+        qual = _tier3_summary(r)
+        t4 = r.get("tier4", {})
+        anomaly_count = len(t4.get("anomalies", []))
+        anomaly_high = t4.get("high", 0)
+        anomaly_str = "0"
+        if anomaly_high:
+            anomaly_str = f'<span class="badge fail">{anomaly_count}（{anomaly_high} 高）</span>'
+        elif anomaly_count:
+            anomaly_str = f'<span class="badge na">{anomaly_count}</span>'
         overall = _badge(_overall_result(r))
-
         p.append(
             f'<tr><td><a href="#{anchor}" style="text-decoration:none;color:inherit">'
             f'<strong>{pid} {name}</strong><br><small>{condition}</small></a></td>'
-            f'<td>{turns}</td><td>{db}</td>'
-            f'<td class="summary-dim">{_dim_score_badge(dim_scores["interview_policy"])}</td>'
-            f'<td class="summary-dim">{_dim_score_badge(dim_scores["disclosure"])}</td>'
-            f'<td class="summary-dim">{_dim_score_badge(dim_scores["extraction"])}</td>'
-            f'<td class="summary-dim">{_dim_score_badge(dim_scores["record_quality"])}</td>'
-            f'<td>{overall}</td></tr>'
+            f"<td>{turns}</td><td>{db}</td><td>{score_html}</td>"
+            f"<td>{_esc(qual)}</td><td>{anomaly_str}</td><td>{overall}</td></tr>"
         )
     p.append("</table>")
 
@@ -588,22 +516,19 @@ def _build_html(results: List[dict], patient_llm: str, server_url: str, db_path:
         p.append(f'<div class="persona-section" id="{anchor}">')
         p.append(f"<h2>{_esc(label)} — {_esc(condition)} [{result_icon}]</h2>")
 
-        # Medical Record — use snapshot from JSON (survives cleanup), fall back to DB
+        # Medical Record from DB
         record_id = r.get("record_id")
-        record = r.get("structured_snapshot", {})
-        if not record and record_id and db_path:
+        if record_id and db_path:
             record = _load_medical_record(record_id, db_path)
-        if record:
-            p.append(f"<details><summary>病历记录</summary>")
+            p.append(f"<details><summary>病历记录（数据库 #{record_id}）</summary>")
             p.append(_build_medical_record_block(record))
             p.append("</details>")
 
-        # Scorecard (5-dimension evaluation)
+        # Scorecard (3-axis evaluation)
         t2 = r.get("tier2", {})
         combined = t2.get("combined_score", -1)
         score_label = f" — {combined}/100" if combined >= 0 else ""
-        open_attr = " open" if combined < 95 else ""
-        p.append(f'<details{open_attr}><summary>评估记分卡{_esc(score_label)}</summary>')
+        p.append(f'<details open><summary>评估记分卡{_esc(score_label)}</summary>')
         p.append(_build_scorecard(r))
         p.append("</details>")
 
@@ -682,38 +607,6 @@ def _build_html(results: List[dict], patient_llm: str, server_url: str, db_path:
 
         p.append("</div>")  # .persona-section
 
-    # AI Analysis section
-    if ai_analyses:
-        p.append('<h2 id="ai-analysis">AI 专家分析与建议</h2>')
-        for i, analysis in enumerate(ai_analyses):
-            model = _esc(analysis.get("model", f"分析师 {i+1}"))
-            text = analysis.get("analysis", "")
-            # Convert markdown-ish text to HTML paragraphs
-            html_text = ""
-            for line in text.split("\n"):
-                line = line.strip()
-                if not line:
-                    html_text += "<br>"
-                elif line.startswith("### "):
-                    html_text += f"<h4>{_esc(line[4:])}</h4>"
-                elif line.startswith("## "):
-                    html_text += f"<h3>{_esc(line[3:])}</h3>"
-                elif line.startswith("- "):
-                    html_text += f"<li>{_esc(line[2:])}</li>"
-                else:
-                    html_text += f"<p>{_esc(line)}</p>"
-            p.append(
-                f'<details open>'
-                f'<summary>{model}</summary>'
-                f'<div style="padding:12px 16px;font-size:0.88rem;line-height:1.7">{html_text}</div>'
-                f'</details>'
-            )
-
-        # Add analysis link to navigation
-        # (nav was already built, so we append via JS)
-        p.append('<script>document.querySelector("nav.toc ul")?.insertAdjacentHTML("beforeend", '
-                 '"<li><a href=\\"#ai-analysis\\">📋 AI专家分析</a></li>")</script>')
-
     p.append("</body></html>")
     return "\n".join(p)
 
@@ -742,7 +635,6 @@ def generate_reports(
     server_url: str,
     output_dir: Optional[str] = None,
     db_path: str = "",
-    ai_analyses: Optional[List[dict]] = None,
 ) -> Tuple[str, str]:
     """Generate HTML and JSON reports for a simulation run.
 
@@ -759,7 +651,7 @@ def generate_reports(
     html_path = out / html_name
     json_path = out / json_name
 
-    html_content = _build_html(results, patient_llm, server_url, db_path=db_path, ai_analyses=ai_analyses)
+    html_content = _build_html(results, patient_llm, server_url, db_path=db_path)
     html_path.write_text(html_content, encoding="utf-8")
 
     json_data = _build_json(results, patient_llm, server_url)
