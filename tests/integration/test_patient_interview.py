@@ -33,15 +33,17 @@ if os.environ.get("RUN_E2E_FIXTURES") != "1":
     )
 
 ROOT = Path(__file__).resolve().parents[2]
-FIXTURES_PATH = ROOT / "tests" / "fixtures" / "data" / "patient_interview_benchmark.json"
+FIXTURES_DIR = ROOT / "tests" / "fixtures" / "patient_sim" / "scenarios"
 TIMEOUT = httpx.Timeout(connect=10.0, read=300.0, write=30.0, pool=10.0)
 
 
 def _load_cases() -> List[Dict[str, Any]]:
-    if not FIXTURES_PATH.exists():
+    if not FIXTURES_DIR.exists():
         return []
-    with open(FIXTURES_PATH) as f:
-        return json.load(f)
+    cases = []
+    for f in sorted(FIXTURES_DIR.glob("*.json")):
+        cases.append(json.loads(f.read_text()))
+    return cases
 
 
 ALL_CASES = _load_cases()

@@ -42,11 +42,10 @@ if os.environ.get("RUN_E2E_FIXTURES") != "1":
 
 
 ROOT = Path(__file__).resolve().parents[2]
-FIXTURES_DIR = ROOT / "tests" / "fixtures" / "data"
+FIXTURES_DIR = ROOT / "tests" / "fixtures" / "doctor_sim" / "scenarios"
 
-FIXTURE_FILES = [
-    "mvp_accuracy_benchmark.json",
-]
+# Load all individual scenario JSON files (previously one monolithic benchmark file)
+FIXTURE_FILES = []  # now loaded individually from scenarios/
 
 # ── Groups that must be skipped in Plan-and-Act ───────────────────────────
 _SKIP_GROUPS: Dict[str, str] = {
@@ -73,14 +72,12 @@ _CONFIRM_TEXTS = {"确认", "确认保存", "保存"}
 
 def _load_all_cases() -> List[Dict[str, Any]]:
     cases = []
-    for fname in FIXTURE_FILES:
-        path = FIXTURES_DIR / fname
-        if not path.exists():
-            continue
-        raw = json.loads(path.read_text(encoding="utf-8"))
-        for case in raw:
-            case["_source_file"] = fname
-            cases.append(case)
+    if not FIXTURES_DIR.exists():
+        return cases
+    for path in sorted(FIXTURES_DIR.glob("*.json")):
+        case = json.loads(path.read_text(encoding="utf-8"))
+        case["_source_file"] = path.name
+        cases.append(case)
     return cases
 
 
