@@ -516,9 +516,8 @@ _NHC_QUALITY_PROMPT = """\
 4. clinical_value（0-10）— 该病历能否直接用于临床决策？过敏史是否突出？诊断是否明确？用药是否完整？**每发现一处影响临床决策的缺陷扣1分。**
 
 请只返回JSON：
-{{"completeness": N, "accuracy": N, "formatting": N, "clinical_value": N, "score": N, "explanation": "列出最严重的1-2个具体问题（不要说优点）"}}
+{{"completeness": N, "accuracy": N, "formatting": N, "clinical_value": N, "score": N, "explanation": "必须列出1-3个具体缺陷，格式：'[字段名] 具体问题描述'。例如：'[既往史] 缺少手术史；[主诉] 超过20字'。如果确实找不到任何问题才写'未发现缺陷'"}}
 score = 四项平均分（四舍五入取整）
-如果真的没有问题，explanation 写"未发现明显问题"。
 """
 
 

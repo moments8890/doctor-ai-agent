@@ -5,7 +5,7 @@ Tier 2: 5-dimension interview scorecard (validate_interview)
         Dim 1: Simulator Fidelity — did the simulator volunteer the right facts?
         Dim 2: Interview Policy — did the conversation cover must-elicit topics?
         Dim 3: Disclosure — were critical/important facts mentioned in the conversation?
-        Dim 4: Extraction Accuracy — were disclosed facts captured in DB SOAP fields?
+        Dim 4: Extraction Accuracy — were disclosed facts captured in DB clinical record fields?
         Dim 5: Record Quality — chief complaint format + hallucination check
 Tier 3: LLM quality score — 5 judges across providers, median (soft)
 Tier 4: Anomaly review — LLM inspects DB fields + conversation for issues (soft)
@@ -54,10 +54,10 @@ def resolve_db_path() -> str:
 
 
 # ---------------------------------------------------------------------------
-# SOAP field keys
+# 病历字段 (clinical record field keys)
 # ---------------------------------------------------------------------------
 
-SOAP_FIELDS: List[str] = [
+RECORD_FIELDS: List[str] = [
     "department", "chief_complaint", "present_illness", "past_history",
     "allergy_history", "personal_history", "marital_reproductive",
     "family_history", "physical_exam", "specialist_exam", "auxiliary_exam",
@@ -81,8 +81,8 @@ _JUDGE_POOL = [
     },
     {
         "base_url": "https://openrouter.ai/api/v1",
-        "model": "qwen/qwen3-30b-a3b",
-        "label": "Qwen3-30B",
+        "model": "meta-llama/llama-3.3-70b-instruct",
+        "label": "Llama-3.3-70B",
         "api_key_env": "OPENROUTER_API_KEY",
     },
     {
@@ -213,13 +213,13 @@ def validate_tier1(
             ok = content_ok and type_ok
             checks["record_created"] = {"pass": ok, "detail": "OK" if ok else "content empty or wrong type"}
 
-        # 2. SOAP chief_complaint populated
+        # 2. chief_complaint populated
         if row is not None:
             cc = conn.execute("SELECT chief_complaint FROM medical_records WHERE id = ?", (record_id,)).fetchone()
             cc_ok = bool(cc and cc["chief_complaint"] and cc["chief_complaint"].strip())
-            checks["soap_fields"] = {"pass": cc_ok, "detail": "OK" if cc_ok else "chief_complaint empty"}
+            checks["record_fields"] = {"pass": cc_ok, "detail": "OK" if cc_ok else "chief_complaint empty"}
         else:
-            checks["soap_fields"] = {"pass": False, "detail": "skipped"}
+            checks["record_fields"] = {"pass": False, "detail": "skipped"}
 
         # 3. Session confirmed
         sess = conn.execute("SELECT status FROM interview_sessions WHERE id = ?", (session_id,)).fetchone()
@@ -263,15 +263,15 @@ def validate_tier1(
 # Tier 2 — 3-axis hybrid scorecard: elicitation, extraction, NHC compliance
 # ---------------------------------------------------------------------------
 
-def _load_soap_from_db(record_id: int, db_path: str) -> Dict[str, str]:
+def _load_record_from_db(record_id: int, db_path: str) -> Dict[str, str]:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     try:
-        cols = ", ".join(SOAP_FIELDS)
+        cols = ", ".join(RECORD_FIELDS)
         row = conn.execute(f"SELECT {cols} FROM medical_records WHERE id = ?", (record_id,)).fetchone()
         if row is None:
             return {}
-        return {f: (row[f] or "") for f in SOAP_FIELDS}
+        return {f: (row[f] or "") for f in RECORD_FIELDS}
     finally:
         conn.close()
 
@@ -335,8 +335,8 @@ _DIM4_EXTRACTION_JUDGE_PROMPT = """\
 /no_think
 你是一位医学信息提取评审专家。请逐条判断以下期望事实是否出现在系统提取的结构化字段中。
 
-## 系统实际提取的全部SOAP字段
-{soap_dump}
+## 系统实际提取的全部病历字段
+{structured_dump}
 
 ## 需要核对的事实列表
 {facts_block}
@@ -367,7 +367,7 @@ _DIM5_HALLUCINATION_JUDGE_PROMPT = """\
 {conversation}
 
 ## 数据库中存储的结构化字段
-{soap_dump}
+{structured_dump}
 
 ## 规则
 - 逐字段检查：对于每个非空字段，确认其内容在对话中有对应的来源
@@ -536,15 +536,15 @@ async def _dim3_disclosure(
 # ---------------------------------------------------------------------------
 
 async def _dim4_judge_single(
-    soap: Dict[str, str],
+    record: Dict[str, str],
     facts: List[dict],
     provider: dict,
 ) -> Dict[str, dict]:
-    """One LLM judge checks disclosed facts against SOAP fields."""
-    soap_lines = []
-    for field, value in soap.items():
-        soap_lines.append(f"- {field}: {value or '（空）'}")
-    soap_dump = "\n".join(soap_lines)
+    """One LLM judge checks disclosed facts against clinical record fields."""
+    record_lines = []
+    for field, value in record.items():
+        record_lines.append(f"- {field}: {value or '（空）'}")
+    structured_dump = "\n".join(record_lines)
 
     facts_block_lines = []
     for f in facts:
@@ -556,7 +556,7 @@ async def _dim4_judge_single(
     facts_block = "\n".join(facts_block_lines)
 
     prompt = _DIM4_EXTRACTION_JUDGE_PROMPT.format(
-        soap_dump=soap_dump,
+        structured_dump=structured_dump,
         facts_block=facts_block,
     )
     label = provider.get("label", provider.get("model", "?"))
@@ -583,12 +583,12 @@ async def _dim4_judge_single(
 
 
 async def _dim4_extraction_accuracy(
-    soap: Dict[str, str],
+    record: Dict[str, str],
     dim3_result: dict,
     fact_catalog: List[dict],
 ) -> dict:
     """Of the facts that dim3 said were disclosed, how many are captured in
-    SOAP fields? Uses 3 LLM judges with majority vote."""
+    clinical record fields? Uses 3 LLM judges with majority vote."""
     # Only evaluate facts where dim3 said disclosed=true
     disclosed_ids = {
         fid for fid, info in dim3_result.get("facts", {}).items()
@@ -608,7 +608,7 @@ async def _dim4_extraction_accuracy(
     # 3 LLM judges, majority vote
     providers = _pick_judges(3)
     all_results = await asyncio.gather(*[
-        _dim4_judge_single(soap, disclosed_facts, p) for p in providers
+        _dim4_judge_single(record, disclosed_facts, p) for p in providers
     ])
 
     facts_out: Dict[str, dict] = {}
@@ -645,12 +645,12 @@ async def _dim4_extraction_accuracy(
 # ---------------------------------------------------------------------------
 
 async def _dim5_record_quality(
-    soap: Dict[str, str],
+    record: Dict[str, str],
     conversation: list,
 ) -> dict:
     """Chief complaint format checks (deterministic) + hallucination detection
     (1 LLM judge)."""
-    cc_text = soap.get("chief_complaint", "")
+    cc_text = record.get("chief_complaint", "")
 
     # --- Chief complaint checks (deterministic) ---
     cc_length = len(cc_text)
@@ -667,15 +667,15 @@ async def _dim5_record_quality(
 
     # --- Hallucination check (1 LLM judge) ---
     conv_text = _build_conversation_text(conversation)
-    soap_lines = []
-    for field, value in soap.items():
+    record_lines = []
+    for field, value in record.items():
         if value and value.strip():
-            soap_lines.append(f"- {field}: {value}")
-    soap_dump = "\n".join(soap_lines) if soap_lines else "（所有字段为空）"
+            record_lines.append(f"- {field}: {value}")
+    structured_dump = "\n".join(record_lines) if record_lines else "（所有字段为空）"
 
     prompt = _DIM5_HALLUCINATION_JUDGE_PROMPT.format(
         conversation=conv_text,
-        soap_dump=soap_dump,
+        structured_dump=structured_dump,
     )
 
     provider = _pick_judges(1)[0]
@@ -734,7 +734,7 @@ async def validate_interview(
         }
     }
     """
-    soap = _load_soap_from_db(record_id, db_path)
+    record = _load_record_from_db(record_id, db_path)
 
     # --- Dim 2 & 3 can run concurrently (independent LLM calls) ---
     dim2_task = _dim2_interview_policy(persona, conversation)
@@ -743,10 +743,10 @@ async def validate_interview(
 
     # --- Dim 4 depends on dim3 result ---
     fact_catalog = persona.get("fact_catalog", [])
-    dim4 = await _dim4_extraction_accuracy(soap, dim3, fact_catalog)
+    dim4 = await _dim4_extraction_accuracy(record, dim3, fact_catalog)
 
     # --- Dim 5 runs independently ---
-    dim5 = await _dim5_record_quality(soap, conversation)
+    dim5 = await _dim5_record_quality(record, conversation)
 
     # --- Combined score: weighted average (4 dimensions) ---
     # 问诊策略 20% + 信息披露 25% + 提取准确度 35% + 记录质量 20%
@@ -1002,9 +1002,9 @@ _ANOMALY_REVIEW_PROMPT = """\
 ## 患者信息
 姓名：{name}，{condition}
 
-## 数据库中存储的完整结构化字段（SOAP）
+## 数据库中存储的完整结构化字段（病历字段）
 以下是数据库中实际存储的所有字段及其值。审查时必须逐字段核对，不要凭印象判断。
-{soap_dump}
+{structured_dump}
 
 ## 对话记录
 {transcript}
@@ -1013,7 +1013,7 @@ _ANOMALY_REVIEW_PROMPT = """\
 
 ### 关于"提取遗漏"的判定标准
 在判定"提取遗漏"之前，你必须：
-1. 逐一检查上面列出的每个SOAP字段的值
+1. 逐一检查上面列出的每个病历字段的值
 2. 如果患者提到的信息出现在**任何**字段中（哪怕不是你预期的字段），则**不是**遗漏
 3. 信息可能被改写、概括或用医学术语替代——只要语义等价就算已提取
 4. 例如：患者说"做康复训练"，如果present_illness中有"康复训练"或"康复治疗"或类似表述，则不是遗漏
@@ -1029,7 +1029,7 @@ _ANOMALY_REVIEW_PROMPT = """\
 ### 检查类型
 1. **内容重复**：同一字段中是否有重复或近义重复的内容（如同一事实用不同措辞出现两次）
 2. **系统错误**：对话中是否出现系统错误消息（如"系统繁忙"、"请稍后再试"）
-3. **提取遗漏**：（按上述严格标准判定）患者明确提到但所有SOAP字段中均无体现的重要临床信息
+3. **提取遗漏**：（按上述严格标准判定）患者明确提到但所有病历字段中均无体现的重要临床信息
 4. **提取错误**：（按上述严格标准判定）结构化字段中出现患者从未提到的信息
 5. **字段错位**：信息被存储到了错误的字段中（如家族史写进了个人史）
 6. **对话质量**：AI是否重复提问、忽略患者回答、或在收集完信息后仍继续提问
@@ -1048,12 +1048,12 @@ async def validate_tier4(
     record_id: int,
 ) -> dict:
     """Anomaly review — 3 LLM judges inspect DB + conversation for issues."""
-    soap = _load_soap_from_db(record_id, db_path)
-    soap_lines = []
-    for field, value in soap.items():
+    record = _load_record_from_db(record_id, db_path)
+    record_lines = []
+    for field, value in record.items():
         if value and value.strip():
-            soap_lines.append(f"- {field}: {value}")
-    soap_dump = "\n".join(soap_lines) if soap_lines else "（所有字段为空）"
+            record_lines.append(f"- {field}: {value}")
+    structured_dump = "\n".join(record_lines) if record_lines else "（所有字段为空）"
 
     transcript_lines = []
     for turn in conversation:
@@ -1065,7 +1065,7 @@ async def validate_tier4(
     prompt = _ANOMALY_REVIEW_PROMPT.format(
         name=persona.get("name", "?"),
         condition=persona.get("condition", "?"),
-        soap_dump=soap_dump,
+        structured_dump=structured_dump,
         transcript=transcript,
     )
 
