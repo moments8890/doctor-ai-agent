@@ -7,7 +7,7 @@
 ## Goal
 
 Test doctor interview extraction accuracy — does the system correctly extract
-structured SOAP fields from dense clinical input with abbreviations, mixed
+structured clinical fields from dense clinical input with abbreviations, mixed
 languages, OCR artifacts, and multi-turn dictation?
 
 ## 8 Doctor Personas
@@ -134,7 +134,7 @@ Different from patient sim — uses `turn_plan` (scripted text) + `gold_soap` (e
 | Dimension | Weight | What | How |
 |-----------|--------|------|-----|
 | **事实提取召回率** | 40% | Of gold_soap facts, how many captured? | 3 LLM judges vs DB fields |
-| **字段归类准确率** | 30% | Facts in the correct SOAP field? | Check field routing |
+| **字段归类准确率** | 30% | Facts in the correct clinical field? | Check field routing |
 | **记录质量** | 30% | No hallucinations, abbreviations preserved, no duplication | Deterministic + 1 LLM |
 
 No elicitation/disclosure/conversation quality — doctor provides all facts directly.
@@ -144,7 +144,7 @@ No elicitation/disclosure/conversation quality — doctor provides all facts dir
 | Component | Reuse? |
 |-----------|--------|
 | `_pick_judges`, `_llm_call`, `_parse_json_response` | ✓ Copy or import |
-| `_load_soap_from_db`, `SOAP_FIELDS` | ✓ Copy or import |
+| `_load_fields_from_db`, `CLINICAL_FIELDS` | ✓ Copy or import |
 | Tier 1 DB checks | ✓ Reuse `validate_tier1` |
 | Report HTML shell + CSS | ✓ Reuse, new scorecard panels |
 | AI expert analysis | ✓ Reuse `analyze_results` |
@@ -179,20 +179,12 @@ tests/fixtures/
 
 | ID | Style | Turns | What it tests |
 |----|-------|-------|---------------|
-| D10 | 复诊+历史预填 | 2 sessions | First visit creates history → second visit tests if system pre-populates from prior record |
 | D11 | 分段补充 | 4-5 | Doctor enters CC first, adds fields piece by piece based on agent's missing-field guidance |
 | D12 | 口述+修正 | 3 | Doctor dictates then corrects ("上面血压写错了，应该是150/95") |
 | D13 | 急诊快录 | 3 | Rapid abbreviation-heavy entries ("STEMI LAD PCI" → "HTN DM" → "ASA 替格") |
 | D14 | 查房记录 | 2 | Ward round style with references to prior notes ("同前" "较前好转") |
 
-### D10 detail: Returning patient with prior history
-The system should:
-1. Sim creates patient + first visit record (scripted)
-2. Sim starts second visit for same patient
-3. System loads `_load_previous_history()` and surfaces it via prompt
-4. Doctor confirms "同前" or updates — system should use prior data, not re-collect
-
-This tests the LLM's ability to leverage `{previous_history}` in the prompt.
+Note: D10 (复诊+历史预填) removed — returning patient history pre-population is a UI feature, not testable via the interview API alone.
 
 ## No Server Changes Needed
 
