@@ -53,48 +53,37 @@ Both MVP and extraction scenarios use one envelope with a `scenario_type` discri
     ],
 
     "extraction": {
-      "fact_catalog": [
+      "facts": [
         {
-          "id": "d1_cc_aneurysm",
-          "importance": "critical",
           "text": "体检发现颅内动脉瘤",
           "allowed_fields": ["chief_complaint", "present_illness"],
-          "aliases": ["脑动脉瘤", "颅内动脉瘤"],
-          "match_mode": "keyword"
+          "aliases": ["脑动脉瘤", "颅内动脉瘤"]
         },
         {
-          "id": "d1_ph_htn",
-          "importance": "critical",
           "text": "高血压8年",
           "allowed_fields": ["past_history"],
-          "aliases": ["高血压病史8年", "HTN 8y"],
-          "match_mode": "keyword"
+          "aliases": ["高血压病史8年", "HTN 8y"]
         },
         {
-          "id": "d1_al_none",
-          "importance": "important",
           "text": "否认药物及食物过敏",
           "allowed_fields": ["allergy_history"],
-          "aliases": ["无过敏", "无药物过敏"],
-          "match_mode": "negation"
+          "aliases": ["无过敏", "无药物过敏"]
         }
       ],
 
-      "forbidden_facts": [
-        {"text": "糖尿病", "reason": "patient does not have DM — hallucination if present"}
+      "forbidden": [
+        {"text": "糖尿病", "reason": "patient does not have DM"}
       ],
 
       "field_rules": {
-        "chief_complaint": {"required": true, "max_han_chars": 25},
-        "present_illness": {"required": true, "min_chars": 20},
+        "chief_complaint": {"required": true},
+        "present_illness": {"required": true},
         "past_history": {"required": true},
-        "allergy_history": {"required": true},
-        "diagnosis": {"required": false}
+        "allergy_history": {"required": true}
       },
 
       "thresholds": {
-        "critical_recall": 1.0,
-        "important_recall": 0.80,
+        "recall": 0.80,
         "field_accuracy": 0.80,
         "forbidden_hits": 0,
         "max_duplicates": 0
@@ -108,7 +97,7 @@ Both MVP and extraction scenarios use one envelope with a `scenario_type` discri
 
 The loader auto-detects format by checking keys:
 - Has `chatlog` + `expectations.expected_patient_name` → MVP format → normalize to v2
-- Has `turn_plan` + `fact_catalog` → D1-D8 format → normalize to v2
+- Has `turn_plan` + `facts` → D1-D8 format → normalize to v2
 - Has `schema_version: 2` → already v2
 
 ## Deterministic Matchers
@@ -199,7 +188,7 @@ tests/
     normalizer.py         # text normalization + alias tables
     loader.py             # auto-detect format, normalize to ScenarioSpec
     runner.py             # execute scenario against server, collect artifacts
-    models.py             # ScenarioSpec, FactSpec, MatchResult, ScenarioResult
+    models.py             # ScenarioSpec, FactRule, MatchResult, ScenarioResult
 ```
 
 ### Test parametrization
@@ -243,7 +232,7 @@ class ScenarioResult:
     passed: bool
     turn_responses: list          # raw API responses
     record_snapshot: dict         # DB record fields
-    fact_matches: dict            # {fact_id: FactMatchResult}
+    fact_matches: dict            # {fact_text: MatchResult}
     assertion_results: list       # generic assertion results
     failures: list[str]           # human-readable failure messages
     duration_ms: int
@@ -252,7 +241,7 @@ class ScenarioResult:
 ## Regression Baseline & Comparison
 
 ### Primary baseline = scenario file itself
-- fact_catalog defines what must be present
+- facts defines what must be present
 - thresholds define acceptable scores
 - forbidden_facts define what must NOT be present
 - No separate "baseline snapshot" needed for pass/fail
@@ -297,7 +286,7 @@ matcher_profile: cn_medical_v1
 ## Implementation Phases
 
 ### Phase 1: Core infrastructure
-- `models.py` — ScenarioSpec, FactSpec, MatchResult
+- `models.py` — ScenarioSpec, FactRule, MatchResult
 - `normalizer.py` — text normalization + alias tables
 - `matchers.py` — deterministic matcher library
 - `loader.py` — auto-detect and normalize both formats
