@@ -41,6 +41,9 @@ Both MVP and extraction scenarios use one envelope with a `scenario_type` discri
     "timeout_seconds": 60
   },
 
+  // NOTE: Patient record is created at CONFIRM time (deferred creation),
+  // not during interview turns. All DB assertions run after confirm.
+
   "expectations": {
     "assertions": [
       {"target": "record.exists", "matcher": "eq", "expected": true},
