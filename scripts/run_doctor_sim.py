@@ -48,6 +48,7 @@ _PERSONA_FILES = {
     "D6": "d6_negation_cluster.json",
     "D7": "d7_copy_paste_conflict.json",
     "D8": "d8_template_fill.json",
+    "D9": "d9_interactive.json",
 }
 
 

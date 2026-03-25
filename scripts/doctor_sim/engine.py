@@ -1,13 +1,16 @@
 """Simulation engine — runs one doctor persona through the doctor interview pipeline.
 
-Doctor personas use scripted turn_plan (no LLM generation needed).
+Doctor personas use either:
+  - scripted ``turn_plan`` (styles: verbose, multi_turn, template_fill, etc.)
+  - LLM-generated turns (style: ``interactive``) via ``doctor_llm``
+
 Each turn is sent as Form data to POST /api/records/interview/turn.
 After all turns, calls POST /api/records/interview/confirm.
 """
 from __future__ import annotations
 
 import sqlite3
-from typing import Optional
+from typing import List, Optional
 from uuid import uuid4
 
 import httpx
@@ -64,6 +67,166 @@ def _snapshot_soap(db_path: str, record_id: int) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Scripted turn runner
+# ---------------------------------------------------------------------------
+
+async def _run_scripted_turns(
+    http: httpx.AsyncClient,
+    server: str,
+    turn_plan: list,
+    doctor_id: str,
+    patient_name: str,
+    patient_gender: str,
+    patient_age: int,
+) -> tuple:
+    """Execute scripted turn_plan turns.  Returns (session_id, turn_responses)."""
+    session_id: Optional[str] = None
+    turn_responses: List[dict] = []
+
+    for step in turn_plan:
+        text = step["text"]
+
+        form_data = {
+            "text": text,
+            "doctor_id": doctor_id,
+        }
+
+        if session_id is None:
+            form_data["patient_name"] = patient_name
+            form_data["patient_gender"] = patient_gender
+            form_data["patient_age"] = str(patient_age)
+        else:
+            form_data["session_id"] = session_id
+
+        resp = await http.post(
+            f"{server}/api/records/interview/turn",
+            data=form_data,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+        if session_id is None:
+            session_id = data["session_id"]
+
+        turn_responses.append({
+            "turn": step.get("turn", len(turn_responses) + 1),
+            "input_text": text,
+            "reply": data.get("reply", ""),
+            "collected": data.get("collected", {}),
+            "progress": data.get("progress", {}),
+            "status": data.get("status", ""),
+            "missing": data.get("missing", []),
+        })
+
+    return session_id, turn_responses
+
+
+# ---------------------------------------------------------------------------
+# Interactive (LLM-driven) turn runner
+# ---------------------------------------------------------------------------
+
+async def _run_interactive_turns(
+    http: httpx.AsyncClient,
+    server: str,
+    persona: dict,
+    doctor_id: str,
+    patient_name: str,
+    patient_gender: str,
+    patient_age: int,
+) -> tuple:
+    """Execute LLM-generated doctor turns.  Returns (session_id, turn_responses).
+
+    The doctor LLM reads the agent's response after each turn and decides
+    what to enter next.  Stops when:
+      - the agent reports no missing required fields, OR
+      - ``max_turns`` is reached
+    """
+    from doctor_sim.doctor_llm import generate_doctor_input
+
+    clinical_case: str = persona["clinical_case"]
+    max_turns: int = persona.get("max_turns", 5)
+    patient_info = persona.get("patient_info", {})
+
+    session_id: Optional[str] = None
+    turn_responses: List[dict] = []
+    previous_inputs: List[str] = []
+    dynamic_turn_plan: List[dict] = []  # backfill for validator
+
+    for turn_num in range(1, max_turns + 1):
+        # Determine context from previous agent response
+        if turn_responses:
+            last = turn_responses[-1]
+            collected = last.get("collected", {})
+            missing = last.get("missing", [])
+            suggestions = last.get("reply", "")
+        else:
+            collected = None
+            missing = None
+            suggestions = None
+
+        # --- Generate doctor input via LLM ---
+        text = await generate_doctor_input(
+            clinical_case=clinical_case,
+            collected=collected,
+            missing=missing,
+            suggestions=suggestions,
+            previous_inputs=previous_inputs,
+            is_first_turn=(turn_num == 1),
+            patient_info=patient_info,
+        )
+
+        # If the LLM says "确认生成", we're done entering — go to confirm
+        if "确认生成" in text and len(text) < 20:
+            break
+
+        previous_inputs.append(text)
+        dynamic_turn_plan.append({"turn": turn_num, "text": text})
+
+        # --- Send to the interview API ---
+        form_data = {
+            "text": text,
+            "doctor_id": doctor_id,
+        }
+
+        if session_id is None:
+            form_data["patient_name"] = patient_name
+            form_data["patient_gender"] = patient_gender
+            form_data["patient_age"] = str(patient_age)
+        else:
+            form_data["session_id"] = session_id
+
+        resp = await http.post(
+            f"{server}/api/records/interview/turn",
+            data=form_data,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+        if session_id is None:
+            session_id = data["session_id"]
+
+        turn_resp = {
+            "turn": turn_num,
+            "input_text": text,
+            "reply": data.get("reply", ""),
+            "collected": data.get("collected", {}),
+            "progress": data.get("progress", {}),
+            "status": data.get("status", ""),
+            "missing": data.get("missing", []),
+        }
+        turn_responses.append(turn_resp)
+
+        # If no missing fields, stop early
+        if not data.get("missing"):
+            break
+
+    # Backfill turn_plan on persona so the validator can build doctor_input_text
+    persona["turn_plan"] = dynamic_turn_plan
+
+    return session_id, turn_responses
+
+
+# ---------------------------------------------------------------------------
 # Main engine
 # ---------------------------------------------------------------------------
 
@@ -78,8 +241,9 @@ async def run_persona(
     ----------
     persona:
         Persona definition dict.  Must include at minimum:
-        ``id``, ``name``, ``style``, ``turn_plan``, ``fact_catalog``.
-        turn_plan is a list of dicts with ``turn`` (int) and ``text`` (str).
+        ``id``, ``name``, ``style``.
+        For scripted personas: ``turn_plan`` (list of {turn, text}).
+        For interactive personas: ``clinical_case`` (str), ``max_turns`` (int).
     server_url:
         Base URL of the running server (e.g. ``http://127.0.0.1:8000``).
     db_path:
@@ -105,52 +269,27 @@ async def run_persona(
     _ensure_doctor(db_path, doctor_id)
 
     server = server_url.rstrip("/")
-    turn_plan = persona.get("turn_plan", [])
+    is_interactive = persona.get("style") == "interactive"
 
     session_id: Optional[str] = None
-    turn_responses: list[dict] = []
+    turn_responses: List[dict] = []
 
     async with httpx.AsyncClient(timeout=60.0) as http:
 
         # ------------------------------------------------------------------
-        # 2. Send each scripted turn
+        # 2. Run turns (scripted or interactive)
         # ------------------------------------------------------------------
-        for step in turn_plan:
-            text = step["text"]
-
-            form_data = {
-                "text": text,
-                "doctor_id": doctor_id,
-            }
-
-            if session_id is None:
-                # First turn — include patient info
-                form_data["patient_name"] = patient_name
-                form_data["patient_gender"] = patient_gender
-                form_data["patient_age"] = str(patient_age)
-            else:
-                form_data["session_id"] = session_id
-
-            resp = await http.post(
-                f"{server}/api/records/interview/turn",
-                data=form_data,
+        if is_interactive:
+            session_id, turn_responses = await _run_interactive_turns(
+                http, server, persona, doctor_id,
+                patient_name, patient_gender, patient_age,
             )
-            resp.raise_for_status()
-            data = resp.json()
-
-            # Capture session_id from first turn
-            if session_id is None:
-                session_id = data["session_id"]
-
-            turn_responses.append({
-                "turn": step.get("turn", len(turn_responses) + 1),
-                "input_text": text,
-                "reply": data.get("reply", ""),
-                "collected": data.get("collected", {}),
-                "progress": data.get("progress", {}),
-                "status": data.get("status", ""),
-                "missing": data.get("missing", []),
-            })
+        else:
+            turn_plan = persona.get("turn_plan", [])
+            session_id, turn_responses = await _run_scripted_turns(
+                http, server, turn_plan, doctor_id,
+                patient_name, patient_gender, patient_age,
+            )
 
         # ------------------------------------------------------------------
         # 3. Confirm interview
@@ -181,7 +320,7 @@ async def run_persona(
         "persona_id": persona_id,
         "persona": persona,
         "doctor_id": doctor_id,
-        "turns": len(turn_plan),
+        "turns": len(turn_responses),
         "session_id": session_id,
         "record_id": record_id,
         "soap_snapshot": soap_snapshot,

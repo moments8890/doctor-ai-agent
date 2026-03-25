@@ -13,8 +13,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import re
 from typing import Any, Dict, List, Optional
+
+import httpx
 
 # ---------------------------------------------------------------------------
 # Reuse from patient_sim.validator
@@ -118,10 +121,59 @@ _DIM3_QUALITY_JUDGE_PROMPT = """\
 # Dim 1: 事实提取召回率 — 3 LLM judges, majority vote
 # ---------------------------------------------------------------------------
 
+async def _llm_call_with_tokens(
+    provider: dict,
+    prompt: str,
+    max_tokens: int = 512,
+    temperature: float = 0.2,
+) -> str:
+    """Wrapper around _llm_call that supports custom max_tokens.
+
+    The shared ``_llm_call`` in patient_sim.validator hard-codes 512 tokens.
+    For large fact batches the judge response can exceed that, so we replicate
+    the call here with a configurable limit.
+    """
+    api_key = os.environ.get(provider["api_key_env"], "")
+    data = None
+    for attempt in range(3):
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                resp = await client.post(
+                    f"{provider['base_url']}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": provider["model"],
+                        "messages": [
+                            {
+                                "role": "user",
+                                "content": f"请直接回答，不要输出思考过程。\n\n{prompt}",
+                            }
+                        ],
+                        "temperature": temperature,
+                        "max_tokens": max_tokens,
+                    },
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                break
+        except Exception:
+            if attempt < 2:
+                await asyncio.sleep(1.0 * (attempt + 1))
+            else:
+                raise
+    if data is None:
+        raise RuntimeError("_llm_call_with_tokens: no response after 3 attempts")
+    return data["choices"][0]["message"]["content"]
+
+
 async def _dim1_judge_single(
     soap: Dict[str, str],
     facts: List[dict],
     provider: dict,
+    max_tokens: int = 1024,
 ) -> Dict[str, dict]:
     """One LLM judge checks fact_catalog against SOAP fields."""
     soap_lines = []
@@ -144,7 +196,7 @@ async def _dim1_judge_single(
 
     label = provider.get("label", provider.get("model", "?"))
     try:
-        raw = await _llm_call(provider, prompt)
+        raw = await _llm_call_with_tokens(provider, prompt, max_tokens=max_tokens)
         parsed = _parse_json_response(raw)
         results = parsed.get("results", {})
         out: Dict[str, dict] = {}
@@ -165,23 +217,49 @@ async def _dim1_judge_single(
         return out
 
 
+_CHUNK_SIZE = 8  # max facts per judge call to keep responses manageable
+
+
 async def _dim1_extraction_recall(
     soap: Dict[str, str],
     fact_catalog: List[dict],
 ) -> dict:
     """Fact catalog recall vs DB SOAP fields.
 
-    Uses 3 LLM judges with majority vote.
-    Returns: {score, facts: {fact_id: {match, found_in, expected_field, importance}}}
+    Splits fact_catalog into chunks of ``_CHUNK_SIZE`` and sends each chunk
+    to 3 LLM judges independently.  Results are merged across chunks before
+    the majority-vote aggregation.
+
+    Returns: {score, matched, total, facts: {fact_id: {match, found_in, expected_field, importance}}}
     """
     if not fact_catalog:
         return {"score": 100, "facts": {}}
 
-    providers = _pick_judges(3)
-    all_results = await asyncio.gather(*[
-        _dim1_judge_single(soap, fact_catalog, p) for p in providers
-    ])
+    # --- Chunk the fact catalog ---
+    chunks: List[List[dict]] = []
+    for i in range(0, len(fact_catalog), _CHUNK_SIZE):
+        chunks.append(fact_catalog[i : i + _CHUNK_SIZE])
 
+    providers = _pick_judges(3)
+
+    # For every (chunk, provider) pair, fire a judge call concurrently.
+    # all_chunk_results[chunk_idx][provider_idx] = {fact_id: {...}}
+    tasks = []
+    for chunk in chunks:
+        for provider in providers:
+            tasks.append(_dim1_judge_single(soap, chunk, provider))
+    raw_results = await asyncio.gather(*tasks)
+
+    # Reassemble into per-provider merged dicts: all_results[provider_idx]
+    num_providers = len(providers)
+    all_results: List[Dict[str, dict]] = [{} for _ in range(num_providers)]
+    idx = 0
+    for _chunk in chunks:
+        for p_idx in range(num_providers):
+            all_results[p_idx].update(raw_results[idx])
+            idx += 1
+
+    # --- Majority vote ---
     facts_out: Dict[str, dict] = {}
     matched_count = 0
 
@@ -258,14 +336,25 @@ def _dim2_field_accuracy(dim1_result: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 def _build_doctor_input_text(persona: dict) -> str:
-    """Concatenate all turn_plan texts as the doctor's original input."""
+    """Concatenate all turn_plan texts as the doctor's original input.
+
+    For interactive personas (``style == "interactive"``), the turn_plan is
+    populated dynamically by the engine after execution.  If turn_plan is
+    empty but ``clinical_case`` exists, fall back to that.
+    """
     turn_plan = persona.get("turn_plan", [])
     lines = []
     for step in turn_plan:
         turn_num = step.get("turn", "?")
         text = step.get("text", "")
         lines.append(f"[轮次{turn_num}] {text}")
-    return "\n\n".join(lines) if lines else "（无输入）"
+    if lines:
+        return "\n\n".join(lines)
+    # Fallback for interactive personas whose turn_plan was not backfilled
+    clinical_case = persona.get("clinical_case", "")
+    if clinical_case:
+        return f"[临床案例] {clinical_case}"
+    return "（无输入）"
 
 
 async def _dim3_record_quality(
