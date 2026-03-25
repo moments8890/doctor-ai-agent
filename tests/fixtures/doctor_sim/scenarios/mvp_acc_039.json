@@ -1,0 +1,22 @@
+{
+  "case_id": "MVP-ACC-039",
+  "title": "Clarification: ambiguous intent — name only no action",
+  "group": "clarification",
+  "chatlog": [
+    {
+      "speaker": "doctor",
+      "text": "张三",
+      "assert": {
+        "tools_include": [],
+        "llm_calls": 1
+      }
+    }
+  ],
+  "expectations": {
+    "must_not_timeout": true,
+    "expected_table_max_counts_by_doctor": {
+      "patients": 0,
+      "medical_records": 0
+    }
+  }
+}

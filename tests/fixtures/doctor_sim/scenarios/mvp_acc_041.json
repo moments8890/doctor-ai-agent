@@ -1,0 +1,18 @@
+{
+  "case_id": "MVP-ACC-041",
+  "title": "No-name clinical input: blocked-write draft or clarification",
+  "group": "clarification",
+  "chatlog": [
+    {
+      "speaker": "doctor",
+      "text": "血压160/100，头晕两天，需要调整降压药",
+      "assert": {
+        "tools_include": [],
+        "llm_calls": 1
+      }
+    }
+  ],
+  "expectations": {
+    "must_not_timeout": true
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "case_id": "MVP-ACC-033",
+  "title": "Specialty: endocrine DKA emergency with lab values",
+  "group": "create_save",
+  "chatlog": [
+    {
+      "speaker": "doctor",
+      "text": "创建患者赵敏，女29岁，急诊。1型糖尿病DKA，血糖28.6 mmol/L，血酮5.2 mmol/L，pH 7.18，HCO3- 8 mmol/L，予胰岛素泵持续静滴及补液。",
+      "assert": {
+        "tools_include": [
+          "create_record"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "doctor",
+      "text": "确认",
+      "assert": {
+        "tools_include": [],
+        "llm_calls": 0
+      }
+    }
+  ],
+  "expectations": {
+    "must_not_timeout": true,
+    "expected_patient_name": "赵敏",
+    "expected_patient_count": 1,
+    "expect_patient_dedup": true,
+    "expected_table_min_counts_by_doctor": {
+      "patients": 1,
+      "medical_records": 1
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "case_id": "MVP-ACC-048",
+  "title": "Edge case: help request should show capabilities",
+  "group": "safety",
+  "chatlog": [
+    {
+      "speaker": "doctor",
+      "text": "帮助",
+      "assert": {
+        "tools_include": [],
+        "llm_calls": 1
+      }
+    }
+  ],
+  "expectations": {
+    "must_not_timeout": true,
+    "expected_table_max_counts_by_doctor": {
+      "patients": 0,
+      "medical_records": 0
+    }
+  }
+}

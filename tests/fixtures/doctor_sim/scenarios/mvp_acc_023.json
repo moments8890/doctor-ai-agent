@@ -1,0 +1,35 @@
+{
+  "case_id": "MVP-ACC-023",
+  "title": "Compound create-save: orthopedics (non-cardiology specialty)",
+  "group": "create_save",
+  "chatlog": [
+    {
+      "speaker": "doctor",
+      "text": "创建患者刘志强，男65岁，骨科门诊。腰椎间盘突出L4/5复发，左下肢放射痛VAS 7分，直腿抬高试验阳性，MRI示椎间盘突出压迫左侧神经根。",
+      "assert": {
+        "tools_include": [
+          "create_record"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "doctor",
+      "text": "确认",
+      "assert": {
+        "tools_include": [],
+        "llm_calls": 0
+      }
+    }
+  ],
+  "expectations": {
+    "must_not_timeout": true,
+    "expected_patient_name": "刘志强",
+    "expected_patient_count": 1,
+    "expect_patient_dedup": true,
+    "expected_table_min_counts_by_doctor": {
+      "patients": 1,
+      "medical_records": 1
+    }
+  }
+}

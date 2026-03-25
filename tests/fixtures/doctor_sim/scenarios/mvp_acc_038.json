@@ -1,0 +1,18 @@
+{
+  "case_id": "MVP-ACC-038",
+  "title": "Clarification: ambiguous patient — record without name",
+  "group": "clarification",
+  "chatlog": [
+    {
+      "speaker": "doctor",
+      "text": "记录头痛",
+      "assert": {
+        "tools_include": [],
+        "llm_calls": 1
+      }
+    }
+  ],
+  "expectations": {
+    "must_not_timeout": true
+  }
+}

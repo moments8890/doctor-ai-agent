@@ -1,0 +1,18 @@
+{
+  "case_id": "MVP-ACC-011",
+  "title": "Clarification: missing patient name on record intake",
+  "group": "clarification",
+  "chatlog": [
+    {
+      "speaker": "doctor",
+      "text": "记录一下：胸痛2小时伴大汗，心电图提示下壁ST段抬高。",
+      "assert": {
+        "tools_include": [],
+        "llm_calls": 1
+      }
+    }
+  ],
+  "expectations": {
+    "must_not_timeout": true
+  }
+}

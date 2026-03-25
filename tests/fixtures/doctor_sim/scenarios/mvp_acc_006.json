@@ -1,0 +1,45 @@
+{
+  "case_id": "MVP-ACC-006",
+  "title": "Create then query history: stroke clinic",
+  "group": "query_history",
+  "chatlog": [
+    {
+      "speaker": "doctor",
+      "text": "创建患者张桂兰，女72岁，卒中门诊。右侧肢体麻木反复3天，既往TIA史，ABCD2 5分，颈动脉超声示右侧斑块，氯吡格雷75mg qd。",
+      "assert": {
+        "tools_include": [
+          "create_record"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "doctor",
+      "text": "确认",
+      "assert": {
+        "tools_include": [],
+        "llm_calls": 0
+      }
+    },
+    {
+      "speaker": "doctor",
+      "text": "查张桂兰最近病历",
+      "assert": {
+        "tools_include": [
+          "query_records"
+        ],
+        "llm_calls": 2
+      }
+    }
+  ],
+  "expectations": {
+    "must_not_timeout": true,
+    "expected_patient_name": "张桂兰",
+    "expected_patient_count": 1,
+    "expect_patient_dedup": true,
+    "expected_table_min_counts_by_doctor": {
+      "patients": 1,
+      "medical_records": 1
+    }
+  }
+}

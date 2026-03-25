@@ -1,0 +1,22 @@
+{
+  "case_id": "MVP-ACC-047",
+  "title": "Edge case: repeated greeting should not create patient or record",
+  "group": "safety",
+  "chatlog": [
+    {
+      "speaker": "doctor",
+      "text": "你好你好你好",
+      "assert": {
+        "tools_include": [],
+        "llm_calls": 1
+      }
+    }
+  ],
+  "expectations": {
+    "must_not_timeout": true,
+    "expected_table_max_counts_by_doctor": {
+      "patients": 0,
+      "medical_records": 0
+    }
+  }
+}

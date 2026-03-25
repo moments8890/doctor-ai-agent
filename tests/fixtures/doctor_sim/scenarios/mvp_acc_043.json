@@ -1,0 +1,44 @@
+{
+  "case_id": "MVP-ACC-043",
+  "title": "Edge case: short query '查' defaults to context patient",
+  "group": "edge_case",
+  "chatlog": [
+    {
+      "speaker": "doctor",
+      "text": "创建患者周宁，女48岁，高血压3年，今日血压142/88。",
+      "assert": {
+        "tools_include": [
+          "create_record"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "doctor",
+      "text": "确认",
+      "assert": {
+        "tools_include": [],
+        "llm_calls": 0
+      }
+    },
+    {
+      "speaker": "doctor",
+      "text": "查",
+      "assert": {
+        "tools_include": [
+          "query_records"
+        ],
+        "llm_calls": 2
+      }
+    }
+  ],
+  "expectations": {
+    "must_not_timeout": true,
+    "expected_patient_name": "周宁",
+    "expected_patient_count": 1,
+    "expected_table_min_counts_by_doctor": {
+      "patients": 1,
+      "medical_records": 1
+    }
+  }
+}

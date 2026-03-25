@@ -1,0 +1,34 @@
+{
+  "case_id": "DS-005",
+  "title": "Lung nodule interview summary",
+  "group": "create_save",
+  "chatlog": [
+    {
+      "speaker": "doctor",
+      "text": "新患者赵伟，男，45岁。体检发现肺结节，右肺上叶8mm磨玻璃结节，无症状，不吸烟，父亲肺癌。本次CT提示考虑早期肺癌可能，建议3个月复查。",
+      "assert": {
+        "tools_include": [
+          "create_record"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "doctor",
+      "text": "确认",
+      "assert": {
+        "tools_include": [],
+        "llm_calls": 0
+      }
+    }
+  ],
+  "expectations": {
+    "must_not_timeout": true,
+    "expected_patient_name": "赵伟",
+    "expected_patient_count": 1,
+    "expected_table_min_counts_by_doctor": {
+      "patients": 1,
+      "medical_records": 1
+    }
+  }
+}

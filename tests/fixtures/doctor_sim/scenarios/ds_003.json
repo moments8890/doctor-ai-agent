@@ -1,0 +1,34 @@
+{
+  "case_id": "DS-003",
+  "title": "Oncology image-based (fused text)",
+  "group": "create_save",
+  "chatlog": [
+    {
+      "speaker": "doctor",
+      "text": "王建国，男，62岁，肺癌术后3个月。这是今天CT报告文字：右肺下叶术后改变，未见明确肿块或淋巴结肿大，胸腔无积液。患者主诉轻度咳嗽，无痰。继续观察。",
+      "assert": {
+        "tools_include": [
+          "create_record"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "doctor",
+      "text": "确认",
+      "assert": {
+        "tools_include": [],
+        "llm_calls": 0
+      }
+    }
+  ],
+  "expectations": {
+    "must_not_timeout": true,
+    "expected_patient_name": "王建国",
+    "expected_patient_count": 1,
+    "expected_table_min_counts_by_doctor": {
+      "patients": 1,
+      "medical_records": 1
+    }
+  }
+}

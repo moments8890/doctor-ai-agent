@@ -1,0 +1,35 @@
+{
+  "case_id": "MVP-ACC-037",
+  "title": "Specialty: gastroenterology liver cirrhosis with Child-Pugh",
+  "group": "create_save",
+  "chatlog": [
+    {
+      "speaker": "doctor",
+      "text": "创建患者郑国强，男55岁，消化内科。乙肝后肝硬化Child-Pugh B级，腹水中量，ALT 86 U/L，AST 102 U/L，ALB 28 g/L，予利尿及保肝治疗。",
+      "assert": {
+        "tools_include": [
+          "create_record"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "doctor",
+      "text": "确认",
+      "assert": {
+        "tools_include": [],
+        "llm_calls": 0
+      }
+    }
+  ],
+  "expectations": {
+    "must_not_timeout": true,
+    "expected_patient_name": "郑国强",
+    "expected_patient_count": 1,
+    "expect_patient_dedup": true,
+    "expected_table_min_counts_by_doctor": {
+      "patients": 1,
+      "medical_records": 1
+    }
+  }
+}

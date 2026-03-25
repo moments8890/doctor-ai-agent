@@ -1,0 +1,24 @@
+{
+  "case_id": "MVP-ACC-014",
+  "title": "Complete task by ID (unsupported — no complete_task action)",
+  "group": "task_action",
+  "chatlog": [
+    {
+      "speaker": "doctor",
+      "text": "完成 1",
+      "assert": {
+        "tools_include": [
+          "complete_task"
+        ],
+        "llm_calls": 2
+      }
+    }
+  ],
+  "expectations": {
+    "must_not_timeout": true,
+    "expected_table_max_counts_by_doctor": {
+      "patients": 0,
+      "medical_records": 0
+    }
+  }
+}

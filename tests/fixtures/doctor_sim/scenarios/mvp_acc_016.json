@@ -1,0 +1,18 @@
+{
+  "case_id": "MVP-ACC-016",
+  "title": "Greeting should not trigger any clinical action",
+  "group": "safety",
+  "chatlog": [
+    {
+      "speaker": "doctor",
+      "text": "你好",
+      "assert": {
+        "tools_include": [],
+        "llm_calls": 0
+      }
+    }
+  ],
+  "expectations": {
+    "must_not_timeout": true
+  }
+}

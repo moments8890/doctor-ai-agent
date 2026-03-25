@@ -1,0 +1,20 @@
+{
+  "case_id": "MVP-ACC-015",
+  "title": "List all patients",
+  "group": "list",
+  "chatlog": [
+    {
+      "speaker": "doctor",
+      "text": "所有患者",
+      "assert": {
+        "tools_include": [
+          "list_patients"
+        ],
+        "llm_calls": 2
+      }
+    }
+  ],
+  "expectations": {
+    "must_not_timeout": true
+  }
+}

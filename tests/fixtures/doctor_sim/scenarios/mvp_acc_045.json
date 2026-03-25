@@ -1,0 +1,24 @@
+{
+  "case_id": "MVP-ACC-045",
+  "title": "Edge case: complete task with large ID number (unsupported)",
+  "group": "task_action",
+  "chatlog": [
+    {
+      "speaker": "doctor",
+      "text": "完成 999",
+      "assert": {
+        "tools_include": [
+          "complete_task"
+        ],
+        "llm_calls": 2
+      }
+    }
+  ],
+  "expectations": {
+    "must_not_timeout": true,
+    "expected_table_max_counts_by_doctor": {
+      "patients": 0,
+      "medical_records": 0
+    }
+  }
+}

@@ -35,30 +35,36 @@ from doctor_sim.report import generate_reports  # noqa: E402
 # Persona loading
 # ---------------------------------------------------------------------------
 
+_SCENARIOS_DIR = _REPO_ROOT / "tests" / "fixtures" / "doctor_sim" / "scenarios"
 _PERSONAS_DIR = _REPO_ROOT / "tests" / "fixtures" / "doctor_sim" / "personas"
 
-_PERSONA_FILES = {
-    "D1": "d1_verbose_attending.json",
-    "D2": "d2_telegraphic_surgeon.json",
-    "D3": "d3_ocr_paste.json",
-    "D4": "d4_multi_turn.json",
-    "D5": "d5_bilingual_mix.json",
-    "D6": "d6_negation_cluster.json",
-    "D7": "d7_copy_paste_conflict.json",
-    "D8": "d8_template_fill.json",
-    "D9": "d9_interactive.json",
+# Scenarios = scripted deterministic input; Personas = AI-generated interactive input
+_SIM_FILES = {
+    # Scripted scenarios (in scenarios/)
+    "D1": ("scenarios", "d1_verbose_attending.json"),
+    "D2": ("scenarios", "d2_telegraphic_surgeon.json"),
+    "D3": ("scenarios", "d3_ocr_paste.json"),
+    "D4": ("scenarios", "d4_multi_turn.json"),
+    "D5": ("scenarios", "d5_bilingual_mix.json"),
+    "D6": ("scenarios", "d6_negation_cluster.json"),
+    "D7": ("scenarios", "d7_copy_paste_conflict.json"),
+    "D8": ("scenarios", "d8_template_fill.json"),
+    # Interactive personas (in personas/)
+    "D9": ("personas", "d9_interactive.json"),
 }
 
 
 def _load_personas(ids: list[str]) -> list[dict]:
-    """Load persona JSON files by ID."""
+    """Load scenario/persona JSON files by ID."""
     personas = []
     for pid in ids:
-        filename = _PERSONA_FILES.get(pid.upper())
-        if not filename:
-            print(f"Unknown persona ID: {pid}. Valid: {', '.join(_PERSONA_FILES)}")
+        entry = _SIM_FILES.get(pid.upper())
+        if not entry:
+            print(f"Unknown ID: {pid}. Valid: {', '.join(_SIM_FILES)}")
             sys.exit(1)
-        path = _PERSONAS_DIR / filename
+        subdir, filename = entry
+        base = _SCENARIOS_DIR if subdir == "scenarios" else _PERSONAS_DIR
+        path = base / filename
         if not path.exists():
             print(f"Persona file not found: {path}")
             sys.exit(1)
@@ -118,7 +124,7 @@ async def _run(args: argparse.Namespace) -> None:
 
                 # NHC quality review (5 LLM judges)
                 nhc_quality = await validate_nhc_quality(
-                    soap_snapshot=sim_result.get("soap_snapshot", {}),
+                    record_snapshot=sim_result.get("structured_snapshot", {}),
                     turn_responses=sim_result.get("turn_responses", []),
                     persona=persona,
                 )

@@ -1,0 +1,33 @@
+{
+  "case_id": "DS-004",
+  "title": "Voice emergency style risk alert",
+  "group": "create_save",
+  "chatlog": [
+    {
+      "speaker": "doctor",
+      "text": "陈秀英，女，72岁。她刚才打电话说她现在胸痛持续30分钟不缓解，大汗淋漓。她住在幸福小区3号楼。需要立即处理！",
+      "assert": {
+        "tools_include": [
+          "create_record"
+        ],
+        "llm_calls": 3
+      }
+    },
+    {
+      "speaker": "doctor",
+      "text": "确认",
+      "assert": {
+        "tools_include": [],
+        "llm_calls": 0
+      }
+    }
+  ],
+  "expectations": {
+    "must_not_timeout": true,
+    "expected_patient_name": "陈秀英",
+    "expected_patient_count": 1,
+    "expected_table_min_counts_by_doctor": {
+      "patients": 1
+    }
+  }
+}
