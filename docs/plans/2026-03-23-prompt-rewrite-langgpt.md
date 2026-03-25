@@ -8,7 +8,7 @@
 
 **Tech Stack:** Markdown prompts, Pydantic models, `structured_call` (Instructor), existing test fixtures
 
-**Spec:** `docs/superpowers/specs/2026-03-23-prompt-rewrite-langgpt-instructor-design.md`
+**Spec:** `docs/specs/2026-03-23-prompt-rewrite-langgpt-instructor-design.md`
 
 ---
 

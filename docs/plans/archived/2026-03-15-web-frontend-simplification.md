@@ -17,7 +17,7 @@ polling loops. Make quick commands always visible.
 
 **Tech Stack:** React 19, MUI 7, Zustand 5, Vite 6
 
-**Spec:** `docs/superpowers/specs/2026-03-15-web-frontend-simplification-design.md`
+**Spec:** `docs/specs/archived/2026-03-15-web-frontend-simplification-design.md`
 
 **Working directory:** `frontend/web/src/` (all paths below are relative to this)
 
@@ -458,5 +458,5 @@ Expected: zero matches.
 - [ ] **Step 3: Commit spec + plan**
 
 ```bash
-git add docs/superpowers/ && git commit -m "docs: web frontend simplification spec and plan"
+git add docs/plans/ docs/specs/ && git commit -m "docs: web frontend simplification spec and plan"
 ```

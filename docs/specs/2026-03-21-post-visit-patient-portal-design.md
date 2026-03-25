@@ -304,7 +304,7 @@ Active tab color should use `COLOR.success` (#52C772) per UI-DESIGN.md
 
 ### Visual Reference
 
-Mockups: [docs/superpowers/specs/2026-03-21-mockups/](2026-03-21-mockups/)
+Mockups: [docs/specs/2026-03-21-mockups/](2026-03-21-mockups/)
 
 - `patient-portal-upgrade.html` — final 4-tab upgrade mockup
 - `agent-style-comparison.html` — traditional portal vs AI agent-centric

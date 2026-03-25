@@ -10,7 +10,7 @@
 
 **Tech Stack:** Python 3.9 / SQLAlchemy async / sentence-transformers (BGE-M3) / numpy + scipy / pyyaml / FastAPI
 
-**Spec:** `docs/superpowers/specs/2026-03-20-p1-knowledge-base-case-history-design.md`
+**Spec:** `docs/specs/archived/2026-03-20-p1-knowledge-base-case-history-design.md`
 
 **Testing policy (per AGENTS.md):** No unit tests unless explicitly requested. Integration tests required for safety-critical modules. P1 is knowledge base infrastructure — add integration tests for embedding + case matching.
 

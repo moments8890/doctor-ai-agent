@@ -10,7 +10,7 @@
 
 **Tech Stack:** Python 3.9+ / SQLAlchemy / Pydantic v2 / FastAPI / React (MUI)
 
-**Spec:** `docs/superpowers/specs/2026-03-15-structured-medical-record-fields-design.md`
+**Spec:** `docs/specs/archived/2026-03-15-structured-medical-record-fields-design.md`
 
 **Testing policy:** Per AGENTS.md, do not add unit tests unless explicitly asked. Verify changes manually or via existing E2E replay.
 

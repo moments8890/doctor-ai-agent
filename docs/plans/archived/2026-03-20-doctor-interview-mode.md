@@ -10,7 +10,7 @@
 
 **Tech Stack:** Python/FastAPI (backend), React/MUI (frontend), existing LLM pipeline, existing OCR/PDF extraction
 
-**Spec:** `docs/superpowers/specs/2026-03-20-doctor-interview-mode-design.md` (v4)
+**Spec:** `docs/specs/archived/2026-03-20-doctor-interview-mode-design.md` (v4)
 
 ---
 

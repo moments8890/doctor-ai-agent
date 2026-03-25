@@ -10,8 +10,8 @@
 
 **Tech Stack:** React 18 + MUI 5 (frontend), FastAPI + SQLAlchemy (backend), existing LLM dispatch via `services.ai.agent.dispatch`
 
-**Spec:** `docs/superpowers/specs/2026-03-21-patient-detail-upgrade-design.md`
-**Mockups:** `docs/superpowers/specs/2026-03-21-mockups/reference-views.html`
+**Spec:** `docs/specs/archived/2026-03-21-patient-detail-upgrade-design.md`
+**Mockups:** `docs/specs/archived/2026-03-21-mockups/reference-views.html`
 
 ---
 

@@ -10,7 +10,7 @@
 
 **Tech Stack:** WeChat Mini App (WXML/WXSS/JS), React 19, Zustand, Material-UI, Vite
 
-**Spec:** `docs/superpowers/specs/2026-03-17-wechat-miniapp-design.md`
+**Spec:** `docs/specs/archived/2026-03-17-wechat-miniapp-design.md`
 
 **Key discovery:** `frontend/miniprogram/` already has a working login page (invite code + WeChat), a WebView doctor page with token handoff, subscription message support, and a postMessage logout handler. The plan adapts this existing code rather than building from scratch.
 

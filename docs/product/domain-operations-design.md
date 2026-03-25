@@ -810,7 +810,7 @@ AFTER (Plan and Act):
 
 #### Phase 1: Agent Pipeline — COMPLETE (2026-03-23)
 
-Plan: `docs/superpowers/plans/2026-03-23-plan-and-act-agent-pipeline.md`
+Plan: `docs/plans/archived/2026-03-23-plan-and-act-agent-pipeline.md`
 
 Delivered:
 - `agent/types.py` — IntentType (6 values), RoutingResult, HandlerResult, TurnContext

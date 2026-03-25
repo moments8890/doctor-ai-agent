@@ -1,13 +1,14 @@
 # Documentation Index
 
-This repo has several kinds of docs: active plans, dated reviews, product notes,
-prompt inventory, and DB notes. This index is the entrypoint for contributors and
-AI coding agents.
+This repo has several kinds of docs: active plans, design specs, product notes,
+dated reviews, and operational guides. This index is the entrypoint for
+contributors and AI coding agents.
 
 ## Start Here
 
 - [`/AGENTS.md`](../AGENTS.md)
   Repo execution rules, config expectations, testing gates, and push policy.
+  **Includes documentation standards** — read before creating any new docs.
 - [`/README.md`](../README.md)
   Daily development entrypoints such as `./cli.py start`, `./cli.py stop`, and `./cli.py bootstrap`.
 - [`docs/TESTING.md`](TESTING.md)
@@ -24,62 +25,59 @@ AI coding agents.
 - **Admin/debug endpoints**: hidden from OpenAPI schema; require `X-Admin-Token` / `X-Debug-Token` headers; return 503 when unconfigured.
 - **Production guards**: startup refuses to start without `WECHAT_ID_HMAC_KEY`, `PATIENT_PORTAL_SECRET`, `MINIPROGRAM_TOKEN_SECRET`, and `CORS_ALLOW_ORIGINS` (`main.py:_enforce_production_guards`).
 
-## AI and Product Docs
-
-- [`docs/ai/AI提示词文档.md`](ai/AI提示词文档.md)
-  Prompt inventory, DB keys, and fallback prompt behavior.
-- [`docs/ai/context-and-prompt-contract.md`](ai/context-and-prompt-contract.md)
-  Normative contract for AI context assembly, prompt boundaries, and output expectations.
-- [`docs/plans/adr-0007-blocked-write-continuation-execution-plan.md`](plans/adr-0007-blocked-write-continuation-execution-plan.md)
-  Execution plan for ADR 0007: stateful blocked-write continuation and routing/structuring separation.
-- [`docs/plans/adr-0009-modality-normalization-execution-plan.md`](plans/adr-0009-modality-normalization-execution-plan.md)
-  Execution plan for ADR 0009: voice as normal message after transcription; image/PDF as import after extraction.
-- [`docs/review/03-11/minimal-doctor-assistant-ux-principles.md`](review/03-11/minimal-doctor-assistant-ux-principles.md)
-  Current doctor-facing UX contract.
-- [`docs/review/03-11/llm-context-architecture-review-and-plan.md`](review/03-11/llm-context-architecture-review-and-plan.md)
-  Current LLM context cleanup plan and status.
-- [`docs/review/03-11/db-schema-tightening-plan.md`](review/03-11/db-schema-tightening-plan.md)
-  Current DB schema-hardening plan and status.
-- [`docs/product/ux-review-consolidated.md`](product/ux-review-consolidated.md)
-  Product and UX review context.
-
 ## Folder Map
 
-- `docs/plans/`
-  Active plans and still-actionable backlog docs. This folder should not hold historical review snapshots.
-- `docs/plans/archived/`
-  Closed implementation plans retained for traceability after execution.
-- `docs/review/`
-  Dated reviews, reviewed plans, and architecture assessment material.
-- `docs/product/`
-  Product framing, UX analysis, and feature gap notes.
-- `docs/ai/`
-  Prompt inventory and future AI contract docs.
-- `docs/adr/`
-  Architecture decision records for decisions that should stay stable across reviews and plans.
-- `docs/db/`
-  DB-specific notes and schema review material.
-- `docs/process/`
-  Contributor workflow docs such as plan lifecycle and review conventions.
+| Folder | Contents |
+|--------|----------|
+| `docs/plans/` | Active implementation plans |
+| `docs/plans/archived/` | Completed plans retained for traceability |
+| `docs/specs/` | Active design specs (brainstorm output, architecture decisions) |
+| `docs/specs/archived/` | Completed design specs |
+| `docs/product/` | Product strategy, requirements, gap analysis, UX reviews |
+| `docs/review/` | Dated code/architecture reviews |
+| `docs/qa/` | QA reports, simulation results, UI checkpoint screenshots |
+| `docs/ux/` | UX design spec, wireframes, mockups |
+| `docs/dev/` | Developer guides (setup, LLM providers, simulation, test strategy) |
+| `docs/deploy/` | Deployment & infrastructure guides |
+| `docs/release/` | App store submission, compliance materials |
+| `docs/debug/` | Debug iteration logs |
 
 ## Source of Truth Rules
 
 - Repo workflow rules come from [`/AGENTS.md`](../AGENTS.md).
+- Documentation standards (where to put what) are defined in `AGENTS.md` § Documentation Standards.
 - Current runtime behavior is defined by code first, then summarized in
   [`docs/review/architecture-overview.md`](review/architecture-overview.md).
-- Active implementation intent belongs in `docs/plans/` and not in `docs/plans/archived/`.
-- Once a plan is reviewed or closed, move the historical or retained version into `docs/review/<date>/` or `docs/plans/archived/`.
+- Active implementation intent belongs in `docs/plans/` (not `archived/`).
+- Active design specs belong in `docs/specs/` (not `archived/`).
+- Once a plan or spec is fully implemented, move it to the corresponding `archived/` folder.
 
 ## When Adding or Updating Docs
 
 1. Prefer updating an existing authoritative doc over creating a new near-duplicate.
-2. Put active work in `docs/plans/`.
-3. Put dated reviews and reviewed plans in `docs/review/`.
-4. If a doc is historical and no longer actionable, move it out of active `docs/plans/` into `docs/plans/archived/` or `docs/review/`.
-5. If a doc is still useful but references stale file paths or old runtime assumptions, rewrite it instead of keeping two competing versions.
+2. Put active plans in `docs/plans/`, active specs in `docs/specs/`.
+3. Put dated reviews in `docs/review/MM-DD/`.
+4. If a doc is historical and no longer actionable, move it to `archived/`.
+5. If a doc references stale file paths or old architecture, rewrite it — don't keep two competing versions.
+6. **Do NOT create docs under `docs/superpowers/`.** This prefix is deprecated.
+
+## Key Product Docs
+
+- [`docs/product/product-strategy-doctor-ai-agent-2026-03-20.md`](product/product-strategy-doctor-ai-agent-2026-03-20.md)
+  Product positioning, user persona, AI role definition.
+- [`docs/product/requirements-and-gaps.md`](product/requirements-and-gaps.md)
+  4-phase feature roadmap with completion status.
+- [`docs/product/feature-gap-analysis-2026-03-20.md`](product/feature-gap-analysis-2026-03-20.md)
+  Code audit: what exists, what's missing, what's broken.
+- [`docs/product/clinical-decision-support-design.md`](product/clinical-decision-support-design.md)
+  CDS roadmap with per-feature implementation status.
+- [`docs/product/domain-operations-design.md`](product/domain-operations-design.md)
+  Domain ops design (Plan-and-Act architecture).
+- [`docs/product/ux-review-consolidated.md`](product/ux-review-consolidated.md)
+  UX review findings with prioritized action items.
+- [`docs/ux/design-spec.md`](ux/design-spec.md)
+  UX design specification (wireframes, flows).
 
 ## Related Process Docs
 
 - [`docs/TESTING.md`](TESTING.md)
-- [`docs/process/plan-lifecycle.md`](process/plan-lifecycle.md)
-- [`docs/adr/README.md`](adr/README.md)

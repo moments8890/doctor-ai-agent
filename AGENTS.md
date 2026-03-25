@@ -10,6 +10,32 @@ The plan file must include:
 - **Steps** — numbered, concrete implementation steps
 - **Risks / open questions** — anything that could go wrong or needs clarification
 
+## Documentation Standards
+
+All documentation lives under `docs/`. These are the canonical folders:
+
+| Folder | What goes here | Naming |
+|--------|---------------|--------|
+| `docs/plans/` | Active implementation plans | `YYYY-MM-DD-<feature-name>.md` |
+| `docs/plans/archived/` | Completed plans (for traceability) | same |
+| `docs/specs/` | Design specs (brainstorm output, architecture decisions) | `YYYY-MM-DD-<topic>-design.md` |
+| `docs/product/` | Product strategy, requirements, gap analysis, UX reviews | descriptive name |
+| `docs/review/` | Dated code/architecture reviews | `docs/review/MM-DD/<title>.md` |
+| `docs/qa/` | QA reports, simulation results, UI checkpoint screenshots | descriptive name |
+| `docs/dev/` | Developer guides (setup, LLM providers, simulation, test strategy) | descriptive name |
+| `docs/deploy/` | Deployment & infrastructure guides | descriptive name |
+| `docs/release/` | App store submission, compliance materials | descriptive name |
+| `docs/ux/` | UX design spec, wireframes, mockups | descriptive name |
+
+### Rules for all agents (including superpowers skills)
+
+1. **Do NOT write to `docs/superpowers/`.** This prefix is deprecated. Use the folders above.
+2. Plans go to `docs/plans/`, specs go to `docs/specs/`, product docs go to `docs/product/`.
+3. When a plan is fully implemented (status ✅ DONE), move it to `docs/plans/archived/`.
+4. Prefer updating an existing doc over creating a near-duplicate.
+5. If a doc references stale file paths or old architecture, rewrite it — don't keep two versions.
+6. Mockup HTML files go alongside their spec: `docs/specs/YYYY-MM-DD-mockups/`.
+
 ## UI Design
 
 Always read `DESIGN.md` before making any visual or UI decisions.
@@ -35,7 +61,9 @@ patient page patterns. Do not deviate without explicit user approval.
 - `config/runtime.json` is gitignored; `config/runtime.json.sample` is the reference template
 - Scripts under `scripts/` may use `python-dotenv` standalone, but this does not affect the main app
 - **Always prefer the LAN inference server (`http://192.168.0.123:11434`) over local Ollama** — set `OLLAMA_BASE_URL` and `OLLAMA_VISION_BASE_URL` to the LAN address in `config/runtime.json`; never use `ollama serve` locally
-- **Benchmark server runs on port 8001** — the separate benchmark/integration system runs on port 8001, not 8000; start with `uvicorn main:app --port 8001 --reload`
+- **Test server runs on port 8001** — ALL tests under `tests/` (E2E, integration, patient sim, prompt tests, scenario tests) MUST run against port 8001, never 8000. Port 8000 is the dev server with real data. Start the test server with: `PYTHONPATH=src ENVIRONMENT=development uvicorn main:app --port 8001`
+- **Patient sim runs on port 8001** — `scripts/run_patient_sim.py` must use `--server http://127.0.0.1:8001`
+- **Default LLM provider for tests** — use `groq` as the default LLM provider when running tests and simulations
 
 ## Codex Execution Rules
 
@@ -100,3 +128,13 @@ When debugging failures in E2E / MVP benchmark tests:
 2. **Do NOT make code or expectation changes** — never auto-fix the failing test, the benchmark JSON, or the product code
 3. **Always ask the user** — present findings and ask which fix direction to take (e.g. fix product code vs. relax benchmark expectations vs. mark as known limitation)
 4. This applies to all files: benchmark JSON, fast router patterns, handler logic, etc.
+
+## Workflow
+
+1. Never auto-implement code changes without explicit user approval. When reviewing specs, plans, or designs, present findings and wait for confirmation before writing code.
+2. When reverting changes, revert ONLY the specific files/commits requested. Always confirm scope before reverting. Never revert unrelated files (e.g., AGENTS.md, config files) unless explicitly asked.
+3. This is a production medical AI application, not a hackathon/demo. All code should be production-quality with proper error handling, logging, and testing.
+4. Primary languages: Python (backend/AI), JavaScript (frontend), Markdown (docs/prompts). Use Chinese (中文) for user-facing strings and medical terminology. JSON keys should be English.
+5. Before using sed for file modifications, prefer the Edit tool. sed has corrupted files multiple times in this project. If sed is necessary, always verify file integrity afterward.
+6. After deleting or moving any module/class/function, immediately grep for all imports and references to that symbol and update them. Run tests before committing deletion changes.
+

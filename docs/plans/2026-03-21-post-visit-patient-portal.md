@@ -8,9 +8,9 @@
 
 **Tech Stack:** Python 3.9 (FastAPI), SQLAlchemy, SQLite, React (MUI 7), Qwen3:32b LLM
 
-**Spec:** `docs/superpowers/specs/2026-03-21-post-visit-patient-portal-design.md`
+**Spec:** `docs/specs/2026-03-21-post-visit-patient-portal-design.md`
 
-**UI Reference:** `docs/superpowers/specs/2026-03-21-mockups/patient-portal-upgrade.html`
+**UI Reference:** `docs/specs/2026-03-21-mockups/patient-portal-upgrade.html`
 
 **Design System:** `frontend/web/UI-DESIGN.md` — use TYPE/COLOR/ICON tokens, shared components
 

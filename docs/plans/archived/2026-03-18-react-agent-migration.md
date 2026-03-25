@@ -10,7 +10,7 @@
 
 **Tech Stack:** LangChain, langchain-openai, langchain-core, LangFuse, existing SQLAlchemy + FastAPI + wechatpy
 
-**Spec:** `docs/superpowers/specs/2026-03-18-react-mcp-architecture-design.md`
+**Spec:** `docs/specs/archived/2026-03-18-react-mcp-architecture-design.md`
 
 ## Completion Summary
 

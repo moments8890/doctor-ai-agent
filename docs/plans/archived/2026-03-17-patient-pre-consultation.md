@@ -10,7 +10,7 @@
 
 **Tech Stack:** Python 3.9+ / FastAPI / SQLAlchemy async / OpenAI-compatible LLM / React (Material-UI) frontend
 
-**Spec:** `docs/superpowers/specs/2026-03-17-patient-pre-consultation-design.md`
+**Spec:** `docs/specs/archived/2026-03-17-patient-pre-consultation-design.md`
 **ADR:** `docs/adr/0016-patient-pre-consultation-interview.md`
 
 ---

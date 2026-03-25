@@ -10,7 +10,7 @@
 
 **Tech Stack:** Python 3.9 / FastAPI / SQLAlchemy async / React 19 / MUI 7 / Zustand
 
-**Spec:** `docs/superpowers/specs/2026-03-20-p3-doctor-dashboard-review-design.md`
+**Spec:** `docs/specs/archived/2026-03-20-p3-doctor-dashboard-review-design.md`
 
 **Testing policy (per AGENTS.md):** No unit tests unless explicitly requested. Integration tests not required for non-safety-critical modules. P3 is a CRUD + UI feature, not a diagnosis pipeline, so no tests in this plan.
 

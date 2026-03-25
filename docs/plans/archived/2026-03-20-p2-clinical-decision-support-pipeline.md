@@ -10,7 +10,7 @@
 
 **Tech Stack:** Python 3.9 / FastAPI / SQLAlchemy async / AsyncOpenAI / React 19 / MUI 7
 
-**Spec:** `docs/superpowers/specs/2026-03-20-p2-clinical-decision-support-pipeline-design.md`
+**Spec:** `docs/specs/archived/2026-03-20-p2-clinical-decision-support-pipeline-design.md`
 
 **Testing policy (per AGENTS.md):** Integration tests required for diagnosis pipeline (safety-critical). No unit tests for non-critical modules unless asked.
 

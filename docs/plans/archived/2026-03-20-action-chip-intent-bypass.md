@@ -10,7 +10,7 @@
 
 **Tech Stack:** Python/FastAPI + Pydantic (backend), React + MUI (frontend), existing LangChain ReAct agent
 
-**Spec:** `docs/superpowers/specs/2026-03-20-action-chip-intent-bypass-design.md`
+**Spec:** `docs/specs/archived/2026-03-20-action-chip-intent-bypass-design.md`
 
 ---
 

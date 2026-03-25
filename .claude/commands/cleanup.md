@@ -3,7 +3,7 @@ You are performing a codebase cleanup audit for the doctor-ai-agent project.
 ## Architecture Context
 
 The project has undergone multiple architecture iterations. Each left potential debris.
-Read ALL design specs in `docs/superpowers/specs/` BEFORE scanning — they define what's current vs legacy.
+Read ALL design specs in `docs/specs/` and `docs/specs/archived/` BEFORE scanning — they define what's current vs legacy.
 
 ### Design Specs (read in order, newest = most authoritative)
 
@@ -18,7 +18,7 @@ Read ALL design specs in `docs/superpowers/specs/` BEFORE scanning — they defi
 
 Also read:
 - `src/agent/prompts/README.md` — current prompt architecture with mermaid diagrams
-- `docs/superpowers/specs/adr/` — ADR documents (0011-0017) for historical decisions
+- `docs/specs/archived/` — archived design specs and ADR documents (0011-0017) for historical decisions
 
 ### Cross-Spec Debris Patterns
 
