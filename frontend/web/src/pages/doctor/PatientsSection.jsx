@@ -284,7 +284,12 @@ export default function PatientsSection({ doctorId, onNavigateToChat, onInsertCh
 
   const [triggerExport, setTriggerExport] = useState(false);
 
-  function handleStartInterview() {
+  const [interviewPatient, setInterviewPatient] = useState(null);
+
+  function handleStartInterview(patientOrEvent) {
+    // Called from buttons with no arg (event), or with explicit patient object
+    const patient = (patientOrEvent && patientOrEvent.id && patientOrEvent.name) ? patientOrEvent : selectedPatient;
+    setInterviewPatient(patient || null);
     setInterviewActive(true);
     navigate("/doctor/patients/new");
   }
@@ -296,8 +301,9 @@ export default function PatientsSection({ doctorId, onNavigateToChat, onInsertCh
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
       <InterviewView doctorId={doctorId}
         sessionId={chatInterviewSessionId}
-        onComplete={() => { setInterviewActive(false); onChatInterviewSessionConsumed?.(); load(); }}
-        onCancel={() => { setInterviewActive(false); onChatInterviewSessionConsumed?.(); }} />
+        patientContext={interviewPatient}
+        onComplete={() => { setInterviewActive(false); setInterviewPatient(null); onChatInterviewSessionConsumed?.(); load(); }}
+        onCancel={() => { setInterviewActive(false); setInterviewPatient(null); onChatInterviewSessionConsumed?.(); }} />
     </Box>
   ) : isMobile && selectedId ? (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>

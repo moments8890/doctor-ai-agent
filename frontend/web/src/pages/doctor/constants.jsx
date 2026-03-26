@@ -30,8 +30,23 @@ export const ENCOUNTER_LABEL = {
 };
 
 export const RECORD_FIELDS = [
-  { key: "content", label: "临床笔记" },
   { key: "record_type", label: "类型" },
+];
+
+export const RECORD_STRUCTURED_FIELDS = [
+  { key: "chief_complaint", label: "主诉" },
+  { key: "present_illness", label: "现病史" },
+  { key: "past_history", label: "既往史" },
+  { key: "allergy_history", label: "过敏史" },
+  { key: "personal_history", label: "个人史" },
+  { key: "marital_reproductive", label: "婚育史" },
+  { key: "family_history", label: "家族史" },
+  { key: "physical_exam", label: "体格检查" },
+  { key: "specialist_exam", label: "专科检查" },
+  { key: "auxiliary_exam", label: "辅助检查" },
+  { key: "diagnosis", label: "初步诊断" },
+  { key: "treatment_plan", label: "治疗方案" },
+  { key: "orders_followup", label: "医嘱及随访" },
 ];
 
 export const RECORD_TYPE_COLOR = {

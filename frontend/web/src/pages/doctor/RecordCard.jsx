@@ -32,9 +32,9 @@ function StructuredFields({ structured }) {
   return (
     <Box sx={{ mt: 0.8, bgcolor: "#fafafa", borderRadius: 1, border: "1px solid #f0f0f0", overflow: "hidden" }}>
       {filled.map((key, i) => (
-        <Box key={key} sx={{ display: "flex", gap: 1, px: 1.2, py: 0.7,
+        <Box key={key} sx={{ display: "flex", gap: 1.5, px: 1.5, py: 0.8,
           borderTop: i > 0 ? "1px solid #f0f0f0" : "none" }}>
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#888", fontWeight: 500, flexShrink: 0, minWidth: 56 }}>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "#999", fontWeight: 400, flexShrink: 0, minWidth: 60 }}>
             {STRUCTURED_FIELD_LABELS[key]}
           </Typography>
           <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "#333", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
@@ -113,19 +113,20 @@ function RecordExpandedBody({ current, confirmingDelete, deleting, onConfirmDele
   const structured = current.structured || {};
   const hasStructured = Object.keys(structured).length > 0;
   return (
-    <Box sx={{ px: 2, pb: 1.5, pt: 0 }}>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
+    <Box sx={{ px: 2.5, pb: 1.5, pt: 0.5, borderTop: "0.5px solid #f0f0f0" }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
         {confirmingDelete ? (
           <DeleteConfirmRow deleting={deleting} onConfirm={onConfirmDelete} onCancel={onCancelDelete} />
         ) : (
           <Box onClick={(e) => { e.stopPropagation(); onOpenDelete(); }}
-            sx={{ fontSize: TYPE.caption.fontSize, color: "#FA5151", cursor: "pointer", display: "flex", alignItems: "center", gap: 0.4 }}>
-            <DeleteOutlineIcon sx={{ fontSize: ICON.xs }} />删除
+            sx={{ fontSize: TYPE.secondary.fontSize, color: "#FA5151", cursor: "pointer", display: "flex", alignItems: "center", gap: 0.5, "&:active": { opacity: 0.6 } }}>
+            <DeleteOutlineIcon sx={{ fontSize: ICON.sm }} />删除
           </Box>
         )}
+        <Box sx={{ flex: 1 }} />
         <Box onClick={(e) => { e.stopPropagation(); onOpenEdit(); }}
-          sx={{ fontSize: TYPE.caption.fontSize, color: "#07C160", cursor: "pointer", display: "flex", alignItems: "center", gap: 0.4 }}>
-          <EditOutlinedIcon sx={{ fontSize: ICON.xs }} />编辑
+          sx={{ fontSize: TYPE.secondary.fontSize, color: "#07C160", cursor: "pointer", display: "flex", alignItems: "center", gap: 0.5, "&:active": { opacity: 0.6 } }}>
+          <EditOutlinedIcon sx={{ fontSize: ICON.sm }} />编辑
         </Box>
       </Box>
     </Box>

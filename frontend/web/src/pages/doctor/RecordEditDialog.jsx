@@ -9,7 +9,7 @@ import {
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import { updateRecord } from "../../api";
-import { RECORD_FIELDS } from "./constants";
+import { RECORD_FIELDS, RECORD_STRUCTURED_FIELDS } from "./constants";
 
 function TagsEditor({ tags, onChange }) {
   return (
@@ -39,15 +39,38 @@ function TagsEditor({ tags, onChange }) {
 }
 
 function RecordEditForm({ form, setForm, error, saving, onClose, onSave }) {
+  // Structured fields from record.structured (NHC per-field)
+  const structured = form._structured || {};
+  const hasStructured = Object.values(structured).some((v) => v);
+
+  function setStructuredField(key, value) {
+    setForm((f) => ({ ...f, _structured: { ...(f._structured || {}), [key]: value } }));
+  }
+
   return (
     <>
       <DialogContent dividers>
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
         <Stack spacing={2}>
+          {/* Per-field NHC editing (if structured data exists) */}
+          {hasStructured && RECORD_STRUCTURED_FIELDS.map(({ key, label }) => {
+            const val = structured[key] || "";
+            if (!val && !["chief_complaint", "diagnosis", "treatment_plan"].includes(key)) return null;
+            return (
+              <TextField key={key} label={label} multiline minRows={1} maxRows={8}
+                size="small" fullWidth value={val}
+                onChange={(e) => setStructuredField(key, e.target.value)} />
+            );
+          })}
+          {/* Fallback: raw content blob (if no structured data) */}
+          {!hasStructured && (
+            <TextField label="临床笔记" multiline minRows={5} maxRows={16}
+              size="small" fullWidth value={form.content || ""}
+              onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))} />
+          )}
+          {/* Record type + tags */}
           {RECORD_FIELDS.map(({ key, label }) => (
-            <TextField key={key} label={label} multiline={key === "content"}
-              minRows={key === "content" ? 5 : 1} maxRows={key === "content" ? 16 : 1}
-              size="small" fullWidth value={form[key] || ""}
+            <TextField key={key} label={label} size="small" fullWidth value={form[key] || ""}
               onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))} />
           ))}
           <TagsEditor tags={form.tags} onChange={(tags) => setForm((f) => ({ ...f, tags }))} />
@@ -72,15 +95,33 @@ export default function RecordEditDialog({ record, doctorId, open, onClose, onSa
     if (record) {
       const init = {};
       RECORD_FIELDS.forEach(({ key }) => { init[key] = record[key] || ""; });
+      init.content = record.content || "";
       init.tags = Array.isArray(record.tags) ? [...record.tags] : [];
+      // Populate structured fields from record.structured (API returns NHC fields here)
+      const s = record.structured || {};
+      init._structured = {};
+      RECORD_STRUCTURED_FIELDS.forEach(({ key }) => { init._structured[key] = s[key] || record[key] || ""; });
       setForm(init); setError("");
     }
   }, [record]);
 
   async function handleSave() {
     setSaving(true); setError("");
-    try { const saved = await updateRecord(doctorId, record.id, { ...form, tags: form.tags }); onSaved(saved); onClose(); }
-    catch (e) { setError(e.message || "保存失败"); } finally { setSaving(false); }
+    try {
+      // Build payload: structured fields go as top-level keys, content rebuilt from fields
+      const payload = { record_type: form.record_type, tags: form.tags };
+      const s = form._structured || {};
+      const hasStructured = Object.values(s).some((v) => v);
+      if (hasStructured) {
+        // Send each NHC field as a top-level key for the backend to update individual columns
+        RECORD_STRUCTURED_FIELDS.forEach(({ key }) => { if (s[key]) payload[key] = s[key]; });
+      } else {
+        payload.content = form.content;
+      }
+      const saved = await updateRecord(doctorId, record.id, payload);
+      onSaved(saved);
+      onClose();
+    } catch (e) { setError(e.message || "保存失败"); } finally { setSaving(false); }
   }
 
   return (

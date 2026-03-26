@@ -63,23 +63,13 @@ function groupByDate(items) {
   return Object.entries(groups).filter(([, items]) => items.length > 0);
 }
 
-/* ── Filter chips ── */
+/* ── Filter chips — uses shared FilterChips component ── */
+import FilterBar from "../../components/FilterBar";
 
 function TaskFilterChips({ active, counts, onChange }) {
   return (
-    <Box sx={{ bgcolor: "#ededed", borderBottom: "0.5px solid #d9d9d9", px: 1.5, py: 1, display: "flex", gap: 0.6 }}>
-      {TASK_FILTER_CHIPS.map((chip) => {
-        const count = counts[chip.key];
-        return (
-          <Box key={chip.key} onClick={() => onChange(chip.key)}
-            sx={{ fontSize: TYPE.caption.fontSize, px: 1.2, py: 0.5, borderRadius: "4px", cursor: "pointer", flexShrink: 0,
-              bgcolor: active === chip.key ? "#07C160" : "#fff",
-              color: active === chip.key ? "#fff" : "#666",
-              fontWeight: active === chip.key ? 600 : 400 }}>
-            {chip.label}{count != null ? ` (${count})` : ""}
-          </Box>
-        );
-      })}
+    <Box sx={{ bgcolor: "#ededed", borderBottom: "0.5px solid #d9d9d9" }}>
+      <FilterBar items={TASK_FILTER_CHIPS} active={active} counts={counts} onChange={onChange} variant="chips" />
     </Box>
   );
 }
@@ -438,6 +428,9 @@ export default function TasksSection({ doctorId, urlSubpage, urlSubId }) {
     if (item._type === "review") {
       setDetailReview(item);
       navigate(`/doctor/tasks/review/${item.id}`);
+    } else if (item.record_id) {
+      // Tasks linked to a record (e.g. diagnosis pipeline) → open review page
+      navigate(`/doctor/review/${item.record_id}`);
     } else {
       setDetailTask(item);
       navigate(`/doctor/tasks/task/${item.id}`);

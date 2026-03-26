@@ -94,6 +94,12 @@ function DeletePatientDialog({ open, patientName, deleting, isMobile, onConfirm,
 function PatientActionBar({ exportingPdf, exportingReport, onExportPdf, onExportReport, onDeleteOpen }) {
   return (
     <Stack direction="row" spacing={2} sx={{ pt: 0.5, borderTop: "0.5px solid #f0f0f0" }} alignItems="center">
+      <Box onClick={onDeleteOpen}
+        sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: "pointer", color: "#FA5151", fontSize: TYPE.secondary.fontSize, "&:active": { opacity: 0.6 } }}>
+        <DeleteOutlineIcon sx={{ fontSize: ICON.sm }} />
+        删除患者
+      </Box>
+      <Box sx={{ flex: 1 }} />
       <Box onClick={!exportingPdf && !exportingReport ? onExportPdf : undefined}
         sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: exportingPdf ? "default" : "pointer", color: exportingPdf ? "#ccc" : "#07C160", fontSize: TYPE.secondary.fontSize }}>
         {exportingPdf ? <CircularProgress size={12} sx={{ color: "#ccc" }} /> : <FileDownloadOutlinedIcon sx={{ fontSize: ICON.sm }} />}
@@ -103,12 +109,6 @@ function PatientActionBar({ exportingPdf, exportingReport, onExportPdf, onExport
         sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: exportingReport ? "default" : "pointer", color: exportingReport ? "#ccc" : "#5b9bd5", fontSize: TYPE.secondary.fontSize }}>
         {exportingReport ? <CircularProgress size={12} sx={{ color: "#ccc" }} /> : <FileDownloadOutlinedIcon sx={{ fontSize: ICON.sm }} />}
         门诊报告
-      </Box>
-      <Box sx={{ flex: 1 }} />
-      <Box onClick={onDeleteOpen}
-        sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: "pointer", color: "#FA5151", fontSize: TYPE.secondary.fontSize, "&:active": { opacity: 0.6 } }}>
-        <DeleteOutlineIcon sx={{ fontSize: ICON.sm }} />
-        删除患者
       </Box>
     </Stack>
   );
@@ -193,32 +193,15 @@ function CollapsibleProfile({ patient, age, records, expanded, onToggle, exporti
 
 /* ── RecordTabs ── */
 
-function RecordTabs({ activeTab, onChange, records }) {
-  function countForGroup(group) {
-    if (!group.types) return records.length;
-    return records.filter((r) => group.types.includes(r.record_type)).length;
-  }
+import FilterBar from "../../components/FilterBar";
 
-  return (
-    <Box sx={{ display: "flex", gap: 0, px: 2, borderBottom: "0.5px solid #f0f0f0" }}>
-      {RECORD_TAB_GROUPS.map((g) => {
-        const active = activeTab === g.key;
-        const count = countForGroup(g);
-        return (
-          <Box key={g.key} onClick={() => onChange(g.key)}
-            sx={{
-              px: 1.5, py: 1, cursor: "pointer", fontSize: TYPE.secondary.fontSize,
-              color: active ? "#07C160" : "#999",
-              fontWeight: active ? 600 : 400,
-              borderBottom: active ? "2px solid #07C160" : "2px solid transparent",
-              flexShrink: 0,
-            }}>
-            {g.label} {count > 0 && <Box component="span" sx={{ fontSize: TYPE.micro.fontSize }}>{count}</Box>}
-          </Box>
-        );
-      })}
-    </Box>
-  );
+function RecordTabs({ activeTab, onChange, records }) {
+  const counts = {};
+  RECORD_TAB_GROUPS.forEach((g) => {
+    counts[g.key] = g.types ? records.filter((r) => g.types.includes(r.record_type)).length : records.length;
+  });
+
+  return <FilterBar items={RECORD_TAB_GROUPS} active={activeTab} counts={counts} onChange={onChange} variant="tabs" />;
 }
 
 /* ── StickyTopBar ── */
@@ -260,7 +243,49 @@ function StickyTopBar({ patient, isMobile, onStartInterview, onExportOpen }) {
 
 /* ── RecordListSection ── */
 
+function PendingReviewRow({ record, onClick }) {
+  const RECORD_TYPE_LABEL = {
+    visit: "门诊记录", dictation: "语音记录", import: "导入记录", interview_summary: "预问诊记录",
+    lab: "检验", imaging: "影像", surgery: "手术", referral: "转诊",
+  };
+  const date = record.created_at ? record.created_at.slice(0, 10) : "—";
+  const preview = record.structured?.chief_complaint || record.content || "（无记录内容）";
+  return (
+    <Box onClick={onClick} sx={{ borderBottom: "1px solid #f2f2f2", cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
+      <Box sx={{ display: "flex", alignItems: "flex-start", px: 2, py: 1.3 }}>
+        <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: COLOR.warning, flexShrink: 0, mt: 0.7, mr: 1.4 }} />
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, mb: 0.3 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, flexWrap: "wrap" }}>
+              {record.record_type && (
+                <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.warning, fontWeight: 600 }}>
+                  {RECORD_TYPE_LABEL[record.record_type] || record.record_type}
+                </Typography>
+              )}
+              <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.warning, bgcolor: COLOR.warningLight, px: 0.8, py: 0.1, borderRadius: 0.5, fontWeight: 500 }}>
+                待审核
+              </Typography>
+            </Box>
+            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#bbb", flexShrink: 0, fontFamily: "monospace" }}>{date}</Typography>
+          </Box>
+          <Typography sx={{
+            fontSize: TYPE.secondary.fontSize, color: preview !== "（无记录内容）" ? "text.primary" : "#bbb",
+            overflow: "hidden", display: "-webkit-box",
+            WebkitLineClamp: 2, WebkitBoxOrient: "vertical", whiteSpace: "pre-wrap",
+          }}>
+            {preview}
+          </Typography>
+        </Box>
+        <Box sx={{ ml: 1, flexShrink: 0, display: "flex", alignItems: "center", mt: 0.2 }}>
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.warning }}>→</Typography>
+        </Box>
+      </Box>
+    </Box>
+  );
+}
+
 function RecordListSection({ loading, error, records, filteredRecords, activeTab, setActiveTab, setRecords, doctorId, load }) {
+  const navigate = useNavigate();
   return (
     <Box sx={{ bgcolor: "#fff", mb: 0.8 }}>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 2, pt: 1.5, pb: 0.5 }}>
@@ -274,9 +299,13 @@ function RecordListSection({ loading, error, records, filteredRecords, activeTab
         <Box sx={{ px: 2, pb: 2, pt: 1 }}><Typography variant="body2" color="text.secondary">该类型暂无病历。</Typography></Box>
       ) : (
         filteredRecords.map((r) => (
-          <RecordCard key={r.id} record={r} doctorId={doctorId}
-            onUpdated={(updated) => setRecords((prev) => prev.map((x) => x.id === updated.id ? { ...x, ...updated } : x))}
-            onDeleted={(id) => setRecords((prev) => prev.filter((x) => x.id !== id))} />
+          r.status === "pending_review" ? (
+            <PendingReviewRow key={r.id} record={r} onClick={() => navigate(`/doctor/review/${r.id}`)} />
+          ) : (
+            <RecordCard key={r.id} record={r} doctorId={doctorId}
+              onUpdated={(updated) => setRecords((prev) => prev.map((x) => x.id === updated.id ? { ...x, ...updated } : x))}
+              onDeleted={(id) => setRecords((prev) => prev.filter((x) => x.id !== id))} />
+          )
         ))
       )}
     </Box>

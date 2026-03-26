@@ -94,13 +94,10 @@ const FIELD_ORDER = [
   "treatment_plan", "orders_followup",
 ];
 
-const PHONE_FRAME = {
-  display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", bgcolor: "#f0f0f0",
-};
-const PHONE_INNER = {
-  display: "flex", flexDirection: "column", height: "100%", maxHeight: 932, width: "100%", maxWidth: 430,
-  bgcolor: "#ededed", borderLeft: "1px solid #ddd", borderRight: "1px solid #ddd",
-  borderRadius: { sm: "12px" }, overflow: "hidden",
+// Layout matches DoctorPage — MobileFrame in App.jsx handles the phone container
+const PAGE_LAYOUT = {
+  display: "flex", flexDirection: "column", height: "100%", bgcolor: "#ededed",
+  position: "relative", overflow: "hidden",
 };
 
 function formatDate(iso) {
@@ -752,8 +749,7 @@ function InterviewView({ token, onBack, onLogout }) {
   const allFields = ["chief_complaint", "present_illness", "past_history", "allergy_history", "family_history", "personal_history", "marital_reproductive"];
 
   return (
-    <Box sx={PHONE_FRAME}>
-    <Box sx={PHONE_INNER}>
+    <Box sx={PAGE_LAYOUT}>
       <SubpageHeader title="新建病历" onBack={() => status === "confirmed" ? onBack() : setShowExitDialog(true)}
         right={
           <Chip label={`${progress.total ? Math.round((progress.filled / progress.total) * 100) : 0}%`} size="small"
@@ -883,7 +879,6 @@ function InterviewView({ token, onBack, onLogout }) {
         </DialogActions>
       </Dialog>
     </Box>
-    </Box>
   );
 }
 
@@ -948,47 +943,51 @@ export default function PatientPage() {
   }
 
   return (
-    <Box sx={PHONE_FRAME}>
-    <Box sx={PHONE_INNER}>
+    <Box sx={PAGE_LAYOUT}>
       {/* Hide page header when a subpage has its own header */}
       {!urlSubpage && <SubpageHeader title={NAV_TABS.find(t => t.key === tab)?.title || "AI 健康助手"} />}
 
-      {/* Content */}
-      {tab === "chat" && <ChatTab token={token} doctorName={doctorName} onLogout={handleLogout}
-        onNewInterview={() => { startInterview(); }}
-        onViewRecords={() => setTab("records")} />}
-      {tab === "records" && (
-        <RecordsTab token={token} onLogout={handleLogout} onNewRecord={() => startInterview()} urlSubpage={urlSubpage} />
-      )}
-      {tab === "tasks" && <TasksTab token={token} />}
-      {tab === "profile" && (
-        <Box sx={{ flex: 1, overflowY: "auto", bgcolor: "#ededed" }}>
-          <Box sx={{ bgcolor: "#fff", px: 2, py: 2, mb: 1, display: "flex", alignItems: "center", gap: 1.5 }}>
-            <Box sx={{ width: 44, height: 44, borderRadius: "50%", bgcolor: "#07C160",
-              display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Typography sx={{ color: "#fff", fontSize: ICON.md, fontWeight: 600 }}>{(patientName || "?")[0]}</Typography>
+      {/* Content — flex:1 scrollable area with bottom nav padding */}
+      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", pb: "56px" }}>
+        {tab === "chat" && <ChatTab token={token} doctorName={doctorName} onLogout={handleLogout}
+          onNewInterview={() => { startInterview(); }}
+          onViewRecords={() => setTab("records")} />}
+        {tab === "records" && (
+          <RecordsTab token={token} onLogout={handleLogout} onNewRecord={() => startInterview()} urlSubpage={urlSubpage} />
+        )}
+        {tab === "tasks" && <TasksTab token={token} />}
+        {tab === "profile" && (
+          <Box sx={{ flex: 1, overflowY: "auto", bgcolor: "#ededed" }}>
+            <Box sx={{ bgcolor: "#fff", px: 2, py: 2, mb: 1, display: "flex", alignItems: "center", gap: 1.5 }}>
+              <Box sx={{ width: 44, height: 44, borderRadius: "50%", bgcolor: "#07C160",
+                display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Typography sx={{ color: "#fff", fontSize: ICON.md, fontWeight: 600 }}>{(patientName || "?")[0]}</Typography>
+              </Box>
+              <Box>
+                <Typography sx={{ fontWeight: 600, fontSize: TYPE.title.fontSize }}>{patientName || "患者"}</Typography>
+                {doctorName && <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#999" }}>主治医生：{doctorName}</Typography>}
+              </Box>
             </Box>
-            <Box>
-              <Typography sx={{ fontWeight: 600, fontSize: TYPE.title.fontSize }}>{patientName || "患者"}</Typography>
-              {doctorName && <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#999" }}>主治医生：{doctorName}</Typography>}
+            <Box onClick={handleLogout}
+              sx={{ bgcolor: "#fff", py: 1.5, textAlign: "center", cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
+              <Typography sx={{ fontSize: TYPE.action.fontSize, color: "#FA5151" }}>退出登录</Typography>
             </Box>
           </Box>
-          <Box onClick={handleLogout}
-            sx={{ bgcolor: "#fff", py: 1.5, textAlign: "center", cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
-            <Typography sx={{ fontSize: TYPE.action.fontSize, color: "#FA5151" }}>退出登录</Typography>
-          </Box>
-        </Box>
-      )}
+        )}
+      </Box>
 
-      {/* Bottom nav */}
+      {/* Bottom nav — fixed at bottom like DoctorPage */}
       <BottomNavigation value={tab} onChange={(_, v) => setTab(v)} showLabels
-        sx={{ borderTop: "1px solid #ddd", flexShrink: 0, bgcolor: "#f5f5f5" }}>
+        sx={{
+          position: "absolute", bottom: 0, left: 0, right: 0, height: 56,
+          borderTop: "1px solid #ddd", bgcolor: "#f5f5f5",
+          paddingBottom: "env(safe-area-inset-bottom)",
+        }}>
         {NAV_TABS.map(t => (
           <BottomNavigationAction key={t.key} value={t.key} label={t.label} icon={t.icon}
             sx={{ "&.Mui-selected": { color: "#07C160" } }} />
         ))}
       </BottomNavigation>
-    </Box>
     </Box>
   );
 }
