@@ -1,33 +1,28 @@
-"""Interview prompt loading — mode-aware."""
-import pytest
-from unittest.mock import patch
+"""Interview turn module — verify key exports still exist."""
 
 
-def test_get_prompt_patient_mode():
-    with patch("domain.patients.interview_turn.get_prompt_sync", return_value="patient prompt"):
-        from domain.patients.interview_turn import _get_prompt
-        result = _get_prompt("patient")
-    assert result == "patient prompt"
+def test_interview_turn_exports_field_labels():
+    from domain.patients.interview_turn import FIELD_LABELS
+    assert "chief_complaint" in FIELD_LABELS
+    assert "present_illness" in FIELD_LABELS
 
 
-def test_get_prompt_doctor_mode():
-    with patch("domain.patients.interview_turn.get_prompt_sync", return_value="doctor prompt"):
-        from domain.patients.interview_turn import _get_prompt
-        result = _get_prompt("doctor")
-    assert result == "doctor prompt"
+def test_interview_turn_exports_build_progress():
+    from domain.patients.interview_turn import _build_progress
+    progress = _build_progress({"chief_complaint": "头痛"}, mode="patient")
+    assert progress["filled"] == 1
+    assert progress["total"] > 0
 
 
-def test_get_prompt_doctor_calls_correct_name():
-    with patch("domain.patients.interview_turn.get_prompt_sync") as mock:
-        mock.return_value = "test"
-        from domain.patients.interview_turn import _get_prompt
-        _get_prompt("doctor")
-    mock.assert_called_with("doctor-interview")
+def test_build_progress_doctor_mode_includes_all_fields():
+    from domain.patients.interview_turn import _build_progress
+    progress = _build_progress({}, mode="doctor")
+    # Doctor mode should include all 13 clinical fields
+    assert progress["total"] == 13
 
 
-def test_get_prompt_patient_calls_correct_name():
-    with patch("domain.patients.interview_turn.get_prompt_sync") as mock:
-        mock.return_value = "test"
-        from domain.patients.interview_turn import _get_prompt
-        _get_prompt("patient")
-    mock.assert_called_with("patient-interview")
+def test_build_progress_patient_mode_limited_fields():
+    from domain.patients.interview_turn import _build_progress
+    progress = _build_progress({}, mode="patient")
+    # Patient mode shows only the 7 subjective fields
+    assert progress["total"] == 7

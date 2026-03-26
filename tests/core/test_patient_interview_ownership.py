@@ -55,7 +55,7 @@ async def test_turn_rejects_wrong_patient():
         return_value=owner_session,
     ):
         with pytest.raises(HTTPException) as exc_info:
-            await turn(body, x_patient_token="fake-token")
+            await turn(body, authorization="fake-token")
 
     assert exc_info.value.status_code == 403
 
@@ -93,7 +93,7 @@ async def test_turn_allows_owner():
         new_callable=AsyncMock,
         return_value=mock_response,
     ):
-        result = await turn(body, x_patient_token="fake-token")
+        result = await turn(body, authorization="fake-token")
 
     assert result["reply"] == "请描述一下头痛的情况"
 
@@ -116,6 +116,6 @@ async def test_turn_returns_404_for_nonexistent_session():
         return_value=None,
     ):
         with pytest.raises(HTTPException) as exc_info:
-            await turn(body, x_patient_token="fake-token")
+            await turn(body, authorization="fake-token")
 
     assert exc_info.value.status_code == 404

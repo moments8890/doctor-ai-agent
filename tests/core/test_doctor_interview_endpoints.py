@@ -5,14 +5,17 @@ from fastapi import HTTPException
 
 
 @pytest.mark.asyncio
-async def test_first_turn_requires_patient_name():
+async def test_first_turn_calls_endpoint_without_patient_name():
+    """The endpoint no longer takes patient_name — it is extracted by the LLM.
+    Verify the endpoint signature accepts the current parameters."""
     from channels.web.doctor_interview import interview_turn_endpoint
-    with pytest.raises(HTTPException) as exc:
-        await interview_turn_endpoint(
-            text="头痛三天", session_id=None, patient_name=None,
-            doctor_id="dr_test", file=None, authorization=None,
-        )
-    assert exc.value.status_code == 422
+    import inspect
+    sig = inspect.signature(interview_turn_endpoint)
+    param_names = list(sig.parameters.keys())
+    assert "patient_name" not in param_names
+    assert "text" in param_names
+    assert "session_id" in param_names
+    assert "doctor_id" in param_names
 
 
 @pytest.mark.asyncio
@@ -57,6 +60,9 @@ def test_compute_progress_incomplete():
 
 def test_compute_progress_complete():
     from channels.web.doctor_interview import _compute_progress
+    # In doctor mode, recommended fields include physical_exam, diagnosis,
+    # treatment_plan — so 6 subjective fields alone are not enough.
+    # Provide all doctor-recommended fields to get ready_for_confirm.
     collected = {
         "chief_complaint": "头痛",
         "present_illness": "三天",
@@ -64,6 +70,9 @@ def test_compute_progress_complete():
         "allergy_history": "无",
         "family_history": "无",
         "personal_history": "无",
+        "physical_exam": "正常",
+        "diagnosis": "偏头痛",
+        "treatment_plan": "口服止痛药",
     }
     result = _compute_progress(collected)
     assert result["status"] == "ready_for_confirm"
