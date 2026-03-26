@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import DoctorPage from "./pages/DoctorPage";
-import AdminPage from "./pages/AdminPage";
-import AdminLoginPage from "./pages/AdminLoginPage";
-import DebugPage from "./pages/DebugPage";
+import AdminPage from "./pages/admin/AdminPage";
+import AdminLoginPage from "./pages/admin/AdminLoginPage";
+import DebugPage from "./pages/admin/DebugPage";
 import LoginPage from "./pages/LoginPage";
-import PatientPage from "./pages/PatientPage";
+import PatientPage from "./pages/patient/PatientPage";
 import PrivacyPage from "./pages/PrivacyPage";
-import ComponentShowcasePage from "./pages/ComponentShowcasePage";
+import ComponentShowcasePage from "./pages/admin/ComponentShowcasePage";
 import { useDoctorStore } from "./store/doctorStore";
 import { setWebToken, onAuthExpired } from "./api";
 import { isMiniApp } from "./utils/env";

@@ -68,10 +68,10 @@ import {
   updateAdminRecord,
   getAdminPrompts,
   updateAdminPrompt,
-} from "../api";
+} from "../../api";
 import { ThemeProvider } from "@mui/material/styles";
-import { t } from "../i18n";
-import { TYPE, ICON, adminTheme } from "../theme";
+import { t } from "../../i18n";
+import { TYPE, ICON, adminTheme } from "../../theme";
 
 const ADMIN_TOKEN_KEY = "adminToken";
 

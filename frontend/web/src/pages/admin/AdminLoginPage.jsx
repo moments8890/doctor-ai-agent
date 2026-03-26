@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Box, Button, Card, CardContent, Stack, TextField, Typography } from "@mui/material";
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
-import { setAdminToken, getAdminRoutingMetrics } from "../api";
+import { setAdminToken, getAdminRoutingMetrics } from "../../api";
 
 const ADMIN_TOKEN_KEY = "adminToken";
 

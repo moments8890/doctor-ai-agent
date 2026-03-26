@@ -42,13 +42,13 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
-import SuggestionChips from "../components/SuggestionChips";
-import ListCard from "../components/ListCard";
-import NewItemCard from "../components/NewItemCard";
-import RecordAvatar from "../components/RecordAvatar";
+import SuggestionChips from "../../components/SuggestionChips";
+import ListCard from "../../components/ListCard";
+import NewItemCard from "../../components/NewItemCard";
+import RecordAvatar from "../../components/RecordAvatar";
 import MedicalServicesOutlinedIcon from "@mui/icons-material/MedicalServicesOutlined";
-import SubpageHeader from "../components/SubpageHeader";
-import { TYPE, ICON } from "../theme";
+import SubpageHeader from "../../components/SubpageHeader";
+import { TYPE, ICON } from "../../theme";
 import {
   patientLogin,
   patientRegister,
@@ -65,12 +65,12 @@ import {
   interviewConfirm,
   interviewCancel,
   interviewCurrent,
-} from "../api";
-import DoctorBubble from "../components/DoctorBubble";
-import TaskChecklist from "../components/TaskChecklist";
-import SectionLabel from "../components/SectionLabel";
-import StatusBadge from "../components/StatusBadge";
-import { COLOR } from "../theme";
+} from "../../api";
+import DoctorBubble from "../../components/DoctorBubble";
+import TaskChecklist from "../../components/TaskChecklist";
+import SectionLabel from "../../components/SectionLabel";
+import StatusBadge from "../../components/StatusBadge";
+import { COLOR } from "../../theme";
 
 const STORAGE_KEY = "patient_portal_token";
 const STORAGE_NAME_KEY = "patient_portal_name";

@@ -44,9 +44,9 @@ import {
   seedDebugObservabilitySamples,
   setDebugToken,
   onDebugAuthError,
-} from "../api";
-import { t } from "../i18n";
-import { TYPE } from "../theme";
+} from "../../api";
+import { t } from "../../i18n";
+import { TYPE } from "../../theme";
 
 const DEBUG_TOKEN_KEY = "debugToken";
 

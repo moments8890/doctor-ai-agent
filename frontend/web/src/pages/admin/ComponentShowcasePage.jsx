@@ -8,28 +8,28 @@
  */
 import { useState } from "react";
 import { Box, Typography, TextField } from "@mui/material";
-import { TYPE, ICON, COLOR } from "../theme";
+import { TYPE, ICON, COLOR } from "../../theme";
 
 // Shared components
-import AppButton from "../components/AppButton";
-import AskAIBar from "../components/AskAIBar";
-import CancelConfirm from "../components/CancelConfirm";
-import BarButton from "../components/BarButton";
-import BottomSheet from "../components/BottomSheet";
-import DetailCard from "../components/DetailCard";
-import EmptyState from "../components/EmptyState";
-import ListCard from "../components/ListCard";
-import NewItemCard from "../components/NewItemCard";
-import RecordAvatar from "../components/RecordAvatar";
-import RecordFields from "../components/RecordFields";
-import SectionLabel from "../components/SectionLabel";
-import StatusBadge from "../components/StatusBadge";
-import SuggestionChips from "../components/SuggestionChips";
-import FilterBar from "../components/FilterBar";
+import AppButton from "../../components/AppButton";
+import AskAIBar from "../../components/AskAIBar";
+import CancelConfirm from "../../components/CancelConfirm";
+import BarButton from "../../components/BarButton";
+import BottomSheet from "../../components/BottomSheet";
+import DetailCard from "../../components/DetailCard";
+import EmptyState from "../../components/EmptyState";
+import ListCard from "../../components/ListCard";
+import NewItemCard from "../../components/NewItemCard";
+import RecordAvatar from "../../components/RecordAvatar";
+import RecordFields from "../../components/RecordFields";
+import SectionLabel from "../../components/SectionLabel";
+import StatusBadge from "../../components/StatusBadge";
+import SuggestionChips from "../../components/SuggestionChips";
+import FilterBar from "../../components/FilterBar";
 
 // Page-level components
-import SubpageHeader from "../components/SubpageHeader";
-import DiagnosisCard from "../pages/doctor/DiagnosisCard";
+import SubpageHeader from "../../components/SubpageHeader";
+import DiagnosisCard from "../doctor/DiagnosisCard";
 
 // Icons for demos
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
