@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
-import DoctorPage from "./pages/DoctorPage";
+import DoctorPage from "./pages/doctor/DoctorPage";
 import AdminPage from "./pages/admin/AdminPage";
 import AdminLoginPage from "./pages/admin/AdminLoginPage";
 import DebugPage from "./pages/admin/DebugPage";

@@ -22,18 +22,18 @@ import { useTheme } from "@mui/material/styles";
 import {
   getTasks,
   getDoctorProfile, updateDoctorProfile, getWorkingContext,
-} from "../api";
-import { useDoctorStore } from "../store/doctorStore";
-import { NAV, DESKTOP_NAV } from "./doctor/components/constants";
-import HomePage from "./doctor/HomePage";
-import ChatPage from "./doctor/ChatPage";
-import PatientsPage from "./doctor/PatientsPage";
-import TasksPage from "./doctor/TasksPage";
-import SettingsPage from "./doctor/SettingsPage";
-import WorkingContextHeader from "./doctor/components/WorkingContextHeader";
-import ReviewPage from "./doctor/ReviewPage";
-import ErrorBoundary from "../components/ErrorBoundary";
-import { TYPE, ICON } from "../theme";
+} from "../../api";
+import { useDoctorStore } from "../../store/doctorStore";
+import { NAV, DESKTOP_NAV } from "./components/constants";
+import HomePage from "./HomePage";
+import ChatPage from "./ChatPage";
+import PatientsPage from "./PatientsPage";
+import TasksPage from "./TasksPage";
+import SettingsPage from "./SettingsPage";
+import WorkingContextHeader from "./components/WorkingContextHeader";
+import ReviewPage from "./ReviewPage";
+import ErrorBoundary from "../../components/ErrorBoundary";
+import { TYPE, ICON } from "../../theme";
 
 function DesktopSidebar({ activeSection, doctorName, doctorId, navBadge, onNav, onLogout }) {
   return (
