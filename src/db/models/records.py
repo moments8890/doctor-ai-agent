@@ -54,10 +54,11 @@ class MedicalRecordDB(Base):
     specialist_exam: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     auxiliary_exam: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    # --- 诊断 (3 fields) ---
+    # --- 诊断 ---
     diagnosis: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    ai_diagnosis: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON
-    doctor_decisions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON
+    # DROPPED — replaced by ai_suggestions table (see db/models/ai_suggestion.py)
+    # ai_diagnosis: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON
+    # doctor_decisions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON
 
     # --- 处置 (3 fields) ---
     treatment_plan: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

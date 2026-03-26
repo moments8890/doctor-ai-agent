@@ -9,7 +9,6 @@ Uses structured_call (instructor) for reliable structured output from LLMs.
 from __future__ import annotations
 
 import asyncio
-import json
 import os
 from typing import Any, Dict, List, Optional
 
@@ -53,24 +52,21 @@ def _log_llm_io(tag: str, **kwargs: object) -> None:
 # ---------------------------------------------------------------------------
 
 class DiagnosisDifferential(BaseModel):
-    condition: str = Field(description="Diagnosis name")
+    condition: str = Field(description="Diagnosis name (brief label)")
     confidence: str = Field(default="中", description="Confidence level: 低/中/高")
-    reasoning: str = Field(default="", description="Clinical reasoning")
-    patient_note: str = Field(default="", description="Patient-facing note")
+    detail: str = Field(default="", description="Full description: clinical reasoning + plain explanation")
 
 
 class DiagnosisWorkup(BaseModel):
-    test: str = Field(description="Test/examination name")
-    rationale: str = Field(default="", description="Rationale for the test")
+    test: str = Field(description="Test/examination name (brief label)")
+    detail: str = Field(default="", description="Full description: rationale + plain explanation")
     urgency: str = Field(default="常规", description="Urgency: 常规/紧急/急诊")
-    patient_note: str = Field(default="", description="Patient-facing note")
 
 
 class DiagnosisTreatment(BaseModel):
-    drug_class: str = Field(default="", description="Drug class")
+    drug_class: str = Field(default="", description="Drug class (brief label)")
     intervention: str = Field(default="观察", description="Intervention type: 手术/药物/观察/转诊")
-    description: str = Field(default="", description="Description")
-    patient_note: str = Field(default="", description="Patient-facing note")
+    detail: str = Field(default="", description="Full description: treatment rationale + plain explanation")
 
 
 class DiagnosisLLMResponse(BaseModel):
@@ -300,8 +296,7 @@ def _validate_and_coerce_result(result: DiagnosisLLMResponse) -> Optional[Dict[s
             differentials.append({
                 "condition":    condition,
                 "confidence":   _coerce_confidence(item.confidence),
-                "reasoning":    item.reasoning.strip(),
-                "patient_note": item.patient_note.strip(),
+                "detail":       item.detail.strip(),
             })
 
         if not differentials:
@@ -316,23 +311,21 @@ def _validate_and_coerce_result(result: DiagnosisLLMResponse) -> Optional[Dict[s
                 continue
             workup.append({
                 "test":         test,
-                "rationale":    item.rationale.strip(),
+                "detail":       item.detail.strip(),
                 "urgency":      _coerce_urgency(item.urgency),
-                "patient_note": item.patient_note.strip(),
             })
 
         # Validate treatment
         treatment = []
         for item in result.treatment[:_MAX_ARRAY_ITEMS]:
             drug_class = item.drug_class.strip()
-            description = item.description.strip()
-            if not drug_class and not description:
+            detail = item.detail.strip()
+            if not drug_class and not detail:
                 continue
             treatment.append({
                 "drug_class":    drug_class,
                 "intervention":  _coerce_intervention(item.intervention),
-                "description":   description,
-                "patient_note":  item.patient_note.strip(),
+                "detail":        detail,
             })
 
         # Validate red flags
@@ -515,21 +508,49 @@ async def run_diagnosis(
             return {"error": "Invalid LLM response: no valid differentials", "status": "failed"}
 
         # ------------------------------------------------------------------
-        # Step 8: Persist diagnosis to medical_records.ai_diagnosis
+        # Step 8: Persist diagnosis to ai_suggestions table
         # ------------------------------------------------------------------
         red_flags = result.get("red_flags", [])
 
-        try:
-            async with AsyncSessionLocal() as db:
-                rec = (await db.execute(
-                    select(MedicalRecordDB).where(MedicalRecordDB.id == record_id).limit(1)
-                )).scalar_one_or_none()
-                if rec:
-                    rec.ai_diagnosis = json.dumps(result, ensure_ascii=False)
-                    await db.commit()
-                    log(f"{_tag} diagnosis persisted to record {record_id}")
-        except Exception as persist_err:
-            log(f"{_tag} diagnosis persist failed (non-fatal): {persist_err}", level="warning")
+        if record_id is not None:
+            try:
+                from db.crud.suggestions import create_suggestion
+                from db.models.ai_suggestion import SuggestionSection
+
+                async with AsyncSessionLocal() as db:
+                    for d in result["differentials"]:
+                        await create_suggestion(
+                            db,
+                            record_id=record_id,
+                            doctor_id=doctor_id,
+                            section=SuggestionSection.differential,
+                            content=d["condition"],
+                            detail=d.get("detail") or None,
+                            confidence=d.get("confidence") or None,
+                        )
+                    for w in result["workup"]:
+                        await create_suggestion(
+                            db,
+                            record_id=record_id,
+                            doctor_id=doctor_id,
+                            section=SuggestionSection.workup,
+                            content=w["test"],
+                            detail=w.get("detail") or None,
+                            urgency=w.get("urgency") or None,
+                        )
+                    for t in result["treatment"]:
+                        await create_suggestion(
+                            db,
+                            record_id=record_id,
+                            doctor_id=doctor_id,
+                            section=SuggestionSection.treatment,
+                            content=t["drug_class"],
+                            detail=t.get("detail") or None,
+                            intervention=t.get("intervention") or None,
+                        )
+                    log(f"{_tag} diagnosis persisted to ai_suggestions for record {record_id}")
+            except Exception as persist_err:
+                log(f"{_tag} diagnosis persist failed (non-fatal): {persist_err}", level="warning")
 
         # ------------------------------------------------------------------
         # Step 9: Auto-create tasks from diagnosis treatment items
@@ -549,8 +570,8 @@ async def run_diagnosis(
                         if t.intervention in ("手术", "转诊"):
                             await db_create_task(
                                 db, doctor_id=doctor_id, task_type="general",
-                                title=f"{t.intervention}：{t.description[:50]}",
-                                content=t.description,
+                                title=f"{t.intervention}：{t.detail[:50]}",
+                                content=t.detail,
                                 patient_id=_patient_id,
                                 record_id=record_id,
                             )

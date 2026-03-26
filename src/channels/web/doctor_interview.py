@@ -295,11 +295,12 @@ async def interview_confirm_endpoint(
     doctor_id: str = Form(default=""),
     authorization: Optional[str] = Header(default=None),
 ):
-    """Confirm interview and save collected clinical record fields directly to medical_records.
+    """Confirm interview and save to medical_records.
 
-    No re-structuring LLM call — the interview already collected structured fields.
-    Checks completeness: if diagnosis + treatment + followup are filled, saves as
-    'completed'. Otherwise saves as 'pending_review'.
+    Runs batch extraction from the full conversation transcript using
+    doctor-extract.md, then saves the result. Per-turn collected fields
+    (used for progress UI during the interview) are replaced by the
+    batch extraction output for better field routing accuracy.
     """
     resolved_doctor = await _resolve_doctor_id(doctor_id, authorization)
     session = await _verify_session(session_id, resolved_doctor)
@@ -313,6 +314,25 @@ async def interview_confirm_endpoint(
     collected = session.collected or {}
     if not any(v for k, v in collected.items() if not k.startswith("_")):
         raise HTTPException(400, "No collected data to confirm")
+
+    # Batch re-extraction from full transcript (replaces per-turn draft)
+    if session.conversation:
+        from domain.patients.interview_summary import batch_extract_from_transcript
+        patient_info = {
+            "name": collected.get("_patient_name", ""),
+            "gender": collected.get("_patient_gender", ""),
+            "age": collected.get("_patient_age", ""),
+        }
+        extracted = await batch_extract_from_transcript(
+            session.conversation, patient_info, mode="doctor",
+        )
+        if extracted:
+            # Preserve metadata fields (underscore-prefixed) from per-turn collected
+            for k, v in collected.items():
+                if k.startswith("_") and k not in extracted:
+                    extracted[k] = v
+            collected = extracted
+            log(f"[interview-confirm] batch extraction replaced per-turn draft: {len(extracted)} fields")
 
     # Deferred patient creation — if patient_id is still None, create now
     if session.patient_id is None:

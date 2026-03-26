@@ -15,6 +15,7 @@ from db.models.medical_record import MedicalRecord
 from db.models.patient_message import PatientMessage
 from db.models.interview_session import InterviewSessionDB, InterviewStatus
 from db.models.doctor_chat_log import DoctorChatLog, ChatRole
+from db.models.ai_suggestion import AISuggestion, SuggestionSection, SuggestionDecision
 
 __all__ = [
     "_utcnow",
@@ -31,4 +32,5 @@ __all__ = [
     "PatientMessage",
     "InterviewSessionDB", "InterviewStatus",
     "DoctorChatLog", "ChatRole",
+    "AISuggestion", "SuggestionSection", "SuggestionDecision",
 ]

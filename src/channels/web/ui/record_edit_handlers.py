@@ -80,8 +80,7 @@ async def update_record(
             specialist_exam=rec.specialist_exam,
             auxiliary_exam=rec.auxiliary_exam,
             diagnosis=rec.diagnosis,
-            ai_diagnosis=rec.ai_diagnosis,
-            doctor_decisions=rec.doctor_decisions,
+            # ai_diagnosis / doctor_decisions dropped — now in ai_suggestions table
             treatment_plan=rec.treatment_plan,
             orders_followup=rec.orders_followup,
             suggested_tasks=rec.suggested_tasks,

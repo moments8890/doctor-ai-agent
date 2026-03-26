@@ -52,6 +52,13 @@ from db.crud.retention import (
     archive_old_audit_logs,
     cleanup_chat_log,
 )
+from db.crud.suggestions import (
+    create_suggestion,
+    get_suggestions_for_record,
+    get_suggestion_by_id,
+    update_decision,
+    has_suggestions,
+)
 
 __all__ = [
     # doctor
@@ -98,4 +105,10 @@ __all__ = [
     # retention
     "archive_old_audit_logs",
     "cleanup_chat_log",
+    # suggestions
+    "create_suggestion",
+    "get_suggestions_for_record",
+    "get_suggestion_by_id",
+    "update_decision",
+    "has_suggestions",
 ]

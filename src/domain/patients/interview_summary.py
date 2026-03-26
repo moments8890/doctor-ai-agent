@@ -158,11 +158,13 @@ async def batch_extract_from_transcript(
     age = patient_info.get("age", "未知")
 
     template = _load_extract_prompt(mode)
-    prompt = template.format(
-        name=name,
-        gender=gender,
-        age=age,
-        transcript=transcript,
+    # Manual substitution — .format() breaks on JSON braces in prompt examples
+    prompt = (
+        template
+        .replace("{name}", str(name))
+        .replace("{gender}", str(gender))
+        .replace("{age}", str(age))
+        .replace("{transcript}", transcript)
     )
 
     response_model = DoctorExtractResult if mode == "doctor" else PatientExtractResult

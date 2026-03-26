@@ -17,6 +17,7 @@ from channels.web.ui.record_edit_handlers import router as _record_edit_router
 from channels.web.ui.doctor_profile_handlers import router as _doctor_profile_router
 from channels.web.ui.knowledge_handlers import router as _knowledge_router
 from channels.web.ui.briefing_handlers import router as _briefing_router
+from channels.web.ui.diagnosis_handlers import router as _diagnosis_router
 
 router = APIRouter(tags=["ui"])
 
@@ -31,3 +32,4 @@ router.include_router(_record_edit_router)
 router.include_router(_doctor_profile_router)
 router.include_router(_knowledge_router)
 router.include_router(_briefing_router)
+router.include_router(_diagnosis_router)

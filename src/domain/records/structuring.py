@@ -67,11 +67,13 @@ async def _extract_fields(
     from agent.llm import structured_call
 
     template = _load_extract_prompt()
-    prompt = template.format(
-        name="未知",
-        gender="未知",
-        age="未知",
-        transcript=text,
+    # Manual substitution — .format() breaks on JSON braces in prompt examples
+    prompt = (
+        template
+        .replace("{name}", "未知")
+        .replace("{gender}", "未知")
+        .replace("{age}", "未知")
+        .replace("{transcript}", text)
     )
 
     from utils.prompt_loader import get_prompt_sync
