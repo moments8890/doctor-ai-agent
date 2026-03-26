@@ -40,9 +40,16 @@ All documentation lives under `docs/`. These are the canonical folders:
 
 Always read `DESIGN.md` before making any visual or UI decisions.
 For shared component usage and layout patterns, reference
-`frontend/web/UI-DESIGN.md` — it defines which components
+`docs/ux/UI-DESIGN.md` — it defines which components
 to use for buttons, list rows, page layout, knowledge base UI, and
 patient page patterns. Do not deviate without explicit user approval.
+
+## UI Testing
+
+Before release or after major frontend changes, run the 3-level UI audit
+defined in `docs/dev/frontend-ui-audit.md`. This verifies features are
+functional (Level 1), usable (Level 2), and fit real workflows (Level 3).
+Save reports to `docs/qa/ui-audit-YYYY-MM-DD.md`.
 
 ## Code Style
 

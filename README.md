@@ -91,6 +91,7 @@ MVP phase.
 - `docs/README.md` — documentation index and folder map
 - `docs/TESTING.md` — validation workflow and test modes
 - `docs/review/architecture-overview.md` — current system architecture
+- `docs/ux/UI-DESIGN.md` — UI design principles, component guide, file map
 - `docs/product/feature-parity-matrix-2026-03-25.md` — frontend feature status
 - `src/agent/prompts/README.md` — prompt architecture and intent routing
 
@@ -165,5 +166,6 @@ python scripts/seed_db.py --reset --import
 - `docs/README.md` — 文档索引和目录结构
 - `docs/TESTING.md` — 验证流程和测试模式
 - `docs/review/architecture-overview.md` — 当前系统架构
+- `docs/ux/UI-DESIGN.md` — UI设计规范、组件指南、文件索引
 - `docs/product/feature-parity-matrix-2026-03-25.md` — 前端功能状态
 - `src/agent/prompts/README.md` — 提示词架构和意图路由
