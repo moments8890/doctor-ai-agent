@@ -171,17 +171,36 @@ export default function ComponentShowcasePage() {
 
       {/* ═══════ 4. List & Cards ═══════ */}
       <Group id="group-3" title="List & Cards" count={5}>
-        <Section title="ListCard" file="ListCard.jsx">
+        <Section title="ListCard (right)" file="ListCard.jsx">
+          <Typography sx={{ fontSize: 11, color: COLOR.text4, mb: 1 }}>Data rows — custom right content:</Typography>
           <ListCard
             avatar={<PatientAvatar name="陈伟强" size={36} />}
             title="陈伟强" subtitle="男 · 42岁 · 3份病历"
             right={<Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>03-26</Typography>}
           />
-          <Box sx={{ borderTop: `0.5px solid ${COLOR.borderLight}` }} />
           <ListCard
             avatar={<PatientAvatar name="李复诊" size={36} />}
             title="李复诊" subtitle="女 · 56岁 · 1份病历"
             right={<Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>03-25</Typography>}
+          />
+        </Section>
+
+        <Section title="ListCard (chevron)" file="ListCard.jsx">
+          <Typography sx={{ fontSize: 11, color: COLOR.text4, mb: 1 }}>Navigation rows — › arrow:</Typography>
+          <ListCard title="报告模板" subtitle="自定义门诊病历报告格式" chevron onClick={() => {}} />
+          <ListCard title="知识库" subtitle="管理 AI 助手参考资料" chevron onClick={() => {}} />
+          <ListCard title="关于" subtitle="版本信息" chevron onClick={() => {}} />
+        </Section>
+
+        <Section title="ListCard (avatar + chevron)" file="ListCard.jsx">
+          <Typography sx={{ fontSize: 11, color: COLOR.text4, mb: 1 }}>Briefing/notification rows:</Typography>
+          <ListCard
+            avatar={<Box sx={{ width: 36, height: 36, borderRadius: 1, bgcolor: "#FEF0EE", display: "flex", alignItems: "center", justifyContent: "center" }}><Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: "#E8533F" }} /></Box>}
+            title="3项待审核" subtitle="陈伟强、李复诊" chevron onClick={() => {}}
+          />
+          <ListCard
+            avatar={<Box sx={{ width: 36, height: 36, borderRadius: 1, bgcolor: "#E8F5E9", display: "flex", alignItems: "center", justifyContent: "center" }}><Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: COLOR.primary }} /></Box>}
+            title="今日5位患者已就诊" chevron onClick={() => {}}
           />
         </Section>
 
