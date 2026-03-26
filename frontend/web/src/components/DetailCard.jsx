@@ -13,10 +13,10 @@ import { TYPE, COLOR } from "../theme";
 
 export default function DetailCard({ title, fields, note, noteLabel = "备注", children }) {
   return (
-    <Box sx={{ bgcolor: "#fff", px: 2, py: 1.5, mb: 1 }}>
+    <Box sx={{ bgcolor: COLOR.white, px: 2, py: 1.5, mb: 1 }}>
       {/* Title */}
       {title && (
-        <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: "#1A1A1A", mb: 1 }}>
+        <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1, mb: 1 }}>
           {title}
         </Typography>
       )}
@@ -39,7 +39,7 @@ export default function DetailCard({ title, fields, note, noteLabel = "备注", 
 
       {/* Note / long text */}
       {note && (
-        <Box sx={{ pt: 0.5, borderTop: "0.5px solid #f0f0f0" }}>
+        <Box sx={{ pt: 0.5, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
           <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 0.3 }}>{noteLabel}</Typography>
           <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
             {note}

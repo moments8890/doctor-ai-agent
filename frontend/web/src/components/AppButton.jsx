@@ -18,9 +18,9 @@ import { Box, CircularProgress } from "@mui/material";
 import { TYPE, COLOR } from "../theme";
 
 const VARIANT_STYLES = {
-  primary:   { bgcolor: COLOR.primary, color: "#fff", fontWeight: 600 },
-  secondary: { bgcolor: "#f5f5f5", color: "#666", fontWeight: 400 },
-  danger:    { bgcolor: COLOR.danger, color: "#fff", fontWeight: 600 },
+  primary:   { bgcolor: COLOR.primary, color: COLOR.white, fontWeight: 600 },
+  secondary: { bgcolor: COLOR.surface, color: COLOR.text3, fontWeight: 400 },
+  danger:    { bgcolor: COLOR.danger, color: COLOR.white, fontWeight: 600 },
 };
 
 const SIZE_STYLES = {

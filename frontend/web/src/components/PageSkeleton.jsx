@@ -6,6 +6,7 @@
  */
 import { useCallback, useRef, useState } from "react";
 import { Box, Typography } from "@mui/material";
+import { COLOR } from "../theme";
 import SubpageHeader from "../pages/doctor/SubpageHeader";
 
 function DragHandle({ onDrag }) {
@@ -54,7 +55,7 @@ export default function PageSkeleton({ title, headerRight, listPane, detailPane,
   // Mobile: header + list content + floating bar
   if (isMobile) {
     return (
-      <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
+      <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surface }}>
         <SubpageHeader title={title} right={headerRight} />
         <Box sx={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
           {listPane}
@@ -66,7 +67,7 @@ export default function PageSkeleton({ title, headerRight, listPane, detailPane,
   // Desktop: list (resizable) | drag handle | detail (flex)
   return (
     <Box ref={containerRef} sx={{ display: "flex", height: "100%", overflow: "hidden" }}>
-      <Box sx={{ width: listWidth, flexShrink: 0, display: "flex", flexDirection: "column", bgcolor: "#f7f7f7" }}>
+      <Box sx={{ width: listWidth, flexShrink: 0, display: "flex", flexDirection: "column", bgcolor: COLOR.surface }}>
         {listPane}
       </Box>
       <DragHandle onDrag={handleDrag} />

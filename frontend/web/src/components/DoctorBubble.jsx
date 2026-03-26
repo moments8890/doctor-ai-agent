@@ -14,7 +14,7 @@ export default function DoctorBubble({ doctorName, content, timestamp }) {
         {/* Doctor name label */}
         <Typography
           sx={{
-            fontSize: 12,
+            fontSize: TYPE.caption.fontSize,
             fontWeight: 500,
             color: COLOR.success,
             mb: "2px",
@@ -26,7 +26,7 @@ export default function DoctorBubble({ doctorName, content, timestamp }) {
         {/* Message bubble */}
         <Box
           sx={{
-            bgcolor: "#fff",
+            bgcolor: COLOR.white,
             border: `0.5px solid ${COLOR.success}`,
             borderRadius: "8px",
             ...TYPE.body,
@@ -45,7 +45,7 @@ export default function DoctorBubble({ doctorName, content, timestamp }) {
         {timestamp && (
           <Typography
             sx={{
-              fontSize: 12,
+              fontSize: TYPE.caption.fontSize,
               color: COLOR.text4,
               mt: "2px",
             }}

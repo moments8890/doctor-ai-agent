@@ -54,7 +54,7 @@ export default function CancelConfirm({
             onClick={onCancel}
             sx={{
               flex: 1, py: 1, textAlign: "center", borderRadius: "4px",
-              fontSize: TYPE.body.fontSize, fontWeight: 600, color: "#fff",
+              fontSize: TYPE.body.fontSize, fontWeight: 600, color: COLOR.white,
               bgcolor: COLOR.primary,
               cursor: "pointer", "&:active": { opacity: 0.7 },
             }}

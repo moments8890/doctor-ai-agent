@@ -1,5 +1,6 @@
 import { Component } from "react";
 import { Box, Typography, Button } from "@mui/material";
+import { COLOR } from "../theme";
 
 export default class ErrorBoundary extends Component {
   constructor(props) {
@@ -28,7 +29,7 @@ export default class ErrorBoundary extends Component {
             height: "100%",
             gap: 2,
             p: 3,
-            color: "#888",
+            color: COLOR.text3,
           }}
         >
           <Typography variant="body2">{label}加载失败，请刷新页面重试。</Typography>

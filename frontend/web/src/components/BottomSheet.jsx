@@ -5,6 +5,7 @@
 import { useCallback, useRef } from "react";
 import { Box, Typography } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import { TYPE, ICON, COLOR } from "../theme";
 
 export default function BottomSheet({ open, onClose, title, right, children }) {
   const startY = useRef(null);
@@ -33,7 +34,7 @@ export default function BottomSheet({ open, onClose, title, right, children }) {
       <Box ref={sheetRef}
         onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}
         sx={{
-          flex: 1, bgcolor: "#fff", borderRadius: "12px 12px 0 0",
+          flex: 1, bgcolor: COLOR.white, borderRadius: "12px 12px 0 0",
           display: "flex", flexDirection: "column",
           boxShadow: "0 -4px 20px rgba(0,0,0,0.12)",
           overflow: "hidden",
@@ -41,13 +42,13 @@ export default function BottomSheet({ open, onClose, title, right, children }) {
         {/* Header — only if title provided */}
         {title && (
           <Box sx={{ position: "relative", display: "flex", alignItems: "center", height: 48, px: 1,
-            borderBottom: "1px solid #e5e5e5", flexShrink: 0, bgcolor: "#fff" }}>
+            borderBottom: `1px solid ${COLOR.border}`, flexShrink: 0, bgcolor: COLOR.white }}>
             <Box onClick={onClose}
               sx={{ display: "flex", alignItems: "center", cursor: "pointer", px: 0.5, py: 1,
-                color: "#333", "&:active": { opacity: 0.5 } }}>
-              <KeyboardArrowDownIcon sx={{ fontSize: 28 }} />
+                color: COLOR.text2, "&:active": { opacity: 0.5 } }}>
+              <KeyboardArrowDownIcon sx={{ fontSize: ICON.hero }} />
             </Box>
-            <Typography sx={{ flex: 1, textAlign: "center", fontWeight: 600, fontSize: 16 }}>
+            <Typography sx={{ flex: 1, textAlign: "center", fontWeight: 600, fontSize: TYPE.title.fontSize }}>
               {title}
             </Typography>
             {right ? <Box sx={{ position: "absolute", right: 8 }}>{right}</Box> : <Box sx={{ minWidth: 36 }} />}

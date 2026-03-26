@@ -11,11 +11,11 @@
  *  - onChange: (key) => void
  */
 import { Box } from "@mui/material";
-import { TYPE } from "../theme";
+import { TYPE, COLOR } from "../theme";
 
 export default function FilterBar({ items, active, counts = {}, onChange }) {
   return (
-    <Box sx={{ display: "flex", gap: 0, px: 2, borderBottom: "0.5px solid #f0f0f0" }}>
+    <Box sx={{ display: "flex", gap: 0, px: 2, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
       {items.map((tab) => {
         const isActive = active === tab.key;
         const count = counts[tab.key];
@@ -24,9 +24,9 @@ export default function FilterBar({ items, active, counts = {}, onChange }) {
             sx={{
               px: 1.5, py: 1, cursor: "pointer",
               fontSize: TYPE.secondary.fontSize,
-              color: isActive ? "#07C160" : "#999",
+              color: isActive ? COLOR.primary : COLOR.text4,
               fontWeight: isActive ? 600 : 400,
-              borderBottom: isActive ? "2px solid #07C160" : "2px solid transparent",
+              borderBottom: isActive ? `2px solid ${COLOR.primary}` : "2px solid transparent",
               flexShrink: 0,
               "&:active": { opacity: 0.7 },
             }}>

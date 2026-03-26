@@ -8,9 +8,9 @@
  *  - sx: additional sx overrides
  */
 import { Box } from "@mui/material";
-import { TYPE } from "../theme";
+import { TYPE, COLOR } from "../theme";
 
-export default function StatusBadge({ label, colorMap, fallbackColor = "#999", sx }) {
+export default function StatusBadge({ label, colorMap, fallbackColor = COLOR.text4, sx }) {
   const color = colorMap?.[label] ?? fallbackColor;
   return (
     <Box

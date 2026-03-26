@@ -13,8 +13,7 @@
  */
 import { Box } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import { COLOR } from "../theme";
-import { TYPE, ICON } from "../theme";
+import { TYPE, ICON, COLOR } from "../theme";
 
 export default function SuggestionChips({ items, selected = [], onToggle, onDismiss, disabled = false }) {
   if (!items || items.length === 0) return null;
@@ -23,8 +22,8 @@ export default function SuggestionChips({ items, selected = [], onToggle, onDism
     <Box sx={{
       display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5,
       px: 1.5, py: 0.8,
-      borderTop: "1px solid #e0e0e0",
-      bgcolor: "#f7f7f7",
+      borderTop: `1px solid ${COLOR.border}`,
+      bgcolor: COLOR.surface,
       flexShrink: 0,
     }}>
       {items.map((text, i) => {
@@ -41,15 +40,15 @@ export default function SuggestionChips({ items, selected = [], onToggle, onDism
               px: 1.2,
               py: 0.5,
               border: "1px solid",
-              borderColor: isSelected ? COLOR.success : "#E5E5E5",
+              borderColor: isSelected ? COLOR.primary : COLOR.border,
               borderRadius: "16px",
               cursor: disabled ? "default" : "pointer",
               fontSize: TYPE.secondary.fontSize,
               fontFamily: "inherit",
               whiteSpace: "nowrap",
               flexShrink: 0,
-              backgroundColor: isSelected ? "#e8f5e9" : "#fff",
-              color: isSelected ? COLOR.success : (disabled ? "#999" : "#333"),
+              backgroundColor: isSelected ? COLOR.primaryLight : COLOR.white,
+              color: isSelected ? COLOR.primary : (disabled ? COLOR.text4 : COLOR.text2),
               fontWeight: isSelected ? 500 : 400,
               opacity: disabled ? 0.5 : 1,
               boxShadow: isSelected ? "none" : "0 1px 2px rgba(0,0,0,0.06)",
@@ -68,7 +67,7 @@ export default function SuggestionChips({ items, selected = [], onToggle, onDism
             display: "flex", alignItems: "center", justifyContent: "center",
             width: 24, height: 24, borderRadius: "50%",
             cursor: "pointer", flexShrink: 0, ml: 0.5,
-            color: "#999",
+            color: COLOR.text4,
             "&:active": { opacity: 0.5 },
           }}
         >

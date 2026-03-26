@@ -67,7 +67,7 @@ export default function TaskChecklist({ tasks, onComplete, onUpload }) {
   if (!tasks || tasks.length === 0) return null;
 
   return (
-    <Box sx={{ bgcolor: "#fff" }}>
+    <Box sx={{ bgcolor: COLOR.white }}>
       {tasks.map((task) => {
         const completed = task.status === "done" || task.status === "completed";
         const overdue = !completed && isOverdue(task.due_at);
@@ -79,7 +79,7 @@ export default function TaskChecklist({ tasks, onComplete, onUpload }) {
             sx={{
               display: "flex", alignItems: "center", gap: "12px",
               px: "12px", py: "8px",
-              borderBottom: `0.5px solid #f0f0f0`,
+              borderBottom: `0.5px solid ${COLOR.borderLight}`,
             }}
           >
             {/* Checkbox */}
@@ -94,7 +94,7 @@ export default function TaskChecklist({ tasks, onComplete, onUpload }) {
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Typography
                 sx={{
-                  fontSize: 15, fontWeight: 500,
+                  fontSize: TYPE.action.fontSize, fontWeight: 500,
                   color: completed ? COLOR.text4 : COLOR.text1,
                   textDecoration: completed ? "line-through" : "none",
                   lineHeight: 1.4,
@@ -105,7 +105,7 @@ export default function TaskChecklist({ tasks, onComplete, onUpload }) {
               {task.content && (
                 <Typography
                   sx={{
-                    fontSize: 13, fontWeight: 400, color: COLOR.text4,
+                    fontSize: TYPE.secondary.fontSize, fontWeight: 400, color: COLOR.text4,
                     lineHeight: 1.4, mt: 0.2,
                     overflow: "hidden", textOverflow: "ellipsis",
                     whiteSpace: "nowrap",

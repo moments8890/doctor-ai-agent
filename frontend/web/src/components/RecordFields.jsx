@@ -1,6 +1,6 @@
 import { Box, Chip, Stack, Typography } from "@mui/material";
 import { t } from "../i18n";
-import { TYPE } from "../theme";
+import { TYPE, COLOR } from "../theme";
 
 export default function RecordFields({ record }) {
   if (!record) return null;
@@ -12,8 +12,8 @@ export default function RecordFields({ record }) {
         mt: 1.5,
         p: 1.5,
         borderRadius: 1.5,
-        bgcolor: "#fff",
-        border: "1px solid #f0f0f0",
+        bgcolor: COLOR.white,
+        border: `1px solid ${COLOR.borderLight}`,
       }}
     >
       <Typography variant="subtitle2" sx={{ color: "primary.main", mb: 1 }}>

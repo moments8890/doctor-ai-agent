@@ -11,7 +11,7 @@ export default function AskAIBar({ onClick }) {
       onClick={onClick}
       sx={{
         mx: 1.5, mb: 1.5, px: 1.5, py: 1,
-        bgcolor: "#fff", borderRadius: "4px",
+        bgcolor: COLOR.white, borderRadius: "4px",
         display: "flex", alignItems: "center", gap: 1,
         border: "0.5px solid #d9d9d9",
         cursor: "pointer",
@@ -23,9 +23,9 @@ export default function AskAIBar({ onClick }) {
         width: 28, height: 28, borderRadius: "4px", bgcolor: COLOR.success,
         display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
       }}>
-        <Typography sx={{ color: "#fff", fontSize: TYPE.micro.fontSize, fontWeight: "bold" }}>AI</Typography>
+        <Typography sx={{ color: COLOR.white, fontSize: TYPE.micro.fontSize, fontWeight: "bold" }}>AI</Typography>
       </Box>
-      <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#bbb" }}>问 AI 任何问题...</Typography>
+      <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text4 }}>问 AI 任何问题...</Typography>
     </Box>
   );
 }

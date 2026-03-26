@@ -4,7 +4,7 @@
  * Layout: [avatar 36px] [title + subtitle] [right meta]
  */
 import { Box, Typography } from "@mui/material";
-import { TYPE } from "../theme";
+import { TYPE, COLOR } from "../theme";
 
 export default function ListCard({ avatar, title, subtitle, right, onClick, sx }) {
   return (
@@ -12,11 +12,11 @@ export default function ListCard({ avatar, title, subtitle, right, onClick, sx }
       onClick={onClick}
       sx={{
         display: "flex", alignItems: "center", gap: 1.5,
-        px: 1.5, py: 1, bgcolor: "#fff",
-        borderBottom: "0.5px solid #f0f0f0",
+        px: 1.5, py: 1, bgcolor: COLOR.white,
+        borderBottom: `0.5px solid ${COLOR.borderLight}`,
         cursor: onClick ? "pointer" : "default",
         userSelect: "none", WebkitUserSelect: "none",
-        "&:active": onClick ? { bgcolor: "#f5f5f5" } : {},
+        "&:active": onClick ? { bgcolor: COLOR.surface } : {},
         ...sx,
       }}
     >
@@ -29,7 +29,7 @@ export default function ListCard({ avatar, title, subtitle, right, onClick, sx }
           {right && <Box sx={{ flexShrink: 0, ml: 1 }}>{right}</Box>}
         </Box>
         {subtitle && (
-          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "#999", mt: 0.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mt: 0.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {subtitle}
           </Typography>
         )}
