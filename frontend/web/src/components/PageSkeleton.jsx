@@ -33,7 +33,7 @@ function DragHandle({ onDrag }) {
   );
 }
 
-export default function PageSkeleton({ title, headerRight, listPane, detailPane, mobileView, isMobile }) {
+export default function PageSkeleton({ title, headerRight, onBack, listPane, detailPane, mobileView, isMobile }) {
   const containerRef = useRef(null);
   const [listWidth, setListWidth] = useState(() => {
     const saved = localStorage.getItem("pageskeleton_list_width");
@@ -56,7 +56,7 @@ export default function PageSkeleton({ title, headerRight, listPane, detailPane,
   if (isMobile) {
     return (
       <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surface }}>
-        <SubpageHeader title={title} right={headerRight} />
+        <SubpageHeader title={title} onBack={onBack} right={headerRight} />
         <Box sx={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
           {listPane}
         </Box>

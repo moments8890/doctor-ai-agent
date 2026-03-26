@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Box, CircularProgress, Typography } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
-import SubpageHeader from "../../components/SubpageHeader";
+import PageSkeleton from "../../components/PageSkeleton";
 import SectionLabel from "../../components/SectionLabel";
 import AppButton from "../../components/AppButton";
 import ConfirmDialog from "../../components/ConfirmDialog";
@@ -158,27 +158,30 @@ export default function TemplateSubpage({ doctorId, onBack, isMobile = true }) {
   const { status, loading, uploading, deleting, msg, setMsg, fileRef, handleUpload, handleDelete } = useTemplateState(doctorId);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
-  return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
-      <SubpageHeader title="报告模板" onBack={isMobile ? onBack : undefined} />
-      <Box sx={{ flex: 1, overflowY: "auto" }}>
-        <SectionLabel>当前模板</SectionLabel>
-        <TemplateStatusCard loading={loading} status={status} />
-        <SectionLabel sx={{ pt: 0.5 }}>操作</SectionLabel>
-        <TemplateActions status={status} uploading={uploading} deleting={deleting} fileRef={fileRef} onDelete={() => setDeleteConfirmOpen(true)} />
-        {msg.text && (
-          <Box sx={{ mx: 2, mt: 1.5 }}>
-            <Alert severity={msg.type || "info"} onClose={() => setMsg({ type: "", text: "" })}>{msg.text}</Alert>
-          </Box>
-        )}
-        <Box sx={{ px: 2, mt: 2 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.8 }}>
-            支持格式：PDF、DOCX、DOC、TXT、JPG、PNG，最大 1 MB。{"\n"}
-            上传后，AI 生成门诊病历报告时将参照您的格式。
-          </Typography>
+  const content = (
+    <Box sx={{ flex: 1, overflowY: "auto" }}>
+      <SectionLabel>当前模板</SectionLabel>
+      <TemplateStatusCard loading={loading} status={status} />
+      <SectionLabel sx={{ pt: 0.5 }}>操作</SectionLabel>
+      <TemplateActions status={status} uploading={uploading} deleting={deleting} fileRef={fileRef} onDelete={() => setDeleteConfirmOpen(true)} />
+      {msg.text && (
+        <Box sx={{ mx: 2, mt: 1.5 }}>
+          <Alert severity={msg.type || "info"} onClose={() => setMsg({ type: "", text: "" })}>{msg.text}</Alert>
         </Box>
-        <input ref={fileRef} type="file" hidden accept=".pdf,.docx,.doc,.txt,image/jpeg,image/png,image/webp" onChange={handleUpload} />
+      )}
+      <Box sx={{ px: 2, mt: 2 }}>
+        <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.8 }}>
+          支持格式：PDF、DOCX、DOC、TXT、JPG、PNG，最大 1 MB。{"\n"}
+          上传后，AI 生成门诊病历报告时将参照您的格式。
+        </Typography>
       </Box>
+      <input ref={fileRef} type="file" hidden accept=".pdf,.docx,.doc,.txt,image/jpeg,image/png,image/webp" onChange={handleUpload} />
+    </Box>
+  );
+
+  return (
+    <>
+      <PageSkeleton title="报告模板" onBack={onBack} isMobile={isMobile} listPane={content} />
       <ConfirmDialog
         open={deleteConfirmOpen}
         onClose={() => setDeleteConfirmOpen(false)}
@@ -192,6 +195,6 @@ export default function TemplateSubpage({ doctorId, onBack, isMobile = true }) {
         confirmLoading={deleting}
         confirmLoadingLabel="删除中…"
       />
-    </Box>
+    </>
   );
 }

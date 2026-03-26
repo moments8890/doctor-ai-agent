@@ -10,7 +10,7 @@
 import { useState, useMemo } from "react";
 import { Box, Typography } from "@mui/material";
 import { TYPE, ICON, COLOR } from "../../theme";
-import SubpageHeader from "../SubpageHeader";
+import PageSkeleton from "../PageSkeleton";
 import BarButton from "../BarButton";
 import EmptyState from "../EmptyState";
 import ConfirmDialog from "../ConfirmDialog";
@@ -51,34 +51,40 @@ function KnowledgeDetail({ item, categories, onBack, onDelete }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const catLabel = (categories || DEFAULT_CATEGORIES).find(c => c.key === item.category)?.label || "自定义";
 
-  return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
-      <SubpageHeader title="知识详情" onBack={onBack}
-        right={onDelete ? <BarButton onClick={() => setDeleteOpen(true)} color={COLOR.danger}>删除</BarButton> : undefined}
-      />
-      <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
-        <Box sx={{ bgcolor: COLOR.white, borderRadius: 1, p: 2, mb: 1 }}>
-          <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1.5 }}>
-            <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600 }}>{catLabel}</Typography>
-            {sourceBadge(item.source)}
+  const detailContent = (
+    <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
+      <Box sx={{ bgcolor: COLOR.white, borderRadius: 1, p: 2, mb: 1 }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1.5 }}>
+          <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600 }}>{catLabel}</Typography>
+          {sourceBadge(item.source)}
+        </Box>
+        {[
+          { label: "来源", value: item.source === "agent_auto" || item.source === "AI学习" ? "AI学习" : "医生" },
+          { label: "添加时间", value: formatDate(item.created_at) },
+          { label: "AI引用", value: `${item.reference_count || 0}次` },
+        ].map(({ label, value }) => (
+          <Box key={label} sx={{ display: "flex", justifyContent: "space-between", py: 0.8, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>{label}</Typography>
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize }}>{value}</Typography>
           </Box>
-          {[
-            { label: "来源", value: item.source === "agent_auto" || item.source === "AI学习" ? "AI学习" : "医生" },
-            { label: "添加时间", value: formatDate(item.created_at) },
-            { label: "AI引用", value: `${item.reference_count || 0}次` },
-          ].map(({ label, value }) => (
-            <Box key={label} sx={{ display: "flex", justifyContent: "space-between", py: 0.8, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
-              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>{label}</Typography>
-              <Typography sx={{ fontSize: TYPE.secondary.fontSize }}>{value}</Typography>
-            </Box>
-          ))}
-        </Box>
-        <Box sx={{ bgcolor: COLOR.white, borderRadius: 1, p: 2 }}>
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 0.5 }}>内容</Typography>
-          <Typography sx={{ fontSize: TYPE.secondary.fontSize, lineHeight: 1.8 }}>{item.text || item.content}</Typography>
-        </Box>
+        ))}
       </Box>
+      <Box sx={{ bgcolor: COLOR.white, borderRadius: 1, p: 2 }}>
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 0.5 }}>内容</Typography>
+        <Typography sx={{ fontSize: TYPE.secondary.fontSize, lineHeight: 1.8 }}>{item.text || item.content}</Typography>
+      </Box>
+    </Box>
+  );
 
+  return (
+    <>
+      <PageSkeleton
+        title="知识详情"
+        onBack={onBack}
+        headerRight={onDelete ? <BarButton onClick={() => setDeleteOpen(true)} color={COLOR.danger}>删除</BarButton> : undefined}
+        isMobile
+        listPane={detailContent}
+      />
       <ConfirmDialog
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
@@ -90,7 +96,7 @@ function KnowledgeDetail({ item, categories, onBack, onDelete }) {
         confirmLabel="删除"
         confirmTone="danger"
       />
-    </Box>
+    </>
   );
 }
 
@@ -135,13 +141,9 @@ export default function KnowledgeSubpage({
     );
   }
 
-  return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
-      <SubpageHeader title={title} onBack={onBack}
-        right={onAdd ? <BarButton onClick={onAdd}>添加</BarButton> : undefined}
-      />
-      <Box sx={{ flex: 1, overflowY: "auto" }}>
-        {loading && (
+  const listContent = (
+    <Box sx={{ flex: 1, overflowY: "auto" }}>
+      {loading && (
           <Box sx={{ textAlign: "center", py: 4 }}>
             <Typography sx={{ color: COLOR.text4 }}>加载中...</Typography>
           </Box>
@@ -236,6 +238,15 @@ export default function KnowledgeSubpage({
           </>
         )}
       </Box>
-    </Box>
+  );
+
+  return (
+    <PageSkeleton
+      title={title}
+      onBack={onBack}
+      headerRight={onAdd ? <BarButton onClick={onAdd}>添加</BarButton> : undefined}
+      isMobile
+      listPane={listContent}
+    />
   );
 }
