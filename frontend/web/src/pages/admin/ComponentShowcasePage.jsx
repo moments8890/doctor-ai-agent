@@ -43,8 +43,16 @@ function Section({ title, file, children }) {
     <Box sx={{ mb: 3, borderLeft: `3px solid ${COLOR.primary}`, pl: 1.5 }}>
       <Typography sx={{ fontSize: TYPE.body.fontSize, fontWeight: 600, mb: 0.3 }}>{title}</Typography>
       <Typography sx={{ fontSize: 11, color: COLOR.text4, mb: 1, fontFamily: "monospace" }}>{file}</Typography>
-      <Box sx={{ border: `1px solid ${COLOR.border}`, borderRadius: 1, p: 1.5, bgcolor: COLOR.white }}>
-        {children}
+      {/* Phone frame container */}
+      <Box sx={{
+        width: 375, mx: "auto", bgcolor: "#ededed",
+        borderRadius: "12px", overflow: "hidden",
+        boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
+        border: `1px solid ${COLOR.border}`,
+      }}>
+        <Box sx={{ p: 1.5, bgcolor: COLOR.white, borderRadius: "12px" }}>
+          {children}
+        </Box>
       </Box>
     </Box>
   );
@@ -113,7 +121,7 @@ export default function ComponentShowcasePage() {
       </Box>
 
       {/* Main content */}
-      <Box sx={{ maxWidth: 390, p: 2, width: "100%", "@media (min-width: 700px)": { ml: "180px" } }}>
+      <Box sx={{ maxWidth: 500, p: 2, width: "100%", "@media (min-width: 700px)": { ml: "180px" } }}>
         <Typography sx={{ fontSize: 22, fontWeight: 700, mb: 0.5 }}>Shared Components</Typography>
         <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mb: 3 }}>
           All 27 components from src/components/. Tap group to expand.
