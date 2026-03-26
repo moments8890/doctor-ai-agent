@@ -9,7 +9,7 @@ import { Box, Typography } from "@mui/material";
 import { TYPE, ICON, COLOR } from "../../../theme";
 
 import ActionPanel from "./ActionPanel";
-import ListCard from "../../../components/ListCard";
+// ListCard demos moved to /debug/components (shared component)
 import FieldReviewCard from "./FieldReviewCard";
 import DiagnosisCard from "./DiagnosisCard";
 import InterviewCompleteDialog from "./InterviewCompleteDialog";
@@ -142,27 +142,12 @@ export default function DoctorComponentShowcase() {
       </Group>
 
       {/* ═══════ Layout ═══════ */}
-      <Group title="Layout" count={2}>
+      <Group title="Layout" count={1}>
         <Section title="WorkingContextHeader" file="WorkingContextHeader.jsx">
           <Typography sx={{ fontSize: 11, color: COLOR.text4, mb: 1 }}>With patient:</Typography>
           <WorkingContextHeader context={{ patient_name: "陈伟强", pending_draft: true }} isMobile={true} />
           <Typography sx={{ fontSize: 11, color: COLOR.text4, mt: 1.5, mb: 1 }}>Empty:</Typography>
           <WorkingContextHeader context={null} isMobile={true} />
-        </Section>
-
-        <Section title="ListCard (chevron)" file="→ components/ListCard.jsx">
-          <Typography sx={{ fontSize: 11, color: COLOR.text4, mb: 1 }}>BriefingCard → replaced by ListCard with chevron:</Typography>
-          <ListCard
-            avatar={<Box sx={{ width: 36, height: 36, borderRadius: 1, bgcolor: "#FEF0EE", display: "flex", alignItems: "center", justifyContent: "center" }}><Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: "#E8533F" }} /></Box>}
-            title="3项待审核" subtitle="陈伟强、李复诊" chevron onClick={() => {}}
-          />
-          <ListCard
-            avatar={<Box sx={{ width: 36, height: 36, borderRadius: 1, bgcolor: "#E8F5E9", display: "flex", alignItems: "center", justifyContent: "center" }}><Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: COLOR.primary }} /></Box>}
-            title="今日5位患者已就诊" chevron onClick={() => {}}
-          />
-          <Typography sx={{ fontSize: 11, color: COLOR.text4, mt: 1.5, mb: 1 }}>Settings-style:</Typography>
-          <ListCard title="报告模板" subtitle="自定义门诊病历报告格式" chevron onClick={() => {}} />
-          <ListCard title="知识库" subtitle="管理 AI 助手参考资料" chevron onClick={() => {}} />
         </Section>
       </Group>
 
