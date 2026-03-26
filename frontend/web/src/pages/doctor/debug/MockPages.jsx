@@ -829,34 +829,14 @@ export default function MockPages() {
       return null;
     }
     if (subpage === "patient-detail" && selectedPatient) {
-      return (
-        <Box sx={{ height: "calc(100% - 64px)" }}>
-          <MockPatientDetail patient={selectedPatient} onBack={goBack} onReview={openReview} onInterview={openInterview} />
-        </Box>
-      );
+      return <MockPatientDetail patient={selectedPatient} onBack={goBack} onReview={openReview} onInterview={openInterview} />;
     }
 
     switch (tab) {
-      case "home": return (
-        <Box sx={{ height: "calc(100% - 64px)" }}>
-          <MockHome onNav={(key) => key === "chat" ? openChat() : navTo(key)} />
-        </Box>
-      );
-      case "patients": return (
-        <Box sx={{ height: "calc(100% - 64px)" }}>
-          <MockPatients onSelectPatient={openPatient} />
-        </Box>
-      );
-      case "tasks": return (
-        <Box sx={{ height: "calc(100% - 64px)" }}>
-          <MockTasks onSelectTask={openTaskDetail} />
-        </Box>
-      );
-      case "settings": return (
-        <Box sx={{ height: "calc(100% - 64px)" }}>
-          <MockSettings onSubpage={openSettingsSub} />
-        </Box>
-      );
+      case "home": return <MockHome onNav={(key) => key === "chat" ? openChat() : navTo(key)} />;
+      case "patients": return <MockPatients onSelectPatient={openPatient} />;
+      case "tasks": return <MockTasks onSelectTask={openTaskDetail} />;
+      case "settings": return <MockSettings onSubpage={openSettingsSub} />;
       default: return null;
     }
   }
@@ -874,10 +854,14 @@ export default function MockPages() {
         boxShadow: "0 4px 24px rgba(0,0,0,0.12)",
         overflow: "hidden",
         position: "relative",
+        display: "flex",
+        flexDirection: "column",
         bgcolor: "#ededed",
         transform: "translateZ(0)",
       }}>
-        {renderContent()}
+        <Box sx={{ flex: 1, overflow: "hidden" }}>
+          {renderContent()}
+        </Box>
         {!hideBottomNav && <MockBottomNav active={activeTab} onNav={navTo} />}
       </Box>
     </Box>
