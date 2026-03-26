@@ -29,7 +29,16 @@ import FilterBar from "../../components/FilterBar";
 
 // Page-level components
 import SubpageHeader from "../../components/SubpageHeader";
-// DiagnosisCard removed — doctor-specific, see /debug/doctor-components instead
+// Newly moved shared components
+import PatientAvatar from "../../components/PatientAvatar";
+import RecordCard from "../../components/RecordCard";
+import RecordEditDialog from "../../components/RecordEditDialog";
+import ExportSelectorDialog from "../../components/ExportSelectorDialog";
+import ImportChoiceDialog from "../../components/ImportChoiceDialog";
+import PatientPickerDialog from "../../components/PatientPickerDialog";
+import VoiceInput from "../../components/VoiceInput";
+import DoctorBubble from "../../components/DoctorBubble";
+import TaskChecklist from "../../components/TaskChecklist";
 
 // Icons for demos
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
@@ -244,7 +253,82 @@ export default function ComponentShowcasePage() {
         <AskAIBar onClick={() => {}} />
       </Section>
 
-      {/* DiagnosisCard: see /debug/doctor-components */}
+      {/* ── PatientAvatar ── */}
+      <Section title="PatientAvatar" file="src/components/PatientAvatar.jsx">
+        <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+          <PatientAvatar name="陈伟强" size={36} />
+          <PatientAvatar name="李复诊" size={36} />
+          <PatientAvatar name="王明" size={36} />
+          <PatientAvatar name="张小红" size={36} />
+          <PatientAvatar name="刘建国" size={36} />
+        </Box>
+      </Section>
+
+      {/* ── DoctorBubble ── */}
+      <Section title="DoctorBubble" file="src/components/DoctorBubble.jsx">
+        <DoctorBubble doctorName="张医生" content="您好，我已经查看了您的检查报告，情况基本正常。" timestamp="2026-03-26 10:30" />
+      </Section>
+
+      {/* ── RecordCard ── */}
+      <Section title="RecordCard" file="src/components/RecordCard.jsx">
+        <Typography sx={{ fontSize: 11, color: COLOR.text4, mb: 1 }}>Expandable record with NHC fields + actions:</Typography>
+        <RecordCard
+          record={{
+            id: 1, record_type: "visit", status: "completed",
+            content: "头痛3天伴恶心呕吐",
+            created_at: "2026-03-26", tags: ["高血压", "头痛"],
+            structured: { chief_complaint: "头痛3天伴恶心呕吐", past_history: "高血压10年", allergy_history: "磺胺类药物过敏" },
+          }}
+          doctorId="mock"
+          onUpdated={() => {}}
+          onDeleted={() => {}}
+        />
+      </Section>
+
+      {/* ── CancelConfirm ── */}
+      <Section title="CancelConfirm" file="src/components/CancelConfirm.jsx">
+        <Typography sx={{ fontSize: 11, color: COLOR.text4, mb: 1 }}>Two-step cancel (static preview):</Typography>
+        <Box sx={{ border: `1px solid ${COLOR.border}`, borderRadius: "12px", p: 3, textAlign: "center" }}>
+          <Typography sx={{ fontSize: TYPE.body.fontSize, fontWeight: 600, mb: 0.5 }}>确认离开？</Typography>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mb: 2.5 }}>未保存的内容将会丢失</Typography>
+          <Box sx={{ display: "flex", gap: 1.5 }}>
+            <Box sx={{ flex: 1, py: 1, textAlign: "center", borderRadius: "4px", fontSize: TYPE.body.fontSize, color: COLOR.danger, border: `0.5px solid ${COLOR.border}` }}>确认</Box>
+            <Box sx={{ flex: 1, py: 1, textAlign: "center", borderRadius: "4px", fontSize: TYPE.body.fontSize, fontWeight: 600, color: COLOR.white, bgcolor: COLOR.primary }}>返回</Box>
+          </Box>
+        </Box>
+      </Section>
+
+      {/* ── VoiceInput ── */}
+      <Section title="VoiceInput" file="src/components/VoiceInput.jsx">
+        <Typography sx={{ fontSize: 11, color: COLOR.text4 }}>Long-press mic button → speech-to-text. Interactive — needs microphone permission.</Typography>
+      </Section>
+
+      {/* ── ImportChoiceDialog ── */}
+      <Section title="ImportChoiceDialog" file="src/components/ImportChoiceDialog.jsx">
+        <Typography sx={{ fontSize: 11, color: COLOR.text4 }}>PDF import vs WeChat chat paste chooser. Opens as a dialog.</Typography>
+      </Section>
+
+      {/* ── ExportSelectorDialog ── */}
+      <Section title="ExportSelectorDialog" file="src/components/ExportSelectorDialog.jsx">
+        <Typography sx={{ fontSize: 11, color: COLOR.text4 }}>Choose sections + date range for PDF export. Opens as a dialog.</Typography>
+      </Section>
+
+      {/* ── PatientPickerDialog ── */}
+      <Section title="PatientPickerDialog" file="src/components/PatientPickerDialog.jsx">
+        <Typography sx={{ fontSize: 11, color: COLOR.text4 }}>Search and select patient from list. Opens as a dialog in chat.</Typography>
+      </Section>
+
+      {/* ── TaskChecklist ── */}
+      <Section title="TaskChecklist" file="src/components/TaskChecklist.jsx">
+        <Typography sx={{ fontSize: 11, color: COLOR.text4 }}>Patient-facing task list with checkboxes. Used in patient portal tasks tab.</Typography>
+      </Section>
+
+      {/* ── RecordEditDialog ── */}
+      <Section title="RecordEditDialog" file="src/components/RecordEditDialog.jsx">
+        <Typography sx={{ fontSize: 11, color: COLOR.text4 }}>Per-field NHC editing dialog. Opens from RecordCard edit button.</Typography>
+      </Section>
+
+      {/* Doctor-specific components: see /debug/doctor-components */}
 
       {/* ── Action Button Layout ── */}
       <Section title="Action Button Layout" file="(pattern, not a component)">
