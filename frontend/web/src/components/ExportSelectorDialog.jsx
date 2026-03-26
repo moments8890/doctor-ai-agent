@@ -3,10 +3,10 @@
  * to include in the patient PDF export.
  */
 import { useState } from "react";
-import { Box, Dialog, Typography } from "@mui/material";
-import useMediaQuery from "@mui/material/useMediaQuery";
-import { useTheme } from "@mui/material/styles";
-import { TYPE, ICON } from "../theme";
+import { Box, Typography } from "@mui/material";
+import { TYPE, ICON, COLOR } from "../theme";
+import AppButton from "./AppButton";
+import SheetDialog from "./SheetDialog";
 
 const SECTIONS = [
   { key: "basicInfo",    label: "基本信息",   defaultChecked: true,  disabled: true },
@@ -36,8 +36,8 @@ function CheckCircle({ checked, disabled }) {
         width: 22,
         height: 22,
         borderRadius: "50%",
-        border: checked ? "none" : "1.5px solid #ccc",
-        bgcolor: checked ? "#07C160" : "transparent",
+        border: checked ? "none" : `1.5px solid ${COLOR.text4}`,
+        bgcolor: checked ? COLOR.primary : "transparent",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -48,7 +48,7 @@ function CheckCircle({ checked, disabled }) {
     >
       {checked && (
         <svg width="13" height="10" viewBox="0 0 13 10" fill="none">
-          <path d="M1.5 5L5 8.5L11.5 1.5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M1.5 5L5 8.5L11.5 1.5" stroke={COLOR.white} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       )}
     </Box>
@@ -56,8 +56,6 @@ function CheckCircle({ checked, disabled }) {
 }
 
 export default function ExportSelectorDialog({ open, onClose, patientId, patientName, onExport }) {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [sections, setSections] = useState(buildInitialSections);
   const [visitRange, setVisitRange] = useState("5");
 
@@ -72,119 +70,72 @@ export default function ExportSelectorDialog({ open, onClose, patientId, patient
   }
 
   return (
-    <Dialog
+    <SheetDialog
       open={open}
       onClose={onClose}
-      PaperProps={{
-        sx: isMobile
-          ? {
-              position: "fixed",
-              bottom: 0,
-              left: 0,
-              right: 0,
-              m: 0,
-              borderRadius: "12px 12px 0 0",
-              width: "100%",
-              maxHeight: "80vh",
-            }
-          : { borderRadius: 2, minWidth: 360, maxWidth: 420 },
-      }}
-      sx={isMobile ? { "& .MuiDialog-container": { alignItems: "flex-end" } } : {}}
+      title="导出PDF — 选择内容"
+      subtitle={patientName ? `患者：${patientName}` : undefined}
+      desktopMinWidth={360}
+      desktopMaxWidth={420}
+      footer={
+        <Box sx={{ display: "grid", gap: 0.5, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+          <AppButton variant="secondary" size="md" fullWidth onClick={onClose}>
+            取消
+          </AppButton>
+          <AppButton variant="primary" size="md" fullWidth onClick={handleGenerate}>
+            生成PDF
+          </AppButton>
+        </Box>
+      }
     >
-      <Box sx={{ p: 0 }}>
-        {/* Handle bar */}
-        {isMobile && (
-          <Box sx={{ display: "flex", justifyContent: "center", pt: 1.2, pb: 0.5 }}>
-            <Box sx={{ width: 36, height: 4, borderRadius: 2, bgcolor: "#d9d9d9" }} />
-          </Box>
-        )}
-
-        {/* Title */}
-        <Box sx={{ px: 2.5, pt: isMobile ? 1 : 2.5, pb: 1.5 }}>
-          <Typography sx={{ fontWeight: 600, fontSize: TYPE.title.fontSize, textAlign: "center" }}>
-            导出PDF — 选择内容
-          </Typography>
-          {patientName && (
-            <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#999", textAlign: "center", mt: 0.3 }}>
-              患者：{patientName}
-            </Typography>
-          )}
-        </Box>
-
-        {/* Section list */}
-        <Box sx={{ px: 2.5 }}>
-          {SECTIONS.map((sec, idx) => (
-            <Box key={sec.key}>
-              {idx > 0 && <Box sx={{ height: "0.5px", bgcolor: "#f0f0f0" }} />}
-              <Box
-                onClick={() => toggleSection(sec.key)}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1.2,
-                  py: 1.4,
-                  cursor: sec.disabled ? "default" : "pointer",
-                  "&:active": sec.disabled ? {} : { opacity: 0.6 },
-                }}
-              >
-                <CheckCircle checked={sections[sec.key]} disabled={sec.disabled} />
-                <Typography sx={{ fontSize: TYPE.action.fontSize, color: "#333", flex: 1 }}>
-                  {sec.label}
-                </Typography>
-                {sec.disabled && (
-                  <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#bbb" }}>必选</Typography>
-                )}
-              </Box>
-
-              {/* Visit range pills */}
-              {sec.hasRange && sections[sec.key] && (
-                <Box sx={{ display: "flex", gap: 0.8, pb: 1.2, pl: 4.2 }}>
-                  {VISIT_RANGE_OPTS.map((opt) => (
-                    <Box
-                      key={opt.value}
-                      onClick={() => setVisitRange(opt.value)}
-                      sx={{
-                        px: 1.4,
-                        py: 0.35,
-                        borderRadius: "4px",
-                        cursor: "pointer",
-                        fontSize: TYPE.caption.fontSize,
-                        bgcolor: visitRange === opt.value ? "#07C160" : "#f0f0f0",
-                        color: visitRange === opt.value ? "#fff" : "#666",
-                        fontWeight: visitRange === opt.value ? 600 : 400,
-                        "&:active": { opacity: 0.7 },
-                      }}
-                    >
-                      {opt.label}
-                    </Box>
-                  ))}
-                </Box>
-              )}
-            </Box>
-          ))}
-        </Box>
-
-        {/* Generate button */}
-        <Box sx={{ px: 2.5, pt: 2, pb: isMobile ? 3.5 : 2.5 }}>
+      {SECTIONS.map((sec, idx) => (
+        <Box key={sec.key}>
+          {idx > 0 && <Box sx={{ height: "0.5px", bgcolor: COLOR.borderLight }} />}
           <Box
-            onClick={handleGenerate}
+            onClick={() => toggleSection(sec.key)}
             sx={{
-              textAlign: "center",
-              height: 44,
-              lineHeight: "44px",
-              borderRadius: "4px",
-              fontSize: TYPE.action.fontSize,
-              fontWeight: 600,
-              cursor: "pointer",
-              bgcolor: "#07C160",
-              color: "#fff",
-              "&:active": { opacity: 0.7 },
+              display: "flex",
+              alignItems: "center",
+              gap: 1.2,
+              py: 1.4,
+              cursor: sec.disabled ? "default" : "pointer",
+              "&:active": sec.disabled ? {} : { opacity: 0.6 },
             }}
           >
-            生成PDF
+            <CheckCircle checked={sections[sec.key]} disabled={sec.disabled} />
+            <Typography sx={{ fontSize: TYPE.action.fontSize, color: COLOR.text2, flex: 1 }}>
+              {sec.label}
+            </Typography>
+            {sec.disabled && (
+              <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>必选</Typography>
+            )}
           </Box>
+
+          {sec.hasRange && sections[sec.key] && (
+            <Box sx={{ display: "flex", gap: 0.8, pb: 1.2, pl: 4.2 }}>
+              {VISIT_RANGE_OPTS.map((opt) => (
+                <Box
+                  key={opt.value}
+                  onClick={() => setVisitRange(opt.value)}
+                  sx={{
+                    px: 1.4,
+                    py: 0.35,
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                    fontSize: TYPE.caption.fontSize,
+                    bgcolor: visitRange === opt.value ? COLOR.primary : COLOR.borderLight,
+                    color: visitRange === opt.value ? COLOR.white : COLOR.text3,
+                    fontWeight: visitRange === opt.value ? 600 : 400,
+                    "&:active": { opacity: 0.7 },
+                  }}
+                >
+                  {opt.label}
+                </Box>
+              ))}
+            </Box>
+          )}
         </Box>
-      </Box>
-    </Dialog>
+      ))}
+    </SheetDialog>
   );
 }

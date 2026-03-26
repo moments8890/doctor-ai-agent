@@ -26,7 +26,7 @@ function DragHandle({ onDrag }) {
       onMouseDown={onMouseDown}
       sx={{
         width: 5, flexShrink: 0, cursor: "col-resize",
-        bgcolor: "transparent", "&:hover": { bgcolor: "#d9d9d9" },
+        bgcolor: "transparent", "&:hover": { bgcolor: COLOR.border },
         transition: "background-color 0.15s",
       }}
     />

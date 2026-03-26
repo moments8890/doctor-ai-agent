@@ -51,7 +51,6 @@ export default function SuggestionChips({ items, selected = [], onToggle, onDism
               color: isSelected ? COLOR.primary : (disabled ? COLOR.text4 : COLOR.text2),
               fontWeight: isSelected ? 500 : 400,
               opacity: disabled ? 0.5 : 1,
-              boxShadow: isSelected ? "none" : "0 1px 2px rgba(0,0,0,0.06)",
               transition: "all 0.15s",
               "&:active": disabled ? {} : { opacity: 0.7 },
             }}

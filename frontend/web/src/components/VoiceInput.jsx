@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Box, Typography } from "@mui/material";
 import MicIcon from "@mui/icons-material/Mic";
-import { TYPE, ICON } from "../theme";
+import { TYPE, ICON, COLOR } from "../theme";
 
 const SpeechRecognition = typeof window !== "undefined"
   ? (window.SpeechRecognition || window.webkitSpeechRecognition)
@@ -78,7 +78,7 @@ export default function VoiceInput({ onResult, onCancel }) {
       sx={{
         flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
         height: 40, borderRadius: "4px", cursor: "pointer", userSelect: "none",
-        bgcolor: recording ? (cancelled ? "#FA5151" : "#07C160") : "#fff",
+        bgcolor: recording ? (cancelled ? COLOR.danger : COLOR.primary) : COLOR.white,
         border: recording ? "none" : "1px solid #e0e0e0",
         transition: "background-color 0.15s",
       }}
@@ -87,7 +87,7 @@ export default function VoiceInput({ onResult, onCancel }) {
         <Box sx={{ display: "flex", alignItems: "center", gap: "3px", mr: 1 }}>
           {[0, 1, 2].map((i) => (
             <Box key={i} sx={{
-              width: 3, height: 14, borderRadius: 1.5, bgcolor: "#fff",
+              width: 3, height: 14, borderRadius: 1.5, bgcolor: COLOR.white,
               animation: "waveBar 0.8s ease-in-out infinite",
               animationDelay: `${i * 0.15}s`,
               "@keyframes waveBar": { "0%, 100%": { transform: "scaleY(0.4)" }, "50%": { transform: "scaleY(1)" } },
@@ -95,8 +95,8 @@ export default function VoiceInput({ onResult, onCancel }) {
           ))}
         </Box>
       )}
-      <MicIcon sx={{ fontSize: ICON.md, mr: 0.5, color: recording ? "#fff" : "#999" }} />
-      <Typography variant="body2" sx={{ fontSize: TYPE.heading.fontSize, color: recording ? "#fff" : "#999", fontWeight: recording ? 600 : 400 }}>
+      <MicIcon sx={{ fontSize: ICON.md, mr: 0.5, color: recording ? COLOR.white : COLOR.text4 }} />
+      <Typography variant="body2" sx={{ fontSize: TYPE.heading.fontSize, color: recording ? COLOR.white : COLOR.text4, fontWeight: recording ? 600 : 400 }}>
         {recording ? (cancelled ? "松开取消" : `松开发送 ${fmt(seconds)}`) : "按住说话"}
       </Typography>
     </Box>

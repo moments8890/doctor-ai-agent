@@ -5,16 +5,16 @@
  */
 import { Box, Typography } from "@mui/material";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
-import { TYPE, ICON } from "../theme";
+import { TYPE, ICON, COLOR } from "../theme";
 
 export default function SubpageHeader({ title, onBack, right }) {
   return (
     <Box sx={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between",
-      height: 48, px: 0.5, bgcolor: "#fff", borderBottom: "1px solid #e5e5e5", flexShrink: 0 }}>
+      height: 48, px: 0.5, bgcolor: COLOR.white, borderBottom: `1px solid ${COLOR.border}`, flexShrink: 0 }}>
       {onBack ? (
         <Box onClick={onBack} sx={{ display: "flex", alignItems: "center",
-          cursor: "pointer", color: "#333", px: 0.5, py: 1, zIndex: 1, "&:active": { opacity: 0.5 } }}>
-          <ChevronLeftIcon sx={{ fontSize: ICON.hero, color: "#333" }} />
+          cursor: "pointer", color: COLOR.text2, px: 0.5, py: 1, zIndex: 1, "&:active": { opacity: 0.5 } }}>
+          <ChevronLeftIcon sx={{ fontSize: ICON.hero, color: COLOR.text2 }} />
         </Box>
       ) : (
         <Box sx={{ minWidth: 48, zIndex: 1 }} />

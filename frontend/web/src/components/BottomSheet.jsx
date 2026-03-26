@@ -25,7 +25,7 @@ export default function BottomSheet({ open, onClose, title, right, children }) {
   if (!open) return null;
 
   return (
-    <Box sx={{ position: "fixed", top: 0, left: 0, right: 0,
+    <Box sx={{ position: "absolute", top: 0, left: 0, right: 0,
       bottom: "calc(64px + env(safe-area-inset-bottom))",
       zIndex: 1200, display: "flex", flexDirection: "column" }}>
       {/* Backdrop */}
@@ -36,7 +36,6 @@ export default function BottomSheet({ open, onClose, title, right, children }) {
         sx={{
           flex: 1, bgcolor: COLOR.white, borderRadius: "12px 12px 0 0",
           display: "flex", flexDirection: "column",
-          boxShadow: "0 -4px 20px rgba(0,0,0,0.12)",
           overflow: "hidden",
         }}>
         {/* Header — only if title provided */}

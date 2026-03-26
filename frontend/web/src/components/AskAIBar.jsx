@@ -13,10 +13,9 @@ export default function AskAIBar({ onClick }) {
         mx: 1.5, mb: 1.5, px: 1.5, py: 1,
         bgcolor: COLOR.white, borderRadius: "4px",
         display: "flex", alignItems: "center", gap: 1,
-        border: "0.5px solid #d9d9d9",
+        border: `0.5px solid ${COLOR.border}`,
         cursor: "pointer",
-        boxShadow: "0 -2px 8px rgba(0,0,0,0.04)",
-        "&:active": { bgcolor: "#f9f9f9" },
+        "&:active": { bgcolor: COLOR.surfaceAlt },
       }}
     >
       <Box sx={{
