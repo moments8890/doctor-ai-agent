@@ -72,6 +72,11 @@ function ColorSwatch({ name, hex }) {
 export default function ComponentShowcasePage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedChips, setSelectedChips] = useState([]);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
 
   // DiagnosisCard and doctor-specific components: see /debug/doctor-components
 
@@ -300,32 +305,64 @@ export default function ComponentShowcasePage() {
 
       {/* ── VoiceInput ── */}
       <Section title="VoiceInput" file="src/components/VoiceInput.jsx">
-        <Typography sx={{ fontSize: 11, color: COLOR.text4 }}>Long-press mic button → speech-to-text. Interactive — needs microphone permission.</Typography>
+        <Typography sx={{ fontSize: 11, color: COLOR.text4, mb: 1 }}>Long-press mic → speech-to-text:</Typography>
+        <VoiceInput onResult={() => {}} />
       </Section>
 
       {/* ── ImportChoiceDialog ── */}
       <Section title="ImportChoiceDialog" file="src/components/ImportChoiceDialog.jsx">
-        <Typography sx={{ fontSize: 11, color: COLOR.text4 }}>PDF import vs WeChat chat paste chooser. Opens as a dialog.</Typography>
+        <Box onClick={() => setImportOpen(true)} sx={{ py: 1, textAlign: "center", border: `1px dashed ${COLOR.primary}`, borderRadius: 1, color: COLOR.primary, cursor: "pointer", fontSize: TYPE.body.fontSize }}>
+          打开导入选择
+        </Box>
+        <ImportChoiceDialog open={importOpen} onClose={() => setImportOpen(false)} onChoose={() => setImportOpen(false)} />
       </Section>
 
       {/* ── ExportSelectorDialog ── */}
       <Section title="ExportSelectorDialog" file="src/components/ExportSelectorDialog.jsx">
-        <Typography sx={{ fontSize: 11, color: COLOR.text4 }}>Choose sections + date range for PDF export. Opens as a dialog.</Typography>
+        <Box onClick={() => setExportOpen(true)} sx={{ py: 1, textAlign: "center", border: `1px dashed ${COLOR.primary}`, borderRadius: 1, color: COLOR.primary, cursor: "pointer", fontSize: TYPE.body.fontSize }}>
+          打开导出选择器
+        </Box>
+        <ExportSelectorDialog open={exportOpen} onClose={() => setExportOpen(false)} patientId={1} patientName="陈伟强" onExport={() => setExportOpen(false)} />
       </Section>
 
       {/* ── PatientPickerDialog ── */}
       <Section title="PatientPickerDialog" file="src/components/PatientPickerDialog.jsx">
-        <Typography sx={{ fontSize: 11, color: COLOR.text4 }}>Search and select patient from list. Opens as a dialog in chat.</Typography>
+        <Box onClick={() => setPickerOpen(true)} sx={{ py: 1, textAlign: "center", border: `1px dashed ${COLOR.primary}`, borderRadius: 1, color: COLOR.primary, cursor: "pointer", fontSize: TYPE.body.fontSize }}>
+          打开患者选择器
+        </Box>
+        <PatientPickerDialog open={pickerOpen} onClose={() => setPickerOpen(false)} onSelect={() => setPickerOpen(false)} doctorId="mock" />
       </Section>
 
       {/* ── TaskChecklist ── */}
       <Section title="TaskChecklist" file="src/components/TaskChecklist.jsx">
-        <Typography sx={{ fontSize: 11, color: COLOR.text4 }}>Patient-facing task list with checkboxes. Used in patient portal tasks tab.</Typography>
+        <TaskChecklist
+          tasks={[
+            { id: 1, title: "门诊随访", subtitle: "陈伟强 · 头痛控制复查", due_at: "2026-04-01", status: "pending" },
+            { id: 2, title: "血糖复查", subtitle: "李复诊 · 空腹血糖 + HbA1c", due_at: "2026-03-28", status: "pending" },
+            { id: 3, title: "用药调整", subtitle: "王明 · 降压药观察", due_at: "2026-03-24", status: "done" },
+          ]}
+          onComplete={() => {}}
+        />
       </Section>
 
       {/* ── RecordEditDialog ── */}
       <Section title="RecordEditDialog" file="src/components/RecordEditDialog.jsx">
-        <Typography sx={{ fontSize: 11, color: COLOR.text4 }}>Per-field NHC editing dialog. Opens from RecordCard edit button.</Typography>
+        <Box onClick={() => setEditOpen(true)} sx={{ py: 1, textAlign: "center", border: `1px dashed ${COLOR.primary}`, borderRadius: 1, color: COLOR.primary, cursor: "pointer", fontSize: TYPE.body.fontSize }}>
+          打开病历编辑
+        </Box>
+        <RecordEditDialog
+          open={editOpen} onClose={() => setEditOpen(false)} onSaved={() => setEditOpen(false)}
+          doctorId="mock"
+          record={{ id: 1, record_type: "visit", content: "头痛3天", tags: ["高血压"], structured: { chief_complaint: "头痛3天伴恶心呕吐", past_history: "高血压10年" } }}
+        />
+      </Section>
+
+      {/* ── CancelConfirm (interactive) ── */}
+      <Section title="CancelConfirm (interactive)" file="src/components/CancelConfirm.jsx">
+        <Box onClick={() => setCancelOpen(true)} sx={{ py: 1, textAlign: "center", border: `1px dashed ${COLOR.danger}`, borderRadius: 1, color: COLOR.danger, cursor: "pointer", fontSize: TYPE.body.fontSize }}>
+          触发取消确认
+        </Box>
+        <CancelConfirm open={cancelOpen} onConfirm={() => setCancelOpen(false)} onCancel={() => setCancelOpen(false)} />
       </Section>
 
       {/* Doctor-specific components: see /debug/doctor-components */}
