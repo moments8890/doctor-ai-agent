@@ -29,7 +29,7 @@ import FilterBar from "../../components/FilterBar";
 
 // Page-level components
 import SubpageHeader from "../../components/SubpageHeader";
-import DiagnosisCard from "../doctor/components/DiagnosisCard";
+// DiagnosisCard removed — doctor-specific, see /debug/doctor-components instead
 
 // Icons for demos
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
@@ -64,24 +64,7 @@ export default function ComponentShowcasePage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedChips, setSelectedChips] = useState([]);
 
-  const mockDiagnosisSuggestion = {
-    id: 1, section: "differential",
-    content: "蛛网膜下腔出血", detail: "突发雷击样头痛，伴颈部僵硬，符合SAH典型表现。需立即头颅CT排除。",
-    confidence: "高", decision: null, is_custom: false,
-  };
-  const mockConfirmed = { ...mockDiagnosisSuggestion, id: 2, content: "高血压性头晕", confidence: "中", decision: "confirmed" };
-  const mockRejected = { ...mockDiagnosisSuggestion, id: 3, content: "偏头痛", confidence: "低", decision: "rejected" };
-  const mockEdited = { ...mockDiagnosisSuggestion, id: 4, content: "脑动脉瘤破裂", decision: "edited", edited_text: "医生修改内容" };
-  const mockCustom = { id: 5, section: "differential", content: "颅内静脉窦血栓", detail: "口服避孕药史", decision: "custom", is_custom: true };
-
-  const mockRecord = {
-    structured: {
-      chief_complaint: "头痛3天伴恶心呕吐",
-      present_illness: "3天前无明显诱因出现头痛，持续性胀痛",
-      past_history: "高血压5年",
-      allergy_history: "磺胺类药物过敏",
-    },
-  };
+  // DiagnosisCard and doctor-specific components: see /debug/doctor-components
 
   return (
     <Box sx={{ maxWidth: 480, mx: "auto", p: 2, bgcolor: "#f5f5f5", minHeight: "100vh" }}>
@@ -261,26 +244,7 @@ export default function ComponentShowcasePage() {
         <AskAIBar onClick={() => {}} />
       </Section>
 
-      {/* ── DiagnosisCard (5 states) ── */}
-      <Section title="DiagnosisCard — 5 States" file="src/pages/doctor/DiagnosisCard.jsx">
-        <Typography sx={{ fontSize: 11, color: "#999", mb: 1 }}>Unreviewed (tap to expand):</Typography>
-        <DiagnosisCard suggestion={mockDiagnosisSuggestion} expanded={false} onToggle={() => {}} onDecide={() => {}} />
-
-        <Typography sx={{ fontSize: 11, color: "#999", mt: 2, mb: 1 }}>Expanded with actions:</Typography>
-        <DiagnosisCard suggestion={mockDiagnosisSuggestion} expanded={true} onToggle={() => {}} onDecide={() => {}} />
-
-        <Typography sx={{ fontSize: 11, color: "#999", mt: 2, mb: 1 }}>Confirmed:</Typography>
-        <DiagnosisCard suggestion={mockConfirmed} expanded={false} onToggle={() => {}} onDecide={() => {}} />
-
-        <Typography sx={{ fontSize: 11, color: "#999", mt: 2, mb: 1 }}>Rejected:</Typography>
-        <DiagnosisCard suggestion={mockRejected} expanded={false} onToggle={() => {}} onDecide={() => {}} />
-
-        <Typography sx={{ fontSize: 11, color: "#999", mt: 2, mb: 1 }}>Edited:</Typography>
-        <DiagnosisCard suggestion={mockEdited} expanded={false} onToggle={() => {}} onDecide={() => {}} />
-
-        <Typography sx={{ fontSize: 11, color: "#999", mt: 2, mb: 1 }}>Doctor-added (custom):</Typography>
-        <DiagnosisCard suggestion={mockCustom} expanded={false} onToggle={() => {}} onDecide={() => {}} />
-      </Section>
+      {/* DiagnosisCard: see /debug/doctor-components */}
 
       {/* ── Action Button Layout ── */}
       <Section title="Action Button Layout" file="(pattern, not a component)">
