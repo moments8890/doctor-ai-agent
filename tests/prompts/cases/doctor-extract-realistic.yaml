@@ -1,0 +1,559 @@
+# Realistic doctor extraction test cases
+# Generated from doctor_sim scenarios (d1-d8 + specialty cases)
+# Run: ./run.sh doctor-extract-realistic
+
+- description: 'realistic: 详细主治医师 — 完整入院记录'
+  vars:
+    name: 陈建国
+    gender: 男
+    age: '56'
+    transcript: '医生：科室：神经外科
+
+      患者陈建国，男，56岁。主诉：体检发现颅内动脉瘤1周。
+
+      现病史：患者1周前于外院体检行头颅MRA检查，发现右侧颈内动脉后交通段动脉瘤，大小约6mm×5mm，形态规则，未见破裂征象。患者自述近半年偶有右侧眶上区隐痛，每次持续数分钟至半小时不等，可自行缓解，无恶心呕吐，无视物模糊复视，无肢体麻木无力，无意识障碍，无抽搐发作。未曾就诊治疗。今为进一步诊治收入我科。自发病以来，精神一般，饮食睡眠正常，大小便正常，体重无明显变化。
+
+      既往史：高血压病史8年，目前口服拜新同30mg每日一次，血压控制在130-140/80-90mmHg。2型糖尿病史3年，口服格华止500mg每日两次，空腹血糖6-7mmol/L。否认冠心病、脑梗死病史。否认肝炎、结核等传染病史。2018年行腹腔镜胆囊切除术，术后恢复良好。
+
+      过敏史：否认药物及食物过敏史。
+
+      个人史：吸烟30年，约20支/天，近1年减量至10支/天。饮酒20余年，平均每周2-3次，每次白酒约2两。否认粉尘、毒物等有害物质接触史。
+
+      婚育史：已婚，育有一子一女，配偶及子女体健。
+
+      家族史：父亲68岁时因脑出血去世，母亲患高血压，兄弟姐妹中一姐有高血压。否认家族遗传性疾病。
+
+      体格检查：体温36.5℃，脉搏76次/分，呼吸18次/分，血压138/86mmHg。神志清楚，精神可，GCS 15分。心肺腹查体未见明显异常。
+
+      专科检查：双瞳等大等圆，直径约3mm，对光反射灵敏。眼球各方向活动自如，无眼震。面部感觉对称，咬肌有力。额纹对称，鼻唇沟等深，示齿口角不偏。四肢肌力V级，肌张力正常。双侧腱反射对称存在。双侧巴氏征阴性，脑膜刺激征阴性。NIHSS评分0分，mRS评分0分。
+
+      辅助检查：外院头颅MRA(2026-03-17)：右侧颈内动脉后交通段囊状动脉瘤，约6mm×5mm。入院血常规：WBC 7.2×10⁹/L，HGB 148g/L，PLT 212×10⁹/L。肝功能：ALT 32U/L，AST 28U/L。肾功能：Cr 0.9mg/dL，BUN 16mg/dL。凝血：PT 12.1s，INR 1.05，APTT 28.3s。HbA1c 6.8%。LDL-C
+      2.9mmol/L。心电图：窦性心律，正常心电图。
+
+      诊断：1.右侧颈内动脉后交通段未破裂动脉瘤 2.高血压病3级（高危） 3.2型糖尿病 4.胆囊切除术后
+
+      治疗方案：完善术前评估，包括CTA三维重建及必要时DSA造影明确动脉瘤形态及载瘤动脉关系。拟行血管内介入栓塞治疗。术前控制血压目标<140/90mmHg，继续口服拜新同30mg qd。血糖控制目标空腹<7mmol/L，继续口服格华止500mg bid。术前3天开始口服拜阿司匹林100mg qd + 波立维75mg qd双抗血小板治疗。术前完善心肺功能评估，必要时请心内科会诊。向患者及家属交代病情，签署知情同意书。
+
+      医嘱：嘱患者卧床休息，避免情绪激动及剧烈活动，保持大便通畅。低盐低脂糖尿病饮食。监测血压每日三次，血糖每日两次。术后根据恢复情况安排出院，出院后门诊随访CTA复查，建议术后3个月、6个月、1年各复查一次。'
+  assert:
+  - type: is-json
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.chief_complaint && obj.chief_complaint.includes("体检发现颅内动脉瘤1周"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.present_illness && obj.present_illness.includes("右侧颈内动脉后交通段动脉瘤，6mm×5mm"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.present_illness && obj.present_illness.includes("未见破裂征象"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.present_illness && obj.present_illness.includes("近半年偶有右侧眶上区隐痛"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.present_illness && obj.present_illness.includes("无恶心呕吐"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.present_illness && obj.present_illness.includes("无肢体麻木无力"));'
+- description: 'realistic: 简洁外科急诊 — SAH急诊手术'
+  vars:
+    name: 张伟
+    gender: 男
+    age: '48'
+    transcript: '医生：张伟 男 48 神外急诊 突发剧烈头痛伴呕吐意识障碍2h
+
+      Hunt-Hess III Fischer 3 前交通动脉瘤破裂 SAH CTA示ACoA动脉瘤 5mm×4mm 瘤颈2.5mm
+
+      急诊开颅翼点入路动脉瘤夹闭术 术中见动脉瘤朝前上方 成功夹闭 载瘤动脉通畅
+
+      术后ICU BP<140 尼莫地平iv 60mg/d泵入防血管痉挛
+
+      GCS术前E2V2M5=9 术后E3V4M6=13
+
+      NIHSS 8→术后4
+
+      双瞳不等大 L:R=4:3mm 对光反射L迟钝R灵敏 → 术后双瞳等大3mm 对光反射灵敏
+
+      颈强直(+) Kernig(+) Brudzinski(+)
+
+      既往HTN 5y 不规律服药 拜新同30mg qd自行停药半年 否认DM CHD
+
+      吸烟20y 1包/d 饮酒偶尔
+
+      无过敏 无手术史 家族史不详
+
+      入院Labs: WBC 14.2 HGB 135 PLT 198 Cr 0.8 ALT 22 PT 11.8 INR 1.0 K 3.8 Na 141 Glu 8.5
+
+      头CT: 鞍上池、纵裂池、环池弥漫性SAH 脑室无扩大
+
+      术后用药: 尼莫地平60mg/d iv 甘露醇125ml q8h 丙戊酸钠0.4 iv q12h预防癫痫 奥美拉唑40mg iv qd 依诺肝素4000u ih qd预防DVT
+
+      术后3d复查CT排除再出血 7d DSA评估夹闭效果 14d拆线 mRS评估'
+  assert:
+  - type: is-json
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.chief_complaint && obj.chief_complaint.includes("突发剧烈头痛伴呕吐意识障碍2h"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.auxiliary_exam && obj.auxiliary_exam.includes("Hunt-Hess III")) || (obj.diagnosis && obj.diagnosis.includes("Hunt-Hess III")) || (obj.present_illness && obj.present_illness.includes("Hunt-Hess
+      III")) || (obj.specialist_exam && obj.specialist_exam.includes("Hunt-Hess III"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.auxiliary_exam && obj.auxiliary_exam.includes("Fischer 3")) || (obj.diagnosis && obj.diagnosis.includes("Fischer 3")) || (obj.present_illness && obj.present_illness.includes("Fischer 3"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.present_illness && obj.present_illness.includes("前交通动脉瘤破裂 SAH"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.present_illness && obj.present_illness.includes("ACoA动脉瘤 5mm×4mm 瘤颈2.5mm"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.physical_exam && obj.physical_exam.includes("GCS E2V2M5=9")) || (obj.present_illness && obj.present_illness.includes("GCS E2V2M5=9")) || (obj.specialist_exam && obj.specialist_exam.includes("GCS
+      E2V2M5=9"));'
+- description: 'realistic: OCR粘贴 — 外院转诊信噪声提取'
+  vars:
+    name: 李秀英
+    gender: 女
+    age: '63'
+    transcript: '医生：转 诊 信
+
+
+      患者李秀英 ，女 ， 63岁 。
+
+
+      主 诉 ：反复头晕伴右侧 肢体
+
+      麻木2月余 ，加 重3天 。
+
+
+      现病 史：患者2月前无明显诱因 出现间歇性头
+
+      晕，伴右侧肢 体麻 木感，以右手为著，偶有
+
+      持物不稳，无头 痛，无恶心  呕吐，无言语不
+
+      清,无意识障 碍。曾于当地诊所就诊 ，考虑“颈
+
+      椎病”，予以 颈椎牵引 理疗 ，症状无明显
+
+      缓解。 3天前上述症状加 重，出现右手精 细动
+
+      作困难 ，右 下肢行走时稍有拖曳感 。于当地
+
+      县医院行头颅CT未见明 显出血 ，CTA检查发现
+
+      :左侧颈内动 脉C6段重 度狭窄(约 85%) ,伴
+
+      有溃疡斑块 形成。遂转 诊至贵院进一步诊冶 。
+
+
+      既往 史 ：高血压 15年 ，目前 口服 氨氯地 平
+
+      5mg qd +代 文80mg qd ，血压控 制在
+
+      140一150/85一9OmmHg 。2型搪 尿病8年 ，口
+
+      服格华 止0 .5 bid+ 阿 卡波糖50mg tid ，
+
+      空腹血搪 7一8mmo1/L,餐后 2h血搪
+
+      1O一12mmol/L 。冠心病 3年 ，未行PCI ,口
+
+      服拜阿 司匹林1OOmg qd+倍 他乐克47.5mg
+
+      qd+立普 妥2Omg qn 。否认脑 梗死脑出血 史 。
+
+      2O2O年行腰椎间盘 突出症微创手术 。
+
+
+      过敏 史 ：青 霉素过 敏（皮疹 ）。
+
+
+      个人 史 ：否认 烟酒 。退 休教师 。
+
+
+      家族 史 ：母亲有脑 梗死病 史 ，父亲已故 （
+
+      具体不 详）。
+
+
+      查 体 ：BP 148/92mmHg HR 78次/分 。神 清 ，
+
+      言语流 利 。右 侧鼻唇沟稍 浅 。右上肢肌力
+
+      IV+级 ，右下 肢肌力V一级 ，左侧 肢体肌力V
+
+      级 。右侧 巴氏征 可疑阳性 。左侧颈 部可闻
+
+      及血管 杂音 。
+
+
+      NIHSS 3分(右上肢轻瘫1分+右下肢0.5+感觉1分+忽略0.5)
+
+      mRS 2分
+
+
+      辅助 检查 ：
+
+      头颅CT(2O26一O3一2O) ：未见明 显出血，左侧
+
+      半卵圆 中心 数个腔隙性缺 血灶 。
+
+      CTA : 左侧ICA C6段 重度狭窄 约85% ，伴溃
+
+      疡斑 块 。右侧ICA轻 度狭窄约3O% 。
+
+      Labs: HbA1c 7 .8% LDL一C 3.5mmo1/L hs一
+
+      cTnI O.O1 Cr 1.O HGB 118 PLT 165
+
+
+      初步 诊断 ：1. 左侧颈内 动脉重度 狭窄 2.
+
+      短暂性脑 缺血发 作(TIA) 3. 高血 压病3级
+
+      （很高 危） 4.2型搪尿 病 5.冠 心病
+
+
+      建议 ：完善 DSA检 查 ，评估是否行CEA或 CAS
+
+      治疗 。继续 双抗血小 板+强化 他汀 。 血糖血
+
+      压强 化管理 。'
+  assert:
+  - type: is-json
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.chief_complaint && obj.chief_complaint.includes("反复头晕伴右侧肢体麻木2月余 加重3天"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.present_illness && obj.present_illness.includes("左侧颈内动脉C6段重度狭窄 85%"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.present_illness && obj.present_illness.includes("伴溃疡斑块形成"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.present_illness && obj.present_illness.includes("右手精细动作困难"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.present_illness && obj.present_illness.includes("右下肢行走拖曳"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.present_illness && obj.present_illness.includes("曾考虑颈椎病 牵引理疗无效"));'
+- description: 'realistic: 多轮口述 — 三轮信息合并'
+  vars:
+    name: 王建军
+    gender: 男
+    age: '52'
+    transcript: '医生：新患者 王建军 男 52岁 神经外科
+
+      主诉：发现脑动静脉畸形1月，头痛加重1周。
+
+      现病史：患者1月前因反复头痛于外院就诊，行头颅MRI发现左侧额顶叶脑动静脉畸形，Spetzler-Martin III级。当时头痛呈间歇性胀痛，程度中等，尚可忍受，无恶心呕吐，无癫痫发作。1周前头痛加重，呈持续性，伴有视物模糊，偶有恶心，无呕吐，无肢体无力，无言语障碍。来我院门诊就诊后收入院。发病以来精神食欲一般，睡眠欠佳，大小便正常。
+
+      医生：补充既往史和检查结果：
+
+      既往史：高血压3年，口服安博维150mg qd，血压控制在130-135/80-85mmHg左右。否认糖尿病、冠心病、脑梗死。无手术外伤史。
+
+      过敏史：磺胺类药物过敏（药疹）。
+
+      个人史：吸烟15年 10支/天，已戒烟2年。否认饮酒。
+
+      婚育史：已婚，育1女。
+
+      家族史：否认家族遗传病史，父母健在。
+
+      体格检查：T 36.8℃ P 72次/分 R 16次/分 BP 132/82mmHg。神志清楚，精神一般。心肺腹无异常。
+
+      专科：双瞳等大等圆3mm，对光反射灵敏。四肢肌力V级，肌张力正常。左侧偏头区可闻及血管杂音。Babinski征(-)。NIHSS 0分 mRS 1分。
+
+      辅检：外院MRI(2026-02-22)：左额顶叶AVM，供血动脉来自左MCA及ACA分支，引流至上矢状窦。我院CTA(2026-03-20)：证实左额顶AVM，nidus约3.5cm×3cm，供血动脉2支，深静脉引流。Labs：WBC 6.8 HGB 152 PLT 226 Cr 0.9 ALT 18 AST 20 PT 12.0 INR 1.02 HbA1c 5.6% LDL-C 2.4
+      Hcy 18μmol/L（偏高）D-dimer 0.3mg/L
+
+      医生：诊断和治疗方案：
+
+      诊断：1.左侧额顶叶脑动静脉畸形（Spetzler-Martin III级） 2.高血压病2级（中危）
+
+      治疗方案：拟行DSA造影进一步明确AVM血管构筑，评估是否可行血管内栓塞+手术切除的联合治疗。术前准备：控制血压目标<130/80mmHg，继续安博维150mg qd。术前抗癫痫预防：左乙拉西坦500mg bid口服。完善术前心电图、胸片、凝血功能检查。针对Hcy偏高，加用叶酸0.8mg qd + 维生素B6 10mg qd。
+
+      医嘱及随访：住院期间卧床休息为主，避免剧烈活动。低盐低脂饮食。DSA术后24h制动穿刺侧肢体。根据DSA结果制定下一步手术计划，预计住院10-14天。出院后门诊随访，1个月、3个月复查MRA。'
+  assert:
+  - type: is-json
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.chief_complaint && obj.chief_complaint.includes("发现脑动静脉畸形1月"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.chief_complaint && obj.chief_complaint.includes("头痛加重1周"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.present_illness && obj.present_illness.includes("Spetzler-Martin III级"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.present_illness && obj.present_illness.includes("左侧额顶叶AVM"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.present_illness && obj.present_illness.includes("1周前头痛加重 持续性"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.present_illness && obj.present_illness.includes("伴视物模糊"));'
+- description: 'realistic: 中英混合 — 双语脑血管病例'
+  vars:
+    name: 赵明华
+    gender: 男
+    age: '65'
+    transcript: '医生：赵明华 男 65y 神经外科
+
+      主诉：反复TIA发作2月
+
+
+      CTA: R-ICA stenosis 70% LAD pattern, irregular plaque with ulceration. L-ICA mild stenosis 30%. MRA: R-MCA M1 mild stenosis. 颈动脉超声：右侧ICA起始部mixed plaque 3.2mm×12mm, PSV 285cm/s EDV 92cm/s.
+
+
+      DWI: R hemisphere small acute infarct in watershed area. FLAIR: bilateral periventricular white matter hyperintensity Fazekas grade 2.
+
+
+      既往: HTN 20y on 拜新同30mg qd + 代文80mg qd, BP 150-160/90-95. DM 12y on 格华止1000mg bid + 诺和锐30R 早16u晚12u, FBG 7-9 PPG 10-14. Dyslipidemia on 立普妥20mg qn 但compliance差 often自行停药.
+
+      AF 2y on 华法林2.5mg qd INR波动大 1.5-3.2 考虑换达比加群.
+
+      CHD hx, PCI 3y ago LAD stent DES, 波立维75mg qd已停1年改为拜阿司匹林100mg qd.
+
+      2019 appendectomy.
+
+
+      Allergy: 头孢过敏 (anaphylaxis hx)
+
+      Smoking 40y 1PPD quit 3y ago. Social EtOH.
+
+      Family: father CVA age 60, mother DM.
+
+
+      查体: BP 158/94 HR 82 irregular. Carotid bruit R side. 神清 oriented. R nasolabial fold shallow. Muscle strength: RUE IV/V RLE IV+/V LUE V/V LLE V/V. DTR symmetric. Babinski R (+) L (-). NIHSS 4 (facial
+      palsy 1 + R arm drift 1 + sensory 1 + dysarthria 1). mRS 2.
+
+
+      Labs: HbA1c 8.2% LDL-C 3.8mmol/L target<1.8 HDL 0.9 TG 2.8 TC 6.2
+
+      hs-cTnI 0.02 BNP 256pg/mL Cr 1.2 eGFR 58 ALT 52 AST 48
+
+      WBC 8.5 HGB 128 PLT 195 INR 2.1 PT 18.5s Hcy 22μmol/L D-dimer 0.8
+
+      UA 485μmol/L FT3 3.2 FT4 1.1 TSH 2.8
+
+
+      Dx: 1. R-ICA severe stenosis with TIA 2. Cerebral watershed infarction 3. AF (CHADS₂-VASc 6) 4. HTN grade 3 very high risk 5. T2DM 6. Dyslipidemia 7. CHD post-PCI
+
+
+      Plan: DSA评估. 拟行CAS (R-ICA stenting). 术前换抗凝: 华法林→达比加群110mg bid, bridge with 依诺肝素4000u ih bid. 双抗: 拜阿司匹林100mg qd + 波立维75mg qd (restart). Statin升级: 立普妥20mg→可定20mg qn target LDL<1.8. BP target<140/90:
+      加用倍他乐克47.5mg qd控制HR+BP. DM: 胰岛素继续, 格华止继续, add 达格列净10mg qd for renal protection. Hcy: 叶酸0.8mg qd. UA: 非布司他40mg qd.'
+  assert:
+  - type: is-json
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.chief_complaint && obj.chief_complaint.includes("反复TIA发作2月"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.auxiliary_exam && obj.auxiliary_exam.includes("R-ICA stenosis 70%")) || (obj.present_illness && obj.present_illness.includes("R-ICA stenosis 70%"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.auxiliary_exam && obj.auxiliary_exam.includes("PSV 285cm/s")) || (obj.present_illness && obj.present_illness.includes("PSV 285cm/s"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.auxiliary_exam && obj.auxiliary_exam.includes("Fazekas grade 2")) || (obj.present_illness && obj.present_illness.includes("Fazekas grade 2"));'
+- description: 'realistic: 否定为主随访 — 阴性症状集群拆分'
+  vars:
+    name: 刘淑芬
+    gender: 女
+    age: '59'
+    transcript: '医生：刘淑芬 女 59岁 神经外科门诊随访
+
+      主诉：颅内动脉瘤介入栓塞术后3月复查。
+
+      现病史：患者3月前因左侧后交通动脉瘤破裂致蛛网膜下腔出血，于我科行血管内介入弹簧圈栓塞术，术后恢复良好，术后2周出院。出院后遵医嘱规律服药，定期门诊随访。目前否认头晕头痛恶心呕吐肢体麻木无力，无视物模糊复视，无言语不清吞咽困难，无记忆力减退注意力不集中，无癫痫发作。否认胸闷气短心悸，无腹痛腹泻腹胀，无尿频尿急尿痛。睡眠可，食欲正常，二便如常。精神状态较出院时明显好转。
+
+      既往史：高血压8年，目前口服氨氯地平5mg qd+安博维150mg qd，血压控制在125-135/75-85mmHg。否认糖尿病。否认冠心病。否认脑梗死。否认肝炎结核等传染病史。3月前上述动脉瘤栓塞术，无其他手术外伤史。
+
+      过敏史：无药物食物过敏史。
+
+      个人史：否认吸烟饮酒。否认粉尘毒物接触史。退休工人。
+
+      婚育史：已婚，育有2子，均体健。绝经6年。
+
+      家族史：无特殊。否认家族遗传性疾病及肿瘤病史。
+
+      体格检查：BP 128/78mmHg HR 72次/分 律齐。一般情况好，精神可。心肺腹查体无异常。穿刺点（右股动脉）愈合良好，无血肿搏动。
+
+      专科：神志清楚，对答切题。双瞳等大等圆，直径3mm，对光反射灵敏。眼球各方向运动正常，无眼震。面部感觉对称，咀嚼有力。额纹对称，鼻唇沟等深，示齿口角无偏斜。软腭上抬有力，悬雍垂居中，咽反射存在。转颈耸肩有力。伸舌居中。四肢肌力V级，肌张力正常。双侧腱反射对称正常。双侧Babinski征(-)，Hoffmann征(-)。指鼻试验稳准，跟膝胫试验正常。Romberg征(-)。脑膜刺激征(-)。NIHSS
+      0分 mRS 0分。
+
+      辅助检查：复查头颅MRA(2026-03-22)：左侧后交通动脉瘤栓塞术后改变，未见明显复发或残留瘤颈充盈。Willis环其余血管通畅。复查血常规：WBC 5.8 HGB 132 PLT 208。凝血：INR 1.05 PT 12.0s。肝肾功能正常范围（ALT 22 AST 18 Cr 0.7 BUN 14）。LDL-C 2.1mmol/L。
+
+      诊断：左侧后交通动脉瘤栓塞术后，恢复期。高血压病，控制可。
+
+      治疗方案：继续目前药物方案不变。氨氯地平5mg qd + 安博维150mg qd控制血压。拜阿司匹林100mg qd继续服用。下次随访6个月后，届时复查DSA评估栓塞稳定性。如有头痛加重、恶心呕吐、肢体无力等情况随时就诊。'
+  assert:
+  - type: is-json
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.auxiliary_exam && obj.auxiliary_exam.includes("动脉瘤栓塞术后3月复查")) || (obj.chief_complaint && obj.chief_complaint.includes("动脉瘤栓塞术后3月复查")) || (obj.orders_followup && obj.orders_followup.includes("动脉瘤栓塞术后3月复查"))
+      || (obj.present_illness && obj.present_illness.includes("动脉瘤栓塞术后3月复查")) || (obj.treatment_plan && obj.treatment_plan.includes("动脉瘤栓塞术后3月复查"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.present_illness && obj.present_illness.includes("3月前左侧后交通动脉瘤破裂SAH"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.present_illness && obj.present_illness.includes("血管内介入弹簧圈栓塞术"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.present_illness && obj.present_illness.includes("术后恢复良好"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.present_illness && obj.present_illness.includes("否认头痛"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.present_illness && obj.present_illness.includes("否认头晕"));'
+- description: 'realistic: 复制粘贴冲突 — 新旧数据去重'
+  vars:
+    name: 孙志强
+    gender: 男
+    age: '61'
+    transcript: '医生：孙志强 男 61岁 神经外科
+
+      主诉：右侧颈内动脉支架置入术后6月复查。
+
+
+      现病史：患者6月前因右侧颈内动脉重度狭窄（90%）于我科行CAS治疗，置入Wallstent 7mm×40mm支架一枚，术后造影示残余狭窄<20%，远端血流通畅TIMI 3级。术后恢复顺利，住院7天出院。出院后规律口服双抗血小板药物（拜阿司匹林100mg qd + 波立维75mg qd），3个月后停用波立维改为单抗。目前无头晕头痛，无肢体无力麻木，无言语障碍，无视觉症状。生活自理，可从事轻体力活动。
+
+
+      ===以下为上次就诊记录（3个月前）===
+
+      既往史：高血压12年，口服拜新同30mg qd + 代文80mg qd，血压控制在135-145/85-90mmHg，控制欠佳。2型糖尿病6年，口服格华止500mg bid，HbA1c 7.5%。血脂异常，口服可定10mg qn，LDL-C 2.8mmol/L。否认冠心病。2020年行右侧腹股沟疝修补术。否认脑梗死脑出血史（除本次CAS术前TIA）。
+
+      过敏史：无。
+
+      个人史：吸烟35年，约15支/天。饮酒30年，每周3-4次，每次白酒3两。
+
+      家族史：父亲脑梗死，母亲高血压糖尿病。
+
+      上次查体：BP 142/88mmHg，HR 76次/分。神清，四肢肌力V级，NIHSS 0分，mRS 0分。
+
+      ===上次记录结束===
+
+
+      本次更新情况：
+
+      既往史更新：血压控制改善，目前BP 132/80mmHg左右。上次就诊后将拜新同加量至60mg qd，代文不变。HbA1c复查降至7.0%，格华止加至1000mg bid。可定10mg→20mg qn，LDL-C降至2.2mmol/L。
+
+      个人史更新：3个月前开始戒烟，目前已成功戒烟3个月。饮酒减量，每周1-2次，每次白酒1两。
+
+
+      本次查体：BP 130/78mmHg HR 74次/分 律齐。神清，精神好。右侧颈部支架处未闻及杂音。四肢肌力V级，感觉对称。NIHSS 0分 mRS 0分。
+
+
+      本次专科检查：双瞳等大等圆3mm，对光反射灵敏。颅神经检查未见异常。四肢肌力V级，肌张力正常。病理征(-)。
+
+
+      本次辅助检查：
+
+      颈动脉超声(2026-03-23)：右侧ICA支架内通畅，PSV 125cm/s（正常范围），未见再狭窄。左侧ICA轻度狭窄约25%。
+
+      头颅MRA(2026-03-23)：右侧颈内动脉支架术后改变，支架段通畅。颅内血管未见明显狭窄或动脉瘤。
+
+      Labs: HbA1c 7.0% LDL-C 2.2mmol/L Cr 1.0 ALT 28 AST 25 CK 120 WBC 6.2 HGB 145 PLT 210 INR 1.0 Hcy 14μmol/L
+
+
+      诊断：1.右侧颈内动脉支架置入术后（6个月） 2.高血压病3级（高危），控制改善 3.2型糖尿病 4.血脂异常
+
+
+      治疗方案：继续拜阿司匹林100mg qd单抗。拜新同60mg qd + 代文80mg qd控制血压，目标<130/80。格华止1000mg bid控制血糖，目标HbA1c<7%。可定20mg qn，目标LDL-C<1.8mmol/L，未达标考虑加用依折麦布10mg qd。鼓励继续戒烟，控制饮酒。
+
+
+      随访：6个月后复查颈动脉超声+头颅MRA。如支架内再狭窄进展则行DSA评估。每3个月复查血脂血糖。'
+  assert:
+  - type: is-json
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.auxiliary_exam && obj.auxiliary_exam.includes("颈内动脉支架术后6月复查")) || (obj.chief_complaint && obj.chief_complaint.includes("颈内动脉支架术后6月复查")) || (obj.orders_followup && obj.orders_followup.includes("颈内动脉支架术后6月复查"))
+      || (obj.present_illness && obj.present_illness.includes("颈内动脉支架术后6月复查")) || (obj.treatment_plan && obj.treatment_plan.includes("颈内动脉支架术后6月复查"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.present_illness && obj.present_illness.includes("Wallstent 7mm×40mm"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.present_illness && obj.present_illness.includes("残余狭窄<20% TIMI 3"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.present_illness && obj.present_illness.includes("双抗3月后停波立维改单抗"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.present_illness && obj.present_illness.includes("无头晕头痛 无肢体无力麻木"));'
+  - type: javascript
+    value: 'const obj = JSON.parse(output);
+
+      return (obj.past_history && obj.past_history.includes("BP 130/78mmHg（本次）")) || (obj.physical_exam && obj.physical_exam.includes("BP 130/78mmHg（本次）")) || (obj.present_illness && obj.present_illness.includes("BP
+      130/78mmHg（本次）"));'
+- description: 'realistic: Compound create-save: STEMI emergency intake'
+  vars:
+    name: 赵强
+    gender: 男
+    age: '61'
+    transcript: 医生：创建患者赵强，男61岁，急诊。胸痛90分钟伴大汗，下壁STEMI，hs-cTnI 3.2 ng/mL，BNP 168 pg/mL，EF 45%，阿司匹林300mg，氯吡格雷300mg。
+  assert:
+  - type: is-json
+- description: 'realistic: Compound create-save: acute stroke admission'
+  vars:
+    name: 刘丽萍
+    gender: 男
+    age: '81'
+    transcript: 医生：创建患者刘丽萍，男81岁，卒中单元。突发左侧肢体无力并言语不清5小时，NIHSS 6分，头颅MRI示右侧基底节急性梗死，阿司匹林100mg qd，阿托伐他汀40mg qn。
+  assert:
+  - type: is-json
+- description: 'realistic: Compound create-save: COPD exacerbation'
+  vars:
+    name: 周明哲
+    gender: 男
+    age: '72'
+    transcript: 医生：创建患者周明哲，男72岁，呼吸门诊。COPD急性加重3天，SpO2 88%，RR 28次/分，双肺哮鸣音，WBC 12.4，CRP 38，予布地奈德雾化和哌拉西林他唑巴坦。
+  assert:
+  - type: is-json
