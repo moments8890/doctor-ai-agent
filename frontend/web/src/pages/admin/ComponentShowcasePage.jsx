@@ -113,7 +113,7 @@ export default function ComponentShowcasePage() {
       </Box>
 
       {/* Main content */}
-      <Box sx={{ maxWidth: 480, p: 2, width: "100%", "@media (min-width: 700px)": { ml: "180px" } }}>
+      <Box sx={{ maxWidth: 390, p: 2, width: "100%", "@media (min-width: 700px)": { ml: "180px" } }}>
         <Typography sx={{ fontSize: 22, fontWeight: 700, mb: 0.5 }}>Shared Components</Typography>
         <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mb: 3 }}>
           All 27 components from src/components/. Tap group to expand.
