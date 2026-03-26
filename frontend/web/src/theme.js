@@ -50,7 +50,8 @@ const COLOR = {
 
 export { TYPE, ICON, COLOR };
 
-export const appTheme = createTheme({
+// Shared theme options (palette, typography, components) — used by both app and admin themes
+const sharedThemeOptions = {
   palette: {
     mode: "light",
     primary: { main: COLOR.primary },
@@ -116,4 +117,18 @@ export const appTheme = createTheme({
       styleOverrides: { paper: { borderRadius: 12 } },
     },
   },
+};
+
+// Mobile-forced theme for doctor/patient pages (breakpoints pinned to force mobile)
+export const appTheme = createTheme({
+  ...sharedThemeOptions,
+  breakpoints: {
+    values: { xs: 0, sm: 9999, md: 9999, lg: 9999, xl: 9999 },
+  },
+});
+
+// Desktop theme for admin pages (standard MUI breakpoints)
+export const adminTheme = createTheme({
+  ...sharedThemeOptions,
+  // Default MUI breakpoints: xs:0, sm:600, md:900, lg:1200, xl:1536
 });

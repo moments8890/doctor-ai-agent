@@ -7,11 +7,54 @@ import DebugPage from "./pages/DebugPage";
 import LoginPage from "./pages/LoginPage";
 import PatientPage from "./pages/PatientPage";
 import PrivacyPage from "./pages/PrivacyPage";
+import ComponentShowcase from "./pages/ComponentShowcase";
 import { useDoctorStore } from "./store/doctorStore";
 import { setWebToken, onAuthExpired } from "./api";
 import { isMiniApp } from "./utils/env";
 
+import Box from "@mui/material/Box";
+
 const DEV_MODE = import.meta.env.DEV; // true in `vite dev`, false in `vite build`
+
+/**
+ * On wide screens (>520px), constrains the app to a phone-shaped container
+ * with 9:19.5 aspect ratio. Uses CSS min() to pick whichever dimension
+ * is the binding constraint — width or height — so it always fits.
+ * On actual mobile (<520px), renders full-screen.
+ */
+function MobileFrame({ children }) {
+  // Aspect ratio: 9 / 19.5 ≈ 0.4615
+  // Height from width: h = w / 0.4615 = w * 2.167
+  // Width from height: w = h * 0.4615
+  return (
+    <Box sx={{
+      width: "100vw", height: "100vh", display: "flex",
+      justifyContent: "center", alignItems: "center",
+      bgcolor: "transparent",
+      "@media (min-width: 520px)": { bgcolor: "#e8e8e8" },
+    }}>
+      <Box sx={{
+        width: "100%", height: "100%",
+        overflow: "hidden",
+        position: "relative",
+        "@media (min-width: 520px)": {
+          // Pick the smaller of: height-driven width vs width-driven width
+          width: "min(calc(95vh * 9 / 19.5), 90vw)",
+          // Pick the smaller of: width-driven height vs height-driven height
+          height: "min(calc(90vw * 19.5 / 9), 95vh)",
+          maxWidth: 480,
+          borderRadius: "16px",
+          boxShadow: "0 4px 24px rgba(0,0,0,0.12)",
+          // Creates a new containing block for position:fixed children
+          // so they stay inside the frame instead of viewport
+          transform: "translateZ(0)",
+        },
+      }}>
+        {children}
+      </Box>
+    </Box>
+  );
+}
 const DEV_DOCTOR_ID = import.meta.env.VITE_DEV_DOCTOR_ID || "test_doctor";
 
 function RequireAuth({ children }) {
@@ -65,22 +108,28 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/privacy" element={<PrivacyPage />} />
-      <Route path="/login" element={<LoginPage />} />
+      {/* Mobile-framed routes (doctor, patient, login) */}
+      <Route path="/privacy" element={<MobileFrame><PrivacyPage /></MobileFrame>} />
+      <Route path="/login" element={<MobileFrame><LoginPage /></MobileFrame>} />
       <Route path="/" element={<Navigate to="/doctor" replace />} />
-      <Route path="/doctor" element={<RequireAuth><DoctorPage /></RequireAuth>} />
-      <Route path="/doctor/patients/:patientId" element={<RequireAuth><DoctorPage /></RequireAuth>} />
-      <Route path="/doctor/:section" element={<RequireAuth><DoctorPage /></RequireAuth>} />
-      <Route path="/doctor/:section/:subpage" element={<RequireAuth><DoctorPage /></RequireAuth>} />
-      <Route path="/doctor/:section/:subpage/:subId" element={<RequireAuth><DoctorPage /></RequireAuth>} />
+      <Route path="/doctor" element={<MobileFrame><RequireAuth><DoctorPage /></RequireAuth></MobileFrame>} />
+      <Route path="/doctor/patients/:patientId" element={<MobileFrame><RequireAuth><DoctorPage /></RequireAuth></MobileFrame>} />
+      <Route path="/doctor/review/:recordId" element={<MobileFrame><RequireAuth><DoctorPage /></RequireAuth></MobileFrame>} />
+      <Route path="/doctor/:section" element={<MobileFrame><RequireAuth><DoctorPage /></RequireAuth></MobileFrame>} />
+      <Route path="/doctor/:section/:subpage" element={<MobileFrame><RequireAuth><DoctorPage /></RequireAuth></MobileFrame>} />
+      <Route path="/doctor/:section/:subpage/:subId" element={<MobileFrame><RequireAuth><DoctorPage /></RequireAuth></MobileFrame>} />
+      <Route path="/patient" element={<MobileFrame><PatientPage /></MobileFrame>} />
+      <Route path="/patient/:tab" element={<MobileFrame><PatientPage /></MobileFrame>} />
+      <Route path="/patient/:tab/:subpage" element={<MobileFrame><PatientPage /></MobileFrame>} />
+      {/* Admin — full desktop layout, no MobileFrame */}
       <Route path="/admin/login" element={<AdminLoginPage />} />
       <Route path="/admin" element={<AdminPage />} />
       <Route path="/admin/:section" element={<AdminPage />} />
+      {/* Debug — full desktop layout */}
       <Route path="/debug" element={<DebugPage />} />
       <Route path="/debug/:section" element={<DebugPage />} />
-      <Route path="/patient" element={<PatientPage />} />
-      <Route path="/patient/:tab" element={<PatientPage />} />
-      <Route path="/patient/:tab/:subpage" element={<PatientPage />} />
+      {/* Component showcase — no frame, scrollable */}
+      <Route path="/debug/components" element={<ComponentShowcase />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
