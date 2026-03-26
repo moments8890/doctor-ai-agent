@@ -29,7 +29,7 @@ import DetailCard from "../../components/DetailCard";
 import AskAIBar from "../../components/AskAIBar";
 import PageSkeleton from "../../components/PageSkeleton";
 import { useDoctorStore } from "../../store/doctorStore";
-import { SPECIALTY_OPTIONS } from "./constants";
+import { SPECIALTY_OPTIONS } from "./components/constants";
 import { TYPE, ICON } from "../../theme";
 
 function SettingsRow({ icon, label, sublabel, onClick, danger }) {

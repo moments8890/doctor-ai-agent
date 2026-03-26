@@ -9,7 +9,7 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import { deleteRecord } from "../api";
-import { RECORD_TYPE_LABEL, STRUCTURED_FIELD_LABELS } from "../pages/doctor/constants";
+import { RECORD_TYPE_LABEL, STRUCTURED_FIELD_LABELS } from "../pages/doctor/components/constants";
 import RecordEditDialog from "./RecordEditDialog";
 import { TYPE, ICON } from "../theme";
 

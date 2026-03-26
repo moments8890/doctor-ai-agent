@@ -13,8 +13,8 @@ import { useNavigate } from "react-router-dom";
 import { doctorInterviewTurn, doctorInterviewConfirm, doctorInterviewCancel, doctorInterviewGetSession, confirmCarryForward, triggerDiagnosis } from "../../api";
 import SubpageHeader from "../../components/SubpageHeader";
 import SuggestionChips from "../../components/SuggestionChips";
-import CarryForwardCard from "./CarryForwardCard";
-import InterviewCompleteDialog from "./InterviewCompleteDialog";
+import CarryForwardCard from "./components/CarryForwardCard";
+import InterviewCompleteDialog from "./components/InterviewCompleteDialog";
 import { TYPE, ICON, COLOR } from "../../theme";
 
 function nowTs() {

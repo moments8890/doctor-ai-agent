@@ -1,5 +1,5 @@
 import { Box, Typography } from "@mui/material";
-import { TYPE } from "../../theme";
+import { TYPE } from "../../../theme";
 
 const CARD_STYLES = {
   urgent: { bg: "#FEF0EE", dot: "#E8533F" },

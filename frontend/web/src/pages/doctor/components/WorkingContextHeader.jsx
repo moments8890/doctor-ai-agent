@@ -8,7 +8,7 @@
 import { Box, Chip, Typography } from "@mui/material";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import EditNoteOutlinedIcon from "@mui/icons-material/EditNoteOutlined";
-import { TYPE, ICON } from "../../theme";
+import { TYPE, ICON } from "../../../theme";
 
 export default function WorkingContextHeader({ context, isMobile }) {
   if (!context) return null;

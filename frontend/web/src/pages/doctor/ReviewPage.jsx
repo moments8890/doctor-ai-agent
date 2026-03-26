@@ -23,8 +23,8 @@ import {
 } from "../../api";
 import { useDoctorStore } from "../../store/doctorStore";
 import SubpageHeader from "../../components/SubpageHeader";
-import DiagnosisCard from "./DiagnosisCard";
-import { STRUCTURED_FIELD_LABELS } from "./constants";
+import DiagnosisCard from "./components/DiagnosisCard";
+import { STRUCTURED_FIELD_LABELS } from "./components/constants";
 import { TYPE, COLOR } from "../../theme";
 
 /* ── NHC field order for collapsible record summary ────────────────────────── */

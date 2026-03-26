@@ -10,7 +10,7 @@
  *  - disabled: boolean
  */
 import { Box, Button, Typography } from "@mui/material";
-import { TYPE, COLOR } from "../../theme";
+import { TYPE, COLOR } from "../../../theme";
 
 export default function CarryForwardCard({ items, onConfirm, onDismiss, onConfirmAll, disabled = false }) {
   if (!items || items.length === 0) return null;

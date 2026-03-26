@@ -24,13 +24,13 @@ import {
   getDoctorProfile, updateDoctorProfile, getWorkingContext,
 } from "../api";
 import { useDoctorStore } from "../store/doctorStore";
-import { NAV, DESKTOP_NAV } from "./doctor/constants";
+import { NAV, DESKTOP_NAV } from "./doctor/components/constants";
 import HomePage from "./doctor/HomePage";
 import ChatPage from "./doctor/ChatPage";
 import PatientsPage from "./doctor/PatientsPage";
 import TasksPage from "./doctor/TasksPage";
 import SettingsPage from "./doctor/SettingsPage";
-import WorkingContextHeader from "./doctor/WorkingContextHeader";
+import WorkingContextHeader from "./doctor/components/WorkingContextHeader";
 import ReviewPage from "./doctor/ReviewPage";
 import ErrorBoundary from "../components/ErrorBoundary";
 import { TYPE, ICON } from "../theme";

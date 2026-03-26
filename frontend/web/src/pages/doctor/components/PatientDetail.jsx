@@ -16,11 +16,11 @@ import {
   getRecords,
   exportPatientPdf, exportOutpatientReport, deletePatient,
   getPatientChat, replyToPatient,
-} from "../../api";
+} from "../../../api";
 import { RECORD_TAB_GROUPS } from "./constants";
-import RecordCard from "../../components/RecordCard";
-import ExportSelectorDialog from "../../components/ExportSelectorDialog";
-import { TYPE, ICON, COLOR } from "../../theme";
+import RecordCard from "../../../components/RecordCard";
+import ExportSelectorDialog from "../../../components/ExportSelectorDialog";
+import { TYPE, ICON, COLOR } from "../../../theme";
 
 /* ── helpers ── */
 
@@ -193,7 +193,7 @@ function CollapsibleProfile({ patient, age, records, expanded, onToggle, exporti
 
 /* ── RecordTabs ── */
 
-import FilterBar from "../../components/FilterBar";
+import FilterBar from "../../../components/FilterBar";
 
 function RecordTabs({ activeTab, onChange, records }) {
   const counts = {};

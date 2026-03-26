@@ -29,7 +29,7 @@ import FilterBar from "../../components/FilterBar";
 
 // Page-level components
 import SubpageHeader from "../../components/SubpageHeader";
-import DiagnosisCard from "../doctor/DiagnosisCard";
+import DiagnosisCard from "../doctor/components/DiagnosisCard";
 
 // Icons for demos
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";

@@ -10,7 +10,7 @@
  *  - onClose: () => void
  */
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from "@mui/material";
-import { COLOR } from "../../theme";
+import { COLOR } from "../../../theme";
 
 const FIELD_LABELS = {
   chief_complaint: "主诉",

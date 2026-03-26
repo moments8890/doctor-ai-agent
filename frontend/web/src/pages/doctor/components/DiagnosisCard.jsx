@@ -17,7 +17,7 @@
  */
 import { useState } from "react";
 import { Box, Typography, TextField } from "@mui/material";
-import { TYPE, COLOR } from "../../theme";
+import { TYPE, COLOR } from "../../../theme";
 
 /* ── State-derived style maps ──────────────────────────────────────────────── */
 

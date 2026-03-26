@@ -16,7 +16,7 @@ import EventRepeatOutlinedIcon from "@mui/icons-material/EventRepeatOutlined";
 import MedicationOutlinedIcon from "@mui/icons-material/MedicationOutlined";
 import BiotechOutlinedIcon from "@mui/icons-material/BiotechOutlined";
 import { getTasks, patchTask, postponeTask, createTask, getPatients, getTaskRecord } from "../../api";
-import { TASK_TYPE_LABEL, TASK_FILTER_CHIPS } from "./constants";
+import { TASK_TYPE_LABEL, TASK_FILTER_CHIPS } from "./components/constants";
 import AskAIBar from "../../components/AskAIBar";
 import AppButton from "../../components/AppButton";
 import BarButton from "../../components/BarButton";
