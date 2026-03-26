@@ -94,11 +94,9 @@ export default function DoctorComponentShowcase() {
 
       {/* ── BriefingCard ── */}
       <Section title="BriefingCard" file="BriefingCard.jsx">
-        <BriefingCard title="今日患者" value={5} color={COLOR.primary} onClick={() => {}} />
-        <Box sx={{ mt: 1 }} />
-        <BriefingCard title="待办任务" value={3} color={COLOR.primary} onClick={() => {}} />
-        <Box sx={{ mt: 1 }} />
-        <BriefingCard title="已完成" value={0} onClick={() => {}} />
+        <BriefingCard card={{ type: "urgent", title: "3项待审核病历", context: "陈伟强、李复诊" }} onAction={() => {}} />
+        <BriefingCard card={{ type: "ai_discovery", title: "AI发现2例相似病例", context: "头痛+高血压" }} onAction={() => {}} />
+        <BriefingCard card={{ type: "pattern", title: "今日5位患者已就诊" }} onAction={() => {}} />
       </Section>
 
       {/* ── DiagnosisCard — all 5 states ── */}
