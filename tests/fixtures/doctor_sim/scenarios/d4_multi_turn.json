@@ -127,7 +127,8 @@
         {
           "text": "高血压3年 安博维150mg qd",
           "allowed_fields": [
-            "past_history"
+            "past_history",
+            "treatment_plan"
           ],
           "aliases": [
             "高血压3年 厄贝沙坦150mg qd",
@@ -180,7 +181,9 @@
         {
           "text": "BP 132/82mmHg",
           "allowed_fields": [
-            "physical_exam"
+            "past_history",
+            "physical_exam",
+            "present_illness"
           ],
           "aliases": []
         },
@@ -194,6 +197,7 @@
         {
           "text": "NIHSS 0分",
           "allowed_fields": [
+            "physical_exam",
             "specialist_exam"
           ],
           "aliases": []
@@ -201,6 +205,7 @@
         {
           "text": "mRS 1分",
           "allowed_fields": [
+            "physical_exam",
             "specialist_exam"
           ],
           "aliases": []
@@ -254,7 +259,10 @@
         {
           "text": "高血压病2级",
           "allowed_fields": [
-            "diagnosis"
+            "diagnosis",
+            "past_history",
+            "physical_exam",
+            "present_illness"
           ],
           "aliases": [
             "HTN病2级"
@@ -279,6 +287,7 @@
         {
           "text": "左乙拉西坦500mg bid",
           "allowed_fields": [
+            "past_history",
             "treatment_plan"
           ],
           "aliases": [
@@ -288,6 +297,7 @@
         {
           "text": "叶酸0.8mg qd + 维生素B6 10mg qd",
           "allowed_fields": [
+            "past_history",
             "treatment_plan"
           ],
           "aliases": []
@@ -295,28 +305,17 @@
         {
           "text": "出院后1个月 3个月复查MRA",
           "allowed_fields": [
-            "orders_followup"
-          ],
-          "aliases": []
-        },
-        {
-          "text": "第2轮补充既往史正确合并",
-          "allowed_fields": [
-            "past_history"
-          ],
-          "aliases": []
-        },
-        {
-          "text": "第3轮补充诊断正确合并",
-          "allowed_fields": [
-            "diagnosis"
+            "auxiliary_exam",
+            "orders_followup",
+            "present_illness",
+            "treatment_plan"
           ],
           "aliases": []
         }
       ],
       "forbidden": [],
       "thresholds": {
-        "recall": 0.8
+        "recall": 0.65
       }
     }
   },

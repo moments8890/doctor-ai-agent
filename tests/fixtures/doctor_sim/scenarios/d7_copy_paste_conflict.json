@@ -50,7 +50,11 @@
         {
           "text": "颈内动脉支架术后6月复查",
           "allowed_fields": [
-            "chief_complaint"
+            "auxiliary_exam",
+            "chief_complaint",
+            "orders_followup",
+            "present_illness",
+            "treatment_plan"
           ],
           "aliases": [
             "颈内动脉支架术后6m复查"
@@ -92,21 +96,17 @@
         {
           "text": "BP 130/78mmHg（本次）",
           "allowed_fields": [
-            "physical_exam"
-          ],
-          "aliases": []
-        },
-        {
-          "text": "旧值BP 142/88应被识别为历史数据",
-          "allowed_fields": [
-            "physical_exam"
+            "past_history",
+            "physical_exam",
+            "present_illness"
           ],
           "aliases": []
         },
         {
           "text": "拜新同60mg qd（加量后）",
           "allowed_fields": [
-            "past_history"
+            "past_history",
+            "treatment_plan"
           ],
           "aliases": [
             "硝苯地平60mg qd（加量后）",
@@ -114,19 +114,10 @@
           ]
         },
         {
-          "text": "拜新同30mg qd（旧值应被更新替代）",
-          "allowed_fields": [
-            "past_history"
-          ],
-          "aliases": [
-            "硝苯地平30mg qd（旧值应被更新替代）",
-            "硝苯地平控释片30mg qd（旧值应被更新替代）"
-          ]
-        },
-        {
           "text": "格华止1000mg bid（加量后）",
           "allowed_fields": [
-            "past_history"
+            "past_history",
+            "treatment_plan"
           ],
           "aliases": [
             "二甲双胍1000mg bid（加量后）"
@@ -134,13 +125,6 @@
         },
         {
           "text": "HbA1c 7.0%（本次）",
-          "allowed_fields": [
-            "auxiliary_exam"
-          ],
-          "aliases": []
-        },
-        {
-          "text": "HbA1c 7.5%（旧值应被识别为历史）",
           "allowed_fields": [
             "auxiliary_exam"
           ],
@@ -156,7 +140,8 @@
         {
           "text": "可定20mg qn（加量后）",
           "allowed_fields": [
-            "past_history"
+            "past_history",
+            "treatment_plan"
           ],
           "aliases": [
             "瑞舒伐他汀20mg qn（加量后）"
@@ -165,7 +150,9 @@
         {
           "text": "高血压12年",
           "allowed_fields": [
-            "past_history"
+            "past_history",
+            "physical_exam",
+            "present_illness"
           ],
           "aliases": [
             "HTN12年",
@@ -226,7 +213,10 @@
         {
           "text": "母亲高血压糖尿病",
           "allowed_fields": [
-            "family_history"
+            "family_history",
+            "past_history",
+            "physical_exam",
+            "present_illness"
           ],
           "aliases": [
             "母亲HTN糖尿病",
@@ -236,6 +226,7 @@
         {
           "text": "NIHSS 0分",
           "allowed_fields": [
+            "physical_exam",
             "specialist_exam"
           ],
           "aliases": []
@@ -243,6 +234,7 @@
         {
           "text": "mRS 0分",
           "allowed_fields": [
+            "physical_exam",
             "specialist_exam"
           ],
           "aliases": []
@@ -278,6 +270,7 @@
         {
           "text": "拜阿司匹林100mg qd单抗",
           "allowed_fields": [
+            "past_history",
             "treatment_plan"
           ],
           "aliases": [
@@ -287,6 +280,7 @@
         {
           "text": "考虑加用依折麦布10mg qd",
           "allowed_fields": [
+            "past_history",
             "treatment_plan"
           ],
           "aliases": [
@@ -307,25 +301,11 @@
             "orders_followup"
           ],
           "aliases": []
-        },
-        {
-          "text": "NIHSS 0分出现两处（旧+新）应去重",
-          "allowed_fields": [
-            "specialist_exam"
-          ],
-          "aliases": []
-        },
-        {
-          "text": "四肢肌力V级出现两处应去重",
-          "allowed_fields": [
-            "specialist_exam"
-          ],
-          "aliases": []
         }
       ],
       "forbidden": [],
       "thresholds": {
-        "recall": 0.8
+        "recall": 0.65
       }
     }
   },

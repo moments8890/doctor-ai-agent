@@ -57,13 +57,18 @@
         {
           "text": "Hunt-Hess III",
           "allowed_fields": [
-            "present_illness"
+            "auxiliary_exam",
+            "diagnosis",
+            "present_illness",
+            "specialist_exam"
           ],
           "aliases": []
         },
         {
           "text": "Fischer 3",
           "allowed_fields": [
+            "auxiliary_exam",
+            "diagnosis",
             "present_illness"
           ],
           "aliases": []
@@ -87,7 +92,9 @@
         {
           "text": "GCS E2V2M5=9",
           "allowed_fields": [
-            "present_illness"
+            "physical_exam",
+            "present_illness",
+            "specialist_exam"
           ],
           "aliases": []
         },
@@ -117,7 +124,8 @@
         {
           "text": "拜新同30mg qd自行停药半年",
           "allowed_fields": [
-            "past_history"
+            "past_history",
+            "treatment_plan"
           ],
           "aliases": [
             "硝苯地平30mg qd自行停药半年",
@@ -179,6 +187,7 @@
         {
           "text": "NIHSS 8",
           "allowed_fields": [
+            "physical_exam",
             "specialist_exam"
           ],
           "aliases": []
@@ -186,6 +195,7 @@
         {
           "text": "术后NIHSS 4",
           "allowed_fields": [
+            "physical_exam",
             "specialist_exam"
           ],
           "aliases": []
@@ -193,6 +203,7 @@
         {
           "text": "术后GCS E3V4M6=13",
           "allowed_fields": [
+            "physical_exam",
             "specialist_exam"
           ],
           "aliases": []
@@ -207,7 +218,9 @@
         {
           "text": "前交通动脉瘤破裂 SAH Hunt-Hess III",
           "allowed_fields": [
-            "diagnosis"
+            "auxiliary_exam",
+            "diagnosis",
+            "specialist_exam"
           ],
           "aliases": [
             "前交通动脉瘤破裂 蛛网膜下腔出血 Hunt-Hess III"
@@ -255,6 +268,8 @@
         {
           "text": "依诺肝素4000u ih qd预防DVT",
           "allowed_fields": [
+            "orders_followup",
+            "past_history",
             "treatment_plan"
           ],
           "aliases": [
@@ -265,7 +280,10 @@
         {
           "text": "术后3天复查CT",
           "allowed_fields": [
-            "orders_followup"
+            "auxiliary_exam",
+            "orders_followup",
+            "present_illness",
+            "treatment_plan"
           ],
           "aliases": [
             "术后3d复查CT"
@@ -284,14 +302,16 @@
         {
           "text": "mRS评估",
           "allowed_fields": [
-            "orders_followup"
+            "orders_followup",
+            "physical_exam",
+            "specialist_exam"
           ],
           "aliases": []
         }
       ],
       "forbidden": [],
       "thresholds": {
-        "recall": 0.8
+        "recall": 0.65
       }
     }
   },

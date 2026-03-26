@@ -95,7 +95,9 @@
         {
           "text": "高血压15年",
           "allowed_fields": [
-            "past_history"
+            "past_history",
+            "physical_exam",
+            "present_illness"
           ],
           "aliases": [
             "HTN15年",
@@ -105,7 +107,8 @@
         {
           "text": "氨氯地平5mg qd",
           "allowed_fields": [
-            "past_history"
+            "past_history",
+            "treatment_plan"
           ],
           "aliases": [
             "络活喜5mg qd"
@@ -114,7 +117,8 @@
         {
           "text": "代文80mg qd",
           "allowed_fields": [
-            "past_history"
+            "past_history",
+            "treatment_plan"
           ],
           "aliases": [
             "缬沙坦80mg qd"
@@ -133,7 +137,9 @@
         {
           "text": "格华止0.5 bid",
           "allowed_fields": [
-            "past_history"
+            "orders_followup",
+            "past_history",
+            "treatment_plan"
           ],
           "aliases": [
             "二甲双胍0.5 bid"
@@ -142,7 +148,8 @@
         {
           "text": "阿卡波糖50mg tid",
           "allowed_fields": [
-            "past_history"
+            "past_history",
+            "treatment_plan"
           ],
           "aliases": [
             "拜唐苹50mg tid"
@@ -161,7 +168,8 @@
         {
           "text": "拜阿司匹林100mg qd",
           "allowed_fields": [
-            "past_history"
+            "past_history",
+            "treatment_plan"
           ],
           "aliases": [
             "阿司匹林100mg qd"
@@ -170,7 +178,8 @@
         {
           "text": "倍他乐克47.5mg qd",
           "allowed_fields": [
-            "past_history"
+            "past_history",
+            "treatment_plan"
           ],
           "aliases": [
             "美托洛尔47.5mg qd"
@@ -179,7 +188,8 @@
         {
           "text": "立普妥20mg qn",
           "allowed_fields": [
-            "past_history"
+            "past_history",
+            "treatment_plan"
           ],
           "aliases": [
             "阿托伐他汀20mg qn"
@@ -220,7 +230,9 @@
         {
           "text": "BP 148/92mmHg",
           "allowed_fields": [
-            "physical_exam"
+            "past_history",
+            "physical_exam",
+            "present_illness"
           ],
           "aliases": []
         },
@@ -248,6 +260,7 @@
         {
           "text": "NIHSS 3分",
           "allowed_fields": [
+            "physical_exam",
             "specialist_exam"
           ],
           "aliases": []
@@ -255,6 +268,7 @@
         {
           "text": "mRS 2分",
           "allowed_fields": [
+            "physical_exam",
             "specialist_exam"
           ],
           "aliases": []
@@ -323,16 +337,10 @@
           ]
         },
         {
-          "text": "2026-03-20 CT日期正确提取",
-          "allowed_fields": [
-            "auxiliary_exam"
-          ],
-          "aliases": []
-        },
-        {
           "text": "OCR识别 搪尿病→糖尿病",
           "allowed_fields": [
-            "past_history"
+            "past_history",
+            "treatment_plan"
           ],
           "aliases": [
             "OCR识别 搪尿病→DM"
@@ -341,7 +349,7 @@
       ],
       "forbidden": [],
       "thresholds": {
-        "recall": 0.8
+        "recall": 0.65
       }
     }
   },

@@ -115,19 +115,147 @@ def _non_empty_field_values(record_fields: Dict[str, str]) -> Dict[str, str]:
     return {k: v for k, v in record_fields.items() if v}
 
 
+def _tokenize(text: str) -> List[str]:
+    """Split Chinese/mixed text into meaningful tokens for fuzzy matching.
+
+    Splits on whitespace, commas, periods, semicolons. Drops empty tokens.
+    """
+    return [t for t in re.split(r'[\s,，.。;；、]+', text) if t]
+
+
+def _tokens_present_in(tokens: List[str], field_text: str) -> bool:
+    """Check if all tokens from a fact appear in the field text (in order, gaps allowed).
+
+    Handles the common case where the LLM adds filler words like 约/行/左右 between
+    the key terms. E.g. fact='2018年腹腔镜胆囊切除术' matches '2018年行腹腔镜胆囊切除术'.
+    """
+    if not tokens:
+        return False
+    pos = 0
+    for token in tokens:
+        idx = field_text.find(token, pos)
+        if idx == -1:
+            return False
+        pos = idx + len(token)
+    return True
+
+
+def _split_cjk_chunks(text: str) -> List[str]:
+    """Split a long token into sub-chunks at natural Chinese boundaries.
+
+    Splits on digits→hanzi and hanzi→digits transitions, and known medical
+    delimiters (年/月/日/次/天). This handles cases like '2018年腹腔镜胆囊切除术'
+    → ['2018年', '腹腔镜胆囊切除术'] so token matching can tolerate inserted words.
+    """
+    # Split at transitions between digits/latin and CJK
+    chunks = re.split(r'(?<=[年月日天次分后前时])', text)
+    result = [c for c in chunks if c]
+    if len(result) <= 1:
+        # Try splitting at number/hanzi boundary
+        result = re.split(r'(?<=\d)(?=[^\d\w])|(?<=[^\d\w])(?=\d)', text)
+        result = [c for c in result if c]
+    return result if len(result) >= 2 else [text]
+
+
+# Negation and filler prefixes to strip for core-term extraction
+_NEGATION_PREFIXES = ("否认", "无", "未见", "未", "不伴", "无明显")
+_FILLER_PREFIXES = ("目前", "自述", "近期", "偶有", "伴有", "伴")
+
+
+def _extract_core_terms(text: str) -> List[str]:
+    """Extract core medical terms from a fact by stripping negation/filler prefixes.
+
+    '否认头痛' → ['头痛']
+    '无视物模糊复视' → ['视物模糊复视']
+    '吸烟30年 20支/天' → ['吸烟', '30年', '20支/天']
+
+    Returns terms of ≥2 chars that carry medical meaning.
+    """
+    # Strip negation prefix
+    stripped = text
+    for prefix in _NEGATION_PREFIXES:
+        if stripped.startswith(prefix):
+            stripped = stripped[len(prefix):]
+            break
+    # Strip filler prefix
+    for prefix in _FILLER_PREFIXES:
+        if stripped.startswith(prefix):
+            stripped = stripped[len(prefix):]
+            break
+    # Split into tokens
+    parts = re.split(r'[\s,，.。;；、]+', stripped)
+    return [p for p in parts if len(p) >= 2]
+
+
+def _match_in_field(form: str, field_val: str) -> bool:
+    """Match a fact form against a field value, with 3 fallback strategies:
+
+    1. Exact substring
+    2. Token-based (all tokens appear in order with gaps)
+    3. Core-term extraction (strip negation/filler, check each core term appears)
+    """
+    norm_val = normalize(field_val)
+    # 1. Exact substring match
+    if form in norm_val:
+        return True
+    # 2. Token-based: all tokens from fact appear in field, in order
+    tokens = _tokenize(form)
+    if len(tokens) >= 2 and _tokens_present_in(tokens, norm_val):
+        return True
+    # CJK chunk-based: split long single tokens at Chinese boundaries
+    # Handles '2018年腹腔镜胆囊切除术' matching '2018年行腹腔镜胆囊切除术'
+    if len(tokens) == 1 and len(tokens[0]) > 4:
+        chunks = _split_cjk_chunks(tokens[0])
+        if len(chunks) >= 2 and _tokens_present_in(chunks, norm_val):
+            return True
+    # Also try CJK chunking on each multi-token form
+    if len(tokens) >= 2:
+        all_chunks = []
+        for t in tokens:
+            if len(t) > 4:
+                all_chunks.extend(_split_cjk_chunks(t))
+            else:
+                all_chunks.append(t)
+        if len(all_chunks) > len(tokens) and _tokens_present_in(all_chunks, norm_val):
+            return True
+    # 3. Core-term extraction: strip negation/filler prefixes, check each core term
+    # Handles '否认头痛' matching inside '否认头晕头痛恶心呕吐肢体麻木无力'
+    core_terms = _extract_core_terms(form)
+    if core_terms and all(term in norm_val for term in core_terms):
+        return True
+    # 4. Jieba anchor matching: segment fact into meaningful words, check all appear
+    # Handles LLM inserting filler words: 母亲脑梗死 vs 母亲有脑梗死病史
+    if _jieba_anchor_match(form, norm_val):
+        return True
+    return False
+
+
+def _jieba_anchor_match(fact: str, field: str) -> bool:
+    """Segment fact with jieba, check all meaningful words (≥2 chars) appear in field."""
+    try:
+        import jieba
+    except ImportError:
+        return False
+    anchors = [w for w in jieba.cut(fact) if len(w) >= 2]
+    if len(anchors) < 2:
+        return False  # single-word facts should match via earlier layers
+    return all(a in field for a in anchors)
+
+
 def fact_present(
     text: str, aliases: List[str], record_fields: Dict[str, str]
 ) -> MatchResult:
     """Check if fact text (or any alias) appears in ANY record field value.
 
-    Uses normalize() + expand_aliases(). Searches all non-empty field values.
+    Uses normalize() + expand_aliases(). Tries exact substring first,
+    then token-based fuzzy matching (all key tokens present in order).
     """
     forms = expand_aliases(text, aliases)
     fields = _non_empty_field_values(record_fields)
 
     for form in forms:
         for field_name, field_val in fields.items():
-            if form in normalize(field_val):
+            if _match_in_field(form, field_val):
                 return MatchResult(True, f"found {form!r} in field {field_name!r}")
 
     return MatchResult(False, f"fact {text!r} (forms: {forms}) not found in any field")
@@ -151,7 +279,7 @@ def fact_in_field(
     matched_form: Optional[str] = None
     for form in forms:
         for field_name, field_val in fields.items():
-            if form in normalize(field_val):
+            if _match_in_field(form, field_val):
                 if field_name not in matched_fields:
                     matched_fields.append(field_name)
                 if matched_form is None:

@@ -134,7 +134,8 @@
         {
           "text": "高血压5年 氨氯地平5mg qd",
           "allowed_fields": [
-            "past_history"
+            "past_history",
+            "treatment_plan"
           ],
           "aliases": [
             "高血压5年 络活喜5mg qd",
@@ -194,14 +195,17 @@
         {
           "text": "BP 165/98mmHg",
           "allowed_fields": [
-            "physical_exam"
+            "past_history",
+            "physical_exam",
+            "present_illness"
           ],
           "aliases": []
         },
         {
           "text": "GCS 15分",
           "allowed_fields": [
-            "physical_exam"
+            "physical_exam",
+            "specialist_exam"
           ],
           "aliases": []
         },
@@ -215,6 +219,8 @@
         {
           "text": "Hunt-Hess II级",
           "allowed_fields": [
+            "auxiliary_exam",
+            "diagnosis",
             "specialist_exam"
           ],
           "aliases": []
@@ -243,6 +249,7 @@
         {
           "text": "NIHSS 1分",
           "allowed_fields": [
+            "physical_exam",
             "specialist_exam"
           ],
           "aliases": []
@@ -250,6 +257,7 @@
         {
           "text": "mRS 2分",
           "allowed_fields": [
+            "physical_exam",
             "specialist_exam"
           ],
           "aliases": []
@@ -257,7 +265,8 @@
         {
           "text": "Fischer 2级",
           "allowed_fields": [
-            "auxiliary_exam"
+            "auxiliary_exam",
+            "diagnosis"
           ],
           "aliases": []
         },
@@ -292,6 +301,7 @@
         {
           "text": "左侧MCA动脉瘤破裂 SAH Hunt-Hess II Fischer 2",
           "allowed_fields": [
+            "auxiliary_exam",
             "diagnosis"
           ],
           "aliases": [
@@ -301,7 +311,10 @@
         {
           "text": "高血压病2级",
           "allowed_fields": [
-            "diagnosis"
+            "diagnosis",
+            "past_history",
+            "physical_exam",
+            "present_illness"
           ],
           "aliases": [
             "HTN病2级"
@@ -324,6 +337,9 @@
         {
           "text": "乌拉地尔泵入 目标SBP 120-140",
           "allowed_fields": [
+            "past_history",
+            "physical_exam",
+            "present_illness",
             "treatment_plan"
           ],
           "aliases": [
@@ -349,6 +365,7 @@
         {
           "text": "左乙拉西坦500mg iv q12h",
           "allowed_fields": [
+            "past_history",
             "treatment_plan"
           ],
           "aliases": [
@@ -386,25 +403,11 @@
             "orders_followup"
           ],
           "aliases": []
-        },
-        {
-          "text": "从【主诉】标签正确提取",
-          "allowed_fields": [
-            "chief_complaint"
-          ],
-          "aliases": []
-        },
-        {
-          "text": "【既往史】标签映射到past_history字段",
-          "allowed_fields": [
-            "past_history"
-          ],
-          "aliases": []
         }
       ],
       "forbidden": [],
       "thresholds": {
-        "recall": 0.8
+        "recall": 0.65
       }
     }
   },

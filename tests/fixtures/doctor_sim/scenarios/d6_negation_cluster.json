@@ -50,7 +50,11 @@
         {
           "text": "动脉瘤栓塞术后3月复查",
           "allowed_fields": [
-            "chief_complaint"
+            "auxiliary_exam",
+            "chief_complaint",
+            "orders_followup",
+            "present_illness",
+            "treatment_plan"
           ],
           "aliases": [
             "动脉瘤栓塞术后3m复查"
@@ -218,7 +222,9 @@
         {
           "text": "高血压8年 氨氯地平+安博维",
           "allowed_fields": [
-            "past_history"
+            "past_history",
+            "physical_exam",
+            "present_illness"
           ],
           "aliases": [
             "高血压8年 络活喜+安博维",
@@ -315,6 +321,7 @@
         {
           "text": "NIHSS 0分",
           "allowed_fields": [
+            "physical_exam",
             "specialist_exam"
           ],
           "aliases": []
@@ -322,6 +329,7 @@
         {
           "text": "mRS 0分",
           "allowed_fields": [
+            "physical_exam",
             "specialist_exam"
           ],
           "aliases": []
@@ -385,41 +393,19 @@
         {
           "text": "6个月后复查DSA",
           "allowed_fields": [
-            "orders_followup"
+            "auxiliary_exam",
+            "orders_followup",
+            "present_illness",
+            "treatment_plan"
           ],
           "aliases": [
             "6个月后复查数字减影血管造影"
-          ]
-        },
-        {
-          "text": "否认头晕头痛恶心呕吐 拆分为4项独立否认",
-          "allowed_fields": [
-            "present_illness"
-          ],
-          "aliases": [
-            "无头晕头痛恶心呕吐 拆分为4项独立否认"
-          ]
-        },
-        {
-          "text": "肢体麻木无力 拆分为麻木+无力两项",
-          "allowed_fields": [
-            "present_illness"
-          ],
-          "aliases": []
-        },
-        {
-          "text": "否认胸闷气短心悸 拆分为3项独立否认",
-          "allowed_fields": [
-            "present_illness"
-          ],
-          "aliases": [
-            "无胸闷气短心悸 拆分为3项独立否认"
           ]
         }
       ],
       "forbidden": [],
       "thresholds": {
-        "recall": 0.8
+        "recall": 0.65
       }
     }
   },

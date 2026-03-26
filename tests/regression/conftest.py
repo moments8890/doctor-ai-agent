@@ -1,3 +1,14 @@
+"""Regression test fixtures.
+
+IMPORTANT: Regression tests MUST run against port 8001 (test server), NEVER 8000 (dev server).
+Port 8000 has real patient data. Start the test server with:
+
+    PYTHONPATH=src uvicorn main:app --host 127.0.0.1 --port 8001
+
+Run tests:
+
+    RUN_REGRESSION=1 PYTHONPATH=src pytest tests/regression/ -v
+"""
 from __future__ import annotations
 
 import os
@@ -19,6 +30,13 @@ except Exception:
     _RUNTIME_CONFIG = {}
 
 SERVER = os.environ.get("INTEGRATION_SERVER_URL", "http://127.0.0.1:8001")
+
+# Safety: reject port 8000 (dev server with real data)
+if ":8000" in SERVER:
+    raise RuntimeError(
+        "REFUSED: regression tests must NOT run against port 8000 (dev server). "
+        "Use port 8001: INTEGRATION_SERVER_URL=http://127.0.0.1:8001"
+    )
 DB_PATH = Path(
     os.environ.get(
         "PATIENTS_DB_PATH",

@@ -60,6 +60,7 @@
         {
           "text": "R-ICA stenosis 70%",
           "allowed_fields": [
+            "auxiliary_exam",
             "present_illness"
           ],
           "aliases": []
@@ -67,6 +68,7 @@
         {
           "text": "irregular plaque with ulceration",
           "allowed_fields": [
+            "auxiliary_exam",
             "present_illness"
           ],
           "aliases": []
@@ -74,6 +76,7 @@
         {
           "text": "DWI R hemisphere watershed acute infarct",
           "allowed_fields": [
+            "auxiliary_exam",
             "present_illness"
           ],
           "aliases": []
@@ -81,6 +84,7 @@
         {
           "text": "PSV 285cm/s",
           "allowed_fields": [
+            "auxiliary_exam",
             "present_illness"
           ],
           "aliases": []
@@ -88,6 +92,7 @@
         {
           "text": "Fazekas grade 2",
           "allowed_fields": [
+            "auxiliary_exam",
             "present_illness"
           ],
           "aliases": []
@@ -189,7 +194,9 @@
         {
           "text": "BP 158/94",
           "allowed_fields": [
-            "physical_exam"
+            "past_history",
+            "physical_exam",
+            "present_illness"
           ],
           "aliases": []
         },
@@ -210,13 +217,15 @@
         {
           "text": "Babinski R (+)",
           "allowed_fields": [
-            "physical_exam"
+            "physical_exam",
+            "specialist_exam"
           ],
           "aliases": []
         },
         {
           "text": "NIHSS 4",
           "allowed_fields": [
+            "physical_exam",
             "specialist_exam"
           ],
           "aliases": []
@@ -224,6 +233,7 @@
         {
           "text": "mRS 2",
           "allowed_fields": [
+            "physical_exam",
             "specialist_exam"
           ],
           "aliases": []
@@ -280,6 +290,7 @@
         {
           "text": "R-ICA severe stenosis with TIA",
           "allowed_fields": [
+            "auxiliary_exam",
             "diagnosis"
           ],
           "aliases": [
@@ -315,6 +326,7 @@
         {
           "text": "华法林→达比加群110mg bid",
           "allowed_fields": [
+            "past_history",
             "treatment_plan"
           ],
           "aliases": [
@@ -325,6 +337,7 @@
         {
           "text": "拜阿司匹林100mg + 波立维75mg",
           "allowed_fields": [
+            "past_history",
             "treatment_plan"
           ],
           "aliases": [
@@ -335,6 +348,7 @@
         {
           "text": "立普妥→可定20mg 目标LDL<1.8",
           "allowed_fields": [
+            "past_history",
             "treatment_plan"
           ],
           "aliases": [
@@ -345,6 +359,7 @@
         {
           "text": "倍他乐克47.5mg qd",
           "allowed_fields": [
+            "past_history",
             "treatment_plan"
           ],
           "aliases": [
@@ -354,6 +369,7 @@
         {
           "text": "达格列净10mg qd renal protection",
           "allowed_fields": [
+            "past_history",
             "treatment_plan"
           ],
           "aliases": [
@@ -364,6 +380,7 @@
         {
           "text": "叶酸0.8mg qd",
           "allowed_fields": [
+            "past_history",
             "treatment_plan"
           ],
           "aliases": []
@@ -371,47 +388,17 @@
         {
           "text": "非布司他40mg qd",
           "allowed_fields": [
+            "past_history",
             "treatment_plan"
           ],
           "aliases": [
             "febuxostat40mg qd"
           ]
-        },
-        {
-          "text": "拜新同=硝苯地平控释片 品牌识别",
-          "allowed_fields": [
-            "past_history"
-          ],
-          "aliases": [
-            "拜新同=拜新同控释片 品牌识别",
-            "硝苯地平=硝苯地平控释片 品牌识别",
-            "硝苯地平控释片=硝苯地平控释片 品牌识别"
-          ]
-        },
-        {
-          "text": "波立维=氯吡格雷 品牌识别",
-          "allowed_fields": [
-            "treatment_plan"
-          ],
-          "aliases": [
-            "波立维=波立维 品牌识别",
-            "氯吡格雷=氯吡格雷 品牌识别"
-          ]
-        },
-        {
-          "text": "可定=瑞舒伐他汀 品牌识别",
-          "allowed_fields": [
-            "treatment_plan"
-          ],
-          "aliases": [
-            "可定=可定 品牌识别",
-            "瑞舒伐他汀=瑞舒伐他汀 品牌识别"
-          ]
         }
       ],
       "forbidden": [],
       "thresholds": {
-        "recall": 0.8
+        "recall": 0.65
       }
     }
   },

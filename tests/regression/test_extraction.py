@@ -22,7 +22,8 @@ pytestmark = [pytest.mark.regression, pytest.mark.extraction]
 
 SCENARIO_DIRS = [
     "tests/fixtures/doctor_sim/scenarios",
-    "tests/fixtures/patient_sim/scenarios",
+    # patient_sim scenarios need their own runner (patient auth, different API endpoints)
+    # TODO: implement test_patient_interview.py for these
 ]
 
 _scenarios = load_scenarios(SCENARIO_DIRS)
@@ -75,6 +76,7 @@ def test_extraction(scenario: ScenarioSpec, server_url, db_path, cleanup):
 
     # 4. Run extraction checks
     extraction = scenario.expectations.extraction
+    warnings = []  # individual misses — diagnostic, not failures
     if extraction:
         record = db_record_fields(db_path, doctor_id)
         if not record:
@@ -89,15 +91,15 @@ def test_extraction(scenario: ScenarioSpec, server_url, db_path, cleanup):
                 if result.passed:
                     matched += 1
                 else:
-                    failures.append(f"MISS: {fact.text} — {result.detail}")
+                    warnings.append(f"MISS: {fact.text} — {result.detail}")
 
-            # Forbidden facts
+            # Forbidden facts — these ARE failures (hallucination guard)
             for f in extraction.forbidden:
                 result = forbidden_absent(f.text, record)
                 if not result.passed:
                     failures.append(f"FORBIDDEN: {f.text} found — {result.detail}")
 
-            # Recall threshold
+            # Recall threshold — the regression gate
             total_facts = len(extraction.facts)
             if total_facts > 0:
                 recall = matched / total_facts
@@ -107,6 +109,16 @@ def test_extraction(scenario: ScenarioSpec, server_url, db_path, cleanup):
                         f"RECALL: {recall:.0%} ({matched}/{total_facts}) "
                         f"< {threshold:.0%}"
                     )
+                    # Include misses as context when recall fails
+                    failures.extend(warnings)
+
+    # Print warnings even on pass — diagnostic info visible with -v
+    if warnings and not failures:
+        print(f"\n  [{scenario.id}] {len(warnings)} info misses (recall above threshold):")
+        for w in warnings[:5]:
+            print(f"    {w}")
+        if len(warnings) > 5:
+            print(f"    ... +{len(warnings) - 5} more")
 
     assert not failures, "\n".join(failures)
 
