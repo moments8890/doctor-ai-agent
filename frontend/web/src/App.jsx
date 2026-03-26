@@ -9,6 +9,7 @@ import PatientPage from "./pages/patient/PatientPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import ComponentShowcasePage from "./pages/admin/ComponentShowcasePage";
 import DoctorComponentShowcase from "./pages/doctor/components/Showcase";
+import MockPages from "./pages/doctor/components/MockPages";
 import { useDoctorStore } from "./store/doctorStore";
 import { setWebToken, onAuthExpired } from "./api";
 import { isMiniApp } from "./utils/env";
@@ -132,6 +133,7 @@ export default function App() {
       {/* Component showcases — no frame, scrollable */}
       <Route path="/debug/components" element={<ComponentShowcasePage />} />
       <Route path="/debug/doctor-components" element={<DoctorComponentShowcase />} />
+      <Route path="/debug/doctor-pages" element={<MockPages />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
