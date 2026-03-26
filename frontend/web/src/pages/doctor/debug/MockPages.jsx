@@ -615,24 +615,35 @@ function MockInterview({ onBack, onComplete }) {
 
 function MockSettingsTemplate({ onBack }) {
   const content = (
-    <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
-      <Box sx={{ bgcolor: COLOR.white, borderRadius: 1, p: 2, mb: 1 }}>
-        <Typography sx={{ fontWeight: 600, mb: 0.5 }}>门诊病历模板</Typography>
-        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, lineHeight: 1.6 }}>
-          默认模板，包含主诉、现病史、既往史、体格检查、辅助检查、诊断、治疗方案等字段。
-        </Typography>
+    <Box sx={{ flex: 1, overflowY: "auto" }}>
+      <Box sx={{ px: 2, py: 1.5 }}>
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>共 3 个模板</Typography>
       </Box>
-      <Box sx={{ bgcolor: COLOR.white, borderRadius: 1, p: 2, mb: 1 }}>
-        <Typography sx={{ fontWeight: 600, mb: 0.5 }}>神经外科专科模板</Typography>
-        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, lineHeight: 1.6 }}>
-          包含GCS评分、瞳孔检查、神经系统查体等专科字段。
-        </Typography>
-      </Box>
-      <Box sx={{ bgcolor: COLOR.white, borderRadius: 1, p: 2 }}>
-        <Typography sx={{ fontWeight: 600, mb: 0.5 }}>术后随访模板</Typography>
-        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, lineHeight: 1.6 }}>
-          术后恢复情况、伤口愈合、并发症筛查。
-        </Typography>
+      <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
+        {[
+          { name: "门诊病历模板", desc: "默认模板，包含主诉、现病史、既往史等字段", badge: "默认" },
+          { name: "神经外科专科模板", desc: "包含GCS评分、瞳孔检查、神经系统查体等专科字段" },
+          { name: "术后随访模板", desc: "术后恢复情况、伤口愈合、并发症筛查" },
+        ].map((t, i) => (
+          <Box key={t.name} sx={{
+            display: "flex", alignItems: "center", px: 2, py: 1.5, cursor: "pointer",
+            borderTop: i > 0 ? `0.5px solid ${COLOR.borderLight}` : "none",
+            "&:active": { bgcolor: COLOR.surfaceAlt },
+          }}>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
+                <Typography sx={{ fontSize: TYPE.body.fontSize, fontWeight: 500 }}>{t.name}</Typography>
+                {t.badge && (
+                  <Box sx={{ px: 0.8, py: 0.2, borderRadius: "4px", fontSize: TYPE.micro.fontSize, fontWeight: 500, bgcolor: "#E8F5E9", color: COLOR.primary }}>
+                    {t.badge}
+                  </Box>
+                )}
+              </Box>
+              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: 0.3 }}>{t.desc}</Typography>
+            </Box>
+            <Typography sx={{ color: COLOR.text4 }}>›</Typography>
+          </Box>
+        ))}
       </Box>
     </Box>
   );
