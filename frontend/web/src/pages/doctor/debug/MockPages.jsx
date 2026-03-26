@@ -806,7 +806,7 @@ export default function MockPages() {
   const activeTab = (subpage === "chat" || subpage === "interview") ? "home" : subpage === "task-detail" ? "tasks" : subpage === "settings-sub" ? "settings" : tab;
 
   // Full-screen subpages (no bottom nav)
-  const hideBottomNav = subpage === "chat" || subpage === "review" || subpage === "interview" || subpage === "task-detail" || subpage === "settings-sub";
+  const hideBottomNav = subpage === "chat" || subpage === "review" || subpage === "interview" || subpage === "task-detail";
 
   // Render content based on state
   function renderContent() {
