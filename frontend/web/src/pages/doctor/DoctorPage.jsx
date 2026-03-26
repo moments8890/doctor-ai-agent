@@ -21,7 +21,7 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import {
   getTasks,
-  getDoctorProfile, updateDoctorProfile, getWorkingContext,
+  getDoctorProfile, updateDoctorProfile,
 } from "../../api";
 import { useDoctorStore } from "../../store/doctorStore";
 import { NAV, DESKTOP_NAV } from "./components/constants";
@@ -30,7 +30,6 @@ import ChatPage from "./ChatPage";
 import PatientsPage from "./PatientsPage";
 import TasksPage from "./TasksPage";
 import SettingsPage from "./SettingsPage";
-import WorkingContextHeader from "./components/WorkingContextHeader";
 import ReviewPage from "./ReviewPage";
 import ErrorBoundary from "../../components/ErrorBoundary";
 import { TYPE, ICON } from "../../theme";
@@ -103,7 +102,7 @@ function OnboardingDialog({ open, name, saving, onChange, onSubmit }) {
   );
 }
 
-function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpage, urlSubId, chatInsertText, setChatInsertText, chatAutoSendText, setChatAutoSendText, chatAutoSendConsumedRef, patientRefreshKey, setPatientRefreshKey, handleLogout, onContextCleared, triggerInterview, setTriggerInterview, chatInterviewSessionId, setChatInterviewSessionId }) {
+function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpage, urlSubId, chatInsertText, setChatInsertText, chatAutoSendText, setChatAutoSendText, chatAutoSendConsumedRef, patientRefreshKey, setPatientRefreshKey, handleLogout, onContextCleared, triggerInterview, setTriggerInterview, chatInterviewSessionId, setChatInterviewSessionId, chatInterviewPrePopulated, setChatInterviewPrePopulated }) {
   return (
     <Box sx={{ flex: 1, overflow: "hidden" }}>
       {activeSection === "home" && (
@@ -119,7 +118,7 @@ function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpag
             autoSendText={chatAutoSendText !== chatAutoSendConsumedRef.current ? chatAutoSendText : ""}
             onAutoSendConsumed={() => { chatAutoSendConsumedRef.current = chatAutoSendText; setChatAutoSendText(""); }}
             onContextCleared={onContextCleared}
-            onStartPatientInterview={(sessionId) => { setChatInterviewSessionId(sessionId || null); setTriggerInterview(true); navigate("/doctor/patients"); }}
+            onStartPatientInterview={(sessionId, prePopulated) => { setChatInterviewSessionId(sessionId || null); setChatInterviewPrePopulated(prePopulated || null); setTriggerInterview(true); navigate("/doctor/patients"); }}
             onBack={isMobile ? () => navigate("/doctor") : undefined} />
         </ErrorBoundary>
       )}
@@ -132,7 +131,8 @@ function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpag
             triggerInterview={triggerInterview}
             onTriggerInterviewConsumed={() => setTriggerInterview(false)}
             chatInterviewSessionId={chatInterviewSessionId}
-            onChatInterviewSessionConsumed={() => setChatInterviewSessionId(null)} />
+            onChatInterviewSessionConsumed={() => { setChatInterviewSessionId(null); setChatInterviewPrePopulated(null); }}
+            chatInterviewPrePopulated={chatInterviewPrePopulated} />
         </ErrorBoundary>
       )}
       {activeSection === "tasks" && <ErrorBoundary label="任务"><TasksPage doctorId={doctorId} urlSubpage={urlSubpage} urlSubId={urlSubId} /></ErrorBoundary>}
@@ -143,7 +143,6 @@ function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpag
 
 function useDoctorPageState({ doctorId, accessToken, setAuth }) {
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
-  const [workingContext, setWorkingContext] = useState(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardName, setOnboardName] = useState("");
   const [onboardSaving, setOnboardSaving] = useState(false);
@@ -156,14 +155,6 @@ function useDoctorPageState({ doctorId, accessToken, setAuth }) {
     if (!doctorId) return;
     getTasks(doctorId, "pending").then((d) => setPendingTaskCount((Array.isArray(d) ? d : (d.items || [])).length)).catch(() => {});
   }, [doctorId]);
-  // Working context: poll every 15 seconds for header state
-  useEffect(() => {
-    if (!doctorId) return;
-    const fetch = () => getWorkingContext(doctorId).then((d) => setWorkingContext(d || null)).catch(() => {});
-    fetch();
-    const id = setInterval(fetch, 15000);
-    return () => clearInterval(id);
-  }, [doctorId]);
 
   async function handleOnboardSubmit() {
     if (!onboardName.trim() || onboardSaving) return;
@@ -171,7 +162,7 @@ function useDoctorPageState({ doctorId, accessToken, setAuth }) {
     try { await updateDoctorProfile(doctorId, { name: onboardName.trim() }); setAuth(doctorId, onboardName.trim(), accessToken); setShowOnboarding(false); }
     catch {} finally { setOnboardSaving(false); }
   }
-  return { pendingTaskCount, workingContext, setWorkingContext, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit };
+  return { pendingTaskCount, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit };
 }
 
 export default function DoctorPage() {
@@ -186,15 +177,13 @@ export default function DoctorPage() {
   const [patientRefreshKey, setPatientRefreshKey] = useState(0);
   const [triggerInterview, setTriggerInterview] = useState(false);
   const [chatInterviewSessionId, setChatInterviewSessionId] = useState(null);
+  const [chatInterviewPrePopulated, setChatInterviewPrePopulated] = useState(null);
 
-  const { pendingTaskCount, workingContext, setWorkingContext, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit } = useDoctorPageState({ doctorId, accessToken, setAuth });
+  const { pendingTaskCount, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit } = useDoctorPageState({ doctorId, accessToken, setAuth });
 
   const isReviewPage = !!recordId;
   const activeSection = patientId ? "patients" : (section || "home");
 
-  function handleContextCleared() {
-    setWorkingContext(null);
-  }
   function handleNav(key) { navigate(key === "home" ? "/doctor" : `/doctor/${key}`); }
   function handleLogout() {
     clearAuth();
@@ -206,13 +195,12 @@ export default function DoctorPage() {
     <Box sx={{ display: "flex", height: "100%", position: "relative", bgcolor: "#f7f7f7" }}>
       {!isMobile && <DesktopSidebar activeSection={activeSection} doctorName={doctorName} doctorId={doctorId} navBadge={{ tasks: pendingTaskCount }} onNav={handleNav} onLogout={handleLogout} />}
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", pb: isMobile ? "56px" : 0 }}>
-        {!isReviewPage && <WorkingContextHeader context={workingContext} isMobile={isMobile} />}
         {isReviewPage ? (
           <ErrorBoundary label="诊断审核">
             <ReviewPage recordId={recordId} />
           </ErrorBoundary>
         ) : (
-          <SectionContent activeSection={activeSection} doctorId={doctorId} isMobile={isMobile} navigate={navigate} urlSubpage={urlSubpage} urlSubId={urlSubId} chatInsertText={chatInsertText} setChatInsertText={setChatInsertText} chatAutoSendText={chatAutoSendText} setChatAutoSendText={setChatAutoSendText} chatAutoSendConsumedRef={chatAutoSendConsumedRef} patientRefreshKey={patientRefreshKey} setPatientRefreshKey={setPatientRefreshKey} handleLogout={handleLogout} onContextCleared={handleContextCleared} triggerInterview={triggerInterview} setTriggerInterview={setTriggerInterview} chatInterviewSessionId={chatInterviewSessionId} setChatInterviewSessionId={setChatInterviewSessionId} />
+          <SectionContent activeSection={activeSection} doctorId={doctorId} isMobile={isMobile} navigate={navigate} urlSubpage={urlSubpage} urlSubId={urlSubId} chatInsertText={chatInsertText} setChatInsertText={setChatInsertText} chatAutoSendText={chatAutoSendText} setChatAutoSendText={setChatAutoSendText} chatAutoSendConsumedRef={chatAutoSendConsumedRef} patientRefreshKey={patientRefreshKey} setPatientRefreshKey={setPatientRefreshKey} handleLogout={handleLogout} onContextCleared={undefined} triggerInterview={triggerInterview} setTriggerInterview={setTriggerInterview} chatInterviewSessionId={chatInterviewSessionId} setChatInterviewSessionId={setChatInterviewSessionId} chatInterviewPrePopulated={chatInterviewPrePopulated} setChatInterviewPrePopulated={setChatInterviewPrePopulated} />
         )}
       </Box>
       {isMobile && <MobileBottomNav activeSection={activeSection} pendingTaskCount={pendingTaskCount} onNav={handleNav} />}

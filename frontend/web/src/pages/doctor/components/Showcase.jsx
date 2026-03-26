@@ -8,12 +8,11 @@ import { useState } from "react";
 import { Box, Typography } from "@mui/material";
 import { TYPE, ICON, COLOR } from "../../../theme";
 
-import ActionPanel from "./ActionPanel";
+import ActionPanel from "../../../components/ActionPanel";
 // ListCard demos moved to /debug/components (shared component)
 import FieldReviewCard from "./FieldReviewCard";
 import DiagnosisCard from "./DiagnosisCard";
 import InterviewCompleteDialog from "./InterviewCompleteDialog";
-import WorkingContextHeader from "./WorkingContextHeader";
 
 /* ── Helpers ── */
 
@@ -106,6 +105,7 @@ export default function DoctorComponentShowcase() {
       {/* ═══════ Interview ═══════ */}
       <Group title="Interview" count={2}>
         <Section title="FieldReviewCard" file="FieldReviewCard.jsx">
+          <Typography sx={{ fontSize: 11, color: COLOR.text4, mb: 1 }}>Collapsed by default (tap to expand):</Typography>
           <FieldReviewCard
             title="上次记录 (2026-03-20)"
             subtitle="3 项可沿用"
@@ -114,12 +114,25 @@ export default function DoctorComponentShowcase() {
               { field: "allergy_history", label: "过敏史", value: "磺胺类药物过敏" },
               { field: "family_history", label: "家族史", value: "母亲糖尿病" },
             ]}
-            confirmLabel="沿用"
-            dismissLabel="忽略"
-            confirmAllLabel="全部沿用"
-            onConfirm={() => {}}
-            onDismiss={() => {}}
-            onConfirmAll={() => {}}
+            onConfirm={() => {}} onDismiss={() => {}}
+            onConfirmAll={() => {}} onDismissAll={() => {}}
+          />
+          <Typography sx={{ fontSize: 11, color: COLOR.text4, mt: 1.5, mb: 1 }}>Expanded:</Typography>
+          <FieldReviewCard
+            title="已从拍照导入"
+            subtitle="5 项已识别"
+            defaultCollapsed={false}
+            editable
+            items={[
+              { field: "chief_complaint", label: "主诉", value: "头痛3天伴恶心呕吐" },
+              { field: "past_history", label: "既往史", value: "高血压10年，糖尿病5年" },
+            ]}
+            confirmLabel="确认"
+            dismissLabel="编辑"
+            confirmAllLabel="全部确认"
+            dismissAllLabel="全部忽略"
+            onConfirm={() => {}} onEdit={() => {}}
+            onConfirmAll={() => {}} onDismissAll={() => {}}
           />
         </Section>
 
@@ -141,15 +154,6 @@ export default function DoctorComponentShowcase() {
         </Section>
       </Group>
 
-      {/* ═══════ Layout ═══════ */}
-      <Group title="Layout" count={1}>
-        <Section title="WorkingContextHeader" file="WorkingContextHeader.jsx">
-          <Typography sx={{ fontSize: 11, color: COLOR.text4, mb: 1 }}>With patient:</Typography>
-          <WorkingContextHeader context={{ patient_name: "陈伟强", pending_draft: true }} isMobile={true} />
-          <Typography sx={{ fontSize: 11, color: COLOR.text4, mt: 1.5, mb: 1 }}>Empty:</Typography>
-          <WorkingContextHeader context={null} isMobile={true} />
-        </Section>
-      </Group>
 
       {/* ═══════ Chat ═══════ */}
       <Group title="Chat" count={1}>

@@ -16,11 +16,11 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
 import Markdown from "react-markdown";
-import { sendChat, ocrImage, extractFileForChat, clearContext } from "../../api";
+import { sendChat, ocrImage, extractFileForChat, clearContext, importToInterview, textToInterview } from "../../api";
 import RecordFields from "../../components/RecordFields";
 import { t } from "../../i18n";
 import { QUICK_COMMANDS, Action } from "./components/constants";
-import ActionPanel from "./components/ActionPanel";
+import ActionPanel from "../../components/ActionPanel";
 import PatientPickerDialog from "../../components/PatientPickerDialog";
 import ImportChoiceDialog from "../../components/ImportChoiceDialog";
 import VoiceInput, { isVoiceSupported } from "../../components/VoiceInput";
@@ -398,19 +398,21 @@ function useChatEffects({ externalInput, onExternalInputConsumed, autoSendText, 
   }, [autoSendText]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
-async function processFile({ file, setMediaError, setMediaProcessing, setInput }) {
+async function processFile({ file, setMediaError, setMediaProcessing, doctorId, onStartPatientInterview }) {
   if (!file) return;
   setMediaError(null);
+  if (!file.type.startsWith("image/")) {
+    setMediaError("不支持的文件类型，请上传图片");
+    return;
+  }
   setMediaProcessing(true);
   try {
-    if (file.type.startsWith("image/")) {
-      const { text } = await ocrImage(file);
-      if (text) setInput((prev) => (prev ? prev + "\n" + text : text));
-    } else {
-      setMediaError("不支持的文件类型，请上传图片");
+    const data = await importToInterview(file, doctorId);
+    if (data.session_id) {
+      onStartPatientInterview?.(data.session_id, data.pre_populated);
     }
   } catch {
-    setMediaError("文件处理失败，请重试");
+    setMediaError("病历导入失败，请重试");
   } finally {
     setMediaProcessing(false);
   }
@@ -467,10 +469,35 @@ export default function ChatPage({ doctorId, onMessageCountChange, externalInput
   }
   async function handleDocFile(file) {
     if (!file) return;
+    setMediaProcessing(true);
     try {
-      const { text } = await extractFileForChat(file);
-      if (text) setImportChoice({ text });
-    } catch { /* ignore */ }
+      // Plain text files: read directly and go through text import
+      if (file.type === "text/plain" || file.name?.endsWith(".txt")) {
+        const text = await file.text();
+        if (text?.trim()) {
+          const data = await textToInterview(text, doctorId);
+          if (data.session_id) {
+            onStartPatientInterview?.(data.session_id, data.pre_populated);
+            return;
+          }
+        }
+        setMediaError("文件内容为空");
+        return;
+      }
+      // Images/PDFs: try import endpoint first
+      const data = await importToInterview(file, doctorId);
+      if (data.session_id) {
+        onStartPatientInterview?.(data.session_id, data.pre_populated);
+      }
+    } catch {
+      // Fallback: extract text and show choice dialog
+      try {
+        const { text } = await extractFileForChat(file);
+        if (text) setImportChoice({ text });
+      } catch { setMediaError("文件处理失败"); }
+    } finally {
+      setMediaProcessing(false);
+    }
   }
 
   function handleCommandSelect(cmd) {
@@ -515,11 +542,11 @@ export default function ChatPage({ doctorId, onMessageCountChange, externalInput
       </Box>
       <QuickCommandBar activeChip={activeChip} onSelect={handleCommandSelect} />
       <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }}
-        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; processFile({ file: f, setMediaError, setMediaProcessing, setInput }); }} />
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; processFile({ file: f, setMediaError, setMediaProcessing, doctorId, onStartPatientInterview }); }} />
       <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }}
-        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; processFile({ file: f, setMediaError, setMediaProcessing, setInput }); }} />
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; processFile({ file: f, setMediaError, setMediaProcessing, doctorId, onStartPatientInterview }); }} />
       <input ref={galleryInputRef} type="file" accept="image/*" style={{ display: "none" }}
-        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; processFile({ file: f, setMediaError, setMediaProcessing, setInput }); }} />
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; processFile({ file: f, setMediaError, setMediaProcessing, doctorId, onStartPatientInterview }); }} />
       <input ref={fileDocInputRef} type="file" accept=".pdf,.docx,.doc,.txt,image/jpeg,image/png" style={{ display: "none" }}
         onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; handleDocFile(f); }} />
       <ChipInput
@@ -549,8 +576,18 @@ export default function ChatPage({ doctorId, onMessageCountChange, externalInput
       <PatientPickerDialog open={patientPickerOpen} onClose={() => setPatientPickerOpen(false)} doctorId={doctorId}
         onSelect={(patient) => { setPatientPickerOpen(false); sendText(`查询患者：${patient.name}`); }} />
       <ImportChoiceDialog open={Boolean(importChoice)} text={importChoice?.text || ""}
-        onInsert={() => { setInput((prev) => (prev ? prev + "\n" + importChoice.text : importChoice.text)); setImportChoice(null); }}
-        onImport={() => { sendText(importChoice.text); setImportChoice(null); }}
+        onImport={async () => {
+          const text = importChoice?.text;
+          setImportChoice(null);
+          if (!text) return;
+          setMediaProcessing(true);
+          try {
+            const data = await textToInterview(text, doctorId);
+            if (data.session_id) onStartPatientInterview?.(data.session_id, data.pre_populated);
+          } catch { sendText(text); }
+          finally { setMediaProcessing(false); }
+        }}
+        onChat={(text) => { setImportChoice(null); sendText(text); }}
         onClose={() => setImportChoice(null)} />
     </Box>
   );

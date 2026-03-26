@@ -3,7 +3,7 @@ import CameraAltOutlinedIcon from "@mui/icons-material/CameraAltOutlined";
 import PhotoLibraryOutlinedIcon from "@mui/icons-material/PhotoLibraryOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import PersonSearchOutlinedIcon from "@mui/icons-material/PersonSearchOutlined";
-import { TYPE, ICON } from "../../../theme";
+import { TYPE, ICON } from "../theme";
 
 const actions = [
   { key: "camera", label: "拍照", Icon: CameraAltOutlinedIcon, color: "#07C160" },
