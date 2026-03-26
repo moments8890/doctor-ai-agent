@@ -1,0 +1,16 @@
+[Unit]
+Description=doctor-ai-agent backend (cli.py --prod)
+After=network.target docker.service
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/doctor-ai-agent
+ExecStart=/home/ubuntu/doctor-ai-agent/.venv/bin/python /home/ubuntu/doctor-ai-agent/cli.py start --prod --no-frontend --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+Environment=PYTHONPATH=/home/ubuntu/doctor-ai-agent/src
+StandardOutput=append:/home/ubuntu/doctor-ai-agent/logs/backend.log
+StandardError=append:/home/ubuntu/doctor-ai-agent/logs/backend.log
+
+[Install]
+WantedBy=multi-user.target
