@@ -50,10 +50,10 @@ function Section({ title, file, children }) {
   );
 }
 
-function Group({ title, count, defaultOpen = false, children }) {
+function Group({ id, title, count, defaultOpen = false, children }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <Box sx={{ mb: 3 }}>
+    <Box id={id} sx={{ mb: 3, scrollMarginTop: 16 }}>
       <Box onClick={() => setOpen(!open)} sx={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         py: 1.5, px: 2, bgcolor: COLOR.white, borderRadius: 1, cursor: "pointer",
@@ -81,15 +81,46 @@ export default function ComponentShowcasePage() {
   const [editOpen, setEditOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
 
+  const groups = [
+    "Design Tokens", "Buttons", "Navigation", "List & Cards",
+    "Badges & Avatars", "Record & Fields", "Chat & Input",
+    "Dialogs & Pickers", "Patient & Task", "Layout Patterns",
+  ];
+
   return (
-    <Box sx={{ maxWidth: 480, mx: "auto", p: 2, bgcolor: "#f5f5f5", minHeight: "100vh" }}>
-      <Typography sx={{ fontSize: 22, fontWeight: 700, mb: 0.5 }}>Shared Components</Typography>
-      <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mb: 3 }}>
-        All {27} components from src/components/. Tap group to expand.
-      </Typography>
+    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#f5f5f5" }}>
+      {/* Left floating nav */}
+      <Box sx={{
+        position: "fixed", left: 0, top: 0, bottom: 0, width: 160,
+        bgcolor: COLOR.white, borderRight: `1px solid ${COLOR.border}`,
+        overflowY: "auto", py: 2, px: 1.5, zIndex: 10,
+        "@media (max-width: 700px)": { display: "none" },
+      }}>
+        <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, fontWeight: 600, mb: 1, letterSpacing: 0.5 }}>COMPONENTS</Typography>
+        {groups.map((g, i) => (
+          <Box key={g} onClick={() => document.getElementById(`group-${i}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text3, py: 0.6, cursor: "pointer", "&:hover": { color: COLOR.primary }, "&:active": { color: COLOR.primary } }}>
+            {g}
+          </Box>
+        ))}
+        <Box sx={{ mt: 2, borderTop: `1px solid ${COLOR.borderLight}`, pt: 1.5 }}>
+          <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, fontWeight: 600, mb: 0.5, letterSpacing: 0.5 }}>OTHER</Typography>
+          <Box onClick={() => window.location.href = "/debug/doctor-components"}
+            sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.accent, py: 0.4, cursor: "pointer" }}>Doctor Components</Box>
+          <Box onClick={() => window.location.href = "/debug/doctor-pages"}
+            sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.accent, py: 0.4, cursor: "pointer" }}>Mock Pages</Box>
+        </Box>
+      </Box>
+
+      {/* Main content */}
+      <Box sx={{ maxWidth: 480, p: 2, width: "100%", "@media (min-width: 700px)": { ml: "180px" } }}>
+        <Typography sx={{ fontSize: 22, fontWeight: 700, mb: 0.5 }}>Shared Components</Typography>
+        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mb: 3 }}>
+          All 27 components from src/components/. Tap group to expand.
+        </Typography>
 
       {/* ═══════ 1. Design Tokens ═══════ */}
-      <Group title="Design Tokens" count={3} defaultOpen={true}>
+      <Group id="group-0" title="Design Tokens" count={3} defaultOpen={true}>
         <Section title="Color Tokens" file="theme.js → COLOR">
           <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0.5 }}>
             {Object.entries(COLOR).map(([name, hex]) => (
@@ -122,7 +153,7 @@ export default function ComponentShowcasePage() {
       </Group>
 
       {/* ═══════ 2. Buttons ═══════ */}
-      <Group title="Buttons" count={3}>
+      <Group id="group-1" title="Buttons" count={3}>
         <Section title="AppButton" file="AppButton.jsx">
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
             <AppButton variant="primary">保存</AppButton>
@@ -149,7 +180,7 @@ export default function ComponentShowcasePage() {
       </Group>
 
       {/* ═══════ 3. Navigation ═══════ */}
-      <Group title="Navigation" count={3}>
+      <Group id="group-2" title="Navigation" count={3}>
         <Section title="SubpageHeader" file="SubpageHeader.jsx">
           <SubpageHeader title="李复诊" onBack={() => {}} right={<BarButton>门诊</BarButton>} />
         </Section>
@@ -170,7 +201,7 @@ export default function ComponentShowcasePage() {
       </Group>
 
       {/* ═══════ 4. List & Cards ═══════ */}
-      <Group title="List & Cards" count={5}>
+      <Group id="group-3" title="List & Cards" count={5}>
         <Section title="ListCard" file="ListCard.jsx">
           <ListCard
             avatar={<PatientAvatar name="陈伟强" size={36} />}
@@ -206,7 +237,7 @@ export default function ComponentShowcasePage() {
       </Group>
 
       {/* ═══════ 5. Badges & Avatars ═══════ */}
-      <Group title="Badges & Avatars" count={3}>
+      <Group id="group-4" title="Badges & Avatars" count={3}>
         <Section title="StatusBadge" file="StatusBadge.jsx">
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
             <StatusBadge label="高" />
@@ -237,7 +268,7 @@ export default function ComponentShowcasePage() {
       </Group>
 
       {/* ═══════ 6. Record & Fields ═══════ */}
-      <Group title="Record & Fields" count={2}>
+      <Group id="group-5" title="Record & Fields" count={2}>
         <Section title="RecordFields" file="RecordFields.jsx">
           <RecordFields record={{ content: "头痛3天伴恶心呕吐\n主诉：头痛3天\n既往史：高血压5年", tags: ["高血压", "头痛"] }} />
         </Section>
@@ -252,7 +283,7 @@ export default function ComponentShowcasePage() {
       </Group>
 
       {/* ═══════ 7. Chat & Input ═══════ */}
-      <Group title="Chat & Input" count={4}>
+      <Group id="group-6" title="Chat & Input" count={4}>
         <Section title="AskAIBar" file="AskAIBar.jsx">
           <AskAIBar onClick={() => {}} />
         </Section>
@@ -276,7 +307,7 @@ export default function ComponentShowcasePage() {
       </Group>
 
       {/* ═══════ 8. Dialogs ═══════ */}
-      <Group title="Dialogs & Pickers" count={3}>
+      <Group id="group-7" title="Dialogs & Pickers" count={3}>
         <Section title="ImportChoiceDialog" file="ImportChoiceDialog.jsx">
           <Box onClick={() => setImportOpen(true)} sx={{ py: 1, textAlign: "center", border: `1px dashed ${COLOR.primary}`, borderRadius: 1, color: COLOR.primary, cursor: "pointer" }}>
             打开导入选择
@@ -300,7 +331,7 @@ export default function ComponentShowcasePage() {
       </Group>
 
       {/* ═══════ 9. Patient & Task ═══════ */}
-      <Group title="Patient & Task" count={1}>
+      <Group id="group-8" title="Patient & Task" count={1}>
         <Section title="TaskChecklist" file="TaskChecklist.jsx">
           <TaskChecklist
             tasks={[
@@ -314,7 +345,7 @@ export default function ComponentShowcasePage() {
       </Group>
 
       {/* ═══════ 10. Patterns ═══════ */}
-      <Group title="Layout Patterns" count={1}>
+      <Group id="group-9" title="Layout Patterns" count={1}>
         <Section title="Action Button Layout" file="(convention)">
           <Typography sx={{ fontSize: 11, color: COLOR.text4, mb: 1 }}>Destructive left, constructive right:</Typography>
           <Box sx={{ display: "flex", alignItems: "center", gap: 2, pt: 1, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
@@ -328,6 +359,7 @@ export default function ComponentShowcasePage() {
       <Typography sx={{ fontSize: 11, color: COLOR.text4, textAlign: "center", mt: 2, mb: 4 }}>
         Doctor-specific components: /debug/doctor-components
       </Typography>
+    </Box>
     </Box>
   );
 }
