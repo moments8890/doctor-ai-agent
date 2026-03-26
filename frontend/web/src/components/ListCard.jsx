@@ -1,12 +1,24 @@
 /**
- * ListCard — unified list row used in patient list, task list, etc.
+ * ListCard — unified list row for all list-style UI.
  *
- * Layout: [avatar 36px] [title + subtitle] [right meta]
+ * Layout: [avatar] [title + subtitle] [right meta OR › chevron]
+ *
+ * Props:
+ *  - avatar: React element (36px icon/avatar)
+ *  - title: string
+ *  - subtitle: string (optional)
+ *  - right: React element — custom right content (timestamp, count, etc.)
+ *  - chevron: boolean — show › arrow on right (for navigation rows)
+ *  - onClick: function
+ *
+ * Use `right` for data display (timestamps, counts).
+ * Use `chevron` for navigation targets (settings rows, briefing cards).
+ * If both provided, `right` is shown before the chevron.
  */
 import { Box, Typography } from "@mui/material";
 import { TYPE, COLOR } from "../theme";
 
-export default function ListCard({ avatar, title, subtitle, right, onClick, sx }) {
+export default function ListCard({ avatar, title, subtitle, right, chevron, onClick, sx }) {
   return (
     <Box
       onClick={onClick}
@@ -22,18 +34,19 @@ export default function ListCard({ avatar, title, subtitle, right, onClick, sx }
     >
       {avatar}
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <Typography sx={{ fontWeight: 500, fontSize: TYPE.action.fontSize, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
-            {title}
-          </Typography>
-          {right && <Box sx={{ flexShrink: 0, ml: 1 }}>{right}</Box>}
-        </Box>
+        <Typography sx={{ fontWeight: 500, fontSize: TYPE.action.fontSize, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {title}
+        </Typography>
         {subtitle && (
           <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mt: 0.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {subtitle}
           </Typography>
         )}
       </Box>
+      {right && <Box sx={{ flexShrink: 0 }}>{right}</Box>}
+      {chevron && (
+        <Typography sx={{ fontSize: TYPE.title.fontSize, color: COLOR.text4, flexShrink: 0, lineHeight: 1 }}>›</Typography>
+      )}
     </Box>
   );
 }
