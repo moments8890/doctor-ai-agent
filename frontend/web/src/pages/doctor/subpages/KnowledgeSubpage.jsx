@@ -174,7 +174,7 @@ export default function KnowledgeSubpage({
                         "&:active": { bgcolor: COLOR.surfaceAlt },
                       }}>
                       <Box sx={{ flex: 1 }}>
-                        <Typography component="span" sx={{ fontSize: TYPE.body.fontSize, fontWeight: 500 }}>
+                        <Typography component="span" sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3 }}>
                           {cat.label}
                         </Typography>
                         <Typography component="span" sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, ml: 0.8 }}>
@@ -190,13 +190,15 @@ export default function KnowledgeSubpage({
                     {isExpanded && catItems.map(item => (
                       <Box key={item.id} onClick={() => setDetailItem(item)}
                         sx={{
-                          display: "flex", alignItems: "center", px: 2, py: 1.2, pl: 3,
-                          borderTop: `0.5px solid ${COLOR.borderLight}`, bgcolor: COLOR.surfaceAlt,
-                          cursor: "pointer", "&:active": { bgcolor: COLOR.borderLight },
+                          display: "flex", alignItems: "center", px: 2, py: 1.2, pl: 2,
+                          borderTop: `0.5px solid ${COLOR.borderLight}`,
+                          borderLeft: `3px solid ${COLOR.primary}`,
+                          bgcolor: COLOR.white,
+                          cursor: "pointer", "&:active": { bgcolor: COLOR.surfaceAlt },
                         }}>
                         <Box sx={{ flex: 1, minWidth: 0, mr: 1 }}>
                           <Typography sx={{
-                            fontSize: TYPE.secondary.fontSize, lineHeight: 1.5,
+                            fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.5,
                             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                           }}>
                             {item.text || item.content}
@@ -216,7 +218,7 @@ export default function KnowledgeSubpage({
                     ))}
 
                     {isExpanded && catItems.length === 0 && (
-                      <Box sx={{ px: 3, py: 1.5, borderTop: `0.5px solid ${COLOR.borderLight}`, bgcolor: COLOR.surfaceAlt }}>
+                      <Box sx={{ px: 2, py: 1.5, borderTop: `0.5px solid ${COLOR.borderLight}`, borderLeft: `3px solid ${COLOR.borderLight}` }}>
                         <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>暂无条目</Typography>
                       </Box>
                     )}
