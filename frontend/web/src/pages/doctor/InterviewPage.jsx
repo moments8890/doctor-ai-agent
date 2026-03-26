@@ -11,7 +11,7 @@ import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
 import { useNavigate } from "react-router-dom";
 import { doctorInterviewTurn, doctorInterviewConfirm, doctorInterviewCancel, doctorInterviewGetSession, confirmCarryForward, triggerDiagnosis } from "../../api";
-import SubpageHeader from "./SubpageHeader";
+import SubpageHeader from "../../components/SubpageHeader";
 import SuggestionChips from "../../components/SuggestionChips";
 import CarryForwardCard from "./CarryForwardCard";
 import InterviewCompleteDialog from "./InterviewCompleteDialog";

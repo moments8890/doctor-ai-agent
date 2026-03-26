@@ -18,8 +18,8 @@ import {
   getPatientChat, replyToPatient,
 } from "../../api";
 import { RECORD_TAB_GROUPS } from "./constants";
-import RecordCard from "./RecordCard";
-import ExportSelectorDialog from "./ExportSelectorDialog";
+import RecordCard from "../../components/RecordCard";
+import ExportSelectorDialog from "../../components/ExportSelectorDialog";
 import { TYPE, ICON, COLOR } from "../../theme";
 
 /* ── helpers ── */

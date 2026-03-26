@@ -21,13 +21,13 @@ import RecordFields from "../../components/RecordFields";
 import { t } from "../../i18n";
 import { QUICK_COMMANDS, Action } from "./constants";
 import ActionPanel from "./ActionPanel";
-import PatientPickerDialog from "./PatientPickerDialog";
-import ImportChoiceDialog from "./ImportChoiceDialog";
-import VoiceInput, { isVoiceSupported } from "./VoiceInput";
+import PatientPickerDialog from "../../components/PatientPickerDialog";
+import ImportChoiceDialog from "../../components/ImportChoiceDialog";
+import VoiceInput, { isVoiceSupported } from "../../components/VoiceInput";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
 import BarButton from "../../components/BarButton";
-import SubpageHeader from "./SubpageHeader";
+import SubpageHeader from "../../components/SubpageHeader";
 import { TYPE, ICON } from "../../theme";
 
 function MsgAvatar({ isUser, size = 40 }) {

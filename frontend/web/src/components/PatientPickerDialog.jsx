@@ -4,8 +4,8 @@ import {
   ListItemText, TextField, Typography, useMediaQuery, useTheme,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import { searchPatients } from "../../api";
-import { TYPE, ICON } from "../../theme";
+import { searchPatients } from "../api";
+import { TYPE, ICON } from "../theme";
 
 export default function PatientPickerDialog({ open, onClose, doctorId, onSelect }) {
   const theme = useTheme();

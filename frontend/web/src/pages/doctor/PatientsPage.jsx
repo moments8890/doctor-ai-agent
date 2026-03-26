@@ -22,9 +22,9 @@ import NewItemCard from "../../components/NewItemCard";
 import PageSkeleton from "../../components/PageSkeleton";
 import ListCard from "../../components/ListCard";
 import SectionLabel from "../../components/SectionLabel";
-import PatientAvatar from "./PatientAvatar";
+import PatientAvatar from "../../components/PatientAvatar";
 import PatientDetail from "./PatientDetail";
-import SubpageHeader from "./SubpageHeader";
+import SubpageHeader from "../../components/SubpageHeader";
 import InterviewPage from "./InterviewPage";
 import { TYPE, ICON } from "../../theme";
 

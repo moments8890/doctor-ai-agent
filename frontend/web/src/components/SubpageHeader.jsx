@@ -5,7 +5,7 @@
  */
 import { Box, Typography } from "@mui/material";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
-import { TYPE, ICON } from "../../theme";
+import { TYPE, ICON } from "../theme";
 
 export default function SubpageHeader({ title, onBack, right }) {
   return (

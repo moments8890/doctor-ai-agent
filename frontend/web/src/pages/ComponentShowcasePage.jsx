@@ -28,7 +28,7 @@ import SuggestionChips from "../components/SuggestionChips";
 import FilterBar from "../components/FilterBar";
 
 // Page-level components
-import SubpageHeader from "../pages/doctor/SubpageHeader";
+import SubpageHeader from "../components/SubpageHeader";
 import DiagnosisCard from "../pages/doctor/DiagnosisCard";
 
 // Icons for demos

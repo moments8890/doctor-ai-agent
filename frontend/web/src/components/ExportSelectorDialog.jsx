@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Box, Dialog, Typography } from "@mui/material";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
-import { TYPE, ICON } from "../../theme";
+import { TYPE, ICON } from "../theme";
 
 const SECTIONS = [
   { key: "basicInfo",    label: "基本信息",   defaultChecked: true,  disabled: true },

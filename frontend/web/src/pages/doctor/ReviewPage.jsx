@@ -22,7 +22,7 @@ import {
   triggerDiagnosis, finalizeReview, getTaskRecord,
 } from "../../api";
 import { useDoctorStore } from "../../store/doctorStore";
-import SubpageHeader from "./SubpageHeader";
+import SubpageHeader from "../../components/SubpageHeader";
 import DiagnosisCard from "./DiagnosisCard";
 import { STRUCTURED_FIELD_LABELS } from "./constants";
 import { TYPE, COLOR } from "../../theme";

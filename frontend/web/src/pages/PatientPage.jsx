@@ -47,7 +47,7 @@ import ListCard from "../components/ListCard";
 import NewItemCard from "../components/NewItemCard";
 import RecordAvatar from "../components/RecordAvatar";
 import MedicalServicesOutlinedIcon from "@mui/icons-material/MedicalServicesOutlined";
-import SubpageHeader from "./doctor/SubpageHeader";
+import SubpageHeader from "../components/SubpageHeader";
 import { TYPE, ICON } from "../theme";
 import {
   patientLogin,

@@ -2,7 +2,7 @@
  * 患者头像组件：根据患者姓名首字生成彩色圆形头像。
  */
 import { Box, Typography } from "@mui/material";
-import { AVATAR_COLORS } from "./constants";
+import { AVATAR_COLORS } from "../pages/doctor/constants";
 
 export function nameColor(name) {
   let h = 0;

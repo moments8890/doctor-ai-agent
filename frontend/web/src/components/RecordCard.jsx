@@ -8,10 +8,10 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import { deleteRecord } from "../../api";
-import { RECORD_TYPE_LABEL, STRUCTURED_FIELD_LABELS } from "./constants";
+import { deleteRecord } from "../api";
+import { RECORD_TYPE_LABEL, STRUCTURED_FIELD_LABELS } from "../pages/doctor/constants";
 import RecordEditDialog from "./RecordEditDialog";
-import { TYPE, ICON } from "../../theme";
+import { TYPE, ICON } from "../theme";
 
 const RECORD_DOT_COLORS = {
   visit: "#07C160", dictation: "#5b9bd5", import: "#e8833a",

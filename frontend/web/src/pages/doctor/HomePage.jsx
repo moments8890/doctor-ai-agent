@@ -8,7 +8,7 @@ import { getBriefing } from "../../api";
 import { useDoctorStore } from "../../store/doctorStore";
 import AskAIBar from "../../components/AskAIBar";
 import BottomSheet from "../../components/BottomSheet";
-import SubpageHeader from "./SubpageHeader";
+import SubpageHeader from "../../components/SubpageHeader";
 import ChatPage from "./ChatPage";
 import { TYPE } from "../../theme";
 

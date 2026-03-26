@@ -1,5 +1,5 @@
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from "@mui/material";
-import { TYPE } from "../../theme";
+import { TYPE } from "../theme";
 
 export default function ImportChoiceDialog({ open, text, onInsert, onImport, onClose }) {
   if (!text) return null;

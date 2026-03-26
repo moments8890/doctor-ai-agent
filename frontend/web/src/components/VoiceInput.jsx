@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Box, Typography } from "@mui/material";
 import MicIcon from "@mui/icons-material/Mic";
-import { TYPE, ICON } from "../../theme";
+import { TYPE, ICON } from "../theme";
 
 const SpeechRecognition = typeof window !== "undefined"
   ? (window.SpeechRecognition || window.webkitSpeechRecognition)

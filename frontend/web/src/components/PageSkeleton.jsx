@@ -7,7 +7,7 @@
 import { useCallback, useRef, useState } from "react";
 import { Box, Typography } from "@mui/material";
 import { COLOR } from "../theme";
-import SubpageHeader from "../pages/doctor/SubpageHeader";
+import SubpageHeader from "./SubpageHeader";
 
 function DragHandle({ onDrag }) {
   const dragging = useRef(false);

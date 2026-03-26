@@ -25,8 +25,9 @@ import ListCard from "../../components/ListCard";
 import NewItemCard from "../../components/NewItemCard";
 import PageSkeleton from "../../components/PageSkeleton";
 import SectionLabel from "../../components/SectionLabel";
-import ReviewDetail from "./ReviewDetail";
-import SubpageHeader from "./SubpageHeader";
+// ReviewDetail removed — was returning null
+function ReviewDetail() { return null; }
+import SubpageHeader from "../../components/SubpageHeader";
 import { TYPE, ICON } from "../../theme";
 
 const TASK_TYPE_ICON_COLOR = {
