@@ -40,7 +40,7 @@ import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 
 function Section({ title, file, children }) {
   return (
-    <Box sx={{ mb: 3 }}>
+    <Box sx={{ mb: 3, borderLeft: `3px solid ${COLOR.primary}`, pl: 1.5 }}>
       <Typography sx={{ fontSize: TYPE.body.fontSize, fontWeight: 600, mb: 0.3 }}>{title}</Typography>
       <Typography sx={{ fontSize: 11, color: COLOR.text4, mb: 1, fontFamily: "monospace" }}>{file}</Typography>
       <Box sx={{ border: `1px solid ${COLOR.border}`, borderRadius: 1, p: 1.5, bgcolor: COLOR.white }}>
