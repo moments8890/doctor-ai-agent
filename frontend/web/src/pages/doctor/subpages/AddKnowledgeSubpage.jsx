@@ -4,12 +4,12 @@
 import { useState } from "react";
 import { Alert, Box, TextField, Typography } from "@mui/material";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
-import SubpageHeader from "../../components/SubpageHeader";
-import BarButton from "../../components/BarButton";
-import AppButton from "../../components/AppButton";
-import SheetDialog from "../../components/SheetDialog";
-import { addKnowledgeItem } from "../../api";
-import { TYPE } from "../../theme";
+import SubpageHeader from "../../../components/SubpageHeader";
+import BarButton from "../../../components/BarButton";
+import AppButton from "../../../components/AppButton";
+import SheetDialog from "../../../components/SheetDialog";
+import { addKnowledgeItem } from "../../../api";
+import { TYPE } from "../../../theme";
 
 export const KNOWLEDGE_CATEGORIES = [
   {

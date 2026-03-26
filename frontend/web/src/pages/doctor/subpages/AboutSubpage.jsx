@@ -3,8 +3,8 @@
  */
 import { Box, Typography } from "@mui/material";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
-import PageSkeleton from "../../components/PageSkeleton";
-import { TYPE, ICON, COLOR } from "../../theme";
+import PageSkeleton from "../../../components/PageSkeleton";
+import { TYPE, ICON, COLOR } from "../../../theme";
 
 export default function AboutSubpage({ onBack, isMobile }) {
   const content = (

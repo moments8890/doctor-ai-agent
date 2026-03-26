@@ -5,13 +5,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Box, CircularProgress, Typography } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
-import PageSkeleton from "../../components/PageSkeleton";
-import SectionLabel from "../../components/SectionLabel";
-import AppButton from "../../components/AppButton";
-import ConfirmDialog from "../../components/ConfirmDialog";
-import SheetDialog from "../../components/SheetDialog";
-import { getTemplateStatus, uploadTemplate, deleteTemplate } from "../../api";
-import { TYPE, ICON } from "../../theme";
+import PageSkeleton from "../../../components/PageSkeleton";
+import SectionLabel from "../../../components/SectionLabel";
+import AppButton from "../../../components/AppButton";
+import ConfirmDialog from "../../../components/ConfirmDialog";
+import SheetDialog from "../../../components/SheetDialog";
+import { getTemplateStatus, uploadTemplate, deleteTemplate } from "../../../api";
+import { TYPE, ICON } from "../../../theme";
 
 const STANDARD_TEMPLATE_FIELDS = [
   { key: "department", label: "科别", desc: "就诊科室名称" },

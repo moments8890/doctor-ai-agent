@@ -9,11 +9,11 @@
  */
 import { useState, useMemo } from "react";
 import { Box, Typography } from "@mui/material";
-import { TYPE, ICON, COLOR } from "../../theme";
-import PageSkeleton from "../PageSkeleton";
-import BarButton from "../BarButton";
-import EmptyState from "../EmptyState";
-import ConfirmDialog from "../ConfirmDialog";
+import { TYPE, ICON, COLOR } from "../../../theme";
+import PageSkeleton from "../../../components/PageSkeleton";
+import BarButton from "../../../components/BarButton";
+import EmptyState from "../../../components/EmptyState";
+import ConfirmDialog from "../../../components/ConfirmDialog";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 
 const DEFAULT_CATEGORIES = [

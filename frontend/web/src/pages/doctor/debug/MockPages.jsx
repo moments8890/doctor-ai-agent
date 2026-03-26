@@ -651,7 +651,7 @@ function MockSettingsTemplate({ onBack }) {
   return <PageSkeleton title="报告模板" onBack={onBack} isMobile listPane={content} />;
 }
 
-import KnowledgeSubpage from "../../../components/doctor/KnowledgeSubpage";
+import KnowledgeSubpage from "../subpages/KnowledgeSubpage";
 
 const MOCK_KNOWLEDGE_ITEMS = [
   { id: 1, category: "red_flag", text: "蛛网膜下腔出血（SAH）：突发剧烈头痛（雷击样），伴恶心呕吐、颈强直、意识障碍。Fisher分级指导治疗。Hunt-Hess分级评估预后。", source: "agent_auto", created_at: "2026-03-20", reference_count: 5 },
