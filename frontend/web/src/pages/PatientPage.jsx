@@ -1,4 +1,6 @@
 /**
+ * @route /patient, /patient/:tab, /patient/:tab/:subpage
+ *
  * 患者门户（ADR 0016）
  *
  * 两个 tab：
@@ -659,10 +661,10 @@ function TasksTab({ token }) {
 }
 
 // ===========================================================================
-// InterviewView — 全屏预问诊（独立上下文）
+// InterviewPage — 全屏预问诊（独立上下文）
 // ===========================================================================
 
-function InterviewView({ token, onBack, onLogout }) {
+function InterviewPage({ token, onBack, onLogout }) {
   const [sessionId, setSessionId] = useState("");
   const [messages, setMessages] = useState([]);
   const [collected, setCollected] = useState({});
@@ -936,7 +938,7 @@ export default function PatientPage() {
   // Full-screen interview (hides everything)
   if (inInterview) {
     return (
-      <InterviewView token={token}
+      <InterviewPage token={token}
         onBack={exitInterview}
         onLogout={handleLogout} />
     );

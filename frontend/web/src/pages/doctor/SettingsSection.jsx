@@ -1,4 +1,6 @@
 /**
+ * @route /doctor/settings
+ *
  * 设置面板：医生账户信息编辑、科室专业设置、报告模板管理和退出登录。
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";

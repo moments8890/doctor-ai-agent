@@ -1,3 +1,4 @@
+/** @route /privacy */
 import { Box, Typography } from "@mui/material";
 import { COLOR, TYPE } from "../theme";
 

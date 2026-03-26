@@ -1,4 +1,6 @@
 /**
+ * @route /doctor/chat
+ *
  * 聊天面板：医生与 AI 助手对话，支持图片上传和快捷命令。
  */
 import { useEffect, useMemo, useRef, useState } from "react";

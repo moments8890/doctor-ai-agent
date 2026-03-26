@@ -1,6 +1,7 @@
 /**
+ * @route /debug/components
+ *
  * Component Showcase — visual reference for all shared UI components.
- * Visit: /debug/components
  *
  * Each component rendered in isolation on a clean background with
  * its name, file path, and key props demonstrated.
@@ -59,7 +60,7 @@ function ColorSwatch({ name, hex }) {
 
 /* ── Main ── */
 
-export default function ComponentShowcase() {
+export default function ComponentShowcasePage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedChips, setSelectedChips] = useState([]);
 

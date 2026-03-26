@@ -1,4 +1,6 @@
 /**
+ * @route /doctor/*
+ *
  * 鲸鱼随行主页：composer-first workbench with one visible working context.
  *
  * Default route is the AI chat composer. The working-context header shows

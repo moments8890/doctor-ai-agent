@@ -1,3 +1,4 @@
+/** @route /admin/login */
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Box, Button, Card, CardContent, Stack, TextField, Typography } from "@mui/material";

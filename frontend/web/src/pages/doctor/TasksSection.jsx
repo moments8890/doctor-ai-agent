@@ -1,4 +1,6 @@
 /**
+ * @route /doctor/tasks
+ *
  * 任务列表面板：统一优先级列表，支持筛选芯片、日期分组，合并审核和任务。
  */
 import { useCallback, useEffect, useRef, useState } from "react";

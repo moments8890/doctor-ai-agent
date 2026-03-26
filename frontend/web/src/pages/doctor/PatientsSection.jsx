@@ -1,4 +1,6 @@
 /**
+ * @route /doctor/patients, /doctor/patients/:patientId
+ *
  * 患者列表面板：支持按姓名搜索、自然语言智能搜索、PDF 导入，以及选中后展示详情。
  */
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -23,7 +25,7 @@ import SectionLabel from "../../components/SectionLabel";
 import PatientAvatar from "./PatientAvatar";
 import PatientDetail from "./PatientDetail";
 import SubpageHeader from "./SubpageHeader";
-import InterviewView from "./InterviewView";
+import InterviewPage from "./InterviewPage";
 import { TYPE, ICON } from "../../theme";
 
 function groupPatients(list) {
@@ -299,7 +301,7 @@ export default function PatientsSection({ doctorId, onNavigateToChat, onInsertCh
   // Mobile subpage override: interview or patient detail
   const mobileSubpage = isMobile && interviewActive ? (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
-      <InterviewView doctorId={doctorId}
+      <InterviewPage doctorId={doctorId}
         sessionId={chatInterviewSessionId}
         patientContext={interviewPatient}
         onComplete={() => { setInterviewActive(false); setInterviewPatient(null); onChatInterviewSessionConsumed?.(); load(); }}
@@ -320,7 +322,7 @@ export default function PatientsSection({ doctorId, onNavigateToChat, onInsertCh
   ) : null;
 
   const detailContent = interviewActive ? (
-    <InterviewView doctorId={doctorId}
+    <InterviewPage doctorId={doctorId}
       sessionId={chatInterviewSessionId}
       onComplete={() => { setInterviewActive(false); onChatInterviewSessionConsumed?.(); load(); }}
       onCancel={() => { setInterviewActive(false); onChatInterviewSessionConsumed?.(); }} />

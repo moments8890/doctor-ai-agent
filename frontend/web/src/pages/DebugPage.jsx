@@ -1,3 +1,4 @@
+/** @route /debug, /debug/:section */
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {

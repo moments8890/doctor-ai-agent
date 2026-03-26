@@ -1,4 +1,6 @@
 /**
+ * @route /doctor/patients/new
+ *
  * 病历采集视图：医生输入患者信息，AI提取字段并跟踪进度。
  * 显示在患者列表右侧（替代患者详情面板）。
  */
@@ -37,7 +39,7 @@ function MsgBubble({ msg }) {
   );
 }
 
-export default function InterviewView({ doctorId, sessionId: resumeSessionId, patientContext, onComplete, onCancel }) {
+export default function InterviewPage({ doctorId, sessionId: resumeSessionId, patientContext, onComplete, onCancel }) {
   const navigate = useNavigate();
   const patientName = patientContext?.name;
   const welcomeMsg = patientName

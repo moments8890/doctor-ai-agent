@@ -1,5 +1,7 @@
 /**
- * ReviewPage — full-page review subpage at /doctor/review/:recordId.
+ * @route /doctor/review/:recordId
+ *
+ * ReviewPage — full-page review subpage.
  *
  * Shows AI diagnosis suggestions for a medical record, grouped into three
  * sections (differential, workup, treatment). Each suggestion is rendered
