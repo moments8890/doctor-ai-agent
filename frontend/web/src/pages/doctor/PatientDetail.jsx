@@ -337,9 +337,9 @@ function usePatientDetailState({ patient, doctorId, onDeleted }) {
   return { records, setRecords, loading, error, exportingPdf, exportingReport, exportError, deleteConfirmOpen, setDeleteConfirmOpen, deleting, load, handleDelete, handleExportPdf, handleExportReport };
 }
 
-/* ── PatientChatSection ── */
+/* ── PatientChatPage ── */
 
-function PatientChatSection({ patientId, doctorId }) {
+function PatientChatPage({ patientId, doctorId }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
@@ -506,7 +506,7 @@ export default function PatientDetail({ patient, doctorId, onDeleted, onStartInt
       <ExportSelectorDialog open={exportOpen} onClose={() => setExportOpen(false)} patientId={patient.id} patientName={patient.name}
         onExport={(opts) => { setExportOpen(false); handleExportPdf(); }} />
       <RecordListSection loading={loading} error={error} records={records} filteredRecords={filteredRecords} activeTab={activeTab} setActiveTab={setActiveTab} setRecords={setRecords} doctorId={doctorId} load={load} />
-      <PatientChatSection patientId={patient.id} doctorId={doctorId} />
+      <PatientChatPage patientId={patient.id} doctorId={doctorId} />
       <Box sx={{ height: 24 }} />
     </Box>
   );

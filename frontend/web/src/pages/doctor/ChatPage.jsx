@@ -433,7 +433,7 @@ function useDailySummary({ doctorId, sendText, ready }) {
   }, [doctorId, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
-export default function ChatSection({ doctorId, onMessageCountChange, externalInput, onExternalInputConsumed, onPatientCreated, autoSendText, onAutoSendConsumed, onContextCleared, onStartPatientInterview, onBack, hideHeader }) {
+export default function ChatPage({ doctorId, onMessageCountChange, externalInput, onExternalInputConsumed, onPatientCreated, autoSendText, onAutoSendConsumed, onContextCleared, onStartPatientInterview, onBack, hideHeader }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);

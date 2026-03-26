@@ -25,11 +25,11 @@ import {
 } from "../api";
 import { useDoctorStore } from "../store/doctorStore";
 import { NAV, DESKTOP_NAV } from "./doctor/constants";
-import BriefingSection from "./doctor/BriefingSection";
-import ChatSection from "./doctor/ChatSection";
-import PatientsSection from "./doctor/PatientsSection";
-import TasksSection from "./doctor/TasksSection";
-import SettingsSection from "./doctor/SettingsSection";
+import HomePage from "./doctor/HomePage";
+import ChatPage from "./doctor/ChatPage";
+import PatientsPage from "./doctor/PatientsPage";
+import TasksPage from "./doctor/TasksPage";
+import SettingsPage from "./doctor/SettingsPage";
 import WorkingContextHeader from "./doctor/WorkingContextHeader";
 import ReviewPage from "./doctor/ReviewPage";
 import ErrorBoundary from "../components/ErrorBoundary";
@@ -108,12 +108,12 @@ function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpag
     <Box sx={{ flex: 1, overflow: "hidden" }}>
       {activeSection === "home" && (
         <ErrorBoundary label="首页">
-          <BriefingSection doctorId={doctorId} onNavigateToChat={() => navigate("/doctor/chat")} />
+          <HomePage doctorId={doctorId} onNavigateToChat={() => navigate("/doctor/chat")} />
         </ErrorBoundary>
       )}
       {activeSection === "chat" && (
         <ErrorBoundary label="聊天">
-          <ChatSection doctorId={doctorId} onMessageCountChange={() => {}}
+          <ChatPage doctorId={doctorId} onMessageCountChange={() => {}}
             externalInput={chatInsertText} onExternalInputConsumed={() => setChatInsertText("")}
             onPatientCreated={() => setPatientRefreshKey((k) => k + 1)}
             autoSendText={chatAutoSendText !== chatAutoSendConsumedRef.current ? chatAutoSendText : ""}
@@ -125,7 +125,7 @@ function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpag
       )}
       {activeSection === "patients" && (
         <ErrorBoundary label="患者">
-          <PatientsSection doctorId={doctorId} onNavigateToChat={() => navigate("/doctor/chat")}
+          <PatientsPage doctorId={doctorId} onNavigateToChat={() => navigate("/doctor/chat")}
             onInsertChatText={(text) => { setChatInsertText(text); navigate("/doctor/chat"); }}
             onAutoSendToChat={(text) => { chatAutoSendConsumedRef.current = ""; setChatAutoSendText(text); navigate("/doctor/chat"); }}
             refreshKey={patientRefreshKey}
@@ -135,8 +135,8 @@ function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpag
             onChatInterviewSessionConsumed={() => setChatInterviewSessionId(null)} />
         </ErrorBoundary>
       )}
-      {activeSection === "tasks" && <ErrorBoundary label="任务"><TasksSection doctorId={doctorId} urlSubpage={urlSubpage} urlSubId={urlSubId} /></ErrorBoundary>}
-      {activeSection === "settings" && <ErrorBoundary label="设置"><SettingsSection doctorId={doctorId} onLogout={handleLogout} urlSubpage={urlSubpage} urlSubId={urlSubId} /></ErrorBoundary>}
+      {activeSection === "tasks" && <ErrorBoundary label="任务"><TasksPage doctorId={doctorId} urlSubpage={urlSubpage} urlSubId={urlSubId} /></ErrorBoundary>}
+      {activeSection === "settings" && <ErrorBoundary label="设置"><SettingsPage doctorId={doctorId} onLogout={handleLogout} urlSubpage={urlSubpage} urlSubId={urlSubId} /></ErrorBoundary>}
     </Box>
   );
 }

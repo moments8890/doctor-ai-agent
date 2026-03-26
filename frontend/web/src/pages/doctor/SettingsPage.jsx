@@ -826,7 +826,7 @@ function useSettingsState({ doctorId, doctorName, accessToken, setAuth }) {
   return { nameDialogOpen, setNameDialogOpen, nameInput, setNameInput, nameSaving, nameError, setNameError, specialty, specialtyDialogOpen, setSpecialtyDialogOpen, specialtyInput, setSpecialtyInput, specialtySaving, specialtyError, handleSaveName, handleSaveSpecialty };
 }
 
-export default function SettingsSection({ doctorId, onLogout, urlSubpage, urlSubId }) {
+export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId }) {
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));

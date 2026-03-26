@@ -310,7 +310,7 @@ function CreateTaskSubpage({ createForm, creating, createError, patientOptions, 
 
 /* ── Main component ── */
 
-export default function TasksSection({ doctorId, urlSubpage, urlSubId }) {
+export default function TasksPage({ doctorId, urlSubpage, urlSubId }) {
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));

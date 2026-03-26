@@ -9,7 +9,7 @@ import { useDoctorStore } from "../../store/doctorStore";
 import AskAIBar from "../../components/AskAIBar";
 import BottomSheet from "../../components/BottomSheet";
 import SubpageHeader from "./SubpageHeader";
-import ChatSection from "./ChatSection";
+import ChatPage from "./ChatPage";
 import { TYPE } from "../../theme";
 
 const STAT_CARDS = [
@@ -18,7 +18,7 @@ const STAT_CARDS = [
   { key: "completed_today", label: "已完成", color: "#999", bg: "#F5F5F5", nav: "/doctor/tasks" },
 ];
 
-export default function BriefingSection({ doctorId, onNavigateToChat }) {
+export default function HomePage({ doctorId, onNavigateToChat }) {
   const doctorName = useDoctorStore((s) => s.doctorName);
   const navigate = useNavigate();
   const theme = useTheme();
@@ -122,7 +122,7 @@ export default function BriefingSection({ doctorId, onNavigateToChat }) {
       {/* Chat bottom sheet — mobile only */}
       {isMobile && (
         <BottomSheet open={chatOpen} onClose={() => setChatOpen(false)}>
-          <ChatSection doctorId={doctorId} onMessageCountChange={() => {}} onBack={() => setChatOpen(false)} />
+          <ChatPage doctorId={doctorId} onMessageCountChange={() => {}} onBack={() => setChatOpen(false)} />
         </BottomSheet>
       )}
     </Box>

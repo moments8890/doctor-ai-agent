@@ -261,7 +261,7 @@ function MobilePatientDetailView({ selectedPatient, doctorId, navigate, onStartI
   );
 }
 
-export default function PatientsSection({ doctorId, onNavigateToChat, onInsertChatText, onAutoSendToChat, onPatientSelected, refreshKey = 0, triggerInterview, onTriggerInterviewConsumed, chatInterviewSessionId, onChatInterviewSessionConsumed }) {
+export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatText, onAutoSendToChat, onPatientSelected, refreshKey = 0, triggerInterview, onTriggerInterviewConsumed, chatInterviewSessionId, onChatInterviewSessionConsumed }) {
   const { patientId } = useParams();
   const navigate = useNavigate();
   const theme = useTheme();
