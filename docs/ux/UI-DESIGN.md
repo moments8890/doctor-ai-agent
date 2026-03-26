@@ -3,84 +3,112 @@
 > Source of truth for all frontend visual and interaction decisions.
 > Read this before creating or modifying any UI component.
 
+## Live Showcases
+
+> **Do not use static PNG screenshots** — always reference the live debug views.
+
+| Showcase | URL | What it shows |
+|----------|-----|---------------|
+| **Shared Components** | [`/debug/components`](http://localhost:5173/debug/components) | All reusable UI in `src/components/` and `src/components/doctor/` |
+| **Doctor Pages** | [`/debug/doctor-pages`](http://localhost:5173/debug/doctor-pages) | Page-level mockups with sample data |
+| **Doctor Components** | [`/debug/doctor-components`](http://localhost:5173/debug/doctor-components) | Doctor-specific components (DiagnosisCard, FieldReviewCard, etc.) |
+
+Source: [`src/pages/admin/ComponentShowcasePage.jsx`](../../frontend/web/src/pages/admin/ComponentShowcasePage.jsx)
+
+---
+
 ## Quick Reference — Component File Map
 
 ### App Shell
 | Component | File | Purpose |
 |-----------|------|---------|
-| MobileFrame | [`src/App.jsx`](src/App.jsx) | Phone-shaped container for desktop |
-| DoctorPage | [`src/pages/DoctorPage.jsx`](src/pages/DoctorPage.jsx) | Doctor app shell (top bar + content + nav) |
-| PatientPage | [`src/pages/PatientPage.jsx`](src/pages/PatientPage.jsx) | Patient portal shell |
-| LoginPage | [`src/pages/LoginPage.jsx`](src/pages/LoginPage.jsx) | Unified login (doctor/patient tabs) |
+| MobileFrame | [`src/App.jsx`](../../frontend/web/src/App.jsx) | Phone-shaped container for desktop |
+| DoctorPage | [`src/pages/doctor/DoctorPage.jsx`](../../frontend/web/src/pages/doctor/DoctorPage.jsx) | Doctor app shell (top bar + content + nav) |
+| PatientPage | [`src/pages/patient/PatientPage.jsx`](../../frontend/web/src/pages/patient/PatientPage.jsx) | Patient portal shell |
+| LoginPage | [`src/pages/LoginPage.jsx`](../../frontend/web/src/pages/LoginPage.jsx) | Unified login (doctor/patient tabs) |
 
 ### Top Bar & Navigation
 | Component | File | Purpose |
 |-----------|------|---------|
-| SubpageHeader | [`src/pages/doctor/SubpageHeader.jsx`](src/pages/doctor/SubpageHeader.jsx) | ‹ back + title + action |
-| BarButton | [`src/components/BarButton.jsx`](src/components/BarButton.jsx) | Top bar text action button |
-| MobileBottomNav | [`src/pages/DoctorPage.jsx`](src/pages/DoctorPage.jsx) | 4-tab bottom navigation |
+| SubpageHeader | [`src/components/SubpageHeader.jsx`](../../frontend/web/src/components/SubpageHeader.jsx) | ‹ back + title + action |
+| BarButton | [`src/components/BarButton.jsx`](../../frontend/web/src/components/BarButton.jsx) | Top bar text action button |
+| MobileBottomNav | [`src/pages/doctor/DoctorPage.jsx`](../../frontend/web/src/pages/doctor/DoctorPage.jsx) | 4-tab bottom navigation |
 
 ### Layout & Structure
 | Component | File | Purpose |
 |-----------|------|---------|
-| PageSkeleton | [`src/components/PageSkeleton.jsx`](src/components/PageSkeleton.jsx) | Page layout wrapper (list + detail) |
-| SectionLabel | [`src/components/SectionLabel.jsx`](src/components/SectionLabel.jsx) | Section header label (12px/600) |
-| EmptyState | [`src/components/EmptyState.jsx`](src/components/EmptyState.jsx) | Centered "暂无XX" placeholder |
+| PageSkeleton | [`src/components/PageSkeleton.jsx`](../../frontend/web/src/components/PageSkeleton.jsx) | Page layout wrapper (list + detail) |
+| SectionLabel | [`src/components/SectionLabel.jsx`](../../frontend/web/src/components/SectionLabel.jsx) | Section header label (12px/600) |
+| EmptyState | [`src/components/EmptyState.jsx`](../../frontend/web/src/components/EmptyState.jsx) | Centered "暂无XX" placeholder |
 
 ### Buttons & Actions
 | Component | File | Purpose |
 |-----------|------|---------|
-| AppButton | [`src/components/AppButton.jsx`](src/components/AppButton.jsx) | Content-level button (primary/secondary/danger) |
-| CancelConfirm | [`src/components/CancelConfirm.jsx`](src/components/CancelConfirm.jsx) | Two-step cancel popup (确認\|返回) |
+| AppButton | [`src/components/AppButton.jsx`](../../frontend/web/src/components/AppButton.jsx) | Content-level button (primary/secondary/danger) |
+| CancelConfirm | [`src/components/CancelConfirm.jsx`](../../frontend/web/src/components/CancelConfirm.jsx) | Two-step cancel popup (确認\|返回) |
+| ConfirmDialog | [`src/components/ConfirmDialog.jsx`](../../frontend/web/src/components/ConfirmDialog.jsx) | Compact confirm/destructive dialog |
+| ActionPanel | [`src/components/ActionPanel.jsx`](../../frontend/web/src/components/ActionPanel.jsx) | Slide-up action sheet (camera, gallery, file, patient) |
 
 ### Content Components
 | Component | File | Purpose |
 |-----------|------|---------|
-| ListCard | [`src/components/ListCard.jsx`](src/components/ListCard.jsx) | List row (avatar + title + subtitle) |
-| NewItemCard | [`src/components/NewItemCard.jsx`](src/components/NewItemCard.jsx) | "+" dashed new item row |
-| RecordCard | [`src/pages/doctor/RecordCard.jsx`](src/pages/doctor/RecordCard.jsx) | Expandable medical record card |
-| DiagnosisCard | [`src/pages/doctor/DiagnosisCard.jsx`](src/pages/doctor/DiagnosisCard.jsx) | Collapsible diagnosis review card |
+| ListCard | [`src/components/ListCard.jsx`](../../frontend/web/src/components/ListCard.jsx) | List row (avatar + title + subtitle + chevron) |
+| NewItemCard | [`src/components/NewItemCard.jsx`](../../frontend/web/src/components/NewItemCard.jsx) | "+" dashed new item row |
+| RecordCard | [`src/components/RecordCard.jsx`](../../frontend/web/src/components/RecordCard.jsx) | Expandable medical record card |
+| RecordFields | [`src/components/RecordFields.jsx`](../../frontend/web/src/components/RecordFields.jsx) | NHC structured field rows |
+| DetailCard | [`src/components/DetailCard.jsx`](../../frontend/web/src/components/DetailCard.jsx) | Compact key-value card |
+
+### Chat & Input
+| Component | File | Purpose |
+|-----------|------|---------|
+| AskAIBar | [`src/components/AskAIBar.jsx`](../../frontend/web/src/components/AskAIBar.jsx) | Floating "问 AI" entry bar |
+| SuggestionChips | [`src/components/SuggestionChips.jsx`](../../frontend/web/src/components/SuggestionChips.jsx) | Quick-reply options above input |
+| DoctorBubble | [`src/components/DoctorBubble.jsx`](../../frontend/web/src/components/DoctorBubble.jsx) | Doctor reply message bubble |
+| VoiceInput | [`src/components/VoiceInput.jsx`](../../frontend/web/src/components/VoiceInput.jsx) | Press-to-talk voice input |
+
+### Dialogs & Pickers
+| Component | File | Purpose |
+|-----------|------|---------|
+| SheetDialog | [`src/components/SheetDialog.jsx`](../../frontend/web/src/components/SheetDialog.jsx) | Bottom-sheet dialog shell |
+| BottomSheet | [`src/components/BottomSheet.jsx`](../../frontend/web/src/components/BottomSheet.jsx) | Swipe-up panel overlay |
+| RecordEditDialog | [`src/components/RecordEditDialog.jsx`](../../frontend/web/src/components/RecordEditDialog.jsx) | Medical record field editor |
+| ExportSelectorDialog | [`src/components/ExportSelectorDialog.jsx`](../../frontend/web/src/components/ExportSelectorDialog.jsx) | PDF export field picker |
+| ImportChoiceDialog | [`src/components/ImportChoiceDialog.jsx`](../../frontend/web/src/components/ImportChoiceDialog.jsx) | Import method selector |
+| PatientPickerDialog | [`src/components/PatientPickerDialog.jsx`](../../frontend/web/src/components/PatientPickerDialog.jsx) | Patient search and select |
+
+### Badges & Avatars
+| Component | File | Purpose |
+|-----------|------|---------|
+| StatusBadge | [`src/components/StatusBadge.jsx`](../../frontend/web/src/components/StatusBadge.jsx) | Colored status pill (高/中/低/急诊) |
+| PatientAvatar | [`src/components/PatientAvatar.jsx`](../../frontend/web/src/components/PatientAvatar.jsx) | Colored circle with surname |
+| RecordAvatar | [`src/components/RecordAvatar.jsx`](../../frontend/web/src/components/RecordAvatar.jsx) | Record type icon (visit/lab/imaging) |
+
+### Doctor-Specific Components
+| Component | File | Purpose |
+|-----------|------|---------|
+| DiagnosisCard | [`src/components/doctor/DiagnosisCard.jsx`](../../frontend/web/src/components/doctor/DiagnosisCard.jsx) | Collapsible diagnosis review card (5 states) |
+| FieldReviewCard | [`src/components/doctor/FieldReviewCard.jsx`](../../frontend/web/src/components/doctor/FieldReviewCard.jsx) | Carry-forward / import field review |
+| InterviewCompleteDialog | [`src/components/doctor/InterviewCompleteDialog.jsx`](../../frontend/web/src/components/doctor/InterviewCompleteDialog.jsx) | NHC preview + save/diagnose popup |
 
 ### Page-Level Components
 | Component | File | Purpose |
 |-----------|------|---------|
-| BriefingSection | [`src/pages/doctor/BriefingSection.jsx`](src/pages/doctor/BriefingSection.jsx) | Home tab: stats + onboarding |
-| ChatSection | [`src/pages/doctor/ChatSection.jsx`](src/pages/doctor/ChatSection.jsx) | AI chat with quick commands |
-| PatientsSection | [`src/pages/doctor/PatientsSection.jsx`](src/pages/doctor/PatientsSection.jsx) | Patient list + detail drill-down |
-| PatientDetail | [`src/pages/doctor/PatientDetail.jsx`](src/pages/doctor/PatientDetail.jsx) | Patient profile + records + actions |
-| TasksSection | [`src/pages/doctor/TasksSection.jsx`](src/pages/doctor/TasksSection.jsx) | Task list with filter chips |
-| SettingsSection | [`src/pages/doctor/SettingsSection.jsx`](src/pages/doctor/SettingsSection.jsx) | Profile, tools, knowledge base |
-| ReviewPage | [`src/pages/doctor/ReviewPage.jsx`](src/pages/doctor/ReviewPage.jsx) | Diagnosis review subpage |
-| InterviewView | [`src/pages/doctor/InterviewView.jsx`](src/pages/doctor/InterviewView.jsx) | Doctor interview (chat + fields) |
-| InterviewCompleteDialog | [`src/pages/doctor/InterviewCompleteDialog.jsx`](src/pages/doctor/InterviewCompleteDialog.jsx) | NHC preview + save/diagnose popup |
+| HomePage | [`src/pages/doctor/HomePage.jsx`](../../frontend/web/src/pages/doctor/HomePage.jsx) | Home tab: stats + onboarding |
+| ChatPage | [`src/pages/doctor/ChatPage.jsx`](../../frontend/web/src/pages/doctor/ChatPage.jsx) | AI chat with quick commands |
+| PatientsPage | [`src/pages/doctor/PatientsPage.jsx`](../../frontend/web/src/pages/doctor/PatientsPage.jsx) | Patient list + detail drill-down |
+| PatientDetail | [`src/pages/doctor/patients/PatientDetail.jsx`](../../frontend/web/src/pages/doctor/patients/PatientDetail.jsx) | Patient profile + records + actions |
+| TasksPage | [`src/pages/doctor/TasksPage.jsx`](../../frontend/web/src/pages/doctor/TasksPage.jsx) | Task list with filter chips |
+| SettingsPage | [`src/pages/doctor/SettingsPage.jsx`](../../frontend/web/src/pages/doctor/SettingsPage.jsx) | Profile, tools, knowledge base |
+| ReviewPage | [`src/pages/doctor/ReviewPage.jsx`](../../frontend/web/src/pages/doctor/ReviewPage.jsx) | Diagnosis review subpage |
+| InterviewPage | [`src/pages/doctor/InterviewPage.jsx`](../../frontend/web/src/pages/doctor/InterviewPage.jsx) | Doctor interview (chat + fields) |
 
 ### Theme & Tokens
 | File | Purpose |
 |------|---------|
-| [`src/theme.js`](src/theme.js) | `TYPE`, `ICON`, `COLOR` tokens + MUI theme |
-| [`src/api.js`](src/api.js) | All API functions |
-| [`src/store/doctorStore.js`](src/store/doctorStore.js) | Auth state (Zustand) |
-| [`src/pages/doctor/constants.jsx`](src/pages/doctor/constants.jsx) | Labels, enums, field definitions |
-
----
-
-## Page Screenshots
-
-All screenshots at 430x932 (iPhone 14 Pro resolution).
-
-### Doctor Views
-
-| Home | Patients | Patient Detail |
-|------|----------|---------------|
-| ![Home](screenshots/home.png) | ![Patients](screenshots/patients.png) | ![Patient Detail](screenshots/patient-detail.png) |
-
-| Chat | Tasks | Settings |
-|------|-------|----------|
-| ![Chat](screenshots/chat.png) | ![Tasks](screenshots/tasks.png) | ![Settings](screenshots/settings.png) |
-
-| Diagnosis Review | Login |
-|-----------------|-------|
-| ![Review](screenshots/review.png) | ![Login](screenshots/login.png) |
+| [`src/theme.js`](../../frontend/web/src/theme.js) | `TYPE`, `ICON`, `COLOR` tokens + MUI theme |
+| [`src/api.js`](../../frontend/web/src/api.js) | All API functions |
+| [`src/store/doctorStore.js`](../../frontend/web/src/store/doctorStore.js) | Auth state (Zustand) |
+| [`src/pages/doctor/constants.jsx`](../../frontend/web/src/pages/doctor/constants.jsx) | Labels, enums, field definitions |
 
 ---
 
@@ -232,14 +260,14 @@ template. The shared rules (cards, spacing, components) are in sections 4-6.
 
 | Page | Screenshot | Layout |
 |------|-----------|--------|
-| **首页** | ![](screenshots/home.png) | Stat cards (2-col grid) → onboarding hint card → AI chat entry bar |
-| **患者** | ![](screenshots/patients.png) | Search bar → "新建患者" card → patient list rows |
-| **患者详情** | ![](screenshots/patient-detail.png) | Collapsible profile → record tabs → record cards → 患者消息 |
-| **对话** | ![](screenshots/chat.png) | Chat bubbles → quick command chips → input bar + mic |
-| **诊断审核** | ![](screenshots/review.png) | Record summary → diagnosis sections → sticky bottom bar |
+| **首页** | [`/doctor`](http://localhost:5173/doctor) | Stat cards (2-col grid) → onboarding hint card → AI chat entry bar |
+| **患者** | [`/doctor/patients`](http://localhost:5173/doctor/patients) | Search bar → "新建患者" card → patient list rows |
+| **患者详情** | [`/doctor/patients/:id`](http://localhost:5173/doctor/patients) | Collapsible profile → record tabs → record cards → 患者消息 |
+| **对话** | [`/doctor/chat`](http://localhost:5173/doctor/chat) | Chat bubbles → quick command chips → input bar + mic |
+| **诊断审核** | [`/doctor/review/:id`](http://localhost:5173/doctor) | Record summary → diagnosis sections → sticky bottom bar |
 | **新建病历** | (interview) | Progress bar → conversation → carry-forward → input bar |
-| **任务** | ![](screenshots/tasks.png) | Filter chips → "新建任务" card → task list |
-| **设置** | ![](screenshots/settings.png) | Profile → tools (模板, 知识库) → general → 退出登录 |
+| **任务** | [`/doctor/tasks`](http://localhost:5173/doctor/tasks) | Filter chips → "新建任务" card → task list |
+| **设置** | [`/doctor/settings`](http://localhost:5173/doctor/settings) | Profile → tools (模板, 知识库) → general → 退出登录 |
 
 **Shared content rules:**
 
@@ -358,11 +386,8 @@ import { TYPE, ICON, COLOR } from "../../theme";
 
 ## 6. Component Patterns
 
-> **Live showcase:** Visit [`/debug/components`](http://localhost:5173/debug/components)
-> to see all components rendered in isolation.
-> Source: [`src/pages/ComponentShowcase.jsx`](../../frontend/web/src/pages/ComponentShowcase.jsx)
->
-> ![Component Showcase](screenshots/component-showcase.png)
+> **Live showcase:** [`/debug/components`](http://localhost:5173/debug/components) — all shared components rendered in isolation.
+> **Doctor pages:** [`/debug/doctor-pages`](http://localhost:5173/debug/doctor-pages) — page-level mockups with sample data.
 
 ### Buttons
 
@@ -376,15 +401,59 @@ import { TYPE, ICON, COLOR } from "../../theme";
 | **Text button** | No background, colored text | Inline actions (删除, 编辑) |
 | **Disabled** | `opacity: 0.4` or `color: #ccc` | Loading, conditions unmet |
 
+**Button text:** Max 2 Chinese characters (e.g., 保存, 取消, 删除, 确认, 返回).
+Exceptions only with strong justification (e.g., "保存并诊断 →" on a primary CTA
+where the extra context prevents a wrong-action error).
+
 **Action button placement:** destructive left, constructive right. Always.
 
 ```
 [删除 (red)]  ───── spacer ─────  [编辑 (green)]
 ```
 
+### Review Surfaces
+
+Used in: diagnosis review, field carry-forward, import preview, other dense
+doctor decision screens.
+
+- Visual tone: mostly grayscale. White sections on `#ededed` background,
+  hairline separators, minimal chrome.
+- Row actions: repeated review actions inside cards or lists use **text
+  actions** with small glyphs (`✎ 修改`, `✗ 忽略`, `✓ 确认`). Do not use repeated
+  filled buttons for each row.
+- Bulk actions: section-level or page-level actions may use stronger buttons.
+  This is where green fill belongs.
+- Color budget: default to black/gray text. Use color only for state meaning:
+  green = confirmed/go, amber = edited/urgent, red = danger.
+- Primary CTA count: one strong green CTA per screen. If a sticky bottom CTA
+  exists, do not repeat the same primary action in the top bar.
+- Meta treatment: risk/urgency/intervention should usually render as quiet text
+  on dense review rows. Reserve pills or badges for places where scan speed
+  clearly improves.
+- Add affordance: on review pages, `添加` should usually be a quiet text action
+  in the section header, not a large boxed CTA.
+
+### Debug Showcase / Component Catalog
+
+Used in: internal UI review, component QA, visual regression walkthroughs.
+
+- Single catalog: `/debug/components` is the canonical showcase for all
+  reusable UI in `src/components/` and `src/components/doctor/`.
+- Separation of concerns: `/debug/doctor-pages` is reserved for page/workflow
+  mockups, not reusable component inventory.
+- Grouping rule: catalog sections are organized by reusable UI purpose
+  (`Buttons`, `Dialogs`, `Doctor`), not by whichever page happens to use them.
+- Navigation rule: when section count grows, do not use a horizontally
+  scrolling tab/chip bar inside the mobile frame.
+- Preferred pattern: use one sticky compact section picker with a dropdown.
+  The label should show the current section and update with scroll position,
+  not only the last tapped item.
+- Visual weight: catalog navigation chrome should stay quieter than the
+  showcased components. White surface, hairline border, compact typography.
+
 ### Collapsible Profile
 
-**File:** [`src/pages/doctor/PatientDetail.jsx`](../../frontend/web/src/pages/doctor/PatientDetail.jsx) (`CollapsibleProfile`)
+**File:** [`src/pages/doctor/patients/PatientDetail.jsx`](../../frontend/web/src/pages/doctor/patients/PatientDetail.jsx) (`CollapsibleProfile`)
 
 *See live: [`/debug/components`](http://localhost:5173/debug/components)*
 
@@ -405,7 +474,7 @@ import { TYPE, ICON, COLOR } from "../../theme";
 
 ### Record Card
 
-**File:** [`src/pages/doctor/RecordCard.jsx`](../../frontend/web/src/pages/doctor/RecordCard.jsx)
+**File:** [`src/components/RecordCard.jsx`](../../frontend/web/src/components/RecordCard.jsx)
 
 *See live: [`/debug/components`](http://localhost:5173/debug/components)*
 
@@ -416,29 +485,45 @@ import { TYPE, ICON, COLOR } from "../../theme";
 
 ### Diagnosis Review Card
 
-**File:** [`src/pages/doctor/DiagnosisCard.jsx`](../../frontend/web/src/pages/doctor/DiagnosisCard.jsx)
+**File:** [`src/components/doctor/DiagnosisCard.jsx`](../../frontend/web/src/components/doctor/DiagnosisCard.jsx)
 
 | Collapsed | Expanded |
 |-----------|----------|
 | *See live showcase* | *See live showcase* |
 
-5 states indicated by 3px left border:
+5 states indicated by a subtle left border plus right-side status text:
 
 | State | Border | Right label |
 |-------|--------|-------------|
-| Unreviewed | `#ddd` solid | ▾ chevron |
-| Confirmed | `#07C160` solid | ✓ 确认 (green) |
-| Rejected | `#e5e5e5` solid | ✗ 排除 (dimmed, strike-through) |
-| Edited | `#F59E0B` solid | ✎ + 已改 badge |
-| Doctor-added | `#07C160` dashed | 补充 badge |
+| Unreviewed | `#f0f0f0` solid | 待处理 |
+| Confirmed | `#07C160` solid | 已确认 |
+| Rejected | `#e5e5e5` solid | 已排除 |
+| Edited | `#F59E0B` solid | 已修改 |
+| Doctor-added | `#07C160` solid | 已补充 |
 
-- Collapsed: ~44px. Name + badge + status.
-- Expanded: detail text + action row (`✓ 确认 | ✗ 排除 | ✎ 修改`)
-- "+ 添加": **top of section**, dashed green border
+- Collapsed: diagnosis title + lightweight meta (`高 / 紧急 / 药物`) + quiet status text
+- Expanded: detail text + right-aligned text actions (`✎ 修改 | ✗ 排除 | ✓ 确认`)
+- Section add action: quiet text action on the right, not a large boxed CTA
+
+### Field Review Card
+
+**File:** [`src/components/doctor/FieldReviewCard.jsx`](../../frontend/web/src/components/doctor/FieldReviewCard.jsx)
+
+*See live: [`/debug/components`](http://localhost:5173/debug/components) → Doctor*
+
+- Purpose: carry-forward and import-preview review for structured fields
+- Header: title + subtitle on left, quiet `展开 ▾ / 收起 ▴` text on right
+- Per-field layout: label (`TYPE.caption`) above value (`TYPE.secondary`)
+- Per-row actions: lightweight text actions with small glyphs, aligned right
+  (`✎ 编辑`, `✗ 忽略`, `✓ 沿用/确认`)
+- Footer actions: bulk decisions may use stronger full-width buttons
+  (`全部忽略` | `全部沿用/全部确认`)
+- Edit mode: textarea + lightweight `取消 / 保存` text actions unless a
+  stronger CTA is needed for safety
 
 ### Settings Rows
 
-**File:** [`src/pages/doctor/SettingsSection.jsx`](../../frontend/web/src/pages/doctor/SettingsSection.jsx)
+**File:** [`src/pages/doctor/SettingsPage.jsx`](../../frontend/web/src/pages/doctor/SettingsPage.jsx)
 
 *See live: [`/debug/components`](http://localhost:5173/debug/components)*
 
@@ -463,19 +548,17 @@ import { TYPE, ICON, COLOR } from "../../theme";
 
 ### Filter Chips
 
-**File:** [`src/pages/doctor/TasksSection.jsx`](../../frontend/web/src/pages/doctor/TasksSection.jsx)
+**File:** [`src/pages/doctor/TasksPage.jsx`](../../frontend/web/src/pages/doctor/TasksPage.jsx)
 
 - Active: green fill + white text
 - Inactive: gray border + gray text
 - Used in: task list (全部/待审核/待办/已完成), record tabs (全部/病历/检验/问诊)
 
-### ActionButtonPair
+### Action Button Layout
 
-**File:** [`src/components/ActionButtonPair.jsx`](../../frontend/web/src/components/ActionButtonPair.jsx)
-
-- Cancel + confirm two-button row for dialog footers
-- Usage: `<ActionButtonPair onCancel={fn} onConfirm={fn} confirmLabel="保存" />`
-- `danger` prop turns confirm button red
+- Cancel + confirm actions in dialog footers use inline `AppButton` pairs
+- Destructive left (red), constructive right (green). Always.
+- Usage: `<AppButton variant="danger">取消</AppButton> <AppButton>保存</AppButton>`
 
 ### AskAIBar
 
@@ -651,6 +734,11 @@ Before submitting any UI change, verify:
 - [ ] Max 1 BarButton in top bar, max 2 characters
 - [ ] Deletion requires 2-tap confirmation
 - [ ] Cancel/back that discards work uses `CancelConfirm` popup (确认|返回)
+- [ ] Button text max 2 characters unless justified (保存, 取消, 确认, 删除, 返回)
+- [ ] Review rows use text actions before filled buttons
+- [ ] Review pages have at most 1 strong green CTA
+- [ ] `/debug/components` contains all reusable components, including `components/doctor`
+- [ ] Showcase section navigation uses a compact dropdown/picker when groups become numerous
 - [ ] Content has bottom padding for nav clearance (`pb: 64px`)
 - [ ] Sticky bars don't overlap with bottom nav
 - [ ] Empty sections hidden when they add no value
