@@ -43,16 +43,8 @@ function Section({ title, file, children }) {
     <Box sx={{ mb: 3, borderLeft: `3px solid ${COLOR.primary}`, pl: 1.5 }}>
       <Typography sx={{ fontSize: TYPE.body.fontSize, fontWeight: 600, mb: 0.3 }}>{title}</Typography>
       <Typography sx={{ fontSize: 11, color: COLOR.text4, mb: 1, fontFamily: "monospace" }}>{file}</Typography>
-      {/* Phone frame container */}
-      <Box sx={{
-        width: 375, mx: "auto", bgcolor: "#ededed",
-        borderRadius: "12px", overflow: "hidden",
-        boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
-        border: `1px solid ${COLOR.border}`,
-      }}>
-        <Box sx={{ p: 1.5, bgcolor: COLOR.white, borderRadius: "12px" }}>
-          {children}
-        </Box>
+      <Box sx={{ border: `1px solid ${COLOR.border}`, borderRadius: 1, p: 1.5, bgcolor: COLOR.white }}>
+        {children}
       </Box>
     </Box>
   );
@@ -89,39 +81,8 @@ export default function ComponentShowcasePage() {
   const [editOpen, setEditOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
 
-  const groups = [
-    "Design Tokens", "Buttons", "Navigation", "List & Cards",
-    "Badges & Avatars", "Record & Fields", "Chat & Input",
-    "Dialogs & Pickers", "Patient & Task", "Layout Patterns",
-  ];
-
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#f5f5f5" }}>
-      {/* Left floating nav */}
-      <Box sx={{
-        position: "fixed", left: 0, top: 0, bottom: 0, width: 160,
-        bgcolor: COLOR.white, borderRight: `1px solid ${COLOR.border}`,
-        overflowY: "auto", py: 2, px: 1.5, zIndex: 10,
-        "@media (max-width: 700px)": { display: "none" },
-      }}>
-        <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, fontWeight: 600, mb: 1, letterSpacing: 0.5 }}>COMPONENTS</Typography>
-        {groups.map((g, i) => (
-          <Box key={g} onClick={() => document.getElementById(`group-${i}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}
-            sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text3, py: 0.6, cursor: "pointer", "&:hover": { color: COLOR.primary }, "&:active": { color: COLOR.primary } }}>
-            {g}
-          </Box>
-        ))}
-        <Box sx={{ mt: 2, borderTop: `1px solid ${COLOR.borderLight}`, pt: 1.5 }}>
-          <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, fontWeight: 600, mb: 0.5, letterSpacing: 0.5 }}>OTHER</Typography>
-          <Box onClick={() => window.location.href = "/debug/doctor-components"}
-            sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.accent, py: 0.4, cursor: "pointer" }}>Doctor Components</Box>
-          <Box onClick={() => window.location.href = "/debug/doctor-pages"}
-            sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.accent, py: 0.4, cursor: "pointer" }}>Mock Pages</Box>
-        </Box>
-      </Box>
-
-      {/* Main content */}
-      <Box sx={{ maxWidth: 500, p: 2, width: "100%", "@media (min-width: 700px)": { ml: "180px" } }}>
+    <Box sx={{ height: "100%", overflowY: "auto", bgcolor: COLOR.surfaceAlt, p: 1.5 }}>
         <Typography sx={{ fontSize: 22, fontWeight: 700, mb: 0.5 }}>Shared Components</Typography>
         <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mb: 3 }}>
           All 27 components from src/components/. Tap group to expand.
@@ -364,10 +325,17 @@ export default function ComponentShowcasePage() {
         </Section>
       </Group>
 
-      <Typography sx={{ fontSize: 11, color: COLOR.text4, textAlign: "center", mt: 2, mb: 4 }}>
-        Doctor-specific components: /debug/doctor-components
-      </Typography>
-    </Box>
+      <Box sx={{ display: "flex", gap: 1, justifyContent: "center", mt: 2, mb: 4 }}>
+        <Box onClick={() => window.location.href = "/debug/doctor-components"}
+          sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.accent, cursor: "pointer", textDecoration: "underline" }}>
+          Doctor Components
+        </Box>
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>·</Typography>
+        <Box onClick={() => window.location.href = "/debug/doctor-pages"}
+          sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.accent, cursor: "pointer", textDecoration: "underline" }}>
+          Mock Pages
+        </Box>
+      </Box>
     </Box>
   );
 }

@@ -130,9 +130,9 @@ export default function App() {
       {/* Debug — full desktop layout */}
       <Route path="/debug" element={<DebugPage />} />
       <Route path="/debug/:section" element={<DebugPage />} />
-      {/* Component showcases — no frame, scrollable */}
-      <Route path="/debug/components" element={<ComponentShowcasePage />} />
-      <Route path="/debug/doctor-components" element={<DoctorComponentShowcase />} />
+      {/* Component showcases — in MobileFrame */}
+      <Route path="/debug/components" element={<MobileFrame><ComponentShowcasePage /></MobileFrame>} />
+      <Route path="/debug/doctor-components" element={<MobileFrame><DoctorComponentShowcase /></MobileFrame>} />
       <Route path="/debug/doctor-pages" element={<MockPages />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
