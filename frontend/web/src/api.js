@@ -869,3 +869,41 @@ export async function replyToPatient(patientId, text) {
     body: JSON.stringify({ text }),
   });
 }
+
+// ── Diagnosis / Review ────────────────────────────────────────────────────────
+
+export async function triggerDiagnosis(recordId, doctorId) {
+  return request(`/api/doctor/records/${recordId}/diagnose`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ doctor_id: doctorId }),
+  });
+}
+
+export async function getSuggestions(recordId, doctorId) {
+  return request(`/api/doctor/records/${recordId}/suggestions?doctor_id=${doctorId}`);
+}
+
+export async function decideSuggestion(suggestionId, decision, opts = {}) {
+  return request(`/api/doctor/suggestions/${suggestionId}/decide`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ decision, ...opts }),
+  });
+}
+
+export async function addSuggestion(recordId, doctorId, section, content, detail) {
+  return request(`/api/doctor/records/${recordId}/suggestions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ doctor_id: doctorId, section, content, detail }),
+  });
+}
+
+export async function finalizeReview(recordId, doctorId) {
+  return request(`/api/doctor/records/${recordId}/review/finalize`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ doctor_id: doctorId }),
+  });
+}

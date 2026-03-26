@@ -7,11 +7,13 @@ import { Alert, Box, Button, CircularProgress, IconButton, LinearProgress, Stack
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
-import { doctorInterviewTurn, doctorInterviewConfirm, doctorInterviewCancel, doctorInterviewGetSession, confirmCarryForward } from "../../api";
+import { useNavigate } from "react-router-dom";
+import { doctorInterviewTurn, doctorInterviewConfirm, doctorInterviewCancel, doctorInterviewGetSession, confirmCarryForward, triggerDiagnosis } from "../../api";
 import SubpageHeader from "./SubpageHeader";
 import SuggestionChips from "../../components/SuggestionChips";
 import CarryForwardCard from "./CarryForwardCard";
-import { TYPE, ICON } from "../../theme";
+import InterviewCompleteDialog from "./InterviewCompleteDialog";
+import { TYPE, ICON, COLOR } from "../../theme";
 
 function nowTs() {
   const d = new Date();
@@ -35,10 +37,15 @@ function MsgBubble({ msg }) {
   );
 }
 
-export default function InterviewView({ doctorId, sessionId: resumeSessionId, onComplete, onCancel }) {
+export default function InterviewView({ doctorId, sessionId: resumeSessionId, patientContext, onComplete, onCancel }) {
+  const navigate = useNavigate();
+  const patientName = patientContext?.name;
+  const welcomeMsg = patientName
+    ? `正在为 ${patientName} 建立门诊记录。\n请输入症状、检查结果等信息，我会帮您结构化记录。`
+    : "病历采集模式已开启。\n请输入患者信息（姓名、性别、年龄、症状等），我会帮您结构化记录。";
   const [messages, setMessages] = useState([{
     role: "assistant",
-    content: "病历采集模式已开启。\n请输入患者信息（姓名、性别、年龄、症状等），我会帮您结构化记录。",
+    content: welcomeMsg,
     ts: nowTs(),
   }]);
   const [input, setInput] = useState("");
@@ -47,17 +54,39 @@ export default function InterviewView({ doctorId, sessionId: resumeSessionId, on
     sessionId: resumeSessionId || null,
     progress: { filled: 0, total: 7 },
     status: "interviewing",
-    patientId: null,
+    patientId: patientContext?.id || null,
+    collected: {},
   });
+  // Update welcome message if patientContext arrives after mount
+  useEffect(() => {
+    if (patientContext?.name && messages.length === 1 && messages[0].role === "assistant") {
+      setMessages([{
+        role: "assistant",
+        content: `正在为 ${patientContext.name} 建立门诊记录。\n请输入症状、检查结果等信息，我会帮您结构化记录。`,
+        ts: nowTs(),
+      }]);
+      setSession(prev => ({ ...prev, patientId: patientContext.id }));
+    }
+  }, [patientContext?.name]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [error, setError] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
   const [selectedSuggestions, setSelectedSuggestions] = useState([]);
   const [carryForward, setCarryForward] = useState([]);
+  const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [carryForwardCollapsed, setCarryForwardCollapsed] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => { inputRef.current?.focus(); }, []);
+
+  // Auto-collapse carry-forward section when all items have been acted on
+  useEffect(() => {
+    if (carryForward.length === 0) {
+      setCarryForwardCollapsed(true);
+    }
+  }, [carryForward]);
 
   // Resume existing session from chat — load collected data and show progress
   useEffect(() => {
@@ -70,6 +99,7 @@ export default function InterviewView({ doctorId, sessionId: resumeSessionId, on
           progress: data.progress,
           status: data.status,
           patientId: data.patient_id,
+          collected: data.collected || {},
         });
         // Show full conversation history from the session
         if (data.conversation && data.conversation.length > 0) {
@@ -103,6 +133,7 @@ export default function InterviewView({ doctorId, sessionId: resumeSessionId, on
         ...prev,
         progress: data.progress,
         status: data.status,
+        collected: data.collected || prev.collected,
       }));
     } catch (err) {
       setError(err.message);
@@ -124,6 +155,7 @@ export default function InterviewView({ doctorId, sessionId: resumeSessionId, on
           ...prev,
           progress: data.progress,
           status: data.status,
+          collected: data.collected || prev.collected,
         }));
       } catch (err) {
         setError(err.message);
@@ -153,6 +185,9 @@ export default function InterviewView({ doctorId, sessionId: resumeSessionId, on
       if (session.sessionId) {
         formData.append("session_id", session.sessionId);
       }
+      if (session.patientId) {
+        formData.append("patient_id", String(session.patientId));
+      }
 
       const data = await doctorInterviewTurn(formData);
 
@@ -161,6 +196,7 @@ export default function InterviewView({ doctorId, sessionId: resumeSessionId, on
         progress: data.progress,
         status: data.status,
         patientId: data.patient_id,
+        collected: data.collected || {},
       });
 
       // Carry-forward items are only returned on the first turn
@@ -180,7 +216,7 @@ export default function InterviewView({ doctorId, sessionId: resumeSessionId, on
   }
 
   async function handleConfirm() {
-    if (!session.sessionId) return;
+    if (!session.sessionId) return null;
     setLoading(true);
     try {
       const data = await doctorInterviewConfirm(session.sessionId, doctorId);
@@ -192,12 +228,32 @@ export default function InterviewView({ doctorId, sessionId: resumeSessionId, on
         ts: nowTs(),
       }]);
       setSession(prev => ({ ...prev, status: "draft_created" }));
+      setShowCompleteDialog(false);
       onComplete?.(data);
+      return data;
     } catch (err) {
       setError(err.message);
+      return null;
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleSaveOnly() {
+    await handleConfirm();
+  }
+
+  async function handleSaveAndDiagnose() {
+    const data = await handleConfirm();
+    if (!data) return;
+    const recordId = data.pending_id;
+    if (!recordId) return;
+    try {
+      await triggerDiagnosis(recordId, doctorId);
+    } catch (err) {
+      // Diagnosis trigger is best-effort; navigate to review regardless
+    }
+    navigate(`/doctor/review/${recordId}`);
   }
 
   async function handleCancel() {
@@ -240,8 +296,8 @@ export default function InterviewView({ doctorId, sessionId: resumeSessionId, on
                 ? { bgcolor: "#07C160", "&:hover": { bgcolor: "#06ad56" }, fontSize: TYPE.caption.fontSize, py: 0, minHeight: 24 }
                 : { color: "#999", fontSize: TYPE.caption.fontSize, py: 0, minHeight: 24 }
               }
-              onClick={handleConfirm} disabled={loading}>
-              确认生成
+              onClick={() => setShowCompleteDialog(true)} disabled={loading}>
+              完成
             </Button>
           )}
         </Box>
@@ -280,13 +336,33 @@ export default function InterviewView({ doctorId, sessionId: resumeSessionId, on
 
       {/* Carry-forward card — prior record fields for one-tap confirmation */}
       {carryForward.length > 0 && session.status !== "draft_created" && (
-        <CarryForwardCard
-          items={carryForward}
-          onConfirm={handleCarryForwardConfirm}
-          onDismiss={handleCarryForwardDismiss}
-          onConfirmAll={handleCarryForwardConfirmAll}
-          disabled={loading}
-        />
+        <>
+          {/* Collapsible toggle header */}
+          <Box
+            onClick={() => setCarryForwardCollapsed(prev => !prev)}
+            sx={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              cursor: "pointer", mx: 1.5, mt: 1, mb: 0, py: 0.5, userSelect: "none",
+            }}
+          >
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, fontWeight: 500, color: COLOR.text2 }}>
+              {"\uD83D\uDCCB"} 上次记录 · {carryForward.length} 项可沿用
+            </Typography>
+            <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
+              {carryForwardCollapsed ? "\u25B4" : "\u25BE"}
+            </Typography>
+          </Box>
+          {/* Expandable content — CarryForwardCard renders its own container */}
+          {!carryForwardCollapsed && (
+            <CarryForwardCard
+              items={carryForward}
+              onConfirm={handleCarryForwardConfirm}
+              onDismiss={handleCarryForwardDismiss}
+              onConfirmAll={handleCarryForwardConfirmAll}
+              disabled={loading}
+            />
+          )}
+        </>
       )}
 
       {/* Messages */}
@@ -361,6 +437,21 @@ export default function InterviewView({ doctorId, sessionId: resumeSessionId, on
       )}
 
       {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mx: 1, mb: 0.5 }}>{error}</Alert>}
+
+      {/* Interview complete dialog — preview fields + save/diagnose */}
+      <InterviewCompleteDialog
+        open={showCompleteDialog}
+        fields={session.collected}
+        fieldCount={(() => {
+          const fields = session.progress?.fields || {};
+          const total = Object.keys(fields).length || 14;
+          const filled = Object.values(fields).filter(f => f.status !== "empty").length;
+          return { filled, total };
+        })()}
+        onSave={handleSaveOnly}
+        onSaveAndDiagnose={handleSaveAndDiagnose}
+        onClose={() => setShowCompleteDialog(false)}
+      />
     </Box>
   );
 }
