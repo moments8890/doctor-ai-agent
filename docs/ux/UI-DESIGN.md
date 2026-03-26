@@ -31,7 +31,7 @@
 | Component | File | Purpose |
 |-----------|------|---------|
 | AppButton | [`src/components/AppButton.jsx`](src/components/AppButton.jsx) | Content-level button (primary/secondary/danger) |
-| ActionButtonPair | [`src/components/ActionButtonPair.jsx`](src/components/ActionButtonPair.jsx) | Dialog cancel/confirm row |
+| CancelConfirm | [`src/components/CancelConfirm.jsx`](src/components/CancelConfirm.jsx) | Two-step cancel popup (确認\|返回) |
 
 ### Content Components
 | Component | File | Purpose |
@@ -583,12 +583,43 @@ import { TYPE, ICON, COLOR } from "../../theme";
 - **Back button** → pop to previous (browser history)
 - **Swipe** → not used (reserved for future)
 
-### Destructive Actions
+### Destructive Actions (Delete)
 
 1. **Single tap** shows the delete text button
 2. **Second tap** shows inline confirmation: "确认删除？[确认] [取消]"
 3. **Third tap** on "确认" executes deletion
 4. Never delete in fewer than 2 intentional taps
+
+### Cancel / Discard (leaving unsaved work)
+
+**Every cancel/back action that would discard user work MUST use
+`CancelConfirm`** ([`src/components/CancelConfirm.jsx`](../../frontend/web/src/components/CancelConfirm.jsx)).
+
+Two-step flow:
+1. User taps cancel/back → `CancelConfirm` popup appears
+2. User sees: "确认离开？未保存的内容将会丢失"
+3. Two buttons: **确认** (red text, left — discard and leave) | **返回** (green fill, right — continue working)
+
+```
+┌────────────────────────┐
+│     确认离开？          │
+│  未保存的内容将会丢失    │
+│                        │
+│  [确认]      [返回]     │
+│  red,left   green,right │
+└────────────────────────┘
+```
+
+**When to use:** Any cancel/back that would lose unsaved data:
+- Interview in progress → back button
+- Record edit dialog → cancel
+- Diagnosis review with unsaved decisions → back button
+- Any form with user input → cancel
+
+**When NOT to use:** Navigation that doesn't lose data:
+- Browsing between tabs (no unsaved state)
+- Back from read-only views (patient detail, record view)
+- Closing a dialog that has no user input
 
 ### Collapsible Content
 
@@ -619,6 +650,7 @@ Before submitting any UI change, verify:
 - [ ] Delete on left, actions on right — everywhere
 - [ ] Max 1 BarButton in top bar, max 2 characters
 - [ ] Deletion requires 2-tap confirmation
+- [ ] Cancel/back that discards work uses `CancelConfirm` popup (确认|返回)
 - [ ] Content has bottom padding for nav clearance (`pb: 64px`)
 - [ ] Sticky bars don't overlap with bottom nav
 - [ ] Empty sections hidden when they add no value
