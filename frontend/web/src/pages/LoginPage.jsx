@@ -49,7 +49,7 @@ export default function LoginPage() {
   const [regPasscode, setRegPasscode] = useState("");
 
   // Register doctor
-  const [inviteCode, setInviteCode] = useState("");
+  const [inviteCode, setInviteCode] = useState("WELCOME");
 
   // Register patient
   const [doctorId, setDoctorId] = useState("");
@@ -212,8 +212,8 @@ export default function LoginPage() {
               <Box component="form" onSubmit={handleRegisterDoctor} sx={{ width: "100%" }}>
                 <Stack spacing={2}>
                   <TextField label="邀请码" value={inviteCode}
-                    onChange={e => setInviteCode(e.target.value)} fullWidth size="small"
-                    helperText="请向管理员获取" />
+                    fullWidth size="small" disabled
+                    helperText="公开测试期间自动填入" />
                   <TextField label="昵称" value={regNickname}
                     onChange={e => setRegNickname(e.target.value)} fullWidth size="small"
                     helperText="用于登录和显示" />

@@ -68,8 +68,9 @@ import {
   getAdminPrompts,
   updateAdminPrompt,
 } from "../api";
+import { ThemeProvider } from "@mui/material/styles";
 import { t } from "../i18n";
-import { TYPE, ICON } from "../theme";
+import { TYPE, ICON, adminTheme } from "../theme";
 
 const ADMIN_TOKEN_KEY = "adminToken";
 
@@ -247,18 +248,22 @@ export default function AdminPage() {
     return () => onAdminAuthError(null);
   }, []);
 
-  if (DEV_MODE) return <AdminDashboard onLockout={() => {}} />;
-  if (status === "verifying") return null;
-  if (status === "locked") {
-    return (
+  // Wrap in adminTheme so MUI breakpoints use standard desktop values
+  let content;
+  if (DEV_MODE) content = <AdminDashboard onLockout={() => {}} />;
+  else if (status === "verifying") content = null;
+  else if (status === "locked") {
+    content = (
       <Navigate
         to="/admin/login"
         replace
         state={{ next: location.pathname, error: "Token 不正确，请重新输入" }}
       />
     );
+  } else {
+    content = <AdminDashboard onLockout={handleLockout} />;
   }
-  return <AdminDashboard onLockout={handleLockout} />;
+  return <ThemeProvider theme={adminTheme}>{content}</ThemeProvider>;
 }
 
 function AdminDashboard({ onLockout }) {

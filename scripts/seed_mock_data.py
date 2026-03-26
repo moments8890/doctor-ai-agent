@@ -40,6 +40,7 @@ DOCTORS = [
 INVITE_CODES = [
     dict(code="NEURO2025", doctor_id="demo_neuro", doctor_name="张伟"),
     dict(code="CARDIO888", doctor_id="demo_cardio", doctor_name="李明"),
+    dict(code="WELCOME", doctor_id=None, doctor_name=None, max_uses=999999),
 ]
 
 # ── patients ──────────────────────────────────────────────────────────────────
@@ -291,8 +292,9 @@ async def _seed_doctors(session) -> None:
                            specialty=d["specialty"], channel=d["channel"],
                            created_at=now, updated_at=now))
     for ic in INVITE_CODES:
-        session.add(InviteCode(code=ic["code"], doctor_id=ic["doctor_id"],
-                               doctor_name=ic["doctor_name"], active=True, created_at=now))
+        session.add(InviteCode(code=ic["code"], doctor_id=ic.get("doctor_id"),
+                               doctor_name=ic.get("doctor_name"), active=True,
+                               max_uses=ic.get("max_uses", 1), created_at=now))
     await session.commit()
     print(f"Created {len(DOCTORS)} doctors, {len(INVITE_CODES)} invite codes")
 

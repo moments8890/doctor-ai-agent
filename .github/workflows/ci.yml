@@ -101,11 +101,76 @@ jobs:
           path: reports/junit/integration.xml
           retention-days: 14
 
+  # ── Regression tests (deterministic extraction + workflow) ─────────
+  regression-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    needs: unit-tests
+    env:
+      ROUTING_LLM: groq
+      STRUCTURING_LLM: groq
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      ENVIRONMENT: test
+      PYTHONPATH: src
+      PATIENTS_DB_PATH: ${{ github.workspace }}/data/patients.db
+      RUN_REGRESSION: "1"
+      INTEGRATION_SERVER_URL: http://127.0.0.1:8001
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Create data dir
+        run: mkdir -p data reports/logs
+
+      - name: Start server
+        run: |
+          cd src && python -m uvicorn main:app --host 0.0.0.0 --port 8001 \
+            > "$GITHUB_WORKSPACE/reports/logs/server.log" 2>&1 &
+          echo "Waiting for server..."
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:8001/docs > /dev/null 2>&1; then
+              echo "Server ready after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:8001/docs || {
+            echo "Server failed to start. Logs:"
+            cat "$GITHUB_WORKSPACE/reports/logs/server.log"
+            exit 1
+          }
+
+      - name: Run regression tests
+        run: |
+          python -m pytest tests/regression/ -v \
+            --junitxml=reports/junit/regression.xml \
+            --tb=short
+
+      - name: Show server logs on failure
+        if: failure()
+        run: cat "$GITHUB_WORKSPACE/reports/logs/server.log" 2>/dev/null || echo "No server logs"
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-test-report
+          path: reports/junit/regression.xml
+          retention-days: 14
+
   # ── Publish test results as PR comment ─────────────────────────────
   publish-results:
     runs-on: ubuntu-latest
     if: always() && github.event_name == 'pull_request'
-    needs: [unit-tests, integration-tests]
+    needs: [unit-tests, integration-tests, regression-tests]
     permissions:
       checks: write
       pull-requests: write
@@ -121,6 +186,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: integration-test-report
+          path: reports/
+        continue-on-error: true
+
+      - name: Download regression test report
+        uses: actions/download-artifact@v4
+        with:
+          name: regression-test-report
           path: reports/
         continue-on-error: true
 

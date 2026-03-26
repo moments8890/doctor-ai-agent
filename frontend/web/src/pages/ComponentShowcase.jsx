@@ -11,8 +11,8 @@ import { TYPE, ICON, COLOR } from "../theme";
 
 // Shared components
 import AppButton from "../components/AppButton";
-// ActionButtonPair removed — unused
 import AskAIBar from "../components/AskAIBar";
+import CancelConfirm from "../components/CancelConfirm";
 import BarButton from "../components/BarButton";
 import BottomSheet from "../components/BottomSheet";
 import DetailCard from "../components/DetailCard";
@@ -133,7 +133,19 @@ export default function ComponentShowcase() {
         </Box>
       </Section>
 
-      {/* ActionButtonPair removed — unused */}
+      {/* ── CancelConfirm ── */}
+      <Section title="CancelConfirm" file="src/components/CancelConfirm.jsx">
+        <Typography sx={{ fontSize: 11, color: "#999", mb: 1 }}>Two-step cancel — prevents accidental data loss:</Typography>
+        <CancelConfirm open={false} onConfirm={() => {}} onCancel={() => {}} />
+        <Box sx={{ border: "1px solid #e5e5e5", borderRadius: "12px", p: 3, textAlign: "center" }}>
+          <Typography sx={{ fontSize: TYPE.body.fontSize, fontWeight: 600, mb: 0.5 }}>确认离开？</Typography>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mb: 2.5 }}>未保存的内容将会丢失</Typography>
+          <Box sx={{ display: "flex", gap: 1.5 }}>
+            <Box sx={{ flex: 1, py: 1, textAlign: "center", borderRadius: "4px", fontSize: TYPE.body.fontSize, color: COLOR.danger, border: `0.5px solid ${COLOR.border}` }}>确认</Box>
+            <Box sx={{ flex: 1, py: 1, textAlign: "center", borderRadius: "4px", fontSize: TYPE.body.fontSize, fontWeight: 600, color: "#fff", bgcolor: COLOR.primary }}>返回</Box>
+          </Box>
+        </Box>
+      </Section>
 
       {/* ── SubpageHeader ── */}
       <Section title="SubpageHeader" file="src/pages/doctor/SubpageHeader.jsx">
