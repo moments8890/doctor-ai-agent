@@ -55,3 +55,6 @@ train
 .env.local
 .gstack/
 tests/prompts/.env
+
+# Generated QA walkthroughs and assets
+docs/qa/

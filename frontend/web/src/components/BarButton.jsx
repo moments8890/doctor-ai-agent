@@ -2,7 +2,7 @@
  * BarButton — plain text button for SubpageHeader actions.
  */
 import { Box, CircularProgress } from "@mui/material";
-import { TYPE, COLOR } from "../theme";
+import { TYPE, BUTTON, COLOR } from "../theme";
 
 export default function BarButton({ children, onClick, disabled = false, loading = false, color = COLOR.success, sx }) {
   const isDisabled = disabled || loading;
@@ -10,10 +10,14 @@ export default function BarButton({ children, onClick, disabled = false, loading
     <Box
       onClick={!isDisabled ? onClick : undefined}
       sx={{
-        fontSize: TYPE.action.fontSize, fontWeight: TYPE.action.fontWeight, color,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: BUTTON.compactHeight,
+        fontSize: BUTTON.compactFontSize, lineHeight: BUTTON.compactLineHeight, fontWeight: TYPE.body.fontWeight, color,
         cursor: isDisabled ? "default" : "pointer",
         opacity: isDisabled ? 0.4 : 1,
-        px: 1, py: 0.5,
+        px: BUTTON.compactPaddingX, py: BUTTON.compactPaddingY,
         userSelect: "none", WebkitUserSelect: "none",
         "&:active": isDisabled ? {} : { opacity: 0.5 },
         ...sx,

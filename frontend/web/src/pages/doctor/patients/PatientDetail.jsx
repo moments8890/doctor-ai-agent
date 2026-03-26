@@ -4,8 +4,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Alert, Box, Button, CircularProgress, Dialog,
-  Stack, Typography,
+  Alert, Box, Button, CircularProgress, Stack, Typography,
 } from "@mui/material";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
@@ -17,9 +16,10 @@ import {
   exportPatientPdf, exportOutpatientReport, deletePatient,
   getPatientChat, replyToPatient,
 } from "../../../api";
-import { RECORD_TAB_GROUPS } from "./constants";
+import { RECORD_TAB_GROUPS } from "../constants";
 import RecordCard from "../../../components/RecordCard";
 import ExportSelectorDialog from "../../../components/ExportSelectorDialog";
+import ConfirmDialog from "../../../components/ConfirmDialog";
 import { TYPE, ICON, COLOR } from "../../../theme";
 
 /* ── helpers ── */
@@ -60,34 +60,21 @@ function EmptyPatientPlaceholder() {
   );
 }
 
-function DeletePatientDialog({ open, patientName, deleting, isMobile, onConfirm, onClose }) {
+function DeletePatientDialog({ open, patientName, deleting, onConfirm, onClose }) {
   return (
-    <Dialog
+    <ConfirmDialog
       open={open}
       onClose={onClose}
-      PaperProps={{ sx: isMobile
-        ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "12px 12px 0 0", width: "100%" }
-        : { borderRadius: 2, minWidth: 300 }
-      }}
-      sx={isMobile ? { "& .MuiDialog-container": { alignItems: "flex-end" } } : {}}
-    >
-      <Box sx={{ p: 2.5 }}>
-        <Typography sx={{ fontWeight: 600, fontSize: TYPE.title.fontSize, textAlign: "center", mb: 0.8 }}>删除患者</Typography>
-        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "#999", textAlign: "center", mb: 2.5, lineHeight: 1.7 }}>
-          确定删除「{patientName}」？{"\n"}所有病历和任务将一并删除，无法恢复。
-        </Typography>
-        <Box sx={{ display: "flex", gap: 1.5 }}>
-          <Box onClick={onClose}
-            sx={{ flex: 1, textAlign: "center", py: 1.3, borderRadius: "4px", bgcolor: "#f5f5f5", cursor: "pointer", fontSize: TYPE.action.fontSize, color: "#666", "&:active": { opacity: 0.7 } }}>
-            取消
-          </Box>
-          <Box onClick={!deleting ? onConfirm : undefined}
-            sx={{ flex: 1, textAlign: "center", py: 1.3, borderRadius: "4px", bgcolor: "#FA5151", cursor: deleting ? "default" : "pointer", fontSize: TYPE.action.fontSize, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
-            {deleting ? "删除中…" : "确认删除"}
-          </Box>
-        </Box>
-      </Box>
-    </Dialog>
+      onCancel={onClose}
+      onConfirm={onConfirm}
+      title="删除患者"
+      message={`确定删除「${patientName}」？\n所有病历和任务将一并删除，无法恢复。`}
+      cancelLabel="保留"
+      confirmLabel="确认删除"
+      confirmTone="danger"
+      confirmLoading={deleting}
+      confirmLoadingLabel="删除中…"
+    />
   );
 }
 
@@ -502,7 +489,7 @@ export default function PatientDetail({ patient, doctorId, onDeleted, onStartInt
         onExportReport={handleExportReport} onDeleteOpen={() => setDeleteConfirmOpen(true)}
       />
       {exportError && <Typography variant="caption" color="error.main" sx={{ display: "block", px: 2.5, mt: 0.5 }}>{exportError}</Typography>}
-      <DeletePatientDialog open={deleteConfirmOpen} patientName={patient.name} deleting={deleting} isMobile={isMobile} onConfirm={handleDelete} onClose={() => setDeleteConfirmOpen(false)} />
+      <DeletePatientDialog open={deleteConfirmOpen} patientName={patient.name} deleting={deleting} onConfirm={handleDelete} onClose={() => setDeleteConfirmOpen(false)} />
       <ExportSelectorDialog open={exportOpen} onClose={() => setExportOpen(false)} patientId={patient.id} patientName={patient.name}
         onExport={(opts) => { setExportOpen(false); handleExportPdf(); }} />
       <RecordListSection loading={loading} error={error} records={records} filteredRecords={filteredRecords} activeTab={activeTab} setActiveTab={setActiveTab} setRecords={setRecords} doctorId={doctorId} load={load} />

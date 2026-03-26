@@ -10,11 +10,11 @@ import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
 import { useNavigate } from "react-router-dom";
-import { doctorInterviewTurn, doctorInterviewConfirm, doctorInterviewCancel, doctorInterviewGetSession, confirmCarryForward, triggerDiagnosis } from "../../api";
+import { doctorInterviewTurn, doctorInterviewConfirm, doctorInterviewCancel, doctorInterviewGetSession, confirmCarryForward, triggerDiagnosis, updateInterviewField } from "../../api";
 import SubpageHeader from "../../components/SubpageHeader";
 import SuggestionChips from "../../components/SuggestionChips";
-import CarryForwardCard from "./components/CarryForwardCard";
-import InterviewCompleteDialog from "./components/InterviewCompleteDialog";
+import FieldReviewCard from "../../components/doctor/FieldReviewCard";
+import InterviewCompleteDialog from "../../components/doctor/InterviewCompleteDialog";
 import { TYPE, ICON, COLOR } from "../../theme";
 
 function nowTs() {
@@ -39,12 +39,15 @@ function MsgBubble({ msg }) {
   );
 }
 
-export default function InterviewPage({ doctorId, sessionId: resumeSessionId, patientContext, onComplete, onCancel }) {
+export default function InterviewPage({ doctorId, sessionId: resumeSessionId, patientContext, prePopulated, onComplete, onCancel }) {
   const navigate = useNavigate();
   const patientName = patientContext?.name;
-  const welcomeMsg = patientName
-    ? `正在为 ${patientName} 建立门诊记录。\n请输入症状、检查结果等信息，我会帮您结构化记录。`
-    : "病历采集模式已开启。\n请输入患者信息（姓名、性别、年龄、症状等），我会帮您结构化记录。";
+  const importFieldCount = prePopulated ? Object.values(prePopulated).filter(v => v && v.trim()).length : 0;
+  const welcomeMsg = importFieldCount > 0
+    ? `已从导入内容中识别 ${importFieldCount} 个字段，请确认或编辑。\n缺少的字段可以在下方对话中补充。`
+    : patientName
+      ? `正在为 ${patientName} 建立门诊记录。\n请输入症状、检查结果等信息，我会帮您结构化记录。`
+      : "病历采集模式已开启。\n请输入患者信息（姓名、性别、年龄、症状等），我会帮您结构化记录。";
   const [messages, setMessages] = useState([{
     role: "assistant",
     content: welcomeMsg,
@@ -75,20 +78,25 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
   const [suggestions, setSuggestions] = useState([]);
   const [selectedSuggestions, setSelectedSuggestions] = useState([]);
   const [carryForward, setCarryForward] = useState([]);
+  const [importItems, setImportItems] = useState(() => {
+    if (!prePopulated || Object.keys(prePopulated).length === 0) return [];
+    const FIELD_LABELS = {
+      department: "科室", chief_complaint: "主诉", present_illness: "现病史",
+      past_history: "既往史", allergy_history: "过敏史", personal_history: "个人史",
+      marital_reproductive: "婚育史", family_history: "家族史", physical_exam: "体格检查",
+      specialist_exam: "专科检查", auxiliary_exam: "辅助检查", diagnosis: "初步诊断",
+      treatment_plan: "治疗方案", orders_followup: "医嘱随访",
+    };
+    return Object.entries(prePopulated)
+      .filter(([, v]) => v && v.trim())
+      .map(([field, value]) => ({ field, label: FIELD_LABELS[field] || field, value }));
+  });
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
-  const [carryForwardCollapsed, setCarryForwardCollapsed] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => { inputRef.current?.focus(); }, []);
-
-  // Auto-collapse carry-forward section when all items have been acted on
-  useEffect(() => {
-    if (carryForward.length === 0) {
-      setCarryForwardCollapsed(true);
-    }
-  }, [carryForward]);
 
   // Resume existing session from chat — load collected data and show progress
   useEffect(() => {
@@ -164,6 +172,30 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
         break;
       }
     }
+  }
+
+  function handleImportConfirm(field) {
+    setImportItems(prev => prev.filter(item => item.field !== field));
+  }
+
+  async function handleImportEdit(field, newValue) {
+    if (!session.sessionId) return;
+    try {
+      const data = await updateInterviewField(session.sessionId, doctorId, field, newValue);
+      setSession(prev => ({
+        ...prev,
+        progress: data.progress,
+        status: data.status,
+        collected: data.collected || prev.collected,
+      }));
+      setImportItems(prev => prev.filter(item => item.field !== field));
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  function handleImportConfirmAll() {
+    setImportItems([]);
   }
 
   async function handleSend() {
@@ -336,35 +368,37 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
         })()}
       </Box>
 
+      {/* Import preview card — fields extracted from photo/PDF/text import */}
+      {importItems.length > 0 && session.status !== "draft_created" && (
+        <FieldReviewCard
+          title="已从导入提取"
+          subtitle={`${importItems.length} 项待确认`}
+          items={importItems}
+          confirmLabel="确认"
+          dismissLabel="编辑"
+          confirmAllLabel="全部确认"
+          onConfirm={handleImportConfirm}
+          onEdit={handleImportEdit}
+          onConfirmAll={handleImportConfirmAll}
+          editable
+          disabled={loading}
+        />
+      )}
+
       {/* Carry-forward card — prior record fields for one-tap confirmation */}
       {carryForward.length > 0 && session.status !== "draft_created" && (
-        <>
-          {/* Collapsible toggle header */}
-          <Box
-            onClick={() => setCarryForwardCollapsed(prev => !prev)}
-            sx={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              cursor: "pointer", mx: 1.5, mt: 1, mb: 0, py: 0.5, userSelect: "none",
-            }}
-          >
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize, fontWeight: 500, color: COLOR.text2 }}>
-              {"\uD83D\uDCCB"} 上次记录 · {carryForward.length} 项可沿用
-            </Typography>
-            <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
-              {carryForwardCollapsed ? "\u25B4" : "\u25BE"}
-            </Typography>
-          </Box>
-          {/* Expandable content — CarryForwardCard renders its own container */}
-          {!carryForwardCollapsed && (
-            <CarryForwardCard
-              items={carryForward}
-              onConfirm={handleCarryForwardConfirm}
-              onDismiss={handleCarryForwardDismiss}
-              onConfirmAll={handleCarryForwardConfirmAll}
-              disabled={loading}
-            />
-          )}
-        </>
+        <FieldReviewCard
+          title={`上次记录${carryForward[0]?.source_date ? ` (${carryForward[0].source_date})` : ""}`}
+          subtitle={`${carryForward.length} 项可沿用`}
+          items={carryForward}
+          confirmLabel="沿用"
+          dismissLabel="忽略"
+          confirmAllLabel="全部沿用"
+          onConfirm={handleCarryForwardConfirm}
+          onDismiss={handleCarryForwardDismiss}
+          onConfirmAll={handleCarryForwardConfirmAll}
+          disabled={loading}
+        />
       )}
 
       {/* Messages */}

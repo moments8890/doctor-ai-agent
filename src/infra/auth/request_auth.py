@@ -39,11 +39,14 @@ def resolve_doctor_id_from_auth_or_fallback(
             if not doctor_id:
                 raise HTTPException(status_code=401, detail="Token missing doctor_id")
             return str(doctor_id)
-        except HTTPException:
+        except HTTPException as exc:
             if is_production():
                 raise
-            # non-production: expected — fall through to insecure fallback below
-            logging.getLogger("auth").debug("[Auth] token validation failed (dev)")
+            # non-production: JWT present but failed — log the reason
+            logging.getLogger("auth").warning(
+                "[Auth] JWT present but verification failed (dev): %s — falling back to candidate_doctor_id=%s",
+                exc.detail, candidate_doctor_id,
+            )
 
     if _allow_insecure_doctor_id_fallback(fallback_env_flag):
         resolved = (candidate_doctor_id or "").strip() or default_doctor_id

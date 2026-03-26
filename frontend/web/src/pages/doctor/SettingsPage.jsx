@@ -6,10 +6,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Alert, Box, Button, CircularProgress, Dialog, Stack, TextField, Typography,
+  Alert, Box, CircularProgress, Stack, TextField, Typography,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import LogoutIcon from "@mui/icons-material/Logout";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
@@ -19,17 +18,18 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import { getDoctorProfile, updateDoctorProfile, getTemplateStatus, uploadTemplate, deleteTemplate, getKnowledgeItems, deleteKnowledgeItem, addKnowledgeItem } from "../../api";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
-import AddIcon from "@mui/icons-material/Add";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import EmptyState from "../../components/EmptyState";
 import SectionLabel from "../../components/SectionLabel";
 import BarButton from "../../components/BarButton";
 import DetailCard from "../../components/DetailCard";
-import AskAIBar from "../../components/AskAIBar";
+import AppButton from "../../components/AppButton";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import PageSkeleton from "../../components/PageSkeleton";
+import SheetDialog from "../../components/SheetDialog";
 import { useDoctorStore } from "../../store/doctorStore";
-import { SPECIALTY_OPTIONS } from "./components/constants";
+import { SPECIALTY_OPTIONS } from "./constants";
 import { TYPE, ICON } from "../../theme";
 
 function SettingsRow({ icon, label, sublabel, onClick, danger }) {
@@ -49,68 +49,111 @@ function SettingsRow({ icon, label, sublabel, onClick, danger }) {
   );
 }
 
-function NameDialog({ open, isMobile, nameInput, nameSaving, nameError, onChange, onSave, onClose }) {
+function NameDialog({ open, nameInput, nameSaving, nameError, onChange, onSave, onClose }) {
   return (
-    <Dialog open={open} onClose={onClose}
-      PaperProps={{ sx: isMobile ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "12px 12px 0 0", width: "100%" } : { borderRadius: 2, minWidth: 300 } }}
-      sx={isMobile ? { "& .MuiDialog-container": { alignItems: "flex-end" } } : {}}>
-      <Box sx={{ p: 2.5 }}>
-        <Typography sx={{ fontWeight: 600, fontSize: TYPE.action.fontSize, mb: 0.5, color: "#333" }}>设置昵称</Typography>
-        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#999", mb: 2 }}>AI 助手将用此姓名称呼您，例如「好的，张医生」</Typography>
-        <TextField fullWidth size="small" placeholder="请输入您的姓名（如：张伟）"
-          value={nameInput} onChange={(e) => onChange(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") onSave(); }}
-          autoFocus sx={{ mb: nameError ? 0.5 : 2 }} />
-        {nameError && <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#FA5151", mb: 1.5 }}>{nameError}</Typography>}
-        <Box sx={{ display: "flex", gap: 1.5 }}>
-          <Box onClick={onClose}
-            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: 1.5, bgcolor: "#f5f5f5", cursor: "pointer", fontSize: TYPE.body.fontSize, color: "#666", "&:active": { opacity: 0.7 } }}>
+    <SheetDialog
+      open={open}
+      onClose={onClose}
+      title="设置昵称"
+      subtitle="AI 助手将用此姓名称呼您，例如「好的，张医生」"
+      desktopMaxWidth={360}
+      footer={
+        <Box sx={{ display: "grid", gap: 0.75, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+          <AppButton variant="secondary" size="md" fullWidth onClick={onClose}>
             取消
-          </Box>
-          <Box onClick={!nameSaving ? onSave : undefined}
-            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: 1.5, bgcolor: "#07C160", cursor: nameSaving ? "default" : "pointer", fontSize: TYPE.heading.fontSize, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
-            {nameSaving ? "保存中…" : "保存"}
-          </Box>
+          </AppButton>
+          <AppButton
+            variant="primary"
+            size="md"
+            fullWidth
+            disabled={nameSaving}
+            loading={nameSaving}
+            loadingLabel="保存中…"
+            onClick={onSave}
+          >
+            保存
+          </AppButton>
         </Box>
-      </Box>
-    </Dialog>
+      }
+    >
+      <TextField
+        fullWidth
+        size="small"
+        placeholder="请输入您的姓名（如：张伟）"
+        value={nameInput}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter") onSave(); }}
+        autoFocus
+        sx={{ mt: 0.5 }}
+      />
+      {nameError ? (
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#FA5151", mt: 0.75 }}>
+          {nameError}
+        </Typography>
+      ) : null}
+    </SheetDialog>
   );
 }
 
-function SpecialtyDialog({ open, isMobile, specialtyInput, specialtySaving, specialtyError, onChange, onSave, onClose }) {
+function SpecialtyDialog({ open, specialtyInput, specialtySaving, specialtyError, onChange, onSave, onClose }) {
   return (
-    <Dialog open={open} onClose={onClose}
-      PaperProps={{ sx: isMobile ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "12px 12px 0 0", width: "100%" } : { borderRadius: 2, minWidth: 320 } }}
-      sx={isMobile ? { "& .MuiDialog-container": { alignItems: "flex-end" } } : {}}>
-      <Box sx={{ p: 2.5 }}>
-        <Typography sx={{ fontWeight: 600, fontSize: TYPE.action.fontSize, mb: 2, color: "#333" }}>科室专业</Typography>
-        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.8, mb: 2 }}>
-          {SPECIALTY_OPTIONS.map((s) => (
-            <Box key={s} onClick={() => onChange(s)}
-              sx={{ px: 1.4, py: 0.4, borderRadius: "4px", cursor: "pointer", fontSize: TYPE.secondary.fontSize,
-                bgcolor: specialtyInput === s ? "#07C160" : "#f2f2f2",
-                color: specialtyInput === s ? "#fff" : "#555",
-                fontWeight: specialtyInput === s ? 600 : 400 }}>
-              {s}
-            </Box>
-          ))}
-        </Box>
-        <TextField fullWidth size="small" placeholder="或直接输入科室名称"
-          value={specialtyInput} onChange={(e) => onChange(e.target.value)}
-          sx={{ mb: specialtyError ? 0.5 : 2 }} />
-        {specialtyError && <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#FA5151", mb: 1.5 }}>{specialtyError}</Typography>}
-        <Box sx={{ display: "flex", gap: 1.5 }}>
-          <Box onClick={onClose}
-            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: 1.5, bgcolor: "#f5f5f5", cursor: "pointer", fontSize: TYPE.body.fontSize, color: "#666", "&:active": { opacity: 0.7 } }}>
+    <SheetDialog
+      open={open}
+      onClose={onClose}
+      title="科室专业"
+      desktopMaxWidth={380}
+      footer={
+        <Box sx={{ display: "grid", gap: 0.75, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+          <AppButton variant="secondary" size="md" fullWidth onClick={onClose}>
             取消
-          </Box>
-          <Box onClick={!specialtySaving ? onSave : undefined}
-            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: 1.5, bgcolor: "#07C160", cursor: specialtySaving ? "default" : "pointer", fontSize: TYPE.heading.fontSize, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
-            {specialtySaving ? "保存中…" : "保存"}
-          </Box>
+          </AppButton>
+          <AppButton
+            variant="primary"
+            size="md"
+            fullWidth
+            disabled={specialtySaving}
+            loading={specialtySaving}
+            loadingLabel="保存中…"
+            onClick={onSave}
+          >
+            保存
+          </AppButton>
         </Box>
+      }
+    >
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.8, mt: 0.5, mb: 2 }}>
+        {SPECIALTY_OPTIONS.map((s) => (
+          <Box
+            key={s}
+            onClick={() => onChange(s)}
+            sx={{
+              px: 1.4,
+              py: 0.5,
+              borderRadius: "999px",
+              cursor: "pointer",
+              fontSize: TYPE.secondary.fontSize,
+              bgcolor: specialtyInput === s ? "#07C160" : "#f2f2f2",
+              color: specialtyInput === s ? "#fff" : "#555",
+              fontWeight: specialtyInput === s ? 600 : 400,
+            }}
+          >
+            {s}
+          </Box>
+        ))}
       </Box>
-    </Dialog>
+      <TextField
+        fullWidth
+        size="small"
+        placeholder="或直接输入科室名称"
+        value={specialtyInput}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {specialtyError ? (
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#FA5151", mt: 0.75 }}>
+          {specialtyError}
+        </Typography>
+      ) : null}
+    </SheetDialog>
   );
 }
 
@@ -133,7 +176,6 @@ const STANDARD_TEMPLATE_FIELDS = [
 
 function TemplateStatusCard({ loading, status }) {
   const [previewOpen, setPreviewOpen] = useState(false);
-  const showDefault = !loading && !status?.has_template;
 
   return (
     <>
@@ -168,36 +210,32 @@ function TemplateStatusCard({ loading, status }) {
         </Box>
       </Box>
 
-      {/* Standard template preview dialog */}
-      <Dialog open={previewOpen} onClose={() => setPreviewOpen(false)}
-        PaperProps={{ sx: { borderRadius: "6px", maxWidth: 400, mx: 2 } }}>
-        <Box sx={{ p: 2.5 }}>
-          <Typography sx={{ fontWeight: 600, fontSize: TYPE.action.fontSize, color: "#1A1A1A", mb: 0.5 }}>
-            门诊病历标准格式
-          </Typography>
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#999", mb: 2 }}>
-            卫医政发〔2010〕11号《病历书写基本规范》
-          </Typography>
-          <Box sx={{ maxHeight: 400, overflowY: "auto" }}>
-            {STANDARD_TEMPLATE_FIELDS.map((f, i) => (
-              <Box key={f.key} sx={{ py: 1, borderTop: i > 0 ? "0.5px solid #f0f0f0" : "none" }}>
-                <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#1A1A1A", fontWeight: 500 }}>
-                  {i + 1}. {f.label}
-                </Typography>
-                <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#999", mt: 0.2 }}>
-                  {f.desc}
-                </Typography>
-              </Box>
-            ))}
-          </Box>
-          <Box sx={{ mt: 2, textAlign: "center" }}>
-            <Box onClick={() => setPreviewOpen(false)}
-              sx={{ fontSize: TYPE.body.fontSize, color: "#1B6EF3", cursor: "pointer", py: 0.5, "&:active": { opacity: 0.6 } }}>
-              知道了
+      <SheetDialog
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        title="门诊病历标准格式"
+        subtitle="卫医政发〔2010〕11号《病历书写基本规范》"
+        desktopMaxWidth={400}
+        mobileMaxHeight="78vh"
+        footer={
+          <AppButton variant="primary" size="md" fullWidth onClick={() => setPreviewOpen(false)}>
+            知道了
+          </AppButton>
+        }
+      >
+        <Box sx={{ maxHeight: 400, overflowY: "auto" }}>
+          {STANDARD_TEMPLATE_FIELDS.map((f, i) => (
+            <Box key={f.key} sx={{ py: 1, borderTop: i > 0 ? "0.5px solid #f0f0f0" : "none" }}>
+              <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#1A1A1A", fontWeight: 500 }}>
+                {i + 1}. {f.label}
+              </Typography>
+              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#999", mt: 0.2 }}>
+                {f.desc}
+              </Typography>
             </Box>
-          </Box>
+          ))}
         </Box>
-      </Dialog>
+      </SheetDialog>
     </>
   );
 }
@@ -262,6 +300,7 @@ function useTemplateState(doctorId) {
 
 function TemplateSubpage({ doctorId, onBack, isMobile }) {
   const { status, loading, uploading, deleting, msg, setMsg, fileRef, handleUpload, handleDelete } = useTemplateState(doctorId);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
@@ -270,7 +309,7 @@ function TemplateSubpage({ doctorId, onBack, isMobile }) {
         <SectionLabel>当前模板</SectionLabel>
         <TemplateStatusCard loading={loading} status={status} />
         <SectionLabel sx={{ pt: 0.5 }}>操作</SectionLabel>
-        <TemplateActions status={status} uploading={uploading} deleting={deleting} fileRef={fileRef} onDelete={handleDelete} />
+        <TemplateActions status={status} uploading={uploading} deleting={deleting} fileRef={fileRef} onDelete={() => setDeleteConfirmOpen(true)} />
         {msg.text && (
           <Box sx={{ mx: 2, mt: 1.5 }}>
             <Alert severity={msg.type || "info"} onClose={() => setMsg({ type: "", text: "" })}>{msg.text}</Alert>
@@ -284,6 +323,19 @@ function TemplateSubpage({ doctorId, onBack, isMobile }) {
         </Box>
         <input ref={fileRef} type="file" hidden accept=".pdf,.docx,.doc,.txt,image/jpeg,image/png,image/webp" onChange={handleUpload} />
       </Box>
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onCancel={() => setDeleteConfirmOpen(false)}
+        onConfirm={async () => { setDeleteConfirmOpen(false); await handleDelete(); }}
+        title="删除模板"
+        message="删除后将恢复国家卫生部 2010 年标准格式。"
+        cancelLabel="保留"
+        confirmLabel="确认删除"
+        confirmTone="danger"
+        confirmLoading={deleting}
+        confirmLoadingLabel="删除中…"
+      />
     </Box>
   );
 }
@@ -418,326 +470,79 @@ function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
 
       </Box>
 
-      {/* Help dialog with examples */}
-      <Dialog
+      <SheetDialog
         open={helpOpen}
         onClose={() => setHelpOpen(false)}
-        PaperProps={{ sx: { borderRadius: "6px", minWidth: 280, maxWidth: 340 } }}
-      >
-        <Box sx={{ p: 2.5 }}>
-          <Typography sx={{ fontWeight: 600, fontSize: TYPE.action.fontSize, color: "#1A1A1A", mb: 1.5 }}>
-            {catDef.label} — 示例
-          </Typography>
-          {catDef.examples.map((ex, i) => (
-            <Box key={i} sx={{ bgcolor: "#f7f7f7", borderRadius: "4px", p: 1.5, mb: 1 }}>
-              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "#333", lineHeight: 1.6 }}>{ex}</Typography>
-            </Box>
-          ))}
-          <Button
-            fullWidth
-            size="small"
-            onClick={() => setHelpOpen(false)}
-            sx={{ mt: 1, color: "#1B6EF3", textTransform: "none" }}
-          >
+        title={`${catDef.label} · 示例`}
+        desktopMaxWidth={360}
+        mobileMaxHeight="76vh"
+        footer={
+          <AppButton variant="primary" size="md" fullWidth onClick={() => setHelpOpen(false)}>
             知道了
-          </Button>
-        </Box>
-      </Dialog>
+          </AppButton>
+        }
+      >
+        {catDef.examples.map((ex, i) => (
+          <Box key={i} sx={{ bgcolor: "#f7f7f7", borderRadius: "4px", p: 1.5, mb: i < catDef.examples.length - 1 ? 1 : 0 }}>
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "#333", lineHeight: 1.6 }}>{ex}</Typography>
+          </Box>
+        ))}
+      </SheetDialog>
     </Box>
   );
 }
 
-function KnowledgeSubpage({ doctorId, onBack, isMobile, urlSubId }) {
+function KnowledgeDeleteDialog({ open, onClose, onConfirm }) {
+  return (
+    <ConfirmDialog
+      open={open}
+      onClose={onClose}
+      onCancel={onClose}
+      onConfirm={onConfirm}
+      title="确认删除"
+      message="删除后该知识将不再影响 AI 行为，确定要删除吗？"
+      cancelLabel="保留"
+      confirmLabel="删除"
+      confirmTone="danger"
+    />
+  );
+}
+
+function KnowledgeSubpageWrapper({ doctorId, onBack, isMobile, urlSubId }) {
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
-  const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [expandedCat, setExpandedCat] = useState(null);
-  // URL-driven subpage: "new" or knowledgeItem detail
-  const [detailItem, setDetailItem] = useState(null);
-  const subpage = (urlSubId === "new" || urlSubId === "add") ? "new" : (urlSubId ? "detail" : null);
-
-  // Sync URL detail ID → detailItem from loaded items
-  useEffect(() => {
-    if (urlSubId && urlSubId !== "new" && urlSubId !== "add" && items.length > 0 && !detailItem) {
-      const found = items.find(i => String(i.id) === urlSubId);
-      if (found) setDetailItem(found);
-    }
-  }, [urlSubId, items, detailItem]);
 
   const load = useCallback(() => {
     setLoading(true);
-    Promise.all([
-      getKnowledgeItems(doctorId),
-      Promise.resolve({ cases: [] }),
-    ]).then(([kData, cData]) => {
-      setItems(Array.isArray(kData) ? kData : (kData.items || []));
-      setCases(Array.isArray(cData) ? cData : (cData.cases || []));
-    }).catch((e) => setError(e.message || "加载失败"))
+    getKnowledgeItems(doctorId)
+      .then((data) => setItems(Array.isArray(data) ? data : (data.items || [])))
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, [doctorId]);
   useEffect(() => { load(); }, [load]);
 
-  const grouped = useMemo(() => {
-    const groups = {};
-    KNOWLEDGE_CATEGORIES.forEach((c) => { groups[c.key] = []; });
-    items.forEach((item) => {
-      const cat = item.category || "custom";
-      if (!groups[cat]) groups[cat] = [];
-      groups[cat].push(item);
-    });
-    return groups;
-  }, [items]);
-
-  const [deleteConfirm, setDeleteConfirm] = useState(null); // itemId to confirm
+  // URL-driven: "new" subpage for adding
+  if (urlSubId === "new" || urlSubId === "add") {
+    return <AddKnowledgeSubpage doctorId={doctorId} onBack={() => { navigate("/doctor/settings/knowledge"); load(); }} isMobile={isMobile} />;
+  }
 
   async function handleDelete(itemId) {
-    setDeleteConfirm(null);
     try {
       await deleteKnowledgeItem(doctorId, itemId);
       setItems((prev) => prev.filter((i) => i.id !== itemId));
-      // If deleting from detail view, go back to list
-      if (detailItem?.id === itemId) { setDetailItem(null); navigate("/doctor/settings/knowledge"); }
-    } catch (e) {
-      setError(e.message || "删除失败");
-    }
+    } catch {}
   }
 
-  function formatDate(dateStr) {
-    if (!dateStr) return "";
-    const d = new Date(dateStr);
-    return `${d.getMonth() + 1}月${d.getDate()}日`;
-  }
-
-  function sourceBadge(source) {
-    const isAuto = source === "agent_auto" || source === "AI学习";
-    return (
-      <Box sx={{
-        display: "inline-flex", px: 0.8, py: 0.2, borderRadius: "4px", fontSize: TYPE.micro.fontSize, fontWeight: 500, flexShrink: 0,
-        bgcolor: isAuto ? "#E8F5E9" : "#E8F0FE",
-        color: isAuto ? "#07C160" : "#1B6EF3",
-      }}>
-        {isAuto ? "AI学习" : "医生"}
-      </Box>
-    );
-  }
-
-  // Subpage routing (URL-driven)
-  if (subpage === "new") {
-    return <AddKnowledgeSubpage doctorId={doctorId} onBack={() => { navigate("/doctor/settings/knowledge"); load(); }} isMobile={isMobile} />;
-  }
-  if (subpage === "detail" && detailItem) {
-    const ki = detailItem;
-    const catLabel = KNOWLEDGE_CATEGORIES.find((c) => c.key === ki.category)?.label || "自定义";
-    return (
-      <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
-        <SubpageHeader title="知识详情" onBack={isMobile ? () => navigate("/doctor/settings/knowledge") : undefined}
-          right={<BarButton onClick={() => setDeleteConfirm(ki.id)} color="#FA5151">删除</BarButton>}
-        />
-        <Box sx={{ flex: 1, overflowY: "auto" }}>
-          <DetailCard
-            title={catLabel}
-            fields={[
-              { label: "来源", value: ki.source === "agent_auto" || ki.source === "AI学习" ? "AI学习" : "医生" },
-              { label: "添加时间", value: formatDate(ki.created_at) },
-              { label: "AI引用", value: `${ki.reference_count || 0}次` },
-            ]}
-            note={ki.text || ki.content}
-            noteLabel="内容"
-          />
-        </Box>
-
-        <Dialog open={deleteConfirm != null} onClose={() => setDeleteConfirm(null)}
-          PaperProps={{ sx: { borderRadius: "6px", minWidth: 280 } }}>
-          <Box sx={{ p: 2.5 }}>
-            <Typography sx={{ fontWeight: 600, fontSize: TYPE.action.fontSize, color: "#1A1A1A", mb: 1 }}>确认删除</Typography>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "#666", mb: 2 }}>删除后该知识将不再影响AI行为，确定要删除吗？</Typography>
-            <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
-              <Button size="small" onClick={() => setDeleteConfirm(null)} sx={{ color: "#666" }}>取消</Button>
-              <Button size="small" onClick={() => handleDelete(deleteConfirm)}
-                sx={{ color: "#E8533F", fontWeight: 600 }}>删除</Button>
-            </Box>
-          </Box>
-        </Dialog>
-      </Box>
-    );
-  }
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
-      <SubpageHeader
-        title="知识库"
-        onBack={isMobile ? onBack : undefined}
-        right={
-          <BarButton onClick={() => navigate("/doctor/settings/knowledge/new")}>添加</BarButton>
-        }
-      />
-      <Box sx={{ flex: 1, overflowY: "auto" }}>
-        {error && <Alert severity="error" onClose={() => setError("")} sx={{ mx: 2, mt: 1.5 }}>{error}</Alert>}
-
-        {loading && <Box sx={{ textAlign: "center", py: 4 }}><CircularProgress size={20} /></Box>}
-
-        {!loading && (
-          <>
-            {/* Summary line */}
-            <Box sx={{ px: 2, py: 1.5 }}>
-              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#999" }}>
-                共 {items.length} 条知识{cases.length > 0 ? ` · ${cases.length} 个病例` : ""}
-              </Typography>
-            </Box>
-
-            {/* Category accordions */}
-            <Box sx={{ bgcolor: "#fff", borderTop: "0.5px solid #E5E5E5", borderBottom: "0.5px solid #E5E5E5" }}>
-              {KNOWLEDGE_CATEGORIES.map((cat, catIdx) => {
-                const catItems = grouped[cat.key] || [];
-                const isExpanded = expandedCat === cat.key;
-                return (
-                  <Box key={cat.key}>
-                    {/* Category header row */}
-                    <Box
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setExpandedCat(isExpanded ? null : cat.key)}
-                      onKeyDown={(e) => { if (e.key === "Enter") setExpandedCat(isExpanded ? null : cat.key); }}
-                      sx={{
-                        display: "flex", alignItems: "center", px: 2, py: 1.5,
-                        cursor: "pointer", userSelect: "none", WebkitTapHighlightColor: "transparent",
-                        borderTop: catIdx > 0 ? "0.5px solid #f0f0f0" : "none",
-                        "&:active": { bgcolor: "#f9f9f9" },
-                      }}
-                    >
-                      <Box sx={{ flex: 1 }}>
-                        <Typography component="span" sx={{ fontSize: TYPE.body.fontSize, color: "#1A1A1A", fontWeight: 500 }}>
-                          {cat.label}
-                        </Typography>
-                        <Typography component="span" sx={{ fontSize: TYPE.caption.fontSize, color: "#999", ml: 0.8 }}>
-                          ({catItems.length})
-                        </Typography>
-                      </Box>
-                      {isExpanded
-                        ? <ExpandMoreIcon sx={{ fontSize: ICON.lg, color: "#999" }} />
-                        : <ChevronRightIcon sx={{ fontSize: ICON.lg, color: "#ccc" }} />
-                      }
-                    </Box>
-
-                    {/* Expanded items */}
-                    {isExpanded && catItems.length > 0 && catItems.map((item) => (
-                      <Box
-                        key={item.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => { setDetailItem(item); navigate(`/doctor/settings/knowledge/${item.id}`); }}
-                        sx={{
-                          display: "flex", alignItems: "center", px: 2, py: 1.2, pl: 3,
-                          borderTop: "0.5px solid #f0f0f0",
-                          bgcolor: "#fafafa",
-                          cursor: "pointer", userSelect: "none",
-                          "&:active": { bgcolor: "#f0f0f0" },
-                        }}
-                      >
-                        <Box sx={{ flex: 1, minWidth: 0, mr: 1 }}>
-                          <Typography
-                            sx={{
-                              fontSize: TYPE.secondary.fontSize, color: "#333", lineHeight: 1.5,
-                              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                            }}
-                          >
-                            {item.text || item.content}
-                          </Typography>
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mt: 0.3 }}>
-                            {sourceBadge(item.source)}
-                            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#999" }}>
-                              {formatDate(item.created_at)}
-                            </Typography>
-                            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#999" }}>
-                              · AI引用 {item.reference_count || 0}次
-                            </Typography>
-                          </Box>
-                        </Box>
-                        <ChevronRightIcon sx={{ fontSize: ICON.lg, color: "#ccc", flexShrink: 0 }} />
-                      </Box>
-                    ))}
-                    {isExpanded && catItems.length === 0 && (
-                      <Box sx={{ px: 3, py: 1.5, borderTop: "0.5px solid #f0f0f0", bgcolor: "#fafafa" }}>
-                        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#999" }}>暂无条目</Typography>
-                      </Box>
-                    )}
-                  </Box>
-                );
-              })}
-            </Box>
-
-            {/* Case library section */}
-            {cases.length > 0 && (
-              <>
-                <SectionLabel>病例库</SectionLabel>
-                <Box sx={{ bgcolor: "#fff", borderTop: "0.5px solid #E5E5E5", borderBottom: "0.5px solid #E5E5E5" }}>
-                  {cases.map((c, i) => (
-                    <Box
-                      key={c.id}
-                      onClick={() => setSubpage({ caseId: c.id })}
-                      sx={{
-                        display: "flex", alignItems: "center", px: 2, py: 1.5,
-                        cursor: "pointer",
-                        borderTop: i > 0 ? "0.5px solid #f0f0f0" : "none",
-                        "&:active": { bgcolor: "#f9f9f9" },
-                      }}
-                    >
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#1A1A1A", fontWeight: 500, mb: 0.3 }}>
-                          {c.chief_complaint || "未知主诉"}{c.final_diagnosis ? ` → ${c.final_diagnosis}` : ""}
-                        </Typography>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                          {c.confidence_status === "confirmed" && (
-                            <Box sx={{
-                              display: "inline-flex", px: 0.8, py: 0.2, borderRadius: "4px", fontSize: TYPE.micro.fontSize,
-                              fontWeight: 500, bgcolor: "#E8F5E9", color: "#07C160",
-                            }}>
-                              已确认
-                            </Box>
-                          )}
-                          {c.reference_count != null && (
-                            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#999" }}>
-                              AI引用 {c.reference_count}次
-                            </Typography>
-                          )}
-                        </Box>
-                      </Box>
-                      <ChevronRightIcon sx={{ fontSize: ICON.lg, color: "#ccc", flexShrink: 0 }} />
-                    </Box>
-                  ))}
-                </Box>
-              </>
-            )}
-
-            {/* Empty state */}
-            {items.length === 0 && cases.length === 0 && (
-              <EmptyState
-                icon={<MenuBookOutlinedIcon />}
-                title="暂无知识条目"
-                subtitle="点击右上角「添加」开始构建您的知识库"
-              />
-            )}
-
-            <Box sx={{ height: 24 }} />
-          </>
-        )}
-      </Box>
-
-      {/* Delete confirmation dialog */}
-      <Dialog open={deleteConfirm != null} onClose={() => setDeleteConfirm(null)}
-        PaperProps={{ sx: { borderRadius: "6px", minWidth: 280 } }}>
-        <Box sx={{ p: 2.5 }}>
-          <Typography sx={{ fontWeight: 600, fontSize: TYPE.action.fontSize, color: "#1A1A1A", mb: 1 }}>确认删除</Typography>
-          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "#666", mb: 2 }}>删除后该知识将不再影响AI行为，确定要删除吗？</Typography>
-          <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
-            <Button size="small" onClick={() => setDeleteConfirm(null)} sx={{ color: "#666" }}>取消</Button>
-            <Button size="small" onClick={() => handleDelete(deleteConfirm)}
-              sx={{ color: "#E8533F", fontWeight: 600 }}>删除</Button>
-          </Box>
-        </Box>
-      </Dialog>
-    </Box>
+    <KnowledgeSubpage
+      items={items}
+      categories={KNOWLEDGE_CATEGORIES}
+      loading={loading}
+      onBack={isMobile ? onBack : undefined}
+      onAdd={() => navigate("/doctor/settings/knowledge/new")}
+      onDelete={handleDelete}
+    />
   );
 }
 
@@ -842,7 +647,7 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
   const mobileSubpage = isMobile && subpage === "template" ? (
     <TemplateSubpage doctorId={doctorId} onBack={goBack} isMobile />
   ) : isMobile && subpage === "knowledge" ? (
-    <KnowledgeSubpage doctorId={doctorId} onBack={goBack} isMobile urlSubId={urlSubId} />
+    <KnowledgeSubpageWrapper doctorId={doctorId} onBack={goBack} isMobile urlSubId={urlSubId} />
   ) : isMobile && subpage === "about" ? (
     <AboutSubpage onBack={goBack} isMobile />
   ) : null;
@@ -874,9 +679,9 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
         </>
       )}
       <Box sx={{ height: 32 }} />
-      <NameDialog open={nameDialogOpen} isMobile={isMobile} nameInput={nameInput} nameSaving={nameSaving} nameError={nameError}
+      <NameDialog open={nameDialogOpen} nameInput={nameInput} nameSaving={nameSaving} nameError={nameError}
         onChange={setNameInput} onSave={handleSaveName} onClose={() => setNameDialogOpen(false)} />
-      <SpecialtyDialog open={specialtyDialogOpen} isMobile={isMobile} specialtyInput={specialtyInput} specialtySaving={specialtySaving}
+      <SpecialtyDialog open={specialtyDialogOpen} specialtyInput={specialtyInput} specialtySaving={specialtySaving}
         specialtyError={specialtyError} onChange={setSpecialtyInput} onSave={handleSaveSpecialty} onClose={() => setSpecialtyDialogOpen(false)} />
     </Box>
   );
@@ -884,7 +689,7 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
   const detailContent = subpage === "template" ? (
     <TemplateSubpage doctorId={doctorId} onBack={goBack} />
   ) : subpage === "knowledge" ? (
-    <KnowledgeSubpage doctorId={doctorId} onBack={goBack} />
+    <KnowledgeSubpageWrapper doctorId={doctorId} onBack={goBack} isMobile />
   ) : subpage === "about" ? (
     <AboutSubpage onBack={goBack} />
   ) : null;

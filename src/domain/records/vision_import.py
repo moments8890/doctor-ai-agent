@@ -100,12 +100,8 @@ async def _extract_fields(text: str) -> Dict[str, str]:
     from utils.prompt_loader import get_prompt_sync
 
     template = get_prompt_sync("intent/doctor-extract")
-    prompt = template.format(
-        name="未知",
-        gender="未知",
-        age="未知",
-        transcript=text,
-    )
+    # Use .replace() not .format() — prompt contains JSON braces that break .format()
+    prompt = template.replace("{name}", "未知").replace("{gender}", "未知").replace("{age}", "未知").replace("{transcript}", text)
 
     result = await structured_call(
         response_model=DoctorExtractResult,

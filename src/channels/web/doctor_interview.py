@@ -37,6 +37,13 @@ class InterviewConfirmResponse(BaseModel):
     pending_id: Optional[str] = None
 
 
+class FieldUpdateRequest(BaseModel):
+    session_id: str
+    doctor_id: str = ""
+    field: str
+    value: str
+
+
 # ── Helpers ──────────────────────────────────────────────────────
 
 async def _resolve_doctor_id(doctor_id: str, authorization: Optional[str]) -> str:
@@ -47,14 +54,26 @@ async def _resolve_doctor_id(doctor_id: str, authorization: Optional[str]) -> st
     )
 
 
-async def _verify_session(session_id: str, doctor_id: str):
+async def _verify_session(session_id: str, doctor_id: str, *, candidate_doctor_id: str = ""):
+    """Load and verify session ownership.
+
+    Checks resolved doctor_id (from JWT) first. If that doesn't match but
+    candidate_doctor_id (from request body) does, use that instead — handles
+    the case where JWT resolution fell back to a default but the body has
+    the correct value.
+    """
     from domain.patients.interview_session import load_session
     session = await load_session(session_id)
     if session is None:
         raise HTTPException(404, "Interview session not found")
-    if session.doctor_id != doctor_id:
-        raise HTTPException(403, "Not your session")
-    return session
+    if session.doctor_id == doctor_id:
+        return session
+    # JWT-resolved ID didn't match — check if the body candidate matches
+    if candidate_doctor_id and session.doctor_id == candidate_doctor_id.strip():
+        log(f"[interview] session matched via candidate_doctor_id={candidate_doctor_id!r} (JWT resolved to {doctor_id!r})")
+        return session
+    log(f"[interview] session owner mismatch: session.doctor_id={session.doctor_id!r} != resolved={doctor_id!r} candidate={candidate_doctor_id!r}")
+    raise HTTPException(403, "Not your session")
 
 
 def _build_clinical_text(collected: Dict[str, str]) -> str:
@@ -140,7 +159,7 @@ async def get_session_state(
 ):
     """Get current session state — used when resuming from chat."""
     resolved_doctor = await _resolve_doctor_id(doctor_id, authorization)
-    session = await _verify_session(session_id, resolved_doctor)
+    session = await _verify_session(session_id, resolved_doctor, candidate_doctor_id=doctor_id)
 
     progress_info = _compute_progress(session.collected)
     last_reply = ""
@@ -180,7 +199,7 @@ async def interview_turn_endpoint(
     if not session_id:
         return await _first_turn(resolved_doctor, merged_text)
     else:
-        session = await _verify_session(session_id, resolved_doctor)
+        session = await _verify_session(session_id, resolved_doctor, candidate_doctor_id=doctor_id)
         return await _continue_turn(session, merged_text)
 
 
@@ -237,6 +256,37 @@ async def _continue_turn(session, text):
     )
 
 
+# ── PATCH /field ─────────────────────────────────────────────────
+
+@router.patch("/field", response_model=DoctorInterviewResponse)
+async def update_interview_field(
+    body: FieldUpdateRequest,
+    authorization: Optional[str] = Header(default=None),
+):
+    """Update a single field value in an interview session (for inline-edit)."""
+    resolved_doctor = await _resolve_doctor_id(body.doctor_id, authorization)
+    session = await _verify_session(body.session_id, resolved_doctor, candidate_doctor_id=body.doctor_id)
+
+    # Validate field name
+    if body.field not in FIELD_LABELS:
+        raise HTTPException(status_code=422, detail=f"Unknown field: {body.field}")
+
+    # Update the field
+    session.collected[body.field] = body.value
+    from domain.patients.interview_session import save_session
+    await save_session(session)
+
+    # Return updated progress
+    progress_info = _compute_progress(session.collected)
+    return DoctorInterviewResponse(
+        session_id=session.id,
+        reply="",
+        collected=session.collected,
+        patient_id=session.patient_id,
+        **progress_info,
+    )
+
+
 # ── POST /carry-forward-confirm ──────────────────────────────────
 
 class CarryForwardConfirmRequest(BaseModel):
@@ -261,7 +311,7 @@ async def carry_forward_confirm_endpoint(
 ):
     """Confirm or dismiss a carry-forward field — no LLM round-trip needed."""
     resolved_doctor = await _resolve_doctor_id(body.doctor_id, authorization)
-    session = await _verify_session(body.session_id, resolved_doctor)
+    session = await _verify_session(body.session_id, resolved_doctor, candidate_doctor_id=body.doctor_id)
 
     if body.field not in _CARRY_FORWARD_FIELDS:
         raise HTTPException(422, f"Field '{body.field}' is not a carry-forward field")
@@ -303,7 +353,7 @@ async def interview_confirm_endpoint(
     batch extraction output for better field routing accuracy.
     """
     resolved_doctor = await _resolve_doctor_id(doctor_id, authorization)
-    session = await _verify_session(session_id, resolved_doctor)
+    session = await _verify_session(session_id, resolved_doctor, candidate_doctor_id=doctor_id)
 
     if session.status not in ("interviewing",):
         raise HTTPException(400, f"Session status is '{session.status}', cannot confirm")
@@ -445,7 +495,7 @@ async def interview_cancel_endpoint(
     authorization: Optional[str] = Header(default=None),
 ):
     resolved_doctor = await _resolve_doctor_id(doctor_id, authorization)
-    session = await _verify_session(session_id, resolved_doctor)
+    session = await _verify_session(session_id, resolved_doctor, candidate_doctor_id=doctor_id)
 
     from domain.patients.interview_session import save_session
     from db.models.interview_session import InterviewStatus

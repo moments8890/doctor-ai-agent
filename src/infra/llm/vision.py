@@ -22,6 +22,12 @@ _PROVIDERS = {
         "model_env": "OLLAMA_VISION_MODEL",
         "model_default": "qwen3-vl:8b",
     },
+    "groq": {
+        "base_url": "https://api.groq.com/openai/v1",
+        "api_key_env": "GROQ_API_KEY",
+        "model_env": "GROQ_VISION_MODEL",
+        "model_default": "meta-llama/llama-4-scout-17b-16e-instruct",
+    },
     "gemini": {
         "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
         "api_key_env": "GEMINI_API_KEY",

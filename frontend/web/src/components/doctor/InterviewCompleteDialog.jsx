@@ -9,8 +9,10 @@
  *  - onSaveAndDiagnose: () => void
  *  - onClose: () => void
  */
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from "@mui/material";
-import { COLOR } from "../../../theme";
+import { Box, Typography } from "@mui/material";
+import { TYPE, COLOR } from "../../theme";
+import AppButton from "../AppButton";
+import SheetDialog from "../SheetDialog";
 
 const FIELD_LABELS = {
   chief_complaint: "主诉",
@@ -35,65 +37,45 @@ export default function InterviewCompleteDialog({ open, fields, fieldCount, onSa
     .map(([key, label]) => ({ key, label, value: fields[key] }));
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontSize: 16, fontWeight: 600, pb: 0.5 }}>
-        病历预览
-      </DialogTitle>
-
-      <DialogContent sx={{ pt: 1 }}>
+    <SheetDialog
+      open={open}
+      onClose={onClose}
+      title="病历预览"
+      desktopMaxWidth={420}
+      mobileMaxHeight="75vh"
+      contentSx={{ pb: 1, maxHeight: "60vh" }}
+      footer={
+        <Box sx={{ display: "grid", gap: 0.75, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+          <AppButton variant="secondary" size="md" fullWidth onClick={onClose}>返回</AppButton>
+          <AppButton variant="secondary" size="md" fullWidth onClick={onSave}>保存</AppButton>
+          <Box sx={{ gridColumn: "1 / -1" }}>
+            <AppButton variant="primary" size="md" fullWidth onClick={onSaveAndDiagnose}>保存并诊断 →</AppButton>
+          </Box>
+        </Box>
+      }
+    >
         {entries.length === 0 && (
-          <Typography sx={{ fontSize: 13, color: COLOR.text4, py: 2, textAlign: "center" }}>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, py: 2, textAlign: "center" }}>
             暂无提取到的字段
           </Typography>
         )}
 
         {entries.map(({ key, label, value }) => (
           <Box key={key} sx={{ py: 0.8, borderBottom: `1px solid ${COLOR.borderLight}` }}>
-            <Typography sx={{ fontSize: 12, color: COLOR.text4, mb: 0.3 }}>
+            <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 0.3 }}>
               {label}
             </Typography>
-            <Typography sx={{ fontSize: 13, color: COLOR.text2, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
               {value}
             </Typography>
           </Box>
         ))}
 
-        {/* Field count */}
         {fieldCount && (
-          <Typography variant="caption" sx={{ display: "block", mt: 1, color: COLOR.text4, textAlign: "right" }}>
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, textAlign: "right", mt: 1 }}>
             已提取 {fieldCount.filled}/{fieldCount.total} 字段
           </Typography>
         )}
-      </DialogContent>
-
-      <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
-        <Button
-          onClick={onClose}
-          sx={{ fontSize: 14, color: COLOR.text4 }}
-        >
-          返回
-        </Button>
-        <Button
-          variant="outlined"
-          onClick={onSave}
-          sx={{ flex: 1, fontSize: 14, borderColor: COLOR.border, color: COLOR.text2 }}
-        >
-          保存
-        </Button>
-        <Button
-          variant="contained"
-          disableElevation
-          onClick={onSaveAndDiagnose}
-          sx={{
-            flex: 1, fontSize: 14,
-            bgcolor: "#07C160",
-            color: "#fff",
-            "&:hover": { bgcolor: "#06ad56" },
-          }}
-        >
-          保存并诊断 →
-        </Button>
-      </DialogActions>
-    </Dialog>
+    </SheetDialog>
   );
 }

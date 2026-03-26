@@ -8,13 +8,14 @@ import LoginPage from "./pages/LoginPage";
 import PatientPage from "./pages/patient/PatientPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import ComponentShowcasePage from "./pages/admin/ComponentShowcasePage";
-import DoctorComponentShowcase from "./pages/doctor/components/Showcase";
-import MockPages from "./pages/doctor/components/MockPages";
+import DoctorComponentShowcase from "./components/doctor/Showcase";
+import MockPages from "./pages/doctor/debug/MockPages";
 import { useDoctorStore } from "./store/doctorStore";
 import { setWebToken, onAuthExpired } from "./api";
 import { isMiniApp } from "./utils/env";
 
 import Box from "@mui/material/Box";
+import { MOBILE_FRAME_CONTAINER_ID } from "./utils/dialogContainer";
 
 const DEV_MODE = import.meta.env.DEV; // true in `vite dev`, false in `vite build`
 
@@ -51,7 +52,7 @@ function MobileFrame({ children }) {
           // so they stay inside the frame instead of viewport
           transform: "translateZ(0)",
         },
-      }}>
+      }} id={MOBILE_FRAME_CONTAINER_ID}>
         {children}
       </Box>
     </Box>
@@ -127,13 +128,13 @@ export default function App() {
       <Route path="/admin/login" element={<AdminLoginPage />} />
       <Route path="/admin" element={<AdminPage />} />
       <Route path="/admin/:section" element={<AdminPage />} />
-      {/* Debug — full desktop layout */}
-      <Route path="/debug" element={<DebugPage />} />
-      <Route path="/debug/:section" element={<DebugPage />} />
-      {/* Component showcases — in MobileFrame */}
+      {/* Component showcases — specific routes BEFORE debug wildcard */}
       <Route path="/debug/components" element={<MobileFrame><ComponentShowcasePage /></MobileFrame>} />
       <Route path="/debug/doctor-components" element={<MobileFrame><DoctorComponentShowcase /></MobileFrame>} />
       <Route path="/debug/doctor-pages" element={<MockPages />} />
+      {/* Debug — wildcard AFTER specific routes */}
+      <Route path="/debug" element={<DebugPage />} />
+      <Route path="/debug/:section" element={<DebugPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

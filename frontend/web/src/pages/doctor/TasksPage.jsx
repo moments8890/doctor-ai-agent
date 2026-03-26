@@ -6,8 +6,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Alert, Box, Button, CircularProgress, Dialog, DialogActions,
-  DialogContent, DialogTitle, MenuItem, Stack, TextField, Typography,
+  Alert, Box, CircularProgress, MenuItem, Stack, TextField, Typography,
 } from "@mui/material";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
@@ -16,7 +15,7 @@ import EventRepeatOutlinedIcon from "@mui/icons-material/EventRepeatOutlined";
 import MedicationOutlinedIcon from "@mui/icons-material/MedicationOutlined";
 import BiotechOutlinedIcon from "@mui/icons-material/BiotechOutlined";
 import { getTasks, patchTask, postponeTask, createTask, getPatients, getTaskRecord } from "../../api";
-import { TASK_TYPE_LABEL, TASK_FILTER_CHIPS } from "./components/constants";
+import { TASK_TYPE_LABEL, TASK_FILTER_CHIPS } from "./constants";
 import AskAIBar from "../../components/AskAIBar";
 import AppButton from "../../components/AppButton";
 import BarButton from "../../components/BarButton";
@@ -25,6 +24,8 @@ import ListCard from "../../components/ListCard";
 import NewItemCard from "../../components/NewItemCard";
 import PageSkeleton from "../../components/PageSkeleton";
 import SectionLabel from "../../components/SectionLabel";
+import ConfirmDialog from "../../components/ConfirmDialog";
+import SheetDialog from "../../components/SheetDialog";
 // ReviewDetail removed — was returning null
 function ReviewDetail() { return null; }
 import SubpageHeader from "../../components/SubpageHeader";
@@ -213,56 +214,40 @@ function TaskDetailView({ task, doctorId, isMobile, onBack, onComplete, onPostpo
 
 /* ── Dialogs ── */
 
-function PostponeDialog({ open, isMobile, postponeDate, onChange, onClose, onConfirm }) {
+function PostponeDialog({ open, postponeDate, onChange, onClose, onConfirm }) {
   return (
-    <Dialog open={open} onClose={onClose}
-      PaperProps={{ sx: isMobile
-        ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "12px 12px 0 0", width: "100%" }
-        : { borderRadius: 2, minWidth: 240 }
-      }}
-      sx={isMobile ? { "& .MuiDialog-container": { alignItems: "flex-end" } } : {}}>
-      <Box sx={{ p: 2.5 }}>
-        <Typography sx={{ fontWeight: 600, fontSize: TYPE.action.fontSize, mb: 1.5, color: "#333" }}>选择新到期日</Typography>
-        <TextField type="date" size="small" fullWidth InputLabelProps={{ shrink: true }}
-          value={postponeDate} onChange={(e) => onChange(e.target.value)} sx={{ mb: 2 }} />
-        <Box sx={{ display: "flex", gap: 1.5 }}>
-          <Box onClick={onClose}
-            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: "4px", bgcolor: "#f5f5f5", cursor: "pointer", fontSize: TYPE.body.fontSize, color: "#666", "&:active": { opacity: 0.7 } }}>
-            取消
-          </Box>
-          <Box onClick={postponeDate ? onConfirm : undefined}
-            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: "4px", bgcolor: postponeDate ? "#07C160" : "#e0e0e0", cursor: postponeDate ? "pointer" : "default", fontSize: TYPE.heading.fontSize, color: "#fff", fontWeight: 600, "&:active": postponeDate ? { opacity: 0.7 } : {} }}>
-            确认
-          </Box>
+    <SheetDialog
+      open={open}
+      onClose={onClose}
+      title="选择新到期日"
+      desktopMinWidth={280}
+      desktopMaxWidth={320}
+      footer={
+        <Box sx={{ display: "grid", gap: 0.5, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+          <AppButton variant="secondary" size="md" fullWidth onClick={onClose}>取消</AppButton>
+          <AppButton variant="primary" size="md" fullWidth disabled={!postponeDate} onClick={onConfirm}>确认</AppButton>
         </Box>
-      </Box>
-    </Dialog>
+      }
+    >
+        <TextField type="date" size="small" fullWidth InputLabelProps={{ shrink: true }}
+          value={postponeDate} onChange={(e) => onChange(e.target.value)} />
+    </SheetDialog>
   );
 }
 
-function CancelDialog({ open, isMobile, onClose, onConfirm }) {
+function CancelDialog({ open, onClose, onConfirm }) {
   return (
-    <Dialog open={open} onClose={onClose}
-      PaperProps={{ sx: isMobile
-        ? { position: "fixed", bottom: 0, left: 0, right: 0, m: 0, borderRadius: "12px 12px 0 0", width: "100%" }
-        : { borderRadius: 2, minWidth: 240 }
-      }}
-      sx={isMobile ? { "& .MuiDialog-container": { alignItems: "flex-end" } } : {}}>
-      <Box sx={{ p: 2.5 }}>
-        <Typography sx={{ fontWeight: 600, fontSize: TYPE.action.fontSize, mb: 0.5, textAlign: "center", color: "#333" }}>取消任务</Typography>
-        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "#999", mb: 2.5, textAlign: "center" }}>此任务将被标记为已取消</Typography>
-        <Box sx={{ display: "flex", gap: 1.5 }}>
-          <Box onClick={onClose}
-            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: "4px", bgcolor: "#f5f5f5", cursor: "pointer", fontSize: TYPE.body.fontSize, color: "#666", "&:active": { opacity: 0.7 } }}>
-            保留
-          </Box>
-          <Box onClick={onConfirm}
-            sx={{ flex: 1, textAlign: "center", py: 1.2, borderRadius: "4px", bgcolor: "#FA5151", cursor: "pointer", fontSize: TYPE.heading.fontSize, color: "#fff", fontWeight: 600, "&:active": { opacity: 0.7 } }}>
-            确认取消
-          </Box>
-        </Box>
-      </Box>
-    </Dialog>
+    <ConfirmDialog
+      open={open}
+      onClose={onClose}
+      onCancel={onClose}
+      onConfirm={onConfirm}
+      title="取消任务"
+      message="此任务将被标记为已取消"
+      cancelLabel="保留"
+      confirmLabel="确认取消"
+      confirmTone="danger"
+    />
   );
 }
 
@@ -514,9 +499,9 @@ export default function TasksPage({ doctorId, urlSubpage, urlSubId }) {
         listPane={listPane}
         detailPane={detailContent}
       />
-      <PostponeDialog open={Boolean(postponeOpen)} isMobile={isMobile} postponeDate={postponeDate} onChange={setPostponeDate}
+      <PostponeDialog open={Boolean(postponeOpen)} postponeDate={postponeDate} onChange={setPostponeDate}
         onClose={() => { setPostponeOpen(false); setPostponeTaskId(null); setPostponeDate(""); }} onConfirm={handleConfirmPostpone} />
-      <CancelDialog open={Boolean(cancelConfirmId)} isMobile={isMobile} onClose={() => setCancelConfirmId(null)}
+      <CancelDialog open={Boolean(cancelConfirmId)} onClose={() => setCancelConfirmId(null)}
         onConfirm={() => { handleStatus(cancelConfirmId, "cancelled"); setCancelConfirmId(null); }} />
     </>
   );

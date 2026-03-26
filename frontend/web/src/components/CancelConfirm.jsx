@@ -16,8 +16,7 @@
  *  - onConfirm: () => void — executes the cancel/discard
  *  - onCancel: () => void — dismisses popup, user continues working
  */
-import { Box, Dialog, Typography } from "@mui/material";
-import { TYPE, COLOR } from "../theme";
+import ConfirmDialog from "./ConfirmDialog";
 
 export default function CancelConfirm({
   open,
@@ -29,40 +28,16 @@ export default function CancelConfirm({
   onCancel,
 }) {
   return (
-    <Dialog open={open} onClose={onCancel} maxWidth="xs" fullWidth
-      PaperProps={{ sx: { borderRadius: "12px", mx: 3 } }}>
-      <Box sx={{ p: 3, textAlign: "center" }}>
-        <Typography sx={{ fontSize: TYPE.body.fontSize, fontWeight: 600, mb: 0.5 }}>
-          {title}
-        </Typography>
-        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mb: 2.5 }}>
-          {message}
-        </Typography>
-        <Box sx={{ display: "flex", gap: 1.5 }}>
-          <Box
-            onClick={onConfirm}
-            sx={{
-              flex: 1, py: 1, textAlign: "center", borderRadius: "4px",
-              fontSize: TYPE.body.fontSize, color: COLOR.danger,
-              border: `0.5px solid ${COLOR.border}`,
-              cursor: "pointer", "&:active": { opacity: 0.6 },
-            }}
-          >
-            {confirmLabel}
-          </Box>
-          <Box
-            onClick={onCancel}
-            sx={{
-              flex: 1, py: 1, textAlign: "center", borderRadius: "4px",
-              fontSize: TYPE.body.fontSize, fontWeight: 600, color: COLOR.white,
-              bgcolor: COLOR.primary,
-              cursor: "pointer", "&:active": { opacity: 0.7 },
-            }}
-          >
-            {cancelLabel}
-          </Box>
-        </Box>
-      </Box>
-    </Dialog>
+    <ConfirmDialog
+      open={open}
+      onClose={onCancel}
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+      title={title}
+      message={message}
+      confirmLabel={confirmLabel}
+      cancelLabel={cancelLabel}
+      confirmTone="danger"
+    />
   );
 }

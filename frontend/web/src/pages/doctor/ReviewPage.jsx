@@ -15,16 +15,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Box, Button, Skeleton, TextField, Typography } from "@mui/material";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import {
   getSuggestions, decideSuggestion, addSuggestion,
   triggerDiagnosis, finalizeReview, getTaskRecord,
 } from "../../api";
 import { useDoctorStore } from "../../store/doctorStore";
 import SubpageHeader from "../../components/SubpageHeader";
-import DiagnosisCard from "./components/DiagnosisCard";
-import { STRUCTURED_FIELD_LABELS } from "./components/constants";
+import DiagnosisCard from "../../components/doctor/DiagnosisCard";
+import { STRUCTURED_FIELD_LABELS } from "./constants";
 import { TYPE, COLOR } from "../../theme";
 
 /* ── NHC field order for collapsible record summary ────────────────────────── */
@@ -57,57 +55,55 @@ function RecordSummary({ record }) {
   const date = record.created_at ? record.created_at.slice(0, 10) : "";
 
   return (
-    <Box sx={{ mx: 1.5, mt: 1.5, bgcolor: COLOR.white, borderRadius: 1.5, border: `1px solid ${COLOR.borderLight}`, overflow: "hidden" }}>
+    <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
       <Box
         onClick={() => setExpanded((v) => !v)}
-        sx={{ display: "flex", alignItems: "center", px: 1.5, py: 1, cursor: "pointer", "&:active": { bgcolor: COLOR.surface } }}
+        sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1.5, px: 2, py: 1.25, cursor: "pointer", "&:active": { bgcolor: COLOR.surface } }}
       >
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.3 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
             {patientName && (
-              <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text2 }}>
+              <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500, color: COLOR.text1 }}>
                 {patientName}
               </Typography>
             )}
             {date && (
-              <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, fontFamily: "monospace" }}>
+              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
                 {date}
               </Typography>
             )}
           </Box>
           {!expanded && (
             <Typography sx={{
-              fontSize: TYPE.secondary.fontSize, color: COLOR.text3,
+              mt: 0.45, fontSize: TYPE.secondary.fontSize, color: COLOR.text3, lineHeight: 1.5,
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             }}>
               {preview}
             </Typography>
           )}
         </Box>
-        {expanded
-          ? <ExpandLessIcon sx={{ fontSize: 18, color: COLOR.text4, flexShrink: 0, ml: 1 }} />
-          : <ExpandMoreIcon sx={{ fontSize: 18, color: COLOR.text4, flexShrink: 0, ml: 1 }} />}
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, whiteSpace: "nowrap", pt: 0.2 }}>
+          {expanded ? "收起 ▴" : "展开 ▾"}
+        </Typography>
       </Box>
 
       {expanded && filledFields.length > 0 && (
-        <Box sx={{ px: 1.5, pb: 1.5 }}>
-          <Box sx={{ bgcolor: "#fafafa", borderRadius: 1, border: `1px solid ${COLOR.borderLight}`, overflow: "hidden" }}>
-            {filledFields.map((key, i) => (
-              <Box key={key} sx={{ display: "flex", gap: 1, px: 1.2, py: 0.7, borderTop: i > 0 ? `1px solid ${COLOR.borderLight}` : "none" }}>
-                <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, fontWeight: 500, flexShrink: 0, minWidth: 56 }}>
-                  {STRUCTURED_FIELD_LABELS[key]}
-                </Typography>
-                <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
-                  {structured[key]}
-                </Typography>
-              </Box>
-            ))}
-          </Box>
+        <Box>
+          {filledFields.map((key) => (
+            <Box key={key} sx={{ display: "flex", gap: 1, px: 2, py: 1, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
+              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, fontWeight: 500, flexShrink: 0, minWidth: 56 }}>
+                {STRUCTURED_FIELD_LABELS[key]}
+              </Typography>
+              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+                {structured[key]}
+              </Typography>
+            </Box>
+          ))}
         </Box>
       )}
 
       {expanded && filledFields.length === 0 && record.content && (
-        <Box sx={{ px: 1.5, pb: 1.5 }}>
+        <Box sx={{ px: 2, py: 1, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
           <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
             {record.content}
           </Typography>
@@ -121,7 +117,7 @@ function RecordSummary({ record }) {
 
 function LoadingSkeleton() {
   return (
-    <Box sx={{ px: 1.5, pt: 2 }}>
+    <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 1.5 }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
         <Skeleton variant="circular" width={20} height={20} animation="wave" />
         <Typography sx={{ fontSize: TYPE.heading.fontSize, color: COLOR.text3 }}>
@@ -137,19 +133,19 @@ function LoadingSkeleton() {
 
 /* ── Inline add form ───────────────────────────────────────────────────────── */
 
-function InlineAddForm({ section, onSubmit, onCancel }) {
+function InlineAddForm({ onSubmit, onCancel }) {
   const [content, setContent] = useState("");
   const [detail, setDetail] = useState("");
 
   return (
-    <Box sx={{ mx: 1.5, mt: 1, p: 1.5, bgcolor: COLOR.white, borderRadius: 1, border: `1px dashed ${COLOR.border}` }}>
+    <Box sx={{ px: 2, pb: 1.25, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
       <TextField
         fullWidth
         size="small"
         placeholder="建议内容"
         value={content}
         onChange={(e) => setContent(e.target.value)}
-        sx={{ mb: 1, "& .MuiInputBase-root": { fontSize: TYPE.secondary.fontSize } }}
+        sx={{ mt: 1.1, mb: 0.8, "& .MuiInputBase-root": { fontSize: TYPE.secondary.fontSize, bgcolor: "#fafafa" } }}
       />
       <TextField
         fullWidth
@@ -160,21 +156,20 @@ function InlineAddForm({ section, onSubmit, onCancel }) {
         multiline
         minRows={1}
         maxRows={3}
-        sx={{ mb: 1, "& .MuiInputBase-root": { fontSize: TYPE.caption.fontSize } }}
+        sx={{ mb: 0.8, "& .MuiInputBase-root": { fontSize: TYPE.caption.fontSize, bgcolor: "#fafafa" } }}
       />
-      <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
+      <Box sx={{ display: "flex", gap: 2.2, justifyContent: "flex-end" }}>
         <Box
           onClick={onCancel}
-          sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, cursor: "pointer", px: 1.5, py: 0.5, "&:active": { opacity: 0.6 } }}
+          sx={{ minHeight: 32, display: "inline-flex", alignItems: "center", fontSize: TYPE.body.fontSize, color: COLOR.text4, cursor: "pointer", "&:active": { opacity: 0.6 } }}
         >
           取消
         </Box>
         <Box
           onClick={() => { if (content.trim()) onSubmit(content.trim(), detail.trim()); }}
           sx={{
-            fontSize: TYPE.caption.fontSize, color: COLOR.white, bgcolor: COLOR.primary,
-            borderRadius: "4px", cursor: "pointer", px: 1.5, py: 0.5,
-            opacity: content.trim() ? 1 : 0.4, "&:active": { opacity: 0.7 },
+            minHeight: 32, display: "inline-flex", alignItems: "center", fontSize: TYPE.body.fontSize, color: COLOR.primary,
+            cursor: content.trim() ? "pointer" : "default", opacity: content.trim() ? 1 : 0.35, "&:active": content.trim() ? { opacity: 0.7 } : {},
           }}
         >
           添加
@@ -196,52 +191,43 @@ function SuggestionSection({ sectionKey, label, items, expandedId, onToggle, onD
   const total = (items || []).length;
 
   return (
-    <Box sx={{ mb: 2 }}>
+    <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
       {/* Section header */}
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 1.5, mb: 0.5 }}>
-        <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text2 }}>
-          {label}
-          <Typography component="span" sx={{ fontSize: TYPE.caption.fontSize, fontWeight: 400, color: COLOR.text4, ml: 1 }}>
-            {decidedCount}/{total}
+      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1.5, px: 2, py: 1.2 }}>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500, color: COLOR.text1 }}>
+            {label}
           </Typography>
-        </Typography>
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: 0.2 }}>
+            {decidedCount}/{total} 已处理
+          </Typography>
+        </Box>
+        <Box
+          onClick={() => setAdding((prev) => !prev)}
+          sx={{ fontSize: TYPE.caption.fontSize, color: adding ? COLOR.text4 : COLOR.primary, cursor: "pointer", whiteSpace: "nowrap", pt: 0.2, "&:active": { opacity: 0.6 } }}
+        >
+          {adding ? "取消" : "添加"}
+        </Box>
       </Box>
 
-      {/* Add button / form — always on top, prominent */}
+      {/* Add button / form */}
       {adding ? (
         <InlineAddForm
-          section={sectionKey}
           onSubmit={(content, detail) => { onAdd(sectionKey, content, detail); setAdding(false); }}
           onCancel={() => setAdding(false)}
         />
-      ) : (
-        <Box
-          onClick={() => setAdding(true)}
-          sx={{
-            mx: 1.5, mb: 0.5, px: 1.5, py: 1,
-            fontSize: TYPE.body.fontSize, color: COLOR.primary, fontWeight: 500,
-            border: `1px dashed ${COLOR.primary}`, borderRadius: 1,
-            textAlign: "center",
-            cursor: "pointer", "&:active": { opacity: 0.6 },
-          }}
-        >
-          + 添加
-        </Box>
-      )}
+      ) : null}
 
       {/* Cards */}
-      <Box sx={{ mx: 1.5, borderRadius: 1, overflow: "hidden", border: items && items.length > 0 ? `0.5px solid ${COLOR.borderLight}` : "none" }}>
-        {(items || []).map((s, i) => (
-          <Box key={s.id} sx={{ borderTop: i > 0 ? `0.5px solid ${COLOR.borderLight}` : "none" }}>
-            <DiagnosisCard
-              suggestion={s}
-              expanded={expandedId === s.id}
-              onToggle={() => onToggle(s.id)}
-              onDecide={onDecide}
-            />
-          </Box>
-        ))}
-      </Box>
+      {(items || []).map((s) => (
+        <DiagnosisCard
+          key={s.id}
+          suggestion={s}
+          expanded={expandedId === s.id}
+          onToggle={() => onToggle(s.id)}
+          onDecide={onDecide}
+        />
+      ))}
     </Box>
   );
 }
@@ -398,23 +384,11 @@ export default function ReviewPage({ recordId }) {
       <SubpageHeader
         title="诊断审核"
         onBack={() => navigate(-1)}
-        right={
-          hasSuggestions ? (
-            <Box
-              onClick={handleFinalize}
-              sx={{
-                fontSize: TYPE.action.fontSize, fontWeight: 500, color: COLOR.primary,
-                cursor: "pointer", px: 1, "&:active": { opacity: 0.5 },
-              }}
-            >
-              {finalizing ? "提交中..." : "完成审核"}
-            </Box>
-          ) : null
-        }
+        right={null}
       />
 
       {/* Scrollable content */}
-      <Box sx={{ flex: 1, overflow: "auto", pb: hasSuggestions ? "110px" : 2 }}>
+      <Box sx={{ flex: 1, overflow: "auto", pb: hasSuggestions ? "88px" : 2 }}>
         {/* Record summary — always shown if record loaded */}
         <RecordSummary record={record} />
 
@@ -426,25 +400,22 @@ export default function ReviewPage({ recordId }) {
 
         {/* Trigger button: no suggestions, record NOT pending review */}
         {!loading && !hasSuggestions && !isPendingReview && (
-          <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
-            <Button
-              variant="outlined"
+          <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 2.25, textAlign: "center" }}>
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mb: 1 }}>
+              可生成 AI 诊断建议
+            </Typography>
+            <Box
               onClick={handleTriggerDiagnosis}
-              sx={{
-                borderColor: COLOR.primary, color: COLOR.primary,
-                fontSize: TYPE.body.fontSize, fontWeight: 500,
-                px: 3, py: 1.2, borderRadius: 2,
-                "&:hover": { borderColor: COLOR.primary, bgcolor: COLOR.primaryLight },
-              }}
+              sx={{ display: "inline-flex", alignItems: "center", minHeight: 32, fontSize: TYPE.body.fontSize, color: COLOR.primary, cursor: "pointer", "&:active": { opacity: 0.6 } }}
             >
-              诊断建议 — 请AI分析此病历
-            </Button>
+              请 AI 分析此病历
+            </Box>
           </Box>
         )}
 
         {/* Suggestion sections */}
         {hasSuggestions && (
-          <Box sx={{ mt: 2 }}>
+          <Box sx={{ pb: 1 }}>
             {SECTIONS.map((sec) => (
               <SuggestionSection
                 key={sec.key}
@@ -465,14 +436,19 @@ export default function ReviewPage({ recordId }) {
       {hasSuggestions && (
         <Box sx={{
           position: "absolute", bottom: 0, left: 0, right: 0,
-          bgcolor: COLOR.surface, borderTop: `1px solid ${COLOR.border}`,
-          px: 2, pt: 1.2, pb: 1.5,
-          paddingBottom: "calc(12px + env(safe-area-inset-bottom))",
+          bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`,
+          px: 2, pt: 0.9, pb: 1,
+          paddingBottom: "calc(8px + env(safe-area-inset-bottom))",
         }}>
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3 }}>
-              {decidedCount}/{totalCount} 已处理
-            </Typography>
+            <Box>
+              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
+                已处理
+              </Typography>
+              <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text2 }}>
+                {decidedCount}/{totalCount}
+              </Typography>
+            </Box>
             <Button
               variant="contained"
               onClick={handleFinalize}
@@ -480,7 +456,7 @@ export default function ReviewPage({ recordId }) {
               sx={{
                 bgcolor: COLOR.primary, color: COLOR.white,
                 fontSize: TYPE.body.fontSize, fontWeight: 600,
-                px: 3, py: 0.8, borderRadius: 1,
+                minHeight: 36, px: 2.2, py: 0, borderRadius: 1,
                 "&:hover": { bgcolor: COLOR.primary },
                 "&:disabled": { bgcolor: COLOR.border, color: COLOR.text4 },
               }}
@@ -488,7 +464,7 @@ export default function ReviewPage({ recordId }) {
               {finalizing ? "提交中..." : "完成审核"}
             </Button>
           </Box>
-          <Typography sx={{ fontSize: 10, color: "#ccc", textAlign: "center", mt: 0.8 }}>
+          <Typography sx={{ fontSize: 10, color: "#c0c0c0", textAlign: "center", mt: 0.6 }}>
             AI建议仅供参考
           </Typography>
         </Box>

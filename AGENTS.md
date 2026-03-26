@@ -112,7 +112,21 @@ git push gitee main
 
 ## Browser Testing
 
-For browser-based QA and interaction testing, use gstack browse:
+Two tools available — use the right one for the job:
+
+| Tool | Speed | Resolution | Best for |
+|------|-------|------------|----------|
+| **gstack browse** | ~100ms/cmd | Standard | QA flows, quick checks, most daily work |
+| **Playwright MCP (Edge)** | Slower (browser launch) | High (retina) | High-res screenshots, complex DOM interaction |
+
+**Default to gstack browse** for all QA and browser testing. It's faster and needs
+no browser installation. Only use Playwright MCP when you need high-res screenshots
+or interactions gstack browse can't handle.
+
+Playwright MCP is configured with `--browser msedge` (see plugin config). When using
+Playwright, set viewport to desktop size (`1440×900`) for admin pages.
+
+### gstack browse quick reference
 ```bash
 B=~/.claude/skills/gstack/browse/dist/browse
 $B goto http://localhost:5173
@@ -120,6 +134,21 @@ $B snapshot -i          # interactive elements
 $B screenshot /tmp/x.png
 $B console --errors
 ```
+
+### QA Screenshot Walkthrough
+
+Every QA session **must** produce a walkthrough HTML:
+
+1. Create a dated session directory: `docs/qa/YYYY-MM-DD-<feature>/`
+2. Save screenshots to `snapshots/` subdirectory
+3. Save test assets (generated images, PDFs) to `test-assets/` subdirectory
+4. Create `index.html` at session root with:
+   - Filter bar (by input type: image, text, voice, pdf, edge, frontend, bugs)
+   - Summary stats (total, pass, fail)
+   - Each test as an expandable card: status badge, category badge, title, time, details
+   - Self-contained styling (no external deps)
+5. Reference files via relative paths (`snapshots/`, `test-assets/`)
+6. Never put PNGs at `docs/qa/` root — always inside a session directory
 
 ## Codebase Review Policy
 

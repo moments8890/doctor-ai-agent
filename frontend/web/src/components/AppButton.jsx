@@ -8,14 +8,14 @@
  *
  * Sizes:
  *  - lg: detail-view primary actions (py 1.3, fontSize 15)
- *  - md: dialog buttons (py 1, fontSize 14) — default
- *  - sm: inline/field buttons (py 0.6, fontSize 13)
+ *  - md: dialog buttons (shared compact height, fontSize 14) — default
+ *  - sm: inline/field buttons (same shared compact metrics)
  *
  * For most inline actions (edit, delete), use plain text buttons instead
  * of AppButton — the app's default pattern is colored text, not filled buttons.
  */
 import { Box, CircularProgress } from "@mui/material";
-import { TYPE, COLOR } from "../theme";
+import { TYPE, BUTTON, COLOR } from "../theme";
 
 const VARIANT_STYLES = {
   primary:   { bgcolor: COLOR.primary, color: COLOR.white, fontWeight: 600 },
@@ -24,9 +24,9 @@ const VARIANT_STYLES = {
 };
 
 const SIZE_STYLES = {
-  lg: { py: 1.3, px: 2.5, fontSize: TYPE.action.fontSize, borderRadius: "4px" },
-  md: { py: 1,   px: 2,   fontSize: TYPE.body.fontSize, borderRadius: "4px" },
-  sm: { py: 0.6, px: 1.5, fontSize: TYPE.secondary.fontSize, borderRadius: "4px" },
+  lg: { minHeight: BUTTON.largeHeight, py: 1.1, px: 2.5, fontSize: TYPE.action.fontSize, borderRadius: "4px", lineHeight: 1.25 },
+  md: { minHeight: BUTTON.compactHeight, py: BUTTON.compactPaddingY, px: BUTTON.compactPaddingX, fontSize: BUTTON.compactFontSize, borderRadius: BUTTON.compactRadius, lineHeight: BUTTON.compactLineHeight },
+  sm: { minHeight: BUTTON.compactHeight, py: BUTTON.compactPaddingY, px: BUTTON.compactPaddingX, fontSize: BUTTON.compactFontSize, borderRadius: BUTTON.compactRadius, lineHeight: BUTTON.compactLineHeight },
 };
 
 export default function AppButton({
@@ -45,6 +45,7 @@ export default function AppButton({
       sx={{
         display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 0.8,
         textAlign: "center", cursor: isDisabled ? "default" : "pointer",
+        whiteSpace: "normal", wordBreak: "break-word", maxWidth: "100%",
         opacity: isDisabled ? 0.5 : 1,
         userSelect: "none", WebkitUserSelect: "none",
         "&:active": isDisabled ? {} : { opacity: 0.7 },

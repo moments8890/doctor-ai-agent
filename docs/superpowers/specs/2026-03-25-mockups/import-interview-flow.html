@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pre-Populate Interview Flow — Mockup</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Noto Sans SC', sans-serif;
+    background: #1a1a1a;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 32px;
+    padding: 32px;
+  }
+
+  /* ── Phone frame ── */
+  .phone {
+    width: 375px;
+    height: 720px;
+    background: #ededed;
+    border-radius: 28px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    display: flex;
+    flex-direction: column;
+  }
+  .phone-label {
+    text-align: center;
+    color: #ccc;
+    font-size: 13px;
+    margin-bottom: 8px;
+    font-weight: 500;
+  }
+  .screen-wrap { display: flex; flex-direction: column; align-items: center; }
+
+  /* ── Shared bars ── */
+  .topbar {
+    height: 48px;
+    background: #ededed;
+    border-bottom: 0.5px solid #d9d9d9;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    flex-shrink: 0;
+  }
+  .topbar .back { font-size: 20px; color: #1a1a1a; cursor: pointer; margin-right: 8px; }
+  .topbar .title { font-size: 16px; font-weight: 600; color: #1a1a1a; flex: 1; }
+  .topbar .action { font-size: 15px; color: #07C160; cursor: pointer; }
+
+  .bottombar {
+    height: 52px;
+    background: #f7f7f7;
+    border-top: 0.5px solid #d9d9d9;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .bottombar input {
+    flex: 1;
+    height: 36px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 0 12px;
+    font-size: 14px;
+    background: #fff;
+    outline: none;
+  }
+  .bottombar .btn-send {
+    height: 36px;
+    padding: 0 16px;
+    background: #07C160;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .bottombar .icon-btn {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    color: #666; font-size: 20px; cursor: pointer;
+  }
+
+  /* ── Content area ── */
+  .content { flex: 1; overflow-y: auto; padding: 12px 16px; }
+
+  /* ── Chat bubbles ── */
+  .bubble-row { display: flex; margin-bottom: 12px; }
+  .bubble-row.ai { justify-content: flex-start; }
+  .bubble-row.user { justify-content: flex-end; }
+  .bubble {
+    max-width: 75%;
+    padding: 10px 14px;
+    border-radius: 4px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #1a1a1a;
+  }
+  .bubble-row.ai .bubble { background: #fff; }
+  .bubble-row.user .bubble { background: #95EC69; }
+
+  /* ── Action panel (screen 1) ── */
+  .action-panel {
+    background: #f7f7f7;
+    border-top: 0.5px solid #d9d9d9;
+    padding: 20px 24px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+  .action-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+  .action-icon {
+    width: 52px; height: 52px;
+    background: #fff;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+  }
+  .action-label { font-size: 11px; color: #666; font-weight: 500; }
+
+  /* ── Loading overlay (screen 2) ── */
+  .loading-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.45);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    z-index: 10;
+  }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 3px solid rgba(255,255,255,0.3);
+    border-top: 3px solid #fff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { color: #fff; font-size: 15px; font-weight: 500; }
+  .loading-sub { color: rgba(255,255,255,0.7); font-size: 12px; }
+
+  /* ── Import summary card (screen 3) ── */
+  .import-card {
+    background: #E7F7EE;
+    border: 1px solid #07C160;
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+  }
+  .import-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .import-card-icon {
+    width: 28px; height: 28px;
+    background: #07C160;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .import-card-title { font-size: 14px; font-weight: 600; color: #1a1a1a; }
+  .import-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .meta-tag {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 500;
+  }
+  .meta-tag.source { background: #fff; color: #07C160; border: 1px solid #07C160; }
+  .meta-tag.patient { background: #FFF7E6; color: #F59E0B; border: 1px solid #F59E0B; }
+  .meta-tag.count { background: #fff; color: #666; border: 1px solid #E5E5E5; }
+
+  .import-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .field-chip {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+  .field-chip.filled { background: #07C160; color: #fff; }
+  .field-chip.missing { background: #f0f0f0; color: #999; }
+
+  /* ── Progress bar ── */
+  .progress-bar {
+    height: 4px;
+    background: #E5E5E5;
+    border-radius: 2px;
+    margin-bottom: 16px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: #07C160;
+    border-radius: 2px;
+    transition: width 0.3s;
+  }
+
+  /* ── Pre-filled fields (screen 3) ── */
+  .field-group { margin-bottom: 14px; }
+  .field-label {
+    font-size: 12px;
+    color: #999;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .field-label .imported-badge {
+    font-size: 10px;
+    background: #E7F7EE;
+    color: #07C160;
+    padding: 0 6px;
+    border-radius: 8px;
+    font-weight: 500;
+  }
+  .field-value {
+    font-size: 14px;
+    color: #1a1a1a;
+    line-height: 1.6;
+    background: #fff;
+    padding: 10px 14px;
+    border-radius: 4px;
+    border: 1px solid #E5E5E5;
+  }
+  .field-value.editable {
+    border-color: #07C160;
+    border-style: dashed;
+  }
+  .field-value.empty {
+    color: #999;
+    font-style: italic;
+    border-style: dashed;
+    border-color: #E5E5E5;
+  }
+
+  /* ── Suggestion chips ── */
+  .suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .suggestion-chip {
+    font-size: 12px;
+    padding: 6px 14px;
+    border-radius: 16px;
+    background: #fff;
+    border: 1px solid #E5E5E5;
+    color: #333;
+    cursor: pointer;
+  }
+  .suggestion-chip:hover { border-color: #07C160; color: #07C160; }
+
+  /* ── PDF choice dialog (screen 4) ── */
+  .dialog-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+  }
+  .dialog-box {
+    width: 320px;
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .dialog-title {
+    padding: 20px 20px 12px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1a1a1a;
+  }
+  .dialog-content { padding: 0 20px 16px; }
+  .dialog-preview {
+    background: #f0f0f0;
+    border-radius: 4px;
+    padding: 12px;
+    font-size: 13px;
+    color: #666;
+    line-height: 1.8;
+    max-height: 120px;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+  .dialog-meta { font-size: 12px; color: #999; }
+  .dialog-actions {
+    padding: 12px 20px 20px;
+    display: flex;
+    gap: 10px;
+  }
+  .dialog-btn {
+    flex: 1;
+    height: 40px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .dialog-btn.secondary {
+    background: #fff;
+    border: 1px solid #E5E5E5;
+    color: #666;
+  }
+  .dialog-btn.primary {
+    background: #07C160;
+    color: #fff;
+  }
+
+  /* ── Carry-forward card ── */
+  .carry-card {
+    background: #EEF1F6;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+  }
+  .carry-title {
+    font-size: 12px;
+    color: #576B95;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .carry-field {
+    font-size: 13px;
+    color: #333;
+    margin-bottom: 4px;
+  }
+  .carry-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .carry-btn {
+    font-size: 12px;
+    padding: 4px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: none;
+    font-weight: 500;
+  }
+  .carry-btn.confirm { background: #07C160; color: #fff; }
+  .carry-btn.skip { background: #fff; border: 1px solid #E5E5E5; color: #666; }
+
+  /* ── Annotations ── */
+  .annotation {
+    position: absolute;
+    font-size: 11px;
+    color: #F59E0B;
+    background: rgba(245, 158, 11, 0.15);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  /* ── Flow arrows between phones ── */
+  .flow-arrow {
+    display: flex;
+    align-items: center;
+    color: #666;
+    font-size: 28px;
+    margin-top: 300px;
+    user-select: none;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 1: Chat with Action Panel open -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="screen-wrap">
+  <div class="phone-label">1. Action Panel — 导入入口</div>
+  <div class="phone">
+    <div class="topbar">
+      <div class="title">AI 助手</div>
+      <div class="action">清空</div>
+    </div>
+    <div class="content">
+      <div class="bubble-row ai">
+        <div class="bubble">早上好！今天有3位患者待随访。</div>
+      </div>
+      <div class="bubble-row user">
+        <div class="bubble">我要录入一个新患者的病历</div>
+      </div>
+      <div class="bubble-row ai">
+        <div class="bubble">好的，您可以拍照、上传文件，或者直接开始问诊采集。</div>
+      </div>
+    </div>
+
+    <!-- Action Panel -->
+    <div class="action-panel">
+      <div class="action-item">
+        <div class="action-icon" style="background:#E7F7EE">&#128247;</div>
+        <div class="action-label">拍照</div>
+      </div>
+      <div class="action-item">
+        <div class="action-icon" style="background:#E7F7EE">&#128444;</div>
+        <div class="action-label">相册</div>
+      </div>
+      <div class="action-item">
+        <div class="action-icon" style="background:#EEF1F6">&#128196;</div>
+        <div class="action-label">文件</div>
+      </div>
+      <div class="action-item">
+        <div class="action-icon" style="background:#EEF1F6">&#128100;</div>
+        <div class="action-label">患者档案</div>
+      </div>
+    </div>
+
+    <div class="bottombar">
+      <div class="icon-btn">&#127908;</div>
+      <input type="text" placeholder="输入消息..." disabled>
+      <div class="icon-btn" style="font-size: 18px;">&#10010;</div>
+    </div>
+  </div>
+</div>
+
+<div class="flow-arrow">&#10132;</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 2: Loading state after photo capture -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="screen-wrap">
+  <div class="phone-label">2. 识别中 — 全屏 loading</div>
+  <div class="phone">
+    <div class="topbar">
+      <div class="title">AI 助手</div>
+    </div>
+    <div class="content">
+      <div class="bubble-row ai">
+        <div class="bubble">早上好！今天有3位患者待随访。</div>
+      </div>
+      <div class="bubble-row user">
+        <div class="bubble">我要录入一个新患者的病历</div>
+      </div>
+    </div>
+    <div class="bottombar">
+      <input type="text" placeholder="输入消息..." disabled>
+    </div>
+
+    <!-- Loading overlay -->
+    <div class="loading-overlay">
+      <div class="spinner"></div>
+      <div class="loading-text">正在识别病历...</div>
+      <div class="loading-sub">图片 OCR + 字段提取</div>
+    </div>
+  </div>
+</div>
+
+<div class="flow-arrow">&#10132;</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 3: Interview Page with import summary + pre-populated fields -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="screen-wrap">
+  <div class="phone-label">3. InterviewPage — 已预填字段</div>
+  <div class="phone">
+    <div class="topbar">
+      <div class="back">&#8249;</div>
+      <div class="title">病历采集</div>
+      <div class="action">确认</div>
+    </div>
+
+    <!-- Progress bar -->
+    <div style="padding: 8px 16px 0;">
+      <div style="display:flex; justify-content:space-between; font-size:12px; color:#999; margin-bottom:4px;">
+        <span>已填 9/14 项</span>
+        <span style="color:#07C160; font-weight:500;">64%</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width: 64%"></div>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- Import summary card -->
+      <div class="import-card">
+        <div class="import-card-header">
+          <div class="import-card-icon">&#10003;</div>
+          <div class="import-card-title">已从拍照导入</div>
+        </div>
+        <div class="import-card-meta">
+          <span class="meta-tag source">&#128247; 拍照导入</span>
+          <span class="meta-tag patient">&#9888; 未关联患者</span>
+          <span class="meta-tag count">9/14 项已识别</span>
+        </div>
+        <div class="import-fields">
+          <span class="field-chip filled">科室</span>
+          <span class="field-chip filled">主诉</span>
+          <span class="field-chip filled">现病史</span>
+          <span class="field-chip filled">既往史</span>
+          <span class="field-chip filled">过敏史</span>
+          <span class="field-chip filled">体格检查</span>
+          <span class="field-chip filled">专科检查</span>
+          <span class="field-chip filled">辅助检查</span>
+          <span class="field-chip filled">初步诊断</span>
+          <span class="field-chip missing">个人史</span>
+          <span class="field-chip missing">婚育史</span>
+          <span class="field-chip missing">家族史</span>
+          <span class="field-chip missing">治疗方案</span>
+          <span class="field-chip missing">医嘱随访</span>
+        </div>
+      </div>
+
+      <!-- Pre-filled fields -->
+      <div class="field-group">
+        <div class="field-label">科室 <span class="imported-badge">已导入</span></div>
+        <div class="field-value editable">神经外科</div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">主诉 <span class="imported-badge">已导入</span></div>
+        <div class="field-value editable">头痛2周，加重伴恶心呕吐3天</div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">现病史 <span class="imported-badge">已导入</span></div>
+        <div class="field-value editable">患者2周前无明显诱因出现前额部持续性胀痛，间断发作，初未重视。3天前头痛加剧，伴恶心呕吐，非喷射性，视物稍模糊。无肢体无力、抽搐、意识障碍。</div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">辅助检查 <span class="imported-badge">已导入</span></div>
+        <div class="field-value editable">头颅MRI平扫+增强：右额叶见类圆形占位，大小约3.5×3.0cm，信号均匀，增强后均匀强化，宽基底与硬脑膜相连，脑膜尾征阳性。</div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">个人史</div>
+        <div class="field-value empty">待补充 — 可在下方对话中补充</div>
+      </div>
+
+      <!-- Suggestions for missing fields -->
+      <div class="suggestions">
+        <div class="suggestion-chip">补充个人史</div>
+        <div class="suggestion-chip">补充家族史</div>
+        <div class="suggestion-chip">全部确认</div>
+      </div>
+    </div>
+
+    <div class="bottombar">
+      <div class="icon-btn">&#127908;</div>
+      <input type="text" placeholder="补充信息或修改字段...">
+      <button class="btn-send">发送</button>
+    </div>
+  </div>
+</div>
+
+<br style="width: 100%;"><br>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 4: PDF ImportChoiceDialog (simplified 2-button) -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="screen-wrap">
+  <div class="phone-label">4. PDF 文件 — 简化选择对话框</div>
+  <div class="phone">
+    <div class="topbar">
+      <div class="title">AI 助手</div>
+    </div>
+    <div class="content">
+      <div class="bubble-row ai">
+        <div class="bubble">早上好！今天有3位患者待随访。</div>
+      </div>
+    </div>
+    <div class="bottombar">
+      <input type="text" placeholder="输入消息..." disabled>
+    </div>
+
+    <!-- PDF choice dialog -->
+    <div class="dialog-overlay">
+      <div class="dialog-box">
+        <div class="dialog-title">已提取文件内容</div>
+        <div class="dialog-content">
+          <div class="dialog-preview">
+            患者姓名：张某某，男，52岁<br>
+            主诉：头痛2周伴恶心呕吐3天<br>
+            现病史：患者2周前出现前额部持续性胀痛...<br>
+            既往史：高血压病史10年，规律服药...
+          </div>
+          <div class="dialog-meta">report_20260325.pdf · 共提取 1,247 字</div>
+        </div>
+        <div class="dialog-actions">
+          <button class="dialog-btn secondary">&#128172; 发送到聊天</button>
+          <button class="dialog-btn primary">&#128203; 导入病历</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flow-arrow">&#10132;</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 5: Interview with carry-forward -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="screen-wrap">
+  <div class="phone-label">5. 历史病史一键确认</div>
+  <div class="phone">
+    <div class="topbar">
+      <div class="back">&#8249;</div>
+      <div class="title">病历采集</div>
+      <div class="action">确认</div>
+    </div>
+
+    <div style="padding: 8px 16px 0;">
+      <div style="display:flex; justify-content:space-between; font-size:12px; color:#999; margin-bottom:4px;">
+        <span>已填 11/14 项</span>
+        <span style="color:#07C160; font-weight:500;">79%</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width: 79%"></div>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- Carry-forward card -->
+      <div class="carry-card">
+        <div class="carry-title">&#128203; 可从上次就诊记录中导入</div>
+        <div class="carry-field"><strong>过敏史：</strong>青霉素过敏</div>
+        <div class="carry-field"><strong>既往史：</strong>高血压10年，规律服用氨氯地平</div>
+        <div class="carry-field"><strong>家族史：</strong>父亲有高血压病史</div>
+        <div class="carry-field"><strong>个人史：</strong>不吸烟，偶尔饮酒</div>
+        <div class="carry-actions">
+          <button class="carry-btn confirm">全部确认</button>
+          <button class="carry-btn skip">逐项选择</button>
+        </div>
+      </div>
+
+      <!-- Already filled fields (collapsed view) -->
+      <div class="field-group">
+        <div class="field-label">主诉 <span class="imported-badge">已导入</span></div>
+        <div class="field-value">头痛2周，加重伴恶心呕吐3天</div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">现病史 <span class="imported-badge">已导入</span></div>
+        <div class="field-value">患者2周前无明显诱因出现前额部持续性胀痛...</div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">辅助检查 <span class="imported-badge">已导入</span></div>
+        <div class="field-value">头颅MRI：右额叶占位约3.5×3.0cm，均匀强化...</div>
+      </div>
+
+      <!-- Missing fields -->
+      <div class="field-group">
+        <div class="field-label">治疗方案</div>
+        <div class="field-value empty">待补充</div>
+      </div>
+
+      <div class="suggestions">
+        <div class="suggestion-chip">补充治疗方案</div>
+        <div class="suggestion-chip">全部确认并提交</div>
+      </div>
+    </div>
+
+    <div class="bottombar">
+      <div class="icon-btn">&#127908;</div>
+      <input type="text" placeholder="补充信息或修改字段...">
+      <button class="btn-send">发送</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

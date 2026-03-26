@@ -5,8 +5,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert, Box, Button, CircularProgress, Dialog, DialogActions,
-  DialogContent, DialogTitle, IconButton, Stack, Tooltip, Typography,
+  Alert, Box, Button, CircularProgress, IconButton, Stack, Tooltip, Typography,
 } from "@mui/material";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
@@ -19,7 +18,7 @@ import Markdown from "react-markdown";
 import { sendChat, ocrImage, extractFileForChat, clearContext, importToInterview, textToInterview } from "../../api";
 import RecordFields from "../../components/RecordFields";
 import { t } from "../../i18n";
-import { QUICK_COMMANDS, Action } from "./components/constants";
+import { QUICK_COMMANDS, Action } from "./constants";
 import ActionPanel from "../../components/ActionPanel";
 import PatientPickerDialog from "../../components/PatientPickerDialog";
 import ImportChoiceDialog from "../../components/ImportChoiceDialog";
@@ -28,6 +27,7 @@ import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
 import BarButton from "../../components/BarButton";
 import SubpageHeader from "../../components/SubpageHeader";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import { TYPE, ICON } from "../../theme";
 
 function MsgAvatar({ isUser, size = 40 }) {
@@ -371,16 +371,17 @@ function ChatTopbar({ onClearClick, onBack }) {
 
 function ClearDialog({ open, onClear, onClose }) {
   return (
-    <Dialog open={open} onClose={onClose}>
-      <DialogTitle>清空对话记录</DialogTitle>
-      <DialogContent>
-        <Typography>确定清空所有对话记录、草稿和当前工作上下文？此操作无法撤销。</Typography>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>取消</Button>
-        <Button color="error" onClick={() => { onClear(); onClose(); }}>清空</Button>
-      </DialogActions>
-    </Dialog>
+    <ConfirmDialog
+      open={open}
+      onClose={onClose}
+      onCancel={onClose}
+      onConfirm={() => { onClear(); onClose(); }}
+      title="清空对话记录"
+      message="确定清空所有对话记录、草稿和当前工作上下文？此操作无法撤销。"
+      cancelLabel="返回"
+      confirmLabel="清空"
+      confirmTone="danger"
+    />
   );
 }
 

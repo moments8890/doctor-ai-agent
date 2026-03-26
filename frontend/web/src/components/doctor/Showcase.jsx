@@ -1,17 +1,16 @@
 /**
  * @route /debug/doctor-components
  *
- * Doctor sub-component showcase — all components from pages/doctor/components/.
- * Grouped with collapsible sections, matching the shared showcase style.
+ * Doctor sub-component showcase — components from components/doctor/.
+ * Grouped with collapsible sections.
  */
 import { useState } from "react";
 import { Box, Typography } from "@mui/material";
-import { TYPE, ICON, COLOR } from "../../../theme";
+import { TYPE, COLOR } from "../../theme";
+import AppButton from "../AppButton";
 
-import ActionPanel from "../../../components/ActionPanel";
-// ListCard demos moved to /debug/components (shared component)
-import FieldReviewCard from "./FieldReviewCard";
 import DiagnosisCard from "./DiagnosisCard";
+import FieldReviewCard from "./FieldReviewCard";
 import InterviewCompleteDialog from "./InterviewCompleteDialog";
 
 /* ── Helpers ── */
@@ -53,12 +52,7 @@ function Group({ title, count, defaultOpen = false, children }) {
 export default function DoctorComponentShowcase() {
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const mockSuggestion = {
-    id: 1, section: "differential",
-    content: "蛛网膜下腔出血",
-    detail: "突发雷击样头痛，伴颈部僵硬，符合SAH典型表现。需立即头颅CT排除。",
-    confidence: "高", decision: null, is_custom: false,
-  };
+  const mockSuggestion = { id: 1, section: "differential", content: "蛛网膜下腔出血", detail: "突发雷击样头痛，伴颈部僵硬，符合SAH典型表现。需立即头颅CT排除。", confidence: "高", decision: null, is_custom: false };
   const mockConfirmed = { ...mockSuggestion, id: 2, content: "高血压性头晕", confidence: "中", decision: "confirmed" };
   const mockRejected = { ...mockSuggestion, id: 3, content: "偏头痛", confidence: "低", decision: "rejected" };
   const mockEdited = { ...mockSuggestion, id: 4, content: "脑动脉瘤破裂", decision: "edited", edited_text: "医生修改内容" };
@@ -70,7 +64,7 @@ export default function DoctorComponentShowcase() {
     <Box sx={{ height: "100%", overflowY: "auto", bgcolor: COLOR.surfaceAlt, p: 1.5 }}>
       <Typography sx={{ fontSize: 18, fontWeight: 700, mb: 0.3 }}>Doctor Components</Typography>
       <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 2 }}>
-        pages/doctor/components/ — {6} components
+        components/doctor/ — 3 components
       </Typography>
 
       {/* ═══════ Diagnosis ═══════ */}
@@ -78,25 +72,18 @@ export default function DoctorComponentShowcase() {
         <Section title="DiagnosisCard — 8 states" file="DiagnosisCard.jsx">
           <Typography sx={{ fontSize: 11, color: COLOR.text4, mb: 1 }}>Unreviewed:</Typography>
           <DiagnosisCard suggestion={mockSuggestion} expanded={false} onToggle={() => {}} onDecide={() => {}} />
-
           <Typography sx={{ fontSize: 11, color: COLOR.text4, mt: 1.5, mb: 1 }}>Expanded (排除|修改|确认):</Typography>
           <DiagnosisCard suggestion={mockSuggestion} expanded={true} onToggle={() => {}} onDecide={() => {}} />
-
           <Typography sx={{ fontSize: 11, color: COLOR.text4, mt: 1.5, mb: 1 }}>Confirmed:</Typography>
           <DiagnosisCard suggestion={mockConfirmed} expanded={false} onToggle={() => {}} onDecide={() => {}} />
-
           <Typography sx={{ fontSize: 11, color: COLOR.text4, mt: 1.5, mb: 1 }}>Rejected:</Typography>
           <DiagnosisCard suggestion={mockRejected} expanded={false} onToggle={() => {}} onDecide={() => {}} />
-
           <Typography sx={{ fontSize: 11, color: COLOR.text4, mt: 1.5, mb: 1 }}>Edited:</Typography>
           <DiagnosisCard suggestion={mockEdited} expanded={false} onToggle={() => {}} onDecide={() => {}} />
-
           <Typography sx={{ fontSize: 11, color: COLOR.text4, mt: 1.5, mb: 1 }}>Custom:</Typography>
           <DiagnosisCard suggestion={mockCustom} expanded={false} onToggle={() => {}} onDecide={() => {}} />
-
           <Typography sx={{ fontSize: 11, color: COLOR.text4, mt: 1.5, mb: 1 }}>Workup (紧急):</Typography>
           <DiagnosisCard suggestion={mockWorkup} expanded={false} onToggle={() => {}} onDecide={() => {}} />
-
           <Typography sx={{ fontSize: 11, color: COLOR.text4, mt: 1.5, mb: 1 }}>Treatment (药物):</Typography>
           <DiagnosisCard suggestion={mockTreatment} expanded={false} onToggle={() => {}} onDecide={() => {}} />
         </Section>
@@ -105,73 +92,37 @@ export default function DoctorComponentShowcase() {
       {/* ═══════ Interview ═══════ */}
       <Group title="Interview" count={2}>
         <Section title="FieldReviewCard" file="FieldReviewCard.jsx">
-          <Typography sx={{ fontSize: 11, color: COLOR.text4, mb: 1 }}>Collapsed by default (tap to expand):</Typography>
+          <Typography sx={{ fontSize: 11, color: COLOR.text4, mb: 1 }}>Collapsed (tap to expand):</Typography>
           <FieldReviewCard
-            title="上次记录 (2026-03-20)"
-            subtitle="3 项可沿用"
+            title="上次记录 (2026-03-20)" subtitle="3 项可沿用"
             items={[
               { field: "past_history", label: "既往史", value: "高血压5年，服用氨氯地平" },
               { field: "allergy_history", label: "过敏史", value: "磺胺类药物过敏" },
               { field: "family_history", label: "家族史", value: "母亲糖尿病" },
             ]}
-            onConfirm={() => {}} onDismiss={() => {}}
-            onConfirmAll={() => {}} onDismissAll={() => {}}
+            onConfirm={() => {}} onDismiss={() => {}} onConfirmAll={() => {}} onDismissAll={() => {}}
           />
-          <Typography sx={{ fontSize: 11, color: COLOR.text4, mt: 1.5, mb: 1 }}>Expanded:</Typography>
+          <Typography sx={{ fontSize: 11, color: COLOR.text4, mt: 1.5, mb: 1 }}>Expanded (editable):</Typography>
           <FieldReviewCard
-            title="已从拍照导入"
-            subtitle="5 项已识别"
-            defaultCollapsed={false}
-            editable
+            title="已从拍照导入" subtitle="2 项已识别" defaultCollapsed={false} editable
             items={[
               { field: "chief_complaint", label: "主诉", value: "头痛3天伴恶心呕吐" },
               { field: "past_history", label: "既往史", value: "高血压10年，糖尿病5年" },
             ]}
-            confirmLabel="确认"
-            dismissLabel="编辑"
-            confirmAllLabel="全部确认"
-            dismissAllLabel="全部忽略"
-            onConfirm={() => {}} onEdit={() => {}}
-            onConfirmAll={() => {}} onDismissAll={() => {}}
+            confirmLabel="确认" dismissLabel="编辑" confirmAllLabel="全部确认" dismissAllLabel="全部忽略"
+            onConfirm={() => {}} onEdit={() => {}} onConfirmAll={() => {}} onDismissAll={() => {}}
           />
         </Section>
 
         <Section title="InterviewCompleteDialog" file="InterviewCompleteDialog.jsx">
-          <Box onClick={() => setDialogOpen(true)} sx={{
-            py: 1, textAlign: "center", border: `1px dashed ${COLOR.primary}`,
-            borderRadius: 1, color: COLOR.primary, cursor: "pointer",
-          }}>
-            打开病历预览
-          </Box>
+          <Typography sx={{ fontSize: 11, color: COLOR.text4, mb: 1 }}>Triggered by "完成" in interview:</Typography>
+          <AppButton variant="primary" size="sm" onClick={() => setDialogOpen(true)}>完成</AppButton>
           <InterviewCompleteDialog
             open={dialogOpen}
             fields={{ chief_complaint: "头痛3天伴恶心呕吐", present_illness: "3天前无明显诱因", past_history: "高血压5年", allergy_history: "磺胺类过敏" }}
             fieldCount={{ filled: 4, total: 14 }}
-            onSave={() => setDialogOpen(false)}
-            onSaveAndDiagnose={() => setDialogOpen(false)}
-            onClose={() => setDialogOpen(false)}
+            onSave={() => setDialogOpen(false)} onSaveAndDiagnose={() => setDialogOpen(false)} onClose={() => setDialogOpen(false)}
           />
-        </Section>
-      </Group>
-
-
-      {/* ═══════ Chat ═══════ */}
-      <Group title="Chat" count={1}>
-        <Section title="ActionPanel" file="ActionPanel.jsx">
-          <Typography sx={{ fontSize: 11, color: COLOR.text4, mb: 1 }}>⊕ menu icons (chat only):</Typography>
-          <Box sx={{ display: "flex", gap: 2, justifyContent: "center", py: 1 }}>
-            {[
-              { label: "拍照", color: COLOR.primary },
-              { label: "相册", color: COLOR.accent },
-              { label: "文档", color: COLOR.warning },
-              { label: "患者", color: "#9b59b6" },
-            ].map((a) => (
-              <Box key={a.label} sx={{ textAlign: "center" }}>
-                <Box sx={{ width: 44, height: 44, borderRadius: 2, bgcolor: a.color, mx: "auto", mb: 0.5, opacity: 0.15 }} />
-                <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text3 }}>{a.label}</Typography>
-              </Box>
-            ))}
-          </Box>
         </Section>
       </Group>
 

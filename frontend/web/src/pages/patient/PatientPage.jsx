@@ -19,10 +19,6 @@ import {
   CardContent,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Fab,
   IconButton,
   LinearProgress,
@@ -71,6 +67,9 @@ import TaskChecklist from "../../components/TaskChecklist";
 import SectionLabel from "../../components/SectionLabel";
 import StatusBadge from "../../components/StatusBadge";
 import { COLOR } from "../../theme";
+import AppButton from "../../components/AppButton";
+import ConfirmDialog from "../../components/ConfirmDialog";
+import SheetDialog from "../../components/SheetDialog";
 
 const STORAGE_KEY = "patient_portal_token";
 const STORAGE_NAME_KEY = "patient_portal_name";
@@ -845,9 +844,32 @@ function InterviewPage({ token, onBack, onLogout }) {
       )}
 
       {/* Summary dialog */}
-      <Dialog open={showSummary} onClose={() => setShowSummary(false)} fullWidth maxWidth="xs">
-        <DialogTitle>已收集信息</DialogTitle>
-        <DialogContent>
+      <SheetDialog
+        open={showSummary}
+        onClose={() => setShowSummary(false)}
+        title="已收集信息"
+        desktopMaxWidth={400}
+        footer={
+          <Box sx={{ display: "grid", gap: 0.5, gridTemplateColumns: (status === "reviewing" || progress.filled >= 2) ? "repeat(2, minmax(0, 1fr))" : "1fr" }}>
+            <AppButton variant="secondary" size="md" fullWidth onClick={() => setShowSummary(false)}>
+              关闭
+            </AppButton>
+            {(status === "reviewing" || progress.filled >= 2) && (
+              <AppButton
+                variant="primary"
+                size="md"
+                fullWidth
+                disabled={confirming}
+                loading={confirming}
+                loadingLabel="提交中…"
+                onClick={handleConfirm}
+              >
+                {progress.filled >= progress.total ? "确认提交" : `提交 (${progress.filled}/${progress.total})`}
+              </AppButton>
+            )}
+          </Box>
+        }
+      >
           <Stack spacing={1.5}>
             {allFields.map(f => {
               const val = collected[f];
@@ -859,27 +881,20 @@ function InterviewPage({ token, onBack, onLogout }) {
               );
             })}
           </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowSummary(false)}>关闭</Button>
-          {(status === "reviewing" || progress.filled >= 2) && (
-            <Button variant="contained" onClick={handleConfirm} disabled={confirming}
-              sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: "#06a050" } }}>
-              {confirming ? <CircularProgress size={16} /> : progress.filled >= progress.total ? "确认提交" : `提交 (${progress.filled}/${progress.total})`}
-            </Button>
-          )}
-        </DialogActions>
-      </Dialog>
+      </SheetDialog>
 
       {/* Exit dialog */}
-      <Dialog open={showExitDialog} onClose={() => setShowExitDialog(false)}>
-        <DialogTitle>退出问诊</DialogTitle>
-        <DialogContent><Typography variant="body2">您要保存进度还是重新开始？</Typography></DialogContent>
-        <DialogActions>
-          <Button onClick={() => handleExit(false)}>保存退出</Button>
-          <Button color="error" onClick={() => handleExit(true)}>放弃重来</Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmDialog
+        open={showExitDialog}
+        onClose={() => setShowExitDialog(false)}
+        onCancel={() => handleExit(false)}
+        onConfirm={() => handleExit(true)}
+        title="退出问诊"
+        message="您要保存进度还是重新开始？"
+        cancelLabel="保存退出"
+        confirmLabel="放弃重来"
+        confirmTone="danger"
+      />
     </Box>
   );
 }

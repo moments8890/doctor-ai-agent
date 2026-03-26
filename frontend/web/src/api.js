@@ -279,6 +279,42 @@ export async function doctorInterviewCancel(sessionId, doctorId) {
   });
 }
 
+/**
+ * Upload image/PDF → OCR + LLM extract → create interview session with pre-populated fields.
+ * Returns: { session_id, mode, source, pre_populated: { field: value, ... } }
+ */
+export async function importToInterview(file, doctorId, patientId) {
+  const form = new FormData();
+  form.append("file", file, file.name);
+  form.append("doctor_id", doctorId || "");
+  if (patientId) form.append("patient_id", String(patientId));
+  return request("/api/import/medical-record", { method: "POST", body: form, _timeout: 120000 });
+}
+
+/**
+ * Send text (paste/voice) → LLM extract → create interview session with pre-populated fields.
+ * Returns: { session_id, mode, source, pre_populated: { field: value, ... } }
+ */
+export async function textToInterview(text, doctorId, patientId) {
+  return request("/api/records/from-text", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, doctor_id: doctorId || "", patient_id: patientId || null }),
+    _timeout: 120000,
+  });
+}
+
+/**
+ * Update a single field value in an interview session (for inline-edit in import review).
+ */
+export async function updateInterviewField(sessionId, doctorId, field, value) {
+  return request("/api/records/interview/field", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: sessionId, doctor_id: doctorId, field, value }),
+  });
+}
+
 export async function transcribeAudio(blob, filename) {
   const form = new FormData();
   form.append("audio", blob, filename || "recording.webm");

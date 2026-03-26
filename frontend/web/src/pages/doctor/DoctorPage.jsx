@@ -10,9 +10,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-  Badge, Box,
-  Button, Dialog, DialogActions, DialogContent, DialogTitle,
-  Stack, TextField, Typography,
+  Badge, Box, Stack, TextField, Typography,
 } from "@mui/material";
 import BottomNavigationMui from "@mui/material/BottomNavigation";
 import BottomNavigationActionMui from "@mui/material/BottomNavigationAction";
@@ -24,7 +22,7 @@ import {
   getDoctorProfile, updateDoctorProfile,
 } from "../../api";
 import { useDoctorStore } from "../../store/doctorStore";
-import { NAV, DESKTOP_NAV } from "./components/constants";
+import { NAV, DESKTOP_NAV } from "./constants";
 import HomePage from "./HomePage";
 import ChatPage from "./ChatPage";
 import PatientsPage from "./PatientsPage";
@@ -32,6 +30,8 @@ import TasksPage from "./TasksPage";
 import SettingsPage from "./SettingsPage";
 import ReviewPage from "./ReviewPage";
 import ErrorBoundary from "../../components/ErrorBoundary";
+import SheetDialog from "../../components/SheetDialog";
+import AppButton from "../../components/AppButton";
 import { TYPE, ICON } from "../../theme";
 
 function DesktopSidebar({ activeSection, doctorName, doctorId, navBadge, onNav, onLogout }) {
@@ -84,21 +84,28 @@ function MobileBottomNav({ activeSection, pendingTaskCount, onNav }) {
   );
 }
 
-function OnboardingDialog({ open, name, saving, onChange, onSubmit }) {
+function OnboardingDialog({ open, name, saving, onChange, onSubmit, onClose }) {
   return (
-    <Dialog open={open} maxWidth="xs" fullWidth>
-      <DialogTitle>欢迎，请完成初始设置</DialogTitle>
-      <DialogContent>
+    <SheetDialog
+      open={open}
+      onClose={onClose}
+      title="欢迎，请完成初始设置"
+      desktopMaxWidth={360}
+      footer={
+        <Box sx={{ display: "grid", gap: 0.5, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+          <AppButton variant="secondary" size="md" fullWidth onClick={onClose}>
+            取消
+          </AppButton>
+          <AppButton variant="primary" size="md" fullWidth disabled={!name.trim() || saving} loading={saving} loadingLabel="保存中..." onClick={onSubmit}>
+            完成设置
+          </AppButton>
+        </Box>
+      }
+    >
         <Stack spacing={2} sx={{ mt: 1 }}>
           <TextField label="您的姓名" value={name} onChange={(e) => onChange(e.target.value)} fullWidth autoFocus required />
         </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button variant="contained" disabled={!name.trim() || saving} onClick={onSubmit}>
-          {saving ? "保存中..." : "完成设置"}
-        </Button>
-      </DialogActions>
-    </Dialog>
+    </SheetDialog>
   );
 }
 
@@ -204,7 +211,7 @@ export default function DoctorPage() {
         )}
       </Box>
       {isMobile && <MobileBottomNav activeSection={activeSection} pendingTaskCount={pendingTaskCount} onNav={handleNav} />}
-      <OnboardingDialog open={showOnboarding} name={onboardName} saving={onboardSaving} onChange={setOnboardName} onSubmit={handleOnboardSubmit} />
+      <OnboardingDialog open={showOnboarding} name={onboardName} saving={onboardSaving} onChange={setOnboardName} onSubmit={handleOnboardSubmit} onClose={() => setShowOnboarding(false)} />
     </Box>
   );
 }

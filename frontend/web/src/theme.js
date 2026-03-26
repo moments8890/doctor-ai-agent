@@ -1,4 +1,5 @@
 import { createTheme } from "@mui/material/styles";
+import { getDialogContainer } from "./utils/dialogContainer";
 
 // ── Typography scale (7 levels) ─────────────────────────────────────
 // Change here → affects all pages. Do not use hardcoded fontSize in components.
@@ -25,6 +26,16 @@ const ICON = {
   display: 48,  // empty state, about page, login splash
 };
 
+const BUTTON = {
+  compactHeight: 36,
+  compactFontSize: TYPE.body.fontSize,
+  compactLineHeight: 1.2,
+  compactPaddingX: "16px",
+  compactPaddingY: "0px",
+  compactRadius: "4px",
+  largeHeight: 48,
+};
+
 // ── Color tokens ────────────────────────────────────────────────────
 const COLOR = {
   primary:      "#07C160",
@@ -48,7 +59,7 @@ const COLOR = {
   white:        "#ffffff",
 };
 
-export { TYPE, ICON, COLOR };
+export { TYPE, ICON, BUTTON, COLOR };
 
 // Shared theme options (palette, typography, components) — used by both app and admin themes
 const sharedThemeOptions = {
@@ -109,11 +120,36 @@ const sharedThemeOptions = {
     },
     MuiButton: {
       styleOverrides: {
-        root: { borderRadius: 4 },
+        root: {
+          borderRadius: BUTTON.compactRadius,
+          minHeight: BUTTON.compactHeight,
+          padding: `${BUTTON.compactPaddingY} ${BUTTON.compactPaddingX}`,
+          fontSize: BUTTON.compactFontSize,
+          lineHeight: BUTTON.compactLineHeight,
+        },
+        sizeSmall: {
+          minHeight: BUTTON.compactHeight,
+          padding: `${BUTTON.compactPaddingY} ${BUTTON.compactPaddingX}`,
+          fontSize: BUTTON.compactFontSize,
+          lineHeight: BUTTON.compactLineHeight,
+        },
+        sizeMedium: {
+          minHeight: BUTTON.compactHeight,
+          padding: `${BUTTON.compactPaddingY} ${BUTTON.compactPaddingX}`,
+          fontSize: BUTTON.compactFontSize,
+          lineHeight: BUTTON.compactLineHeight,
+        },
+        sizeLarge: {
+          minHeight: BUTTON.largeHeight,
+          padding: "0 20px",
+          fontSize: TYPE.action.fontSize,
+          lineHeight: 1.25,
+        },
         contained: { boxShadow: "none", "&:hover": { boxShadow: "none" } },
       },
     },
     MuiDialog: {
+      defaultProps: { container: getDialogContainer },
       styleOverrides: { paper: { borderRadius: 12 } },
     },
   },

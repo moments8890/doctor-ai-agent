@@ -23,7 +23,7 @@ import PageSkeleton from "../../components/PageSkeleton";
 import ListCard from "../../components/ListCard";
 import SectionLabel from "../../components/SectionLabel";
 import PatientAvatar from "../../components/PatientAvatar";
-import PatientDetail from "./components/PatientDetail";
+import PatientDetail from "./patients/PatientDetail";
 import SubpageHeader from "../../components/SubpageHeader";
 import InterviewPage from "./InterviewPage";
 import { TYPE, ICON } from "../../theme";
@@ -261,7 +261,7 @@ function MobilePatientDetailView({ selectedPatient, doctorId, navigate, onStartI
   );
 }
 
-export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatText, onAutoSendToChat, onPatientSelected, refreshKey = 0, triggerInterview, onTriggerInterviewConsumed, chatInterviewSessionId, onChatInterviewSessionConsumed }) {
+export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatText, onAutoSendToChat, onPatientSelected, refreshKey = 0, triggerInterview, onTriggerInterviewConsumed, chatInterviewSessionId, onChatInterviewSessionConsumed, chatInterviewPrePopulated }) {
   const { patientId } = useParams();
   const navigate = useNavigate();
   const theme = useTheme();
@@ -304,6 +304,7 @@ export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatT
       <InterviewPage doctorId={doctorId}
         sessionId={chatInterviewSessionId}
         patientContext={interviewPatient}
+        prePopulated={chatInterviewPrePopulated}
         onComplete={() => { setInterviewActive(false); setInterviewPatient(null); onChatInterviewSessionConsumed?.(); load(); }}
         onCancel={() => { setInterviewActive(false); setInterviewPatient(null); onChatInterviewSessionConsumed?.(); }} />
     </Box>
@@ -324,6 +325,7 @@ export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatT
   const detailContent = interviewActive ? (
     <InterviewPage doctorId={doctorId}
       sessionId={chatInterviewSessionId}
+      prePopulated={chatInterviewPrePopulated}
       onComplete={() => { setInterviewActive(false); onChatInterviewSessionConsumed?.(); load(); }}
       onCancel={() => { setInterviewActive(false); onChatInterviewSessionConsumed?.(); }} />
   ) : (

@@ -9,7 +9,7 @@ import {
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import { updateRecord } from "../api";
-import { RECORD_FIELDS, RECORD_STRUCTURED_FIELDS } from "../pages/doctor/components/constants";
+import { RECORD_FIELDS, RECORD_STRUCTURED_FIELDS } from "../pages/doctor/constants";
 
 function TagsEditor({ tags, onChange }) {
   return (
