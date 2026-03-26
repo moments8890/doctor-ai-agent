@@ -2,24 +2,25 @@
  * AppButton — standardized button for content-level UI contexts.
  *
  * Variants:
- *  - primary:   green bg, white text — main actions (save, confirm, complete)
- *  - secondary: gray bg, dark text — cancel, dismiss, back
- *  - danger:    red bg, white text — delete, reject, destructive
- *  - ghost:     transparent, green border+text — secondary positive actions (edit, toggle)
+ *  - primary:   green bg, white text — one per screen max (save, confirm, complete)
+ *  - secondary: gray bg, dark text — cancel, dismiss
+ *  - danger:    red bg, white text — destructive (delete, reject)
  *
  * Sizes:
  *  - lg: detail-view primary actions (py 1.3, fontSize 15)
  *  - md: dialog buttons (py 1, fontSize 14) — default
  *  - sm: inline/field buttons (py 0.6, fontSize 13)
+ *
+ * For most inline actions (edit, delete), use plain text buttons instead
+ * of AppButton — the app's default pattern is colored text, not filled buttons.
  */
 import { Box, CircularProgress } from "@mui/material";
 import { TYPE, COLOR } from "../theme";
 
 const VARIANT_STYLES = {
-  primary:   { bgcolor: COLOR.success, color: "#fff", fontWeight: 600 },
+  primary:   { bgcolor: COLOR.primary, color: "#fff", fontWeight: 600 },
   secondary: { bgcolor: "#f5f5f5", color: "#666", fontWeight: 400 },
   danger:    { bgcolor: COLOR.danger, color: "#fff", fontWeight: 600 },
-  ghost:     { bgcolor: "transparent", color: COLOR.success, fontWeight: 500, border: `1px solid ${COLOR.success}` },
 };
 
 const SIZE_STYLES = {

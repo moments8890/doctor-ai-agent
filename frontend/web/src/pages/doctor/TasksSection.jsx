@@ -67,11 +67,7 @@ function groupByDate(items) {
 import FilterBar from "../../components/FilterBar";
 
 function TaskFilterChips({ active, counts, onChange }) {
-  return (
-    <Box sx={{ bgcolor: "#ededed", borderBottom: "0.5px solid #d9d9d9" }}>
-      <FilterBar items={TASK_FILTER_CHIPS} active={active} counts={counts} onChange={onChange} variant="chips" />
-    </Box>
-  );
+  return <FilterBar items={TASK_FILTER_CHIPS} active={active} counts={counts} onChange={onChange} />;
 }
 
 /* ── Unified task item ── */

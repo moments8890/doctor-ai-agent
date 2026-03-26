@@ -201,7 +201,7 @@ function RecordTabs({ activeTab, onChange, records }) {
     counts[g.key] = g.types ? records.filter((r) => g.types.includes(r.record_type)).length : records.length;
   });
 
-  return <FilterBar items={RECORD_TAB_GROUPS} active={activeTab} counts={counts} onChange={onChange} variant="tabs" />;
+  return <FilterBar items={RECORD_TAB_GROUPS} active={activeTab} counts={counts} onChange={onChange} />;
 }
 
 /* ── StickyTopBar ── */

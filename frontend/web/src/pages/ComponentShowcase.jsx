@@ -11,7 +11,7 @@ import { TYPE, ICON, COLOR } from "../theme";
 
 // Shared components
 import AppButton from "../components/AppButton";
-import ActionButtonPair from "../components/ActionButtonPair";
+// ActionButtonPair removed — unused
 import AskAIBar from "../components/AskAIBar";
 import BarButton from "../components/BarButton";
 import BottomSheet from "../components/BottomSheet";
@@ -120,7 +120,6 @@ export default function ComponentShowcase() {
           <AppButton variant="primary">保存</AppButton>
           <AppButton variant="secondary">取消</AppButton>
           <AppButton variant="danger">删除</AppButton>
-          <AppButton variant="ghost">导出</AppButton>
           <AppButton variant="primary" disabled>禁用</AppButton>
         </Box>
       </Section>
@@ -134,12 +133,7 @@ export default function ComponentShowcase() {
         </Box>
       </Section>
 
-      {/* ── ActionButtonPair ── */}
-      <Section title="ActionButtonPair" file="src/components/ActionButtonPair.jsx">
-        <ActionButtonPair onCancel={() => {}} onConfirm={() => {}} confirmLabel="保存" />
-        <Box sx={{ mt: 1 }} />
-        <ActionButtonPair onCancel={() => {}} onConfirm={() => {}} confirmLabel="删除" danger />
-      </Section>
+      {/* ActionButtonPair removed — unused */}
 
       {/* ── SubpageHeader ── */}
       <Section title="SubpageHeader" file="src/pages/doctor/SubpageHeader.jsx">
@@ -221,8 +215,9 @@ export default function ComponentShowcase() {
         />
       </Section>
 
-      {/* ── FilterBar (chips variant) ── */}
-      <Section title="FilterBar (chips)" file="src/components/FilterBar.jsx">
+      {/* ── FilterBar ── */}
+      <Section title="FilterBar" file="src/components/FilterBar.jsx">
+        <Typography sx={{ fontSize: 11, color: "#999", mb: 1 }}>Task filters:</Typography>
         <FilterBar
           items={[
             { key: "all", label: "全部" },
@@ -234,11 +229,8 @@ export default function ComponentShowcase() {
           counts={{ all: 5, review: 0, pending: 3, done: 2 }}
           onChange={() => {}}
         />
-      </Section>
-
-      {/* ── FilterBar (tabs variant) ── */}
-      <Section title="FilterBar (tabs)" file="src/components/FilterBar.jsx">
-        <FilterBar variant="tabs"
+        <Typography sx={{ fontSize: 11, color: "#999", mt: 2, mb: 1 }}>Record tabs:</Typography>
+        <FilterBar
           items={[
             { key: "", label: "全部" },
             { key: "visit", label: "病历" },
