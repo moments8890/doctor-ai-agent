@@ -207,7 +207,7 @@ export default function ComponentShowcasePage() {
 
       {/* ── RecordFields ── */}
       <Section title="RecordFields" file="src/components/RecordFields.jsx">
-        <RecordFields record={mockRecord} />
+        <RecordFields record={{ content: "头痛3天伴恶心呕吐\n主诉：头痛3天\n既往史：高血压5年", tags: ["高血压", "头痛"] }} />
       </Section>
 
       {/* ── SuggestionChips ── */}
