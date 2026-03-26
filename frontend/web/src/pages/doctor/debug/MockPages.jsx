@@ -21,6 +21,7 @@ import InterviewCompleteDialog from "../../../components/doctor/InterviewComplet
 import FieldReviewCard from "../../../components/doctor/FieldReviewCard";
 
 import SubpageHeader from "../../../components/SubpageHeader";
+import PageSkeleton from "../../../components/PageSkeleton";
 import FilterBar from "../../../components/FilterBar";
 import ListCard from "../../../components/ListCard";
 import NewItemCard from "../../../components/NewItemCard";
@@ -94,10 +95,9 @@ function MockBottomNav({ active, onNav }) {
 /* ── Home ── */
 
 function MockHome({ onNav }) {
-  return (
-    <Box sx={{ height: "100%", position: "relative" }}>
-      <SubpageHeader title="首页" />
-      <Box sx={{ p: 1.5, overflowY: "auto", height: "calc(100% - 48px - 64px)" }}>
+  const content = (
+    <Box sx={{ flex: 1, overflowY: "auto", position: "relative" }}>
+      <Box sx={{ p: 1.5, pb: 8 }}>
         <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1, mb: 1 }}>
           <Box onClick={() => onNav("patients")} sx={{ bgcolor: COLOR.white, borderRadius: 1, p: 1.5, cursor: "pointer", "&:active": { bgcolor: COLOR.surface } }}>
             <Typography sx={{ fontSize: 24, fontWeight: 700, color: COLOR.primary }}>{MOCK_BRIEFING.today_patients}</Typography>
@@ -136,19 +136,20 @@ function MockHome({ onNav }) {
           </Typography>
         </Box>
       </Box>
-      <Box sx={{ position: "absolute", bottom: 70, left: 0, right: 0, px: 1.5 }}>
+      <Box sx={{ position: "absolute", bottom: 6, left: 0, right: 0, px: 1.5 }}>
         <AskAIBar onClick={() => onNav("chat")} />
       </Box>
     </Box>
   );
+
+  return <PageSkeleton title="首页" isMobile listPane={content} />;
 }
 
 /* ── Patients ── */
 
 function MockPatients({ onSelectPatient }) {
-  return (
-    <Box>
-      <SubpageHeader title="患者" />
+  const content = (
+    <Box sx={{ flex: 1, overflowY: "auto" }}>
       <Box sx={{ px: 1.5, py: 1, bgcolor: COLOR.white }}>
         <Box sx={{ bgcolor: COLOR.surface, borderRadius: 1, px: 1.5, py: 1, color: COLOR.text4, fontSize: TYPE.secondary.fontSize }}>
           搜索患者 (共{MOCK_PATIENTS.length}人)
@@ -168,6 +169,8 @@ function MockPatients({ onSelectPatient }) {
       ))}
     </Box>
   );
+
+  return <PageSkeleton title="患者" isMobile listPane={content} />;
 }
 
 /* ── Patient Detail ── */
@@ -181,9 +184,8 @@ function MockPatientDetail({ patient, onBack, onReview, onInterview }) {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const patientMessages = MOCK_PATIENT_MESSAGES.filter(m => m.patient_id === patient.id);
 
-  return (
-    <Box>
-      <SubpageHeader title={patient.name} onBack={onBack} right={<BarButton onClick={onInterview}>门诊</BarButton>} />
+  const content = (
+    <Box sx={{ flex: 1, overflowY: "auto" }}>
       {/* Collapsed profile */}
       <Box sx={{ bgcolor: COLOR.white, px: 2.5, py: 1.5, mb: 0.8 }}>
         <Box sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
@@ -287,6 +289,16 @@ function MockPatientDetail({ patient, onBack, onReview, onInterview }) {
       />
     </Box>
   );
+
+  return (
+    <PageSkeleton
+      title={patient.name}
+      onBack={onBack}
+      headerRight={<BarButton onClick={onInterview}>门诊</BarButton>}
+      isMobile
+      listPane={content}
+    />
+  );
 }
 
 /* ── Tasks ── */
@@ -314,44 +326,43 @@ function groupTasks(tasks) {
 const GROUP_LABELS = { overdue: "已逾期", today: "今天", week: "本周", later: "之后" };
 
 function TaskDetailView({ task, onBack }) {
-  return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <SubpageHeader title="任务详情" onBack={onBack} />
-      <Box sx={{ flex: 1, overflowY: "auto", p: 1.5 }}>
-        <Box sx={{ bgcolor: COLOR.white, borderRadius: 1, p: 2, mb: 1.5 }}>
-          <Typography sx={{ fontWeight: 600, fontSize: TYPE.action.fontSize, mb: 1 }}>{task.title}</Typography>
-          <Box sx={{ display: "flex", gap: 1, mb: 1.5 }}>
-            <StatusBadge
-              label={task.status === "done" ? "已完成" : "待处理"}
-              colorMap={TASK_STATUS_COLOR}
-            />
-          </Box>
-          <Box sx={{ display: "flex", justifyContent: "space-between", py: 0.8, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>患者</Typography>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize }}>{task.patient_name}</Typography>
-          </Box>
-          <Box sx={{ display: "flex", justifyContent: "space-between", py: 0.8, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>截止日期</Typography>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize }}>{task.due_at}</Typography>
-          </Box>
-          <Box sx={{ display: "flex", justifyContent: "space-between", py: 0.8, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>类型</Typography>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize }}>{task.task_type}</Typography>
-          </Box>
-          <Box sx={{ py: 0.8, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mb: 0.3 }}>详情</Typography>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize, lineHeight: 1.6 }}>{task.content}</Typography>
-          </Box>
+  const content = (
+    <Box sx={{ flex: 1, overflowY: "auto", p: 1.5 }}>
+      <Box sx={{ bgcolor: COLOR.white, borderRadius: 1, p: 2, mb: 1.5 }}>
+        <Typography sx={{ fontWeight: 600, fontSize: TYPE.action.fontSize, mb: 1 }}>{task.title}</Typography>
+        <Box sx={{ display: "flex", gap: 1, mb: 1.5 }}>
+          <StatusBadge
+            label={task.status === "done" ? "已完成" : "待处理"}
+            colorMap={TASK_STATUS_COLOR}
+          />
         </Box>
-        {/* Action buttons */}
-        <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: "repeat(3, 1fr)" }}>
-          <AppButton variant="primary" size="md" fullWidth onClick={onBack}>完成</AppButton>
-          <AppButton variant="secondary" size="md" fullWidth onClick={onBack}>推迟</AppButton>
-          <AppButton variant="danger" size="md" fullWidth onClick={onBack}>取消</AppButton>
+        <Box sx={{ display: "flex", justifyContent: "space-between", py: 0.8, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>患者</Typography>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize }}>{task.patient_name}</Typography>
         </Box>
+        <Box sx={{ display: "flex", justifyContent: "space-between", py: 0.8, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>截止日期</Typography>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize }}>{task.due_at}</Typography>
+        </Box>
+        <Box sx={{ display: "flex", justifyContent: "space-between", py: 0.8, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>类型</Typography>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize }}>{task.task_type}</Typography>
+        </Box>
+        <Box sx={{ py: 0.8, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mb: 0.3 }}>详情</Typography>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, lineHeight: 1.6 }}>{task.content}</Typography>
+        </Box>
+      </Box>
+      {/* Action buttons */}
+      <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: "repeat(3, 1fr)" }}>
+        <AppButton variant="primary" size="md" fullWidth onClick={onBack}>完成</AppButton>
+        <AppButton variant="secondary" size="md" fullWidth onClick={onBack}>推迟</AppButton>
+        <AppButton variant="danger" size="md" fullWidth onClick={onBack}>取消</AppButton>
       </Box>
     </Box>
   );
+
+  return <PageSkeleton title="任务详情" onBack={onBack} isMobile listPane={content} />;
 }
 
 function MockTasks({ onSelectTask }) {
@@ -365,9 +376,8 @@ function MockTasks({ onSelectTask }) {
   const filtered = MOCK_TASKS.filter(t => filter === "all" || t.status === filter);
   const groups = groupTasks(filtered);
 
-  return (
-    <Box>
-      <SubpageHeader title="任务" />
+  const content = (
+    <Box sx={{ flex: 1, overflowY: "auto" }}>
       <FilterBar items={chips} active={filter} counts={counts} onChange={setFilter} />
       <NewItemCard title="新建任务" subtitle="添加随访、检查、用药等任务" />
       {["overdue", "today", "week", "later"].map(groupKey => {
@@ -402,6 +412,8 @@ function MockTasks({ onSelectTask }) {
       })}
     </Box>
   );
+
+  return <PageSkeleton title="任务" isMobile listPane={content} />;
 }
 
 /* ── Chat ── */
@@ -601,42 +613,31 @@ function MockInterview({ onBack, onComplete }) {
 
 /* ── Settings ── */
 
-function SettingsSubpage({ title, onBack, right, children }) {
-  return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <SubpageHeader title={title} onBack={onBack} right={right} />
-      <Box sx={{ flex: 1, overflowY: "auto" }}>
-        {children}
+function MockSettingsTemplate({ onBack }) {
+  const content = (
+    <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
+      <Box sx={{ bgcolor: COLOR.white, borderRadius: 1, p: 2, mb: 1 }}>
+        <Typography sx={{ fontWeight: 600, mb: 0.5 }}>门诊病历模板</Typography>
+        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, lineHeight: 1.6 }}>
+          默认模板，包含主诉、现病史、既往史、体格检查、辅助检查、诊断、治疗方案等字段。
+        </Typography>
+      </Box>
+      <Box sx={{ bgcolor: COLOR.white, borderRadius: 1, p: 2, mb: 1 }}>
+        <Typography sx={{ fontWeight: 600, mb: 0.5 }}>神经外科专科模板</Typography>
+        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, lineHeight: 1.6 }}>
+          包含GCS评分、瞳孔检查、神经系统查体等专科字段。
+        </Typography>
+      </Box>
+      <Box sx={{ bgcolor: COLOR.white, borderRadius: 1, p: 2 }}>
+        <Typography sx={{ fontWeight: 600, mb: 0.5 }}>术后随访模板</Typography>
+        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, lineHeight: 1.6 }}>
+          术后恢复情况、伤口愈合、并发症筛查。
+        </Typography>
       </Box>
     </Box>
   );
-}
 
-function MockSettingsTemplate({ onBack }) {
-  return (
-    <SettingsSubpage title="报告模板" onBack={onBack}>
-      <Box sx={{ p: 2 }}>
-        <Box sx={{ bgcolor: COLOR.white, borderRadius: 1, p: 2, mb: 1 }}>
-          <Typography sx={{ fontWeight: 600, mb: 0.5 }}>门诊病历模板</Typography>
-          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, lineHeight: 1.6 }}>
-            默认模板，包含主诉、现病史、既往史、体格检查、辅助检查、诊断、治疗方案等字段。
-          </Typography>
-        </Box>
-        <Box sx={{ bgcolor: COLOR.white, borderRadius: 1, p: 2, mb: 1 }}>
-          <Typography sx={{ fontWeight: 600, mb: 0.5 }}>神经外科专科模板</Typography>
-          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, lineHeight: 1.6 }}>
-            包含GCS评分、瞳孔检查、神经系统查体等专科字段。
-          </Typography>
-        </Box>
-        <Box sx={{ bgcolor: COLOR.white, borderRadius: 1, p: 2 }}>
-          <Typography sx={{ fontWeight: 600, mb: 0.5 }}>术后随访模板</Typography>
-          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, lineHeight: 1.6 }}>
-            术后恢复情况、伤口愈合、并发症筛查。
-          </Typography>
-        </Box>
-      </Box>
-    </SettingsSubpage>
-  );
+  return <PageSkeleton title="报告模板" onBack={onBack} isMobile listPane={content} />;
 }
 
 import KnowledgeSubpage from "../../../components/doctor/KnowledgeSubpage";
@@ -661,40 +662,39 @@ function MockSettingsKnowledge({ onBack }) {
 }
 
 function MockSettingsAbout({ onBack }) {
-  return (
-    <SettingsSubpage title="关于" onBack={onBack}>
-      <Box sx={{ p: 2 }}>
-        <Box sx={{ bgcolor: COLOR.white, borderRadius: 1, p: 2, textAlign: "center", mb: 1 }}>
-          <Box sx={{ width: 64, height: 64, borderRadius: 2, bgcolor: COLOR.primary, display: "flex", alignItems: "center", justifyContent: "center", color: COLOR.white, fontSize: 24, fontWeight: 700, mx: "auto", mb: 1.5 }}>
-            鲸
-          </Box>
-          <Typography sx={{ fontWeight: 700, fontSize: TYPE.action.fontSize, mb: 0.5 }}>鲸鱼随行</Typography>
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 1 }}>AI 医疗助手</Typography>
-          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3 }}>版本 0.1.0 (mock)</Typography>
+  const content = (
+    <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
+      <Box sx={{ bgcolor: COLOR.white, borderRadius: 1, p: 2, textAlign: "center", mb: 1 }}>
+        <Box sx={{ width: 64, height: 64, borderRadius: 2, bgcolor: COLOR.primary, display: "flex", alignItems: "center", justifyContent: "center", color: COLOR.white, fontSize: 24, fontWeight: 700, mx: "auto", mb: 1.5 }}>
+          鲸
         </Box>
-        <Box sx={{ bgcolor: COLOR.white, borderRadius: 1, p: 2 }}>
-          <Box sx={{ display: "flex", justifyContent: "space-between", py: 0.8 }}>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>构建日期</Typography>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize }}>2026-03-26</Typography>
-          </Box>
-          <Box sx={{ display: "flex", justifyContent: "space-between", py: 0.8, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>LLM 引擎</Typography>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize }}>Qwen3:32b</Typography>
-          </Box>
-          <Box sx={{ display: "flex", justifyContent: "space-between", py: 0.8, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>运行环境</Typography>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize }}>开发模式</Typography>
-          </Box>
+        <Typography sx={{ fontWeight: 700, fontSize: TYPE.action.fontSize, mb: 0.5 }}>鲸鱼随行</Typography>
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 1 }}>AI 医疗助手</Typography>
+        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3 }}>版本 0.1.0 (mock)</Typography>
+      </Box>
+      <Box sx={{ bgcolor: COLOR.white, borderRadius: 1, p: 2 }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", py: 0.8 }}>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>构建日期</Typography>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize }}>2026-03-26</Typography>
+        </Box>
+        <Box sx={{ display: "flex", justifyContent: "space-between", py: 0.8, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>LLM 引擎</Typography>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize }}>Qwen3:32b</Typography>
+        </Box>
+        <Box sx={{ display: "flex", justifyContent: "space-between", py: 0.8, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>运行环境</Typography>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize }}>开发模式</Typography>
         </Box>
       </Box>
-    </SettingsSubpage>
+    </Box>
   );
+
+  return <PageSkeleton title="关于" onBack={onBack} isMobile listPane={content} />;
 }
 
 function MockSettings({ onSubpage }) {
-  return (
-    <Box>
-      <SubpageHeader title="设置" />
+  const content = (
+    <Box sx={{ flex: 1, overflowY: "auto" }}>
       <SectionLabel>账户</SectionLabel>
       <Box sx={{ bgcolor: COLOR.white, p: 2 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
@@ -730,6 +730,8 @@ function MockSettings({ onSubpage }) {
       </Box>
     </Box>
   );
+
+  return <PageSkeleton title="设置" isMobile listPane={content} />;
 }
 
 /* ── Main: Interactive Mock App ── */
@@ -828,26 +830,30 @@ export default function MockPages() {
     }
     if (subpage === "patient-detail" && selectedPatient) {
       return (
-        <Box sx={{ overflowY: "auto", height: "calc(100% - 64px)" }}>
+        <Box sx={{ height: "calc(100% - 64px)" }}>
           <MockPatientDetail patient={selectedPatient} onBack={goBack} onReview={openReview} onInterview={openInterview} />
         </Box>
       );
     }
 
     switch (tab) {
-      case "home": return <MockHome onNav={(key) => key === "chat" ? openChat() : navTo(key)} />;
+      case "home": return (
+        <Box sx={{ height: "calc(100% - 64px)" }}>
+          <MockHome onNav={(key) => key === "chat" ? openChat() : navTo(key)} />
+        </Box>
+      );
       case "patients": return (
-        <Box sx={{ overflowY: "auto", height: "calc(100% - 64px)" }}>
+        <Box sx={{ height: "calc(100% - 64px)" }}>
           <MockPatients onSelectPatient={openPatient} />
         </Box>
       );
       case "tasks": return (
-        <Box sx={{ overflowY: "auto", height: "calc(100% - 64px)" }}>
+        <Box sx={{ height: "calc(100% - 64px)" }}>
           <MockTasks onSelectTask={openTaskDetail} />
         </Box>
       );
       case "settings": return (
-        <Box sx={{ overflowY: "auto", height: "calc(100% - 64px)" }}>
+        <Box sx={{ height: "calc(100% - 64px)" }}>
           <MockSettings onSubpage={openSettingsSub} />
         </Box>
       );
