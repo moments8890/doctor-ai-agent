@@ -115,6 +115,8 @@ export const MOCK_TASKS = [
   { id: 204, doctor_id: "mock_doctor", patient_id: 5, patient_name: "刘建国", task_type: "review", title: "审阅刘建国预问诊记录", content: "患者已完成预问诊", status: "pending", due_at: "2026-03-26", created_at: "2026-03-26" },
   { id: 205, doctor_id: "mock_doctor", patient_id: 1, patient_name: "陈伟强", task_type: "lab_review", title: "陈伟强 血常规结果", content: "查看最新血常规报告", status: "pending", due_at: "2026-03-27", created_at: "2026-03-25" },
   { id: 206, doctor_id: "mock_doctor", patient_id: 3, patient_name: "王明", task_type: "imaging", title: "王明 头颅MRA预约", content: "已预约3月28日MRA检查", status: "done", due_at: "2026-03-28", created_at: "2026-03-22" },
+  { id: 207, doctor_id: "mock_doctor", patient_id: 1, patient_name: "陈伟强", task_type: "review", title: "审阅陈伟强预问诊记录", record_id: 102, content: "AI诊断已完成，等待医生确认", status: "pending", due_at: "2026-03-26", created_at: "2026-03-26" },
+  { id: 208, doctor_id: "mock_doctor", patient_id: 5, patient_name: "刘建国", task_type: "review", title: "审阅刘建国预问诊记录", record_id: 106, content: "AI诊断已完成，等待医生确认", status: "pending", due_at: "2026-03-26", created_at: "2026-03-26" },
 ];
 
 export const MOCK_SUGGESTIONS = [
@@ -126,6 +128,15 @@ export const MOCK_SUGGESTIONS = [
   { id: 306, record_id: 102, section: "workup", content: "血糖监测", detail: "排除低血糖性头晕，特别是服用降糖药物期间。", urgency: "常规", decision: null, is_custom: false },
   { id: 307, record_id: 102, section: "treatment", content: "钙通道阻滞剂", detail: "优化降压方案，选择长效钙通道阻滞剂平稳降压，减少血压波动引起的头晕。", intervention: "药物", decision: null, is_custom: false },
   { id: 308, record_id: 102, section: "treatment", content: "前庭康复训练", detail: "如确诊BPPV，可进行Epley手法复位治疗，配合前庭康复训练改善平衡功能。", intervention: "观察", decision: null, is_custom: false },
+  // 刘建国 — 右侧肢体麻木3天
+  { id: 401, record_id: 106, section: "differential", content: "急性脑梗死", detail: "右侧肢体麻木3天，结合高血压8年、糖尿病3年病史，急性脑梗死为首要考虑。需紧急完善头颅MRI+DWI明确缺血灶位置及范围。", confidence: "高", decision: null, is_custom: false },
+  { id: 402, record_id: 106, section: "differential", content: "短暂性脑缺血发作（TIA）", detail: "若症状反复发作且每次持续时间＜24小时，需考虑TIA。ABCD2评分评估短期卒中风险，≥4分需住院观察。", confidence: "中", decision: null, is_custom: false },
+  { id: 403, record_id: 106, section: "differential", content: "糖尿病周围神经病变", detail: "糖尿病3年，需排除对称性远端感觉运动神经病变。但单侧起病不典型，肌电图可鉴别。", confidence: "低", decision: null, is_custom: false },
+  { id: 404, record_id: 106, section: "workup", content: "头颅MRI + DWI", detail: "弥散加权成像对急性缺血灶最敏感，发病6小时内即可显示。明确梗死部位及范围，指导治疗方案选择。", urgency: "紧急", decision: null, is_custom: false },
+  { id: 405, record_id: 106, section: "workup", content: "颈部血管超声", detail: "评估颈动脉有无狭窄或斑块，排除大血管病变所致的栓塞来源。", urgency: "常规", decision: null, is_custom: false },
+  { id: 406, record_id: 106, section: "workup", content: "血糖 + HbA1c", detail: "评估血糖控制水平，高血糖是缺血性卒中的独立危险因素，HbA1c目标＜7%。", urgency: "常规", decision: null, is_custom: false },
+  { id: 407, record_id: 106, section: "treatment", content: "抗血小板治疗", detail: "若确诊缺血性卒中，阿司匹林100mg qd + 氯吡格雷75mg qd双抗21天，后单抗维持。禁忌出血倾向患者。", intervention: "药物", decision: null, is_custom: false },
+  { id: 408, record_id: 106, section: "treatment", content: "强化他汀", detail: "阿托伐他汀40mg qn，LDL-C目标＜1.8mmol/L。合并糖尿病的卒中患者需更积极的血脂管理。", intervention: "药物", decision: null, is_custom: false },
 ];
 
 export const MOCK_BRIEFING = {

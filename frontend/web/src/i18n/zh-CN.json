@@ -1,7 +1,7 @@
 {
   "frontend": {
     "app": {
-      "title": "医生 AI 助手"
+      "title": "鲸鱼随行"
     },
     "nav": {
       "openManage": "打开管理页",

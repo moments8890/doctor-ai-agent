@@ -7,21 +7,31 @@
  *
  * @see /debug/doctor/settings/knowledge
  */
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Box, Typography } from "@mui/material";
 import { TYPE, COLOR } from "../../../theme";
 import PageSkeleton from "../../../components/PageSkeleton";
 import BarButton from "../../../components/BarButton";
 import EmptyState from "../../../components/EmptyState";
 import ConfirmDialog from "../../../components/ConfirmDialog";
+import InlineEditor from "../../../components/InlineEditor";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 
+// Category colors — single source of truth
+export const KNOWLEDGE_CATEGORY_COLORS = {
+  red_flag: "#E8533F",
+  interview_guide: "#07C160",
+  diagnosis_rule: "#1B6EF3",
+  treatment_protocol: "#8e44ad",
+  custom: "#999",
+};
+
 const DEFAULT_CATEGORIES = [
-  { key: "red_flag", label: "危险信号", color: "#E8533F" },
-  { key: "interview_guide", label: "问诊指导", color: "#07C160" },
-  { key: "diagnosis_rule", label: "诊断规则", color: "#1B6EF3" },
-  { key: "treatment_protocol", label: "治疗方案", color: "#8e44ad" },
-  { key: "custom", label: "自定义", color: "#999" },
+  { key: "red_flag", label: "危险信号" },
+  { key: "interview_guide", label: "问诊指导" },
+  { key: "diagnosis_rule", label: "诊断规则" },
+  { key: "treatment_protocol", label: "治疗方案" },
+  { key: "custom", label: "自定义" },
 ];
 
 function formatDate(dateStr) {
@@ -31,68 +41,9 @@ function formatDate(dateStr) {
   return `${d.getMonth() + 1}月${d.getDate()}日`;
 }
 
-/* ── Inline Edit ── */
-
-function InlineEditor({ value, onSave, onCancel, onDelete }) {
-  const [text, setText] = useState(value);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    if (ref.current) {
-      ref.current.focus();
-      ref.current.style.height = "auto";
-      ref.current.style.height = ref.current.scrollHeight + "px";
-    }
-  }, []);
-
-  function handleChange(e) {
-    setText(e.target.value);
-    e.target.style.height = "auto";
-    e.target.style.height = e.target.scrollHeight + "px";
-  }
-
-  const isDirty = text.trim() !== value;
-
-  return (
-    <Box>
-      <Box component="textarea" ref={ref} value={text} onChange={handleChange}
-        sx={{
-          width: "100%", boxSizing: "border-box", fontFamily: "inherit",
-          fontSize: TYPE.body.fontSize, color: COLOR.text2, lineHeight: 1.55,
-          p: 1, border: `1px solid ${COLOR.primary}`, borderRadius: "4px",
-          bgcolor: COLOR.surfaceAlt, resize: "none", overflow: "hidden", outline: "none",
-        }}
-        rows={1}
-      />
-      <Box sx={{ display: "flex", alignItems: "center", mt: 0.75 }}>
-        {onDelete && (
-          <Typography onClick={onDelete}
-            sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.danger, cursor: "pointer", "&:active": { opacity: 0.6 } }}>
-            删除
-          </Typography>
-        )}
-        <Box sx={{ flex: 1 }} />
-        <Typography onClick={onCancel}
-          sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, cursor: "pointer", mr: 2, "&:active": { opacity: 0.6 } }}>
-          取消
-        </Typography>
-        <Typography onClick={isDirty ? () => onSave(text.trim()) : undefined}
-          sx={{
-            fontSize: TYPE.secondary.fontSize, fontWeight: isDirty ? 600 : 400,
-            color: isDirty ? COLOR.primary : COLOR.text4,
-            cursor: isDirty ? "pointer" : "default",
-            "&:active": isDirty ? { opacity: 0.6 } : {},
-          }}>
-          保存
-        </Typography>
-      </Box>
-    </Box>
-  );
-}
-
 /* ── Item Row ── */
 
-function KnowledgeItemRow({ item, onEdit, onDelete }) {
+function KnowledgeItemRow({ item, color, onEdit, onDelete }) {
   const [editing, setEditing] = useState(false);
   const text = item.text || item.content || "";
 
@@ -104,11 +55,15 @@ function KnowledgeItemRow({ item, onEdit, onDelete }) {
   const content = (
     <Box onClick={!editing && onEdit ? () => setEditing(true) : undefined}
       sx={{
-        px: 2, py: 1.2, borderTop: `0.5px solid ${COLOR.borderLight}`,
+        display: "flex",
+        borderTop: `0.5px solid ${COLOR.borderLight}`,
         cursor: !editing && onEdit ? "pointer" : "default",
         bgcolor: COLOR.white,
         "&:active": !editing && onEdit ? { bgcolor: COLOR.surfaceAlt } : {},
       }}>
+      {/* Color accent bar */}
+      <Box sx={{ width: "3px", flexShrink: 0, bgcolor: color || COLOR.borderLight, my: "6px", borderRadius: "1.5px" }} />
+      <Box sx={{ flex: 1, minWidth: 0, px: 2, py: 1.2 }}>
       {editing ? (
         <InlineEditor value={text} onSave={handleSave} onCancel={() => setEditing(false)}
           onDelete={onDelete ? () => { setEditing(false); onDelete(item.id); } : undefined} />
@@ -121,12 +76,12 @@ function KnowledgeItemRow({ item, onEdit, onDelete }) {
             {text}
           </Typography>
           <Typography sx={{ fontSize: 10, color: COLOR.text4, mt: 0.4 }}>
-            {item.reference_count ? `引用${item.reference_count}次` : ""}
-            {item.reference_count && item.created_at ? " · " : ""}
-            {formatDate(item.created_at)}
+            引用{item.reference_count || 0}次
+            {item.created_at ? ` · ${formatDate(item.created_at)}` : ""}
           </Typography>
         </>
       )}
+      </Box>
     </Box>
   );
 
@@ -139,21 +94,24 @@ function KnowledgeSectionHeader({ label, count, color, expanded, onToggle }) {
   return (
     <Box onClick={onToggle}
       sx={{
-        display: "flex", alignItems: "center", px: 2, py: 1.3,
+        display: "flex", alignItems: "center",
         cursor: "pointer", bgcolor: COLOR.white,
         "&:active": { bgcolor: COLOR.surfaceAlt },
       }}>
-      <Box sx={{ flex: 1 }}>
-        <Typography component="span" sx={{ fontSize: TYPE.action.fontSize, fontWeight: 600, color: COLOR.text1 }}>
-          {label}
-        </Typography>
-        <Typography component="span" sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, ml: 0.8 }}>
-          {count}
+      <Box sx={{ width: "3px", alignSelf: "stretch", flexShrink: 0, bgcolor: color, my: "6px", borderRadius: "1.5px" }} />
+      <Box sx={{ flex: 1, display: "flex", alignItems: "center", px: 2, py: 1.3 }}>
+        <Box sx={{ flex: 1 }}>
+          <Typography component="span" sx={{ fontSize: TYPE.action.fontSize, fontWeight: 600, color: COLOR.text1 }}>
+            {label}
+          </Typography>
+          <Typography component="span" sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, ml: 0.8 }}>
+            {count}
+          </Typography>
+        </Box>
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
+          {expanded ? "▾" : "›"}
         </Typography>
       </Box>
-      <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
-        {expanded ? "▾" : "›"}
-      </Typography>
     </Box>
   );
 }
@@ -230,12 +188,13 @@ export default function KnowledgeSubpage({
             const catItems = grouped[cat.key] || [];
             if (catItems.length === 0) return null;
             const isExpanded = !collapsed[cat.key];
+            const catColor = cat.color || KNOWLEDGE_CATEGORY_COLORS[cat.key] || COLOR.borderLight;
             return (
-              <Box key={cat.key} sx={{ bgcolor: COLOR.white, mb: 0.8, borderLeft: `3px solid ${cat.color}` }}>
+              <Box key={cat.key} sx={{ bgcolor: COLOR.white, mb: 0.8 }}>
                 <KnowledgeSectionHeader
                   label={cat.label}
                   count={catItems.length}
-                  color={cat.color}
+                  color={catColor}
                   expanded={isExpanded}
                   onToggle={() => toggleSection(cat.key)}
                 />
@@ -243,6 +202,7 @@ export default function KnowledgeSubpage({
                   <KnowledgeItemRow
                     key={item.id}
                     item={item}
+                    color={catColor}
                     onEdit={onEdit}
                     onDelete={onDelete ? (id) => setDeleteTarget(id) : undefined}
                   />

@@ -12,6 +12,9 @@ export const TASK_TYPE_LABEL = {
   medication:  "用药",
   checkup:     "检查",
   general:     "通用",
+  review:      "审阅记录",
+  lab_review:  "检验结果",
+  imaging:     "影像检查",
 };
 
 export const TASK_STATUS_LABEL = {
