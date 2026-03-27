@@ -9,6 +9,7 @@ Provides:
 """
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime
 from typing import Any, Dict, Optional
@@ -247,9 +248,24 @@ async def get_patient_record_detail(
         if record is None:
             raise HTTPException(status_code=404, detail="Record not found")
 
-        # DiagnosisResult table removed — diagnosis data now lives in MedicalRecordDB columns
+        # Derive diagnosis_status from record state
         diagnosis_status: Optional[str] = None
+        if record.status == "pending_review":
+            diagnosis_status = "completed"
+        elif record.status == "completed" and record.diagnosis:
+            diagnosis_status = "confirmed"
+
+        # Parse treatment_plan — stored as Text, may be JSON dict or free text
         treatment_plan: Optional[Dict[str, Any]] = None
+        if record.treatment_plan:
+            try:
+                parsed = json.loads(record.treatment_plan)
+                if isinstance(parsed, dict):
+                    treatment_plan = parsed
+                else:
+                    treatment_plan = {"medications": [], "follow_up": record.treatment_plan, "lifestyle": None}
+            except (json.JSONDecodeError, TypeError):
+                treatment_plan = {"medications": [], "follow_up": record.treatment_plan, "lifestyle": None}
 
     safe_create_task(audit(
         "patient", "READ",
