@@ -65,6 +65,8 @@ class PatientSessionResponse(BaseModel):
 class PatientMeResponse(BaseModel):
     patient_id: int
     patient_name: str
+    doctor_name: Optional[str] = None
+    doctor_specialty: Optional[str] = None
 
 
 class PatientRecordOut(BaseModel):
@@ -146,7 +148,23 @@ async def create_patient_session(body: PatientSessionRequest):
 async def get_patient_me(authorization: Optional[str] = Header(default=None)):
     """Return basic identity info for the current patient token."""
     patient = await _authenticate_patient(authorization)
-    return PatientMeResponse(patient_id=patient.id, patient_name=patient.name)
+
+    doctor_name = None
+    doctor_specialty = None
+    if patient.doctor_id:
+        from db.models.doctor import Doctor
+        async with AsyncSessionLocal() as db:
+            doctor = await db.get(Doctor, patient.doctor_id)
+            if doctor:
+                doctor_name = doctor.name
+                doctor_specialty = doctor.specialty
+
+    return PatientMeResponse(
+        patient_id=patient.id,
+        patient_name=patient.name,
+        doctor_name=doctor_name,
+        doctor_specialty=doctor_specialty,
+    )
 
 
 @router.get("/records", response_model=list[PatientRecordOut])
