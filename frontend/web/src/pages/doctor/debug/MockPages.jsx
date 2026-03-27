@@ -74,7 +74,7 @@ const TABS = [
 function MockBottomNav({ active, onNav }) {
   return (
     <Box sx={{
-      position: "absolute", bottom: 0, left: 0, right: 0, height: 64,
+      flexShrink: 0, height: 64,
       display: "flex", bgcolor: COLOR.surface, borderTop: `0.5px solid #d9d9d9`,
     }}>
       {TABS.map(({ key, label, Icon }) => (
@@ -97,7 +97,7 @@ function MockBottomNav({ active, onNav }) {
 function MockHome({ onNav }) {
   const content = (
     <Box sx={{ flex: 1, overflowY: "auto", position: "relative" }}>
-      <Box sx={{ p: 1.5, pb: 8 }}>
+      <Box sx={{ p: 1.5 }}>
         <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1, mb: 1 }}>
           <Box onClick={() => onNav("patients")} sx={{ bgcolor: COLOR.white, borderRadius: 1, p: 1.5, cursor: "pointer", "&:active": { bgcolor: COLOR.surface } }}>
             <Typography sx={{ fontSize: 24, fontWeight: 700, color: COLOR.primary }}>{MOCK_BRIEFING.today_patients}</Typography>
@@ -136,7 +136,7 @@ function MockHome({ onNav }) {
           </Typography>
         </Box>
       </Box>
-      <Box sx={{ position: "absolute", bottom: 6, left: 0, right: 0, px: 1.5 }}>
+      <Box sx={{ px: 1.5, mt: "auto", pb: 1 }}>
         <AskAIBar onClick={() => onNav("chat")} />
       </Box>
     </Box>

@@ -964,8 +964,8 @@ export default function PatientPage() {
       {/* Hide page header when a subpage has its own header */}
       {!urlSubpage && <SubpageHeader title={NAV_TABS.find(t => t.key === tab)?.title || "AI 健康助手"} />}
 
-      {/* Content — flex:1 scrollable area with bottom nav padding */}
-      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", pb: "56px" }}>
+      {/* Content — flex:1 scrollable area */}
+      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
         {tab === "chat" && <ChatTab token={token} doctorName={doctorName} onLogout={handleLogout}
           onNewInterview={() => { startInterview(); }}
           onViewRecords={() => setTab("records")} />}
@@ -993,10 +993,10 @@ export default function PatientPage() {
         )}
       </Box>
 
-      {/* Bottom nav — fixed at bottom like DoctorPage */}
+      {/* Bottom nav — flex child, always visible */}
       <BottomNavigation value={tab} onChange={(_, v) => setTab(v)} showLabels
         sx={{
-          position: "absolute", bottom: 0, left: 0, right: 0, height: 56,
+          flexShrink: 0, height: 56,
           borderTop: "1px solid #ddd", bgcolor: "#f5f5f5",
           paddingBottom: "env(safe-area-inset-bottom)",
         }}>
