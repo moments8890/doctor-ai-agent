@@ -10,7 +10,10 @@ import { useTheme } from "@mui/material/styles";
 import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import QrCode2OutlinedIcon from "@mui/icons-material/QrCode2Outlined";
 import { useApi } from "../../../api/ApiContext";
+import { generateQRToken } from "../../../api";
+import QRDialog from "../../../components/QRDialog";
 import { useAppNavigate } from "../../../hooks/useAppNavigate";
 import { RECORD_TAB_GROUPS } from "../constants";
 import RecordCard from "../../../components/RecordCard";
@@ -74,7 +77,7 @@ function DeletePatientDialog({ open, patientName, deleting, onConfirm, onClose }
   );
 }
 
-function PatientActionBar({ exportingPdf, exportingReport, onExportPdf, onExportReport, onDeleteOpen }) {
+function PatientActionBar({ exportingPdf, exportingReport, onExportPdf, onExportReport, onDeleteOpen, onQRCode }) {
   return (
     <Stack direction="row" spacing={2} sx={{ pt: 0.5, borderTop: "0.5px solid #f0f0f0" }} alignItems="center">
       <Box onClick={onDeleteOpen}
@@ -83,6 +86,11 @@ function PatientActionBar({ exportingPdf, exportingReport, onExportPdf, onExport
         删除患者
       </Box>
       <Box sx={{ flex: 1 }} />
+      <Box onClick={onQRCode}
+        sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: "pointer", color: "#e8833a", fontSize: TYPE.secondary.fontSize, "&:active": { opacity: 0.6 } }}>
+        <QrCode2OutlinedIcon sx={{ fontSize: ICON.sm }} />
+        二维码
+      </Box>
       <Box onClick={!exportingPdf && !exportingReport ? onExportPdf : undefined}
         sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: exportingPdf ? "default" : "pointer", color: exportingPdf ? "#ccc" : "#07C160", fontSize: TYPE.secondary.fontSize }}>
         {exportingPdf ? <CircularProgress size={12} sx={{ color: "#ccc" }} /> : <FileDownloadOutlinedIcon sx={{ fontSize: ICON.sm }} />}
@@ -99,7 +107,7 @@ function PatientActionBar({ exportingPdf, exportingReport, onExportPdf, onExport
 
 /* ── CollapsibleProfile ── */
 
-function CollapsibleProfile({ patient, age, records, expanded, onToggle, exportingPdf, exportingReport, onExportPdf, onExportReport, onDeleteOpen }) {
+function CollapsibleProfile({ patient, age, records, expanded, onToggle, exportingPdf, exportingReport, onExportPdf, onExportReport, onDeleteOpen, onQRCode }) {
   const genderStr = patient.gender ? { male: "男", female: "女" }[patient.gender] || patient.gender : null;
   const stats = computeRecordStats(records);
 
@@ -169,6 +177,7 @@ function CollapsibleProfile({ patient, age, records, expanded, onToggle, exporti
       <PatientActionBar
         exportingPdf={exportingPdf} exportingReport={exportingReport}
         onExportPdf={onExportPdf} onExportReport={onExportReport} onDeleteOpen={onDeleteOpen}
+        onQRCode={onQRCode}
       />
     </Box>
   );
@@ -470,6 +479,19 @@ export default function PatientDetail({ patient, doctorId, onDeleted, onStartInt
 
   const { records, setRecords, loading, error, exportingPdf, exportingReport, exportError, deleteConfirmOpen, setDeleteConfirmOpen, deleting, load, handleDelete, handleExportPdf, handleExportReport } = usePatientDetailState({ patient, doctorId, onDeleted });
 
+  /* QR code state */
+  const [qrOpen, setQrOpen] = useState(false);
+  const [qrUrl, setQrUrl] = useState("");
+  const [qrError, setQrError] = useState("");
+  const [qrLoading, setQrLoading] = useState(false);
+
+  async function handlePatientQR() {
+    setQrLoading(true); setQrError(""); setQrOpen(true);
+    try { const data = await generateQRToken("patient", doctorId, patient.id); setQrUrl(data.url); }
+    catch (e) { setQrUrl(""); setQrError(e.message || "生成失败"); }
+    finally { setQrLoading(false); }
+  }
+
   if (!patient) return <EmptyPatientPlaceholder />;
 
   const age = patient.year_of_birth ? new Date().getFullYear() - patient.year_of_birth : null;
@@ -485,6 +507,7 @@ export default function PatientDetail({ patient, doctorId, onDeleted, onStartInt
         exportingPdf={exportingPdf} exportingReport={exportingReport}
         onExportPdf={() => setExportOpen(true)}
         onExportReport={handleExportReport} onDeleteOpen={() => setDeleteConfirmOpen(true)}
+        onQRCode={handlePatientQR}
       />
       {exportError && <Typography variant="caption" color="error.main" sx={{ display: "block", px: 2.5, mt: 0.5 }}>{exportError}</Typography>}
       <DeletePatientDialog open={deleteConfirmOpen} patientName={patient.name} deleting={deleting} onConfirm={handleDelete} onClose={() => setDeleteConfirmOpen(false)} />
@@ -492,6 +515,9 @@ export default function PatientDetail({ patient, doctorId, onDeleted, onStartInt
         onExport={(opts) => { setExportOpen(false); handleExportPdf(); }} />
       <RecordListSection loading={loading} error={error} records={records} filteredRecords={filteredRecords} activeTab={activeTab} setActiveTab={setActiveTab} setRecords={setRecords} doctorId={doctorId} load={load} />
       <PatientChatPage patientId={patient.id} doctorId={doctorId} />
+      <QRDialog open={qrOpen} onClose={() => setQrOpen(false)} title="患者二维码"
+        name={patient.name} url={qrUrl} loading={qrLoading} error={qrError}
+        onRegenerate={handlePatientQR} />
       <Box sx={{ height: 24 }} />
     </Box>
   );
