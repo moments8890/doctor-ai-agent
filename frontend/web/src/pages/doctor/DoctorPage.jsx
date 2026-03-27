@@ -8,7 +8,7 @@
  * Admin/management surfaces are reachable but secondary.
  */
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import {
   Badge, Box, Stack, TextField, Typography,
 } from "@mui/material";
@@ -17,10 +17,8 @@ import BottomNavigationActionMui from "@mui/material/BottomNavigationAction";
 import LogoutIcon from "@mui/icons-material/Logout";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
-import {
-  getTasks,
-  getDoctorProfile, updateDoctorProfile,
-} from "../../api";
+import { useApi } from "../../api/ApiContext";
+import { useAppNavigate } from "../../hooks/useAppNavigate";
 import { useDoctorStore } from "../../store/doctorStore";
 import { NAV, DESKTOP_NAV } from "./constants";
 import HomePage from "./HomePage";
@@ -149,6 +147,7 @@ function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpag
 }
 
 function useDoctorPageState({ doctorId, accessToken, setAuth }) {
+  const { getTasks, getDoctorProfile, updateDoctorProfile } = useApi();
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardName, setOnboardName] = useState("");
@@ -174,7 +173,7 @@ function useDoctorPageState({ doctorId, accessToken, setAuth }) {
 
 export default function DoctorPage() {
   const { section, patientId, recordId, subpage: urlSubpage, subId: urlSubId } = useParams();
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   const { doctorId, doctorName, accessToken, clearAuth, setAuth } = useDoctorStore();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));

@@ -15,7 +15,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
 import Markdown from "react-markdown";
-import { sendChat, ocrImage, extractFileForChat, clearContext, importToInterview, textToInterview } from "../../api";
+import { useApi } from "../../api/ApiContext";
 import RecordFields from "../../components/RecordFields";
 import { t } from "../../i18n";
 import { QUICK_COMMANDS, Action } from "./constants";
@@ -283,7 +283,7 @@ function ChipInput({ activeChip, onRemoveChip, input, onInput, onSend, loading, 
   );
 }
 
-async function performSend({ text, loading, doctorId, history, setMessages, setInput, setLoading, setFailedText, onPatientCreated, onStartPatientInterview, actionHint, actionLabel }) {
+async function performSend({ text, loading, doctorId, history, sendChat, setMessages, setInput, setLoading, setFailedText, onPatientCreated, onStartPatientInterview, actionHint, actionLabel }) {
   if (!text || loading) return;
   setFailedText(null);
   setMessages((prev) => [...prev, { role: "user", content: text, ts: nowTs(), actionLabel: actionLabel || null }]);
@@ -316,6 +316,7 @@ async function performSend({ text, loading, doctorId, history, setMessages, setI
 }
 
 function useChatState({ doctorId, onMessageCountChange, onPatientCreated, onStartPatientInterview, onContextCleared }) {
+  const { sendChat, clearContext } = useApi();
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [failedText, setFailedText] = useState(null);
@@ -353,7 +354,7 @@ function useChatState({ doctorId, onMessageCountChange, onPatientCreated, onStar
   }
 
   function sendText(text, actionHint = null, actionLabel = null) {
-    return performSend({ text, loading, doctorId, history, setMessages, setInput, setLoading, setFailedText, onPatientCreated, onStartPatientInterview, actionHint, actionLabel });
+    return performSend({ text, loading, doctorId, history, sendChat, setMessages, setInput, setLoading, setFailedText, onPatientCreated, onStartPatientInterview, actionHint, actionLabel });
   }
 
   return { input, setInput, loading, setLoading, failedText, setFailedText, messages, setMessages, bottomRef, onClear, sendText };
@@ -399,7 +400,7 @@ function useChatEffects({ externalInput, onExternalInputConsumed, autoSendText, 
   }, [autoSendText]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
-async function processFile({ file, setMediaError, setMediaProcessing, doctorId, onStartPatientInterview }) {
+async function processFile({ file, importToInterview, setMediaError, setMediaProcessing, doctorId, onStartPatientInterview }) {
   if (!file) return;
   setMediaError(null);
   if (!file.type.startsWith("image/")) {
@@ -437,6 +438,7 @@ function useDailySummary({ doctorId, sendText, ready }) {
 }
 
 export default function ChatPage({ doctorId, onMessageCountChange, externalInput, onExternalInputConsumed, onPatientCreated, autoSendText, onAutoSendConsumed, onContextCleared, onStartPatientInterview, onBack, hideHeader }) {
+  const { importToInterview, extractFileForChat, textToInterview } = useApi();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
@@ -543,11 +545,11 @@ export default function ChatPage({ doctorId, onMessageCountChange, externalInput
       </Box>
       <QuickCommandBar activeChip={activeChip} onSelect={handleCommandSelect} />
       <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }}
-        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; processFile({ file: f, setMediaError, setMediaProcessing, doctorId, onStartPatientInterview }); }} />
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; processFile({ file: f, importToInterview, setMediaError, setMediaProcessing, doctorId, onStartPatientInterview }); }} />
       <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }}
-        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; processFile({ file: f, setMediaError, setMediaProcessing, doctorId, onStartPatientInterview }); }} />
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; processFile({ file: f, importToInterview, setMediaError, setMediaProcessing, doctorId, onStartPatientInterview }); }} />
       <input ref={galleryInputRef} type="file" accept="image/*" style={{ display: "none" }}
-        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; processFile({ file: f, setMediaError, setMediaProcessing, doctorId, onStartPatientInterview }); }} />
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; processFile({ file: f, importToInterview, setMediaError, setMediaProcessing, doctorId, onStartPatientInterview }); }} />
       <input ref={fileDocInputRef} type="file" accept=".pdf,.docx,.doc,.txt,image/jpeg,image/png" style={{ display: "none" }}
         onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; handleDocFile(f); }} />
       <ChipInput

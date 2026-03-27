@@ -4,7 +4,7 @@
  * 患者列表面板：支持按姓名搜索、自然语言智能搜索、PDF 导入，以及选中后展示详情。
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import {
   Alert, Box, Button, Chip, CircularProgress, InputAdornment,
   Stack, TextField, Typography,
@@ -15,7 +15,8 @@ import SearchIcon from "@mui/icons-material/Search";
 import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-import { getPatients, searchPatients, extractFileForChat } from "../../api";
+import { useApi } from "../../api/ApiContext";
+import { useAppNavigate } from "../../hooks/useAppNavigate";
 import AskAIBar from "../../components/AskAIBar";
 import BarButton from "../../components/BarButton";
 import NewItemCard from "../../components/NewItemCard";
@@ -202,7 +203,7 @@ function PatientListPane({ patients, loading, error, search, nlResults, nlLoadin
   );
 }
 
-async function extractAndSend({ file, onAutoSendToChat, setImportError }) {
+async function extractAndSend({ file, extractFileForChat, onAutoSendToChat, setImportError }) {
   const { text } = await extractFileForChat(file);
   if (!text?.trim()) { setImportError("未能从文件中提取到文字，请尝试其他文件"); return; }
   const nameMatch =
@@ -214,6 +215,7 @@ async function extractAndSend({ file, onAutoSendToChat, setImportError }) {
 }
 
 function usePatientsState({ doctorId, onPatientSelected, onAutoSendToChat, selectedId, refreshKey }) {
+  const { getPatients, searchPatients, extractFileForChat } = useApi();
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -242,7 +244,7 @@ function usePatientsState({ doctorId, onPatientSelected, onAutoSendToChat, selec
   async function handleImportFile(e) {
     const file = e.target.files?.[0]; e.target.value = ""; if (!file) return;
     setImporting(true); setImportError("");
-    try { await extractAndSend({ file, onAutoSendToChat, setImportError }); }
+    try { await extractAndSend({ file, extractFileForChat, onAutoSendToChat, setImportError }); }
     catch (err) { setImportError(err?.message === "Request timed out" ? "文件较大，解析超时，请尝试上传页数更少的 PDF" : "文件解析失败，请重试"); }
     finally { setImporting(false); }
   }
@@ -263,7 +265,7 @@ function MobilePatientDetailView({ selectedPatient, doctorId, navigate, onStartI
 
 export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatText, onAutoSendToChat, onPatientSelected, refreshKey = 0, triggerInterview, onTriggerInterviewConsumed, chatInterviewSessionId, onChatInterviewSessionConsumed, chatInterviewPrePopulated }) {
   const { patientId } = useParams();
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const selectedId = patientId ? Number(patientId) : null;

@@ -10,7 +10,7 @@ import SectionLabel from "../../../components/SectionLabel";
 import AppButton from "../../../components/AppButton";
 import ConfirmDialog from "../../../components/ConfirmDialog";
 import SheetDialog from "../../../components/SheetDialog";
-import { getTemplateStatus, uploadTemplate, deleteTemplate } from "../../../api";
+import { useApi } from "../../../api/ApiContext";
 import { TYPE, ICON } from "../../../theme";
 
 const STANDARD_TEMPLATE_FIELDS = [
@@ -123,6 +123,7 @@ function TemplateActions({ status, uploading, deleting, fileRef, onDelete }) {
 }
 
 function useTemplateState(doctorId) {
+  const { getTemplateStatus, uploadTemplate, deleteTemplate } = useApi();
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);

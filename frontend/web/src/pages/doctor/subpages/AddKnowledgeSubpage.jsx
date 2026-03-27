@@ -8,7 +8,7 @@ import PageSkeleton from "../../../components/PageSkeleton";
 import BarButton from "../../../components/BarButton";
 import AppButton from "../../../components/AppButton";
 import SheetDialog from "../../../components/SheetDialog";
-import { addKnowledgeItem } from "../../../api";
+import { useApi } from "../../../api/ApiContext";
 import { TYPE } from "../../../theme";
 
 export const KNOWLEDGE_CATEGORIES = [
@@ -55,6 +55,7 @@ export const KNOWLEDGE_CATEGORIES = [
 ];
 
 export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile, categories = KNOWLEDGE_CATEGORIES }) {
+  const { addKnowledgeItem } = useApi();
   const [category, setCategory] = useState("interview_guide");
   const [content, setContent] = useState("");
   const [adding, setAdding] = useState(false);

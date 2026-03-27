@@ -10,12 +10,9 @@
  *  - Review mode: suggestions exist, grouped by section
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Box, Skeleton, Typography } from "@mui/material";
-import {
-  getSuggestions, decideSuggestion, addSuggestion,
-  triggerDiagnosis, finalizeReview, getTaskRecord,
-} from "../../api";
+import { useApi } from "../../api/ApiContext";
+import { useAppNavigate } from "../../hooks/useAppNavigate";
 import { useDoctorStore } from "../../store/doctorStore";
 import { STRUCTURED_FIELD_LABELS } from "./constants";
 import ReviewSubpage from "./subpages/ReviewSubpage";
@@ -122,7 +119,8 @@ function LoadingSkeleton() {
 /* ── Main component ────────────────────────────────────────────────────────── */
 
 export default function ReviewPage({ recordId }) {
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
+  const { getSuggestions, decideSuggestion, addSuggestion, triggerDiagnosis, finalizeReview, getTaskRecord } = useApi();
   const { doctorId } = useDoctorStore();
 
   const [record, setRecord] = useState(null);

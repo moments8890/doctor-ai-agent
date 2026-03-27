@@ -4,7 +4,6 @@
  * 任务列表面板：统一优先级列表，支持筛选芯片、日期分组，合并审核和任务。
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Alert, Box, CircularProgress, MenuItem, Stack, TextField, Typography,
 } from "@mui/material";
@@ -14,7 +13,8 @@ import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import EventRepeatOutlinedIcon from "@mui/icons-material/EventRepeatOutlined";
 import MedicationOutlinedIcon from "@mui/icons-material/MedicationOutlined";
 import BiotechOutlinedIcon from "@mui/icons-material/BiotechOutlined";
-import { getTasks, patchTask, postponeTask, createTask, getPatients, getTaskRecord } from "../../api";
+import { useApi } from "../../api/ApiContext";
+import { useAppNavigate } from "../../hooks/useAppNavigate";
 import { TASK_TYPE_LABEL, TASK_FILTER_CHIPS } from "./constants";
 import AskAIBar from "../../components/AskAIBar";
 import AppButton from "../../components/AppButton";
@@ -148,6 +148,7 @@ function SwipeableTaskRow({ children, onSwipeLeft, onSwipeRight }) {
 /* ── Task detail view — wraps shared TaskDetailSubpage with API data ── */
 
 function TaskDetailView({ task, doctorId, isMobile, onBack, onComplete, onPostpone, onCancel }) {
+  const { getTaskRecord } = useApi();
   const [record, setRecord] = useState(null);
   const [loadingRecord, setLoadingRecord] = useState(false);
 
@@ -265,7 +266,8 @@ function CreateTaskSubpage({ createForm, creating, createError, patientOptions, 
 /* ── Main component ── */
 
 export default function TasksPage({ doctorId, urlSubpage, urlSubId }) {
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
+  const { getTasks, patchTask, postponeTask, createTask, getPatients } = useApi();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 

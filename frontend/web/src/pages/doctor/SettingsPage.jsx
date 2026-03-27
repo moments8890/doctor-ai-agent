@@ -4,13 +4,13 @@
  * 设置面板：医生账户信息编辑、科室专业设置、报告模板管理和退出登录。
  */
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Box, TextField, Typography,
 } from "@mui/material";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
-import { getDoctorProfile, updateDoctorProfile, getKnowledgeItems, deleteKnowledgeItem } from "../../api";
+import { useApi } from "../../api/ApiContext";
+import { useAppNavigate } from "../../hooks/useAppNavigate";
 import AppButton from "../../components/AppButton";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import PageSkeleton from "../../components/PageSkeleton";
@@ -150,7 +150,8 @@ function KnowledgeDeleteDialog({ open, onClose, onConfirm }) {
 }
 
 function KnowledgeSubpageWrapper({ doctorId, onBack, isMobile, urlSubId }) {
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
+  const { getKnowledgeItems, deleteKnowledgeItem } = useApi();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -203,6 +204,7 @@ function StubSubpage({ title, onBack, isMobile }) {
 
 
 function useSettingsState({ doctorId, doctorName, accessToken, setAuth }) {
+  const { getDoctorProfile, updateDoctorProfile } = useApi();
   const [nameDialogOpen, setNameDialogOpen] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [nameSaving, setNameSaving] = useState(false);
@@ -232,7 +234,7 @@ function useSettingsState({ doctorId, doctorName, accessToken, setAuth }) {
 }
 
 export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId }) {
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { doctorName, setAuth, accessToken } = useDoctorStore();

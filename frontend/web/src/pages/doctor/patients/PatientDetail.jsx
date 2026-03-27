@@ -2,7 +2,6 @@
  * 患者详情面板：可折叠个人信息、带计数的病历标签页、置顶操作栏。
  */
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Alert, Box, Button, CircularProgress, Stack, Typography,
 } from "@mui/material";
@@ -11,11 +10,8 @@ import { useTheme } from "@mui/material/styles";
 import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import {
-  getRecords,
-  exportPatientPdf, exportOutpatientReport, deletePatient,
-  getPatientChat, replyToPatient,
-} from "../../../api";
+import { useApi } from "../../../api/ApiContext";
+import { useAppNavigate } from "../../../hooks/useAppNavigate";
 import { RECORD_TAB_GROUPS } from "../constants";
 import RecordCard from "../../../components/RecordCard";
 import ExportSelectorDialog from "../../../components/ExportSelectorDialog";
@@ -194,7 +190,7 @@ function RecordTabs({ activeTab, onChange, records }) {
 /* ── StickyTopBar ── */
 
 function StickyTopBar({ patient, isMobile, onStartInterview, onExportOpen }) {
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   return (
     <Box sx={{
       position: "sticky", top: 0, zIndex: 2,
@@ -272,7 +268,7 @@ function PendingReviewRow({ record, onClick }) {
 }
 
 function RecordListSection({ loading, error, records, filteredRecords, activeTab, setActiveTab, setRecords, doctorId, load }) {
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   return (
     <Box sx={{ bgcolor: "#fff", mb: 0.8 }}>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 2, pt: 1.5, pb: 0.5 }}>
@@ -302,7 +298,8 @@ function RecordListSection({ loading, error, records, filteredRecords, activeTab
 /* ── hook ── */
 
 function usePatientDetailState({ patient, doctorId, onDeleted }) {
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
+  const { getRecords, exportPatientPdf, exportOutpatientReport, deletePatient } = useApi();
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -327,6 +324,7 @@ function usePatientDetailState({ patient, doctorId, onDeleted }) {
 /* ── PatientChatPage ── */
 
 function PatientChatPage({ patientId, doctorId }) {
+  const { getPatientChat, replyToPatient } = useApi();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);

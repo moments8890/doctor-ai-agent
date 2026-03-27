@@ -9,8 +9,8 @@ import { Alert, Box, Button, CircularProgress, IconButton, LinearProgress, Stack
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
-import { useNavigate } from "react-router-dom";
-import { doctorInterviewTurn, doctorInterviewConfirm, doctorInterviewCancel, doctorInterviewGetSession, confirmCarryForward, triggerDiagnosis, updateInterviewField } from "../../api";
+import { useApi } from "../../api/ApiContext";
+import { useAppNavigate } from "../../hooks/useAppNavigate";
 import SubpageHeader from "../../components/SubpageHeader";
 import SuggestionChips from "../../components/SuggestionChips";
 import FieldReviewCard from "../../components/doctor/FieldReviewCard";
@@ -40,7 +40,8 @@ function MsgBubble({ msg }) {
 }
 
 export default function InterviewPage({ doctorId, sessionId: resumeSessionId, patientContext, prePopulated, onComplete, onCancel }) {
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
+  const { doctorInterviewTurn, doctorInterviewConfirm, doctorInterviewCancel, doctorInterviewGetSession, confirmCarryForward, triggerDiagnosis, updateInterviewField } = useApi();
   const patientName = patientContext?.name;
   const importFieldCount = prePopulated ? Object.values(prePopulated).filter(v => v && v.trim()).length : 0;
   const welcomeMsg = importFieldCount > 0

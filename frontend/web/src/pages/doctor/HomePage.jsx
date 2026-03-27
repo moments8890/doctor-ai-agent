@@ -1,16 +1,17 @@
 /** @route /doctor */
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Box } from "@mui/material";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
-import { getBriefing } from "../../api";
+import { useApi } from "../../api/ApiContext";
+import { useAppNavigate } from "../../hooks/useAppNavigate";
 import BottomSheet from "../../components/BottomSheet";
 import ChatPage from "./ChatPage";
 import HomeSubpage from "./subpages/HomeSubpage";
 
 export default function HomePage({ doctorId, onNavigateToChat }) {
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
+  const { getBriefing } = useApi();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [data, setData] = useState(null);
