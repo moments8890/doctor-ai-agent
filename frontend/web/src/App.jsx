@@ -12,6 +12,7 @@ import DoctorComponentShowcase from "./components/doctor/Showcase";
 import MockPages from "./pages/doctor/debug/MockPages";
 import { useDoctorStore } from "./store/doctorStore";
 import { setWebToken, onAuthExpired } from "./api";
+import { ApiProvider } from "./api/ApiContext";
 import { isMiniApp } from "./utils/env";
 
 import Box from "@mui/material/Box";
@@ -115,12 +116,12 @@ export default function App() {
       <Route path="/privacy" element={<MobileFrame><PrivacyPage /></MobileFrame>} />
       <Route path="/login" element={<MobileFrame><LoginPage /></MobileFrame>} />
       <Route path="/" element={<Navigate to="/doctor" replace />} />
-      <Route path="/doctor" element={<MobileFrame><RequireAuth><DoctorPage /></RequireAuth></MobileFrame>} />
-      <Route path="/doctor/patients/:patientId" element={<MobileFrame><RequireAuth><DoctorPage /></RequireAuth></MobileFrame>} />
-      <Route path="/doctor/review/:recordId" element={<MobileFrame><RequireAuth><DoctorPage /></RequireAuth></MobileFrame>} />
-      <Route path="/doctor/:section" element={<MobileFrame><RequireAuth><DoctorPage /></RequireAuth></MobileFrame>} />
-      <Route path="/doctor/:section/:subpage" element={<MobileFrame><RequireAuth><DoctorPage /></RequireAuth></MobileFrame>} />
-      <Route path="/doctor/:section/:subpage/:subId" element={<MobileFrame><RequireAuth><DoctorPage /></RequireAuth></MobileFrame>} />
+      <Route path="/doctor" element={<MobileFrame><RequireAuth><ApiProvider><DoctorPage /></ApiProvider></RequireAuth></MobileFrame>} />
+      <Route path="/doctor/patients/:patientId" element={<MobileFrame><RequireAuth><ApiProvider><DoctorPage /></ApiProvider></RequireAuth></MobileFrame>} />
+      <Route path="/doctor/review/:recordId" element={<MobileFrame><RequireAuth><ApiProvider><DoctorPage /></ApiProvider></RequireAuth></MobileFrame>} />
+      <Route path="/doctor/:section" element={<MobileFrame><RequireAuth><ApiProvider><DoctorPage /></ApiProvider></RequireAuth></MobileFrame>} />
+      <Route path="/doctor/:section/:subpage" element={<MobileFrame><RequireAuth><ApiProvider><DoctorPage /></ApiProvider></RequireAuth></MobileFrame>} />
+      <Route path="/doctor/:section/:subpage/:subId" element={<MobileFrame><RequireAuth><ApiProvider><DoctorPage /></ApiProvider></RequireAuth></MobileFrame>} />
       <Route path="/patient" element={<MobileFrame><PatientPage /></MobileFrame>} />
       <Route path="/patient/:tab" element={<MobileFrame><PatientPage /></MobileFrame>} />
       <Route path="/patient/:tab/:subpage" element={<MobileFrame><PatientPage /></MobileFrame>} />
@@ -131,6 +132,13 @@ export default function App() {
       {/* Component showcases — specific routes BEFORE debug wildcard */}
       <Route path="/debug/components" element={<MobileFrame><ComponentShowcasePage /></MobileFrame>} />
       <Route path="/debug/doctor-components" element={<MobileFrame><DoctorComponentShowcase /></MobileFrame>} />
+      {/* Mock doctor app — same DoctorPage, mock API, auth required in prod */}
+      <Route path="/debug/doctor" element={<MobileFrame><RequireAuth><ApiProvider><DoctorPage /></ApiProvider></RequireAuth></MobileFrame>} />
+      <Route path="/debug/doctor/patients/:patientId" element={<MobileFrame><RequireAuth><ApiProvider><DoctorPage /></ApiProvider></RequireAuth></MobileFrame>} />
+      <Route path="/debug/doctor/review/:recordId" element={<MobileFrame><RequireAuth><ApiProvider><DoctorPage /></ApiProvider></RequireAuth></MobileFrame>} />
+      <Route path="/debug/doctor/:section" element={<MobileFrame><RequireAuth><ApiProvider><DoctorPage /></ApiProvider></RequireAuth></MobileFrame>} />
+      <Route path="/debug/doctor/:section/:subpage" element={<MobileFrame><RequireAuth><ApiProvider><DoctorPage /></ApiProvider></RequireAuth></MobileFrame>} />
+      <Route path="/debug/doctor/:section/:subpage/:subId" element={<MobileFrame><RequireAuth><ApiProvider><DoctorPage /></ApiProvider></RequireAuth></MobileFrame>} />
       <Route path="/debug/doctor-pages" element={<MockPages />} />
       {/* Debug — wildcard AFTER specific routes */}
       <Route path="/debug" element={<DebugPage />} />
