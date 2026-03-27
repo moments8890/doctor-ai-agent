@@ -195,3 +195,25 @@ export const MOCK_PATIENT_MESSAGES = [
   { id: 502, patient_id: 1, patient_name: "陈伟强", content: "降压药是饭前吃还是饭后吃？", source: "patient", triage_category: "informational", created_at: "2026-03-26T09:15:00" },
   { id: 503, patient_id: 2, patient_name: "李复诊", content: "血糖测了空腹7.2，餐后11.5", source: "patient", triage_category: "informational", created_at: "2026-03-25T20:00:00" },
 ];
+
+export const MOCK_KNOWLEDGE_ITEMS = [
+  { id: 1, category: "red_flag", text: "蛛网膜下腔出血（SAH）：突发剧烈头痛（雷击样），伴恶心呕吐、颈强直、意识障碍。Fisher分级指导治疗。Hunt-Hess分级评估预后。", source: "agent_auto", created_at: "2026-03-20", reference_count: 5 },
+  { id: 2, category: "red_flag", text: "急性脑梗死：突发偏瘫、失语、视野缺损。NIHSS评分＞4分考虑溶栓或取栓。4.5h窗口期rtPA，24h窗口期机械取栓。", source: "doctor", created_at: "2026-03-18", reference_count: 3 },
+  { id: 3, category: "interview_guide", text: "高血压患者首诊：必须询问头痛、头晕、视物模糊、胸闷。必须测量双上肢血压。询问家族史、用药依从性。", source: "doctor", created_at: "2026-03-15", reference_count: 8 },
+  { id: 4, category: "diagnosis_rule", text: "高血压分级：1级（140-159/90-99）2级（160-179/100-109）3级（≥180/≥110）。危险分层：低危/中危/高危/很高危。", source: "agent_auto", created_at: "2026-03-10", reference_count: 12 },
+  { id: 5, category: "treatment_protocol", text: "脑动脉瘤术后管理：尼莫地平60mg/d预防血管痉挛14天。术后3天CT排除再出血。7天DSA评估效果。每日TCD监测。", source: "doctor", created_at: "2026-03-22", reference_count: 2 },
+];
+
+export const MOCK_FIELD_LABELS = {
+  chief_complaint: "主诉", present_illness: "现病史", past_history: "既往史",
+  allergy_history: "过敏史", family_history: "家族史", personal_history: "个人史",
+  marital_reproductive: "婚育史", physical_exam: "体格检查", specialist_exam: "专科检查",
+  auxiliary_exam: "辅助检查", diagnosis: "诊断", treatment_plan: "治疗方案",
+  orders_followup: "医嘱及随访",
+};
+
+export const MOCK_SETTINGS_TEMPLATES = [
+  { name: "门诊病历模板", desc: "默认模板，包含主诉、现病史、既往史等字段", badge: "默认" },
+  { name: "神经外科专科模板", desc: "包含GCS评分、瞳孔检查、神经系统查体等专科字段" },
+  { name: "术后随访模板", desc: "术后恢复情况、伤口愈合、并发症筛查" },
+];

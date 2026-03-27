@@ -8,14 +8,9 @@ import { useNavigate } from "react-router-dom";
 import {
   Box, TextField, Typography,
 } from "@mui/material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
-import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import { getDoctorProfile, updateDoctorProfile, getKnowledgeItems, deleteKnowledgeItem } from "../../api";
-import SectionLabel from "../../components/SectionLabel";
 import AppButton from "../../components/AppButton";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import PageSkeleton from "../../components/PageSkeleton";
@@ -25,25 +20,9 @@ import AboutSubpage from "./subpages/AboutSubpage";
 import TemplateSubpage from "./subpages/TemplateSubpage";
 import AddKnowledgeSubpage, { KNOWLEDGE_CATEGORIES } from "./subpages/AddKnowledgeSubpage";
 import { useDoctorStore } from "../../store/doctorStore";
+import SettingsListSubpage from "./subpages/SettingsListSubpage";
 import { SPECIALTY_OPTIONS } from "./constants";
 import { TYPE, ICON } from "../../theme";
-
-function SettingsRow({ icon, label, sublabel, onClick, danger }) {
-  return (
-    <Box onClick={onClick} sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, cursor: onClick ? "pointer" : "default",
-      borderBottom: "0.5px solid #f0f0f0", "&:active": onClick ? { bgcolor: "#f9f9f9" } : {} }}>
-      <Box sx={{ width: 36, height: 36, borderRadius: "4px", bgcolor: danger ? "#fef2f2" : "#f0faf4",
-        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, mr: 1.5 }}>
-        {icon}
-      </Box>
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontSize: TYPE.action.fontSize, color: danger ? "#FA5151" : "#111" }}>{label}</Typography>
-        {sublabel && <Typography variant="caption" color="text.secondary">{sublabel}</Typography>}
-      </Box>
-      {onClick && !danger && <ArrowBackIcon sx={{ fontSize: ICON.sm, color: "#ccc", transform: "rotate(180deg)" }} />}
-    </Box>
-  );
-}
 
 function NameDialog({ open, nameInput, nameSaving, nameError, onChange, onSave, onClose }) {
   return (
@@ -222,31 +201,6 @@ function StubSubpage({ title, onBack, isMobile }) {
   return <PageSkeleton title={title} onBack={isMobile ? onBack : undefined} isMobile={isMobile} listPane={content} />;
 }
 
-function AccountBlock({ doctorId, doctorName, specialty, onOpenName, onOpenSpecialty }) {
-  return (
-    <Box sx={{ bgcolor: "#fff" }}>
-      <Box sx={{ display: "flex", alignItems: "center", px: 2, py: 1.8, borderBottom: "0.5px solid #f0f0f0" }}>
-        <Box sx={{ width: 52, height: 52, borderRadius: "4px", bgcolor: "#07C160", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, mr: 1.5 }}>
-          <Typography sx={{ color: "#fff", fontSize: ICON.xl, fontWeight: 600 }}>{(doctorName || doctorId || "?").slice(-1)}</Typography>
-        </Box>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography sx={{ fontWeight: 600, fontSize: TYPE.title.fontSize }}>{doctorName || doctorId}</Typography>
-          <Typography variant="caption" color="text.secondary">{doctorId}</Typography>
-        </Box>
-      </Box>
-      {/* Nickname change disabled during internal testing — name is used for login */}
-      <Box sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, borderTop: "0.5px solid #f0f0f0" }}>
-        <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#111", flex: 1 }}>昵称</Typography>
-        <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#999", mr: 0.8 }}>{doctorName || "未设置"}</Typography>
-      </Box>
-      {/* Specialty change disabled during internal testing — only 神经外科 supported */}
-      <Box sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, borderTop: "0.5px solid #f0f0f0" }}>
-        <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#111", flex: 1 }}>科室专业</Typography>
-        <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#999", mr: 0.8 }}>{specialty || "神经外科"}</Typography>
-      </Box>
-    </Box>
-  );
-}
 
 function useSettingsState({ doctorId, doctorName, accessToken, setAuth }) {
   const [nameDialogOpen, setNameDialogOpen] = useState(false);
@@ -299,37 +253,21 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
   ) : null;
 
   const listPane = (
-    <Box sx={{ flex: 1, overflowY: "auto", bgcolor: "#ededed" }}>
-      <SectionLabel>账户</SectionLabel>
-      <AccountBlock doctorId={doctorId} doctorName={doctorName} specialty={specialty}
-        onOpenName={() => { setNameInput(doctorName || ""); setNameError(""); setNameDialogOpen(true); }}
-        onOpenSpecialty={() => { setSpecialtyInput(specialty || "神经外科"); setSpecialtyError(""); setSpecialtyDialogOpen(true); }} />
-
-      <SectionLabel>工具</SectionLabel>
-      <Box sx={{ bgcolor: "#fff" }}>
-        <SettingsRow icon={<UploadFileOutlinedIcon sx={{ color: "#07C160", fontSize: ICON.lg }} />} label="报告模板" sublabel="自定义门诊病历报告格式" onClick={() => goSub("template")} />
-        <SettingsRow icon={<MenuBookOutlinedIcon sx={{ color: "#5b9bd5", fontSize: ICON.lg }} />} label="知识库" sublabel="管理 AI 助手参考资料" onClick={() => goSub("knowledge")} />
-      </Box>
-
-      <SectionLabel>通用</SectionLabel>
-      <Box sx={{ bgcolor: "#fff" }}>
-        <SettingsRow icon={<InfoOutlinedIcon sx={{ color: "#999", fontSize: ICON.lg }} />} label="关于" sublabel="版本信息" onClick={() => goSub("about")} />
-      </Box>
-
-      {isMobile && (
-        <>
-          <SectionLabel>账户操作</SectionLabel>
-          <Box onClick={onLogout} sx={{ bgcolor: "#fff", py: 1.5, textAlign: "center", cursor: "pointer", borderBottom: "0.5px solid #f0f0f0", "&:active": { bgcolor: "#f9f9f9" } }}>
-            <Typography sx={{ fontSize: TYPE.action.fontSize, color: "#FA5151" }}>退出登录</Typography>
-          </Box>
-        </>
-      )}
-      <Box sx={{ height: 32 }} />
+    <SettingsListSubpage
+      doctorId={doctorId}
+      doctorName={doctorName}
+      specialty={specialty}
+      onTemplate={() => goSub("template")}
+      onKnowledge={() => goSub("knowledge")}
+      onAbout={() => goSub("about")}
+      onLogout={isMobile ? onLogout : undefined}
+      isMobile={isMobile}
+    >
       <NameDialog open={nameDialogOpen} nameInput={nameInput} nameSaving={nameSaving} nameError={nameError}
         onChange={setNameInput} onSave={handleSaveName} onClose={() => setNameDialogOpen(false)} />
       <SpecialtyDialog open={specialtyDialogOpen} specialtyInput={specialtyInput} specialtySaving={specialtySaving}
         specialtyError={specialtyError} onChange={setSpecialtyInput} onSave={handleSaveSpecialty} onClose={() => setSpecialtyDialogOpen(false)} />
-    </Box>
+    </SettingsListSubpage>
   );
 
   const detailContent = subpage === "template" ? (
