@@ -50,6 +50,11 @@ class DoctorTask(Base):
     source_type: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     source_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
+    # --- Notification & linking support ---
+    read_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    link_type: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)  # record | task | chat
+    link_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
     __table_args__ = (
         CheckConstraint("status IN ('pending','notified','completed','cancelled')", name="ck_doctor_tasks_status"),
         CheckConstraint(
