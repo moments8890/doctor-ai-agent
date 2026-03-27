@@ -363,16 +363,50 @@ function TaskDetailView({ task, onBack }) {
   return <PageSkeleton title="任务详情" onBack={onBack} isMobile listPane={content} />;
 }
 
-function MockTasks({ onSelectTask }) {
+function MockTasks({ onSelectTask, onReview }) {
   const [filter, setFilter] = useState("all");
+
+  // Merge tasks + pending review records (like real TasksPage)
+  const pendingReviews = MOCK_RECORDS.filter(r => r.status === "pending_review").map(r => ({
+    ...r, _type: "review", title: `${r.patient_name} 问诊记录`, content: r.structured?.chief_complaint || "待审核",
+    due_at: r.created_at?.slice(0, 10), status: "pending",
+  }));
+  const allItems = [...MOCK_TASKS, ...pendingReviews];
+
   const chips = [
     { key: "all", label: "全部" },
+    { key: "review", label: "待审核" },
     { key: "pending", label: "待办" },
     { key: "done", label: "已完成" },
   ];
-  const counts = { all: MOCK_TASKS.length, pending: MOCK_TASKS.filter(t => t.status === "pending").length, done: MOCK_TASKS.filter(t => t.status === "done").length };
-  const filtered = MOCK_TASKS.filter(t => filter === "all" || t.status === filter);
+  const counts = {
+    all: allItems.length,
+    review: pendingReviews.length,
+    pending: MOCK_TASKS.filter(t => t.status === "pending").length,
+    done: MOCK_TASKS.filter(t => t.status === "done").length,
+  };
+  const filtered = filter === "review" ? pendingReviews
+    : filter === "all" ? allItems
+    : MOCK_TASKS.filter(t => t.status === filter);
   const groups = groupTasks(filtered);
+
+  function taskAvatar(t) {
+    const isReview = t._type === "review";
+    const bg = isReview ? "#d46b08" : t.task_type === "follow_up" ? COLOR.primary : t.task_type === "medication" ? COLOR.accent : COLOR.warning;
+    return (
+      <Box sx={{ width: 36, height: 36, borderRadius: 1, bgcolor: bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <AssignmentOutlinedIcon sx={{ fontSize: 18, color: COLOR.white }} />
+      </Box>
+    );
+  }
+
+  function taskChip(t) {
+    const isReview = t._type === "review";
+    if (isReview) {
+      return <Typography sx={{ fontSize: TYPE.micro.fontSize, px: 0.8, py: 0.1, borderRadius: "4px", bgcolor: "#FFF7E6", color: "#d46b08" }}>待审核</Typography>;
+    }
+    return null;
+  }
 
   const content = (
     <Box sx={{ flex: 1, overflowY: "auto" }}>
@@ -394,15 +428,13 @@ function MockTasks({ onSelectTask }) {
               </Box>
             </SectionLabel>
             {items.map((t) => (
-              <ListCard key={t.id}
-                avatar={<Box sx={{ width: 36, height: 36, borderRadius: 1, bgcolor: t.task_type === "follow_up" ? COLOR.primary : t.task_type === "medication" ? COLOR.accent : COLOR.warning, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <AssignmentOutlinedIcon sx={{ fontSize: 18, color: COLOR.white }} />
-                </Box>}
+              <ListCard key={t.id || t.record_id || t.patient_id}
+                avatar={taskAvatar(t)}
                 title={t.title}
                 subtitle={t.content}
-                right={<Typography sx={{ fontSize: TYPE.caption.fontSize, color: groupKey === "overdue" ? COLOR.danger : t.status === "done" ? COLOR.text4 : COLOR.warning }}>{t.due_at?.slice(5)}</Typography>}
+                right={taskChip(t) || <Typography sx={{ fontSize: TYPE.caption.fontSize, color: groupKey === "overdue" ? COLOR.danger : t.status === "done" ? COLOR.text4 : COLOR.text4 }}>{t.due_at?.slice(5)}</Typography>}
                 chevron
-                onClick={() => onSelectTask(t)}
+                onClick={() => t._type === "review" ? onReview?.(t) : onSelectTask(t)}
               />
             ))}
           </Box>
@@ -844,7 +876,7 @@ export default function MockPages() {
     switch (tab) {
       case "home": return <MockHome onNav={(key) => key === "chat" ? openChat() : navTo(key)} />;
       case "patients": return <MockPatients onSelectPatient={openPatient} />;
-      case "tasks": return <MockTasks onSelectTask={openTaskDetail} />;
+      case "tasks": return <MockTasks onSelectTask={openTaskDetail} onReview={openReview} />;
       case "settings": return <MockSettings onSubpage={openSettingsSub} />;
       default: return null;
     }
