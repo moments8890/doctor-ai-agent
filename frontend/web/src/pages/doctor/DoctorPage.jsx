@@ -201,7 +201,7 @@ export default function DoctorPage() {
   return (
     <Box sx={{ display: "flex", height: "100%", position: "relative", bgcolor: "#f7f7f7" }}>
       {!isMobile && <DesktopSidebar activeSection={activeSection} doctorName={doctorName} doctorId={doctorId} navBadge={{ tasks: pendingTaskCount }} onNav={handleNav} onLogout={handleLogout} />}
-      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", pb: isMobile ? "56px" : 0 }}>
+      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative", pb: isMobile ? "56px" : 0 }}>
         {isReviewPage ? (
           <ErrorBoundary label="诊断审核">
             <ReviewPage recordId={recordId} />
