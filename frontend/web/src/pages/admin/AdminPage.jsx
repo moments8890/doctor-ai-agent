@@ -47,6 +47,8 @@ import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import InboxOutlinedIcon from "@mui/icons-material/InboxOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import QrCode2OutlinedIcon from "@mui/icons-material/QrCode2Outlined";
+import QRDialog from "../../components/QRDialog";
 import {
   getAdminFilterOptions,
   getAdminRuntimeConfig,
@@ -68,6 +70,7 @@ import {
   updateAdminRecord,
   getAdminPrompts,
   updateAdminPrompt,
+  generateQRToken,
 } from "../../api";
 import { ThemeProvider } from "@mui/material/styles";
 import { t } from "../../i18n";
@@ -306,6 +309,31 @@ function AdminDashboard({ onLockout }) {
   const [promptSaving, setPromptSaving] = useState({}); // key -> bool
   const [revokeTarget, setRevokeTarget] = useState(null);
   const [snack, setSnack] = useState({ open: false, message: "", severity: "success" });
+
+  // QR code dialog state
+  const [adminQrOpen, setAdminQrOpen] = useState(false);
+  const [adminQrUrl, setAdminQrUrl] = useState("");
+  const [adminQrError, setAdminQrError] = useState("");
+  const [adminQrName, setAdminQrName] = useState("");
+  const [adminQrDoctorId, setAdminQrDoctorId] = useState("");
+  const [adminQrLoading, setAdminQrLoading] = useState(false);
+
+  async function handleAdminQR(doctorId, doctorName) {
+    setAdminQrDoctorId(doctorId);
+    setAdminQrName(doctorName || doctorId);
+    setAdminQrLoading(true);
+    setAdminQrError("");
+    setAdminQrOpen(true);
+    try {
+      const data = await generateQRToken("doctor", doctorId);
+      setAdminQrUrl(data.url);
+    } catch (e) {
+      setAdminQrUrl("");
+      setAdminQrError(e.message || "生成失败");
+    } finally {
+      setAdminQrLoading(false);
+    }
+  }
 
   function showSnack(message, severity = "success") {
     setSnack({ open: true, message, severity });
@@ -1485,6 +1513,11 @@ function AdminDashboard({ onLockout }) {
                               <IconButton size="small" onClick={() => { setSelectedRow(row); setRowEditMode(false); }} title="查看详情">
                                 <VisibilityOutlinedIcon sx={{ fontSize: ICON.sm }} />
                               </IconButton>
+                              {activeTable === "doctors" && (
+                                <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleAdminQR(row.doctor_id, row.name); }} title="生成二维码">
+                                  <QrCode2OutlinedIcon sx={{ fontSize: ICON.sm }} />
+                                </IconButton>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -1608,6 +1641,16 @@ function AdminDashboard({ onLockout }) {
           {snack.message}
         </Alert>
       </Snackbar>
+      <QRDialog
+        open={adminQrOpen}
+        onClose={() => setAdminQrOpen(false)}
+        title="医生二维码"
+        name={adminQrName}
+        url={adminQrUrl}
+        loading={adminQrLoading}
+        error={adminQrError}
+        onRegenerate={() => handleAdminQR(adminQrDoctorId, adminQrName)}
+      />
     </Box>
   );
 }
