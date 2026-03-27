@@ -146,17 +146,12 @@ async def generate_qr_token(
     from db.models.patient import Patient
     from sqlalchemy import select
 
-    # --- Auth enforcement ---
-    caller = await authenticate(authorization)
-    caller_doctor_id = caller.get("doctor_id")
-
-    # Derive doctor_id from JWT if not provided in request
-    doctor_id = body.doctor_id or caller_doctor_id
-    if not doctor_id:
-        raise HTTPException(400, "doctor_id required")
-    # Doctors can only generate QRs for themselves and their patients
-    if doctor_id != caller_doctor_id:
-        raise HTTPException(403, "Cannot generate token for another doctor")
+    # --- Auth: use the same dev-fallback pattern as other doctor endpoints ---
+    from infra.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
+    doctor_id = resolve_doctor_id_from_auth_or_fallback(
+        body.doctor_id, authorization,
+        fallback_env_flag="QR_TOKEN",
+    )
 
     if body.role not in ("doctor", "patient"):
         raise HTTPException(400, "role must be 'doctor' or 'patient'")
