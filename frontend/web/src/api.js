@@ -698,6 +698,18 @@ export async function updateDoctorProfile(doctorId, { name, specialty }) {
   });
 }
 
+export async function generateQRToken(role, doctorId, patientId) {
+  return request("/api/auth/qr-token", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      role,
+      doctor_id: doctorId,
+      ...(patientId != null && { patient_id: patientId }),
+    }),
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Patient portal API (uses X-Patient-Token header, not doctor Bearer token)
 // ---------------------------------------------------------------------------
