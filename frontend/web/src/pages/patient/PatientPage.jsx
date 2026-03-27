@@ -419,6 +419,8 @@ function RecordDetailView({ record, token, onBack }) {
 
   const diagStatus = detail?.diagnosis_status;
   const treatmentPlan = detail?.treatment_plan;
+  const hasSummary = diagStatus || treatmentPlan;
+  const [showFullRecord, setShowFullRecord] = useState(false);
 
   const DIAG_STATUS_LABELS = {
     pending: "诊断中",
@@ -436,77 +438,125 @@ function RecordDetailView({ record, token, onBack }) {
   return (
     <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
       <SubpageHeader title={typeLabel} onBack={onBack} />
-      <Box sx={{ flex: 1, overflowY: "auto", bgcolor: "#fff", px: 1.5, py: 1 }}>
-        {/* Structured fields */}
-        {FIELD_ORDER.map((key) => {
-          const val = structured[key];
-          if (!val) return null;
-          return (
-            <Box key={key} sx={{ py: 0.5, borderBottom: "0.5px solid #f0f0f0", display: "flex", alignItems: "baseline", gap: 0.5 }}>
-              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "#999", flexShrink: 0 }}>{FIELD_LABELS[key] || key}：</Typography>
-              <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#1A1A1A", lineHeight: 1.6, flex: 1 }}>{val}</Typography>
-            </Box>
-          );
-        })}
-        {/* Raw content fallback if no structured */}
-        {!Object.values(structured).some(Boolean) && record.content && (
-          <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#333", lineHeight: 1.8, whiteSpace: "pre-wrap", py: 1 }}>
-            {record.content}
-          </Typography>
+      <Box sx={{ flex: 1, overflowY: "auto", bgcolor: COLOR.surfaceAlt, px: 1.5, py: 1 }}>
+
+        {/* Loading spinner */}
+        {loadingDetail && (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}><CircularProgress size={20} /></Box>
         )}
 
-        {/* Diagnosis status card */}
-        {loadingDetail && (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}><CircularProgress size={16} /></Box>
-        )}
-        {!loadingDetail && diagStatus && (
-          <Box sx={{ mt: 1.5, p: 1.5, borderRadius: "8px", bgcolor: "#f9f9f9", border: "0.5px solid #e5e5e5" }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mb: 0.5 }}>
-              <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1 }}>诊断</Typography>
-              <StatusBadge
-                label={DIAG_STATUS_LABELS[diagStatus] || diagStatus}
-                colorMap={DIAG_STATUS_COLORS}
-                fallbackColor={COLOR.text4}
-              />
+        {/* ── Action summary sections ── */}
+        {!loadingDetail && hasSummary && (
+          <>
+            {/* Diagnosis */}
+            {diagStatus && (
+              <>
+                <SectionLabel>诊断</SectionLabel>
+                <Box sx={{ bgcolor: COLOR.white, borderRadius: "4px", px: 1.5, py: 1.2 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
+                    {(diagStatus === "confirmed" || diagStatus === "completed") && detail?.structured?.diagnosis ? (
+                      <Typography sx={{ ...TYPE.body, color: COLOR.text1, flex: 1 }}>
+                        {detail.structured.diagnosis}
+                      </Typography>
+                    ) : (
+                      <Typography sx={{ ...TYPE.body, color: COLOR.text3, flex: 1 }}>
+                        {DIAG_STATUS_LABELS[diagStatus] || diagStatus}
+                      </Typography>
+                    )}
+                    <StatusBadge
+                      label={DIAG_STATUS_LABELS[diagStatus] || diagStatus}
+                      colorMap={DIAG_STATUS_COLORS}
+                      fallbackColor={COLOR.text4}
+                    />
+                  </Box>
+                </Box>
+              </>
+            )}
+
+            {/* Medications */}
+            {treatmentPlan?.medications?.length > 0 && (
+              <>
+                <SectionLabel>用药方案</SectionLabel>
+                <Box sx={{ bgcolor: COLOR.white, borderRadius: "4px", px: 1.5 }}>
+                  {treatmentPlan.medications.map((med, i) => (
+                    <Box key={i} sx={{
+                      display: "flex", justifyContent: "space-between", alignItems: "center",
+                      py: 1,
+                      ...(i < treatmentPlan.medications.length - 1 && { borderBottom: `0.5px solid ${COLOR.borderLight}` }),
+                    }}>
+                      <Typography sx={{ ...TYPE.body, color: COLOR.text1 }}>
+                        {med.name || med.drug_class || med}
+                      </Typography>
+                      {med.dosage && (
+                        <Typography sx={{ ...TYPE.secondary, color: COLOR.text3, flexShrink: 0, ml: 1 }}>
+                          {med.dosage}
+                        </Typography>
+                      )}
+                    </Box>
+                  ))}
+                </Box>
+              </>
+            )}
+
+            {/* Follow-up */}
+            {treatmentPlan?.follow_up && (
+              <>
+                <SectionLabel>随访计划</SectionLabel>
+                <Box sx={{ bgcolor: COLOR.white, borderRadius: "4px", px: 1.5, py: 1.2 }}>
+                  <Typography sx={{ ...TYPE.body, color: COLOR.text1, lineHeight: 1.6 }}>
+                    {treatmentPlan.follow_up}
+                  </Typography>
+                </Box>
+              </>
+            )}
+
+            {/* Lifestyle */}
+            {treatmentPlan?.lifestyle && (
+              <>
+                <SectionLabel>生活建议</SectionLabel>
+                <Box sx={{ bgcolor: COLOR.white, borderRadius: "4px", px: 1.5, py: 1.2 }}>
+                  <Typography sx={{ ...TYPE.body, color: COLOR.text1, lineHeight: 1.6 }}>
+                    {treatmentPlan.lifestyle}
+                  </Typography>
+                </Box>
+              </>
+            )}
+
+            {/* Expand/collapse toggle */}
+            <Box
+              onClick={() => setShowFullRecord(prev => !prev)}
+              sx={{ display: "flex", justifyContent: "center", py: 1.5, cursor: "pointer", userSelect: "none" }}
+            >
+              <Typography sx={{ ...TYPE.secondary, color: COLOR.primary, fontWeight: 500 }}>
+                {showFullRecord ? "收起 ▴" : "查看完整病历 ▾"}
+              </Typography>
             </Box>
-            {(diagStatus === "confirmed" || diagStatus === "completed") && detail?.structured?.diagnosis && (
-              <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text2, mt: 0.5 }}>
-                {detail.structured.diagnosis}
+          </>
+        )}
+
+        {/* ── Full structured record ── */}
+        {!loadingDetail && (!hasSummary || showFullRecord) && (
+          <Box sx={{ bgcolor: COLOR.white, borderRadius: "4px", px: 1.5, py: 0.5 }}>
+            {FIELD_ORDER.map((key) => {
+              const val = structured[key];
+              if (!val) return null;
+              return (
+                <Box key={key} sx={{ py: 0.5, borderBottom: `0.5px solid ${COLOR.borderLight}`, display: "flex", alignItems: "baseline", gap: 0.5 }}>
+                  <Typography sx={{ ...TYPE.secondary, color: COLOR.text4, flexShrink: 0 }}>{FIELD_LABELS[key] || key}：</Typography>
+                  <Typography sx={{ ...TYPE.body, color: COLOR.text1, lineHeight: 1.6, flex: 1 }}>{val}</Typography>
+                </Box>
+              );
+            })}
+            {/* Raw content fallback if no structured */}
+            {!Object.values(structured).some(Boolean) && record.content && (
+              <Typography sx={{ ...TYPE.body, color: COLOR.text2, lineHeight: 1.8, whiteSpace: "pre-wrap", py: 1 }}>
+                {record.content}
               </Typography>
             )}
           </Box>
         )}
 
-        {/* Treatment plan card */}
-        {!loadingDetail && treatmentPlan && (
-          <Box sx={{ mt: 1, p: 1.5, borderRadius: "8px", bgcolor: "#f0faf3", border: "0.5px solid #c8e6c9" }}>
-            <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1, mb: 0.5 }}>治疗方案</Typography>
-            {treatmentPlan.medications && treatmentPlan.medications.length > 0 && (
-              <Box sx={{ mb: 0.5 }}>
-                <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, fontWeight: 500 }}>用药：</Typography>
-                {treatmentPlan.medications.map((med, i) => (
-                  <Typography key={i} sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text2, pl: 1 }}>
-                    {med.name || med.drug_class || med}{med.dosage ? ` - ${med.dosage}` : ""}
-                  </Typography>
-                ))}
-              </Box>
-            )}
-            {treatmentPlan.follow_up && (
-              <Box>
-                <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, fontWeight: 500 }}>随访：</Typography>
-                <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text2, pl: 1 }}>{treatmentPlan.follow_up}</Typography>
-              </Box>
-            )}
-            {treatmentPlan.lifestyle && (
-              <Box sx={{ mt: 0.3 }}>
-                <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, fontWeight: 500 }}>生活方式建议：</Typography>
-                <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text2, pl: 1 }}>{treatmentPlan.lifestyle}</Typography>
-              </Box>
-            )}
-          </Box>
-        )}
-
-        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#bbb", mt: 2, textAlign: "center" }}>
+        <Typography sx={{ ...TYPE.caption, color: COLOR.text4, mt: 2, textAlign: "center", pb: 1 }}>
           {formatDate(record.created_at)}
         </Typography>
       </Box>
