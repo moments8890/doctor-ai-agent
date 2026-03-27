@@ -96,8 +96,8 @@ function MockBottomNav({ active, onNav }) {
 
 function MockHome({ onNav }) {
   const content = (
-    <Box sx={{ flex: 1, overflowY: "auto", position: "relative" }}>
-      <Box sx={{ p: 1.5 }}>
+    <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      <Box sx={{ flex: 1, overflowY: "auto", p: 1.5 }}>
         <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1, mb: 1 }}>
           <Box onClick={() => onNav("patients")} sx={{ bgcolor: COLOR.white, borderRadius: 1, p: 1.5, cursor: "pointer", "&:active": { bgcolor: COLOR.surface } }}>
             <Typography sx={{ fontSize: 24, fontWeight: 700, color: COLOR.primary }}>{MOCK_BRIEFING.today_patients}</Typography>
@@ -112,7 +112,6 @@ function MockHome({ onNav }) {
           <Typography sx={{ fontSize: 24, fontWeight: 700, color: COLOR.text4 }}>{MOCK_BRIEFING.completed_tasks}</Typography>
           <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>已完成</Typography>
         </Box>
-        {/* Overdue tasks section */}
         {MOCK_OVERDUE.length > 0 && (
           <Box sx={{ bgcolor: COLOR.white, borderRadius: 1, p: 1.5, mb: 1 }}>
             <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
@@ -136,9 +135,8 @@ function MockHome({ onNav }) {
           </Typography>
         </Box>
       </Box>
-      <Box sx={{ px: 1.5, mt: "auto", pb: 1 }}>
-        <AskAIBar onClick={() => onNav("chat")} />
-      </Box>
+      {/* Sticky AskAIBar — always above bottom nav */}
+      <AskAIBar onClick={() => onNav("chat")} />
     </Box>
   );
 
