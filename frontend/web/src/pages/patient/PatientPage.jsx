@@ -51,23 +51,14 @@ export default function PatientPage() {
   // Mock mode: auto-set identity when no token
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    if (api.isMock && !token) {
-      const mockToken = "mock-patient-token";
-      const mockName = "陈伟强";
-      const mockDoctor = "张医生";
-      const mockSpecialty = "神经外科";
-      const mockDoctorId = "mock_doctor";
-      localStorage.setItem(STORAGE_KEY, mockToken);
-      localStorage.setItem(STORAGE_NAME_KEY, mockName);
-      localStorage.setItem(STORAGE_DOCTOR_KEY, mockDoctorId);
-      localStorage.setItem(STORAGE_DOCTOR_NAME_KEY, mockDoctor);
-      setToken(mockToken);
-      setPatientName(mockName);
-      setDoctorName(mockDoctor);
-      setDoctorSpecialty(mockSpecialty);
-      setDoctorId(mockDoctorId);
+    if (api.isMock) {
+      setToken("mock-patient-token");
+      setPatientName("陈伟强");
+      setDoctorName("张医生");
+      setDoctorSpecialty("神经外科");
+      setDoctorId("mock_doctor");
     }
-  }, [api.isMock, token]);
+  }, [api.isMock]);
 
   // ---------------------------------------------------------------------------
   // Refresh identity from API on mount (real mode only)
