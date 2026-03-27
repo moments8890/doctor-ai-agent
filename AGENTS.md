@@ -137,7 +137,7 @@ $B console --errors
 
 ### QA Screenshot Walkthrough
 
-Every QA session **must** produce a walkthrough HTML:
+Every QA session **must** produce a walkthrough HTML with embedded screenshots:
 
 1. Create a dated session directory: `docs/qa/YYYY-MM-DD-<feature>/`
 2. Save screenshots to `snapshots/` subdirectory
@@ -146,9 +146,12 @@ Every QA session **must** produce a walkthrough HTML:
    - Filter bar (by input type: image, text, voice, pdf, edge, frontend, bugs)
    - Summary stats (total, pass, fail)
    - Each test as an expandable card: status badge, category badge, title, time, details
+   - **Screenshots embedded as `<img>` tags** inside each card's detail section
    - Self-contained styling (no external deps)
-5. Reference files via relative paths (`snapshots/`, `test-assets/`)
-6. Never put PNGs at `docs/qa/` root — always inside a session directory
+5. Optionally create `qa-report.md` alongside for text-based summary
+6. Reference files via relative paths (`snapshots/`, `test-assets/`)
+7. Never put PNGs at `docs/qa/` root — always inside a session directory
+8. Every screenshot taken during QA **must** appear in the walkthrough HTML — do not leave orphan PNGs
 
 ## Codebase Review Policy
 
