@@ -67,12 +67,10 @@ function KnowledgeDetail({ item, categories, onBack, onDelete, onEdit }) {
     setEditing(false);
   }
 
-  // Header: "编辑" when viewing, "保存" when editing
-  const headerRight = editing
-    ? <BarButton onClick={handleSave} disabled={!isDirty}>保存</BarButton>
-    : onEdit
-      ? <BarButton onClick={() => setEditing(true)}>编辑</BarButton>
-      : undefined;
+  // Header: "编辑" always visible, grayed out when active
+  const headerRight = onEdit
+    ? <BarButton onClick={() => setEditing(true)} disabled={editing}>编辑</BarButton>
+    : undefined;
 
   const detailContent = (
     <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
@@ -113,14 +111,17 @@ function KnowledgeDetail({ item, categories, onBack, onDelete, onEdit }) {
           <Typography sx={{ fontSize: TYPE.secondary.fontSize, lineHeight: 1.8 }}>{item.text || item.content}</Typography>
         )}
       </Box>
-      {/* Bottom actions */}
-      <Box sx={{ display: "flex", justifyContent: editing ? "flex-start" : "center", mt: 2, px: 1 }}>
-        {editing ? (
-          <Typography onClick={handleCancel} sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text4, cursor: "pointer" }}>取消</Typography>
-        ) : onDelete ? (
+      {/* Bottom actions: cancel/save when editing, delete when viewing */}
+      {editing ? (
+        <Box sx={{ display: "flex", justifyContent: "space-between", mt: 2, px: 1 }}>
+          <Typography onClick={handleCancel} sx={{ fontSize: TYPE.body.fontSize, color: COLOR.danger, cursor: "pointer" }}>取消</Typography>
+          <Typography onClick={isDirty ? handleSave : undefined} sx={{ fontSize: TYPE.body.fontSize, color: isDirty ? COLOR.primary : COLOR.text4, cursor: isDirty ? "pointer" : "default", fontWeight: isDirty ? 600 : 400 }}>保存</Typography>
+        </Box>
+      ) : onDelete ? (
+        <Box sx={{ mt: 2, textAlign: "center" }}>
           <Typography onClick={() => setDeleteOpen(true)} sx={{ fontSize: TYPE.body.fontSize, color: COLOR.danger, cursor: "pointer" }}>删除此条知识</Typography>
-        ) : null}
-      </Box>
+        </Box>
+      ) : null}
     </Box>
   );
 
