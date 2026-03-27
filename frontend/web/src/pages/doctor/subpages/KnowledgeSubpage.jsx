@@ -49,6 +49,7 @@ function formatDate(dateStr) {
 
 function KnowledgeDetail({ item, categories, onBack, onDelete, onEdit }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(item.text || item.content || "");
   const originalText = item.text || item.content || "";
   const isDirty = editText !== originalText;
@@ -61,12 +62,17 @@ function KnowledgeDetail({ item, categories, onBack, onDelete, onEdit }) {
     }
   }
 
-  const headerRight = (
-    <Box sx={{ display: "flex", gap: 1 }}>
-      {onDelete && <BarButton onClick={() => setDeleteOpen(true)} color={COLOR.danger}>删除</BarButton>}
-      {isDirty && onEdit && <BarButton onClick={handleSave}>保存</BarButton>}
-    </Box>
-  );
+  function handleCancel() {
+    setEditText(originalText);
+    setEditing(false);
+  }
+
+  // Header: "编辑" when viewing, "保存" when editing
+  const headerRight = editing
+    ? <BarButton onClick={handleSave} disabled={!isDirty}>保存</BarButton>
+    : onEdit
+      ? <BarButton onClick={() => setEditing(true)}>编辑</BarButton>
+      : undefined;
 
   const detailContent = (
     <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
@@ -88,19 +94,32 @@ function KnowledgeDetail({ item, categories, onBack, onDelete, onEdit }) {
       </Box>
       <Box sx={{ bgcolor: COLOR.white, borderRadius: 1, p: 2 }}>
         <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 0.5 }}>内容</Typography>
-        <TextField
-          fullWidth
-          multiline
-          minRows={3}
-          maxRows={12}
-          size="small"
-          value={editText}
-          onChange={(e) => setEditText(e.target.value)}
-          sx={{
-            "& .MuiOutlinedInput-root": { borderRadius: "6px", fontSize: TYPE.secondary.fontSize, lineHeight: 1.8 },
-            "& .MuiOutlinedInput-notchedOutline": { borderColor: COLOR.borderLight },
-          }}
-        />
+        {editing ? (
+          <TextField
+            fullWidth
+            multiline
+            minRows={3}
+            maxRows={12}
+            size="small"
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+            autoFocus
+            sx={{
+              "& .MuiOutlinedInput-root": { borderRadius: "6px", fontSize: TYPE.secondary.fontSize, lineHeight: 1.8 },
+              "& .MuiOutlinedInput-notchedOutline": { borderColor: COLOR.primary },
+            }}
+          />
+        ) : (
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, lineHeight: 1.8 }}>{item.text || item.content}</Typography>
+        )}
+      </Box>
+      {/* Bottom actions */}
+      <Box sx={{ display: "flex", justifyContent: editing ? "flex-start" : "center", mt: 2, px: 1 }}>
+        {editing ? (
+          <Typography onClick={handleCancel} sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text4, cursor: "pointer" }}>取消</Typography>
+        ) : onDelete ? (
+          <Typography onClick={() => setDeleteOpen(true)} sx={{ fontSize: TYPE.body.fontSize, color: COLOR.danger, cursor: "pointer" }}>删除此条知识</Typography>
+        ) : null}
       </Box>
     </Box>
   );
