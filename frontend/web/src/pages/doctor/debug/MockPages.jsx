@@ -175,68 +175,6 @@ function MockPatients({ onSelectPatient }) {
 
 /* ── Patient Detail ── */
 
-const NHC_FIELDS = [
-  { key: "chief_complaint", label: "主诉" },
-  { key: "present_illness", label: "现病史" },
-  { key: "past_history", label: "既往史" },
-  { key: "allergy_history", label: "过敏史" },
-  { key: "family_history", label: "家族史" },
-  { key: "personal_history", label: "个人史" },
-  { key: "physical_exam", label: "体格检查" },
-  { key: "auxiliary_exam", label: "辅助检查" },
-  { key: "diagnosis", label: "诊断" },
-  { key: "treatment_plan", label: "治疗方案" },
-];
-
-function MockRecordList({ records }) {
-  const [expandedId, setExpandedId] = useState(null);
-
-  return (
-    <Box sx={{ bgcolor: COLOR.white, py: 1.5 }}>
-      <FilterBar
-        items={[{ key: "", label: "全部" }, { key: "visit", label: "病历" }, { key: "interview_summary", label: "问诊" }]}
-        active="" counts={{ "": records.length }} onChange={() => {}}
-      />
-      {records.length === 0 ? (
-        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, py: 3, textAlign: "center" }}>暂无病历记录</Typography>
-      ) : records.map((r) => {
-        const isExpanded = expandedId === r.id;
-        const fields = r.structured || {};
-        return (
-          <Box key={r.id} sx={{ borderTop: `0.5px solid ${COLOR.borderLight}` }}>
-            <Box onClick={() => setExpandedId(isExpanded ? null : r.id)}
-              sx={{ px: 2.5, py: 1.2, cursor: "pointer", "&:active": { bgcolor: COLOR.surfaceAlt } }}>
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2 }}>
-                  {fields.chief_complaint || r.content}
-                </Typography>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0, ml: 1 }}>
-                  <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{r.created_at?.slice(5, 10)}</Typography>
-                  <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{isExpanded ? "▴" : "▾"}</Typography>
-                </Box>
-              </Box>
-            </Box>
-            {isExpanded && (
-              <Box sx={{ px: 2.5, pb: 1.5, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
-                {NHC_FIELDS.map(({ key, label }) => {
-                  const val = fields[key];
-                  if (!val) return null;
-                  return (
-                    <Box key={key} sx={{ py: 0.8, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
-                      <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 0.2 }}>{label}</Typography>
-                      <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.6 }}>{val}</Typography>
-                    </Box>
-                  );
-                })}
-              </Box>
-            )}
-          </Box>
-        );
-      })}
-    </Box>
-  );
-}
-
 function MockPatientDetail({ patient, onBack, onReview, onInterview }) {
   const records = MOCK_RECORDS.filter(r => r.patient_id === patient.id);
   const completedRecords = records.filter(r => r.status === "completed");
@@ -304,8 +242,18 @@ function MockPatientDetail({ patient, onBack, onReview, onInterview }) {
         </Box>
       )}
 
-      {/* Records — tap to expand NHC fields */}
-      <MockRecordList records={completedRecords} />
+      {/* Records — using shared RecordCard component */}
+      <Box sx={{ bgcolor: COLOR.white, py: 1.5 }}>
+        <FilterBar
+          items={[{ key: "", label: "全部" }, { key: "visit", label: "病历" }, { key: "interview_summary", label: "问诊" }]}
+          active="" counts={{ "": completedRecords.length }} onChange={() => {}}
+        />
+        {completedRecords.length === 0 ? (
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, py: 3, textAlign: "center" }}>暂无病历记录</Typography>
+        ) : completedRecords.map((r) => (
+          <RecordCard key={r.id} record={r} doctorId="mock_doctor" onUpdated={() => {}} onDeleted={() => {}} />
+        ))}
+      </Box>
 
       {/* Patient messages — quiet, just red dot for escalation */}
       {patientMessages.length > 0 && (
