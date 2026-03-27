@@ -249,7 +249,7 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
 
   async function handleGenerateQR() {
     setQrLoading(true); setQrError(""); setQrOpen(true);
-    try { const data = await generateQRToken("doctor", doctorId); setQrUrl(data.url); }
+    try { const data = await generateQRToken("doctor"); setQrUrl(data.url); }
     catch (e) { setQrUrl(""); setQrError(e.message || "生成失败"); }
     finally { setQrLoading(false); }
   }

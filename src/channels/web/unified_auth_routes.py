@@ -55,7 +55,7 @@ class PatientRegisterRequest(BaseModel):
 
 class QRTokenRequest(BaseModel):
     role: str  # "doctor" or "patient"
-    doctor_id: str
+    doctor_id: Optional[str] = None  # optional — derived from JWT if not provided
     patient_id: Optional[int] = None
 
 
@@ -80,7 +80,7 @@ async def unified_login_with_role(body: LoginWithRoleRequest):
     """Login with explicit role selection (after role picker)."""
     return await login_with_role(
         body.phone, body.year_of_birth, body.role,
-        doctor_id=body.doctor_id, patient_id=body.patient_id,
+        doctor_id=doctor_id, patient_id=body.patient_id,
     )
 
 
@@ -148,7 +148,14 @@ async def generate_qr_token(
 
     # --- Auth enforcement ---
     caller = await authenticate(authorization)
-    if caller.get("doctor_id") != body.doctor_id:
+    caller_doctor_id = caller.get("doctor_id")
+
+    # Derive doctor_id from JWT if not provided in request
+    doctor_id = body.doctor_id or caller_doctor_id
+    if not doctor_id:
+        raise HTTPException(400, "doctor_id required")
+    # Doctors can only generate QRs for themselves and their patients
+    if doctor_id != caller_doctor_id:
         raise HTTPException(403, "Cannot generate token for another doctor")
 
     if body.role not in ("doctor", "patient"):
@@ -157,7 +164,7 @@ async def generate_qr_token(
     async with AsyncSessionLocal() as db:
         # Validate doctor exists
         doctor = (await db.execute(
-            select(Doctor).where(Doctor.doctor_id == body.doctor_id)
+            select(Doctor).where(Doctor.doctor_id == doctor_id)
         )).scalar_one_or_none()
         if doctor is None:
             raise HTTPException(404, "Doctor not found")
@@ -170,7 +177,7 @@ async def generate_qr_token(
             patient = (await db.execute(
                 select(Patient).where(
                     Patient.id == body.patient_id,
-                    Patient.doctor_id == body.doctor_id,
+                    Patient.doctor_id == doctor_id,
                 )
             )).scalar_one_or_none()
             if patient is None:
@@ -181,7 +188,7 @@ async def generate_qr_token(
     ttl = 30 * 24 * 3600
     token = issue_token(
         role=body.role,
-        doctor_id=body.doctor_id,
+        doctor_id=doctor_id,
         patient_id=body.patient_id,
         name=patient_name or (doctor.name if body.role == "doctor" else None),
         ttl_seconds=ttl,
