@@ -546,7 +546,6 @@ function MockReview({ record, onBack }) {
                 <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text2 }}>{label}</Typography>
                 <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{sectionDecided}/{items.length}</Typography>
               </Box>
-              <Box sx={{ mx: 1.5, mb: 0.5, px: 1.5, py: 1, border: `1px dashed ${COLOR.primary}`, borderRadius: 1, textAlign: "center", color: COLOR.primary, fontSize: TYPE.body.fontSize, cursor: "pointer" }}>+ 添加</Box>
               <Box sx={{ mx: 1.5, borderRadius: 1, overflow: "hidden", border: `0.5px solid ${COLOR.borderLight}` }}>
                 {items.map((s, i) => {
                   const withDecision = decisions[s.id] ? { ...s, decision: decisions[s.id] } : s;
@@ -561,6 +560,17 @@ function MockReview({ record, onBack }) {
                     </Box>
                   );
                 })}
+              </Box>
+              {/* Inline add input */}
+              <Box sx={{ mx: 1.5, mt: 0.5, display: "flex", gap: 1, alignItems: "center" }}>
+                <Box sx={{
+                  flex: 1, px: 1.5, py: 0.8, borderRadius: 1,
+                  border: `0.5px solid ${COLOR.borderLight}`,
+                  fontSize: TYPE.secondary.fontSize, color: COLOR.text4,
+                }}>
+                  {key === "differential" ? "输入诊断名称..." : key === "workup" ? "输入检查项目..." : "输入治疗方案..."}
+                </Box>
+                <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.primary, cursor: "pointer", flexShrink: 0 }}>添加</Typography>
               </Box>
             </Box>
           );
