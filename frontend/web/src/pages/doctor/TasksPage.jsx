@@ -148,8 +148,10 @@ function SwipeableTaskRow({ children, onSwipeLeft, onSwipeRight }) {
 /* ── Task detail view — wraps shared TaskDetailSubpage with API data ── */
 
 function TaskDetailView({ task, doctorId, isMobile, onBack, onComplete, onPostpone, onCancel }) {
-  const { getTaskRecord } = useApi();
+  const { getTaskRecord, getPatients, getRecords } = useApi();
   const [record, setRecord] = useState(null);
+  const [patient, setPatient] = useState(null);
+  const [recentRecords, setRecentRecords] = useState([]);
   const [loadingRecord, setLoadingRecord] = useState(false);
 
   useEffect(() => {
@@ -162,11 +164,34 @@ function TaskDetailView({ task, doctorId, isMobile, onBack, onComplete, onPostpo
     }
   }, [task.record_id, doctorId]);
 
+  // Fetch patient details for richer patient card
+  useEffect(() => {
+    if (task.patient_id && doctorId) {
+      getPatients(doctorId, {}, 200)
+        .then((d) => {
+          const found = (d.items || []).find(p => p.id === task.patient_id);
+          if (found) setPatient(found);
+        })
+        .catch(() => {});
+    }
+  }, [task.patient_id, doctorId]);
+
+  // Fetch recent records for patient context (when no linked record)
+  useEffect(() => {
+    if (task.patient_id && !task.record_id && doctorId) {
+      getRecords({ doctorId, patientId: task.patient_id, limit: 3 })
+        .then((d) => setRecentRecords(d.items || []))
+        .catch(() => {});
+    }
+  }, [task.patient_id, task.record_id, doctorId]);
+
   return (
     <>
       <TaskDetailSubpage
         task={task}
+        patient={patient}
         record={record}
+        recentRecords={recentRecords}
         onBack={isMobile ? onBack : undefined}
         onComplete={(id, status) => { onComplete(id, status); onBack(); }}
         onPostpone={(id) => onPostpone(null, id)}
@@ -295,6 +320,7 @@ export default function TasksPage({ doctorId, urlSubpage, urlSubId }) {
       setCreateOpen(true);
       setDetailTask(null);
       setDetailReview(null);
+      getPatients(doctorId, {}, 200).then((d) => setPatientOptions(d.items || [])).catch(() => {});
     } else if (!urlSubpage) {
       setDetailTask(null);
       setDetailReview(null);
@@ -359,7 +385,7 @@ export default function TasksPage({ doctorId, urlSubpage, urlSubId }) {
     setCreating(true); setCreateError("");
     try {
       await createTask(doctorId, { taskType: createForm.taskType, title: createForm.title || TASK_TYPE_LABEL[createForm.taskType] || createForm.taskType, dueAt: createForm.dueAt || undefined, patientId: createForm.patientId ? Number(createForm.patientId) : undefined, content: createForm.content || undefined });
-      setCreateOpen(false); setCreateForm({ taskType: "follow_up", title: "", dueAt: tomorrowStr(), patientId: "", patientSearch: "", content: "" }); loadAll();
+      setCreateOpen(false); setCreateForm({ taskType: "follow_up", title: "", dueAt: tomorrowStr(), patientId: "", patientSearch: "", content: "" }); navigate("/doctor/tasks"); loadAll();
     } catch (e) { setCreateError(e.message || "创建失败"); } finally { setCreating(false); }
   }
   async function handleConfirmPostpone() {

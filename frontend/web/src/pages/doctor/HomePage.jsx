@@ -1,21 +1,14 @@
 /** @route /doctor */
 import { useEffect, useState } from "react";
 import { Box } from "@mui/material";
-import useMediaQuery from "@mui/material/useMediaQuery";
-import { useTheme } from "@mui/material/styles";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
-import BottomSheet from "../../components/BottomSheet";
-import ChatPage from "./ChatPage";
 import HomeSubpage from "./subpages/HomeSubpage";
 
 export default function HomePage({ doctorId, onNavigateToChat }) {
   const navigate = useAppNavigate();
   const { getBriefing } = useApi();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [data, setData] = useState(null);
-  const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
     if (!doctorId) return;
@@ -44,7 +37,7 @@ export default function HomePage({ doctorId, onNavigateToChat }) {
   function handleNavigate(target) {
     if (target === "patients") navigate("/doctor/patients");
     else if (target === "tasks") navigate("/doctor/tasks");
-    else if (target === "chat") setChatOpen(true);
+    else if (target === "chat") navigate("/doctor/chat");
   }
 
   return (
@@ -53,15 +46,8 @@ export default function HomePage({ doctorId, onNavigateToChat }) {
         stats={stats}
         overdueTasks={overdueTasks}
         onNavigate={handleNavigate}
-        onAskAI={() => setChatOpen(true)}
+        onAskAI={() => navigate("/doctor/chat")}
       />
-
-      {/* Chat bottom sheet — mobile only */}
-      {isMobile && (
-        <BottomSheet open={chatOpen} onClose={() => setChatOpen(false)}>
-          <ChatPage doctorId={doctorId} onMessageCountChange={() => {}} onBack={() => setChatOpen(false)} />
-        </BottomSheet>
-      )}
     </Box>
   );
 }
