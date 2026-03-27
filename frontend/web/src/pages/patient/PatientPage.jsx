@@ -27,6 +27,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import Badge from "@mui/material/Badge";
 import BottomNavigation from "@mui/material/BottomNavigation";
 import BottomNavigationAction from "@mui/material/BottomNavigationAction";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -79,6 +80,7 @@ const STORAGE_KEY = "patient_portal_token";
 const STORAGE_NAME_KEY = "patient_portal_name";
 const STORAGE_DOCTOR_KEY = "patient_portal_doctor_id";
 const STORAGE_DOCTOR_NAME_KEY = "patient_portal_doctor_name";
+const LAST_SEEN_CHAT_KEY = "patient_last_seen_chat";
 
 const RECORD_TYPE_LABEL = {
   visit: "门诊记录", dictation: "语音记录", import: "导入记录", interview_summary: "预问诊",
@@ -239,7 +241,7 @@ function QuickActions({ onNewInterview, onViewRecords }) {
 
 const PATIENT_CHAT_STORAGE_KEY = "patient_chat_messages";
 
-function ChatTab({ token, doctorName, onLogout, onNewInterview, onViewRecords }) {
+function ChatTab({ token, doctorName, onLogout, onNewInterview, onViewRecords, onUnreadCountChange }) {
   const navigate = useNavigate();
   const welcomeMsg = { source: "ai", content: `您好！我是${doctorName || "医生"}的AI助手。有什么健康问题可以问我。` };
 
@@ -298,6 +300,18 @@ function ChatTab({ token, doctorName, onLogout, onNewInterview, onViewRecords })
   }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  // Compute unread count for badge
+  useEffect(() => {
+    if (onUnreadCountChange && messages.length > 0) {
+      const lastSeen = parseInt(localStorage.getItem(LAST_SEEN_CHAT_KEY) || "0", 10);
+      const unread = messages.filter(m => {
+        const msgTime = new Date(m.created_at).getTime();
+        return msgTime > lastSeen;
+      }).length;
+      onUnreadCountChange(unread);
+    }
+  }, [messages, onUnreadCountChange]);
 
   async function handleSend(e) {
     e.preventDefault();
@@ -1060,6 +1074,7 @@ export default function PatientPage() {
   const [doctorName, setDoctorName] = useState(() => localStorage.getItem(STORAGE_DOCTOR_NAME_KEY) || "");
   const [doctorSpecialty, setDoctorSpecialty] = useState("");
   const [doctorId, setDoctorId] = useState(() => localStorage.getItem(STORAGE_DOCTOR_KEY) || "");
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // Load patient identity (including doctor info) on mount
   useEffect(() => {
@@ -1078,6 +1093,14 @@ export default function PatientPage() {
   function setTab(t) { navigate(`/patient/${t}`); }
   function startInterview() { navigate("/patient/records/interview"); }
   function exitInterview() { navigate("/patient/records"); }
+
+  // Clear badge when chat tab is active
+  useEffect(() => {
+    if (tab === "chat") {
+      localStorage.setItem(LAST_SEEN_CHAT_KEY, String(Date.now()));
+      setUnreadCount(0);
+    }
+  }, [tab]);
 
   function handleLogin(newToken, name, doctorId, docName) {
     localStorage.setItem(STORAGE_KEY, newToken);
@@ -1123,7 +1146,8 @@ export default function PatientPage() {
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
         {tab === "chat" && <ChatTab token={token} doctorName={doctorName} onLogout={handleLogout}
           onNewInterview={() => { startInterview(); }}
-          onViewRecords={() => setTab("records")} />}
+          onViewRecords={() => setTab("records")}
+          onUnreadCountChange={setUnreadCount} />}
         {tab === "records" && (
           <RecordsTab token={token} onLogout={handleLogout} onNewRecord={() => startInterview()} urlSubpage={urlSubpage} />
         )}
@@ -1173,7 +1197,12 @@ export default function PatientPage() {
           paddingBottom: "env(safe-area-inset-bottom)",
         }}>
         {NAV_TABS.map(t => (
-          <BottomNavigationAction key={t.key} value={t.key} label={t.label} icon={t.icon}
+          <BottomNavigationAction key={t.key} value={t.key} label={t.label}
+            icon={
+              t.key === "chat" && unreadCount > 0
+                ? <Badge badgeContent={unreadCount} color="error">{t.icon}</Badge>
+                : t.icon
+            }
             sx={{ "&.Mui-selected": { color: "#07C160" } }} />
         ))}
       </BottomNavigation>
