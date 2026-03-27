@@ -70,7 +70,7 @@ function MobileBottomNav({ activeSection, pendingTaskCount, onNav }) {
   // Chat is a subpage of home on mobile — highlight 首页 when in chat
   const navValue = activeSection === "chat" ? "home" : activeSection;
   return (
-    <Box sx={{ position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 10, borderTop: "0.5px solid #d9d9d9", bgcolor: "#f7f7f7" }}>
+    <Box sx={{ flexShrink: 0, borderTop: "0.5px solid #d9d9d9", bgcolor: "#f7f7f7" }}>
       <BottomNavigationMui value={navValue} onChange={(_, val) => onNav(val)}
         sx={{ height: 64, bgcolor: "#f7f7f7", paddingBottom: "env(safe-area-inset-bottom)", "& .MuiBottomNavigationAction-root": { minWidth: 56, paddingTop: "8px", color: "#999999" }, "& .Mui-selected": { color: "#07C160" }, "& .Mui-selected .MuiBottomNavigationAction-label": { color: "#07C160", fontWeight: 600 } }}>
         {NAV.map((item) => (
@@ -199,9 +199,9 @@ export default function DoctorPage() {
   }
 
   return (
-    <Box sx={{ display: "flex", height: "100%", position: "relative", bgcolor: "#f7f7f7" }}>
+    <Box sx={{ display: "flex", flexDirection: isMobile ? "column" : "row", height: "100%", position: "relative", bgcolor: "#f7f7f7" }}>
       {!isMobile && <DesktopSidebar activeSection={activeSection} doctorName={doctorName} doctorId={doctorId} navBadge={{ tasks: pendingTaskCount }} onNav={handleNav} onLogout={handleLogout} />}
-      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative", pb: isMobile ? "56px" : 0 }}>
+      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
         {isReviewPage ? (
           <ErrorBoundary label="诊断审核">
             <ReviewPage recordId={recordId} />
