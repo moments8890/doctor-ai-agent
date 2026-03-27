@@ -30,7 +30,7 @@ function StructuredFields({ structured }) {
   const filled = SOAP_FIELD_ORDER.filter(k => structured[k]);
   if (filled.length === 0) return null;
   return (
-    <Box sx={{ mt: 0.8, bgcolor: COLOR.surfaceAlt, borderRadius: 1, border: `1px solid ${COLOR.borderLight}`, overflow: "hidden" }}>
+    <Box sx={{ mt: 0.8, borderRadius: 1, border: `1px solid ${COLOR.borderLight}`, overflow: "hidden" }}>
       {filled.map((key, i) => (
         <Box key={key} sx={{ display: "flex", gap: 1.5, px: 1.5, py: 0.8,
           borderTop: i > 0 ? `1px solid ${COLOR.borderLight}` : "none" }}>
