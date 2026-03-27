@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useAppNavigate } from "../../hooks/useAppNavigate";
 import { Box, CircularProgress, Typography } from "@mui/material";
 import { usePatientApi } from "../../api/PatientApiContext";
 import ListCard from "../../components/ListCard";
@@ -29,7 +29,7 @@ const _DL = { pending: "诊断中", completed: "待审核", confirmed: "已确�
 const _DC = { "诊断中": COLOR.warning, "待审核": COLOR.accent, "已确认": COLOR.success, "诊断失败": COLOR.danger };
 
 export default function RecordsTab({ token, onNewRecord, urlSubpage }) {
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   const { getPatientRecords } = usePatientApi();
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);

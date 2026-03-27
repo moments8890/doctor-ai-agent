@@ -8,7 +8,8 @@
  */
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
+import { useAppNavigate } from "../../hooks/useAppNavigate";
 import { Box } from "@mui/material";
 import Badge from "@mui/material/Badge";
 import BottomNavigation from "@mui/material/BottomNavigation";
@@ -35,7 +36,7 @@ const PATIENT_CHAT_STORAGE_KEY = "patient_chat_messages";
 export default function PatientPage() {
   const api = usePatientApi();
   const { tab: urlTab, subpage: urlSubpage } = useParams();
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
 
   // ---------------------------------------------------------------------------
   // Identity state — hydrated from localStorage

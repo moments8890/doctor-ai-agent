@@ -11,7 +11,7 @@
  */
 
 import { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useAppNavigate } from "../../hooks/useAppNavigate";
 import {
   Box,
   CircularProgress,
@@ -75,7 +75,7 @@ function QuickActions({ onNewInterview, onViewRecords }) {
 // ---------------------------------------------------------------------------
 
 export default function ChatTab({ token, doctorName, onLogout, onNewInterview, onViewRecords, onUnreadCountChange }) {
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   const { getPatientChatMessages, sendPatientChat } = usePatientApi();
   const welcomeMsg = { source: "ai", content: `您好！我是${doctorName || "医生"}的AI助手。有什么健康问题可以问我。` };
 
