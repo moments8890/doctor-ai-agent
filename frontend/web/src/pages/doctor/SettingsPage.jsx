@@ -205,6 +205,10 @@ function KnowledgeSubpageWrapper({ doctorId, onBack, isMobile, urlSubId }) {
       onBack={isMobile ? onBack : undefined}
       onAdd={() => navigate("/doctor/settings/knowledge/new")}
       onDelete={handleDelete}
+      onEdit={(id, text) => {
+        // TODO: add updateKnowledgeItem API call
+        setItems(prev => prev.map(i => i.id === id ? { ...i, text, content: text } : i));
+      }}
     />
   );
 }

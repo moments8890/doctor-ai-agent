@@ -8,7 +8,7 @@
  * @see /debug/doctor-pages → Settings → 知识库
  */
 import { useState, useMemo } from "react";
-import { Box, Typography } from "@mui/material";
+import { Box, TextField, Typography } from "@mui/material";
 import { TYPE, ICON, COLOR } from "../../../theme";
 import PageSkeleton from "../../../components/PageSkeleton";
 import BarButton from "../../../components/BarButton";
@@ -47,9 +47,26 @@ function formatDate(dateStr) {
 
 /* ── Detail View ── */
 
-function KnowledgeDetail({ item, categories, onBack, onDelete }) {
+function KnowledgeDetail({ item, categories, onBack, onDelete, onEdit }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editText, setEditText] = useState(item.text || item.content || "");
+  const originalText = item.text || item.content || "";
+  const isDirty = editText !== originalText;
   const catLabel = (categories || DEFAULT_CATEGORIES).find(c => c.key === item.category)?.label || "自定义";
+
+  function handleSave() {
+    if (isDirty && onEdit) {
+      onEdit(item.id, editText.trim());
+      onBack();
+    }
+  }
+
+  const headerRight = (
+    <Box sx={{ display: "flex", gap: 1 }}>
+      {onDelete && <BarButton onClick={() => setDeleteOpen(true)} color={COLOR.danger}>删除</BarButton>}
+      {isDirty && onEdit && <BarButton onClick={handleSave}>保存</BarButton>}
+    </Box>
+  );
 
   const detailContent = (
     <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
@@ -71,7 +88,19 @@ function KnowledgeDetail({ item, categories, onBack, onDelete }) {
       </Box>
       <Box sx={{ bgcolor: COLOR.white, borderRadius: 1, p: 2 }}>
         <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 0.5 }}>内容</Typography>
-        <Typography sx={{ fontSize: TYPE.secondary.fontSize, lineHeight: 1.8 }}>{item.text || item.content}</Typography>
+        <TextField
+          fullWidth
+          multiline
+          minRows={3}
+          maxRows={12}
+          size="small"
+          value={editText}
+          onChange={(e) => setEditText(e.target.value)}
+          sx={{
+            "& .MuiOutlinedInput-root": { borderRadius: "6px", fontSize: TYPE.secondary.fontSize, lineHeight: 1.8 },
+            "& .MuiOutlinedInput-notchedOutline": { borderColor: COLOR.borderLight },
+          }}
+        />
       </Box>
     </Box>
   );
@@ -81,7 +110,7 @@ function KnowledgeDetail({ item, categories, onBack, onDelete }) {
       <PageSkeleton
         title="知识详情"
         onBack={onBack}
-        headerRight={onDelete ? <BarButton onClick={() => setDeleteOpen(true)} color={COLOR.danger}>删除</BarButton> : undefined}
+        headerRight={headerRight}
         isMobile
         listPane={detailContent}
       />
@@ -109,6 +138,7 @@ export default function KnowledgeSubpage({
   onBack,
   onAdd,
   onDelete,
+  onEdit,
   title = "知识库",
 }) {
   const [expandedCat, setExpandedCat] = useState(null);
@@ -137,6 +167,7 @@ export default function KnowledgeSubpage({
         categories={categories}
         onBack={() => setDetailItem(null)}
         onDelete={onDelete ? handleDelete : undefined}
+        onEdit={onEdit}
       />
     );
   }

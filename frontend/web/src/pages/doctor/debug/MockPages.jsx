@@ -668,6 +668,7 @@ function MockSettingsKnowledge({ onBack }) {
       onBack={onBack}
       onAdd={() => {}}
       onDelete={(id) => {}}
+      onEdit={(id, text) => {}}
     />
   );
 }
