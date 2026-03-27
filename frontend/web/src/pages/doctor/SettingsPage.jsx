@@ -10,10 +10,12 @@ import {
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import { useApi } from "../../api/ApiContext";
+import { generateQRToken } from "../../api";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import AppButton from "../../components/AppButton";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import PageSkeleton from "../../components/PageSkeleton";
+import QRDialog from "../../components/QRDialog";
 import SheetDialog from "../../components/SheetDialog";
 import KnowledgeSubpage from "./subpages/KnowledgeSubpage";
 import AboutSubpage from "./subpages/AboutSubpage";
@@ -240,6 +242,18 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
   const { doctorName, setAuth, accessToken } = useDoctorStore();
   const { nameDialogOpen, setNameDialogOpen, nameInput, setNameInput, nameSaving, nameError, setNameError, specialty, specialtyDialogOpen, setSpecialtyDialogOpen, specialtyInput, setSpecialtyInput, specialtySaving, specialtyError, handleSaveName, handleSaveSpecialty } = useSettingsState({ doctorId, doctorName, accessToken, setAuth });
 
+  const [qrOpen, setQrOpen] = useState(false);
+  const [qrUrl, setQrUrl] = useState("");
+  const [qrError, setQrError] = useState("");
+  const [qrLoading, setQrLoading] = useState(false);
+
+  async function handleGenerateQR() {
+    setQrLoading(true); setQrError(""); setQrOpen(true);
+    try { const data = await generateQRToken("doctor", doctorId); setQrUrl(data.url); }
+    catch (e) { setQrUrl(""); setQrError(e.message || "生成失败"); }
+    finally { setQrLoading(false); }
+  }
+
   // URL-driven subpage (survives refresh)
   const subpage = urlSubpage || null;
   const goSub = (sub) => navigate(`/doctor/settings/${sub}`);
@@ -261,6 +275,7 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
       specialty={specialty}
       onTemplate={() => goSub("template")}
       onKnowledge={() => goSub("knowledge")}
+      onQRCode={() => handleGenerateQR()}
       onAbout={() => goSub("about")}
       onLogout={isMobile ? onLogout : undefined}
       isMobile={isMobile}
@@ -269,6 +284,9 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
         onChange={setNameInput} onSave={handleSaveName} onClose={() => setNameDialogOpen(false)} />
       <SpecialtyDialog open={specialtyDialogOpen} specialtyInput={specialtyInput} specialtySaving={specialtySaving}
         specialtyError={specialtyError} onChange={setSpecialtyInput} onSave={handleSaveSpecialty} onClose={() => setSpecialtyDialogOpen(false)} />
+      <QRDialog open={qrOpen} onClose={() => setQrOpen(false)} title="我的二维码"
+        name={doctorName || doctorId} url={qrUrl} loading={qrLoading} error={qrError}
+        onRegenerate={handleGenerateQR} />
     </SettingsListSubpage>
   );
 

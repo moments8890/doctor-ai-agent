@@ -11,6 +11,7 @@ import { Box, Typography } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
+import QrCode2OutlinedIcon from "@mui/icons-material/QrCode2Outlined";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import PageSkeleton from "../../../components/PageSkeleton";
 import SectionLabel from "../../../components/SectionLabel";
@@ -83,6 +84,7 @@ export default function SettingsListSubpage({
   specialty,
   onTemplate,
   onKnowledge,
+  onQRCode,
   onAbout,
   onLogout,
   isMobile = true,
@@ -99,6 +101,8 @@ export default function SettingsListSubpage({
           label="报告模板" sublabel="自定义门诊病历报告格式" onClick={onTemplate} />
         <SettingsRow icon={<MenuBookOutlinedIcon sx={{ color: "#5b9bd5", fontSize: ICON.lg }} />}
           label="知识库" sublabel="管理 AI 助手参考资料" onClick={onKnowledge} />
+        <SettingsRow icon={<QrCode2OutlinedIcon sx={{ color: "#e8833a", fontSize: ICON.lg }} />}
+          label="我的二维码" sublabel="扫码登录其他设备" onClick={onQRCode} />
       </Box>
 
       <SectionLabel>通用</SectionLabel>
