@@ -520,21 +520,23 @@ function InlineAddInput({ placeholder, onAdd }) {
   }
   return (
     <Box sx={{ mx: 1.5, mt: 0.5, display: "flex", gap: 1, alignItems: "center" }}>
-      <TextField
-        size="small" fullWidth
+      <input
         placeholder={placeholder}
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
-        sx={{
-          "& .MuiOutlinedInput-root": { borderRadius: 1, fontSize: TYPE.secondary.fontSize, bgcolor: COLOR.white },
-          "& .MuiOutlinedInput-notchedOutline": { borderColor: COLOR.border },
+        style={{
+          flex: 1, border: "none", borderBottom: `1px solid ${hasValue ? COLOR.primary : COLOR.borderLight}`,
+          outline: "none", padding: "6px 0", fontSize: 13, color: COLOR.text2,
+          background: "transparent",
         }}
       />
-      <Typography onClick={handleAdd}
-        sx={{ fontSize: TYPE.secondary.fontSize, color: hasValue ? COLOR.primary : COLOR.text4, cursor: hasValue ? "pointer" : "default", flexShrink: 0 }}>
-        添加
-      </Typography>
+      {hasValue && (
+        <Typography onClick={handleAdd}
+          sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.primary, cursor: "pointer", flexShrink: 0 }}>
+          添加
+        </Typography>
+      )}
     </Box>
   );
 }
