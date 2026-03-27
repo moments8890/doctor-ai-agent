@@ -42,6 +42,7 @@ import SuggestionChips from "../../components/SuggestionChips";
 import ListCard from "../../components/ListCard";
 import NewItemCard from "../../components/NewItemCard";
 import RecordAvatar from "../../components/RecordAvatar";
+import DateAvatar from "../../components/DateAvatar";
 import MedicalServicesOutlinedIcon from "@mui/icons-material/MedicalServicesOutlined";
 import SubpageHeader from "../../components/SubpageHeader";
 import { TYPE, ICON } from "../../theme";
@@ -517,6 +518,7 @@ function RecordsTab({ token, onLogout, onNewRecord, urlSubpage }) {
   const navigate = useNavigate();
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [recordView, setRecordView] = useState("list"); // "list" or "timeline"
 
   const loadRecords = useCallback(() => {
     setLoading(true);
@@ -546,13 +548,32 @@ function RecordsTab({ token, onLogout, onNewRecord, urlSubpage }) {
       {/* New record row */}
       <NewItemCard title="新建病历" subtitle="开始AI预问诊" onClick={onNewRecord} />
 
-      {/* Section label */}
+      {/* Section label + view toggle */}
       {records.length > 0 && (
-        <Box sx={{ px: 2, py: 1 }}>
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#999" }}>
-            最近 · {records.length}份病历
-          </Typography>
-        </Box>
+        <>
+          <Box sx={{ px: 2, py: 1 }}>
+            <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#999" }}>
+              最近 · {records.length}份病历
+            </Typography>
+          </Box>
+          <Box sx={{ display: "flex", gap: 0.8, px: 2, py: 1 }}>
+            {[{ key: "list", label: "病历" }, { key: "timeline", label: "时间线" }].map(v => (
+              <Box
+                key={v.key}
+                onClick={() => setRecordView(v.key)}
+                sx={{
+                  px: 1.5, py: 0.4, borderRadius: "4px", cursor: "pointer",
+                  fontSize: TYPE.secondary.fontSize, fontWeight: recordView === v.key ? 600 : 400,
+                  bgcolor: recordView === v.key ? COLOR.primary : COLOR.white,
+                  color: recordView === v.key ? COLOR.white : COLOR.text3,
+                  border: recordView === v.key ? "none" : `0.5px solid ${COLOR.border}`,
+                }}
+              >
+                {v.label}
+              </Box>
+            ))}
+          </Box>
+        </>
       )}
 
       {/* Record list */}
@@ -563,7 +584,7 @@ function RecordsTab({ token, onLogout, onNewRecord, urlSubpage }) {
             点击上方「新建病历」开始预问诊
           </Typography>
         </Box>
-      ) : (
+      ) : recordView === "list" ? (
         <Box sx={{ bgcolor: "#fff" }}>
           {records.map(rec => {
             const typeLabel = RECORD_TYPE_LABEL[rec.record_type] || rec.record_type;
@@ -587,6 +608,30 @@ function RecordsTab({ token, onLogout, onNewRecord, urlSubpage }) {
                     <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{formatDate(rec.created_at)}</Typography>
                   </Box>
                 }
+                onClick={() => navigate(`/patient/records/${rec.id}`)}
+              />
+            );
+          })}
+        </Box>
+      ) : (
+        <Box sx={{ bgcolor: COLOR.white }}>
+          {records.map(rec => {
+            const typeLabel = RECORD_TYPE_LABEL[rec.record_type] || rec.record_type;
+            const chief = rec.structured?.chief_complaint;
+            const preview = chief || (rec.content || "").replace(/\n/g, " ").slice(0, 40) || "";
+            const title = preview ? `${typeLabel} · ${preview}` : typeLabel;
+            const _DL = { pending: "诊断中", completed: "待审核", confirmed: "已确认", failed: "诊断失败" };
+            const _DC = { "诊断中": COLOR.warning, "待审核": COLOR.accent, "已确认": COLOR.success, "诊断失败": COLOR.danger };
+            const ds = rec.diagnosis_status;
+            const dsLabel = ds ? _DL[ds] : null;
+            return (
+              <ListCard
+                key={rec.id}
+                avatar={<DateAvatar date={rec.created_at} />}
+                title={title}
+                subtitle={dsLabel ? dsLabel : undefined}
+                right={dsLabel ? <StatusBadge label={dsLabel} colorMap={_DC} fallbackColor={COLOR.text4} /> : undefined}
+                chevron
                 onClick={() => navigate(`/patient/records/${rec.id}`)}
               />
             );
