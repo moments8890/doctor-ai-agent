@@ -13,6 +13,8 @@ import { useDoctorStore } from "./store/doctorStore";
 import { setWebToken, onAuthExpired } from "./api";
 import { ApiProvider } from "./api/ApiContext";
 import { MockApiProvider } from "./api/MockApiProvider";
+import { PatientApiProvider } from "./api/PatientApiContext";
+import { PatientMockApiProvider } from "./api/PatientMockApiProvider";
 import { isMiniApp } from "./utils/env";
 
 import Box from "@mui/material/Box";
@@ -80,6 +82,15 @@ function doctorRoutes(prefix, Provider) {
   ));
 }
 
+const PATIENT_PATH_SUFFIXES = ["", "/:tab", "/:tab/:subpage"];
+
+function patientRoutes(prefix, Provider) {
+  return PATIENT_PATH_SUFFIXES.map((suffix) => (
+    <Route key={prefix + suffix} path={`${prefix}${suffix}`}
+      element={<MobileFrame><Provider><PatientPage /></Provider></MobileFrame>} />
+  ));
+}
+
 export default function App() {
   const { accessToken, doctorId, setAuth } = useDoctorStore();
 
@@ -129,9 +140,7 @@ export default function App() {
       <Route path="/login" element={<MobileFrame><LoginPage /></MobileFrame>} />
       <Route path="/" element={<Navigate to="/doctor" replace />} />
       {doctorRoutes("/doctor", ApiProvider)}
-      <Route path="/patient" element={<MobileFrame><PatientPage /></MobileFrame>} />
-      <Route path="/patient/:tab" element={<MobileFrame><PatientPage /></MobileFrame>} />
-      <Route path="/patient/:tab/:subpage" element={<MobileFrame><PatientPage /></MobileFrame>} />
+      {patientRoutes("/patient", PatientApiProvider)}
       {/* Admin — full desktop layout, no MobileFrame */}
       <Route path="/admin/login" element={<AdminLoginPage />} />
       <Route path="/admin" element={<AdminPage />} />
@@ -141,6 +150,8 @@ export default function App() {
       <Route path="/debug/doctor-components" element={<MobileFrame><DoctorComponentShowcase /></MobileFrame>} />
       {/* Mock doctor app — same DoctorPage, mock API, auth required in prod */}
       {doctorRoutes("/debug/doctor", MockApiProvider)}
+      {/* Mock patient app — same PatientPage, mock API */}
+      {patientRoutes("/debug/patient", PatientMockApiProvider)}
       <Route path="/debug/doctor-pages" element={<Navigate to="/debug/doctor" replace />} />
       {/* Debug — wildcard AFTER specific routes */}
       <Route path="/debug" element={<DebugPage />} />
