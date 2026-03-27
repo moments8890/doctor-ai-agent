@@ -27,8 +27,7 @@ export async function getPatientRecordDetail(token, recordId) {
   await delay();
   const record = MOCK_RECORDS.find((r) => r.id === Number(recordId));
   if (!record) return null;
-  const { structured, ...rest } = record;
-  return { ...rest, ...structured };
+  return { ...record };
 }
 
 export async function getPatientTasks(token) {

@@ -39,7 +39,7 @@ export default function RecordDetail({ recordId, token, onBack }) {
   const { getPatientRecordDetail } = usePatientApi();
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showFullRecord, setShowFullRecord] = useState(false);
+  const [showFullRecord, setShowFullRecord] = useState(true);
 
   useEffect(() => {
     if (!recordId || !token) { setLoading(false); return; }
