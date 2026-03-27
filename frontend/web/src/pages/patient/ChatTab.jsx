@@ -21,6 +21,8 @@ import {
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import AddIcon from "@mui/icons-material/Add";
+import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
+import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
@@ -180,10 +182,14 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
     // Patient message (right aligned)
     if (src === "patient") {
       return (
-        <Box key={msg.id || i} sx={{ display: "flex", justifyContent: "flex-end", mb: 1.5 }}>
+        <Box key={msg.id || i} sx={{ display: "flex", flexDirection: "row-reverse", alignItems: "flex-end", gap: 1, mb: 1.5 }}>
+          <Box sx={{ width: 32, height: 32, borderRadius: "4px", bgcolor: "#5b9bd5",
+            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <PersonOutlineIcon sx={{ color: "#fff", fontSize: ICON.md }} />
+          </Box>
           <Box sx={{
-            maxWidth: "80%", px: 2, py: 1.5, borderRadius: 2,
-            bgcolor: "#95ec69", color: "#333", fontSize: "0.9rem", lineHeight: 1.6,
+            maxWidth: "75%", px: 1.5, py: 1, borderRadius: "4px 4px 0 4px",
+            bgcolor: "#95ec69", color: "#333", fontSize: TYPE.body.fontSize, lineHeight: 1.7,
             whiteSpace: "pre-wrap", wordBreak: "break-word",
           }}>{msg.content}</Box>
         </Box>
@@ -235,10 +241,14 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
 
     // AI message (left aligned) — with triage enrichment
     return (
-      <Box key={msg.id || i} sx={{ display: "flex", justifyContent: "flex-start", mb: 1.5 }}>
-        <Box sx={{ maxWidth: "80%" }}>
+      <Box key={msg.id || i} sx={{ display: "flex", alignItems: "flex-end", gap: 1, mb: 1.5 }}>
+        <Box sx={{ width: 32, height: 32, borderRadius: "4px", bgcolor: "#07C160",
+          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <SmartToyOutlinedIcon sx={{ color: "#fff", fontSize: ICON.md }} />
+        </Box>
+        <Box sx={{ maxWidth: "75%" }}>
           {msg.triage_category === "diagnosis_confirmation" && (
-            <Box sx={{ mb: 0.5, px: 1.5, py: 0.8, borderRadius: "8px", bgcolor: "#e8f5e9", border: "0.5px solid #c8e6c9" }}>
+            <Box sx={{ mb: 0.5, px: 1.5, py: 0.8, borderRadius: "4px 4px 4px 0", bgcolor: "#e8f5e9", border: "0.5px solid #c8e6c9" }}>
               <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.success, fontWeight: 500 }}>
                 {msg.content}
               </Typography>
@@ -246,8 +256,8 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
           )}
           {msg.triage_category !== "diagnosis_confirmation" && (
             <Box sx={{
-              px: 2, py: 1.5, borderRadius: 2, bgcolor: "#fff",
-              color: "#333", fontSize: "0.9rem", lineHeight: 1.6,
+              px: 1.5, py: 1, borderRadius: "4px 4px 4px 0", bgcolor: "#fff",
+              color: "#333", fontSize: TYPE.body.fontSize, lineHeight: 1.7,
               whiteSpace: "pre-wrap", wordBreak: "break-word",
             }}>{msg.content}</Box>
           )}

@@ -149,7 +149,7 @@ export const MOCK_CHAT_MESSAGES = [
     created_at: "2026-03-26T09:00:00",
   },
   {
-    id: 2, role: "patient",
+    id: 2, role: "user",
     content: "最近头痛又开始了，已经持续3天了",
     created_at: "2026-03-26T09:00:35",
   },
@@ -159,7 +159,7 @@ export const MOCK_CHAT_MESSAGES = [
     created_at: "2026-03-26T09:00:42",
   },
   {
-    id: 4, role: "patient",
+    id: 4, role: "user",
     content: "主要是两侧太阳穴，胀痛",
     created_at: "2026-03-26T09:01:15",
   },
@@ -169,7 +169,7 @@ export const MOCK_CHAT_MESSAGES = [
     created_at: "2026-03-26T09:01:22",
   },
   {
-    id: 6, role: "patient",
+    id: 6, role: "user",
     content: "大概6分吧，有点恶心，没有呕吐",
     created_at: "2026-03-26T09:02:00",
   },
@@ -179,7 +179,7 @@ export const MOCK_CHAT_MESSAGES = [
     created_at: "2026-03-26T09:02:08",
   },
   {
-    id: 8, role: "patient",
+    id: 8, role: "user",
     content: "昨天量了一次，150/95，药一直在吃",
     created_at: "2026-03-26T09:02:45",
   },
@@ -190,7 +190,7 @@ export const MOCK_CHAT_MESSAGES = [
     triage_category: "diagnosis_confirmation",
   },
   {
-    id: 10, role: "patient",
+    id: 10, role: "user",
     content: "好的谢谢",
     created_at: "2026-03-26T09:03:20",
   },
@@ -206,7 +206,7 @@ export const MOCK_CHAT_MESSAGES = [
     doctor_name: "张医生",
   },
   {
-    id: 13, role: "patient",
+    id: 13, role: "user",
     content: "好的张医生，周六上午我过来，血压记录我每天都有记的",
     created_at: "2026-03-26T10:16:30",
   },
@@ -229,9 +229,9 @@ export const MOCK_INTERVIEW_STATE = {
   suggestions: ["有高血压", "有糖尿病", "没有慢性病", "不太清楚"],
   conversation: [
     { role: "assistant", content: "您好！我是预问诊助手，帮您提前记录病情信息，方便医生更快了解您的情况。请问您今天主要想看什么问题？" },
-    { role: "patient", content: "我头痛反复发作，想来看看" },
+    { role: "user", content: "我头痛反复发作，想来看看" },
     { role: "assistant", content: "好的，头痛反复发作。请问大概持续多长时间了？每次发作持续多久？主要在头部什么位置？" },
-    { role: "patient", content: "差不多一个月了，每次两三个小时，主要是两边太阳穴" },
+    { role: "user", content: "差不多一个月了，每次两三个小时，主要是两边太阳穴" },
     { role: "assistant", content: "收到，主诉和现病史已记录。请问您有什么既往病史吗？比如高血压、糖尿病？" },
   ],
 };
