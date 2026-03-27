@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import Annotated, List, Optional
 
@@ -13,12 +14,15 @@ from pydantic import BaseModel
 from db.engine import AsyncSessionLocal
 from db.crud import list_tasks, update_task_status, create_task, update_task_due_at
 from db.crud.patient import get_patient_for_doctor
+from db.crud.patient_message import save_patient_message
 from infra.auth.rate_limit import enforce_doctor_rate_limit
 from infra.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
 from domain.tasks.task_crud import run_due_task_cycle
 from infra.observability.audit import audit
 from utils.app_config import env_flag_true as _env_flag_true
 from utils.log import safe_create_task
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
@@ -36,6 +40,7 @@ class TaskOut(BaseModel):
     created_at: str
     patient_id: Optional[int]
     record_id: Optional[int]
+    target: str = "doctor"
 
     @classmethod
     def from_orm(cls, task: object) -> "TaskOut":
@@ -53,6 +58,7 @@ class TaskOut(BaseModel):
             created_at=_iso(task.created_at) or "",
             patient_id=task.patient_id,
             record_id=task.record_id,
+            target=getattr(task, "target", "doctor"),
         )
 
 
@@ -70,6 +76,7 @@ class TaskCreate(BaseModel):
     due_at: Optional[str] = None
     patient_id: Optional[int] = None
     content: Optional[str] = None
+    target: str = "doctor"
 
 
 def _parse_due_at(due_at_str: str) -> datetime:
@@ -133,6 +140,8 @@ async def _create_task_for_doctor(doctor_id: str, body: TaskCreate) -> TaskOut:
         raise HTTPException(status_code=422, detail=f"task_type must be one of {_VALID_TASK_TYPES}")
     if not body.title.strip():
         raise HTTPException(status_code=422, detail="title must not be empty")
+    if body.target not in ("doctor", "patient"):
+        raise HTTPException(status_code=422, detail="target must be 'doctor' or 'patient'")
     due_at = _parse_due_at(body.due_at) if body.due_at else None
     async with AsyncSessionLocal() as session:
         if body.patient_id is not None:
@@ -147,8 +156,31 @@ async def _create_task_for_doctor(doctor_id: str, body: TaskCreate) -> TaskOut:
             content=body.content,
             patient_id=body.patient_id,
             due_at=due_at,
+            target=body.target,
         )
     safe_create_task(audit(doctor_id, "create_task", "doctor_task", str(task.id)))
+
+    # Notify patient via system chat message
+    if task.target == "patient" and task.patient_id:
+        try:
+            async with AsyncSessionLocal() as notify_session:
+                notify_content = (
+                    f"复查提醒：{task.title}" if task.task_type == "follow_up"
+                    else f"医生为您安排了新任务：{task.title}"
+                )
+                triage_cat = f"notification:task:{task.id}"
+                await save_patient_message(
+                    notify_session,
+                    patient_id=task.patient_id,
+                    doctor_id=doctor_id,
+                    content=notify_content,
+                    direction="outbound",
+                    source="system",
+                    triage_category=triage_cat,
+                )
+        except Exception:
+            logger.warning("Failed to send patient notification for task %s", task.id, exc_info=True)
+
     return TaskOut.from_orm(task)
 
 

@@ -28,6 +28,7 @@ class TaskRepository:
         patient_id: Optional[int] = None,
         record_id: Optional[int] = None,
         due_at: Optional[datetime] = None,
+        target: str = "doctor",
     ) -> DoctorTask:
         task = DoctorTask(
             doctor_id=doctor_id,
@@ -38,6 +39,7 @@ class TaskRepository:
             record_id=record_id,
             due_at=due_at,
             status=TaskStatus.pending,
+            target=target,
         )
         self.session.add(task)
         await self.session.commit()
