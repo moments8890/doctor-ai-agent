@@ -39,6 +39,25 @@ export default function PatientPage() {
   const navigate = useAppNavigate();
 
   // ---------------------------------------------------------------------------
+  // QR code token absorption — must run before state initialization
+  // ---------------------------------------------------------------------------
+  useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const qrToken = params.get("token");
+    if (qrToken) {
+      const qrDoctorId = params.get("doctor_id");
+      const qrName = params.get("name");
+      localStorage.setItem(STORAGE_KEY, qrToken);
+      if (qrName) localStorage.setItem(STORAGE_NAME_KEY, qrName);
+      if (qrDoctorId) localStorage.setItem(STORAGE_DOCTOR_KEY, qrDoctorId);
+      // Clean URL params
+      const cleanUrl = new URL(window.location.href);
+      ["token", "doctor_id", "name"].forEach(k => cleanUrl.searchParams.delete(k));
+      window.history.replaceState({}, "", cleanUrl.toString());
+    }
+  });
+
+  // ---------------------------------------------------------------------------
   // Identity state — hydrated from localStorage
   // ---------------------------------------------------------------------------
   const [token, setToken] = useState(() => localStorage.getItem(STORAGE_KEY) || "");
