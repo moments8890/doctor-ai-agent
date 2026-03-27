@@ -38,6 +38,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
 import SuggestionChips from "../../components/SuggestionChips";
 import ListCard from "../../components/ListCard";
 import NewItemCard from "../../components/NewItemCard";
@@ -239,6 +240,7 @@ function QuickActions({ onNewInterview, onViewRecords }) {
 const PATIENT_CHAT_STORAGE_KEY = "patient_chat_messages";
 
 function ChatTab({ token, doctorName, onLogout, onNewInterview, onViewRecords }) {
+  const navigate = useNavigate();
   const welcomeMsg = { source: "ai", content: `您好！我是${doctorName || "医生"}的AI助手。有什么健康问题可以问我。` };
 
   const [messages, setMessages] = useState([welcomeMsg]);
@@ -338,6 +340,49 @@ function ChatTab({ token, doctorName, onLogout, onNewInterview, onViewRecords })
             bgcolor: "#95ec69", color: "#333", fontSize: "0.9rem", lineHeight: 1.6,
             whiteSpace: "pre-wrap", wordBreak: "break-word",
           }}>{msg.content}</Box>
+        </Box>
+      );
+    }
+
+    // System notification card
+    if (src === "system") {
+      const parts = (msg.triage_category || "").split(":");
+      const linkType = parts[1] || null;
+      const linkId = parts[2] || null;
+
+      let avatar;
+      let onTap;
+      if (linkType === "record") {
+        avatar = <RecordAvatar type="visit" size={32} />;
+        onTap = () => navigate(`/patient/records/${linkId}`);
+      } else if (linkType === "task") {
+        avatar = (
+          <Box sx={{ width: 32, height: 32, borderRadius: "4px", bgcolor: COLOR.primaryLight,
+            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <AssignmentOutlinedIcon sx={{ fontSize: 16, color: COLOR.primary }} />
+          </Box>
+        );
+        onTap = () => navigate("/patient/tasks");
+      } else {
+        avatar = (
+          <Box sx={{ width: 32, height: 32, borderRadius: "4px", bgcolor: COLOR.surface,
+            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <NotificationsNoneOutlinedIcon sx={{ fontSize: 16, color: COLOR.text4 }} />
+          </Box>
+        );
+        onTap = null;
+      }
+
+      return (
+        <Box key={msg.id || i} sx={{ px: 1.5, py: 0.5 }}>
+          <ListCard
+            avatar={avatar}
+            title={msg.content}
+            subtitle={onTap ? "点击查看" : undefined}
+            chevron={!!onTap}
+            onClick={onTap}
+            sx={{ borderLeft: `3px solid ${COLOR.primary}`, borderRadius: "4px" }}
+          />
         </Box>
       );
     }
