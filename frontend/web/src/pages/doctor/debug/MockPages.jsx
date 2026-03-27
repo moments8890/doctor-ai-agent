@@ -181,51 +181,60 @@ function MockPatientDetail({ patient, onBack, onReview, onInterview }) {
   const pendingRecords = records.filter(r => r.status === "pending_review");
   const age = 2026 - patient.year_of_birth;
   const genderStr = patient.gender === "male" ? "男" : "女";
+  const [profileExpanded, setProfileExpanded] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const patientMessages = MOCK_PATIENT_MESSAGES.filter(m => m.patient_id === patient.id);
 
   const content = (
     <Box sx={{ flex: 1, overflowY: "auto" }}>
-      {/* Collapsed profile */}
+      {/* Profile — collapsed by default */}
       <Box sx={{ bgcolor: COLOR.white, px: 2.5, py: 1.5, mb: 0.8 }}>
-        <Box sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
-          <Typography sx={{ fontWeight: 700, fontSize: TYPE.action.fontSize }}>{patient.name}</Typography>
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{genderStr} · {age}岁 · 门诊{records.length} · 最近{records[0]?.created_at?.slice(5, 10) || "—"}</Typography>
-        </Box>
-        {/* Action bar: delete (left) and export (right) */}
-        <Box sx={{ display: "flex", justifyContent: "space-between", mt: 1, pt: 1, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
-          <Box onClick={() => setDeleteConfirmOpen(true)} sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: "pointer", color: COLOR.danger, fontSize: TYPE.secondary.fontSize, "&:active": { opacity: 0.6 } }}>
-            <DeleteOutlineIcon sx={{ fontSize: ICON.sm }} />
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.danger }}>删除患者</Typography>
+        <Box sx={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+          <Box sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
+            <Typography sx={{ fontWeight: 700, fontSize: TYPE.action.fontSize }}>{patient.name}</Typography>
+            <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{genderStr} · {age}岁 · 门诊{records.length}</Typography>
           </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: "pointer", color: COLOR.accent, fontSize: TYPE.secondary.fontSize, "&:active": { opacity: 0.6 } }}>
-            <IosShareIcon sx={{ fontSize: ICON.sm }} />
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.accent }}>导出病历</Typography>
-          </Box>
+          <Typography onClick={() => setProfileExpanded(!profileExpanded)}
+            sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, cursor: "pointer" }}>
+            {profileExpanded ? "收起 ▴" : "展开 ▾"}
+          </Typography>
         </Box>
+        {/* Expanded: actions hidden here until tapped */}
+        {profileExpanded && (
+          <Box sx={{ mt: 1.5, pt: 1, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", py: 0.5 }}>
+              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>最近就诊</Typography>
+              <Typography sx={{ fontSize: TYPE.caption.fontSize }}>{records[0]?.created_at?.slice(0, 10) || "—"}</Typography>
+            </Box>
+            <Box sx={{ display: "flex", justifyContent: "space-between", mt: 1.5 }}>
+              <Typography onClick={() => setDeleteConfirmOpen(true)}
+                sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.danger, cursor: "pointer" }}>删除</Typography>
+              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, cursor: "pointer" }}>导出</Typography>
+            </Box>
+          </Box>
+        )}
       </Box>
 
-      {/* Pending review records */}
+      {/* Pending review — quiet amber dot, no badge */}
       {pendingRecords.length > 0 && (
         <Box sx={{ bgcolor: COLOR.white, px: 2.5, py: 1.5, mb: 0.8 }}>
-          <Typography sx={{ fontWeight: 600, mb: 1 }}>待审核</Typography>
           {pendingRecords.map((r) => (
             <Box key={r.id} onClick={() => onReview(r)}
-              sx={{ py: 1.2, borderBottom: `0.5px solid ${COLOR.borderLight}`, cursor: "pointer" }}>
+              sx={{ py: 1, cursor: "pointer", "&:active": { bgcolor: COLOR.surfaceAlt } }}>
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: COLOR.warning }} />
-                  <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.warning, fontWeight: 600 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
+                  <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: COLOR.warning }} />
+                  <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2 }}>
                     {r.record_type === "visit" ? "门诊记录" : "问诊总结"}
                   </Typography>
-                  <StatusBadge label="待审核" colorMap={{ "待审核": COLOR.warning }} />
+                  <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.warning }}>待审核</Typography>
                 </Box>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{r.created_at?.slice(0, 10)}</Typography>
-                  <Typography sx={{ color: COLOR.text4 }}>›</Typography>
+                  <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{r.created_at?.slice(5, 10)}</Typography>
+                  <Typography sx={{ color: COLOR.text4, fontSize: TYPE.caption.fontSize }}>›</Typography>
                 </Box>
               </Box>
-              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mt: 0.3 }}>
+              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mt: 0.3 }}>
                 {r.structured?.chief_complaint || r.content}
               </Typography>
             </Box>
@@ -233,9 +242,8 @@ function MockPatientDetail({ patient, onBack, onReview, onInterview }) {
         </Box>
       )}
 
-      {/* Completed records using RecordCard */}
+      {/* Records — no tag chips, just text */}
       <Box sx={{ bgcolor: COLOR.white, px: 0, py: 1.5 }}>
-        <Typography sx={{ fontWeight: 600, mb: 1, px: 2.5 }}>病历记录</Typography>
         <FilterBar
           items={[{ key: "", label: "全部" }, { key: "visit", label: "病历" }, { key: "interview_summary", label: "问诊" }]}
           active="" counts={{ "": completedRecords.length }} onChange={() => {}}
@@ -243,40 +251,39 @@ function MockPatientDetail({ patient, onBack, onReview, onInterview }) {
         {completedRecords.length === 0 ? (
           <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, py: 3, textAlign: "center" }}>暂无病历记录</Typography>
         ) : completedRecords.map((r) => (
-          <RecordCard key={r.id} record={r} doctorId="mock_doctor" onUpdated={() => {}} onDeleted={() => {}} />
+          <Box key={r.id} sx={{ px: 2.5, py: 1.2, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2 }}>
+                {r.structured?.chief_complaint || r.content}
+              </Typography>
+              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, flexShrink: 0, ml: 1 }}>{r.created_at?.slice(5, 10)}</Typography>
+            </Box>
+          </Box>
         ))}
       </Box>
 
-      {/* Patient messages section */}
+      {/* Patient messages — quiet, just red dot for escalation */}
       {patientMessages.length > 0 && (
         <Box sx={{ bgcolor: COLOR.white, px: 2.5, py: 1.5, mt: 0.8 }}>
-          <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-            <Typography sx={{ fontWeight: 600 }}>患者消息</Typography>
-            <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary }}>{patientMessages.length}条</Typography>
-          </Box>
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 1 }}>患者消息</Typography>
           {patientMessages.map((msg) => (
             <Box key={msg.id} sx={{ py: 1, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.3 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <Typography sx={{ fontSize: TYPE.secondary.fontSize, fontWeight: 500 }}>{msg.patient_name}</Typography>
-                  <StatusBadge
-                    label={msg.triage_category === "escalation" ? "需关注" : "咨询"}
-                    colorMap={{ "需关注": COLOR.danger, "咨询": COLOR.accent }}
-                  />
+                  {msg.triage_category === "escalation" && (
+                    <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: COLOR.danger }} />
+                  )}
+                  <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2 }}>{msg.content}</Typography>
                 </Box>
-                <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>
+                <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, flexShrink: 0, ml: 1 }}>
                   {msg.created_at?.slice(11, 16)}
                 </Typography>
               </Box>
-              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, lineHeight: 1.5 }}>
-                {msg.content}
-              </Typography>
             </Box>
           ))}
         </Box>
       )}
 
-      {/* Delete confirm dialog */}
       <ConfirmDialog
         open={deleteConfirmOpen}
         title="删除患者"
