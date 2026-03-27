@@ -527,8 +527,8 @@ function InlineAddInput({ placeholder, onAdd }) {
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
         sx={{
-          "& .MuiOutlinedInput-root": { borderRadius: 1, fontSize: TYPE.secondary.fontSize },
-          "& .MuiOutlinedInput-notchedOutline": { borderColor: COLOR.borderLight },
+          "& .MuiOutlinedInput-root": { borderRadius: 1, fontSize: TYPE.secondary.fontSize, bgcolor: COLOR.white },
+          "& .MuiOutlinedInput-notchedOutline": { borderColor: COLOR.border },
         }}
       />
       <Typography onClick={handleAdd}
