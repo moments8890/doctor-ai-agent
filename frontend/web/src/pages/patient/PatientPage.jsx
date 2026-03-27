@@ -62,8 +62,10 @@ import {
   interviewConfirm,
   interviewCancel,
   interviewCurrent,
+  getPatientMe,
 } from "../../api";
 import DoctorBubble from "../../components/DoctorBubble";
+import PatientAvatar from "../../components/PatientAvatar";
 import TaskChecklist from "../../components/TaskChecklist";
 import SectionLabel from "../../components/SectionLabel";
 import StatusBadge from "../../components/StatusBadge";
@@ -1011,6 +1013,19 @@ export default function PatientPage() {
   const [token, setToken] = useState(() => localStorage.getItem(STORAGE_KEY) || "");
   const [patientName, setPatientName] = useState(() => localStorage.getItem(STORAGE_NAME_KEY) || "");
   const [doctorName, setDoctorName] = useState(() => localStorage.getItem(STORAGE_DOCTOR_NAME_KEY) || "");
+  const [doctorSpecialty, setDoctorSpecialty] = useState("");
+  const [doctorId, setDoctorId] = useState(() => localStorage.getItem(STORAGE_DOCTOR_KEY) || "");
+
+  // Load patient identity (including doctor info) on mount
+  useEffect(() => {
+    if (!token) return;
+    getPatientMe(token).then(data => {
+      if (data.patient_name) setPatientName(data.patient_name);
+      setDoctorName(data.doctor_name || "");
+      setDoctorSpecialty(data.doctor_specialty || "");
+      if (data.doctor_id) setDoctorId(data.doctor_id);
+    }).catch(() => {});
+  }, [token]);
 
   // URL-driven tab and subpage
   const tab = urlTab || "chat";
@@ -1070,19 +1085,36 @@ export default function PatientPage() {
         {tab === "tasks" && <TasksTab token={token} />}
         {tab === "profile" && (
           <Box sx={{ flex: 1, overflowY: "auto", bgcolor: "#ededed" }}>
-            <Box sx={{ bgcolor: "#fff", px: 2, py: 2, mb: 1, display: "flex", alignItems: "center", gap: 1.5 }}>
-              <Box sx={{ width: 44, height: 44, borderRadius: "50%", bgcolor: "#07C160",
-                display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Typography sx={{ color: "#fff", fontSize: ICON.md, fontWeight: 600 }}>{(patientName || "?")[0]}</Typography>
-              </Box>
-              <Box>
-                <Typography sx={{ fontWeight: 600, fontSize: TYPE.title.fontSize }}>{patientName || "患者"}</Typography>
-                {doctorName && <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#999" }}>主治医生：{doctorName}</Typography>}
-              </Box>
+            {/* Doctor info card */}
+            {doctorName && (
+              <>
+                <SectionLabel>我的医生</SectionLabel>
+                <Box sx={{ bgcolor: COLOR.white }}>
+                  <ListCard
+                    avatar={<PatientAvatar name={doctorName} size={42} />}
+                    title={doctorName}
+                    subtitle={doctorSpecialty || ""}
+                  />
+                </Box>
+              </>
+            )}
+
+            {/* Patient info card */}
+            <SectionLabel>我的信息</SectionLabel>
+            <Box sx={{ bgcolor: COLOR.white }}>
+              <ListCard
+                avatar={<PatientAvatar name={patientName || "?"} size={42} />}
+                title={patientName || "患者"}
+                subtitle={doctorId || ""}
+              />
             </Box>
-            <Box onClick={handleLogout}
-              sx={{ bgcolor: "#fff", py: 1.5, textAlign: "center", cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
-              <Typography sx={{ fontSize: TYPE.action.fontSize, color: "#FA5151" }}>退出登录</Typography>
+
+            {/* Logout */}
+            <Box sx={{ mt: 1 }}>
+              <Box onClick={handleLogout}
+                sx={{ bgcolor: COLOR.white, py: 1.5, textAlign: "center", cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
+                <Typography sx={{ fontSize: TYPE.action.fontSize, color: COLOR.danger }}>退出登录</Typography>
+              </Box>
             </Box>
           </Box>
         )}
