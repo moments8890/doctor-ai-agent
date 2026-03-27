@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApi } from "../api/ApiContext";
 
@@ -11,11 +12,11 @@ import { useApi } from "../api/ApiContext";
 export function useAppNavigate() {
   const navigate = useNavigate();
   const { isMock } = useApi();
-  return (to, options) => {
+  return useCallback((to, options) => {
     if (isMock && typeof to === "string" && to.startsWith("/doctor")) {
       navigate("/debug" + to, options);
     } else {
       navigate(to, options);
     }
-  };
+  }, [navigate, isMock]);
 }

@@ -8,7 +8,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import { deleteRecord } from "../api";
+import { useApi } from "../api/ApiContext";
 import { RECORD_TYPE_LABEL, STRUCTURED_FIELD_LABELS } from "../pages/doctor/constants";
 import RecordEditDialog from "./RecordEditDialog";
 import { TYPE, ICON, COLOR } from "../theme";
@@ -134,6 +134,7 @@ function RecordExpandedBody({ current, confirmingDelete, deleting, onConfirmDele
 }
 
 export default function RecordCard({ record, doctorId, onUpdated, onDeleted }) {
+  const { deleteRecord } = useApi();
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
   const [expanded, setExpanded] = useState(isDesktop);

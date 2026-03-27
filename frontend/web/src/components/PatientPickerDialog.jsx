@@ -5,7 +5,7 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import SearchIcon from "@mui/icons-material/Search";
-import { getPatients, searchPatients } from "../api";
+import { useApi } from "../api/ApiContext";
 import ListCard from "./ListCard";
 import PatientAvatar from "./PatientAvatar";
 import SectionLabel from "./SectionLabel";
@@ -53,6 +53,7 @@ function PatientPickerRow({ patient, onClick }) {
 }
 
 export default function PatientPickerDialog({ open, onClose, doctorId, onSelect }) {
+  const { getPatients, searchPatients } = useApi();
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down("sm"));
   const [query, setQuery] = useState("");

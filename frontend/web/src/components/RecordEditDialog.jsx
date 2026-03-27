@@ -8,7 +8,7 @@ import {
 } from "@mui/material";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
-import { updateRecord } from "../api";
+import { useApi } from "../api/ApiContext";
 import { RECORD_FIELDS, RECORD_STRUCTURED_FIELDS } from "../pages/doctor/constants";
 import PageSkeleton from "./PageSkeleton";
 import BarButton from "./BarButton";
@@ -88,6 +88,7 @@ function RecordEditForm({ form, setForm, error, saving, onClose, onSave }) {
 }
 
 export default function RecordEditDialog({ record, doctorId, open, onClose, onSaved }) {
+  const { updateRecord } = useApi();
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
