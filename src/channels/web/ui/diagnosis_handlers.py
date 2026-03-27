@@ -19,6 +19,7 @@ from db.crud.suggestions import (
     get_suggestions_for_record,
     update_decision,
 )
+from db.crud.patient_message import save_patient_message
 from db.engine import AsyncSessionLocal
 from db.models.ai_suggestion import AISuggestion, SuggestionDecision, SuggestionSection
 from db.models.records import MedicalRecordDB, RecordStatus
@@ -320,6 +321,22 @@ async def finalize_review(
         rec.status = RecordStatus.completed.value
         n_accepted = len(accepted)
         await db.commit()
+
+    # Notify patient that diagnosis is ready
+    if rec.patient_id:
+        try:
+            async with AsyncSessionLocal() as notify_session:
+                await save_patient_message(
+                    notify_session,
+                    patient_id=rec.patient_id,
+                    doctor_id=rec.doctor_id,
+                    content="您的诊断结果已出，请查看病历",
+                    direction="outbound",
+                    source="system",
+                    triage_category=f"notification:record:{rec.id}",
+                )
+        except Exception:
+            log(f"[diagnosis] failed to send notification for record {rec.id}", level="warning", exc_info=True)
 
     log(f"[diagnosis] record {record_id} finalized by {resolved} — wrote {n_accepted} accepted items to record")
     return {"status": "completed", "record_id": record_id}
