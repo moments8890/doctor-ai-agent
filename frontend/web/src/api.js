@@ -880,6 +880,10 @@ export async function completePatientTask(token, taskId) {
   return patientRequest(`/api/patient/tasks/${taskId}/complete`, token, { method: "POST" });
 }
 
+export async function uncompletePatientTask(token, taskId) {
+  return patientRequest(`/api/patient/tasks/${taskId}/uncomplete`, token, { method: "POST" });
+}
+
 export async function getPatientChatMessages(token, sinceId) {
   const qs = sinceId != null ? `?since=${sinceId}` : "";
   return patientRequest(`/api/patient/chat/messages${qs}`, token);

@@ -48,6 +48,16 @@ export async function completePatientTask(token, taskId) {
   return tasks.find((t) => t.id === Number(taskId)) || null;
 }
 
+export async function uncompletePatientTask(token, taskId) {
+  await delay();
+  tasks = tasks.map((t) =>
+    t.id === Number(taskId)
+      ? { ...t, status: "pending", completed_at: null }
+      : t
+  );
+  return tasks.find((t) => t.id === Number(taskId)) || null;
+}
+
 // ── Chat ──
 
 export async function getPatientChatMessages(token, sinceId) {

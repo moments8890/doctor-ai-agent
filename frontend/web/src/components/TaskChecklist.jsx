@@ -63,7 +63,7 @@ function CheckCircle({ completed }) {
   );
 }
 
-export default function TaskChecklist({ tasks, onComplete, onUpload }) {
+export default function TaskChecklist({ tasks, onComplete, onUndo, onUpload }) {
   if (!tasks || tasks.length === 0) return null;
 
   return (
@@ -84,8 +84,12 @@ export default function TaskChecklist({ tasks, onComplete, onUpload }) {
           >
             {/* Checkbox */}
             <Box
-              onClick={!completed && onComplete ? () => onComplete(task.id) : undefined}
-              sx={{ cursor: !completed ? "pointer" : "default" }}
+              onClick={
+                !completed && onComplete ? () => onComplete(task.id)
+                : completed && onUndo ? () => onUndo(task.id)
+                : undefined
+              }
+              sx={{ cursor: (!completed && onComplete) || (completed && onUndo) ? "pointer" : "default" }}
             >
               <CheckCircle completed={completed} />
             </Box>

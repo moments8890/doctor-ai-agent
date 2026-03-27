@@ -14,7 +14,7 @@ import SectionLabel from "../../components/SectionLabel";
 import { ICON } from "../../theme";
 
 export default function TasksTab({ token }) {
-  const { getPatientTasks, completePatientTask } = usePatientApi();
+  const { getPatientTasks, completePatientTask, uncompletePatientTask } = usePatientApi();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -32,6 +32,13 @@ export default function TasksTab({ token }) {
     try {
       await completePatientTask(token, taskId);
       setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: "completed" } : t));
+    } catch {}
+  }
+
+  async function handleUndo(taskId) {
+    try {
+      await uncompletePatientTask(token, taskId);
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: "pending", completed_at: null } : t));
     } catch {}
   }
 
@@ -65,7 +72,7 @@ export default function TasksTab({ token }) {
       {completed.length > 0 && (
         <>
           <SectionLabel sx={{ mt: 1 }}>已完成 · {completed.length}</SectionLabel>
-          <TaskChecklist tasks={completed} />
+          <TaskChecklist tasks={completed} onUndo={handleUndo} />
         </>
       )}
     </Box>

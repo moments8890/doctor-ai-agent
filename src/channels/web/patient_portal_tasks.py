@@ -149,6 +149,43 @@ async def complete_patient_task(
     )
 
 
+@tasks_router.post("/tasks/{task_id}/uncomplete", response_model=PatientTaskOut)
+async def uncomplete_patient_task(
+    task_id: int,
+    authorization: Optional[str] = Header(default=None),
+):
+    """Undo task completion — revert to pending."""
+    patient = await _authenticate_patient(authorization)
+
+    async with AsyncSessionLocal() as db:
+        task = (await db.execute(
+            select(DoctorTask)
+            .where(DoctorTask.id == task_id)
+        )).scalar_one_or_none()
+
+        if task is None:
+            raise HTTPException(status_code=404, detail="Task not found")
+
+        if task.patient_id != patient.id or task.target != "patient":
+            raise HTTPException(status_code=404, detail="Task not found")
+
+        task.status = "pending"
+        task.updated_at = datetime.utcnow()
+        await db.commit()
+        await db.refresh(task)
+
+    return PatientTaskOut(
+        id=task.id,
+        task_type=task.task_type,
+        title=task.title,
+        content=task.content,
+        status=task.status,
+        due_at=task.due_at,
+        source_type=task.source_type,
+        created_at=task.created_at,
+    )
+
+
 @tasks_router.post("/upload-result", response_model=UploadResultResponse)
 async def confirm_upload_result(
     body: UploadResultRequest,
