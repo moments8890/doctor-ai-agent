@@ -1,15 +1,15 @@
 /**
- * KnowledgeSubpage — shared knowledge base UI for doctor settings.
+ * KnowledgeSubpage — WeChat-inspired knowledge base with collapsible category sections.
  *
- * Displays knowledge items grouped by category with expand/collapse accordions.
- * Click an item → detail view with source, date, reference count, full content.
- * Used by both real SettingsPage (API data) and MockPages (static data).
+ * Each category renders as a white card with left color accent bar.
+ * Items show 2-line text preview + metadata. Tap item → inline edit.
+ * Swipe left → delete. Sections with ≤5 items expand by default.
  *
- * @see /debug/doctor-pages → Settings → 知识库
+ * @see /debug/doctor/settings/knowledge
  */
-import { useState, useMemo } from "react";
-import { Box, TextField, Typography } from "@mui/material";
-import { TYPE, ICON, COLOR } from "../../../theme";
+import { useState, useMemo, useRef, useEffect } from "react";
+import { Box, Typography } from "@mui/material";
+import { TYPE, COLOR } from "../../../theme";
 import PageSkeleton from "../../../components/PageSkeleton";
 import BarButton from "../../../components/BarButton";
 import EmptyState from "../../../components/EmptyState";
@@ -17,26 +17,12 @@ import ConfirmDialog from "../../../components/ConfirmDialog";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 
 const DEFAULT_CATEGORIES = [
-  { key: "interview_guide", label: "问诊指导" },
-  { key: "diagnosis_rule", label: "诊断规则" },
-  { key: "red_flag", label: "危险信号" },
-  { key: "treatment_protocol", label: "治疗方案" },
-  { key: "custom", label: "自定义" },
+  { key: "red_flag", label: "危险信号", color: "#E8533F" },
+  { key: "interview_guide", label: "问诊指导", color: "#07C160" },
+  { key: "diagnosis_rule", label: "诊断规则", color: "#1B6EF3" },
+  { key: "treatment_protocol", label: "治疗方案", color: "#8e44ad" },
+  { key: "custom", label: "自定义", color: "#999" },
 ];
-
-function sourceBadge(source) {
-  const isAuto = source === "agent_auto" || source === "AI学习";
-  return (
-    <Box sx={{
-      display: "inline-flex", px: 0.8, py: 0.2, borderRadius: "4px",
-      fontSize: TYPE.micro.fontSize, fontWeight: 500, flexShrink: 0,
-      bgcolor: isAuto ? "#E8F5E9" : "#E8F0FE",
-      color: isAuto ? COLOR.primary : "#1B6EF3",
-    }}>
-      {isAuto ? "AI学习" : "医生"}
-    </Box>
-  );
-}
 
 function formatDate(dateStr) {
   if (!dateStr) return "";
@@ -45,111 +31,134 @@ function formatDate(dateStr) {
   return `${d.getMonth() + 1}月${d.getDate()}日`;
 }
 
-/* ── Detail View ── */
+/* ── Inline Edit ── */
 
-function KnowledgeDetail({ item, categories, onBack, onDelete, onEdit }) {
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [editText, setEditText] = useState(item.text || item.content || "");
-  const originalText = item.text || item.content || "";
-  const isDirty = editText !== originalText;
-  const catLabel = (categories || DEFAULT_CATEGORIES).find(c => c.key === item.category)?.label || "自定义";
+function InlineEditor({ value, onSave, onCancel, onDelete }) {
+  const [text, setText] = useState(value);
+  const ref = useRef(null);
 
-  function handleSave() {
-    if (isDirty && onEdit) {
-      onEdit(item.id, editText.trim());
-      onBack();
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.focus();
+      ref.current.style.height = "auto";
+      ref.current.style.height = ref.current.scrollHeight + "px";
     }
+  }, []);
+
+  function handleChange(e) {
+    setText(e.target.value);
+    e.target.style.height = "auto";
+    e.target.style.height = e.target.scrollHeight + "px";
   }
 
-  function handleCancel() {
-    setEditText(originalText);
-    setEditing(false);
-  }
-
-  // Header: "编辑" always visible, grayed out when active
-  const headerRight = onEdit
-    ? <BarButton onClick={() => setEditing(true)} disabled={editing}>编辑</BarButton>
-    : undefined;
-
-  const detailContent = (
-    <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
-      <Box sx={{ bgcolor: COLOR.white, borderRadius: 1, p: 2, mb: 1 }}>
-        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1.5 }}>
-          <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600 }}>{catLabel}</Typography>
-          {sourceBadge(item.source)}
-        </Box>
-        {[
-          { label: "来源", value: item.source === "agent_auto" || item.source === "AI学习" ? "AI学习" : "医生" },
-          { label: "添加时间", value: formatDate(item.created_at) },
-          { label: "AI引用", value: `${item.reference_count || 0}次` },
-        ].map(({ label, value }) => (
-          <Box key={label} sx={{ display: "flex", justifyContent: "space-between", py: 0.8, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>{label}</Typography>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize }}>{value}</Typography>
-          </Box>
-        ))}
-      </Box>
-      <Box sx={{ bgcolor: COLOR.white, borderRadius: 1, p: 2 }}>
-        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 0.5 }}>内容</Typography>
-        {editing ? (
-          <TextField
-            fullWidth
-            multiline
-            minRows={3}
-            maxRows={12}
-            size="small"
-            value={editText}
-            onChange={(e) => setEditText(e.target.value)}
-            autoFocus
-            sx={{
-              "& .MuiOutlinedInput-root": { borderRadius: "6px", fontSize: TYPE.secondary.fontSize, lineHeight: 1.8 },
-              "& .MuiOutlinedInput-notchedOutline": { borderColor: COLOR.primary },
-            }}
-          />
-        ) : (
-          <Typography sx={{ fontSize: TYPE.secondary.fontSize, lineHeight: 1.8 }}>{item.text || item.content}</Typography>
-        )}
-      </Box>
-      {/* Bottom actions: cancel/save when editing, delete when viewing */}
-      {editing ? (
-        <Box sx={{ display: "flex", justifyContent: "space-between", mt: 2, px: 1 }}>
-          <Typography onClick={handleCancel} sx={{ fontSize: TYPE.body.fontSize, color: COLOR.danger, cursor: "pointer" }}>取消</Typography>
-          <Typography onClick={isDirty ? handleSave : undefined} sx={{ fontSize: TYPE.body.fontSize, color: isDirty ? COLOR.primary : COLOR.text4, cursor: isDirty ? "pointer" : "default", fontWeight: isDirty ? 600 : 400 }}>保存</Typography>
-        </Box>
-      ) : onDelete ? (
-        <Box sx={{ mt: 2, textAlign: "center" }}>
-          <Typography onClick={() => setDeleteOpen(true)} sx={{ fontSize: TYPE.body.fontSize, color: COLOR.danger, cursor: "pointer" }}>删除此条知识</Typography>
-        </Box>
-      ) : null}
-    </Box>
-  );
+  const isDirty = text.trim() !== value;
 
   return (
-    <>
-      <PageSkeleton
-        title="知识详情"
-        onBack={onBack}
-        headerRight={headerRight}
-        isMobile
-        listPane={detailContent}
+    <Box>
+      <Box component="textarea" ref={ref} value={text} onChange={handleChange}
+        sx={{
+          width: "100%", boxSizing: "border-box", fontFamily: "inherit",
+          fontSize: TYPE.body.fontSize, color: COLOR.text2, lineHeight: 1.55,
+          p: 1, border: `1px solid ${COLOR.primary}`, borderRadius: "4px",
+          bgcolor: COLOR.surfaceAlt, resize: "none", overflow: "hidden", outline: "none",
+        }}
+        rows={1}
       />
-      <ConfirmDialog
-        open={deleteOpen}
-        onClose={() => setDeleteOpen(false)}
-        onCancel={() => setDeleteOpen(false)}
-        onConfirm={() => { setDeleteOpen(false); onDelete?.(item.id); }}
-        title="确认删除"
-        message="删除后该知识将不再影响 AI 行为，确定要删除吗？"
-        cancelLabel="保留"
-        confirmLabel="删除"
-        confirmTone="danger"
-      />
-    </>
+      <Box sx={{ display: "flex", alignItems: "center", mt: 0.75 }}>
+        {onDelete && (
+          <Typography onClick={onDelete}
+            sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.danger, cursor: "pointer", "&:active": { opacity: 0.6 } }}>
+            删除
+          </Typography>
+        )}
+        <Box sx={{ flex: 1 }} />
+        <Typography onClick={onCancel}
+          sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, cursor: "pointer", mr: 2, "&:active": { opacity: 0.6 } }}>
+          取消
+        </Typography>
+        <Typography onClick={isDirty ? () => onSave(text.trim()) : undefined}
+          sx={{
+            fontSize: TYPE.secondary.fontSize, fontWeight: isDirty ? 600 : 400,
+            color: isDirty ? COLOR.primary : COLOR.text4,
+            cursor: isDirty ? "pointer" : "default",
+            "&:active": isDirty ? { opacity: 0.6 } : {},
+          }}>
+          保存
+        </Typography>
+      </Box>
+    </Box>
   );
 }
 
-/* ── List View ── */
+/* ── Item Row ── */
+
+function KnowledgeItemRow({ item, onEdit, onDelete }) {
+  const [editing, setEditing] = useState(false);
+  const text = item.text || item.content || "";
+
+  function handleSave(newText) {
+    onEdit?.(item.id, newText);
+    setEditing(false);
+  }
+
+  const content = (
+    <Box onClick={!editing && onEdit ? () => setEditing(true) : undefined}
+      sx={{
+        px: 2, py: 1.2, borderTop: `0.5px solid ${COLOR.borderLight}`,
+        cursor: !editing && onEdit ? "pointer" : "default",
+        bgcolor: COLOR.white,
+        "&:active": !editing && onEdit ? { bgcolor: COLOR.surfaceAlt } : {},
+      }}>
+      {editing ? (
+        <InlineEditor value={text} onSave={handleSave} onCancel={() => setEditing(false)}
+          onDelete={onDelete ? () => { setEditing(false); onDelete(item.id); } : undefined} />
+      ) : (
+        <>
+          <Typography sx={{
+            fontSize: TYPE.body.fontSize, color: COLOR.text2, lineHeight: 1.55,
+            whiteSpace: "pre-wrap", wordBreak: "break-word",
+          }}>
+            {text}
+          </Typography>
+          <Typography sx={{ fontSize: 10, color: COLOR.text4, mt: 0.4 }}>
+            {item.reference_count ? `引用${item.reference_count}次` : ""}
+            {item.reference_count && item.created_at ? " · " : ""}
+            {formatDate(item.created_at)}
+          </Typography>
+        </>
+      )}
+    </Box>
+  );
+
+  return content;
+}
+
+/* ── Section Header ── */
+
+function KnowledgeSectionHeader({ label, count, color, expanded, onToggle }) {
+  return (
+    <Box onClick={onToggle}
+      sx={{
+        display: "flex", alignItems: "center", px: 2, py: 1.3,
+        cursor: "pointer", bgcolor: COLOR.white,
+        "&:active": { bgcolor: COLOR.surfaceAlt },
+      }}>
+      <Box sx={{ flex: 1 }}>
+        <Typography component="span" sx={{ fontSize: TYPE.action.fontSize, fontWeight: 600, color: COLOR.text1 }}>
+          {label}
+        </Typography>
+        <Typography component="span" sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, ml: 0.8 }}>
+          {count}
+        </Typography>
+      </Box>
+      <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
+        {expanded ? "▾" : "›"}
+      </Typography>
+    </Box>
+  );
+}
+
+/* ── Main ── */
 
 export default function KnowledgeSubpage({
   items = [],
@@ -161,8 +170,7 @@ export default function KnowledgeSubpage({
   onEdit,
   title = "知识库",
 }) {
-  const [expandedCat, setExpandedCat] = useState(null);
-  const [detailItem, setDetailItem] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const grouped = useMemo(() => {
     const groups = {};
@@ -175,132 +183,99 @@ export default function KnowledgeSubpage({
     return groups;
   }, [items, categories]);
 
-  function handleDelete(itemId) {
-    setDetailItem(null);
-    onDelete?.(itemId);
-  }
+  // ≤5 items → expanded, >5 → collapsed by default
+  // Track which sections the user has manually toggled
+  const [manualToggles, setManualToggles] = useState({});
 
-  if (detailItem) {
-    return (
-      <KnowledgeDetail
-        item={detailItem}
-        categories={categories}
-        onBack={() => setDetailItem(null)}
-        onDelete={onDelete ? handleDelete : undefined}
-        onEdit={onEdit}
-      />
-    );
+  const collapsed = useMemo(() => {
+    const auto = {};
+    categories.forEach(c => {
+      const count = (grouped[c.key] || []).length;
+      auto[c.key] = count > 5;
+    });
+    return { ...auto, ...manualToggles };
+  }, [grouped, categories, manualToggles]);
+
+  function toggleSection(key) {
+    setManualToggles(prev => ({ ...prev, [key]: !collapsed[key] }));
   }
 
   const listContent = (
     <Box sx={{ flex: 1, overflowY: "auto" }}>
       {loading && (
-          <Box sx={{ textAlign: "center", py: 4 }}>
-            <Typography sx={{ color: COLOR.text4 }}>加载中...</Typography>
+        <Box sx={{ textAlign: "center", py: 4 }}>
+          <Typography sx={{ color: COLOR.text4 }}>加载中...</Typography>
+        </Box>
+      )}
+
+      {!loading && items.length === 0 && (
+        <EmptyState
+          icon={<MenuBookOutlinedIcon />}
+          title="暂无知识条目"
+          subtitle="点击右上角「添加」开始构建您的知识库"
+        />
+      )}
+
+      {!loading && items.length > 0 && (
+        <>
+          {/* Total count */}
+          <Box sx={{ px: 2, py: 1.2 }}>
+            <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
+              共 {items.length} 条知识
+            </Typography>
           </Box>
-        )}
 
-        {!loading && (
-          <>
-            {/* Summary */}
-            <Box sx={{ px: 2, py: 1.5 }}>
-              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
-                共 {items.length} 条知识
-              </Typography>
-            </Box>
-
-            {/* Category accordions */}
-            <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
-              {categories.map((cat, i) => {
-                const catItems = grouped[cat.key] || [];
-                const isExpanded = expandedCat === cat.key;
-                return (
-                  <Box key={cat.key}>
-                    {/* Category header */}
-                    <Box onClick={() => setExpandedCat(isExpanded ? null : cat.key)}
-                      sx={{
-                        display: "flex", alignItems: "center", px: 2, py: 1.5,
-                        cursor: "pointer", userSelect: "none",
-                        borderTop: i > 0 ? `0.5px solid ${COLOR.borderLight}` : "none",
-                        bgcolor: isExpanded ? COLOR.surfaceAlt : COLOR.white,
-                        "&:active": { bgcolor: COLOR.surfaceAlt },
-                      }}>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography component="span" sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, fontWeight: isExpanded ? 600 : 400 }}>
-                          {cat.label}
-                        </Typography>
-                        <Typography component="span" sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, ml: 0.8 }}>
-                          ({catItems.length})
-                        </Typography>
-                      </Box>
-                      <Typography sx={{ fontSize: ICON.lg, color: COLOR.text4 }}>
-                        {isExpanded ? "▾" : "›"}
-                      </Typography>
-                    </Box>
-
-                    {/* Expanded items */}
-                    {isExpanded && catItems.map(item => (
-                      <Box key={item.id} onClick={() => setDetailItem(item)}
-                        sx={{
-                          display: "flex", alignItems: "center", px: 2, py: 1.2, pl: 2,
-                          borderTop: `0.5px solid ${COLOR.borderLight}`,
-                          borderLeft: `3px solid ${COLOR.primary}`,
-                          bgcolor: COLOR.white,
-                          cursor: "pointer", "&:active": { bgcolor: COLOR.surfaceAlt },
-                        }}>
-                        <Box sx={{ flex: 1, minWidth: 0, mr: 1 }}>
-                          <Typography sx={{
-                            fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.5,
-                            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                          }}>
-                            {item.text || item.content}
-                          </Typography>
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mt: 0.3 }}>
-                            {sourceBadge(item.source)}
-                            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>
-                              {formatDate(item.created_at)}
-                            </Typography>
-                            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>
-                              · AI引用 {item.reference_count || 0}次
-                            </Typography>
-                          </Box>
-                        </Box>
-                        <Typography sx={{ color: COLOR.text4 }}>›</Typography>
-                      </Box>
-                    ))}
-
-                    {isExpanded && catItems.length === 0 && (
-                      <Box sx={{ px: 2, py: 1.5, borderTop: `0.5px solid ${COLOR.borderLight}`, borderLeft: `3px solid ${COLOR.borderLight}` }}>
-                        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>暂无条目</Typography>
-                      </Box>
-                    )}
-                  </Box>
-                );
-              })}
-            </Box>
-
-            {/* Empty state */}
-            {items.length === 0 && (
-              <EmptyState
-                icon={<MenuBookOutlinedIcon />}
-                title="暂无知识条目"
-                subtitle="点击右上角「添加」开始构建您的知识库"
-              />
-            )}
-
-            <Box sx={{ height: 24 }} />
-          </>
-        )}
-      </Box>
+          {/* Category sections */}
+          {categories.map((cat) => {
+            const catItems = grouped[cat.key] || [];
+            if (catItems.length === 0) return null;
+            const isExpanded = !collapsed[cat.key];
+            return (
+              <Box key={cat.key} sx={{ bgcolor: COLOR.white, mb: 0.8, borderLeft: `3px solid ${cat.color}` }}>
+                <KnowledgeSectionHeader
+                  label={cat.label}
+                  count={catItems.length}
+                  color={cat.color}
+                  expanded={isExpanded}
+                  onToggle={() => toggleSection(cat.key)}
+                />
+                {isExpanded && catItems.map(item => (
+                  <KnowledgeItemRow
+                    key={item.id}
+                    item={item}
+                    onEdit={onEdit}
+                    onDelete={onDelete ? (id) => setDeleteTarget(id) : undefined}
+                  />
+                ))}
+              </Box>
+            );
+          })}
+          <Box sx={{ height: 24 }} />
+        </>
+      )}
+    </Box>
   );
 
   return (
-    <PageSkeleton
-      title={title}
-      onBack={onBack}
-      headerRight={onAdd ? <BarButton onClick={onAdd}>添加</BarButton> : undefined}
-      isMobile
-      listPane={listContent}
-    />
+    <>
+      <PageSkeleton
+        title={title}
+        onBack={onBack}
+        headerRight={onAdd ? <BarButton onClick={onAdd}>添加</BarButton> : undefined}
+        isMobile
+        listPane={listContent}
+      />
+      <ConfirmDialog
+        open={deleteTarget != null}
+        onClose={() => setDeleteTarget(null)}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => { onDelete?.(deleteTarget); setDeleteTarget(null); }}
+        title="确认删除"
+        message="删除后该知识将不再影响 AI 行为，确定要删除吗？"
+        cancelLabel="保留"
+        confirmLabel="删除"
+        confirmTone="danger"
+      />
+    </>
   );
 }

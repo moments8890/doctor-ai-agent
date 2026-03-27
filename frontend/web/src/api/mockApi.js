@@ -73,7 +73,7 @@ export async function getKnowledgeItems() {
 }
 
 export async function getDoctorProfile() {
-  return { name: MOCK_DOCTOR.doctorName, specialty: MOCK_DOCTOR.specialty };
+  return { name: MOCK_DOCTOR.doctorName, specialty: MOCK_DOCTOR.specialty, onboarded: true };
 }
 
 export async function getTemplateStatus() {
