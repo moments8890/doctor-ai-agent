@@ -34,6 +34,7 @@ def issue_token(
     doctor_id: Optional[str] = None,
     patient_id: Optional[int] = None,
     name: Optional[str] = None,
+    ttl_seconds: Optional[int] = None,
 ) -> str:
     """Issue a unified JWT token."""
     now = int(time.time())
@@ -44,7 +45,7 @@ def issue_token(
         "name": name,
         "aud": _AUDIENCE,
         "iat": now,
-        "exp": now + _TOKEN_TTL,
+        "exp": now + (ttl_seconds if ttl_seconds is not None else _TOKEN_TTL),
     }
     # Set sub based on role
     if role == UserRole.doctor:
