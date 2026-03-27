@@ -11,7 +11,6 @@ import {
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
-import SubpageHeader from "../../components/SubpageHeader";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
@@ -215,14 +214,12 @@ function KnowledgeSubpageWrapper({ doctorId, onBack, isMobile, urlSubId }) {
 
 
 function StubSubpage({ title, onBack, isMobile }) {
-  return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
-      <SubpageHeader title={title} onBack={isMobile ? onBack : undefined} />
-      <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <Typography color="text.secondary">即将推出</Typography>
-      </Box>
+  const content = (
+    <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <Typography color="text.secondary">即将推出</Typography>
     </Box>
   );
+  return <PageSkeleton title={title} onBack={isMobile ? onBack : undefined} isMobile={isMobile} listPane={content} />;
 }
 
 function AccountBlock({ doctorId, doctorName, specialty, onOpenName, onOpenSpecialty }) {

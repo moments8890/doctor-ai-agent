@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { Alert, Box, TextField, Typography } from "@mui/material";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
-import SubpageHeader from "../../../components/SubpageHeader";
+import PageSkeleton from "../../../components/PageSkeleton";
 import BarButton from "../../../components/BarButton";
 import AppButton from "../../../components/AppButton";
 import SheetDialog from "../../../components/SheetDialog";
@@ -78,16 +78,12 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile, catego
     }
   }
 
-  return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
-      <SubpageHeader title="添加知识" onBack={isMobile ? onBack : undefined}
-        right={<BarButton onClick={handleAdd} loading={adding} disabled={!content.trim()}>添加</BarButton>}
-      />
-      <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
-        {error && <Alert severity="error" onClose={() => setError("")} sx={{ mb: 1.5 }}>{error}</Alert>}
+  const formContent = (
+    <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
+      {error && <Alert severity="error" onClose={() => setError("")} sx={{ mb: 1.5 }}>{error}</Alert>}
 
-        {/* Category selector */}
-        <Box sx={{ mb: 2 }}>
+      {/* Category selector */}
+      <Box sx={{ mb: 2 }}>
           <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
             <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: "#1A1A1A" }}>类别</Typography>
             <HelpOutlineIcon
@@ -140,8 +136,18 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile, catego
           </Typography>
         </Box>
 
-      </Box>
+    </Box>
+  );
 
+  return (
+    <>
+      <PageSkeleton
+        title="添加知识"
+        onBack={isMobile ? onBack : undefined}
+        headerRight={<BarButton onClick={handleAdd} loading={adding} disabled={!content.trim()}>添加</BarButton>}
+        isMobile={isMobile}
+        listPane={formContent}
+      />
       <SheetDialog
         open={helpOpen}
         onClose={() => setHelpOpen(false)}
@@ -160,6 +166,6 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile, catego
           </Box>
         ))}
       </SheetDialog>
-    </Box>
+    </>
   );
 }
