@@ -10,6 +10,9 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import { updateRecord } from "../api";
 import { RECORD_FIELDS, RECORD_STRUCTURED_FIELDS } from "../pages/doctor/constants";
+import PageSkeleton from "./PageSkeleton";
+import BarButton from "./BarButton";
+import { TYPE, COLOR } from "../theme";
 
 function TagsEditor({ tags, onChange }) {
   return (
@@ -97,13 +100,18 @@ export default function RecordEditDialog({ record, doctorId, open, onClose, onSa
       RECORD_FIELDS.forEach(({ key }) => { init[key] = record[key] || ""; });
       init.content = record.content || "";
       init.tags = Array.isArray(record.tags) ? [...record.tags] : [];
-      // Populate structured fields from record.structured (API returns NHC fields here)
       const s = record.structured || {};
       init._structured = {};
       RECORD_STRUCTURED_FIELDS.forEach(({ key }) => { init._structured[key] = s[key] || record[key] || ""; });
       setForm(init); setError("");
     }
   }, [record]);
+
+  const structured = form._structured || {};
+  const hasStructured = Object.values(structured).some((v) => v);
+  function setStructuredField(key, value) {
+    setForm((f) => ({ ...f, _structured: { ...(f._structured || {}), [key]: value } }));
+  }
 
   async function handleSave() {
     setSaving(true); setError("");
@@ -124,8 +132,53 @@ export default function RecordEditDialog({ record, doctorId, open, onClose, onSa
     } catch (e) { setError(e.message || "保存失败"); } finally { setSaving(false); }
   }
 
+  if (!open) return null;
+
+  // Mobile: use PageSkeleton for consistent look
+  if (isMobile) {
+    const mobileContent = (
+      <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
+        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        <Stack spacing={2}>
+          {hasStructured && RECORD_STRUCTURED_FIELDS.map(({ key, label }) => {
+            const val = structured[key] || "";
+            if (!val && !["chief_complaint", "diagnosis", "treatment_plan"].includes(key)) return null;
+            return (
+              <TextField key={key} label={label} multiline minRows={1} maxRows={8}
+                size="small" fullWidth value={val}
+                onChange={(e) => setStructuredField(key, e.target.value)} />
+            );
+          })}
+          {!hasStructured && (
+            <TextField label="临床笔记" multiline minRows={5} maxRows={16}
+              size="small" fullWidth value={form.content || ""}
+              onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))} />
+          )}
+          {RECORD_FIELDS.map(({ key, label }) => (
+            <TextField key={key} label={label} size="small" fullWidth value={form[key] || ""}
+              onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))} />
+          ))}
+          <TagsEditor tags={form.tags} onChange={(tags) => setForm((f) => ({ ...f, tags }))} />
+        </Stack>
+      </Box>
+    );
+
+    return (
+      <Box sx={{ position: "absolute", inset: 0, zIndex: 1200, bgcolor: COLOR.surface }}>
+        <PageSkeleton
+          title="编辑病历"
+          onBack={onClose}
+          headerRight={<BarButton onClick={handleSave} disabled={saving}>{saving ? "保存中" : "保存"}</BarButton>}
+          isMobile
+          listPane={mobileContent}
+        />
+      </Box>
+    );
+  }
+
+  // Desktop: keep Dialog
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth fullScreen={isMobile}>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle sx={{ fontWeight: 700 }}>
         编辑病历{" "}<Typography component="span" variant="body2" color="text.secondary">#{record?.id}</Typography>
       </DialogTitle>
