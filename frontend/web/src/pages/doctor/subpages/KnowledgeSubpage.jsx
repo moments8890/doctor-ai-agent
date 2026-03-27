@@ -171,10 +171,11 @@ export default function KnowledgeSubpage({
                         display: "flex", alignItems: "center", px: 2, py: 1.5,
                         cursor: "pointer", userSelect: "none",
                         borderTop: i > 0 ? `0.5px solid ${COLOR.borderLight}` : "none",
+                        bgcolor: isExpanded ? COLOR.surfaceAlt : COLOR.white,
                         "&:active": { bgcolor: COLOR.surfaceAlt },
                       }}>
                       <Box sx={{ flex: 1 }}>
-                        <Typography component="span" sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3 }}>
+                        <Typography component="span" sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, fontWeight: isExpanded ? 600 : 400 }}>
                           {cat.label}
                         </Typography>
                         <Typography component="span" sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, ml: 0.8 }}>
