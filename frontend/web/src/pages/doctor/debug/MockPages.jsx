@@ -818,7 +818,6 @@ export default function MockPages() {
   const activeTab = (subpage === "chat" || subpage === "interview") ? "home" : subpage === "task-detail" ? "tasks" : subpage === "settings-sub" ? "settings" : tab;
 
   // Full-screen subpages (no bottom nav)
-  const hideBottomNav = subpage === "chat" || subpage === "review" || subpage === "interview" || subpage === "task-detail";
 
   // Render content based on state
   function renderContent() {
@@ -871,10 +870,10 @@ export default function MockPages() {
         bgcolor: "#ededed",
         transform: "translateZ(0)",
       }}>
-        <Box sx={{ flex: 1, overflow: "hidden" }}>
+        <Box sx={{ flex: 1, overflow: "hidden", position: "relative" }}>
           {renderContent()}
         </Box>
-        {!hideBottomNav && <MockBottomNav active={activeTab} onNav={navTo} />}
+        <MockBottomNav active={activeTab} onNav={navTo} />
       </Box>
     </Box>
   );
