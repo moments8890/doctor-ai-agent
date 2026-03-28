@@ -85,15 +85,17 @@ python scripts/seed_db.py --reset --import
 `unit` still exists, but it is not the default development gate in the current
 MVP phase.
 
-## Docs
+## Source of Truth — 5 Canonical Entrypoints
 
-- `AGENTS.md` — repo rules, documentation standards, code style, workflow
-- `docs/README.md` — documentation index and folder map
-- `docs/TESTING.md` — validation workflow and test modes
-- `docs/review/architecture-overview.md` — current system architecture
-- `docs/ux/UI-DESIGN.md` — UI design principles, component guide, file map
-- `docs/product/feature-parity-matrix-2026-03-25.md` — frontend feature status
-- `src/agent/prompts/README.md` — prompt architecture and intent routing
+Each concern has one entrypoint. Start there, not in subfiles.
+
+| Concern | Entrypoint | What it covers |
+|---------|-----------|---------------|
+| **Repo rules** | `AGENTS.md` | Code style, testing policy, push rules, planning, cascading impact checklist |
+| **Architecture** | [`docs/architecture.md`](docs/architecture.md) | System layers, pipeline, DB schema, domain ops, prompt system, CDS pipeline, startup |
+| **Product** | [`docs/product/index.md`](docs/product/index.md) | Strategy, roadmap, feature status, CDS product decisions → links to subfiles |
+| **UI / UX** | [`docs/ux/UI-DESIGN.md`](docs/ux/UI-DESIGN.md) | Design system, components, tokens, patterns; links to `design-spec.md` for Chinese UX flows |
+| **Dev ops** | [`docs/dev/index.md`](docs/dev/index.md) | Testing, deployment, LLM providers, patient sim, UI audit → links to subfiles |
 
 ---
 
@@ -160,12 +162,14 @@ python scripts/seed_db.py --reset --import
 
 `unit` 仍然可用，但在当前 MVP 阶段不作为默认开发门槛。
 
-## 文档
+## 权威文档 — 5 个入口
 
-- `AGENTS.md` — 仓库规则、文档标准、代码风格、工作流
-- `docs/README.md` — 文档索引和目录结构
-- `docs/TESTING.md` — 验证流程和测试模式
-- `docs/review/architecture-overview.md` — 当前系统架构
-- `docs/ux/UI-DESIGN.md` — UI设计规范、组件指南、文件索引
-- `docs/product/feature-parity-matrix-2026-03-25.md` — 前端功能状态
-- `src/agent/prompts/README.md` — 提示词架构和意图路由
+每个关注点有一个入口文件，从这里开始。
+
+| 关注点 | 入口 | 覆盖范围 |
+|--------|-----|---------|
+| **仓库规则** | `AGENTS.md` | 代码风格、测试策略、推送规则、计划规则、级联影响清单 |
+| **架构** | [`docs/architecture.md`](docs/architecture.md) | 系统分层、流水线、数据库、领域操作、提示词系统、CDS流水线、启动流程 |
+| **产品** | [`docs/product/index.md`](docs/product/index.md) | 战略、路线图、功能状态、CDS产品决策 → 链接到子文件 |
+| **UI / UX** | [`docs/ux/UI-DESIGN.md`](docs/ux/UI-DESIGN.md) | 设计系统、组件、令牌、模式；链接到 `design-spec.md`（中文UX流程） |
+| **开发运维** | [`docs/dev/index.md`](docs/dev/index.md) | 测试、部署、LLM配置、患者模拟、UI审计 → 链接到子文件 |
