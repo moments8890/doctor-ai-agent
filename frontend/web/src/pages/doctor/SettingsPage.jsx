@@ -140,17 +140,30 @@ function SpecialtyDialog({ open, specialtyInput, specialtySaving, specialtyError
 
 function KnowledgeSubpageWrapper({ doctorId, onBack, isMobile, urlSubId }) {
   const navigate = useAppNavigate();
-  const { getKnowledgeItems, deleteKnowledgeItem } = useApi();
+  const api = useApi();
+  const { getKnowledgeItems, deleteKnowledgeItem } = api;
   const [items, setItems] = useState([]);
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(() => {
     setLoading(true);
-    getKnowledgeItems(doctorId)
-      .then((data) => setItems(Array.isArray(data) ? data : (data.items || [])))
-      .catch(() => {})
+
+    const fetchItems = getKnowledgeItems(doctorId)
+      .then((data) => Array.isArray(data) ? data : (data.items || []))
+      .catch(() => []);
+
+    const fetchStats = (api.fetchKnowledgeStats || (() => Promise.resolve(null)))(doctorId)
+      .then((data) => data?.stats || null)
+      .catch(() => null);
+
+    Promise.all([fetchItems, fetchStats])
+      .then(([itemsData, statsData]) => {
+        setItems(itemsData);
+        setStats(statsData);
+      })
       .finally(() => setLoading(false));
-  }, [doctorId]);
+  }, [doctorId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [load]);
 
   // URL-driven: detail view for specific knowledge item
@@ -181,10 +194,12 @@ function KnowledgeSubpageWrapper({ doctorId, onBack, isMobile, urlSubId }) {
   return (
     <KnowledgeSubpage
       items={items}
+      stats={stats}
       loading={loading}
       onBack={isMobile ? onBack : undefined}
       onAdd={() => navigate("/doctor/settings/knowledge/new")}
       onDelete={handleDelete}
+      onItemClick={(id) => navigate(`/doctor/settings/knowledge/${id}`)}
     />
   );
 }

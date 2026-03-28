@@ -1,59 +1,35 @@
 /**
- * KnowledgeSubpage — flat chronological list with source-type avatars.
+ * KnowledgeSubpage — flat list with rich cards sorted by activity.
  *
- * Uses ListCard pattern (same as PatientsPage). Items expand on tap
- * to show full text + delete button. No inline edit until PATCH endpoint exists.
+ * Each row shows title, summary, usage count + recency, and navigates
+ * to the detail page on tap. No inline expand/collapse or delete.
  *
  * @see /debug/doctor/settings/knowledge
  */
-import { useState } from "react";
-import { Avatar, Box, Typography } from "@mui/material";
-import EditNoteOutlinedIcon from "@mui/icons-material/EditNoteOutlined";
-import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
-import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
+import { Box, Typography } from "@mui/material";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import { TYPE, COLOR } from "../../../theme";
+import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
+import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
+import { TYPE, ICON, COLOR } from "../../../theme";
 import PageSkeleton from "../../../components/PageSkeleton";
 import BarButton from "../../../components/BarButton";
-import ListCard from "../../../components/ListCard";
 import EmptyState from "../../../components/EmptyState";
-import ConfirmDialog from "../../../components/ConfirmDialog";
-import SectionLabel from "../../../components/SectionLabel";
-
-/* ── Source config ── */
-
-const SOURCE_CONFIG = {
-  doctor: {
-    label: "手动添加",
-    icon: <EditNoteOutlinedIcon sx={{ fontSize: 18, color: "#fff" }} />,
-    bg: COLOR.primary,
-  },
-  agent_auto: {
-    label: "AI生成",
-    icon: <SmartToyOutlinedIcon sx={{ fontSize: 18, color: "#fff" }} />,
-    bg: COLOR.text3,
-  },
-};
-
-function getSourceConfig(source) {
-  if (!source) return SOURCE_CONFIG.doctor;
-  if (source.startsWith("upload:")) {
-    return {
-      label: source.slice("upload:".length),
-      icon: <DescriptionOutlinedIcon sx={{ fontSize: 18, color: "#fff" }} />,
-      bg: COLOR.success,
-    };
-  }
-  return SOURCE_CONFIG[source] || SOURCE_CONFIG.doctor;
-}
+import AppButton from "../../../components/AppButton";
 
 /* ── Helpers ── */
 
-function formatDate(dateStr) {
+function formatRelativeDate(dateStr) {
   if (!dateStr) return "";
   const d = new Date(dateStr);
   if (isNaN(d)) return dateStr;
+
+  const now = new Date();
+  const diffMs = now - d;
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return "今天";
+  if (diffDays === 1) return "昨天";
+  if (diffDays < 7) return `${diffDays}天前`;
   return `${d.getMonth() + 1}月${d.getDate()}日`;
 }
 
@@ -63,63 +39,115 @@ function firstLine(text) {
   return lines[0] || "";
 }
 
+/**
+ * Merge items with per-item stats to produce sorted list.
+ * Stats shape: [{ knowledge_item_id, total_count, last_used }]
+ */
+function mergeAndSort(items, stats) {
+  const statsMap = new Map();
+  if (Array.isArray(stats)) {
+    stats.forEach((s) => statsMap.set(s.knowledge_item_id, s));
+  }
+
+  return [...items]
+    .map((item) => {
+      const s = statsMap.get(item.id);
+      return {
+        ...item,
+        _usageCount: s?.total_count ?? item.reference_count ?? 0,
+        _lastUsed: s?.last_used ?? item.created_at ?? "",
+      };
+    })
+    .sort((a, b) => {
+      // Primary: usage count desc
+      if (b._usageCount !== a._usageCount) return b._usageCount - a._usageCount;
+      // Secondary: created_at desc
+      return (b.created_at || "").localeCompare(a.created_at || "");
+    });
+}
+
 /* ── KnowledgeRow ── */
 
-function KnowledgeRow({ item, expanded, onToggle, onDelete }) {
-  const text = item.text || item.content || "";
-  const cfg = getSourceConfig(item.source);
+function KnowledgeRow({ item, onClick }) {
+  const title = item.title || firstLine(item.text || item.content || "");
+  const summary = item.summary || (item.title ? firstLine(item.text || item.content || "") : "");
+  const usageCount = item._usageCount || 0;
+  const lastUsed = item._lastUsed;
 
-  const avatar = (
-    <Avatar sx={{ width: 36, height: 36, bgcolor: cfg.bg, flexShrink: 0 }}>
-      {cfg.icon}
-    </Avatar>
-  );
-
-  const right = (
-    <Box sx={{ textAlign: "right", flexShrink: 0 }}>
-      {(item.reference_count || 0) > 0 && (
-        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, whiteSpace: "nowrap" }}>
-          引用{item.reference_count}次
-        </Typography>
-      )}
-      <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, whiteSpace: "nowrap" }}>
-        {formatDate(item.created_at)}
-      </Typography>
-    </Box>
-  );
+  // Build meta parts
+  const metaParts = [];
+  if (usageCount > 0) metaParts.push(`引用${usageCount}次`);
+  if (lastUsed) metaParts.push(`最近${formatRelativeDate(lastUsed)}`);
+  const metaText = metaParts.join(" \u00B7 ");
 
   return (
-    <Box>
-      <ListCard
-        avatar={avatar}
-        title={firstLine(text)}
-        subtitle={cfg.label}
-        right={right}
-        onClick={onToggle}
-      />
-      {expanded && (
-        <Box sx={{ bgcolor: COLOR.surface, px: 2, py: 1.5, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
-          <Typography sx={{
-            fontSize: TYPE.body.fontSize, color: COLOR.text2, lineHeight: 1.6,
-            whiteSpace: "pre-wrap", wordBreak: "break-word",
-          }}>
-            {text}
+    <Box
+      onClick={onClick}
+      sx={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 1,
+        px: 2,
+        py: 1.5,
+        bgcolor: COLOR.white,
+        borderBottom: `0.5px solid ${COLOR.borderLight}`,
+        cursor: "pointer",
+        userSelect: "none",
+        WebkitUserSelect: "none",
+        minHeight: 44,
+        "&:active": { bgcolor: COLOR.surface },
+      }}
+    >
+      {/* Green active dot */}
+      <Box sx={{ pt: 0.7, flexShrink: 0 }}>
+        <FiberManualRecordIcon sx={{ fontSize: 8, color: COLOR.primary }} />
+      </Box>
+
+      {/* Content */}
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography
+          sx={{
+            fontSize: TYPE.body.fontSize,
+            fontWeight: 500,
+            color: COLOR.text1,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {title || "untitled"}
+        </Typography>
+        {summary && (
+          <Typography
+            sx={{
+              fontSize: TYPE.secondary.fontSize,
+              color: COLOR.text3,
+              mt: 0.25,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {summary}
           </Typography>
-          {onDelete && (
-            <Box
-              onClick={() => onDelete(item.id)}
-              sx={{
-                display: "inline-flex", alignItems: "center", gap: 0.5,
-                mt: 1.5, cursor: "pointer", color: COLOR.danger,
-                "&:active": { opacity: 0.6 },
-              }}
-            >
-              <DeleteOutlineIcon sx={{ fontSize: 16 }} />
-              <Typography sx={{ fontSize: TYPE.caption.fontSize }}>删除</Typography>
-            </Box>
-          )}
-        </Box>
-      )}
+        )}
+        {metaText && (
+          <Typography
+            sx={{
+              fontSize: TYPE.caption.fontSize,
+              color: COLOR.text4,
+              mt: 0.25,
+            }}
+          >
+            {metaText}
+          </Typography>
+        )}
+      </Box>
+
+      {/* Chevron */}
+      <Box sx={{ pt: 0.5, flexShrink: 0 }}>
+        <ChevronRightOutlinedIcon sx={{ fontSize: ICON.sm, color: COLOR.text4 }} />
+      </Box>
     </Box>
   );
 }
@@ -131,15 +159,17 @@ export default function KnowledgeSubpage({
   loading = false,
   onBack,
   onAdd,
-  onDelete,
-  title = "知识库",
+  onDelete, // kept for interface compat, not used in list view
+  title = "我的方法",
+  stats,
+  onItemClick,
 }) {
-  const [expandedId, setExpandedId] = useState(null);
-  const [deleteTarget, setDeleteTarget] = useState(null);
+  const sorted = mergeAndSort(items, stats);
 
-  function toggleExpand(id) {
-    setExpandedId((prev) => (prev === id ? null : id));
-  }
+  // Compute weekly citation total
+  const weekCitations = Array.isArray(stats)
+    ? stats.reduce((sum, s) => sum + (s.total_count || 0), 0)
+    : sorted.reduce((sum, it) => sum + (it._usageCount || 0), 0);
 
   const listContent = (
     <Box sx={{ flex: 1, overflowY: "auto" }}>
@@ -150,25 +180,38 @@ export default function KnowledgeSubpage({
       )}
 
       {!loading && items.length === 0 && (
-        <EmptyState
-          icon={<MenuBookOutlinedIcon />}
-          title="暂无知识条目"
-          subtitle="点击右上角「添加」开始构建您的知识库"
-        />
+        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 8, gap: 1.5, px: 2 }}>
+          <EmptyState
+            icon={<MenuBookOutlinedIcon />}
+            title="暂无知识条目"
+          />
+          {onAdd && (
+            <AppButton variant="primary" size="md" onClick={onAdd}>
+              添加第一条规则
+            </AppButton>
+          )}
+        </Box>
       )}
 
       {!loading && items.length > 0 && (
         <>
-          <SectionLabel>共 {items.length} 条知识</SectionLabel>
-          {items.map((item) => (
-            <KnowledgeRow
-              key={item.id}
-              item={item}
-              expanded={expandedId === item.id}
-              onToggle={() => toggleExpand(item.id)}
-              onDelete={onDelete ? (id) => setDeleteTarget(id) : undefined}
-            />
-          ))}
+          {/* Stats summary */}
+          <Box sx={{ px: 2, pt: 1.5, pb: 1 }}>
+            <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
+              共 {items.length} 条 {"\u00B7"} 本周引用 {weekCitations} 次
+            </Typography>
+          </Box>
+
+          {/* Knowledge rows */}
+          <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
+            {sorted.map((item) => (
+              <KnowledgeRow
+                key={item.id}
+                item={item}
+                onClick={() => onItemClick?.(item.id)}
+              />
+            ))}
+          </Box>
           <Box sx={{ height: 24 }} />
         </>
       )}
@@ -176,25 +219,12 @@ export default function KnowledgeSubpage({
   );
 
   return (
-    <>
-      <PageSkeleton
-        title={title}
-        onBack={onBack}
-        headerRight={onAdd ? <BarButton onClick={onAdd}>添加</BarButton> : undefined}
-        isMobile
-        listPane={listContent}
-      />
-      <ConfirmDialog
-        open={deleteTarget != null}
-        onClose={() => setDeleteTarget(null)}
-        onCancel={() => setDeleteTarget(null)}
-        onConfirm={() => { onDelete?.(deleteTarget); setDeleteTarget(null); }}
-        title="确认删除"
-        message="删除后该知识将不再影响 AI 行为，确定要删除吗？"
-        cancelLabel="保留"
-        confirmLabel="删除"
-        confirmTone="danger"
-      />
-    </>
+    <PageSkeleton
+      title={title}
+      onBack={onBack}
+      headerRight={onAdd ? <BarButton onClick={onAdd}>添加</BarButton> : undefined}
+      isMobile
+      listPane={listContent}
+    />
   );
 }
