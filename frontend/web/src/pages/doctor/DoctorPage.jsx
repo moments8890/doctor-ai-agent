@@ -21,7 +21,6 @@ import { useAppNavigate } from "../../hooks/useAppNavigate";
 import { useDoctorStore } from "../../store/doctorStore";
 import { NAV, DESKTOP_NAV } from "./constants";
 import MyAIPage from "./MyAIPage";
-import HomePage from "./HomePage";
 import ChatPage from "./ChatPage";
 import PatientsPage from "./PatientsPage";
 import TasksPage from "./TasksPage";
@@ -117,11 +116,6 @@ function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpag
       {activeSection === "my-ai" && (
         <ErrorBoundary label="我的AI">
           <MyAIPage doctorId={doctorId} />
-        </ErrorBoundary>
-      )}
-      {activeSection === "home" && (
-        <ErrorBoundary label="首页">
-          <HomePage doctorId={doctorId} onNavigateToChat={() => navigate("/doctor/chat")} />
         </ErrorBoundary>
       )}
       {activeSection === "chat" && (
