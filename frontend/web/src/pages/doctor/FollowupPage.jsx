@@ -12,6 +12,7 @@ import { Box, CircularProgress, Typography } from "@mui/material";
 import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
 import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 import { useApi } from "../../api/ApiContext";
+import { useAppNavigate } from "../../hooks/useAppNavigate";
 import SubpageHeader from "../../components/SubpageHeader";
 import PatientAvatar from "../../components/PatientAvatar";
 import SectionLabel from "../../components/SectionLabel";
@@ -206,13 +207,18 @@ function MessageItem({ item, onSend, onEdit }) {
 
 // ── Scheduled follow-up row ──
 function ScheduledRow({ item }) {
+  const navigate = useAppNavigate();
   return (
-    <Box sx={{
-      display: "flex", alignItems: "center", gap: 1.2,
-      px: 2, py: 1.2,
-      borderBottom: `0.5px solid ${COLOR.borderLight}`,
-      "&:last-child": { borderBottom: "none" },
-    }}>
+    <Box
+      onClick={() => item.patient_id ? navigate(`/doctor/patients/${item.patient_id}`) : undefined}
+      sx={{
+        display: "flex", alignItems: "center", gap: 1.2,
+        px: 2, py: 1.2,
+        borderBottom: `0.5px solid ${COLOR.borderLight}`,
+        "&:last-child": { borderBottom: "none" },
+        cursor: "pointer",
+        "&:active": { bgcolor: "#f5f5f5" },
+      }}>
       <AccessTimeOutlinedIcon sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text4, flexShrink: 0 }} />
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1 }}>
@@ -236,13 +242,18 @@ function ScheduledRow({ item }) {
 
 // ── Recently sent row ──
 function SentRow({ item }) {
+  const navigate = useAppNavigate();
   return (
-    <Box sx={{
-      display: "flex", alignItems: "center", gap: 1.2,
-      px: 2, py: 1.2,
-      borderBottom: `0.5px solid ${COLOR.borderLight}`,
-      "&:last-child": { borderBottom: "none" },
-    }}>
+    <Box
+      onClick={() => item.patient_id ? navigate(`/doctor/patients/${item.patient_id}`) : undefined}
+      sx={{
+        display: "flex", alignItems: "center", gap: 1.2,
+        px: 2, py: 1.2,
+        borderBottom: `0.5px solid ${COLOR.borderLight}`,
+        "&:last-child": { borderBottom: "none" },
+        cursor: "pointer",
+        "&:active": { bgcolor: "#f5f5f5" },
+      }}>
       <CheckOutlinedIcon sx={{ fontSize: TYPE.body.fontSize, color: COLOR.primary, flexShrink: 0 }} />
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text4 }}>

@@ -340,6 +340,7 @@ export default function MyAIPage({ doctorId }) {
                     ? <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{item.time_label}</Typography>
                     : null
               }
+              onClick={() => item.patient_id ? navigate(`/doctor/patients/${item.patient_id}`) : undefined}
               sx={idx === recentActivity.length - 1 ? { borderBottom: "none" } : {}}
             />
           ))}

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "sqlite-db": {
+      "command": "/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/mcp-server-sqlite",
+      "args": [
+        "--db-path",
+        "/Volumes/ORICO/Code/doctor-ai-agent/data/patients.db"
+      ]
+    }
+  }
+}
