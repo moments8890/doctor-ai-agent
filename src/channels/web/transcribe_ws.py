@@ -33,8 +33,8 @@ async def ws_transcribe(websocket: WebSocket):
     log(f"[transcribe_ws] session started, provider={provider.value}")
 
     try:
-        # For whisper: accumulate audio, transcribe on stop
-        # For tencent: stream to Tencent real-time API (future)
+        # Both whisper and tencent: accumulate audio chunks, batch-transcribe on stop.
+        # True real-time streaming to Tencent ASR can be added later.
         audio_chunks: list[bytes] = []
 
         while True:
@@ -45,8 +45,7 @@ async def ws_transcribe(websocket: WebSocket):
 
             if "bytes" in data:
                 audio_chunks.append(data["bytes"])
-                # For tencent streaming: would forward chunks here
-                # For now (whisper batch): just accumulate
+                # Accumulate for batch transcription (whisper & tencent)
 
             elif "text" in data:
                 msg = data["text"]

@@ -36,3 +36,7 @@ PyJWT==2.11.0
 structlog>=21.5.0              # structured JSON logging
 langfuse>=3.0.0                # LLM observability (optional, set LANGFUSE_PUBLIC_KEY to enable)
 pyyaml
+# Tencent Cloud ASR (for ASR_PROVIDER=tencent):
+#   Env vars: TENCENT_ASR_SECRET_ID, TENCENT_ASR_SECRET_KEY
+#             TENCENT_ASR_ENGINE=16k_zh_medical (default)
+tencentcloud-sdk-python>=3.0.0
