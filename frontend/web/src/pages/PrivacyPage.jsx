@@ -94,10 +94,10 @@ const SECTIONS = [
   },
 ];
 
-export default function PrivacyPage() {
+export default function PrivacyPage({ onBack }) {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
-      <SubpageHeader title="隐私政策" onBack={() => window.close()} />
+      <SubpageHeader title="隐私政策" onBack={onBack || (() => window.history.back())} />
       <Box sx={{ flex: 1, overflow: "auto" }}>
         {/* Intro */}
         <Box sx={{ bgcolor: COLOR.white, px: 2, py: 2, borderBottom: `0.5px solid ${COLOR.border}` }}>

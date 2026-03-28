@@ -22,6 +22,7 @@ import { QRCodeSVG } from "qrcode.react";
 import KnowledgeSubpage from "./subpages/KnowledgeSubpage";
 import KnowledgeDetailSubpage from "./subpages/KnowledgeDetailSubpage";
 import AboutSubpage from "./subpages/AboutSubpage";
+import PrivacySubpage from "../../pages/PrivacyPage";
 import TemplateSubpage from "./subpages/TemplateSubpage";
 import AddKnowledgeSubpage from "./subpages/AddKnowledgeSubpage";
 import { useDoctorStore } from "../../store/doctorStore";
@@ -425,6 +426,8 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
     <KnowledgeSubpageWrapper doctorId={doctorId} onBack={goBack} isMobile urlSubId={urlSubId} />
   ) : isMobile && subpage === "about" ? (
     <AboutSubpage onBack={goBack} isMobile />
+  ) : isMobile && subpage === "privacy" ? (
+    <PrivacySubpage onBack={goBack} />
   ) : null;
 
   const listPane = (
@@ -443,7 +446,7 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
       bulkExportStatus={bulkExportStatus}
       bulkExportProgress={bulkExportProgress}
       onAbout={() => goSub("about")}
-      onPrivacy={() => window.open("/privacy", "_blank")}
+      onPrivacy={() => goSub("privacy")}
       onLogout={isMobile ? onLogout : undefined}
       isMobile={isMobile}
     >
@@ -487,6 +490,8 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
     <KnowledgeSubpageWrapper doctorId={doctorId} onBack={goBack} isMobile />
   ) : subpage === "about" ? (
     <AboutSubpage onBack={goBack} />
+  ) : subpage === "privacy" ? (
+    <PrivacySubpage onBack={goBack} />
   ) : null;
 
   return (
