@@ -572,7 +572,7 @@ export default function FollowupPage({ doctorId }) {
     setTeachEditId(null);
   };
 
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState("messages");
   const totalCount = pendingMessages.length + upcomingFollowups.length + pendingTasks.length;
   const isEmpty = !loading && !error && totalCount === 0 && recentlySent.length === 0;
 
