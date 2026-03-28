@@ -141,18 +141,8 @@ export default function MyAIPage({ doctorId }) {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
-      {/* Top bar */}
-      <SubpageHeader
-        title="我的AI"
-        right={
-          <Typography
-            onClick={() => navigate("/doctor/settings")}
-            sx={{ fontSize: TYPE.action.fontSize, color: COLOR.primary, cursor: "pointer" }}
-          >
-            设置
-          </Typography>
-        }
-      />
+      {/* Top bar — no action buttons on main page nav bar */}
+      <SubpageHeader title="我的AI" />
 
       {/* Scrollable content */}
       <Box sx={{ flex: 1, overflow: "auto", pb: "80px" }}>
@@ -170,9 +160,24 @@ export default function MyAIPage({ doctorId }) {
                 {knowledgeCount > 0 ? `已学会 ${knowledgeCount} 条规则` : "尚未添加规则"}
               </Typography>
             </Box>
-            <Typography sx={{ fontSize: TYPE.micro.fontSize, fontWeight: 500, color: COLOR.primary }}>
-              在线
-            </Typography>
+            <Box
+              onClick={() => navigate("/doctor/settings")}
+              sx={{
+                display: "flex", alignItems: "center", gap: 0.5,
+                cursor: "pointer", px: 0.5, py: 0.3, borderRadius: "6px",
+                "&:active": { bgcolor: COLOR.surfaceAlt },
+              }}
+            >
+              <Box sx={{
+                width: 6, height: 6, borderRadius: "50%", bgcolor: COLOR.primary,
+              }} />
+              <Typography sx={{ fontSize: TYPE.micro.fontSize, fontWeight: 500, color: COLOR.primary }}>
+                在线
+              </Typography>
+              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, ml: 0.3 }}>
+                ›
+              </Typography>
+            </Box>
           </Box>
 
           {/* Stats row */}
