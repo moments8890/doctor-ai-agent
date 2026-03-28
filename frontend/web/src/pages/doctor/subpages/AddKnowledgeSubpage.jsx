@@ -37,6 +37,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
   const [editedText, setEditedText] = useState("");
   const [sourceFilename, setSourceFilename] = useState("");
   const [llmProcessed, setLlmProcessed] = useState(false);
+  const [showVoice, setShowVoice] = useState(false);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
 
@@ -45,7 +46,10 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
   const [fetchingUrl, setFetchingUrl] = useState(false);
 
   // ── Voice input state ──
-  const [showVoice, setShowVoice] = useState(false);
+  const [voiceRecording, setVoiceRecording] = useState(false);
+  const voiceRecRef = useRef(null);
+  const voiceTimerRef = useRef(null);
+  const [voiceSeconds, setVoiceSeconds] = useState(0);
 
   // ── Manual text processing state ──
   const [processing, setProcessing] = useState(false);
