@@ -38,9 +38,10 @@ All documentation lives under `docs/`. These are the canonical folders:
 
 ## Source of Truth
 
-`README.md` § "Source of Truth — Critical Documents" is the canonical registry.
-Each category has exactly one authoritative file — update that file, not a copy.
-Before creating a new doc, check the registry to see if a canonical doc already covers the topic.
+`README.md` § "Source of Truth — 5 Canonical Entrypoints" is the master registry.
+The 5 entrypoints are: `AGENTS.md`, `docs/architecture.md`, `docs/product/index.md`,
+`docs/ux/UI-DESIGN.md`, `docs/dev/index.md`. Before creating a new doc, check if
+a canonical entrypoint already covers the topic.
 
 ## UI Design
 
@@ -204,10 +205,10 @@ If a category has no impact, write "None." Do not omit the category. This sectio
    - Report progress to the user (what was done, any deviations from the plan)
    - Update the corresponding spec in `docs/specs/` to mark status as "Completed" with the completion date
    - Move the plan from `docs/plans/` to `docs/plans/archived/`
-8. **Keep docs current** — whenever designing or implementing a feature, update all affected canonical documents listed in `README.md` § "Source of Truth". This includes but is not limited to:
-   - `docs/review/architecture-overview.md` — if schema, services, pipelines, or module boundaries changed
+8. **Keep docs current** — whenever designing or implementing a feature, update all affected canonical documents. Start from the 5 entrypoints in `README.md` § "Source of Truth":
+   - `docs/architecture.md` — if schema, services, pipelines, intents, prompt system, or module boundaries changed
    - `docs/product/requirements-and-gaps.md` — if a roadmap item's status changed (started, completed, deferred)
-   - `docs/product/feature-parity-matrix-2026-03-25.md` — if any frontend or backend feature was added, changed, or removed
+   - `docs/product/feature-parity-matrix.md` — if any frontend or backend feature was added, changed, or removed
    - `docs/product/clinical-decision-support-design.md` — if diagnosis, knowledge base, or CDS behavior changed
    - `docs/ux/UI-DESIGN.md` — if new components were added or existing patterns changed
    - `src/agent/prompts/README.md` — if prompt files, intent routing, or LLM contracts changed
