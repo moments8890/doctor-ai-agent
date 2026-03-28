@@ -17,17 +17,14 @@ import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 import EventRepeatOutlinedIcon from "@mui/icons-material/EventRepeatOutlined";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import MedicationOutlinedIcon from "@mui/icons-material/MedicationOutlined";
-import MicIcon from "@mui/icons-material/Mic";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import SubpageHeader from "../../components/SubpageHeader";
 import EmptyState from "../../components/EmptyState";
 import PatientAvatar from "../../components/PatientAvatar";
 import SectionLabel from "../../components/SectionLabel";
-import StatusBadge from "../../components/StatusBadge";
 import AppButton from "../../components/AppButton";
 import SheetDialog from "../../components/SheetDialog";
-import VoiceInput, { isVoiceSupported } from "../../components/VoiceInput";
 import { TYPE, COLOR } from "../../theme";
 
 // ── Task type icon/color mapping ──
@@ -44,12 +41,7 @@ const TASK_TYPE_COLOR = {
   general: "#8e44ad",
 };
 
-// ── Badge color mapping ──
-const BADGE_COLOR_MAP = {
-  "新消息": COLOR.warning,
-  "紧急": COLOR.danger,
-};
-const BADGE_LABEL = { new: "新消息", urgent: "紧急" };
+// MessageItem moved to components/doctor/MessageItem.jsx
 
 // ── Summary stat component ──
 function SummaryStat({ value, label, sublabel, color, onClick }) {
@@ -70,8 +62,9 @@ function SummaryStat({ value, label, sublabel, color, onClick }) {
   );
 }
 
-// ── Pending message item ──
-function MessageItem({ item, onSend, onEdit, onTeachPrompt }) {
+// MessageItem extracted to components/doctor/MessageItem.jsx — import below
+// (old inline definition removed)
+function _MessageItemRemoved_DEAD({ item, onSend, onEdit, onTeachPrompt }) {
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(item.draft_text || "");
   const textareaRef = useRef(null);
@@ -562,7 +555,7 @@ function SendConfirmSheet({ open, onClose, item, onConfirm, sending }) {
 }
 
 // ── Main page ──
-const VALID_TABS = new Set(["messages", "followups", "sent"]);
+const VALID_TABS = new Set(["followups", "sent"]);
 
 export default function TaskPage({ doctorId, urlSubpage }) {
   const api = useApi();
@@ -685,13 +678,13 @@ export default function TaskPage({ doctorId, urlSubpage }) {
   };
 
   const tabFromUrl = new URLSearchParams(window.location.search).get("tab");
-  const initialTab = tabFromUrl && VALID_TABS.has(tabFromUrl) ? tabFromUrl : "messages";
+  const initialTab = tabFromUrl && VALID_TABS.has(tabFromUrl) ? tabFromUrl : "followups";
   const [filter, setFilter] = useState(initialTab);
   const totalCount = pendingMessages.length + upcomingFollowups.length + pendingTasks.length;
   const isEmpty = !loading && !error && totalCount === 0 && recentlySent.length === 0;
 
   const handleFilter = (key) => {
-    const next = filter === key ? "messages" : key;
+    const next = filter === key ? "followups" : key;
     setFilter(next);
     const url = new URL(window.location);
     url.searchParams.set("tab", next);
@@ -749,7 +742,6 @@ export default function TaskPage({ doctorId, urlSubpage }) {
               borderTop: `0.5px solid ${COLOR.border}`,
             }}>
               {[
-                { key: "messages", label: "待回复", count: pendingMessages.length, activeColor: COLOR.danger },
                 { key: "followups", label: "待完成", count: upcomingFollowups.length + pendingTasks.length, activeColor: COLOR.warning },
                 { key: "sent", label: "已完成", count: recentlySent.length, activeColor: COLOR.text4 },
               ].map((tab, i, arr) => {
@@ -789,33 +781,7 @@ export default function TaskPage({ doctorId, urlSubpage }) {
               })}
             </Box>
 
-            {/* ── Section: 患者消息 · 待回复 ── */}
-            {showMessages && pendingMessages.length > 0 && (
-              <>
-                <SectionLabel>患者消息 · 待回复</SectionLabel>
-                  <Box sx={{
-                    bgcolor: COLOR.white,
-                    borderTop: `0.5px solid ${COLOR.border}`,
-                    borderBottom: `0.5px solid ${COLOR.border}`,
-                  }}>
-                    {pendingMessages.map((msg) => (
-                      <MessageItem
-                        key={msg.id}
-                        item={msg}
-                        onSend={handleOpenSend}
-                        onTeachPrompt={handleTeachPrompt}
-                      />
-                    ))}
-                  </Box>
-                  {aiDraftedCount > 0 && filter === "messages" && (
-                    <Box sx={{ px: 1.5, py: 0.5 }}>
-                      <Typography sx={{ fontSize: 11, color: COLOR.primary }}>
-                        其中{aiDraftedCount}条AI已起草回复
-                      </Typography>
-                    </Box>
-                  )}
-                </>
-            )}
+            {/* 患者消息 · 待回复 moved to ReviewQueuePage (门诊 tab) */}
 
             {/* ── Section: 随访 ── */}
             {showFollowups && upcomingFollowups.length > 0 && (

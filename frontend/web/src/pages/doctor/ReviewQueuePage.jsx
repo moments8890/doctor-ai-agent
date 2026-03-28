@@ -17,12 +17,16 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
+import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import EmptyState from "../../components/EmptyState";
 import PatientAvatar from "../../components/PatientAvatar";
 import SectionLabel from "../../components/SectionLabel";
 import SubpageHeader from "../../components/SubpageHeader";
+import SheetDialog from "../../components/SheetDialog";
+import AppButton from "../../components/AppButton";
+import MessageItem from "../../components/doctor/MessageItem";
 import { TYPE, COLOR } from "../../theme";
 
 /* ── Case memory helpers ──────────────────────────────────────────────────── */
@@ -51,6 +55,7 @@ const SECTION_LABEL = {
 function FilterStatBar({ summary, filter, onFilter }) {
   const tabs = [
     { key: "pending", label: "待审核", count: summary.pending, activeColor: COLOR.warning },
+    { key: "replies", label: "待回复", count: summary.replies, activeColor: COLOR.danger },
     { key: "completed", label: "已完成", count: summary.completed, activeColor: COLOR.primary },
   ];
   return (
@@ -261,28 +266,40 @@ function CompletedRow({ item, onClick }) {
 
 /* ── Main ─────────────────────────────────────────────────────────────────── */
 
-const REVIEW_TABS = new Set(["pending", "completed"]);
+const REVIEW_TABS = new Set(["pending", "replies", "completed"]);
 
 export default function ReviewQueuePage({ doctorId, urlSubpage }) {
   const navigate = useAppNavigate();
-  const { getReviewQueue } = useApi();
+  const api = useApi();
+  const { getReviewQueue } = api;
   const [queue, setQueue] = useState(null);
+  const [drafts, setDrafts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [confirmItem, setConfirmItem] = useState(null);
+  const [sending, setSending] = useState(false);
 
   const load = useCallback(async () => {
     if (!doctorId) return;
     setLoading(true);
     try {
-      const data = typeof getReviewQueue === "function"
-        ? await getReviewQueue(doctorId)
-        : { summary: { pending: 0, confirmed: 0, modified: 0 }, pending: [], completed: [] };
-      setQueue(data);
+      const [reviewData, draftsData] = await Promise.all([
+        typeof getReviewQueue === "function"
+          ? getReviewQueue(doctorId)
+          : Promise.resolve({ pending: [], completed: [] }),
+        typeof api.fetchDrafts === "function"
+          ? api.fetchDrafts(doctorId).catch(() => ({}))
+          : Promise.resolve({}),
+      ]);
+      setQueue(reviewData || { pending: [], completed: [] });
+      const msgs = Array.isArray(draftsData) ? draftsData : (draftsData?.pending_messages || []);
+      setDrafts(msgs);
     } catch {
-      setQueue({ summary: { pending: 0, confirmed: 0, modified: 0 }, pending: [], completed: [] });
+      setQueue({ pending: [], completed: [] });
+      setDrafts([]);
     } finally {
       setLoading(false);
     }
-  }, [doctorId, getReviewQueue]);
+  }, [doctorId, getReviewQueue, api]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -290,11 +307,25 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
     navigate(`/doctor/review/${item.record_id}`);
   }
 
+  async function handleSendDraft() {
+    if (!confirmItem) return;
+    setSending(true);
+    try {
+      await (api.sendDraft || (() => Promise.resolve()))(confirmItem.id, doctorId);
+      setDrafts((prev) => prev.filter((m) => m.id !== confirmItem.id));
+      setConfirmItem(null);
+    } catch {
+      // keep dialog open on error
+    } finally {
+      setSending(false);
+    }
+  }
+
   /* ── Render ─────────────────────────────────────────────────────────────── */
 
   const pending = queue?.pending || [];
   const completed = queue?.completed || [];
-  const summary = { pending: pending.length, completed: completed.length };
+  const summary = { pending: pending.length, replies: drafts.length, completed: completed.length };
   const tabFromUrl = new URLSearchParams(window.location.search).get("tab");
   const initialTab = tabFromUrl && REVIEW_TABS.has(tabFromUrl) ? tabFromUrl : "pending";
   const [filter, setFilter] = useState(initialTab);
@@ -308,6 +339,8 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
   };
 
   const showPending = filter === "pending";
+  const showReplies = filter === "replies";
+  const showCompleted = filter === "completed";
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
@@ -353,8 +386,36 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
           />
         )}
 
+        {/* ── Section: 待回复 (patient messages with AI drafts) ── */}
+        {!loading && showReplies && drafts.length > 0 && (
+          <>
+            <SectionLabel>患者消息 · 待回复</SectionLabel>
+            <Box sx={{
+              bgcolor: COLOR.white,
+              borderTop: `0.5px solid ${COLOR.border}`,
+              borderBottom: `0.5px solid ${COLOR.border}`,
+            }}>
+              {drafts.map((msg) => (
+                <MessageItem
+                  key={msg.id}
+                  item={msg}
+                  onSend={(item) => setConfirmItem(item)}
+                />
+              ))}
+            </Box>
+          </>
+        )}
+
+        {!loading && showReplies && drafts.length === 0 && (
+          <EmptyState
+            icon={<MailOutlineIcon />}
+            title="暂无待回复消息"
+            subtitle="患者消息会自动出现在这里"
+          />
+        )}
+
         {/* Completed items */}
-        {!loading && !showPending && completed.length > 0 && (
+        {!loading && showCompleted && completed.length > 0 && (
           <>
             <SectionLabel>已完成</SectionLabel>
             <Box sx={{
@@ -376,7 +437,7 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
           </>
         )}
 
-        {!loading && !showPending && completed.length === 0 && (
+        {!loading && showCompleted && completed.length === 0 && (
           <EmptyState
             icon={<AssignmentOutlinedIcon />}
             title="暂无已完成项"
@@ -390,6 +451,35 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
           </Typography>
         </Box>
       </Box>
+
+      {/* Send confirmation dialog */}
+      <SheetDialog
+        open={!!confirmItem}
+        onClose={() => setConfirmItem(null)}
+        title="确认发送"
+        desktopMaxWidth={400}
+        footer={
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <AppButton variant="secondary" size="md" sx={{ flex: 1 }} onClick={() => setConfirmItem(null)}>
+              取消
+            </AppButton>
+            <AppButton variant="primary" size="md" sx={{ flex: 1 }} onClick={handleSendDraft} disabled={sending}>
+              {sending ? "发送中..." : "发送"}
+            </AppButton>
+          </Box>
+        }
+      >
+        {confirmItem && (
+          <Box>
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mb: 1 }}>
+              将以下回复发送给 {confirmItem.patient_name}：
+            </Typography>
+            <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1, lineHeight: 1.6, whiteSpace: "pre-line" }}>
+              {confirmItem.draft_text}
+            </Typography>
+          </Box>
+        )}
+      </SheetDialog>
     </Box>
   );
 }
