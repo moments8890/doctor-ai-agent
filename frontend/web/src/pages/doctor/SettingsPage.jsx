@@ -5,7 +5,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Box, TextField, Typography,
+  Box, CircularProgress, TextField, Typography,
 } from "@mui/material";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
@@ -17,6 +17,8 @@ import ConfirmDialog from "../../components/ConfirmDialog";
 import PageSkeleton from "../../components/PageSkeleton";
 import QRDialog from "../../components/QRDialog";
 import SheetDialog from "../../components/SheetDialog";
+import SubpageHeader from "../../components/SubpageHeader";
+import { QRCodeSVG } from "qrcode.react";
 import KnowledgeSubpage from "./subpages/KnowledgeSubpage";
 import AboutSubpage from "./subpages/AboutSubpage";
 import TemplateSubpage from "./subpages/TemplateSubpage";
@@ -24,7 +26,7 @@ import AddKnowledgeSubpage from "./subpages/AddKnowledgeSubpage";
 import { useDoctorStore } from "../../store/doctorStore";
 import SettingsListSubpage from "./subpages/SettingsListSubpage";
 import { SPECIALTY_OPTIONS } from "./constants";
-import { TYPE, ICON } from "../../theme";
+import { TYPE, ICON, COLOR } from "../../theme";
 
 function NameDialog({ open, nameInput, nameSaving, nameError, onChange, onSave, onClose }) {
   return (
@@ -356,6 +358,36 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
   const subpage = urlSubpage || null;
   const goSub = (sub) => navigate(`/doctor/settings/${sub}`);
   const goBack = () => navigate(-1);
+
+  // QR subpage — full-page view, auto-generate on mount
+  if (subpage === "qr") {
+    if (!qrUrl && !qrLoading && !qrError) handleGenerateQR();
+    return (
+      <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+        <SubpageHeader title="患者预问诊码" onBack={goBack} />
+        <Box sx={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", bgcolor: COLOR.surfaceAlt, gap: 2, px: 3 }}>
+          {qrLoading ? (
+            <CircularProgress size={24} />
+          ) : qrError ? (
+            <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.danger, textAlign: "center" }}>{qrError}</Typography>
+          ) : qrUrl ? (
+            <Box sx={{ p: 3, bgcolor: COLOR.white, borderRadius: "12px", border: `0.5px solid ${COLOR.border}` }}>
+              <QRCodeSVG value={qrUrl} size={220} level="M" />
+            </Box>
+          ) : null}
+          <Typography sx={{ fontSize: TYPE.body.fontSize, fontWeight: 600, color: COLOR.text1 }}>
+            {doctorName || doctorId}
+          </Typography>
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, textAlign: "center" }}>
+            患者扫码后可自助填写病史，AI将按你的方法进行预问诊
+          </Typography>
+          <AppButton variant="secondary" size="md" onClick={handleGenerateQR} disabled={qrLoading}>
+            重新生成
+          </AppButton>
+        </Box>
+      </Box>
+    );
+  }
 
   // Mobile subpage override
   const mobileSubpage = isMobile && subpage === "template" ? (
