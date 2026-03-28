@@ -23,7 +23,6 @@ import { NAV, DESKTOP_NAV } from "./constants";
 import MyAIPage from "./MyAIPage";
 import ChatPage from "./ChatPage";
 import PatientsPage from "./PatientsPage";
-import TasksPage from "./TasksPage";
 import SettingsPage from "./SettingsPage";
 import ReviewPage from "./ReviewPage";
 import ReviewQueuePage from "./ReviewQueuePage";
@@ -145,7 +144,6 @@ function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpag
       )}
       {activeSection === "review" && <ErrorBoundary label="审核"><ReviewQueuePage doctorId={doctorId} /></ErrorBoundary>}
       {activeSection === "followup" && <ErrorBoundary label="随访"><FollowupPage doctorId={doctorId} /></ErrorBoundary>}
-      {activeSection === "tasks" && <ErrorBoundary label="任务"><TasksPage doctorId={doctorId} urlSubpage={urlSubpage} urlSubId={urlSubId} /></ErrorBoundary>}
       {activeSection === "settings" && <ErrorBoundary label="设置"><SettingsPage doctorId={doctorId} onLogout={handleLogout} urlSubpage={urlSubpage} urlSubId={urlSubId} /></ErrorBoundary>}
     </Box>
   );

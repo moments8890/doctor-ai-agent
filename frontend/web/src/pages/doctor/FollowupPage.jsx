@@ -2,16 +2,21 @@
  * @route /doctor/followup
  *
  * FollowupPage -- "随访" tab. Shows AI-drafted follow-up messages
- * for the doctor to review, edit, and send. Three sections:
+ * for the doctor to review, edit, and send. Four sections:
  *   1. 患者消息 · 待回复  (pending messages with AI drafts)
  *   2. 即将到期的随访     (upcoming scheduled follow-ups)
- *   3. 最近已发送         (recently sent messages)
+ *   3. 待办提醒           (doctor-created tasks/reminders)
+ *   4. 最近已发送         (recently sent messages)
  */
 import { useEffect, useState, useCallback } from "react";
-import { Box, CircularProgress, Typography } from "@mui/material";
+import { Box, CircularProgress, Snackbar, Typography } from "@mui/material";
 import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
+import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
+import BiotechOutlinedIcon from "@mui/icons-material/BiotechOutlined";
 import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
+import EventRepeatOutlinedIcon from "@mui/icons-material/EventRepeatOutlined";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import MedicationOutlinedIcon from "@mui/icons-material/MedicationOutlined";
 import MicIcon from "@mui/icons-material/Mic";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
@@ -24,6 +29,20 @@ import AppButton from "../../components/AppButton";
 import SheetDialog from "../../components/SheetDialog";
 import VoiceInput, { isVoiceSupported } from "../../components/VoiceInput";
 import { TYPE, COLOR } from "../../theme";
+
+// ── Task type icon/color mapping ──
+const TASK_TYPE_ICON = {
+  follow_up: EventRepeatOutlinedIcon,
+  medication: MedicationOutlinedIcon,
+  checkup: BiotechOutlinedIcon,
+  general: AssignmentOutlinedIcon,
+};
+const TASK_TYPE_COLOR = {
+  follow_up: "#07C160",
+  medication: "#5b9bd5",
+  checkup: "#e8833a",
+  general: "#8e44ad",
+};
 
 // ── Badge color mapping ──
 const BADGE_COLOR_MAP = {
@@ -47,7 +66,7 @@ function SummaryStat({ value, label, color }) {
 }
 
 // ── Pending message item ──
-function MessageItem({ item, onSend, onEdit }) {
+function MessageItem({ item, onSend, onEdit, onTeachPrompt }) {
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(item.draft_text || "");
   const [saving, setSaving] = useState(false);
@@ -64,9 +83,13 @@ function MessageItem({ item, onSend, onEdit }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await (api.editDraft || (() => Promise.resolve()))(item.id, null, editText);
+      const result = await (api.editDraft || (() => Promise.resolve({})))(item.id, null, editText);
       item.draft_text = editText;
       setEditing(false);
+      // If backend signals teach_prompt, surface it to the page
+      if (result?.teach_prompt && result?.edit_id && onTeachPrompt) {
+        onTeachPrompt(result.edit_id);
+      }
     } catch {
       // silently fail in mock
     } finally {
@@ -272,6 +295,50 @@ function ScheduledRow({ item }) {
   );
 }
 
+// ── Task reminder row ──
+function TaskRow({ item }) {
+  const navigate = useAppNavigate();
+  const TaskIcon = TASK_TYPE_ICON[item.task_type] || AssignmentOutlinedIcon;
+  const iconColor = TASK_TYPE_COLOR[item.task_type] || "#8e44ad";
+  const dueLabel = item.due_at
+    ? item.due_at.replace("T", " ").slice(0, 10)
+    : "";
+  return (
+    <Box
+      onClick={() => item.patient_id ? navigate(`/doctor/patients/${item.patient_id}`) : undefined}
+      sx={{
+        display: "flex", alignItems: "center", gap: 1.2,
+        px: 2, py: 1.2,
+        borderBottom: `0.5px solid ${COLOR.borderLight}`,
+        "&:last-child": { borderBottom: "none" },
+        cursor: item.patient_id ? "pointer" : "default",
+        "&:active": item.patient_id ? { bgcolor: "#f5f5f5" } : {},
+      }}>
+      <Box sx={{
+        width: 28, height: 28, borderRadius: "4px", bgcolor: iconColor,
+        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+      }}>
+        <TaskIcon sx={{ fontSize: 16, color: "#fff" }} />
+      </Box>
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1 }}>
+          {item.title || "任务"}
+        </Typography>
+        {item.content && (
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: "1px" }} noWrap>
+            {item.content}
+          </Typography>
+        )}
+      </Box>
+      {dueLabel && (
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, flexShrink: 0 }}>
+          {dueLabel}
+        </Typography>
+      )}
+    </Box>
+  );
+}
+
 // ── Recently sent row ──
 function SentRow({ item }) {
   const navigate = useAppNavigate();
@@ -391,27 +458,35 @@ export default function FollowupPage({ doctorId }) {
   const [confirmItem, setConfirmItem] = useState(null);
   const [sending, setSending] = useState(false);
 
+  // Teaching prompt state (shown after doctor edits a draft)
+  const [teachEditId, setTeachEditId] = useState(null);
+  const [teachSaving, setTeachSaving] = useState(false);
+  const [teachSaved, setTeachSaved] = useState(false);
+
   const loadData = useCallback(async () => {
     if (!doctorId) return;
     setLoading(true);
     setError(null);
     try {
-      const [draftsRes, summaryRes] = await Promise.all([
+      const [draftsRes, summaryRes, tasksRes] = await Promise.all([
         (api.fetchDrafts || (() => Promise.resolve({})))(doctorId),
         (api.fetchDraftSummary || (() => Promise.resolve({})))(doctorId),
+        (api.getTasks || (() => Promise.resolve([])))(doctorId, "pending")
+          .then((d) => Array.isArray(d) ? d : (d.items || []))
+          .catch(() => []),
       ]);
       // Handle both old flat array format and new structured format
       if (Array.isArray(draftsRes)) {
-        setData({ pending_messages: draftsRes, upcoming_followups: [], recently_sent: [] });
+        setData({ pending_messages: draftsRes, upcoming_followups: [], recently_sent: [], tasks: tasksRes });
       } else {
-        setData(draftsRes || {});
+        setData({ ...(draftsRes || {}), tasks: tasksRes });
       }
       setSummary(summaryRes || {});
     } catch (err) {
       // 404 means no data yet — treat as empty, not as an error
       const is404 = err?.status === 404 || err?.response?.status === 404 || (err.message && /not found/i.test(err.message));
       if (is404) {
-        setData({ pending_messages: [], upcoming_followups: [], recently_sent: [] });
+        setData({ pending_messages: [], upcoming_followups: [], recently_sent: [], tasks: [] });
         setSummary({});
       } else {
         setError(err.message || "加载失败");
@@ -427,6 +502,7 @@ export default function FollowupPage({ doctorId }) {
 
   const pendingMessages = data?.pending_messages || [];
   const upcomingFollowups = data?.upcoming_followups || [];
+  const pendingTasks = data?.tasks || [];
   const recentlySent = data?.recently_sent || [];
 
   const handleOpenSend = (item) => {
@@ -466,7 +542,31 @@ export default function FollowupPage({ doctorId }) {
     }
   };
 
-  const isEmpty = !loading && !error && pendingMessages.length === 0 && upcomingFollowups.length === 0 && recentlySent.length === 0;
+  // Teaching prompt: save edit as knowledge rule
+  const handleTeachPrompt = (editId) => {
+    setTeachEditId(editId);
+    setTeachSaved(false);
+  };
+
+  const handleTeachSave = async () => {
+    if (!teachEditId || teachSaving) return;
+    setTeachSaving(true);
+    try {
+      await (api.createRuleFromEdit || (() => Promise.resolve()))(teachEditId, doctorId);
+      setTeachEditId(null);
+      setTeachSaved(true);
+    } catch {
+      // silent
+    } finally {
+      setTeachSaving(false);
+    }
+  };
+
+  const handleTeachDismiss = () => {
+    setTeachEditId(null);
+  };
+
+  const isEmpty = !loading && !error && pendingMessages.length === 0 && upcomingFollowups.length === 0 && pendingTasks.length === 0 && recentlySent.length === 0;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
@@ -519,7 +619,7 @@ export default function FollowupPage({ doctorId }) {
               <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 0.5 }} />
               <SummaryStat value={summary?.ai_drafted ?? 0} label="AI已起草" color={COLOR.warning} />
               <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 0.5 }} />
-              <SummaryStat value={summary?.due_soon ?? summary?.upcoming ?? upcomingFollowups.length} label="即将到期" />
+              <SummaryStat value={(summary?.due_soon ?? summary?.upcoming ?? upcomingFollowups.length) + pendingTasks.length} label="即将到期" />
             </Box>
 
             {/* ── Section: 患者消息 · 待回复 ── */}
@@ -553,6 +653,22 @@ export default function FollowupPage({ doctorId }) {
                 }}>
                   {upcomingFollowups.map((f) => (
                     <ScheduledRow key={f.id} item={f} />
+                  ))}
+                </Box>
+              </>
+            )}
+
+            {/* ── Section: 待办提醒 ── */}
+            {pendingTasks.length > 0 && (
+              <>
+                <SectionLabel>待办提醒</SectionLabel>
+                <Box sx={{
+                  bgcolor: COLOR.white,
+                  borderTop: `0.5px solid ${COLOR.border}`,
+                  borderBottom: `0.5px solid ${COLOR.border}`,
+                }}>
+                  {pendingTasks.map((t) => (
+                    <TaskRow key={t.id} item={t} />
                   ))}
                 </Box>
               </>
