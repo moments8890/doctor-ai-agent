@@ -14,51 +14,44 @@ body {
   height: 100vh;
 }
 
-/* Header bar */
 .header {
   position: fixed; top: 0; left: 0; right: 0; z-index: 10;
   background: rgba(255,255,255,0.92); backdrop-filter: blur(8px);
   border-bottom: 1px solid #d0d7de;
-  padding: 12px 24px;
+  padding: 10px 24px;
   display: flex; align-items: center; gap: 20px;
 }
 .header h1 { font-size: 18px; font-weight: 700; }
-.legend { display: flex; gap: 16px; font-size: 12px; color: #656d76; }
-.legend-item { display: flex; align-items: center; gap: 5px; }
-.legend-dot { width: 10px; height: 10px; border-radius: 50%; }
-.legend-line { width: 24px; height: 0; border-top: 2px solid; }
+.legend { display: flex; gap: 14px; font-size: 11px; color: #656d76; }
+.legend-item { display: flex; align-items: center; gap: 4px; }
+.legend-dot { width: 9px; height: 9px; border-radius: 50%; }
+.legend-line { width: 20px; height: 0; border-top: 2px solid; }
 .legend-line.dashed { border-top-style: dashed; }
 
-/* Filter buttons */
-.filters {
-  display: flex; gap: 6px; margin-left: auto;
-}
+.filters { display: flex; gap: 5px; margin-left: auto; }
 .filter-btn {
-  font-size: 11px; padding: 4px 10px; border-radius: 12px;
+  font-size: 11px; padding: 3px 10px; border-radius: 12px;
   border: 1px solid #d0d7de; background: #fff; cursor: pointer;
   font-weight: 500; color: #656d76; transition: all 0.15s;
 }
 .filter-btn:hover { border-color: #0969da; color: #0969da; }
 .filter-btn.active { background: #0969da; color: #fff; border-color: #0969da; }
 
-/* Canvas */
-canvas { display: block; }
+canvas { display: block; cursor: grab; }
+canvas.dragging { cursor: grabbing; }
 
-/* Tooltip */
 .tooltip {
   display: none; position: fixed; z-index: 20;
   background: #1f2328; color: #fff; padding: 8px 12px;
-  border-radius: 8px; font-size: 12px; max-width: 260px;
+  border-radius: 8px; font-size: 12px; max-width: 280px;
   box-shadow: 0 4px 16px rgba(0,0,0,0.2); pointer-events: none;
 }
-.tooltip .t-label { font-weight: 700; font-size: 13px; margin-bottom: 2px; }
+.tooltip .t-label { font-weight: 700; font-size: 13px; }
 .tooltip .t-route { font-family: "SF Mono", monospace; color: #79c0ff; font-size: 11px; }
-.tooltip .t-comp { color: #8b949e; font-size: 11px; margin-top: 1px; }
-.tooltip .t-links { margin-top: 6px; border-top: 1px solid #444; padding-top: 4px; }
-.tooltip .t-link { font-size: 11px; color: #e6edf3; margin-top: 2px; }
-.tooltip .t-link .arrow { color: #3fb950; }
+.tooltip .t-comp { color: #8b949e; font-size: 11px; }
+.tooltip .t-links { margin-top: 5px; border-top: 1px solid #444; padding-top: 4px; }
+.tooltip .t-link { font-size: 11px; color: #e6edf3; margin-top: 1px; }
 
-/* Lightbox */
 .lightbox {
   display: none; position: fixed; inset: 0; z-index: 100;
   background: rgba(0,0,0,0.85); align-items: center;
@@ -70,11 +63,10 @@ canvas { display: block; }
   box-shadow: 0 8px 32px rgba(0,0,0,0.4);
 }
 
-/* Info panel */
 .info {
   position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
-  font-size: 12px; color: #656d76; background: rgba(255,255,255,0.9);
-  padding: 6px 16px; border-radius: 20px; border: 1px solid #d0d7de;
+  font-size: 11px; color: #656d76; background: rgba(255,255,255,0.9);
+  padding: 5px 14px; border-radius: 16px; border: 1px solid #d0d7de;
 }
 </style>
 </head>
@@ -87,7 +79,6 @@ canvas { display: block; }
     <div class="legend-item"><div class="legend-dot" style="background:#0969da"></div> Main page</div>
     <div class="legend-item"><div class="legend-dot" style="background:#8250df"></div> Subpage</div>
     <div class="legend-item"><div class="legend-dot" style="background:#bc4c00"></div> Detail</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#656d76"></div> Standalone</div>
     <div class="legend-item"><div class="legend-line" style="border-color:#1a7f37"></div> Nav</div>
     <div class="legend-item"><div class="legend-line" style="border-color:#0969da"></div> Drill</div>
     <div class="legend-item"><div class="legend-line dashed" style="border-color:#bc4c00"></div> Cross</div>
@@ -96,14 +87,13 @@ canvas { display: block; }
     <button class="filter-btn active" data-filter="all">All</button>
     <button class="filter-btn" data-filter="doctor">Doctor</button>
     <button class="filter-btn" data-filter="patient">Patient</button>
-    <button class="filter-btn" data-filter="cross">Cross-links only</button>
+    <button class="filter-btn" data-filter="cross">Cross-links</button>
   </div>
 </div>
 
 <canvas id="canvas"></canvas>
-
 <div class="tooltip" id="tooltip"></div>
-<div class="info">Drag nodes to rearrange · Scroll to zoom · Click node for full screenshot · Hover for connections</div>
+<div class="info">Drag nodes to rearrange · Click for full screenshot · Hover for connections</div>
 
 <div class="lightbox" id="lightbox" onclick="this.classList.remove('active')">
   <img id="lb-img" src="">
@@ -111,76 +101,77 @@ canvas { display: block; }
 
 <script>
 var IMG = 'page-screenshots/';
+var NODE_R = 40;
+var EDGE_COLORS = { nav: '#1a7f37', drill: '#0969da', cross: '#bc4c00' };
 
-// ── Node definitions ──
+// ── Nodes with FIXED grid positions ──
+// Layout: Doctor app left, Patient app right, Standalone bottom-center
+// Rows: layer 0 (nav tabs) at top, layer 1 (main) below, etc.
+// Positions are ratios of viewport (0-1) — computed to pixels on resize
+
 var NODES = [
-  // Doctor nav tabs (layer 0)
-  { id: 'myai', label: '我的AI', route: '/doctor', comp: 'MyAIPage', img: 'doctor-home.png', app: 'doctor', layer: 0, color: '#1a7f37' },
-  { id: 'patients', label: '患者', route: '/doctor/patients', comp: 'PatientsPage', img: 'doctor-patients.png', app: 'doctor', layer: 0, color: '#1a7f37' },
-  { id: 'review', label: '审核', route: '/doctor/review', comp: 'ReviewQueuePage', img: 'doctor-review.png', app: 'doctor', layer: 0, color: '#1a7f37' },
-  { id: 'followup', label: '随访', route: '/doctor/followup', comp: 'FollowupPage', img: 'doctor-followup.png', app: 'doctor', layer: 0, color: '#1a7f37' },
-  // Doctor main pages (layer 1)
-  { id: 'chat', label: 'AI Chat', route: '/doctor/chat', comp: 'ChatPage', img: 'doctor-chat.png', app: 'doctor', layer: 1, color: '#0969da' },
-  { id: 'tasks', label: '任务', route: '/doctor/tasks', comp: 'TasksPage', img: 'doctor-tasks.png', app: 'doctor', layer: 1, color: '#0969da' },
-  { id: 'settings', label: '设置', route: '/doctor/settings', comp: 'SettingsPage', img: 'doctor-settings.png', app: 'doctor', layer: 1, color: '#0969da' },
-  // Doctor subpages (layer 2)
-  { id: 'patient-detail', label: '患者详情', route: '/doctor/patients/:id', comp: 'PatientDetail', img: 'doctor-patients-1.png', app: 'doctor', layer: 2, color: '#8250df' },
-  { id: 'interview', label: '新建病历', route: '/doctor/patients/new', comp: 'InterviewPage', img: 'doctor-patients-new.png', app: 'doctor', layer: 2, color: '#8250df' },
-  { id: 'knowledge', label: '知识库', route: '/settings/knowledge', comp: 'KnowledgeSubpage', img: 'doctor-settings-knowledge.png', app: 'doctor', layer: 2, color: '#8250df' },
-  { id: 'template', label: '报告模板', route: '/settings/template', comp: 'TemplateSubpage', img: 'doctor-settings-template.png', app: 'doctor', layer: 2, color: '#8250df' },
-  { id: 'about', label: '关于', route: '/settings/about', comp: 'AboutSubpage', img: 'doctor-settings-about.png', app: 'doctor', layer: 2, color: '#8250df' },
-  // Doctor detail (layer 3)
-  { id: 'knowledge-add', label: '添加知识', route: '/settings/knowledge/add', comp: 'AddKnowledgeSubpage', img: 'doctor-settings-knowledge-add.png', app: 'doctor', layer: 3, color: '#bc4c00' },
-  // Patient nav
-  { id: 'p-chat', label: '消息', route: '/patient', comp: 'ChatTab', img: 'debug-patient.png', app: 'patient', layer: 0, color: '#1a7f37' },
-  { id: 'p-records', label: '病历', route: '/patient/records', comp: 'RecordsTab', img: 'debug-patient-records.png', app: 'patient', layer: 0, color: '#1a7f37' },
-  { id: 'p-tasks', label: '任务', route: '/patient/tasks', comp: 'TasksTab', img: 'debug-patient-tasks.png', app: 'patient', layer: 0, color: '#1a7f37' },
-  { id: 'p-profile', label: '我的', route: '/patient/profile', comp: 'ProfileTab', img: 'debug-patient-profile.png', app: 'patient', layer: 0, color: '#1a7f37' },
-  // Patient subpage
-  { id: 'p-interview', label: '预问诊', route: '/patient/interview', comp: 'InterviewPage', img: 'debug-patient-interview.png', app: 'patient', layer: 2, color: '#8250df' },
+  // Doctor nav tabs — row 0
+  { id: 'myai',     label: '我的AI',   route: '/doctor',           comp: 'MyAIPage',        img: 'doctor-home.png',     app: 'doctor', color: '#1a7f37', gx: 0.10, gy: 0.14 },
+  { id: 'patients', label: '患者',     route: '/doctor/patients',   comp: 'PatientsPage',    img: 'doctor-patients.png', app: 'doctor', color: '#1a7f37', gx: 0.26, gy: 0.14 },
+  { id: 'review',   label: '审核',     route: '/doctor/review',     comp: 'ReviewQueuePage', img: 'doctor-review.png',   app: 'doctor', color: '#1a7f37', gx: 0.42, gy: 0.14 },
+  { id: 'followup', label: '随访',     route: '/doctor/followup',   comp: 'FollowupPage',    img: 'doctor-followup.png', app: 'doctor', color: '#1a7f37', gx: 0.56, gy: 0.14 },
+  // Doctor main pages — row 1
+  { id: 'chat',     label: 'AI Chat',  route: '/doctor/chat',       comp: 'ChatPage',        img: 'doctor-chat.png',     app: 'doctor', color: '#0969da', gx: 0.06, gy: 0.40 },
+  { id: 'tasks',    label: '任务',     route: '/doctor/tasks',      comp: 'TasksPage',       img: 'doctor-tasks.png',    app: 'doctor', color: '#0969da', gx: 0.20, gy: 0.40 },
+  { id: 'settings', label: '设置',     route: '/doctor/settings',   comp: 'SettingsPage',    img: 'doctor-settings.png', app: 'doctor', color: '#0969da', gx: 0.34, gy: 0.40 },
+  // Doctor subpages — row 2
+  { id: 'patient-detail', label: '患者详情',  route: '/patients/:id',   comp: 'PatientDetail',      img: 'doctor-patients-1.png',          app: 'doctor', color: '#8250df', gx: 0.10, gy: 0.66 },
+  { id: 'interview',      label: '新建病历',  route: '/patients/new',   comp: 'InterviewPage',      img: 'doctor-patients-new.png',        app: 'doctor', color: '#8250df', gx: 0.24, gy: 0.66 },
+  { id: 'knowledge',      label: '知识库',    route: '/settings/knowledge', comp: 'KnowledgeSubpage', img: 'doctor-settings-knowledge.png', app: 'doctor', color: '#8250df', gx: 0.38, gy: 0.66 },
+  { id: 'template',       label: '报告模板',  route: '/settings/template',  comp: 'TemplateSubpage',  img: 'doctor-settings-template.png',  app: 'doctor', color: '#8250df', gx: 0.50, gy: 0.66 },
+  { id: 'about',          label: '关于',      route: '/settings/about',     comp: 'AboutSubpage',     img: 'doctor-settings-about.png',     app: 'doctor', color: '#8250df', gx: 0.62, gy: 0.66 },
+  // Doctor detail — row 3
+  { id: 'knowledge-add',  label: '添加知识',  route: '/knowledge/add',  comp: 'AddKnowledgeSubpage', img: 'doctor-settings-knowledge-add.png', app: 'doctor', color: '#bc4c00', gx: 0.38, gy: 0.88 },
+  // Patient nav — right column
+  { id: 'p-chat',      label: '消息',   route: '/patient',          comp: 'ChatTab',        img: 'debug-patient.png',           app: 'patient', color: '#1a7f37', gx: 0.74, gy: 0.14 },
+  { id: 'p-records',   label: '病历',   route: '/patient/records',  comp: 'RecordsTab',     img: 'debug-patient-records.png',   app: 'patient', color: '#1a7f37', gx: 0.84, gy: 0.14 },
+  { id: 'p-tasks',     label: '任务',   route: '/patient/tasks',    comp: 'TasksTab',       img: 'debug-patient-tasks.png',     app: 'patient', color: '#1a7f37', gx: 0.74, gy: 0.40 },
+  { id: 'p-profile',   label: '我的',   route: '/patient/profile',  comp: 'ProfileTab',     img: 'debug-patient-profile.png',   app: 'patient', color: '#1a7f37', gx: 0.84, gy: 0.40 },
+  { id: 'p-interview', label: '预问诊', route: '/patient/interview', comp: 'InterviewPage', img: 'debug-patient-interview.png', app: 'patient', color: '#8250df', gx: 0.79, gy: 0.66 },
   // Standalone
-  { id: 'login', label: 'Login', route: '/login', comp: 'LoginPage', img: 'login.png', app: 'standalone', layer: 0, color: '#656d76' },
-  { id: 'admin', label: 'Admin', route: '/admin', comp: 'AdminPage', img: 'admin.png', app: 'standalone', layer: 0, color: '#656d76' },
+  { id: 'login', label: 'Login', route: '/login', comp: 'LoginPage', img: 'login.png', app: 'standalone', color: '#656d76', gx: 0.92, gy: 0.88 },
+  { id: 'admin', label: 'Admin', route: '/admin', comp: 'AdminPage', img: 'admin.png', app: 'standalone', color: '#656d76', gx: 0.06, gy: 0.88 },
 ];
 
-// ── Edge definitions ──
 var EDGES = [
-  // Nav tabs
-  { from: 'myai', to: 'patients', label: 'nav "患者"', type: 'nav' },
-  { from: 'myai', to: 'review', label: 'nav "审核"', type: 'nav' },
-  { from: 'myai', to: 'followup', label: 'nav "随访"', type: 'nav' },
-  { from: 'patients', to: 'myai', label: 'nav "我的AI"', type: 'nav' },
-  { from: 'review', to: 'myai', label: 'nav', type: 'nav' },
-  { from: 'followup', to: 'myai', label: 'nav', type: 'nav' },
+  // Nav tabs (bidirectional shown as single)
+  { from: 'myai', to: 'patients', label: 'nav', type: 'nav' },
+  { from: 'myai', to: 'review', label: 'nav', type: 'nav' },
+  { from: 'myai', to: 'followup', label: 'nav', type: 'nav' },
+  { from: 'patients', to: 'review', label: 'nav', type: 'nav' },
+  { from: 'patients', to: 'followup', label: 'nav', type: 'nav' },
+  { from: 'review', to: 'followup', label: 'nav', type: 'nav' },
   // MyAI drill
   { from: 'myai', to: 'settings', label: '⚙️ icon', type: 'drill' },
   { from: 'myai', to: 'chat', label: 'AskAI bar', type: 'drill' },
-  // MyAI cross
+  // MyAI cross-links
   { from: 'myai', to: 'knowledge', label: '"继续教AI"', type: 'cross' },
   { from: 'myai', to: 'knowledge-add', label: '"导入病例"', type: 'cross' },
   { from: 'myai', to: 'patient-detail', label: 'activity row', type: 'cross' },
-  // Patients
+  // Patients drill
   { from: 'patients', to: 'patient-detail', label: 'tap row', type: 'drill' },
   { from: 'patients', to: 'interview', label: '"新建患者"', type: 'drill' },
-  // Patient detail
+  // Patient detail cross
   { from: 'patient-detail', to: 'chat', label: '"问AI"', type: 'cross' },
   { from: 'patient-detail', to: 'interview', label: '"门诊"', type: 'cross' },
-  // Settings
+  // Settings drill
   { from: 'settings', to: 'knowledge', label: '"知识库"', type: 'drill' },
   { from: 'settings', to: 'template', label: '"报告模板"', type: 'drill' },
   { from: 'settings', to: 'about', label: '"关于"', type: 'drill' },
   { from: 'settings', to: 'login', label: '"退出登录"', type: 'drill' },
-  // Knowledge
+  // Knowledge drill
   { from: 'knowledge', to: 'knowledge-add', label: '"添加"', type: 'drill' },
-  // Review
+  // Cross-section links
   { from: 'review', to: 'patient-detail', label: 'tap item', type: 'cross' },
-  // Followup
   { from: 'followup', to: 'patient-detail', label: 'tap row', type: 'cross' },
-  // Chat cross
   { from: 'chat', to: 'patient-detail', label: 'patient card', type: 'cross' },
   { from: 'chat', to: 'patients', label: '"查看全部"', type: 'cross' },
   { from: 'chat', to: 'tasks', label: '"查看全部"', type: 'cross' },
-  // Tasks
   { from: 'tasks', to: 'review', label: 'review task', type: 'cross' },
   // Login
   { from: 'login', to: 'myai', label: 'doctor login', type: 'drill' },
@@ -189,26 +180,23 @@ var EDGES = [
   { from: 'p-chat', to: 'p-records', label: 'nav', type: 'nav' },
   { from: 'p-chat', to: 'p-tasks', label: 'nav', type: 'nav' },
   { from: 'p-chat', to: 'p-profile', label: 'nav', type: 'nav' },
-  { from: 'p-records', to: 'p-chat', label: 'nav', type: 'nav' },
+  { from: 'p-records', to: 'p-tasks', label: 'nav', type: 'nav' },
   // Patient drill
   { from: 'p-chat', to: 'p-interview', label: '"开始提问"', type: 'drill' },
   { from: 'p-records', to: 'p-interview', label: '"新增病历"', type: 'drill' },
 ];
 
-var EDGE_COLORS = { nav: '#1a7f37', drill: '#0969da', cross: '#bc4c00' };
-
-// ── Simulation state ──
+// ── State ──
 var canvas = document.getElementById('canvas');
 var ctx = canvas.getContext('2d');
 var W, H;
-var nodes = [], edges = [];
 var nodeMap = {};
 var images = {};
-var dragging = null, dragOff = { x: 0, y: 0 };
+var dragging = null, dragOff = { x: 0, y: 0 }, wasDragged = false;
 var hover = null;
-var scale = 1, panX = 0, panY = 0;
 var activeFilter = 'all';
-var NODE_R = 48;
+
+NODES.forEach(function(n) { n.visible = true; nodeMap[n.id] = n; });
 
 function resize() {
   W = window.innerWidth;
@@ -218,53 +206,17 @@ function resize() {
   canvas.style.width = W + 'px';
   canvas.style.height = H + 'px';
   ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-}
-
-function initNodes() {
-  var cx = W / 2, cy = H / 2;
-  // Position by app and layer
-  var doctorNodes = NODES.filter(function(n) { return n.app === 'doctor'; });
-  var patientNodes = NODES.filter(function(n) { return n.app === 'patient'; });
-  var standaloneNodes = NODES.filter(function(n) { return n.app === 'standalone'; });
-
-  // Doctor cluster: left-center
-  doctorNodes.forEach(function(n, i) {
-    var layerX = 200 + n.layer * 200;
-    var layerNodes = doctorNodes.filter(function(m) { return m.layer === n.layer; });
-    var idx = layerNodes.indexOf(n);
-    var layerH = layerNodes.length * 120;
-    n.x = layerX + (Math.random() - 0.5) * 40;
-    n.y = cy - layerH / 2 + idx * 120 + 60 + (Math.random() - 0.5) * 20;
-    n.vx = 0; n.vy = 0;
-    n.visible = true;
+  // Recompute positions from grid ratios
+  NODES.forEach(function(n) {
+    if (!n._dragged) {
+      n.x = n.gx * W;
+      n.y = n.gy * H;
+    }
   });
-
-  // Patient cluster: right
-  patientNodes.forEach(function(n, i) {
-    var layerX = W - 400 + n.layer * 150;
-    var layerNodes = patientNodes.filter(function(m) { return m.layer === n.layer; });
-    var idx = layerNodes.indexOf(n);
-    n.x = layerX + (Math.random() - 0.5) * 40;
-    n.y = cy - 150 + idx * 120 + (Math.random() - 0.5) * 20;
-    n.vx = 0; n.vy = 0;
-    n.visible = true;
-  });
-
-  // Standalone: bottom
-  standaloneNodes.forEach(function(n, i) {
-    n.x = cx - 100 + i * 200 + (Math.random() - 0.5) * 40;
-    n.y = H - 150 + (Math.random() - 0.5) * 20;
-    n.vx = 0; n.vy = 0;
-    n.visible = true;
-  });
-
-  nodes = NODES;
-  edges = EDGES;
-  nodes.forEach(function(n) { nodeMap[n.id] = n; });
 }
 
 function loadImages() {
-  nodes.forEach(function(n) {
+  NODES.forEach(function(n) {
     if (n.img) {
       var img = new Image();
       img.src = IMG + n.img;
@@ -273,155 +225,164 @@ function loadImages() {
   });
 }
 
-// ── Physics ──
-function simulate() {
-  var alpha = 0.3;
-  var repulse = 8000;
-  var attract = 0.005;
-  var linkDist = 180;
-  var damping = 0.85;
-  var centerPull = 0.001;
-
-  // Repulsion between all visible nodes
-  for (var i = 0; i < nodes.length; i++) {
-    if (!nodes[i].visible) continue;
-    for (var j = i + 1; j < nodes.length; j++) {
-      if (!nodes[j].visible) continue;
-      var dx = nodes[j].x - nodes[i].x;
-      var dy = nodes[j].y - nodes[i].y;
-      var d2 = dx * dx + dy * dy;
-      if (d2 < 1) d2 = 1;
-      var f = repulse / d2;
-      var fx = dx / Math.sqrt(d2) * f;
-      var fy = dy / Math.sqrt(d2) * f;
-      nodes[i].vx -= fx * alpha;
-      nodes[i].vy -= fy * alpha;
-      nodes[j].vx += fx * alpha;
-      nodes[j].vy += fy * alpha;
-    }
-  }
-
-  // Attraction along edges
-  edges.forEach(function(e) {
-    var a = nodeMap[e.from], b = nodeMap[e.to];
-    if (!a || !b || !a.visible || !b.visible) return;
-    var dx = b.x - a.x;
-    var dy = b.y - a.y;
-    var d = Math.sqrt(dx * dx + dy * dy);
-    if (d < 1) return;
-    var f = (d - linkDist) * attract;
-    var fx = dx / d * f;
-    var fy = dy / d * f;
-    a.vx += fx * alpha;
-    a.vy += fy * alpha;
-    b.vx -= fx * alpha;
-    b.vy -= fy * alpha;
-  });
-
-  // Center pull
-  var cx = W / 2, cy = H / 2 + 30;
-  nodes.forEach(function(n) {
-    if (!n.visible) return;
-    n.vx += (cx - n.x) * centerPull;
-    n.vy += (cy - n.y) * centerPull;
-  });
-
-  // Apply velocity
-  nodes.forEach(function(n) {
-    if (!n.visible || n === dragging) return;
-    n.vx *= damping;
-    n.vy *= damping;
-    n.x += n.vx;
-    n.y += n.vy;
-    // Bounds
-    n.x = Math.max(NODE_R + 10, Math.min(W - NODE_R - 10, n.x));
-    n.y = Math.max(NODE_R + 60, Math.min(H - NODE_R - 10, n.y));
-  });
-}
-
 // ── Drawing ──
-function drawArrow(x1, y1, x2, y2, color, dashed) {
-  var dx = x2 - x1, dy = y2 - y1;
+function drawCurvedArrow(ax, ay, bx, by, color, dashed, label, highlight) {
+  var dx = bx - ax, dy = by - ay;
   var d = Math.sqrt(dx * dx + dy * dy);
   if (d < 1) return;
+
   // Shorten to node edge
-  var sx = x1 + dx / d * (NODE_R + 4);
-  var sy = y1 + dy / d * (NODE_R + 4);
-  var ex = x2 - dx / d * (NODE_R + 4);
-  var ey = y2 - dy / d * (NODE_R + 4);
+  var sx = ax + dx / d * (NODE_R + 3);
+  var sy = ay + dy / d * (NODE_R + 3);
+  var ex = bx - dx / d * (NODE_R + 3);
+  var ey = by - dy / d * (NODE_R + 3);
+
+  // Curve control point (offset perpendicular)
+  var mx = (sx + ex) / 2;
+  var my = (sy + ey) / 2;
+  var nx = -(ey - sy);
+  var ny = (ex - sx);
+  var nd = Math.sqrt(nx * nx + ny * ny);
+  var curve = 20;
+  var cpx = mx + nx / nd * curve;
+  var cpy = my + ny / nd * curve;
 
   ctx.beginPath();
-  if (dashed) ctx.setLineDash([6, 4]);
-  else ctx.setLineDash([]);
+  ctx.setLineDash(dashed ? [5, 3] : []);
   ctx.moveTo(sx, sy);
-  ctx.lineTo(ex, ey);
+  ctx.quadraticCurveTo(cpx, cpy, ex, ey);
   ctx.strokeStyle = color;
-  ctx.lineWidth = 1.5;
-  ctx.globalAlpha = 0.5;
+  ctx.lineWidth = highlight ? 2.5 : 1.5;
+  ctx.globalAlpha = highlight ? 0.85 : 0.2;
   ctx.stroke();
+  ctx.setLineDash([]);
 
   // Arrowhead
-  var angle = Math.atan2(ey - sy, ex - sx);
-  var aLen = 8;
+  // Tangent at endpoint of quadratic curve
+  var t = 0.98;
+  var tanX = 2 * (1 - t) * (cpx - sx) + 2 * t * (ex - cpx);
+  var tanY = 2 * (1 - t) * (cpy - sy) + 2 * t * (ey - cpy);
+  var angle = Math.atan2(tanY, tanX);
+  var aLen = 7;
   ctx.beginPath();
-  ctx.setLineDash([]);
   ctx.moveTo(ex, ey);
-  ctx.lineTo(ex - aLen * Math.cos(angle - 0.4), ey - aLen * Math.sin(angle - 0.4));
-  ctx.lineTo(ex - aLen * Math.cos(angle + 0.4), ey - aLen * Math.sin(angle + 0.4));
+  ctx.lineTo(ex - aLen * Math.cos(angle - 0.35), ey - aLen * Math.sin(angle - 0.35));
+  ctx.lineTo(ex - aLen * Math.cos(angle + 0.35), ey - aLen * Math.sin(angle + 0.35));
   ctx.closePath();
   ctx.fillStyle = color;
   ctx.fill();
   ctx.globalAlpha = 1;
+
+  // Label at midpoint of curve
+  if (highlight && label) {
+    // Point on curve at t=0.5
+    var lx = 0.25 * sx + 0.5 * cpx + 0.25 * ex;
+    var ly = 0.25 * sy + 0.5 * cpy + 0.25 * ey;
+    ctx.font = '10px -apple-system, sans-serif';
+    ctx.fillStyle = '#fff';
+    // Background pill
+    var tw = ctx.measureText(label).width;
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    ctx.roundRect(lx - tw / 2 - 4, ly - 7, tw + 8, 14, 4);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, lx, ly);
+  }
 }
 
 function draw() {
   ctx.clearRect(0, 0, W, H);
 
+  // Group backgrounds
+  // Doctor app
+  var dNodes = NODES.filter(function(n) { return n.app === 'doctor' && n.visible; });
+  if (dNodes.length) {
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    dNodes.forEach(function(n) {
+      if (n.x - NODE_R < minX) minX = n.x - NODE_R;
+      if (n.y - NODE_R < minY) minY = n.y - NODE_R;
+      if (n.x + NODE_R > maxX) maxX = n.x + NODE_R;
+      if (n.y + NODE_R > maxY) maxY = n.y + NODE_R;
+    });
+    ctx.fillStyle = 'rgba(26, 127, 55, 0.03)';
+    ctx.strokeStyle = 'rgba(26, 127, 55, 0.1)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(minX - 30, minY - 40, maxX - minX + 60, maxY - minY + 80, 16);
+    ctx.fill(); ctx.stroke();
+    ctx.font = 'bold 11px -apple-system, sans-serif';
+    ctx.fillStyle = 'rgba(26, 127, 55, 0.35)';
+    ctx.textAlign = 'left';
+    ctx.fillText('DOCTOR APP', minX - 24, minY - 20);
+  }
+
+  // Patient app
+  var pNodes = NODES.filter(function(n) { return n.app === 'patient' && n.visible; });
+  if (pNodes.length) {
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    pNodes.forEach(function(n) {
+      if (n.x - NODE_R < minX) minX = n.x - NODE_R;
+      if (n.y - NODE_R < minY) minY = n.y - NODE_R;
+      if (n.x + NODE_R > maxX) maxX = n.x + NODE_R;
+      if (n.y + NODE_R > maxY) maxY = n.y + NODE_R;
+    });
+    ctx.fillStyle = 'rgba(9, 105, 218, 0.03)';
+    ctx.strokeStyle = 'rgba(9, 105, 218, 0.1)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(minX - 30, minY - 40, maxX - minX + 60, maxY - minY + 80, 16);
+    ctx.fill(); ctx.stroke();
+    ctx.font = 'bold 11px -apple-system, sans-serif';
+    ctx.fillStyle = 'rgba(9, 105, 218, 0.35)';
+    ctx.textAlign = 'left';
+    ctx.fillText('PATIENT APP', minX - 24, minY - 20);
+  }
+
   // Edges
-  edges.forEach(function(e) {
+  EDGES.forEach(function(e) {
     var a = nodeMap[e.from], b = nodeMap[e.to];
     if (!a || !b || !a.visible || !b.visible) return;
     var isHover = hover && (hover.id === e.from || hover.id === e.to);
-    var color = EDGE_COLORS[e.type] || '#999';
-    ctx.globalAlpha = isHover ? 0.9 : 0.25;
-    drawArrow(a.x, a.y, b.x, b.y, color, e.type === 'cross');
-    ctx.globalAlpha = 1;
-
-    // Edge label on hover
-    if (isHover) {
-      var mx = (a.x + b.x) / 2;
-      var my = (a.y + b.y) / 2;
-      ctx.font = '10px -apple-system, sans-serif';
-      ctx.fillStyle = color;
-      ctx.textAlign = 'center';
-      ctx.fillText(e.label, mx, my - 4);
-    }
+    var color = EDGE_COLORS[e.type];
+    drawCurvedArrow(a.x, a.y, b.x, b.y, color, e.type === 'cross', e.label, isHover);
   });
 
   // Nodes
-  nodes.forEach(function(n) {
+  NODES.forEach(function(n) {
     if (!n.visible) return;
     var isHover = hover && hover.id === n.id;
     var isConnected = false;
     if (hover) {
-      edges.forEach(function(e) {
+      EDGES.forEach(function(e) {
         if ((e.from === hover.id && e.to === n.id) || (e.to === hover.id && e.from === n.id)) isConnected = true;
       });
     }
     var dim = hover && !isHover && !isConnected;
 
-    // Circle background
+    // Shadow for hovered
+    if (isHover) {
+      ctx.shadowColor = 'rgba(0,0,0,0.15)';
+      ctx.shadowBlur = 12;
+    }
+
+    // Circle
     ctx.beginPath();
     ctx.arc(n.x, n.y, NODE_R, 0, Math.PI * 2);
-    ctx.fillStyle = dim ? '#f0f0f0' : '#fff';
+    ctx.fillStyle = dim ? '#f5f5f5' : '#fff';
     ctx.fill();
-    ctx.strokeStyle = isHover ? n.color : (dim ? '#e0e0e0' : n.color);
-    ctx.lineWidth = isHover ? 3 : 1.5;
-    ctx.globalAlpha = dim ? 0.4 : 1;
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+    ctx.strokeStyle = isHover ? n.color : (dim ? '#e8e8e8' : n.color);
+    ctx.lineWidth = isHover ? 3 : 2;
+    ctx.globalAlpha = dim ? 0.3 : 1;
     ctx.stroke();
     ctx.globalAlpha = 1;
 
-    // Screenshot thumbnail (clipped circle)
+    // Screenshot
     var img = images[n.id];
     if (img && img.complete && img.naturalWidth > 0) {
       ctx.save();
@@ -429,32 +390,33 @@ function draw() {
       ctx.arc(n.x, n.y, NODE_R - 3, 0, Math.PI * 2);
       ctx.clip();
       var aspect = img.naturalWidth / img.naturalHeight;
-      var drawW = (NODE_R - 3) * 2;
-      var drawH = drawW / aspect;
-      if (drawH < drawW) { drawH = drawW; drawW = drawH * aspect; }
-      ctx.globalAlpha = dim ? 0.3 : 0.85;
-      ctx.drawImage(img, n.x - drawW / 2, n.y - drawH / 2, drawW, drawH);
+      var dw = (NODE_R - 3) * 2;
+      var dh = dw / aspect;
+      if (dh < dw) { dh = dw; dw = dh * aspect; }
+      ctx.globalAlpha = dim ? 0.15 : 0.8;
+      ctx.drawImage(img, n.x - dw / 2, n.y - dh / 2, dw, dh);
       ctx.globalAlpha = 1;
       ctx.restore();
     }
 
-    // Label below
-    ctx.font = (isHover ? 'bold ' : '') + '11px -apple-system, sans-serif';
-    ctx.fillStyle = dim ? '#ccc' : '#1f2328';
+    // Label
+    ctx.font = (isHover ? 'bold ' : '') + '12px -apple-system, sans-serif';
+    ctx.fillStyle = dim ? '#d0d0d0' : '#1f2328';
     ctx.textAlign = 'center';
-    ctx.fillText(n.label, n.x, n.y + NODE_R + 14);
+    ctx.textBaseline = 'top';
+    ctx.fillText(n.label, n.x, n.y + NODE_R + 6);
 
-    // Route below label
+    // Route
     ctx.font = '9px "SF Mono", monospace';
-    ctx.fillStyle = dim ? '#ddd' : '#656d76';
-    ctx.fillText(n.route, n.x, n.y + NODE_R + 26);
+    ctx.fillStyle = dim ? '#e0e0e0' : '#656d76';
+    ctx.fillText(n.route, n.x, n.y + NODE_R + 20);
   });
 }
 
 // ── Interaction ──
 function getNode(mx, my) {
-  for (var i = nodes.length - 1; i >= 0; i--) {
-    var n = nodes[i];
+  for (var i = NODES.length - 1; i >= 0; i--) {
+    var n = NODES[i];
     if (!n.visible) continue;
     var dx = mx - n.x, dy = my - n.y;
     if (dx * dx + dy * dy < NODE_R * NODE_R) return n;
@@ -466,8 +428,10 @@ canvas.addEventListener('mousedown', function(e) {
   var n = getNode(e.clientX, e.clientY);
   if (n) {
     dragging = n;
+    wasDragged = false;
     dragOff.x = e.clientX - n.x;
     dragOff.y = e.clientY - n.y;
+    canvas.classList.add('dragging');
   }
 });
 
@@ -475,43 +439,43 @@ canvas.addEventListener('mousemove', function(e) {
   if (dragging) {
     dragging.x = e.clientX - dragOff.x;
     dragging.y = e.clientY - dragOff.y;
-    dragging.vx = 0;
-    dragging.vy = 0;
+    dragging._dragged = true;
+    wasDragged = true;
+    draw();
     return;
   }
   var n = getNode(e.clientX, e.clientY);
-  hover = n;
+  if (n !== hover) { hover = n; draw(); }
 
   var tip = document.getElementById('tooltip');
   if (n) {
     canvas.style.cursor = 'pointer';
-    // Build tooltip
     var html = '<div class="t-label">' + n.label + '</div>';
     html += '<div class="t-route">' + n.route + '</div>';
     html += '<div class="t-comp">' + n.comp + '</div>';
-    // Connections
     var links = [];
-    edges.forEach(function(e) {
-      if (e.from === n.id) links.push('<span class="arrow">→</span> ' + (nodeMap[e.to] || {}).label + ' <span style="color:#8b949e">(' + e.label + ')</span>');
-      if (e.to === n.id) links.push('<span class="arrow">←</span> ' + (nodeMap[e.from] || {}).label + ' <span style="color:#8b949e">(' + e.label + ')</span>');
+    EDGES.forEach(function(e) {
+      if (e.from === n.id) links.push('→ ' + (nodeMap[e.to] || {}).label + ' <span style="color:#8b949e">(' + e.label + ')</span>');
+      if (e.to === n.id) links.push('← ' + (nodeMap[e.from] || {}).label + ' <span style="color:#8b949e">(' + e.label + ')</span>');
     });
-    if (links.length) {
-      html += '<div class="t-links">' + links.map(function(l) { return '<div class="t-link">' + l + '</div>'; }).join('') + '</div>';
-    }
+    if (links.length) html += '<div class="t-links">' + links.map(function(l) { return '<div class="t-link">' + l + '</div>'; }).join('') + '</div>';
     tip.innerHTML = html;
     tip.style.display = 'block';
-    tip.style.left = Math.min(e.clientX + 16, W - 280) + 'px';
+    tip.style.left = Math.min(e.clientX + 16, W - 290) + 'px';
     tip.style.top = Math.min(e.clientY + 16, H - tip.offsetHeight - 20) + 'px';
   } else {
-    canvas.style.cursor = 'default';
+    canvas.style.cursor = 'grab';
     tip.style.display = 'none';
   }
 });
 
-canvas.addEventListener('mouseup', function() { dragging = null; });
+canvas.addEventListener('mouseup', function() {
+  dragging = null;
+  canvas.classList.remove('dragging');
+});
 
 canvas.addEventListener('click', function(e) {
-  if (dragging) return;
+  if (wasDragged) return;
   var n = getNode(e.clientX, e.clientY);
   if (n && n.img) {
     document.getElementById('lb-img').src = IMG + n.img;
@@ -529,38 +493,28 @@ document.querySelectorAll('.filter-btn').forEach(function(btn) {
     document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
     btn.classList.add('active');
     activeFilter = btn.dataset.filter;
-    applyFilter();
+    NODES.forEach(function(n) {
+      if (activeFilter === 'all') n.visible = true;
+      else if (activeFilter === 'doctor') n.visible = n.app === 'doctor';
+      else if (activeFilter === 'patient') n.visible = n.app === 'patient';
+      else if (activeFilter === 'cross') {
+        var has = false;
+        EDGES.forEach(function(e) { if (e.type === 'cross' && (e.from === n.id || e.to === n.id)) has = true; });
+        n.visible = has;
+      }
+    });
+    draw();
   });
 });
 
-function applyFilter() {
-  nodes.forEach(function(n) {
-    if (activeFilter === 'all') n.visible = true;
-    else if (activeFilter === 'doctor') n.visible = n.app === 'doctor';
-    else if (activeFilter === 'patient') n.visible = n.app === 'patient';
-    else if (activeFilter === 'cross') {
-      // Show nodes that have cross-links
-      var hasCross = false;
-      edges.forEach(function(e) {
-        if (e.type === 'cross' && (e.from === n.id || e.to === n.id)) hasCross = true;
-      });
-      n.visible = hasCross;
-    }
-  });
-}
-
-// ── Main loop ──
-function loop() {
-  simulate();
-  draw();
-  requestAnimationFrame(loop);
-}
-
+// ── Init ──
 resize();
-window.addEventListener('resize', resize);
-initNodes();
+window.addEventListener('resize', function() { resize(); draw(); });
 loadImages();
-loop();
+// Wait for images then draw
+setTimeout(draw, 100);
+setTimeout(draw, 500);
+setTimeout(draw, 1500);
 </script>
 
 </body>
