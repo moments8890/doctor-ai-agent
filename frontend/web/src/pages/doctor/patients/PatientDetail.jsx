@@ -18,6 +18,7 @@ import { useAppNavigate } from "../../../hooks/useAppNavigate";
 import { RECORD_TAB_GROUPS } from "../constants";
 import RecordCard, { formatRelativeDate } from "../../../components/RecordCard";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ExportSelectorDialog from "../../../components/ExportSelectorDialog";
 import ConfirmDialog from "../../../components/ConfirmDialog";
 import { TYPE, ICON, COLOR } from "../../../theme";
@@ -283,7 +284,7 @@ function PendingReviewRow({ record, onClick }) {
           </Typography>
         </Box>
         <Box sx={{ ml: 1, flexShrink: 0, display: "flex", alignItems: "center", mt: 0.2 }}>
-          <ExpandMoreIcon sx={{ fontSize: ICON.md, color: COLOR.warning }} />
+          <ChevronRightIcon sx={{ fontSize: ICON.md, color: COLOR.warning }} />
         </Box>
       </Box>
     </Box>
