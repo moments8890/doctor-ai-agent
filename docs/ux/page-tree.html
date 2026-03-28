@@ -236,10 +236,21 @@ h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
     <div class="stat"><span class="stat-value patient">5</span><span class="stat-label">Patient Pages</span></div>
   </div>
 
-  <div id="tree-root"></div>
+  <!-- Doctor App Tree -->
+  <div class="group-wrapper">
+    <span class="section-label doctor">Doctor App</span>
+    <div id="tree-doctor"></div>
+  </div>
 
+  <!-- Patient App Tree -->
+  <div class="group-wrapper">
+    <span class="section-label patient">Patient App</span>
+    <div id="tree-patient"></div>
+  </div>
+
+  <!-- Standalone pages + Admin -->
   <div class="extras">
-    <span class="section-label admin">Admin &amp; Debug</span>
+    <span class="section-label admin">Standalone &amp; Admin</span>
     <div class="extras-grid" id="extras"></div>
   </div>
 
@@ -254,38 +265,37 @@ h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
 <script>
 var IMG = 'page-screenshots/';
 
-var TREE = {
-  img: 'login.png', route: '/login', comp: 'LoginPage', label: 'Login', children: [
-    { label: 'Doctor App', labelClass: 'doctor', sectionOnly: true, children: [
-      { img: 'doctor-home.png', route: '/doctor', comp: 'MyAIPage', label: '我的AI', children: [
-        { img: 'doctor-chat.png', route: '/doctor/chat', comp: 'ChatPage', label: 'AI Chat' },
-        { img: 'doctor-tasks.png', route: '/doctor/tasks', comp: 'TasksPage', label: '任务' },
-      ]},
-      { img: 'doctor-patients.png', route: '/doctor/patients', comp: 'PatientsPage', label: '患者', children: [
-        { img: 'doctor-patients-1.png', route: '/doctor/patients/:id', comp: 'PatientDetail', label: '患者详情' },
-        { img: 'doctor-patients-new.png', route: '/doctor/patients/new', comp: 'InterviewPage', label: '新建病历' },
-      ]},
-      { img: 'doctor-review.png', route: '/doctor/review', comp: 'ReviewQueuePage', label: '审核' },
-      { img: 'doctor-followup.png', route: '/doctor/followup', comp: 'FollowupPage', label: '随访' },
-      { img: 'doctor-settings.png', route: '/doctor/settings', comp: 'SettingsPage', label: '设置', children: [
-        { img: 'doctor-settings-knowledge.png', route: '/settings/knowledge', comp: 'KnowledgeSubpage', label: '知识库', children: [
-          { img: 'doctor-settings-knowledge-add.png', route: '/settings/knowledge/add', comp: 'AddKnowledgeSubpage', label: '添加知识' },
-        ]},
-        { img: 'doctor-settings-template.png', route: '/settings/template', comp: 'TemplateSubpage', label: '报告模板' },
-        { img: 'doctor-settings-about.png', route: '/settings/about', comp: 'AboutSubpage', label: '关于' },
-      ]},
+var DOCTOR_TREE = {
+  img: 'doctor-home.png', route: '/doctor', comp: 'MyAIPage', label: '我的AI (Home)', children: [
+    { img: 'doctor-chat.png', route: '/doctor/chat', comp: 'ChatPage', label: 'AI Chat' },
+    { img: 'doctor-tasks.png', route: '/doctor/tasks', comp: 'TasksPage', label: '任务' },
+    { img: 'doctor-patients.png', route: '/doctor/patients', comp: 'PatientsPage', label: '患者', children: [
+      { img: 'doctor-patients-1.png', route: '/doctor/patients/:id', comp: 'PatientDetail', label: '患者详情' },
+      { img: 'doctor-patients-new.png', route: '/doctor/patients/new', comp: 'InterviewPage', label: '新建病历' },
     ]},
-    { label: 'Patient App', labelClass: 'patient', sectionOnly: true, children: [
-      { img: 'debug-patient.png', route: '/patient', comp: 'ChatTab', label: '消息' },
-      { img: 'debug-patient-records.png', route: '/patient/records', comp: 'RecordsTab', label: '病历' },
-      { img: 'debug-patient-tasks.png', route: '/patient/tasks', comp: 'TasksTab', label: '任务' },
-      { img: 'debug-patient-profile.png', route: '/patient/profile', comp: 'ProfileTab', label: '我的' },
-      { img: 'debug-patient-interview.png', route: '/patient/interview', comp: 'InterviewPage', label: '预问诊' },
+    { img: 'doctor-review.png', route: '/doctor/review', comp: 'ReviewQueuePage', label: '审核' },
+    { img: 'doctor-followup.png', route: '/doctor/followup', comp: 'FollowupPage', label: '随访' },
+    { img: 'doctor-settings.png', route: '/doctor/settings', comp: 'SettingsPage', label: '设置', children: [
+      { img: 'doctor-settings-knowledge.png', route: '/settings/knowledge', comp: 'KnowledgeSubpage', label: '知识库', children: [
+        { img: 'doctor-settings-knowledge-add.png', route: '/settings/knowledge/add', comp: 'AddKnowledgeSubpage', label: '添加知识' },
+      ]},
+      { img: 'doctor-settings-template.png', route: '/settings/template', comp: 'TemplateSubpage', label: '报告模板' },
+      { img: 'doctor-settings-about.png', route: '/settings/about', comp: 'AboutSubpage', label: '关于' },
     ]},
   ]
 };
 
+var PATIENT_TREE = {
+  img: 'debug-patient.png', route: '/patient', comp: 'ChatTab', label: '消息 (Home)', children: [
+    { img: 'debug-patient-records.png', route: '/patient/records', comp: 'RecordsTab', label: '病历' },
+    { img: 'debug-patient-tasks.png', route: '/patient/tasks', comp: 'TasksTab', label: '任务' },
+    { img: 'debug-patient-profile.png', route: '/patient/profile', comp: 'ProfileTab', label: '我的' },
+    { img: 'debug-patient-interview.png', route: '/patient/interview', comp: 'InterviewPage', label: '预问诊' },
+  ]
+};
+
 var EXTRAS = [
+  { img: 'login.png', route: '/login', comp: 'LoginPage', label: 'Login' },
   { img: 'admin.png', route: '/admin', comp: 'AdminPage', label: 'Admin' },
   { img: 'debug-components.png', route: '/debug/components', comp: 'ComponentShowcase', label: 'Components' },
   { img: 'debug-doctor-components.png', route: '/debug/doctor-components', comp: 'Showcase', label: 'Doctor Components' },
@@ -401,7 +411,8 @@ function closeLightbox() {
 document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeLightbox(); });
 
 // Init
-renderNode(TREE, document.getElementById('tree-root'));
+renderNode(DOCTOR_TREE, document.getElementById('tree-doctor'));
+renderNode(PATIENT_TREE, document.getElementById('tree-patient'));
 renderExtras();
 </script>
 
