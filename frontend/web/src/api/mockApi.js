@@ -453,7 +453,7 @@ export async function fetchAIActivity() {
 export async function fetchDraftSummary() {
   // Real API: GET /api/manage/drafts/summary → { pending, ai_drafted, due_soon, review_pending_count }
   return {
-    pending: 3,
+    pending: 4,
     review_pending_count: 3,
     today_processed: 5,
   };
@@ -535,6 +535,24 @@ export async function fetchDrafts() {
   // The frontend groups into 3 arrays; keep that structure but add all real API fields.
   return {
     pending_messages: [
+      {
+        id: 104,
+        patient_id: 3,
+        patient_name: "王明",
+        patient_message: "张医生，我术后第7天了，今天头还是有点隐隐作痛，这个正常吗？",
+        draft_text: "王先生您好，术后第7天仍有轻微头痛多属正常恢复过程。请注意观察：如果头痛突然加剧、伴呕吐或意识模糊，请立即就医。建议按时来院复查CT。",
+        original_draft_text: "王先生您好，术后第7天仍有轻微头痛多属正常恢复过程。请注意观察：如果头痛突然加剧、伴呕吐或意识模糊，请立即就医。建议按时来院复查CT。",
+        cited_knowledge_ids: [7],
+        cited_rules: [{ id: 7, title: "术后头痛危险信号" }],
+        confidence: 0.90,
+        status: "generated",
+        ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
+        created_at: "2026-03-27T13:25:00",
+        patient_context: "脑膜瘤术后第7天",
+        time: "今天 13:25",
+        badge: "new",
+        rule_cited: "术后头痛危险信号",
+      },
       {
         id: 101,
         patient_id: 5,
