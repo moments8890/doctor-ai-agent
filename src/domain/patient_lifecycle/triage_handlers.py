@@ -6,10 +6,11 @@ name lookup, and LLM response models.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import time
-from typing import Dict, List
+from typing import Any, Dict, List
 
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -149,6 +150,52 @@ async def _notify_doctor_safe(doctor_id: str, message: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Background draft reply generation (30-second batching)
+# ---------------------------------------------------------------------------
+
+# Key: patient_id → dict with task handle and metadata
+_pending_drafts: Dict[int, Dict[str, Any]] = {}
+
+_DRAFT_BATCH_DELAY = 30  # seconds — wait for rapid-fire messages before generating
+
+
+async def _generate_draft_for_escalated(
+    doctor_id: str,
+    patient_id: int,
+    message_id: int,
+    message_text: str,
+    patient_context: str = "",
+) -> None:
+    """Generate a draft reply after a delay (batches rapid-fire messages).
+
+    If a newer message arrives for the same patient within the delay window,
+    the previous pending draft is cancelled and replaced.
+    """
+    # Cancel any pending draft for this patient (newer message supersedes)
+    if patient_id in _pending_drafts:
+        old_task = _pending_drafts[patient_id].get("task")
+        if old_task and not old_task.done():
+            old_task.cancel()
+
+    async def _delayed_generate() -> None:
+        await asyncio.sleep(_DRAFT_BATCH_DELAY)
+        try:
+            from domain.patient_lifecycle.draft_reply import generate_draft_reply
+
+            await generate_draft_reply(
+                doctor_id, patient_id, message_id, message_text, patient_context,
+            )
+            log(f"[escalation] draft generated for message {message_id}")
+        except Exception as e:
+            log(f"[escalation] draft generation failed: {e}", level="warning")
+        finally:
+            _pending_drafts.pop(patient_id, None)
+
+    task = asyncio.create_task(_delayed_generate(), name=f"draft-reply-{message_id}")
+    _pending_drafts[patient_id] = {"task": task, "doctor_id": doctor_id}
+
+
+# ---------------------------------------------------------------------------
 # Prompt constants
 # ---------------------------------------------------------------------------
 
@@ -270,7 +317,7 @@ async def handle_escalation(
         }, ensure_ascii=False)
 
     # Persist inbound patient message with escalation metadata
-    await save_patient_message(
+    saved_msg = await save_patient_message(
         db_session,
         patient_id=patient_id,
         doctor_id=doctor_id,
@@ -281,6 +328,18 @@ async def handle_escalation(
         triage_category=category,
         structured_data=summary_json,
     )
+
+    # Fire-and-forget: generate AI draft reply for the doctor
+    try:
+        context_str = json.dumps(context, ensure_ascii=False) if context else ""
+        safe_create_task(
+            _generate_draft_for_escalated(
+                doctor_id, patient_id, saved_msg.id, message, context_str,
+            ),
+            name=f"draft-reply-{saved_msg.id}",
+        )
+    except Exception as exc:
+        log(f"[triage] failed to schedule draft generation: {exc}", level="warning")
 
     # Rate limiting: max 3 escalation notifications per 6h per patient.
     # If rate-limited, still save the message but don't notify the doctor.
@@ -335,7 +394,7 @@ async def handle_urgent(
     reply = "如出现严重症状请立即就医或拨打120。已通知您的主治医生。"
 
     # Persist inbound urgent message
-    await save_patient_message(
+    saved_msg = await save_patient_message(
         db_session,
         patient_id=patient_id,
         doctor_id=doctor_id,
@@ -350,6 +409,18 @@ async def handle_urgent(
             "suggested_action": "请立即联系患者",
         }, ensure_ascii=False),
     )
+
+    # Fire-and-forget: generate AI draft reply for the doctor
+    try:
+        context_str = json.dumps(context, ensure_ascii=False) if context else ""
+        safe_create_task(
+            _generate_draft_for_escalated(
+                doctor_id, patient_id, saved_msg.id, message, context_str,
+            ),
+            name=f"draft-reply-{saved_msg.id}",
+        )
+    except Exception as exc:
+        log(f"[triage] failed to schedule draft generation: {exc}", level="warning")
 
     # Persist outbound safety guidance
     await save_patient_message(

@@ -45,6 +45,7 @@ async def generate_draft_reply(
     from agent.prompt_config import LayerConfig
     from agent.llm import llm_call
     from domain.knowledge.citation_parser import extract_citations, validate_citations
+    from domain.knowledge.usage_tracking import log_citations
     from db.engine import AsyncSessionLocal
     from db.crud.doctor import list_doctor_knowledge_items
 
@@ -85,14 +86,46 @@ async def generate_draft_reply(
 
         validation = validate_citations(citation_result.cited_ids, valid_kb_ids)
 
+        # Log valid citations to knowledge_usage_log (non-fatal)
+        if validation.valid_ids:
+            try:
+                async with AsyncSessionLocal() as cite_session:
+                    await log_citations(
+                        cite_session, doctor_id, validation.valid_ids,
+                        "followup", patient_id=patient_id,
+                    )
+            except Exception as cite_exc:
+                log(f"[draft_reply] citation logging failed (non-fatal): {cite_exc}", level="warning")
+
         confidence = 0.7 if is_red_flag else 0.9
 
-        return DraftReplyResult(
+        result = DraftReplyResult(
             text=response,
             cited_knowledge_ids=validation.valid_ids,
             confidence=confidence,
             is_red_flag=is_red_flag,
         )
+
+        # Persist draft to MessageDraft table (non-fatal)
+        try:
+            from db.models.message_draft import MessageDraft, DraftStatus
+
+            async with AsyncSessionLocal() as draft_session:
+                draft = MessageDraft(
+                    doctor_id=doctor_id,
+                    patient_id=patient_id,
+                    source_message_id=message_id,
+                    draft_text=result.text,
+                    cited_knowledge_ids=json.dumps(result.cited_knowledge_ids),
+                    confidence=result.confidence,
+                    status=DraftStatus.generated.value,
+                )
+                draft_session.add(draft)
+                await draft_session.commit()
+        except Exception as draft_exc:
+            log(f"[draft_reply] draft persistence failed (non-fatal): {draft_exc}", level="warning")
+
+        return result
 
     except Exception as exc:
         log(f"[draft_reply] generation failed: {exc}", level="error")

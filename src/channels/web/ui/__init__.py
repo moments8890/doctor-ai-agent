@@ -22,6 +22,7 @@ from channels.web.ui.knowledge_stats_handlers import router as _knowledge_stats_
 from channels.web.ui.teaching_handlers import router as _teaching_router
 from channels.web.ui.draft_handlers import router as _draft_router
 from channels.web.ui.ai_activity_handlers import router as _ai_activity_router
+from channels.web.ui.review_queue_handlers import router as _review_queue_router
 
 router = APIRouter(tags=["ui"])
 
@@ -41,3 +42,4 @@ router.include_router(_knowledge_stats_router)
 router.include_router(_teaching_router)
 router.include_router(_draft_router)
 router.include_router(_ai_activity_router)
+router.include_router(_review_queue_router)

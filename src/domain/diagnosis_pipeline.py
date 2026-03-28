@@ -472,6 +472,38 @@ async def run_diagnosis(
             return {"error": "Invalid LLM response: no valid differentials", "status": "failed"}
 
         # ------------------------------------------------------------------
+        # Step 7b: Extract and log KB citations (non-fatal)
+        # ------------------------------------------------------------------
+        try:
+            from domain.knowledge.citation_parser import extract_citations, validate_citations
+            from domain.knowledge.usage_tracking import log_citations
+            from db.crud.doctor import list_doctor_knowledge_items
+
+            # Collect all text fields that might contain [KB-{id}] markers
+            all_text = ""
+            if llm_result:
+                for d in llm_result.differentials:
+                    all_text += f" {d.detail}"
+                for w in llm_result.workup:
+                    all_text += f" {w.detail}"
+                for t in llm_result.treatment:
+                    all_text += f" {t.detail}"
+
+            citations = extract_citations(all_text)
+            if citations.cited_ids:
+                async with AsyncSessionLocal() as cite_session:
+                    items = await list_doctor_knowledge_items(cite_session, doctor_id, limit=200)
+                    valid_ids = {item.id for item in items}
+                    validated = validate_citations(citations.cited_ids, valid_ids)
+                    if validated.valid_ids:
+                        await log_citations(
+                            cite_session, doctor_id, validated.valid_ids,
+                            "diagnosis", patient_id=None, record_id=record_id,
+                        )
+        except Exception as cite_exc:
+            log(f"{_tag} citation logging failed (non-fatal): {cite_exc}", level="warning")
+
+        # ------------------------------------------------------------------
         # Step 8: Persist diagnosis to ai_suggestions table
         # ------------------------------------------------------------------
         red_flags = result.get("red_flags", [])
