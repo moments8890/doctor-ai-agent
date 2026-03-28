@@ -5,9 +5,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional
-from sqlalchemy import and_, delete, or_, select, update
-from sqlalchemy.orm import selectinload
+from typing import Optional
+from sqlalchemy import and_, delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from db.models import (
     Patient,

@@ -5,7 +5,6 @@ import {
   MOCK_TASKS,
   MOCK_SUGGESTIONS,
   MOCK_BRIEFING,
-  MOCK_CHAT_MESSAGES,
   MOCK_OVERDUE,
   MOCK_INTERVIEW_STATE,
   MOCK_PATIENT_MESSAGES,
@@ -360,8 +359,4 @@ export async function replyToPatient() {
 
 export async function transcribeAudio() {
   return { text: "模拟语音转文字结果" };
-}
-
-export async function getWorkingContext() {
-  return { messages: MOCK_CHAT_MESSAGES };
 }

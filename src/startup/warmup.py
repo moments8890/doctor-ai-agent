@@ -3,8 +3,6 @@
 import asyncio
 import logging
 import os
-from typing import List
-
 from utils.app_config import AppConfig, ollama_base_url_candidates
 
 

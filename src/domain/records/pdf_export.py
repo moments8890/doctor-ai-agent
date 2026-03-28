@@ -102,14 +102,6 @@ def _record_type_label(record_type: str) -> str:
     return mapping.get(record_type or "visit", record_type or "门诊")
 
 
-def _fmt_date(dt: Optional[datetime]) -> str:
-    if dt is None:
-        return "—"
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt.strftime("%Y-%m-%d")
-
-
 def _fmt_datetime(dt: Optional[datetime]) -> str:
     if dt is None:
         return "—"

@@ -11,7 +11,6 @@ from pydantic import BaseModel, Field
 
 from domain.patients.completeness import (
     check_completeness,
-    count_filled,
     merge_extracted,
     total_fields,
 )

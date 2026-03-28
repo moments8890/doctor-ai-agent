@@ -157,14 +157,6 @@ def knowledge_limits() -> dict:
 
 
 
-def _truncate_text(text: str, max_chars: int) -> str:
-    if len(text) <= max_chars:
-        return text
-    if max_chars <= 1:
-        return text[:max_chars]
-    return text[: max_chars - 1] + "…"
-
-
 # ── Prompt injection sanitization ─────────────────────────────────
 _CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
 
@@ -421,40 +413,3 @@ async def save_uploaded_knowledge(doctor_id: str, text: str, source_filename: st
     return {"id": item.id, "text_preview": text[:100]}
 
 
-async def maybe_auto_learn_knowledge(
-    session,
-    doctor_id: str,
-    user_text: str,
-    structured_fields: Optional[Dict[str, str]] = None,
-) -> int:
-    # Auto-learn disabled to prevent self-reinforcing hallucination loop.
-    # Doctor-curated items only. See D6.4 spec.
-    return 0
-    if not _bool_env("KNOWLEDGE_AUTO_LEARN_ENABLED", True):
-        return 0
-    limits = knowledge_limits()
-    candidates = _extract_auto_candidates(user_text, structured_fields)
-    if not candidates:
-        return 0
-    inserted = 0
-    for candidate in candidates[: limits["auto_max_new_per_turn"]]:
-        try:
-            row = await save_knowledge_item(
-                session,
-                doctor_id,
-                candidate,
-                source="agent_auto",
-                confidence=0.6,
-            )
-        except Exception as exc:
-            log(
-                "[Knowledge] auto learn save failed doctor={0} candidate={1}: {2}".format(
-                    doctor_id,
-                    candidate[:80],
-                    exc,
-                )
-            )
-            continue
-        if row is not None:
-            inserted += 1
-    return inserted

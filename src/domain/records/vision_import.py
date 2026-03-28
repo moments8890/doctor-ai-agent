@@ -14,8 +14,6 @@ from typing import Dict, List, Optional
 
 from domain.patients.interview_summary import (
     DoctorExtractResult,
-    generate_content,
-    extract_tags,
 )
 from domain.records.schema import FIELD_KEYS
 from utils.log import log

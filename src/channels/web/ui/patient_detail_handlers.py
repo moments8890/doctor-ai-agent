@@ -12,15 +12,12 @@ from fastapi import APIRouter, Header, HTTPException, Query
 from sqlalchemy import func, select
 
 from db.crud import (
-    get_all_patients,
-    get_records_for_patient,
-    get_all_records_for_doctor,
     delete_patient_for_doctor,
 )
 from db.crud.patient import search_patients_nl
 from domain.patients.nl_search import extract_criteria
 from db.engine import AsyncSessionLocal
-from db.models import MedicalRecordDB, Patient
+from db.models import MedicalRecordDB
 from domain.patients.timeline import build_patient_timeline
 from infra.auth.rate_limit import enforce_doctor_rate_limit
 from infra.observability.audit import audit
@@ -37,7 +34,6 @@ from channels.web.ui.admin_handlers import (
 from channels.web.ui.admin_table_rows import admin_table_rows_logic as _admin_table_rows_logic
 from channels.web.ui._utils import (
     _fmt_ts,
-    _parse_tags,
     _resolve_ui_doctor_id,
     _require_ui_admin_access,
 )

@@ -18,7 +18,6 @@ from db.crud import (
     mark_task_notified,
     revert_task_to_pending,
     try_acquire_scheduler_lease,
-    release_scheduler_lease,
 )
 from db.models import DoctorTask
 from domain.tasks.notifications import send_doctor_notification

@@ -4,9 +4,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import List, Optional
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from db.models import (

@@ -690,11 +690,6 @@ export async function abandonPendingRecordById(pendingId) {
   return request(`/api/records/pending/${encodeURIComponent(pendingId)}/abandon`, { method: "POST" });
 }
 
-export async function getWorkingContext(doctorId) {
-  const qs = new URLSearchParams({ doctor_id: doctorId });
-  return request(`/api/manage/working-context?${qs.toString()}`);
-}
-
 export async function clearContext(doctorId) {
   const qs = new URLSearchParams({ doctor_id: doctorId });
   return request(`/api/manage/clear-context?${qs.toString()}`, { method: "POST" });

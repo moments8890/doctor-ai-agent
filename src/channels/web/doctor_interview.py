@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Header, HTTPException, UploadFile, File, Form
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from infra.auth.rate_limit import enforce_doctor_rate_limit
 from infra.auth.request_auth import resolve_doctor_id_from_auth_or_fallback

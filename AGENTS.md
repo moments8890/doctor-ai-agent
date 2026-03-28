@@ -93,7 +93,7 @@ Direct pushes to `main` are allowed.
 2. **Integration tests** — `pytest tests/integration/` — run when the LLM pipeline, prompts, or end-to-end workflow behavior changed
 3. **Corpus/E2E replay** — `bash scripts/test.sh chatlog-full` — use for human-language regression checks on meaningful workflow changes
 4. **Document changes in commit message** — include what changed and any migration/manual cleanup impact
-5. **Update `ARCHITECTURE.md`** — only if schema, env vars, API endpoints, or service structure changed
+5. **Update `docs/architecture.md`** — only if schema, env vars, API endpoints, or service structure changed
 6. **Update progress** — tick completed items in `debug/iteration_*.md`
 7. **DO NOT RUN TESTS** - do not run tests (dont run the tests to validate)
 

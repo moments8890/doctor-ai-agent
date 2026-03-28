@@ -5,14 +5,13 @@
 from __future__ import annotations
 
 import json
-import re
-from typing import List, Optional
+from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from db.models import MedicalRecordDB
 from db.repositories import RecordRepository
 from db.models.medical_record import MedicalRecord
-from db.crud._common import _utcnow, _trace_block
+from db.crud._common import _trace_block
 from db.crud.doctor import _ensure_doctor_exists
 from utils.log import log
 

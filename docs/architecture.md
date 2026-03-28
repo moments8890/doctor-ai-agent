@@ -123,8 +123,8 @@ src/
 │   │   ├── patient.py          # Patient interview tools
 │   │   └── resolve.py          # Patient name -> ID resolution
 │   └── prompts/                # LLM prompt fragments
-│       ├── system/base.md      # Layer 1: identity, safety
-│       ├── common/neurology.md # Layer 2: specialty knowledge
+│       ├── common/base.md      # Layer 1: identity, safety
+│       ├── domain/neurology.md # Layer 2: specialty knowledge
 │       └── intent/             # Layer 3: per-intent prompts
 │           ├── routing.md
 │           ├── interview.md

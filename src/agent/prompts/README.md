@@ -18,7 +18,7 @@ prompts/
 ├── domain/                  ← Layer 2: specialty (when LayerConfig.domain=True)
 │   └── neurology.md            conditions, red flags, key tests
 ├── intent/                  ← Layer 3: action-specific rules + examples
-│   ├── routing.md              intent classification (6 intents)
+│   ├── routing.md              intent classification (7 intents)
 │   ├── interview.md            doctor dictation → field extraction
 │   ├── patient-interview.md    patient pre-consultation interview
 │   ├── query.md                query results → Chinese summary

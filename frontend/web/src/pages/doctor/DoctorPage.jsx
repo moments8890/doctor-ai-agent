@@ -3,8 +3,7 @@
  *
  * 鲸鱼随行主页：composer-first workbench with one visible working context.
  *
- * Default route is the AI chat composer. The working-context header shows
- * current patient, pending draft, and next-step guidance at a glance.
+ * Default route is the AI chat composer.
  * Admin/management surfaces are reachable but secondary.
  */
 import { useEffect, useRef, useState } from "react";
