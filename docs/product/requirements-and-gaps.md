@@ -1,6 +1,15 @@
 # Product Requirements & Feature Gap Analysis
 
 > Updated: 2026-03-17 | Based on stakeholder conversation + codebase audit
+>
+> **⚠️ CORRECTIONS (2026-03-27):**
+> - ADR 0016 (Patient Interview): **✅ Implemented** — multi-turn interview with session state machine
+> - ADR 0017 (Patient Onboarding): **✅ Implemented** — QR token endpoint + unified auth + QRDialog
+> - ADR 0018 (Clinical Decision Support): **✅ Implemented** — full diagnosis pipeline + review UI
+> - ADR 0022 (Knowledge Base): **✅ Implemented** — manual KB CRUD + document upload + LLM processing + citation
+> - ADR 0019 (External AI): NOT STARTED. ADR 0020 (Bidirectional): PARTIAL. ADR 0021 (Outcome Tracking): NOT STARTED.
+> - Phases are **concurrent**, not sequential — Phases 1-3 are substantially on main.
+> - File paths in Phase 0 section are stale; see `docs/architecture.md` for current module map.
 
 ## Product Vision
 

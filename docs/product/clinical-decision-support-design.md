@@ -4,6 +4,14 @@
 > Status: APPROVED (eng review CLEARED)
 > Updated: 2026-03-21 — P1/P2/P3/P1.5/UI all complete. P4-P6 next.
 
+> **⚠️ CORRECTIONS (2026-03-27) — read before using this doc:**
+> - `case_history` table **deleted**. Outcome fields absorbed into `medical_records` (final_diagnosis, treatment_outcome, key_symptoms).
+> - `diagnosis_results` table **deleted**. Replaced by `ai_suggestions` table (row-per-item: section + content + decision).
+> - RAG / embedding case matching **disabled**. `matched_cases` is always `[]`. Knowledge now uses feed-all-to-LLM via 6-layer prompt composer.
+> - `embedding.py` **deleted**. No vector search. Knowledge items injected directly into LLM system prompt with `[KB-{id}]` citation markers.
+> - F1.2 QR login: **done** (backend + frontend QRDialog). F1.3 voice: **done** (integrated into patient ChatTab + InterviewPage).
+> - For current architecture details, see `docs/architecture.md`.
+
 ## Product Roadmap Alignment
 
 This design implements Phases 1–2 of the product roadmap

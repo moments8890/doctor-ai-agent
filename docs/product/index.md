@@ -2,6 +2,10 @@
 
 What we're building, why, and where we are.
 
+## Start Here
+
+**[north-star.md](north-star.md)** — 2-minute read: what, for whom, current status, what's next.
+
 ## Canonical Docs
 
 | Doc | Owns | Update when |
@@ -11,18 +15,15 @@ What we're building, why, and where we are.
 | [feature-parity-matrix.md](feature-parity-matrix.md) | Feature completion tracking (frontend + backend) | Any feature added, changed, or removed |
 | [clinical-decision-support-design.md](clinical-decision-support-design.md) | Diagnosis pipeline product decisions, knowledge base strategy, CDS roadmap | CDS features change scope or status |
 
-## Reference (not canonical — read for context)
+## Reference
 
-- [architecture-comparison.md](architecture-comparison.md) — competitive feature matrix
-- [competitive-analysis-abc-2026-03-20.md](competitive-analysis-abc-2026-03-20.md) — detailed competitive analysis
-- [compare.md](compare.md) — feature comparison with competitors
-- [ux-review-consolidated.md](ux-review-consolidated.md) — UX review findings
-- [message-routing-pipeline.md](message-routing-pipeline.md) — patient message triage design
+- [competitive-analysis-abc-2026-03-20.md](competitive-analysis-abc-2026-03-20.md) — detailed competitive analysis with Codex review
+- [clinical-decision-support-test-plan.md](clinical-decision-support-test-plan.md) — QA checklist for CDS pipeline
 
 ## Archived (superseded)
 
-- [feature-gap-analysis.md](feature-gap-analysis.md) — superseded by feature-parity-matrix.md
-- [feature-gap-analysis-2026-03-20.md](feature-gap-analysis-2026-03-20.md) — superseded by feature-parity-matrix.md
+- [archived/](archived/) — feature-gap-analysis docs (superseded by feature-parity-matrix)
+- [archived/](archived/) — architecture-comparison, compare, message-routing-pipeline, ux-review-consolidated (historical)
 
 ## Note
 
