@@ -224,6 +224,11 @@ export default function DoctorPage() {
   const isReviewPage = !!recordId;
   const activeSection = patientId ? "patients" : (section || "my-ai");
 
+  // Main tabs show bottom nav; subpages hide it and show ‹ back in top bar.
+  // WeChat pattern: bottom nav only on root tab views.
+  const MAIN_TABS = new Set(["my-ai", "patients", "review", "followup"]);
+  const isSubpage = isReviewPage || !MAIN_TABS.has(activeSection) || !!patientId;
+
   function handleNav(key) { navigate(key === "my-ai" ? "/doctor" : `/doctor/${key}`); }
   function handleLogout() {
     clearAuth();
@@ -243,7 +248,7 @@ export default function DoctorPage() {
           <SectionContent activeSection={activeSection} doctorId={doctorId} isMobile={isMobile} navigate={navigate} urlSubpage={urlSubpage} urlSubId={urlSubId} chatInsertText={chatInsertText} setChatInsertText={setChatInsertText} chatAutoSendText={chatAutoSendText} setChatAutoSendText={setChatAutoSendText} chatAutoSendConsumedRef={chatAutoSendConsumedRef} patientRefreshKey={patientRefreshKey} setPatientRefreshKey={setPatientRefreshKey} handleLogout={handleLogout} onContextCleared={undefined} triggerInterview={triggerInterview} setTriggerInterview={setTriggerInterview} chatInterviewSessionId={chatInterviewSessionId} setChatInterviewSessionId={setChatInterviewSessionId} chatInterviewPrePopulated={chatInterviewPrePopulated} setChatInterviewPrePopulated={setChatInterviewPrePopulated} />
         )}
       </Box>
-      {isMobile && <MobileBottomNav activeSection={activeSection} navBadge={navBadge} onNav={handleNav} />}
+      {isMobile && !isSubpage && <MobileBottomNav activeSection={activeSection} navBadge={navBadge} onNav={handleNav} />}
       <OnboardingDialog open={showOnboarding} name={onboardName} saving={onboardSaving} onChange={setOnboardName} onSubmit={handleOnboardSubmit} onClose={() => setShowOnboarding(false)} />
     </Box>
   );
