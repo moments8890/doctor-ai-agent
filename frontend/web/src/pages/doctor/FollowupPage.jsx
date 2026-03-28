@@ -11,9 +11,11 @@ import { useEffect, useState, useCallback } from "react";
 import { Box, CircularProgress, Typography } from "@mui/material";
 import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
 import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
+import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import SubpageHeader from "../../components/SubpageHeader";
+import EmptyState from "../../components/EmptyState";
 import PatientAvatar from "../../components/PatientAvatar";
 import SectionLabel from "../../components/SectionLabel";
 import StatusBadge from "../../components/StatusBadge";
@@ -376,7 +378,14 @@ export default function FollowupPage({ doctorId }) {
       }
       setSummary(summaryRes || {});
     } catch (err) {
-      setError(err.message || "加载失败");
+      // 404 means no data yet — treat as empty, not as an error
+      const is404 = err?.status === 404 || err?.response?.status === 404 || (err.message && /not found/i.test(err.message));
+      if (is404) {
+        setData({ pending_messages: [], upcoming_followups: [], recently_sent: [] });
+        setSummary({});
+      } else {
+        setError(err.message || "加载失败");
+      }
     } finally {
       setLoading(false);
     }
@@ -458,14 +467,11 @@ export default function FollowupPage({ doctorId }) {
 
         {/* Empty state */}
         {isEmpty && (
-          <Box sx={{ py: 6, textAlign: "center" }}>
-            <Typography sx={{ fontSize: TYPE.title.fontSize, color: COLOR.text3, mb: 0.5 }}>
-              暂无随访消息
-            </Typography>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>
-              AI会在需要随访时自动起草消息
-            </Typography>
-          </Box>
+          <EmptyState
+            icon={<MailOutlineIcon />}
+            title="暂无随访消息"
+            subtitle="患者消息会自动出现在这里"
+          />
         )}
 
         {/* Content */}
