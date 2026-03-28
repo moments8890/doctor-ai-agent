@@ -15,8 +15,10 @@ import { useCallback, useEffect, useState } from "react";
 import { Box, CircularProgress, Typography } from "@mui/material";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
+import RateReviewOutlinedIcon from "@mui/icons-material/RateReviewOutlined";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
+import EmptyState from "../../components/EmptyState";
 import PatientAvatar from "../../components/PatientAvatar";
 import SectionLabel from "../../components/SectionLabel";
 import SubpageHeader from "../../components/SubpageHeader";
@@ -228,19 +230,6 @@ function CompletedRow({ item }) {
   );
 }
 
-/* ── Empty state ──────────────────────────────────────────────────────────── */
-
-function EmptyState() {
-  return (
-    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 5, gap: 0.5 }}>
-      <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text4 }}>暂无待审核项</Typography>
-      <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#ccc" }}>
-        新的诊断建议会自动出现在这里
-      </Typography>
-    </Box>
-  );
-}
-
 /* ── Main ─────────────────────────────────────────────────────────────────── */
 
 export default function ReviewQueuePage({ doctorId }) {
@@ -380,7 +369,13 @@ export default function ReviewQueuePage({ doctorId }) {
         )}
 
         {/* Empty state */}
-        {!loading && pending.length === 0 && <EmptyState />}
+        {!loading && pending.length === 0 && (
+          <EmptyState
+            icon={<RateReviewOutlinedIcon />}
+            title="暂无待审核项"
+            subtitle="新的诊断建议会自动出现在这里"
+          />
+        )}
 
         {/* Recently completed */}
         {!loading && completed.length > 0 && (
