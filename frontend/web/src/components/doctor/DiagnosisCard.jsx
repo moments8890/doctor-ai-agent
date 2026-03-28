@@ -14,11 +14,13 @@
  *  - onDecide(suggestionId, decision, opts): callback for confirm/reject/edit
  *  - expanded: boolean — controlled expand state
  *  - onToggle(): toggle expand/collapse
+ *  - knowledgeMap: object — KB ID → { id, text, source } for citation chips
  */
 import { useState } from "react";
-import { Box, Typography, TextField } from "@mui/material";
+import { Box, Typography, TextField, Chip } from "@mui/material";
 import { TYPE, BUTTON, COLOR } from "../../theme";
 import InlineEditor from "../InlineEditor";
+import SheetDialog from "../SheetDialog";
 
 /* ── State-derived style maps ──────────────────────────────────────────────── */
 
@@ -182,10 +184,116 @@ function RejectMode({ onSubmit, onCancel }) {
   );
 }
 
+/* ── Citation rendering ────────────────────────────────────────────────────── */
+
+/** Parse [KB-{id}] markers in detail text, render interleaved text + chips. */
+function renderDetailWithCitations(detail, knowledgeMap, onCitationTap) {
+  if (!detail) return null;
+  if (!knowledgeMap || Object.keys(knowledgeMap).length === 0) {
+    // No knowledge data — strip markers to keep text clean
+    return detail.replace(/\[KB-\d+\]/g, "").trim();
+  }
+  const parts = detail.split(/(\[KB-\d+\])/g);
+  return parts.map((part, i) => {
+    const match = part.match(/^\[KB-(\d+)\]$/);
+    if (match) {
+      const id = parseInt(match[1]);
+      const item = knowledgeMap[id];
+      if (item) {
+        const sourceLabel = item.source?.startsWith("upload:")
+          ? item.source.replace("upload:", "")
+          : `KB-${id}`;
+        return (
+          <Chip
+            key={i}
+            label={sourceLabel}
+            size="small"
+            onClick={(e) => { e.stopPropagation(); onCitationTap(item); }}
+            sx={{
+              height: 20,
+              fontSize: 10,
+              fontWeight: 500,
+              bgcolor: "#e3f2fd",
+              color: "#1565c0",
+              cursor: "pointer",
+              maxWidth: 140,
+              mx: 0.3,
+              verticalAlign: "middle",
+              "& .MuiChip-label": {
+                px: 0.8,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              },
+              "&:hover": { bgcolor: "#bbdefb" },
+              "&:active": { opacity: 0.7 },
+            }}
+          />
+        );
+      }
+      // Unresolved citation
+      return <span key={i} style={{ color: "#999", fontSize: 11 }}>[KB-?]</span>;
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
+/** Bottom sheet for viewing a cited knowledge item. */
+function CitationSheet({ item, open, onClose }) {
+  const [showFull, setShowFull] = useState(false);
+
+  if (!item) return null;
+
+  const headerText = item.source?.startsWith("upload:")
+    ? item.source.replace("upload:", "")
+    : "";
+  const text = item.text || item.content || "";
+  const isLong = text.length > 200;
+  const displayText = showFull ? text : text.slice(0, 200);
+
+  return (
+    <SheetDialog
+      open={open}
+      onClose={() => { onClose(); setShowFull(false); }}
+      title={headerText || ""}
+      subtitle="来源"
+    >
+      <Typography
+        sx={{
+          fontSize: TYPE.body.fontSize,
+          color: COLOR.text2,
+          lineHeight: 1.65,
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
+          maxHeight: showFull ? "60vh" : "none",
+          overflowY: showFull ? "auto" : "visible",
+        }}
+      >
+        {displayText}{!showFull && isLong ? "..." : ""}
+      </Typography>
+      {isLong && !showFull && (
+        <Box
+          onClick={() => setShowFull(true)}
+          sx={{
+            mt: 1,
+            fontSize: TYPE.caption.fontSize,
+            color: COLOR.primary,
+            cursor: "pointer",
+            "&:active": { opacity: 0.6 },
+          }}
+        >
+          查看全部
+        </Box>
+      )}
+    </SheetDialog>
+  );
+}
+
 /* ── Main component ────────────────────────────────────────────────────────── */
 
-export default function DiagnosisCard({ suggestion, onDecide, expanded, onToggle }) {
+export default function DiagnosisCard({ suggestion, onDecide, expanded, onToggle, knowledgeMap = {} }) {
   const [mode, setMode] = useState(null); // null | "edit" | "reject"
+  const [citationItem, setCitationItem] = useState(null);
 
   if (!suggestion) return null;
 
@@ -284,6 +392,7 @@ export default function DiagnosisCard({ suggestion, onDecide, expanded, onToggle
           {detail && mode === null && (
             <Box sx={{ mx: 2, mb: 0.5, px: 1.5, py: 1, bgcolor: COLOR.surfaceAlt, borderRadius: "6px" }}>
               <Typography
+                component="div"
                 sx={{
                   fontSize: TYPE.body.fontSize,
                   color: COLOR.text2,
@@ -291,7 +400,11 @@ export default function DiagnosisCard({ suggestion, onDecide, expanded, onToggle
                   whiteSpace: "pre-wrap",
                 }}
               >
-                {suggestion.edited_text || detail}
+                {renderDetailWithCitations(
+                  suggestion.edited_text || detail,
+                  knowledgeMap,
+                  (item) => setCitationItem(item),
+                )}
               </Typography>
             </Box>
           )}
@@ -322,6 +435,13 @@ export default function DiagnosisCard({ suggestion, onDecide, expanded, onToggle
           )}
         </Box>
       )}
+
+      {/* Citation detail sheet */}
+      <CitationSheet
+        item={citationItem}
+        open={!!citationItem}
+        onClose={() => setCitationItem(null)}
+      />
     </Box>
   );
 }

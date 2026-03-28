@@ -20,6 +20,9 @@ import {
   Typography,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
+import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
+import KeyboardOutlinedIcon from "@mui/icons-material/KeyboardOutlined";
+import VoiceInput, { isVoiceSupported } from "../../components/VoiceInput";
 import AddIcon from "@mui/icons-material/Add";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
@@ -82,6 +85,8 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
   const [messages, setMessages] = useState([welcomeMsg]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [voiceMode, setVoiceMode] = useState(false);
+  const voiceSupported = isVoiceSupported();
   const [lastMsgId, setLastMsgId] = useState(null);
   const chatEndRef = useRef(null);
   const pollingRef = useRef(null);
@@ -291,10 +296,22 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
 
       {/* Input */}
       <Box component="form" onSubmit={handleSend}
-        sx={{ display: "flex", gap: 1, px: 2, py: 1.5, bgcolor: "#f5f5f5", borderTop: "1px solid #ddd", flexShrink: 0 }}>
-        <TextField value={input} onChange={e => setInput(e.target.value)} placeholder="请输入…"
-          fullWidth size="small" sx={{ bgcolor: "#fff", borderRadius: 1 }} autoFocus />
-        <IconButton type="submit" disabled={!input.trim() || sending} sx={{ color: "#07C160" }} aria-label="发送"><SendIcon /></IconButton>
+        sx={{ display: "flex", alignItems: "center", gap: 1, px: 2, py: 1.5, bgcolor: "#f5f5f5", borderTop: "1px solid #ddd", flexShrink: 0 }}>
+        {voiceSupported && (
+          <IconButton onClick={() => setVoiceMode(v => !v)} sx={{ color: "#666", flexShrink: 0 }} aria-label={voiceMode ? "切换键盘" : "切换语音"}>
+            {voiceMode ? <KeyboardOutlinedIcon /> : <MicNoneOutlinedIcon />}
+          </IconButton>
+        )}
+        {voiceMode ? (
+          <VoiceInput
+            onResult={(text) => { setInput(prev => prev ? prev + text : text); setVoiceMode(false); }}
+            onCancel={() => setVoiceMode(false)}
+          />
+        ) : (
+          <TextField value={input} onChange={e => setInput(e.target.value)} placeholder="请输入…"
+            fullWidth size="small" sx={{ bgcolor: "#fff", borderRadius: 1 }} />
+        )}
+        <IconButton type="submit" disabled={!input.trim() || sending} sx={{ color: "#07C160", flexShrink: 0 }} aria-label="发送"><SendIcon /></IconButton>
       </Box>
     </Box>
   );

@@ -9,7 +9,7 @@
  *  - Trigger button: record is completed but no suggestions
  *  - Review mode: suggestions exist, grouped by section
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Box, Skeleton, Typography } from "@mui/material";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
@@ -120,7 +120,7 @@ function LoadingSkeleton() {
 
 export default function ReviewPage({ recordId }) {
   const navigate = useAppNavigate();
-  const { getSuggestions, decideSuggestion, addSuggestion, triggerDiagnosis, finalizeReview, getTaskRecord } = useApi();
+  const { getSuggestions, decideSuggestion, addSuggestion, triggerDiagnosis, finalizeReview, getTaskRecord, getKnowledgeBatch } = useApi();
   const { doctorId } = useDoctorStore();
 
   const [record, setRecord] = useState(null);
@@ -129,7 +129,30 @@ export default function ReviewPage({ recordId }) {
   const [loading, setLoading] = useState(true);
   const [finalizing, setFinalizing] = useState(false);
   const [toast, setToast] = useState(null);
+  const [knowledgeMap, setKnowledgeMap] = useState({});
   const pollRef = useRef(null);
+
+  /* ── Fetch cited knowledge items when suggestions change ─────────────────── */
+
+  const citedIds = useMemo(() => {
+    const ids = new Set();
+    (suggestions || []).forEach((s) => {
+      const matches = (s.detail || "").matchAll(/\[KB-(\d+)\]/g);
+      for (const m of matches) ids.add(parseInt(m[1]));
+    });
+    return ids;
+  }, [suggestions]);
+
+  useEffect(() => {
+    if (citedIds.size === 0 || !doctorId || !getKnowledgeBatch) return;
+    getKnowledgeBatch(doctorId, [...citedIds])
+      .then((data) => {
+        const map = {};
+        (data.items || []).forEach((item) => { map[item.id] = item; });
+        setKnowledgeMap(map);
+      })
+      .catch(() => {}); // silent fail — citations will show as unresolved
+  }, [citedIds, doctorId, getKnowledgeBatch]);
 
   /* ── Fetch record + suggestions on mount ─────────────────────────────────── */
 
@@ -262,6 +285,7 @@ export default function ReviewPage({ recordId }) {
         onFinalize={handleFinalize}
         onBack={() => navigate(-1)}
         finalizing={finalizing}
+        knowledgeMap={knowledgeMap}
       >
         {/* Record summary — always shown if record loaded */}
         <RecordSummary record={record} />

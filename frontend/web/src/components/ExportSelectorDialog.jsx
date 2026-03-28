@@ -9,12 +9,12 @@ import AppButton from "./AppButton";
 import SheetDialog from "./SheetDialog";
 
 const SECTIONS = [
-  { key: "basicInfo",    label: "基本信息",   defaultChecked: true,  disabled: true },
-  { key: "diagnosis",    label: "诊断信息",   defaultChecked: true,  disabled: false },
-  { key: "visits",       label: "就诊记录",   defaultChecked: true,  disabled: false, hasRange: true },
-  { key: "prescriptions", label: "处方记录",  defaultChecked: true,  disabled: false },
-  { key: "labReports",   label: "检验报告",   defaultChecked: false, disabled: false },
-  { key: "allergies",    label: "过敏信息",   defaultChecked: true,  disabled: false },
+  { key: "basicInfo",    apiKey: "basic",         label: "基本信息",   defaultChecked: true,  disabled: true },
+  { key: "diagnosis",    apiKey: "diagnosis",      label: "诊断信息",   defaultChecked: true,  disabled: false },
+  { key: "visits",       apiKey: "visits",         label: "就诊记录",   defaultChecked: true,  disabled: false, hasRange: true },
+  { key: "prescriptions", apiKey: "prescriptions", label: "处方记录",  defaultChecked: true,  disabled: false },
+  { key: "labReports",   apiKey: "lab_reports",    label: "检验报告",   defaultChecked: false, disabled: false },
+  { key: "allergies",    apiKey: "allergies",      label: "过敏信息",   defaultChecked: true,  disabled: false },
 ];
 
 const VISIT_RANGE_OPTS = [
@@ -66,7 +66,11 @@ export default function ExportSelectorDialog({ open, onClose, patientId, patient
   }
 
   function handleGenerate() {
-    if (onExport) onExport({ ...sections, visitRange });
+    const selectedSections = SECTIONS
+      .filter((s) => sections[s.key])
+      .map((s) => s.apiKey);
+    const range = sections.visits ? visitRange : undefined;
+    if (onExport) onExport({ sections: selectedSections, visitRange: range });
   }
 
   return (

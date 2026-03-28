@@ -15,6 +15,10 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
 import Markdown from "react-markdown";
+import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { useApi } from "../../api/ApiContext";
 import RecordFields from "../../components/RecordFields";
 import { t } from "../../i18n";
@@ -28,6 +32,7 @@ import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
 import BarButton from "../../components/BarButton";
 import SubpageHeader from "../../components/SubpageHeader";
 import ConfirmDialog from "../../components/ConfirmDialog";
+import { useAppNavigate } from "../../hooks/useAppNavigate";
 import { TYPE, ICON } from "../../theme";
 
 function MsgAvatar({ isUser, size = 40 }) {
@@ -60,6 +65,114 @@ function TasksCard({ tasks }) {
   );
 }
 
+/* ── Data Cards (rendered below AI reply bubble) ── */
+
+const cardRowSx = {
+  display: "flex", alignItems: "center", gap: 1, py: 0.8,
+  borderBottom: "1px solid #f5f5f5", cursor: "pointer",
+  "&:last-child": { borderBottom: "none" },
+  "&:active": { bgcolor: "#fafafa" },
+};
+const cardIconSx = (bg) => ({
+  width: 28, height: 28, borderRadius: "6px", bgcolor: bg,
+  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+});
+
+function PatientCards({ patients, onNavigate, max = 5 }) {
+  if (!patients?.length) return null;
+  const shown = patients.slice(0, max);
+  return (
+    <Box sx={{ mt: 1, borderTop: "1px solid #e5e5e5", pt: 0.5 }}>
+      {shown.map((p) => (
+        <Box key={p.id} sx={cardRowSx} onClick={() => onNavigate(`/doctor/patients/${p.id}`)}>
+          <Box sx={cardIconSx("#e3f2fd")}><PersonOutlineIcon sx={{ fontSize: 16, color: "#1565c0" }} /></Box>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, fontWeight: 600, color: "#333" }} noWrap>{p.name}</Typography>
+            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#999" }} noWrap>
+              {[p.gender === "male" ? "男" : p.gender === "female" ? "女" : p.gender, p.age ? `${p.age}岁` : null].filter(Boolean).join(" · ")}
+            </Typography>
+          </Box>
+          <ChevronRightIcon sx={{ fontSize: 16, color: "#ccc" }} />
+        </Box>
+      ))}
+      {patients.length > max && (
+        <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#07C160", textAlign: "center", pt: 0.5, cursor: "pointer" }}
+          onClick={() => onNavigate("/doctor/patients")}>
+          查看全部 ({patients.length})
+        </Typography>
+      )}
+    </Box>
+  );
+}
+
+function RecordCards({ records, onNavigate, max = 5 }) {
+  if (!records?.length) return null;
+  const shown = records.slice(0, max);
+  return (
+    <Box sx={{ mt: 1, borderTop: "1px solid #e5e5e5", pt: 0.5 }}>
+      {shown.map((r, i) => (
+        <Box key={r.id || i} sx={cardRowSx} onClick={() => r.patient_id ? onNavigate(`/doctor/patients/${r.patient_id}`) : null}>
+          <Box sx={cardIconSx("#e8f5e9")}><DescriptionOutlinedIcon sx={{ fontSize: 16, color: "#07C160" }} /></Box>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, fontWeight: 600, color: "#333" }} noWrap>
+              {r.patient_name || "患者"} · {r.chief_complaint || r.record_type || "病历"}
+            </Typography>
+            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#999" }} noWrap>
+              {r.created_at ? r.created_at.slice(0, 10) : ""}
+            </Typography>
+          </Box>
+          <ChevronRightIcon sx={{ fontSize: 16, color: "#ccc" }} />
+        </Box>
+      ))}
+      {records.length > max && (
+        <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#07C160", textAlign: "center", pt: 0.5 }}>
+          共 {records.length} 条记录
+        </Typography>
+      )}
+    </Box>
+  );
+}
+
+function TaskCards({ tasks, onNavigate, max = 5 }) {
+  if (!tasks?.length) return null;
+  const shown = tasks.slice(0, max);
+  const typeLabels = { follow_up: "随访", medication: "用药", checkup: "检查", general: "任务", review: "审核" };
+  return (
+    <Box sx={{ mt: 1, borderTop: "1px solid #e5e5e5", pt: 0.5 }}>
+      {shown.map((tk) => (
+        <Box key={tk.id} sx={cardRowSx} onClick={() => onNavigate(`/doctor/tasks/${tk.id}`)}>
+          <Box sx={cardIconSx("#fff3e0")}><AssignmentOutlinedIcon sx={{ fontSize: 16, color: "#e8833a" }} /></Box>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, fontWeight: 600, color: "#333" }} noWrap>
+              {typeLabels[tk.task_type] || "任务"} · {tk.title || "未命名"}
+            </Typography>
+            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#999" }} noWrap>
+              {tk.due_at ? tk.due_at.replace("T", " ").slice(0, 16) : tk.status || ""}
+            </Typography>
+          </Box>
+          <ChevronRightIcon sx={{ fontSize: 16, color: "#ccc" }} />
+        </Box>
+      ))}
+      {tasks.length > max && (
+        <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#07C160", textAlign: "center", pt: 0.5 }}
+          onClick={() => onNavigate("/doctor/tasks")}>
+          查看全部 ({tasks.length})
+        </Typography>
+      )}
+    </Box>
+  );
+}
+
+function DataCards({ viewPayload, onNavigate }) {
+  if (!viewPayload) return null;
+  const vp = viewPayload;
+  if (vp.patients?.length) return <PatientCards patients={vp.patients} onNavigate={onNavigate} />;
+  if (vp.records?.length) return <RecordCards records={vp.records} onNavigate={onNavigate} />;
+  if (vp.tasks?.length) return <TaskCards tasks={vp.tasks} onNavigate={onNavigate} />;
+  if (vp.task_id) return <TaskCards tasks={[{ id: vp.task_id, title: vp.title, task_type: vp.task_type || "general" }]} onNavigate={onNavigate} />;
+  return null;
+}
+
 /* Minimal markdown styles scoped to AI message bubbles */
 const mdStyles = {
   "& p": { m: 0, lineHeight: 1.7 },
@@ -72,7 +185,7 @@ const mdStyles = {
   "& code": { fontSize: TYPE.caption.fontSize, bgcolor: "#f5f5f5", px: 0.5, borderRadius: 0.5 },
 };
 
-function MsgBubble({ msg, onQuickSend }) {
+function MsgBubble({ msg, onQuickSend, onNavigate }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isUser = msg.role === "user";
@@ -109,6 +222,7 @@ function MsgBubble({ msg, onQuickSend }) {
           )}
           {!isUser && msg.record ? <RecordFields record={msg.record} /> : null}
           {!isUser && msg.view_payload?.type === "tasks_list" ? <TasksCard tasks={msg.view_payload.data} /> : null}
+          {!isUser && msg.view_payload && onNavigate ? <DataCards viewPayload={msg.view_payload} onNavigate={onNavigate} /> : null}
           {hasPending && onQuickSend && (
             <Stack direction="row" spacing={1} sx={{ mt: 1.5, pt: 1, borderTop: "1px solid #e5e5e5" }}>
               <Button size="small" variant="contained" disableElevation
@@ -439,6 +553,7 @@ function useDailySummary({ doctorId, sendText, ready }) {
 
 export default function ChatPage({ doctorId, onMessageCountChange, externalInput, onExternalInputConsumed, onPatientCreated, autoSendText, onAutoSendConsumed, onContextCleared, onStartPatientInterview, onBack, hideHeader }) {
   const { importToInterview, extractFileForChat, textToInterview } = useApi();
+  const navigate = useAppNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
@@ -538,7 +653,7 @@ export default function ChatPage({ doctorId, onMessageCountChange, externalInput
       {!hideHeader && <ChatTopbar onClearClick={() => setClearConfirmOpen(true)} onBack={onBack} />}
       <Box sx={{ flex: 1, overflowY: "auto", py: 2, display: "flex", flexDirection: "column", gap: isMobile ? 1.8 : 1.4, bgcolor: "#ededed" }}>
         {messages.map((msg, idx) => (
-          <MsgBubble key={`${msg.role}-${idx}`} msg={msg} onQuickSend={sendText} />
+          <MsgBubble key={`${msg.role}-${idx}`} msg={msg} onQuickSend={sendText} onNavigate={navigate} />
         ))}
         {loading && <LoadingBubble isMobile={isMobile} />}
         <div ref={bottomRef} />

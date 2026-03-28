@@ -324,7 +324,7 @@ function usePatientDetailState({ patient, doctorId, onDeleted }) {
   }, [patient?.id, doctorId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [load]);
   async function handleDelete() { setDeleting(true); try { await deletePatient(patient.id, doctorId); setDeleteConfirmOpen(false); if (onDeleted) { onDeleted(patient.id); return; } navigate("/doctor/patients"); } catch (e) { setError(e.message || "删除失败"); setDeleteConfirmOpen(false); } finally { setDeleting(false); } }
-  async function handleExportPdf() { setExportingPdf(true); setExportError(""); try { await exportPatientPdf(patient.id, doctorId); } catch (e) { setExportError(e.message || "导出失败"); } finally { setExportingPdf(false); } }
+  async function handleExportPdf(opts) { setExportingPdf(true); setExportError(""); try { await exportPatientPdf(patient.id, doctorId, opts); } catch (e) { setExportError(e.message || "导出失败"); } finally { setExportingPdf(false); } }
   async function handleExportReport() { setExportingReport(true); setExportError(""); try { await exportOutpatientReport(patient.id, doctorId); } catch (e) { setExportError(e.message || "生成失败，请确认已有病历记录"); } finally { setExportingReport(false); } }
 
   return { records, setRecords, loading, error, exportingPdf, exportingReport, exportError, deleteConfirmOpen, setDeleteConfirmOpen, deleting, load, handleDelete, handleExportPdf, handleExportReport };
@@ -512,7 +512,7 @@ export default function PatientDetail({ patient, doctorId, onDeleted, onStartInt
       {exportError && <Typography variant="caption" color="error.main" sx={{ display: "block", px: 2.5, mt: 0.5 }}>{exportError}</Typography>}
       <DeletePatientDialog open={deleteConfirmOpen} patientName={patient.name} deleting={deleting} onConfirm={handleDelete} onClose={() => setDeleteConfirmOpen(false)} />
       <ExportSelectorDialog open={exportOpen} onClose={() => setExportOpen(false)} patientId={patient.id} patientName={patient.name}
-        onExport={(opts) => { setExportOpen(false); handleExportPdf(); }} />
+        onExport={(opts) => { setExportOpen(false); handleExportPdf(opts); }} />
       <RecordListSection loading={loading} error={error} records={records} filteredRecords={filteredRecords} activeTab={activeTab} setActiveTab={setActiveTab} setRecords={setRecords} doctorId={doctorId} load={load} />
       <PatientChatPage patientId={patient.id} doctorId={doctorId} />
       <QRDialog open={qrOpen} onClose={() => setQrOpen(false)} title="患者二维码"

@@ -61,7 +61,7 @@ function InlineAddForm({ onSubmit, onCancel }) {
 
 /* ── Suggestion section ── */
 
-function SuggestionSection({ sectionKey, label, items, expandedId, onToggle, onDecide, onAdd }) {
+function SuggestionSection({ sectionKey, label, items, expandedId, onToggle, onDecide, onAdd, knowledgeMap }) {
   const [adding, setAdding] = useState(false);
   if ((!items || items.length === 0) && !adding) return null;
 
@@ -96,6 +96,7 @@ function SuggestionSection({ sectionKey, label, items, expandedId, onToggle, onD
           expanded={expandedId === s.id}
           onToggle={() => onToggle(s.id)}
           onDecide={onDecide}
+          knowledgeMap={knowledgeMap}
         />
       ))}
     </Box>
@@ -116,6 +117,7 @@ export default function ReviewSubpage({
   finalizing = false,
   headerRight,
   children,
+  knowledgeMap = {},
 }) {
   const hasSuggestions = suggestions.length > 0;
 
@@ -150,6 +152,7 @@ export default function ReviewSubpage({
                 onToggle={onToggle}
                 onDecide={onDecide}
                 onAdd={onAdd}
+                knowledgeMap={knowledgeMap}
               />
             ))}
           </Box>
