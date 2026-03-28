@@ -9,10 +9,12 @@ import { useState, useRef } from "react";
 import { Alert, Box, CircularProgress, TextField, Typography } from "@mui/material";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
+import MicIcon from "@mui/icons-material/Mic";
 import PageSkeleton from "../../../components/PageSkeleton";
 import BarButton from "../../../components/BarButton";
 import AppButton from "../../../components/AppButton";
 import SheetDialog from "../../../components/SheetDialog";
+import VoiceInput, { isVoiceSupported } from "../../../components/VoiceInput";
 import { useApi } from "../../../api/ApiContext";
 import { TYPE, COLOR } from "../../../theme";
 
@@ -34,6 +36,9 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
   const [llmProcessed, setLlmProcessed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
+
+  // ── Voice input state ──
+  const [showVoice, setShowVoice] = useState(false);
 
   // ── Manual text processing state ──
   const [processing, setProcessing] = useState(false);
@@ -230,14 +235,39 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
           onChange={(e) => setContent(e.target.value)}
           sx={{ "& .MuiOutlinedInput-root": { borderRadius: "6px" } }}
         />
-        <Box sx={{ display: "flex", justifyContent: "space-between", mt: 0.5 }}>
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 0.5 }}>
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, flex: 1 }}>
             {content.length >= 500 ? "内容较长，保存时AI将自动整理" : "用自然语言描述，AI 会在相关场景中参考"}
           </Typography>
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: content.length > 3000 ? COLOR.danger : COLOR.text4 }}>
+          {isVoiceSupported() && (
+            <Box
+              onClick={() => setShowVoice(!showVoice)}
+              sx={{
+                width: 28, height: 28, borderRadius: "50%",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer", flexShrink: 0, mx: 0.5,
+                bgcolor: showVoice ? COLOR.primaryLight : COLOR.surface,
+                "&:active": { opacity: 0.6 },
+              }}
+            >
+              <MicIcon sx={{ fontSize: 16, color: showVoice ? COLOR.primary : COLOR.text4 }} />
+            </Box>
+          )}
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: content.length > 3000 ? COLOR.danger : COLOR.text4, flexShrink: 0 }}>
             {content.length}/3000
           </Typography>
         </Box>
+        {showVoice && (
+          <Box sx={{ mt: 1 }}>
+            <VoiceInput
+              onResult={(text) => {
+                setContent((prev) => prev ? prev + text : text);
+                setShowVoice(false);
+              }}
+              onCancel={() => setShowVoice(false)}
+            />
+          </Box>
+        )}
       </Box>
     </Box>
   );

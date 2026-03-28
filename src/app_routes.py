@@ -20,6 +20,8 @@ from channels.web.import_routes import router as import_router
 from channels.web.patient_portal import router as patient_portal_router
 from channels.web.patient_interview_routes import router as patient_interview_router
 from channels.web.doctor_interview import router as doctor_interview_router
+from channels.web.transcribe_ws import router as transcribe_ws_router
+from channels.web.transcribe_routes import router as transcribe_rest_router
 from db.engine import AsyncSessionLocal
 
 
@@ -43,6 +45,8 @@ def include_routers(app: FastAPI) -> None:
     app.include_router(patient_portal_router)
     app.include_router(patient_interview_router)
     app.include_router(doctor_interview_router)
+    app.include_router(transcribe_ws_router)
+    app.include_router(transcribe_rest_router)
 
 
 def register_health_and_utility_routes(

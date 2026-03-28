@@ -12,6 +12,7 @@ import { Box, CircularProgress, Typography } from "@mui/material";
 import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
 import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import MicIcon from "@mui/icons-material/Mic";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import SubpageHeader from "../../components/SubpageHeader";
@@ -21,6 +22,7 @@ import SectionLabel from "../../components/SectionLabel";
 import StatusBadge from "../../components/StatusBadge";
 import AppButton from "../../components/AppButton";
 import SheetDialog from "../../components/SheetDialog";
+import VoiceInput, { isVoiceSupported } from "../../components/VoiceInput";
 import { TYPE, COLOR } from "../../theme";
 
 // ── Badge color mapping ──
@@ -49,6 +51,7 @@ function MessageItem({ item, onSend, onEdit }) {
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(item.draft_text || "");
   const [saving, setSaving] = useState(false);
+  const [showVoice, setShowVoice] = useState(false);
   const api = useApi();
 
   const badgeLabel = BADGE_LABEL[item.badge];
@@ -122,25 +125,52 @@ function MessageItem({ item, onSend, onEdit }) {
 
           {editing ? (
             <Box>
-              <Box
-                component="textarea"
-                value={editText}
-                onChange={(e) => setEditText(e.target.value)}
-                sx={{
-                  width: "100%",
-                  minHeight: 80,
-                  border: `1px solid ${COLOR.border}`,
-                  borderRadius: "4px",
-                  p: 1,
-                  fontSize: TYPE.secondary.fontSize,
-                  color: COLOR.text2,
-                  lineHeight: 1.5,
-                  resize: "vertical",
-                  fontFamily: "inherit",
-                  outline: "none",
-                  "&:focus": { borderColor: COLOR.primary },
-                }}
-              />
+              <Box sx={{ display: "flex", gap: 0.5, alignItems: "flex-start" }}>
+                <Box
+                  component="textarea"
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  sx={{
+                    flex: 1,
+                    minHeight: 80,
+                    border: `1px solid ${COLOR.border}`,
+                    borderRadius: "4px",
+                    p: 1,
+                    fontSize: TYPE.secondary.fontSize,
+                    color: COLOR.text2,
+                    lineHeight: 1.5,
+                    resize: "vertical",
+                    fontFamily: "inherit",
+                    outline: "none",
+                    "&:focus": { borderColor: COLOR.primary },
+                  }}
+                />
+                {isVoiceSupported() && (
+                  <Box
+                    onClick={() => setShowVoice(!showVoice)}
+                    sx={{
+                      width: 32, height: 32, borderRadius: "50%",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      cursor: "pointer", flexShrink: 0, mt: 0.5,
+                      bgcolor: showVoice ? COLOR.primaryLight : COLOR.surface,
+                      "&:active": { opacity: 0.6 },
+                    }}
+                  >
+                    <MicIcon sx={{ fontSize: 18, color: showVoice ? COLOR.primary : COLOR.text4 }} />
+                  </Box>
+                )}
+              </Box>
+              {showVoice && (
+                <Box sx={{ mt: 0.8 }}>
+                  <VoiceInput
+                    onResult={(text) => {
+                      setEditText((prev) => prev ? prev + text : text);
+                      setShowVoice(false);
+                    }}
+                    onCancel={() => setShowVoice(false)}
+                  />
+                </Box>
+              )}
               <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, mt: 0.8 }}>
                 <Typography
                   onClick={handleCancel}
