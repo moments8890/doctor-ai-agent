@@ -254,6 +254,7 @@ for the user to ask — suggest when the trigger condition is met.
 | Agent/prompt behavior change | `/sim` | "This changes agent behavior — want me to run `/sim` to verify?" |
 | UI component or page changes | `/design-review` | "UI changed — want me to run `/design-review` for visual QA?" |
 | Before pushing >5 changed files | `/review` | "Big change set — suggest running `/review` before push." |
+| Completed a plan or >3 commits in session | `/report` | "Implementation done — want me to generate `/report` for a visual summary?" |
 | After pushing to main | `/document-release` | "Just shipped — want me to run `/document-release` to sync docs?" |
 
 ### Per-Session (suggest at session boundaries)

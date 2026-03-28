@@ -19,6 +19,13 @@ if [ -z "$CHANGED" ]; then
   exit 0
 fi
 
+# Skip if no backend source files changed — frontend, docs, config, skills
+# don't require doc sync checks
+BACKEND_CHANGED=$(echo "$CHANGED" | grep -E "^src/.*\.py$" || true)
+if [ -z "$BACKEND_CHANGED" ]; then
+  exit 0
+fi
+
 WARNINGS=""
 
 # File → doc matrix from AGENTS.md §8
