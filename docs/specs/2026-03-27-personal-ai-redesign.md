@@ -107,7 +107,7 @@ All designs follow `docs/ux/UI-DESIGN.md`:
 │    26        │     2      │    3     │
 │  7天引用      │   待确认    │  今日处理 │
 ├──────────────────────────────────────┤
-│ 刚刚在李阿姨复诊中用了「术后头痛红旗」  │
+│ 刚刚在李阿姨复诊中用了「术后头痛危险信号」  │
 ├──────────────────────────────────────┤
 │  [ 继续教AI ]      [ 导入病例 ]      │
 └──────────────────────────────────────┘
@@ -143,7 +143,7 @@ Section label: `我的方法 · 最近活跃` + `全部 12 条 ›` link
 
 ```
 ┌──────────────────────────────────────┐
-│ ● 术后头痛红旗                 今天3次│
+│ ● 术后头痛危险信号                 今天3次│
 │   先排除再出血，再评估颅压             │
 ├──────────────────────────────────────┤
 │ ● TIA复查路径                 本周5次│
@@ -208,7 +208,7 @@ action based on the doctor's own rules.
 2. **待审核 items** — each item contains:
    - Header: patient avatar + name + time + urgency badge
    - Diagnosis preview: gray `#f7f7f7` card with title + detail text
-   - Citation line: "引用了你的规则：术后头痛红旗" (green tag)
+   - Citation line: "引用了你的规则：术后头痛危险信号" (green tag)
    - Or: "未引用个人规则" (gray) — signals generic AI reasoning
    - Actions (right-aligned text): `✗ 排除` (red) `✎ 修改` (blue) `✓ 确认` (green)
 3. **最近已审核** — greyed-out history rows
@@ -337,7 +337,7 @@ in their voice with rule citations, taps 发送. This is the daily habit loop.
 - **Send confirmation:** after tapping "发送", show a confirmation sheet:
   - Patient context summary: "王建国 · 脑膜瘤术后第12天 · 上次复查CT正常"
   - Full draft text
-  - Which rules were cited: "引用：术后头痛红旗"
+  - Which rules were cited: "引用：术后头痛危险信号"
   - `AI生成` disclosure label (will appear in the sent message to patient)
   - "确认发送" button (green) / "返回修改" (gray)
   - One extra tap to prevent accidental sends and verify correct patient context.
@@ -379,7 +379,7 @@ All knowledge improvements ship together. No phasing — build the complete syst
   Draft replies need category filtering (communication vs diagnosis rules).
   **This must ship BEFORE draft reply pipeline.**
 - **Knowledge title extraction**: `DoctorKnowledgeItem` has no `title` field —
-  UI shows rule titles ("术后头痛红旗") but model only has `content` blob.
+  UI shows rule titles ("术后头痛危险信号") but model only has `content` blob.
   Add `title` and `summary` fields. Extract during ingest via LLM or use
   first line of content as title fallback.
 - **Knowledge editing**: persist inline edits (currently UI-only)
@@ -510,7 +510,7 @@ Every surface replaces generic "AI" with the doctor's personal AI name:
 |---------|-----|
 | 问 AI 任何问题 | 让张医生AI先看一眼 |
 | AI助手 | 张医生AI |
-| AI建议 | 引用了你的规则：术后头痛红旗 |
+| AI建议 | 引用了你的规则：术后头痛危险信号 |
 | 管理知识库 | 继续教AI |
 | 新增病历 | 导入病例 |
 | 任务 | 随访 |

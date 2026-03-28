@@ -55,7 +55,7 @@ async def generate_draft_reply(
 
     user_message = f"患者消息：{patient_message_text}"
     if is_red_flag:
-        user_message += "\n\n⚠️ 注意：患者消息中包含红旗征象，请使用就医建议模板回复。"
+        user_message += "\n\n⚠️ 注意：患者消息中包含危险信号，请使用就医建议模板回复。"
 
     try:
         messages = await compose_messages(
@@ -92,8 +92,20 @@ async def generate_draft_reply(
 
         confidence = 0.7 if is_red_flag else 0.9
 
+        # Strip [KB-*] citation markers from user-facing text
+        import re
+        clean_response = re.sub(r"\[KB-\d+\]", "", response).strip()
+        # Collapse any double-spaces left after stripping
+        clean_response = re.sub(r"  +", " ", clean_response)
+
+        # If AI could not ground its reply in any KB rule, skip the draft.
+        # The doctor should only see AI drafts backed by their own knowledge.
+        if not validation.valid_ids:
+            log("[draft_reply] no KB citation found — skipping draft (AI无法引用知识库)", level="info")
+            return None
+
         result = DraftReplyResult(
-            text=response,
+            text=clean_response,
             cited_knowledge_ids=validation.valid_ids,
             confidence=confidence,
             is_red_flag=is_red_flag,

@@ -203,10 +203,10 @@ def test_knowledge_item_has_title_and_summary():
     item = DoctorKnowledgeItem(
         doctor_id="doc_1",
         content='{"v":1,"text":"test","source":"doctor","confidence":1.0}',
-        title="术后头痛红旗",
+        title="术后头痛危险信号",
         summary="先排除再出血，再评估颅压",
     )
-    assert item.title == "术后头痛红旗"
+    assert item.title == "术后头痛危险信号"
     assert item.summary == "先排除再出血，再评估颅压"
 
 

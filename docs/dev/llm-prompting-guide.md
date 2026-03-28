@@ -453,7 +453,7 @@ data:
 - 保持鉴别诊断宽泛
 - workup 保留必要项
 - treatment 返回 []
-- 不虚构红旗征，red_flags 返回 []
+- 不虚构危险信号，red_flags 返回 []
 ```
 
 ---

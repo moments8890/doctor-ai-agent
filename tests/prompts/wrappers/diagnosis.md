@@ -42,7 +42,7 @@ AI鉴别诊断：根据病历结构化数据生成鉴别诊断建议，供医生
 - 严禁虚构：不得编造检查结果、体征发现或病史；类似病例参考仅用于提示方向，不得将参考病例事实当作当前患者事实
 - 必须包含 confidence 等级，且有区分度
 - red_flags 非空时必须触发紧急/急诊 workup，不得仅给常规建议
-- 信息不足时不虚构红旗征，red_flags 返回 []
+- 信息不足时不虚构危险信号，red_flags 返回 []
 - 四个顶层 key 必须始终存在：differentials, workup, treatment, red_flags；无内容时返回 []
 - 所有 JSON key 使用英文，所有值使用中文；不使用 null
 
@@ -87,7 +87,7 @@ workup:
 treatment: []
 
 red_flags: []
-（信息不足时不虚构红旗征）
+（信息不足时不虚构危险信号）
 
 ## Example — 完整病历
 

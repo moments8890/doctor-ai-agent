@@ -27,8 +27,8 @@ async def async_session():
 # ── extract_title_from_text ───────────────────────────────────────
 
 def test_extract_title_first_line():
-    text = "术后头痛红旗\n先排除再出血，再评估颅压"
-    assert extract_title_from_text(text) == "术后头痛红旗"
+    text = "术后头痛危险信号\n先排除再出血，再评估颅压"
+    assert extract_title_from_text(text) == "术后头痛危险信号"
 
 
 def test_extract_title_truncates_long():
@@ -45,8 +45,8 @@ def test_extract_title_splits_on_colon_before_period():
 
 
 def test_extract_title_splits_on_period():
-    text = "术后头痛红旗。先排除再出血"
-    assert extract_title_from_text(text) == "术后头痛红旗"
+    text = "术后头痛危险信号。先排除再出血"
+    assert extract_title_from_text(text) == "术后头痛危险信号"
 
 
 def test_extract_title_empty():
@@ -58,10 +58,10 @@ def test_extract_title_empty():
 @pytest.mark.asyncio
 async def test_save_with_auto_title(async_session):
     item = await save_knowledge_item(
-        async_session, "doc_1", "术后头痛红旗\n先排除再出血，再评估颅压",
+        async_session, "doc_1", "术后头痛危险信号\n先排除再出血，再评估颅压",
     )
     assert item is not None
-    assert item.title == "术后头痛红旗"
+    assert item.title == "术后头痛危险信号"
 
 
 @pytest.mark.asyncio
