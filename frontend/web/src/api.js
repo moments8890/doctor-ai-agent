@@ -1022,6 +1022,62 @@ export async function addSuggestion(recordId, doctorId, section, content, detail
   });
 }
 
+// ---------------------------------------------------------------------------
+// Knowledge stats, AI activity, drafts
+// ---------------------------------------------------------------------------
+
+export async function fetchKnowledgeStats(doctorId, days = 7) {
+  return request(`/api/manage/knowledge/stats?doctor_id=${encodeURIComponent(doctorId)}&days=${days}`);
+}
+
+export async function fetchAIActivity(doctorId, limit = 20) {
+  return request(`/api/manage/ai/activity?doctor_id=${encodeURIComponent(doctorId)}&limit=${limit}`);
+}
+
+export async function fetchDraftSummary(doctorId) {
+  return request(`/api/manage/drafts/summary?doctor_id=${encodeURIComponent(doctorId)}`);
+}
+
+export async function fetchAIAttention(doctorId) {
+  return request(`/api/manage/patients/ai-attention?doctor_id=${encodeURIComponent(doctorId)}`);
+}
+
+export async function getReviewQueue(doctorId) {
+  return request(`/api/manage/review/queue?doctor_id=${encodeURIComponent(doctorId)}`);
+}
+
+export async function fetchDrafts(doctorId) {
+  return request(`/api/manage/drafts?doctor_id=${encodeURIComponent(doctorId)}`);
+}
+
+export async function sendDraft(draftId, doctorId) {
+  return request(`/api/manage/drafts/${draftId}/send?doctor_id=${encodeURIComponent(doctorId)}`, { method: "POST" });
+}
+
+export async function editDraft(draftId, doctorId, editedText) {
+  return request(`/api/manage/drafts/${draftId}/edit?doctor_id=${encodeURIComponent(doctorId)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ edited_text: editedText }),
+  });
+}
+
+export async function dismissDraft(draftId, doctorId) {
+  return request(`/api/manage/drafts/${draftId}/dismiss?doctor_id=${encodeURIComponent(doctorId)}`, { method: "POST" });
+}
+
+export async function getDraftConfirmation(draftId, doctorId) {
+  return request(`/api/manage/drafts/${draftId}/send-confirmation?doctor_id=${encodeURIComponent(doctorId)}`, { method: "POST" });
+}
+
+export async function createRuleFromEdit(editId, doctorId) {
+  return request(`/api/manage/teaching/create-rule?doctor_id=${encodeURIComponent(doctorId)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ edit_id: editId }),
+  });
+}
+
 export async function finalizeReview(recordId, doctorId) {
   return request(`/api/doctor/records/${recordId}/review/finalize`, {
     method: "POST",

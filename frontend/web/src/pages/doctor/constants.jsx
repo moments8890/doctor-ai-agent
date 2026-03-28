@@ -6,6 +6,9 @@ import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 
 export const TASK_TYPE_LABEL = {
   follow_up:   "随访",
@@ -75,17 +78,17 @@ export const RECORD_TYPE_LABEL = {
 };
 
 export const NAV = [
-  { key: "home", label: "首页", icon: <HomeOutlinedIcon fontSize="medium" /> },
+  { key: "my-ai", label: "我的AI", icon: <AutoAwesomeOutlinedIcon fontSize="medium" /> },
   { key: "patients", label: "患者", icon: <PeopleOutlineIcon fontSize="medium" /> },
-  { key: "tasks", label: "任务", icon: <AssignmentOutlinedIcon fontSize="medium" /> },
-  { key: "settings", label: "设置", icon: <SettingsOutlinedIcon fontSize="medium" /> },
+  { key: "review", label: "审核", icon: <CheckCircleOutlineIcon fontSize="medium" />, badgeKey: "review" },
+  { key: "followup", label: "随访", icon: <MailOutlineIcon fontSize="medium" />, badgeKey: "followup" },
 ];
 
 export const DESKTOP_NAV = [
-  { key: "chat", label: "AI 助手", icon: <ChatOutlinedIcon fontSize="medium" /> },
-  { key: "home", label: "首页", icon: <HomeOutlinedIcon fontSize="medium" /> },
+  { key: "my-ai", label: "我的AI", icon: <AutoAwesomeOutlinedIcon fontSize="medium" /> },
   { key: "patients", label: "患者", icon: <PeopleOutlineIcon fontSize="medium" /> },
-  { key: "tasks", label: "任务", icon: <AssignmentOutlinedIcon fontSize="medium" /> },
+  { key: "review", label: "审核", icon: <CheckCircleOutlineIcon fontSize="medium" />, badgeKey: "review" },
+  { key: "followup", label: "随访", icon: <MailOutlineIcon fontSize="medium" />, badgeKey: "followup" },
   { key: "settings", label: "设置", icon: <SettingsOutlinedIcon fontSize="medium" /> },
 ];
 

@@ -23,11 +23,12 @@ import NewItemCard from "../../components/NewItemCard";
 import PageSkeleton from "../../components/PageSkeleton";
 import ListCard from "../../components/ListCard";
 import SectionLabel from "../../components/SectionLabel";
+import StatusBadge from "../../components/StatusBadge";
 import PatientAvatar from "../../components/PatientAvatar";
 import PatientDetail from "./patients/PatientDetail";
 import SubpageHeader from "../../components/SubpageHeader";
 import InterviewPage from "./InterviewPage";
-import { TYPE, ICON } from "../../theme";
+import { TYPE, ICON, COLOR } from "../../theme";
 
 function groupPatients(list) {
   const groups = {};
@@ -54,14 +55,21 @@ function formatPatientTime(dateStr) {
   return `${d.getMonth() + 1}月${d.getDate()}日`;
 }
 
-function PatientRow({ patient, onClick }) {
+function PatientRow({ patient, aiTag, onClick }) {
   const age = patient.year_of_birth ? new Date().getFullYear() - patient.year_of_birth : null;
   const timeStr = formatPatientTime(patient.updated_at || patient.created_at);
-  const subtitle = [
+  const baseSub = [
     patient.gender ? ({ male: "男", female: "女" }[patient.gender] || patient.gender) : null,
     age ? `${age}岁` : null,
     patient.chief_complaint || patient.primary_category || `${patient.record_count}份病历`,
   ].filter(Boolean).join(" · ");
+  const subtitle = aiTag
+    ? (
+        <Box component="span">
+          {baseSub} · <Box component="span" sx={{ color: COLOR.primary }}>AI: {aiTag}</Box>
+        </Box>
+      )
+    : baseSub;
   return (
     <ListCard
       avatar={<PatientAvatar name={patient.name} size={36} />}
@@ -70,6 +78,39 @@ function PatientRow({ patient, onClick }) {
       right={<Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#999" }}>{timeStr}</Typography>}
       onClick={onClick}
     />
+  );
+}
+
+const URGENCY_COLOR_MAP = {
+  "紧急": COLOR.danger,
+  "待处理": COLOR.warning,
+};
+
+function AIAttentionSection({ attention, navigate }) {
+  if (!attention?.patients?.length) return null;
+  return (
+    <>
+      <SectionLabel>AI建议关注</SectionLabel>
+      <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, mb: 1 }}>
+        {attention.patients.map((p, i) => (
+          <ListCard
+            key={p.patient_id || i}
+            avatar={<PatientAvatar name={p.patient_name || "?"} size={36} />}
+            title={p.patient_name || "患者"}
+            subtitle={p.reason}
+            onClick={() => p.patient_id ? navigate(`/doctor/patients/${p.patient_id}`) : undefined}
+            right={
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <StatusBadge
+                  label={p.urgency === "urgent" ? "紧急" : "待处理"}
+                  colorMap={URGENCY_COLOR_MAP}
+                />
+              </Box>
+            }
+          />
+        ))}
+      </Box>
+    </>
   );
 }
 
@@ -151,7 +192,7 @@ function SearchBar({ patients, search, nlResults, nlLoading, onChange, onSubmit 
 }
 
 
-function PatientList({ filtered, search, selectedId, isMobile, navigate, onStartInterview }) {
+function PatientList({ filtered, search, selectedId, isMobile, navigate, onStartInterview, aiTagMap }) {
   if (!filtered.length && search.trim()) {
     return (
       <Box sx={{ p: 2 }}>
@@ -175,17 +216,19 @@ function PatientList({ filtered, search, selectedId, isMobile, navigate, onStart
   }
   return filtered.map((p) => (
     <PatientRow key={p.id} patient={p} isSelected={p.id === selectedId}
+      aiTag={aiTagMap?.[p.id]}
       isMobile={isMobile} onClick={() => navigate(`/doctor/patients/${p.id}`)} />
   ));
 }
 
-function PatientListPane({ patients, loading, error, search, nlResults, nlLoading, filtered, selectedId, isMobile, importing, importError, importFileRef, navigate, onSearchChange, onSearchSubmit, onStartInterview, onLoad, onFileInputChange }) {
+function PatientListPane({ patients, loading, error, search, nlResults, nlLoading, filtered, selectedId, isMobile, importing, importError, importFileRef, navigate, onSearchChange, onSearchSubmit, onStartInterview, onLoad, onFileInputChange, attention, aiTagMap }) {
   return (
     <>
       <SearchBar patients={patients} search={search} nlResults={nlResults} nlLoading={nlLoading} onChange={onSearchChange} onSubmit={onSearchSubmit} />
       {error && <Alert severity="error" action={<Button size="small" onClick={onLoad}>重试</Button>}>{error}</Alert>}
       <Box sx={{ flex: 1, overflowY: "auto", bgcolor: "#ededed" }}>
         {loading && <Box sx={{ p: 2, textAlign: "center" }}><CircularProgress size={20} /></Box>}
+        {!loading && !search.trim() && <AIAttentionSection attention={attention} navigate={navigate} />}
         {!loading && !search.trim() && <NewItemCard title="新建患者" subtitle="添加新的患者档案" onClick={onStartInterview} />}
         <input ref={importFileRef} type="file" hidden accept=".pdf,image/jpeg,image/png,image/webp" onChange={onFileInputChange} />
         {!loading && (
@@ -196,7 +239,7 @@ function PatientListPane({ patients, loading, error, search, nlResults, nlLoadin
         {!loading && (
           <PatientList filtered={filtered} search={search} selectedId={selectedId}
             isMobile={isMobile} navigate={navigate}
-            onStartInterview={onStartInterview} />
+            onStartInterview={onStartInterview} aiTagMap={aiTagMap} />
         )}
       </Box>
     </>
@@ -215,7 +258,7 @@ async function extractAndSend({ file, extractFileForChat, onAutoSendToChat, setI
 }
 
 function usePatientsState({ doctorId, onPatientSelected, onAutoSendToChat, selectedId, refreshKey }) {
-  const { getPatients, searchPatients, extractFileForChat } = useApi();
+  const { getPatients, searchPatients, extractFileForChat, fetchAIAttention } = useApi();
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -225,6 +268,7 @@ function usePatientsState({ doctorId, onPatientSelected, onAutoSendToChat, selec
   const importFileRef = useRef(null);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState("");
+  const [attention, setAttention] = useState(null);
 
   const selectedPatient = patients.find((p) => p.id === selectedId) || null;
   useEffect(() => { onPatientSelected?.(selectedPatient?.name || ""); }, [selectedPatient?.name]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -234,6 +278,25 @@ function usePatientsState({ doctorId, onPatientSelected, onAutoSendToChat, selec
     getPatients(doctorId, {}, 200).then((d) => setPatients(d.items || [])).catch((e) => setError(e.message || "加载失败")).finally(() => setLoading(false));
   }, [doctorId]);
   useEffect(() => { load(); }, [load, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch AI attention data
+  useEffect(() => {
+    if (!doctorId || typeof fetchAIAttention !== "function") return;
+    fetchAIAttention(doctorId)
+      .then((d) => setAttention(d))
+      .catch(() => {}); // silent fail — attention is non-critical
+  }, [doctorId, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Build a map of patient_id → short AI reason for inline tags in the patient list
+  const aiTagMap = {};
+  if (attention?.patients) {
+    for (const p of attention.patients) {
+      if (p.patient_id) {
+        // Use a short label derived from the reason
+        aiTagMap[p.patient_id] = p.short_tag || p.reason?.slice(0, 12) || "关注";
+      }
+    }
+  }
 
   function handleSearchChange(val) { setSearch(val); setNlResults(null); }
   function handleSearchSubmit() {
@@ -250,7 +313,7 @@ function usePatientsState({ doctorId, onPatientSelected, onAutoSendToChat, selec
   }
 
   const filtered = (() => { const q = search.trim(); if (!q) return patients; if (nlResults !== null) return nlResults; return patients.filter((p) => p.name.includes(q)); })();
-  return { patients, setPatients, loading, error, search, nlResults, nlLoading, importing, importError, importFileRef, filtered, selectedPatient, load, handleSearchChange, handleSearchSubmit, handleImportFile };
+  return { patients, setPatients, loading, error, search, nlResults, nlLoading, importing, importError, importFileRef, filtered, selectedPatient, load, handleSearchChange, handleSearchSubmit, handleImportFile, attention, aiTagMap };
 }
 
 function MobilePatientDetailView({ selectedPatient, doctorId, navigate, onStartInterview }) {
@@ -269,7 +332,7 @@ export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatT
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const selectedId = patientId ? Number(patientId) : null;
-  const { patients, setPatients, loading, error, search, nlResults, nlLoading, importing, importError, importFileRef, filtered, selectedPatient, load, handleSearchChange, handleSearchSubmit, handleImportFile } = usePatientsState({ doctorId, onPatientSelected, onAutoSendToChat, selectedId, refreshKey });
+  const { patients, setPatients, loading, error, search, nlResults, nlLoading, importing, importError, importFileRef, filtered, selectedPatient, load, handleSearchChange, handleSearchSubmit, handleImportFile, attention, aiTagMap } = usePatientsState({ doctorId, onPatientSelected, onAutoSendToChat, selectedId, refreshKey });
 
   const [interviewActive, setInterviewActive] = useState(patientId === "new");
 
@@ -298,7 +361,7 @@ export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatT
     navigate("/doctor/patients/new");
   }
 
-  const listPaneProps = { patients, loading, error, search, nlResults, nlLoading, filtered, selectedId, isMobile, importing, importError, importFileRef, navigate, onSearchChange: handleSearchChange, onSearchSubmit: handleSearchSubmit, onStartInterview: handleStartInterview, onLoad: load, onFileInputChange: handleImportFile };
+  const listPaneProps = { patients, loading, error, search, nlResults, nlLoading, filtered, selectedId, isMobile, importing, importError, importFileRef, navigate, onSearchChange: handleSearchChange, onSearchSubmit: handleSearchSubmit, onStartInterview: handleStartInterview, onLoad: load, onFileInputChange: handleImportFile, attention, aiTagMap };
 
   // Mobile subpage override: interview or patient detail
   const mobileSubpage = isMobile && interviewActive ? (

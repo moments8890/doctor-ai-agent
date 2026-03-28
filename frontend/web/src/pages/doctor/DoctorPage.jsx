@@ -20,12 +20,15 @@ import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import { useDoctorStore } from "../../store/doctorStore";
 import { NAV, DESKTOP_NAV } from "./constants";
+import MyAIPage from "./MyAIPage";
 import HomePage from "./HomePage";
 import ChatPage from "./ChatPage";
 import PatientsPage from "./PatientsPage";
 import TasksPage from "./TasksPage";
 import SettingsPage from "./SettingsPage";
 import ReviewPage from "./ReviewPage";
+import ReviewQueuePage from "./ReviewQueuePage";
+import FollowupPage from "./FollowupPage";
 import ErrorBoundary from "../../components/ErrorBoundary";
 import SheetDialog from "../../components/SheetDialog";
 import AppButton from "../../components/AppButton";
@@ -49,7 +52,7 @@ function DesktopSidebar({ activeSection, doctorName, doctorId, navBadge, onNav, 
               "&:focus-visible": { outline: "2px solid #07C160", outlineOffset: -2 },
               "&:active": { opacity: 0.8 } }}>
             <Box sx={{ "& svg": { fontSize: ICON.lg, color: activeSection === item.key ? "#fff" : "#999999" } }}>
-              {navBadge[item.key] > 0 ? <Badge badgeContent={navBadge[item.key]} color="error">{item.icon}</Badge> : item.icon}
+              {item.badgeKey && navBadge[item.badgeKey] > 0 ? <Badge badgeContent={navBadge[item.badgeKey]} color="error">{item.icon}</Badge> : item.icon}
             </Box>
             <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: activeSection === item.key ? 600 : 400, color: "inherit" }}>{item.label}</Typography>
           </Box>
@@ -63,19 +66,21 @@ function DesktopSidebar({ activeSection, doctorName, doctorId, navBadge, onNav, 
   );
 }
 
-function MobileBottomNav({ activeSection, pendingTaskCount, onNav }) {
-  // Chat is a subpage of home on mobile — highlight 首页 when in chat
-  const navValue = activeSection === "chat" ? "home" : activeSection;
+function MobileBottomNav({ activeSection, navBadge, onNav }) {
+  // Chat is a subpage of my-ai on mobile — highlight 我的AI when in chat
+  const navValue = activeSection === "chat" ? "my-ai" : activeSection;
   return (
     <Box sx={{ flexShrink: 0, borderTop: "0.5px solid #d9d9d9", bgcolor: "#f7f7f7" }}>
       <BottomNavigationMui value={navValue} onChange={(_, val) => onNav(val)}
         sx={{ height: 64, bgcolor: "#f7f7f7", paddingBottom: "env(safe-area-inset-bottom)", "& .MuiBottomNavigationAction-root": { minWidth: 56, paddingTop: "8px", color: "#999999" }, "& .Mui-selected": { color: "#07C160" }, "& .Mui-selected .MuiBottomNavigationAction-label": { color: "#07C160", fontWeight: 600 } }}>
-        {NAV.map((item) => (
-          <BottomNavigationActionMui key={item.key} label={item.label} value={item.key} showLabel
-            icon={item.key === "tasks" && pendingTaskCount > 0 ? <Badge badgeContent={pendingTaskCount} color="error">{item.icon}</Badge>
-              : item.icon}
-            sx={{ minWidth: 0, "& .MuiBottomNavigationAction-label": { fontSize: TYPE.micro.fontSize } }} />
-        ))}
+        {NAV.map((item) => {
+          const badgeCount = item.badgeKey ? (navBadge[item.badgeKey] || 0) : 0;
+          return (
+            <BottomNavigationActionMui key={item.key} label={item.label} value={item.key} showLabel
+              icon={badgeCount > 0 ? <Badge badgeContent={badgeCount} color="error">{item.icon}</Badge> : item.icon}
+              sx={{ minWidth: 0, "& .MuiBottomNavigationAction-label": { fontSize: TYPE.micro.fontSize } }} />
+          );
+        })}
       </BottomNavigationMui>
     </Box>
   );
@@ -109,6 +114,11 @@ function OnboardingDialog({ open, name, saving, onChange, onSubmit, onClose }) {
 function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpage, urlSubId, chatInsertText, setChatInsertText, chatAutoSendText, setChatAutoSendText, chatAutoSendConsumedRef, patientRefreshKey, setPatientRefreshKey, handleLogout, onContextCleared, triggerInterview, setTriggerInterview, chatInterviewSessionId, setChatInterviewSessionId, chatInterviewPrePopulated, setChatInterviewPrePopulated }) {
   return (
     <Box sx={{ flex: 1, overflow: "hidden" }}>
+      {activeSection === "my-ai" && (
+        <ErrorBoundary label="我的AI">
+          <MyAIPage doctorId={doctorId} />
+        </ErrorBoundary>
+      )}
       {activeSection === "home" && (
         <ErrorBoundary label="首页">
           <HomePage doctorId={doctorId} onNavigateToChat={() => navigate("/doctor/chat")} />
@@ -139,6 +149,8 @@ function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpag
             chatInterviewPrePopulated={chatInterviewPrePopulated} />
         </ErrorBoundary>
       )}
+      {activeSection === "review" && <ErrorBoundary label="审核"><ReviewQueuePage doctorId={doctorId} /></ErrorBoundary>}
+      {activeSection === "followup" && <ErrorBoundary label="随访"><FollowupPage doctorId={doctorId} /></ErrorBoundary>}
       {activeSection === "tasks" && <ErrorBoundary label="任务"><TasksPage doctorId={doctorId} urlSubpage={urlSubpage} urlSubId={urlSubId} /></ErrorBoundary>}
       {activeSection === "settings" && <ErrorBoundary label="设置"><SettingsPage doctorId={doctorId} onLogout={handleLogout} urlSubpage={urlSubpage} urlSubId={urlSubId} /></ErrorBoundary>}
     </Box>
@@ -146,8 +158,10 @@ function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpag
 }
 
 function useDoctorPageState({ doctorId, accessToken, setAuth }) {
-  const { getTasks, getDoctorProfile, updateDoctorProfile } = useApi();
+  const { getTasks, getDoctorProfile, updateDoctorProfile, fetchDraftSummary: fetchDraftSummaryApi } = useApi();
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
+  const [reviewCount, setReviewCount] = useState(0);
+  const [followupCount, setFollowupCount] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardName, setOnboardName] = useState("");
   const [onboardSaving, setOnboardSaving] = useState(false);
@@ -161,13 +175,32 @@ function useDoctorPageState({ doctorId, accessToken, setAuth }) {
     getTasks(doctorId, "pending").then((d) => setPendingTaskCount((Array.isArray(d) ? d : (d.items || [])).length)).catch(() => {});
   }, [doctorId]);
 
+  // Fetch review + followup badge counts
+  useEffect(() => {
+    if (!doctorId) return;
+    // Try fetching draft summary for badge counts; fall back to task count
+    if (typeof fetchDraftSummaryApi === "function") {
+      fetchDraftSummaryApi(doctorId)
+        .then((d) => {
+          setReviewCount(d?.pending_count ?? d?.pending ?? 0);
+          setFollowupCount(d?.followup_count ?? d?.followup ?? 0);
+        })
+        .catch(() => {
+          // Fall back: use pending task count for review badge
+          setReviewCount(pendingTaskCount);
+        });
+    } else {
+      setReviewCount(pendingTaskCount);
+    }
+  }, [doctorId, pendingTaskCount]); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function handleOnboardSubmit() {
     if (!onboardName.trim() || onboardSaving) return;
     setOnboardSaving(true);
     try { await updateDoctorProfile(doctorId, { name: onboardName.trim() }); setAuth(doctorId, onboardName.trim(), accessToken); setShowOnboarding(false); }
     catch {} finally { setOnboardSaving(false); }
   }
-  return { pendingTaskCount, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit };
+  return { pendingTaskCount, reviewCount, followupCount, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit };
 }
 
 export default function DoctorPage() {
@@ -184,12 +217,14 @@ export default function DoctorPage() {
   const [chatInterviewSessionId, setChatInterviewSessionId] = useState(null);
   const [chatInterviewPrePopulated, setChatInterviewPrePopulated] = useState(null);
 
-  const { pendingTaskCount, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit } = useDoctorPageState({ doctorId, accessToken, setAuth });
+  const { pendingTaskCount, reviewCount, followupCount, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit } = useDoctorPageState({ doctorId, accessToken, setAuth });
+
+  const navBadge = { tasks: pendingTaskCount, review: reviewCount, followup: followupCount };
 
   const isReviewPage = !!recordId;
-  const activeSection = patientId ? "patients" : (section || "home");
+  const activeSection = patientId ? "patients" : (section || "my-ai");
 
-  function handleNav(key) { navigate(key === "home" ? "/doctor" : `/doctor/${key}`); }
+  function handleNav(key) { navigate(key === "my-ai" ? "/doctor" : `/doctor/${key}`); }
   function handleLogout() {
     clearAuth();
     if (window.__wxjs_environment === "miniprogram") wx.miniProgram?.postMessage?.({ data: { action: "logout" } }); // eslint-disable-line no-undef
@@ -198,7 +233,7 @@ export default function DoctorPage() {
 
   return (
     <Box sx={{ display: "flex", flexDirection: isMobile ? "column" : "row", height: "100%", position: "relative", bgcolor: "#f7f7f7" }}>
-      {!isMobile && <DesktopSidebar activeSection={activeSection} doctorName={doctorName} doctorId={doctorId} navBadge={{ tasks: pendingTaskCount }} onNav={handleNav} onLogout={handleLogout} />}
+      {!isMobile && <DesktopSidebar activeSection={activeSection} doctorName={doctorName} doctorId={doctorId} navBadge={navBadge} onNav={handleNav} onLogout={handleLogout} />}
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
         {isReviewPage ? (
           <ErrorBoundary label="诊断审核">
@@ -208,7 +243,7 @@ export default function DoctorPage() {
           <SectionContent activeSection={activeSection} doctorId={doctorId} isMobile={isMobile} navigate={navigate} urlSubpage={urlSubpage} urlSubId={urlSubId} chatInsertText={chatInsertText} setChatInsertText={setChatInsertText} chatAutoSendText={chatAutoSendText} setChatAutoSendText={setChatAutoSendText} chatAutoSendConsumedRef={chatAutoSendConsumedRef} patientRefreshKey={patientRefreshKey} setPatientRefreshKey={setPatientRefreshKey} handleLogout={handleLogout} onContextCleared={undefined} triggerInterview={triggerInterview} setTriggerInterview={setTriggerInterview} chatInterviewSessionId={chatInterviewSessionId} setChatInterviewSessionId={setChatInterviewSessionId} chatInterviewPrePopulated={chatInterviewPrePopulated} setChatInterviewPrePopulated={setChatInterviewPrePopulated} />
         )}
       </Box>
-      {isMobile && <MobileBottomNav activeSection={activeSection} pendingTaskCount={pendingTaskCount} onNav={handleNav} />}
+      {isMobile && <MobileBottomNav activeSection={activeSection} navBadge={navBadge} onNav={handleNav} />}
       <OnboardingDialog open={showOnboarding} name={onboardName} saving={onboardSaving} onChange={setOnboardName} onSubmit={handleOnboardSubmit} onClose={() => setShowOnboarding(false)} />
     </Box>
   );
