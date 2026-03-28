@@ -1,8 +1,8 @@
 /**
  * @route /doctor/followup
  *
- * FollowupPage -- "随访" tab. Shows AI-drafted follow-up messages
- * for the doctor to review, edit, and send. Four sections:
+ * TaskPage -- "任务" tab. Shows pending replies, followups, tasks,
+ * and completed items. Three filter tabs:
  *   1. 患者消息 · 待回复  (pending messages with AI drafts)
  *   2. 即将到期的随访     (upcoming scheduled follow-ups)
  *   3. 待办提醒           (doctor-created tasks/reminders)
@@ -452,7 +452,7 @@ function SendConfirmSheet({ open, onClose, item, onConfirm, sending }) {
 }
 
 // ── Main page ──
-export default function FollowupPage({ doctorId }) {
+export default function TaskPage({ doctorId }) {
   const api = useApi();
   const [data, setData] = useState(null);
   const [summary, setSummary] = useState(null);

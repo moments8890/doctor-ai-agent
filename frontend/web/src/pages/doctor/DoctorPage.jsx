@@ -26,7 +26,7 @@ import PatientsPage from "./PatientsPage";
 import SettingsPage from "./SettingsPage";
 import ReviewPage from "./ReviewPage";
 import ReviewQueuePage from "./ReviewQueuePage";
-import FollowupPage from "./FollowupPage";
+import TaskPage from "./TaskPage";
 import ErrorBoundary from "../../components/ErrorBoundary";
 import SheetDialog from "../../components/SheetDialog";
 import AppButton from "../../components/AppButton";
@@ -143,7 +143,7 @@ function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpag
         </ErrorBoundary>
       )}
       {activeSection === "review" && <ErrorBoundary label="审核"><ReviewQueuePage doctorId={doctorId} /></ErrorBoundary>}
-      {activeSection === "followup" && <ErrorBoundary label="随访"><FollowupPage doctorId={doctorId} /></ErrorBoundary>}
+      {activeSection === "followup" && <ErrorBoundary label="任务"><TaskPage doctorId={doctorId} /></ErrorBoundary>}
       {activeSection === "settings" && <ErrorBoundary label="设置"><SettingsPage doctorId={doctorId} onLogout={handleLogout} urlSubpage={urlSubpage} urlSubId={urlSubId} /></ErrorBoundary>}
     </Box>
   );
@@ -174,8 +174,10 @@ function useDoctorPageState({ doctorId, accessToken, setAuth }) {
     if (typeof fetchDraftSummaryApi === "function") {
       fetchDraftSummaryApi(doctorId)
         .then((d) => {
-          setReviewCount(d?.pending_count ?? d?.pending ?? 0);
-          setFollowupCount(d?.followup_count ?? d?.followup ?? 0);
+          // review badge = pending AI diagnosis suggestions (review queue)
+          setReviewCount(d?.review_pending_count ?? 0);
+          // followup badge = pending draft replies needing doctor attention
+          setFollowupCount(d?.pending ?? 0);
         })
         .catch(() => {
           // Fall back: use pending task count for review badge

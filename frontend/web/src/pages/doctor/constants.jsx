@@ -6,8 +6,8 @@ import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
-import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
+import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 
 export const TASK_TYPE_LABEL = {
@@ -80,15 +80,15 @@ export const RECORD_TYPE_LABEL = {
 export const NAV = [
   { key: "my-ai", label: "我的AI", icon: <AutoAwesomeOutlinedIcon fontSize="medium" /> },
   { key: "patients", label: "患者", icon: <PeopleOutlineIcon fontSize="medium" /> },
-  { key: "review", label: "门诊", icon: <CheckCircleOutlineIcon fontSize="medium" />, badgeKey: "review" },
-  { key: "followup", label: "任务", icon: <MailOutlineIcon fontSize="medium" />, badgeKey: "followup" },
+  { key: "review", label: "门诊", icon: <LocalHospitalOutlinedIcon fontSize="medium" />, badgeKey: "review" },
+  { key: "followup", label: "任务", icon: <AssignmentTurnedInOutlinedIcon fontSize="medium" />, badgeKey: "followup" },
 ];
 
 export const DESKTOP_NAV = [
   { key: "my-ai", label: "我的AI", icon: <AutoAwesomeOutlinedIcon fontSize="medium" /> },
   { key: "patients", label: "患者", icon: <PeopleOutlineIcon fontSize="medium" /> },
-  { key: "review", label: "门诊", icon: <CheckCircleOutlineIcon fontSize="medium" />, badgeKey: "review" },
-  { key: "followup", label: "任务", icon: <MailOutlineIcon fontSize="medium" />, badgeKey: "followup" },
+  { key: "review", label: "门诊", icon: <LocalHospitalOutlinedIcon fontSize="medium" />, badgeKey: "review" },
+  { key: "followup", label: "任务", icon: <AssignmentTurnedInOutlinedIcon fontSize="medium" />, badgeKey: "followup" },
   { key: "settings", label: "设置", icon: <SettingsOutlinedIcon fontSize="medium" /> },
 ];
 
