@@ -392,10 +392,19 @@ async def run_diagnosis(
         chief_complaint = (structured.get("chief_complaint") or clinical_text or "")[:200]
 
         # ------------------------------------------------------------------
-        # Step 2: Case matching disabled (CaseHistory table removed)
-        # TODO: migrate case matching to medical_records-based approach
+        # Step 2: Case matching — find similar confirmed cases
         # ------------------------------------------------------------------
-        matched_cases: List[Dict[str, Any]] = []
+        try:
+            from domain.knowledge.case_matching import find_similar_cases
+            async with AsyncSessionLocal() as case_session:
+                matched_cases = await find_similar_cases(
+                    case_session, doctor_id,
+                    chief_complaint=structured.get("chief_complaint", ""),
+                    present_illness=structured.get("present_illness", ""),
+                )
+        except Exception as exc:
+            log(f"[diagnosis] case matching failed (non-fatal): {exc}", level="warning")
+            matched_cases: List[Dict[str, Any]] = []
 
         # ------------------------------------------------------------------
         # Step 3: Load doctor knowledge (non-blocking — empty on failure)

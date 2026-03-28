@@ -24,6 +24,19 @@ import SectionLabel from "../../components/SectionLabel";
 import SubpageHeader from "../../components/SubpageHeader";
 import { TYPE, COLOR } from "../../theme";
 
+/* ── Case memory helpers ──────────────────────────────────────────────────── */
+
+function extractCaseText(detail) {
+  if (!detail) return "";
+  // Find text after 【类似病例参考】 or lines containing "相似度"
+  const lines = detail.split("\n");
+  const caseLines = lines.filter(l => l.includes("相似度") || l.includes("类似病例"));
+  if (caseLines.length > 0) return caseLines.join("\n");
+  // Fallback: look for numbered case references
+  const numbered = lines.filter(l => /^\d+\.\s*相似度/.test(l.trim()));
+  return numbered.join("\n") || "";
+}
+
 /* ── Section label map ────────────────────────────────────────────────────── */
 
 const SECTION_LABEL = {
@@ -68,6 +81,7 @@ function SummaryBar({ summary }) {
 
 function PendingReviewCard({ item, onConfirm, onReject, onEdit, onNavigate }) {
   const hasCitation = !!item.rule_cited;
+  const hasCaseMemory = (item.detail || "").includes("相似度") || (item.detail || "").includes("类似病例");
   const borderLeft = hasCitation
     ? `3px solid ${COLOR.primary}`
     : `3px dashed ${COLOR.border}`;
@@ -165,6 +179,23 @@ function PendingReviewCard({ item, onConfirm, onReject, onEdit, onNavigate }) {
           </Box>
         )}
       </Box>
+
+      {/* Case memory card */}
+      {hasCaseMemory && (
+        <Box sx={{
+          mx: 2, mb: 0.75,
+          bgcolor: "#f0faf4", borderRadius: "6px",
+          padding: "10px 12px",
+          borderLeft: `3px solid ${COLOR.primary}`,
+        }}>
+          <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.primary, fontWeight: 500, mb: 0.5 }}>
+            你处理过类似病例
+          </Typography>
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text2, lineHeight: 1.6 }}>
+            {extractCaseText(item.detail)}
+          </Typography>
+        </Box>
+      )}
 
       {/* Action row */}
       <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, px: 2, pb: 1.25 }}>

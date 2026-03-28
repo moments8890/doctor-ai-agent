@@ -482,7 +482,7 @@ export async function getReviewQueue() {
         patient_id: 1, patient_name: "陈伟强", time: "今天 14:32",
         urgency: "urgent",
         section: "differential", content: "术后迟发性血肿",
-        detail: "术后第7天头痛加剧，需排除迟发性硬膜外/下血肿，建议急查头颅CT",
+        detail: "术后第7天头痛加剧，需排除迟发性硬膜外/下血肿，建议急查头颅CT\n\n【类似病例参考】\n1. 相似度92% — 动脉瘤夹闭术后头痛 → 迟发性血管痉挛（治疗：尼莫地平+TCD+ICU）\n2. 相似度85% — 开颅术后第8天头痛加剧 → 术区血肿再扩大（治疗：急诊手术清除）",
         rule_cited: "术后头痛红旗",
       },
       {
