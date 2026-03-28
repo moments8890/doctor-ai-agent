@@ -26,8 +26,8 @@ export const MOCK_RECORDS = [
     content: "右额叶脑膜瘤开颅切除术后7天",
     created_at: "2026-03-20 09:00:00",
     structured: {
-      chief_complaint: "右额叶占位性病变",
-      present_illness: "头痛渐进性加重2月，伴右眼视力下降1月。MRI示右额叶脑膜瘤4.2x3.8cm，中线轻度左移",
+      chief_complaint: "头痛渐进性加重2月伴右眼视力下降1月",
+      present_illness: "近2个月头痛逐渐加重，以右额部为主，伴右眼视力进行性下降。MRI示右额叶脑膜瘤4.2x3.8cm，中线轻度左移",
       past_history: "既往体健，无高血压糖尿病史",
       allergy_history: "无",
       family_history: "无特殊",
@@ -94,7 +94,7 @@ export const MOCK_RECORDS = [
     content: "术后第12天查房记录",
     created_at: "2026-03-27 08:30:00",
     structured: {
-      chief_complaint: "术后恢复中，轻微头痛",
+      chief_complaint: "动脉瘤术后12天，轻微头痛",
       present_illness: "动脉瘤夹闭术后第12天，头痛较前缓解，偶有轻微胀痛，无恶心呕吐，意识清醒，肢体活动正常",
       past_history: "3月15日急诊行前交通动脉瘤夹闭术+去骨瓣减压术",
       physical_exam: "GCS 15分，双侧瞳孔等大等圆，四肢肌力V级，切口愈合良好",
