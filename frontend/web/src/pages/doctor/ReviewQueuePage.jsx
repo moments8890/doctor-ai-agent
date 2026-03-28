@@ -280,7 +280,9 @@ function CompletedRow({ item }) {
 
 /* ── Main ─────────────────────────────────────────────────────────────────── */
 
-export default function ReviewQueuePage({ doctorId }) {
+const REVIEW_TABS = new Set(["pending", "confirmed", "modified"]);
+
+export default function ReviewQueuePage({ doctorId, urlSubpage }) {
   const navigate = useAppNavigate();
   const { getReviewQueue, decideSuggestion } = useApi();
   const [queue, setQueue] = useState(null);
@@ -379,9 +381,18 @@ export default function ReviewQueuePage({ doctorId }) {
   const confirmedItems = completed.filter((c) => c.decision !== "edited");
   const modifiedItems = completed.filter((c) => c.decision === "edited");
   const summary = { pending: pending.length, confirmed: confirmedItems.length, modified: modifiedItems.length };
-  const [filter, setFilter] = useState("pending");
+  const navigate = useAppNavigate();
+  const tabFromUrl = new URLSearchParams(window.location.search).get("tab");
+  const initialTab = tabFromUrl && REVIEW_TABS.has(tabFromUrl) ? tabFromUrl : "pending";
+  const [filter, setFilter] = useState(initialTab);
 
-  const handleFilter = (key) => setFilter((prev) => prev === key ? "pending" : key);
+  const handleFilter = (key) => {
+    const next = filter === key ? "pending" : key;
+    setFilter(next);
+    const url = new URL(window.location);
+    url.searchParams.set("tab", next);
+    window.history.replaceState(null, "", url);
+  };
 
   const showPending = filter === "pending";
   const filteredCompleted = filter === "confirmed" ? confirmedItems : filter === "modified" ? modifiedItems : [];

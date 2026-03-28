@@ -223,7 +223,7 @@ function MessageItem({ item, onSend, onEdit, onTeachPrompt }) {
               </Box>
             </Box>
           ) : (
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.5 }}>
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.5, whiteSpace: "pre-line" }}>
               {item.draft_text}
             </Typography>
           )}
@@ -452,7 +452,9 @@ function SendConfirmSheet({ open, onClose, item, onConfirm, sending }) {
 }
 
 // ── Main page ──
-export default function TaskPage({ doctorId }) {
+const VALID_TABS = new Set(["messages", "followups", "sent"]);
+
+export default function TaskPage({ doctorId, urlSubpage }) {
   const api = useApi();
   const [data, setData] = useState(null);
   const [summary, setSummary] = useState(null);
@@ -572,12 +574,18 @@ export default function TaskPage({ doctorId }) {
     setTeachEditId(null);
   };
 
-  const [filter, setFilter] = useState("messages");
+  const tabFromUrl = new URLSearchParams(window.location.search).get("tab");
+  const initialTab = tabFromUrl && VALID_TABS.has(tabFromUrl) ? tabFromUrl : "messages";
+  const [filter, setFilter] = useState(initialTab);
   const totalCount = pendingMessages.length + upcomingFollowups.length + pendingTasks.length;
   const isEmpty = !loading && !error && totalCount === 0 && recentlySent.length === 0;
 
   const handleFilter = (key) => {
-    setFilter((prev) => prev === key ? "all" : key);
+    const next = filter === key ? "messages" : key;
+    setFilter(next);
+    const url = new URL(window.location);
+    url.searchParams.set("tab", next);
+    window.history.replaceState(null, "", url);
   };
 
   const showMessages = filter === "all" || filter === "messages";

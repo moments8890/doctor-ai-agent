@@ -142,8 +142,8 @@ function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpag
             chatInterviewPrePopulated={chatInterviewPrePopulated} />
         </ErrorBoundary>
       )}
-      {activeSection === "review" && <ErrorBoundary label="审核"><ReviewQueuePage doctorId={doctorId} /></ErrorBoundary>}
-      {activeSection === "tasks" && <ErrorBoundary label="任务"><TaskPage doctorId={doctorId} /></ErrorBoundary>}
+      {activeSection === "review" && <ErrorBoundary label="门诊"><ReviewQueuePage doctorId={doctorId} urlSubpage={urlSubpage} /></ErrorBoundary>}
+      {activeSection === "tasks" && <ErrorBoundary label="任务"><TaskPage doctorId={doctorId} urlSubpage={urlSubpage} /></ErrorBoundary>}
       {activeSection === "settings" && <ErrorBoundary label="设置"><SettingsPage doctorId={doctorId} onLogout={handleLogout} urlSubpage={urlSubpage} urlSubId={urlSubId} /></ErrorBoundary>}
     </Box>
   );
