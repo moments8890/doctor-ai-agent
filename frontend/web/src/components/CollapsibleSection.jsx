@@ -1,17 +1,32 @@
 /**
  * CollapsibleSection — tap header to collapse/expand content.
  * iOS grouped table style: gray sticky header with count + chevron.
+ *
+ * Supports ref with .open() and .scrollIntoView() for programmatic control
+ * (e.g., tapping summary bar stats to jump to a section).
  */
-import { useState } from "react";
+import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { Box, Typography } from "@mui/material";
 import { TYPE, COLOR } from "../theme";
 
-export default function CollapsibleSection({ title, count, defaultOpen = true, children }) {
+const CollapsibleSection = forwardRef(function CollapsibleSection({ title, count, defaultOpen = true, children }, ref) {
   const [open, setOpen] = useState(defaultOpen);
+  const headerRef = useRef(null);
+
+  useImperativeHandle(ref, () => ({
+    open() { setOpen(true); },
+    scrollIntoView() {
+      setOpen(true);
+      setTimeout(() => {
+        headerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 50);
+    },
+  }));
 
   return (
     <>
       <Box
+        ref={headerRef}
         onClick={() => setOpen(!open)}
         sx={{
           display: "flex", alignItems: "center",
@@ -38,4 +53,6 @@ export default function CollapsibleSection({ title, count, defaultOpen = true, c
       {open && children}
     </>
   );
-}
+});
+
+export default CollapsibleSection;

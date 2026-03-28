@@ -8,7 +8,7 @@
  *   3. 待办提醒           (doctor-created tasks/reminders)
  *   4. 最近已发送         (recently sent messages)
  */
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Box, CircularProgress, Snackbar, Typography } from "@mui/material";
 import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
@@ -52,9 +52,9 @@ const BADGE_COLOR_MAP = {
 const BADGE_LABEL = { new: "新消息", urgent: "紧急" };
 
 // ── Summary stat component ──
-function SummaryStat({ value, label, color }) {
+function SummaryStat({ value, label, color, onClick }) {
   return (
-    <Box sx={{ flex: 1, textAlign: "center" }}>
+    <Box onClick={onClick} sx={{ flex: 1, textAlign: "center", cursor: onClick ? "pointer" : "default", "&:active": onClick ? { opacity: 0.5 } : {} }}>
       <Typography sx={{ fontSize: TYPE.title.fontSize, fontWeight: 600, color: color || COLOR.text1 }}>
         {value}
       </Typography>
@@ -458,6 +458,12 @@ export default function FollowupPage({ doctorId }) {
   const [confirmItem, setConfirmItem] = useState(null);
   const [sending, setSending] = useState(false);
 
+  // Section refs for scroll-to
+  const pendingRef = useRef(null);
+  const followupsRef = useRef(null);
+  const tasksRef = useRef(null);
+  const sentRef = useRef(null);
+
   // Teaching prompt state (shown after doctor edits a draft)
   const [teachEditId, setTeachEditId] = useState(null);
   const [teachSaving, setTeachSaving] = useState(false);
@@ -615,16 +621,16 @@ export default function FollowupPage({ doctorId }) {
               borderBottom: `0.5px solid ${COLOR.border}`,
               borderTop: `0.5px solid ${COLOR.border}`,
             }}>
-              <SummaryStat value={summary?.pending_reply ?? summary?.pending ?? pendingMessages.length} label="待回复" color={COLOR.danger} />
+              <SummaryStat value={summary?.pending_reply ?? summary?.pending ?? pendingMessages.length} label="待回复" color={COLOR.danger} onClick={() => pendingRef.current?.scrollIntoView()} />
               <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 0.5 }} />
-              <SummaryStat value={summary?.ai_drafted ?? 0} label="AI已起草" color={COLOR.warning} />
+              <SummaryStat value={summary?.ai_drafted ?? 0} label="AI已起草" color={COLOR.warning} onClick={() => pendingRef.current?.scrollIntoView()} />
               <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 0.5 }} />
-              <SummaryStat value={(summary?.due_soon ?? summary?.upcoming ?? upcomingFollowups.length) + pendingTasks.length} label="即将到期" />
+              <SummaryStat value={(summary?.due_soon ?? summary?.upcoming ?? upcomingFollowups.length) + pendingTasks.length} label="即将到期" onClick={() => (followupsRef.current || tasksRef.current)?.scrollIntoView()} />
             </Box>
 
             {/* ── Section: 患者消息 · 待回复 ── */}
             {pendingMessages.length > 0 && (
-              <CollapsibleSection title="患者消息 · 待回复" count={pendingMessages.length}>
+              <CollapsibleSection ref={pendingRef} title="患者消息 · 待回复" count={pendingMessages.length}>
                 <Box sx={{
                   bgcolor: COLOR.white,
                   borderTop: `0.5px solid ${COLOR.border}`,
@@ -644,7 +650,7 @@ export default function FollowupPage({ doctorId }) {
 
             {/* ── Section: 即将到期的随访 ── */}
             {upcomingFollowups.length > 0 && (
-              <CollapsibleSection title="即将到期的随访" count={upcomingFollowups.length}>
+              <CollapsibleSection ref={followupsRef} title="即将到期的随访" count={upcomingFollowups.length}>
                 <Box sx={{
                   bgcolor: COLOR.white,
                   borderTop: `0.5px solid ${COLOR.border}`,
@@ -659,7 +665,7 @@ export default function FollowupPage({ doctorId }) {
 
             {/* ── Section: 待办提醒 ── */}
             {pendingTasks.length > 0 && (
-              <CollapsibleSection title="待办提醒" count={pendingTasks.length}>
+              <CollapsibleSection ref={tasksRef} title="待办提醒" count={pendingTasks.length}>
                 <Box sx={{
                   bgcolor: COLOR.white,
                   borderTop: `0.5px solid ${COLOR.border}`,
