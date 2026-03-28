@@ -587,7 +587,7 @@ export default function FollowupPage({ doctorId }) {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
-      <SubpageHeader title="随访" />
+      <SubpageHeader title="任务" />
       <Box sx={{ flex: 1, overflow: "auto", pb: "80px" }}>
 
         {/* Loading */}
@@ -633,8 +633,8 @@ export default function FollowupPage({ doctorId }) {
             }}>
               {[
                 { key: "messages", label: "待回复", count: pendingMessages.length, activeColor: COLOR.danger },
-                { key: "followups", label: "门诊", count: upcomingFollowups.length, activeColor: COLOR.warning },
-                { key: "tasks", label: "任务", count: pendingTasks.length, activeColor: COLOR.text1 },
+                { key: "followups", label: "随访", count: upcomingFollowups.length, activeColor: COLOR.warning },
+                { key: "tasks", label: "日程", count: pendingTasks.length, activeColor: COLOR.text1 },
                 { key: "sent", label: "已完成", count: recentlySent.length, activeColor: COLOR.text4 },
               ].map((tab, i, arr) => {
                 const active = filter === tab.key;

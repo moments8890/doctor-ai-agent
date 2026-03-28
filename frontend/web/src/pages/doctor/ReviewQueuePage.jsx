@@ -363,7 +363,7 @@ export default function ReviewQueuePage({ doctorId }) {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
-      <SubpageHeader title="审核" />
+      <SubpageHeader title="门诊" />
 
       <Box sx={{ flex: 1, overflow: "auto" }}>
         {/* Summary bar */}
