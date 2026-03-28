@@ -1,5 +1,7 @@
 # D6.4 Document Upload + Citation — Design Spec
 
+**Status: ✅ COMPLETED (2026-03-27)**
+
 > Date: 2026-03-27
 > Status: Approved (revised after Codex security review)
 > Parity Matrix: D6.4

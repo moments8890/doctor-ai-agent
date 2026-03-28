@@ -1,7 +1,7 @@
 # Knowledge List Redesign — Remove Category Grouping + Unified Input Processing
 
 **Date:** 2026-03-27
-**Status:** Approved
+**Status: ✅ COMPLETED (2026-03-27)**
 **Codex review:** Consulted (session 019d3181)
 
 ## Problem

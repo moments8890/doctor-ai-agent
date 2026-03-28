@@ -1,6 +1,6 @@
 # Regression Test Infrastructure — Design
 
-**Status:** Completed (2026-03-25) — Phases 1-4 implemented, 86 tests green
+**Status: ✅ COMPLETED (2026-03-27)**
 **Date:** 2026-03-25
 **Related:**
 - [Unified Scenario Runner Design](../../plans/unified-scenario-runner-design.md) — format spec, matchers, normalization

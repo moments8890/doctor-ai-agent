@@ -1,8 +1,8 @@
 {
-  "evalId": "eval-lTK-2026-03-28T03:49:09",
+  "evalId": "eval-Q4x-2026-03-28T03:54:24",
   "results": {
     "version": 3,
-    "timestamp": "2026-03-28T03:49:09.137Z",
+    "timestamp": "2026-03-28T03:54:24.243Z",
     "prompts": [
       {
         "raw": "# Role: 临床文档OCR提取\n\n将图片中的临床文字原样提取为纯文本。\n\n## Rules\n1. 保留所有数字、单位、药物名称，原样输出\n2. 保持原文档的阅读顺序（从上到下，从左到右）\n3. 表格内容用制表符或空格对齐，保持行列关系\n4. 化验单保持\"项目 — 结果 — 单位 — 参考值\"的对应关系\n5. 处方保持\"药名 — 剂量 — 用法\"的对应关系\n\n## 质量控制\n- 手写内容尽力识别，无法辨认处标注[?]\n- 单个字段中[?]超过3处 → 整行标注\"[识别不清]\"\n- 印章、水印、背景文字忽略，不提取\n\n## Constraints\n- 不添加解释、推断或诊断\n- 不输出JSON，只输出纯文本\n- 不翻译（中文保持中文，英文缩写保持原样）\n- 不修改数值（即使看起来异常）\n\n## Examples\n\n**示例1：化验单**\n\n（输入：血常规化验单图片）\n\n→\n血常规\n项目          结果      单位      参考值\n白细胞(WBC)   11.2     10^9/L    4.0-10.0  ↑\n血红蛋白(HGB) 140      g/L       120-160\n血小板(PLT)   198      10^9/L    100-300\n中性粒细胞%   78.5     %         50-70     ↑\n\n**示例2：处方笺**\n\n（输入：门诊处方图片）\n\n→\n处方\n阿司匹林肠溶片  100mg  口服  每日1次\n氯吡格雷片      75mg   口服  每日1次\n阿托伐他汀钙片  20mg   口服  每晚1次\n[?]氯化钾缓释片 0.5g   口服  每日2次\n（药名首字手写不清，标注[?]）\n\n**示例3：手写病历**\n\n（输入：手写门诊病历图片）\n\n→\n主诉：头痛[?]天\n现病史：[?]起病，[?]加重，伴[?]，[?]缓解\n  → [识别不清]\n查体：BP 150/90，神清，颈[?]\n诊断：高血压2级\n（现病史行有4处[?]，超过3处 → 整行标注[识别不清]）\n\n**示例4：带印章/水印的报告**\n\n（输入：盖有医院公章的检验报告图片）\n\n→\n肝功能检验报告\nALT  45  U/L   0-40  ↑\nAST  32  U/L   0-40\n（印章、水印、背景文字已忽略，不提取）\n\n---\n\n以下是需要提取文字的临床文档内容：\n{{text_input}}\n",
@@ -10,18 +10,18 @@
         "id": "6e786e7f9f0fad74ae8241d60b49a6fbc6f933cd60eb63c87ddeaf1438bfdeba",
         "provider": "qwen3-32b-groq",
         "metrics": {
-          "score": 2.333333333333333,
-          "testPassCount": 2,
-          "testFailCount": 1,
+          "score": 3,
+          "testPassCount": 3,
+          "testFailCount": 0,
           "testErrorCount": 0,
-          "assertPassCount": 9,
-          "assertFailCount": 4,
-          "totalLatencyMs": 4238,
+          "assertPassCount": 13,
+          "assertFailCount": 0,
+          "totalLatencyMs": 5250,
           "tokenUsage": {
             "prompt": 2289,
-            "completion": 1671,
+            "completion": 2370,
             "cached": 0,
-            "total": 3960,
+            "total": 4659,
             "numRequests": 3,
             "completionDetails": {
               "reasoning": 0,
@@ -49,14 +49,14 @@
     ],
     "results": [],
     "stats": {
-      "successes": 2,
-      "failures": 1,
+      "successes": 3,
+      "failures": 0,
       "errors": 0,
       "tokenUsage": {
         "prompt": 2289,
-        "completion": 1671,
+        "completion": 2370,
         "cached": 0,
-        "total": 3960,
+        "total": 4659,
         "numRequests": 3,
         "completionDetails": {
           "reasoning": 0,
@@ -76,8 +76,8 @@
           }
         }
       },
-      "durationMs": 1940,
-      "evaluationDurationMs": 1940
+      "durationMs": 2433,
+      "evaluationDurationMs": 2433
     }
   },
   "config": {
@@ -122,7 +122,7 @@
     "nodeVersion": "v23.11.0",
     "platform": "darwin",
     "arch": "arm64",
-    "exportedAt": "2026-03-28T03:49:11.089Z",
-    "evaluationCreatedAt": "2026-03-28T03:49:09.137Z"
+    "exportedAt": "2026-03-28T03:54:26.685Z",
+    "evaluationCreatedAt": "2026-03-28T03:54:24.243Z"
   }
 }

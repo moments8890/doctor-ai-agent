@@ -1,5 +1,7 @@
 # QR Code Login — Design Spec
 
+**Status: ✅ COMPLETED (2026-03-27)**
+
 > **Features:** D6.1 (QR Code Generator), P1.1 (QR Code Entry)
 > **Scope:** Admin generates doctor QR, doctor generates patient QR. QR encodes a long-lived JWT URL that lands the user directly in the app.
 > **Date:** 2026-03-26

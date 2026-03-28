@@ -1,7 +1,7 @@
 # Knowledge Base UI Redesign
 
 **Date:** 2026-03-26
-**Status:** Approved
+**Status: ❌ NOT STARTED**
 **Goal:** Replace the current KnowledgeSubpage (FieldReviewCard-based) with a clean WeChat-inspired collapsible category list with inline edit and swipe-to-delete.
 
 ## Current State

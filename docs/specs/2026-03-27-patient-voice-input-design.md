@@ -2,6 +2,8 @@
 
 > Date: 2026-03-27
 > Status: Approved (revised after Codex review)
+
+**Status: ✅ COMPLETED (2026-03-27)**
 > Parity Matrix: P2.3
 > Scope: Web app only (mini-program has separate voice APIs via Taro/uni-app)
 

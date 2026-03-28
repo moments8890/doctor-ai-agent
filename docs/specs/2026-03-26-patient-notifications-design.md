@@ -1,5 +1,7 @@
 # Patient Notifications — Design Spec
 
+**Status: ✅ COMPLETED (2026-03-27)**
+
 > **Features:** P4.1 (Patient Notification Capability), P4.2 (Follow-up Reminders)
 > **Scope:** Patient app only. In-app notifications via chat feed. No external push.
 > **Date:** 2026-03-26

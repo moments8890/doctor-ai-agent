@@ -1,5 +1,7 @@
 # Diagnosis UI — Design Spec
 
+**Status: ✅ COMPLETED (2026-03-27)**
+
 > Date: 2026-03-25
 > Status: Draft
 > Depends on: existing `run_diagnosis()` pipeline, existing `DiagnosisSection.jsx` shell
