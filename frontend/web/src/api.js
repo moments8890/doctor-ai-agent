@@ -345,8 +345,10 @@ export async function searchPatients(doctorId, q) {
   return request(`/api/manage/patients/search?${qs.toString()}`);
 }
 
-export async function exportPatientPdf(patientId, doctorId) {
+export async function exportPatientPdf(patientId, doctorId, { sections, visitRange } = {}) {
   const qs = new URLSearchParams({ doctor_id: doctorId });
+  if (sections && sections.length > 0) qs.set("sections", sections.join(","));
+  if (visitRange) qs.set("visit_range", visitRange);
   const headers = {};
   if (_webToken) headers["Authorization"] = `Bearer ${_webToken}`;
   const response = await fetch(apiUrl(`/api/export/patient/${patientId}/pdf?${qs.toString()}`), { headers });
@@ -410,6 +412,40 @@ export async function deleteTemplate(doctorId) {
     throw new Error(text || `HTTP ${response.status}`);
   }
   return response.json();
+}
+
+// ---------------------------------------------------------------------------
+// Bulk export API
+// ---------------------------------------------------------------------------
+
+export async function startBulkExport(doctorId) {
+  return request(`/api/export/bulk?doctor_id=${encodeURIComponent(doctorId)}`, {
+    method: "POST",
+  });
+}
+
+export async function getBulkExportStatus(taskId, doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/export/bulk/${taskId}?${qs.toString()}`);
+}
+
+export async function downloadBulkExport(taskId, doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  const headers = {};
+  const token = _getToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const response = await fetch(apiUrl(`/api/export/bulk/${taskId}/download?${qs.toString()}`), { headers });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `HTTP ${response.status}`);
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `导出_${new Date().toISOString().slice(0, 10)}.zip`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export async function getRecords({ doctorId, patientId, patientName, dateFrom, dateTo, limit = 50, offset = 0 }) {
@@ -867,6 +903,45 @@ export async function addKnowledgeItem(doctorId, content, category = "custom") {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ content, category }),
   });
+}
+
+export async function uploadKnowledgeExtract(doctorId, file) {
+  const form = new FormData();
+  form.append("file", file);
+  const token = _getToken();
+  const headers = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const response = await fetch(apiUrl(`/api/manage/knowledge/upload/extract?doctor_id=${encodeURIComponent(doctorId)}`), {
+    method: "POST",
+    headers,
+    body: form,
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function uploadKnowledgeSave(doctorId, text, sourceFilename) {
+  return request(`/api/manage/knowledge/upload/save?doctor_id=${encodeURIComponent(doctorId)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, source_filename: sourceFilename }),
+  });
+}
+
+export async function processKnowledgeText(doctorId, text) {
+  return request(`/api/manage/knowledge/process-text?doctor_id=${encodeURIComponent(doctorId)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+}
+
+export async function getKnowledgeBatch(doctorId, ids) {
+  const idsStr = ids.join(",");
+  return request(`/api/manage/knowledge/batch?doctor_id=${encodeURIComponent(doctorId)}&ids=${idsStr}`);
 }
 
 // ── Briefing ──────────────────────────────────────────────────────────────────

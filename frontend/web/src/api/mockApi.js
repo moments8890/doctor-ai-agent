@@ -69,7 +69,10 @@ export async function getSuggestions(recordId) {
 }
 
 export async function getKnowledgeItems() {
-  return { items: knowledgeItems };
+  const sorted = [...knowledgeItems].sort((a, b) =>
+    (b.created_at || "").localeCompare(a.created_at || "")
+  );
+  return { items: sorted };
 }
 
 export async function getDoctorProfile() {
@@ -133,10 +136,9 @@ export async function addSuggestion(recordId, doctorId, section, content, detail
   return newSuggestion;
 }
 
-export async function addKnowledgeItem(doctorId, content, category = "custom") {
+export async function addKnowledgeItem(doctorId, content) {
   const newItem = {
     id: Date.now(),
-    category,
     text: content,
     content,
     source: "doctor",
@@ -150,6 +152,52 @@ export async function addKnowledgeItem(doctorId, content, category = "custom") {
 export async function deleteKnowledgeItem(doctorId, itemId) {
   knowledgeItems = knowledgeItems.filter((i) => i.id !== itemId);
   return {};
+}
+
+export async function uploadKnowledgeExtract(_doctorId, file) {
+  await new Promise((r) => setTimeout(r, 800)); // simulate network
+  return {
+    extracted_text: `（模拟提取）${file.name} 的内容摘要：\n\n本文件包含临床诊疗指南相关内容，建议医生在相关场景中参考使用。`,
+    source_filename: file.name,
+    llm_processed: true,
+  };
+}
+
+export async function uploadKnowledgeSave(doctorId, text, sourceFilename) {
+  const newItem = {
+    id: Date.now(),
+    text,
+    content: text,
+    source: `upload:${sourceFilename}`,
+    created_at: new Date().toISOString().slice(0, 10),
+    reference_count: 0,
+  };
+  knowledgeItems = [...knowledgeItems, newItem];
+  return newItem;
+}
+
+export async function processKnowledgeText(_doctorId, text) {
+  await new Promise((r) => setTimeout(r, 600)); // simulate network
+  const trimmed = (text || "").trim();
+  if (trimmed.length >= 500) {
+    const processed = `（AI整理）${trimmed.slice(0, 200)}...\n\n以上内容已由AI整理，保留了核心临床要点。`;
+    return {
+      processed_text: processed,
+      original_length: trimmed.length,
+      processed_length: processed.length,
+      llm_processed: true,
+    };
+  }
+  return {
+    processed_text: trimmed,
+    original_length: trimmed.length,
+    processed_length: trimmed.length,
+    llm_processed: false,
+  };
+}
+
+export async function getKnowledgeBatch(_doctorId, ids) {
+  return { items: knowledgeItems.filter((i) => ids.includes(i.id)) };
 }
 
 export async function deletePatient(patientId) {
@@ -174,8 +222,53 @@ export async function updateDoctorProfile(doctorId, data) {
 // ── Complex flows (canned responses) ──
 
 export async function sendChat(payload) {
+  const text = (payload.text || payload.message || "");
+  if (text.includes("总结") || text.includes("最近情况")) {
+    return {
+      reply: "**陈伟强 临床总结**\n\n**基本信息：** 男，42岁\n\n**主要诊断：**\n- 2026-03-26 主诉：头痛3天伴恶心呕吐，诊断：高血压\n- 2026-03-19 主诉：头晕反复发作1月\n\n**治疗经过：** 口服降压药（氨氯地平5mg qd），症状有所缓解\n\n**当前状态：** 最近一次就诊血压控制尚可，仍有间断头痛\n\n**注意事项：** ⚠ 需复查血常规和肝肾功能，监测血压变化",
+      view_payload: {
+        records: [
+          { id: 1, patient_id: 1, patient_name: "陈伟强", chief_complaint: "头痛3天伴恶心呕吐", record_type: "visit", created_at: "2026-03-26" },
+          { id: 2, patient_id: 1, patient_name: "陈伟强", chief_complaint: "头晕反复发作1月", record_type: "visit", created_at: "2026-03-19" },
+        ],
+      },
+    };
+  }
+  if (text.includes("患者") || text.includes("查询")) {
+    return {
+      reply: "找到 2 位患者：",
+      view_payload: {
+        patients: [
+          { id: 1, name: "陈伟强", gender: "male", age: 42 },
+          { id: 3, name: "王明", gender: "male", age: 71 },
+        ],
+      },
+    };
+  }
+  if (text.includes("任务") || text.includes("今日")) {
+    return {
+      reply: "您有 2 个待办任务：",
+      view_payload: {
+        tasks: [
+          { id: 1, title: "复查血常规", task_type: "checkup", due_at: "2026-03-28T10:00", status: "pending" },
+          { id: 2, title: "调整降压药剂量", task_type: "medication", due_at: "2026-03-29T09:00", status: "pending" },
+        ],
+      },
+    };
+  }
+  if (text.includes("病历") || text.includes("记录")) {
+    return {
+      reply: "找到 2 条病历记录：",
+      view_payload: {
+        records: [
+          { id: 1, patient_id: 1, patient_name: "陈伟强", chief_complaint: "头痛3天伴恶心呕吐", record_type: "visit", created_at: "2026-03-26" },
+          { id: 2, patient_id: 3, patient_name: "王明", chief_complaint: "头晕反复发作1月", record_type: "visit", created_at: "2026-03-25" },
+        ],
+      },
+    };
+  }
   return {
-    reply: "这是模拟回复。Mock mode 不支持真实对话。",
+    reply: "这是模拟回复。Mock mode 不支持真实对话。\n\n试试输入「查询患者」「今日任务」或「查病历」看看消息卡片。",
     records: [],
     tasks: [],
   };

@@ -36,13 +36,17 @@ All documentation lives under `docs/`. These are the canonical folders:
 5. If a doc references stale file paths or old architecture, rewrite it — don't keep two versions.
 6. Mockup HTML files go alongside their spec: `docs/specs/YYYY-MM-DD-mockups/`.
 
+## Source of Truth
+
+`README.md` § "Source of Truth — Critical Documents" is the canonical registry.
+Each category has exactly one authoritative file — update that file, not a copy.
+Before creating a new doc, check the registry to see if a canonical doc already covers the topic.
+
 ## UI Design
 
-Always read `DESIGN.md` before making any visual or UI decisions.
-For shared component usage and layout patterns, reference
-`docs/ux/UI-DESIGN.md` — it defines which components
-to use for buttons, list rows, page layout, knowledge base UI, and
-patient page patterns. Do not deviate without explicit user approval.
+Always read `docs/ux/UI-DESIGN.md` before making any visual or UI decisions.
+It defines which components to use for buttons, list rows, page layout,
+knowledge base UI, and patient page patterns. Do not deviate without explicit user approval.
 
 ## UI Testing
 
@@ -168,6 +172,26 @@ When debugging failures in E2E / MVP benchmark tests:
 3. **Always ask the user** — present findings and ask which fix direction to take (e.g. fix product code vs. relax benchmark expectations vs. mark as known limitation)
 4. This applies to all files: benchmark JSON, fast router patterns, handler logic, etc.
 
+## Design Artifacts
+
+When working on a design (spec, plan, or architecture document), always include a **workflow diagram** (mermaid) that shows the critical parts and their interactions with the current system. This applies to specs in `docs/specs/`, plans in `docs/plans/`, and any design discussion that will be saved. The diagram should show data flow, component boundaries, and how new pieces connect to existing modules.
+
+## Cascading Impact Analysis
+
+Every new feature design, spec, or plan **must** include a **Cascading Impact** section before implementation begins. Enumerate all downstream effects the change has on the existing system:
+
+1. **DB schema** — new columns, altered types, removed fields; verify `create_tables()` / `_backfill_missing_columns()` will handle them; note any manual cleanup for existing data
+2. **ORM models & Pydantic schemas** — which models in `db/models/` and request/response schemas need updating
+3. **API endpoints** — new routes, changed request/response shapes, deprecated endpoints
+4. **Domain logic** — functions, services, or pipelines whose behavior or signatures change
+5. **Prompt files** — any `prompts/*.md` that reference changed fields, workflows, or terminology
+6. **Frontend** — pages, components, API calls, or mock data that must be updated to match backend changes
+7. **Configuration** — new env vars, `runtime.json` keys, or feature flags
+8. **Existing tests** — tests that will break or need new fixtures/assertions
+9. **Cleanup** — dead code, orphaned files, stale imports, or deprecated paths to remove
+
+If a category has no impact, write "None." Do not omit the category. This section is the authoritative checklist for the implementation plan's scope — nothing ships until every item is addressed or explicitly deferred.
+
 ## Workflow
 
 1. Never auto-implement code changes without explicit user approval. When reviewing specs, plans, or designs, present findings and wait for confirmation before writing code.
@@ -180,4 +204,12 @@ When debugging failures in E2E / MVP benchmark tests:
    - Report progress to the user (what was done, any deviations from the plan)
    - Update the corresponding spec in `docs/specs/` to mark status as "Completed" with the completion date
    - Move the plan from `docs/plans/` to `docs/plans/archived/`
+8. **Keep docs current** — whenever designing or implementing a feature, update all affected canonical documents listed in `README.md` § "Source of Truth". This includes but is not limited to:
+   - `docs/review/architecture-overview.md` — if schema, services, pipelines, or module boundaries changed
+   - `docs/product/requirements-and-gaps.md` — if a roadmap item's status changed (started, completed, deferred)
+   - `docs/product/feature-parity-matrix-2026-03-25.md` — if any frontend or backend feature was added, changed, or removed
+   - `docs/product/clinical-decision-support-design.md` — if diagnosis, knowledge base, or CDS behavior changed
+   - `docs/ux/UI-DESIGN.md` — if new components were added or existing patterns changed
+   - `src/agent/prompts/README.md` — if prompt files, intent routing, or LLM contracts changed
+   - Do not defer doc updates to a separate task — update docs in the same work session as the code change
 

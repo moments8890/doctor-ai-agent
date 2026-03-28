@@ -9,7 +9,7 @@ Layers:
   6. User prompt       (actual message)          — doctor's input
 
 Layers 1-3 → single system message
-Layer 4 → auto-loaded by composer from DB using config.knowledge_categories
+Layer 4 → auto-loaded by composer from DB when config.load_knowledge is True
 Layers 4-6 → final user message with XML tags
 Conversation history sits between system and user.
 """
@@ -32,17 +32,12 @@ def _inject_date(text: str) -> str:
 
 
 async def _load_doctor_knowledge(doctor_id: str, config: LayerConfig, query: str = "") -> str:
-    """Load doctor KB items filtered by config.knowledge_categories. Returns formatted text."""
-    if not doctor_id or not config.knowledge_categories:
-        log(f"[composer] KB skip: doctor_id={bool(doctor_id)} categories={len(config.knowledge_categories)}")
+    """Load doctor KB items. Returns formatted text."""
+    if not doctor_id or not config.load_knowledge:
         return ""
     try:
-        from domain.knowledge.doctor_knowledge import load_knowledge_by_categories
-        cats = [c.value if hasattr(c, "value") else c for c in config.knowledge_categories]
-        log(f"[composer] KB loading for doctor={doctor_id} categories={cats}")
-        result = await load_knowledge_by_categories(
-            doctor_id, config.knowledge_categories, query=query,
-        )
+        from domain.knowledge.doctor_knowledge import load_knowledge
+        result = await load_knowledge(doctor_id, query=query)
         log(f"[composer] KB loaded: {len(result)} chars")
         return result
     except Exception as exc:
@@ -62,8 +57,8 @@ async def compose_messages(
 ) -> List[Dict[str, str]]:
     """Assemble the 6-layer prompt stack into a message list.
 
-    Layer 4 (doctor knowledge) is auto-loaded from DB based on
-    config.knowledge_categories. Callers don't need to load KB.
+    Layer 4 (doctor knowledge) is auto-loaded from DB when
+    config.load_knowledge is True. Callers don't need to load KB.
 
     Args:
         config: LayerConfig defining which layers to include.

@@ -448,7 +448,7 @@ async def run_diagnosis(
 
         user_message = _build_user_message(structured)
 
-        # KB auto-loaded by composer based on REVIEW_LAYERS.knowledge_categories
+        # KB auto-loaded by composer when load_knowledge=True
         composed = await compose_for_review(
             doctor_id=doctor_id,
             patient_context=patient_ctx,

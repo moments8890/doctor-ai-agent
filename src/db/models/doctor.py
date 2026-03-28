@@ -5,20 +5,11 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
 from typing import Optional
 from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, DateTime, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from db.engine import Base
 from db.models.base import _utcnow
-
-
-class KnowledgeCategory(str, Enum):
-    interview_guide = "interview_guide"
-    diagnosis_rule = "diagnosis_rule"
-    red_flag = "red_flag"
-    treatment_protocol = "treatment_protocol"
-    custom = "custom"
 
 
 class DoctorKnowledgeItem(Base):
@@ -58,6 +49,8 @@ class Doctor(Base):
     department: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     year_of_birth: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    clinic_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    bio: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
 

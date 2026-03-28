@@ -40,7 +40,7 @@ async def _fetch_tasks(doctor_id: str, status: Optional[str] = None) -> List[Dic
 async def _compose_task_summary(ctx: TurnContext, tasks: list) -> str:
     tasks_text = json.dumps(tasks, ensure_ascii=False, indent=2)
 
-    # KB auto-loaded by composer based on LayerConfig.knowledge_categories
+    # KB auto-loaded by composer when load_knowledge=True
     messages = await compose_for_intent(
         IntentType.query_task,
         doctor_id=ctx.doctor_id,

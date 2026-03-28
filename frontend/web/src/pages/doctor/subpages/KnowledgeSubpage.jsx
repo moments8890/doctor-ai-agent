@@ -1,38 +1,54 @@
 /**
- * KnowledgeSubpage — WeChat-inspired knowledge base with collapsible category sections.
+ * KnowledgeSubpage — flat chronological list with source-type avatars.
  *
- * Each category renders as a white card with left color accent bar.
- * Items show 2-line text preview + metadata. Tap item → inline edit.
- * Swipe left → delete. Sections with ≤5 items expand by default.
+ * Uses ListCard pattern (same as PatientsPage). Items expand on tap
+ * to show full text + delete button. No inline edit until PATCH endpoint exists.
  *
  * @see /debug/doctor/settings/knowledge
  */
-import { useState, useMemo } from "react";
-import { Box, Typography } from "@mui/material";
+import { useState } from "react";
+import { Avatar, Box, Typography } from "@mui/material";
+import EditNoteOutlinedIcon from "@mui/icons-material/EditNoteOutlined";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
+import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import { TYPE, COLOR } from "../../../theme";
 import PageSkeleton from "../../../components/PageSkeleton";
 import BarButton from "../../../components/BarButton";
+import ListCard from "../../../components/ListCard";
 import EmptyState from "../../../components/EmptyState";
 import ConfirmDialog from "../../../components/ConfirmDialog";
-import InlineEditor from "../../../components/InlineEditor";
-import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
+import SectionLabel from "../../../components/SectionLabel";
 
-// Category colors — single source of truth
-export const KNOWLEDGE_CATEGORY_COLORS = {
-  red_flag: "#E8533F",
-  interview_guide: "#07C160",
-  diagnosis_rule: "#1B6EF3",
-  treatment_protocol: "#8e44ad",
-  custom: "#999",
+/* ── Source config ── */
+
+const SOURCE_CONFIG = {
+  doctor: {
+    label: "手动添加",
+    icon: <EditNoteOutlinedIcon sx={{ fontSize: 18, color: "#fff" }} />,
+    bg: COLOR.primary,
+  },
+  agent_auto: {
+    label: "AI生成",
+    icon: <SmartToyOutlinedIcon sx={{ fontSize: 18, color: "#fff" }} />,
+    bg: COLOR.text3,
+  },
 };
 
-const DEFAULT_CATEGORIES = [
-  { key: "red_flag", label: "危险信号" },
-  { key: "interview_guide", label: "问诊指导" },
-  { key: "diagnosis_rule", label: "诊断规则" },
-  { key: "treatment_protocol", label: "治疗方案" },
-  { key: "custom", label: "自定义" },
-];
+function getSourceConfig(source) {
+  if (!source) return SOURCE_CONFIG.doctor;
+  if (source.startsWith("upload:")) {
+    return {
+      label: source.slice("upload:".length),
+      icon: <DescriptionOutlinedIcon sx={{ fontSize: 18, color: "#fff" }} />,
+      bg: COLOR.success,
+    };
+  }
+  return SOURCE_CONFIG[source] || SOURCE_CONFIG.doctor;
+}
+
+/* ── Helpers ── */
 
 function formatDate(dateStr) {
   if (!dateStr) return "";
@@ -41,77 +57,69 @@ function formatDate(dateStr) {
   return `${d.getMonth() + 1}月${d.getDate()}日`;
 }
 
-/* ── Item Row ── */
+function firstLine(text) {
+  if (!text) return "";
+  const lines = text.split("\n").filter((l) => l.trim());
+  return lines[0] || "";
+}
 
-function KnowledgeItemRow({ item, color, onEdit, onDelete }) {
-  const [editing, setEditing] = useState(false);
+/* ── KnowledgeRow ── */
+
+function KnowledgeRow({ item, expanded, onToggle, onDelete }) {
   const text = item.text || item.content || "";
+  const cfg = getSourceConfig(item.source);
 
-  function handleSave(newText) {
-    onEdit?.(item.id, newText);
-    setEditing(false);
-  }
+  const avatar = (
+    <Avatar sx={{ width: 36, height: 36, bgcolor: cfg.bg, flexShrink: 0 }}>
+      {cfg.icon}
+    </Avatar>
+  );
 
-  const content = (
-    <Box onClick={!editing && onEdit ? () => setEditing(true) : undefined}
-      sx={{
-        display: "flex",
-        borderTop: `0.5px solid ${COLOR.borderLight}`,
-        cursor: !editing && onEdit ? "pointer" : "default",
-        bgcolor: COLOR.white,
-        "&:active": !editing && onEdit ? { bgcolor: COLOR.surfaceAlt } : {},
-      }}>
-      {/* Color accent bar */}
-      <Box sx={{ width: "3px", flexShrink: 0, bgcolor: color || COLOR.borderLight, my: "6px", borderRadius: "1.5px" }} />
-      <Box sx={{ flex: 1, minWidth: 0, px: 2, py: 1.2 }}>
-      {editing ? (
-        <InlineEditor value={text} onSave={handleSave} onCancel={() => setEditing(false)}
-          onDelete={onDelete ? () => { setEditing(false); onDelete(item.id); } : undefined} />
-      ) : (
-        <>
+  const right = (
+    <Box sx={{ textAlign: "right", flexShrink: 0 }}>
+      {(item.reference_count || 0) > 0 && (
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, whiteSpace: "nowrap" }}>
+          引用{item.reference_count}次
+        </Typography>
+      )}
+      <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, whiteSpace: "nowrap" }}>
+        {formatDate(item.created_at)}
+      </Typography>
+    </Box>
+  );
+
+  return (
+    <Box>
+      <ListCard
+        avatar={avatar}
+        title={firstLine(text)}
+        subtitle={cfg.label}
+        right={right}
+        onClick={onToggle}
+      />
+      {expanded && (
+        <Box sx={{ bgcolor: COLOR.surface, px: 2, py: 1.5, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
           <Typography sx={{
-            fontSize: TYPE.body.fontSize, color: COLOR.text2, lineHeight: 1.55,
+            fontSize: TYPE.body.fontSize, color: COLOR.text2, lineHeight: 1.6,
             whiteSpace: "pre-wrap", wordBreak: "break-word",
           }}>
             {text}
           </Typography>
-          <Typography sx={{ fontSize: 10, color: COLOR.text4, mt: 0.4 }}>
-            引用{item.reference_count || 0}次
-            {item.created_at ? ` · ${formatDate(item.created_at)}` : ""}
-          </Typography>
-        </>
-      )}
-      </Box>
-    </Box>
-  );
-
-  return content;
-}
-
-/* ── Section Header ── */
-
-function KnowledgeSectionHeader({ label, count, color, expanded, onToggle }) {
-  return (
-    <Box onClick={onToggle}
-      sx={{
-        display: "flex", alignItems: "center",
-        cursor: "pointer", bgcolor: COLOR.white,
-        "&:active": { bgcolor: COLOR.surfaceAlt },
-      }}>
-      <Box sx={{ width: "3px", alignSelf: "stretch", flexShrink: 0, bgcolor: color, my: "6px", borderRadius: "1.5px" }} />
-      <Box sx={{ flex: 1, display: "flex", alignItems: "center", px: 2, py: 1.3 }}>
-        <Box sx={{ flex: 1 }}>
-          <Typography component="span" sx={{ fontSize: TYPE.action.fontSize, fontWeight: 600, color: COLOR.text1 }}>
-            {label}
-          </Typography>
-          <Typography component="span" sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, ml: 0.8 }}>
-            {count}
-          </Typography>
+          {onDelete && (
+            <Box
+              onClick={() => onDelete(item.id)}
+              sx={{
+                display: "inline-flex", alignItems: "center", gap: 0.5,
+                mt: 1.5, cursor: "pointer", color: COLOR.danger,
+                "&:active": { opacity: 0.6 },
+              }}
+            >
+              <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+              <Typography sx={{ fontSize: TYPE.caption.fontSize }}>删除</Typography>
+            </Box>
+          )}
         </Box>
-        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
-          {expanded ? "▾" : "›"}
-        </Typography>
-      </Box>
+      )}
     </Box>
   );
 }
@@ -120,42 +128,17 @@ function KnowledgeSectionHeader({ label, count, color, expanded, onToggle }) {
 
 export default function KnowledgeSubpage({
   items = [],
-  categories = DEFAULT_CATEGORIES,
   loading = false,
   onBack,
   onAdd,
   onDelete,
-  onEdit,
   title = "知识库",
 }) {
+  const [expandedId, setExpandedId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  const grouped = useMemo(() => {
-    const groups = {};
-    categories.forEach(c => { groups[c.key] = []; });
-    items.forEach(item => {
-      const cat = item.category || "custom";
-      if (!groups[cat]) groups[cat] = [];
-      groups[cat].push(item);
-    });
-    return groups;
-  }, [items, categories]);
-
-  // ≤5 items → expanded, >5 → collapsed by default
-  // Track which sections the user has manually toggled
-  const [manualToggles, setManualToggles] = useState({});
-
-  const collapsed = useMemo(() => {
-    const auto = {};
-    categories.forEach(c => {
-      const count = (grouped[c.key] || []).length;
-      auto[c.key] = count > 5;
-    });
-    return { ...auto, ...manualToggles };
-  }, [grouped, categories, manualToggles]);
-
-  function toggleSection(key) {
-    setManualToggles(prev => ({ ...prev, [key]: !collapsed[key] }));
+  function toggleExpand(id) {
+    setExpandedId((prev) => (prev === id ? null : id));
   }
 
   const listContent = (
@@ -176,40 +159,16 @@ export default function KnowledgeSubpage({
 
       {!loading && items.length > 0 && (
         <>
-          {/* Total count */}
-          <Box sx={{ px: 2, py: 1.2 }}>
-            <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
-              共 {items.length} 条知识
-            </Typography>
-          </Box>
-
-          {/* Category sections */}
-          {categories.map((cat) => {
-            const catItems = grouped[cat.key] || [];
-            if (catItems.length === 0) return null;
-            const isExpanded = !collapsed[cat.key];
-            const catColor = cat.color || KNOWLEDGE_CATEGORY_COLORS[cat.key] || COLOR.borderLight;
-            return (
-              <Box key={cat.key} sx={{ bgcolor: COLOR.white, mb: 0.8 }}>
-                <KnowledgeSectionHeader
-                  label={cat.label}
-                  count={catItems.length}
-                  color={catColor}
-                  expanded={isExpanded}
-                  onToggle={() => toggleSection(cat.key)}
-                />
-                {isExpanded && catItems.map(item => (
-                  <KnowledgeItemRow
-                    key={item.id}
-                    item={item}
-                    color={catColor}
-                    onEdit={onEdit}
-                    onDelete={onDelete ? (id) => setDeleteTarget(id) : undefined}
-                  />
-                ))}
-              </Box>
-            );
-          })}
+          <SectionLabel>共 {items.length} 条知识</SectionLabel>
+          {items.map((item) => (
+            <KnowledgeRow
+              key={item.id}
+              item={item}
+              expanded={expandedId === item.id}
+              onToggle={() => toggleExpand(item.id)}
+              onDelete={onDelete ? (id) => setDeleteTarget(id) : undefined}
+            />
+          ))}
           <Box sx={{ height: 24 }} />
         </>
       )}

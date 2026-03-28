@@ -3,14 +3,14 @@
  *
  * 设置面板：医生账户信息编辑、科室专业设置、报告模板管理和退出登录。
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Box, TextField, Typography,
 } from "@mui/material";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import { useApi } from "../../api/ApiContext";
-import { generateQRToken } from "../../api";
+import { generateQRToken, startBulkExport, getBulkExportStatus, downloadBulkExport } from "../../api";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import AppButton from "../../components/AppButton";
 import ConfirmDialog from "../../components/ConfirmDialog";
@@ -20,7 +20,7 @@ import SheetDialog from "../../components/SheetDialog";
 import KnowledgeSubpage from "./subpages/KnowledgeSubpage";
 import AboutSubpage from "./subpages/AboutSubpage";
 import TemplateSubpage from "./subpages/TemplateSubpage";
-import AddKnowledgeSubpage, { KNOWLEDGE_CATEGORIES } from "./subpages/AddKnowledgeSubpage";
+import AddKnowledgeSubpage from "./subpages/AddKnowledgeSubpage";
 import { useDoctorStore } from "../../store/doctorStore";
 import SettingsListSubpage from "./subpages/SettingsListSubpage";
 import { SPECIALTY_OPTIONS } from "./constants";
@@ -135,22 +135,6 @@ function SpecialtyDialog({ open, specialtyInput, specialtySaving, specialtyError
 }
 
 
-function KnowledgeDeleteDialog({ open, onClose, onConfirm }) {
-  return (
-    <ConfirmDialog
-      open={open}
-      onClose={onClose}
-      onCancel={onClose}
-      onConfirm={onConfirm}
-      title="确认删除"
-      message="删除后该知识将不再影响 AI 行为，确定要删除吗？"
-      cancelLabel="保留"
-      confirmLabel="删除"
-      confirmTone="danger"
-    />
-  );
-}
-
 function KnowledgeSubpageWrapper({ doctorId, onBack, isMobile, urlSubId }) {
   const navigate = useAppNavigate();
   const { getKnowledgeItems, deleteKnowledgeItem } = useApi();
@@ -181,15 +165,10 @@ function KnowledgeSubpageWrapper({ doctorId, onBack, isMobile, urlSubId }) {
   return (
     <KnowledgeSubpage
       items={items}
-      categories={KNOWLEDGE_CATEGORIES}
       loading={loading}
       onBack={isMobile ? onBack : undefined}
       onAdd={() => navigate("/doctor/settings/knowledge/new")}
       onDelete={handleDelete}
-      onEdit={(id, text) => {
-        // TODO: add updateKnowledgeItem API call
-        setItems(prev => prev.map(i => i.id === id ? { ...i, text, content: text } : i));
-      }}
     />
   );
 }
@@ -216,8 +195,10 @@ function useSettingsState({ doctorId, doctorName, accessToken, setAuth }) {
   const [specialtyInput, setSpecialtyInput] = useState("");
   const [specialtySaving, setSpecialtySaving] = useState(false);
   const [specialtyError, setSpecialtyError] = useState("");
+  const [clinicName, setClinicName] = useState("");
+  const [bio, setBio] = useState("");
 
-  useEffect(() => { getDoctorProfile(doctorId).then((p) => setSpecialty(p.specialty || "")).catch(() => {}); }, [doctorId]);
+  useEffect(() => { getDoctorProfile(doctorId).then((p) => { setSpecialty(p.specialty || ""); setClinicName(p.clinic_name || ""); setBio(p.bio || ""); }).catch(() => {}); }, [doctorId]);
 
   async function handleSaveName() {
     const trimmed = nameInput.trim();
@@ -232,7 +213,27 @@ function useSettingsState({ doctorId, doctorName, accessToken, setAuth }) {
     catch (e) { setSpecialtyError(e.message || "保存失败"); } finally { setSpecialtySaving(false); }
   }
 
-  return { nameDialogOpen, setNameDialogOpen, nameInput, setNameInput, nameSaving, nameError, setNameError, specialty, specialtyDialogOpen, setSpecialtyDialogOpen, specialtyInput, setSpecialtyInput, specialtySaving, specialtyError, handleSaveName, handleSaveSpecialty };
+  // Clinic name
+  const [clinicDialogOpen, setClinicDialogOpen] = useState(false);
+  const [clinicInput, setClinicInput] = useState("");
+  const [clinicSaving, setClinicSaving] = useState(false);
+  async function handleSaveClinic() {
+    const trimmed = clinicInput.trim(); setClinicSaving(true);
+    try { await updateDoctorProfile(doctorId, { clinic_name: trimmed || null }); setClinicName(trimmed); setClinicDialogOpen(false); }
+    catch {} finally { setClinicSaving(false); }
+  }
+
+  // Bio
+  const [bioDialogOpen, setBioDialogOpen] = useState(false);
+  const [bioInput, setBioInput] = useState("");
+  const [bioSaving, setBioSaving] = useState(false);
+  async function handleSaveBio() {
+    const trimmed = bioInput.trim(); setBioSaving(true);
+    try { await updateDoctorProfile(doctorId, { bio: trimmed || null }); setBio(trimmed); setBioDialogOpen(false); }
+    catch {} finally { setBioSaving(false); }
+  }
+
+  return { nameDialogOpen, setNameDialogOpen, nameInput, setNameInput, nameSaving, nameError, setNameError, specialty, specialtyDialogOpen, setSpecialtyDialogOpen, specialtyInput, setSpecialtyInput, specialtySaving, specialtyError, handleSaveName, handleSaveSpecialty, clinicName, setClinicName, bio, setBio, clinicDialogOpen, setClinicDialogOpen, clinicInput, setClinicInput, clinicSaving, handleSaveClinic, bioDialogOpen, setBioDialogOpen, bioInput, setBioInput, bioSaving, handleSaveBio };
 }
 
 export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId }) {
@@ -240,7 +241,7 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { doctorName, setAuth, accessToken } = useDoctorStore();
-  const { nameDialogOpen, setNameDialogOpen, nameInput, setNameInput, nameSaving, nameError, setNameError, specialty, specialtyDialogOpen, setSpecialtyDialogOpen, specialtyInput, setSpecialtyInput, specialtySaving, specialtyError, handleSaveName, handleSaveSpecialty } = useSettingsState({ doctorId, doctorName, accessToken, setAuth });
+  const { nameDialogOpen, setNameDialogOpen, nameInput, setNameInput, nameSaving, nameError, setNameError, specialty, specialtyDialogOpen, setSpecialtyDialogOpen, specialtyInput, setSpecialtyInput, specialtySaving, specialtyError, handleSaveName, handleSaveSpecialty, clinicName, setClinicName, bio, setBio, clinicDialogOpen, setClinicDialogOpen, clinicInput, setClinicInput, clinicSaving, handleSaveClinic, bioDialogOpen, setBioDialogOpen, bioInput, setBioInput, bioSaving, handleSaveBio } = useSettingsState({ doctorId, doctorName, accessToken, setAuth });
 
   const [qrOpen, setQrOpen] = useState(false);
   const [qrUrl, setQrUrl] = useState("");
@@ -252,6 +253,103 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
     try { const data = await generateQRToken("doctor"); setQrUrl(data.url); }
     catch (e) { setQrUrl(""); setQrError(e.message || "生成失败"); }
     finally { setQrLoading(false); }
+  }
+
+  /* ── Bulk export ── */
+  const BULK_EXPORT_LS_KEY = "bulk_export_task_id";
+  const [bulkExportTaskId, setBulkExportTaskId] = useState(() => localStorage.getItem(BULK_EXPORT_LS_KEY) || null);
+  const [bulkExportStatus, setBulkExportStatus] = useState("idle"); // idle | generating | ready | failed
+  const [bulkExportProgress, setBulkExportProgress] = useState("");
+  const [bulkExportConfirmOpen, setBulkExportConfirmOpen] = useState(false);
+  const bulkPollRef = useRef(null);
+
+  // Start export after confirm
+  async function handleStartBulkExport() {
+    setBulkExportConfirmOpen(false);
+    setBulkExportStatus("generating");
+    setBulkExportProgress("正在准备…");
+    try {
+      const data = await startBulkExport(doctorId);
+      const taskId = data.task_id;
+      setBulkExportTaskId(taskId);
+      localStorage.setItem(BULK_EXPORT_LS_KEY, taskId);
+    } catch (e) {
+      setBulkExportStatus("failed");
+      setBulkExportProgress(e.message || "启动失败");
+      setTimeout(() => { setBulkExportStatus("idle"); setBulkExportProgress(""); }, 3000);
+    }
+  }
+
+  // Poll while generating
+  useEffect(() => {
+    if (bulkExportStatus !== "generating" && !bulkExportTaskId) return;
+
+    // On mount: if we have a saved taskId but status is idle, kick off polling
+    if (bulkExportTaskId && bulkExportStatus === "idle") {
+      setBulkExportStatus("generating");
+      setBulkExportProgress("正在恢复状态…");
+    }
+
+    if (!bulkExportTaskId) return;
+
+    let cancelled = false;
+
+    async function poll() {
+      try {
+        const data = await getBulkExportStatus(bulkExportTaskId, doctorId);
+        if (cancelled) return;
+
+        if (data.status === "ready" || data.status === "completed") {
+          setBulkExportStatus("ready");
+          setBulkExportProgress("下载中…");
+          try {
+            await downloadBulkExport(bulkExportTaskId, doctorId);
+          } catch {
+            // download trigger may fail silently — file still available
+          }
+          setBulkExportTaskId(null);
+          localStorage.removeItem(BULK_EXPORT_LS_KEY);
+          setBulkExportStatus("idle");
+          setBulkExportProgress("");
+        } else if (data.status === "failed" || data.status === "error") {
+          setBulkExportStatus("failed");
+          setBulkExportProgress(data.error || "导出失败");
+          setBulkExportTaskId(null);
+          localStorage.removeItem(BULK_EXPORT_LS_KEY);
+          setTimeout(() => { if (!cancelled) { setBulkExportStatus("idle"); setBulkExportProgress(""); } }, 4000);
+        } else {
+          // still generating
+          const done = data.processed ?? data.done ?? 0;
+          const total = data.total ?? 0;
+          setBulkExportProgress(total > 0 ? `${done}/${total} 患者已处理` : "正在生成…");
+        }
+      } catch (e) {
+        if (!cancelled) {
+          // 404 = task not found (stale or wrong doctor) — clear and reset
+          if (e.message && (e.message.includes("404") || e.message.includes("not found") || e.message.includes("Not Found"))) {
+            setBulkExportTaskId(null);
+            localStorage.removeItem(BULK_EXPORT_LS_KEY);
+            setBulkExportStatus("idle");
+            setBulkExportProgress("");
+          } else {
+            setBulkExportProgress("轮询出错，重试中…");
+          }
+        }
+      }
+    }
+
+    poll(); // initial check
+    bulkPollRef.current = setInterval(poll, 3000);
+
+    return () => {
+      cancelled = true;
+      if (bulkPollRef.current) clearInterval(bulkPollRef.current);
+    };
+  }, [bulkExportTaskId, doctorId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handleBulkExportClick() {
+    if (bulkExportStatus === "generating") return; // already running
+    setBulkExportConfirmOpen(true);
   }
 
   // URL-driven subpage (survives refresh)
@@ -273,9 +371,16 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
       doctorId={doctorId}
       doctorName={doctorName}
       specialty={specialty}
+      clinicName={clinicName}
+      bio={bio}
+      onClinicTap={() => { setClinicInput(clinicName); setClinicDialogOpen(true); }}
+      onBioTap={() => { setBioInput(bio); setBioDialogOpen(true); }}
       onTemplate={() => goSub("template")}
       onKnowledge={() => goSub("knowledge")}
       onQRCode={() => handleGenerateQR()}
+      onBulkExport={handleBulkExportClick}
+      bulkExportStatus={bulkExportStatus}
+      bulkExportProgress={bulkExportProgress}
       onAbout={() => goSub("about")}
       onLogout={isMobile ? onLogout : undefined}
       isMobile={isMobile}
@@ -284,9 +389,33 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
         onChange={setNameInput} onSave={handleSaveName} onClose={() => setNameDialogOpen(false)} />
       <SpecialtyDialog open={specialtyDialogOpen} specialtyInput={specialtyInput} specialtySaving={specialtySaving}
         specialtyError={specialtyError} onChange={setSpecialtyInput} onSave={handleSaveSpecialty} onClose={() => setSpecialtyDialogOpen(false)} />
+      <SheetDialog open={clinicDialogOpen} onClose={() => setClinicDialogOpen(false)} title="诊所/医院"
+        footer={<AppButton variant="primary" size="md" fullWidth loading={clinicSaving} onClick={handleSaveClinic}>保存</AppButton>}>
+        <Box sx={{ px: 0.5 }}>
+          <TextField value={clinicInput} onChange={e => setClinicInput(e.target.value)} placeholder="例如：北京协和医院"
+            fullWidth size="small" autoFocus />
+        </Box>
+      </SheetDialog>
+      <SheetDialog open={bioDialogOpen} onClose={() => setBioDialogOpen(false)} title="简介"
+        footer={<AppButton variant="primary" size="md" fullWidth loading={bioSaving} onClick={handleSaveBio}>保存</AppButton>}>
+        <Box sx={{ px: 0.5 }}>
+          <TextField value={bioInput} onChange={e => setBioInput(e.target.value)} placeholder="介绍您的专长和经验"
+            fullWidth size="small" multiline minRows={3} autoFocus />
+        </Box>
+      </SheetDialog>
       <QRDialog open={qrOpen} onClose={() => setQrOpen(false)} title="我的二维码"
         name={doctorName || doctorId} url={qrUrl} loading={qrLoading} error={qrError}
         onRegenerate={handleGenerateQR} />
+      <ConfirmDialog
+        open={bulkExportConfirmOpen}
+        onClose={() => setBulkExportConfirmOpen(false)}
+        onCancel={() => setBulkExportConfirmOpen(false)}
+        onConfirm={handleStartBulkExport}
+        title="导出全部数据"
+        message="将导出所有患者病历为ZIP文件，可能需要几分钟"
+        cancelLabel="取消"
+        confirmLabel="开始导出"
+      />
     </SettingsListSubpage>
   );
 

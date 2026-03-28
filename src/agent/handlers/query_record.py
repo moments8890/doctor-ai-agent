@@ -86,7 +86,7 @@ async def _compose_summary(ctx: TurnContext, records: list, patient_name: Option
         header = "以下是最近的病历记录：\n"
     records_text = header + json.dumps(records, ensure_ascii=False, indent=2)
 
-    # KB auto-loaded by composer based on LayerConfig.knowledge_categories
+    # KB auto-loaded by composer when load_knowledge=True
     messages = await compose_for_intent(
         IntentType.query_record,
         doctor_id=ctx.doctor_id,

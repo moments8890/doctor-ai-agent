@@ -1,94 +1,75 @@
 /**
- * AddKnowledgeSubpage — add knowledge item form, extracted from SettingsPage.
+ * AddKnowledgeSubpage — add knowledge via text input or file upload.
+ *
+ * Two entry paths:
+ *   1. Text input — type content directly, saved with addKnowledgeItem()
+ *   2. File upload — extract text from PDF/DOCX/TXT, preview & edit, then save
  */
-import { useState } from "react";
-import { Alert, Box, TextField, Typography } from "@mui/material";
-import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import { useState, useRef } from "react";
+import { Alert, Box, CircularProgress, TextField, Typography } from "@mui/material";
+import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
+import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
 import PageSkeleton from "../../../components/PageSkeleton";
 import BarButton from "../../../components/BarButton";
 import AppButton from "../../../components/AppButton";
 import SheetDialog from "../../../components/SheetDialog";
 import { useApi } from "../../../api/ApiContext";
-import { TYPE } from "../../../theme";
+import { TYPE, COLOR } from "../../../theme";
 
-export const KNOWLEDGE_CATEGORY_GROUPS = [
-  {
-    label: "教 AI 怎么问病人",
-    categories: [
-      {
-        key: "interview_guide", label: "问诊指导",
-        placeholder: "描述问诊时的追问策略，例如：遇到头痛患者，先问发作方式……",
-        examples: [
-          "头痛问诊要点：先问发作方式（突发/渐进），突发性头痛需立即追问是否为雷击样头痛（seconds to peak），同时询问恶心呕吐、视物模糊、意识改变等伴随症状",
-          "肢体无力问诊流程：首先区分急性（<24h）还是慢性，急性起病优先考虑卒中——追问发病具体时间、是否伴言语障碍或面部不对称、既往房颤/高血压病史",
-        ],
-      },
-    ],
-  },
-  {
-    label: "教 AI 怎么判断病情",
-    categories: [
-      {
-        key: "diagnosis_rule", label: "诊断规则",
-        placeholder: "描述症状组合与诊断的对应关系，例如：出现A+B+C时考虑X……",
-        examples: [
-          "头痛+恶心呕吐+视乳头水肿三联征→高度怀疑颅内高压，需紧急行头颅CT排除占位性病变，老年患者同时需排除慢性硬膜下血肿",
-          "突发剧烈头痛（雷击样）+颈项强直+Kernig征阳性→首先考虑蛛网膜下腔出血（SAH），立即CT平扫，阴性不排除需腰穿",
-        ],
-      },
-      {
-        key: "treatment_protocol", label: "治疗方案",
-        placeholder: "描述特定疾病的治疗方案或用药原则，例如：某病的标准处理流程……",
-        examples: [
-          "脑膜瘤术后标准方案：地塞米松10mg术中→术后4mg q6h×3天→逐渐减量，抗癫痫预防用药至少1周，Simpson分级决定是否需辅助放疗",
-          "颅内高压急性期处理：甘露醇125ml快速静滴q6-8h，注意监测电解质和肾功能，持续>72h需考虑手术减压或脑室外引流",
-        ],
-      },
-    ],
-  },
-  {
-    label: "AI 始终关注",
-    categories: [
-      {
-        key: "red_flag", label: "危险信号",
-        placeholder: "描述需要紧急处理的临床场景，例如：出现某症状时立即……",
-        examples: [
-          "雷击样头痛（数秒内达峰值）→无论其他症状如何，必须立即排除SAH，不能等待，先CT后腰穿，时间窗至关重要",
-          "进行性双下肢无力+鞍区感觉减退+大小便功能障碍→马尾综合征，24小时内手术减压，延迟可导致永久性神经损害",
-        ],
-      },
-      {
-        key: "custom", label: "自定义",
-        placeholder: "任何您希望AI了解的临床经验或工作习惯",
-        examples: [
-          "我对65岁以上患者倾向保守治疗方案，除非有明确手术指征且全身状况允许，需综合评估心肺功能和家属意愿",
-          "本院MRI预约通常需3个工作日，急诊MRI需神经外科主任签字审批。CT当天可出结果，建议紧急情况优先用CT筛查",
-        ],
-      },
-    ],
-  },
-];
+export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
+  const { addKnowledgeItem, uploadKnowledgeExtract, uploadKnowledgeSave, processKnowledgeText } = useApi();
 
-// Flat list for backward compat (KnowledgeSubpage, mockApi, etc.)
-export const KNOWLEDGE_CATEGORIES = KNOWLEDGE_CATEGORY_GROUPS.flatMap(g => g.categories);
-
-export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile, categoryGroups = KNOWLEDGE_CATEGORY_GROUPS }) {
-  const { addKnowledgeItem } = useApi();
-  const [category, setCategory] = useState("interview_guide");
+  // ── Text input state ──
   const [content, setContent] = useState("");
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
-  const [helpOpen, setHelpOpen] = useState(false);
 
-  const allCats = categoryGroups.flatMap(g => g.categories);
-  const catDef = allCats.find((c) => c.key === category) || allCats[0];
+  // ── File upload state ──
+  const fileInputRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [extractedText, setExtractedText] = useState("");
+  const [editedText, setEditedText] = useState("");
+  const [sourceFilename, setSourceFilename] = useState("");
+  const [llmProcessed, setLlmProcessed] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
 
+  // ── Manual text processing state ──
+  const [processing, setProcessing] = useState(false);
+  const [textPreviewOpen, setTextPreviewOpen] = useState(false);
+  const [processedText, setProcessedText] = useState("");
+  const [editedProcessedText, setEditedProcessedText] = useState("");
+  const [textLlmProcessed, setTextLlmProcessed] = useState(false);
+
+  // ── Text input submit ──
   async function handleAdd() {
     const trimmed = content.trim();
     if (!trimmed) return;
-    setAdding(true); setError("");
+
+    // Long text → LLM process → preview
+    if (trimmed.length >= 500) {
+      setProcessing(true);
+      setError("");
+      try {
+        const result = await processKnowledgeText(doctorId, trimmed);
+        setProcessedText(result.processed_text);
+        setEditedProcessedText(result.processed_text);
+        setTextLlmProcessed(result.llm_processed);
+        setTextPreviewOpen(true);
+      } catch (e) {
+        setError(e.message || "处理失败");
+      } finally {
+        setProcessing(false);
+      }
+      return;
+    }
+
+    // Short text → save directly
+    setAdding(true);
+    setError("");
     try {
-      await addKnowledgeItem(doctorId, trimmed, category);
+      await addKnowledgeItem(doctorId, trimmed);
       onBack();
     } catch (e) {
       setError(e.message || "添加失败");
@@ -97,71 +78,167 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile, catego
     }
   }
 
+  // ── File upload flow ──
+  function handleFileButtonClick() {
+    fileInputRef.current?.click();
+  }
+
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Reset input so same file can be re-selected
+    e.target.value = "";
+
+    setUploading(true);
+    setError("");
+    try {
+      const result = await uploadKnowledgeExtract(doctorId, file);
+      setSourceFilename(result.source_filename || file.name);
+      setExtractedText(result.extracted_text || "");
+      setEditedText(result.extracted_text || "");
+      setLlmProcessed(!!result.llm_processed);
+      setPreviewOpen(true);
+    } catch (e) {
+      setError(e.message || "文件提取失败");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleSaveExtracted() {
+    const trimmed = editedText.trim();
+    if (!trimmed) return;
+    setSaving(true);
+    setError("");
+    try {
+      await uploadKnowledgeSave(doctorId, trimmed, sourceFilename);
+      setPreviewOpen(false);
+      showToast("已保存到知识库");
+      setTimeout(() => onBack(), 600);
+    } catch (e) {
+      setError(e.message || "保存失败");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleCancelPreview() {
+    setPreviewOpen(false);
+    setExtractedText("");
+    setEditedText("");
+    setSourceFilename("");
+    setLlmProcessed(false);
+  }
+
+  function showToast(msg) {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2000);
+  }
+
+  async function handleSaveProcessedText() {
+    const trimmed = editedProcessedText.trim();
+    if (!trimmed) return;
+    setSaving(true);
+    setError("");
+    try {
+      await addKnowledgeItem(doctorId, trimmed);
+      setTextPreviewOpen(false);
+      showToast("已保存到知识库");
+      setTimeout(() => onBack(), 600);
+    } catch (e) {
+      setError(e.message || "保存失败");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleCancelTextPreview() {
+    setTextPreviewOpen(false);
+    setProcessedText("");
+    setEditedProcessedText("");
+    setTextLlmProcessed(false);
+  }
+
   const formContent = (
     <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
-      {error && <Alert severity="error" onClose={() => setError("")} sx={{ mb: 1.5 }}>{error}</Alert>}
+      {error && (
+        <Alert severity="error" onClose={() => setError("")} sx={{ mb: 1.5 }}>
+          {error}
+        </Alert>
+      )}
 
-      {/* Category selector */}
+      {/* File upload section */}
+      <Box sx={{ mb: 2.5 }}>
+        <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1, mb: 1 }}>
+          上传文件
+        </Typography>
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 1.2 }}>
+          支持 PDF、Word、TXT 文件，AI 会自动提取并整理内容
+        </Typography>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.docx,.doc,.txt"
+          style={{ display: "none" }}
+          onChange={handleFileChange}
+        />
+        <AppButton
+          variant="secondary"
+          size="md"
+          onClick={handleFileButtonClick}
+          disabled={uploading}
+          sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 0.8,
+          }}
+        >
+          {uploading ? (
+            <>
+              <CircularProgress size={16} sx={{ color: COLOR.primary }} />
+              正在提取文件内容…
+            </>
+          ) : (
+            <>
+              <UploadFileOutlinedIcon sx={{ fontSize: 18 }} />
+              上传文件
+            </>
+          )}
+        </AppButton>
+      </Box>
+
+      {/* Divider */}
+      <Box sx={{ display: "flex", alignItems: "center", mb: 2.5 }}>
+        <Box sx={{ flex: 1, height: "0.5px", bgcolor: COLOR.borderLight }} />
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, px: 1.5 }}>或</Typography>
+        <Box sx={{ flex: 1, height: "0.5px", bgcolor: COLOR.borderLight }} />
+      </Box>
+
+      {/* Text input */}
       <Box sx={{ mb: 2 }}>
-          <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
-            <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: "#1A1A1A" }}>类别</Typography>
-            <HelpOutlineIcon
-              onClick={() => setHelpOpen(true)}
-              sx={{ fontSize: TYPE.title.fontSize, color: "#999", ml: 0.5, cursor: "pointer" }}
-            />
-          </Box>
-          {categoryGroups.map((group) => (
-            <Box key={group.label} sx={{ mb: 1.2 }}>
-              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#999", mb: 0.5 }}>
-                {group.label}
-              </Typography>
-              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.8 }}>
-                {group.categories.map((c) => {
-                  const isActive = category === c.key;
-                  return (
-                    <Box
-                      key={c.key}
-                      component="button"
-                      onClick={() => setCategory(c.key)}
-                      sx={{
-                        display: "inline-flex", alignItems: "center", px: 1.5, py: 0.6,
-                        border: "none", borderRadius: "4px", cursor: "pointer",
-                        fontSize: TYPE.secondary.fontSize, fontFamily: "inherit", whiteSpace: "nowrap",
-                        backgroundColor: isActive ? "#07C160" : "#fff",
-                        color: isActive ? "#fff" : "#333",
-                        boxShadow: isActive ? "none" : "0 1px 2px rgba(0,0,0,0.08)",
-                        transition: "background-color 0.15s, color 0.15s",
-                        "&:active": { opacity: 0.7 },
-                      }}
-                    >
-                      {c.label}
-                    </Box>
-                  );
-                })}
-              </Box>
-            </Box>
-          ))}
-        </Box>
-
-        {/* Content input */}
-        <Box sx={{ mb: 2 }}>
-          <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: "#1A1A1A", mb: 1 }}>内容</Typography>
-          <TextField
-            fullWidth
-            multiline
-            minRows={4}
-            maxRows={8}
-            size="small"
-            placeholder={catDef.placeholder}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            sx={{ "& .MuiOutlinedInput-root": { borderRadius: "6px" } }}
-          />
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#999", mt: 0.5 }}>
-            用自然语言描述，AI会在相关场景中参考
+        <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1, mb: 1 }}>
+          手动输入
+        </Typography>
+        <TextField
+          fullWidth
+          multiline
+          minRows={4}
+          maxRows={8}
+          size="small"
+          placeholder="用自然语言描述您的临床经验、诊断规则、问诊策略等"
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          sx={{ "& .MuiOutlinedInput-root": { borderRadius: "6px" } }}
+        />
+        <Box sx={{ display: "flex", justifyContent: "space-between", mt: 0.5 }}>
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
+            {content.length >= 500 ? "内容较长，保存时AI将自动整理" : "用自然语言描述，AI 会在相关场景中参考"}
+          </Typography>
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: content.length > 3000 ? COLOR.danger : COLOR.text4 }}>
+            {content.length}/3000
           </Typography>
         </Box>
-
+      </Box>
     </Box>
   );
 
@@ -170,28 +247,158 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile, catego
       <PageSkeleton
         title="添加知识"
         onBack={isMobile ? onBack : undefined}
-        headerRight={<BarButton onClick={handleAdd} loading={adding} disabled={!content.trim()}>添加</BarButton>}
+        headerRight={
+          <BarButton onClick={handleAdd} loading={adding || processing} disabled={!content.trim()}>
+            添加
+          </BarButton>
+        }
         isMobile={isMobile}
         listPane={formContent}
       />
+
+      {/* File extract preview dialog */}
       <SheetDialog
-        open={helpOpen}
-        onClose={() => setHelpOpen(false)}
-        title={`${catDef.label} · 示例`}
-        desktopMaxWidth={360}
-        mobileMaxHeight="76vh"
+        open={previewOpen}
+        onClose={handleCancelPreview}
+        title="文件内容预览"
+        desktopMaxWidth={480}
+        mobileMaxHeight="90vh"
         footer={
-          <AppButton variant="primary" size="md" fullWidth onClick={() => setHelpOpen(false)}>
-            知道了
-          </AppButton>
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <AppButton variant="ghost" size="md" sx={{ flex: 1 }} onClick={handleCancelPreview}>
+              取消
+            </AppButton>
+            <AppButton
+              variant="primary"
+              size="md"
+              sx={{ flex: 2 }}
+              onClick={handleSaveExtracted}
+              disabled={!editedText.trim() || saving}
+            >
+              {saving ? <CircularProgress size={16} sx={{ color: "#fff" }} /> : "保存"}
+            </AppButton>
+          </Box>
         }
       >
-        {catDef.examples.map((ex, i) => (
-          <Box key={i} sx={{ bgcolor: "#f7f7f7", borderRadius: "4px", p: 1.5, mb: i < catDef.examples.length - 1 ? 1 : 0 }}>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "#333", lineHeight: 1.6 }}>{ex}</Typography>
-          </Box>
-        ))}
+        {/* Source filename */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mb: 1.5 }}>
+          <UploadFileOutlinedIcon sx={{ fontSize: 16, color: COLOR.text4 }} />
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, flex: 1, minWidth: 0 }} noWrap>
+            {sourceFilename}
+          </Typography>
+          {llmProcessed && (
+            <Box
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.3,
+                px: 0.8,
+                py: 0.2,
+                borderRadius: "3px",
+                bgcolor: "#E8F5E9",
+                flexShrink: 0,
+              }}
+            >
+              <AutoFixHighOutlinedIcon sx={{ fontSize: 12, color: COLOR.primary }} />
+              <Typography sx={{ fontSize: 10, color: COLOR.primary, fontWeight: 500 }}>
+                AI已整理
+              </Typography>
+            </Box>
+          )}
+        </Box>
+
+        {/* Editable text area */}
+        <TextField
+          fullWidth
+          multiline
+          minRows={8}
+          maxRows={16}
+          size="small"
+          value={editedText}
+          onChange={(e) => setEditedText(e.target.value)}
+          sx={{ "& .MuiOutlinedInput-root": { borderRadius: "6px" } }}
+        />
+
+        {/* Character count */}
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: 0.5, textAlign: "right" }}>
+          {editedText.length} 字
+        </Typography>
       </SheetDialog>
+
+      {/* Manual text LLM preview dialog */}
+      <SheetDialog
+        open={textPreviewOpen}
+        onClose={handleCancelTextPreview}
+        title="内容预览"
+        desktopMaxWidth={480}
+        mobileMaxHeight="90vh"
+        footer={
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <AppButton variant="ghost" size="md" sx={{ flex: 1 }} onClick={handleCancelTextPreview}>
+              取消
+            </AppButton>
+            <AppButton
+              variant="primary"
+              size="md"
+              sx={{ flex: 2 }}
+              onClick={handleSaveProcessedText}
+              disabled={!editedProcessedText.trim() || saving}
+            >
+              {saving ? <CircularProgress size={16} sx={{ color: "#fff" }} /> : "保存"}
+            </AppButton>
+          </Box>
+        }
+      >
+        {textLlmProcessed && (
+          <Box
+            sx={{
+              display: "inline-flex", alignItems: "center", gap: 0.3,
+              px: 0.8, py: 0.2, borderRadius: "3px", bgcolor: "#E8F5E9",
+              mb: 1.5,
+            }}
+          >
+            <AutoFixHighOutlinedIcon sx={{ fontSize: 12, color: COLOR.primary }} />
+            <Typography sx={{ fontSize: 10, color: COLOR.primary, fontWeight: 500 }}>
+              AI已整理
+            </Typography>
+          </Box>
+        )}
+        <TextField
+          fullWidth
+          multiline
+          minRows={8}
+          maxRows={16}
+          size="small"
+          value={editedProcessedText}
+          onChange={(e) => setEditedProcessedText(e.target.value)}
+          sx={{ "& .MuiOutlinedInput-root": { borderRadius: "6px" } }}
+        />
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: 0.5, textAlign: "right" }}>
+          {editedProcessedText.length} 字
+        </Typography>
+      </SheetDialog>
+
+      {/* Toast */}
+      {toast && (
+        <Box
+          sx={{
+            position: "fixed",
+            top: "20%",
+            left: "50%",
+            transform: "translateX(-50%)",
+            bgcolor: "rgba(0,0,0,0.7)",
+            color: "#fff",
+            px: 3,
+            py: 1.5,
+            borderRadius: 2,
+            fontSize: TYPE.body.fontSize,
+            zIndex: 9999,
+            pointerEvents: "none",
+          }}
+        >
+          {toast}
+        </Box>
+      )}
     </>
   );
 }

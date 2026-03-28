@@ -6,11 +6,9 @@ crashes at import time (server startup).
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import List
+from dataclasses import dataclass
 
 from agent.types import IntentType
-from db.models.doctor import KnowledgeCategory
 
 
 @dataclass(frozen=True)
@@ -22,11 +20,15 @@ class LayerConfig:
     conversation_mode:
       False (default) = Pattern 1 (single-turn): L1-3 system, L4-6 user with XML tags
       True = Pattern 2 (conversation): L1-5 system, history, L6 user plain text
+
+    load_knowledge:
+      True  → load ALL doctor KB items for this intent
+      False → skip KB loading
     """
     system: bool = True
     domain: bool = False
     intent: str = "general"
-    knowledge_categories: List[KnowledgeCategory] = field(default_factory=list)
+    load_knowledge: bool = False
     patient_context: bool = False
     conversation_mode: bool = False
 
@@ -34,52 +36,48 @@ class LayerConfig:
 # ── Intent → LayerConfig mapping ──────────────────────────────────
 # This IS the matrix from the design doc. Keep in sync.
 #
-# Intent             | Common | Domain | Intent      | Dr Knowledge                  | Patient Ctx
-# -------------------|--------|--------|-------------|-------------------------------|------------
-# query_record       |   ✓    |        | query       | custom                        |      ✓
-# create_record      |   ✓    |   ✓    | interview   | interview_guide+red_flag+custom|      ✓
-# query_task         |   ✓    |        | query       | custom                        |
-# create_task        |   ✓    |        | general     | custom                        |
-# query_patient      |   ✓    |        | query       | custom                        |      ✓
-# general            |   ✓    |        | general     | custom                        |
+# Intent             | Common | Domain | Intent      | Dr Knowledge | Patient Ctx
+# -------------------|--------|--------|-------------|--------------|------------
+# query_record       |   ✓    |        | query       |      ✓       |      ✓
+# create_record      |   ✓    |   ✓    | interview   |      ✓       |      ✓
+# query_task         |   ✓    |        | query       |      ✓       |
+# create_task        |   ✓    |        | general     |      ✓       |
+# query_patient      |   ✓    |        | query       |      ✓       |      ✓
+# general            |   ✓    |        | general     |      ✓       |
 
 INTENT_LAYERS: dict[IntentType, LayerConfig] = {
     IntentType.query_record: LayerConfig(
         intent="query",
-        knowledge_categories=[KnowledgeCategory.custom],
+        load_knowledge=True,
         patient_context=True,
     ),
     IntentType.create_record: LayerConfig(
         domain=True,
         intent="interview",
-        knowledge_categories=[
-            KnowledgeCategory.interview_guide,
-            KnowledgeCategory.red_flag,
-            KnowledgeCategory.custom,
-        ],
+        load_knowledge=True,
         patient_context=True,
         conversation_mode=True,
     ),
     IntentType.query_task: LayerConfig(
         intent="query",
-        knowledge_categories=[KnowledgeCategory.custom],
+        load_knowledge=True,
     ),
     IntentType.create_task: LayerConfig(
         intent="general",
-        knowledge_categories=[KnowledgeCategory.custom],
+        load_knowledge=True,
     ),
     IntentType.query_patient: LayerConfig(
         intent="query",
-        knowledge_categories=[KnowledgeCategory.custom],
+        load_knowledge=True,
         patient_context=True,
     ),
     IntentType.daily_summary: LayerConfig(
         intent="general",
-        knowledge_categories=[KnowledgeCategory.custom],
+        load_knowledge=True,
     ),
     IntentType.general: LayerConfig(
         intent="general",
-        knowledge_categories=[KnowledgeCategory.custom],
+        load_knowledge=True,
     ),
 }
 
@@ -92,29 +90,20 @@ assert not _missing, f"INTENT_LAYERS missing entries for: {_missing}. Add a Laye
 
 ROUTING_LAYERS = LayerConfig(
     intent="routing",
-    knowledge_categories=[KnowledgeCategory.custom],
+    load_knowledge=True,
 )
 
 REVIEW_LAYERS = LayerConfig(
     domain=True,
     intent="diagnosis",
-    knowledge_categories=[
-        KnowledgeCategory.diagnosis_rule,
-        KnowledgeCategory.red_flag,
-        KnowledgeCategory.treatment_protocol,
-        KnowledgeCategory.custom,
-    ],
+    load_knowledge=True,
     patient_context=True,
 )
 
 PATIENT_INTERVIEW_LAYERS = LayerConfig(
     domain=True,
     intent="patient-interview",
-    knowledge_categories=[
-        KnowledgeCategory.interview_guide,
-        KnowledgeCategory.red_flag,
-        KnowledgeCategory.custom,
-    ],
+    load_knowledge=True,
     patient_context=True,
     conversation_mode=True,
 )

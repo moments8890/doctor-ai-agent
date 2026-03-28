@@ -208,17 +208,17 @@ export const MOCK_PATIENT_MESSAGES = [
 ];
 
 export const MOCK_KNOWLEDGE_ITEMS = [
-  { id: 1, category: "red_flag", text: "蛛网膜下腔出血（SAH）：突发剧烈头痛（雷击样），伴恶心呕吐、颈强直、意识障碍。Fisher分级指导治疗。Hunt-Hess分级评估预后。", source: "agent_auto", created_at: "2026-03-20", reference_count: 5 },
-  { id: 2, category: "red_flag", text: "急性脑梗死：突发偏瘫、失语、视野缺损。NIHSS评分＞4分考虑溶栓或取栓。4.5h窗口期rtPA，24h窗口期机械取栓。", source: "doctor", created_at: "2026-03-18", reference_count: 3 },
-  { id: 3, category: "interview_guide", text: "高血压患者首诊：必须询问头痛、头晕、视物模糊、胸闷。必须测量双上肢血压。询问家族史、用药依从性。", source: "doctor", created_at: "2026-03-15", reference_count: 8 },
-  { id: 4, category: "diagnosis_rule", text: "高血压分级：1级（140-159/90-99）2级（160-179/100-109）3级（≥180/≥110）。危险分层：低危/中危/高危/很高危。", source: "agent_auto", created_at: "2026-03-10", reference_count: 12 },
-  { id: 5, category: "treatment_protocol", text: "脑动脉瘤术后管理：尼莫地平60mg/d预防血管痉挛14天。术后3天CT排除再出血。7天DSA评估效果。每日TCD监测。", source: "doctor", created_at: "2026-03-22", reference_count: 2 },
-  { id: 6, category: "interview_guide", text: "脑出血患者问诊要点：1）起病时间和活动状态（安静/活动时）；2）头痛部位、性质、严重程度；3）有无恶心呕吐、意识障碍、肢体无力、言语障碍、视物模糊；4）既往高血压病史及用药依从性、血压控制水平；5）有无抗凝/抗血小板药物使用史；6）有无外伤史；7）有无凝血功能异常或血液系统疾病；8）家族史中有无脑血管病、动脉瘤、AVM；9）吸烟饮酒史；10）女性患者询问月经及妊娠情况。体格检查重点：GCS评分、瞳孔大小及对光反射、四肢肌力分级、病理征、脑膜刺激征。", source: "doctor", created_at: "2026-03-24", reference_count: 15 },
-  { id: 7, category: "red_flag", text: "脑疝早期征象：一侧瞳孔进行性散大、对光反射消失，对侧肢体瘫痪加重，意识水平下降。需立即脱水降颅压。", source: "doctor", created_at: "2026-03-23", reference_count: 7 },
-  { id: 8, category: "red_flag", text: "癫痫持续状态：持续发作>5分钟或连续发作间期意识未恢复。立即地西泮10mg iv，同时准备丙戊酸钠负荷量。", source: "doctor", created_at: "2026-03-21", reference_count: 4 },
-  { id: 9, category: "red_flag", text: "颅内压增高三联征：头痛、呕吐、视乳头水肿。儿童可见前囟膨隆。紧急CT排除占位。", source: "agent_auto", created_at: "2026-03-19", reference_count: 6 },
-  { id: 10, category: "red_flag", text: "脊髓压迫症：进行性双下肢无力、感觉平面、大小便障碍。MRI急查，外科会诊。", source: "doctor", created_at: "2026-03-17", reference_count: 2 },
-  { id: 11, category: "red_flag", text: "重症肌无力危象：呼吸肌无力导致呼吸困难，吞咽困难加重。紧急插管准备，新斯的明试验。", source: "doctor", created_at: "2026-03-16", reference_count: 1 },
+  { id: 7, text: "脑疝早期征象：一侧瞳孔进行性散大、对光反射消失，对侧肢体瘫痪加重，意识水平下降。需立即脱水降颅压。", source: "doctor", created_at: "2026-03-23", reference_count: 7 },
+  { id: 5, text: "脑动脉瘤术后管理：尼莫地平60mg/d预防血管痉挛14天。术后3天CT排除再出血。7天DSA评估效果。每日TCD监测。", source: "doctor", created_at: "2026-03-22", reference_count: 2 },
+  { id: 8, text: "癫痫持续状态：持续发作>5分钟或连续发作间期意识未恢复。立即地西泮10mg iv，同时准备丙戊酸钠负荷量。", source: "doctor", created_at: "2026-03-21", reference_count: 4 },
+  { id: 1, text: "蛛网膜下腔出血（SAH）：突发剧烈头痛（雷击样），伴恶心呕吐、颈强直、意识障碍。Fisher分级指导治疗。Hunt-Hess分级评估预后。", source: "agent_auto", created_at: "2026-03-20", reference_count: 5 },
+  { id: 9, text: "颅内压增高三联征：头痛、呕吐、视乳头水肿。儿童可见前囟膨隆。紧急CT排除占位。", source: "agent_auto", created_at: "2026-03-19", reference_count: 6 },
+  { id: 2, text: "急性脑梗死：突发偏瘫、失语、视野缺损。NIHSS评分＞4分考虑溶栓或取栓。4.5h窗口期rtPA，24h窗口期机械取栓。", source: "doctor", created_at: "2026-03-18", reference_count: 3 },
+  { id: 10, text: "脊髓压迫症：进行性双下肢无力、感觉平面、大小便障碍。MRI急查，外科会诊。", source: "doctor", created_at: "2026-03-17", reference_count: 2 },
+  { id: 11, text: "重症肌无力危象：呼吸肌无力导致呼吸困难，吞咽困难加重。紧急插管准备，新斯的明试验。", source: "doctor", created_at: "2026-03-16", reference_count: 1 },
+  { id: 3, text: "高血压患者首诊：必须询问头痛、头晕、视物模糊、胸闷。必须测量双上肢血压。询问家族史、用药依从性。", source: "doctor", created_at: "2026-03-15", reference_count: 8 },
+  { id: 6, text: "腰椎穿刺术后护理要点：去枕平卧6小时、观察穿刺点渗液、监测头痛程度。鼓励饮水促进脑脊液恢复。", source: "upload:腰穿护理指南.pdf", created_at: "2026-03-12", reference_count: 3 },
+  { id: 4, text: "高血压分级：1级（140-159/90-99）2级（160-179/100-109）3级（≥180/≥110）。危险分层：低危/中危/高危/很高危。", source: "agent_auto", created_at: "2026-03-10", reference_count: 12 },
 ];
 
 export const MOCK_FIELD_LABELS = {
