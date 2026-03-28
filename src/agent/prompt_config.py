@@ -100,6 +100,13 @@ REVIEW_LAYERS = LayerConfig(
     patient_context=True,
 )
 
+FOLLOWUP_REPLY_LAYERS = LayerConfig(
+    domain=True,
+    intent="followup_reply",
+    load_knowledge=True,
+    patient_context=True,
+)
+
 PATIENT_INTERVIEW_LAYERS = LayerConfig(
     domain=True,
     intent="patient-interview",

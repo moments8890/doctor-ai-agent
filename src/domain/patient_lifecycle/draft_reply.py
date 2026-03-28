@@ -42,7 +42,7 @@ async def generate_draft_reply(
     Returns None if generation fails.
     """
     from agent.prompt_composer import compose_messages
-    from agent.prompt_config import LayerConfig
+    from agent.prompt_config import FOLLOWUP_REPLY_LAYERS
     from agent.llm import llm_call
     from domain.knowledge.citation_parser import extract_citations, validate_citations
     from domain.knowledge.usage_tracking import log_citations
@@ -51,14 +51,7 @@ async def generate_draft_reply(
 
     is_red_flag = detect_red_flags(patient_message_text)
 
-    # Build the prompt
-    config = LayerConfig(
-        system=True,
-        domain=True,
-        intent="followup_reply",
-        load_knowledge=True,
-        patient_context=True,
-    )
+    config = FOLLOWUP_REPLY_LAYERS
 
     user_message = f"患者消息：{patient_message_text}"
     if is_red_flag:
