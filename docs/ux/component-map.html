@@ -55,6 +55,13 @@ body {
   font-size: 10px; font-weight: 400; color: #656d76;
   font-family: "SF Mono", SFMono-Regular, monospace;
 }
+.page-screenshot {
+  padding: 6px; border-bottom: 1px solid #e1e4e8; cursor: pointer;
+}
+.page-screenshot img {
+  width: 100%; border-radius: 4px; border: 1px solid #e1e4e8;
+  display: block;
+}
 .page-blocks { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
 
 .block {
@@ -115,7 +122,7 @@ const GROUPS = {
 
 /* ── Page definitions ── */
 const PAGES = [
-  { id: 'myai', title: 'MyAI', route: '/doctor', blocks: [
+  { id: 'myai', title: 'MyAI', route: '/doctor', img: 'page-screenshots/doctor-home.png', blocks: [
     { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title + back nav' },
     { name: 'HeroIdentityCard', group: '_page', desc: 'AI name, avatar, stats row', path: 'frontend/web/src/pages/doctor/subpages/MyAISubpage.jsx' },
     { name: 'CTAButtons', group: '_page', desc: '我的知识库 + 继续教AI', path: 'frontend/web/src/pages/doctor/subpages/MyAISubpage.jsx' },
@@ -123,21 +130,21 @@ const PAGES = [
     { name: 'KnowledgePreview', group: '_page', desc: 'Top 3 knowledge rules', path: 'frontend/web/src/pages/doctor/subpages/MyAISubpage.jsx' },
     { name: 'RecentActivity', group: 'PatientAvatar', desc: 'AI-processed list + avatars' },
   ]},
-  { id: 'patients', title: 'Patients', route: '/doctor/patients', blocks: [
+  { id: 'patients', title: 'Patients', route: '/doctor/patients', img: 'page-screenshots/doctor-patients.png', blocks: [
     { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title + back nav' },
     { name: 'SearchBar', group: '_page', desc: 'Patient name search', path: 'frontend/web/src/pages/doctor/PatientsPage.jsx' },
     { name: 'AIAttentionSection', group: '_page', desc: 'AI-flagged patients', path: 'frontend/web/src/pages/doctor/PatientsPage.jsx' },
     { name: 'PatientList', group: 'PatientAvatar', desc: 'Scrollable patient cards + avatars' },
     { name: 'PatientDetail link', group: '_page', desc: '-> PatientDetail column', path: 'frontend/web/src/pages/doctor/patients/PatientDetail.jsx' },
   ]},
-  { id: 'review', title: '门诊', route: '/doctor/review', blocks: [
+  { id: 'review', title: '门诊', route: '/doctor/review', img: 'page-screenshots/doctor-review.png', blocks: [
     { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title + back nav' },
     { name: 'FilterStatBar', group: 'FilterStatBar', desc: '待审核 / 已确认 / 已修改' },
     { name: 'PendingReviewCard', group: 'PatientAvatar', desc: 'Review card + patient avatar' },
     { name: 'CompletedRow', group: '_page', desc: 'Completed review items', path: 'frontend/web/src/pages/doctor/ReviewPage.jsx' },
     { name: 'EmptyState', group: '_page', desc: 'No items placeholder', path: 'frontend/web/src/pages/doctor/ReviewPage.jsx' },
   ]},
-  { id: 'tasks', title: '任务', route: '/doctor/tasks', blocks: [
+  { id: 'tasks', title: '任务', route: '/doctor/tasks', img: 'page-screenshots/doctor-tasks.png', blocks: [
     { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title + back nav' },
     { name: 'FilterStatBar', group: 'FilterStatBar', desc: '待回复 / 待完成 / 已完成' },
     { name: 'MessageItem', group: 'MessageItem', desc: 'Patient messages + AI drafts' },
@@ -145,20 +152,20 @@ const PAGES = [
     { name: 'TaskRow', group: '_page', desc: 'Active task items', path: 'frontend/web/src/pages/doctor/TasksPage.jsx' },
     { name: 'SentRow', group: '_page', desc: 'Sent message history', path: 'frontend/web/src/pages/doctor/TasksPage.jsx' },
   ]},
-  { id: 'settings', title: 'Settings', route: '/doctor/settings', blocks: [
+  { id: 'settings', title: 'Settings', route: '/doctor/settings', img: 'page-screenshots/doctor-settings.png', blocks: [
     { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title + back nav' },
     { name: 'AccountBlock', group: '_page', desc: 'Avatar, name, hospital', path: 'frontend/web/src/pages/doctor/SettingsPage.jsx' },
     { name: 'SettingsRows', group: 'ListCard', desc: 'ListCard setting rows' },
     { name: 'Subpages', group: '_page', desc: 'Knowledge, Template, About, Privacy', path: 'frontend/web/src/pages/doctor/subpages/' },
   ]},
-  { id: 'patient-detail', title: 'PatientDetail', route: '/doctor/patients/:id', blocks: [
+  { id: 'patient-detail', title: 'PatientDetail', route: '/doctor/patients/:id', img: 'page-screenshots/doctor-patients-1.png', blocks: [
     { name: 'StickyTopBar', group: '_page', desc: 'Back button + patient name', path: 'frontend/web/src/pages/doctor/patients/PatientDetail.jsx' },
     { name: 'CollapsibleProfile', group: '_page', desc: 'Expandable patient info', path: 'frontend/web/src/pages/doctor/patients/PatientDetail.jsx' },
     { name: 'RecordTabs + RecordCard', group: '_page', desc: 'History / notes tab switcher', path: 'frontend/web/src/pages/doctor/patients/PatientDetail.jsx' },
     { name: 'PendingReviewRow', group: '_page', desc: '-> links to 门诊 review', path: 'frontend/web/src/pages/doctor/patients/PatientDetail.jsx' },
     { name: 'PatientMessages', group: '_page', desc: 'Recent messages list', path: 'frontend/web/src/pages/doctor/patients/PatientDetail.jsx' },
   ]},
-  { id: 'interview', title: 'Interview', route: '/patient/interview', blocks: [
+  { id: 'interview', title: 'Interview', route: '/doctor/patients/new', img: 'page-screenshots/doctor-patients-new.png', blocks: [
     { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title + back nav' },
     { name: 'ProgressBar', group: '_page', desc: 'Multi-step progress indicator', path: 'frontend/web/src/pages/patient/InterviewPage.jsx' },
     { name: 'ChatBubbles', group: 'MessageItem', desc: 'AI / patient chat bubbles' },
@@ -166,7 +173,7 @@ const PAGES = [
     { name: 'InputBar + VoiceInput', group: 'VoiceInput', desc: 'Text + voice input bar' },
     { name: 'ActionPanel', group: '_page', desc: 'Submit / next actions', path: 'frontend/web/src/pages/patient/InterviewPage.jsx' },
   ]},
-  { id: 'chat', title: 'Chat', route: '/doctor/chat', blocks: [
+  { id: 'chat', title: 'Chat', route: '/doctor/chat', img: 'page-screenshots/doctor-chat.png', blocks: [
     { name: 'ChatTopbar', group: '_page', desc: 'Patient context header', path: 'frontend/web/src/pages/doctor/ChatPage.jsx' },
     { name: 'ChatBubbles', group: 'MessageItem', desc: 'Doctor / AI chat bubbles' },
     { name: 'DataCards', group: '_page', desc: 'Inline structured data cards', path: 'frontend/web/src/pages/doctor/ChatPage.jsx' },
@@ -205,6 +212,21 @@ PAGES.forEach(page => {
   titleEl.className = 'page-title';
   titleEl.innerHTML = `${page.title} <span class="route">${page.route}</span>`;
   col.appendChild(titleEl);
+
+  if (page.img) {
+    const ssEl = document.createElement('div');
+    ssEl.className = 'page-screenshot';
+    const img = document.createElement('img');
+    img.src = page.img;
+    img.alt = page.title;
+    img.loading = 'lazy';
+    img.onclick = function() {
+      document.getElementById('lb-img').src = page.img;
+      document.getElementById('lightbox').style.display = 'flex';
+    };
+    ssEl.appendChild(img);
+    col.appendChild(ssEl);
+  }
 
   const blocksEl = document.createElement('div');
   blocksEl.className = 'page-blocks';
@@ -279,6 +301,21 @@ function showToast(msg) {
   toastEl.classList.add('visible');
   toastTimer = setTimeout(() => toastEl.classList.remove('visible'), 2200);
 }
+</script>
+
+<div id="lightbox" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;cursor:pointer" onclick="this.style.display='none'">
+  <img id="lb-img" src="" style="max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.4)">
+</div>
+<script>
+document.getElementById('lightbox').addEventListener('click', function() { this.style.display = 'none'; });
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') document.getElementById('lightbox').style.display = 'none'; });
+// Fix lightbox display style
+var lb = document.getElementById('lightbox');
+lb.style.display = 'none';
+var origClick = lb.onclick;
+lb.onclick = function() { this.style.display = 'none'; };
+// Override show
+window.showLightbox = function() { lb.style.display = 'flex'; };
 </script>
 </body>
 </html>
