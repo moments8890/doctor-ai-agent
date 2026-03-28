@@ -94,10 +94,9 @@ export default function MyAIPage({ doctorId }) {
   const api = useApi();
 
   // State
-  const [knowledgeStats, setKnowledgeStats] = useState(null);
-  const [draftSummary, setDraftSummary] = useState(null);
-  const [activity, setActivity] = useState(null);
   const [knowledge, setKnowledge] = useState(null);
+  const [reviewQueue, setReviewQueue] = useState(null);
+  const [activity, setActivity] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Fetch all dashboard data
@@ -107,22 +106,19 @@ export default function MyAIPage({ doctorId }) {
 
     async function load() {
       setLoading(true);
-      const fetchStats = api.fetchKnowledgeStats || (() => Promise.resolve(null));
-      const fetchSummary = api.fetchDraftSummary || (() => Promise.resolve(null));
-      const fetchActivity = api.fetchAIActivity || (() => Promise.resolve(null));
       const fetchKnowledge = api.getKnowledgeItems || (() => Promise.resolve(null));
+      const fetchReview = api.getReviewQueue || (() => Promise.resolve(null));
+      const fetchActivity = api.fetchAIActivity || (() => Promise.resolve(null));
 
       const results = await Promise.allSettled([
-        fetchStats(doctorId, 7).catch(() => null),
-        fetchSummary(doctorId).catch(() => null),
-        fetchActivity(doctorId, 3).catch(() => null),
         fetchKnowledge(doctorId).catch(() => null),
+        fetchReview(doctorId).catch(() => null),
+        fetchActivity(doctorId, 3).catch(() => null),
       ]);
       if (cancelled) return;
-      setKnowledgeStats(results[0].status === "fulfilled" ? results[0].value : null);
-      setDraftSummary(results[1].status === "fulfilled" ? results[1].value : null);
+      setKnowledge(results[0].status === "fulfilled" ? results[0].value : null);
+      setReviewQueue(results[1].status === "fulfilled" ? results[1].value : null);
       setActivity(results[2].status === "fulfilled" ? results[2].value : null);
-      setKnowledge(results[3].status === "fulfilled" ? results[3].value : null);
       setLoading(false);
     }
 
@@ -130,22 +126,24 @@ export default function MyAIPage({ doctorId }) {
     return () => { cancelled = true; };
   }, [doctorId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Derived values
+  // Derived values — all stats computed from actual data
   const aiName = `${doctorName || "医生"}AI`;
   const knowledgeList = Array.isArray(knowledge) ? knowledge : (knowledge?.items || []);
   const knowledgeCount = knowledgeList.length;
   const topRules = knowledgeList.slice(0, 3);
   const activityList = Array.isArray(activity) ? activity : (activity?.activity || activity?.items || []);
   const recentActivity = activityList.slice(0, 2);
-  const latestActivity = activityList[0];
 
-  const weekCitations = loading ? null : (knowledgeStats?.citations_7d ?? knowledgeStats?.total_citations ?? 0);
-  const pendingConfirm = loading ? null : (draftSummary?.review_pending_count ?? draftSummary?.pending_count ?? 0);
-  const todayProcessed = loading ? null : (draftSummary?.today_processed ?? knowledgeStats?.today_processed ?? 0);
+  const weekCitations = loading ? null : knowledgeList.reduce((sum, k) => sum + (k.reference_count || 0), 0);
+  const pendingReview = loading ? null : (reviewQueue?.pending || []).length;
+  const completedToday = loading ? null : (() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return (reviewQueue?.completed || []).filter((c) => (c.time || "").includes(today) || (c.time || "").includes("刚刚") || (c.time || "").includes("今天")).length;
+  })();
 
   // Badge counts for quick actions
-  const reviewBadge = draftSummary?.pending_count ?? draftSummary?.pending ?? 0;
-  const followupBadge = draftSummary?.followup_count ?? draftSummary?.followup ?? 0;
+  const reviewBadge = pendingReview || 0;
+  const followupBadge = 0; // TODO: derive from tasks data when fetched
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
@@ -185,9 +183,9 @@ export default function MyAIPage({ doctorId }) {
           <Box sx={{ display: "flex", py: 1.5, px: 2, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
             <StatColumn value={weekCitations} label="7天引用" />
             <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 0.5 }} />
-            <StatColumn value={pendingConfirm} label="待确认" onClick={() => navigate("/doctor/review?tab=pending")} />
+            <StatColumn value={pendingReview} label="待确认" onClick={() => navigate("/doctor/review?tab=pending")} />
             <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 0.5 }} />
-            <StatColumn value={todayProcessed} label="今日处理" onClick={() => navigate("/doctor/tasks?tab=sent")} />
+            <StatColumn value={completedToday} label="今日处理" onClick={() => navigate("/doctor/tasks?tab=sent")} />
           </Box>
 
           {/* Onboarding hint when no knowledge yet */}
