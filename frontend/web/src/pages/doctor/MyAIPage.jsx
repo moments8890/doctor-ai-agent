@@ -132,7 +132,7 @@ export default function MyAIPage({ doctorId }) {
   const knowledgeCount = knowledgeList.length;
   const topRules = knowledgeList.slice(0, 3);
   const activityList = Array.isArray(activity) ? activity : (activity?.activity || activity?.items || []);
-  const recentActivity = activityList.slice(0, 2);
+  const recentActivity = activityList.slice(0, 4);
 
   const weekCitations = loading ? null : knowledgeList.reduce((sum, k) => sum + (k.reference_count || 0), 0);
   const pendingReview = loading ? null : (reviewQueue?.pending || []).length;
@@ -163,7 +163,7 @@ export default function MyAIPage({ doctorId }) {
                 {aiName}
               </Typography>
               <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mt: 0.2 }}>
-                {knowledgeCount > 0 ? `已学会 ${knowledgeCount} 条规则` : "尚未添加规则"}
+                {knowledgeCount > 0 ? `已学会 ${knowledgeCount} 条知识` : "尚未添加知识"}
               </Typography>
             </Box>
             <Box
@@ -203,14 +203,14 @@ export default function MyAIPage({ doctorId }) {
               variant="primary" size="md" fullWidth
               onClick={() => navigate("/doctor/settings/knowledge")}
             >
-              继续教AI
+              我的知识库
             </AppButton>
             <AppButton
               variant="secondary" size="md" fullWidth
               onClick={() => navigate("/doctor/settings/knowledge/add")}
               sx={{ border: `0.5px solid ${COLOR.border}` }}
             >
-              导入病例
+              继续教AI
             </AppButton>
           </Box>
         </Box>
@@ -247,7 +247,7 @@ export default function MyAIPage({ doctorId }) {
         {/* ── C. 我的方法 (Knowledge Preview) ─────────────────── */}
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pr: 1.5 }}>
           <SectionLabel>
-            {knowledgeCount === 0 ? "AI知识库 · 快速入门" : "AI知识库 · 最近活跃"}
+            {knowledgeCount === 0 ? "我的知识库 · 快速入门" : "我的知识库 · 继续教AI"}
           </SectionLabel>
           {knowledgeCount > 0 && (
             <Typography

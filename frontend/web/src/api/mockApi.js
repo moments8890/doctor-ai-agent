@@ -425,26 +425,33 @@ export async function fetchAIActivity() {
         timestamp: "2026-03-27T13:20:00",
       },
       {
+        type: "draft",
+        description: "起草了随访回复",
+        patient_id: 5,
+        patient_name: "刘建国",
+        timestamp: "2026-03-27T13:20:00",
+      },
+      {
         type: "citation",
         description: "回复中引用了「术后头痛危险信号」",
         patient_id: 2,
-        patient_name: "李复诊", // display-only, not in real API
+        patient_name: "李复诊",
         timestamp: "2026-03-27T13:10:00",
+      },
+      {
+        type: "draft",
+        description: "起草了紧急回复",
+        patient_id: 1,
+        patient_name: "陈伟强",
+        timestamp: "2026-03-27T11:45:00",
       },
       {
         type: "diagnosis",
         description: "生成诊断建议：术后迟发性血肿鉴别",
         patient_id: 1,
-        patient_name: "陈伟强", // display-only, not in real API
+        patient_name: "陈伟强",
         record_id: 102,
         timestamp: "2026-03-27T12:45:00",
-      },
-      {
-        type: "task",
-        description: "创建任务：复查血常规",
-        patient_id: 1,
-        patient_name: "陈伟强", // display-only, not in real API
-        timestamp: "2026-03-27T11:30:00",
       },
     ],
   };
