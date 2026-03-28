@@ -22,6 +22,8 @@ router = APIRouter(tags=["ui"], include_in_schema=False)
 class DoctorProfileUpdate(BaseModel):
     name: str
     specialty: Optional[str] = None
+    clinic_name: Optional[str] = None
+    bio: Optional[str] = None
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -42,11 +44,15 @@ async def get_doctor_profile(
 
     name = doctor.name or ""
     specialty = getattr(doctor, "specialty", None) or ""
+    clinic_name = getattr(doctor, "clinic_name", None) or ""
+    bio = getattr(doctor, "bio", None) or ""
     onboarded = bool(name and name != resolved_id)
     return {
         "doctor_id": resolved_id,
         "name": name,
         "specialty": specialty,
+        "clinic_name": clinic_name,
+        "bio": bio,
         "onboarded": onboarded,
     }
 
@@ -73,6 +79,11 @@ async def patch_doctor_profile(
             doctor.specialty = body.specialty or None
         except Exception:
             pass  # specialty column not yet migrated — skip
+        try:
+            doctor.clinic_name = body.clinic_name or None
+            doctor.bio = body.bio or None
+        except Exception:
+            pass  # columns not yet migrated — skip
         await db.commit()
 
-    return {"ok": True, "name": name, "specialty": body.specialty or ""}
+    return {"ok": True, "name": name, "specialty": body.specialty or "", "clinic_name": body.clinic_name or "", "bio": body.bio or ""}

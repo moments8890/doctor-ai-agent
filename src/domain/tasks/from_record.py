@@ -7,9 +7,30 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta, timezone
+from enum import Enum
 from typing import List, Optional
 
+from pydantic import BaseModel, Field
+
 from utils.log import log
+
+
+class TaskType(str, Enum):
+    follow_up = "follow_up"
+    medication = "medication"
+    checkup = "checkup"
+    general = "general"
+
+
+class ExtractedTask(BaseModel):
+    title: str
+    task_type: TaskType = TaskType.follow_up
+    due_days: Optional[int] = None
+    content: Optional[str] = None
+
+
+class TaskExtractionResponse(BaseModel):
+    tasks: List[ExtractedTask] = Field(default_factory=list)
 
 
 async def generate_tasks_from_record(
@@ -88,7 +109,7 @@ async def _extract_tasks_via_llm(text: str) -> list:
 
     Returns list of dicts: [{title, task_type, due_days, content}]
     """
-    from agent.llm import llm_call
+    from agent.llm import structured_call
 
     prompt = f"""/no_think
 从以下医嘱和治疗方案中提取可执行的随访任务。
@@ -96,26 +117,19 @@ async def _extract_tasks_via_llm(text: str) -> list:
 输入：
 {text}
 
-输出JSON数组，每个任务包含：
-- title: 简短任务标题（如"复查CT"、"拆线"）
-- task_type: follow_up（随访）| medication（用药）| checkup（检查）| general（其他）
-- due_days: 几天后执行（整数，如3表示3天后，null表示无明确时间）
-- content: 补充说明（可选，null）
-
-只提取明确的可执行项，不要编造。如果没有可执行任务，返回空数组 []。"""
+## Constraints
+- 只提取明确的可执行项，不要编造
+- 如果没有可执行任务，tasks 返回空数组"""
 
     try:
-        raw = await llm_call(
+        result = await structured_call(
+            response_model=TaskExtractionResponse,
             messages=[{"role": "user", "content": prompt}],
             op_name="task_gen.extract",
             temperature=0.1,
             max_tokens=512,
-            json_mode=True,
         )
-        result = json.loads(raw.strip())
-        if isinstance(result, list):
-            return result
-        return []
+        return [t.model_dump(mode="json") for t in result.tasks]
     except Exception as exc:
         log(f"[task_gen] LLM extraction failed: {exc}", level="warning")
         return []

@@ -21,6 +21,50 @@ from utils.response_formatting import parse_tags as _parse_tags
 
 
 # ---------------------------------------------------------------------------
+# Section → structured-field mapping (for filtered PDF export)
+# ---------------------------------------------------------------------------
+
+VALID_SECTIONS = {"basic", "diagnosis", "visits", "prescriptions", "allergies"}
+
+_SECTION_FIELDS: dict[str, list[str]] = {
+    "diagnosis": ["diagnosis", "final_diagnosis", "key_symptoms"],
+    "visits": [
+        "chief_complaint", "present_illness", "past_history",
+        "physical_exam", "specialist_exam", "auxiliary_exam",
+        "treatment_plan", "orders_followup",
+    ],
+    "prescriptions": ["orders_followup"],
+    "allergies": ["allergy_history"],
+}
+
+# Chinese labels for structured fields rendered in the filtered PDF
+_FIELD_LABELS: dict[str, str] = {
+    "diagnosis": "初步诊断",
+    "final_diagnosis": "最终诊断",
+    "key_symptoms": "关键症状",
+    "chief_complaint": "主诉",
+    "present_illness": "现病史",
+    "past_history": "既往史",
+    "physical_exam": "体格检查",
+    "specialist_exam": "专科检查",
+    "auxiliary_exam": "辅助检查",
+    "treatment_plan": "治疗方案",
+    "orders_followup": "医嘱及随访",
+    "allergy_history": "过敏史",
+}
+
+
+def _allowed_fields(sections: Optional[set]) -> Optional[set]:
+    """Return the union of fields for the requested sections, or None (= all)."""
+    if sections is None:
+        return None
+    fields: set = set()
+    for sec in sections:
+        fields.update(_SECTION_FIELDS.get(sec, []))
+    return fields
+
+
+# ---------------------------------------------------------------------------
 # Font resolution
 # ---------------------------------------------------------------------------
 
@@ -144,8 +188,13 @@ def _draw_patient_block(pdf, _set_font, patient, patient_name, doctor_name, reco
     pdf.set_draw_color(180, 180, 180)
 
 
-def _draw_record_entry(pdf, _set_font, i: int, rec) -> None:
-    """绘制单条病历记录（标题行 + 内容 + 标签 + 分隔线）。"""
+def _draw_record_entry(pdf, _set_font, i: int, rec, allowed_fields: Optional[set] = None) -> None:
+    """绘制单条病历记录（标题行 + 内容 + 标签 + 分隔线）。
+
+    When *allowed_fields* is ``None`` the full record is rendered (backwards-
+    compatible).  When it is a set of field names, only structured fields whose
+    key is in the set are rendered — the raw ``content`` blob is skipped.
+    """
     if pdf.get_y() > pdf.h - 55:
         pdf.add_page()
 
@@ -163,11 +212,32 @@ def _draw_record_entry(pdf, _set_font, i: int, rec) -> None:
     pdf.cell(0, 7, "  " + "  ".join(header_parts), fill=True, new_x="LMARGIN", new_y="NEXT")
     pdf.set_text_color(0, 0, 0)
 
-    content = (getattr(rec, "content", None) or "").strip()
-    if content:
-        _set_font(10)
-        pdf.set_x(pdf.l_margin + 3)
-        pdf.multi_cell(0, 5.5, content, new_x="LMARGIN", new_y="NEXT")
+    if allowed_fields is None:
+        # ---- unfiltered (original behaviour): render raw content blob ----
+        content = (getattr(rec, "content", None) or "").strip()
+        if content:
+            _set_font(10)
+            pdf.set_x(pdf.l_margin + 3)
+            pdf.multi_cell(0, 5.5, content, new_x="LMARGIN", new_y="NEXT")
+    else:
+        # ---- filtered: render only structured fields in *allowed_fields* --
+        for field_key in _FIELD_LABELS:
+            if field_key not in allowed_fields:
+                continue
+            value = (getattr(rec, field_key, None) or "").strip()
+            if not value:
+                continue
+            if pdf.get_y() > pdf.h - 40:
+                pdf.add_page()
+            label = _FIELD_LABELS[field_key]
+            _set_font(9, bold=True)
+            pdf.set_text_color(60, 60, 60)
+            pdf.set_x(pdf.l_margin + 3)
+            pdf.cell(0, 6, f"【{label}】", new_x="LMARGIN", new_y="NEXT")
+            _set_font(10)
+            pdf.set_text_color(0, 0, 0)
+            pdf.set_x(pdf.l_margin + 6)
+            pdf.multi_cell(0, 5.5, value, new_x="LMARGIN", new_y="NEXT")
 
     tags = _parse_tags(getattr(rec, "tags", None))
     if tags:
@@ -239,6 +309,7 @@ def generate_records_pdf(
     clinic_name: Optional[str] = None,
     doctor_name: Optional[str] = None,
     scores_map: Optional[dict] = None,
+    sections: Optional[set] = None,
 ) -> bytes:
     """
     Generate a PDF containing one or more MedicalRecordDB rows.
@@ -250,6 +321,10 @@ def generate_records_pdf(
         clinic_name: overrides CLINIC_NAME env var
         doctor_name: attending physician name
         scores_map: ignored (kept for call-site compatibility)
+        sections: optional set of section keys (e.g. ``{"diagnosis", "visits"}``).
+            When provided, only structured fields belonging to these sections
+            are rendered.  ``"basic"`` controls the patient demographics block.
+            When ``None``, the full record is rendered (backwards compatible).
     Returns raw PDF bytes. Raises RuntimeError if fpdf2 is not installed.
     """
     from fpdf import FPDF  # raises ImportError if not installed
@@ -259,7 +334,13 @@ def generate_records_pdf(
 
     _draw_records_title(pdf, _set_font, clinic)
 
-    _draw_patient_block(pdf, _set_font, patient, patient_name, doctor_name, records)
+    # "basic" section controls the patient demographics block.
+    # When sections is None (unfiltered) or explicitly contains "basic", draw it.
+    if sections is None or "basic" in sections:
+        _draw_patient_block(pdf, _set_font, patient, patient_name, doctor_name, records)
+
+    # Compute the set of allowed structured fields (None = render raw content).
+    af = _allowed_fields(sections)
 
     if not records:
         _set_font(10)
@@ -268,7 +349,7 @@ def generate_records_pdf(
         pdf.set_text_color(0, 0, 0)
     else:
         for i, rec in enumerate(records):
-            _draw_record_entry(pdf, _set_font, i, rec)
+            _draw_record_entry(pdf, _set_font, i, rec, allowed_fields=af)
 
     return bytes(pdf.output())
 

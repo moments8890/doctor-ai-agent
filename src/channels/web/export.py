@@ -3,21 +3,32 @@
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import re
+from datetime import datetime
 from typing import Optional
 from urllib.parse import quote
 
 from fastapi import APIRouter, Header, HTTPException, Query
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from sqlalchemy import select
 
 from db.engine import AsyncSessionLocal
 from db.models import MedicalRecordDB, Patient
 from channels.web.ui._utils import _resolve_ui_doctor_id
 from infra.auth.rate_limit import enforce_doctor_rate_limit
-from domain.records.pdf_export import generate_outpatient_report_pdf, generate_records_pdf
+from domain.records.pdf_export import VALID_SECTIONS, generate_outpatient_report_pdf, generate_records_pdf
 from infra.observability.audit import audit
+from services.export.bulk_export import (
+    BulkExportTask,
+    cleanup_expired_tasks,
+    create_task as create_bulk_task,
+    generate_bulk_export,
+    get_task as get_bulk_task,
+    has_generating_task,
+    has_recent_task,
+)
 from utils.log import log, safe_create_task
 
 
@@ -95,25 +106,62 @@ def _write_outpatient_export_audit_task(
     pass
 
 
+_VISIT_RANGE_MAP = {"5": 5, "10": 10, "all": 9999}
+
+
 @router.get("/patient/{patient_id}/pdf")
 async def export_patient_pdf(
     patient_id: int,
     doctor_id: str = Query(default="web_doctor"),
     authorization: str | None = Header(default=None),
     limit: int = Query(default=200, ge=1, le=500),
+    sections: Optional[str] = Query(default=None),
+    visit_range: Optional[str] = Query(default=None),
 ):
     """
-    Export all medical records for a patient as a PDF file.
+    Export medical records for a patient as a PDF file.
+
+    Optional filters:
+    - **sections**: comma-separated section keys to include
+      (``basic,diagnosis,visits,prescriptions,allergies``).
+      Omit to export all sections (default).
+    - **visit_range**: ``5``, ``10``, or ``all``.  Overrides *limit* when
+      provided.
+
     Returns: application/pdf with Content-Disposition: attachment.
     Filename uses patient_id only (no PHI in filename).
     """
+    # --- Validate sections ---------------------------------------------------
+    parsed_sections: Optional[set] = None
+    if sections:
+        parsed_sections = {s.strip() for s in sections.split(",") if s.strip()}
+        unknown = parsed_sections - VALID_SECTIONS
+        if unknown:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown section(s): {', '.join(sorted(unknown))}. "
+                       f"Valid sections: {', '.join(sorted(VALID_SECTIONS))}",
+            )
+
+    # --- Validate & apply visit_range ----------------------------------------
+    if visit_range is not None:
+        if visit_range not in _VISIT_RANGE_MAP:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid visit_range '{visit_range}'. Must be one of: 5, 10, all",
+            )
+        limit = _VISIT_RANGE_MAP[visit_range]
+
     resolved_doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
     enforce_doctor_rate_limit(resolved_doctor_id, scope="export.patient_pdf")
     async with AsyncSessionLocal() as db:
         patient, records = await _fetch_patient_and_records(db, patient_id, resolved_doctor_id, limit)
     try:
         pdf_bytes = generate_records_pdf(
-            records=records, patient=patient, patient_name=patient.name,
+            records=records,
+            patient=patient,
+            patient_name=patient.name,
+            sections=parsed_sections,
         )
     except Exception as exc:
         log(f"[Export] PDF generation failed for patient {patient_id}: {exc}")
@@ -291,4 +339,137 @@ async def export_outpatient_report(
         media_type="application/pdf",
         headers={"Content-Disposition": _content_disposition(filename)},
     )
+
+
+# ---------------------------------------------------------------------------
+# Bulk Export (ZIP with all patients)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/bulk")
+async def start_bulk_export(
+    doctor_id: str = Query(default="web_doctor"),
+    authorization: Optional[str] = Header(default=None),
+):
+    """
+    Launch a background bulk export of all patients for this doctor.
+
+    Returns 202 with ``{"task_id": "..."}`` on success.
+    Returns 429 if another export is already in progress or a recent one exists.
+    """
+    resolved_doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
+
+    # Housekeeping — evict expired tasks
+    cleanup_expired_tasks()
+
+    # Rate limit: one export per hour
+    if has_recent_task(resolved_doctor_id):
+        raise HTTPException(
+            status_code=429,
+            detail="最近已有导出任务，请稍后再试",
+            headers={"Retry-After": "3600"},
+        )
+
+    # Concurrency: only one generating task at a time
+    if has_generating_task(resolved_doctor_id):
+        raise HTTPException(
+            status_code=429,
+            detail="另一个导出正在进行中",
+        )
+
+    task = create_bulk_task(resolved_doctor_id)
+
+    # Run the synchronous generate_bulk_export in a thread executor
+    loop = asyncio.get_event_loop()
+    loop.run_in_executor(None, generate_bulk_export, resolved_doctor_id, task)
+
+    safe_create_task(audit(resolved_doctor_id, "EXPORT", resource_type="bulk", resource_id=task.task_id))
+    log(f"[BulkExport] started task={task.task_id} doctor={resolved_doctor_id}")
+
+    return JSONResponse(
+        status_code=202,
+        content={"task_id": task.task_id},
+    )
+
+
+@router.get("/bulk/{task_id}")
+async def get_bulk_export_status(
+    task_id: str,
+    doctor_id: str = Query(default="web_doctor"),
+    authorization: Optional[str] = Header(default=None),
+):
+    """
+    Poll the status of a bulk export task.
+
+    Returns status, progress, and download_url (when ready).
+    """
+    resolved_doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    task = get_bulk_task(task_id)
+
+    if task is None or task.doctor_id != resolved_doctor_id:
+        raise HTTPException(status_code=404, detail="Export task not found")
+
+    result: dict = {
+        "task_id": task.task_id,
+        "status": task.status,
+        "progress": task.progress,
+    }
+
+    if task.status == "ready":
+        result["download_url"] = f"/api/export/bulk/{task.task_id}/download"
+    elif task.status == "failed":
+        result["error"] = task.error or "导出失败"
+
+    return JSONResponse(content=result)
+
+
+@router.get("/bulk/{task_id}/download")
+async def download_bulk_export(
+    task_id: str,
+    doctor_id: str = Query(default="web_doctor"),
+    authorization: Optional[str] = Header(default=None),
+):
+    """
+    Download the completed bulk export ZIP file.
+
+    Requires the task to be in ``ready`` status.
+    """
+    resolved_doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    task = get_bulk_task(task_id)
+
+    if task is None or task.doctor_id != resolved_doctor_id:
+        raise HTTPException(status_code=404, detail="Export task not found")
+
+    if task.status != "ready":
+        raise HTTPException(status_code=400, detail="Export is not ready for download")
+
+    if not task.file_path:
+        raise HTTPException(status_code=500, detail="Export file missing")
+
+    task.downloading = True
+
+    # Build filename: 导出_YYYY-MM-DD.zip
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    filename = f"\u5bfc\u51fa_{date_str}.zip"  # 导出_{date}.zip
+
+    try:
+        return FileResponse(
+            path=task.file_path,
+            media_type="application/zip",
+            headers={"Content-Disposition": _content_disposition(filename)},
+            background=_BulkDownloadCleanup(task),
+        )
+    except Exception:
+        task.downloading = False
+        raise
+
+
+class _BulkDownloadCleanup:
+    """Starlette BackgroundTask that resets the downloading flag after response."""
+
+    def __init__(self, task: BulkExportTask):
+        self._task = task
+
+    async def __call__(self) -> None:
+        self._task.downloading = False
 
