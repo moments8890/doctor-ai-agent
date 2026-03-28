@@ -10,6 +10,9 @@ import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import QrCode2OutlinedIcon from "@mui/icons-material/QrCode2Outlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
+import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
+import ContentPasteOutlinedIcon from "@mui/icons-material/ContentPasteOutlined";
+import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import { useDoctorStore } from "../../store/doctorStore";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
@@ -187,8 +190,14 @@ export default function MyAIPage({ doctorId }) {
             <StatColumn value={todayProcessed} label="今日处理" />
           </Box>
 
-          {/* Live status line */}
-          {latestActivity && (
+          {/* Live status line — or onboarding hint when no knowledge yet */}
+          {!loading && knowledgeCount === 0 ? (
+            <Box sx={{ px: 2, py: 1.2 }}>
+              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, lineHeight: 1.5 }}>
+                上传你的诊疗规则或常用模板后，它才会按你的方法工作
+              </Typography>
+            </Box>
+          ) : latestActivity ? (
             <Box sx={{ px: 2, py: 1.2 }}>
               <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, lineHeight: 1.5 }}>
                 {latestActivity.description || (
@@ -202,7 +211,7 @@ export default function MyAIPage({ doctorId }) {
                 )}
               </Typography>
             </Box>
-          )}
+          ) : null}
 
           {/* CTA row */}
           <Box sx={{ display: "flex", gap: 1.2, px: 2, py: 1.5 }}>
@@ -254,22 +263,43 @@ export default function MyAIPage({ doctorId }) {
         {/* ── C. 我的方法 (Knowledge Preview) ─────────────────── */}
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 1.5, pt: 2, pb: 0.5 }}>
           <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text3, fontWeight: 600, letterSpacing: 0.5 }}>
-            我的方法 · 最近活跃
+            {knowledgeCount === 0 ? "我的方法 · 快速入门" : "我的方法 · 最近活跃"}
           </Typography>
-          <Typography
-            onClick={() => navigate("/doctor/settings/knowledge")}
-            sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, cursor: "pointer" }}
-          >
-            全部 {knowledgeCount} 条 ›
-          </Typography>
+          {knowledgeCount > 0 && (
+            <Typography
+              onClick={() => navigate("/doctor/settings/knowledge")}
+              sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, cursor: "pointer" }}
+            >
+              全部 {knowledgeCount} 条 ›
+            </Typography>
+          )}
         </Box>
         <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
           {topRules.length === 0 && !loading && (
-            <Box sx={{ py: 3, textAlign: "center" }}>
-              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>
-                尚未添加知识规则
-              </Typography>
-            </Box>
+            <>
+              <ListCard
+                avatar={<UploadFileOutlinedIcon sx={{ fontSize: 20, color: COLOR.primary }} />}
+                title="上传指南"
+                subtitle="PDF / Word 文档"
+                onClick={() => navigate("/doctor/settings/knowledge/add")}
+                chevron
+              />
+              <ListCard
+                avatar={<ContentPasteOutlinedIcon sx={{ fontSize: 20, color: COLOR.primary }} />}
+                title="粘贴常用回复"
+                subtitle="你常用的回复模板"
+                onClick={() => navigate("/doctor/settings/knowledge/add")}
+                chevron
+              />
+              <ListCard
+                avatar={<AssignmentOutlinedIcon sx={{ fontSize: 20, color: COLOR.primary }} />}
+                title="导入已确认病例"
+                subtitle="从病历中提取规则"
+                onClick={() => navigate("/doctor/chat")}
+                chevron
+                sx={{ borderBottom: "none" }}
+              />
+            </>
           )}
           {loading && topRules.length === 0 && (
             <Box sx={{ py: 3, display: "flex", justifyContent: "center" }}>
