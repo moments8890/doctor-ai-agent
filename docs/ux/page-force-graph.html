@@ -117,8 +117,8 @@ var NODES = [
   { id: 'review',   label: '审核',     route: '/doctor/review',     comp: 'ReviewQueuePage', img: 'doctor-review.png',   app: 'doctor', color: '#1a7f37', gx: 0.42, gy: 0.14 },
   { id: 'followup', label: '随访',     route: '/doctor/followup',   comp: 'FollowupPage',    img: 'doctor-followup.png', app: 'doctor', color: '#1a7f37', gx: 0.56, gy: 0.14 },
   // Doctor main pages — row 1
-  { id: 'chat',     label: 'AI Chat',  route: '/doctor/chat',       comp: 'ChatPage',        img: 'doctor-chat.png',     app: 'doctor', color: '#0969da', gx: 0.06, gy: 0.40 },
-  { id: 'tasks',    label: '任务',     route: '/doctor/tasks',      comp: 'TasksPage',       img: 'doctor-tasks.png',    app: 'doctor', color: '#0969da', gx: 0.20, gy: 0.40 },
+  { id: 'chat',     label: 'AI Chat ⚠', route: '/doctor/chat',       comp: 'ChatPage',        img: 'doctor-chat.png',     app: 'doctor', color: '#9a6700', gx: 0.06, gy: 0.40, reason: 'No nav tab. Reachable via AskAIBar and navigate() calls only.' },
+  { id: 'tasks',    label: '任务 ⚠',   route: '/doctor/tasks',      comp: 'TasksPage',       img: 'doctor-tasks.png',    app: 'doctor', color: '#9a6700', gx: 0.20, gy: 0.40, reason: 'No mobile nav tab. Desktop sidebar only + stat card click.' },
   { id: 'settings', label: '设置',     route: '/doctor/settings',   comp: 'SettingsPage',    img: 'doctor-settings.png', app: 'doctor', color: '#0969da', gx: 0.34, gy: 0.40 },
   // Doctor subpages — row 2
   { id: 'patient-detail', label: '患者详情',  route: '/patients/:id',   comp: 'PatientDetail',      img: 'doctor-patients-1.png',          app: 'doctor', color: '#8250df', gx: 0.10, gy: 0.66 },
@@ -137,11 +137,11 @@ var NODES = [
   // Standalone
   { id: 'login', label: 'Login', route: '/login', comp: 'LoginPage', img: 'login.png', app: 'standalone', color: '#656d76', gx: 0.92, gy: 0.88 },
   { id: 'admin', label: 'Admin', route: '/admin', comp: 'AdminPage', img: 'admin.png', app: 'standalone', color: '#656d76', gx: 0.06, gy: 0.88 },
-  // Orphaned — routes exist but no navigation leads here
-  { id: 'privacy', label: '隐私政策', route: '/privacy', comp: 'PrivacyPage', img: null, app: 'orphan', color: '#cf222e', gx: 0.80, gy: 0.88, orphan: true, reason: 'Opens in new tab from Settings, not in-app nav' },
-  { id: 'home-legacy', label: 'Home (legacy)', route: '/doctor/ (home)', comp: 'HomeSubpage', img: null, app: 'orphan', color: '#cf222e', gx: 0.20, gy: 0.88, orphan: true, reason: 'HomeSubpage exists but MyAIPage replaced it — no nav tab points here' },
-  { id: 'showcase', label: 'Components', route: '/debug/components', comp: 'ComponentShowcase', img: 'debug-components.png', app: 'orphan', color: '#cf222e', gx: 0.50, gy: 0.88, orphan: true, reason: 'Debug-only, no in-app navigation' },
-  { id: 'dr-showcase', label: 'Dr Components', route: '/debug/doctor-components', comp: 'Showcase', img: 'debug-doctor-components.png', app: 'orphan', color: '#cf222e', gx: 0.64, gy: 0.88, orphan: true, reason: 'Debug-only, no in-app navigation' },
+  // Orphaned / semi-dead — no nav tab, reachable only via specific actions or not at all
+  { id: 'home-legacy', label: 'Home (dead)', route: '/doctor/home', comp: 'HomePage + HomeSubpage', img: 'doctor-home-legacy.png', app: 'orphan', color: '#cf222e', gx: 0.14, gy: 0.88, orphan: true, reason: 'DEAD: MyAIPage replaced it. No nav tab points to "home" section. Has AskAIBar that MyAI lacks.' },
+  { id: 'privacy', label: '隐私政策', route: '/privacy', comp: 'PrivacyPage', img: null, app: 'orphan', color: '#cf222e', gx: 0.36, gy: 0.88, orphan: true, reason: 'Opens in new browser tab from Settings → 隐私政策. Not in-app navigation.' },
+  { id: 'showcase', label: 'Components', route: '/debug/components', comp: 'ComponentShowcase', img: 'debug-components.png', app: 'orphan', color: '#cf222e', gx: 0.54, gy: 0.88, orphan: true, reason: 'Debug-only showcase. No in-app navigation, direct URL only.' },
+  { id: 'dr-showcase', label: 'Dr Components', route: '/debug/doctor-components', comp: 'Showcase', img: 'debug-doctor-components.png', app: 'orphan', color: '#cf222e', gx: 0.68, gy: 0.88, orphan: true, reason: 'Debug-only showcase. No in-app navigation, direct URL only.' },
 ];
 
 var EDGES = [
