@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Page Tree — Doctor AI Agent</title>
+<style>
+:root {
+  --bg: #ffffff;
+  --surface: #f6f8fa;
+  --border: #d0d7de;
+  --text: #1f2328;
+  --muted: #656d76;
+  --accent: #0969da;
+  --green: #1a7f37;
+  --tree-line: #c9d1d9;
+  --thumb-w: 200px;
+  --node-gap: 20px;
+  --indent: 48px;
+  --connector: 24px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--surface);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.container {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+h1 {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  color: var(--muted);
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+/* Stats bar */
+.stats-bar {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.stat {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 20px;
+  display: flex;
+  flex-direction: column;
+  min-width: 120px;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value.doctor { color: var(--green); }
+.stat-value.patient { color: var(--accent); }
+.stat-value.total { color: var(--text); }
+
+/* Tree structure */
+.tree {
+  position: relative;
+  padding-left: 0;
+}
+
+.tree-node {
+  position: relative;
+  margin-bottom: var(--node-gap);
+}
+
+.tree-children {
+  padding-left: var(--indent);
+  position: relative;
+}
+
+/* Vertical line along left edge of children container */
+.tree-children::before {
+  content: '';
+  position: absolute;
+  left: 22px;
+  top: 0;
+  bottom: var(--node-gap);
+  width: 2px;
+  background: var(--tree-line);
+}
+
+/* Horizontal connector from vertical line to each child node */
+.tree-children > .tree-node::before {
+  content: '';
+  position: absolute;
+  left: calc(-1 * var(--indent) + 22px);
+  top: 28px;
+  width: var(--connector);
+  height: 2px;
+  background: var(--tree-line);
+}
+
+/* Hide the vertical line below the last child */
+.tree-children > .tree-node:last-child::after {
+  content: '';
+  position: absolute;
+  left: calc(-1 * var(--indent) + 22px);
+  top: 30px;
+  bottom: 0;
+  width: 2px;
+  background: var(--surface);
+}
+
+/* Card */
+.node-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  display: inline-block;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.node-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px rgba(9,105,218,0.12);
+}
+
+.node-card .thumb {
+  width: var(--thumb-w);
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  display: block;
+}
+
+.node-card .route {
+  font-size: 12px;
+  font-family: "SF Mono", "Fira Code", monospace;
+  color: var(--accent);
+  margin-top: 6px;
+  word-break: break-all;
+}
+
+.node-card .component {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* Section labels */
+.section-label {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.section-label.doctor {
+  background: #dafbe1;
+  color: var(--green);
+}
+
+.section-label.patient {
+  background: #dbeafe;
+  color: var(--accent);
+}
+
+.section-label.admin {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.section-label.debug {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* Lightbox */
+.lightbox {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0,0,0,0.82);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.lightbox.active {
+  display: flex;
+}
+
+.lightbox img {
+  max-width: 92vw;
+  max-height: 92vh;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+
+.lightbox-hint {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255,255,255,0.6);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+/* Extras row at the bottom */
+.extras {
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+
+.extras-grid {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Page Tree</h1>
+  <p class="subtitle">Visual sitemap with navigation hierarchy &mdash; Doctor AI Agent</p>
+
+  <!-- Stats -->
+  <div class="stats-bar">
+    <div class="stat">
+      <span class="stat-value total">22</span>
+      <span class="stat-label">Total Pages</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value doctor">13</span>
+      <span class="stat-label">Doctor Pages</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value patient">5</span>
+      <span class="stat-label">Patient Pages</span>
+    </div>
+  </div>
+
+  <!-- Tree -->
+  <div class="tree" id="tree"></div>
+
+  <!-- Extras: Admin & Debug -->
+  <div class="extras">
+    <span class="section-label admin">Admin &amp; Debug</span>
+    <div class="extras-grid" id="extras"></div>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <img id="lightbox-img" src="" alt="Full screenshot">
+  <span class="lightbox-hint">Click or press Escape to close</span>
+</div>
+
+<script>
+// Data
+var TREE = {
+  img: 'login.png', route: '/login', comp: 'LoginPage', children: [
+    { label: 'Doctor App', labelClass: 'doctor', children: [
+      { img: 'doctor-home.png', route: '/doctor', comp: 'DoctorHomePage', label: '我的AI (Home)', children: [
+        { img: 'doctor-chat.png', route: '/doctor/chat', comp: 'ChatPage' },
+        { img: 'doctor-tasks.png', route: '/doctor/tasks', comp: 'TasksPage', note: 'hidden tab' },
+      ]},
+      { img: 'doctor-patients.png', route: '/doctor/patients', comp: 'PatientsPage', label: '患者 (Patients)', children: [
+        { img: 'doctor-patients-1.png', route: '/doctor/patients/:id', comp: 'PatientDetail' },
+        { img: 'doctor-patients-new.png', route: '/doctor/patients/new', comp: 'InterviewPage', note: 'new record' },
+      ]},
+      { img: 'doctor-review.png', route: '/doctor/review', comp: 'ReviewPage', label: '审核 (Review)' },
+      { img: 'doctor-followup.png', route: '/doctor/followup', comp: 'FollowupPage', label: '随访 (Followup)' },
+      { img: 'doctor-settings.png', route: '/doctor/settings', comp: 'SettingsPage', label: 'Settings', children: [
+        { img: 'doctor-settings-knowledge.png', route: '/doctor/settings/knowledge', comp: 'KnowledgeSubpage', label: 'Knowledge List', children: [
+          { img: 'doctor-settings-knowledge-add.png', route: '/doctor/settings/knowledge/add', comp: 'AddKnowledgeSubpage' },
+        ]},
+        { img: 'doctor-settings-template.png', route: '/doctor/settings/template', comp: 'TemplateSubpage' },
+        { img: 'doctor-settings-about.png', route: '/doctor/settings/about', comp: 'AboutSubpage' },
+      ]},
+    ]},
+    { label: 'Patient App', labelClass: 'patient', children: [
+      { img: 'debug-patient.png', route: '/patient', comp: 'ChatTab', label: 'Chat (Home)' },
+      { img: 'debug-patient-records.png', route: '/patient/records', comp: 'RecordsTab' },
+      { img: 'debug-patient-tasks.png', route: '/patient/tasks', comp: 'TasksTab' },
+      { img: 'debug-patient-profile.png', route: '/patient/profile', comp: 'ProfileTab' },
+      { img: 'debug-patient-interview.png', route: '/patient/interview', comp: 'InterviewPage' },
+    ]},
+  ]
+};
+
+var EXTRAS = [
+  { img: 'admin.png', route: '/admin', comp: 'AdminPanel' },
+  { img: 'debug-components.png', route: '/debug/components', comp: 'ComponentShowcase' },
+  { img: 'debug-doctor-components.png', route: '/debug/doctor-components', comp: 'DoctorComponentShowcase' },
+];
+
+var IMG_BASE = 'page-screenshots/';
+
+function makeCard(node) {
+  var card = document.createElement('div');
+  card.className = 'node-card';
+  var img = document.createElement('img');
+  img.className = 'thumb';
+  img.src = IMG_BASE + node.img;
+  img.alt = node.comp || node.label || '';
+  img.loading = 'lazy';
+  img.onclick = function(e) { e.stopPropagation(); openLightbox(IMG_BASE + node.img); };
+  card.appendChild(img);
+
+  if (node.route) {
+    var r = document.createElement('div');
+    r.className = 'route';
+    r.textContent = node.route;
+    card.appendChild(r);
+  }
+  if (node.comp) {
+    var c = document.createElement('div');
+    c.className = 'component';
+    c.textContent = node.comp + (node.note ? ' (' + node.note + ')' : '');
+    card.appendChild(c);
+  }
+  return card;
+}
+
+function renderNode(node, parent) {
+  var wrapper = document.createElement('div');
+  wrapper.className = 'tree-node';
+
+  // Section label (e.g. "Doctor App", "Patient App")
+  if (node.label && !node.img) {
+    var lbl = document.createElement('span');
+    lbl.className = 'section-label ' + (node.labelClass || '');
+    lbl.textContent = node.label;
+    wrapper.appendChild(lbl);
+  }
+
+  // Card with screenshot
+  if (node.img) {
+    if (node.label && node.route) {
+      // Inline label above card
+      var lbl = document.createElement('div');
+      lbl.style.cssText = 'font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px;';
+      lbl.textContent = node.label;
+      wrapper.appendChild(lbl);
+    }
+    wrapper.appendChild(makeCard(node));
+  }
+
+  // Children
+  if (node.children && node.children.length) {
+    var childContainer = document.createElement('div');
+    childContainer.className = 'tree-children';
+    node.children.forEach(function(child) {
+      renderNode(child, childContainer);
+    });
+    wrapper.appendChild(childContainer);
+  }
+
+  parent.appendChild(wrapper);
+}
+
+function renderExtras() {
+  var el = document.getElementById('extras');
+  EXTRAS.forEach(function(node) {
+    el.appendChild(makeCard(node));
+  });
+}
+
+// Lightbox
+function openLightbox(src) {
+  var lb = document.getElementById('lightbox');
+  document.getElementById('lightbox-img').src = src;
+  lb.classList.add('active');
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('active');
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeLightbox();
+});
+
+// Init
+renderNode(TREE, document.getElementById('tree'));
+renderExtras();
+</script>
+
+</body>
+</html>
