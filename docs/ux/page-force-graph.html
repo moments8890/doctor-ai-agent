@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Page Navigation — Force Graph</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #f6f8fa;
+  color: #1f2328;
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* Header bar */
+.header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+  background: rgba(255,255,255,0.92); backdrop-filter: blur(8px);
+  border-bottom: 1px solid #d0d7de;
+  padding: 12px 24px;
+  display: flex; align-items: center; gap: 20px;
+}
+.header h1 { font-size: 18px; font-weight: 700; }
+.legend { display: flex; gap: 16px; font-size: 12px; color: #656d76; }
+.legend-item { display: flex; align-items: center; gap: 5px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+.legend-line { width: 24px; height: 0; border-top: 2px solid; }
+.legend-line.dashed { border-top-style: dashed; }
+
+/* Filter buttons */
+.filters {
+  display: flex; gap: 6px; margin-left: auto;
+}
+.filter-btn {
+  font-size: 11px; padding: 4px 10px; border-radius: 12px;
+  border: 1px solid #d0d7de; background: #fff; cursor: pointer;
+  font-weight: 500; color: #656d76; transition: all 0.15s;
+}
+.filter-btn:hover { border-color: #0969da; color: #0969da; }
+.filter-btn.active { background: #0969da; color: #fff; border-color: #0969da; }
+
+/* Canvas */
+canvas { display: block; }
+
+/* Tooltip */
+.tooltip {
+  display: none; position: fixed; z-index: 20;
+  background: #1f2328; color: #fff; padding: 8px 12px;
+  border-radius: 8px; font-size: 12px; max-width: 260px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2); pointer-events: none;
+}
+.tooltip .t-label { font-weight: 700; font-size: 13px; margin-bottom: 2px; }
+.tooltip .t-route { font-family: "SF Mono", monospace; color: #79c0ff; font-size: 11px; }
+.tooltip .t-comp { color: #8b949e; font-size: 11px; margin-top: 1px; }
+.tooltip .t-links { margin-top: 6px; border-top: 1px solid #444; padding-top: 4px; }
+.tooltip .t-link { font-size: 11px; color: #e6edf3; margin-top: 2px; }
+.tooltip .t-link .arrow { color: #3fb950; }
+
+/* Lightbox */
+.lightbox {
+  display: none; position: fixed; inset: 0; z-index: 100;
+  background: rgba(0,0,0,0.85); align-items: center;
+  justify-content: center; cursor: pointer;
+}
+.lightbox.active { display: flex; }
+.lightbox img {
+  max-width: 90vw; max-height: 90vh; border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+
+/* Info panel */
+.info {
+  position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+  font-size: 12px; color: #656d76; background: rgba(255,255,255,0.9);
+  padding: 6px 16px; border-radius: 20px; border: 1px solid #d0d7de;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Navigation Graph</h1>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#1a7f37"></div> Nav tab</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#0969da"></div> Main page</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#8250df"></div> Subpage</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#bc4c00"></div> Detail</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#656d76"></div> Standalone</div>
+    <div class="legend-item"><div class="legend-line" style="border-color:#1a7f37"></div> Nav</div>
+    <div class="legend-item"><div class="legend-line" style="border-color:#0969da"></div> Drill</div>
+    <div class="legend-item"><div class="legend-line dashed" style="border-color:#bc4c00"></div> Cross</div>
+  </div>
+  <div class="filters">
+    <button class="filter-btn active" data-filter="all">All</button>
+    <button class="filter-btn" data-filter="doctor">Doctor</button>
+    <button class="filter-btn" data-filter="patient">Patient</button>
+    <button class="filter-btn" data-filter="cross">Cross-links only</button>
+  </div>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<div class="tooltip" id="tooltip"></div>
+<div class="info">Drag nodes to rearrange · Scroll to zoom · Click node for full screenshot · Hover for connections</div>
+
+<div class="lightbox" id="lightbox" onclick="this.classList.remove('active')">
+  <img id="lb-img" src="">
+</div>
+
+<script>
+var IMG = 'page-screenshots/';
+
+// ── Node definitions ──
+var NODES = [
+  // Doctor nav tabs (layer 0)
+  { id: 'myai', label: '我的AI', route: '/doctor', comp: 'MyAIPage', img: 'doctor-home.png', app: 'doctor', layer: 0, color: '#1a7f37' },
+  { id: 'patients', label: '患者', route: '/doctor/patients', comp: 'PatientsPage', img: 'doctor-patients.png', app: 'doctor', layer: 0, color: '#1a7f37' },
+  { id: 'review', label: '审核', route: '/doctor/review', comp: 'ReviewQueuePage', img: 'doctor-review.png', app: 'doctor', layer: 0, color: '#1a7f37' },
+  { id: 'followup', label: '随访', route: '/doctor/followup', comp: 'FollowupPage', img: 'doctor-followup.png', app: 'doctor', layer: 0, color: '#1a7f37' },
+  // Doctor main pages (layer 1)
+  { id: 'chat', label: 'AI Chat', route: '/doctor/chat', comp: 'ChatPage', img: 'doctor-chat.png', app: 'doctor', layer: 1, color: '#0969da' },
+  { id: 'tasks', label: '任务', route: '/doctor/tasks', comp: 'TasksPage', img: 'doctor-tasks.png', app: 'doctor', layer: 1, color: '#0969da' },
+  { id: 'settings', label: '设置', route: '/doctor/settings', comp: 'SettingsPage', img: 'doctor-settings.png', app: 'doctor', layer: 1, color: '#0969da' },
+  // Doctor subpages (layer 2)
+  { id: 'patient-detail', label: '患者详情', route: '/doctor/patients/:id', comp: 'PatientDetail', img: 'doctor-patients-1.png', app: 'doctor', layer: 2, color: '#8250df' },
+  { id: 'interview', label: '新建病历', route: '/doctor/patients/new', comp: 'InterviewPage', img: 'doctor-patients-new.png', app: 'doctor', layer: 2, color: '#8250df' },
+  { id: 'knowledge', label: '知识库', route: '/settings/knowledge', comp: 'KnowledgeSubpage', img: 'doctor-settings-knowledge.png', app: 'doctor', layer: 2, color: '#8250df' },
+  { id: 'template', label: '报告模板', route: '/settings/template', comp: 'TemplateSubpage', img: 'doctor-settings-template.png', app: 'doctor', layer: 2, color: '#8250df' },
+  { id: 'about', label: '关于', route: '/settings/about', comp: 'AboutSubpage', img: 'doctor-settings-about.png', app: 'doctor', layer: 2, color: '#8250df' },
+  // Doctor detail (layer 3)
+  { id: 'knowledge-add', label: '添加知识', route: '/settings/knowledge/add', comp: 'AddKnowledgeSubpage', img: 'doctor-settings-knowledge-add.png', app: 'doctor', layer: 3, color: '#bc4c00' },
+  // Patient nav
+  { id: 'p-chat', label: '消息', route: '/patient', comp: 'ChatTab', img: 'debug-patient.png', app: 'patient', layer: 0, color: '#1a7f37' },
+  { id: 'p-records', label: '病历', route: '/patient/records', comp: 'RecordsTab', img: 'debug-patient-records.png', app: 'patient', layer: 0, color: '#1a7f37' },
+  { id: 'p-tasks', label: '任务', route: '/patient/tasks', comp: 'TasksTab', img: 'debug-patient-tasks.png', app: 'patient', layer: 0, color: '#1a7f37' },
+  { id: 'p-profile', label: '我的', route: '/patient/profile', comp: 'ProfileTab', img: 'debug-patient-profile.png', app: 'patient', layer: 0, color: '#1a7f37' },
+  // Patient subpage
+  { id: 'p-interview', label: '预问诊', route: '/patient/interview', comp: 'InterviewPage', img: 'debug-patient-interview.png', app: 'patient', layer: 2, color: '#8250df' },
+  // Standalone
+  { id: 'login', label: 'Login', route: '/login', comp: 'LoginPage', img: 'login.png', app: 'standalone', layer: 0, color: '#656d76' },
+  { id: 'admin', label: 'Admin', route: '/admin', comp: 'AdminPage', img: 'admin.png', app: 'standalone', layer: 0, color: '#656d76' },
+];
+
+// ── Edge definitions ──
+var EDGES = [
+  // Nav tabs
+  { from: 'myai', to: 'patients', label: 'nav "患者"', type: 'nav' },
+  { from: 'myai', to: 'review', label: 'nav "审核"', type: 'nav' },
+  { from: 'myai', to: 'followup', label: 'nav "随访"', type: 'nav' },
+  { from: 'patients', to: 'myai', label: 'nav "我的AI"', type: 'nav' },
+  { from: 'review', to: 'myai', label: 'nav', type: 'nav' },
+  { from: 'followup', to: 'myai', label: 'nav', type: 'nav' },
+  // MyAI drill
+  { from: 'myai', to: 'settings', label: '⚙️ icon', type: 'drill' },
+  { from: 'myai', to: 'chat', label: 'AskAI bar', type: 'drill' },
+  // MyAI cross
+  { from: 'myai', to: 'knowledge', label: '"继续教AI"', type: 'cross' },
+  { from: 'myai', to: 'knowledge-add', label: '"导入病例"', type: 'cross' },
+  { from: 'myai', to: 'patient-detail', label: 'activity row', type: 'cross' },
+  // Patients
+  { from: 'patients', to: 'patient-detail', label: 'tap row', type: 'drill' },
+  { from: 'patients', to: 'interview', label: '"新建患者"', type: 'drill' },
+  // Patient detail
+  { from: 'patient-detail', to: 'chat', label: '"问AI"', type: 'cross' },
+  { from: 'patient-detail', to: 'interview', label: '"门诊"', type: 'cross' },
+  // Settings
+  { from: 'settings', to: 'knowledge', label: '"知识库"', type: 'drill' },
+  { from: 'settings', to: 'template', label: '"报告模板"', type: 'drill' },
+  { from: 'settings', to: 'about', label: '"关于"', type: 'drill' },
+  { from: 'settings', to: 'login', label: '"退出登录"', type: 'drill' },
+  // Knowledge
+  { from: 'knowledge', to: 'knowledge-add', label: '"添加"', type: 'drill' },
+  // Review
+  { from: 'review', to: 'patient-detail', label: 'tap item', type: 'cross' },
+  // Followup
+  { from: 'followup', to: 'patient-detail', label: 'tap row', type: 'cross' },
+  // Chat cross
+  { from: 'chat', to: 'patient-detail', label: 'patient card', type: 'cross' },
+  { from: 'chat', to: 'patients', label: '"查看全部"', type: 'cross' },
+  { from: 'chat', to: 'tasks', label: '"查看全部"', type: 'cross' },
+  // Tasks
+  { from: 'tasks', to: 'review', label: 'review task', type: 'cross' },
+  // Login
+  { from: 'login', to: 'myai', label: 'doctor login', type: 'drill' },
+  { from: 'login', to: 'p-chat', label: 'patient login', type: 'drill' },
+  // Patient nav
+  { from: 'p-chat', to: 'p-records', label: 'nav', type: 'nav' },
+  { from: 'p-chat', to: 'p-tasks', label: 'nav', type: 'nav' },
+  { from: 'p-chat', to: 'p-profile', label: 'nav', type: 'nav' },
+  { from: 'p-records', to: 'p-chat', label: 'nav', type: 'nav' },
+  // Patient drill
+  { from: 'p-chat', to: 'p-interview', label: '"开始提问"', type: 'drill' },
+  { from: 'p-records', to: 'p-interview', label: '"新增病历"', type: 'drill' },
+];
+
+var EDGE_COLORS = { nav: '#1a7f37', drill: '#0969da', cross: '#bc4c00' };
+
+// ── Simulation state ──
+var canvas = document.getElementById('canvas');
+var ctx = canvas.getContext('2d');
+var W, H;
+var nodes = [], edges = [];
+var nodeMap = {};
+var images = {};
+var dragging = null, dragOff = { x: 0, y: 0 };
+var hover = null;
+var scale = 1, panX = 0, panY = 0;
+var activeFilter = 'all';
+var NODE_R = 48;
+
+function resize() {
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * devicePixelRatio;
+  canvas.height = H * devicePixelRatio;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+}
+
+function initNodes() {
+  var cx = W / 2, cy = H / 2;
+  // Position by app and layer
+  var doctorNodes = NODES.filter(function(n) { return n.app === 'doctor'; });
+  var patientNodes = NODES.filter(function(n) { return n.app === 'patient'; });
+  var standaloneNodes = NODES.filter(function(n) { return n.app === 'standalone'; });
+
+  // Doctor cluster: left-center
+  doctorNodes.forEach(function(n, i) {
+    var layerX = 200 + n.layer * 200;
+    var layerNodes = doctorNodes.filter(function(m) { return m.layer === n.layer; });
+    var idx = layerNodes.indexOf(n);
+    var layerH = layerNodes.length * 120;
+    n.x = layerX + (Math.random() - 0.5) * 40;
+    n.y = cy - layerH / 2 + idx * 120 + 60 + (Math.random() - 0.5) * 20;
+    n.vx = 0; n.vy = 0;
+    n.visible = true;
+  });
+
+  // Patient cluster: right
+  patientNodes.forEach(function(n, i) {
+    var layerX = W - 400 + n.layer * 150;
+    var layerNodes = patientNodes.filter(function(m) { return m.layer === n.layer; });
+    var idx = layerNodes.indexOf(n);
+    n.x = layerX + (Math.random() - 0.5) * 40;
+    n.y = cy - 150 + idx * 120 + (Math.random() - 0.5) * 20;
+    n.vx = 0; n.vy = 0;
+    n.visible = true;
+  });
+
+  // Standalone: bottom
+  standaloneNodes.forEach(function(n, i) {
+    n.x = cx - 100 + i * 200 + (Math.random() - 0.5) * 40;
+    n.y = H - 150 + (Math.random() - 0.5) * 20;
+    n.vx = 0; n.vy = 0;
+    n.visible = true;
+  });
+
+  nodes = NODES;
+  edges = EDGES;
+  nodes.forEach(function(n) { nodeMap[n.id] = n; });
+}
+
+function loadImages() {
+  nodes.forEach(function(n) {
+    if (n.img) {
+      var img = new Image();
+      img.src = IMG + n.img;
+      images[n.id] = img;
+    }
+  });
+}
+
+// ── Physics ──
+function simulate() {
+  var alpha = 0.3;
+  var repulse = 8000;
+  var attract = 0.005;
+  var linkDist = 180;
+  var damping = 0.85;
+  var centerPull = 0.001;
+
+  // Repulsion between all visible nodes
+  for (var i = 0; i < nodes.length; i++) {
+    if (!nodes[i].visible) continue;
+    for (var j = i + 1; j < nodes.length; j++) {
+      if (!nodes[j].visible) continue;
+      var dx = nodes[j].x - nodes[i].x;
+      var dy = nodes[j].y - nodes[i].y;
+      var d2 = dx * dx + dy * dy;
+      if (d2 < 1) d2 = 1;
+      var f = repulse / d2;
+      var fx = dx / Math.sqrt(d2) * f;
+      var fy = dy / Math.sqrt(d2) * f;
+      nodes[i].vx -= fx * alpha;
+      nodes[i].vy -= fy * alpha;
+      nodes[j].vx += fx * alpha;
+      nodes[j].vy += fy * alpha;
+    }
+  }
+
+  // Attraction along edges
+  edges.forEach(function(e) {
+    var a = nodeMap[e.from], b = nodeMap[e.to];
+    if (!a || !b || !a.visible || !b.visible) return;
+    var dx = b.x - a.x;
+    var dy = b.y - a.y;
+    var d = Math.sqrt(dx * dx + dy * dy);
+    if (d < 1) return;
+    var f = (d - linkDist) * attract;
+    var fx = dx / d * f;
+    var fy = dy / d * f;
+    a.vx += fx * alpha;
+    a.vy += fy * alpha;
+    b.vx -= fx * alpha;
+    b.vy -= fy * alpha;
+  });
+
+  // Center pull
+  var cx = W / 2, cy = H / 2 + 30;
+  nodes.forEach(function(n) {
+    if (!n.visible) return;
+    n.vx += (cx - n.x) * centerPull;
+    n.vy += (cy - n.y) * centerPull;
+  });
+
+  // Apply velocity
+  nodes.forEach(function(n) {
+    if (!n.visible || n === dragging) return;
+    n.vx *= damping;
+    n.vy *= damping;
+    n.x += n.vx;
+    n.y += n.vy;
+    // Bounds
+    n.x = Math.max(NODE_R + 10, Math.min(W - NODE_R - 10, n.x));
+    n.y = Math.max(NODE_R + 60, Math.min(H - NODE_R - 10, n.y));
+  });
+}
+
+// ── Drawing ──
+function drawArrow(x1, y1, x2, y2, color, dashed) {
+  var dx = x2 - x1, dy = y2 - y1;
+  var d = Math.sqrt(dx * dx + dy * dy);
+  if (d < 1) return;
+  // Shorten to node edge
+  var sx = x1 + dx / d * (NODE_R + 4);
+  var sy = y1 + dy / d * (NODE_R + 4);
+  var ex = x2 - dx / d * (NODE_R + 4);
+  var ey = y2 - dy / d * (NODE_R + 4);
+
+  ctx.beginPath();
+  if (dashed) ctx.setLineDash([6, 4]);
+  else ctx.setLineDash([]);
+  ctx.moveTo(sx, sy);
+  ctx.lineTo(ex, ey);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.globalAlpha = 0.5;
+  ctx.stroke();
+
+  // Arrowhead
+  var angle = Math.atan2(ey - sy, ex - sx);
+  var aLen = 8;
+  ctx.beginPath();
+  ctx.setLineDash([]);
+  ctx.moveTo(ex, ey);
+  ctx.lineTo(ex - aLen * Math.cos(angle - 0.4), ey - aLen * Math.sin(angle - 0.4));
+  ctx.lineTo(ex - aLen * Math.cos(angle + 0.4), ey - aLen * Math.sin(angle + 0.4));
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Edges
+  edges.forEach(function(e) {
+    var a = nodeMap[e.from], b = nodeMap[e.to];
+    if (!a || !b || !a.visible || !b.visible) return;
+    var isHover = hover && (hover.id === e.from || hover.id === e.to);
+    var color = EDGE_COLORS[e.type] || '#999';
+    ctx.globalAlpha = isHover ? 0.9 : 0.25;
+    drawArrow(a.x, a.y, b.x, b.y, color, e.type === 'cross');
+    ctx.globalAlpha = 1;
+
+    // Edge label on hover
+    if (isHover) {
+      var mx = (a.x + b.x) / 2;
+      var my = (a.y + b.y) / 2;
+      ctx.font = '10px -apple-system, sans-serif';
+      ctx.fillStyle = color;
+      ctx.textAlign = 'center';
+      ctx.fillText(e.label, mx, my - 4);
+    }
+  });
+
+  // Nodes
+  nodes.forEach(function(n) {
+    if (!n.visible) return;
+    var isHover = hover && hover.id === n.id;
+    var isConnected = false;
+    if (hover) {
+      edges.forEach(function(e) {
+        if ((e.from === hover.id && e.to === n.id) || (e.to === hover.id && e.from === n.id)) isConnected = true;
+      });
+    }
+    var dim = hover && !isHover && !isConnected;
+
+    // Circle background
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, NODE_R, 0, Math.PI * 2);
+    ctx.fillStyle = dim ? '#f0f0f0' : '#fff';
+    ctx.fill();
+    ctx.strokeStyle = isHover ? n.color : (dim ? '#e0e0e0' : n.color);
+    ctx.lineWidth = isHover ? 3 : 1.5;
+    ctx.globalAlpha = dim ? 0.4 : 1;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Screenshot thumbnail (clipped circle)
+    var img = images[n.id];
+    if (img && img.complete && img.naturalWidth > 0) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, NODE_R - 3, 0, Math.PI * 2);
+      ctx.clip();
+      var aspect = img.naturalWidth / img.naturalHeight;
+      var drawW = (NODE_R - 3) * 2;
+      var drawH = drawW / aspect;
+      if (drawH < drawW) { drawH = drawW; drawW = drawH * aspect; }
+      ctx.globalAlpha = dim ? 0.3 : 0.85;
+      ctx.drawImage(img, n.x - drawW / 2, n.y - drawH / 2, drawW, drawH);
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+
+    // Label below
+    ctx.font = (isHover ? 'bold ' : '') + '11px -apple-system, sans-serif';
+    ctx.fillStyle = dim ? '#ccc' : '#1f2328';
+    ctx.textAlign = 'center';
+    ctx.fillText(n.label, n.x, n.y + NODE_R + 14);
+
+    // Route below label
+    ctx.font = '9px "SF Mono", monospace';
+    ctx.fillStyle = dim ? '#ddd' : '#656d76';
+    ctx.fillText(n.route, n.x, n.y + NODE_R + 26);
+  });
+}
+
+// ── Interaction ──
+function getNode(mx, my) {
+  for (var i = nodes.length - 1; i >= 0; i--) {
+    var n = nodes[i];
+    if (!n.visible) continue;
+    var dx = mx - n.x, dy = my - n.y;
+    if (dx * dx + dy * dy < NODE_R * NODE_R) return n;
+  }
+  return null;
+}
+
+canvas.addEventListener('mousedown', function(e) {
+  var n = getNode(e.clientX, e.clientY);
+  if (n) {
+    dragging = n;
+    dragOff.x = e.clientX - n.x;
+    dragOff.y = e.clientY - n.y;
+  }
+});
+
+canvas.addEventListener('mousemove', function(e) {
+  if (dragging) {
+    dragging.x = e.clientX - dragOff.x;
+    dragging.y = e.clientY - dragOff.y;
+    dragging.vx = 0;
+    dragging.vy = 0;
+    return;
+  }
+  var n = getNode(e.clientX, e.clientY);
+  hover = n;
+
+  var tip = document.getElementById('tooltip');
+  if (n) {
+    canvas.style.cursor = 'pointer';
+    // Build tooltip
+    var html = '<div class="t-label">' + n.label + '</div>';
+    html += '<div class="t-route">' + n.route + '</div>';
+    html += '<div class="t-comp">' + n.comp + '</div>';
+    // Connections
+    var links = [];
+    edges.forEach(function(e) {
+      if (e.from === n.id) links.push('<span class="arrow">→</span> ' + (nodeMap[e.to] || {}).label + ' <span style="color:#8b949e">(' + e.label + ')</span>');
+      if (e.to === n.id) links.push('<span class="arrow">←</span> ' + (nodeMap[e.from] || {}).label + ' <span style="color:#8b949e">(' + e.label + ')</span>');
+    });
+    if (links.length) {
+      html += '<div class="t-links">' + links.map(function(l) { return '<div class="t-link">' + l + '</div>'; }).join('') + '</div>';
+    }
+    tip.innerHTML = html;
+    tip.style.display = 'block';
+    tip.style.left = Math.min(e.clientX + 16, W - 280) + 'px';
+    tip.style.top = Math.min(e.clientY + 16, H - tip.offsetHeight - 20) + 'px';
+  } else {
+    canvas.style.cursor = 'default';
+    tip.style.display = 'none';
+  }
+});
+
+canvas.addEventListener('mouseup', function() { dragging = null; });
+
+canvas.addEventListener('click', function(e) {
+  if (dragging) return;
+  var n = getNode(e.clientX, e.clientY);
+  if (n && n.img) {
+    document.getElementById('lb-img').src = IMG + n.img;
+    document.getElementById('lightbox').classList.add('active');
+  }
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') document.getElementById('lightbox').classList.remove('active');
+});
+
+// ── Filters ──
+document.querySelectorAll('.filter-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    activeFilter = btn.dataset.filter;
+    applyFilter();
+  });
+});
+
+function applyFilter() {
+  nodes.forEach(function(n) {
+    if (activeFilter === 'all') n.visible = true;
+    else if (activeFilter === 'doctor') n.visible = n.app === 'doctor';
+    else if (activeFilter === 'patient') n.visible = n.app === 'patient';
+    else if (activeFilter === 'cross') {
+      // Show nodes that have cross-links
+      var hasCross = false;
+      edges.forEach(function(e) {
+        if (e.type === 'cross' && (e.from === n.id || e.to === n.id)) hasCross = true;
+      });
+      n.visible = hasCross;
+    }
+  });
+}
+
+// ── Main loop ──
+function loop() {
+  simulate();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+resize();
+window.addEventListener('resize', resize);
+initNodes();
+loadImages();
+loop();
+</script>
+
+</body>
+</html>
