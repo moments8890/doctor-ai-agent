@@ -226,7 +226,7 @@ export default function KnowledgeSubpage({
           {onAdd && (
             <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.borderLight}`, mb: 0.5 }}>
               <ListCard
-                avatar={<IconBadge config={ICON_BADGES.kb_add} size={32} />}
+                avatar={<IconBadge config={ICON_BADGES.kb_add} />}
                 title="添加知识"
                 subtitle="上传文件、粘贴网址或手动输入"
                 chevron

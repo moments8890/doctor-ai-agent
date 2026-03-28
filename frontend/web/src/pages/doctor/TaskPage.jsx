@@ -403,7 +403,7 @@ function TaskRow({ item }) {
         cursor: item.patient_id ? "pointer" : "default",
         "&:active": item.patient_id ? { bgcolor: "#f5f5f5" } : {},
       }}>
-      <IconBadge config={badge} size={28} radius={4} solid />
+      <IconBadge config={badge} />
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1 }}>
           {item.title || "任务"}

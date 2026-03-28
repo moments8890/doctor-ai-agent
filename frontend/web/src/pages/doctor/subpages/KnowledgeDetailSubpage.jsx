@@ -172,7 +172,7 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
             {/* Title + source avatar */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, pt: 2, pb: 1 }}>
               {cfg && (
-                <IconBadge config={cfg.badge} solid />
+                <IconBadge config={cfg.badge} />
               )}
               <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: TYPE.heading.fontWeight, color: COLOR.text1, flex: 1 }}>
                 {title}
