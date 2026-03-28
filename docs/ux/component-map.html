@@ -161,6 +161,21 @@ const PAGES = [
     { name: 'SettingsRows', group: 'ListCard', desc: 'ListCard setting rows' },
     { name: 'Subpages', group: '_page', desc: 'Knowledge, Template, About, Privacy', path: 'frontend/web/src/pages/doctor/subpages/' },
   ]},
+  { id: 'review-detail', title: '诊断审核', route: '/doctor/review/:id', img: 'page-screenshots/doctor-review-detail.png', blocks: [
+    { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title + back' },
+    { name: 'RecordSummary', group: '_page', desc: 'Collapsible patient record preview', path: 'frontend/web/src/pages/doctor/ReviewPage.jsx' },
+    { name: 'DiagnosisCard', group: '_page', desc: '鉴别诊断 items (confirm/reject/edit)', path: 'frontend/web/src/components/doctor/DiagnosisCard.jsx' },
+    { name: 'DiagnosisCard', group: '_page', desc: '检查建议 items', path: 'frontend/web/src/components/doctor/DiagnosisCard.jsx' },
+    { name: 'DiagnosisCard', group: '_page', desc: '治疗方向 items', path: 'frontend/web/src/components/doctor/DiagnosisCard.jsx' },
+    { name: 'BottomBar', group: '_page', desc: '完成审核 button', path: 'frontend/web/src/pages/doctor/ReviewPage.jsx' },
+  ]},
+  { id: 'knowledge', title: '知识库', route: '/doctor/settings/knowledge', img: 'page-screenshots/doctor-settings-knowledge.png', blocks: [
+    { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title + back' },
+    { name: 'StatsRow', group: '_page', desc: 'Total items + weekly citations', path: 'frontend/web/src/pages/doctor/subpages/KnowledgeSubpage.jsx' },
+    { name: 'AddKnowledgeCard', group: 'ListCard', desc: '添加知识 entry row' },
+    { name: 'KnowledgeItemList', group: 'ListCard', desc: 'Expandable knowledge items' },
+    { name: 'EmptyState', group: '_page', desc: 'No items placeholder', path: 'frontend/web/src/pages/doctor/subpages/KnowledgeSubpage.jsx' },
+  ]},
   { id: 'patient-detail', title: 'PatientDetail', route: '/doctor/patients/:id', img: 'page-screenshots/doctor-patients-1.png', blocks: [
     { name: 'StickyTopBar', group: '_page', desc: 'Back button + patient name', path: 'frontend/web/src/pages/doctor/patients/PatientDetail.jsx' },
     { name: 'CollapsibleProfile', group: '_page', desc: 'Expandable patient info', path: 'frontend/web/src/pages/doctor/patients/PatientDetail.jsx' },
