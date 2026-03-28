@@ -8,6 +8,8 @@
 import { useState, useRef } from "react";
 import { Alert, Box, CircularProgress, TextField, Typography } from "@mui/material";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
+import CameraAltOutlinedIcon from "@mui/icons-material/CameraAltOutlined";
+import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
 import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
 import MicIcon from "@mui/icons-material/Mic";
 import PageSkeleton from "../../../components/PageSkeleton";
@@ -19,7 +21,7 @@ import { useApi } from "../../../api/ApiContext";
 import { TYPE, COLOR } from "../../../theme";
 
 export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
-  const { addKnowledgeItem, uploadKnowledgeExtract, uploadKnowledgeSave, processKnowledgeText } = useApi();
+  const { addKnowledgeItem, uploadKnowledgeExtract, uploadKnowledgeSave, processKnowledgeText, fetchKnowledgeUrl } = useApi();
 
   // ── Text input state ──
   const [content, setContent] = useState("");
@@ -28,6 +30,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
 
   // ── File upload state ──
   const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [extractedText, setExtractedText] = useState("");
@@ -36,6 +39,10 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
   const [llmProcessed, setLlmProcessed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
+
+  // ── URL fetch state ──
+  const [urlInput, setUrlInput] = useState("");
+  const [fetchingUrl, setFetchingUrl] = useState(false);
 
   // ── Voice input state ──
   const [showVoice, setShowVoice] = useState(false);
@@ -110,13 +117,33 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
     }
   }
 
+  async function handleFetchUrl() {
+    const url = urlInput.trim();
+    if (!url) return;
+    setFetchingUrl(true);
+    setError("");
+    try {
+      const result = await fetchKnowledgeUrl(doctorId, url);
+      setSourceFilename(url);
+      setExtractedText(result.extracted_text || "");
+      setEditedText(result.extracted_text || "");
+      setLlmProcessed(!!result.llm_processed);
+      setPreviewOpen(true);
+    } catch (e) {
+      setError(e.message || "无法获取该网页");
+    } finally {
+      setFetchingUrl(false);
+    }
+  }
+
   async function handleSaveExtracted() {
     const trimmed = editedText.trim();
     if (!trimmed) return;
     setSaving(true);
     setError("");
     try {
-      await uploadKnowledgeSave(doctorId, trimmed, sourceFilename);
+      const isUrl = sourceFilename.startsWith("http://") || sourceFilename.startsWith("https://");
+      await uploadKnowledgeSave(doctorId, trimmed, isUrl ? "url" : sourceFilename, isUrl ? { sourceUrl: sourceFilename } : {});
       setPreviewOpen(false);
       showToast("已保存到知识库");
       setTimeout(() => onBack(), 600);
@@ -178,38 +205,94 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
           上传文件
         </Typography>
         <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 1.2 }}>
-          支持 PDF、Word、TXT 文件，AI 会自动提取并整理内容
+          支持 PDF、Word、TXT 文件或拍照，AI 会自动提取并整理内容
         </Typography>
         <input
           ref={fileInputRef}
           type="file"
-          accept=".pdf,.docx,.doc,.txt"
+          accept=".pdf,.docx,.doc,.txt,image/jpeg,image/png,image/webp"
           style={{ display: "none" }}
           onChange={handleFileChange}
         />
-        <AppButton
-          variant="secondary"
-          size="md"
-          onClick={handleFileButtonClick}
-          disabled={uploading}
-          sx={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 0.8,
-          }}
-        >
-          {uploading ? (
-            <>
-              <CircularProgress size={16} sx={{ color: COLOR.primary }} />
-              正在提取文件内容…
-            </>
-          ) : (
-            <>
-              <UploadFileOutlinedIcon sx={{ fontSize: 18 }} />
-              上传文件
-            </>
-          )}
-        </AppButton>
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          style={{ display: "none" }}
+          onChange={handleFileChange}
+        />
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <AppButton
+            variant="secondary"
+            size="md"
+            onClick={handleFileButtonClick}
+            disabled={uploading}
+            sx={{ display: "inline-flex", alignItems: "center", gap: 0.8 }}
+          >
+            {uploading ? (
+              <>
+                <CircularProgress size={16} sx={{ color: COLOR.primary }} />
+                正在提取…
+              </>
+            ) : (
+              <>
+                <UploadFileOutlinedIcon sx={{ fontSize: 18 }} />
+                上传文件
+              </>
+            )}
+          </AppButton>
+          <AppButton
+            variant="secondary"
+            size="md"
+            onClick={() => cameraInputRef.current?.click()}
+            disabled={uploading}
+            sx={{ display: "inline-flex", alignItems: "center", gap: 0.8 }}
+          >
+            <CameraAltOutlinedIcon sx={{ fontSize: 18 }} />
+            拍照
+          </AppButton>
+        </Box>
+      </Box>
+
+      {/* URL fetch section */}
+      <Box sx={{ mb: 2.5 }}>
+        <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1, mb: 1 }}>
+          从网页导入
+        </Typography>
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 1.2 }}>
+          粘贴网址，AI 会自动提取并整理网页内容
+        </Typography>
+        <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="https://..."
+            value={urlInput}
+            onChange={(e) => setUrlInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleFetchUrl(); }}
+            sx={{ "& .MuiOutlinedInput-root": { borderRadius: "6px" } }}
+          />
+          <AppButton
+            variant="secondary"
+            size="md"
+            onClick={handleFetchUrl}
+            disabled={fetchingUrl || !urlInput.trim()}
+            sx={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 0.5 }}
+          >
+            {fetchingUrl ? (
+              <>
+                <CircularProgress size={16} sx={{ color: COLOR.primary }} />
+                获取中…
+              </>
+            ) : (
+              <>
+                <LinkOutlinedIcon sx={{ fontSize: 18 }} />
+                获取
+              </>
+            )}
+          </AppButton>
+        </Box>
       </Box>
 
       {/* Divider */}

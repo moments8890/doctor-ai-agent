@@ -888,6 +888,16 @@ export async function getKnowledgeItems(doctorId) {
   return request(`/api/manage/knowledge?doctor_id=${doctorId}`);
 }
 
+export async function updateKnowledgeItem(doctorId, itemId, text, title) {
+  const payload = { text };
+  if (title !== undefined) payload.title = title;
+  return request(`/api/manage/knowledge/${itemId}?doctor_id=${doctorId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function deleteKnowledgeItem(doctorId, itemId) {
   return request(`/api/manage/knowledge/${itemId}?doctor_id=${doctorId}`, { method: "DELETE" });
 }
@@ -918,11 +928,13 @@ export async function uploadKnowledgeExtract(doctorId, file) {
   return response.json();
 }
 
-export async function uploadKnowledgeSave(doctorId, text, sourceFilename) {
+export async function uploadKnowledgeSave(doctorId, text, sourceFilename, { sourceUrl } = {}) {
+  const payload = { text, source_filename: sourceFilename };
+  if (sourceUrl) payload.source_url = sourceUrl;
   return request(`/api/manage/knowledge/upload/save?doctor_id=${encodeURIComponent(doctorId)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, source_filename: sourceFilename }),
+    body: JSON.stringify(payload),
   });
 }
 
@@ -931,6 +943,14 @@ export async function processKnowledgeText(doctorId, text) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text }),
+  });
+}
+
+export async function fetchKnowledgeUrl(doctorId, url) {
+  return request(`/api/manage/knowledge/fetch-url?doctor_id=${encodeURIComponent(doctorId)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
   });
 }
 

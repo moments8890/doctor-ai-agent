@@ -91,6 +91,10 @@ async def extract_and_process_document(file_bytes: bytes, filename: str) -> dict
     elif ext in ("docx", "doc"):
         from domain.knowledge.word_extract import extract_text_from_docx
         raw_text = extract_text_from_docx(file_bytes)
+    elif ext in ("jpg", "jpeg", "png", "webp"):
+        _MIME_MAP = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp"}
+        from infra.llm.vision import extract_text_from_image
+        raw_text = await extract_text_from_image(file_bytes, _MIME_MAP.get(ext, "image/jpeg"))
     elif ext == "txt":
         # Try UTF-8, fallback to chardet
         try:
@@ -120,6 +124,63 @@ async def extract_and_process_document(file_bytes: bytes, filename: str) -> dict
     return {
         "extracted_text": raw_text,
         "source_filename": filename,
+        "char_count": len(raw_text),
+        "llm_processed": llm_processed,
+    }
+
+
+async def extract_text_from_url(url: str) -> dict:
+    """Fetch a URL, strip HTML tags, LLM-process the text content."""
+    import re
+    from html.parser import HTMLParser
+    import httpx
+
+    async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+        resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0 DoctorAI/1.0"})
+        resp.raise_for_status()
+        html = resp.text
+
+    # Extract text from HTML
+    class _TextExtractor(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self._parts: List[str] = []
+            self._skip = False
+
+        def handle_starttag(self, tag, attrs):
+            if tag in ("script", "style", "svg", "head", "nav", "footer", "header"):
+                self._skip = True
+
+        def handle_endtag(self, tag):
+            if tag in ("script", "style", "svg", "head", "nav", "footer", "header"):
+                self._skip = False
+            if tag in ("p", "div", "br", "li", "tr", "h1", "h2", "h3", "h4", "h5", "h6", "td", "th", "article", "section"):
+                self._parts.append("\n")
+
+        def handle_data(self, data):
+            if not self._skip:
+                self._parts.append(data)
+
+    parser = _TextExtractor()
+    parser.feed(html)
+    raw_text = "".join(parser._parts)
+    raw_text = re.sub(r"\n{3,}", "\n\n", raw_text)
+    raw_text = re.sub(r"[ \t]+", " ", raw_text).strip()
+
+    if not raw_text:
+        raise ValueError("页面内容为空")
+
+    # LLM process if text > 500 chars
+    llm_processed = False
+    if len(raw_text) > 500:
+        processed = await _llm_process_knowledge(raw_text)
+        if processed:
+            raw_text = processed
+            llm_processed = True
+
+    return {
+        "extracted_text": raw_text,
+        "source_url": url,
         "char_count": len(raw_text),
         "llm_processed": llm_processed,
     }
@@ -157,6 +218,7 @@ async def save_uploaded_knowledge(
     source_filename: str,
     category: str = KnowledgeCategory.custom,
     source_url: Optional[str] = None,
+    file_path: Optional[str] = None,
 ) -> dict:
     """Save doctor-approved text as a knowledge item."""
     from db.engine import AsyncSessionLocal
@@ -167,11 +229,16 @@ async def save_uploaded_knowledge(
     if len(text) > 3000:
         raise ValueError("内容过长（超过3000字）")
 
+    if source_url:
+        source_label = "url:{0}".format(source_url)
+    else:
+        source_label = "upload:{0}".format(source_filename)
     payload = _encode_knowledge_payload(
         text.strip(),
-        source="upload:{0}".format(source_filename),
+        source=source_label,
         confidence=1.0,
         source_url=source_url,
+        file_path=file_path,
     )
 
     async with AsyncSessionLocal() as session:

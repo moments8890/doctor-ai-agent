@@ -8,10 +8,11 @@
  */
 import { Box, Typography } from "@mui/material";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
 import { TYPE, ICON, COLOR } from "../../../theme";
 import PageSkeleton from "../../../components/PageSkeleton";
-import BarButton from "../../../components/BarButton";
+import ListCard from "../../../components/ListCard";
 import EmptyState from "../../../components/EmptyState";
 import AppButton from "../../../components/AppButton";
 
@@ -220,6 +221,19 @@ export default function KnowledgeSubpage({
             </Typography>
           </Box>
 
+          {/* Add knowledge entry */}
+          {onAdd && (
+            <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.borderLight}`, mb: 0.5 }}>
+              <ListCard
+                avatar={<AddCircleOutlineIcon sx={{ fontSize: 22, color: COLOR.primary }} />}
+                title="添加知识"
+                subtitle="上传文件、粘贴网址或手动输入"
+                chevron
+                onClick={onAdd}
+              />
+            </Box>
+          )}
+
           {/* Knowledge rows */}
           <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
             {sorted.map((item) => (
@@ -240,7 +254,7 @@ export default function KnowledgeSubpage({
     <PageSkeleton
       title={title}
       onBack={onBack}
-      headerRight={onAdd ? <BarButton onClick={onAdd}>添加</BarButton> : undefined}
+      headerRight={undefined}
       isMobile
       listPane={listContent}
     />

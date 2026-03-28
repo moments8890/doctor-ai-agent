@@ -102,6 +102,26 @@ async def list_doctor_knowledge_items(
     return list(rows)
 
 
+async def update_knowledge_item(
+    session: AsyncSession, doctor_id: str, item_id: int, content: str, title: Optional[str] = None,
+) -> Optional[DoctorKnowledgeItem]:
+    """Update a knowledge item's content and title. Returns updated item or None."""
+    stmt = (
+        select(DoctorKnowledgeItem)
+        .where(DoctorKnowledgeItem.id == item_id, DoctorKnowledgeItem.doctor_id == doctor_id)
+    )
+    row = (await session.execute(stmt)).scalar_one_or_none()
+    if not row:
+        return None
+    row.content = content.strip()
+    if title is not None:
+        row.title = title.strip()
+    row.updated_at = _utcnow()
+    await session.commit()
+    await session.refresh(row)
+    return row
+
+
 async def delete_knowledge_item(
     session: AsyncSession, doctor_id: str, item_id: int,
 ) -> bool:

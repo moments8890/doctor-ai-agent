@@ -7,7 +7,7 @@
  * @see /doctor/settings/knowledge/:id
  */
 import { useCallback, useEffect, useState } from "react";
-import { Avatar, Box, Typography } from "@mui/material";
+import { Avatar, Box, Button, TextField, Typography } from "@mui/material";
 import EditNoteOutlinedIcon from "@mui/icons-material/EditNoteOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
@@ -18,6 +18,8 @@ import PageSkeleton from "../../../components/PageSkeleton";
 import SectionLabel from "../../../components/SectionLabel";
 import ListCard from "../../../components/ListCard";
 import ConfirmDialog from "../../../components/ConfirmDialog";
+import SheetDialog from "../../../components/SheetDialog";
+import AppButton from "../../../components/AppButton";
 import { useApi } from "../../../api/ApiContext";
 import { useAppNavigate } from "../../../hooks/useAppNavigate";
 
@@ -78,6 +80,9 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
   const [usage, setUsage] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editText, setEditText] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(() => {
     if (!doctorId || !itemId) return;
@@ -118,6 +123,26 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
     setDeleteOpen(false);
     if (onDelete) {
       await onDelete(itemId);
+    }
+  }
+
+  function handleEditOpen() {
+    setEditText(text);
+    setEditOpen(true);
+  }
+
+  async function handleSaveEdit() {
+    const trimmed = editText.trim();
+    if (!trimmed || !api.updateKnowledgeItem) return;
+    setSaving(true);
+    try {
+      await api.updateKnowledgeItem(doctorId, itemId, trimmed);
+      setEditOpen(false);
+      load(); // reload item
+    } catch (e) {
+      // stay in edit dialog on error
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -208,6 +233,42 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
                   : "尚未被引用"}
               </Typography>
             </Box>
+
+            {/* Source footer: source_url link + file_path button */}
+            {(item.source_url || item.file_path) && (
+              <Box sx={{ px: 2, pb: 2, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1 }}>
+                {item.source_url && (
+                  <Typography variant="caption" sx={{ color: COLOR.text4 }}>
+                    {"来源: "}
+                    <Box
+                      component="a"
+                      href={item.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      sx={{ color: COLOR.text4, textDecoration: "underline", "&:hover": { color: COLOR.text3 } }}
+                    >
+                      {item.source_url.length > 40 ? item.source_url.slice(0, 40) + "…" : item.source_url} ↗
+                    </Box>
+                  </Typography>
+                )}
+                {item.file_path && (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    sx={{ fontSize: TYPE.caption.fontSize, textTransform: "none", minHeight: 28, py: 0, px: 1.5 }}
+                    onClick={() => {
+                      const base = import.meta.env.VITE_API_BASE_URL || "";
+                      window.open(
+                        `${base}/api/manage/knowledge/file/${encodeURIComponent(item.file_path)}?doctor_id=${encodeURIComponent(doctorId)}`,
+                        "_blank"
+                      );
+                    }}
+                  >
+                    查看原文
+                  </Button>
+                )}
+              </Box>
+            )}
           </Box>
 
           {/* ── Citation history section ── */}
@@ -273,6 +334,7 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
               删除
             </Typography>
             <Typography
+              onClick={handleEditOpen}
               sx={{
                 fontSize: TYPE.body.fontSize, color: COLOR.primary,
                 cursor: "pointer", fontWeight: 500,
@@ -292,11 +354,48 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
   return (
     <>
       <PageSkeleton
-        title={title || "知识详情"}
+        title="知识详情"
         onBack={onBack}
         isMobile={isMobile}
         listPane={listContent}
       />
+      <SheetDialog
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        title="编辑知识"
+        desktopMaxWidth={480}
+        mobileMaxHeight="90vh"
+        footer={
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <AppButton variant="secondary" size="md" sx={{ flex: 1 }} onClick={() => setEditOpen(false)}>
+              取消
+            </AppButton>
+            <AppButton
+              variant="primary"
+              size="md"
+              sx={{ flex: 1 }}
+              onClick={handleSaveEdit}
+              disabled={!editText.trim() || saving}
+            >
+              {saving ? "保存中…" : "保存"}
+            </AppButton>
+          </Box>
+        }
+      >
+        <TextField
+          fullWidth
+          multiline
+          minRows={8}
+          maxRows={16}
+          size="small"
+          value={editText}
+          onChange={(e) => setEditText(e.target.value)}
+          sx={{ "& .MuiOutlinedInput-root": { borderRadius: "6px" } }}
+        />
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: editText.length > 3000 ? COLOR.danger : COLOR.text4, mt: 0.5, textAlign: "right" }}>
+          {editText.length}/3000
+        </Typography>
+      </SheetDialog>
       <ConfirmDialog
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
