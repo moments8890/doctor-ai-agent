@@ -174,10 +174,10 @@ function useDoctorPageState({ doctorId, accessToken, setAuth }) {
     if (typeof fetchDraftSummaryApi === "function") {
       fetchDraftSummaryApi(doctorId)
         .then((d) => {
-          // review badge = pending AI diagnosis suggestions (review queue)
-          setReviewCount(d?.review_pending_count ?? 0);
-          // followup badge = pending draft replies needing doctor attention
-          setFollowupCount(d?.pending ?? 0);
+          // review badge = pending AI suggestions + pending draft replies (both in 门诊 tab now)
+          setReviewCount((d?.review_pending_count ?? 0) + (d?.pending ?? 0));
+          // followup badge = pending tasks only (draft replies moved to review)
+          setFollowupCount(0);
         })
         .catch(() => {
           // Fall back: use pending task count for review badge
@@ -213,7 +213,7 @@ export default function DoctorPage() {
 
   const { pendingTaskCount, reviewCount, followupCount, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit } = useDoctorPageState({ doctorId, accessToken, setAuth });
 
-  const navBadge = { tasks: followupCount, review: reviewCount };
+  const navBadge = { tasks: pendingTaskCount, review: reviewCount };
 
   const isReviewPage = !!recordId;
   const activeSection = patientId ? "patients" : (section || "my-ai");

@@ -614,7 +614,17 @@ export default function TaskPage({ doctorId, urlSubpage }) {
   const upcomingFollowups = data?.upcoming_followups || [];
   const pendingTasks = data?.tasks || [];
   const recentlySent = data?.recently_sent || [];
-  const aiDraftedCount = pendingMessages.filter((m) => m.draft_text).length;
+
+  // Merge followups + tasks into one sorted list
+  const allPendingItems = [
+    ...upcomingFollowups.map((f) => ({ ...f, _isFollowup: true, _sortDate: f.due_at || f.due_label || "" })),
+    ...pendingTasks.map((t) => ({ ...t, _isFollowup: false, _sortDate: t.due_at || t.due || "" })),
+  ].sort((a, b) => {
+    // Urgent/soon items first
+    if (a.soon && !b.soon) return -1;
+    if (!a.soon && b.soon) return 1;
+    return (a._sortDate || "").localeCompare(b._sortDate || "");
+  });
 
   const handleOpenSend = (item) => {
     setConfirmItem(item);
@@ -680,7 +690,7 @@ export default function TaskPage({ doctorId, urlSubpage }) {
   const tabFromUrl = new URLSearchParams(window.location.search).get("tab");
   const initialTab = tabFromUrl && VALID_TABS.has(tabFromUrl) ? tabFromUrl : "followups";
   const [filter, setFilter] = useState(initialTab);
-  const totalCount = pendingMessages.length + upcomingFollowups.length + pendingTasks.length;
+  const totalCount = allPendingItems.length;
   const isEmpty = !loading && !error && totalCount === 0 && recentlySent.length === 0;
 
   const handleFilter = (key) => {
@@ -742,7 +752,7 @@ export default function TaskPage({ doctorId, urlSubpage }) {
               borderTop: `0.5px solid ${COLOR.border}`,
             }}>
               {[
-                { key: "followups", label: "待完成", count: upcomingFollowups.length + pendingTasks.length, activeColor: COLOR.warning },
+                { key: "followups", label: "待完成", count: allPendingItems.length, activeColor: COLOR.warning },
                 { key: "sent", label: "已完成", count: recentlySent.length, activeColor: COLOR.text4 },
               ].map((tab, i, arr) => {
                 const active = filter === tab.key;
@@ -781,24 +791,16 @@ export default function TaskPage({ doctorId, urlSubpage }) {
               })}
             </Box>
 
-            {/* 患者消息 · 待回复 moved to ReviewQueuePage (门诊 tab) */}
-
-            {/* ── Section: 随访 ── */}
-            {showFollowups && upcomingFollowups.length > 0 && (
+            {/* ── Section: 待完成 (merged followups + tasks, sorted by due date) ── */}
+            {showFollowups && allPendingItems.length > 0 && (
               <>
-                <SectionLabel>随访</SectionLabel>
+                <SectionLabel>待完成</SectionLabel>
                 <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
-                  {upcomingFollowups.map((f) => <ScheduledRow key={f.id} item={f} />)}
-                </Box>
-              </>
-            )}
-
-            {/* ── Section: 任务 ── */}
-            {showFollowups && pendingTasks.length > 0 && (
-              <>
-                <SectionLabel>任务</SectionLabel>
-                <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
-                  {pendingTasks.map((t) => <TaskRow key={t.id} item={t} />)}
+                  {allPendingItems.map((item) =>
+                    item._isFollowup
+                      ? <ScheduledRow key={`f-${item.id}`} item={item} />
+                      : <TaskRow key={`t-${item.id}`} item={item} />
+                  )}
                 </Box>
               </>
             )}
