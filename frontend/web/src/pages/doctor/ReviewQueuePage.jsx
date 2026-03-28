@@ -381,7 +381,6 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
   const confirmedItems = completed.filter((c) => c.decision !== "edited");
   const modifiedItems = completed.filter((c) => c.decision === "edited");
   const summary = { pending: pending.length, confirmed: confirmedItems.length, modified: modifiedItems.length };
-  const navigate = useAppNavigate();
   const tabFromUrl = new URLSearchParams(window.location.search).get("tab");
   const initialTab = tabFromUrl && REVIEW_TABS.has(tabFromUrl) ? tabFromUrl : "pending";
   const [filter, setFilter] = useState(initialTab);
