@@ -14,6 +14,7 @@ import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import QrCode2OutlinedIcon from "@mui/icons-material/QrCode2Outlined";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import PolicyOutlinedIcon from "@mui/icons-material/PolicyOutlined";
 import PageSkeleton from "../../../components/PageSkeleton";
 import SectionLabel from "../../../components/SectionLabel";
 import { TYPE, ICON, COLOR } from "../../../theme";
@@ -140,6 +141,7 @@ export default function SettingsListSubpage({
   bulkExportStatus = "idle",
   bulkExportProgress = "",
   onAbout,
+  onPrivacy,
   onLogout,
   isMobile = true,
   children,
@@ -164,6 +166,8 @@ export default function SettingsListSubpage({
       <Box sx={{ bgcolor: "#fff" }}>
         <SettingsRow icon={<InfoOutlinedIcon sx={{ color: "#999", fontSize: ICON.lg }} />}
           label="关于" sublabel="版本信息" onClick={onAbout} />
+        <SettingsRow icon={<PolicyOutlinedIcon sx={{ color: "#999", fontSize: ICON.lg }} />}
+          label="隐私政策" sublabel="数据使用与保护" onClick={onPrivacy} />
       </Box>
 
       {onLogout && (

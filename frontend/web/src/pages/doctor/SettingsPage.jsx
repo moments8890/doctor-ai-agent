@@ -443,6 +443,7 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
       bulkExportStatus={bulkExportStatus}
       bulkExportProgress={bulkExportProgress}
       onAbout={() => goSub("about")}
+      onPrivacy={() => window.open("/privacy", "_blank")}
       onLogout={isMobile ? onLogout : undefined}
       isMobile={isMobile}
     >
