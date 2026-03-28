@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Page Navigation Graph — Doctor AI Agent</title>
+<style>
+:root {
+  --bg: #ffffff;
+  --surface: #f6f8fa;
+  --border: #d0d7de;
+  --text: #1f2328;
+  --muted: #656d76;
+  --accent: #0969da;
+  --green: #1a7f37;
+  --red: #cf222e;
+  --yellow: #9a6700;
+  --orange: #bc4c00;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--surface);
+  color: var(--text);
+  overflow-x: auto;
+}
+.container { padding: 24px; }
+h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+.subtitle { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+
+/* Legend */
+.legend {
+  display: flex; gap: 20px; flex-wrap: wrap;
+  margin-bottom: 24px; font-size: 12px; color: var(--muted);
+}
+.legend-item { display: flex; align-items: center; gap: 6px; }
+.legend-line {
+  width: 32px; height: 3px; border-radius: 2px;
+}
+.legend-line.nav { background: var(--green); }
+.legend-line.drill { background: var(--accent); }
+.legend-line.cross { background: var(--orange); border-top: 2px dashed var(--orange); height: 0; }
+
+/* App section */
+.app-section {
+  margin-bottom: 40px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  position: relative;
+}
+.app-title {
+  font-size: 14px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.6px; margin-bottom: 16px; padding: 4px 12px;
+  border-radius: 4px; display: inline-block;
+}
+.app-title.doctor { background: #dafbe1; color: var(--green); }
+.app-title.patient { background: #dbeafe; color: var(--accent); }
+.app-title.standalone { background: #f3f4f6; color: #6b7280; }
+
+/* Layer rows */
+.layer {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 8px;
+  min-height: 60px;
+}
+.layer-label {
+  width: 100px;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding-top: 8px;
+  text-align: right;
+  padding-right: 16px;
+}
+.layer-nodes {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex: 1;
+  position: relative;
+}
+
+/* Node card */
+.node {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px;
+  width: 130px;
+  flex-shrink: 0;
+  transition: box-shadow 0.15s, border-color 0.15s;
+  position: relative;
+  cursor: default;
+}
+.node:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px rgba(9,105,218,0.12);
+}
+.node .thumb {
+  width: 100%;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  display: block;
+}
+.node .label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  margin-top: 4px;
+  line-height: 1.2;
+}
+.node .route {
+  font-size: 9px;
+  font-family: "SF Mono", "Fira Code", monospace;
+  color: var(--accent);
+  margin-top: 2px;
+  word-break: break-all;
+  line-height: 1.2;
+}
+.node .component {
+  font-size: 9px;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+/* Highlighted on hover */
+.node.highlight {
+  border-color: var(--orange);
+  box-shadow: 0 0 0 2px rgba(188,76,0,0.2);
+}
+
+/* Arrow connections table */
+.connections {
+  margin-top: 24px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.connections h3 {
+  font-size: 14px; font-weight: 600; margin-bottom: 12px;
+}
+.conn-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.conn-table th {
+  text-align: left;
+  padding: 6px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-weight: 600;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.conn-table td {
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  vertical-align: top;
+}
+.conn-table tr:hover td {
+  background: rgba(9,105,218,0.04);
+}
+.conn-type {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.conn-type.nav { background: #dafbe1; color: var(--green); }
+.conn-type.drill { background: #dbeafe; color: var(--accent); }
+.conn-type.cross { background: #fff7ed; color: var(--orange); }
+.conn-type.orphan { background: #fef2f2; color: var(--red); }
+
+/* Lightbox */
+.lightbox {
+  display: none; position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,0.82);
+  align-items: center; justify-content: center; cursor: pointer;
+}
+.lightbox.active { display: flex; }
+.lightbox img {
+  max-width: 92vw; max-height: 92vh;
+  border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+
+/* SVG overlay for arrows */
+.arrows-svg {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+.arrow-line {
+  stroke-width: 2;
+  fill: none;
+  marker-end: url(#arrowhead);
+}
+.arrow-line.nav { stroke: var(--green); }
+.arrow-line.drill { stroke: var(--accent); }
+.arrow-line.cross { stroke: var(--orange); stroke-dasharray: 6 4; }
+
+.arrow-label {
+  font-size: 9px;
+  fill: var(--muted);
+  pointer-events: auto;
+}
+
+.footer {
+  margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--border);
+  text-align: center; font-size: 12px; color: var(--muted);
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Page Navigation Graph</h1>
+  <p class="subtitle">Layered diagram showing every navigation path &mdash; hover connections table to highlight nodes</p>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-line nav"></div> Bottom nav tab</div>
+    <div class="legend-item"><div class="legend-line drill"></div> Drill-down (parent → child)</div>
+    <div class="legend-item"><div class="legend-line cross"></div> Cross-link (skip levels / cross branches)</div>
+  </div>
+
+  <!-- ═══════════ DOCTOR APP ═══════════ -->
+  <div class="app-section" id="doctor-section">
+    <div class="app-title doctor">Doctor App</div>
+
+    <!-- Layer 0: Nav tabs -->
+    <div class="layer">
+      <div class="layer-label">Nav Tabs</div>
+      <div class="layer-nodes">
+        <div class="node" data-id="myai">
+          <img class="thumb" src="page-screenshots/doctor-home.png" onclick="openLB(this.src)">
+          <div class="label">我的AI</div>
+          <div class="route">/doctor</div>
+          <div class="component">MyAIPage</div>
+        </div>
+        <div class="node" data-id="patients">
+          <img class="thumb" src="page-screenshots/doctor-patients.png" onclick="openLB(this.src)">
+          <div class="label">患者</div>
+          <div class="route">/doctor/patients</div>
+          <div class="component">PatientsPage</div>
+        </div>
+        <div class="node" data-id="review">
+          <img class="thumb" src="page-screenshots/doctor-review.png" onclick="openLB(this.src)">
+          <div class="label">审核</div>
+          <div class="route">/doctor/review</div>
+          <div class="component">ReviewQueuePage</div>
+        </div>
+        <div class="node" data-id="followup">
+          <img class="thumb" src="page-screenshots/doctor-followup.png" onclick="openLB(this.src)">
+          <div class="label">随访</div>
+          <div class="route">/doctor/followup</div>
+          <div class="component">FollowupPage</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layer 1: Main pages (reachable from nav + buttons) -->
+    <div class="layer">
+      <div class="layer-label">Main Pages</div>
+      <div class="layer-nodes">
+        <div class="node" data-id="chat">
+          <img class="thumb" src="page-screenshots/doctor-chat.png" onclick="openLB(this.src)">
+          <div class="label">AI Chat</div>
+          <div class="route">/doctor/chat</div>
+          <div class="component">ChatPage</div>
+        </div>
+        <div class="node" data-id="tasks">
+          <img class="thumb" src="page-screenshots/doctor-tasks.png" onclick="openLB(this.src)">
+          <div class="label">任务</div>
+          <div class="route">/doctor/tasks</div>
+          <div class="component">TasksPage</div>
+        </div>
+        <div class="node" data-id="settings">
+          <img class="thumb" src="page-screenshots/doctor-settings.png" onclick="openLB(this.src)">
+          <div class="label">设置</div>
+          <div class="route">/doctor/settings</div>
+          <div class="component">SettingsPage</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layer 2: Subpages -->
+    <div class="layer">
+      <div class="layer-label">Subpages</div>
+      <div class="layer-nodes">
+        <div class="node" data-id="patient-detail">
+          <img class="thumb" src="page-screenshots/doctor-patients-1.png" onclick="openLB(this.src)">
+          <div class="label">患者详情</div>
+          <div class="route">/doctor/patients/:id</div>
+          <div class="component">PatientDetail</div>
+        </div>
+        <div class="node" data-id="interview">
+          <img class="thumb" src="page-screenshots/doctor-patients-new.png" onclick="openLB(this.src)">
+          <div class="label">新建病历</div>
+          <div class="route">/doctor/patients/new</div>
+          <div class="component">InterviewPage</div>
+        </div>
+        <div class="node" data-id="knowledge">
+          <img class="thumb" src="page-screenshots/doctor-settings-knowledge.png" onclick="openLB(this.src)">
+          <div class="label">知识库</div>
+          <div class="route">/settings/knowledge</div>
+          <div class="component">KnowledgeSubpage</div>
+        </div>
+        <div class="node" data-id="template">
+          <img class="thumb" src="page-screenshots/doctor-settings-template.png" onclick="openLB(this.src)">
+          <div class="label">报告模板</div>
+          <div class="route">/settings/template</div>
+          <div class="component">TemplateSubpage</div>
+        </div>
+        <div class="node" data-id="about">
+          <img class="thumb" src="page-screenshots/doctor-settings-about.png" onclick="openLB(this.src)">
+          <div class="label">关于</div>
+          <div class="route">/settings/about</div>
+          <div class="component">AboutSubpage</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layer 3: Detail pages -->
+    <div class="layer">
+      <div class="layer-label">Detail</div>
+      <div class="layer-nodes">
+        <div class="node" data-id="knowledge-add">
+          <img class="thumb" src="page-screenshots/doctor-settings-knowledge-add.png" onclick="openLB(this.src)">
+          <div class="label">添加知识</div>
+          <div class="route">/settings/knowledge/add</div>
+          <div class="component">AddKnowledgeSubpage</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ PATIENT APP ═══════════ -->
+  <div class="app-section" id="patient-section">
+    <div class="app-title patient">Patient App</div>
+
+    <div class="layer">
+      <div class="layer-label">Nav Tabs</div>
+      <div class="layer-nodes">
+        <div class="node" data-id="p-chat">
+          <img class="thumb" src="page-screenshots/debug-patient.png" onclick="openLB(this.src)">
+          <div class="label">消息</div>
+          <div class="route">/patient</div>
+          <div class="component">ChatTab</div>
+        </div>
+        <div class="node" data-id="p-records">
+          <img class="thumb" src="page-screenshots/debug-patient-records.png" onclick="openLB(this.src)">
+          <div class="label">病历</div>
+          <div class="route">/patient/records</div>
+          <div class="component">RecordsTab</div>
+        </div>
+        <div class="node" data-id="p-tasks">
+          <img class="thumb" src="page-screenshots/debug-patient-tasks.png" onclick="openLB(this.src)">
+          <div class="label">任务</div>
+          <div class="route">/patient/tasks</div>
+          <div class="component">TasksTab</div>
+        </div>
+        <div class="node" data-id="p-profile">
+          <img class="thumb" src="page-screenshots/debug-patient-profile.png" onclick="openLB(this.src)">
+          <div class="label">我的</div>
+          <div class="route">/patient/profile</div>
+          <div class="component">ProfileTab</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="layer">
+      <div class="layer-label">Subpages</div>
+      <div class="layer-nodes">
+        <div class="node" data-id="p-interview">
+          <img class="thumb" src="page-screenshots/debug-patient-interview.png" onclick="openLB(this.src)">
+          <div class="label">预问诊</div>
+          <div class="route">/patient/interview</div>
+          <div class="component">InterviewPage</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ STANDALONE ═══════════ -->
+  <div class="app-section">
+    <div class="app-title standalone">Standalone</div>
+    <div class="layer">
+      <div class="layer-label">Pages</div>
+      <div class="layer-nodes">
+        <div class="node" data-id="login">
+          <img class="thumb" src="page-screenshots/login.png" onclick="openLB(this.src)">
+          <div class="label">Login</div>
+          <div class="route">/login</div>
+          <div class="component">LoginPage</div>
+        </div>
+        <div class="node" data-id="admin">
+          <img class="thumb" src="page-screenshots/admin.png" onclick="openLB(this.src)">
+          <div class="label">Admin</div>
+          <div class="route">/admin</div>
+          <div class="component">AdminPage</div>
+        </div>
+        <div class="node" data-id="showcase">
+          <img class="thumb" src="page-screenshots/debug-components.png" onclick="openLB(this.src)">
+          <div class="label">Components</div>
+          <div class="route">/debug/components</div>
+          <div class="component">ComponentShowcase</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ CONNECTIONS TABLE ═══════════ -->
+  <div class="connections">
+    <h3>All Navigation Paths</h3>
+    <table class="conn-table" id="conn-table">
+      <thead>
+        <tr><th>From</th><th>To</th><th>Trigger</th><th>Type</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="footer">Navigation paths traced from actual navigate() calls in source code</div>
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" onclick="closeLB()">
+  <img id="lb-img" src="">
+</div>
+
+<script>
+// All navigation connections traced from source
+var CONNECTIONS = [
+  // Bottom nav tabs
+  { from: 'myai', to: 'patients', trigger: 'Bottom nav "患者"', type: 'nav' },
+  { from: 'myai', to: 'review', trigger: 'Bottom nav "审核"', type: 'nav' },
+  { from: 'myai', to: 'followup', trigger: 'Bottom nav "随访"', type: 'nav' },
+  { from: 'patients', to: 'myai', trigger: 'Bottom nav "我的AI"', type: 'nav' },
+  { from: 'review', to: 'myai', trigger: 'Bottom nav "我的AI"', type: 'nav' },
+  { from: 'followup', to: 'myai', trigger: 'Bottom nav "我的AI"', type: 'nav' },
+
+  // MyAI drill-downs
+  { from: 'myai', to: 'settings', trigger: '⚙️ icon', type: 'drill' },
+  { from: 'myai', to: 'chat', trigger: '"AskAI" bar', type: 'drill' },
+
+  // MyAI cross-links (skip levels)
+  { from: 'myai', to: 'knowledge', trigger: '"继续教AI" button', type: 'cross' },
+  { from: 'myai', to: 'knowledge-add', trigger: '"导入病例" button', type: 'cross' },
+  { from: 'myai', to: 'review', trigger: '"待审核" card', type: 'cross' },
+  { from: 'myai', to: 'followup', trigger: '"处理随访" card', type: 'cross' },
+  { from: 'myai', to: 'patient-detail', trigger: 'Tap activity patient row', type: 'cross' },
+
+  // Patients drill-downs
+  { from: 'patients', to: 'patient-detail', trigger: 'Tap patient row', type: 'drill' },
+  { from: 'patients', to: 'interview', trigger: '"新建患者" card', type: 'drill' },
+
+  // Patient detail cross-links
+  { from: 'patient-detail', to: 'chat', trigger: '"问AI" button', type: 'cross' },
+  { from: 'patient-detail', to: 'interview', trigger: '"门诊" button', type: 'cross' },
+
+  // Settings drill-downs
+  { from: 'settings', to: 'knowledge', trigger: '"知识库" row', type: 'drill' },
+  { from: 'settings', to: 'template', trigger: '"报告模板" row', type: 'drill' },
+  { from: 'settings', to: 'about', trigger: '"关于" row', type: 'drill' },
+
+  // Knowledge drill-down
+  { from: 'knowledge', to: 'knowledge-add', trigger: '"添加" button', type: 'drill' },
+
+  // Review cross-link
+  { from: 'review', to: 'patient-detail', trigger: 'Tap review item', type: 'cross' },
+
+  // Followup cross-link
+  { from: 'followup', to: 'patient-detail', trigger: 'Tap patient row', type: 'cross' },
+
+  // Chat cross-links
+  { from: 'chat', to: 'patient-detail', trigger: 'Tap patient card', type: 'cross' },
+  { from: 'chat', to: 'patients', trigger: '"查看全部" patients', type: 'cross' },
+  { from: 'chat', to: 'tasks', trigger: '"查看全部" tasks', type: 'cross' },
+
+  // Tasks cross-link
+  { from: 'tasks', to: 'review', trigger: 'Tap review task', type: 'cross' },
+
+  // Login
+  { from: 'login', to: 'myai', trigger: 'Doctor login success', type: 'drill' },
+  { from: 'login', to: 'p-chat', trigger: 'Patient login success', type: 'drill' },
+  { from: 'settings', to: 'login', trigger: '"退出登录" button', type: 'drill' },
+
+  // Patient nav
+  { from: 'p-chat', to: 'p-records', trigger: 'Bottom nav "病历"', type: 'nav' },
+  { from: 'p-chat', to: 'p-tasks', trigger: 'Bottom nav "任务"', type: 'nav' },
+  { from: 'p-chat', to: 'p-profile', trigger: 'Bottom nav "我的"', type: 'nav' },
+
+  // Patient drill-downs
+  { from: 'p-chat', to: 'p-interview', trigger: '"开始提问" button', type: 'drill' },
+  { from: 'p-records', to: 'p-interview', trigger: '"新增病历" button', type: 'drill' },
+];
+
+// Render connections table
+var tbody = document.querySelector('#conn-table tbody');
+CONNECTIONS.forEach(function(c) {
+  var tr = document.createElement('tr');
+  tr.dataset.from = c.from;
+  tr.dataset.to = c.to;
+
+  var fromNode = document.querySelector('[data-id="' + c.from + '"] .label');
+  var toNode = document.querySelector('[data-id="' + c.to + '"] .label');
+
+  tr.innerHTML =
+    '<td><strong>' + (fromNode ? fromNode.textContent : c.from) + '</strong></td>' +
+    '<td><strong>' + (toNode ? toNode.textContent : c.to) + '</strong></td>' +
+    '<td>' + c.trigger + '</td>' +
+    '<td><span class="conn-type ' + c.type + '">' + c.type + '</span></td>';
+
+  // Hover highlight
+  tr.addEventListener('mouseenter', function() {
+    var f = document.querySelector('[data-id="' + c.from + '"]');
+    var t = document.querySelector('[data-id="' + c.to + '"]');
+    if (f) f.classList.add('highlight');
+    if (t) t.classList.add('highlight');
+  });
+  tr.addEventListener('mouseleave', function() {
+    document.querySelectorAll('.node.highlight').forEach(function(n) {
+      n.classList.remove('highlight');
+    });
+  });
+
+  tbody.appendChild(tr);
+});
+
+// Lightbox
+function openLB(src) {
+  document.getElementById('lb-img').src = src;
+  document.getElementById('lightbox').classList.add('active');
+}
+function closeLB() {
+  document.getElementById('lightbox').classList.remove('active');
+}
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeLB(); });
+</script>
+
+</body>
+</html>
