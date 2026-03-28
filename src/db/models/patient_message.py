@@ -46,6 +46,7 @@ class PatientMessage(Base):
     ai_handled: Mapped[Optional[bool]] = mapped_column(
         Boolean, nullable=True, server_default="1",
     )
+    read_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
 
     __table_args__ = (

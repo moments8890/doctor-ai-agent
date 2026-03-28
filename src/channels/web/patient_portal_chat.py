@@ -8,12 +8,12 @@ Provides:
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from channels.web.patient_portal_auth import _authenticate_patient
 from db.engine import AsyncSessionLocal
@@ -212,3 +212,37 @@ async def get_chat_messages(
         resource_type="chat_messages", resource_id=str(patient.id),
     ))
     return [_msg_to_out(m) for m in messages]
+
+
+@chat_router.post("/messages/{message_id}/read")
+async def mark_message_read(
+    message_id: int,
+    x_patient_token: Optional[str] = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
+):
+    """Mark a message as read by setting read_at = utcnow().
+
+    Only messages belonging to the authenticated patient can be marked.
+    Idempotent: if already read, returns ok without updating.
+    """
+    patient = await _authenticate_patient(x_patient_token, authorization)
+
+    async with AsyncSessionLocal() as db:
+        # Verify the message belongs to this patient
+        msg = (
+            await db.execute(
+                select(PatientMessage).where(
+                    PatientMessage.id == message_id,
+                    PatientMessage.patient_id == patient.id,
+                )
+            )
+        ).scalar_one_or_none()
+
+        if msg is None:
+            raise HTTPException(status_code=404, detail="Message not found")
+
+        if msg.read_at is None:
+            msg.read_at = datetime.now(timezone.utc)
+            await db.commit()
+
+    return {"status": "ok"}
