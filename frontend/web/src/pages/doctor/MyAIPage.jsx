@@ -226,13 +226,6 @@ export default function MyAIPage({ doctorId }) {
             onClick={() => navigate("/doctor/patients/new")}
           />
           <ListCard
-            avatar={<QuickActionIcon bg={COLOR.primary}><QrCode2OutlinedIcon sx={{ fontSize: 18, color: "#fff" }} /></QuickActionIcon>}
-            title="患者预问诊码"
-            subtitle="患者扫码自助填写病史"
-            chevron
-            onClick={() => navigate("/doctor/settings/qr")}
-          />
-          <ListCard
             avatar={<QuickActionIcon bg={COLOR.warning}><CheckCircleOutlineIcon sx={{ fontSize: 18, color: "#fff" }} /></QuickActionIcon>}
             title="待审核"
             subtitle="AI建议等你确认"
@@ -247,6 +240,13 @@ export default function MyAIPage({ doctorId }) {
             right={<InlineBadge count={followupBadge} color="#ef4444" />}
             chevron
             onClick={() => navigate("/doctor/tasks")}
+          />
+          <ListCard
+            avatar={<QuickActionIcon bg={COLOR.primary}><QrCode2OutlinedIcon sx={{ fontSize: 18, color: "#fff" }} /></QuickActionIcon>}
+            title="患者预问诊码"
+            subtitle="患者扫码自助填写病史"
+            chevron
+            onClick={() => navigate("/doctor/settings/qr")}
             sx={{ borderBottom: "none" }}
           />
         </Box>
