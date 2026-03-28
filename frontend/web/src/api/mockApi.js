@@ -369,8 +369,8 @@ export async function fetchKnowledgeStats() {
 
 export async function fetchAIActivity() {
   return [
-    { id: "a1", patient_name: "王建国", description: "按你的话术起草了随访回复", status: "pending" },
-    { id: "a2", patient_name: "李阿姨", description: "诊断建议引用了 2 条规则", time_label: "10分钟前", rule_name: "术后头痛红旗" },
+    { id: "a1", patient_id: 3, patient_name: "王建国", description: "按你的话术起草了随访回复", status: "pending" },
+    { id: "a2", patient_id: 2, patient_name: "李阿姨", description: "诊断建议引用了 2 条规则", time_label: "10分钟前", rule_name: "术后头痛红旗" },
   ];
 }
 
