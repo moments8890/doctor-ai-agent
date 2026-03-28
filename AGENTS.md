@@ -62,6 +62,12 @@ Before starting any task, read the relevant docs for context:
 
 Do not start implementation without understanding how your change fits the existing system.
 
+## Code Style — Frontend
+
+- **Flat icons only**: Use MUI outlined icons (`@mui/icons-material/*Outlined`). Never use emoji or Unicode symbols as icons. See UI-DESIGN.md principle #8.
+- **Mock data shapes**: `mockApi.js` must return the same field structure as real backend APIs. Run `grep` on the backend handler to verify response shape before writing mock data.
+- **Navigation back**: Always use `navigate(-1)` for back buttons, never hardcoded paths like `navigate("/doctor/settings")`.
+
 ## UI Design
 
 Always read `docs/ux/UI-DESIGN.md` before making any visual or UI decisions.
@@ -114,7 +120,8 @@ Direct pushes to `main` are allowed.
 4. **Document changes in commit message** — include what changed and any migration/manual cleanup impact
 5. **Update `docs/architecture.md`** — only if schema, env vars, API endpoints, or service structure changed
 6. **Update progress** — tick completed items in `debug/iteration_*.md`
-7. **DO NOT RUN TESTS** - do not run tests (dont run the tests to validate)
+7. **DO NOT RUN TESTS** - do not run tests during normal development (dont run the tests to validate)
+8. **Pre-push gate** — before pushing, run `/test-gate` to validate no regressions against the existing test suite
 
 ### Publishing (Direct to Main)
 
