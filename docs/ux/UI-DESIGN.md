@@ -280,12 +280,12 @@ template. The shared rules (cards, spacing, components) are in sections 4-6.
 
 ### 3C. Bottom Navigation
 
-**Purpose:** One tap to any section. Always visible.
+**Purpose:** One tap to any section. Visible on main tab pages only.
 
 ```
 ┌─────────────────────────────────────┐
-│   🏠       👥       📋       ⚙️    │  64px
-│   首页     患者     任务     设置    │  + safe-area-inset
+│   ✦        👤        ☑        ✉    │  64px
+│  我的AI    患者      审核      随访   │  + safe-area-inset
 └─────────────────────────────────────┘
 ```
 
@@ -297,16 +297,31 @@ template. The shared rules (cards, spacing, components) are in sections 4-6.
 | **Active** | Green icon + text `#07C160`, fontWeight 600 |
 | **Inactive** | Gray icon + text `#999` |
 | **Labels** | 10px (MUI default) |
-| **Badge** | Red dot + count on 任务 when pending |
-| **Visibility** | Always visible. No exceptions. |
+| **Badge** | Red dot + count on 审核 and 随访 when pending |
+| **Visibility** | **Main tabs only.** Hidden on subpages. See rule below. |
+
+**Main tab vs subpage rule (WeChat pattern):**
+
+| Page type | Bottom nav | Top bar | Examples |
+|-----------|-----------|---------|----------|
+| **Main tab** | ✅ Visible | Title only, no back | 我的AI, 患者, 审核, 随访 |
+| **Subpage** | ❌ Hidden | ‹ back + title (+ optional action) | 设置, 知识库, 患者详情, 诊断审核, 任务详情 |
+
+A **subpage** is any view pushed onto the navigation stack from a main tab.
+It shows a back chevron (‹) in the top bar and hides the bottom nav.
+Back always uses browser history (`navigate(-1)`), never a hardcoded path.
+
+This matches WeChat behavior: main tabs show the bottom bar, drilled-in
+views hide it and show a back button instead.
 
 **Tab mapping:**
 
 | Tab | Active when viewing |
 |-----|-------------------|
-| 首页 | home, chat |
-| 患者 | patient list, patient detail, review |
-| 任务 | task list, task detail |
+| 我的AI | my-ai |
+| 患者 | patient list |
+| 审核 | review queue |
+| 随访 | followup list |
 | 设置 | settings, subpages |
 
 ---

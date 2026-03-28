@@ -430,6 +430,7 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
   return (
     <PageSkeleton
       title="设置"
+      onBack={isMobile ? () => navigate(-1) : undefined}
       isMobile={isMobile}
       mobileView={mobileSubpage}
       listPane={listPane}

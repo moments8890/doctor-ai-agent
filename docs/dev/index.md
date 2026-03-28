@@ -9,21 +9,22 @@ How to develop, test, and deploy.
 | [../TESTING.md](../TESTING.md) | Test modes, validation workflow, port conventions, MVP testing policy |
 | [frontend-ui-audit.md](frontend-ui-audit.md) | 3-level UI audit process (functional → usable → workflow-fit) |
 | [patient-simulation-guide.md](patient-simulation-guide.md) | Patient simulation framework, personas, running sims on port 8001 |
-| [llm-e2e.md](llm-e2e.md) | End-to-end LLM testing patterns |
 | [adr-0020-patient-portal-testing.md](adr-0020-patient-portal-testing.md) | Patient portal testing strategy |
 
-## LLM & Infrastructure
+## LLM & Prompts
 
 | Doc | Covers |
 |-----|--------|
 | [llm-providers.md](llm-providers.md) | LLM provider setup (Groq, Ollama, DeepSeek, Tencent LKEAP) |
+| [llm-prompting-guide.md](llm-prompting-guide.md) | Prompt engineering guide adapted to 6-layer stack and Chinese medical domain |
 | [ollama-windows-lan-setup.md](ollama-windows-lan-setup.md) | Windows LAN Ollama inference server setup |
 
-## Deployment
+## Deployment & Release
 
 | Doc | Covers |
 |-----|--------|
 | [../deploy/tecenet-deployment/index.md](../deploy/tecenet-deployment/index.md) | Tencent Cloud deployment (8-step guide: prerequisites → go-live) |
+| [mvp-release-checklist.md](mvp-release-checklist.md) | Release gate: unit tests, hero-loop benchmark, integration, coverage |
 
 ## Quick Reference
 
