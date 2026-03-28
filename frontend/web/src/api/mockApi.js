@@ -426,7 +426,7 @@ export async function fetchAIActivity() {
       },
       {
         type: "citation",
-        description: "引用了知识库条目 KB-7",
+        description: "回复中引用了「术后头痛危险信号」",
         patient_id: 2,
         patient_name: "李复诊", // display-only, not in real API
         timestamp: "2026-03-27T13:10:00",
